@@ -550,6 +550,9 @@ func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 
 // DeleteRun permanently removes a run.
 func (h *Handler) DeleteRun(w http.ResponseWriter, r *http.Request) {
+	if h.denyRunInitiatedLifecycleOperation(w, r, "delete-run") {
+		return
+	}
 	idStr := mux.Vars(r)["id"]
 	req := apipb.DeleteRunRequest{RunId: idStr}
 	if !h.validateProto(w, r, &req) {
@@ -606,6 +609,9 @@ func (h *Handler) StopRun(w http.ResponseWriter, r *http.Request) {
 // POST /api/v1/runs/{id}/continue
 // Body: {"message": "Please also update the tests"}
 func (h *Handler) ContinueRun(w http.ResponseWriter, r *http.Request) {
+	if h.denyRunInitiatedLifecycleOperation(w, r, "continue-run") {
+		return
+	}
 	idStr := mux.Vars(r)["id"]
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -745,6 +751,9 @@ func (h *Handler) GetAwaitResult(w http.ResponseWriter, r *http.Request) {
 // longer parked is returned unchanged with success=false (not an error).
 // POST /api/v1/runs/{id}/wake
 func (h *Handler) WakeRun(w http.ResponseWriter, r *http.Request) {
+	if h.denyRunInitiatedLifecycleOperation(w, r, "wake-run") {
+		return
+	}
 	idStr := mux.Vars(r)["id"]
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -799,6 +808,9 @@ func (h *Handler) WakeRun(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) RecoverRun(w http.ResponseWriter, r *http.Request) {
+	if h.denyRunInitiatedLifecycleOperation(w, r, "recover-run") {
+		return
+	}
 	idStr := mux.Vars(r)["id"]
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -827,6 +839,9 @@ func (h *Handler) RecoverRun(w http.ResponseWriter, r *http.Request) {
 // DeleteRunMessage marks a message event as deleted.
 // POST /api/v1/runs/{id}/messages/{event_id}/delete
 func (h *Handler) DeleteRunMessage(w http.ResponseWriter, r *http.Request) {
+	if h.denyRunInitiatedLifecycleOperation(w, r, "delete-run-message") {
+		return
+	}
 	runIDStr := mux.Vars(r)["id"]
 	runID, err := uuid.Parse(runIDStr)
 	if err != nil {

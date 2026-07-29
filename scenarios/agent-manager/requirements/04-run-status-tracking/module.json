@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-22T09:09:13-04:00"
+    "last_validated_at": "2026-07-29T04:18:20-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-006",
       "title": "Run Status Lifecycle",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "core",
       "description": "Track and update run status through defined lifecycle states with timestamps",
@@ -15,21 +15,21 @@
           "type": "test",
           "ref": "api/internal/domain/decisions_test.go::TestRunStatus_CanTransitionTo",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Test run status transitions"
         },
         {
           "type": "test",
           "ref": "api/internal/domain/decisions_test.go::TestRun_IsStoppable",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Test run stoppability based on status"
         },
         {
           "type": "test",
           "ref": "api/internal/domain/decisions_test.go::TestClassifyRunOutcome",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Test run outcome classification"
         },
         {

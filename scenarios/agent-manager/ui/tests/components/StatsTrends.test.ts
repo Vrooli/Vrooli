@@ -16,6 +16,9 @@ interface ChartProps {
   data?: unknown[];
   dataKey?: string;
   name?: string;
+  tickFormatter?: (value: string | number) => string;
+  labelFormatter?: (label: string | number | undefined) => string;
+  formatter?: (value: string | number, name?: string | number) => [string, string];
 }
 
 vi.mock("recharts", async () => {
@@ -37,6 +40,13 @@ vi.mock("recharts", async () => {
     return React.createElement("span", { "data-testid": `series-${dataKey ?? name}` }, name ?? dataKey);
   }
 
+  function Tooltip({ formatter, labelFormatter }: ChartProps) {
+    const label = labelFormatter?.("2026-05-01T12:00:00.000Z");
+    const numeric = formatter?.(4, "Cost");
+    const string = formatter?.("3", "failed");
+    return React.createElement("span", { "data-testid": "tooltip-preview" }, [label, numeric?.join(" "), string?.join(" ")].filter(Boolean).join(" | "));
+  }
+
   return {
     ResponsiveContainer: Passthrough,
     AreaChart: Chart,
@@ -46,7 +56,7 @@ vi.mock("recharts", async () => {
     XAxis: Passthrough,
     YAxis: Passthrough,
     CartesianGrid: Passthrough,
-    Tooltip: Passthrough,
+    Tooltip,
     Legend: Passthrough,
   };
 });
@@ -92,6 +102,8 @@ test("RunStatusTrends renders complete and failed series from time-series bucket
   assert.equal(screen.getByTestId("stats-chart").getAttribute("data-points"), "2");
   assert.ok(screen.getByText("Completed"));
   assert.ok(screen.getByText("Failed"));
+  assert.match(screen.getByTestId("tooltip-preview").textContent ?? "", /4 Cost/);
+  assert.match(screen.getByTestId("tooltip-preview").textContent ?? "", /Failed/);
   assert.equal(screen.queryByText("No data available for this time period"), null);
 });
 
@@ -106,6 +118,8 @@ test("CostDurationTrends renders cost and average-duration series from time-seri
   assert.equal(screen.getByTestId("stats-chart").getAttribute("data-points"), "2");
   assert.ok(screen.getByText("Cost"));
   assert.ok(screen.getByText("Avg Duration"));
+  assert.match(screen.getByTestId("tooltip-preview").textContent ?? "", /\$4\.00 Cost/);
+  assert.match(screen.getByTestId("tooltip-preview").textContent ?? "", /3ms failed/);
   assert.equal(screen.queryByText("No data available for this time period"), null);
 });
 

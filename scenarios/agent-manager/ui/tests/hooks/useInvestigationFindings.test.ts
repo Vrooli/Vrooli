@@ -25,7 +25,11 @@ test("getInvestigationFindings is conservative for non-success, malformed, and i
   assert.equal(getInvestigationFindings(null), null);
   assert.equal(getInvestigationFindings(runWith("{}")), null);
   assert.equal(getInvestigationFindings(runWith("not json")), null);
+  assert.equal(getInvestigationFindings(runWith("   ")), null);
   assert.equal(getInvestigationFindings(runWith(new Uint8Array())), null);
+  assert.equal(getInvestigationFindings(runWith(new TextEncoder().encode("not json"))), null);
+  assert.equal(getInvestigationFindings(runWith(42)), null);
+  assert.equal(getInvestigationFindings(runWith("null")), null);
   assert.equal(getInvestigationFindings(runWith({ categories: "not an array" })), null);
   assert.equal(getInvestigationFindings(runWith({ categories: [] }, StructuredResultStatus.INVALID)), null);
   assert.deepEqual(getInvestigationFindings(runWith({ categories: [] })), {

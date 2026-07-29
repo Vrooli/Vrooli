@@ -6,6 +6,9 @@ import { InvestigationTab, type InvestigationTabHandle } from "../../src/compone
 import type { InvestigationSettings } from "../../src/types.js";
 import { renderWithProviders } from "../../src/test-utils/index.js";
 
+const api = vi.hoisted(() => ({ ensureProfile: vi.fn() }));
+vi.mock("../../src/hooks/useApi.js", () => ({ ensureProfile: api.ensureProfile }));
+
 const settings: InvestigationSettings = {
   promptTemplate: "inspect the run", applyPromptTemplate: "apply approved fixes", defaultDepth: "standard",
   defaultContext: { runSummaries: true, runEvents: true, runDiffs: true, fullLogs: false },
@@ -47,4 +50,21 @@ test("InvestigationTab manages apply tag rules and exposes operator-facing failu
 
   rerender(createElement(InvestigationTab, { ref, settings: null, loading: true, error: null, onSave: vi.fn(), onReset: vi.fn() }));
   assert.ok(screen.getByText("Loading investigation settings..."));
+});
+
+test("InvestigationTab updates and removes tag rule flags and reports profile creation failures", async () => {
+  const ref = createRef<InvestigationTabHandle>();
+  api.ensureProfile.mockRejectedValueOnce(new Error("profile service unavailable"));
+  renderWithProviders(createElement(InvestigationTab, { ref, settings, loading: false, error: "remote warning", onSave: vi.fn(), onReset: vi.fn() }));
+  assert.ok(screen.getByText("remote warning"));
+  fireEvent.click(screen.getByRole("button", { name: "Open Profile" }));
+  await waitFor(() => assert.ok(screen.getByText("Failed to open profile: profile service unavailable")));
+  assert.equal(api.ensureProfile.mock.calls[0]?.[0], "agent-manager-investigation");
+
+  fireEvent.click(screen.getByRole("tab", { name: "Apply Investigation" }));
+  fireEvent.click(screen.getByText("Regex"));
+  fireEvent.click(screen.getByText("Case sensitive"));
+  fireEvent.click(screen.getByText("Remove"));
+  assert.ok(screen.getByText("No tag rules defined. Defaults will apply on save."));
+  await waitFor(() => assert.equal(ref.current?.hasChanges, true));
 });

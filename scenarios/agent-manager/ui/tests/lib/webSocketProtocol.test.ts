@@ -92,3 +92,60 @@ test("parseWebSocketMessage normalizes task status payloads", () => {
 test("parseWebSocketMessage rejects unsupported envelopes", () => {
   assert.equal(parseWebSocketMessage({ type: "AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_STATUS" }), null);
 });
+
+test("parseWebSocketMessage preserves optional run-status fields only when the wire payload supplies them", () => {
+  assert.deepEqual(parseWebSocketMessage({
+    type: "AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_STATUS",
+    run_id: "fallback-run",
+    run_status: { status: "RUN_STATUS_FAILED" },
+  }), {
+    type: "run_status", runId: "fallback-run", payload: { id: "fallback-run", status: 6 },
+  });
+  assert.equal(parseWebSocketMessage({
+    type: "AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_STATUS",
+    run_status: { status: "RUN_STATUS_RUNNING" },
+  }), null);
+});
+
+test("parseWebSocketMessage normalizes operational progress and connection envelopes", () => {
+  assert.deepEqual(parseWebSocketMessage({
+    type: "AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_PROGRESS", run_id: "run-9",
+    run_progress: { percent_complete: 75, active_tool: { tool_name: "bash" } },
+  }), {
+    type: "run_progress", runId: "run-9", payload: { percentComplete: 75, activeTool: { toolName: "bash" } },
+  });
+  assert.deepEqual(parseWebSocketMessage({
+    type: "AGENT_MANAGER_WS_MESSAGE_TYPE_CONNECTED", connected: { connection_id: "socket-1" },
+  }), { type: "connected", payload: { connectionId: "socket-1" } });
+  assert.deepEqual(parseWebSocketMessage({
+    type: "AGENT_MANAGER_WS_MESSAGE_TYPE_PONG", pong: { sent_at: "now" },
+  }), { type: "pong", payload: { sentAt: "now" } });
+});
+
+test("parseWebSocketMessage rejects malformed typed payloads and preserves unknown enum values", () => {
+  assert.equal(parseWebSocketMessage(null), null);
+  assert.equal(parseWebSocketMessage([]), null);
+  assert.equal(parseWebSocketMessage({ type: "AGENT_MANAGER_WS_MESSAGE_TYPE_TASK_STATUS", task_status: { status: "TASK_STATUS_RUNNING" } }), null);
+  assert.equal(parseWebSocketMessage({ type: "AGENT_MANAGER_WS_MESSAGE_TYPE_WORKFLOW_LIFECYCLE", workflow_lifecycle: {} }), null);
+  assert.equal(parseWebSocketMessage({ type: "AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_PROGRESS" }), null);
+  assert.deepEqual(parseWebSocketMessage({
+    type: "AGENT_MANAGER_WS_MESSAGE_TYPE_TASK_STATUS", task_status: { task_id: "task-9", status: "FUTURE_STATUS" },
+  }), { type: "task_status", payload: { id: "task-9", status: "FUTURE_STATUS" } });
+});
+
+test("parseWebSocketMessage retains raw timestamps that cannot be parsed and maps alternate event payloads", () => {
+  const parsed = parseWebSocketMessage({
+    type: "AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_EVENT",
+    run_event: {
+      id: "event-log", run_id: "run-4", sequence: 3, event_type: "RUN_EVENT_TYPE_LOG",
+      timestamp: "not-a-timestamp", log: { level: "warn", message: "degraded" },
+    },
+  });
+  assert.deepEqual(parsed, {
+    type: "run_event", runId: "run-4", payload: {
+      id: "event-log", runId: "run-4", sequence: 3, eventType: 1, timestamp: "not-a-timestamp",
+      data: { case: "log", value: { level: "warn", message: "degraded" } },
+    },
+  });
+  assert.equal(parseWebSocketMessage({ type: "AGENT_MANAGER_WS_MESSAGE_TYPE_RUN_EVENT", run_event: null }), null);
+});

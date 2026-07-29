@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-22T09:09:13-04:00"
+    "last_validated_at": "2026-07-29T04:18:20-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-012",
       "title": "Basic Approval Workflow",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-010",
       "category": "core",
       "description": "Implement approve/reject workflow for runs with appropriate state transitions",
@@ -15,21 +15,21 @@
           "type": "test",
           "ref": "api/internal/domain/decisions_test.go::TestRun_IsApprovable",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Test approval state machine"
         },
         {
           "type": "test",
           "ref": "api/internal/domain/decisions_test.go::TestRunOutcome_RequiresReview",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Test run outcome affects review requirement"
         },
         {
           "type": "test",
           "ref": "api/internal/domain/decisions_test.go::TestRun_IsStoppable",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Test run stoppability for approval flow"
         }
       ]

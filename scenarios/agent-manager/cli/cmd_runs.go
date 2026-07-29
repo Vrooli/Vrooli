@@ -21,6 +21,9 @@ func (a *App) cmdRun(args []string) error {
 	if len(args) == 0 {
 		return a.runHelp()
 	}
+	if err := rejectRunIdentityLifecycleCommand(args[0]); err != nil {
+		return err
+	}
 
 	switch args[0] {
 	case "list":

@@ -45,6 +45,10 @@ class ControllableWebSocket {
     this.readyState = ControllableWebSocket.CLOSED;
     this.onclose?.(new CloseEvent("close"));
   }
+
+  fail() {
+    this.onerror?.(new Event("error"));
+  }
 }
 
 function installWebSocketMock() {
@@ -216,5 +220,82 @@ test("useWebSocket normalizes server messages before invoking onMessage", async 
       status: 5,
     },
   });
+  unmount();
+});
+
+test("useWebSocket stays inert while disabled and reports a disconnected send without constructing a socket", async () => {
+  const { sockets } = installWebSocketMock();
+  const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  const { result, unmount } = renderHook(() => useWebSocket({ enabled: false }));
+
+  act(() => result.current.send({ type: "operator_ping" }));
+
+  assert.equal(sockets.length, 0);
+  assert.equal(result.current.status, "disconnected");
+  assert.equal(warning.mock.calls[0]?.[0], "[WebSocket] Cannot send, not connected");
+  unmount();
+});
+
+test("useWebSocket exposes connection and message failures without delivering malformed evidence", async () => {
+  const { sockets } = installWebSocketMock();
+  const onMessage = vi.fn();
+  const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+  const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+  vi.spyOn(console, "log").mockImplementation(() => undefined);
+  const { result, unmount } = renderHook(() => useWebSocket({ onMessage }));
+
+  await waitFor(() => assert.equal(sockets.length, 1));
+  act(() => {
+    sockets[0].open();
+    sockets[0].receive("not json");
+    sockets[0].receive({ type: "unknown-event" });
+    sockets[0].fail();
+  });
+
+  await waitFor(() => assert.equal(result.current.status, "error"));
+  assert.equal(result.current.error?.message, "WebSocket connection error");
+  assert.equal(onMessage.mock.calls.length, 0);
+  assert.ok(warning.mock.calls.some((call) => call[0] === "[WebSocket] Ignoring unsupported message"));
+  assert.ok(error.mock.calls.some((call) => call[0] === "[WebSocket] Failed to parse message:"));
+  unmount();
+});
+
+test("useWebSocket applies unsubscribe intent and explicit reconnect without replaying removed subscriptions", async () => {
+  vi.spyOn(console, "log").mockImplementation(() => undefined);
+  const { sockets } = installWebSocketMock();
+  const { result, unmount } = renderHook(() => useWebSocket());
+  await waitFor(() => assert.equal(sockets.length, 1));
+  act(() => {
+    sockets[0].open();
+    result.current.subscribe("keep");
+    result.current.subscribe("remove");
+    result.current.unsubscribe("remove");
+    result.current.reconnect();
+  });
+  await waitFor(() => assert.equal(sockets.length, 2));
+  act(() => sockets[1].open());
+  await waitFor(() => assert.equal(result.current.status, "connected"));
+
+  const replayed = sentMessages(sockets[1]);
+  assert.equal(replayed.length, 1);
+  assert.equal((replayed[0].run_subscription as Record<string, unknown>).run_id, "keep");
+  unmount();
+});
+
+test("useWebSocket can remove the global subscription before reconnecting", async () => {
+  vi.spyOn(console, "log").mockImplementation(() => undefined);
+  const { sockets } = installWebSocketMock();
+  const { result, unmount } = renderHook(() => useWebSocket());
+  await waitFor(() => assert.equal(sockets.length, 1));
+  act(() => {
+    sockets[0].open();
+    result.current.subscribeAll();
+    result.current.unsubscribeAll();
+    result.current.reconnect();
+  });
+  await waitFor(() => assert.equal(sockets.length, 2));
+  act(() => sockets[1].open());
+  await waitFor(() => assert.equal(result.current.status, "connected"));
+  assert.deepEqual(sentMessages(sockets[1]), []);
   unmount();
 });

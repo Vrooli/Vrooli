@@ -53,13 +53,14 @@ export default defineConfig(({ mode }): UserConfig => {
           "src/**/generated/**",
         ],
         thresholds: {
-          // Ratchet from Vitest 4's measured baseline; its V8 instrumentation
-          // counts branch/function sites differently from Vitest 2. Every new
-          // change must retain this meaningful investigation-UI coverage.
-          lines: 30,
-          functions: 25,
-          branches: 25,
-          statements: 30
+          // Keep the native Vitest gate aligned with the scenario's declared
+          // react-vite policy. All four dimensions are deliberate: a high
+          // line total alone would not protect the investigation UI's error,
+          // fallback, and operator-decision paths.
+          lines: 85,
+          functions: 85,
+          branches: 85,
+          statements: 85
         }
       }
     }

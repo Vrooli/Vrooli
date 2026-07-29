@@ -93,3 +93,49 @@ test("reconnect preserves subscriptions and requests after-sequence gap fill", (
     { runId: "run-1", afterSequence: 6n, reason: "reconnect" },
   ]);
 });
+
+test("run event store merges snapshots and task updates while leaving idempotent transitions unchanged", () => {
+  let state = createInitialRunEventStoreState();
+
+  state = runEventStoreReducer(state, { type: "runSnapshotLoaded", run: { id: "run-1", status: 1, title: "initial" } });
+  state = runEventStoreReducer(state, { type: "runStatusReceived", run: { id: "run-1", status: 2 } });
+  state = runEventStoreReducer(state, {
+    type: "runsSnapshotLoaded",
+    runs: [{ id: "run-2", status: 3 }, { id: "run-3", status: 4 }],
+  });
+  state = runEventStoreReducer(state, { type: "taskStatusReceived", task: { id: "task-1", status: 1, title: "first" } });
+  state = runEventStoreReducer(state, { type: "taskStatusReceived", task: { id: "task-1", status: 2 } });
+
+  assert.deepEqual(state.runsById["run-1"], { id: "run-1", status: 2, title: "initial" });
+  assert.equal(state.runsById["run-2"]?.status, 3);
+  assert.deepEqual(state.taskStatusesById["task-1"], { id: "task-1", status: 2, title: "first" });
+
+  const duplicateSubscription = runEventStoreReducer(state, { type: "subscribeRun", runId: "missing" });
+  assert.equal(runEventStoreReducer(duplicateSubscription, { type: "subscribeRun", runId: "missing" }), duplicateSubscription);
+  assert.equal(runEventStoreReducer(state, { type: "unsubscribeRun", runId: "missing" }), state);
+  assert.equal(runEventStoreReducer(state, { type: "disconnected" }), state);
+  assert.equal(runEventStoreReducer(state, { type: "clearReconciliationIntent", runId: "missing" }), state);
+});
+
+test("run event store supports global subscriptions, eventless messages, and reconnect cleanup", () => {
+  let state = createInitialRunEventStoreState();
+  state = runEventStoreReducer(state, { type: "subscribeAll" });
+  assert.equal(state.allEventsSubscribed, true);
+  assert.equal(runEventStoreReducer(state, { type: "subscribeAll" }), state);
+
+  const first = makeMessageEvent("z-event", 2n, "later");
+  const eventless = makeMessageEvent("a-event", 1n, "earlier");
+  delete (eventless as { sequence?: bigint }).sequence;
+  state = runEventStoreReducer(state, { type: "runEventReceived", event: first });
+  state = runEventStoreReducer(state, { type: "runEventReceived", event: eventless });
+  state = runEventStoreReducer(state, { type: "runEventReceived", event: { ...eventless, id: "" } });
+  assert.deepEqual(selectRunEvents(state, "run-1").map((event) => event.id), ["z-event", "", "a-event"]);
+
+  state = runEventStoreReducer(state, { type: "connected" });
+  assert.equal(state.connected, true);
+  state = runEventStoreReducer(state, { type: "disconnected" });
+  assert.equal(state.connected, false);
+  state = runEventStoreReducer(state, { type: "unsubscribeAll" });
+  assert.equal(state.allEventsSubscribed, false);
+  assert.equal(runEventStoreReducer(state, { type: "unsubscribeAll" }), state);
+});

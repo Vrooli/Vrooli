@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-22T09:09:13-04:00"
+    "last_validated_at": "2026-07-29T04:18:20-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-005",
       "title": "Run Creation Flow",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "core",
       "description": "Enable creation of runs with sandbox allocation and execution mode selection",
@@ -15,14 +15,14 @@
           "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestCreateRun_Success",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Test run creation with valid parameters"
         },
         {
           "type": "test",
           "ref": "api/internal/orchestration/service_test.go::TestOrchestrator_RunOperations",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Test orchestrator-level run operations"
         },
         {

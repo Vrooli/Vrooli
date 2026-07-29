@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-22T09:09:13-04:00"
+    "last_validated_at": "2026-07-29T04:18:20-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-003",
       "title": "Task Creation API",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "api",
       "description": "Implement REST API endpoint for creating tasks with required metadata and validation",
@@ -15,14 +15,14 @@
           "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestCreateTask_Success",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Test task creation with valid payload"
         },
         {
           "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestCreateTask_ValidationError",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Verify validation errors for invalid data"
         },
         {
@@ -44,7 +44,7 @@
     {
       "id": "REQ-P0-004",
       "title": "Task Status Updates",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "core",
       "description": "System must track and persist task status changes with timestamps",
@@ -53,14 +53,14 @@
           "type": "test",
           "ref": "api/internal/handlers/handlers_test.go::TestCancelTask_Success",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Test task cancellation (status transition)"
         },
         {
           "type": "test",
           "ref": "api/internal/orchestration/service_test.go::TestOrchestrator_TaskCRUD",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Test orchestrator-level task CRUD and status"
         }
       ]

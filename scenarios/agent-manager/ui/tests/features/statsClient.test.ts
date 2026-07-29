@@ -89,3 +89,20 @@ test("stats query keys partition requests by their meaningful inputs", () => {
   assert.deepEqual(statsQueryKeys.toolModels(filter, "bash", 25), ["stats", "toolModels", filter, "bash", 25]);
   assert.deepEqual(statsQueryKeys.timeSeries(filter, "1d"), ["stats", "timeSeries", filter, "1d"]);
 });
+
+test("stats query keys cover every analytics surface and preserve optional time buckets", () => {
+  assert.deepEqual(statsQueryKeys.all, ["stats"]);
+  assert.deepEqual(statsQueryKeys.statusDistribution(filter), ["stats", "statusDistribution", filter]);
+  assert.deepEqual(statsQueryKeys.successRate(filter), ["stats", "successRate", filter]);
+  assert.deepEqual(statsQueryKeys.duration(filter), ["stats", "duration", filter]);
+  assert.deepEqual(statsQueryKeys.cost(filter), ["stats", "cost", filter]);
+  assert.deepEqual(statsQueryKeys.runners(filter), ["stats", "runners", filter]);
+  assert.deepEqual(statsQueryKeys.profiles(filter, 4), ["stats", "profiles", filter, 4]);
+  assert.deepEqual(statsQueryKeys.models(filter, 5), ["stats", "models", filter, 5]);
+  assert.deepEqual(statsQueryKeys.modelRuns(filter, 6), ["stats", "modelRuns", filter, 6]);
+  assert.deepEqual(statsQueryKeys.tools(filter, 7), ["stats", "tools", filter, 7]);
+  assert.deepEqual(statsQueryKeys.toolRuns(filter, "shell", 8), ["stats", "toolRuns", filter, "shell", 8]);
+  assert.deepEqual(statsQueryKeys.errors(filter, 9), ["stats", "errors", filter, 9]);
+  assert.deepEqual(statsQueryKeys.timeSeries(filter), ["stats", "timeSeries", filter, undefined]);
+  assert.deepEqual(statsQueryKeys.modelCostComparison({ modelList: ["gpt-5"], actualModel: "gpt-5", inputTokens: 1, outputTokens: 2, cacheReadTokens: 3, cacheCreationTokens: 4 }), ["pricing", "compare", ["gpt-5"], "gpt-5", 1, 2, 3, 4]);
+});

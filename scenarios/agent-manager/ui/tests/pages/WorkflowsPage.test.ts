@@ -61,3 +61,71 @@ test("WorkflowsPage keeps empty, loading, and trace failures legible", async () 
   assert.ok(screen.getByText("Loading workflow history…"));
   assert.ok(screen.getByRole("alert").textContent?.includes("workflow API unavailable"));
 });
+
+test("WorkflowsPage selects independent executions, refreshes, and reports trace failures", async () => {
+  const second = { ...execution, id: "workflow-87654321", workflowKey: "agent-manager/repair", status: WorkflowExecutionStatus.SUCCEEDED, currentNodeId: "" };
+  const workflows = hook({
+    data: [execution, second],
+    getTrace: vi.fn(async (id: string) => {
+      if (id === second.id) throw new Error("trace service unavailable");
+      return { attempts: [], journal: [] };
+    }),
+  });
+  state.useWorkflowExecutions.mockReturnValue(workflows);
+  renderWithProviders(createElement(WorkflowsPage));
+
+  await waitFor(() => assert.ok(screen.getByText("No node attempts recorded.")));
+  assert.ok(screen.getByText("No journal events recorded."));
+  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  assert.equal(workflows.refetch.mock.calls.length, 1);
+  fireEvent.click(screen.getByRole("button", { name: /agent-manager\/repair/ }));
+  await waitFor(() => assert.ok(screen.getByRole("alert").textContent?.includes("trace service unavailable")));
+  assert.ok(screen.getByText("succeeded"));
+});
+
+test("WorkflowsPage makes malformed signals and failed controls actionable", async () => {
+  const workflows = hook({ control: vi.fn(async () => { throw "control unavailable"; }) });
+  state.useWorkflowExecutions.mockReturnValue(workflows);
+  renderWithProviders(createElement(WorkflowsPage));
+  await screen.findByText("Attempts and identity");
+
+  fireEvent.change(screen.getByLabelText("Signal name"), { target: { value: "continue" } });
+  fireEvent.change(screen.getByLabelText("JSON payload"), { target: { value: "not-json" } });
+  fireEvent.click(screen.getByRole("button", { name: "Signal" }));
+  await waitFor(() => assert.ok(screen.getByRole("alert").textContent?.includes("Unexpected token")));
+  assert.equal(workflows.signal.mock.calls.length, 0);
+
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  await waitFor(() => assert.equal(screen.getByRole("alert").textContent, "Failed to cancel workflow"));
+});
+
+test("WorkflowsPage preserves safe defaults for incomplete workflow metadata and reports non-Error failures", async () => {
+  const incomplete = {
+    ...execution,
+    id: "",
+    workflowKey: "unknown-workflow",
+    status: 999 as WorkflowExecutionStatus,
+    currentNodeId: "",
+    definitionDigest: "digest",
+    parentExecutionId: "",
+    parentAttemptId: "",
+    budgetUsage: undefined,
+  };
+  const workflows = hook({
+    data: [incomplete],
+    control: vi.fn(async () => { throw "transport down"; }),
+    getTrace: vi.fn(async () => ({
+      attempts: [{ id: "attempt", nodeId: "node", ordinal: 2, profileIdentity: "", strategy: "retry", status: "failed", runId: "", conversationId: "", sourceAttemptId: "", childExecutionId: "", inputSnapshotSizeBytes: 0n, inputSnapshotDigest: "sha256:" }],
+      journal: [{ id: "journal", sequence: 2n, kind: "failed", nodeId: "", attemptId: "", payloadSizeBytes: 0n }],
+    })),
+  });
+  state.useWorkflowExecutions.mockReturnValue(workflows);
+  renderWithProviders(createElement(WorkflowsPage));
+
+  await waitFor(() => assert.ok(screen.getByText("unknown")));
+  assert.ok(screen.getAllByText("—").length >= 2);
+  assert.ok(screen.getAllByText("0 / 0").length >= 2);
+  assert.equal(screen.queryByRole("button", { name: "Signal" }), null);
+  fireEvent.click(screen.getByRole("button", { name: "Resume" }));
+  await waitFor(() => assert.equal(screen.getByRole("alert").textContent, "Failed to resume workflow"));
+});

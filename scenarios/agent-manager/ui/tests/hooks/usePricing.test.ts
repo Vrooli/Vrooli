@@ -91,3 +91,59 @@ test("pricing hooks retain server failures for operator feedback", async () => {
   });
   await waitFor(() => assert.equal(refresh.result.current.error, "pricing unavailable"));
 });
+
+test("pricing read hooks preserve a useful fallback when payloads are partial or invalid", async () => {
+  const fetch = vi.fn(async (url: string) => {
+    if (url.includes("/models/")) return new Response("not-json", { status: 502 });
+    if (url.endsWith("/models")) return ok({});
+    if (url.endsWith("/aliases")) return ok({});
+    if (url.endsWith("/cache")) return new Response(JSON.stringify({ error: "cache unavailable" }), { status: 503 });
+    return ok({});
+  });
+  vi.stubGlobal("fetch", fetch);
+  const models = renderHook(() => useModelPricing());
+  const aliases = renderHook(() => useModelAliases());
+  const cache = renderHook(() => usePricingCacheStatus());
+  const overrides = renderHook(() => useModelOverrides("gpt-5"));
+
+  await waitFor(() => assert.deepEqual(models.result.current.data, []));
+  await waitFor(() => assert.deepEqual(aliases.result.current.data, []));
+  await waitFor(() => assert.equal(cache.result.current.error, "cache unavailable"));
+  await waitFor(() => assert.equal(overrides.result.current.error, "Request failed: 502"));
+});
+
+test("pricing mutation hooks surface failures and accept no-content success responses", async () => {
+  const fetch = vi.fn()
+    .mockResolvedValueOnce(new Response(null, { status: 204 }))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ error: "settings locked" }), { status: 409 }));
+  vi.stubGlobal("fetch", fetch);
+  const refresh = renderHook(() => useRefreshAllPricing());
+  const update = renderHook(() => useUpdatePricingSettings());
+
+  await act(async () => {
+    await refresh.result.current.refreshAll();
+    await assert.rejects(update.result.current.updateSettings({ currency: "EUR" } as never), /settings locked/);
+  });
+  assert.equal(refresh.result.current.error, null);
+  assert.equal(update.result.current.error, "settings locked");
+  assert.equal(update.result.current.loading, false);
+});
+
+test("each pricing mutation keeps its own API failure available for recovery UI", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: "pricing write denied" }), { status: 403 })));
+  const recalculate = renderHook(() => useRecalculateModelPricing());
+  const setOverride = renderHook(() => useSetOverride());
+  const deleteOverride = renderHook(() => useDeleteOverride());
+  const createAlias = renderHook(() => useCreateAlias());
+
+  await act(async () => {
+    await assert.rejects(recalculate.result.current.recalculate("gpt-5"), /pricing write denied/);
+    await assert.rejects(setOverride.result.current.setOverride("gpt-5", { component: "input" } as never), /pricing write denied/);
+    await assert.rejects(deleteOverride.result.current.deleteOverride("gpt-5", "input" as never), /pricing write denied/);
+    await assert.rejects(createAlias.result.current.createAlias({ alias: "fast", model: "gpt-5" } as never), /pricing write denied/);
+  });
+  for (const hook of [recalculate, setOverride, deleteOverride, createAlias]) {
+    assert.equal(hook.result.current.error, "pricing write denied");
+    assert.equal(hook.result.current.loading, false);
+  }
+});

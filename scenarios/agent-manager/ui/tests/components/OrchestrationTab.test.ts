@@ -51,3 +51,28 @@ test("OrchestrationTab surfaces save/reset errors and delegates reset", async ()
   await waitFor(() => assert.ok(screen.getByText("reset unavailable")));
   assert.equal(onReset.mock.calls.length, 1);
 });
+
+test("OrchestrationTab persists safety controls and reports every recovery-window violation", async () => {
+  const ref = createRef<OrchestrationTabHandle>();
+  const onSave = vi.fn(async () => undefined);
+  renderWithProviders(createElement(OrchestrationTab, { ref, settings, loading: false, error: null, onSave, onReset: vi.fn() }));
+  fireEvent.change(screen.getByLabelText("Stale Threshold"), { target: { value: "120" } });
+  fireEvent.change(screen.getByLabelText("Max Recovery Age"), { target: { value: "100" } });
+  fireEvent.change(screen.getByLabelText("Grace Period"), { target: { value: "60" } });
+  fireEvent.change(screen.getByLabelText("Termination Max Retries"), { target: { value: "2" } });
+  await act(async () => { await ref.current?.save(); });
+  assert.ok(screen.getByText("Stale threshold must be less than max recovery age."));
+  assert.ok(screen.getByText(/Grace period \(60s\) x max retries \(2\) = 120s/));
+  assert.equal(onSave.mock.calls.length, 0);
+
+  fireEvent.change(screen.getByLabelText("Max Recovery Age"), { target: { value: "240" } });
+  fireEvent.change(screen.getByLabelText("Grace Period"), { target: { value: "5" } });
+  fireEvent.change(screen.getByLabelText("Network Access"), { target: { value: "full" } });
+  fireEvent.click(screen.getByText("Require Sandbox"));
+  fireEvent.click(screen.getByText("Kill Orphans"));
+  await act(async () => { await ref.current?.save(); });
+  await waitFor(() => assert.equal(onSave.mock.calls.length, 1));
+  assert.equal(onSave.mock.calls[0]?.[0].safetyIsolation.networkAccess, "full");
+  assert.equal(onSave.mock.calls[0]?.[0].safetyIsolation.requireSandbox, false);
+  assert.equal(onSave.mock.calls[0]?.[0].processTermination.killOrphans, false);
+});

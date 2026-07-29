@@ -41,6 +41,9 @@ func (h *Handler) GetRunByTag(w http.ResponseWriter, r *http.Request) {
 
 // StopRunByTag stops a run identified by its custom tag.
 func (h *Handler) StopRunByTag(w http.ResponseWriter, r *http.Request) {
+	if h.denyRunInitiatedLifecycleOperation(w, r, "stop-run-by-tag") {
+		return
+	}
 	tag := mux.Vars(r)["tag"]
 	req := apipb.StopRunByTagRequest{Tag: tag}
 	if !h.validateProto(w, r, &req) {
@@ -314,6 +317,9 @@ func (h *Handler) GetRunDiff(w http.ResponseWriter, r *http.Request) {
 
 // ApproveRun approves a run's changes.
 func (h *Handler) ApproveRun(w http.ResponseWriter, r *http.Request) {
+	if h.denyRunInitiatedLifecycleOperation(w, r, "approve-run") {
+		return
+	}
 	id, err := parseUUID(r, "id")
 	if err != nil {
 		writeSimpleError(w, r, "id", "invalid UUID format for run ID")
@@ -365,6 +371,9 @@ func (h *Handler) ApproveRun(w http.ResponseWriter, r *http.Request) {
 
 // RejectRun rejects a run's changes.
 func (h *Handler) RejectRun(w http.ResponseWriter, r *http.Request) {
+	if h.denyRunInitiatedLifecycleOperation(w, r, "reject-run") {
+		return
+	}
 	id, err := parseUUID(r, "id")
 	if err != nil {
 		writeSimpleError(w, r, "id", "invalid UUID format for run ID")
@@ -402,6 +411,9 @@ func (h *Handler) RejectRun(w http.ResponseWriter, r *http.Request) {
 
 // PartialApproveRun approves only selected files from a run's changes.
 func (h *Handler) PartialApproveRun(w http.ResponseWriter, r *http.Request) {
+	if h.denyRunInitiatedLifecycleOperation(w, r, "partial-approve-run") {
+		return
+	}
 	id, err := parseUUID(r, "id")
 	if err != nil {
 		writeSimpleError(w, r, "id", "invalid UUID format for run ID")
@@ -480,6 +492,9 @@ type sandboxSyncRequest struct {
 
 // SyncRunFromSandbox updates a run based on workspace-sandbox approval state.
 func (h *Handler) SyncRunFromSandbox(w http.ResponseWriter, r *http.Request) {
+	if h.denyRunInitiatedLifecycleOperation(w, r, "sandbox-sync") {
+		return
+	}
 	id, err := parseUUID(r, "id")
 	if err != nil {
 		writeSimpleError(w, r, "id", "invalid UUID format for run ID")

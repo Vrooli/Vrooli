@@ -121,3 +121,23 @@ inventory below is the work queue for this execution.
 | Typed-event aggregate is process-global only | blocking | `stats.Engine` has no throwaway per-run fold. |
 | Observed receipts are handler-only and unavailable to orchestration | blocking | The receipts dependency is held by `handlers.Handler`, preventing a shared report reader. |
 | Recurrence and successful-run efficiency evidence are not queryable | deferred | Implement only after the single-run report and live validation are sound; do not let cross-run work delay correctness. |
+
+## Investigation-quality live validation — 2026-07-29
+
+Two independent investigation runs against the live identity-guard probe,
+`b94c5723-eaea-44eb-98c9-67adbf659662` and
+`cfed57b6-ffda-4e90-9fa4-10175ceae806`, selected `Both` with `High`
+confidence. Both identified the same bounded correction: retain the API guard,
+refuse operator-only lifecycle commands in the CLI before HTTP dispatch, and
+make the investigation contract direct agents not to retry a refused operation.
+
+The corrections are covered by handler and CLI tests. Compact redacted replay
+fixtures preserve each live run in
+`api/internal/adapters/runner/codecs/testdata/corpus/` as
+`codex-live-investigation-both-{1,2}.jsonl`; the full source transcripts were
+harvested with `api/cmd/harvest-replay` before fixture compaction.
+
+The remaining broad gate is not an investigation defect: the scenario's UI
+coverage policy is 85%, while the full UI suite currently measures about 62%.
+The policy has not been weakened; this remains tracked as `P-007` and requires
+additional behavior tests across the existing UI surface.

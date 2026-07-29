@@ -579,22 +579,6 @@ export function TasksPage({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="inlineEffort">Reasoning Effort</Label>
-                  <select
-                    id="inlineEffort"
-                    value={inlineConfig.effort}
-                    onChange={(e) => setInlineConfig({ ...inlineConfig, effort: e.target.value as typeof inlineConfig.effort })}
-                    className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
-                  >
-                    <option value="">Runner default</option>
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="xhigh">Extra high</option>
-                    <option value="max">Max</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
                   <Label htmlFor="projectRoot">Project Root</Label>
                   <Input
                     id="projectRoot"
@@ -607,22 +591,6 @@ export function TasksPage({
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="profileEffort">Reasoning Effort</Label>
-                <select
-                  id="profileEffort"
-                  value={profileFormData.effort ?? ""}
-                  onChange={(e) => setProfileFormData({ ...profileFormData, effort: e.target.value as ProfileFormData["effort"] })}
-                  className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
-                >
-                  <option value="">Runner default</option>
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="xhigh">Extra high</option>
-                  <option value="max">Max</option>
-                </select>
-              </div>
               <ContextAttachmentEditor
                 attachments={formData.contextAttachments || []}
                 onChange={(attachments) =>
@@ -863,6 +831,23 @@ export function TasksPage({
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="inlineEffort">Reasoning Effort</Label>
+                  <select
+                    id="inlineEffort"
+                    value={inlineConfig.effort}
+                    onChange={(e) => setInlineConfig({ ...inlineConfig, effort: e.target.value as typeof inlineConfig.effort })}
+                    className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                  >
+                    <option value="">Runner default</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="xhigh">Extra high</option>
+                    <option value="max">Max</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="runMode">Run Mode *</Label>
                   <select
                     id="runMode"
@@ -1035,6 +1020,23 @@ export function TasksPage({
                     max={1440}
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="profileEffort">Reasoning Effort</Label>
+                <select
+                  id="profileEffort"
+                  value={profileFormData.effort ?? ""}
+                  onChange={(e) => setProfileFormData({ ...profileFormData, effort: e.target.value as ProfileFormData["effort"] })}
+                  className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                >
+                  <option value="">Runner default</option>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="xhigh">Extra high</option>
+                  <option value="max">Max</option>
+                </select>
               </div>
 
               <div className="flex gap-6">

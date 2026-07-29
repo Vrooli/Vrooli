@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-22T09:09:13-04:00"
+    "last_validated_at": "2026-07-29T04:18:20-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-007",
       "title": "Sandbox Creation Integration",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "integration",
       "description": "Integrate with workspace-sandbox API to create and manage sandboxed environments",
@@ -15,28 +15,28 @@
           "type": "test",
           "ref": "api/internal/adapters/sandbox/workspace_sandbox_test.go::TestWorkspaceSandboxProvider_Create",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Test sandbox client create operation"
         },
         {
           "type": "test",
           "ref": "api/internal/adapters/sandbox/workspace_sandbox_test.go::TestWorkspaceSandboxProvider_Get",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Test sandbox client get operation"
         },
         {
           "type": "test",
           "ref": "api/internal/adapters/sandbox/workspace_sandbox_test.go::TestWorkspaceSandboxProvider_Get_NotFound",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Test sandbox not found handling"
         },
         {
           "type": "test",
           "ref": "api/internal/adapters/sandbox/workspace_sandbox_test.go::TestWorkspaceSandboxProvider_Delete",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Test sandbox cleanup/deletion"
         },
         {

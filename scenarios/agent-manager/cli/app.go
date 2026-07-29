@@ -121,7 +121,16 @@ func (a *App) runCommands() []cliapp.Command {
 	}
 	commands := make([]cliapp.Command, 0, len(entries))
 	for _, item := range entries {
-		command := support.Command(item.name, item.description, item.run)
+		// cliapp dispatches registered subcommands directly, bypassing cmdRun.
+		// Keep the run-identity boundary here as well as in cmdRun so both the
+		// legacy dispatcher and the discoverable command tree enforce it.
+		name, run := item.name, item.run
+		command := support.Command(name, item.description, func(args []string) error {
+			if err := rejectRunIdentityLifecycleCommand(name); err != nil {
+				return err
+			}
+			return run(args)
+		})
 		command.Usage = item.usage
 		commands = append(commands, command)
 	}

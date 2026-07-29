@@ -36,6 +36,7 @@ import { Textarea } from "./ui/textarea";
 import { formatUsdFixed } from "../lib/currency";
 import { cn, formatDuration, runnerTypeLabel } from "../lib/utils";
 import { useCollapsiblePanel } from "../hooks/useCollapsiblePanel";
+import { useDocumentEscape } from "../hooks/useDocumentEscape";
 import { useRunReport } from "../hooks/useApi";
 import { useResizablePanel } from "../hooks/useResizablePanel";
 import { useViewportSize } from "../hooks/useViewportSize";
@@ -262,18 +263,11 @@ export function RunDetail({
   const canDeleteRun = actions?.canDelete ?? false;
   const canApplyFixes = actions?.canApplyInvestigation ?? false;
 
-  // Close info dialog on Escape, preventing it from bubbling to DetailModal
-  useEffect(() => {
-    if (!infoOpen) return;
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopImmediatePropagation();
-        setInfoOpen(false);
-      }
-    };
-    document.addEventListener("keydown", handleEscape, true); // capture phase
-    return () => document.removeEventListener("keydown", handleEscape, true);
-  }, [infoOpen]);
+  // Consume Escape before an enclosing detail modal can act on it.
+  useDocumentEscape(infoOpen, (event) => {
+    event.stopImmediatePropagation();
+    setInfoOpen(false);
+  }, true);
 
   // Build mobile header left (status dot) and push to parent
   const [statusLegendOpen, setStatusLegendOpen] = useState(false);

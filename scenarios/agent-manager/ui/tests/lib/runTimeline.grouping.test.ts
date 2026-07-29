@@ -10,6 +10,7 @@ import {
   type ToolCallPair,
 } from "../../src/lib/runTimeline.js";
 import { makeMessageEvent, makeToolCallEvent, makeToolResultEvent } from "../testutil/runEvents.js";
+import { makeRunEvent, RUN_EVENT_TYPE_LOG } from "../testutil/runEvents.js";
 
 test("single tool call+result is not grouped", () => {
   const events = [
@@ -173,4 +174,28 @@ test("three consecutive tool calls form one group", () => {
   assert.equal(group.pairs.length, 3);
   assert.equal(group.summary, "Edit 2, Bash");
   assert.equal(group.id, "tool-group-tc-1");
+});
+
+test("grouping pairs positional results and preserves interleaved and trailing reasoning", () => {
+  const events = [
+    makeToolCallEvent("tc-1", 1n, "Read"),
+    makeRunEvent({
+      id: "reason-between", sequence: 2n, eventType: RUN_EVENT_TYPE_LOG,
+      data: { case: "log", value: { message: "thinking: inspect first result" } },
+    }),
+    makeToolResultEvent("tr-1", 3n, "Read"),
+    makeToolCallEvent("tc-2", 4n, "Write"),
+    makeRunEvent({
+      id: "reason-trailing", sequence: 5n, eventType: RUN_EVENT_TYPE_LOG,
+      data: { case: "log", value: { message: "reasoning: verify update" } },
+    }),
+  ];
+  const group = groupTimelineEntries(filterTimelineEntries(buildTimelineEntries(events), createDefaultTimelineFilterState()))[0] as TimelineToolGroup;
+  assert.equal(group.kind, "tool-group");
+  assert.equal(group.pairs[0]?.result?.id, "tr-1");
+  assert.equal(group.pairs[1]?.result, undefined);
+  assert.deepEqual(group.items.map((item) => item.kind === "reasoning" ? item.entry.id : item.pair.call.id), [
+    "tc-1", "reason-between", "tc-2", "reason-trailing",
+  ]);
+  assert.equal(group.lastTimestamp, events[3]?.timestamp);
 });

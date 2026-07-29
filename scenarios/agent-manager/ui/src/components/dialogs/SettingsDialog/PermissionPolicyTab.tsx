@@ -72,9 +72,9 @@ export function PermissionPolicyTab({ policy }: { policy: PermissionPolicyHook }
   if (loading && !data) return <p className="text-sm text-muted-foreground">Loading permission policy…</p>;
   if (error && !data) return <div className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</div>;
 
-  const status = data?.status.status;
-  const catalog = data?.catalog.catalog;
-  const lastReconcile = data?.status.lastReconcile;
+  const status = data?.status?.status;
+  const catalog = data?.catalog?.catalog;
+  const lastReconcile = data?.status?.lastReconcile;
 
   return (
     <div className="space-y-5">

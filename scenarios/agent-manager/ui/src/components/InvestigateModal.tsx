@@ -317,32 +317,29 @@ export function InvestigateModal({
 
               {/* Context Selection (collapsible) */}
               <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={() => setShowContext(!showContext)}
-                  className="flex w-full items-center justify-between text-left"
-                >
-                  <Label className="cursor-pointer">Context to Include</Label>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleUseDefaults();
-                      }}
-                      className="h-6 text-xs"
-                    >
-                      Use Defaults
-                    </Button>
+                <div className="flex w-full items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowContext(!showContext)}
+                    className="flex min-w-0 flex-1 items-center justify-between text-left"
+                  >
+                    <Label className="cursor-pointer">Context to Include</Label>
                     <ChevronDown
                       className={`h-4 w-4 text-muted-foreground transition-transform ${
                         showContext ? "rotate-180" : ""
                       }`}
                     />
-                  </div>
-                </button>
+                  </button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleUseDefaults}
+                    className="h-6 text-xs"
+                  >
+                    Use Defaults
+                  </Button>
+                </div>
 
                 {showContext && (
                   <div className="grid grid-cols-2 gap-2 rounded-lg border border-border p-3">

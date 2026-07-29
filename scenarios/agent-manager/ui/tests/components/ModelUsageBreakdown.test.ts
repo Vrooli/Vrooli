@@ -18,6 +18,9 @@ interface ChartProps {
   children?: ReactNode;
   data?: ChartDatum[];
   onClick?: (datum: ChartDatum, index: number) => void;
+  content?: (props: { active?: boolean; payload?: Array<{ payload: ChartDatum }> }) => ReactNode;
+  formatter?: (value: unknown, name: unknown) => unknown;
+  labelFormatter?: (label: unknown) => ReactNode;
 }
 
 vi.mock("recharts", async () => {
@@ -51,6 +54,21 @@ vi.mock("recharts", async () => {
     );
   }
 
+  function Tooltip({ content, formatter, labelFormatter }: ChartProps) {
+    return React.createElement(
+      "div",
+      { "data-testid": "model-tooltip" },
+      currentData.map((datum, index) => React.createElement(
+        "div",
+        { key: datum.name ?? String(index) },
+        labelFormatter?.(datum.name),
+        String(formatter?.((datum as ChartDatum & { runs?: number }).runs, "runs") ?? ""),
+        String(formatter?.("not-a-number", "cost") ?? ""),
+        content?.({ active: true, payload: [{ payload: datum }] }),
+      )),
+    );
+  }
+
   return {
     ResponsiveContainer: Passthrough,
     BarChart,
@@ -58,7 +76,7 @@ vi.mock("recharts", async () => {
     XAxis: Passthrough,
     YAxis: Passthrough,
     CartesianGrid: Passthrough,
-    Tooltip: Passthrough,
+    Tooltip,
     Cell: () => null,
   };
 });
@@ -128,4 +146,88 @@ test("ModelUsageBreakdown renders empty and error states", () => {
   renderWithProviders(createElement(ModelUsageBreakdown));
 
   assert.ok(screen.getByText("Failed to load: model stats unavailable"));
+});
+
+test("ModelUsageBreakdown keeps the selected-model state honest while its run detail is loading, unavailable, or empty", async () => {
+  const user = userEvent.setup();
+  vi.mocked(useModelBreakdown).mockReturnValue(queryResult<ModelBreakdownResponse>({
+    data: makeModelBreakdownResponse(),
+  }) as ModelBreakdownQuery);
+  vi.mocked(useModelUsageRuns).mockReturnValue(queryResult<ModelUsageRunsResponse>({
+    isLoading: true,
+  }) as ModelRunsQuery);
+
+  const loading = renderWithProviders(createElement(ModelUsageBreakdown));
+  await user.click(screen.getByRole("button", { name: "claude-3-opus" }));
+  assert.equal(document.querySelectorAll(".animate-pulse").length, 1);
+  loading.unmount();
+
+  vi.mocked(useModelUsageRuns).mockReturnValue(queryResult<ModelUsageRunsResponse>({
+    error: new Error("selected model unavailable"),
+  }) as ModelRunsQuery);
+  const failed = renderWithProviders(createElement(ModelUsageBreakdown));
+  await user.click(screen.getByRole("button", { name: "claude-3-opus" }));
+  assert.ok(screen.getByText("Failed to load runs: selected model unavailable"));
+  failed.unmount();
+
+  vi.mocked(useModelUsageRuns).mockReturnValue(queryResult<ModelUsageRunsResponse>({
+    data: makeModelUsageRunsResponse({ runs: [] }),
+  }) as ModelRunsQuery);
+  renderWithProviders(createElement(ModelUsageBreakdown));
+  await user.click(screen.getByRole("button", { name: "claude-3-opus" }));
+  assert.ok(screen.getByText("No runs found for this model in the selected window"));
+  await user.click(screen.getByRole("button", { name: "Back to model usage chart" }));
+  assert.ok(screen.getByText("Click a bar to view runs"));
+});
+
+test("ModelUsageBreakdown presents informative chart tooltip states for unknown, perfect, and failed models", () => {
+  vi.mocked(useModelBreakdown).mockReturnValue(queryResult<ModelBreakdownResponse>({
+    data: makeModelBreakdownResponse({
+      models: [
+        { model: "", runCount: 0, successCount: 0, totalCostUsd: 0, totalTokens: 0 },
+        { model: "perfect-model", runCount: 10, successCount: 10, totalCostUsd: 1.25, totalTokens: 1000 },
+        { model: "failed-model", runCount: 3, successCount: 0, totalCostUsd: 0.5, totalTokens: 500 },
+      ],
+    }),
+  }) as ModelBreakdownQuery);
+  vi.mocked(useModelUsageRuns).mockReturnValue(queryResult<ModelUsageRunsResponse>({}) as ModelRunsQuery);
+
+  renderWithProviders(createElement(ModelUsageBreakdown));
+
+  const tooltip = screen.getByTestId("model-tooltip");
+  assert.match(tooltip.textContent ?? "", /Unknown/);
+  assert.match(tooltip.textContent ?? "", /Runs:/);
+  assert.match(tooltip.textContent ?? "", /0 \(0\.0%\)/);
+  assert.ok(document.querySelector(".text-red-500"));
+});
+
+test("ModelUsageBreakdown handles missing run labels and returns to the chart", async () => {
+  const user = userEvent.setup();
+  vi.mocked(useModelBreakdown).mockReturnValue(queryResult<ModelBreakdownResponse>({
+    data: makeModelBreakdownResponse({
+      models: [{ model: "minimal-model", runCount: 1, successCount: 1, totalCostUsd: 0, totalTokens: 0 }],
+    }),
+  }) as ModelBreakdownQuery);
+  vi.mocked(useModelUsageRuns).mockReturnValue(queryResult<ModelUsageRunsResponse>({
+    data: makeModelUsageRunsResponse({
+      runs: [{
+        runId: "run-minimal-1234",
+        taskId: "task-minimal",
+        taskTitle: "",
+        profileId: "profile-minimal",
+        profileName: "",
+        status: "cancelled",
+        createdAt: "2026-05-01T14:00:00.000Z",
+        totalCostUsd: 0,
+        totalTokens: 0,
+      }],
+    }),
+  }) as ModelRunsQuery);
+
+  renderWithProviders(createElement(ModelUsageBreakdown));
+  await user.click(screen.getByRole("button", { name: "minimal-model" }));
+  assert.ok(screen.getByRole("link", { name: "Untitled Task" }));
+  assert.ok(screen.getByText("cancelled", { exact: false }));
+  await user.click(screen.getByRole("button", { name: "Back to model usage chart" }));
+  assert.ok(screen.getByText("Click a bar to view runs"));
 });

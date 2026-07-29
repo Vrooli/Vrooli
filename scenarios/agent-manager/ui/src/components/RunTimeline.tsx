@@ -25,6 +25,7 @@ import { CodeBlock } from "./markdown/components/CodeBlock";
 import { MarkdownRenderer } from "./markdown";
 import { AttachmentPreview } from "./AttachmentPreview";
 import { useAttachments } from "../hooks/useAttachments";
+import { useDocumentEscape } from "../hooks/useDocumentEscape";
 import { usePersistedFormState } from "../hooks/usePersistedFormState";
 import { useViewportSize } from "../hooks/useViewportSize";
 import { getPopoverPosition, type PopoverPlacement } from "../lib/popoverPosition";
@@ -143,19 +144,13 @@ export function RunTimeline({
       }
     };
 
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setFiltersOpen(false);
-      }
-    };
-
     document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleEscape);
     return () => {
       document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleEscape);
     };
   }, [filtersOpen]);
+
+  useDocumentEscape(filtersOpen, () => setFiltersOpen(false));
 
   useEffect(() => {
     if (!filtersOpen) {

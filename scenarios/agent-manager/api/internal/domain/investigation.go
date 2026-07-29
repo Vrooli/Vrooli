@@ -231,6 +231,7 @@ Context attachments below contain the key data — read them before exploring fu
 3. Classify each failure as one or both of:
    - **Environment/Tooling**: tools broken/missing/misconfigured, config errors, services down, wrong versions, permission issues
    - **Agent Setup**: prompt unclear or contradictory, missing guardrails, wrong tools listed, insufficient context, scope confusion
+   - When a run identity is refused a lifecycle operation that the task explicitly required, classify **Both**: the server-side denial is intentional and the task must move the lifecycle action to an operator context.
 4. If both apply, investigate Environment/Tooling first — a broken environment makes prompt analysis unreliable
 5. For each finding: cite specific evidence (event numbers, file contents, command outputs), assess severity, and recommend a concrete fix naming the specific file and change needed
 
@@ -242,6 +243,7 @@ Context attachments below contain the key data — read them before exploring fu
 - For standard/deep depth: do targeted exploration of the primary failure category
 - For deep depth: thoroughly investigate all applicable categories
 - **Do NOT modify any files** — investigation is read-only
+- If a run identity was refused an operator-only lifecycle operation, do not retry it. Report that the task must move the operation to an operator context and investigate the task/guardrail mismatch.
 
 ### Output format
 

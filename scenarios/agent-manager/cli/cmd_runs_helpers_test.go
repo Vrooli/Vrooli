@@ -61,6 +61,50 @@ func TestRunCreateModelOverrideIsOptional(t *testing.T) {
 	}
 }
 
+func TestRejectRunIdentityLifecycleCommand(t *testing.T) {
+	t.Setenv("VROOLI_AGENT_IDENTITY_TOKEN", "run-token")
+
+	for _, subcommand := range []string{
+		"apply-investigation", "approve", "continue", "create", "delete",
+		"investigate", "quiesce", "recover", "reject", "sandbox-sync",
+		"stop", "stop-all", "stop-by-tag", "wake",
+	} {
+		if err := rejectRunIdentityLifecycleCommand(subcommand); err == nil {
+			t.Errorf("%s was not rejected for a run identity", subcommand)
+		}
+	}
+
+	for _, subcommand := range []string{"get", "report", "stats", "events", "diff", "park"} {
+		if err := rejectRunIdentityLifecycleCommand(subcommand); err != nil {
+			t.Errorf("%s was unexpectedly rejected: %v", subcommand, err)
+		}
+	}
+
+	t.Setenv("VROOLI_AGENT_IDENTITY_TOKEN", "")
+	if err := rejectRunIdentityLifecycleCommand("create"); err != nil {
+		t.Fatalf("operator create was unexpectedly rejected: %v", err)
+	}
+}
+
+func TestRegisteredRunCommandsApplyRunIdentityPreflight(t *testing.T) {
+	app, err := NewApp()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("VROOLI_AGENT_IDENTITY_TOKEN", "run-token")
+
+	for _, command := range app.runCommands() {
+		if command.Name != "create" {
+			continue
+		}
+		if err := command.Run(nil); err == nil {
+			t.Fatal("registered create command bypassed the run-identity preflight")
+		}
+		return
+	}
+	t.Fatal("registered create command not found")
+}
+
 func readAll(t *testing.T, r *http.Request) []byte {
 	t.Helper()
 	buf := new(bytes.Buffer)

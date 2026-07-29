@@ -33,3 +33,20 @@ test("useHealth ignores an aborted previous request but exposes a real health er
   await act(async () => { await health.result.current.refetch(); });
   await waitFor(() => assert.equal(health.result.current.error, "Request failed: 503"));
 });
+
+test("useHealth surfaces malformed dependency and metric maps instead of fabricating a health projection", async () => {
+  const fetch = vi.fn(async () => new Response(JSON.stringify({
+    status: "HEALTH_STATUS_READY",
+    service: "agent-manager",
+    // Older or proxied servers can return invalid map values. They must not
+    // be coerced into a misleading dependency/metric record.
+    dependencies: ["not-a-map"],
+    metrics: null,
+  }), { status: 200, headers: { "Content-Type": "application/json" } }));
+  vi.stubGlobal("fetch", fetch);
+
+  const health = renderHook(() => useHealth());
+  await waitFor(() => assert.ok(health.result.current.error));
+  assert.equal(health.result.current.data, null);
+  health.unmount();
+});

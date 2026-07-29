@@ -29,6 +29,28 @@ test("useProjectRootValidation handles server success, failure, and unavailable 
   assert.deepEqual(result.current, { status: "valid", message: "Path format is valid" });
 });
 
+test("path validation resets blank values and distinguishes server scope failures", async () => {
+  vi.useFakeTimers();
+  const root = renderHook(({ path }) => useProjectRootValidation(path), { initialProps: { path: "   " } });
+  assert.deepEqual(root.result.current, { status: "idle" });
+  root.rerender({ path: "/work/project/" }); validatePath.mockResolvedValueOnce({ valid: false }); await elapse();
+  assert.deepEqual(root.result.current, { status: "invalid", message: "Invalid path" });
+
+  const scope = renderHook(({ path, projectRoot, defaultProjectRoot }) => useScopePathValidation(path, projectRoot, defaultProjectRoot), {
+    initialProps: { path: "", projectRoot: "", defaultProjectRoot: "/work/default" },
+  });
+  assert.deepEqual(scope.result.current, { status: "idle" });
+  scope.rerender({ path: "/work/default/src", projectRoot: "", defaultProjectRoot: "/work/default" });
+  validatePath.mockResolvedValueOnce({ valid: false, error: "Not a directory" }); await elapse();
+  assert.deepEqual(scope.result.current, { status: "invalid", message: "Not a directory" });
+  scope.rerender({ path: "/work/default/lib", projectRoot: "", defaultProjectRoot: "/work/default" });
+  validatePath.mockResolvedValueOnce({ valid: true }); await elapse();
+  assert.deepEqual(scope.result.current, { status: "valid", message: "Path is valid" });
+  scope.rerender({ path: "/work/default/api", projectRoot: "", defaultProjectRoot: "/work/default" });
+  validatePath.mockRejectedValueOnce(new Error("offline")); await elapse();
+  assert.deepEqual(scope.result.current, { status: "valid", message: "Path format is valid" });
+});
+
 test("useScopePathValidation handles relative, unsafe, outside, and server root checks", async () => {
   vi.useFakeTimers();
   const { result, rerender } = renderHook(({ path, root }) => useScopePathValidation(path, root), { initialProps: { path: "src", root: "/work/project" } });
