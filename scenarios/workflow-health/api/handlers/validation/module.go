@@ -13,6 +13,7 @@ import (
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
 	corevalidationrun "github.com/vrooli/api-core/validationrun"
+	"github.com/vrooli/maturity-go/assessment"
 	workflowrun "workflow-health/internal/validationrun"
 
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
@@ -33,7 +34,11 @@ func Module(logger *log.Logger, repoRoot string, db *database.RoutedDB) module.M
 		RepoRoot:     repoRoot,
 		Ledger:       workflowrun.Repository{DB: db},
 	})
-	connectPath, connectHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(handler)
+	// DescribeProvider answers readiness from this provider's own descriptor, so a
+	// readiness probe no longer costs a full target analysis. A load failure yields
+	// the zero Describer, which reports Unimplemented and makes consumers fall back.
+	describer, _ := assessment.LoadDescriber(filepath.Join(repoRoot, "scenarios", "workflow-health"))
+	connectPath, connectHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(assessment.Serve(handler, describer))
 	durablePath, durableHandler := scenariovalidationconnect.NewDurableValidationRunServiceHandler(handler)
 	return module.Module{
 		Name: "validation",
@@ -84,6 +89,24 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Validate workflow assets", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"workflow-health\"}'"},
 		},
+	},
+	{
+		ID:          "validation_describe_provider",
+		Path:        scenariovalidationconnect.ScenarioValidationServiceDescribeProviderProcedure,
+		Method:      "POST",
+		Summary:     "Describe this provider's identity and contract",
+		Description: "Reports provider identity, backed phase, maturity spec version, contract, build provenance, and capabilities. Inspects no target, so readiness consumers can confirm this provider is live and current without paying for a full validation run.",
+		Category:    "validation",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{
+			"provider":     "string",
+			"phase":        "string",
+			"spec_version": "string",
+			"contract":     "string",
+			"build":        "scenario_validation.v1.ProviderBuild",
+			"capabilities": "scenario_validation.v1.ProviderCapabilities",
+		}},
+		Examples: []module.Example{{Name: "Describe provider", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/DescribeProvider -H 'Content-Type: application/json' -d '{}'"}},
 	},
 	{
 		ID:          "validation_start_run",

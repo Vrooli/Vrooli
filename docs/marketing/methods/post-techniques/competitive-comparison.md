@@ -57,7 +57,7 @@ When Vrooli has a genuine multiplier (e.g., "agent-built scenarios ship N× fast
 | **Hostile tone** | The comparison reads as attack rather than calibration; the alternative's authors / users feel insulted. | Reject; reword to acknowledge what the alternative does well before pivoting to our differentiator. |
 | **Stale comparison** | The benchmark / capability claim was true 6 months ago but the alternative has since improved. | Time-stamp the comparison; require freshness check on republish. |
 
-Honesty flags the publisher must attach to a competitive-comparison draft (extending the per-type honesty-flag schema):
+Honesty flags the producer must attach to a competitive-comparison draft (extending the per-type honesty-flag schema):
 
 - `comparison_basis=measured | partial | aspirational` — `measured` requires a cited benchmark or explicit feature-by-feature check; `partial` means some claims are measured and others are reasoned; `aspirational` is the upper bound and requires explicit hedging in the copy.
 - `alternative_version_pinned=YES | NO` — the named alternative's version (and approximate date) the comparison was made against. NO is a reject reason for any non-trivial comparison.

@@ -55,9 +55,11 @@ func (r Repository) ListInterrupted(ctx context.Context) ([]Record, error) {
 func (r Repository) FindByIdempotency(ctx context.Context, key string) (Record, error) {
 	return r.scan(r.DB.QueryRowContext(ctx, selectRun+" WHERE idempotency_key = ?", key))
 }
+
 func (r Repository) Get(ctx context.Context, id string) (Record, error) {
 	return r.scan(r.DB.QueryRowContext(ctx, selectRun+" WHERE id = ?", id))
 }
+
 func (r Repository) Create(ctx context.Context, record Record) error {
 	if err := record.Run.Validate(); err != nil {
 		return err
@@ -69,6 +71,7 @@ func (r Repository) Create(ctx context.Context, record Record) error {
 	_, err = r.DB.ExecContext(ctx, `INSERT INTO validation_runs (id, scenario, target_path, idempotency_key, parent_run_id, state, created_at, eta_seconds, preliminary_result, artifact_refs, cancellation_requested, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, record.Run.ID, record.Run.Target.Scenario, record.Run.Target.Path, record.Run.IdempotencyKey, record.Run.ParentRunID, string(record.Run.State), stamp(record.Run.CreatedAt), int64(record.ETA.Seconds()), preliminary, []byte("[]"), boolInt(record.Run.CancellationRequested), record.Run.Version)
 	return err
 }
+
 func (r Repository) Update(ctx context.Context, record Record, expectedVersion int64) error {
 	terminal, err := marshal(record.Terminal)
 	if err != nil {
@@ -122,6 +125,7 @@ func (r Repository) scan(row *sql.Row) (Record, error) {
 	_ = json.Unmarshal(artifacts, &out.Artifacts)
 	return out, nil
 }
+
 func (r Repository) scanRows(rows *sql.Rows) (Record, error) {
 	var out Record
 	var state, created, started, completed string
@@ -147,12 +151,14 @@ func (r Repository) scanRows(rows *sql.Rows) (Record, error) {
 	_ = json.Unmarshal(artifacts, &out.Artifacts)
 	return out, nil
 }
+
 func marshal(value *scenariovalidationv1.ValidateScenarioResponse) ([]byte, error) {
 	if value == nil {
 		return []byte{}, nil
 	}
 	return protojson.MarshalOptions{UseProtoNames: true}.Marshal(value)
 }
+
 func unmarshal(data []byte, into **scenariovalidationv1.ValidateScenarioResponse) error {
 	if len(data) == 0 {
 		return nil
@@ -164,16 +170,19 @@ func unmarshal(data []byte, into **scenariovalidationv1.ValidateScenarioResponse
 	*into = value
 	return nil
 }
+
 func stamp(value time.Time) string {
 	if value.IsZero() {
 		return ""
 	}
 	return value.UTC().Format(time.RFC3339Nano)
 }
+
 func parseStamp(value string) time.Time {
 	parsed, _ := time.Parse(time.RFC3339Nano, value)
 	return parsed
 }
+
 func boolInt(value bool) int {
 	if value {
 		return 1

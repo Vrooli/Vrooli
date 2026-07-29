@@ -25,6 +25,8 @@ func NewFixRegistry() *FixRegistry {
 		autofix.Fixer{RuleID: CodeMetadataIncomplete, Preview: previewMetadataFix, CanFix: canFixWorkflowFile},
 		autofix.Fixer{RuleID: CodeExecutionModeInvalid, Preview: previewExecutionModeFix, CanFix: canFixWorkflowFile},
 		autofix.Fixer{RuleID: CodeObserverContentUnsafe, Preview: previewObserverContentFix, CanFix: canFixWorkflowFile},
+		autofix.Fixer{RuleID: CodeMutatingSafety, Preview: previewMutatingSafetyFix, CanFix: canFixWorkflowFile},
+		autofix.Fixer{RuleID: CodeSeedMissing, Preview: previewSeedDependencyFix, CanFix: canFixWorkflowFile},
 		autofix.Fixer{RuleID: CodeResetLegacy, Preview: previewResetFix, CanFix: canFixWorkflowFile},
 	)}
 }
@@ -35,7 +37,7 @@ func (r *FixRegistry) Preview(root string, ruleIDs []string) ([]autofix.Candidat
 
 func (r *FixRegistry) Apply(root string, ruleIDs []string) ([]autofix.Candidate, error) {
 	if len(ruleIDs) == 0 {
-		ruleIDs = []string{CodeRegistryMissing, CodeRegistryStale, CodeMetadataIncomplete, CodeExecutionModeInvalid, CodeObserverContentUnsafe, CodeResetLegacy}
+		ruleIDs = []string{CodeRegistryMissing, CodeRegistryStale, CodeMetadataIncomplete, CodeExecutionModeInvalid, CodeObserverContentUnsafe, CodeMutatingSafety, CodeSeedMissing, CodeResetLegacy}
 	}
 	var applied []autofix.Candidate
 	for _, ruleID := range ruleIDs {
@@ -195,12 +197,18 @@ func previewMetadataFix(root string) ([]autofix.Candidate, error) {
 }
 
 func previewExecutionModeFix(root string) ([]autofix.Candidate, error) {
-	return previewWorkflowJSONEdits(root, CodeExecutionModeInvalid, "Normalize invalid execution_mode to observer.", func(_ string, doc map[string]any) bool {
-		mode := strings.ToLower(strings.TrimSpace(getString(doc, "metadata", "execution_mode")))
-		if mode == "observer" || mode == "mutating" || mode == "destructive" {
+	return previewWorkflowJSONEdits(root, CodeExecutionModeInvalid, "Normalize execution_mode to the canonical authored form.", func(_ string, doc map[string]any) bool {
+		mode := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(firstNonEmpty(getString(doc, "metadata", "execution_mode"), getString(doc, "execution_mode")))), "execution_mode_")
+		if mode != "observer" && mode != "mutating" && mode != "destructive" {
+			mode = "observer"
+		}
+		metadataMode := getString(doc, "metadata", "execution_mode")
+		rootMode := getString(doc, "execution_mode")
+		if metadataMode == mode && rootMode == "" {
 			return false
 		}
-		setNestedString(doc, "observer", "metadata", "execution_mode")
+		setNestedString(doc, mode, "metadata", "execution_mode")
+		delete(doc, "execution_mode")
 		return true
 	})
 }
@@ -211,6 +219,37 @@ func previewObserverContentFix(root string) ([]autofix.Candidate, error) {
 			return false
 		}
 		setNestedString(doc, "mutating", "metadata", "execution_mode")
+		return true
+	})
+}
+
+func previewMutatingSafetyFix(root string) ([]autofix.Candidate, error) {
+	return previewWorkflowJSONEdits(root, CodeMutatingSafety, "Declare confirmation and routed isolation for mutating workflows.", func(_ string, doc map[string]any) bool {
+		mode := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(firstNonEmpty(getString(doc, "metadata", "execution_mode"), getString(doc, "execution_mode")))), "execution_mode_")
+		if mode != "mutating" && mode != "destructive" {
+			return false
+		}
+		changed := false
+		if getString(doc, "metadata", "labels", "requires_confirmation") != "true" {
+			setNestedString(doc, "true", "metadata", "labels", "requires_confirmation")
+			changed = true
+		}
+		if getString(doc, "metadata", "labels", "routed_isolation") != "true" {
+			setNestedString(doc, "true", "metadata", "labels", "routed_isolation")
+			changed = true
+		}
+		return changed
+	})
+}
+
+func previewSeedDependencyFix(root string) ([]autofix.Candidate, error) {
+	return previewWorkflowJSONEdits(root, CodeSeedMissing, "Declare the scenario seed for full-reset mutating workflows.", func(_ string, doc map[string]any) bool {
+		mode := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(firstNonEmpty(getString(doc, "metadata", "execution_mode"), getString(doc, "execution_mode")))), "execution_mode_")
+		reset := strings.ToLower(strings.TrimSpace(firstNonEmpty(getString(doc, "metadata", "labels", "reset"), getString(doc, "metadata", "reset"))))
+		if (mode != "mutating" && mode != "destructive") || reset != "full" || getString(doc, "metadata", "labels", "seed") != "" {
+			return false
+		}
+		setNestedString(doc, "bas/seeds/seed.go", "metadata", "labels", "seed")
 		return true
 	})
 }

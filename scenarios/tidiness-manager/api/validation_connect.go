@@ -28,8 +28,8 @@ func newScenarioValidationHandler(server *Server) *scenarioValidationHandler {
 	return &scenarioValidationHandler{server: server}
 }
 
-func mountScenarioValidation(router *mux.Router, handler scenariovalidationconnect.ScenarioValidationServiceHandler) {
-	path, connectHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(handler)
+func mountScenarioValidation(router *mux.Router, handler assessment.ValidationServer, describer assessment.Describer) {
+	path, connectHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(assessment.Serve(handler, describer))
 	router.PathPrefix(path).Handler(connectHandler)
 }
 
@@ -175,4 +175,21 @@ func tidinessEvidenceToStruct(evidence map[string]any) (*structpb.Struct, error)
 		return nil, err
 	}
 	return structpb.NewStruct(normalized)
+}
+
+// validationDescriber resolves this provider's own identity for the readiness
+// contract. It reads only tidiness-manager's descriptor, so a readiness probe
+// no longer costs a full scan of the target scenario. A failure yields the zero
+// Describer, which reports Unimplemented and makes consumers fall back to the
+// legacy probe.
+func (s *Server) validationDescriber() assessment.Describer {
+	if s == nil || s.scenarioLocator == nil {
+		return assessment.Describer{}
+	}
+	scenarioDir, err := s.scenarioLocator.ScenarioPath("tidiness-manager")
+	if err != nil || strings.TrimSpace(scenarioDir) == "" {
+		return assessment.Describer{}
+	}
+	describer, _ := assessment.LoadDescriber(scenarioDir)
+	return describer
 }

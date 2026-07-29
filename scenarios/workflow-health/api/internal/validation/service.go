@@ -320,6 +320,9 @@ func validExecutionMode(value string) bool {
 }
 
 func hasSeedDependency(asset workflows.WorkflowAsset) bool {
+	if strings.TrimSpace(asset.Labels["seed"]) != "" {
+		return true
+	}
 	for _, edge := range asset.Dependencies {
 		if edge.Kind == "fixture" {
 			return true

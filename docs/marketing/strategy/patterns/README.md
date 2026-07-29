@@ -17,15 +17,15 @@ These get a third home: `strategies/`. Each strategy file is its own entity, sco
 | File | Status | Applies to |
 |------|--------|-----------|
 | [`ai-ugc-personas.md`](ai-ugc-personas.md) | v1 | Persona-actor accounts on TikTok, Instagram Reels, YouTube Shorts; any post-type produced in persona voice |
-| [`hook-library.md`](hook-library.md) | v0 (skeleton — populated by researcher's `hook-candidate-promotion` decisions) | All post types as a reference library |
-| [`funnel-patterns.md`](funnel-patterns.md) | v0 (skeleton — populated as researcher and publisher capture conversion paths) | All campaigns; cross-references with `funnel-builder` skill once telemetry exists |
+| [`hook-library.md`](hook-library.md) | v0 (skeleton — populated by the producer's `hook-candidate-promotion` decisions) | All post types as a reference library |
+| [`funnel-patterns.md`](funnel-patterns.md) | v0 (skeleton — populated as the producer captures conversion paths) | All campaigns; cross-references with `funnel-builder` skill once telemetry exists |
 
 ## Write rules
 
 Same as the rest of `path:docs/marketing/`: agents never write directly; operator-curated via approved decisions.
 
 - `ai-ugc-personas.md` — `brand-guideline-update` decision context.
-- `hook-library.md` — `hook-candidate-promotion` decision context (researcher proposes; operator approves).
+- `hook-library.md` — `hook-candidate-promotion` decision context (producer proposes; operator approves).
 - `funnel-patterns.md` — `brand-guideline-update`.
 
 ## Cross-references

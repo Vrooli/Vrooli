@@ -100,6 +100,19 @@ func TestAnalyzeArchitectureProductionImportsHelper(t *testing.T) {
 	}
 }
 
+func TestAnalyzeArchitectureAllowsGeneratedTemporalReplayBridge(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module demo\n\ngo 1.25\n")
+	writeFile(t, filepath.Join(root, "internal", "testutil", "modeltest", "model.go"), "package modeltest\n")
+	writeFile(t, filepath.Join(root, "internal", "orders", "flow", "generated", "replay.go"), "package generated\n\nimport _ \"demo/internal/testutil/modeltest\"\n")
+
+	ws := Workspace{ID: "api", Language: "go", RootPath: root}
+	findings := analyzeArchitecture("demo", []Workspace{ws}, fixedNowStr)
+	if _, ok := findingByCode(findings, codeTestHelperFromProd); ok {
+		t.Fatalf("generated temporal replay must not be reported as production test-helper use: %v", codes(findings))
+	}
+}
+
 func TestAnalyzeArchitectureMissingSeam(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "go.mod"), "module demo\n\ngo 1.25\n")

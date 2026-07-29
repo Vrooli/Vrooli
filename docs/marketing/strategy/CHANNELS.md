@@ -1,8 +1,10 @@
 # Channels
 
-Per-platform publishing rules and per-account state. Publisher references this for variant production, scheduling, and polish. Advertisers reference it for platform-appropriate drafting. Researcher proposes drift corrections via `channel-strategy-update` decisions.
+Per-platform publishing rules and per-account state. The `producer` references it for platform-appropriate drafting and proposes drift corrections via `channel-strategy-update` decisions.
 
-**Write rule:** operator-curated via accepted `channel-update` decisions (per-platform-rule changes) and `channel-strategy-update` decisions (channel-level strategy and prioritization changes). Publisher proposes drift corrections; does not edit directly.
+Release execution — variant production, scheduling, and polish — is **currently unowned**. It was held by the retired `publisher` role and moves to the scheduler team once account operations have a home there. Per-channel entries below name the drafting owner only.
+
+**Write rule:** operator-curated via accepted `channel-update` decisions (per-platform-rule changes) and `channel-strategy-update` decisions (channel-level strategy and prioritization changes). The `producer` proposes drift corrections; does not edit directly. `channel-update` is held by `brand-manager` on an interim basis, inherited from the retired `publisher` role.
 
 ## Secrets, credentials, and account handles do NOT live here
 
@@ -34,7 +36,7 @@ The matrix names which post-type from [`../catalogs/post-types/`](../catalogs/po
 | ProductHunt — *placeholder* | — | **P** (launch day) | — | — | S | — | — | — | — | — | — | S | — | — |
 | Mastodon — *placeholder* | S | S | S | — | — | — | — | — | — | — | — | — | — | — |
 
-**Reading the matrix.** A cell answers: "if I have an approved draft of post-type X, do I publish it to channel Y, and is that channel a primary surface for that type or a secondary cross-post?" Cells with stub post-types (image/* and video/*) are forecasts; they tighten as those post-types are authored and as researcher's format scans confirm what actually converts on each platform.
+**Reading the matrix.** A cell answers: "if I have an approved draft of post-type X, do I publish it to channel Y, and is that channel a primary surface for that type or a secondary cross-post?" Cells with stub post-types (image/* and video/*) are forecasts; they tighten as those post-types are authored and as the producer's format scans confirm what actually converts on each platform.
 
 **Why the placeholder marker.** A channel marked *placeholder* means the rules section below names it but we have not yet released artifacts to it. Activation requires a `channel-strategy-update` decision that supplies (a) account count, (b) purpose tags, (c) primary-user member, (d) initial strategy. Until then, draft variants for that channel are speculative.
 
@@ -44,8 +46,8 @@ The matrix names which post-type from [`../catalogs/post-types/`](../catalogs/po
 
 **Active:** yes
 **Priority:** P0 — primary distribution surface for OSS narrative.
-**Accounts:** 1 primary brand account. (Persona-actor accounts: 0; persona accounts on X are a future option once `ai-ugc-personas.md` rules and disclosure plumbing are in place.)
-**Primary lane/member:** OSS lane (`oss-advertiser`) for dev logs; subscription lane (`subscription-advertiser`) for launch threads.
+**Accounts:** 1 primary brand account, **X Premium tier** (long posts available). (Persona-actor accounts: 0; persona accounts on X are a future option once `ai-ugc-personas.md` rules and disclosure plumbing are in place.)
+**Primary lane/member:** `producer` — OSS lane for dev logs, subscription lane for launch threads.
 **Format support:** dev-log threads, scenario-spotlight threads with attached video, oss-framework threads, occasional cross-posts of image content.
 **Strategy notes:**
 - Hook in the first tweet; the rest of the thread doesn't matter if the first tweet doesn't land.
@@ -53,14 +55,14 @@ The matrix names which post-type from [`../catalogs/post-types/`](../catalogs/po
 - Algorithm rewards reply-engagement on the first tweet; hooks designed for reply ("hot take", "concrete number nobody else has", "asking for help") outperform pure-broadcast hooks.
 
 **Rules:**
-- Max 280 chars per tweet (hard platform limit).
+- Per-post character limit is a function of **account tier**, not the platform: 280 on a standard account, 25,000 on Premium. The primary brand account holds Premium, so long posts are available. Apply the cap position-aware per [`../methods/post-techniques/hook-vs-body-asymmetry.md`](../methods/post-techniques/hook-vs-body-asymmetry.md) — hook tweet ~280 regardless; body tweets carry the substance and routinely run 400-600+. Record per-tweet counts in the draft.
 - Thread length: 3-7 tweets typical; longer is fine when essay-shape requires it.
 - Sanitize paths, emails, credentials per `x-dev-log` guardrails. Non-negotiable.
 - Threads cite sources (commit hashes, run ids, issue links) rather than vague claims.
 - Every metric in a thread carries an honesty flag (`pending-telemetry` is fine; unflagged is a violation).
-- No auto-posting. Always goes through an approved `content-publish-proposal`.
+- No auto-posting. A draft reaches `approved` only by operator action in `content-desk`, and only with every cited claim verified and its post type active.
 
-**Revisit:** when X platform rules change (API, length limits, format), or when a `channel-strategy-update` decision proposes activating persona-actor accounts.
+**Revisit:** when X platform rules change (API, length limits, format), when the brand account's subscription tier changes (the per-post limit above depends on it), or when a `channel-strategy-update` decision proposes activating persona-actor accounts.
 
 ---
 
@@ -69,10 +71,10 @@ The matrix names which post-type from [`../catalogs/post-types/`](../catalogs/po
 **Active:** yes
 **Priority:** P0 — primary surface for long-form scenario-spotlights and oss-framework essays.
 **Accounts:** 1 self-hosted blog (no platform accounts).
-**Primary lane/member:** Subscription lane (`subscription-advertiser`) for long-form SKU narratives; OSS lane (`oss-advertiser`) for architecture write-ups and OSS-framework essays.
+**Primary lane/member:** `producer` — subscription lane for long-form SKU narratives, OSS lane for architecture write-ups and OSS-framework essays.
 **Format support:** long-form essay shape, embedded code, embedded screenshots, occasional embedded video.
 **Strategy notes:**
-- SEO-friendly headlines (researcher proposes via `seo-optimizer`); no SEO-spam patterns.
+- SEO-friendly headlines (`producer` proposes via `seo-optimizer`); no SEO-spam patterns.
 - Long-form is where dev-log series get their permanent home; X threads link back to blog for the full version.
 
 **Rules:**
@@ -92,7 +94,7 @@ The matrix names which post-type from [`../catalogs/post-types/`](../catalogs/po
 **Active:** partial (manual production; `video-studio` scenario not yet shipped).
 **Priority:** P1 — long-form demos and architecture walks live here; short-form video lives on TikTok/Reels/Shorts (separate channels below).
 **Accounts:** 1 brand YouTube channel (placeholder until activated).
-**Primary lane/member:** Subscription lane (`subscription-advertiser`) for SKU demos; OSS lane (`oss-advertiser`) for architecture walkthroughs.
+**Primary lane/member:** `producer` — subscription lane for SKU demos, OSS lane for architecture walkthroughs.
 **Format support:** demo-recording (long-form), occasional comparison-reel and use-case-tutorial.
 
 **Rules:**
@@ -111,11 +113,11 @@ The matrix names which post-type from [`../catalogs/post-types/`](../catalogs/po
 **Active:** placeholder.
 **Priority:** P2 — small-team-lead audience surface; activated when the subscription lane has a draft sized for the platform.
 **Accounts:** TBD on activation.
-**Primary lane/member:** Subscription lane (`subscription-advertiser`) for the small-team-lead audience, when activated.
+**Primary lane/member:** `producer` — subscription lane for the small-team-lead audience, when activated.
 **Format support:** TBD on activation; expected primaries are scenario-spotlight (text+asset) and oss-framework cross-posts.
 **Rules:** not yet codified.
 
-**Revisit:** when publisher releases first artifact to LinkedIn — at that point, the first `channel-update` decision populates the rules section with observed-successful patterns.
+**Revisit:** when the first artifact is released to LinkedIn — at that point, the first `channel-update` decision populates the rules section with observed-successful patterns.
 
 ---
 
@@ -124,7 +126,7 @@ The matrix names which post-type from [`../catalogs/post-types/`](../catalogs/po
 **Active:** placeholder.
 **Priority:** P1 — primary surface for short-form video and AI-UGC formats targeting the lifestyle-bundle audience.
 **Accounts:** TBD on activation. Expected pattern: 1 primary brand account + N persona-actor accounts (per `patterns/ai-ugc-personas.md`).
-**Primary lane/member:** Subscription lane (`subscription-advertiser`) for lifestyle bundle and persona-actor content; publisher for cross-platform variants.
+**Primary lane/member:** `producer` — subscription lane for lifestyle bundle and persona-actor content.
 **Format support:** narrative-talking-head, day-in-life-ugc, problem-agitate-solve, comparison-reel, slideshow-tips-then-plug, slideshow-voiceover. (See matrix above.)
 **Strategy notes:**
 - AI-UGC content requires native AI-generated label per TikTok 2026 rules; see `patterns/ai-ugc-personas.md` for disclosure protocol.
@@ -143,7 +145,7 @@ The matrix names which post-type from [`../catalogs/post-types/`](../catalogs/po
 **Active:** placeholder.
 **Priority:** P1 — visual-first surface; lifestyle bundle is the primary target audience.
 **Accounts:** TBD on activation. Expected pattern similar to TikTok: 1 primary brand + N persona-actor accounts.
-**Primary lane/member:** Subscription lane (`subscription-advertiser`) for lifestyle bundle; publisher for cross-posts.
+**Primary lane/member:** `producer` — subscription lane for lifestyle bundle.
 **Format support per surface:**
 - **Feed:** single-image-ad (P), infographic (P), slideshow-listicle (S), scenario-spotlight cross-posts (S).
 - **Reels:** narrative-talking-head (P), day-in-life-ugc (P), problem-agitate-solve (P), comparison-reel (P), slideshow-voiceover (P).
@@ -163,7 +165,7 @@ The matrix names which post-type from [`../catalogs/post-types/`](../catalogs/po
 **Active:** placeholder.
 **Priority:** P1 — short-form video surface tied to the same brand YouTube channel as long-form demos.
 **Accounts:** uses the brand YouTube channel; persona-actor channels possible later.
-**Primary lane/member:** Subscription lane (`subscription-advertiser`) for lifestyle and dev-tool bundles.
+**Primary lane/member:** `producer` — subscription lane for lifestyle and dev-tool bundles.
 **Format support:** narrative-talking-head, problem-agitate-solve, comparison-reel, slideshow-voiceover, occasional day-in-life-ugc and demo-recording cut-downs.
 **Strategy notes:**
 - Shorts feed into the brand channel's algorithmic surface; consistent posting helps long-form discovery.
@@ -180,14 +182,14 @@ The matrix names which post-type from [`../catalogs/post-types/`](../catalogs/po
 **Active:** placeholder.
 **Priority:** P2 — X cross-post surface; minimal incremental cost once X drafts exist.
 **Accounts:** 1 primary brand account (matched to X).
-**Primary lane/member:** Publisher for cross-posts of existing X threads.
+**Primary lane/member:** `producer` — cross-posts of existing X threads.
 **Format support:** dev-log, scenario-spotlight, oss-framework, use-case-tutorial — all as text-only or text+image cross-posts of X originals.
 **Strategy notes:**
 - Threads is mostly an audience-overlap surface for X; treat as zero-cost cross-post until evidence emerges that it deserves separate drafting.
 
 **Rules:** not yet codified.
 
-**Revisit:** when researcher's format scans show Threads-specific formats outperforming X cross-posts.
+**Revisit:** when the producer's format scans show Threads-specific formats outperforming X cross-posts.
 
 ---
 
@@ -196,7 +198,7 @@ The matrix names which post-type from [`../catalogs/post-types/`](../catalogs/po
 **Active:** placeholder.
 **Priority:** P2 — X-alternative; relevant for the OSS-contributor audience that has migrated.
 **Accounts:** 1 primary brand account.
-**Primary lane/member:** Publisher for cross-posts; OSS lane (`oss-advertiser`) for occasional Bluesky-native dev logs.
+**Primary lane/member:** `producer` — OSS lane for occasional Bluesky-native dev logs.
 **Format support:** same as X — dev-log, scenario-spotlight, oss-framework cross-posts.
 **Strategy notes:**
 - Smaller audience than X but heavier OSS-developer concentration; dev-log content fits naturally.
@@ -204,7 +206,7 @@ The matrix names which post-type from [`../catalogs/post-types/`](../catalogs/po
 
 **Rules:** not yet codified.
 
-**Revisit:** when bluesky audience > 10% of X audience or when researcher flags a Bluesky-specific format outperforming.
+**Revisit:** when bluesky audience > 10% of X audience or when the producer flags a Bluesky-specific format outperforming.
 
 ---
 
@@ -213,7 +215,7 @@ The matrix names which post-type from [`../catalogs/post-types/`](../catalogs/po
 **Active:** placeholder.
 **Priority:** P1 — high-conversion surface for use-case-tutorial and oss-framework content in the right subreddit; also dangerous (off-topic posts get downvoted hard).
 **Accounts:** 1 brand account (rare posting), N personal-operator accounts (organic participation, not brand-marketing).
-**Primary lane/member:** Subscription lane (`subscription-advertiser`) for subreddit-targeted scenario spotlights; OSS lane (`oss-advertiser`) for OSS-framework essays in r/MachineLearning, r/programming, r/selfhosted.
+**Primary lane/member:** `producer` — subscription lane for subreddit-targeted scenario spotlights, OSS lane for OSS-framework essays in r/MachineLearning, r/programming, r/selfhosted.
 **Format support:** scenario-spotlight (subreddit-fit), oss-framework, use-case-tutorial. No image/video originals; embedded media OK.
 **Strategy notes:**
 - Subreddit fit is everything. Each post-channel decision specifies exact target subreddit and verifies its rules against draft.
@@ -231,7 +233,7 @@ The matrix names which post-type from [`../catalogs/post-types/`](../catalogs/po
 **Active:** placeholder.
 **Priority:** P1 — Show HN is a primary surface for oss-framework and major scenario-spotlight launches.
 **Accounts:** operator-personal account (HN convention; brand accounts get downvoted).
-**Primary lane/member:** OSS lane (`oss-advertiser`) for Show HN posts; subscription lane (`subscription-advertiser`) for occasional scenario launches.
+**Primary lane/member:** `producer` — OSS lane for Show HN posts, subscription lane for occasional scenario launches.
 **Format support:** oss-framework (Show HN), scenario-spotlight (rare, only if launch-worthy), use-case-tutorial (rare, only if novel).
 **Strategy notes:**
 - Show HN convention: title is "Show HN: <Project> — <one-line>"; first comment is the operator giving context (the post body is typically just the link).
@@ -249,7 +251,7 @@ The matrix names which post-type from [`../catalogs/post-types/`](../catalogs/po
 **Active:** placeholder.
 **Priority:** P1 — primary launch surface for major scenario or bundle drops.
 **Accounts:** brand account + maker accounts (operator + named contributors).
-**Primary lane/member:** Subscription lane (`subscription-advertiser`) for launch-day scenario spotlights; brand-manager for campaign coordination.
+**Primary lane/member:** `producer` — subscription lane for launch-day scenario spotlights; `brand-manager` for campaign coordination.
 **Format support:** scenario-spotlight (launch-day variant), with assets (single-image-ad on the launch page, demo-recording embedded).
 **Strategy notes:**
 - Launch day is the only day that matters; rank decay after 24h is steep.
@@ -267,14 +269,14 @@ The matrix names which post-type from [`../catalogs/post-types/`](../catalogs/po
 **Active:** placeholder.
 **Priority:** P3 — federated X-alternative; small audience, OSS-aligned.
 **Accounts:** 1 primary brand account on a relevant instance.
-**Primary lane/member:** Publisher for cross-posts of X originals.
+**Primary lane/member:** `producer` — cross-posts of X originals.
 **Format support:** dev-log, scenario-spotlight, oss-framework as zero-cost cross-posts.
 **Strategy notes:**
 - Treat as zero-cost cross-post until evidence emerges that it deserves dedicated drafting.
 
 **Rules:** not yet codified.
 
-**Revisit:** when researcher flags a Mastodon-specific format or instance worth targeting.
+**Revisit:** when the producer flags a Mastodon-specific format or instance worth targeting.
 
 ---
 
@@ -294,15 +296,15 @@ This table will populate as the social-media-scheduler scenario returns engageme
 | HackerNews | pending-telemetry | pending-telemetry | pending-telemetry | pending-telemetry |
 | ProductHunt | pending-telemetry | pending-telemetry | pending-telemetry | pending-telemetry |
 
-Decision context for populating: `channel-strategy-update` (researcher proposes after reading scheduler metrics). The researcher must apply the same `interpretation_flag` discipline used for `audience-scans.jsonl` — single-snapshot data is `light-interpretation`, ≥3 converging snapshots over comparable periods are required before promoting to a stable claim.
+Decision context for populating: `channel-strategy-update` (`producer` proposes after reading scheduler metrics). The producer must apply the same `interpretation_flag` discipline used for `audience-scans.jsonl` — single-snapshot data is `light-interpretation`, ≥3 converging snapshots over comparable periods are required before promoting to a stable claim.
 
 ---
 
 ## Cross-channel rules
 
 - **Variant integrity.** Every variant of an approved draft traces to the same proposal and same positioning claim. Diverging claims = bug.
-- **Honesty flags preserved during polish.** Publisher never smooths away `pending-telemetry` or `estimate` flags.
-- **Voice preserved during polish.** Publisher corrects typos and platform-rule violations; does not rewrite advertiser voice into house style.
-- **Collision check before scheduling.** Publisher queries `publish-log.jsonl` + scheduled queue for same-day collisions on the same channel.
+- **Honesty flags preserved during polish.** Release polish never smooths away `pending-telemetry` or `estimate` flags.
+- **Voice preserved during polish.** Release polish corrects typos and platform-rule violations; it does not rewrite the producer's voice into house style.
+- **Collision check before scheduling.** Release execution queries the publish log and scheduled queue for same-day collisions on the same channel.
 - **AI-UGC disclosure preserved across channels.** Persona-actor content carries the same disclosure on every cross-post; honesty-flag schema enforces.
 - **Persona-actor account discipline.** Persona accounts post in persona voice on their own niche; brand-voice content does not appear on persona accounts and persona content does not appear on the brand account. See `patterns/ai-ugc-personas.md`.

@@ -50,7 +50,7 @@ The line is **specific false claims**, not implication:
 | HackerNews | Disclosure expected; follow community norms | n/a (Show HN doesn't take ads) | HN is hostile to AI marketing; AI-UGC is generally not a fit. |
 | ProductHunt | In-post disclosure | Required if sponsorship | PH is a launch surface, not a UGC surface; AI-UGC is rarely the right format. |
 
-**Substantial AI content = AI-generated voice, AI-generated face/body, AI-generated motion video.** Color-grading, light retouching, and basic editing do not require disclosure (per FTC and platform rules as of 2026, but verify per scan — researcher's `marketing-craft` scope includes platform-rule changes).
+**Substantial AI content = AI-generated voice, AI-generated face/body, AI-generated motion video.** Color-grading, light retouching, and basic editing do not require disclosure (per FTC and platform rules as of 2026, but verify per scan — the producer's `marketing-craft` scope includes platform-rule changes).
 
 **When in doubt, disclose.** The contrarian's bias is toward *over-disclosure*; under-disclosure has long-term brand and legal cost.
 

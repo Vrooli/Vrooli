@@ -1,13 +1,13 @@
 # Marketing Research
 
-This folder is the plan-of-record hub for how the marketing-crew researcher turns external signals into evidence, decisions, skills, and capability-gap proposals.
+This folder is the plan-of-record hub for how the marketing-crew producer turns external signals into evidence, decisions, skills, and capability-gap proposals.
 
 Research supports two intake modes:
 
 - **Operator-fed alpha:** links, bookmarks, workflows, skills, posts, and observations surfaced during the morning vision walk or direct operator conversation.
 - **Proactive baseline:** low-volume scheduled scans across audiences, competitors, channels, hooks, formats, and benchmark-adjacent market evidence.
 
-When the signal-inbox scenario is available, it is the preferred collection layer for operator bookmarks and social saves. Do not create source-specific intake skills for X, Reddit, newsletters, or similar sources unless signal-inbox cannot reasonably cover that source. The researcher should consume classified signal-inbox CLI output, then apply marketing research methods to the relevant items.
+When the signal-inbox scenario is available, it is the preferred collection layer for operator bookmarks and social saves. Do not create source-specific intake skills for X, Reddit, newsletters, or similar sources unless signal-inbox cannot reasonably cover that source. The producer should consume classified signal-inbox CLI output, then apply marketing research methods to the relevant items.
 
 ## Pipeline
 
@@ -22,7 +22,7 @@ Inbox entries live in the marketing-crew team knowledge log under a `research-in
 Work may enter through:
 
 - the inbox view: `prompt-manager team knowledge-list marketing-crew --topic-prefix=research-inbox/`
-- researcher handoff and prior knowledge
+- producer handoff and prior knowledge
 - operator-provided source references during a vision walk
 - proactive baseline scans when inbox signal is empty or stale
 - future signal-inbox CLI exports
@@ -48,7 +48,7 @@ prompt-manager team knowledge-add marketing-crew \
   --source="<original-url-if-known>"
 ```
 
-- `--caller-note` identifies the source context (e.g. `vision-walk`, `researcher`, `operator`). Knowledge entries are attributed automatically by runtime context; do not pass `--by` to `knowledge-add`.
+- `--caller-note` identifies the source context (e.g. `vision-walk`, `producer`, `operator`). Knowledge entries are attributed automatically by runtime context; do not pass `--by` to `knowledge-add`.
 - `--source` carries the original URL when available.
 
 Each entry must preserve: source URL when available, raw operator note, confidence / honesty flags, and a proposed next method (or a reason no follow-up is warranted). Signal-type lives in the topic, not the content.
@@ -128,8 +128,8 @@ Do not collapse these into one permanent mega-skill. A router may classify and c
 - One source is an observation, not canon.
 - Three converging scans can justify a decision when the sources are meaningfully independent.
 - Single-snapshot data must be labeled `light-interpretation`.
-- Signal-inbox classifications are inputs, not proof. The researcher still evaluates relevance and evidence quality.
-- Researcher never drafts marketing content or directly edits `path:docs/marketing/` canon; it proposes changes for operator review.
+- Signal-inbox classifications are inputs, not proof. The producer still evaluates relevance and evidence quality.
+- The producer never drafts marketing content or directly edits `path:docs/marketing/` canon; it proposes changes for operator review.
 
 ## Skill Surface
 
@@ -137,6 +137,6 @@ Inbox draining is now a structural concern, not a single skill:
 
 - `docs/marketing/taxonomies/marketing-research/README.md` (paired with `taxonomy.json`) — owns the signal vocabulary, dispatch table, evidence rules, and destination schemas.
 - `signal-classifier` — pure-judgment skill that returns `signal_type`, `evidence_strength`, `honesty_flags`, and a `recommended_method` for each raw item. Member-agnostic; no inbox or destination coupling.
-- The researcher's heartbeat receives a generated `# Inbox Flow` section that names the prefix, classifier, destinations, and dispatch.
+- The producer's heartbeat receives a generated `# Inbox Flow` section that names the prefix, classifier, destinations, and dispatch.
 
 Planned focused method skills (audience-pain-mining, competitor-positioning-scan, hook-pattern-mining, etc.) cite the taxonomy as their PoR hub and keep procedure in the skill, not in this document.

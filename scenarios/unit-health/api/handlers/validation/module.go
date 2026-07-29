@@ -30,6 +30,11 @@ var (
 // timing/status for cross-run diagnostics; pass nil to disable persistence.
 func Module(logger *log.Logger, repoRoot string, history runhistory.Store) module.Module {
 	svc := internalvalidation.New()
+	// DescribeProvider answers readiness from this provider's own descriptor,
+	// so a readiness probe no longer costs a full target analysis. A load
+	// failure yields the zero Describer, which reports Unimplemented and makes
+	// consumers fall back to the legacy probe.
+	describer, _ := assessment.LoadDescriber(filepath.Join(repoRoot, "scenarios", "unit-health"))
 	spec, err := assessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", "unit-health"))
 	if err != nil && logger != nil {
 		logger.Printf("validation: maturity assessment unavailable: %v", err)
@@ -54,7 +59,7 @@ func Module(logger *log.Logger, repoRoot string, history runhistory.Store) modul
 		Environment:  environment,
 	})
 	connectPath, connectHandler := validationconnect.NewValidationServiceHandler(handler)
-	sharedPath, sharedHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(NewSharedHandler(handler))
+	sharedPath, sharedHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(assessment.Serve(NewSharedHandler(handler), describer))
 	return module.Module{
 		Name: "validation",
 		Mount: func(r *mux.Router) {
@@ -95,6 +100,24 @@ var Endpoints = []module.EndpointDescriptor{
 		// through the shared scenario-validation provider contract. The
 		// `validate scenario` CLI command covers it; map both endpoints to it.
 
+	},
+	{
+		ID:          "validation_describe_provider",
+		Path:        scenariovalidationconnect.ScenarioValidationServiceDescribeProviderProcedure,
+		Method:      "POST",
+		Summary:     "Describe this provider's identity and contract",
+		Description: "Reports provider identity, backed phase, maturity spec version, contract, build provenance, and capabilities. Inspects no target, so readiness consumers can confirm this provider is live and current without paying for a full validation run.",
+		Category:    "validation",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{
+			"provider":     "string",
+			"phase":        "string",
+			"spec_version": "string",
+			"contract":     "string",
+			"build":        "scenario_validation.v1.ProviderBuild",
+			"capabilities": "scenario_validation.v1.ProviderCapabilities",
+		}},
+		Examples: []module.Example{{Name: "Describe provider", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/DescribeProvider -H 'Content-Type: application/json' -d '{}'"}},
 	},
 	{
 		ID:          "scenario_validation_preview_fix",

@@ -5,7 +5,7 @@ Cross-team-readable canon for how marketing research signals are partitioned, cl
 **Owner team:** marketing-crew. **Status:** canon. Operator-curated via marketing-crew decisions.
 
 Cited by:
-- `topics.json` for marketing-crew members whose `intake[].taxonomy = "marketing-research"` (e.g., the researcher).
+- `topics.json` for marketing-crew members whose `intake[].taxonomy = "marketing-research"` (e.g., the producer).
 - The `signal-classifier` skill (pure judgment; cites this file for definitions and dispatch).
 
 ## Editing rules
@@ -151,7 +151,7 @@ date_observed: <YYYY-MM-DD>
 ```
 Body must include: `## Value`, `## Notes`.
 
-**Cross-team note.** This schema is owned by marketing's taxonomy because marketing's researcher is the producer. The receiving member on monetization adopts the same schema; it does not redefine it under monetization's taxonomy.
+**Cross-team note.** This schema is owned by marketing's taxonomy because marketing's producer is the producer. The receiving member on monetization adopts the same schema; it does not redefine it under monetization's taxonomy.
 
 ## Honesty flags
 

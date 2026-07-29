@@ -1,10 +1,28 @@
 package workflows
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestDecodeBASDefinitionAcceptsBrowserAutomationStudioCatalog(t *testing.T) {
+	root := "../../../../browser-automation-studio/bas"
+	for _, family := range []string{"actions", "cases", "flows"} {
+		files, err := collectJSONFiles(filepath.Join(root, family))
+		require.NoError(t, err)
+		for _, path := range files {
+			t.Run(path, func(t *testing.T) {
+				data, err := os.ReadFile(path)
+				require.NoError(t, err)
+				_, err = DecodeBASDefinitionJSON(data)
+				require.NoError(t, err)
+			})
+		}
+	}
+}
 
 func TestDecodeBASDefinitionAcceptsCanonicalWorkflow(t *testing.T) {
 	definition, err := DecodeBASDefinition(map[string]any{
@@ -18,6 +36,15 @@ func TestDecodeBASDefinitionAcceptsCanonicalWorkflow(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, "smoke", definition.GetMetadata().GetName())
+}
+
+func TestDecodeBASDefinitionAcceptsTypedSubflowFixtureArguments(t *testing.T) {
+	data, err := os.ReadFile("../../../../browser-automation-studio/bas/actions/open-demo-project.json")
+	require.NoError(t, err)
+
+	definition, err := DecodeBASDefinitionJSON(data)
+	require.NoError(t, err)
+	require.Len(t, definition.GetNodes(), 9)
 }
 
 func TestDecodeBASDefinitionRejectsUnknownMetadataField(t *testing.T) {

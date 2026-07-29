@@ -99,7 +99,7 @@ This folder is **incubating data** per `docs/agent-system/OPERATING_GRAPHS.md` �
 - [`../post-types/image/`](../post-types/image/), [`../post-types/video/`](../post-types/video/) — image and video post types that consume these schemas.
 - [`../../strategy/ASSETS.md`](../../strategy/ASSETS.md), [`../../strategy/IMAGE_STYLE.md`](../../strategy/IMAGE_STYLE.md) — brand canon; characters and scenes must be checkable against the brand palette and aesthetic.
 - [`../../strategy/CHANNELS.md`](../../strategy/CHANNELS.md) — per-channel format support for the rendered outputs.
-- Reference reading on JSON prompting (researcher's `marketing-craft` scope tracks updates):
+- Reference reading on JSON prompting (the producer's `marketing-craft` scope tracks updates):
   - Veo 3.1 prompting guide (Google Cloud Blog, 2026)
   - JSON prompting for AI image generation (industry coverage 2026)
   - Character consistency formula: `Identity + Core Traits + Clothing/Style + Pose + Lighting/Camera + Background`

@@ -16,6 +16,7 @@ import (
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	"workflow-health/internal/workflows"
 )
@@ -84,7 +85,9 @@ func (c *ConnectClient) ExecuteAdhoc(ctx context.Context, req ExecuteRequest) (*
 			RequiresHar:   req.Options.RequiresHAR,
 		},
 	}
-	resp, err := c.workflows.ExecuteAdhocWorkflow(ctx, connect.NewRequest(basReq))
+	request := connect.NewRequest(basReq)
+	applyRequestHeaders(request.Header(), req.Parameters.ExtraHeaders)
+	resp, err := c.workflows.ExecuteAdhocWorkflow(ctx, request)
 	if err != nil {
 		return nil, err
 	}
@@ -92,17 +95,19 @@ func (c *ConnectClient) ExecuteAdhoc(ctx context.Context, req ExecuteRequest) (*
 	if executionID == "" {
 		return nil, fmt.Errorf("BAS started an adhoc workflow without an execution id")
 	}
-	return c.waitForExecution(ctx, executionID)
+	return c.waitForExecution(ctx, executionID, req.Parameters.ExtraHeaders)
 }
 
-func (c *ConnectClient) waitForExecution(ctx context.Context, executionID string) (*ExecuteResult, error) {
+func (c *ConnectClient) waitForExecution(ctx context.Context, executionID string, headers map[string]string) (*ExecuteResult, error) {
 	waitCtx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
 	ticker := time.NewTicker(250 * time.Millisecond)
 	defer ticker.Stop()
 	for {
-		resp, err := c.executions.GetExecution(waitCtx, connect.NewRequest(&basapi.GetExecutionRequest{ExecutionId: executionID}))
+		request := connect.NewRequest(&basapi.GetExecutionRequest{ExecutionId: executionID})
+		applyRequestHeaders(request.Header(), headers)
+		resp, err := c.executions.GetExecution(waitCtx, request)
 		if err != nil {
 			return nil, fmt.Errorf("read BAS execution %s: %w", executionID, err)
 		}
@@ -126,8 +131,18 @@ func (c *ConnectClient) waitForExecution(ctx context.Context, executionID string
 	}
 }
 
-func (c *ConnectClient) Timeline(ctx context.Context, executionID string) (*bastimeline.ExecutionTimeline, error) {
-	resp, err := c.executions.GetExecutionTimeline(ctx, connect.NewRequest(&basapi.GetExecutionTimelineRequest{ExecutionId: executionID}))
+func applyRequestHeaders(dst http.Header, headers map[string]string) {
+	for key, value := range headers {
+		if strings.TrimSpace(key) != "" && strings.TrimSpace(value) != "" {
+			dst.Set(key, value)
+		}
+	}
+}
+
+func (c *ConnectClient) Timeline(ctx context.Context, executionID string, headers map[string]string) (*bastimeline.ExecutionTimeline, error) {
+	request := connect.NewRequest(&basapi.GetExecutionTimelineRequest{ExecutionId: executionID})
+	applyRequestHeaders(request.Header(), headers)
+	resp, err := c.executions.GetExecutionTimeline(ctx, request)
 	if err != nil {
 		return nil, err
 	}
@@ -138,32 +153,37 @@ func definitionToProto(definition map[string]any) (*basworkflows.WorkflowDefinit
 	return workflows.DecodeBASDefinition(definition)
 }
 
+// validationArtifactProfile asks BAS to collect what proves a case passed or
+// failed and skip the rest. A validation run needs assertions, extracted data,
+// and a frame at the point of failure; it does not need a full-viewport PNG of
+// every variable assignment, which is where most of a suite's wall-clock goes.
+//
+// Product and replay executions do not set this, so they keep every frame.
+const validationArtifactProfile = "validation"
+
 func parametersToProto(params Parameters) *basexecution.ExecutionParameters {
-	out := &basexecution.ExecutionParameters{}
-	populated := false
+	out := &basexecution.ExecutionParameters{
+		ArtifactConfig: &basexecution.ArtifactCollectionConfig{
+			Profile: proto.String(validationArtifactProfile),
+		},
+	}
+	// The artifact profile above always populates the message, so the previous
+	// "return nil when nothing was set" branch can no longer be reached.
 	if strings.TrimSpace(params.ProjectRoot) != "" {
 		v := strings.TrimSpace(params.ProjectRoot)
 		out.ProjectRoot = &v
-		populated = true
 	}
 	if len(params.InitialParams) > 0 {
 		out.InitialParams = anyMapToJSONValueMap(params.InitialParams)
-		populated = true
 	}
 	if len(params.InitialStore) > 0 {
 		out.InitialStore = anyMapToJSONValueMap(params.InitialStore)
-		populated = true
 	}
 	if len(params.Env) > 0 {
 		out.Env = anyMapToJSONValueMap(params.Env)
-		populated = true
 	}
 	if len(params.ExtraHeaders) > 0 {
 		out.BrowserProfile = &basbase.BrowserProfile{ExtraHeaders: params.ExtraHeaders}
-		populated = true
-	}
-	if !populated {
-		return nil
 	}
 	return out
 }

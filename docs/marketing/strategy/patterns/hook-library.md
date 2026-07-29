@@ -1,17 +1,17 @@
 # Strategy: Hook Library
 
-**Status:** v0 (skeleton — populated by researcher's `hook-candidate-promotion` decisions over time).
+**Status:** v0 (skeleton — populated by the producer's `hook-candidate-promotion` decisions over time).
 
-A curated library of proven hook patterns, tagged by platform / audience / outcome. Hooks are observed in the wild by `researcher`, captured in `audience-scans.jsonl` as `hook-candidate` scope entries, and promoted here when ≥3 stable observations support the hook + when a `hook-candidate-promotion` decision is approved.
+A curated library of proven hook patterns, tagged by platform / audience / outcome. Hooks are observed in the wild by `producer`, captured in `audience-scans.jsonl` as `hook-candidate` scope entries, and promoted here when ≥3 stable observations support the hook + when a `hook-candidate-promotion` decision is approved.
 
 This is a *library* (a list), not a *technique*. Hook *shape patterns* (essay-shape, hook-vs-body asymmetry) live in [`../../methods/post-techniques/`](../../methods/post-techniques/); specific *hook lines and templates* live here.
 
 ## How entries get here
 
-Authoring discipline (per researcher's [`HEARTBEAT.md`](../../../../scenarios/prompt-manager/store/teams/marketing-crew/members/researcher/HEARTBEAT.md)):
+Authoring discipline (per the producer's [`HEARTBEAT.md`](../../../../scenarios/prompt-manager/store/teams/marketing-crew/members/producer/HEARTBEAT.md)):
 
-1. Researcher captures `hook-candidate` scans — verbatim hooks observed in the wild, with platform + audience + source URL + freshness date.
-2. After ≥3 stable hooks accumulate (or after a notable cluster), researcher proposes `hook-candidate-promotion`.
+1. The producer captures `hook-candidate` scans — verbatim hooks observed in the wild, with platform + audience + source URL + freshness date.
+2. After ≥3 stable hooks accumulate (or after a notable cluster), the producer proposes `hook-candidate-promotion`.
 3. Operator approves; the operator (or brand-manager on their behalf) edits this file to add the hooks under the appropriate category.
 4. Each entry retains its source citation per [STRATEGY.md's source-material discipline](../STRATEGY.md#source-material-discipline) — *mine the structural pattern, never the tone*.
 
@@ -26,7 +26,7 @@ Hooks the operator drafts directly are also accepted but should still be capture
   - **Post type(s):** [post-type slugs that this hook fits]
   - **Outcome observed:** [what happened in the wild — e.g., "high reply rate", "high save rate", "high watch-completion"]
   - **Honesty notes:** [does this hook require a specific verifiable claim? what fails if applied dishonestly?]
-  - **Source:** [URL — original observation in researcher's audience-scans.jsonl or external reference]
+  - **Source:** [URL — original observation in the producer's audience-scans.jsonl or external reference]
   - **Captured:** YYYY-MM-DD
 ```
 
@@ -87,4 +87,4 @@ Hooks the operator drafts directly are also accepted but should still be capture
 - [`../../methods/post-techniques/essay-shape.md`](../../methods/post-techniques/essay-shape.md) — where hooks fit in the post structure.
 - [`../../methods/post-techniques/hook-vs-body-asymmetry.md`](../../methods/post-techniques/hook-vs-body-asymmetry.md) — hook-length discipline.
 - [`../STRATEGY.md`](../STRATEGY.md) — voice canon (banned phrases that auto-disqualify hooks).
-- Researcher's [`HEARTBEAT.md`](../../../../scenarios/prompt-manager/store/teams/marketing-crew/members/researcher/HEARTBEAT.md) — `hook-candidate` scan scope and `hook-candidate-promotion` decision context.
+- The producer's [`HEARTBEAT.md`](../../../../scenarios/prompt-manager/store/teams/marketing-crew/members/producer/HEARTBEAT.md) — `hook-candidate` scan scope and `hook-candidate-promotion` decision context.

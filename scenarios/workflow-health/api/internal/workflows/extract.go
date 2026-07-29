@@ -161,7 +161,11 @@ func labelBool(value string, truthy ...string) bool {
 }
 
 func normalizeMode(value string) string {
-	return strings.ToLower(strings.TrimSpace(value))
+	mode := strings.ToLower(strings.TrimSpace(value))
+	// BAS serializes ExecutionMode as its protobuf JSON enum name while authored
+	// playbooks may use the concise form. Both are one contract and must retain
+	// their safety classification during catalog validation.
+	return strings.TrimPrefix(mode, "execution_mode_")
 }
 
 func normalizeReset(value string) string {

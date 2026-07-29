@@ -135,7 +135,10 @@ func (s scanner) scanWorkflowAsset(absPath string, typ AssetType, role AssetRole
 		asset.Name = firstNonEmpty(getString(catalogDoc, "metadata", "name"), strings.TrimSuffix(filepath.Base(relPath), filepath.Ext(relPath)))
 		asset.Description = getString(catalogDoc, "metadata", "description")
 		asset.Version = getString(catalogDoc, "metadata", "version")
-		asset.ExecutionMode = normalizeMode(getString(catalogDoc, "metadata", "execution_mode"))
+		asset.ExecutionMode = normalizeMode(firstNonEmpty(
+			getString(catalogDoc, "metadata", "execution_mode"),
+			getString(catalogDoc, "execution_mode"),
+		))
 		asset.Labels = labelsMap(catalogDoc)
 		asset.Reset = normalizeReset(firstNonEmpty(asset.Labels["reset"], getString(catalogDoc, "metadata", "reset")))
 		asset.NodeCount = nodeCount(definition)

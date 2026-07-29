@@ -41,5 +41,5 @@ Closed campaigns stay in this file as historical record. Long-term, these may mo
 ## Operator discipline
 
 - Campaign creation: operator accepts `campaign-launch-proposal` → operator adds entry here → commit cites decision id.
-- Campaign close: publisher raises `content-publish-proposal` for the close note and final artifact, OR brand-manager raises `campaign-launch-proposal` with status=close + post-mortem reference.
-- Operator updates the campaign's outstanding artifact slots as advertisers produce drafts and publisher releases them (this can be low-overhead — a tick-box pass during vision walks).
+- Campaign close: `brand-manager` raises `campaign-launch-proposal` with status=close plus a post-mortem reference. The close note and final artifact go through `content-desk`'s operator approval gate; the former `content-publish-proposal` decision context is retired.
+- Operator updates the campaign's outstanding artifact slots as the producer drafts them and they are released (this can be low-overhead — a tick-box pass during vision walks). Once `content-desk` owns campaign records, slot state is derived rather than ticked.

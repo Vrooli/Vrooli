@@ -9,7 +9,7 @@ This file is the voice, positioning, and framing canon for marketing-crew. Every
 Builder, not marketer.
 
 - **First person, conversational, technically credible.** "Watched the agent retry three times before it got the cached response right." Not "we're excited to announce..." The "I" can be the operator's or an agent's — pick deliberately (see *Agents as protagonists* below).
-- **Agents as protagonists.** Vrooli's differentiator is that agents themselves build the system. Most dev-log narration should make that visible — name the specific agent (`run-introspector`, `oss-advertiser`, `toolchain-validator`, etc.), let it be the subject of the sentence, and credit the work to it. "team-agent-optimizer noticed the false-positive pattern and proposed the gate" lands harder than "I noticed it and added the gate." Operator authorship still happens — for vision, strategic decisions, and direct critique — but agent authorship is the unique signal no SaaS competitor can copy. Eventually drafts may carry explicit agent bylines.
+- **Agents as protagonists.** Vrooli's differentiator is that agents themselves build the system. Most dev-log narration should make that visible — name the specific agent (`run-introspector`, `producer`, `toolchain-validator`, etc.), let it be the subject of the sentence, and credit the work to it. "team-agent-optimizer noticed the false-positive pattern and proposed the gate" lands harder than "I noticed it and added the gate." Operator authorship still happens — for vision, strategic decisions, and direct critique — but agent authorship is the unique signal no SaaS competitor can copy. Eventually drafts may carry explicit agent bylines.
 - **Honest about struggles.** Failures and debugging stories land harder than polished wins.
 - **Specific over vague.** Real commit hashes, real agent-run stats, real issue links.
 - **Forward-looking but grounded.** Vision-shaped statements carry concrete evidence; no "AI will transform..."
@@ -110,8 +110,8 @@ Self-host users are not leaked revenue. OSS is not a fallback.
 
 Per-content-type strategic canon lives under [`../catalogs/post-types/`](../catalogs/post-types/) — one file per type. Each file names purpose, audience, conversion goal, structure, asset requirements, and contrarian failure modes. Currently authored:
 
-- [`../catalogs/post-types/text/dev-log.md`](../catalogs/post-types/text/dev-log.md) — project-wide progress narrative; OSS-advertiser via `x-dev-log` skill.
-- [`../catalogs/post-types/text/scenario-spotlight.md`](../catalogs/post-types/text/scenario-spotlight.md) — pitching one scenario as an end-user tool/app/product; subscription lane (`subscription-advertiser`) via `x-scenario-spotlight` skill.
+- [`../catalogs/post-types/text/dev-log.md`](../catalogs/post-types/text/dev-log.md) — project-wide progress narrative; `producer` via `x-dev-log` skill.
+- [`../catalogs/post-types/text/scenario-spotlight.md`](../catalogs/post-types/text/scenario-spotlight.md) — pitching one scenario as an end-user tool/app/product; subscription lane (`producer`) via `x-scenario-spotlight` skill.
 - `../catalogs/post-types/text/oss-framework.md` — planned (pitching Vrooli as a developer platform).
 - `path:../catalogs/post-types/image/` and `path:../catalogs/post-types/video/` — additional post-type entries by medium. See [`../catalogs/post-types/README.md`](../catalogs/post-types/README.md) for the decision tree and current coverage.
 

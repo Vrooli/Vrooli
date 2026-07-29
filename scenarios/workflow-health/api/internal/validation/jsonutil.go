@@ -77,3 +77,12 @@ func getString(m map[string]any, path ...string) string {
 	}
 	return strings.TrimSpace(value)
 }
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}

@@ -3,7 +3,7 @@
 **Status:** v1. New post type introduced at walk #5 (2026-04-28). Will mature as the `x-scenario-spotlight` skill runs in production and typed marketing-craft observations accumulate.
 
 **Paired skill:** [`x-scenario-spotlight`](../../../../../scenarios/prompt-manager/store/skills/packs/core/x-scenario-spotlight/SKILL.md)
-**Primary lane/member:** Subscription lane (`subscription-advertiser`) for drafting, with publisher/operator handoff for the release step.
+**Primary lane/member:** `producer` — subscription lane. Release execution is unowned until account operations gain a scheduler-side home.
 **Craft observation topic:** `marketing-craft-observation/scenario-spotlight/<slug>`
 
 ## Purpose
@@ -93,7 +93,7 @@ The `marketing-contrarian` member skill ingests this section as type-level revie
 
 Each failure mode is `data_source=verifiable` (scenario PRD, monetization docs, brand assets, scenario state) — not judgment-only. The contrarian must cite the specific reference it checked.
 
-Honesty flags the publisher-member must attach to a spotlight draft (mirroring the dev-log pattern):
+Honesty flags the producer must attach to a spotlight draft (mirroring the dev-log pattern):
 
 - `feature_claims=measured | overclaimed | uncertain` — measured = every claim cross-checked against scenario PRD and current state.
 - `demo_authenticity=replicable | operator-only | mixed` — replicable = a fresh user from the audience persona could reproduce the demo without operator help.
@@ -115,26 +115,25 @@ Honesty flags the publisher-member must attach to a spotlight draft (mirroring t
 
 ```
                     ┌──────────────────────────────────────┐
-                    │ subscription-advertiser produces     │
-                    │ scenario-spotlight draft via         │
-                    │ x-scenario-spotlight skill           │
+                    │ producer drafts the spotlight via    │
+                    │ the x-scenario-spotlight skill,      │
+                    │ declaring claims                     │
                     └────────────────┬─────────────────────┘
                                      │
                      ┌───────────────▼──────────────────┐
                      │ marketing-contrarian reviews     │
                      │ against type-level failure modes │
-                     │ (this file's checkable claims)   │
+                     │ (this file's checkable claims),  │
+                     │ and hunts undeclared claims      │
                      └───────────────┬──────────────────┘
                                      │
                                      ▼
                           ┌────────────────────────┐
-                          │ publisher proposes     │
-                          │ content-publish        │
-                          │ decision               │
+                          │ operator approves in   │
+                          │ content-desk; the gate │
+                          │ refuses unverified     │
+                          │ claims and v0 types    │
                           └──────────┬─────────────┘
-                                     │
-                                     ▼
-                            operator decides at vision walk
                                      │
                                      ▼
                             operator manually posts;

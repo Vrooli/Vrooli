@@ -1,8 +1,8 @@
 # Audiences
 
-Personas the marketing-crew targets. Advertisers read this for writing register; researcher proposes updates via `audience-update` decisions when ≥3 converging scans support revision.
+Personas the marketing-crew targets. The producer reads this for writing register and proposes updates via `audience-update` decisions when ≥3 converging scans support revision.
 
-**Write rule:** operator-curated via accepted `audience-update` decisions. Researcher proposes; does not edit directly.
+**Write rule:** operator-curated via accepted `audience-update` decisions. The producer proposes; does not edit directly.
 
 ## Persona: Indie developer (subscription)
 
@@ -22,7 +22,7 @@ Personas the marketing-crew targets. Advertisers read this for writing register;
 
 **Preferred channels:** X/Twitter (threads), technical blogs, GitHub.
 
-**Revisit marker:** revisit after 12 heartbeats or when researcher reports ≥3 converging observations.
+**Revisit marker:** revisit after 12 heartbeats or when the producer reports ≥3 converging observations.
 
 ---
 
@@ -76,15 +76,15 @@ Personas the marketing-crew targets. Advertisers read this for writing register;
 
 **Who:** prospective buyers evaluating the eventual cloud / hosted-tier subscription delivery.
 
-**Status:** placeholder. This persona is held in the subscription lane's scope for now. Split into its own persona only if researcher reports material differences in what cloud evaluators prioritize vs `small-team-lead`. Until then, `subscription-advertiser` treats cloud/hosted narrative as a delivery-story variant within the existing subscription framing.
+**Status:** placeholder. This persona is held in the subscription lane's scope for now. Split into its own persona only if the producer reports material differences in what cloud evaluators prioritize vs `small-team-lead`. Until then, `producer` treats cloud/hosted narrative as a delivery-story variant within the existing subscription framing.
 
-**Revisit marker:** revisit when researcher produces ≥3 scans distinguishing this audience from `small-team-lead`, OR when cloud-hosted tier is officially activated.
+**Revisit marker:** revisit when the producer delivers ≥3 scans distinguishing this audience from `small-team-lead`, OR when cloud-hosted tier is officially activated.
 
 ---
 
 ## Notes on persona discipline
 
-- Every advertiser draft names a target persona key in `campaign-drafts.jsonl`.
+- Every draft names a target persona key in `campaign-drafts.jsonl`.
 - Marketing-contrarian checks register match: is the draft's register consistent with the named persona?
-- Researcher's `audience-scan-*` entries reference personas by key for cross-linking.
+- The producer's `audience-scan-*` entries reference personas by key for cross-linking.
 - Personas are canon. Proposed revisions require ≥3 converging scans (`audience-update` decision discipline).

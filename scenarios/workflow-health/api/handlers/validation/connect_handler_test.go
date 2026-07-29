@@ -194,7 +194,7 @@ func (f *validationFakeBASClient) ExecuteAdhoc(context.Context, execution.Execut
 	return &execution.ExecuteResult{ExecutionID: "exec", Status: basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED}, nil
 }
 
-func (f *validationFakeBASClient) Timeline(context.Context, string) (*bastimeline.ExecutionTimeline, error) {
+func (f *validationFakeBASClient) Timeline(context.Context, string, map[string]string) (*bastimeline.ExecutionTimeline, error) {
 	return nil, nil
 }
 

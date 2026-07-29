@@ -309,7 +309,7 @@ func (f *fakeBASClient) ExecuteAdhoc(_ context.Context, req ExecuteRequest) (*Ex
 	return &ExecuteResult{ExecutionID: "exec", Status: basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED}, nil
 }
 
-func (f *fakeBASClient) Timeline(context.Context, string) (*bastimeline.ExecutionTimeline, error) {
+func (f *fakeBASClient) Timeline(context.Context, string, map[string]string) (*bastimeline.ExecutionTimeline, error) {
 	f.timelineCalls++
 	return f.timeline, nil
 }

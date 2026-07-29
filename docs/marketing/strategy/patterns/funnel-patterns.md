@@ -1,6 +1,6 @@
 # Strategy: Funnel Patterns
 
-**Status:** v0 (skeleton — populated as researcher and publisher capture conversion paths).
+**Status:** v0 (skeleton — populated as the producer captures conversion paths).
 
 The conversion paths from a marketing post to a Vrooli scenario, tier, or sign-up. A funnel pattern names: where the post lands, what the next step is (link-in-bio, attached link, profile click), what surface the next step lands on (landing page, demo URL, sign-up page, scenario surface), and the activation event that closes the funnel.
 
@@ -12,8 +12,8 @@ Many otherwise-good marketing artifacts fail because the conversion path is brok
 
 ## How entries get here
 
-- Researcher captures funnel observations in `audience-scans.jsonl` (typically `marketing-craft` scope — funnel-pattern observations from external content).
-- Publisher captures funnel observations from our own `publish-log.jsonl` once telemetry exists — what worked, what didn't.
+- The producer captures funnel observations in `audience-scans.jsonl` (typically `marketing-craft` scope — funnel-pattern observations from external content).
+- The producer captures funnel observations from our own publish history once telemetry exists — what worked, what didn't.
 - Operator approves promotion via `brand-guideline-update`; entries land here.
 
 Until telemetry exists, entries are `aspirational` or `light-interpretation` — patterns we *expect* will work based on external research, not patterns we've *measured* working at Vrooli.

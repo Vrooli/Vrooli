@@ -3,7 +3,7 @@
 **Status:** v0 (skeleton — strategic canon authored 2026-04-28).
 
 **Paired skill:** `x-comparison-reel` *(planned)*
-**Primary lane/member:** Subscription lane (`subscription-advertiser`) for subscription bundles; OSS lane (`oss-advertiser`) for OSS framework comparisons.
+**Primary lane/member:** `producer` — subscription lane for $1, OSS lane for $2
 **Craft observation topic:** `marketing-craft-observation/comparison-reel/<slug>`
 
 ## Purpose

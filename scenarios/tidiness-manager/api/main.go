@@ -118,7 +118,7 @@ func (s *Server) setupRoutes() {
 
 	// Scenario-level tidiness validation is exposed through the shared
 	// scenario-validation/v1 Connect-RPC contract.
-	mountScenarioValidation(s.router, newScenarioValidationHandler(s))
+	mountScenarioValidation(s.router, newScenarioValidationHandler(s), s.validationDescriber())
 
 	// Smart scanning endpoints (TM-SS-001, TM-SS-002)
 	s.router.HandleFunc("/api/v1/scan/smart", s.handleSmartScan).Methods("POST", "OPTIONS")

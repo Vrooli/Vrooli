@@ -221,7 +221,7 @@ func (s *Service) runAsset(ctx context.Context, writer *artifacts.Writer, asset 
 		}
 	}
 	if result.ExecutionID != "" {
-		if timeline, err := s.Client.Timeline(ctx, result.ExecutionID); err == nil {
+		if timeline, err := s.Client.Timeline(ctx, result.ExecutionID, opts.ExtraHeaders); err == nil {
 			run.Timeline = timeline
 		}
 	}

@@ -3,6 +3,7 @@ package workflows
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 
@@ -101,9 +102,17 @@ func DecodeBASDefinition(definition map[string]any) (*basworkflows.WorkflowDefin
 	if err != nil {
 		return nil, err
 	}
-	data, err := json.Marshal(normalizeBASDefinitionAliases(document.Definition))
+	data, err := json.Marshal(document.Definition)
 	if err != nil {
 		return nil, fmt.Errorf("marshal workflow definition: %w", err)
+	}
+	var normalized map[string]any
+	if err := json.Unmarshal(data, &normalized); err != nil {
+		return nil, fmt.Errorf("clone workflow definition: %w", err)
+	}
+	data, err = json.Marshal(normalizeBASDefinitionAliases(normalized))
+	if err != nil {
+		return nil, fmt.Errorf("marshal normalized workflow definition: %w", err)
 	}
 	var out basworkflows.WorkflowDefinitionV2
 	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(data, &out); err != nil {
@@ -133,28 +142,118 @@ func ResolveBASDocumentJSON(data []byte) (BASDocument, error) {
 }
 
 func normalizeBASDefinitionAliases(definition map[string]any) map[string]any {
-	out := make(map[string]any, len(definition))
-	for key, value := range definition {
-		out[key] = value
-	}
-	metadata, ok := definition["metadata"].(map[string]any)
-	if !ok {
-		return out
-	}
-	metadataOut := make(map[string]any, len(metadata))
-	for key, value := range metadata {
-		metadataOut[key] = value
-	}
-	if mode, ok := metadataOut["execution_mode"].(string); ok {
+	metadata, _ := definition["metadata"].(map[string]any)
+	if mode, ok := metadata["execution_mode"].(string); ok {
 		switch strings.ToLower(strings.TrimSpace(mode)) {
 		case "observer":
-			metadataOut["execution_mode"] = "EXECUTION_MODE_OBSERVER"
+			metadata["execution_mode"] = "EXECUTION_MODE_OBSERVER"
 		case "mutating":
-			metadataOut["execution_mode"] = "EXECUTION_MODE_MUTATING"
+			metadata["execution_mode"] = "EXECUTION_MODE_MUTATING"
 		case "destructive":
-			metadataOut["execution_mode"] = "EXECUTION_MODE_DESTRUCTIVE"
+			metadata["execution_mode"] = "EXECUTION_MODE_DESTRUCTIVE"
 		}
 	}
-	out["metadata"] = metadataOut
-	return out
+	for _, rawNode := range workflowNodes(definition) {
+		action, _ := rawNode["action"].(map[string]any)
+		normalizeAuthoredAction(action)
+	}
+	return definition
+}
+
+func workflowNodes(definition map[string]any) []map[string]any {
+	rawNodes, _ := definition["nodes"].([]any)
+	nodes := make([]map[string]any, 0, len(rawNodes))
+	for _, rawNode := range rawNodes {
+		if node, ok := rawNode.(map[string]any); ok {
+			nodes = append(nodes, node)
+		}
+	}
+	return nodes
+}
+
+// normalizeAuthoredAction recognizes BAS's concise V2 JSON vocabulary before
+// strict proto decoding. It deliberately does not synthesize an action from a
+// V1 node: workflow versions remain an explicit ingress responsibility.
+func normalizeAuthoredAction(action map[string]any) {
+	if action == nil {
+		return
+	}
+	if assertion, ok := action["assert"].(map[string]any); ok {
+		if mode, ok := assertion["mode"].(string); ok {
+			if canonical := canonicalAssertionMode(mode); canonical != "" {
+				assertion["mode"] = canonical
+			}
+		}
+	}
+	subflow, _ := action["subflow"].(map[string]any)
+	args, _ := subflow["args"].(map[string]any)
+	for key, value := range args {
+		args[key] = wrapAuthoredJSONValue(value)
+	}
+}
+
+func canonicalAssertionMode(mode string) string {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "exists":
+		return "ASSERTION_MODE_EXISTS"
+	case "not_exists", "notexists":
+		return "ASSERTION_MODE_NOT_EXISTS"
+	case "visible":
+		return "ASSERTION_MODE_VISIBLE"
+	case "hidden":
+		return "ASSERTION_MODE_HIDDEN"
+	case "text_contains", "textcontains":
+		return "ASSERTION_MODE_TEXT_CONTAINS"
+	case "text_equals", "textequals":
+		return "ASSERTION_MODE_TEXT_EQUALS"
+	case "attribute_equals", "attributeequals":
+		return "ASSERTION_MODE_ATTRIBUTE_EQUALS"
+	case "attribute_contains", "attributecontains":
+		return "ASSERTION_MODE_ATTRIBUTE_CONTAINS"
+	default:
+		return ""
+	}
+}
+
+func wrapAuthoredJSONValue(value any) any {
+	if value == nil {
+		return map[string]any{"null_value": "NULL_VALUE"}
+	}
+	switch typed := value.(type) {
+	case map[string]any:
+		if isJSONValueWrapper(typed) {
+			return typed
+		}
+		fields := make(map[string]any, len(typed))
+		for key, child := range typed {
+			fields[key] = wrapAuthoredJSONValue(child)
+		}
+		return map[string]any{"object_value": map[string]any{"fields": fields}}
+	case []any:
+		values := make([]any, len(typed))
+		for index, child := range typed {
+			values[index] = wrapAuthoredJSONValue(child)
+		}
+		return map[string]any{"list_value": map[string]any{"values": values}}
+	case string:
+		return map[string]any{"string_value": typed}
+	case bool:
+		return map[string]any{"bool_value": typed}
+	case float64:
+		if math.Trunc(typed) == typed && typed >= math.MinInt64 && typed <= math.MaxInt64 {
+			return map[string]any{"int_value": int64(typed)}
+		}
+		return map[string]any{"double_value": typed}
+	default:
+		return map[string]any{"string_value": fmt.Sprint(value)}
+	}
+}
+
+func isJSONValueWrapper(value map[string]any) bool {
+	for _, key := range []string{"bool_value", "boolValue", "int_value", "intValue", "double_value", "doubleValue", "string_value", "stringValue", "object_value", "objectValue", "list_value", "listValue", "null_value", "nullValue", "bytes_value", "bytesValue"} {
+		if _, ok := value[key]; ok {
+			return true
+		}
+	}
+	return false
 }

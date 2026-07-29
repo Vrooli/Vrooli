@@ -3,7 +3,7 @@
 **Status:** Extracted from `STRATEGY.md`'s Content-type principles + Dev-log narrative principles on 2026-04-28 (walk #5 divergence #3, Action B). Original Dev-log narrative principles added 2026-04-27 via accepted framework-update `dec-1777300532504756717`.
 
 **Paired skill:** [`x-dev-log`](../../../../../scenarios/prompt-manager/store/skills/packs/core/x-dev-log/SKILL.md)
-**Primary lane/member:** OSS lane (`oss-advertiser`)
+**Primary lane/member:** `producer` — OSS lane
 **Craft observation topic:** `marketing-craft-observation/dev-log/<slug>` — promotion target is usually `x-dev-log` skill edits.
 
 ## Purpose
@@ -47,7 +47,7 @@ The general voice canon lives in [`STRATEGY.md`](../../../strategy/STRATEGY.md).
 
 **Personal voice grounded in builder identity.** Voice canon prescribes "first person, conversational, technically credible." Embodiment matters — a sentence that names an agent in third person is *not yet* personal voice. The first post of any series must especially feel like a software engineer talking about what they built — real grounded excitement tied to real work. The "I" can be the operator's or an agent's; pick deliberately, but pick.
 
-**Agents as protagonists** (from voice canon): name the specific agent (`run-introspector`, `oss-advertiser`, `toolchain-validator`, etc.), let it be the subject of the sentence, and credit the work to it. "team-agent-optimizer noticed the false-positive pattern and proposed the gate" lands harder than "I noticed it and added the gate." Operator authorship still happens — for vision, strategic decisions, and direct critique — but agent authorship is the unique signal no SaaS competitor can copy.
+**Agents as protagonists** (from voice canon): name the specific agent (`run-introspector`, `producer`, `toolchain-validator`, etc.), let it be the subject of the sentence, and credit the work to it. "team-agent-optimizer noticed the false-positive pattern and proposed the gate" lands harder than "I noticed it and added the gate." Operator authorship still happens — for vision, strategic decisions, and direct critique — but agent authorship is the unique signal no SaaS competitor can copy.
 
 ## What → why framing
 
@@ -82,7 +82,7 @@ The `marketing-contrarian` member skill ingests this section as type-level revie
 | **Engagement-metric hallucination** | Numbers without honesty flags (`measured / estimate / aspirational / pending-telemetry`). | mode 3 (hallucinated engagement metrics) |
 | **Capability-workaround without gap** | The post narrates a manual workaround the operator is doing, with no matching `capability-gap` decision or typed observation. | mode 8 |
 
-Honesty flags the publisher / oss-advertiser member must attach to a dev-log draft:
+Honesty flags the producer must attach to a dev-log draft:
 
 - `feature_claims=measured | overclaimed | uncertain` — measured = every claim cross-checked against shipped commits and PRDs.
 - `engagement=measured | pending-telemetry | aspirational | estimate` — for any numeric claim about engagement / growth / usage.
@@ -102,28 +102,27 @@ Honesty flags the publisher / oss-advertiser member must attach to a dev-log dra
 
 ```
                     ┌──────────────────────────────────────┐
-                    │ oss-advertiser produces              │
-                    │ dev-log draft via x-dev-log skill,   │
-                    │ mining git-control-tower +           │
-                    │ agent-manager + swarm-manager +      │
-                    │ app-issue-tracker for the period     │
+                    │ producer drafts the dev-log via the  │
+                    │ x-dev-log skill, mining              │
+                    │ git-control-tower + agent-manager +  │
+                    │ swarm-manager + app-issue-tracker    │
+                    │ for the period, declaring claims     │
                     └────────────────┬─────────────────────┘
                                      │
                      ┌───────────────▼──────────────────┐
                      │ marketing-contrarian reviews     │
                      │ against framework-level + type-  │
-                     │ level failure modes (this file)  │
+                     │ level failure modes (this file), │
+                     │ and hunts undeclared claims      │
                      └───────────────┬──────────────────┘
                                      │
                                      ▼
                           ┌────────────────────────┐
-                          │ publisher proposes     │
-                          │ content-publish-       │
-                          │ proposal decision      │
+                          │ operator approves in   │
+                          │ content-desk; the gate │
+                          │ refuses unverified     │
+                          │ claims and v0 types    │
                           └──────────┬─────────────┘
-                                     │
-                                     ▼
-                            operator decides at vision walk
                                      │
                                      ▼
                             operator manually posts;

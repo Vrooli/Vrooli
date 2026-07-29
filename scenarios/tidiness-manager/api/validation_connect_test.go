@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/maturity-go/assessment"
+
 	"connectrpc.com/connect"
 
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
@@ -111,7 +113,7 @@ func TestTidinessFindingsToProtoNormalizesTypedEvidence(t *testing.T) {
 
 func TestTidinessScanRESTEndpointRemoved(t *testing.T) {
 	router := http.NewServeMux()
-	path, handler := scenariovalidationconnect.NewScenarioValidationServiceHandler(newScenarioValidationHandler(&Server{}))
+	path, handler := scenariovalidationconnect.NewScenarioValidationServiceHandler(assessment.Serve(newScenarioValidationHandler(&Server{}), assessment.Describer{}))
 	router.Handle(path, handler)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/scan/tidiness", strings.NewReader(`{}`))

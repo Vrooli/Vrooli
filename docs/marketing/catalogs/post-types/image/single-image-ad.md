@@ -3,7 +3,7 @@
 **Status:** v0 (skeleton — strategic canon authored 2026-04-28; will harden as the type runs in production and typed marketing-craft observations accumulate).
 
 **Paired skill:** `x-single-image-ad` *(planned)*
-**Primary lane/member:** Usually subscription lane (`subscription-advertiser`) for drafting, with publisher/operator handoff for posting.
+**Primary lane/member:** `producer` — usually subscription lane. Release execution is unowned until account operations gain a scheduler-side home.
 **Craft observation topic:** `marketing-craft-observation/single-image-ad/<slug>`
 
 ## Purpose

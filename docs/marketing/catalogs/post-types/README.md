@@ -28,7 +28,7 @@ The two halves carry **different content**: the doc holds *reasoning*, the skill
 
 ### Lifecycle: v0 (doc-only) → v1 (doc + skill, active)
 
-A post-type entry can exist as a v0 stub before its skill is authored. v0 means **the strategic canon is documented but the type is not yet active in production**. Drafts of a v0 type cannot be approved through `content-publish-proposal` — there is no executable spec to run them against, and no hooks for the contrarian to score type-level failure modes consistently.
+A post-type entry can exist as a v0 stub before its skill is authored. v0 means **the strategic canon is documented but the type is not yet active in production**. Drafts of a v0 type cannot be approved — `content-desk`'s approval gate refuses any draft naming a type that is not active. There is no executable spec to run them against, and no hooks for the contrarian to score type-level failure modes consistently.
 
 Activation (v0 → v1) requires:
 
@@ -37,7 +37,7 @@ Activation (v0 → v1) requires:
 3. The doc's `Status:` line is bumped from `v0 (skeleton)` to `v1` and the `Paired skill:` line drops the `*(planned)*` annotation.
 4. At least one member's `RESPONSIBILITIES.md` references the skill in its Available Skills table.
 
-These four are checkable. The marketing-contrarian's review of any `content-publish-proposal` naming a recognized post type validates v1 status before allowing approval.
+These four are checkable, and `content-desk` checks them: its post-type registry holds the activation state, and the approval gate refuses a draft whose type is still v0. The marketing-contrarian reviews type-level failure modes; it no longer has to remember to validate activation by hand.
 
 ### Why one skill per post type — not a unified `x-post-author`
 
@@ -78,7 +78,7 @@ Ask the questions in order. The first "yes" picks the type.
    - **Side-by-side or before/after comparison?** → [`doc:docs/marketing/catalogs/post-types/video/comparison-reel.md`](video/comparison-reel.md)
    - **Slideshow rendered with voiceover?** → [`doc:docs/marketing/catalogs/post-types/video/slideshow-voiceover.md`](video/slideshow-voiceover.md)
 8. **Is the operator trying to produce a screen-recorded demo of a scenario at length (YouTube, blog embed)?** → [`doc:docs/marketing/catalogs/post-types/video/demo-recording.md`](video/demo-recording.md)
-9. **None of the above** → likely doesn't need a structured post type. Capture as a one-off and let the marketing-crew researcher / publisher decide.
+9. **None of the above** → likely doesn't need a structured post type. Capture as a one-off and let the marketing-crew producer decide.
 
 ## Files in this folder
 
@@ -86,30 +86,30 @@ Ask the questions in order. The first "yes" picks the type.
 
 | File | Status | Primary skill | Primary lane/member |
 |------|--------|---------------|----------------|
-| [`text/dev-log.md`](text/dev-log.md) | v1 (extracted from `STRATEGY.md` on 2026-04-28; moved into `text/` 2026-04-28) | `x-dev-log` | OSS lane (`oss-advertiser`) |
-| [`text/scenario-spotlight.md`](text/scenario-spotlight.md) | v1 (moved into `text/` 2026-04-28) | `x-scenario-spotlight` | Subscription lane (`subscription-advertiser`) |
-| `text/oss-framework.md` | *planned — Post 3 from walk #5 (jcode-vs-Claude-Code-and-Codex framing) is a candidate reference* | `x-oss-framework` *(future)* | OSS lane (`oss-advertiser`) |
-| `text/use-case-tutorial.md` | *planned — pending observation of 2-3 candidates in our own funnel* | `x-use-case-tutorial` *(future)* | Usually OSS lane (`oss-advertiser`); may split later |
+| [`text/dev-log.md`](text/dev-log.md) | v1 (extracted from `STRATEGY.md` on 2026-04-28; moved into `text/` 2026-04-28) | `x-dev-log` | `producer` — OSS lane |
+| [`text/scenario-spotlight.md`](text/scenario-spotlight.md) | v1 (moved into `text/` 2026-04-28) | `x-scenario-spotlight` | `producer` — subscription lane |
+| `text/oss-framework.md` | *planned — Post 3 from walk #5 (jcode-vs-Claude-Code-and-Codex framing) is a candidate reference* | `x-oss-framework` *(future)* | `producer` — OSS lane |
+| `text/use-case-tutorial.md` | *planned — pending observation of 2-3 candidates in our own funnel* | `x-use-case-tutorial` *(future)* | `producer` — usually OSS lane; may split later |
 
 ### `image/`
 
 | File | Status | Primary skill | Primary lane/member |
 |------|--------|---------------|----------------|
-| [`image/single-image-ad.md`](image/single-image-ad.md) | v0 (skeleton — awaiting first production run) | `x-single-image-ad` *(future)* | Usually subscription lane (`subscription-advertiser`) |
-| [`image/slideshow-listicle.md`](image/slideshow-listicle.md) | v0 (skeleton) | `x-slideshow-listicle` *(future)* | Usually subscription lane (`subscription-advertiser`) |
-| [`image/slideshow-tips-then-plug.md`](image/slideshow-tips-then-plug.md) | v0 (skeleton) | `x-slideshow-tips-then-plug` *(future)* | Usually subscription lane (`subscription-advertiser`) |
+| [`image/single-image-ad.md`](image/single-image-ad.md) | v0 (skeleton — awaiting first production run) | `x-single-image-ad` *(future)* | `producer` — usually subscription lane |
+| [`image/slideshow-listicle.md`](image/slideshow-listicle.md) | v0 (skeleton) | `x-slideshow-listicle` *(future)* | `producer` — usually subscription lane |
+| [`image/slideshow-tips-then-plug.md`](image/slideshow-tips-then-plug.md) | v0 (skeleton) | `x-slideshow-tips-then-plug` *(future)* | `producer` — usually subscription lane |
 | [`image/infographic.md`](image/infographic.md) | v0 (skeleton) | `x-infographic` *(future)* | Lane depends on subject: subscription for lifestyle/general, OSS for technical |
 
 ### `video/`
 
 | File | Status | Primary skill | Primary lane/member |
 |------|--------|---------------|----------------|
-| [`video/narrative-talking-head.md`](video/narrative-talking-head.md) | v0 (skeleton) | `x-narrative-talking-head` *(future)* | Usually subscription lane (`subscription-advertiser`) |
-| [`video/day-in-life-ugc.md`](video/day-in-life-ugc.md) | v0 (skeleton) | `x-day-in-life-ugc` *(future)* | Usually subscription lane (`subscription-advertiser`) |
-| [`video/problem-agitate-solve.md`](video/problem-agitate-solve.md) | v0 (skeleton) | `x-problem-agitate-solve` *(future)* | Usually subscription lane (`subscription-advertiser`) |
-| [`video/demo-recording.md`](video/demo-recording.md) | v0 (skeleton) | `x-demo-recording` *(future)* | Lane depends on demo subject; publisher handles release package |
+| [`video/narrative-talking-head.md`](video/narrative-talking-head.md) | v0 (skeleton) | `x-narrative-talking-head` *(future)* | `producer` — usually subscription lane |
+| [`video/day-in-life-ugc.md`](video/day-in-life-ugc.md) | v0 (skeleton) | `x-day-in-life-ugc` *(future)* | `producer` — usually subscription lane |
+| [`video/problem-agitate-solve.md`](video/problem-agitate-solve.md) | v0 (skeleton) | `x-problem-agitate-solve` *(future)* | `producer` — usually subscription lane |
+| [`video/demo-recording.md`](video/demo-recording.md) | v0 (skeleton) | `x-demo-recording` *(future)* | `producer`; lane depends on demo subject |
 | [`video/comparison-reel.md`](video/comparison-reel.md) | v0 (skeleton) | `x-comparison-reel` *(future)* | Lane depends on comparison subject |
-| [`video/slideshow-voiceover.md`](video/slideshow-voiceover.md) | v0 (skeleton) | `x-slideshow-voiceover` *(future)* | Usually subscription lane (`subscription-advertiser`) |
+| [`video/slideshow-voiceover.md`](video/slideshow-voiceover.md) | v0 (skeleton) | `x-slideshow-voiceover` *(future)* | `producer` — usually subscription lane |
 
 ## Cross-cutting techniques (shared across types)
 
@@ -133,16 +133,16 @@ For multi-frame and persona-actor content (image slideshows, video formats), see
 
 Same as the rest of `path:docs/marketing/`: agents never write directly; operator-curated via approved decisions.
 
-- **New post-type proposals** come through the `post-type-proposal` decision context, owned by `researcher`. The proposal must include:
+- **New post-type proposals** come through the `post-type-proposal` decision context, owned by `producer`. The proposal must include:
   1. The strategic canon content (purpose, audience, conversion goal, asset requirements, contrarian failure modes) — this is what authors the v0 doc.
   2. The proposed paired-skill name (`x-<slug>`) and which member(s) will consume it.
   3. The member's `RESPONSIBILITIES.md` Available Skills update.
   4. A commitment to author the skill within N heartbeats of doc acceptance, OR an explicit `v0-stub-only` flag if the type is being scaffolded for later activation.
-- **Activation (v0 → v1)** is its own decision: when the paired skill is authored, the operator approves the activation by bumping the doc's `Status:` line and dropping the `*(planned)*` from `Paired skill:`. Activation is what makes the type usable in `content-publish-proposal` decisions.
+- **Activation (v0 → v1)** is its own decision: when the paired skill is authored, the operator approves the activation by bumping the doc's `Status:` line and dropping the `*(planned)*` from `Paired skill:`. Activation is what makes the type usable: until it lands, `content-desk` blocks approval of any draft naming that type.
 - **Edits** to an existing post-type's strategic canon use `brand-guideline-update`. Skill-edits are skill-edit decisions on the skill side.
 - **Type-specific platform-rule updates** use `channel-update`.
 
-The marketing-contrarian validates v1 status as part of every `content-publish-proposal` review for a recognized type. Drafts of v0-stub types are blocked at the contrarian gate until the type is activated.
+Activation state is enforced by `content-desk` rather than remembered: drafts naming a v0-stub type are blocked at the approval gate until the type is activated. The marketing-contrarian's review covers type-level failure modes, not activation bookkeeping.
 
 ## Cross-references
 

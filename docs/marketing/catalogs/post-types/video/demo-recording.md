@@ -3,7 +3,7 @@
 **Status:** v0 (skeleton — strategic canon authored 2026-04-28).
 
 **Paired skill:** `x-demo-recording` *(planned)*
-**Primary lane/member:** Lane depends on demo subject; publisher handles the release package.
+**Primary lane/member:** `producer` — lane depends on demo subject. Release execution is unowned until account operations gain a scheduler-side home.
 **Craft observation topic:** `marketing-craft-observation/demo-recording/<slug>`
 
 ## Purpose

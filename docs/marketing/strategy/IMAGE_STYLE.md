@@ -1,6 +1,6 @@
 # Image Style — AI Image Generation Guide
 
-Style directives for AI-generated images (blog hero images, social cards, dev-log accompanying visuals, presentation imagery, scenario UI illustrations). Pulled from by advertisers, publisher, and any agent generating visual content via OpenRouter image models or similar.
+Style directives for AI-generated images (blog hero images, social cards, dev-log accompanying visuals, presentation imagery, scenario UI illustrations). Pulled from by the producer, and any agent generating visual content via OpenRouter image models or similar.
 
 **Write rule:** operator-curated via accepted `brand-guideline-update` decisions. Agents propose; do not edit directly.
 

@@ -1,6 +1,6 @@
 # Assets — Brand Asset Registry
 
-Canonical registry of Vrooli's brand assets — logos, favicons, social previews, fonts. Pulled from by advertisers, publisher, designers, and any scenario rendering Vrooli's visual identity.
+Canonical registry of Vrooli's brand assets — logos, favicons, social previews, fonts. Pulled from by the producer, designers, and any scenario rendering Vrooli's visual identity.
 
 **Write rule:** operator-curated via accepted `brand-guideline-update` decisions. Agents propose updates (new asset added, asset deprecated, usage rule changed); they do not edit directly.
 

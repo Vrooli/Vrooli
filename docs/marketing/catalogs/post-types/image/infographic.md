@@ -3,7 +3,7 @@
 **Status:** v0 (skeleton — strategic canon authored 2026-04-28).
 
 **Paired skill:** `x-infographic` *(planned)*
-**Primary lane/member:** Subscription lane (`subscription-advertiser`) for lifestyle/general subjects; OSS lane (`oss-advertiser`) for technical subjects.
+**Primary lane/member:** `producer` — subscription lane for $1, OSS lane for $2
 **Craft observation topic:** `marketing-craft-observation/infographic/<slug>`
 
 ## Purpose

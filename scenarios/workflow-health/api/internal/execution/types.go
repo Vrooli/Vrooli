@@ -104,7 +104,7 @@ type WorkflowRun struct {
 type BASClient interface {
 	ValidateResolved(ctx context.Context, definition map[string]any) (*ValidationResult, error)
 	ExecuteAdhoc(ctx context.Context, req ExecuteRequest) (*ExecuteResult, error)
-	Timeline(ctx context.Context, executionID string) (*bastimeline.ExecutionTimeline, error)
+	Timeline(ctx context.Context, executionID string, headers map[string]string) (*bastimeline.ExecutionTimeline, error)
 }
 
 type ValidationResult struct {

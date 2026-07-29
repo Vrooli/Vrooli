@@ -9,6 +9,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestNormalizeModeAcceptsProtoJSONEnumNames(t *testing.T) {
+	for input, want := range map[string]string{
+		"EXECUTION_MODE_OBSERVER":    "observer",
+		"EXECUTION_MODE_MUTATING":    "mutating",
+		"EXECUTION_MODE_DESTRUCTIVE": "destructive",
+	} {
+		require.Equal(t, want, normalizeMode(input))
+	}
+}
+
 func TestScanScenarioCatalogsCasesFlowsActionsSeedsAndRegistryFacts(t *testing.T) {
 	scenarioDir := makeScenarioFixture(t)
 

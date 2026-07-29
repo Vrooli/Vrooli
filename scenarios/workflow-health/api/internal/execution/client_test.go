@@ -13,6 +13,7 @@ import (
 	"github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api/apiconnect"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -79,12 +80,18 @@ func TestExecuteAdhocStartsAsyncThenReturnsTerminalExecutionDetails(t *testing.T
 			if req.Msg.GetWaitForCompletion() {
 				t.Fatal("workflow-health must use BAS asynchronous execution")
 			}
+			if got := req.Header().Get("X-Vrooli-Test-Mode"); got != "1" {
+				t.Fatalf("execution header = %q, want 1", got)
+			}
 			return connect.NewResponse(&basexecution.ExecuteAdhocResponse{ExecutionId: "execution-1", Status: basbase.ExecutionStatus_EXECUTION_STATUS_RUNNING}), nil
 		},
 	))
 	mux.Handle(apiconnect.ExecutionsServiceGetExecutionProcedure, connect.NewUnaryHandler(
 		apiconnect.ExecutionsServiceGetExecutionProcedure,
 		func(_ context.Context, req *connect.Request[basapi.GetExecutionRequest]) (*connect.Response[basapi.GetExecutionResponse], error) {
+			if got := req.Header().Get("X-Vrooli-Test-Mode"); got != "1" {
+				t.Fatalf("status header = %q, want 1", got)
+			}
 			if req.Msg.GetExecutionId() != "execution-1" {
 				t.Fatalf("execution id = %q", req.Msg.GetExecutionId())
 			}
@@ -105,7 +112,7 @@ func TestExecuteAdhocStartsAsyncThenReturnsTerminalExecutionDetails(t *testing.T
 	result, err := client.ExecuteAdhoc(context.Background(), ExecuteRequest{Definition: map[string]any{
 		"metadata": map[string]any{"name": "async-test", "execution_mode": "observer"},
 		"nodes":    []any{},
-	}})
+	}, Parameters: Parameters{ExtraHeaders: map[string]string{"X-Vrooli-Test-Mode": "1"}}})
 	if err != nil {
 		t.Fatalf("ExecuteAdhoc: %v", err)
 	}
@@ -114,5 +121,25 @@ func TestExecuteAdhocStartsAsyncThenReturnsTerminalExecutionDetails(t *testing.T
 	}
 	if result.Error != "selector [data-testid=save] remained disabled" {
 		t.Fatalf("error = %q", result.Error)
+	}
+}
+
+func TestTimelinePropagatesIsolationHeaders(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.Handle(apiconnect.ExecutionsServiceGetExecutionTimelineProcedure, connect.NewUnaryHandler(
+		apiconnect.ExecutionsServiceGetExecutionTimelineProcedure,
+		func(_ context.Context, req *connect.Request[basapi.GetExecutionTimelineRequest]) (*connect.Response[bastimeline.ExecutionTimeline], error) {
+			if got := req.Header().Get("X-Vrooli-Test-Mode"); got != "1" {
+				t.Fatalf("timeline header = %q, want 1", got)
+			}
+			return connect.NewResponse(&bastimeline.ExecutionTimeline{}), nil
+		},
+	))
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	client := NewConnectClient(server.URL, server.Client())
+	if _, err := client.Timeline(context.Background(), "execution-1", map[string]string{"X-Vrooli-Test-Mode": "1"}); err != nil {
+		t.Fatalf("Timeline: %v", err)
 	}
 }

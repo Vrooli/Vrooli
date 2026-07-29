@@ -76,7 +76,12 @@ func analyzeGoArchitecture(scenario string, ws Workspace, now string) []Finding 
 			}
 			imports := goImports(path)
 			for _, imp := range imports {
-				if isTestHelperImport(imp, modulePath) {
+				// Temporal flow replay helpers are generated under flow/generated
+				// and are only invoked by their sibling flow_test.go. Flow Verifier
+				// deliberately emits them there so they can load the generated
+				// artifact beside the runtime table. They are verification bridges,
+				// not application behavior, despite Go requiring a .go suffix.
+				if isTestHelperImport(imp, modulePath) && !isGeneratedFlowReplay(path) {
 					scan.prodHelperUses = append(scan.prodHelperUses, helperImport{file: path, importPath: imp})
 				}
 			}
@@ -179,6 +184,11 @@ func analyzeGoArchitecture(scenario string, ws Workspace, now string) []Finding 
 	}
 
 	return findings
+}
+
+func isGeneratedFlowReplay(path string) bool {
+	clean := filepath.ToSlash(path)
+	return strings.HasSuffix(clean, "/flow/generated/replay.go")
 }
 
 // seamAmbientCallers maps an ambient package selector (pkg.Sel) to the seam

@@ -166,6 +166,7 @@ func (h *connectHandler) finish(record workflowrun.Record, event core.Event, ter
 	_ = h.deps.Ledger.Update(context.Background(), current, next.Version-1)
 	h.signal(record.Run.ID)
 }
+
 func (h *connectHandler) responseForReport(report providerReport) (*scenariovalidationv1.ValidateScenarioResponse, error) {
 	if h.deps.MaturitySpec == nil {
 		return nil, fmt.Errorf("maturity spec is required")
@@ -180,6 +181,7 @@ func (h *connectHandler) responseForReport(report providerReport) (*scenariovali
 	}
 	return assessment.BuildValidationResponse(report.Scenario, maturity, native, &commonv1.ExecutionMetrics{}, validationStatusOptions(report)...)
 }
+
 func (h *connectHandler) notice(id string) <-chan struct{} {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -188,6 +190,7 @@ func (h *connectHandler) notice(id string) <-chan struct{} {
 	}
 	return h.notices[id]
 }
+
 func (h *connectHandler) signal(id string) {
 	h.mu.Lock()
 	if ch := h.notices[id]; ch != nil {
@@ -196,6 +199,7 @@ func (h *connectHandler) signal(id string) {
 	h.notices[id] = make(chan struct{})
 	h.mu.Unlock()
 }
+
 func (h *connectHandler) cancel(id string) {
 	h.mu.Lock()
 	if cancel := h.cancels[id]; cancel != nil {
@@ -204,12 +208,14 @@ func (h *connectHandler) cancel(id string) {
 	}
 	h.mu.Unlock()
 }
+
 func runError(err error) error {
 	if core.IsCode(err, core.ErrorNotFound) {
 		return connect.NewError(connect.CodeNotFound, err)
 	}
 	return connect.NewError(connect.CodeInternal, err)
 }
+
 func runProto(record workflowrun.Record) *scenariovalidationv1.ValidationRun {
 	run := &scenariovalidationv1.ValidationRun{RunId: record.Run.ID, Scenario: record.Run.Target.Scenario, Path: record.Run.Target.Path, IdempotencyKey: record.Run.IdempotencyKey, ParentRunId: record.Run.ParentRunID, State: stateProto(record.Run.State), CreatedAt: timestamppb.New(record.Run.CreatedAt), StartedAt: timestamppb.New(record.Run.StartedAt), CompletedAt: timestamppb.New(record.Run.CompletedAt), EstimatedRemaining: durationpb.New(record.ETA), PreliminaryStaticResult: record.Preliminary, TerminalResult: record.Terminal, CancellationRequested: record.Run.CancellationRequested}
 	if record.Error != "" {
@@ -250,6 +256,7 @@ func errorCodeProto(code string) scenariovalidationv1.ValidationRunErrorCode {
 		return scenariovalidationv1.ValidationRunErrorCode_VALIDATION_RUN_ERROR_CODE_EXECUTION_FAILED
 	}
 }
+
 func stateProto(state core.State) scenariovalidationv1.ValidationRunState {
 	return map[core.State]scenariovalidationv1.ValidationRunState{core.StateQueued: scenariovalidationv1.ValidationRunState_VALIDATION_RUN_STATE_QUEUED, core.StateRunning: scenariovalidationv1.ValidationRunState_VALIDATION_RUN_STATE_RUNNING, core.StateSucceeded: scenariovalidationv1.ValidationRunState_VALIDATION_RUN_STATE_SUCCEEDED, core.StateFailed: scenariovalidationv1.ValidationRunState_VALIDATION_RUN_STATE_FAILED, core.StateCanceled: scenariovalidationv1.ValidationRunState_VALIDATION_RUN_STATE_CANCELED, core.StateRecoveryFailed: scenariovalidationv1.ValidationRunState_VALIDATION_RUN_STATE_RECOVERY_FAILED}[state]
 }

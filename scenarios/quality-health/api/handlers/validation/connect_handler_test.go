@@ -96,8 +96,11 @@ func TestApplyFixEmptyStampsMessage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ApplyFix: %v", err)
 	}
-	if !resp.Msg.GetApplied() {
-		t.Fatalf("apply applied = false, want true")
+	// applied reports whether anything was actually written. With no candidates
+	// there was nothing to apply, so claiming otherwise would be a lie — see
+	// autofix.BuildFixResponse, which gates applied on a non-empty candidate set.
+	if resp.Msg.GetApplied() {
+		t.Fatalf("apply applied = true with no candidates, want false")
 	}
 	if len(resp.Msg.GetMessages()) == 0 {
 		t.Fatalf("expected empty-set message")
