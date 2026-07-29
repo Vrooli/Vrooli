@@ -80,7 +80,9 @@ err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte(inputPassword))
 Development may seed an admin account with an ephemeral password when no
 credential is configured. The generated password is intentionally not stable
 across restarts. Production does not have a default account credential: startup
-requires `ADMIN_DEFAULT_PASSWORD` from the deployment secret store.
+requires `ADMIN_DEFAULT_PASSWORD` from the deployment secret store. The value
+must contain at least 12 characters; this rejects the former short demo
+credential before the API opens a database connection.
 
 #### Option 1: Environment Variable Override (Recommended for Deployments)
 
@@ -89,7 +91,7 @@ Override the default credentials using environment variables:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ADMIN_DEFAULT_EMAIL` | Admin account email | `admin@localhost` |
-| `ADMIN_DEFAULT_PASSWORD` | Admin account password (plaintext, hashed on startup) | Required in production; ephemeral development value otherwise |
+| `ADMIN_DEFAULT_PASSWORD` | Admin account password (plaintext, hashed on startup) | Required in production; 12+ characters; ephemeral development value otherwise |
 
 **For scenario-to-cloud deployments:**
 1. Navigate to the Secrets Tab in scenario-to-cloud
@@ -142,9 +144,14 @@ start without it. Development generates a cryptographically random ephemeral
 key and logs a warning; sessions therefore end after an API restart. No shared
 or committed fallback signing key exists.
 
-Production startup also requires `ADMIN_DEFAULT_PASSWORD` to be supplied by the
-deployment secret store. Development uses an ephemeral password hash when it is
-absent, so a known built-in admin credential can never authenticate a request.
+Production startup also requires a 12+-character `ADMIN_DEFAULT_PASSWORD` from
+the deployment secret store. Development uses an ephemeral password hash when
+it is absent, so a known built-in admin credential can never authenticate a
+request.
+
+Production startup also requires `AUTH_MAGIC_LINK_BASE_URL`. It must be an
+absolute HTTPS URL for the public `/auth/verify` route. This prevents a
+deployment from sending customers a localhost or HTTP verification link.
 
 ### Dependency advisory posture
 
@@ -166,6 +173,22 @@ num[decision]:two module-level notices remain intentionally documented rather th
 
 Do not add `replace` directives, edit `go.sum`, or suppress these records by
 hand. All dependency changes must go through Scenario Dependency Analyzer.
+
+### React Router RSC advisory posture
+
+Security Health currently reports `GHSA-qwww-vcr4-c8h2` for
+`react-router-dom 7.18.1`. The advisory describes an RSC-mode CSRF bypass and
+names `8.3.0` as the first patched version, but the npm registry's published
+`react-router-dom` latest is still `7.18.1`; there is no governed published
+upgrade to install.
+
+The LPBS UI is a Vite client application using `BrowserRouter` and does not
+ship React Server Components, a server router, RSC action endpoints, or an RSC
+build plugin. That means the advisory's described RSC action path is absent
+from this deployment. This is a documented applicability assessment, **not** a
+scanner suppression: continue to check the registry and Security Health on
+each dependency review, and upgrade through Scenario Dependency Analyzer as
+soon as a compatible published remediation exists.
 
 ### Session Lifecycle
 
@@ -222,7 +245,7 @@ Endpoints are categorized by access level:
 
 | Access Level | Endpoints | Protection |
 |--------------|-----------|------------|
-| **Public** | `/api/v1/landing-config`, `/api/v1/plans`, `/api/v1/branding` | None |
+| **Public** | `LandingConfigService.GetLandingConfig`, `/api/v1/plans`, `/api/v1/branding` | None |
 | **Public** | `/api/v1/metrics/track`, `/api/v1/variants/select` | None |
 | **Public** | `/api/v1/public/variants/*` | None |
 | **Admin** | `/api/v1/admin/*` | `requireAdmin` middleware |
@@ -237,14 +260,16 @@ All admin operations require authentication:
 ```
 POST   /api/v1/admin/logout
 POST   /api/v1/admin/reset-demo-data
-GET    /api/v1/admin/settings/stripe
-PUT    /api/v1/admin/settings/stripe
+POST   /landing_page_business_suite.v1.StripeSettingsService/GetStripeSettings
+POST   /landing_page_business_suite.v1.StripeSettingsService/UpdateStripeSettings
+POST   /landing_page_business_suite.v1.StripeSettingsService/RevealStripeSecret
 GET    /api/v1/admin/download-apps
 POST   /api/v1/admin/download-apps
 PUT    /api/v1/admin/download-apps/{app_key}
 DELETE /api/v1/admin/download-apps/{app_key}
-GET    /api/v1/admin/bundles
-PATCH  /api/v1/admin/bundles/{bundle_key}/prices/{price_id}
+POST   /landing_page_business_suite.v1.BundleAdminService/ListBundleCatalog
+POST   /landing_page_business_suite.v1.BundleAdminService/UpdateBundlePrice
+POST   /landing_page_business_suite.v1.CouponAdminService/*
 GET    /api/v1/admin/branding
 PUT    /api/v1/admin/branding
 POST   /api/v1/admin/branding/clear-field

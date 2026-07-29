@@ -38,6 +38,7 @@ func contentDependencies(store *ConfigStore) contenthttp.Dependencies {
 func handleGetPublicSectionsFromConfigStore(store *ConfigStore) http.HandlerFunc {
 	return contenthttp.Public(contentDependencies(store))
 }
+
 func handleGetSectionsFromConfigStore(store *ConfigStore) http.HandlerFunc {
 	return contenthttp.Admin(contentDependencies(store))
 }

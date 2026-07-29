@@ -155,7 +155,6 @@ func TestErrorPaths_CheckLimit_InvalidTier(t *testing.T) {
 
 func TestErrorPaths_AccountService_NonexistentUser(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	planSvc := NewPlanService(db)
 	svc := NewAccountService(db, planSvc)
@@ -173,7 +172,6 @@ func TestErrorPaths_AccountService_NonexistentUser(t *testing.T) {
 
 func TestErrorPaths_AccountService_EmptyEmail(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	planSvc := NewPlanService(db)
 	svc := NewAccountService(db, planSvc)
@@ -191,7 +189,6 @@ func TestErrorPaths_AccountService_EmptyEmail(t *testing.T) {
 
 func TestErrorPaths_LimitsService_InvalidTierID(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewLimitsService(db, "postgres")
 	ctx := context.Background()
@@ -216,7 +213,6 @@ func TestErrorPaths_LimitsService_InvalidTierID(t *testing.T) {
 
 func TestErrorPaths_LimitsService_UpdateNonexistent(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewLimitsService(db, "postgres")
 	ctx := context.Background()
@@ -234,7 +230,6 @@ func TestErrorPaths_LimitsService_UpdateNonexistent(t *testing.T) {
 
 func TestErrorPaths_LimitsService_CreateDuplicate(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewLimitsService(db, "postgres")
 	ctx := context.Background()
@@ -274,7 +269,6 @@ func TestErrorPaths_LimitsService_CreateDuplicate(t *testing.T) {
 
 func TestErrorPaths_LimitsService_DeleteNonexistent(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewLimitsService(db, "postgres")
 	ctx := context.Background()
@@ -289,7 +283,6 @@ func TestErrorPaths_LimitsService_DeleteNonexistent(t *testing.T) {
 
 func TestErrorPaths_StripeService_ConfigSnapshot(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewStripeService(db)
 
@@ -319,7 +312,6 @@ func TestErrorPaths_StripeService_ConfigSnapshot(t *testing.T) {
 
 func TestErrorPaths_StripeService_InvalidSignature(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewStripeService(db)
 

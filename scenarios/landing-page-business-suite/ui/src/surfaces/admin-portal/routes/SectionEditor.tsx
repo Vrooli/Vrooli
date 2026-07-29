@@ -8,7 +8,7 @@ import { RuntimeSignalStrip } from '../components/RuntimeSignalStrip';
 import { Callout } from '../components/Callout';
 import { LAYOUT } from '../config/layout.constants';
 import { Button } from '../../../shared/ui/button';
-import { Textarea } from '../../../shared/ui/input';
+import { Textarea } from '../../../shared/ui/textarea';
 import { useToast } from '../../../shared/ui/useToast';
 import type { ContentSection, LandingConfigResponse } from '../../../shared/api';
 import { parseDynamicSectionContent } from '../../../shared/api/sectionContentParser';
@@ -87,7 +87,9 @@ const SECTION_PREVIEW_RENDERERS: Record<ContentSection['section_type'], PreviewR
  */
 export function SectionEditor() {
   const navigate = useNavigate();
-  const { variantSlug, sectionId } = useParams<{ variantSlug: string; sectionId: string }>();
+  const routeParams = useParams();
+  const variantSlug = typeof routeParams.variantSlug === 'string' ? routeParams.variantSlug : undefined;
+  const sectionId = typeof routeParams.sectionId === 'string' ? routeParams.sectionId : undefined;
   const toast = useToast();
 
   const {
@@ -181,7 +183,7 @@ export function SectionEditor() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => { navigate(`/admin/customization/variants/${String(variantSlug)}`); }}
+                onClick={() => { navigate(`/admin/customization/variants/${encodeURIComponent(variantSlug ?? '')}`); }}
                 className="gap-2"
               >
                 <ArrowLeft className="h-4 w-4" />
@@ -194,7 +196,7 @@ export function SectionEditor() {
                   size="sm"
                   className="gap-2 hidden sm:inline-flex"
                 >
-                  <a href={`/?variant=${variantSlug}`} target="_blank" rel="noopener noreferrer">
+                  <a href={`/?variant=${encodeURIComponent(variantSlug)}`} target="_blank" rel="noopener noreferrer">
                     <Eye className="h-4 w-4" />
                     View Variant
                   </a>
@@ -503,7 +505,7 @@ export function SectionEditor() {
                   size="sm"
                   className="gap-2 sm:hidden"
                 >
-                  <a href={`/?variant=${variantSlug}`} target="_blank" rel="noopener noreferrer">
+                  <a href={`/?variant=${encodeURIComponent(variantSlug)}`} target="_blank" rel="noopener noreferrer">
                     <Eye className="h-4 w-4" />
                     View Variant
                   </a>

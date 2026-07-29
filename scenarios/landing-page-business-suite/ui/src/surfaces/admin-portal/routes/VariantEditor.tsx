@@ -7,7 +7,7 @@ import { RuntimeSignalStrip } from '../components/RuntimeSignalStrip';
 import { LAYOUT } from '../config/layout.constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
-import { Textarea } from '../../../shared/ui/input';
+import { Textarea } from '../../../shared/ui/textarea';
 import { useToast } from '../../../shared/ui/useToast';
 import { HeaderConfigurator } from '../components/HeaderConfigurator';
 import { useVariantForm } from '../hooks/useVariantForm';
@@ -45,8 +45,10 @@ const editorModelPath = 'inmemory://model/landing-variant.json';
  */
 export function VariantEditor() {
   const navigate = useNavigate();
-  const { slug } = useParams<{ slug: string }>();
-  const routeSlug = slug || '';
+  const routeParams = useParams();
+  const slug = typeof routeParams.slug === 'string' ? routeParams.slug : undefined;
+  const routeSlug = slug ?? '';
+  const encodedRouteSlug = encodeURIComponent(routeSlug);
   const isNew = slug === 'new';
   const toast = useToast();
 
@@ -101,6 +103,8 @@ export function VariantEditor() {
     onError: (message) => toast.error(message),
   });
 
+  const variantName: string = typeof variant?.name === 'string' ? variant.name : routeSlug || 'variant';
+
   const handleSaveClick = async () => {
     if (isJsonTab) {
       await handleSaveJson();
@@ -129,7 +133,7 @@ export function VariantEditor() {
 
         <PageHeader
           title={isNew ? 'New Variant' : 'Edit Variant'}
-          description={isNew ? 'Create a new A/B test variant' : `Editing ${variant?.name || routeSlug || 'variant'}`}
+          description={isNew ? 'Create a new A/B test variant' : `Editing ${variantName}`}
           icon={Edit}
           iconBgClass="bg-indigo-500/10"
           iconColorClass="text-indigo-400"
@@ -408,7 +412,7 @@ export function VariantEditor() {
                       </CardDescription>
                     </div>
                     <Button
-                      onClick={() => { navigate(`/admin/customization/variants/${routeSlug}/sections/new`); }}
+                      onClick={() => { navigate(`/admin/customization/variants/${encodedRouteSlug}/sections/new`); }}
                       variant="outline"
                       size="sm"
                       className="gap-2"
@@ -424,7 +428,7 @@ export function VariantEditor() {
                     <div className="text-center py-12 text-slate-400">
                       <p className="mb-4">No sections yet</p>
                       <Button
-                        onClick={() => { navigate(`/admin/customization/variants/${routeSlug}/sections/new`); }}
+                        onClick={() => { navigate(`/admin/customization/variants/${encodedRouteSlug}/sections/new`); }}
                         variant="outline"
                       >
                         Add Your First Section
@@ -459,7 +463,7 @@ export function VariantEditor() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => { navigate(`/admin/customization/variants/${routeSlug}/sections/${String(section.id)}`); }}
+                              onClick={() => { navigate(`/admin/customization/variants/${encodedRouteSlug}/sections/${String(section.id)}`); }}
                               data-testid={`edit-section-${String(section.id)}`}
                             >
                               Edit

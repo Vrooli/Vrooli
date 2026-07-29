@@ -51,7 +51,6 @@ func configureAnomalyWebhook(t *testing.T, svc *PaymentAnomalyService, db *sql.D
 
 func TestSchemaApplied(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// payment_anomaly_log must exist.
 	var count int
@@ -85,7 +84,6 @@ func TestSchemaApplied(t *testing.T) {
 
 func TestMigration_FreshDB(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	var exists bool
 	if err := db.QueryRow(`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'intro_anomaly_log')`).Scan(&exists); err != nil {
@@ -98,7 +96,6 @@ func TestMigration_FreshDB(t *testing.T) {
 
 func TestRuntimeSchema_DoesNotPerformLegacyIntroAnomalyMigration(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Re-create the legacy table as if we were an older DB upgrading.
 	if _, err := db.Exec(`
@@ -152,7 +149,6 @@ func TestRuntimeSchema_DoesNotPerformLegacyIntroAnomalyMigration(t *testing.T) {
 
 func TestMigration_ReRun(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Second invocation must be a no-op.
 	if err := applyRuntimeSchema(db); err != nil {
@@ -169,7 +165,6 @@ func TestMigration_ReRun(t *testing.T) {
 
 func TestLog_InsertsRow(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetAnomalyTestData(t, db)
 
 	svc := NewPaymentAnomalyService(context.Background(), db, context.Background())
@@ -222,7 +217,6 @@ func TestLog_InsertsRow(t *testing.T) {
 
 func TestLog_NoDispatchWhenDisabled(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetAnomalyTestData(t, db)
 
 	svc := NewPaymentAnomalyService(context.Background(), db, context.Background())
@@ -242,7 +236,6 @@ func TestLog_NoDispatchWhenDisabled(t *testing.T) {
 
 func TestLog_DispatchesWhenEnabled(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetAnomalyTestData(t, db)
 
 	var received atomic.Int32
@@ -311,7 +304,6 @@ func TestLog_DispatchesWhenEnabled(t *testing.T) {
 
 func TestLog_RateLimited(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetAnomalyTestData(t, db)
 
 	stub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -359,7 +351,6 @@ func TestLog_RateLimited(t *testing.T) {
 
 func TestWaitForDispatch_Timeout(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetAnomalyTestData(t, db)
 
 	block := make(chan struct{})

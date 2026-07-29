@@ -61,7 +61,7 @@ subscription, credit, customer, download, and admin-operations service.
 |              |     (UI Layer)        |                                            |
 |              +-----------+-----------+                                            |
 |                          |                                                        |
-|                          | HTTP/JSON                                              |
+|                          | Generated Connect RPC + documented HTTP exceptions     |
 |                          v                                                        |
 |              +-----------------------+                                            |
 |              |      GO API           |                                            |
@@ -83,7 +83,7 @@ subscription, credit, customer, download, and admin-operations service.
 
 | Boundary | Purpose |
 |----------|---------|
-| **UI ↔ API** | REST/JSON over HTTP. All business logic server-side. |
+| **UI ↔ API** | Generated Connect RPC for proto-owned operations; REST only for external-shape, upload, webhook, and probe edges. All business logic remains server-side. |
 | **API ↔ Database** | Direct PostgreSQL via `database/sql`. No ORM. |
 | **API ↔ Stripe** | HTTPS to Stripe APIs. Webhook verification. |
 | **Public ↔ Admin** | Route-based separation. Session auth for admin. |
@@ -172,10 +172,11 @@ cli/
 └── internal/                # Shared CLI helpers (auth, config)
 
 api/internal/
-├── admin/                   # Admin accounts, sessions, remote profiles + schema
-├── financial/               # Plans, Stripe, subscriptions, credits + schema
-├── download/                # Entitled download catalog/storage + schema
-├── operations/              # Usage, reservations, API keys, user auth + schema
+├── administration/          # Admin accounts, sessions, remote profiles + schema
+├── commerce/                # Plans, Stripe, subscriptions, credits, usage + schema
+├── delivery/                # Entitled download catalog/storage + schema
+├── experimentation/         # Variant-selection policy, independent of config decoding
+├── intelligence/            # Upstream AI-provider error classification
 ├── metrics/                 # Analytics event persistence + schema
 ├── content/                 # Assets, feedback, waitlist + schema
 ├── schema/                  # Thin ordered schema registry (no business rules)
@@ -188,34 +189,39 @@ The HTTP API exposes ~8 logical domains, registered from `api/routes.go`:
 
 | Domain | Routes | Currently grouped via |
 |--------|--------|------------------------|
-| `landing` | `/api/v1/landing-config`, `/api/v1/plans`, `/api/v1/variant-space`, `/api/v1/customize` | `registerLandingRoutes` |
-| `billing` | `/api/v1/billing/*`, `/api/v1/checkout/*`, `/api/v1/webhooks/stripe`, `/api/v1/subscription/*`, `/api/v1/admin/coupons*`, credits + commerce-admin endpoints | `registerBillingRoutes`, `registerCommerceAdminRoutes`, `registerCreditsRoutes` |
+| `landing` | `LandingConfigService.GetLandingConfig`, `/api/v1/plans`, `VariantSpaceService`, `/api/v1/customize` | `registerLandingRoutes` |
+| `billing` | `LandingPagePaymentsService`, `BundleAdminService`, `CouponAdminService`, Stripe webhook, Stripe import, credits + remaining commerce-admin endpoints | `registerBillingRoutes`, `registerCommerceAdminRoutes`, `registerCreditsRoutes` |
 | `downloads` | `/api/v1/downloads`, `/api/v1/admin/download-*`, content + branding + variant + update endpoints | `registerCommerceAdminRoutes`, `registerContentRoutes`, `registerVariantRoutes`, `registerUpdateRoutes` |
 | `ai` | `/api/v1/ai/*` | `registerAIRoutes` |
-| `metrics` | `/api/v1/metrics/*`, `/api/v1/waitlist`, `/api/feedback`, `/api/v1/admin/feedback*`, `/api/v1/admin/waitlist*` | `registerMetricsRoutes`, `registerFeedbackRoutes`, `registerWaitlistRoutes` |
-| `admin` | `/api/v1/admin/login`, `/api/v1/admin/profile`, `/api/v1/admin/users*`, `/api/v1/admin/docs/*`, `/api/v1/admin/settings/stripe*` | `registerAdminCoreRoutes`, `registerAdminUserRoutes`, `registerDocsRoutes` |
+| `metrics` | `/api/v1/metrics/*`, `/api/v1/waitlist`, `/api/v1/feedback`, `/api/v1/admin/feedback*`, `/api/v1/admin/waitlist*` | `registerMetricsRoutes`, `registerFeedbackRoutes`, `registerWaitlistRoutes` |
+| `admin` | `/api/v1/admin/login`, `/api/v1/admin/profile`, `/api/v1/admin/users*`, `/api/v1/admin/docs/*`, `StripeSettingsService` Connect procedures | `registerAdminCoreRoutes`, `registerAdminUserRoutes`, `registerDocsRoutes` |
 | `remote-profile` | `/api/v1/admin/remote-profiles*`, `/api/v1/admin/remote-profile-sessions*` | `registerRemoteProfileRoutes` |
 | `user-auth` | `/api/v1/auth/*`, `/api/v1/me/*`, `/api/v1/entitlements` | `registerAuthRoutes`, `registerAccountRoutes` |
 | `health` (cross-cutting) | `/health`, `/api/v1/health`, `/api/v1/deploy-readiness` | `registerHealthRoutes`, `registerDeployReadinessRoute` |
 
 > **Migration state.** Runtime schema ownership has moved into domain packages.
-> Services and handlers remain partially colocated in `package main`; each move
-> must preserve HTTP contracts and land with its tests. `main.go` is restricted
-> to configuration, database wiring, schema registration, service composition,
-> route registration, and process start.
+> Proto-owned public pricing, payments, Stripe settings, landing configuration,
+> branding, SEO, Variant Space, measures, and the admin bundle and coupon
+> paths are now generated Connect procedures consumed by typed UI or CLI
+> clients. Remaining REST paths are migration work unless they are a webhook,
+> upload, third-party-shaped callback, or operational probe. Services and
+> handlers remain partially colocated in `package main`; each move must preserve
+> behavior and land with its tests. `main.go` is restricted to configuration,
+> database wiring, schema registration, service composition, route registration,
+> and process start.
 
 ### Target capability ownership
 
 | Capability | Primary archetype | API owner | UI/CLI owner |
 |---|---|---|---|
-| Admin and remote profiles | CRUD + integration | `admin` | admin portal / `cli/domains/remoteprofiles` |
-| Plans, subscriptions, Stripe, coupons | Temporal workflow + integration | `financial` | billing portal / `cli/domains/billing` |
-| Credits, usage, reservations, provider keys | Policy + temporal workflow | `operations` | admin usage views / `cli/domains/credits` |
-| Downloads and release hosting | Blob + entitlement policy | `download` | downloads views / `cli/domains/downloads` |
-| Landing configuration and variants | Configuration | file-backed config substrate | public landing / `cli/domains/variants` |
+| Admin and remote profiles | CRUD + integration | `administration` | admin portal / `cli/domains/remoteprofiles` |
+| Plans, subscriptions, Stripe, coupons | Temporal workflow + integration | `commerce` | billing portal / `cli/domains/billing` |
+| Credits, usage, reservations, provider keys | Policy + temporal workflow | `commerce` | admin usage views / `cli/domains/credits` |
+| Downloads and release hosting | Blob + entitlement policy | `delivery` | downloads views / `cli/domains/downloads` |
+| Landing configuration and variants | Configuration | `experimentation` policy plus file-backed config substrate | public landing / `cli/domains/variants` |
 | Metrics, feedback, waitlist | Reporting + CRUD | `metrics` and `content` | analytics/admin portal |
-| End-user authentication | Temporal security workflow | `operations` | user-auth surface / `cli/domains/auth` |
-| AI gateway | Integration + credit orchestration | `operations` with provider seams | API surface / `cli/domains/ai` |
+| End-user authentication | Temporal security workflow | `administration` and `commerce` | user-auth surface / `cli/domains/auth` |
+| AI gateway | Integration + credit orchestration | `intelligence` with commerce credit policy | API surface / `cli/domains/ai` |
 
 ### Responsibility Layers
 
@@ -310,7 +316,7 @@ User action → Frontend SDK → POST /metrics/track → Database INSERT
      │  index.html  │              │              │
      │<─────────────│              │              │
      │              │              │              │
-     │ GET /landing-config         │              │
+     │ POST LandingConfigService.GetLandingConfig │
      │────────────────────────────>│              │
      │              │              │              │
      │              │              │ Read config  │
@@ -598,13 +604,14 @@ behavior from the root.
 | Directory | Zone | May Import | Enforcement |
 |---|---|---|---|
 | `api/handlers/metrics/` | transport edge | `internal/metrics`, standard library | `internal/testutil/no_prod_import_test.go` and handler tests |
-| `api/internal/admin/` | domain and persistence | standard library, database driver as needed | production-import test |
+| `api/internal/administration/` | domain and persistence | standard library, database driver as needed | production-import test |
 | `api/internal/clock/` | cross-cutting substrate | standard library | seam-registry test |
 | `api/internal/content/` | domain and persistence | standard library, database driver as needed | production-import test |
-| `api/internal/download/` | domain and persistence | standard library, database driver as needed | production-import test |
-| `api/internal/financial/` | domain and persistence | standard library, database driver as needed | production-import test |
+| `api/internal/commerce/` | domain and persistence | standard library, database driver as needed | production-import test |
+| `api/internal/delivery/` | domain and persistence | standard library, database driver as needed | production-import test |
+| `api/internal/experimentation/` | variant-selection policy | standard library | focused decision tests |
+| `api/internal/intelligence/` | provider error semantics | standard library | focused error tests |
 | `api/internal/metrics/` | domain and persistence | `internal/clock`, standard library, database driver as needed | production-import and seam-registry tests |
-| `api/internal/operations/` | domain and persistence | standard library, database driver as needed | production-import test |
 | `api/internal/schema/` | schema registry substrate | domain schema packages and standard library | schema registry tests |
 | `api/internal/testutil/` | test-only substrate | standard library | production imports are forbidden |
 | `api/templates/` | embedded API templates | standard library | compile/test coverage |

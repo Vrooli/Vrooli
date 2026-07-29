@@ -2,6 +2,7 @@ package admin
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -11,10 +12,14 @@ import (
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	"landing-page-business-suite/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
+	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func Register(deps support.Dependencies) cliapp.CommandGroup {
@@ -26,13 +31,94 @@ func Register(deps support.Dependencies) cliapp.CommandGroup {
 	commands = append(commands, deps.EndpointCommands([]support.EndpointDef{
 		{Name: "admin-profile", Method: "GET", Path: "/admin/profile", Description: "Admin profile"},
 		{Name: "admin-profile-update", Method: "PUT", Path: "/admin/profile", Description: "Update admin profile"},
-		{Name: "admin-stripe-settings", Method: "GET", Path: "/admin/settings/stripe", Description: "Get Stripe settings"},
-		{Name: "admin-stripe-settings-update", Method: "PUT", Path: "/admin/settings/stripe", Description: "Update Stripe settings"},
-		{Name: "admin-stripe-secret", Method: "GET", Path: "/admin/settings/stripe/reveal", Description: "Reveal Stripe secret"},
 		{Name: "admin-stripe-verify-price", Method: "GET", Path: "/admin/stripe/verify-price", Description: "Verify Stripe price"},
 		{Name: "admin-reset-demo-data", Method: "POST", Path: "/admin/reset-demo-data", Description: "Reset demo data"},
 	})...)
+	commands = append(commands, stripeSettingsCommands(deps)...)
 	return cliapp.CommandGroup{Title: "Admin Core", Commands: commands}
+}
+
+func stripeSettingsClient(deps support.Dependencies) (lpbsconnect.StripeSettingsServiceClient, error) {
+	httpClient, baseURL, err := deps.AdminConnectHTTPClient()
+	if err != nil {
+		return nil, err
+	}
+	return lpbsconnect.NewStripeSettingsServiceClient(httpClient, baseURL), nil
+}
+
+func stripeSettingsCommands(deps support.Dependencies) []cliapp.Command {
+	get := cliapp.ProtoList(
+		func(ctx cliapp.OperationContext) (*lpbsv1.GetStripeSettingsResponse, error) {
+			client, err := stripeSettingsClient(deps)
+			if err != nil {
+				return nil, err
+			}
+			response, err := client.GetStripeSettings(context.Background(), connect.NewRequest(&lpbsv1.GetStripeSettingsRequest{}))
+			if err != nil {
+				return nil, cliapp.WrapAPIError("get Stripe settings", err, nil)
+			}
+			return response.Msg, nil
+		},
+		func(cliapp.OperationContext, *lpbsv1.GetStripeSettingsResponse) cliapp.ListReport {
+			return cliapp.ListReport{Summary: []string{"Stripe settings (credentials redacted)."}, ResultsHeading: "Settings"}
+		},
+	)
+	update := cliapp.ProtoMutation(
+		func(ctx cliapp.OperationContext) (*lpbsv1.UpdateStripeSettingsResponse, error) {
+			payload, err := support.ParseBody(ctx.Flag("body"))
+			if err != nil {
+				return nil, err
+			}
+			request := &lpbsv1.UpdateStripeSettingsRequest{}
+			if err := protojson.Unmarshal(payload, request); err != nil {
+				return nil, fmt.Errorf("decode Stripe settings: %w", err)
+			}
+			client, err := stripeSettingsClient(deps)
+			if err != nil {
+				return nil, err
+			}
+			response, err := client.UpdateStripeSettings(context.Background(), connect.NewRequest(request))
+			if err != nil {
+				return nil, cliapp.WrapAPIError("update Stripe settings", err, nil)
+			}
+			return response.Msg, nil
+		},
+		func(cliapp.OperationContext, *lpbsv1.UpdateStripeSettingsResponse) cliapp.MutationReport {
+			return cliapp.MutationReport{Result: []string{"Stripe settings updated."}, Changes: []string{"Runtime configuration refreshed."}}
+		},
+	)
+	reveal := cliapp.ProtoOperational(
+		func(ctx cliapp.OperationContext) (*lpbsv1.RevealStripeSecretResponse, error) {
+			field := ctx.Flag("field")
+			if field == "" && ctx.FlagProvided("query") {
+				query, err := support.ParseQueries([]string{ctx.Flag("query")})
+				if err != nil {
+					return nil, err
+				}
+				field = query.Get("field")
+			}
+			if field == "" {
+				return nil, fmt.Errorf("--field or --query field=<field> is required")
+			}
+			client, err := stripeSettingsClient(deps)
+			if err != nil {
+				return nil, err
+			}
+			response, err := client.RevealStripeSecret(context.Background(), connect.NewRequest(&lpbsv1.RevealStripeSecretRequest{Field: field}))
+			if err != nil {
+				return nil, cliapp.WrapAPIError("reveal Stripe secret", err, nil)
+			}
+			return response.Msg, nil
+		},
+		func(ctx cliapp.OperationContext, response *lpbsv1.RevealStripeSecretResponse) cliapp.OperationalReport {
+			return cliapp.OperationalReport{Status: []string{fmt.Sprintf("Revealed %s.", response.GetField())}, NextSteps: []string{"Treat the revealed value as sensitive."}}
+		},
+	)
+	return []cliapp.Command{
+		(cliapp.Command{Name: "admin-stripe-settings", NeedsAPI: true, Description: "Get redacted Stripe settings", Architecture: cliapp.CommandArchitecture{Primitive: cliapp.PrimitiveProtoList}}).WithPrimitive(get),
+		(cliapp.Command{Name: "admin-stripe-settings-update", NeedsAPI: true, Description: "Update Stripe settings", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "body", Description: "JSON body payload or @file.json", Required: true}}}, Architecture: cliapp.CommandArchitecture{Primitive: cliapp.PrimitiveProtoMutation}}).WithPrimitive(update),
+		(cliapp.Command{Name: "admin-stripe-secret", NeedsAPI: true, Description: "Reveal one Stripe setting", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "field", Description: "secret_key, webhook_secret, publishable_key, or anomaly_webhook_url"}, {Name: "query", Description: "Legacy query form: field=<field>"}}}, Architecture: cliapp.CommandArchitecture{Primitive: cliapp.PrimitiveOperational}}).WithPrimitive(reveal),
+	}
 }
 
 func runLogin(deps support.Dependencies, args []string) error {

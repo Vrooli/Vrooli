@@ -22,6 +22,9 @@ func brandingProto(value *SiteBranding) *lpbsv1.SiteBranding {
 		if v == nil {
 			return nil
 		}
+		if *v < -1<<31 || *v > 1<<31-1 {
+			return nil
+		}
 		result := int32(*v)
 		return &result
 	}

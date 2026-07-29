@@ -2,20 +2,18 @@ package main
 
 import (
 	"context"
-	"crypto/aes"
-	"crypto/cipher"
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
 	"landing-page-business-suite-api/internal/envx"
+	"landing-page-business-suite-api/internal/securevalue"
 )
 
 // HTTPDoer is an interface for making HTTP requests, used for testing.
@@ -117,66 +115,12 @@ func NewAPIKeyServiceWithOptions(db APIKeyStore, httpClient HTTPDoer, dialect st
 
 // encrypt encrypts plaintext using AES-256-GCM.
 func (s *APIKeyService) encrypt(plaintext string) (string, error) {
-	if s.encryptionKey == nil {
-		// No encryption key - store as-is (development only)
-		return plaintext, nil
-	}
-
-	block, err := aes.NewCipher(s.encryptionKey)
-	if err != nil {
-		return "", err
-	}
-
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return "", err
-	}
-
-	// Create nonce
-	nonce := make([]byte, gcm.NonceSize())
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		return "", err
-	}
-
-	// Encrypt and prepend nonce
-	ciphertext := gcm.Seal(nonce, nonce, []byte(plaintext), nil)
-	return base64.StdEncoding.EncodeToString(ciphertext), nil
+	return securevalue.Encrypt(s.encryptionKey, plaintext)
 }
 
 // decrypt decrypts ciphertext using AES-256-GCM.
 func (s *APIKeyService) decrypt(ciphertext string) (string, error) {
-	if s.encryptionKey == nil {
-		// No encryption key - return as-is (development only)
-		return ciphertext, nil
-	}
-
-	data, err := base64.StdEncoding.DecodeString(ciphertext)
-	if err != nil {
-		return "", err
-	}
-
-	block, err := aes.NewCipher(s.encryptionKey)
-	if err != nil {
-		return "", err
-	}
-
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return "", err
-	}
-
-	nonceSize := gcm.NonceSize()
-	if len(data) < nonceSize {
-		return "", fmt.Errorf("ciphertext too short")
-	}
-
-	nonce, ciphertextBytes := data[:nonceSize], data[nonceSize:]
-	plaintext, err := gcm.Open(nil, nonce, ciphertextBytes, nil)
-	if err != nil {
-		return "", err
-	}
-
-	return string(plaintext), nil
+	return securevalue.Decrypt(s.encryptionKey, ciphertext)
 }
 
 // getKeyHint returns the last 4 characters of a key for display.

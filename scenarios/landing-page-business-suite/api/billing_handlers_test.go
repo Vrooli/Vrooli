@@ -10,13 +10,14 @@ import (
 	"strings"
 	"testing"
 
+	"landing-page-business-suite-api/internal/testutil"
+
 	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func TestHandleBillingCreateCheckoutSession_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Setup test bundle data
@@ -45,9 +46,7 @@ func TestHandleBillingCreateCheckoutSession_Success(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, rr, http.StatusOK)
 
 	var resp landing_page_business_suite_v1.CreateCheckoutSessionResponse
 	if err := protojson.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
@@ -63,7 +62,6 @@ func TestHandleBillingCreateCheckoutSession_Success(t *testing.T) {
 
 func TestHandleBillingCreateCheckoutSession_InvalidBody(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewStripeService(db)
 	handler := handleBillingCreateCheckoutSession(service)
@@ -74,14 +72,10 @@ func TestHandleBillingCreateCheckoutSession_InvalidBody(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("Expected status 400, got %d", rr.Code)
-	}
+	testutil.RequireHTTPStatus(t, rr, http.StatusBadRequest)
 
 	var errResp ApiErrorResponse
-	if err := json.Unmarshal(rr.Body.Bytes(), &errResp); err != nil {
-		t.Fatalf("Failed to unmarshal error response: %v", err)
-	}
+	decodeJSONResponse(t, rr.Body.Bytes(), &errResp)
 	if errResp.ErrorType != ApiErrorTypeValidation {
 		t.Errorf("Expected error type 'validation', got '%s'", errResp.ErrorType)
 	}
@@ -89,7 +83,6 @@ func TestHandleBillingCreateCheckoutSession_InvalidBody(t *testing.T) {
 
 func TestHandleBillingCreateCheckoutSession_StripeError(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Setup test bundle data with missing price to trigger error
@@ -115,14 +108,10 @@ func TestHandleBillingCreateCheckoutSession_StripeError(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("Expected status 400, got %d", rr.Code)
-	}
+	testutil.RequireHTTPStatus(t, rr, http.StatusBadRequest)
 
 	var errResp ApiErrorResponse
-	if err := json.Unmarshal(rr.Body.Bytes(), &errResp); err != nil {
-		t.Fatalf("Failed to unmarshal error response: %v", err)
-	}
+	decodeJSONResponse(t, rr.Body.Bytes(), &errResp)
 	if !strings.Contains(errResp.Error, "No such price") {
 		t.Errorf("Expected Stripe error message, got '%s'", errResp.Error)
 	}
@@ -130,7 +119,6 @@ func TestHandleBillingCreateCheckoutSession_StripeError(t *testing.T) {
 
 func TestHandleBillingCreateCreditsSession_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Setup test bundle data for credits
@@ -158,14 +146,11 @@ func TestHandleBillingCreateCreditsSession_Success(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, rr, http.StatusOK)
 }
 
 func TestHandleBillingPortalURL_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Insert test customer
@@ -199,14 +184,10 @@ func TestHandleBillingPortalURL_Success(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, rr, http.StatusOK)
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
+	decodeJSONResponse(t, rr.Body.Bytes(), &resp)
 	url, ok := resp["url"].(string)
 	if !ok || !strings.Contains(url, "billing.stripe.test") {
 		t.Errorf("Expected portal URL, got %v", resp)
@@ -215,7 +196,6 @@ func TestHandleBillingPortalURL_Success(t *testing.T) {
 
 func TestHandleBillingPortalURL_Unauthenticated(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewStripeService(db)
 	handler := handleBillingPortalURL(service)
@@ -226,14 +206,10 @@ func TestHandleBillingPortalURL_Unauthenticated(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusUnauthorized {
-		t.Errorf("Expected status 401, got %d", rr.Code)
-	}
+	testutil.RequireHTTPStatus(t, rr, http.StatusUnauthorized)
 
 	var errResp ApiErrorResponse
-	if err := json.Unmarshal(rr.Body.Bytes(), &errResp); err != nil {
-		t.Fatalf("Failed to unmarshal error response: %v", err)
-	}
+	decodeJSONResponse(t, rr.Body.Bytes(), &errResp)
 	if errResp.ErrorType != ApiErrorTypeUnauthorized {
 		t.Errorf("Expected error type 'unauthorized', got '%s'", errResp.ErrorType)
 	}
@@ -241,7 +217,6 @@ func TestHandleBillingPortalURL_Unauthenticated(t *testing.T) {
 
 func TestHandleBillingPortalURL_StripeError(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Insert test customer without Stripe customer ID
@@ -271,15 +246,12 @@ func TestHandleBillingPortalURL_StripeError(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("Expected status 400, got %d", rr.Code)
-	}
+	testutil.RequireHTTPStatus(t, rr, http.StatusBadRequest)
 }
 
 // TestCreateCheckoutSessionHandler_ConsolidatedLogic verifies the consolidated handler works correctly
 func TestCreateCheckoutSessionHandler_ConsolidatedLogic(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	productID := upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_consolidated", "production", 1000000, 0.001, "credits")
@@ -312,9 +284,7 @@ func TestCreateCheckoutSessionHandler_ConsolidatedLogic(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, rr, http.StatusOK)
 }
 
 // ============================================================================
@@ -325,7 +295,6 @@ func TestCreateCheckoutSessionHandler_ConsolidatedLogic(t *testing.T) {
 // exists for the authenticated user.
 func TestHandleBillingPortalURL_NoCustomerFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// No subscription inserted - user has no Stripe customer
@@ -351,14 +320,10 @@ func TestHandleBillingPortalURL_NoCustomerFound(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("Expected status 400 for no customer, got %d: %s", rr.Code, rr.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, rr, http.StatusBadRequest)
 
 	var errResp ApiErrorResponse
-	if err := json.Unmarshal(rr.Body.Bytes(), &errResp); err != nil {
-		t.Fatalf("Failed to unmarshal error response: %v", err)
-	}
+	decodeJSONResponse(t, rr.Body.Bytes(), &errResp)
 	// The handler returns a generic error message to the client (for security reasons)
 	// The detailed "no Stripe customer found" error is only logged
 	if !strings.Contains(strings.ToLower(errResp.Error), "billing portal") {
@@ -370,7 +335,6 @@ func TestHandleBillingPortalURL_NoCustomerFound(t *testing.T) {
 // falls back to Stripe API when not found locally.
 func TestHandleBillingPortalURL_CustomerLookupFallback(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// No local subscription, but customer exists in Stripe
@@ -401,14 +365,10 @@ func TestHandleBillingPortalURL_CustomerLookupFallback(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, rr, http.StatusOK)
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
+	decodeJSONResponse(t, rr.Body.Bytes(), &resp)
 	url, ok := resp["url"].(string)
 	if !ok || !strings.Contains(url, "billing.stripe.test") {
 		t.Errorf("Expected portal URL, got %v", resp)
@@ -418,7 +378,6 @@ func TestHandleBillingPortalURL_CustomerLookupFallback(t *testing.T) {
 // TestHandleBillingPortalURL_ReturnURLValidation verifies return URL handling.
 func TestHandleBillingPortalURL_ReturnURLValidation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Insert test customer
@@ -456,9 +415,7 @@ func TestHandleBillingPortalURL_ReturnURLValidation(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, rr, http.StatusOK)
 	if capturedReturnURL != "https://myapp.com/billing" {
 		t.Errorf("Expected return_url to be passed to Stripe, got '%s'", capturedReturnURL)
 	}
@@ -467,7 +424,6 @@ func TestHandleBillingPortalURL_ReturnURLValidation(t *testing.T) {
 // TestHandleBillingPortalURL_NoReturnURL verifies behavior when return URL is not provided.
 func TestHandleBillingPortalURL_NoReturnURL(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Insert test customer
@@ -505,9 +461,7 @@ func TestHandleBillingPortalURL_NoReturnURL(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, rr, http.StatusOK)
 	// Return URL should be empty or not passed
 	if capturedReturnURL != "" {
 		t.Errorf("Expected no return_url when not provided, got '%s'", capturedReturnURL)
@@ -517,7 +471,6 @@ func TestHandleBillingPortalURL_NoReturnURL(t *testing.T) {
 // TestHandleBillingPortalURL_CustomerIDLookup verifies portal access using customer ID directly.
 func TestHandleBillingPortalURL_CustomerIDLookup(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Insert test customer
@@ -554,9 +507,7 @@ func TestHandleBillingPortalURL_CustomerIDLookup(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, rr, http.StatusOK)
 	if capturedCustomerID != "cus_cusid_lookup" {
 		t.Errorf("Expected customer ID 'cus_cusid_lookup', got '%s'", capturedCustomerID)
 	}
@@ -565,7 +516,6 @@ func TestHandleBillingPortalURL_CustomerIDLookup(t *testing.T) {
 // TestHandleBillingPortalURL_CaseInsensitiveEmail verifies email lookup is case insensitive.
 func TestHandleBillingPortalURL_CaseInsensitiveEmail(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Insert subscription with lowercase email
@@ -599,16 +549,13 @@ func TestHandleBillingPortalURL_CaseInsensitiveEmail(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status 200 (case insensitive match), got %d: %s", rr.Code, rr.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, rr, http.StatusOK)
 }
 
 // TestHandleBillingPortalURL_PortalConfigurationError verifies error handling for
 // portal configuration issues.
 func TestHandleBillingPortalURL_PortalConfigurationError(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Insert test customer
@@ -642,14 +589,10 @@ func TestHandleBillingPortalURL_PortalConfigurationError(t *testing.T) {
 
 	handler.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusBadRequest {
-		t.Errorf("Expected status 400 for portal config error, got %d", rr.Code)
-	}
+	testutil.RequireHTTPStatus(t, rr, http.StatusBadRequest)
 
 	var errResp ApiErrorResponse
-	if err := json.Unmarshal(rr.Body.Bytes(), &errResp); err != nil {
-		t.Fatalf("Failed to unmarshal error response: %v", err)
-	}
+	decodeJSONResponse(t, rr.Body.Bytes(), &errResp)
 	if !strings.Contains(errResp.Error, "portal") {
 		t.Errorf("Expected portal-related error, got '%s'", errResp.Error)
 	}

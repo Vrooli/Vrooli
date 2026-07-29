@@ -4,6 +4,15 @@ This file tracks known issues and technical debt that need attention.
 
 ---
 
+## Work ladder
+
+- Rung: W3 / R2–R3 implementation hardening
+- Evidence: active goal `landing-page-api-domain-subpackages` requires behavior-preserving domain extraction; the PRD's P0 monetization/download targets remain compatible, and `vrooli scenario requirements validate landing-page-business-suite` passed on 2026-07-28. The latest API suite is green, while Tidiness reports 27 long files and 315 duplication findings, including the 1,039-line Download Settings route.
+- Blocker: none; continue domain-oriented API work and direct-UI decomposition without weakening requirements or validator rules.
+- Measured: 2026-07-28
+
+---
+
 ## Security Issues
 
 ### Resolved: persisted-domain measures coverage
@@ -116,9 +125,16 @@ The tests now derive their HMAC secret from the injected `StripeTestConfig`.
 migration tests pass, as does `GOWORK=off go test ./... -count=1 -timeout 10m`
 from `api/`.
 
-**Remaining follow-up:** Triage the num[sot]:17 skipped API tests and the assertion-free
-`TestMain` separately; these are test-debt advisories, not evidence that the
-Stripe workflow remains broken.
+**Follow-up update (2026-07-28):** The ConfigStore-backed SEO, content, and
+variant handler tests no longer silently skip when fixture configuration is
+absent or empty; they now fail explicitly, and the obsolete database-variant
+helper that always skipped was removed. Focused coverage tests exercise the
+affected paths successfully. Unit Health's remaining skip and assertion
+findings are reproducible validator defects: three stress tests skip only when
+the caller explicitly requests Go short mode, and `TestMain` is a lifecycle
+entrypoint rather than an assertion-bearing test. The associated Scenario QA
+reports also cover its fabricated missing `runtime/` surface and a UI literal
+that its focused-test regex mistakes for `fit`.
 
 ### Monolithic Test Files
 
@@ -226,7 +242,33 @@ The import modal used per-row action dropdowns (import/overwrite/skip), which ma
 
 ## Last Updated
 
-2026-07-27 by Codex
+2026-07-28 by Codex
+
+---
+
+## Structure-health hardcoded-value classification
+
+**Status:** In progress
+**Updated:** 2026-07-28
+
+Structure Health reports 82 `PROFILE_HARDCODED_VALUES` warnings through a
+syntax-level URL and port matcher. They are not one class of defect and must
+not be remediated by turning protocol constants or user-facing help links into
+runtime environment variables.
+
+| Classification | Examples | Disposition |
+|---|---|---|
+| Runtime configuration candidates | Public auth-link origin, optional provider base URLs | Confirm that the value is operator-configurable and add a targeted setting only where the deployment can legitimately vary it. |
+| Protocol/provider constants | Stripe, SendGrid, OpenAI, Anthropic endpoints; sitemap namespace | Keep as code-owned integration contracts. They are not deployment settings. |
+| Derived values | Cloudflare R2 endpoint assembled from an operator-entered account ID | Keep derived; making it a separate setting permits inconsistent configuration. |
+| User-facing content | Storage setup guides, provider comparison links, UI video links | Keep with the content that presents them; move only if product editing requirements require it. |
+| Test fixtures and CSS | API mocks, UI tests, CSS data URLs | Keep test- or presentation-local. |
+| Fallback content | Baked landing fallback payload | Treat `.vrooli/fallback/fallback.json` as the normal editable source; retain the baked payload only as an offline last resort. |
+
+The provider currently has no auto-fix candidates and cannot distinguish these
+classes. The remaining work is therefore to remove genuine configuration
+defaults selectively and improve the provider's classification upstream; it is
+not evidence that all 82 locations are operationally misconfigured.
 
 ---
 

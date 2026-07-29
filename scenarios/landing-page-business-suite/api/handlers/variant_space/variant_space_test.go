@@ -1,19 +1,38 @@
 package variant_space
 
 import (
-	"net/http"
+	"context"
 	"net/http/httptest"
 	"testing"
+
+	"connectrpc.com/connect"
+	"github.com/gorilla/mux"
+	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
+	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect"
 )
 
-func TestGetServesVerbatimJSON(t *testing.T) {
+func TestGetVariantSpacePreservesVerbatimJSON(t *testing.T) {
 	payload := []byte(`{"_metadata":{"preserve":true}}`)
-	w := httptest.NewRecorder()
-	Get(Dependencies{JSON: func() []byte { return payload }, Log: func(string, map[string]any) {}})(w, httptest.NewRequest(http.MethodGet, "/api/v1/variant-space", nil))
-	if got := w.Body.String(); got != string(payload) {
-		t.Fatalf("body = %q, want %q", got, payload)
+	response, err := NewHandler(func() []byte { return payload }).GetVariantSpace(context.Background(), connect.NewRequest(&lpbsv1.GetVariantSpaceRequest{}))
+	if err != nil {
+		t.Fatalf("GetVariantSpace() error = %v", err)
 	}
-	if got := w.Header().Get("Content-Type"); got != "application/json" {
-		t.Fatalf("Content-Type = %q", got)
+	if got := string(response.Msg.GetRawJson()); got != string(payload) {
+		t.Fatalf("raw JSON = %q, want %q", got, payload)
+	}
+}
+
+func TestRegisterRoutesServesGeneratedConnectProcedure(t *testing.T) {
+	router := mux.NewRouter()
+	RegisterRoutes(router, func() []byte { return []byte(`{"_metadata":{"preserve":true}}`) })
+	server := httptest.NewServer(router)
+	defer server.Close()
+
+	response, err := lpbsconnect.NewVariantSpaceServiceClient(server.Client(), server.URL).GetVariantSpace(context.Background(), connect.NewRequest(&lpbsv1.GetVariantSpaceRequest{}))
+	if err != nil {
+		t.Fatalf("generated Connect client GetVariantSpace() error = %v", err)
+	}
+	if got := string(response.Msg.GetRawJson()); got != `{"_metadata":{"preserve":true}}` {
+		t.Fatalf("raw JSON = %q", got)
 	}
 }

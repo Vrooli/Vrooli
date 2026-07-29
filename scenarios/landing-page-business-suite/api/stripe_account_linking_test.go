@@ -22,7 +22,6 @@ import (
 // TestLinkUserToStripeCustomer_NewUser verifies linking a new user to a Stripe customer.
 func TestLinkUserToStripeCustomer_NewUser(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create users table
@@ -59,7 +58,6 @@ func TestLinkUserToStripeCustomer_NewUser(t *testing.T) {
 // linking an existing user updates their Stripe customer ID.
 func TestLinkUserToStripeCustomer_ExistingUser_UpdatesCustomerID(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create users table
@@ -102,7 +100,6 @@ func TestLinkUserToStripeCustomer_ExistingUser_UpdatesCustomerID(t *testing.T) {
 // normalized when linking users.
 func TestLinkUserToStripeCustomer_EmailNormalized(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create users table
@@ -138,7 +135,6 @@ func TestLinkUserToStripeCustomer_EmailNormalized(t *testing.T) {
 // email and customer ID are required.
 func TestLinkUserToStripeCustomer_RequiresEmailAndCustomerID(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewStripeService(db)
 
@@ -166,7 +162,6 @@ func TestLinkUserToStripeCustomer_RequiresEmailAndCustomerID(t *testing.T) {
 // links the user account.
 func TestAccountLink_CheckoutCompleted_LinksAccount(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create required tables
@@ -278,7 +273,6 @@ func TestAccountLink_CheckoutCompleted_LinksAccount(t *testing.T) {
 // the user account.
 func TestAccountLink_CreditsTopup_LinksAccount(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create required tables
@@ -392,7 +386,6 @@ func TestAccountLink_CreditsTopup_LinksAccount(t *testing.T) {
 // TestLookupCustomerID_ByEmail verifies looking up a customer ID by email.
 func TestLookupCustomerID_ByEmail(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create subscriptions table
@@ -436,7 +429,6 @@ func TestLookupCustomerID_ByEmail(t *testing.T) {
 // TestLookupCustomerID_ByCustomerID verifies looking up by customer ID directly.
 func TestLookupCustomerID_ByCustomerID(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create subscriptions table
@@ -476,7 +468,6 @@ func TestLookupCustomerID_ByCustomerID(t *testing.T) {
 // TestLookupCustomerID_NotFound verifies behavior when customer is not found.
 func TestLookupCustomerID_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create subscriptions table
@@ -518,7 +509,6 @@ func TestLookupCustomerID_NotFound(t *testing.T) {
 // subscription is used for lookup.
 func TestLookupCustomerID_MostRecentSubscription(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create subscriptions table
@@ -572,7 +562,6 @@ func TestLookupCustomerID_MostRecentSubscription(t *testing.T) {
 // propagated to all relevant tables.
 func TestCustomerUpdated_EmailMigration_AllTables(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create all required tables
@@ -711,7 +700,6 @@ func TestCustomerUpdated_EmailMigration_AllTables(t *testing.T) {
 // when previous_attributes is not provided in the webhook.
 func TestCustomerUpdated_EmailMigration_NoPreviousAttributes(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create subscriptions table
@@ -765,7 +753,6 @@ func TestCustomerUpdated_EmailMigration_NoPreviousAttributes(t *testing.T) {
 // old and new emails are the same.
 func TestCustomerUpdated_SameEmail_NoOp(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create subscriptions table
@@ -823,7 +810,6 @@ func TestCustomerUpdated_SameEmail_NoOp(t *testing.T) {
 // TestCustomerUpdated_MissingEmail_NoOp verifies no crash when email is missing.
 func TestCustomerUpdated_MissingEmail_NoOp(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewStripeService(db)
 
@@ -843,7 +829,6 @@ func TestCustomerUpdated_MissingEmail_NoOp(t *testing.T) {
 // TestStripeRepository_LinkUserToStripeCustomer verifies the repository method.
 func TestStripeRepository_LinkUserToStripeCustomer(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create users table
@@ -885,7 +870,6 @@ func TestStripeRepository_LinkUserToStripeCustomer(t *testing.T) {
 // TestStripeRepository_MigrateCustomerEmail verifies the repository migration method.
 func TestStripeRepository_MigrateCustomerEmail(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create all required tables
@@ -986,7 +970,6 @@ func TestStripeRepository_MigrateCustomerEmail(t *testing.T) {
 // TestStripeRepository_LookupCustomerID verifies the repository lookup method.
 func TestStripeRepository_LookupCustomerID(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create subscriptions table

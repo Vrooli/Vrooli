@@ -1,7 +1,7 @@
 import { Save, AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
 import { ImageUploader } from '../../../shared/ui/ImageUploader';
-import { Textarea } from '../../../shared/ui/input';
+import { Textarea } from '../../../shared/ui/textarea';
 import { SEOPreview } from '../../../shared/ui/SEOPreview';
 import type { SiteBranding } from '../../../shared/api';
 import { useVariantSEOEditor } from '../hooks/useVariantSEOEditor';

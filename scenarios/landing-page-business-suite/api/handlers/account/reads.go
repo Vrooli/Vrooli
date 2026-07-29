@@ -71,6 +71,9 @@ func (h *Handler) GetEntitlements(ctx context.Context, _ *connect.Request[lpbsv1
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get entitlements: %w", err))
 	}
+	if payload.BillingCycleStart < -1<<31 || payload.BillingCycleStart > 1<<31-1 {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("billing cycle start is outside the protocol range"))
+	}
 	return connect.NewResponse(&lpbsv1.GetEntitlementsResponse{Status: payload.Status, PlanTier: payload.PlanTier, PriceId: payload.PriceID, Features: payload.Features, Credits: payload.Credits, Subscription: payload.Subscription, BillingCycleStart: int32(payload.BillingCycleStart)}), nil
 }
 

@@ -31,6 +31,12 @@ interface PricingSectionProps {
   couponMappings?: Record<string, string>;
   /** Optional available coupons for looking up coupon details */
   availableCoupons?: StripeCoupon[];
+  /** Navigation seam for an external checkout URL; defaults to a full-page redirect. */
+  onCheckoutRedirect?: (url: string) => void;
+}
+
+function redirectToLocation(url: string) {
+  window.location.href = url;
 }
 
 function formatCurrency(amount: number, currency = 'usd') {
@@ -325,7 +331,7 @@ const PricingTierCard = memo(function PricingTierCard({
   );
 });
 
-export function PricingSection({ content, pricingOverview, couponMappings, availableCoupons }: PricingSectionProps) {
+export function PricingSection({ content, pricingOverview, couponMappings, availableCoupons, onCheckoutRedirect = redirectToLocation }: PricingSectionProps) {
   const { trackCTAClick } = useMetrics();
   const [activeInterval, setActiveInterval] = useState<'monthly' | 'yearly'>('monthly');
   const [stickyDismissed, setStickyDismissed] = useState(false);
@@ -353,7 +359,7 @@ export function PricingSection({ content, pricingOverview, couponMappings, avail
     });
 
     if (!priceId) {
-      window.location.href = tier.cta_url;
+      onCheckoutRedirect(tier.cta_url);
       return;
     }
 
@@ -366,7 +372,7 @@ export function PricingSection({ content, pricingOverview, couponMappings, avail
         cancel_url: buildDefaultURLs.cancel,
       });
       if (session.url) {
-        window.location.href = session.url;
+        onCheckoutRedirect(session.url);
         return;
       }
       setSessionError('Stripe did not return a checkout URL. Try again.');
@@ -375,7 +381,7 @@ export function PricingSection({ content, pricingOverview, couponMappings, avail
     } finally {
       setRedirectingPrice(null);
     }
-  }, [buildDefaultURLs.cancel, buildDefaultURLs.success, trackCTAClick]);
+  }, [buildDefaultURLs.cancel, buildDefaultURLs.success, onCheckoutRedirect, trackCTAClick]);
 
   const bundle = pricing?.bundle;
   const monthlyPlansRaw = pricing?.monthly ?? EMPTY_PLAN_OPTIONS;

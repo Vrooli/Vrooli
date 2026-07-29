@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -14,7 +13,6 @@ import (
 
 func TestHandleAdminRemoteProfiles_CreateAndList(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
 		t.Fatalf("failed to clear remote_profiles: %v", err)
@@ -48,9 +46,7 @@ func TestHandleAdminRemoteProfiles_CreateAndList(t *testing.T) {
 	var payload struct {
 		Profiles []RemoteProfile `json:"profiles"`
 	}
-	if err := json.Unmarshal(listResp.Body.Bytes(), &payload); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
-	}
+	decodeJSONResponse(t, listResp.Body.Bytes(), &payload)
 	if len(payload.Profiles) != 1 {
 		t.Fatalf("expected 1 profile, got %d", len(payload.Profiles))
 	}
@@ -77,9 +73,7 @@ func TestHandleAdminRemoteProfiles_ListEmpty(t *testing.T) {
 	var payload struct {
 		Profiles []RemoteProfile `json:"profiles"`
 	}
-	if err := json.Unmarshal(resp.Body.Bytes(), &payload); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
-	}
+	decodeJSONResponse(t, resp.Body.Bytes(), &payload)
 	if payload.Profiles == nil {
 		t.Fatalf("expected profiles to be non-nil")
 	}
@@ -115,9 +109,7 @@ func TestHandleAdminRemoteProfiles_CreateUsesResolver(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())
 	}
 	var profile RemoteProfile
-	if err := json.Unmarshal(resp.Body.Bytes(), &profile); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
-	}
+	decodeJSONResponse(t, resp.Body.Bytes(), &profile)
 	if profile.Tag != "prod" {
 		t.Fatalf("expected tag prod, got %s", profile.Tag)
 	}
@@ -180,9 +172,7 @@ func TestHandleAdminRemoteProfiles_DeleteSuccess(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.Code)
 	}
 	var payload map[string]interface{}
-	if err := json.Unmarshal(resp.Body.Bytes(), &payload); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
-	}
+	decodeJSONResponse(t, resp.Body.Bytes(), &payload)
 	if payload["success"] != true {
 		t.Fatalf("expected success true, got %v", payload["success"])
 	}
@@ -525,9 +515,7 @@ func TestWriteRemoteProfileErrorMapping(t *testing.T) {
 				t.Fatalf("expected status %d, got %d", tt.status, rec.Code)
 			}
 			var payload ApiErrorResponse
-			if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
-				t.Fatalf("failed to decode response: %v", err)
-			}
+			decodeJSONResponse(t, rec.Body.Bytes(), &payload)
 			if payload.ErrorType != tt.errorType {
 				t.Fatalf("expected error_type %q, got %q", tt.errorType, payload.ErrorType)
 			}

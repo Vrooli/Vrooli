@@ -29,7 +29,6 @@ func newRemoteProfileServiceForTest(db *sql.DB, client HTTPDoer) *RemoteProfileS
 func TestRemoteProfileService_CreateAndList(t *testing.T) {
 	t.Setenv("LPBS_ENVIRONMENT", "development")
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := newRemoteProfileServiceForTest(db, nil)
 	ctx := context.Background()
@@ -69,7 +68,6 @@ func TestRemoteProfileService_CreateAndList(t *testing.T) {
 func TestRemoteProfileService_ListHandlesNullConnectorID(t *testing.T) {
 	t.Setenv("LPBS_ENVIRONMENT", "development")
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := newRemoteProfileServiceForTest(db, nil)
 	ctx := context.Background()
@@ -108,7 +106,6 @@ func TestRemoteProfileService_ListHandlesNullConnectorID(t *testing.T) {
 func TestRemoteProfileService_LoginAndProxy(t *testing.T) {
 	t.Setenv("LPBS_ENVIRONMENT", "development")
 	db := setupTestDB(t)
-	defer db.Close()
 
 	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
 		t.Fatalf("failed to clear remote_profiles: %v", err)
@@ -193,7 +190,6 @@ func TestRemoteProfileService_LoginAndProxy(t *testing.T) {
 func TestRemoteProfileService_ProxyDisallowedPath(t *testing.T) {
 	t.Setenv("LPBS_ENVIRONMENT", "development")
 	db := setupTestDB(t)
-	defer db.Close()
 
 	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
 		t.Fatalf("failed to clear remote_profiles: %v", err)
@@ -373,7 +369,6 @@ func TestRemoteProfileService_EncryptDecrypt_NoKey(t *testing.T) {
 func TestRemoteProfileService_TestExpiredSessionClears(t *testing.T) {
 	t.Setenv("LPBS_ENVIRONMENT", "development")
 	db := setupTestDB(t)
-	defer db.Close()
 
 	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
 		t.Fatalf("failed to clear remote_profiles: %v", err)
@@ -430,7 +425,6 @@ func TestRemoteProfileService_TestExpiredSessionClears(t *testing.T) {
 func TestRemoteProfileService_CreateTagConflict(t *testing.T) {
 	t.Setenv("LPBS_ENVIRONMENT", "development")
 	db := setupTestDB(t)
-	defer db.Close()
 
 	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
 		t.Fatalf("failed to clear remote_profiles: %v", err)
@@ -469,7 +463,6 @@ func TestRemoteProfileService_LoginInvalidInput(t *testing.T) {
 func TestRemoteProfileService_UpdateClearsSessionOnAPIBaseChange(t *testing.T) {
 	t.Setenv("LPBS_ENVIRONMENT", "development")
 	db := setupTestDB(t)
-	defer db.Close()
 
 	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
 		t.Fatalf("failed to clear remote_profiles: %v", err)
@@ -514,7 +507,6 @@ func TestRemoteProfileService_UpdateClearsSessionOnAPIBaseChange(t *testing.T) {
 func TestRemoteProfileService_UpdateTagConflict(t *testing.T) {
 	t.Setenv("LPBS_ENVIRONMENT", "development")
 	db := setupTestDB(t)
-	defer db.Close()
 
 	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
 		t.Fatalf("failed to clear remote_profiles: %v", err)
@@ -551,7 +543,6 @@ func TestRemoteProfileService_UpdateTagConflict(t *testing.T) {
 func TestRemoteProfileService_DeleteNotFound(t *testing.T) {
 	t.Setenv("LPBS_ENVIRONMENT", "development")
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := newRemoteProfileServiceForTest(db, nil)
 	err := svc.Delete(context.Background(), 99999)
@@ -563,7 +554,6 @@ func TestRemoteProfileService_DeleteNotFound(t *testing.T) {
 func TestRemoteProfileService_LogoutClearsSession(t *testing.T) {
 	t.Setenv("LPBS_ENVIRONMENT", "development")
 	db := setupTestDB(t)
-	defer db.Close()
 
 	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
 		t.Fatalf("failed to clear remote_profiles: %v", err)
@@ -645,7 +635,6 @@ func TestRemoteProfileService_RemoteLogoutServerError(t *testing.T) {
 func TestRemoteProfileService_ProxyUnauthorizedClearsSession(t *testing.T) {
 	t.Setenv("LPBS_ENVIRONMENT", "development")
 	db := setupTestDB(t)
-	defer db.Close()
 
 	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
 		t.Fatalf("failed to clear remote_profiles: %v", err)
@@ -695,7 +684,6 @@ func TestRemoteProfileService_ProxyUnauthorizedClearsSession(t *testing.T) {
 func TestRemoteProfileService_ProxyServerErrorUpdatesStatus(t *testing.T) {
 	t.Setenv("LPBS_ENVIRONMENT", "development")
 	db := setupTestDB(t)
-	defer db.Close()
 
 	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
 		t.Fatalf("failed to clear remote_profiles: %v", err)
@@ -742,7 +730,6 @@ func TestRemoteProfileService_ProxyServerErrorUpdatesStatus(t *testing.T) {
 func TestRemoteProfileService_ProxyMissingSession(t *testing.T) {
 	t.Setenv("LPBS_ENVIRONMENT", "development")
 	db := setupTestDB(t)
-	defer db.Close()
 
 	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
 		t.Fatalf("failed to clear remote_profiles: %v", err)
@@ -772,7 +759,6 @@ func TestRemoteProfileService_ProxyMissingSession(t *testing.T) {
 func TestRemoteProfileService_SessionLinks(t *testing.T) {
 	t.Setenv("LPBS_ENVIRONMENT", "development")
 	db := setupTestDB(t)
-	defer db.Close()
 
 	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
 		t.Fatalf("failed to clear remote_profiles: %v", err)
@@ -821,7 +807,6 @@ func TestRemoteProfileService_SessionLinks(t *testing.T) {
 func TestRemoteProfileService_SessionLinksUnauthorizedClearsSession(t *testing.T) {
 	t.Setenv("LPBS_ENVIRONMENT", "development")
 	db := setupTestDB(t)
-	defer db.Close()
 
 	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
 		t.Fatalf("failed to clear remote_profiles: %v", err)
@@ -874,7 +859,6 @@ func TestRemoteProfileService_SessionLinksUnauthorizedClearsSession(t *testing.T
 func TestRemoteProfileService_RevokeRemoteSessions(t *testing.T) {
 	t.Setenv("LPBS_ENVIRONMENT", "development")
 	db := setupTestDB(t)
-	defer db.Close()
 
 	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
 		t.Fatalf("failed to clear remote_profiles: %v", err)
@@ -920,7 +904,6 @@ func TestRemoteProfileService_RevokeRemoteSessions(t *testing.T) {
 func TestRemoteProfileService_RevokeRemoteSessions_MissingLocalSession(t *testing.T) {
 	t.Setenv("LPBS_ENVIRONMENT", "development")
 	db := setupTestDB(t)
-	defer db.Close()
 
 	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
 		t.Fatalf("failed to clear remote_profiles: %v", err)
@@ -947,7 +930,6 @@ func TestRemoteProfileService_RevokeRemoteSessions_MissingLocalSession(t *testin
 func TestRemoteProfileService_RevokeRemoteSessions_ListRemoteSessionsError(t *testing.T) {
 	t.Setenv("LPBS_ENVIRONMENT", "development")
 	db := setupTestDB(t)
-	defer db.Close()
 
 	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
 		t.Fatalf("failed to clear remote_profiles: %v", err)
@@ -997,7 +979,6 @@ func TestRemoteProfileService_RevokeRemoteSessions_ListRemoteSessionsError(t *te
 func TestRemoteProfileService_RevokeRemoteSessions_RevokeOneRemoteSessionFails(t *testing.T) {
 	t.Setenv("LPBS_ENVIRONMENT", "development")
 	db := setupTestDB(t)
-	defer db.Close()
 
 	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
 		t.Fatalf("failed to clear remote_profiles: %v", err)
@@ -1065,7 +1046,6 @@ func TestRemoteProfileService_EnsureConnectorID_ReturnsTrimmedCurrent(t *testing
 func TestRemoteProfileService_EnsureConnectorID_GeneratesAndPersistsWhenMissing(t *testing.T) {
 	t.Setenv("LPBS_ENVIRONMENT", "development")
 	db := setupTestDB(t)
-	defer db.Close()
 
 	if _, err := db.Exec(`DELETE FROM remote_profiles`); err != nil {
 		t.Fatalf("failed to clear remote_profiles: %v", err)

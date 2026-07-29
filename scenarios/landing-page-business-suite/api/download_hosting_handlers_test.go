@@ -18,7 +18,6 @@ import (
 
 func TestHandleAdminGetDownloadStorage_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	// Insert test settings
@@ -60,7 +59,6 @@ func TestHandleAdminGetDownloadStorage_Success(t *testing.T) {
 
 func TestHandleAdminGetDownloadStorage_NotConfigured(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	hosting := NewDownloadHostingService(db)
@@ -96,7 +94,6 @@ func TestHandleAdminGetDownloadStorage_NotConfigured(t *testing.T) {
 
 func TestHandleAdminUpdateDownloadStorage_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	hosting := NewDownloadHostingService(db)
@@ -131,7 +128,6 @@ func TestHandleAdminUpdateDownloadStorage_Success(t *testing.T) {
 
 func TestHandleAdminUpdateDownloadStorage_ValidationError(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	hosting := NewDownloadHostingService(db)
@@ -154,7 +150,6 @@ func TestHandleAdminUpdateDownloadStorage_ValidationError(t *testing.T) {
 
 func TestHandleAdminUpdateDownloadStorage_InvalidJSON(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	hosting := NewDownloadHostingService(db)
 	plans := newTestPlanService(t, "invalid_json")
@@ -176,7 +171,6 @@ func TestHandleAdminUpdateDownloadStorage_InvalidJSON(t *testing.T) {
 
 func TestHandleAdminTestDownloadStorage_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	mockStorage := &mockDownloadStorage{testConnectionErr: nil}
@@ -208,7 +202,6 @@ func TestHandleAdminTestDownloadStorage_Success(t *testing.T) {
 
 func TestHandleAdminTestDownloadStorage_Failure(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	mockStorage := &mockDownloadStorage{testConnectionErr: errors.New("connection failed")}
@@ -240,7 +233,6 @@ func TestHandleAdminTestDownloadStorage_Failure(t *testing.T) {
 
 func TestHandleAdminTestDownloadStorage_NotConfigured(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	hosting := NewDownloadHostingService(db)
@@ -262,7 +254,6 @@ func TestHandleAdminTestDownloadStorage_NotConfigured(t *testing.T) {
 
 func TestHandleAdminListDownloadArtifacts_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 
@@ -320,7 +311,6 @@ func TestHandleAdminListDownloadArtifacts_Success(t *testing.T) {
 
 func TestHandleAdminListDownloadArtifacts_Pagination(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 
@@ -390,7 +380,6 @@ func TestHandleAdminListDownloadArtifacts_Pagination(t *testing.T) {
 
 func TestHandleAdminPresignUpload_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	mockStorage := &mockDownloadStorage{
@@ -439,7 +428,6 @@ func TestHandleAdminPresignUpload_Success(t *testing.T) {
 
 func TestHandleAdminPresignUpload_NotConfigured(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	hosting := NewDownloadHostingService(db)
@@ -461,7 +449,6 @@ func TestHandleAdminPresignUpload_NotConfigured(t *testing.T) {
 
 func TestHandleAdminPresignUpload_ValidationError(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	mockStorage := &mockDownloadStorage{}
@@ -498,7 +485,6 @@ func TestHandleAdminPresignUpload_ValidationError(t *testing.T) {
 
 func TestHandleAdminCommitArtifact_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 
@@ -555,7 +541,6 @@ func TestHandleAdminCommitArtifact_Success(t *testing.T) {
 
 func TestHandleAdminCommitArtifact_HeadError(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	mockStorage := &mockDownloadStorage{
@@ -593,7 +578,6 @@ func TestHandleAdminCommitArtifact_HeadError(t *testing.T) {
 
 func TestHandleAdminPresignGet_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 
@@ -654,7 +638,6 @@ func TestHandleAdminPresignGet_Success(t *testing.T) {
 
 func TestHandleAdminPresignGet_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 
@@ -687,7 +670,6 @@ func TestHandleAdminPresignGet_NotFound(t *testing.T) {
 
 func TestHandleAdminPresignGet_InvalidID(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	hosting := NewDownloadHostingService(db)
 	plans := newTestPlanService(t, "presign_invalid")
@@ -711,7 +693,6 @@ func TestHandleAdminPresignGet_InvalidID(t *testing.T) {
 
 func TestHandleAdminApplyArtifact_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 	cleanupDownloadAssets(t, db)
@@ -790,7 +771,6 @@ func TestHandleAdminApplyArtifact_Success(t *testing.T) {
 
 func TestHandleAdminApplyArtifact_MissingFields(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	hosting := NewDownloadHostingService(db)
 	downloads := NewDownloadService(db)
@@ -813,7 +793,6 @@ func TestHandleAdminApplyArtifact_MissingFields(t *testing.T) {
 
 func TestHandleAdminApplyArtifact_ArtifactNotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 

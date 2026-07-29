@@ -1,8 +1,8 @@
 import path from "node:path";
-import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { defineConfig } from "vitest/config";
 
-export default defineConfig(({ mode }): UserConfig => {
+export default defineConfig(({ mode }) => {
   const isProfile = mode === "profile";
 
   return {
@@ -41,6 +41,24 @@ export default defineConfig(({ mode }): UserConfig => {
       rollupOptions: {
         // Force resolution of @bufbuild/protobuf from UI's node_modules
         external: [],
+        output: {
+          // Keep the initial public-landing payload focused on application code.
+          // Monaco is only needed by the admin variant editor, while framework
+          // packages are long-lived browser-cache candidates across deployments.
+          manualChunks(id) {
+            if (id.includes('/node_modules/monaco-editor/') || id.includes('/node_modules/@monaco-editor/')) {
+              return 'monaco-editor';
+            }
+            if (
+              id.includes('/node_modules/react/') ||
+              id.includes('/node_modules/react-dom/') ||
+              id.includes('/node_modules/react-router/') ||
+              id.includes('/node_modules/react-router-dom/')
+            ) {
+              return 'react-framework';
+            }
+          },
+        },
       },
     },
     test: {

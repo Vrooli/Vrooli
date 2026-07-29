@@ -26,74 +26,30 @@ available lifecycle commands before continuing.
 
 ---
 
-## Option 1: Using Template Manager (Recommended)
+## Start Landing Page Business Suite
 
-Template Manager generates complete landing pages from this template.
+From the scenario directory, use the Vrooli lifecycle:
 
 ```bash
-# Generate a new landing page
-template-manager lifecycle generate landing-page-react-vite --id "<your-slug>" --display-name "<Your Landing Page>" --description "<brief description>"
-
-# Follow the prompts to configure your landing page
-# This creates a new scenario in scenarios/<your-slug>/
-```
-
-Once generated:
-```bash
-cd scenarios/<your-slug>
 make start
+make logs
 ```
 
----
+The lifecycle starts the required local resources, assigns the API and UI
+ports, and applies the authoritative domain schemas. Do not run the API binary
+or a development script directly; that bypasses lifecycle health checks and
+port ownership.
 
-## Option 2: Direct Template Usage
-
-For development or customization of the template itself:
-
-### Step 1: Start PostgreSQL
+To inspect the active endpoints and health status:
 
 ```bash
-resource-postgres start
-resource-postgres status  # Verify it's running
+vrooli scenario status landing-page-business-suite
 ```
 
-### Step 2: Build the API
+To stop the scenario when finished:
 
 ```bash
-cd templates/scenarios/landing-page-react-vite/api
-go build -o landing-api .
-```
-
-### Step 3: Set Environment Variables
-
-```bash
-export API_PORT=8080
-export UI_PORT=3000
-export DATABASE_URL="postgres://postgres:postgres@localhost:5432/landing_dev"
-```
-
-### Step 4: Initialize Database
-
-```bash
-# The API applies the authoritative domain schemas at startup. Start the
-# scenario after provisioning the empty database rather than applying a stale
-# monolithic SQL file manually.
-make start
-psql $DATABASE_URL -f initialization/postgres/seed.sql  # Optional demo data
-```
-
-### Step 5: Start the API
-
-```bash
-./landing-api
-```
-
-### Step 6: Start the UI (new terminal)
-
-```bash
-cd templates/scenarios/landing-page-react-vite/ui
-pnpm install
-pnpm run dev
+make stop
 ```
 
 ---
@@ -102,24 +58,15 @@ pnpm run dev
 
 | Surface | URL | Purpose |
 |---------|-----|---------|
-| Public Landing | `http://localhost:3000/` | What visitors see |
-| Admin Portal | `http://localhost:3000/admin` | Manage content |
-| API Health | `http://localhost:8080/health` | Service status |
+| Public Landing | `http://localhost:${UI_PORT}/` | What visitors see |
+| Admin Portal | `http://localhost:${UI_PORT}/admin` | Manage content |
+| API Health | `http://localhost:${API_PORT}/health` | Service status |
 
-### Default Admin Credentials
-
-```
-Email: admin@localhost
-Password: changeme123
-```
-
-**For production deployments**, override these defaults using environment variables:
-- `ADMIN_DEFAULT_EMAIL` - Your admin email
-- `ADMIN_DEFAULT_PASSWORD` - Your admin password (12+ chars, letters and numbers)
-
-For scenario-to-cloud deployments, add these via the **Secrets Tab** and restart the scenario.
-
-Alternatively, visit `/admin/profile` after your first login to change credentials manually.
+Vrooli assigns `API_PORT` and `UI_PORT` at startup. For development access,
+use the administrator credentials configured in the scenario's local secret
+surface. For production, configure `SESSION_SECRET`, an administrator password,
+and `AUTH_MAGIC_LINK_BASE_URL` through the supported secrets workflow before
+starting the scenario. Production requires an absolute HTTPS magic-link URL.
 
 ---
 

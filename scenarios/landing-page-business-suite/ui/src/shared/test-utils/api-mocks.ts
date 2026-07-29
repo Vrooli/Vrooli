@@ -6,10 +6,10 @@ import { isRecord, safeParseJson } from '../lib/utils';
  * Factory for creating a mock fetch function with proper type handling.
  */
 type FetchArgs = [RequestInfo | URL, RequestInit?];
-export type FetchMock = Mock<FetchArgs, Promise<MockFetchResponse>>;
+export type FetchMock = Mock<(...args: FetchArgs) => Promise<MockFetchResponse>>;
 
 export function createFetchMock(): FetchMock {
-  return vi.fn<FetchArgs, Promise<MockFetchResponse>>();
+  return vi.fn<(...args: FetchArgs) => Promise<MockFetchResponse>>();
 }
 
 export interface MockFetchResponse<T = unknown> {
@@ -225,11 +225,11 @@ export function expectApiError(
  * Returns the mock function and a cleanup function.
  */
 export function createWindowOpenMock(): {
-  mock: Mock<Parameters<typeof window.open>, ReturnType<typeof window.open>>;
+  mock: Mock<(...args: Parameters<typeof window.open>) => ReturnType<typeof window.open>>;
   restore: () => void;
 } {
   const originalOpen = window.open;
-  const mock = vi.fn<Parameters<typeof window.open>, ReturnType<typeof window.open>>();
+  const mock = vi.fn<(...args: Parameters<typeof window.open>) => ReturnType<typeof window.open>>();
   window.open = mock;
 
   return {
@@ -244,7 +244,7 @@ export function createWindowOpenMock(): {
  * Create a mock for URL.createObjectURL, used for blob downloads.
  */
 export function createObjectURLMock(): {
-  mock: Mock<Parameters<typeof URL.createObjectURL>, ReturnType<typeof URL.createObjectURL>>;
+  mock: Mock<(...args: Parameters<typeof URL.createObjectURL>) => ReturnType<typeof URL.createObjectURL>>;
   restore: () => void;
 } {
   // jsdom does not provide these browser APIs in every supported version.
@@ -256,7 +256,7 @@ export function createObjectURLMock(): {
   };
   const originalCreateObjectURL = urlApi.createObjectURL;
   const originalRevokeObjectURL = urlApi.revokeObjectURL;
-  const mock = vi.fn<Parameters<typeof URL.createObjectURL>, ReturnType<typeof URL.createObjectURL>>(
+  const mock = vi.fn<(...args: Parameters<typeof URL.createObjectURL>) => ReturnType<typeof URL.createObjectURL>>(
     () => 'blob:test-url'
   );
   const revokeMock = vi.fn();
@@ -286,8 +286,8 @@ export function assertDefined<T>(value: T | undefined, name: string): asserts va
  * Helper to safely get the first call arguments from a mock.
  * Throws if no calls were made, ensuring the test fails if mock wasn't called.
  */
-export function getFirstCall<TArgs extends unknown[], TReturn>(
-  mock: Mock<TArgs, TReturn>
+export function getFirstCall<TArgs extends unknown[]>(
+  mock: Mock<(...args: TArgs) => unknown>
 ): TArgs {
   const call = mock.mock.calls[0];
   if (!call) {
@@ -300,8 +300,8 @@ export function getFirstCall<TArgs extends unknown[], TReturn>(
  * Helper to safely get a specific call from a mock by index.
  * Throws if the call at that index doesn't exist.
  */
-export function getCall<TArgs extends unknown[], TReturn>(
-  mock: Mock<TArgs, TReturn>,
+export function getCall<TArgs extends unknown[]>(
+  mock: Mock<(...args: TArgs) => unknown>,
   index: number
 ): TArgs {
   const call = mock.mock.calls[index];
@@ -349,14 +349,14 @@ export function parseJsonBody(body: BodyInit | null | undefined): Record<string,
  */
 export function createDownloadLinkMock(): {
   element: HTMLAnchorElement;
-  clickSpy: Mock<[], undefined>;
-  appendChildSpy: Mock<[Node], Node>;
-  removeChildSpy: Mock<[Node], Node>;
+  clickSpy: Mock<() => undefined>;
+  appendChildSpy: Mock<(node: Node) => Node>;
+  removeChildSpy: Mock<(node: Node) => Node>;
   restore: () => void;
 } {
-  const clickSpy = vi.fn<[], undefined>();
-  const appendChildSpy = vi.fn<[Node], Node>();
-  const removeChildSpy = vi.fn<[Node], Node>();
+  const clickSpy = vi.fn<() => undefined>();
+  const appendChildSpy = vi.fn<(node: Node) => Node>();
+  const removeChildSpy = vi.fn<(node: Node) => Node>();
 
   const element = document.createElementNS('http://www.w3.org/1999/xhtml', 'a') as HTMLAnchorElement;
   element.click = clickSpy;

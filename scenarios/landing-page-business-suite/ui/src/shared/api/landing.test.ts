@@ -1,16 +1,17 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { getLandingConfig, getPlans } from './landing';
-import { ApiError } from './common';
-import { createFetchMock, mockResponses, installFetchMock, getFetchCall } from '../test-utils/api-mocks';
+import { assertDefined, createFetchMock, installFetchMock, mockResponses } from '../test-utils/api-mocks';
 import { BillingInterval, IntroPricingType, PlanKind } from '@vrooli/proto-types/landing-page-business-suite/shared/commerce_pb';
 
-const pricingClient = vi.hoisted(() => ({
-  getPricing: vi.fn(),
+const { pricingClient, landingConfigClient } = vi.hoisted(() => ({
+  pricingClient: { getPricing: vi.fn() },
+  landingConfigClient: { getLandingConfig: vi.fn() },
 }));
 
 vi.mock('@connectrpc/connect', () => ({
-  createClient: vi.fn(() => pricingClient),
+  createClient: vi.fn((service: { typeName?: string }) => service.typeName?.endsWith('.LandingConfigService') ? landingConfigClient : pricingClient),
 }));
+vi.mock('@bufbuild/protobuf', async (importOriginal) => ({ ...(await importOriginal<typeof import('@bufbuild/protobuf')>()), toJson: vi.fn((_schema, message): unknown => message as unknown) }));
 
 describe('landing API', () => {
   let fetchMock: ReturnType<typeof createFetchMock>;
@@ -21,10 +22,19 @@ describe('landing API', () => {
     installFetchMock(fetchMock);
     pricingClient.getPricing.mockImplementation(async () => {
       const response = await fetchMock('/landing_page_business_suite.v1.PricingService/GetPricing');
-      if (!response || typeof response.json !== 'function') {
-        throw new Error('expected Connect pricing response');
-      }
+      assertDefined(response, 'Connect pricing response');
+      assertDefined(response.json, 'Connect pricing response JSON reader');
       return response.json();
+    });
+    landingConfigClient.getLandingConfig.mockResolvedValue({
+      variant: { slug: 'control', name: 'Control', description: '', axes: {} },
+      sections: [], downloads: [],
+      header: {
+        branding: { mode: 'logo_and_name' }, nav: { links: [] },
+        ctas: { primary: { mode: 'inherit_hero' }, secondary: { mode: 'inherit_hero' } },
+        behavior: { sticky: true, hide_on_scroll: false },
+      },
+      fallback: false, coupon_mappings: {}, intro_offers: [],
     });
   });
 
@@ -34,50 +44,24 @@ describe('landing API', () => {
 
   describe('getLandingConfig', () => {
     it('returns landing configuration', async () => {
-      const config = {
-        title: 'Welcome',
-        subtitle: 'Best landing page',
-        sections: [{ type: 'hero', enabled: true }],
-      };
-      fetchMock.mockResolvedValue(mockResponses.success(config));
-
       const result = await getLandingConfig();
 
-      expect(result).toEqual(config);
+      expect(result).toMatchObject({ variant: { slug: 'control' }, fallback: false });
     });
 
     it('calls endpoint without variant param when not provided', async () => {
-      fetchMock.mockResolvedValue(mockResponses.success({}));
-
       await getLandingConfig();
-
-      const [url] = getFetchCall(fetchMock);
-      expect(url).toContain('/landing-config');
-      expect(url).not.toContain('variant=');
+      expect(landingConfigClient.getLandingConfig).toHaveBeenCalledWith({ variantSlug: undefined });
     });
 
     it('includes variant param when provided', async () => {
-      fetchMock.mockResolvedValue(mockResponses.success({}));
-
       await getLandingConfig('dark-theme');
-
-      const [url] = getFetchCall(fetchMock);
-      expect(url).toContain('variant=dark-theme');
-    });
-
-    it('URL encodes variant slug', async () => {
-      fetchMock.mockResolvedValue(mockResponses.success({}));
-
-      await getLandingConfig('special/variant');
-
-      const [url] = getFetchCall(fetchMock);
-      expect(url).toContain(encodeURIComponent('special/variant'));
+      expect(landingConfigClient.getLandingConfig).toHaveBeenCalledWith({ variantSlug: 'dark-theme' });
     });
 
     it('throws on server error', async () => {
-      fetchMock.mockResolvedValue(mockResponses.serverError());
-
-      await expect(getLandingConfig()).rejects.toBeInstanceOf(ApiError);
+      landingConfigClient.getLandingConfig.mockRejectedValue(new Error('Connect unavailable'));
+      await expect(getLandingConfig()).rejects.toThrow('Connect unavailable');
     });
   });
 

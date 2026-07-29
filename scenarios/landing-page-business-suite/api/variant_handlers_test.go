@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"landing-page-business-suite-api/internal/testutil"
 )
 
 // mockConfigStore provides a configurable mock implementation of ConfigStorer for testing.
@@ -147,9 +149,7 @@ func TestHandleVariantSelect_Success(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	var resp VariantResponse
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
@@ -173,8 +173,9 @@ func TestHandleVariantSelect_NoVariants(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusInternalServerError {
-		t.Errorf("Expected status %d for no variants, got %d", http.StatusInternalServerError, w.Code)
+	testutil.RequireHTTPStatus(t, w, http.StatusInternalServerError)
+	if !strings.Contains(w.Body.String(), "No variants available.") {
+		t.Errorf("Expected no-variants error, got: %s", w.Body.String())
 	}
 }
 
@@ -187,9 +188,7 @@ func TestHandleVariantSelect_MethodNotAllowed(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("Expected status %d, got %d", http.StatusMethodNotAllowed, w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusMethodNotAllowed)
 }
 
 // --- handlePublicVariantBySlug Tests ---
@@ -198,7 +197,7 @@ func TestHandlePublicVariantBySlug_Success(t *testing.T) {
 	cs := setupTestConfigStore(t)
 	variants := cs.ListVariants()
 	if len(variants) == 0 {
-		t.Skip("No variants available for testing")
+		t.Fatal("tracked test configuration must contain at least one variant")
 	}
 
 	slug := variants[0].Variant.Slug
@@ -209,9 +208,7 @@ func TestHandlePublicVariantBySlug_Success(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	var resp VariantResponse
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
@@ -232,9 +229,7 @@ func TestHandlePublicVariantBySlug_NotFound(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusNotFound {
-		t.Errorf("Expected status %d, got %d", http.StatusNotFound, w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusNotFound)
 }
 
 func TestHandlePublicVariantBySlug_EmptySlug(t *testing.T) {
@@ -246,9 +241,7 @@ func TestHandlePublicVariantBySlug_EmptySlug(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Expected status %d for empty slug, got %d", http.StatusBadRequest, w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusBadRequest)
 }
 
 // --- handleVariantBySlug Tests ---
@@ -257,7 +250,7 @@ func TestHandleVariantBySlug_Success(t *testing.T) {
 	cs := setupTestConfigStore(t)
 	variants := cs.ListVariants()
 	if len(variants) == 0 {
-		t.Skip("No variants available for testing")
+		t.Fatal("tracked test configuration must contain at least one variant")
 	}
 
 	slug := variants[0].Variant.Slug
@@ -268,9 +261,7 @@ func TestHandleVariantBySlug_Success(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 }
 
 func TestHandleVariantBySlug_NotFound(t *testing.T) {
@@ -282,9 +273,7 @@ func TestHandleVariantBySlug_NotFound(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusNotFound {
-		t.Errorf("Expected status %d, got %d", http.StatusNotFound, w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusNotFound)
 }
 
 // --- handleVariantsList Tests ---
@@ -298,9 +287,7 @@ func TestHandleVariantsList_Success(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	var resp map[string]interface{}
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
@@ -312,9 +299,8 @@ func TestHandleVariantsList_Success(t *testing.T) {
 		t.Fatal("Expected 'variants' array in response")
 	}
 
-	// Should have at least one variant from test setup
 	if len(variants) == 0 {
-		t.Skip("No variants available for testing")
+		t.Fatal("tracked test configuration must produce at least one variant")
 	}
 }
 
@@ -327,9 +313,7 @@ func TestHandleVariantsList_Empty(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status %d for empty list, got %d", http.StatusOK, w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	var resp map[string]interface{}
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
@@ -352,7 +336,7 @@ func TestHandleVariantUpdate_InvalidJSON(t *testing.T) {
 	cs := setupTestConfigStore(t)
 	variants := cs.ListVariants()
 	if len(variants) == 0 {
-		t.Skip("No variants available for testing")
+		t.Fatal("tracked test configuration must contain at least one variant")
 	}
 
 	slug := variants[0].Variant.Slug
@@ -363,9 +347,7 @@ func TestHandleVariantUpdate_InvalidJSON(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Expected status %d for invalid JSON, got %d", http.StatusBadRequest, w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusBadRequest)
 }
 
 func TestHandleVariantUpdate_NotFound(t *testing.T) {
@@ -378,9 +360,7 @@ func TestHandleVariantUpdate_NotFound(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusNotFound {
-		t.Errorf("Expected status %d, got %d", http.StatusNotFound, w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusNotFound)
 }
 
 func TestHandleVariantUpdate_MethodNotAllowed(t *testing.T) {
@@ -392,9 +372,7 @@ func TestHandleVariantUpdate_MethodNotAllowed(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("Expected status %d, got %d", http.StatusMethodNotAllowed, w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusMethodNotAllowed)
 }
 
 // --- handleVariantDelete Tests ---
@@ -408,9 +386,7 @@ func TestHandleVariantDelete_NotFound(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Expected status %d for not found, got %d", http.StatusBadRequest, w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusBadRequest)
 }
 
 func TestHandleVariantDelete_MethodNotAllowed(t *testing.T) {
@@ -422,9 +398,7 @@ func TestHandleVariantDelete_MethodNotAllowed(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("Expected status %d, got %d", http.StatusMethodNotAllowed, w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusMethodNotAllowed)
 }
 
 // --- handleVariantExport Tests ---
@@ -433,7 +407,7 @@ func TestHandleVariantExport_Success(t *testing.T) {
 	cs := setupTestConfigStore(t)
 	variants := cs.ListVariants()
 	if len(variants) == 0 {
-		t.Skip("No variants available for testing")
+		t.Fatal("tracked test configuration must contain at least one variant")
 	}
 
 	slug := variants[0].Variant.Slug
@@ -444,9 +418,7 @@ func TestHandleVariantExport_Success(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	var resp VariantSnapshot
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
@@ -467,9 +439,7 @@ func TestHandleVariantExport_NotFound(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusBadRequest)
 }
 
 // --- handleVariantImport Tests ---
@@ -483,9 +453,7 @@ func TestHandleVariantImport_InvalidJSON(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Expected status %d for invalid JSON, got %d", http.StatusBadRequest, w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusBadRequest)
 }
 
 func TestHandleVariantImport_SlugMismatch(t *testing.T) {
@@ -511,9 +479,7 @@ func TestHandleVariantImport_SlugMismatch(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Expected status %d for slug mismatch, got %d", http.StatusBadRequest, w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusBadRequest)
 
 	if !strings.Contains(w.Body.String(), "slug") {
 		t.Errorf("Expected error about slug mismatch, got: %s", w.Body.String())
@@ -531,9 +497,7 @@ func TestHandleVariantSnapshotSync_Success(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	var resp map[string]interface{}
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
@@ -554,9 +518,7 @@ func TestHandleVariantSnapshotSync_MethodNotAllowed(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("Expected status %d, got %d", http.StatusMethodNotAllowed, w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusMethodNotAllowed)
 }
 
 // --- selectWeightedRandomVariant Tests ---
@@ -679,9 +641,7 @@ func TestHandleVariantUpdate_Success(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	var resp VariantResponse
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
@@ -710,9 +670,7 @@ func TestHandleVariantUpdate_PartialUpdate(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	var resp VariantResponse
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
@@ -742,9 +700,7 @@ func TestHandleVariantUpdate_SaveError(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Expected status %d for save error, got %d", http.StatusBadRequest, w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusBadRequest)
 
 	if !strings.Contains(w.Body.String(), "disk full") {
 		t.Errorf("Expected error message to contain 'disk full', got: %s", w.Body.String())
@@ -765,9 +721,7 @@ func TestHandleVariantUpdate_NormalizesHeaderConfig(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	// Check that the saved variant has normalized header config
 	saved, _ := mock.GetVariant("header-test")
@@ -791,8 +745,9 @@ func TestHandleVariantUpdate_EmptySlug(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Expected status %d for empty slug, got %d", http.StatusBadRequest, w.Code)
+	testutil.RequireHTTPStatus(t, w, http.StatusBadRequest)
+	if mock.VariantCount() != 0 {
+		t.Errorf("Expected empty-slug update to leave store unchanged, got %d variants", mock.VariantCount())
 	}
 }
 
@@ -824,9 +779,7 @@ func TestHandleVariantImport_Success(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	// Verify variant was saved
 	saved, err := mock.GetVariant("import-test")
@@ -864,9 +817,7 @@ func TestHandleVariantImport_SaveError(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Expected status %d for save error, got %d", http.StatusBadRequest, w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusBadRequest)
 }
 
 func TestHandleVariantImport_EmptySlug(t *testing.T) {
@@ -888,8 +839,9 @@ func TestHandleVariantImport_EmptySlug(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Expected status %d for empty slug, got %d", http.StatusBadRequest, w.Code)
+	testutil.RequireHTTPStatus(t, w, http.StatusBadRequest)
+	if mock.VariantCount() != 0 {
+		t.Errorf("Expected empty-slug import to leave store unchanged, got %d variants", mock.VariantCount())
 	}
 }
 
@@ -906,9 +858,7 @@ func TestHandleVariantDelete_Success(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	// Verify deletion
 	_, err := mock.GetVariant("delete-me")
@@ -926,8 +876,9 @@ func TestHandleVariantDelete_EmptySlug(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Expected status %d for empty slug, got %d", http.StatusBadRequest, w.Code)
+	testutil.RequireHTTPStatus(t, w, http.StatusBadRequest)
+	if mock.VariantCount() != 0 {
+		t.Errorf("Expected empty-slug delete to leave store unchanged, got %d variants", mock.VariantCount())
 	}
 }
 
@@ -943,9 +894,7 @@ func TestHandleVariantDelete_DeleteError(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Expected status %d for delete error, got %d", http.StatusBadRequest, w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusBadRequest)
 }
 
 // --- handleVariantSnapshotSync Tests (using mock) ---
@@ -961,7 +910,5 @@ func TestHandleVariantSnapshotSync_LoadError(t *testing.T) {
 
 	handler(w, req)
 
-	if w.Code != http.StatusInternalServerError {
-		t.Errorf("Expected status %d for load error, got %d", http.StatusInternalServerError, w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusInternalServerError)
 }

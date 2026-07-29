@@ -6,7 +6,7 @@ import type { useLandingVariant } from '../providers/useLandingVariant';
 import type { LandingVariantContextType } from '../providers/LandingVariantContext';
 import type { LandingConfigResponse } from '../../shared/api';
 
-const useLandingVariantMock = vi.fn<[], ReturnType<typeof useLandingVariant>>();
+const useLandingVariantMock = vi.fn<() => ReturnType<typeof useLandingVariant>>();
 const createLandingVariantContext = (
   overrides: Partial<LandingVariantContextType>
 ): LandingVariantContextType => ({

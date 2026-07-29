@@ -13,7 +13,6 @@ import (
 
 func TestHandleMetricsTrack_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupMetricsEvents(t, db)
 
 	metricsService := NewMetricsService(db)
@@ -50,7 +49,6 @@ func TestHandleMetricsTrack_Success(t *testing.T) {
 
 func TestHandleMetricsTrack_InvalidJSON(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	metricsService := NewMetricsService(db)
 	handler := handleMetricsTrack(metricsService)
@@ -68,7 +66,6 @@ func TestHandleMetricsTrack_InvalidJSON(t *testing.T) {
 
 func TestHandleMetricsTrack_ValidationError(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	metricsService := NewMetricsService(db)
 	handler := handleMetricsTrack(metricsService)
@@ -91,7 +88,6 @@ func TestHandleMetricsTrack_ValidationError(t *testing.T) {
 
 func TestHandleMetricsTrack_InvalidEventType(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	metricsService := NewMetricsService(db)
 	handler := handleMetricsTrack(metricsService)
@@ -116,7 +112,6 @@ func TestHandleMetricsTrack_InvalidEventType(t *testing.T) {
 
 func TestHandleMetricsSummary_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupMetricsEvents(t, db)
 
 	metricsService := NewMetricsService(db)
@@ -150,7 +145,6 @@ func TestHandleMetricsSummary_Success(t *testing.T) {
 
 func TestHandleMetricsSummary_CustomDates(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupMetricsEvents(t, db)
 
 	metricsService := NewMetricsService(db)
@@ -168,7 +162,6 @@ func TestHandleMetricsSummary_CustomDates(t *testing.T) {
 
 func TestHandleMetricsSummary_InvalidDateFormat(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	metricsService := NewMetricsService(db)
 	handler := handleMetricsSummary(metricsService)
@@ -190,7 +183,6 @@ func TestHandleMetricsSummary_InvalidDateFormat(t *testing.T) {
 // [REQ:METRIC-DETAIL] Variant analytics endpoint returns a detailed statistics response.
 func TestHandleMetricsVariantStats_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupMetricsEvents(t, db)
 
 	metricsService := NewMetricsService(db)
@@ -227,7 +219,6 @@ func TestHandleMetricsVariantStats_Success(t *testing.T) {
 
 func TestHandleMetricsVariantStats_FilterByVariant(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupMetricsEvents(t, db)
 
 	metricsService := NewMetricsService(db)
@@ -250,7 +241,6 @@ func TestHandleMetricsVariantStats_FilterByVariant(t *testing.T) {
 
 func TestHandleMetricsVariantStats_CustomDates(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupMetricsEvents(t, db)
 
 	metricsService := NewMetricsService(db)

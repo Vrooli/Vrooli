@@ -12,7 +12,6 @@ import (
 
 func TestRequireUserAuth_ValidBearerToken(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -71,7 +70,6 @@ func TestRequireUserAuth_ValidBearerToken(t *testing.T) {
 
 func TestRequireUserAuth_ValidCookie(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -127,7 +125,6 @@ func TestRequireUserAuth_ValidCookie(t *testing.T) {
 
 func TestRequireUserAuth_ExpiredToken(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 
@@ -187,7 +184,6 @@ func TestRequireUserAuth_ExpiredToken(t *testing.T) {
 
 func TestRequireUserAuth_InvalidToken(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -216,7 +212,6 @@ func TestRequireUserAuth_InvalidToken(t *testing.T) {
 
 func TestRequireUserAuth_MissingToken(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -244,7 +239,6 @@ func TestRequireUserAuth_MissingToken(t *testing.T) {
 
 func TestRequireUserAuth_BearerTakesPrecedence(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -306,7 +300,6 @@ func TestRequireUserAuth_BearerTakesPrecedence(t *testing.T) {
 
 func TestOptionalUserAuth_WithValidToken(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -358,7 +351,6 @@ func TestOptionalUserAuth_WithValidToken(t *testing.T) {
 
 func TestOptionalUserAuth_WithInvalidToken(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -396,7 +388,6 @@ func TestOptionalUserAuth_WithInvalidToken(t *testing.T) {
 
 func TestOptionalUserAuth_NoToken(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)

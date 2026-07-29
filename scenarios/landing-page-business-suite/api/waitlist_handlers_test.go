@@ -91,7 +91,6 @@ var _ WaitlistServicer = (*mockWaitlistService)(nil)
 
 func TestHandleWaitlistCreate_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewWaitlistService(db)
 	handler := handleWaitlistCreate(svc)
@@ -110,7 +109,6 @@ func TestHandleWaitlistCreate_Success(t *testing.T) {
 
 func TestHandleWaitlistCreate_InvalidEmail(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewWaitlistService(db)
 	handler := handleWaitlistCreate(svc)
@@ -129,7 +127,6 @@ func TestHandleWaitlistCreate_InvalidEmail(t *testing.T) {
 
 func TestHandleWaitlistCreate_MissingEmail(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewWaitlistService(db)
 	handler := handleWaitlistCreate(svc)
@@ -148,7 +145,6 @@ func TestHandleWaitlistCreate_MissingEmail(t *testing.T) {
 
 func TestHandleWaitlistCreate_DuplicateEmail(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewWaitlistService(db)
 	handler := handleWaitlistCreate(svc)
@@ -178,7 +174,6 @@ func TestHandleWaitlistCreate_DuplicateEmail(t *testing.T) {
 
 func TestHandleWaitlistCreate_DefaultSource(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewWaitlistService(db)
 	handler := handleWaitlistCreate(svc)
@@ -200,7 +195,6 @@ func TestHandleWaitlistCreate_DefaultSource(t *testing.T) {
 
 func TestHandleWaitlistList_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewWaitlistService(db)
 
@@ -233,7 +227,6 @@ func TestHandleWaitlistList_Success(t *testing.T) {
 
 func TestHandleWaitlistList_ReturnsArray(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewWaitlistService(db)
 	handler := handleWaitlistList(svc)
@@ -263,7 +256,6 @@ func TestHandleWaitlistList_ReturnsArray(t *testing.T) {
 
 func TestHandleWaitlistDelete_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewWaitlistService(db)
 
@@ -288,7 +280,6 @@ func TestHandleWaitlistDelete_Success(t *testing.T) {
 
 func TestHandleWaitlistDelete_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewWaitlistService(db)
 	handler := handleWaitlistDelete(svc)
@@ -310,7 +301,6 @@ func TestHandleWaitlistDelete_NotFound(t *testing.T) {
 
 func TestHandleWaitlistExport_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewWaitlistService(db)
 
@@ -354,7 +344,6 @@ func TestHandleWaitlistExport_Success(t *testing.T) {
 
 func TestHandleWaitlistExport_Empty(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewWaitlistService(db)
 	handler := handleWaitlistExport(svc)

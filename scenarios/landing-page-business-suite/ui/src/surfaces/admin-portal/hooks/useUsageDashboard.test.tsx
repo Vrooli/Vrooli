@@ -138,6 +138,8 @@ describe('useUsageDashboard', () => {
         result.current.navigateMonth(-1);
       });
 
+      await waitFor(() => { expect(mockFetchUsageSummary).toHaveBeenCalledTimes(2); });
+      expect(result.current.loading).toBe(false);
       expect(result.current.billingPeriod).toBe('2024-02');
     });
 
@@ -157,6 +159,9 @@ describe('useUsageDashboard', () => {
       act(() => {
         result.current.navigateMonth(1);
       });
+
+      await waitFor(() => { expect(mockFetchUsageSummary).toHaveBeenCalledTimes(3); });
+      expect(result.current.loading).toBe(false);
       expect(result.current.billingPeriod).toBe('2024-03');
     });
 
@@ -191,6 +196,8 @@ describe('useUsageDashboard', () => {
         result.current.navigateMonth(-1);
       });
 
+      await waitFor(() => { expect(mockFetchUsageSummary).toHaveBeenCalledTimes(2); });
+      expect(result.current.loading).toBe(false);
       expect(result.current.isCurrentPeriod).toBe(false);
     });
 

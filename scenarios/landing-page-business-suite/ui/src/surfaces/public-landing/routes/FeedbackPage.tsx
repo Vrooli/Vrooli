@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MessageSquare, RefreshCcw, Bug, Lightbulb, Heart, Send, CheckCircle, ArrowLeft } from 'lucide-react';
 import { Button } from '../../../shared/ui/button';
-import { Input, Textarea } from '../../../shared/ui/input';
+import { Input } from '../../../shared/ui/input';
+import { Textarea } from '../../../shared/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { InlineAlert } from '../../../shared/ui/InlineAlert';
 import { isRecord, safeParseJson } from '../../../shared/lib/utils';
@@ -86,7 +87,7 @@ export function FeedbackPage() {
     const timeoutId = setTimeout(() => { controller.abort(); }, 30000);
 
     try {
-      const response = await fetch('/api/feedback', {
+      const response = await fetch('/api/v1/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -274,12 +275,11 @@ export function FeedbackPage() {
                 </label>
                 <Input
                   type="email"
-                  size="md"
                   required
                   value={form.email}
                   onChange={(e) => { setForm((f) => ({ ...f, email: e.target.value })); }}
                   placeholder="you@example.com"
-                  className="mt-1 focus:border-orange-500 focus:ring-orange-500"
+                  className="mt-1 px-4 py-3 text-base focus:border-orange-500 focus:ring-orange-500"
                 />
               </div>
 
@@ -291,11 +291,10 @@ export function FeedbackPage() {
                   </label>
                   <Input
                     type="text"
-                    size="md"
                     value={form.orderId}
                     onChange={(e) => { setForm((f) => ({ ...f, orderId: e.target.value })); }}
                     placeholder="sub_xxxxx or cs_xxxxx"
-                    className="mt-1 focus:border-orange-500 focus:ring-orange-500"
+                    className="mt-1 px-4 py-3 text-base focus:border-orange-500 focus:ring-orange-500"
                   />
                   <p className="mt-1 text-xs text-slate-500">
                     You can find this in your Stripe receipt email or billing portal.
@@ -310,7 +309,6 @@ export function FeedbackPage() {
                 </label>
                 <Input
                   type="text"
-                  size="md"
                   required
                   value={form.subject}
                   onChange={(e) => { setForm((f) => ({ ...f, subject: e.target.value })); }}
@@ -323,7 +321,7 @@ export function FeedbackPage() {
                           ? 'Feature idea: Your suggestion'
                           : 'How can we help?'
                   }
-                  className="mt-1 focus:border-orange-500 focus:ring-orange-500"
+                  className="mt-1 px-4 py-3 text-base focus:border-orange-500 focus:ring-orange-500"
                 />
               </div>
 

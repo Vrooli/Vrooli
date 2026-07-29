@@ -5,7 +5,7 @@ import { VariantEditor } from './VariantEditor';
 import * as variantHook from '../hooks/useVariantForm';
 
 const navigate = vi.fn();
-const useParams = vi.fn<[], { slug?: string }>();
+const useParams = vi.fn<() => { slug?: string }>();
 vi.mock('react-router-dom', () => ({ useNavigate: () => navigate, useParams: () => useParams() }));
 vi.mock('../hooks/useVariantForm');
 vi.mock('@monaco-editor/react', () => ({ default: ({ value, onChange }: { value: string; onChange: (value: string) => void }) => <textarea aria-label="Variant JSON document" value={value} onChange={(event) => { onChange(event.target.value); }} /> }));

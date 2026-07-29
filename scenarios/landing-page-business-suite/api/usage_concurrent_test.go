@@ -423,10 +423,6 @@ func TestConcurrent_BYOKAndNonBYOK_Interleaved(t *testing.T) {
 }
 
 func TestConcurrent_HighContention_StressTest(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping stress test in short mode")
-	}
-
 	svc, _, db := createTestUsageService(t)
 	defer db.Close()
 

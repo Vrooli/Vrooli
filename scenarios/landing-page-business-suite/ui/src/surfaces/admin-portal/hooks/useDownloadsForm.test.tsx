@@ -16,10 +16,10 @@ type CreateDownloadAppAdminFn = typeof createDownloadAppAdmin;
 type SaveDownloadAppAdminFn = typeof saveDownloadAppAdmin;
 type DeleteDownloadAppAdminFn = typeof deleteDownloadAppAdmin;
 
-const listDownloadAppsAdminMock = vi.fn<Parameters<ListDownloadAppsAdminFn>, ReturnType<ListDownloadAppsAdminFn>>();
-const createDownloadAppAdminMock = vi.fn<Parameters<CreateDownloadAppAdminFn>, ReturnType<CreateDownloadAppAdminFn>>();
-const saveDownloadAppAdminMock = vi.fn<Parameters<SaveDownloadAppAdminFn>, ReturnType<SaveDownloadAppAdminFn>>();
-const deleteDownloadAppAdminMock = vi.fn<Parameters<DeleteDownloadAppAdminFn>, ReturnType<DeleteDownloadAppAdminFn>>();
+const listDownloadAppsAdminMock = vi.fn<ListDownloadAppsAdminFn>();
+const createDownloadAppAdminMock = vi.fn<CreateDownloadAppAdminFn>();
+const saveDownloadAppAdminMock = vi.fn<SaveDownloadAppAdminFn>();
+const deleteDownloadAppAdminMock = vi.fn<DeleteDownloadAppAdminFn>();
 
 vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');

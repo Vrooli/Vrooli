@@ -125,7 +125,6 @@ var _ FeedbackServicer = (*mockFeedbackService)(nil)
 
 func TestHandleFeedbackCreate_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewFeedbackService(db)
 	cs := setupTestConfigStore(t)
@@ -156,7 +155,6 @@ func TestHandleFeedbackCreate_Success(t *testing.T) {
 
 func TestHandleFeedbackCreate_InvalidEmail(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewFeedbackService(db)
 	cs := setupTestConfigStore(t)
@@ -179,7 +177,6 @@ func TestHandleFeedbackCreate_InvalidEmail(t *testing.T) {
 
 func TestHandleFeedbackCreate_InvalidSubject(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewFeedbackService(db)
 	cs := setupTestConfigStore(t)
@@ -202,7 +199,6 @@ func TestHandleFeedbackCreate_InvalidSubject(t *testing.T) {
 
 func TestHandleFeedbackCreate_InvalidJSON(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewFeedbackService(db)
 	cs := setupTestConfigStore(t)
@@ -223,7 +219,6 @@ func TestHandleFeedbackCreate_InvalidJSON(t *testing.T) {
 
 func TestHandleFeedbackCreate_DefaultsToGeneralType(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewFeedbackService(db)
 	cs := setupTestConfigStore(t)
@@ -248,7 +243,6 @@ func TestHandleFeedbackCreate_DefaultsToGeneralType(t *testing.T) {
 
 func TestHandleFeedbackList_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewFeedbackService(db)
 
@@ -289,7 +283,6 @@ func TestHandleFeedbackList_Success(t *testing.T) {
 
 func TestHandleFeedbackList_FilterByStatus(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewFeedbackService(db)
 
@@ -307,7 +300,6 @@ func TestHandleFeedbackList_FilterByStatus(t *testing.T) {
 
 func TestHandleFeedbackList_EmptyList(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewFeedbackService(db)
 	handler := handleFeedbackList(svc)
@@ -336,7 +328,6 @@ func TestHandleFeedbackList_EmptyList(t *testing.T) {
 
 func TestHandleFeedbackGet_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewFeedbackService(db)
 
@@ -366,7 +357,6 @@ func TestHandleFeedbackGet_Success(t *testing.T) {
 
 func TestHandleFeedbackGet_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewFeedbackService(db)
 	handler := handleFeedbackGet(svc)
@@ -386,7 +376,6 @@ func TestHandleFeedbackGet_NotFound(t *testing.T) {
 
 func TestHandleFeedbackGet_InvalidID(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewFeedbackService(db)
 	handler := handleFeedbackGet(svc)
@@ -408,7 +397,6 @@ func TestHandleFeedbackGet_InvalidID(t *testing.T) {
 
 func TestHandleFeedbackUpdateStatus_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewFeedbackService(db)
 
@@ -439,7 +427,6 @@ func TestHandleFeedbackUpdateStatus_Success(t *testing.T) {
 
 func TestHandleFeedbackUpdateStatus_InvalidStatus(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewFeedbackService(db)
 
@@ -472,7 +459,6 @@ func TestHandleFeedbackUpdateStatus_InvalidStatus(t *testing.T) {
 
 func TestHandleFeedbackDelete_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewFeedbackService(db)
 
@@ -503,7 +489,6 @@ func TestHandleFeedbackDelete_Success(t *testing.T) {
 
 func TestHandleFeedbackDeleteBulk_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewFeedbackService(db)
 
@@ -537,7 +522,6 @@ func TestHandleFeedbackDeleteBulk_Success(t *testing.T) {
 
 func TestHandleFeedbackDeleteBulk_EmptyList(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewFeedbackService(db)
 	handler := handleFeedbackDeleteBulk(svc)
@@ -556,7 +540,6 @@ func TestHandleFeedbackDeleteBulk_EmptyList(t *testing.T) {
 
 func TestHandleFeedbackDeleteBulk_InvalidJSON(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewFeedbackService(db)
 	handler := handleFeedbackDeleteBulk(svc)

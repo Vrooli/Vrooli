@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "landing-page-business-suite",
-  "description": "Authoritative catalog of the Silent Founder OS CLI. Current commands are local REST façade commands; they are intentionally cataloged as local until each domain is migrated to generated Connect clients.",
+  "description": "Authoritative catalog of the Silent Founder OS CLI. Legacy REST façade commands remain cataloged as local while migrated domains declare generated Connect bindings and verified renderer-separated primitives.",
   "groups": [
     {
       "name": "legacy",
@@ -220,9 +220,14 @@
         },
         {
           "name": "admin-bundle-price-update",
-          "description": "Legacy local command: admin-bundle-price-update.",
+          "description": "Update a bundle price through the admin Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "BundleAdminService",
+            "method": "UpdateBundlePrice"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           },
           "governance": {
             "effect": "write",
@@ -234,9 +239,14 @@
         },
         {
           "name": "admin-bundles",
-          "description": "Legacy local command: admin-bundles.",
+          "description": "List editable bundles through the admin Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "BundleAdminService",
+            "method": "ListBundleCatalog"
+          },
+          "architecture": {
+            "primitive": "proto_list"
           },
           "governance": {
             "effect": "write",
@@ -248,9 +258,14 @@
         },
         {
           "name": "admin-coupon-mappings",
-          "description": "Legacy local command: admin-coupon-mappings.",
+          "description": "List coupon mappings through the admin Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "CouponAdminService",
+            "method": "GetCouponMappings"
+          },
+          "architecture": {
+            "primitive": "proto_list"
           },
           "governance": {
             "effect": "write",
@@ -262,9 +277,14 @@
         },
         {
           "name": "admin-coupons-create",
-          "description": "Legacy local command: admin-coupons-create.",
+          "description": "Create a coupon through the admin Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "CouponAdminService",
+            "method": "CreateCoupon"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           },
           "governance": {
             "effect": "write",
@@ -276,9 +296,14 @@
         },
         {
           "name": "admin-coupons-delete",
-          "description": "Legacy local command: admin-coupons-delete.",
+          "description": "Delete a coupon through the admin Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "CouponAdminService",
+            "method": "DeleteCoupon"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           },
           "governance": {
             "effect": "write",
@@ -290,9 +315,14 @@
         },
         {
           "name": "admin-coupons-get",
-          "description": "Legacy local command: admin-coupons-get.",
+          "description": "Get a coupon through the admin Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "CouponAdminService",
+            "method": "GetCoupon"
+          },
+          "architecture": {
+            "primitive": "proto_list"
           },
           "governance": {
             "effect": "write",
@@ -304,9 +334,14 @@
         },
         {
           "name": "admin-coupons-list",
-          "description": "Legacy local command: admin-coupons-list.",
+          "description": "List coupons through the admin Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "CouponAdminService",
+            "method": "ListCoupons"
+          },
+          "architecture": {
+            "primitive": "proto_list"
           },
           "governance": {
             "effect": "write",
@@ -318,9 +353,14 @@
         },
         {
           "name": "admin-coupons-update",
-          "description": "Legacy local command: admin-coupons-update.",
+          "description": "Update a coupon through the admin Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "CouponAdminService",
+            "method": "UpdateCoupon"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           },
           "governance": {
             "effect": "write",
@@ -332,9 +372,14 @@
         },
         {
           "name": "admin-coupons-usage",
-          "description": "Legacy local command: admin-coupons-usage.",
+          "description": "List coupon usage through the admin Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "CouponAdminService",
+            "method": "ListCouponUsage"
+          },
+          "architecture": {
+            "primitive": "proto_list"
           },
           "governance": {
             "effect": "write",
@@ -710,9 +755,14 @@
         },
         {
           "name": "admin-plan-coupon-remove",
-          "description": "Legacy local command: admin-plan-coupon-remove.",
+          "description": "Remove a plan coupon through the admin Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "CouponAdminService",
+            "method": "RemoveCouponFromPlan"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           },
           "governance": {
             "effect": "write",
@@ -724,9 +774,14 @@
         },
         {
           "name": "admin-plan-coupon-set",
-          "description": "Legacy local command: admin-plan-coupon-set.",
+          "description": "Set a plan coupon through the admin Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "CouponAdminService",
+            "method": "SetCouponForPlan"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           },
           "governance": {
             "effect": "write",
@@ -794,9 +849,14 @@
         },
         {
           "name": "admin-stripe-coupons-preview",
-          "description": "Legacy local command: admin-stripe-coupons-preview.",
+          "description": "Preview Stripe coupons through the admin Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "CouponAdminService",
+            "method": "GetCouponImportPreview"
+          },
+          "architecture": {
+            "primitive": "proto_list"
           },
           "governance": {
             "effect": "write",
@@ -836,9 +896,14 @@
         },
         {
           "name": "admin-stripe-secret",
-          "description": "Legacy local command: admin-stripe-secret.",
+          "description": "Reveal one explicitly requested Stripe setting through the admin Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "StripeSettingsService",
+            "method": "RevealStripeSecret"
+          },
+          "architecture": {
+            "primitive": "operational"
           },
           "governance": {
             "effect": "write",
@@ -850,9 +915,14 @@
         },
         {
           "name": "admin-stripe-settings",
-          "description": "Legacy local command: admin-stripe-settings.",
+          "description": "Read redacted Stripe settings through the admin Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "StripeSettingsService",
+            "method": "GetStripeSettings"
+          },
+          "architecture": {
+            "primitive": "proto_list"
           },
           "governance": {
             "effect": "write",
@@ -864,9 +934,14 @@
         },
         {
           "name": "admin-stripe-settings-update",
-          "description": "Legacy local command: admin-stripe-settings-update.",
+          "description": "Update Stripe settings through the admin Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "StripeSettingsService",
+            "method": "UpdateStripeSettings"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           },
           "governance": {
             "effect": "write",
@@ -1018,9 +1093,14 @@
         },
         {
           "name": "admin-variant-seo-update",
-          "description": "Legacy local command: admin-variant-seo-update.",
+          "description": "Update variant SEO through the generated Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "SeoService",
+            "method": "UpdateVariantSEO"
+          },
+          "architecture": {
+            "primitive": "action"
           },
           "governance": {
             "effect": "write",
@@ -1396,9 +1476,24 @@
         },
         {
           "name": "landing-config",
-          "description": "Legacy local command: landing-config.",
+          "description": "Fetch landing configuration through the generated Connect contract.",
+          "flags": [
+            {
+              "name": "variant",
+              "description": "Variant slug to render."
+            },
+            {
+              "name": "query",
+              "description": "Legacy query compatibility; only variant=SLUG is accepted."
+            }
+          ],
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "LandingConfigService",
+            "method": "GetLandingConfig"
+          },
+          "architecture": {
+            "primitive": "action"
           },
           "governance": {
             "effect": "write",
@@ -1676,9 +1771,14 @@
         },
         {
           "name": "seo",
-          "description": "Legacy local command: seo.",
+          "description": "Get variant SEO through the generated Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "SeoService",
+            "method": "GetVariantSEO"
+          },
+          "architecture": {
+            "primitive": "action"
           },
           "governance": {
             "effect": "write",
@@ -1816,13 +1916,18 @@
         },
         {
           "name": "variant-space",
-          "description": "Legacy local command: variant-space.",
+          "description": "Fetch variant space through the generated Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "VariantSpaceService",
+            "method": "GetVariantSpace"
+          },
+          "architecture": {
+            "primitive": "action"
           },
           "governance": {
-            "effect": "write",
-            "run_eligible": false,
+            "effect": "read",
+            "run_eligible": true,
             "permissions": [
               "network:internal"
             ]
@@ -2130,16 +2235,6 @@
       "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
     },
     {
-      "service": "BundleAdminService",
-      "method": "ListBundleCatalog",
-      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
-    },
-    {
-      "service": "BundleAdminService",
-      "method": "UpdateBundlePrice",
-      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
-    },
-    {
       "service": "ContentService",
       "method": "CreateSection",
       "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
@@ -2200,11 +2295,6 @@
       "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
     },
     {
-      "service": "LandingConfigService",
-      "method": "GetLandingConfig",
-      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
-    },
-    {
       "service": "LandingPagePaymentsService",
       "method": "CancelSubscription",
       "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
@@ -2222,16 +2312,6 @@
   {
     "service": "PricingService",
       "method": "GetPricing",
-      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
-    },
-  {
-    "service": "StripeSettingsService",
-      "method": "GetStripeSettings",
-      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
-    },
-    {
-      "service": "StripeSettingsService",
-      "method": "UpdateStripeSettings",
       "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
     },
     {
@@ -2252,16 +2332,6 @@
     {
       "service": "MetricsService",
       "method": "TrackEvent",
-      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
-    },
-    {
-      "service": "SeoService",
-      "method": "GetVariantSEO",
-      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
-    },
-    {
-      "service": "SeoService",
-      "method": "UpdateVariantSEO",
       "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
     },
     {
@@ -2312,11 +2382,6 @@
     {
       "service": "VariantService",
       "method": "UpdateVariant",
-      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
-    },
-    {
-      "service": "VariantSpaceService",
-      "method": "GetVariantSpace",
       "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
     }
   ]

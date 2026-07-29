@@ -17,8 +17,8 @@ The user-facing security surface is also covered by `docs/reference/SECURITY.md`
                   ┌── Cloudflare/nginx ─── TLS termination
                   │
    public ───────►│
-                  ├── /api/v1/landing-config, /api/v1/plans, /api/v1/branding,
-                  │   /api/v1/metrics/track, /api/v1/waitlist, /api/feedback
+                  ├── LandingConfigService.GetLandingConfig, /api/v1/plans, /api/v1/branding,
+                  │   /api/v1/metrics/track, /api/v1/waitlist, /api/v1/feedback
                   │   (NO auth — rate-limited only at infra)
                   │
                   ├── /api/v1/auth/*           (public; internal rate limiter, 5 / 15 min)
@@ -74,3 +74,4 @@ The user-facing security surface is also covered by `docs/reference/SECURITY.md`
 - No CSRF token on cookie-authenticated endpoints — admin portal is same-origin and uses a `SameSite=Lax` cookie. If an admin-portal subdomain is ever served separately, this needs to change.
 - No 2FA on admin login.
 - Service bearer is HMAC of a static secret, not a JWT — fine for a small s2s mesh, would not scale to many callers.
+- The UI uses `BrowserRouter` and does not use React Router's unstable RSC APIs. GHSA-qwww-vcr4-c8h2 is therefore tracked as a dependency warning rather than a shipped attack path; introducing an RSC router, RSC package, or unstable RSC API requires upgrading React Router to a patched release first.

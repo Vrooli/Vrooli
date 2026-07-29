@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"landing-page-business-suite-api/internal/intelligence"
 )
 
 // testUserContext creates a context with user claims for testing authenticated endpoints.
@@ -32,6 +34,47 @@ func newTestAIGatewayDeps(mockSvc *MockAIGateway) *AIGatewayDeps {
 		IPKeyFunc:       IPKeyFunc(),
 	}
 }
+
+// MockAIGateway is a test-only implementation of the handler's gateway seam.
+type MockAIGateway struct {
+	ExecuteChatFn        func(ctx context.Context, userIdentity string, req AIRequest) (*AIResponse, error)
+	ExecuteChatStreamFn  func(ctx context.Context, userIdentity string, req AIRequest, w http.ResponseWriter) error
+	GetAvailableModelsFn func() []string
+	HealthCheckFn        func(ctx context.Context) error
+}
+
+func (m *MockAIGateway) ExecuteChat(ctx context.Context, userIdentity string, req AIRequest) (*AIResponse, error) {
+	if m.ExecuteChatFn != nil {
+		return m.ExecuteChatFn(ctx, userIdentity, req)
+	}
+	return &AIResponse{ID: "mock-chat-id", Model: req.Model, Content: "Mock response content", PromptTokens: 10, CompletionTokens: 5, TotalTokens: 15, CreditsCharged: 1000, FinishReason: "stop"}, nil
+}
+
+func (m *MockAIGateway) ExecuteChatStream(ctx context.Context, userIdentity string, req AIRequest, w http.ResponseWriter) error {
+	if m.ExecuteChatStreamFn != nil {
+		return m.ExecuteChatStreamFn(ctx, userIdentity, req, w)
+	}
+	w.Header().Set("Content-Type", "text/event-stream")
+	_, _ = w.Write([]byte("data: {\"type\":\"chunk\",\"content\":\"Mock\"}\n\n"))
+	_, _ = w.Write([]byte("data: {\"type\":\"done\",\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":1,\"total_tokens\":11,\"credits_charged\":500}}\n\n"))
+	return nil
+}
+
+func (m *MockAIGateway) GetAvailableModels() []string {
+	if m.GetAvailableModelsFn != nil {
+		return m.GetAvailableModelsFn()
+	}
+	return []string{"mock/model-1", "mock/model-2"}
+}
+
+func (m *MockAIGateway) HealthCheck(ctx context.Context) error {
+	if m.HealthCheckFn != nil {
+		return m.HealthCheckFn(ctx)
+	}
+	return nil
+}
+
+var _ AIGateway = (*MockAIGateway)(nil)
 
 // --- handleAIChat Tests ---
 
@@ -349,7 +392,6 @@ func TestHandleAIModels_Success(t *testing.T) {
 
 func TestHandleAIUsage_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	limitsService := NewLimitsService(db, "sqlite")
 	usageService := NewUsageService(db, limitsService, "sqlite")
@@ -621,10 +663,10 @@ func TestHandleAIChat_ErrModelNotAllowed_Returns400(t *testing.T) {
 	}
 }
 
-func TestHandleAIChat_ErrOpenRouterError_Returns502(t *testing.T) {
+func TestHandleAIChat_ProviderError_Returns502(t *testing.T) {
 	mockSvc := &MockAIGateway{
 		ExecuteChatFn: func(ctx context.Context, userIdentity string, req AIRequest) (*AIResponse, error) {
-			return nil, ErrOpenRouterError
+			return nil, intelligence.ErrProvider
 		},
 	}
 	deps := newTestAIGatewayDeps(mockSvc)
@@ -644,7 +686,7 @@ func TestHandleAIChat_ErrOpenRouterError_Returns502(t *testing.T) {
 	handler(w, req)
 
 	if w.Code != http.StatusBadGateway {
-		t.Errorf("Expected status %d for ErrOpenRouterError, got %d", http.StatusBadGateway, w.Code)
+		t.Errorf("expected status %d for provider error, got %d", http.StatusBadGateway, w.Code)
 	}
 }
 
@@ -760,10 +802,10 @@ func TestHandleAIStream_ErrStreamingNotSupported_Returns501(t *testing.T) {
 	}
 }
 
-func TestHandleAIStream_ErrOpenRouterError_Returns502(t *testing.T) {
+func TestHandleAIStream_ProviderError_Returns502(t *testing.T) {
 	mockSvc := &MockAIGateway{
 		ExecuteChatStreamFn: func(ctx context.Context, userIdentity string, req AIRequest, w http.ResponseWriter) error {
-			return ErrOpenRouterError
+			return intelligence.ErrProvider
 		},
 	}
 	deps := newTestAIGatewayDeps(mockSvc)
@@ -783,7 +825,7 @@ func TestHandleAIStream_ErrOpenRouterError_Returns502(t *testing.T) {
 	handler(w, req)
 
 	if w.Code != http.StatusBadGateway {
-		t.Errorf("Expected status %d for ErrOpenRouterError, got %d", http.StatusBadGateway, w.Code)
+		t.Errorf("expected status %d for provider error, got %d", http.StatusBadGateway, w.Code)
 	}
 }
 
@@ -809,9 +851,9 @@ func TestHandleAIError_ErrModelNotAllowed_Returns400(t *testing.T) {
 	}
 }
 
-func TestHandleAIError_ErrOpenRouterError_Returns502(t *testing.T) {
+func TestHandleAIError_ProviderError_Returns502(t *testing.T) {
 	w := httptest.NewRecorder()
-	handleAIError(w, ErrOpenRouterError)
+	handleAIError(w, intelligence.ErrProvider)
 
 	if w.Code != http.StatusBadGateway {
 		t.Errorf("Expected status %d, got %d", http.StatusBadGateway, w.Code)

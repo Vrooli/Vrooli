@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"landing-page-business-suite-api/internal/intelligence"
 )
 
 // newMockOpenRouterServer creates a test HTTP server with the given handler.
@@ -21,6 +24,50 @@ func newMockOpenRouterServer(t *testing.T, handler http.HandlerFunc) (*httptest.
 	t.Cleanup(server.Close)
 	return server, client
 }
+
+// MockOpenRouterClient is a test-only double for the gateway's provider seam.
+type MockOpenRouterClient struct {
+	ChatFn       func(ctx context.Context, req OpenRouterChatRequest) (*OpenRouterChatResponse, error)
+	ChatStreamFn func(ctx context.Context, req OpenRouterChatRequest, onChunk func(content string)) (*OpenRouterUsage, error)
+	VerifyFn     func(ctx context.Context) error
+}
+
+func (m *MockOpenRouterClient) Chat(ctx context.Context, req OpenRouterChatRequest) (*OpenRouterChatResponse, error) {
+	if m.ChatFn != nil {
+		return m.ChatFn(ctx, req)
+	}
+	return &OpenRouterChatResponse{
+		ID:      "mock-id",
+		Model:   req.Model,
+		Content: "Mock response",
+		Usage: OpenRouterUsage{
+			PromptTokens:     10,
+			CompletionTokens: 5,
+			TotalTokens:      15,
+		},
+	}, nil
+}
+
+func (m *MockOpenRouterClient) ChatStream(ctx context.Context, req OpenRouterChatRequest, onChunk func(string)) (*OpenRouterUsage, error) {
+	if m.ChatStreamFn != nil {
+		return m.ChatStreamFn(ctx, req, onChunk)
+	}
+	for _, chunk := range []string{"Hello", " world", "!"} {
+		if onChunk != nil {
+			onChunk(chunk)
+		}
+	}
+	return &OpenRouterUsage{PromptTokens: 10, CompletionTokens: 3, TotalTokens: 13}, nil
+}
+
+func (m *MockOpenRouterClient) VerifyAPIKey(ctx context.Context) error {
+	if m.VerifyFn != nil {
+		return m.VerifyFn(ctx)
+	}
+	return nil
+}
+
+var _ OpenRouterClient = (*MockOpenRouterClient)(nil)
 
 // ============================================================================
 // Chat Tests
@@ -75,7 +122,7 @@ func TestOpenRouterClient_Chat_Success(t *testing.T) {
 	}
 }
 
-func TestOpenRouterClient_Chat_Non200Status_ReturnsErrOpenRouterError(t *testing.T) {
+func TestOpenRouterClient_Chat_Non200Status_ReturnsProviderError(t *testing.T) {
 	_, client := newMockOpenRouterServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		if _, err := w.Write([]byte(`{"error": "server error"}`)); err != nil {
@@ -91,6 +138,9 @@ func TestOpenRouterClient_Chat_Non200Status_ReturnsErrOpenRouterError(t *testing
 
 	if err == nil {
 		t.Error("expected error for 500 status, got nil")
+	}
+	if !errors.Is(err, intelligence.ErrProvider) {
+		t.Errorf("expected provider domain error, got %v", err)
 	}
 }
 

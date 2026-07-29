@@ -23,6 +23,8 @@ import (
 // setupTestDB creates a test database connection
 // This is the canonical setup function used across all test files
 func setupTestDB(t *testing.T) *sql.DB {
+	t.Helper()
+
 	// Tests must never fall back to DATABASE_URL. That variable is owned by the
 	// scenario lifecycle and may point at a developer or deployed database; using
 	// it makes the suite both unsafe and dependent on whatever schema happens to
@@ -30,7 +32,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 	// is absent or unavailable, the suite creates an isolated testcontainer.
 	if dbURL, configured := configuredTestDatabaseURL(); configured {
 		if db, err := openAndPrepareTestDatabase(dbURL); err == nil {
-			return db
+			return registerTestDatabaseCleanup(t, db)
 		} else {
 			t.Logf("Failed to connect using configured test database; using isolated container: %v", err)
 		}
@@ -40,7 +42,40 @@ func setupTestDB(t *testing.T) *sql.DB {
 	if err != nil {
 		t.Fatalf("Failed to initialize isolated test database: %v", err)
 	}
+	return registerTestDatabaseCleanup(t, db)
+}
+
+// registerTestDatabaseCleanup makes database lifecycle ownership explicit at
+// the fixture boundary. Existing callers that close the database themselves
+// remain safe during the incremental migration because sql.DB.Close is
+// idempotent for this purpose.
+func registerTestDatabaseCleanup(t *testing.T, db *sql.DB) *sql.DB {
+	t.Helper()
+	t.Cleanup(func() {
+		_ = db.Close()
+	})
 	return db
+}
+
+// decodeJSONResponse decodes a handler response and fails the current test with
+// the response body when it is not valid JSON. Keeping this at the test fixture
+// boundary makes handler assertions concise without hiding their response types
+// or behavior checks.
+func decodeJSONResponse(t testing.TB, body []byte, destination any) {
+	t.Helper()
+	if err := json.Unmarshal(body, destination); err != nil {
+		t.Fatalf("decode JSON response: %v; body: %s", err, body)
+	}
+}
+
+// assertJSONResponse records an assertion failure when a handler body cannot
+// be decoded, allowing tests that intentionally collect multiple assertions to
+// retain their non-fatal behavior.
+func assertJSONResponse(t testing.TB, body []byte, destination any) {
+	t.Helper()
+	if err := json.Unmarshal(body, destination); err != nil {
+		t.Errorf("decode JSON response: %v; body: %s", err, body)
+	}
 }
 
 func configuredTestDatabaseURL() (string, bool) {
@@ -167,10 +202,10 @@ func setupTestConfigStore(t *testing.T) *ConfigStore {
 	}
 
 	if variantsDir == "" {
-		t.Skip("variants directory not found - skipping ConfigStore test")
+		t.Fatal("variants directory not found; ConfigStore tests require the tracked scenario config")
 	}
 	if brandingPath == "" {
-		t.Skip("branding.json not found - skipping ConfigStore test")
+		t.Fatal("branding.json not found; ConfigStore tests require the tracked scenario config")
 	}
 
 	cs := NewConfigStore(variantsDir, brandingPath, nil) // nil uses defaultVariantSpace
@@ -266,17 +301,6 @@ func resetStripeTestData(t *testing.T, db *sql.DB) {
 	if err := seedDefaultData(db); err != nil {
 		t.Fatalf("failed to reseed defaults: %v", err)
 	}
-}
-
-// DEPRECATED: createTestVariant creates a test variant in the database.
-// The 'variants' table has been removed - variants are now stored in JSON files.
-// This function is retained for legacy test compatibility only.
-// For new tests, use setupTestConfigStore() instead.
-//
-//nolint:unused // retained for legacy tests that depend on database-backed variants
-func createTestVariant(t *testing.T, db *sql.DB) int64 {
-	t.Skip("variants table removed - use ConfigStore for variant tests")
-	return 0
 }
 
 // writeSnapshot writes a variant snapshot to a JSON file for testing

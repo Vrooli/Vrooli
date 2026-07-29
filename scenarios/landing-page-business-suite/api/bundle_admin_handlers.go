@@ -14,6 +14,9 @@ type bundleCatalogResponse struct {
 	Bundles []bundleCatalogEntryResponse `json:"bundles"`
 }
 
+// updateBundlePriceRequest and the two legacy handler adapters remain only for
+// direct compatibility tests. They are intentionally not registered as routes;
+// BundleAdminService is the production transport.
 type updateBundlePriceRequest = bundlehttp.UpdatePriceRequest
 
 type bundleCatalogEntryResponse struct {

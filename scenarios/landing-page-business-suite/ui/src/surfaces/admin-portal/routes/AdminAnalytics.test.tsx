@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderWithProviders as render } from "../../../test-utils/renderWithProviders";
 import type { ReactNode } from 'react';
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { AdminAnalytics } from './AdminAnalytics';
 import { AdminAuthProvider } from '../../../app/providers/AdminAuthProvider';
@@ -210,9 +211,10 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
 
   it('filters to a variant and exposes focus, preview, shortcut, and detail actions', async () => {
     await renderWithAuth(<AdminAnalytics />);
+    const user = userEvent.setup();
 
-    fireEvent.click(await screen.findByTestId('analytics-variant-filter'));
-    fireEvent.click(await screen.findByRole('option', { name: 'Variant A' }));
+    await user.click(await screen.findByTestId('analytics-variant-filter'));
+    await user.click(await screen.findByRole('option', { name: 'Variant A' }));
 
     await waitFor(() => {
       expect(screen.getByTestId('analytics-variant-detail')).toBeInTheDocument();
@@ -220,14 +222,14 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
       expect(screen.getByTestId('analytics-focus-customize')).toBeInTheDocument();
       expect(screen.getByTestId('analytics-focus-preview')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByTestId('analytics-focus-preview'));
-    fireEvent.click(screen.getByTestId('analytics-reset-filters'));
+    await user.click(screen.getByTestId('analytics-focus-preview'));
+    await user.click(screen.getByTestId('analytics-reset-filters'));
 
     await waitFor(() => { expect(screen.queryByTestId('analytics-variant-detail')).not.toBeInTheDocument(); });
     const shortcuts = screen.getByTestId('analytics-shortcuts');
-    fireEvent.click(within(shortcuts).getByRole('button', { name: 'Focus analytics' }));
-    fireEvent.click(within(shortcuts).getByRole('button', { name: 'View breakdown' }));
-    fireEvent.click(within(shortcuts).getByRole('button', { name: 'Inspect metrics' }));
+    await user.click(within(shortcuts).getByRole('button', { name: 'Focus analytics' }));
+    await user.click(within(shortcuts).getByRole('button', { name: 'View breakdown' }));
+    await user.click(within(shortcuts).getByRole('button', { name: 'Inspect metrics' }));
   });
 
   it('changes time ranges and renders empty analytics safely', async () => {

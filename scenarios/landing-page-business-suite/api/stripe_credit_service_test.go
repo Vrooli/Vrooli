@@ -8,7 +8,6 @@ import (
 
 func TestStripeService_AddCredits(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
 	upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_credits", "production", 1000, 1, "credits")
@@ -130,7 +129,6 @@ func TestStripeService_AddCredits(t *testing.T) {
 
 func TestStripeService_ConsumeCredits(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
 	upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_consume", "production", 1000, 1, "credits")
@@ -217,7 +215,6 @@ func TestStripeService_ConsumeCredits(t *testing.T) {
 
 func TestStripeService_ConsumeCreditsIdempotent(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
 	upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_idem", "production", 1000, 1, "credits")
@@ -294,7 +291,6 @@ func TestStripeService_ConsumeCreditsIdempotent(t *testing.T) {
 
 func TestStripeService_GetBalance(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
 	upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_balance", "production", 1000, 1, "credits")
@@ -345,7 +341,6 @@ func TestStripeService_GetBalance(t *testing.T) {
 
 func TestStripeService_CreditsConcurrency(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
 	upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_concurrent", "production", 1000, 1, "credits")

@@ -14,7 +14,7 @@ const loadUserSessions = vi.fn();
 const handleRevokeSession = vi.fn();
 const handleRevokeAllSessions = vi.fn();
 const clearError = vi.fn();
-const useUserManagementMock = vi.fn<[], UseUserManagementReturn>();
+const useUserManagementMock = vi.fn<() => UseUserManagementReturn>();
 
 vi.mock('../components/AdminLayout', () => ({
   AdminLayout: ({ children }: { children: ReactNode }) => <div data-testid="admin-layout">{children}</div>,

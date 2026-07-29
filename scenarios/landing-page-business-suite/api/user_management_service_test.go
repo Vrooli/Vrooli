@@ -8,7 +8,6 @@ import (
 
 func TestUserManagementListPreservesRequestCancellation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

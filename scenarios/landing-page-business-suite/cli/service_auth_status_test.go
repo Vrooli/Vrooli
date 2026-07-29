@@ -16,6 +16,10 @@ import (
 
 func withAPIBase(t *testing.T, base string) {
 	t.Helper()
+	// NewApp persists admin sessions alongside the core CLI config. Isolate that
+	// directory so a real local login or a previous test cannot alter readiness
+	// preconditions for this test.
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	const envKey = "LANDING_PAGE_BUSINESS_SUITE_API_BASE"
 	previous, had := os.LookupEnv(envKey)
 	if err := os.Setenv(envKey, base); err != nil {

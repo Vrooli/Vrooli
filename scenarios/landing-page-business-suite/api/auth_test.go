@@ -19,7 +19,6 @@ import (
 
 func TestHandleAdminLogin_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAdminUsers(t, db)
 	cleanupAdminSessions(t, db)
 
@@ -50,9 +49,7 @@ func TestHandleAdminLogin_Success(t *testing.T) {
 	}
 
 	var resp LoginResponse
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
+	decodeJSONResponse(t, rr.Body.Bytes(), &resp)
 	if !resp.Authenticated {
 		t.Error("Expected authenticated=true")
 	}
@@ -63,7 +60,6 @@ func TestHandleAdminLogin_Success(t *testing.T) {
 
 func TestHandleAdminLogin_InvalidBody(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := &Server{
 		db:             db,
@@ -83,7 +79,6 @@ func TestHandleAdminLogin_InvalidBody(t *testing.T) {
 
 func TestHandleAdminLogin_InvalidCredentials(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAdminUsers(t, db)
 
 	// Create test admin user
@@ -115,7 +110,6 @@ func TestHandleAdminLogin_InvalidCredentials(t *testing.T) {
 
 func TestHandleAdminLogin_UserNotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAdminUsers(t, db)
 
 	server := &Server{
@@ -137,7 +131,6 @@ func TestHandleAdminLogin_UserNotFound(t *testing.T) {
 
 func TestHandleAdminLogout_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAdminSessions(t, db)
 
 	mockSession := NewMockSessionManager()
@@ -181,7 +174,6 @@ func TestHandleAdminLogout_Success(t *testing.T) {
 
 func TestHandleAdminLogout_NoSession(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := &Server{
 		db:             db,
@@ -201,7 +193,6 @@ func TestHandleAdminLogout_NoSession(t *testing.T) {
 
 func TestHandleAdminSession_ValidSession(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAdminSessions(t, db)
 
 	mockSession := NewMockSessionManager()
@@ -234,9 +225,7 @@ func TestHandleAdminSession_ValidSession(t *testing.T) {
 	}
 
 	var resp LoginResponse
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
+	decodeJSONResponse(t, rr.Body.Bytes(), &resp)
 	if !resp.Authenticated {
 		t.Error("Expected authenticated=true")
 	}
@@ -244,7 +233,6 @@ func TestHandleAdminSession_ValidSession(t *testing.T) {
 
 func TestHandleAdminSession_NoSession(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := &Server{
 		db:             db,
@@ -263,7 +251,6 @@ func TestHandleAdminSession_NoSession(t *testing.T) {
 
 func TestHandleAdminSession_ExpiredSession(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAdminSessions(t, db)
 
 	mockSession := NewMockSessionManager()
@@ -298,7 +285,6 @@ func TestHandleAdminSession_ExpiredSession(t *testing.T) {
 
 func TestRequireAdmin_ValidSession(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAdminSessions(t, db)
 
 	mockSession := NewMockSessionManager()
@@ -341,7 +327,6 @@ func TestRequireAdmin_ValidSession(t *testing.T) {
 
 func TestRequireAdmin_NoSession(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	server := &Server{
 		db:             db,
@@ -368,7 +353,6 @@ func TestRequireAdmin_NoSession(t *testing.T) {
 
 func TestRequireAdmin_ExpiredSession(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAdminSessions(t, db)
 
 	mockSession := NewMockSessionManager()
@@ -526,7 +510,50 @@ func TestResolveSecretFromProjectSecretsFile(t *testing.T) {
 	}
 }
 
+// isolateSecretResolution prevents production-configuration tests from
+// accidentally consulting a developer's user-level ~/.vrooli/secrets.json.
+// Each test controls the complete secret source it is asserting against.
+func isolateSecretResolution(t *testing.T) {
+	t.Helper()
+	root := t.TempDir()
+	path := filepath.Join(root, ".vrooli", "secrets.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir isolated secrets directory: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(`{}`), 0o600); err != nil {
+		t.Fatalf("write isolated secrets file: %v", err)
+	}
+	t.Setenv("VROOLI_ROOT", root)
+}
+
+func TestInitSessionManagerUsesDistinctEphemeralKeys(t *testing.T) {
+	isolateSecretResolution(t)
+	t.Setenv("SESSION_SECRET", "")
+
+	firstManager := initSessionManager()
+	firstRequest := httptest.NewRequest(http.MethodGet, "/", nil)
+	firstSession, err := firstManager.GetSession(firstRequest, "admin_session")
+	if err != nil {
+		t.Fatalf("first session: %v", err)
+	}
+	firstSession.Values["email"] = "admin@example.test"
+	firstResponse := httptest.NewRecorder()
+	if err := firstManager.SaveSession(firstRequest, firstResponse, firstSession); err != nil {
+		t.Fatalf("save first session: %v", err)
+	}
+
+	secondRequest := httptest.NewRequest(http.MethodGet, "/", nil)
+	for _, cookie := range firstResponse.Result().Cookies() {
+		secondRequest.AddCookie(cookie)
+	}
+	secondManager := initSessionManager()
+	if _, err := secondManager.GetSession(secondRequest, "admin_session"); err == nil {
+		t.Fatal("session signed with an ephemeral key was accepted after a fresh initialization")
+	}
+}
+
 func TestValidateProductionCredentialsRejectsMissingSessionSecret(t *testing.T) {
+	isolateSecretResolution(t)
 	t.Setenv("LPBS_ENVIRONMENT", "production")
 	t.Setenv("SESSION_SECRET", "")
 	t.Setenv("ADMIN_DEFAULT_PASSWORD", "strong-password-123")
@@ -538,9 +565,11 @@ func TestValidateProductionCredentialsRejectsMissingSessionSecret(t *testing.T) 
 }
 
 func TestValidateProductionCredentialsRejectsMissingAdminPassword(t *testing.T) {
+	isolateSecretResolution(t)
 	t.Setenv("LPBS_ENVIRONMENT", "production")
 	t.Setenv("SESSION_SECRET", "stable-session-secret")
 	t.Setenv("ADMIN_DEFAULT_PASSWORD", "")
+	t.Setenv("AUTH_MAGIC_LINK_BASE_URL", "https://app.example.test/auth/verify")
 
 	err := validateProductionCredentials()
 	if err == nil || !strings.Contains(err.Error(), "ADMIN_DEFAULT_PASSWORD") {
@@ -548,10 +577,73 @@ func TestValidateProductionCredentialsRejectsMissingAdminPassword(t *testing.T) 
 	}
 }
 
-func TestValidateProductionCredentialsAcceptsExplicitSecrets(t *testing.T) {
+func TestValidateProductionCredentialsRejectsWeakAdminPassword(t *testing.T) {
+	isolateSecretResolution(t)
+	t.Setenv("LPBS_ENVIRONMENT", "production")
+	t.Setenv("SESSION_SECRET", "stable-session-secret")
+	t.Setenv("ADMIN_DEFAULT_PASSWORD", "changeme123")
+	t.Setenv("AUTH_MAGIC_LINK_BASE_URL", "https://app.example.test/auth/verify")
+
+	err := validateProductionCredentials()
+	if err == nil || !strings.Contains(err.Error(), "at least 12 characters") {
+		t.Fatalf("validateProductionCredentials() error = %v, want weak admin password rejection", err)
+	}
+}
+
+func TestNewServerRejectsMissingProductionSessionSecretBeforeDatabaseConnection(t *testing.T) {
+	isolateSecretResolution(t)
+	t.Setenv("LPBS_ENVIRONMENT", "production")
+	t.Setenv("SESSION_SECRET", "")
+	t.Setenv("ADMIN_DEFAULT_PASSWORD", "strong-password-123")
+	t.Setenv("AUTH_MAGIC_LINK_BASE_URL", "https://app.example.test/auth/verify")
+
+	if _, err := NewServer(); err == nil || !strings.Contains(err.Error(), "SESSION_SECRET") {
+		t.Fatalf("NewServer() error = %v, want missing SESSION_SECRET rejection", err)
+	}
+}
+
+func TestPostgresSeedDoesNotContainAdminCredential(t *testing.T) {
+	seed, err := os.ReadFile(filepath.Join("..", "initialization", "postgres", "seed.sql"))
+	if err != nil {
+		t.Fatalf("read postgres seed: %v", err)
+	}
+	if strings.Contains(strings.ToLower(string(seed)), "password_hash") {
+		t.Fatal("tracked postgres seed must not contain an admin password hash")
+	}
+}
+
+func TestValidateProductionCredentialsRejectsMissingMagicLinkBaseURL(t *testing.T) {
+	isolateSecretResolution(t)
 	t.Setenv("LPBS_ENVIRONMENT", "production")
 	t.Setenv("SESSION_SECRET", "stable-session-secret")
 	t.Setenv("ADMIN_DEFAULT_PASSWORD", "strong-password-123")
+	t.Setenv("AUTH_MAGIC_LINK_BASE_URL", "")
+
+	err := validateProductionCredentials()
+	if err == nil || !strings.Contains(err.Error(), "AUTH_MAGIC_LINK_BASE_URL") {
+		t.Fatalf("validateProductionCredentials() error = %v, want missing AUTH_MAGIC_LINK_BASE_URL", err)
+	}
+}
+
+func TestValidateProductionCredentialsRejectsInsecureMagicLinkBaseURL(t *testing.T) {
+	isolateSecretResolution(t)
+	t.Setenv("LPBS_ENVIRONMENT", "production")
+	t.Setenv("SESSION_SECRET", "stable-session-secret")
+	t.Setenv("ADMIN_DEFAULT_PASSWORD", "strong-password-123")
+	t.Setenv("AUTH_MAGIC_LINK_BASE_URL", "http://localhost:3000/auth/verify")
+
+	err := validateProductionCredentials()
+	if err == nil || !strings.Contains(err.Error(), "absolute https URL") {
+		t.Fatalf("validateProductionCredentials() error = %v, want https URL validation", err)
+	}
+}
+
+func TestValidateProductionCredentialsAcceptsExplicitSecrets(t *testing.T) {
+	isolateSecretResolution(t)
+	t.Setenv("LPBS_ENVIRONMENT", "production")
+	t.Setenv("SESSION_SECRET", "stable-session-secret")
+	t.Setenv("ADMIN_DEFAULT_PASSWORD", "strong-password-123")
+	t.Setenv("AUTH_MAGIC_LINK_BASE_URL", "https://app.example.test/auth/verify")
 
 	if err := validateProductionCredentials(); err != nil {
 		t.Fatalf("validateProductionCredentials() error = %v", err)
@@ -600,7 +692,6 @@ func TestMockSessionManager_SaveError(t *testing.T) {
 
 func TestHandleAdminProfile_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAdminUsers(t, db)
 
 	passwordHash, _ := bcrypt.GenerateFromPassword([]byte("testpassword123"), bcrypt.DefaultCost)
@@ -632,9 +723,7 @@ func TestHandleAdminProfile_Success(t *testing.T) {
 	}
 
 	var resp AdminProfileResponse
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
+	decodeJSONResponse(t, rr.Body.Bytes(), &resp)
 	if resp.Email != "profile@test.com" {
 		t.Errorf("Expected email 'profile@test.com', got '%s'", resp.Email)
 	}
@@ -642,7 +731,6 @@ func TestHandleAdminProfile_Success(t *testing.T) {
 
 func TestHandleAdminProfileUpdate_SessionInvalidation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAdminUsers(t, db)
 	cleanupAdminSessions(t, db)
 

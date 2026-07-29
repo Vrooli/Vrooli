@@ -33,13 +33,10 @@ type PersistExistingSectionContentFn = typeof persistExistingSectionContent;
 type LoadVariantContextFn = typeof loadVariantContext;
 type UpdateSectionOrderFn = typeof updateSectionOrder;
 
-const loadSectionEditorMock = vi.fn<Parameters<LoadSectionEditorFn>, ReturnType<LoadSectionEditorFn>>();
-const persistExistingSectionContentMock = vi.fn<
-  Parameters<PersistExistingSectionContentFn>,
-  ReturnType<PersistExistingSectionContentFn>
->();
-const loadVariantContextMock = vi.fn<Parameters<LoadVariantContextFn>, ReturnType<LoadVariantContextFn>>();
-const updateSectionOrderMock = vi.fn<Parameters<UpdateSectionOrderFn>, ReturnType<UpdateSectionOrderFn>>();
+const loadSectionEditorMock = vi.fn<LoadSectionEditorFn>();
+const persistExistingSectionContentMock = vi.fn<PersistExistingSectionContentFn>();
+const loadVariantContextMock = vi.fn<LoadVariantContextFn>();
+const updateSectionOrderMock = vi.fn<UpdateSectionOrderFn>();
 
 vi.mock('../controllers/sectionEditorController', async () => {
   const actual = await vi.importActual<typeof import('../controllers/sectionEditorController')>('../controllers/sectionEditorController');
@@ -56,8 +53,8 @@ vi.mock('../controllers/sectionEditorController', async () => {
 type GetLandingConfigFn = typeof getLandingConfig;
 type ListVariantsFn = typeof listVariants;
 
-const getLandingConfigMock = vi.fn<Parameters<GetLandingConfigFn>, ReturnType<GetLandingConfigFn>>();
-const listVariantsMock = vi.fn<Parameters<ListVariantsFn>, ReturnType<ListVariantsFn>>();
+const getLandingConfigMock = vi.fn<GetLandingConfigFn>();
+const listVariantsMock = vi.fn<ListVariantsFn>();
 
 vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');
@@ -73,9 +70,9 @@ vi.mock('../services/section.service', async () => {
   const actual = await vi.importActual<typeof import('../services/section.service')>('../services/section.service');
   type LoadComparePreferenceFn = typeof loadComparePreference;
   type SaveComparePreferenceFn = typeof saveComparePreference;
-  const loadComparePreferenceMock = vi.fn<Parameters<LoadComparePreferenceFn>, ReturnType<LoadComparePreferenceFn>>()
+  const loadComparePreferenceMock = vi.fn<LoadComparePreferenceFn>()
     .mockReturnValue(null);
-  const saveComparePreferenceMock = vi.fn<Parameters<SaveComparePreferenceFn>, ReturnType<SaveComparePreferenceFn>>();
+  const saveComparePreferenceMock = vi.fn<SaveComparePreferenceFn>();
   return {
     ...actual,
     loadComparePreference: (...args: Parameters<LoadComparePreferenceFn>) => loadComparePreferenceMock(...args),

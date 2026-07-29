@@ -1,57 +1,34 @@
-import * as React from "react";
-import { cn } from "../lib/utils";
+/**
+ * @vrooliComponentSource react-component-library:Input
+ * @vrooliComponentVersion 1.1.0
+ * @vrooliComponentAdoption f9e2e33e-9af5-4a97-9d47-94071fec57ae
+ * @vrooliComponentAppliedAt 2026-07-28T15:19:47Z
+ * @vrooliComponentSourceSha256 460078e2e5c34ee506c7e70d3f0ee91625736eb1c43f1c98be7b7238b3903c30
+ * @vrooliComponentDriftHash 460078e2e5c34ee506c7e70d3f0ee91625736eb1c43f1c98be7b7238b3903c30
+ *
+ * This file was copied from React Component Library. Local edits are allowed;
+ * run "react-component-library adoptions refresh" to inspect drift.
+ */
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+import { forwardRef, type InputHTMLAttributes } from "react";
 
-export type InputSize = "sm" | "md" | "lg";
+export type InputProps = InputHTMLAttributes<HTMLInputElement>;
 
-const inputSizeClassName: Record<InputSize, string> = {
-  sm: "",
-  md: "px-4 py-3 text-base",
-  lg: "px-5 py-4 text-lg",
-};
+const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
 
-export type InputProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "size"> & {
-  size?: InputSize;
-};
-
-// text-base on mobile (16px) prevents iOS Safari auto-zoom on focus; md:text-sm restores desktop density. Shared with textareaBaseClassName below.
-export const inputBaseClassName =
-  "w-full rounded-lg border border-white/10 bg-surface-primary/70 px-3 py-2 text-base md:text-sm text-white placeholder:text-slate-500 focus:border-white/20 focus:outline-none focus:ring-1 focus:ring-white/20 disabled:cursor-not-allowed disabled:opacity-50";
-
-export const textareaBaseClassName = `${inputBaseClassName} resize-none`;
-
-const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, size = "sm", ...props }, ref) => {
+export const Input = forwardRef<HTMLInputElement, InputProps>(
+  function Input({ className, type, ...props }, ref) {
     return (
       <input
+        ref={ref}
         type={type}
-        className={cn(inputBaseClassName, inputSizeClassName[size], className)}
-        ref={ref}
+        className={cn(
+          "flex min-h-11 w-full rounded-control border border-app-border bg-app-surface px-3 py-2 text-base text-app-foreground placeholder:text-app-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50 disabled:cursor-not-allowed disabled:opacity-60 md:text-sm",
+          className,
+        )}
         {...props}
       />
     );
-  }
+  },
 );
-Input.displayName = "Input";
-
-export { Input };
-
-export interface TextareaProps
-  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
-  size?: InputSize;
-}
-
-const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className, size = "sm", ...props }, ref) => {
-    return (
-      <textarea
-        className={cn(textareaBaseClassName, inputSizeClassName[size], className)}
-        ref={ref}
-        {...props}
-      />
-    );
-  }
-);
-
-Textarea.displayName = "Textarea";
-
-export { Textarea };

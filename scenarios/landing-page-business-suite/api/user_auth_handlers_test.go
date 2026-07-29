@@ -14,7 +14,6 @@ import (
 
 func TestMagicLinkRequestHandler(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -51,7 +50,6 @@ func TestMagicLinkRequestHandler(t *testing.T) {
 
 func TestMagicLinkRequestHandler_InvalidEmail(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -75,7 +73,6 @@ func TestMagicLinkRequestHandler_InvalidEmail(t *testing.T) {
 
 func TestMagicLinkRequestHandler_RateLimiting(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -120,7 +117,6 @@ func TestMagicLinkRequestHandler_RateLimiting(t *testing.T) {
 
 func TestTokenRefreshHandler(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -178,7 +174,6 @@ func TestTokenRefreshHandler(t *testing.T) {
 
 func TestTokenRefreshHandler_InvalidToken(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -202,7 +197,6 @@ func TestTokenRefreshHandler_InvalidToken(t *testing.T) {
 
 func TestAuthMeHandler(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -267,7 +261,6 @@ func TestAuthMeHandler(t *testing.T) {
 
 func TestAuthMeHandler_Unauthorized(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -290,7 +283,6 @@ func TestProtectedEndpointsRejectUnauthenticated(t *testing.T) {
 	// Note: This is a basic test - full integration tests would use a test server
 
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -319,7 +311,6 @@ func TestProtectedEndpointsRejectUnauthenticated(t *testing.T) {
 
 func TestLogoutHandler(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -404,7 +395,6 @@ func TestRateLimiter(t *testing.T) {
 
 func TestMagicLinkVerifyHandler_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 
@@ -483,7 +473,6 @@ func TestMagicLinkVerifyHandler_Success(t *testing.T) {
 
 func TestMagicLinkVerifyHandler_ExpiredToken(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 
@@ -534,7 +523,6 @@ func TestMagicLinkVerifyHandler_ExpiredToken(t *testing.T) {
 
 func TestMagicLinkVerifyHandler_UsedToken(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 
@@ -591,7 +579,6 @@ func TestMagicLinkVerifyHandler_UsedToken(t *testing.T) {
 
 func TestMagicLinkVerifyHandler_InvalidToken(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -610,7 +597,6 @@ func TestMagicLinkVerifyHandler_InvalidToken(t *testing.T) {
 
 func TestMagicLinkVerifyHandler_MissingToken(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -836,7 +822,6 @@ func TestRedirectWithTokens_InvalidURL(t *testing.T) {
 
 func TestTokenRefresh_FromCookie(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -877,7 +862,6 @@ func TestTokenRefresh_FromCookie(t *testing.T) {
 
 func TestTokenRefresh_EmptyBodyWithCookie(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -917,7 +901,6 @@ func TestTokenRefresh_EmptyBodyWithCookie(t *testing.T) {
 
 func TestTokenRefresh_MissingToken(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)

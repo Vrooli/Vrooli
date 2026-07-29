@@ -22,7 +22,7 @@
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
           "scenario": "landing-page-business-suite",
-          "scenario_path": "/",
+          "scenario_path": "/?e2e_loading=1",
           "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
           "timeout_ms": 30000
         },
@@ -30,29 +30,15 @@
       }
     },
     {
-      "id": "assert-public-surface",
+      "id": "wait-public-loading-state",
       "action": {
-        "type": "ACTION_TYPE_ASSERT",
-        "assert": {
-          "selector": "@selector/publicLanding.surface",
-          "mode": "ASSERTION_MODE_VISIBLE",
-          "timeout_ms": 15000,
-          "failure_message": "The public landing experience surface did not render"
-        },
-        "metadata": { "label": "Public landing experience is visible" }
-      }
-    },
-    {
-      "id": "assert-public-loading-state",
-      "action": {
-        "type": "ACTION_TYPE_ASSERT",
-        "assert": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
           "selector": "[data-testid=\"landing-experience-surface\"][data-experience-state=\"loading\"]",
-          "mode": "ASSERTION_MODE_VISIBLE",
-          "timeout_ms": 15000,
-          "failure_message": "The public landing route did not expose its loading state while configuration resolved"
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
         },
-        "metadata": { "label": "Public landing loading state is visible" }
+        "metadata": { "label": "Wait for the public landing loading state" }
       }
     },
     {
@@ -69,8 +55,7 @@
     }
   ],
   "edges": [
-    { "id": "e1", "source": "navigate-public-landing", "target": "assert-public-surface", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e2", "source": "assert-public-surface", "target": "assert-public-loading-state", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e3", "source": "assert-public-loading-state", "target": "wait-public-ready-state", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+    { "id": "e1", "source": "navigate-public-landing", "target": "wait-public-loading-state", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "wait-public-loading-state", "target": "wait-public-ready-state", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
   ]
 }

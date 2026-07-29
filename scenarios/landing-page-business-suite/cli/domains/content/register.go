@@ -2,16 +2,22 @@ package content
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 
+	"connectrpc.com/connect"
 	"landing-page-business-suite/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
+	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func Register(deps support.Dependencies) cliapp.CommandGroup {
@@ -24,18 +30,117 @@ func Register(deps support.Dependencies) cliapp.CommandGroup {
 		{Name: "admin-assets-get", Method: "GET", Path: "/admin/assets/{id}", Description: "Get asset (admin)"},
 		{Name: "admin-assets-delete", Method: "DELETE", Path: "/admin/assets/{id}", Description: "Delete asset (admin)"},
 		{Name: "uploads-get", Method: "GET", Path: "/uploads/{path}", Description: "Fetch uploaded asset by path", AllowRawPath: true},
-		{Name: "seo", Method: "GET", Path: "/seo/{slug}", Description: "Get SEO metadata for variant"},
-		{Name: "admin-variant-seo-update", Method: "PUT", Path: "/admin/variants/{slug}/seo", Description: "Update variant SEO"},
 		{Name: "sitemap", Method: "GET", Path: "/sitemap.xml", Description: "Fetch sitemap", Root: true},
 		{Name: "robots", Method: "GET", Path: "/robots.txt", Description: "Fetch robots.txt", Root: true},
 	})
-	commands = append(commands, cliapp.Command{
+	commands = append(commands, seoCommand(deps), updateVariantSEOCommand(deps), cliapp.Command{
 		Name:        "admin-assets-upload",
 		NeedsAPI:    true,
 		Description: "Upload asset (admin)",
 		Run:         func(args []string) error { return runAssetsUpload(deps, args) },
 	})
 	return cliapp.CommandGroup{Title: "Content", Commands: commands}
+}
+
+func seoClient(deps support.Dependencies) (lpbsconnect.SeoServiceClient, error) {
+	core := deps.ScenarioApp()
+	if core == nil {
+		return nil, fmt.Errorf("scenario app is not initialized")
+	}
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	return lpbsconnect.NewSeoServiceClient(httpClient, baseURL), nil
+}
+
+func adminSEOClient(deps support.Dependencies) (lpbsconnect.SeoServiceClient, error) {
+	httpClient, baseURL, err := deps.AdminConnectHTTPClient()
+	if err != nil {
+		return nil, err
+	}
+	return lpbsconnect.NewSeoServiceClient(httpClient, baseURL), nil
+}
+
+func seoCommand(deps support.Dependencies) cliapp.Command {
+	operation := cliapp.Action(
+		func(op cliapp.OperationContext) (map[string]any, error) {
+			client, err := seoClient(deps)
+			if err != nil {
+				return nil, err
+			}
+			response, err := client.GetVariantSEO(context.Background(), connect.NewRequest(&lpbsv1.GetVariantSEORequest{Slug: strings.TrimSpace(op.Positional("slug"))}))
+			if err != nil {
+				return nil, cliapp.WrapAPIError("get variant SEO", err, nil)
+			}
+			return legacySEOResponse(response.Msg), nil
+		},
+		func(cliapp.OperationContext, map[string]any) cliapp.MutationReport {
+			return cliapp.MutationReport{Result: []string{"Fetched variant SEO metadata."}}
+		},
+	)
+	return (cliapp.Command{
+		Name:         "seo",
+		NeedsAPI:     true,
+		Description:  "Get SEO metadata for a variant through the generated Connect contract (SLUG) [--json]",
+		Args:         cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "slug", Required: true}}},
+		Architecture: cliapp.CommandArchitecture{Primitive: cliapp.PrimitiveAction},
+	}).WithPrimitive(operation)
+}
+
+func updateVariantSEOCommand(deps support.Dependencies) cliapp.Command {
+	operation := cliapp.Action(
+		func(op cliapp.OperationContext) (map[string]any, error) {
+			payload, err := support.ParseBody(op.Flag("body"))
+			if err != nil {
+				return nil, err
+			}
+			if len(payload) == 0 {
+				return nil, fmt.Errorf("--body JSON payload is required")
+			}
+			config := &sharedv1.VariantSEOConfig{}
+			if err := protojson.Unmarshal(payload, config); err != nil {
+				return nil, fmt.Errorf("parse SEO configuration: %w", err)
+			}
+			client, err := adminSEOClient(deps)
+			if err != nil {
+				return nil, err
+			}
+			response, err := client.UpdateVariantSEO(context.Background(), connect.NewRequest(&lpbsv1.UpdateVariantSEORequest{
+				Slug: strings.TrimSpace(op.Positional("slug")), Config: config,
+			}))
+			if err != nil {
+				return nil, cliapp.WrapAPIError("update variant SEO", err, nil)
+			}
+			return map[string]any{"success": response.Msg.GetSuccess(), "updated_at": response.Msg.GetUpdatedAt()}, nil
+		},
+		func(cliapp.OperationContext, map[string]any) cliapp.MutationReport {
+			return cliapp.MutationReport{Result: []string{"Updated variant SEO metadata."}}
+		},
+	)
+	return (cliapp.Command{
+		Name:         "admin-variant-seo-update",
+		NeedsAPI:     true,
+		Description:  "Update variant SEO through the generated Connect contract (SLUG --body JSON) [--json]",
+		Args:         cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "slug", Required: true}}, Flags: []cliapp.Flag{{Name: "body", Description: "SEO JSON payload or @file.json", Required: true}}},
+		Architecture: cliapp.CommandArchitecture{Primitive: cliapp.PrimitiveAction},
+	}).WithPrimitive(operation)
+}
+
+func legacySEOResponse(response *lpbsv1.SEOResponse) map[string]any {
+	result := map[string]any{
+		"site_name": response.GetSiteName(), "title": response.GetTitle(), "description": response.GetDescription(),
+		"og_title": response.GetOgTitle(), "og_description": response.GetOgDescription(), "noindex": response.GetNoindex(),
+	}
+	for key, value := range map[string]string{
+		"og_image_url": response.GetOgImageUrl(), "twitter_card": response.GetTwitterCard(), "canonical_url": response.GetCanonicalUrl(),
+		"favicon_url": response.GetFaviconUrl(), "apple_touch_icon_url": response.GetAppleTouchIconUrl(), "theme_primary_color": response.GetThemePrimaryColor(),
+	} {
+		if value != "" {
+			result[key] = value
+		}
+	}
+	if structuredData := response.GetStructuredData(); structuredData != nil {
+		result["structured_data"] = structuredData.AsMap()
+	}
+	return result
 }
 
 func runAssetsUpload(deps support.Dependencies, args []string) error {

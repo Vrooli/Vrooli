@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { TierLimit } from '../../../shared/api';
 import {
   getEditKey,
@@ -86,6 +86,14 @@ export function useTierLimitsForm(): UseTierLimitsFormReturn {
   const [saving, setSaving] = useState<string | null>(null);
   const [editedValues, setEditedValues] = useState<Record<string, string>>({});
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   /**
    * Add a toast message
@@ -108,14 +116,18 @@ export function useTierLimitsForm(): UseTierLimitsFormReturn {
     try {
       setLoading(true);
       const data = await fetchAllTierLimits();
+      if (!mountedRef.current) return;
       setLimits(data);
     } catch (error) {
+      if (!mountedRef.current) return;
       addToast({
         type: 'error',
         message: error instanceof Error ? error.message : 'Failed to load tier limits',
       });
     } finally {
-      setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+      }
     }
   }, [addToast]);
 
@@ -165,18 +177,22 @@ export function useTierLimitsForm(): UseTierLimitsFormReturn {
         setSaving(editKey);
         const update = buildTierLimitUpdate(parsedValue);
         await saveTierLimit(tierID, limit.limit_key, update);
+        if (!mountedRef.current) return;
         addToast({ type: 'success', message: `Limit for ${tierID}/${limit.limit_key} updated` });
 
         // Clear edited value and refresh
         clearEditedValue(editKey);
         await fetchLimits();
       } catch (error) {
+        if (!mountedRef.current) return;
         addToast({
           type: 'error',
           message: error instanceof Error ? error.message : 'Failed to update limit',
         });
       } finally {
-        setSaving(null);
+        if (mountedRef.current) {
+          setSaving(null);
+        }
       }
     },
     [editedValues, addToast, clearEditedValue, fetchLimits]

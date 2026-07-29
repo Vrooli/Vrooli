@@ -1,57 +1,49 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"connectrpc.com/connect"
+	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 )
 
 func TestUpdate_RejectsEnabledWithoutURL(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	paymentService := NewPaymentSettingsService(db)
 	stripeService := NewStripeServiceWithSettings(db, NewPlanService(db), paymentService)
 	anomalyService := NewPaymentAnomalyService(context.Background(), db, context.Background())
 
-	h := handleUpdateStripeSettings(paymentService, stripeService, anomalyService)
-	body := bytes.NewBufferString(`{"anomaly_webhook_enabled":true}`)
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodPut, "/api/v1/admin/settings/stripe", body))
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d (%s)", rec.Code, rec.Body.String())
+	h := stripeSettingsConnectHandler{payment: paymentService, stripe: stripeService, anomaly: anomalyService}
+	_, err := h.UpdateStripeSettings(context.Background(), connect.NewRequest(&landing_page_business_suite_v1.UpdateStripeSettingsRequest{AnomalyWebhookEnabled: protoBool(true)}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("expected invalid argument, got %v", err)
 	}
 }
 
 func TestUpdate_RejectsNonHTTPSWebhookURL(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	paymentService := NewPaymentSettingsService(db)
 	stripeService := NewStripeServiceWithSettings(db, NewPlanService(db), paymentService)
 	anomalyService := NewPaymentAnomalyService(context.Background(), db, context.Background())
 
-	h := handleUpdateStripeSettings(paymentService, stripeService, anomalyService)
-	body := bytes.NewBufferString(`{"anomaly_webhook_url":"http://insecure.example.com/hook"}`)
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodPut, "/api/v1/admin/settings/stripe", body))
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d (%s)", rec.Code, rec.Body.String())
+	h := stripeSettingsConnectHandler{payment: paymentService, stripe: stripeService, anomaly: anomalyService}
+	_, err := h.UpdateStripeSettings(context.Background(), connect.NewRequest(&landing_page_business_suite_v1.UpdateStripeSettingsRequest{AnomalyWebhookUrl: protoString("http://insecure.example.com/hook")}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("expected invalid argument, got %v", err)
 	}
 }
 
 func TestUpdate_RefreshesAnomalyConfig(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	var received atomic.Int32
@@ -69,7 +61,7 @@ func TestUpdate_RefreshesAnomalyConfig(t *testing.T) {
 		t.Fatalf("baseline config non-empty: %+v", cfg)
 	}
 
-	h := handleUpdateStripeSettings(paymentService, stripeService, anomalyService)
+	h := stripeSettingsConnectHandler{payment: paymentService, stripe: stripeService, anomaly: anomalyService}
 	// Convert stub.URL (http://) into an https-looking URL for validation,
 	// but we need the stub to receive. So we swap to a non-https check by
 	// testing the push-on-PATCH behaviour with a URL we know was accepted.
@@ -83,11 +75,8 @@ func TestUpdate_RefreshesAnomalyConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	body := bytes.NewBufferString(`{"anomaly_webhook_enabled":true}`)
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodPut, "/api/v1/admin/settings/stripe", body))
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d (%s)", rec.Code, rec.Body.String())
+	if _, err := h.UpdateStripeSettings(context.Background(), connect.NewRequest(&landing_page_business_suite_v1.UpdateStripeSettingsRequest{AnomalyWebhookEnabled: protoBool(true)})); err != nil {
+		t.Fatalf("update: %v", err)
 	}
 
 	// The config snapshot must have picked up the change without restarting.
@@ -117,19 +106,15 @@ func TestUpdate_RefreshesAnomalyConfig(t *testing.T) {
 
 func TestUpdate_AcceptsRateLimitsObject(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	paymentService := NewPaymentSettingsService(db)
 	stripeService := NewStripeServiceWithSettings(db, NewPlanService(db), paymentService)
 	anomalyService := NewPaymentAnomalyService(context.Background(), db, context.Background())
 
-	h := handleUpdateStripeSettings(paymentService, stripeService, anomalyService)
-	body := bytes.NewBufferString(`{"anomaly_rate_limits":{"checkout_subscription_missing":{"burst":3,"refill_seconds":300}}}`)
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodPut, "/api/v1/admin/settings/stripe", body))
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d (%s)", rec.Code, rec.Body.String())
+	h := stripeSettingsConnectHandler{payment: paymentService, stripe: stripeService, anomaly: anomalyService}
+	if _, err := h.UpdateStripeSettings(context.Background(), connect.NewRequest(&landing_page_business_suite_v1.UpdateStripeSettingsRequest{AnomalyRateLimits: protoString(`{"checkout_subscription_missing":{"burst":3,"refill_seconds":300}}`)})); err != nil {
+		t.Fatalf("update: %v", err)
 	}
 
 	cfg := anomalyService.currentConfig()
@@ -144,7 +129,6 @@ func TestUpdate_AcceptsRateLimitsObject(t *testing.T) {
 
 func TestReveal_AnomalyWebhookURL(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	paymentService := NewPaymentSettingsService(db)
@@ -163,22 +147,12 @@ func TestReveal_AnomalyWebhookURL(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	h := handleRevealStripeSecret(stripeService, paymentService)
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/settings/stripe/reveal?field=anomaly_webhook_url", nil)
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d (%s)", rec.Code, rec.Body.String())
-	}
-	var body map[string]string
-	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+	h := stripeSettingsConnectHandler{payment: paymentService, stripe: stripeService}
+	response, err := h.RevealStripeSecret(context.Background(), connect.NewRequest(&landing_page_business_suite_v1.RevealStripeSecretRequest{Field: "anomaly_webhook_url"}))
+	if err != nil {
 		t.Fatal(err)
 	}
-	if body["field"] != "anomaly_webhook_url" {
-		t.Fatalf("field: %q", body["field"])
-	}
-	if body["value"] != "https://hooks.example.com/anomaly" {
-		t.Fatalf("value: %q", body["value"])
+	if response.Msg.GetField() != "anomaly_webhook_url" || response.Msg.GetValue() != "https://hooks.example.com/anomaly" {
+		t.Fatalf("unexpected reveal response: %+v", response.Msg)
 	}
 }

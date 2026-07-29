@@ -1,22 +1,30 @@
-// Package variant_space owns verbatim variant-space HTTP transport.
+// Package variant_space owns verbatim variant-space Connect transport.
 package variant_space
 
-import "net/http"
+import (
+	"context"
 
-type Dependencies struct {
-	JSON func() []byte
-	Log  func(string, map[string]any)
+	"connectrpc.com/connect"
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/connectx"
+	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
+	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect"
+)
+
+type Handler struct {
+	json func() []byte
 }
 
-func Get(deps Dependencies) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		if _, err := w.Write(deps.JSON()); err != nil {
-			deps.Log("variant_space_write_failed", map[string]any{"error": err.Error()})
-		}
-	}
+func NewHandler(json func() []byte) *Handler {
+	return &Handler{json: json}
+}
+
+func (h *Handler) GetVariantSpace(context.Context, *connect.Request[lpbsv1.GetVariantSpaceRequest]) (*connect.Response[lpbsv1.GetVariantSpaceResponse], error) {
+	return connect.NewResponse(&lpbsv1.GetVariantSpaceResponse{RawJson: append([]byte(nil), h.json()...)}), nil
+}
+
+// RegisterRoutes mounts VariantSpaceService at its generated Connect path.
+func RegisterRoutes(router *mux.Router, json func() []byte) {
+	path, handler := lpbsconnect.NewVariantSpaceServiceHandler(NewHandler(json))
+	connectx.RegisterServices(router, connectx.ServiceMount{Path: path, Handler: handler})
 }

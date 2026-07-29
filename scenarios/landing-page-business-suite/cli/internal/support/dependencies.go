@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 	"landing-page-business-suite/cli/internal/clock"
@@ -27,6 +28,37 @@ import (
 type Dependencies struct {
 	Core  func() *cliapp.ScenarioApp
 	Clock clock.Clock
+}
+
+// adminConnectHTTPClient adds the persisted admin session to generated Connect
+// calls while preserving the scenario client's token and URL resolution.
+type adminConnectHTTPClient struct {
+	next    connect.HTTPClient
+	session string
+}
+
+func (c adminConnectHTTPClient) Do(request *http.Request) (*http.Response, error) {
+	// AddCookie preserves any cookies a caller or future Connect interceptor has
+	// already attached. Setting the header outright would silently discard them.
+	// #nosec G124 -- This is an outbound request cookie, not a Set-Cookie response.
+	// Browser-only attributes such as Secure and HttpOnly do not serialize into
+	// a Cookie request header and therefore cannot harden this transport.
+	request.AddCookie(&http.Cookie{Name: "admin_session", Value: c.session})
+	return c.next.Do(request)
+}
+
+// AdminConnectHTTPClient returns the root Connect client authorized with the
+// same admin session used by the CLI's existing admin commands.
+func (d Dependencies) AdminConnectHTTPClient() (connect.HTTPClient, string, error) {
+	session, err := d.LoadAdminSession()
+	if err != nil {
+		return nil, "", err
+	}
+	if strings.TrimSpace(session.Session) == "" {
+		return nil, "", fmt.Errorf("admin session not configured. Run admin-login first")
+	}
+	client, baseURL := cliapp.NewConnectHTTPClient(d.ScenarioApp())
+	return adminConnectHTTPClient{next: client, session: session.Session}, baseURL, nil
 }
 
 func (d Dependencies) Now() time.Time {

@@ -19,9 +19,6 @@ var (
 	// ErrAIGatewayUnavailable indicates the AI gateway service is not available.
 	ErrAIGatewayUnavailable = errors.New("AI gateway service unavailable")
 
-	// ErrOpenRouterError indicates an error from the OpenRouter API.
-	ErrOpenRouterError = errors.New("OpenRouter API error")
-
 	// ErrStreamingNotSupported indicates the client doesn't support HTTP streaming.
 	ErrStreamingNotSupported = errors.New("streaming not supported by client")
 )

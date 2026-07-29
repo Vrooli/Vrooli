@@ -4,13 +4,8 @@
 -- (config/variants/*.json and config/branding.json) and loaded into memory at startup.
 -- This seed file only seeds runtime/dynamic data.
 
--- Insert default admin user (OT-P0-008: ADMIN-AUTH)
--- Email: admin@localhost
--- Password: changeme123
--- IMPORTANT: Change this password in production!
-INSERT INTO admin_users (email, password_hash) VALUES
-('admin@localhost', '$2a$10$nhmpbhFPQUZZwEH.qaYHCeiKBWDvr8z5Z7eM4v62MmNwm.0N.5xeG')
-ON CONFLICT (email) DO NOTHING;
+-- The API seeds the administrator from the deployment secret store at startup.
+-- Credentials must never be represented in this tracked declarative seed file.
 
 -- Bundle products configuration (defines bundle structure; prices come from Stripe import)
 -- NOTE: Prices are no longer seeded here. Use the admin UI to import plans from Stripe.

@@ -61,7 +61,7 @@
 - [x] OT-P0-025 | Stripe environment config | Each landing page includes Stripe keys from environment variables
 - [x] OT-P0-026 | Stripe routes | Each landing page includes routes for creating checkout sessions and handling webhook events
 #### Landing Runtime & Fallback
-- [x] OT-P0-031 | API-driven landing config + fallback | Public `/` renders ordered sections, pricing, and download CTAs from `GET /api/v1/landing-config?variant=...`, and ships a baked fallback variant (sections + pricing copy) for API timeouts, auth failures, or admin misconfiguration.
+- [x] OT-P0-031 | API-driven landing config + fallback | Public `/` renders ordered sections, pricing, and download CTAs from `LandingConfigService.GetLandingConfig` (with an optional `variant_slug`), and ships a baked fallback variant (sections + pricing copy) for API timeouts, auth failures, or admin misconfiguration.
 
 #### Subscription, Credits, and Bundled Apps
 - [x] OT-P0-032 | Subscription-aware pricing APIs | Backend parses Stripe metadata (products/prices/intro pricing) and exposes `GET /plans`, `POST /billing/create-checkout-session`, `POST /billing/create-credits-checkout-session`, and `GET /billing/portal-url` with correct tier/weight info for both monthly/yearly plans plus $1 intro logic.

@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-07-27T20:41:43-04:00"
+    "last_validated_at": "2026-07-28T12:00:12-04:00"
   },
   "requirements": [
     {
@@ -8,7 +8,7 @@
       "title": "API-driven landing config + fallback",
       "status": "complete",
       "prd_ref": "OT-P0-031",
-      "description": "Public landing page renders ordered sections, pricing, and download entries from GET /api/v1/landing-config?variant=… and includes a baked fallback variant when the API fails or configuration prevents fetching live data.",
+      "description": "Public landing page renders ordered sections, pricing, and download entries from LandingConfigService.GetLandingConfig with an optional variant_slug and includes a baked fallback variant when the API fails or configuration prevents fetching live data.",
       "validation": [
         {
           "type": "test",

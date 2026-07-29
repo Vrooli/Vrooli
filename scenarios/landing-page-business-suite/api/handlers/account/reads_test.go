@@ -54,6 +54,17 @@ func TestGetEntitlementsMapsLookupFailureToInternal(t *testing.T) {
 	}
 }
 
+func TestGetEntitlementsRejectsOutOfRangeBillingCycleStart(t *testing.T) {
+	tooLarge := int(^uint(0) >> 1)
+	handler := NewHandler(fakeReader{entitlements: func(context.Context, string) (*accountdomain.EntitlementPayload, error) {
+		return &accountdomain.EntitlementPayload{BillingCycleStart: tooLarge}, nil
+	}}, testUser)
+	_, err := handler.GetEntitlements(context.Background(), connect.NewRequest(&lpbsv1.GetEntitlementsRequest{}))
+	if got := connect.CodeOf(err); got != connect.CodeInternal {
+		t.Fatalf("code = %v, want %v", got, connect.CodeInternal)
+	}
+}
+
 func TestRegisterRoutesServesGeneratedAccountProcedures(t *testing.T) {
 	router := mux.NewRouter()
 	RegisterRoutes(router, fakeReader{subscription: func(context.Context, string) (*shared.SubscriptionStatus, error) {

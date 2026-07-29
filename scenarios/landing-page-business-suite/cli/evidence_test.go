@@ -9,14 +9,15 @@ import (
 	"github.com/vrooli/cli-core/cliapptest"
 
 	"landing-page-business-suite/cli/domains"
+	"landing-page-business-suite/cli/internal/support"
 )
 
 // TestPrimitiveEvidenceArtifactCurrent keeps the generated, static primitive
-// evidence in lockstep with the manifest-backed Measures command tree. CLI
+// evidence in lockstep with the manifest-backed command tree. CLI
 // Health reads this artifact to verify that declared renderer primitives are
 // actually constructed by cli-core rather than asserted only in JSON metadata.
 func TestPrimitiveEvidenceArtifactCurrent(t *testing.T) {
-	groups, err := domains.SubcommandGroups(nil, manifestBytes)
+	groups, err := evidenceGroups()
 	if err != nil {
 		t.Fatalf("assemble manifest-backed commands: %v", err)
 	}
@@ -44,7 +45,7 @@ func updatePrimitiveEvidence(t *testing.T) bool {
 }
 
 func TestDeclaredMeasuresPrimitivesHaveObservedEvidence(t *testing.T) {
-	groups, err := domains.SubcommandGroups(nil, manifestBytes)
+	groups, err := evidenceGroups()
 	if err != nil {
 		t.Fatalf("assemble manifest-backed commands: %v", err)
 	}
@@ -61,4 +62,22 @@ func TestDeclaredMeasuresPrimitivesHaveObservedEvidence(t *testing.T) {
 			t.Errorf("command %q has no observed primitive evidence", path)
 		}
 	}
+}
+
+func evidenceGroups() ([]cliapp.SubcommandGroup, error) {
+	groups, err := domains.SubcommandGroups(nil, manifestBytes)
+	if err != nil {
+		return nil, err
+	}
+	var legacyCommands []cliapp.Command
+	for _, group := range domains.CommandGroups(support.Dependencies{}) {
+		for _, command := range group.Commands {
+			switch command.Name {
+			case "admin-stripe-settings", "admin-stripe-settings-update", "admin-stripe-secret", "variant-space", "seo", "admin-variant-seo-update", "landing-config",
+				"admin-bundles", "admin-bundle-price-update", "admin-coupon-mappings", "admin-coupons-create", "admin-coupons-delete", "admin-coupons-get", "admin-coupons-list", "admin-coupons-update", "admin-coupons-usage", "admin-plan-coupon-remove", "admin-plan-coupon-set", "admin-stripe-coupons-preview":
+				legacyCommands = append(legacyCommands, command)
+			}
+		}
+	}
+	return append(groups, cliapp.SubcommandGroup{Name: "legacy", Subcommands: legacyCommands}), nil
 }

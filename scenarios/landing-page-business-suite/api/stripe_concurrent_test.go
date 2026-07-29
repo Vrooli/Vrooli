@@ -22,7 +22,6 @@ import (
 // webhook processing and user-initiated cancellation.
 func TestConcurrent_WebhookVsUserCancel(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create required tables
@@ -160,7 +159,6 @@ func TestConcurrent_WebhookVsUserCancel(t *testing.T) {
 // webhook events for the same subscription don't create duplicate rows.
 func TestConcurrent_MultipleWebhooksSameSubscription(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create required tables
@@ -299,7 +297,6 @@ func TestConcurrent_MultipleWebhooksSameSubscription(t *testing.T) {
 // TestConcurrent_CreditsAndSubscription verifies concurrent credit and subscription operations.
 func TestConcurrent_CreditsAndSubscription(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create required tables
@@ -453,7 +450,6 @@ func TestConcurrent_CreditsAndSubscription(t *testing.T) {
 // concurrently for the same customer.
 func TestConcurrent_EmailMigration_DuringPaymentWebhook(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	_, err := db.Exec(`
@@ -624,7 +620,6 @@ func TestConcurrent_EmailMigration_DuringPaymentWebhook(t *testing.T) {
 // is processing concurrent authorization requests.
 func TestConcurrent_SubscriptionStatusChange_DuringDownloadAuth(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	_, err := db.Exec(`

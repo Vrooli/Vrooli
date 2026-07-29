@@ -31,6 +31,24 @@ This file lists places where the **physical structure** and the **documented men
 - **Actual code:** The file is `README.md` literally — by convention some doc tooling treats `README.md` as the index of its parent. num[sot]:one upstream docs-health check flags this as misplaced.
 - **Resolution:** Open. The file is correct in place; rename to `reference/api/index.md` if/when docs tooling enforces a strict naming convention.
 
+## UI: primitive migration is intentionally phased
+
+- **Documented model:** Shared UI primitives own the base interaction and visual
+  contracts, with surfaces composing them.
+- **Actual code:** The scenario now adopts released `Input`, `StatusBadge`, and
+  `EmptyState` primitives directly. `Textarea` has distinct ownership because
+  the catalog Input is intentionally an input-only primitive. The
+  download-settings and API-keys empty states use the adopted component;
+  legacy form controls and bespoke status-like presentation remain in other
+  surface files.
+- **Why:** Migrating form-heavy and data-dense flows wholesale would risk their
+  validation, keyboard behavior, and automation selectors. The migration is
+  proceeding through direct shared primitives and verified surface slices;
+  former Input sizing call sites now express their required classes directly.
+- **Resolution:** Open. `ui-health` currently misclassifies ordinary SEO-preview
+  copy as a status indicator (Scenario QA `knw-1785251414286568680`); retain
+  semantic preview markup while migrating genuine empty/status controls.
+
 ---
 
 When you fix one of the entries above, **delete it** rather than marking "done." This file should reflect *current* drift, not a changelog.

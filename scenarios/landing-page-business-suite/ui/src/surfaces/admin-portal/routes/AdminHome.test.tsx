@@ -140,7 +140,7 @@ const renderWithAuth = async (component: React.ReactElement) => {
 describe('AdminHome [REQ:ADMIN-MODES]', () => {
   const originalFetch = globalThis.fetch;
   const originalLocation = window.location;
-  let fetchAnalyticsSpy: ReturnType<typeof vi.spyOn> | null = null;
+  let fetchAnalyticsSpy: { mockRestore: () => void } | undefined;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -149,7 +149,7 @@ describe('AdminHome [REQ:ADMIN-MODES]', () => {
     window.localStorage.clear();
     mockedListVariants.mockResolvedValue(mockVariantsResponse);
     mockedCheckAdminSession.mockResolvedValue({ authenticated: true, email: 'ops@vrooli.dev', reset_enabled: false });
-    fetchAnalyticsSpy = vi.spyOn(analyticsController, 'fetchAnalyticsSummary').mockResolvedValue(mockAnalyticsSummary) as ReturnType<typeof vi.spyOn>;
+    fetchAnalyticsSpy = vi.spyOn(analyticsController, 'fetchAnalyticsSummary').mockResolvedValue(mockAnalyticsSummary);
     mockedGetStripeSettings.mockResolvedValue(mockStripeSettings);
     mockedResetDemoData.mockResolvedValue({ reset: true, timestamp: new Date().toISOString() });
   });

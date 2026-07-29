@@ -1,70 +1,40 @@
 # Landing Page Business Suite
 
-A SaaS landing page and operations suite with A/B testing, analytics, Stripe payments, subscriptions, credits, and an admin portal for content management.
+Landing Page Business Suite is a SaaS landing-page and business-operations
+scenario. It provides configurable public landing pages, A/B experimentation,
+analytics, Stripe billing, subscriptions, credits, download delivery, and an
+admin portal.
 
-## What's Included
+## Run locally
 
-- **React + Vite Frontend**: Modern UI with public landing and admin portal
-- **Go HTTP API**: Backend service with PostgreSQL
-- **A/B Testing**: Whole-page variant testing with weight-based traffic allocation
-- **Stripe Integration**: Subscriptions, one-time payments, credits, customer portal
-- **Analytics Dashboard**: Page views, clicks, conversions, per-variant metrics
-- **Admin Portal**: Content management without code changes
-
-## Quick Start
+From this directory, use the Vrooli lifecycle commands:
 
 ```bash
-# Start the scenario
 make start
-
-# View logs
 make logs
-
-# Stop
 make stop
 ```
 
-**Access Points:**
-| Surface | URL |
-|---------|-----|
-| Public Landing | `http://localhost:${UI_PORT}/` |
-| Admin Portal | `http://localhost:${UI_PORT}/admin` |
-| API Health | `http://localhost:${API_PORT}/health` |
-
-Vrooli allocates `API_PORT` and `UI_PORT` during lifecycle startup. Configure
-administrator credentials through the scenario's supported secret/configuration
-surface; do not rely on development defaults in a deployed environment.
+Vrooli assigns the API and UI ports during startup. Check the scenario status
+or logs for the active endpoints, including the API health endpoint.
 
 ## Documentation
 
-| Getting Started | Reference | Internal |
-|-----------------|-----------|----------|
-| [Quick Start](docs/QUICKSTART.md) | [API Reference](docs/reference/api/README.md) | [Architecture](docs/concepts/ARCHITECTURE.md) |
-| [Admin Guide](docs/guides/ADMIN_GUIDE.md) | [Configuration](docs/guides/CONFIGURATION_GUIDE.md) | [Seams](docs/internal/SEAMS.md) |
-| [Content Guide](docs/guides/CONTENT_GUIDE.md) | [Security](docs/reference/SECURITY.md) | [Progress](docs/internal/PROGRESS.md) |
-| [Deployment](docs/guides/DEPLOYMENT.md) | [Stripe Webhooks](docs/reference/STRIPE_WEBHOOKS.md) | [Known Issues](docs/internal/PROBLEMS.md) |
+- [Quick start](docs/QUICKSTART.md)
+- [Architecture](docs/concepts/ARCHITECTURE.md)
+- [Security](docs/reference/SECURITY.md)
+- [Configuration guide](docs/guides/CONFIGURATION_GUIDE.md)
+- [API overview](docs/reference/api/README.md)
+- [Documentation manifest](docs/manifest.json)
 
-**Full documentation:** See [docs/manifest.json](docs/manifest.json) for the complete navigation structure.
+## Development checks
 
-## Configuration
+Run the comprehensive, server-owned suite with:
 
-Key configuration files:
+```bash
+vrooli scenario test landing-page-business-suite
+```
 
-| File | Purpose |
-|------|---------|
-| `.vrooli/service.json` | Lifecycle, ports, dependencies |
-| `config/branding.json` | Site branding (name, logo, colors) |
-| `.vrooli/styling.json` | Design tokens and CSS theming |
-| `config/variant_space.json` | A/B testing axes (persona, JTBD, style) |
-| `config/variants/*.json` | Variant content snapshots |
-| `.vrooli/fallback/fallback.json` | Offline-safe landing payload |
-
-## Tech Stack
-
-**Frontend:** React 18, TypeScript, Vite, TailwindCSS, shadcn/ui, Lucide icons
-
-**Backend:** Go, `net/http`, PostgreSQL
-
-## Requirements
-
-See [PRD.md](PRD.md) for the full product requirements document with operational targets.
+For focused Go checks, run `go test ./... -timeout=600s` from `api/` or
+`cli/`. Do not start scenario binaries directly; use the lifecycle commands
+above.

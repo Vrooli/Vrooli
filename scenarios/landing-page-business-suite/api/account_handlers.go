@@ -5,12 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"time"
 
-	"github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	confighttp "landing-page-business-suite-api/handlers/config"
 	downloadhttp "landing-page-business-suite-api/handlers/download"
 )
 
@@ -21,12 +18,6 @@ type managedDownloadResolutionError struct {
 
 func (e *managedDownloadResolutionError) Error() string { return e.err.Error() }
 func (e *managedDownloadResolutionError) Unwrap() error { return e.err }
-
-const landingConfigTestModeDelay = 3 * time.Second
-
-func handleLandingConfig(service *LandingConfigService) http.HandlerFunc {
-	return confighttp.Landing(confighttp.Dependencies{Get: func(ctx context.Context, variant string) (any, error) { return service.GetLandingConfig(ctx, variant) }, TestMode: database.IsTestMode, Sleep: time.Sleep, Delay: landingConfigTestModeDelay, WriteJSON: writeJSON, WriteError: writeJSONError, Log: logStructuredError})
-}
 
 func handleDownloads(authorizer *DownloadAuthorizer, hosting *DownloadHostingService, plans *PlanService) http.HandlerFunc {
 	return downloadhttp.Authorize(downloadhttp.Dependencies{

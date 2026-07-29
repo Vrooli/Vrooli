@@ -1,10 +1,11 @@
 package main
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"landing-page-business-suite-api/internal/testutil"
 
 	"github.com/gorilla/mux"
 )
@@ -21,7 +22,7 @@ func TestHandleGetPublicSections_Success(t *testing.T) {
 	// Get the first available variant slug from the config store
 	variants := cs.ListVariants()
 	if len(variants) == 0 {
-		t.Skip("no variants available in test config store")
+		t.Fatal("tracked test configuration must contain at least one variant")
 	}
 	slug := variants[0].Variant.Slug
 
@@ -31,14 +32,10 @@ func TestHandleGetPublicSections_Success(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	sections, ok := resp["sections"].([]interface{})
 	if !ok {
@@ -65,13 +62,13 @@ func TestHandleGetPublicSections_FiltersDisabled(t *testing.T) {
 	// First check if we can get a variant with sections
 	variants := cs.ListVariants()
 	if len(variants) == 0 {
-		t.Skip("no variants available in test config store")
+		t.Fatal("tracked test configuration must contain at least one variant")
 	}
 	slug := variants[0].Variant.Slug
 
 	variant, err := cs.GetVariant(slug)
 	if err != nil {
-		t.Skipf("could not get variant %s: %v", slug, err)
+		t.Fatalf("get tracked variant %s: %v", slug, err)
 	}
 
 	// Count enabled vs disabled sections
@@ -89,14 +86,10 @@ func TestHandleGetPublicSections_FiltersDisabled(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d", w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	sections, ok := resp["sections"].([]interface{})
 	if !ok {
@@ -119,9 +112,7 @@ func TestHandleGetPublicSections_MissingSlug(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected status 400, got %d", w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusBadRequest)
 }
 
 func TestHandleGetPublicSections_NotFound(t *testing.T) {
@@ -135,9 +126,7 @@ func TestHandleGetPublicSections_NotFound(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
-	if w.Code != http.StatusNotFound {
-		t.Errorf("expected status 404, got %d", w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusNotFound)
 }
 
 // ============================================================================
@@ -149,13 +138,13 @@ func TestHandleGetSections_ReturnsAllSections(t *testing.T) {
 
 	variants := cs.ListVariants()
 	if len(variants) == 0 {
-		t.Skip("no variants available in test config store")
+		t.Fatal("tracked test configuration must contain at least one variant")
 	}
 	slug := variants[0].Variant.Slug
 
 	variant, err := cs.GetVariant(slug)
 	if err != nil {
-		t.Skipf("could not get variant %s: %v", slug, err)
+		t.Fatalf("get tracked variant %s: %v", slug, err)
 	}
 
 	handler := handleGetSectionsFromConfigStore(cs)
@@ -165,14 +154,10 @@ func TestHandleGetSections_ReturnsAllSections(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	sections, ok := resp["sections"].([]interface{})
 	if !ok {
@@ -190,13 +175,13 @@ func TestHandleGetSections_IncludesDisabled(t *testing.T) {
 
 	variants := cs.ListVariants()
 	if len(variants) == 0 {
-		t.Skip("no variants available in test config store")
+		t.Fatal("tracked test configuration must contain at least one variant")
 	}
 	slug := variants[0].Variant.Slug
 
 	variant, err := cs.GetVariant(slug)
 	if err != nil {
-		t.Skipf("could not get variant %s: %v", slug, err)
+		t.Fatalf("get tracked variant %s: %v", slug, err)
 	}
 
 	// Check if there are any disabled sections
@@ -215,14 +200,10 @@ func TestHandleGetSections_IncludesDisabled(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d", w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	sections, ok := resp["sections"].([]interface{})
 	if !ok {
@@ -259,9 +240,7 @@ func TestHandleGetSections_MissingSlug(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected status 400, got %d", w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusBadRequest)
 }
 
 func TestHandleGetSections_NotFound(t *testing.T) {
@@ -275,9 +254,7 @@ func TestHandleGetSections_NotFound(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
-	if w.Code != http.StatusNotFound {
-		t.Errorf("expected status 404, got %d", w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusNotFound)
 }
 
 // ============================================================================
@@ -289,7 +266,7 @@ func TestHandleGetPublicSections_EmptySections(t *testing.T) {
 
 	variants := cs.ListVariants()
 	if len(variants) == 0 {
-		t.Skip("no variants available in test config store")
+		t.Fatal("tracked test configuration must contain at least one variant")
 	}
 
 	// This test ensures the handler doesn't crash on variants with no sections
@@ -304,14 +281,10 @@ func TestHandleGetPublicSections_EmptySections(t *testing.T) {
 	handler.ServeHTTP(w, req)
 
 	// Should not panic and should return valid JSON
-	if w.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d", w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	if _, ok := resp["sections"]; !ok {
 		t.Error("expected 'sections' key in response")
@@ -323,7 +296,7 @@ func TestHandleGetSections_ResponseFormat(t *testing.T) {
 
 	variants := cs.ListVariants()
 	if len(variants) == 0 {
-		t.Skip("no variants available in test config store")
+		t.Fatal("tracked test configuration must contain at least one variant")
 	}
 	slug := variants[0].Variant.Slug
 
@@ -334,9 +307,7 @@ func TestHandleGetSections_ResponseFormat(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d", w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	// Verify Content-Type header
 	contentType := w.Header().Get("Content-Type")

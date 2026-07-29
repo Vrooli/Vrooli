@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -159,8 +160,20 @@ func validateProductionCredentials() error {
 	if strings.TrimSpace(resolveSecret("SESSION_SECRET")) == "" {
 		return fmt.Errorf("SESSION_SECRET must be configured in production")
 	}
-	if strings.TrimSpace(resolveSecret("ADMIN_DEFAULT_PASSWORD")) == "" {
+	adminPassword := resolveSecret("ADMIN_DEFAULT_PASSWORD")
+	if strings.TrimSpace(adminPassword) == "" {
 		return fmt.Errorf("ADMIN_DEFAULT_PASSWORD must be configured in production")
+	}
+	if len([]rune(adminPassword)) < 12 {
+		return fmt.Errorf("ADMIN_DEFAULT_PASSWORD must be at least 12 characters in production")
+	}
+	magicLinkBaseURL := strings.TrimSpace(resolveSecret("AUTH_MAGIC_LINK_BASE_URL"))
+	if magicLinkBaseURL == "" {
+		return fmt.Errorf("AUTH_MAGIC_LINK_BASE_URL must be configured in production")
+	}
+	parsedMagicLinkBaseURL, err := url.Parse(magicLinkBaseURL)
+	if err != nil || parsedMagicLinkBaseURL.Scheme != "https" || parsedMagicLinkBaseURL.Host == "" {
+		return fmt.Errorf("AUTH_MAGIC_LINK_BASE_URL must be an absolute https URL in production")
 	}
 	return nil
 }

@@ -7,8 +7,8 @@ import type { getStripeImportPreview, importStripePlans } from '../../../shared/
 type GetStripeImportPreviewFn = typeof getStripeImportPreview;
 type ImportStripePlansFn = typeof importStripePlans;
 
-const getStripeImportPreviewMock = vi.fn<Parameters<GetStripeImportPreviewFn>, ReturnType<GetStripeImportPreviewFn>>();
-const importStripePlansMock = vi.fn<Parameters<ImportStripePlansFn>, ReturnType<ImportStripePlansFn>>();
+const getStripeImportPreviewMock = vi.fn<GetStripeImportPreviewFn>();
+const importStripePlansMock = vi.fn<ImportStripePlansFn>();
 
 vi.mock('../../../shared/api/billing', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api/billing')>('../../../shared/api/billing');

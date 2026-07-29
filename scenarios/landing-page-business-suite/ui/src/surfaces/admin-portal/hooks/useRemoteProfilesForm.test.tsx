@@ -18,12 +18,12 @@ type RevokeRemoteFn = typeof revokeRemoteProfileSessions;
 type RevokeIncomingFn = typeof revokeIncomingRemoteProfileSession;
 type CreateFn = typeof createRemoteProfile;
 
-const fetchRemoteProfilesMock = vi.fn<Parameters<FetchRemoteProfilesFn>, ReturnType<FetchRemoteProfilesFn>>();
-const fetchIncomingRemoteProfileSessionsMock = vi.fn<Parameters<FetchIncomingFn>, ReturnType<FetchIncomingFn>>();
-const getRemoteProfileSessionLinksMock = vi.fn<Parameters<GetLinksFn>, ReturnType<GetLinksFn>>();
-const revokeRemoteProfileSessionsMock = vi.fn<Parameters<RevokeRemoteFn>, ReturnType<RevokeRemoteFn>>();
-const revokeIncomingRemoteProfileSessionMock = vi.fn<Parameters<RevokeIncomingFn>, ReturnType<RevokeIncomingFn>>();
-const createRemoteProfileMock = vi.fn<Parameters<CreateFn>, ReturnType<CreateFn>>();
+const fetchRemoteProfilesMock = vi.fn<FetchRemoteProfilesFn>();
+const fetchIncomingRemoteProfileSessionsMock = vi.fn<FetchIncomingFn>();
+const getRemoteProfileSessionLinksMock = vi.fn<GetLinksFn>();
+const revokeRemoteProfileSessionsMock = vi.fn<RevokeRemoteFn>();
+const revokeIncomingRemoteProfileSessionMock = vi.fn<RevokeIncomingFn>();
+const createRemoteProfileMock = vi.fn<CreateFn>();
 
 vi.mock('../services/remoteProfiles.service', async () => {
   const actual = await vi.importActual<typeof import('../services/remoteProfiles.service')>(

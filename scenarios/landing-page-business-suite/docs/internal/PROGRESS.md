@@ -6,6 +6,28 @@ This file tracks progress on scenario improvements made by AI agents.
 
 | Date | Author | Change Summary |
 |------|--------|----------------|
+| 2026-07-28 | Codex | Decomposed the verified Stripe plan-update pipeline into lookup, requested-field, Stripe synchronization, tier derivation, metadata, and invariant-validation steps. The former complexity-51 method is now complexity 11 (largest helper 13); focused pricing contracts and the complete API suite pass. |
+| 2026-07-28 | Codex | Fixed a real API coverage flake: admin-profile tests depended on whichever test first seeded the shared Testcontainers admin credential. Each profile test now installs its own explicit seeded credential after database setup. The focused coverage suite and two consecutive complete `go test -count=1 -covermode=atomic -coverprofile=... ./...` API runs pass. |
+| 2026-07-28 | Codex | Ran comprehensive Test Genie validation after API fixture and UI component work. All phases except Unit Health passed; the reported API coverage failure does not reproduce with its exact command, while Unit Health also retains its already-filed fabricated `runtime/` surface. UI tests (2,023), typecheck, lint, production build, and full API tests pass. The captured baseline cannot be compared because its pinned Test Genie run was evicted from the provider index; filed `knw-1785253453222658957`. |
+| 2026-07-28 | Codex | Consolidated API test-fixture ownership: removed 489 redundant `defer db.Close()` calls covered by `setupTestDB(t).Cleanup`, and centralized handler JSON decoding while retaining typed response and behavioral assertions. The complete API suite passes; Tidiness no longer reports the former 52-location, 1,887-line response-decoding cluster as debt. |
+| 2026-07-28 | Codex | Hardened production credential startup: secret tests now isolate user-local state, development session keys are proven unique per initialization, production rejects missing `SESSION_SECRET` before database access and rejects short admin passwords, and the tracked Postgres seed no longer contains an admin credential hash. Focused and complete API suites pass; `gosec -include=G101,G124 ./...` reports zero issues. |
+| 2026-07-28 | Codex | Removed the scenario’s 91 MB generated coverage archive (recoverably moved to trash), confirmed other stale Phase 1 artifacts were already absent, and normalized all existing tracked API Go sources to mode 644. Coverage/cache ignores were already present. |
+| 2026-07-28 | Codex | Identified the LPBS UI manifest overlap as an inherited `landing-page-react-vite` template contract defect; kept the template unchanged because the modernization plan explicitly scopes templates out. Filed Quality Health false-positive `knw-1785248564778578609`: its `as any` detector matches the prose phrase “has any,” not a TypeScript cast. |
+| 2026-07-28 | Codex | Made the canonical API test-database fixture own `t.Cleanup` lifecycle registration while retaining compatibility with existing explicit closes; documented the safe test-only database boundary in `SEAMS.md`. |
+| 2026-07-28 | Codex | Extracted Stripe-price verification and plan-pricing reconciliation from `CreateBundlePrice` into a focused pricing seam; added a regression test that rejects negative Stripe amounts. Focused plan-service contracts pass; final comprehensive validation remains required after this change. |
+| 2026-07-28 | Codex | Decomposed the 1,039-line Download Settings route into focused app-card, mobile-storefront, controls, and empty-state components; preserved artifact-hosting, entitlement, drag/reorder, and save flows. UI typecheck, ESLint, focused route tests, and the full 2,021-test UI suite pass. |
+| 2026-07-28 | Codex | Migrated billing-handler status assertions to the shared HTTP assertion seam, preserving non-fatal test semantics and response-body diagnostics; billing-focused and full API tests remain green. |
+| 2026-07-28 | Codex | Split proto metadata conversion and plan catalog normalization/Stripe import mapping from subscription price operations; focused Stripe/catalog contracts and the complete API suite remain green. |
+| 2026-07-28 | Codex | Split atomic reserve-and-charge, credit reservations, finalization/release/expiry cleanup, UUID generation, and usage adjustments from reporting, limits, auth, and HTTP handling; reservation contracts and the complete API suite remain green. |
+| 2026-07-28 | Codex | Split remote-profile outbound HTTP client behavior, encrypted-session/record persistence, and session/proxy orchestration from core profile lifecycle management; targeted remote contracts and the complete API suite remain green. |
+| 2026-07-28 | Codex | Split subscription-catalog JSON load/save and verified Stripe price update workflows from `PlanStore`; preserved atomic persistence, bundle-product verification, and full API regression coverage while reducing the core store to 800 lines. |
+| 2026-07-28 | Codex | Split deterministic landing fallback parsing, normalization, response construction, and cloning from live ConfigStore assembly; both focused fallback contracts and the complete API suite remain green. |
+| 2026-07-28 | Codex | Reduced `main.go` to runtime composition by moving schema application and default download/tier seeding into a focused startup-seed unit; the complete API suite, lint, and vet pass. |
+| 2026-07-28 | Codex | Split AI-gateway streaming credit reservations/SSE handling and OpenRouter client construction from request orchestration; the core service is now below the long-file threshold. |
+| 2026-07-28 | Codex | Separated subscription-limit HTTP handlers from limits persistence and policy; the domain service is now below the long-file threshold. |
+| 2026-07-28 | Codex | Separated Stripe intro-offer eligibility, redemption auditing, invoice extraction, and anomaly reporting from coupon CRUD/import; the coupon service is now below the long-file threshold. |
+| 2026-07-28 | Codex | Split user-auth token refresh, JWT validation, and session revocation into a focused token-lifecycle file; preserved the existing auth contract while reducing the core service below the long-file threshold. |
+| 2026-07-28 | Codex | Extracted the shared AES-GCM persisted-secret primitive for API keys and remote-profile sessions; added encryption, tamper-rejection, and development pass-through tests. |
 | 2026-01-16 | Claude (failure-topography) | Backend JSON error responses, InlineAlert component, replaced alert() with proper UI feedback in Customization |
 | 2026-01-16 | Claude (react-stability) | Fixed VariantEditor/SectionEditor hook deps, array bounds checks, crash-prone access patterns |
 | 2026-01-16 | Claude (failure-topography) | Added ApiError classification, timeout handling, graceful degradation across checkout/login/feedback flows |
@@ -975,7 +997,7 @@ Building on previous failure topography work, this session completed structured 
 
 All public-facing endpoints now use `writeJSONError()` with proper logging:
 
-- `handleLandingConfig`: Structured error with logging context (variant parameter)
+- `handleLandingConfig`: Historical REST handler; superseded by `LandingConfigService.GetLandingConfig` during the Connect migration.
 - `handlePlans`: Structured error for pricing overview failures
 - `handleMeSubscription`: Structured error with user context
 - `handleMeCredits`: Structured error with user context
@@ -1030,7 +1052,7 @@ All errors follow this structure (matching frontend `ApiError` class):
 
 | File | Functions Updated |
 |------|-------------------|
-| `api/account_handlers.go` | handleLandingConfig, handlePlans, handleMeSubscription, handleMeCredits, handleEntitlements, handleDownloads |
+| `api/account_handlers.go` | Historical record: `handleLandingConfig` has since moved to `LandingConfigService.GetLandingConfig`; handlePlans, handleMeSubscription, handleMeCredits, handleEntitlements, handleDownloads |
 | `api/feedback_handlers.go` | handleFeedbackCreate, handleFeedbackList, handleFeedbackGet, handleFeedbackUpdateStatus, handleFeedbackDelete, handleFeedbackDeleteBulk |
 | `api/variant_handlers.go` | handleVariantSelect, handlePublicVariantBySlug, handleVariantBySlug, handleVariantCreate, handleVariantCreateWithSections, handleVariantExport, handleVariantImport, handleVariantSnapshotSync |
 

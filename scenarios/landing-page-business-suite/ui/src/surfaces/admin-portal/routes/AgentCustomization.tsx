@@ -8,7 +8,7 @@ import { textareaClassName } from '../components/formFieldClasses';
 import { LAYOUT } from '../config/layout.constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
-import { Textarea } from '../../../shared/ui/input';
+import { Textarea } from '../../../shared/ui/textarea';
 import { InlineAlert } from '../../../shared/ui/InlineAlert';
 import { useAgentForm } from '../hooks/useAgentForm';
 

@@ -15,13 +15,10 @@ type FetchDocContentFn = typeof fetchDocContent;
 type FindFirstMarkdownFileFn = typeof findFirstMarkdownFile;
 type GetExpandedPathsForDocPathFn = typeof getExpandedPathsForDocPath;
 
-const fetchDocsTreeMock = vi.fn<Parameters<FetchDocsTreeFn>, ReturnType<FetchDocsTreeFn>>();
-const fetchDocContentMock = vi.fn<Parameters<FetchDocContentFn>, ReturnType<FetchDocContentFn>>();
-const findFirstMarkdownFileMock = vi.fn<Parameters<FindFirstMarkdownFileFn>, ReturnType<FindFirstMarkdownFileFn>>();
-const getExpandedPathsForDocPathMock = vi.fn<
-  Parameters<GetExpandedPathsForDocPathFn>,
-  ReturnType<GetExpandedPathsForDocPathFn>
->();
+const fetchDocsTreeMock = vi.fn<FetchDocsTreeFn>();
+const fetchDocContentMock = vi.fn<FetchDocContentFn>();
+const findFirstMarkdownFileMock = vi.fn<FindFirstMarkdownFileFn>();
+const getExpandedPathsForDocPathMock = vi.fn<GetExpandedPathsForDocPathFn>();
 
 vi.mock('../services/docs.service', () => ({
   fetchDocsTree: (...args: Parameters<FetchDocsTreeFn>) => fetchDocsTreeMock(...args),

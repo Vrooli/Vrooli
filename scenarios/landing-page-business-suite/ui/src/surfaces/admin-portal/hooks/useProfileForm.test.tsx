@@ -13,9 +13,9 @@ type FetchAdminProfileFn = typeof fetchAdminProfile;
 type UpdateAdminEmailFn = typeof updateAdminEmail;
 type UpdateAdminPasswordFn = typeof updateAdminPassword;
 
-const fetchAdminProfileMock = vi.fn<Parameters<FetchAdminProfileFn>, ReturnType<FetchAdminProfileFn>>();
-const updateAdminEmailMock = vi.fn<Parameters<UpdateAdminEmailFn>, ReturnType<UpdateAdminEmailFn>>();
-const updateAdminPasswordMock = vi.fn<Parameters<UpdateAdminPasswordFn>, ReturnType<UpdateAdminPasswordFn>>();
+const fetchAdminProfileMock = vi.fn<FetchAdminProfileFn>();
+const updateAdminEmailMock = vi.fn<UpdateAdminEmailFn>();
+const updateAdminPasswordMock = vi.fn<UpdateAdminPasswordFn>();
 
 vi.mock('../services/profile.service', async () => {
   const actual = await vi.importActual<typeof import('../services/profile.service')>(

@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/database"
-	delivery "landing-page-business-suite-api/internal/download"
+	"landing-page-business-suite-api/internal/delivery"
 )
 
 // DownloadService provides helpers for retrieving bundle download metadata.

@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"landing-page-business-suite-api/internal/intelligence"
 )
 
 // OpenRouterClient is the interface for communicating with the OpenRouter API.
@@ -139,7 +141,7 @@ func (c *httpOpenRouterClient) Chat(ctx context.Context, req OpenRouterChatReque
 			"status": resp.StatusCode,
 			"body":   string(bodyBytes),
 		})
-		return nil, fmt.Errorf("%w: status %d", ErrOpenRouterError, resp.StatusCode)
+		return nil, fmt.Errorf("%w: status %d", intelligence.ErrProvider, resp.StatusCode)
 	}
 
 	// Parse the OpenRouter response format
@@ -208,7 +210,7 @@ func (c *httpOpenRouterClient) ChatStream(ctx context.Context, req OpenRouterCha
 
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("%w: status %d: %s", ErrOpenRouterError, resp.StatusCode, string(bodyBytes))
+		return nil, fmt.Errorf("%w: status %d: %s", intelligence.ErrProvider, resp.StatusCode, string(bodyBytes))
 	}
 
 	// Parse SSE stream
@@ -340,59 +342,5 @@ func defaultString(value, fallback string) string {
 	return fallback
 }
 
-// MockOpenRouterClient is a test double for OpenRouterClient.
-type MockOpenRouterClient struct {
-	ChatFn       func(ctx context.Context, req OpenRouterChatRequest) (*OpenRouterChatResponse, error)
-	ChatStreamFn func(ctx context.Context, req OpenRouterChatRequest, onChunk func(content string)) (*OpenRouterUsage, error)
-	VerifyFn     func(ctx context.Context) error
-}
-
-// Chat implements OpenRouterClient.
-func (m *MockOpenRouterClient) Chat(ctx context.Context, req OpenRouterChatRequest) (*OpenRouterChatResponse, error) {
-	if m.ChatFn != nil {
-		return m.ChatFn(ctx, req)
-	}
-	return &OpenRouterChatResponse{
-		ID:      "mock-id",
-		Model:   req.Model,
-		Content: "Mock response",
-		Usage: OpenRouterUsage{
-			PromptTokens:     10,
-			CompletionTokens: 5,
-			TotalTokens:      15,
-		},
-	}, nil
-}
-
-// ChatStream implements OpenRouterClient.
-func (m *MockOpenRouterClient) ChatStream(ctx context.Context, req OpenRouterChatRequest, onChunk func(content string)) (*OpenRouterUsage, error) {
-	if m.ChatStreamFn != nil {
-		return m.ChatStreamFn(ctx, req, onChunk)
-	}
-	// Simulate streaming by sending chunks
-	chunks := []string{"Hello", " world", "!"}
-	for _, chunk := range chunks {
-		if onChunk != nil {
-			onChunk(chunk)
-		}
-	}
-	return &OpenRouterUsage{
-		PromptTokens:     10,
-		CompletionTokens: 3,
-		TotalTokens:      13,
-	}, nil
-}
-
-// VerifyAPIKey implements OpenRouterClient.
-func (m *MockOpenRouterClient) VerifyAPIKey(ctx context.Context) error {
-	if m.VerifyFn != nil {
-		return m.VerifyFn(ctx)
-	}
-	return nil
-}
-
 // Compile-time interface checks
-var (
-	_ OpenRouterClient = (*httpOpenRouterClient)(nil)
-	_ OpenRouterClient = (*MockOpenRouterClient)(nil)
-)
+var _ OpenRouterClient = (*httpOpenRouterClient)(nil)

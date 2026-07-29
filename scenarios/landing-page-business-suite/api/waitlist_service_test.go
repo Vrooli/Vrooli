@@ -9,7 +9,6 @@ import (
 
 func TestNewWaitlistService(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewWaitlistService(db)
 	if service == nil {
@@ -22,7 +21,6 @@ func TestNewWaitlistService(t *testing.T) {
 
 func TestWaitlistService_Create_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupWaitlistTable(t, db)
 
 	service := NewWaitlistService(db)
@@ -51,7 +49,6 @@ func TestWaitlistService_Create_Success(t *testing.T) {
 
 func TestWaitlistService_Create_DefaultSource(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupWaitlistTable(t, db)
 
 	service := NewWaitlistService(db)
@@ -68,7 +65,6 @@ func TestWaitlistService_Create_DefaultSource(t *testing.T) {
 
 func TestWaitlistService_Create_UpsertOnDuplicate(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupWaitlistTable(t, db)
 
 	service := NewWaitlistService(db)
@@ -106,7 +102,6 @@ func TestWaitlistService_Create_UpsertOnDuplicate(t *testing.T) {
 
 func TestWaitlistService_List_Empty(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupWaitlistTable(t, db)
 
 	service := NewWaitlistService(db)
@@ -124,7 +119,6 @@ func TestWaitlistService_List_Empty(t *testing.T) {
 
 func TestWaitlistService_List_OrderByCreatedDesc(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupWaitlistTable(t, db)
 
 	service := NewWaitlistService(db)
@@ -168,7 +162,6 @@ func TestWaitlistService_List_OrderByCreatedDesc(t *testing.T) {
 
 func TestWaitlistService_Delete_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupWaitlistTable(t, db)
 
 	service := NewWaitlistService(db)
@@ -196,7 +189,6 @@ func TestWaitlistService_Delete_Success(t *testing.T) {
 
 func TestWaitlistService_Delete_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupWaitlistTable(t, db)
 
 	service := NewWaitlistService(db)
@@ -213,7 +205,6 @@ func TestWaitlistService_Delete_NotFound(t *testing.T) {
 
 func TestWaitlistService_Count_Empty(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupWaitlistTable(t, db)
 
 	service := NewWaitlistService(db)
@@ -230,7 +221,6 @@ func TestWaitlistService_Count_Empty(t *testing.T) {
 
 func TestWaitlistService_Count_WithEntries(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupWaitlistTable(t, db)
 
 	service := NewWaitlistService(db)

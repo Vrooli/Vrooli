@@ -16,7 +16,6 @@ import (
 // email addresses before making Stripe API calls.
 func TestCheckoutSession_NormalizesEmail(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create checkout_sessions table
@@ -125,7 +124,6 @@ func TestCheckoutSession_NormalizesEmail(t *testing.T) {
 // coupon twice by using different email case variations.
 func TestIntroEligibility_CaseInsensitive(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create users table
@@ -195,7 +193,6 @@ func TestIntroEligibility_CaseInsensitive(t *testing.T) {
 // regardless of email case.
 func TestLookupCustomerID_CaseInsensitive(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create subscriptions table
@@ -266,7 +263,6 @@ func TestLookupCustomerID_CaseInsensitive(t *testing.T) {
 // works with any email case.
 func TestVerifySubscription_MixedCaseMatch(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create subscriptions table
@@ -352,7 +348,6 @@ func TestVerifySubscription_MixedCaseMatch(t *testing.T) {
 // emails when recording intro usage.
 func TestMarkIntroUsed_EmailNormalization(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create required tables

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
+	"landing-page-business-suite-api/internal/testutil"
 )
 
 // requestWithUserAuth creates a test request with user claims injected into the context.
@@ -54,9 +55,7 @@ func TestHandleReportUsage_ValidRequest_Returns200(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	// Verify DB record was created
 	var usageAmount int64
@@ -92,9 +91,7 @@ func TestHandleReportUsage_MissingAuthHeader_Returns401(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("Expected status 401, got %d", w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusUnauthorized)
 }
 
 func TestHandleReportUsage_InvalidAuthToken_Returns401(t *testing.T) {
@@ -117,9 +114,7 @@ func TestHandleReportUsage_InvalidAuthToken_Returns401(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("Expected status 401, got %d", w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusUnauthorized)
 }
 
 func TestHandleReportUsage_AuthWithoutBearerPrefix_Returns401(t *testing.T) {
@@ -142,9 +137,7 @@ func TestHandleReportUsage_AuthWithoutBearerPrefix_Returns401(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("Expected status 401, got %d", w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusUnauthorized)
 }
 
 func TestHandleReportUsage_MalformedJSON_Returns400(t *testing.T) {
@@ -160,9 +153,7 @@ func TestHandleReportUsage_MalformedJSON_Returns400(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("Expected status 400, got %d", w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusBadRequest)
 }
 
 func TestHandleReportUsage_MissingRequiredFields_Returns400(t *testing.T) {
@@ -212,9 +203,7 @@ func TestHandleReportUsage_MissingRequiredFields_Returns400(t *testing.T) {
 			w := httptest.NewRecorder()
 			handler(w, req)
 
-			if w.Code != http.StatusBadRequest {
-				t.Errorf("Expected status 400 for %s, got %d", tc.name, w.Code)
-			}
+			testutil.RequireHTTPStatus(t, w, http.StatusBadRequest)
 		})
 	}
 }
@@ -241,9 +230,7 @@ func TestHandleReportUsage_BYOK_RecordsZeroAmount(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	// Verify DB record was created with 0 amount
 	var usageAmount int64
@@ -285,14 +272,10 @@ func TestHandleCheckLimit_ValidCheck_ReturnsCanProceedAndRemaining(t *testing.T)
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	if resp["can_proceed"] != true {
 		t.Errorf("Expected can_proceed=true, got %v", resp["can_proceed"])
@@ -325,14 +308,10 @@ func TestHandleCheckLimit_UserAtLimit_ReturnsCanProceedFalse(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	if resp["can_proceed"] != false {
 		t.Errorf("Expected can_proceed=false, got %v", resp["can_proceed"])
@@ -353,9 +332,7 @@ func TestHandleCheckLimit_MissingParams_Returns400(t *testing.T) {
 		w := httptest.NewRecorder()
 		handler(w, req)
 
-		if w.Code != http.StatusBadRequest {
-			t.Errorf("Expected status 400 for missing limit_key, got %d", w.Code)
-		}
+		testutil.RequireHTTPStatus(t, w, http.StatusBadRequest)
 	})
 }
 
@@ -370,9 +347,7 @@ func TestHandleCheckLimit_Unauthenticated_Returns401(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("Expected status 401 for unauthenticated request, got %d", w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusUnauthorized)
 }
 
 func TestHandleCheckLimit_UnlimitedTier_ReturnsNegativeOneRemaining(t *testing.T) {
@@ -387,14 +362,10 @@ func TestHandleCheckLimit_UnlimitedTier_ReturnsNegativeOneRemaining(t *testing.T
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	if resp["can_proceed"] != true {
 		t.Errorf("Expected can_proceed=true for unlimited tier, got %v", resp["can_proceed"])
@@ -433,14 +404,10 @@ func TestHandleGetUsageSummary_ReturnsCorrectValues(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	var resp UsageSummary
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	// Total usage should be 100000000 + 50000000 = 150000000
 	if resp.Usage["ai_credits"] != 150000000 {
@@ -473,14 +440,10 @@ func TestHandleGetUsageSummary_NewUser_ReturnsEmptyUsage(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	var resp UsageSummary
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	// New user should have 0 usage
 	if resp.Usage["ai_credits"] != 0 {
@@ -518,9 +481,7 @@ func TestHandleReportUsage_EmptyConfiguredToken_RejectsAll(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("Expected status 401 when no token configured, got %d", w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusUnauthorized)
 }
 
 func TestHandleReportUsage_WhitespaceOnlyToken_Rejected(t *testing.T) {
@@ -543,9 +504,7 @@ func TestHandleReportUsage_WhitespaceOnlyToken_Rejected(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("Expected status 401 for whitespace token, got %d", w.Code)
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusUnauthorized)
 }
 
 // ============================================================================
@@ -578,15 +537,11 @@ func TestHandleReportUsage_WithMetadata(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", w.Code, w.Body.String())
-	}
+	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
 	// Metadata is logged but not stored - just verify the request succeeded
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 	if resp["success"] != true {
 		t.Errorf("Expected success=true, got %v", resp["success"])
 	}
@@ -624,9 +579,7 @@ func TestHandleReportUsage_ResponseFormat(t *testing.T) {
 
 	// Verify response is valid JSON
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Errorf("Response is not valid JSON: %v", err)
-	}
+	assertJSONResponse(t, w.Body.Bytes(), &resp)
 }
 
 func TestHandleCheckLimit_ResponseFormat(t *testing.T) {
@@ -649,9 +602,7 @@ func TestHandleCheckLimit_ResponseFormat(t *testing.T) {
 
 	// Verify response structure
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Errorf("Response is not valid JSON: %v", err)
-	}
+	assertJSONResponse(t, w.Body.Bytes(), &resp)
 
 	// Required fields
 	if _, ok := resp["can_proceed"]; !ok {

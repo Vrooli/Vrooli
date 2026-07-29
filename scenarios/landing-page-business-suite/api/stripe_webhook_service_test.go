@@ -132,7 +132,6 @@ func insertPendingSubscriptionCheckout(t *testing.T, db *sql.DB, sessionID, cust
 // SET clause no longer writes status='active', update this constraint.
 func TestHandleCheckoutCompleted_SubscriptionInsertFailure_RollsBackStatus(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 	setupCheckoutAtomicitySchema(t, db)
 
@@ -170,7 +169,6 @@ func TestHandleCheckoutCompleted_SubscriptionInsertFailure_RollsBackStatus(t *te
 // checkout_sessions UPDATE roll back.
 func TestHandleCheckoutCompleted_ScheduleInsertFailure_RollsBackAll(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 	setupCheckoutAtomicitySchema(t, db)
 
@@ -211,7 +209,6 @@ func TestHandleCheckoutCompleted_ScheduleInsertFailure_RollsBackAll(t *testing.T
 func TestHandleCheckoutCompleted_SubscriptionBranch_HappyPath_UsesSingleTx(t *testing.T) {
 	t.Run("non-scheduled plan", func(t *testing.T) {
 		db := setupTestDB(t)
-		defer db.Close()
 		resetStripeTestData(t, db)
 		setupCheckoutAtomicitySchema(t, db)
 
@@ -240,7 +237,6 @@ func TestHandleCheckoutCompleted_SubscriptionBranch_HappyPath_UsesSingleTx(t *te
 
 	t.Run("scheduled intro plan", func(t *testing.T) {
 		db := setupTestDB(t)
-		defer db.Close()
 		resetStripeTestData(t, db)
 		setupCheckoutAtomicitySchema(t, db)
 
@@ -274,7 +270,6 @@ func TestHandleCheckoutCompleted_SubscriptionBranch_HappyPath_UsesSingleTx(t *te
 // exercises the ON CONFLICT safety net the fix relies on for healing.
 func TestHandleCheckoutCompleted_RetryAfterRollback_Succeeds(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 	setupCheckoutAtomicitySchema(t, db)
 

@@ -24,15 +24,12 @@ type PersistVariantFn = typeof persistVariant;
 type PersistVariantSnapshotFn = typeof persistVariantSnapshot;
 type ValidateVariantFormFn = typeof validateVariantForm;
 
-const loadVariantEditorDataMock = vi.fn<Parameters<LoadVariantEditorDataFn>, ReturnType<LoadVariantEditorDataFn>>();
-const loadVariantSpaceDefinitionMock = vi.fn<
-  Parameters<LoadVariantSpaceDefinitionFn>,
-  ReturnType<LoadVariantSpaceDefinitionFn>
->();
-const loadVariantSnapshotMock = vi.fn<Parameters<LoadVariantSnapshotFn>, ReturnType<LoadVariantSnapshotFn>>();
-const persistVariantMock = vi.fn<Parameters<PersistVariantFn>, ReturnType<PersistVariantFn>>();
-const persistVariantSnapshotMock = vi.fn<Parameters<PersistVariantSnapshotFn>, ReturnType<PersistVariantSnapshotFn>>();
-const validateVariantFormMock = vi.fn<Parameters<ValidateVariantFormFn>, ReturnType<ValidateVariantFormFn>>();
+const loadVariantEditorDataMock = vi.fn<LoadVariantEditorDataFn>();
+const loadVariantSpaceDefinitionMock = vi.fn<LoadVariantSpaceDefinitionFn>();
+const loadVariantSnapshotMock = vi.fn<LoadVariantSnapshotFn>();
+const persistVariantMock = vi.fn<PersistVariantFn>();
+const persistVariantSnapshotMock = vi.fn<PersistVariantSnapshotFn>();
+const validateVariantFormMock = vi.fn<ValidateVariantFormFn>();
 
 vi.mock('../controllers/variantEditorController', async () => {
   const actual = await vi.importActual<typeof import('../controllers/variantEditorController')>('../controllers/variantEditorController');

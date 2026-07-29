@@ -7,8 +7,11 @@ import (
 )
 
 func TestAssertCommandGroupAcceptsWellFormedGroup(t *testing.T) {
-	AssertCommandGroup(t, cliapp.CommandGroup{
+	group := cliapp.CommandGroup{
 		Title:    "Example",
 		Commands: []cliapp.Command{{Name: "example", Description: "An example command"}},
-	})
+	}
+	if err := ValidateCommandGroup(group); err != nil {
+		t.Fatalf("ValidateCommandGroup() error = %v", err)
+	}
 }

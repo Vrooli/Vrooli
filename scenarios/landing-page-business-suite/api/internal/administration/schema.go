@@ -1,4 +1,4 @@
-package financial
+package administration
 
 import _ "embed"
 

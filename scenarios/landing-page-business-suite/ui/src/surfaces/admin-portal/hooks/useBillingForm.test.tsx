@@ -23,11 +23,11 @@ type LoadBundleCatalogFn = typeof loadBundleCatalog;
 type SavePriceFormFn = typeof savePriceForm;
 type VerifyPriceIdFn = typeof verifyPriceId;
 
-const loadStripeSettingsMock = vi.fn<Parameters<LoadStripeSettingsFn>, ReturnType<LoadStripeSettingsFn>>();
-const saveStripeSettingsMock = vi.fn<Parameters<SaveStripeSettingsFn>, ReturnType<SaveStripeSettingsFn>>();
-const loadBundleCatalogMock = vi.fn<Parameters<LoadBundleCatalogFn>, ReturnType<LoadBundleCatalogFn>>();
-const savePriceFormMock = vi.fn<Parameters<SavePriceFormFn>, ReturnType<SavePriceFormFn>>();
-const verifyPriceIdMock = vi.fn<Parameters<VerifyPriceIdFn>, ReturnType<VerifyPriceIdFn>>();
+const loadStripeSettingsMock = vi.fn<LoadStripeSettingsFn>();
+const saveStripeSettingsMock = vi.fn<SaveStripeSettingsFn>();
+const loadBundleCatalogMock = vi.fn<LoadBundleCatalogFn>();
+const savePriceFormMock = vi.fn<SavePriceFormFn>();
+const verifyPriceIdMock = vi.fn<VerifyPriceIdFn>();
 
 vi.mock('../services/billing.service', async () => {
   const actual = await vi.importActual<typeof import('../services/billing.service')>('../services/billing.service');

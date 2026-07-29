@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { getSubscriptionInfo, getCreditInfo, getEntitlements } from './account';
 import type { SubscriptionInfo, CreditInfo } from './types';
-import { createFetchMock, mockResponses, installFetchMock } from '../test-utils/api-mocks';
+import { assertDefined, createFetchMock, mockResponses, installFetchMock } from '../test-utils/api-mocks';
 
 const accountClient = vi.hoisted(() => ({ getMySubscription: vi.fn(), getMyCredits: vi.fn(), getEntitlements: vi.fn() }));
 vi.mock('@connectrpc/connect', () => ({ createClient: vi.fn(() => accountClient) }));
@@ -15,7 +15,8 @@ describe('account API', () => {
     installFetchMock(fetchMock);
     const response = async () => {
       const value = await fetchMock('/landing_page_business_suite.v1.AccountService');
-      if (!value || typeof value.json !== 'function') throw new Error('expected Connect account response');
+      assertDefined(value, 'Connect account response');
+      assertDefined(value.json, 'Connect account response JSON reader');
       return value.json();
     };
     accountClient.getMySubscription.mockImplementation(response);

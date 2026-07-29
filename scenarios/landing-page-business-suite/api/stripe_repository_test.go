@@ -9,7 +9,6 @@ import (
 
 func TestNewStripeRepository(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	repo := NewStripeRepository(db)
 	if repo == nil {
@@ -22,7 +21,6 @@ func TestNewStripeRepository(t *testing.T) {
 
 func TestStripeRepository_LookupCustomerID_Extended(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
 	repo := NewStripeRepository(db)
@@ -80,7 +78,6 @@ func TestStripeRepository_LookupCustomerID_Extended(t *testing.T) {
 
 func TestStripeRepository_GetSubscriptionByUser(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
 	repo := NewStripeRepository(db)
@@ -139,7 +136,6 @@ func TestStripeRepository_GetSubscriptionByUser(t *testing.T) {
 
 func TestStripeRepository_UpsertSubscription(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
 	repo := NewStripeRepository(db)
@@ -229,7 +225,6 @@ func TestStripeRepository_UpsertSubscription(t *testing.T) {
 
 func TestStripeRepository_UpdateSubscriptionStatus(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
 	repo := NewStripeRepository(db)
@@ -283,7 +278,6 @@ func TestStripeRepository_UpdateSubscriptionStatus(t *testing.T) {
 
 func TestStripeRepository_GetSubscriptionPlanTier(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
 	repo := NewStripeRepository(db)
@@ -333,7 +327,6 @@ func TestStripeRepository_GetSubscriptionPlanTier(t *testing.T) {
 
 func TestStripeRepository_CheckoutSessionOperations(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
 	repo := NewStripeRepository(db)
@@ -425,7 +418,6 @@ func TestStripeRepository_CheckoutSessionOperations(t *testing.T) {
 
 func TestStripeRepository_CreditOperations(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
 	repo := NewStripeRepository(db)
@@ -528,7 +520,6 @@ func TestStripeRepository_CreditOperations(t *testing.T) {
 
 func TestStripeRepository_IntroCouponOperations(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
 	repo := NewStripeRepository(db)
@@ -573,7 +564,6 @@ func TestStripeRepository_IntroCouponOperations(t *testing.T) {
 
 func TestStripeRepository_UserOperations(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
 	repo := NewStripeRepository(db)
@@ -634,7 +624,6 @@ func TestStripeRepository_UserOperations(t *testing.T) {
 
 func TestStripeRepository_MigrateCustomerEmail_Extended(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
 	repo := NewStripeRepository(db)
@@ -685,7 +674,6 @@ func TestStripeRepository_MigrateCustomerEmail_Extended(t *testing.T) {
 
 func TestStripeRepository_UpsertSubscriptionFromInvoice(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	resetStripeTestData(t, db)
 	repo := NewStripeRepository(db)

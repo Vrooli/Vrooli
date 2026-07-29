@@ -29,7 +29,7 @@ describe('FeedbackPage', () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
-    expect(fetchMock).toHaveBeenCalledWith('/api/feedback', expect.objectContaining({ method: 'POST' }));
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/feedback', expect.objectContaining({ method: 'POST' }));
     expect(await screen.findByText('Thank you for your feedback!')).toBeInTheDocument();
   });
 

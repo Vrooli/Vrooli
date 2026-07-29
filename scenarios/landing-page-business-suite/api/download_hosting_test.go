@@ -58,7 +58,6 @@ func (m *mockStorageProvider) New(ctx context.Context, settings DownloadStorageS
 
 func TestNewDownloadHostingService(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewDownloadHostingService(db)
 	if service == nil {
@@ -75,7 +74,6 @@ func TestNewDownloadHostingService(t *testing.T) {
 
 func TestNewDownloadHostingService_WithCustomProvider(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	customProvider := &mockStorageProvider{storage: &mockDownloadStorage{}}
 	service := NewDownloadHostingService(db, customProvider)
@@ -87,7 +85,6 @@ func TestNewDownloadHostingService_WithCustomProvider(t *testing.T) {
 
 func TestDownloadHostingService_GetSettings_NotConfigured(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	service := NewDownloadHostingService(db)
@@ -104,7 +101,6 @@ func TestDownloadHostingService_GetSettings_NotConfigured(t *testing.T) {
 
 func TestDownloadHostingService_GetSettings_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	// Insert test settings
@@ -145,7 +141,6 @@ func TestDownloadHostingService_GetSettings_Success(t *testing.T) {
 
 func TestDownloadHostingService_GetSettings_EmptyBundleKey(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewDownloadHostingService(db)
 	ctx := context.Background()
@@ -158,7 +153,6 @@ func TestDownloadHostingService_GetSettings_EmptyBundleKey(t *testing.T) {
 
 func TestDownloadHostingService_SaveSettings_Create(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	service := NewDownloadHostingService(db)
@@ -197,7 +191,6 @@ func TestDownloadHostingService_SaveSettings_Create(t *testing.T) {
 
 func TestDownloadHostingService_SaveSettings_Update(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	// Insert initial settings
@@ -232,7 +225,6 @@ func TestDownloadHostingService_SaveSettings_Update(t *testing.T) {
 
 func TestDownloadHostingService_SaveSettings_ValidationErrors(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	service := NewDownloadHostingService(db)
@@ -288,7 +280,6 @@ func TestDownloadHostingService_SaveSettings_ValidationErrors(t *testing.T) {
 
 func TestDownloadHostingService_SettingsSnapshot_NotConfigured(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	service := NewDownloadHostingService(db)
@@ -317,7 +308,6 @@ func TestDownloadHostingService_SettingsSnapshot_NotConfigured(t *testing.T) {
 
 func TestDownloadHostingService_TestConnection_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	mockStorage := &mockDownloadStorage{testConnectionErr: nil}
@@ -343,7 +333,6 @@ func TestDownloadHostingService_TestConnection_Success(t *testing.T) {
 
 func TestDownloadHostingService_TestConnection_NotConfigured(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	service := NewDownloadHostingService(db)
@@ -360,7 +349,6 @@ func TestDownloadHostingService_TestConnection_NotConfigured(t *testing.T) {
 
 func TestDownloadHostingService_TestConnection_Error(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	mockStorage := &mockDownloadStorage{testConnectionErr: errors.New("connection failed")}
@@ -385,7 +373,6 @@ func TestDownloadHostingService_TestConnection_Error(t *testing.T) {
 
 func TestDownloadHostingService_PresignUpload_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	mockStorage := &mockDownloadStorage{
@@ -433,7 +420,6 @@ func TestDownloadHostingService_PresignUpload_Success(t *testing.T) {
 
 func TestDownloadHostingService_PresignUpload_MissingFilename(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	mockStorage := &mockDownloadStorage{}
@@ -462,7 +448,6 @@ func TestDownloadHostingService_PresignUpload_MissingFilename(t *testing.T) {
 
 func TestDownloadHostingService_PresignUpload_NotConfigured(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	service := NewDownloadHostingService(db)
@@ -478,7 +463,6 @@ func TestDownloadHostingService_PresignUpload_NotConfigured(t *testing.T) {
 
 func TestDownloadHostingService_CommitArtifact_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 
@@ -529,7 +513,6 @@ func TestDownloadHostingService_CommitArtifact_Success(t *testing.T) {
 
 func TestDownloadHostingService_CommitArtifact_GitCommitHash(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 
@@ -598,7 +581,6 @@ func TestDownloadHostingService_CommitArtifact_GitCommitHash(t *testing.T) {
 
 func TestDownloadHostingService_CommitArtifact_ReleaseID(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 
@@ -667,7 +649,6 @@ func TestDownloadHostingService_CommitArtifact_ReleaseID(t *testing.T) {
 
 func TestDownloadHostingService_CommitArtifact_Upsert(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 
@@ -719,7 +700,6 @@ func TestDownloadHostingService_CommitArtifact_Upsert(t *testing.T) {
 
 func TestDownloadHostingService_CommitArtifact_HeadObjectError(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	mockStorage := &mockDownloadStorage{
@@ -751,7 +731,6 @@ func TestDownloadHostingService_CommitArtifact_HeadObjectError(t *testing.T) {
 
 func TestDownloadHostingService_GetArtifact_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 
@@ -798,7 +777,6 @@ func TestDownloadHostingService_GetArtifact_Success(t *testing.T) {
 
 func TestDownloadHostingService_GetArtifact_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewDownloadHostingService(db)
 	ctx := context.Background()
@@ -814,7 +792,6 @@ func TestDownloadHostingService_GetArtifact_NotFound(t *testing.T) {
 
 func TestDownloadHostingService_ListArtifacts_Pagination(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 
@@ -878,7 +855,6 @@ func TestDownloadHostingService_ListArtifacts_Pagination(t *testing.T) {
 
 func TestDownloadHostingService_PresignGetArtifact_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 
 	mockStorage := &mockDownloadStorage{
@@ -1128,7 +1104,6 @@ func TestBuildObjectKey_WithoutOptionalSegments(t *testing.T) {
 
 func TestDownloadHostingService_ValidateStorageSettings_UnsupportedProvider(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewDownloadHostingService(db)
 
@@ -1149,7 +1124,6 @@ func TestDownloadHostingService_ValidateStorageSettings_UnsupportedProvider(t *t
 
 func TestDownloadHostingService_ValidateStorageSettings_InvalidEndpoint(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewDownloadHostingService(db)
 
@@ -1168,7 +1142,6 @@ func TestDownloadHostingService_ValidateStorageSettings_InvalidEndpoint(t *testi
 
 func TestDownloadHostingService_ValidateStorageSettings_InvalidTTL(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewDownloadHostingService(db)
 
@@ -1199,7 +1172,6 @@ func TestDownloadHostingService_ValidateStorageSettings_InvalidTTL(t *testing.T)
 
 func TestDownloadHostingService_ValidateStorageSettings_MismatchedCredentials(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewDownloadHostingService(db)
 
@@ -1232,7 +1204,6 @@ func TestDownloadHostingService_ValidateStorageSettings_MismatchedCredentials(t 
 
 func TestDownloadHostingService_ValidateStorageSettings_ValidSettings(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewDownloadHostingService(db)
 
@@ -1254,7 +1225,6 @@ func TestDownloadHostingService_ValidateStorageSettings_ValidSettings(t *testing
 
 func TestDownloadHostingService_ListArtifacts_WithSearchQuery(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 
@@ -1303,7 +1273,6 @@ func TestDownloadHostingService_ListArtifacts_WithSearchQuery(t *testing.T) {
 
 func TestDownloadHostingService_ListArtifacts_WithPlatformFilter(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadArtifacts(t, db)
 

@@ -10,7 +10,6 @@ var feedbackTestContext = context.Background()
 
 func TestNewFeedbackService(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewFeedbackService(db)
 	if service == nil {
@@ -23,7 +22,6 @@ func TestNewFeedbackService(t *testing.T) {
 
 func TestFeedbackService_Create_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupFeedbackTable(t, db)
 
 	service := NewFeedbackService(db)
@@ -61,7 +59,6 @@ func TestFeedbackService_Create_Success(t *testing.T) {
 
 func TestFeedbackService_Create_StatusPending(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupFeedbackTable(t, db)
 
 	service := NewFeedbackService(db)
@@ -84,7 +81,6 @@ func TestFeedbackService_Create_StatusPending(t *testing.T) {
 
 func TestFeedbackService_Create_WithOrderID(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupFeedbackTable(t, db)
 
 	service := NewFeedbackService(db)
@@ -112,7 +108,6 @@ func TestFeedbackService_Create_WithOrderID(t *testing.T) {
 
 func TestFeedbackService_List_All(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupFeedbackTable(t, db)
 
 	service := NewFeedbackService(db)
@@ -142,7 +137,6 @@ func TestFeedbackService_List_All(t *testing.T) {
 
 func TestFeedbackService_List_ByStatus(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupFeedbackTable(t, db)
 
 	service := NewFeedbackService(db)
@@ -188,7 +182,6 @@ func TestFeedbackService_List_ByStatus(t *testing.T) {
 
 func TestFeedbackService_List_Empty(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupFeedbackTable(t, db)
 
 	service := NewFeedbackService(db)
@@ -205,7 +198,6 @@ func TestFeedbackService_List_Empty(t *testing.T) {
 
 func TestFeedbackService_GetByID_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupFeedbackTable(t, db)
 
 	service := NewFeedbackService(db)
@@ -237,7 +229,6 @@ func TestFeedbackService_GetByID_Success(t *testing.T) {
 
 func TestFeedbackService_GetByID_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupFeedbackTable(t, db)
 
 	service := NewFeedbackService(db)
@@ -253,7 +244,6 @@ func TestFeedbackService_GetByID_NotFound(t *testing.T) {
 
 func TestFeedbackService_UpdateStatus_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupFeedbackTable(t, db)
 
 	service := NewFeedbackService(db)
@@ -279,7 +269,6 @@ func TestFeedbackService_UpdateStatus_Success(t *testing.T) {
 
 func TestFeedbackService_UpdateStatus_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupFeedbackTable(t, db)
 
 	service := NewFeedbackService(db)
@@ -295,7 +284,6 @@ func TestFeedbackService_UpdateStatus_NotFound(t *testing.T) {
 
 func TestFeedbackService_Delete_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupFeedbackTable(t, db)
 
 	service := NewFeedbackService(db)
@@ -321,7 +309,6 @@ func TestFeedbackService_Delete_Success(t *testing.T) {
 
 func TestFeedbackService_Delete_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupFeedbackTable(t, db)
 
 	service := NewFeedbackService(db)
@@ -337,7 +324,6 @@ func TestFeedbackService_Delete_NotFound(t *testing.T) {
 
 func TestFeedbackService_DeleteBulk_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupFeedbackTable(t, db)
 
 	service := NewFeedbackService(db)
@@ -375,7 +361,6 @@ func TestFeedbackService_DeleteBulk_Success(t *testing.T) {
 
 func TestFeedbackService_DeleteBulk_EmptySlice(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupFeedbackTable(t, db)
 
 	service := NewFeedbackService(db)
@@ -391,7 +376,6 @@ func TestFeedbackService_DeleteBulk_EmptySlice(t *testing.T) {
 
 func TestFeedbackService_DeleteBulk_PartialMatch(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupFeedbackTable(t, db)
 
 	service := NewFeedbackService(db)
@@ -416,7 +400,6 @@ func TestFeedbackService_DeleteBulk_PartialMatch(t *testing.T) {
 
 func TestFeedbackService_List_OrderByCreatedDesc(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupFeedbackTable(t, db)
 
 	service := NewFeedbackService(db)

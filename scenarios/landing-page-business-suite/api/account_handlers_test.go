@@ -2,17 +2,18 @@ package main
 
 import (
 	"context"
-	"encoding/json"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"connectrpc.com/connect"
+	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 )
 
-func TestHandleLandingConfig_Success(t *testing.T) {
+func TestLandingConfigConnectHandler_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	configStore := setupTestConfigStore(t)
 	planService := NewPlanService(db)
@@ -26,49 +27,89 @@ func TestHandleLandingConfig_Success(t *testing.T) {
 	}
 	service := NewLandingConfigServiceWithConfigStore(configStore, planService, downloadService, nil)
 
-	handler := handleLandingConfig(service)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/landing-config?variant=control", nil)
-	rr := httptest.NewRecorder()
-
-	handler.ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	response, err := newLandingConfigConnectHandler(service).GetLandingConfig(context.Background(), connect.NewRequest(&lpbsv1.GetLandingConfigRequest{VariantSlug: "control"}))
+	if err != nil {
+		t.Fatalf("GetLandingConfig() error = %v", err)
 	}
-
-	// Verify response is valid JSON
-	var resp map[string]interface{}
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
-	downloads, ok := resp["downloads"].([]interface{})
-	if !ok {
-		t.Fatalf("expected download app array in landing response, got %#v", resp["downloads"])
-	}
-	var download map[string]interface{}
-	for _, candidate := range downloads {
-		app, ok := candidate.(map[string]interface{})
-		if ok && app["app_key"] == "unreleased-desktop" {
-			download = app
-			break
+	var downloadFound bool
+	for _, app := range response.Msg.GetDownloads() {
+		if app.GetAppKey() != "unreleased-desktop" {
+			continue
+		}
+		downloadFound = true
+		if app.GetPlatforms() == nil || len(app.GetPlatforms()) != 0 {
+			t.Fatalf("expected an empty platforms array, got %#v", app.GetPlatforms())
 		}
 	}
-	if download == nil {
-		t.Fatalf("expected seeded unreleased app in landing response, got %#v", downloads)
+	if !downloadFound {
+		t.Fatalf("expected seeded unreleased app in Connect response, got %#v", response.Msg.GetDownloads())
 	}
-	platforms, exists := download["platforms"]
-	if !exists {
-		t.Fatal("landing-config download app omitted required platforms array")
+}
+
+func TestLandingConfigProto_PreservesPublicOptionalAndNestedFields(t *testing.T) {
+	amountOff := int64(250)
+	durationInMonths := 3
+	maxRedemptions := 12
+	redeemBy := int64(1735689600)
+	supportEmail := "support@example.com"
+	comingSoon := true
+	sectionID := 42
+	artifactID := int64(7)
+	response, err := landingConfigProto(&LandingConfigResponse{
+		Variant:        LandingVariantSummary{ID: 9, Slug: "control", Name: "Control", Axes: map[string]string{"audience": "pro"}},
+		Sections:       []LandingSection{{SectionType: "hero", Content: map[string]interface{}{"headline": "Ship safely"}, Order: 1, Enabled: true}},
+		Header:         LandingHeaderConfig{Nav: HeaderNavConfig{Links: []HeaderNavLink{{ID: "plans", Type: "section", Label: "Plans", SectionID: &sectionID, VisibleOn: HeaderVisibilityConfig{Desktop: true, Mobile: true}}}}},
+		Branding:       &LandingBranding{SiteName: "Business Suite", SupportEmail: &supportEmail, ComingSoonEnabled: &comingSoon},
+		CouponMappings: map[string]string{"price_pro": "intro_pro"},
+		IntroOffers:    []StripeCoupon{{ID: "intro_pro", Name: "Pro intro", AmountOff: &amountOff, Duration: "repeating", DurationInMonths: &durationInMonths, MaxRedemptions: &maxRedemptions, RedeemBy: &redeemBy, Valid: true, IsIntroCoupon: true, IntroTier: "pro"}},
+		Downloads: []DownloadApp{{
+			ID: 3, BundleKey: "business_suite", AppKey: "desktop", Name: "Desktop", IconURL: "https://example.com/icon.png", ScreenshotURL: "https://example.com/screenshot.png", UpdateAPIKey: "public-key", UpdatePolicy: map[string]interface{}{"channel": "stable"},
+			Metadata: map[string]interface{}{"category": "desktop"}, Platforms: []DownloadAsset{{ID: 5, BundleKey: "business_suite", AppKey: "desktop", Platform: "darwin", ArtifactURL: "https://example.com/app.dmg", ArtifactSource: "managed", ArtifactID: &artifactID, VariantKey: "arm64", ArtifactFilename: "app.dmg", ArtifactSizeBytes: 99, ArtifactCount: 1, Metadata: map[string]interface{}{"signed": true}}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("landingConfigProto() error = %v", err)
 	}
-	if platformSlice, ok := platforms.([]interface{}); !ok || len(platformSlice) != 0 {
-		t.Fatalf("expected an empty platforms array, got %#v", platforms)
+	if got := response.GetSections()[0].GetContent().GetFields()["headline"].GetStringValue(); got != "Ship safely" {
+		t.Fatalf("section content = %q, want %q", got, "Ship safely")
+	}
+	if got := response.GetHeader().GetNav().GetLinks()[0].GetSectionId(); got != int32(sectionID) {
+		t.Fatalf("header section ID = %d, want %d", got, sectionID)
+	}
+	if got := response.GetBranding().GetSupportEmail(); got != supportEmail {
+		t.Fatalf("support email = %q, want %q", got, supportEmail)
+	}
+	if !response.GetBranding().GetComingSoonEnabled() {
+		t.Fatal("expected coming soon setting to be preserved")
+	}
+	if got := response.GetCouponMappings()["price_pro"]; got != "intro_pro" {
+		t.Fatalf("coupon mapping = %q, want intro_pro", got)
+	}
+	offer := response.GetIntroOffers()[0]
+	if offer.GetAmountOff() != amountOff || offer.GetDurationInMonths() != int32(durationInMonths) || offer.GetMaxRedemptions() != int32(maxRedemptions) || offer.GetRedeemBy() != redeemBy {
+		t.Fatalf("intro offer lost optional fields: %#v", offer)
+	}
+	app := response.GetDownloads()[0]
+	if app.GetId() != 3 || app.GetIconUrl() == "" || app.GetUpdatePolicy().GetFields()["channel"].GetStringValue() != "stable" {
+		t.Fatalf("download app lost public fields: %#v", app)
+	}
+	asset := app.GetPlatforms()[0]
+	if asset.GetArtifactId() != artifactID || asset.GetArtifactSource() != "managed" || asset.GetArtifactFilename() != "app.dmg" || asset.GetArtifactSizeBytes() != 99 {
+		t.Fatalf("download asset lost public fields: %#v", asset)
+	}
+}
+
+func TestLandingInt32RejectsOutOfRangeValues(t *testing.T) {
+	if _, err := landingInt32(math.MaxInt32+1, "test"); err == nil {
+		t.Fatal("landingInt32() accepted a value above int32 range")
+	}
+	if _, err := landingInt32(math.MinInt32-1, "test"); err == nil {
+		t.Fatal("landingInt32() accepted a value below int32 range")
 	}
 }
 
 func TestHandleDownloads_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	productID := upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_dl", "production", 1000000, 0.001, "credits")
@@ -123,7 +164,6 @@ func TestHandleDownloads_Success(t *testing.T) {
 
 func TestHandleDownloads_MissingApp(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	planService := NewPlanService(db)
 	accountService := NewAccountService(db, planService)
@@ -145,9 +185,7 @@ func TestHandleDownloads_MissingApp(t *testing.T) {
 	}
 
 	var errResp ApiErrorResponse
-	if err := json.Unmarshal(rr.Body.Bytes(), &errResp); err != nil {
-		t.Fatalf("Failed to unmarshal error response: %v", err)
-	}
+	decodeJSONResponse(t, rr.Body.Bytes(), &errResp)
 	if errResp.ErrorType != ApiErrorTypeValidation {
 		t.Errorf("Expected error type 'validation', got '%s'", errResp.ErrorType)
 	}
@@ -155,7 +193,6 @@ func TestHandleDownloads_MissingApp(t *testing.T) {
 
 func TestHandleDownloads_MissingPlatform(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	planService := NewPlanService(db)
 	accountService := NewAccountService(db, planService)
@@ -179,7 +216,6 @@ func TestHandleDownloads_MissingPlatform(t *testing.T) {
 
 func TestHandleDownloads_Unauthenticated(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	planService := NewPlanService(db)
 	accountService := NewAccountService(db, planService)
@@ -202,7 +238,6 @@ func TestHandleDownloads_Unauthenticated(t *testing.T) {
 
 func TestHandleDownloads_AppNotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	planService := NewPlanService(db)
@@ -244,9 +279,7 @@ func TestWriteJSON_Protobuf(t *testing.T) {
 	}
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
+	decodeJSONResponse(t, rr.Body.Bytes(), &resp)
 }
 
 func TestWriteJSON_Map(t *testing.T) {
@@ -264,9 +297,7 @@ func TestWriteJSON_Map(t *testing.T) {
 	}
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("Failed to unmarshal response: %v", err)
-	}
+	decodeJSONResponse(t, rr.Body.Bytes(), &resp)
 	if resp["key"] != "value" {
 		t.Errorf("Expected key 'value', got '%v'", resp["key"])
 	}
@@ -299,9 +330,7 @@ func TestWriteJSONError(t *testing.T) {
 			}
 
 			var errResp ApiErrorResponse
-			if err := json.Unmarshal(rr.Body.Bytes(), &errResp); err != nil {
-				t.Fatalf("Failed to unmarshal error response: %v", err)
-			}
+			decodeJSONResponse(t, rr.Body.Bytes(), &errResp)
 			if errResp.Error != tt.message {
 				t.Errorf("Expected error message '%s', got '%s'", tt.message, errResp.Error)
 			}

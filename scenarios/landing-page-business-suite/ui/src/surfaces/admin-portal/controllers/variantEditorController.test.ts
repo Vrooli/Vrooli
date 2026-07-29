@@ -36,13 +36,13 @@ type UpdateVariantFn = typeof updateVariant;
 type ExportVariantSnapshotFn = typeof exportVariantSnapshot;
 type ImportVariantSnapshotFn = typeof importVariantSnapshot;
 
-const getVariantMock = vi.fn<Parameters<GetVariantFn>, ReturnType<GetVariantFn>>();
-const getAdminSectionsMock = vi.fn<Parameters<GetAdminSectionsFn>, ReturnType<GetAdminSectionsFn>>();
-const getVariantSpaceMock = vi.fn<Parameters<GetVariantSpaceFn>, ReturnType<GetVariantSpaceFn>>();
-const createVariantMock = vi.fn<Parameters<CreateVariantFn>, ReturnType<CreateVariantFn>>();
-const updateVariantMock = vi.fn<Parameters<UpdateVariantFn>, ReturnType<UpdateVariantFn>>();
-const exportVariantSnapshotMock = vi.fn<Parameters<ExportVariantSnapshotFn>, ReturnType<ExportVariantSnapshotFn>>();
-const importVariantSnapshotMock = vi.fn<Parameters<ImportVariantSnapshotFn>, ReturnType<ImportVariantSnapshotFn>>();
+const getVariantMock = vi.fn<GetVariantFn>();
+const getAdminSectionsMock = vi.fn<GetAdminSectionsFn>();
+const getVariantSpaceMock = vi.fn<GetVariantSpaceFn>();
+const createVariantMock = vi.fn<CreateVariantFn>();
+const updateVariantMock = vi.fn<UpdateVariantFn>();
+const exportVariantSnapshotMock = vi.fn<ExportVariantSnapshotFn>();
+const importVariantSnapshotMock = vi.fn<ImportVariantSnapshotFn>();
 
 vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');

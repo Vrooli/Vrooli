@@ -25,7 +25,6 @@ func insertAnomalyRow(t *testing.T, svc *PaymentAnomalyService) int64 {
 
 func TestDispatch_RetriesOn5xx(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetAnomalyTestData(t, db)
 
 	var calls atomic.Int32
@@ -65,7 +64,6 @@ func TestDispatch_RetriesOn5xx(t *testing.T) {
 
 func TestDispatch_NoRetryOn4xx(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetAnomalyTestData(t, db)
 
 	var calls atomic.Int32
@@ -105,7 +103,6 @@ func TestDispatch_NoRetryOn4xx(t *testing.T) {
 
 func TestDispatch_RetryExhausted(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetAnomalyTestData(t, db)
 
 	var calls atomic.Int32
@@ -138,7 +135,6 @@ func TestDispatch_RetryExhausted(t *testing.T) {
 
 func TestDispatch_EmptyURLNoop(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetAnomalyTestData(t, db)
 
 	svc := NewPaymentAnomalyService(context.Background(), db, context.Background())

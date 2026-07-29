@@ -2,6 +2,7 @@ import { useEffect, useState, ReactNode, useCallback } from 'react';
 import { getLandingConfig, isApiError, type LandingConfigResponse, type Variant as LandingVariant } from '../../shared/api';
 import { getFallbackLandingConfig } from '../../shared/lib/fallbackLandingConfig';
 import { LandingVariantContext, type VariantResolution } from './LandingVariantContext';
+import { waitForLandingWorkflowLoadingState } from './landingWorkflowLoading';
 
 // Re-export VariantResolution for backward compatibility
 export type { VariantResolution } from './LandingVariantContext';
@@ -79,6 +80,7 @@ export function LandingVariantProvider({ children }: { children: ReactNode }) {
       const urlSlug = getVariantSlugFromUrl();
       const slugToUse = urlSlug || undefined;
 
+      await waitForLandingWorkflowLoadingState();
       const landingConfig = await getLandingConfig(slugToUse);
       if (!landingConfig.variant.slug) {
         throw new Error('Landing config missing variant');

@@ -74,10 +74,10 @@ func generate(routesPath, outputPath string) error {
 		return fmt.Errorf("marshal endpoint manifest: %w", err)
 	}
 	data = append(data, '\n')
-	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0o750); err != nil {
 		return fmt.Errorf("create endpoint manifest directory: %w", err)
 	}
-	if err := os.WriteFile(outputPath, data, 0o644); err != nil {
+	if err := os.WriteFile(outputPath, data, 0o600); err != nil {
 		return fmt.Errorf("write endpoint manifest: %w", err)
 	}
 	return nil
@@ -144,6 +144,11 @@ func connectRoutes() []route {
 	routes = append(routes, serviceRoutes(lpbsv1.File_landing_page_business_suite_v1_billing_proto.Services().ByName("LandingPagePaymentsService"))...)
 	routes = append(routes, serviceRoutes(lpbsv1.File_landing_page_business_suite_v1_branding_proto.Services().ByName("BrandingService"))...)
 	routes = append(routes, serviceRoutes(lpbsv1.File_landing_page_business_suite_v1_settings_proto.Services().ByName("StripeSettingsService"))...)
+	routes = append(routes, serviceRoutes(lpbsv1.File_landing_page_business_suite_v1_variant_space_proto.Services().ByName("VariantSpaceService"))...)
+	routes = append(routes, serviceRoutes(lpbsv1.File_landing_page_business_suite_v1_seo_proto.Services().ByName("SeoService"))...)
+	routes = append(routes, serviceRoutes(lpbsv1.File_landing_page_business_suite_v1_config_proto.Services().ByName("LandingConfigService"))...)
+	routes = append(routes, serviceRoutes(lpbsv1.File_landing_page_business_suite_v1_bundles_proto.Services().ByName("BundleAdminService"))...)
+	routes = append(routes, serviceRoutes(lpbsv1.File_landing_page_business_suite_v1_coupons_proto.Services().ByName("CouponAdminService"))...)
 	return append(routes, serviceRoutes(measuresv1.File_landing_page_business_suite_v1_measures_measures_proto.Services().ByName("MeasuresService"))...)
 }
 

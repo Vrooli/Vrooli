@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net/http"
 	"time"
+
+	"landing-page-business-suite-api/internal/intelligence"
 )
 
 // AIGatewayDeps holds injectable dependencies for AI gateway handlers.
@@ -369,7 +371,7 @@ func handleAIError(w http.ResponseWriter, err error) {
 		writeJSONError(w, http.StatusServiceUnavailable, "AI service not configured", ApiErrorTypeServerError)
 	case errors.Is(err, ErrModelNotAllowed):
 		writeJSONError(w, http.StatusBadRequest, err.Error(), ApiErrorTypeValidation)
-	case errors.Is(err, ErrOpenRouterError):
+	case errors.Is(err, intelligence.ErrProvider):
 		writeJSONError(w, http.StatusBadGateway, "AI provider error", ApiErrorTypeServerError)
 	case errors.Is(err, ErrStreamingNotSupported):
 		writeJSONError(w, http.StatusNotImplemented, "Streaming not supported", ApiErrorTypeServerError)

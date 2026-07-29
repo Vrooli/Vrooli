@@ -42,6 +42,17 @@ describe('APIKeysSettings', () => {
     expect(state.clearAddForm).toHaveBeenCalledOnce();
   });
 
+  it('selects an API provider through the shared accessible select control', async () => {
+    const state = formState({ showAddModal: true });
+    vi.mocked(keysHook.useAPIKeysForm).mockReturnValue(state);
+    render(<APIKeysSettings />);
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'Provider' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'OpenAI - OpenAI API' }));
+
+    expect(state.setNewKeyProvider).toHaveBeenCalledWith('openai');
+  });
+
   it('tests, disables, and confirm-deletes configured provider keys with operator feedback', async () => {
     const state = formState({ keys: [{ id: 1, provider: 'openai', key_hint: 'sk-...1234', is_active: true, created_at: '2026-01-01T00:00:00Z' }], testResults: { openai: { success: true, message: 'Connected' } } });
     vi.mocked(keysHook.useAPIKeysForm).mockReturnValue(state);

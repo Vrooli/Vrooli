@@ -3,7 +3,7 @@ package main
 const (
 	seedDeleteDuplicateAdminSQL = `DELETE FROM admin_users WHERE LOWER(email) = LOWER($1) AND id <> $2`
 	seedAdminSQL                = `INSERT INTO admin_users (id, email, password_hash) VALUES ($1, $2, $3)
-		 ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, password_hash = EXCLUDED.password_hash`
+		 ON CONFLICT (id) DO NOTHING`
 	seedAdminSequenceSQL   = `SELECT setval(pg_get_serial_sequence('admin_users', 'id'), (SELECT COALESCE(MAX(id), 1) FROM admin_users), true)`
 	seedPaymentSettingsSQL = `INSERT INTO payment_settings (id, publishable_key, secret_key, webhook_secret, dashboard_url, updated_at)
 		VALUES (1, NULL, NULL, NULL, NULL, NOW())

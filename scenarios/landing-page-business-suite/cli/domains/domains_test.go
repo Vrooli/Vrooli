@@ -9,6 +9,8 @@ import (
 
 func TestCommandGroupsExposeValidRegistrationContracts(t *testing.T) {
 	for _, group := range CommandGroups(support.Dependencies{}) {
-		testutil.AssertCommandGroup(t, group)
+		if err := testutil.ValidateCommandGroup(group); err != nil {
+			t.Fatalf("ValidateCommandGroup(%q) error = %v", group.Title, err)
+		}
 	}
 }

@@ -59,13 +59,13 @@ describe('API test mocks', () => {
   });
 
   it('provides clear assertion helpers for mocks and JSON bodies', () => {
-    const callback = vi.fn<[string], number>((value) => value.length);
+    const callback = vi.fn<(value: string) => number>((value) => value.length);
     callback('first');
     callback('second');
     expect(getFirstCall(callback)).toEqual(['first']);
     expect(getCall(callback, 1)).toEqual(['second']);
     expect(() => getCall(callback, 2)).toThrow(/call at index 2/);
-    expect(() => getFirstCall(vi.fn<[], undefined>())).toThrow(/at least once/);
+    expect(() => getFirstCall(vi.fn<() => undefined>())).toThrow(/at least once/);
 
     expect(parseJsonBody('{"name":"Suite"}')).toEqual({ name: 'Suite' });
     expect(() => parseJsonBody(null)).toThrow(/JSON string/);

@@ -28,7 +28,6 @@ func setupTestAssetsService(t *testing.T, db *sql.DB) *AssetsService {
 
 func TestHandleAssetUpload_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAssets(t, db)
 
 	assetsService := setupTestAssetsService(t, db)
@@ -60,7 +59,6 @@ func TestHandleAssetUpload_Success(t *testing.T) {
 
 func TestHandleAssetUpload_InvalidFileType(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	assetsService := setupTestAssetsService(t, db)
 	handler := handleAssetUpload(assetsService)
@@ -80,7 +78,6 @@ func TestHandleAssetUpload_InvalidFileType(t *testing.T) {
 
 func TestHandleAssetUpload_NoFile(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	assetsService := setupTestAssetsService(t, db)
 	handler := handleAssetUpload(assetsService)
@@ -108,7 +105,6 @@ func TestHandleAssetUpload_NoFile(t *testing.T) {
 
 func TestHandleAssetUpload_InvalidMultipart(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	assetsService := setupTestAssetsService(t, db)
 	handler := handleAssetUpload(assetsService)
@@ -127,7 +123,6 @@ func TestHandleAssetUpload_InvalidMultipart(t *testing.T) {
 
 func TestHandleAssetUpload_WithOptionalFields(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAssets(t, db)
 
 	assetsService := setupTestAssetsService(t, db)
@@ -167,7 +162,6 @@ func TestHandleAssetUpload_WithOptionalFields(t *testing.T) {
 
 func TestHandleAssetUpload_DefaultCategory(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAssets(t, db)
 
 	assetsService := setupTestAssetsService(t, db)
@@ -199,7 +193,6 @@ func TestHandleAssetUpload_DefaultCategory(t *testing.T) {
 
 func TestHandleAssetsList_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAssets(t, db)
 
 	assetsService := setupTestAssetsService(t, db)
@@ -236,7 +229,6 @@ func TestHandleAssetsList_Success(t *testing.T) {
 
 func TestHandleAssetsList_WithCategory(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAssets(t, db)
 
 	assetsService := setupTestAssetsService(t, db)
@@ -270,7 +262,6 @@ func TestHandleAssetsList_WithCategory(t *testing.T) {
 
 func TestHandleAssetsList_Empty(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAssets(t, db)
 
 	assetsService := setupTestAssetsService(t, db)
@@ -303,7 +294,6 @@ func TestHandleAssetsList_Empty(t *testing.T) {
 
 func TestHandleAssetGet_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAssets(t, db)
 
 	assetsService := setupTestAssetsService(t, db)
@@ -337,7 +327,6 @@ func TestHandleAssetGet_Success(t *testing.T) {
 
 func TestHandleAssetGet_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAssets(t, db)
 
 	assetsService := setupTestAssetsService(t, db)
@@ -358,7 +347,6 @@ func TestHandleAssetGet_NotFound(t *testing.T) {
 
 func TestHandleAssetGet_InvalidID(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	assetsService := setupTestAssetsService(t, db)
 	handler := handleAssetGet(assetsService)
@@ -380,7 +368,6 @@ func TestHandleAssetGet_InvalidID(t *testing.T) {
 
 func TestHandleAssetDelete_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAssets(t, db)
 
 	assetsService := setupTestAssetsService(t, db)
@@ -415,7 +402,6 @@ func TestHandleAssetDelete_Success(t *testing.T) {
 
 func TestHandleAssetDelete_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupAssets(t, db)
 
 	assetsService := setupTestAssetsService(t, db)

@@ -71,10 +71,9 @@ func registerHealthRoutes(s *Server) {
 }
 
 func registerLandingRoutes(s *Server) {
-	// Landing configuration remains an HTTP query until its generated contract is cut over.
-	s.router.HandleFunc("/api/v1/landing-config", handleLandingConfig(s.landingConfigService)).Methods("GET")
+	registerLandingConfigConnectRoutes(s.router, s.landingConfigService)
 	pricinghandler.RegisterRoutes(s.router, s.planService.GetPricingOverview)
-	s.router.HandleFunc("/api/v1/variant-space", handleVariantSpaceRoute(s.variantSpace)).Methods("GET")
+	variantspacehttp.RegisterRoutes(s.router, s.variantSpace.JSONBytes)
 
 	// Customization command for landing updates
 	s.router.HandleFunc("/api/v1/customize", s.handleCustomize).Methods("POST")
@@ -112,9 +111,7 @@ func registerAdminCoreRoutes(s *Server) {
 	s.router.HandleFunc("/api/v1/admin/session", adminhttp.Session(s.adminSessionDependencies())).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/profile", s.requireAdmin(s.handleAdminProfile)).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/profile", s.requireAdmin(s.handleAdminProfileUpdate)).Methods("PUT")
-	s.router.HandleFunc("/api/v1/admin/settings/stripe", s.requireAdmin(handleGetStripeSettings(s.paymentSettings, s.stripeService))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/settings/stripe", s.requireAdmin(handleUpdateStripeSettings(s.paymentSettings, s.stripeService, s.paymentAnomaly))).Methods("PUT")
-	s.router.HandleFunc("/api/v1/admin/settings/stripe/reveal", s.requireAdmin(handleRevealStripeSecret(s.stripeService, s.paymentSettings))).Methods("GET")
+	registerStripeSettingsConnectRoutes(s.router, s.paymentSettings, s.stripeService, s.paymentAnomaly, s.requireAdmin)
 	s.router.HandleFunc("/api/v1/admin/stripe/verify-price", s.requireAdmin(handleAdminVerifyStripePrice(s.stripeService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/reset-demo-data", s.requireAdmin(adminhttp.ResetDemoData(adminhttp.ResetDependencies{Reset: s.resetDemoData, Now: time.Now, LogError: logStructuredError}))).Methods("POST")
 }
@@ -153,8 +150,7 @@ func registerCommerceAdminRoutes(s *Server) {
 	s.router.HandleFunc("/api/v1/admin/download-assets/set-current", s.requireAdmin(handleAdminSetArtifactAsCurrent(s.downloadService, s.downloadHosting, s.planService))).Methods("POST")
 
 	// Bundles + pricing
-	s.router.HandleFunc("/api/v1/admin/bundles", s.requireAdmin(handleAdminBundleCatalog(s.planService))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/bundles/{bundle_key}/prices/{price_id}", s.requireAdmin(handleAdminUpdateBundlePrice(s.planService, s.stripeService))).Methods("PATCH")
+	registerBundleAdminConnectRoutes(s.router, s.planService, s.stripeService, s.requireAdmin)
 	s.router.HandleFunc("/api/v1/admin/bundles/{bundle_key}/prices", s.requireAdmin(handleAdminCreateBundlePrice(s.planService, s.stripeService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/bundles/{bundle_key}/prices/{price_id}", s.requireAdmin(handleAdminDeleteBundlePrice(s.planService))).Methods("DELETE")
 
@@ -162,21 +158,12 @@ func registerCommerceAdminRoutes(s *Server) {
 	s.router.HandleFunc("/api/v1/admin/stripe/import-preview", s.requireAdmin(handleAdminStripeImportPreview(s.stripeService, s.planService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/stripe/import", s.requireAdmin(handleAdminStripeImport(s.stripeService, s.planService))).Methods("POST")
 
-	// Coupon management endpoints
-	s.router.HandleFunc("/api/v1/admin/coupons", s.requireAdmin(handleAdminListCoupons(s.stripeService))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/coupons", s.requireAdmin(handleAdminCreateCoupon(s.stripeService))).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/coupons/usage", s.requireAdmin(handleAdminCouponUsage(s.stripeService, s.routedDB))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/coupons/{coupon_id}", s.requireAdmin(handleAdminGetCoupon(s.stripeService))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/coupons/{coupon_id}", s.requireAdmin(handleAdminUpdateCoupon(s.stripeService))).Methods("PATCH")
-	s.router.HandleFunc("/api/v1/admin/coupons/{coupon_id}", s.requireAdmin(handleAdminDeleteCoupon(s.stripeService))).Methods("DELETE")
-	// Coupon-plan mapping endpoints
-	s.router.HandleFunc("/api/v1/admin/coupon-mappings", s.requireAdmin(handleAdminGetCouponMappings(s.planService))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/plans/{price_id}/coupon", s.requireAdmin(handleAdminSetCouponForPlan(s.planService))).Methods("PUT")
-	s.router.HandleFunc("/api/v1/admin/plans/{price_id}/coupon", s.requireAdmin(handleAdminRemoveCouponFromPlan(s.planService))).Methods("DELETE")
-	s.router.HandleFunc("/api/v1/admin/stripe/coupons-preview", s.requireAdmin(handleAdminStripeCouponsPreview(s.stripeService))).Methods("GET")
+	registerCouponAdminConnectRoutes(s.router, s.stripeService, s.planService, s.routedDB, s.requireAdmin)
 }
 
 func registerVariantRoutes(s *Server) {
+	registerVariantConnectRoutes(s.router, s.configStore, s.requireAdmin)
+
 	// A/B Testing variant endpoints (OT-P0-014 through OT-P0-018)
 	// Public endpoints (no auth required for landing page display)
 	s.router.HandleFunc("/api/v1/variants/select", handleVariantSelect(s.configStore)).Methods("GET")
@@ -198,6 +185,7 @@ func registerVariantRoutes(s *Server) {
 
 func registerContentRoutes(s *Server) {
 	registerBrandingConnectRoutes(s.router, s.configStore, s.requireAdmin)
+	registerSEOConnectRoutes(s.router, s.seoService, s.configStore, s.requireAdmin)
 
 	// Asset upload endpoints (admin-only for file uploads)
 	s.router.HandleFunc("/api/v1/admin/assets", s.requireAdmin(handleAssetsList(s.assetsService))).Methods("GET")
@@ -207,10 +195,6 @@ func registerContentRoutes(s *Server) {
 
 	// Serve uploaded files publicly through the request-aware asset root.
 	s.router.HandleFunc("/api/v1/uploads/{path:.*}", handleServeUpload(s.assetsService)).Methods("GET", "HEAD")
-
-	// SEO endpoints
-	s.router.HandleFunc("/api/v1/seo/{slug}", handleGetVariantSEO(s.seoService)).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/variants/{slug}/seo", s.requireAdmin(handleUpdateVariantSEOConfigStore(s.configStore))).Methods("PUT")
 
 	// Sitemap and robots.txt
 	s.router.HandleFunc("/sitemap.xml", handleSitemapXML(s.seoService)).Methods("GET")
@@ -225,10 +209,8 @@ func registerMetricsRoutes(s *Server) {
 }
 
 func registerFeedbackRoutes(s *Server) {
-	// Feedback endpoints. /api/v1/feedback is canonical; the legacy path is
-	// retained for existing embedded landing pages while clients migrate.
+	// Feedback endpoints.
 	s.router.HandleFunc("/api/v1/feedback", handleFeedbackCreateWithConfigStore(s.feedbackService, s.configStore, s.emailService)).Methods("POST")
-	s.router.HandleFunc("/api/feedback", handleFeedbackCreateWithConfigStore(s.feedbackService, s.configStore, s.emailService)).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/feedback", s.requireAdmin(handleFeedbackList(s.feedbackService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/feedback/bulk-delete", s.requireAdmin(handleFeedbackDeleteBulk(s.feedbackService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/admin/feedback/{id}", s.requireAdmin(handleFeedbackGet(s.feedbackService))).Methods("GET")
@@ -295,8 +277,4 @@ func registerAdminUserRoutes(s *Server) {
 	s.router.HandleFunc("/api/v1/admin/users/{id}/sessions", s.requireAdmin(handleAdminGetUserSessions(s.userManagementService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/users/{id}/sessions/{sid}", s.requireAdmin(handleAdminRevokeUserSession(s.userManagementService))).Methods("DELETE")
 	s.router.HandleFunc("/api/v1/admin/users/{id}/sessions/revoke-all", s.requireAdmin(handleAdminRevokeAllUserSessions(s.userManagementService))).Methods("POST")
-}
-
-func handleVariantSpaceRoute(space *VariantSpace) http.HandlerFunc {
-	return variantspacehttp.Get(variantspacehttp.Dependencies{JSON: space.JSONBytes, Log: logStructuredError})
 }

@@ -8,5 +8,8 @@ import (
 )
 
 func TestRegisterExposesValidCommandGroup(t *testing.T) {
-	testutil.AssertCommandGroup(t, Register(support.Dependencies{}))
+	group := Register(support.Dependencies{})
+	if err := testutil.ValidateCommandGroup(group); err != nil {
+		t.Fatalf("ValidateCommandGroup() error = %v", err)
+	}
 }

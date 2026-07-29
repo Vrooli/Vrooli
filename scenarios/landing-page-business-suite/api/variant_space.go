@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"landing-page-business-suite-api/internal/envx"
+	"landing-page-business-suite-api/internal/experimentation"
 	"landing-page-business-suite-api/internal/logx"
 )
 
@@ -139,58 +140,18 @@ func (vs *VariantSpace) ValidateSelection(selection map[string]string) error {
 	if vs == nil {
 		return fmt.Errorf("variant space not initialized")
 	}
-	if len(vs.Axes) == 0 {
-		return fmt.Errorf("variant space has no axes defined")
-	}
-
-	// Check unknown axes
-	for axisID := range selection {
-		if _, ok := vs.Axes[axisID]; !ok {
-			return fmt.Errorf("unknown axis %s", axisID)
+	space := experimentation.Space{Axes: make(map[string]experimentation.Axis, len(vs.Axes))}
+	for axisID, axisDefinition := range vs.Axes {
+		variants := make([]string, 0, len(axisDefinition.Variants))
+		for _, variant := range axisDefinition.Variants {
+			variants = append(variants, variant.ID)
 		}
+		space.Axes[axisID] = experimentation.Axis{Variants: variants}
 	}
-
-	// Ensure each axis has a value and that value exists.
-	for axisID, axisDef := range vs.Axes {
-		value, ok := selection[axisID]
-		if !ok || strings.TrimSpace(value) == "" {
-			return fmt.Errorf("axis %s is required", axisID)
-		}
-		if !axisDef.hasVariant(value) {
-			return fmt.Errorf("invalid value '%s' for axis %s", value, axisID)
-		}
-	}
-
-	// Verify disallowed combos.
 	if vs.Constraints != nil {
-		for _, combo := range vs.Constraints.DisallowedCombinations {
-			if len(combo) == 0 {
-				continue
-			}
-			match := true
-			for axisID, axisValue := range combo {
-				value, ok := selection[axisID]
-				if !ok || value != axisValue {
-					match = false
-					break
-				}
-			}
-			if match {
-				return fmt.Errorf("axis combination %v is disallowed", combo)
-			}
-		}
+		space.DisallowedCombinations = vs.Constraints.DisallowedCombinations
 	}
-
-	return nil
-}
-
-func (a *AxisDefinition) hasVariant(id string) bool {
-	for _, v := range a.Variants {
-		if v.ID == id {
-			return true
-		}
-	}
-	return false
+	return experimentation.ValidateSelection(space, selection)
 }
 
 func cloneBytes(data []byte) []byte {

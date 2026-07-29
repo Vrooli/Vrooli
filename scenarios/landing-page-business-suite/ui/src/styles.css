@@ -74,6 +74,14 @@ body {
   color: rgb(var(--color-text-primary));
 }
 
+/* A shared visible focus treatment keeps native controls and custom action
+ * elements usable with keyboard and spatial navigation. Component-specific
+ * focus rings may refine this, but must not remove this baseline. */
+:focus-visible {
+  outline: 2px solid rgb(var(--color-accent-secondary));
+  outline-offset: 2px;
+}
+
 @layer utilities {
   .bg-case-study {
     background: radial-gradient(circle at 10% 20%, rgba(249, 115, 22, 0.08), transparent 45%),

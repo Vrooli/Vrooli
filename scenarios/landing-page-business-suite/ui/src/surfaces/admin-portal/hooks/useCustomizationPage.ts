@@ -70,7 +70,7 @@ export interface UseCustomizationPageReturn {
   operationAlert: ReturnType<typeof useInlineAlert>['alert'];
   clearOperationAlert: () => void;
 
-  // Ref for scroll
+  // Ref for the variant list and its focusable actions.
   variantListRef: React.RefObject<HTMLDivElement>;
 
   // Constants
@@ -313,7 +313,10 @@ export function useCustomizationPage(): UseCustomizationPageReturn {
     setAttentionOnly(true);
     setVariantQuery(slug);
     requestAnimationFrame(() => {
-      variantListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const variantAction = Array.from(
+        variantListRef.current?.querySelectorAll<HTMLButtonElement>('button[data-testid]') ?? []
+      ).find((element) => element.dataset.testid === `edit-variant-${slug}`);
+      variantAction?.focus();
     });
   }, []);
 

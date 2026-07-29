@@ -734,6 +734,29 @@ func TestPlanService_CreateBundlePrice_RejectsAmountMismatch(t *testing.T) {
 	}
 }
 
+func TestResolveCreatedPlanPricing_RejectsNegativeStripeAmount(t *testing.T) {
+	bundle := testBundle("create_bundle_negative_amount", "production")
+	_, err := resolveCreatedPlanPricing(
+		CreateBundlePriceInput{},
+		"price_negative",
+		mapBillingInterval("month"),
+		&StripePriceImport{
+			PriceID:     "price_negative",
+			Currency:    "usd",
+			AmountCents: -1,
+			Interval:    "month",
+			ProductID:   bundle.StripeProductID,
+		},
+		&BundleProduct{StripeProductId: bundle.StripeProductID},
+	)
+	if err == nil {
+		t.Fatal("expected negative Stripe amount to be rejected")
+	}
+	if !strings.Contains(err.Error(), "amount_cents") {
+		t.Fatalf("expected amount validation error, got: %v", err)
+	}
+}
+
 func TestEnsureStripePriceMatchesBundle(t *testing.T) {
 	bundle := &BundleProduct{
 		BundleKey:       "bundle_key",

@@ -4,8 +4,160 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "landing-page-business-suite",
   "generator": "v1.0.0",
-  "manifest_hash": "a23cb04f7f7118bedde2f5cbcd6d74c9edffee5e319e07c9a954c2096e0393db",
+  "manifest_hash": "8c1066a36a0993d2bab7beaf405ad109a8c9b11eade586e72860573809a646ee",
   "commands": [
+    {
+      "path": "legacy admin-bundle-price-update",
+      "group": "legacy",
+      "command": "admin-bundle-price-update",
+      "binding": "BundleAdminService.UpdateBundlePrice",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "legacy admin-bundles",
+      "group": "legacy",
+      "command": "admin-bundles",
+      "binding": "BundleAdminService.ListBundleCatalog",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "legacy admin-coupon-mappings",
+      "group": "legacy",
+      "command": "admin-coupon-mappings",
+      "binding": "CouponAdminService.GetCouponMappings",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "legacy admin-coupons-create",
+      "group": "legacy",
+      "command": "admin-coupons-create",
+      "binding": "CouponAdminService.CreateCoupon",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "legacy admin-coupons-delete",
+      "group": "legacy",
+      "command": "admin-coupons-delete",
+      "binding": "CouponAdminService.DeleteCoupon",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "legacy admin-coupons-get",
+      "group": "legacy",
+      "command": "admin-coupons-get",
+      "binding": "CouponAdminService.GetCoupon",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "legacy admin-coupons-list",
+      "group": "legacy",
+      "command": "admin-coupons-list",
+      "binding": "CouponAdminService.ListCoupons",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "legacy admin-coupons-update",
+      "group": "legacy",
+      "command": "admin-coupons-update",
+      "binding": "CouponAdminService.UpdateCoupon",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "legacy admin-coupons-usage",
+      "group": "legacy",
+      "command": "admin-coupons-usage",
+      "binding": "CouponAdminService.ListCouponUsage",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "legacy admin-plan-coupon-remove",
+      "group": "legacy",
+      "command": "admin-plan-coupon-remove",
+      "binding": "CouponAdminService.RemoveCouponFromPlan",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "legacy admin-plan-coupon-set",
+      "group": "legacy",
+      "command": "admin-plan-coupon-set",
+      "binding": "CouponAdminService.SetCouponForPlan",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "legacy admin-stripe-coupons-preview",
+      "group": "legacy",
+      "command": "admin-stripe-coupons-preview",
+      "binding": "CouponAdminService.GetCouponImportPreview",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "legacy admin-stripe-secret",
+      "group": "legacy",
+      "command": "admin-stripe-secret",
+      "binding": "StripeSettingsService.RevealStripeSecret",
+      "declared_primitive": "operational",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "legacy admin-stripe-settings",
+      "group": "legacy",
+      "command": "admin-stripe-settings",
+      "binding": "StripeSettingsService.GetStripeSettings",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "legacy admin-stripe-settings-update",
+      "group": "legacy",
+      "command": "admin-stripe-settings-update",
+      "binding": "StripeSettingsService.UpdateStripeSettings",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "legacy admin-variant-seo-update",
+      "group": "legacy",
+      "command": "admin-variant-seo-update",
+      "binding": "SeoService.UpdateVariantSEO",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy landing-config",
+      "group": "legacy",
+      "command": "landing-config",
+      "binding": "LandingConfigService.GetLandingConfig",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy seo",
+      "group": "legacy",
+      "command": "seo",
+      "binding": "SeoService.GetVariantSEO",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy variant-space",
+      "group": "legacy",
+      "command": "variant-space",
+      "binding": "VariantSpaceService.GetVariantSpace",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
     {
       "path": "measures measures-admin-sessions-created",
       "group": "measures",

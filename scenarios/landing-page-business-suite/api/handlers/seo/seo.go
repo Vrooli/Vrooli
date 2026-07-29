@@ -71,6 +71,7 @@ func Update(deps Dependencies) http.HandlerFunc {
 func Sitemap(deps Dependencies) http.HandlerFunc {
 	return text(deps, "application/xml; charset=utf-8", "sitemap_generate_failed", "internal error", deps.Sitemap, false)
 }
+
 func Robots(deps Dependencies) http.HandlerFunc {
 	return text(deps, "text/plain; charset=utf-8", "robots_branding_failed", "", deps.Robots, true)
 }

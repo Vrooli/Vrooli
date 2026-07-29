@@ -296,6 +296,7 @@ describe('PricingSection', () => {
 
   it('keeps paid checkout controls loading only for the selected price and recovers after a successful session response', async () => {
     let resolveCheckout: (value: { url: string }) => void = () => undefined;
+    const onCheckoutRedirect = vi.fn();
     vi.mocked(createCheckoutSession).mockImplementationOnce(() => new Promise((resolve) => { resolveCheckout = resolve as typeof resolveCheckout; }) as never);
     const pricingOverview: PricingOverview = {
       bundle,
@@ -305,12 +306,13 @@ describe('PricingSection', () => {
       ],
       yearly: [], updated_at: '2025-01-01T00:00:00Z',
     };
-    render(<PricingSection content={{ title: 'Pricing' }} pricingOverview={pricingOverview} />);
+    render(<PricingSection content={{ title: 'Pricing' }} pricingOverview={pricingOverview} onCheckoutRedirect={onCheckoutRedirect} />);
     fireEvent.click(screen.getByTestId('pricing-cta-basic'));
     expect(screen.getByTestId('pricing-cta-basic')).toHaveTextContent('Redirecting...');
     expect(screen.getByTestId('pricing-cta-pro')).not.toBeDisabled();
     resolveCheckout({ url: 'https://checkout.example.test/session' });
     await waitFor(() => { expect(screen.getByTestId('pricing-cta-basic')).not.toBeDisabled(); });
+    expect(onCheckoutRedirect).toHaveBeenCalledWith('https://checkout.example.test/session');
   });
 
   it('includes a canonical free tier when the remote catalog only contains paid plans', () => {

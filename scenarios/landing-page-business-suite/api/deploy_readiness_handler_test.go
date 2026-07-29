@@ -11,7 +11,6 @@ import (
 
 func TestDeployReadiness_StorageNotConfigured(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadApps(t, db)
 
@@ -44,7 +43,6 @@ func TestDeployReadiness_StorageNotConfigured(t *testing.T) {
 
 func TestDeployReadiness_AppMissing(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadApps(t, db)
 	if _, err := db.Exec(`INSERT INTO download_storage_settings (bundle_key, provider, bucket, region, signed_url_ttl_seconds)
@@ -79,7 +77,6 @@ func TestDeployReadiness_AppMissing(t *testing.T) {
 
 func TestDeployReadiness_StorageAndAppOK(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadStorageSettings(t, db)
 	cleanupDownloadApps(t, db)
 	if _, err := db.Exec(`INSERT INTO download_storage_settings (bundle_key, provider, bucket, region, signed_url_ttl_seconds)

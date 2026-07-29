@@ -22,7 +22,6 @@ import (
 // [REQ:STRIPE-CONFIG] Test Stripe environment configuration
 func TestNewStripeService(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Set environment variables using t.Setenv for parallel safety
 	t.Setenv("STRIPE_PUBLISHABLE_KEY", "pk_test_123")
@@ -51,7 +50,6 @@ func TestNewStripeService(t *testing.T) {
 
 func TestStripeService_ConfigLoaderOverride(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	productID := upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_loader", "production", 1000000, 0.001, "credits")
@@ -113,7 +111,6 @@ func TestStripeService_ConfigLoaderOverride(t *testing.T) {
 // [REQ:STRIPE-ROUTES] Test checkout session creation
 func TestCreateCheckoutSession(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Create tables
 	_, err := db.Exec(`
@@ -185,7 +182,6 @@ func TestCreateCheckoutSession(t *testing.T) {
 
 func TestCreateCheckoutSessionRequiresSecret(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Configure service with no secret key to test error handling
 	service := requireTestStripeService(t, db)
@@ -213,7 +209,6 @@ func TestCreateCheckoutSessionRequiresSecret(t *testing.T) {
 // [REQ:STRIPE-SIG] Test webhook signature verification
 func TestVerifyWebhookSignature(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultStripeTestConfig().WithKeys("pk_test_valid", "sk_test_valid", "whsec_test_secret")
 	service := ConfigureStripeService(t, db, cfg, nil)
@@ -250,7 +245,6 @@ func TestVerifyWebhookSignature(t *testing.T) {
 // [REQ:STRIPE-ROUTES] Test webhook handling
 func TestHandleWebhook_CheckoutCompleted(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Create tables (drop first to ensure clean state)
 	_, err := db.Exec(`
@@ -364,7 +358,6 @@ func TestHandleWebhook_CheckoutCompleted(t *testing.T) {
 // [REQ:SUB-VERIFY] Test subscription verification
 func TestVerifySubscription(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Create subscriptions table
 	_, err := db.Exec(`
@@ -437,7 +430,6 @@ func TestVerifySubscription(t *testing.T) {
 // [REQ:SUB-CANCEL] Test subscription cancellation
 func TestCancelSubscription(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Create subscriptions table
 	_, err := db.Exec(`
@@ -519,7 +511,6 @@ func TestCancelSubscription(t *testing.T) {
 // [REQ:SUB-CACHE] Test subscription cache behavior
 func TestVerifySubscription_CacheWarning(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Create subscriptions table
 	_, err := db.Exec(`
@@ -562,7 +553,6 @@ func TestVerifySubscription_CacheWarning(t *testing.T) {
 
 func TestPersistSubscriptionFromStripe_PreservesPlanTier(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_test", "production", 1_000_000, 0.001, "credits")
@@ -593,7 +583,6 @@ func TestPersistSubscriptionFromStripe_PreservesPlanTier(t *testing.T) {
 
 func TestPersistInvoiceStatus_InfersPlanTierFromPriceID(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_test", "production", 1_000_000, 0.001, "credits")
@@ -715,7 +704,6 @@ func TestChooseUserIdentity_WhitespaceHandling(t *testing.T) {
 
 func TestVerifyStripePrice_ValidPriceID(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -769,7 +757,6 @@ func TestVerifyStripePrice_ValidPriceID(t *testing.T) {
 
 func TestVerifyStripePrice_ValidLookupKey(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -826,7 +813,6 @@ func TestVerifyStripePrice_ValidLookupKey(t *testing.T) {
 
 func TestVerifyStripePrice_EmptyKey(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewStripeService(db)
 
@@ -838,7 +824,6 @@ func TestVerifyStripePrice_EmptyKey(t *testing.T) {
 
 func TestVerifyStripePrice_PriceNotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -875,7 +860,6 @@ func TestVerifyStripePrice_PriceNotFound(t *testing.T) {
 
 func TestVerifyStripePrice_NetworkError(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	service := NewStripeService(db)
@@ -900,7 +884,6 @@ func TestVerifyStripePrice_NetworkError(t *testing.T) {
 
 func TestVerifyStripePriceTyped_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -958,7 +941,6 @@ func TestVerifyStripePriceTyped_Success(t *testing.T) {
 
 func TestHandleWebhook_SubscriptionCreated_NewSubscription(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	cfg := DefaultStripeTestConfig().WithKeys("pk_test_default", "sk_test_default", "whsec_test")
@@ -1002,7 +984,6 @@ func TestHandleWebhook_SubscriptionCreated_NewSubscription(t *testing.T) {
 
 func TestHandleWebhook_SubscriptionCreated_MissingID(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultStripeTestConfig().WithKeys("pk_test_default", "sk_test_default", "whsec_test")
 	service := ConfigureStripeService(t, db, cfg, nil)
@@ -1034,7 +1015,6 @@ func TestHandleWebhook_SubscriptionCreated_MissingID(t *testing.T) {
 
 func TestHandleWebhook_InvoicePaid_RefreshesSubscription(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Pre-create a subscription
@@ -1087,7 +1067,6 @@ func TestHandleWebhook_InvoicePaid_RefreshesSubscription(t *testing.T) {
 
 func TestHandleWebhook_SubscriptionUpdated_UpdatesStatus(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Pre-create a subscription
@@ -1139,7 +1118,6 @@ func TestHandleWebhook_SubscriptionUpdated_UpdatesStatus(t *testing.T) {
 
 func TestHandleWebhook_SubscriptionDeleted_CancelsSubscription(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Pre-create a subscription
@@ -1195,7 +1173,6 @@ func TestHandleWebhook_SubscriptionDeleted_CancelsSubscription(t *testing.T) {
 
 func TestHandleWebhook_InvoicePaymentFailed_UpdatesStatus(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Pre-create a subscription
@@ -1247,7 +1224,6 @@ func TestHandleWebhook_InvoicePaymentFailed_UpdatesStatus(t *testing.T) {
 
 func TestHandleWebhook_UnknownEventType_Succeeds(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultStripeTestConfig().WithKeys("pk_test_default", "sk_test_default", "whsec_test")
 	service := ConfigureStripeService(t, db, cfg, nil)
@@ -1282,7 +1258,6 @@ func TestHandleWebhook_UnknownEventType_Succeeds(t *testing.T) {
 
 func TestParseStripeAmount_Float64(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewStripeService(db)
 
@@ -1294,7 +1269,6 @@ func TestParseStripeAmount_Float64(t *testing.T) {
 
 func TestParseStripeAmount_Int64(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewStripeService(db)
 
@@ -1306,7 +1280,6 @@ func TestParseStripeAmount_Int64(t *testing.T) {
 
 func TestParseStripeAmount_JSONNumber(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewStripeService(db)
 
@@ -1318,7 +1291,6 @@ func TestParseStripeAmount_JSONNumber(t *testing.T) {
 
 func TestParseStripeAmount_String(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewStripeService(db)
 
@@ -1330,7 +1302,6 @@ func TestParseStripeAmount_String(t *testing.T) {
 
 func TestParseStripeAmount_InvalidType(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewStripeService(db)
 
@@ -1342,7 +1313,6 @@ func TestParseStripeAmount_InvalidType(t *testing.T) {
 
 func TestBillingIntervalDuration_Year(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewStripeService(db)
 
@@ -1355,7 +1325,6 @@ func TestBillingIntervalDuration_Year(t *testing.T) {
 
 func TestBillingIntervalDuration_Month(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewStripeService(db)
 
@@ -1368,7 +1337,6 @@ func TestBillingIntervalDuration_Month(t *testing.T) {
 
 func TestBillingIntervalDuration_Default(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewStripeService(db)
 
@@ -1381,7 +1349,6 @@ func TestBillingIntervalDuration_Default(t *testing.T) {
 
 func TestExtractAmount_FromAmountTotal(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewStripeService(db)
 
@@ -1397,7 +1364,6 @@ func TestExtractAmount_FromAmountTotal(t *testing.T) {
 
 func TestExtractAmount_FallbackToSession(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewStripeService(db)
 
@@ -1440,7 +1406,6 @@ func TestMaskValue_EmptyValue(t *testing.T) {
 // explicit error when the bundle product is not configured.
 func TestCreditTopup_NilBundle_ReturnsError(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create an empty plan store (no bundle configured) - GetBundleProduct returns nil
@@ -1470,7 +1435,6 @@ func TestCreditTopup_NilBundle_ReturnsError(t *testing.T) {
 // are properly propagated to all local tables.
 func TestHandleCustomerUpdated_EmailMigration(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create all required tables
@@ -1634,7 +1598,6 @@ func TestHandleCustomerUpdated_EmailMigration(t *testing.T) {
 // properly recorded for auditing.
 func TestCreditTopup_TransactionRecorded(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create required tables
@@ -1699,7 +1662,6 @@ func TestCreditTopup_TransactionRecorded(t *testing.T) {
 // previous_attributes doesn't include the old email.
 func TestHandleCustomerUpdated_NoOldEmail(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create subscriptions table
@@ -1752,7 +1714,6 @@ func TestHandleCustomerUpdated_NoOldEmail(t *testing.T) {
 // TestHandleCustomerUpdated_SameEmail verifies that no-op when emails match.
 func TestHandleCustomerUpdated_SameEmail(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Create subscriptions table
 	_, err := db.Exec(`

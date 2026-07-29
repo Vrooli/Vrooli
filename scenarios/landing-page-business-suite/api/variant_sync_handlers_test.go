@@ -11,7 +11,6 @@ import (
 
 func TestHandleVariantSnapshotSync_RequiresAuth(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	tmpDir := t.TempDir()
 	variantsDir := filepath.Join(tmpDir, "variants")
@@ -43,7 +42,6 @@ func TestHandleVariantSnapshotSync_RequiresAuth(t *testing.T) {
 
 func TestHandleVariantSnapshotSync_SyncsSnapshots(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	dir := t.TempDir()
 	variantsDir := filepath.Join(dir, "variants")
@@ -108,7 +106,6 @@ func TestHandleVariantSnapshotSync_SyncsSnapshots(t *testing.T) {
 
 func TestHandleVariantSnapshotSync_ReturnsErrorOnInvalidDir(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Create a ConfigStore pointing to a file (not a directory)
 	tempDir := t.TempDir()

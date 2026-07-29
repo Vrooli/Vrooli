@@ -59,8 +59,8 @@ declare module '@vrooli/proto-types/landing-page-business-suite/billing_pb' {
 declare module '@vrooli/proto-types/landing-page-business-suite/branding_pb' {
   import type { Message } from '@bufbuild/protobuf';
   import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
-  export interface GetBrandingRequest extends Message<'landing_page_business_suite.v1.GetBrandingRequest'> {}
-  export interface GetPublicBrandingRequest extends Message<'landing_page_business_suite.v1.GetPublicBrandingRequest'> {}
+  export type GetBrandingRequest = Message<'landing_page_business_suite.v1.GetBrandingRequest'>;
+  export type GetPublicBrandingRequest = Message<'landing_page_business_suite.v1.GetPublicBrandingRequest'>;
   export interface ClearBrandingFieldRequest extends Message<'landing_page_business_suite.v1.ClearBrandingFieldRequest'> { field: string; }
   export interface UpdateBrandingRequest extends Message<'landing_page_business_suite.v1.UpdateBrandingRequest'> { [key: string]: unknown; }
   export interface BrandingResponse extends Message<'landing_page_business_suite.v1.BrandingResponse'> { branding?: { toJson(): unknown; }; }
@@ -77,6 +77,59 @@ declare module '@vrooli/proto-types/landing-page-business-suite/branding_pb' {
     clearBrandingField: { methodKind: 'unary'; input: typeof ClearBrandingFieldRequestSchema; output: typeof BrandingResponseSchema };
     getPublicBranding: { methodKind: 'unary'; input: typeof GetPublicBrandingRequestSchema; output: typeof PublicBrandingResponseSchema };
   }>;
+}
+
+declare module '@vrooli/proto-types/landing-page-business-suite/bundles_pb' {
+  import type { Message } from '@bufbuild/protobuf';
+  import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
+  import type { BillingInterval, IntroPricingType, PlanKind } from '@vrooli/proto-types/landing-page-business-suite/shared/commerce_pb';
+  type ProtoValue = { toJson?: () => unknown };
+  export interface Bundle { bundleKey?: string; name?: string; stripeProductId?: string; creditsPerUsd?: bigint | number; displayCreditsMultiplier?: number; displayCreditsLabel?: string; environment?: string; metadata?: Record<string, ProtoValue>; }
+  export interface PlanOption { planName?: string; planTier?: string; billingInterval?: BillingInterval; amountCents?: bigint | number; currency?: string; introEnabled?: boolean; introType?: IntroPricingType; introAmountCents?: bigint | number; introPeriods?: number; introPriceLookupKey?: string; stripePriceId?: string; monthlyIncludedCredits?: bigint | number; oneTimeBonusCredits?: bigint | number; planRank?: number; bonusType?: string; kind?: PlanKind; isVariableAmount?: boolean; displayEnabled?: boolean; bundleKey?: string; displayWeight?: number; metadata?: Record<string, ProtoValue>; }
+  export interface BundleCatalogEntry { bundle?: Bundle; prices?: PlanOption[]; }
+  export type ListBundleCatalogRequest = Message<'landing_page_business_suite.v1.ListBundleCatalogRequest'>;
+  export interface ListBundleCatalogResponse extends Message<'landing_page_business_suite.v1.ListBundleCatalogResponse'> { bundles?: BundleCatalogEntry[]; }
+  export interface UpdateBundlePriceRequest extends Message<'landing_page_business_suite.v1.UpdateBundlePriceRequest'> { bundleKey: string; priceId: string; stripePriceId?: string; planName?: string; displayWeight?: number; displayEnabled?: boolean; subtitle?: string; badge?: string; ctaLabel?: string; highlight?: boolean; features?: string[]; featuresPresent?: boolean; }
+  export interface UpdateBundlePriceResponse extends Message<'landing_page_business_suite.v1.UpdateBundlePriceResponse'> { price?: PlanOption; }
+  export const ListBundleCatalogRequestSchema: GenMessage<ListBundleCatalogRequest>;
+  export const ListBundleCatalogResponseSchema: GenMessage<ListBundleCatalogResponse>;
+  export const UpdateBundlePriceRequestSchema: GenMessage<UpdateBundlePriceRequest>;
+  export const UpdateBundlePriceResponseSchema: GenMessage<UpdateBundlePriceResponse>;
+  export const BundleAdminService: GenService<{
+    listBundleCatalog: { methodKind: 'unary'; input: typeof ListBundleCatalogRequestSchema; output: typeof ListBundleCatalogResponseSchema };
+    updateBundlePrice: { methodKind: 'unary'; input: typeof UpdateBundlePriceRequestSchema; output: typeof UpdateBundlePriceResponseSchema };
+  }>;
+}
+
+declare module '@vrooli/proto-types/landing-page-business-suite/coupons_pb' {
+  import type { Message } from '@bufbuild/protobuf';
+  import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
+  export enum CouponDuration { UNSPECIFIED = 0, ONCE = 1, REPEATING = 2, FOREVER = 3 }
+  export interface Coupon { id: string; name?: string; amountOff?: bigint; percentOff?: number; currency?: string; duration: CouponDuration; durationInMonths?: number; maxRedemptions?: number; redeemBy?: bigint; timesRedeemed: number; valid: boolean; created: bigint; isIntroCoupon: boolean; introTier?: string; }
+  export interface CouponUsageStat { couponId: string; totalUses: bigint; lastUsedAt?: string; }
+  export interface CouponImportPreviewItem { id: string; name?: string; amountOff?: bigint; percentOff?: number; currency?: string; duration: CouponDuration; durationInMonths?: number; timesRedeemed: number; valid: boolean; existsLocally: boolean; }
+  export type ListCouponsRequest = Message<'landing_page_business_suite.v1.ListCouponsRequest'>;
+  export interface ListCouponsResponse extends Message<'landing_page_business_suite.v1.ListCouponsResponse'> { coupons?: Coupon[]; introCouponMap?: Record<string, string>; }
+  export interface CreateCouponRequest extends Message<'landing_page_business_suite.v1.CreateCouponRequest'> { id?: string; name?: string; amountOff?: bigint; percentOff?: number; currency?: string; duration: CouponDuration; durationInMonths?: number; maxRedemptions?: number; redeemBy?: bigint; }
+  export interface CreateCouponResponse extends Message<'landing_page_business_suite.v1.CreateCouponResponse'> { coupon?: Coupon; }
+  export interface GetCouponRequest extends Message<'landing_page_business_suite.v1.GetCouponRequest'> { couponId: string; }
+  export interface GetCouponResponse extends Message<'landing_page_business_suite.v1.GetCouponResponse'> { coupon?: Coupon; }
+  export interface UpdateCouponRequest extends Message<'landing_page_business_suite.v1.UpdateCouponRequest'> { couponId: string; name?: string; }
+  export interface UpdateCouponResponse extends Message<'landing_page_business_suite.v1.UpdateCouponResponse'> { coupon?: Coupon; }
+  export interface DeleteCouponRequest extends Message<'landing_page_business_suite.v1.DeleteCouponRequest'> { couponId: string; }
+  export interface DeleteCouponResponse extends Message<'landing_page_business_suite.v1.DeleteCouponResponse'> { deleted: boolean; }
+  export type ListCouponUsageRequest = Message<'landing_page_business_suite.v1.ListCouponUsageRequest'>;
+  export interface ListCouponUsageResponse extends Message<'landing_page_business_suite.v1.ListCouponUsageResponse'> { usage?: CouponUsageStat[]; }
+  export type GetCouponMappingsRequest = Message<'landing_page_business_suite.v1.GetCouponMappingsRequest'>;
+  export interface GetCouponMappingsResponse extends Message<'landing_page_business_suite.v1.GetCouponMappingsResponse'> { mappings?: Record<string, string>; }
+  export interface SetCouponForPlanRequest extends Message<'landing_page_business_suite.v1.SetCouponForPlanRequest'> { priceId: string; couponId: string; }
+  export interface SetCouponForPlanResponse extends Message<'landing_page_business_suite.v1.SetCouponForPlanResponse'> { assigned: boolean; }
+  export interface RemoveCouponFromPlanRequest extends Message<'landing_page_business_suite.v1.RemoveCouponFromPlanRequest'> { priceId: string; }
+  export interface RemoveCouponFromPlanResponse extends Message<'landing_page_business_suite.v1.RemoveCouponFromPlanResponse'> { removed: boolean; }
+  export type GetCouponImportPreviewRequest = Message<'landing_page_business_suite.v1.GetCouponImportPreviewRequest'>;
+  export interface GetCouponImportPreviewResponse extends Message<'landing_page_business_suite.v1.GetCouponImportPreviewResponse'> { coupons?: CouponImportPreviewItem[]; totalCoupons: number; existingCount: number; newCount: number; }
+  export const ListCouponsRequestSchema: GenMessage<ListCouponsRequest>; export const ListCouponsResponseSchema: GenMessage<ListCouponsResponse>; export const CreateCouponRequestSchema: GenMessage<CreateCouponRequest>; export const CreateCouponResponseSchema: GenMessage<CreateCouponResponse>; export const GetCouponRequestSchema: GenMessage<GetCouponRequest>; export const GetCouponResponseSchema: GenMessage<GetCouponResponse>; export const UpdateCouponRequestSchema: GenMessage<UpdateCouponRequest>; export const UpdateCouponResponseSchema: GenMessage<UpdateCouponResponse>; export const DeleteCouponRequestSchema: GenMessage<DeleteCouponRequest>; export const DeleteCouponResponseSchema: GenMessage<DeleteCouponResponse>; export const ListCouponUsageRequestSchema: GenMessage<ListCouponUsageRequest>; export const ListCouponUsageResponseSchema: GenMessage<ListCouponUsageResponse>; export const GetCouponMappingsRequestSchema: GenMessage<GetCouponMappingsRequest>; export const GetCouponMappingsResponseSchema: GenMessage<GetCouponMappingsResponse>; export const SetCouponForPlanRequestSchema: GenMessage<SetCouponForPlanRequest>; export const SetCouponForPlanResponseSchema: GenMessage<SetCouponForPlanResponse>; export const RemoveCouponFromPlanRequestSchema: GenMessage<RemoveCouponFromPlanRequest>; export const RemoveCouponFromPlanResponseSchema: GenMessage<RemoveCouponFromPlanResponse>; export const GetCouponImportPreviewRequestSchema: GenMessage<GetCouponImportPreviewRequest>; export const GetCouponImportPreviewResponseSchema: GenMessage<GetCouponImportPreviewResponse>;
+  export const CouponAdminService: GenService<{ listCoupons: { methodKind: 'unary'; input: typeof ListCouponsRequestSchema; output: typeof ListCouponsResponseSchema }; createCoupon: { methodKind: 'unary'; input: typeof CreateCouponRequestSchema; output: typeof CreateCouponResponseSchema }; getCoupon: { methodKind: 'unary'; input: typeof GetCouponRequestSchema; output: typeof GetCouponResponseSchema }; updateCoupon: { methodKind: 'unary'; input: typeof UpdateCouponRequestSchema; output: typeof UpdateCouponResponseSchema }; deleteCoupon: { methodKind: 'unary'; input: typeof DeleteCouponRequestSchema; output: typeof DeleteCouponResponseSchema }; listCouponUsage: { methodKind: 'unary'; input: typeof ListCouponUsageRequestSchema; output: typeof ListCouponUsageResponseSchema }; getCouponMappings: { methodKind: 'unary'; input: typeof GetCouponMappingsRequestSchema; output: typeof GetCouponMappingsResponseSchema }; setCouponForPlan: { methodKind: 'unary'; input: typeof SetCouponForPlanRequestSchema; output: typeof SetCouponForPlanResponseSchema }; removeCouponFromPlan: { methodKind: 'unary'; input: typeof RemoveCouponFromPlanRequestSchema; output: typeof RemoveCouponFromPlanResponseSchema }; getCouponImportPreview: { methodKind: 'unary'; input: typeof GetCouponImportPreviewRequestSchema; output: typeof GetCouponImportPreviewResponseSchema } }>;
 }
 
 declare module '@vrooli/proto-types/landing-page-business-suite/shared/commerce_pb' {
@@ -127,6 +180,8 @@ declare module '@vrooli/proto-types/landing-page-business-suite/shared/commerce_
 }
 
 declare module '@vrooli/proto-types/landing-page-business-suite/settings_pb' {
+  import type { Message } from '@bufbuild/protobuf';
+  import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
   export enum ConfigSource {
     UNSPECIFIED = 0,
     ENV = 1,
@@ -142,22 +197,44 @@ declare module '@vrooli/proto-types/landing-page-business-suite/settings_pb' {
   }
 
   export interface StripeSettings {
+    publishableKey?: string;
+    secretKey?: string;
+    webhookSecret?: string;
     dashboardUrl?: string;
+    anomalyWebhookUrl?: string;
+    anomalyWebhookEnabled?: boolean;
+    anomalyRateLimits?: string;
     updatedAt?: { toJsonString?: () => string } | string | Date | { seconds?: number; nanos?: number };
   }
 
-  export interface GetStripeSettingsResponse {
+  export type GetStripeSettingsRequest = Message<'landing_page_business_suite.v1.GetStripeSettingsRequest'>;
+  export interface UpdateStripeSettingsRequest extends Message<'landing_page_business_suite.v1.UpdateStripeSettingsRequest'> {
+    publishableKey?: string; secretKey?: string; webhookSecret?: string; dashboardUrl?: string;
+    anomalyWebhookUrl?: string; anomalyWebhookEnabled?: boolean; anomalyRateLimits?: string;
+  }
+  export interface RevealStripeSecretRequest extends Message<'landing_page_business_suite.v1.RevealStripeSecretRequest'> { field: string; }
+  export interface RevealStripeSecretResponse extends Message<'landing_page_business_suite.v1.RevealStripeSecretResponse'> { field: string; value: string; }
+  export interface GetStripeSettingsResponse extends Message<'landing_page_business_suite.v1.GetStripeSettingsResponse'> {
     snapshot?: StripeConfigSnapshot;
     settings?: StripeSettings;
   }
 
-  export interface UpdateStripeSettingsResponse {
+  export interface UpdateStripeSettingsResponse extends Message<'landing_page_business_suite.v1.UpdateStripeSettingsResponse'> {
     snapshot?: StripeConfigSnapshot;
     settings?: StripeSettings;
   }
 
-  export const GetStripeSettingsResponseSchema: ProtoSchema<GetStripeSettingsResponse>;
-  export const UpdateStripeSettingsResponseSchema: ProtoSchema<UpdateStripeSettingsResponse>;
+  export const GetStripeSettingsRequestSchema: GenMessage<GetStripeSettingsRequest>;
+  export const GetStripeSettingsResponseSchema: GenMessage<GetStripeSettingsResponse>;
+  export const UpdateStripeSettingsRequestSchema: GenMessage<UpdateStripeSettingsRequest>;
+  export const UpdateStripeSettingsResponseSchema: GenMessage<UpdateStripeSettingsResponse>;
+  export const RevealStripeSecretRequestSchema: GenMessage<RevealStripeSecretRequest>;
+  export const RevealStripeSecretResponseSchema: GenMessage<RevealStripeSecretResponse>;
+  export const StripeSettingsService: GenService<{
+    getStripeSettings: { methodKind: 'unary'; input: typeof GetStripeSettingsRequestSchema; output: typeof GetStripeSettingsResponseSchema };
+    updateStripeSettings: { methodKind: 'unary'; input: typeof UpdateStripeSettingsRequestSchema; output: typeof UpdateStripeSettingsResponseSchema };
+    revealStripeSecret: { methodKind: 'unary'; input: typeof RevealStripeSecretRequestSchema; output: typeof RevealStripeSecretResponseSchema };
+  }>;
 }
 
 declare module '@vrooli/proto-types/landing-page-business-suite/pricing_pb' {
@@ -247,17 +324,117 @@ declare module '@vrooli/proto-types/landing-page-business-suite/pricing_pb' {
   }>;
 }
 
+declare module '@vrooli/proto-types/landing-page-business-suite/variant_space_pb' {
+  import type { Message } from '@bufbuild/protobuf';
+  import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
+
+  export type GetVariantSpaceRequest = Message<'landing_page_business_suite.v1.GetVariantSpaceRequest'>;
+  export interface GetVariantSpaceResponse extends Message<'landing_page_business_suite.v1.GetVariantSpaceResponse'> {
+    rawJson: Uint8Array;
+  }
+  export const GetVariantSpaceRequestSchema: GenMessage<GetVariantSpaceRequest>;
+  export const GetVariantSpaceResponseSchema: GenMessage<GetVariantSpaceResponse>;
+  export const VariantSpaceService: GenService<{
+    getVariantSpace: {
+      methodKind: 'unary';
+      input: typeof GetVariantSpaceRequestSchema;
+      output: typeof GetVariantSpaceResponseSchema;
+    };
+  }>;
+}
+
+declare module '@vrooli/proto-types/landing-page-business-suite/variant_pb' {
+  import type { Message } from '@bufbuild/protobuf';
+  import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
+
+  export interface Variant extends Message<'landing_page_business_suite.v1.Variant'> {
+    id: bigint; slug: string; name: string; description: string; weight: number; status: string;
+    axes: Record<string, string>; headerConfig?: Record<string, unknown>; seoConfig?: Record<string, unknown>;
+  }
+  export interface ContentSection extends Message<'vrooli.landing_page_business_suite.v1.shared.ContentSection'> {
+    id: bigint; variantId: bigint; sectionType: string; content?: { fields?: Record<string, unknown> }; order: number; enabled: boolean;
+  }
+  export interface VariantSnapshot extends Message<'landing_page_business_suite.v1.VariantSnapshot'> {
+    slug: string; name: string; description: string; weight: number; status: string; axes: Record<string, string>;
+    headerConfig?: Record<string, unknown>; seoConfig?: Record<string, unknown>; sections: ContentSection[];
+  }
+  export interface GetPublicVariantRequest extends Message<'landing_page_business_suite.v1.GetPublicVariantRequest'> { slug: string; }
+  export interface GetVariantRequest extends Message<'landing_page_business_suite.v1.GetVariantRequest'> { slug: string; }
+  export interface ListVariantsRequest extends Message<'landing_page_business_suite.v1.ListVariantsRequest'> { statusFilter: string; }
+  export interface CreateVariantRequest extends Message<'landing_page_business_suite.v1.CreateVariantRequest'> { slug: string; name: string; description: string; weight: number; axes: Record<string, string>; }
+  export interface AxesSelection extends Message<'landing_page_business_suite.v1.AxesSelection'> { values: Record<string, string>; }
+  export interface UpdateVariantRequest extends Message<'landing_page_business_suite.v1.UpdateVariantRequest'> { slug: string; name?: string; description?: string; weight?: number; axes?: AxesSelection; headerConfig?: Record<string, unknown>; }
+  export interface ArchiveVariantRequest extends Message<'landing_page_business_suite.v1.ArchiveVariantRequest'> { slug: string; }
+  export interface DeleteVariantRequest extends Message<'landing_page_business_suite.v1.DeleteVariantRequest'> { slug: string; }
+  export interface ExportVariantSnapshotRequest extends Message<'landing_page_business_suite.v1.ExportVariantSnapshotRequest'> { slug: string; }
+  export interface ImportVariantSnapshotRequest extends Message<'landing_page_business_suite.v1.ImportVariantSnapshotRequest'> { slug: string; snapshot?: VariantSnapshot; }
+  export interface VariantResponse extends Message<'landing_page_business_suite.v1.VariantResponse'> { variant?: Variant; }
+  export interface ListVariantsResponse extends Message<'landing_page_business_suite.v1.ListVariantsResponse'> { variants: Variant[]; }
+  export interface DeleteVariantResponse extends Message<'landing_page_business_suite.v1.DeleteVariantResponse'> { deleted: boolean; }
+  export interface ExportVariantSnapshotResponse extends Message<'landing_page_business_suite.v1.ExportVariantSnapshotResponse'> { snapshot?: VariantSnapshot; }
+  export interface ImportVariantSnapshotResponse extends Message<'landing_page_business_suite.v1.ImportVariantSnapshotResponse'> { snapshot?: VariantSnapshot; }
+  export const VariantSchema: GenMessage<Variant>;
+  export const VariantSnapshotSchema: GenMessage<VariantSnapshot>;
+  export const VariantService: GenService<{
+    selectVariant: { methodKind: 'unary'; input: GenMessage<SelectVariantRequest>; output: GenMessage<VariantResponse> };
+    getPublicVariant: { methodKind: 'unary'; input: GenMessage<GetPublicVariantRequest>; output: GenMessage<VariantResponse> };
+    getVariant: { methodKind: 'unary'; input: GenMessage<GetVariantRequest>; output: GenMessage<VariantResponse> };
+    listVariants: { methodKind: 'unary'; input: GenMessage<ListVariantsRequest>; output: GenMessage<ListVariantsResponse> };
+    createVariant: { methodKind: 'unary'; input: GenMessage<CreateVariantRequest>; output: GenMessage<VariantResponse> };
+    updateVariant: { methodKind: 'unary'; input: GenMessage<UpdateVariantRequest>; output: GenMessage<VariantResponse> };
+    archiveVariant: { methodKind: 'unary'; input: GenMessage<ArchiveVariantRequest>; output: GenMessage<VariantResponse> };
+    deleteVariant: { methodKind: 'unary'; input: GenMessage<DeleteVariantRequest>; output: GenMessage<DeleteVariantResponse> };
+    exportVariantSnapshot: { methodKind: 'unary'; input: GenMessage<ExportVariantSnapshotRequest>; output: GenMessage<ExportVariantSnapshotResponse> };
+    importVariantSnapshot: { methodKind: 'unary'; input: GenMessage<ImportVariantSnapshotRequest>; output: GenMessage<ImportVariantSnapshotResponse> };
+  }>;
+}
+
+declare module '@vrooli/proto-types/landing-page-business-suite/seo_pb' {
+  import type { Message } from '@bufbuild/protobuf';
+  import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
+  export interface VariantSEOConfig { title?: string; description?: string; ogTitle?: string; ogDescription?: string; ogImageUrl?: string; twitterCard?: string; canonicalPath?: string; noindex?: boolean; structuredData?: Record<string, unknown>; }
+  export interface GetVariantSEORequest extends Message<'landing_page_business_suite.v1.GetVariantSEORequest'> { slug: string; }
+  export interface UpdateVariantSEORequest extends Message<'landing_page_business_suite.v1.UpdateVariantSEORequest'> { slug: string; config?: VariantSEOConfig; }
+  export interface SEOResponse extends Message<'landing_page_business_suite.v1.SEOResponse'> {
+    siteName: string; title: string; description: string; ogTitle: string; ogDescription: string;
+    ogImageUrl: string; twitterCard: string; canonicalUrl: string; faviconUrl: string;
+    appleTouchIconUrl: string; themePrimaryColor: string; noindex: boolean;
+    structuredData?: Record<string, unknown>;
+  }
+  export interface UpdateVariantSEOResponse extends Message<'landing_page_business_suite.v1.UpdateVariantSEOResponse'> { success: boolean; updatedAt: string; }
+  export const GetVariantSEORequestSchema: GenMessage<GetVariantSEORequest>;
+  export const SEOResponseSchema: GenMessage<SEOResponse>;
+  export const UpdateVariantSEORequestSchema: GenMessage<UpdateVariantSEORequest>;
+  export const UpdateVariantSEOResponseSchema: GenMessage<UpdateVariantSEOResponse>;
+  export const SeoService: GenService<{
+    getVariantSEO: { methodKind: 'unary'; input: typeof GetVariantSEORequestSchema; output: typeof SEOResponseSchema };
+    updateVariantSEO: { methodKind: 'unary'; input: typeof UpdateVariantSEORequestSchema; output: typeof UpdateVariantSEOResponseSchema };
+  }>;
+}
+
+declare module '@vrooli/proto-types/landing-page-business-suite/config_pb' {
+  import type { Message } from '@bufbuild/protobuf';
+  import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
+  export interface GetLandingConfigRequest extends Message<'landing_page_business_suite.v1.GetLandingConfigRequest'> { variantSlug: string; }
+  export type LandingConfigResponse = Message<'landing_page_business_suite.v1.LandingConfigResponse'>;
+  export const GetLandingConfigRequestSchema: GenMessage<GetLandingConfigRequest>;
+  export const LandingConfigResponseSchema: GenMessage<LandingConfigResponse>;
+  export const LandingConfigService: GenService<{
+    getLandingConfig: { methodKind: 'unary'; input: typeof GetLandingConfigRequestSchema; output: typeof LandingConfigResponseSchema };
+  }>;
+}
+
 declare module '@vrooli/proto-types/landing-page-business-suite/account_pb' {
   import type { Message } from '@bufbuild/protobuf';
   import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
 
-  export interface GetMySubscriptionRequest extends Message<'landing_page_business_suite.v1.GetMySubscriptionRequest'> {}
-  export interface GetMyCreditsRequest extends Message<'landing_page_business_suite.v1.GetMyCreditsRequest'> {}
-  export interface GetEntitlementsRequest extends Message<'landing_page_business_suite.v1.GetEntitlementsRequest'> {}
+  export type GetMySubscriptionRequest = Message<'landing_page_business_suite.v1.GetMySubscriptionRequest'>;
+  export type GetMyCreditsRequest = Message<'landing_page_business_suite.v1.GetMyCreditsRequest'>;
+  export type GetEntitlementsRequest = Message<'landing_page_business_suite.v1.GetEntitlementsRequest'>;
   export interface SubscriptionStatus { state?: number; subscriptionId?: string; userIdentity?: string; planTier?: string; stripePriceId?: string; bundleKey?: string; cachedAt?: { toJsonString?: () => string }; }
   export interface CreditsBalance { customerEmail?: string; balanceCredits?: number; bundleKey?: string; }
   export interface GetMySubscriptionResponse extends Message<'vrooli.landing_page_business_suite.v1.shared.VerifySubscriptionResponse'> { status?: SubscriptionStatus; }
-  export interface GetMyCreditsResponse extends Message<'landing_page_business_suite.v1.GetMyCreditsResponse'> { balance?: CreditsBalance; displayCreditsLabel: string; displayCreditsMultiplier: number; }
+  export interface GetMyCreditsResponse extends Message<'landing_page_business_suite.v1.GetMyCreditsResponse'> { balance?: CreditsBalance; displayCreditsLabel?: string; displayCreditsMultiplier?: number; }
   export interface GetEntitlementsResponse extends Message<'landing_page_business_suite.v1.GetEntitlementsResponse'> { status: string; planTier: string; priceId: string; features: string[]; credits?: CreditsBalance; subscription?: SubscriptionStatus; billingCycleStart: number; }
   export const GetMySubscriptionRequestSchema: GenMessage<GetMySubscriptionRequest>;
   export const GetMyCreditsRequestSchema: GenMessage<GetMyCreditsRequest>;

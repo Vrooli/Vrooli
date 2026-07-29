@@ -17,7 +17,6 @@ func cleanupUserTestData(t *testing.T, db *sql.DB, email string) {
 
 func TestGetOrCreateUser(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -58,7 +57,6 @@ func TestGetOrCreateUser(t *testing.T) {
 
 func TestGetUserByEmail(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -98,7 +96,6 @@ func TestGetUserByEmail(t *testing.T) {
 
 func TestJWTCreationAndValidation(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -149,7 +146,6 @@ func TestJWTCreationAndValidation(t *testing.T) {
 
 func TestJWTExpiry(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 
@@ -196,7 +192,6 @@ func TestJWTExpiry(t *testing.T) {
 
 func TestInvalidToken(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -219,7 +214,6 @@ func TestInvalidToken(t *testing.T) {
 
 func TestLinkStripeCustomer(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -292,7 +286,6 @@ func TestHashToken(t *testing.T) {
 
 func TestVerifyMagicLink_ValidToken(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 
@@ -367,7 +360,6 @@ func TestVerifyMagicLink_ValidToken(t *testing.T) {
 
 func TestVerifyMagicLink_ExpiredToken(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 
@@ -416,7 +408,6 @@ func TestVerifyMagicLink_ExpiredToken(t *testing.T) {
 
 func TestVerifyMagicLink_UsedToken(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 
@@ -468,7 +459,6 @@ func TestVerifyMagicLink_UsedToken(t *testing.T) {
 
 func TestVerifyMagicLink_InvalidToken(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -496,7 +486,6 @@ func TestVerifyMagicLink_InvalidToken(t *testing.T) {
 
 func TestLogoutAllSessions_RevokesOtherSessions(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)
@@ -567,7 +556,6 @@ func TestLogoutAllSessions_RevokesOtherSessions(t *testing.T) {
 
 func TestLogoutAllSessions_NoOtherSessions(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	emailService := NewEmailService()
 	authService := NewUserAuthService(db, emailService)

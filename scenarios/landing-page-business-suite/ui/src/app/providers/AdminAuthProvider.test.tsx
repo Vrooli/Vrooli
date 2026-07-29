@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderWithProviders as render } from "../../test-utils/renderWithProviders";
 import { screen, waitFor } from "@testing-library/react";
+import userEvent from '@testing-library/user-event';
 import { AdminAuthProvider } from './AdminAuthProvider';
 import { useAdminAuth } from './useAdminAuth';
 import { adminLogin, adminLogout, checkAdminSession } from '../../shared/api';
@@ -65,7 +66,7 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
     vi.clearAllMocks();
   });
 
-  it('[REQ:ADMIN-AUTH] should provide authentication context to children', () => {
+  it('[REQ:ADMIN-AUTH] should provide authentication context to children', async () => {
     render(
       <AdminAuthProvider>
         <TestComponent />
@@ -75,6 +76,10 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
     expect(screen.getByTestId('auth-status')).toHaveTextContent('not-authenticated');
     expect(screen.getByTestId('user-email')).toHaveTextContent('no-user');
     expect(screen.getByTestId('reset-flag')).toHaveTextContent('reset-disabled');
+
+    await waitFor(() => {
+      expect(mockCheckAdminSession).toHaveBeenCalled();
+    });
   });
 
   it('[REQ:ADMIN-AUTH] should check session on mount for admin routes', async () => {
@@ -130,7 +135,7 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
     );
 
     const loginBtn = screen.getByTestId('login-btn');
-    loginBtn.click();
+    await userEvent.setup().click(loginBtn);
 
     await waitFor(() => {
       expect(mockAdminLogin).toHaveBeenCalledWith('test@example.com', 'password');
@@ -182,7 +187,7 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
     const loginBtn = screen.getByTestId('login-btn');
 
     // Click should trigger login attempt which will fail
-    loginBtn.click();
+    await userEvent.setup().click(loginBtn);
 
     // Wait for fetch to be called with login endpoint
     await waitFor(() => {
@@ -211,7 +216,7 @@ describe('AdminAuthProvider [REQ:ADMIN-AUTH]', () => {
     });
 
     const logoutBtn = screen.getByTestId('logout-btn');
-    logoutBtn.click();
+    await userEvent.setup().click(logoutBtn);
 
     await waitFor(() => {
       expect(mockAdminLogout).toHaveBeenCalled();

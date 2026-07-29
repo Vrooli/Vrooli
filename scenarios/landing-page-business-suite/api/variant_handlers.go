@@ -35,7 +35,7 @@ func snapshotToVariantResponse(snapshot *VariantSnapshot) VariantResponse {
 		Name:         snapshot.Variant.Name,
 		Description:  snapshot.Variant.Description,
 		Weight:       getVariantWeight(snapshot),
-		Status:       "active",
+		Status:       normalizeVariantStatus(snapshot.Variant.Status),
 		Axes:         snapshot.Variant.Axes,
 		HeaderConfig: snapshot.Variant.HeaderConfig,
 		UpdatedAt:    time.Now().Format(time.RFC3339), // Use current time as approximation
@@ -46,10 +46,20 @@ func snapshotToVariantResponse(snapshot *VariantSnapshot) VariantResponse {
 // Weight > 0: returns the weight (variant participates in selection)
 // Weight <= 0: returns 0 (variant is disabled)
 func getVariantWeight(snapshot *VariantSnapshot) int {
+	if normalizeVariantStatus(snapshot.Variant.Status) != "active" {
+		return 0
+	}
 	if snapshot.Variant.Weight > 0 {
 		return snapshot.Variant.Weight
 	}
 	return 0 // Disabled
+}
+
+func normalizeVariantStatus(status string) string {
+	if status == "archived" {
+		return "archived"
+	}
+	return "active"
 }
 
 // selectWeightedRandomVariant picks a random variant based on weights

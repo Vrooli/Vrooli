@@ -6,7 +6,7 @@ import { RuntimeSignalStrip } from './RuntimeSignalStrip';
 import type { useLandingVariant } from '../../../app/providers/useLandingVariant';
 import type { LandingConfigResponse } from '../../../shared/api';
 
-const mockUseLandingVariant = vi.fn<[], ReturnType<typeof useLandingVariant>>();
+const mockUseLandingVariant = vi.fn<() => ReturnType<typeof useLandingVariant>>();
 
 vi.mock('../../../app/providers/useLandingVariant', () => ({
   useLandingVariant: () => mockUseLandingVariant(),
@@ -35,7 +35,7 @@ const buildContext = (
   resolution: 'api_select',
   statusNote: 'Variant selected via weighted API',
   lastUpdated: Date.now(),
-  refresh: vi.fn<[], Promise<void>>(),
+  refresh: vi.fn<() => Promise<void>>(),
   ...overrides,
 });
 

@@ -9,7 +9,7 @@ import {
   CreditInfoSchema,
   EntitlementPayloadSchema,
 } from './schemas/billing.schema';
-import type { CreditInfo, EntitlementPayload, SubscriptionInfo } from './types';
+import type { CreditInfo, SubscriptionInfo } from './types';
 
 const accountClient = createClient(AccountService, createScenarioConnectTransport({ baseUrl: CONNECT_API_BASE }));
 

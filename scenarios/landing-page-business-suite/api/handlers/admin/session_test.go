@@ -67,9 +67,11 @@ type fakeSessions struct{ session *sessions.Session }
 func (f *fakeSessions) GetSession(*http.Request, string) (*sessions.Session, error) {
 	return f.session, nil
 }
+
 func (f *fakeSessions) SaveSession(*http.Request, http.ResponseWriter, *sessions.Session) error {
 	return nil
 }
+
 func testDependencies(auth AuthService, sessions SessionManager) Dependencies {
 	return Dependencies{Auth: auth, Sessions: sessions, GenerateID: func() (string, error) { return "session-1", nil }, Now: func() time.Time { return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC) }, ClientIP: func(*http.Request) string { return "127.0.0.1" }, SecureCookies: func() bool { return true }, WriteError: func(w http.ResponseWriter, status int, message, kind string) { w.WriteHeader(status) }, Log: func(string, map[string]any) {}, LogError: func(string, map[string]any) {}}
 }

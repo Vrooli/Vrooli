@@ -21,7 +21,6 @@ import (
 // an event ID are rejected to prevent unsafe processing.
 func TestHandleWebhook_MissingEventID_ReturnsError(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultStripeTestConfig().WithKeys("pk_test_valid", "sk_test_valid", "whsec_test_secret")
 	service := ConfigureStripeService(t, db, cfg, nil)
@@ -92,7 +91,6 @@ func TestHandleWebhook_MissingEventID_ReturnsError(t *testing.T) {
 // event ID only results in credits being added once.
 func TestAddCredits_DuplicateEventID_ProcessesOnce(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Ensure credit tables exist with unique constraint
@@ -158,7 +156,6 @@ func TestAddCredits_DuplicateEventID_ProcessesOnce(t *testing.T) {
 // webhook processing with the same event ID only credits the user once.
 func TestAddCredits_ConcurrentSameEvent_OnlyOneSucceeds(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Ensure credit tables exist with unique constraint
@@ -245,7 +242,6 @@ func TestAddCredits_ConcurrentSameEvent_OnlyOneSucceeds(t *testing.T) {
 // for credit topup scenarios.
 func TestWebhook_CreditTopup_Idempotent(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create all required tables

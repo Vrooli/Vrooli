@@ -1,7 +1,7 @@
 import { useMemo, type DragEvent, type KeyboardEvent, type MouseEvent } from 'react';
 import { ChevronDown, GripVertical, Loader2, RefreshCw, ShieldCheck, Trash2, Tag, X } from 'lucide-react';
 import { Button } from '../../../../shared/ui/button';
-import { Textarea } from '../../../../shared/ui/input';
+import { Textarea } from '../../../../shared/ui/textarea';
 import { Card, CardContent, CardHeader } from '../../../../shared/ui/card';
 import { FormField } from '../FormField';
 import { inputClassName, textareaClassName } from '../formFieldClasses';

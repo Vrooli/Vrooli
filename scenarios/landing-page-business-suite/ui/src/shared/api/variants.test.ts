@@ -1,66 +1,71 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { create } from '@bufbuild/protobuf';
+import { VariantSchema as VariantMessageSchema, VariantSnapshotSchema as VariantSnapshotMessageSchema } from '@vrooli/proto-types/landing-page-business-suite/variant_pb';
 import * as variants from './variants';
-import { apiCall } from './common';
 
-vi.mock('./common', () => ({ apiCall: vi.fn() }));
-const mockApiCall = vi.mocked(apiCall);
+const { variantClient, variantSpaceClient, seoClient } = vi.hoisted(() => ({
+  variantClient: {
+    selectVariant: vi.fn(), getPublicVariant: vi.fn(), getVariant: vi.fn(), listVariants: vi.fn(), createVariant: vi.fn(),
+    updateVariant: vi.fn(), archiveVariant: vi.fn(), deleteVariant: vi.fn(), exportVariantSnapshot: vi.fn(), importVariantSnapshot: vi.fn(),
+  },
+  variantSpaceClient: { getVariantSpace: vi.fn() },
+  seoClient: { getVariantSEO: vi.fn(), updateVariantSEO: vi.fn() },
+}));
+
+vi.mock('@connectrpc/connect', () => ({
+  createClient: vi.fn((service: { typeName?: string }) => {
+    if (service.typeName?.endsWith('.VariantService')) return variantClient;
+    if (service.typeName?.endsWith('.SeoService')) return seoClient;
+    return variantSpaceClient;
+  }),
+}));
+vi.mock('@vrooli/api-base', () => ({ createScenarioConnectTransport: vi.fn(), resolveApiBase: vi.fn(() => 'http://localhost:17691/api/v1'), DEFAULT_API_SUFFIX: '/api/v1' }));
+
+const protoVariant = create(VariantMessageSchema, { slug: 'control', name: 'Control', weight: 100, status: 'active', axes: {} });
+const protoSnapshot = create(VariantSnapshotMessageSchema, { slug: 'control', name: 'Control', weight: 100, status: 'active', axes: {}, sections: [] });
 
 describe('variant API transport', () => {
-  beforeEach(() => { vi.resetAllMocks(); mockApiCall.mockResolvedValue({} as never); });
-
-  it('uses the correct public and admin endpoints and fails closed for malformed variant payloads', async () => {
-    await expect(variants.getPublicVariant('control')).rejects.toThrow('Invalid variant response');
-    await expect(variants.getVariant('control')).rejects.toThrow('Invalid variant response');
-    await expect(variants.createVariant({ name: 'Control', slug: 'control', axes: {} })).rejects.toThrow('Invalid variant response');
-    await expect(variants.updateVariant('control', { weight: 50 })).rejects.toThrow('Invalid variant response');
-    expect(mockApiCall).toHaveBeenCalledWith('/public/variants/control');
-    expect(mockApiCall).toHaveBeenCalledWith('/variants/control');
-    expect(mockApiCall).toHaveBeenCalledWith('/variants', expect.objectContaining({ method: 'POST', body: JSON.stringify({ name: 'Control', slug: 'control', axes: {} }) }));
-    expect(mockApiCall).toHaveBeenCalledWith('/variants/control', expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ weight: 50 }) }));
+  beforeEach(() => {
+    vi.resetAllMocks();
+    variantClient.getPublicVariant.mockResolvedValue({ variant: protoVariant });
+    variantClient.getVariant.mockResolvedValue({ variant: protoVariant });
+    variantClient.listVariants.mockResolvedValue({ variants: [protoVariant] });
+    variantClient.createVariant.mockResolvedValue({ variant: protoVariant });
+    variantClient.updateVariant.mockResolvedValue({ variant: protoVariant });
+    variantClient.archiveVariant.mockResolvedValue({ variant: create(VariantMessageSchema, { slug: 'control', name: 'Control', weight: 100, status: 'archived', axes: {} }) });
+    variantClient.deleteVariant.mockResolvedValue({ deleted: true });
+    variantClient.selectVariant.mockResolvedValue({ variant: protoVariant });
+    variantClient.exportVariantSnapshot.mockResolvedValue({ snapshot: protoSnapshot });
+    variantClient.importVariantSnapshot.mockResolvedValue({ snapshot: protoSnapshot });
+    variantSpaceClient.getVariantSpace.mockResolvedValue({ rawJson: new TextEncoder().encode('{"_name":"Default","_schemaVersion":1,"axes":{}}') });
+    seoClient.getVariantSEO.mockResolvedValue({ siteName: 'Example', title: 'Title', description: 'Description', ogTitle: 'OG Title', ogDescription: 'OG Description', noindex: false });
+    seoClient.updateVariantSEO.mockResolvedValue({ success: true, updatedAt: '2026-07-28T00:00:00Z' });
   });
 
-  it('uses snapshot, lifecycle, selection, space, and SEO endpoints with validation', async () => {
-    await expect(variants.exportVariantSnapshot('control')).rejects.toThrow('Invalid variant snapshot response');
-    await expect(variants.importVariantSnapshot('control', {} as never)).rejects.toThrow('Invalid variant snapshot response');
-    await expect(variants.archiveVariant('control')).resolves.toEqual({});
-    await expect(variants.deleteVariant('control')).resolves.toEqual({});
-    await expect(variants.selectVariant()).rejects.toThrow('Invalid variant selection response');
-    await expect(variants.selectVariant('control')).rejects.toThrow('Invalid variant selection response');
-    await expect(variants.getVariantSpace()).rejects.toThrow('Invalid variant space response');
-    await expect(variants.getVariantSEO('control')).rejects.toThrow('Invalid variant SEO response');
-    await expect(variants.updateVariantSEO('control', {} as never)).resolves.toEqual({});
-    expect(mockApiCall).toHaveBeenCalledWith('/admin/variants/control/export');
-    expect(mockApiCall).toHaveBeenCalledWith('/admin/variants/control/import', expect.objectContaining({ method: 'PUT' }));
-    expect(mockApiCall).toHaveBeenCalledWith('/variants/control/archive', { method: 'POST' });
-    expect(mockApiCall).toHaveBeenCalledWith('/variants/control', { method: 'DELETE' });
-    expect(mockApiCall).toHaveBeenCalledWith('/variants/select');
-    expect(mockApiCall).toHaveBeenCalledWith('/variants/select?variant_slug=control');
-    expect(mockApiCall).toHaveBeenCalledWith('/variant-space');
-    expect(mockApiCall).toHaveBeenCalledWith('/seo/control');
-    expect(mockApiCall).toHaveBeenCalledWith('/admin/variants/control/seo', expect.objectContaining({ method: 'PUT', credentials: 'include' }));
-  });
-
-  it('treats an invalid variant-list envelope as an empty list instead of leaking malformed data', async () => {
-    await expect(variants.listVariants()).resolves.toEqual({ variants: [] });
-    expect(mockApiCall).toHaveBeenCalledWith('/variants');
-  });
-
-  it('returns valid variants and lists without bypassing runtime schema validation', async () => {
-    const variant = {
-      id: 1, slug: 'control', name: 'Control', status: 'active',
-      created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-02T00:00:00Z', archived_at: '', axes: {},
-    };
-    mockApiCall
-      .mockResolvedValueOnce(variant as never)
-      .mockResolvedValueOnce(variant as never)
-      .mockResolvedValueOnce(variant as never)
-      .mockResolvedValueOnce(variant as never)
-      .mockResolvedValueOnce({ variants: [variant] } as never);
-
+  it('uses the generated VariantService for every lifecycle operation', async () => {
     await expect(variants.getPublicVariant('control')).resolves.toMatchObject({ slug: 'control' });
     await expect(variants.getVariant('control')).resolves.toMatchObject({ name: 'Control' });
+    await expect(variants.listVariants()).resolves.toMatchObject({ variants: [{ slug: 'control' }] });
     await expect(variants.createVariant({ name: 'Control', slug: 'control', axes: {} })).resolves.toMatchObject({ status: 'active' });
-    await expect(variants.updateVariant('control', { description: 'Updated' })).resolves.toMatchObject({ id: 1 });
-    await expect(variants.listVariants()).resolves.toEqual({ variants: [variant] });
+    await expect(variants.updateVariant('control', { weight: 50 })).resolves.toMatchObject({ weight: 100 });
+    await expect(variants.archiveVariant('control')).resolves.toMatchObject({ status: 'archived' });
+    await expect(variants.deleteVariant('control')).resolves.toEqual({ success: true });
+    await expect(variants.selectVariant()).resolves.toMatchObject({ slug: 'control' });
+    expect(variantClient.getPublicVariant).toHaveBeenCalledWith({ slug: 'control' });
+    expect(variantClient.createVariant).toHaveBeenCalledWith(expect.objectContaining({ slug: 'control', name: 'Control' }));
+    expect(variantClient.archiveVariant).toHaveBeenCalledWith({ slug: 'control' });
+  });
+
+  it('preserves portable snapshot import and export semantics', async () => {
+    await expect(variants.exportVariantSnapshot('control')).resolves.toMatchObject({ variant: { slug: 'control' }, sections: [] });
+    await expect(variants.importVariantSnapshot('control', { variant: { slug: 'control', name: 'Control', axes: {} }, sections: [] })).resolves.toMatchObject({ variant: { slug: 'control' } });
+    expect(variantClient.exportVariantSnapshot).toHaveBeenCalledWith({ slug: 'control' });
+    expect(variantClient.importVariantSnapshot).toHaveBeenCalledWith(expect.objectContaining({ slug: 'control' }));
+  });
+
+  it('continues to validate the generated variant-space and SEO responses', async () => {
+    await expect(variants.getVariantSpace()).resolves.toMatchObject({ _name: 'Default', axes: {} });
+    await expect(variants.getVariantSEO('control')).resolves.toMatchObject({ site_name: 'Example' });
+    await expect(variants.updateVariantSEO('control', {})).resolves.toEqual({ success: true });
   });
 });

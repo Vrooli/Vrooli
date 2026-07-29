@@ -38,12 +38,15 @@ func assetDependencies(service *AssetsService) assethttp.Dependencies {
 func handleAssetUpload(service *AssetsService) http.HandlerFunc {
 	return assethttp.Upload(assetDependencies(service))
 }
+
 func handleAssetsList(service *AssetsService) http.HandlerFunc {
 	return assethttp.List(assetDependencies(service))
 }
+
 func handleAssetGet(service *AssetsService) http.HandlerFunc {
 	return assethttp.Get(assetDependencies(service))
 }
+
 func handleAssetDelete(service *AssetsService) http.HandlerFunc {
 	return assethttp.Delete(assetDependencies(service))
 }

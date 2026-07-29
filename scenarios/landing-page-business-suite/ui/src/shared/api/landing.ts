@@ -1,28 +1,39 @@
 import { createClient } from '@connectrpc/connect';
+import { toJson } from '@bufbuild/protobuf';
 import {
   PricingService,
   type GetPricingResponse,
 } from '@vrooli/proto-types/landing-page-business-suite/pricing_pb';
+import {
+  LandingConfigResponseSchema as LandingConfigMessageSchema,
+  LandingConfigService,
+  type LandingConfigResponse as LandingConfigMessage,
+} from '@vrooli/proto-types/landing-page-business-suite/config_pb';
 import { BillingInterval, IntroPricingType, PlanKind } from '@vrooli/proto-types/landing-page-business-suite/shared/commerce_pb';
-import { apiCall, CONNECT_API_BASE } from './common';
+import { CONNECT_API_BASE } from './common';
 import { createScenarioConnectTransport } from '@vrooli/api-base';
 import type { LandingConfigResponse, PlanOption, PricingOverview } from './types';
 import { normalizeTimestampOrNow } from '../lib/protobuf-utils';
-import { PlanOptionSchema, PricingOverviewSchema } from './schemas';
-import { parseOrNull, safeParse } from './safeParse';
+import { LandingConfigResponseSchema, PlanOptionSchema, PricingOverviewSchema } from './schemas';
+import { parseOrNull, parseOrThrow, safeParse } from './safeParse';
 
 const pricingClient = createClient(
   PricingService,
   createScenarioConnectTransport({ baseUrl: CONNECT_API_BASE }),
 );
+const landingConfigClient = createClient(
+  LandingConfigService,
+  createScenarioConnectTransport({ baseUrl: CONNECT_API_BASE }),
+);
 
 export function getLandingConfig(variantSlug?: string) {
-  const params = new URLSearchParams();
-  if (variantSlug) {
-    params.set('variant', variantSlug);
-  }
-  const query = params.toString() ? `?${params.toString()}` : '';
-  return apiCall<LandingConfigResponse>(`/landing-config${query}`);
+  return landingConfigClient.getLandingConfig({ variantSlug }).then((response: LandingConfigMessage) =>
+    parseOrThrow(
+      LandingConfigResponseSchema,
+      toJson(LandingConfigMessageSchema, response, { useProtoFieldName: true }),
+      'LandingConfigResponse',
+    ) as LandingConfigResponse,
+  );
 }
 
 export function getPlans() {

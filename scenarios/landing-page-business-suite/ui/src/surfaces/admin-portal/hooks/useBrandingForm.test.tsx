@@ -9,9 +9,9 @@ type LoadBrandingFn = typeof loadBranding;
 type SaveBrandingFn = typeof saveBranding;
 type ClearFieldFn = typeof clearField;
 
-const loadBrandingMock = vi.fn<Parameters<LoadBrandingFn>, ReturnType<LoadBrandingFn>>();
-const saveBrandingMock = vi.fn<Parameters<SaveBrandingFn>, ReturnType<SaveBrandingFn>>();
-const clearFieldMock = vi.fn<Parameters<ClearFieldFn>, ReturnType<ClearFieldFn>>();
+const loadBrandingMock = vi.fn<LoadBrandingFn>();
+const saveBrandingMock = vi.fn<SaveBrandingFn>();
+const clearFieldMock = vi.fn<ClearFieldFn>();
 
 vi.mock('../services/branding.service', async () => {
   const actual = await vi.importActual<typeof import('../services/branding.service')>(

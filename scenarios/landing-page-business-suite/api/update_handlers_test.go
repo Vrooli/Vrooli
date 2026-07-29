@@ -169,7 +169,6 @@ func TestBuildElectronManifest(t *testing.T) {
 
 func TestHandleUpdateFile_MissingAppKey(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	downloads := NewDownloadService(db)
 	hosting := NewDownloadHostingService(db)
@@ -192,7 +191,6 @@ func TestHandleUpdateFile_MissingAppKey(t *testing.T) {
 
 func TestHandleUpdateFile_AppNotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	downloads := NewDownloadService(db)
 	hosting := NewDownloadHostingService(db)
@@ -222,7 +220,6 @@ func TestHandleUpdateFile_AppNotFound(t *testing.T) {
 
 func TestHandleUpdateFile_APIKeyGating_Forbidden(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadApps(t, db)
 
 	downloads := NewDownloadService(db)
@@ -285,7 +282,6 @@ func TestHandleUpdateFile_APIKeyGating_Forbidden(t *testing.T) {
 
 func TestHandleUpdateFile_PublicApp_NoKeyRequired(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadApps(t, db)
 
 	downloads := NewDownloadService(db)
@@ -596,7 +592,6 @@ func TestHandleChannelDiscovery(t *testing.T) {
 
 func TestHandleUpdatePolicy_CRUD(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadApps(t, db)
 
 	downloads := NewDownloadService(db)
@@ -666,7 +661,6 @@ func TestHandleUpdatePolicy_CRUD(t *testing.T) {
 
 func TestUpsertAsset_NonDefaultVariantKey(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadApps(t, db)
 
 	downloads := NewDownloadService(db)
@@ -731,7 +725,6 @@ func TestUpsertAsset_NonDefaultVariantKey(t *testing.T) {
 
 func TestListChannels_Integration(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	cleanupDownloadApps(t, db)
 
 	downloads := NewDownloadService(db)

@@ -10,7 +10,6 @@ import (
 // which requires an array even when an app has no released installers yet.
 func TestDownloadServiceListAppsInitializesEmptyPlatformSlices(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewDownloadService(db)
 	const bundleKey = "bundle_empty_platforms"
@@ -39,7 +38,6 @@ func TestDownloadServiceListAppsInitializesEmptyPlatformSlices(t *testing.T) {
 
 func TestDownloadServiceDeleteAppRemovesAssets(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewDownloadService(db)
 	bundleKey := "bundle_delete_test"
@@ -85,7 +83,6 @@ func TestDownloadServiceDeleteAppRemovesAssets(t *testing.T) {
 
 func TestDownloadServiceDeleteAppNotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewDownloadService(db)
 	err := service.DeleteApp("missing_bundle", "missing_app")
@@ -96,7 +93,6 @@ func TestDownloadServiceDeleteAppNotFound(t *testing.T) {
 
 func TestDownloadServiceListAppsEmptyReturnsNonNilSlice(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewDownloadService(db)
 
@@ -114,7 +110,6 @@ func TestDownloadServiceListAppsEmptyReturnsNonNilSlice(t *testing.T) {
 
 func TestDownloadHostingListArtifactsEmptyReturnsNonNilSlice(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	hosting := NewDownloadHostingService(db, S3DownloadStorageProvider{})
 	result, err := hosting.ListArtifacts(context.Background(), "bundle_with_no_artifacts", "", "", "", 1, 50)

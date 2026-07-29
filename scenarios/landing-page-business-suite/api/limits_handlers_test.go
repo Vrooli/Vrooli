@@ -31,9 +31,7 @@ func TestHandleGetTierLimits_AllTiers(t *testing.T) {
 	}
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	limits, ok := resp["limits"].(map[string]interface{})
 	if !ok {
@@ -63,9 +61,7 @@ func TestHandleGetTierLimits_SpecificTier(t *testing.T) {
 	}
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	tierID, ok := resp["tier_id"].(string)
 	if !ok || tierID != "solo" {
@@ -98,9 +94,7 @@ func TestHandleGetTierLimits_NonExistentTier(t *testing.T) {
 	}
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	limits, ok := resp["limits"].([]interface{})
 	if !ok {
@@ -144,9 +138,7 @@ func TestHandleUpdateTierLimits_Success(t *testing.T) {
 	}
 
 	var resp TierLimit
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	if resp.LimitValue != newValue {
 		t.Errorf("expected limit_value %d, got %d", newValue, resp.LimitValue)
@@ -275,9 +267,7 @@ func TestHandleGetAppLimits_Success(t *testing.T) {
 	}
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	if resp["app_bundle_key"] != appKey {
 		t.Errorf("expected app_bundle_key '%s', got %v", appKey, resp["app_bundle_key"])
@@ -316,9 +306,7 @@ func TestHandleGetAppLimits_EmptyResult(t *testing.T) {
 	}
 
 	var resp map[string]interface{}
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	limits, ok := resp["limits"].(map[string]interface{})
 	if !ok {
@@ -359,9 +347,7 @@ func TestHandleCreateTierLimit_Success(t *testing.T) {
 	}
 
 	var resp TierLimit
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	if resp.TierID != "new_tier" {
 		t.Errorf("expected tier_id 'new_tier', got '%s'", resp.TierID)
@@ -630,9 +616,7 @@ func TestHandleUpdateTierLimits_WithAppBundleKey(t *testing.T) {
 	}
 
 	var resp TierLimit
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	if resp.LimitValue != newValue {
 		t.Errorf("expected limit_value %d, got %d", newValue, resp.LimitValue)
@@ -666,9 +650,7 @@ func TestHandleUpdateTierLimits_SetUnlimited(t *testing.T) {
 	}
 
 	var resp TierLimit
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	if resp.LimitValue != -1 {
 		t.Errorf("expected limit_value -1 (unlimited), got %d", resp.LimitValue)
@@ -702,9 +684,7 @@ func TestHandleUpdateTierLimits_SetDisplayDollars(t *testing.T) {
 	}
 
 	var resp TierLimit
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
+	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	// $25 = 25 * 100 * 1,000,000 = 2,500,000,000
 	expectedValue := int64(2500000000)

@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -33,9 +33,29 @@ func configureAdminProfileTestCredentials(t *testing.T) {
 	t.Setenv("SESSION_SECRET", "admin-profile-test-session-secret")
 }
 
+// seedAdminProfileTestCredentials establishes the credential that each profile
+// test presents. setupTestDB reuses a shared testcontainer, and seedDefaultData
+// intentionally never overwrites an existing administrator; relying on the
+// process's first test to choose that hash makes these tests order-dependent.
+func seedAdminProfileTestCredentials(t *testing.T, db *sql.DB) {
+	t.Helper()
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte("changeme123"), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatalf("generate admin profile fixture hash: %v", err)
+	}
+	if _, err := db.Exec(seedDeleteDuplicateAdminSQL, defaultAdminEmail, seededAdminID); err != nil {
+		t.Fatalf("delete duplicate admin profile fixtures: %v", err)
+	}
+	if _, err := db.Exec(`UPDATE admin_users SET email = $1, password_hash = $2 WHERE id = $3`, defaultAdminEmail, string(passwordHash), seededAdminID); err != nil {
+		t.Fatalf("seed admin profile credentials: %v", err)
+	}
+}
+
 func TestHandleAdminProfile_ReturnsCurrentAdmin(t *testing.T) {
 	configureAdminProfileTestCredentials(t)
 	db := setupTestDB(t)
+	seedAdminProfileTestCredentials(t, db)
 	sessionMgr := initSessionManager()
 	server := &Server{db: db, sessionManager: sessionMgr}
 
@@ -50,9 +70,7 @@ func TestHandleAdminProfile_ReturnsCurrentAdmin(t *testing.T) {
 	}
 
 	var profile AdminProfileResponse
-	if err := json.Unmarshal(resp.Body.Bytes(), &profile); err != nil {
-		t.Fatalf("invalid profile json: %v", err)
-	}
+	decodeJSONResponse(t, resp.Body.Bytes(), &profile)
 
 	if profile.Email != defaultAdminEmail {
 		t.Fatalf("expected email %s, got %s", defaultAdminEmail, profile.Email)
@@ -68,6 +86,7 @@ func TestHandleAdminProfile_ReturnsCurrentAdmin(t *testing.T) {
 func TestHandleAdminProfileUpdate_ChangesEmailAndPassword(t *testing.T) {
 	configureAdminProfileTestCredentials(t)
 	db := setupTestDB(t)
+	seedAdminProfileTestCredentials(t, db)
 	sessionMgr := initSessionManager()
 	server := &Server{db: db, sessionManager: sessionMgr}
 
@@ -89,9 +108,7 @@ func TestHandleAdminProfileUpdate_ChangesEmailAndPassword(t *testing.T) {
 	}
 
 	var profile AdminProfileResponse
-	if err := json.Unmarshal(resp.Body.Bytes(), &profile); err != nil {
-		t.Fatalf("invalid profile json: %v", err)
-	}
+	decodeJSONResponse(t, resp.Body.Bytes(), &profile)
 
 	if profile.Email != newEmail {
 		t.Fatalf("expected updated email, got %s", profile.Email)
@@ -120,11 +137,25 @@ func TestHandleAdminProfileUpdate_ChangesEmailAndPassword(t *testing.T) {
 	if session.Values["email"] != newEmail {
 		t.Fatalf("session email not updated, got %v", session.Values["email"])
 	}
+
+	if err := seedDefaultData(db); err != nil {
+		t.Fatalf("reseed defaults: %v", err)
+	}
+	if err := db.QueryRow(`SELECT email, password_hash FROM admin_users WHERE id = $1`, seededAdminID).Scan(&storedEmail, &storedHash); err != nil {
+		t.Fatalf("load admin after reseed: %v", err)
+	}
+	if storedEmail != newEmail {
+		t.Fatalf("reseed reset administrator email to %q, want %q", storedEmail, newEmail)
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(storedHash), []byte("Sup3rSecurePass!")); err != nil {
+		t.Fatalf("reseed reset administrator password: %v", err)
+	}
 }
 
 func TestHandleAdminProfileUpdate_InvalidPassword(t *testing.T) {
 	configureAdminProfileTestCredentials(t)
 	db := setupTestDB(t)
+	seedAdminProfileTestCredentials(t, db)
 	sessionMgr := initSessionManager()
 	server := &Server{db: db, sessionManager: sessionMgr}
 
@@ -143,6 +174,7 @@ func TestHandleAdminProfileUpdate_InvalidPassword(t *testing.T) {
 func TestHandleAdminProfileUpdate_EmailConflict(t *testing.T) {
 	configureAdminProfileTestCredentials(t)
 	db := setupTestDB(t)
+	seedAdminProfileTestCredentials(t, db)
 	sessionMgr := initSessionManager()
 	server := &Server{db: db, sessionManager: sessionMgr}
 

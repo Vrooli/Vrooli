@@ -45,10 +45,12 @@ export interface Variant {
 }
 
 export interface VariantSnapshotMeta {
-  slug: string;
-  name: string;
-  description?: string;
-  axes: VariantAxes;
+	slug: string;
+	name: string;
+	description?: string;
+	weight?: number;
+	status?: 'active' | 'archived';
+	axes: VariantAxes;
   header_config?: LandingHeaderConfig;
   seo_config?: Record<string, unknown>;
 }

@@ -3,14 +3,6 @@
   "version": "1.0.0",
   "endpoints": [
     {
-      "id": "post-api-feedback",
-      "path": "/api/feedback",
-      "method": "POST",
-      "summary": "POST /api/feedback",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "feedback"
-    },
-    {
       "id": "delete-api-v1-admin-api-keys",
       "path": "/api/v1/admin/api-keys",
       "method": "DELETE",
@@ -91,14 +83,6 @@
       "category": "admin"
     },
     {
-      "id": "get-api-v1-admin-bundles",
-      "path": "/api/v1/admin/bundles",
-      "method": "GET",
-      "summary": "GET /api/v1/admin/bundles",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
       "id": "post-api-v1-admin-bundles-bundle-key-prices",
       "path": "/api/v1/admin/bundles/{bundle_key}/prices",
       "method": "POST",
@@ -111,70 +95,6 @@
       "path": "/api/v1/admin/bundles/{bundle_key}/prices/{price_id}",
       "method": "DELETE",
       "summary": "DELETE /api/v1/admin/bundles/{bundle_key}/prices/{price_id}",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "patch-api-v1-admin-bundles-bundle-key-prices-price-id",
-      "path": "/api/v1/admin/bundles/{bundle_key}/prices/{price_id}",
-      "method": "PATCH",
-      "summary": "PATCH /api/v1/admin/bundles/{bundle_key}/prices/{price_id}",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "get-api-v1-admin-coupon-mappings",
-      "path": "/api/v1/admin/coupon-mappings",
-      "method": "GET",
-      "summary": "GET /api/v1/admin/coupon-mappings",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "get-api-v1-admin-coupons",
-      "path": "/api/v1/admin/coupons",
-      "method": "GET",
-      "summary": "GET /api/v1/admin/coupons",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "post-api-v1-admin-coupons",
-      "path": "/api/v1/admin/coupons",
-      "method": "POST",
-      "summary": "POST /api/v1/admin/coupons",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "get-api-v1-admin-coupons-usage",
-      "path": "/api/v1/admin/coupons/usage",
-      "method": "GET",
-      "summary": "GET /api/v1/admin/coupons/usage",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "delete-api-v1-admin-coupons-coupon-id",
-      "path": "/api/v1/admin/coupons/{coupon_id}",
-      "method": "DELETE",
-      "summary": "DELETE /api/v1/admin/coupons/{coupon_id}",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "get-api-v1-admin-coupons-coupon-id",
-      "path": "/api/v1/admin/coupons/{coupon_id}",
-      "method": "GET",
-      "summary": "GET /api/v1/admin/coupons/{coupon_id}",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "patch-api-v1-admin-coupons-coupon-id",
-      "path": "/api/v1/admin/coupons/{coupon_id}",
-      "method": "PATCH",
-      "summary": "PATCH /api/v1/admin/coupons/{coupon_id}",
       "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
       "category": "admin"
     },
@@ -379,22 +299,6 @@
       "category": "admin"
     },
     {
-      "id": "delete-api-v1-admin-plans-price-id-coupon",
-      "path": "/api/v1/admin/plans/{price_id}/coupon",
-      "method": "DELETE",
-      "summary": "DELETE /api/v1/admin/plans/{price_id}/coupon",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "put-api-v1-admin-plans-price-id-coupon",
-      "path": "/api/v1/admin/plans/{price_id}/coupon",
-      "method": "PUT",
-      "summary": "PUT /api/v1/admin/plans/{price_id}/coupon",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
       "id": "get-api-v1-admin-profile",
       "path": "/api/v1/admin/profile",
       "method": "GET",
@@ -523,38 +427,6 @@
       "category": "admin"
     },
     {
-      "id": "get-api-v1-admin-settings-stripe",
-      "path": "/api/v1/admin/settings/stripe",
-      "method": "GET",
-      "summary": "GET /api/v1/admin/settings/stripe",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "put-api-v1-admin-settings-stripe",
-      "path": "/api/v1/admin/settings/stripe",
-      "method": "PUT",
-      "summary": "PUT /api/v1/admin/settings/stripe",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "get-api-v1-admin-settings-stripe-reveal",
-      "path": "/api/v1/admin/settings/stripe/reveal",
-      "method": "GET",
-      "summary": "GET /api/v1/admin/settings/stripe/reveal",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "get-api-v1-admin-stripe-coupons-preview",
-      "path": "/api/v1/admin/stripe/coupons-preview",
-      "method": "GET",
-      "summary": "GET /api/v1/admin/stripe/coupons-preview",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
       "id": "post-api-v1-admin-stripe-import",
       "path": "/api/v1/admin/stripe/import",
       "method": "POST",
@@ -671,14 +543,6 @@
       "path": "/api/v1/admin/variants/{slug}/import",
       "method": "PUT",
       "summary": "PUT /api/v1/admin/variants/{slug}/import",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "put-api-v1-admin-variants-slug-seo",
-      "path": "/api/v1/admin/variants/{slug}/seo",
-      "method": "PUT",
-      "summary": "PUT /api/v1/admin/variants/{slug}/seo",
       "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
       "category": "admin"
     },
@@ -827,14 +691,6 @@
       "category": "system"
     },
     {
-      "id": "get-api-v1-landing-config",
-      "path": "/api/v1/landing-config",
-      "method": "GET",
-      "summary": "GET /api/v1/landing-config",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "system"
-    },
-    {
       "id": "get-api-v1-metrics-summary",
       "path": "/api/v1/metrics/summary",
       "method": "GET",
@@ -873,14 +729,6 @@
       "summary": "GET /api/v1/public/variants/{variant_slug}/sections",
       "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
       "category": "variants"
-    },
-    {
-      "id": "get-api-v1-seo-slug",
-      "path": "/api/v1/seo/{slug}",
-      "method": "GET",
-      "summary": "GET /api/v1/seo/{slug}",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "seo"
     },
     {
       "id": "get-api-v1-uploads-path",
@@ -929,14 +777,6 @@
       "summary": "GET /api/v1/usage/summary",
       "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
       "category": "usage"
-    },
-    {
-      "id": "get-api-v1-variant-space",
-      "path": "/api/v1/variant-space",
-      "method": "GET",
-      "summary": "GET /api/v1/variant-space",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "system"
     },
     {
       "id": "get-api-v1-variants",
@@ -1063,6 +903,110 @@
       "path": "/landing_page_business_suite.v1.BrandingService/UpdateBranding",
       "method": "POST",
       "summary": "POST /landing_page_business_suite.v1.BrandingService/UpdateBranding",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-bundleadminservice-listbundlecatalog",
+      "path": "/landing_page_business_suite.v1.BundleAdminService/ListBundleCatalog",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.BundleAdminService/ListBundleCatalog",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-bundleadminservice-updatebundleprice",
+      "path": "/landing_page_business_suite.v1.BundleAdminService/UpdateBundlePrice",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.BundleAdminService/UpdateBundlePrice",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-couponadminservice-createcoupon",
+      "path": "/landing_page_business_suite.v1.CouponAdminService/CreateCoupon",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.CouponAdminService/CreateCoupon",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-couponadminservice-deletecoupon",
+      "path": "/landing_page_business_suite.v1.CouponAdminService/DeleteCoupon",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.CouponAdminService/DeleteCoupon",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-couponadminservice-getcoupon",
+      "path": "/landing_page_business_suite.v1.CouponAdminService/GetCoupon",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.CouponAdminService/GetCoupon",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-couponadminservice-getcouponimportpreview",
+      "path": "/landing_page_business_suite.v1.CouponAdminService/GetCouponImportPreview",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.CouponAdminService/GetCouponImportPreview",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-couponadminservice-getcouponmappings",
+      "path": "/landing_page_business_suite.v1.CouponAdminService/GetCouponMappings",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.CouponAdminService/GetCouponMappings",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-couponadminservice-listcouponusage",
+      "path": "/landing_page_business_suite.v1.CouponAdminService/ListCouponUsage",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.CouponAdminService/ListCouponUsage",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-couponadminservice-listcoupons",
+      "path": "/landing_page_business_suite.v1.CouponAdminService/ListCoupons",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.CouponAdminService/ListCoupons",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-couponadminservice-removecouponfromplan",
+      "path": "/landing_page_business_suite.v1.CouponAdminService/RemoveCouponFromPlan",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.CouponAdminService/RemoveCouponFromPlan",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-couponadminservice-setcouponforplan",
+      "path": "/landing_page_business_suite.v1.CouponAdminService/SetCouponForPlan",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.CouponAdminService/SetCouponForPlan",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-couponadminservice-updatecoupon",
+      "path": "/landing_page_business_suite.v1.CouponAdminService/UpdateCoupon",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.CouponAdminService/UpdateCoupon",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-landingconfigservice-getlandingconfig",
+      "path": "/landing_page_business_suite.v1.LandingConfigService/GetLandingConfig",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.LandingConfigService/GetLandingConfig",
       "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
       "category": "system"
     },
@@ -1315,6 +1259,22 @@
       "category": "system"
     },
     {
+      "id": "post-landing-page-business-suite-v1-seoservice-getvariantseo",
+      "path": "/landing_page_business_suite.v1.SeoService/GetVariantSEO",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.SeoService/GetVariantSEO",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-seoservice-updatevariantseo",
+      "path": "/landing_page_business_suite.v1.SeoService/UpdateVariantSEO",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.SeoService/UpdateVariantSEO",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
       "id": "post-landing-page-business-suite-v1-stripesettingsservice-getstripesettings",
       "path": "/landing_page_business_suite.v1.StripeSettingsService/GetStripeSettings",
       "method": "POST",
@@ -1335,6 +1295,14 @@
       "path": "/landing_page_business_suite.v1.StripeSettingsService/UpdateStripeSettings",
       "method": "POST",
       "summary": "POST /landing_page_business_suite.v1.StripeSettingsService/UpdateStripeSettings",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-variantspaceservice-getvariantspace",
+      "path": "/landing_page_business_suite.v1.VariantSpaceService/GetVariantSpace",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.VariantSpaceService/GetVariantSpace",
       "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
       "category": "system"
     },

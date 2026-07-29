@@ -308,9 +308,18 @@ Returns download URL for an entitled asset.
 
 ## Stripe Admin Settings
 
-### GET /admin/settings/stripe
+### StripeSettingsService (Connect)
 
-Returns Stripe configuration status.
+The authenticated admin settings surface uses generated Connect procedures:
+
+- `POST /landing_page_business_suite.v1.StripeSettingsService/GetStripeSettings`
+- `POST /landing_page_business_suite.v1.StripeSettingsService/UpdateStripeSettings`
+- `POST /landing_page_business_suite.v1.StripeSettingsService/RevealStripeSecret`
+
+`GetStripeSettings` returns Stripe configuration status. All credential values,
+including the publishable key and anomaly webhook URL, are redacted; use the
+boolean snapshot and `anomaly_webhook_url_set` indicators for configuration
+status.
 
 **Authentication:** Admin session required
 
@@ -328,11 +337,15 @@ Returns Stripe configuration status.
 }
 ```
 
-The `anomaly_webhook_url` itself is never returned in the GET response (it is treated as a secret). Use `GET /admin/settings/stripe/reveal?field=anomaly_webhook_url` to retrieve the unredacted value.
+`RevealStripeSecret` is the only operation that returns one unredacted value.
+Its request is `{ "field": "secret_key" }` (or `webhook_secret`,
+`publishable_key`, or `anomaly_webhook_url`).
 
 ---
 
-### PUT /admin/settings/stripe
+`UpdateStripeSettings` accepts the same fields in its typed request. The
+`anomaly_rate_limits` field is a JSON-object string because it is persisted as
+JSONB while preserving optional-field semantics.
 
 Updates Stripe configuration.
 

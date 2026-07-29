@@ -20,7 +20,6 @@ import (
 // is performed at invoice.paid time for subscription_create events with intro coupons.
 func TestCoupon_PaymentTimeEligibilityRecheck(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Set up bundle product for ConfigureStripeService
@@ -121,7 +120,6 @@ func TestCoupon_PaymentTimeEligibilityRecheck(t *testing.T) {
 // TestCoupon_EligibleUser_NoAnomalyLogged verifies that eligible users don't get anomaly logged.
 func TestCoupon_EligibleUser_NoAnomalyLogged(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Set up bundle product for ConfigureStripeService
@@ -217,7 +215,6 @@ func TestCoupon_EligibleUser_NoAnomalyLogged(t *testing.T) {
 // flag is properly carried over when a customer changes their email.
 func TestCoupon_EmailMigration_IntroFlagCarriesOver(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create tables
@@ -299,7 +296,6 @@ func TestCoupon_EmailMigration_IntroFlagCarriesOver(t *testing.T) {
 // when both emails have used intro.
 func TestCoupon_EmailMigration_BothUsedIntro(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create tables
@@ -377,7 +373,6 @@ func TestCoupon_EmailMigration_BothUsedIntro(t *testing.T) {
 // only deducts credits once.
 func TestConsumeCredits_Idempotent_SameKey(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create tables
@@ -440,7 +435,6 @@ func TestConsumeCredits_Idempotent_SameKey(t *testing.T) {
 // keys result in separate deductions.
 func TestConsumeCredits_DifferentKeys_BothDeduct(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create tables
@@ -492,7 +486,6 @@ func TestConsumeCredits_DifferentKeys_BothDeduct(t *testing.T) {
 // is not updated when Stripe API fails.
 func TestCancelSubscription_StripeFailure_NoLocalUpdate(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Set up bundle product for ConfigureStripeService
@@ -546,7 +539,6 @@ func TestCancelSubscription_StripeFailure_NoLocalUpdate(t *testing.T) {
 // updates both Stripe and local DB.
 func TestCancelSubscription_StripeSuccess_BothUpdated(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Set up bundle product for ConfigureStripeService
@@ -599,7 +591,6 @@ func TestCancelSubscription_StripeSuccess_BothUpdated(t *testing.T) {
 // TestWebhookTimestampValidation_OldTimestamp verifies that old timestamps are rejected.
 func TestWebhookTimestampValidation_OldTimestamp(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Set up bundle product for ConfigureStripeService
@@ -626,7 +617,6 @@ func TestWebhookTimestampValidation_OldTimestamp(t *testing.T) {
 // TestWebhookTimestampValidation_CurrentTimestamp verifies that current timestamps pass.
 func TestWebhookTimestampValidation_CurrentTimestamp(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Set up bundle product for ConfigureStripeService
@@ -653,7 +643,6 @@ func TestWebhookTimestampValidation_CurrentTimestamp(t *testing.T) {
 // TestWebhookTimestampValidation_FutureTimestamp verifies that future timestamps are rejected.
 func TestWebhookTimestampValidation_FutureTimestamp(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Set up bundle product for ConfigureStripeService
@@ -681,7 +670,6 @@ func TestWebhookTimestampValidation_FutureTimestamp(t *testing.T) {
 // through PaymentAnomalyService into payment_anomaly_log.
 func TestLogIntroAnomaly_RecordsCorrectly(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	if _, err := db.Exec(`DELETE FROM payment_anomaly_log`); err != nil {

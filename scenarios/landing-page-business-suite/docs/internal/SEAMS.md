@@ -8,7 +8,7 @@ audience: ["developers"]
 
 # Seams & Architecture
 
-> **Last Updated**: 2026-07-26
+> **Last Updated**: 2026-07-28
 > **Purpose**: Document deliberate boundaries (seams) where behavior can vary or be substituted without invasive changes
 
 ## Overview
@@ -40,7 +40,7 @@ This document reflects the current code; claims here have been verified against 
 | main.PaymentAnomalyStore | `api/payment_anomaly_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in payment-anomaly tests | Route payment anomaly records and delivery state through the request-scoped database seam. |
 | main.LimitsStore | `api/limits_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in limits service tests | Route subscription-tier limits through the request-scoped database seam. |
 | main.UserAuthStore | `api/user_auth_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in user-auth service tests | Route user identities, magic links, and sessions through the request-scoped database seam. |
-| download.EntitlementLookup | `api/internal/download/authorizer.go` | `entitlementStatusLookup` in `api/download_service.go` | `entitlementStub` in `api/internal/download/authorizer_test.go` | Keep paid-download policy independent of account persistence. |
+| delivery.EntitlementLookup | `api/internal/delivery/authorizer.go` | `entitlementStatusLookup` in `api/download_service.go` | `entitlementStub` in `api/internal/delivery/authorizer_test.go` | Keep paid-download policy independent of account persistence. |
 
 The `api/internal/testutil` seam-registry test reconciles the tagged interface
 set with this table. New seams must add their `// seam:` declaration, production
@@ -84,8 +84,8 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
   - Swap the client with `StripeService.UseHTTPClient(...)` or point to a mock server with `STRIPE_API_BASE`.  
   - This keeps checkout/portal/subscription calls testable without real Stripe access.
 
-- **Admin settings seam** (`payment_settings_handlers.go`, `payment_settings_service.go`)  
-  - Admin endpoints handle normalization, redaction, and persistence of Stripe keys.  
+- **Admin settings seam** (`payment_settings_connect.go`, `payment_settings_service.go`)
+  - Generated Connect procedures handle normalization, redaction, and persistence of Stripe keys.
   - After writes, `StripeService.RefreshConfig` is invoked so runtime state follows storage.  
   - `ConfigSnapshot` redacts secrets while exposing `*_set` flags and source to the UI.
 
@@ -101,7 +101,7 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
 - **Payment anomaly dispatch seam** (`payment_anomaly_service.go`, `anomaly_alert_dispatcher.go`)
   - `PaymentAnomalyService.Log(ctx, anomaly)` is the sole entrypoint for recording payment-pipeline anomalies into `payment_anomaly_log`. Callers outside this file should prefer the package-level helper `LogPaymentAnomaly(ctx, srv, anomaly)`.
   - `PaymentAnomalyService.WaitForDispatch(ctx, rowID)` polls the row's `dispatch_status` column at num[threshold]:25 ms intervals until it transitions out of `pending` or ctx cancels. Used by integration tests for deterministic async synchronization and available to admin tooling for manual-insert confirmation (no test-only code path).
-  - `PaymentAnomalyService.RefreshConfig(ctx)` re-reads the num[sot]:three `payment_settings` columns (`anomaly_webhook_url`, `anomaly_webhook_enabled`, `anomaly_rate_limits`) and atomically swaps the in-memory snapshot via `atomic.Pointer[anomalyConfig]`. `handleUpdateStripeSettings` calls `RefreshConfig` after every successful save so the next dispatch uses the new config without restart.
+  - `PaymentAnomalyService.RefreshConfig(ctx)` re-reads the num[sot]:three `payment_settings` columns (`anomaly_webhook_url`, `anomaly_webhook_enabled`, `anomaly_rate_limits`) and atomically swaps the in-memory snapshot via `atomic.Pointer[anomalyConfig]`. `StripeSettingsService.UpdateStripeSettings` calls `RefreshConfig` after every successful save so the next dispatch uses the new config without restart.
   - `AnomalyAlertDispatcher.Dispatch` is the outbound HTTP seam: num[threshold]:3 attempts × 5 s per-attempt timeout with 1 s/2 s/4 s backoff, retries on 5xx + transport errors, does not retry on 4xx. Test seam: `AnomalyAlertDispatcher.UseHTTPClient(httpDoer)` and `UseBackoff(...)` swap the client/backoffs for deterministic tests.
   - Rate limiter: in-process token bucket per `anomaly_type`, guarded by `sync.Mutex`, with defaults of `burst=5` + `refill=1/60s`. Per-type overrides are read from `payment_settings.anomaly_rate_limits` JSONB. Known constraint: the bucket is **in-process** and therefore single-instance; multi-replica deployments would need a postgres-backed limiter, but LPBS runs as one instance today.
   - Dispatch lifecycle: `Log(...)` returns after the row is committed and fires `go s.dispatcher.Dispatch(s.shutdownCtx, payload)` on an unbounded goroutine. Each goroutine exits within ~7 s worst-case (3 attempts × 5 s + 1 s/2 s backoffs); the per-type rate limiter caps spawn rate. HTTP requests use `http.NewRequestWithContext(shutdownCtx, ...)` so in-flight POSTs abort on server shutdown.
@@ -110,6 +110,16 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
 ---
 
 ## Other Seams
+
+### Test database lifecycle seam (2026-07-28)
+
+- `setupTestDB(t)` is the canonical API database fixture. It only accepts the
+  explicit `TEST_DATABASE_URL` test target or an isolated Testcontainers
+  database—never the scenario's `DATABASE_URL`—and now registers `t.Cleanup`
+  for every returned pool. Handler tests use the shared JSON decode assertions
+  in `test_helpers_test.go`, so fixture lifecycle and malformed-response
+  diagnostics remain consistent without obscuring each test's typed contract
+  and behavior checks.
 
 ### Commercial Measures seam (2026-07-27)
 
@@ -155,6 +165,12 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
 ---
 
 ## Remote Profiles & Proxy Seam (NEW)
+
+- **Persisted secret encryption primitive** (`api/internal/securevalue`)
+  `APIKeyService` and `RemoteProfileService` share one AES-GCM primitive for
+  values encrypted at rest. The primitive owns nonce-prefix encoding and
+  authentication; each service remains responsible for whether a missing key is
+  permitted in development and is rejected in production.
 
 - **Remote profile service** (`api/remote_profiles_service.go`)  
   Centralizes remote admin sessions in one place and encrypts stored `admin_session` cookies at rest. The service owns validation of remote API bases, connector IDs, remote session linkage (`remote_session_id`), and status updates so handlers remain transport-only.
@@ -225,7 +241,7 @@ The update endpoints (`/api/v1/updates/{app_key}/{channel}/{file}`) serve electr
   - Sign webhooks with the helpers in `stripe_handlers_test.go` to exercise signature enforcement.
 - Landing config fallback tests should inject a provider via `UseFallbackProvider` to avoid depending on baked JSON and to confirm payloads are copied per request.
 - Use `resetStripeTestData`, `upsertTestBundleProduct`, and `insertBundlePrice` helpers to seed pricing without touching production fixtures.
-- Admin settings tests should go through `handleUpdateStripeSettings`/`handleGetStripeSettings` to ensure redaction and refresh paths are covered.
+- Admin settings tests should go through `stripeSettingsConnectHandler` and its mounted generated procedures to ensure redaction and refresh paths are covered.
 
 ---
 

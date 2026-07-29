@@ -1,11 +1,14 @@
 import { AdminLayout } from '../components/AdminLayout';
 import { PageHeader } from '../components/PageHeader';
 import { FormField } from '../components/FormField';
-import { inputClassName } from '../components/formFieldClasses';
 import { Callout } from '../components/Callout';
 import { LAYOUT } from '../config/layout.constants';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { Button } from '../../../shared/ui/button';
+import { EmptyState } from '../../../shared/ui/EmptyState';
+import { StatusBadge } from '../../../shared/ui/status-badge';
+import { Input } from '../../../shared/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../shared/ui/select';
 import { useToast } from '../../../shared/ui/useToast';
 import { Key, Trash2, RefreshCw, Power, PowerOff, Plus, Check, X } from 'lucide-react';
 import { formatDateOnly } from '../../../shared/lib/dateFormatters';
@@ -101,16 +104,17 @@ export function APIKeysSettings() {
         {loading ? (
           <div className="text-center py-8 text-slate-400">Loading API keys...</div>
         ) : keys.length === 0 ? (
-          <Card className={`${LAYOUT.card.base} border-dashed`}>
-            <CardContent className="pt-6 text-center">
-              <Key className="h-12 w-12 text-slate-500 mx-auto mb-4" />
-              <p className="text-slate-400 mb-4">No API keys configured yet</p>
+          <EmptyState
+            title="No API keys configured yet"
+            icon={<Key className="h-12 w-12" />}
+            action={(
               <Button onClick={() => { setShowAddModal(true); }} className="gap-2">
                 <Plus className="h-4 w-4" />
                 Add Your First API Key
               </Button>
-            </CardContent>
-          </Card>
+            )}
+            className={`${LAYOUT.card.base} items-center border-dashed text-center`}
+          />
         ) : (
           <div className={LAYOUT.sectionSpacing}>
             {keys.map((key) => (
@@ -135,10 +139,9 @@ export function APIKeysSettings() {
                         const result = testResults[key.provider];
                         if (!result) return null;
                         return (
-                          <span
-                            className={`text-sm flex items-center gap-1 ${
-                              result.success ? 'text-green-400' : 'text-red-400'
-                            }`}
+                          <StatusBadge
+                            tone={result.success ? 'success' : 'danger'}
+                            className="gap-1"
                           >
                             {result.success ? (
                               <Check className="h-4 w-4" />
@@ -146,7 +149,7 @@ export function APIKeysSettings() {
                               <X className="h-4 w-4" />
                             )}
                             {result.message}
-                          </span>
+                          </StatusBadge>
                         );
                       })()}
                     </div>
@@ -226,28 +229,30 @@ export function APIKeysSettings() {
               </CardHeader>
               <CardContent className={LAYOUT.contentSpacing}>
                 <FormField label="Provider" htmlFor="provider">
-                  <select
-                    id="provider"
+                  <Select
                     value={newKeyProvider}
-                    onChange={(e) => { setNewKeyProvider(e.target.value); }}
-                    className={inputClassName}
+                    onValueChange={setNewKeyProvider}
                   >
-                    <option value="">Select a provider...</option>
-                    {availableProviders.map((p) => (
-                      <option key={p.value} value={p.value}>
-                        {p.label} - {p.description}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger id="provider" className="mt-1">
+                      <SelectValue placeholder="Select a provider..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableProviders.map((provider) => (
+                        <SelectItem key={provider.value} value={provider.value}>
+                          {provider.label} - {provider.description}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </FormField>
                 <FormField label="API Key" htmlFor="key" helpText="The key will be encrypted before storage">
-                  <input
+                  <Input
                     id="key"
                     type="password"
                     value={newKeyValue}
                     onChange={(e) => { setNewKeyValue(e.target.value); }}
                     placeholder="sk-..."
-                    className={`${inputClassName} font-mono`}
+                    className="mt-1 font-mono"
                   />
                 </FormField>
                 <div className="flex justify-end gap-2 pt-4">

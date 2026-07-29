@@ -46,6 +46,14 @@ func TestBrandingConnectPreservesExpandedBrandingFields(t *testing.T) {
 	}
 }
 
+func TestBrandingProtoOmitsOutOfRangeSMTPPort(t *testing.T) {
+	port := int(^uint(0) >> 1)
+	branding := brandingProto(&SiteBranding{SMTPPort: &port})
+	if branding.GetSmtpPort() != 0 {
+		t.Fatalf("SMTP port = %d, want omitted zero value for an out-of-range int", branding.GetSmtpPort())
+	}
+}
+
 func TestBrandingConnectPublicResponseRedactsSMTPPassword(t *testing.T) {
 	store := newBrandingConnectTestStore(t)
 	handler := brandingConnectHandler{store: store}

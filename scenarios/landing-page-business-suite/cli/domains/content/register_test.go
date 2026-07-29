@@ -3,10 +3,29 @@ package content
 import (
 	"testing"
 
+	"github.com/vrooli/cli-core/cliapp"
 	"landing-page-business-suite/cli/internal/support"
 	"landing-page-business-suite/cli/internal/testutil"
 )
 
 func TestRegisterExposesValidCommandGroup(t *testing.T) {
-	testutil.AssertCommandGroup(t, Register(support.Dependencies{}))
+	group := Register(support.Dependencies{})
+	if err := testutil.ValidateCommandGroup(group); err != nil {
+		t.Fatalf("ValidateCommandGroup() error = %v", err)
+	}
+	for _, name := range []string{"seo", "admin-variant-seo-update"} {
+		found := false
+		for _, command := range group.Commands {
+			if command.Name != name {
+				continue
+			}
+			found = true
+			if command.PrimitiveEvidence() != cliapp.PrimitiveAction {
+				t.Fatalf("%s primitive = %q, want %q", name, command.PrimitiveEvidence(), cliapp.PrimitiveAction)
+			}
+		}
+		if !found {
+			t.Fatalf("%s command was not registered", name)
+		}
+	}
 }

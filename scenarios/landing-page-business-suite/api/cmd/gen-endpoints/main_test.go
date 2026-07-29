@@ -64,4 +64,11 @@ func TestCommittedManifestMatchesRouteRegistry(t *testing.T) {
 	if !bytes.Equal(generated, committed) {
 		t.Fatal(".vrooli/endpoints.json is stale; run make endpoints from the scenario root and commit the result")
 	}
+	info, err := os.Stat(temporaryOutput)
+	if err != nil {
+		t.Fatalf("stat generated endpoint manifest: %v", err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("generated endpoint manifest mode = %o, want 600", got)
+	}
 }

@@ -108,6 +108,32 @@ describe('useCustomizationPage', () => {
     });
   });
 
+  describe('variant highlighting', () => {
+    it('focuses the matching variant action without cross-frame scrolling', async () => {
+      vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+        callback(0);
+        return 1;
+      });
+      const { result } = renderHook(() => useCustomizationPage(), { wrapper });
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
+
+      const list = document.createElement('div');
+      const editButton = document.createElement('button');
+      editButton.dataset.testid = 'edit-variant-target';
+      list.append(editButton);
+      document.body.append(list);
+      Object.defineProperty(result.current.variantListRef, 'current', { value: list });
+
+      act(() => { result.current.highlightVariantInList('target'); });
+
+      expect(editButton).toHaveFocus();
+      expect(result.current.variantQuery).toBe('target');
+      expect(result.current.attentionOnly).toBe(true);
+      list.remove();
+      vi.unstubAllGlobals();
+    });
+  });
+
   describe('loading data', () => {
     it('fetches variants and analytics on mount', async () => {
       const mockVariants = [createMockVariant({ id: 1 }), createMockVariant({ id: 2 })];

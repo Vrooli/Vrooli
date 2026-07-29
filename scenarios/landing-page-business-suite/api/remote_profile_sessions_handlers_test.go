@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,7 +11,6 @@ import (
 
 func TestHandleAdminListIncomingRemoteProfileSessions(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	_, err := db.Exec(`
 		INSERT INTO admin_sessions (id, admin_email, expires_at, ip_address, user_agent, created_at, last_activity)
@@ -54,9 +52,7 @@ func TestHandleAdminListIncomingRemoteProfileSessions(t *testing.T) {
 	var payload struct {
 		Sessions []IncomingRemoteProfileSessionResponse `json:"sessions"`
 	}
-	if err := json.Unmarshal(resp.Body.Bytes(), &payload); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
+	decodeJSONResponse(t, resp.Body.Bytes(), &payload)
 	if len(payload.Sessions) != 1 {
 		t.Fatalf("expected 1 session, got %d body=%s", len(payload.Sessions), resp.Body.String())
 	}
@@ -67,7 +63,6 @@ func TestHandleAdminListIncomingRemoteProfileSessions(t *testing.T) {
 
 func TestHandleAdminRevokeIncomingRemoteProfileSession(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	_, err := db.Exec(`
 		INSERT INTO admin_sessions (id, admin_email, expires_at, ip_address, user_agent, created_at, last_activity)
@@ -92,7 +87,6 @@ func TestHandleAdminRevokeIncomingRemoteProfileSession(t *testing.T) {
 
 func TestHandleAdminRevokeIncomingRemoteProfileSession_MissingID(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	handler := handleAdminRevokeIncomingRemoteProfileSession(db)
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/admin/remote-profile-sessions/", nil)

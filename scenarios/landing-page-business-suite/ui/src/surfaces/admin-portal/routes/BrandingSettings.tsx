@@ -11,7 +11,7 @@ import { Callout } from '../components/Callout';
 import { Button } from '../../../shared/ui/button';
 import { ImageUploader } from '../../../shared/ui/ImageUploader';
 import { SEOPreview } from '../../../shared/ui/SEOPreview';
-import { Textarea } from '../../../shared/ui/input';
+import { Textarea } from '../../../shared/ui/textarea';
 import { ToggleSwitch } from '../../../shared/ui/ToggleSwitch';
 import { InlineAlert } from '../../../shared/ui/InlineAlert';
 import { Palette, RefreshCw, Globe, Type, Search, X, ExternalLink, MessageCircle, Mail, Clock } from 'lucide-react';

@@ -27,6 +27,7 @@ func Select(deps Dependencies) http.HandlerFunc {
 		deps.WriteJSON(w, selected)
 	}
 }
+
 func PublicGet(deps Dependencies) http.HandlerFunc {
 	return get(deps, "public_variant_fetch_failed", true)
 }
@@ -40,6 +41,7 @@ func List(deps Dependencies) http.HandlerFunc {
 		deps.WriteJSON(w, map[string]any{"variants": deps.List()})
 	}
 }
+
 func get(deps Dependencies, event string, public bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {

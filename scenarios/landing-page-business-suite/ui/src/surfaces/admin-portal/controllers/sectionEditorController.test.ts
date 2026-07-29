@@ -26,11 +26,11 @@ type PatchSectionFn = typeof patchSection;
 type GetVariantFn = typeof getVariant;
 type GetVariantSpaceFn = typeof getVariantSpace;
 
-const getSectionMock = vi.fn<Parameters<GetSectionFn>, ReturnType<GetSectionFn>>();
-const updateSectionMock = vi.fn<Parameters<UpdateSectionFn>, ReturnType<UpdateSectionFn>>();
-const patchSectionMock = vi.fn<Parameters<PatchSectionFn>, ReturnType<PatchSectionFn>>();
-const getVariantMock = vi.fn<Parameters<GetVariantFn>, ReturnType<GetVariantFn>>();
-const getVariantSpaceMock = vi.fn<Parameters<GetVariantSpaceFn>, ReturnType<GetVariantSpaceFn>>();
+const getSectionMock = vi.fn<GetSectionFn>();
+const updateSectionMock = vi.fn<UpdateSectionFn>();
+const patchSectionMock = vi.fn<PatchSectionFn>();
+const getVariantMock = vi.fn<GetVariantFn>();
+const getVariantSpaceMock = vi.fn<GetVariantSpaceFn>();
 
 vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');

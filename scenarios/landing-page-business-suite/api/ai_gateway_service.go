@@ -2,14 +2,11 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
-	"landing-page-business-suite-api/internal/envx"
 )
 
 // UsageServicer provides credit management for AI gateway.
@@ -365,196 +362,6 @@ func (s *AIGatewayService) ExecuteChat(ctx context.Context, userIdentity string,
 	}, nil
 }
 
-// ExecuteChatStream executes a streaming chat completion via Server-Sent Events.
-// Uses credit reservations to prevent TOCTOU race conditions where concurrent
-// streaming requests could exceed the credit limit.
-func (s *AIGatewayService) ExecuteChatStream(ctx context.Context, userIdentity string, req AIRequest, w http.ResponseWriter) error {
-	// Validate model
-	if !allowedModels[req.Model] {
-		return fmt.Errorf("%w: %s", ErrModelNotAllowed, req.Model)
-	}
-
-	// Get user's subscription tier
-	tier, err := s.getUserTier(ctx, userIdentity)
-	if err != nil {
-		return fmt.Errorf("failed to get user tier: %w", err)
-	}
-
-	// Estimate cost for reservation
-	estimate := s.estimateTokens(req.Messages, req.MaxTokens)
-	estimatedCost := s.calculateCost(req.Model, estimate.prompt, estimate.completion)
-
-	// Reserve credits atomically (prevents TOCTOU race condition)
-	reservationID, err := s.usageService.ReserveCredits(ctx, userIdentity, tier, "ai_credits", estimatedCost)
-	if err != nil {
-		if errors.Is(err, ErrInsufficientCredits) || strings.Contains(err.Error(), "insufficient") {
-			return ErrInsufficientCredits
-		}
-		return fmt.Errorf("reserve credits failed: %w", err)
-	}
-
-	// Set up SSE headers
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		// Release reservation on failure
-		if err := s.usageService.ReleaseReservation(ctx, reservationID); err != nil {
-			s.log("reservation_release_failed", map[string]interface{}{
-				"level":          "warn",
-				"user_identity":  userIdentity,
-				"reservation_id": reservationID,
-				"error":          err.Error(),
-			})
-		}
-		return ErrStreamingNotSupported
-	}
-
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("X-Accel-Buffering", "no") // Disable nginx buffering
-
-	// Get OpenRouter client
-	client, err := s.getOpenRouterClient(ctx)
-	if err != nil {
-		// Release reservation on failure
-		if releaseErr := s.usageService.ReleaseReservation(ctx, reservationID); releaseErr != nil {
-			s.log("reservation_release_failed", map[string]interface{}{
-				"level":          "warn",
-				"user_identity":  userIdentity,
-				"reservation_id": reservationID,
-				"error":          releaseErr.Error(),
-			})
-		}
-		return err
-	}
-
-	// Convert messages to OpenRouter format
-	orMessages := make([]OpenRouterMessage, len(req.Messages))
-	for i, msg := range req.Messages {
-		orMessages[i] = OpenRouterMessage(msg)
-	}
-
-	// Stream response, forwarding chunks to client as SSE events
-	usage, err := client.ChatStream(ctx, OpenRouterChatRequest{
-		Model:    req.Model,
-		Messages: orMessages,
-	}, func(content string) {
-		// Forward chunk to client as SSE event
-		event := AIStreamEvent{
-			Type:    "chunk",
-			Content: content,
-		}
-		eventData, _ := json.Marshal(event)
-		fmt.Fprintf(w, "data: %s\n\n", eventData)
-		flusher.Flush()
-	})
-	if err != nil {
-		// Release reservation on failure
-		if releaseErr := s.usageService.ReleaseReservation(ctx, reservationID); releaseErr != nil {
-			s.log("reservation_release_failed", map[string]interface{}{
-				"level":          "warn",
-				"user_identity":  userIdentity,
-				"reservation_id": reservationID,
-				"error":          releaseErr.Error(),
-			})
-		}
-		return fmt.Errorf("streaming failed: %w", err)
-	}
-
-	// Use estimate for prompt tokens if not provided by stream
-	promptTokens := usage.PromptTokens
-	if promptTokens == 0 {
-		promptTokens = estimate.prompt
-	}
-
-	// Calculate actual cost
-	actualCost := s.calculateCost(req.Model, promptTokens, usage.CompletionTokens)
-
-	// Finalize reservation with actual usage
-	if err := s.usageService.FinalizeReservation(ctx, reservationID, actualCost); err != nil {
-		s.log("finalize_reservation_failed", map[string]interface{}{
-			"level":          "error",
-			"user_identity":  userIdentity,
-			"reservation_id": reservationID,
-			"actual_cost":    actualCost,
-			"error":          err.Error(),
-		})
-		// Fallback: try to record usage directly if finalize fails
-		if fallbackErr := s.usageService.RecordUsage(ctx, UsageReportRequest{
-			UserIdentity: userIdentity,
-			LimitKey:     "ai_credits",
-			Amount:       actualCost,
-			AppBundleKey: req.Metadata.AppBundleKey,
-			Operation:    req.Metadata.Operation,
-		}); fallbackErr != nil {
-			s.log("finalize_fallback_record_failed", map[string]interface{}{
-				"level":          "error",
-				"user_identity":  userIdentity,
-				"reservation_id": reservationID,
-				"actual_cost":    actualCost,
-				"error":          fallbackErr.Error(),
-				"security":       true,
-			})
-		}
-	}
-
-	// Send done event with usage info
-	doneEvent := AIStreamEvent{
-		Type: "done",
-		Usage: &struct {
-			PromptTokens     int   `json:"prompt_tokens"`
-			CompletionTokens int   `json:"completion_tokens"`
-			TotalTokens      int   `json:"total_tokens"`
-			CreditsCharged   int64 `json:"credits_charged"`
-		}{
-			PromptTokens:     promptTokens,
-			CompletionTokens: usage.CompletionTokens,
-			TotalTokens:      promptTokens + usage.CompletionTokens,
-			CreditsCharged:   actualCost,
-		},
-	}
-	eventData, _ := json.Marshal(doneEvent)
-	fmt.Fprintf(w, "data: %s\n\n", eventData)
-	flusher.Flush()
-
-	s.log("ai_gateway_stream_completed", map[string]interface{}{
-		"level":             "info",
-		"user_identity":     userIdentity,
-		"model":             req.Model,
-		"prompt_tokens":     promptTokens,
-		"completion_tokens": usage.CompletionTokens,
-		"credits_charged":   actualCost,
-		"reservation_id":    reservationID,
-	})
-
-	return nil
-}
-
-// getOpenRouterClient returns the OpenRouter client, creating one if necessary.
-func (s *AIGatewayService) getOpenRouterClient(ctx context.Context) (OpenRouterClient, error) {
-	// If a client was injected (e.g., for testing), use it
-	if s.openRouterClient != nil {
-		return s.openRouterClient, nil
-	}
-
-	// Otherwise, create a real client using the stored API key
-	apiKey, err := s.apiKeyService.Get(ctx, "openrouter")
-	if err != nil {
-		return nil, fmt.Errorf("get api key: %w", err)
-	}
-	if apiKey == "" {
-		return nil, ErrNoAPIKeyConfigured
-	}
-
-	return NewOpenRouterClient(OpenRouterClientOptions{
-		APIKey:  apiKey,
-		BaseURL: envx.Get("OPENROUTER_BASE_URL"),
-		Referer: envx.Get("OPENROUTER_REFERER"),
-		Title:   envx.Get("OPENROUTER_TITLE"),
-		Logger:  s.log,
-	}), nil
-}
-
 // getUserTier retrieves the user's subscription tier.
 // Returns "free" if the tier cannot be determined.
 // Logs security events when defaulting to free tier unexpectedly.
@@ -649,24 +456,6 @@ func (s *AIGatewayService) GetAvailableModels() []string {
 		models = append(models, model)
 	}
 	return models
-}
-
-// HealthCheck verifies the AI gateway can function.
-func (s *AIGatewayService) HealthCheck(ctx context.Context) error {
-	// Check if OpenRouter API key is configured
-	client, err := s.getOpenRouterClient(ctx)
-	if err != nil {
-		return err
-	}
-
-	// Verify the key works
-	return client.VerifyAPIKey(ctx)
-}
-
-// UseOpenRouterClient allows injecting a custom OpenRouter client.
-// This is the primary testing seam for the AI gateway service.
-func (s *AIGatewayService) UseOpenRouterClient(client OpenRouterClient) {
-	s.openRouterClient = client
 }
 
 // Compile-time interface check

@@ -23,7 +23,6 @@ import (
 // used the intro coupon cannot use it again.
 func TestCoupon_OneTimePerEmail_BlocksReuse(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create users table with intro tracking
@@ -67,7 +66,6 @@ func TestCoupon_OneTimePerEmail_BlocksReuse(t *testing.T) {
 // same email are treated as the same user for intro eligibility.
 func TestCoupon_OneTimePerEmail_CaseVariations(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create users table
@@ -121,7 +119,6 @@ func TestCoupon_OneTimePerEmail_CaseVariations(t *testing.T) {
 // emails is trimmed before eligibility checks.
 func TestCoupon_OneTimePerEmail_WhitespaceVariations(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create users table
@@ -174,7 +171,6 @@ func TestCoupon_OneTimePerEmail_WhitespaceVariations(t *testing.T) {
 // to check eligibility and mark intro used work correctly.
 func TestCoupon_OneTimePerEmail_ConcurrentAttempts(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create required tables
@@ -259,7 +255,6 @@ func TestCoupon_OneTimePerEmail_ConcurrentAttempts(t *testing.T) {
 // is correctly applied for eligible users.
 func TestIntroPricing_FirstMonthDiscount_Applied(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create users table
@@ -293,7 +288,6 @@ func TestIntroPricing_FirstMonthDiscount_Applied(t *testing.T) {
 // get the intro coupon applied.
 func TestIntroPricing_EligibleNewUser_CouponApplied(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create users table
@@ -336,7 +330,6 @@ func TestIntroPricing_EligibleNewUser_CouponApplied(t *testing.T) {
 // used the intro don't get the coupon.
 func TestIntroPricing_ExistingUser_NoCoupon(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create users table
@@ -374,7 +367,6 @@ func TestIntroPricing_ExistingUser_NoCoupon(t *testing.T) {
 // emails are not eligible for intro pricing.
 func TestIntroPricing_EmptyEmail_NotEligible(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewStripeService(db)
 	ctx := context.Background()
@@ -402,7 +394,6 @@ func TestIntroPricing_EmptyEmail_NotEligible(t *testing.T) {
 // correctly records the usage in all appropriate tables.
 func TestIntroPricing_MarkIntroUsed_RecordsUsage(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 	upsertTestBundleProduct(t, db, "intro_coupon_test", "Intro Coupon Test", "prod_intro_coupon_test", "test", 1_000_000, 1, "credits")
 
@@ -475,7 +466,6 @@ func TestIntroPricing_MarkIntroUsed_RecordsUsage(t *testing.T) {
 // TestCreateCoupon_PercentOff_Valid verifies creating a percent-off coupon.
 func TestCreateCoupon_PercentOff_Valid(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -523,7 +513,6 @@ func TestCreateCoupon_PercentOff_Valid(t *testing.T) {
 // TestCreateCoupon_AmountOff_Valid verifies creating an amount-off coupon.
 func TestCreateCoupon_AmountOff_Valid(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -573,7 +562,6 @@ func TestCreateCoupon_AmountOff_Valid(t *testing.T) {
 // TestDeleteCoupon_Success verifies successful coupon deletion.
 func TestDeleteCoupon_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -596,7 +584,6 @@ func TestDeleteCoupon_Success(t *testing.T) {
 // TestDeleteCoupon_NotFound verifies error handling when coupon doesn't exist.
 func TestDeleteCoupon_NotFound(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -617,7 +604,6 @@ func TestDeleteCoupon_NotFound(t *testing.T) {
 // TestListCoupons_Success verifies listing coupons from Stripe.
 func TestListCoupons_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -653,7 +639,6 @@ func TestListCoupons_Success(t *testing.T) {
 // TestGetCoupon_Success verifies fetching a single coupon by ID.
 func TestGetCoupon_Success(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -747,7 +732,6 @@ func TestIntroCouponConfig_DisabledReturnsEmpty(t *testing.T) {
 // TestGetIntroCouponMap verifies the GetIntroCouponMap method.
 func TestGetIntroCouponMap(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultStripeTestConfig().WithIntroCoupon(true, map[string]string{"pro": "coupon_pro_test"})
 	service := ConfigureStripeService(t, db, cfg, nil)
@@ -760,7 +744,6 @@ func TestGetIntroCouponMap(t *testing.T) {
 // TestIsIntroCoupon verifies the isIntroCoupon helper function.
 func TestIsIntroCoupon(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultStripeTestConfig().WithIntroCoupon(true, map[string]string{"pro": "coupon_pro_check"})
 	service := ConfigureStripeService(t, db, cfg, nil)
@@ -773,7 +756,6 @@ func TestIsIntroCoupon(t *testing.T) {
 // TestMarkIntroUsed_RequiresEmail verifies that markIntroUsed requires an email.
 func TestMarkIntroUsed_RequiresEmail(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	service := NewStripeService(db)
 	ctx := context.Background()
@@ -786,7 +768,6 @@ func TestMarkIntroUsed_RequiresEmail(t *testing.T) {
 // TestMarkIntroUsed_NormalizesEmail verifies that markIntroUsed normalizes the email.
 func TestMarkIntroUsed_NormalizesEmail(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create required tables
@@ -844,7 +825,6 @@ func TestMarkIntroUsed_NormalizesEmail(t *testing.T) {
 // TestCouponUpdateMetadata verifies updating coupon metadata.
 func TestCouponUpdateMetadata(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	stripeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -882,7 +862,6 @@ func TestCouponUpdateMetadata(t *testing.T) {
 // TestExtractIntroCouponFromInvoice verifies extracting intro coupon from invoice.
 func TestExtractIntroCouponFromInvoice(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultStripeTestConfig().WithIntroCoupon(true, map[string]string{"pro": "coupon_intro_pro"})
 	service := ConfigureStripeService(t, db, cfg, nil)
@@ -920,7 +899,6 @@ func TestExtractIntroCouponFromInvoice(t *testing.T) {
 // TestCheckIntroCouponMapping verifies the checkIntroCouponMapping helper.
 func TestCheckIntroCouponMapping(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultStripeTestConfig().WithIntroCoupon(true, map[string]string{
 		"pro":  "coupon_pro_mapping",
@@ -946,7 +924,6 @@ func TestCheckIntroCouponMapping(t *testing.T) {
 // TestCouponIntegrationWithSchedule verifies coupons work with subscription schedules.
 func TestCouponIntegrationWithSchedule(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Ensure subscription_schedules has all columns needed for this test

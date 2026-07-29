@@ -3,10 +3,19 @@ package landing
 import (
 	"testing"
 
+	"github.com/vrooli/cli-core/cliapp"
 	"landing-page-business-suite/cli/internal/support"
 	"landing-page-business-suite/cli/internal/testutil"
 )
 
 func TestRegisterExposesValidCommandGroup(t *testing.T) {
-	testutil.AssertCommandGroup(t, Register(support.Dependencies{}))
+	group := Register(support.Dependencies{})
+	if err := testutil.ValidateCommandGroup(group); err != nil {
+		t.Fatalf("ValidateCommandGroup() error = %v", err)
+	}
+	for _, command := range group.Commands {
+		if command.Name == "variant-space" && command.PrimitiveEvidence() != cliapp.PrimitiveAction {
+			t.Fatalf("variant-space primitive = %q, want %q", command.PrimitiveEvidence(), cliapp.PrimitiveAction)
+		}
+	}
 }

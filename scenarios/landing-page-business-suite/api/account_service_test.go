@@ -11,7 +11,6 @@ import (
 
 func TestAccountServiceCreditsContextCancellationReachesPersistence(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -24,7 +23,6 @@ func TestAccountServiceCreditsContextCancellationReachesPersistence(t *testing.T
 
 func TestAccountServiceSubscriptionCache(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	planService := NewPlanService(db)
 	accountService := NewAccountService(db, planService)
@@ -87,7 +85,6 @@ func TestAccountServiceSubscriptionCache(t *testing.T) {
 
 func TestAccountServiceSubscriptionMissingUser(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	accountService := NewAccountService(db, NewPlanService(db))
 
@@ -109,7 +106,6 @@ func TestAccountServiceSubscriptionMissingUser(t *testing.T) {
 
 func TestAccountServiceCreditsFallbacksWhenPlanUnavailable(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	// Force a plan lookup miss to exercise fallback defaults.
 	// Use an empty PlanStore with no plans configured
@@ -148,7 +144,6 @@ func TestAccountServiceCreditsFallbacksWhenPlanUnavailable(t *testing.T) {
 
 func TestGetEntitlements_IncludesBillingCycleStart(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	email := "billing@test.com"
 	subID := "sub_test_billing"
@@ -181,7 +176,6 @@ func TestGetEntitlements_IncludesBillingCycleStart(t *testing.T) {
 
 func TestGetEntitlements_BillingCycleStartZeroWhenNotSet(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	email := "nobilling@test.com"
 	subID := "sub_test_nobilling"
@@ -214,7 +208,6 @@ func TestGetEntitlements_BillingCycleStartZeroWhenNotSet(t *testing.T) {
 
 func TestGetBillingCycleStart_NoSubscription(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewAccountService(db, NewPlanService(db))
 	start := svc.getBillingCycleStart("nonexistent@test.com")
@@ -225,7 +218,6 @@ func TestGetBillingCycleStart_NoSubscription(t *testing.T) {
 
 func TestGetBillingCycleStart_EmptyUser(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	svc := NewAccountService(db, NewPlanService(db))
 	start := svc.getBillingCycleStart("  ")

@@ -29,7 +29,6 @@ func createTestSignature(payload, secret string) string {
 // TestStripeAPI_Timeout verifies that Stripe API calls handle timeouts gracefully.
 func TestStripeAPI_Timeout(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create a server that delays longer than the timeout
@@ -60,7 +59,6 @@ func TestStripeAPI_Timeout(t *testing.T) {
 // TestStripeAPI_RateLimited_429 verifies proper handling of rate limit responses.
 func TestStripeAPI_RateLimited_429(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Server that returns 429 Too Many Requests
@@ -82,7 +80,6 @@ func TestStripeAPI_RateLimited_429(t *testing.T) {
 // TestStripeAPI_ServerError_5xx verifies proper handling of server errors.
 func TestStripeAPI_ServerError_5xx(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	tests := []struct {
@@ -118,7 +115,6 @@ func TestStripeAPI_ServerError_5xx(t *testing.T) {
 // TestWebhook_MalformedJSON verifies graceful handling of malformed JSON payloads.
 func TestWebhook_MalformedJSON(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultStripeTestConfig().WithKeys("pk_test_default", "sk_test_default", "whsec_test_secret")
 	service := ConfigureStripeService(t, db, cfg, nil)
@@ -165,7 +161,6 @@ func TestWebhook_MalformedJSON(t *testing.T) {
 // TestWebhook_InvalidSignature verifies rejection of webhooks with invalid signatures.
 func TestWebhook_InvalidSignature(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultStripeTestConfig().WithKeys("pk_test_default", "sk_test_default", "whsec_correct_secret")
 	service := ConfigureStripeService(t, db, cfg, nil)
@@ -216,7 +211,6 @@ func TestWebhook_InvalidSignature(t *testing.T) {
 // TestStripeAPI_NetworkError verifies handling of network connection errors.
 func TestStripeAPI_NetworkError(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Use an invalid URL that will fail to connect
@@ -245,7 +239,6 @@ func TestStripeAPI_NetworkError(t *testing.T) {
 // TestWebhook_MissingType verifies handling of webhooks without event type.
 func TestWebhook_MissingType(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 
 	cfg := DefaultStripeTestConfig().WithKeys("pk_test_default", "sk_test_default", "whsec_test_secret")
 	service := ConfigureStripeService(t, db, cfg, nil)
@@ -263,7 +256,6 @@ func TestWebhook_MissingType(t *testing.T) {
 // TestStripeAPI_InvalidResponse verifies handling of invalid JSON responses.
 func TestStripeAPI_InvalidResponse(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	invalidResponseServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
