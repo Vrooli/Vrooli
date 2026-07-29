@@ -4,7 +4,7 @@
   "id": "rcl-extract-assist",
   "name": "RCL Extract Assist",
   "description": "Extract a scenario asset into the React Component Library with source refactoring and baseline-aware verification.",
-  "modes": ["tools"],
+  "modes": ["contract"],
   "tags": ["react-component-library", "catalog", "extract"],
   "icon": "package",
   "status": "active",

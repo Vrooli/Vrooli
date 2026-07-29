@@ -83,8 +83,11 @@ func AllEndpoints() []module.EndpointDescriptor {
 // gen-endpoints validateTransport pass enforces their RESTException
 // tags at codegen time.
 type ProtoFileEntry struct {
-	Module string
-	File   protoreflect.FileDescriptor
+	// Services narrows a shared proto file to the services this module mounts.
+	// Empty preserves the legacy meaning of "all services in File".
+	Services []protoreflect.Name
+	Module   string
+	File     protoreflect.FileDescriptor
 }
 
 // AllProtoFiles returns the proto FileDescriptor backing each
@@ -101,7 +104,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "sweep", File: sweepv1.File_performance_health_v1_sweep_sweep_proto},
 		{Module: "trend", File: trendv1.File_performance_health_v1_trend_trend_proto},
 		{Module: "validation", File: readinessv1.File_performance_health_v1_readiness_readiness_proto},
-		{Module: "validation", File: scenariovalidationv1.File_scenario_validation_v1_validation_proto},
+		{Module: "validation", File: scenariovalidationv1.File_scenario_validation_v1_validation_proto, Services: []protoreflect.Name{"ScenarioValidationService"}},
 	}
 }
 

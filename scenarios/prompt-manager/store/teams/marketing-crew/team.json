@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "id": "marketing-crew",
   "displayName": "Marketing Crew",
-  "mission": "Own Vrooli's external voice \u2014 subscription marketing, open-source / community marketing, brand canon, and publishing pipeline \u2014 and surface the publishing, campaign, and positioning decisions the operator reviews each heartbeat.",
+  "mission": "Own Vrooli's external voice — subscription marketing, open-source / community marketing, brand canon, and publishing pipeline — and surface the publishing, campaign, and positioning decisions the operator reviews each heartbeat.",
   "enabled": false,
   "runtime": {
     "mode": "multi-process"
@@ -516,7 +516,7 @@
           }
         ],
         "safetyCriticalRules": [
-          "Do not review individual drafts before publisher; advertisers produce first-class drafts independently.",
+          "Do not review individual drafts; the producer drafts independently, and per-draft review belongs to the contrarian and the operator approval gate.",
           "Do not edit plan-of-record files directly; propose promotions, retirements, or canon edits through the relevant decision."
         ],
         "readOnlyModeBehavior": {
@@ -663,5 +663,57 @@
   "attributionValidFrom": "2026-05-04",
   "revision": 9,
   "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-07-28T00:00:00Z"
+  "updatedAt": "2026-07-28T00:00:00Z",
+  "topicCatalog": [
+    {
+      "prefix": "audience-scan/*",
+      "status": "live",
+      "purpose": "Audience pain, vocabulary, buyer triggers, objections, and persona evidence."
+    },
+    {
+      "prefix": "competitor-record/*",
+      "status": "live",
+      "purpose": "Competitor pricing, packaging, positioning, changelog, or claim evidence."
+    },
+    {
+      "prefix": "hook-record/*",
+      "status": "live",
+      "purpose": "Reusable hook and framing observations; the promotion source for the hook library."
+    },
+    {
+      "prefix": "workflow-scan/*",
+      "status": "live",
+      "purpose": "External workflows, playbooks, agent setups, or business processes worth deconstructing."
+    },
+    {
+      "prefix": "skill-scan/*",
+      "status": "live",
+      "purpose": "External skills, prompts, reusable processes, or capability ideas."
+    },
+    {
+      "prefix": "channel-scan/*",
+      "status": "live",
+      "purpose": "Evidence that a channel is worth activating, deprioritizing, or handling differently."
+    },
+    {
+      "prefix": "format-scan/*",
+      "status": "live",
+      "purpose": "Evidence that a post format or channel-native format is worth using or codifying."
+    },
+    {
+      "prefix": "monetization-benchmark-adjacent-record/*",
+      "status": "live",
+      "purpose": "Pricing, packaging, or market facts found by marketing but owned strategically by monetization."
+    },
+    {
+      "prefix": "marketing-craft-observation/*",
+      "status": "live",
+      "purpose": "Typed production observations that may feed canon, skill, scenario, capability-gap, or retirement decisions."
+    },
+    {
+      "prefix": "brand-snapshot/*",
+      "status": "live",
+      "purpose": "Snapshot of canon drift, typed learning state, campaign signals, and promotion/retirement candidates."
+    }
+  ]
 }

@@ -7,3 +7,11 @@
 - Keep proposals bounded enough for the operator to approve or reject quickly.
 - Attach the required prediction block (`docs/director-swarm/evidence/OUTCOMES_CHARTER.md` §"Prediction ledger") to every `goal-proposal` and `goal-portfolio` decision.
 - Route accepted cross-team `capability-gap` decisions into goal or backlog proposals, or reject them with evidence.
+
+## Available Skills
+
+| Skill | Purpose |
+|-------|---------|
+| `prompt-manager skill read swarm-manager-goal-context` | Load a goal's current portfolio context before proposing changes to it. |
+| `prompt-manager skill read swarm-manager-backlog-tools` | Work the backlog surface this member proposes against. |
+| `prompt-manager skill read ecosystem-fit` | Classify a candidate's role, interfaces, and compound value before it becomes a goal proposal. |

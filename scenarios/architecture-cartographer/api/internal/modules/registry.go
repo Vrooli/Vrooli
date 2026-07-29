@@ -70,8 +70,11 @@ func AllEndpoints() []module.EndpointDescriptor {
 // ProtoFileEntry pairs a domain module's name with the proto
 // FileDescriptor whose RPCs that module exposes via Connect-RPC.
 type ProtoFileEntry struct {
-	Module string
-	File   protoreflect.FileDescriptor
+	// Services narrows a shared proto file to the services this module mounts.
+	// Empty preserves the legacy meaning of "all services in File".
+	Services []protoreflect.Name
+	Module   string
+	File     protoreflect.FileDescriptor
 }
 
 // AllProtoFiles returns the proto FileDescriptor backing each
@@ -81,7 +84,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "analytics", File: analyticsv1.File_architecture_cartographer_v1_analytics_analytics_proto},
 		{Module: "apply", File: applyv1.File_architecture_cartographer_v1_apply_apply_proto},
 		{Module: "audit", File: auditv1.File_architecture_cartographer_v1_audit_audit_proto},
-		{Module: "audit", File: scenariovalidationv1.File_scenario_validation_v1_validation_proto},
+		{Module: "audit", File: scenariovalidationv1.File_scenario_validation_v1_validation_proto, Services: []protoreflect.Name{"ScenarioValidationService"}},
 		{Module: "campaign", File: campaignv1.File_architecture_cartographer_v1_campaign_campaign_proto},
 		{Module: "conflicts", File: conflictsv1.File_architecture_cartographer_v1_conflicts_conflicts_proto},
 		{Module: "domains", File: domainsv1.File_architecture_cartographer_v1_domains_domains_proto},

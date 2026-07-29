@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	"google.golang.org/protobuf/reflect/protoreflect"
+
 	"api-health/internal/modules"
 	"api-health/internal/testutil/db"
 
@@ -119,6 +121,9 @@ func TestProtoConnectParity(t *testing.T) {
 
 		for s := 0; s < services.Len(); s++ {
 			svc := services.Get(s)
+			if len(entry.Services) > 0 && !containsService(entry.Services, svc.Name()) {
+				continue
+			}
 			methods := svc.Methods()
 			for m := 0; m < methods.Len(); m++ {
 				method := methods.Get(m)
@@ -133,4 +138,13 @@ func TestProtoConnectParity(t *testing.T) {
 			}
 		}
 	}
+}
+
+func containsService(services []protoreflect.Name, want protoreflect.Name) bool {
+	for _, service := range services {
+		if service == want {
+			return true
+		}
+	}
+	return false
 }

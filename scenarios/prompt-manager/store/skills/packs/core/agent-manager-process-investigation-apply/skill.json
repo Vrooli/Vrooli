@@ -4,7 +4,7 @@
   "id": "agent-manager-process-investigation-apply",
   "name": "Agent Manager Process Investigation Apply",
   "description": "Implement fixes from an investigation report organized by category with per-change verification.",
-  "modes": ["tools"],
+  "modes": ["contract"],
   "tags": ["agent-manager", "investigation", "apply"],
   "status": "active",
   "entry": "SKILL.md",

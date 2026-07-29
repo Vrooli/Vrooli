@@ -180,6 +180,7 @@ Defer to `post-types/text/scenario-spotlight.md`'s contrarian table for the cano
 - **Burying the asset.** A spotlight is asset-led. If the body reads as a coherent post without the asset, the body is doing too much; the asset is doing too little.
 - **Producing the asset spec but not sanity-checking it against `ASSETS.md` / `IMAGE_STYLE.md`.** Asset drift catches the contrarian; pre-empt it.
 - **Writing recommendation-variant copy without `third_party_basis`.** Reject your own draft and switch variants.
+- **Capping every tweet at 280 chars.** The real per-post limit follows the account's tier recorded in `docs/marketing/strategy/CHANNELS.md`, and `docs/marketing/methods/post-techniques/hook-vs-body-asymmetry.md` applies to spotlight the same as to dev-log: hook ~280, body long enough to wrap the asset. Trimming body copy to a uniform cap strips the substance that earns the click-through.
 
 ---
 

@@ -167,7 +167,7 @@ Return structured JSON for review. The caller is responsible for turning an acce
 **Always:**
 - Sanitize paths before including
 - Output as draft only - no auto-posting
-- Show character counts (warn if >280)
+- Show character counts per tweet (warn only if the **hook** tweet exceeds 280)
 - Cite sources for traceability
 
 **Rate limiting:**
@@ -179,7 +179,7 @@ Return structured JSON for review. The caller is responsible for turning an acce
 ### **10. Verification**
 
 Before presenting output:
-1. **Character count** - Flag any tweet >280 chars
+1. **Character count** - Flag the hook tweet if >280 chars. Do not flag body tweets for length — the account's tier in `docs/marketing/strategy/CHANNELS.md` sets the real cap, and per `docs/marketing/methods/post-techniques/hook-vs-body-asymmetry.md` body tweets routinely run 400-600+. Counts that stay flat near 280 across the thread indicate over-trimming, not compliance.
 2. **Sensitive data scan** - Check for paths, keys, emails
 3. **Source validation** - Verify cited sources exist
 4. **Tone check** - Does it read like a builder talking?

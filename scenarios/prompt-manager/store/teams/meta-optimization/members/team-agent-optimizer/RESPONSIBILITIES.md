@@ -15,6 +15,17 @@ Pick one target and evaluate:
 
 Concrete current-state evidence is mandatory: quote the prose, cite usage, name the missing role, or cite run evidence.
 
+## When To Run The System Audit
+
+`agent-system-audit` is the whole-system lens. It does not fit one-target-per-heartbeat, so run it on a trigger, not by default. Run it when one of these is true:
+
+- The framework-health sweep shows a sensor out of band that no single target explains.
+- A sensor's honesty flag moves, or a `pending-baseline` row records its first reading.
+- Three or more heartbeats have passed with no system-level audit recorded.
+- The operator asks for system shape ahead of a vision walk.
+
+Score its Phase 4 (objective coverage) as a measurement only. The actuator for an objective-coverage finding is `outcome-direction` or `capability-gap` **in director-swarm**, not in this lane. Measure here, route there — do not restructure a team on the strength of an objective-coverage finding you produced yourself.
+
 ## Capability Architecture Audits
 
 Use `prompt-manager skill read team-member-capability-architecture-audit` when a member's capability is vague, workflow-heavy, repeatedly blocked, dependent on external/operator-fed signals, or missing an obvious skill/doc/tool surface.
@@ -43,6 +54,9 @@ Prefer router-plus-focused-method skills over one mega-skill when a member handl
 
 | Skill | Purpose |
 |-------|---------|
+| `prompt-manager action run agent-system.framework-health` | Read every framework-health sensor against its deadband, with the actuator named for each sensor out of band. Run it before picking a target. |
+| `prompt-manager skill read agent-system-audit` | The whole-system lens across all teams. **Trigger, not default** — see "When to run the system audit" below. |
+| `prompt-manager skill read team-capability-consolidation` | A team produces little against a large roster, or hand-maintains records with a lifecycle. Turns the missing capability into a scenario and re-derives the roster from it. |
 | `prompt-manager skill read team-member-capability-architecture-audit` | Audit whether a member has the right identity, ownership, doc, skill, intake, collection, analysis, promotion, and feedback-loop structure |
 | `prompt-manager skill read skill-authoring-tools` | Reference for agent tool-surface proposals |
 | `prompt-manager skill read capability-extraction` | Distill methodologies from agent files |
