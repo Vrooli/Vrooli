@@ -212,7 +212,7 @@ func newTestServer(t *testing.T, fixtures any) *Server {
 	}
 
 	stubResourceStatusJSON(t, normalized, nil)
-	return NewServer(nil)
+	return NewServer()
 }
 
 // TestLoadResources verifies loading from the Vrooli CLI JSON output.
@@ -361,7 +361,7 @@ func TestHandleGetResourceCaseInsensitive(t *testing.T) {
 // [REQ:REQ-P0-001] - Resource Discovery API
 func TestHandleListResourcesLoadError(t *testing.T) {
 	stubResourceStatusJSON(t, nil, errors.New("command failed"))
-	srv := NewServer(nil)
+	srv := NewServer()
 
 	w := doGet(t, srv, "/api/v1/resources")
 	requireStatus(t, w, http.StatusInternalServerError)
@@ -377,7 +377,7 @@ func TestHandleListResourcesLoadError(t *testing.T) {
 // [REQ:REQ-P0-002] - Resource Detail View
 func TestHandleGetResourceLoadError(t *testing.T) {
 	stubResourceStatusJSON(t, nil, errors.New("command failed"))
-	srv := NewServer(nil)
+	srv := NewServer()
 
 	w := doGet(t, srv, "/api/v1/resources/postgres")
 	requireStatus(t, w, http.StatusInternalServerError)

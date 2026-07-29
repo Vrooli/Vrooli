@@ -169,7 +169,7 @@ func runCompliance(core *cliapp.ScenarioApp, args []string) error {
 		},
 		NextSteps: []string{
 			support.CLIName + " security vulnerabilities --severity critical",
-			support.CLIName + " vault status",
+			support.CLIName + " credentials status",
 			support.CLIName + " deployment readiness --scenario <scenario>",
 		},
 	}

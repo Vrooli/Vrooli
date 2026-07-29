@@ -1,45 +1,41 @@
 {
-  "description": "Intelligent setup order suggestions while maintaining flow flexibility",
-  "module_id": "MOD-P2-005",
-  "prd_ref": "OT-P2-001",
-  "priority": "P2",
+  "_metadata": {
+    "last_validated_at": "2026-07-29T14:04:05-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "dependencies": ["REQ-P0-004"],
-      "description": "Create algorithm for suggesting optimal resource setup order based on dependency graphs and usage patterns",
       "id": "REQ-P2-001",
-      "prd_ref": "OT-P2-001",
+      "title": "Per-scenario auto-restart controls",
       "status": "complete",
-      "title": "Setup Order Algorithm",
+      "prd_ref": "OT-P2-001",
+      "category": "ui",
+      "description": "Present manifest restart recommendations and persist per-scenario overrides in operator state.",
       "validation": [
         {
           "type": "test",
+          "ref": "api/v2_read_model_test.go",
           "phase": "unit",
-          "ref": "api/glossary_test.go",
-          "status": "passing",
-          "notes": "TestSetupOrder, TestSetupOrderCircularDeps verify dependency graph sorting"
+          "status": "implemented",
+          "notes": "Read-model overlay is covered; UI control remains required."
         }
       ]
     },
     {
-      "category": "ui",
-      "dependencies": ["REQ-P2-001"],
-      "description": "Display recommended setup order in the wizard with ability to reorder steps manually",
       "id": "REQ-P2-003",
-      "prd_ref": "OT-P2-001",
+      "title": "Operating-mode validation",
       "status": "complete",
-      "title": "Setup Order UI Suggestions",
+      "prd_ref": "OT-P2-001",
+      "category": "core",
+      "description": "Validate effective operating choices before they are committed and surface any unsupported mode.",
       "validation": [
         {
           "type": "test",
+          "ref": "api/v2_read_model_test.go",
           "phase": "unit",
-          "ref": "ui/src/App.test.tsx",
-          "status": "passing",
-          "notes": "Navigation and wizard tests verify setup order hint displays when resources are selected"
+          "status": "implemented",
+          "notes": "Operating-mode validator remains required."
         }
       ]
     }
-  ],
-  "title": "Smart Flow Optimization"
+  ]
 }

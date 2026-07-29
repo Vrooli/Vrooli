@@ -1,0 +1,11 @@
+import { useQuery } from "@tanstack/react-query";
+import { fetchV2HostRequirements } from "../../lib/api";
+import type { HostRequirement } from "../../types";
+
+function Requirements({ title, items, onToggle }: { title: string; items: HostRequirement[]; onToggle: (name: string, value: boolean) => void }) {
+  return <section className="mt-6"><h2 className="text-lg font-medium">{title}</h2><div className="mt-3 space-y-2">{items.map((item) => { const selected = item.status === "required" || item.status === "opted_in"; return <label key={item.name} className="flex gap-3 rounded-lg border border-white/10 bg-white/5 p-3"><input type="checkbox" checked={selected} disabled={item.required} onChange={(event) => onToggle(item.name, event.target.checked)} /><span><span className="font-medium">{item.name}</span>{item.required && <span className="ml-2 text-xs text-emerald-200">required</span>}{item.risk && <span className="ml-2 text-xs text-amber-200">risk: {item.risk}</span>}<span className="block text-xs text-slate-300">{item.reason || item.description}</span><span className="mt-1 block text-xs text-slate-400">Privilege: {item.privilege || "not declared"} · Bundling: {item.bundling || "not declared"}{item.platforms?.length ? ` · Platforms: ${item.platforms.join(", ")}` : ""}</span></span></label>; })}</div></section>;
+}
+export function StepHostRequirements({ onTool, onSafeguard }: { onTool: (name: string, value: boolean) => void; onSafeguard: (name: string, value: boolean) => void }) {
+  const { data, isLoading, error } = useQuery({ queryKey: ["v2-host-requirements"], queryFn: fetchV2HostRequirements });
+  return <div data-testid="step-host-requirements"><h1 className="text-xl font-semibold sm:text-2xl">Host tools and safeguards</h1><p className="mt-2 text-sm text-slate-300">Requirements are derived from selected manifests. Required tools stay selected; safeguards show their host-change risk before opt-in.</p>{isLoading && <p role="status" className="mt-6">Loading host requirements…</p>}{error && <p role="alert" className="mt-6 text-red-400">Unable to derive host requirements.</p>}{data && <><Requirements title="Tools" items={data.tools} onToggle={onTool} /><Requirements title="Safeguards" items={data.safeguards} onToggle={onSafeguard} /></>}</div>;
+}

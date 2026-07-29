@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -14,12 +15,17 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
+	// Register the driver selected by database.DriverPostgres. Without this
+	// import the process builds successfully but exits before serving /health.
+	_ "github.com/lib/pq"
 	_ "modernc.org/sqlite"
 	"secrets-manager-api/internal/envx"
 
 	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
 )
 
 // Package-level logger
@@ -27,15 +33,25 @@ var logger *Logger
 
 // Database connection
 var db *database.RoutedDB
+var campaignRoots *filerouting.RoutedRoots
+
+type routingMuxAdapter struct{ mux *mux.Router }
+
+func (m routingMuxAdapter) Handle(pattern string, handler http.Handler) {
+	m.mux.PathPrefix(pattern).Handler(handler)
+}
 
 func initDB(desktopMode bool) *database.RoutedDB {
-	config := database.Config{Driver: database.DriverPostgres}
+	config := database.Config{Driver: database.DriverPostgres, TestDriver: database.DriverSQLite}
 	if desktopMode {
 		var err error
 		db, err = openDesktopDatabase(context.Background())
 		if err != nil {
 			log.Fatal("Desktop database initialization failed:", err)
 		}
+		db.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+			return initializeDesktopSchema(ctx, pool)
+		})
 		return db
 	}
 	db, err := database.Open(context.Background(), config)
@@ -46,6 +62,9 @@ func initDB(desktopMode bool) *database.RoutedDB {
 		_ = db.Close()
 		log.Fatal("Database schema initialization failed:", err)
 	}
+	db.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+		return initializeDesktopSchema(ctx, pool)
+	})
 	return db
 }
 
@@ -55,6 +74,9 @@ func main() {
 		ScenarioName: "secrets-manager",
 	}) {
 		return // Process was re-exec'd after rebuild
+	}
+	if err := configureCampaignRoots(); err != nil {
+		log.Fatal("campaign storage routing initialization failed:", err)
 	}
 
 	// Initialize structured logger
@@ -76,10 +98,8 @@ func main() {
 	apiServer := newAPIServer(db, logger)
 	r := apiServer.routes()
 	rootMux := http.NewServeMux()
-	if db != nil {
-		devrouting.Register(rootMux, db)
-	}
 	rootMux.Handle("/", r)
+	devrouting.RegisterWithFileRoots(rootMux, db, campaignRoots)
 
 	// CORS headers
 	corsHeaders := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
@@ -105,9 +125,16 @@ func main() {
 		log.Fatal("receipt-signing TLS configuration failed:", err)
 	}
 
+	securityHeaders := http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-XSS-Protection", "0")
+		handlers.CORS(corsHeaders, corsMethods, corsOrigins)(apihttp.TestModeMiddleware(rootMux)).ServeHTTP(w, request)
+	})
 	httpServer := &http.Server{
 		Addr:      ":" + port,
-		Handler:   handlers.CORS(corsHeaders, corsMethods, corsOrigins)(apihttp.TestModeMiddleware(rootMux)),
+		Handler:   securityHeaders,
 		TLSConfig: tlsConfig,
 	}
 	if err := apiserver.Run(apiserver.Config{

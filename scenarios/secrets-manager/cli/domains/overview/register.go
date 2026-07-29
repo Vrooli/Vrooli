@@ -46,7 +46,7 @@ func runStatus(core *cliapp.ScenarioApp, args []string) error {
 	if err := support.GetRootJSON(core, "/health", nil, &payload.Health); err != nil {
 		return err
 	}
-	if err := support.GetJSON(core, "/vault/secrets/status", nil, &payload.Vault); err != nil {
+	if err := support.GetJSON(core, "/credentials/secrets/status", nil, &payload.Vault); err != nil {
 		return err
 	}
 	if err := support.GetJSON(core, "/security/compliance", nil, &payload.Compliance); err != nil {
@@ -87,7 +87,7 @@ func runStatus(core *cliapp.ScenarioApp, args []string) error {
 			},
 		},
 		NextSteps: []string{
-			support.CLIName + " vault status",
+			support.CLIName + " credentials status",
 			support.CLIName + " security vulnerabilities --severity critical",
 			support.CLIName + " deployment readiness --scenario <scenario>",
 		},

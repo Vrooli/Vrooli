@@ -27,7 +27,7 @@ export function WizardShell({
   children,
 }: WizardShellProps) {
   return (
-    <div className="flex min-h-[calc(100vh-3.5rem)] flex-col bg-slate-950 text-slate-50" data-testid="wizard-shell">
+    <div className="flex min-h-full flex-col bg-slate-950 text-slate-50" data-testid="wizard-shell">
       {/* Step indicator */}
       <section className="border-b border-white/10 bg-white/5 px-2 py-2 sm:px-6 sm:py-4" aria-label="Wizard progress">
         <div className="mx-auto max-w-3xl">
@@ -72,7 +72,7 @@ export function WizardShell({
           </div>
 
           {/* Desktop: full step labels with numbers */}
-          <ol className="hidden sm:flex items-center justify-between mb-3" aria-label="Wizard steps" data-testid="wizard-steps-desktop">
+		  <ol className="hidden sm:flex items-center justify-between mb-3" aria-label="Wizard steps" data-testid="wizard-steps-desktop">
             {STEP_LABELS.map((label, i) => {
               const isCompleted = i < currentStep;
               const isClickable = isCompleted && onGoToStep;
@@ -99,19 +99,11 @@ export function WizardShell({
                   >
                     {isCompleted ? "\u2713" : i + 1}
                   </button>
-                  <span
-                    className={cn(
-                      "text-sm",
-                      i === currentStep ? "text-slate-50 font-medium" : "text-slate-300"
-                    )}
-                  >
-                    {label}
-                    <span className="sr-only">
-                      {isCompleted ? " (completed)" : i === currentStep ? " (current)" : ""}
-                    </span>
-                  </span>
-                  {i < STEP_LABELS.length - 1 && (
-                    <div className="mx-2 h-px w-8 bg-white/10" aria-hidden="true" />
+				  <span className="sr-only">
+					{label}{isCompleted ? " (completed)" : i === currentStep ? " (current)" : ""}
+				  </span>
+				  {i < STEP_LABELS.length - 1 && (
+					<div className="mx-1 h-px w-4 bg-white/10 lg:mx-2 lg:w-6" aria-hidden="true" />
                   )}
                 </li>
               );

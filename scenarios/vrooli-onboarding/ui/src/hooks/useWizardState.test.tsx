@@ -14,11 +14,10 @@ describe("useWizardState", () => {
     vi.restoreAllMocks();
   });
 
-  it("starts at step 0 with empty resources", () => {
+  it("starts at step 0 with no selected scenarios", () => {
     const { result } = renderHook(() => useWizardState());
     expect(result.current.currentStep).toBe(0);
-    expect(result.current.selectedResources.size).toBe(0);
-    expect(result.current.resumeAvailable).toBe(false);
+    expect(result.current.selectedScenarios.size).toBe(0);
   });
 
   it("goNext advances step and caps at last step", async () => {
@@ -75,38 +74,30 @@ describe("useWizardState", () => {
     expect(result.current.currentStep).toBe(2);
   });
 
-  it("toggleResource adds and removes resources", () => {
+  it("toggleScenario commits enabled choices to operator state", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ version: "1.0.0", updated_at: "now", scenarios: {} }) });
     const { result } = renderHook(() => useWizardState());
 
-    act(() => result.current.toggleResource("postgres"));
-    expect(result.current.selectedResources.has("postgres")).toBe(true);
-
-    act(() => result.current.toggleResource("redis"));
-    expect(result.current.selectedResources.has("redis")).toBe(true);
-    expect(result.current.selectedResources.size).toBe(2);
-
-    // Toggle off
-    act(() => result.current.toggleResource("postgres"));
-    expect(result.current.selectedResources.has("postgres")).toBe(false);
-    expect(result.current.selectedResources.size).toBe(1);
+    act(() => result.current.toggleScenario("scenario-a"));
+    expect(result.current.selectedScenarios.has("scenario-a")).toBe(true);
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(2));
   });
 
-  it("startOver resets step, resources, and resume state", () => {
+  it("startOver resets navigation and local selections", () => {
     const { result } = renderHook(() => useWizardState());
 
     // Set up some state
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
-    act(() => result.current.toggleResource("postgres"));
+    act(() => result.current.toggleScenario("scenario-a"));
     act(() => result.current.goNext());
     act(() => result.current.goNext());
     expect(result.current.currentStep).toBe(2);
-    expect(result.current.selectedResources.size).toBe(1);
+    expect(result.current.selectedScenarios.size).toBe(1);
 
     // Start over
     act(() => result.current.startOver());
     expect(result.current.currentStep).toBe(0);
-    expect(result.current.selectedResources.size).toBe(0);
-    expect(result.current.resumeAvailable).toBe(false);
+    expect(result.current.selectedScenarios.size).toBe(0);
   });
 
   it("nextLabel changes based on current step", () => {
@@ -119,7 +110,13 @@ describe("useWizardState", () => {
     expect(result.current.nextLabel).toBe("Next");
 
     act(() => result.current.goNext());
-    expect(result.current.nextLabel).toBe("Generate Config");
+    expect(result.current.nextLabel).toBe("Next");
+  });
+
+  it("uses a truthful label before validation", () => {
+    const { result } = renderHook(() => useWizardState());
+    act(() => result.current.goToStep(TOTAL_STEPS - 2));
+    expect(result.current.nextLabel).toBe("Review readiness");
   });
 
   it("isLastStep is true only on the final step", () => {
@@ -133,64 +130,57 @@ describe("useWizardState", () => {
     expect(result.current.isLastStep).toBe(true);
   });
 
-  it("loads saved progress on mount and enables resume", async () => {
+  it("loads selected scenarios from operator state on mount", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () =>
         Promise.resolve({
-          current_step: 2,
-          config_data: { resources: ["postgres", "redis"] },
+          version: "1.0.0",
+          updated_at: "2026-07-29T00:00:00Z",
+          scenarios: { "scenario-a": { enabled: true }, "scenario-b": { enabled: false } },
         }),
     });
 
     const { result } = renderHook(() => useWizardState());
 
     await waitFor(() => {
-      expect(result.current.resumeAvailable).toBe(true);
+      expect(result.current.selectedScenarios.has("scenario-a")).toBe(true);
     });
-    expect(result.current.resumeStep).toBe(2);
-    expect(result.current.selectedResources.has("postgres")).toBe(true);
-    expect(result.current.selectedResources.has("redis")).toBe(true);
+    expect(result.current.selectedScenarios.has("scenario-b")).toBe(false);
   });
 
-  it("handleResume jumps to saved step and clears resume flag", async () => {
+  it("does not treat operator state as disposable wizard progress", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () =>
         Promise.resolve({
-          current_step: 3,
-          config_data: { resources: ["ollama"] },
+          version: "1.0.0", updated_at: "2026-07-29T00:00:00Z", scenarios: { alpha: { enabled: true } },
         }),
     });
 
     const { result } = renderHook(() => useWizardState());
 
     await waitFor(() => {
-      expect(result.current.resumeAvailable).toBe(true);
+      expect(result.current.selectedScenarios.has("alpha")).toBe(true);
     });
-
-    act(() => result.current.handleResume());
-    expect(result.current.currentStep).toBe(3);
-    expect(result.current.resumeAvailable).toBe(false);
+    expect(result.current.currentStep).toBe(0);
   });
 
-  it("ignores saved progress with invalid resources data", async () => {
+  it("ignores unselected or malformed operator state scenarios", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () =>
         Promise.resolve({
-          current_step: 1,
-          config_data: { resources: [42, null] },
+          version: "1.0.0", updated_at: "2026-07-29T00:00:00Z", scenarios: { bad: {} },
         }),
     });
 
     const { result } = renderHook(() => useWizardState());
 
     await waitFor(() => {
-      expect(result.current.resumeAvailable).toBe(true);
+      expect(result.current.operatorState).not.toBeNull();
     });
-    // Resources should not be set since they're not strings
-    expect(result.current.selectedResources.size).toBe(0);
+    expect(result.current.selectedScenarios.size).toBe(0);
   });
 
   it("handles fetch progress failure gracefully", async () => {
@@ -201,7 +191,6 @@ describe("useWizardState", () => {
     // Wait a tick for the effect to run
     await act(async () => {});
     expect(result.current.currentStep).toBe(0);
-    expect(result.current.resumeAvailable).toBe(false);
   });
 
   it("focuses heading on step change via requestAnimationFrame", async () => {

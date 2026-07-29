@@ -516,7 +516,7 @@ func generateRemediationSuggestions(vulnerabilities []SecurityVulnerability) []R
 			case "http_body_leak":
 				suggestion.FixCommand = "Add 'defer resp.Body.Close()' after HTTP requests"
 			case "hardcoded_secret":
-				suggestion.FixCommand = "Move to vault: resource-vault secrets init <resource>"
+				suggestion.FixCommand = "Provision with: vrooli credentials provision --identity <logical-id> --field <field>"
 			case "debug_code":
 				suggestion.FixCommand = "Remove TODO/FIXME comments and debug prints"
 			}

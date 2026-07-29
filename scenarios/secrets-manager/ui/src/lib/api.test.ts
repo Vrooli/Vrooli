@@ -68,8 +68,8 @@ describe("Secrets Manager API contract client", () => {
 
   it("uses the shared API base for health, Vault, compliance, and discovery reads", async () => {
     await expectRequest(fetchHealth, "/health");
-    await expectRequest(() => fetchVaultStatus("vault local"), "/vault/secrets/status?resource=vault%20local");
-    await expectRequest(() => fetchVaultStatus(), "/vault/secrets/status");
+    await expectRequest(() => fetchVaultStatus("vault local"), "/credentials/secrets/status?resource=vault%20local");
+	await expectRequest(() => fetchVaultStatus(), "/credentials/secrets/status");
     await expectRequest(fetchCompliance, "/security/compliance");
     await expectRequest(fetchAllowlistRules, "/security/allowlist-rules");
     await expectRequest(fetchWatchlist, "/security/watchlist");
@@ -128,7 +128,7 @@ describe("Secrets Manager API contract client", () => {
     );
     await expectRequest(
       () => provisionSecrets({ resource: "vault", secrets: { VAULT_TOKEN: "never-rendered" } }),
-      "/secrets/provision",
+		"/credentials/secrets/provision",
       { method: "POST", body: JSON.stringify({ resource: "vault", secrets: { VAULT_TOKEN: "never-rendered" } }) }
     );
     expect(fetchMock).toHaveBeenCalledTimes(5);

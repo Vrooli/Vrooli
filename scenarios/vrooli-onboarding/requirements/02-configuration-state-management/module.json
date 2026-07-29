@@ -1,69 +1,58 @@
 {
-  "description": "Generate and validate service.json with all dependencies resolved and proper schema compliance",
-  "module_id": "MOD-P0-002",
-  "prd_ref": "OT-P0-002",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-07-29T14:04:05-04:00"
+  },
   "requirements": [
     {
       "id": "REQ-P0-004",
-      "title": "Config Generation",
-      "description": "Generate a valid service.json file from user-selected resources, resolving all inter-resource dependencies and populating required configuration parameters with user-provided and default values",
-      "prd_ref": "OT-P0-002",
+      "title": "Atomic operator-state boundary",
       "status": "complete",
+      "prd_ref": "OT-P0-002",
       "category": "core",
-      "dependencies": [
-        "REQ-P0-001"
-      ],
+      "description": "Read and atomically commit operator choices exclusively in .vrooli/operator-state.json.",
       "validation": [
         {
           "type": "test",
+          "ref": "api/operator_state_test.go",
           "phase": "unit",
-          "ref": "api/config_test.go",
-          "status": "passing",
-          "notes": "TestConfigGenerate, TestConfigGenerateEmptyResources, TestConfigGenerateUnknownResources, TestConfigGenerateInvalidJSON verify config generation"
+          "status": "implemented",
+          "notes": "GET, PUT, and atomic persistence are covered."
         }
       ]
     },
     {
       "id": "REQ-P0-005",
-      "title": "Config Validation",
-      "description": "Validate generated and user-modified configuration against resource schemas, checking field types, required values, port conflicts, and dependency compatibility",
-      "prd_ref": "OT-P0-002",
+      "title": "No generated service configuration authority",
       "status": "complete",
+      "prd_ref": "OT-P0-002",
       "category": "core",
-      "dependencies": [
-        "REQ-P0-004"
-      ],
+      "description": "Onboarding must not generate service.json or treat database progress as operator configuration authority.",
       "validation": [
         {
           "type": "test",
+          "ref": "api/operator_state_test.go",
           "phase": "unit",
-          "ref": "api/config_test.go",
-          "status": "passing",
-          "notes": "TestConfigValidate, TestConfigValidateWithDependencyWarnings, TestConfigValidateEmptyConfig, TestConfigValidateUnknownResource verify validation"
+          "status": "implemented",
+          "notes": "Legacy preview endpoints remain while V2 readiness replaces them."
         }
       ]
     },
     {
       "id": "REQ-P0-006",
-      "title": "Config Export",
-      "description": "Export the validated configuration to the filesystem and apply it so the Vrooli runtime picks up the new resource settings, with rollback capability on failure",
-      "prd_ref": "OT-P0-002",
+      "title": "Shared operator control surface",
       "status": "complete",
-      "category": "core",
-      "dependencies": [
-        "REQ-P0-005"
-      ],
+      "prd_ref": "OT-P0-002",
+      "category": "cli",
+      "description": "UI and CLI use the same typed operator-state and read-model boundaries.",
       "validation": [
         {
           "type": "test",
+          "ref": "api/operator_state_test.go",
           "phase": "unit",
-          "ref": "api/export_test.go",
-          "status": "passing",
-          "notes": "TestConfigExport, TestConfigExportEmptyResources, TestConfigExportBackup verify config export with backup"
+          "status": "implemented",
+          "notes": "API contract is covered; CLI migration remains required."
         }
       ]
     }
-  ],
-  "title": "Configuration State Management"
+  ]
 }

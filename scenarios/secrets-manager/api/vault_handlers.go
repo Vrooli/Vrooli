@@ -1,12 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"os/exec"
 	"os/user"
+	"path/filepath"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -27,29 +31,23 @@ func NewVaultHandlers(db *database.RoutedDB, logger *Logger, validator *SecretVa
 	}
 }
 
-// RegisterRoutes mounts versioned vault endpoints (preferred paths).
+// RegisterRoutes mounts credential-authority endpoints.
 func (h *VaultHandlers) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/secrets/status", h.Status).Methods("GET", "POST")
 	router.HandleFunc("/secrets/provision", h.Provision).Methods("POST")
-}
-
-// RegisterLegacyRoutes keeps backward-compatible secrets endpoints.
-func (h *VaultHandlers) RegisterLegacyRoutes(router *mux.Router) {
-	router.HandleFunc("/secrets/scan", h.Status).Methods("GET", "POST")
 	router.HandleFunc("/secrets/validate", h.Validate).Methods("GET", "POST")
-	router.HandleFunc("/secrets/provision", h.LegacyProvision).Methods("POST")
 }
 
-// Vault secrets status handler
+// Status returns credential-authority metadata only.
 func (h *VaultHandlers) Status(w http.ResponseWriter, r *http.Request) {
 	resourceFilter := r.URL.Query().Get("resource")
 
 	status, err := getVaultSecretsStatus(resourceFilter)
 	if err != nil {
 		if h.logger != nil {
-			h.logger.Info("Vault status unavailable: %v", err)
+			h.logger.Info("credential authority status unavailable: %v", err)
 		}
-		http.Error(w, "Vault status is unavailable", http.StatusServiceUnavailable)
+		http.Error(w, "credential authority status is unavailable", http.StatusServiceUnavailable)
 		return
 	}
 
@@ -57,7 +55,7 @@ func (h *VaultHandlers) Status(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(status)
 }
 
-// Vault provision handler
+// Provision writes supplied values to the canonical credential authority.
 func (h *VaultHandlers) Provision(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		ResourceName string            `json:"resource_name"`
@@ -117,7 +115,7 @@ func (h *VaultHandlers) performSecretProvision(ctx context.Context, resource str
 	}
 	resource = strings.TrimSpace(resource)
 	if resource == "" {
-		return nil, fmt.Errorf("resource is required for Vault-backed provisioning")
+		return nil, fmt.Errorf("resource is required for credential provisioning")
 	}
 
 	response := &ProvisionResponse{
@@ -181,15 +179,11 @@ func determineProvisionOutcome(provisionErr error, vaultStoredCount int) provisi
 	}
 }
 
-// NOTE: secretMapping type, buildSecretMappings(), and putSecretInVault() have been
-// moved to vault_status.go to separate integration logic from HTTP handlers.
-
 func (h *VaultHandlers) provisionSecretsToVault(ctx context.Context, resourceName string, secrets map[string]string) ([]secretProvisionResult, error) {
 	results := []secretProvisionResult{}
 	if len(secrets) == 0 {
 		return results, fmt.Errorf("no secrets provided")
 	}
-	mappings := buildSecretMappings(resourceName)
 	errs := []string{}
 	for rawKey, rawValue := range secrets {
 		envKey := strings.ToUpper(strings.TrimSpace(rawKey))
@@ -197,21 +191,21 @@ func (h *VaultHandlers) provisionSecretsToVault(ctx context.Context, resourceNam
 		if envKey == "" || value == "" {
 			continue
 		}
-		mapping := mappings[envKey]
-		if mapping.Path == "" {
-			mapping.Path = fmt.Sprintf("secret/resources/%s/%s", resourceName, strings.ToLower(envKey))
+		descriptor, err := credentialDescriptorForEnv(resourceName, envKey)
+		if err != nil {
+			result := secretProvisionResult{EnvKey: envKey, Status: "failed", Error: err.Error()}
+			results = append(results, result)
+			errs = append(errs, fmt.Sprintf("%s: %v", envKey, err))
+			continue
 		}
-		if mapping.VaultKey == "" {
-			mapping.VaultKey = "value"
-		}
-		result := secretProvisionResult{EnvKey: envKey, VaultPath: mapping.Path, VaultKey: mapping.VaultKey}
-		if err := putSecretInVault(mapping.Path, mapping.VaultKey, value); err != nil {
+		result := secretProvisionResult{EnvKey: envKey, VaultPath: descriptor.LogicalID, VaultKey: descriptor.Field}
+		if err := provisionCredential(ctx, descriptor, value); err != nil {
 			result.Status = "failed"
 			result.Error = err.Error()
 			errs = append(errs, fmt.Sprintf("%s: %v", envKey, err))
 		} else {
 			result.Status = "stored"
-			h.recordSecretProvision(ctx, resourceName, envKey, mapping.Path)
+			h.recordSecretProvision(ctx, resourceName, envKey, descriptor.LogicalID)
 		}
 		results = append(results, result)
 	}
@@ -235,13 +229,86 @@ func (h *VaultHandlers) recordSecretProvision(ctx context.Context, resourceName,
 	}
 	_, err = h.db.ExecContext(ctx, `
 			INSERT INTO secret_provisions (resource_secret_id, storage_method, storage_location, provisioned_at, provisioned_by, provision_status)
-			VALUES ($1, 'vault', $2, CURRENT_TIMESTAMP, $3, 'active')
+			VALUES ($1, 'native-secure-store', $2, CURRENT_TIMESTAMP, $3, 'active')
 		`, secretID, vaultPath, provisionedBy)
 	if err != nil {
 		if h.logger != nil {
 			h.logger.Info("failed to record secret provision for %s: %v", envKey, err)
 		}
 	}
+}
+
+type credentialDescriptor struct {
+	LogicalID   string `json:"logical_id"`
+	Field       string `json:"field"`
+	Env         string `json:"env"`
+	Label       string `json:"label"`
+	Description string `json:"description"`
+	Required    bool   `json:"required"`
+}
+
+func credentialDescriptorForEnv(resourceName, env string) (credentialDescriptor, error) {
+	root := getVrooliRoot()
+	if root == "" {
+		return credentialDescriptor{}, fmt.Errorf("resolve repository root for credential descriptor")
+	}
+	path := filepath.Join(root, "resources", resourceName, "resource.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return credentialDescriptor{}, fmt.Errorf("read credential descriptor: %w", err)
+	}
+	var resource struct {
+		Credentials struct {
+			Descriptors []credentialDescriptor `json:"descriptors"`
+		} `json:"credentials"`
+	}
+	if err := json.Unmarshal(data, &resource); err != nil {
+		return credentialDescriptor{}, fmt.Errorf("parse credential descriptor: %w", err)
+	}
+	for _, descriptor := range resource.Credentials.Descriptors {
+		if strings.EqualFold(strings.TrimSpace(descriptor.Env), env) && strings.TrimSpace(descriptor.LogicalID) != "" {
+			if strings.TrimSpace(descriptor.Field) == "" {
+				descriptor.Field = "value"
+			}
+			return descriptor, nil
+		}
+	}
+	return credentialDescriptor{}, fmt.Errorf("%s is not a declared credential for resource %s", env, resourceName)
+}
+
+func credentialDescriptorsForResource(resourceName string) ([]credentialDescriptor, error) {
+	root := getVrooliRoot()
+	if root == "" {
+		return nil, fmt.Errorf("resolve repository root for credential descriptors")
+	}
+	data, err := os.ReadFile(filepath.Join(root, "resources", resourceName, "resource.json"))
+	if err != nil {
+		return nil, fmt.Errorf("read credential descriptors: %w", err)
+	}
+	var resource struct {
+		Credentials struct {
+			Descriptors []credentialDescriptor `json:"descriptors"`
+		} `json:"credentials"`
+	}
+	if err := json.Unmarshal(data, &resource); err != nil {
+		return nil, fmt.Errorf("parse credential descriptors: %w", err)
+	}
+	return resource.Credentials.Descriptors, nil
+}
+
+var provisionCredential = provisionNativeCredential
+
+func provisionNativeCredential(ctx context.Context, descriptor credentialDescriptor, value string) error {
+	// #nosec G702 -- descriptor identity and field are validated manifest metadata;
+	// the secret stays on stdin and never enters the command arguments.
+	cmd := exec.CommandContext(ctx, "vrooli", "credentials", "provision", "--identity", descriptor.LogicalID, "--field", descriptor.Field)
+	cmd.Stdin = strings.NewReader(value)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("provision native credential: %w", err)
+	}
+	return nil
 }
 
 func (h *VaultHandlers) Validate(w http.ResponseWriter, r *http.Request) {
@@ -265,42 +332,4 @@ func (h *VaultHandlers) Validate(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(response)
-}
-
-func (h *VaultHandlers) LegacyProvision(w http.ResponseWriter, r *http.Request) {
-	var req ProvisionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
-		return
-	}
-
-	secrets := h.normalizeProvisionSecrets(req.Secrets)
-	if req.SecretKey != "" && strings.TrimSpace(req.SecretValue) != "" {
-		if secrets == nil {
-			secrets = map[string]string{}
-		}
-		key := strings.ToUpper(strings.TrimSpace(req.SecretKey))
-		if key != "" {
-			secrets[key] = strings.TrimSpace(req.SecretValue)
-		}
-	}
-
-	if len(secrets) == 0 {
-		http.Error(w, "no secrets provided", http.StatusBadRequest)
-		return
-	}
-	resource := strings.TrimSpace(req.Resource)
-	if resource == "" {
-		http.Error(w, "resource is required for Vault-backed provisioning", http.StatusBadRequest)
-		return
-	}
-
-	result, err := h.performSecretProvision(r.Context(), resource, secrets)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(result)
 }

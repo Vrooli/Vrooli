@@ -1,63 +1,63 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { updateProgress, fetchProgress } from "../lib/api";
+import { fetchOperatorState, saveOperatorState } from "../lib/api";
+import type { OperatorState } from "../types";
 import { TOTAL_STEPS } from "../types";
 
 export function useWizardState() {
   const [currentStep, setCurrentStep] = useState(0);
-  const [selectedResources, setSelectedResources] = useState<Set<string>>(new Set());
-  const [resumeAvailable, setResumeAvailable] = useState(false);
-  const [resumeStep, setResumeStep] = useState(0);
+  const [selectedScenarios, setSelectedScenarios] = useState<Set<string>>(new Set());
+  const [operatorState, setOperatorState] = useState<OperatorState | null>(null);
   const stepContentRef = useRef<HTMLDivElement>(null);
   const prevStepRef = useRef(currentStep);
 
-  // Check for saved progress on mount
+  // V2 re-entry loads durable operator choices, not database-backed progress.
   useEffect(() => {
-    fetchProgress()
-      .then((progress) => {
-        if (progress.current_step > 0) {
-          setResumeAvailable(true);
-          setResumeStep(progress.current_step);
-          const resources = progress.config_data.resources;
-          if (Array.isArray(resources) && resources.every((r): r is string => typeof r === "string")) {
-            setSelectedResources(new Set(resources));
-          }
-        }
+    fetchOperatorState()
+      .then((state) => {
+        setOperatorState(state);
+        setSelectedScenarios(new Set(Object.entries(state.scenarios ?? {}).filter(([, choice]) => choice.enabled).map(([name]) => name)));
       })
       .catch(() => {
-        // No saved progress - start fresh
+        // An unconfigured installation has no operator-state document yet.
       });
   }, []);
 
-  const handleResume = useCallback(() => {
-    setCurrentStep(resumeStep);
-    setResumeAvailable(false);
-  }, [resumeStep]);
-
-  const toggleResource = useCallback((name: string) => {
-    setSelectedResources((prev) => {
-      const next = new Set(prev);
-      if (next.has(name)) {
-        next.delete(name);
-      } else {
-        next.add(name);
-      }
-      return next;
+  const persistOperatorState = useCallback((next: OperatorState) => {
+    setOperatorState(next);
+    saveOperatorState(next).then(setOperatorState).catch(() => {
+      // Keep the in-memory choice visible. The next operator action retries it.
     });
   }, []);
+
+  const toggleScenario = useCallback((name: string) => {
+    setSelectedScenarios((prev) => {
+      const next = new Set(prev);
+      const enabled = !next.has(name);
+      if (enabled) next.add(name); else next.delete(name);
+      const nextState: OperatorState = {
+        ...(operatorState ?? { version: "1.0.0", updated_at: "" }),
+        scenarios: { ...(operatorState?.scenarios ?? {}), [name]: { ...(operatorState?.scenarios?.[name] ?? {}), enabled } },
+      };
+      persistOperatorState(nextState);
+      return next;
+    });
+  }, [operatorState, persistOperatorState]);
+
+  const setScenarioAutoRestart = useCallback((name: string, autoRestart: boolean) => {
+    const next: OperatorState = {
+      ...(operatorState ?? { version: "1.0.0", updated_at: "" }),
+      scenarios: { ...(operatorState?.scenarios ?? {}), [name]: { ...(operatorState?.scenarios?.[name] ?? {}), auto_restart: autoRestart } },
+    };
+    persistOperatorState(next);
+  }, [operatorState, persistOperatorState]);
+  const setHostOptIn = useCallback((kind: "host_tools" | "host_safeguards", name: string, optedIn: boolean) => {
+    const next: OperatorState = { ...(operatorState ?? { version: "1.0.0", updated_at: "" }), [kind]: { ...(operatorState?.[kind] ?? {}), [name]: { opted_in: optedIn } } };
+    persistOperatorState(next);
+  }, [operatorState, persistOperatorState]);
 
   const goNext = useCallback(() => {
-    setCurrentStep((prev) => {
-      const next = Math.min(prev + 1, TOTAL_STEPS - 1);
-      updateProgress({
-        current_step: next,
-        completed_steps: Array.from({ length: next }, (_, i) => i),
-        config_data: { resources: Array.from(selectedResources) },
-      }).catch(() => {
-        // Silently ignore progress save failures
-      });
-      return next;
-    });
-  }, [selectedResources]);
+    setCurrentStep((prev) => Math.min(prev + 1, TOTAL_STEPS - 1));
+  }, []);
 
   const goPrev = useCallback(() => {
     setCurrentStep((prev) => Math.max(prev - 1, 0));
@@ -71,8 +71,7 @@ export function useWizardState() {
 
   const startOver = useCallback(() => {
     setCurrentStep(0);
-    setSelectedResources(new Set());
-    setResumeAvailable(false);
+    setSelectedScenarios(new Set());
   }, []);
 
   // Move focus to step content when step changes (accessibility)
@@ -89,17 +88,17 @@ export function useWizardState() {
     }
   }, [currentStep]);
 
-  const nextLabel = currentStep === 0 ? "Get Started" : currentStep === TOTAL_STEPS - 2 ? "Generate Config" : "Next";
+  const nextLabel = currentStep === 0 ? "Get Started" : currentStep === TOTAL_STEPS - 2 ? "Review readiness" : "Next";
   const isLastStep = currentStep === TOTAL_STEPS - 1;
 
   return {
     currentStep,
-    selectedResources,
-    resumeAvailable,
-    resumeStep,
+    selectedScenarios,
+    operatorState,
     stepContentRef,
-    handleResume,
-    toggleResource,
+    toggleScenario,
+    setScenarioAutoRestart,
+    setHostOptIn,
     goNext,
     goPrev,
     goToStep,

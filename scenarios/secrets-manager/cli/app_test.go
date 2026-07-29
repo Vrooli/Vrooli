@@ -14,7 +14,7 @@ func TestNormalizeArgs(t *testing.T) {
 		want []string
 	}{
 		{name: "config alias", in: []string{"config"}, want: []string{"configure"}},
-		{name: "vault default status", in: []string{"vault", "--resource", "postgres"}, want: []string{"vault", "status", "--resource", "postgres"}},
+		{name: "credentials default status", in: []string{"credentials", "--resource", "postgres"}, want: []string{"credentials", "status", "--resource", "postgres"}},
 		{name: "root vulnerabilities alias", in: []string{"vulnerabilities", "--severity", "high"}, want: []string{"security", "vulnerabilities", "--severity", "high"}},
 		{name: "root scan alias", in: []string{"scan", "--component", "foo"}, want: []string{"security", "scan", "--component", "foo"}},
 		{name: "root compliance alias", in: []string{"compliance"}, want: []string{"security", "compliance"}},

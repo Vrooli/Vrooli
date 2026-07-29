@@ -1,5 +1,5 @@
 import { resolveApiBase, buildApiUrl } from "@vrooli/api-base";
-import type { Resource, OnboardingProgress, ResourceHealthResponse, GlossaryResponse, SetupOrderResponse } from "../types";
+import type { Resource, ResourceHealthResponse, GlossaryResponse, OperatorState, V2ScenarioResponse, V2ReadinessResponse, V2HostRequirementsResponse } from "../types";
 
 // Simple! Just specify if you want the /api/v1 suffix
 const API_BASE = resolveApiBase({ appendSuffix: true });
@@ -22,54 +22,42 @@ export function fetchHealth() {
   return typedFetch<{ status: string; service: string; timestamp: string }>(url, { cache: "no-store" });
 }
 
+// V2 onboarding reads selected scenarios and their derived resources from
+// manifests. It never constructs service.json in the browser.
+export function fetchV2Scenarios() {
+  const url = buildApiUrl("/v2/scenarios", { baseUrl: API_BASE.replace(/\/v1$/, "") });
+  return typedFetch<V2ScenarioResponse>(url, { cache: "no-store" });
+}
+
+export function fetchV2Readiness() {
+  const url = buildApiUrl("/v2/readiness", { baseUrl: API_BASE.replace(/\/v1$/, "") });
+  return typedFetch<V2ReadinessResponse>(url, { cache: "no-store" });
+}
+export function fetchV2HostRequirements() {
+  const url = buildApiUrl("/v2/host-requirements", { baseUrl: API_BASE.replace(/\/v1$/, "") });
+  return typedFetch<V2HostRequirementsResponse>(url, { cache: "no-store" });
+}
+
+export function provisionCredential(input: { logical_id: string; field: string; value: string }) {
+  const url = buildApiUrl("/v2/credentials/provision", { baseUrl: API_BASE.replace(/\/v1$/, "") });
+  return typedFetch<{ status: "provisioned"; logical_id: string; field: string }>(url, { method: "POST", body: JSON.stringify(input) });
+}
+
+export function fetchOperatorState() {
+  const url = buildApiUrl("/operator-state", { baseUrl: API_BASE });
+  return typedFetch<OperatorState>(url, { cache: "no-store" });
+}
+
+export function saveOperatorState(state: OperatorState) {
+  const url = buildApiUrl("/operator-state", { baseUrl: API_BASE });
+  return typedFetch<OperatorState>(url, { method: "PUT", body: JSON.stringify(state) });
+}
+
 export async function fetchResources() {
   const url = buildApiUrl("/resources", { baseUrl: API_BASE });
   const data = await typedFetch<{ resources: Resource[] } | Resource[]>(url, { cache: "no-store" });
   // API wraps resources in {count, resources: [...]}, unwrap if needed
   return Array.isArray(data) ? data : data.resources;
-}
-
-export function fetchProgress(userId?: string) {
-  const params = new URLSearchParams();
-  if (userId) params.set("user_id", userId);
-  const url = buildApiUrl(`/progress${params.toString() ? `?${params}` : ""}`, { baseUrl: API_BASE });
-  return typedFetch<OnboardingProgress>(url, { cache: "no-store" });
-}
-
-export function updateProgress(data: {
-  current_step: number;
-  completed_steps: number[];
-  config_data: Record<string, unknown>;
-}) {
-  const url = buildApiUrl("/progress", { baseUrl: API_BASE });
-  return typedFetch<OnboardingProgress>(url, {
-    method: "PUT",
-    body: JSON.stringify({ user_id: "default", ...data }),
-  });
-}
-
-export function completeOnboarding() {
-  const url = buildApiUrl("/complete", { baseUrl: API_BASE });
-  return typedFetch<{ status: string; user_id: string; completed_at: string; config_path: string }>(url, {
-    method: "POST",
-    body: JSON.stringify({ user_id: "default" }),
-  });
-}
-
-export function generateConfig(resources: string[]) {
-  const url = buildApiUrl("/config/generate", { baseUrl: API_BASE });
-  return typedFetch<Record<string, unknown>>(url, {
-    method: "POST",
-    body: JSON.stringify({ resources }),
-  });
-}
-
-export function validateConfig(resources: Record<string, { enabled: boolean; name: string }>) {
-  const url = buildApiUrl("/config/validate", { baseUrl: API_BASE });
-  return typedFetch<{ valid: boolean; errors?: string[]; warnings?: string[] }>(url, {
-    method: "POST",
-    body: JSON.stringify({ resources }),
-  });
 }
 
 export function fetchResourceHealth() {
@@ -81,9 +69,4 @@ export function fetchGlossary(query?: string) {
   const params = query ? `?q=${encodeURIComponent(query)}` : "";
   const url = buildApiUrl(`/glossary${params}`, { baseUrl: API_BASE });
   return typedFetch<GlossaryResponse>(url, { cache: "no-store" });
-}
-
-export function fetchSetupOrder() {
-  const url = buildApiUrl("/setup-order", { baseUrl: API_BASE });
-  return typedFetch<SetupOrderResponse>(url, { cache: "no-store" });
 }

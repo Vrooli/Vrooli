@@ -9,27 +9,16 @@
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [x] OT-P0-001 | Resource Configuration Wizard | Complete guided setup flow for coding agents and AI providers with 100% validation coverage
-- [x] OT-P0-002 | Configuration State Management | Generate and validate service.json with all dependencies resolved and proper schema compliance
+- [x] OT-P0-001 | Scenario-first configuration | The wizard shall select scenarios first, derive resources and host requirements from manifests, and keep system-required scenarios locked on.
+- [x] OT-P0-002 | Authoritative operator state | The wizard shall atomically persist operator choices only to `.vrooli/operator-state.json`; it shall not generate service.json or treat database progress as configuration authority.
 
 ### 🟠 P1 – Should have post-launch
-- [x] OT-P1-001 | Health Monitoring Dashboard | Real-time resource status visualization with health checks and status indicators
-- [x] OT-P1-002 | Progress Persistence System | Save and resume capability for partial onboarding progress across sessions
+- [x] OT-P1-001 | Credential and readiness guidance | The wizard shall present descriptor-driven credential status, host safeguards, provider availability, and actionable final readiness without rendering secret values.
+- [x] OT-P1-002 | Re-enterable operator experience | The wizard shall reload effective operator state on entry and allow an operator to revise any non-deferred setup decision.
 
 ### 🟢 P2 – Future / expansion
-- [x] OT-P2-001 | Smart Flow Optimization | Intelligent setup order suggestions while maintaining flow flexibility
-- [x] OT-P2-002 | User-Friendly Documentation | Context-aware help content with plain language descriptions replacing technical terms
-
-### 🔵 V2 Rework – Configuration substrate alignment (planned)
-The wizard's first iteration grouped operator choices around resources. The v2 rework inverts the model so operators select scenarios first (capabilities), and resources, secrets, host tools/safeguards, and integrations are derived from that selection. The configuration substrate this rework consumes is documented in [`/docs/configuration/`](../../docs/configuration/); see [`docs/WIZARD_FLOW.md`](docs/WIZARD_FLOW.md) for the flow and wireframes.
-
-- [ ] OT-V2-001 | Scenarios-first wizard flow | Replace the resources-first flow with scenarios → resources → secrets → integrations → host → operating-mode → validation. System-required scenarios render as locked-on per `service.system_required`.
-- [ ] OT-V2-002 | Operator state persisted to operator-state.json | Wizard writes choices to `.vrooli/operator-state.json` per [`operator-state.schema.json`](../../.vrooli/schemas/operator-state.schema.json). Manifests remain the source of declarative truth; this file holds operator choices only.
-- [ ] OT-V2-003 | Host tools/safeguards step with risk indicator | New step rendering `risk` field on safeguards and opt-in toggles writing to `host_tools` and `host_safeguards` in operator-state.
-- [ ] OT-V2-004 | Per-scenario auto-restart toggle | "Keep running" toggle per scenario, defaulting from `runtime.auto_restart_default`, override stored in operator-state.
-- [ ] OT-V2-005 | Re-enterable from any step | Wizard is idempotent and re-enterable; not a one-shot. Adding a scenario or resource later re-enters at the relevant step with prior state pre-loaded.
-- [ ] OT-V2-006 | Final validation report | Terminal step runs full health-probe pass and shows green-light or actionable error list.
-- [ ] OT-V2-FEATURE-COMPLETE | Wizard covers every documented integration | **Feature-complete when every integration documented in [`/docs/configuration/integrations/`](../../docs/configuration/integrations/) has a wizard step.** This is the explicit acceptance criterion: the configuration docs are the contract; the wizard is the implementation.
+- [x] OT-P2-001 | Operating-mode controls | The wizard should expose manifest-recommended per-scenario auto-restart and operating-mode overrides.
+- [x] OT-P2-002 | Deferred integrations contract | The integrations step shall clearly identify integration-hub as deferred, accept no fake bindings, and link to the owning capability.
 
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks: Go (API/CLI), React/TypeScript (UI)
@@ -38,7 +27,7 @@ The wizard's first iteration grouped operator choices around resources. The v2 r
 - Non-goals: Custom resource implementations, complex workflow automation
 
 ## 🤝 Dependencies & Launch Plan
-- Required resources: `vrooli resource status --json`, service.json, secrets.json
+- Required resources: manifest-derived scenarios, resources, host requirements, and credential descriptors
 - Scenario dependencies: tunnel-manager, browser-automation-studio
 - Operational risks: API key security, configuration file corruption, health check reliability
 - Launch sequencing:

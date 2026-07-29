@@ -11,7 +11,7 @@ require (
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli-cli-go v0.0.0
-	gopkg.in/yaml.v2 v2.4.0
+	modernc.org/sqlite v1.54.0
 )
 
 require github.com/felixge/httpsnoop v1.0.1 // indirect
@@ -31,7 +31,6 @@ require (
 	modernc.org/libc v1.74.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.54.0 // indirect
 )
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core

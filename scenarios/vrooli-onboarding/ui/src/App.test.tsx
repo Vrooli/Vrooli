@@ -27,8 +27,8 @@ describe("App - Wizard Navigation", () => {
   it("advances to resource selection on Get Started click", () => {
     renderApp();
     fireEvent.click(screen.getByTestId("wizard-next"));
-    // After advancing, the step-resources-loading should appear (waiting for API data)
-    expect(screen.getByTestId("step-resources-loading")).toBeInTheDocument();
+    // V2 advances to manifest-derived scenario selection.
+    expect(screen.getByTestId("step-select-scenarios")).toBeInTheDocument();
   });
 
   it("disables Next when no resources are selected", () => {
@@ -54,14 +54,14 @@ describe("App - Wizard Navigation", () => {
   it("renders step announcement for screen readers", () => {
     renderApp();
     const announcement = screen.getByTestId("step-announcement");
-    expect(announcement).toHaveTextContent("Step 1 of 4");
+    expect(announcement).toHaveTextContent("Step 1 of 8");
     expect(announcement).toHaveAttribute("aria-live", "assertive");
   });
 
   it("updates step announcement on navigation", () => {
     renderApp();
     fireEvent.click(screen.getByTestId("wizard-next")); // go to step 2
-    expect(screen.getByTestId("step-announcement")).toHaveTextContent("Step 2 of 4");
+    expect(screen.getByTestId("step-announcement")).toHaveTextContent("Step 2 of 8");
   });
 });
 

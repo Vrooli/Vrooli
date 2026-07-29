@@ -1,5 +1,6 @@
 // [REQ:REQ-P0-003] Wizard Shell Component
 import { render, screen, fireEvent } from "@testing-library/react";
+// provider-free-exception: WizardShell receives all state and callbacks as props and does not access app providers.
 import { vi } from "vitest";
 import { WizardShell } from "./WizardShell";
 
@@ -20,12 +21,15 @@ describe("WizardShell", () => {
     expect(screen.getByText("Test Content")).toBeInTheDocument();
   });
 
-  it("renders step indicators for all 4 steps", () => {
+  it("renders step indicators for all onboarding V2 steps", () => {
     render(<WizardShell {...defaultProps}>Content</WizardShell>);
     expect(screen.getByTestId("step-indicator-0")).toBeInTheDocument();
     expect(screen.getByTestId("step-indicator-1")).toBeInTheDocument();
     expect(screen.getByTestId("step-indicator-2")).toBeInTheDocument();
     expect(screen.getByTestId("step-indicator-3")).toBeInTheDocument();
+    expect(screen.getByTestId("step-indicator-4")).toBeInTheDocument();
+    expect(screen.getByTestId("step-indicator-5")).toBeInTheDocument();
+    expect(screen.getByTestId("step-indicator-6")).toBeInTheDocument();
   });
 
   it("renders ordered list for step indicators", () => {
@@ -48,7 +52,7 @@ describe("WizardShell", () => {
     const progressBar = screen.getByRole("progressbar");
     expect(progressBar).toHaveAttribute("aria-valuenow", "2");
     expect(progressBar).toHaveAttribute("aria-valuemin", "0");
-    expect(progressBar).toHaveAttribute("aria-valuemax", "3");
+    expect(progressBar).toHaveAttribute("aria-valuemax", "7");
   });
 
   it("shows Next button by default", () => {
@@ -102,12 +106,12 @@ describe("WizardShell", () => {
 
   it("renders mobile compact step label with current step name", () => {
     render(<WizardShell {...defaultProps} currentStep={1}>Content</WizardShell>);
-    expect(screen.getByText("Step 2: Select Resources")).toBeInTheDocument();
+    expect(screen.getByText("Step 2: Scenarios")).toBeInTheDocument();
   });
 
   it("renders mobile step counter", () => {
     render(<WizardShell {...defaultProps} currentStep={2}>Content</WizardShell>);
-    expect(screen.getByText("3/4")).toBeInTheDocument();
+    expect(screen.getByText("3/8")).toBeInTheDocument();
   });
 
   it("renders mobile dot progress indicators", () => {
@@ -115,7 +119,7 @@ describe("WizardShell", () => {
     const mobileProgress = screen.getByRole("list", { name: /step progress/i });
     expect(mobileProgress).toBeInTheDocument();
     const dots = mobileProgress.querySelectorAll("[role='listitem']");
-    expect(dots).toHaveLength(4);
+    expect(dots).toHaveLength(8);
   });
 
   it("makes completed step indicators clickable when onGoToStep is provided", () => {
@@ -160,13 +164,13 @@ describe("WizardShell", () => {
   it("progress bar width reflects step position", () => {
     render(<WizardShell {...defaultProps} currentStep={1}>Content</WizardShell>);
     const progressFill = screen.getByTestId("progress-bar");
-    // Step 1 of 4 steps (0-indexed): 1/3 * 100 ≈ 33.33%
-    expect(progressFill.style.width).toMatch(/33\.3/);
+    // Step 1 of 8 steps (0-indexed): 1/7 * 100 ≈ 14.29%
+    expect(progressFill.style.width).toMatch(/14\.2/);
   });
 
   it("shows step number for non-completed future steps", () => {
     render(<WizardShell {...defaultProps} currentStep={0}>Content</WizardShell>);
-    // Step 0 is current (shows "1"), steps 1-3 are future
+    // Step 0 is current (shows "1"), later steps are future.
     expect(screen.getByTestId("step-indicator-0")).toHaveTextContent("1");
     expect(screen.getByTestId("step-indicator-3")).toHaveTextContent("4");
   });
@@ -177,8 +181,8 @@ describe("WizardShell", () => {
     expect(progressFill.style.width).toBe("0%");
   });
 
-  it("progress bar width is 100% on last step", () => {
-    render(<WizardShell {...defaultProps} currentStep={3}>Content</WizardShell>);
+  it("progress bar width is 100% on the final V2 step", () => {
+    render(<WizardShell {...defaultProps} currentStep={7}>Content</WizardShell>);
     const progressFill = screen.getByTestId("progress-bar");
     expect(progressFill.style.width).toBe("100%");
   });

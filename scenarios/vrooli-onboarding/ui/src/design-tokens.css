@@ -1,0 +1,12 @@
+/* brand-manager: vrooli-onboarding */
+:root {
+  --color-background: #020617;
+  --color-foreground: #f8fafc;
+  --color-primary: #10b981;
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+}

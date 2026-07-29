@@ -10,7 +10,7 @@
 ## Architecture Rules
 
 - Keep secret values outside responses, logs, and scenario metadata storage.
-- Use `resource-vault` through the declared resource boundary; do not add a plaintext fallback.
+- Use the canonical `resource.json` credential descriptor and `vrooli credentials` authority; do not add a plaintext fallback or direct Vault credential path.
 - Keep the Go API as the business-logic owner. UI and CLI call its contracts.
 - Use lifecycle-managed startup. Do not run API or UI binaries directly.
 

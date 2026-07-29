@@ -86,8 +86,8 @@ func (a *App) normalizeArgs(args []string) []string {
 		cleaned[0] = "overrides"
 	}
 
-	if cleaned[0] == "vault" && shouldInsertDefault(cleaned[1:], "status", "list", "validate", "provision", "help", "-h", "--help") {
-		cleaned = append([]string{"vault", "status"}, cleaned[1:]...)
+	if cleaned[0] == "credentials" && shouldInsertDefault(cleaned[1:], "status", "list", "validate", "help", "-h", "--help") {
+		cleaned = append([]string{"credentials", "status"}, cleaned[1:]...)
 	}
 	if cleaned[0] == "security" && shouldInsertDefault(cleaned[1:], "vulnerabilities", "scan", "compliance", "set-status", "fix", "help", "-h", "--help") {
 		cleaned = append([]string{"security", "vulnerabilities"}, cleaned[1:]...)

@@ -1,0 +1,40 @@
+{
+  "metadata": {
+    "name": "secrets-manager-dashboard-smoke",
+    "description": "Given an operator opens Secrets Manager, when the dashboard is loaded, then its initial UI can be rendered without mutating credential state.",
+    "labels": {
+      "reset": "none",
+      "requirements_json": "[\"SEC-UI-001\"]",
+      "purpose": "credential-dashboard-smoke"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {"viewport_width": 1440, "viewport_height": 900},
+  "nodes": [
+    {
+      "id": "navigate",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "secrets-manager",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {"label": "Open Secrets Manager dashboard"}
+      }
+    },
+    {
+      "id": "capture",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {"full_page": true},
+        "metadata": {"label": "Capture dashboard"}
+      }
+    }
+  ],
+  "edges": [
+    {"id": "9a2f540d-0e2b-492d-a15b-47e6a743ac81", "source": "navigate", "target": "capture"}
+  ]
+}

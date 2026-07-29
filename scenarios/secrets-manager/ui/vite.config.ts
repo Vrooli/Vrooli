@@ -29,6 +29,21 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
+    // Perf-build channel (managed by Performance Health). A regular build ships
+    // the lean prod artifact; `vite build --mode profile` keeps React's
+    // profiling instrumentation + real component names so <React.Profiler>'s
+    // onRender fires and CPU samples display readable names.
+    ...(mode === "profile"
+      ? {
+          resolve: {
+            alias: {
+              "react-dom/client": "react-dom/profiling",
+              "react-dom$": "react-dom/profiling",
+            },
+          },
+          esbuild: { keepNames: true },
+        }
+      : {}),
     plugins: [
       react(),
       {

@@ -80,14 +80,14 @@ describe("ResourceTable", () => {
     await waitFor(() => expect(screen.queryByText("redis")).not.toBeInTheDocument());
   });
 
-  it("documents the supported Vault declaration and provisioning flow", () => {
+  it("documents the canonical descriptor and provisioning flow", () => {
     const { container } = renderWithProviders(<ResourceTable resourceStatuses={sample} isLoading={false} onOpenResource={() => {}} />);
 
     fireEvent.click(within(container).getByLabelText("Help"));
 
-    expect(screen.getByText("resources/<resource>/config/secrets.yaml")).toBeInTheDocument();
-    expect(screen.getByText("resource-vault secrets init <resource>")).toBeInTheDocument();
-    expect(screen.queryByText(/create-template/)).not.toBeInTheDocument();
+    expect(screen.getByText("resources/<resource>/resource.json")).toBeInTheDocument();
+    expect(screen.getByText("vrooli credentials provision")).toBeInTheDocument();
+    expect(screen.queryByText(/config\/secrets\.yaml/)).not.toBeInTheDocument();
   });
 });
 

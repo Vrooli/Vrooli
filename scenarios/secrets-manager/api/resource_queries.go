@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/vrooli/api-core/database"
 )
 
@@ -117,10 +116,10 @@ func fetchResourceDetail(ctx context.Context, db *database.RoutedDB, resourceNam
 		detail.Secrets[i].TierStrategies = tierStrategies
 	}
 
-	// If nothing is stored yet, seed from the resource's secrets.yaml and try again so the UI isn't empty.
+	// If nothing is stored yet, seed from the canonical resource manifest and try again so the UI isn't empty.
 	if len(detail.Secrets) == 0 {
-		if err := seedResourceSecretsFromConfig(ctx, db, resourceName); err != nil && logger != nil {
-			logger.Warning("Failed to seed secrets for %s from config: %v", resourceName, err)
+		if err := seedResourceSecretsFromManifest(ctx, db, resourceName); err != nil && logger != nil {
+			logger.Warning("Failed to seed secrets for %s from resource manifest: %v", resourceName, err)
 		}
 		return fetchResourceDetail(ctx, db, resourceName)
 	}
@@ -198,40 +197,35 @@ func nullBytes(value []byte) interface{} {
 	return value
 }
 
-// buildDetailFromConfig constructs a ResourceDetail from secrets.yaml when no database is available.
+// buildDetailFromManifest constructs a ResourceDetail from canonical resource.json descriptors when no database is available.
 func buildDetailFromConfig(resourceName string) (*ResourceDetail, error) {
-	config, err := loadResourceSecrets(resourceName)
+	descriptors, err := credentialDescriptorsForResource(resourceName)
 	if err != nil {
 		return &ResourceDetail{ResourceName: resourceName, Secrets: []ResourceSecretDetail{}}, nil
 	}
 
-	secrets := make([]ResourceSecretDetail, 0)
-	for _, group := range config.Secrets {
-		for _, def := range group {
-			key := strings.TrimSpace(def.DefaultEnv)
-			if key == "" {
-				key = strings.TrimSpace(def.Name)
-			}
-			if key == "" {
-				continue
-			}
-			secret := ResourceSecretDetail{
-				ID:             uuid.New().String(),
-				SecretKey:      key,
-				SecretType:     inferSecretType(def),
-				Description:    strings.TrimSpace(def.Description),
-				Classification: "service",
-				Required:       def.Required,
-				TierStrategies: map[string]string{},
-				ValidationState: func() string {
-					if def.Required {
-						return "missing"
-					}
-					return "unknown"
-				}(),
-			}
-			secrets = append(secrets, secret)
+	secrets := make([]ResourceSecretDetail, 0, len(descriptors))
+	for _, descriptor := range descriptors {
+		key := strings.TrimSpace(descriptor.Env)
+		if key == "" {
+			continue
 		}
+		secret := ResourceSecretDetail{
+			ID:             descriptor.LogicalID + ":" + descriptor.Field,
+			SecretKey:      key,
+			SecretType:     ClassifySecretType(key),
+			Description:    strings.TrimSpace(descriptor.Description),
+			Classification: "service",
+			Required:       descriptor.Required,
+			TierStrategies: map[string]string{},
+			ValidationState: func() string {
+				if descriptor.Required {
+					return "missing"
+				}
+				return "unknown"
+			}(),
+		}
+		secrets = append(secrets, secret)
 	}
 
 	return &ResourceDetail{
@@ -243,8 +237,8 @@ func buildDetailFromConfig(resourceName string) (*ResourceDetail, error) {
 	}, nil
 }
 
-// seedResourceSecretsFromConfig persists secrets.yaml declarations into the DB when none exist.
-func seedResourceSecretsFromConfig(ctx context.Context, db *database.RoutedDB, resourceName string) error {
+// seedResourceSecretsFromManifest persists resource.json credential declarations when none exist.
+func seedResourceSecretsFromManifest(ctx context.Context, db *database.RoutedDB, resourceName string) error {
 	if db == nil {
 		return nil
 	}
@@ -257,7 +251,7 @@ func seedResourceSecretsFromConfig(ctx context.Context, db *database.RoutedDB, r
 		return nil
 	}
 
-	config, err := loadResourceSecrets(resourceName)
+	descriptors, err := credentialDescriptorsForResource(resourceName)
 	if err != nil {
 		return err
 	}
@@ -284,59 +278,27 @@ func seedResourceSecretsFromConfig(ctx context.Context, db *database.RoutedDB, r
 	}
 	defer stmt.Close()
 
-	for _, group := range config.Secrets {
-		for _, def := range group {
-			key := strings.TrimSpace(def.DefaultEnv)
-			if key == "" {
-				key = strings.TrimSpace(def.Name)
-			}
-			if key == "" {
-				continue
-			}
+	for _, descriptor := range descriptors {
+		key := strings.TrimSpace(descriptor.Env)
+		if key == "" {
+			continue
+		}
 
-			classification := "service"
-			lowerName := strings.ToLower(def.Name)
-			if strings.Contains(lowerName, "password") || strings.Contains(lowerName, "db") {
-				classification = "infrastructure"
-			}
-
-			if _, err := stmt.ExecContext(
-				ctx,
-				uuid.New().String(),
-				resourceName,
-				key,
-				inferSecretType(def),
-				def.Required,
-				strings.TrimSpace(def.Description),
-				classification,
-			); err != nil {
-				return err
-			}
+		if _, err := stmt.ExecContext(
+			ctx,
+			descriptor.LogicalID+":"+descriptor.Field,
+			resourceName,
+			key,
+			ClassifySecretType(key),
+			descriptor.Required,
+			strings.TrimSpace(descriptor.Description),
+			"service",
+		); err != nil {
+			return err
 		}
 	}
 
 	return tx.Commit()
-}
-
-func inferSecretType(def SecretDefinition) string {
-	name := strings.ToLower(def.Name)
-	format := strings.ToLower(strings.TrimSpace(def.Format))
-	switch {
-	case strings.Contains(name, "password"):
-		return "password"
-	case strings.Contains(name, "token"):
-		return "token"
-	case strings.Contains(name, "key"):
-		return "api_key"
-	case strings.Contains(format, "cert"):
-		return "certificate"
-	case strings.Contains(format, "token"):
-		return "token"
-	case strings.Contains(format, "key"):
-		return "api_key"
-	default:
-		return "env_var"
-	}
 }
 
 func countMissingRequired(secrets []ResourceSecretDetail) int {

@@ -4,42 +4,16 @@ This document captures references, patterns, and learnings discovered during sec
 
 ---
 
-## 🔐 Vault Integration
+## 🔐 Credential Authority
 
-### HashiCorp Vault CLI Patterns
-**Reference**: `resource-vault` CLI implementation in `/resources/vault/`
+**Reference**: resource `resource.json` descriptors and `vrooli credentials`.
 
 **Key Learnings**:
-- Use `resource-vault secrets validate` for canonical status checks
-- Fall back to local file parsing when Vault is unavailable (dev/CI scenarios)
-- Never log secret values - only keys and validation status
-- Temp files for CLI output should have 0600 permissions
-
-**CLI Command Reference**:
-```bash
-# Validate all configured resource secrets
-resource-vault secrets validate
-
-# Check one resource's required secrets
-resource-vault secrets check postgres
-
-# Read a specific secret value
-resource-vault content get --path "resources/postgres/db_password" --format raw
-
-# Write a specific secret value
-resource-vault content add --path "resources/postgres/db_password" --value "secret"
-```
-
-**Fallback Strategy**:
-```go
-// Try Vault CLI first
-output, err := exec.Command("resource-vault", "secrets", "validate").Output()
-if err != nil {
-    // Fall back to local secrets file
-    secrets, err := loadLocalSecretsFile()
-    // Use secrets map for validation
-}
-```
+- Manifests declare the logical identity, field, environment name, and required status.
+- `vrooli credentials status --format json` reports metadata only; it never returns a value.
+- `vrooli credentials provision --identity <logical-id> --field <field>` accepts a value on stdin only.
+- Native secure-store availability is verified by a live probe; unsupported targets fail closed.
+- Vault may be a capability-specific service or explicit mirror, never an ordinary credential fallback.
 
 ---
 

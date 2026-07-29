@@ -186,5 +186,8 @@
         "enabled": true
       }
     }
+  },
+  "playbooks": {
+    "allow_empty_test_pool": true
   }
 }

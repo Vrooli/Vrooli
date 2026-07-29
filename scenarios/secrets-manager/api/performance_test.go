@@ -32,7 +32,7 @@ func BenchmarkHealthHandler(b *testing.B) {
 // BenchmarkVaultSecretsStatusHandler benchmarks the vault status endpoint
 func BenchmarkVaultSecretsStatusHandler(b *testing.B) {
 	router := benchmarkServer().routes()
-	req, _ := http.NewRequest("GET", "/api/v1/vault/secrets/status", nil)
+	req, _ := http.NewRequest("GET", "/api/v1/credentials/secrets/status", nil)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -44,7 +44,7 @@ func BenchmarkVaultSecretsStatusHandler(b *testing.B) {
 // BenchmarkValidateHandler benchmarks the validation endpoint
 func BenchmarkValidateHandler(b *testing.B) {
 	router := benchmarkServer().routes()
-	req, _ := http.NewRequest("GET", "/api/v1/secrets/validate", nil)
+	req, _ := http.NewRequest("GET", "/api/v1/credentials/secrets/validate", nil)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -75,7 +75,7 @@ func BenchmarkProvisionHandler(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		req, _ := http.NewRequest("POST", "/api/v1/secrets/provision", bytes.NewReader(body))
+		req, _ := http.NewRequest("POST", "/api/v1/credentials/secrets/provision", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
@@ -139,74 +139,6 @@ func BenchmarkIsLikelyRequired(b *testing.B) {
 		for _, varName := range testVars {
 			_ = IsLikelyRequired(varName)
 		}
-	}
-}
-
-// BenchmarkParseVaultCLIOutput benchmarks vault CLI output parsing
-func BenchmarkParseVaultCLIOutput(b *testing.B) {
-	output := `Resource: postgres
-Status: Configured
-Secrets Found: 5
-- DATABASE_URL (configured)
-- DB_PASSWORD (configured)
-- DB_USER (configured)
-- DB_PORT (configured)
-- DB_NAME (configured)
-
-Resource: openai
-Status: Missing
-Missing Secrets:
-- OPENAI_API_KEY (required)
-- OPENAI_ORG_ID (optional)
-`
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = parseVaultCLIOutput(output, "")
-	}
-}
-
-// BenchmarkParseVaultScanOutput benchmarks vault scan output parsing
-func BenchmarkParseVaultScanOutput(b *testing.B) {
-	output := `Scanning resources...
-Found: postgres
-Found: vault
-Found: openai
-Found: n8n
-Found: redis
-Found: qdrant
-Found: ollama
-Found: claude-code
-Scan complete: 8 resources
-`
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = parseVaultScanOutput(output)
-	}
-}
-
-// BenchmarkParseVaultValidationOutput benchmarks validation output parsing
-func BenchmarkParseVaultValidationOutput(b *testing.B) {
-	output := `Validation Results:
-Total Secrets: 25
-Valid: 20
-Invalid: 3
-Missing: 2
-
-Resource: postgres
-- DATABASE_URL: valid
-- DB_PASSWORD: valid
-- DB_USER: valid
-
-Resource: openai
-- OPENAI_API_KEY: missing
-- OPENAI_ORG_ID: valid
-`
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = parseVaultValidationOutput(output)
 	}
 }
 
@@ -317,7 +249,7 @@ func BenchmarkConcurrentValidation(b *testing.B) {
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			req, _ := http.NewRequest("GET", "/api/v1/secrets/validate", nil)
+			req, _ := http.NewRequest("GET", "/api/v1/credentials/secrets/validate", nil)
 			rr := httptest.NewRecorder()
 			router.ServeHTTP(rr, req)
 		}

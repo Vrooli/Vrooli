@@ -1,15 +1,15 @@
 # Secrets Manager
 
-> **Dark chrome security operations console for Vrooli's secrets infrastructure**
+> **Dark chrome security operations console for Vrooli's credential infrastructure**
 
-Secrets Manager is a comprehensive security dashboard that discovers, validates, and provisions secrets required by Vrooli resources and scenarios. It eliminates "missing secret" fire drills, exposes security regressions before launch, and keeps the recursive Vrooli stack trustworthy.
+Secrets Manager is a comprehensive security dashboard that discovers, validates, and provisions credentials required by Vrooli resources and scenarios. It eliminates "missing credential" fire drills, exposes security regressions before launch, and keeps the recursive Vrooli stack trustworthy.
 
 ## 🎯 Business Value
 
 - **Pre-Launch Confidence**: Verify all resource secrets before production deployment
 - **Security Posture Visibility**: Real-time vulnerability scanning across all scenarios/resources
 - **Deployment Readiness**: Tier-aware secret strategies (Tier 1-5) for packaging apps across platforms
-- **Compliance Intelligence**: Unified health score combining vault coverage, vulnerability counts, and risk metrics
+- **Compliance Intelligence**: Unified health score combining credential readiness, vulnerability counts, and risk metrics
 - **Operator Efficiency**: Guided workflows from detection → remediation without tribal knowledge
 
 **Target Users**: Platform engineers, ecosystem maintainers, CI/CD pipelines, deployment automation
@@ -24,13 +24,13 @@ Secrets Manager is a comprehensive security dashboard that discovers, validates,
 ### Stack
 - **API**: Go 1.21+ with Gorilla Mux, PostgreSQL for metadata/telemetry
 - **UI**: React 18 + TypeScript + Vite + shadcn/ui (dark chrome theme)
-- **Dependencies**: HashiCorp Vault (via `resource-vault`), PostgreSQL, optional claude-code for auto-remediation
+- **Dependencies**: PostgreSQL, native credential authority, optional claude-code for auto-remediation
 - **Lifecycle**: v2.0 service.json with standardized health checks, production bundle serving
 
 ### Key Components
-- **Vault Intelligence**: Discovers secrets from `.vrooli/service.json`, validates against Vault, surfaces missing/invalid entries
+- **Credential Intelligence**: Discovers resource manifest descriptors, checks native-authority status, and surfaces missing/invalid entries
 - **Security Scanner**: Pattern-based detection of hardcoded secrets, SQL injection risks, insecure HTTP usage
-- **Compliance Aggregator**: Blends vault coverage + vulnerability stats into unified metrics
+- **Compliance Aggregator**: Blends credential readiness + vulnerability stats into unified metrics
 - **Deployment Manifest Builder**: Generates tier-specific bundles for deployment-manager and scenario-to-* consumers
 
 ## 🚀 Quick Start
@@ -38,7 +38,7 @@ Secrets Manager is a comprehensive security dashboard that discovers, validates,
 ### Prerequisites
 - Vrooli CLI installed (`vrooli setup --yes yes` from repo root)
 - PostgreSQL resource running (`vrooli resource start postgres`)
-- Vault resource running (`vrooli resource start vault`)
+- A supported native credential authority (the Vault resource is only required for a capability that explicitly declares it)
 
 ### Setup & Run
 ```bash
@@ -89,8 +89,8 @@ make test-cli  # BATS CLI tests
 # Get compliance status
 secrets-manager status
 
-# List vault coverage
-secrets-manager vault status
+# List credential coverage
+secrets-manager credentials status
 
 # Scan for vulnerabilities
 secrets-manager security scan --severity high
@@ -105,10 +105,10 @@ secrets-manager deployment plan --scenario picker-wheel --tier tier-2-desktop --
 #### API Endpoints
 ```
 GET  /api/v1/health                      # Health check (schema-compliant)
-GET  /api/v1/vault/secrets/status        # Vault coverage summary
+GET  /api/v1/credentials/status           # Credential-authority coverage summary
 GET  /api/v1/security/vulnerabilities    # Filtered vulnerability list
 GET  /api/v1/security/compliance         # Unified compliance metrics
-POST /api/v1/vault/secrets/provision     # Write secrets to Vault
+POST /api/v1/credentials/provision        # Provision through the credential authority
 GET  /api/v1/deployment/secrets          # Tier-aware manifest export
 ```
 
@@ -132,7 +132,7 @@ const manifest = await response.json();
 ## 🎨 UI Features
 
 - **Orientation Hub**: Hero stats (configured resources, risk score, missing secrets) + journey cards
-- **Vault Coverage Module**: Per-resource drilldowns with severity badges and missing secret callouts
+- **Credential Coverage Module**: Per-resource drilldowns with severity badges and missing credential callouts
 - **Vulnerability Filter Panel**: Severity, component type, and search filtering
 - **Compliance Callout**: Weighted risk score with color-coded status
 - **Dark Chrome Theme**: WCAG AA contrast, lucide icons, subtle animations
@@ -141,14 +141,14 @@ const manifest = await response.json();
 
 - Secrets are **never logged** or returned in API responses (only metadata and validation status)
 - File content endpoint (`/files/content`) includes path traversal safeguards
-- Vault CLI calls use secure temp files with restrictive permissions
+- Provisioning sends values only over stdin to the control plane; status endpoints return metadata only
 - Security scan patterns are versioned and validated before use
 - PostgreSQL stores only secret **metadata**, not values
 
 ## 📊 Operational Status
 
 **Current State** (as of 2025-11-18):
-- ✅ Core vault validation working
+- ✅ Core credential-authority validation working
 - ✅ Security scanning functional
 - ✅ API health checks schema-compliant
 - ✅ Production bundle serving via Express

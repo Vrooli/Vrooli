@@ -34,7 +34,7 @@ Central configuration hub guiding users through Vrooli resource setup with guide
 - **Requirements seed**: `requirements/index.json` + `requirements/modules/foundation.json` show how operational targets trace to technical requirements.
 - **Lifecycle metadata seed**: `.vrooli/service.json`, `endpoints.json`, `testing.json`, and `lighthouse.json` so status/health/testing commands work immediately after copy.
 - **Progress log**: `docs/PROGRESS.md` so improvers track deltas outside PRD.md.
-- **Database placeholder**: `initialization/storage/postgres/seed.sql` to remind agents where to place migrations/seeds without shipping fake data.
+- **Operator configuration**: onboarding choices are stored atomically in operator state; this scenario has no application database.
 
 ## Setup Workflow
 ```bash

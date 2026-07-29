@@ -67,6 +67,17 @@ export default tseslint.config(
 
       // CRITICAL: Detects circular dependencies that produce initialization-order failures.
       "import/no-cycle": "error",
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/test-utils/**", "**/features/*/mocks/**"],
+              message: "Production code must not import test utilities or feature mocks.",
+            },
+          ],
+        },
+      ],
       "react-refresh/only-export-components": [
         "warn",
         { allowConstantExport: true },
@@ -89,6 +100,7 @@ export default tseslint.config(
       "@typescript-eslint/no-unsafe-member-access": "off",
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/no-unsafe-return": "off",
+      "no-restricted-imports": "off",
       "react-refresh/only-export-components": "off",
     },
   }

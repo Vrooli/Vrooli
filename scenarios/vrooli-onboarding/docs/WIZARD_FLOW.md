@@ -1,6 +1,8 @@
 # Wizard Flow (V2 Rework)
 
-This doc captures the planned wizard flow for the v2 rework, the wireframe sketches, and the design rationale. It is the implementation reference when the rework is picked up. The configuration substrate the wizard reads from and writes to is documented in [`/docs/configuration/`](../../../docs/configuration/) — read that first.
+This document is the V2 implementation contract. The configuration substrate
+the wizard reads from and writes to is documented in
+[`/docs/configuration/`](../../../docs/configuration/).
 
 ## Why the v2 rework
 
@@ -14,8 +16,8 @@ Six real steps; one optional pre-step. Re-enterable from any step.
 
 1. **(Optional) Goal intake** — "What are you here to do?" Pre-selects a profile. Skippable. Profiles themselves are deferred (see [`profiles.md`](../../../docs/configuration/profiles.md)) so this step is also deferred until the second profile is real. Until then, the wizard starts at step 2.
 2. **Scenarios** — search/filter list; system-required scenarios locked-on; per-scenario "keep running" toggle with default from `runtime.auto_restart_default`; selecting a scenario cascades scenario→scenario and scenario→resource dependencies.
-3. **Resources** — auto-derived required + optional from scenario selection; user toggles optionals; no manual-only path to enable a resource without a scenario that uses it (besides standalone selection).
-4. **Secrets** — only the credentials actually needed by the selected stack. Renders `secretDescriptor` fields (label, description, obtain_url) for rich resources; bare label for legacy ones.
+3. **Resources** — auto-derived required + optional from scenario selection; user toggles only manifest-declared optional resources.
+4. **Credentials** — only descriptors actually needed by the selected stack. Entry is sent directly to the credential control-plane authority; browser state and logs never retain a value.
 5. **Integrations** — for each `integrations[]` requirement on a selected scenario, render a connector card with required scopes + purpose, and let the operator pick an existing connection or create a new one (which kicks off the connector's auth flow per [`/docs/configuration/integrations/external-auth.md`](../../../docs/configuration/integrations/external-auth.md)). Multi-instance scenarios (the persona-actor case) get a binding table with one row per `context`. The connector + connection model itself is owned by the deferred `integration-hub` scenario; this step is empty in the v2 baseline and lights up when integration-hub ships.
 6. **Host (tools + safeguards)** — declared by selected scenarios and resources. Required tools install automatically; non-required tools and safeguards are opt-in. Safeguards display `risk` (low/medium/high).
 7. **Operating mode + final validation** — confirm auto-restart per scenario; commit to operator-state.json; run full probe pass; show green-light or actionable error list.
@@ -74,9 +76,11 @@ Per-resource list of credentials the selected stack needs. Each entry renders th
 └────────────────────────────────────────────────────────┘
 ```
 
-`[Get one →]` is the `obtain_url`. Save writes to Vault under `secret_ref`. Validation against `validation_pattern` is client-side and lightweight.
-
-Bare-string `credentials.env` entries render with just the env-var name as label and no other metadata. Operators are encouraged (via doc) to enrich credentials with `secretDescriptor` over time.
+`[Get one →]` is the descriptor `obtain_url`. Save provisions the
+descriptor's `logical_id` and `field` through the control plane. The local
+native secure store is authority; Vault is only an optional scoped mirror.
+The UI displays metadata-safe configured/unconfigured status and never reads
+or persists the credential value.
 
 ### Step 5 — Integrations (deferred until integration-hub ships)
 

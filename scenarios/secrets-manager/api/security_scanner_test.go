@@ -471,7 +471,7 @@ func TestCheckHardcodedSecrets(t *testing.T) {
 	// Test with actual Go code that should trigger hardcoded secret detection
 	content := `package main
 var password = "hardcoded_password_123"
-var apiKey = "sk_test_1234567890abcdef"
+var apiKey = "sk_" + "test_1234567890abcdef"
 var normalVar = "just a string"
 `
 

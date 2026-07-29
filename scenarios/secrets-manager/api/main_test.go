@@ -51,16 +51,16 @@ func setVaultCLIForTest(t *testing.T, cli VaultCLI) {
 	t.Cleanup(func() { SetVaultCLI(original) })
 }
 
-func TestResolveVaultSecretMappingUsesResourceScopedFallback(t *testing.T) {
-	mapping, ok := resolveVaultSecretMapping("test-resource", "TEST_VAULT_SECRET_KEY")
+func TestResolveVaultSecretMappingUsesCanonicalDescriptor(t *testing.T) {
+	mapping, ok := resolveVaultSecretMapping("openrouter", "OPENROUTER_API_KEY")
 	if !ok {
-		t.Fatal("expected resource-scoped fallback mapping")
+		t.Fatal("expected canonical resource descriptor mapping")
 	}
-	if mapping.Path != "secret/resources/test-resource/test_vault_secret_key" {
-		t.Fatalf("fallback path = %q", mapping.Path)
+	if mapping.Path != "vrooli/openrouter" {
+		t.Fatalf("logical identifier = %q", mapping.Path)
 	}
-	if mapping.VaultKey != "value" {
-		t.Fatalf("fallback Vault key = %q", mapping.VaultKey)
+	if mapping.VaultKey != "api-key" {
+		t.Fatalf("credential field = %q", mapping.VaultKey)
 	}
 }
 
@@ -144,7 +144,7 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 
 	t.Run("Success_NoFilter", func(t *testing.T) {
 		setVaultCLIForTest(t, vaultCLIStub{status: &VaultSecretsStatus{TotalResources: 1}})
-		req, err := http.NewRequest("GET", "/api/v1/vault/secrets/status", nil)
+		req, err := http.NewRequest("GET", "/api/v1/credentials/secrets/status", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -168,7 +168,7 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 
 	t.Run("Success_WithFilter", func(t *testing.T) {
 		setVaultCLIForTest(t, vaultCLIStub{status: &VaultSecretsStatus{TotalResources: 1}})
-		req, err := http.NewRequest("GET", "/api/v1/vault/secrets/status?resource=postgres", nil)
+		req, err := http.NewRequest("GET", "/api/v1/credentials/secrets/status?resource=postgres", nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -182,14 +182,14 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 	})
 
 	t.Run("VaultUnavailable", func(t *testing.T) {
-		setVaultCLIForTest(t, vaultCLIStub{err: errors.New("resource-vault unavailable")})
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/vault/secrets/status", nil)
+		setVaultCLIForTest(t, vaultCLIStub{err: errors.New("credential authority unavailable")})
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/credentials/secrets/status", nil)
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
 		if rr.Code != http.StatusServiceUnavailable {
 			t.Fatalf("handler returned %d, want %d", rr.Code, http.StatusServiceUnavailable)
 		}
-		if strings.Contains(rr.Body.String(), "resource-vault unavailable") {
+		if strings.Contains(rr.Body.String(), "credential authority unavailable") {
 			t.Fatalf("status response exposed internal Vault error: %s", rr.Body.String())
 		}
 	})
@@ -201,7 +201,7 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 		}
 		body, _ := json.Marshal(scanReq)
 
-		req, err := http.NewRequest("POST", "/api/v1/vault/secrets/status", bytes.NewReader(body))
+		req, err := http.NewRequest("POST", "/api/v1/credentials/secrets/status", bytes.NewReader(body))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -217,7 +217,7 @@ func TestVaultSecretsStatusHandler(t *testing.T) {
 
 	t.Run("POST_InvalidJSON", func(t *testing.T) {
 		setVaultCLIForTest(t, vaultCLIStub{status: &VaultSecretsStatus{TotalResources: 1}})
-		req, err := http.NewRequest("POST", "/api/v1/vault/secrets/status", bytes.NewReader([]byte("invalid json")))
+		req, err := http.NewRequest("POST", "/api/v1/credentials/secrets/status", bytes.NewReader([]byte("invalid json")))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -257,7 +257,7 @@ func TestValidateHandler(t *testing.T) {
 	})
 
 	t.Run("POST_InvalidJSON", func(t *testing.T) {
-		req, err := http.NewRequest("POST", "/api/v1/secrets/validate", bytes.NewReader([]byte("{invalid}")))
+		req, err := http.NewRequest("POST", "/api/v1/credentials/secrets/validate", bytes.NewReader([]byte("{invalid}")))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -281,16 +281,26 @@ func TestProvisionHandler(t *testing.T) {
 	router := server.routes()
 
 	t.Run("Success", func(t *testing.T) {
-		setVaultCLIForTest(t, vaultCLIStub{})
-		provReq := ProvisionRequest{
-			Resource: "test-resource",
+		original := provisionCredential
+		provisionCredential = func(_ context.Context, descriptor credentialDescriptor, value string) error {
+			if descriptor.LogicalID != "vrooli/openrouter" || descriptor.Field != "api-key" || value != "test-value-123" {
+				t.Fatalf("unexpected credential provision: %#v", descriptor)
+			}
+			return nil
+		}
+		t.Cleanup(func() { provisionCredential = original })
+		provReq := struct {
+			ResourceName string            `json:"resource_name"`
+			Secrets      map[string]string `json:"secrets"`
+		}{
+			ResourceName: "openrouter",
 			Secrets: map[string]string{
-				"TEST_API_KEY": "test-value-123",
+				"OPENROUTER_API_KEY": "test-value-123",
 			},
 		}
 		body, _ := json.Marshal(provReq)
 
-		req, err := http.NewRequest("POST", "/api/v1/secrets/provision", bytes.NewReader(body))
+		req, err := http.NewRequest("POST", "/api/v1/credentials/secrets/provision", bytes.NewReader(body))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -305,9 +315,12 @@ func TestProvisionHandler(t *testing.T) {
 	})
 
 	t.Run("MissingResource", func(t *testing.T) {
-		provReq := ProvisionRequest{Secrets: map[string]string{"TEST_API_KEY": "test-value-123"}}
+		provReq := struct {
+			ResourceName string            `json:"resource_name"`
+			Secrets      map[string]string `json:"secrets"`
+		}{Secrets: map[string]string{"TEST_API_KEY": "test-value-123"}}
 		body, _ := json.Marshal(provReq)
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/secrets/provision", bytes.NewReader(body))
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/credentials/secrets/provision", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		rr := httptest.NewRecorder()
 		router.ServeHTTP(rr, req)
@@ -322,7 +335,7 @@ func TestProvisionHandler(t *testing.T) {
 		}
 		body, _ := json.Marshal(provReq)
 
-		req, err := http.NewRequest("POST", "/api/v1/secrets/provision", bytes.NewReader(body))
+		req, err := http.NewRequest("POST", "/api/v1/credentials/secrets/provision", bytes.NewReader(body))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -337,7 +350,7 @@ func TestProvisionHandler(t *testing.T) {
 	})
 
 	t.Run("InvalidJSON", func(t *testing.T) {
-		req, err := http.NewRequest("POST", "/api/v1/secrets/provision", bytes.NewReader([]byte("not json")))
+		req, err := http.NewRequest("POST", "/api/v1/credentials/secrets/provision", bytes.NewReader([]byte("not json")))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1170,29 +1183,28 @@ func TestValidateSecretsFunction(t *testing.T) {
 	}
 }
 
-func TestValidateSecretFromEnv(t *testing.T) {
+func TestValidateSecretFromAuthority(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
-
-	const envKey = "TEST_SECRET_KEY"
-	os.Setenv(envKey, "valid-secret-value-1234")
-	defer os.Unsetenv(envKey)
+	prior := credentialStatusCommand
+	credentialStatusCommand = func(context.Context, string, string) ([]byte, error) { return []byte(`{"configured":true}`), nil }
+	t.Cleanup(func() { credentialStatusCommand = prior })
 
 	validator := NewSecretValidator(nil)
 	secret := ResourceSecret{
 		ID:           "test-id",
-		ResourceName: "test-resource",
-		SecretKey:    envKey,
+		ResourceName: "openrouter",
+		SecretKey:    "OPENROUTER_API_KEY",
 		SecretType:   "api_key",
 		Required:     true,
 	}
 
 	result := validator.validateSecret(secret)
 	if result.ValidationStatus != "valid" {
-		t.Fatalf("Expected secret to be valid from env, got %s", result.ValidationStatus)
+		t.Fatalf("Expected secret to be valid from credential authority, got %s", result.ValidationStatus)
 	}
-	if result.ValidationMethod != string(ValidationMethodEnv) {
-		t.Fatalf("Expected validation method %s, got %s", ValidationMethodEnv, result.ValidationMethod)
+	if result.ValidationMethod != string(ValidationMethodAuthority) {
+		t.Fatalf("Expected validation method %s, got %s", ValidationMethodAuthority, result.ValidationMethod)
 	}
 	if result.ResourceSecretID != secret.ID {
 		t.Fatalf("Expected ResourceSecretID %s, got %s", secret.ID, result.ResourceSecretID)

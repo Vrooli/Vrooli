@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -11,7 +10,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -23,10 +21,9 @@ import (
 // -----------------------------------------------------------------------------
 
 // VaultCLI abstracts vault CLI operations for testability.
-// This interface enables mocking vault responses in tests without requiring
-// the actual resource-vault CLI to be installed.
+// This interface enables mocking native credential status responses in tests.
 //
-// seam: VaultCLI isolates resource-vault command execution.
+// seam: VaultCLI isolates credential authority checks.
 type VaultCLI interface {
 	// GetSecretsStatus retrieves vault secrets status, optionally filtered by resource.
 	GetSecretsStatus(ctx context.Context, resourceFilter string) (*VaultSecretsStatus, error)
@@ -38,32 +35,51 @@ type VaultCLI interface {
 	PutSecret(ctx context.Context, path, vaultKey, value string) error
 }
 
-// DefaultVaultCLI implements VaultCLI using the resource-vault CLI.
+// DefaultVaultCLI is retained as an API compatibility seam. Production checks
+// the native credential authority through `vrooli credentials status`; it never
+// asks a vault for a plaintext value.
 type DefaultVaultCLI struct{}
+
+func determineResourceHealthStatus(missingRequiredSecrets int) string {
+	switch {
+	case missingRequiredSecrets == 0:
+		return "healthy"
+	case missingRequiredSecrets <= 2:
+		return "degraded"
+	default:
+		return "critical"
+	}
+}
 
 // NewDefaultVaultCLI creates the production VaultCLI implementation.
 func NewDefaultVaultCLI() *DefaultVaultCLI {
 	return &DefaultVaultCLI{}
 }
 
-// GetSecretsStatus implements VaultCLI by calling resource-vault secrets check/validate.
+// GetSecretsStatus implements VaultCLI using canonical resource descriptors.
 func (v *DefaultVaultCLI) GetSecretsStatus(ctx context.Context, resourceFilter string) (*VaultSecretsStatus, error) {
-	return getVaultSecretsStatusFromCLI(ctx, resourceFilter)
+	return getNativeCredentialStatus(ctx, resourceFilter)
 }
 
-// GetSecret implements VaultCLI by calling resource-vault content get.
+// GetSecret intentionally refuses value reads. Consumers receive credentials by
+// explicit process injection, never through the Secrets Manager API.
 func (v *DefaultVaultCLI) GetSecret(ctx context.Context, resourceName, key string) (string, error) {
-	return getVaultSecretImpl(ctx, resourceName, key)
+	return "", fmt.Errorf("plaintext credential reads are not supported")
 }
 
-// PutSecret implements VaultCLI by calling resource-vault content add.
+// PutSecret intentionally refuses writes. Provisioning is stdin-only through
+// `vrooli credentials provision` in vault_handlers.go.
 func (v *DefaultVaultCLI) PutSecret(ctx context.Context, path, vaultKey, value string) error {
-	return putSecretInVaultImpl(ctx, path, vaultKey, value)
+	return fmt.Errorf("use canonical credential provisioning")
 }
 
 // defaultVaultCLI is the package-level vault CLI instance.
 // It can be replaced in tests via SetVaultCLI.
 var defaultVaultCLI VaultCLI = NewDefaultVaultCLI()
+
+var credentialStatusCommand = func(ctx context.Context, logicalID, field string) ([]byte, error) {
+	return exec.CommandContext(ctx, "vrooli", "credentials", "status", "--format", "json", "--identity", logicalID, "--field", field).Output()
+}
 
 // SetVaultCLI replaces the default vault CLI implementation.
 // This is primarily used for testing with mock implementations.
@@ -75,7 +91,7 @@ func SetVaultCLI(cli VaultCLI) {
 // Public API (uses VaultCLI interface)
 // -----------------------------------------------------------------------------
 
-// Vault integration - uses resource-vault CLI commands to get secrets status
+// Credential authority integration for status metadata.
 func getVaultSecretsStatus(resourceFilter string) (*VaultSecretsStatus, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -86,156 +102,63 @@ func getVaultSecretsStatus(resourceFilter string) (*VaultSecretsStatus, error) {
 	return status, nil
 }
 
-// getVaultSecretsStatusFromCLI uses resource-vault CLI commands
-func getVaultSecretsStatusFromCLI(ctx context.Context, resourceFilter string) (*VaultSecretsStatus, error) {
-	// Use resource-vault secrets validate to get status
-	var cmd *exec.Cmd
-	if resourceFilter != "" {
-		cmd = exec.CommandContext(ctx, "resource-vault", "secrets", "check", resourceFilter)
-	} else {
-		cmd = exec.CommandContext(ctx, "resource-vault", "secrets", "validate")
+func getNativeCredentialStatus(ctx context.Context, resourceFilter string) (*VaultSecretsStatus, error) {
+	status := &VaultSecretsStatus{MissingSecrets: []VaultMissingSecret{}, ResourceStatuses: []VaultResourceStatus{}, LastUpdated: time.Now()}
+	resources := listKnownResources()
+	for _, resourceName := range resources {
+		if resourceFilter != "" && resourceFilter != resourceName {
+			continue
+		}
+		descriptors, err := credentialDescriptorsForResource(resourceName)
+		if err != nil {
+			continue
+		}
+		row := VaultResourceStatus{ResourceName: resourceName, SecretsTotal: len(descriptors), LastChecked: time.Now()}
+		for _, descriptor := range descriptors {
+			configured, _ := credentialConfiguredDescriptor(ctx, descriptor)
+			if configured {
+				row.SecretsFound++
+				continue
+			}
+			if descriptor.Required {
+				row.SecretsMissing++
+				status.MissingSecrets = append(status.MissingSecrets, VaultMissingSecret{ResourceName: resourceName, SecretName: descriptor.Env, SecretPath: descriptor.LogicalID, Required: true, Description: descriptor.Description})
+			} else {
+				row.SecretsOptional++
+			}
+		}
+		row.HealthStatus = determineResourceHealthStatus(row.SecretsMissing)
+		status.ResourceStatuses = append(status.ResourceStatuses, row)
 	}
-
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("resource-vault command failed: %w", err)
+	status.TotalResources = len(status.ResourceStatuses)
+	for _, row := range status.ResourceStatuses {
+		if row.SecretsMissing == 0 {
+			status.ConfiguredResources++
+		}
 	}
-
-	// Parse the output from resource-vault
-	status := parseVaultCLIOutput(string(output), resourceFilter)
-	status.LastUpdated = time.Now()
-	mergeKnownResources(status, resourceFilter)
-
 	return status, nil
 }
 
-// parseVaultCLIOutput parses resource-vault CLI output into structured data
-func parseVaultCLIOutput(output, resourceFilter string) *VaultSecretsStatus {
-	status := &VaultSecretsStatus{
-		MissingSecrets:   []VaultMissingSecret{},
-		ResourceStatuses: []VaultResourceStatus{},
+func credentialConfigured(ctx context.Context, resourceName, env string) (bool, error) {
+	descriptor, err := credentialDescriptorForEnv(resourceName, env)
+	if err != nil {
+		return false, err
 	}
+	return credentialConfiguredDescriptor(ctx, descriptor)
+}
 
-	lines := strings.Split(output, "\n")
-	var currentResource string
-	resourceCount := 0
-	configuredCount := 0
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-
-		// Parse test format: "Resource: postgres" or "Status: Configured"
-		if strings.HasPrefix(line, "Resource:") {
-			parts := strings.SplitN(line, ":", 2)
-			if len(parts) == 2 {
-				currentResource = strings.TrimSpace(parts[1])
-				resourceCount++
-			}
-		}
-
-		if strings.HasPrefix(line, "Status:") && currentResource != "" {
-			parts := strings.SplitN(line, ":", 2)
-			if len(parts) == 2 {
-				statusVal := strings.TrimSpace(parts[1])
-				if strings.EqualFold(statusVal, "Configured") {
-					configuredCount++
-				}
-			}
-		}
-
-		// Parse test format: "- DATABASE_URL (configured)" or "- OPENAI_API_KEY (required)"
-		if strings.HasPrefix(line, "-") && currentResource != "" {
-			// Check if it's a missing secret (contains "required" or "optional" but not "configured")
-			if strings.Contains(line, "MISSING") || (strings.Contains(line, "(required)") || strings.Contains(line, "(optional)")) && !strings.Contains(line, "(configured)") {
-				parts := strings.Split(line, "(")
-				if len(parts) >= 1 {
-					secretName := strings.TrimSpace(strings.TrimPrefix(parts[0], "-"))
-					missing := VaultMissingSecret{
-						ResourceName: currentResource,
-						SecretName:   secretName,
-						SecretPath:   fmt.Sprintf("secret/%s/%s", currentResource, secretName),
-						Required:     strings.Contains(line, "(required)"),
-						Description:  fmt.Sprintf("Missing required secret for %s", currentResource),
-					}
-					status.MissingSecrets = append(status.MissingSecrets, missing)
-				}
-			}
-		}
-
-		// Parse production format: "✓ postgres: 3 secrets defined"
-		if strings.Contains(line, "✓") && strings.Contains(line, ":") {
-			parts := strings.SplitN(line, ":", 2)
-			if len(parts) >= 2 {
-				resourceName := strings.TrimSpace(strings.Replace(parts[0], "✓", "", 1))
-				currentResource = resourceName
-				resourceCount++
-
-				// Check if all secrets are configured (no missing indicators)
-				if !strings.Contains(parts[1], "MISSING") {
-					configuredCount++
-				}
-			}
-		}
-
-		// Look for missing secrets like "✗ POSTGRES_PASSWORD: MISSING"
-		if strings.Contains(line, "✗") && strings.Contains(line, "MISSING") {
-			parts := strings.Split(line, ":")
-			if len(parts) >= 2 && currentResource != "" {
-				secretName := strings.TrimSpace(strings.Replace(parts[0], "✗", "", 1))
-				missing := VaultMissingSecret{
-					ResourceName: currentResource,
-					SecretName:   secretName,
-					SecretPath:   fmt.Sprintf("secret/%s/%s", currentResource, secretName),
-					Required:     true,
-					Description:  fmt.Sprintf("Missing required secret for %s", currentResource),
-				}
-				status.MissingSecrets = append(status.MissingSecrets, missing)
-			}
-		}
-
-		// Parse test format: "Total Resources: 10" and "Configured: 7"
-		if strings.HasPrefix(line, "Total Resources:") {
-			parts := strings.SplitN(line, ":", 2)
-			if len(parts) == 2 {
-				if count, err := strconv.Atoi(strings.TrimSpace(parts[1])); err == nil {
-					status.TotalResources = count
-				}
-			}
-		}
-		if strings.HasPrefix(line, "Configured:") && !strings.Contains(line, "Fully") {
-			parts := strings.SplitN(line, ":", 2)
-			if len(parts) == 2 {
-				if count, err := strconv.Atoi(strings.TrimSpace(parts[1])); err == nil {
-					status.ConfiguredResources = count
-				}
-			}
-		}
-
-		// Look for "Fully configured: X" summary
-		if strings.Contains(line, "Fully configured:") {
-			fields := strings.Fields(line)
-			for i, field := range fields {
-				if field == "configured:" && i+1 < len(fields) {
-					if count, err := strconv.Atoi(fields[i+1]); err == nil {
-						configuredCount = count
-					}
-				}
-			}
-		}
+func credentialConfiguredDescriptor(ctx context.Context, descriptor credentialDescriptor) (bool, error) {
+	output, err := credentialStatusCommand(ctx, descriptor.LogicalID, descriptor.Field)
+	if err != nil {
+		return false, fmt.Errorf("credential authority unavailable: %w", err)
 	}
-
-	// Only override totals if not already set from "Total Resources:" line
-	if status.TotalResources == 0 {
-		status.TotalResources = resourceCount
+	var result struct {
+		Configured bool `json:"configured"`
 	}
-	if status.ConfiguredResources == 0 {
-		status.ConfiguredResources = configuredCount
+	if err := json.Unmarshal(output, &result); err != nil {
+		return false, fmt.Errorf("credential authority returned invalid status metadata: %w", err)
 	}
-
-	return status
+	return result.Configured, nil
 }
 
 // mergeKnownResources ensures resources without secrets still appear in API responses
@@ -326,115 +249,6 @@ func listKnownResources() []string {
 	return slice
 }
 
-// Parse vault scan output to extract resource names
-func parseVaultScanOutput(output string) []string {
-	var resources []string
-	lines := strings.Split(output, "\n")
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-
-		// Parse test format: "Found: postgres"
-		if strings.HasPrefix(line, "Found:") {
-			parts := strings.SplitN(line, ":", 2)
-			if len(parts) == 2 {
-				resourceName := strings.TrimSpace(parts[1])
-				if resourceName != "" {
-					resources = append(resources, resourceName)
-				}
-			}
-		}
-
-		// Parse production format: "✓ openrouter: 3 secrets defined"
-		if strings.Contains(line, "✓") && strings.Contains(line, ":") && strings.Contains(line, "secrets defined") {
-			parts := strings.Split(line, ":")
-			if len(parts) > 0 {
-				resourceName := strings.TrimSpace(strings.Replace(parts[0], "✓", "", -1))
-				if resourceName != "" {
-					resources = append(resources, resourceName)
-				}
-			}
-		}
-	}
-
-	return resources
-}
-
-// Parse vault validation output
-func parseVaultValidationOutput(output string) VaultValidationSummary {
-	var summary VaultValidationSummary
-	lines := strings.Split(output, "\n")
-
-	configuredCount := 0
-	var missingSecrets []VaultMissingSecret
-
-	for _, line := range lines {
-		// Look for "Fully configured: X"
-		if strings.Contains(line, "Fully configured:") {
-			parts := strings.Fields(line)
-			if len(parts) >= 3 {
-				if count := parts[2]; count != "" {
-					_, _ = fmt.Sscanf(count, "%d", &configuredCount)
-				}
-			}
-		}
-
-		// Look for missing secret indicators (this would need more sophisticated parsing)
-		if strings.Contains(line, "✗") && strings.Contains(line, "MISSING") {
-			// Parse missing secret details - simplified for now
-			missingSecrets = append(missingSecrets, VaultMissingSecret{
-				ResourceName: "unknown", // Would need better parsing
-				SecretName:   "unknown",
-				Required:     true,
-				Description:  strings.TrimSpace(line),
-			})
-		}
-	}
-
-	summary.ConfiguredCount = configuredCount
-	summary.MissingSecrets = missingSecrets
-
-	return summary
-}
-
-// Parse vault resource check output
-func parseVaultResourceCheck(resourceName, output string) VaultResourceStatus {
-	status := VaultResourceStatus{
-		ResourceName: resourceName,
-		LastChecked:  time.Now(),
-	}
-
-	lines := strings.Split(output, "\n")
-
-	for _, line := range lines {
-		if strings.Contains(line, "Found:") {
-			parts := strings.Fields(line)
-			if len(parts) >= 2 {
-				_, _ = fmt.Sscanf(parts[1], "%d", &status.SecretsFound)
-			}
-		}
-		if strings.Contains(line, "Missing (required):") {
-			parts := strings.Fields(line)
-			if len(parts) >= 3 {
-				_, _ = fmt.Sscanf(parts[2], "%d", &status.SecretsMissing)
-			}
-		}
-		if strings.Contains(line, "Not set (optional):") {
-			parts := strings.Fields(line)
-			if len(parts) >= 4 {
-				_, _ = fmt.Sscanf(parts[3], "%d", &status.SecretsOptional)
-			}
-		}
-	}
-
-	status.SecretsTotal = status.SecretsFound + status.SecretsMissing + status.SecretsOptional
-
-	// Determine health status using named decision function
-	status.HealthStatus = determineResourceHealthStatus(status.SecretsMissing)
-
-	return status
-}
-
 func scanResourceDirectory(resourceName, resourceDir string) ([]ResourceSecret, error) {
 	var secrets []ResourceSecret
 
@@ -508,12 +322,6 @@ func isTextFile(path string) bool {
 	return IsTextFileExtension(ext)
 }
 
-// getVaultSecret retrieves a secret from vault (uses the interface).
-func getVaultSecret(resourceName, key string) (string, error) {
-	ctx := context.Background()
-	return defaultVaultCLI.GetSecret(ctx, resourceName, key)
-}
-
 func resolveVaultSecretMapping(resourceName, key string) (secretMapping, bool) {
 	key = strings.ToUpper(strings.TrimSpace(key))
 	if key == "" {
@@ -521,85 +329,19 @@ func resolveVaultSecretMapping(resourceName, key string) (secretMapping, bool) {
 	}
 	resourceName = strings.TrimSpace(resourceName)
 	if resourceName != "" {
-		if mapping, ok := buildSecretMappings(resourceName)[key]; ok {
-			if mapping.VaultKey == "" {
-				mapping.VaultKey = "value"
-			}
-			return mapping, true
+		if descriptor, err := credentialDescriptorForEnv(resourceName, key); err == nil {
+			return secretMapping{Path: descriptor.LogicalID, VaultKey: descriptor.Field}, true
 		}
-		return secretMapping{
-			Path:     fmt.Sprintf("secret/resources/%s/%s", resourceName, strings.ToLower(key)),
-			VaultKey: "value",
-		}, true
+		return secretMapping{}, false
 	}
 
 	for _, resourceName := range listKnownResources() {
-		mappings := buildSecretMappings(resourceName)
-		if mapping, ok := mappings[key]; ok {
-			if mapping.VaultKey == "" {
-				mapping.VaultKey = "value"
-			}
-			return mapping, true
+		if descriptor, err := credentialDescriptorForEnv(resourceName, key); err == nil {
+			return secretMapping{Path: descriptor.LogicalID, VaultKey: descriptor.Field}, true
 		}
 	}
 
 	return secretMapping{}, false
-}
-
-// getVaultSecretImpl is the underlying implementation using resource-vault CLI.
-func getVaultSecretImpl(ctx context.Context, resourceName, key string) (string, error) {
-	// Resolve logical secret names from secrets.yaml metadata onto canonical Vault paths.
-	mapping, ok := resolveVaultSecretMapping(resourceName, key)
-	if !ok {
-		return "", fmt.Errorf("secret mapping not found for %s", key)
-	}
-
-	// Apply timeout if not already set
-	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, 10*time.Second)
-		defer cancel()
-	}
-	cmd := exec.CommandContext(
-		ctx,
-		"resource-vault",
-		"content",
-		"get",
-		"--path",
-		mapping.Path,
-		"--key",
-		mapping.VaultKey,
-		"--format",
-		"raw",
-	)
-
-	output, err := cmd.Output()
-	if err != nil {
-		// Check if it's a timeout or command not found
-		if ctx.Err() == context.DeadlineExceeded {
-			return "", fmt.Errorf("vault command timeout")
-		}
-
-		// If exit error, likely secret not found or vault unavailable
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			// resource-vault typically returns exit code 1 for not found
-			if exitErr.ExitCode() == 1 {
-				return "", fmt.Errorf("secret not found in vault")
-			}
-			return "", fmt.Errorf("vault command failed: %v", err)
-		}
-
-		return "", fmt.Errorf("failed to execute resource-vault command: %v", err)
-	}
-
-	// Clean up the output (remove trailing whitespace/newlines)
-	secretValue := strings.TrimSpace(string(output))
-
-	if secretValue == "" {
-		return "", fmt.Errorf("empty secret value returned from vault")
-	}
-
-	return secretValue, nil
 }
 
 // secretMapping represents a vault path and key for a secret.
@@ -612,74 +354,3 @@ type secretMapping struct {
 // buildSecretMappings builds a mapping of environment variable names to vault paths
 // based on the resource's secrets.yaml configuration.
 // Moved from vault_handlers.go to separate integration logic from HTTP handlers.
-func buildSecretMappings(resourceName string) map[string]secretMapping {
-	mappings := map[string]secretMapping{}
-	config, err := loadResourceSecrets(resourceName)
-	if err != nil || config == nil {
-		return mappings
-	}
-	replacer := strings.NewReplacer("{resource}", resourceName)
-	for _, definitions := range config.Secrets {
-		for _, def := range definitions {
-			path := strings.TrimSpace(def.Path)
-			if path == "" {
-				continue
-			}
-			path = replacer.Replace(path)
-			if len(def.Fields) > 0 {
-				for _, field := range def.Fields {
-					for keyName, env := range field {
-						envVar := strings.ToUpper(strings.TrimSpace(env))
-						if envVar == "" {
-							continue
-						}
-						mappings[envVar] = secretMapping{Path: path, VaultKey: keyName}
-					}
-				}
-			}
-			defaultEnv := strings.ToUpper(strings.TrimSpace(def.DefaultEnv))
-			if defaultEnv != "" {
-				mappings[defaultEnv] = secretMapping{Path: path, VaultKey: "value"}
-			}
-			nameAlias := strings.ToUpper(strings.TrimSpace(def.Name))
-			if nameAlias != "" {
-				alias := fmt.Sprintf("%s_%s", strings.ToUpper(resourceName), strings.ReplaceAll(nameAlias, " ", "_"))
-				mappings[alias] = secretMapping{Path: path, VaultKey: "value"}
-			}
-		}
-	}
-	return mappings
-}
-
-// putSecretInVault stores a secret in vault (uses the interface).
-// Moved from vault_handlers.go to separate integration logic from HTTP handlers.
-func putSecretInVault(path, vaultKey, value string) error {
-	ctx := context.Background()
-	return defaultVaultCLI.PutSecret(ctx, path, vaultKey, value)
-}
-
-// putSecretInVaultImpl is the underlying implementation using resource-vault CLI.
-func putSecretInVaultImpl(ctx context.Context, path, vaultKey, value string) error {
-	args := []string{"content", "add", "--path", path, "--value", value}
-	if vaultKey != "" && vaultKey != "value" {
-		args = append(args, "--key", vaultKey)
-	}
-	// Apply timeout if not already set
-	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
-		defer cancel()
-	}
-	cmd := exec.CommandContext(ctx, "resource-vault", args...)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	cmd.Stdout = &stderr
-	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		if msg != "" {
-			return fmt.Errorf("%w: %s", err, msg)
-		}
-		return err
-	}
-	return nil
-}

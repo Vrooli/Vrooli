@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+// provider-free-exception: SearchInput is a controlled presentation primitive with no provider dependency.
 import userEvent from "@testing-library/user-event";
 import { createRef } from "react";
 import { SearchInput, type SearchInputHandle } from "./SearchInput";

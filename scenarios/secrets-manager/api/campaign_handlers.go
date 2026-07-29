@@ -12,8 +12,22 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/storage"
 )
+
+func configureCampaignRoots() error {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+	if err != nil {
+		return err
+	}
+	paths, err := resolver.Resolve(storage.Options{ScenarioID: "secrets-manager"})
+	if err != nil {
+		return err
+	}
+	campaignRoots = filerouting.New(paths)
+	return nil
+}
 
 // CampaignSummary represents a lightweight deployment campaign row used by the UI.
 type CampaignSummary struct {
@@ -95,7 +109,7 @@ func (h *CampaignHandlers) ListCampaigns(w http.ResponseWriter, r *http.Request)
 			_ = h.store.Upsert(ctx, c)
 		}
 	} else {
-		fileCampaigns, err := h.loadCampaignsFromFile()
+		fileCampaigns, err := h.loadCampaignsFromFile(ctx)
 		if err == nil && len(fileCampaigns) > 0 {
 			persisted = append(persisted, fileCampaigns...)
 		}
@@ -163,8 +177,8 @@ func (h *CampaignHandlers) seedFromScenarios(ctx context.Context) []CampaignSumm
 	return seed
 }
 
-func (h *CampaignHandlers) loadCampaignsFromFile() ([]CampaignSummary, error) {
-	path, err := campaignsFilePath()
+func (h *CampaignHandlers) loadCampaignsFromFile(ctx context.Context) ([]CampaignSummary, error) {
+	path, err := campaignsFilePath(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +224,7 @@ func (h *CampaignHandlers) UpsertCampaign(w http.ResponseWriter, r *http.Request
 			return
 		}
 	} else {
-		existing, _ := h.loadCampaignsFromFile()
+		existing, _ := h.loadCampaignsFromFile(r.Context())
 		updated := false
 		for i, c := range existing {
 			if c.ID == incoming.ID {
@@ -230,7 +244,7 @@ func (h *CampaignHandlers) UpsertCampaign(w http.ResponseWriter, r *http.Request
 			return
 		}
 
-		path, err := campaignsFilePath()
+		path, err := campaignsFilePath(r.Context())
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to resolve campaigns path: %v", err), http.StatusInternalServerError)
 			return
@@ -239,9 +253,12 @@ func (h *CampaignHandlers) UpsertCampaign(w http.ResponseWriter, r *http.Request
 			http.Error(w, "failed to ensure data directory", http.StatusInternalServerError)
 			return
 		}
-		if err := os.WriteFile(path, data, 0o644); err != nil {
+		if err := storage.WriteFileAtomic(path, data, storage.SecretFilePerm); err != nil {
 			http.Error(w, "failed to persist campaign", http.StatusInternalServerError)
 			return
+		}
+		if campaignRoots != nil {
+			campaignRoots.RecordWrite(r.Context())
 		}
 	}
 
@@ -252,7 +269,7 @@ func (h *CampaignHandlers) UpsertCampaign(w http.ResponseWriter, r *http.Request
 	})
 }
 
-func campaignsFilePath() (string, error) {
+func campaignsFilePath(ctx context.Context) (string, error) {
 	resolver, err := storage.NewResolver(storage.ResolverConfig{
 		AppID:   "vrooli",
 		Profile: storage.ProfileAuto,
@@ -260,13 +277,20 @@ func campaignsFilePath() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("create storage resolver: %w", err)
 	}
-	path, err := resolver.Path(
-		storage.Options{ScenarioID: "secrets-manager"},
-		storage.ClassData,
-		"campaigns.json",
-	)
+	paths, err := resolver.Resolve(storage.Options{ScenarioID: "secrets-manager"})
 	if err != nil {
 		return "", fmt.Errorf("resolve campaigns path: %w", err)
+	}
+	root := paths.DataDir
+	if campaignRoots != nil {
+		root, err = campaignRoots.Pick(ctx, storage.ClassData)
+		if err != nil {
+			return "", fmt.Errorf("select campaigns path: %w", err)
+		}
+	}
+	path := filepath.Join(root, "campaigns.json")
+	if campaignRoots != nil && root != paths.DataDir {
+		return path, nil
 	}
 	if err := migrateLegacyCampaigns(path); err != nil {
 		return "", err

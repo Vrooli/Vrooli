@@ -81,11 +81,11 @@ func (s *APIServer) routes() *mux.Router {
 	orientation := api.PathPrefix("/orientation").Subrouter()
 	s.handlers.orientation.RegisterRoutes(orientation)
 
-	// Vault coverage and provisioning
-	vault := api.PathPrefix("/vault").Subrouter()
-	s.handlers.vault.RegisterRoutes(vault)
-	s.handlers.receiptSigning.RegisterRoutes(vault)
-	s.handlers.vault.RegisterLegacyRoutes(api)
+	// Credential coverage and provisioning. Receipt signing remains a Vault
+	// capability endpoint because it uses Vault Transit, not ordinary credentials.
+	credentials := api.PathPrefix("/credentials").Subrouter()
+	s.handlers.vault.RegisterRoutes(credentials)
+	s.handlers.receiptSigning.RegisterRoutes(credentials)
 
 	// Security intelligence
 	security := api.PathPrefix("/security").Subrouter()

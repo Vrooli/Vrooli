@@ -8,14 +8,14 @@ This log records durable design choices that affect safe maintenance.
 
 | Decision | Rationale | Evidence |
 |---|---|---|
-| Vault values stay behind `resource-vault` | Prevent plaintext fallbacks and direct endpoint bypass | `resources/vault`, `api/vault_*.go` |
+| Native credential authority owns ordinary resource credentials | One metadata-safe provisioning and runtime-resolution contract prevents fallback drift | `internal/secrets`, `api/vault_*.go` |
 | Desktop metadata uses private SQLite | Bundle data remains private to its app root | `api/desktop_storage.go` |
-| Desktop Vault is private by default | Shared reuse requires explicit authority and consent | desktop resource plan tests |
+| Vault is capability-specific or an explicit mirror | Ordinary desktop credentials must resolve locally when Vault is unavailable | desktop resource plan tests |
 | Artifact admission fails closed | A bundle must not consume unsigned release checksums | resource artifact pipeline |
 
 ## Superseded Decisions
 
-The legacy direct filesystem fallback is not the resource contract and is being retired in favor of broker/resource-backed behavior.
+Legacy direct filesystem, YAML, shell-export, and direct-Vault readers are not resource contracts. They are migration-only inputs and are removed after verified migration.
 
 ## Cross-References
 

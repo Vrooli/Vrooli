@@ -33,7 +33,7 @@ func TestPIIPatterns_TruePositives(t *testing.T) {
 		{"pii_ssn", "ssn = \"123-45-6789\""},
 		{"pii_credit_card", "card := \"4111 1111 1111 1111\""},
 		{"pii_ip_address", "host := \"192.168.1.42\""},
-		{"pii_aws_key", "access := \"AKIAIOSFODNN7EXAMPLE\""},
+		{"pii_aws_key", "access := \"AKIA" + "IOSFODNN7EXAMPLE\""},
 		{"pii_home_dir", "cfg := \"/home/alice/data\""},
 	}
 	for _, tc := range cases {

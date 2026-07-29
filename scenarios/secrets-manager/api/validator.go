@@ -4,13 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/database"
-	"secrets-manager-api/internal/envx"
 )
 
 // SecretValidator owns secret validation so handlers and jobs share a single pipeline
@@ -18,34 +15,21 @@ import (
 type SecretValidator struct {
 	db     *database.RoutedDB
 	logger Logger
-	env    envx.Reader
 }
 
 // NewSecretValidator creates a new secret validator
 func NewSecretValidator(db *database.RoutedDB) *SecretValidator {
-	return NewSecretValidatorWithEnv(db, envx.OS{})
-}
-
-// NewSecretValidatorWithEnv creates a validator with an explicit environment
-// reader. The caller can provide a deterministic implementation in tests.
-func NewSecretValidatorWithEnv(db *database.RoutedDB, env envx.Reader) *SecretValidator {
-	if env == nil {
-		env = envx.OS{}
-	}
 	return &SecretValidator{
 		db:     db,
 		logger: *NewLogger("validator"),
-		env:    env,
 	}
 }
 
-// ValidationMethod represents different validation methods
+// ValidationMethod identifies the authority that supplied metadata-only status.
 type ValidationMethod string
 
 const (
-	ValidationMethodEnv   ValidationMethod = "env"
-	ValidationMethodVault ValidationMethod = "vault"
-	ValidationMethodFile  ValidationMethod = "file"
+	ValidationMethodAuthority ValidationMethod = "credential_authority"
 )
 
 // -----------------------------------------------------------------------------
@@ -199,7 +183,8 @@ func (v *SecretValidator) getSecretsForValidationContext(ctx context.Context, re
 	return secrets, nil
 }
 
-// validateSecret validates a single secret using multiple methods
+// validateSecret asks the canonical credential authority for status metadata.
+// It never reads a value from the process environment, Vault, or a file.
 func (v *SecretValidator) validateSecret(secret ResourceSecret) SecretValidation {
 	validation := SecretValidation{
 		ID:                  uuid.New().String(),
@@ -207,172 +192,21 @@ func (v *SecretValidator) validateSecret(secret ResourceSecret) SecretValidation
 		ValidationTimestamp: time.Now(),
 	}
 
-	// Try different validation methods in order of preference
-	methods := []ValidationMethod{
-		ValidationMethodEnv,   // Check environment variables first
-		ValidationMethodVault, // Then check vault
-		ValidationMethodFile,  // Finally check files
-	}
-
-	var lastError string
-	isValid := false
-
-	for _, method := range methods {
-		switch method {
-		case ValidationMethodEnv:
-			if valid, err := v.validateEnvironmentVariable(secret); valid {
-				validation.ValidationStatus = "valid"
-				validation.ValidationMethod = string(ValidationMethodEnv)
-				isValid = true
-				break
-			} else if err != nil {
-				lastError = err.Error()
-			}
-
-		case ValidationMethodVault:
-			if valid, err := v.validateVaultSecret(secret); valid {
-				validation.ValidationStatus = "valid"
-				validation.ValidationMethod = string(ValidationMethodVault)
-				isValid = true
-				break
-			} else if err != nil {
-				lastError = err.Error()
-			}
-
-		case ValidationMethodFile:
-			if valid, err := v.validateFileSecret(secret); valid {
-				validation.ValidationStatus = "valid"
-				validation.ValidationMethod = string(ValidationMethodFile)
-				isValid = true
-				break
-			} else if err != nil {
-				lastError = err.Error()
-			}
-		}
-
-		if isValid {
-			break
-		}
-	}
-
-	// Set validation status using named decision function
-	if !isValid {
+	configured, err := credentialConfigured(context.Background(), secret.ResourceName, secret.SecretKey)
+	validation.ValidationMethod = string(ValidationMethodAuthority)
+	if configured {
+		validation.ValidationStatus = "valid"
+	} else {
 		validation.ValidationStatus = determineValidationFailureStatus(secret.Required)
-		if lastError != "" {
-			validation.ErrorMessage = &lastError
+		if err != nil {
+			detail := err.Error()
+			validation.ErrorMessage = &detail
 		}
 	}
-
-	// Add validation details
-	details := fmt.Sprintf("Validated using methods: %v", methods)
+	details := "Validated through canonical credential authority status metadata."
 	validation.ValidationDetails = &details
 
 	return validation
-}
-
-// validateEnvironmentVariable checks if the secret is available as an environment variable
-func (v *SecretValidator) validateEnvironmentVariable(secret ResourceSecret) (bool, error) {
-	value := v.env.Getenv(secret.SecretKey)
-	if value == "" {
-		return false, fmt.Errorf("environment variable %s is not set", secret.SecretKey)
-	}
-
-	// Additional validation based on secret type
-	if err := v.validateSecretValue(value, secret); err != nil {
-		return false, fmt.Errorf("environment variable %s value is invalid: %w", secret.SecretKey, err)
-	}
-
-	return true, nil
-}
-
-// validateVaultSecret checks if the secret is available in vault
-func (v *SecretValidator) validateVaultSecret(secret ResourceSecret) (bool, error) {
-	value, err := getVaultSecret(secret.ResourceName, secret.SecretKey)
-	if err != nil {
-		return false, fmt.Errorf("vault secret %s unavailable: %w", secret.SecretKey, err)
-	}
-	if err := v.validateSecretValue(value, secret); err != nil {
-		return false, fmt.Errorf("vault secret %s is invalid: %w", secret.SecretKey, err)
-	}
-	return true, nil
-}
-
-// validateFileSecret checks if the secret is available in configuration files
-func (v *SecretValidator) validateFileSecret(secret ResourceSecret) (bool, error) {
-	// Check common configuration file locations for the secret
-	configPaths := []string{
-		"/etc/vrooli/secrets.conf",
-		os.ExpandEnv("$HOME/.vrooli/secrets"),
-		".env",
-		".env.local",
-	}
-
-	for _, path := range configPaths {
-		if v.checkSecretInFile(path, secret.SecretKey) {
-			return true, nil
-		}
-	}
-
-	return false, fmt.Errorf("secret %s not found in any configuration file", secret.SecretKey)
-}
-
-// checkSecretInFile checks if a secret key exists in a file
-func (v *SecretValidator) checkSecretInFile(filePath, secretKey string) bool {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return false
-	}
-	defer file.Close()
-
-	// Read file content and look for the secret key
-	content := make([]byte, MaxConfigFileSize)
-	n, _ := file.Read(content)
-	fileContent := string(content[:n])
-
-	// Look for key=value patterns
-	lines := strings.Split(fileContent, "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, secretKey+"=") {
-			return true
-		}
-	}
-
-	return false
-}
-
-// validateSecretValue validates the format/content of a secret value
-func (v *SecretValidator) validateSecretValue(value string, secret ResourceSecret) error {
-	if value == "" {
-		return fmt.Errorf("secret value is empty")
-	}
-
-	// Apply custom validation pattern if available
-	if secret.ValidationPattern != nil && *secret.ValidationPattern != "" {
-		// This would typically use regexp to validate the pattern
-		// For now, just check basic constraints
-		if len(value) < 3 {
-			return fmt.Errorf("secret value too short (minimum 3 characters)")
-		}
-	}
-
-	// Type-specific validation
-	switch secret.SecretType {
-	case "password":
-		if len(value) < 8 {
-			return fmt.Errorf("password too short (minimum 8 characters)")
-		}
-	case "api_key":
-		if len(value) < 16 {
-			return fmt.Errorf("API key too short (minimum 16 characters)")
-		}
-	case "token":
-		if len(value) < 10 {
-			return fmt.Errorf("token too short (minimum 10 characters)")
-		}
-	}
-
-	return nil
 }
 
 // storeValidationResult stores a validation result in the database

@@ -1,5 +1,6 @@
 // [REQ:REQ-P0-003] Welcome Step Component
 import { render, screen } from "@testing-library/react";
+// provider-free-exception: StepWelcome is static wizard content with no provider dependency.
 import { StepWelcome } from "./StepWelcome";
 
 describe("StepWelcome", () => {

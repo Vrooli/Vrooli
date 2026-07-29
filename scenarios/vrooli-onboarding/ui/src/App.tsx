@@ -2,9 +2,12 @@ import { useCallback, useRef, useState } from "react";
 import { Wand2, Activity, BookOpen } from "lucide-react";
 import { WizardShell } from "./components/wizard/WizardShell";
 import { StepWelcome } from "./components/wizard/StepWelcome";
-import { StepSelectResources } from "./components/wizard/StepSelectResources";
-import { StepReview } from "./components/wizard/StepReview";
-import { StepComplete } from "./components/wizard/StepComplete";
+import { StepSelectScenarios } from "./components/wizard/StepSelectScenarios";
+import { StepDerivedResources } from "./components/wizard/StepDerivedResources";
+import { StepIntegrationsDeferred } from "./components/wizard/StepIntegrationsDeferred";
+import { StepHostRequirements } from "./components/wizard/StepHostRequirements";
+import { StepOperatingMode } from "./components/wizard/StepOperatingMode";
+import { StepReadiness } from "./components/wizard/StepReadiness";
 import { HealthDashboard } from "./components/dashboard/HealthDashboard";
 import { GlossaryPanel } from "./components/glossary/GlossaryPanel";
 import { useGlobalKeyboardShortcuts } from "./hooks/useGlobalKeyboardShortcuts";
@@ -27,16 +30,15 @@ export default function App() {
 
   const {
     currentStep,
-    selectedResources,
-    resumeAvailable,
-    resumeStep,
+    selectedScenarios,
+    operatorState,
     stepContentRef,
-    handleResume,
-    toggleResource,
+    toggleScenario,
+    setScenarioAutoRestart,
+    setHostOptIn,
     goNext,
     goPrev,
     goToStep,
-    startOver,
     nextLabel,
     isLastStep,
     totalSteps,
@@ -78,7 +80,7 @@ export default function App() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50">
+    <div className="min-h-full bg-slate-950 text-slate-50">
       {/* Skip to content link for screen readers */}
       <a
         href="#main-content"
@@ -121,13 +123,13 @@ export default function App() {
               <kbd className="hidden lg:inline-flex ml-1 h-4 min-w-4 items-center justify-center rounded bg-white/5 px-1 text-[9px] font-mono text-slate-300/60" aria-hidden="true">
                 Alt+{idx + 1}
               </kbd>
-              {item.id === "wizard" && selectedResources.size > 0 && (
+              {item.id === "wizard" && selectedScenarios.size > 0 && (
                 <span
                   className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500/20 px-1 text-[10px] font-medium text-emerald-400"
-                  aria-label={`${selectedResources.size} resources selected`}
+                  aria-label={`${selectedScenarios.size} scenarios selected`}
                   data-testid="nav-wizard-badge"
                 >
-                  {selectedResources.size}
+                  {selectedScenarios.size}
                 </span>
               )}
             </button>
@@ -149,7 +151,7 @@ export default function App() {
               onNext={goNext}
               onPrev={goPrev}
               onGoToStep={goToStep}
-              nextDisabled={currentStep === 1 && selectedResources.size === 0}
+              nextDisabled={currentStep === 1 && selectedScenarios.size === 0}
               nextLabel={nextLabel}
               showPrev={currentStep > 0 && !isLastStep}
               showNext={!isLastStep}
@@ -158,29 +160,15 @@ export default function App() {
               {currentStep === 0 && (
                 <>
                   <StepWelcome />
-                  {resumeAvailable && (
-                    <div
-                      data-testid="resume-prompt"
-                      className="mt-6 rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 text-center"
-                      role="alert"
-                    >
-                      <p className="text-sm text-slate-300">You have saved progress at step {resumeStep + 1}.</p>
-                      <button
-                        data-testid="resume-button"
-                        onClick={handleResume}
-                        className="mt-3 inline-flex items-center rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/50"
-                      >
-                        Resume
-                      </button>
-                    </div>
-                  )}
                 </>
               )}
-              {currentStep === 1 && (
-                <StepSelectResources selected={selectedResources} onToggle={toggleResource} />
-              )}
-              {currentStep === 2 && <StepReview selected={selectedResources} onRemove={toggleResource} onGoBack={goPrev} />}
-              {currentStep === 3 && <StepComplete selected={selectedResources} onStartOver={startOver} />}
+              {currentStep === 1 && <StepSelectScenarios selected={selectedScenarios} onToggle={toggleScenario} />}
+              {currentStep === 2 && <StepDerivedResources selected={selectedScenarios} />}
+              {currentStep === 3 && <StepReadiness title="Credentials" />}
+              {currentStep === 4 && <StepIntegrationsDeferred />}
+              {currentStep === 5 && <StepHostRequirements onTool={(name, value) => setHostOptIn("host_tools", name, value)} onSafeguard={(name, value) => setHostOptIn("host_safeguards", name, value)} />}
+              {currentStep === 6 && <StepOperatingMode selected={selectedScenarios} overrides={operatorState?.scenarios} onAutoRestart={setScenarioAutoRestart} />}
+              {currentStep === 7 && <StepReadiness title="Validation" />}
               </div>
             </WizardShell>
           )}

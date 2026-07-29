@@ -7,6 +7,7 @@ import { initIframeBridgeChild } from "@vrooli/iframe-bridge/child";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import App from "./App";
 import "./styles.css";
+import { onProfilerRender } from "./lib/profiler";
 
 const queryClient = new QueryClient();
 
@@ -39,7 +40,9 @@ ReactDOM.createRoot(root).render(
   <React.StrictMode>
     <HashRouter>
       <QueryClientProvider client={queryClient}>
-        <App />
+        <React.Profiler id="App" onRender={onProfilerRender}>
+          <App />
+        </React.Profiler>
       </QueryClientProvider>
     </HashRouter>
   </React.StrictMode>

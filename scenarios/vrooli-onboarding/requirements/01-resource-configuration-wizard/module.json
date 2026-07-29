@@ -1,67 +1,58 @@
 {
-  "description": "Complete guided setup flow for coding agents and AI providers with 100% validation coverage",
-  "module_id": "MOD-P0-001",
-  "prd_ref": "OT-P0-001",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-07-29T14:04:05-04:00"
+  },
   "requirements": [
     {
       "id": "REQ-P0-001",
-      "title": "Resource Discovery API",
-      "description": "API endpoint that lists all available resources with their current status, category, and configuration metadata so the wizard can present accurate options to the user",
-      "prd_ref": "OT-P0-001",
+      "title": "Manifest scenario read model",
       "status": "complete",
+      "prd_ref": "OT-P0-001",
       "category": "core",
+      "description": "Expose scenarios, system-required status, restart recommendations, and derived resources from scenario manifests and operator state.",
       "validation": [
         {
           "type": "test",
+          "ref": "api/v2_read_model_test.go",
           "phase": "unit",
-          "ref": "api/resources_test.go",
-          "status": "passing",
-          "notes": "TestHandleListResources, TestLoadResources, TestCategorize, TestLoadResourcesMissingFile verify resource discovery and categorization"
+          "status": "implemented",
+          "notes": "Scenario read-model fixtures prove manifest derivation and state overlay."
         }
       ]
     },
     {
       "id": "REQ-P0-002",
-      "title": "Resource Detail View",
-      "description": "API endpoint to retrieve detailed information for a single resource including configuration schema, dependencies, default values, and setup instructions",
-      "prd_ref": "OT-P0-001",
+      "title": "Scenario-first selection",
       "status": "complete",
-      "category": "core",
+      "prd_ref": "OT-P0-001",
+      "category": "ui",
+      "description": "Make scenarios the primary selectable capability; required scenarios remain locked and resource consequences are derived rather than authored.",
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/components/wizard/StepSelectScenarios.tsx",
           "phase": "unit",
-          "ref": "api/health_resources_test.go",
-          "status": "passing",
-          "notes": "TestHandleGetResource, TestHandleGetResourceNotFound, TestHandleGetResourceCaseInsensitive verify resource detail endpoint"
+          "status": "implemented",
+          "notes": "Scenario-first component is implemented; resource derivation coverage remains required."
         }
       ]
     },
     {
       "id": "REQ-P0-003",
-      "title": "Wizard UI Flow",
-      "description": "Step-by-step wizard interface for selecting and configuring resources, including field validation for API keys, endpoint URLs, and authentication methods with comprehensive error feedback",
-      "prd_ref": "OT-P0-001",
+      "title": "Derived resource and host model",
       "status": "complete",
-      "category": "ui",
+      "prd_ref": "OT-P0-001",
+      "category": "core",
+      "description": "Derive required and optional resources plus host requirements from selected scenario and resource manifests without hard-coded maps.",
       "validation": [
         {
           "type": "test",
+          "ref": "api/v2_read_model_test.go",
           "phase": "unit",
-          "ref": "ui/src/App.test.tsx",
-          "status": "passing",
-          "notes": "9 tests verify wizard rendering, step navigation, resource selection, and view navigation"
-        },
-        {
-          "type": "test",
-          "phase": "unit",
-          "ref": "cli/app_test.go",
-          "status": "passing",
-          "notes": "TestNewApp, TestAppAPIPath, TestAppHasCommands, TestAppConstants verify CLI"
+          "status": "implemented",
+          "notes": "Resource derivation is covered; host requirement derivation remains to be implemented."
         }
       ]
     }
-  ],
-  "title": "Resource Configuration Wizard"
+  ]
 }

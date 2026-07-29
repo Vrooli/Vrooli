@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+// provider-free-exception: Button is a pure primitive; adding QueryClient would not exercise a provider contract.
 import userEvent from "@testing-library/user-event";
 import { Button } from "./button";
 

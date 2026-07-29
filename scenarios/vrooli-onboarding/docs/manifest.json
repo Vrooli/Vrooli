@@ -1,0 +1,58 @@
+{
+  "version": "2.0.0",
+  "title": "Vrooli Onboarding V2 Documentation",
+  "description": "Operator-facing documentation for the scenario-first onboarding control plane.",
+  "defaultDocument": "START-HERE.md",
+  "contract": {
+    "kind": "scenario-docs",
+    "template": "react-vite",
+    "schema": "scenario-docs-manifest/v2",
+    "maturityValues": ["missing", "stub", "draft", "active", "not-applicable", "deferred", "retired"],
+    "stages": ["generated", "oriented", "implemented", "validated", "deployable", "monetizable"],
+    "extensionRule": "Register every durable onboarding document here. Concepts describe the V2 model, reference records stable contracts, operations records runtime procedures, and internal documents preserve developer decisions."
+  },
+  "sections": [
+    {
+      "id": "onboarding-v2",
+      "title": "Onboarding V2",
+      "documents": [
+        {"path":"../README.md","docType":"readme","title":"README","maturity":"active","requiredBy":["generated"],"completion":"required"},
+        {"path":"../PRD.md","docType":"prd","title":"Product Requirements","maturity":"active","requiredBy":["oriented"],"completion":"required"},
+        {"path":"../DESIGN.md","docType":"design","title":"Design","maturity":"active","requiredBy":["implemented"],"completion":"required"},
+        {"path":"START-HERE.md","docType":"start-here","title":"Start Here","maturity":"active","requiredBy":["generated"],"completion":"required"},
+        {"path":"QUICKSTART.md","docType":"quickstart","title":"Quickstart","maturity":"active","requiredBy":["generated"],"completion":"required"},
+        {"path":"manifest.json","docType":"manifest","title":"Documentation Manifest","maturity":"active","requiredBy":["generated"],"completion":"required"},
+        {"path":"concepts/ARCHITECTURE.md","docType":"architecture","title":"Architecture","maturity":"active","requiredBy":["implemented"],"completion":"required"},
+        {"path":"concepts/DATA.md","docType":"data","title":"Data","maturity":"active","requiredBy":["implemented"],"completion":"required"},
+        {"path":"concepts/DOMAINS.md","docType":"domains","title":"Domains","maturity":"active","requiredBy":["implemented"],"completion":"required"},
+        {"path":"concepts/FLOWS.md","docType":"flows","title":"Flows","maturity":"active","requiredBy":["implemented"],"completion":"required"},
+        {"path":"concepts/INTEGRATIONS.md","docType":"integrations","title":"Integrations","maturity":"deferred","requiredBy":["implemented"],"completion":"required"},
+        {"path":"reference/api-endpoints.md","docType":"api-reference","title":"API Endpoints","maturity":"active","requiredBy":["implemented"],"completion":"required"},
+        {"path":"reference/cli-commands.md","docType":"cli-reference","title":"CLI Commands","maturity":"active","requiredBy":["implemented"],"completion":"required"},
+        {"path":"reference/configuration.md","docType":"configuration-reference","title":"Configuration","maturity":"active","requiredBy":["deployable"],"completion":"required"},
+        {"path":"operations/DEPLOYMENT.md","docType":"deployment","title":"Deployment","maturity":"active","requiredBy":["deployable"],"completion":"required"},
+        {"path":"operations/OBSERVABILITY.md","docType":"observability","title":"Observability","maturity":"active","requiredBy":["deployable"],"completion":"required"},
+        {"path":"operations/RUNBOOK.md","docType":"runbook","title":"Runbook","maturity":"active","requiredBy":["deployable"],"completion":"required"},
+        {"path":"guides/troubleshooting.md","docType":"troubleshooting","title":"Troubleshooting","maturity":"active","requiredBy":["generated"],"completion":"required"},
+        {"path":"internal/DECISIONS.md","docType":"decisions","title":"Decisions","maturity":"active","requiredBy":["implemented"],"completion":"required"},
+        {"path":"internal/ERROR-HANDLING.md","docType":"error-handling","title":"Error Handling","maturity":"active","requiredBy":["validated"],"completion":"required"},
+        {"path":"internal/PERFORMANCE.md","docType":"performance","title":"Performance","maturity":"active","requiredBy":["validated"],"completion":"conditional"},
+        {"path":"internal/PROBLEMS.md","docType":"problems","title":"Problems","maturity":"active","requiredBy":["validated"],"completion":"required"},
+        {"path":"internal/PROGRESS.md","docType":"progress","title":"Progress","maturity":"active","requiredBy":["validated"],"completion":"required"},
+        {"path":"internal/SEAMS.md","docType":"seams","title":"Seams","maturity":"active","requiredBy":["validated"],"completion":"required"},
+        {"path":"internal/SECURITY.md","docType":"security","title":"Security","maturity":"active","requiredBy":["deployable"],"completion":"required"},
+        {"path":"internal/TESTING.md","docType":"testing","title":"Testing","maturity":"active","requiredBy":["validated"],"completion":"required"},
+        {"path":"business/GO-TO-MARKET.md","docType":"go-to-market","title":"Go To Market","maturity":"active","requiredBy":["monetizable"],"completion":"conditional"},
+        {"path":"business/MONETIZATION.md","docType":"monetization","title":"Monetization","maturity":"active","requiredBy":["monetizable"],"completion":"conditional"}
+      ]
+    }
+  ],
+  "documents": [
+    "START-HERE.md", "QUICKSTART.md", "../README.md", "../PRD.md", "../DESIGN.md",
+    "concepts/ARCHITECTURE.md", "concepts/DATA.md", "concepts/DOMAINS.md", "concepts/FLOWS.md", "concepts/INTEGRATIONS.md",
+    "reference/api-endpoints.md", "reference/cli-commands.md", "reference/configuration.md",
+    "operations/DEPLOYMENT.md", "operations/OBSERVABILITY.md", "operations/RUNBOOK.md", "guides/troubleshooting.md",
+    "internal/DECISIONS.md", "internal/ERROR-HANDLING.md", "internal/PERFORMANCE.md", "internal/PROBLEMS.md", "internal/PROGRESS.md", "internal/SEAMS.md", "internal/SECURITY.md", "internal/TESTING.md",
+    "business/GO-TO-MARKET.md", "business/MONETIZATION.md"
+  ]
+}

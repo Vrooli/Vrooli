@@ -75,14 +75,14 @@ export const ResourceTable = ({ resourceStatuses, isLoading, onOpenResource }: R
             <p className="text-2xl font-semibold text-white">All resources, searchable and sortable</p>
             <HelpDialog title="How resource secrets are defined">
               <p>
-                Each resource owns a <code>config/secrets.yaml</code> file that declares its secrets and the Vault paths
-                they live at. The Vault CLI (<code>resource-vault secrets ...</code>) and this dashboard read that file
-                to know what to validate and where to store values.
+                Each resource declares credential descriptors in <code>resource.json</code>. A descriptor supplies the
+                backend-neutral logical identity, field, process injection name, and operator-facing metadata; it never
+                contains a value or a Vault-shaped storage path.
               </p>
               <p>
-                To add secrets for a resource, create or update its <code>resources/&lt;resource&gt;/config/secrets.yaml</code>
-                declaration, then run <code>resource-vault secrets init &lt;resource&gt;</code> to set supported values.
-                secrets-manager will pick them up automatically via the Vault check/fallback scan.
+                To add a credential, update <code>resources/&lt;resource&gt;/resource.json</code> through the approved
+                manifest workflow, then provision its declared identity through onboarding or <code>vrooli credentials provision</code>.
+                The dashboard reads metadata-safe status only.
               </p>
             </HelpDialog>
           </div>

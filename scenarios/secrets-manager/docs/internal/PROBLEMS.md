@@ -8,6 +8,13 @@ This internal ledger tracks unresolved problems, blockers, and technical debt fo
 
 ## Current Validation Gates (2026-07-23)
 
+## Work ladder
+
+- Rung: W3
+- Evidence: the operator plan requires canonical credential authority and a full scenario-owned suite; `vrooli scenario requirements validate secrets-manager` passes, while the 2026-07-29 Test Genie run `20260729-183036-01656268` initially failed implementation validation for unrouted file persistence, missing baseline headers, and absent BAS workflow coverage.
+- Blocker: remaining Security Health lockfile advisories are transitive dependency findings; the direct code and workflow defects are being repaired before the server-owned rerun.
+- Measured: 2026-07-29
+
 - Linux Tier 1 Vault acceptance is intentionally fail-closed until the active user has the declared `secret-tool` host prerequisite. `vrooli host install secret-tool --sudo-mode=ask --json` requires an interactive privileged operator on this host; do not bypass it with a raw system package command.
 - Secrets Manager's unit policy now has a shared API test utility and valid UI coverage configuration. The UI suite covers API contracts plus manifest-editor, app-shell, journey, resource-panel, data-hook, campaign, tier-readiness, dashboard snapshot, live security/compliance, resource-tree, scenario-selection, deployment failure states, JSON manifest previews, and per-resource workbench behavior. `pnpm test:coverage` meets the enforced global thresholds without lowering them; use that command as the current coverage source of truth and continue expanding behavior tests and production seams as the UI evolves.
 - The UI deployment surface is validated statically at interop and PWA L5. Remaining UI Health component-location and governed-primitive findings are advisory refactoring debt; they do not change route or secret-storage behavior.

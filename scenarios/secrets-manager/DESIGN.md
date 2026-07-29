@@ -10,4 +10,4 @@ Each network-backed panel shows loading, ready, empty, and error states. A statu
 
 ## Request Lifecycle
 
-The React UI calls the API through `ui/src/lib/api.ts`. The API is the source of business decisions. UI and CLI surfaces must not duplicate Vault, deployment-strategy, or security-scanning logic.
+The React UI calls the API through `ui/src/lib/api.ts`. The API is the source of business decisions. UI and CLI surfaces must not duplicate credential-authority, deployment-strategy, or security-scanning logic.

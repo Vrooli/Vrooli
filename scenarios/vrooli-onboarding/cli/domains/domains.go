@@ -1,9 +1,8 @@
 package domains
 
 import (
-	"vrooli-onboarding/cli/domains/config"
 	"vrooli-onboarding/cli/domains/glossary"
-	"vrooli-onboarding/cli/domains/progress"
+	"vrooli-onboarding/cli/domains/operator"
 	"vrooli-onboarding/cli/domains/resources"
 	"vrooli-onboarding/cli/domains/setuporder"
 
@@ -25,7 +24,6 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 	return []cliapp.SubcommandGroup{
 		resources.Register(core),
-		progress.Register(core),
-		config.Register(core),
+		operator.Register(core),
 	}
 }

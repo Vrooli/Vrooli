@@ -400,7 +400,7 @@ func scanResourceFileForVulnerabilities(ctx context.Context, filePath, component
 			Pattern:        `(PASSWORD|SECRET|TOKEN|KEY|API_KEY)\s*=\s*[\"'](?!.*\$|.*env|.*getenv)[^\"']{8,}[\"']`,
 			Description:    "Hardcoded secret found in resource configuration",
 			Title:          "Hardcoded Secret in Resource",
-			Recommendation: "Move secret to vault using resource-vault CLI",
+			Recommendation: "Provision the credential with vrooli credentials provision and inject it at runtime",
 			CanAutoFix:     false,
 		},
 		{

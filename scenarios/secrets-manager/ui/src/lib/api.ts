@@ -348,7 +348,7 @@ export const fetchHealth = () => jsonFetch<HealthResponse>("/health");
 
 export const fetchVaultStatus = (resource?: string) => {
   const search = resource ? `?resource=${encodeURIComponent(resource)}` : "";
-  return jsonFetch<VaultSecretsStatus>(`/vault/secrets/status${search}`);
+  return jsonFetch<VaultSecretsStatus>(`/credentials/secrets/status${search}`);
 };
 
 export const fetchCompliance = () => jsonFetch<ComplianceResponse>("/security/compliance");
@@ -519,7 +519,7 @@ export interface ProvisionSecretsResponse {
 }
 
 export const provisionSecrets = (payload: ProvisionSecretsPayload) =>
-  jsonFetch<ProvisionSecretsResponse>("/secrets/provision", {
+  jsonFetch<ProvisionSecretsResponse>("/credentials/secrets/provision", {
     method: "POST",
     body: JSON.stringify(payload)
   });

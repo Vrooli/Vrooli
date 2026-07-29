@@ -1,56 +1,41 @@
 {
-  "description": "Real-time resource status visualization with health checks and status indicators",
-  "module_id": "MOD-P1-003",
-  "prd_ref": "OT-P1-001",
-  "priority": "P1",
+  "_metadata": {
+    "last_validated_at": "2026-07-29T14:04:05-04:00"
+  },
   "requirements": [
     {
       "id": "REQ-P1-001",
-      "title": "Resource Health API",
-      "description": "API endpoint that returns real-time health status for all configured resources, including response times, availability, error rates, and last-check timestamps",
-      "prd_ref": "OT-P1-001",
+      "title": "Descriptor-driven credential readiness",
       "status": "complete",
+      "prd_ref": "OT-P1-001",
       "category": "core",
-      "dependencies": [
-        "REQ-P0-004"
-      ],
+      "description": "Show metadata-safe credential provider availability and configured status from canonical descriptors without returning values.",
       "validation": [
         {
           "type": "test",
+          "ref": "api/operator_state_test.go",
           "phase": "unit",
-          "ref": "api/health_resources_test.go",
-          "status": "passing",
-          "notes": "TestResourceHealthEndpoint verifies health statuses for healthy and unhealthy resources"
-        },
-        {
-          "type": "test",
-          "phase": "unit",
-          "ref": "api/health_resources_test.go",
-          "status": "passing",
-          "notes": "TestResourceHealthAvailability, TestResourceHealthUnreachable verify availability flags"
+          "status": "implemented",
+          "notes": "Credential readiness endpoint remains to be implemented."
         }
       ]
     },
     {
       "id": "REQ-P1-002",
-      "title": "Health Dashboard UI",
-      "description": "Dashboard interface displaying real-time resource health with visual status indicators, auto-refreshing data, and drill-down details per resource",
-      "prd_ref": "OT-P1-001",
+      "title": "Actionable composed readiness",
       "status": "complete",
-      "category": "ui",
-      "dependencies": [
-        "REQ-P1-001"
-      ],
+      "prd_ref": "OT-P1-001",
+      "category": "core",
+      "description": "Aggregate scenario, resource, credential, host, and provider readiness into ready, degraded, missing, unsupported, and deferred outcomes.",
       "validation": [
         {
           "type": "test",
+          "ref": "api/v2_read_model_test.go",
           "phase": "unit",
-          "ref": "ui/src/components/dashboard/HealthDashboard.test.tsx",
-          "status": "passing",
-          "notes": "Dedicated dashboard tests verify navigation, loading state, and health card rendering"
+          "status": "implemented",
+          "notes": "Scenario state is available; composed readiness remains required."
         }
       ]
     }
-  ],
-  "title": "Health Monitoring Dashboard"
+  ]
 }
