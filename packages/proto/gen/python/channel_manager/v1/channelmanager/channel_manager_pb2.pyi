@@ -11,7 +11,7 @@ class GetOverviewRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class Identity(_message.Message):
-    __slots__ = ("id", "platform_id", "purpose", "environment_ref", "vault_ref", "status", "lane_grants")
+    __slots__ = ("id", "platform_id", "purpose", "environment_ref", "vault_ref", "status", "lane_grants", "handle", "display_label", "lifecycle", "automation_mode")
     ID_FIELD_NUMBER: _ClassVar[int]
     PLATFORM_ID_FIELD_NUMBER: _ClassVar[int]
     PURPOSE_FIELD_NUMBER: _ClassVar[int]
@@ -19,6 +19,10 @@ class Identity(_message.Message):
     VAULT_REF_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     LANE_GRANTS_FIELD_NUMBER: _ClassVar[int]
+    HANDLE_FIELD_NUMBER: _ClassVar[int]
+    DISPLAY_LABEL_FIELD_NUMBER: _ClassVar[int]
+    LIFECYCLE_FIELD_NUMBER: _ClassVar[int]
+    AUTOMATION_MODE_FIELD_NUMBER: _ClassVar[int]
     id: str
     platform_id: str
     purpose: str
@@ -26,7 +30,11 @@ class Identity(_message.Message):
     vault_ref: str
     status: str
     lane_grants: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, id: _Optional[str] = ..., platform_id: _Optional[str] = ..., purpose: _Optional[str] = ..., environment_ref: _Optional[str] = ..., vault_ref: _Optional[str] = ..., status: _Optional[str] = ..., lane_grants: _Optional[_Iterable[str]] = ...) -> None: ...
+    handle: str
+    display_label: str
+    lifecycle: str
+    automation_mode: str
+    def __init__(self, id: _Optional[str] = ..., platform_id: _Optional[str] = ..., purpose: _Optional[str] = ..., environment_ref: _Optional[str] = ..., vault_ref: _Optional[str] = ..., status: _Optional[str] = ..., lane_grants: _Optional[_Iterable[str]] = ..., handle: _Optional[str] = ..., display_label: _Optional[str] = ..., lifecycle: _Optional[str] = ..., automation_mode: _Optional[str] = ...) -> None: ...
 
 class Action(_message.Message):
     __slots__ = ("id", "identity_id", "kind", "window", "status", "rolled_count")
@@ -67,16 +75,20 @@ class GetEligibilityResponse(_message.Message):
     def __init__(self, eligibility: _Optional[str] = ...) -> None: ...
 
 class SubmitReleaseRequest(_message.Message):
-    __slots__ = ("identity_id", "lane", "draft_id", "idempotency_key")
+    __slots__ = ("identity_id", "lane", "draft_id", "idempotency_key", "asset_ids", "disclosure_visible")
     IDENTITY_ID_FIELD_NUMBER: _ClassVar[int]
     LANE_FIELD_NUMBER: _ClassVar[int]
     DRAFT_ID_FIELD_NUMBER: _ClassVar[int]
     IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    ASSET_IDS_FIELD_NUMBER: _ClassVar[int]
+    DISCLOSURE_VISIBLE_FIELD_NUMBER: _ClassVar[int]
     identity_id: str
     lane: str
     draft_id: str
     idempotency_key: str
-    def __init__(self, identity_id: _Optional[str] = ..., lane: _Optional[str] = ..., draft_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ...) -> None: ...
+    asset_ids: _containers.RepeatedScalarFieldContainer[str]
+    disclosure_visible: bool
+    def __init__(self, identity_id: _Optional[str] = ..., lane: _Optional[str] = ..., draft_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., asset_ids: _Optional[_Iterable[str]] = ..., disclosure_visible: _Optional[bool] = ...) -> None: ...
 
 class ReleaseReceipt(_message.Message):
     __slots__ = ("id", "draft_id", "action_id", "status", "platform_post_id", "published_url", "first_comment_status")
@@ -127,16 +139,20 @@ class DeliverMetricSampleResponse(_message.Message):
     def __init__(self, delivery_status: _Optional[str] = ...) -> None: ...
 
 class AssignAutomationRequest(_message.Message):
-    __slots__ = ("identity_id", "session_profile_ref", "enabled_action_kinds", "operator_note")
+    __slots__ = ("identity_id", "session_profile_ref", "enabled_action_kinds", "operator_note", "workflow_ref", "consumer_profile_key")
     IDENTITY_ID_FIELD_NUMBER: _ClassVar[int]
     SESSION_PROFILE_REF_FIELD_NUMBER: _ClassVar[int]
     ENABLED_ACTION_KINDS_FIELD_NUMBER: _ClassVar[int]
     OPERATOR_NOTE_FIELD_NUMBER: _ClassVar[int]
+    WORKFLOW_REF_FIELD_NUMBER: _ClassVar[int]
+    CONSUMER_PROFILE_KEY_FIELD_NUMBER: _ClassVar[int]
     identity_id: str
     session_profile_ref: str
     enabled_action_kinds: _containers.RepeatedScalarFieldContainer[str]
     operator_note: str
-    def __init__(self, identity_id: _Optional[str] = ..., session_profile_ref: _Optional[str] = ..., enabled_action_kinds: _Optional[_Iterable[str]] = ..., operator_note: _Optional[str] = ...) -> None: ...
+    workflow_ref: str
+    consumer_profile_key: str
+    def __init__(self, identity_id: _Optional[str] = ..., session_profile_ref: _Optional[str] = ..., enabled_action_kinds: _Optional[_Iterable[str]] = ..., operator_note: _Optional[str] = ..., workflow_ref: _Optional[str] = ..., consumer_profile_key: _Optional[str] = ...) -> None: ...
 
 class AssignAutomationResponse(_message.Message):
     __slots__ = ("identity_id",)
@@ -155,3 +171,21 @@ class DispatchBrowserActionResponse(_message.Message):
     EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
     execution_id: str
     def __init__(self, execution_id: _Optional[str] = ...) -> None: ...
+
+class GetBrowserExecutionReviewRequest(_message.Message):
+    __slots__ = ("action_id",)
+    ACTION_ID_FIELD_NUMBER: _ClassVar[int]
+    action_id: str
+    def __init__(self, action_id: _Optional[str] = ...) -> None: ...
+
+class GetBrowserExecutionReviewResponse(_message.Message):
+    __slots__ = ("execution_id", "status", "failure", "artifact_refs")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_REFS_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    status: str
+    failure: str
+    artifact_refs: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, execution_id: _Optional[str] = ..., status: _Optional[str] = ..., failure: _Optional[str] = ..., artifact_refs: _Optional[_Iterable[str]] = ...) -> None: ...

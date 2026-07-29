@@ -365,13 +365,15 @@ func (o *Orchestrator) buildInvestigationAttachments(
 	// message or unified-diff payload. Depth remains workflow guidance rather
 	// than selecting different evidence sets, which makes a quick diagnosis as
 	// trustworthy as a deep one and avoids budget-dependent blind spots.
-	attachments := make([]domain.ContextAttachment, 0, len(runIDs)+1)
+	attachments := make([]domain.ContextAttachment, 0, len(runIDs)+2)
+	reports := make([]*runreport.RunReport, 0, len(runIDs))
 
 	for _, runID := range runIDs {
 		report, err := o.BuildRunReport(ctx, runID)
 		if err != nil {
 			return nil, err
 		}
+		reports = append(reports, report)
 		attachments = append(attachments, domain.ContextAttachment{Type: "note", Key: "run-report-" + shortID(runID), Label: "Run Report " + shortID(runID), Content: runreport.Text(report), Format: "markdown", Priority: "high", Summary: "Bounded diagnostics; use run inspection commands for payloads", Tags: []string{"run", "report", "investigation"}})
 		if o.findings != nil {
 			prior, listErr := o.findings.List(ctx, findings.Filter{RunID: &runID, Limit: 20})
@@ -379,6 +381,22 @@ func (o *Orchestrator) buildInvestigationAttachments(
 				attachments = append(attachments, recurrenceAttachment(runID, prior))
 			}
 		}
+	}
+	// Put the compact cohort brief ahead of the per-run projections. An
+	// investigator therefore starts with ranked recurrence evidence and uses
+	// the existing per-run report and explicit CLI drill-down only when a
+	// discriminator requires it.
+	if len(reports) > 1 {
+		cohortBytes, err := json.Marshal(runreport.BuildCohort(reports))
+		if err != nil {
+			return nil, fmt.Errorf("encode cohort projection: %w", err)
+		}
+		attachments = append([]domain.ContextAttachment{{
+			Type: "note", Key: "cohort-brief", Label: "Cohort Brief",
+			Content: string(cohortBytes), Format: "json", Priority: "high",
+			Summary: "Bounded ranked cohort signals with representative run IDs",
+			Tags:    []string{"cohort", "projection", "investigation"},
+		}}, attachments...)
 	}
 
 	if strings.TrimSpace(customContext) != "" {

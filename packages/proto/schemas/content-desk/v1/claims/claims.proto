@@ -13,6 +13,9 @@ service ClaimsService {
   rpc VerifyClaim(VerifyClaimRequest) returns (VerifyClaimResponse);
   rpc SweepClaims(SweepClaimsRequest) returns (SweepClaimsResponse);
   rpc GetClaimCoverage(GetClaimCoverageRequest) returns (GetClaimCoverageResponse);
+  rpc ExtractClaimProposals(ExtractClaimProposalsRequest) returns (ExtractClaimProposalsResponse);
+  rpc ListClaimProposals(ListClaimProposalsRequest) returns (ListClaimProposalsResponse);
+  rpc DecideClaimProposal(DecideClaimProposalRequest) returns (DecideClaimProposalResponse);
 }
 
 message Claim {
@@ -81,3 +84,20 @@ message GetClaimCoverageResponse {
   repeated TextSpan supported_spans = 1;
   repeated TextSpan uncovered_spans = 2;
 }
+
+// ClaimProposal is advisory extracted text. It is not a claim and does not
+// satisfy the approval gate until an operator creates and verifies a claim.
+message ClaimProposal {
+  string id = 1;
+  string draft_id = 2;
+  string statement = 3;
+  string status = 4;
+  string created_at = 5;
+  string decided_at = 6;
+}
+message ExtractClaimProposalsRequest { string draft_id = 1; string body = 2; }
+message ExtractClaimProposalsResponse { repeated ClaimProposal proposals = 1; }
+message ListClaimProposalsRequest { string draft_id = 1; }
+message ListClaimProposalsResponse { repeated ClaimProposal proposals = 1; }
+message DecideClaimProposalRequest { string id = 1; string status = 2; }
+message DecideClaimProposalResponse { ClaimProposal proposal = 1; }

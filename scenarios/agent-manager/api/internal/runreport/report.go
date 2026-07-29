@@ -27,9 +27,10 @@ type Source interface {
 // count to route an investigation, while the receipts command owns payload
 // disclosure.
 type ReceiptSummary struct {
-	State  string
-	Detail string
-	Count  int
+	State    string
+	Detail   string
+	Count    int
+	EventIDs []string
 }
 
 // ReceiptSource is optional so fixture-only report sources stay lightweight.
@@ -84,9 +85,13 @@ type RunReport struct {
 	EventsAvailability    Availability     `json:"eventsAvailability"`
 	ReceiptsAvailability  Availability     `json:"receiptsAvailability"`
 	ReceiptCount          int              `json:"receiptCount"`
+	ReceiptEvidenceIDs    []string         `json:"receiptEvidenceIds,omitempty"`
 	RepeatedToolCalls     int              `json:"repeatedToolCalls"`
 	FilesReadMoreThanOnce int              `json:"filesReadMoreThanOnce"`
 	LongestEventGap       time.Duration    `json:"longestEventGap"`
+	InvocationFacts       []InvocationFact `json:"-"`
+	HelpRecoveries        int              `json:"helpRecoveries"`
+	UnknownInvocations    int              `json:"unknownInvocations"`
 }
 
 func Build(ctx context.Context, source Source, runID uuid.UUID) (*RunReport, error) {
@@ -121,6 +126,20 @@ func Build(ctx context.Context, source Source, runID uuid.UUID) (*RunReport, err
 		r.EventsAvailability = Availability{State: "unavailable", Detail: err.Error()}
 	} else {
 		r.foldEvents(events)
+		r.InvocationFacts = DeriveInvocationFacts(events)
+		for _, fact := range r.InvocationFacts {
+			if fact.HelpRecovery {
+				r.HelpRecoveries++
+			}
+			if fact.Ownership == "unknown" || fact.Availability == "unknown" {
+				r.UnknownInvocations++
+			}
+		}
+		if store, ok := source.(InvocationFactStore); ok {
+			if err := store.ReplaceInvocationFacts(ctx, runID, r.InvocationFacts); err != nil {
+				return nil, fmt.Errorf("persist invocation facts: %w", err)
+			}
+		}
 	}
 	if diff, err := source.Diff(ctx, runID); err == nil && diff != nil {
 		r.Diff = DiffSummary{Files: len(diff.Files), Bytes: run.TotalSizeBytes, Available: Availability{State: "available"}}
@@ -134,6 +153,12 @@ func Build(ctx context.Context, source Source, runID uuid.UUID) (*RunReport, err
 		} else {
 			r.ReceiptsAvailability = Availability{State: summary.State, Detail: summary.Detail}
 			r.ReceiptCount = summary.Count
+			r.ReceiptEvidenceIDs = append([]string(nil), summary.EventIDs...)
+		}
+		if store, ok := source.(ReceiptJoinStore); ok {
+			if err := store.ReplaceReceiptEvidence(ctx, runID, r.ReceiptsAvailability.State, r.ReceiptEvidenceIDs); err != nil {
+				return nil, fmt.Errorf("persist receipt evidence: %w", err)
+			}
 		}
 	}
 	return r, nil
@@ -237,13 +262,11 @@ func toolSummary(tools map[string]*ToolSummary, name string) *ToolSummary {
 
 func projectOwned(name string, input map[string]interface{}) bool {
 	if strings.Contains(strings.ToLower(name), "shell") || strings.Contains(strings.ToLower(name), "bash") {
-		for _, v := range input {
-			if s, ok := v.(string); ok && (strings.Contains(s, "vrooli ") || strings.Contains(s, "agent-manager ")) {
-				return true
-			}
+		if command, ok := input["command"].(string); ok {
+			return resolveCatalog(command).State == "resolved"
 		}
 	}
-	return strings.HasPrefix(strings.ToLower(name), "vrooli") || strings.HasPrefix(strings.ToLower(name), "agent-manager")
+	return resolveCatalog(name).State == "resolved"
 }
 
 // Text is the bounded human projection shared by the investigation seed and

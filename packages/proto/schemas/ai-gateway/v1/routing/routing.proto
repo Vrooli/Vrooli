@@ -175,6 +175,10 @@ message MediaExecution {
 message SubmitMediaResponse { MediaExecution execution = 1; }
 message GetMediaExecutionRequest { string execution_id = 1; }
 message GetMediaExecutionResponse { MediaExecution execution = 1; }
+// WaitMediaExecution blocks server-side until the receipt becomes terminal.
+// Callers must not implement client-side polling loops for media work.
+message WaitMediaExecutionRequest { string execution_id = 1; }
+message WaitMediaExecutionResponse { MediaExecution execution = 1; }
 message CancelMediaExecutionRequest { string execution_id = 1; }
 message CancelMediaExecutionResponse { MediaExecution execution = 1; }
 message RetryMediaExecutionRequest { string execution_id = 1; string idempotency_key = 2; }
@@ -228,6 +232,7 @@ service RoutingService {
   rpc ExecuteRoute(ExecuteRouteRequest) returns (ExecuteRouteResponse);
   rpc SubmitMedia(SubmitMediaRequest) returns (SubmitMediaResponse);
   rpc GetMediaExecution(GetMediaExecutionRequest) returns (GetMediaExecutionResponse);
+  rpc WaitMediaExecution(WaitMediaExecutionRequest) returns (WaitMediaExecutionResponse);
   rpc CancelMediaExecution(CancelMediaExecutionRequest) returns (CancelMediaExecutionResponse);
   rpc RetryMediaExecution(RetryMediaExecutionRequest) returns (RetryMediaExecutionResponse);
   rpc ListRouteEvidence(ListRouteEvidenceRequest) returns (ListRouteEvidenceResponse);

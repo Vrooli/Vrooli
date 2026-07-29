@@ -63,9 +63,16 @@ type Identity struct {
 	PlatformId     string                 `protobuf:"bytes,2,opt,name=platform_id,json=platformId,proto3" json:"platform_id,omitempty"`
 	Purpose        string                 `protobuf:"bytes,3,opt,name=purpose,proto3" json:"purpose,omitempty"`
 	EnvironmentRef string                 `protobuf:"bytes,4,opt,name=environment_ref,json=environmentRef,proto3" json:"environment_ref,omitempty"`
-	VaultRef       string                 `protobuf:"bytes,5,opt,name=vault_ref,json=vaultRef,proto3" json:"vault_ref,omitempty"`
-	Status         string                 `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
-	LaneGrants     []string               `protobuf:"bytes,7,rep,name=lane_grants,json=laneGrants,proto3" json:"lane_grants,omitempty"`
+	// Intentionally never populated: Vault paths are operationally sensitive.
+	//
+	// Deprecated: Marked as deprecated in channel-manager/v1/channelmanager/channel_manager.proto.
+	VaultRef       string   `protobuf:"bytes,5,opt,name=vault_ref,json=vaultRef,proto3" json:"vault_ref,omitempty"`
+	Status         string   `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
+	LaneGrants     []string `protobuf:"bytes,7,rep,name=lane_grants,json=laneGrants,proto3" json:"lane_grants,omitempty"`
+	Handle         string   `protobuf:"bytes,8,opt,name=handle,proto3" json:"handle,omitempty"`
+	DisplayLabel   string   `protobuf:"bytes,9,opt,name=display_label,json=displayLabel,proto3" json:"display_label,omitempty"`
+	Lifecycle      string   `protobuf:"bytes,10,opt,name=lifecycle,proto3" json:"lifecycle,omitempty"`
+	AutomationMode string   `protobuf:"bytes,11,opt,name=automation_mode,json=automationMode,proto3" json:"automation_mode,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -128,6 +135,7 @@ func (x *Identity) GetEnvironmentRef() string {
 	return ""
 }
 
+// Deprecated: Marked as deprecated in channel-manager/v1/channelmanager/channel_manager.proto.
 func (x *Identity) GetVaultRef() string {
 	if x != nil {
 		return x.VaultRef
@@ -147,6 +155,34 @@ func (x *Identity) GetLaneGrants() []string {
 		return x.LaneGrants
 	}
 	return nil
+}
+
+func (x *Identity) GetHandle() string {
+	if x != nil {
+		return x.Handle
+	}
+	return ""
+}
+
+func (x *Identity) GetDisplayLabel() string {
+	if x != nil {
+		return x.DisplayLabel
+	}
+	return ""
+}
+
+func (x *Identity) GetLifecycle() string {
+	if x != nil {
+		return x.Lifecycle
+	}
+	return ""
+}
+
+func (x *Identity) GetAutomationMode() string {
+	if x != nil {
+		return x.AutomationMode
+	}
+	return ""
 }
 
 type Action struct {
@@ -387,8 +423,13 @@ type SubmitReleaseRequest struct {
 	Lane           string                 `protobuf:"bytes,2,opt,name=lane,proto3" json:"lane,omitempty"`
 	DraftId        string                 `protobuf:"bytes,3,opt,name=draft_id,json=draftId,proto3" json:"draft_id,omitempty"`
 	IdempotencyKey string                 `protobuf:"bytes,4,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Metadata-only Asset Studio identifiers. Channel Manager uses these to
+	// prevent cross-identity reuse after publication; it never receives bytes.
+	AssetIds []string `protobuf:"bytes,5,rep,name=asset_ids,json=assetIds,proto3" json:"asset_ids,omitempty"`
+	// Operator-confirmed result of the descriptor-driven rendered preview.
+	DisclosureVisible bool `protobuf:"varint,6,opt,name=disclosure_visible,json=disclosureVisible,proto3" json:"disclosure_visible,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *SubmitReleaseRequest) Reset() {
@@ -447,6 +488,20 @@ func (x *SubmitReleaseRequest) GetIdempotencyKey() string {
 		return x.IdempotencyKey
 	}
 	return ""
+}
+
+func (x *SubmitReleaseRequest) GetAssetIds() []string {
+	if x != nil {
+		return x.AssetIds
+	}
+	return nil
+}
+
+func (x *SubmitReleaseRequest) GetDisclosureVisible() bool {
+	if x != nil {
+		return x.DisclosureVisible
+	}
+	return false
 }
 
 type ReleaseReceipt struct {
@@ -769,6 +824,11 @@ type AssignAutomationRequest struct {
 	SessionProfileRef  string                 `protobuf:"bytes,2,opt,name=session_profile_ref,json=sessionProfileRef,proto3" json:"session_profile_ref,omitempty"`
 	EnabledActionKinds []string               `protobuf:"bytes,3,rep,name=enabled_action_kinds,json=enabledActionKinds,proto3" json:"enabled_action_kinds,omitempty"`
 	OperatorNote       string                 `protobuf:"bytes,4,opt,name=operator_note,json=operatorNote,proto3" json:"operator_note,omitempty"`
+	// Opaque BAS workflow UUID selected for this operator-approved action kind.
+	WorkflowRef string `protobuf:"bytes,5,opt,name=workflow_ref,json=workflowRef,proto3" json:"workflow_ref,omitempty"`
+	// Scenario-owned, non-secret profile key from the BAS consumer declaration.
+	// BAS remains unaware of this consumer-specific mapping.
+	ConsumerProfileKey string `protobuf:"bytes,6,opt,name=consumer_profile_key,json=consumerProfileKey,proto3" json:"consumer_profile_key,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -827,6 +887,20 @@ func (x *AssignAutomationRequest) GetEnabledActionKinds() []string {
 func (x *AssignAutomationRequest) GetOperatorNote() string {
 	if x != nil {
 		return x.OperatorNote
+	}
+	return ""
+}
+
+func (x *AssignAutomationRequest) GetWorkflowRef() string {
+	if x != nil {
+		return x.WorkflowRef
+	}
+	return ""
+}
+
+func (x *AssignAutomationRequest) GetConsumerProfileKey() string {
+	if x != nil {
+		return x.ConsumerProfileKey
 	}
 	return ""
 }
@@ -963,22 +1037,141 @@ func (x *DispatchBrowserActionResponse) GetExecutionId() string {
 	return ""
 }
 
+// A bounded BAS review projection. Artifact IDs are stable references only;
+// raw evidence bytes and all session material stay behind BAS's own policy.
+type GetBrowserExecutionReviewRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActionId      string                 `protobuf:"bytes,1,opt,name=action_id,json=actionId,proto3" json:"action_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetBrowserExecutionReviewRequest) Reset() {
+	*x = GetBrowserExecutionReviewRequest{}
+	mi := &file_channel_manager_v1_channelmanager_channel_manager_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBrowserExecutionReviewRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBrowserExecutionReviewRequest) ProtoMessage() {}
+
+func (x *GetBrowserExecutionReviewRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_channel_manager_v1_channelmanager_channel_manager_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBrowserExecutionReviewRequest.ProtoReflect.Descriptor instead.
+func (*GetBrowserExecutionReviewRequest) Descriptor() ([]byte, []int) {
+	return file_channel_manager_v1_channelmanager_channel_manager_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *GetBrowserExecutionReviewRequest) GetActionId() string {
+	if x != nil {
+		return x.ActionId
+	}
+	return ""
+}
+
+type GetBrowserExecutionReviewResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ExecutionId   string                 `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Failure       string                 `protobuf:"bytes,3,opt,name=failure,proto3" json:"failure,omitempty"`
+	ArtifactRefs  []string               `protobuf:"bytes,4,rep,name=artifact_refs,json=artifactRefs,proto3" json:"artifact_refs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetBrowserExecutionReviewResponse) Reset() {
+	*x = GetBrowserExecutionReviewResponse{}
+	mi := &file_channel_manager_v1_channelmanager_channel_manager_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBrowserExecutionReviewResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBrowserExecutionReviewResponse) ProtoMessage() {}
+
+func (x *GetBrowserExecutionReviewResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_channel_manager_v1_channelmanager_channel_manager_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBrowserExecutionReviewResponse.ProtoReflect.Descriptor instead.
+func (*GetBrowserExecutionReviewResponse) Descriptor() ([]byte, []int) {
+	return file_channel_manager_v1_channelmanager_channel_manager_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *GetBrowserExecutionReviewResponse) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *GetBrowserExecutionReviewResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *GetBrowserExecutionReviewResponse) GetFailure() string {
+	if x != nil {
+		return x.Failure
+	}
+	return ""
+}
+
+func (x *GetBrowserExecutionReviewResponse) GetArtifactRefs() []string {
+	if x != nil {
+		return x.ArtifactRefs
+	}
+	return nil
+}
+
 var File_channel_manager_v1_channelmanager_channel_manager_proto protoreflect.FileDescriptor
 
 const file_channel_manager_v1_channelmanager_channel_manager_proto_rawDesc = "" +
 	"\n" +
 	"7channel-manager/v1/channelmanager/channel_manager.proto\x12(vrooli.channel_manager.v1.channelmanager\"\x14\n" +
-	"\x12GetOverviewRequest\"\xd4\x01\n" +
+	"\x12GetOverviewRequest\"\xdc\x02\n" +
 	"\bIdentity\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vplatform_id\x18\x02 \x01(\tR\n" +
 	"platformId\x12\x18\n" +
 	"\apurpose\x18\x03 \x01(\tR\apurpose\x12'\n" +
-	"\x0fenvironment_ref\x18\x04 \x01(\tR\x0eenvironmentRef\x12\x1b\n" +
-	"\tvault_ref\x18\x05 \x01(\tR\bvaultRef\x12\x16\n" +
+	"\x0fenvironment_ref\x18\x04 \x01(\tR\x0eenvironmentRef\x12\x1f\n" +
+	"\tvault_ref\x18\x05 \x01(\tB\x02\x18\x01R\bvaultRef\x12\x16\n" +
 	"\x06status\x18\x06 \x01(\tR\x06status\x12\x1f\n" +
 	"\vlane_grants\x18\a \x03(\tR\n" +
-	"laneGrants\"\xa0\x01\n" +
+	"laneGrants\x12\x16\n" +
+	"\x06handle\x18\b \x01(\tR\x06handle\x12#\n" +
+	"\rdisplay_label\x18\t \x01(\tR\fdisplayLabel\x12\x1c\n" +
+	"\tlifecycle\x18\n" +
+	" \x01(\tR\tlifecycle\x12'\n" +
+	"\x0fautomation_mode\x18\v \x01(\tR\x0eautomationMode\"\xa0\x01\n" +
 	"\x06Action\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\videntity_id\x18\x02 \x01(\tR\n" +
@@ -997,13 +1190,15 @@ const file_channel_manager_v1_channelmanager_channel_manager_proto_rawDesc = "" 
 	"identityId\x12\x12\n" +
 	"\x04lane\x18\x02 \x01(\tR\x04lane\":\n" +
 	"\x16GetEligibilityResponse\x12 \n" +
-	"\veligibility\x18\x01 \x01(\tR\veligibility\"\x8f\x01\n" +
+	"\veligibility\x18\x01 \x01(\tR\veligibility\"\xdb\x01\n" +
 	"\x14SubmitReleaseRequest\x12\x1f\n" +
 	"\videntity_id\x18\x01 \x01(\tR\n" +
 	"identityId\x12\x12\n" +
 	"\x04lane\x18\x02 \x01(\tR\x04lane\x12\x19\n" +
 	"\bdraft_id\x18\x03 \x01(\tR\adraftId\x12'\n" +
-	"\x0fidempotency_key\x18\x04 \x01(\tR\x0eidempotencyKey\"\xf1\x01\n" +
+	"\x0fidempotency_key\x18\x04 \x01(\tR\x0eidempotencyKey\x12\x1b\n" +
+	"\tasset_ids\x18\x05 \x03(\tR\bassetIds\x12-\n" +
+	"\x12disclosure_visible\x18\x06 \x01(\bR\x11disclosureVisible\"\xf1\x01\n" +
 	"\x0eReleaseReceipt\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\bdraft_id\x18\x02 \x01(\tR\adraftId\x12\x1b\n" +
@@ -1022,20 +1217,30 @@ const file_channel_manager_v1_channelmanager_channel_manager_proto_rawDesc = "" 
 	"\x1aDeliverMetricSampleRequest\x12\x1b\n" +
 	"\tsample_id\x18\x01 \x01(\tR\bsampleId\"F\n" +
 	"\x1bDeliverMetricSampleResponse\x12'\n" +
-	"\x0fdelivery_status\x18\x01 \x01(\tR\x0edeliveryStatus\"\xc1\x01\n" +
+	"\x0fdelivery_status\x18\x01 \x01(\tR\x0edeliveryStatus\"\x96\x02\n" +
 	"\x17AssignAutomationRequest\x12\x1f\n" +
 	"\videntity_id\x18\x01 \x01(\tR\n" +
 	"identityId\x12.\n" +
 	"\x13session_profile_ref\x18\x02 \x01(\tR\x11sessionProfileRef\x120\n" +
 	"\x14enabled_action_kinds\x18\x03 \x03(\tR\x12enabledActionKinds\x12#\n" +
-	"\roperator_note\x18\x04 \x01(\tR\foperatorNote\";\n" +
+	"\roperator_note\x18\x04 \x01(\tR\foperatorNote\x12!\n" +
+	"\fworkflow_ref\x18\x05 \x01(\tR\vworkflowRef\x120\n" +
+	"\x14consumer_profile_key\x18\x06 \x01(\tR\x12consumerProfileKey\";\n" +
 	"\x18AssignAutomationResponse\x12\x1f\n" +
 	"\videntity_id\x18\x01 \x01(\tR\n" +
 	"identityId\";\n" +
 	"\x1cDispatchBrowserActionRequest\x12\x1b\n" +
 	"\taction_id\x18\x01 \x01(\tR\bactionId\"B\n" +
 	"\x1dDispatchBrowserActionResponse\x12!\n" +
-	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId2\xe4\b\n" +
+	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\"?\n" +
+	" GetBrowserExecutionReviewRequest\x12\x1b\n" +
+	"\taction_id\x18\x01 \x01(\tR\bactionId\"\x9d\x01\n" +
+	"!GetBrowserExecutionReviewResponse\x12!\n" +
+	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x18\n" +
+	"\afailure\x18\x03 \x01(\tR\afailure\x12#\n" +
+	"\rartifact_refs\x18\x04 \x03(\tR\fartifactRefs2\x9b\n" +
+	"\n" +
 	"\x15ChannelManagerService\x12\x8a\x01\n" +
 	"\vGetOverview\x12<.vrooli.channel_manager.v1.channelmanager.GetOverviewRequest\x1a=.vrooli.channel_manager.v1.channelmanager.GetOverviewResponse\x12\x93\x01\n" +
 	"\x0eGetEligibility\x12?.vrooli.channel_manager.v1.channelmanager.GetEligibilityRequest\x1a@.vrooli.channel_manager.v1.channelmanager.GetEligibilityResponse\x12\x90\x01\n" +
@@ -1043,7 +1248,8 @@ const file_channel_manager_v1_channelmanager_channel_manager_proto_rawDesc = "" 
 	"\x15DeliverReleaseOutcome\x12F.vrooli.channel_manager.v1.channelmanager.DeliverReleaseOutcomeRequest\x1aG.vrooli.channel_manager.v1.channelmanager.DeliverReleaseOutcomeResponse\x12\xa2\x01\n" +
 	"\x13DeliverMetricSample\x12D.vrooli.channel_manager.v1.channelmanager.DeliverMetricSampleRequest\x1aE.vrooli.channel_manager.v1.channelmanager.DeliverMetricSampleResponse\x12\x99\x01\n" +
 	"\x10AssignAutomation\x12A.vrooli.channel_manager.v1.channelmanager.AssignAutomationRequest\x1aB.vrooli.channel_manager.v1.channelmanager.AssignAutomationResponse\x12\xa8\x01\n" +
-	"\x15DispatchBrowserAction\x12F.vrooli.channel_manager.v1.channelmanager.DispatchBrowserActionRequest\x1aG.vrooli.channel_manager.v1.channelmanager.DispatchBrowserActionResponseBdZbgithub.com/vrooli/vrooli/packages/proto/gen/go/channel-manager/v1/channelmanager;channelmanager_v1b\x06proto3"
+	"\x15DispatchBrowserAction\x12F.vrooli.channel_manager.v1.channelmanager.DispatchBrowserActionRequest\x1aG.vrooli.channel_manager.v1.channelmanager.DispatchBrowserActionResponse\x12\xb4\x01\n" +
+	"\x19GetBrowserExecutionReview\x12J.vrooli.channel_manager.v1.channelmanager.GetBrowserExecutionReviewRequest\x1aK.vrooli.channel_manager.v1.channelmanager.GetBrowserExecutionReviewResponseBdZbgithub.com/vrooli/vrooli/packages/proto/gen/go/channel-manager/v1/channelmanager;channelmanager_v1b\x06proto3"
 
 var (
 	file_channel_manager_v1_channelmanager_channel_manager_proto_rawDescOnce sync.Once
@@ -1057,25 +1263,27 @@ func file_channel_manager_v1_channelmanager_channel_manager_proto_rawDescGZIP() 
 	return file_channel_manager_v1_channelmanager_channel_manager_proto_rawDescData
 }
 
-var file_channel_manager_v1_channelmanager_channel_manager_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_channel_manager_v1_channelmanager_channel_manager_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_channel_manager_v1_channelmanager_channel_manager_proto_goTypes = []any{
-	(*GetOverviewRequest)(nil),            // 0: vrooli.channel_manager.v1.channelmanager.GetOverviewRequest
-	(*Identity)(nil),                      // 1: vrooli.channel_manager.v1.channelmanager.Identity
-	(*Action)(nil),                        // 2: vrooli.channel_manager.v1.channelmanager.Action
-	(*GetOverviewResponse)(nil),           // 3: vrooli.channel_manager.v1.channelmanager.GetOverviewResponse
-	(*GetEligibilityRequest)(nil),         // 4: vrooli.channel_manager.v1.channelmanager.GetEligibilityRequest
-	(*GetEligibilityResponse)(nil),        // 5: vrooli.channel_manager.v1.channelmanager.GetEligibilityResponse
-	(*SubmitReleaseRequest)(nil),          // 6: vrooli.channel_manager.v1.channelmanager.SubmitReleaseRequest
-	(*ReleaseReceipt)(nil),                // 7: vrooli.channel_manager.v1.channelmanager.ReleaseReceipt
-	(*SubmitReleaseResponse)(nil),         // 8: vrooli.channel_manager.v1.channelmanager.SubmitReleaseResponse
-	(*DeliverReleaseOutcomeRequest)(nil),  // 9: vrooli.channel_manager.v1.channelmanager.DeliverReleaseOutcomeRequest
-	(*DeliverReleaseOutcomeResponse)(nil), // 10: vrooli.channel_manager.v1.channelmanager.DeliverReleaseOutcomeResponse
-	(*DeliverMetricSampleRequest)(nil),    // 11: vrooli.channel_manager.v1.channelmanager.DeliverMetricSampleRequest
-	(*DeliverMetricSampleResponse)(nil),   // 12: vrooli.channel_manager.v1.channelmanager.DeliverMetricSampleResponse
-	(*AssignAutomationRequest)(nil),       // 13: vrooli.channel_manager.v1.channelmanager.AssignAutomationRequest
-	(*AssignAutomationResponse)(nil),      // 14: vrooli.channel_manager.v1.channelmanager.AssignAutomationResponse
-	(*DispatchBrowserActionRequest)(nil),  // 15: vrooli.channel_manager.v1.channelmanager.DispatchBrowserActionRequest
-	(*DispatchBrowserActionResponse)(nil), // 16: vrooli.channel_manager.v1.channelmanager.DispatchBrowserActionResponse
+	(*GetOverviewRequest)(nil),                // 0: vrooli.channel_manager.v1.channelmanager.GetOverviewRequest
+	(*Identity)(nil),                          // 1: vrooli.channel_manager.v1.channelmanager.Identity
+	(*Action)(nil),                            // 2: vrooli.channel_manager.v1.channelmanager.Action
+	(*GetOverviewResponse)(nil),               // 3: vrooli.channel_manager.v1.channelmanager.GetOverviewResponse
+	(*GetEligibilityRequest)(nil),             // 4: vrooli.channel_manager.v1.channelmanager.GetEligibilityRequest
+	(*GetEligibilityResponse)(nil),            // 5: vrooli.channel_manager.v1.channelmanager.GetEligibilityResponse
+	(*SubmitReleaseRequest)(nil),              // 6: vrooli.channel_manager.v1.channelmanager.SubmitReleaseRequest
+	(*ReleaseReceipt)(nil),                    // 7: vrooli.channel_manager.v1.channelmanager.ReleaseReceipt
+	(*SubmitReleaseResponse)(nil),             // 8: vrooli.channel_manager.v1.channelmanager.SubmitReleaseResponse
+	(*DeliverReleaseOutcomeRequest)(nil),      // 9: vrooli.channel_manager.v1.channelmanager.DeliverReleaseOutcomeRequest
+	(*DeliverReleaseOutcomeResponse)(nil),     // 10: vrooli.channel_manager.v1.channelmanager.DeliverReleaseOutcomeResponse
+	(*DeliverMetricSampleRequest)(nil),        // 11: vrooli.channel_manager.v1.channelmanager.DeliverMetricSampleRequest
+	(*DeliverMetricSampleResponse)(nil),       // 12: vrooli.channel_manager.v1.channelmanager.DeliverMetricSampleResponse
+	(*AssignAutomationRequest)(nil),           // 13: vrooli.channel_manager.v1.channelmanager.AssignAutomationRequest
+	(*AssignAutomationResponse)(nil),          // 14: vrooli.channel_manager.v1.channelmanager.AssignAutomationResponse
+	(*DispatchBrowserActionRequest)(nil),      // 15: vrooli.channel_manager.v1.channelmanager.DispatchBrowserActionRequest
+	(*DispatchBrowserActionResponse)(nil),     // 16: vrooli.channel_manager.v1.channelmanager.DispatchBrowserActionResponse
+	(*GetBrowserExecutionReviewRequest)(nil),  // 17: vrooli.channel_manager.v1.channelmanager.GetBrowserExecutionReviewRequest
+	(*GetBrowserExecutionReviewResponse)(nil), // 18: vrooli.channel_manager.v1.channelmanager.GetBrowserExecutionReviewResponse
 }
 var file_channel_manager_v1_channelmanager_channel_manager_proto_depIdxs = []int32{
 	1,  // 0: vrooli.channel_manager.v1.channelmanager.GetOverviewResponse.identities:type_name -> vrooli.channel_manager.v1.channelmanager.Identity
@@ -1088,15 +1296,17 @@ var file_channel_manager_v1_channelmanager_channel_manager_proto_depIdxs = []int
 	11, // 7: vrooli.channel_manager.v1.channelmanager.ChannelManagerService.DeliverMetricSample:input_type -> vrooli.channel_manager.v1.channelmanager.DeliverMetricSampleRequest
 	13, // 8: vrooli.channel_manager.v1.channelmanager.ChannelManagerService.AssignAutomation:input_type -> vrooli.channel_manager.v1.channelmanager.AssignAutomationRequest
 	15, // 9: vrooli.channel_manager.v1.channelmanager.ChannelManagerService.DispatchBrowserAction:input_type -> vrooli.channel_manager.v1.channelmanager.DispatchBrowserActionRequest
-	3,  // 10: vrooli.channel_manager.v1.channelmanager.ChannelManagerService.GetOverview:output_type -> vrooli.channel_manager.v1.channelmanager.GetOverviewResponse
-	5,  // 11: vrooli.channel_manager.v1.channelmanager.ChannelManagerService.GetEligibility:output_type -> vrooli.channel_manager.v1.channelmanager.GetEligibilityResponse
-	8,  // 12: vrooli.channel_manager.v1.channelmanager.ChannelManagerService.SubmitRelease:output_type -> vrooli.channel_manager.v1.channelmanager.SubmitReleaseResponse
-	10, // 13: vrooli.channel_manager.v1.channelmanager.ChannelManagerService.DeliverReleaseOutcome:output_type -> vrooli.channel_manager.v1.channelmanager.DeliverReleaseOutcomeResponse
-	12, // 14: vrooli.channel_manager.v1.channelmanager.ChannelManagerService.DeliverMetricSample:output_type -> vrooli.channel_manager.v1.channelmanager.DeliverMetricSampleResponse
-	14, // 15: vrooli.channel_manager.v1.channelmanager.ChannelManagerService.AssignAutomation:output_type -> vrooli.channel_manager.v1.channelmanager.AssignAutomationResponse
-	16, // 16: vrooli.channel_manager.v1.channelmanager.ChannelManagerService.DispatchBrowserAction:output_type -> vrooli.channel_manager.v1.channelmanager.DispatchBrowserActionResponse
-	10, // [10:17] is the sub-list for method output_type
-	3,  // [3:10] is the sub-list for method input_type
+	17, // 10: vrooli.channel_manager.v1.channelmanager.ChannelManagerService.GetBrowserExecutionReview:input_type -> vrooli.channel_manager.v1.channelmanager.GetBrowserExecutionReviewRequest
+	3,  // 11: vrooli.channel_manager.v1.channelmanager.ChannelManagerService.GetOverview:output_type -> vrooli.channel_manager.v1.channelmanager.GetOverviewResponse
+	5,  // 12: vrooli.channel_manager.v1.channelmanager.ChannelManagerService.GetEligibility:output_type -> vrooli.channel_manager.v1.channelmanager.GetEligibilityResponse
+	8,  // 13: vrooli.channel_manager.v1.channelmanager.ChannelManagerService.SubmitRelease:output_type -> vrooli.channel_manager.v1.channelmanager.SubmitReleaseResponse
+	10, // 14: vrooli.channel_manager.v1.channelmanager.ChannelManagerService.DeliverReleaseOutcome:output_type -> vrooli.channel_manager.v1.channelmanager.DeliverReleaseOutcomeResponse
+	12, // 15: vrooli.channel_manager.v1.channelmanager.ChannelManagerService.DeliverMetricSample:output_type -> vrooli.channel_manager.v1.channelmanager.DeliverMetricSampleResponse
+	14, // 16: vrooli.channel_manager.v1.channelmanager.ChannelManagerService.AssignAutomation:output_type -> vrooli.channel_manager.v1.channelmanager.AssignAutomationResponse
+	16, // 17: vrooli.channel_manager.v1.channelmanager.ChannelManagerService.DispatchBrowserAction:output_type -> vrooli.channel_manager.v1.channelmanager.DispatchBrowserActionResponse
+	18, // 18: vrooli.channel_manager.v1.channelmanager.ChannelManagerService.GetBrowserExecutionReview:output_type -> vrooli.channel_manager.v1.channelmanager.GetBrowserExecutionReviewResponse
+	11, // [11:19] is the sub-list for method output_type
+	3,  // [3:11] is the sub-list for method input_type
 	3,  // [3:3] is the sub-list for extension type_name
 	3,  // [3:3] is the sub-list for extension extendee
 	0,  // [0:3] is the sub-list for field type_name
@@ -1113,7 +1323,7 @@ func file_channel_manager_v1_channelmanager_channel_manager_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_channel_manager_v1_channelmanager_channel_manager_proto_rawDesc), len(file_channel_manager_v1_channelmanager_channel_manager_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

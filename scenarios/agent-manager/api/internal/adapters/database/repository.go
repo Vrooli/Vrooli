@@ -11,6 +11,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/findings"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/runreport"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -31,6 +32,7 @@ type Repositories struct {
 	Stats                 repository.StatsRepository
 	InvestigationSettings repository.InvestigationSettingsRepository
 	Findings              findings.Repository
+	InvocationFacts       runreport.InvocationFactStore
 }
 
 // NewRepositories creates all repository implementations using the given database connection.
@@ -49,6 +51,7 @@ func NewRepositories(db *DB, log *logrus.Logger) *Repositories {
 		Stats:                 &statsRepository{db: db, log: log},
 		InvestigationSettings: &investigationSettingsRepository{db: db, log: log},
 		Findings:              findings.NewSQLiteRepository(db),
+		InvocationFacts:       &invocationFactRepository{db: db},
 	}
 }
 

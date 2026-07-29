@@ -108,6 +108,8 @@ func (a *App) runCommands() []cliapp.Command {
 	entries := []entry{
 		{"list", "List runs", "agent-manager run list [options]", a.runList}, {"get", "Get a run", "agent-manager run get <id> [--json]", a.runGet},
 		{"report", "Show bounded investigation diagnostics", "agent-manager run report <id> [--json]", a.runReport}, {"stats", "Show filtered aggregate run statistics", "agent-manager run stats [--profile UUID] [--since RFC3339] [--tag-prefix prefix]", a.runStats}, {"result", "Show final-output and structured-result provenance", "agent-manager run result <id>", a.runResult},
+		{"cohort-report", "Show ranked bounded cohort evidence", "agent-manager run cohort-report --run-ids id1,id2 [--json]", a.runCohortReport},
+		{"invocation-facts", "Show redacted normalized invocation evidence", "agent-manager run invocation-facts <id> [--json]", a.runInvocationFacts},
 		{"tools", "Show tool calls and failures", "agent-manager run tools <id> [--failed]", a.runTools}, {"messages", "Show recorded agent messages", "agent-manager run messages <id> [--all] [--range start:end] [--grep text]", a.runMessages},
 		{"receipts", "Show observed receipt state and evidence", "agent-manager run receipts <id> [--json]", a.runReceipts}, {"get-by-tag", "Get a run by tag", "agent-manager run get-by-tag <tag>", a.runGetByTag},
 		{"create", "Create and start a run", "agent-manager run create [options]", a.runCreate}, {"delete", "Delete a run", "agent-manager run delete <id>", a.runDelete},

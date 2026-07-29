@@ -48,6 +48,20 @@ const (
 	// StudioServiceCreateRenderProcedure is the fully-qualified name of the StudioService's
 	// CreateRender RPC.
 	StudioServiceCreateRenderProcedure = "/vrooli.asset_studio.v1.studio.StudioService/CreateRender"
+	// StudioServiceRegenerateRenderProcedure is the fully-qualified name of the StudioService's
+	// RegenerateRender RPC.
+	StudioServiceRegenerateRenderProcedure = "/vrooli.asset_studio.v1.studio.StudioService/RegenerateRender"
+	// StudioServiceAnalyzeConformanceProcedure is the fully-qualified name of the StudioService's
+	// AnalyzeConformance RPC.
+	StudioServiceAnalyzeConformanceProcedure = "/vrooli.asset_studio.v1.studio.StudioService/AnalyzeConformance"
+	// StudioServiceCommissionAgentProcedure is the fully-qualified name of the StudioService's
+	// CommissionAgent RPC.
+	StudioServiceCommissionAgentProcedure = "/vrooli.asset_studio.v1.studio.StudioService/CommissionAgent"
+	// StudioServiceSetCampaignBudgetProcedure is the fully-qualified name of the StudioService's
+	// SetCampaignBudget RPC.
+	StudioServiceSetCampaignBudgetProcedure = "/vrooli.asset_studio.v1.studio.StudioService/SetCampaignBudget"
+	// StudioServiceGetRenderProcedure is the fully-qualified name of the StudioService's GetRender RPC.
+	StudioServiceGetRenderProcedure = "/vrooli.asset_studio.v1.studio.StudioService/GetRender"
 	// StudioServiceSelectCandidateProcedure is the fully-qualified name of the StudioService's
 	// SelectCandidate RPC.
 	StudioServiceSelectCandidateProcedure = "/vrooli.asset_studio.v1.studio.StudioService/SelectCandidate"
@@ -72,6 +86,15 @@ type StudioServiceClient interface {
 	ReviseIdentity(context.Context, *connect.Request[studio.ReviseIdentityRequest]) (*connect.Response[studio.ReviseIdentityResponse], error)
 	ResolveSpec(context.Context, *connect.Request[studio.ResolveSpecRequest]) (*connect.Response[studio.ResolveSpecResponse], error)
 	CreateRender(context.Context, *connect.Request[studio.CreateRenderRequest]) (*connect.Response[studio.CreateRenderResponse], error)
+	// RegenerateRender creates a new durable render from an existing render's
+	// immutable resolved intent. It never marks an old output as regenerated.
+	RegenerateRender(context.Context, *connect.Request[studio.RegenerateRenderRequest]) (*connect.Response[studio.RegenerateRenderResponse], error)
+	// AnalyzeConformance records a producer-owned automated signal. It is
+	// advisory only and never replaces the operator verdict required for release.
+	AnalyzeConformance(context.Context, *connect.Request[studio.AnalyzeConformanceRequest]) (*connect.Response[studio.AnalyzeConformanceResponse], error)
+	CommissionAgent(context.Context, *connect.Request[studio.CommissionAgentRequest]) (*connect.Response[studio.CommissionAgentResponse], error)
+	SetCampaignBudget(context.Context, *connect.Request[studio.SetCampaignBudgetRequest]) (*connect.Response[studio.SetCampaignBudgetResponse], error)
+	GetRender(context.Context, *connect.Request[studio.GetRenderRequest]) (*connect.Response[studio.GetRenderResponse], error)
 	SelectCandidate(context.Context, *connect.Request[studio.SelectCandidateRequest]) (*connect.Response[studio.SelectCandidateResponse], error)
 	JudgeConformance(context.Context, *connect.Request[studio.JudgeConformanceRequest]) (*connect.Response[studio.JudgeConformanceResponse], error)
 	ReleaseAsset(context.Context, *connect.Request[studio.ReleaseAssetRequest]) (*connect.Response[studio.ReleaseAssetResponse], error)
@@ -120,6 +143,36 @@ func NewStudioServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(studioServiceMethods.ByName("CreateRender")),
 			connect.WithClientOptions(opts...),
 		),
+		regenerateRender: connect.NewClient[studio.RegenerateRenderRequest, studio.RegenerateRenderResponse](
+			httpClient,
+			baseURL+StudioServiceRegenerateRenderProcedure,
+			connect.WithSchema(studioServiceMethods.ByName("RegenerateRender")),
+			connect.WithClientOptions(opts...),
+		),
+		analyzeConformance: connect.NewClient[studio.AnalyzeConformanceRequest, studio.AnalyzeConformanceResponse](
+			httpClient,
+			baseURL+StudioServiceAnalyzeConformanceProcedure,
+			connect.WithSchema(studioServiceMethods.ByName("AnalyzeConformance")),
+			connect.WithClientOptions(opts...),
+		),
+		commissionAgent: connect.NewClient[studio.CommissionAgentRequest, studio.CommissionAgentResponse](
+			httpClient,
+			baseURL+StudioServiceCommissionAgentProcedure,
+			connect.WithSchema(studioServiceMethods.ByName("CommissionAgent")),
+			connect.WithClientOptions(opts...),
+		),
+		setCampaignBudget: connect.NewClient[studio.SetCampaignBudgetRequest, studio.SetCampaignBudgetResponse](
+			httpClient,
+			baseURL+StudioServiceSetCampaignBudgetProcedure,
+			connect.WithSchema(studioServiceMethods.ByName("SetCampaignBudget")),
+			connect.WithClientOptions(opts...),
+		),
+		getRender: connect.NewClient[studio.GetRenderRequest, studio.GetRenderResponse](
+			httpClient,
+			baseURL+StudioServiceGetRenderProcedure,
+			connect.WithSchema(studioServiceMethods.ByName("GetRender")),
+			connect.WithClientOptions(opts...),
+		),
 		selectCandidate: connect.NewClient[studio.SelectCandidateRequest, studio.SelectCandidateResponse](
 			httpClient,
 			baseURL+StudioServiceSelectCandidateProcedure,
@@ -160,6 +213,11 @@ type studioServiceClient struct {
 	reviseIdentity            *connect.Client[studio.ReviseIdentityRequest, studio.ReviseIdentityResponse]
 	resolveSpec               *connect.Client[studio.ResolveSpecRequest, studio.ResolveSpecResponse]
 	createRender              *connect.Client[studio.CreateRenderRequest, studio.CreateRenderResponse]
+	regenerateRender          *connect.Client[studio.RegenerateRenderRequest, studio.RegenerateRenderResponse]
+	analyzeConformance        *connect.Client[studio.AnalyzeConformanceRequest, studio.AnalyzeConformanceResponse]
+	commissionAgent           *connect.Client[studio.CommissionAgentRequest, studio.CommissionAgentResponse]
+	setCampaignBudget         *connect.Client[studio.SetCampaignBudgetRequest, studio.SetCampaignBudgetResponse]
+	getRender                 *connect.Client[studio.GetRenderRequest, studio.GetRenderResponse]
 	selectCandidate           *connect.Client[studio.SelectCandidateRequest, studio.SelectCandidateResponse]
 	judgeConformance          *connect.Client[studio.JudgeConformanceRequest, studio.JudgeConformanceResponse]
 	releaseAsset              *connect.Client[studio.ReleaseAssetRequest, studio.ReleaseAssetResponse]
@@ -190,6 +248,31 @@ func (c *studioServiceClient) ResolveSpec(ctx context.Context, req *connect.Requ
 // CreateRender calls vrooli.asset_studio.v1.studio.StudioService.CreateRender.
 func (c *studioServiceClient) CreateRender(ctx context.Context, req *connect.Request[studio.CreateRenderRequest]) (*connect.Response[studio.CreateRenderResponse], error) {
 	return c.createRender.CallUnary(ctx, req)
+}
+
+// RegenerateRender calls vrooli.asset_studio.v1.studio.StudioService.RegenerateRender.
+func (c *studioServiceClient) RegenerateRender(ctx context.Context, req *connect.Request[studio.RegenerateRenderRequest]) (*connect.Response[studio.RegenerateRenderResponse], error) {
+	return c.regenerateRender.CallUnary(ctx, req)
+}
+
+// AnalyzeConformance calls vrooli.asset_studio.v1.studio.StudioService.AnalyzeConformance.
+func (c *studioServiceClient) AnalyzeConformance(ctx context.Context, req *connect.Request[studio.AnalyzeConformanceRequest]) (*connect.Response[studio.AnalyzeConformanceResponse], error) {
+	return c.analyzeConformance.CallUnary(ctx, req)
+}
+
+// CommissionAgent calls vrooli.asset_studio.v1.studio.StudioService.CommissionAgent.
+func (c *studioServiceClient) CommissionAgent(ctx context.Context, req *connect.Request[studio.CommissionAgentRequest]) (*connect.Response[studio.CommissionAgentResponse], error) {
+	return c.commissionAgent.CallUnary(ctx, req)
+}
+
+// SetCampaignBudget calls vrooli.asset_studio.v1.studio.StudioService.SetCampaignBudget.
+func (c *studioServiceClient) SetCampaignBudget(ctx context.Context, req *connect.Request[studio.SetCampaignBudgetRequest]) (*connect.Response[studio.SetCampaignBudgetResponse], error) {
+	return c.setCampaignBudget.CallUnary(ctx, req)
+}
+
+// GetRender calls vrooli.asset_studio.v1.studio.StudioService.GetRender.
+func (c *studioServiceClient) GetRender(ctx context.Context, req *connect.Request[studio.GetRenderRequest]) (*connect.Response[studio.GetRenderResponse], error) {
+	return c.getRender.CallUnary(ctx, req)
 }
 
 // SelectCandidate calls vrooli.asset_studio.v1.studio.StudioService.SelectCandidate.
@@ -226,6 +309,15 @@ type StudioServiceHandler interface {
 	ReviseIdentity(context.Context, *connect.Request[studio.ReviseIdentityRequest]) (*connect.Response[studio.ReviseIdentityResponse], error)
 	ResolveSpec(context.Context, *connect.Request[studio.ResolveSpecRequest]) (*connect.Response[studio.ResolveSpecResponse], error)
 	CreateRender(context.Context, *connect.Request[studio.CreateRenderRequest]) (*connect.Response[studio.CreateRenderResponse], error)
+	// RegenerateRender creates a new durable render from an existing render's
+	// immutable resolved intent. It never marks an old output as regenerated.
+	RegenerateRender(context.Context, *connect.Request[studio.RegenerateRenderRequest]) (*connect.Response[studio.RegenerateRenderResponse], error)
+	// AnalyzeConformance records a producer-owned automated signal. It is
+	// advisory only and never replaces the operator verdict required for release.
+	AnalyzeConformance(context.Context, *connect.Request[studio.AnalyzeConformanceRequest]) (*connect.Response[studio.AnalyzeConformanceResponse], error)
+	CommissionAgent(context.Context, *connect.Request[studio.CommissionAgentRequest]) (*connect.Response[studio.CommissionAgentResponse], error)
+	SetCampaignBudget(context.Context, *connect.Request[studio.SetCampaignBudgetRequest]) (*connect.Response[studio.SetCampaignBudgetResponse], error)
+	GetRender(context.Context, *connect.Request[studio.GetRenderRequest]) (*connect.Response[studio.GetRenderResponse], error)
 	SelectCandidate(context.Context, *connect.Request[studio.SelectCandidateRequest]) (*connect.Response[studio.SelectCandidateResponse], error)
 	JudgeConformance(context.Context, *connect.Request[studio.JudgeConformanceRequest]) (*connect.Response[studio.JudgeConformanceResponse], error)
 	ReleaseAsset(context.Context, *connect.Request[studio.ReleaseAssetRequest]) (*connect.Response[studio.ReleaseAssetResponse], error)
@@ -270,6 +362,36 @@ func NewStudioServiceHandler(svc StudioServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(studioServiceMethods.ByName("CreateRender")),
 		connect.WithHandlerOptions(opts...),
 	)
+	studioServiceRegenerateRenderHandler := connect.NewUnaryHandler(
+		StudioServiceRegenerateRenderProcedure,
+		svc.RegenerateRender,
+		connect.WithSchema(studioServiceMethods.ByName("RegenerateRender")),
+		connect.WithHandlerOptions(opts...),
+	)
+	studioServiceAnalyzeConformanceHandler := connect.NewUnaryHandler(
+		StudioServiceAnalyzeConformanceProcedure,
+		svc.AnalyzeConformance,
+		connect.WithSchema(studioServiceMethods.ByName("AnalyzeConformance")),
+		connect.WithHandlerOptions(opts...),
+	)
+	studioServiceCommissionAgentHandler := connect.NewUnaryHandler(
+		StudioServiceCommissionAgentProcedure,
+		svc.CommissionAgent,
+		connect.WithSchema(studioServiceMethods.ByName("CommissionAgent")),
+		connect.WithHandlerOptions(opts...),
+	)
+	studioServiceSetCampaignBudgetHandler := connect.NewUnaryHandler(
+		StudioServiceSetCampaignBudgetProcedure,
+		svc.SetCampaignBudget,
+		connect.WithSchema(studioServiceMethods.ByName("SetCampaignBudget")),
+		connect.WithHandlerOptions(opts...),
+	)
+	studioServiceGetRenderHandler := connect.NewUnaryHandler(
+		StudioServiceGetRenderProcedure,
+		svc.GetRender,
+		connect.WithSchema(studioServiceMethods.ByName("GetRender")),
+		connect.WithHandlerOptions(opts...),
+	)
 	studioServiceSelectCandidateHandler := connect.NewUnaryHandler(
 		StudioServiceSelectCandidateProcedure,
 		svc.SelectCandidate,
@@ -312,6 +434,16 @@ func NewStudioServiceHandler(svc StudioServiceHandler, opts ...connect.HandlerOp
 			studioServiceResolveSpecHandler.ServeHTTP(w, r)
 		case StudioServiceCreateRenderProcedure:
 			studioServiceCreateRenderHandler.ServeHTTP(w, r)
+		case StudioServiceRegenerateRenderProcedure:
+			studioServiceRegenerateRenderHandler.ServeHTTP(w, r)
+		case StudioServiceAnalyzeConformanceProcedure:
+			studioServiceAnalyzeConformanceHandler.ServeHTTP(w, r)
+		case StudioServiceCommissionAgentProcedure:
+			studioServiceCommissionAgentHandler.ServeHTTP(w, r)
+		case StudioServiceSetCampaignBudgetProcedure:
+			studioServiceSetCampaignBudgetHandler.ServeHTTP(w, r)
+		case StudioServiceGetRenderProcedure:
+			studioServiceGetRenderHandler.ServeHTTP(w, r)
 		case StudioServiceSelectCandidateProcedure:
 			studioServiceSelectCandidateHandler.ServeHTTP(w, r)
 		case StudioServiceJudgeConformanceProcedure:
@@ -349,6 +481,26 @@ func (UnimplementedStudioServiceHandler) ResolveSpec(context.Context, *connect.R
 
 func (UnimplementedStudioServiceHandler) CreateRender(context.Context, *connect.Request[studio.CreateRenderRequest]) (*connect.Response[studio.CreateRenderResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.asset_studio.v1.studio.StudioService.CreateRender is not implemented"))
+}
+
+func (UnimplementedStudioServiceHandler) RegenerateRender(context.Context, *connect.Request[studio.RegenerateRenderRequest]) (*connect.Response[studio.RegenerateRenderResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.asset_studio.v1.studio.StudioService.RegenerateRender is not implemented"))
+}
+
+func (UnimplementedStudioServiceHandler) AnalyzeConformance(context.Context, *connect.Request[studio.AnalyzeConformanceRequest]) (*connect.Response[studio.AnalyzeConformanceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.asset_studio.v1.studio.StudioService.AnalyzeConformance is not implemented"))
+}
+
+func (UnimplementedStudioServiceHandler) CommissionAgent(context.Context, *connect.Request[studio.CommissionAgentRequest]) (*connect.Response[studio.CommissionAgentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.asset_studio.v1.studio.StudioService.CommissionAgent is not implemented"))
+}
+
+func (UnimplementedStudioServiceHandler) SetCampaignBudget(context.Context, *connect.Request[studio.SetCampaignBudgetRequest]) (*connect.Response[studio.SetCampaignBudgetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.asset_studio.v1.studio.StudioService.SetCampaignBudget is not implemented"))
+}
+
+func (UnimplementedStudioServiceHandler) GetRender(context.Context, *connect.Request[studio.GetRenderRequest]) (*connect.Response[studio.GetRenderResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.asset_studio.v1.studio.StudioService.GetRender is not implemented"))
 }
 
 func (UnimplementedStudioServiceHandler) SelectCandidate(context.Context, *connect.Request[studio.SelectCandidateRequest]) (*connect.Response[studio.SelectCandidateResponse], error) {

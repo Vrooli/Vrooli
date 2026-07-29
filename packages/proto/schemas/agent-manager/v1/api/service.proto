@@ -23,7 +23,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manage
 // @layer 3
 // @domain agent-manager
 // @imports common, domain/*
-// @stability beta
+// @stability experimental
 //
 // gRPC service definition for Agent Manager operations.
 // Defines CRUD operations for profiles, tasks, and runs, plus execution control.

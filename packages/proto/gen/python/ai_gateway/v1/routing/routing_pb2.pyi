@@ -239,6 +239,18 @@ class GetMediaExecutionResponse(_message.Message):
     execution: MediaExecution
     def __init__(self, execution: _Optional[_Union[MediaExecution, _Mapping]] = ...) -> None: ...
 
+class WaitMediaExecutionRequest(_message.Message):
+    __slots__ = ("execution_id",)
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    def __init__(self, execution_id: _Optional[str] = ...) -> None: ...
+
+class WaitMediaExecutionResponse(_message.Message):
+    __slots__ = ("execution",)
+    EXECUTION_FIELD_NUMBER: _ClassVar[int]
+    execution: MediaExecution
+    def __init__(self, execution: _Optional[_Union[MediaExecution, _Mapping]] = ...) -> None: ...
+
 class CancelMediaExecutionRequest(_message.Message):
     __slots__ = ("execution_id",)
     EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]

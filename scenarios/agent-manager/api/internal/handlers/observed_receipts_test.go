@@ -136,3 +136,27 @@ func TestGetObservedReceiptsReturnsConfiguredObservationState(t *testing.T) {
 		t.Fatalf("invalid limit status=%d body=%s", invalid.Code, invalid.Body.String())
 	}
 }
+
+func TestGetObservedReceiptsExcludesUnverifiedOrUncorrelatedEvidence(t *testing.T) {
+	runID := "01010101-0101-0101-0101-010101010101"
+	valid, err := protojson.Marshal(&eventspb.EventEnvelope{EventId: "verified", EventType: eventbus.ReceiptEventType, Attribution: &eventspb.EventAttribution{Verified: true}, Correlation: &eventspb.EventCorrelation{AgentRunId: runID}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	unverified, err := protojson.Marshal(&eventspb.EventEnvelope{EventId: "unverified", EventType: eventbus.ReceiptEventType, Attribution: &eventspb.EventAttribution{Verified: false}, Correlation: &eventspb.EventCorrelation{AgentRunId: runID}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wrongRun, err := protojson.Marshal(&eventspb.EventEnvelope{EventId: "wrong-run", EventType: eventbus.ReceiptEventType, Attribution: &eventspb.EventAttribution{Verified: true}, Correlation: &eventspb.EventCorrelation{AgentRunId: "02020202-0202-0202-0202-020202020202"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := verifiedReceiptObservations([]json.RawMessage{valid, unverified, wrongRun}, runID)
+	if len(got) != 1 {
+		t.Fatalf("verified receipts = %s", got)
+	}
+	var envelope eventspb.EventEnvelope
+	if err := protojson.Unmarshal(got[0], &envelope); err != nil || envelope.EventId != "verified" {
+		t.Fatalf("receipt=%s err=%v", got[0], err)
+	}
+}

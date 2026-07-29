@@ -25,8 +25,9 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/
 // Transport split (see docs/concepts/ARCHITECTURE.md):
 //   - DISCOVERY is Connect-RPC: AnalysisService.ListAnalysisOperations.
 //   - EXECUTION is a REST multipart edge (RESTReasonMultipartUpload):
-//     POST /api/v1/analysis/{operation} accepts the image (`file` part). The
-//     RESULT is proto-typed (AnalyzeResponse, a oneof over the per-op results).
+//     POST /api/v1/analysis/{operation} accepts the image (`file` part) or an
+//     Image Tools-owned `input_ref` multipart field (exactly one). The RESULT
+//     is proto-typed (AnalyzeResponse, a oneof over the per-op results).
 //
 // Consumed by:
 //   - API: handlers/analysis/connect_handler.go (ListAnalysisOperations) +

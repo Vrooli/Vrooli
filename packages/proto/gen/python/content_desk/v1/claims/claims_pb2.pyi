@@ -131,3 +131,59 @@ class GetClaimCoverageResponse(_message.Message):
     supported_spans: _containers.RepeatedCompositeFieldContainer[TextSpan]
     uncovered_spans: _containers.RepeatedCompositeFieldContainer[TextSpan]
     def __init__(self, supported_spans: _Optional[_Iterable[_Union[TextSpan, _Mapping]]] = ..., uncovered_spans: _Optional[_Iterable[_Union[TextSpan, _Mapping]]] = ...) -> None: ...
+
+class ClaimProposal(_message.Message):
+    __slots__ = ("id", "draft_id", "statement", "status", "created_at", "decided_at")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    DRAFT_ID_FIELD_NUMBER: _ClassVar[int]
+    STATEMENT_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    DECIDED_AT_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    draft_id: str
+    statement: str
+    status: str
+    created_at: str
+    decided_at: str
+    def __init__(self, id: _Optional[str] = ..., draft_id: _Optional[str] = ..., statement: _Optional[str] = ..., status: _Optional[str] = ..., created_at: _Optional[str] = ..., decided_at: _Optional[str] = ...) -> None: ...
+
+class ExtractClaimProposalsRequest(_message.Message):
+    __slots__ = ("draft_id", "body")
+    DRAFT_ID_FIELD_NUMBER: _ClassVar[int]
+    BODY_FIELD_NUMBER: _ClassVar[int]
+    draft_id: str
+    body: str
+    def __init__(self, draft_id: _Optional[str] = ..., body: _Optional[str] = ...) -> None: ...
+
+class ExtractClaimProposalsResponse(_message.Message):
+    __slots__ = ("proposals",)
+    PROPOSALS_FIELD_NUMBER: _ClassVar[int]
+    proposals: _containers.RepeatedCompositeFieldContainer[ClaimProposal]
+    def __init__(self, proposals: _Optional[_Iterable[_Union[ClaimProposal, _Mapping]]] = ...) -> None: ...
+
+class ListClaimProposalsRequest(_message.Message):
+    __slots__ = ("draft_id",)
+    DRAFT_ID_FIELD_NUMBER: _ClassVar[int]
+    draft_id: str
+    def __init__(self, draft_id: _Optional[str] = ...) -> None: ...
+
+class ListClaimProposalsResponse(_message.Message):
+    __slots__ = ("proposals",)
+    PROPOSALS_FIELD_NUMBER: _ClassVar[int]
+    proposals: _containers.RepeatedCompositeFieldContainer[ClaimProposal]
+    def __init__(self, proposals: _Optional[_Iterable[_Union[ClaimProposal, _Mapping]]] = ...) -> None: ...
+
+class DecideClaimProposalRequest(_message.Message):
+    __slots__ = ("id", "status")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    status: str
+    def __init__(self, id: _Optional[str] = ..., status: _Optional[str] = ...) -> None: ...
+
+class DecideClaimProposalResponse(_message.Message):
+    __slots__ = ("proposal",)
+    PROPOSAL_FIELD_NUMBER: _ClassVar[int]
+    proposal: ClaimProposal
+    def __init__(self, proposal: _Optional[_Union[ClaimProposal, _Mapping]] = ...) -> None: ...

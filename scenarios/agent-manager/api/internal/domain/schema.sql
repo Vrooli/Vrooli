@@ -35,6 +35,34 @@ CREATE TABLE IF NOT EXISTS agent_profiles (
 );
 
 CREATE INDEX IF NOT EXISTS idx_agent_profiles_name ON agent_profiles(name);
+
+-- Passive investigation projections are derived only from durable run events.
+-- They contain no raw tool input/output and can be deterministically rebuilt.
+CREATE TABLE IF NOT EXISTS investigation_invocation_facts (
+    run_id TEXT NOT NULL,
+    call_event_id TEXT NOT NULL,
+    result_event_id TEXT,
+    tool_call_id TEXT,
+    tool_name TEXT NOT NULL,
+    executable TEXT,
+    command_path TEXT,
+    ownership TEXT NOT NULL,
+    catalog_snapshot TEXT,
+    outcome TEXT NOT NULL,
+    retry_of_call_event_id TEXT,
+    help_recovery INTEGER NOT NULL DEFAULT 0,
+    fingerprint TEXT NOT NULL,
+    availability TEXT NOT NULL,
+    classifier_version TEXT NOT NULL,
+    PRIMARY KEY (run_id, call_event_id)
+);
+CREATE INDEX IF NOT EXISTS idx_investigation_invocation_facts_fingerprint ON investigation_invocation_facts(run_id, fingerprint);
+CREATE TABLE IF NOT EXISTS investigation_receipt_evidence (
+    run_id TEXT NOT NULL,
+    event_id TEXT NOT NULL,
+    availability TEXT NOT NULL,
+    PRIMARY KEY (run_id, event_id)
+);
 CREATE TRIGGER IF NOT EXISTS update_agent_profiles_updated_at
     AFTER UPDATE ON agent_profiles
     FOR EACH ROW

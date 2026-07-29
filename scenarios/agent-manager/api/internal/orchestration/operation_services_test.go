@@ -10,7 +10,8 @@ func TestHandlerServicesExposeOnlyTheConcreteCapabilityImplementations(t *testin
 		"runs": services.RunService, "approval": services.ApprovalService, "events": services.EventService,
 		"policy": services.PolicyService, "status": services.StatusService, "maintenance": services.MaintenanceService,
 		"investigation-settings": services.InvestigationSettingsService, "orchestration-settings": services.OrchestrationSettingsService,
-		"path-validation": services.PathValidationService, "identity": services.IdentityService, "project-root": services.ProjectRootService,
+		"path-validation": services.PathValidationService, "identity": services.IdentityService, "run-report": services.RunReportService,
+		"invocation-facts": services.InvocationFactService, "findings": services.FindingsService, "project-root": services.ProjectRootService,
 	} {
 		if got != o {
 			t.Fatalf("%s capability = %T, want orchestrator", name, got)
@@ -18,7 +19,7 @@ func TestHandlerServicesExposeOnlyTheConcreteCapabilityImplementations(t *testin
 	}
 
 	empty := EmptyHandlerServices()
-	if empty.ProfileService != nil || empty.RunService != nil || empty.StatusService != nil {
+	if empty.ProfileService != nil || empty.RunService != nil || empty.StatusService != nil || empty.InvocationFactService != nil {
 		t.Fatalf("empty handler services must not grant capabilities: %#v", empty)
 	}
 }

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "image-tools",
-  "input_digest": "sha256:c358b47c232120cbe269283ae26bbb62984b6093277cf0c8b7a48d6736163831",
+  "input_digest": "sha256:8e1439f843e892a838f8c5dadb15cbc939d2d19d7d913535408fe8c9ce109ab8",
   "input_files": [
     "schemas/image-tools/v1/adapters/adapters.proto",
     "schemas/image-tools/v1/ai/ai.proto",

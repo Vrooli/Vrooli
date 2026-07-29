@@ -9,6 +9,11 @@ service ArtifactsService {
   rpc ListDrafts(ListDraftsRequest) returns (ListDraftsResponse);
   rpc CreateDraft(CreateDraftRequest) returns (CreateDraftResponse);
   rpc UpdateDraftBody(UpdateDraftBodyRequest) returns (UpdateDraftBodyResponse);
+  rpc AttachReleasedAsset(AttachReleasedAssetRequest) returns (AttachReleasedAssetResponse);
+  rpc ListDraftAttachments(ListDraftAttachmentsRequest) returns (ListDraftAttachmentsResponse);
+  rpc CommissionAgentWork(CommissionAgentWorkRequest) returns (CommissionAgentWorkResponse);
+  rpc GetAgentWorkResult(GetAgentWorkResultRequest) returns (GetAgentWorkResultResponse);
+  rpc AdoptAgentSuggestion(AdoptAgentSuggestionRequest) returns (AdoptAgentSuggestionResponse);
   rpc SubmitReleaseDraft(SubmitReleaseDraftRequest) returns (SubmitReleaseDraftResponse);
   rpc RecordReleaseOutcome(RecordReleaseOutcomeRequest) returns (RecordReleaseOutcomeResponse);
   rpc TransitionDraft(TransitionDraftRequest) returns (TransitionDraftResponse);
@@ -55,6 +60,38 @@ message UpdateDraftBodyResponse {
   Draft draft = 1;
 }
 
+// DraftAttachment carries Asset Studio metadata only. Artifact bytes remain
+// behind the Asset Studio BlobStore boundary.
+message DraftAttachment {
+  string id = 1;
+  string draft_id = 2;
+  string asset_id = 3;
+  string role = 4;
+  string aspect_ratio = 5;
+  string alt_text = 6;
+  int32 position = 7;
+}
+message AttachReleasedAssetRequest {
+  string draft_id = 1;
+  string asset_id = 2;
+  string role = 3;
+  string aspect_ratio = 4;
+  string alt_text = 5;
+  int32 position = 6;
+}
+message AttachReleasedAssetResponse { DraftAttachment attachment = 1; }
+message ListDraftAttachmentsRequest { string draft_id = 1; }
+message ListDraftAttachmentsResponse { repeated DraftAttachment attachments = 1; }
+
+// CommissionAgentWork starts only a declared, read-only Agent Manager profile.
+// Its output remains an operator-editable suggestion and can never approve or publish.
+message CommissionAgentWorkRequest { string draft_id = 1; string action = 2; }
+message CommissionAgentWorkResponse { string commission_id = 1; string task_id = 2; string run_id = 3; string status = 4; }
+message GetAgentWorkResultRequest { string commission_id = 1; }
+message GetAgentWorkResultResponse { string run_id = 1; string status = 2; string body = 3; }
+message AdoptAgentSuggestionRequest { string commission_id = 1; string body = 2; }
+message AdoptAgentSuggestionResponse { Draft draft = 1; }
+
 // SubmitReleaseDraft asks Channel Manager to own a durable release action.
 // It does not assert that a platform post exists; that outcome returns later
 // through Content Desk's idempotent release-receipt inbox.
@@ -63,6 +100,9 @@ message SubmitReleaseDraftRequest {
   string identity_id = 2;
   string lane = 3;
   string idempotency_key = 4;
+  // Confirmation from the descriptor-derived preview. This must be true for
+  // a persona identity whose target platform requires AI disclosure.
+  bool disclosure_visible = 5;
 }
 message SubmitReleaseDraftResponse {
   Draft draft = 1;

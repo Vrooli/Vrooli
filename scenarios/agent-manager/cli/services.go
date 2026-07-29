@@ -886,6 +886,16 @@ func (s *RunService) Investigate(req json.RawMessage) ([]byte, *domainpb.Run, er
 	return body, resp.Run, nil
 }
 
+// CohortReport reads the bounded multi-run projection. The service deliberately
+// accepts only explicit run IDs; it never requests a bulk transcript endpoint.
+func (s *RunService) CohortReport(runIDs string) ([]byte, error) {
+	return s.api.Request("GET", "/api/v1/runs/cohort-report", url.Values{"run_ids": []string{runIDs}}, nil)
+}
+
+func (s *RunService) InvocationFacts(id string) ([]byte, error) {
+	return s.api.Request("GET", "/api/v1/runs/"+id+"/invocation-facts", nil, nil)
+}
+
 // InvestigationApply creates a run that applies investigation recommendations.
 func (s *RunService) InvestigationApply(req json.RawMessage) ([]byte, *domainpb.Run, error) {
 	body, err := s.api.Request("POST", "/api/v1/runs/investigation-apply", nil, req)

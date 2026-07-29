@@ -40,6 +40,8 @@ import (
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/filerouting"
+	eventspb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // OrchestratorDependencies is the runtime service graph assembled by the
@@ -192,10 +194,19 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		if err != nil {
 			return runreport.ReceiptSummary{}, err
 		}
-		if len(observations) == 0 {
+		verified := 0
+		eventIDs := []string{}
+		for _, raw := range observations {
+			envelope := &eventspb.EventEnvelope{}
+			if protojson.Unmarshal(raw, envelope) == nil && envelope.EventType == eventbus.ReceiptEventType && envelope.Attribution != nil && envelope.Attribution.Verified && envelope.Correlation != nil && envelope.Correlation.AgentRunId == id.String() {
+				verified++
+				eventIDs = append(eventIDs, envelope.EventId)
+			}
+		}
+		if verified == 0 {
 			return runreport.ReceiptSummary{State: "unobserved"}, nil
 		}
-		return runreport.ReceiptSummary{State: "available", Count: len(observations)}, nil
+		return runreport.ReceiptSummary{State: "available", Count: verified, EventIDs: eventIDs}, nil
 	})
 	opts := []orchestration.Option{
 		orchestration.WithConfig(orchConfig), orchestration.WithEvents(eventStore), orchestration.WithRunners(registry), orchestration.WithSandbox(sandboxProvider),
@@ -205,7 +216,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		orchestration.WithStructuredExtractor(extractor), orchestration.WithHealthStore(healthStore), orchestration.WithInvestigationSettings(repos.InvestigationSettings),
 		orchestration.WithPromptClient(promptmanager.NewHTTPClient()), orchestration.WithFlagValidator(flagValidator), orchestration.WithAttachmentStorage(uploads),
 		orchestration.WithOrchestrationSettings(settingsStore), orchestration.WithIdentitySecret(identitySecret), orchestration.WithSpawnDispatcher(spawnDispatcher),
-		orchestration.WithRunStateRootResolver(runStateResolver), orchestration.WithArtifacts(artifactCollector), orchestration.WithReceiptSummaryReader(receiptReader), orchestration.WithFindings(repos.Findings),
+		orchestration.WithRunStateRootResolver(runStateResolver), orchestration.WithArtifacts(artifactCollector), orchestration.WithReceiptSummaryReader(receiptReader), orchestration.WithFindings(repos.Findings), orchestration.WithInvocationFactStore(repos.InvocationFacts),
 	}
 	if interactiveSessions != nil {
 		opts = append(opts, orchestration.WithInteractiveSessions(interactiveSessions), orchestration.WithWebConsoleUIBase(webconsole.ResolveUIBaseURL()))

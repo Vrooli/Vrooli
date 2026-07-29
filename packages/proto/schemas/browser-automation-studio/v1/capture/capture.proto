@@ -157,6 +157,11 @@ message CaptureArtifact {
   map<string, string> metadata = 4;
   // True only for the final screenshot produced by a successful capture.
   bool primary = 5;
+  // Opaque, storage-owner-controlled reference to this artifact. Consumers
+  // must use this instead of the server-local path when crossing scenarios.
+  // It is stable for the retained capture bundle and deliberately carries no
+  // filesystem topology or provider URL.
+  string reference = 6;
 }
 
 message CaptureResponse {

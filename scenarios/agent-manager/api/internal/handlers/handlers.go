@@ -186,8 +186,10 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/quiesce", h.QuiesceScenario).Methods("POST") // Must be before /{id}
 	r.HandleFunc("/api/v1/runs/tag/{tag}", h.GetRunByTag).Methods("GET")
 	r.HandleFunc("/api/v1/runs/tag/{tag}/stop", h.StopRunByTag).Methods("POST")
+	r.HandleFunc("/api/v1/runs/cohort-report", h.GetCohortReport).Methods("GET") // Must be before /{id}
 	r.HandleFunc("/api/v1/runs/{id}", h.GetRun).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/report", h.GetRunReport).Methods("GET")
+	r.HandleFunc("/api/v1/runs/{id}/invocation-facts", h.GetInvocationFacts).Methods("GET")
 	r.HandleFunc("/api/v1/findings", h.ListFindings).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/observed-receipts", h.GetObservedReceipts).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/audit-transcript", h.GetAuditTranscript).Methods("GET")

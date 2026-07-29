@@ -1,0 +1,12 @@
+syntax = "proto3";
+package vrooli.asset_studio.v1.search;
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/asset-studio/v1/search;search_v1";
+
+// SearchService is Asset Studio's metadata-only Search Hub leaf. It never
+// returns artifact bytes, storage keys, credentials, or unreviewed prompts.
+service SearchService { rpc Search(SearchRequest) returns (SearchResponse); rpc Status(StatusRequest) returns (StatusResponse); }
+message SearchRequest { string query = 1; int32 limit = 2; }
+message SearchResult { string id = 1; string title = 2; string snippet = 3; double score = 4; string kind = 5; }
+message SearchResponse { repeated SearchResult results = 1; }
+message StatusRequest {}
+message StatusResponse { bool available = 1; int32 indexed_count = 2; }

@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file content-desk/v1/artifacts/artifacts.proto.
  */
 export const file_content_desk_v1_artifacts_artifacts: GenFile = /*@__PURE__*/
-  fileDesc("Ciljb250ZW50LWRlc2svdjEvYXJ0aWZhY3RzL2FydGlmYWN0cy5wcm90bxIgdnJvb2xpLmNvbnRlbnRfZGVzay52MS5hcnRpZmFjdHMimAEKBURyYWZ0EgoKAmlkGAEgASgJEhMKC2NhbXBhaWduX2lkGAIgASgJEg4KBnN0YXR1cxgDIAEoCRIUCgxwb3N0X3R5cGVfaWQYBCABKAkSDAoEYm9keRgFIAEoCRIPCgdjaGFubmVsGAYgASgJEg4KBmZvcm1hdBgHIAEoCRIMCgRsYW5lGAggASgJEgsKA3NrdRgJIAEoCSITChFMaXN0RHJhZnRzUmVxdWVzdCJNChJMaXN0RHJhZnRzUmVzcG9uc2USNwoGZHJhZnRzGAEgAygLMicudnJvb2xpLmNvbnRlbnRfZGVzay52MS5hcnRpZmFjdHMuRHJhZnQiiQEKEkNyZWF0ZURyYWZ0UmVxdWVzdBITCgtjYW1wYWlnbl9pZBgBIAEoCRIUCgxwb3N0X3R5cGVfaWQYAiABKAkSDAoEYm9keRgDIAEoCRIPCgdjaGFubmVsGAQgASgJEg4KBmZvcm1hdBgFIAEoCRIMCgRsYW5lGAYgASgJEgsKA3NrdRgHIAEoCSJNChNDcmVhdGVEcmFmdFJlc3BvbnNlEjYKBWRyYWZ0GAEgASgLMicudnJvb2xpLmNvbnRlbnRfZGVzay52MS5hcnRpZmFjdHMuRHJhZnQiMgoWVXBkYXRlRHJhZnRCb2R5UmVxdWVzdBIKCgJpZBgBIAEoCRIMCgRib2R5GAIgASgJIlEKF1VwZGF0ZURyYWZ0Qm9keVJlc3BvbnNlEjYKBWRyYWZ0GAEgASgLMicudnJvb2xpLmNvbnRlbnRfZGVzay52MS5hcnRpZmFjdHMuRHJhZnQiYwoZU3VibWl0UmVsZWFzZURyYWZ0UmVxdWVzdBIKCgJpZBgBIAEoCRITCgtpZGVudGl0eV9pZBgCIAEoCRIMCgRsYW5lGAMgASgJEhcKD2lkZW1wb3RlbmN5X2tleRgEIAEoCSKTAQoaU3VibWl0UmVsZWFzZURyYWZ0UmVzcG9uc2USNgoFZHJhZnQYASABKAsyJy52cm9vbGkuY29udGVudF9kZXNrLnYxLmFydGlmYWN0cy5EcmFmdBISCgpyZWxlYXNlX2lkGAIgASgJEhEKCWFjdGlvbl9pZBgDIAEoCRIWCg5yZWxlYXNlX3N0YXR1cxgEIAEoCSKaAQobUmVjb3JkUmVsZWFzZU91dGNvbWVSZXF1ZXN0EhIKCnJlY2VpcHRfaWQYASABKAkSEAoIZHJhZnRfaWQYAiABKAkSDgoGc3RhdHVzGAMgASgJEhgKEHBsYXRmb3JtX3Bvc3RfaWQYBCABKAkSFQoNcHVibGlzaGVkX3VybBgFIAEoCRIUCgxwdWJsaXNoZWRfYXQYBiABKAkicQocUmVjb3JkUmVsZWFzZU91dGNvbWVSZXNwb25zZRI2CgVkcmFmdBgBIAEoCzInLnZyb29saS5jb250ZW50X2Rlc2sudjEuYXJ0aWZhY3RzLkRyYWZ0EhkKEXB1Ymxpc2hfcmVjb3JkX2lkGAIgASgJIjMKFlRyYW5zaXRpb25EcmFmdFJlcXVlc3QSCgoCaWQYASABKAkSDQoFZXZlbnQYAiABKAkiUQoXVHJhbnNpdGlvbkRyYWZ0UmVzcG9uc2USNgoFZHJhZnQYASABKAsyJy52cm9vbGkuY29udGVudF9kZXNrLnYxLmFydGlmYWN0cy5EcmFmdCJEChNBcHByb3ZlRHJhZnRSZXF1ZXN0EgoKAmlkGAEgASgJEhMKC2lkZW50aXR5X2lkGAIgASgJEgwKBGxhbmUYAyABKAkiTgoUQXBwcm92ZURyYWZ0UmVzcG9uc2USNgoFZHJhZnQYASABKAsyJy52cm9vbGkuY29udGVudF9kZXNrLnYxLmFydGlmYWN0cy5EcmFmdDLCBwoQQXJ0aWZhY3RzU2VydmljZRJ3CgpMaXN0RHJhZnRzEjMudnJvb2xpLmNvbnRlbnRfZGVzay52MS5hcnRpZmFjdHMuTGlzdERyYWZ0c1JlcXVlc3QaNC52cm9vbGkuY29udGVudF9kZXNrLnYxLmFydGlmYWN0cy5MaXN0RHJhZnRzUmVzcG9uc2USegoLQ3JlYXRlRHJhZnQSNC52cm9vbGkuY29udGVudF9kZXNrLnYxLmFydGlmYWN0cy5DcmVhdGVEcmFmdFJlcXVlc3QaNS52cm9vbGkuY29udGVudF9kZXNrLnYxLmFydGlmYWN0cy5DcmVhdGVEcmFmdFJlc3BvbnNlEoYBCg9VcGRhdGVEcmFmdEJvZHkSOC52cm9vbGkuY29udGVudF9kZXNrLnYxLmFydGlmYWN0cy5VcGRhdGVEcmFmdEJvZHlSZXF1ZXN0GjkudnJvb2xpLmNvbnRlbnRfZGVzay52MS5hcnRpZmFjdHMuVXBkYXRlRHJhZnRCb2R5UmVzcG9uc2USjwEKElN1Ym1pdFJlbGVhc2VEcmFmdBI7LnZyb29saS5jb250ZW50X2Rlc2sudjEuYXJ0aWZhY3RzLlN1Ym1pdFJlbGVhc2VEcmFmdFJlcXVlc3QaPC52cm9vbGkuY29udGVudF9kZXNrLnYxLmFydGlmYWN0cy5TdWJtaXRSZWxlYXNlRHJhZnRSZXNwb25zZRKVAQoUUmVjb3JkUmVsZWFzZU91dGNvbWUSPS52cm9vbGkuY29udGVudF9kZXNrLnYxLmFydGlmYWN0cy5SZWNvcmRSZWxlYXNlT3V0Y29tZVJlcXVlc3QaPi52cm9vbGkuY29udGVudF9kZXNrLnYxLmFydGlmYWN0cy5SZWNvcmRSZWxlYXNlT3V0Y29tZVJlc3BvbnNlEoYBCg9UcmFuc2l0aW9uRHJhZnQSOC52cm9vbGkuY29udGVudF9kZXNrLnYxLmFydGlmYWN0cy5UcmFuc2l0aW9uRHJhZnRSZXF1ZXN0GjkudnJvb2xpLmNvbnRlbnRfZGVzay52MS5hcnRpZmFjdHMuVHJhbnNpdGlvbkRyYWZ0UmVzcG9uc2USfQoMQXBwcm92ZURyYWZ0EjUudnJvb2xpLmNvbnRlbnRfZGVzay52MS5hcnRpZmFjdHMuQXBwcm92ZURyYWZ0UmVxdWVzdBo2LnZyb29saS5jb250ZW50X2Rlc2sudjEuYXJ0aWZhY3RzLkFwcHJvdmVEcmFmdFJlc3BvbnNlQldaVWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vY29udGVudC1kZXNrL3YxL2FydGlmYWN0czthcnRpZmFjdHNfdjFiBnByb3RvMw");
+  fileDesc("Ciljb250ZW50LWRlc2svdjEvYXJ0aWZhY3RzL2FydGlmYWN0cy5wcm90bxIgdnJvb2xpLmNvbnRlbnRfZGVzay52MS5hcnRpZmFjdHMimAEKBURyYWZ0EgoKAmlkGAEgASgJEhMKC2NhbXBhaWduX2lkGAIgASgJEg4KBnN0YXR1cxgDIAEoCRIUCgxwb3N0X3R5cGVfaWQYBCABKAkSDAoEYm9keRgFIAEoCRIPCgdjaGFubmVsGAYgASgJEg4KBmZvcm1hdBgHIAEoCRIMCgRsYW5lGAggASgJEgsKA3NrdRgJIAEoCSITChFMaXN0RHJhZnRzUmVxdWVzdCJNChJMaXN0RHJhZnRzUmVzcG9uc2USNwoGZHJhZnRzGAEgAygLMicudnJvb2xpLmNvbnRlbnRfZGVzay52MS5hcnRpZmFjdHMuRHJhZnQiiQEKEkNyZWF0ZURyYWZ0UmVxdWVzdBITCgtjYW1wYWlnbl9pZBgBIAEoCRIUCgxwb3N0X3R5cGVfaWQYAiABKAkSDAoEYm9keRgDIAEoCRIPCgdjaGFubmVsGAQgASgJEg4KBmZvcm1hdBgFIAEoCRIMCgRsYW5lGAYgASgJEgsKA3NrdRgHIAEoCSJNChNDcmVhdGVEcmFmdFJlc3BvbnNlEjYKBWRyYWZ0GAEgASgLMicudnJvb2xpLmNvbnRlbnRfZGVzay52MS5hcnRpZmFjdHMuRHJhZnQiMgoWVXBkYXRlRHJhZnRCb2R5UmVxdWVzdBIKCgJpZBgBIAEoCRIMCgRib2R5GAIgASgJIlEKF1VwZGF0ZURyYWZ0Qm9keVJlc3BvbnNlEjYKBWRyYWZ0GAEgASgLMicudnJvb2xpLmNvbnRlbnRfZGVzay52MS5hcnRpZmFjdHMuRHJhZnQiiQEKD0RyYWZ0QXR0YWNobWVudBIKCgJpZBgBIAEoCRIQCghkcmFmdF9pZBgCIAEoCRIQCghhc3NldF9pZBgDIAEoCRIMCgRyb2xlGAQgASgJEhQKDGFzcGVjdF9yYXRpbxgFIAEoCRIQCghhbHRfdGV4dBgGIAEoCRIQCghwb3NpdGlvbhgHIAEoBSKIAQoaQXR0YWNoUmVsZWFzZWRBc3NldFJlcXVlc3QSEAoIZHJhZnRfaWQYASABKAkSEAoIYXNzZXRfaWQYAiABKAkSDAoEcm9sZRgDIAEoCRIUCgxhc3BlY3RfcmF0aW8YBCABKAkSEAoIYWx0X3RleHQYBSABKAkSEAoIcG9zaXRpb24YBiABKAUiZAobQXR0YWNoUmVsZWFzZWRBc3NldFJlc3BvbnNlEkUKCmF0dGFjaG1lbnQYASABKAsyMS52cm9vbGkuY29udGVudF9kZXNrLnYxLmFydGlmYWN0cy5EcmFmdEF0dGFjaG1lbnQiLwobTGlzdERyYWZ0QXR0YWNobWVudHNSZXF1ZXN0EhAKCGRyYWZ0X2lkGAEgASgJImYKHExpc3REcmFmdEF0dGFjaG1lbnRzUmVzcG9uc2USRgoLYXR0YWNobWVudHMYASADKAsyMS52cm9vbGkuY29udGVudF9kZXNrLnYxLmFydGlmYWN0cy5EcmFmdEF0dGFjaG1lbnQiPgoaQ29tbWlzc2lvbkFnZW50V29ya1JlcXVlc3QSEAoIZHJhZnRfaWQYASABKAkSDgoGYWN0aW9uGAIgASgJImUKG0NvbW1pc3Npb25BZ2VudFdvcmtSZXNwb25zZRIVCg1jb21taXNzaW9uX2lkGAEgASgJEg8KB3Rhc2tfaWQYAiABKAkSDgoGcnVuX2lkGAMgASgJEg4KBnN0YXR1cxgEIAEoCSIyChlHZXRBZ2VudFdvcmtSZXN1bHRSZXF1ZXN0EhUKDWNvbW1pc3Npb25faWQYASABKAkiSgoaR2V0QWdlbnRXb3JrUmVzdWx0UmVzcG9uc2USDgoGcnVuX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIMCgRib2R5GAMgASgJIkIKG0Fkb3B0QWdlbnRTdWdnZXN0aW9uUmVxdWVzdBIVCg1jb21taXNzaW9uX2lkGAEgASgJEgwKBGJvZHkYAiABKAkiVgocQWRvcHRBZ2VudFN1Z2dlc3Rpb25SZXNwb25zZRI2CgVkcmFmdBgBIAEoCzInLnZyb29saS5jb250ZW50X2Rlc2sudjEuYXJ0aWZhY3RzLkRyYWZ0In8KGVN1Ym1pdFJlbGVhc2VEcmFmdFJlcXVlc3QSCgoCaWQYASABKAkSEwoLaWRlbnRpdHlfaWQYAiABKAkSDAoEbGFuZRgDIAEoCRIXCg9pZGVtcG90ZW5jeV9rZXkYBCABKAkSGgoSZGlzY2xvc3VyZV92aXNpYmxlGAUgASgIIpMBChpTdWJtaXRSZWxlYXNlRHJhZnRSZXNwb25zZRI2CgVkcmFmdBgBIAEoCzInLnZyb29saS5jb250ZW50X2Rlc2sudjEuYXJ0aWZhY3RzLkRyYWZ0EhIKCnJlbGVhc2VfaWQYAiABKAkSEQoJYWN0aW9uX2lkGAMgASgJEhYKDnJlbGVhc2Vfc3RhdHVzGAQgASgJIpoBChtSZWNvcmRSZWxlYXNlT3V0Y29tZVJlcXVlc3QSEgoKcmVjZWlwdF9pZBgBIAEoCRIQCghkcmFmdF9pZBgCIAEoCRIOCgZzdGF0dXMYAyABKAkSGAoQcGxhdGZvcm1fcG9zdF9pZBgEIAEoCRIVCg1wdWJsaXNoZWRfdXJsGAUgASgJEhQKDHB1Ymxpc2hlZF9hdBgGIAEoCSJxChxSZWNvcmRSZWxlYXNlT3V0Y29tZVJlc3BvbnNlEjYKBWRyYWZ0GAEgASgLMicudnJvb2xpLmNvbnRlbnRfZGVzay52MS5hcnRpZmFjdHMuRHJhZnQSGQoRcHVibGlzaF9yZWNvcmRfaWQYAiABKAkiMwoWVHJhbnNpdGlvbkRyYWZ0UmVxdWVzdBIKCgJpZBgBIAEoCRINCgVldmVudBgCIAEoCSJRChdUcmFuc2l0aW9uRHJhZnRSZXNwb25zZRI2CgVkcmFmdBgBIAEoCzInLnZyb29saS5jb250ZW50X2Rlc2sudjEuYXJ0aWZhY3RzLkRyYWZ0IkQKE0FwcHJvdmVEcmFmdFJlcXVlc3QSCgoCaWQYASABKAkSEwoLaWRlbnRpdHlfaWQYAiABKAkSDAoEbGFuZRgDIAEoCSJOChRBcHByb3ZlRHJhZnRSZXNwb25zZRI2CgVkcmFmdBgBIAEoCzInLnZyb29saS5jb250ZW50X2Rlc2sudjEuYXJ0aWZhY3RzLkRyYWZ0Mq4NChBBcnRpZmFjdHNTZXJ2aWNlEncKCkxpc3REcmFmdHMSMy52cm9vbGkuY29udGVudF9kZXNrLnYxLmFydGlmYWN0cy5MaXN0RHJhZnRzUmVxdWVzdBo0LnZyb29saS5jb250ZW50X2Rlc2sudjEuYXJ0aWZhY3RzLkxpc3REcmFmdHNSZXNwb25zZRJ6CgtDcmVhdGVEcmFmdBI0LnZyb29saS5jb250ZW50X2Rlc2sudjEuYXJ0aWZhY3RzLkNyZWF0ZURyYWZ0UmVxdWVzdBo1LnZyb29saS5jb250ZW50X2Rlc2sudjEuYXJ0aWZhY3RzLkNyZWF0ZURyYWZ0UmVzcG9uc2UShgEKD1VwZGF0ZURyYWZ0Qm9keRI4LnZyb29saS5jb250ZW50X2Rlc2sudjEuYXJ0aWZhY3RzLlVwZGF0ZURyYWZ0Qm9keVJlcXVlc3QaOS52cm9vbGkuY29udGVudF9kZXNrLnYxLmFydGlmYWN0cy5VcGRhdGVEcmFmdEJvZHlSZXNwb25zZRKSAQoTQXR0YWNoUmVsZWFzZWRBc3NldBI8LnZyb29saS5jb250ZW50X2Rlc2sudjEuYXJ0aWZhY3RzLkF0dGFjaFJlbGVhc2VkQXNzZXRSZXF1ZXN0Gj0udnJvb2xpLmNvbnRlbnRfZGVzay52MS5hcnRpZmFjdHMuQXR0YWNoUmVsZWFzZWRBc3NldFJlc3BvbnNlEpUBChRMaXN0RHJhZnRBdHRhY2htZW50cxI9LnZyb29saS5jb250ZW50X2Rlc2sudjEuYXJ0aWZhY3RzLkxpc3REcmFmdEF0dGFjaG1lbnRzUmVxdWVzdBo+LnZyb29saS5jb250ZW50X2Rlc2sudjEuYXJ0aWZhY3RzLkxpc3REcmFmdEF0dGFjaG1lbnRzUmVzcG9uc2USkgEKE0NvbW1pc3Npb25BZ2VudFdvcmsSPC52cm9vbGkuY29udGVudF9kZXNrLnYxLmFydGlmYWN0cy5Db21taXNzaW9uQWdlbnRXb3JrUmVxdWVzdBo9LnZyb29saS5jb250ZW50X2Rlc2sudjEuYXJ0aWZhY3RzLkNvbW1pc3Npb25BZ2VudFdvcmtSZXNwb25zZRKPAQoSR2V0QWdlbnRXb3JrUmVzdWx0EjsudnJvb2xpLmNvbnRlbnRfZGVzay52MS5hcnRpZmFjdHMuR2V0QWdlbnRXb3JrUmVzdWx0UmVxdWVzdBo8LnZyb29saS5jb250ZW50X2Rlc2sudjEuYXJ0aWZhY3RzLkdldEFnZW50V29ya1Jlc3VsdFJlc3BvbnNlEpUBChRBZG9wdEFnZW50U3VnZ2VzdGlvbhI9LnZyb29saS5jb250ZW50X2Rlc2sudjEuYXJ0aWZhY3RzLkFkb3B0QWdlbnRTdWdnZXN0aW9uUmVxdWVzdBo+LnZyb29saS5jb250ZW50X2Rlc2sudjEuYXJ0aWZhY3RzLkFkb3B0QWdlbnRTdWdnZXN0aW9uUmVzcG9uc2USjwEKElN1Ym1pdFJlbGVhc2VEcmFmdBI7LnZyb29saS5jb250ZW50X2Rlc2sudjEuYXJ0aWZhY3RzLlN1Ym1pdFJlbGVhc2VEcmFmdFJlcXVlc3QaPC52cm9vbGkuY29udGVudF9kZXNrLnYxLmFydGlmYWN0cy5TdWJtaXRSZWxlYXNlRHJhZnRSZXNwb25zZRKVAQoUUmVjb3JkUmVsZWFzZU91dGNvbWUSPS52cm9vbGkuY29udGVudF9kZXNrLnYxLmFydGlmYWN0cy5SZWNvcmRSZWxlYXNlT3V0Y29tZVJlcXVlc3QaPi52cm9vbGkuY29udGVudF9kZXNrLnYxLmFydGlmYWN0cy5SZWNvcmRSZWxlYXNlT3V0Y29tZVJlc3BvbnNlEoYBCg9UcmFuc2l0aW9uRHJhZnQSOC52cm9vbGkuY29udGVudF9kZXNrLnYxLmFydGlmYWN0cy5UcmFuc2l0aW9uRHJhZnRSZXF1ZXN0GjkudnJvb2xpLmNvbnRlbnRfZGVzay52MS5hcnRpZmFjdHMuVHJhbnNpdGlvbkRyYWZ0UmVzcG9uc2USfQoMQXBwcm92ZURyYWZ0EjUudnJvb2xpLmNvbnRlbnRfZGVzay52MS5hcnRpZmFjdHMuQXBwcm92ZURyYWZ0UmVxdWVzdBo2LnZyb29saS5jb250ZW50X2Rlc2sudjEuYXJ0aWZhY3RzLkFwcHJvdmVEcmFmdFJlc3BvbnNlQldaVWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vY29udGVudC1kZXNrL3YxL2FydGlmYWN0czthcnRpZmFjdHNfdjFiBnByb3RvMw");
 
 /**
  * @generated from message vrooli.content_desk.v1.artifacts.Draft
@@ -203,6 +203,289 @@ export const UpdateDraftBodyResponseSchema: GenMessage<UpdateDraftBodyResponse> 
   messageDesc(file_content_desk_v1_artifacts_artifacts, 6);
 
 /**
+ * DraftAttachment carries Asset Studio metadata only. Artifact bytes remain
+ * behind the Asset Studio BlobStore boundary.
+ *
+ * @generated from message vrooli.content_desk.v1.artifacts.DraftAttachment
+ */
+export type DraftAttachment = Message<"vrooli.content_desk.v1.artifacts.DraftAttachment"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string draft_id = 2;
+   */
+  draftId: string;
+
+  /**
+   * @generated from field: string asset_id = 3;
+   */
+  assetId: string;
+
+  /**
+   * @generated from field: string role = 4;
+   */
+  role: string;
+
+  /**
+   * @generated from field: string aspect_ratio = 5;
+   */
+  aspectRatio: string;
+
+  /**
+   * @generated from field: string alt_text = 6;
+   */
+  altText: string;
+
+  /**
+   * @generated from field: int32 position = 7;
+   */
+  position: number;
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.artifacts.DraftAttachment.
+ * Use `create(DraftAttachmentSchema)` to create a new message.
+ */
+export const DraftAttachmentSchema: GenMessage<DraftAttachment> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_artifacts_artifacts, 7);
+
+/**
+ * @generated from message vrooli.content_desk.v1.artifacts.AttachReleasedAssetRequest
+ */
+export type AttachReleasedAssetRequest = Message<"vrooli.content_desk.v1.artifacts.AttachReleasedAssetRequest"> & {
+  /**
+   * @generated from field: string draft_id = 1;
+   */
+  draftId: string;
+
+  /**
+   * @generated from field: string asset_id = 2;
+   */
+  assetId: string;
+
+  /**
+   * @generated from field: string role = 3;
+   */
+  role: string;
+
+  /**
+   * @generated from field: string aspect_ratio = 4;
+   */
+  aspectRatio: string;
+
+  /**
+   * @generated from field: string alt_text = 5;
+   */
+  altText: string;
+
+  /**
+   * @generated from field: int32 position = 6;
+   */
+  position: number;
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.artifacts.AttachReleasedAssetRequest.
+ * Use `create(AttachReleasedAssetRequestSchema)` to create a new message.
+ */
+export const AttachReleasedAssetRequestSchema: GenMessage<AttachReleasedAssetRequest> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_artifacts_artifacts, 8);
+
+/**
+ * @generated from message vrooli.content_desk.v1.artifacts.AttachReleasedAssetResponse
+ */
+export type AttachReleasedAssetResponse = Message<"vrooli.content_desk.v1.artifacts.AttachReleasedAssetResponse"> & {
+  /**
+   * @generated from field: vrooli.content_desk.v1.artifacts.DraftAttachment attachment = 1;
+   */
+  attachment?: DraftAttachment | undefined;
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.artifacts.AttachReleasedAssetResponse.
+ * Use `create(AttachReleasedAssetResponseSchema)` to create a new message.
+ */
+export const AttachReleasedAssetResponseSchema: GenMessage<AttachReleasedAssetResponse> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_artifacts_artifacts, 9);
+
+/**
+ * @generated from message vrooli.content_desk.v1.artifacts.ListDraftAttachmentsRequest
+ */
+export type ListDraftAttachmentsRequest = Message<"vrooli.content_desk.v1.artifacts.ListDraftAttachmentsRequest"> & {
+  /**
+   * @generated from field: string draft_id = 1;
+   */
+  draftId: string;
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.artifacts.ListDraftAttachmentsRequest.
+ * Use `create(ListDraftAttachmentsRequestSchema)` to create a new message.
+ */
+export const ListDraftAttachmentsRequestSchema: GenMessage<ListDraftAttachmentsRequest> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_artifacts_artifacts, 10);
+
+/**
+ * @generated from message vrooli.content_desk.v1.artifacts.ListDraftAttachmentsResponse
+ */
+export type ListDraftAttachmentsResponse = Message<"vrooli.content_desk.v1.artifacts.ListDraftAttachmentsResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.content_desk.v1.artifacts.DraftAttachment attachments = 1;
+   */
+  attachments: DraftAttachment[];
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.artifacts.ListDraftAttachmentsResponse.
+ * Use `create(ListDraftAttachmentsResponseSchema)` to create a new message.
+ */
+export const ListDraftAttachmentsResponseSchema: GenMessage<ListDraftAttachmentsResponse> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_artifacts_artifacts, 11);
+
+/**
+ * CommissionAgentWork starts only a declared, read-only Agent Manager profile.
+ * Its output remains an operator-editable suggestion and can never approve or publish.
+ *
+ * @generated from message vrooli.content_desk.v1.artifacts.CommissionAgentWorkRequest
+ */
+export type CommissionAgentWorkRequest = Message<"vrooli.content_desk.v1.artifacts.CommissionAgentWorkRequest"> & {
+  /**
+   * @generated from field: string draft_id = 1;
+   */
+  draftId: string;
+
+  /**
+   * @generated from field: string action = 2;
+   */
+  action: string;
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.artifacts.CommissionAgentWorkRequest.
+ * Use `create(CommissionAgentWorkRequestSchema)` to create a new message.
+ */
+export const CommissionAgentWorkRequestSchema: GenMessage<CommissionAgentWorkRequest> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_artifacts_artifacts, 12);
+
+/**
+ * @generated from message vrooli.content_desk.v1.artifacts.CommissionAgentWorkResponse
+ */
+export type CommissionAgentWorkResponse = Message<"vrooli.content_desk.v1.artifacts.CommissionAgentWorkResponse"> & {
+  /**
+   * @generated from field: string commission_id = 1;
+   */
+  commissionId: string;
+
+  /**
+   * @generated from field: string task_id = 2;
+   */
+  taskId: string;
+
+  /**
+   * @generated from field: string run_id = 3;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string status = 4;
+   */
+  status: string;
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.artifacts.CommissionAgentWorkResponse.
+ * Use `create(CommissionAgentWorkResponseSchema)` to create a new message.
+ */
+export const CommissionAgentWorkResponseSchema: GenMessage<CommissionAgentWorkResponse> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_artifacts_artifacts, 13);
+
+/**
+ * @generated from message vrooli.content_desk.v1.artifacts.GetAgentWorkResultRequest
+ */
+export type GetAgentWorkResultRequest = Message<"vrooli.content_desk.v1.artifacts.GetAgentWorkResultRequest"> & {
+  /**
+   * @generated from field: string commission_id = 1;
+   */
+  commissionId: string;
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.artifacts.GetAgentWorkResultRequest.
+ * Use `create(GetAgentWorkResultRequestSchema)` to create a new message.
+ */
+export const GetAgentWorkResultRequestSchema: GenMessage<GetAgentWorkResultRequest> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_artifacts_artifacts, 14);
+
+/**
+ * @generated from message vrooli.content_desk.v1.artifacts.GetAgentWorkResultResponse
+ */
+export type GetAgentWorkResultResponse = Message<"vrooli.content_desk.v1.artifacts.GetAgentWorkResultResponse"> & {
+  /**
+   * @generated from field: string run_id = 1;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string status = 2;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string body = 3;
+   */
+  body: string;
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.artifacts.GetAgentWorkResultResponse.
+ * Use `create(GetAgentWorkResultResponseSchema)` to create a new message.
+ */
+export const GetAgentWorkResultResponseSchema: GenMessage<GetAgentWorkResultResponse> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_artifacts_artifacts, 15);
+
+/**
+ * @generated from message vrooli.content_desk.v1.artifacts.AdoptAgentSuggestionRequest
+ */
+export type AdoptAgentSuggestionRequest = Message<"vrooli.content_desk.v1.artifacts.AdoptAgentSuggestionRequest"> & {
+  /**
+   * @generated from field: string commission_id = 1;
+   */
+  commissionId: string;
+
+  /**
+   * @generated from field: string body = 2;
+   */
+  body: string;
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.artifacts.AdoptAgentSuggestionRequest.
+ * Use `create(AdoptAgentSuggestionRequestSchema)` to create a new message.
+ */
+export const AdoptAgentSuggestionRequestSchema: GenMessage<AdoptAgentSuggestionRequest> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_artifacts_artifacts, 16);
+
+/**
+ * @generated from message vrooli.content_desk.v1.artifacts.AdoptAgentSuggestionResponse
+ */
+export type AdoptAgentSuggestionResponse = Message<"vrooli.content_desk.v1.artifacts.AdoptAgentSuggestionResponse"> & {
+  /**
+   * @generated from field: vrooli.content_desk.v1.artifacts.Draft draft = 1;
+   */
+  draft?: Draft | undefined;
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.artifacts.AdoptAgentSuggestionResponse.
+ * Use `create(AdoptAgentSuggestionResponseSchema)` to create a new message.
+ */
+export const AdoptAgentSuggestionResponseSchema: GenMessage<AdoptAgentSuggestionResponse> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_artifacts_artifacts, 17);
+
+/**
  * SubmitReleaseDraft asks Channel Manager to own a durable release action.
  * It does not assert that a platform post exists; that outcome returns later
  * through Content Desk's idempotent release-receipt inbox.
@@ -229,6 +512,14 @@ export type SubmitReleaseDraftRequest = Message<"vrooli.content_desk.v1.artifact
    * @generated from field: string idempotency_key = 4;
    */
   idempotencyKey: string;
+
+  /**
+   * Confirmation from the descriptor-derived preview. This must be true for
+   * a persona identity whose target platform requires AI disclosure.
+   *
+   * @generated from field: bool disclosure_visible = 5;
+   */
+  disclosureVisible: boolean;
 };
 
 /**
@@ -236,7 +527,7 @@ export type SubmitReleaseDraftRequest = Message<"vrooli.content_desk.v1.artifact
  * Use `create(SubmitReleaseDraftRequestSchema)` to create a new message.
  */
 export const SubmitReleaseDraftRequestSchema: GenMessage<SubmitReleaseDraftRequest> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_artifacts_artifacts, 7);
+  messageDesc(file_content_desk_v1_artifacts_artifacts, 18);
 
 /**
  * @generated from message vrooli.content_desk.v1.artifacts.SubmitReleaseDraftResponse
@@ -268,7 +559,7 @@ export type SubmitReleaseDraftResponse = Message<"vrooli.content_desk.v1.artifac
  * Use `create(SubmitReleaseDraftResponseSchema)` to create a new message.
  */
 export const SubmitReleaseDraftResponseSchema: GenMessage<SubmitReleaseDraftResponse> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_artifacts_artifacts, 8);
+  messageDesc(file_content_desk_v1_artifacts_artifacts, 19);
 
 /**
  * RecordReleaseOutcome is Channel Manager's idempotent completion callback.
@@ -313,7 +604,7 @@ export type RecordReleaseOutcomeRequest = Message<"vrooli.content_desk.v1.artifa
  * Use `create(RecordReleaseOutcomeRequestSchema)` to create a new message.
  */
 export const RecordReleaseOutcomeRequestSchema: GenMessage<RecordReleaseOutcomeRequest> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_artifacts_artifacts, 9);
+  messageDesc(file_content_desk_v1_artifacts_artifacts, 20);
 
 /**
  * @generated from message vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeResponse
@@ -335,7 +626,7 @@ export type RecordReleaseOutcomeResponse = Message<"vrooli.content_desk.v1.artif
  * Use `create(RecordReleaseOutcomeResponseSchema)` to create a new message.
  */
 export const RecordReleaseOutcomeResponseSchema: GenMessage<RecordReleaseOutcomeResponse> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_artifacts_artifacts, 10);
+  messageDesc(file_content_desk_v1_artifacts_artifacts, 21);
 
 /**
  * @generated from message vrooli.content_desk.v1.artifacts.TransitionDraftRequest
@@ -357,7 +648,7 @@ export type TransitionDraftRequest = Message<"vrooli.content_desk.v1.artifacts.T
  * Use `create(TransitionDraftRequestSchema)` to create a new message.
  */
 export const TransitionDraftRequestSchema: GenMessage<TransitionDraftRequest> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_artifacts_artifacts, 11);
+  messageDesc(file_content_desk_v1_artifacts_artifacts, 22);
 
 /**
  * @generated from message vrooli.content_desk.v1.artifacts.TransitionDraftResponse
@@ -374,7 +665,7 @@ export type TransitionDraftResponse = Message<"vrooli.content_desk.v1.artifacts.
  * Use `create(TransitionDraftResponseSchema)` to create a new message.
  */
 export const TransitionDraftResponseSchema: GenMessage<TransitionDraftResponse> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_artifacts_artifacts, 12);
+  messageDesc(file_content_desk_v1_artifacts_artifacts, 23);
 
 /**
  * @generated from message vrooli.content_desk.v1.artifacts.ApproveDraftRequest
@@ -401,7 +692,7 @@ export type ApproveDraftRequest = Message<"vrooli.content_desk.v1.artifacts.Appr
  * Use `create(ApproveDraftRequestSchema)` to create a new message.
  */
 export const ApproveDraftRequestSchema: GenMessage<ApproveDraftRequest> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_artifacts_artifacts, 13);
+  messageDesc(file_content_desk_v1_artifacts_artifacts, 24);
 
 /**
  * @generated from message vrooli.content_desk.v1.artifacts.ApproveDraftResponse
@@ -418,7 +709,7 @@ export type ApproveDraftResponse = Message<"vrooli.content_desk.v1.artifacts.App
  * Use `create(ApproveDraftResponseSchema)` to create a new message.
  */
 export const ApproveDraftResponseSchema: GenMessage<ApproveDraftResponse> = /*@__PURE__*/
-  messageDesc(file_content_desk_v1_artifacts_artifacts, 14);
+  messageDesc(file_content_desk_v1_artifacts_artifacts, 25);
 
 /**
  * ArtifactsService owns drafts and their constrained lifecycle.
@@ -449,6 +740,46 @@ export const ArtifactsService: GenService<{
     methodKind: "unary";
     input: typeof UpdateDraftBodyRequestSchema;
     output: typeof UpdateDraftBodyResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.content_desk.v1.artifacts.ArtifactsService.AttachReleasedAsset
+   */
+  attachReleasedAsset: {
+    methodKind: "unary";
+    input: typeof AttachReleasedAssetRequestSchema;
+    output: typeof AttachReleasedAssetResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.content_desk.v1.artifacts.ArtifactsService.ListDraftAttachments
+   */
+  listDraftAttachments: {
+    methodKind: "unary";
+    input: typeof ListDraftAttachmentsRequestSchema;
+    output: typeof ListDraftAttachmentsResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.content_desk.v1.artifacts.ArtifactsService.CommissionAgentWork
+   */
+  commissionAgentWork: {
+    methodKind: "unary";
+    input: typeof CommissionAgentWorkRequestSchema;
+    output: typeof CommissionAgentWorkResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.content_desk.v1.artifacts.ArtifactsService.GetAgentWorkResult
+   */
+  getAgentWorkResult: {
+    methodKind: "unary";
+    input: typeof GetAgentWorkResultRequestSchema;
+    output: typeof GetAgentWorkResultResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.content_desk.v1.artifacts.ArtifactsService.AdoptAgentSuggestion
+   */
+  adoptAgentSuggestion: {
+    methodKind: "unary";
+    input: typeof AdoptAgentSuggestionRequestSchema;
+    output: typeof AdoptAgentSuggestionResponseSchema;
   },
   /**
    * @generated from rpc vrooli.content_desk.v1.artifacts.ArtifactsService.SubmitReleaseDraft

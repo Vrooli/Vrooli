@@ -98,6 +98,10 @@ type RunReportService interface {
 	BuildRunReport(context.Context, uuid.UUID) (*runreport.RunReport, error)
 }
 
+type InvocationFactService interface {
+	InvocationFacts(context.Context, uuid.UUID) ([]runreport.InvocationFact, error)
+}
+
 type FindingsService interface {
 	ListFindings(context.Context, findings.Filter) ([]findings.Finding, error)
 }
@@ -124,6 +128,7 @@ type HandlerServices struct {
 	PathValidationService
 	IdentityService
 	RunReportService
+	InvocationFactService
 	FindingsService
 	ProjectRootService
 }
@@ -147,6 +152,7 @@ func NewHandlerServices(orchestrator *Orchestrator) HandlerServices {
 		PathValidationService:        orchestrator,
 		IdentityService:              orchestrator,
 		RunReportService:             orchestrator,
+		InvocationFactService:        orchestrator,
 		FindingsService:              orchestrator,
 		ProjectRootService:           orchestrator,
 	}
@@ -168,6 +174,7 @@ var (
 	_ PathValidationService        = (*Orchestrator)(nil)
 	_ IdentityService              = (*Orchestrator)(nil)
 	_ RunReportService             = (*Orchestrator)(nil)
+	_ InvocationFactService        = (*Orchestrator)(nil)
 	_ FindingsService              = (*Orchestrator)(nil)
 	_ ProjectRootService           = (*Orchestrator)(nil)
 )

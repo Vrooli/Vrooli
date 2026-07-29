@@ -441,6 +441,638 @@ func (x *UpdateDraftBodyResponse) GetDraft() *Draft {
 	return nil
 }
 
+// DraftAttachment carries Asset Studio metadata only. Artifact bytes remain
+// behind the Asset Studio BlobStore boundary.
+type DraftAttachment struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	DraftId       string                 `protobuf:"bytes,2,opt,name=draft_id,json=draftId,proto3" json:"draft_id,omitempty"`
+	AssetId       string                 `protobuf:"bytes,3,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	Role          string                 `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
+	AspectRatio   string                 `protobuf:"bytes,5,opt,name=aspect_ratio,json=aspectRatio,proto3" json:"aspect_ratio,omitempty"`
+	AltText       string                 `protobuf:"bytes,6,opt,name=alt_text,json=altText,proto3" json:"alt_text,omitempty"`
+	Position      int32                  `protobuf:"varint,7,opt,name=position,proto3" json:"position,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DraftAttachment) Reset() {
+	*x = DraftAttachment{}
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DraftAttachment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DraftAttachment) ProtoMessage() {}
+
+func (x *DraftAttachment) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DraftAttachment.ProtoReflect.Descriptor instead.
+func (*DraftAttachment) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *DraftAttachment) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *DraftAttachment) GetDraftId() string {
+	if x != nil {
+		return x.DraftId
+	}
+	return ""
+}
+
+func (x *DraftAttachment) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+func (x *DraftAttachment) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *DraftAttachment) GetAspectRatio() string {
+	if x != nil {
+		return x.AspectRatio
+	}
+	return ""
+}
+
+func (x *DraftAttachment) GetAltText() string {
+	if x != nil {
+		return x.AltText
+	}
+	return ""
+}
+
+func (x *DraftAttachment) GetPosition() int32 {
+	if x != nil {
+		return x.Position
+	}
+	return 0
+}
+
+type AttachReleasedAssetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DraftId       string                 `protobuf:"bytes,1,opt,name=draft_id,json=draftId,proto3" json:"draft_id,omitempty"`
+	AssetId       string                 `protobuf:"bytes,2,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	Role          string                 `protobuf:"bytes,3,opt,name=role,proto3" json:"role,omitempty"`
+	AspectRatio   string                 `protobuf:"bytes,4,opt,name=aspect_ratio,json=aspectRatio,proto3" json:"aspect_ratio,omitempty"`
+	AltText       string                 `protobuf:"bytes,5,opt,name=alt_text,json=altText,proto3" json:"alt_text,omitempty"`
+	Position      int32                  `protobuf:"varint,6,opt,name=position,proto3" json:"position,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AttachReleasedAssetRequest) Reset() {
+	*x = AttachReleasedAssetRequest{}
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AttachReleasedAssetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AttachReleasedAssetRequest) ProtoMessage() {}
+
+func (x *AttachReleasedAssetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AttachReleasedAssetRequest.ProtoReflect.Descriptor instead.
+func (*AttachReleasedAssetRequest) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *AttachReleasedAssetRequest) GetDraftId() string {
+	if x != nil {
+		return x.DraftId
+	}
+	return ""
+}
+
+func (x *AttachReleasedAssetRequest) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+func (x *AttachReleasedAssetRequest) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *AttachReleasedAssetRequest) GetAspectRatio() string {
+	if x != nil {
+		return x.AspectRatio
+	}
+	return ""
+}
+
+func (x *AttachReleasedAssetRequest) GetAltText() string {
+	if x != nil {
+		return x.AltText
+	}
+	return ""
+}
+
+func (x *AttachReleasedAssetRequest) GetPosition() int32 {
+	if x != nil {
+		return x.Position
+	}
+	return 0
+}
+
+type AttachReleasedAssetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Attachment    *DraftAttachment       `protobuf:"bytes,1,opt,name=attachment,proto3" json:"attachment,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AttachReleasedAssetResponse) Reset() {
+	*x = AttachReleasedAssetResponse{}
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AttachReleasedAssetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AttachReleasedAssetResponse) ProtoMessage() {}
+
+func (x *AttachReleasedAssetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AttachReleasedAssetResponse.ProtoReflect.Descriptor instead.
+func (*AttachReleasedAssetResponse) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *AttachReleasedAssetResponse) GetAttachment() *DraftAttachment {
+	if x != nil {
+		return x.Attachment
+	}
+	return nil
+}
+
+type ListDraftAttachmentsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DraftId       string                 `protobuf:"bytes,1,opt,name=draft_id,json=draftId,proto3" json:"draft_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDraftAttachmentsRequest) Reset() {
+	*x = ListDraftAttachmentsRequest{}
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDraftAttachmentsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDraftAttachmentsRequest) ProtoMessage() {}
+
+func (x *ListDraftAttachmentsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDraftAttachmentsRequest.ProtoReflect.Descriptor instead.
+func (*ListDraftAttachmentsRequest) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ListDraftAttachmentsRequest) GetDraftId() string {
+	if x != nil {
+		return x.DraftId
+	}
+	return ""
+}
+
+type ListDraftAttachmentsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Attachments   []*DraftAttachment     `protobuf:"bytes,1,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDraftAttachmentsResponse) Reset() {
+	*x = ListDraftAttachmentsResponse{}
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDraftAttachmentsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDraftAttachmentsResponse) ProtoMessage() {}
+
+func (x *ListDraftAttachmentsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDraftAttachmentsResponse.ProtoReflect.Descriptor instead.
+func (*ListDraftAttachmentsResponse) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ListDraftAttachmentsResponse) GetAttachments() []*DraftAttachment {
+	if x != nil {
+		return x.Attachments
+	}
+	return nil
+}
+
+// CommissionAgentWork starts only a declared, read-only Agent Manager profile.
+// Its output remains an operator-editable suggestion and can never approve or publish.
+type CommissionAgentWorkRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DraftId       string                 `protobuf:"bytes,1,opt,name=draft_id,json=draftId,proto3" json:"draft_id,omitempty"`
+	Action        string                 `protobuf:"bytes,2,opt,name=action,proto3" json:"action,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CommissionAgentWorkRequest) Reset() {
+	*x = CommissionAgentWorkRequest{}
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CommissionAgentWorkRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CommissionAgentWorkRequest) ProtoMessage() {}
+
+func (x *CommissionAgentWorkRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CommissionAgentWorkRequest.ProtoReflect.Descriptor instead.
+func (*CommissionAgentWorkRequest) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *CommissionAgentWorkRequest) GetDraftId() string {
+	if x != nil {
+		return x.DraftId
+	}
+	return ""
+}
+
+func (x *CommissionAgentWorkRequest) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+type CommissionAgentWorkResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CommissionId  string                 `protobuf:"bytes,1,opt,name=commission_id,json=commissionId,proto3" json:"commission_id,omitempty"`
+	TaskId        string                 `protobuf:"bytes,2,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	RunId         string                 `protobuf:"bytes,3,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CommissionAgentWorkResponse) Reset() {
+	*x = CommissionAgentWorkResponse{}
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CommissionAgentWorkResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CommissionAgentWorkResponse) ProtoMessage() {}
+
+func (x *CommissionAgentWorkResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CommissionAgentWorkResponse.ProtoReflect.Descriptor instead.
+func (*CommissionAgentWorkResponse) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *CommissionAgentWorkResponse) GetCommissionId() string {
+	if x != nil {
+		return x.CommissionId
+	}
+	return ""
+}
+
+func (x *CommissionAgentWorkResponse) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *CommissionAgentWorkResponse) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *CommissionAgentWorkResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+type GetAgentWorkResultRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CommissionId  string                 `protobuf:"bytes,1,opt,name=commission_id,json=commissionId,proto3" json:"commission_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentWorkResultRequest) Reset() {
+	*x = GetAgentWorkResultRequest{}
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentWorkResultRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentWorkResultRequest) ProtoMessage() {}
+
+func (x *GetAgentWorkResultRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentWorkResultRequest.ProtoReflect.Descriptor instead.
+func (*GetAgentWorkResultRequest) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *GetAgentWorkResultRequest) GetCommissionId() string {
+	if x != nil {
+		return x.CommissionId
+	}
+	return ""
+}
+
+type GetAgentWorkResultResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Body          string                 `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentWorkResultResponse) Reset() {
+	*x = GetAgentWorkResultResponse{}
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentWorkResultResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentWorkResultResponse) ProtoMessage() {}
+
+func (x *GetAgentWorkResultResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentWorkResultResponse.ProtoReflect.Descriptor instead.
+func (*GetAgentWorkResultResponse) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *GetAgentWorkResultResponse) GetRunId() string {
+	if x != nil {
+		return x.RunId
+	}
+	return ""
+}
+
+func (x *GetAgentWorkResultResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *GetAgentWorkResultResponse) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+type AdoptAgentSuggestionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CommissionId  string                 `protobuf:"bytes,1,opt,name=commission_id,json=commissionId,proto3" json:"commission_id,omitempty"`
+	Body          string                 `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdoptAgentSuggestionRequest) Reset() {
+	*x = AdoptAgentSuggestionRequest{}
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdoptAgentSuggestionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdoptAgentSuggestionRequest) ProtoMessage() {}
+
+func (x *AdoptAgentSuggestionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdoptAgentSuggestionRequest.ProtoReflect.Descriptor instead.
+func (*AdoptAgentSuggestionRequest) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *AdoptAgentSuggestionRequest) GetCommissionId() string {
+	if x != nil {
+		return x.CommissionId
+	}
+	return ""
+}
+
+func (x *AdoptAgentSuggestionRequest) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+type AdoptAgentSuggestionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Draft         *Draft                 `protobuf:"bytes,1,opt,name=draft,proto3" json:"draft,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AdoptAgentSuggestionResponse) Reset() {
+	*x = AdoptAgentSuggestionResponse{}
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AdoptAgentSuggestionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AdoptAgentSuggestionResponse) ProtoMessage() {}
+
+func (x *AdoptAgentSuggestionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AdoptAgentSuggestionResponse.ProtoReflect.Descriptor instead.
+func (*AdoptAgentSuggestionResponse) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *AdoptAgentSuggestionResponse) GetDraft() *Draft {
+	if x != nil {
+		return x.Draft
+	}
+	return nil
+}
+
 // SubmitReleaseDraft asks Channel Manager to own a durable release action.
 // It does not assert that a platform post exists; that outcome returns later
 // through Content Desk's idempotent release-receipt inbox.
@@ -450,13 +1082,16 @@ type SubmitReleaseDraftRequest struct {
 	IdentityId     string                 `protobuf:"bytes,2,opt,name=identity_id,json=identityId,proto3" json:"identity_id,omitempty"`
 	Lane           string                 `protobuf:"bytes,3,opt,name=lane,proto3" json:"lane,omitempty"`
 	IdempotencyKey string                 `protobuf:"bytes,4,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Confirmation from the descriptor-derived preview. This must be true for
+	// a persona identity whose target platform requires AI disclosure.
+	DisclosureVisible bool `protobuf:"varint,5,opt,name=disclosure_visible,json=disclosureVisible,proto3" json:"disclosure_visible,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *SubmitReleaseDraftRequest) Reset() {
 	*x = SubmitReleaseDraftRequest{}
-	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[7]
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -468,7 +1103,7 @@ func (x *SubmitReleaseDraftRequest) String() string {
 func (*SubmitReleaseDraftRequest) ProtoMessage() {}
 
 func (x *SubmitReleaseDraftRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[7]
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -481,7 +1116,7 @@ func (x *SubmitReleaseDraftRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitReleaseDraftRequest.ProtoReflect.Descriptor instead.
 func (*SubmitReleaseDraftRequest) Descriptor() ([]byte, []int) {
-	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{7}
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *SubmitReleaseDraftRequest) GetId() string {
@@ -512,6 +1147,13 @@ func (x *SubmitReleaseDraftRequest) GetIdempotencyKey() string {
 	return ""
 }
 
+func (x *SubmitReleaseDraftRequest) GetDisclosureVisible() bool {
+	if x != nil {
+		return x.DisclosureVisible
+	}
+	return false
+}
+
 type SubmitReleaseDraftResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Draft         *Draft                 `protobuf:"bytes,1,opt,name=draft,proto3" json:"draft,omitempty"`
@@ -524,7 +1166,7 @@ type SubmitReleaseDraftResponse struct {
 
 func (x *SubmitReleaseDraftResponse) Reset() {
 	*x = SubmitReleaseDraftResponse{}
-	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[8]
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -536,7 +1178,7 @@ func (x *SubmitReleaseDraftResponse) String() string {
 func (*SubmitReleaseDraftResponse) ProtoMessage() {}
 
 func (x *SubmitReleaseDraftResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[8]
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -549,7 +1191,7 @@ func (x *SubmitReleaseDraftResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubmitReleaseDraftResponse.ProtoReflect.Descriptor instead.
 func (*SubmitReleaseDraftResponse) Descriptor() ([]byte, []int) {
-	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{8}
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *SubmitReleaseDraftResponse) GetDraft() *Draft {
@@ -596,7 +1238,7 @@ type RecordReleaseOutcomeRequest struct {
 
 func (x *RecordReleaseOutcomeRequest) Reset() {
 	*x = RecordReleaseOutcomeRequest{}
-	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[9]
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -608,7 +1250,7 @@ func (x *RecordReleaseOutcomeRequest) String() string {
 func (*RecordReleaseOutcomeRequest) ProtoMessage() {}
 
 func (x *RecordReleaseOutcomeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[9]
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -621,7 +1263,7 @@ func (x *RecordReleaseOutcomeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordReleaseOutcomeRequest.ProtoReflect.Descriptor instead.
 func (*RecordReleaseOutcomeRequest) Descriptor() ([]byte, []int) {
-	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{9}
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *RecordReleaseOutcomeRequest) GetReceiptId() string {
@@ -676,7 +1318,7 @@ type RecordReleaseOutcomeResponse struct {
 
 func (x *RecordReleaseOutcomeResponse) Reset() {
 	*x = RecordReleaseOutcomeResponse{}
-	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[10]
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -688,7 +1330,7 @@ func (x *RecordReleaseOutcomeResponse) String() string {
 func (*RecordReleaseOutcomeResponse) ProtoMessage() {}
 
 func (x *RecordReleaseOutcomeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[10]
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -701,7 +1343,7 @@ func (x *RecordReleaseOutcomeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecordReleaseOutcomeResponse.ProtoReflect.Descriptor instead.
 func (*RecordReleaseOutcomeResponse) Descriptor() ([]byte, []int) {
-	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{10}
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *RecordReleaseOutcomeResponse) GetDraft() *Draft {
@@ -728,7 +1370,7 @@ type TransitionDraftRequest struct {
 
 func (x *TransitionDraftRequest) Reset() {
 	*x = TransitionDraftRequest{}
-	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[11]
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -740,7 +1382,7 @@ func (x *TransitionDraftRequest) String() string {
 func (*TransitionDraftRequest) ProtoMessage() {}
 
 func (x *TransitionDraftRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[11]
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -753,7 +1395,7 @@ func (x *TransitionDraftRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransitionDraftRequest.ProtoReflect.Descriptor instead.
 func (*TransitionDraftRequest) Descriptor() ([]byte, []int) {
-	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{11}
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *TransitionDraftRequest) GetId() string {
@@ -779,7 +1421,7 @@ type TransitionDraftResponse struct {
 
 func (x *TransitionDraftResponse) Reset() {
 	*x = TransitionDraftResponse{}
-	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[12]
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -791,7 +1433,7 @@ func (x *TransitionDraftResponse) String() string {
 func (*TransitionDraftResponse) ProtoMessage() {}
 
 func (x *TransitionDraftResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[12]
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -804,7 +1446,7 @@ func (x *TransitionDraftResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransitionDraftResponse.ProtoReflect.Descriptor instead.
 func (*TransitionDraftResponse) Descriptor() ([]byte, []int) {
-	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{12}
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *TransitionDraftResponse) GetDraft() *Draft {
@@ -825,7 +1467,7 @@ type ApproveDraftRequest struct {
 
 func (x *ApproveDraftRequest) Reset() {
 	*x = ApproveDraftRequest{}
-	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[13]
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -837,7 +1479,7 @@ func (x *ApproveDraftRequest) String() string {
 func (*ApproveDraftRequest) ProtoMessage() {}
 
 func (x *ApproveDraftRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[13]
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -850,7 +1492,7 @@ func (x *ApproveDraftRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApproveDraftRequest.ProtoReflect.Descriptor instead.
 func (*ApproveDraftRequest) Descriptor() ([]byte, []int) {
-	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{13}
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ApproveDraftRequest) GetId() string {
@@ -883,7 +1525,7 @@ type ApproveDraftResponse struct {
 
 func (x *ApproveDraftResponse) Reset() {
 	*x = ApproveDraftResponse{}
-	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[14]
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -895,7 +1537,7 @@ func (x *ApproveDraftResponse) String() string {
 func (*ApproveDraftResponse) ProtoMessage() {}
 
 func (x *ApproveDraftResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[14]
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -908,7 +1550,7 @@ func (x *ApproveDraftResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApproveDraftResponse.ProtoReflect.Descriptor instead.
 func (*ApproveDraftResponse) Descriptor() ([]byte, []int) {
-	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{14}
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ApproveDraftResponse) GetDraft() *Draft {
@@ -954,13 +1596,56 @@ const file_content_desk_v1_artifacts_artifacts_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04body\x18\x02 \x01(\tR\x04body\"X\n" +
 	"\x17UpdateDraftBodyResponse\x12=\n" +
-	"\x05draft\x18\x01 \x01(\v2'.vrooli.content_desk.v1.artifacts.DraftR\x05draft\"\x89\x01\n" +
+	"\x05draft\x18\x01 \x01(\v2'.vrooli.content_desk.v1.artifacts.DraftR\x05draft\"\xc5\x01\n" +
+	"\x0fDraftAttachment\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
+	"\bdraft_id\x18\x02 \x01(\tR\adraftId\x12\x19\n" +
+	"\basset_id\x18\x03 \x01(\tR\aassetId\x12\x12\n" +
+	"\x04role\x18\x04 \x01(\tR\x04role\x12!\n" +
+	"\faspect_ratio\x18\x05 \x01(\tR\vaspectRatio\x12\x19\n" +
+	"\balt_text\x18\x06 \x01(\tR\aaltText\x12\x1a\n" +
+	"\bposition\x18\a \x01(\x05R\bposition\"\xc0\x01\n" +
+	"\x1aAttachReleasedAssetRequest\x12\x19\n" +
+	"\bdraft_id\x18\x01 \x01(\tR\adraftId\x12\x19\n" +
+	"\basset_id\x18\x02 \x01(\tR\aassetId\x12\x12\n" +
+	"\x04role\x18\x03 \x01(\tR\x04role\x12!\n" +
+	"\faspect_ratio\x18\x04 \x01(\tR\vaspectRatio\x12\x19\n" +
+	"\balt_text\x18\x05 \x01(\tR\aaltText\x12\x1a\n" +
+	"\bposition\x18\x06 \x01(\x05R\bposition\"p\n" +
+	"\x1bAttachReleasedAssetResponse\x12Q\n" +
+	"\n" +
+	"attachment\x18\x01 \x01(\v21.vrooli.content_desk.v1.artifacts.DraftAttachmentR\n" +
+	"attachment\"8\n" +
+	"\x1bListDraftAttachmentsRequest\x12\x19\n" +
+	"\bdraft_id\x18\x01 \x01(\tR\adraftId\"s\n" +
+	"\x1cListDraftAttachmentsResponse\x12S\n" +
+	"\vattachments\x18\x01 \x03(\v21.vrooli.content_desk.v1.artifacts.DraftAttachmentR\vattachments\"O\n" +
+	"\x1aCommissionAgentWorkRequest\x12\x19\n" +
+	"\bdraft_id\x18\x01 \x01(\tR\adraftId\x12\x16\n" +
+	"\x06action\x18\x02 \x01(\tR\x06action\"\x8a\x01\n" +
+	"\x1bCommissionAgentWorkResponse\x12#\n" +
+	"\rcommission_id\x18\x01 \x01(\tR\fcommissionId\x12\x17\n" +
+	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12\x15\n" +
+	"\x06run_id\x18\x03 \x01(\tR\x05runId\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\"@\n" +
+	"\x19GetAgentWorkResultRequest\x12#\n" +
+	"\rcommission_id\x18\x01 \x01(\tR\fcommissionId\"_\n" +
+	"\x1aGetAgentWorkResultResponse\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x12\n" +
+	"\x04body\x18\x03 \x01(\tR\x04body\"V\n" +
+	"\x1bAdoptAgentSuggestionRequest\x12#\n" +
+	"\rcommission_id\x18\x01 \x01(\tR\fcommissionId\x12\x12\n" +
+	"\x04body\x18\x02 \x01(\tR\x04body\"]\n" +
+	"\x1cAdoptAgentSuggestionResponse\x12=\n" +
+	"\x05draft\x18\x01 \x01(\v2'.vrooli.content_desk.v1.artifacts.DraftR\x05draft\"\xb8\x01\n" +
 	"\x19SubmitReleaseDraftRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\videntity_id\x18\x02 \x01(\tR\n" +
 	"identityId\x12\x12\n" +
 	"\x04lane\x18\x03 \x01(\tR\x04lane\x12'\n" +
-	"\x0fidempotency_key\x18\x04 \x01(\tR\x0eidempotencyKey\"\xbe\x01\n" +
+	"\x0fidempotency_key\x18\x04 \x01(\tR\x0eidempotencyKey\x12-\n" +
+	"\x12disclosure_visible\x18\x05 \x01(\bR\x11disclosureVisible\"\xbe\x01\n" +
 	"\x1aSubmitReleaseDraftResponse\x12=\n" +
 	"\x05draft\x18\x01 \x01(\v2'.vrooli.content_desk.v1.artifacts.DraftR\x05draft\x12\x1d\n" +
 	"\n" +
@@ -989,12 +1674,17 @@ const file_content_desk_v1_artifacts_artifacts_proto_rawDesc = "" +
 	"identityId\x12\x12\n" +
 	"\x04lane\x18\x03 \x01(\tR\x04lane\"U\n" +
 	"\x14ApproveDraftResponse\x12=\n" +
-	"\x05draft\x18\x01 \x01(\v2'.vrooli.content_desk.v1.artifacts.DraftR\x05draft2\xc2\a\n" +
+	"\x05draft\x18\x01 \x01(\v2'.vrooli.content_desk.v1.artifacts.DraftR\x05draft2\xae\r\n" +
 	"\x10ArtifactsService\x12w\n" +
 	"\n" +
 	"ListDrafts\x123.vrooli.content_desk.v1.artifacts.ListDraftsRequest\x1a4.vrooli.content_desk.v1.artifacts.ListDraftsResponse\x12z\n" +
 	"\vCreateDraft\x124.vrooli.content_desk.v1.artifacts.CreateDraftRequest\x1a5.vrooli.content_desk.v1.artifacts.CreateDraftResponse\x12\x86\x01\n" +
-	"\x0fUpdateDraftBody\x128.vrooli.content_desk.v1.artifacts.UpdateDraftBodyRequest\x1a9.vrooli.content_desk.v1.artifacts.UpdateDraftBodyResponse\x12\x8f\x01\n" +
+	"\x0fUpdateDraftBody\x128.vrooli.content_desk.v1.artifacts.UpdateDraftBodyRequest\x1a9.vrooli.content_desk.v1.artifacts.UpdateDraftBodyResponse\x12\x92\x01\n" +
+	"\x13AttachReleasedAsset\x12<.vrooli.content_desk.v1.artifacts.AttachReleasedAssetRequest\x1a=.vrooli.content_desk.v1.artifacts.AttachReleasedAssetResponse\x12\x95\x01\n" +
+	"\x14ListDraftAttachments\x12=.vrooli.content_desk.v1.artifacts.ListDraftAttachmentsRequest\x1a>.vrooli.content_desk.v1.artifacts.ListDraftAttachmentsResponse\x12\x92\x01\n" +
+	"\x13CommissionAgentWork\x12<.vrooli.content_desk.v1.artifacts.CommissionAgentWorkRequest\x1a=.vrooli.content_desk.v1.artifacts.CommissionAgentWorkResponse\x12\x8f\x01\n" +
+	"\x12GetAgentWorkResult\x12;.vrooli.content_desk.v1.artifacts.GetAgentWorkResultRequest\x1a<.vrooli.content_desk.v1.artifacts.GetAgentWorkResultResponse\x12\x95\x01\n" +
+	"\x14AdoptAgentSuggestion\x12=.vrooli.content_desk.v1.artifacts.AdoptAgentSuggestionRequest\x1a>.vrooli.content_desk.v1.artifacts.AdoptAgentSuggestionResponse\x12\x8f\x01\n" +
 	"\x12SubmitReleaseDraft\x12;.vrooli.content_desk.v1.artifacts.SubmitReleaseDraftRequest\x1a<.vrooli.content_desk.v1.artifacts.SubmitReleaseDraftResponse\x12\x95\x01\n" +
 	"\x14RecordReleaseOutcome\x12=.vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeRequest\x1a>.vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeResponse\x12\x86\x01\n" +
 	"\x0fTransitionDraft\x128.vrooli.content_desk.v1.artifacts.TransitionDraftRequest\x1a9.vrooli.content_desk.v1.artifacts.TransitionDraftResponse\x12}\n" +
@@ -1012,7 +1702,7 @@ func file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP() []byte {
 	return file_content_desk_v1_artifacts_artifacts_proto_rawDescData
 }
 
-var file_content_desk_v1_artifacts_artifacts_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_content_desk_v1_artifacts_artifacts_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_content_desk_v1_artifacts_artifacts_proto_goTypes = []any{
 	(*Draft)(nil),                        // 0: vrooli.content_desk.v1.artifacts.Draft
 	(*ListDraftsRequest)(nil),            // 1: vrooli.content_desk.v1.artifacts.ListDraftsRequest
@@ -1021,42 +1711,66 @@ var file_content_desk_v1_artifacts_artifacts_proto_goTypes = []any{
 	(*CreateDraftResponse)(nil),          // 4: vrooli.content_desk.v1.artifacts.CreateDraftResponse
 	(*UpdateDraftBodyRequest)(nil),       // 5: vrooli.content_desk.v1.artifacts.UpdateDraftBodyRequest
 	(*UpdateDraftBodyResponse)(nil),      // 6: vrooli.content_desk.v1.artifacts.UpdateDraftBodyResponse
-	(*SubmitReleaseDraftRequest)(nil),    // 7: vrooli.content_desk.v1.artifacts.SubmitReleaseDraftRequest
-	(*SubmitReleaseDraftResponse)(nil),   // 8: vrooli.content_desk.v1.artifacts.SubmitReleaseDraftResponse
-	(*RecordReleaseOutcomeRequest)(nil),  // 9: vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeRequest
-	(*RecordReleaseOutcomeResponse)(nil), // 10: vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeResponse
-	(*TransitionDraftRequest)(nil),       // 11: vrooli.content_desk.v1.artifacts.TransitionDraftRequest
-	(*TransitionDraftResponse)(nil),      // 12: vrooli.content_desk.v1.artifacts.TransitionDraftResponse
-	(*ApproveDraftRequest)(nil),          // 13: vrooli.content_desk.v1.artifacts.ApproveDraftRequest
-	(*ApproveDraftResponse)(nil),         // 14: vrooli.content_desk.v1.artifacts.ApproveDraftResponse
+	(*DraftAttachment)(nil),              // 7: vrooli.content_desk.v1.artifacts.DraftAttachment
+	(*AttachReleasedAssetRequest)(nil),   // 8: vrooli.content_desk.v1.artifacts.AttachReleasedAssetRequest
+	(*AttachReleasedAssetResponse)(nil),  // 9: vrooli.content_desk.v1.artifacts.AttachReleasedAssetResponse
+	(*ListDraftAttachmentsRequest)(nil),  // 10: vrooli.content_desk.v1.artifacts.ListDraftAttachmentsRequest
+	(*ListDraftAttachmentsResponse)(nil), // 11: vrooli.content_desk.v1.artifacts.ListDraftAttachmentsResponse
+	(*CommissionAgentWorkRequest)(nil),   // 12: vrooli.content_desk.v1.artifacts.CommissionAgentWorkRequest
+	(*CommissionAgentWorkResponse)(nil),  // 13: vrooli.content_desk.v1.artifacts.CommissionAgentWorkResponse
+	(*GetAgentWorkResultRequest)(nil),    // 14: vrooli.content_desk.v1.artifacts.GetAgentWorkResultRequest
+	(*GetAgentWorkResultResponse)(nil),   // 15: vrooli.content_desk.v1.artifacts.GetAgentWorkResultResponse
+	(*AdoptAgentSuggestionRequest)(nil),  // 16: vrooli.content_desk.v1.artifacts.AdoptAgentSuggestionRequest
+	(*AdoptAgentSuggestionResponse)(nil), // 17: vrooli.content_desk.v1.artifacts.AdoptAgentSuggestionResponse
+	(*SubmitReleaseDraftRequest)(nil),    // 18: vrooli.content_desk.v1.artifacts.SubmitReleaseDraftRequest
+	(*SubmitReleaseDraftResponse)(nil),   // 19: vrooli.content_desk.v1.artifacts.SubmitReleaseDraftResponse
+	(*RecordReleaseOutcomeRequest)(nil),  // 20: vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeRequest
+	(*RecordReleaseOutcomeResponse)(nil), // 21: vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeResponse
+	(*TransitionDraftRequest)(nil),       // 22: vrooli.content_desk.v1.artifacts.TransitionDraftRequest
+	(*TransitionDraftResponse)(nil),      // 23: vrooli.content_desk.v1.artifacts.TransitionDraftResponse
+	(*ApproveDraftRequest)(nil),          // 24: vrooli.content_desk.v1.artifacts.ApproveDraftRequest
+	(*ApproveDraftResponse)(nil),         // 25: vrooli.content_desk.v1.artifacts.ApproveDraftResponse
 }
 var file_content_desk_v1_artifacts_artifacts_proto_depIdxs = []int32{
 	0,  // 0: vrooli.content_desk.v1.artifacts.ListDraftsResponse.drafts:type_name -> vrooli.content_desk.v1.artifacts.Draft
 	0,  // 1: vrooli.content_desk.v1.artifacts.CreateDraftResponse.draft:type_name -> vrooli.content_desk.v1.artifacts.Draft
 	0,  // 2: vrooli.content_desk.v1.artifacts.UpdateDraftBodyResponse.draft:type_name -> vrooli.content_desk.v1.artifacts.Draft
-	0,  // 3: vrooli.content_desk.v1.artifacts.SubmitReleaseDraftResponse.draft:type_name -> vrooli.content_desk.v1.artifacts.Draft
-	0,  // 4: vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeResponse.draft:type_name -> vrooli.content_desk.v1.artifacts.Draft
-	0,  // 5: vrooli.content_desk.v1.artifacts.TransitionDraftResponse.draft:type_name -> vrooli.content_desk.v1.artifacts.Draft
-	0,  // 6: vrooli.content_desk.v1.artifacts.ApproveDraftResponse.draft:type_name -> vrooli.content_desk.v1.artifacts.Draft
-	1,  // 7: vrooli.content_desk.v1.artifacts.ArtifactsService.ListDrafts:input_type -> vrooli.content_desk.v1.artifacts.ListDraftsRequest
-	3,  // 8: vrooli.content_desk.v1.artifacts.ArtifactsService.CreateDraft:input_type -> vrooli.content_desk.v1.artifacts.CreateDraftRequest
-	5,  // 9: vrooli.content_desk.v1.artifacts.ArtifactsService.UpdateDraftBody:input_type -> vrooli.content_desk.v1.artifacts.UpdateDraftBodyRequest
-	7,  // 10: vrooli.content_desk.v1.artifacts.ArtifactsService.SubmitReleaseDraft:input_type -> vrooli.content_desk.v1.artifacts.SubmitReleaseDraftRequest
-	9,  // 11: vrooli.content_desk.v1.artifacts.ArtifactsService.RecordReleaseOutcome:input_type -> vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeRequest
-	11, // 12: vrooli.content_desk.v1.artifacts.ArtifactsService.TransitionDraft:input_type -> vrooli.content_desk.v1.artifacts.TransitionDraftRequest
-	13, // 13: vrooli.content_desk.v1.artifacts.ArtifactsService.ApproveDraft:input_type -> vrooli.content_desk.v1.artifacts.ApproveDraftRequest
-	2,  // 14: vrooli.content_desk.v1.artifacts.ArtifactsService.ListDrafts:output_type -> vrooli.content_desk.v1.artifacts.ListDraftsResponse
-	4,  // 15: vrooli.content_desk.v1.artifacts.ArtifactsService.CreateDraft:output_type -> vrooli.content_desk.v1.artifacts.CreateDraftResponse
-	6,  // 16: vrooli.content_desk.v1.artifacts.ArtifactsService.UpdateDraftBody:output_type -> vrooli.content_desk.v1.artifacts.UpdateDraftBodyResponse
-	8,  // 17: vrooli.content_desk.v1.artifacts.ArtifactsService.SubmitReleaseDraft:output_type -> vrooli.content_desk.v1.artifacts.SubmitReleaseDraftResponse
-	10, // 18: vrooli.content_desk.v1.artifacts.ArtifactsService.RecordReleaseOutcome:output_type -> vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeResponse
-	12, // 19: vrooli.content_desk.v1.artifacts.ArtifactsService.TransitionDraft:output_type -> vrooli.content_desk.v1.artifacts.TransitionDraftResponse
-	14, // 20: vrooli.content_desk.v1.artifacts.ArtifactsService.ApproveDraft:output_type -> vrooli.content_desk.v1.artifacts.ApproveDraftResponse
-	14, // [14:21] is the sub-list for method output_type
-	7,  // [7:14] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	7,  // 3: vrooli.content_desk.v1.artifacts.AttachReleasedAssetResponse.attachment:type_name -> vrooli.content_desk.v1.artifacts.DraftAttachment
+	7,  // 4: vrooli.content_desk.v1.artifacts.ListDraftAttachmentsResponse.attachments:type_name -> vrooli.content_desk.v1.artifacts.DraftAttachment
+	0,  // 5: vrooli.content_desk.v1.artifacts.AdoptAgentSuggestionResponse.draft:type_name -> vrooli.content_desk.v1.artifacts.Draft
+	0,  // 6: vrooli.content_desk.v1.artifacts.SubmitReleaseDraftResponse.draft:type_name -> vrooli.content_desk.v1.artifacts.Draft
+	0,  // 7: vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeResponse.draft:type_name -> vrooli.content_desk.v1.artifacts.Draft
+	0,  // 8: vrooli.content_desk.v1.artifacts.TransitionDraftResponse.draft:type_name -> vrooli.content_desk.v1.artifacts.Draft
+	0,  // 9: vrooli.content_desk.v1.artifacts.ApproveDraftResponse.draft:type_name -> vrooli.content_desk.v1.artifacts.Draft
+	1,  // 10: vrooli.content_desk.v1.artifacts.ArtifactsService.ListDrafts:input_type -> vrooli.content_desk.v1.artifacts.ListDraftsRequest
+	3,  // 11: vrooli.content_desk.v1.artifacts.ArtifactsService.CreateDraft:input_type -> vrooli.content_desk.v1.artifacts.CreateDraftRequest
+	5,  // 12: vrooli.content_desk.v1.artifacts.ArtifactsService.UpdateDraftBody:input_type -> vrooli.content_desk.v1.artifacts.UpdateDraftBodyRequest
+	8,  // 13: vrooli.content_desk.v1.artifacts.ArtifactsService.AttachReleasedAsset:input_type -> vrooli.content_desk.v1.artifacts.AttachReleasedAssetRequest
+	10, // 14: vrooli.content_desk.v1.artifacts.ArtifactsService.ListDraftAttachments:input_type -> vrooli.content_desk.v1.artifacts.ListDraftAttachmentsRequest
+	12, // 15: vrooli.content_desk.v1.artifacts.ArtifactsService.CommissionAgentWork:input_type -> vrooli.content_desk.v1.artifacts.CommissionAgentWorkRequest
+	14, // 16: vrooli.content_desk.v1.artifacts.ArtifactsService.GetAgentWorkResult:input_type -> vrooli.content_desk.v1.artifacts.GetAgentWorkResultRequest
+	16, // 17: vrooli.content_desk.v1.artifacts.ArtifactsService.AdoptAgentSuggestion:input_type -> vrooli.content_desk.v1.artifacts.AdoptAgentSuggestionRequest
+	18, // 18: vrooli.content_desk.v1.artifacts.ArtifactsService.SubmitReleaseDraft:input_type -> vrooli.content_desk.v1.artifacts.SubmitReleaseDraftRequest
+	20, // 19: vrooli.content_desk.v1.artifacts.ArtifactsService.RecordReleaseOutcome:input_type -> vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeRequest
+	22, // 20: vrooli.content_desk.v1.artifacts.ArtifactsService.TransitionDraft:input_type -> vrooli.content_desk.v1.artifacts.TransitionDraftRequest
+	24, // 21: vrooli.content_desk.v1.artifacts.ArtifactsService.ApproveDraft:input_type -> vrooli.content_desk.v1.artifacts.ApproveDraftRequest
+	2,  // 22: vrooli.content_desk.v1.artifacts.ArtifactsService.ListDrafts:output_type -> vrooli.content_desk.v1.artifacts.ListDraftsResponse
+	4,  // 23: vrooli.content_desk.v1.artifacts.ArtifactsService.CreateDraft:output_type -> vrooli.content_desk.v1.artifacts.CreateDraftResponse
+	6,  // 24: vrooli.content_desk.v1.artifacts.ArtifactsService.UpdateDraftBody:output_type -> vrooli.content_desk.v1.artifacts.UpdateDraftBodyResponse
+	9,  // 25: vrooli.content_desk.v1.artifacts.ArtifactsService.AttachReleasedAsset:output_type -> vrooli.content_desk.v1.artifacts.AttachReleasedAssetResponse
+	11, // 26: vrooli.content_desk.v1.artifacts.ArtifactsService.ListDraftAttachments:output_type -> vrooli.content_desk.v1.artifacts.ListDraftAttachmentsResponse
+	13, // 27: vrooli.content_desk.v1.artifacts.ArtifactsService.CommissionAgentWork:output_type -> vrooli.content_desk.v1.artifacts.CommissionAgentWorkResponse
+	15, // 28: vrooli.content_desk.v1.artifacts.ArtifactsService.GetAgentWorkResult:output_type -> vrooli.content_desk.v1.artifacts.GetAgentWorkResultResponse
+	17, // 29: vrooli.content_desk.v1.artifacts.ArtifactsService.AdoptAgentSuggestion:output_type -> vrooli.content_desk.v1.artifacts.AdoptAgentSuggestionResponse
+	19, // 30: vrooli.content_desk.v1.artifacts.ArtifactsService.SubmitReleaseDraft:output_type -> vrooli.content_desk.v1.artifacts.SubmitReleaseDraftResponse
+	21, // 31: vrooli.content_desk.v1.artifacts.ArtifactsService.RecordReleaseOutcome:output_type -> vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeResponse
+	23, // 32: vrooli.content_desk.v1.artifacts.ArtifactsService.TransitionDraft:output_type -> vrooli.content_desk.v1.artifacts.TransitionDraftResponse
+	25, // 33: vrooli.content_desk.v1.artifacts.ArtifactsService.ApproveDraft:output_type -> vrooli.content_desk.v1.artifacts.ApproveDraftResponse
+	22, // [22:34] is the sub-list for method output_type
+	10, // [10:22] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_content_desk_v1_artifacts_artifacts_proto_init() }
@@ -1070,7 +1784,7 @@ func file_content_desk_v1_artifacts_artifacts_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_content_desk_v1_artifacts_artifacts_proto_rawDesc), len(file_content_desk_v1_artifacts_artifacts_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

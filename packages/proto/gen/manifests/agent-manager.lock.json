@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "agent-manager",
-  "input_digest": "sha256:fe38f6e94d4efef3b069a3a441e84e7a4f28f0667f5b0bf0315ff5094275fc51",
+  "input_digest": "sha256:0b456262e8e05b30e24fa7ab26cccfb2fb34597355dd5a77547b8b28dd371f64",
   "input_files": [
     "schemas/agent-manager/v1/api/service.proto",
     "schemas/agent-manager/v1/domain/events.proto",

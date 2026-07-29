@@ -1,8 +1,9 @@
 {
   "schema_version": 1,
   "scenario": "asset-studio",
-  "input_digest": "sha256:430b386aaaae069056410e40daa1148fa3f888897d41137121b3345844a81d09",
+  "input_digest": "sha256:879985987e6420a4cd35d9b9c616f96c58f4ca0f8db3ffd0997e1c3c1833281e",
   "input_files": [
+    "schemas/asset-studio/v1/search/search.proto",
     "schemas/asset-studio/v1/shared/errors.proto",
     "schemas/asset-studio/v1/shared/health.proto",
     "schemas/asset-studio/v1/studio/studio.proto"
@@ -18,25 +19,32 @@
     }
   },
   "outputs": {
+    "gen/go/asset-studio/v1/search/search.pb.go": "sha256:fcd4934441d35193969d1d8c96891bd9cdde267e33ff604c5522ab0d296917cc",
+    "gen/go/asset-studio/v1/search/search_v1connect/search.connect.go": "sha256:de9d622350869c1d13824451c398c1bee4a1d8b3a88ce1b250952671e76e4710",
     "gen/go/asset-studio/v1/shared/errors.pb.go": "sha256:0eaf4e6dc48ad6185c1168296a74755ac33fd95ec0eda4506471743c7a71d74d",
     "gen/go/asset-studio/v1/shared/health.pb.go": "sha256:1bf86d1b173758ac86eedcb1bf71dfe386c02131e32116d42e2136decdbba836",
-    "gen/go/asset-studio/v1/studio/studio.pb.go": "sha256:234b76a2ef24442b0b57d33afb1541cdd05b9098e926301b3968e549e5c19cf7",
-    "gen/go/asset-studio/v1/studio/studio_v1connect/studio.connect.go": "sha256:353f9549cfc6daa014c34c45437972af633fe4c840bb0bf61e5963db46c872b3",
+    "gen/go/asset-studio/v1/studio/studio.pb.go": "sha256:c81c657a744770cc8655f0582466976a444519d49f413fb455c436c1a753868f",
+    "gen/go/asset-studio/v1/studio/studio_v1connect/studio.connect.go": "sha256:86a6dc9fc4b5d27cdb5f260aa1cea168485c963baffff7485e80f8164c7ae89c",
     "gen/python/asset_studio/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/asset_studio/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/asset_studio/v1/search/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/asset_studio/v1/search/search_pb2.py": "sha256:db99eddd5b34c9826555c9746462ce00eb2c4c40a3debff9f45d6643ddf706c7",
+    "gen/python/asset_studio/v1/search/search_pb2.pyi": "sha256:5da64b2e466ec6f4377799598f3a033fd96a00e403f2eba194d37f30179d5607",
     "gen/python/asset_studio/v1/shared/errors_pb2.py": "sha256:80cc97e7750645978b1fc29094e22c045ac9decab66d8d646da4de07169dcebe",
     "gen/python/asset_studio/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
     "gen/python/asset_studio/v1/shared/health_pb2.py": "sha256:f6b3580abb4500dfd9e45d6a077c9a493669327880a1400b1cf2494bfd7d8917",
     "gen/python/asset_studio/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
     "gen/python/asset_studio/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/asset_studio/v1/studio/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/asset_studio/v1/studio/studio_pb2.py": "sha256:01c75fba978d0e1964b5353338e822e9eabe854d2574634b3a91bfd3c5432f83",
-    "gen/python/asset_studio/v1/studio/studio_pb2.pyi": "sha256:e3e8eaa64d6fc0593a930aeab42e577fc322e8368d2cf520622121bc63d2b8ec",
+    "gen/python/asset_studio/v1/studio/studio_pb2.py": "sha256:58e85ede8fac20d4ab198f340f43b78142749ba18423d7c2ce6e8cde7c79bf68",
+    "gen/python/asset_studio/v1/studio/studio_pb2.pyi": "sha256:614f42372354e341322102a7c0c6ae5ead221325bac99612ae2f2fada933d7bc",
+    "gen/typescript/asset-studio/v1/search/search_pb.ts": "sha256:e0460dbec161834faf736bc4c7267a711595f96753b897ae0617b6bf6172b101",
     "gen/typescript/asset-studio/v1/shared/errors_pb.ts": "sha256:8234edc3df4314860b2fc178b80f2793dffe1f99499d03db5f805ed9f27f880d",
     "gen/typescript/asset-studio/v1/shared/health_pb.ts": "sha256:c153eaa443f56474f36bb73a1fd86969330f0df220b293dd5e48cb42dca19f17",
-    "gen/typescript/asset-studio/v1/studio/studio_pb.ts": "sha256:e4c804a0faec34d95a6991a41f71b237421aa2a62af65c6cc0de9691fe8618c1",
+    "gen/typescript/asset-studio/v1/studio/studio_pb.ts": "sha256:bb426ed3f308c7fc6276c2d7d30977109284d0f6e5366f7dcdb9fbae359fd7fb",
+    "gen/typescript/js/asset-studio/v1/search/search_pb.js": "sha256:74f206524b85db547557e2d256d3e3d842cb9605d6ceb3489a8054db406a62d5",
     "gen/typescript/js/asset-studio/v1/shared/errors_pb.js": "sha256:1a3c8a3252a264172779cccf6463450575cfcda624279b9654b3e5e906ae2dd6",
     "gen/typescript/js/asset-studio/v1/shared/health_pb.js": "sha256:5a4cf07ec1c73a315074b4863342b1d736f08c30ad0777f593742099c1f8d074",
-    "gen/typescript/js/asset-studio/v1/studio/studio_pb.js": "sha256:d59b3283608caab97d54a992ce8e36eaea4645abfc74114ab1de8fcaf287b9f9"
+    "gen/typescript/js/asset-studio/v1/studio/studio_pb.js": "sha256:dc435453014ab16e8af0a855b29e2893d8503d77cb143c35b2ca4a989d2b8402"
   }
 }

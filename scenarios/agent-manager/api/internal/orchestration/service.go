@@ -645,8 +645,9 @@ type Orchestrator struct {
 
 	// receipts is an optional, read-only Vrooli Events seam. It must never
 	// influence run execution or terminal state; reports surface its status.
-	receipts ReceiptSummaryReader
-	findings findings.Repository
+	receipts        ReceiptSummaryReader
+	findings        findings.Repository
+	invocationFacts runreport.InvocationFactStore
 
 	// Orchestration settings store (file-backed, hot-reloadable).
 	orchestrationSettings *agentconfig.OrchestrationSettingsStore
@@ -805,6 +806,10 @@ func WithReceiptSummaryReader(reader ReceiptSummaryReader) Option {
 
 func WithFindings(repo findings.Repository) Option {
 	return func(o *Orchestrator) { o.findings = repo }
+}
+
+func WithInvocationFactStore(store runreport.InvocationFactStore) Option {
+	return func(o *Orchestrator) { o.invocationFacts = store }
 }
 
 // WithArtifacts sets the artifact collector.

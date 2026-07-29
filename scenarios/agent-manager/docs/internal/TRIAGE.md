@@ -15,6 +15,27 @@ overwrite the ordering and timing facts needed to identify the original cause.
 4. Correlate by run id, workflow execution id, attempt id, event sequence, and
    timestamps. Prefer typed event payloads over process logs.
 
+## Passive evidence and cohort briefs
+
+Start a multi-run investigation with the bounded cohort projection, not with
+transcripts:
+
+```bash
+agent-manager run cohort-report --run-ids <run-id>,<run-id>
+```
+
+The projection is deterministic (`passive-evidence.v1`), ranks failure,
+repeated-work, reread, external-fallback, model-fallback, and receipt
+availability signals, and returns only representative run IDs. Drill into a
+reported run with `run report`, `run events`, `run tools`, or `run receipts`.
+Missing receipts mean `unobserved`; an Events outage is `degraded`; neither
+changes the terminal state of the underlying run.
+
+Command ownership is resolved only through the read-only CLI manifest index
+(the available CLI Health-compatible catalog seam). Compound shell input or a
+catalog miss remains `unknown`; it is never promoted to project-owned based on
+substring matching.
+
 ## Testing ladder
 
 Diagnose a defect with the cheapest evidence that can answer it, in this order:

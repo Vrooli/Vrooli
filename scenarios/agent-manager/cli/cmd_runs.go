@@ -32,6 +32,10 @@ func (a *App) cmdRun(args []string) error {
 		return a.runGet(args[1:])
 	case "report":
 		return a.runReport(args[1:])
+	case "cohort-report":
+		return a.runCohortReport(args[1:])
+	case "invocation-facts":
+		return a.runInvocationFacts(args[1:])
 	case "stats":
 		return a.runStats(args[1:])
 	case "result":
@@ -94,6 +98,8 @@ Subcommands:
   list                        List runs (with optional filters)
   get <id>                    Get run details by UUID
   report <id>                 Show bounded investigation diagnostics
+	  cohort-report --run-ids ids  Show ranked, bounded evidence across selected runs
+	  invocation-facts <id>        Drill into redacted normalized invocation evidence
   result <id>                 Show final-output and structured-result provenance
   tools <id>                  Show tool events (--failed limits to failures)
   messages <id>               Show recorded agent messages
@@ -130,16 +136,9 @@ Options:
 
 Examples:
   agent-manager run list
-  agent-manager run list --status running
   agent-manager run create --task-id abc123 --profile-id def456
-  agent-manager run create --task-id abc123 --profile-id def456 --run-mode in_place --execution-mode interactive
-  agent-manager run delete abc123 --force
-  agent-manager run continue abc123 --message "Also update tests"
-  agent-manager run recover abc123
   agent-manager run investigate --run-ids id1,id2 --depth standard
-  agent-manager run apply-investigation abc123
-  agent-manager run events xyz789 --after-sequence 42 --limit 100
-  agent-manager run events xyz789 --follow`)
+  agent-manager run cohort-report --run-ids id1,id2`)
 	return nil
 }
 

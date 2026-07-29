@@ -13,6 +13,15 @@ service StudioService {
   rpc ReviseIdentity(ReviseIdentityRequest) returns (ReviseIdentityResponse);
   rpc ResolveSpec(ResolveSpecRequest) returns (ResolveSpecResponse);
   rpc CreateRender(CreateRenderRequest) returns (CreateRenderResponse);
+  // RegenerateRender creates a new durable render from an existing render's
+  // immutable resolved intent. It never marks an old output as regenerated.
+  rpc RegenerateRender(RegenerateRenderRequest) returns (RegenerateRenderResponse);
+  // AnalyzeConformance records a producer-owned automated signal. It is
+  // advisory only and never replaces the operator verdict required for release.
+  rpc AnalyzeConformance(AnalyzeConformanceRequest) returns (AnalyzeConformanceResponse);
+  rpc CommissionAgent(CommissionAgentRequest) returns (CommissionAgentResponse);
+  rpc SetCampaignBudget(SetCampaignBudgetRequest) returns (SetCampaignBudgetResponse);
+  rpc GetRender(GetRenderRequest) returns (GetRenderResponse);
   rpc SelectCandidate(SelectCandidateRequest) returns (SelectCandidateResponse);
   rpc JudgeConformance(JudgeConformanceRequest) returns (JudgeConformanceResponse);
   rpc ReleaseAsset(ReleaseAssetRequest) returns (ReleaseAssetResponse);
@@ -45,6 +54,8 @@ message AssetReference {
   int32 width = 6;
   int32 height = 7;
   string media_type = 8;
+  string parent_asset_id = 9;
+  string derivation_operation = 10;
 }
 message ListIdentitiesRequest {
   string kind = 1;
@@ -82,12 +93,94 @@ message CreateRenderRequest {
   string spec_id = 1;
   double estimated_cost = 2;
   int32 candidate_count = 3;
+  // image, video, capture, compose, or refine. Empty remains image for P0
+  // compatibility; producer details remain owned by their capabilities.
+  string producer_kind = 4;
+  // Multiple frames share the spec's immutable identity bindings.
+  int32 frame_count = 5;
+  // Required by derived/refine producers and never interpreted as bytes here.
+  string parent_asset_id = 6;
+  // Capture target only for producer_kind=capture. Asset Studio submits this
+  // to Browser Automation Studio but never drives a browser itself.
+  string capture_url = 7;
+  // Required only when the configured campaign budget would be exceeded.
+  bool confirm_over_budget = 8;
+  string budget_confirmation_actor_id = 9;
+  repeated CompositionSlot composition_slots = 10;
 }
+message CompositionSlot { string name = 1; string asset_id = 2; int32 order = 3; }
 message CreateRenderResponse {
   string render_id = 1;
   string status = 2;
   repeated AssetReference candidates = 3;
 }
+message RegenerateRenderRequest {
+  // Source render must have recorded successful provenance. The server checks
+  // that its spec, identity versions, and producer are still available before
+  // accepting a fresh render receipt.
+  string source_render_id = 1;
+  // Required only when a configured campaign budget would be exceeded.
+  bool confirm_over_budget = 2;
+  string budget_confirmation_actor_id = 3;
+}
+message RegenerateRenderResponse {
+  string render_id = 1;
+  string status = 2;
+  string source_render_id = 3;
+}
+message AdvisoryConformance {
+  string asset_id = 1;
+  string source = 2;
+  double score = 3;
+  repeated string notes = 4;
+  string recorded_at = 5;
+}
+message AnalyzeConformanceRequest { string asset_id = 1; }
+message AnalyzeConformanceResponse { AdvisoryConformance advisory = 1; }
+message AgentCommission {
+  string id = 1;
+  string agent_task_id = 2;
+  string agent_identity = 3;
+  string request = 4;
+  repeated string source_identity_version_ids = 5;
+  string status = 6;
+  string created_at = 7;
+}
+message CommissionAgentRequest { string request = 1; repeated string source_identity_version_ids = 2; string agent_identity = 3; }
+message CommissionAgentResponse { AgentCommission commission = 1; }
+message CampaignBudget {
+  string campaign_ref = 1;
+  double limit_usd = 2;
+  double spent_usd = 3;
+}
+message SetCampaignBudgetRequest {
+  string campaign_ref = 1;
+  double limit_usd = 2;
+}
+message SetCampaignBudgetResponse { CampaignBudget budget = 1; }
+message RenderProvenance {
+  string spec_id = 1;
+  repeated string identity_version_ids = 2;
+  string backend = 3;
+  string model = 4;
+  string seed = 5;
+  string parameters = 6;
+}
+message Render {
+  string id = 1;
+  string status = 2;
+  double estimated_cost = 3;
+  double actual_cost = 4;
+  bool actual_cost_recorded = 5;
+  RenderProvenance provenance = 6;
+  repeated AssetReference candidates = 7;
+  string failure_code = 8;
+  string producer_kind = 9;
+  int32 frame_count = 10;
+  string parent_asset_id = 11;
+}
+message GetRenderRequest { string render_id = 1; }
+message GetRenderResponse { Render render = 1; }
 message SelectCandidateRequest {
   string asset_id = 1;
 }

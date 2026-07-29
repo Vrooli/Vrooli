@@ -54,6 +54,9 @@ const (
 	// ChannelManagerServiceDispatchBrowserActionProcedure is the fully-qualified name of the
 	// ChannelManagerService's DispatchBrowserAction RPC.
 	ChannelManagerServiceDispatchBrowserActionProcedure = "/vrooli.channel_manager.v1.channelmanager.ChannelManagerService/DispatchBrowserAction"
+	// ChannelManagerServiceGetBrowserExecutionReviewProcedure is the fully-qualified name of the
+	// ChannelManagerService's GetBrowserExecutionReview RPC.
+	ChannelManagerServiceGetBrowserExecutionReviewProcedure = "/vrooli.channel_manager.v1.channelmanager.ChannelManagerService/GetBrowserExecutionReview"
 )
 
 // ChannelManagerServiceClient is a client for the
@@ -66,6 +69,7 @@ type ChannelManagerServiceClient interface {
 	DeliverMetricSample(context.Context, *connect.Request[channelmanager.DeliverMetricSampleRequest]) (*connect.Response[channelmanager.DeliverMetricSampleResponse], error)
 	AssignAutomation(context.Context, *connect.Request[channelmanager.AssignAutomationRequest]) (*connect.Response[channelmanager.AssignAutomationResponse], error)
 	DispatchBrowserAction(context.Context, *connect.Request[channelmanager.DispatchBrowserActionRequest]) (*connect.Response[channelmanager.DispatchBrowserActionResponse], error)
+	GetBrowserExecutionReview(context.Context, *connect.Request[channelmanager.GetBrowserExecutionReviewRequest]) (*connect.Response[channelmanager.GetBrowserExecutionReviewResponse], error)
 }
 
 // NewChannelManagerServiceClient constructs a client for the
@@ -122,18 +126,25 @@ func NewChannelManagerServiceClient(httpClient connect.HTTPClient, baseURL strin
 			connect.WithSchema(channelManagerServiceMethods.ByName("DispatchBrowserAction")),
 			connect.WithClientOptions(opts...),
 		),
+		getBrowserExecutionReview: connect.NewClient[channelmanager.GetBrowserExecutionReviewRequest, channelmanager.GetBrowserExecutionReviewResponse](
+			httpClient,
+			baseURL+ChannelManagerServiceGetBrowserExecutionReviewProcedure,
+			connect.WithSchema(channelManagerServiceMethods.ByName("GetBrowserExecutionReview")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // channelManagerServiceClient implements ChannelManagerServiceClient.
 type channelManagerServiceClient struct {
-	getOverview           *connect.Client[channelmanager.GetOverviewRequest, channelmanager.GetOverviewResponse]
-	getEligibility        *connect.Client[channelmanager.GetEligibilityRequest, channelmanager.GetEligibilityResponse]
-	submitRelease         *connect.Client[channelmanager.SubmitReleaseRequest, channelmanager.SubmitReleaseResponse]
-	deliverReleaseOutcome *connect.Client[channelmanager.DeliverReleaseOutcomeRequest, channelmanager.DeliverReleaseOutcomeResponse]
-	deliverMetricSample   *connect.Client[channelmanager.DeliverMetricSampleRequest, channelmanager.DeliverMetricSampleResponse]
-	assignAutomation      *connect.Client[channelmanager.AssignAutomationRequest, channelmanager.AssignAutomationResponse]
-	dispatchBrowserAction *connect.Client[channelmanager.DispatchBrowserActionRequest, channelmanager.DispatchBrowserActionResponse]
+	getOverview               *connect.Client[channelmanager.GetOverviewRequest, channelmanager.GetOverviewResponse]
+	getEligibility            *connect.Client[channelmanager.GetEligibilityRequest, channelmanager.GetEligibilityResponse]
+	submitRelease             *connect.Client[channelmanager.SubmitReleaseRequest, channelmanager.SubmitReleaseResponse]
+	deliverReleaseOutcome     *connect.Client[channelmanager.DeliverReleaseOutcomeRequest, channelmanager.DeliverReleaseOutcomeResponse]
+	deliverMetricSample       *connect.Client[channelmanager.DeliverMetricSampleRequest, channelmanager.DeliverMetricSampleResponse]
+	assignAutomation          *connect.Client[channelmanager.AssignAutomationRequest, channelmanager.AssignAutomationResponse]
+	dispatchBrowserAction     *connect.Client[channelmanager.DispatchBrowserActionRequest, channelmanager.DispatchBrowserActionResponse]
+	getBrowserExecutionReview *connect.Client[channelmanager.GetBrowserExecutionReviewRequest, channelmanager.GetBrowserExecutionReviewResponse]
 }
 
 // GetOverview calls vrooli.channel_manager.v1.channelmanager.ChannelManagerService.GetOverview.
@@ -176,6 +187,12 @@ func (c *channelManagerServiceClient) DispatchBrowserAction(ctx context.Context,
 	return c.dispatchBrowserAction.CallUnary(ctx, req)
 }
 
+// GetBrowserExecutionReview calls
+// vrooli.channel_manager.v1.channelmanager.ChannelManagerService.GetBrowserExecutionReview.
+func (c *channelManagerServiceClient) GetBrowserExecutionReview(ctx context.Context, req *connect.Request[channelmanager.GetBrowserExecutionReviewRequest]) (*connect.Response[channelmanager.GetBrowserExecutionReviewResponse], error) {
+	return c.getBrowserExecutionReview.CallUnary(ctx, req)
+}
+
 // ChannelManagerServiceHandler is an implementation of the
 // vrooli.channel_manager.v1.channelmanager.ChannelManagerService service.
 type ChannelManagerServiceHandler interface {
@@ -186,6 +203,7 @@ type ChannelManagerServiceHandler interface {
 	DeliverMetricSample(context.Context, *connect.Request[channelmanager.DeliverMetricSampleRequest]) (*connect.Response[channelmanager.DeliverMetricSampleResponse], error)
 	AssignAutomation(context.Context, *connect.Request[channelmanager.AssignAutomationRequest]) (*connect.Response[channelmanager.AssignAutomationResponse], error)
 	DispatchBrowserAction(context.Context, *connect.Request[channelmanager.DispatchBrowserActionRequest]) (*connect.Response[channelmanager.DispatchBrowserActionResponse], error)
+	GetBrowserExecutionReview(context.Context, *connect.Request[channelmanager.GetBrowserExecutionReviewRequest]) (*connect.Response[channelmanager.GetBrowserExecutionReviewResponse], error)
 }
 
 // NewChannelManagerServiceHandler builds an HTTP handler from the service implementation. It
@@ -237,6 +255,12 @@ func NewChannelManagerServiceHandler(svc ChannelManagerServiceHandler, opts ...c
 		connect.WithSchema(channelManagerServiceMethods.ByName("DispatchBrowserAction")),
 		connect.WithHandlerOptions(opts...),
 	)
+	channelManagerServiceGetBrowserExecutionReviewHandler := connect.NewUnaryHandler(
+		ChannelManagerServiceGetBrowserExecutionReviewProcedure,
+		svc.GetBrowserExecutionReview,
+		connect.WithSchema(channelManagerServiceMethods.ByName("GetBrowserExecutionReview")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.channel_manager.v1.channelmanager.ChannelManagerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ChannelManagerServiceGetOverviewProcedure:
@@ -253,6 +277,8 @@ func NewChannelManagerServiceHandler(svc ChannelManagerServiceHandler, opts ...c
 			channelManagerServiceAssignAutomationHandler.ServeHTTP(w, r)
 		case ChannelManagerServiceDispatchBrowserActionProcedure:
 			channelManagerServiceDispatchBrowserActionHandler.ServeHTTP(w, r)
+		case ChannelManagerServiceGetBrowserExecutionReviewProcedure:
+			channelManagerServiceGetBrowserExecutionReviewHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -288,4 +314,8 @@ func (UnimplementedChannelManagerServiceHandler) AssignAutomation(context.Contex
 
 func (UnimplementedChannelManagerServiceHandler) DispatchBrowserAction(context.Context, *connect.Request[channelmanager.DispatchBrowserActionRequest]) (*connect.Response[channelmanager.DispatchBrowserActionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.channel_manager.v1.channelmanager.ChannelManagerService.DispatchBrowserAction is not implemented"))
+}
+
+func (UnimplementedChannelManagerServiceHandler) GetBrowserExecutionReview(context.Context, *connect.Request[channelmanager.GetBrowserExecutionReviewRequest]) (*connect.Response[channelmanager.GetBrowserExecutionReviewResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.channel_manager.v1.channelmanager.ChannelManagerService.GetBrowserExecutionReview is not implemented"))
 }

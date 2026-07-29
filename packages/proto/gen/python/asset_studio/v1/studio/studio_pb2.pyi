@@ -46,7 +46,7 @@ class Identity(_message.Message):
     def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., kind: _Optional[str] = ..., version: _Optional[int] = ..., traits: _Optional[_Mapping[str, str]] = ..., reference_images: _Optional[_Iterable[str]] = ..., conditioning_references: _Optional[_Iterable[_Union[ConditioningReference, _Mapping]]] = ..., credential_claims: _Optional[str] = ..., referenced: _Optional[bool] = ...) -> None: ...
 
 class AssetReference(_message.Message):
-    __slots__ = ("id", "status", "alt_text", "disclosure", "ai_generated", "width", "height", "media_type")
+    __slots__ = ("id", "status", "alt_text", "disclosure", "ai_generated", "width", "height", "media_type", "parent_asset_id", "derivation_operation")
     ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     ALT_TEXT_FIELD_NUMBER: _ClassVar[int]
@@ -55,6 +55,8 @@ class AssetReference(_message.Message):
     WIDTH_FIELD_NUMBER: _ClassVar[int]
     HEIGHT_FIELD_NUMBER: _ClassVar[int]
     MEDIA_TYPE_FIELD_NUMBER: _ClassVar[int]
+    PARENT_ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    DERIVATION_OPERATION_FIELD_NUMBER: _ClassVar[int]
     id: str
     status: str
     alt_text: str
@@ -63,7 +65,9 @@ class AssetReference(_message.Message):
     width: int
     height: int
     media_type: str
-    def __init__(self, id: _Optional[str] = ..., status: _Optional[str] = ..., alt_text: _Optional[str] = ..., disclosure: _Optional[str] = ..., ai_generated: _Optional[bool] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., media_type: _Optional[str] = ...) -> None: ...
+    parent_asset_id: str
+    derivation_operation: str
+    def __init__(self, id: _Optional[str] = ..., status: _Optional[str] = ..., alt_text: _Optional[str] = ..., disclosure: _Optional[str] = ..., ai_generated: _Optional[bool] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., media_type: _Optional[str] = ..., parent_asset_id: _Optional[str] = ..., derivation_operation: _Optional[str] = ...) -> None: ...
 
 class ListIdentitiesRequest(_message.Message):
     __slots__ = ("kind",)
@@ -137,14 +141,38 @@ class ResolveSpecResponse(_message.Message):
     def __init__(self, spec_id: _Optional[str] = ..., resolved_payload: _Optional[str] = ...) -> None: ...
 
 class CreateRenderRequest(_message.Message):
-    __slots__ = ("spec_id", "estimated_cost", "candidate_count")
+    __slots__ = ("spec_id", "estimated_cost", "candidate_count", "producer_kind", "frame_count", "parent_asset_id", "capture_url", "confirm_over_budget", "budget_confirmation_actor_id", "composition_slots")
     SPEC_ID_FIELD_NUMBER: _ClassVar[int]
     ESTIMATED_COST_FIELD_NUMBER: _ClassVar[int]
     CANDIDATE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    PRODUCER_KIND_FIELD_NUMBER: _ClassVar[int]
+    FRAME_COUNT_FIELD_NUMBER: _ClassVar[int]
+    PARENT_ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    CAPTURE_URL_FIELD_NUMBER: _ClassVar[int]
+    CONFIRM_OVER_BUDGET_FIELD_NUMBER: _ClassVar[int]
+    BUDGET_CONFIRMATION_ACTOR_ID_FIELD_NUMBER: _ClassVar[int]
+    COMPOSITION_SLOTS_FIELD_NUMBER: _ClassVar[int]
     spec_id: str
     estimated_cost: float
     candidate_count: int
-    def __init__(self, spec_id: _Optional[str] = ..., estimated_cost: _Optional[float] = ..., candidate_count: _Optional[int] = ...) -> None: ...
+    producer_kind: str
+    frame_count: int
+    parent_asset_id: str
+    capture_url: str
+    confirm_over_budget: bool
+    budget_confirmation_actor_id: str
+    composition_slots: _containers.RepeatedCompositeFieldContainer[CompositionSlot]
+    def __init__(self, spec_id: _Optional[str] = ..., estimated_cost: _Optional[float] = ..., candidate_count: _Optional[int] = ..., producer_kind: _Optional[str] = ..., frame_count: _Optional[int] = ..., parent_asset_id: _Optional[str] = ..., capture_url: _Optional[str] = ..., confirm_over_budget: _Optional[bool] = ..., budget_confirmation_actor_id: _Optional[str] = ..., composition_slots: _Optional[_Iterable[_Union[CompositionSlot, _Mapping]]] = ...) -> None: ...
+
+class CompositionSlot(_message.Message):
+    __slots__ = ("name", "asset_id", "order")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    ORDER_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    asset_id: str
+    order: int
+    def __init__(self, name: _Optional[str] = ..., asset_id: _Optional[str] = ..., order: _Optional[int] = ...) -> None: ...
 
 class CreateRenderResponse(_message.Message):
     __slots__ = ("render_id", "status", "candidates")
@@ -155,6 +183,164 @@ class CreateRenderResponse(_message.Message):
     status: str
     candidates: _containers.RepeatedCompositeFieldContainer[AssetReference]
     def __init__(self, render_id: _Optional[str] = ..., status: _Optional[str] = ..., candidates: _Optional[_Iterable[_Union[AssetReference, _Mapping]]] = ...) -> None: ...
+
+class RegenerateRenderRequest(_message.Message):
+    __slots__ = ("source_render_id", "confirm_over_budget", "budget_confirmation_actor_id")
+    SOURCE_RENDER_ID_FIELD_NUMBER: _ClassVar[int]
+    CONFIRM_OVER_BUDGET_FIELD_NUMBER: _ClassVar[int]
+    BUDGET_CONFIRMATION_ACTOR_ID_FIELD_NUMBER: _ClassVar[int]
+    source_render_id: str
+    confirm_over_budget: bool
+    budget_confirmation_actor_id: str
+    def __init__(self, source_render_id: _Optional[str] = ..., confirm_over_budget: _Optional[bool] = ..., budget_confirmation_actor_id: _Optional[str] = ...) -> None: ...
+
+class RegenerateRenderResponse(_message.Message):
+    __slots__ = ("render_id", "status", "source_render_id")
+    RENDER_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_RENDER_ID_FIELD_NUMBER: _ClassVar[int]
+    render_id: str
+    status: str
+    source_render_id: str
+    def __init__(self, render_id: _Optional[str] = ..., status: _Optional[str] = ..., source_render_id: _Optional[str] = ...) -> None: ...
+
+class AdvisoryConformance(_message.Message):
+    __slots__ = ("asset_id", "source", "score", "notes", "recorded_at")
+    ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    SCORE_FIELD_NUMBER: _ClassVar[int]
+    NOTES_FIELD_NUMBER: _ClassVar[int]
+    RECORDED_AT_FIELD_NUMBER: _ClassVar[int]
+    asset_id: str
+    source: str
+    score: float
+    notes: _containers.RepeatedScalarFieldContainer[str]
+    recorded_at: str
+    def __init__(self, asset_id: _Optional[str] = ..., source: _Optional[str] = ..., score: _Optional[float] = ..., notes: _Optional[_Iterable[str]] = ..., recorded_at: _Optional[str] = ...) -> None: ...
+
+class AnalyzeConformanceRequest(_message.Message):
+    __slots__ = ("asset_id",)
+    ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    asset_id: str
+    def __init__(self, asset_id: _Optional[str] = ...) -> None: ...
+
+class AnalyzeConformanceResponse(_message.Message):
+    __slots__ = ("advisory",)
+    ADVISORY_FIELD_NUMBER: _ClassVar[int]
+    advisory: AdvisoryConformance
+    def __init__(self, advisory: _Optional[_Union[AdvisoryConformance, _Mapping]] = ...) -> None: ...
+
+class AgentCommission(_message.Message):
+    __slots__ = ("id", "agent_task_id", "agent_identity", "request", "source_identity_version_ids", "status", "created_at")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    AGENT_TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    AGENT_IDENTITY_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_IDENTITY_VERSION_IDS_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    agent_task_id: str
+    agent_identity: str
+    request: str
+    source_identity_version_ids: _containers.RepeatedScalarFieldContainer[str]
+    status: str
+    created_at: str
+    def __init__(self, id: _Optional[str] = ..., agent_task_id: _Optional[str] = ..., agent_identity: _Optional[str] = ..., request: _Optional[str] = ..., source_identity_version_ids: _Optional[_Iterable[str]] = ..., status: _Optional[str] = ..., created_at: _Optional[str] = ...) -> None: ...
+
+class CommissionAgentRequest(_message.Message):
+    __slots__ = ("request", "source_identity_version_ids", "agent_identity")
+    REQUEST_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_IDENTITY_VERSION_IDS_FIELD_NUMBER: _ClassVar[int]
+    AGENT_IDENTITY_FIELD_NUMBER: _ClassVar[int]
+    request: str
+    source_identity_version_ids: _containers.RepeatedScalarFieldContainer[str]
+    agent_identity: str
+    def __init__(self, request: _Optional[str] = ..., source_identity_version_ids: _Optional[_Iterable[str]] = ..., agent_identity: _Optional[str] = ...) -> None: ...
+
+class CommissionAgentResponse(_message.Message):
+    __slots__ = ("commission",)
+    COMMISSION_FIELD_NUMBER: _ClassVar[int]
+    commission: AgentCommission
+    def __init__(self, commission: _Optional[_Union[AgentCommission, _Mapping]] = ...) -> None: ...
+
+class CampaignBudget(_message.Message):
+    __slots__ = ("campaign_ref", "limit_usd", "spent_usd")
+    CAMPAIGN_REF_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_USD_FIELD_NUMBER: _ClassVar[int]
+    SPENT_USD_FIELD_NUMBER: _ClassVar[int]
+    campaign_ref: str
+    limit_usd: float
+    spent_usd: float
+    def __init__(self, campaign_ref: _Optional[str] = ..., limit_usd: _Optional[float] = ..., spent_usd: _Optional[float] = ...) -> None: ...
+
+class SetCampaignBudgetRequest(_message.Message):
+    __slots__ = ("campaign_ref", "limit_usd")
+    CAMPAIGN_REF_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_USD_FIELD_NUMBER: _ClassVar[int]
+    campaign_ref: str
+    limit_usd: float
+    def __init__(self, campaign_ref: _Optional[str] = ..., limit_usd: _Optional[float] = ...) -> None: ...
+
+class SetCampaignBudgetResponse(_message.Message):
+    __slots__ = ("budget",)
+    BUDGET_FIELD_NUMBER: _ClassVar[int]
+    budget: CampaignBudget
+    def __init__(self, budget: _Optional[_Union[CampaignBudget, _Mapping]] = ...) -> None: ...
+
+class RenderProvenance(_message.Message):
+    __slots__ = ("spec_id", "identity_version_ids", "backend", "model", "seed", "parameters")
+    SPEC_ID_FIELD_NUMBER: _ClassVar[int]
+    IDENTITY_VERSION_IDS_FIELD_NUMBER: _ClassVar[int]
+    BACKEND_FIELD_NUMBER: _ClassVar[int]
+    MODEL_FIELD_NUMBER: _ClassVar[int]
+    SEED_FIELD_NUMBER: _ClassVar[int]
+    PARAMETERS_FIELD_NUMBER: _ClassVar[int]
+    spec_id: str
+    identity_version_ids: _containers.RepeatedScalarFieldContainer[str]
+    backend: str
+    model: str
+    seed: str
+    parameters: str
+    def __init__(self, spec_id: _Optional[str] = ..., identity_version_ids: _Optional[_Iterable[str]] = ..., backend: _Optional[str] = ..., model: _Optional[str] = ..., seed: _Optional[str] = ..., parameters: _Optional[str] = ...) -> None: ...
+
+class Render(_message.Message):
+    __slots__ = ("id", "status", "estimated_cost", "actual_cost", "actual_cost_recorded", "provenance", "candidates", "failure_code", "producer_kind", "frame_count", "parent_asset_id")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    ESTIMATED_COST_FIELD_NUMBER: _ClassVar[int]
+    ACTUAL_COST_FIELD_NUMBER: _ClassVar[int]
+    ACTUAL_COST_RECORDED_FIELD_NUMBER: _ClassVar[int]
+    PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATES_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_CODE_FIELD_NUMBER: _ClassVar[int]
+    PRODUCER_KIND_FIELD_NUMBER: _ClassVar[int]
+    FRAME_COUNT_FIELD_NUMBER: _ClassVar[int]
+    PARENT_ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    status: str
+    estimated_cost: float
+    actual_cost: float
+    actual_cost_recorded: bool
+    provenance: RenderProvenance
+    candidates: _containers.RepeatedCompositeFieldContainer[AssetReference]
+    failure_code: str
+    producer_kind: str
+    frame_count: int
+    parent_asset_id: str
+    def __init__(self, id: _Optional[str] = ..., status: _Optional[str] = ..., estimated_cost: _Optional[float] = ..., actual_cost: _Optional[float] = ..., actual_cost_recorded: _Optional[bool] = ..., provenance: _Optional[_Union[RenderProvenance, _Mapping]] = ..., candidates: _Optional[_Iterable[_Union[AssetReference, _Mapping]]] = ..., failure_code: _Optional[str] = ..., producer_kind: _Optional[str] = ..., frame_count: _Optional[int] = ..., parent_asset_id: _Optional[str] = ...) -> None: ...
+
+class GetRenderRequest(_message.Message):
+    __slots__ = ("render_id",)
+    RENDER_ID_FIELD_NUMBER: _ClassVar[int]
+    render_id: str
+    def __init__(self, render_id: _Optional[str] = ...) -> None: ...
+
+class GetRenderResponse(_message.Message):
+    __slots__ = ("render",)
+    RENDER_FIELD_NUMBER: _ClassVar[int]
+    render: Render
+    def __init__(self, render: _Optional[_Union[Render, _Mapping]] = ...) -> None: ...
 
 class SelectCandidateRequest(_message.Message):
     __slots__ = ("asset_id",)

@@ -34,8 +34,8 @@ func TestBuildIncludesInvestigationDiscriminators(t *testing.T) {
 	events := []*domain.RunEvent{
 		domain.NewToolCallEvent(id, "read_file", "read-1", map[string]interface{}{"path": "README.md"}),
 		domain.NewToolCallEvent(id, "read_file", "read-2", map[string]interface{}{"path": "README.md"}),
-		domain.NewToolCallEvent(id, "shell", "1", map[string]interface{}{"command": "vrooli scenario test demo"}),
-		domain.NewToolCallEvent(id, "shell", "2", map[string]interface{}{"command": "vrooli scenario test demo"}),
+		domain.NewToolCallEvent(id, "shell", "1", map[string]interface{}{"command": "agent-manager"}),
+		domain.NewToolCallEvent(id, "shell", "2", map[string]interface{}{"command": "agent-manager"}),
 		domain.NewToolResultEvent(id, "shell", "1", "", assertErr{}),
 		{ID: uuid.New(), RunID: id, EventType: domain.EventTypeModelFallbackAttempted, Timestamp: end},
 		{ID: uuid.New(), RunID: id, EventType: domain.EventTypeMetric, Timestamp: end, Data: &domain.CostEventData{InputTokens: 10, OutputTokens: 5, TotalCostUSD: 1.25}},

@@ -42,6 +42,21 @@ const (
 	// ArtifactsServiceUpdateDraftBodyProcedure is the fully-qualified name of the ArtifactsService's
 	// UpdateDraftBody RPC.
 	ArtifactsServiceUpdateDraftBodyProcedure = "/vrooli.content_desk.v1.artifacts.ArtifactsService/UpdateDraftBody"
+	// ArtifactsServiceAttachReleasedAssetProcedure is the fully-qualified name of the
+	// ArtifactsService's AttachReleasedAsset RPC.
+	ArtifactsServiceAttachReleasedAssetProcedure = "/vrooli.content_desk.v1.artifacts.ArtifactsService/AttachReleasedAsset"
+	// ArtifactsServiceListDraftAttachmentsProcedure is the fully-qualified name of the
+	// ArtifactsService's ListDraftAttachments RPC.
+	ArtifactsServiceListDraftAttachmentsProcedure = "/vrooli.content_desk.v1.artifacts.ArtifactsService/ListDraftAttachments"
+	// ArtifactsServiceCommissionAgentWorkProcedure is the fully-qualified name of the
+	// ArtifactsService's CommissionAgentWork RPC.
+	ArtifactsServiceCommissionAgentWorkProcedure = "/vrooli.content_desk.v1.artifacts.ArtifactsService/CommissionAgentWork"
+	// ArtifactsServiceGetAgentWorkResultProcedure is the fully-qualified name of the ArtifactsService's
+	// GetAgentWorkResult RPC.
+	ArtifactsServiceGetAgentWorkResultProcedure = "/vrooli.content_desk.v1.artifacts.ArtifactsService/GetAgentWorkResult"
+	// ArtifactsServiceAdoptAgentSuggestionProcedure is the fully-qualified name of the
+	// ArtifactsService's AdoptAgentSuggestion RPC.
+	ArtifactsServiceAdoptAgentSuggestionProcedure = "/vrooli.content_desk.v1.artifacts.ArtifactsService/AdoptAgentSuggestion"
 	// ArtifactsServiceSubmitReleaseDraftProcedure is the fully-qualified name of the ArtifactsService's
 	// SubmitReleaseDraft RPC.
 	ArtifactsServiceSubmitReleaseDraftProcedure = "/vrooli.content_desk.v1.artifacts.ArtifactsService/SubmitReleaseDraft"
@@ -62,6 +77,11 @@ type ArtifactsServiceClient interface {
 	ListDrafts(context.Context, *connect.Request[artifacts.ListDraftsRequest]) (*connect.Response[artifacts.ListDraftsResponse], error)
 	CreateDraft(context.Context, *connect.Request[artifacts.CreateDraftRequest]) (*connect.Response[artifacts.CreateDraftResponse], error)
 	UpdateDraftBody(context.Context, *connect.Request[artifacts.UpdateDraftBodyRequest]) (*connect.Response[artifacts.UpdateDraftBodyResponse], error)
+	AttachReleasedAsset(context.Context, *connect.Request[artifacts.AttachReleasedAssetRequest]) (*connect.Response[artifacts.AttachReleasedAssetResponse], error)
+	ListDraftAttachments(context.Context, *connect.Request[artifacts.ListDraftAttachmentsRequest]) (*connect.Response[artifacts.ListDraftAttachmentsResponse], error)
+	CommissionAgentWork(context.Context, *connect.Request[artifacts.CommissionAgentWorkRequest]) (*connect.Response[artifacts.CommissionAgentWorkResponse], error)
+	GetAgentWorkResult(context.Context, *connect.Request[artifacts.GetAgentWorkResultRequest]) (*connect.Response[artifacts.GetAgentWorkResultResponse], error)
+	AdoptAgentSuggestion(context.Context, *connect.Request[artifacts.AdoptAgentSuggestionRequest]) (*connect.Response[artifacts.AdoptAgentSuggestionResponse], error)
 	SubmitReleaseDraft(context.Context, *connect.Request[artifacts.SubmitReleaseDraftRequest]) (*connect.Response[artifacts.SubmitReleaseDraftResponse], error)
 	RecordReleaseOutcome(context.Context, *connect.Request[artifacts.RecordReleaseOutcomeRequest]) (*connect.Response[artifacts.RecordReleaseOutcomeResponse], error)
 	TransitionDraft(context.Context, *connect.Request[artifacts.TransitionDraftRequest]) (*connect.Response[artifacts.TransitionDraftResponse], error)
@@ -98,6 +118,36 @@ func NewArtifactsServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(artifactsServiceMethods.ByName("UpdateDraftBody")),
 			connect.WithClientOptions(opts...),
 		),
+		attachReleasedAsset: connect.NewClient[artifacts.AttachReleasedAssetRequest, artifacts.AttachReleasedAssetResponse](
+			httpClient,
+			baseURL+ArtifactsServiceAttachReleasedAssetProcedure,
+			connect.WithSchema(artifactsServiceMethods.ByName("AttachReleasedAsset")),
+			connect.WithClientOptions(opts...),
+		),
+		listDraftAttachments: connect.NewClient[artifacts.ListDraftAttachmentsRequest, artifacts.ListDraftAttachmentsResponse](
+			httpClient,
+			baseURL+ArtifactsServiceListDraftAttachmentsProcedure,
+			connect.WithSchema(artifactsServiceMethods.ByName("ListDraftAttachments")),
+			connect.WithClientOptions(opts...),
+		),
+		commissionAgentWork: connect.NewClient[artifacts.CommissionAgentWorkRequest, artifacts.CommissionAgentWorkResponse](
+			httpClient,
+			baseURL+ArtifactsServiceCommissionAgentWorkProcedure,
+			connect.WithSchema(artifactsServiceMethods.ByName("CommissionAgentWork")),
+			connect.WithClientOptions(opts...),
+		),
+		getAgentWorkResult: connect.NewClient[artifacts.GetAgentWorkResultRequest, artifacts.GetAgentWorkResultResponse](
+			httpClient,
+			baseURL+ArtifactsServiceGetAgentWorkResultProcedure,
+			connect.WithSchema(artifactsServiceMethods.ByName("GetAgentWorkResult")),
+			connect.WithClientOptions(opts...),
+		),
+		adoptAgentSuggestion: connect.NewClient[artifacts.AdoptAgentSuggestionRequest, artifacts.AdoptAgentSuggestionResponse](
+			httpClient,
+			baseURL+ArtifactsServiceAdoptAgentSuggestionProcedure,
+			connect.WithSchema(artifactsServiceMethods.ByName("AdoptAgentSuggestion")),
+			connect.WithClientOptions(opts...),
+		),
 		submitReleaseDraft: connect.NewClient[artifacts.SubmitReleaseDraftRequest, artifacts.SubmitReleaseDraftResponse](
 			httpClient,
 			baseURL+ArtifactsServiceSubmitReleaseDraftProcedure,
@@ -130,6 +180,11 @@ type artifactsServiceClient struct {
 	listDrafts           *connect.Client[artifacts.ListDraftsRequest, artifacts.ListDraftsResponse]
 	createDraft          *connect.Client[artifacts.CreateDraftRequest, artifacts.CreateDraftResponse]
 	updateDraftBody      *connect.Client[artifacts.UpdateDraftBodyRequest, artifacts.UpdateDraftBodyResponse]
+	attachReleasedAsset  *connect.Client[artifacts.AttachReleasedAssetRequest, artifacts.AttachReleasedAssetResponse]
+	listDraftAttachments *connect.Client[artifacts.ListDraftAttachmentsRequest, artifacts.ListDraftAttachmentsResponse]
+	commissionAgentWork  *connect.Client[artifacts.CommissionAgentWorkRequest, artifacts.CommissionAgentWorkResponse]
+	getAgentWorkResult   *connect.Client[artifacts.GetAgentWorkResultRequest, artifacts.GetAgentWorkResultResponse]
+	adoptAgentSuggestion *connect.Client[artifacts.AdoptAgentSuggestionRequest, artifacts.AdoptAgentSuggestionResponse]
 	submitReleaseDraft   *connect.Client[artifacts.SubmitReleaseDraftRequest, artifacts.SubmitReleaseDraftResponse]
 	recordReleaseOutcome *connect.Client[artifacts.RecordReleaseOutcomeRequest, artifacts.RecordReleaseOutcomeResponse]
 	transitionDraft      *connect.Client[artifacts.TransitionDraftRequest, artifacts.TransitionDraftResponse]
@@ -149,6 +204,33 @@ func (c *artifactsServiceClient) CreateDraft(ctx context.Context, req *connect.R
 // UpdateDraftBody calls vrooli.content_desk.v1.artifacts.ArtifactsService.UpdateDraftBody.
 func (c *artifactsServiceClient) UpdateDraftBody(ctx context.Context, req *connect.Request[artifacts.UpdateDraftBodyRequest]) (*connect.Response[artifacts.UpdateDraftBodyResponse], error) {
 	return c.updateDraftBody.CallUnary(ctx, req)
+}
+
+// AttachReleasedAsset calls vrooli.content_desk.v1.artifacts.ArtifactsService.AttachReleasedAsset.
+func (c *artifactsServiceClient) AttachReleasedAsset(ctx context.Context, req *connect.Request[artifacts.AttachReleasedAssetRequest]) (*connect.Response[artifacts.AttachReleasedAssetResponse], error) {
+	return c.attachReleasedAsset.CallUnary(ctx, req)
+}
+
+// ListDraftAttachments calls
+// vrooli.content_desk.v1.artifacts.ArtifactsService.ListDraftAttachments.
+func (c *artifactsServiceClient) ListDraftAttachments(ctx context.Context, req *connect.Request[artifacts.ListDraftAttachmentsRequest]) (*connect.Response[artifacts.ListDraftAttachmentsResponse], error) {
+	return c.listDraftAttachments.CallUnary(ctx, req)
+}
+
+// CommissionAgentWork calls vrooli.content_desk.v1.artifacts.ArtifactsService.CommissionAgentWork.
+func (c *artifactsServiceClient) CommissionAgentWork(ctx context.Context, req *connect.Request[artifacts.CommissionAgentWorkRequest]) (*connect.Response[artifacts.CommissionAgentWorkResponse], error) {
+	return c.commissionAgentWork.CallUnary(ctx, req)
+}
+
+// GetAgentWorkResult calls vrooli.content_desk.v1.artifacts.ArtifactsService.GetAgentWorkResult.
+func (c *artifactsServiceClient) GetAgentWorkResult(ctx context.Context, req *connect.Request[artifacts.GetAgentWorkResultRequest]) (*connect.Response[artifacts.GetAgentWorkResultResponse], error) {
+	return c.getAgentWorkResult.CallUnary(ctx, req)
+}
+
+// AdoptAgentSuggestion calls
+// vrooli.content_desk.v1.artifacts.ArtifactsService.AdoptAgentSuggestion.
+func (c *artifactsServiceClient) AdoptAgentSuggestion(ctx context.Context, req *connect.Request[artifacts.AdoptAgentSuggestionRequest]) (*connect.Response[artifacts.AdoptAgentSuggestionResponse], error) {
+	return c.adoptAgentSuggestion.CallUnary(ctx, req)
 }
 
 // SubmitReleaseDraft calls vrooli.content_desk.v1.artifacts.ArtifactsService.SubmitReleaseDraft.
@@ -178,6 +260,11 @@ type ArtifactsServiceHandler interface {
 	ListDrafts(context.Context, *connect.Request[artifacts.ListDraftsRequest]) (*connect.Response[artifacts.ListDraftsResponse], error)
 	CreateDraft(context.Context, *connect.Request[artifacts.CreateDraftRequest]) (*connect.Response[artifacts.CreateDraftResponse], error)
 	UpdateDraftBody(context.Context, *connect.Request[artifacts.UpdateDraftBodyRequest]) (*connect.Response[artifacts.UpdateDraftBodyResponse], error)
+	AttachReleasedAsset(context.Context, *connect.Request[artifacts.AttachReleasedAssetRequest]) (*connect.Response[artifacts.AttachReleasedAssetResponse], error)
+	ListDraftAttachments(context.Context, *connect.Request[artifacts.ListDraftAttachmentsRequest]) (*connect.Response[artifacts.ListDraftAttachmentsResponse], error)
+	CommissionAgentWork(context.Context, *connect.Request[artifacts.CommissionAgentWorkRequest]) (*connect.Response[artifacts.CommissionAgentWorkResponse], error)
+	GetAgentWorkResult(context.Context, *connect.Request[artifacts.GetAgentWorkResultRequest]) (*connect.Response[artifacts.GetAgentWorkResultResponse], error)
+	AdoptAgentSuggestion(context.Context, *connect.Request[artifacts.AdoptAgentSuggestionRequest]) (*connect.Response[artifacts.AdoptAgentSuggestionResponse], error)
 	SubmitReleaseDraft(context.Context, *connect.Request[artifacts.SubmitReleaseDraftRequest]) (*connect.Response[artifacts.SubmitReleaseDraftResponse], error)
 	RecordReleaseOutcome(context.Context, *connect.Request[artifacts.RecordReleaseOutcomeRequest]) (*connect.Response[artifacts.RecordReleaseOutcomeResponse], error)
 	TransitionDraft(context.Context, *connect.Request[artifacts.TransitionDraftRequest]) (*connect.Response[artifacts.TransitionDraftResponse], error)
@@ -207,6 +294,36 @@ func NewArtifactsServiceHandler(svc ArtifactsServiceHandler, opts ...connect.Han
 		ArtifactsServiceUpdateDraftBodyProcedure,
 		svc.UpdateDraftBody,
 		connect.WithSchema(artifactsServiceMethods.ByName("UpdateDraftBody")),
+		connect.WithHandlerOptions(opts...),
+	)
+	artifactsServiceAttachReleasedAssetHandler := connect.NewUnaryHandler(
+		ArtifactsServiceAttachReleasedAssetProcedure,
+		svc.AttachReleasedAsset,
+		connect.WithSchema(artifactsServiceMethods.ByName("AttachReleasedAsset")),
+		connect.WithHandlerOptions(opts...),
+	)
+	artifactsServiceListDraftAttachmentsHandler := connect.NewUnaryHandler(
+		ArtifactsServiceListDraftAttachmentsProcedure,
+		svc.ListDraftAttachments,
+		connect.WithSchema(artifactsServiceMethods.ByName("ListDraftAttachments")),
+		connect.WithHandlerOptions(opts...),
+	)
+	artifactsServiceCommissionAgentWorkHandler := connect.NewUnaryHandler(
+		ArtifactsServiceCommissionAgentWorkProcedure,
+		svc.CommissionAgentWork,
+		connect.WithSchema(artifactsServiceMethods.ByName("CommissionAgentWork")),
+		connect.WithHandlerOptions(opts...),
+	)
+	artifactsServiceGetAgentWorkResultHandler := connect.NewUnaryHandler(
+		ArtifactsServiceGetAgentWorkResultProcedure,
+		svc.GetAgentWorkResult,
+		connect.WithSchema(artifactsServiceMethods.ByName("GetAgentWorkResult")),
+		connect.WithHandlerOptions(opts...),
+	)
+	artifactsServiceAdoptAgentSuggestionHandler := connect.NewUnaryHandler(
+		ArtifactsServiceAdoptAgentSuggestionProcedure,
+		svc.AdoptAgentSuggestion,
+		connect.WithSchema(artifactsServiceMethods.ByName("AdoptAgentSuggestion")),
 		connect.WithHandlerOptions(opts...),
 	)
 	artifactsServiceSubmitReleaseDraftHandler := connect.NewUnaryHandler(
@@ -241,6 +358,16 @@ func NewArtifactsServiceHandler(svc ArtifactsServiceHandler, opts ...connect.Han
 			artifactsServiceCreateDraftHandler.ServeHTTP(w, r)
 		case ArtifactsServiceUpdateDraftBodyProcedure:
 			artifactsServiceUpdateDraftBodyHandler.ServeHTTP(w, r)
+		case ArtifactsServiceAttachReleasedAssetProcedure:
+			artifactsServiceAttachReleasedAssetHandler.ServeHTTP(w, r)
+		case ArtifactsServiceListDraftAttachmentsProcedure:
+			artifactsServiceListDraftAttachmentsHandler.ServeHTTP(w, r)
+		case ArtifactsServiceCommissionAgentWorkProcedure:
+			artifactsServiceCommissionAgentWorkHandler.ServeHTTP(w, r)
+		case ArtifactsServiceGetAgentWorkResultProcedure:
+			artifactsServiceGetAgentWorkResultHandler.ServeHTTP(w, r)
+		case ArtifactsServiceAdoptAgentSuggestionProcedure:
+			artifactsServiceAdoptAgentSuggestionHandler.ServeHTTP(w, r)
 		case ArtifactsServiceSubmitReleaseDraftProcedure:
 			artifactsServiceSubmitReleaseDraftHandler.ServeHTTP(w, r)
 		case ArtifactsServiceRecordReleaseOutcomeProcedure:
@@ -268,6 +395,26 @@ func (UnimplementedArtifactsServiceHandler) CreateDraft(context.Context, *connec
 
 func (UnimplementedArtifactsServiceHandler) UpdateDraftBody(context.Context, *connect.Request[artifacts.UpdateDraftBodyRequest]) (*connect.Response[artifacts.UpdateDraftBodyResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.content_desk.v1.artifacts.ArtifactsService.UpdateDraftBody is not implemented"))
+}
+
+func (UnimplementedArtifactsServiceHandler) AttachReleasedAsset(context.Context, *connect.Request[artifacts.AttachReleasedAssetRequest]) (*connect.Response[artifacts.AttachReleasedAssetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.content_desk.v1.artifacts.ArtifactsService.AttachReleasedAsset is not implemented"))
+}
+
+func (UnimplementedArtifactsServiceHandler) ListDraftAttachments(context.Context, *connect.Request[artifacts.ListDraftAttachmentsRequest]) (*connect.Response[artifacts.ListDraftAttachmentsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.content_desk.v1.artifacts.ArtifactsService.ListDraftAttachments is not implemented"))
+}
+
+func (UnimplementedArtifactsServiceHandler) CommissionAgentWork(context.Context, *connect.Request[artifacts.CommissionAgentWorkRequest]) (*connect.Response[artifacts.CommissionAgentWorkResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.content_desk.v1.artifacts.ArtifactsService.CommissionAgentWork is not implemented"))
+}
+
+func (UnimplementedArtifactsServiceHandler) GetAgentWorkResult(context.Context, *connect.Request[artifacts.GetAgentWorkResultRequest]) (*connect.Response[artifacts.GetAgentWorkResultResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.content_desk.v1.artifacts.ArtifactsService.GetAgentWorkResult is not implemented"))
+}
+
+func (UnimplementedArtifactsServiceHandler) AdoptAgentSuggestion(context.Context, *connect.Request[artifacts.AdoptAgentSuggestionRequest]) (*connect.Response[artifacts.AdoptAgentSuggestionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.content_desk.v1.artifacts.ArtifactsService.AdoptAgentSuggestion is not implemented"))
 }
 
 func (UnimplementedArtifactsServiceHandler) SubmitReleaseDraft(context.Context, *connect.Request[artifacts.SubmitReleaseDraftRequest]) (*connect.Response[artifacts.SubmitReleaseDraftResponse], error) {

@@ -263,6 +263,22 @@
           "architecture": {"primitive":"proto_list"}
         },
         {
+          "name": "cohort-report",
+          "description": "Show a bounded ranked projection for an explicit comparable run cohort",
+          "flags": [{"name":"run-ids","required":true,"description":"Comma-separated run UUIDs"}],
+          "binding": {"kind":"local"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"operational"}
+        },
+        {
+          "name": "invocation-facts",
+          "description": "Drill into redacted normalized invocation evidence for one run",
+          "positionals": [{"name":"run_id","required":true,"description":"Run UUID"}],
+          "binding": {"kind":"local"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"operational"}
+        },
+        {
           "name": "result",
           "description": "Show final-output and structured-result provenance",
           "positionals": [{"name":"run_id","required":true,"description":"Run UUID"}],

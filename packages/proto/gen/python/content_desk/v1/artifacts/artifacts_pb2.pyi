@@ -76,17 +76,121 @@ class UpdateDraftBodyResponse(_message.Message):
     draft: Draft
     def __init__(self, draft: _Optional[_Union[Draft, _Mapping]] = ...) -> None: ...
 
+class DraftAttachment(_message.Message):
+    __slots__ = ("id", "draft_id", "asset_id", "role", "aspect_ratio", "alt_text", "position")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    DRAFT_ID_FIELD_NUMBER: _ClassVar[int]
+    ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    ASPECT_RATIO_FIELD_NUMBER: _ClassVar[int]
+    ALT_TEXT_FIELD_NUMBER: _ClassVar[int]
+    POSITION_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    draft_id: str
+    asset_id: str
+    role: str
+    aspect_ratio: str
+    alt_text: str
+    position: int
+    def __init__(self, id: _Optional[str] = ..., draft_id: _Optional[str] = ..., asset_id: _Optional[str] = ..., role: _Optional[str] = ..., aspect_ratio: _Optional[str] = ..., alt_text: _Optional[str] = ..., position: _Optional[int] = ...) -> None: ...
+
+class AttachReleasedAssetRequest(_message.Message):
+    __slots__ = ("draft_id", "asset_id", "role", "aspect_ratio", "alt_text", "position")
+    DRAFT_ID_FIELD_NUMBER: _ClassVar[int]
+    ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    ASPECT_RATIO_FIELD_NUMBER: _ClassVar[int]
+    ALT_TEXT_FIELD_NUMBER: _ClassVar[int]
+    POSITION_FIELD_NUMBER: _ClassVar[int]
+    draft_id: str
+    asset_id: str
+    role: str
+    aspect_ratio: str
+    alt_text: str
+    position: int
+    def __init__(self, draft_id: _Optional[str] = ..., asset_id: _Optional[str] = ..., role: _Optional[str] = ..., aspect_ratio: _Optional[str] = ..., alt_text: _Optional[str] = ..., position: _Optional[int] = ...) -> None: ...
+
+class AttachReleasedAssetResponse(_message.Message):
+    __slots__ = ("attachment",)
+    ATTACHMENT_FIELD_NUMBER: _ClassVar[int]
+    attachment: DraftAttachment
+    def __init__(self, attachment: _Optional[_Union[DraftAttachment, _Mapping]] = ...) -> None: ...
+
+class ListDraftAttachmentsRequest(_message.Message):
+    __slots__ = ("draft_id",)
+    DRAFT_ID_FIELD_NUMBER: _ClassVar[int]
+    draft_id: str
+    def __init__(self, draft_id: _Optional[str] = ...) -> None: ...
+
+class ListDraftAttachmentsResponse(_message.Message):
+    __slots__ = ("attachments",)
+    ATTACHMENTS_FIELD_NUMBER: _ClassVar[int]
+    attachments: _containers.RepeatedCompositeFieldContainer[DraftAttachment]
+    def __init__(self, attachments: _Optional[_Iterable[_Union[DraftAttachment, _Mapping]]] = ...) -> None: ...
+
+class CommissionAgentWorkRequest(_message.Message):
+    __slots__ = ("draft_id", "action")
+    DRAFT_ID_FIELD_NUMBER: _ClassVar[int]
+    ACTION_FIELD_NUMBER: _ClassVar[int]
+    draft_id: str
+    action: str
+    def __init__(self, draft_id: _Optional[str] = ..., action: _Optional[str] = ...) -> None: ...
+
+class CommissionAgentWorkResponse(_message.Message):
+    __slots__ = ("commission_id", "task_id", "run_id", "status")
+    COMMISSION_ID_FIELD_NUMBER: _ClassVar[int]
+    TASK_ID_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    commission_id: str
+    task_id: str
+    run_id: str
+    status: str
+    def __init__(self, commission_id: _Optional[str] = ..., task_id: _Optional[str] = ..., run_id: _Optional[str] = ..., status: _Optional[str] = ...) -> None: ...
+
+class GetAgentWorkResultRequest(_message.Message):
+    __slots__ = ("commission_id",)
+    COMMISSION_ID_FIELD_NUMBER: _ClassVar[int]
+    commission_id: str
+    def __init__(self, commission_id: _Optional[str] = ...) -> None: ...
+
+class GetAgentWorkResultResponse(_message.Message):
+    __slots__ = ("run_id", "status", "body")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    BODY_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    status: str
+    body: str
+    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[str] = ..., body: _Optional[str] = ...) -> None: ...
+
+class AdoptAgentSuggestionRequest(_message.Message):
+    __slots__ = ("commission_id", "body")
+    COMMISSION_ID_FIELD_NUMBER: _ClassVar[int]
+    BODY_FIELD_NUMBER: _ClassVar[int]
+    commission_id: str
+    body: str
+    def __init__(self, commission_id: _Optional[str] = ..., body: _Optional[str] = ...) -> None: ...
+
+class AdoptAgentSuggestionResponse(_message.Message):
+    __slots__ = ("draft",)
+    DRAFT_FIELD_NUMBER: _ClassVar[int]
+    draft: Draft
+    def __init__(self, draft: _Optional[_Union[Draft, _Mapping]] = ...) -> None: ...
+
 class SubmitReleaseDraftRequest(_message.Message):
-    __slots__ = ("id", "identity_id", "lane", "idempotency_key")
+    __slots__ = ("id", "identity_id", "lane", "idempotency_key", "disclosure_visible")
     ID_FIELD_NUMBER: _ClassVar[int]
     IDENTITY_ID_FIELD_NUMBER: _ClassVar[int]
     LANE_FIELD_NUMBER: _ClassVar[int]
     IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    DISCLOSURE_VISIBLE_FIELD_NUMBER: _ClassVar[int]
     id: str
     identity_id: str
     lane: str
     idempotency_key: str
-    def __init__(self, id: _Optional[str] = ..., identity_id: _Optional[str] = ..., lane: _Optional[str] = ..., idempotency_key: _Optional[str] = ...) -> None: ...
+    disclosure_visible: bool
+    def __init__(self, id: _Optional[str] = ..., identity_id: _Optional[str] = ..., lane: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., disclosure_visible: _Optional[bool] = ...) -> None: ...
 
 class SubmitReleaseDraftResponse(_message.Message):
     __slots__ = ("draft", "release_id", "action_id", "release_status")

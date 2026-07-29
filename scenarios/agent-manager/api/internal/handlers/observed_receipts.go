@@ -2,11 +2,13 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strconv"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/eventbus"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	eventspb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -45,11 +47,26 @@ func (h *Handler) GetObservedReceipts(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"status": "degraded", "observations": []any{}, "message": "vrooli-events observations unavailable"})
 		return
 	}
+	observations = verifiedReceiptObservations(observations, id.String())
 	status := "available"
 	if len(observations) == 0 {
 		status = "unobserved"
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"status": status, "observations": observations})
+}
+
+// verifiedReceiptObservations keeps the raw receipt payload behind the explicit
+// drill-down boundary while refusing unverified or incorrectly correlated data.
+func verifiedReceiptObservations(items []json.RawMessage, runID string) []json.RawMessage {
+	verified := make([]json.RawMessage, 0, len(items))
+	for _, item := range items {
+		env := &eventspb.EventEnvelope{}
+		if protojson.Unmarshal(item, env) != nil || env.EventType != eventbus.ReceiptEventType || env.Attribution == nil || !env.Attribution.Verified || env.Correlation == nil || env.Correlation.AgentRunId != runID {
+			continue
+		}
+		verified = append(verified, item)
+	}
+	return verified
 }
 
 // attachObservedReceipts adds platform evidence to the normal result model
