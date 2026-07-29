@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect"
+	"landing-page-business-suite-api/handlers/coupons"
 )
 
 // couponConnectHandler is the administrator-only typed boundary for Stripe
@@ -347,7 +348,5 @@ func couponError(err error) error {
 
 func registerCouponAdminConnectRoutes(router *mux.Router, stripe StripeCouponService, plans *PlanService, db CouponUsageStore, requireAdmin func(http.HandlerFunc) http.HandlerFunc) {
 	_, generated := lpbsconnect.NewCouponAdminServiceHandler(newCouponConnectHandler(stripe, plans, db))
-	for _, procedure := range []string{lpbsconnect.CouponAdminServiceListCouponsProcedure, lpbsconnect.CouponAdminServiceCreateCouponProcedure, lpbsconnect.CouponAdminServiceGetCouponProcedure, lpbsconnect.CouponAdminServiceUpdateCouponProcedure, lpbsconnect.CouponAdminServiceDeleteCouponProcedure, lpbsconnect.CouponAdminServiceListCouponUsageProcedure, lpbsconnect.CouponAdminServiceGetCouponMappingsProcedure, lpbsconnect.CouponAdminServiceSetCouponForPlanProcedure, lpbsconnect.CouponAdminServiceRemoveCouponFromPlanProcedure, lpbsconnect.CouponAdminServiceGetCouponImportPreviewProcedure} {
-		router.Handle(procedure, requireAdmin(generated.ServeHTTP)).Methods(http.MethodPost)
-	}
+	coupons.Register(router, generated, requireAdmin)
 }

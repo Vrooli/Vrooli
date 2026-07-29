@@ -204,7 +204,7 @@ func setupMonetizationHarness(t *testing.T, stripeServer *httptest.Server) *mone
 	service := ConfigureStripeService(t, db, cfg, stripeServer)
 
 	accountSvc := NewAccountService(db, service.planService)
-	downloadSvc := &DownloadService{db: db}
+	downloadSvc := NewDownloadService(db)
 	authorizer := NewDownloadAuthorizer(downloadSvc, accountSvc, "business_suite")
 
 	return &monetizationTestHarness{

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"landing-page-business-suite-api/internal/delivery"
 )
 
 // mockDownloadStorage implements DownloadStorage for testing
@@ -63,11 +65,8 @@ func TestNewDownloadHostingService(t *testing.T) {
 	if service == nil {
 		t.Fatal("NewDownloadHostingService returned nil")
 	}
-	if service.db != db {
-		t.Error("Expected service to hold reference to provided db")
-	}
 	// Should have default s3 provider
-	if _, ok := service.providers["s3"]; !ok {
+	if !service.HasProvider("s3") {
 		t.Error("Expected default s3 provider to be registered")
 	}
 }
@@ -78,7 +77,7 @@ func TestNewDownloadHostingService_WithCustomProvider(t *testing.T) {
 	customProvider := &mockStorageProvider{storage: &mockDownloadStorage{}}
 	service := NewDownloadHostingService(db, customProvider)
 
-	if _, ok := service.providers["s3"]; !ok {
+	if !service.HasProvider("s3") {
 		t.Error("Expected s3 provider to be registered")
 	}
 }
@@ -905,7 +904,7 @@ func TestSanitizeObjectFilename(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			result := sanitizeObjectFilename(tt.input)
+			result := delivery.SanitizeObjectFilename(tt.input)
 			if result != tt.expected {
 				t.Errorf("Expected '%s', got '%s'", tt.expected, result)
 			}
@@ -925,7 +924,7 @@ func TestBuildObjectKey(t *testing.T) {
 		ReleaseVersion: "1.0.0",
 	}
 
-	key, err := buildObjectKey(settings, "test_bundle", req)
+	key, err := delivery.BuildObjectKey(settings, "test_bundle", req)
 	if err != nil {
 		t.Fatalf("buildObjectKey failed: %v", err)
 	}
@@ -995,7 +994,7 @@ func TestNormalizeOptionalString_ValidValue(t *testing.T) {
 }
 
 func TestStableS3URI_Basic(t *testing.T) {
-	result := stableS3URI("my-bucket", "path/to/object.zip")
+	result := delivery.StableS3URI("my-bucket", "path/to/object.zip")
 	expected := "s3://my-bucket/path/to/object.zip"
 	if result != expected {
 		t.Errorf("expected '%s', got '%s'", expected, result)
@@ -1003,7 +1002,7 @@ func TestStableS3URI_Basic(t *testing.T) {
 }
 
 func TestStableS3URI_EmptyKey(t *testing.T) {
-	result := stableS3URI("my-bucket", "")
+	result := delivery.StableS3URI("my-bucket", "")
 	expected := "s3://my-bucket/"
 	if result != expected {
 		t.Errorf("expected '%s', got '%s'", expected, result)
@@ -1018,7 +1017,7 @@ func TestS3DownloadStorageProvider_ProviderKey(t *testing.T) {
 }
 
 func TestRandomHex_Generates12Chars(t *testing.T) {
-	result, err := randomHex(6)
+	result, err := delivery.RandomHex(6)
 	if err != nil {
 		t.Fatalf("randomHex failed: %v", err)
 	}
@@ -1030,7 +1029,7 @@ func TestRandomHex_Generates12Chars(t *testing.T) {
 func TestRandomHex_GeneratesUnique(t *testing.T) {
 	results := make(map[string]bool)
 	for i := 0; i < 100; i++ {
-		hex, err := randomHex(6)
+		hex, err := delivery.RandomHex(6)
 		if err != nil {
 			t.Fatalf("randomHex failed: %v", err)
 		}
@@ -1053,7 +1052,7 @@ func TestBuildObjectKey_WithAllSegments(t *testing.T) {
 		ReleaseVersion: "1.0.0",
 	}
 
-	key, err := buildObjectKey(settings, "test_bundle", req)
+	key, err := delivery.BuildObjectKey(settings, "test_bundle", req)
 	if err != nil {
 		t.Fatalf("buildObjectKey failed: %v", err)
 	}
@@ -1089,7 +1088,7 @@ func TestBuildObjectKey_WithoutOptionalSegments(t *testing.T) {
 		Filename: "simple.bin",
 	}
 
-	key, err := buildObjectKey(settings, "bundle", req)
+	key, err := delivery.BuildObjectKey(settings, "bundle", req)
 	if err != nil {
 		t.Fatalf("buildObjectKey failed: %v", err)
 	}
@@ -1113,7 +1112,7 @@ func TestDownloadHostingService_ValidateStorageSettings_UnsupportedProvider(t *t
 		SignedURLTTLSeconds: 900,
 	}
 
-	err := service.validateStorageSettings(settings)
+	err := service.ValidateStorageSettings(settings)
 	if err == nil {
 		t.Error("expected error for unsupported provider")
 	}
@@ -1134,7 +1133,7 @@ func TestDownloadHostingService_ValidateStorageSettings_InvalidEndpoint(t *testi
 		SignedURLTTLSeconds: 900,
 	}
 
-	err := service.validateStorageSettings(settings)
+	err := service.ValidateStorageSettings(settings)
 	if err == nil {
 		t.Error("expected error for invalid endpoint")
 	}
@@ -1162,7 +1161,7 @@ func TestDownloadHostingService_ValidateStorageSettings_InvalidTTL(t *testing.T)
 				SignedURLTTLSeconds: tt.ttl,
 			}
 
-			err := service.validateStorageSettings(settings)
+			err := service.ValidateStorageSettings(settings)
 			if err == nil {
 				t.Errorf("expected error for TTL %d", tt.ttl)
 			}
@@ -1183,7 +1182,7 @@ func TestDownloadHostingService_ValidateStorageSettings_MismatchedCredentials(t 
 		AccessKeyID:         "access-key",
 	}
 
-	err := service.validateStorageSettings(settings)
+	err := service.ValidateStorageSettings(settings)
 	if err == nil {
 		t.Error("expected error for mismatched credentials")
 	}
@@ -1196,7 +1195,7 @@ func TestDownloadHostingService_ValidateStorageSettings_MismatchedCredentials(t 
 		SecretAccessKey:     "secret-key",
 	}
 
-	err = service.validateStorageSettings(settings)
+	err = service.ValidateStorageSettings(settings)
 	if err == nil {
 		t.Error("expected error for mismatched credentials")
 	}
@@ -1217,7 +1216,7 @@ func TestDownloadHostingService_ValidateStorageSettings_ValidSettings(t *testing
 		SecretAccessKey:     "secret-key",
 	}
 
-	err := service.validateStorageSettings(settings)
+	err := service.ValidateStorageSettings(settings)
 	if err != nil {
 		t.Errorf("expected no error for valid settings, got: %v", err)
 	}

@@ -53,7 +53,7 @@ type Server struct {
 	stripeService        *StripeService
 	planService          *PlanService
 	downloadService      *DownloadService
-	downloadHosting      *DownloadHostingService
+	downloadHosting      *delivery.Service
 	downloadAuthorizer   *DownloadAuthorizer
 	accountService       *AccountService
 	landingConfigService *LandingConfigService
@@ -167,7 +167,7 @@ func NewServer() (*Server, error) {
 	variantSpace := defaultVariantSpace
 	planService := NewPlanService(db)
 	downloadService := NewDownloadService(newRoutedDownloadStore(routedDB))
-	downloadHosting := NewDownloadHostingService(db, S3DownloadStorageProvider{})
+	downloadHosting := delivery.NewService(db, delivery.S3StorageProvider{})
 	accountService := NewAccountService(routedDB, planService)
 	downloadAuthorizer := NewDownloadAuthorizer(downloadService, accountService, planService.BundleKey())
 	paymentSettings := NewPaymentSettingsService(routedDB)

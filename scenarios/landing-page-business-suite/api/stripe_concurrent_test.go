@@ -725,7 +725,7 @@ func TestConcurrent_SubscriptionStatusChange_DuringDownloadAuth(t *testing.T) {
 
 	service := ConfigureStripeServiceSimple(t, db)
 	accountSvc := NewAccountService(db, service.planService)
-	downloadSvc := &DownloadService{db: db}
+	downloadSvc := NewDownloadService(db)
 	authorizer := NewDownloadAuthorizer(downloadSvc, accountSvc, "business_suite")
 
 	const numGoroutines = 10

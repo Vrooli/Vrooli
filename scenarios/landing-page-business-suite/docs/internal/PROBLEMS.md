@@ -9,7 +9,7 @@ This file tracks known issues and technical debt that need attention.
 - Rung: W3 / R2–R3 implementation hardening
 - Evidence: active goal `landing-page-api-domain-subpackages` requires behavior-preserving domain extraction; the PRD's P0 monetization/download targets remain compatible, and `vrooli scenario requirements validate landing-page-business-suite` passed on 2026-07-28. The latest API suite is green, while Tidiness reports 27 long files and 315 duplication findings, including the 1,039-line Download Settings route.
 - Blocker: none; continue domain-oriented API work and direct-UI decomposition without weakening requirements or validator rules.
-- Measured: 2026-07-28
+- Measured: 2026-07-29
 
 ---
 
@@ -40,10 +40,10 @@ through Scenario Dependency Analyzer, then validated with the complete API and
 CLI test suites and `GOWORK=off govulncheck ./...` (zero reachable
 vulnerabilities).
 
-### SQL-002: SQL Injection in download_hosting.go
+### SQL-002: SQL Injection in delivery artifact listing
 
 **Severity:** ~~Critical~~ False Positive
-**Location:** `api/download_hosting.go:882`
+**Location:** `api/internal/delivery/service.go` (artifact-listing query construction)
 **Status:** ✅ Analyzed - False Positive
 **Reported:** 2026-01-16 (scenario-auditor)
 **Analyzed:** 2026-01-16 by Claude (failure-topography)

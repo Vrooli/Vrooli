@@ -79,6 +79,47 @@ declare module '@vrooli/proto-types/landing-page-business-suite/branding_pb' {
   }>;
 }
 
+declare module '@vrooli/proto-types/landing-page-business-suite/assets_pb' {
+  import type { Message } from '@bufbuild/protobuf';
+  import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
+
+  export interface Asset extends Message<'landing_page_business_suite.v1.Asset'> {
+    id: bigint;
+    filename: string;
+    originalFilename: string;
+    mimeType: string;
+    sizeBytes: bigint;
+    storagePath: string;
+    thumbnailPath?: string;
+    altText?: string;
+    category: string;
+    uploadedBy?: string;
+    createdAt?: { seconds: bigint; nanos: number };
+    url: string;
+    derivatives: Record<string, string>;
+  }
+
+  export interface ListAssetsRequest extends Message<'landing_page_business_suite.v1.ListAssetsRequest'> { category: string; }
+  export interface ListAssetsResponse extends Message<'landing_page_business_suite.v1.ListAssetsResponse'> { assets: Asset[]; }
+  export interface GetAssetRequest extends Message<'landing_page_business_suite.v1.GetAssetRequest'> { id: bigint; }
+  export interface AssetResponse extends Message<'landing_page_business_suite.v1.AssetResponse'> { asset?: Asset; }
+  export interface DeleteAssetRequest extends Message<'landing_page_business_suite.v1.DeleteAssetRequest'> { id: bigint; }
+  export interface DeleteAssetResponse extends Message<'landing_page_business_suite.v1.DeleteAssetResponse'> { deleted: boolean; }
+
+  export const ListAssetsRequestSchema: GenMessage<ListAssetsRequest>;
+  export const ListAssetsResponseSchema: GenMessage<ListAssetsResponse>;
+  export const GetAssetRequestSchema: GenMessage<GetAssetRequest>;
+  export const AssetResponseSchema: GenMessage<AssetResponse>;
+  export const DeleteAssetRequestSchema: GenMessage<DeleteAssetRequest>;
+  export const DeleteAssetResponseSchema: GenMessage<DeleteAssetResponse>;
+
+  export const AssetsService: GenService<{
+    listAssets: { methodKind: 'unary'; input: typeof ListAssetsRequestSchema; output: typeof ListAssetsResponseSchema };
+    getAsset: { methodKind: 'unary'; input: typeof GetAssetRequestSchema; output: typeof AssetResponseSchema };
+    deleteAsset: { methodKind: 'unary'; input: typeof DeleteAssetRequestSchema; output: typeof DeleteAssetResponseSchema };
+  }>;
+}
+
 declare module '@vrooli/proto-types/landing-page-business-suite/bundles_pb' {
   import type { Message } from '@bufbuild/protobuf';
   import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';

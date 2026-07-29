@@ -18,7 +18,7 @@ func TestLandingConfigConnectHandler_Success(t *testing.T) {
 	configStore := setupTestConfigStore(t)
 	planService := NewPlanService(db)
 	downloadService := NewDownloadService(db)
-	if _, err := downloadService.UpsertDownloadApp(DownloadApp{
+	if _, err := downloadService.UpsertApp(DownloadApp{
 		BundleKey: planService.BundleKey(),
 		AppKey:    "unreleased-desktop",
 		Name:      "Unreleased Desktop",

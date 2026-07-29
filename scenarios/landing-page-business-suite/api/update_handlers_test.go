@@ -227,7 +227,7 @@ func TestHandleUpdateFile_APIKeyGating_Forbidden(t *testing.T) {
 	plans := newTestPlanService(t, "test_bundle")
 
 	// Create an app with an update_api_key
-	_, err := downloads.UpsertDownloadApp(DownloadApp{
+	_, err := downloads.UpsertApp(DownloadApp{
 		BundleKey:    "test_bundle",
 		AppKey:       "gated-app",
 		Name:         "Gated App",
@@ -289,7 +289,7 @@ func TestHandleUpdateFile_PublicApp_NoKeyRequired(t *testing.T) {
 	plans := newTestPlanService(t, "test_bundle")
 
 	// Create an app without update_api_key (public)
-	_, err := downloads.UpsertDownloadApp(DownloadApp{
+	_, err := downloads.UpsertApp(DownloadApp{
 		BundleKey: "test_bundle",
 		AppKey:    "public-app",
 		Name:      "Public App",
@@ -597,7 +597,7 @@ func TestHandleUpdatePolicy_CRUD(t *testing.T) {
 	downloads := NewDownloadService(db)
 	plans := newTestPlanService(t, "test_bundle")
 
-	_, err := downloads.UpsertDownloadApp(DownloadApp{
+	_, err := downloads.UpsertApp(DownloadApp{
 		BundleKey: "test_bundle",
 		AppKey:    "policy-app",
 		Name:      "Policy App",
@@ -666,7 +666,7 @@ func TestUpsertAsset_NonDefaultVariantKey(t *testing.T) {
 	downloads := NewDownloadService(db)
 	plans := newTestPlanService(t, "test_bundle")
 
-	_, err := downloads.UpsertDownloadApp(DownloadApp{
+	_, err := downloads.UpsertApp(DownloadApp{
 		BundleKey: plans.BundleKey(),
 		AppKey:    "variant-app",
 		Name:      "Variant App",
@@ -730,7 +730,7 @@ func TestListChannels_Integration(t *testing.T) {
 	downloads := NewDownloadService(db)
 	plans := newTestPlanService(t, "test_bundle")
 
-	_, err := downloads.UpsertDownloadApp(DownloadApp{
+	_, err := downloads.UpsertApp(DownloadApp{
 		BundleKey: plans.BundleKey(),
 		AppKey:    "channels-app",
 		Name:      "Channels App",

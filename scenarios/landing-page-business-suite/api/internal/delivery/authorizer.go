@@ -30,7 +30,7 @@ type Request struct {
 	RequiresEntitlement bool
 }
 
-// Authorize validates a delivery request and, when needed, requires an active
+// [REQ:DOWNLOAD-GATE] Authorize validates a delivery request and, when needed, requires an active
 // or trialing subscription. Asset retrieval intentionally remains at the
 // delivery composition boundary so this policy has no database dependency.
 func Authorize(request Request, entitlements EntitlementLookup) error {

@@ -1,12 +1,42 @@
-import { API_BASE } from './common';
-import { AssetListSchema, AssetSchema } from './schemas/common.schema';
+import { createClient } from '@connectrpc/connect';
+import { createScenarioConnectTransport } from '@vrooli/api-base';
+import { AssetsService, type Asset as GeneratedAsset } from '@vrooli/proto-types/landing-page-business-suite/assets_pb';
+import { API_BASE, CONNECT_API_BASE } from './common';
+import { AssetSchema } from './schemas/common.schema';
 import { safeParseJson } from '../lib/utils';
 import type { Asset, AssetCategory } from './types';
+
+const assetsClient = createClient(AssetsService, createScenarioConnectTransport({ baseUrl: CONNECT_API_BASE }));
 
 export interface UploadAssetOptions {
   category?: AssetCategory;
   altText?: string;
   uploadedBy?: string;
+}
+
+function assetFromProto(value: GeneratedAsset): Asset {
+  const createdAt = value.createdAt
+    ? new Date(Number(value.createdAt.seconds) * 1000 + Number(value.createdAt.nanos) / 1_000_000)
+      .toISOString()
+      .replace('.000Z', 'Z')
+    : undefined;
+  const derivatives = Object.keys(value.derivatives).length > 0 ? value.derivatives : undefined;
+
+  return AssetSchema.parse({
+    id: Number(value.id),
+    filename: value.filename,
+    original_filename: value.originalFilename,
+    mime_type: value.mimeType,
+    size_bytes: Number(value.sizeBytes),
+    storage_path: value.storagePath,
+    ...(value.thumbnailPath ? { thumbnail_path: value.thumbnailPath } : {}),
+    ...(value.altText ? { alt_text: value.altText } : {}),
+    category: value.category,
+    ...(value.uploadedBy ? { uploaded_by: value.uploadedBy } : {}),
+    ...(createdAt ? { created_at: createdAt } : {}),
+    url: value.url,
+    ...(derivatives ? { derivatives } : {}),
+  });
 }
 
 /**
@@ -88,21 +118,8 @@ export function getAssetUrl(urlOrPath: string): string {
  * @returns Array of assets
  */
 export async function listAssets(category?: AssetCategory): Promise<Asset[]> {
-  const url = category
-    ? `${API_BASE}/admin/assets?category=${encodeURIComponent(category)}`
-    : `${API_BASE}/admin/assets`;
-
-  const response = await fetch(url, {
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to list assets: ${String(response.status)}`);
-  }
-
-  const raw = await response.text();
-  const parsed = AssetListSchema.parse(safeParseJson(raw));
-  return parsed.assets ?? [];
+  const response = await assetsClient.listAssets({ category: category ?? '' });
+  return response.assets.map(assetFromProto);
 }
 
 /**
@@ -110,12 +127,6 @@ export async function listAssets(category?: AssetCategory): Promise<Asset[]> {
  * @param id - The asset ID to delete
  */
 export async function deleteAsset(id: number): Promise<void> {
-  const response = await fetch(`${API_BASE}/admin/assets/${String(id)}`, {
-    method: 'DELETE',
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to delete asset: ${String(response.status)}`);
-  }
+  const response = await assetsClient.deleteAsset({ id: BigInt(id) });
+  if (!response.deleted) throw new Error('Asset deletion was not acknowledged');
 }

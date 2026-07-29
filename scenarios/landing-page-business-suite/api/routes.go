@@ -186,12 +186,10 @@ func registerVariantRoutes(s *Server) {
 func registerContentRoutes(s *Server) {
 	registerBrandingConnectRoutes(s.router, s.configStore, s.requireAdmin)
 	registerSEOConnectRoutes(s.router, s.seoService, s.configStore, s.requireAdmin)
+	registerAssetsConnectRoutes(s.router, s.assetsService, s.requireAdmin)
 
 	// Asset upload endpoints (admin-only for file uploads)
-	s.router.HandleFunc("/api/v1/admin/assets", s.requireAdmin(handleAssetsList(s.assetsService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/admin/assets/upload", s.requireAdmin(handleAssetUpload(s.assetsService))).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/assets/{id}", s.requireAdmin(handleAssetGet(s.assetsService))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/assets/{id}", s.requireAdmin(handleAssetDelete(s.assetsService))).Methods("DELETE")
 
 	// Serve uploaded files publicly through the request-aware asset root.
 	s.router.HandleFunc("/api/v1/uploads/{path:.*}", handleServeUpload(s.assetsService)).Methods("GET", "HEAD")

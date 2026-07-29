@@ -51,34 +51,10 @@
       "category": "admin"
     },
     {
-      "id": "get-api-v1-admin-assets",
-      "path": "/api/v1/admin/assets",
-      "method": "GET",
-      "summary": "GET /api/v1/admin/assets",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
       "id": "post-api-v1-admin-assets-upload",
       "path": "/api/v1/admin/assets/upload",
       "method": "POST",
       "summary": "POST /api/v1/admin/assets/upload",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "delete-api-v1-admin-assets-id",
-      "path": "/api/v1/admin/assets/{id}",
-      "method": "DELETE",
-      "summary": "DELETE /api/v1/admin/assets/{id}",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "get-api-v1-admin-assets-id",
-      "path": "/api/v1/admin/assets/{id}",
-      "method": "GET",
-      "summary": "GET /api/v1/admin/assets/{id}",
       "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
       "category": "admin"
     },

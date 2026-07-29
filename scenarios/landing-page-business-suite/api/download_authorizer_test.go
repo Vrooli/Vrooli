@@ -62,7 +62,8 @@ func TestDownloadAuthorizerAuthorize_AllowsUngatedAssets(t *testing.T) {
 	}
 }
 
-// [REQ:DOWNLOAD-GATE] Download gating enforces entitlement state before granting assets.
+// Download gating enforces entitlement state before granting assets. The canonical
+// requirement evidence lives with the delivery-domain policy test.
 func TestDownloadAuthorizerAuthorize_RequiresActiveSubscription(t *testing.T) {
 	downloads := &fakeDownloads{
 		assets: map[string]*DownloadAsset{

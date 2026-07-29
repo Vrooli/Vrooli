@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"landing-page-business-suite-api/internal/delivery"
 )
 
 type downloadAppRequest struct {
@@ -61,7 +63,7 @@ func handleAdminCreateDownloadApp(downloads *DownloadService, plans *PlanService
 			return
 		}
 
-		created, err := downloads.UpsertDownloadApp(app)
+		created, err := downloads.UpsertApp(app)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("failed to save download app: %v", err), ApiErrorTypeServerError)
 			return
@@ -90,7 +92,7 @@ func handleAdminSaveDownloadApp(downloads *DownloadService, plans *PlanService) 
 			return
 		}
 
-		updated, err := downloads.UpsertDownloadApp(app)
+		updated, err := downloads.UpsertApp(app)
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("failed to save download app: %v", err), ApiErrorTypeServerError)
 			return
@@ -172,7 +174,7 @@ func buildDownloadAppFromPayload(payload downloadAppRequest, bundleKey string, o
 			return DownloadApp{}, fmt.Errorf("artifact_source must be 'direct' or 'managed' for platform %s", platform.Platform)
 		}
 		if artifactSource == "direct" {
-			if err := validateDirectArtifactURL(platform.ArtifactURL); err != nil {
+			if err := delivery.ValidateDirectArtifactURL(platform.ArtifactURL); err != nil {
 				return DownloadApp{}, fmt.Errorf("platform %s: %w", platform.Platform, err)
 			}
 		} else if platform.ArtifactID == nil || *platform.ArtifactID == 0 {

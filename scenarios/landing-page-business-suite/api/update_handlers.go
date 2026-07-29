@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"landing-page-business-suite-api/internal/delivery"
 )
 
 // --- Narrow interfaces for update handler dependencies ---
@@ -23,9 +25,9 @@ type updateAssetLookup interface {
 
 // updateArtifactResolver retrieves artifacts and generates presigned download URLs.
 type updateArtifactResolver interface {
-	GetArtifact(ctx context.Context, bundleKey string, id int64) (*DownloadArtifact, error)
-	GetCurrentArtifactByFilename(ctx context.Context, bundleKey, appKey, variantKey, filename string) (*DownloadArtifact, error)
-	PresignGetArtifact(ctx context.Context, bundleKey string, artifact DownloadArtifact) (string, error)
+	GetArtifact(ctx context.Context, bundleKey string, id int64) (*delivery.Artifact, error)
+	GetCurrentArtifactByFilename(ctx context.Context, bundleKey, appKey, variantKey, filename string) (*delivery.Artifact, error)
+	PresignGetArtifact(ctx context.Context, bundleKey string, artifact delivery.Artifact) (string, error)
 }
 
 // updateBundleKeyProvider returns the active bundle key.
@@ -95,7 +97,7 @@ func channelToVariantKey(channel string) string {
 
 // buildElectronManifest generates a YAML manifest in the format electron-updater expects.
 // When releaseNotes is non-empty, it is included as a plain text passthrough.
-func buildElectronManifest(artifact *DownloadArtifact, releaseNotes string) []byte {
+func buildElectronManifest(artifact *delivery.Artifact, releaseNotes string) []byte {
 	base := fmt.Sprintf(
 		"version: %s\npath: %s\nsha512: %s\nreleaseDate: %s\nfiles:\n  - url: %s\n    sha512: %s\n    size: %d\n",
 		artifact.ReleaseVersion,
@@ -185,13 +187,7 @@ func handleUpdateFile(assets updateAssetLookup, artifacts updateArtifactResolver
 
 // --- Channel discovery types ---
 
-// ChannelInfo represents a single channel's state for a platform.
-type ChannelInfo struct {
-	Channel   string `json:"channel"`
-	Platform  string `json:"platform"`
-	Version   string `json:"version"`
-	UpdatedAt string `json:"updated_at"`
-}
+type ChannelInfo = delivery.ChannelInfo
 
 // channelDiscoveryLookup retrieves available channels for an app.
 type channelDiscoveryLookup interface {
@@ -220,9 +216,9 @@ type updateVerifyLookup interface {
 
 // updateVerifyArtifactResolver provides artifact data and S3 operations for verification.
 type updateVerifyArtifactResolver interface {
-	GetArtifact(ctx context.Context, bundleKey string, id int64) (*DownloadArtifact, error)
-	PresignGetArtifact(ctx context.Context, bundleKey string, artifact DownloadArtifact) (string, error)
-	HeadArtifact(ctx context.Context, bundleKey string, artifact DownloadArtifact) error
+	GetArtifact(ctx context.Context, bundleKey string, id int64) (*delivery.Artifact, error)
+	PresignGetArtifact(ctx context.Context, bundleKey string, artifact delivery.Artifact) (string, error)
+	HeadArtifact(ctx context.Context, bundleKey string, artifact delivery.Artifact) error
 }
 
 // handleUpdateVerify confirms update endpoint correctness.
@@ -284,12 +280,7 @@ func handleUpdateVerify(assets updateVerifyLookup, artifacts updateVerifyArtifac
 
 // --- Update policy types ---
 
-// UpdatePolicy represents the per-app auto-update configuration.
-type UpdatePolicy struct {
-	CheckIntervalHours int    `json:"check_interval_hours"`
-	UpdateMode         string `json:"update_mode"`
-	AllowDowngrade     bool   `json:"allow_downgrade"`
-}
+type UpdatePolicy = delivery.UpdatePolicy
 
 // updatePolicyLookup retrieves and updates app update policies.
 type updatePolicyLookup interface {

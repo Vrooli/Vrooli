@@ -41,6 +41,9 @@ This document reflects the current code; claims here have been verified against 
 | main.LimitsStore | `api/limits_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in limits service tests | Route subscription-tier limits through the request-scoped database seam. |
 | main.UserAuthStore | `api/user_auth_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in user-auth service tests | Route user identities, magic links, and sessions through the request-scoped database seam. |
 | delivery.EntitlementLookup | `api/internal/delivery/authorizer.go` | `entitlementStatusLookup` in `api/download_service.go` | `entitlementStub` in `api/internal/delivery/authorizer_test.go` | Keep paid-download policy independent of account persistence. |
+| delivery.Storage | `api/internal/delivery/storage.go` | `delivery.S3StorageProvider` wired from API composition | `mockDownloadStorage` in `api/download_hosting_test.go` | Keep artifact hosting independent of an S3-compatible provider and preserve deterministic delivery-service tests. |
+| delivery.Store | `api/internal/delivery/service.go` | `*sql.DB` wired in API composition | database-backed delivery service tests | Keep artifact and storage-setting persistence within delivery while accepting only the SQL operations it uses. |
+| delivery.CatalogStore | `api/internal/delivery/catalog.go` | `routedDownloadStore` in `api/download_service.go` | `*sql.DB` in catalog tests | Route catalog persistence through Test Genie’s request-aware database while keeping delivery independent of API composition. |
 
 The `api/internal/testutil` seam-registry test reconciles the tagged interface
 set with this table. New seams must add their `// seam:` declaration, production
@@ -229,7 +232,7 @@ The update endpoints (`/api/v1/updates/{app_key}/{channel}/{file}`) serve electr
 
 ## Scan Helper Utilities
 
-`artifactScanTargets` (download_hosting.go), `assetScanTargets` (download_service.go), and `appScanTargets` (download_service.go) consolidate the repeated SQL NullString/JSON → struct hydration pattern across all artifact, asset, and app query methods. Each helper provides `scanDest()` for ordered scan destinations and `hydrate()` for populating the struct. Extra columns (e.g., `is_current`, `artifact_count`) are appended to `scanDest()` at the call site.
+`delivery.ArtifactScanTargets` (`api/internal/delivery/artifact.go`), `assetScanTargets` (download_service.go), and `appScanTargets` (download_service.go) consolidate the repeated SQL NullString/JSON → struct hydration pattern across all artifact, asset, and app query methods. Each helper provides ordered scan destinations and hydration into its domain value. Extra columns (e.g., `is_current`, `artifact_count`) are appended at the call site.
 
 ---
 
@@ -410,7 +413,7 @@ supply a database-backed seam.
 
 ### Routed Persistence Store Contracts
 
-**Locations:** `api/{assets,download_service,download_hosting,stripe_service,stripe_repository}.go`, `api/internal/metrics/service.go`
+**Locations:** `api/{assets,download_service,stripe_service,stripe_repository}.go`, `api/internal/{delivery,metrics}/service.go`
 
 Production domain services expose narrow store contracts instead of retaining
 `*sql.DB`. The contracts preserve the query and transaction capabilities each

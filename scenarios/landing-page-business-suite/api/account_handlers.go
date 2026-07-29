@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	downloadhttp "landing-page-business-suite-api/handlers/download"
+	"landing-page-business-suite-api/internal/delivery"
 )
 
 type managedDownloadResolutionError struct {
@@ -19,7 +20,7 @@ type managedDownloadResolutionError struct {
 func (e *managedDownloadResolutionError) Error() string { return e.err.Error() }
 func (e *managedDownloadResolutionError) Unwrap() error { return e.err }
 
-func handleDownloads(authorizer *DownloadAuthorizer, hosting *DownloadHostingService, plans *PlanService) http.HandlerFunc {
+func handleDownloads(authorizer *DownloadAuthorizer, hosting *delivery.Service, plans *PlanService) http.HandlerFunc {
 	return downloadhttp.Authorize(downloadhttp.Dependencies{
 		UserEmail: getUserEmail,
 		Authorize: func(ctx context.Context, appKey, platform, user string) (downloadhttp.Authorization, error) {

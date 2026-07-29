@@ -6,9 +6,11 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"landing-page-business-suite-api/internal/delivery"
 )
 
-func handleAdminGetDownloadStorage(hosting *DownloadHostingService, plans *PlanService) http.HandlerFunc {
+func handleAdminGetDownloadStorage(hosting *delivery.Service, plans *PlanService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		snapshot, err := hosting.SettingsSnapshot(r.Context(), plans.BundleKey())
 		if err != nil {
@@ -21,9 +23,9 @@ func handleAdminGetDownloadStorage(hosting *DownloadHostingService, plans *PlanS
 	}
 }
 
-func handleAdminUpdateDownloadStorage(hosting *DownloadHostingService, plans *PlanService) http.HandlerFunc {
+func handleAdminUpdateDownloadStorage(hosting *delivery.Service, plans *PlanService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var payload DownloadStorageSettingsUpdate
+		var payload delivery.StorageSettingsUpdate
 		if !decodeJSONBody(w, r, &payload) {
 			return
 		}
@@ -40,12 +42,12 @@ func handleAdminUpdateDownloadStorage(hosting *DownloadHostingService, plans *Pl
 	}
 }
 
-func handleAdminTestDownloadStorage(hosting *DownloadHostingService, plans *PlanService) http.HandlerFunc {
+func handleAdminTestDownloadStorage(hosting *delivery.Service, plans *PlanService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := hosting.TestConnection(r.Context(), plans.BundleKey()); err != nil {
 			status := http.StatusBadRequest
 			errType := ApiErrorTypeValidation
-			if errors.Is(err, ErrDownloadStorageNotConfigured) {
+			if errors.Is(err, delivery.ErrStorageNotConfigured) {
 				status = http.StatusConflict
 				errType = ApiErrorTypeServerError
 			}
@@ -56,7 +58,7 @@ func handleAdminTestDownloadStorage(hosting *DownloadHostingService, plans *Plan
 	}
 }
 
-func handleAdminListDownloadArtifacts(hosting *DownloadHostingService, plans *PlanService) http.HandlerFunc {
+func handleAdminListDownloadArtifacts(hosting *delivery.Service, plans *PlanService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		query := getQueryParam(r, "query")
 		platform := getQueryParam(r, "platform")
@@ -84,7 +86,7 @@ func handleAdminListDownloadArtifacts(hosting *DownloadHostingService, plans *Pl
 	}
 }
 
-func handleAdminListDownloadArtifactsByApp(hosting *DownloadHostingService, plans *PlanService) http.HandlerFunc {
+func handleAdminListDownloadArtifactsByApp(hosting *delivery.Service, plans *PlanService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		appKey := getQueryParam(r, "app_key")
 		platform := getQueryParam(r, "platform")
@@ -116,9 +118,9 @@ func handleAdminListDownloadArtifactsByApp(hosting *DownloadHostingService, plan
 	}
 }
 
-func handleAdminPresignUploadDownloadArtifact(hosting *DownloadHostingService, plans *PlanService) http.HandlerFunc {
+func handleAdminPresignUploadDownloadArtifact(hosting *delivery.Service, plans *PlanService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var payload PresignUploadRequest
+		var payload delivery.PresignUploadRequest
 		if !decodeJSONBody(w, r, &payload) {
 			return
 		}
@@ -127,7 +129,7 @@ func handleAdminPresignUploadDownloadArtifact(hosting *DownloadHostingService, p
 		if err != nil {
 			status := http.StatusBadRequest
 			errType := ApiErrorTypeValidation
-			if errors.Is(err, ErrDownloadStorageNotConfigured) {
+			if errors.Is(err, delivery.ErrStorageNotConfigured) {
 				status = http.StatusConflict
 				errType = ApiErrorTypeServerError
 			}
@@ -139,9 +141,9 @@ func handleAdminPresignUploadDownloadArtifact(hosting *DownloadHostingService, p
 	}
 }
 
-func handleAdminCommitDownloadArtifact(hosting *DownloadHostingService, plans *PlanService) http.HandlerFunc {
+func handleAdminCommitDownloadArtifact(hosting *delivery.Service, plans *PlanService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var payload CommitArtifactRequest
+		var payload delivery.CommitArtifactRequest
 		if !decodeJSONBody(w, r, &payload) {
 			return
 		}
@@ -150,7 +152,7 @@ func handleAdminCommitDownloadArtifact(hosting *DownloadHostingService, plans *P
 		if err != nil {
 			status := http.StatusBadRequest
 			errType := ApiErrorTypeValidation
-			if errors.Is(err, ErrDownloadStorageNotConfigured) {
+			if errors.Is(err, delivery.ErrStorageNotConfigured) {
 				status = http.StatusConflict
 				errType = ApiErrorTypeServerError
 			}
@@ -162,7 +164,7 @@ func handleAdminCommitDownloadArtifact(hosting *DownloadHostingService, plans *P
 	}
 }
 
-func handleAdminPresignGetDownloadArtifact(hosting *DownloadHostingService, plans *PlanService) http.HandlerFunc {
+func handleAdminPresignGetDownloadArtifact(hosting *delivery.Service, plans *PlanService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := getPathParamInt64(w, r, "artifact_id")
 		if !ok {
@@ -187,7 +189,7 @@ func handleAdminPresignGetDownloadArtifact(hosting *DownloadHostingService, plan
 		if err != nil {
 			status := http.StatusBadRequest
 			errType := ApiErrorTypeValidation
-			if errors.Is(err, ErrDownloadStorageNotConfigured) {
+			if errors.Is(err, delivery.ErrStorageNotConfigured) {
 				status = http.StatusConflict
 				errType = ApiErrorTypeServerError
 			}
@@ -201,7 +203,7 @@ func handleAdminPresignGetDownloadArtifact(hosting *DownloadHostingService, plan
 	}
 }
 
-func handleAdminApplyDownloadArtifact(downloads *DownloadService, hosting *DownloadHostingService, plans *PlanService) http.HandlerFunc {
+func handleAdminApplyDownloadArtifact(downloads *DownloadService, hosting *delivery.Service, plans *PlanService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var payload struct {
 			AppKey              string                 `json:"app_key"`
@@ -278,7 +280,7 @@ func handleAdminApplyDownloadArtifact(downloads *DownloadService, hosting *Downl
 }
 
 // handleAdminSetArtifactAsCurrent promotes an artifact to be the current version for an app/platform.
-func handleAdminSetArtifactAsCurrent(downloads *DownloadService, hosting *DownloadHostingService, plans *PlanService) http.HandlerFunc {
+func handleAdminSetArtifactAsCurrent(downloads *DownloadService, hosting *delivery.Service, plans *PlanService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var payload struct {
 			ArtifactID int64  `json:"artifact_id"`

@@ -1,4 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const assetsClient = vi.hoisted(() => ({ listAssets: vi.fn(), deleteAsset: vi.fn() }));
+vi.mock('@connectrpc/connect', () => ({ createClient: vi.fn(() => assetsClient) }));
+
 import { deleteAsset, getAssetUrl, listAssets, uploadAsset } from './assets';
 
 const asset = {
@@ -18,6 +22,7 @@ describe('assets API', () => {
 
   beforeEach(() => {
     vi.stubGlobal('fetch', fetchMock);
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
@@ -48,26 +53,62 @@ describe('assets API', () => {
     expect(formData.get('alt_text')).toBe('Company logo');
   });
 
-  it('reports failed uploads and lists empty or filtered assets safely', async () => {
+  it('reports failed uploads and lists empty or filtered assets through the generated contract', async () => {
     fetchMock.mockResolvedValueOnce(new Response('too large', { status: 413 }));
     await expect(uploadAsset(new File(['x'], 'x.png'))).rejects.toThrow('too large');
 
     fetchMock.mockResolvedValueOnce(new Response('', { status: 500 }));
     await expect(uploadAsset(new File(['x'], 'x.png'))).rejects.toThrow('Upload failed with status 500');
 
-    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({}), { status: 200 }));
+    assetsClient.listAssets.mockResolvedValueOnce({ assets: [] });
     await expect(listAssets()).resolves.toEqual([]);
 
-    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ assets: [asset] }), { status: 200 }));
+    assetsClient.listAssets.mockResolvedValueOnce({ assets: [{ id: 7n, filename: 'logo.png', originalFilename: 'logo.png', mimeType: 'image/png', sizeBytes: 42n, storagePath: 'logos/logo.png', category: 'logo', createdAt: { seconds: 1767225600n, nanos: 0 }, url: '/uploads/logos/logo.png', derivatives: {} }] });
     await expect(listAssets('logo')).resolves.toEqual([asset]);
-    const [filteredListURL] = fetchMock.mock.calls[3] as unknown as [string, RequestInit];
-    expect(filteredListURL).toContain('category=logo');
+    expect(assetsClient.listAssets).toHaveBeenLastCalledWith({ category: 'logo' });
   });
 
-  it('deletes assets and surfaces deletion failures', async () => {
-    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+  it('preserves populated optional asset metadata from the generated contract', async () => {
+    assetsClient.listAssets.mockResolvedValueOnce({
+      assets: [{
+        id: 8n,
+        filename: 'social.png',
+        originalFilename: 'social-source.png',
+        mimeType: 'image/png',
+        sizeBytes: 84n,
+        storagePath: 'og-images/social.png',
+        thumbnailPath: 'og-images/social-thumb.png',
+        altText: 'Launch graphic',
+        category: 'og_image',
+        uploadedBy: 'operator@example.test',
+        createdAt: { seconds: 1767225600n, nanos: 500_000_000 },
+        url: '/uploads/og-images/social.png',
+        derivatives: { og_image_1200x630: 'og-images/social-1200.png' },
+      }],
+    });
+
+    await expect(listAssets()).resolves.toEqual([{
+      id: 8,
+      filename: 'social.png',
+      original_filename: 'social-source.png',
+      mime_type: 'image/png',
+      size_bytes: 84,
+      storage_path: 'og-images/social.png',
+      thumbnail_path: 'og-images/social-thumb.png',
+      alt_text: 'Launch graphic',
+      category: 'og_image',
+      uploaded_by: 'operator@example.test',
+      created_at: '2026-01-01T00:00:00.500Z',
+      url: '/uploads/og-images/social.png',
+      derivatives: { og_image_1200x630: 'og-images/social-1200.png' },
+    }]);
+  });
+
+  it('deletes assets through the generated contract and requires acknowledgement', async () => {
+    assetsClient.deleteAsset.mockResolvedValueOnce({ deleted: true });
     await expect(deleteAsset(7)).resolves.toBeUndefined();
-    fetchMock.mockResolvedValueOnce(new Response(null, { status: 500 }));
-    await expect(deleteAsset(7)).rejects.toThrow('Failed to delete asset: 500');
+    expect(assetsClient.deleteAsset).toHaveBeenCalledWith({ id: 7n });
+    assetsClient.deleteAsset.mockResolvedValueOnce({ deleted: false });
+    await expect(deleteAsset(7)).rejects.toThrow('acknowledged');
   });
 });

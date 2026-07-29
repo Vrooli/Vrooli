@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"landing-page-business-suite-api/internal/delivery"
 )
 
 // DeployReadinessRequest is the payload from deployment-manager (or another
@@ -34,7 +36,7 @@ type DeployReadinessResponse struct {
 // handleDeployReadiness runs the server-side equivalent of the CLI
 // `deploy-readiness` checks: storage configured, app exists, and (when a
 // remote-profile tag is supplied) the profile is registered.
-func handleDeployReadiness(downloadHosting *DownloadHostingService, downloadService *DownloadService, remoteProfiles *RemoteProfileService, planService *PlanService) http.HandlerFunc {
+func handleDeployReadiness(downloadHosting *delivery.Service, downloadService *DownloadService, remoteProfiles *RemoteProfileService, planService *PlanService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req DeployReadinessRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err.Error() != "EOF" {
@@ -77,7 +79,7 @@ func handleDeployReadiness(downloadHosting *DownloadHostingService, downloadServ
 	}
 }
 
-func checkStorageGate(ctx context.Context, downloadHosting *DownloadHostingService, bundleKey string) DeployReadinessGate {
+func checkStorageGate(ctx context.Context, downloadHosting *delivery.Service, bundleKey string) DeployReadinessGate {
 	gate := DeployReadinessGate{Name: "download_storage"}
 	settings, err := downloadHosting.GetSettings(ctx, bundleKey)
 	if err != nil {

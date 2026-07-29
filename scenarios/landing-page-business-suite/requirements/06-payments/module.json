@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-07-28T12:00:12-04:00"
+    "last_validated_at": "2026-07-29T07:39:28-04:00"
   },
   "requirements": [
     {
@@ -207,17 +207,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/download_authorizer_test.go",
+          "ref": "api/internal/delivery/authorizer_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "DownloadAuthorizer tests ensure entitlement-gated assets require an active subscription."
-        },
-        {
-          "type": "test",
-          "ref": "api/download_service.go",
-          "phase": "unit",
-          "status": "implemented",
-          "notes": "Download service exposes metadata + gating helpers consumed by the UI download section."
+          "notes": "The delivery domain enforces paid-asset entitlement gating; API composition supplies the account entitlement lookup."
         }
       ]
     }

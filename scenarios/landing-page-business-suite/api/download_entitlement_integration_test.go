@@ -121,7 +121,7 @@ func setupDownloadEntitlementDB(t *testing.T) (*sql.DB, *DownloadAuthorizer) {
 	accountSvc := NewAccountService(db, service.planService)
 	// Disable subscription cache so status changes in lifecycle tests are immediately visible
 	accountSvc.cacheTTL = 0
-	downloadSvc := &DownloadService{db: db}
+	downloadSvc := NewDownloadService(db)
 	authorizer := NewDownloadAuthorizer(downloadSvc, accountSvc, "business_suite")
 
 	return db, authorizer

@@ -8,12 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"image"
-	"image/color"
 	_ "image/gif"
 	_ "image/jpeg"
 	"image/png"
 	"io"
-	"math"
 	"mime/multipart"
 	"os"
 	"path/filepath"
@@ -57,6 +55,15 @@ type AssetUploadRequest struct {
 	Category   string
 	AltText    string
 	UploadedBy string
+}
+
+type assetUploadLocation struct {
+	mimeType    string
+	category    string
+	uniqueName  string
+	storagePath string
+	uploadRoot  string
+	fullPath    string
 }
 
 // AssetsService handles file upload operations
@@ -141,55 +148,14 @@ func (s *AssetsService) Upload(req *AssetUploadRequest) (*Asset, error) {
 // UploadContext persists an asset in the root selected for the request. A
 // Test-Genie test-mode request therefore writes only to its leased data root.
 func (s *AssetsService) UploadContext(ctx context.Context, req *AssetUploadRequest) (*Asset, error) {
-	if req.File == nil || req.Header == nil {
-		return nil, errors.New("no file provided")
-	}
-
-	// Validate file size
-	if req.Header.Size > s.maxSize {
-		return nil, fmt.Errorf("%w: max %d bytes", ErrFileTooLarge, s.maxSize)
-	}
-
-	// Detect and validate MIME type
-	mimeType := req.Header.Header.Get("Content-Type")
-	if mimeType == "" {
-		mimeType = detectMimeType(req.Header.Filename)
-	}
-
-	if !s.allowedTypes[mimeType] {
-		return nil, fmt.Errorf("%w: %s not allowed", ErrInvalidFileType, mimeType)
-	}
-
-	// Generate unique filename
-	ext := filepath.Ext(req.Header.Filename)
-	if ext == "" {
-		ext = mimeTypeToExt(mimeType)
-	}
-	uniqueName := generateUniqueFilename(ext)
-
-	// Determine storage subdirectory based on category
-	category := req.Category
-	if category == "" {
-		category = "general"
-	}
-	subdir := categoryToSubdir(category)
-
-	// Create full path
-	storagePath := filepath.Join(subdir, uniqueName)
-	uploadRoot, err := s.uploadRoot(ctx)
+	location, err := s.prepareUploadLocation(ctx, req)
 	if err != nil {
-		return nil, fmt.Errorf("resolve upload root: %w", err)
-	}
-	fullPath := filepath.Join(uploadRoot, storagePath)
-
-	// Ensure parent directory exists
-	if err := os.MkdirAll(filepath.Dir(fullPath), 0o750); err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrUploadFailed, err)
+		return nil, err
 	}
 
 	// Create destination file
 	// #nosec G304 -- fullPath is rooted at trusted configured storage and storagePath uses a fixed category plus a generated filename.
-	dst, err := os.Create(fullPath)
+	dst, err := os.Create(location.fullPath)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrUploadFailed, err)
 	}
@@ -198,8 +164,8 @@ func (s *AssetsService) UploadContext(ctx context.Context, req *AssetUploadReque
 	// Copy file content
 	written, err := io.Copy(dst, req.File)
 	if err != nil {
-		if removeErr := os.Remove(fullPath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
-			logStructuredError("asset_upload_cleanup_failed", map[string]interface{}{"path": fullPath, "error": removeErr.Error()})
+		if removeErr := os.Remove(location.fullPath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			logStructuredError("asset_upload_cleanup_failed", map[string]interface{}{"path": location.fullPath, "error": removeErr.Error()})
 		}
 		return nil, fmt.Errorf("%w: %v", ErrUploadFailed, err)
 	}
@@ -223,13 +189,13 @@ func (s *AssetsService) UploadContext(ctx context.Context, req *AssetUploadReque
 	}
 
 	asset := &Asset{
-		Filename:         uniqueName,
+		Filename:         location.uniqueName,
 		OriginalFilename: req.Header.Filename,
-		MimeType:         mimeType,
+		MimeType:         location.mimeType,
 		SizeBytes:        written,
-		StoragePath:      storagePath,
+		StoragePath:      location.storagePath,
 		AltText:          altText,
-		Category:         category,
+		Category:         location.category,
 		UploadedBy:       uploadedBy,
 	}
 
@@ -240,49 +206,84 @@ func (s *AssetsService) UploadContext(ctx context.Context, req *AssetUploadReque
 		asset.SizeBytes,
 		asset.StoragePath,
 		altText,
-		category,
+		location.category,
 		uploadedBy,
 	).Scan(&asset.ID, &asset.CreatedAt)
 	if err != nil {
-		if removeErr := os.Remove(fullPath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
-			logStructuredError("asset_metadata_cleanup_failed", map[string]interface{}{"path": fullPath, "error": removeErr.Error()})
+		if removeErr := os.Remove(location.fullPath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			logStructuredError("asset_metadata_cleanup_failed", map[string]interface{}{"path": location.fullPath, "error": removeErr.Error()})
 		}
 		return nil, fmt.Errorf("failed to save asset metadata: %w", err)
 	}
 
-	asset.URL = s.baseURL + "/" + storagePath
+	asset.URL = s.baseURL + "/" + location.storagePath
 
-	// Generate derivatives for known categories (best-effort)
-	if strings.HasPrefix(mimeType, "image/") && mimeType != "image/svg+xml" {
-		derivatives, derr := s.generateDerivativesAtRoot(uploadRoot, fullPath, storagePath, mimeType, category)
-		if derr != nil {
-			logStructuredError("asset_derivative_failed", map[string]interface{}{
-				"error":    derr.Error(),
-				"category": category,
-				"mime":     mimeType,
-			})
-		} else if len(derivatives) > 0 {
-			asset.Derivatives = derivatives
-			if thumb, ok := derivatives["logo_256"]; ok && asset.ThumbnailPath == nil {
-				asset.ThumbnailPath = stringPtr(thumb)
-			}
-			if thumb, ok := derivatives["favicon_64"]; ok && asset.ThumbnailPath == nil {
-				asset.ThumbnailPath = stringPtr(thumb)
-			}
-			// Ensure logo_icon always exists for logo uploads
-			if category == "logo" {
-				if _, ok := asset.Derivatives["logo_icon"]; !ok {
-					if alias, ok := asset.Derivatives["logo_256"]; ok {
-						asset.Derivatives["logo_icon"] = alias
-					} else {
-						asset.Derivatives["logo_icon"] = storagePath
-					}
-				}
+	s.finalizeAssetDerivatives(asset, location)
+
+	return asset, nil
+}
+
+func (s *AssetsService) finalizeAssetDerivatives(asset *Asset, location assetUploadLocation) {
+	if !strings.HasPrefix(location.mimeType, "image/") || location.mimeType == "image/svg+xml" {
+		return
+	}
+	derivatives, err := s.generateDerivativesAtRoot(location.uploadRoot, location.fullPath, location.storagePath, location.mimeType, location.category)
+	if err != nil {
+		logStructuredError("asset_derivative_failed", map[string]interface{}{"error": err.Error(), "category": location.category, "mime": location.mimeType})
+		return
+	}
+	if len(derivatives) == 0 {
+		return
+	}
+	asset.Derivatives = derivatives
+	for _, key := range []string{"logo_256", "favicon_64"} {
+		if thumb, ok := derivatives[key]; ok && asset.ThumbnailPath == nil {
+			asset.ThumbnailPath = stringPtr(thumb)
+		}
+	}
+	if location.category == "logo" {
+		if _, ok := derivatives["logo_icon"]; !ok {
+			if alias, ok := derivatives["logo_256"]; ok {
+				derivatives["logo_icon"] = alias
+			} else {
+				derivatives["logo_icon"] = location.storagePath
 			}
 		}
 	}
+}
 
-	return asset, nil
+func (s *AssetsService) prepareUploadLocation(ctx context.Context, req *AssetUploadRequest) (assetUploadLocation, error) {
+	if req.File == nil || req.Header == nil {
+		return assetUploadLocation{}, errors.New("no file provided")
+	}
+	if req.Header.Size > s.maxSize {
+		return assetUploadLocation{}, fmt.Errorf("%w: max %d bytes", ErrFileTooLarge, s.maxSize)
+	}
+	mimeType := req.Header.Header.Get("Content-Type")
+	if mimeType == "" {
+		mimeType = detectMimeType(req.Header.Filename)
+	}
+	if !s.allowedTypes[mimeType] {
+		return assetUploadLocation{}, fmt.Errorf("%w: %s not allowed", ErrInvalidFileType, mimeType)
+	}
+	ext := filepath.Ext(req.Header.Filename)
+	if ext == "" {
+		ext = mimeTypeToExt(mimeType)
+	}
+	category := req.Category
+	if category == "" {
+		category = "general"
+	}
+	storagePath := filepath.Join(categoryToSubdir(category), generateUniqueFilename(ext))
+	uploadRoot, err := s.uploadRoot(ctx)
+	if err != nil {
+		return assetUploadLocation{}, fmt.Errorf("resolve upload root: %w", err)
+	}
+	fullPath := filepath.Join(uploadRoot, storagePath)
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0o750); err != nil {
+		return assetUploadLocation{}, fmt.Errorf("%w: %v", ErrUploadFailed, err)
+	}
+	return assetUploadLocation{mimeType: mimeType, category: category, uniqueName: filepath.Base(storagePath), storagePath: storagePath, uploadRoot: uploadRoot, fullPath: fullPath}, nil
 }
 
 // Get retrieves an asset by ID
@@ -627,50 +628,6 @@ func saveResizedPNG(src image.Image, outputPath string, targetW, targetH int) er
 	}
 
 	return nil
-}
-
-func resizeContain(src image.Image, targetW, targetH int) *image.RGBA {
-	if targetW <= 0 || targetH <= 0 {
-		return nil
-	}
-
-	srcBounds := src.Bounds()
-	srcW := srcBounds.Dx()
-	srcH := srcBounds.Dy()
-	if srcW == 0 || srcH == 0 {
-		return nil
-	}
-
-	scale := math.Min(float64(targetW)/float64(srcW), float64(targetH)/float64(srcH))
-	if scale > 1 {
-		scale = 1 // avoid unnecessary upscaling
-	}
-
-	dstW := int(float64(srcW) * scale)
-	dstH := int(float64(srcH) * scale)
-	if dstW == 0 || dstH == 0 {
-		return nil
-	}
-
-	dstImg := image.NewRGBA(image.Rect(0, 0, targetW, targetH))
-	for y := 0; y < targetH; y++ {
-		for x := 0; x < targetW; x++ {
-			dstImg.Set(x, y, color.RGBA{0, 0, 0, 0})
-		}
-	}
-
-	xOffset := (targetW - dstW) / 2
-	yOffset := (targetH - dstH) / 2
-
-	for y := 0; y < dstH; y++ {
-		for x := 0; x < dstW; x++ {
-			srcX := int(float64(x)/scale + 0.5)
-			srcY := int(float64(y)/scale + 0.5)
-			dstImg.Set(x+xOffset, y+yOffset, src.At(srcBounds.Min.X+srcX, srcBounds.Min.Y+srcY))
-		}
-	}
-
-	return dstImg
 }
 
 func stringPtr(v string) *string {

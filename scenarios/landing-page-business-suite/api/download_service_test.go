@@ -13,7 +13,7 @@ func TestDownloadServiceListAppsInitializesEmptyPlatformSlices(t *testing.T) {
 
 	service := NewDownloadService(db)
 	const bundleKey = "bundle_empty_platforms"
-	if _, err := service.UpsertDownloadApp(DownloadApp{
+	if _, err := service.UpsertApp(DownloadApp{
 		BundleKey: bundleKey,
 		AppKey:    "desktop",
 		Name:      "Desktop",
@@ -43,7 +43,7 @@ func TestDownloadServiceDeleteAppRemovesAssets(t *testing.T) {
 	bundleKey := "bundle_delete_test"
 	appKey := "delete_me_app"
 
-	created, err := service.UpsertDownloadApp(DownloadApp{
+	created, err := service.UpsertApp(DownloadApp{
 		BundleKey: bundleKey,
 		AppKey:    appKey,
 		Name:      "Delete Me",

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -20,6 +21,12 @@ type stripeSettingsConnectHandler struct {
 	payment *PaymentSettingsService
 	stripe  *StripeService
 	anomaly *PaymentAnomalyService
+}
+
+type stripeSettingsUpdate struct {
+	input                 StripeSettingsInput
+	anomalyWebhookEnabled *bool
+	anomalyRateLimits     *string
 }
 
 func (h stripeSettingsConnectHandler) GetStripeSettings(ctx context.Context, _ *connect.Request[lpbsv1.GetStripeSettingsRequest]) (*connect.Response[lpbsv1.GetStripeSettingsResponse], error) {
@@ -83,71 +90,17 @@ func (h stripeSettingsConnectHandler) UpdateStripeSettings(ctx context.Context, 
 	if h.payment == nil || h.stripe == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("Stripe settings service is unavailable"))
 	}
-	req := request.Msg
-	normalize := func(value *string) *string {
-		if value == nil {
-			return nil
-		}
-		trimmed := strings.TrimSpace(*value)
-		return &trimmed
-	}
-	pub := normalize(req.PublishableKey)
-	secret := normalize(req.SecretKey)
-	webhook := normalize(req.WebhookSecret)
-	dashboard := normalize(req.DashboardUrl)
-	anomalyURL := normalize(req.AnomalyWebhookUrl)
-	rateLimits, err := normalizeAnomalyRateLimits(req.AnomalyRateLimits)
+	update, err := h.validatedStripeSettingsUpdate(ctx, request.Msg)
 	if err != nil {
-		return nil, validationError(err.Error())
+		return nil, err
 	}
 
-	if pub != nil && *pub != "" && !strings.HasPrefix(*pub, "pk_") {
-		return nil, validationError("publishable key must start with pk_")
-	}
-	if secret != nil && *secret != "" && !strings.HasPrefix(*secret, "sk_") && !strings.HasPrefix(*secret, "rk_") {
-		return nil, validationError("restricted key must start with sk_ or rk_")
-	}
-	if webhook != nil && *webhook != "" && !strings.HasPrefix(*webhook, "whsec_") {
-		return nil, validationError("webhook secret must start with whsec_")
-	}
-	if dashboard != nil && *dashboard != "" {
-		normalized, err := ValidateURL(*dashboard)
-		if err != nil {
-			return nil, validationError("invalid dashboard_url format")
-		}
-		dashboard = &normalized
-	}
-	if anomalyURL != nil && *anomalyURL != "" {
-		normalized, err := ValidateURL(*anomalyURL)
-		if err != nil || !strings.HasPrefix(strings.ToLower(normalized), "https://") {
-			return nil, validationError("anomaly_webhook_url must use a valid https:// URL")
-		}
-		anomalyURL = &normalized
-	}
-	if req.AnomalyWebhookEnabled != nil && *req.AnomalyWebhookEnabled && (anomalyURL == nil || *anomalyURL == "") {
-		existing, err := h.payment.GetStripeSettings(ctx)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load Stripe settings: %w", err))
-		}
-		if existing == nil || strings.TrimSpace(existing.AnomalyWebhookUrl) == "" {
-			return nil, validationError("anomaly_webhook_enabled=true requires anomaly_webhook_url")
-		}
-	}
-	if noStripeSettingsChange(pub, secret, webhook, dashboard, anomalyURL, req.AnomalyWebhookEnabled, rateLimits) {
-		return nil, validationError("at least one field is required")
-	}
-
-	record, err := h.payment.SaveStripeSettings(ctx, StripeSettingsInput{PublishableKey: pub, SecretKey: secret, WebhookSecret: webhook, DashboardURL: dashboard, AnomalyWebhookURL: anomalyURL, AnomalyWebhookEnabled: req.AnomalyWebhookEnabled, AnomalyRateLimits: rateLimits})
+	record, err := h.payment.SaveStripeSettings(ctx, update.input)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("save Stripe settings: %w", err))
 	}
-	if err := h.stripe.RefreshConfig(ctx); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("refresh Stripe runtime config: %w", err))
-	}
-	if h.anomaly != nil {
-		if err := h.anomaly.RefreshConfig(ctx); err != nil {
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("refresh anomaly dispatch config: %w", err))
-		}
+	if err := h.refreshRuntimeConfig(ctx); err != nil {
+		return nil, err
 	}
 	snapshot := h.stripe.ConfigSnapshot()
 	if record != nil {
@@ -156,6 +109,121 @@ func (h stripeSettingsConnectHandler) UpdateStripeSettings(ctx context.Context, 
 		snapshot.WebhookSecretSet = snapshot.WebhookSecretSet || strings.TrimSpace(record.WebhookSecret) != ""
 	}
 	return connect.NewResponse(&lpbsv1.UpdateStripeSettingsResponse{Settings: redactStripeSettings(record), Snapshot: snapshot}), nil
+}
+
+func (h stripeSettingsConnectHandler) validatedStripeSettingsUpdate(ctx context.Context, req *lpbsv1.UpdateStripeSettingsRequest) (stripeSettingsUpdate, error) {
+	update, err := normalizeStripeSettingsUpdate(req)
+	if err != nil {
+		return stripeSettingsUpdate{}, validationError(err.Error())
+	}
+	if err := h.validateAnomalyWebhookEnablement(ctx, update); err != nil {
+		return stripeSettingsUpdate{}, err
+	}
+	if update.hasNoChange() {
+		return stripeSettingsUpdate{}, validationError("at least one field is required")
+	}
+	return update, nil
+}
+
+func normalizeStripeSettingsUpdate(req *lpbsv1.UpdateStripeSettingsRequest) (stripeSettingsUpdate, error) {
+	update := stripeSettingsUpdate{
+		input: StripeSettingsInput{
+			PublishableKey:        normalizeStripeSetting(req.PublishableKey),
+			SecretKey:             normalizeStripeSetting(req.SecretKey),
+			WebhookSecret:         normalizeStripeSetting(req.WebhookSecret),
+			DashboardURL:          normalizeStripeSetting(req.DashboardUrl),
+			AnomalyWebhookURL:     normalizeStripeSetting(req.AnomalyWebhookUrl),
+			AnomalyWebhookEnabled: req.AnomalyWebhookEnabled,
+		},
+		anomalyWebhookEnabled: req.AnomalyWebhookEnabled,
+	}
+	var err error
+	if update.anomalyRateLimits, err = normalizeAnomalyRateLimits(req.AnomalyRateLimits); err != nil {
+		return stripeSettingsUpdate{}, err
+	}
+	update.input.AnomalyRateLimits = update.anomalyRateLimits
+	if err := validateStripeSettingPrefixes(update.input); err != nil {
+		return stripeSettingsUpdate{}, err
+	}
+	if update.input.DashboardURL, err = normalizeOptionalURL(update.input.DashboardURL, false); err != nil {
+		return stripeSettingsUpdate{}, err
+	}
+	if update.input.AnomalyWebhookURL, err = normalizeOptionalURL(update.input.AnomalyWebhookURL, true); err != nil {
+		return stripeSettingsUpdate{}, err
+	}
+	return update, nil
+}
+
+func normalizeStripeSetting(value *string) *string {
+	if value == nil {
+		return nil
+	}
+	trimmed := strings.TrimSpace(*value)
+	return &trimmed
+}
+
+func validateStripeSettingPrefixes(input StripeSettingsInput) error {
+	for _, requirement := range []struct {
+		value   *string
+		valid   func(string) bool
+		message string
+	}{
+		{input.PublishableKey, func(value string) bool { return strings.HasPrefix(value, "pk_") }, "publishable key must start with pk_"},
+		{input.SecretKey, func(value string) bool { return strings.HasPrefix(value, "sk_") || strings.HasPrefix(value, "rk_") }, "restricted key must start with sk_ or rk_"},
+		{input.WebhookSecret, func(value string) bool { return strings.HasPrefix(value, "whsec_") }, "webhook secret must start with whsec_"},
+	} {
+		if requirement.value != nil && *requirement.value != "" && !requirement.valid(*requirement.value) {
+			return errors.New(requirement.message)
+		}
+	}
+	return nil
+}
+
+func normalizeOptionalURL(value *string, requireHTTPS bool) (*string, error) {
+	if value == nil || *value == "" {
+		return value, nil
+	}
+	normalized, err := ValidateURL(*value)
+	if err != nil {
+		if requireHTTPS {
+			return nil, fmt.Errorf("anomaly_webhook_url must use a valid https:// URL")
+		}
+		return nil, fmt.Errorf("invalid dashboard_url format")
+	}
+	if requireHTTPS && !strings.HasPrefix(strings.ToLower(normalized), "https://") {
+		return nil, fmt.Errorf("anomaly_webhook_url must use a valid https:// URL")
+	}
+	return &normalized, nil
+}
+
+func (u stripeSettingsUpdate) hasNoChange() bool {
+	return noStripeSettingsChange(u.input.PublishableKey, u.input.SecretKey, u.input.WebhookSecret, u.input.DashboardURL, u.input.AnomalyWebhookURL, u.anomalyWebhookEnabled, u.anomalyRateLimits)
+}
+
+func (h stripeSettingsConnectHandler) validateAnomalyWebhookEnablement(ctx context.Context, update stripeSettingsUpdate) error {
+	if update.anomalyWebhookEnabled == nil || !*update.anomalyWebhookEnabled || (update.input.AnomalyWebhookURL != nil && *update.input.AnomalyWebhookURL != "") {
+		return nil
+	}
+	existing, err := h.payment.GetStripeSettings(ctx)
+	if err != nil {
+		return connect.NewError(connect.CodeInternal, fmt.Errorf("load Stripe settings: %w", err))
+	}
+	if existing == nil || strings.TrimSpace(existing.AnomalyWebhookUrl) == "" {
+		return validationError("anomaly_webhook_enabled=true requires anomaly_webhook_url")
+	}
+	return nil
+}
+
+func (h stripeSettingsConnectHandler) refreshRuntimeConfig(ctx context.Context) error {
+	if err := h.stripe.RefreshConfig(ctx); err != nil {
+		return connect.NewError(connect.CodeInternal, fmt.Errorf("refresh Stripe runtime config: %w", err))
+	}
+	if h.anomaly != nil {
+		if err := h.anomaly.RefreshConfig(ctx); err != nil {
+			return connect.NewError(connect.CodeInternal, fmt.Errorf("refresh anomaly dispatch config: %w", err))
+		}
+	}
+	return nil
 }
 
 func normalizeAnomalyRateLimits(value *string) (*string, error) {

@@ -65,6 +65,11 @@ export default defineConfig(({ mode }) => {
       globals: true,
       environment: 'jsdom',
       setupFiles: ['./src/test-setup.ts'],
+      // Bound parallelism: the full DOM suite intermittently exhausts worker
+      // IPC under the default pool, while a single worker can deadlock a test
+      // that expects another file's isolated environment to make progress.
+      minWorkers: 1,
+      maxWorkers: 2,
       coverage: {
         provider: 'v8',
         reporter: ['json-summary', 'json', 'text'],
