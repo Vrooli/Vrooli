@@ -65,7 +65,6 @@ spec:
   scenarios:
     primary:
       - research-assistant
-      - campaign-content-studio
       - secure-document-processing
     secondary:
       - audio-intelligence-platform

@@ -7,6 +7,48 @@ import (
 	"time"
 )
 
+// A scenario's proto footprint spans six outputs across two name forms. Missing
+// any one of them leaves residue in the SHARED proto tree that outlives the
+// scenario, so this pins the whole set rather than spot-checking.
+func TestRelocationArtifactPathsCoversEveryCodegenOutput(t *testing.T) {
+	protoRoot := filepath.Join("repo", "packages", "proto")
+	target := filepath.Join(protoRoot, "schemas", "throwaway-probe")
+
+	got := RelocationArtifactPaths([]string{target})
+	gotSet := make(map[string]struct{}, len(got))
+	for _, p := range got {
+		gotSet[p] = struct{}{}
+	}
+
+	gen := filepath.Join(protoRoot, "gen")
+	want := []string{
+		target,
+		filepath.Join(gen, "go", "throwaway-probe"),
+		filepath.Join(gen, "typescript", "throwaway-probe"),
+		filepath.Join(gen, "typescript", "js", "throwaway-probe"),
+		filepath.Join(gen, "python", "throwaway-probe"),
+		// protoc-gen-python rewrites hyphens: module names disallow "-".
+		filepath.Join(gen, "python", "throwaway_probe"),
+		// A file beside the gen trees, not a directory inside one.
+		filepath.Join(gen, "manifests", "throwaway-probe.lock.json"),
+	}
+	for _, w := range want {
+		if _, ok := gotSet[w]; !ok {
+			t.Errorf("missing codegen path %q\ngot: %v", w, got)
+		}
+	}
+}
+
+// A target that is not under schemas/ carries no derivable codegen footprint;
+// inventing gen paths for it would delete unrelated directories.
+func TestRelocationArtifactPathsIgnoresNonSchemaTargets(t *testing.T) {
+	target := filepath.Join("repo", "scenarios", "demo")
+	got := RelocationArtifactPaths([]string{target})
+	if len(got) != 1 || got[0] != filepath.Clean(target) {
+		t.Fatalf("expected only the target itself, got %v", got)
+	}
+}
+
 func TestPlanCleanupSkipsRetainedByDefault(t *testing.T) {
 	repoRoot := t.TempDir()
 	searchRoot := t.TempDir()

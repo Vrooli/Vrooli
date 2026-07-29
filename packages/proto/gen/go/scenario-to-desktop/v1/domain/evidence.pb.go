@@ -1397,7 +1397,7 @@ var File_scenario_to_desktop_v1_domain_evidence_proto protoreflect.FileDescripto
 
 const file_scenario_to_desktop_v1_domain_evidence_proto_rawDesc = "" +
 	"\n" +
-	",scenario-to-desktop/v1/domain/evidence.proto\x12$vrooli.scenario_to_desktop.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a*scenario-to-desktop/v1/shared/common.proto\"\x9c\x02\n" +
+	",scenario-to-desktop/v1/domain/evidence.proto\x12$vrooli.scenario_to_desktop.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a*scenario-to-desktop/v1/shared/common.proto\"\x9c\x02\n" +
 	"\x0eEvidenceTarget\x12M\n" +
 	"\x04kind\x18\x01 \x01(\x0e29.vrooli.scenario_to_desktop.v1.domain.EvidenceTarget.KindR\x04kind\x12)\n" +
 	"\x0ebridge_node_id\x18\x02 \x01(\tH\x00R\fbridgeNodeId\x88\x01\x01\x12'\n" +

@@ -1,11 +1,27 @@
 from ai_gateway.v1.shared import gateway_pb2 as _gateway_pb2
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
+
+class MediaExecutionStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    MEDIA_EXECUTION_STATUS_UNSPECIFIED: _ClassVar[MediaExecutionStatus]
+    MEDIA_EXECUTION_STATUS_QUEUED: _ClassVar[MediaExecutionStatus]
+    MEDIA_EXECUTION_STATUS_RUNNING: _ClassVar[MediaExecutionStatus]
+    MEDIA_EXECUTION_STATUS_SUCCEEDED: _ClassVar[MediaExecutionStatus]
+    MEDIA_EXECUTION_STATUS_FAILED: _ClassVar[MediaExecutionStatus]
+    MEDIA_EXECUTION_STATUS_CANCELLED: _ClassVar[MediaExecutionStatus]
+MEDIA_EXECUTION_STATUS_UNSPECIFIED: MediaExecutionStatus
+MEDIA_EXECUTION_STATUS_QUEUED: MediaExecutionStatus
+MEDIA_EXECUTION_STATUS_RUNNING: MediaExecutionStatus
+MEDIA_EXECUTION_STATUS_SUCCEEDED: MediaExecutionStatus
+MEDIA_EXECUTION_STATUS_FAILED: MediaExecutionStatus
+MEDIA_EXECUTION_STATUS_CANCELLED: MediaExecutionStatus
 
 class RouteCandidate(_message.Message):
     __slots__ = ("provider", "role", "locality", "selected", "reasons", "fallback_eligible", "breaker_state", "half_open_probe", "rejection_reason", "capacity_verdict")
@@ -138,6 +154,116 @@ class ExecuteRouteResponse(_message.Message):
     output_text: str
     policy_reasons: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, valid: _Optional[bool] = ..., issues: _Optional[_Iterable[_Union[_gateway_pb2.ValidationIssue, _Mapping]]] = ..., evidence: _Optional[_Union[RouteEvidence, _Mapping]] = ..., output_text: _Optional[str] = ..., policy_reasons: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class MediaInput(_message.Message):
+    __slots__ = ("reference", "media_type")
+    REFERENCE_FIELD_NUMBER: _ClassVar[int]
+    MEDIA_TYPE_FIELD_NUMBER: _ClassVar[int]
+    reference: str
+    media_type: str
+    def __init__(self, reference: _Optional[str] = ..., media_type: _Optional[str] = ...) -> None: ...
+
+class MediaOutput(_message.Message):
+    __slots__ = ("reference", "media_type", "bytes", "checksum")
+    REFERENCE_FIELD_NUMBER: _ClassVar[int]
+    MEDIA_TYPE_FIELD_NUMBER: _ClassVar[int]
+    BYTES_FIELD_NUMBER: _ClassVar[int]
+    CHECKSUM_FIELD_NUMBER: _ClassVar[int]
+    reference: str
+    media_type: str
+    bytes: int
+    checksum: str
+    def __init__(self, reference: _Optional[str] = ..., media_type: _Optional[str] = ..., bytes: _Optional[int] = ..., checksum: _Optional[str] = ...) -> None: ...
+
+class SubmitMediaRequest(_message.Message):
+    __slots__ = ("request", "prompt", "inputs", "output_count", "idempotency_key")
+    REQUEST_FIELD_NUMBER: _ClassVar[int]
+    PROMPT_FIELD_NUMBER: _ClassVar[int]
+    INPUTS_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_COUNT_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    request: _gateway_pb2.GatewayRequest
+    prompt: str
+    inputs: _containers.RepeatedCompositeFieldContainer[MediaInput]
+    output_count: int
+    idempotency_key: str
+    def __init__(self, request: _Optional[_Union[_gateway_pb2.GatewayRequest, _Mapping]] = ..., prompt: _Optional[str] = ..., inputs: _Optional[_Iterable[_Union[MediaInput, _Mapping]]] = ..., output_count: _Optional[int] = ..., idempotency_key: _Optional[str] = ...) -> None: ...
+
+class MediaExecution(_message.Message):
+    __slots__ = ("execution_id", "idempotency_key", "status", "created_at", "started_at", "completed_at", "route_evidence", "outputs", "actual_cost_usd", "resolved_model", "seed", "warnings", "error_code", "error_message")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    STARTED_AT_FIELD_NUMBER: _ClassVar[int]
+    COMPLETED_AT_FIELD_NUMBER: _ClassVar[int]
+    ROUTE_EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    OUTPUTS_FIELD_NUMBER: _ClassVar[int]
+    ACTUAL_COST_USD_FIELD_NUMBER: _ClassVar[int]
+    RESOLVED_MODEL_FIELD_NUMBER: _ClassVar[int]
+    SEED_FIELD_NUMBER: _ClassVar[int]
+    WARNINGS_FIELD_NUMBER: _ClassVar[int]
+    ERROR_CODE_FIELD_NUMBER: _ClassVar[int]
+    ERROR_MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    idempotency_key: str
+    status: MediaExecutionStatus
+    created_at: str
+    started_at: str
+    completed_at: str
+    route_evidence: RouteEvidence
+    outputs: _containers.RepeatedCompositeFieldContainer[MediaOutput]
+    actual_cost_usd: float
+    resolved_model: str
+    seed: str
+    warnings: _containers.RepeatedScalarFieldContainer[str]
+    error_code: str
+    error_message: str
+    def __init__(self, execution_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., status: _Optional[_Union[MediaExecutionStatus, str]] = ..., created_at: _Optional[str] = ..., started_at: _Optional[str] = ..., completed_at: _Optional[str] = ..., route_evidence: _Optional[_Union[RouteEvidence, _Mapping]] = ..., outputs: _Optional[_Iterable[_Union[MediaOutput, _Mapping]]] = ..., actual_cost_usd: _Optional[float] = ..., resolved_model: _Optional[str] = ..., seed: _Optional[str] = ..., warnings: _Optional[_Iterable[str]] = ..., error_code: _Optional[str] = ..., error_message: _Optional[str] = ...) -> None: ...
+
+class SubmitMediaResponse(_message.Message):
+    __slots__ = ("execution",)
+    EXECUTION_FIELD_NUMBER: _ClassVar[int]
+    execution: MediaExecution
+    def __init__(self, execution: _Optional[_Union[MediaExecution, _Mapping]] = ...) -> None: ...
+
+class GetMediaExecutionRequest(_message.Message):
+    __slots__ = ("execution_id",)
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    def __init__(self, execution_id: _Optional[str] = ...) -> None: ...
+
+class GetMediaExecutionResponse(_message.Message):
+    __slots__ = ("execution",)
+    EXECUTION_FIELD_NUMBER: _ClassVar[int]
+    execution: MediaExecution
+    def __init__(self, execution: _Optional[_Union[MediaExecution, _Mapping]] = ...) -> None: ...
+
+class CancelMediaExecutionRequest(_message.Message):
+    __slots__ = ("execution_id",)
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    def __init__(self, execution_id: _Optional[str] = ...) -> None: ...
+
+class CancelMediaExecutionResponse(_message.Message):
+    __slots__ = ("execution",)
+    EXECUTION_FIELD_NUMBER: _ClassVar[int]
+    execution: MediaExecution
+    def __init__(self, execution: _Optional[_Union[MediaExecution, _Mapping]] = ...) -> None: ...
+
+class RetryMediaExecutionRequest(_message.Message):
+    __slots__ = ("execution_id", "idempotency_key")
+    EXECUTION_ID_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
+    execution_id: str
+    idempotency_key: str
+    def __init__(self, execution_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ...) -> None: ...
+
+class RetryMediaExecutionResponse(_message.Message):
+    __slots__ = ("execution",)
+    EXECUTION_FIELD_NUMBER: _ClassVar[int]
+    execution: MediaExecution
+    def __init__(self, execution: _Optional[_Union[MediaExecution, _Mapping]] = ...) -> None: ...
 
 class ListRouteEvidenceRequest(_message.Message):
     __slots__ = ("limit", "scenario")

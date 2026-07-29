@@ -48,11 +48,13 @@
 package server
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -181,6 +183,34 @@ type statusWriter struct {
 	status int
 	wrote  bool
 }
+
+// Flush preserves streaming (SSE, chunked progress) through the access-log
+// wrapper. Embedding http.ResponseWriter does NOT promote http.Flusher from the
+// wrapped concrete writer, so without this every handler that asserts
+// w.(http.Flusher) fails -- which silently broke server-sent events for every
+// scenario on the standard server.
+func (w *statusWriter) Flush() {
+	if flusher, ok := w.ResponseWriter.(http.Flusher); ok {
+		if !w.wrote {
+			w.wrote = true
+		}
+		flusher.Flush()
+	}
+}
+
+// Hijack preserves WebSocket upgrades through the wrapper, for the same
+// interface-promotion reason as Flush.
+func (w *statusWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hijacker, ok := w.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, http.ErrNotSupported
+	}
+	return hijacker.Hijack()
+}
+
+// Unwrap lets net/http helpers reach optional interfaces on the underlying
+// writer as the middleware stack evolves.
+func (w *statusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
 func (w *statusWriter) WriteHeader(status int) {
 	if w.wrote {

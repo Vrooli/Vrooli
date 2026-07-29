@@ -128,6 +128,15 @@ type Mux interface {
 	Handle(pattern string, handler http.Handler)
 }
 
+// mounter is implemented by routers, such as chi.Router, that distinguish a
+// mounted subtree from a single exact handler path. Connect handlers own a
+// service-prefix subtree because every RPC method is a child of that prefix.
+// net/http.ServeMux treats a trailing slash as a prefix, while chi requires
+// Mount explicitly; keeping this capability optional preserves both callers.
+type mounter interface {
+	Mount(pattern string, handler http.Handler)
+}
+
 // Register mounts the RoutingService Connect handler onto mux, but only if the
 // project is running in development mode (or the
 // VROOLI_TEST_MODE_FORCE_ENABLE escape hatch is set). In production mode
@@ -142,7 +151,7 @@ func Register(mux Mux, db *database.RoutedDB, opts ...connect.HandlerOption) boo
 		return false
 	}
 	path, handler := routing_v1connect.NewRoutingServiceHandler(NewService(db), opts...)
-	mux.Handle(path, handler)
+	mountService(mux, path, handler)
 	return true
 }
 
@@ -154,8 +163,30 @@ func RegisterWithFileRoots(mux Mux, db *database.RoutedDB, roots *filerouting.Ro
 		return false
 	}
 	path, handler := routing_v1connect.NewRoutingServiceHandler(NewService(db, roots), opts...)
-	mux.Handle(path, handler)
+	mountService(mux, path, handler)
 	return true
+}
+
+// RegisterWithFileRootsService registers an explicitly supplied routing
+// service while retaining the same development-only guard and leased-file-root
+// contract as RegisterWithFileRoots. It supports scenarios whose relational
+// engine needs to provision a compatible test database before delegating to
+// the shared RoutedDB service.
+func RegisterWithFileRootsService(mux Mux, db *database.RoutedDB, roots *filerouting.RoutedRoots, service routing_v1connect.RoutingServiceHandler, opts ...connect.HandlerOption) bool {
+	if !enabled() || db == nil || roots == nil || service == nil {
+		return false
+	}
+	path, handler := routing_v1connect.NewRoutingServiceHandler(service, opts...)
+	mountService(mux, path, handler)
+	return true
+}
+
+func mountService(mux Mux, path string, handler http.Handler) {
+	if subtree, ok := mux.(mounter); ok {
+		subtree.Mount(path, handler)
+		return
+	}
+	mux.Handle(path, handler)
 }
 
 func enabled() bool {

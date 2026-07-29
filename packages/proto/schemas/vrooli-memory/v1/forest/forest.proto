@@ -1,9 +1,35 @@
 syntax = "proto3";
 package vrooli.vrooli_memory.v1.forest;
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/forest;forest_v1";
-service ForestService { rpc RunCompactionPass(RunCompactionPassRequest) returns (RunCompactionPassResponse); rpc GetFrontier(GetFrontierRequest) returns (GetFrontierResponse); rpc GetNode(GetNodeRequest) returns (GetNodeResponse); rpc RebuildForest(RebuildForestRequest) returns (RebuildForestResponse); }
-message Node { string id = 1; string entry_id = 2; string facet_id = 3; int32 depth = 4; repeated string child_ids = 5; }
-message RunCompactionPassRequest {} message RunCompactionPassResponse { int32 compacted_count = 1; }
-message GetFrontierRequest {} message GetFrontierResponse { repeated Node nodes = 1; }
-message GetNodeRequest { string id = 1; } message GetNodeResponse { Node node = 1; }
-message RebuildForestRequest {} message RebuildForestResponse { int32 node_count = 1; }
+service ForestService {
+  rpc RunCompactionPass(RunCompactionPassRequest) returns (RunCompactionPassResponse);
+  rpc GetFrontier(GetFrontierRequest) returns (GetFrontierResponse);
+  rpc GetNode(GetNodeRequest) returns (GetNodeResponse);
+  rpc RebuildForest(RebuildForestRequest) returns (RebuildForestResponse);
+}
+message Node {
+  string id = 1;
+  string entry_id = 2;
+  string facet_id = 3;
+  int32 depth = 4;
+  repeated string child_ids = 5;
+}
+message RunCompactionPassRequest {}
+message RunCompactionPassResponse {
+  int32 compacted_count = 1;
+}
+message GetFrontierRequest {}
+message GetFrontierResponse {
+  repeated Node nodes = 1;
+}
+message GetNodeRequest {
+  string id = 1;
+}
+message GetNodeResponse {
+  Node node = 1;
+}
+message RebuildForestRequest {}
+message RebuildForestResponse {
+  int32 node_count = 1;
+}

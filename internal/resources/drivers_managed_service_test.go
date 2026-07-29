@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/resources/securestore"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
@@ -88,7 +89,11 @@ func TestManagedVaultArtifactIntegration(t *testing.T) {
 	}
 	root := t.TempDir()
 	t.Setenv("VROOLI_RESOURCE_STORAGE_ROOT", filepath.Join(root, "runtime"))
-	resourceRoot := filepath.Join(root, "resources", "vault-fixture", "server")
+	store := &memorySecureStore{values: map[string]string{}}
+	previousStore := privateVaultSecureStore
+	privateVaultSecureStore = func() securestore.Store { return store }
+	t.Cleanup(func() { privateVaultSecureStore = previousStore })
+	resourceRoot := filepath.Join(root, "resources", "vault", "server")
 	if err := os.MkdirAll(resourceRoot, 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -120,12 +125,14 @@ func TestManagedVaultArtifactIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	manifest := managedServiceTestManifest(fmt.Sprintf("%x", hash.Sum(nil)))
-	manifest.Name = "vault-fixture"
+	manifest.Name = "vault"
 	manifest.ManagedService.Artifact.Path = filepath.ToSlash(filepath.Join("server", artifactName))
+	manifest.ManagedService.Artifact.Version = "1.17.6"
+	manifest.ManagedService.ProviderPolicy.AllowedModes = append(manifest.ManagedService.ProviderPolicy.AllowedModes, resourcedeployment.ProviderManagedDiscovered)
 	manifest.ManagedService.Arguments = []string{"server", "-config=${RESOURCE_CONFIG_DIR}/vault.hcl"}
 	manifest.ManagedService.Config = &resourcedeployment.ServiceConfig{Path: "vault.hcl", Content: "storage \"file\" { path = \"${RESOURCE_DATA_DIR}\" }\nlistener \"tcp\" { address = \"127.0.0.1:${RESOURCE_PORT_HTTP}\" tls_disable = true }\napi_addr = \"http://127.0.0.1:${RESOURCE_PORT_HTTP}\"\ndisable_mlock = true\n"}
 	manifest.Ports = []ResourcePort{{Name: "http", Host: port}}
-	manifest.HealthChecks = []ResourceHealthCheck{{Type: "http", Target: "http://127.0.0.1:${RESOURCE_PORT_HTTP}/v1/sys/health", ExpectedStatus: []int{200, 429, 472, 473, 501, 503}, TimeoutSeconds: 10}}
+	manifest.HealthChecks = []ResourceHealthCheck{{Type: "http", Target: "http://127.0.0.1:${RESOURCE_PORT_HTTP}/v1/sys/health", ExpectedStatus: []int{200, 429, 472, 473}, TimeoutSeconds: 10}}
 	manifest.Lifecycle.StartTimeoutSeconds = 15
 	controller := NewController(root, filepath.Join(root, "home"))
 	driver := managedServiceDriver{}
@@ -148,22 +155,22 @@ func TestManagedVaultArtifactIntegration(t *testing.T) {
 		t.Fatalf("managed Vault status after restart = %+v, %v", status, err)
 	}
 	endpoint := fmt.Sprintf("http://127.0.0.1:%d", port)
-	var initialized struct {
-		Keys      []string `json:"keys_base64"`
-		RootToken string   `json:"root_token"`
+	var material VaultBootstrapMaterial
+	supervisor, _, err := managedServiceSupervisorFor("vault")
+	if err != nil {
+		t.Fatal(err)
 	}
-	if status, err := vaultFixtureRequest(endpoint, "/v1/sys/init", "", map[string]int{"secret_shares": 1, "secret_threshold": 1}, &initialized); err != nil || status != http.StatusOK || len(initialized.Keys) != 1 || initialized.RootToken == "" {
-		t.Fatalf("initialize managed Vault = status %d, response %#v, error %v", status, initialized, err)
+	state, running, err := supervisor.Status()
+	if err != nil || !running {
+		t.Fatalf("native Vault supervisor state = %#v running=%v err=%v", state, running, err)
 	}
-	if status, err := vaultFixtureRequest(endpoint, "/v1/sys/unseal", "", map[string]string{"key": initialized.Keys[0]}, nil); err != nil || status != http.StatusOK {
-		t.Fatalf("unseal managed Vault = status %d, error %v", status, err)
-	}
-	if status, err := vaultFixtureRequest(endpoint, "/v1/sys/mounts/secret", initialized.RootToken, map[string]any{"type": "kv", "options": map[string]string{"version": "2"}}, nil); err != nil || (status != http.StatusNoContent && status != http.StatusOK) {
-		t.Fatalf("mount test KV v2 = status %d, error %v", status, err)
+	rawMaterial, err := store.Get("vrooli.resource.vault.private", state.InstanceID)
+	if err != nil || json.Unmarshal([]byte(rawMaterial), &material) != nil || material.RootToken == "" {
+		t.Fatalf("native bootstrap did not persist recovery material: %v", err)
 	}
 	now := time.Now()
 	lease := Lease{ID: "vault-fixture-lease", Scope: "app:one", ExpiresAt: now.Add(time.Minute)}
-	issuer := VaultCredentialIssuer{Now: func() time.Time { return now }, ManagementToken: func(ManagedInstance) (string, error) { return initialized.RootToken, nil }}
+	issuer := VaultCredentialIssuer{Now: func() time.Time { return now }, ManagementToken: func(ManagedInstance) (string, error) { return material.RootToken, nil }}
 	credential, err := issuer.IssueScopedCredential(ManagedInstance{Resource: "vault", Endpoint: endpoint}, lease)
 	if err != nil || credential.Credential == "" {
 		t.Fatalf("issue actual scoped Vault token = %#v, %v", credential, err)
@@ -179,11 +186,18 @@ func TestManagedVaultArtifactIntegration(t *testing.T) {
 	if err := driver.Run(context.Background(), controller, item, manifest, "restart", nil, io.Discard, io.Discard); err != nil {
 		t.Fatalf("restart managed Vault after scoped write: %v", err)
 	}
-	if status, err := vaultFixtureRequest(endpoint, "/v1/sys/unseal", "", map[string]string{"key": initialized.Keys[0]}, nil); err != nil || status != http.StatusOK {
-		t.Fatalf("unseal restarted managed Vault = status %d, error %v", status, err)
-	}
 	if status, err := vaultFixtureReadStatus(endpoint, "/v1/secret/data/"+policyPath, credential.Credential); err != nil || status != http.StatusOK {
 		t.Fatalf("scoped token reads persisted value after restart = status %d, error %v", status, err)
+	}
+	if err := driver.Run(context.Background(), controller, item, manifest, "stop", nil, io.Discard, io.Discard); err != nil {
+		t.Fatalf("stop before discovered launch: %v", err)
+	}
+	if err := driver.Run(context.Background(), controller, item, manifest, "start", []string{"--provider=managed-discovered", "--executable=" + source}, io.Discard, io.Discard); err != nil {
+		t.Fatalf("start verified discovered Vault: %v", err)
+	}
+	status, err = driver.Status(context.Background(), controller, item, manifest, false)
+	if err != nil || !status.Running || status.Health != "healthy" {
+		t.Fatalf("discovered Vault status = %+v, %v", status, err)
 	}
 }
 
@@ -202,6 +216,36 @@ func TestManagedVaultIntegrationArtifactName(t *testing.T) {
 				t.Fatalf("managedVaultIntegrationArtifactName(%q) = %q, want %q", test.source, got, test.want)
 			}
 		})
+	}
+}
+
+func TestManagedDiscoveredExecutableRequiresExplicitAbsoluteExecutable(t *testing.T) {
+	if _, err := managedDiscoveredExecutable(nil); err == nil {
+		t.Fatal("missing executable was accepted")
+	}
+	if _, err := managedDiscoveredExecutable([]string{"--executable", "vault"}); err == nil {
+		t.Fatal("relative executable was accepted")
+	}
+	path := filepath.Join(t.TempDir(), "candidate")
+	if err := os.WriteFile(path, []byte("candidate"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	got, err := managedDiscoveredExecutable([]string{"--executable=" + path})
+	if err != nil || got != path {
+		t.Fatalf("managedDiscoveredExecutable = %q, %v", got, err)
+	}
+}
+
+func TestVerifyManagedDiscoveredVersionRejectsMismatch(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "candidate")
+	if err := os.WriteFile(path, []byte("#!/bin/sh\necho vault 1.17.6\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := verifyManagedDiscoveredVersion(context.Background(), path, "1.17.6"); err != nil {
+		t.Fatalf("matching discovered version: %v", err)
+	}
+	if err := verifyManagedDiscoveredVersion(context.Background(), path, "9.9.9"); err == nil {
+		t.Fatal("mismatched discovered version was accepted")
 	}
 }
 

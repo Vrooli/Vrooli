@@ -364,6 +364,7 @@ func (c *Client) Unload(ctx context.Context, model string) error {
 type GenerateRequest struct {
 	Model       string   `json:"model"`
 	Prompt      string   `json:"prompt"`
+	Think       *bool    `json:"think,omitempty"`
 	NumPredict  *int     `json:"num_predict,omitempty"`
 	Temperature *float64 `json:"temperature,omitempty"`
 }
@@ -388,11 +389,13 @@ func (c *Client) Generate(ctx context.Context, in GenerateRequest) (GenerateResp
 		Model   string         `json:"model"`
 		Prompt  string         `json:"prompt"`
 		Stream  bool           `json:"stream"`
+		Think   *bool          `json:"think,omitempty"`
 		Options map[string]any `json:"options,omitempty"`
 	}{
 		Model:   in.Model,
 		Prompt:  in.Prompt,
 		Stream:  false,
+		Think:   in.Think,
 		Options: options,
 	}
 	if len(options) == 0 {

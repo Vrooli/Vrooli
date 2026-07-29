@@ -1,43 +1,95 @@
 syntax = "proto3";
 package landing_page_business_suite.v1;
+
 import "google/protobuf/timestamp.proto";
 import "landing-page-business-suite/v1/shared/content.proto";
 import "landing-page-business-suite/v1/shared/presentation.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
 
 // Variant owns experiments and selection. Reusable presentation and authored
 // content values live in shared so aggregate and SEO services can consume them.
 message Variant {
-  int64 id = 1; string slug = 2; string name = 3; string description = 4;
-  int32 weight = 5; string status = 6;
-  google.protobuf.Timestamp created_at = 7; google.protobuf.Timestamp updated_at = 8; google.protobuf.Timestamp archived_at = 9;
+  int64 id = 1;
+  string slug = 2;
+  string name = 3;
+  string description = 4;
+  int32 weight = 5;
+  string status = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+  google.protobuf.Timestamp archived_at = 9;
   map<string, string> axes = 10;
   vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig header_config = 11;
   optional vrooli.landing_page_business_suite.v1.shared.VariantSEOConfig seo_config = 12;
 }
-message AxesSelection { map<string, string> values = 1; }
+message AxesSelection {
+  map<string, string> values = 1;
+}
 message VariantSnapshot {
-  string slug = 1; string name = 2; string description = 3; int32 weight = 4; string status = 5;
+  string slug = 1;
+  string name = 2;
+  string description = 3;
+  int32 weight = 4;
+  string status = 5;
   map<string, string> axes = 6;
   vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig header_config = 7;
   optional vrooli.landing_page_business_suite.v1.shared.VariantSEOConfig seo_config = 8;
   repeated vrooli.landing_page_business_suite.v1.shared.ContentSection sections = 9;
 }
 message SelectVariantRequest {}
-message GetPublicVariantRequest { string slug = 1; }
-message GetVariantRequest { string slug = 1; }
-message VariantResponse { Variant variant = 1; }
-message ListVariantsRequest { string status_filter = 1; }
-message ListVariantsResponse { repeated Variant variants = 1; }
-message CreateVariantRequest { string slug = 1; string name = 2; string description = 3; int32 weight = 4; map<string, string> axes = 5; }
-message UpdateVariantRequest { string slug = 1; optional string name = 2; optional string description = 3; optional int32 weight = 4; AxesSelection axes = 5; vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig header_config = 6; }
-message ArchiveVariantRequest { string slug = 1; }
-message DeleteVariantRequest { string slug = 1; }
-message DeleteVariantResponse { bool deleted = 1; }
-message ExportVariantSnapshotRequest { string slug = 1; }
-message ExportVariantSnapshotResponse { VariantSnapshot snapshot = 1; }
-message ImportVariantSnapshotRequest { string slug = 1; VariantSnapshot snapshot = 2; }
-message ImportVariantSnapshotResponse { VariantSnapshot snapshot = 1; }
+message GetPublicVariantRequest {
+  string slug = 1;
+}
+message GetVariantRequest {
+  string slug = 1;
+}
+message VariantResponse {
+  Variant variant = 1;
+}
+message ListVariantsRequest {
+  string status_filter = 1;
+}
+message ListVariantsResponse {
+  repeated Variant variants = 1;
+}
+message CreateVariantRequest {
+  string slug = 1;
+  string name = 2;
+  string description = 3;
+  int32 weight = 4;
+  map<string, string> axes = 5;
+}
+message UpdateVariantRequest {
+  string slug = 1;
+  optional string name = 2;
+  optional string description = 3;
+  optional int32 weight = 4;
+  AxesSelection axes = 5;
+  vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig header_config = 6;
+}
+message ArchiveVariantRequest {
+  string slug = 1;
+}
+message DeleteVariantRequest {
+  string slug = 1;
+}
+message DeleteVariantResponse {
+  bool deleted = 1;
+}
+message ExportVariantSnapshotRequest {
+  string slug = 1;
+}
+message ExportVariantSnapshotResponse {
+  VariantSnapshot snapshot = 1;
+}
+message ImportVariantSnapshotRequest {
+  string slug = 1;
+  VariantSnapshot snapshot = 2;
+}
+message ImportVariantSnapshotResponse {
+  VariantSnapshot snapshot = 1;
+}
 service VariantService {
   rpc SelectVariant(SelectVariantRequest) returns (VariantResponse);
   rpc GetPublicVariant(GetPublicVariantRequest) returns (VariantResponse);

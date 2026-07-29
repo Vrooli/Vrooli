@@ -1,21 +1,88 @@
 syntax = "proto3";
 package vrooli.vrooli_memory.v1.journal;
+
 import "google/protobuf/timestamp.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/journal;journal_v1";
 
-service JournalService { rpc AppendEntry(AppendEntryRequest) returns (AppendEntryResponse); rpc GetEntry(GetEntryRequest) returns (GetEntryResponse); rpc ListEntries(ListEntriesRequest) returns (ListEntriesResponse); rpc ProcessClassificationRetries(ProcessClassificationRetriesRequest) returns (ProcessClassificationRetriesResponse); rpc ProcessEmbeddingRetries(ProcessEmbeddingRetriesRequest) returns (ProcessEmbeddingRetriesResponse); }
-message FacetText { string kind = 1; string text = 2; string embedding_ref = 3; }
-message Attribution { string actor_id = 1; string actor_kind = 2; string source_runtime = 3; }
-message Correlation { string run_id = 1; string workflow_execution_id = 2; string actor_kind = 3; }
-message ImportProvenance { string runtime = 1; string source_locator = 2; string content_hash = 3; }
-message Entry { string id = 1; string body = 2; string facet_id = 3; Attribution attribution = 4; Correlation correlation = 5; ImportProvenance import_provenance = 6; repeated FacetText facet_texts = 7; google.protobuf.Timestamp created_at = 8; google.protobuf.Timestamp superseded_at = 9; string kind = 10; }
-message AppendEntryRequest { string body = 1; string facet_id = 2; string kind = 3; Attribution attribution = 4; Correlation correlation = 5; ImportProvenance import_provenance = 6; }
-message AppendEntryResponse { Entry entry = 1; }
-message GetEntryRequest { string id = 1; }
-message GetEntryResponse { Entry entry = 1; }
-message ListEntriesRequest { string facet_id = 1; int32 limit = 2; string cursor = 3; }
-message ListEntriesResponse { repeated Entry entries = 1; string next_cursor = 2; }
-message ProcessClassificationRetriesRequest { int32 limit = 1; }
-message ProcessClassificationRetriesResponse { int32 processed = 1; int32 deferred = 2; int32 already_resolved = 3; }
-message ProcessEmbeddingRetriesRequest { int32 limit = 1; }
-message ProcessEmbeddingRetriesResponse { int32 processed = 1; int32 deferred = 2; int32 already_resolved = 3; }
+service JournalService {
+  rpc AppendEntry(AppendEntryRequest) returns (AppendEntryResponse);
+  rpc GetEntry(GetEntryRequest) returns (GetEntryResponse);
+  rpc ListEntries(ListEntriesRequest) returns (ListEntriesResponse);
+  rpc ProcessClassificationRetries(ProcessClassificationRetriesRequest) returns (ProcessClassificationRetriesResponse);
+  rpc ProcessEmbeddingRetries(ProcessEmbeddingRetriesRequest) returns (ProcessEmbeddingRetriesResponse);
+}
+message FacetText {
+  string kind = 1;
+  string text = 2;
+  string embedding_ref = 3;
+}
+message Attribution {
+  string actor_id = 1;
+  string actor_kind = 2;
+  string source_runtime = 3;
+}
+message Correlation {
+  string run_id = 1;
+  string workflow_execution_id = 2;
+  string actor_kind = 3;
+}
+message ImportProvenance {
+  string runtime = 1;
+  string source_locator = 2;
+  string content_hash = 3;
+}
+message Entry {
+  string id = 1;
+  string body = 2;
+  string facet_id = 3;
+  Attribution attribution = 4;
+  Correlation correlation = 5;
+  ImportProvenance import_provenance = 6;
+  repeated FacetText facet_texts = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp superseded_at = 9;
+  string kind = 10;
+}
+message AppendEntryRequest {
+  string body = 1;
+  string facet_id = 2;
+  string kind = 3;
+  Attribution attribution = 4;
+  Correlation correlation = 5;
+  ImportProvenance import_provenance = 6;
+}
+message AppendEntryResponse {
+  Entry entry = 1;
+}
+message GetEntryRequest {
+  string id = 1;
+}
+message GetEntryResponse {
+  Entry entry = 1;
+}
+message ListEntriesRequest {
+  string facet_id = 1;
+  int32 limit = 2;
+  string cursor = 3;
+}
+message ListEntriesResponse {
+  repeated Entry entries = 1;
+  string next_cursor = 2;
+}
+message ProcessClassificationRetriesRequest {
+  int32 limit = 1;
+}
+message ProcessClassificationRetriesResponse {
+  int32 processed = 1;
+  int32 deferred = 2;
+  int32 already_resolved = 3;
+}
+message ProcessEmbeddingRetriesRequest {
+  int32 limit = 1;
+}
+message ProcessEmbeddingRetriesResponse {
+  int32 processed = 1;
+  int32 deferred = 2;
+  int32 already_resolved = 3;
+}

@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file content-desk/v1/claims/claims.proto.
  */
 export const file_content_desk_v1_claims_claims: GenFile = /*@__PURE__*/
-  fileDesc("CiNjb250ZW50LWRlc2svdjEvY2xhaW1zL2NsYWltcy5wcm90bxIddnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMiUQoFQ2xhaW0SCgoCaWQYASABKAkSEQoJc3RhdGVtZW50GAIgASgJEhsKE3ZlcmlmaWNhdGlvbl9zdGF0dXMYAyABKAkSDAoEa2luZBgEIAEoCSITChFMaXN0Q2xhaW1zUmVxdWVzdCJKChJMaXN0Q2xhaW1zUmVzcG9uc2USNAoGY2xhaW1zGAEgAygLMiQudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuQ2xhaW0iKgoWTGlzdERyYWZ0Q2xhaW1zUmVxdWVzdBIQCghkcmFmdF9pZBgBIAEoCSJPChdMaXN0RHJhZnRDbGFpbXNSZXNwb25zZRI0CgZjbGFpbXMYASADKAsyJC52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5DbGFpbSKeAQoSQ3JlYXRlQ2xhaW1SZXF1ZXN0EhEKCXN0YXRlbWVudBgBIAEoCRIMCgRraW5kGAIgASgJEhUKDWV2aWRlbmNlX2tpbmQYAyABKAkSEQoJcmVmZXJlbmNlGAQgASgJEg8KB2NvbW1hbmQYBSABKAkSFwoPZXhwZWN0ZWRfcmVzdWx0GAYgASgJEhMKC29ic2VydmVkX2F0GAcgASgJIkoKE0NyZWF0ZUNsYWltUmVzcG9uc2USMwoFY2xhaW0YASABKAsyJC52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5DbGFpbSJqChBDaXRlQ2xhaW1SZXF1ZXN0EhAKCGRyYWZ0X2lkGAEgASgJEhAKCGNsYWltX2lkGAIgASgJEhIKCnNwYW5fc3RhcnQYAyABKAUSEAoIc3Bhbl9lbmQYBCABKAUSDAoEYm9keRgFIAEoCSITChFDaXRlQ2xhaW1SZXNwb25zZSIgChJWZXJpZnlDbGFpbVJlcXVlc3QSCgoCaWQYASABKAkiSgoTVmVyaWZ5Q2xhaW1SZXNwb25zZRIzCgVjbGFpbRgBIAEoCzIkLnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLkNsYWltIhQKElN3ZWVwQ2xhaW1zUmVxdWVzdCJLChNTd2VlcENsYWltc1Jlc3BvbnNlEjQKBmNsYWltcxgBIAMoCzIkLnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLkNsYWltMtcFCg1DbGFpbXNTZXJ2aWNlEnEKCkxpc3RDbGFpbXMSMC52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5MaXN0Q2xhaW1zUmVxdWVzdBoxLnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLkxpc3RDbGFpbXNSZXNwb25zZRKAAQoPTGlzdERyYWZ0Q2xhaW1zEjUudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuTGlzdERyYWZ0Q2xhaW1zUmVxdWVzdBo2LnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLkxpc3REcmFmdENsYWltc1Jlc3BvbnNlEnQKC0NyZWF0ZUNsYWltEjEudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuQ3JlYXRlQ2xhaW1SZXF1ZXN0GjIudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuQ3JlYXRlQ2xhaW1SZXNwb25zZRJuCglDaXRlQ2xhaW0SLy52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5DaXRlQ2xhaW1SZXF1ZXN0GjAudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuQ2l0ZUNsYWltUmVzcG9uc2USdAoLVmVyaWZ5Q2xhaW0SMS52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5WZXJpZnlDbGFpbVJlcXVlc3QaMi52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5WZXJpZnlDbGFpbVJlc3BvbnNlEnQKC1N3ZWVwQ2xhaW1zEjEudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuU3dlZXBDbGFpbXNSZXF1ZXN0GjIudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuU3dlZXBDbGFpbXNSZXNwb25zZUJRWk9naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NvbnRlbnQtZGVzay92MS9jbGFpbXM7Y2xhaW1zX3YxYgZwcm90bzM");
+  fileDesc("CiNjb250ZW50LWRlc2svdjEvY2xhaW1zL2NsYWltcy5wcm90bxIddnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMiUQoFQ2xhaW0SCgoCaWQYASABKAkSEQoJc3RhdGVtZW50GAIgASgJEhsKE3ZlcmlmaWNhdGlvbl9zdGF0dXMYAyABKAkSDAoEa2luZBgEIAEoCSITChFMaXN0Q2xhaW1zUmVxdWVzdCJKChJMaXN0Q2xhaW1zUmVzcG9uc2USNAoGY2xhaW1zGAEgAygLMiQudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuQ2xhaW0iKgoWTGlzdERyYWZ0Q2xhaW1zUmVxdWVzdBIQCghkcmFmdF9pZBgBIAEoCSJPChdMaXN0RHJhZnRDbGFpbXNSZXNwb25zZRI0CgZjbGFpbXMYASADKAsyJC52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5DbGFpbSKeAQoSQ3JlYXRlQ2xhaW1SZXF1ZXN0EhEKCXN0YXRlbWVudBgBIAEoCRIMCgRraW5kGAIgASgJEhUKDWV2aWRlbmNlX2tpbmQYAyABKAkSEQoJcmVmZXJlbmNlGAQgASgJEg8KB2NvbW1hbmQYBSABKAkSFwoPZXhwZWN0ZWRfcmVzdWx0GAYgASgJEhMKC29ic2VydmVkX2F0GAcgASgJIkoKE0NyZWF0ZUNsYWltUmVzcG9uc2USMwoFY2xhaW0YASABKAsyJC52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5DbGFpbSJqChBDaXRlQ2xhaW1SZXF1ZXN0EhAKCGRyYWZ0X2lkGAEgASgJEhAKCGNsYWltX2lkGAIgASgJEhIKCnNwYW5fc3RhcnQYAyABKAUSEAoIc3Bhbl9lbmQYBCABKAUSDAoEYm9keRgFIAEoCSITChFDaXRlQ2xhaW1SZXNwb25zZSIgChJWZXJpZnlDbGFpbVJlcXVlc3QSCgoCaWQYASABKAkiSgoTVmVyaWZ5Q2xhaW1SZXNwb25zZRIzCgVjbGFpbRgBIAEoCzIkLnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLkNsYWltIhQKElN3ZWVwQ2xhaW1zUmVxdWVzdCJLChNTd2VlcENsYWltc1Jlc3BvbnNlEjQKBmNsYWltcxgBIAMoCzIkLnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLkNsYWltIksKCFRleHRTcGFuEg0KBXN0YXJ0GAEgASgFEgsKA2VuZBgCIAEoBRIQCghjbGFpbV9pZBgDIAEoCRIRCglzdXBwb3J0ZWQYBCABKAgiOQoXR2V0Q2xhaW1Db3ZlcmFnZVJlcXVlc3QSEAoIZHJhZnRfaWQYASABKAkSDAoEYm9keRgCIAEoCSKeAQoYR2V0Q2xhaW1Db3ZlcmFnZVJlc3BvbnNlEkAKD3N1cHBvcnRlZF9zcGFucxgBIAMoCzInLnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLlRleHRTcGFuEkAKD3VuY292ZXJlZF9zcGFucxgCIAMoCzInLnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLlRleHRTcGFuMt0GCg1DbGFpbXNTZXJ2aWNlEnEKCkxpc3RDbGFpbXMSMC52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5MaXN0Q2xhaW1zUmVxdWVzdBoxLnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLkxpc3RDbGFpbXNSZXNwb25zZRKAAQoPTGlzdERyYWZ0Q2xhaW1zEjUudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuTGlzdERyYWZ0Q2xhaW1zUmVxdWVzdBo2LnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLkxpc3REcmFmdENsYWltc1Jlc3BvbnNlEnQKC0NyZWF0ZUNsYWltEjEudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuQ3JlYXRlQ2xhaW1SZXF1ZXN0GjIudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuQ3JlYXRlQ2xhaW1SZXNwb25zZRJuCglDaXRlQ2xhaW0SLy52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5DaXRlQ2xhaW1SZXF1ZXN0GjAudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuQ2l0ZUNsYWltUmVzcG9uc2USdAoLVmVyaWZ5Q2xhaW0SMS52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5WZXJpZnlDbGFpbVJlcXVlc3QaMi52cm9vbGkuY29udGVudF9kZXNrLnYxLmNsYWltcy5WZXJpZnlDbGFpbVJlc3BvbnNlEnQKC1N3ZWVwQ2xhaW1zEjEudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuU3dlZXBDbGFpbXNSZXF1ZXN0GjIudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuU3dlZXBDbGFpbXNSZXNwb25zZRKDAQoQR2V0Q2xhaW1Db3ZlcmFnZRI2LnZyb29saS5jb250ZW50X2Rlc2sudjEuY2xhaW1zLkdldENsYWltQ292ZXJhZ2VSZXF1ZXN0GjcudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jbGFpbXMuR2V0Q2xhaW1Db3ZlcmFnZVJlc3BvbnNlQlFaT2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vY29udGVudC1kZXNrL3YxL2NsYWltcztjbGFpbXNfdjFiBnByb3RvMw");
 
 /**
  * @generated from message vrooli.content_desk.v1.claims.Claim
@@ -287,6 +287,82 @@ export const SweepClaimsResponseSchema: GenMessage<SweepClaimsResponse> = /*@__P
   messageDesc(file_content_desk_v1_claims_claims, 12);
 
 /**
+ * @generated from message vrooli.content_desk.v1.claims.TextSpan
+ */
+export type TextSpan = Message<"vrooli.content_desk.v1.claims.TextSpan"> & {
+  /**
+   * @generated from field: int32 start = 1;
+   */
+  start: number;
+
+  /**
+   * @generated from field: int32 end = 2;
+   */
+  end: number;
+
+  /**
+   * @generated from field: string claim_id = 3;
+   */
+  claimId: string;
+
+  /**
+   * @generated from field: bool supported = 4;
+   */
+  supported: boolean;
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.claims.TextSpan.
+ * Use `create(TextSpanSchema)` to create a new message.
+ */
+export const TextSpanSchema: GenMessage<TextSpan> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_claims_claims, 13);
+
+/**
+ * @generated from message vrooli.content_desk.v1.claims.GetClaimCoverageRequest
+ */
+export type GetClaimCoverageRequest = Message<"vrooli.content_desk.v1.claims.GetClaimCoverageRequest"> & {
+  /**
+   * @generated from field: string draft_id = 1;
+   */
+  draftId: string;
+
+  /**
+   * @generated from field: string body = 2;
+   */
+  body: string;
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.claims.GetClaimCoverageRequest.
+ * Use `create(GetClaimCoverageRequestSchema)` to create a new message.
+ */
+export const GetClaimCoverageRequestSchema: GenMessage<GetClaimCoverageRequest> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_claims_claims, 14);
+
+/**
+ * @generated from message vrooli.content_desk.v1.claims.GetClaimCoverageResponse
+ */
+export type GetClaimCoverageResponse = Message<"vrooli.content_desk.v1.claims.GetClaimCoverageResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.content_desk.v1.claims.TextSpan supported_spans = 1;
+   */
+  supportedSpans: TextSpan[];
+
+  /**
+   * @generated from field: repeated vrooli.content_desk.v1.claims.TextSpan uncovered_spans = 2;
+   */
+  uncoveredSpans: TextSpan[];
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.claims.GetClaimCoverageResponse.
+ * Use `create(GetClaimCoverageResponseSchema)` to create a new message.
+ */
+export const GetClaimCoverageResponseSchema: GenMessage<GetClaimCoverageResponse> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_claims_claims, 15);
+
+/**
  * ClaimsService owns the reusable claim library and its evidence lifecycle.
  *
  * @generated from service vrooli.content_desk.v1.claims.ClaimsService
@@ -339,6 +415,14 @@ export const ClaimsService: GenService<{
     methodKind: "unary";
     input: typeof SweepClaimsRequestSchema;
     output: typeof SweepClaimsResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.content_desk.v1.claims.ClaimsService.GetClaimCoverage
+   */
+  getClaimCoverage: {
+    methodKind: "unary";
+    input: typeof GetClaimCoverageRequestSchema;
+    output: typeof GetClaimCoverageResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_content_desk_v1_claims_claims, 0);

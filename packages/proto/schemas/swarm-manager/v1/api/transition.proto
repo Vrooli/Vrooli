@@ -2,9 +2,9 @@ syntax = "proto3";
 
 package vrooli.swarm_manager.v1.api;
 
-option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
-
 import "swarm-manager/v1/domain/transition.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
 
 service TransitionService {
   rpc ListTransitions(ListTransitionsRequest) returns (ListTransitionsResponse);

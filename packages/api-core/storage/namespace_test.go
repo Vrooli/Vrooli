@@ -221,6 +221,11 @@ func TestScenarioNamespace(t *testing.T) {
 
 	// Non-live with no injected root still fails loud through the helper.
 	t.Run("shadow without root fails loud", func(t *testing.T) {
+		// The parent process may be a lifecycle-managed scenario and therefore
+		// legitimately carry a namespace. This case proves the absent-root path,
+		// so it must clear inherited lifecycle identity first.
+		t.Setenv(EnvStorageNamespace, "")
+		t.Setenv(EnvScenario, "")
 		t.Setenv(EnvVariant, "shadow")
 		if _, err := ScenarioNamespace("my-scenario"); err == nil {
 			t.Fatal("expected fail-loud error, got nil")

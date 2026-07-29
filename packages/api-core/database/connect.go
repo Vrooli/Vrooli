@@ -35,6 +35,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/vrooli/api-core/retry"
@@ -127,6 +128,9 @@ func Connect(ctx context.Context, cfg Config) (*sql.DB, error) {
 	if cfg.Retry != nil {
 		retryCfg = *cfg.Retry
 	}
+	if retryCfg.Retryable == nil {
+		retryCfg.Retryable = isRetryableConnectionError
+	}
 
 	// Add logging callback if logger provided
 	if cfg.Logger != nil {
@@ -170,6 +174,14 @@ func Connect(ctx context.Context, cfg Config) (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+// isRetryableConnectionError rejects configuration failures that no retry can
+// repair. database/sql exposes unknown-driver failures as an error string
+// rather than a public sentinel, so match its stable diagnostic while allowing
+// operational open and ping failures to use the normal retry policy.
+func isRetryableConnectionError(err error) bool {
+	return !strings.Contains(err.Error(), "sql: unknown driver ")
 }
 
 // MustConnect is like Connect but panics on error.

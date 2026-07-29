@@ -441,32 +441,33 @@ func (x *UpdateDraftBodyResponse) GetDraft() *Draft {
 	return nil
 }
 
-type PublishDraftRequest struct {
+// SubmitReleaseDraft asks Channel Manager to own a durable release action.
+// It does not assert that a platform post exists; that outcome returns later
+// through Content Desk's idempotent release-receipt inbox.
+type SubmitReleaseDraftRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Audience       string                 `protobuf:"bytes,2,opt,name=audience,proto3" json:"audience,omitempty"`
-	PublishedUrl   string                 `protobuf:"bytes,3,opt,name=published_url,json=publishedUrl,proto3" json:"published_url,omitempty"`
-	PlatformPostId string                 `protobuf:"bytes,4,opt,name=platform_post_id,json=platformPostId,proto3" json:"platform_post_id,omitempty"`
-	SeriesId       string                 `protobuf:"bytes,5,opt,name=series_id,json=seriesId,proto3" json:"series_id,omitempty"`
-	PriorPublishId string                 `protobuf:"bytes,6,opt,name=prior_publish_id,json=priorPublishId,proto3" json:"prior_publish_id,omitempty"`
+	IdentityId     string                 `protobuf:"bytes,2,opt,name=identity_id,json=identityId,proto3" json:"identity_id,omitempty"`
+	Lane           string                 `protobuf:"bytes,3,opt,name=lane,proto3" json:"lane,omitempty"`
+	IdempotencyKey string                 `protobuf:"bytes,4,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
-func (x *PublishDraftRequest) Reset() {
-	*x = PublishDraftRequest{}
+func (x *SubmitReleaseDraftRequest) Reset() {
+	*x = SubmitReleaseDraftRequest{}
 	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *PublishDraftRequest) String() string {
+func (x *SubmitReleaseDraftRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*PublishDraftRequest) ProtoMessage() {}
+func (*SubmitReleaseDraftRequest) ProtoMessage() {}
 
-func (x *PublishDraftRequest) ProtoReflect() protoreflect.Message {
+func (x *SubmitReleaseDraftRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -478,54 +479,194 @@ func (x *PublishDraftRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use PublishDraftRequest.ProtoReflect.Descriptor instead.
-func (*PublishDraftRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use SubmitReleaseDraftRequest.ProtoReflect.Descriptor instead.
+func (*SubmitReleaseDraftRequest) Descriptor() ([]byte, []int) {
 	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *PublishDraftRequest) GetId() string {
+func (x *SubmitReleaseDraftRequest) GetId() string {
 	if x != nil {
 		return x.Id
 	}
 	return ""
 }
 
-func (x *PublishDraftRequest) GetAudience() string {
+func (x *SubmitReleaseDraftRequest) GetIdentityId() string {
 	if x != nil {
-		return x.Audience
+		return x.IdentityId
 	}
 	return ""
 }
 
-func (x *PublishDraftRequest) GetPublishedUrl() string {
+func (x *SubmitReleaseDraftRequest) GetLane() string {
 	if x != nil {
-		return x.PublishedUrl
+		return x.Lane
 	}
 	return ""
 }
 
-func (x *PublishDraftRequest) GetPlatformPostId() string {
+func (x *SubmitReleaseDraftRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+type SubmitReleaseDraftResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Draft         *Draft                 `protobuf:"bytes,1,opt,name=draft,proto3" json:"draft,omitempty"`
+	ReleaseId     string                 `protobuf:"bytes,2,opt,name=release_id,json=releaseId,proto3" json:"release_id,omitempty"`
+	ActionId      string                 `protobuf:"bytes,3,opt,name=action_id,json=actionId,proto3" json:"action_id,omitempty"`
+	ReleaseStatus string                 `protobuf:"bytes,4,opt,name=release_status,json=releaseStatus,proto3" json:"release_status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubmitReleaseDraftResponse) Reset() {
+	*x = SubmitReleaseDraftResponse{}
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubmitReleaseDraftResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubmitReleaseDraftResponse) ProtoMessage() {}
+
+func (x *SubmitReleaseDraftResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubmitReleaseDraftResponse.ProtoReflect.Descriptor instead.
+func (*SubmitReleaseDraftResponse) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *SubmitReleaseDraftResponse) GetDraft() *Draft {
+	if x != nil {
+		return x.Draft
+	}
+	return nil
+}
+
+func (x *SubmitReleaseDraftResponse) GetReleaseId() string {
+	if x != nil {
+		return x.ReleaseId
+	}
+	return ""
+}
+
+func (x *SubmitReleaseDraftResponse) GetActionId() string {
+	if x != nil {
+		return x.ActionId
+	}
+	return ""
+}
+
+func (x *SubmitReleaseDraftResponse) GetReleaseStatus() string {
+	if x != nil {
+		return x.ReleaseStatus
+	}
+	return ""
+}
+
+// RecordReleaseOutcome is Channel Manager's idempotent completion callback.
+// It is accepted only for a real published or partial platform outcome.
+type RecordReleaseOutcomeRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ReceiptId      string                 `protobuf:"bytes,1,opt,name=receipt_id,json=receiptId,proto3" json:"receipt_id,omitempty"`
+	DraftId        string                 `protobuf:"bytes,2,opt,name=draft_id,json=draftId,proto3" json:"draft_id,omitempty"`
+	Status         string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	PlatformPostId string                 `protobuf:"bytes,4,opt,name=platform_post_id,json=platformPostId,proto3" json:"platform_post_id,omitempty"`
+	PublishedUrl   string                 `protobuf:"bytes,5,opt,name=published_url,json=publishedUrl,proto3" json:"published_url,omitempty"`
+	PublishedAt    string                 `protobuf:"bytes,6,opt,name=published_at,json=publishedAt,proto3" json:"published_at,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *RecordReleaseOutcomeRequest) Reset() {
+	*x = RecordReleaseOutcomeRequest{}
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordReleaseOutcomeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordReleaseOutcomeRequest) ProtoMessage() {}
+
+func (x *RecordReleaseOutcomeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordReleaseOutcomeRequest.ProtoReflect.Descriptor instead.
+func (*RecordReleaseOutcomeRequest) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *RecordReleaseOutcomeRequest) GetReceiptId() string {
+	if x != nil {
+		return x.ReceiptId
+	}
+	return ""
+}
+
+func (x *RecordReleaseOutcomeRequest) GetDraftId() string {
+	if x != nil {
+		return x.DraftId
+	}
+	return ""
+}
+
+func (x *RecordReleaseOutcomeRequest) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *RecordReleaseOutcomeRequest) GetPlatformPostId() string {
 	if x != nil {
 		return x.PlatformPostId
 	}
 	return ""
 }
 
-func (x *PublishDraftRequest) GetSeriesId() string {
+func (x *RecordReleaseOutcomeRequest) GetPublishedUrl() string {
 	if x != nil {
-		return x.SeriesId
+		return x.PublishedUrl
 	}
 	return ""
 }
 
-func (x *PublishDraftRequest) GetPriorPublishId() string {
+func (x *RecordReleaseOutcomeRequest) GetPublishedAt() string {
 	if x != nil {
-		return x.PriorPublishId
+		return x.PublishedAt
 	}
 	return ""
 }
 
-type PublishDraftResponse struct {
+type RecordReleaseOutcomeResponse struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Draft           *Draft                 `protobuf:"bytes,1,opt,name=draft,proto3" json:"draft,omitempty"`
 	PublishRecordId string                 `protobuf:"bytes,2,opt,name=publish_record_id,json=publishRecordId,proto3" json:"publish_record_id,omitempty"`
@@ -533,21 +674,21 @@ type PublishDraftResponse struct {
 	sizeCache       protoimpl.SizeCache
 }
 
-func (x *PublishDraftResponse) Reset() {
-	*x = PublishDraftResponse{}
-	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[8]
+func (x *RecordReleaseOutcomeResponse) Reset() {
+	*x = RecordReleaseOutcomeResponse{}
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *PublishDraftResponse) String() string {
+func (x *RecordReleaseOutcomeResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*PublishDraftResponse) ProtoMessage() {}
+func (*RecordReleaseOutcomeResponse) ProtoMessage() {}
 
-func (x *PublishDraftResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[8]
+func (x *RecordReleaseOutcomeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -558,19 +699,19 @@ func (x *PublishDraftResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use PublishDraftResponse.ProtoReflect.Descriptor instead.
-func (*PublishDraftResponse) Descriptor() ([]byte, []int) {
-	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{8}
+// Deprecated: Use RecordReleaseOutcomeResponse.ProtoReflect.Descriptor instead.
+func (*RecordReleaseOutcomeResponse) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *PublishDraftResponse) GetDraft() *Draft {
+func (x *RecordReleaseOutcomeResponse) GetDraft() *Draft {
 	if x != nil {
 		return x.Draft
 	}
 	return nil
 }
 
-func (x *PublishDraftResponse) GetPublishRecordId() string {
+func (x *RecordReleaseOutcomeResponse) GetPublishRecordId() string {
 	if x != nil {
 		return x.PublishRecordId
 	}
@@ -587,7 +728,7 @@ type TransitionDraftRequest struct {
 
 func (x *TransitionDraftRequest) Reset() {
 	*x = TransitionDraftRequest{}
-	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[9]
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -599,7 +740,7 @@ func (x *TransitionDraftRequest) String() string {
 func (*TransitionDraftRequest) ProtoMessage() {}
 
 func (x *TransitionDraftRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[9]
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -612,7 +753,7 @@ func (x *TransitionDraftRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransitionDraftRequest.ProtoReflect.Descriptor instead.
 func (*TransitionDraftRequest) Descriptor() ([]byte, []int) {
-	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{9}
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *TransitionDraftRequest) GetId() string {
@@ -638,7 +779,7 @@ type TransitionDraftResponse struct {
 
 func (x *TransitionDraftResponse) Reset() {
 	*x = TransitionDraftResponse{}
-	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[10]
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -650,7 +791,7 @@ func (x *TransitionDraftResponse) String() string {
 func (*TransitionDraftResponse) ProtoMessage() {}
 
 func (x *TransitionDraftResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[10]
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -663,7 +804,7 @@ func (x *TransitionDraftResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransitionDraftResponse.ProtoReflect.Descriptor instead.
 func (*TransitionDraftResponse) Descriptor() ([]byte, []int) {
-	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{10}
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *TransitionDraftResponse) GetDraft() *Draft {
@@ -676,13 +817,15 @@ func (x *TransitionDraftResponse) GetDraft() *Draft {
 type ApproveDraftRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	IdentityId    string                 `protobuf:"bytes,2,opt,name=identity_id,json=identityId,proto3" json:"identity_id,omitempty"`
+	Lane          string                 `protobuf:"bytes,3,opt,name=lane,proto3" json:"lane,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ApproveDraftRequest) Reset() {
 	*x = ApproveDraftRequest{}
-	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[11]
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -694,7 +837,7 @@ func (x *ApproveDraftRequest) String() string {
 func (*ApproveDraftRequest) ProtoMessage() {}
 
 func (x *ApproveDraftRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[11]
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -707,12 +850,26 @@ func (x *ApproveDraftRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApproveDraftRequest.ProtoReflect.Descriptor instead.
 func (*ApproveDraftRequest) Descriptor() ([]byte, []int) {
-	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{11}
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ApproveDraftRequest) GetId() string {
 	if x != nil {
 		return x.Id
+	}
+	return ""
+}
+
+func (x *ApproveDraftRequest) GetIdentityId() string {
+	if x != nil {
+		return x.IdentityId
+	}
+	return ""
+}
+
+func (x *ApproveDraftRequest) GetLane() string {
+	if x != nil {
+		return x.Lane
 	}
 	return ""
 }
@@ -726,7 +883,7 @@ type ApproveDraftResponse struct {
 
 func (x *ApproveDraftResponse) Reset() {
 	*x = ApproveDraftResponse{}
-	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[12]
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -738,7 +895,7 @@ func (x *ApproveDraftResponse) String() string {
 func (*ApproveDraftResponse) ProtoMessage() {}
 
 func (x *ApproveDraftResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[12]
+	mi := &file_content_desk_v1_artifacts_artifacts_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -751,7 +908,7 @@ func (x *ApproveDraftResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApproveDraftResponse.ProtoReflect.Descriptor instead.
 func (*ApproveDraftResponse) Descriptor() ([]byte, []int) {
-	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{12}
+	return file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ApproveDraftResponse) GetDraft() *Draft {
@@ -797,32 +954,49 @@ const file_content_desk_v1_artifacts_artifacts_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04body\x18\x02 \x01(\tR\x04body\"X\n" +
 	"\x17UpdateDraftBodyResponse\x12=\n" +
-	"\x05draft\x18\x01 \x01(\v2'.vrooli.content_desk.v1.artifacts.DraftR\x05draft\"\xd7\x01\n" +
-	"\x13PublishDraftRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
-	"\baudience\x18\x02 \x01(\tR\baudience\x12#\n" +
-	"\rpublished_url\x18\x03 \x01(\tR\fpublishedUrl\x12(\n" +
-	"\x10platform_post_id\x18\x04 \x01(\tR\x0eplatformPostId\x12\x1b\n" +
-	"\tseries_id\x18\x05 \x01(\tR\bseriesId\x12(\n" +
-	"\x10prior_publish_id\x18\x06 \x01(\tR\x0epriorPublishId\"\x81\x01\n" +
-	"\x14PublishDraftResponse\x12=\n" +
+	"\x05draft\x18\x01 \x01(\v2'.vrooli.content_desk.v1.artifacts.DraftR\x05draft\"\x89\x01\n" +
+	"\x19SubmitReleaseDraftRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
+	"\videntity_id\x18\x02 \x01(\tR\n" +
+	"identityId\x12\x12\n" +
+	"\x04lane\x18\x03 \x01(\tR\x04lane\x12'\n" +
+	"\x0fidempotency_key\x18\x04 \x01(\tR\x0eidempotencyKey\"\xbe\x01\n" +
+	"\x1aSubmitReleaseDraftResponse\x12=\n" +
+	"\x05draft\x18\x01 \x01(\v2'.vrooli.content_desk.v1.artifacts.DraftR\x05draft\x12\x1d\n" +
+	"\n" +
+	"release_id\x18\x02 \x01(\tR\treleaseId\x12\x1b\n" +
+	"\taction_id\x18\x03 \x01(\tR\bactionId\x12%\n" +
+	"\x0erelease_status\x18\x04 \x01(\tR\rreleaseStatus\"\xe1\x01\n" +
+	"\x1bRecordReleaseOutcomeRequest\x12\x1d\n" +
+	"\n" +
+	"receipt_id\x18\x01 \x01(\tR\treceiptId\x12\x19\n" +
+	"\bdraft_id\x18\x02 \x01(\tR\adraftId\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12(\n" +
+	"\x10platform_post_id\x18\x04 \x01(\tR\x0eplatformPostId\x12#\n" +
+	"\rpublished_url\x18\x05 \x01(\tR\fpublishedUrl\x12!\n" +
+	"\fpublished_at\x18\x06 \x01(\tR\vpublishedAt\"\x89\x01\n" +
+	"\x1cRecordReleaseOutcomeResponse\x12=\n" +
 	"\x05draft\x18\x01 \x01(\v2'.vrooli.content_desk.v1.artifacts.DraftR\x05draft\x12*\n" +
 	"\x11publish_record_id\x18\x02 \x01(\tR\x0fpublishRecordId\">\n" +
 	"\x16TransitionDraftRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05event\x18\x02 \x01(\tR\x05event\"X\n" +
 	"\x17TransitionDraftResponse\x12=\n" +
-	"\x05draft\x18\x01 \x01(\v2'.vrooli.content_desk.v1.artifacts.DraftR\x05draft\"%\n" +
+	"\x05draft\x18\x01 \x01(\v2'.vrooli.content_desk.v1.artifacts.DraftR\x05draft\"Z\n" +
 	"\x13ApproveDraftRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"U\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
+	"\videntity_id\x18\x02 \x01(\tR\n" +
+	"identityId\x12\x12\n" +
+	"\x04lane\x18\x03 \x01(\tR\x04lane\"U\n" +
 	"\x14ApproveDraftResponse\x12=\n" +
-	"\x05draft\x18\x01 \x01(\v2'.vrooli.content_desk.v1.artifacts.DraftR\x05draft2\x97\x06\n" +
+	"\x05draft\x18\x01 \x01(\v2'.vrooli.content_desk.v1.artifacts.DraftR\x05draft2\xc2\a\n" +
 	"\x10ArtifactsService\x12w\n" +
 	"\n" +
 	"ListDrafts\x123.vrooli.content_desk.v1.artifacts.ListDraftsRequest\x1a4.vrooli.content_desk.v1.artifacts.ListDraftsResponse\x12z\n" +
 	"\vCreateDraft\x124.vrooli.content_desk.v1.artifacts.CreateDraftRequest\x1a5.vrooli.content_desk.v1.artifacts.CreateDraftResponse\x12\x86\x01\n" +
-	"\x0fUpdateDraftBody\x128.vrooli.content_desk.v1.artifacts.UpdateDraftBodyRequest\x1a9.vrooli.content_desk.v1.artifacts.UpdateDraftBodyResponse\x12}\n" +
-	"\fPublishDraft\x125.vrooli.content_desk.v1.artifacts.PublishDraftRequest\x1a6.vrooli.content_desk.v1.artifacts.PublishDraftResponse\x12\x86\x01\n" +
+	"\x0fUpdateDraftBody\x128.vrooli.content_desk.v1.artifacts.UpdateDraftBodyRequest\x1a9.vrooli.content_desk.v1.artifacts.UpdateDraftBodyResponse\x12\x8f\x01\n" +
+	"\x12SubmitReleaseDraft\x12;.vrooli.content_desk.v1.artifacts.SubmitReleaseDraftRequest\x1a<.vrooli.content_desk.v1.artifacts.SubmitReleaseDraftResponse\x12\x95\x01\n" +
+	"\x14RecordReleaseOutcome\x12=.vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeRequest\x1a>.vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeResponse\x12\x86\x01\n" +
 	"\x0fTransitionDraft\x128.vrooli.content_desk.v1.artifacts.TransitionDraftRequest\x1a9.vrooli.content_desk.v1.artifacts.TransitionDraftResponse\x12}\n" +
 	"\fApproveDraft\x125.vrooli.content_desk.v1.artifacts.ApproveDraftRequest\x1a6.vrooli.content_desk.v1.artifacts.ApproveDraftResponseBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/artifacts;artifacts_v1b\x06proto3"
 
@@ -838,46 +1012,51 @@ func file_content_desk_v1_artifacts_artifacts_proto_rawDescGZIP() []byte {
 	return file_content_desk_v1_artifacts_artifacts_proto_rawDescData
 }
 
-var file_content_desk_v1_artifacts_artifacts_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_content_desk_v1_artifacts_artifacts_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_content_desk_v1_artifacts_artifacts_proto_goTypes = []any{
-	(*Draft)(nil),                   // 0: vrooli.content_desk.v1.artifacts.Draft
-	(*ListDraftsRequest)(nil),       // 1: vrooli.content_desk.v1.artifacts.ListDraftsRequest
-	(*ListDraftsResponse)(nil),      // 2: vrooli.content_desk.v1.artifacts.ListDraftsResponse
-	(*CreateDraftRequest)(nil),      // 3: vrooli.content_desk.v1.artifacts.CreateDraftRequest
-	(*CreateDraftResponse)(nil),     // 4: vrooli.content_desk.v1.artifacts.CreateDraftResponse
-	(*UpdateDraftBodyRequest)(nil),  // 5: vrooli.content_desk.v1.artifacts.UpdateDraftBodyRequest
-	(*UpdateDraftBodyResponse)(nil), // 6: vrooli.content_desk.v1.artifacts.UpdateDraftBodyResponse
-	(*PublishDraftRequest)(nil),     // 7: vrooli.content_desk.v1.artifacts.PublishDraftRequest
-	(*PublishDraftResponse)(nil),    // 8: vrooli.content_desk.v1.artifacts.PublishDraftResponse
-	(*TransitionDraftRequest)(nil),  // 9: vrooli.content_desk.v1.artifacts.TransitionDraftRequest
-	(*TransitionDraftResponse)(nil), // 10: vrooli.content_desk.v1.artifacts.TransitionDraftResponse
-	(*ApproveDraftRequest)(nil),     // 11: vrooli.content_desk.v1.artifacts.ApproveDraftRequest
-	(*ApproveDraftResponse)(nil),    // 12: vrooli.content_desk.v1.artifacts.ApproveDraftResponse
+	(*Draft)(nil),                        // 0: vrooli.content_desk.v1.artifacts.Draft
+	(*ListDraftsRequest)(nil),            // 1: vrooli.content_desk.v1.artifacts.ListDraftsRequest
+	(*ListDraftsResponse)(nil),           // 2: vrooli.content_desk.v1.artifacts.ListDraftsResponse
+	(*CreateDraftRequest)(nil),           // 3: vrooli.content_desk.v1.artifacts.CreateDraftRequest
+	(*CreateDraftResponse)(nil),          // 4: vrooli.content_desk.v1.artifacts.CreateDraftResponse
+	(*UpdateDraftBodyRequest)(nil),       // 5: vrooli.content_desk.v1.artifacts.UpdateDraftBodyRequest
+	(*UpdateDraftBodyResponse)(nil),      // 6: vrooli.content_desk.v1.artifacts.UpdateDraftBodyResponse
+	(*SubmitReleaseDraftRequest)(nil),    // 7: vrooli.content_desk.v1.artifacts.SubmitReleaseDraftRequest
+	(*SubmitReleaseDraftResponse)(nil),   // 8: vrooli.content_desk.v1.artifacts.SubmitReleaseDraftResponse
+	(*RecordReleaseOutcomeRequest)(nil),  // 9: vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeRequest
+	(*RecordReleaseOutcomeResponse)(nil), // 10: vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeResponse
+	(*TransitionDraftRequest)(nil),       // 11: vrooli.content_desk.v1.artifacts.TransitionDraftRequest
+	(*TransitionDraftResponse)(nil),      // 12: vrooli.content_desk.v1.artifacts.TransitionDraftResponse
+	(*ApproveDraftRequest)(nil),          // 13: vrooli.content_desk.v1.artifacts.ApproveDraftRequest
+	(*ApproveDraftResponse)(nil),         // 14: vrooli.content_desk.v1.artifacts.ApproveDraftResponse
 }
 var file_content_desk_v1_artifacts_artifacts_proto_depIdxs = []int32{
 	0,  // 0: vrooli.content_desk.v1.artifacts.ListDraftsResponse.drafts:type_name -> vrooli.content_desk.v1.artifacts.Draft
 	0,  // 1: vrooli.content_desk.v1.artifacts.CreateDraftResponse.draft:type_name -> vrooli.content_desk.v1.artifacts.Draft
 	0,  // 2: vrooli.content_desk.v1.artifacts.UpdateDraftBodyResponse.draft:type_name -> vrooli.content_desk.v1.artifacts.Draft
-	0,  // 3: vrooli.content_desk.v1.artifacts.PublishDraftResponse.draft:type_name -> vrooli.content_desk.v1.artifacts.Draft
-	0,  // 4: vrooli.content_desk.v1.artifacts.TransitionDraftResponse.draft:type_name -> vrooli.content_desk.v1.artifacts.Draft
-	0,  // 5: vrooli.content_desk.v1.artifacts.ApproveDraftResponse.draft:type_name -> vrooli.content_desk.v1.artifacts.Draft
-	1,  // 6: vrooli.content_desk.v1.artifacts.ArtifactsService.ListDrafts:input_type -> vrooli.content_desk.v1.artifacts.ListDraftsRequest
-	3,  // 7: vrooli.content_desk.v1.artifacts.ArtifactsService.CreateDraft:input_type -> vrooli.content_desk.v1.artifacts.CreateDraftRequest
-	5,  // 8: vrooli.content_desk.v1.artifacts.ArtifactsService.UpdateDraftBody:input_type -> vrooli.content_desk.v1.artifacts.UpdateDraftBodyRequest
-	7,  // 9: vrooli.content_desk.v1.artifacts.ArtifactsService.PublishDraft:input_type -> vrooli.content_desk.v1.artifacts.PublishDraftRequest
-	9,  // 10: vrooli.content_desk.v1.artifacts.ArtifactsService.TransitionDraft:input_type -> vrooli.content_desk.v1.artifacts.TransitionDraftRequest
-	11, // 11: vrooli.content_desk.v1.artifacts.ArtifactsService.ApproveDraft:input_type -> vrooli.content_desk.v1.artifacts.ApproveDraftRequest
-	2,  // 12: vrooli.content_desk.v1.artifacts.ArtifactsService.ListDrafts:output_type -> vrooli.content_desk.v1.artifacts.ListDraftsResponse
-	4,  // 13: vrooli.content_desk.v1.artifacts.ArtifactsService.CreateDraft:output_type -> vrooli.content_desk.v1.artifacts.CreateDraftResponse
-	6,  // 14: vrooli.content_desk.v1.artifacts.ArtifactsService.UpdateDraftBody:output_type -> vrooli.content_desk.v1.artifacts.UpdateDraftBodyResponse
-	8,  // 15: vrooli.content_desk.v1.artifacts.ArtifactsService.PublishDraft:output_type -> vrooli.content_desk.v1.artifacts.PublishDraftResponse
-	10, // 16: vrooli.content_desk.v1.artifacts.ArtifactsService.TransitionDraft:output_type -> vrooli.content_desk.v1.artifacts.TransitionDraftResponse
-	12, // 17: vrooli.content_desk.v1.artifacts.ArtifactsService.ApproveDraft:output_type -> vrooli.content_desk.v1.artifacts.ApproveDraftResponse
-	12, // [12:18] is the sub-list for method output_type
-	6,  // [6:12] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	0,  // 3: vrooli.content_desk.v1.artifacts.SubmitReleaseDraftResponse.draft:type_name -> vrooli.content_desk.v1.artifacts.Draft
+	0,  // 4: vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeResponse.draft:type_name -> vrooli.content_desk.v1.artifacts.Draft
+	0,  // 5: vrooli.content_desk.v1.artifacts.TransitionDraftResponse.draft:type_name -> vrooli.content_desk.v1.artifacts.Draft
+	0,  // 6: vrooli.content_desk.v1.artifacts.ApproveDraftResponse.draft:type_name -> vrooli.content_desk.v1.artifacts.Draft
+	1,  // 7: vrooli.content_desk.v1.artifacts.ArtifactsService.ListDrafts:input_type -> vrooli.content_desk.v1.artifacts.ListDraftsRequest
+	3,  // 8: vrooli.content_desk.v1.artifacts.ArtifactsService.CreateDraft:input_type -> vrooli.content_desk.v1.artifacts.CreateDraftRequest
+	5,  // 9: vrooli.content_desk.v1.artifacts.ArtifactsService.UpdateDraftBody:input_type -> vrooli.content_desk.v1.artifacts.UpdateDraftBodyRequest
+	7,  // 10: vrooli.content_desk.v1.artifacts.ArtifactsService.SubmitReleaseDraft:input_type -> vrooli.content_desk.v1.artifacts.SubmitReleaseDraftRequest
+	9,  // 11: vrooli.content_desk.v1.artifacts.ArtifactsService.RecordReleaseOutcome:input_type -> vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeRequest
+	11, // 12: vrooli.content_desk.v1.artifacts.ArtifactsService.TransitionDraft:input_type -> vrooli.content_desk.v1.artifacts.TransitionDraftRequest
+	13, // 13: vrooli.content_desk.v1.artifacts.ArtifactsService.ApproveDraft:input_type -> vrooli.content_desk.v1.artifacts.ApproveDraftRequest
+	2,  // 14: vrooli.content_desk.v1.artifacts.ArtifactsService.ListDrafts:output_type -> vrooli.content_desk.v1.artifacts.ListDraftsResponse
+	4,  // 15: vrooli.content_desk.v1.artifacts.ArtifactsService.CreateDraft:output_type -> vrooli.content_desk.v1.artifacts.CreateDraftResponse
+	6,  // 16: vrooli.content_desk.v1.artifacts.ArtifactsService.UpdateDraftBody:output_type -> vrooli.content_desk.v1.artifacts.UpdateDraftBodyResponse
+	8,  // 17: vrooli.content_desk.v1.artifacts.ArtifactsService.SubmitReleaseDraft:output_type -> vrooli.content_desk.v1.artifacts.SubmitReleaseDraftResponse
+	10, // 18: vrooli.content_desk.v1.artifacts.ArtifactsService.RecordReleaseOutcome:output_type -> vrooli.content_desk.v1.artifacts.RecordReleaseOutcomeResponse
+	12, // 19: vrooli.content_desk.v1.artifacts.ArtifactsService.TransitionDraft:output_type -> vrooli.content_desk.v1.artifacts.TransitionDraftResponse
+	14, // 20: vrooli.content_desk.v1.artifacts.ArtifactsService.ApproveDraft:output_type -> vrooli.content_desk.v1.artifacts.ApproveDraftResponse
+	14, // [14:21] is the sub-list for method output_type
+	7,  // [7:14] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_content_desk_v1_artifacts_artifacts_proto_init() }
@@ -891,7 +1070,7 @@ func file_content_desk_v1_artifacts_artifacts_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_content_desk_v1_artifacts_artifacts_proto_rawDesc), len(file_content_desk_v1_artifacts_artifacts_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

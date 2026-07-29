@@ -4,8 +4,8 @@ package browser_automation_studio.v1;
 
 import "browser-automation-studio/v1/actions/action.proto";
 import "browser-automation-studio/v1/base/shared.proto";
-import "browser-automation-studio/v1/execution/execution.proto";
 import "browser-automation-studio/v1/evidence/evidence.proto";
+import "browser-automation-studio/v1/execution/execution.proto";
 import "browser-automation-studio/v1/timeline/container.proto";
 import "browser-automation-studio/v1/workflows/definition.proto";
 import "buf/validate/validate.proto";

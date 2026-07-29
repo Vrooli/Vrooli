@@ -437,6 +437,522 @@ func (x *ListCoverageResponse) GetCells() []*CoverageCell {
 	return nil
 }
 
+type IngestMetricSampleRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SampleId      string                 `protobuf:"bytes,1,opt,name=sample_id,json=sampleId,proto3" json:"sample_id,omitempty"`
+	ReleaseId     string                 `protobuf:"bytes,2,opt,name=release_id,json=releaseId,proto3" json:"release_id,omitempty"`
+	DraftId       string                 `protobuf:"bytes,3,opt,name=draft_id,json=draftId,proto3" json:"draft_id,omitempty"`
+	Metric        string                 `protobuf:"bytes,4,opt,name=metric,proto3" json:"metric,omitempty"`
+	Value         float64                `protobuf:"fixed64,5,opt,name=value,proto3" json:"value,omitempty"`
+	ObservedAt    string                 `protobuf:"bytes,6,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IngestMetricSampleRequest) Reset() {
+	*x = IngestMetricSampleRequest{}
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IngestMetricSampleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IngestMetricSampleRequest) ProtoMessage() {}
+
+func (x *IngestMetricSampleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IngestMetricSampleRequest.ProtoReflect.Descriptor instead.
+func (*IngestMetricSampleRequest) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_ledger_ledger_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *IngestMetricSampleRequest) GetSampleId() string {
+	if x != nil {
+		return x.SampleId
+	}
+	return ""
+}
+
+func (x *IngestMetricSampleRequest) GetReleaseId() string {
+	if x != nil {
+		return x.ReleaseId
+	}
+	return ""
+}
+
+func (x *IngestMetricSampleRequest) GetDraftId() string {
+	if x != nil {
+		return x.DraftId
+	}
+	return ""
+}
+
+func (x *IngestMetricSampleRequest) GetMetric() string {
+	if x != nil {
+		return x.Metric
+	}
+	return ""
+}
+
+func (x *IngestMetricSampleRequest) GetValue() float64 {
+	if x != nil {
+		return x.Value
+	}
+	return 0
+}
+
+func (x *IngestMetricSampleRequest) GetObservedAt() string {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return ""
+}
+
+type IngestMetricSampleResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SampleId      string                 `protobuf:"bytes,1,opt,name=sample_id,json=sampleId,proto3" json:"sample_id,omitempty"`
+	Accepted      bool                   `protobuf:"varint,2,opt,name=accepted,proto3" json:"accepted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IngestMetricSampleResponse) Reset() {
+	*x = IngestMetricSampleResponse{}
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IngestMetricSampleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IngestMetricSampleResponse) ProtoMessage() {}
+
+func (x *IngestMetricSampleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IngestMetricSampleResponse.ProtoReflect.Descriptor instead.
+func (*IngestMetricSampleResponse) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_ledger_ledger_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *IngestMetricSampleResponse) GetSampleId() string {
+	if x != nil {
+		return x.SampleId
+	}
+	return ""
+}
+
+func (x *IngestMetricSampleResponse) GetAccepted() bool {
+	if x != nil {
+		return x.Accepted
+	}
+	return false
+}
+
+type Remediation struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	PublishRecordId string                 `protobuf:"bytes,2,opt,name=publish_record_id,json=publishRecordId,proto3" json:"publish_record_id,omitempty"`
+	Kind            string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
+	Status          string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	Note            string                 `protobuf:"bytes,5,opt,name=note,proto3" json:"note,omitempty"`
+	CreatedAt       string                 `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ResolvedAt      string                 `protobuf:"bytes,7,opt,name=resolved_at,json=resolvedAt,proto3" json:"resolved_at,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *Remediation) Reset() {
+	*x = Remediation{}
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Remediation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Remediation) ProtoMessage() {}
+
+func (x *Remediation) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Remediation.ProtoReflect.Descriptor instead.
+func (*Remediation) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_ledger_ledger_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *Remediation) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Remediation) GetPublishRecordId() string {
+	if x != nil {
+		return x.PublishRecordId
+	}
+	return ""
+}
+
+func (x *Remediation) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *Remediation) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *Remediation) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+func (x *Remediation) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *Remediation) GetResolvedAt() string {
+	if x != nil {
+		return x.ResolvedAt
+	}
+	return ""
+}
+
+type ListRemediationsRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	PublishRecordId string                 `protobuf:"bytes,1,opt,name=publish_record_id,json=publishRecordId,proto3" json:"publish_record_id,omitempty"`
+	OpenOnly        bool                   `protobuf:"varint,2,opt,name=open_only,json=openOnly,proto3" json:"open_only,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ListRemediationsRequest) Reset() {
+	*x = ListRemediationsRequest{}
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListRemediationsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListRemediationsRequest) ProtoMessage() {}
+
+func (x *ListRemediationsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListRemediationsRequest.ProtoReflect.Descriptor instead.
+func (*ListRemediationsRequest) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_ledger_ledger_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ListRemediationsRequest) GetPublishRecordId() string {
+	if x != nil {
+		return x.PublishRecordId
+	}
+	return ""
+}
+
+func (x *ListRemediationsRequest) GetOpenOnly() bool {
+	if x != nil {
+		return x.OpenOnly
+	}
+	return false
+}
+
+type ListRemediationsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Remediations  []*Remediation         `protobuf:"bytes,1,rep,name=remediations,proto3" json:"remediations,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListRemediationsResponse) Reset() {
+	*x = ListRemediationsResponse{}
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListRemediationsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListRemediationsResponse) ProtoMessage() {}
+
+func (x *ListRemediationsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListRemediationsResponse.ProtoReflect.Descriptor instead.
+func (*ListRemediationsResponse) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_ledger_ledger_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ListRemediationsResponse) GetRemediations() []*Remediation {
+	if x != nil {
+		return x.Remediations
+	}
+	return nil
+}
+
+type CreateRemediationRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	PublishRecordId string                 `protobuf:"bytes,1,opt,name=publish_record_id,json=publishRecordId,proto3" json:"publish_record_id,omitempty"`
+	Kind            string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	Note            string                 `protobuf:"bytes,3,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *CreateRemediationRequest) Reset() {
+	*x = CreateRemediationRequest{}
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateRemediationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateRemediationRequest) ProtoMessage() {}
+
+func (x *CreateRemediationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateRemediationRequest.ProtoReflect.Descriptor instead.
+func (*CreateRemediationRequest) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_ledger_ledger_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *CreateRemediationRequest) GetPublishRecordId() string {
+	if x != nil {
+		return x.PublishRecordId
+	}
+	return ""
+}
+
+func (x *CreateRemediationRequest) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *CreateRemediationRequest) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+type CreateRemediationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Remediation   *Remediation           `protobuf:"bytes,1,opt,name=remediation,proto3" json:"remediation,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateRemediationResponse) Reset() {
+	*x = CreateRemediationResponse{}
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateRemediationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateRemediationResponse) ProtoMessage() {}
+
+func (x *CreateRemediationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateRemediationResponse.ProtoReflect.Descriptor instead.
+func (*CreateRemediationResponse) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_ledger_ledger_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *CreateRemediationResponse) GetRemediation() *Remediation {
+	if x != nil {
+		return x.Remediation
+	}
+	return nil
+}
+
+type ResolveRemediationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveRemediationRequest) Reset() {
+	*x = ResolveRemediationRequest{}
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveRemediationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveRemediationRequest) ProtoMessage() {}
+
+func (x *ResolveRemediationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveRemediationRequest.ProtoReflect.Descriptor instead.
+func (*ResolveRemediationRequest) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_ledger_ledger_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ResolveRemediationRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type ResolveRemediationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Remediation   *Remediation           `protobuf:"bytes,1,opt,name=remediation,proto3" json:"remediation,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveRemediationResponse) Reset() {
+	*x = ResolveRemediationResponse{}
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveRemediationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveRemediationResponse) ProtoMessage() {}
+
+func (x *ResolveRemediationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_ledger_ledger_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveRemediationResponse.ProtoReflect.Descriptor instead.
+func (*ResolveRemediationResponse) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_ledger_ledger_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ResolveRemediationResponse) GetRemediation() *Remediation {
+	if x != nil {
+		return x.Remediation
+	}
+	return nil
+}
+
 var File_content_desk_v1_ledger_ledger_proto protoreflect.FileDescriptor
 
 const file_content_desk_v1_ledger_ledger_proto_rawDesc = "" +
@@ -466,11 +982,52 @@ const file_content_desk_v1_ledger_ledger_proto_rawDesc = "" +
 	"\x13ListCoverageRequest\x12(\n" +
 	"\x10stale_after_days\x18\x01 \x01(\x05R\x0estaleAfterDays\"Y\n" +
 	"\x14ListCoverageResponse\x12A\n" +
-	"\x05cells\x18\x01 \x03(\v2+.vrooli.content_desk.v1.ledger.CoverageCellR\x05cells2\xc4\x03\n" +
+	"\x05cells\x18\x01 \x03(\v2+.vrooli.content_desk.v1.ledger.CoverageCellR\x05cells\"\xc1\x01\n" +
+	"\x19IngestMetricSampleRequest\x12\x1b\n" +
+	"\tsample_id\x18\x01 \x01(\tR\bsampleId\x12\x1d\n" +
+	"\n" +
+	"release_id\x18\x02 \x01(\tR\treleaseId\x12\x19\n" +
+	"\bdraft_id\x18\x03 \x01(\tR\adraftId\x12\x16\n" +
+	"\x06metric\x18\x04 \x01(\tR\x06metric\x12\x14\n" +
+	"\x05value\x18\x05 \x01(\x01R\x05value\x12\x1f\n" +
+	"\vobserved_at\x18\x06 \x01(\tR\n" +
+	"observedAt\"U\n" +
+	"\x1aIngestMetricSampleResponse\x12\x1b\n" +
+	"\tsample_id\x18\x01 \x01(\tR\bsampleId\x12\x1a\n" +
+	"\baccepted\x18\x02 \x01(\bR\baccepted\"\xc9\x01\n" +
+	"\vRemediation\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12*\n" +
+	"\x11publish_record_id\x18\x02 \x01(\tR\x0fpublishRecordId\x12\x12\n" +
+	"\x04kind\x18\x03 \x01(\tR\x04kind\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\x12\x12\n" +
+	"\x04note\x18\x05 \x01(\tR\x04note\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x06 \x01(\tR\tcreatedAt\x12\x1f\n" +
+	"\vresolved_at\x18\a \x01(\tR\n" +
+	"resolvedAt\"b\n" +
+	"\x17ListRemediationsRequest\x12*\n" +
+	"\x11publish_record_id\x18\x01 \x01(\tR\x0fpublishRecordId\x12\x1b\n" +
+	"\topen_only\x18\x02 \x01(\bR\bopenOnly\"j\n" +
+	"\x18ListRemediationsResponse\x12N\n" +
+	"\fremediations\x18\x01 \x03(\v2*.vrooli.content_desk.v1.ledger.RemediationR\fremediations\"n\n" +
+	"\x18CreateRemediationRequest\x12*\n" +
+	"\x11publish_record_id\x18\x01 \x01(\tR\x0fpublishRecordId\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x12\n" +
+	"\x04note\x18\x03 \x01(\tR\x04note\"i\n" +
+	"\x19CreateRemediationResponse\x12L\n" +
+	"\vremediation\x18\x01 \x01(\v2*.vrooli.content_desk.v1.ledger.RemediationR\vremediation\"+\n" +
+	"\x19ResolveRemediationRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"j\n" +
+	"\x1aResolveRemediationResponse\x12L\n" +
+	"\vremediation\x18\x01 \x01(\v2*.vrooli.content_desk.v1.ledger.RemediationR\vremediation2\xeb\a\n" +
 	"\rLedgerService\x12\x89\x01\n" +
 	"\x12ListPublishRecords\x128.vrooli.content_desk.v1.ledger.ListPublishRecordsRequest\x1a9.vrooli.content_desk.v1.ledger.ListPublishRecordsResponse\x12\xad\x01\n" +
 	"\x1eListContaminatedPublishRecords\x12D.vrooli.content_desk.v1.ledger.ListContaminatedPublishRecordsRequest\x1aE.vrooli.content_desk.v1.ledger.ListContaminatedPublishRecordsResponse\x12w\n" +
-	"\fListCoverage\x122.vrooli.content_desk.v1.ledger.ListCoverageRequest\x1a3.vrooli.content_desk.v1.ledger.ListCoverageResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/ledger;ledger_v1b\x06proto3"
+	"\fListCoverage\x122.vrooli.content_desk.v1.ledger.ListCoverageRequest\x1a3.vrooli.content_desk.v1.ledger.ListCoverageResponse\x12\x89\x01\n" +
+	"\x12IngestMetricSample\x128.vrooli.content_desk.v1.ledger.IngestMetricSampleRequest\x1a9.vrooli.content_desk.v1.ledger.IngestMetricSampleResponse\x12\x83\x01\n" +
+	"\x10ListRemediations\x126.vrooli.content_desk.v1.ledger.ListRemediationsRequest\x1a7.vrooli.content_desk.v1.ledger.ListRemediationsResponse\x12\x86\x01\n" +
+	"\x11CreateRemediation\x127.vrooli.content_desk.v1.ledger.CreateRemediationRequest\x1a8.vrooli.content_desk.v1.ledger.CreateRemediationResponse\x12\x89\x01\n" +
+	"\x12ResolveRemediation\x128.vrooli.content_desk.v1.ledger.ResolveRemediationRequest\x1a9.vrooli.content_desk.v1.ledger.ResolveRemediationResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/ledger;ledger_v1b\x06proto3"
 
 var (
 	file_content_desk_v1_ledger_ledger_proto_rawDescOnce sync.Once
@@ -484,7 +1041,7 @@ func file_content_desk_v1_ledger_ledger_proto_rawDescGZIP() []byte {
 	return file_content_desk_v1_ledger_ledger_proto_rawDescData
 }
 
-var file_content_desk_v1_ledger_ledger_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_content_desk_v1_ledger_ledger_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_content_desk_v1_ledger_ledger_proto_goTypes = []any{
 	(*PublishRecord)(nil),                          // 0: vrooli.content_desk.v1.ledger.PublishRecord
 	(*ListPublishRecordsRequest)(nil),              // 1: vrooli.content_desk.v1.ledger.ListPublishRecordsRequest
@@ -494,22 +1051,42 @@ var file_content_desk_v1_ledger_ledger_proto_goTypes = []any{
 	(*CoverageCell)(nil),                           // 5: vrooli.content_desk.v1.ledger.CoverageCell
 	(*ListCoverageRequest)(nil),                    // 6: vrooli.content_desk.v1.ledger.ListCoverageRequest
 	(*ListCoverageResponse)(nil),                   // 7: vrooli.content_desk.v1.ledger.ListCoverageResponse
+	(*IngestMetricSampleRequest)(nil),              // 8: vrooli.content_desk.v1.ledger.IngestMetricSampleRequest
+	(*IngestMetricSampleResponse)(nil),             // 9: vrooli.content_desk.v1.ledger.IngestMetricSampleResponse
+	(*Remediation)(nil),                            // 10: vrooli.content_desk.v1.ledger.Remediation
+	(*ListRemediationsRequest)(nil),                // 11: vrooli.content_desk.v1.ledger.ListRemediationsRequest
+	(*ListRemediationsResponse)(nil),               // 12: vrooli.content_desk.v1.ledger.ListRemediationsResponse
+	(*CreateRemediationRequest)(nil),               // 13: vrooli.content_desk.v1.ledger.CreateRemediationRequest
+	(*CreateRemediationResponse)(nil),              // 14: vrooli.content_desk.v1.ledger.CreateRemediationResponse
+	(*ResolveRemediationRequest)(nil),              // 15: vrooli.content_desk.v1.ledger.ResolveRemediationRequest
+	(*ResolveRemediationResponse)(nil),             // 16: vrooli.content_desk.v1.ledger.ResolveRemediationResponse
 }
 var file_content_desk_v1_ledger_ledger_proto_depIdxs = []int32{
-	0, // 0: vrooli.content_desk.v1.ledger.ListPublishRecordsResponse.publish_records:type_name -> vrooli.content_desk.v1.ledger.PublishRecord
-	0, // 1: vrooli.content_desk.v1.ledger.ListContaminatedPublishRecordsResponse.publish_records:type_name -> vrooli.content_desk.v1.ledger.PublishRecord
-	5, // 2: vrooli.content_desk.v1.ledger.ListCoverageResponse.cells:type_name -> vrooli.content_desk.v1.ledger.CoverageCell
-	1, // 3: vrooli.content_desk.v1.ledger.LedgerService.ListPublishRecords:input_type -> vrooli.content_desk.v1.ledger.ListPublishRecordsRequest
-	3, // 4: vrooli.content_desk.v1.ledger.LedgerService.ListContaminatedPublishRecords:input_type -> vrooli.content_desk.v1.ledger.ListContaminatedPublishRecordsRequest
-	6, // 5: vrooli.content_desk.v1.ledger.LedgerService.ListCoverage:input_type -> vrooli.content_desk.v1.ledger.ListCoverageRequest
-	2, // 6: vrooli.content_desk.v1.ledger.LedgerService.ListPublishRecords:output_type -> vrooli.content_desk.v1.ledger.ListPublishRecordsResponse
-	4, // 7: vrooli.content_desk.v1.ledger.LedgerService.ListContaminatedPublishRecords:output_type -> vrooli.content_desk.v1.ledger.ListContaminatedPublishRecordsResponse
-	7, // 8: vrooli.content_desk.v1.ledger.LedgerService.ListCoverage:output_type -> vrooli.content_desk.v1.ledger.ListCoverageResponse
-	6, // [6:9] is the sub-list for method output_type
-	3, // [3:6] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	0,  // 0: vrooli.content_desk.v1.ledger.ListPublishRecordsResponse.publish_records:type_name -> vrooli.content_desk.v1.ledger.PublishRecord
+	0,  // 1: vrooli.content_desk.v1.ledger.ListContaminatedPublishRecordsResponse.publish_records:type_name -> vrooli.content_desk.v1.ledger.PublishRecord
+	5,  // 2: vrooli.content_desk.v1.ledger.ListCoverageResponse.cells:type_name -> vrooli.content_desk.v1.ledger.CoverageCell
+	10, // 3: vrooli.content_desk.v1.ledger.ListRemediationsResponse.remediations:type_name -> vrooli.content_desk.v1.ledger.Remediation
+	10, // 4: vrooli.content_desk.v1.ledger.CreateRemediationResponse.remediation:type_name -> vrooli.content_desk.v1.ledger.Remediation
+	10, // 5: vrooli.content_desk.v1.ledger.ResolveRemediationResponse.remediation:type_name -> vrooli.content_desk.v1.ledger.Remediation
+	1,  // 6: vrooli.content_desk.v1.ledger.LedgerService.ListPublishRecords:input_type -> vrooli.content_desk.v1.ledger.ListPublishRecordsRequest
+	3,  // 7: vrooli.content_desk.v1.ledger.LedgerService.ListContaminatedPublishRecords:input_type -> vrooli.content_desk.v1.ledger.ListContaminatedPublishRecordsRequest
+	6,  // 8: vrooli.content_desk.v1.ledger.LedgerService.ListCoverage:input_type -> vrooli.content_desk.v1.ledger.ListCoverageRequest
+	8,  // 9: vrooli.content_desk.v1.ledger.LedgerService.IngestMetricSample:input_type -> vrooli.content_desk.v1.ledger.IngestMetricSampleRequest
+	11, // 10: vrooli.content_desk.v1.ledger.LedgerService.ListRemediations:input_type -> vrooli.content_desk.v1.ledger.ListRemediationsRequest
+	13, // 11: vrooli.content_desk.v1.ledger.LedgerService.CreateRemediation:input_type -> vrooli.content_desk.v1.ledger.CreateRemediationRequest
+	15, // 12: vrooli.content_desk.v1.ledger.LedgerService.ResolveRemediation:input_type -> vrooli.content_desk.v1.ledger.ResolveRemediationRequest
+	2,  // 13: vrooli.content_desk.v1.ledger.LedgerService.ListPublishRecords:output_type -> vrooli.content_desk.v1.ledger.ListPublishRecordsResponse
+	4,  // 14: vrooli.content_desk.v1.ledger.LedgerService.ListContaminatedPublishRecords:output_type -> vrooli.content_desk.v1.ledger.ListContaminatedPublishRecordsResponse
+	7,  // 15: vrooli.content_desk.v1.ledger.LedgerService.ListCoverage:output_type -> vrooli.content_desk.v1.ledger.ListCoverageResponse
+	9,  // 16: vrooli.content_desk.v1.ledger.LedgerService.IngestMetricSample:output_type -> vrooli.content_desk.v1.ledger.IngestMetricSampleResponse
+	12, // 17: vrooli.content_desk.v1.ledger.LedgerService.ListRemediations:output_type -> vrooli.content_desk.v1.ledger.ListRemediationsResponse
+	14, // 18: vrooli.content_desk.v1.ledger.LedgerService.CreateRemediation:output_type -> vrooli.content_desk.v1.ledger.CreateRemediationResponse
+	16, // 19: vrooli.content_desk.v1.ledger.LedgerService.ResolveRemediation:output_type -> vrooli.content_desk.v1.ledger.ResolveRemediationResponse
+	13, // [13:20] is the sub-list for method output_type
+	6,  // [6:13] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_content_desk_v1_ledger_ledger_proto_init() }
@@ -523,7 +1100,7 @@ func file_content_desk_v1_ledger_ledger_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_content_desk_v1_ledger_ledger_proto_rawDesc), len(file_content_desk_v1_ledger_ledger_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

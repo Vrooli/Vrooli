@@ -181,3 +181,37 @@ func TestRegisterWithFileRootsOwnsLeasedRoots(t *testing.T) {
 		t.Fatalf("leased test root remains: %v", err)
 	}
 }
+
+func TestRegisterMountsConnectServiceSubtreeWhenRouterSupportsMount(t *testing.T) {
+	t.Setenv(apihttp.TestModeForceEnableEnv, "1")
+	db := openRouted(t)
+	router := &mountRecordingMux{}
+
+	if !devrouting.Register(router, db) {
+		t.Fatal("Register returned false")
+	}
+	if router.mountPath != "/vrooli.dev_routing.v1.routing.RoutingService/" {
+		t.Fatalf("mounted path = %q", router.mountPath)
+	}
+	if router.mounted == nil {
+		t.Fatal("expected Connect handler to be mounted")
+	}
+	if router.handleCalls != 0 {
+		t.Fatalf("Handle called %d times; mounted routers must use Mount", router.handleCalls)
+	}
+}
+
+type mountRecordingMux struct {
+	mountPath   string
+	mounted     http.Handler
+	handleCalls int
+}
+
+func (m *mountRecordingMux) Handle(string, http.Handler) {
+	m.handleCalls++
+}
+
+func (m *mountRecordingMux) Mount(path string, handler http.Handler) {
+	m.mountPath = path
+	m.mounted = handler
+}

@@ -1,0 +1,125 @@
+syntax = "proto3";
+
+package vrooli.asset_studio.v1.studio;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/asset-studio/v1/studio;studio_v1";
+
+// StudioService is the single P0 spine. It deliberately returns metadata and
+// stable references, never artifact bytes: bytes remain behind Asset Studio's
+// BlobStore seam.
+service StudioService {
+  rpc ListIdentities(ListIdentitiesRequest) returns (ListIdentitiesResponse);
+  rpc CreateIdentity(CreateIdentityRequest) returns (CreateIdentityResponse);
+  rpc ReviseIdentity(ReviseIdentityRequest) returns (ReviseIdentityResponse);
+  rpc ResolveSpec(ResolveSpecRequest) returns (ResolveSpecResponse);
+  rpc CreateRender(CreateRenderRequest) returns (CreateRenderResponse);
+  rpc SelectCandidate(SelectCandidateRequest) returns (SelectCandidateResponse);
+  rpc JudgeConformance(JudgeConformanceRequest) returns (JudgeConformanceResponse);
+  rpc ReleaseAsset(ReleaseAssetRequest) returns (ReleaseAssetResponse);
+  rpc GetReleasedAssetReference(GetReleasedAssetReferenceRequest) returns (GetReleasedAssetReferenceResponse);
+  rpc ImportCanon(ImportCanonRequest) returns (ImportCanonResponse);
+}
+
+message ConditioningReference {
+  string kind = 1;
+  string id = 2;
+  string version = 3;
+}
+message Identity {
+  string id = 1;
+  string name = 2;
+  string kind = 3;
+  int32 version = 4;
+  map<string, string> traits = 5;
+  repeated string reference_images = 6;
+  repeated ConditioningReference conditioning_references = 7;
+  string credential_claims = 8;
+  bool referenced = 9;
+}
+message AssetReference {
+  string id = 1;
+  string status = 2;
+  string alt_text = 3;
+  string disclosure = 4;
+  bool ai_generated = 5;
+  int32 width = 6;
+  int32 height = 7;
+  string media_type = 8;
+}
+message ListIdentitiesRequest {
+  string kind = 1;
+}
+message ListIdentitiesResponse {
+  repeated Identity identities = 1;
+}
+message CreateIdentityRequest {
+  Identity identity = 1;
+  string actor_id = 2;
+  string actor_kind = 3;
+}
+message CreateIdentityResponse {
+  Identity identity = 1;
+}
+message ReviseIdentityRequest {
+  Identity identity = 1;
+  string actor_id = 2;
+  string actor_kind = 3;
+}
+message ReviseIdentityResponse {
+  Identity identity = 1;
+}
+message ResolveSpecRequest {
+  string template = 1;
+  map<string, string> fields = 2;
+  repeated string identity_version_ids = 3;
+  string campaign_ref = 4;
+}
+message ResolveSpecResponse {
+  string spec_id = 1;
+  string resolved_payload = 2;
+}
+message CreateRenderRequest {
+  string spec_id = 1;
+  double estimated_cost = 2;
+  int32 candidate_count = 3;
+}
+message CreateRenderResponse {
+  string render_id = 1;
+  string status = 2;
+  repeated AssetReference candidates = 3;
+}
+message SelectCandidateRequest {
+  string asset_id = 1;
+}
+message SelectCandidateResponse {
+  AssetReference selected = 1;
+}
+message JudgeConformanceRequest {
+  string asset_id = 1;
+  string identity_version_id = 2;
+  string actor_id = 3;
+  string actor_kind = 4;
+  bool passed = 5;
+  string basis = 6;
+}
+message JudgeConformanceResponse {}
+message ReleaseAssetRequest {
+  string asset_id = 1;
+}
+message ReleaseAssetResponse {
+  AssetReference asset = 1;
+}
+message GetReleasedAssetReferenceRequest {
+  string asset_id = 1;
+}
+message GetReleasedAssetReferenceResponse {
+  AssetReference asset = 1;
+}
+message ImportCanonRequest {
+  string root = 1;
+}
+message ImportCanonResponse {
+  int32 created = 1;
+  int32 revised = 2;
+  repeated string errors = 3;
+}

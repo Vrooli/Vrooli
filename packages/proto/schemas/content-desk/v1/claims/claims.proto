@@ -12,6 +12,7 @@ service ClaimsService {
   rpc CiteClaim(CiteClaimRequest) returns (CiteClaimResponse);
   rpc VerifyClaim(VerifyClaimRequest) returns (VerifyClaimResponse);
   rpc SweepClaims(SweepClaimsRequest) returns (SweepClaimsResponse);
+  rpc GetClaimCoverage(GetClaimCoverageRequest) returns (GetClaimCoverageResponse);
 }
 
 message Claim {
@@ -26,8 +27,12 @@ message ListClaimsRequest {}
 message ListClaimsResponse {
   repeated Claim claims = 1;
 }
-message ListDraftClaimsRequest { string draft_id = 1; }
-message ListDraftClaimsResponse { repeated Claim claims = 1; }
+message ListDraftClaimsRequest {
+  string draft_id = 1;
+}
+message ListDraftClaimsResponse {
+  repeated Claim claims = 1;
+}
 
 message CreateClaimRequest {
   string statement = 1;
@@ -38,7 +43,9 @@ message CreateClaimRequest {
   string expected_result = 6;
   string observed_at = 7;
 }
-message CreateClaimResponse { Claim claim = 1; }
+message CreateClaimResponse {
+  Claim claim = 1;
+}
 
 message CiteClaimRequest {
   string draft_id = 1;
@@ -49,7 +56,28 @@ message CiteClaimRequest {
 }
 message CiteClaimResponse {}
 
-message VerifyClaimRequest { string id = 1; }
-message VerifyClaimResponse { Claim claim = 1; }
+message VerifyClaimRequest {
+  string id = 1;
+}
+message VerifyClaimResponse {
+  Claim claim = 1;
+}
 message SweepClaimsRequest {}
-message SweepClaimsResponse { repeated Claim claims = 1; }
+message SweepClaimsResponse {
+  repeated Claim claims = 1;
+}
+
+message TextSpan {
+  int32 start = 1;
+  int32 end = 2;
+  string claim_id = 3;
+  bool supported = 4;
+}
+message GetClaimCoverageRequest {
+  string draft_id = 1;
+  string body = 2;
+}
+message GetClaimCoverageResponse {
+  repeated TextSpan supported_spans = 1;
+  repeated TextSpan uncovered_spans = 2;
+}

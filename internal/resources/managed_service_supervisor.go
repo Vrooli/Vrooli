@@ -3,6 +3,7 @@ package resources
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -28,7 +29,7 @@ const managedServiceOwnershipTokenEnv = "VROOLI_MANAGED_SERVICE_INSTANCE_TOKEN"
 // process name, or an arbitrary external endpoint.
 type ManagedServiceState struct {
 	InstanceID              string     `json:"instance_id"`
-	OwnershipToken          string     `json:"ownership_token"`
+	OwnershipTokenHash      string     `json:"ownership_token_hash"`
 	PID                     int        `json:"pid"`
 	ArtifactPath            string     `json:"artifact_path"`
 	ArtifactSHA256          string     `json:"artifact_sha256"`
@@ -137,7 +138,7 @@ func (s *ManagedServiceSupervisor) Start(artifactPath string, artifact resourced
 	}
 	state := ManagedServiceState{
 		InstanceID:              instanceID,
-		OwnershipToken:          ownershipToken,
+		OwnershipTokenHash:      managedServiceTokenHash(ownershipToken),
 		PID:                     cmd.Process.Pid,
 		ArtifactPath:            artifactPath,
 		ArtifactSHA256:          strings.ToLower(strings.TrimSpace(artifact.SHA256)),
@@ -200,6 +201,55 @@ func (s *ManagedServiceSupervisor) Logs(out io.Writer) error {
 	return err
 }
 
+// Attest creates non-secret broker evidence only after checking the live
+// process environment against the persisted token hash. A caller must supply
+// the authenticated local control capability that will manage this instance.
+func (s *ManagedServiceSupervisor) Attest(endpoint, controlCapability string) (OwnershipAttestation, error) {
+	state, running, err := s.Status()
+	if err != nil {
+		return OwnershipAttestation{}, fmt.Errorf("attest managed-service ownership: %w", err)
+	}
+	if !running {
+		return OwnershipAttestation{}, fmt.Errorf("attest managed-service ownership: service is not running")
+	}
+	if !isLoopbackManagedEndpoint(endpoint) || strings.TrimSpace(controlCapability) == "" {
+		return OwnershipAttestation{}, fmt.Errorf("managed-service attestation requires loopback endpoint and local control capability")
+	}
+	now := s.now().UTC()
+	proof := managedServiceAttestationProof(state, endpoint, controlCapability)
+	return OwnershipAttestation{InstanceID: state.InstanceID, ArtifactSHA256: state.ArtifactSHA256, Endpoint: endpoint, ControlCapability: controlCapability, IssuedAt: now, ExpiresAt: now.Add(30 * 24 * time.Hour), Proof: proof}, nil
+}
+
+func managedServiceAttestationProof(state ManagedServiceState, endpoint, controlCapability string) string {
+	value := strings.Join([]string{state.InstanceID, state.ArtifactSHA256, endpoint, controlCapability, state.OwnershipTokenHash}, "\x00")
+	return managedServiceTokenHash(value)
+}
+
+func verifyManagedServiceAttestation(resource string, attestation OwnershipAttestation) error {
+	if strings.TrimSpace(attestation.InstanceID) == "" || strings.TrimSpace(attestation.ArtifactSHA256) == "" || !isLoopbackManagedEndpoint(attestation.Endpoint) || strings.TrimSpace(attestation.ControlCapability) == "" || strings.TrimSpace(attestation.Proof) == "" || attestation.IssuedAt.IsZero() || attestation.ExpiresAt.IsZero() {
+		return fmt.Errorf("managed-service ownership attestation is incomplete")
+	}
+	now := time.Now()
+	if !attestation.ExpiresAt.After(now) || attestation.IssuedAt.After(now.Add(time.Minute)) || attestation.ExpiresAt.Sub(attestation.IssuedAt) > 31*24*time.Hour {
+		return fmt.Errorf("managed-service ownership attestation is stale or invalid")
+	}
+	supervisor, _, err := managedServiceSupervisorFor(resource)
+	if err != nil {
+		return err
+	}
+	state, running, err := supervisor.Status()
+	if err != nil {
+		return fmt.Errorf("attested managed-service is not running: %w", err)
+	}
+	if !running {
+		return fmt.Errorf("attested managed-service is not running")
+	}
+	if state.InstanceID != attestation.InstanceID || state.ArtifactSHA256 != attestation.ArtifactSHA256 || managedServiceAttestationProof(state, attestation.Endpoint, attestation.ControlCapability) != attestation.Proof {
+		return fmt.Errorf("managed-service ownership attestation does not match supervisor state")
+	}
+	return nil
+}
+
 func (s *ManagedServiceSupervisor) readState() (ManagedServiceState, error) {
 	data, err := os.ReadFile(s.statePath)
 	if err != nil {
@@ -209,7 +259,7 @@ func (s *ManagedServiceSupervisor) readState() (ManagedServiceState, error) {
 	if err := json.Unmarshal(data, &state); err != nil {
 		return ManagedServiceState{}, fmt.Errorf("parse managed-service state: %w", err)
 	}
-	if state.PID < 0 || strings.TrimSpace(state.InstanceID) == "" || strings.TrimSpace(state.OwnershipToken) == "" || strings.TrimSpace(state.ArtifactSHA256) == "" || strings.TrimSpace(state.ArtifactVersion) == "" {
+	if state.PID < 0 || strings.TrimSpace(state.InstanceID) == "" || strings.TrimSpace(state.OwnershipTokenHash) == "" || strings.TrimSpace(state.ArtifactSHA256) == "" || strings.TrimSpace(state.ArtifactVersion) == "" {
 		return ManagedServiceState{}, fmt.Errorf("managed-service state is incomplete")
 	}
 	return state, nil
@@ -236,10 +286,15 @@ func verifyManagedServiceOwnership(state ManagedServiceState) error {
 	if err != nil {
 		return fmt.Errorf("verify managed-service process ownership: %w", err)
 	}
-	if env[managedServiceOwnershipTokenEnv] != state.OwnershipToken {
+	if managedServiceTokenHash(env[managedServiceOwnershipTokenEnv]) != state.OwnershipTokenHash {
 		return fmt.Errorf("managed-service process ownership token does not match")
 	}
 	return nil
+}
+
+func managedServiceTokenHash(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return fmt.Sprintf("%x", sum[:])
 }
 
 func (s *ManagedServiceSupervisor) writeState(state ManagedServiceState) error {

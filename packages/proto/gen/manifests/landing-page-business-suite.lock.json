@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "landing-page-business-suite",
-  "input_digest": "sha256:aa0aacc28dcf4eba3308666b4223129b59b4021c48eba47de588fb4c17a14bf1",
+  "input_digest": "sha256:2ebf614ed1fe7e05589b56c3e7db84d2c4603c185724ba879e233cec3be60874",
   "input_files": [
     "schemas/common/v1/types.proto",
     "schemas/landing-page-business-suite/v1/account.proto",

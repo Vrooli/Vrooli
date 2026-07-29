@@ -746,6 +746,119 @@ class GetRunResponse(_message.Message):
     run: _run_pb2.Run
     def __init__(self, run: _Optional[_Union[_run_pb2.Run, _Mapping]] = ...) -> None: ...
 
+class GetRunReportRequest(_message.Message):
+    __slots__ = ("run_id",)
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    def __init__(self, run_id: _Optional[str] = ...) -> None: ...
+
+class RunReport(_message.Message):
+    __slots__ = ("run_id", "status", "exit_code", "error", "duration_ms", "heartbeat_gap_ms", "turns", "tokens", "cost_usd", "result", "event_counts", "tools", "project_owned_tool_calls", "external_tool_calls", "requested_model", "actual_model", "fallback_count", "diff", "events_availability", "receipts_availability", "receipt_count", "repeated_tool_calls", "longest_event_gap_ms", "files_read_more_than_once")
+    class EventCountsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: int
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    EXIT_CODE_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    DURATION_MS_FIELD_NUMBER: _ClassVar[int]
+    HEARTBEAT_GAP_MS_FIELD_NUMBER: _ClassVar[int]
+    TURNS_FIELD_NUMBER: _ClassVar[int]
+    TOKENS_FIELD_NUMBER: _ClassVar[int]
+    COST_USD_FIELD_NUMBER: _ClassVar[int]
+    RESULT_FIELD_NUMBER: _ClassVar[int]
+    EVENT_COUNTS_FIELD_NUMBER: _ClassVar[int]
+    TOOLS_FIELD_NUMBER: _ClassVar[int]
+    PROJECT_OWNED_TOOL_CALLS_FIELD_NUMBER: _ClassVar[int]
+    EXTERNAL_TOOL_CALLS_FIELD_NUMBER: _ClassVar[int]
+    REQUESTED_MODEL_FIELD_NUMBER: _ClassVar[int]
+    ACTUAL_MODEL_FIELD_NUMBER: _ClassVar[int]
+    FALLBACK_COUNT_FIELD_NUMBER: _ClassVar[int]
+    DIFF_FIELD_NUMBER: _ClassVar[int]
+    EVENTS_AVAILABILITY_FIELD_NUMBER: _ClassVar[int]
+    RECEIPTS_AVAILABILITY_FIELD_NUMBER: _ClassVar[int]
+    RECEIPT_COUNT_FIELD_NUMBER: _ClassVar[int]
+    REPEATED_TOOL_CALLS_FIELD_NUMBER: _ClassVar[int]
+    LONGEST_EVENT_GAP_MS_FIELD_NUMBER: _ClassVar[int]
+    FILES_READ_MORE_THAN_ONCE_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    status: str
+    exit_code: int
+    error: str
+    duration_ms: int
+    heartbeat_gap_ms: int
+    turns: int
+    tokens: int
+    cost_usd: float
+    result: RunReportResult
+    event_counts: _containers.ScalarMap[str, int]
+    tools: _containers.RepeatedCompositeFieldContainer[RunReportTool]
+    project_owned_tool_calls: int
+    external_tool_calls: int
+    requested_model: str
+    actual_model: str
+    fallback_count: int
+    diff: RunReportDiff
+    events_availability: RunReportAvailability
+    receipts_availability: RunReportAvailability
+    receipt_count: int
+    repeated_tool_calls: int
+    longest_event_gap_ms: int
+    files_read_more_than_once: int
+    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[str] = ..., exit_code: _Optional[int] = ..., error: _Optional[str] = ..., duration_ms: _Optional[int] = ..., heartbeat_gap_ms: _Optional[int] = ..., turns: _Optional[int] = ..., tokens: _Optional[int] = ..., cost_usd: _Optional[float] = ..., result: _Optional[_Union[RunReportResult, _Mapping]] = ..., event_counts: _Optional[_Mapping[str, int]] = ..., tools: _Optional[_Iterable[_Union[RunReportTool, _Mapping]]] = ..., project_owned_tool_calls: _Optional[int] = ..., external_tool_calls: _Optional[int] = ..., requested_model: _Optional[str] = ..., actual_model: _Optional[str] = ..., fallback_count: _Optional[int] = ..., diff: _Optional[_Union[RunReportDiff, _Mapping]] = ..., events_availability: _Optional[_Union[RunReportAvailability, _Mapping]] = ..., receipts_availability: _Optional[_Union[RunReportAvailability, _Mapping]] = ..., receipt_count: _Optional[int] = ..., repeated_tool_calls: _Optional[int] = ..., longest_event_gap_ms: _Optional[int] = ..., files_read_more_than_once: _Optional[int] = ...) -> None: ...
+
+class RunReportResult(_message.Message):
+    __slots__ = ("selection_status", "selection_rule", "candidate_count", "structured_status", "structured_method", "diagnostic_codes")
+    SELECTION_STATUS_FIELD_NUMBER: _ClassVar[int]
+    SELECTION_RULE_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    STRUCTURED_STATUS_FIELD_NUMBER: _ClassVar[int]
+    STRUCTURED_METHOD_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTIC_CODES_FIELD_NUMBER: _ClassVar[int]
+    selection_status: str
+    selection_rule: str
+    candidate_count: int
+    structured_status: str
+    structured_method: str
+    diagnostic_codes: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, selection_status: _Optional[str] = ..., selection_rule: _Optional[str] = ..., candidate_count: _Optional[int] = ..., structured_status: _Optional[str] = ..., structured_method: _Optional[str] = ..., diagnostic_codes: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class RunReportTool(_message.Message):
+    __slots__ = ("name", "calls", "successes", "failures", "unresolved")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    CALLS_FIELD_NUMBER: _ClassVar[int]
+    SUCCESSES_FIELD_NUMBER: _ClassVar[int]
+    FAILURES_FIELD_NUMBER: _ClassVar[int]
+    UNRESOLVED_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    calls: int
+    successes: int
+    failures: int
+    unresolved: int
+    def __init__(self, name: _Optional[str] = ..., calls: _Optional[int] = ..., successes: _Optional[int] = ..., failures: _Optional[int] = ..., unresolved: _Optional[int] = ...) -> None: ...
+
+class RunReportDiff(_message.Message):
+    __slots__ = ("files", "bytes", "available")
+    FILES_FIELD_NUMBER: _ClassVar[int]
+    BYTES_FIELD_NUMBER: _ClassVar[int]
+    AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    files: int
+    bytes: int
+    available: RunReportAvailability
+    def __init__(self, files: _Optional[int] = ..., bytes: _Optional[int] = ..., available: _Optional[_Union[RunReportAvailability, _Mapping]] = ...) -> None: ...
+
+class RunReportAvailability(_message.Message):
+    __slots__ = ("state", "detail")
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    state: str
+    detail: str
+    def __init__(self, state: _Optional[str] = ..., detail: _Optional[str] = ...) -> None: ...
+
 class GetRunByTagRequest(_message.Message):
     __slots__ = ("tag",)
     TAG_FIELD_NUMBER: _ClassVar[int]

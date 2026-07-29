@@ -686,22 +686,21 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
 
   // Attach WebSocket upgrade handler if configured
   if (wsPathPrefix) {
-    // Store upgrade handler on app for later attachment to HTTP server
-    // This is a bit of a hack, but Express doesn't support upgrade events directly
+    // Express has no upgrade hook, so the handler is stored on the app and
+    // bound to whichever http.Server ends up serving it. Both start paths bind
+    // it: startScenarioServer binds its own server explicitly, and app.listen
+    // is wrapped below so a caller that starts the app itself is not silently
+    // left without WebSocket proxying.
     ;(app as any).__wsUpgradeHandler = (req: any, socket: any, head: any) => {
       if (!req.url || !req.url.startsWith(wsPathPrefix)) {
         socket.destroy()
         return
       }
 
-      // Transform path
-      let transformedPath: string
-      if (wsPathTransform) {
-        transformedPath = wsPathTransform(req.url)
-      } else {
-        // Default: replace prefix with /api/v1
-        transformedPath = req.url.replace(new RegExp(`^${wsPathPrefix}`), '/api/v1')
-      }
+      // wsPathPrefix selects which upgrades to proxy; it does not rewrite them.
+      // The upstream path is preserved unless a caller asks for a remap, so a
+      // prefix the API also serves needs no transform to work.
+      const transformedPath = wsPathTransform ? wsPathTransform(req.url) : req.url
 
       // Build headers
       let headers = proxyHeaders || {}
@@ -724,9 +723,42 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
         headers,
       })
     }
+
+    // A caller that starts the app itself (createScenarioServer + app.listen,
+    // rather than startScenarioServer) would otherwise receive an app whose
+    // wsPathPrefix is configured but never bound. The upgrade would fall
+    // through to the ordinary HTTP proxy, reach the API as a plain GET, and be
+    // rejected there — a 400 that names nothing about the missing binding.
+    // Wrapping listen makes the option behave the same on both start paths.
+    const originalListen = app.listen.bind(app)
+    app.listen = ((...args: unknown[]) => {
+      const server = originalListen(...(args as Parameters<typeof originalListen>))
+      attachWsUpgradeHandler(server, app)
+      return server
+    }) as typeof app.listen
   }
 
   return app
+}
+
+/**
+ * Bind an app's configured WebSocket upgrade handler to the server that serves
+ * it. Safe to call more than once for the same pair: a second call for an
+ * already-bound server is a no-op, so a caller that both wraps listen and binds
+ * explicitly does not proxy each upgrade twice.
+ */
+export function attachWsUpgradeHandler(server: http.Server, app: Express): void {
+  const handler = (app as any).__wsUpgradeHandler
+  if (!handler) return
+
+  const bound: Set<http.Server> =
+    (app as any).__wsUpgradeBoundServers ??
+    ((app as any).__wsUpgradeBoundServers = new Set<http.Server>())
+  if (bound.has(server)) return
+
+  bound.add(server)
+  server.on('upgrade', handler)
+  server.once('close', () => bound.delete(server))
 }
 
 /**
@@ -761,10 +793,7 @@ export function startScenarioServer(options: ServerTemplateOptions): Express {
   const server = http.createServer(app)
 
   // Attach WebSocket upgrade handler if it was configured
-  const wsUpgradeHandler = (app as any).__wsUpgradeHandler
-  if (wsUpgradeHandler) {
-    server.on('upgrade', wsUpgradeHandler)
-  }
+  attachWsUpgradeHandler(server, app)
 
   server.listen(Number.parseInt(port, 10), '0.0.0.0', () => {
     console.log(`${options.serviceName || 'Scenario'} UI server listening on port ${port}`)

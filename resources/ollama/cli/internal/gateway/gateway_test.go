@@ -158,6 +158,9 @@ func TestGenerateJSONOutput(t *testing.T) {
 			if in.Temperature == nil || *in.Temperature != 0.25 {
 				t.Errorf("temperature = %v, want 0.25", in.Temperature)
 			}
+			if in.Think == nil || *in.Think {
+				t.Errorf("think = %v, want false", in.Think)
+			}
 			return ensure.GenerateResponse{Response: "hello!", EvalCount: 7}, nil
 		},
 	}

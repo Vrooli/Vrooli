@@ -23,7 +23,10 @@ message PreflightRequest {
   string bundle_manifest_path = 1;
   optional string bundle_root = 2;
   map<string, string> secrets = 3;
-  optional int32 timeout_seconds = 4 [(buf.validate.field).int32 = {gte: 10 lte: 300}];
+  optional int32 timeout_seconds = 4 [(buf.validate.field).int32 = {
+    gte: 10
+    lte: 300
+  }];
   optional bool start_services = 5;
   optional int32 log_tail_lines = 6;
   optional bool status_only = 7;

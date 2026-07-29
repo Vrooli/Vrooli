@@ -57,6 +57,11 @@ type Config struct {
 	// Optional.
 	OnRetry func(attempt int, err error, delay time.Duration)
 
+	// Retryable decides whether an operation error can benefit from another
+	// attempt. Returning false stops immediately and returns that error. If nil,
+	// every error is retryable to preserve the package's default behavior.
+	Retryable func(error) bool
+
 	// Sleeper overrides time.Sleep for testing.
 	// If nil, uses time.Sleep.
 	Sleeper func(time.Duration)
@@ -112,6 +117,9 @@ func Do(ctx context.Context, cfg Config, op func(attempt int) error) error {
 			return nil // Success
 		} else {
 			lastErr = err
+			if !cfg.Retryable(err) {
+				return err
+			}
 		}
 
 		// Don't sleep after the last attempt
@@ -192,6 +200,9 @@ func applyDefaults(cfg Config) Config {
 	}
 	if cfg.JitterFraction < 0 {
 		cfg.JitterFraction = 0.25
+	}
+	if cfg.Retryable == nil {
+		cfg.Retryable = func(error) bool { return true }
 	}
 	return cfg
 }

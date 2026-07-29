@@ -1,17 +1,56 @@
 {
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "go",
-  "description": "Go programming language toolchain",
+  "description": "Pinned Go programming language toolchain used to build and validate Vrooli",
   "commands": ["go"],
   "versionArgs": ["version"],
-  "defaultPackage": "golang-go",
-  "packages": {
-    "brew": "go",
-    "winget": "GoLang.Go",
-    "dnf": "golang",
-    "pacman": "go",
-    "apk": "go"
-  },
-  "installHint": "Install Go 1.22+",
-  "platforms": ["linux", "macos", "windows"]
+  "version": "1.25.12",
+  "installHint": "Managed as an exact, checksum-verified Go release in ~/.vrooli/opt/go. It is the workspace Go toolchain source of truth; do not substitute an OS package version.",
+  "notes": "The root go.mod toolchain directive and GitHub workflows consume this manifest's exact release. The go directive remains the module language/API compatibility floor.",
+  "platforms": ["linux", "macos", "windows"],
+  "source": {
+    "type": "release",
+    "targets": {
+      "linux/amd64": {
+        "url": "https://go.dev/dl/go1.25.12.linux-amd64.tar.gz",
+        "sha256": "234828b7a89e0e303d2556310ee549fbcf253d28de937bac3da13d6294262ac1",
+        "archive": "tar.gz",
+        "layout": "dir",
+        "binPath": "go/bin/go",
+        "runtimeEnv": {"GOROOT": "go"}
+      },
+      "linux/arm64": {
+        "url": "https://go.dev/dl/go1.25.12.linux-arm64.tar.gz",
+        "sha256": "8b5884aef89600aef5b0b051fb971f11f49bb996521e911f30f02a66884f7bd2",
+        "archive": "tar.gz",
+        "layout": "dir",
+        "binPath": "go/bin/go",
+        "runtimeEnv": {"GOROOT": "go"}
+      },
+      "darwin/amd64": {
+        "url": "https://go.dev/dl/go1.25.12.darwin-amd64.tar.gz",
+        "sha256": "00a2e743b82bccec03c51c4b0f7e46d5fec52184075fd6c5183c3bb39ae9fb00",
+        "archive": "tar.gz",
+        "layout": "dir",
+        "binPath": "go/bin/go",
+        "runtimeEnv": {"GOROOT": "go"}
+      },
+      "darwin/arm64": {
+        "url": "https://go.dev/dl/go1.25.12.darwin-arm64.tar.gz",
+        "sha256": "fa2c88bbcf64bd3b2aef355f026cfec6d3a4a01c132f999c8f8c964eb767164f",
+        "archive": "tar.gz",
+        "layout": "dir",
+        "binPath": "go/bin/go",
+        "runtimeEnv": {"GOROOT": "go"}
+      },
+      "windows/amd64": {
+        "url": "https://go.dev/dl/go1.25.12.windows-amd64.zip",
+        "sha256": "d5dc82da351b00e5eedd04f41356817d674cc4308131f0f638a5b14c5c3af4cb",
+        "archive": "zip",
+        "layout": "dir",
+        "binPath": "go/bin/go.exe",
+        "runtimeEnv": {"GOROOT": "go"}
+      }
+    }
+  }
 }

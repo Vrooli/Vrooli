@@ -518,7 +518,7 @@ func TestStatusForManifestNativeComposeResource(t *testing.T) {
 			Windows: "partial",
 		}),
 	))
-	testkitgo.WriteRelativeFile(t, root, filepath.Join("resources", "fixture", "compose.yaml"), "services:\n  app:\n    image: fixture:latest\n")
+	testkitgo.WriteRelativeFile(t, root, filepath.Join("resources", "fixture", "compose.yaml"), "services:\n  app:\n    image: fixture:1.0.0\n")
 	stateFile := writeFakeDocker(t)
 	if err := os.WriteFile(stateFile, []byte("running\n"), 0o644); err != nil {
 		t.Fatalf("write state: %v", err)
@@ -552,7 +552,7 @@ func TestStatusForManifestNativeComposeResourceAcceptsLegacyNamedContainer(t *te
 			Windows: "partial",
 		}),
 	))
-	testkitgo.WriteRelativeFile(t, root, filepath.Join("resources", "fixture", "compose.yaml"), "services:\n  app:\n    image: fixture:latest\n")
+	testkitgo.WriteRelativeFile(t, root, filepath.Join("resources", "fixture", "compose.yaml"), "services:\n  app:\n    image: fixture:1.0.0\n")
 	writeFakeDockerWithLegacyComposeContainer(t)
 
 	status, err := NewController(root, home).Status("fixture", true)
@@ -583,7 +583,7 @@ func TestRunManifestNativeComposeLifecycle(t *testing.T) {
 			Windows: "partial",
 		}),
 	))
-	testkitgo.WriteRelativeFile(t, root, filepath.Join("resources", "fixture", "compose.yaml"), "services:\n  app:\n    image: fixture:latest\n")
+	testkitgo.WriteRelativeFile(t, root, filepath.Join("resources", "fixture", "compose.yaml"), "services:\n  app:\n    image: fixture:1.0.0\n")
 	stateFile := writeFakeDocker(t)
 
 	controller := NewController(root, home)
@@ -634,7 +634,7 @@ func TestRunManifestNativeComposeStartNoopsForHealthyLegacyNamedContainer(t *tes
 			Windows: "partial",
 		}),
 	))
-	testkitgo.WriteRelativeFile(t, root, filepath.Join("resources", "fixture", "compose.yaml"), "services:\n  app:\n    image: fixture:latest\n")
+	testkitgo.WriteRelativeFile(t, root, filepath.Join("resources", "fixture", "compose.yaml"), "services:\n  app:\n    image: fixture:1.0.0\n")
 	composeUpFile := writeFakeDockerWithLegacyComposeContainer(t)
 
 	if err := NewController(root, home).Run("fixture", []string{"start"}, ioDiscard{}, ioDiscard{}); err != nil {
@@ -1089,8 +1089,8 @@ func TestVaultManagedServiceDoesNotOverclaimTargetReadiness(t *testing.T) {
 		t.Fatalf("Vault hostTools = %+v, want one Linux Secret Service declaration", manifest.HostTools)
 	}
 	secretTool := manifest.HostTools[0]
-	if secretTool.Name != "secret-tool" || !secretTool.Required || !slices.Contains(secretTool.Platforms, "linux") || !slices.Contains(secretTool.When, "develop") {
-		t.Fatalf("Vault secret-tool declaration = %+v, want required Linux develop host tool", secretTool)
+	if secretTool.Name != "secret-tool" || !secretTool.Required || !slices.Contains(secretTool.Platforms, "linux") || !slices.Contains(secretTool.When, "setup") || !slices.Contains(secretTool.When, "develop") {
+		t.Fatalf("Vault secret-tool declaration = %+v, want required Linux setup and develop host tool", secretTool)
 	}
 	if manifest.PortabilityTier != "partial" {
 		t.Fatalf("Vault portability_tier = %q, want partial until every target artifact has native-host evidence", manifest.PortabilityTier)

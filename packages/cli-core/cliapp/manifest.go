@@ -22,6 +22,7 @@ type Manifest struct {
 type ManifestGroup struct {
 	Name        string            `json:"name"`
 	Description string            `json:"description,omitempty"`
+	Flat        bool              `json:"flat,omitempty"`
 	Commands    []ManifestCommand `json:"commands"`
 }
 
@@ -164,11 +165,17 @@ func ParseManifest(raw []byte) (*Manifest, error) {
 			if strings.TrimSpace(c.Name) == "" {
 				return nil, fmt.Errorf("cli manifest %q: group %q command[%d] missing name", m.Name, g.Name, ci)
 			}
-			if c.Binding.Kind != "connect-rpc" {
-				return nil, fmt.Errorf("cli manifest %q: command %s/%s binding.kind %q is not supported (only connect-rpc in v1)", m.Name, g.Name, c.Name, c.Binding.Kind)
-			}
-			if strings.TrimSpace(c.Binding.Service) == "" || strings.TrimSpace(c.Binding.Method) == "" {
-				return nil, fmt.Errorf("cli manifest %q: command %s/%s connect-rpc binding requires service+method", m.Name, g.Name, c.Name)
+			switch c.Binding.Kind {
+			case "connect-rpc":
+				if strings.TrimSpace(c.Binding.Service) == "" || strings.TrimSpace(c.Binding.Method) == "" {
+					return nil, fmt.Errorf("cli manifest %q: command %s/%s connect-rpc binding requires service+method", m.Name, g.Name, c.Name)
+				}
+			case "local":
+				if strings.TrimSpace(c.Binding.Service) != "" || strings.TrimSpace(c.Binding.Method) != "" {
+					return nil, fmt.Errorf("cli manifest %q: command %s/%s local binding must not declare service or method", m.Name, g.Name, c.Name)
+				}
+			default:
+				return nil, fmt.Errorf("cli manifest %q: command %s/%s binding.kind %q is not supported", m.Name, g.Name, c.Name, c.Binding.Kind)
 			}
 			switch c.Governance.Effect {
 			case "read", "write", "destructive":
@@ -274,6 +281,9 @@ func loadFromManifest(raw []byte, groupName string, bindings map[string]boundHan
 	used := make(map[string]struct{}, len(bindings))
 	subs := make([]Command, 0, len(group.Commands))
 	for _, c := range group.Commands {
+		if c.Binding.Kind != "connect-rpc" {
+			return SubcommandGroup{}, fmt.Errorf("cli manifest %q: command %s/%s uses local binding and must be registered by the owning CLI", m.Name, group.Name, c.Name)
+		}
 		key := c.Binding.BindingKey()
 		handler, ok := bindings[key]
 		if !ok {

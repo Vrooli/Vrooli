@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	measures "github.com/vrooli/measures-go"
 )
@@ -246,9 +247,16 @@ func DefaultDescriptorPath(repoRoot string) string {
 type DescriptorSchemaReader struct {
 	path string
 
-	once   sync.Once
+	mu     sync.Mutex
+	loaded bool
+	stamp  descriptorStamp
 	reader *measures.SchemaReader
 	err    error
+}
+
+type descriptorStamp struct {
+	modTime time.Time
+	size    int64
 }
 
 // NewDescriptorSchemaReader returns a reader resolving the descriptor image
@@ -258,9 +266,22 @@ func NewDescriptorSchemaReader(repoRoot string) *DescriptorSchemaReader {
 }
 
 func (d *DescriptorSchemaReader) load() (*measures.SchemaReader, error) {
-	d.once.Do(func() {
-		d.reader, d.err = measures.NewSchemaReaderFromFile(d.path)
-	})
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	info, statErr := os.Stat(d.path)
+	stamp := descriptorStamp{}
+	if statErr == nil {
+		stamp = descriptorStamp{modTime: info.ModTime(), size: info.Size()}
+	}
+	if d.loaded && statErr == nil && d.stamp == stamp {
+		return d.reader, d.err
+	}
+	d.loaded, d.stamp = true, stamp
+	if statErr != nil {
+		d.reader, d.err = nil, statErr
+		return nil, d.err
+	}
+	d.reader, d.err = measures.NewSchemaReaderFromFile(d.path)
 	return d.reader, d.err
 }
 

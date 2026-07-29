@@ -32,4 +32,6 @@ message RecordReviewRunRequest {
   string draft_id = 1;
   repeated Verdict verdicts = 2;
 }
-message RecordReviewRunResponse { ReviewRun review_run = 1; }
+message RecordReviewRunResponse {
+  ReviewRun review_run = 1;
+}

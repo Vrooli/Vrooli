@@ -39,6 +39,18 @@ const (
 	// RoutingServiceExecuteRouteProcedure is the fully-qualified name of the RoutingService's
 	// ExecuteRoute RPC.
 	RoutingServiceExecuteRouteProcedure = "/vrooli.ai_gateway.v1.routing.RoutingService/ExecuteRoute"
+	// RoutingServiceSubmitMediaProcedure is the fully-qualified name of the RoutingService's
+	// SubmitMedia RPC.
+	RoutingServiceSubmitMediaProcedure = "/vrooli.ai_gateway.v1.routing.RoutingService/SubmitMedia"
+	// RoutingServiceGetMediaExecutionProcedure is the fully-qualified name of the RoutingService's
+	// GetMediaExecution RPC.
+	RoutingServiceGetMediaExecutionProcedure = "/vrooli.ai_gateway.v1.routing.RoutingService/GetMediaExecution"
+	// RoutingServiceCancelMediaExecutionProcedure is the fully-qualified name of the RoutingService's
+	// CancelMediaExecution RPC.
+	RoutingServiceCancelMediaExecutionProcedure = "/vrooli.ai_gateway.v1.routing.RoutingService/CancelMediaExecution"
+	// RoutingServiceRetryMediaExecutionProcedure is the fully-qualified name of the RoutingService's
+	// RetryMediaExecution RPC.
+	RoutingServiceRetryMediaExecutionProcedure = "/vrooli.ai_gateway.v1.routing.RoutingService/RetryMediaExecution"
 	// RoutingServiceListRouteEvidenceProcedure is the fully-qualified name of the RoutingService's
 	// ListRouteEvidence RPC.
 	RoutingServiceListRouteEvidenceProcedure = "/vrooli.ai_gateway.v1.routing.RoutingService/ListRouteEvidence"
@@ -54,6 +66,10 @@ const (
 type RoutingServiceClient interface {
 	PreviewRoute(context.Context, *connect.Request[routing.PreviewRouteRequest]) (*connect.Response[routing.PreviewRouteResponse], error)
 	ExecuteRoute(context.Context, *connect.Request[routing.ExecuteRouteRequest]) (*connect.Response[routing.ExecuteRouteResponse], error)
+	SubmitMedia(context.Context, *connect.Request[routing.SubmitMediaRequest]) (*connect.Response[routing.SubmitMediaResponse], error)
+	GetMediaExecution(context.Context, *connect.Request[routing.GetMediaExecutionRequest]) (*connect.Response[routing.GetMediaExecutionResponse], error)
+	CancelMediaExecution(context.Context, *connect.Request[routing.CancelMediaExecutionRequest]) (*connect.Response[routing.CancelMediaExecutionResponse], error)
+	RetryMediaExecution(context.Context, *connect.Request[routing.RetryMediaExecutionRequest]) (*connect.Response[routing.RetryMediaExecutionResponse], error)
 	ListRouteEvidence(context.Context, *connect.Request[routing.ListRouteEvidenceRequest]) (*connect.Response[routing.ListRouteEvidenceResponse], error)
 	GetRouteEvidence(context.Context, *connect.Request[routing.GetRouteEvidenceRequest]) (*connect.Response[routing.GetRouteEvidenceResponse], error)
 	// ListProviderHealth returns persisted provider circuit-breaker state so
@@ -85,6 +101,30 @@ func NewRoutingServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(routingServiceMethods.ByName("ExecuteRoute")),
 			connect.WithClientOptions(opts...),
 		),
+		submitMedia: connect.NewClient[routing.SubmitMediaRequest, routing.SubmitMediaResponse](
+			httpClient,
+			baseURL+RoutingServiceSubmitMediaProcedure,
+			connect.WithSchema(routingServiceMethods.ByName("SubmitMedia")),
+			connect.WithClientOptions(opts...),
+		),
+		getMediaExecution: connect.NewClient[routing.GetMediaExecutionRequest, routing.GetMediaExecutionResponse](
+			httpClient,
+			baseURL+RoutingServiceGetMediaExecutionProcedure,
+			connect.WithSchema(routingServiceMethods.ByName("GetMediaExecution")),
+			connect.WithClientOptions(opts...),
+		),
+		cancelMediaExecution: connect.NewClient[routing.CancelMediaExecutionRequest, routing.CancelMediaExecutionResponse](
+			httpClient,
+			baseURL+RoutingServiceCancelMediaExecutionProcedure,
+			connect.WithSchema(routingServiceMethods.ByName("CancelMediaExecution")),
+			connect.WithClientOptions(opts...),
+		),
+		retryMediaExecution: connect.NewClient[routing.RetryMediaExecutionRequest, routing.RetryMediaExecutionResponse](
+			httpClient,
+			baseURL+RoutingServiceRetryMediaExecutionProcedure,
+			connect.WithSchema(routingServiceMethods.ByName("RetryMediaExecution")),
+			connect.WithClientOptions(opts...),
+		),
 		listRouteEvidence: connect.NewClient[routing.ListRouteEvidenceRequest, routing.ListRouteEvidenceResponse](
 			httpClient,
 			baseURL+RoutingServiceListRouteEvidenceProcedure,
@@ -108,11 +148,15 @@ func NewRoutingServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 
 // routingServiceClient implements RoutingServiceClient.
 type routingServiceClient struct {
-	previewRoute       *connect.Client[routing.PreviewRouteRequest, routing.PreviewRouteResponse]
-	executeRoute       *connect.Client[routing.ExecuteRouteRequest, routing.ExecuteRouteResponse]
-	listRouteEvidence  *connect.Client[routing.ListRouteEvidenceRequest, routing.ListRouteEvidenceResponse]
-	getRouteEvidence   *connect.Client[routing.GetRouteEvidenceRequest, routing.GetRouteEvidenceResponse]
-	listProviderHealth *connect.Client[routing.ListProviderHealthRequest, routing.ListProviderHealthResponse]
+	previewRoute         *connect.Client[routing.PreviewRouteRequest, routing.PreviewRouteResponse]
+	executeRoute         *connect.Client[routing.ExecuteRouteRequest, routing.ExecuteRouteResponse]
+	submitMedia          *connect.Client[routing.SubmitMediaRequest, routing.SubmitMediaResponse]
+	getMediaExecution    *connect.Client[routing.GetMediaExecutionRequest, routing.GetMediaExecutionResponse]
+	cancelMediaExecution *connect.Client[routing.CancelMediaExecutionRequest, routing.CancelMediaExecutionResponse]
+	retryMediaExecution  *connect.Client[routing.RetryMediaExecutionRequest, routing.RetryMediaExecutionResponse]
+	listRouteEvidence    *connect.Client[routing.ListRouteEvidenceRequest, routing.ListRouteEvidenceResponse]
+	getRouteEvidence     *connect.Client[routing.GetRouteEvidenceRequest, routing.GetRouteEvidenceResponse]
+	listProviderHealth   *connect.Client[routing.ListProviderHealthRequest, routing.ListProviderHealthResponse]
 }
 
 // PreviewRoute calls vrooli.ai_gateway.v1.routing.RoutingService.PreviewRoute.
@@ -123,6 +167,26 @@ func (c *routingServiceClient) PreviewRoute(ctx context.Context, req *connect.Re
 // ExecuteRoute calls vrooli.ai_gateway.v1.routing.RoutingService.ExecuteRoute.
 func (c *routingServiceClient) ExecuteRoute(ctx context.Context, req *connect.Request[routing.ExecuteRouteRequest]) (*connect.Response[routing.ExecuteRouteResponse], error) {
 	return c.executeRoute.CallUnary(ctx, req)
+}
+
+// SubmitMedia calls vrooli.ai_gateway.v1.routing.RoutingService.SubmitMedia.
+func (c *routingServiceClient) SubmitMedia(ctx context.Context, req *connect.Request[routing.SubmitMediaRequest]) (*connect.Response[routing.SubmitMediaResponse], error) {
+	return c.submitMedia.CallUnary(ctx, req)
+}
+
+// GetMediaExecution calls vrooli.ai_gateway.v1.routing.RoutingService.GetMediaExecution.
+func (c *routingServiceClient) GetMediaExecution(ctx context.Context, req *connect.Request[routing.GetMediaExecutionRequest]) (*connect.Response[routing.GetMediaExecutionResponse], error) {
+	return c.getMediaExecution.CallUnary(ctx, req)
+}
+
+// CancelMediaExecution calls vrooli.ai_gateway.v1.routing.RoutingService.CancelMediaExecution.
+func (c *routingServiceClient) CancelMediaExecution(ctx context.Context, req *connect.Request[routing.CancelMediaExecutionRequest]) (*connect.Response[routing.CancelMediaExecutionResponse], error) {
+	return c.cancelMediaExecution.CallUnary(ctx, req)
+}
+
+// RetryMediaExecution calls vrooli.ai_gateway.v1.routing.RoutingService.RetryMediaExecution.
+func (c *routingServiceClient) RetryMediaExecution(ctx context.Context, req *connect.Request[routing.RetryMediaExecutionRequest]) (*connect.Response[routing.RetryMediaExecutionResponse], error) {
+	return c.retryMediaExecution.CallUnary(ctx, req)
 }
 
 // ListRouteEvidence calls vrooli.ai_gateway.v1.routing.RoutingService.ListRouteEvidence.
@@ -145,6 +209,10 @@ func (c *routingServiceClient) ListProviderHealth(ctx context.Context, req *conn
 type RoutingServiceHandler interface {
 	PreviewRoute(context.Context, *connect.Request[routing.PreviewRouteRequest]) (*connect.Response[routing.PreviewRouteResponse], error)
 	ExecuteRoute(context.Context, *connect.Request[routing.ExecuteRouteRequest]) (*connect.Response[routing.ExecuteRouteResponse], error)
+	SubmitMedia(context.Context, *connect.Request[routing.SubmitMediaRequest]) (*connect.Response[routing.SubmitMediaResponse], error)
+	GetMediaExecution(context.Context, *connect.Request[routing.GetMediaExecutionRequest]) (*connect.Response[routing.GetMediaExecutionResponse], error)
+	CancelMediaExecution(context.Context, *connect.Request[routing.CancelMediaExecutionRequest]) (*connect.Response[routing.CancelMediaExecutionResponse], error)
+	RetryMediaExecution(context.Context, *connect.Request[routing.RetryMediaExecutionRequest]) (*connect.Response[routing.RetryMediaExecutionResponse], error)
 	ListRouteEvidence(context.Context, *connect.Request[routing.ListRouteEvidenceRequest]) (*connect.Response[routing.ListRouteEvidenceResponse], error)
 	GetRouteEvidence(context.Context, *connect.Request[routing.GetRouteEvidenceRequest]) (*connect.Response[routing.GetRouteEvidenceResponse], error)
 	// ListProviderHealth returns persisted provider circuit-breaker state so
@@ -172,6 +240,30 @@ func NewRoutingServiceHandler(svc RoutingServiceHandler, opts ...connect.Handler
 		connect.WithSchema(routingServiceMethods.ByName("ExecuteRoute")),
 		connect.WithHandlerOptions(opts...),
 	)
+	routingServiceSubmitMediaHandler := connect.NewUnaryHandler(
+		RoutingServiceSubmitMediaProcedure,
+		svc.SubmitMedia,
+		connect.WithSchema(routingServiceMethods.ByName("SubmitMedia")),
+		connect.WithHandlerOptions(opts...),
+	)
+	routingServiceGetMediaExecutionHandler := connect.NewUnaryHandler(
+		RoutingServiceGetMediaExecutionProcedure,
+		svc.GetMediaExecution,
+		connect.WithSchema(routingServiceMethods.ByName("GetMediaExecution")),
+		connect.WithHandlerOptions(opts...),
+	)
+	routingServiceCancelMediaExecutionHandler := connect.NewUnaryHandler(
+		RoutingServiceCancelMediaExecutionProcedure,
+		svc.CancelMediaExecution,
+		connect.WithSchema(routingServiceMethods.ByName("CancelMediaExecution")),
+		connect.WithHandlerOptions(opts...),
+	)
+	routingServiceRetryMediaExecutionHandler := connect.NewUnaryHandler(
+		RoutingServiceRetryMediaExecutionProcedure,
+		svc.RetryMediaExecution,
+		connect.WithSchema(routingServiceMethods.ByName("RetryMediaExecution")),
+		connect.WithHandlerOptions(opts...),
+	)
 	routingServiceListRouteEvidenceHandler := connect.NewUnaryHandler(
 		RoutingServiceListRouteEvidenceProcedure,
 		svc.ListRouteEvidence,
@@ -196,6 +288,14 @@ func NewRoutingServiceHandler(svc RoutingServiceHandler, opts ...connect.Handler
 			routingServicePreviewRouteHandler.ServeHTTP(w, r)
 		case RoutingServiceExecuteRouteProcedure:
 			routingServiceExecuteRouteHandler.ServeHTTP(w, r)
+		case RoutingServiceSubmitMediaProcedure:
+			routingServiceSubmitMediaHandler.ServeHTTP(w, r)
+		case RoutingServiceGetMediaExecutionProcedure:
+			routingServiceGetMediaExecutionHandler.ServeHTTP(w, r)
+		case RoutingServiceCancelMediaExecutionProcedure:
+			routingServiceCancelMediaExecutionHandler.ServeHTTP(w, r)
+		case RoutingServiceRetryMediaExecutionProcedure:
+			routingServiceRetryMediaExecutionHandler.ServeHTTP(w, r)
 		case RoutingServiceListRouteEvidenceProcedure:
 			routingServiceListRouteEvidenceHandler.ServeHTTP(w, r)
 		case RoutingServiceGetRouteEvidenceProcedure:
@@ -217,6 +317,22 @@ func (UnimplementedRoutingServiceHandler) PreviewRoute(context.Context, *connect
 
 func (UnimplementedRoutingServiceHandler) ExecuteRoute(context.Context, *connect.Request[routing.ExecuteRouteRequest]) (*connect.Response[routing.ExecuteRouteResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.ai_gateway.v1.routing.RoutingService.ExecuteRoute is not implemented"))
+}
+
+func (UnimplementedRoutingServiceHandler) SubmitMedia(context.Context, *connect.Request[routing.SubmitMediaRequest]) (*connect.Response[routing.SubmitMediaResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.ai_gateway.v1.routing.RoutingService.SubmitMedia is not implemented"))
+}
+
+func (UnimplementedRoutingServiceHandler) GetMediaExecution(context.Context, *connect.Request[routing.GetMediaExecutionRequest]) (*connect.Response[routing.GetMediaExecutionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.ai_gateway.v1.routing.RoutingService.GetMediaExecution is not implemented"))
+}
+
+func (UnimplementedRoutingServiceHandler) CancelMediaExecution(context.Context, *connect.Request[routing.CancelMediaExecutionRequest]) (*connect.Response[routing.CancelMediaExecutionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.ai_gateway.v1.routing.RoutingService.CancelMediaExecution is not implemented"))
+}
+
+func (UnimplementedRoutingServiceHandler) RetryMediaExecution(context.Context, *connect.Request[routing.RetryMediaExecutionRequest]) (*connect.Response[routing.RetryMediaExecutionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.ai_gateway.v1.routing.RoutingService.RetryMediaExecution is not implemented"))
 }
 
 func (UnimplementedRoutingServiceHandler) ListRouteEvidence(context.Context, *connect.Request[routing.ListRouteEvidenceRequest]) (*connect.Response[routing.ListRouteEvidenceResponse], error) {

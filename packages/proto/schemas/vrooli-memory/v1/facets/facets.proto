@@ -1,12 +1,50 @@
 syntax = "proto3";
 package vrooli.vrooli_memory.v1.facets;
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/facets;facets_v1";
-service FacetsService { rpc ListFacets(ListFacetsRequest) returns (ListFacetsResponse); rpc AssignFacet(AssignFacetRequest) returns (AssignFacetResponse); rpc SetPin(SetPinRequest) returns (SetPinResponse); rpc ListPinProposals(ListPinProposalsRequest) returns (ListPinProposalsResponse); rpc ResolvePinProposal(ResolvePinProposalRequest) returns (ResolvePinProposalResponse); rpc MarkSuperseded(MarkSupersededRequest) returns (MarkSupersededResponse); }
-message Facet { string id = 1; string label = 2; string retention_policy = 3; }
-message PinProposal { string id = 1; repeated string entry_ids = 2; string rationale = 3; }
-message ListFacetsRequest {} message ListFacetsResponse { repeated Facet facets = 1; }
-message AssignFacetRequest { string entry_id = 1; string facet_id = 2; } message AssignFacetResponse {}
-message SetPinRequest { string entry_id = 1; bool pinned = 2; } message SetPinResponse {}
-message ListPinProposalsRequest {} message ListPinProposalsResponse { repeated PinProposal proposals = 1; }
-message ResolvePinProposalRequest { string proposal_id = 1; bool accept = 2; } message ResolvePinProposalResponse {}
-message MarkSupersededRequest { string entry_id = 1; string replacement_entry_id = 2; } message MarkSupersededResponse {}
+service FacetsService {
+  rpc ListFacets(ListFacetsRequest) returns (ListFacetsResponse);
+  rpc AssignFacet(AssignFacetRequest) returns (AssignFacetResponse);
+  rpc SetPin(SetPinRequest) returns (SetPinResponse);
+  rpc ListPinProposals(ListPinProposalsRequest) returns (ListPinProposalsResponse);
+  rpc ResolvePinProposal(ResolvePinProposalRequest) returns (ResolvePinProposalResponse);
+  rpc MarkSuperseded(MarkSupersededRequest) returns (MarkSupersededResponse);
+}
+message Facet {
+  string id = 1;
+  string label = 2;
+  string retention_policy = 3;
+}
+message PinProposal {
+  string id = 1;
+  repeated string entry_ids = 2;
+  string rationale = 3;
+}
+message ListFacetsRequest {}
+message ListFacetsResponse {
+  repeated Facet facets = 1;
+}
+message AssignFacetRequest {
+  string entry_id = 1;
+  string facet_id = 2;
+}
+message AssignFacetResponse {}
+message SetPinRequest {
+  string entry_id = 1;
+  bool pinned = 2;
+}
+message SetPinResponse {}
+message ListPinProposalsRequest {}
+message ListPinProposalsResponse {
+  repeated PinProposal proposals = 1;
+}
+message ResolvePinProposalRequest {
+  string proposal_id = 1;
+  bool accept = 2;
+}
+message ResolvePinProposalResponse {}
+message MarkSupersededRequest {
+  string entry_id = 1;
+  string replacement_entry_id = 2;
+}
+message MarkSupersededResponse {}

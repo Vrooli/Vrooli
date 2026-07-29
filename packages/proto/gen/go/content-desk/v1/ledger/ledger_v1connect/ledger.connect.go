@@ -42,6 +42,18 @@ const (
 	// LedgerServiceListCoverageProcedure is the fully-qualified name of the LedgerService's
 	// ListCoverage RPC.
 	LedgerServiceListCoverageProcedure = "/vrooli.content_desk.v1.ledger.LedgerService/ListCoverage"
+	// LedgerServiceIngestMetricSampleProcedure is the fully-qualified name of the LedgerService's
+	// IngestMetricSample RPC.
+	LedgerServiceIngestMetricSampleProcedure = "/vrooli.content_desk.v1.ledger.LedgerService/IngestMetricSample"
+	// LedgerServiceListRemediationsProcedure is the fully-qualified name of the LedgerService's
+	// ListRemediations RPC.
+	LedgerServiceListRemediationsProcedure = "/vrooli.content_desk.v1.ledger.LedgerService/ListRemediations"
+	// LedgerServiceCreateRemediationProcedure is the fully-qualified name of the LedgerService's
+	// CreateRemediation RPC.
+	LedgerServiceCreateRemediationProcedure = "/vrooli.content_desk.v1.ledger.LedgerService/CreateRemediation"
+	// LedgerServiceResolveRemediationProcedure is the fully-qualified name of the LedgerService's
+	// ResolveRemediation RPC.
+	LedgerServiceResolveRemediationProcedure = "/vrooli.content_desk.v1.ledger.LedgerService/ResolveRemediation"
 )
 
 // LedgerServiceClient is a client for the vrooli.content_desk.v1.ledger.LedgerService service.
@@ -49,6 +61,10 @@ type LedgerServiceClient interface {
 	ListPublishRecords(context.Context, *connect.Request[ledger.ListPublishRecordsRequest]) (*connect.Response[ledger.ListPublishRecordsResponse], error)
 	ListContaminatedPublishRecords(context.Context, *connect.Request[ledger.ListContaminatedPublishRecordsRequest]) (*connect.Response[ledger.ListContaminatedPublishRecordsResponse], error)
 	ListCoverage(context.Context, *connect.Request[ledger.ListCoverageRequest]) (*connect.Response[ledger.ListCoverageResponse], error)
+	IngestMetricSample(context.Context, *connect.Request[ledger.IngestMetricSampleRequest]) (*connect.Response[ledger.IngestMetricSampleResponse], error)
+	ListRemediations(context.Context, *connect.Request[ledger.ListRemediationsRequest]) (*connect.Response[ledger.ListRemediationsResponse], error)
+	CreateRemediation(context.Context, *connect.Request[ledger.CreateRemediationRequest]) (*connect.Response[ledger.CreateRemediationResponse], error)
+	ResolveRemediation(context.Context, *connect.Request[ledger.ResolveRemediationRequest]) (*connect.Response[ledger.ResolveRemediationResponse], error)
 }
 
 // NewLedgerServiceClient constructs a client for the vrooli.content_desk.v1.ledger.LedgerService
@@ -80,6 +96,30 @@ func NewLedgerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(ledgerServiceMethods.ByName("ListCoverage")),
 			connect.WithClientOptions(opts...),
 		),
+		ingestMetricSample: connect.NewClient[ledger.IngestMetricSampleRequest, ledger.IngestMetricSampleResponse](
+			httpClient,
+			baseURL+LedgerServiceIngestMetricSampleProcedure,
+			connect.WithSchema(ledgerServiceMethods.ByName("IngestMetricSample")),
+			connect.WithClientOptions(opts...),
+		),
+		listRemediations: connect.NewClient[ledger.ListRemediationsRequest, ledger.ListRemediationsResponse](
+			httpClient,
+			baseURL+LedgerServiceListRemediationsProcedure,
+			connect.WithSchema(ledgerServiceMethods.ByName("ListRemediations")),
+			connect.WithClientOptions(opts...),
+		),
+		createRemediation: connect.NewClient[ledger.CreateRemediationRequest, ledger.CreateRemediationResponse](
+			httpClient,
+			baseURL+LedgerServiceCreateRemediationProcedure,
+			connect.WithSchema(ledgerServiceMethods.ByName("CreateRemediation")),
+			connect.WithClientOptions(opts...),
+		),
+		resolveRemediation: connect.NewClient[ledger.ResolveRemediationRequest, ledger.ResolveRemediationResponse](
+			httpClient,
+			baseURL+LedgerServiceResolveRemediationProcedure,
+			connect.WithSchema(ledgerServiceMethods.ByName("ResolveRemediation")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -88,6 +128,10 @@ type ledgerServiceClient struct {
 	listPublishRecords             *connect.Client[ledger.ListPublishRecordsRequest, ledger.ListPublishRecordsResponse]
 	listContaminatedPublishRecords *connect.Client[ledger.ListContaminatedPublishRecordsRequest, ledger.ListContaminatedPublishRecordsResponse]
 	listCoverage                   *connect.Client[ledger.ListCoverageRequest, ledger.ListCoverageResponse]
+	ingestMetricSample             *connect.Client[ledger.IngestMetricSampleRequest, ledger.IngestMetricSampleResponse]
+	listRemediations               *connect.Client[ledger.ListRemediationsRequest, ledger.ListRemediationsResponse]
+	createRemediation              *connect.Client[ledger.CreateRemediationRequest, ledger.CreateRemediationResponse]
+	resolveRemediation             *connect.Client[ledger.ResolveRemediationRequest, ledger.ResolveRemediationResponse]
 }
 
 // ListPublishRecords calls vrooli.content_desk.v1.ledger.LedgerService.ListPublishRecords.
@@ -106,12 +150,36 @@ func (c *ledgerServiceClient) ListCoverage(ctx context.Context, req *connect.Req
 	return c.listCoverage.CallUnary(ctx, req)
 }
 
+// IngestMetricSample calls vrooli.content_desk.v1.ledger.LedgerService.IngestMetricSample.
+func (c *ledgerServiceClient) IngestMetricSample(ctx context.Context, req *connect.Request[ledger.IngestMetricSampleRequest]) (*connect.Response[ledger.IngestMetricSampleResponse], error) {
+	return c.ingestMetricSample.CallUnary(ctx, req)
+}
+
+// ListRemediations calls vrooli.content_desk.v1.ledger.LedgerService.ListRemediations.
+func (c *ledgerServiceClient) ListRemediations(ctx context.Context, req *connect.Request[ledger.ListRemediationsRequest]) (*connect.Response[ledger.ListRemediationsResponse], error) {
+	return c.listRemediations.CallUnary(ctx, req)
+}
+
+// CreateRemediation calls vrooli.content_desk.v1.ledger.LedgerService.CreateRemediation.
+func (c *ledgerServiceClient) CreateRemediation(ctx context.Context, req *connect.Request[ledger.CreateRemediationRequest]) (*connect.Response[ledger.CreateRemediationResponse], error) {
+	return c.createRemediation.CallUnary(ctx, req)
+}
+
+// ResolveRemediation calls vrooli.content_desk.v1.ledger.LedgerService.ResolveRemediation.
+func (c *ledgerServiceClient) ResolveRemediation(ctx context.Context, req *connect.Request[ledger.ResolveRemediationRequest]) (*connect.Response[ledger.ResolveRemediationResponse], error) {
+	return c.resolveRemediation.CallUnary(ctx, req)
+}
+
 // LedgerServiceHandler is an implementation of the vrooli.content_desk.v1.ledger.LedgerService
 // service.
 type LedgerServiceHandler interface {
 	ListPublishRecords(context.Context, *connect.Request[ledger.ListPublishRecordsRequest]) (*connect.Response[ledger.ListPublishRecordsResponse], error)
 	ListContaminatedPublishRecords(context.Context, *connect.Request[ledger.ListContaminatedPublishRecordsRequest]) (*connect.Response[ledger.ListContaminatedPublishRecordsResponse], error)
 	ListCoverage(context.Context, *connect.Request[ledger.ListCoverageRequest]) (*connect.Response[ledger.ListCoverageResponse], error)
+	IngestMetricSample(context.Context, *connect.Request[ledger.IngestMetricSampleRequest]) (*connect.Response[ledger.IngestMetricSampleResponse], error)
+	ListRemediations(context.Context, *connect.Request[ledger.ListRemediationsRequest]) (*connect.Response[ledger.ListRemediationsResponse], error)
+	CreateRemediation(context.Context, *connect.Request[ledger.CreateRemediationRequest]) (*connect.Response[ledger.CreateRemediationResponse], error)
+	ResolveRemediation(context.Context, *connect.Request[ledger.ResolveRemediationRequest]) (*connect.Response[ledger.ResolveRemediationResponse], error)
 }
 
 // NewLedgerServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -139,6 +207,30 @@ func NewLedgerServiceHandler(svc LedgerServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(ledgerServiceMethods.ByName("ListCoverage")),
 		connect.WithHandlerOptions(opts...),
 	)
+	ledgerServiceIngestMetricSampleHandler := connect.NewUnaryHandler(
+		LedgerServiceIngestMetricSampleProcedure,
+		svc.IngestMetricSample,
+		connect.WithSchema(ledgerServiceMethods.ByName("IngestMetricSample")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ledgerServiceListRemediationsHandler := connect.NewUnaryHandler(
+		LedgerServiceListRemediationsProcedure,
+		svc.ListRemediations,
+		connect.WithSchema(ledgerServiceMethods.ByName("ListRemediations")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ledgerServiceCreateRemediationHandler := connect.NewUnaryHandler(
+		LedgerServiceCreateRemediationProcedure,
+		svc.CreateRemediation,
+		connect.WithSchema(ledgerServiceMethods.ByName("CreateRemediation")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ledgerServiceResolveRemediationHandler := connect.NewUnaryHandler(
+		LedgerServiceResolveRemediationProcedure,
+		svc.ResolveRemediation,
+		connect.WithSchema(ledgerServiceMethods.ByName("ResolveRemediation")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.content_desk.v1.ledger.LedgerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case LedgerServiceListPublishRecordsProcedure:
@@ -147,6 +239,14 @@ func NewLedgerServiceHandler(svc LedgerServiceHandler, opts ...connect.HandlerOp
 			ledgerServiceListContaminatedPublishRecordsHandler.ServeHTTP(w, r)
 		case LedgerServiceListCoverageProcedure:
 			ledgerServiceListCoverageHandler.ServeHTTP(w, r)
+		case LedgerServiceIngestMetricSampleProcedure:
+			ledgerServiceIngestMetricSampleHandler.ServeHTTP(w, r)
+		case LedgerServiceListRemediationsProcedure:
+			ledgerServiceListRemediationsHandler.ServeHTTP(w, r)
+		case LedgerServiceCreateRemediationProcedure:
+			ledgerServiceCreateRemediationHandler.ServeHTTP(w, r)
+		case LedgerServiceResolveRemediationProcedure:
+			ledgerServiceResolveRemediationHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -166,4 +266,20 @@ func (UnimplementedLedgerServiceHandler) ListContaminatedPublishRecords(context.
 
 func (UnimplementedLedgerServiceHandler) ListCoverage(context.Context, *connect.Request[ledger.ListCoverageRequest]) (*connect.Response[ledger.ListCoverageResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.content_desk.v1.ledger.LedgerService.ListCoverage is not implemented"))
+}
+
+func (UnimplementedLedgerServiceHandler) IngestMetricSample(context.Context, *connect.Request[ledger.IngestMetricSampleRequest]) (*connect.Response[ledger.IngestMetricSampleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.content_desk.v1.ledger.LedgerService.IngestMetricSample is not implemented"))
+}
+
+func (UnimplementedLedgerServiceHandler) ListRemediations(context.Context, *connect.Request[ledger.ListRemediationsRequest]) (*connect.Response[ledger.ListRemediationsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.content_desk.v1.ledger.LedgerService.ListRemediations is not implemented"))
+}
+
+func (UnimplementedLedgerServiceHandler) CreateRemediation(context.Context, *connect.Request[ledger.CreateRemediationRequest]) (*connect.Response[ledger.CreateRemediationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.content_desk.v1.ledger.LedgerService.CreateRemediation is not implemented"))
+}
+
+func (UnimplementedLedgerServiceHandler) ResolveRemediation(context.Context, *connect.Request[ledger.ResolveRemediationRequest]) (*connect.Response[ledger.ResolveRemediationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.content_desk.v1.ledger.LedgerService.ResolveRemediation is not implemented"))
 }

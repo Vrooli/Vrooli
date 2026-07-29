@@ -90,24 +90,14 @@ func handleAdminUpdateRemoteProfile(svc RemoteProfileManager) http.HandlerFunc {
 }
 
 func handleAdminDeleteRemoteProfile(svc RemoteProfileManager) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		id, ok := getPathParamInt64(w, r, "id")
-		if !ok {
-			return
-		}
-		if err := svc.Delete(r.Context(), id); err != nil {
-			if writeRemoteProfileError(w, err) {
-				return
-			}
-			logStructuredError("delete_remote_profile_failed", map[string]interface{}{
-				"error": err.Error(),
-				"id":    id,
-			})
-			writeJSONError(w, http.StatusInternalServerError, "Failed to delete remote profile", ApiErrorTypeServerError)
-			return
-		}
-		writeJSONSuccessSimple(w)
-	}
+	return handleRemoteProfileIDOperation(
+		func(ctx context.Context, id int64) (interface{}, error) {
+			return nil, svc.Delete(ctx, id)
+		},
+		"delete_remote_profile_failed",
+		"Failed to delete remote profile",
+		func(w http.ResponseWriter, _ interface{}) { writeJSONSuccessSimple(w) },
+	)
 }
 
 func handleAdminRemoteProfileLogin(svc RemoteProfileManager) http.HandlerFunc {
@@ -141,90 +131,73 @@ func handleAdminRemoteProfileLogin(svc RemoteProfileManager) http.HandlerFunc {
 }
 
 func handleAdminRemoteProfileLogout(svc RemoteProfileManager) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		id, ok := getPathParamInt64(w, r, "id")
-		if !ok {
-			return
-		}
-		profile, err := svc.Logout(r.Context(), id)
-		if err != nil {
-			if writeRemoteProfileError(w, err) {
-				return
-			}
-			logStructuredError("remote_profile_logout_failed", map[string]interface{}{
-				"error": err.Error(),
-				"id":    id,
-			})
-			writeJSONError(w, http.StatusInternalServerError, "Remote logout failed", ApiErrorTypeServerError)
-			return
-		}
-		writeJSONSuccessData(w, profile)
-	}
+	return handleRemoteProfileIDOperation(
+		func(ctx context.Context, id int64) (interface{}, error) { return svc.Logout(ctx, id) },
+		"remote_profile_logout_failed",
+		"Remote logout failed",
+		writeJSONSuccessData,
+	)
 }
 
 func handleAdminRemoteProfileTest(svc RemoteProfileManager) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		id, ok := getPathParamInt64(w, r, "id")
-		if !ok {
-			return
-		}
-		profile, err := svc.Test(r.Context(), id)
-		if err != nil {
-			if writeRemoteProfileError(w, err) {
-				return
-			}
-			logStructuredError("remote_profile_test_failed", map[string]interface{}{
-				"error": err.Error(),
-				"id":    id,
-			})
-			writeJSONError(w, http.StatusInternalServerError, "Remote profile test failed", ApiErrorTypeServerError)
-			return
-		}
-		writeJSONSuccessData(w, profile)
-	}
+	return handleRemoteProfileIDOperation(
+		func(ctx context.Context, id int64) (interface{}, error) { return svc.Test(ctx, id) },
+		"remote_profile_test_failed",
+		"Remote profile test failed",
+		writeJSONSuccessData,
+	)
 }
 
 func handleAdminRemoteProfileSessionLinks(svc RemoteProfileManager) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		id, ok := getPathParamInt64(w, r, "id")
-		if !ok {
-			return
-		}
-		links, err := svc.SessionLinks(r.Context(), id)
-		if err != nil {
-			if writeRemoteProfileError(w, err) {
-				return
-			}
-			logStructuredError("remote_profile_session_links_failed", map[string]interface{}{
-				"error": err.Error(),
-				"id":    id,
-			})
-			writeJSONError(w, http.StatusInternalServerError, "Remote profile session inspection failed", ApiErrorTypeServerError)
-			return
-		}
-		writeJSONSuccessData(w, links)
-	}
+	return handleRemoteProfileIDOperation(
+		func(ctx context.Context, id int64) (interface{}, error) { return svc.SessionLinks(ctx, id) },
+		"remote_profile_session_links_failed",
+		"Remote profile session inspection failed",
+		writeJSONSuccessData,
+	)
 }
 
 func handleAdminRemoteProfileRemoteRevoke(svc RemoteProfileManager) http.HandlerFunc {
+	return handleRemoteProfileIDOperation(
+		func(ctx context.Context, id int64) (interface{}, error) { return svc.RevokeRemoteSessions(ctx, id) },
+		"remote_profile_remote_revoke_failed",
+		"Remote session revoke failed",
+		writeJSONSuccessData,
+	)
+}
+
+type (
+	remoteProfileIDOperation   func(context.Context, int64) (interface{}, error)
+	remoteProfileSuccessWriter func(http.ResponseWriter, interface{})
+)
+
+// handleRemoteProfileIDOperation keeps every ID-only remote-profile endpoint
+// consistent: path parsing, domain-error mapping, structured logging, and the
+// server-error response cannot drift between session-management operations.
+func handleRemoteProfileIDOperation(
+	operation remoteProfileIDOperation,
+	failureEvent string,
+	failureMessage string,
+	writeSuccess remoteProfileSuccessWriter,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := getPathParamInt64(w, r, "id")
 		if !ok {
 			return
 		}
-		links, err := svc.RevokeRemoteSessions(r.Context(), id)
+		result, err := operation(r.Context(), id)
 		if err != nil {
 			if writeRemoteProfileError(w, err) {
 				return
 			}
-			logStructuredError("remote_profile_remote_revoke_failed", map[string]interface{}{
+			logStructuredError(failureEvent, map[string]interface{}{
 				"error": err.Error(),
 				"id":    id,
 			})
-			writeJSONError(w, http.StatusInternalServerError, "Remote session revoke failed", ApiErrorTypeServerError)
+			writeJSONError(w, http.StatusInternalServerError, failureMessage, ApiErrorTypeServerError)
 			return
 		}
-		writeJSONSuccessData(w, links)
+		writeSuccess(w, result)
 	}
 }
 

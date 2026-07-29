@@ -3,7 +3,7 @@
   "name": "secret-tool",
   "description": "libsecret Secret Service command client used only by the Linux managed-resource credential store",
   "commands": ["secret-tool"],
-  "versionArgs": ["--version"],
+  "versionArgs": [],
   "defaultPackage": "libsecret-tools",
   "packages": {
     "apt": "libsecret-tools",

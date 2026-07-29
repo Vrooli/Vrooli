@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "vrooli-memory",
-  "input_digest": "sha256:eaa9d86117c149c87ef5a659029d5c05c3d2c84b6828607c01930b8ce973732f",
+  "input_digest": "sha256:bdc194d49e970b0e2768e83ce8123e7d01ce633d445c1a9646980001404d971d",
   "input_files": [
     "schemas/measures/v1/measures.proto",
     "schemas/vrooli-memory/v1/facets/facets.proto",

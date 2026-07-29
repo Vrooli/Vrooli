@@ -295,6 +295,7 @@ func TestGeneratePassesOptionsAndReturnsEvalCount(t *testing.T) {
 		Model   string         `json:"model"`
 		Prompt  string         `json:"prompt"`
 		Stream  bool           `json:"stream"`
+		Think   *bool          `json:"think"`
 		Options map[string]any `json:"options"`
 	}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -315,10 +316,12 @@ func TestGeneratePassesOptionsAndReturnsEvalCount(t *testing.T) {
 
 	maxTokens := 123
 	temperature := 0.25
+	think := false
 	client := &Client{BaseURL: srv.URL, HTTP: http.DefaultClient}
 	resp, err := client.Generate(context.Background(), GenerateRequest{
 		Model:       "llama3.2:1b",
 		Prompt:      "hello",
+		Think:       &think,
 		NumPredict:  &maxTokens,
 		Temperature: &temperature,
 	})
@@ -330,6 +333,9 @@ func TestGeneratePassesOptionsAndReturnsEvalCount(t *testing.T) {
 	}
 	if got.Model != "llama3.2:1b" || got.Prompt != "hello" || got.Stream {
 		t.Fatalf("request body = %+v", got)
+	}
+	if got.Think == nil || *got.Think != false {
+		t.Fatalf("think = %v, want false", got.Think)
 	}
 	if got.Options["num_predict"] != float64(123) {
 		t.Fatalf("num_predict = %#v, want 123", got.Options["num_predict"])

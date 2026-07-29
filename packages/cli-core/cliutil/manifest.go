@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -150,9 +151,16 @@ func EvaluateFreshness(spec FreshnessSpec, manifest FreshnessManifest, keyInputs
 		currentKeys[foldKey(rel)] = struct{}{}
 	}
 	for rel := range recorded {
-		if _, ok := currentKeys[rel]; !ok {
-			return staleVerdict("input file removed", rel), nil
+		if _, ok := currentKeys[rel]; ok {
+			continue
 		}
+		// A manifest written before build outputs were excluded still lists them.
+		// Treating that as a removed input would declare every pre-existing
+		// manifest stale at once, so ignore entries the current rules exclude.
+		if isBuildOutput(rel) {
+			continue
+		}
+		return staleVerdict("input file removed", rel), nil
 	}
 
 	return FreshnessVerdict{Stale: false}, nil
@@ -290,7 +298,7 @@ func walkFreshnessInputs(spec FreshnessSpec, visit func(root, abs string, info f
 				return err
 			}
 			relSlash := filepath.ToSlash(rel)
-			if buildinfoSkipFile(relSlash, skip) || hasSkippedSuffix(relSlash, skipSuffixes) {
+			if buildinfoSkipFile(relSlash, skip) || hasSkippedSuffix(relSlash, skipSuffixes) || isBuildOutput(relSlash) {
 				continue
 			}
 			if err := visit(contextRoot, match, info, magicPeek(match)); err != nil {
@@ -317,7 +325,7 @@ func walkTreeInputs(root, start string, skip, skipSuffixes []string, visit func(
 		if buildinfoSkipDir(rel) && d.IsDir() {
 			return filepath.SkipDir
 		}
-		if d.IsDir() || buildinfoSkipFile(rel, skip) || hasSkippedSuffix(rel, skipSuffixes) {
+		if d.IsDir() || buildinfoSkipFile(rel, skip) || hasSkippedSuffix(rel, skipSuffixes) || isBuildOutput(rel) {
 			return nil
 		}
 		info, infoErr := d.Info()
@@ -326,6 +334,45 @@ func walkTreeInputs(root, start string, skip, skipSuffixes []string, visit func(
 		}
 		return visit(root, path, info, magicPeek(path))
 	})
+}
+
+// BuildOutputSkipNames and BuildOutputSkipSuffixes name files that a build or
+// test run *produces*, never files it consumes. They are applied unconditionally
+// inside the freshness walk so every caller — the manifest writer, the stat-cache
+// evaluator, and the preflight staleness checker — shares one definition and
+// cannot drift apart.
+//
+// This exists because these outputs were being recorded as build inputs: a
+// `go test -coverprofile` run rewrote coverage.out, which made the binary look
+// stale, which (under any auto-rebuild policy) would rebuild it, which the next
+// test run would invalidate again. Compiled artifacts are already excluded by
+// the magic-number check; these are the text outputs it cannot see.
+var (
+	BuildOutputSkipNames = []string{
+		"coverage.out", "cov.out", "cover.out",
+		// jscpd writes its duplication report into the api tree, so a scan run
+		// would otherwise stale the binary that never consumed it.
+		"jscpd-report.json",
+	}
+
+	BuildOutputSkipSuffixes = []string{".log", ".test", ".exe"}
+)
+
+// isBuildOutput reports whether rel names a build/test product rather than a
+// build input.
+func isBuildOutput(rel string) bool {
+	base := path.Base(rel)
+	for _, name := range BuildOutputSkipNames {
+		if base == name {
+			return true
+		}
+	}
+	for _, suffix := range BuildOutputSkipSuffixes {
+		if strings.HasSuffix(base, suffix) {
+			return true
+		}
+	}
+	return false
 }
 
 func hasSkippedSuffix(rel string, suffixes []string) bool {

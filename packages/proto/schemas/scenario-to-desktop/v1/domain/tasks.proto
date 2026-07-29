@@ -30,8 +30,15 @@ enum InvestigationStatus {
   INVESTIGATION_STATUS_CANCELLED = 5;
 }
 
-message TaskFocus { bool harness = 1; bool subject = 2; }
-message FixPermissions { bool immediate = 1; bool permanent = 2; bool prevention = 3; }
+message TaskFocus {
+  bool harness = 1;
+  bool subject = 2;
+}
+message FixPermissions {
+  bool immediate = 1;
+  bool permanent = 2;
+  bool prevention = 3;
+}
 
 message CreateTaskRequest {
   string pipeline_id = 1 [(buf.validate.field).string.min_len = 1];
@@ -71,15 +78,37 @@ message InvestigationSummary {
   optional google.protobuf.Timestamp completed_at = 9;
 }
 
-message CreateTaskResponse { Investigation task = 1; }
-message GetTaskRequest { string pipeline_id = 1 [(buf.validate.field).string.min_len = 1]; string task_id = 2 [(buf.validate.field).string.min_len = 1]; }
-message GetTaskResponse { Investigation task = 1; }
-message ListTasksRequest { string pipeline_id = 1 [(buf.validate.field).string.min_len = 1]; optional int32 limit = 2; }
-message ListTasksResponse { repeated InvestigationSummary tasks = 1; }
-message StopTaskRequest { string pipeline_id = 1 [(buf.validate.field).string.min_len = 1]; string task_id = 2 [(buf.validate.field).string.min_len = 1]; }
-message StopTaskResponse { bool success = 1; string message = 2; }
+message CreateTaskResponse {
+  Investigation task = 1;
+}
+message GetTaskRequest {
+  string pipeline_id = 1 [(buf.validate.field).string.min_len = 1];
+  string task_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+message GetTaskResponse {
+  Investigation task = 1;
+}
+message ListTasksRequest {
+  string pipeline_id = 1 [(buf.validate.field).string.min_len = 1];
+  optional int32 limit = 2;
+}
+message ListTasksResponse {
+  repeated InvestigationSummary tasks = 1;
+}
+message StopTaskRequest {
+  string pipeline_id = 1 [(buf.validate.field).string.min_len = 1];
+  string task_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+message StopTaskResponse {
+  bool success = 1;
+  string message = 2;
+}
 message AgentManagerStatusRequest {}
-message AgentManagerStatusResponse { bool available = 1; optional string url = 2; optional string reason = 3; }
+message AgentManagerStatusResponse {
+  bool available = 1;
+  optional string url = 2;
+  optional string reason = 3;
+}
 
 service TaskService {
   rpc GetAgentManagerStatus(AgentManagerStatusRequest) returns (AgentManagerStatusResponse);

@@ -9,7 +9,8 @@ service ArtifactsService {
   rpc ListDrafts(ListDraftsRequest) returns (ListDraftsResponse);
   rpc CreateDraft(CreateDraftRequest) returns (CreateDraftResponse);
   rpc UpdateDraftBody(UpdateDraftBodyRequest) returns (UpdateDraftBodyResponse);
-  rpc PublishDraft(PublishDraftRequest) returns (PublishDraftResponse);
+  rpc SubmitReleaseDraft(SubmitReleaseDraftRequest) returns (SubmitReleaseDraftResponse);
+  rpc RecordReleaseOutcome(RecordReleaseOutcomeRequest) returns (RecordReleaseOutcomeResponse);
   rpc TransitionDraft(TransitionDraftRequest) returns (TransitionDraftResponse);
   rpc ApproveDraft(ApproveDraftRequest) returns (ApproveDraftResponse);
 }
@@ -42,23 +43,45 @@ message CreateDraftRequest {
   string sku = 7;
 }
 
-message CreateDraftResponse { Draft draft = 1; }
+message CreateDraftResponse {
+  Draft draft = 1;
+}
 
 message UpdateDraftBodyRequest {
   string id = 1;
   string body = 2;
 }
-message UpdateDraftBodyResponse { Draft draft = 1; }
-
-message PublishDraftRequest {
-  string id = 1;
-  string audience = 2;
-  string published_url = 3;
-  string platform_post_id = 4;
-  string series_id = 5;
-  string prior_publish_id = 6;
+message UpdateDraftBodyResponse {
+  Draft draft = 1;
 }
-message PublishDraftResponse {
+
+// SubmitReleaseDraft asks Channel Manager to own a durable release action.
+// It does not assert that a platform post exists; that outcome returns later
+// through Content Desk's idempotent release-receipt inbox.
+message SubmitReleaseDraftRequest {
+  string id = 1;
+  string identity_id = 2;
+  string lane = 3;
+  string idempotency_key = 4;
+}
+message SubmitReleaseDraftResponse {
+  Draft draft = 1;
+  string release_id = 2;
+  string action_id = 3;
+  string release_status = 4;
+}
+
+// RecordReleaseOutcome is Channel Manager's idempotent completion callback.
+// It is accepted only for a real published or partial platform outcome.
+message RecordReleaseOutcomeRequest {
+  string receipt_id = 1;
+  string draft_id = 2;
+  string status = 3;
+  string platform_post_id = 4;
+  string published_url = 5;
+  string published_at = 6;
+}
+message RecordReleaseOutcomeResponse {
   Draft draft = 1;
   string publish_record_id = 2;
 }
@@ -68,7 +91,15 @@ message TransitionDraftRequest {
   string event = 2;
 }
 
-message TransitionDraftResponse { Draft draft = 1; }
+message TransitionDraftResponse {
+  Draft draft = 1;
+}
 
-message ApproveDraftRequest { string id = 1; }
-message ApproveDraftResponse { Draft draft = 1; }
+message ApproveDraftRequest {
+  string id = 1;
+  string identity_id = 2;
+  string lane = 3;
+}
+message ApproveDraftResponse {
+  Draft draft = 1;
+}

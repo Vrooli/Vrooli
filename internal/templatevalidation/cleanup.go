@@ -89,6 +89,11 @@ func RelocationArtifactPaths(relocationTargets []string) []string {
 			filepath.Join(genRoot, "typescript", "js", scenarioID),
 			filepath.Join(genRoot, "python", scenarioID),
 			filepath.Join(genRoot, "python", scenarioPythonID),
+			// The per-surface lock manifest is the sixth codegen output and the
+			// easiest to forget: it is a FILE beside the gen trees rather than a
+			// directory inside one, so a loop over gen/<lang>/<id> misses it and
+			// leaves a manifest referencing schemas that no longer exist.
+			filepath.Join(genRoot, "manifests", scenarioID+".lock.json"),
 		} {
 			add(path)
 		}

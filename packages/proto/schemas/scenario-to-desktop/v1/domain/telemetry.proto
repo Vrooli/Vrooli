@@ -32,7 +32,10 @@ message TelemetryPayloadResponse {
 
 message TelemetryTailRequest {
   string scenario_name = 1 [(buf.validate.field).string.min_len = 1];
-  optional int32 limit = 2 [(buf.validate.field).int32 = {gte: 1, lte: 1000}];
+  optional int32 limit = 2 [(buf.validate.field).int32 = {
+    gte: 1
+    lte: 1000
+  }];
 }
 
 // TelemetryDeleteResponse confirms that the scenario's telemetry stream was

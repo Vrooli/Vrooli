@@ -70,7 +70,6 @@ spec:
       - document-manager
       - brand-manager
     secondary:
-      - campaign-content-studio
       - research-assistant
       - workflow-scheduler
     optimal_combinations:

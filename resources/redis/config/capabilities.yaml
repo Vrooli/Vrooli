@@ -70,7 +70,6 @@ spec:
       - workflow-scheduler
       - system-monitor
     secondary:
-      - campaign-content-studio
       - document-manager
       - research-assistant
     optimal_combinations:

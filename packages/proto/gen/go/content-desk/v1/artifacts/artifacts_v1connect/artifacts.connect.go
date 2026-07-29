@@ -42,9 +42,12 @@ const (
 	// ArtifactsServiceUpdateDraftBodyProcedure is the fully-qualified name of the ArtifactsService's
 	// UpdateDraftBody RPC.
 	ArtifactsServiceUpdateDraftBodyProcedure = "/vrooli.content_desk.v1.artifacts.ArtifactsService/UpdateDraftBody"
-	// ArtifactsServicePublishDraftProcedure is the fully-qualified name of the ArtifactsService's
-	// PublishDraft RPC.
-	ArtifactsServicePublishDraftProcedure = "/vrooli.content_desk.v1.artifacts.ArtifactsService/PublishDraft"
+	// ArtifactsServiceSubmitReleaseDraftProcedure is the fully-qualified name of the ArtifactsService's
+	// SubmitReleaseDraft RPC.
+	ArtifactsServiceSubmitReleaseDraftProcedure = "/vrooli.content_desk.v1.artifacts.ArtifactsService/SubmitReleaseDraft"
+	// ArtifactsServiceRecordReleaseOutcomeProcedure is the fully-qualified name of the
+	// ArtifactsService's RecordReleaseOutcome RPC.
+	ArtifactsServiceRecordReleaseOutcomeProcedure = "/vrooli.content_desk.v1.artifacts.ArtifactsService/RecordReleaseOutcome"
 	// ArtifactsServiceTransitionDraftProcedure is the fully-qualified name of the ArtifactsService's
 	// TransitionDraft RPC.
 	ArtifactsServiceTransitionDraftProcedure = "/vrooli.content_desk.v1.artifacts.ArtifactsService/TransitionDraft"
@@ -59,7 +62,8 @@ type ArtifactsServiceClient interface {
 	ListDrafts(context.Context, *connect.Request[artifacts.ListDraftsRequest]) (*connect.Response[artifacts.ListDraftsResponse], error)
 	CreateDraft(context.Context, *connect.Request[artifacts.CreateDraftRequest]) (*connect.Response[artifacts.CreateDraftResponse], error)
 	UpdateDraftBody(context.Context, *connect.Request[artifacts.UpdateDraftBodyRequest]) (*connect.Response[artifacts.UpdateDraftBodyResponse], error)
-	PublishDraft(context.Context, *connect.Request[artifacts.PublishDraftRequest]) (*connect.Response[artifacts.PublishDraftResponse], error)
+	SubmitReleaseDraft(context.Context, *connect.Request[artifacts.SubmitReleaseDraftRequest]) (*connect.Response[artifacts.SubmitReleaseDraftResponse], error)
+	RecordReleaseOutcome(context.Context, *connect.Request[artifacts.RecordReleaseOutcomeRequest]) (*connect.Response[artifacts.RecordReleaseOutcomeResponse], error)
 	TransitionDraft(context.Context, *connect.Request[artifacts.TransitionDraftRequest]) (*connect.Response[artifacts.TransitionDraftResponse], error)
 	ApproveDraft(context.Context, *connect.Request[artifacts.ApproveDraftRequest]) (*connect.Response[artifacts.ApproveDraftResponse], error)
 }
@@ -94,10 +98,16 @@ func NewArtifactsServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(artifactsServiceMethods.ByName("UpdateDraftBody")),
 			connect.WithClientOptions(opts...),
 		),
-		publishDraft: connect.NewClient[artifacts.PublishDraftRequest, artifacts.PublishDraftResponse](
+		submitReleaseDraft: connect.NewClient[artifacts.SubmitReleaseDraftRequest, artifacts.SubmitReleaseDraftResponse](
 			httpClient,
-			baseURL+ArtifactsServicePublishDraftProcedure,
-			connect.WithSchema(artifactsServiceMethods.ByName("PublishDraft")),
+			baseURL+ArtifactsServiceSubmitReleaseDraftProcedure,
+			connect.WithSchema(artifactsServiceMethods.ByName("SubmitReleaseDraft")),
+			connect.WithClientOptions(opts...),
+		),
+		recordReleaseOutcome: connect.NewClient[artifacts.RecordReleaseOutcomeRequest, artifacts.RecordReleaseOutcomeResponse](
+			httpClient,
+			baseURL+ArtifactsServiceRecordReleaseOutcomeProcedure,
+			connect.WithSchema(artifactsServiceMethods.ByName("RecordReleaseOutcome")),
 			connect.WithClientOptions(opts...),
 		),
 		transitionDraft: connect.NewClient[artifacts.TransitionDraftRequest, artifacts.TransitionDraftResponse](
@@ -117,12 +127,13 @@ func NewArtifactsServiceClient(httpClient connect.HTTPClient, baseURL string, op
 
 // artifactsServiceClient implements ArtifactsServiceClient.
 type artifactsServiceClient struct {
-	listDrafts      *connect.Client[artifacts.ListDraftsRequest, artifacts.ListDraftsResponse]
-	createDraft     *connect.Client[artifacts.CreateDraftRequest, artifacts.CreateDraftResponse]
-	updateDraftBody *connect.Client[artifacts.UpdateDraftBodyRequest, artifacts.UpdateDraftBodyResponse]
-	publishDraft    *connect.Client[artifacts.PublishDraftRequest, artifacts.PublishDraftResponse]
-	transitionDraft *connect.Client[artifacts.TransitionDraftRequest, artifacts.TransitionDraftResponse]
-	approveDraft    *connect.Client[artifacts.ApproveDraftRequest, artifacts.ApproveDraftResponse]
+	listDrafts           *connect.Client[artifacts.ListDraftsRequest, artifacts.ListDraftsResponse]
+	createDraft          *connect.Client[artifacts.CreateDraftRequest, artifacts.CreateDraftResponse]
+	updateDraftBody      *connect.Client[artifacts.UpdateDraftBodyRequest, artifacts.UpdateDraftBodyResponse]
+	submitReleaseDraft   *connect.Client[artifacts.SubmitReleaseDraftRequest, artifacts.SubmitReleaseDraftResponse]
+	recordReleaseOutcome *connect.Client[artifacts.RecordReleaseOutcomeRequest, artifacts.RecordReleaseOutcomeResponse]
+	transitionDraft      *connect.Client[artifacts.TransitionDraftRequest, artifacts.TransitionDraftResponse]
+	approveDraft         *connect.Client[artifacts.ApproveDraftRequest, artifacts.ApproveDraftResponse]
 }
 
 // ListDrafts calls vrooli.content_desk.v1.artifacts.ArtifactsService.ListDrafts.
@@ -140,9 +151,15 @@ func (c *artifactsServiceClient) UpdateDraftBody(ctx context.Context, req *conne
 	return c.updateDraftBody.CallUnary(ctx, req)
 }
 
-// PublishDraft calls vrooli.content_desk.v1.artifacts.ArtifactsService.PublishDraft.
-func (c *artifactsServiceClient) PublishDraft(ctx context.Context, req *connect.Request[artifacts.PublishDraftRequest]) (*connect.Response[artifacts.PublishDraftResponse], error) {
-	return c.publishDraft.CallUnary(ctx, req)
+// SubmitReleaseDraft calls vrooli.content_desk.v1.artifacts.ArtifactsService.SubmitReleaseDraft.
+func (c *artifactsServiceClient) SubmitReleaseDraft(ctx context.Context, req *connect.Request[artifacts.SubmitReleaseDraftRequest]) (*connect.Response[artifacts.SubmitReleaseDraftResponse], error) {
+	return c.submitReleaseDraft.CallUnary(ctx, req)
+}
+
+// RecordReleaseOutcome calls
+// vrooli.content_desk.v1.artifacts.ArtifactsService.RecordReleaseOutcome.
+func (c *artifactsServiceClient) RecordReleaseOutcome(ctx context.Context, req *connect.Request[artifacts.RecordReleaseOutcomeRequest]) (*connect.Response[artifacts.RecordReleaseOutcomeResponse], error) {
+	return c.recordReleaseOutcome.CallUnary(ctx, req)
 }
 
 // TransitionDraft calls vrooli.content_desk.v1.artifacts.ArtifactsService.TransitionDraft.
@@ -161,7 +178,8 @@ type ArtifactsServiceHandler interface {
 	ListDrafts(context.Context, *connect.Request[artifacts.ListDraftsRequest]) (*connect.Response[artifacts.ListDraftsResponse], error)
 	CreateDraft(context.Context, *connect.Request[artifacts.CreateDraftRequest]) (*connect.Response[artifacts.CreateDraftResponse], error)
 	UpdateDraftBody(context.Context, *connect.Request[artifacts.UpdateDraftBodyRequest]) (*connect.Response[artifacts.UpdateDraftBodyResponse], error)
-	PublishDraft(context.Context, *connect.Request[artifacts.PublishDraftRequest]) (*connect.Response[artifacts.PublishDraftResponse], error)
+	SubmitReleaseDraft(context.Context, *connect.Request[artifacts.SubmitReleaseDraftRequest]) (*connect.Response[artifacts.SubmitReleaseDraftResponse], error)
+	RecordReleaseOutcome(context.Context, *connect.Request[artifacts.RecordReleaseOutcomeRequest]) (*connect.Response[artifacts.RecordReleaseOutcomeResponse], error)
 	TransitionDraft(context.Context, *connect.Request[artifacts.TransitionDraftRequest]) (*connect.Response[artifacts.TransitionDraftResponse], error)
 	ApproveDraft(context.Context, *connect.Request[artifacts.ApproveDraftRequest]) (*connect.Response[artifacts.ApproveDraftResponse], error)
 }
@@ -191,10 +209,16 @@ func NewArtifactsServiceHandler(svc ArtifactsServiceHandler, opts ...connect.Han
 		connect.WithSchema(artifactsServiceMethods.ByName("UpdateDraftBody")),
 		connect.WithHandlerOptions(opts...),
 	)
-	artifactsServicePublishDraftHandler := connect.NewUnaryHandler(
-		ArtifactsServicePublishDraftProcedure,
-		svc.PublishDraft,
-		connect.WithSchema(artifactsServiceMethods.ByName("PublishDraft")),
+	artifactsServiceSubmitReleaseDraftHandler := connect.NewUnaryHandler(
+		ArtifactsServiceSubmitReleaseDraftProcedure,
+		svc.SubmitReleaseDraft,
+		connect.WithSchema(artifactsServiceMethods.ByName("SubmitReleaseDraft")),
+		connect.WithHandlerOptions(opts...),
+	)
+	artifactsServiceRecordReleaseOutcomeHandler := connect.NewUnaryHandler(
+		ArtifactsServiceRecordReleaseOutcomeProcedure,
+		svc.RecordReleaseOutcome,
+		connect.WithSchema(artifactsServiceMethods.ByName("RecordReleaseOutcome")),
 		connect.WithHandlerOptions(opts...),
 	)
 	artifactsServiceTransitionDraftHandler := connect.NewUnaryHandler(
@@ -217,8 +241,10 @@ func NewArtifactsServiceHandler(svc ArtifactsServiceHandler, opts ...connect.Han
 			artifactsServiceCreateDraftHandler.ServeHTTP(w, r)
 		case ArtifactsServiceUpdateDraftBodyProcedure:
 			artifactsServiceUpdateDraftBodyHandler.ServeHTTP(w, r)
-		case ArtifactsServicePublishDraftProcedure:
-			artifactsServicePublishDraftHandler.ServeHTTP(w, r)
+		case ArtifactsServiceSubmitReleaseDraftProcedure:
+			artifactsServiceSubmitReleaseDraftHandler.ServeHTTP(w, r)
+		case ArtifactsServiceRecordReleaseOutcomeProcedure:
+			artifactsServiceRecordReleaseOutcomeHandler.ServeHTTP(w, r)
 		case ArtifactsServiceTransitionDraftProcedure:
 			artifactsServiceTransitionDraftHandler.ServeHTTP(w, r)
 		case ArtifactsServiceApproveDraftProcedure:
@@ -244,8 +270,12 @@ func (UnimplementedArtifactsServiceHandler) UpdateDraftBody(context.Context, *co
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.content_desk.v1.artifacts.ArtifactsService.UpdateDraftBody is not implemented"))
 }
 
-func (UnimplementedArtifactsServiceHandler) PublishDraft(context.Context, *connect.Request[artifacts.PublishDraftRequest]) (*connect.Response[artifacts.PublishDraftResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.content_desk.v1.artifacts.ArtifactsService.PublishDraft is not implemented"))
+func (UnimplementedArtifactsServiceHandler) SubmitReleaseDraft(context.Context, *connect.Request[artifacts.SubmitReleaseDraftRequest]) (*connect.Response[artifacts.SubmitReleaseDraftResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.content_desk.v1.artifacts.ArtifactsService.SubmitReleaseDraft is not implemented"))
+}
+
+func (UnimplementedArtifactsServiceHandler) RecordReleaseOutcome(context.Context, *connect.Request[artifacts.RecordReleaseOutcomeRequest]) (*connect.Response[artifacts.RecordReleaseOutcomeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.content_desk.v1.artifacts.ArtifactsService.RecordReleaseOutcome is not implemented"))
 }
 
 func (UnimplementedArtifactsServiceHandler) TransitionDraft(context.Context, *connect.Request[artifacts.TransitionDraftRequest]) (*connect.Response[artifacts.TransitionDraftResponse], error) {

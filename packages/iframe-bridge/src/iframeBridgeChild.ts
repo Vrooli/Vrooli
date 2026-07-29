@@ -2234,6 +2234,15 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
 
   const caps: BridgeCapability[] = ['history', 'hash', 'title', 'deeplink', 'screenshot', 'shortcuts'];
   let resolvedOrigin = options.parentOrigin ?? inferParentOrigin() ?? '*';
+  // Runtime validators embed the child with a per-run nonce. Echo it in the
+  // initial bridge messages so the parent can distinguish this frame from an
+  // unrelated same-origin postMessage sender.
+  let nonce: string | undefined;
+  try {
+    nonce = new URLSearchParams(window.location.search).get('__vrooli_bridge_nonce') || undefined;
+  } catch {
+    // A malformed location must not prevent the bridge from starting.
+  }
 
   const post: PostFn = payload => {
     try {
@@ -2683,6 +2692,7 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
     v: 1,
     t: 'HELLO',
     appId: options.appId,
+    nonce,
     title: document.title,
     caps,
     logs: logCapture ? logCapture.getState() : undefined,
@@ -2693,7 +2703,7 @@ export function initIframeBridgeChild(options: BridgeChildOptions = {}): BridgeC
   const observer = setupObservers();
 
   queueMicrotask(() => {
-    post({ v: 1, t: 'READY' });
+    post({ v: 1, t: 'READY', nonce });
     logCapture?.emitState();
     networkCapture?.emitState();
   });

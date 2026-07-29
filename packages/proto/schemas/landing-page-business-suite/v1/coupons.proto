@@ -47,19 +47,31 @@ message CreateCouponRequest {
   optional int32 max_redemptions = 8;
   optional int64 redeem_by = 9;
 }
-message CreateCouponResponse { Coupon coupon = 1; }
+message CreateCouponResponse {
+  Coupon coupon = 1;
+}
 
-message GetCouponRequest { string coupon_id = 1; }
-message GetCouponResponse { Coupon coupon = 1; }
+message GetCouponRequest {
+  string coupon_id = 1;
+}
+message GetCouponResponse {
+  Coupon coupon = 1;
+}
 
 message UpdateCouponRequest {
   string coupon_id = 1;
   optional string name = 2;
 }
-message UpdateCouponResponse { Coupon coupon = 1; }
+message UpdateCouponResponse {
+  Coupon coupon = 1;
+}
 
-message DeleteCouponRequest { string coupon_id = 1; }
-message DeleteCouponResponse { bool deleted = 1; }
+message DeleteCouponRequest {
+  string coupon_id = 1;
+}
+message DeleteCouponResponse {
+  bool deleted = 1;
+}
 
 message CouponUsageStat {
   string coupon_id = 1;
@@ -67,14 +79,27 @@ message CouponUsageStat {
   optional string last_used_at = 3;
 }
 message ListCouponUsageRequest {}
-message ListCouponUsageResponse { repeated CouponUsageStat usage = 1; }
+message ListCouponUsageResponse {
+  repeated CouponUsageStat usage = 1;
+}
 
 message GetCouponMappingsRequest {}
-message GetCouponMappingsResponse { map<string, string> mappings = 1; }
-message SetCouponForPlanRequest { string price_id = 1; string coupon_id = 2; }
-message SetCouponForPlanResponse { bool assigned = 1; }
-message RemoveCouponFromPlanRequest { string price_id = 1; }
-message RemoveCouponFromPlanResponse { bool removed = 1; }
+message GetCouponMappingsResponse {
+  map<string, string> mappings = 1;
+}
+message SetCouponForPlanRequest {
+  string price_id = 1;
+  string coupon_id = 2;
+}
+message SetCouponForPlanResponse {
+  bool assigned = 1;
+}
+message RemoveCouponFromPlanRequest {
+  string price_id = 1;
+}
+message RemoveCouponFromPlanResponse {
+  bool removed = 1;
+}
 
 message CouponImportPreviewItem {
   string id = 1;

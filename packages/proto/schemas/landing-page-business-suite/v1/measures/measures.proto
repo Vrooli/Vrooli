@@ -104,39 +104,111 @@ message CountPaymentAnomaliesCreatedResponse {
   int64 count = 1;
 }
 
-message CountUsersCreatedRequest { vrooli.measures.v1.TimeWindow window = 1; }
-message CountUsersCreatedResponse { int64 count = 1; }
-message CountUserSessionsCreatedRequest { vrooli.measures.v1.TimeWindow window = 1; }
-message CountUserSessionsCreatedResponse { int64 count = 1; }
-message CountAuthTokensCreatedRequest { vrooli.measures.v1.TimeWindow window = 1; }
-message CountAuthTokensCreatedResponse { int64 count = 1; }
-message CountAPIKeysCreatedRequest { vrooli.measures.v1.TimeWindow window = 1; }
-message CountAPIKeysCreatedResponse { int64 count = 1; }
-message CountCreditReservationsCreatedRequest { vrooli.measures.v1.TimeWindow window = 1; }
-message CountCreditReservationsCreatedResponse { int64 count = 1; }
-message CountSubscriptionTierLimitsCreatedRequest { vrooli.measures.v1.TimeWindow window = 1; }
-message CountSubscriptionTierLimitsCreatedResponse { int64 count = 1; }
-message CountUsageRecordsCreatedRequest { vrooli.measures.v1.TimeWindow window = 1; }
-message CountUsageRecordsCreatedResponse { int64 count = 1; }
-message CountAdminSessionsCreatedRequest { vrooli.measures.v1.TimeWindow window = 1; }
-message CountAdminSessionsCreatedResponse { int64 count = 1; }
-message CountAdminUsersCreatedRequest { vrooli.measures.v1.TimeWindow window = 1; }
-message CountAdminUsersCreatedResponse { int64 count = 1; }
-message CountAssetsCreatedRequest { vrooli.measures.v1.TimeWindow window = 1; }
-message CountAssetsCreatedResponse { int64 count = 1; }
-message CountDownloadAppsCreatedRequest { vrooli.measures.v1.TimeWindow window = 1; }
-message CountDownloadAppsCreatedResponse { int64 count = 1; }
-message CountDownloadArtifactsCreatedRequest { vrooli.measures.v1.TimeWindow window = 1; }
-message CountDownloadArtifactsCreatedResponse { int64 count = 1; }
-message CountDownloadAssetsCreatedRequest { vrooli.measures.v1.TimeWindow window = 1; }
-message CountDownloadAssetsCreatedResponse { int64 count = 1; }
-message CountDownloadStorageSettingsCreatedRequest { vrooli.measures.v1.TimeWindow window = 1; }
-message CountDownloadStorageSettingsCreatedResponse { int64 count = 1; }
-message CountFeedbackRequestsCreatedRequest { vrooli.measures.v1.TimeWindow window = 1; }
-message CountFeedbackRequestsCreatedResponse { int64 count = 1; }
-message CountMetricsEventsCreatedRequest { vrooli.measures.v1.TimeWindow window = 1; }
-message CountMetricsEventsCreatedResponse { int64 count = 1; }
-message CountRemoteProfilesCreatedRequest { vrooli.measures.v1.TimeWindow window = 1; }
-message CountRemoteProfilesCreatedResponse { int64 count = 1; }
-message CountWaitlistEmailsCreatedRequest { vrooli.measures.v1.TimeWindow window = 1; }
-message CountWaitlistEmailsCreatedResponse { int64 count = 1; }
+message CountUsersCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountUsersCreatedResponse {
+  int64 count = 1;
+}
+message CountUserSessionsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountUserSessionsCreatedResponse {
+  int64 count = 1;
+}
+message CountAuthTokensCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountAuthTokensCreatedResponse {
+  int64 count = 1;
+}
+message CountAPIKeysCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountAPIKeysCreatedResponse {
+  int64 count = 1;
+}
+message CountCreditReservationsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountCreditReservationsCreatedResponse {
+  int64 count = 1;
+}
+message CountSubscriptionTierLimitsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountSubscriptionTierLimitsCreatedResponse {
+  int64 count = 1;
+}
+message CountUsageRecordsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountUsageRecordsCreatedResponse {
+  int64 count = 1;
+}
+message CountAdminSessionsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountAdminSessionsCreatedResponse {
+  int64 count = 1;
+}
+message CountAdminUsersCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountAdminUsersCreatedResponse {
+  int64 count = 1;
+}
+message CountAssetsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountAssetsCreatedResponse {
+  int64 count = 1;
+}
+message CountDownloadAppsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountDownloadAppsCreatedResponse {
+  int64 count = 1;
+}
+message CountDownloadArtifactsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountDownloadArtifactsCreatedResponse {
+  int64 count = 1;
+}
+message CountDownloadAssetsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountDownloadAssetsCreatedResponse {
+  int64 count = 1;
+}
+message CountDownloadStorageSettingsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountDownloadStorageSettingsCreatedResponse {
+  int64 count = 1;
+}
+message CountFeedbackRequestsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountFeedbackRequestsCreatedResponse {
+  int64 count = 1;
+}
+message CountMetricsEventsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountMetricsEventsCreatedResponse {
+  int64 count = 1;
+}
+message CountRemoteProfilesCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountRemoteProfilesCreatedResponse {
+  int64 count = 1;
+}
+message CountWaitlistEmailsCreatedRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message CountWaitlistEmailsCreatedResponse {
+  int64 count = 1;
+}

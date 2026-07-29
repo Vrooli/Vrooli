@@ -10,6 +10,14 @@ enum RequestKind {
   REQUEST_KIND_TEXT_GENERATION = 1;
   REQUEST_KIND_TEXT_EMBEDDING = 2;
   REQUEST_KIND_STRUCTURED_EXTRACTION = 3;
+  // REQUEST_KIND_IMAGE_GENERATION requests a rendered still image. The
+  // request remains provider-neutral: callers express intent and policy here,
+  // while an image capability owns operation/model semantics and bytes.
+  REQUEST_KIND_IMAGE_GENERATION = 4;
+  // REQUEST_KIND_VIDEO_GENERATION requests rendered moving media. Video is a
+  // first-class generic inference modality even while a dedicated video
+  // production scenario does not exist.
+  REQUEST_KIND_VIDEO_GENERATION = 5;
 }
 
 // PrivacyClass tells the gateway how sensitive the request metadata is.

@@ -50,6 +50,9 @@ const (
 	// ClaimsServiceSweepClaimsProcedure is the fully-qualified name of the ClaimsService's SweepClaims
 	// RPC.
 	ClaimsServiceSweepClaimsProcedure = "/vrooli.content_desk.v1.claims.ClaimsService/SweepClaims"
+	// ClaimsServiceGetClaimCoverageProcedure is the fully-qualified name of the ClaimsService's
+	// GetClaimCoverage RPC.
+	ClaimsServiceGetClaimCoverageProcedure = "/vrooli.content_desk.v1.claims.ClaimsService/GetClaimCoverage"
 )
 
 // ClaimsServiceClient is a client for the vrooli.content_desk.v1.claims.ClaimsService service.
@@ -60,6 +63,7 @@ type ClaimsServiceClient interface {
 	CiteClaim(context.Context, *connect.Request[claims.CiteClaimRequest]) (*connect.Response[claims.CiteClaimResponse], error)
 	VerifyClaim(context.Context, *connect.Request[claims.VerifyClaimRequest]) (*connect.Response[claims.VerifyClaimResponse], error)
 	SweepClaims(context.Context, *connect.Request[claims.SweepClaimsRequest]) (*connect.Response[claims.SweepClaimsResponse], error)
+	GetClaimCoverage(context.Context, *connect.Request[claims.GetClaimCoverageRequest]) (*connect.Response[claims.GetClaimCoverageResponse], error)
 }
 
 // NewClaimsServiceClient constructs a client for the vrooli.content_desk.v1.claims.ClaimsService
@@ -109,17 +113,24 @@ func NewClaimsServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(claimsServiceMethods.ByName("SweepClaims")),
 			connect.WithClientOptions(opts...),
 		),
+		getClaimCoverage: connect.NewClient[claims.GetClaimCoverageRequest, claims.GetClaimCoverageResponse](
+			httpClient,
+			baseURL+ClaimsServiceGetClaimCoverageProcedure,
+			connect.WithSchema(claimsServiceMethods.ByName("GetClaimCoverage")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // claimsServiceClient implements ClaimsServiceClient.
 type claimsServiceClient struct {
-	listClaims      *connect.Client[claims.ListClaimsRequest, claims.ListClaimsResponse]
-	listDraftClaims *connect.Client[claims.ListDraftClaimsRequest, claims.ListDraftClaimsResponse]
-	createClaim     *connect.Client[claims.CreateClaimRequest, claims.CreateClaimResponse]
-	citeClaim       *connect.Client[claims.CiteClaimRequest, claims.CiteClaimResponse]
-	verifyClaim     *connect.Client[claims.VerifyClaimRequest, claims.VerifyClaimResponse]
-	sweepClaims     *connect.Client[claims.SweepClaimsRequest, claims.SweepClaimsResponse]
+	listClaims       *connect.Client[claims.ListClaimsRequest, claims.ListClaimsResponse]
+	listDraftClaims  *connect.Client[claims.ListDraftClaimsRequest, claims.ListDraftClaimsResponse]
+	createClaim      *connect.Client[claims.CreateClaimRequest, claims.CreateClaimResponse]
+	citeClaim        *connect.Client[claims.CiteClaimRequest, claims.CiteClaimResponse]
+	verifyClaim      *connect.Client[claims.VerifyClaimRequest, claims.VerifyClaimResponse]
+	sweepClaims      *connect.Client[claims.SweepClaimsRequest, claims.SweepClaimsResponse]
+	getClaimCoverage *connect.Client[claims.GetClaimCoverageRequest, claims.GetClaimCoverageResponse]
 }
 
 // ListClaims calls vrooli.content_desk.v1.claims.ClaimsService.ListClaims.
@@ -152,6 +163,11 @@ func (c *claimsServiceClient) SweepClaims(ctx context.Context, req *connect.Requ
 	return c.sweepClaims.CallUnary(ctx, req)
 }
 
+// GetClaimCoverage calls vrooli.content_desk.v1.claims.ClaimsService.GetClaimCoverage.
+func (c *claimsServiceClient) GetClaimCoverage(ctx context.Context, req *connect.Request[claims.GetClaimCoverageRequest]) (*connect.Response[claims.GetClaimCoverageResponse], error) {
+	return c.getClaimCoverage.CallUnary(ctx, req)
+}
+
 // ClaimsServiceHandler is an implementation of the vrooli.content_desk.v1.claims.ClaimsService
 // service.
 type ClaimsServiceHandler interface {
@@ -161,6 +177,7 @@ type ClaimsServiceHandler interface {
 	CiteClaim(context.Context, *connect.Request[claims.CiteClaimRequest]) (*connect.Response[claims.CiteClaimResponse], error)
 	VerifyClaim(context.Context, *connect.Request[claims.VerifyClaimRequest]) (*connect.Response[claims.VerifyClaimResponse], error)
 	SweepClaims(context.Context, *connect.Request[claims.SweepClaimsRequest]) (*connect.Response[claims.SweepClaimsResponse], error)
+	GetClaimCoverage(context.Context, *connect.Request[claims.GetClaimCoverageRequest]) (*connect.Response[claims.GetClaimCoverageResponse], error)
 }
 
 // NewClaimsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -206,6 +223,12 @@ func NewClaimsServiceHandler(svc ClaimsServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(claimsServiceMethods.ByName("SweepClaims")),
 		connect.WithHandlerOptions(opts...),
 	)
+	claimsServiceGetClaimCoverageHandler := connect.NewUnaryHandler(
+		ClaimsServiceGetClaimCoverageProcedure,
+		svc.GetClaimCoverage,
+		connect.WithSchema(claimsServiceMethods.ByName("GetClaimCoverage")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.content_desk.v1.claims.ClaimsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ClaimsServiceListClaimsProcedure:
@@ -220,6 +243,8 @@ func NewClaimsServiceHandler(svc ClaimsServiceHandler, opts ...connect.HandlerOp
 			claimsServiceVerifyClaimHandler.ServeHTTP(w, r)
 		case ClaimsServiceSweepClaimsProcedure:
 			claimsServiceSweepClaimsHandler.ServeHTTP(w, r)
+		case ClaimsServiceGetClaimCoverageProcedure:
+			claimsServiceGetClaimCoverageHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -251,4 +276,8 @@ func (UnimplementedClaimsServiceHandler) VerifyClaim(context.Context, *connect.R
 
 func (UnimplementedClaimsServiceHandler) SweepClaims(context.Context, *connect.Request[claims.SweepClaimsRequest]) (*connect.Response[claims.SweepClaimsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.content_desk.v1.claims.ClaimsService.SweepClaims is not implemented"))
+}
+
+func (UnimplementedClaimsServiceHandler) GetClaimCoverage(context.Context, *connect.Request[claims.GetClaimCoverageRequest]) (*connect.Response[claims.GetClaimCoverageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.content_desk.v1.claims.ClaimsService.GetClaimCoverage is not implemented"))
 }

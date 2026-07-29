@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "signal-inbox",
-  "input_digest": "sha256:416fbdbd108e81ec03d39efc6aa6bf7ea07ffca564eba62b536c9d6c1c327600",
+  "input_digest": "sha256:f2571d783ebf7c6fe8d8aabe3ddf6e07d0c02814935d432241e2d93621279158",
   "input_files": [
     "schemas/signal-inbox/v1/categories/categories.proto",
     "schemas/signal-inbox/v1/retrieval/retrieval.proto",

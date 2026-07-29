@@ -29,6 +29,14 @@ const (
 	RequestKind_REQUEST_KIND_TEXT_GENERATION       RequestKind = 1
 	RequestKind_REQUEST_KIND_TEXT_EMBEDDING        RequestKind = 2
 	RequestKind_REQUEST_KIND_STRUCTURED_EXTRACTION RequestKind = 3
+	// REQUEST_KIND_IMAGE_GENERATION requests a rendered still image. The
+	// request remains provider-neutral: callers express intent and policy here,
+	// while an image capability owns operation/model semantics and bytes.
+	RequestKind_REQUEST_KIND_IMAGE_GENERATION RequestKind = 4
+	// REQUEST_KIND_VIDEO_GENERATION requests rendered moving media. Video is a
+	// first-class generic inference modality even while a dedicated video
+	// production scenario does not exist.
+	RequestKind_REQUEST_KIND_VIDEO_GENERATION RequestKind = 5
 )
 
 // Enum value maps for RequestKind.
@@ -38,12 +46,16 @@ var (
 		1: "REQUEST_KIND_TEXT_GENERATION",
 		2: "REQUEST_KIND_TEXT_EMBEDDING",
 		3: "REQUEST_KIND_STRUCTURED_EXTRACTION",
+		4: "REQUEST_KIND_IMAGE_GENERATION",
+		5: "REQUEST_KIND_VIDEO_GENERATION",
 	}
 	RequestKind_value = map[string]int32{
 		"REQUEST_KIND_UNSPECIFIED":           0,
 		"REQUEST_KIND_TEXT_GENERATION":       1,
 		"REQUEST_KIND_TEXT_EMBEDDING":        2,
 		"REQUEST_KIND_STRUCTURED_EXTRACTION": 3,
+		"REQUEST_KIND_IMAGE_GENERATION":      4,
+		"REQUEST_KIND_VIDEO_GENERATION":      5,
 	}
 )
 
@@ -406,12 +418,14 @@ const file_ai_gateway_v1_shared_gateway_proto_rawDesc = "" +
 	"\x0fValidationIssue\x12\x14\n" +
 	"\x05field\x18\x01 \x01(\tR\x05field\x12\x12\n" +
 	"\x04code\x18\x02 \x01(\tR\x04code\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage*\x96\x01\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage*\xdc\x01\n" +
 	"\vRequestKind\x12\x1c\n" +
 	"\x18REQUEST_KIND_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cREQUEST_KIND_TEXT_GENERATION\x10\x01\x12\x1f\n" +
 	"\x1bREQUEST_KIND_TEXT_EMBEDDING\x10\x02\x12&\n" +
-	"\"REQUEST_KIND_STRUCTURED_EXTRACTION\x10\x03*\x9d\x01\n" +
+	"\"REQUEST_KIND_STRUCTURED_EXTRACTION\x10\x03\x12!\n" +
+	"\x1dREQUEST_KIND_IMAGE_GENERATION\x10\x04\x12!\n" +
+	"\x1dREQUEST_KIND_VIDEO_GENERATION\x10\x05*\x9d\x01\n" +
 	"\fPrivacyClass\x12\x1d\n" +
 	"\x19PRIVACY_CLASS_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14PRIVACY_CLASS_PUBLIC\x10\x01\x12\x1a\n" +

@@ -76,8 +76,7 @@ message Note {
 }
 
 // ListNotesRequest is currently empty; add filters and pagination here.
-message ListNotesRequest {
-}
+message ListNotesRequest {}
 
 // ListNotesResponse is the body returned by NotesService.ListNotes.
 message ListNotesResponse {

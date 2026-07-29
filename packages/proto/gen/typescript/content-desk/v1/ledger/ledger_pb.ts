@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file content-desk/v1/ledger/ledger.proto.
  */
 export const file_content_desk_v1_ledger_ledger: GenFile = /*@__PURE__*/
-  fileDesc("CiNjb250ZW50LWRlc2svdjEvbGVkZ2VyL2xlZGdlci5wcm90bxIddnJvb2xpLmNvbnRlbnRfZGVzay52MS5sZWRnZXIiXgoNUHVibGlzaFJlY29yZBIKCgJpZBgBIAEoCRIQCghkcmFmdF9pZBgCIAEoCRIVCg1wdWJsaXNoZWRfdXJsGAMgASgJEhgKEHBsYXRmb3JtX3Bvc3RfaWQYBCABKAkiGwoZTGlzdFB1Ymxpc2hSZWNvcmRzUmVxdWVzdCJjChpMaXN0UHVibGlzaFJlY29yZHNSZXNwb25zZRJFCg9wdWJsaXNoX3JlY29yZHMYASADKAsyLC52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5QdWJsaXNoUmVjb3JkIjkKJUxpc3RDb250YW1pbmF0ZWRQdWJsaXNoUmVjb3Jkc1JlcXVlc3QSEAoIY2xhaW1faWQYASABKAkibwomTGlzdENvbnRhbWluYXRlZFB1Ymxpc2hSZWNvcmRzUmVzcG9uc2USRQoPcHVibGlzaF9yZWNvcmRzGAEgAygLMiwudnJvb2xpLmNvbnRlbnRfZGVzay52MS5sZWRnZXIuUHVibGlzaFJlY29yZCKQAQoMQ292ZXJhZ2VDZWxsEhMKC2NhbXBhaWduX2lkGAEgASgJEgwKBGxhbmUYAiABKAkSDwoHY2hhbm5lbBgDIAEoCRILCgNza3UYBCABKAkSFQoNcHVibGlzaF9jb3VudBgFIAEoBRIZChFsYXN0X3B1Ymxpc2hlZF9hdBgGIAEoCRINCgVzdGFsZRgHIAEoCCIvChNMaXN0Q292ZXJhZ2VSZXF1ZXN0EhgKEHN0YWxlX2FmdGVyX2RheXMYASABKAUiUgoUTGlzdENvdmVyYWdlUmVzcG9uc2USOgoFY2VsbHMYASADKAsyKy52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5Db3ZlcmFnZUNlbGwyxAMKDUxlZGdlclNlcnZpY2USiQEKEkxpc3RQdWJsaXNoUmVjb3JkcxI4LnZyb29saS5jb250ZW50X2Rlc2sudjEubGVkZ2VyLkxpc3RQdWJsaXNoUmVjb3Jkc1JlcXVlc3QaOS52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5MaXN0UHVibGlzaFJlY29yZHNSZXNwb25zZRKtAQoeTGlzdENvbnRhbWluYXRlZFB1Ymxpc2hSZWNvcmRzEkQudnJvb2xpLmNvbnRlbnRfZGVzay52MS5sZWRnZXIuTGlzdENvbnRhbWluYXRlZFB1Ymxpc2hSZWNvcmRzUmVxdWVzdBpFLnZyb29saS5jb250ZW50X2Rlc2sudjEubGVkZ2VyLkxpc3RDb250YW1pbmF0ZWRQdWJsaXNoUmVjb3Jkc1Jlc3BvbnNlEncKDExpc3RDb3ZlcmFnZRIyLnZyb29saS5jb250ZW50X2Rlc2sudjEubGVkZ2VyLkxpc3RDb3ZlcmFnZVJlcXVlc3QaMy52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5MaXN0Q292ZXJhZ2VSZXNwb25zZUJRWk9naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NvbnRlbnQtZGVzay92MS9sZWRnZXI7bGVkZ2VyX3YxYgZwcm90bzM");
+  fileDesc("CiNjb250ZW50LWRlc2svdjEvbGVkZ2VyL2xlZGdlci5wcm90bxIddnJvb2xpLmNvbnRlbnRfZGVzay52MS5sZWRnZXIiXgoNUHVibGlzaFJlY29yZBIKCgJpZBgBIAEoCRIQCghkcmFmdF9pZBgCIAEoCRIVCg1wdWJsaXNoZWRfdXJsGAMgASgJEhgKEHBsYXRmb3JtX3Bvc3RfaWQYBCABKAkiGwoZTGlzdFB1Ymxpc2hSZWNvcmRzUmVxdWVzdCJjChpMaXN0UHVibGlzaFJlY29yZHNSZXNwb25zZRJFCg9wdWJsaXNoX3JlY29yZHMYASADKAsyLC52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5QdWJsaXNoUmVjb3JkIjkKJUxpc3RDb250YW1pbmF0ZWRQdWJsaXNoUmVjb3Jkc1JlcXVlc3QSEAoIY2xhaW1faWQYASABKAkibwomTGlzdENvbnRhbWluYXRlZFB1Ymxpc2hSZWNvcmRzUmVzcG9uc2USRQoPcHVibGlzaF9yZWNvcmRzGAEgAygLMiwudnJvb2xpLmNvbnRlbnRfZGVzay52MS5sZWRnZXIuUHVibGlzaFJlY29yZCKQAQoMQ292ZXJhZ2VDZWxsEhMKC2NhbXBhaWduX2lkGAEgASgJEgwKBGxhbmUYAiABKAkSDwoHY2hhbm5lbBgDIAEoCRILCgNza3UYBCABKAkSFQoNcHVibGlzaF9jb3VudBgFIAEoBRIZChFsYXN0X3B1Ymxpc2hlZF9hdBgGIAEoCRINCgVzdGFsZRgHIAEoCCIvChNMaXN0Q292ZXJhZ2VSZXF1ZXN0EhgKEHN0YWxlX2FmdGVyX2RheXMYASABKAUiUgoUTGlzdENvdmVyYWdlUmVzcG9uc2USOgoFY2VsbHMYASADKAsyKy52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5Db3ZlcmFnZUNlbGwiiAEKGUluZ2VzdE1ldHJpY1NhbXBsZVJlcXVlc3QSEQoJc2FtcGxlX2lkGAEgASgJEhIKCnJlbGVhc2VfaWQYAiABKAkSEAoIZHJhZnRfaWQYAyABKAkSDgoGbWV0cmljGAQgASgJEg0KBXZhbHVlGAUgASgBEhMKC29ic2VydmVkX2F0GAYgASgJIkEKGkluZ2VzdE1ldHJpY1NhbXBsZVJlc3BvbnNlEhEKCXNhbXBsZV9pZBgBIAEoCRIQCghhY2NlcHRlZBgCIAEoCCKJAQoLUmVtZWRpYXRpb24SCgoCaWQYASABKAkSGQoRcHVibGlzaF9yZWNvcmRfaWQYAiABKAkSDAoEa2luZBgDIAEoCRIOCgZzdGF0dXMYBCABKAkSDAoEbm90ZRgFIAEoCRISCgpjcmVhdGVkX2F0GAYgASgJEhMKC3Jlc29sdmVkX2F0GAcgASgJIkcKF0xpc3RSZW1lZGlhdGlvbnNSZXF1ZXN0EhkKEXB1Ymxpc2hfcmVjb3JkX2lkGAEgASgJEhEKCW9wZW5fb25seRgCIAEoCCJcChhMaXN0UmVtZWRpYXRpb25zUmVzcG9uc2USQAoMcmVtZWRpYXRpb25zGAEgAygLMioudnJvb2xpLmNvbnRlbnRfZGVzay52MS5sZWRnZXIuUmVtZWRpYXRpb24iUQoYQ3JlYXRlUmVtZWRpYXRpb25SZXF1ZXN0EhkKEXB1Ymxpc2hfcmVjb3JkX2lkGAEgASgJEgwKBGtpbmQYAiABKAkSDAoEbm90ZRgDIAEoCSJcChlDcmVhdGVSZW1lZGlhdGlvblJlc3BvbnNlEj8KC3JlbWVkaWF0aW9uGAEgASgLMioudnJvb2xpLmNvbnRlbnRfZGVzay52MS5sZWRnZXIuUmVtZWRpYXRpb24iJwoZUmVzb2x2ZVJlbWVkaWF0aW9uUmVxdWVzdBIKCgJpZBgBIAEoCSJdChpSZXNvbHZlUmVtZWRpYXRpb25SZXNwb25zZRI/CgtyZW1lZGlhdGlvbhgBIAEoCzIqLnZyb29saS5jb250ZW50X2Rlc2sudjEubGVkZ2VyLlJlbWVkaWF0aW9uMusHCg1MZWRnZXJTZXJ2aWNlEokBChJMaXN0UHVibGlzaFJlY29yZHMSOC52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5MaXN0UHVibGlzaFJlY29yZHNSZXF1ZXN0GjkudnJvb2xpLmNvbnRlbnRfZGVzay52MS5sZWRnZXIuTGlzdFB1Ymxpc2hSZWNvcmRzUmVzcG9uc2USrQEKHkxpc3RDb250YW1pbmF0ZWRQdWJsaXNoUmVjb3JkcxJELnZyb29saS5jb250ZW50X2Rlc2sudjEubGVkZ2VyLkxpc3RDb250YW1pbmF0ZWRQdWJsaXNoUmVjb3Jkc1JlcXVlc3QaRS52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5MaXN0Q29udGFtaW5hdGVkUHVibGlzaFJlY29yZHNSZXNwb25zZRJ3CgxMaXN0Q292ZXJhZ2USMi52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5MaXN0Q292ZXJhZ2VSZXF1ZXN0GjMudnJvb2xpLmNvbnRlbnRfZGVzay52MS5sZWRnZXIuTGlzdENvdmVyYWdlUmVzcG9uc2USiQEKEkluZ2VzdE1ldHJpY1NhbXBsZRI4LnZyb29saS5jb250ZW50X2Rlc2sudjEubGVkZ2VyLkluZ2VzdE1ldHJpY1NhbXBsZVJlcXVlc3QaOS52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5Jbmdlc3RNZXRyaWNTYW1wbGVSZXNwb25zZRKDAQoQTGlzdFJlbWVkaWF0aW9ucxI2LnZyb29saS5jb250ZW50X2Rlc2sudjEubGVkZ2VyLkxpc3RSZW1lZGlhdGlvbnNSZXF1ZXN0GjcudnJvb2xpLmNvbnRlbnRfZGVzay52MS5sZWRnZXIuTGlzdFJlbWVkaWF0aW9uc1Jlc3BvbnNlEoYBChFDcmVhdGVSZW1lZGlhdGlvbhI3LnZyb29saS5jb250ZW50X2Rlc2sudjEubGVkZ2VyLkNyZWF0ZVJlbWVkaWF0aW9uUmVxdWVzdBo4LnZyb29saS5jb250ZW50X2Rlc2sudjEubGVkZ2VyLkNyZWF0ZVJlbWVkaWF0aW9uUmVzcG9uc2USiQEKElJlc29sdmVSZW1lZGlhdGlvbhI4LnZyb29saS5jb250ZW50X2Rlc2sudjEubGVkZ2VyLlJlc29sdmVSZW1lZGlhdGlvblJlcXVlc3QaOS52cm9vbGkuY29udGVudF9kZXNrLnYxLmxlZGdlci5SZXNvbHZlUmVtZWRpYXRpb25SZXNwb25zZUJRWk9naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NvbnRlbnQtZGVzay92MS9sZWRnZXI7bGVkZ2VyX3YxYgZwcm90bzM");
 
 /**
  * @generated from message vrooli.content_desk.v1.ledger.PublishRecord
@@ -190,6 +190,234 @@ export const ListCoverageResponseSchema: GenMessage<ListCoverageResponse> = /*@_
   messageDesc(file_content_desk_v1_ledger_ledger, 7);
 
 /**
+ * @generated from message vrooli.content_desk.v1.ledger.IngestMetricSampleRequest
+ */
+export type IngestMetricSampleRequest = Message<"vrooli.content_desk.v1.ledger.IngestMetricSampleRequest"> & {
+  /**
+   * @generated from field: string sample_id = 1;
+   */
+  sampleId: string;
+
+  /**
+   * @generated from field: string release_id = 2;
+   */
+  releaseId: string;
+
+  /**
+   * @generated from field: string draft_id = 3;
+   */
+  draftId: string;
+
+  /**
+   * @generated from field: string metric = 4;
+   */
+  metric: string;
+
+  /**
+   * @generated from field: double value = 5;
+   */
+  value: number;
+
+  /**
+   * @generated from field: string observed_at = 6;
+   */
+  observedAt: string;
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.ledger.IngestMetricSampleRequest.
+ * Use `create(IngestMetricSampleRequestSchema)` to create a new message.
+ */
+export const IngestMetricSampleRequestSchema: GenMessage<IngestMetricSampleRequest> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_ledger_ledger, 8);
+
+/**
+ * @generated from message vrooli.content_desk.v1.ledger.IngestMetricSampleResponse
+ */
+export type IngestMetricSampleResponse = Message<"vrooli.content_desk.v1.ledger.IngestMetricSampleResponse"> & {
+  /**
+   * @generated from field: string sample_id = 1;
+   */
+  sampleId: string;
+
+  /**
+   * @generated from field: bool accepted = 2;
+   */
+  accepted: boolean;
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.ledger.IngestMetricSampleResponse.
+ * Use `create(IngestMetricSampleResponseSchema)` to create a new message.
+ */
+export const IngestMetricSampleResponseSchema: GenMessage<IngestMetricSampleResponse> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_ledger_ledger, 9);
+
+/**
+ * @generated from message vrooli.content_desk.v1.ledger.Remediation
+ */
+export type Remediation = Message<"vrooli.content_desk.v1.ledger.Remediation"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string publish_record_id = 2;
+   */
+  publishRecordId: string;
+
+  /**
+   * @generated from field: string kind = 3;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string status = 4;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string note = 5;
+   */
+  note: string;
+
+  /**
+   * @generated from field: string created_at = 6;
+   */
+  createdAt: string;
+
+  /**
+   * @generated from field: string resolved_at = 7;
+   */
+  resolvedAt: string;
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.ledger.Remediation.
+ * Use `create(RemediationSchema)` to create a new message.
+ */
+export const RemediationSchema: GenMessage<Remediation> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_ledger_ledger, 10);
+
+/**
+ * @generated from message vrooli.content_desk.v1.ledger.ListRemediationsRequest
+ */
+export type ListRemediationsRequest = Message<"vrooli.content_desk.v1.ledger.ListRemediationsRequest"> & {
+  /**
+   * @generated from field: string publish_record_id = 1;
+   */
+  publishRecordId: string;
+
+  /**
+   * @generated from field: bool open_only = 2;
+   */
+  openOnly: boolean;
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.ledger.ListRemediationsRequest.
+ * Use `create(ListRemediationsRequestSchema)` to create a new message.
+ */
+export const ListRemediationsRequestSchema: GenMessage<ListRemediationsRequest> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_ledger_ledger, 11);
+
+/**
+ * @generated from message vrooli.content_desk.v1.ledger.ListRemediationsResponse
+ */
+export type ListRemediationsResponse = Message<"vrooli.content_desk.v1.ledger.ListRemediationsResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.content_desk.v1.ledger.Remediation remediations = 1;
+   */
+  remediations: Remediation[];
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.ledger.ListRemediationsResponse.
+ * Use `create(ListRemediationsResponseSchema)` to create a new message.
+ */
+export const ListRemediationsResponseSchema: GenMessage<ListRemediationsResponse> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_ledger_ledger, 12);
+
+/**
+ * @generated from message vrooli.content_desk.v1.ledger.CreateRemediationRequest
+ */
+export type CreateRemediationRequest = Message<"vrooli.content_desk.v1.ledger.CreateRemediationRequest"> & {
+  /**
+   * @generated from field: string publish_record_id = 1;
+   */
+  publishRecordId: string;
+
+  /**
+   * @generated from field: string kind = 2;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string note = 3;
+   */
+  note: string;
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.ledger.CreateRemediationRequest.
+ * Use `create(CreateRemediationRequestSchema)` to create a new message.
+ */
+export const CreateRemediationRequestSchema: GenMessage<CreateRemediationRequest> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_ledger_ledger, 13);
+
+/**
+ * @generated from message vrooli.content_desk.v1.ledger.CreateRemediationResponse
+ */
+export type CreateRemediationResponse = Message<"vrooli.content_desk.v1.ledger.CreateRemediationResponse"> & {
+  /**
+   * @generated from field: vrooli.content_desk.v1.ledger.Remediation remediation = 1;
+   */
+  remediation?: Remediation | undefined;
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.ledger.CreateRemediationResponse.
+ * Use `create(CreateRemediationResponseSchema)` to create a new message.
+ */
+export const CreateRemediationResponseSchema: GenMessage<CreateRemediationResponse> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_ledger_ledger, 14);
+
+/**
+ * @generated from message vrooli.content_desk.v1.ledger.ResolveRemediationRequest
+ */
+export type ResolveRemediationRequest = Message<"vrooli.content_desk.v1.ledger.ResolveRemediationRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.ledger.ResolveRemediationRequest.
+ * Use `create(ResolveRemediationRequestSchema)` to create a new message.
+ */
+export const ResolveRemediationRequestSchema: GenMessage<ResolveRemediationRequest> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_ledger_ledger, 15);
+
+/**
+ * @generated from message vrooli.content_desk.v1.ledger.ResolveRemediationResponse
+ */
+export type ResolveRemediationResponse = Message<"vrooli.content_desk.v1.ledger.ResolveRemediationResponse"> & {
+  /**
+   * @generated from field: vrooli.content_desk.v1.ledger.Remediation remediation = 1;
+   */
+  remediation?: Remediation | undefined;
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.ledger.ResolveRemediationResponse.
+ * Use `create(ResolveRemediationResponseSchema)` to create a new message.
+ */
+export const ResolveRemediationResponseSchema: GenMessage<ResolveRemediationResponse> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_ledger_ledger, 16);
+
+/**
  * LedgerService owns append-oriented publish history and its read surface.
  *
  * @generated from service vrooli.content_desk.v1.ledger.LedgerService
@@ -218,6 +446,38 @@ export const LedgerService: GenService<{
     methodKind: "unary";
     input: typeof ListCoverageRequestSchema;
     output: typeof ListCoverageResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.content_desk.v1.ledger.LedgerService.IngestMetricSample
+   */
+  ingestMetricSample: {
+    methodKind: "unary";
+    input: typeof IngestMetricSampleRequestSchema;
+    output: typeof IngestMetricSampleResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.content_desk.v1.ledger.LedgerService.ListRemediations
+   */
+  listRemediations: {
+    methodKind: "unary";
+    input: typeof ListRemediationsRequestSchema;
+    output: typeof ListRemediationsResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.content_desk.v1.ledger.LedgerService.CreateRemediation
+   */
+  createRemediation: {
+    methodKind: "unary";
+    input: typeof CreateRemediationRequestSchema;
+    output: typeof CreateRemediationResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.content_desk.v1.ledger.LedgerService.ResolveRemediation
+   */
+  resolveRemediation: {
+    methodKind: "unary";
+    input: typeof ResolveRemediationRequestSchema;
+    output: typeof ResolveRemediationResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_content_desk_v1_ledger_ledger, 0);

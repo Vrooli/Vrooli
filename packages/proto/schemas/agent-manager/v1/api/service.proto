@@ -23,7 +23,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manage
 // @layer 3
 // @domain agent-manager
 // @imports common, domain/*
-// @stability stable
+// @stability beta
 //
 // gRPC service definition for Agent Manager operations.
 // Defines CRUD operations for profiles, tasks, and runs, plus execution control.
@@ -301,6 +301,13 @@ service AgentManagerService {
   // GetRun retrieves a run by ID.
   rpc GetRun(GetRunRequest) returns (GetRunResponse) {
     option (google.api.http) = {get: "/api/v1/runs/{run_id}"};
+  }
+
+  // GetRunReport returns the bounded diagnostic projection used by CLI, UI,
+  // and investigation workflows. Bulk payloads remain on their dedicated
+  // progressive-disclosure endpoints.
+  rpc GetRunReport(GetRunReportRequest) returns (RunReport) {
+    option (google.api.http) = {get: "/api/v1/runs/{run_id}/report"};
   }
 
   // GetRunByTag retrieves a run by its custom tag.
@@ -1167,6 +1174,68 @@ message GetRunRequest {
 message GetRunResponse {
   // The run.
   Run run = 1;
+}
+
+// GetRunReportRequest identifies the run whose bounded diagnostic projection
+// is requested.
+message GetRunReportRequest {
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// RunReport is the shared, cheap-to-read diagnosis surface for one run.
+message RunReport {
+  string run_id = 1;
+  string status = 2;
+  optional int32 exit_code = 3;
+  string error = 4;
+  int64 duration_ms = 5;
+  int64 heartbeat_gap_ms = 6;
+  int32 turns = 7;
+  int32 tokens = 8;
+  double cost_usd = 9;
+  RunReportResult result = 10;
+  map<string, int32> event_counts = 11;
+  repeated RunReportTool tools = 12;
+  int32 project_owned_tool_calls = 13;
+  int32 external_tool_calls = 14;
+  string requested_model = 15;
+  string actual_model = 16;
+  int32 fallback_count = 17;
+  RunReportDiff diff = 18;
+  RunReportAvailability events_availability = 19;
+  RunReportAvailability receipts_availability = 20;
+  int32 receipt_count = 21;
+  int32 repeated_tool_calls = 22;
+  int64 longest_event_gap_ms = 23;
+  int32 files_read_more_than_once = 24;
+}
+
+message RunReportResult {
+  string selection_status = 1;
+  string selection_rule = 2;
+  int32 candidate_count = 3;
+  string structured_status = 4;
+  string structured_method = 5;
+  repeated string diagnostic_codes = 6;
+}
+
+message RunReportTool {
+  string name = 1;
+  int32 calls = 2;
+  int32 successes = 3;
+  int32 failures = 4;
+  int32 unresolved = 5;
+}
+
+message RunReportDiff {
+  int32 files = 1;
+  int64 bytes = 2;
+  RunReportAvailability available = 3;
+}
+
+message RunReportAvailability {
+  string state = 1;
+  string detail = 2;
 }
 
 // GetRunByTagRequest identifies a run by tag.

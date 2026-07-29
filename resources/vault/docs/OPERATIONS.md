@@ -74,13 +74,18 @@ resource-vault content delete --path secret/test/persistence
 
 Run the managed-service integration test on each claimed operating-system and
 architecture pair with that target's verified, signed Vault artifact. The test
-starts the real server, restarts it, initializes and unseals the isolated test
-instance, then proves that an app-scoped token cannot write another app's path
-and can read its persisted path after another managed restart and unseal.
+starts the real server through the native private bootstrap adapter, requires
+post-bootstrap health (never `501`), restarts it, then proves that an
+app-scoped token cannot write another app's path and can read its persisted
+path after native recovery. It also exercises the verified
+`managed-discovered` executable path with the same artifact.
 
 ```bash
 VROOLI_VAULT_INTEGRATION_BINARY=/absolute/path/to/vault_target \
   go test ./internal/resources -run '^TestManagedVaultArtifactIntegration$' -count=1 -v
+
+VROOLI_VAULT_INTEGRATION_BINARY=/absolute/path/to/vault_target \
+  go test ./scenarios/scenario-to-desktop/runtime/resources -run '^TestDesktopVaultArtifactIntegration$' -count=1 -v
 ```
 
 On Windows PowerShell:

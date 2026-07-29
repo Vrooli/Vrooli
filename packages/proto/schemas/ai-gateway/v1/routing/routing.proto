@@ -116,6 +116,70 @@ message ExecuteRouteResponse {
   repeated string policy_reasons = 5;
 }
 
+// MediaExecutionStatus is the durable lifecycle of a provider-neutral media
+// submission. A receipt is terminal only in SUCCEEDED, FAILED, or CANCELLED.
+enum MediaExecutionStatus {
+  MEDIA_EXECUTION_STATUS_UNSPECIFIED = 0;
+  MEDIA_EXECUTION_STATUS_QUEUED = 1;
+  MEDIA_EXECUTION_STATUS_RUNNING = 2;
+  MEDIA_EXECUTION_STATUS_SUCCEEDED = 3;
+  MEDIA_EXECUTION_STATUS_FAILED = 4;
+  MEDIA_EXECUTION_STATUS_CANCELLED = 5;
+}
+
+// MediaInput is an opaque caller-controlled reference to an input artifact.
+// References are not provider URLs and never transfer bytes through Gateway.
+message MediaInput {
+  string reference = 1;
+  string media_type = 2;
+}
+
+// MediaOutput is a durable reference to one produced artifact. Its location is
+// owned by the media executor; callers must not infer provider details from it.
+message MediaOutput {
+  string reference = 1;
+  string media_type = 2;
+  int64 bytes = 3;
+  string checksum = 4;
+}
+
+// SubmitMediaRequest starts a provider-neutral asynchronous image or video
+// operation. request.kind must be IMAGE_GENERATION or VIDEO_GENERATION.
+message SubmitMediaRequest {
+  vrooli.ai_gateway.v1.shared.GatewayRequest request = 1;
+  string prompt = 2;
+  repeated MediaInput inputs = 3;
+  int32 output_count = 4;
+  string idempotency_key = 5;
+}
+
+// MediaExecution is the durable receipt and terminal result. It records route
+// evidence, resolved model and cost only when the executor reports them.
+message MediaExecution {
+  string execution_id = 1;
+  string idempotency_key = 2;
+  MediaExecutionStatus status = 3;
+  string created_at = 4;
+  string started_at = 5;
+  string completed_at = 6;
+  RouteEvidence route_evidence = 7;
+  repeated MediaOutput outputs = 8;
+  double actual_cost_usd = 9;
+  string resolved_model = 10;
+  string seed = 11;
+  repeated string warnings = 12;
+  string error_code = 13;
+  string error_message = 14;
+}
+
+message SubmitMediaResponse { MediaExecution execution = 1; }
+message GetMediaExecutionRequest { string execution_id = 1; }
+message GetMediaExecutionResponse { MediaExecution execution = 1; }
+message CancelMediaExecutionRequest { string execution_id = 1; }
+message CancelMediaExecutionResponse { MediaExecution execution = 1; }
+message RetryMediaExecutionRequest { string execution_id = 1; string idempotency_key = 2; }
+message RetryMediaExecutionResponse { MediaExecution execution = 1; }
+
 message ListRouteEvidenceRequest {
   int32 limit = 1;
   string scenario = 2;
@@ -162,6 +226,10 @@ message ListProviderHealthResponse {
 service RoutingService {
   rpc PreviewRoute(PreviewRouteRequest) returns (PreviewRouteResponse);
   rpc ExecuteRoute(ExecuteRouteRequest) returns (ExecuteRouteResponse);
+  rpc SubmitMedia(SubmitMediaRequest) returns (SubmitMediaResponse);
+  rpc GetMediaExecution(GetMediaExecutionRequest) returns (GetMediaExecutionResponse);
+  rpc CancelMediaExecution(CancelMediaExecutionRequest) returns (CancelMediaExecutionResponse);
+  rpc RetryMediaExecution(RetryMediaExecutionRequest) returns (RetryMediaExecutionResponse);
   rpc ListRouteEvidence(ListRouteEvidenceRequest) returns (ListRouteEvidenceResponse);
   rpc GetRouteEvidence(GetRouteEvidenceRequest) returns (GetRouteEvidenceResponse);
   // ListProviderHealth returns persisted provider circuit-breaker state so

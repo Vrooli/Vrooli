@@ -47,6 +47,16 @@ type subscriptionCacheEntry struct {
 	expiresAt time.Time
 }
 
+type subscriptionRecord struct {
+	id         string
+	status     string
+	planTier   string
+	priceID    string
+	bundleKey  string
+	canceledAt sql.NullTime
+	updatedAt  time.Time
+}
+
 func NewAccountService(db AccountStore, planService *PlanService) *AccountService {
 	return &AccountService{
 		db:          db,
@@ -91,93 +101,105 @@ func (s *AccountService) GetSubscriptionContext(ctx context.Context, userIdentit
 		return cached, nil
 	}
 
-	query := `
-		SELECT subscription_id, status, customer_email, plan_tier, price_id, bundle_key, billing_cycle_start, canceled_at, updated_at
+	record, err := s.loadSubscriptionRecord(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+	if record == nil {
+		return &shared.SubscriptionStatus{State: shared.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE, UserIdentity: user}, nil
+	}
+	s.reconcileSubscriptionPlan(ctx, record)
+	result := subscriptionStatusFromRecord(user, record)
+	s.cacheSubscription(user, result)
+	return result, nil
+}
+
+func (s *AccountService) loadSubscriptionRecord(ctx context.Context, user string) (*subscriptionRecord, error) {
+	row := s.db.QueryRowContext(ctx, `
+		SELECT subscription_id, status, plan_tier, price_id, bundle_key, canceled_at, updated_at
 		FROM subscriptions
 		WHERE (customer_email = $1 OR customer_id = $1)
 		ORDER BY updated_at DESC
 		LIMIT 1
-	`
+	`, user)
 
-	row := s.db.QueryRowContext(ctx, query, user)
-	var subID, status, customerEmail string
+	record := &subscriptionRecord{}
 	var planTier, priceID, bundleKey sql.NullString
-	var billingCycleStart int
-	var canceledAt sql.NullTime
-	var updatedAt time.Time
 	if err := row.Scan(
-		&subID,
-		&status,
-		&customerEmail,
+		&record.id,
+		&record.status,
 		&planTier,
 		&priceID,
 		&bundleKey,
-		&billingCycleStart,
-		&canceledAt,
-		&updatedAt,
+		&record.canceledAt,
+		&record.updatedAt,
 	); err != nil {
 		if err == sql.ErrNoRows {
-			return &shared.SubscriptionStatus{State: shared.SubscriptionState_SUBSCRIPTION_STATE_INACTIVE, UserIdentity: user}, nil
+			return nil, nil
 		}
 		return nil, err
 	}
+	record.planTier = planTier.String
+	record.priceID = priceID.String
+	record.bundleKey = bundleKey.String
+	return record, nil
+}
 
-	planTierStr := planTier.String
-	priceIDStr := priceID.String
-	bundleKeyStr := bundleKey.String
-
-	if planTierStr == "" && priceIDStr != "" {
-		if plan, err := s.planService.GetPlanByPriceID(priceIDStr); err == nil {
-			planTierStr = plan.PlanTier
-			if bundleKeyStr == "" {
-				bundleKeyStr = plan.BundleKey
+func (s *AccountService) reconcileSubscriptionPlan(ctx context.Context, record *subscriptionRecord) {
+	storedPlanTier, storedBundleKey := record.planTier, record.bundleKey
+	if record.planTier == "" && record.priceID != "" {
+		if plan, err := s.planService.GetPlanByPriceID(record.priceID); err == nil {
+			record.planTier = plan.PlanTier
+			if record.bundleKey == "" {
+				record.bundleKey = plan.BundleKey
 			}
 		}
 	}
-	if planTierStr != "" {
-		if _, err := normalizePlanTier(planTierStr); err != nil {
-			logStructured("subscription_plan_tier_invalid", map[string]interface{}{
-				"level":     "warn",
-				"plan_tier": planTierStr,
-				"price_id":  priceIDStr,
-			})
-			planTierStr = ""
-		} else if planTier.String == "" || bundleKey.String == "" {
-			_, _ = s.db.ExecContext(ctx, `
-				UPDATE subscriptions
-				SET plan_tier = COALESCE(NULLIF($1,''), plan_tier),
-					bundle_key = COALESCE(NULLIF($2,''), bundle_key),
-					updated_at = NOW()
-				WHERE subscription_id = $3
-			`, planTierStr, bundleKeyStr, subID)
-		}
+	if record.planTier == "" {
+		return
 	}
+	if _, err := normalizePlanTier(record.planTier); err != nil {
+		logStructured("subscription_plan_tier_invalid", map[string]interface{}{
+			"level":     "warn",
+			"plan_tier": record.planTier,
+			"price_id":  record.priceID,
+		})
+		record.planTier = ""
+		return
+	}
+	if storedPlanTier != "" && storedBundleKey != "" {
+		return
+	}
+	_, _ = s.db.ExecContext(ctx, `
+		UPDATE subscriptions
+		SET plan_tier = COALESCE(NULLIF($1,''), plan_tier),
+			bundle_key = COALESCE(NULLIF($2,''), bundle_key),
+			updated_at = NOW()
+		WHERE subscription_id = $3
+	`, record.planTier, record.bundleKey, record.id)
+}
 
-	state := mapSubscriptionState(status)
-	cacheAge := time.Since(updatedAt)
+func subscriptionStatusFromRecord(user string, record *subscriptionRecord) *shared.SubscriptionStatus {
 	result := &shared.SubscriptionStatus{
-		State:          state,
-		SubscriptionId: proto.String(subID),
+		State:          mapSubscriptionState(record.status),
+		SubscriptionId: proto.String(record.id),
 		UserIdentity:   user,
-		CachedAt:       timestamppb.New(updatedAt),
-		CacheAgeMs:     cacheAge.Milliseconds(),
+		CachedAt:       timestamppb.New(record.updatedAt),
+		CacheAgeMs:     time.Since(record.updatedAt).Milliseconds(),
 	}
-	if planTierStr != "" {
-		result.PlanTier = proto.String(planTierStr)
+	if record.planTier != "" {
+		result.PlanTier = proto.String(record.planTier)
 	}
-	if priceIDStr != "" {
-		result.StripePriceId = proto.String(priceIDStr)
+	if record.priceID != "" {
+		result.StripePriceId = proto.String(record.priceID)
 	}
-	if bundleKeyStr != "" {
-		result.BundleKey = proto.String(bundleKeyStr)
+	if record.bundleKey != "" {
+		result.BundleKey = proto.String(record.bundleKey)
 	}
-	if canceledAt.Valid {
-		result.CanceledAt = timestamppb.New(canceledAt.Time)
+	if record.canceledAt.Valid {
+		result.CanceledAt = timestamppb.New(record.canceledAt.Time)
 	}
-
-	s.cacheSubscription(user, result)
-
-	return result, nil
+	return result
 }
 
 func (s *AccountService) GetCredits(userIdentity string) (*CreditsEnvelope, error) {

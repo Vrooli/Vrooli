@@ -76,23 +76,47 @@ class UpdateDraftBodyResponse(_message.Message):
     draft: Draft
     def __init__(self, draft: _Optional[_Union[Draft, _Mapping]] = ...) -> None: ...
 
-class PublishDraftRequest(_message.Message):
-    __slots__ = ("id", "audience", "published_url", "platform_post_id", "series_id", "prior_publish_id")
+class SubmitReleaseDraftRequest(_message.Message):
+    __slots__ = ("id", "identity_id", "lane", "idempotency_key")
     ID_FIELD_NUMBER: _ClassVar[int]
-    AUDIENCE_FIELD_NUMBER: _ClassVar[int]
-    PUBLISHED_URL_FIELD_NUMBER: _ClassVar[int]
-    PLATFORM_POST_ID_FIELD_NUMBER: _ClassVar[int]
-    SERIES_ID_FIELD_NUMBER: _ClassVar[int]
-    PRIOR_PUBLISH_ID_FIELD_NUMBER: _ClassVar[int]
+    IDENTITY_ID_FIELD_NUMBER: _ClassVar[int]
+    LANE_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
     id: str
-    audience: str
-    published_url: str
-    platform_post_id: str
-    series_id: str
-    prior_publish_id: str
-    def __init__(self, id: _Optional[str] = ..., audience: _Optional[str] = ..., published_url: _Optional[str] = ..., platform_post_id: _Optional[str] = ..., series_id: _Optional[str] = ..., prior_publish_id: _Optional[str] = ...) -> None: ...
+    identity_id: str
+    lane: str
+    idempotency_key: str
+    def __init__(self, id: _Optional[str] = ..., identity_id: _Optional[str] = ..., lane: _Optional[str] = ..., idempotency_key: _Optional[str] = ...) -> None: ...
 
-class PublishDraftResponse(_message.Message):
+class SubmitReleaseDraftResponse(_message.Message):
+    __slots__ = ("draft", "release_id", "action_id", "release_status")
+    DRAFT_FIELD_NUMBER: _ClassVar[int]
+    RELEASE_ID_FIELD_NUMBER: _ClassVar[int]
+    ACTION_ID_FIELD_NUMBER: _ClassVar[int]
+    RELEASE_STATUS_FIELD_NUMBER: _ClassVar[int]
+    draft: Draft
+    release_id: str
+    action_id: str
+    release_status: str
+    def __init__(self, draft: _Optional[_Union[Draft, _Mapping]] = ..., release_id: _Optional[str] = ..., action_id: _Optional[str] = ..., release_status: _Optional[str] = ...) -> None: ...
+
+class RecordReleaseOutcomeRequest(_message.Message):
+    __slots__ = ("receipt_id", "draft_id", "status", "platform_post_id", "published_url", "published_at")
+    RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
+    DRAFT_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    PLATFORM_POST_ID_FIELD_NUMBER: _ClassVar[int]
+    PUBLISHED_URL_FIELD_NUMBER: _ClassVar[int]
+    PUBLISHED_AT_FIELD_NUMBER: _ClassVar[int]
+    receipt_id: str
+    draft_id: str
+    status: str
+    platform_post_id: str
+    published_url: str
+    published_at: str
+    def __init__(self, receipt_id: _Optional[str] = ..., draft_id: _Optional[str] = ..., status: _Optional[str] = ..., platform_post_id: _Optional[str] = ..., published_url: _Optional[str] = ..., published_at: _Optional[str] = ...) -> None: ...
+
+class RecordReleaseOutcomeResponse(_message.Message):
     __slots__ = ("draft", "publish_record_id")
     DRAFT_FIELD_NUMBER: _ClassVar[int]
     PUBLISH_RECORD_ID_FIELD_NUMBER: _ClassVar[int]
@@ -115,10 +139,14 @@ class TransitionDraftResponse(_message.Message):
     def __init__(self, draft: _Optional[_Union[Draft, _Mapping]] = ...) -> None: ...
 
 class ApproveDraftRequest(_message.Message):
-    __slots__ = ("id",)
+    __slots__ = ("id", "identity_id", "lane")
     ID_FIELD_NUMBER: _ClassVar[int]
+    IDENTITY_ID_FIELD_NUMBER: _ClassVar[int]
+    LANE_FIELD_NUMBER: _ClassVar[int]
     id: str
-    def __init__(self, id: _Optional[str] = ...) -> None: ...
+    identity_id: str
+    lane: str
+    def __init__(self, id: _Optional[str] = ..., identity_id: _Optional[str] = ..., lane: _Optional[str] = ...) -> None: ...
 
 class ApproveDraftResponse(_message.Message):
     __slots__ = ("draft",)

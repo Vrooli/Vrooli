@@ -154,6 +154,7 @@
       "required": true,
       "reason": "Linux managed-shared Vault stores recovery material only in the active user Secret Service",
       "when": [
+        "setup",
         "develop"
       ],
       "platforms": [
@@ -178,9 +179,7 @@
         200,
         429,
         472,
-        473,
-        501,
-        503
+        473
       ],
       "interval_seconds": 10,
       "timeout_seconds": 10

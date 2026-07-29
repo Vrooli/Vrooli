@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	measures "github.com/vrooli/measures-go"
 )
@@ -249,5 +250,27 @@ func TestDescriptorSchemaReader_RealImage(t *testing.T) {
 	}
 	if !foundScenario {
 		t.Fatalf("expected a string param 'scenario', got %+v", params)
+	}
+}
+
+func TestDescriptorSchemaReader_ReloadsWhenImageChanges(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "image.binpb")
+	if err := os.WriteFile(path, []byte("not a descriptor"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r := &DescriptorSchemaReader{path: path}
+	if _, err := r.load(); err == nil {
+		t.Fatal("expected invalid descriptor error")
+	}
+	time.Sleep(time.Millisecond)
+	changed := []byte("still not a descriptor, but changed")
+	if err := os.WriteFile(path, changed, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.load(); err == nil {
+		t.Fatal("expected invalid descriptor error")
+	}
+	if r.stamp.size != int64(len(changed)) {
+		t.Fatalf("reader did not reload changed descriptor: %+v", r.stamp)
 	}
 }

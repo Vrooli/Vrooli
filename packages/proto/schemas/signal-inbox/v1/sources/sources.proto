@@ -21,10 +21,28 @@ message AdapterState {
   string last_error = 6;
   string disabled_reason = 7;
 }
-message ImportResult { string run_id = 1; string adapter_id = 2; uint32 created = 3; uint32 duplicated = 4; uint32 failed = 5; }
+message ImportResult {
+  string run_id = 1;
+  string adapter_id = 2;
+  uint32 created = 3;
+  uint32 duplicated = 4;
+  uint32 failed = 5;
+}
 message ListAdaptersRequest {}
-message ListAdaptersResponse { repeated AdapterState adapters = 1; }
-message SetAdapterEnabledRequest { string adapter_id = 1; bool enabled = 2; }
-message SetAdapterEnabledResponse { AdapterState adapter = 1; }
-message ImportArchiveRequest { string adapter_id = 1; bytes content = 2; }
-message ImportArchiveResponse { ImportResult result = 1; }
+message ListAdaptersResponse {
+  repeated AdapterState adapters = 1;
+}
+message SetAdapterEnabledRequest {
+  string adapter_id = 1;
+  bool enabled = 2;
+}
+message SetAdapterEnabledResponse {
+  AdapterState adapter = 1;
+}
+message ImportArchiveRequest {
+  string adapter_id = 1;
+  bytes content = 2;
+}
+message ImportArchiveResponse {
+  ImportResult result = 1;
+}

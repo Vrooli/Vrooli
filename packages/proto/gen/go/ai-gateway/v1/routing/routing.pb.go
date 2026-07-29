@@ -22,6 +22,66 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// MediaExecutionStatus is the durable lifecycle of a provider-neutral media
+// submission. A receipt is terminal only in SUCCEEDED, FAILED, or CANCELLED.
+type MediaExecutionStatus int32
+
+const (
+	MediaExecutionStatus_MEDIA_EXECUTION_STATUS_UNSPECIFIED MediaExecutionStatus = 0
+	MediaExecutionStatus_MEDIA_EXECUTION_STATUS_QUEUED      MediaExecutionStatus = 1
+	MediaExecutionStatus_MEDIA_EXECUTION_STATUS_RUNNING     MediaExecutionStatus = 2
+	MediaExecutionStatus_MEDIA_EXECUTION_STATUS_SUCCEEDED   MediaExecutionStatus = 3
+	MediaExecutionStatus_MEDIA_EXECUTION_STATUS_FAILED      MediaExecutionStatus = 4
+	MediaExecutionStatus_MEDIA_EXECUTION_STATUS_CANCELLED   MediaExecutionStatus = 5
+)
+
+// Enum value maps for MediaExecutionStatus.
+var (
+	MediaExecutionStatus_name = map[int32]string{
+		0: "MEDIA_EXECUTION_STATUS_UNSPECIFIED",
+		1: "MEDIA_EXECUTION_STATUS_QUEUED",
+		2: "MEDIA_EXECUTION_STATUS_RUNNING",
+		3: "MEDIA_EXECUTION_STATUS_SUCCEEDED",
+		4: "MEDIA_EXECUTION_STATUS_FAILED",
+		5: "MEDIA_EXECUTION_STATUS_CANCELLED",
+	}
+	MediaExecutionStatus_value = map[string]int32{
+		"MEDIA_EXECUTION_STATUS_UNSPECIFIED": 0,
+		"MEDIA_EXECUTION_STATUS_QUEUED":      1,
+		"MEDIA_EXECUTION_STATUS_RUNNING":     2,
+		"MEDIA_EXECUTION_STATUS_SUCCEEDED":   3,
+		"MEDIA_EXECUTION_STATUS_FAILED":      4,
+		"MEDIA_EXECUTION_STATUS_CANCELLED":   5,
+	}
+)
+
+func (x MediaExecutionStatus) Enum() *MediaExecutionStatus {
+	p := new(MediaExecutionStatus)
+	*p = x
+	return p
+}
+
+func (x MediaExecutionStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (MediaExecutionStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_ai_gateway_v1_routing_routing_proto_enumTypes[0].Descriptor()
+}
+
+func (MediaExecutionStatus) Type() protoreflect.EnumType {
+	return &file_ai_gateway_v1_routing_routing_proto_enumTypes[0]
+}
+
+func (x MediaExecutionStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use MediaExecutionStatus.Descriptor instead.
+func (MediaExecutionStatus) EnumDescriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{0}
+}
+
 type RouteCandidate struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Provider         string                 `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
@@ -703,6 +763,674 @@ func (x *ExecuteRouteResponse) GetPolicyReasons() []string {
 	return nil
 }
 
+// MediaInput is an opaque caller-controlled reference to an input artifact.
+// References are not provider URLs and never transfer bytes through Gateway.
+type MediaInput struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Reference     string                 `protobuf:"bytes,1,opt,name=reference,proto3" json:"reference,omitempty"`
+	MediaType     string                 `protobuf:"bytes,2,opt,name=media_type,json=mediaType,proto3" json:"media_type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MediaInput) Reset() {
+	*x = MediaInput{}
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MediaInput) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MediaInput) ProtoMessage() {}
+
+func (x *MediaInput) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MediaInput.ProtoReflect.Descriptor instead.
+func (*MediaInput) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *MediaInput) GetReference() string {
+	if x != nil {
+		return x.Reference
+	}
+	return ""
+}
+
+func (x *MediaInput) GetMediaType() string {
+	if x != nil {
+		return x.MediaType
+	}
+	return ""
+}
+
+// MediaOutput is a durable reference to one produced artifact. Its location is
+// owned by the media executor; callers must not infer provider details from it.
+type MediaOutput struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Reference     string                 `protobuf:"bytes,1,opt,name=reference,proto3" json:"reference,omitempty"`
+	MediaType     string                 `protobuf:"bytes,2,opt,name=media_type,json=mediaType,proto3" json:"media_type,omitempty"`
+	Bytes         int64                  `protobuf:"varint,3,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	Checksum      string                 `protobuf:"bytes,4,opt,name=checksum,proto3" json:"checksum,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MediaOutput) Reset() {
+	*x = MediaOutput{}
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MediaOutput) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MediaOutput) ProtoMessage() {}
+
+func (x *MediaOutput) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MediaOutput.ProtoReflect.Descriptor instead.
+func (*MediaOutput) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *MediaOutput) GetReference() string {
+	if x != nil {
+		return x.Reference
+	}
+	return ""
+}
+
+func (x *MediaOutput) GetMediaType() string {
+	if x != nil {
+		return x.MediaType
+	}
+	return ""
+}
+
+func (x *MediaOutput) GetBytes() int64 {
+	if x != nil {
+		return x.Bytes
+	}
+	return 0
+}
+
+func (x *MediaOutput) GetChecksum() string {
+	if x != nil {
+		return x.Checksum
+	}
+	return ""
+}
+
+// SubmitMediaRequest starts a provider-neutral asynchronous image or video
+// operation. request.kind must be IMAGE_GENERATION or VIDEO_GENERATION.
+type SubmitMediaRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Request        *shared.GatewayRequest `protobuf:"bytes,1,opt,name=request,proto3" json:"request,omitempty"`
+	Prompt         string                 `protobuf:"bytes,2,opt,name=prompt,proto3" json:"prompt,omitempty"`
+	Inputs         []*MediaInput          `protobuf:"bytes,3,rep,name=inputs,proto3" json:"inputs,omitempty"`
+	OutputCount    int32                  `protobuf:"varint,4,opt,name=output_count,json=outputCount,proto3" json:"output_count,omitempty"`
+	IdempotencyKey string                 `protobuf:"bytes,5,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *SubmitMediaRequest) Reset() {
+	*x = SubmitMediaRequest{}
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubmitMediaRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubmitMediaRequest) ProtoMessage() {}
+
+func (x *SubmitMediaRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubmitMediaRequest.ProtoReflect.Descriptor instead.
+func (*SubmitMediaRequest) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *SubmitMediaRequest) GetRequest() *shared.GatewayRequest {
+	if x != nil {
+		return x.Request
+	}
+	return nil
+}
+
+func (x *SubmitMediaRequest) GetPrompt() string {
+	if x != nil {
+		return x.Prompt
+	}
+	return ""
+}
+
+func (x *SubmitMediaRequest) GetInputs() []*MediaInput {
+	if x != nil {
+		return x.Inputs
+	}
+	return nil
+}
+
+func (x *SubmitMediaRequest) GetOutputCount() int32 {
+	if x != nil {
+		return x.OutputCount
+	}
+	return 0
+}
+
+func (x *SubmitMediaRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+// MediaExecution is the durable receipt and terminal result. It records route
+// evidence, resolved model and cost only when the executor reports them.
+type MediaExecution struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ExecutionId    string                 `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	IdempotencyKey string                 `protobuf:"bytes,2,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	Status         MediaExecutionStatus   `protobuf:"varint,3,opt,name=status,proto3,enum=vrooli.ai_gateway.v1.routing.MediaExecutionStatus" json:"status,omitempty"`
+	CreatedAt      string                 `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	StartedAt      string                 `protobuf:"bytes,5,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	CompletedAt    string                 `protobuf:"bytes,6,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
+	RouteEvidence  *RouteEvidence         `protobuf:"bytes,7,opt,name=route_evidence,json=routeEvidence,proto3" json:"route_evidence,omitempty"`
+	Outputs        []*MediaOutput         `protobuf:"bytes,8,rep,name=outputs,proto3" json:"outputs,omitempty"`
+	ActualCostUsd  float64                `protobuf:"fixed64,9,opt,name=actual_cost_usd,json=actualCostUsd,proto3" json:"actual_cost_usd,omitempty"`
+	ResolvedModel  string                 `protobuf:"bytes,10,opt,name=resolved_model,json=resolvedModel,proto3" json:"resolved_model,omitempty"`
+	Seed           string                 `protobuf:"bytes,11,opt,name=seed,proto3" json:"seed,omitempty"`
+	Warnings       []string               `protobuf:"bytes,12,rep,name=warnings,proto3" json:"warnings,omitempty"`
+	ErrorCode      string                 `protobuf:"bytes,13,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
+	ErrorMessage   string                 `protobuf:"bytes,14,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *MediaExecution) Reset() {
+	*x = MediaExecution{}
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MediaExecution) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MediaExecution) ProtoMessage() {}
+
+func (x *MediaExecution) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MediaExecution.ProtoReflect.Descriptor instead.
+func (*MediaExecution) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *MediaExecution) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *MediaExecution) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+func (x *MediaExecution) GetStatus() MediaExecutionStatus {
+	if x != nil {
+		return x.Status
+	}
+	return MediaExecutionStatus_MEDIA_EXECUTION_STATUS_UNSPECIFIED
+}
+
+func (x *MediaExecution) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *MediaExecution) GetStartedAt() string {
+	if x != nil {
+		return x.StartedAt
+	}
+	return ""
+}
+
+func (x *MediaExecution) GetCompletedAt() string {
+	if x != nil {
+		return x.CompletedAt
+	}
+	return ""
+}
+
+func (x *MediaExecution) GetRouteEvidence() *RouteEvidence {
+	if x != nil {
+		return x.RouteEvidence
+	}
+	return nil
+}
+
+func (x *MediaExecution) GetOutputs() []*MediaOutput {
+	if x != nil {
+		return x.Outputs
+	}
+	return nil
+}
+
+func (x *MediaExecution) GetActualCostUsd() float64 {
+	if x != nil {
+		return x.ActualCostUsd
+	}
+	return 0
+}
+
+func (x *MediaExecution) GetResolvedModel() string {
+	if x != nil {
+		return x.ResolvedModel
+	}
+	return ""
+}
+
+func (x *MediaExecution) GetSeed() string {
+	if x != nil {
+		return x.Seed
+	}
+	return ""
+}
+
+func (x *MediaExecution) GetWarnings() []string {
+	if x != nil {
+		return x.Warnings
+	}
+	return nil
+}
+
+func (x *MediaExecution) GetErrorCode() string {
+	if x != nil {
+		return x.ErrorCode
+	}
+	return ""
+}
+
+func (x *MediaExecution) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
+}
+
+type SubmitMediaResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Execution     *MediaExecution        `protobuf:"bytes,1,opt,name=execution,proto3" json:"execution,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubmitMediaResponse) Reset() {
+	*x = SubmitMediaResponse{}
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubmitMediaResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubmitMediaResponse) ProtoMessage() {}
+
+func (x *SubmitMediaResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubmitMediaResponse.ProtoReflect.Descriptor instead.
+func (*SubmitMediaResponse) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *SubmitMediaResponse) GetExecution() *MediaExecution {
+	if x != nil {
+		return x.Execution
+	}
+	return nil
+}
+
+type GetMediaExecutionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ExecutionId   string                 `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetMediaExecutionRequest) Reset() {
+	*x = GetMediaExecutionRequest{}
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetMediaExecutionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetMediaExecutionRequest) ProtoMessage() {}
+
+func (x *GetMediaExecutionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetMediaExecutionRequest.ProtoReflect.Descriptor instead.
+func (*GetMediaExecutionRequest) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *GetMediaExecutionRequest) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+type GetMediaExecutionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Execution     *MediaExecution        `protobuf:"bytes,1,opt,name=execution,proto3" json:"execution,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetMediaExecutionResponse) Reset() {
+	*x = GetMediaExecutionResponse{}
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetMediaExecutionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetMediaExecutionResponse) ProtoMessage() {}
+
+func (x *GetMediaExecutionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetMediaExecutionResponse.ProtoReflect.Descriptor instead.
+func (*GetMediaExecutionResponse) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *GetMediaExecutionResponse) GetExecution() *MediaExecution {
+	if x != nil {
+		return x.Execution
+	}
+	return nil
+}
+
+type CancelMediaExecutionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ExecutionId   string                 `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelMediaExecutionRequest) Reset() {
+	*x = CancelMediaExecutionRequest{}
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelMediaExecutionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelMediaExecutionRequest) ProtoMessage() {}
+
+func (x *CancelMediaExecutionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelMediaExecutionRequest.ProtoReflect.Descriptor instead.
+func (*CancelMediaExecutionRequest) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *CancelMediaExecutionRequest) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+type CancelMediaExecutionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Execution     *MediaExecution        `protobuf:"bytes,1,opt,name=execution,proto3" json:"execution,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelMediaExecutionResponse) Reset() {
+	*x = CancelMediaExecutionResponse{}
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelMediaExecutionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelMediaExecutionResponse) ProtoMessage() {}
+
+func (x *CancelMediaExecutionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelMediaExecutionResponse.ProtoReflect.Descriptor instead.
+func (*CancelMediaExecutionResponse) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *CancelMediaExecutionResponse) GetExecution() *MediaExecution {
+	if x != nil {
+		return x.Execution
+	}
+	return nil
+}
+
+type RetryMediaExecutionRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ExecutionId    string                 `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	IdempotencyKey string                 `protobuf:"bytes,2,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *RetryMediaExecutionRequest) Reset() {
+	*x = RetryMediaExecutionRequest{}
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetryMediaExecutionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetryMediaExecutionRequest) ProtoMessage() {}
+
+func (x *RetryMediaExecutionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetryMediaExecutionRequest.ProtoReflect.Descriptor instead.
+func (*RetryMediaExecutionRequest) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *RetryMediaExecutionRequest) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *RetryMediaExecutionRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+type RetryMediaExecutionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Execution     *MediaExecution        `protobuf:"bytes,1,opt,name=execution,proto3" json:"execution,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RetryMediaExecutionResponse) Reset() {
+	*x = RetryMediaExecutionResponse{}
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetryMediaExecutionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetryMediaExecutionResponse) ProtoMessage() {}
+
+func (x *RetryMediaExecutionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetryMediaExecutionResponse.ProtoReflect.Descriptor instead.
+func (*RetryMediaExecutionResponse) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *RetryMediaExecutionResponse) GetExecution() *MediaExecution {
+	if x != nil {
+		return x.Execution
+	}
+	return nil
+}
+
 type ListRouteEvidenceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Limit         int32                  `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
@@ -713,7 +1441,7 @@ type ListRouteEvidenceRequest struct {
 
 func (x *ListRouteEvidenceRequest) Reset() {
 	*x = ListRouteEvidenceRequest{}
-	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[6]
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -725,7 +1453,7 @@ func (x *ListRouteEvidenceRequest) String() string {
 func (*ListRouteEvidenceRequest) ProtoMessage() {}
 
 func (x *ListRouteEvidenceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[6]
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -738,7 +1466,7 @@ func (x *ListRouteEvidenceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRouteEvidenceRequest.ProtoReflect.Descriptor instead.
 func (*ListRouteEvidenceRequest) Descriptor() ([]byte, []int) {
-	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{6}
+	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ListRouteEvidenceRequest) GetLimit() int32 {
@@ -764,7 +1492,7 @@ type ListRouteEvidenceResponse struct {
 
 func (x *ListRouteEvidenceResponse) Reset() {
 	*x = ListRouteEvidenceResponse{}
-	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[7]
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -776,7 +1504,7 @@ func (x *ListRouteEvidenceResponse) String() string {
 func (*ListRouteEvidenceResponse) ProtoMessage() {}
 
 func (x *ListRouteEvidenceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[7]
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -789,7 +1517,7 @@ func (x *ListRouteEvidenceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRouteEvidenceResponse.ProtoReflect.Descriptor instead.
 func (*ListRouteEvidenceResponse) Descriptor() ([]byte, []int) {
-	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{7}
+	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ListRouteEvidenceResponse) GetEvents() []*RouteEvidence {
@@ -808,7 +1536,7 @@ type GetRouteEvidenceRequest struct {
 
 func (x *GetRouteEvidenceRequest) Reset() {
 	*x = GetRouteEvidenceRequest{}
-	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[8]
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -820,7 +1548,7 @@ func (x *GetRouteEvidenceRequest) String() string {
 func (*GetRouteEvidenceRequest) ProtoMessage() {}
 
 func (x *GetRouteEvidenceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[8]
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -833,7 +1561,7 @@ func (x *GetRouteEvidenceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRouteEvidenceRequest.ProtoReflect.Descriptor instead.
 func (*GetRouteEvidenceRequest) Descriptor() ([]byte, []int) {
-	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{8}
+	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *GetRouteEvidenceRequest) GetEventId() string {
@@ -852,7 +1580,7 @@ type GetRouteEvidenceResponse struct {
 
 func (x *GetRouteEvidenceResponse) Reset() {
 	*x = GetRouteEvidenceResponse{}
-	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[9]
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -864,7 +1592,7 @@ func (x *GetRouteEvidenceResponse) String() string {
 func (*GetRouteEvidenceResponse) ProtoMessage() {}
 
 func (x *GetRouteEvidenceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[9]
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -877,7 +1605,7 @@ func (x *GetRouteEvidenceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRouteEvidenceResponse.ProtoReflect.Descriptor instead.
 func (*GetRouteEvidenceResponse) Descriptor() ([]byte, []int) {
-	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{9}
+	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GetRouteEvidenceResponse) GetEvent() *RouteEvidence {
@@ -912,7 +1640,7 @@ type ProviderHealth struct {
 
 func (x *ProviderHealth) Reset() {
 	*x = ProviderHealth{}
-	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[10]
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -924,7 +1652,7 @@ func (x *ProviderHealth) String() string {
 func (*ProviderHealth) ProtoMessage() {}
 
 func (x *ProviderHealth) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[10]
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -937,7 +1665,7 @@ func (x *ProviderHealth) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProviderHealth.ProtoReflect.Descriptor instead.
 func (*ProviderHealth) Descriptor() ([]byte, []int) {
-	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{10}
+	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ProviderHealth) GetProvider() string {
@@ -1039,7 +1767,7 @@ type ListProviderHealthRequest struct {
 
 func (x *ListProviderHealthRequest) Reset() {
 	*x = ListProviderHealthRequest{}
-	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[11]
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1051,7 +1779,7 @@ func (x *ListProviderHealthRequest) String() string {
 func (*ListProviderHealthRequest) ProtoMessage() {}
 
 func (x *ListProviderHealthRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[11]
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1064,7 +1792,7 @@ func (x *ListProviderHealthRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListProviderHealthRequest.ProtoReflect.Descriptor instead.
 func (*ListProviderHealthRequest) Descriptor() ([]byte, []int) {
-	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{11}
+	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{22}
 }
 
 type ListProviderHealthResponse struct {
@@ -1076,7 +1804,7 @@ type ListProviderHealthResponse struct {
 
 func (x *ListProviderHealthResponse) Reset() {
 	*x = ListProviderHealthResponse{}
-	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[12]
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1088,7 +1816,7 @@ func (x *ListProviderHealthResponse) String() string {
 func (*ListProviderHealthResponse) ProtoMessage() {}
 
 func (x *ListProviderHealthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[12]
+	mi := &file_ai_gateway_v1_routing_routing_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1101,7 +1829,7 @@ func (x *ListProviderHealthResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListProviderHealthResponse.ProtoReflect.Descriptor instead.
 func (*ListProviderHealthResponse) Descriptor() ([]byte, []int) {
-	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{12}
+	return file_ai_gateway_v1_routing_routing_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ListProviderHealthResponse) GetItems() []*ProviderHealth {
@@ -1184,7 +1912,58 @@ const file_ai_gateway_v1_routing_routing_proto_rawDesc = "" +
 	"\bevidence\x18\x03 \x01(\v2+.vrooli.ai_gateway.v1.routing.RouteEvidenceR\bevidence\x12\x1f\n" +
 	"\voutput_text\x18\x04 \x01(\tR\n" +
 	"outputText\x12%\n" +
-	"\x0epolicy_reasons\x18\x05 \x03(\tR\rpolicyReasons\"L\n" +
+	"\x0epolicy_reasons\x18\x05 \x03(\tR\rpolicyReasons\"I\n" +
+	"\n" +
+	"MediaInput\x12\x1c\n" +
+	"\treference\x18\x01 \x01(\tR\treference\x12\x1d\n" +
+	"\n" +
+	"media_type\x18\x02 \x01(\tR\tmediaType\"|\n" +
+	"\vMediaOutput\x12\x1c\n" +
+	"\treference\x18\x01 \x01(\tR\treference\x12\x1d\n" +
+	"\n" +
+	"media_type\x18\x02 \x01(\tR\tmediaType\x12\x14\n" +
+	"\x05bytes\x18\x03 \x01(\x03R\x05bytes\x12\x1a\n" +
+	"\bchecksum\x18\x04 \x01(\tR\bchecksum\"\x81\x02\n" +
+	"\x12SubmitMediaRequest\x12E\n" +
+	"\arequest\x18\x01 \x01(\v2+.vrooli.ai_gateway.v1.shared.GatewayRequestR\arequest\x12\x16\n" +
+	"\x06prompt\x18\x02 \x01(\tR\x06prompt\x12@\n" +
+	"\x06inputs\x18\x03 \x03(\v2(.vrooli.ai_gateway.v1.routing.MediaInputR\x06inputs\x12!\n" +
+	"\foutput_count\x18\x04 \x01(\x05R\voutputCount\x12'\n" +
+	"\x0fidempotency_key\x18\x05 \x01(\tR\x0eidempotencyKey\"\xe5\x04\n" +
+	"\x0eMediaExecution\x12!\n" +
+	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12'\n" +
+	"\x0fidempotency_key\x18\x02 \x01(\tR\x0eidempotencyKey\x12J\n" +
+	"\x06status\x18\x03 \x01(\x0e22.vrooli.ai_gateway.v1.routing.MediaExecutionStatusR\x06status\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x04 \x01(\tR\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"started_at\x18\x05 \x01(\tR\tstartedAt\x12!\n" +
+	"\fcompleted_at\x18\x06 \x01(\tR\vcompletedAt\x12R\n" +
+	"\x0eroute_evidence\x18\a \x01(\v2+.vrooli.ai_gateway.v1.routing.RouteEvidenceR\rrouteEvidence\x12C\n" +
+	"\aoutputs\x18\b \x03(\v2).vrooli.ai_gateway.v1.routing.MediaOutputR\aoutputs\x12&\n" +
+	"\x0factual_cost_usd\x18\t \x01(\x01R\ractualCostUsd\x12%\n" +
+	"\x0eresolved_model\x18\n" +
+	" \x01(\tR\rresolvedModel\x12\x12\n" +
+	"\x04seed\x18\v \x01(\tR\x04seed\x12\x1a\n" +
+	"\bwarnings\x18\f \x03(\tR\bwarnings\x12\x1d\n" +
+	"\n" +
+	"error_code\x18\r \x01(\tR\terrorCode\x12#\n" +
+	"\rerror_message\x18\x0e \x01(\tR\ferrorMessage\"a\n" +
+	"\x13SubmitMediaResponse\x12J\n" +
+	"\texecution\x18\x01 \x01(\v2,.vrooli.ai_gateway.v1.routing.MediaExecutionR\texecution\"=\n" +
+	"\x18GetMediaExecutionRequest\x12!\n" +
+	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\"g\n" +
+	"\x19GetMediaExecutionResponse\x12J\n" +
+	"\texecution\x18\x01 \x01(\v2,.vrooli.ai_gateway.v1.routing.MediaExecutionR\texecution\"@\n" +
+	"\x1bCancelMediaExecutionRequest\x12!\n" +
+	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\"j\n" +
+	"\x1cCancelMediaExecutionResponse\x12J\n" +
+	"\texecution\x18\x01 \x01(\v2,.vrooli.ai_gateway.v1.routing.MediaExecutionR\texecution\"h\n" +
+	"\x1aRetryMediaExecutionRequest\x12!\n" +
+	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12'\n" +
+	"\x0fidempotency_key\x18\x02 \x01(\tR\x0eidempotencyKey\"i\n" +
+	"\x1bRetryMediaExecutionResponse\x12J\n" +
+	"\texecution\x18\x01 \x01(\v2,.vrooli.ai_gateway.v1.routing.MediaExecutionR\texecution\"L\n" +
 	"\x18ListRouteEvidenceRequest\x12\x14\n" +
 	"\x05limit\x18\x01 \x01(\x05R\x05limit\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\"`\n" +
@@ -1214,10 +1993,21 @@ const file_ai_gateway_v1_routing_routing_proto_rawDesc = "" +
 	"updated_at\x18\r \x01(\tR\tupdatedAt\"\x1b\n" +
 	"\x19ListProviderHealthRequest\"`\n" +
 	"\x1aListProviderHealthResponse\x12B\n" +
-	"\x05items\x18\x01 \x03(\v2,.vrooli.ai_gateway.v1.routing.ProviderHealthR\x05items2\x93\x05\n" +
+	"\x05items\x18\x01 \x03(\v2,.vrooli.ai_gateway.v1.routing.ProviderHealthR\x05items*\xf4\x01\n" +
+	"\x14MediaExecutionStatus\x12&\n" +
+	"\"MEDIA_EXECUTION_STATUS_UNSPECIFIED\x10\x00\x12!\n" +
+	"\x1dMEDIA_EXECUTION_STATUS_QUEUED\x10\x01\x12\"\n" +
+	"\x1eMEDIA_EXECUTION_STATUS_RUNNING\x10\x02\x12$\n" +
+	" MEDIA_EXECUTION_STATUS_SUCCEEDED\x10\x03\x12!\n" +
+	"\x1dMEDIA_EXECUTION_STATUS_FAILED\x10\x04\x12$\n" +
+	" MEDIA_EXECUTION_STATUS_CANCELLED\x10\x052\xab\t\n" +
 	"\x0eRoutingService\x12u\n" +
 	"\fPreviewRoute\x121.vrooli.ai_gateway.v1.routing.PreviewRouteRequest\x1a2.vrooli.ai_gateway.v1.routing.PreviewRouteResponse\x12u\n" +
-	"\fExecuteRoute\x121.vrooli.ai_gateway.v1.routing.ExecuteRouteRequest\x1a2.vrooli.ai_gateway.v1.routing.ExecuteRouteResponse\x12\x84\x01\n" +
+	"\fExecuteRoute\x121.vrooli.ai_gateway.v1.routing.ExecuteRouteRequest\x1a2.vrooli.ai_gateway.v1.routing.ExecuteRouteResponse\x12r\n" +
+	"\vSubmitMedia\x120.vrooli.ai_gateway.v1.routing.SubmitMediaRequest\x1a1.vrooli.ai_gateway.v1.routing.SubmitMediaResponse\x12\x84\x01\n" +
+	"\x11GetMediaExecution\x126.vrooli.ai_gateway.v1.routing.GetMediaExecutionRequest\x1a7.vrooli.ai_gateway.v1.routing.GetMediaExecutionResponse\x12\x8d\x01\n" +
+	"\x14CancelMediaExecution\x129.vrooli.ai_gateway.v1.routing.CancelMediaExecutionRequest\x1a:.vrooli.ai_gateway.v1.routing.CancelMediaExecutionResponse\x12\x8a\x01\n" +
+	"\x13RetryMediaExecution\x128.vrooli.ai_gateway.v1.routing.RetryMediaExecutionRequest\x1a9.vrooli.ai_gateway.v1.routing.RetryMediaExecutionResponse\x12\x84\x01\n" +
 	"\x11ListRouteEvidence\x126.vrooli.ai_gateway.v1.routing.ListRouteEvidenceRequest\x1a7.vrooli.ai_gateway.v1.routing.ListRouteEvidenceResponse\x12\x81\x01\n" +
 	"\x10GetRouteEvidence\x125.vrooli.ai_gateway.v1.routing.GetRouteEvidenceRequest\x1a6.vrooli.ai_gateway.v1.routing.GetRouteEvidenceResponse\x12\x87\x01\n" +
 	"\x12ListProviderHealth\x127.vrooli.ai_gateway.v1.routing.ListProviderHealthRequest\x1a8.vrooli.ai_gateway.v1.routing.ListProviderHealthResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing;routing_v1b\x06proto3"
@@ -1234,55 +2024,85 @@ func file_ai_gateway_v1_routing_routing_proto_rawDescGZIP() []byte {
 	return file_ai_gateway_v1_routing_routing_proto_rawDescData
 }
 
-var file_ai_gateway_v1_routing_routing_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_ai_gateway_v1_routing_routing_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_ai_gateway_v1_routing_routing_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_ai_gateway_v1_routing_routing_proto_goTypes = []any{
-	(*RouteCandidate)(nil),             // 0: vrooli.ai_gateway.v1.routing.RouteCandidate
-	(*PreviewRouteRequest)(nil),        // 1: vrooli.ai_gateway.v1.routing.PreviewRouteRequest
-	(*PreviewRouteResponse)(nil),       // 2: vrooli.ai_gateway.v1.routing.PreviewRouteResponse
-	(*ExecuteRouteRequest)(nil),        // 3: vrooli.ai_gateway.v1.routing.ExecuteRouteRequest
-	(*RouteEvidence)(nil),              // 4: vrooli.ai_gateway.v1.routing.RouteEvidence
-	(*ExecuteRouteResponse)(nil),       // 5: vrooli.ai_gateway.v1.routing.ExecuteRouteResponse
-	(*ListRouteEvidenceRequest)(nil),   // 6: vrooli.ai_gateway.v1.routing.ListRouteEvidenceRequest
-	(*ListRouteEvidenceResponse)(nil),  // 7: vrooli.ai_gateway.v1.routing.ListRouteEvidenceResponse
-	(*GetRouteEvidenceRequest)(nil),    // 8: vrooli.ai_gateway.v1.routing.GetRouteEvidenceRequest
-	(*GetRouteEvidenceResponse)(nil),   // 9: vrooli.ai_gateway.v1.routing.GetRouteEvidenceResponse
-	(*ProviderHealth)(nil),             // 10: vrooli.ai_gateway.v1.routing.ProviderHealth
-	(*ListProviderHealthRequest)(nil),  // 11: vrooli.ai_gateway.v1.routing.ListProviderHealthRequest
-	(*ListProviderHealthResponse)(nil), // 12: vrooli.ai_gateway.v1.routing.ListProviderHealthResponse
-	(*shared.GatewayRequest)(nil),      // 13: vrooli.ai_gateway.v1.shared.GatewayRequest
-	(*shared.ValidationIssue)(nil),     // 14: vrooli.ai_gateway.v1.shared.ValidationIssue
-	(shared.Profile)(0),                // 15: vrooli.ai_gateway.v1.shared.Profile
-	(shared.PrivacyClass)(0),           // 16: vrooli.ai_gateway.v1.shared.PrivacyClass
-	(shared.RequestKind)(0),            // 17: vrooli.ai_gateway.v1.shared.RequestKind
+	(MediaExecutionStatus)(0),            // 0: vrooli.ai_gateway.v1.routing.MediaExecutionStatus
+	(*RouteCandidate)(nil),               // 1: vrooli.ai_gateway.v1.routing.RouteCandidate
+	(*PreviewRouteRequest)(nil),          // 2: vrooli.ai_gateway.v1.routing.PreviewRouteRequest
+	(*PreviewRouteResponse)(nil),         // 3: vrooli.ai_gateway.v1.routing.PreviewRouteResponse
+	(*ExecuteRouteRequest)(nil),          // 4: vrooli.ai_gateway.v1.routing.ExecuteRouteRequest
+	(*RouteEvidence)(nil),                // 5: vrooli.ai_gateway.v1.routing.RouteEvidence
+	(*ExecuteRouteResponse)(nil),         // 6: vrooli.ai_gateway.v1.routing.ExecuteRouteResponse
+	(*MediaInput)(nil),                   // 7: vrooli.ai_gateway.v1.routing.MediaInput
+	(*MediaOutput)(nil),                  // 8: vrooli.ai_gateway.v1.routing.MediaOutput
+	(*SubmitMediaRequest)(nil),           // 9: vrooli.ai_gateway.v1.routing.SubmitMediaRequest
+	(*MediaExecution)(nil),               // 10: vrooli.ai_gateway.v1.routing.MediaExecution
+	(*SubmitMediaResponse)(nil),          // 11: vrooli.ai_gateway.v1.routing.SubmitMediaResponse
+	(*GetMediaExecutionRequest)(nil),     // 12: vrooli.ai_gateway.v1.routing.GetMediaExecutionRequest
+	(*GetMediaExecutionResponse)(nil),    // 13: vrooli.ai_gateway.v1.routing.GetMediaExecutionResponse
+	(*CancelMediaExecutionRequest)(nil),  // 14: vrooli.ai_gateway.v1.routing.CancelMediaExecutionRequest
+	(*CancelMediaExecutionResponse)(nil), // 15: vrooli.ai_gateway.v1.routing.CancelMediaExecutionResponse
+	(*RetryMediaExecutionRequest)(nil),   // 16: vrooli.ai_gateway.v1.routing.RetryMediaExecutionRequest
+	(*RetryMediaExecutionResponse)(nil),  // 17: vrooli.ai_gateway.v1.routing.RetryMediaExecutionResponse
+	(*ListRouteEvidenceRequest)(nil),     // 18: vrooli.ai_gateway.v1.routing.ListRouteEvidenceRequest
+	(*ListRouteEvidenceResponse)(nil),    // 19: vrooli.ai_gateway.v1.routing.ListRouteEvidenceResponse
+	(*GetRouteEvidenceRequest)(nil),      // 20: vrooli.ai_gateway.v1.routing.GetRouteEvidenceRequest
+	(*GetRouteEvidenceResponse)(nil),     // 21: vrooli.ai_gateway.v1.routing.GetRouteEvidenceResponse
+	(*ProviderHealth)(nil),               // 22: vrooli.ai_gateway.v1.routing.ProviderHealth
+	(*ListProviderHealthRequest)(nil),    // 23: vrooli.ai_gateway.v1.routing.ListProviderHealthRequest
+	(*ListProviderHealthResponse)(nil),   // 24: vrooli.ai_gateway.v1.routing.ListProviderHealthResponse
+	(*shared.GatewayRequest)(nil),        // 25: vrooli.ai_gateway.v1.shared.GatewayRequest
+	(*shared.ValidationIssue)(nil),       // 26: vrooli.ai_gateway.v1.shared.ValidationIssue
+	(shared.Profile)(0),                  // 27: vrooli.ai_gateway.v1.shared.Profile
+	(shared.PrivacyClass)(0),             // 28: vrooli.ai_gateway.v1.shared.PrivacyClass
+	(shared.RequestKind)(0),              // 29: vrooli.ai_gateway.v1.shared.RequestKind
 }
 var file_ai_gateway_v1_routing_routing_proto_depIdxs = []int32{
-	13, // 0: vrooli.ai_gateway.v1.routing.PreviewRouteRequest.request:type_name -> vrooli.ai_gateway.v1.shared.GatewayRequest
-	14, // 1: vrooli.ai_gateway.v1.routing.PreviewRouteResponse.issues:type_name -> vrooli.ai_gateway.v1.shared.ValidationIssue
-	0,  // 2: vrooli.ai_gateway.v1.routing.PreviewRouteResponse.candidates:type_name -> vrooli.ai_gateway.v1.routing.RouteCandidate
-	13, // 3: vrooli.ai_gateway.v1.routing.ExecuteRouteRequest.request:type_name -> vrooli.ai_gateway.v1.shared.GatewayRequest
-	15, // 4: vrooli.ai_gateway.v1.routing.RouteEvidence.profile:type_name -> vrooli.ai_gateway.v1.shared.Profile
-	16, // 5: vrooli.ai_gateway.v1.routing.RouteEvidence.privacy_class:type_name -> vrooli.ai_gateway.v1.shared.PrivacyClass
-	14, // 6: vrooli.ai_gateway.v1.routing.ExecuteRouteResponse.issues:type_name -> vrooli.ai_gateway.v1.shared.ValidationIssue
-	4,  // 7: vrooli.ai_gateway.v1.routing.ExecuteRouteResponse.evidence:type_name -> vrooli.ai_gateway.v1.routing.RouteEvidence
-	4,  // 8: vrooli.ai_gateway.v1.routing.ListRouteEvidenceResponse.events:type_name -> vrooli.ai_gateway.v1.routing.RouteEvidence
-	4,  // 9: vrooli.ai_gateway.v1.routing.GetRouteEvidenceResponse.event:type_name -> vrooli.ai_gateway.v1.routing.RouteEvidence
-	17, // 10: vrooli.ai_gateway.v1.routing.ProviderHealth.kind:type_name -> vrooli.ai_gateway.v1.shared.RequestKind
-	10, // 11: vrooli.ai_gateway.v1.routing.ListProviderHealthResponse.items:type_name -> vrooli.ai_gateway.v1.routing.ProviderHealth
-	1,  // 12: vrooli.ai_gateway.v1.routing.RoutingService.PreviewRoute:input_type -> vrooli.ai_gateway.v1.routing.PreviewRouteRequest
-	3,  // 13: vrooli.ai_gateway.v1.routing.RoutingService.ExecuteRoute:input_type -> vrooli.ai_gateway.v1.routing.ExecuteRouteRequest
-	6,  // 14: vrooli.ai_gateway.v1.routing.RoutingService.ListRouteEvidence:input_type -> vrooli.ai_gateway.v1.routing.ListRouteEvidenceRequest
-	8,  // 15: vrooli.ai_gateway.v1.routing.RoutingService.GetRouteEvidence:input_type -> vrooli.ai_gateway.v1.routing.GetRouteEvidenceRequest
-	11, // 16: vrooli.ai_gateway.v1.routing.RoutingService.ListProviderHealth:input_type -> vrooli.ai_gateway.v1.routing.ListProviderHealthRequest
-	2,  // 17: vrooli.ai_gateway.v1.routing.RoutingService.PreviewRoute:output_type -> vrooli.ai_gateway.v1.routing.PreviewRouteResponse
-	5,  // 18: vrooli.ai_gateway.v1.routing.RoutingService.ExecuteRoute:output_type -> vrooli.ai_gateway.v1.routing.ExecuteRouteResponse
-	7,  // 19: vrooli.ai_gateway.v1.routing.RoutingService.ListRouteEvidence:output_type -> vrooli.ai_gateway.v1.routing.ListRouteEvidenceResponse
-	9,  // 20: vrooli.ai_gateway.v1.routing.RoutingService.GetRouteEvidence:output_type -> vrooli.ai_gateway.v1.routing.GetRouteEvidenceResponse
-	12, // 21: vrooli.ai_gateway.v1.routing.RoutingService.ListProviderHealth:output_type -> vrooli.ai_gateway.v1.routing.ListProviderHealthResponse
-	17, // [17:22] is the sub-list for method output_type
-	12, // [12:17] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	25, // 0: vrooli.ai_gateway.v1.routing.PreviewRouteRequest.request:type_name -> vrooli.ai_gateway.v1.shared.GatewayRequest
+	26, // 1: vrooli.ai_gateway.v1.routing.PreviewRouteResponse.issues:type_name -> vrooli.ai_gateway.v1.shared.ValidationIssue
+	1,  // 2: vrooli.ai_gateway.v1.routing.PreviewRouteResponse.candidates:type_name -> vrooli.ai_gateway.v1.routing.RouteCandidate
+	25, // 3: vrooli.ai_gateway.v1.routing.ExecuteRouteRequest.request:type_name -> vrooli.ai_gateway.v1.shared.GatewayRequest
+	27, // 4: vrooli.ai_gateway.v1.routing.RouteEvidence.profile:type_name -> vrooli.ai_gateway.v1.shared.Profile
+	28, // 5: vrooli.ai_gateway.v1.routing.RouteEvidence.privacy_class:type_name -> vrooli.ai_gateway.v1.shared.PrivacyClass
+	26, // 6: vrooli.ai_gateway.v1.routing.ExecuteRouteResponse.issues:type_name -> vrooli.ai_gateway.v1.shared.ValidationIssue
+	5,  // 7: vrooli.ai_gateway.v1.routing.ExecuteRouteResponse.evidence:type_name -> vrooli.ai_gateway.v1.routing.RouteEvidence
+	25, // 8: vrooli.ai_gateway.v1.routing.SubmitMediaRequest.request:type_name -> vrooli.ai_gateway.v1.shared.GatewayRequest
+	7,  // 9: vrooli.ai_gateway.v1.routing.SubmitMediaRequest.inputs:type_name -> vrooli.ai_gateway.v1.routing.MediaInput
+	0,  // 10: vrooli.ai_gateway.v1.routing.MediaExecution.status:type_name -> vrooli.ai_gateway.v1.routing.MediaExecutionStatus
+	5,  // 11: vrooli.ai_gateway.v1.routing.MediaExecution.route_evidence:type_name -> vrooli.ai_gateway.v1.routing.RouteEvidence
+	8,  // 12: vrooli.ai_gateway.v1.routing.MediaExecution.outputs:type_name -> vrooli.ai_gateway.v1.routing.MediaOutput
+	10, // 13: vrooli.ai_gateway.v1.routing.SubmitMediaResponse.execution:type_name -> vrooli.ai_gateway.v1.routing.MediaExecution
+	10, // 14: vrooli.ai_gateway.v1.routing.GetMediaExecutionResponse.execution:type_name -> vrooli.ai_gateway.v1.routing.MediaExecution
+	10, // 15: vrooli.ai_gateway.v1.routing.CancelMediaExecutionResponse.execution:type_name -> vrooli.ai_gateway.v1.routing.MediaExecution
+	10, // 16: vrooli.ai_gateway.v1.routing.RetryMediaExecutionResponse.execution:type_name -> vrooli.ai_gateway.v1.routing.MediaExecution
+	5,  // 17: vrooli.ai_gateway.v1.routing.ListRouteEvidenceResponse.events:type_name -> vrooli.ai_gateway.v1.routing.RouteEvidence
+	5,  // 18: vrooli.ai_gateway.v1.routing.GetRouteEvidenceResponse.event:type_name -> vrooli.ai_gateway.v1.routing.RouteEvidence
+	29, // 19: vrooli.ai_gateway.v1.routing.ProviderHealth.kind:type_name -> vrooli.ai_gateway.v1.shared.RequestKind
+	22, // 20: vrooli.ai_gateway.v1.routing.ListProviderHealthResponse.items:type_name -> vrooli.ai_gateway.v1.routing.ProviderHealth
+	2,  // 21: vrooli.ai_gateway.v1.routing.RoutingService.PreviewRoute:input_type -> vrooli.ai_gateway.v1.routing.PreviewRouteRequest
+	4,  // 22: vrooli.ai_gateway.v1.routing.RoutingService.ExecuteRoute:input_type -> vrooli.ai_gateway.v1.routing.ExecuteRouteRequest
+	9,  // 23: vrooli.ai_gateway.v1.routing.RoutingService.SubmitMedia:input_type -> vrooli.ai_gateway.v1.routing.SubmitMediaRequest
+	12, // 24: vrooli.ai_gateway.v1.routing.RoutingService.GetMediaExecution:input_type -> vrooli.ai_gateway.v1.routing.GetMediaExecutionRequest
+	14, // 25: vrooli.ai_gateway.v1.routing.RoutingService.CancelMediaExecution:input_type -> vrooli.ai_gateway.v1.routing.CancelMediaExecutionRequest
+	16, // 26: vrooli.ai_gateway.v1.routing.RoutingService.RetryMediaExecution:input_type -> vrooli.ai_gateway.v1.routing.RetryMediaExecutionRequest
+	18, // 27: vrooli.ai_gateway.v1.routing.RoutingService.ListRouteEvidence:input_type -> vrooli.ai_gateway.v1.routing.ListRouteEvidenceRequest
+	20, // 28: vrooli.ai_gateway.v1.routing.RoutingService.GetRouteEvidence:input_type -> vrooli.ai_gateway.v1.routing.GetRouteEvidenceRequest
+	23, // 29: vrooli.ai_gateway.v1.routing.RoutingService.ListProviderHealth:input_type -> vrooli.ai_gateway.v1.routing.ListProviderHealthRequest
+	3,  // 30: vrooli.ai_gateway.v1.routing.RoutingService.PreviewRoute:output_type -> vrooli.ai_gateway.v1.routing.PreviewRouteResponse
+	6,  // 31: vrooli.ai_gateway.v1.routing.RoutingService.ExecuteRoute:output_type -> vrooli.ai_gateway.v1.routing.ExecuteRouteResponse
+	11, // 32: vrooli.ai_gateway.v1.routing.RoutingService.SubmitMedia:output_type -> vrooli.ai_gateway.v1.routing.SubmitMediaResponse
+	13, // 33: vrooli.ai_gateway.v1.routing.RoutingService.GetMediaExecution:output_type -> vrooli.ai_gateway.v1.routing.GetMediaExecutionResponse
+	15, // 34: vrooli.ai_gateway.v1.routing.RoutingService.CancelMediaExecution:output_type -> vrooli.ai_gateway.v1.routing.CancelMediaExecutionResponse
+	17, // 35: vrooli.ai_gateway.v1.routing.RoutingService.RetryMediaExecution:output_type -> vrooli.ai_gateway.v1.routing.RetryMediaExecutionResponse
+	19, // 36: vrooli.ai_gateway.v1.routing.RoutingService.ListRouteEvidence:output_type -> vrooli.ai_gateway.v1.routing.ListRouteEvidenceResponse
+	21, // 37: vrooli.ai_gateway.v1.routing.RoutingService.GetRouteEvidence:output_type -> vrooli.ai_gateway.v1.routing.GetRouteEvidenceResponse
+	24, // 38: vrooli.ai_gateway.v1.routing.RoutingService.ListProviderHealth:output_type -> vrooli.ai_gateway.v1.routing.ListProviderHealthResponse
+	30, // [30:39] is the sub-list for method output_type
+	21, // [21:30] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_ai_gateway_v1_routing_routing_proto_init() }
@@ -1295,13 +2115,14 @@ func file_ai_gateway_v1_routing_routing_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ai_gateway_v1_routing_routing_proto_rawDesc), len(file_ai_gateway_v1_routing_routing_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   13,
+			NumEnums:      1,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_ai_gateway_v1_routing_routing_proto_goTypes,
 		DependencyIndexes: file_ai_gateway_v1_routing_routing_proto_depIdxs,
+		EnumInfos:         file_ai_gateway_v1_routing_routing_proto_enumTypes,
 		MessageInfos:      file_ai_gateway_v1_routing_routing_proto_msgTypes,
 	}.Build()
 	File_ai_gateway_v1_routing_routing_proto = out.File

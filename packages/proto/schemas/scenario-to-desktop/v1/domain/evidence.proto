@@ -3,9 +3,9 @@ syntax = "proto3";
 package vrooli.scenario_to_desktop.v1.domain;
 
 import "buf/validate/validate.proto";
+import "google/protobuf/empty.proto";
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
-import "google/protobuf/empty.proto";
 import "scenario-to-desktop/v1/shared/common.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domain";

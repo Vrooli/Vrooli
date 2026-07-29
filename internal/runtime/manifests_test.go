@@ -50,6 +50,20 @@ func TestToolManifestsReferenceRegisteredHandlers(t *testing.T) {
 	}
 }
 
+func TestSecretToolManifestHasNoVersionProbe(t *testing.T) {
+	data, err := fs.ReadFile(tools.Manifests, "secret-tool/tool.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest hostreqkit.ToolManifest
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if len(manifest.VersionArgs) != 0 {
+		t.Fatalf("secret-tool versionArgs = %v, want no probe because secret-tool exposes no successful version command", manifest.VersionArgs)
+	}
+}
+
 // TestSafeguardManifestsReferenceRegisteredHandlers is the safeguard analogue
 // of TestToolManifestsReferenceRegisteredHandlers.
 func TestSafeguardManifestsReferenceRegisteredHandlers(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -468,6 +469,28 @@ func TestConnect_UnsupportedDriver(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "unsupported-driver") {
 		t.Errorf("expected error to mention driver name, got: %v", err)
+	}
+}
+
+func TestConnect_UnknownDriverDoesNotRetry(t *testing.T) {
+	attempts := 0
+	_, err := Connect(context.Background(), Config{
+		Driver: "unknown-driver",
+		DSN:    "ignored",
+		Retry: &retry.Config{
+			MaxAttempts: 5,
+			Sleeper:     func(time.Duration) { t.Fatal("unknown driver must not sleep") },
+		},
+		Opener: func(driver, dsn string) (*sql.DB, error) {
+			attempts++
+			return nil, fmt.Errorf("sql: unknown driver %q (forgotten import?)", driver)
+		},
+	})
+	if err == nil {
+		t.Fatal("Connect() error = nil, want unknown-driver failure")
+	}
+	if attempts != 1 {
+		t.Fatalf("attempts = %d, want 1", attempts)
 	}
 }
 

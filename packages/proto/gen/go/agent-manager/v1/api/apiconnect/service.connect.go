@@ -147,6 +147,9 @@ const (
 	// AgentManagerServiceGetRunProcedure is the fully-qualified name of the AgentManagerService's
 	// GetRun RPC.
 	AgentManagerServiceGetRunProcedure = "/agent_manager.v1.AgentManagerService/GetRun"
+	// AgentManagerServiceGetRunReportProcedure is the fully-qualified name of the AgentManagerService's
+	// GetRunReport RPC.
+	AgentManagerServiceGetRunReportProcedure = "/agent_manager.v1.AgentManagerService/GetRunReport"
 	// AgentManagerServiceGetRunByTagProcedure is the fully-qualified name of the AgentManagerService's
 	// GetRunByTag RPC.
 	AgentManagerServiceGetRunByTagProcedure = "/agent_manager.v1.AgentManagerService/GetRunByTag"
@@ -300,6 +303,10 @@ type AgentManagerServiceClient interface {
 	CreateRun(context.Context, *connect.Request[api.CreateRunRequest]) (*connect.Response[api.CreateRunResponse], error)
 	// GetRun retrieves a run by ID.
 	GetRun(context.Context, *connect.Request[api.GetRunRequest]) (*connect.Response[api.GetRunResponse], error)
+	// GetRunReport returns the bounded diagnostic projection used by CLI, UI,
+	// and investigation workflows. Bulk payloads remain on their dedicated
+	// progressive-disclosure endpoints.
+	GetRunReport(context.Context, *connect.Request[api.GetRunReportRequest]) (*connect.Response[api.RunReport], error)
 	// GetRunByTag retrieves a run by its custom tag.
 	GetRunByTag(context.Context, *connect.Request[api.GetRunByTagRequest]) (*connect.Response[api.GetRunByTagResponse], error)
 	// ListRuns returns runs with optional filtering.
@@ -600,6 +607,12 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(agentManagerServiceMethods.ByName("GetRun")),
 			connect.WithClientOptions(opts...),
 		),
+		getRunReport: connect.NewClient[api.GetRunReportRequest, api.RunReport](
+			httpClient,
+			baseURL+AgentManagerServiceGetRunReportProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("GetRunReport")),
+			connect.WithClientOptions(opts...),
+		),
 		getRunByTag: connect.NewClient[api.GetRunByTagRequest, api.GetRunByTagResponse](
 			httpClient,
 			baseURL+AgentManagerServiceGetRunByTagProcedure,
@@ -805,6 +818,7 @@ type agentManagerServiceClient struct {
 	cancelTask                      *connect.Client[api.CancelTaskRequest, api.CancelTaskResponse]
 	createRun                       *connect.Client[api.CreateRunRequest, api.CreateRunResponse]
 	getRun                          *connect.Client[api.GetRunRequest, api.GetRunResponse]
+	getRunReport                    *connect.Client[api.GetRunReportRequest, api.RunReport]
 	getRunByTag                     *connect.Client[api.GetRunByTagRequest, api.GetRunByTagResponse]
 	listRuns                        *connect.Client[api.ListRunsRequest, api.ListRunsResponse]
 	deleteRun                       *connect.Client[api.DeleteRunRequest, api.DeleteRunResponse]
@@ -1025,6 +1039,11 @@ func (c *agentManagerServiceClient) GetRun(ctx context.Context, req *connect.Req
 	return c.getRun.CallUnary(ctx, req)
 }
 
+// GetRunReport calls agent_manager.v1.AgentManagerService.GetRunReport.
+func (c *agentManagerServiceClient) GetRunReport(ctx context.Context, req *connect.Request[api.GetRunReportRequest]) (*connect.Response[api.RunReport], error) {
+	return c.getRunReport.CallUnary(ctx, req)
+}
+
 // GetRunByTag calls agent_manager.v1.AgentManagerService.GetRunByTag.
 func (c *agentManagerServiceClient) GetRunByTag(ctx context.Context, req *connect.Request[api.GetRunByTagRequest]) (*connect.Response[api.GetRunByTagResponse], error) {
 	return c.getRunByTag.CallUnary(ctx, req)
@@ -1233,6 +1252,10 @@ type AgentManagerServiceHandler interface {
 	CreateRun(context.Context, *connect.Request[api.CreateRunRequest]) (*connect.Response[api.CreateRunResponse], error)
 	// GetRun retrieves a run by ID.
 	GetRun(context.Context, *connect.Request[api.GetRunRequest]) (*connect.Response[api.GetRunResponse], error)
+	// GetRunReport returns the bounded diagnostic projection used by CLI, UI,
+	// and investigation workflows. Bulk payloads remain on their dedicated
+	// progressive-disclosure endpoints.
+	GetRunReport(context.Context, *connect.Request[api.GetRunReportRequest]) (*connect.Response[api.RunReport], error)
 	// GetRunByTag retrieves a run by its custom tag.
 	GetRunByTag(context.Context, *connect.Request[api.GetRunByTagRequest]) (*connect.Response[api.GetRunByTagResponse], error)
 	// ListRuns returns runs with optional filtering.
@@ -1529,6 +1552,12 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		connect.WithSchema(agentManagerServiceMethods.ByName("GetRun")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagerServiceGetRunReportHandler := connect.NewUnaryHandler(
+		AgentManagerServiceGetRunReportProcedure,
+		svc.GetRunReport,
+		connect.WithSchema(agentManagerServiceMethods.ByName("GetRunReport")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentManagerServiceGetRunByTagHandler := connect.NewUnaryHandler(
 		AgentManagerServiceGetRunByTagProcedure,
 		svc.GetRunByTag,
@@ -1769,6 +1798,8 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 			agentManagerServiceCreateRunHandler.ServeHTTP(w, r)
 		case AgentManagerServiceGetRunProcedure:
 			agentManagerServiceGetRunHandler.ServeHTTP(w, r)
+		case AgentManagerServiceGetRunReportProcedure:
+			agentManagerServiceGetRunReportHandler.ServeHTTP(w, r)
 		case AgentManagerServiceGetRunByTagProcedure:
 			agentManagerServiceGetRunByTagHandler.ServeHTTP(w, r)
 		case AgentManagerServiceListRunsProcedure:
@@ -1982,6 +2013,10 @@ func (UnimplementedAgentManagerServiceHandler) CreateRun(context.Context, *conne
 
 func (UnimplementedAgentManagerServiceHandler) GetRun(context.Context, *connect.Request[api.GetRunRequest]) (*connect.Response[api.GetRunResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetRun is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) GetRunReport(context.Context, *connect.Request[api.GetRunReportRequest]) (*connect.Response[api.RunReport], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetRunReport is not implemented"))
 }
 
 func (UnimplementedAgentManagerServiceHandler) GetRunByTag(context.Context, *connect.Request[api.GetRunByTagRequest]) (*connect.Response[api.GetRunByTagResponse], error) {

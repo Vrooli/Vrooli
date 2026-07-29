@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -464,6 +465,28 @@ func TestApplyFetch_DirLayoutWritesLauncher(t *testing.T) {
 	}
 }
 
+func TestWriteLauncherResolvesRuntimeEnvironmentWithinToolDirectory(t *testing.T) {
+	binDir := t.TempDir()
+	optDir := t.TempDir()
+	entry := filepath.Join(optDir, "tool", "bin", fetchTestTool)
+	if err := os.MkdirAll(filepath.Dir(entry), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeLauncher(binDir, fetchTestTool, optDir, entry, map[string]string{"GOROOT": "tool"}); err != nil {
+		t.Fatal(err)
+	}
+	contents, err := os.ReadFile(filepath.Join(binDir, fetchTestTool))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(contents), "export GOROOT='"+filepath.Join(optDir, "tool")+"'") {
+		t.Fatalf("launcher runtime environment = %q", contents)
+	}
+	if err := writeLauncher(binDir, fetchTestTool, optDir, entry, map[string]string{"GOROOT": "../outside"}); err == nil {
+		t.Fatal("expected launcher runtime environment traversal to be rejected")
+	}
+}
+
 func TestApplyFetch_DirLayoutDryRunNotesOptDir(t *testing.T) {
 	withFacts(t, hostreqspec.CapabilityFacts{Arch: "amd64"})
 	withArch(t, "amd64")
@@ -480,6 +503,79 @@ func TestApplyFetch_DirLayoutDryRunNotesOptDir(t *testing.T) {
 	}
 	if !notesContain(applied.Notes, "~/.vrooli/opt/"+fetchTestTool) {
 		t.Fatalf("dry-run notes should mention the opt dir: %v", applied.Notes)
+	}
+}
+
+func TestFetchToolExactVersionMismatchIsRepairable(t *testing.T) {
+	withFacts(t, hostreqspec.CapabilityFacts{Arch: "amd64"})
+	withArch(t, "amd64")
+	binDir := withUserBin(t)
+	withoutCommandOnPath(t)
+
+	manifest := dirReleaseManifest(fetchTestTool)
+	manifest.Version = "1.25.12"
+	h := toolHandler{manifest: manifest}
+	host := hostreqkit.Host{OS: "linux"}
+
+	// A stale release on the managed path must be treated as not ready, but
+	// still repairable by the verified release target.
+	if err := writeFile(binDir+"/"+fetchTestTool, []byte("#!/bin/sh\necho go version go1.25.0 linux/amd64\n")); err != nil {
+		t.Fatal(err)
+	}
+	status := h.Inspect(host, resolved(fetchTestTool))
+	if status.Installed || !status.InstallSupported || status.ExecutionState != hostreqkit.ExecutionPending {
+		t.Fatalf("stale pinned tool status = %+v, want repairable pending status", status)
+	}
+	if !notesContain(status.Notes, "version mismatch") {
+		t.Fatalf("status notes = %v, want version mismatch", status.Notes)
+	}
+
+	prev := fetchDirFn
+	fetchDirFn = func(_ context.Context, spec binaryfetch.Target, optDir string, _ binaryfetch.ProgressFunc) (string, error) {
+		entry := optDir + "/" + spec.BinPath
+		if err := os.MkdirAll(filepath.Dir(entry), 0o755); err != nil {
+			return "", err
+		}
+		if err := writeFile(entry, []byte("#!/bin/sh\necho go version go1.25.12 linux/amd64\n")); err != nil {
+			return "", err
+		}
+		return entry, nil
+	}
+	t.Cleanup(func() { fetchDirFn = prev })
+	withUserOpt(t)
+
+	applied, err := h.Apply(host, status, hostreqkit.EnsureOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !applied.Installed || applied.ExecutionState != hostreqkit.ExecutionInstalled {
+		t.Fatalf("repaired pinned tool status = %+v", applied)
+	}
+}
+
+func TestFetchToolRepairsLauncherMissingDeclaredRuntimeEnvironment(t *testing.T) {
+	withFacts(t, hostreqspec.CapabilityFacts{Arch: "amd64"})
+	withArch(t, "amd64")
+	binDir := withUserBin(t)
+	optRoot := withUserOpt(t)
+	withoutCommandOnPath(t)
+
+	manifest := dirReleaseManifest(fetchTestTool)
+	manifest.Version = "1.25.12"
+	manifest.Source.Targets["linux/amd64"] = hostreqkit.ToolSourceTarget{
+		URL: "https://example.test/tool.zip", SHA256: "deadbeef", Archive: "zip", Layout: "dir", BinPath: "go/bin/go", RuntimeEnv: map[string]string{"GOROOT": "go"},
+	}
+	if err := writeFile(filepath.Join(binDir, fetchTestTool), []byte("#!/bin/sh\necho go version go1.25.12 linux/amd64\n")); err != nil {
+		t.Fatal(err)
+	}
+
+	h := toolHandler{manifest: manifest}
+	status := h.Inspect(hostreqkit.Host{OS: "linux"}, resolved(fetchTestTool))
+	if status.Installed || !status.InstallSupported || !notesContain(status.Notes, "does not set required runtime environment GOROOT") {
+		t.Fatalf("legacy launcher status = %+v, want a repairable runtime-environment mismatch", status)
+	}
+	if optRoot == "" {
+		t.Fatal("temporary opt root must be populated")
 	}
 }
 

@@ -673,6 +673,178 @@ func (x *SweepClaimsResponse) GetClaims() []*Claim {
 	return nil
 }
 
+type TextSpan struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Start         int32                  `protobuf:"varint,1,opt,name=start,proto3" json:"start,omitempty"`
+	End           int32                  `protobuf:"varint,2,opt,name=end,proto3" json:"end,omitempty"`
+	ClaimId       string                 `protobuf:"bytes,3,opt,name=claim_id,json=claimId,proto3" json:"claim_id,omitempty"`
+	Supported     bool                   `protobuf:"varint,4,opt,name=supported,proto3" json:"supported,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TextSpan) Reset() {
+	*x = TextSpan{}
+	mi := &file_content_desk_v1_claims_claims_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TextSpan) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TextSpan) ProtoMessage() {}
+
+func (x *TextSpan) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_claims_claims_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TextSpan.ProtoReflect.Descriptor instead.
+func (*TextSpan) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_claims_claims_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *TextSpan) GetStart() int32 {
+	if x != nil {
+		return x.Start
+	}
+	return 0
+}
+
+func (x *TextSpan) GetEnd() int32 {
+	if x != nil {
+		return x.End
+	}
+	return 0
+}
+
+func (x *TextSpan) GetClaimId() string {
+	if x != nil {
+		return x.ClaimId
+	}
+	return ""
+}
+
+func (x *TextSpan) GetSupported() bool {
+	if x != nil {
+		return x.Supported
+	}
+	return false
+}
+
+type GetClaimCoverageRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DraftId       string                 `protobuf:"bytes,1,opt,name=draft_id,json=draftId,proto3" json:"draft_id,omitempty"`
+	Body          string                 `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetClaimCoverageRequest) Reset() {
+	*x = GetClaimCoverageRequest{}
+	mi := &file_content_desk_v1_claims_claims_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetClaimCoverageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetClaimCoverageRequest) ProtoMessage() {}
+
+func (x *GetClaimCoverageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_claims_claims_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetClaimCoverageRequest.ProtoReflect.Descriptor instead.
+func (*GetClaimCoverageRequest) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_claims_claims_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *GetClaimCoverageRequest) GetDraftId() string {
+	if x != nil {
+		return x.DraftId
+	}
+	return ""
+}
+
+func (x *GetClaimCoverageRequest) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+type GetClaimCoverageResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	SupportedSpans []*TextSpan            `protobuf:"bytes,1,rep,name=supported_spans,json=supportedSpans,proto3" json:"supported_spans,omitempty"`
+	UncoveredSpans []*TextSpan            `protobuf:"bytes,2,rep,name=uncovered_spans,json=uncoveredSpans,proto3" json:"uncovered_spans,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GetClaimCoverageResponse) Reset() {
+	*x = GetClaimCoverageResponse{}
+	mi := &file_content_desk_v1_claims_claims_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetClaimCoverageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetClaimCoverageResponse) ProtoMessage() {}
+
+func (x *GetClaimCoverageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_claims_claims_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetClaimCoverageResponse.ProtoReflect.Descriptor instead.
+func (*GetClaimCoverageResponse) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_claims_claims_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *GetClaimCoverageResponse) GetSupportedSpans() []*TextSpan {
+	if x != nil {
+		return x.SupportedSpans
+	}
+	return nil
+}
+
+func (x *GetClaimCoverageResponse) GetUncoveredSpans() []*TextSpan {
+	if x != nil {
+		return x.UncoveredSpans
+	}
+	return nil
+}
+
 var File_content_desk_v1_claims_claims_proto protoreflect.FileDescriptor
 
 const file_content_desk_v1_claims_claims_proto_rawDesc = "" +
@@ -715,7 +887,18 @@ const file_content_desk_v1_claims_claims_proto_rawDesc = "" +
 	"\x05claim\x18\x01 \x01(\v2$.vrooli.content_desk.v1.claims.ClaimR\x05claim\"\x14\n" +
 	"\x12SweepClaimsRequest\"S\n" +
 	"\x13SweepClaimsResponse\x12<\n" +
-	"\x06claims\x18\x01 \x03(\v2$.vrooli.content_desk.v1.claims.ClaimR\x06claims2\xd7\x05\n" +
+	"\x06claims\x18\x01 \x03(\v2$.vrooli.content_desk.v1.claims.ClaimR\x06claims\"k\n" +
+	"\bTextSpan\x12\x14\n" +
+	"\x05start\x18\x01 \x01(\x05R\x05start\x12\x10\n" +
+	"\x03end\x18\x02 \x01(\x05R\x03end\x12\x19\n" +
+	"\bclaim_id\x18\x03 \x01(\tR\aclaimId\x12\x1c\n" +
+	"\tsupported\x18\x04 \x01(\bR\tsupported\"H\n" +
+	"\x17GetClaimCoverageRequest\x12\x19\n" +
+	"\bdraft_id\x18\x01 \x01(\tR\adraftId\x12\x12\n" +
+	"\x04body\x18\x02 \x01(\tR\x04body\"\xbe\x01\n" +
+	"\x18GetClaimCoverageResponse\x12P\n" +
+	"\x0fsupported_spans\x18\x01 \x03(\v2'.vrooli.content_desk.v1.claims.TextSpanR\x0esupportedSpans\x12P\n" +
+	"\x0funcovered_spans\x18\x02 \x03(\v2'.vrooli.content_desk.v1.claims.TextSpanR\x0euncoveredSpans2\xdd\x06\n" +
 	"\rClaimsService\x12q\n" +
 	"\n" +
 	"ListClaims\x120.vrooli.content_desk.v1.claims.ListClaimsRequest\x1a1.vrooli.content_desk.v1.claims.ListClaimsResponse\x12\x80\x01\n" +
@@ -723,7 +906,8 @@ const file_content_desk_v1_claims_claims_proto_rawDesc = "" +
 	"\vCreateClaim\x121.vrooli.content_desk.v1.claims.CreateClaimRequest\x1a2.vrooli.content_desk.v1.claims.CreateClaimResponse\x12n\n" +
 	"\tCiteClaim\x12/.vrooli.content_desk.v1.claims.CiteClaimRequest\x1a0.vrooli.content_desk.v1.claims.CiteClaimResponse\x12t\n" +
 	"\vVerifyClaim\x121.vrooli.content_desk.v1.claims.VerifyClaimRequest\x1a2.vrooli.content_desk.v1.claims.VerifyClaimResponse\x12t\n" +
-	"\vSweepClaims\x121.vrooli.content_desk.v1.claims.SweepClaimsRequest\x1a2.vrooli.content_desk.v1.claims.SweepClaimsResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/claims;claims_v1b\x06proto3"
+	"\vSweepClaims\x121.vrooli.content_desk.v1.claims.SweepClaimsRequest\x1a2.vrooli.content_desk.v1.claims.SweepClaimsResponse\x12\x83\x01\n" +
+	"\x10GetClaimCoverage\x126.vrooli.content_desk.v1.claims.GetClaimCoverageRequest\x1a7.vrooli.content_desk.v1.claims.GetClaimCoverageResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/claims;claims_v1b\x06proto3"
 
 var (
 	file_content_desk_v1_claims_claims_proto_rawDescOnce sync.Once
@@ -737,21 +921,24 @@ func file_content_desk_v1_claims_claims_proto_rawDescGZIP() []byte {
 	return file_content_desk_v1_claims_claims_proto_rawDescData
 }
 
-var file_content_desk_v1_claims_claims_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_content_desk_v1_claims_claims_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_content_desk_v1_claims_claims_proto_goTypes = []any{
-	(*Claim)(nil),                   // 0: vrooli.content_desk.v1.claims.Claim
-	(*ListClaimsRequest)(nil),       // 1: vrooli.content_desk.v1.claims.ListClaimsRequest
-	(*ListClaimsResponse)(nil),      // 2: vrooli.content_desk.v1.claims.ListClaimsResponse
-	(*ListDraftClaimsRequest)(nil),  // 3: vrooli.content_desk.v1.claims.ListDraftClaimsRequest
-	(*ListDraftClaimsResponse)(nil), // 4: vrooli.content_desk.v1.claims.ListDraftClaimsResponse
-	(*CreateClaimRequest)(nil),      // 5: vrooli.content_desk.v1.claims.CreateClaimRequest
-	(*CreateClaimResponse)(nil),     // 6: vrooli.content_desk.v1.claims.CreateClaimResponse
-	(*CiteClaimRequest)(nil),        // 7: vrooli.content_desk.v1.claims.CiteClaimRequest
-	(*CiteClaimResponse)(nil),       // 8: vrooli.content_desk.v1.claims.CiteClaimResponse
-	(*VerifyClaimRequest)(nil),      // 9: vrooli.content_desk.v1.claims.VerifyClaimRequest
-	(*VerifyClaimResponse)(nil),     // 10: vrooli.content_desk.v1.claims.VerifyClaimResponse
-	(*SweepClaimsRequest)(nil),      // 11: vrooli.content_desk.v1.claims.SweepClaimsRequest
-	(*SweepClaimsResponse)(nil),     // 12: vrooli.content_desk.v1.claims.SweepClaimsResponse
+	(*Claim)(nil),                    // 0: vrooli.content_desk.v1.claims.Claim
+	(*ListClaimsRequest)(nil),        // 1: vrooli.content_desk.v1.claims.ListClaimsRequest
+	(*ListClaimsResponse)(nil),       // 2: vrooli.content_desk.v1.claims.ListClaimsResponse
+	(*ListDraftClaimsRequest)(nil),   // 3: vrooli.content_desk.v1.claims.ListDraftClaimsRequest
+	(*ListDraftClaimsResponse)(nil),  // 4: vrooli.content_desk.v1.claims.ListDraftClaimsResponse
+	(*CreateClaimRequest)(nil),       // 5: vrooli.content_desk.v1.claims.CreateClaimRequest
+	(*CreateClaimResponse)(nil),      // 6: vrooli.content_desk.v1.claims.CreateClaimResponse
+	(*CiteClaimRequest)(nil),         // 7: vrooli.content_desk.v1.claims.CiteClaimRequest
+	(*CiteClaimResponse)(nil),        // 8: vrooli.content_desk.v1.claims.CiteClaimResponse
+	(*VerifyClaimRequest)(nil),       // 9: vrooli.content_desk.v1.claims.VerifyClaimRequest
+	(*VerifyClaimResponse)(nil),      // 10: vrooli.content_desk.v1.claims.VerifyClaimResponse
+	(*SweepClaimsRequest)(nil),       // 11: vrooli.content_desk.v1.claims.SweepClaimsRequest
+	(*SweepClaimsResponse)(nil),      // 12: vrooli.content_desk.v1.claims.SweepClaimsResponse
+	(*TextSpan)(nil),                 // 13: vrooli.content_desk.v1.claims.TextSpan
+	(*GetClaimCoverageRequest)(nil),  // 14: vrooli.content_desk.v1.claims.GetClaimCoverageRequest
+	(*GetClaimCoverageResponse)(nil), // 15: vrooli.content_desk.v1.claims.GetClaimCoverageResponse
 }
 var file_content_desk_v1_claims_claims_proto_depIdxs = []int32{
 	0,  // 0: vrooli.content_desk.v1.claims.ListClaimsResponse.claims:type_name -> vrooli.content_desk.v1.claims.Claim
@@ -759,23 +946,27 @@ var file_content_desk_v1_claims_claims_proto_depIdxs = []int32{
 	0,  // 2: vrooli.content_desk.v1.claims.CreateClaimResponse.claim:type_name -> vrooli.content_desk.v1.claims.Claim
 	0,  // 3: vrooli.content_desk.v1.claims.VerifyClaimResponse.claim:type_name -> vrooli.content_desk.v1.claims.Claim
 	0,  // 4: vrooli.content_desk.v1.claims.SweepClaimsResponse.claims:type_name -> vrooli.content_desk.v1.claims.Claim
-	1,  // 5: vrooli.content_desk.v1.claims.ClaimsService.ListClaims:input_type -> vrooli.content_desk.v1.claims.ListClaimsRequest
-	3,  // 6: vrooli.content_desk.v1.claims.ClaimsService.ListDraftClaims:input_type -> vrooli.content_desk.v1.claims.ListDraftClaimsRequest
-	5,  // 7: vrooli.content_desk.v1.claims.ClaimsService.CreateClaim:input_type -> vrooli.content_desk.v1.claims.CreateClaimRequest
-	7,  // 8: vrooli.content_desk.v1.claims.ClaimsService.CiteClaim:input_type -> vrooli.content_desk.v1.claims.CiteClaimRequest
-	9,  // 9: vrooli.content_desk.v1.claims.ClaimsService.VerifyClaim:input_type -> vrooli.content_desk.v1.claims.VerifyClaimRequest
-	11, // 10: vrooli.content_desk.v1.claims.ClaimsService.SweepClaims:input_type -> vrooli.content_desk.v1.claims.SweepClaimsRequest
-	2,  // 11: vrooli.content_desk.v1.claims.ClaimsService.ListClaims:output_type -> vrooli.content_desk.v1.claims.ListClaimsResponse
-	4,  // 12: vrooli.content_desk.v1.claims.ClaimsService.ListDraftClaims:output_type -> vrooli.content_desk.v1.claims.ListDraftClaimsResponse
-	6,  // 13: vrooli.content_desk.v1.claims.ClaimsService.CreateClaim:output_type -> vrooli.content_desk.v1.claims.CreateClaimResponse
-	8,  // 14: vrooli.content_desk.v1.claims.ClaimsService.CiteClaim:output_type -> vrooli.content_desk.v1.claims.CiteClaimResponse
-	10, // 15: vrooli.content_desk.v1.claims.ClaimsService.VerifyClaim:output_type -> vrooli.content_desk.v1.claims.VerifyClaimResponse
-	12, // 16: vrooli.content_desk.v1.claims.ClaimsService.SweepClaims:output_type -> vrooli.content_desk.v1.claims.SweepClaimsResponse
-	11, // [11:17] is the sub-list for method output_type
-	5,  // [5:11] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	13, // 5: vrooli.content_desk.v1.claims.GetClaimCoverageResponse.supported_spans:type_name -> vrooli.content_desk.v1.claims.TextSpan
+	13, // 6: vrooli.content_desk.v1.claims.GetClaimCoverageResponse.uncovered_spans:type_name -> vrooli.content_desk.v1.claims.TextSpan
+	1,  // 7: vrooli.content_desk.v1.claims.ClaimsService.ListClaims:input_type -> vrooli.content_desk.v1.claims.ListClaimsRequest
+	3,  // 8: vrooli.content_desk.v1.claims.ClaimsService.ListDraftClaims:input_type -> vrooli.content_desk.v1.claims.ListDraftClaimsRequest
+	5,  // 9: vrooli.content_desk.v1.claims.ClaimsService.CreateClaim:input_type -> vrooli.content_desk.v1.claims.CreateClaimRequest
+	7,  // 10: vrooli.content_desk.v1.claims.ClaimsService.CiteClaim:input_type -> vrooli.content_desk.v1.claims.CiteClaimRequest
+	9,  // 11: vrooli.content_desk.v1.claims.ClaimsService.VerifyClaim:input_type -> vrooli.content_desk.v1.claims.VerifyClaimRequest
+	11, // 12: vrooli.content_desk.v1.claims.ClaimsService.SweepClaims:input_type -> vrooli.content_desk.v1.claims.SweepClaimsRequest
+	14, // 13: vrooli.content_desk.v1.claims.ClaimsService.GetClaimCoverage:input_type -> vrooli.content_desk.v1.claims.GetClaimCoverageRequest
+	2,  // 14: vrooli.content_desk.v1.claims.ClaimsService.ListClaims:output_type -> vrooli.content_desk.v1.claims.ListClaimsResponse
+	4,  // 15: vrooli.content_desk.v1.claims.ClaimsService.ListDraftClaims:output_type -> vrooli.content_desk.v1.claims.ListDraftClaimsResponse
+	6,  // 16: vrooli.content_desk.v1.claims.ClaimsService.CreateClaim:output_type -> vrooli.content_desk.v1.claims.CreateClaimResponse
+	8,  // 17: vrooli.content_desk.v1.claims.ClaimsService.CiteClaim:output_type -> vrooli.content_desk.v1.claims.CiteClaimResponse
+	10, // 18: vrooli.content_desk.v1.claims.ClaimsService.VerifyClaim:output_type -> vrooli.content_desk.v1.claims.VerifyClaimResponse
+	12, // 19: vrooli.content_desk.v1.claims.ClaimsService.SweepClaims:output_type -> vrooli.content_desk.v1.claims.SweepClaimsResponse
+	15, // 20: vrooli.content_desk.v1.claims.ClaimsService.GetClaimCoverage:output_type -> vrooli.content_desk.v1.claims.GetClaimCoverageResponse
+	14, // [14:21] is the sub-list for method output_type
+	7,  // [7:14] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_content_desk_v1_claims_claims_proto_init() }
@@ -789,7 +980,7 @@ func file_content_desk_v1_claims_claims_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_content_desk_v1_claims_claims_proto_rawDesc), len(file_content_desk_v1_claims_claims_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

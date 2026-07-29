@@ -31,7 +31,17 @@ message RetrievedSignal {
   double score = 4;
 }
 
-message SearchRequest { SearchFilter filter = 1; }
-message SearchResponse { repeated RetrievedSignal results = 1; string next_page_after = 2; }
-message AmbientRequest { string category_id = 1; uint32 budget = 2; }
-message AmbientResponse { repeated RetrievedSignal results = 1; }
+message SearchRequest {
+  SearchFilter filter = 1;
+}
+message SearchResponse {
+  repeated RetrievedSignal results = 1;
+  string next_page_after = 2;
+}
+message AmbientRequest {
+  string category_id = 1;
+  uint32 budget = 2;
+}
+message AmbientResponse {
+  repeated RetrievedSignal results = 1;
+}

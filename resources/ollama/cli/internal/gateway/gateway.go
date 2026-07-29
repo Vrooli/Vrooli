@@ -178,7 +178,11 @@ func (h *Handlers) Generate(args []string) error {
 	}
 	defer release()
 
-	req := ensure.GenerateRequest{Model: selected.Ref, Prompt: text}
+	// Gateway generation is the structured, visible-output path.  Disable
+	// model thinking explicitly so thinking-capable models do not spend the
+	// caller's output budget on hidden reasoning and return an empty response.
+	think := false
+	req := ensure.GenerateRequest{Model: selected.Ref, Prompt: text, Think: &think}
 	if *maxTokens > 0 {
 		req.NumPredict = maxTokens
 	}

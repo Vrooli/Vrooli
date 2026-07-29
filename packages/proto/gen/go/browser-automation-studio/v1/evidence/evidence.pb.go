@@ -807,7 +807,7 @@ var File_browser_automation_studio_v1_evidence_evidence_proto protoreflect.FileD
 
 const file_browser_automation_studio_v1_evidence_evidence_proto_rawDesc = "" +
 	"\n" +
-	"4browser-automation-studio/v1/evidence/evidence.proto\x12%browser_automation_studio.v1.evidence\x1a\x1bbuf/validate/validate.proto\x1a1browser-automation-studio/v1/timeline/entry.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"x\n" +
+	"4browser-automation-studio/v1/evidence/evidence.proto\x12%browser_automation_studio.v1.evidence\x1a1browser-automation-studio/v1/timeline/entry.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"x\n" +
 	"\x12ArtifactProvenance\x12\x1b\n" +
 	"\x06source\x18\x01 \x01(\tH\x00R\x06source\x88\x01\x01\x12(\n" +
 	"\rartifact_type\x18\x02 \x01(\tH\x01R\fartifactType\x88\x01\x01B\t\n" +

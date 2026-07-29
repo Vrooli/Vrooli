@@ -86,6 +86,25 @@ func TestDo_ExhaustsAllAttempts(t *testing.T) {
 	}
 }
 
+func TestDo_ReturnsNonRetryableErrorImmediately(t *testing.T) {
+	want := errors.New("invalid configuration")
+	attempts := 0
+	err := Do(context.Background(), Config{
+		MaxAttempts: 5,
+		Retryable:   func(error) bool { return false },
+		Sleeper:     func(time.Duration) { t.Fatal("non-retryable error must not sleep") },
+	}, func(int) error {
+		attempts++
+		return want
+	})
+	if !errors.Is(err, want) {
+		t.Fatalf("Do() error = %v, want %v", err, want)
+	}
+	if attempts != 1 {
+		t.Fatalf("attempts = %d, want 1", attempts)
+	}
+}
+
 func TestDo_ExponentialBackoff(t *testing.T) {
 	t.Parallel()
 

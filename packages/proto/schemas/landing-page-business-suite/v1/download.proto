@@ -1,16 +1,32 @@
 syntax = "proto3";
 package landing_page_business_suite.v1;
+
 import "landing-page-business-suite/v1/shared/downloads.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
 
 // Download owns authorization and catalog mutations; catalog value objects are shared.
-message AuthorizeDownloadRequest { string app = 1; string platform = 2; }
-message AuthorizeDownloadResponse { vrooli.landing_page_business_suite.v1.shared.DownloadAsset asset = 1; }
+message AuthorizeDownloadRequest {
+  string app = 1;
+  string platform = 2;
+}
+message AuthorizeDownloadResponse {
+  vrooli.landing_page_business_suite.v1.shared.DownloadAsset asset = 1;
+}
 message ListDownloadAppsRequest {}
-message ListDownloadAppsResponse { repeated vrooli.landing_page_business_suite.v1.shared.DownloadApp apps = 1; }
-message SaveDownloadAppRequest { string app_key = 1; vrooli.landing_page_business_suite.v1.shared.DownloadApp app = 2; }
-message CreateDownloadAppRequest { vrooli.landing_page_business_suite.v1.shared.DownloadApp app = 1; }
-message DownloadAppResponse { vrooli.landing_page_business_suite.v1.shared.DownloadApp app = 1; }
+message ListDownloadAppsResponse {
+  repeated vrooli.landing_page_business_suite.v1.shared.DownloadApp apps = 1;
+}
+message SaveDownloadAppRequest {
+  string app_key = 1;
+  vrooli.landing_page_business_suite.v1.shared.DownloadApp app = 2;
+}
+message CreateDownloadAppRequest {
+  vrooli.landing_page_business_suite.v1.shared.DownloadApp app = 1;
+}
+message DownloadAppResponse {
+  vrooli.landing_page_business_suite.v1.shared.DownloadApp app = 1;
+}
 service DownloadService {
   rpc AuthorizeDownload(AuthorizeDownloadRequest) returns (AuthorizeDownloadResponse);
   rpc ListDownloadApps(ListDownloadAppsRequest) returns (ListDownloadAppsResponse);

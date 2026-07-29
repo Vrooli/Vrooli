@@ -52,6 +52,7 @@ export {
 export {
   createScenarioServer,
   startScenarioServer,
+  attachWsUpgradeHandler,
 } from './template.js'
 
 export {

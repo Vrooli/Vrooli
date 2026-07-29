@@ -73,7 +73,6 @@ spec:
     secondary:
       - prompt-manager
       - brand-manager
-      - campaign-content-studio
     optimal_combinations:
       - [unstructured-io, qdrant, ollama]   # Document AI pipeline
       - [unstructured-io, postgres, minio]  # Document management system

@@ -103,3 +103,31 @@ class SweepClaimsResponse(_message.Message):
     CLAIMS_FIELD_NUMBER: _ClassVar[int]
     claims: _containers.RepeatedCompositeFieldContainer[Claim]
     def __init__(self, claims: _Optional[_Iterable[_Union[Claim, _Mapping]]] = ...) -> None: ...
+
+class TextSpan(_message.Message):
+    __slots__ = ("start", "end", "claim_id", "supported")
+    START_FIELD_NUMBER: _ClassVar[int]
+    END_FIELD_NUMBER: _ClassVar[int]
+    CLAIM_ID_FIELD_NUMBER: _ClassVar[int]
+    SUPPORTED_FIELD_NUMBER: _ClassVar[int]
+    start: int
+    end: int
+    claim_id: str
+    supported: bool
+    def __init__(self, start: _Optional[int] = ..., end: _Optional[int] = ..., claim_id: _Optional[str] = ..., supported: _Optional[bool] = ...) -> None: ...
+
+class GetClaimCoverageRequest(_message.Message):
+    __slots__ = ("draft_id", "body")
+    DRAFT_ID_FIELD_NUMBER: _ClassVar[int]
+    BODY_FIELD_NUMBER: _ClassVar[int]
+    draft_id: str
+    body: str
+    def __init__(self, draft_id: _Optional[str] = ..., body: _Optional[str] = ...) -> None: ...
+
+class GetClaimCoverageResponse(_message.Message):
+    __slots__ = ("supported_spans", "uncovered_spans")
+    SUPPORTED_SPANS_FIELD_NUMBER: _ClassVar[int]
+    UNCOVERED_SPANS_FIELD_NUMBER: _ClassVar[int]
+    supported_spans: _containers.RepeatedCompositeFieldContainer[TextSpan]
+    uncovered_spans: _containers.RepeatedCompositeFieldContainer[TextSpan]
+    def __init__(self, supported_spans: _Optional[_Iterable[_Union[TextSpan, _Mapping]]] = ..., uncovered_spans: _Optional[_Iterable[_Union[TextSpan, _Mapping]]] = ...) -> None: ...

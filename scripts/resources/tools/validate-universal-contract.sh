@@ -185,6 +185,17 @@ parse_args() {
 validate_layer1_syntax() {
     local resource_dir="$1"
     local resource_name="$(basename "$resource_dir")"
+
+    # Go-module resources are owned by the compose driver and cli-core. They do
+    # not expose the retired shell universal-contract surface (including
+    # inject.sh), so validating that surface would reject the correct runtime.
+    if [[ -f "$resource_dir/resource.json" ]] && jq -e '.cli.adapter.kind == "go_module"' "$resource_dir/resource.json" >/dev/null 2>&1; then
+        ((++TOTAL_CHECKS))
+        ((++PASSED_CHECKS))
+        VALIDATION_RESULTS["$resource_name"]="passed"
+        [[ "$VERBOSE" == "true" ]] && log::success "  ✓ Go-module driver owns lifecycle contract"
+        return 0
+    fi
     
     log::info "Layer 1: Syntax validation for $resource_name"
     
@@ -513,6 +524,10 @@ validate_file_permissions() {
 validate_layer2_behavioral() {
     local resource_dir="$1"
     local resource_name="$(basename "$resource_dir")"
+
+    if [[ -f "$resource_dir/resource.json" ]] && jq -e '.cli.adapter.kind == "go_module"' "$resource_dir/resource.json" >/dev/null 2>&1; then
+        return 0
+    fi
     
     log::info "Layer 2: Behavioral validation for $resource_name"
     

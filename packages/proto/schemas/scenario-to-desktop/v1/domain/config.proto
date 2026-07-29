@@ -491,7 +491,14 @@ message WineCheckResponse {
 }
 
 message InstallWineRequest {
-  string method = 1 [(buf.validate.field).string = {in: ["flatpak", "flatpak-auto", "appimage", "skip"]}];
+  string method = 1 [(buf.validate.field).string = {
+    in: [
+      "flatpak",
+      "flatpak-auto",
+      "appimage",
+      "skip"
+    ]
+  }];
 }
 
 message WineInstallResponse {

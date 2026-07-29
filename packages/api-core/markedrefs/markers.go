@@ -24,6 +24,7 @@ const (
 	MarkerResource = "resource"
 	MarkerAction   = "action"
 	MarkerDecision = "decision"
+	MarkerGoal     = "goal"
 	MarkerCLI      = "cli"
 	MarkerEnv      = "env"
 	MarkerPlatform = "platform"
@@ -55,6 +56,7 @@ var markerSpecs = []MarkerSpec{
 	{MarkerResource, "Resource id."},
 	{MarkerAction, "Prompt-manager Action id."},
 	{MarkerDecision, "Decision context or decision id."},
+	{MarkerGoal, "Swarm-manager goal name."},
 	{MarkerCLI, "CLI command or subcommand."},
 	{MarkerEnv, "Environment variable."},
 	{MarkerPlatform, "OS / architecture / runtime target."},

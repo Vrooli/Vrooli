@@ -523,7 +523,6 @@ enhanced_test_lib::discover_resource_fixtures() {
             ollama|whisper|unstructured-io) resource_category="ai" ;;
             node-red|huginn) resource_category="automation" ;;
             minio|vault|qdrant|postgres|redis) resource_category="storage" ;;
-            judge0) resource_category="execution" ;;
             claude-code|agent-s2) resource_category="agents" ;;
             searxng) resource_category="search" ;;
         esac

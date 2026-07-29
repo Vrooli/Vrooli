@@ -100,10 +100,12 @@ func Middleware(cfg MiddlewareConfig) func(http.Handler) http.Handler {
 			}
 			// A receipt without verified run correlation is not an Agent Manager
 			// receipt. Other producers may supply their own correlation contract.
-			cfg.Reporter.PublishAsync(Receipt{Source: source, Target: cfg.Target, Operation: op,
+			cfg.Reporter.PublishAsync(Receipt{
+				Source: source, Target: cfg.Target, Operation: op,
 				Outcome: outcome(recorder.status), StatusCode: recorder.status, Duration: time.Since(started),
 				PolicyVer: policyVersion, Projection: projection, Correlation: correlation, SubjectID: VerifiedSubjectID(r),
-				ActorKind: actorKind(r), IdentityToken: VerifiedIdentityToken(r)})
+				ActorKind: actorKind(r), IdentityToken: VerifiedIdentityToken(r),
+			})
 		})
 	}
 }
@@ -151,6 +153,14 @@ func (w *statusWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return hijacker.Hijack()
 }
 
+// Flush preserves streaming (SSE, chunked progress) through the
+// receipt-capturing wrapper, for the same interface-promotion reason as Hijack.
+func (w *statusWriter) Flush() {
+	if flusher, ok := w.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
 // Unwrap lets net/http helpers reach optional interfaces on the underlying
 // writer as the middleware stack evolves.
 func (w *statusWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
@@ -159,12 +169,14 @@ func (w *statusWriter) WriteHeader(status int) {
 	w.status = status
 	w.ResponseWriter.WriteHeader(status)
 }
+
 func (w *statusWriter) Write(body []byte) (int, error) {
 	if w.body.Len() < 256*1024 {
 		_, _ = w.body.Write(body[:min(len(body), 256*1024-w.body.Len())])
 	}
 	return w.ResponseWriter.Write(body)
 }
+
 func outcome(status int) string {
 	if status >= 200 && status < 400 {
 		return "success"

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 
 	"github.com/vrooli/binaryfetch"
@@ -157,6 +158,9 @@ func (h toolHandler) inspectPackage(host hostreqkit.Host, requirement hostreqspe
 	if version != "" {
 		status.Version = version
 	}
+	if !h.versionSatisfied(&status) {
+		return status
+	}
 	if passed, detail := hostreqkit.RunVerificationCheck(h.manifest.VerificationCheck); !passed {
 		status.Notes = append(status.Notes, detail)
 	}
@@ -190,6 +194,19 @@ func (h toolHandler) inspectFetch(host hostreqkit.Host, requirement hostreqspec.
 		status.InstallSupported = false
 		if version := h.readFetchVersion(command); version != "" {
 			status.Version = version
+		}
+		if !h.versionSatisfied(&status) {
+			// A verified release target can converge an incompatible command on
+			// PATH. The source-installed launcher is deliberately preferred on
+			// subsequent inspection, so this does not keep selecting the stale
+			// system package forever.
+			if _, targetAvailable := h.manifest.Source.TargetFor(host.OS, runtimeArch()); targetAvailable {
+				status.InstallSupported = true
+			}
+			return status
+		}
+		if !h.runtimeEnvironmentSatisfied(host, &status) {
+			return status
 		}
 		return status
 	}
@@ -276,6 +293,9 @@ func (h toolHandler) applyPackage(host hostreqkit.Host, status hostreqkit.ItemSt
 	if installed {
 		status.ExecutionState = hostreqkit.ExecutionInstalled
 		status.Version = hostreqkit.ReadVersion(commandName, h.manifest.VersionArgs)
+		if !h.versionSatisfied(&status) {
+			return status, nil
+		}
 		if passed, detail := hostreqkit.RunVerificationCheck(h.manifest.VerificationCheck); !passed {
 			status.Notes = append(status.Notes, detail)
 		}
@@ -324,7 +344,7 @@ func (h toolHandler) applyFetch(host hostreqkit.Host, status hostreqkit.ItemStat
 	}
 
 	if target.IsDir() {
-		if err := h.installDir(spec, binDir, binName, opts); err != nil {
+		if err := h.installDir(spec, binDir, binName, target.RuntimeEnv, opts); err != nil {
 			status.ExecutionState = hostreqkit.ExecutionFailed
 			status.Notes = append(status.Notes, fmt.Sprintf("install %s: %v", binName, err))
 			return status, nil
@@ -343,6 +363,12 @@ func (h toolHandler) applyFetch(host hostreqkit.Host, status hostreqkit.ItemStat
 		if version := h.readFetchVersion(command); version != "" {
 			status.Version = version
 		}
+		if !h.versionSatisfied(&status) {
+			return status, nil
+		}
+		if !h.runtimeEnvironmentSatisfied(host, &status) {
+			return status, nil
+		}
 		return status, nil
 	}
 	status.ExecutionState = hostreqkit.ExecutionFailed
@@ -353,7 +379,7 @@ func (h toolHandler) applyFetch(host hostreqkit.Host, status hostreqkit.ItemStat
 // installDir fetches a dir-layout tool's whole archive tree into
 // ~/.vrooli/opt/<tool> and writes a launcher at ~/.vrooli/bin/<command> that
 // runs the entry binary with the opt dir on LD_LIBRARY_PATH.
-func (h toolHandler) installDir(spec binaryfetch.Target, binDir, command string, opts hostreqkit.EnsureOptions) error {
+func (h toolHandler) installDir(spec binaryfetch.Target, binDir, command string, runtimeEnv map[string]string, opts hostreqkit.EnsureOptions) error {
 	optDir, err := userLocalOptDir(h.manifest.Name)
 	if err != nil {
 		return err
@@ -362,27 +388,76 @@ func (h toolHandler) installDir(spec binaryfetch.Target, binDir, command string,
 	if err != nil {
 		return err
 	}
-	return writeLauncher(binDir, command, entry)
+	return writeLauncher(binDir, command, optDir, entry, runtimeEnv)
 }
 
 // writeLauncher writes an executable script at <binDir>/<command> that prepends
 // the entry binary's directory to LD_LIBRARY_PATH (so sibling shared libraries
 // resolve from any cwd) and execs the real binary, forwarding all args. On
 // Windows it writes a <command>.bat that prepends the dir to PATH instead.
-func writeLauncher(binDir, command, optBinPath string) error {
+func writeLauncher(binDir, command, optDir, optBinPath string, runtimeEnv map[string]string) error {
 	if err := os.MkdirAll(binDir, 0o755); err != nil {
 		return fmt.Errorf("create bin dir: %w", err)
 	}
 	dir := filepath.Dir(optBinPath)
+	resolvedEnv, err := resolveLauncherRuntimeEnv(optDir, runtimeEnv)
+	if err != nil {
+		return err
+	}
 	if runtime.GOOS == "windows" {
 		path := filepath.Join(binDir, command+".bat")
-		script := fmt.Sprintf("@echo off\r\nset \"PATH=%s;%%PATH%%\"\r\n\"%s\" %%*\r\n", dir, optBinPath)
+		lines := []string{"@echo off", fmt.Sprintf("set \"PATH=%s;%%PATH%%\"", dir)}
+		for _, key := range sortedEnvKeys(resolvedEnv) {
+			lines = append(lines, fmt.Sprintf("set \"%s=%s\"", key, resolvedEnv[key]))
+		}
+		lines = append(lines, fmt.Sprintf("\"%s\" %%*", optBinPath))
+		script := strings.Join(lines, "\r\n") + "\r\n"
 		return os.WriteFile(path, []byte(script), 0o755) //nolint:gosec // launcher must be executable
 	}
 	path := filepath.Join(binDir, command)
-	script := fmt.Sprintf("#!/bin/sh\nDIR=%s\nexport LD_LIBRARY_PATH=\"$DIR:$LD_LIBRARY_PATH\"\nexec %s \"$@\"\n",
-		shellSingleQuote(dir), shellSingleQuote(optBinPath))
+	lines := []string{"#!/bin/sh", "DIR=" + shellSingleQuote(dir), "export LD_LIBRARY_PATH=\"$DIR:$LD_LIBRARY_PATH\""}
+	for _, key := range sortedEnvKeys(resolvedEnv) {
+		lines = append(lines, "export "+key+"="+shellSingleQuote(resolvedEnv[key]))
+	}
+	lines = append(lines, "exec "+shellSingleQuote(optBinPath)+" \"$@\"")
+	script := strings.Join(lines, "\n") + "\n"
 	return os.WriteFile(path, []byte(script), 0o755) //nolint:gosec // launcher must be executable
+}
+
+func resolveLauncherRuntimeEnv(optDir string, runtimeEnv map[string]string) (map[string]string, error) {
+	resolved := make(map[string]string, len(runtimeEnv))
+	for key, relativePath := range runtimeEnv {
+		if !validEnvironmentName(key) {
+			return nil, fmt.Errorf("invalid launcher environment variable %q", key)
+		}
+		clean := filepath.Clean(relativePath)
+		if clean == "." || filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+			return nil, fmt.Errorf("launcher environment path for %s must stay within the tool directory", key)
+		}
+		resolved[key] = filepath.Join(optDir, clean)
+	}
+	return resolved, nil
+}
+
+func validEnvironmentName(value string) bool {
+	if value == "" {
+		return false
+	}
+	for index, r := range value {
+		if !(r == '_' || r >= 'A' && r <= 'Z' || index > 0 && r >= '0' && r <= '9') {
+			return false
+		}
+	}
+	return true
+}
+
+func sortedEnvKeys(values map[string]string) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // shellSingleQuote wraps s in single quotes, safely escaping embedded quotes, so
@@ -394,35 +469,116 @@ func shellSingleQuote(s string) string {
 // readFetchVersion reads a fetched tool's version, trying the bare command (when
 // ~/.vrooli/bin is on PATH) then the explicit ~/.vrooli/bin path.
 func (h toolHandler) readFetchVersion(command string) string {
-	if version := hostreqkit.ReadVersion(command, h.manifest.VersionArgs); version != "" {
-		return version
-	}
 	binDir, err := userLocalBinDir()
-	if err != nil {
-		return ""
+	if err == nil {
+		if version := hostreqkit.ReadVersion(localFetchCommandPath(binDir, command), h.manifest.VersionArgs); version != "" {
+			return version
+		}
 	}
-	return hostreqkit.ReadVersion(filepath.Join(binDir, command), h.manifest.VersionArgs)
+	return hostreqkit.ReadVersion(command, h.manifest.VersionArgs)
 }
 
 // resolveFetchCommand reports whether any candidate command is available, on
 // PATH or in ~/.vrooli/bin. When none is found it returns the canonical command
 // name (the first candidate) so the installer knows the target filename.
 func resolveFetchCommand(candidates []string) (string, bool) {
-	if cmd, ok := hostreqkit.ResolveCommand(candidates); ok {
-		return cmd, true
-	}
 	if binDir, err := userLocalBinDir(); err == nil {
 		for _, candidate := range candidates {
 			candidate = strings.TrimSpace(candidate)
 			if candidate == "" {
 				continue
 			}
-			if info, statErr := os.Stat(filepath.Join(binDir, candidate)); statErr == nil && !info.IsDir() {
+			if info, statErr := os.Stat(localFetchCommandPath(binDir, candidate)); statErr == nil && !info.IsDir() {
 				return candidate, true
 			}
 		}
 	}
+	if cmd, ok := hostreqkit.ResolveCommand(candidates); ok {
+		return cmd, true
+	}
 	return firstNonEmpty(candidates), false
+}
+
+func localFetchCommandPath(binDir, command string) string {
+	path := filepath.Join(binDir, command)
+	if runtime.GOOS == "windows" {
+		return path + ".bat"
+	}
+	return path
+}
+
+// versionSatisfied enforces the optional exact release pin in a generic tool
+// manifest. VersionArgs output is intentionally left human-readable in the
+// status; VersionMatches handles common prefixes such as go1.25.12 and
+// v1.25.12 without accepting a partial version match.
+func (h toolHandler) versionSatisfied(status *hostreqkit.ItemStatus) bool {
+	expected := strings.TrimSpace(h.manifest.Version)
+	if expected == "" || hostreqkit.VersionMatches(status.Version, expected) {
+		return true
+	}
+	status.Installed = false
+	status.ExecutionState = hostreqkit.ExecutionPending
+	status.Notes = append(status.Notes, fmt.Sprintf("version mismatch: found %q; require exactly %s", status.Version, expected))
+	return false
+}
+
+// runtimeEnvironmentSatisfied confirms that a managed directory-release
+// launcher still carries the runtime environment declared by its release
+// target. This matters after a manifest upgrade: merely finding an old
+// launcher at the correct binary version is not enough when that launcher can
+// inherit an incompatible ambient runtime home.
+func (h toolHandler) runtimeEnvironmentSatisfied(host hostreqkit.Host, status *hostreqkit.ItemStatus) bool {
+	if h.manifest.Source == nil {
+		return true
+	}
+	target, ok := h.manifest.Source.TargetFor(host.OS, runtimeArch())
+	if !ok || !target.IsDir() || len(target.RuntimeEnv) == 0 {
+		return true
+	}
+	binDir, err := userLocalBinDir()
+	if err != nil {
+		return true
+	}
+	launcher, err := os.ReadFile(localFetchCommandPath(binDir, status.Command))
+	if err != nil {
+		// The command may be a system tool rather than the managed release;
+		// install the target so the runtime environment is controlled.
+		status.Installed = false
+		status.ExecutionState = hostreqkit.ExecutionPending
+		status.InstallSupported = true
+		status.Notes = append(status.Notes, "managed launcher with declared runtime environment is not installed")
+		return false
+	}
+	optDir, err := userLocalOptDir(h.manifest.Name)
+	if err != nil {
+		return true
+	}
+	resolved, err := resolveLauncherRuntimeEnv(optDir, target.RuntimeEnv)
+	if err != nil {
+		status.Installed = false
+		status.ExecutionState = hostreqkit.ExecutionPending
+		status.InstallSupported = true
+		status.Notes = append(status.Notes, err.Error())
+		return false
+	}
+	contents := string(launcher)
+	for _, key := range sortedEnvKeys(resolved) {
+		if !strings.Contains(contents, launcherEnvironmentAssignment(key, resolved[key])) {
+			status.Installed = false
+			status.ExecutionState = hostreqkit.ExecutionPending
+			status.InstallSupported = true
+			status.Notes = append(status.Notes, fmt.Sprintf("managed launcher does not set required runtime environment %s", key))
+			return false
+		}
+	}
+	return true
+}
+
+func launcherEnvironmentAssignment(key, value string) string {
+	if runtime.GOOS == "windows" {
+		return fmt.Sprintf("set \"%s=%s\"", key, value)
+	}
+	return "export " + key + "=" + shellSingleQuote(value)
 }
 
 func firstNonEmpty(values []string) string {

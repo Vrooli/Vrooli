@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -20,6 +22,52 @@ import (
 type managedServiceDriver struct{}
 
 func (managedServiceDriver) Name() string { return "managed-service" }
+
+// ManagedServiceOwnerLifecycle binds the broker's owner-only management
+// surface to the same verified driver used by the control plane. It accepts no
+// caller-selected endpoint, PID, command, or artifact: all lifecycle input is
+// fixed by the manifest and Controller that created the host.
+type ManagedServiceOwnerLifecycle struct {
+	Controller *Controller
+	Manifest   ResourceManifest
+}
+
+func NewManagedServiceOwnerLifecycle(controller *Controller, manifest ResourceManifest) (OwnerLifecycle, error) {
+	if controller == nil || strings.TrimSpace(manifest.Name) == "" {
+		return nil, fmt.Errorf("managed-service owner lifecycle requires controller and manifest")
+	}
+	return ManagedServiceOwnerLifecycle{Controller: controller, Manifest: manifest}, nil
+}
+
+func (l ManagedServiceOwnerLifecycle) Manage(ctx context.Context, instance ManagedInstance, action string) (any, error) {
+	if l.Controller == nil || instance.Resource != l.Manifest.Name || instance.Provider != resourcedeployment.ProviderManagedShared {
+		return nil, fmt.Errorf("owner lifecycle does not match a managed shared %s instance", l.Manifest.Name)
+	}
+	driver := managedServiceDriver{}
+	item := Resource{Name: l.Manifest.Name}
+	switch action {
+	case "start", "restart":
+		if err := driver.runUserHosted(ctx, l.Controller, item, l.Manifest, action, io.Discard); err != nil {
+			return nil, err
+		}
+		return driver.Status(ctx, l.Controller, item, l.Manifest, false)
+	case "stop":
+		if err := driver.runPrivate(ctx, l.Controller, item, l.Manifest, action, io.Discard); err != nil {
+			return nil, err
+		}
+		return driver.Status(ctx, l.Controller, item, l.Manifest, true)
+	case "inspect":
+		return driver.Status(ctx, l.Controller, item, l.Manifest, false)
+	case "logs":
+		var output bytes.Buffer
+		if err := driver.runPrivate(ctx, l.Controller, item, l.Manifest, action, &output); err != nil {
+			return nil, err
+		}
+		return map[string]string{"logs": output.String()}, nil
+	default:
+		return nil, fmt.Errorf("unsupported managed-service owner action %q", action)
+	}
+}
 
 func (d managedServiceDriver) Status(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, fast bool) (Status, error) {
 	status := Status{Resource: item, StatusCode: StatusCodeOK, Message: "stopped"}
@@ -145,6 +193,9 @@ func (d managedServiceDriver) Run(ctx context.Context, controller *Controller, i
 		if mode == resourcedeployment.ProviderManagedShared && (action == "start" || action == "restart") {
 			return d.runUserHosted(ctx, controller, item, manifest, action, stdout)
 		}
+		if mode == resourcedeployment.ProviderManagedDiscovered && (action == "start" || action == "restart") {
+			return d.runDiscovered(ctx, controller, item, manifest, action, args)
+		}
 		if mode != resourcedeployment.ProviderManagedPrivate {
 			return managedServiceDriverError(item.Name, action, "Provider", fmt.Errorf("%s provider does not grant local lifecycle authority; use the broker or provider-specific client", mode))
 		}
@@ -181,8 +232,29 @@ func (d managedServiceDriver) runUserHosted(ctx context.Context, controller *Con
 	if err := host.SecureStorageReady(instanceID); err != nil {
 		return fmt.Errorf("user-hosted %s requires operating-system secure storage: %w", manifest.Name, err)
 	}
-	if err := d.runPrivate(ctx, controller, item, manifest, action, stdout); err != nil {
-		return err
+	// Vault and other resource-native shared bootstrappers must run after the
+	// verified process is reachable but before generic health claims success.
+	// Calling runPrivate here would reject an intentionally uninitialized Vault
+	// before its secure bootstrapper can initialize it.
+	switch action {
+	case "start":
+		if err := d.startPrivate(controller, manifest, supervisor); err != nil {
+			return err
+		}
+	case "restart":
+		stopCtx, cancel := managedServiceStopContext(ctx, manifest)
+		err := supervisor.Stop(stopCtx)
+		cancel()
+		if err != nil {
+			return err
+		}
+		if err := d.startPrivate(controller, manifest, supervisor); err != nil {
+			return err
+		}
+	case "stop", "uninstall", "logs":
+		return d.runPrivate(ctx, controller, item, manifest, action, stdout)
+	default:
+		return fmt.Errorf("unsupported shared managed-service action %q", action)
 	}
 	state, running, err := supervisor.Status()
 	if err != nil || !running {
@@ -192,7 +264,17 @@ func (d managedServiceDriver) runUserHosted(ctx context.Context, controller *Con
 	if err != nil {
 		return err
 	}
-	return bootstrap(ctx, host, ManagedInstance{ID: state.InstanceID, Resource: manifest.Name, Provider: resourcedeployment.ProviderManagedShared, OwnerScope: host.OwnerScope, CapabilityVersion: manifest.ManagedService.Artifact.Version, Endpoint: endpoint}, "control-plane")
+	attestation, err := supervisor.Attest(endpoint, "broker-owner:"+host.OwnerScope)
+	if err != nil {
+		return err
+	}
+	if err := bootstrap(ctx, host, ManagedInstance{ID: state.InstanceID, Resource: manifest.Name, Provider: resourcedeployment.ProviderManagedShared, OwnerScope: host.OwnerScope, CapabilityVersion: manifest.ManagedService.Artifact.Version, Endpoint: endpoint, Attestation: attestation}, "control-plane"); err != nil {
+		return err
+	}
+	if err := waitForManagedServiceHealth(ctx, controller, manifest); err != nil {
+		return err
+	}
+	return verifyManagedServiceRunning(supervisor)
 }
 
 func managedServiceLoopbackEndpoint(manifest ResourceManifest) (string, error) {
@@ -282,6 +364,9 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 		if err := d.startPrivate(controller, manifest, supervisor); err != nil {
 			return err
 		}
+		if err := d.bootstrapPrivate(ctx, manifest, supervisor); err != nil {
+			return err
+		}
 		if err := waitForManagedServiceHealth(ctx, controller, manifest); err != nil {
 			return err
 		}
@@ -294,6 +379,9 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 			return err
 		}
 		if err := d.startPrivate(controller, manifest, supervisor); err != nil {
+			return err
+		}
+		if err := d.bootstrapPrivate(ctx, manifest, supervisor); err != nil {
 			return err
 		}
 		if err := waitForManagedServiceHealth(ctx, controller, manifest); err != nil {
@@ -311,6 +399,25 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 	}
 }
 
+func (d managedServiceDriver) bootstrapPrivate(ctx context.Context, manifest ResourceManifest, supervisor *ManagedServiceSupervisor) error {
+	bootstrap, ok := managedPrivateBootstrapperFor(manifest.Name)
+	if !ok {
+		return nil
+	}
+	state, running, err := supervisor.Status()
+	if err != nil {
+		return fmt.Errorf("verify private %s ownership before bootstrap: %w", manifest.Name, err)
+	}
+	if !running {
+		return fmt.Errorf("verify private %s ownership before bootstrap: service is not running", manifest.Name)
+	}
+	endpoint, err := managedServiceLoopbackEndpoint(manifest)
+	if err != nil {
+		return err
+	}
+	return bootstrap(ctx, state, endpoint)
+}
+
 func (d managedServiceDriver) startPrivate(controller *Controller, manifest ResourceManifest, supervisor *ManagedServiceSupervisor) error {
 	if err := d.verifyArtifact(controller, manifest); err != nil {
 		return err
@@ -320,6 +427,13 @@ func (d managedServiceDriver) startPrivate(controller *Controller, manifest Reso
 	}
 	path, err := managedServiceArtifactPath(controller, manifest)
 	if err != nil {
+		return err
+	}
+	return d.startPrivateAt(controller, manifest, supervisor, path)
+}
+
+func (d managedServiceDriver) startPrivateAt(controller *Controller, manifest ResourceManifest, supervisor *ManagedServiceSupervisor, path string) error {
+	if err := d.verifyArtifactAt(manifest, path); err != nil {
 		return err
 	}
 	env := resourceEnvForResource(controller.Root, controller.Home, manifest.Name)
@@ -342,6 +456,101 @@ func (d managedServiceDriver) startPrivate(controller *Controller, manifest Reso
 	}
 	_, err = supervisor.Start(path, artifact, arguments, env, filepath.Dir(path))
 	return err
+}
+
+func (d managedServiceDriver) verifyArtifactAt(manifest ResourceManifest, path string) error {
+	artifact, err := manifest.ManagedService.Artifact.ForCurrentPlatform()
+	if err != nil {
+		return err
+	}
+	return artifact.VerifyFile(path)
+}
+
+// runDiscovered accepts only an explicit executable candidate, verifies it
+// against the manifest digest and version, then launches it under Vrooli's
+// supervisor with Vrooli-owned configuration and state. It never discovers or
+// adopts a running endpoint.
+func (d managedServiceDriver) runDiscovered(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, action string, args []string) error {
+	path, err := managedDiscoveredExecutable(args)
+	if err != nil {
+		return managedServiceDriverError(item.Name, action, "Provider", err)
+	}
+	if err := d.verifyArtifactAt(manifest, path); err != nil {
+		return managedServiceDriverError(item.Name, action, "Provider", err)
+	}
+	if err := verifyManagedDiscoveredVersion(ctx, path, manifest.ManagedService.Artifact.Version); err != nil {
+		return managedServiceDriverError(item.Name, action, "Provider", err)
+	}
+	supervisor, _, err := managedServiceSupervisorFor(manifest.Name)
+	if err != nil {
+		return err
+	}
+	if action == "restart" {
+		stopCtx, cancel := managedServiceStopContext(ctx, manifest)
+		err = supervisor.Stop(stopCtx)
+		cancel()
+		if err != nil {
+			return err
+		}
+	}
+	if err := ensureManagedServicePortsAvailable(manifest); err != nil {
+		return err
+	}
+	if err := d.startPrivateAt(controller, manifest, supervisor, path); err != nil {
+		return err
+	}
+	if err := d.bootstrapPrivate(ctx, manifest, supervisor); err != nil {
+		return err
+	}
+	if err := waitForManagedServiceHealth(ctx, controller, manifest); err != nil {
+		return err
+	}
+	return verifyManagedServiceRunning(supervisor)
+}
+
+func managedDiscoveredExecutable(args []string) (string, error) {
+	for index, arg := range args {
+		value := ""
+		if arg == "--executable" && index+1 < len(args) {
+			value = args[index+1]
+		}
+		if candidate, ok := strings.CutPrefix(arg, "--executable="); ok {
+			value = candidate
+		}
+		if strings.TrimSpace(value) == "" {
+			continue
+		}
+		if !filepath.IsAbs(value) {
+			return "", fmt.Errorf("managed-discovered executable path must be absolute")
+		}
+		path, err := filepath.Abs(value)
+		if err != nil {
+			return "", err
+		}
+		info, err := os.Stat(path)
+		if err != nil {
+			return "", fmt.Errorf("read discovered executable: %w", err)
+		}
+		if info.IsDir() || info.Mode()&0o111 == 0 {
+			return "", fmt.Errorf("discovered executable is not executable")
+		}
+		return path, nil
+	}
+	return "", fmt.Errorf("managed-discovered provider requires --executable <absolute-path>")
+}
+
+func verifyManagedDiscoveredVersion(ctx context.Context, path, version string) error {
+	if strings.TrimSpace(version) == "" {
+		return fmt.Errorf("manifest artifact version is required")
+	}
+	output, err := exec.CommandContext(ctx, path, "--version").CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("run discovered executable version check: %w", err)
+	}
+	if !strings.Contains(string(output), version) {
+		return fmt.Errorf("discovered executable version does not match required %s", version)
+	}
+	return nil
 }
 
 // ensureManagedServicePortsAvailable reserves each declared loopback port long

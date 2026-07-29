@@ -87,6 +87,25 @@ func TestCLIManifestSchemaAcceptsTemplate(t *testing.T) {
 	}
 }
 
+func TestCLIManifestSchemaAcceptsLocalBinding(t *testing.T) {
+	schema := compileCLIManifestSchema(t)
+	manifest := []byte(`{
+        "name": "demo",
+        "groups": [{
+            "name": "status",
+            "flat": true,
+            "commands": [{
+                "name": "status",
+                "binding": {"kind": "local"},
+                "governance": {"effect": "read", "run_eligible": true}
+            }]
+        }]
+    }`)
+	if err := validateCLIManifestBytes(t, schema, manifest); err != nil {
+		t.Fatalf("local binding must validate: %v", err)
+	}
+}
+
 func TestCLIManifestSchemaRejectsBrokenVariants(t *testing.T) {
 	schema := compileCLIManifestSchema(t)
 

@@ -118,11 +118,11 @@ func TestRepositoryProviderSpecsValidateCleanRequirementContract(t *testing.T) {
 			if len(spec.Capabilities) > 0 {
 				for code, mapping := range spec.Findings {
 					if strings.TrimSpace(mapping.CapabilityID) == "" {
-						t.Fatalf("%s multi-capability finding %q must declare capability_id", spec.Provider, code)
+						t.Fatalf("%s declares capabilities, so finding %q must declare capability_id", spec.Provider, code)
 					}
 				}
 				if strings.TrimSpace(spec.Fallback.CapabilityID) == "" {
-					t.Fatalf("%s multi-capability fallback must declare capability_id", spec.Provider)
+					t.Fatalf("%s declares capabilities, so the fallback must declare capability_id", spec.Provider)
 				}
 			}
 

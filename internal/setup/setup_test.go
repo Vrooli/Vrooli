@@ -792,7 +792,7 @@ func TestDockerIsDemandedOnlyBySelectedContainerResources(t *testing.T) {
 		"containerized",
 		testresource.WithResourceDriver("docker-service"),
 		testresource.WithResourceComposeFile("docker-compose.yml"),
-		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{Image: "fixture:latest"}),
+		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{Image: "fixture:1.0.0"}),
 	))
 	manifest, err := resources.NewController(root, home).ResourceManifest("containerized")
 	if err != nil {

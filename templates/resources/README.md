@@ -9,6 +9,7 @@ Phase 3 now ships the canonical implementation templates described in the migrat
 - `docker-service`
 - `compose-service`
 - `external-cli`
+- `managed-service`
 - `native-cli`
 - `cloud-api`
 - `desktop-app`

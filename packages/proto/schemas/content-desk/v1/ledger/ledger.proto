@@ -9,6 +9,10 @@ service LedgerService {
   rpc ListPublishRecords(ListPublishRecordsRequest) returns (ListPublishRecordsResponse);
   rpc ListContaminatedPublishRecords(ListContaminatedPublishRecordsRequest) returns (ListContaminatedPublishRecordsResponse);
   rpc ListCoverage(ListCoverageRequest) returns (ListCoverageResponse);
+  rpc IngestMetricSample(IngestMetricSampleRequest) returns (IngestMetricSampleResponse);
+  rpc ListRemediations(ListRemediationsRequest) returns (ListRemediationsResponse);
+  rpc CreateRemediation(CreateRemediationRequest) returns (CreateRemediationResponse);
+  rpc ResolveRemediation(ResolveRemediationRequest) returns (ResolveRemediationResponse);
 }
 
 message PublishRecord {
@@ -24,8 +28,12 @@ message ListPublishRecordsResponse {
   repeated PublishRecord publish_records = 1;
 }
 
-message ListContaminatedPublishRecordsRequest { string claim_id = 1; }
-message ListContaminatedPublishRecordsResponse { repeated PublishRecord publish_records = 1; }
+message ListContaminatedPublishRecordsRequest {
+  string claim_id = 1;
+}
+message ListContaminatedPublishRecordsResponse {
+  repeated PublishRecord publish_records = 1;
+}
 
 message CoverageCell {
   string campaign_id = 1;
@@ -36,5 +44,53 @@ message CoverageCell {
   string last_published_at = 6;
   bool stale = 7;
 }
-message ListCoverageRequest { int32 stale_after_days = 1; }
-message ListCoverageResponse { repeated CoverageCell cells = 1; }
+message ListCoverageRequest {
+  int32 stale_after_days = 1;
+}
+message ListCoverageResponse {
+  repeated CoverageCell cells = 1;
+}
+
+message IngestMetricSampleRequest {
+  string sample_id = 1;
+  string release_id = 2;
+  string draft_id = 3;
+  string metric = 4;
+  double value = 5;
+  string observed_at = 6;
+}
+message IngestMetricSampleResponse {
+  string sample_id = 1;
+  bool accepted = 2;
+}
+
+message Remediation {
+  string id = 1;
+  string publish_record_id = 2;
+  string kind = 3;
+  string status = 4;
+  string note = 5;
+  string created_at = 6;
+  string resolved_at = 7;
+}
+message ListRemediationsRequest {
+  string publish_record_id = 1;
+  bool open_only = 2;
+}
+message ListRemediationsResponse {
+  repeated Remediation remediations = 1;
+}
+message CreateRemediationRequest {
+  string publish_record_id = 1;
+  string kind = 2;
+  string note = 3;
+}
+message CreateRemediationResponse {
+  Remediation remediation = 1;
+}
+message ResolveRemediationRequest {
+  string id = 1;
+}
+message ResolveRemediationResponse {
+  Remediation remediation = 1;
+}

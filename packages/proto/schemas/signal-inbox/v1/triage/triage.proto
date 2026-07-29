@@ -43,7 +43,10 @@ message Disposition {
   google.protobuf.Timestamp updated_at = 4;
 }
 
-message OutcomeLink { OutcomeKind kind = 1; string target_id = 2; }
+message OutcomeLink {
+  OutcomeKind kind = 1;
+  string target_id = 2;
+}
 message Annotation {
   string id = 1;
   string signal_id = 2;
@@ -52,10 +55,30 @@ message Annotation {
   OutcomeLink outcome = 5;
   google.protobuf.Timestamp created_at = 6;
 }
-message TriageRecord { Disposition disposition = 1; repeated Annotation annotations = 2; }
-message GetTriageRequest { string signal_id = 1; }
-message GetTriageResponse { TriageRecord triage = 1; }
-message SetDispositionRequest { string signal_id = 1; DispositionState state = 2; google.protobuf.Timestamp revisit_at = 3; }
-message SetDispositionResponse { Disposition disposition = 1; }
-message AddAnnotationRequest { string signal_id = 1; AnnotationAuthor author = 2; string body = 3; OutcomeLink outcome = 4; }
-message AddAnnotationResponse { Annotation annotation = 1; }
+message TriageRecord {
+  Disposition disposition = 1;
+  repeated Annotation annotations = 2;
+}
+message GetTriageRequest {
+  string signal_id = 1;
+}
+message GetTriageResponse {
+  TriageRecord triage = 1;
+}
+message SetDispositionRequest {
+  string signal_id = 1;
+  DispositionState state = 2;
+  google.protobuf.Timestamp revisit_at = 3;
+}
+message SetDispositionResponse {
+  Disposition disposition = 1;
+}
+message AddAnnotationRequest {
+  string signal_id = 1;
+  AnnotationAuthor author = 2;
+  string body = 3;
+  OutcomeLink outcome = 4;
+}
+message AddAnnotationResponse {
+  Annotation annotation = 1;
+}

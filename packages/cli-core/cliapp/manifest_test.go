@@ -99,6 +99,16 @@ func TestLoadFromManifestUnknownGroup(t *testing.T) {
 	}
 }
 
+func TestParseManifestAcceptsLocalBindingButDoesNotLoadIt(t *testing.T) {
+	manifest := []byte(`{"name":"demo","groups":[{"name":"status","flat":true,"commands":[{"name":"status","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
+	if _, err := ParseManifest(manifest); err != nil {
+		t.Fatalf("ParseManifest() error = %v", err)
+	}
+	if _, err := LoadFromManifest(manifest, "status", nil); err == nil || !strings.Contains(err.Error(), "local binding") {
+		t.Fatalf("LoadFromManifest() error = %v, want local-binding registration error", err)
+	}
+}
+
 func TestParseManifestRejectsInvalid(t *testing.T) {
 	cases := []struct {
 		name, manifest, want string

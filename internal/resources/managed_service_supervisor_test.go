@@ -77,11 +77,11 @@ func TestManagedServiceSupervisorRejectsLivePIDWithoutOwnershipToken(t *testing.
 	dir := t.TempDir()
 	supervisor := newManagedServiceSupervisor(filepath.Join(dir, "state.json"), filepath.Join(dir, "service.log"))
 	if err := supervisor.writeState(ManagedServiceState{
-		InstanceID:      "ms-test",
-		OwnershipToken:  "wrong-token",
-		PID:             os.Getpid(),
-		ArtifactSHA256:  strings.Repeat("a", 64),
-		ArtifactVersion: "1.0.0",
+		InstanceID:         "ms-test",
+		OwnershipTokenHash: managedServiceTokenHash("wrong-token"),
+		PID:                os.Getpid(),
+		ArtifactSHA256:     strings.Repeat("a", 64),
+		ArtifactVersion:    "1.0.0",
 	}); err != nil {
 		t.Fatal(err)
 	}

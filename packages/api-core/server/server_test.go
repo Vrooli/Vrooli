@@ -2,9 +2,11 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"sync"
@@ -141,6 +143,89 @@ func TestRun_RequiresHandler(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "Handler is required") {
 		t.Errorf("expected error about Handler, got: %v", err)
+	}
+}
+
+func TestRecoverPanicsReturnsJSONAndLogsStack(t *testing.T) {
+	var logs []string
+	handler := recoverPanics(func(format string, args ...interface{}) { logs = append(logs, fmt.Sprintf(format, args...)) }, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		panic("boom")
+	}))
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/actions/example/run", nil))
+	if rr.Code != http.StatusInternalServerError || !strings.Contains(rr.Body.String(), "internal server error") {
+		t.Fatalf("response = %d %q", rr.Code, rr.Body.String())
+	}
+	if len(logs) != 1 || !strings.Contains(logs[0], "path=/actions/example/run") || !strings.Contains(logs[0], "stack=") {
+		t.Fatalf("panic log = %#v", logs)
+	}
+}
+
+func TestAccessLogRecordsStatusAndDuration(t *testing.T) {
+	var logs []string
+	handler := accessLog(func(format string, args ...interface{}) { logs = append(logs, fmt.Sprintf(format, args...)) }, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusCreated)
+	}))
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/actions/example/run", nil))
+	if len(logs) != 1 || !strings.Contains(logs[0], "method=POST") || !strings.Contains(logs[0], "status=201") {
+		t.Fatalf("access log = %#v", logs)
+	}
+}
+
+// A handler must still see an http.Flusher through the access-log wrapper.
+// Embedding http.ResponseWriter does not promote http.Flusher, so without an
+// explicit passthrough every SSE handler behind the standard server fails its
+// w.(http.Flusher) assertion -- which is exactly how server-sent events broke.
+func TestAccessLogPreservesFlusher(t *testing.T) {
+	var sawFlusher, flushed bool
+	handler := accessLog(func(string, ...interface{}) {}, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		flusher, ok := w.(http.Flusher)
+		sawFlusher = ok
+		if !ok {
+			return
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("event: ping\ndata: {}\n\n"))
+		flusher.Flush()
+		flushed = true
+	}))
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/repo/precommit/run/stream", nil))
+
+	if !sawFlusher {
+		t.Fatal("handler did not see an http.Flusher through the access-log wrapper")
+	}
+	if !flushed {
+		t.Fatal("handler could not flush through the access-log wrapper")
+	}
+	if !rr.Flushed {
+		t.Fatal("Flush did not reach the underlying ResponseWriter")
+	}
+	if !strings.Contains(rr.Body.String(), "event: ping") {
+		t.Fatalf("streamed body = %q", rr.Body.String())
+	}
+}
+
+// Hijack must reach the underlying writer too, so WebSocket upgrades survive
+// the wrapper. httptest.ResponseRecorder is not a Hijacker, so the contract
+// under test is that we report ErrNotSupported rather than panicking on the
+// failed type assertion.
+func TestAccessLogHijackDegradesCleanly(t *testing.T) {
+	var hijackErr error
+	handler := accessLog(func(string, ...interface{}) {}, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hijacker, ok := w.(http.Hijacker)
+		if !ok {
+			t.Error("handler did not see an http.Hijacker through the access-log wrapper")
+			return
+		}
+		_, _, hijackErr = hijacker.Hijack()
+	}))
+	handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/ws", nil))
+
+	if !errors.Is(hijackErr, http.ErrNotSupported) {
+		t.Fatalf("Hijack error = %v, want http.ErrNotSupported", hijackErr)
 	}
 }
 

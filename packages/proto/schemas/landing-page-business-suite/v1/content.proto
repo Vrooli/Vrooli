@@ -1,19 +1,44 @@
 syntax = "proto3";
 package landing_page_business_suite.v1;
+
 import "google/protobuf/struct.proto";
 import "landing-page-business-suite/v1/shared/content.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
 
 // Content owns commands and queries; its reusable section representation is in shared.
-message GetPublicSectionsRequest { int64 variant_id = 1; }
-message GetSectionsRequest { int64 variant_id = 1; }
-message SectionsResponse { repeated vrooli.landing_page_business_suite.v1.shared.ContentSection sections = 1; }
-message GetSectionRequest { int64 id = 1; }
-message SectionResponse { vrooli.landing_page_business_suite.v1.shared.ContentSection section = 1; }
-message CreateSectionRequest { int64 variant_id = 1; string section_type = 2; google.protobuf.Struct content = 3; int32 order = 4; optional bool enabled = 5; }
-message UpdateSectionRequest { int64 id = 1; google.protobuf.Struct content = 2; }
-message DeleteSectionRequest { int64 id = 1; }
-message DeleteSectionResponse { bool deleted = 1; }
+message GetPublicSectionsRequest {
+  int64 variant_id = 1;
+}
+message GetSectionsRequest {
+  int64 variant_id = 1;
+}
+message SectionsResponse {
+  repeated vrooli.landing_page_business_suite.v1.shared.ContentSection sections = 1;
+}
+message GetSectionRequest {
+  int64 id = 1;
+}
+message SectionResponse {
+  vrooli.landing_page_business_suite.v1.shared.ContentSection section = 1;
+}
+message CreateSectionRequest {
+  int64 variant_id = 1;
+  string section_type = 2;
+  google.protobuf.Struct content = 3;
+  int32 order = 4;
+  optional bool enabled = 5;
+}
+message UpdateSectionRequest {
+  int64 id = 1;
+  google.protobuf.Struct content = 2;
+}
+message DeleteSectionRequest {
+  int64 id = 1;
+}
+message DeleteSectionResponse {
+  bool deleted = 1;
+}
 service ContentService {
   rpc GetPublicSections(GetPublicSectionsRequest) returns (SectionsResponse);
   rpc GetSections(GetSectionsRequest) returns (SectionsResponse);

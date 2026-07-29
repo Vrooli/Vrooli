@@ -31,4 +31,6 @@ message RegisterPostTypeRequest {
   bool activate = 6;
   repeated string failure_modes = 7;
 }
-message RegisterPostTypeResponse { PostType post_type = 1; }
+message RegisterPostTypeResponse {
+  PostType post_type = 1;
+}

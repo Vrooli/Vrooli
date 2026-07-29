@@ -14,7 +14,14 @@ const userResourceHostID = "user-resource-host"
 
 type managedSharedBootstrapper func(context.Context, *UserResourceHost, ManagedInstance, string) error
 
+// managedPrivateBootstrapper is resource-native initialization for a
+// Vrooli-supervised, non-shared process. It deliberately receives supervisor
+// state rather than a caller-supplied endpoint, so a private bootstrapper
+// cannot be pointed at an arbitrary service.
+type managedPrivateBootstrapper func(context.Context, ManagedServiceState, string) error
+
 var managedSharedBootstrappers = map[string]managedSharedBootstrapper{}
+var managedPrivateBootstrappers = map[string]managedPrivateBootstrapper{}
 
 func registerManagedSharedBootstrapper(resource string, bootstrap managedSharedBootstrapper) {
 	if strings.TrimSpace(resource) == "" || bootstrap == nil {
@@ -31,6 +38,21 @@ func managedSharedBootstrapperFor(resource string) (managedSharedBootstrapper, b
 	return bootstrap, ok
 }
 
+func registerManagedPrivateBootstrapper(resource string, bootstrap managedPrivateBootstrapper) {
+	if strings.TrimSpace(resource) == "" || bootstrap == nil {
+		panic("managed private bootstrapper requires a resource and implementation")
+	}
+	if _, exists := managedPrivateBootstrappers[resource]; exists {
+		panic("duplicate managed private bootstrapper for " + resource)
+	}
+	managedPrivateBootstrappers[resource] = bootstrap
+}
+
+func managedPrivateBootstrapperFor(resource string) (managedPrivateBootstrapper, bool) {
+	bootstrap, ok := managedPrivateBootstrappers[resource]
+	return bootstrap, ok
+}
+
 func defaultManagedSharedSecureStore() securestore.Store { return securestore.Default() }
 
 // UserResourceHost is the per-user resource authority. Its durable state is
@@ -38,9 +60,10 @@ func defaultManagedSharedSecureStore() securestore.Store { return securestore.De
 // resource-native recovery material resides solely in the operating-system
 // secret store.
 type UserResourceHost struct {
-	Broker     *Broker
-	Secrets    securestore.Store
-	OwnerScope string
+	Broker            *Broker
+	Secrets           securestore.Store
+	OwnerScope        string
+	VerifyAttestation func(ManagedInstance) error
 }
 
 // SecureStorageReady proves store, read, and delete behavior before any
@@ -78,7 +101,15 @@ func OpenUserResourceHost(store securestore.Store, ownerScope string) (*UserReso
 	if err != nil {
 		return nil, fmt.Errorf("restore user resource host: %w", err)
 	}
-	return newUserResourceHost(broker, store, ownerScope)
+	host, err := newUserResourceHost(broker, store, ownerScope)
+	if err != nil {
+		return nil, err
+	}
+	host.VerifyAttestation = func(instance ManagedInstance) error {
+		return verifyManagedServiceAttestation(instance.Resource, instance.Attestation)
+	}
+	broker.SetOwnershipVerifier(host.VerifyAttestation)
+	return host, nil
 }
 
 func newUserResourceHost(broker *Broker, store securestore.Store, ownerScope string) (*UserResourceHost, error) {

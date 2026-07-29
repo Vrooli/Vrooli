@@ -34,6 +34,12 @@ message CreateCampaignRequest {
   repeated string evidence_refs = 2;
   repeated CampaignSlot slots = 3;
 }
-message CreateCampaignResponse { Campaign campaign = 1; }
-message ActivateCampaignRequest { string id = 1; }
-message ActivateCampaignResponse { Campaign campaign = 1; }
+message CreateCampaignResponse {
+  Campaign campaign = 1;
+}
+message ActivateCampaignRequest {
+  string id = 1;
+}
+message ActivateCampaignResponse {
+  Campaign campaign = 1;
+}

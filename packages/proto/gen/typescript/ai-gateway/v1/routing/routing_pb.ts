@@ -2,8 +2,8 @@
 // @generated from file ai-gateway/v1/routing/routing.proto (package vrooli.ai_gateway.v1.routing, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { GatewayRequest, PrivacyClass, Profile, RequestKind, ValidationIssue } from "../shared/gateway_pb";
 import { file_ai_gateway_v1_shared_gateway } from "../shared/gateway_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ai-gateway/v1/routing/routing.proto.
  */
 export const file_ai_gateway_v1_routing_routing: GenFile = /*@__PURE__*/
-  fileDesc("CiNhaS1nYXRld2F5L3YxL3JvdXRpbmcvcm91dGluZy5wcm90bxIcdnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZyLkAQoOUm91dGVDYW5kaWRhdGUSEAoIcHJvdmlkZXIYASABKAkSDAoEcm9sZRgCIAEoCRIQCghsb2NhbGl0eRgDIAEoCRIQCghzZWxlY3RlZBgEIAEoCBIPCgdyZWFzb25zGAUgAygJEhkKEWZhbGxiYWNrX2VsaWdpYmxlGAYgASgIEhUKDWJyZWFrZXJfc3RhdGUYByABKAkSFwoPaGFsZl9vcGVuX3Byb2JlGAggASgIEhgKEHJlamVjdGlvbl9yZWFzb24YCSABKAkSGAoQY2FwYWNpdHlfdmVyZGljdBgKIAEoCSJTChNQcmV2aWV3Um91dGVSZXF1ZXN0EjwKB3JlcXVlc3QYASABKAsyKy52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuR2F0ZXdheVJlcXVlc3QiiQIKFFByZXZpZXdSb3V0ZVJlc3BvbnNlEg0KBXZhbGlkGAEgASgIEjwKBmlzc3VlcxgCIAMoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5WYWxpZGF0aW9uSXNzdWUSQAoKY2FuZGlkYXRlcxgDIAMoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuUm91dGVDYW5kaWRhdGUSGQoRc2VsZWN0ZWRfcHJvdmlkZXIYBCABKAkSFgoOcG9saWN5X3JlYXNvbnMYBSADKAkSGAoQZmFsbGJhY2tfYWxsb3dlZBgGIAEoCBIVCg1yb3V0ZV9wbGFuX2lkGAcgASgJImcKE0V4ZWN1dGVSb3V0ZVJlcXVlc3QSPAoHcmVxdWVzdBgBIAEoCzIrLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5HYXRld2F5UmVxdWVzdBISCgppbnB1dF90ZXh0GAIgASgJIogGCg1Sb3V0ZUV2aWRlbmNlEhAKCGV2ZW50X2lkGAEgASgJEhIKCnJlcXVlc3RfaWQYAiABKAkSEAoIc2NlbmFyaW8YAyABKAkSEQoJb3BlcmF0aW9uGAQgASgJEgwKBHJvbGUYBSABKAkSNQoHcHJvZmlsZRgGIAEoDjIkLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5Qcm9maWxlEkAKDXByaXZhY3lfY2xhc3MYByABKA4yKS52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuUHJpdmFjeUNsYXNzEhkKEXNlbGVjdGVkX3Byb3ZpZGVyGAggASgJEhkKEXNlbGVjdGVkX2xvY2FsaXR5GAkgASgJEg4KBnN0YXR1cxgKIAEoCRIWCg5wb2xpY3lfcmVhc29ucxgLIAMoCRIXCg9mYWlsdXJlX3JlYXNvbnMYDCADKAkSFQoNZmFsbGJhY2tfdXNlZBgNIAEoCBIXCg9wcm9tcHRfcmVkYWN0ZWQYDiABKAgSGQoRcmVzcG9uc2VfcmVkYWN0ZWQYDyABKAgSEgoKbGF0ZW5jeV9tcxgQIAEoAxISCgpjcmVhdGVkX2F0GBEgASgJEhUKDWJyZWFrZXJfc3RhdGUYEiABKAkSFQoNZmFpbHVyZV9jbGFzcxgTIAEoCRIYChByZWplY3Rpb25fcmVhc29uGBQgASgJEhgKEGNhcGFjaXR5X3ZlcmRpY3QYFSABKAkSGQoRY2FwYWNpdHlfY2xhaW1faWQYFiABKAkSHwoXY2FwYWNpdHlfcmVxdWlyZWRfYnl0ZXMYFyABKAMSHgoWY2FwYWNpdHlfZ3JhbnRlZF9ieXRlcxgYIAEoAxIhChljYXBhY2l0eV9yZWNsYWltX3JlcXVpcmVkGBkgASgIEhQKDGlucHV0X3Rva2VucxgaIAEoAxIVCg1vdXRwdXRfdG9rZW5zGBsgASgDEhUKDWNvc3RfZXN0aW1hdGUYHCABKAESFgoOc2VsZWN0ZWRfbW9kZWwYHSABKAkizwEKFEV4ZWN1dGVSb3V0ZVJlc3BvbnNlEg0KBXZhbGlkGAEgASgIEjwKBmlzc3VlcxgCIAMoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5WYWxpZGF0aW9uSXNzdWUSPQoIZXZpZGVuY2UYAyABKAsyKy52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLlJvdXRlRXZpZGVuY2USEwoLb3V0cHV0X3RleHQYBCABKAkSFgoOcG9saWN5X3JlYXNvbnMYBSADKAkiOwoYTGlzdFJvdXRlRXZpZGVuY2VSZXF1ZXN0Eg0KBWxpbWl0GAEgASgFEhAKCHNjZW5hcmlvGAIgASgJIlgKGUxpc3RSb3V0ZUV2aWRlbmNlUmVzcG9uc2USOwoGZXZlbnRzGAEgAygLMisudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5Sb3V0ZUV2aWRlbmNlIisKF0dldFJvdXRlRXZpZGVuY2VSZXF1ZXN0EhAKCGV2ZW50X2lkGAEgASgJIlYKGEdldFJvdXRlRXZpZGVuY2VSZXNwb25zZRI6CgVldmVudBgBIAEoCzIrLnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuUm91dGVFdmlkZW5jZSLPAgoOUHJvdmlkZXJIZWFsdGgSEAoIcHJvdmlkZXIYASABKAkSDAoEcm9sZRgCIAEoCRI2CgRraW5kGAMgASgOMigudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLlJlcXVlc3RLaW5kEg0KBXN0YXRlGAQgASgJEhcKD2VmZmVjdGl2ZV9zdGF0ZRgFIAEoCRIcChRjb25zZWN1dGl2ZV9mYWlsdXJlcxgGIAEoAxIaChJsYXN0X2ZhaWx1cmVfY2xhc3MYByABKAkSFwoPbGFzdF9zdWNjZXNzX2F0GAggASgJEhcKD2xhc3RfZmFpbHVyZV9hdBgJIAEoCRIWCg5jb29sZG93bl91bnRpbBgKIAEoCRIRCglvcGVuZWRfYXQYCyABKAkSEgoKZ2VuZXJhdGlvbhgMIAEoAxISCgp1cGRhdGVkX2F0GA0gASgJIhsKGUxpc3RQcm92aWRlckhlYWx0aFJlcXVlc3QiWQoaTGlzdFByb3ZpZGVySGVhbHRoUmVzcG9uc2USOwoFaXRlbXMYASADKAsyLC52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLlByb3ZpZGVySGVhbHRoMpMFCg5Sb3V0aW5nU2VydmljZRJ1CgxQcmV2aWV3Um91dGUSMS52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLlByZXZpZXdSb3V0ZVJlcXVlc3QaMi52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLlByZXZpZXdSb3V0ZVJlc3BvbnNlEnUKDEV4ZWN1dGVSb3V0ZRIxLnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuRXhlY3V0ZVJvdXRlUmVxdWVzdBoyLnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuRXhlY3V0ZVJvdXRlUmVzcG9uc2UShAEKEUxpc3RSb3V0ZUV2aWRlbmNlEjYudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5MaXN0Um91dGVFdmlkZW5jZVJlcXVlc3QaNy52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLkxpc3RSb3V0ZUV2aWRlbmNlUmVzcG9uc2USgQEKEEdldFJvdXRlRXZpZGVuY2USNS52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLkdldFJvdXRlRXZpZGVuY2VSZXF1ZXN0GjYudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5HZXRSb3V0ZUV2aWRlbmNlUmVzcG9uc2UShwEKEkxpc3RQcm92aWRlckhlYWx0aBI3LnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuTGlzdFByb3ZpZGVySGVhbHRoUmVxdWVzdBo4LnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuTGlzdFByb3ZpZGVySGVhbHRoUmVzcG9uc2VCUVpPZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9haS1nYXRld2F5L3YxL3JvdXRpbmc7cm91dGluZ192MWIGcHJvdG8z", [file_ai_gateway_v1_shared_gateway]);
+  fileDesc("CiNhaS1nYXRld2F5L3YxL3JvdXRpbmcvcm91dGluZy5wcm90bxIcdnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZyLkAQoOUm91dGVDYW5kaWRhdGUSEAoIcHJvdmlkZXIYASABKAkSDAoEcm9sZRgCIAEoCRIQCghsb2NhbGl0eRgDIAEoCRIQCghzZWxlY3RlZBgEIAEoCBIPCgdyZWFzb25zGAUgAygJEhkKEWZhbGxiYWNrX2VsaWdpYmxlGAYgASgIEhUKDWJyZWFrZXJfc3RhdGUYByABKAkSFwoPaGFsZl9vcGVuX3Byb2JlGAggASgIEhgKEHJlamVjdGlvbl9yZWFzb24YCSABKAkSGAoQY2FwYWNpdHlfdmVyZGljdBgKIAEoCSJTChNQcmV2aWV3Um91dGVSZXF1ZXN0EjwKB3JlcXVlc3QYASABKAsyKy52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuR2F0ZXdheVJlcXVlc3QiiQIKFFByZXZpZXdSb3V0ZVJlc3BvbnNlEg0KBXZhbGlkGAEgASgIEjwKBmlzc3VlcxgCIAMoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5WYWxpZGF0aW9uSXNzdWUSQAoKY2FuZGlkYXRlcxgDIAMoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuUm91dGVDYW5kaWRhdGUSGQoRc2VsZWN0ZWRfcHJvdmlkZXIYBCABKAkSFgoOcG9saWN5X3JlYXNvbnMYBSADKAkSGAoQZmFsbGJhY2tfYWxsb3dlZBgGIAEoCBIVCg1yb3V0ZV9wbGFuX2lkGAcgASgJImcKE0V4ZWN1dGVSb3V0ZVJlcXVlc3QSPAoHcmVxdWVzdBgBIAEoCzIrLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5HYXRld2F5UmVxdWVzdBISCgppbnB1dF90ZXh0GAIgASgJIogGCg1Sb3V0ZUV2aWRlbmNlEhAKCGV2ZW50X2lkGAEgASgJEhIKCnJlcXVlc3RfaWQYAiABKAkSEAoIc2NlbmFyaW8YAyABKAkSEQoJb3BlcmF0aW9uGAQgASgJEgwKBHJvbGUYBSABKAkSNQoHcHJvZmlsZRgGIAEoDjIkLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5Qcm9maWxlEkAKDXByaXZhY3lfY2xhc3MYByABKA4yKS52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuUHJpdmFjeUNsYXNzEhkKEXNlbGVjdGVkX3Byb3ZpZGVyGAggASgJEhkKEXNlbGVjdGVkX2xvY2FsaXR5GAkgASgJEg4KBnN0YXR1cxgKIAEoCRIWCg5wb2xpY3lfcmVhc29ucxgLIAMoCRIXCg9mYWlsdXJlX3JlYXNvbnMYDCADKAkSFQoNZmFsbGJhY2tfdXNlZBgNIAEoCBIXCg9wcm9tcHRfcmVkYWN0ZWQYDiABKAgSGQoRcmVzcG9uc2VfcmVkYWN0ZWQYDyABKAgSEgoKbGF0ZW5jeV9tcxgQIAEoAxISCgpjcmVhdGVkX2F0GBEgASgJEhUKDWJyZWFrZXJfc3RhdGUYEiABKAkSFQoNZmFpbHVyZV9jbGFzcxgTIAEoCRIYChByZWplY3Rpb25fcmVhc29uGBQgASgJEhgKEGNhcGFjaXR5X3ZlcmRpY3QYFSABKAkSGQoRY2FwYWNpdHlfY2xhaW1faWQYFiABKAkSHwoXY2FwYWNpdHlfcmVxdWlyZWRfYnl0ZXMYFyABKAMSHgoWY2FwYWNpdHlfZ3JhbnRlZF9ieXRlcxgYIAEoAxIhChljYXBhY2l0eV9yZWNsYWltX3JlcXVpcmVkGBkgASgIEhQKDGlucHV0X3Rva2VucxgaIAEoAxIVCg1vdXRwdXRfdG9rZW5zGBsgASgDEhUKDWNvc3RfZXN0aW1hdGUYHCABKAESFgoOc2VsZWN0ZWRfbW9kZWwYHSABKAkizwEKFEV4ZWN1dGVSb3V0ZVJlc3BvbnNlEg0KBXZhbGlkGAEgASgIEjwKBmlzc3VlcxgCIAMoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5WYWxpZGF0aW9uSXNzdWUSPQoIZXZpZGVuY2UYAyABKAsyKy52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLlJvdXRlRXZpZGVuY2USEwoLb3V0cHV0X3RleHQYBCABKAkSFgoOcG9saWN5X3JlYXNvbnMYBSADKAkiMwoKTWVkaWFJbnB1dBIRCglyZWZlcmVuY2UYASABKAkSEgoKbWVkaWFfdHlwZRgCIAEoCSJVCgtNZWRpYU91dHB1dBIRCglyZWZlcmVuY2UYASABKAkSEgoKbWVkaWFfdHlwZRgCIAEoCRINCgVieXRlcxgDIAEoAxIQCghjaGVja3N1bRgEIAEoCSLLAQoSU3VibWl0TWVkaWFSZXF1ZXN0EjwKB3JlcXVlc3QYASABKAsyKy52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuR2F0ZXdheVJlcXVlc3QSDgoGcHJvbXB0GAIgASgJEjgKBmlucHV0cxgDIAMoCzIoLnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuTWVkaWFJbnB1dBIUCgxvdXRwdXRfY291bnQYBCABKAUSFwoPaWRlbXBvdGVuY3lfa2V5GAUgASgJIr4DCg5NZWRpYUV4ZWN1dGlvbhIUCgxleGVjdXRpb25faWQYASABKAkSFwoPaWRlbXBvdGVuY3lfa2V5GAIgASgJEkIKBnN0YXR1cxgDIAEoDjIyLnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuTWVkaWFFeGVjdXRpb25TdGF0dXMSEgoKY3JlYXRlZF9hdBgEIAEoCRISCgpzdGFydGVkX2F0GAUgASgJEhQKDGNvbXBsZXRlZF9hdBgGIAEoCRJDCg5yb3V0ZV9ldmlkZW5jZRgHIAEoCzIrLnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuUm91dGVFdmlkZW5jZRI6CgdvdXRwdXRzGAggAygLMikudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5NZWRpYU91dHB1dBIXCg9hY3R1YWxfY29zdF91c2QYCSABKAESFgoOcmVzb2x2ZWRfbW9kZWwYCiABKAkSDAoEc2VlZBgLIAEoCRIQCgh3YXJuaW5ncxgMIAMoCRISCgplcnJvcl9jb2RlGA0gASgJEhUKDWVycm9yX21lc3NhZ2UYDiABKAkiVgoTU3VibWl0TWVkaWFSZXNwb25zZRI/CglleGVjdXRpb24YASABKAsyLC52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLk1lZGlhRXhlY3V0aW9uIjAKGEdldE1lZGlhRXhlY3V0aW9uUmVxdWVzdBIUCgxleGVjdXRpb25faWQYASABKAkiXAoZR2V0TWVkaWFFeGVjdXRpb25SZXNwb25zZRI/CglleGVjdXRpb24YASABKAsyLC52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLk1lZGlhRXhlY3V0aW9uIjMKG0NhbmNlbE1lZGlhRXhlY3V0aW9uUmVxdWVzdBIUCgxleGVjdXRpb25faWQYASABKAkiXwocQ2FuY2VsTWVkaWFFeGVjdXRpb25SZXNwb25zZRI/CglleGVjdXRpb24YASABKAsyLC52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLk1lZGlhRXhlY3V0aW9uIksKGlJldHJ5TWVkaWFFeGVjdXRpb25SZXF1ZXN0EhQKDGV4ZWN1dGlvbl9pZBgBIAEoCRIXCg9pZGVtcG90ZW5jeV9rZXkYAiABKAkiXgobUmV0cnlNZWRpYUV4ZWN1dGlvblJlc3BvbnNlEj8KCWV4ZWN1dGlvbhgBIAEoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuTWVkaWFFeGVjdXRpb24iOwoYTGlzdFJvdXRlRXZpZGVuY2VSZXF1ZXN0Eg0KBWxpbWl0GAEgASgFEhAKCHNjZW5hcmlvGAIgASgJIlgKGUxpc3RSb3V0ZUV2aWRlbmNlUmVzcG9uc2USOwoGZXZlbnRzGAEgAygLMisudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5Sb3V0ZUV2aWRlbmNlIisKF0dldFJvdXRlRXZpZGVuY2VSZXF1ZXN0EhAKCGV2ZW50X2lkGAEgASgJIlYKGEdldFJvdXRlRXZpZGVuY2VSZXNwb25zZRI6CgVldmVudBgBIAEoCzIrLnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuUm91dGVFdmlkZW5jZSLPAgoOUHJvdmlkZXJIZWFsdGgSEAoIcHJvdmlkZXIYASABKAkSDAoEcm9sZRgCIAEoCRI2CgRraW5kGAMgASgOMigudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLlJlcXVlc3RLaW5kEg0KBXN0YXRlGAQgASgJEhcKD2VmZmVjdGl2ZV9zdGF0ZRgFIAEoCRIcChRjb25zZWN1dGl2ZV9mYWlsdXJlcxgGIAEoAxIaChJsYXN0X2ZhaWx1cmVfY2xhc3MYByABKAkSFwoPbGFzdF9zdWNjZXNzX2F0GAggASgJEhcKD2xhc3RfZmFpbHVyZV9hdBgJIAEoCRIWCg5jb29sZG93bl91bnRpbBgKIAEoCRIRCglvcGVuZWRfYXQYCyABKAkSEgoKZ2VuZXJhdGlvbhgMIAEoAxISCgp1cGRhdGVkX2F0GA0gASgJIhsKGUxpc3RQcm92aWRlckhlYWx0aFJlcXVlc3QiWQoaTGlzdFByb3ZpZGVySGVhbHRoUmVzcG9uc2USOwoFaXRlbXMYASADKAsyLC52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLlByb3ZpZGVySGVhbHRoKvQBChRNZWRpYUV4ZWN1dGlvblN0YXR1cxImCiJNRURJQV9FWEVDVVRJT05fU1RBVFVTX1VOU1BFQ0lGSUVEEAASIQodTUVESUFfRVhFQ1VUSU9OX1NUQVRVU19RVUVVRUQQARIiCh5NRURJQV9FWEVDVVRJT05fU1RBVFVTX1JVTk5JTkcQAhIkCiBNRURJQV9FWEVDVVRJT05fU1RBVFVTX1NVQ0NFRURFRBADEiEKHU1FRElBX0VYRUNVVElPTl9TVEFUVVNfRkFJTEVEEAQSJAogTUVESUFfRVhFQ1VUSU9OX1NUQVRVU19DQU5DRUxMRUQQBTKrCQoOUm91dGluZ1NlcnZpY2USdQoMUHJldmlld1JvdXRlEjEudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5QcmV2aWV3Um91dGVSZXF1ZXN0GjIudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5QcmV2aWV3Um91dGVSZXNwb25zZRJ1CgxFeGVjdXRlUm91dGUSMS52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLkV4ZWN1dGVSb3V0ZVJlcXVlc3QaMi52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLkV4ZWN1dGVSb3V0ZVJlc3BvbnNlEnIKC1N1Ym1pdE1lZGlhEjAudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5TdWJtaXRNZWRpYVJlcXVlc3QaMS52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLlN1Ym1pdE1lZGlhUmVzcG9uc2UShAEKEUdldE1lZGlhRXhlY3V0aW9uEjYudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5HZXRNZWRpYUV4ZWN1dGlvblJlcXVlc3QaNy52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLkdldE1lZGlhRXhlY3V0aW9uUmVzcG9uc2USjQEKFENhbmNlbE1lZGlhRXhlY3V0aW9uEjkudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5DYW5jZWxNZWRpYUV4ZWN1dGlvblJlcXVlc3QaOi52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLkNhbmNlbE1lZGlhRXhlY3V0aW9uUmVzcG9uc2USigEKE1JldHJ5TWVkaWFFeGVjdXRpb24SOC52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLlJldHJ5TWVkaWFFeGVjdXRpb25SZXF1ZXN0GjkudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5SZXRyeU1lZGlhRXhlY3V0aW9uUmVzcG9uc2UShAEKEUxpc3RSb3V0ZUV2aWRlbmNlEjYudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5MaXN0Um91dGVFdmlkZW5jZVJlcXVlc3QaNy52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLkxpc3RSb3V0ZUV2aWRlbmNlUmVzcG9uc2USgQEKEEdldFJvdXRlRXZpZGVuY2USNS52cm9vbGkuYWlfZ2F0ZXdheS52MS5yb3V0aW5nLkdldFJvdXRlRXZpZGVuY2VSZXF1ZXN0GjYudnJvb2xpLmFpX2dhdGV3YXkudjEucm91dGluZy5HZXRSb3V0ZUV2aWRlbmNlUmVzcG9uc2UShwEKEkxpc3RQcm92aWRlckhlYWx0aBI3LnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuTGlzdFByb3ZpZGVySGVhbHRoUmVxdWVzdBo4LnZyb29saS5haV9nYXRld2F5LnYxLnJvdXRpbmcuTGlzdFByb3ZpZGVySGVhbHRoUmVzcG9uc2VCUVpPZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9haS1nYXRld2F5L3YxL3JvdXRpbmc7cm91dGluZ192MWIGcHJvdG8z", [file_ai_gateway_v1_shared_gateway]);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.routing.RouteCandidate
@@ -403,6 +403,315 @@ export const ExecuteRouteResponseSchema: GenMessage<ExecuteRouteResponse> = /*@_
   messageDesc(file_ai_gateway_v1_routing_routing, 5);
 
 /**
+ * MediaInput is an opaque caller-controlled reference to an input artifact.
+ * References are not provider URLs and never transfer bytes through Gateway.
+ *
+ * @generated from message vrooli.ai_gateway.v1.routing.MediaInput
+ */
+export type MediaInput = Message<"vrooli.ai_gateway.v1.routing.MediaInput"> & {
+  /**
+   * @generated from field: string reference = 1;
+   */
+  reference: string;
+
+  /**
+   * @generated from field: string media_type = 2;
+   */
+  mediaType: string;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.routing.MediaInput.
+ * Use `create(MediaInputSchema)` to create a new message.
+ */
+export const MediaInputSchema: GenMessage<MediaInput> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_routing_routing, 6);
+
+/**
+ * MediaOutput is a durable reference to one produced artifact. Its location is
+ * owned by the media executor; callers must not infer provider details from it.
+ *
+ * @generated from message vrooli.ai_gateway.v1.routing.MediaOutput
+ */
+export type MediaOutput = Message<"vrooli.ai_gateway.v1.routing.MediaOutput"> & {
+  /**
+   * @generated from field: string reference = 1;
+   */
+  reference: string;
+
+  /**
+   * @generated from field: string media_type = 2;
+   */
+  mediaType: string;
+
+  /**
+   * @generated from field: int64 bytes = 3;
+   */
+  bytes: bigint;
+
+  /**
+   * @generated from field: string checksum = 4;
+   */
+  checksum: string;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.routing.MediaOutput.
+ * Use `create(MediaOutputSchema)` to create a new message.
+ */
+export const MediaOutputSchema: GenMessage<MediaOutput> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_routing_routing, 7);
+
+/**
+ * SubmitMediaRequest starts a provider-neutral asynchronous image or video
+ * operation. request.kind must be IMAGE_GENERATION or VIDEO_GENERATION.
+ *
+ * @generated from message vrooli.ai_gateway.v1.routing.SubmitMediaRequest
+ */
+export type SubmitMediaRequest = Message<"vrooli.ai_gateway.v1.routing.SubmitMediaRequest"> & {
+  /**
+   * @generated from field: vrooli.ai_gateway.v1.shared.GatewayRequest request = 1;
+   */
+  request?: GatewayRequest | undefined;
+
+  /**
+   * @generated from field: string prompt = 2;
+   */
+  prompt: string;
+
+  /**
+   * @generated from field: repeated vrooli.ai_gateway.v1.routing.MediaInput inputs = 3;
+   */
+  inputs: MediaInput[];
+
+  /**
+   * @generated from field: int32 output_count = 4;
+   */
+  outputCount: number;
+
+  /**
+   * @generated from field: string idempotency_key = 5;
+   */
+  idempotencyKey: string;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.routing.SubmitMediaRequest.
+ * Use `create(SubmitMediaRequestSchema)` to create a new message.
+ */
+export const SubmitMediaRequestSchema: GenMessage<SubmitMediaRequest> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_routing_routing, 8);
+
+/**
+ * MediaExecution is the durable receipt and terminal result. It records route
+ * evidence, resolved model and cost only when the executor reports them.
+ *
+ * @generated from message vrooli.ai_gateway.v1.routing.MediaExecution
+ */
+export type MediaExecution = Message<"vrooli.ai_gateway.v1.routing.MediaExecution"> & {
+  /**
+   * @generated from field: string execution_id = 1;
+   */
+  executionId: string;
+
+  /**
+   * @generated from field: string idempotency_key = 2;
+   */
+  idempotencyKey: string;
+
+  /**
+   * @generated from field: vrooli.ai_gateway.v1.routing.MediaExecutionStatus status = 3;
+   */
+  status: MediaExecutionStatus;
+
+  /**
+   * @generated from field: string created_at = 4;
+   */
+  createdAt: string;
+
+  /**
+   * @generated from field: string started_at = 5;
+   */
+  startedAt: string;
+
+  /**
+   * @generated from field: string completed_at = 6;
+   */
+  completedAt: string;
+
+  /**
+   * @generated from field: vrooli.ai_gateway.v1.routing.RouteEvidence route_evidence = 7;
+   */
+  routeEvidence?: RouteEvidence | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.ai_gateway.v1.routing.MediaOutput outputs = 8;
+   */
+  outputs: MediaOutput[];
+
+  /**
+   * @generated from field: double actual_cost_usd = 9;
+   */
+  actualCostUsd: number;
+
+  /**
+   * @generated from field: string resolved_model = 10;
+   */
+  resolvedModel: string;
+
+  /**
+   * @generated from field: string seed = 11;
+   */
+  seed: string;
+
+  /**
+   * @generated from field: repeated string warnings = 12;
+   */
+  warnings: string[];
+
+  /**
+   * @generated from field: string error_code = 13;
+   */
+  errorCode: string;
+
+  /**
+   * @generated from field: string error_message = 14;
+   */
+  errorMessage: string;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.routing.MediaExecution.
+ * Use `create(MediaExecutionSchema)` to create a new message.
+ */
+export const MediaExecutionSchema: GenMessage<MediaExecution> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_routing_routing, 9);
+
+/**
+ * @generated from message vrooli.ai_gateway.v1.routing.SubmitMediaResponse
+ */
+export type SubmitMediaResponse = Message<"vrooli.ai_gateway.v1.routing.SubmitMediaResponse"> & {
+  /**
+   * @generated from field: vrooli.ai_gateway.v1.routing.MediaExecution execution = 1;
+   */
+  execution?: MediaExecution | undefined;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.routing.SubmitMediaResponse.
+ * Use `create(SubmitMediaResponseSchema)` to create a new message.
+ */
+export const SubmitMediaResponseSchema: GenMessage<SubmitMediaResponse> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_routing_routing, 10);
+
+/**
+ * @generated from message vrooli.ai_gateway.v1.routing.GetMediaExecutionRequest
+ */
+export type GetMediaExecutionRequest = Message<"vrooli.ai_gateway.v1.routing.GetMediaExecutionRequest"> & {
+  /**
+   * @generated from field: string execution_id = 1;
+   */
+  executionId: string;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.routing.GetMediaExecutionRequest.
+ * Use `create(GetMediaExecutionRequestSchema)` to create a new message.
+ */
+export const GetMediaExecutionRequestSchema: GenMessage<GetMediaExecutionRequest> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_routing_routing, 11);
+
+/**
+ * @generated from message vrooli.ai_gateway.v1.routing.GetMediaExecutionResponse
+ */
+export type GetMediaExecutionResponse = Message<"vrooli.ai_gateway.v1.routing.GetMediaExecutionResponse"> & {
+  /**
+   * @generated from field: vrooli.ai_gateway.v1.routing.MediaExecution execution = 1;
+   */
+  execution?: MediaExecution | undefined;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.routing.GetMediaExecutionResponse.
+ * Use `create(GetMediaExecutionResponseSchema)` to create a new message.
+ */
+export const GetMediaExecutionResponseSchema: GenMessage<GetMediaExecutionResponse> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_routing_routing, 12);
+
+/**
+ * @generated from message vrooli.ai_gateway.v1.routing.CancelMediaExecutionRequest
+ */
+export type CancelMediaExecutionRequest = Message<"vrooli.ai_gateway.v1.routing.CancelMediaExecutionRequest"> & {
+  /**
+   * @generated from field: string execution_id = 1;
+   */
+  executionId: string;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.routing.CancelMediaExecutionRequest.
+ * Use `create(CancelMediaExecutionRequestSchema)` to create a new message.
+ */
+export const CancelMediaExecutionRequestSchema: GenMessage<CancelMediaExecutionRequest> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_routing_routing, 13);
+
+/**
+ * @generated from message vrooli.ai_gateway.v1.routing.CancelMediaExecutionResponse
+ */
+export type CancelMediaExecutionResponse = Message<"vrooli.ai_gateway.v1.routing.CancelMediaExecutionResponse"> & {
+  /**
+   * @generated from field: vrooli.ai_gateway.v1.routing.MediaExecution execution = 1;
+   */
+  execution?: MediaExecution | undefined;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.routing.CancelMediaExecutionResponse.
+ * Use `create(CancelMediaExecutionResponseSchema)` to create a new message.
+ */
+export const CancelMediaExecutionResponseSchema: GenMessage<CancelMediaExecutionResponse> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_routing_routing, 14);
+
+/**
+ * @generated from message vrooli.ai_gateway.v1.routing.RetryMediaExecutionRequest
+ */
+export type RetryMediaExecutionRequest = Message<"vrooli.ai_gateway.v1.routing.RetryMediaExecutionRequest"> & {
+  /**
+   * @generated from field: string execution_id = 1;
+   */
+  executionId: string;
+
+  /**
+   * @generated from field: string idempotency_key = 2;
+   */
+  idempotencyKey: string;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.routing.RetryMediaExecutionRequest.
+ * Use `create(RetryMediaExecutionRequestSchema)` to create a new message.
+ */
+export const RetryMediaExecutionRequestSchema: GenMessage<RetryMediaExecutionRequest> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_routing_routing, 15);
+
+/**
+ * @generated from message vrooli.ai_gateway.v1.routing.RetryMediaExecutionResponse
+ */
+export type RetryMediaExecutionResponse = Message<"vrooli.ai_gateway.v1.routing.RetryMediaExecutionResponse"> & {
+  /**
+   * @generated from field: vrooli.ai_gateway.v1.routing.MediaExecution execution = 1;
+   */
+  execution?: MediaExecution | undefined;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.routing.RetryMediaExecutionResponse.
+ * Use `create(RetryMediaExecutionResponseSchema)` to create a new message.
+ */
+export const RetryMediaExecutionResponseSchema: GenMessage<RetryMediaExecutionResponse> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_routing_routing, 16);
+
+/**
  * @generated from message vrooli.ai_gateway.v1.routing.ListRouteEvidenceRequest
  */
 export type ListRouteEvidenceRequest = Message<"vrooli.ai_gateway.v1.routing.ListRouteEvidenceRequest"> & {
@@ -422,7 +731,7 @@ export type ListRouteEvidenceRequest = Message<"vrooli.ai_gateway.v1.routing.Lis
  * Use `create(ListRouteEvidenceRequestSchema)` to create a new message.
  */
 export const ListRouteEvidenceRequestSchema: GenMessage<ListRouteEvidenceRequest> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_routing_routing, 6);
+  messageDesc(file_ai_gateway_v1_routing_routing, 17);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.routing.ListRouteEvidenceResponse
@@ -439,7 +748,7 @@ export type ListRouteEvidenceResponse = Message<"vrooli.ai_gateway.v1.routing.Li
  * Use `create(ListRouteEvidenceResponseSchema)` to create a new message.
  */
 export const ListRouteEvidenceResponseSchema: GenMessage<ListRouteEvidenceResponse> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_routing_routing, 7);
+  messageDesc(file_ai_gateway_v1_routing_routing, 18);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.routing.GetRouteEvidenceRequest
@@ -456,7 +765,7 @@ export type GetRouteEvidenceRequest = Message<"vrooli.ai_gateway.v1.routing.GetR
  * Use `create(GetRouteEvidenceRequestSchema)` to create a new message.
  */
 export const GetRouteEvidenceRequestSchema: GenMessage<GetRouteEvidenceRequest> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_routing_routing, 8);
+  messageDesc(file_ai_gateway_v1_routing_routing, 19);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.routing.GetRouteEvidenceResponse
@@ -473,7 +782,7 @@ export type GetRouteEvidenceResponse = Message<"vrooli.ai_gateway.v1.routing.Get
  * Use `create(GetRouteEvidenceResponseSchema)` to create a new message.
  */
 export const GetRouteEvidenceResponseSchema: GenMessage<GetRouteEvidenceResponse> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_routing_routing, 9);
+  messageDesc(file_ai_gateway_v1_routing_routing, 20);
 
 /**
  * ProviderHealth is the persisted circuit-breaker record for one
@@ -556,7 +865,7 @@ export type ProviderHealth = Message<"vrooli.ai_gateway.v1.routing.ProviderHealt
  * Use `create(ProviderHealthSchema)` to create a new message.
  */
 export const ProviderHealthSchema: GenMessage<ProviderHealth> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_routing_routing, 10);
+  messageDesc(file_ai_gateway_v1_routing_routing, 21);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.routing.ListProviderHealthRequest
@@ -569,7 +878,7 @@ export type ListProviderHealthRequest = Message<"vrooli.ai_gateway.v1.routing.Li
  * Use `create(ListProviderHealthRequestSchema)` to create a new message.
  */
 export const ListProviderHealthRequestSchema: GenMessage<ListProviderHealthRequest> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_routing_routing, 11);
+  messageDesc(file_ai_gateway_v1_routing_routing, 22);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.routing.ListProviderHealthResponse
@@ -586,7 +895,51 @@ export type ListProviderHealthResponse = Message<"vrooli.ai_gateway.v1.routing.L
  * Use `create(ListProviderHealthResponseSchema)` to create a new message.
  */
 export const ListProviderHealthResponseSchema: GenMessage<ListProviderHealthResponse> = /*@__PURE__*/
-  messageDesc(file_ai_gateway_v1_routing_routing, 12);
+  messageDesc(file_ai_gateway_v1_routing_routing, 23);
+
+/**
+ * MediaExecutionStatus is the durable lifecycle of a provider-neutral media
+ * submission. A receipt is terminal only in SUCCEEDED, FAILED, or CANCELLED.
+ *
+ * @generated from enum vrooli.ai_gateway.v1.routing.MediaExecutionStatus
+ */
+export enum MediaExecutionStatus {
+  /**
+   * @generated from enum value: MEDIA_EXECUTION_STATUS_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: MEDIA_EXECUTION_STATUS_QUEUED = 1;
+   */
+  QUEUED = 1,
+
+  /**
+   * @generated from enum value: MEDIA_EXECUTION_STATUS_RUNNING = 2;
+   */
+  RUNNING = 2,
+
+  /**
+   * @generated from enum value: MEDIA_EXECUTION_STATUS_SUCCEEDED = 3;
+   */
+  SUCCEEDED = 3,
+
+  /**
+   * @generated from enum value: MEDIA_EXECUTION_STATUS_FAILED = 4;
+   */
+  FAILED = 4,
+
+  /**
+   * @generated from enum value: MEDIA_EXECUTION_STATUS_CANCELLED = 5;
+   */
+  CANCELLED = 5,
+}
+
+/**
+ * Describes the enum vrooli.ai_gateway.v1.routing.MediaExecutionStatus.
+ */
+export const MediaExecutionStatusSchema: GenEnum<MediaExecutionStatus> = /*@__PURE__*/
+  enumDesc(file_ai_gateway_v1_routing_routing, 0);
 
 /**
  * @generated from service vrooli.ai_gateway.v1.routing.RoutingService
@@ -607,6 +960,38 @@ export const RoutingService: GenService<{
     methodKind: "unary";
     input: typeof ExecuteRouteRequestSchema;
     output: typeof ExecuteRouteResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.ai_gateway.v1.routing.RoutingService.SubmitMedia
+   */
+  submitMedia: {
+    methodKind: "unary";
+    input: typeof SubmitMediaRequestSchema;
+    output: typeof SubmitMediaResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.ai_gateway.v1.routing.RoutingService.GetMediaExecution
+   */
+  getMediaExecution: {
+    methodKind: "unary";
+    input: typeof GetMediaExecutionRequestSchema;
+    output: typeof GetMediaExecutionResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.ai_gateway.v1.routing.RoutingService.CancelMediaExecution
+   */
+  cancelMediaExecution: {
+    methodKind: "unary";
+    input: typeof CancelMediaExecutionRequestSchema;
+    output: typeof CancelMediaExecutionResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.ai_gateway.v1.routing.RoutingService.RetryMediaExecution
+   */
+  retryMediaExecution: {
+    methodKind: "unary";
+    input: typeof RetryMediaExecutionRequestSchema;
+    output: typeof RetryMediaExecutionResponseSchema;
   },
   /**
    * @generated from rpc vrooli.ai_gateway.v1.routing.RoutingService.ListRouteEvidence

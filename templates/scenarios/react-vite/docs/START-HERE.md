@@ -6,6 +6,13 @@ protocol: complete the gates in order, check them off as you go, and
 do not start product implementation until the charter and requirements
 gates are complete.
 
+When this scenario was created from a swarm-manager plan, read that plan first
+for the selected template, acceptance boundary, and initial vertical slice.
+Then read this document before every initial-development slice: the plan owns
+*what* capability is being built, while this guide owns the local template
+contracts and initialization gates. Record the completed gate and true frontier
+in the plan handoff so the next agent does not re-discover the foundation.
+
 Run `make orient` from this scenario directory whenever you want a
 machine-readable progress check for these gates. It delegates to
 `template-manager orient {{SCENARIO_ID}}`, which reads the temporary

@@ -44,15 +44,43 @@ message Classification {
   google.protobuf.Timestamp created_at = 9;
 }
 
-message CreateCategoryRequest { string name = 1; string description = 2; }
-message CreateCategoryResponse { Category category = 1; }
-message ListCategoriesRequest { bool include_retired = 1; }
-message ListCategoriesResponse { repeated Category categories = 1; }
-message RenameCategoryRequest { string id = 1; string name = 2; string description = 3; }
-message RenameCategoryResponse { Category category = 1; }
-message RetireCategoryRequest { string id = 1; }
-message RetireCategoryResponse { Category category = 1; }
-message GetClassificationRequest { string signal_id = 1; }
-message GetClassificationResponse { Classification classification = 1; }
-message ConfirmClassificationRequest { string signal_id = 1; string category_id = 2; }
-message ConfirmClassificationResponse { Classification classification = 1; }
+message CreateCategoryRequest {
+  string name = 1;
+  string description = 2;
+}
+message CreateCategoryResponse {
+  Category category = 1;
+}
+message ListCategoriesRequest {
+  bool include_retired = 1;
+}
+message ListCategoriesResponse {
+  repeated Category categories = 1;
+}
+message RenameCategoryRequest {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+}
+message RenameCategoryResponse {
+  Category category = 1;
+}
+message RetireCategoryRequest {
+  string id = 1;
+}
+message RetireCategoryResponse {
+  Category category = 1;
+}
+message GetClassificationRequest {
+  string signal_id = 1;
+}
+message GetClassificationResponse {
+  Classification classification = 1;
+}
+message ConfirmClassificationRequest {
+  string signal_id = 1;
+  string category_id = 2;
+}
+message ConfirmClassificationResponse {
+  Classification classification = 1;
+}
