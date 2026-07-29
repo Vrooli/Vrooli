@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	core "channel-manager/internal/channelmanager"
 	"channel-manager/internal/clock"
 	"channel-manager/internal/modules"
 	"channel-manager/internal/server"
@@ -21,8 +23,8 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	channelManagerH "channel-manager/handlers/channelmanager"
 	healthH "channel-manager/handlers/health"
-	notesH "channel-manager/handlers/notes" // EXAMPLE-DOMAIN:notes
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -146,11 +148,27 @@ func main() {
 		log.Fatalf("file storage configuration failed: %v", err)
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
+	dataRoot := strings.TrimSpace(os.Getenv("CHANNEL_MANAGER_DATA_DIR"))
+	if dataRoot == "" {
+		log.Fatal("CHANNEL_MANAGER_DATA_DIR is required; configure the immutable descriptor directory through the scenario lifecycle")
+	}
+	platforms, programs, err := core.LoadDescriptors(dataRoot)
+	if err != nil {
+		log.Fatalf("load channel-manager descriptors: %v", err)
+	}
+	channelService, err := core.New(platforms, programs)
+	if err != nil {
+		log.Fatalf("validate channel-manager descriptors: %v", err)
+	}
+	channelStore := core.NewStore(db)
+	if err := channelStore.Load(context.Background(), channelService); err != nil {
+		log.Fatalf("load channel-manager state: %v", err)
+	}
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "channel-manager-api", "1.0.0"),
-		notesH.Module(db, clock.System{}, log.Default()), // EXAMPLE-DOMAIN:notes
+		channelManagerH.Module(channelService, channelStore),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -158,19 +176,6 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
-
-	// EXAMPLE-DOMAIN:notes START
-	// /measures is the measures-go serve substrate: the central measures
-	// index (measures-health) harvests <prefix>/declarations and the
-	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
-	// one reference measure (notes.count); a real multi-domain scenario
-	// registers each domain's measures on one shared registry here.
-	notesMeasures, err := notesH.MeasuresHandler(db, clock.System{})
-	if err != nil {
-		log.Fatalf("measures registry: %v", err)
-	}
-	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
-	// EXAMPLE-DOMAIN:notes END
 
 	rootMux.Handle("/", srv.Handler())
 

@@ -78,8 +78,8 @@ export function SendPanel() {
     setDraftText("");
   };
 
-  const updateStaged = (id: string, patch: Partial<Pick<StagedItem, "retention" | "targetDeviceId">>) => {
-    setStaged((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  const updateStaged = (id: string, patch: Partial<StagedItem>) => {
+    setStaged((prev) => prev.map((item) => (item.id === id ? ({ ...item, ...patch } as StagedItem) : item)));
   };
 
   const removeStaged = (id: string) => {
@@ -101,10 +101,18 @@ export function SendPanel() {
             targetDeviceId: item.targetDeviceId,
           });
         } else {
-          await uploadItem(item.file, {
-            retention: item.retention,
-            targetDeviceId: item.targetDeviceId,
-          });
+          try {
+            await uploadItem(item.file, {
+              retention: item.retention,
+              targetDeviceId: item.targetDeviceId,
+              sessionId: item.uploadSessionId,
+              onSession: (uploadSessionId) => updateStaged(item.id, { uploadSessionId, error: undefined }),
+              onProgress: (progress) => updateStaged(item.id, { progress, error: undefined }),
+            });
+          } catch (error) {
+            updateStaged(item.id, { error: errorMessage(error, t) });
+            throw error;
+          }
         }
       }
     },
@@ -240,6 +248,14 @@ export function SendPanel() {
                       <X aria-hidden="true" className="h-4 w-4" />
                     </Button>
                   </div>
+                  {item.kind === "file" && (sendMutation.isPending || item.progress > 0 || item.error) && (
+                    <div className="space-y-1">
+                      <div className="h-2 overflow-hidden rounded-full bg-app-surface-muted" role="progressbar" aria-label={`${item.file.name} upload progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(item.progress * 100)}>
+                        <div className="h-full bg-app-accent transition-[width]" style={{ width: `${Math.round(item.progress * 100)}%` }} />
+                      </div>
+                      <p className="text-xs text-app-muted-foreground">{item.error ?? `${Math.round(item.progress * 100)}% uploaded`}</p>
+                    </div>
+                  )}
                   <div className="flex flex-wrap items-center gap-2">
                     <label className="flex items-center gap-1 text-xs text-app-muted-foreground">
                       {t(strings.transfer.send.retentionLabel)}

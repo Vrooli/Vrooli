@@ -1,7 +1,11 @@
 package sources
 
 import (
+	"bytes"
 	"context"
+	"mime/multipart"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -52,4 +56,29 @@ func TestSourceTransportRejectsEmptyAndUnknownImports(t *testing.T) {
 	_, err = handler.ImportArchive(context.Background(), connect.NewRequest(&sourcesv1.ImportArchiveRequest{AdapterId: "unknown", Content: []byte("x")}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+}
+
+func TestArchiveUploadImportsWithoutConnectMessageBytes(t *testing.T) {
+	database := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(signals.Schema), apidb.SchemaProviderFunc(internal.Schema)))
+	clk := mocks.NewFakeClock(time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC))
+	journal := signals.NewService(signals.NewSQLiteRepository(database, clk), clk)
+	service, err := internal.NewService(internal.NewSQLiteRepository(database), journal, clk, internal.ChromeBookmarksAdapter{})
+	require.NoError(t, err)
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	require.NoError(t, writer.WriteField("adapter_id", internal.ChromeBookmarksAdapterID))
+	file, err := writer.CreateFormFile("file", "bookmarks.html")
+	require.NoError(t, err)
+	_, err = file.Write([]byte(`<!DOCTYPE NETSCAPE-Bookmark-file-1><DL><p><DT><A HREF="https://example.test/a">A</A></DL><p>`))
+	require.NoError(t, err)
+	require.NoError(t, writer.Close())
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/sources/archive", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	response := httptest.NewRecorder()
+	NewArchiveUploadHandler(service).ServeHTTP(response, req)
+	require.Equal(t, http.StatusCreated, response.Code)
+	all, err := journal.List(context.Background(), 10)
+	require.NoError(t, err)
+	require.Len(t, all, 1)
 }

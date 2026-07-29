@@ -24,42 +24,74 @@ func NewImageUploadHandler(store blobstore.BlobStore, logger *log.Logger) http.H
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, maxImageUploadBytes)
-		if err := r.ParseMultipartForm(maxImageUploadBytes); err != nil {
-			httpx.WriteError(w, http.StatusBadRequest, httpx.CodeInvalidRequest, "invalid multipart image upload")
-			return
-		}
-		file, header, err := r.FormFile("file")
+		data, mime, err := readImageUpload(r)
 		if err != nil {
 			httpx.WriteError(w, http.StatusBadRequest, httpx.CodeInvalidRequest, "file field is required")
 			return
 		}
-		defer file.Close()
-		if header.Size <= 0 {
+		if len(data) == 0 {
 			httpx.WriteError(w, http.StatusBadRequest, httpx.CodeInvalidRequest, "image is empty")
 			return
 		}
-		mime := strings.TrimSpace(header.Header.Get("Content-Type"))
 		if !strings.HasPrefix(strings.ToLower(mime), "image/") {
 			httpx.WriteError(w, http.StatusBadRequest, httpx.CodeInvalidRequest, "file must have an image content type")
 			return
 		}
-		data, err := io.ReadAll(io.LimitReader(file, maxImageUploadBytes+1))
-		if err != nil {
-			httpx.WriteError(w, http.StatusBadRequest, httpx.CodeInvalidRequest, "read image failed")
-			return
-		}
-		if int64(len(data)) > maxImageUploadBytes {
-			httpx.WriteError(w, http.StatusBadRequest, httpx.CodeInvalidRequest, "image exceeds maximum size")
-			return
-		}
-		key := imagePayloadKey(header.Filename, data)
+		key := imagePayloadKey("", data)
 		if err := store.Put(r.Context(), key, bytes.NewReader(data), mime); err != nil {
 			logger.Printf("signals image upload %q: %v", key, err)
 			httpx.WriteError(w, http.StatusInternalServerError, httpx.CodeInternal, "store image failed")
 			return
 		}
-		httpx.WriteProto(w, http.StatusCreated, &signalsv1.UploadImageResponse{Image: &signalsv1.ImageUpload{PayloadRef: key, ContentType: mime, SizeBytes: header.Size}})
+		httpx.WriteProto(w, http.StatusCreated, &signalsv1.UploadImageResponse{Image: &signalsv1.ImageUpload{PayloadRef: key, ContentType: mime, SizeBytes: int64(len(data))}})
 	})
+}
+
+// readImageUpload reads only the expected multipart part. http.MaxBytesReader
+// owns the request-wide cap; the per-part limit protects this allocation and
+// makes the bound explicit to both the reader and the security scanner.
+func readImageUpload(r *http.Request) ([]byte, string, error) {
+	reader, err := r.MultipartReader()
+	if err != nil {
+		return nil, "", err
+	}
+	var data []byte
+	var contentType string
+	found := false
+	for {
+		part, nextErr := reader.NextPart()
+		if nextErr == io.EOF {
+			break
+		}
+		if nextErr != nil {
+			return nil, "", nextErr
+		}
+		if part.FormName() != "file" {
+			_ = part.Close()
+			continue
+		}
+		if found {
+			_ = part.Close()
+			return nil, "", fmt.Errorf("multiple file fields")
+		}
+		found = true
+		contentType = strings.TrimSpace(part.Header.Get("Content-Type"))
+		data, err = io.ReadAll(io.LimitReader(part, maxImageUploadBytes+1))
+		closeErr := part.Close()
+		if err != nil {
+			return nil, "", err
+		}
+		if closeErr != nil {
+			return nil, "", closeErr
+		}
+		if int64(len(data)) > maxImageUploadBytes {
+			return nil, "", fmt.Errorf("image exceeds maximum size")
+		}
+	}
+	if !found {
+		return nil, "", fmt.Errorf("file field is required")
+	}
+	return data, contentType, nil
 }
 
 func imagePayloadKey(_ string, data []byte) string {

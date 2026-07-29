@@ -29,7 +29,7 @@
     "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
-    "express": "^4.18.2",
+    "express": "^5.2.1",
     "i18next": "^23.16.4",
     "lucide-react": "^0.424.0",
     "react": "^18.3.1",

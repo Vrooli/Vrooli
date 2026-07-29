@@ -1,6 +1,7 @@
 {
   "_metadata": {
     "description": "Requirements derived from the P0 operational targets in PRD.md.",
+    "last_validated_at": "2026-07-28T19:37:26-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -14,18 +15,21 @@
       "category": "identities",
       "criticality": "P0",
       "description": "An identity is one account on one platform: platform id, handle, purpose tag (brand or persona-actor), optional persona reference into asset-studio, environment reference, lane grants, and lifecycle status. Purpose tag is load-bearing rather than descriptive — it selects the warming program, decides whether disclosure rules apply, and changes which flags matter.",
-      "tags": ["identities", "registry"],
+      "tags": [
+        "identities",
+        "registry"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "An identity with a valid platform, purpose tag, and environment ref persists and round-trips through the repository."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "An identity naming an unknown platform id is rejected with a typed error rather than stored with a dangling reference."
         },
         {
@@ -39,29 +43,33 @@
     {
       "id": "CHANMGR-P0-002",
       "title": "Credential isolation",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "identities",
       "criticality": "P0",
       "description": "An identity row holds a vault path reference and nothing else. Credential values are read from the vault resource at execution time and are never persisted, logged, or returned by any endpoint. A schema change introducing a credential column is a defect, not a feature.",
-      "tags": ["identities", "security", "vault"],
+      "tags": [
+        "identities",
+        "security",
+        "vault"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A create or update carrying a token, password, or cookie value is rejected with a typed error naming the offending field."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "No identity response message includes a credential field; the vault reference is returned as a path only."
         },
         {
           "type": "test",
           "phase": "security",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A schema assertion fails the suite if any table in this scenario gains a column matching credential-shaped names."
         }
       ]
@@ -74,18 +82,21 @@
       "category": "platforms",
       "criticality": "P0",
       "description": "Per-platform capability lives in a validated JSON descriptor: supported formats and their limits, cadence ceilings per action kind, media constraints, disclosure requirements, and which executors exist for which actions. Adding a platform is a descriptor plus its schema validation, never a code change.",
-      "tags": ["platforms", "descriptor"],
+      "tags": [
+        "platforms",
+        "descriptor"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A descriptor missing a required field fails validation at load with a message naming the field and the file."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A new descriptor added to the data directory is loaded and queryable without any code change in the test."
         },
         {
@@ -99,29 +110,32 @@
     {
       "id": "CHANMGR-P0-004",
       "title": "Declarative warming programs",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "warming",
       "criticality": "P0",
       "description": "A warming program is a validated JSON descriptor carrying preconditions, session policy, ordered phases with steps and forbidden actions, gates, graduation criteria, maintenance, portfolio constraints, provenance, and an append-only observation log. Agents author programs by writing a file and validating it.",
-      "tags": ["warming", "descriptor"],
+      "tags": [
+        "warming",
+        "descriptor"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "The shipped conservative TikTok program validates against the schema and loads every phase, gate, and constraint."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A program declaring a phase step whose action kind is unknown to its platform descriptor fails validation."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A program lacking a provenance block fails validation; provenance is required, not optional metadata."
         }
       ]
@@ -129,23 +143,27 @@
     {
       "id": "CHANMGR-P0-005",
       "title": "Precondition gate",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "warming",
       "criticality": "P0",
       "description": "Every required precondition — device fingerprint, region-locked proxy, geo consistency, clean profile — must be recorded as satisfied before a program starts. Starting a program on an unverified environment wastes the whole run, because the environment is the input the program cannot compensate for.",
-      "tags": ["warming", "gate", "environment"],
+      "tags": [
+        "warming",
+        "gate",
+        "environment"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Starting a program with any required precondition unsatisfied is rejected and lists every unmet precondition."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Marking the final outstanding precondition satisfied allows the program to start and schedules day one."
         }
       ]
@@ -153,23 +171,26 @@
     {
       "id": "CHANMGR-P0-006",
       "title": "Unified action queue",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "queue",
       "criticality": "P0",
       "description": "Every platform action for an identity flows through one queue regardless of origin — warming steps, maintenance engagement, and content releases alike. Separate queues would let an identity exceed its daily budget by doing warming and posting concurrently, because platforms count per account and not per workflow.",
-      "tags": ["queue", "invariant"],
+      "tags": [
+        "queue",
+        "invariant"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Actions produced by a warming program and by a content release land in the same queue and share one cadence accounting."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "No service can persist an executed action without a corresponding queue entry; a direct-execute path is absent by construction."
         }
       ]
@@ -177,29 +198,33 @@
     {
       "id": "CHANMGR-P0-007",
       "title": "Cadence enforcement",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-007",
       "category": "queue",
       "criticality": "P0",
       "description": "Scheduling refuses any action that would breach the identity's per-platform ceiling, counted across all action kinds combined and evaluated against the platform descriptor rather than the program. A program that asks for more than the ceiling allows fails safe at the queue rather than at the platform.",
-      "tags": ["queue", "cadence", "gate"],
+      "tags": [
+        "queue",
+        "cadence",
+        "gate"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "An action that would exceed the daily ceiling is rejected with a typed error naming the ceiling and current count."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Warming actions and post actions on the same day accumulate against one ceiling, not two."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A program declaring counts above the platform ceiling is clamped or rejected at plan generation, never at execution."
         }
       ]
@@ -207,29 +232,33 @@
     {
       "id": "CHANMGR-P0-008",
       "title": "Session scheduling",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "category": "queue",
       "criticality": "P0",
       "description": "Actions are grouped into sessions honouring the program's session count per day, session duration, and minimum inter-session gap. The same action counts spread evenly across a day produce a different behavioural signature from the same actions clustered into two sessions, which is the reason sessions are modelled at all.",
-      "tags": ["queue", "sessions", "warming"],
+      "tags": [
+        "queue",
+        "sessions",
+        "warming"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A generated day contains between the declared minimum and maximum number of sessions, each within the declared duration."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Consecutive sessions are separated by at least the declared minimum gap."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Every scheduled action falls inside the program's declared active window in the identity's timezone."
         }
       ]
@@ -237,29 +266,32 @@
     {
       "id": "CHANMGR-P0-009",
       "title": "Recorded randomization",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-009",
       "category": "warming",
       "criticality": "P0",
       "description": "Plan generation rolls each action's count and time within the declared ranges and persists the roll alongside its seed. A fixed script is a behavioural fingerprint; an unrecorded random one cannot be reproduced when an account is investigated after the fact.",
-      "tags": ["warming", "determinism"],
+      "tags": [
+        "warming",
+        "determinism"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Two generations with the same seed produce identical plans; different seeds produce different plans within the declared ranges."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Every generated action stores the resolved count and time, not just a reference to the range it came from."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Scheduled times vary across days rather than repeating a fixed hour."
         }
       ]
@@ -267,29 +299,33 @@
     {
       "id": "CHANMGR-P0-010",
       "title": "Phase action guards",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-010",
       "category": "warming",
       "criticality": "P0",
       "description": "Each warming phase declares the actions it forbids, and the queue rejects those actions for that identity while the phase is active. This is the mechanism that turns 'do not post promotional content during the lurker phase' from advice into an enforced constraint.",
-      "tags": ["warming", "queue", "gate"],
+      "tags": [
+        "warming",
+        "queue",
+        "gate"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Queueing a post during a phase that forbids posts is rejected with a typed error naming the phase and the forbidden action."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A content release targeting an identity in a posting-forbidden phase is refused, not deferred silently."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "The same action succeeds once the identity advances to a phase that permits it."
         }
       ]
@@ -297,35 +333,39 @@
     {
       "id": "CHANMGR-P0-011",
       "title": "Gate evaluation with terminal quarantine",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-011",
       "category": "warming",
       "criticality": "P0",
       "description": "A gate waits its declared interval, evaluates its declared measurement, and resolves to pass, inconclusive, or fail. Fail moves the identity to quarantine, which stops every scheduled action and records the failing measurement. Warming can fail, and an identity that silently continues a program it already failed is the expensive outcome this prevents.",
-      "tags": ["warming", "gate", "lifecycle"],
+      "tags": [
+        "warming",
+        "gate",
+        "lifecycle"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A measurement above the pass threshold advances the identity; one below the fail threshold moves it to quarantine."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "An inconclusive measurement repeats the declared phase at most the declared number of times, then resolves rather than looping."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Quarantine cancels every pending queue entry for that identity and records the measurement that caused it."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A gate whose wait interval has not elapsed does not evaluate and does not advance the identity."
         }
       ]
@@ -333,29 +373,33 @@
     {
       "id": "CHANMGR-P0-012",
       "title": "Graduation by earned criteria",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-012",
       "category": "warming",
       "criticality": "P0",
       "description": "Lane eligibility is granted only when every graduation criterion passes — phases complete, gates passed, baseline established, no open flags. Elapsed days never qualify an identity on their own. Graduation also is not terminal: maintenance engagement continues indefinitely and competes for the same cadence budget as posting.",
-      "tags": ["warming", "gate", "eligibility"],
+      "tags": [
+        "warming",
+        "gate",
+        "eligibility"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "An identity with all phases complete but an open flag does not graduate."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "An identity whose program duration has elapsed but whose gate never passed does not graduate."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A graduated identity continues to receive maintenance engagement actions on the queue."
         }
       ]
@@ -368,24 +412,28 @@
       "category": "queue",
       "criticality": "P0",
       "description": "Answers whether an identity is eligible for a named lane, returning eligible, not-eligible with a reason, or unknown. Any internal failure resolves to unknown. This is one of exactly two questions content-desk asks, and its contract there states that a permissive default would post from an unwarmed account.",
-      "tags": ["eligibility", "seam", "contract"],
+      "tags": [
+        "eligibility",
+        "seam",
+        "contract"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A graduated identity holding the lane grant returns eligible; one without the grant returns not-eligible with a reason."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A repository or descriptor failure during evaluation returns unknown, never eligible."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A quarantined or flagged-and-paused identity returns not-eligible regardless of prior graduation."
         },
         {
@@ -404,18 +452,23 @@
       "category": "queue",
       "criticality": "P0",
       "description": "Accepts an approved draft with an idempotency key, queues it as a post action, and returns the post identifier and URL once executed. A retried release with the same key returns the original result rather than creating a second publish record — the contract content-desk is already written against.",
-      "tags": ["queue", "seam", "contract", "idempotency"],
+      "tags": [
+        "queue",
+        "seam",
+        "contract",
+        "idempotency"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Two releases carrying the same idempotency key produce one queue entry and one publish record."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A release for an identity that is not eligible for the draft's lane is refused with a typed error."
         },
         {
@@ -434,18 +487,22 @@
       "category": "execution",
       "criticality": "P0",
       "description": "Any queued action renders as an operator checklist item carrying the exact action, its parameters, and its window; the operator marks it complete and may attach evidence such as a URL or screenshot. The action record is identical to what an automated executor produces, which is what makes automating later a swap rather than a rewrite. Manual is also the only executor with no terms-of-service exposure, so it stays first-class permanently.",
-      "tags": ["execution", "manual", "invariant"],
+      "tags": [
+        "execution",
+        "manual",
+        "invariant"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "An action completed manually produces a record with the same fields an automated executor would write."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Completing an action outside its declared window is recorded with the actual time and flagged rather than silently accepted."
         },
         {
@@ -464,18 +521,21 @@
       "category": "signals",
       "criticality": "P0",
       "description": "Records per-identity distribution metrics over time — reach, impressions, engagement rate, follower delta, audience geography share — and maintains a rolling baseline per metric. Capture works from day one even when every value is entered by hand, because a baseline is the only thing that makes decay detectable later.",
-      "tags": ["signals", "baseline"],
+      "tags": [
+        "signals",
+        "baseline"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Recorded observations produce a rolling baseline over the configured window and update as new values arrive."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A baseline with fewer than the configured minimum observations is reported as not-established rather than computed from thin data."
         },
         {
@@ -489,35 +549,39 @@
     {
       "id": "CHANMGR-P0-017",
       "title": "Flag on distribution decay",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-017",
       "category": "signals",
       "criticality": "P0",
       "description": "When a metric falls below its baseline by the configured margin for the configured run of observations, raise a flag carrying the evidence that triggered it and pause that identity's queue. The system never states that an account has been penalized — penalization is unobservable and only measurements are real. It also never reacts automatically, because every plausible automatic response makes the situation worse.",
-      "tags": ["signals", "flags", "invariant"],
+      "tags": [
+        "signals",
+        "flags",
+        "invariant"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A sustained drop past the configured margin raises exactly one flag carrying the observations that triggered it."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Raising a flag pauses the identity's queue and schedules no compensating action of any kind."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A single low observation inside normal variance does not raise a flag."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "No flag message asserts a platform penalty; every flag states the measurement and the baseline it was compared against."
         }
       ]
@@ -530,18 +594,22 @@
       "category": "warming",
       "criticality": "P0",
       "description": "Every program carries source kind, confidence, capture date, sources, a note, and a revisit trigger, and that block is exposed wherever the program is displayed or applied. The programs shipped at P0 are hand-written from operator folklore and are marked speculative; the point of surfacing provenance is that a future agent editing a threshold can see whether it is overriding a guess or measured data.",
-      "tags": ["warming", "provenance", "honesty"],
+      "tags": [
+        "warming",
+        "provenance",
+        "honesty"
+      ],
       "validation": [
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Program read responses include the full provenance block; it cannot be omitted by a projection."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Every program shipped in the data directory declares a confidence value and a revisit trigger."
         },
         {
@@ -560,7 +628,10 @@
       "category": "ui",
       "criticality": "P0",
       "description": "A UI covering the identity roster with warming stage and health at a glance, the day's due actions as a work list, warming progress per identity including gate state, and signal history with the baseline visible behind the series. Loading, empty, partial, and error states are part of the contract rather than polish.",
-      "tags": ["ui", "operator"],
+      "tags": [
+        "ui",
+        "operator"
+      ],
       "validation": [
         {
           "type": "test",

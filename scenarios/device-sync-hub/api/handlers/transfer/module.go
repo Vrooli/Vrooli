@@ -63,7 +63,7 @@ func NewWithBlobStore(db *database.RoutedDB, clk clock.Clock, devSvc devices.Ser
 		Service: svc,
 		Logger:  logger,
 	}))
-	upload := newUploadHandler(UploadDeps{Service: svc, Store: store, Logger: logger})
+	upload := newUploadHandler(UploadDeps{Service: svc, Store: store, DB: db, Logger: logger})
 	download := newDownloadHandler(DownloadDeps{Service: svc, Store: store})
 
 	mod := module.Module{
@@ -71,6 +71,10 @@ func NewWithBlobStore(db *database.RoutedDB, clk clock.Clock, devSvc devices.Ser
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
 			r.HandleFunc("/api/v1/transfer/items", upload.handleUpload).Methods("POST")
+			r.HandleFunc("/api/v1/transfer/uploads", upload.handleCreateSession).Methods("POST")
+			r.HandleFunc("/api/v1/transfer/uploads/{id}", upload.handleUploadStatus).Methods("GET")
+			r.HandleFunc("/api/v1/transfer/uploads/{id}/chunks/{index}", upload.handleChunk).Methods("PUT")
+			r.HandleFunc("/api/v1/transfer/uploads/{id}/complete", upload.handleCompleteSession).Methods("POST")
 			r.HandleFunc("/api/v1/transfer/items/{id}/content", download.handleDownload).Methods("GET")
 		},
 		Endpoints: Endpoints,

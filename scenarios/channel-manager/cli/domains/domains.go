@@ -1,7 +1,7 @@
 package domains
 
 import (
-	"channel-manager/cli/domains/notes" // EXAMPLE-DOMAIN:notes
+	"channel-manager/cli/domains/channelmanager"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -36,13 +36,6 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	groups := []cliapp.SubcommandGroup{}
-	// EXAMPLE-DOMAIN:notes START
-	notesGroup, err := notes.Register(core, manifest)
-	if err != nil {
-		return nil, err
-	}
-	groups = append(groups, notesGroup)
-	// EXAMPLE-DOMAIN:notes END
+	groups := []cliapp.SubcommandGroup{channelmanager.Register(core)}
 	return groups, nil
 }

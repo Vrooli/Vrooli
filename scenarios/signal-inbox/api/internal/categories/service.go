@@ -116,6 +116,9 @@ func (s *Service) Enrich(ctx context.Context, signal signals.Signal) error {
 	if strings.TrimSpace(signal.ExtractedContent) == "" || signal.NeedsAttention {
 		return s.recordUncategorized(ctx, signal.ID, uncategorized.ID, "signal has no readable content")
 	}
+	if signals.InferenceDeferred(ctx) {
+		return s.recordUncategorized(ctx, signal.ID, uncategorized.ID, "bulk archive classification deferred for local review")
+	}
 	categories, err := s.repo.List(ctx, false)
 	if err != nil {
 		return err

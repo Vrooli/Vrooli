@@ -308,29 +308,6 @@ const literalSelectors = {
   notifications: {
     summary: "notifications-summary",
   },
-  // EXAMPLE-DOMAIN:notes START
-  notes: {
-    surface: "notes-surface",
-    card: "notes-card",
-    list: "notes-list",
-    loading: "notes-loading",
-    empty: "notes-empty",
-    error: "notes-error",
-    createButton: "notes-create-button",
-    createdAt: "notes-created-at",
-    attachmentCount: "notes-attachment-count",
-    attachmentUpload: "notes-attachment-upload",
-    attachmentFile: "notes-attachment-file",
-    attachmentButton: "notes-attachment-button",
-    attachmentStatus: "notes-attachment-status",
-    measure: {
-      card: "notes-measure-card",
-      value: "notes-measure-value",
-      loading: "notes-measure-loading",
-      error: "notes-measure-error",
-    },
-  },
-  // EXAMPLE-DOMAIN:notes END
   layout: {
     shell: "layout-shell",
     topBar: "layout-top-bar",
@@ -344,8 +321,19 @@ const literalSelectors = {
   },
   pages: {
     dashboard: "page-dashboard",
-    notes: "page-notes", // EXAMPLE-DOMAIN:notes
     settings: "page-settings",
+  },
+  operator: {
+    identityInput: "operator-identity-input",
+    createButton: "operator-create-button",
+    queueButton: "operator-queue-button",
+    identityReady: "operator-identity-ready",
+    actionReady: "operator-action-ready",
+    evidenceInput: "operator-evidence-input",
+    completeButton: "operator-complete-button",
+    reachInput: "operator-reach-input",
+    observeButton: "operator-observe-button",
+    status: "operator-status",
   },
   errorBoundary: {
     root: "error-boundary-root",
@@ -363,7 +351,6 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
-            "notes", // EXAMPLE-DOMAIN:notes
             "settings",
           ] as const,
         },
@@ -377,7 +364,6 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
-            "notes", // EXAMPLE-DOMAIN:notes
             "settings",
           ] as const,
         },

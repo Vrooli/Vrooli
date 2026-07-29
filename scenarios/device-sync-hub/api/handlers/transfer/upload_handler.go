@@ -9,6 +9,8 @@ package transfer
 
 import (
 	"bytes"
+	"database/sql"
+	"encoding/json"
 	"errors"
 	"io"
 	"log"
@@ -18,6 +20,7 @@ import (
 	"strings"
 
 	"device-sync-hub/internal/deviceauth"
+	"device-sync-hub/internal/devices"
 	"device-sync-hub/internal/httpx"
 	internaltransfer "device-sync-hub/internal/transfer"
 
@@ -33,6 +36,9 @@ import (
 // are the P2 WebRTC fast-path's job; this cap protects the relay.
 const maxUploadBytes int64 = 2 << 30 // 2 GiB
 
+// chunkUploadBytes deliberately stays below common tunnel request caps.
+const chunkUploadBytes int64 = 8 << 20 // 8 MiB
+
 // parseMemoryBytes is how much of a multipart form is buffered in memory before
 // spilling to temp files. Keep it small so a large upload streams to disk.
 const parseMemoryBytes int64 = 8 << 20 // 8 MiB
@@ -47,8 +53,69 @@ var unsafeFileName = regexp.MustCompile(`[^a-zA-Z0-9._-]+`)
 type UploadDeps struct {
 	Service     internaltransfer.Service
 	Store       blobstore.BlobStore
+	DB          internaltransfer.SQLExecutor
 	Thumbnailer internaltransfer.Thumbnailer
 	Logger      *log.Logger
+}
+
+type uploadSession struct {
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	MIME           string `json:"mime"`
+	SizeBytes      int64  `json:"size_bytes"`
+	Retention      string `json:"retention"`
+	TargetDeviceID string `json:"target_device_id"`
+	ChunkCount     int    `json:"chunk_count"`
+	Received       []int  `json:"received"`
+}
+type createSessionRequest struct {
+	Name           string `json:"name"`
+	MIME           string `json:"mime"`
+	SizeBytes      int64  `json:"size_bytes"`
+	Retention      string `json:"retention"`
+	TargetDeviceID string `json:"target_device_id"`
+}
+
+func (h *uploadHandler) writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(v)
+}
+
+func (h *uploadHandler) sessionFor(w http.ResponseWriter, r *http.Request, id string) (uploadSession, devices.Device, bool) {
+	dev, err := deviceauth.RequireDevice(r.Context())
+	if err != nil {
+		httpx.WriteError(w, http.StatusUnauthorized, httpx.CodeUnauthenticated, "a trusted device token is required")
+		return uploadSession{}, devices.Device{}, false
+	}
+	if h.deps.DB == nil {
+		httpx.WriteError(w, http.StatusInternalServerError, httpx.CodeInternal, "resumable upload unavailable")
+		return uploadSession{}, devices.Device{}, false
+	}
+	var s uploadSession
+	var owner, device string
+	err = h.deps.DB.QueryRowContext(r.Context(), `SELECT id, owner_id, device_id, name, mime, size_bytes, retention, target_device_id, chunk_count FROM upload_sessions WHERE id = ? AND completed = 0`, id).Scan(&s.ID, &owner, &device, &s.Name, &s.MIME, &s.SizeBytes, &s.Retention, &s.TargetDeviceID, &s.ChunkCount)
+	if err == sql.ErrNoRows || owner != dev.OwnerID || device != dev.ID {
+		httpx.WriteError(w, http.StatusNotFound, httpx.CodeInvalidRequest, "upload session not found")
+		return uploadSession{}, devices.Device{}, false
+	}
+	if err != nil {
+		httpx.WriteError(w, http.StatusInternalServerError, httpx.CodeInternal, "load upload session failed")
+		return uploadSession{}, devices.Device{}, false
+	}
+	rows, err := h.deps.DB.QueryContext(r.Context(), `SELECT chunk_index FROM upload_chunks WHERE session_id = ? ORDER BY chunk_index`, id)
+	if err != nil {
+		httpx.WriteError(w, 500, httpx.CodeInternal, "load upload progress failed")
+		return uploadSession{}, devices.Device{}, false
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var i int
+		if rows.Scan(&i) == nil {
+			s.Received = append(s.Received, i)
+		}
+	}
+	return s, dev, true
 }
 
 type uploadHandler struct {

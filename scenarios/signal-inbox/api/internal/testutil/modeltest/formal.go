@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -107,7 +109,7 @@ func LoadFormalArtifact(t TestingT, path string) FormalArtifact {
 			path = filepath.Join(filepath.Dir(callerFile), path)
 		}
 	}
-	data, err := os.ReadFile(path)
+	data, err := readRootedFile(path)
 	if err != nil {
 		t.Fatalf("read formal artifact %s: %v", path, err)
 	}
@@ -305,12 +307,12 @@ func repoPathSHA256(repoPath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	info, err := os.Stat(abs)
+	info, err := rootedFileInfo(abs)
 	if err != nil {
 		return "", err
 	}
 	if !info.IsDir() {
-		data, err := os.ReadFile(abs)
+		data, err := readRootedFile(abs)
 		if err != nil {
 			return "", err
 		}
@@ -320,32 +322,52 @@ func repoPathSHA256(repoPath string) (string, error) {
 	return repoTreeSHA256(abs)
 }
 
+func rootedFileInfo(path string) (fs.FileInfo, error) {
+	root, err := os.OpenRoot(filepath.Dir(filepath.Clean(path)))
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	return root.Stat(filepath.Base(path))
+}
+
+func readRootedFile(path string) ([]byte, error) {
+	root, err := os.OpenRoot(filepath.Dir(filepath.Clean(path)))
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	file, err := root.Open(filepath.Base(path))
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return io.ReadAll(file)
+}
+
 func repoTreeSHA256(root string) (string, error) {
 	var parts []string
-	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+	rootFS := os.DirFS(root)
+	err := fs.WalkDir(rootFS, ".", func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if entry.IsDir() {
 			if ignoredHashDirs[entry.Name()] {
-				if path != root {
+				if path != "." {
 					return filepath.SkipDir
 				}
 			}
 			return nil
 		}
-		rel, err := filepath.Rel(root, path)
-		if err != nil {
-			return err
-		}
-		slash := filepath.ToSlash(rel)
+		slash := filepath.ToSlash(path)
 		if strings.HasPrefix(slash, "testdata/") || strings.HasSuffix(slash, "_test.go") || strings.HasSuffix(slash, ".formal.generated.json") || strings.HasSuffix(slash, ".qnt") {
 			return nil
 		}
 		if !(strings.HasSuffix(slash, ".go") || slash == "go.mod" || strings.HasSuffix(slash, ".schema.json")) {
 			return nil
 		}
-		data, err := os.ReadFile(path)
+		data, err := fs.ReadFile(rootFS, path)
 		if err != nil {
 			return err
 		}

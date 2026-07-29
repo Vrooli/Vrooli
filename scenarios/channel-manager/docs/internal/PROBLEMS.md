@@ -74,45 +74,6 @@ The shipped programs name five completed runs as their own revisit trigger.
 **Refs:** `data/warming-programs/tiktok/*.json`, `data/README.md`,
 `docs/internal/DECISIONS.md` D-002.
 
-### 2026-07-28 — the BAS dispatch contract is unread
-
-**Symptom:** `CHANMGR-P1-001` (browser executor) is specified against an integration
-whose call shape nobody has confirmed.
-
-**Root cause:** The design pass verified that `browser-automation-studio` exposes
-`workflows`, `executions`, `schedules`, and `session-profiles` CLI domains — enough
-to establish that per-identity session isolation is possible — but did not read how
-a workflow is dispatched or how a session profile binds to a run.
-
-**Workaround:** The browser executor is sequenced last among P1, and the manual
-executor covers every action in the meantime.
-
-**Real fix:** Read the BAS dispatch and session-profile contracts before planning
-`CHANMGR-P1-001`, and model dispatch as a sub-flow of the queued-action lifecycle
-once the shape is known.
-
-**Owner:** unassigned.
-
-**Refs:** `docs/concepts/INTEGRATIONS.md`, `docs/concepts/FLOWS.md` § Deferred.
-
-### 2026-07-28 — platform format limits are deliberately absent
-
-**Symptom:** `data/platforms/tiktok.json` declares that video is supported but
-carries no duration or file-size limit.
-
-**Root cause:** Guessing a limit is worse than omitting one — an omitted field fails
-loudly at validation, whereas a wrong constant silently rejects valid media or
-accepts invalid media.
-
-**Workaround:** None needed until the first post action is queued.
-
-**Real fix:** Populate from current platform documentation before the first TikTok
-identity is created. The descriptor's own `revisit_trigger` says the same.
-
-**Owner:** unassigned.
-
-**Refs:** `data/platforms/tiktok.json`.
-
 ### 2026-07-28 — environment attestations are unverifiable
 
 **Symptom:** An identity can attest that its proxy is region-locked and its
@@ -133,33 +94,26 @@ check. Until then this is an accepted limitation, not debt.
 
 **Refs:** `docs/internal/DECISIONS.md` D-006, PRD § Operational risks.
 
-### 2026-07-28 — only one platform is described
+### 2026-07-28 — Vault content round-trip requires an operator-scoped token
 
-**Symptom:** `data/platforms/` contains TikTok alone, while `CHANNELS.md` names
-eight channels and the PRD claims coverage of them.
+**Symptom:** The managed Vault endpoint is reachable on port 8200, but
+`resource-vault content set` refuses a scratch write because `VAULT_TOKEN` is not
+present in this development session.
 
-**Root cause:** TikTok was described first because it is the platform the AI-UGC
-research covers and the one where warming matters most. The others need their own
-research pass and would otherwise be filled with guesses.
+**Root cause:** Managed Vault intentionally requires an explicitly supplied scoped
+token for content operations. Channel Manager correctly stores only a Vault path,
+so this does not affect the credential-free manual workflow or its tests.
 
-**Workaround:** Descriptor validation fails for an identity naming an undescribed
-platform, so this surfaces as a clear error rather than as silent misbehaviour.
+**Workaround:** An authorized operator supplies a scoped `VAULT_TOKEN`, performs the
+documented scratch round-trip in `SEAMS.md`, then deletes the scratch path.
 
-**Second-order consequence:** this is not only a coverage gap — it makes
-`CHANMGR-P0-003` unprovable. "Adding a platform requires no code change" cannot be
-demonstrated against a single descriptor, because the abstraction has never been
-asked to bend. A second *structurally different* platform is therefore part of
-meeting the requirement rather than a later expansion, and the pair must differ in
-shape rather than only in name: X is text-led with no video action kinds and a
-different disclosure posture, which is what makes it the useful second.
+**Real fix:** None in this scenario; provisioning scoped Vault access is owned by
+the Vault resource/operator.
 
-**Real fix:** X described alongside TikTok before `CHANMGR-P0-003` is called done,
-each with its own provenance; then one descriptor per remaining active channel.
-Reddit is the likely third — it already has live accounts per `CHANNELS.md`.
+**Owner:** Vault resource operator.
 
-**Owner:** unassigned.
-
-**Refs:** `data/platforms/`, `docs/marketing/strategy/CHANNELS.md`.
+**Refs:** `docs/internal/SEAMS.md` § BAS and Vault execution handoff,
+`resources/vault/docs/QUICKSTART.md`.
 
 ## Architecture Drift
 
@@ -170,7 +124,14 @@ a migration handoff with a planned retirement path back into
 
 | Area | Drift | Maturity Impact | Real Fix |
 |---|---|---|---|
-| Whole scenario | No drift is possible yet: `api/internal` holds only the template scaffold, so there is no code to diverge from the documented boundary model. | None. The maturity table in `ARCHITECTURE.md` reports every surface as Scaffold, which is accurate. | Run `screaming-architecture-audit` after the first product domain lands, and record findings here rather than in a standalone report. |
+| Whole scenario | The former Notes template domain was removed and the channel-manager domain now owns the durable state, routes, CLI, and formal action lifecycle. | The old scaffold statement was stale. | Keep new behavior inside `internal/channelmanager` and update the formal flow when changing action statuses. |
+
+## Work ladder
+
+- Rung: W4
+- Evidence: comprehensive Test Genie run `20260728-231326-13fe99a2` passed all 20 phases, including the synthetic BAS manual-operator path. The formal action lifecycle check passes with run `960df471-88c7-4ff7-be04-7d8e0447d92f`.
+- Blocker: No platform-account work is authorized. The remaining real-account validation is intentionally deferred; the manual UI and credential-free synthetic path are the supported validation boundary.
+- Measured: 2026-07-28
 
 ## Cross-references
 

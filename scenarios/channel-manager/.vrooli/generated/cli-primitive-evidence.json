@@ -1,0 +1,46 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "channel-manager",
+  "generator": "v1.0.0",
+  "manifest_hash": "c1e6c87eee579222b8672b8429ea9bf406013646a6a09e52e65cc2b38158ae41",
+  "commands": [
+    {
+      "path": "channel complete",
+      "group": "channel",
+      "command": "complete",
+      "binding": "."
+    },
+    {
+      "path": "channel create",
+      "group": "channel",
+      "command": "create",
+      "binding": "."
+    },
+    {
+      "path": "channel observe",
+      "group": "channel",
+      "command": "observe",
+      "binding": "."
+    },
+    {
+      "path": "channel overview",
+      "group": "channel",
+      "command": "overview",
+      "binding": "ChannelManagerService.GetOverview"
+    },
+    {
+      "path": "channel queue",
+      "group": "channel",
+      "command": "queue",
+      "binding": "."
+    },
+    {
+      "path": "channel start",
+      "group": "channel",
+      "command": "start",
+      "binding": "."
+    }
+  ]
+}

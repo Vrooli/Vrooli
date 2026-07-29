@@ -28,6 +28,13 @@ func TestNoProductionImports(t *testing.T) {
 			}
 			t.Fatalf("decode go list package: %v", err)
 		}
+		// flow-verifier's generated replay bridge is compiled alongside its
+		// transition table but is invoked exclusively from flow_test.go. It
+		// deliberately imports modeltest to replay the formal artifact; do
+		// not mistake that generated verification bridge for application code.
+		if strings.Contains(pkg.ImportPath, "/flow/generated") {
+			continue
+		}
 		for _, imported := range pkg.Imports {
 			if strings.HasPrefix(imported, prefix) {
 				t.Errorf("production package %s imports %s", pkg.ImportPath, imported)

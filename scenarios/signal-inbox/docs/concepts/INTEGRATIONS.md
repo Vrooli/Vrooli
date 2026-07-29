@@ -79,11 +79,54 @@ Chrome export. It is Netscape Bookmark HTML, UTF-8 encoded, with nested
 | Source | URL field | Timestamp field | Stable identity | Other parsed structure | Ignored fields |
 |---|---|---|---|---|---|
 | Chrome bookmarks HTML | `A@HREF` | `A@ADD_DATE` (Unix seconds) | Normalized `HREF` | Folder path from enclosing `H3` hierarchy; title from anchor text | `ICON`, folder `LAST_MODIFIED`, and toolbar flags |
+| X archive (2026-07-28) | `like.expandedUrl`; authored `tweet.id_str` is sufficient to construct its status URL | Authored `tweet.created_at`; the like payload has no saved-at timestamp | `like.tweetId`; authored `tweet.id_str` | `data/like.js` is a JavaScript assignment to an array of `{like:{tweetId,fullText,expandedUrl}}`; `data/tweets.js` is the analogous authored-post array | DMs, contacts, ads, profile/security/account data, inferred interests, and media bytes are not intake streams |
 
-The X archive and Reddit export parsers remain deliberately unimplemented until
-they are measured against operator-owned exports. The remaining observations
-are each file's layout/encoding plus source URL, timestamp, and stable identity
-field names; record field names only, never personal sample content.
+The Reddit parser is measured and intentionally saved-only. The X archive is
+now measured: it contains likes and authored posts, but no bookmarks. The next
+adapter implementation must validate this measured layout before writing and
+must not infer an X bookmark stream from a missing file.
+
+### Source sync configuration model (planned)
+
+A **source** is an account or export family (for example, X or Reddit). A
+source can expose several independently configured **streams**. A stream is one
+specific kind of operator activity, such as X authored posts, X bookmarks, X
+likes, Reddit saved posts, or Chrome bookmarks. The stream—not the source—is
+the unit that is enabled, scheduled, checkpointed, and risk-controlled.
+
+Each stream configuration retains a stable source/stream ID, intake method,
+enabled state, credential reference, priority, local ai-gateway processing
+profile, and successful-import checkpoint evidence. Credentials remain in the
+owning secret system, never in an import record. Priority affects review and
+ambient ordering, never retention or search inclusion.
+
+The configuration is deliberately two-level: source-wide settings describe the
+account or export family, while stream settings express a separately consented
+collection action. Changing the X likes stream must not also enable the X
+bookmarks API, for example. A stream may have more than one **configured intake
+method** only when the methods produce the same declared activity and use the
+same identity/deduplication rule; exactly one method is active at a time. This
+permits a tier-0 archive import now and a future tier-1 official API sync
+without merging their consent or risk controls.
+
+| Source | Stream | Supported intake methods | Default | Priority | Deliberate exclusion |
+|---|---|---|---|---|---|
+| Chrome | bookmarks | Operator-supplied Netscape HTML export | Enabled when an export is selected | primary | Browser history, passwords, extensions, and sync metadata |
+| Reddit | saved posts and comments | Operator-supplied GDPR ZIP; future date-bounded export request after terms review | Archive import available; network request disabled | candidate | Votes, chats, profile/account data, ads, subscriptions, and inferred interests |
+| X | authored posts, reposts, quote-posts | Operator-supplied archive | Archive import available | primary | DMs, contacts, ads, profile/security/account data, and media bytes |
+| X | bookmarks | Official authenticated API; future archive format if X adds one | Disabled until explicit OAuth authorization | primary | No inferred bookmark stream from an archive that lacks bookmark records |
+| X | likes | Operator-supplied archive | Disabled until operator enables this candidate stream | candidate | A like is not treated as an endorsement, category, or ambient-worthy item |
+
+For every enabled stream, the operator can configure: method, schedule or
+manual-only mode, enabled state, priority, local or explicitly approved hosted
+inference profile, credential reference (when required), and checkpoint policy.
+The scenario records the selected method and successful import evidence with a
+run, but never stores credential values in its database or UI.
+
+For X, authored posts, reposts, and quote-posts are `primary`; bookmarks are
+`primary` and take precedence where both streams carry the same post; likes are
+`candidate`. A candidate is durable capture evidence, not a claim of relevance,
+quality, or safe-for-ambient status.
 
 ### Blocked dependencies
 
@@ -140,7 +183,9 @@ directly and never receives a copied signal body in an event (D-025).
 | Service | Status | Reason | Contract |
 |---|---|---|---|
 | Reddit API | planned (P1) | First tier-1 adapter; saved-posts endpoint is documented and permitted. | OAuth under operator-supplied credentials for a registered application. Ships disabled. |
-| X / other platforms | not-planned as an API | Bookmark access is gated, expensive, or unavailable. | Captured via operator-supplied archive import (tier 0) and, only if that proves insufficient, tier-2 session replay (`SIG-P2-001`). |
+| X bookmarks API | planned (tier 1) | The measured archive omits bookmarks, while X documents an official authenticated bookmarks endpoint and folder endpoints. | OAuth 2.0 authorization-code-with-PKCE with `tweet.read`, `users.read`, and `bookmark.read`; explicit operator consent; disabled by default. Current pricing/scopes/rate limits must be rechecked immediately before enablement. |
+| X archive streams | planned (tier 0) | The operator-supplied archive is measured locally and includes authored posts and likes. | Shape-validated ZIP parser; authored posts/reposts/quote-posts are `primary`, likes are `candidate`; no platform request. |
+| Other platforms | not-planned as an API | Access terms, capability, and costs vary. | Operator-supplied archive import (tier 0) and, only if necessary, tier-2 session replay (`SIG-P2-001`). |
 
 **Platform terms are not this scenario's to assume.** Any claim about a
 platform's API scopes, pricing tier, or rate limits must be verified against
@@ -157,6 +202,9 @@ Every adapter declares a tier; the runner enforces it (D-015, D-016).
 | 0 | Manual entry; operator-supplied export | None | **Enabled** | No network request to any platform. |
 | 1 | Official API, operator credentials | Low | Disabled | Rate envelope from the descriptor; auto-disable on anomaly. |
 | 2 | Authenticated session replay via BAS | **Real and unrecoverable** | Disabled, per-adapter explicit enable | Human-paced envelope; auto-disable on anomaly; operator sign-off before first enable. |
+
+Tier is enforced per stream. Enabling X bookmarks through the official API does
+not enable X likes, an archive import, or any session-replay stream.
 
 Auto-disable on anomaly is the mechanism that actually protects the operator:
 any rate-limit, forbidden, or challenge response disables the adapter and raises

@@ -40,7 +40,8 @@ such as BlobStore.
 | Signal | signals | SQLite | `api/internal/signals/schema.sql` | **Permanent. Never deleted.** | Append-only `signal` table. It records capture facts: source identity, captured_at, raw payload reference, direct-text content (when known at capture), and content hash. Written once; no UPDATE, no DELETE (D-006). |
 | Signal media | signals | Filesystem BlobStore | BlobStore seam in the signals module | Same lifecycle as its signal — permanent | Pasted or uploaded images. Opaque bytes stay outside proto payloads. |
 | Signal enrichment | enrichment | SQLite | `api/internal/enrichment/schema.sql` | Permanent, append-only | A post-capture extraction attempt: content units, readable content when found, and an attention reason when not. It is a read-model sidecar over `signal`, never an update to it (D-027). |
-| Adapter state | sources | SQLite | `api/internal/sources/schema.sql` | Until the adapter is removed | Enabled/disabled flag, declared risk tier, last run, last error, auto-disable reason. Survives restart so an auto-disabled adapter stays disabled (D-016). |
+| Adapter state | sources | SQLite | `api/internal/sources/schema.sql` | Until the adapter is removed | Current per-adapter enabled/disabled flag, declared risk tier, last run, last error, and auto-disable reason. The planned source-stream configuration extends this state per stream rather than treating an entire source account as one toggle. |
+| Source stream configuration | sources | SQLite | planned `api/internal/sources/` schema | Until the operator removes the stream | One row per source/activity pair. Stores the selected intake method, enablement, schedule mode, risk tier, priority, local/hosted inference-profile reference, credential **reference** (never its value), and successful-import checkpoint evidence. A stream can declare alternate methods, but only one is active at once. |
 | Import run | sources | SQLite | `api/internal/sources/schema.sql` | Rolling window, operator-configurable | Per-run counts of created, deduplicated, and failed entries. Diagnostic, not authoritative. |
 | Category | categories | SQLite | `api/internal/categories/schema.sql` | Until retired by the operator | Operator-defined at runtime. Retiring reassigns signals to `uncategorized`; it never deletes them (D-007). |
 | Taxonomy | categories | SQLite | `api/internal/categories/schema.sql` | Lifetime of its category | Optional per category. Declares the subtype vocabulary for that category only (D-011). |
@@ -92,7 +93,8 @@ the tier-0 ingestion path (D-017) and the source of the first real corpus.
 
 | Path | Format | Owner | Status |
 |---|---|---|---|
-| X archive import | Platform archive (zip containing JS/JSON payloads) | sources | Planned — `SIG-P0-008` |
+| X archive import | Platform archive (zip containing JS/JSON payloads) | sources | Measured; parser planned. The archive contains authored posts and likes but no bookmarks. |
+| X bookmarks sync | Official authenticated X API | sources | Planned tier-1 stream; disabled by default. Preserves folder context as tags when supplied. |
 | Reddit export import | Platform GDPR ZIP containing CSV datasets | sources | Measured adapter exists; broader `SIG-P0-008` evidence remains planned |
 | Browser bookmarks import | Netscape bookmark HTML | sources | Measured adapter exists; broader `SIG-P0-008` evidence remains planned |
 | Corpus export | JSONL of signals with annotations and dispositions | signals | Planned — operator escape hatch; a capture substrate the operator cannot get data out of is a trap |
@@ -124,6 +126,15 @@ overlap the prior window and rely on content-hash idempotency, rather than
 treating a timestamp as a lossless cursor. That work is not a P0 adapter and
 remains subject to a current terms/permission review before any network request
 is enabled.
+
+The planned source-stream model makes priority and sensitive-content handling
+explicit. Stream priority controls review and ambient ordering only: `primary`
+for authored X activity and bookmarks, `candidate` for likes/upvotes, and no
+priority value may delete, suppress from search, or silently recategorize a
+signal. Archive-derived text and sensitive-content assessment must run through
+an operator-selected local ai-gateway profile before ambient surfacing. The
+assessment is a fallible tag, not a deletion filter; suspected adult material
+stays in the permanent journal and is excluded from ambient views by default.
 
 ## Retention And Deletion
 

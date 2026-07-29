@@ -1,0 +1,158 @@
+{
+  "id": "tiktok/persona-ai-ugc-aggressive",
+  "version": 1,
+  "platform": "tiktok",
+  "purpose": "persona-actor",
+  "variant": "aggressive",
+  "status": "draft",
+
+  "provenance": {
+    "source_kind": "operator-folklore",
+    "confidence": "speculative",
+    "captured_at": "2026-07-28",
+    "sources": [
+      "Synthesis of posts by multi-account AI-UGC operators on X, mid-2026, supplied by the operator"
+    ],
+    "note": "HAND-WRITTEN AND SPECULATIVE, and additionally the riskier of the two TikTok programs. The 24-48 hour compression is reported to work only with a verified-clean environment; with anything less it is reported to produce exactly the permanent throttling the program exists to avoid. Prefer the conservative variant unless there is a specific reason not to. No number here has been measured on any account this fleet operates.",
+    "revisit_trigger": "After 5 identities complete this program, and only compare against the conservative variant's observations rather than judging it alone."
+  },
+
+  "preconditions": [
+    {
+      "id": "device-fingerprint",
+      "required": true,
+      "check": "manual",
+      "note": "One unique, persistent device fingerprint per identity. Never shared."
+    },
+    {
+      "id": "residential-proxy-locked",
+      "required": true,
+      "check": "manual",
+      "note": "Residential proxy pinned to one region. Compression removes the slack that would let a marginal environment survive, so this matters more here than in the conservative variant."
+    },
+    {
+      "id": "geo-consistency",
+      "required": true,
+      "check": "manual",
+      "note": "Signup country code, store region, and proxy region all agree."
+    },
+    {
+      "id": "profile-no-links",
+      "required": true,
+      "check": "manual",
+      "note": "Niche-consistent handle and avatar. No bio link."
+    },
+    {
+      "id": "environment-verified-clean",
+      "required": true,
+      "check": "manual",
+      "note": "Additional to the conservative variant. Attest that this environment has previously produced a graduated identity, or has been independently verified. The compressed schedule is reported to be unforgiving of a marginal setup."
+    }
+  ],
+
+  "session_policy": {
+    "per_day": { "min": 2, "max": 3 },
+    "duration_minutes": { "min": 10, "max": 15 },
+    "min_gap_hours": 4,
+    "active_window": { "start": "08:00", "end": "22:00", "timezone": "identity" },
+    "note": "Shorter sessions than the conservative variant, same clustering and the same minimum gap."
+  },
+
+  "phases": [
+    {
+      "id": "lurker",
+      "days": { "from": 1, "to": 1 },
+      "intent": "Compressed trust building. Same engagement vocabulary as the conservative program, one day instead of two.",
+      "steps": [
+        {
+          "action": "watch",
+          "count": { "min": 20, "max": 40 },
+          "params": { "completion": "full" },
+          "note": "Completion still matters most; compression reduces days, not watch quality."
+        },
+        { "action": "like", "count": { "min": 10, "max": 20 }, "constraint": "niche_only" },
+        { "action": "comment", "count": { "min": 5, "max": 8 }, "constraint": "substantive_text" },
+        { "action": "follow", "count": { "min": 5, "max": 10 }, "constraint": "niche_only" },
+        { "action": "search_watch", "count": { "min": 3, "max": 6 } }
+      ],
+      "forbidden": ["post", "bio_link", "unfollow", "cross_niche_engagement", "dm"]
+    },
+    {
+      "id": "trust-test",
+      "days": { "from": 2, "to": 2 },
+      "intent": "Same measurement post as the conservative program, reached a day or three earlier.",
+      "steps": [
+        {
+          "action": "post",
+          "count": { "min": 1, "max": 1 },
+          "params": {
+            "promotional": false,
+            "sound_recency_days": 7,
+            "asset_uniqueness": "required"
+          }
+        }
+      ],
+      "forbidden": ["bio_link", "promotional_post"]
+    }
+  ],
+
+  "gates": [
+    {
+      "id": "trust-check",
+      "after_phase": "trust-test",
+      "wait_hours": { "min": 12, "max": 24 },
+      "measure": "views_on_last_post",
+      "outcomes": [
+        { "when": ">= 1000", "result": "pass", "next": "graduate" },
+        {
+          "when": "500 .. 999",
+          "result": "inconclusive",
+          "next": "repeat_phase:trust-test",
+          "max_repeats": 1
+        },
+        {
+          "when": "< 500",
+          "result": "fail",
+          "next": "quarantine",
+          "note": "Abandon and rebuild. A failed aggressive warm is also weak evidence that the environment is not as clean as the precondition attested."
+        }
+      ],
+      "note": "Same thresholds as the conservative variant, and equally unvalidated. If the two variants ever show different pass rates at the same threshold, that difference is the first real measurement either program will have produced."
+    }
+  ],
+
+  "graduation": {
+    "requires": [
+      "all_phases_complete",
+      "gate:trust-check=pass",
+      "baseline_days >= 3",
+      "no_open_flags"
+    ],
+    "grants": { "lanes": ["persona"] },
+    "note": "Note that baseline_days >= 3 can outlast the program itself here. Compression shortens the warming schedule, not the time needed to establish a baseline."
+  },
+
+  "maintenance": {
+    "note": "Identical to the conservative variant. Compression applies to warming only; ongoing engagement is not optional in either program.",
+    "daily_engagement": {
+      "watch": { "min": 10, "max": 20 },
+      "like": { "min": 5, "max": 15 },
+      "comment": { "min": 1, "max": 3 }
+    },
+    "post_cadence": { "per_day_max": 3, "min_gap_hours": 3 },
+    "gated_actions": [
+      { "action": "bio_link", "gate": "healthy_distribution_7d" }
+    ],
+    "watch_metrics": [
+      { "metric": "audience_geo_share", "target": ">= 0.80 target_geo" }
+    ]
+  },
+
+  "portfolio_constraints": {
+    "min_post_separation_minutes": 45,
+    "max_identities_posting_per_hour": 2,
+    "asset_uniqueness": "per_identity"
+  },
+
+  "observations": []
+}

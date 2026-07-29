@@ -7,6 +7,18 @@ import (
 	"time"
 )
 
+type skipInferenceContextKey struct{}
+
+// WithInferenceDeferred marks a bulk archive capture for later local
+// classification. It prevents an import from issuing one model call per item.
+func WithInferenceDeferred(ctx context.Context) context.Context {
+	return context.WithValue(ctx, skipInferenceContextKey{}, true)
+}
+func InferenceDeferred(ctx context.Context) bool {
+	value, _ := ctx.Value(skipInferenceContextKey{}).(bool)
+	return value
+}
+
 type SourceKind string
 
 const (

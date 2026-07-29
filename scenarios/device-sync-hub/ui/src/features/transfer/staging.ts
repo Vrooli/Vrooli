@@ -13,6 +13,9 @@ export interface StagedFile {
   previewUrl: string | null;
   retention: Retention;
   targetDeviceId: string;
+  progress: number;
+  uploadSessionId?: string;
+  error?: string;
 }
 
 export interface StagedText {
@@ -41,6 +44,7 @@ export function stageFile(file: File): StagedFile {
     previewUrl,
     retention: Retention.HELD,
     targetDeviceId: "",
+    progress: 0,
   };
 }
 

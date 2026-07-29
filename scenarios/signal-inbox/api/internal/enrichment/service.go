@@ -21,6 +21,15 @@ func NewService(repo Repository, clk clock.Clock, extractors ...Extractor) *Serv
 // Enrich records one immutable result for each post-capture attempt. It never
 // returns a failure to capture: callers retain the error only for diagnostics.
 func (s *Service) Enrich(ctx context.Context, signal signals.Signal) error {
+	// A trusted tier-zero archive can carry the original text. Persist it as
+	// enrichment evidence without re-fetching the platform URL; archive import
+	// must not turn into automated platform traffic.
+	if content := normalizeContent(signal.ExtractedContent); content != "" {
+		return s.repo.Append(ctx, Record{SignalID: signal.ID, ExtractedContent: content, ContentUnits: 1, AttemptedAt: s.clock.Now().UTC()})
+	}
+	if hasTag(signal.Tags, "x") {
+		return s.appendAttention(ctx, signal.ID, "X archive record has no text; platform fetch is disabled for archive import")
+	}
 	extractor := s.extractorFor(signal.SourceKind)
 	if extractor == nil {
 		return s.appendAttention(ctx, signal.ID, "no extractor supports "+string(signal.SourceKind))
@@ -69,6 +78,15 @@ func (s *Service) appendAttention(ctx context.Context, signalID, reason string) 
 }
 
 func normalizeContent(value string) string { return strings.Join(strings.Fields(value), " ") }
+
+func hasTag(tags []string, wanted string) bool {
+	for _, tag := range tags {
+		if strings.EqualFold(strings.TrimSpace(tag), wanted) {
+			return true
+		}
+	}
+	return false
+}
 
 var (
 	_ signals.PostCapture    = (*Service)(nil)

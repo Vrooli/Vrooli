@@ -1,0 +1,185 @@
+{
+  "id": "tiktok/persona-ai-ugc-conservative",
+  "version": 1,
+  "platform": "tiktok",
+  "purpose": "persona-actor",
+  "variant": "conservative",
+  "status": "draft",
+
+  "provenance": {
+    "source_kind": "operator-folklore",
+    "confidence": "speculative",
+    "captured_at": "2026-07-28",
+    "sources": [
+      "Synthesis of posts by multi-account AI-UGC operators on X, mid-2026, supplied by the operator"
+    ],
+    "note": "HAND-WRITTEN AND SPECULATIVE. Distilled from operator consensus, not from platform documentation, and not measured on any account this fleet operates. Every range here is a starting hypothesis. Do not treat any number in this file as established practice. Revise from observations[] once real runs exist, and update confidence when you do.",
+    "revisit_trigger": "After 5 identities complete this program with recorded gate measurements."
+  },
+
+  "preconditions": [
+    {
+      "id": "device-fingerprint",
+      "required": true,
+      "check": "manual",
+      "note": "One unique, persistent device fingerprint per identity. Never shared between identities."
+    },
+    {
+      "id": "residential-proxy-locked",
+      "required": true,
+      "check": "manual",
+      "note": "Residential proxy pinned to a single region for the identity's whole life. No rotation mid-program; rotation is reported as one of the most common silent causes of permanent throttling."
+    },
+    {
+      "id": "geo-consistency",
+      "required": true,
+      "check": "manual",
+      "note": "Signup country code, store region, and proxy region all agree. A leak here is claimed to degrade distribution permanently rather than temporarily, and this scenario cannot detect it after the fact."
+    },
+    {
+      "id": "profile-no-links",
+      "required": true,
+      "check": "manual",
+      "note": "Niche-consistent handle and avatar. No bio link yet — link placement is gated until after graduation."
+    }
+  ],
+
+  "session_policy": {
+    "per_day": { "min": 2, "max": 3 },
+    "duration_minutes": { "min": 10, "max": 30 },
+    "min_gap_hours": 4,
+    "active_window": { "start": "08:00", "end": "22:00", "timezone": "identity" },
+    "note": "Sessions are clustered deliberately. The same action counts spread evenly across a day produce a different behavioural signature from the same actions in two or three sittings."
+  },
+
+  "phases": [
+    {
+      "id": "lurker",
+      "days": { "from": 1, "to": 2 },
+      "intent": "Teach the classifier this is a real user in this niche. The first 24-72 hours are reported to be weighted heavily and difficult to undo afterwards.",
+      "steps": [
+        {
+          "action": "watch",
+          "count": { "min": 20, "max": 40 },
+          "params": { "completion": "full" },
+          "note": "Watch to the end. Completion is the single most weighted signal in the source material."
+        },
+        { "action": "like", "count": { "min": 10, "max": 20 }, "constraint": "niche_only" },
+        {
+          "action": "comment",
+          "count": { "min": 5, "max": 8 },
+          "constraint": "substantive_text",
+          "note": "Specific and genuine. Emoji-only comments are reported as worse than no comment. Text is authored per comment; this scenario deliberately does not generate it."
+        },
+        { "action": "follow", "count": { "min": 5, "max": 10 }, "constraint": "niche_only" },
+        {
+          "action": "search_watch",
+          "count": { "min": 3, "max": 6 },
+          "note": "Search niche keywords and watch results to completion."
+        }
+      ],
+      "forbidden": ["post", "bio_link", "unfollow", "cross_niche_engagement", "dm"]
+    },
+    {
+      "id": "targeted-engagement",
+      "days": { "from": 3, "to": 5 },
+      "intent": "Same behaviour, sharper targeting. Deepen the niche signal before anything is posted.",
+      "inherits_steps_from": "lurker",
+      "step_overrides": [
+        {
+          "action": "search_watch",
+          "count": { "min": 6, "max": 12 },
+          "params": { "recency": "7d" }
+        }
+      ],
+      "forbidden": ["bio_link", "promotional_post", "cross_niche_engagement", "dm"]
+    },
+    {
+      "id": "trust-test",
+      "days": { "from": 3, "to": 5 },
+      "intent": "One non-promotional value post, used purely to measure whether the account was categorized well.",
+      "steps": [
+        {
+          "action": "post",
+          "count": { "min": 1, "max": 1 },
+          "params": {
+            "promotional": false,
+            "sound_recency_days": 7,
+            "asset_uniqueness": "required"
+          },
+          "note": "Pure value, niche-native. Unique asset only — duplicate media is hashed by the platform, so an asset published by another identity is a coordination signal."
+        }
+      ],
+      "forbidden": ["bio_link", "promotional_post"]
+    }
+  ],
+
+  "gates": [
+    {
+      "id": "trust-check",
+      "after_phase": "trust-test",
+      "wait_hours": { "min": 12, "max": 24 },
+      "measure": "views_on_last_post",
+      "outcomes": [
+        { "when": ">= 1000", "result": "pass", "next": "graduate" },
+        {
+          "when": "500 .. 999",
+          "result": "inconclusive",
+          "next": "repeat_phase:trust-test",
+          "max_repeats": 1
+        },
+        {
+          "when": "< 500",
+          "result": "fail",
+          "next": "quarantine",
+          "note": "Reported as likely-flagged. The recommended action is to abandon this identity and rebuild with a tighter environment, NOT to continue the program."
+        }
+      ],
+      "note": "These thresholds are the least-validated numbers in this file. They are the operator consensus figure, not a measured boundary, and the gap between 500 and 1000 is a guess about where uncertainty lives."
+    }
+  ],
+
+  "graduation": {
+    "requires": [
+      "all_phases_complete",
+      "gate:trust-check=pass",
+      "baseline_days >= 3",
+      "no_open_flags"
+    ],
+    "grants": { "lanes": ["persona"] },
+    "note": "This is what the eligibility query returns to content-desk. Elapsed days never qualify an identity on their own."
+  },
+
+  "maintenance": {
+    "note": "Warming does not end at graduation. Niche engagement continues indefinitely, and it competes for the same daily cadence budget as posting.",
+    "daily_engagement": {
+      "watch": { "min": 10, "max": 20 },
+      "like": { "min": 5, "max": 15 },
+      "comment": { "min": 1, "max": 3 }
+    },
+    "post_cadence": { "per_day_max": 3, "min_gap_hours": 3 },
+    "gated_actions": [
+      {
+        "action": "bio_link",
+        "gate": "healthy_distribution_7d",
+        "note": "Add a bio link only once distribution looks healthy for a week after graduation."
+      }
+    ],
+    "watch_metrics": [
+      {
+        "metric": "audience_geo_share",
+        "target": ">= 0.80 target_geo",
+        "note": "Checked on the first real posts. A low target-geo share suggests the environment leaked even though the account was never flagged."
+      }
+    ]
+  },
+
+  "portfolio_constraints": {
+    "min_post_separation_minutes": 45,
+    "max_identities_posting_per_hour": 2,
+    "asset_uniqueness": "per_identity",
+    "note": "Cross-identity rather than per-identity. Prevents a coordinated-looking posting pattern across the portfolio, and prevents the same rendered asset going out twice."
+  },
+
+  "observations": []
+}

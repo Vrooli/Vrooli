@@ -109,11 +109,11 @@ func TestChromeImportIsIdempotentAndRejectsWrongShape(t *testing.T) {
 	export := []byte(`<!DOCTYPE NETSCAPE-Bookmark-file-1><DL><p><DT><A HREF="https://example.test/a">A</A><DT><A HREF="https://example.test/b">B</A></DL><p>`)
 	first, err := service.Import(context.Background(), ChromeBookmarksAdapterID, bytes.NewReader(export))
 	require.NoError(t, err)
-	require.Equal(t, 2, first.Created)
+	require.Equal(t, uint32(2), first.Created)
 	second, err := service.Import(context.Background(), ChromeBookmarksAdapterID, bytes.NewReader(export))
 	require.NoError(t, err)
 	require.Zero(t, second.Created)
-	require.Equal(t, 2, second.Duplicated)
+	require.Equal(t, uint32(2), second.Duplicated)
 	_, err = service.Import(context.Background(), ChromeBookmarksAdapterID, bytes.NewReader([]byte("not bookmarks")))
 	require.Error(t, err)
 	require.False(t, errors.Is(err, context.Canceled))
@@ -138,11 +138,11 @@ func TestRedditSavedArchiveImportsOnlySavedMaterialAndIsIdempotent(t *testing.T)
 	})
 	first, err := service.Import(context.Background(), RedditSavedArchiveAdapterID, bytes.NewReader(export))
 	require.NoError(t, err)
-	require.Equal(t, 2, first.Created)
+	require.Equal(t, uint32(2), first.Created)
 	second, err := service.Import(context.Background(), RedditSavedArchiveAdapterID, bytes.NewReader(export))
 	require.NoError(t, err)
 	require.Zero(t, second.Created)
-	require.Equal(t, 2, second.Duplicated)
+	require.Equal(t, uint32(2), second.Duplicated)
 
 	entries, err := (RedditSavedArchiveAdapter{}).Parse(context.Background(), bytes.NewReader(export))
 	require.NoError(t, err)
@@ -172,6 +172,32 @@ func TestRedditSavedArchiveBoundsCaptureCount(t *testing.T) {
 	})
 	_, err := parseRedditSavedArchive(bytes.NewReader(archive), redditArchiveLimits{maxArchiveBytes: 1_024, maxSavedCSVBytes: 1_024, maxSavedEntries: 1})
 	require.ErrorContains(t, err, "saved entry count exceeds")
+}
+
+func TestXArchiveSeparatesAuthoredAndLikeStreams(t *testing.T) {
+	t.Log("[REQ:SIG-P0-008]")
+	export := redditArchive(t, map[string]string{
+		"data/tweets.js":          `window.YTD.tweets.part0 = [{"tweet":{"id_str":"100","full_text":"authored post"}}]`,
+		"data/like.js":            `window.YTD.like.part0 = [{"like":{"tweetId":"200","fullText":"liked post","expandedUrl":"https://x.com/example/status/200"}}]`,
+		"data/direct-messages.js": `window.YTD.direct_messages.part0 = [{"dm":"must not import"}]`,
+	})
+	authored, err := (XAuthoredArchiveAdapter{}).Parse(context.Background(), bytes.NewReader(export))
+	require.NoError(t, err)
+	require.Len(t, authored, 1)
+	require.Equal(t, "https://x.com/i/web/status/100", authored[0].URL)
+	require.Equal(t, "authored post", authored[0].Text)
+	require.Equal(t, []string{"x", "authored"}, authored[0].Tags)
+
+	likes, err := (XLikesArchiveAdapter{}).Parse(context.Background(), bytes.NewReader(export))
+	require.NoError(t, err)
+	require.Len(t, likes, 1)
+	require.Equal(t, "liked post", likes[0].Text)
+	require.Equal(t, []string{"x", "liked"}, likes[0].Tags)
+}
+
+func TestXArchiveRejectsMissingDeclaredStream(t *testing.T) {
+	_, err := (XAuthoredArchiveAdapter{}).Parse(context.Background(), bytes.NewReader(redditArchive(t, map[string]string{"data/like.js": `window.YTD.like.part0 = []`})))
+	require.ErrorContains(t, err, "data/tweets.js is absent")
 }
 
 func redditArchive(t *testing.T, files map[string]string) []byte {

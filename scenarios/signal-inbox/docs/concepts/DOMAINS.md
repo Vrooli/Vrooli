@@ -25,12 +25,12 @@ belong in [`DATA.md`](DATA.md).
 | Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |
 |---|---|---|---|---|---|---|---|
 | health | Report runtime readiness and dependency reachability. | Expose API/database readiness and show the UI can read live backend state. | No product data. | reporting | query | HealthHandler | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/signal-inbox/v1/shared/health.proto` |
-| signals | Own the append-only journal of captured material. | Guarantee that anything captured is stored exactly once and never lost. | `signal`, `signal_media`, initial capture annotations. | crud | service | Signal, SourceIdentity, ContentHash | `api/internal/signals/`, `api/handlers/signals/`, `cli/domains/signals/`, `ui/src/features/capture/` |
+| signals | Own the append-only journal and coordinate the post-capture pipeline. | Guarantee that anything captured is stored exactly once and never lost, then make derived enrichment and classification best-effort. | `signal`, `signal_media`, initial capture annotations. | orchestration | crud, service | Signal, SourceIdentity, ContentHash, PostCapture | `api/internal/signals/`, `api/handlers/signals/`, `cli/domains/signals/`, `ui/src/features/capture/` |
 | sources | Register source adapters, enforce risk tiers, and run imports. | Get material in without risking the operator's platform accounts. | `adapter_state`, `import_run`. | service | workflow | Adapter, RiskTier, SafetyEnvelope, ImportRun | `api/internal/sources/`, `api/handlers/sources/`, `cli/domains/sources/`, `ui/src/features/sources/` |
 | enrichment | Resolve a source to text, delegating to the scenario that owns each medium. | Make a signal readable and embeddable regardless of what it arrived as. | `signal_enrichment` append-only extraction attempts. | service | integration | Extractor, ExtractionResult | `api/internal/enrichment/` |
-| categories | Own the operator's category set, taxonomies, and classification. | Organize the corpus the way the operator thinks about it, not the way the system does. | `category`, `taxonomy`, `classification`. | crud | service | Category, Taxonomy, Proposal, Confirmation | `api/internal/categories/`, `api/handlers/categories/`, `cli/domains/categories/`, `ui/src/features/categories/` |
+| categories | Own the operator's category set, taxonomies, and classification. | Organize the corpus the way the operator thinks about it, not the way the system does. | `category`, `taxonomy`, `classification`. | service | crud | Category, Taxonomy, Proposal, Confirmation | `api/internal/categories/`, `api/handlers/categories/`, `cli/domains/categories/`, `ui/src/features/categories/` |
 | triage | Own disposition, annotations, outcome links, and the review queue. | Make a signal's handled-state and its history legible, so nothing is reconsidered twice. | `disposition`, `annotation`. | workflow | crud | Disposition, Annotation, OutcomeLink | `api/internal/triage/`, `api/handlers/triage/`, `cli/domains/triage/`, `ui/src/features/triage/` |
-| retrieval | Own structured query, semantic search, the ambient view, and federation. | Answer both exact and natural-language questions over the whole corpus. | `embedding` index; owns the search descriptor. | reporting | query, integration | Query, AmbientView, ProviderDescriptor | `api/internal/retrieval/`, `api/handlers/retrieval/`, `cli/domains/retrieval/`, `ui/src/features/search/`, `.vrooli/search.json` |
+| retrieval | Own structured query, semantic search, the ambient view, and federation. | Answer both exact and natural-language questions over the whole corpus. | `embedding` index; owns the search descriptor. | aggregation | reporting, query, integration | Query, AmbientView, ProviderDescriptor | `api/internal/retrieval/`, `api/handlers/retrieval/`, `cli/domains/retrieval/`, `ui/src/features/search/`, `.vrooli/search.json` |
 
 ## Domain Details
 
@@ -77,6 +77,8 @@ These are important but should not become product domains:
 - `api/internal/module/` — shared module descriptor type.
 - `api/internal/modules/` — thin registry for boot/codegen.
 - `api/internal/database/` — cross-cutting database infrastructure.
+- `api/internal/inference/` — gateway-routed inference client and embedding adapter shared by classification and retrieval.
+- `api/internal/searchregistry/` — declarative search-hub registration mechanism; retrieval owns the descriptor it registers.
 - `api/internal/testutil/` — cross-domain test harnesses.
 - `ui/src/components/` — shared presentation primitives.
 - `ui/src/test-utils/` — cross-feature testing support.

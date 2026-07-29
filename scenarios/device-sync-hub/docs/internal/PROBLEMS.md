@@ -51,6 +51,33 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 _None yet._
 
+## Work ladder
+
+### 2026-07-28 — large remote upload investigation
+
+**W0 (contract):** blocked/unverifiable. `swarm-manager goals list --json` found
+no goal that names `device-sync-hub`; the PRD independently names server-relayed
+file transfer as P0 and chunked/resumable large-file upload with per-file
+progress as P1 (`OT-P1-001`). The operator's 200+ MB X archive failure directly
+exercises that P1 capability, so this repair is in scope without changing the
+contract.
+
+**Investigation:** local API accepts a 2 GiB multipart maximum and rejects an
+unauthenticated request before reading its body; the external Cloudflare route
+redirects unauthenticated requests at about 1.7 MB, so the authenticated
+200 MB edge failure cannot be reproduced from this host without an operator
+session. The hub emitted no matching API log. The current UI sends one whole
+file request and discards its existing XHR byte-progress callback. The most
+likely root cause is an edge request-size limit before the request reaches the
+origin, with a generic non-JSON edge response collapsed into the UI's generic
+error. A server-side maximum is ruled out by
+`api/handlers/transfer/upload_handler.go` (`maxUploadBytes = 2 GiB`).
+
+**Next rung:** W3 implementation: replace one-shot large uploads with bounded
+chunked/resumable sessions and surface per-file upload state, progress, and
+actionable errors. Re-run W0 after the repair; W1/W2/W3 gates are intentionally
+not claimed while W0 is unverifiable.
+
 ## UX Issues
 
 - Resolved 2026-07-28: received-item cards showed filename, retention, expiry,

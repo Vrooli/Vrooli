@@ -3,6 +3,7 @@ package transfer
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"image"
 	"image/color"
 	"image/png"
@@ -10,6 +11,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -42,7 +44,7 @@ func newREST(t *testing.T, cfg internaltransfer.Config) (*uploadHandler, *downlo
 	cfg.Blobs = store
 	cfg.Clock = clk
 	svc := internaltransfer.NewService(cfg)
-	up := newUploadHandler(UploadDeps{Service: svc, Store: store})
+	up := newUploadHandler(UploadDeps{Service: svc, Store: store, DB: d})
 	down := newDownloadHandler(DownloadDeps{Service: svc, Store: store})
 	return up, down, svc
 }
@@ -157,4 +159,41 @@ func TestUploadRejectsOverQuota(t *testing.T) {
 	rr := httptest.NewRecorder()
 	up.handleUpload(rr, req)
 	assert.Equal(t, http.StatusRequestEntityTooLarge, rr.Code)
+}
+
+func TestResumableUploadAssemblesChunksIntoOneItem(t *testing.T) {
+	up, down, svc := newREST(t, internaltransfer.Config{})
+	create := deviceReq(t, http.MethodPost, "/api/v1/transfer/uploads", strings.NewReader(`{"name":"archive.zip","mime":"application/zip","size_bytes":6,"retention":"held"}`), "application/json")
+	created := httptest.NewRecorder()
+	up.handleCreateSession(created, create)
+	require.Equal(t, http.StatusCreated, created.Code, created.Body.String())
+	var session uploadSession
+	require.NoError(t, json.Unmarshal(created.Body.Bytes(), &session))
+	for _, chunk := range []string{"abc", "def"} {
+		req := deviceReq(t, http.MethodPut, "/api/v1/transfer/uploads/"+session.ID+"/chunks/0", strings.NewReader(chunk), "application/octet-stream")
+		req = mux.SetURLVars(req, map[string]string{"id": session.ID, "index": "0"})
+		rr := httptest.NewRecorder()
+		up.handleChunk(rr, req)
+		require.Equal(t, http.StatusBadRequest, rr.Code, "short chunk must not be accepted")
+	}
+	// A one-chunk session has exactly six bytes; upload the correct chunk.
+	req := deviceReq(t, http.MethodPut, "/api/v1/transfer/uploads/"+session.ID+"/chunks/0", strings.NewReader("abcdef"), "application/octet-stream")
+	req = mux.SetURLVars(req, map[string]string{"id": session.ID, "index": "0"})
+	rr := httptest.NewRecorder()
+	up.handleChunk(rr, req)
+	require.Equal(t, http.StatusOK, rr.Code)
+	complete := deviceReq(t, http.MethodPost, "/api/v1/transfer/uploads/"+session.ID+"/complete", nil, "")
+	complete = mux.SetURLVars(complete, map[string]string{"id": session.ID})
+	done := httptest.NewRecorder()
+	up.handleCompleteSession(done, complete)
+	require.Equal(t, http.StatusCreated, done.Code, done.Body.String())
+	items, err := svc.List(context.Background(), "owner-1", "dev-a", internaltransfer.ListFilter{})
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	dreq := deviceReq(t, http.MethodGet, "/api/v1/transfer/items/"+items[0].ID+"/content", nil, "")
+	dreq = mux.SetURLVars(dreq, map[string]string{"id": items[0].ID})
+	got := httptest.NewRecorder()
+	down.handleDownload(got, dreq)
+	require.Equal(t, http.StatusOK, got.Code)
+	assert.Equal(t, []byte("abcdef"), got.Body.Bytes())
 }

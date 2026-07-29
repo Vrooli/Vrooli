@@ -38,7 +38,12 @@ export interface UploadOptions {
   onProgress?: (fraction: number) => void;
   /** Abort signal so a staged send can be cancelled mid-flight. */
   signal?: AbortSignal;
+  sessionId?: string;
+  onSession?: (id: string) => void;
 }
+
+const RESUMABLE_THRESHOLD = 32 << 20;
+const RESUMABLE_CHUNK_BYTES = 8 << 20;
 
 /**
  * Upload a file to the REST multipart endpoint. The scaffold's generic
@@ -47,6 +52,7 @@ export interface UploadOptions {
  * `X-Device-Token` header explicitly. Returns the proto-typed Item.
  */
 export function uploadItem(file: File, options: UploadOptions = {}): Promise<Item> {
+	if (file.size > RESUMABLE_THRESHOLD) return uploadResumable(file, options);
   const { retention = Retention.HELD, targetDeviceId = "", onProgress, signal } = options;
   const { deviceToken } = readSessionCredentials();
 
@@ -105,6 +111,50 @@ export function uploadItem(file: File, options: UploadOptions = {}): Promise<Ite
     }
 
     xhr.send(form);
+  });
+}
+
+async function uploadResumable(file: File, options: UploadOptions): Promise<Item> {
+  const { retention = Retention.HELD, targetDeviceId = "", onProgress, sessionId, onSession, signal } = options;
+  let id = sessionId;
+  let received = new Set<number>();
+  if (id) {
+    const response = await authedFetch(buildApiUrl(`/transfer/uploads/${encodeURIComponent(id)}`, { baseUrl: REST_API_BASE }), { cache: "no-store", signal });
+    if (!response.ok) throw await decodeApiError(response);
+    const status = await response.json() as { received: number[] };
+    received = new Set(status.received);
+  } else {
+    const response = await authedFetch(buildApiUrl("/transfer/uploads", { baseUrl: REST_API_BASE }), {
+      method: "POST", cache: "no-store", signal,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: file.name, mime: file.type || "application/octet-stream", size_bytes: file.size, retention: RETENTION_FORM_VALUE[retention] || "held", target_device_id: targetDeviceId }),
+    });
+    if (!response.ok) throw await decodeApiError(response);
+    const status = await response.json() as { id: string; received: number[] };
+    id = status.id; received = new Set(status.received); onSession?.(id);
+  }
+  const count = Math.ceil(file.size / RESUMABLE_CHUNK_BYTES);
+  for (let index = 0; index < count; index += 1) {
+    if (received.has(index)) { onProgress?.(Math.min(1, ((index + 1) * RESUMABLE_CHUNK_BYTES) / file.size)); continue; }
+    await putChunk(id!, index, file.slice(index * RESUMABLE_CHUNK_BYTES, Math.min(file.size, (index + 1) * RESUMABLE_CHUNK_BYTES)), (fraction) => onProgress?.((index * RESUMABLE_CHUNK_BYTES + fraction * Math.min(RESUMABLE_CHUNK_BYTES, file.size - index * RESUMABLE_CHUNK_BYTES)) / file.size), signal);
+    onProgress?.(Math.min(1, ((index + 1) * RESUMABLE_CHUNK_BYTES) / file.size));
+  }
+  const response = await authedFetch(buildApiUrl(`/transfer/uploads/${encodeURIComponent(id!)}/complete`, { baseUrl: REST_API_BASE }), { method: "POST", cache: "no-store", signal });
+  if (!response.ok) throw await decodeApiError(response);
+  const decoded = fromJson(UploadItemResponseSchema, await response.json() as JsonValue, PROTO_READ_OPTIONS);
+  if (!decoded.item) throw makeApiError("internal", "upload returned no item");
+  return decoded.item;
+}
+
+function putChunk(sessionId: string, index: number, body: Blob, onProgress: (fraction: number) => void, signal?: AbortSignal): Promise<void> {
+  const { deviceToken } = readSessionCredentials();
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest(); xhr.open("PUT", buildApiUrl(`/transfer/uploads/${encodeURIComponent(sessionId)}/chunks/${index}`, { baseUrl: REST_API_BASE }));
+    if (deviceToken) xhr.setRequestHeader(DEVICE_TOKEN_HEADER, deviceToken);
+    xhr.upload.onprogress = (event) => { if (event.lengthComputable && event.total > 0) onProgress(event.loaded / event.total); };
+    xhr.onload = () => { if (xhr.status >= 200 && xhr.status < 300) resolve(); else void decodeApiError(new Response(xhr.responseText, { status: xhr.status })).then(reject); };
+    xhr.onerror = () => reject(makeApiError("unavailable", "network error during upload", 0)); xhr.onabort = () => reject(makeApiError("canceled", "upload canceled", 0));
+    if (signal) signal.addEventListener("abort", () => xhr.abort(), { once: true }); xhr.send(body);
   });
 }
 

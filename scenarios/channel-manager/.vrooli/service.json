@@ -197,10 +197,10 @@
   "dependencies": {
     "resources": {
       "vault": {
-        "enabled": true,
-        "required": true,
-        "startup_policy": "must_start",
-        "description": "Holds every platform credential. This scenario stores only a vault path and reads the value at execution time; a credential is never persisted here."
+        "enabled": false,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Credential authority for a future executor. P0 manual operations store and display Vault references only, so no Vault process is required to run the safe operator console or its tests."
       }
     },
     "scenarios": {
@@ -213,18 +213,19 @@
       "browser-automation-studio": {
         "enabled": false,
         "required": false,
-        "startup_policy": "manual",
+        "startup_policy": "ignore",
         "description": "Browser executor and per-identity session profiles (CHANMGR-P1-001). Disabled until a per-platform automation decision is recorded in docs/internal/DECISIONS.md."
       },
       "asset-studio": {
         "enabled": false,
         "required": false,
-        "startup_policy": "manual",
+        "startup_policy": "ignore",
         "description": "Asset-uniqueness lookup (CHANMGR-P1-003). Disabled until P1."
       }
     }
   },
   "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/channel-manager.db"
+    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/channel-manager.db",
+    "CHANNEL_MANAGER_DATA_DIR": "../data"
   }
 }

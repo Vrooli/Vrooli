@@ -35,3 +35,28 @@ CREATE INDEX IF NOT EXISTS idx_items_owner_created
 -- Purge sweep scans items with a non-empty expires_at in time order.
 CREATE INDEX IF NOT EXISTS idx_items_expires
   ON items(expires_at);
+
+-- Resumable upload sessions keep large remote uploads below the tunnel edge's
+-- per-request limit. Chunk bytes live in the blob store; this table is only
+-- the durable ownership/progress ledger needed to resume safely.
+CREATE TABLE IF NOT EXISTS upload_sessions (
+  id TEXT PRIMARY KEY,
+  owner_id TEXT NOT NULL,
+  device_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  retention TEXT NOT NULL DEFAULT '',
+  target_device_id TEXT NOT NULL DEFAULT '',
+  chunk_count INTEGER NOT NULL,
+  completed INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS upload_chunks (
+  session_id TEXT NOT NULL,
+  chunk_index INTEGER NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  blob_key TEXT NOT NULL,
+  PRIMARY KEY (session_id, chunk_index),
+  FOREIGN KEY (session_id) REFERENCES upload_sessions(id) ON DELETE CASCADE
+);

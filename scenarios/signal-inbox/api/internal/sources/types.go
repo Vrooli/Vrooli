@@ -12,7 +12,9 @@ import (
 	"signal-inbox/internal/signals"
 )
 
-type RiskTier int
+// RiskTier shares the unsigned wire/storage representation. A negative risk
+// tier would be nonsensical and must not be representable at the API edge.
+type RiskTier = uint32
 
 const (
 	RiskUnspecified RiskTier = iota
@@ -43,7 +45,7 @@ type State struct {
 
 type ImportResult struct {
 	RunID, AdapterID            string
-	Created, Duplicated, Failed int
+	Created, Duplicated, Failed uint32
 }
 
 type Repository interface {

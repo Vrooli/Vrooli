@@ -26,7 +26,7 @@ type RedditSavedArchiveAdapter struct{}
 // unbounded process memory.
 type redditArchiveLimits struct {
 	maxArchiveBytes  int64
-	maxSavedCSVBytes uint64
+	maxSavedCSVBytes int64
 	maxSavedEntries  int
 }
 
@@ -78,7 +78,7 @@ func parseRedditSavedArchive(input io.Reader, limits redditArchiveLimits) ([]sig
 }
 
 func parseRedditSavedCSV(file *zip.File, limits redditArchiveLimits) ([]signals.CaptureInput, error) {
-	if file.UncompressedSize64 > limits.maxSavedCSVBytes {
+	if limits.maxSavedCSVBytes <= 0 || file.UncompressedSize64 > uint64(limits.maxSavedCSVBytes) {
 		return nil, fmt.Errorf("read Reddit export %s: saved CSV exceeds %d byte limit", file.Name, limits.maxSavedCSVBytes)
 	}
 	reader, err := file.Open()
@@ -87,7 +87,7 @@ func parseRedditSavedCSV(file *zip.File, limits redditArchiveLimits) ([]signals.
 	}
 	defer reader.Close()
 
-	limitedReader := &io.LimitedReader{R: reader, N: int64(limits.maxSavedCSVBytes) + 1}
+	limitedReader := &io.LimitedReader{R: reader, N: limits.maxSavedCSVBytes + 1}
 	csvReader := csv.NewReader(limitedReader)
 	header, err := csvReader.Read()
 	if err != nil {

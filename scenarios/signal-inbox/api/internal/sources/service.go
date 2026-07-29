@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"io"
+	"math"
 	"sort"
 	"time"
 
 	"github.com/google/uuid"
 	"signal-inbox/internal/clock"
+	"signal-inbox/internal/signals"
 )
 
 type Service struct {
@@ -96,15 +98,15 @@ func (s *Service) Import(ctx context.Context, id string, input io.Reader) (Impor
 	}
 	result := ImportResult{RunID: uuid.NewString(), AdapterID: id}
 	for _, entry := range entries {
-		captured, captureErr := s.captures.Capture(ctx, entry)
+		captured, captureErr := s.captures.Capture(signals.WithInferenceDeferred(ctx), entry)
 		if captureErr != nil {
-			result.Failed++
+			incrementCount(&result.Failed)
 			return s.finishFailure(ctx, state, started, captureErr)
 		}
 		if captured.Duplicate {
-			result.Duplicated++
+			incrementCount(&result.Duplicated)
 		} else {
-			result.Created++
+			incrementCount(&result.Created)
 		}
 	}
 	state.LastRunAt, state.LastError = s.clock.Now().UTC(), ""
@@ -127,4 +129,10 @@ func (s *Service) finishFailure(ctx context.Context, state State, started time.T
 	result := ImportResult{RunID: uuid.NewString(), AdapterID: state.AdapterID, Failed: 1}
 	_ = s.repo.AppendRun(ctx, result, started, s.clock.Now().UTC())
 	return result, cause
+}
+
+func incrementCount(value *uint32) {
+	if *value < math.MaxUint32 {
+		*value++
+	}
 }

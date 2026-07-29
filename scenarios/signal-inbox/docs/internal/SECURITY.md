@@ -17,7 +17,8 @@ Use this document to answer:
 
 | Data | Sensitivity | Owner | Details |
 |---|---|---|---|
-| _(your product data)_ | classify per PRD | owning domain | Replace with real scenario data classification. |
+| Operator-captured signals and archive content | sensitive personal-interest data | signals / sources | May include private bookmarks, likes, authored posts, and adult material. The journal is permanent. |
+| Tier-1 OAuth access token | credential | sources / secret owner | Required only for an operator-enabled official API stream; never stored in signal rows, import runs, or browser-visible configuration. |
 
 ## Auth And Authorization
 
@@ -30,7 +31,7 @@ authorization belongs at the API/service layer.
 
 | Secret | Source | Required? | Details |
 |---|---|---|---|
-| None by default | n/a | no | Add entries when resources or third-party APIs require secrets. |
+| X OAuth client and user tokens | owning secret system | no, until X bookmark sync is enabled | Tier-1 X bookmarks stream only. Request the least scopes: `tweet.read`, `users.read`, `bookmark.read`. |
 
 ## Threat Model
 
@@ -38,6 +39,8 @@ authorization belongs at the API/service layer.
 |---|---|---|---|
 | Unsafe file upload handling | Malicious or oversized upload could affect storage. | Multipart handler validates metadata and BlobStore seam isolates bytes. | template-reference |
 | Missing auth for product data | User/customer data could be exposed if added without access control. | Add API-layer auth before storing protected data. | deferred |
+| Sensitive archive material sent to a hosted model | A provider could retain, moderate, or otherwise process material the operator intended to keep local. | Default archive ingestion, sensitive-content assessment, and classification to an operator-selected local ai-gateway profile. Do not rely on a classifier to make hosted processing safe. | planned source-stream implementation |
+| One source toggle enables unrelated collection | A consent decision for bookmarks could accidentally activate likes, archives, or session replay. | Persist and enforce enablement, credentials, checkpoint, and risk tier per stream. | planned source-stream implementation |
 
 ## Security Gaps
 

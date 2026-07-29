@@ -159,6 +159,23 @@ business-vocabulary-free and used by unrelated domains or surfaces.
 | `api/internal/testutil/` | Cross-domain test harnesses and fakes. | Used by unrelated domains; domain fakes stay domain-local. | API tests. |
 | `ui/src/test-utils/` | Cross-feature render helpers, a11y helpers, and model tests. | Used by unrelated UI features. | UI tests. |
 
+## Zone Map
+
+| Zone | Declared Layer | Path Convention |
+|---|---|---|
+| Transport | transport | `api/handlers/<domain>/` |
+| Domain | domain | `api/internal/<domain>/` |
+| Substrate | shared infrastructure | `api/internal/clock/`, `api/internal/database/`, `api/internal/httpc/`, `api/internal/httpx/`, `api/internal/inference/`, `api/internal/middleware/`, `api/internal/searchregistry/`, `api/internal/server/`, `api/internal/testutil/` |
+| Composition root | composition root | `api/main.go`, `api/internal/module/`, `api/internal/modules/` |
+| CLI | cli | `cli/domains/<domain>/` |
+| UI | browser presentation | `ui/src/features/<domain>/`, `ui/src/components/`, `ui/src/layout/` |
+
+The coordinator archetypes in `DOMAINS.md` are deliberate. `signals` coordinates
+post-capture hooks after the immutable append, `categories` coordinates classification
+with the gateway, and `retrieval` aggregates the journal with projections and
+embeddings. They may compose sibling-domain contracts; non-coordinating domains may
+not import sibling internals.
+
 If shared infrastructure starts using product vocabulary, move that
 piece back into the owning domain or split a new domain first.
 

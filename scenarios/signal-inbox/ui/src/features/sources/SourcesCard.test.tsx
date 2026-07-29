@@ -4,16 +4,16 @@ import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../../test-utils";
 
-const sources = vi.hoisted(() => ({ listAdapters: vi.fn(), setAdapterEnabled: vi.fn(), importArchive: vi.fn() }));
-vi.mock("../../api/sources", () => ({ sourcesClient: sources }));
+const sources = vi.hoisted(() => ({ listAdapters: vi.fn(), setAdapterEnabled: vi.fn(), uploadArchive: vi.fn() }));
+vi.mock("../../api/sources", () => ({ sourcesClient: sources, uploadArchive: sources.uploadArchive }));
 
 import { SourcesCard } from "./SourcesCard";
 
 describe("SourcesCard [REQ:SIG-P0-008] [REQ:SIG-P0-014]", () => {
   beforeEach(() => {
-    sources.listAdapters.mockResolvedValue({ adapters: [{ adapterId: "chrome-bookmarks", riskTier: 0, enabled: true, disabledReason: "", lastError: "" }] });
+    sources.listAdapters.mockResolvedValue({ adapters: [{ adapterId: "chrome-bookmarks", riskTier: 1, enabled: true, disabledReason: "", lastError: "" }] });
     sources.setAdapterEnabled.mockResolvedValue({});
-    sources.importArchive.mockResolvedValue({ result: { created: 2, duplicated: 1, failed: 0 } });
+    sources.uploadArchive.mockResolvedValue({ result: { created: 2, duplicated: 1, failed: 0 } });
   });
   afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
@@ -24,7 +24,7 @@ describe("SourcesCard [REQ:SIG-P0-008] [REQ:SIG-P0-014]", () => {
     const file = new File(["<DL><p><DT><A HREF='https://example.test'>Example</A>"], "bookmarks.html", { type: "text/html" });
     await user.upload(screen.getByLabelText("Archive for chrome-bookmarks"), file);
     await user.click(screen.getByRole("button", { name: "Import export" }));
-    await waitFor(() => expect(sources.importArchive).toHaveBeenCalledWith(expect.objectContaining({ adapterId: "chrome-bookmarks" })));
+    await waitFor(() => expect(sources.uploadArchive).toHaveBeenCalledWith("chrome-bookmarks", file));
     expect(await screen.findByText(/Imported 2; duplicates 1/)).toBeInTheDocument();
   });
 
@@ -37,7 +37,7 @@ describe("SourcesCard [REQ:SIG-P0-008] [REQ:SIG-P0-014]", () => {
   });
 
   it("keeps a soft-blocked network adapter disabled until explicit enablement", async () => {
-    sources.listAdapters.mockResolvedValue({ adapters: [{ adapterId: "x-archive", riskTier: 2, enabled: false, disabledReason: "anomalous 429 response", lastError: "429" }] });
+    sources.listAdapters.mockResolvedValue({ adapters: [{ adapterId: "x-archive", riskTier: 3, enabled: false, disabledReason: "anomalous 429 response", lastError: "429" }] });
     renderWithProviders(<SourcesCard />);
     expect(await screen.findByText(/tier 2 — explicit enablement required/)).toBeInTheDocument();
     expect(screen.getByText(/Disabled: anomalous 429 response · Last error: 429/)).toBeInTheDocument();

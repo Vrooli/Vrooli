@@ -112,8 +112,8 @@ func newSignal(in CaptureInput, capturedAt time.Time) (Signal, error) {
 	if strings.TrimSpace(in.ImagePayloadRef) != "" {
 		variants++
 	}
-	if variants != 1 {
-		return Signal{}, ErrInvalidSignal{Field: "source", Reason: "supply exactly one of url, text, or image payload reference"}
+	if variants == 0 || variants > 2 || (variants == 2 && (strings.TrimSpace(in.ImagePayloadRef) != "" || strings.TrimSpace(in.URL) == "" || strings.TrimSpace(in.Text) == "")) {
+		return Signal{}, ErrInvalidSignal{Field: "source", Reason: "supply a URL, text, image payload reference, or URL with captured text"}
 	}
 
 	s := Signal{CapturedAt: capturedAt.UTC(), CaptureNote: strings.TrimSpace(in.CaptureNote), Tags: normalizeTags(in.Tags)}
@@ -124,6 +124,12 @@ func newSignal(in CaptureInput, capturedAt time.Time) (Signal, error) {
 			return Signal{}, ErrInvalidSignal{Field: "url", Reason: err.Error()}
 		}
 		s.SourceKind, s.SourceURL, s.SourceIdentity = SourceKindURL, strings.TrimSpace(in.URL), identity
+		// Archive adapters may have durable text at capture time. Retain it on
+		// the immutable journal row instead of depending on a later network
+		// fetch to make the item searchable.
+		if strings.TrimSpace(in.Text) != "" {
+			s.ExtractedContent = normalizeText(in.Text)
+		}
 		s.ContentHash = hash("url:\x00" + identity)
 	case strings.TrimSpace(in.Text) != "":
 		content := normalizeText(in.Text)

@@ -1,0 +1,1 @@
+{"id":"x","daily_ceiling":3,"action_kinds":["engage","publish"],"disclosure_required":true,"formats":[{"kind":"image","mime_types":["image/jpeg","image/png","image/gif"],"max_bytes":5242880,"max_duration_secs":1,"duration_resolved_per_identity":false,"min_width":1,"min_height":1,"max_width":8192,"max_height":8192}]}

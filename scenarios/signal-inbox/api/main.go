@@ -110,7 +110,11 @@ func sqliteFileDSN(path string) (string, error) {
 	if strings.HasPrefix(path, "file:") {
 		return path, nil
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	path = filepath.Clean(path)
+	if !filepath.IsAbs(path) {
+		return "", fmt.Errorf("sqlite path must be absolute")
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return "", fmt.Errorf("prepare sqlite directory: %w", err)
 	}
 	return fmt.Sprintf(
@@ -165,7 +169,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("signals runtime: %v", err)
 	}
-	sourcesService, err := sources.NewService(sources.NewSQLiteRepository(db), signalsRuntime.Service, clock.System{}, sources.ChromeBookmarksAdapter{}, sources.RedditSavedArchiveAdapter{})
+	sourcesService, err := sources.NewService(sources.NewSQLiteRepository(db), signalsRuntime.Service, clock.System{}, sources.ChromeBookmarksAdapter{}, sources.RedditSavedArchiveAdapter{}, sources.XAuthoredArchiveAdapter{}, sources.XLikesArchiveAdapter{})
 	if err != nil {
 		log.Fatalf("sources runtime: %v", err)
 	}

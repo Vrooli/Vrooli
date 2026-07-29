@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"time"
 
@@ -56,8 +57,10 @@ func Register(ctx context.Context, searchFilePath string, logger *log.Logger) {
 	}
 }
 
-type resolver func(context.Context) (string, error)
-type clientFactory func(string) RegistryClient
+type (
+	resolver      func(context.Context) (string, error)
+	clientFactory func(string) RegistryClient
+)
 
 func registerOne(ctx context.Context, descriptor *registryv1.ProviderDescriptor, resolve resolver, newClient clientFactory) error {
 	return retry.Do(ctx, retry.Config{MaxAttempts: 5, BaseDelay: time.Second, MaxDelay: 10 * time.Second}, func(int) error {
@@ -127,8 +130,18 @@ func Descriptor(provider aisearch.ProviderConfig) (*registryv1.ProviderDescripto
 		EmbedTaskPrefix: tuning.EmbedTaskPrefix,
 		RerankEnabled:   tuning.RerankEnabled,
 		RerankBlend:     tuning.RerankBlend,
-		RerankShortlist: int32(tuning.RerankShortlist),
+		RerankShortlist: shortlistToInt32(tuning.RerankShortlist),
 		Floor:           &registryv1.FloorConfig{MaxGap: tuning.Floor.MaxGap, HardFloor: tuning.Floor.HardFloor},
 	}
 	return descriptor, nil
+}
+
+func shortlistToInt32(value int) int32 {
+	if value <= 0 {
+		return 0
+	}
+	if int64(value) > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	return int32(value)
 }

@@ -3,6 +3,7 @@ package modeltest_test
 import (
 	"errors"
 	"testing"
+
 	"channel-manager/internal/testutil/modeltest"
 
 	"github.com/stretchr/testify/require"

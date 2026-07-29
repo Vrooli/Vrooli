@@ -58,10 +58,18 @@ func TestCaptureDifferentURLsDoNotDeduplicate(t *testing.T) {
 	require.NotEqual(t, first.Signal.ID, second.Signal.ID)
 }
 
-func TestCaptureRequiresExactlyOneSource(t *testing.T) {
+func TestCaptureRejectsIncompatibleSourceCombinations(t *testing.T) {
 	svc := newTestService(t)
-	_, err := svc.Capture(context.Background(), CaptureInput{URL: "https://example.com", Text: "also text"})
+	_, err := svc.Capture(context.Background(), CaptureInput{Text: "also text", ImagePayloadRef: "signals/uploads/image"})
 	require.ErrorAs(t, err, new(ErrInvalidSignal))
+}
+
+func TestCaptureRetainsArchiveTextWithURL(t *testing.T) {
+	svc := newTestService(t)
+	result, err := svc.Capture(context.Background(), CaptureInput{URL: "https://x.com/i/web/status/1", Text: "archive post text"})
+	require.NoError(t, err)
+	require.Equal(t, SourceKindURL, result.Signal.SourceKind)
+	require.Equal(t, "archive post text", result.Signal.ExtractedContent)
 }
 
 // [REQ:SIG-P0-002] The caller supplies only an image payload reference; the

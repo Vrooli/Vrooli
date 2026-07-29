@@ -3,6 +3,8 @@ package retrieval
 import (
 	"context"
 	"fmt"
+	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,7 +25,7 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 }
 
 func (h *handlers) searchCall(ctx cliapp.OperationContext) (*retrievalv1.SearchResponse, error) {
-	filter := &retrievalv1.SearchFilter{Text: ctx.Flag("text"), CategoryId: ctx.Flag("category-id"), Disposition: ctx.Flag("disposition"), SourceKind: ctx.Flag("source-kind"), PageSize: uint32(parseLimit(ctx.Flag("page-size"))), Tags: parseTags(ctx.Flag("tags")), PageAfter: ctx.Flag("page-after")}
+	filter := &retrievalv1.SearchFilter{Text: ctx.Flag("text"), CategoryId: ctx.Flag("category-id"), Disposition: ctx.Flag("disposition"), SourceKind: ctx.Flag("source-kind"), PageSize: parseLimit(ctx.Flag("page-size")), Tags: parseTags(ctx.Flag("tags")), PageAfter: ctx.Flag("page-after")}
 	var err error
 	if filter.CapturedAfter, err = parseTime(ctx.Flag("captured-after")); err != nil {
 		return nil, fmt.Errorf("captured-after: %w", err)
@@ -40,7 +42,7 @@ func (h *handlers) searchCall(ctx cliapp.OperationContext) (*retrievalv1.SearchR
 }
 
 func (h *handlers) ambientCall(ctx cliapp.OperationContext) (*retrievalv1.AmbientResponse, error) {
-	req := &retrievalv1.AmbientRequest{CategoryId: ctx.Flag("category-id"), Budget: uint32(parseLimit(ctx.Flag("budget")))}
+	req := &retrievalv1.AmbientRequest{CategoryId: ctx.Flag("category-id"), Budget: parseLimit(ctx.Flag("budget"))}
 	response, err := h.client.Ambient(context.Background(), connect.NewRequest(req))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("read ambient signals", err, nil)
@@ -68,7 +70,17 @@ func resultsReport(results []*retrievalv1.RetrievedSignal) cliapp.ListReport {
 	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d signal(s).", len(rows))}, ResultsHeading: "Signals", Results: rows}
 }
 
-func parseLimit(raw string) int { var value int; _, _ = fmt.Sscan(raw, &value); return value }
+func parseLimit(raw string) uint32 {
+	value, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 64)
+	if err != nil || value <= 0 {
+		return 0
+	}
+	if value > math.MaxUint32 {
+		return math.MaxUint32
+	}
+	return uint32(value)
+}
+
 func parseTags(raw string) []string {
 	parts := strings.Split(raw, ",")
 	result := make([]string, 0, len(parts))

@@ -46,15 +46,17 @@ func (h *connectHandler) ImportArchive(ctx context.Context, req *connect.Request
 	if err != nil {
 		return nil, toConnectError(err)
 	}
-	return connect.NewResponse(&sourcesv1.ImportArchiveResponse{Result: &sourcesv1.ImportResult{RunId: result.RunID, AdapterId: result.AdapterID, Created: uint32(result.Created), Duplicated: uint32(result.Duplicated), Failed: uint32(result.Failed)}}), nil
+	return connect.NewResponse(&sourcesv1.ImportArchiveResponse{Result: &sourcesv1.ImportResult{RunId: result.RunID, AdapterId: result.AdapterID, Created: result.Created, Duplicated: result.Duplicated, Failed: result.Failed}}), nil
 }
+
 func stateToProto(state internal.State) *sourcesv1.AdapterState {
-	result := &sourcesv1.AdapterState{AdapterId: state.AdapterID, Kind: state.Kind, RiskTier: uint32(state.RiskTier), Enabled: state.Enabled, LastError: state.LastError, DisabledReason: state.DisabledReason}
+	result := &sourcesv1.AdapterState{AdapterId: state.AdapterID, Kind: state.Kind, RiskTier: state.RiskTier, Enabled: state.Enabled, LastError: state.LastError, DisabledReason: state.DisabledReason}
 	if !state.LastRunAt.IsZero() {
 		result.LastRunAt = timestamppb.New(state.LastRunAt)
 	}
 	return result
 }
+
 func toConnectError(err error) error {
 	var unknown internal.ErrUnknownAdapter
 	var disabled internal.ErrAdapterDisabled

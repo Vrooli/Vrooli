@@ -43,16 +43,6 @@ default verbosity; no endpoint returns a credential value under any circumstance
 including debug paths, of which there are none; and exports of action history
 should be treated as sensitive artefacts rather than reports.
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-The shipped worked-example `notes` domain carries placeholder data only
-(removed by `template-manager detemplate`):
-
-| Data | Sensitivity | Owner | Details |
-|---|---|---|---|
-| Template notes data | low | notes reference | Local development data only; replace with real scenario data classification. |
-| Attachment bytes | unknown | notes reference | Treat as potentially sensitive if retained in product scope. |
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Auth And Authorization
 
 The generated template does not include an auth provider. Add auth only

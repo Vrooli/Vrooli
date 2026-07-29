@@ -19,7 +19,7 @@ Use this document to answer:
 |---|---|---|---|---|---|
 | SQLite | embedded storage | yes | identities, platforms, warming, queue, signals | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario must be started through lifecycle commands. |
-| vault | local resource | yes | queue (at execution time only) | `resource-vault content get --path <kv> --key <field> --format raw` | Execution of that action fails and is recorded as a terminal failure. **The action is never marked complete**, and no credential is cached to survive the outage. |
+| vault | local resource | no at P0 | future executor (at execution time only) | `resource-vault content get --path <kv> --key <field> --format raw` | P0 manual work stores only a reference, so the console and test suite run without Vault. A future credential-consuming executor must fail terminally and never cache a value. |
 | content-desk | scenario | no (inbound) | queue, identities | Connect-RPC: release handoff and eligibility query | This scenario does not call it at P0; it answers. If nothing calls in, warming and manual actions continue unaffected. |
 | browser-automation-studio | scenario | no (P1) | queue (browser executor) | `workflows`, `executions`, `session-profiles` | The action degrades to the manual executor with the dispatch failure recorded. It is never marked complete on a dispatch error. |
 | asset-studio | scenario | no (P1) | queue (asset uniqueness) | Connect-RPC: has this asset been published, and by whom | **Refuse, not allow.** A lookup failure blocks the post, matching the fail-closed posture used for eligibility. |
@@ -30,7 +30,7 @@ Use this document to answer:
 | Resource | Status | Reason | Revisit Trigger |
 |---|---|---|---|
 | SQLite (embedded) | active | Identity, queue, warming, and signal tables are single-writer, local, and modest in size. | If the scenario ever becomes multi-host. |
-| vault | active | Credential storage. This scenario holds a path and reads the value at execution time; it never persists one. | Never — storing credentials locally is the thing this dependency exists to prevent. |
+| vault | manual / executor-only | Credential authority. This scenario holds a path and never persists a value; P0 manual execution does not read it. | Enable only when a credential-consuming executor is approved. |
 | browser-automation-studio resources | indirect (P1) | Reached through the BAS scenario, never driven directly. Per-identity session profiles are what keep browser state from leaking between identities. | If BAS stops exposing session profiles, multi-account browser execution is not safe and the executor must be withdrawn. |
 
 ## Scenario Dependencies
@@ -38,7 +38,7 @@ Use this document to answer:
 | Scenario | Status | Reason | Contract |
 |---|---|---|---|
 | content-desk | required (inbound) | Owns campaigns, drafts, claims, review, and approval. It hands this scenario an approved draft and asks whether an identity may carry a lane. | **Exactly two questions cross the boundary**, per that scenario's own `INTEGRATIONS.md`: *release this draft* and *is this identity eligible for this lane*. No account state, warming detail, or credential crosses in either direction. |
-| browser-automation-studio | optional (P1) | The browser executor and per-identity session profiles. | `workflows` dispatch plus `session-profiles` binding. **The precise call shape is unverified** — confirm before implementing `CHANMGR-P1-001`. |
+| browser-automation-studio | optional (P1) | The browser executor and per-identity session profiles. | Create a profile with `session-profiles create`; dispatch with `workflows execute <workflow-id> --parameters-file <file>`, where parameters carry both `session_profile_id` and `save_session_profile_id`. Full operator command sequence: `docs/internal/SEAMS.md`. |
 | asset-studio | optional (P1) | Owns render provenance, so it is the only scenario that can answer whether an asset has already been published and by which identity. | Read-only lookup. Fails closed. |
 | vrooli-events | automatic | Run correlation for actions taken inside an agent run. No integration work — api-core publishes receipts for every endpoint already. | Correlation ids only; run payloads are never copied. |
 

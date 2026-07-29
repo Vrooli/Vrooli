@@ -39,55 +39,6 @@ Document each real flow here with its owner domain, trigger, inputs,
 ordered steps, outputs, failure modes, retry/cancel behavior, tests, and
 generated subpackages. The worked example below shows the expected shape.
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
-
-The template ships an `Attachment upload` flow on the `notes` domain as a
-worked Level 5 temporal-workflow vertical slice. Copy its shape for your
-own stateful flows, then remove it.
-
-Add this row to the Flow Inventory above:
-
-| Flow | Domain | Trigger | Outcome | Statefulness | Validation |
-|---|---|---|---|---|---|
-| Attachment upload | notes | User/CLI uploads a file for a note. | Blob is stored and metadata is persisted. | Stateful upload request with validation and failure paths. | Level 5 workflow tests: matrix, traces, declarative spec, checked Quint model, generated artifacts, and production replay. |
-
-#### Attachment upload
-
-- Owner domain: notes.
-- Trigger: multipart upload request from UI or CLI.
-- Inputs: note id, file key/name, file bytes, content type, file size.
-- Steps:
-  1. Parse multipart request.
-  2. Validate note id and file metadata.
-  3. Store opaque bytes through BlobStore.
-  4. Persist attachment metadata through notes repository seam.
-  5. Return proto-typed metadata response.
-- Outputs: uploaded attachment metadata or typed error response.
-- Failure modes: missing note id, missing file, invalid metadata, blob
-  write failure, metadata persistence failure.
-- Retry/cancel behavior: caller may retry after transport/storage
-  failure; duplicate handling belongs to the owning real domain when
-  product requirements demand it.
-- Tests: `api/handlers/notes/attachments_handler_test.go`,
-  `api/internal/notes/attachments_service_test.go`,
-  `api/internal/notes/flow/flow_test.go`,
-  `ui/src/features/notes/AttachmentUpload.test.tsx`, and
-  `ui/src/features/notes/flow/flow.test.ts`.
-- Generated subpackages: `api/internal/notes/flow/generated/`
-  (`model.qnt`, `artifact.json`, `runtime.go`, `replay.go`) and
-  `ui/src/features/notes/flow/generated/` (`model.qnt`, `artifact.json`,
-  `runtime.ts`, `replay.helper.ts`).
-- Requirements: template starter only.
-
-These example state machines belong in the State Machines table below:
-
-| Domain/Flow | States | Illegal Transitions | Enforcement |
-|---|---|---|---|
-| notes / attachment upload API | received, bytes_stored, metadata_recorded, failed | metadata before bytes, terminal-state escape, duplicate terminal events | `*.flow.json` contract, generated Quint model, generated formal artifact replay, side-effect cleanup tests |
-| notes / attachment upload UI | idle, selected, uploading, succeeded, failed | start before select, stale completion after reset/reselect, retry without file context | `*.flow.json` contract, generated Quint model, generated formal artifact replay, attempt-id stale completion tests |
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## State Machines
 
 List each modeled flow's states, illegal transitions, and how they are
@@ -232,7 +183,7 @@ To add or rename a state/event:
 
 | Flow | Risk | Next Step |
 |---|---|---|
-| Browser execution dispatch | Deferred to `CHANMGR-P1-001`. The BAS dispatch contract and session-profile binding are unread; modelling a flow against an assumed interface would encode the assumption. | Confirm the BAS workflow/execution/session-profile call shape, then model dispatch as a sub-flow of the queued-action lifecycle. |
+| Browser execution dispatch | Deferred to `CHANMGR-P1-001`; the CLI contract is now verified, but no account-backed dispatch is authorized in P0. | Model `session-profile create → workflow execute → execution terminal result` as a sub-flow when the optional executor is implemented. The exact parameter shape is recorded in `docs/internal/SEAMS.md`. |
 | Portfolio scheduling | Deferred to `CHANMGR-P1-002`. Cross-identity separation is a constraint over many queues rather than a lifecycle, so it may never need a state machine. | Revisit if shifting a post for separation acquires its own states (proposed, shifted, refused). |
 | Credential rotation | Not modelled. Rotation happens in `vault`; this scenario holds a path and reads through it. | Only becomes a flow here if an execution failure must trigger a rotation request, which nothing currently requires. |
 

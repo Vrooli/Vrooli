@@ -42,34 +42,6 @@ belong in [`DATA.md`](DATA.md).
 | queue | Own the unified action queue, sessions, cadence accounting, execution dispatch, and the release handoff. | Every platform action for an identity passes through here, because cadence is counted per account and not per workflow. | Queued actions, sessions, action records, release records. | workflow | service | Action, Session, Cadence, Release, Executor | `api/internal/queue/` |
 | signals | Own observed distribution metrics, rolling baselines, and flags. | Decay is only detectable against a baseline, and it is always inferred rather than observed. | Observations, baselines, flags. | reporting | query | Observation, Baseline, Flag | `api/internal/signals/` |
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
-
-The template ships `notes` as a worked CRUD vertical slice with a binary
-upload exception. Copy its shape for your own domains, then remove it.
-
-| Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |
-|---|---|---|---|---|---|---|---|
-| notes | Provide the worked CRUD reference with attachment upload exception. | Demonstrate the expected vertical slice for a real domain. | Notes and attachment metadata. | crud | service | Note, Attachment | `api/internal/notes/`, `api/handlers/notes/`, `cli/domains/notes/`, `ui/src/features/notes/`, `packages/proto/schemas/channel-manager/v1/notes/` |
-
-- Purpose: demonstrate the expected vertical slice for a real domain.
-- Primary archetype: CRUD / entity.
-- Secondary traits: binary/blob attachment upload, upload workflow.
-- Owns: note records, attachment metadata, note validation, note
-  service/repository seams, UI note interactions, CLI notes commands.
-- Does not own: product scope for a generated scenario.
-- API: `api/internal/notes/`, `api/handlers/notes/`.
-- CLI: `cli/domains/notes/`.
-- UI: `ui/src/features/notes/`, `ui/src/api/notes.ts`.
-- Storage: domain-owned SQLite schema in `api/internal/notes/schema.sql`.
-- Requirements: template starter only; replace with PRD-specific
-  requirements.
-- Tests: repository, service, handler, CLI, UI, accessibility, and
-  workflow tests.
-- Related docs: [`FLOWS.md`](FLOWS.md), [`DATA.md`](DATA.md),
-  [`../internal/SEAMS.md`](../internal/SEAMS.md).
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Domain Details
 
 ### identities

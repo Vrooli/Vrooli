@@ -123,59 +123,6 @@ The scaffold ships one fully worked CRUD command group as a copyable
 reference (see the fenced example below); `template-manager detemplate
 <scenario>` removes it once your real domains are green.
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
-
-The `notes` domain is the canonical worked example. Copy its layout
-when adding the first non-trivial domain to your scenario, then remove
-it.
-
-#### `channel-manager notes list`
-
-List notes, newest-first. Calls the generated Connect-RPC
-`Notes/List` method. Uses the
-**data-retrieval contract**: `Summary → Results → Retrieval Hints`.
-
-```bash
-channel-manager notes list
-channel-manager notes list --json
-```
-
-#### `channel-manager notes create --title <title> [--body <body>]`
-
-Create a note. Calls the generated Connect-RPC `Notes/Create` method. Uses the **mutation
-contract**: `Result → What Changed → Next Command`.
-
-```bash
-channel-manager notes create --title "First note" --body "Hello world"
-```
-
-`--title` is required. `--body` is optional. Validation lives in the
-API service, so an empty title surfaces as an `invalid_argument`
-Connect error rather than a CLI-side check.
-
-#### `channel-manager notes get <id>`
-
-Fetch a note by id. Calls the generated Connect-RPC `Notes/Get` method.
-
-```bash
-channel-manager notes get abc123
-```
-
-A non-existent id surfaces as `not_found`; the CLI translates the
-typed Connect code to an actionable error message.
-
-#### `channel-manager notes attach <id> --file <path>`
-
-Attach a file to a note. This is the documented REST multipart
-exception because the request body contains opaque bytes. The response
-is proto-typed attachment metadata.
-
-```bash
-channel-manager notes attach abc123 --file ./example.png
-```
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Output contracts
 
 Every scenario command should render through one of three human
@@ -270,3 +217,21 @@ For a command inside an existing domain:
 - [`configuration.md`](configuration.md) — env vars and config-file precedence
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — fixes for "API unreachable", auth, stale binary
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#inside-the-cli-thin-wrapper-domain-organized) — CLI architecture
+# Channel Manager CLI
+
+The CLI is an alternative to the operator console for the same manual-only
+workflow. It calls the scenario API and never accepts, prints, or stores a
+credential value; `--vault-ref` is a Vault path reference only.
+
+```bash
+channel-manager channel create --id x-brand-01 --platform x --purpose brand \
+  --environment operator-attested-device --vault-ref vault://channel-manager/x-brand-01
+channel-manager channel start x-brand-01 --program x-conservative
+channel-manager channel queue --identity x-brand-01 --kind engage
+channel-manager channel complete act-1 --evidence https://example.test/proof
+channel-manager channel observe x-brand-01 --value 120
+channel-manager channel overview
+```
+
+Manual account activation is deliberately outside these commands: create the
+account and place its secret in Vault first, then register only the reference.
