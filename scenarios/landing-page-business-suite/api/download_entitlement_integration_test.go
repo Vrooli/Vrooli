@@ -120,7 +120,7 @@ func setupDownloadEntitlementDB(t *testing.T) (*sql.DB, *DownloadAuthorizer) {
 	service := ConfigureStripeServiceSimple(t, db)
 	accountSvc := NewAccountService(db, service.planService)
 	// Disable subscription cache so status changes in lifecycle tests are immediately visible
-	accountSvc.cacheTTL = 0
+	accountSvc.SetCacheTTL(0)
 	downloadSvc := NewDownloadService(db)
 	authorizer := NewDownloadAuthorizer(downloadSvc, accountSvc, "business_suite")
 

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // checkIntroEligibility checks if a user is eligible for the intro pricing coupon.
@@ -177,9 +179,9 @@ func (s *StripeService) logIntroAnomaly(email, customerID, couponID, anomalyType
 		})
 		return
 	}
-	if _, err := s.paymentAnomaly.Log(context.Background(), PaymentAnomaly{
+	if _, err := s.paymentAnomaly.Log(context.Background(), commerce.PaymentAnomaly{
 		Type:        anomalyType,
-		Severity:    anomalySeverityWarn,
+		Severity:    "warn",
 		Email:       email,
 		CustomerID:  customerID,
 		SubjectID:   couponID,

@@ -1,4 +1,4 @@
-package main
+package administration
 
 import (
 	"bytes"
@@ -30,16 +30,38 @@ func (s *RemoteProfileService) buildRemoteURL(apiBase string, pathValue string, 
 	return parsed.String(), nil
 }
 
+func (s *RemoteProfileService) BuildRemoteURL(apiBase string, pathValue string, query map[string]string) (string, error) {
+	return s.buildRemoteURL(apiBase, pathValue, query)
+}
+
+func (s *RemoteProfileService) RemoteLogin(ctx context.Context, apiBase string, email string, password string, metadata RemoteProfileSessionMetadata) (string, string, *time.Time, error) {
+	return s.remoteLogin(ctx, apiBase, email, password, metadata)
+}
+
+func (s *RemoteProfileService) RemoteSessionCheck(ctx context.Context, apiBase string, sessionValue string) (bool, error) {
+	return s.remoteSessionCheck(ctx, apiBase, sessionValue)
+}
+
+func (s *RemoteProfileService) RemoteLogout(ctx context.Context, apiBase string, sessionValue string) error {
+	return s.remoteLogout(ctx, apiBase, sessionValue)
+}
+
+func (s *RemoteProfileService) DoJSONRequest(ctx context.Context, method, urlValue string, body []byte, cookies []*http.Cookie) (*http.Response, []byte, error) {
+	return s.doJSONRequest(ctx, method, urlValue, body, cookies)
+}
+
+func ClassifyRemoteError(err error) *RemoteProfileError { return classifyRemoteError(err) }
+
 func (s *RemoteProfileService) remoteLogin(ctx context.Context, apiBase string, email string, password string, metadata RemoteProfileSessionMetadata) (string, string, *time.Time, error) {
 	// #nosec G117 -- this password is intentionally sent only to a configured remote
 	// admin login endpoint; production profile validation requires an HTTPS API base.
-	payload, err := json.Marshal(LoginRequest{Email: email, Password: password})
+	payload, err := json.Marshal(remoteProfileLoginRequest{Email: email, Password: password})
 	if err != nil {
 		return "", "", nil, err
 	}
 	urlValue := strings.TrimSuffix(apiBase, "/") + "/admin/login"
 	headers := map[string]string{
-		"User-Agent": buildRemoteProfileSessionUserAgent(metadata),
+		"User-Agent": BuildRemoteProfileSessionUserAgent(metadata),
 	}
 	resp, body, err := s.doJSONRequestWithHeaders(ctx, http.MethodPost, urlValue, payload, nil, headers)
 	if err != nil {
@@ -49,7 +71,7 @@ func (s *RemoteProfileService) remoteLogin(ctx context.Context, apiBase string, 
 		message := extractRemoteErrorMessage(body)
 		return "", "", nil, &RemoteProfileError{
 			Status:    mapRemoteStatus(resp.StatusCode),
-			ErrorType: inferErrorType(resp.StatusCode),
+			ErrorType: inferRemoteErrorType(resp.StatusCode),
 			Message:   message,
 		}
 	}
@@ -58,18 +80,18 @@ func (s *RemoteProfileService) remoteLogin(ctx context.Context, apiBase string, 
 	if cookie == nil || cookie.Value == "" {
 		return "", "", nil, &RemoteProfileError{
 			Status:    http.StatusBadGateway,
-			ErrorType: ApiErrorTypeServerError,
+			ErrorType: apiErrorTypeServerError,
 			Message:   "Remote login did not return a session cookie",
 		}
 	}
-	var sessionResp LoginResponse
+	var sessionResp remoteProfileLoginResponse
 	if err := json.Unmarshal(body, &sessionResp); err != nil {
 		return "", "", nil, err
 	}
 	if !sessionResp.Authenticated {
 		return "", "", nil, &RemoteProfileError{
 			Status:    http.StatusUnauthorized,
-			ErrorType: ApiErrorTypeUnauthorized,
+			ErrorType: apiErrorTypeUnauthorized,
 			Message:   "Remote login failed",
 		}
 	}
@@ -81,7 +103,7 @@ func (s *RemoteProfileService) remoteLogin(ctx context.Context, apiBase string, 
 	if !authenticated {
 		return "", "", nil, &RemoteProfileError{
 			Status:    http.StatusUnauthorized,
-			ErrorType: ApiErrorTypeUnauthorized,
+			ErrorType: apiErrorTypeUnauthorized,
 			Message:   "Remote session verification failed",
 		}
 	}
@@ -91,10 +113,10 @@ func (s *RemoteProfileService) remoteLogin(ctx context.Context, apiBase string, 
 }
 
 func (s *RemoteProfileService) nowTime() time.Time {
-	if s == nil || s.now == nil {
+	if s == nil || s.Now == nil {
 		return time.Now()
 	}
-	return s.now()
+	return s.Now()
 }
 
 func (s *RemoteProfileService) remoteSessionCheck(ctx context.Context, apiBase string, sessionValue string) (bool, error) {
@@ -111,11 +133,11 @@ func (s *RemoteProfileService) remoteSessionCheck(ctx context.Context, apiBase s
 		message := extractRemoteErrorMessage(body)
 		return false, &RemoteProfileError{
 			Status:    mapRemoteStatus(resp.StatusCode),
-			ErrorType: inferErrorType(resp.StatusCode),
+			ErrorType: inferRemoteErrorType(resp.StatusCode),
 			Message:   message,
 		}
 	}
-	var sessionResp LoginResponse
+	var sessionResp remoteProfileLoginResponse
 	if err := json.Unmarshal(body, &sessionResp); err != nil {
 		return false, err
 	}
@@ -135,7 +157,7 @@ func (s *RemoteProfileService) remoteLogout(ctx context.Context, apiBase string,
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return &RemoteProfileError{
 			Status:    mapRemoteStatus(resp.StatusCode),
-			ErrorType: inferErrorType(resp.StatusCode),
+			ErrorType: inferRemoteErrorType(resp.StatusCode),
 			Message:   "Remote logout failed",
 		}
 	}
@@ -160,14 +182,14 @@ func (s *RemoteProfileService) listIncomingRemoteSessions(ctx context.Context, a
 	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
 		return nil, &RemoteProfileError{
 			Status:    http.StatusUnauthorized,
-			ErrorType: ApiErrorTypeUnauthorized,
+			ErrorType: apiErrorTypeUnauthorized,
 			Message:   "Remote session expired. Please log in again.",
 		}
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, &RemoteProfileError{
 			Status:    mapRemoteStatus(resp.StatusCode),
-			ErrorType: inferErrorType(resp.StatusCode),
+			ErrorType: inferRemoteErrorType(resp.StatusCode),
 			Message:   extractRemoteErrorMessage(body),
 		}
 	}
@@ -197,14 +219,14 @@ func (s *RemoteProfileService) revokeIncomingRemoteSession(ctx context.Context, 
 	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
 		return &RemoteProfileError{
 			Status:    http.StatusUnauthorized,
-			ErrorType: ApiErrorTypeUnauthorized,
+			ErrorType: apiErrorTypeUnauthorized,
 			Message:   "Remote session expired. Please log in again.",
 		}
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return &RemoteProfileError{
 			Status:    mapRemoteStatus(resp.StatusCode),
-			ErrorType: inferErrorType(resp.StatusCode),
+			ErrorType: inferRemoteErrorType(resp.StatusCode),
 			Message:   extractRemoteErrorMessage(body),
 		}
 	}
@@ -239,7 +261,7 @@ func (s *RemoteProfileService) doJSONRequestWithHeaders(ctx context.Context, met
 			req.AddCookie(cookie)
 		}
 	}
-	resp, err := s.httpClient.Do(req)
+	resp, err := s.HTTPClient.Do(req)
 	if err != nil {
 		return nil, nil, classifyRemoteError(err)
 	}
@@ -258,7 +280,7 @@ func classifyRemoteError(err error) *RemoteProfileError {
 	if errors.Is(err, context.DeadlineExceeded) {
 		return &RemoteProfileError{
 			Status:    http.StatusGatewayTimeout,
-			ErrorType: ApiErrorTypeTimeout,
+			ErrorType: apiErrorTypeTimeout,
 			Message:   "Remote request timed out",
 		}
 	}
@@ -267,14 +289,14 @@ func classifyRemoteError(err error) *RemoteProfileError {
 		if netErr.Timeout() {
 			return &RemoteProfileError{
 				Status:    http.StatusGatewayTimeout,
-				ErrorType: ApiErrorTypeTimeout,
+				ErrorType: apiErrorTypeTimeout,
 				Message:   "Remote request timed out",
 			}
 		}
 	}
 	return &RemoteProfileError{
 		Status:    http.StatusBadGateway,
-		ErrorType: ApiErrorTypeNetwork,
+		ErrorType: apiErrorTypeNetwork,
 		Message:   "Remote connection failed",
 	}
 }
@@ -290,7 +312,7 @@ func extractRemoteErrorMessage(body []byte) string {
 	if len(body) == 0 {
 		return "Remote request failed"
 	}
-	var apiErr ApiErrorResponse
+	var apiErr remoteProfileAPIErrorResponse
 	if err := json.Unmarshal(body, &apiErr); err == nil {
 		if strings.TrimSpace(apiErr.Error) != "" {
 			return apiErr.Error
@@ -302,6 +324,9 @@ func extractRemoteErrorMessage(body []byte) string {
 	}
 	return msg
 }
+
+func ExtractRemoteErrorMessage(body []byte) string { return extractRemoteErrorMessage(body) }
+func MapRemoteStatus(status int) int               { return mapRemoteStatus(status) }
 
 func deriveCookieExpiry(cookie *http.Cookie, now time.Time) *time.Time {
 	if cookie == nil {

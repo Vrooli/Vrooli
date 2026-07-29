@@ -1,4 +1,4 @@
-package main
+package administration
 
 import (
 	"bytes"
@@ -21,8 +21,8 @@ func (s *RemoteProfileService) SessionLinks(ctx context.Context, id int64) (*Rem
 		ConnectorID:           remoteProfileConnectorID(rec),
 		LocalHasSession:       rec.EncryptedSession.Valid && strings.TrimSpace(rec.EncryptedSession.String) != "",
 		LocalStatus:           rec.Status,
-		LocalSessionExpiresAt: NullTimeValue(rec.SessionExpiresAt),
-		RemoteSessionID:       NullStringValue(rec.RemoteSessionID),
+		LocalSessionExpiresAt: nullTimeValue(rec.SessionExpiresAt),
+		RemoteSessionID:       nullStringValue(rec.RemoteSessionID),
 		RemoteSessions:        []IncomingRemoteProfileSession{},
 	}
 	if !links.LocalHasSession {
@@ -85,16 +85,16 @@ func (s *RemoteProfileService) RevokeRemoteSessions(ctx context.Context, id int6
 func (s *RemoteProfileService) Proxy(ctx context.Context, id int64, req RemoteProfileProxyRequest) (*RemoteProxyResponse, error) {
 	method := strings.ToUpper(strings.TrimSpace(req.Method))
 	if method == "" {
-		return nil, &RemoteProfileError{Status: http.StatusBadRequest, ErrorType: ApiErrorTypeValidation, Message: "method is required"}
+		return nil, &RemoteProfileError{Status: http.StatusBadRequest, ErrorType: apiErrorTypeValidation, Message: "method is required"}
 	}
 	allowedMethods := map[string]bool{"GET": true, "POST": true, "PUT": true, "PATCH": true, "DELETE": true}
 	if !allowedMethods[method] {
-		return nil, &RemoteProfileError{Status: http.StatusBadRequest, ErrorType: ApiErrorTypeValidation, Message: "unsupported method"}
+		return nil, &RemoteProfileError{Status: http.StatusBadRequest, ErrorType: apiErrorTypeValidation, Message: "unsupported method"}
 	}
 
 	pathValue, err := normalizeRemoteProxyPath(req.Path)
 	if err != nil {
-		return nil, &RemoteProfileError{Status: http.StatusBadRequest, ErrorType: ApiErrorTypeValidation, Message: err.Error()}
+		return nil, &RemoteProfileError{Status: http.StatusBadRequest, ErrorType: apiErrorTypeValidation, Message: err.Error()}
 	}
 	if !isAllowedRemoteProxyPath(pathValue) {
 		return nil, ErrRemoteProfileDisallowedPath
@@ -117,7 +117,7 @@ func (s *RemoteProfileService) Proxy(ctx context.Context, id int64, req RemotePr
 
 	remoteURL, err := s.buildRemoteURL(rec.APIBase, pathValue, req.Query)
 	if err != nil {
-		return nil, &RemoteProfileError{Status: http.StatusBadRequest, ErrorType: ApiErrorTypeValidation, Message: err.Error()}
+		return nil, &RemoteProfileError{Status: http.StatusBadRequest, ErrorType: apiErrorTypeValidation, Message: err.Error()}
 	}
 
 	var body io.Reader
@@ -145,7 +145,7 @@ func (s *RemoteProfileService) Proxy(ctx context.Context, id int64, req RemotePr
 	}
 	httpReq.AddCookie(remoteProfileSessionCookie(sessionValue))
 
-	resp, err := s.httpClient.Do(httpReq)
+	resp, err := s.HTTPClient.Do(httpReq)
 	if err != nil {
 		_ = s.updateStatus(ctx, id, remoteProfileStatusError)
 		return nil, classifyRemoteError(err)

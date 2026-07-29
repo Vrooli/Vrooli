@@ -2,6 +2,8 @@ package main
 
 import (
 	"strings"
+
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // PlanResolution contains the resolved plan tier and bundle key.
@@ -70,7 +72,7 @@ func InferPlanTierFromPriceID(priceID string, currentTier string) string {
 	if strings.TrimSpace(priceID) == "" {
 		return currentTier
 	}
-	if inferred, ok := detectTierToken(priceID); ok {
+	if inferred, ok := commerce.DetectTierToken(priceID); ok {
 		return inferred
 	}
 	return currentTier
@@ -81,7 +83,7 @@ func ValidatePlanTier(planTier, priceID, subscriptionID string) string {
 	if strings.TrimSpace(planTier) == "" {
 		return ""
 	}
-	if _, err := normalizePlanTier(planTier); err != nil {
+	if _, err := commerce.NormalizePlanTier(planTier); err != nil {
 		logStructured("stripe_subscription_plan_tier_invalid", map[string]interface{}{
 			"level":        "warn",
 			"plan_tier":    planTier,

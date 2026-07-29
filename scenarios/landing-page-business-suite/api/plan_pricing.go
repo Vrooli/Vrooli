@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 type createdPlanPricing struct {
@@ -16,7 +17,7 @@ type createdPlanPricing struct {
 	monthlyCredits int64
 }
 
-func fetchStripePriceForCreation(ctx context.Context, priceID string, fetcher StripePriceFetcher) *StripePriceImport {
+func fetchStripePriceForCreation(ctx context.Context, priceID string, fetcher StripePriceFetcher) *commerce.StripePriceImport {
 	if fetcher == nil {
 		return nil
 	}
@@ -36,7 +37,7 @@ func resolveCreatedPlanPricing(
 	input CreateBundlePriceInput,
 	priceID string,
 	billingInterval shared.BillingInterval,
-	stripeDetails *StripePriceImport,
+	stripeDetails *commerce.StripePriceImport,
 	bundle *BundleProduct,
 ) (createdPlanPricing, error) {
 	if err := validateStripePriceForCreation(priceID, billingInterval, stripeDetails, bundle); err != nil {
@@ -84,18 +85,18 @@ func resolveCreatedPlanPricing(
 	}, nil
 }
 
-func validateStripePriceForCreation(priceID string, billingInterval shared.BillingInterval, stripeDetails *StripePriceImport, bundle *BundleProduct) error {
+func validateStripePriceForCreation(priceID string, billingInterval shared.BillingInterval, stripeDetails *commerce.StripePriceImport, bundle *BundleProduct) error {
 	if stripeDetails == nil {
 		return nil
 	}
 	if strings.TrimSpace(stripeDetails.PriceID) != priceID {
 		return fmt.Errorf("stripe price verification mismatch for %s", priceID)
 	}
-	if err := ensureStripePriceMatchesBundle(bundle, stripeDetails); err != nil {
+	if err := commerce.EnsureStripePriceMatchesBundle(bundle, stripeDetails); err != nil {
 		return err
 	}
-	stripeInterval := mapBillingInterval(stripeDetails.Interval)
-	if err := validateBillingInterval(stripeInterval); err != nil {
+	stripeInterval := commerce.MapBillingInterval(stripeDetails.Interval)
+	if err := commerce.ValidateBillingInterval(stripeInterval); err != nil {
 		return fmt.Errorf("stripe price has unsupported billing interval")
 	}
 	if billingInterval != stripeInterval {
@@ -104,7 +105,7 @@ func validateStripePriceForCreation(priceID string, billingInterval shared.Billi
 	return nil
 }
 
-func resolveCreatedPlanAmount(inputAmount *int64, stripeDetails *StripePriceImport) (int64, error) {
+func resolveCreatedPlanAmount(inputAmount *int64, stripeDetails *commerce.StripePriceImport) (int64, error) {
 	if stripeDetails != nil {
 		if inputAmount != nil && *inputAmount != stripeDetails.AmountCents {
 			return 0, fmt.Errorf("amount_cents does not match Stripe price")
@@ -123,7 +124,7 @@ func resolveCreatedPlanAmount(inputAmount *int64, stripeDetails *StripePriceImpo
 	return *inputAmount, nil
 }
 
-func resolveCreatedPlanCurrency(inputCurrency *string, stripeDetails *StripePriceImport) (string, error) {
+func resolveCreatedPlanCurrency(inputCurrency *string, stripeDetails *commerce.StripePriceImport) (string, error) {
 	currency := "usd"
 	if stripeDetails != nil {
 		currency = stripeDetails.Currency
@@ -133,5 +134,5 @@ func resolveCreatedPlanCurrency(inputCurrency *string, stripeDetails *StripePric
 	} else if inputCurrency != nil && strings.TrimSpace(*inputCurrency) != "" {
 		currency = *inputCurrency
 	}
-	return normalizeCurrency(currency)
+	return commerce.NormalizeCurrency(currency)
 }

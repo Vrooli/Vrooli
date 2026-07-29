@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"landing-page-business-suite-api/internal/administration"
+
 	"github.com/gorilla/mux"
 )
 
@@ -56,7 +58,7 @@ func handleAdminListIncomingRemoteProfileSessions(db RemoteProfileSessionStore) 
 			if err := rows.Scan(&sessionID, &adminEmail, &createdAt, &lastActivity, &expiresAt, &ipAddress, &userAgent); err != nil {
 				continue
 			}
-			meta, ok := parseRemoteProfileSessionUserAgent(userAgent.String)
+			meta, ok := administration.ParseRemoteProfileSessionUserAgent(userAgent.String)
 			if !ok {
 				continue
 			}
@@ -93,7 +95,7 @@ func handleAdminRevokeIncomingRemoteProfileSession(db RemoteProfileSessionStore)
 			DELETE FROM admin_sessions
 			WHERE id = $1
 			  AND user_agent LIKE $2
-		`, sessionID, remoteProfileSessionAgentPrefix+"%")
+		`, sessionID, administration.RemoteProfileSessionAgentPrefix+"%")
 		if err != nil {
 			writeJSONError(w, http.StatusInternalServerError, "Failed to revoke incoming remote session", ApiErrorTypeServerError)
 			return

@@ -39,7 +39,7 @@ surface; do not rely on development defaults in a deployed environment.
 
 | Getting Started | Reference | Internal |
 |-----------------|-----------|----------|
-| [Quick Start](../../QUICKSTART.md) | [API Reference](README.md) | [Architecture](../../concepts/ARCHITECTURE.md) |
+| [Quick Start](../../QUICKSTART.md) | [API Reference](OVERVIEW.md) | [Architecture](../../concepts/ARCHITECTURE.md) |
 | [Admin Guide](../../guides/ADMIN_GUIDE.md) | [Configuration](../../guides/CONFIGURATION_GUIDE.md) | [Seams](../../internal/SEAMS.md) |
 | [Content Guide](../../guides/CONTENT_GUIDE.md) | [Security](../SECURITY.md) | [Progress](../../internal/PROGRESS.md) |
 | [Deployment](../../guides/DEPLOYMENT.md) | [Stripe Webhooks](../STRIPE_WEBHOOKS.md) | [Known Issues](../../internal/PROBLEMS.md) |

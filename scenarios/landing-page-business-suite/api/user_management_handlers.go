@@ -6,51 +6,16 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gorilla/mux"
+	"landing-page-business-suite-api/internal/account"
 )
 
-// UserAccountResponse represents a user account with enriched data.
-type UserAccountResponse struct {
-	ID               string            `json:"id"`
-	Email            string            `json:"email"`
-	EmailVerified    bool              `json:"email_verified"`
-	StripeCustomerID *string           `json:"stripe_customer_id,omitempty"`
-	CreatedAt        time.Time         `json:"created_at"`
-	LastLoginAt      *time.Time        `json:"last_login_at,omitempty"`
-	Subscription     *SubscriptionInfo `json:"subscription,omitempty"`
-	Credits          *CreditInfo       `json:"credits,omitempty"`
-	SessionCount     int               `json:"session_count"`
-}
-
-type SubscriptionInfo struct {
-	Status   string `json:"status"`
-	PlanTier string `json:"plan_tier"`
-}
-
-type CreditInfo struct {
-	Balance int64 `json:"balance"`
-	Bonus   int64 `json:"bonus"`
-}
-
-type UserSessionResponse struct {
-	ID         string    `json:"id"`
-	CreatedAt  time.Time `json:"created_at"`
-	LastUsedAt time.Time `json:"last_used_at"`
-	ExpiresAt  time.Time `json:"expires_at"`
-	IPAddress  *string   `json:"ip_address,omitempty"`
-	UserAgent  *string   `json:"user_agent,omitempty"`
-	Revoked    bool      `json:"revoked"`
-}
-
-type UsersListResponse struct {
-	Users      []UserAccountResponse `json:"users"`
-	Total      int                   `json:"total"`
-	Page       int                   `json:"page"`
-	PerPage    int                   `json:"per_page"`
-	TotalPages int                   `json:"total_pages"`
-}
+type UserAccountResponse = account.UserAccountResponse
+type SubscriptionInfo = account.SubscriptionInfo
+type CreditInfo = account.CreditInfo
+type UserSessionResponse = account.UserSessionResponse
+type UsersListResponse = account.UsersListResponse
 
 func handleAdminListUsers(service *UserManagementService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

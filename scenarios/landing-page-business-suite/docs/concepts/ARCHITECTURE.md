@@ -21,7 +21,7 @@ subscription, credit, customer, download, and admin-operations service.
 - [CODE: api/landing_config_service.go] - Landing page configuration service
 - [CODE: api/ai_gateway_service.go] - AI gateway request routing + credit accounting
 - [CODE: api/user_auth_service.go] - End-user magic-link / JWT auth
-- [CODE: api/remote_profiles_service.go] - Remote profile storage + proxy service
+- [CODE: api/internal/administration/remote_profile_service.go] - Remote profile storage + proxy service
 - [CODE: api/plan_store.go] - File-based plan catalog (pricing source of truth)
 - [CODE: cli/main.go] - Operator CLI surface
 - [CODE: api/internal/schema/schema.go] - Ordered registry for authoritative, domain-owned database DDL

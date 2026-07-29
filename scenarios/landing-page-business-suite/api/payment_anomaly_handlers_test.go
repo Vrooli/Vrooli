@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"landing-page-business-suite-api/internal/commerce"
+
 	"connectrpc.com/connect"
 	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 )
@@ -57,7 +59,7 @@ func TestUpdate_RefreshesAnomalyConfig(t *testing.T) {
 	stripeService := NewStripeServiceWithSettings(db, NewPlanService(db), paymentService)
 	anomalyService := NewPaymentAnomalyService(context.Background(), db, context.Background())
 
-	if cfg := anomalyService.currentConfig(); cfg.enabled || cfg.webhookURL != "" {
+	if cfg := anomalyService.DispatchConfig(); cfg.Enabled || cfg.WebhookURL != "" {
 		t.Fatalf("baseline config non-empty: %+v", cfg)
 	}
 
@@ -80,8 +82,8 @@ func TestUpdate_RefreshesAnomalyConfig(t *testing.T) {
 	}
 
 	// The config snapshot must have picked up the change without restarting.
-	cfg := anomalyService.currentConfig()
-	if !cfg.enabled || cfg.webhookURL != stub.URL {
+	cfg := anomalyService.DispatchConfig()
+	if !cfg.Enabled || cfg.WebhookURL != stub.URL {
 		t.Fatalf("config not refreshed after PATCH: %+v", cfg)
 	}
 
@@ -96,7 +98,7 @@ func TestUpdate_RefreshesAnomalyConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("wait: %v", err)
 	}
-	if status != anomalyDispatchSent {
+	if status != commerce.DispatchSent {
 		t.Fatalf("expected sent, got %q", status)
 	}
 	if received.Load() != 1 {
@@ -117,10 +119,10 @@ func TestUpdate_AcceptsRateLimitsObject(t *testing.T) {
 		t.Fatalf("update: %v", err)
 	}
 
-	cfg := anomalyService.currentConfig()
-	override, ok := cfg.rateLimits["checkout_subscription_missing"]
+	cfg := anomalyService.DispatchConfig()
+	override, ok := cfg.RateLimits["checkout_subscription_missing"]
 	if !ok {
-		t.Fatalf("rate limit override not loaded: %+v", cfg.rateLimits)
+		t.Fatalf("rate limit override not loaded: %+v", cfg.RateLimits)
 	}
 	if override.Burst != 3 || override.RefillSeconds != 300 {
 		t.Fatalf("override mismatch: %+v", override)

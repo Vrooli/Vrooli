@@ -58,7 +58,7 @@ type Server struct {
 	accountService       *AccountService
 	landingConfigService *LandingConfigService
 	paymentSettings      *PaymentSettingsService
-	paymentAnomaly       *PaymentAnomalyService
+	paymentAnomaly       *commerce.PaymentAnomalyService
 	assetsService        *AssetsService
 	seoService           *SEOService
 	feedbackService      *FeedbackService
@@ -70,7 +70,7 @@ type Server struct {
 	limitsService *LimitsService
 	usageService  *UsageService
 	// Remote profile service (admin-managed remote connections)
-	remoteProfileService *RemoteProfileService
+	remoteProfileService *administration.RemoteProfileService
 	// User authentication services
 	userAuthService       *UserAuthService
 	userManagementService *UserManagementService
@@ -171,7 +171,12 @@ func NewServer() (*Server, error) {
 	accountService := NewAccountService(routedDB, planService)
 	downloadAuthorizer := NewDownloadAuthorizer(downloadService, accountService, planService.BundleKey())
 	paymentSettings := NewPaymentSettingsService(routedDB)
-	paymentAnomaly := NewPaymentAnomalyService(context.Background(), routedDB, context.Background())
+	paymentAnomaly := commerce.NewPaymentAnomalyService(context.Background(), routedDB, context.Background(), commerce.PaymentAnomalyRuntime{
+		ScenarioName:   "landing-page-business-suite",
+		NormalizeEmail: NormalizeEmail,
+		Log:            logStructured,
+		LogError:       logStructuredError,
+	})
 	stripeService := NewStripeServiceWithSettings(db, planService, paymentSettings)
 	stripeService.SetPaymentAnomaly(paymentAnomaly)
 	assetsService := NewAssetsService(db)
@@ -190,7 +195,14 @@ func NewServer() (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize API key service: %w", err)
 	}
-	remoteProfileService, err := NewRemoteProfileService(routedDB)
+	remoteProfileService, err := administration.NewRemoteProfileServiceWithRuntime(
+		routedDB,
+		nil,
+		resolveSecret,
+		isProductionEnvironment,
+		logStructured,
+		logStructuredError,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize remote profile service: %w", err)
 	}

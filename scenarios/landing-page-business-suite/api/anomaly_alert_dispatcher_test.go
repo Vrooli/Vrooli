@@ -7,12 +7,14 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"landing-page-business-suite-api/internal/commerce"
 )
 
-func insertAnomalyRow(t *testing.T, svc *PaymentAnomalyService) int64 {
+func insertAnomalyRow(t *testing.T, db commerce.PaymentAnomalyStore) int64 {
 	t.Helper()
 	var id int64
-	err := svc.db.QueryRowContext(context.Background(), `
+	err := db.QueryRowContext(context.Background(), `
 		INSERT INTO payment_anomaly_log (anomaly_type, severity, dispatch_status, created_at)
 		VALUES ('t_test', 'warn', 'pending', NOW())
 		RETURNING id
@@ -38,11 +40,11 @@ func TestDispatch_RetriesOn5xx(t *testing.T) {
 	}))
 	defer stub.Close()
 
-	svc := NewPaymentAnomalyService(context.Background(), db, context.Background())
-	svc.dispatcher.backoffs = []time.Duration{5 * time.Millisecond, 5 * time.Millisecond}
-	rowID := insertAnomalyRow(t, svc)
+	dispatcher := commerce.NewAnomalyAlertDispatcher(db, commerce.DispatcherRuntime{})
+	dispatcher.UseBackoff([]time.Duration{5 * time.Millisecond, 5 * time.Millisecond})
+	rowID := insertAnomalyRow(t, db)
 
-	svc.dispatcher.Dispatch(context.Background(), anomalyDispatchPayload{
+	dispatcher.Dispatch(context.Background(), commerce.AnomalyDispatchPayload{
 		ID:         rowID,
 		Type:       "t_test",
 		Severity:   "warn",
@@ -57,7 +59,7 @@ func TestDispatch_RetriesOn5xx(t *testing.T) {
 	if err := db.QueryRow(`SELECT dispatch_status FROM payment_anomaly_log WHERE id = $1`, rowID).Scan(&status); err != nil {
 		t.Fatal(err)
 	}
-	if status != anomalyDispatchSent {
+	if status != commerce.DispatchSent {
 		t.Fatalf("status: %q", status)
 	}
 }
@@ -73,11 +75,11 @@ func TestDispatch_NoRetryOn4xx(t *testing.T) {
 	}))
 	defer stub.Close()
 
-	svc := NewPaymentAnomalyService(context.Background(), db, context.Background())
-	svc.dispatcher.backoffs = []time.Duration{5 * time.Millisecond}
-	rowID := insertAnomalyRow(t, svc)
+	dispatcher := commerce.NewAnomalyAlertDispatcher(db, commerce.DispatcherRuntime{})
+	dispatcher.UseBackoff([]time.Duration{5 * time.Millisecond})
+	rowID := insertAnomalyRow(t, db)
 
-	svc.dispatcher.Dispatch(context.Background(), anomalyDispatchPayload{
+	dispatcher.Dispatch(context.Background(), commerce.AnomalyDispatchPayload{
 		ID: rowID, Type: "t_test", Severity: "warn", WebhookURL: stub.URL, CreatedAt: time.Now(),
 	})
 
@@ -90,7 +92,7 @@ func TestDispatch_NoRetryOn4xx(t *testing.T) {
 		Scan(&status, &attempts, &errStr); err != nil {
 		t.Fatal(err)
 	}
-	if status != anomalyDispatchFailed {
+	if status != commerce.DispatchFailed {
 		t.Fatalf("status: %q", status)
 	}
 	if attempts != 1 {
@@ -112,11 +114,11 @@ func TestDispatch_RetryExhausted(t *testing.T) {
 	}))
 	defer stub.Close()
 
-	svc := NewPaymentAnomalyService(context.Background(), db, context.Background())
-	svc.dispatcher.backoffs = []time.Duration{5 * time.Millisecond, 5 * time.Millisecond}
-	rowID := insertAnomalyRow(t, svc)
+	dispatcher := commerce.NewAnomalyAlertDispatcher(db, commerce.DispatcherRuntime{})
+	dispatcher.UseBackoff([]time.Duration{5 * time.Millisecond, 5 * time.Millisecond})
+	rowID := insertAnomalyRow(t, db)
 
-	svc.dispatcher.Dispatch(context.Background(), anomalyDispatchPayload{
+	dispatcher.Dispatch(context.Background(), commerce.AnomalyDispatchPayload{
 		ID: rowID, Type: "t_test", Severity: "warn", WebhookURL: stub.URL, CreatedAt: time.Now(),
 	})
 
@@ -128,7 +130,7 @@ func TestDispatch_RetryExhausted(t *testing.T) {
 	if err := db.QueryRow(`SELECT dispatch_status, dispatch_attempts FROM payment_anomaly_log WHERE id = $1`, rowID).Scan(&status, &attempts); err != nil {
 		t.Fatal(err)
 	}
-	if status != anomalyDispatchFailed || attempts != 3 {
+	if status != commerce.DispatchFailed || attempts != 3 {
 		t.Fatalf("status=%q attempts=%d", status, attempts)
 	}
 }
@@ -137,14 +139,14 @@ func TestDispatch_EmptyURLNoop(t *testing.T) {
 	db := setupTestDB(t)
 	resetAnomalyTestData(t, db)
 
-	svc := NewPaymentAnomalyService(context.Background(), db, context.Background())
-	rowID := insertAnomalyRow(t, svc)
-	svc.dispatcher.Dispatch(context.Background(), anomalyDispatchPayload{ID: rowID, Type: "t_test"})
+	dispatcher := commerce.NewAnomalyAlertDispatcher(db, commerce.DispatcherRuntime{})
+	rowID := insertAnomalyRow(t, db)
+	dispatcher.Dispatch(context.Background(), commerce.AnomalyDispatchPayload{ID: rowID, Type: "t_test"})
 	var status string
 	if err := db.QueryRow(`SELECT dispatch_status FROM payment_anomaly_log WHERE id = $1`, rowID).Scan(&status); err != nil {
 		t.Fatal(err)
 	}
-	if status != anomalyDispatchPending {
+	if status != commerce.DispatchPending {
 		t.Fatalf("empty URL should no-op; got %q", status)
 	}
 }

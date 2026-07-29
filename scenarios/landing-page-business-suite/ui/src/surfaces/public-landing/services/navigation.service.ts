@@ -38,7 +38,7 @@ const DOWNLOAD_PLATFORM_LABELS: Record<string, string> = {
 };
 
 /**
- * Checks if a download app has any download targets (platforms or storefronts)
+ * Checks whether a download app includes download targets (platforms or storefronts).
  */
 export function hasDownloadTargets(app: DownloadApp): boolean {
   return (Array.isArray(app.platforms) && app.platforms.length > 0) || Boolean(app.storefronts?.length);

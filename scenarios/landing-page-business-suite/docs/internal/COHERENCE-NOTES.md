@@ -25,9 +25,9 @@ This file lists places where the **physical structure** and the **documented men
 - **Why:** No business reason — historical accretion. Barrels for the other num[sot]:two surfaces would tighten boundaries but require touching every route module.
 - **Resolution:** Open. Low-priority cleanup, not a correctness issue.
 
-## Docs: `docs/reference/api/README.md` is an in-section overview
+## Docs: `docs/reference/api/OVERVIEW.md` is an in-section overview
 
-- **Documented model:** Manifest registers it as `path:docs/reference/api/README.md`.
+- **Documented model:** Manifest registers it as `path:docs/reference/api/OVERVIEW.md`.
 - **Actual code:** The file is `README.md` literally — by convention some doc tooling treats `README.md` as the index of its parent. num[sot]:one upstream docs-health check flags this as misplaced.
 - **Resolution:** Open. The file is correct in place; rename to `reference/api/index.md` if/when docs tooling enforces a strict naming convention.
 

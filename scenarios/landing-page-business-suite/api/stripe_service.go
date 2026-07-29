@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"landing-page-business-suite-api/internal/commerce"
 	"landing-page-business-suite-api/internal/envx"
 )
 
@@ -22,7 +23,7 @@ type StripeService struct {
 	db                StripeServiceStore
 	planService       *PlanService
 	paymentSettings   *PaymentSettingsService
-	paymentAnomaly    *PaymentAnomalyService
+	paymentAnomaly    *commerce.PaymentAnomalyService
 	checkoutCacheTTL  time.Duration
 	httpClient        *http.Client
 	apiBase           string
@@ -45,7 +46,7 @@ type StripeServiceStore interface {
 // SetPaymentAnomaly wires the anomaly service after construction. Required
 // because PaymentAnomalyService is constructed alongside StripeService but the
 // two are wired in Server to avoid a circular dependency at boot.
-func (s *StripeService) SetPaymentAnomaly(a *PaymentAnomalyService) {
+func (s *StripeService) SetPaymentAnomaly(a *commerce.PaymentAnomalyService) {
 	s.paymentAnomaly = a
 }
 

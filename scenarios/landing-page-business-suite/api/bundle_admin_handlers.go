@@ -8,6 +8,7 @@ import (
 
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 	bundlehttp "landing-page-business-suite-api/handlers/bundles"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 type bundleCatalogResponse struct {
@@ -105,13 +106,13 @@ func planOptionResponseFromProto(plan *PlanOption) planOptionResponse {
 		return planOptionResponse{}
 	}
 
-	interval := billingIntervalLabel(plan.BillingInterval)
+	interval := commerce.BillingIntervalLabel(plan.BillingInterval)
 	if interval == "unspecified" {
 		interval = "one_time"
 	}
 
 	var introType *string
-	if value := introPricingTypeString(plan.IntroType); value != "" {
+	if value := commerce.IntroPricingTypeString(plan.IntroType); value != "" {
 		introType = &value
 	}
 
@@ -135,7 +136,7 @@ func planOptionResponseFromProto(plan *PlanOption) planOptionResponse {
 
 	var kind *string
 	if plan.Kind != shared.PlanKind_PLAN_KIND_UNSPECIFIED {
-		value := planKindString(plan.Kind)
+		value := commerce.PlanKindString(plan.Kind)
 		kind = &value
 	}
 

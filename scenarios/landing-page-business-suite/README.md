@@ -24,7 +24,7 @@ or logs for the active endpoints, including the API health endpoint.
 - [Architecture](docs/concepts/ARCHITECTURE.md)
 - [Security](docs/reference/SECURITY.md)
 - [Configuration guide](docs/guides/CONFIGURATION_GUIDE.md)
-- [API overview](docs/reference/api/README.md)
+- [API overview](docs/reference/api/OVERVIEW.md)
 - [Documentation manifest](docs/manifest.json)
 
 ## Development checks

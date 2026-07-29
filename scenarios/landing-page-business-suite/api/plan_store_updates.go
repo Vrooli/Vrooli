@@ -6,9 +6,7 @@ import (
 	"strings"
 
 	"google.golang.org/protobuf/proto"
-
-	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
-	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // UpdatePlan applies partial updates to a plan.
@@ -17,13 +15,13 @@ func (ps *PlanStore) UpdatePlan(priceID string, input UpdateBundlePriceInput) (*
 }
 
 // UpdatePlanWithStripeDetails applies partial updates to a plan and optionally syncs Stripe fields.
-func (ps *PlanStore) UpdatePlanWithStripeDetails(priceID string, input UpdateBundlePriceInput, stripeDetails *StripePriceImport) (*PlanOption, error) {
+func (ps *PlanStore) UpdatePlanWithStripeDetails(priceID string, input UpdateBundlePriceInput, stripeDetails *commerce.StripePriceImport) (*PlanOption, error) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
 	derivedTier := ""
 	if stripeDetails != nil {
-		if tier, ok := derivePlanTierFromStripe(stripeDetails); ok {
+		if tier, ok := commerce.DerivePlanTierFromStripe(stripeDetails); ok {
 			derivedTier = tier
 		}
 	}
@@ -40,7 +38,7 @@ func (ps *PlanStore) UpdatePlanWithStripeDetails(priceID string, input UpdateBun
 	return proto.Clone(updatedPlan).(*PlanOption), nil
 }
 
-func (ps *PlanStore) updatePlanWithStripeDetailsLocked(priceID string, input UpdateBundlePriceInput, stripeDetails *StripePriceImport, derivedTier string) (*PlanOption, error) {
+func (ps *PlanStore) updatePlanWithStripeDetailsLocked(priceID string, input UpdateBundlePriceInput, stripeDetails *commerce.StripePriceImport, derivedTier string) (*PlanOption, error) {
 	if priceID == "" {
 		return nil, fmt.Errorf("price id is required")
 	}
@@ -62,16 +60,16 @@ func (ps *PlanStore) updatePlanWithStripeDetailsLocked(priceID string, input Upd
 	if err := ps.applyRequestedPlanFieldsLocked(updatedPlan, currentPlan, input, stripeDetails); err != nil {
 		return nil, err
 	}
-	if err := applyStripePriceDetails(updatedPlan, input, stripeDetails); err != nil {
+	if err := commerce.ApplyStripePriceDetails(updatedPlan, input, stripeDetails); err != nil {
 		return nil, err
 	}
-	if err := applyDerivedPlanTier(updatedPlan, derivedTier); err != nil {
+	if err := commerce.ApplyDerivedPlanTier(updatedPlan, derivedTier); err != nil {
 		return nil, err
 	}
-	applyPlanMetadata(updatedPlan, input)
+	commerce.ApplyPlanMetadata(updatedPlan, input)
 
 	updatedPlan.BundleKey = ps.bundleKey
-	if err := validateUpdatedPlan(updatedPlan); err != nil {
+	if err := commerce.ValidateUpdatedPlan(updatedPlan); err != nil {
 		return nil, err
 	}
 
@@ -92,9 +90,9 @@ func (ps *PlanStore) planIndexByPriceIDLocked(priceID string) (int, error) {
 	return -1, fmt.Errorf("price %s not found", priceID)
 }
 
-func (ps *PlanStore) applyRequestedPlanFieldsLocked(updated, current *PlanOption, input UpdateBundlePriceInput, stripeDetails *StripePriceImport) error {
+func (ps *PlanStore) applyRequestedPlanFieldsLocked(updated, current *PlanOption, input UpdateBundlePriceInput, stripeDetails *commerce.StripePriceImport) error {
 	if input.StripePriceID != nil {
-		priceID, err := normalizeStripePriceID(*input.StripePriceID)
+		priceID, err := commerce.NormalizeStripePriceID(*input.StripePriceID)
 		if err != nil {
 			return err
 		}
@@ -133,122 +131,7 @@ func (ps *PlanStore) applyRequestedPlanFieldsLocked(updated, current *PlanOption
 	return nil
 }
 
-func applyStripePriceDetails(plan *PlanOption, input UpdateBundlePriceInput, details *StripePriceImport) error {
-	if details == nil {
-		return nil
-	}
-	interval := mapBillingInterval(details.Interval)
-	if err := validateBillingInterval(interval); err != nil {
-		return fmt.Errorf("invalid stripe billing interval: %w", err)
-	}
-	currency, err := normalizeCurrency(details.Currency)
-	if err != nil {
-		return fmt.Errorf("invalid stripe currency: %w", err)
-	}
-	if details.AmountCents < 0 {
-		return fmt.Errorf("stripe amount_cents must be >= 0")
-	}
-	plan.AmountCents = details.AmountCents
-	plan.Currency = currency
-	plan.BillingInterval = interval
-	if input.DisplayEnabled == nil && !details.Active {
-		plan.DisplayEnabled = false
-	}
-	return nil
-}
-
-func applyDerivedPlanTier(plan *PlanOption, derivedTier string) error {
-	if strings.TrimSpace(derivedTier) == "" {
-		return nil
-	}
-	normalizedTier, err := normalizePlanTier(derivedTier)
-	if err != nil {
-		return err
-	}
-	if normalizedTier != plan.PlanTier {
-		plan.PlanTier = normalizedTier
-		plan.PlanRank = planRankForTier(normalizedTier)
-		plan.Kind = planKindForTier(normalizedTier)
-	}
-	return nil
-}
-
-func applyPlanMetadata(plan *PlanOption, input UpdateBundlePriceInput) {
-	if plan.Metadata == nil {
-		plan.Metadata = map[string]*commonv1.JsonValue{}
-	}
-	updateMetadataString := func(key string, value *string) {
-		if value == nil {
-			return
-		}
-		trimmed := strings.TrimSpace(*value)
-		if trimmed == "" {
-			delete(plan.Metadata, key)
-			return
-		}
-		plan.Metadata[key] = newStringJsonValue(trimmed)
-	}
-	updateMetadataString("subtitle", input.Subtitle)
-	updateMetadataString("badge", input.Badge)
-	updateMetadataString("cta_label", input.CtaLabel)
-	if input.Highlight != nil {
-		if *input.Highlight {
-			plan.Metadata["highlight"] = newBoolJsonValue(true)
-		} else {
-			delete(plan.Metadata, "highlight")
-		}
-	}
-	if input.Features != nil {
-		features := make([]*commonv1.JsonValue, 0, len(*input.Features))
-		for _, feature := range *input.Features {
-			if trimmed := strings.TrimSpace(feature); trimmed != "" {
-				features = append(features, newStringJsonValue(trimmed))
-			}
-		}
-		if len(features) == 0 {
-			delete(plan.Metadata, "features")
-		} else {
-			plan.Metadata["features"] = newListJsonValue(features)
-		}
-	}
-}
-
-func validateUpdatedPlan(plan *PlanOption) error {
-	if plan.Kind == shared.PlanKind_PLAN_KIND_UNSPECIFIED {
-		plan.Kind = planKindForTier(plan.PlanTier)
-	}
-	normalizedTier, err := normalizePlanTier(plan.PlanTier)
-	if err != nil {
-		return err
-	}
-	plan.PlanTier = normalizedTier
-	if _, err := normalizePlanName(plan.PlanName); err != nil {
-		return err
-	}
-	if err := validateBillingInterval(plan.BillingInterval); err != nil {
-		return err
-	}
-	normalizedCurrency, err := normalizeCurrency(plan.Currency)
-	if err != nil {
-		return err
-	}
-	plan.Currency = normalizedCurrency
-	if plan.AmountCents < 0 {
-		return fmt.Errorf("amount_cents must be >= 0")
-	}
-	if plan.MonthlyIncludedCredits < 0 {
-		return fmt.Errorf("monthly_included_credits must be >= 0")
-	}
-	if plan.OneTimeBonusCredits < 0 {
-		return fmt.Errorf("one_time_bonus_credits must be >= 0")
-	}
-	if plan.PlanRank < 0 {
-		return fmt.Errorf("plan_rank must be >= 0")
-	}
-	return validatePlanTierConstraints(plan)
-}
-
-func (ps *PlanStore) ensureStripePriceMatchesBundleLocked(stripeDetails *StripePriceImport) error {
+func (ps *PlanStore) ensureStripePriceMatchesBundleLocked(stripeDetails *commerce.StripePriceImport) error {
 	if stripeDetails == nil {
 		return nil
 	}

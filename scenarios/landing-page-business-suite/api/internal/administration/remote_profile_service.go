@@ -1,4 +1,4 @@
-package main
+package administration
 
 import (
 	"context"
@@ -29,6 +29,14 @@ const (
 	remoteProfileStatusError   = "error"
 )
 
+const (
+	RemoteProfileCookieName    = remoteProfileCookieName
+	RemoteProfileStatusUnknown = remoteProfileStatusUnknown
+	RemoteProfileStatusActive  = remoteProfileStatusActive
+	RemoteProfileStatusExpired = remoteProfileStatusExpired
+	RemoteProfileStatusError   = remoteProfileStatusError
+)
+
 // remoteProfileSessionCookie describes the admin session credential used for
 // an outbound remote-profile request. Request.AddCookie transmits only its
 // name and value, but keeping the policy on the cookie value prevents this
@@ -44,7 +52,8 @@ func remoteProfileSessionCookie(value string) *http.Cookie {
 }
 
 const (
-	remoteProfileProxyBodyLimit   = 1 << 20 // 1MB
+	// RemoteProfileProxyBodyLimit bounds an admin proxy request body.
+	RemoteProfileProxyBodyLimit   = 1 << 20 // 1MB
 	remoteProfileProxyResponseMax = 2 << 20 // 2MB
 )
 
@@ -157,28 +166,20 @@ type RemoteProfileError struct {
 	Message   string
 }
 
-// RemoteProfileStore is the context-aware persistence contract for remote
-// profile configuration and encrypted remote sessions.
-//
-// seam: RemoteProfileStore keeps remote-profile persistence independent of a
-// concrete pool and preserves request-scoped test isolation.
-type RemoteProfileStore interface {
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-}
-
 func (e *RemoteProfileError) Error() string {
 	return e.Message
 }
 
 // RemoteProfileService manages remote profile storage and remote admin sessions.
 type RemoteProfileService struct {
-	db            RemoteProfileStore
-	encryptionKey []byte
-	httpClient    HTTPDoer
-	now           func() time.Time
-	dialects      *DialectHelper
+	DB            RemoteProfileStore
+	EncryptionKey []byte
+	HTTPClient    HTTPDoer
+	Now           func() time.Time
+	ResolveSecret func(string) string
+	IsProduction  func() bool
+	LogEvent      func(string, map[string]interface{})
+	LogError      func(string, map[string]interface{})
 }
 
 // NewRemoteProfileService creates a RemoteProfileService with defaults.
@@ -189,29 +190,50 @@ func NewRemoteProfileService(db RemoteProfileStore) (*RemoteProfileService, erro
 			return http.ErrUseLastResponse
 		},
 	}
-	return NewRemoteProfileServiceWithOptions(db, client, "postgres")
+	return NewRemoteProfileServiceWithOptions(db, client)
 }
 
-// NewRemoteProfileServiceWithOptions creates a RemoteProfileService with a custom client/dialect.
-func NewRemoteProfileServiceWithOptions(db RemoteProfileStore, client HTTPDoer, dialect string) (*RemoteProfileService, error) {
+// NewRemoteProfileServiceWithOptions creates a RemoteProfileService with a custom HTTP client.
+func NewRemoteProfileServiceWithOptions(db RemoteProfileStore, client HTTPDoer) (*RemoteProfileService, error) {
+	return NewRemoteProfileServiceWithRuntime(db, client, nil, nil, nil, nil)
+}
+
+// NewRemoteProfileServiceWithRuntime wires application-owned secret, environment,
+// and logging behavior at the composition boundary.
+func NewRemoteProfileServiceWithRuntime(db RemoteProfileStore, client HTTPDoer, resolveSecret func(string) string, isProduction func() bool, logEvent func(string, map[string]interface{}), logError func(string, map[string]interface{})) (*RemoteProfileService, error) {
 	if client == nil {
 		client = &http.Client{Timeout: 20 * time.Second}
 	}
-	key, err := loadRemoteProfileEncryptionKey()
+	if resolveSecret == nil {
+		resolveSecret = resolveRemoteProfileSecret
+	}
+	if isProduction == nil {
+		isProduction = isRemoteProfileProductionEnvironment
+	}
+	if logEvent == nil {
+		logEvent = logRemoteProfileEvent
+	}
+	if logError == nil {
+		logError = logRemoteProfileError
+	}
+	key, err := loadRemoteProfileEncryptionKey(resolveSecret, isProduction, logEvent)
 	if err != nil {
 		return nil, err
 	}
 	now := time.Now
 	return &RemoteProfileService{
-		db:            db,
-		encryptionKey: key,
-		httpClient:    client,
-		now:           now,
-		dialects:      NewDialectHelper(dialect),
+		DB:            db,
+		EncryptionKey: key,
+		HTTPClient:    client,
+		Now:           now,
+		ResolveSecret: resolveSecret,
+		IsProduction:  isProduction,
+		LogEvent:      logEvent,
+		LogError:      logError,
 	}, nil
 }
 
-func loadRemoteProfileEncryptionKey() ([]byte, error) {
+func loadRemoteProfileEncryptionKey(resolveSecret func(string) string, isProduction func() bool, logEvent func(string, map[string]interface{})) ([]byte, error) {
 	keyStr := resolveSecret("LPBS_REMOTE_PROFILE_ENCRYPTION_KEY")
 	keySource := "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY"
 	if keyStr == "" {
@@ -219,7 +241,7 @@ func loadRemoteProfileEncryptionKey() ([]byte, error) {
 		if fallback != "" {
 			keyStr = fallback
 			keySource = "LPBS_API_KEY_ENCRYPTION_KEY"
-			logStructured("remote_profiles_encryption_key_fallback", map[string]interface{}{
+			logEvent("remote_profiles_encryption_key_fallback", map[string]interface{}{
 				"level":    "warn",
 				"message":  "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY not set; falling back to LPBS_API_KEY_ENCRYPTION_KEY",
 				"security": true,
@@ -228,13 +250,13 @@ func loadRemoteProfileEncryptionKey() ([]byte, error) {
 		}
 	}
 	if keyStr == "" {
-		if isProductionEnvironment() {
+		if isProduction() {
 			return nil, fmt.Errorf(
 				"LPBS_REMOTE_PROFILE_ENCRYPTION_KEY is required in production. " +
 					"Set LPBS_REMOTE_PROFILE_ENCRYPTION_KEY (preferred) or LPBS_API_KEY_ENCRYPTION_KEY as a fallback",
 			)
 		}
-		logStructured("remote_profiles_no_encryption_key_dev", map[string]interface{}{
+		logEvent("remote_profiles_no_encryption_key_dev", map[string]interface{}{
 			"level":    "warn",
 			"message":  "Remote profile sessions will be stored unencrypted (development mode)",
 			"security": true,
@@ -253,11 +275,25 @@ func loadRemoteProfileEncryptionKey() ([]byte, error) {
 }
 
 func (s *RemoteProfileService) encrypt(plaintext string) (string, error) {
-	return securevalue.Encrypt(s.encryptionKey, plaintext)
+	return securevalue.Encrypt(s.EncryptionKey, plaintext)
 }
 
 func (s *RemoteProfileService) decrypt(ciphertext string) (string, error) {
-	return securevalue.Decrypt(s.encryptionKey, ciphertext)
+	return securevalue.Decrypt(s.EncryptionKey, ciphertext)
+}
+
+func (s *RemoteProfileService) Encrypt(plaintext string) (string, error) { return s.encrypt(plaintext) }
+func (s *RemoteProfileService) Decrypt(ciphertext string) (string, error) {
+	return s.decrypt(ciphertext)
+}
+func NormalizeRemoteProfileTag(tag string) (string, error) { return normalizeRemoteProfileTag(tag) }
+func NormalizeRemoteProfileLabel(label string) *string     { return normalizeRemoteProfileLabel(label) }
+func NormalizeRemoteProfileAPIBase(raw string) (string, error) {
+	return normalizeRemoteProfileAPIBase(raw)
+}
+func NormalizeRemoteProxyPath(raw string) (string, error) { return normalizeRemoteProxyPath(raw) }
+func ReadLimitedBody(reader io.Reader, limit int64) ([]byte, error) {
+	return readLimitedBody(reader, limit)
 }
 
 func normalizeRemoteProfileTag(tag string) (string, error) {
@@ -284,18 +320,22 @@ func normalizeRemoteProfileSessionID(sessionID string) string {
 }
 
 func normalizeRemoteProfileAPIBase(raw string) (string, error) {
-	clean, err := ValidateURL(raw)
+	return normalizeRemoteProfileAPIBaseForEnvironment(raw, isRemoteProfileProductionEnvironment)
+}
+
+func normalizeRemoteProfileAPIBaseForEnvironment(raw string, isProduction func() bool) (string, error) {
+	clean, err := validateRemoteProfileURL(raw)
 	if err != nil {
 		return "", err
 	}
 	parsed, err := url.Parse(clean)
 	if err != nil || parsed.Host == "" {
-		return "", ErrURLInvalid
+		return "", errRemoteProfileURLInvalid
 	}
 	if parsed.User != nil {
 		return "", fmt.Errorf("api_base must not include credentials")
 	}
-	if isProductionEnvironment() && parsed.Scheme != "https" {
+	if isProduction != nil && isProduction() && parsed.Scheme != "https" {
 		return "", fmt.Errorf("api_base must use https in production")
 	}
 	parsed.RawQuery = ""
@@ -308,6 +348,26 @@ func normalizeRemoteProfileAPIBase(raw string) (string, error) {
 	return strings.TrimSuffix(parsed.String(), "/"), nil
 }
 
+func (s *RemoteProfileService) normalizeAPIBase(raw string) (string, error) {
+	isProduction := s.IsProduction
+	if isProduction == nil {
+		isProduction = isRemoteProfileProductionEnvironment
+	}
+	return normalizeRemoteProfileAPIBaseForEnvironment(raw, isProduction)
+}
+
+func (s *RemoteProfileService) logEvent(name string, fields map[string]interface{}) {
+	if s.LogEvent != nil {
+		s.LogEvent(name, fields)
+	}
+}
+
+func (s *RemoteProfileService) logError(name string, fields map[string]interface{}) {
+	if s.LogError != nil {
+		s.LogError(name, fields)
+	}
+}
+
 func generateRemoteConnectorID() (string, error) {
 	buf := make([]byte, 16)
 	if _, err := rand.Read(buf); err != nil {
@@ -316,12 +376,16 @@ func generateRemoteConnectorID() (string, error) {
 	return hex.EncodeToString(buf), nil
 }
 
-func remoteProfileOriginLabel() string {
-	if value := sanitizeRemoteProfileSessionMetaValue(resolveSecret("LPBS_REMOTE_PROFILE_ORIGIN")); value != "" {
+func (s *RemoteProfileService) remoteProfileOriginLabel() string {
+	resolveSecret := s.ResolveSecret
+	if resolveSecret == nil {
+		resolveSecret = resolveRemoteProfileSecret
+	}
+	if value := SanitizeRemoteProfileSessionMetaValue(resolveSecret("LPBS_REMOTE_PROFILE_ORIGIN")); value != "" {
 		return value
 	}
 	if host, err := os.Hostname(); err == nil {
-		if value := sanitizeRemoteProfileSessionMetaValue(host); value != "" {
+		if value := SanitizeRemoteProfileSessionMetaValue(host); value != "" {
 			return value
 		}
 	}
@@ -364,8 +428,10 @@ func isAllowedRemoteProxyPath(path string) bool {
 	return false
 }
 
+func IsAllowedRemoteProxyPath(path string) bool { return isAllowedRemoteProxyPath(path) }
+
 func (s *RemoteProfileService) List(ctx context.Context) ([]RemoteProfile, error) {
-	rows, err := s.db.QueryContext(ctx, `
+	rows, err := s.DB.QueryContext(ctx, `
 		SELECT id, tag, label, api_base, connector_id, remote_session_id, status, encrypted_session,
 		       session_expires_at, remote_session_last_synced_at, last_login_at, last_used_at,
 		       created_by, created_at, updated_at
@@ -404,7 +470,7 @@ func (s *RemoteProfileService) Create(ctx context.Context, req RemoteProfileCrea
 	if err != nil {
 		return nil, err
 	}
-	apiBase, err := normalizeRemoteProfileAPIBase(req.APIBase)
+	apiBase, err := s.normalizeAPIBase(req.APIBase)
 	if err != nil {
 		return nil, err
 	}
@@ -428,11 +494,11 @@ func (s *RemoteProfileService) Create(ctx context.Context, req RemoteProfileCrea
 	}
 
 	var id int64
-	err = s.db.QueryRowContext(ctx, `
+	err = s.DB.QueryRowContext(ctx, `
 		INSERT INTO remote_profiles (tag, label, api_base, connector_id, status, created_by, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
 		RETURNING id
-	`, tag, StringToNullString(label), apiBase, connectorID, remoteProfileStatusUnknown, Int64ToNullInt64(createdByID)).Scan(&id)
+	`, tag, stringToNullString(label), apiBase, connectorID, remoteProfileStatusUnknown, int64ToNullInt64(createdByID)).Scan(&id)
 	if err != nil {
 		return nil, err
 	}
@@ -442,7 +508,7 @@ func (s *RemoteProfileService) Create(ctx context.Context, req RemoteProfileCrea
 		return nil, err
 	}
 
-	logStructured("remote_profile_created", map[string]interface{}{
+	s.logEvent("remote_profile_created", map[string]interface{}{
 		"level": "info",
 		"id":    profile.ID,
 		"tag":   profile.Tag,
@@ -476,12 +542,12 @@ func (s *RemoteProfileService) Update(ctx context.Context, id int64, req RemoteP
 
 	updatedLabel := rec.Label
 	if req.Label != nil {
-		updatedLabel = StringToNullString(normalizeRemoteProfileLabel(*req.Label))
+		updatedLabel = stringToNullString(normalizeRemoteProfileLabel(*req.Label))
 	}
 
 	updatedAPIBase := rec.APIBase
 	if req.APIBase != nil {
-		updatedAPIBase, err = normalizeRemoteProfileAPIBase(*req.APIBase)
+		updatedAPIBase, err = s.normalizeAPIBase(*req.APIBase)
 		if err != nil {
 			return nil, err
 		}
@@ -489,7 +555,7 @@ func (s *RemoteProfileService) Update(ctx context.Context, id int64, req RemoteP
 
 	apiBaseChanged := updatedAPIBase != rec.APIBase
 	if apiBaseChanged {
-		_, err = s.db.ExecContext(ctx, `
+		_, err = s.DB.ExecContext(ctx, `
 			UPDATE remote_profiles
 			SET tag = $1,
 			    label = $2,
@@ -504,7 +570,7 @@ func (s *RemoteProfileService) Update(ctx context.Context, id int64, req RemoteP
 			WHERE id = $5
 		`, updatedTag, updatedLabel, updatedAPIBase, remoteProfileStatusUnknown, id)
 	} else {
-		_, err = s.db.ExecContext(ctx, `
+		_, err = s.DB.ExecContext(ctx, `
 			UPDATE remote_profiles
 			SET tag = $1, label = $2, api_base = $3, updated_at = NOW()
 			WHERE id = $4
@@ -519,7 +585,7 @@ func (s *RemoteProfileService) Update(ctx context.Context, id int64, req RemoteP
 		return nil, err
 	}
 
-	logStructured("remote_profile_updated", map[string]interface{}{
+	s.logEvent("remote_profile_updated", map[string]interface{}{
 		"level": "info",
 		"id":    profile.ID,
 		"tag":   profile.Tag,
@@ -529,7 +595,7 @@ func (s *RemoteProfileService) Update(ctx context.Context, id int64, req RemoteP
 }
 
 func (s *RemoteProfileService) Delete(ctx context.Context, id int64) error {
-	res, err := s.db.ExecContext(ctx, `DELETE FROM remote_profiles WHERE id = $1`, id)
+	res, err := s.DB.ExecContext(ctx, `DELETE FROM remote_profiles WHERE id = $1`, id)
 	if err != nil {
 		return err
 	}
@@ -538,7 +604,7 @@ func (s *RemoteProfileService) Delete(ctx context.Context, id int64) error {
 		return ErrRemoteProfileNotFound
 	}
 
-	logStructured("remote_profile_deleted", map[string]interface{}{
+	s.logEvent("remote_profile_deleted", map[string]interface{}{
 		"level": "info",
 		"id":    id,
 	})
@@ -566,7 +632,7 @@ func (s *RemoteProfileService) Login(ctx context.Context, id int64, email string
 	meta := RemoteProfileSessionMetadata{
 		ConnectorID: connectorID,
 		ProfileTag:  rec.Tag,
-		Origin:      remoteProfileOriginLabel(),
+		Origin:      s.remoteProfileOriginLabel(),
 	}
 	sessionValue, remoteSessionID, expiresAt, err := s.remoteLogin(ctx, rec.APIBase, email, password, meta)
 	if err != nil {
@@ -582,7 +648,7 @@ func (s *RemoteProfileService) Login(ctx context.Context, id int64, email string
 		return nil, err
 	}
 
-	logStructured("remote_profile_login", map[string]interface{}{
+	s.logEvent("remote_profile_login", map[string]interface{}{
 		"level": "info",
 		"id":    profile.ID,
 		"tag":   profile.Tag,
@@ -604,7 +670,7 @@ func (s *RemoteProfileService) Logout(ctx context.Context, id int64) (*RemotePro
 		}
 		if sessionValue != "" {
 			if err := s.remoteLogout(ctx, rec.APIBase, sessionValue); err != nil {
-				logStructuredError("remote_profile_remote_logout_failed", map[string]interface{}{
+				s.logError("remote_profile_remote_logout_failed", map[string]interface{}{
 					"error": err.Error(),
 					"id":    id,
 					"tag":   rec.Tag,
@@ -622,7 +688,7 @@ func (s *RemoteProfileService) Logout(ctx context.Context, id int64) (*RemotePro
 		return nil, err
 	}
 
-	logStructured("remote_profile_logout", map[string]interface{}{
+	s.logEvent("remote_profile_logout", map[string]interface{}{
 		"level": "info",
 		"id":    profile.ID,
 		"tag":   profile.Tag,
@@ -665,7 +731,7 @@ func (s *RemoteProfileService) Test(ctx context.Context, id int64) (*RemoteProfi
 		}
 		return nil, &RemoteProfileError{
 			Status:    http.StatusUnauthorized,
-			ErrorType: ApiErrorTypeUnauthorized,
+			ErrorType: apiErrorTypeUnauthorized,
 			Message:   "Remote session expired. Please log in again.",
 		}
 	}
@@ -708,16 +774,16 @@ func (r *remoteProfileRecord) toProfile(now time.Time) RemoteProfile {
 	return RemoteProfile{
 		ID:               r.ID,
 		Tag:              r.Tag,
-		Label:            NullStringValue(r.Label),
+		Label:            nullStringValue(r.Label),
 		APIBase:          r.APIBase,
 		ConnectorID:      strings.TrimSpace(r.ConnectorID.String),
-		RemoteSessionID:  NullStringValue(r.RemoteSessionID),
+		RemoteSessionID:  nullStringValue(r.RemoteSessionID),
 		Status:           status,
 		HasSession:       hasSession,
-		SessionExpiresAt: NullTimeValue(r.SessionExpiresAt),
-		LastLoginAt:      NullTimeValue(r.LastLoginAt),
-		LastUsedAt:       NullTimeValue(r.LastUsedAt),
-		CreatedBy:        NullInt64Value(r.CreatedBy),
+		SessionExpiresAt: nullTimeValue(r.SessionExpiresAt),
+		LastLoginAt:      nullTimeValue(r.LastLoginAt),
+		LastUsedAt:       nullTimeValue(r.LastUsedAt),
+		CreatedBy:        nullInt64Value(r.CreatedBy),
 		CreatedAt:        r.CreatedAt,
 		UpdatedAt:        r.UpdatedAt,
 	}

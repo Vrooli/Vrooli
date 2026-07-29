@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/proto"
+	"landing-page-business-suite-api/internal/commerce"
 
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 )
@@ -37,23 +38,23 @@ func (ps *PlanStore) LoadAll() error {
 	if fileData.Bundle.Metadata != nil {
 		bundle.Metadata = convertMetadataToProto(fileData.Bundle.Metadata)
 	}
-	if err := normalizeBundleProduct(bundle, ps.bundleKey, ps.displayEnv); err != nil {
+	if err := commerce.NormalizeBundle(bundle, ps.bundleKey, ps.displayEnv); err != nil {
 		return fmt.Errorf("invalid bundle config: %w", err)
 	}
 	plans := make([]*PlanOption, 0, len(fileData.Plans))
 	seenPriceIDs := make(map[string]struct{}, len(fileData.Plans))
 	for _, planFile := range fileData.Plans {
-		plan := &PlanOption{StripePriceId: planFile.StripePriceID, PlanName: planFile.PlanName, PlanTier: planFile.PlanTier, BillingInterval: mapBillingInterval(planFile.BillingInterval), AmountCents: planFile.AmountCents, Currency: planFile.Currency, DisplayWeight: planFile.DisplayWeight, DisplayEnabled: planFile.DisplayEnabled, MonthlyIncludedCredits: planFile.MonthlyIncludedCredits, OneTimeBonusCredits: planFile.OneTimeBonusCredits, PlanRank: planFile.PlanRank, BonusType: planFile.BonusType, Kind: mapPlanKind(planFile.Kind), IntroEnabled: planFile.IntroEnabled, IntroPeriods: planFile.IntroPeriods, IntroPriceLookupKey: planFile.IntroPriceLookupKey, IsVariableAmount: planFile.IsVariableAmount, BundleKey: ps.bundleKey}
+		plan := &PlanOption{StripePriceId: planFile.StripePriceID, PlanName: planFile.PlanName, PlanTier: planFile.PlanTier, BillingInterval: commerce.MapBillingInterval(planFile.BillingInterval), AmountCents: planFile.AmountCents, Currency: planFile.Currency, DisplayWeight: planFile.DisplayWeight, DisplayEnabled: planFile.DisplayEnabled, MonthlyIncludedCredits: planFile.MonthlyIncludedCredits, OneTimeBonusCredits: planFile.OneTimeBonusCredits, PlanRank: planFile.PlanRank, BonusType: planFile.BonusType, Kind: commerce.MapPlanKind(planFile.Kind), IntroEnabled: planFile.IntroEnabled, IntroPeriods: planFile.IntroPeriods, IntroPriceLookupKey: planFile.IntroPriceLookupKey, IsVariableAmount: planFile.IsVariableAmount, BundleKey: ps.bundleKey}
 		if planFile.IntroAmountCents != nil {
 			plan.IntroAmountCents = proto.Int64(*planFile.IntroAmountCents)
 		}
 		if planFile.IntroType != "" {
-			plan.IntroType = mapIntroPricingTypeFromString(planFile.IntroType)
+			plan.IntroType = commerce.MapIntroPricingType(planFile.IntroType)
 		}
 		if planFile.Metadata != nil {
 			plan.Metadata = convertMetadataToProto(planFile.Metadata)
 		}
-		if err := normalizePlanOption(plan, ps.bundleKey); err != nil {
+		if err := commerce.NormalizePlanOption(plan, ps.bundleKey); err != nil {
 			return fmt.Errorf("invalid plan %s: %w", plan.StripePriceId, err)
 		}
 		if _, exists := seenPriceIDs[plan.StripePriceId]; exists {
@@ -101,13 +102,13 @@ func (ps *PlanStore) savePlansLocked() error {
 	}
 	fileData.Plans = make([]planFileFormat, 0, len(ps.plans))
 	for _, plan := range ps.plans {
-		planFile := planFileFormat{StripePriceID: plan.StripePriceId, PlanName: plan.PlanName, PlanTier: plan.PlanTier, BillingInterval: billingIntervalLabel(plan.BillingInterval), AmountCents: plan.AmountCents, Currency: plan.Currency, DisplayWeight: plan.DisplayWeight, DisplayEnabled: plan.DisplayEnabled, MonthlyIncludedCredits: plan.MonthlyIncludedCredits, OneTimeBonusCredits: plan.OneTimeBonusCredits, PlanRank: plan.PlanRank, BonusType: plan.BonusType, Kind: planKindString(plan.Kind), IntroEnabled: plan.IntroEnabled, IntroPeriods: plan.IntroPeriods, IntroPriceLookupKey: plan.IntroPriceLookupKey, IsVariableAmount: plan.IsVariableAmount}
+		planFile := planFileFormat{StripePriceID: plan.StripePriceId, PlanName: plan.PlanName, PlanTier: plan.PlanTier, BillingInterval: commerce.BillingIntervalLabel(plan.BillingInterval), AmountCents: plan.AmountCents, Currency: plan.Currency, DisplayWeight: plan.DisplayWeight, DisplayEnabled: plan.DisplayEnabled, MonthlyIncludedCredits: plan.MonthlyIncludedCredits, OneTimeBonusCredits: plan.OneTimeBonusCredits, PlanRank: plan.PlanRank, BonusType: plan.BonusType, Kind: commerce.PlanKindString(plan.Kind), IntroEnabled: plan.IntroEnabled, IntroPeriods: plan.IntroPeriods, IntroPriceLookupKey: plan.IntroPriceLookupKey, IsVariableAmount: plan.IsVariableAmount}
 		if plan.IntroAmountCents != nil {
 			value := *plan.IntroAmountCents
 			planFile.IntroAmountCents = &value
 		}
 		if plan.IntroType != shared.IntroPricingType_INTRO_PRICING_TYPE_UNSPECIFIED {
-			planFile.IntroType = introPricingTypeString(plan.IntroType)
+			planFile.IntroType = commerce.IntroPricingTypeString(plan.IntroType)
 		}
 		if plan.Metadata != nil {
 			planFile.Metadata = convertProtoMetadataToMap(plan.Metadata)

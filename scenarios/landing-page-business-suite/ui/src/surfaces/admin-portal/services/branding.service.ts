@@ -179,7 +179,7 @@ export function formToBrandingPayload(
 }
 
 /**
- * Check if branding form has any changes from original
+ * Check whether the branding form differs from the original values.
  */
 export function isBrandingDirty(
   form: BrandingFormState,

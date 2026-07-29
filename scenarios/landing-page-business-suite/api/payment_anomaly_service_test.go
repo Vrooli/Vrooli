@@ -11,6 +11,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // resetAnomalyTestData clears payment_anomaly_log and payment_settings between
@@ -203,7 +205,7 @@ func TestLog_InsertsRow(t *testing.T) {
 	if subjKind != "intro_coupon" {
 		t.Fatalf("subject_kind: %q", subjKind)
 	}
-	if status != anomalyDispatchSkipped {
+	if status != commerce.DispatchSkipped {
 		t.Fatalf("dispatch_status: %q (expected skipped when disabled)", status)
 	}
 	var parsed map[string]any
@@ -229,7 +231,7 @@ func TestLog_NoDispatchWhenDisabled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("WaitForDispatch: %v", err)
 	}
-	if status != anomalyDispatchSkipped {
+	if status != commerce.DispatchSkipped {
 		t.Fatalf("expected skipped, got %q", status)
 	}
 }
@@ -247,7 +249,7 @@ func TestLog_DispatchesWhenEnabled(t *testing.T) {
 		case lastBody <- b:
 		default:
 		}
-		if ua := r.Header.Get("User-Agent"); ua != AnomalyDispatchUserAgent {
+		if ua := r.Header.Get("User-Agent"); ua != commerce.AnomalyDispatchUserAgent {
 			t.Errorf("user-agent %q", ua)
 		}
 		if ct := r.Header.Get("Content-Type"); ct != "application/json" {
@@ -275,7 +277,7 @@ func TestLog_DispatchesWhenEnabled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("WaitForDispatch: %v", err)
 	}
-	if status != anomalyDispatchSent {
+	if status != commerce.DispatchSent {
 		t.Fatalf("expected sent, got %q", status)
 	}
 	if received.Load() != 1 {
@@ -294,7 +296,7 @@ func TestLog_DispatchesWhenEnabled(t *testing.T) {
 		if !ok || subj["kind"] != "checkout_session" || subj["id"] != "cs_1" {
 			t.Fatalf("subject: %v", p["subject"])
 		}
-		if p["scenario"] != paymentAnomalyScenarioName {
+		if p["scenario"] != "landing-page-business-suite" {
 			t.Fatalf("scenario: %v", p["scenario"])
 		}
 	case <-time.After(time.Second):
@@ -332,9 +334,9 @@ func TestLog_RateLimited(t *testing.T) {
 			t.Fatalf("WaitForDispatch: %v", err)
 		}
 		switch status {
-		case anomalyDispatchSent:
+		case commerce.DispatchSent:
 			sent++
-		case anomalyDispatchSkipped:
+		case commerce.DispatchSkipped:
 			var reason sql.NullString
 			if err := db.QueryRow(`SELECT dispatch_error FROM payment_anomaly_log WHERE id = $1`, id).Scan(&reason); err != nil {
 				t.Fatal(err)
@@ -365,11 +367,17 @@ func TestWaitForDispatch_Timeout(t *testing.T) {
 	defer stub.Close()
 	defer close(block)
 
-	svc := NewPaymentAnomalyService(context.Background(), db, context.Background())
 	// Short per-attempt timeout so the goroutine doesn't linger past the test.
-	svc.dispatcher.perAttempt = 500 * time.Millisecond
-	svc.dispatcher.backoffs = []time.Duration{10 * time.Millisecond}
-	svc.dispatcher.maxAttempts = 1
+	dispatcher := commerce.NewAnomalyAlertDispatcher(db, commerce.DispatcherRuntime{})
+	dispatcher.UsePerAttempt(500 * time.Millisecond)
+	dispatcher.UseBackoff([]time.Duration{10 * time.Millisecond})
+	dispatcher.UseMaxAttempts(1)
+	svc := commerce.NewPaymentAnomalyServiceWithDispatcher(context.Background(), db, context.Background(), commerce.PaymentAnomalyRuntime{
+		ScenarioName:   "landing-page-business-suite",
+		NormalizeEmail: NormalizeEmail,
+		Log:            logStructured,
+		LogError:       logStructuredError,
+	}, dispatcher)
 	configureAnomalyWebhook(t, svc, db, stub.URL, "")
 
 	id, err := svc.Log(context.Background(), PaymentAnomaly{Type: "slow_type"})

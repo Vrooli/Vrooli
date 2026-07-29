@@ -26,7 +26,8 @@ func TestAccountServiceSubscriptionCache(t *testing.T) {
 
 	planService := NewPlanService(db)
 	accountService := NewAccountService(db, planService)
-	accountService.cacheTTL = 40 * time.Millisecond
+	const cacheTTL = 40 * time.Millisecond
+	accountService.SetCacheTTL(cacheTTL)
 
 	const userEmail = "cache-test@example.com"
 	const subscriptionID = "sub-cache-test"
@@ -42,7 +43,7 @@ func TestAccountServiceSubscriptionCache(t *testing.T) {
 		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
 		ON CONFLICT (subscription_id) DO UPDATE
 		SET status = EXCLUDED.status, updated_at = NOW()
-	`, subscriptionID, userEmail, "active", "solo", "price_solo_monthly", accountService.bundleKey)
+	`, subscriptionID, userEmail, "active", "solo", "price_solo_monthly", accountService.BundleKey())
 	if err != nil {
 		t.Fatalf("failed to seed subscription: %v", err)
 	}
@@ -72,7 +73,7 @@ func TestAccountServiceSubscriptionCache(t *testing.T) {
 		t.Fatalf("expected cached status active, got %s", cached.State)
 	}
 
-	time.Sleep(accountService.cacheTTL + 10*time.Millisecond)
+	time.Sleep(cacheTTL + 10*time.Millisecond)
 
 	refreshed, err := accountService.GetSubscription(userEmail)
 	if err != nil {
@@ -210,7 +211,7 @@ func TestGetBillingCycleStart_NoSubscription(t *testing.T) {
 	db := setupTestDB(t)
 
 	svc := NewAccountService(db, NewPlanService(db))
-	start := svc.getBillingCycleStart("nonexistent@test.com")
+	start := svc.BillingCycleStart("nonexistent@test.com")
 	if start != 0 {
 		t.Errorf("expected billing_cycle_start=0 for nonexistent user, got %d", start)
 	}
@@ -220,7 +221,7 @@ func TestGetBillingCycleStart_EmptyUser(t *testing.T) {
 	db := setupTestDB(t)
 
 	svc := NewAccountService(db, NewPlanService(db))
-	start := svc.getBillingCycleStart("  ")
+	start := svc.BillingCycleStart("  ")
 	if start != 0 {
 		t.Errorf("expected billing_cycle_start=0 for empty user, got %d", start)
 	}

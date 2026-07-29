@@ -11,9 +11,11 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"landing-page-business-suite-api/internal/administration"
 )
 
-func newRemoteProfileServiceForTest(db *sql.DB, client HTTPDoer) *RemoteProfileService {
+func newRemoteProfileServiceForTest(db *sql.DB, client administration.HTTPDoer) *RemoteProfileService {
 	if client == nil {
 		client = &http.Client{Timeout: 5 * time.Second}
 	}
@@ -22,7 +24,6 @@ func newRemoteProfileServiceForTest(db *sql.DB, client HTTPDoer) *RemoteProfileS
 		encryptionKey: nil,
 		httpClient:    client,
 		now:           time.Now,
-		dialects:      NewDialectHelper("postgres"),
 	}
 }
 
@@ -1135,7 +1136,7 @@ func TestRemoteProfileService_RemoteLoginHappyPath(t *testing.T) {
 		now:        func() time.Time { return fixedNow },
 	}
 
-	session, remoteSessionID, expiresAt, err := svc.remoteLogin(context.Background(), "http://example.com/api/v1", "admin@example.com", "password", RemoteProfileSessionMetadata{ConnectorID: "connector-test"})
+	session, remoteSessionID, expiresAt, err := svc.remoteLogin(context.Background(), "http://example.com/api/v1", "admin@example.com", "password", administration.RemoteProfileSessionMetadata{ConnectorID: "connector-test"})
 	if err != nil {
 		t.Fatalf("remoteLogin returned error: %v", err)
 	}
@@ -1165,7 +1166,7 @@ func TestRemoteProfileService_RemoteLoginMissingCookie(t *testing.T) {
 		now:        time.Now,
 	}
 
-	_, _, _, err := svc.remoteLogin(context.Background(), "http://example.com/api/v1", "admin@example.com", "password", RemoteProfileSessionMetadata{ConnectorID: "connector-test"})
+	_, _, _, err := svc.remoteLogin(context.Background(), "http://example.com/api/v1", "admin@example.com", "password", administration.RemoteProfileSessionMetadata{ConnectorID: "connector-test"})
 	var remoteErr *RemoteProfileError
 	if !errors.As(err, &remoteErr) {
 		t.Fatalf("expected RemoteProfileError, got %v", err)
@@ -1188,7 +1189,7 @@ func TestRemoteProfileService_RemoteLoginNotAuthenticated(t *testing.T) {
 	}
 	svc := &RemoteProfileService{httpClient: client, now: time.Now}
 
-	_, _, _, err := svc.remoteLogin(context.Background(), "http://example.com/api/v1", "admin@example.com", "password", RemoteProfileSessionMetadata{ConnectorID: "connector-test"})
+	_, _, _, err := svc.remoteLogin(context.Background(), "http://example.com/api/v1", "admin@example.com", "password", administration.RemoteProfileSessionMetadata{ConnectorID: "connector-test"})
 	var remoteErr *RemoteProfileError
 	if !errors.As(err, &remoteErr) {
 		t.Fatalf("expected RemoteProfileError, got %v", err)
@@ -1216,7 +1217,7 @@ func TestRemoteProfileService_RemoteLoginSessionVerificationFails(t *testing.T) 
 	}
 	svc := &RemoteProfileService{httpClient: client, now: time.Now}
 
-	_, _, _, err := svc.remoteLogin(context.Background(), "http://example.com/api/v1", "admin@example.com", "password", RemoteProfileSessionMetadata{ConnectorID: "connector-test"})
+	_, _, _, err := svc.remoteLogin(context.Background(), "http://example.com/api/v1", "admin@example.com", "password", administration.RemoteProfileSessionMetadata{ConnectorID: "connector-test"})
 	var remoteErr *RemoteProfileError
 	if !errors.As(err, &remoteErr) {
 		t.Fatalf("expected RemoteProfileError, got %v", err)
@@ -1238,7 +1239,7 @@ func TestRemoteProfileService_RemoteLoginInvalidJSON(t *testing.T) {
 	}
 	svc := &RemoteProfileService{httpClient: client, now: time.Now}
 
-	_, _, _, err := svc.remoteLogin(context.Background(), "http://example.com/api/v1", "admin@example.com", "password", RemoteProfileSessionMetadata{ConnectorID: "connector-test"})
+	_, _, _, err := svc.remoteLogin(context.Background(), "http://example.com/api/v1", "admin@example.com", "password", administration.RemoteProfileSessionMetadata{ConnectorID: "connector-test"})
 	if err == nil {
 		t.Fatalf("expected error for invalid JSON")
 	}

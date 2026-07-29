@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // --- StripeAdminService Interface Implementation ---
@@ -69,23 +70,10 @@ type StripeImportPreview struct {
 
 // StripeProductWithPrices groups a Stripe product with its prices.
 type StripeProductWithPrices struct {
-	ProductID       string              `json:"product_id"`
-	ProductName     string              `json:"product_name"`
-	IsCurrentBundle bool                `json:"is_current_bundle"`
-	Prices          []StripePriceImport `json:"prices"`
-}
-
-// StripePriceImport represents a price from Stripe that can be imported.
-type StripePriceImport struct {
-	PriceID       string `json:"price_id"`
-	LookupKey     string `json:"lookup_key,omitempty"`
-	Currency      string `json:"currency"`
-	AmountCents   int64  `json:"amount_cents"`
-	Interval      string `json:"interval,omitempty"`
-	ProductID     string `json:"product_id"`
-	ProductName   string `json:"product_name"`
-	Active        bool   `json:"active"`
-	ExistsLocally bool   `json:"exists_locally"`
+	ProductID       string                       `json:"product_id"`
+	ProductName     string                       `json:"product_name"`
+	IsCurrentBundle bool                         `json:"is_current_bundle"`
+	Prices          []commerce.StripePriceImport `json:"prices"`
 }
 
 type stripeProduct struct {
@@ -163,12 +151,12 @@ func (s *StripeService) ListStripeProductsWithPrices(ctx context.Context, planSt
 			ProductID:       product.ID,
 			ProductName:     product.Name,
 			IsCurrentBundle: isCurrentBundle,
-			Prices:          make([]StripePriceImport, 0, len(prices)),
+			Prices:          make([]commerce.StripePriceImport, 0, len(prices)),
 		}
 
 		for _, price := range prices {
 			existsLocally := existingPriceIDs[price.ID]
-			priceImport := StripePriceImport{
+			priceImport := commerce.StripePriceImport{
 				PriceID:       price.ID,
 				LookupKey:     price.LookupKey,
 				Currency:      price.Currency,
@@ -266,7 +254,7 @@ func (s *StripeService) fetchStripePricesForProduct(ctx context.Context, product
 }
 
 // FetchStripePriceDetails fetches full details for a single price from Stripe.
-func (s *StripeService) FetchStripePriceDetails(ctx context.Context, priceID string) (*StripePriceImport, error) {
+func (s *StripeService) FetchStripePriceDetails(ctx context.Context, priceID string) (*commerce.StripePriceImport, error) {
 	path := "/v1/prices/" + url.PathEscape(priceID) + "?expand[]=product"
 	body, err := s.doStripeRequest(ctx, http.MethodGet, path, nil, "")
 	if err != nil {
@@ -296,7 +284,7 @@ func (s *StripeService) FetchStripePriceDetails(ctx context.Context, priceID str
 		interval = price.Recurring.Interval
 	}
 
-	return &StripePriceImport{
+	return &commerce.StripePriceImport{
 		PriceID:     price.ID,
 		LookupKey:   price.LookupKey,
 		Currency:    price.Currency,

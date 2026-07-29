@@ -66,8 +66,6 @@ type (
 	DownloadAsset      = delivery.Asset
 	DownloadStorefront = delivery.Storefront
 	DownloadApp        = delivery.App
-	assetScanTargets   = delivery.AssetScanTargets
-	appScanTargets     = delivery.AppScanTargets
 )
 
 var (

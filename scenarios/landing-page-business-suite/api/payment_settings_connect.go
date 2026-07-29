@@ -13,6 +13,7 @@ import (
 	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect"
 	"google.golang.org/protobuf/proto"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // stripeSettingsConnectHandler keeps secret-bearing settings operations behind
@@ -20,7 +21,7 @@ import (
 type stripeSettingsConnectHandler struct {
 	payment *PaymentSettingsService
 	stripe  *StripeService
-	anomaly *PaymentAnomalyService
+	anomaly *commerce.PaymentAnomalyService
 }
 
 type stripeSettingsUpdate struct {
@@ -267,7 +268,7 @@ func validationError(message string) error {
 	return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%s", message))
 }
 
-func registerStripeSettingsConnectRoutes(router *mux.Router, payment *PaymentSettingsService, stripe *StripeService, anomaly *PaymentAnomalyService, requireAdmin func(http.HandlerFunc) http.HandlerFunc) {
+func registerStripeSettingsConnectRoutes(router *mux.Router, payment *PaymentSettingsService, stripe *StripeService, anomaly *commerce.PaymentAnomalyService, requireAdmin func(http.HandlerFunc) http.HandlerFunc) {
 	_, service := lpbsconnect.NewStripeSettingsServiceHandler(stripeSettingsConnectHandler{payment: payment, stripe: stripe, anomaly: anomaly})
 	for _, path := range []string{lpbsconnect.StripeSettingsServiceGetStripeSettingsProcedure, lpbsconnect.StripeSettingsServiceUpdateStripeSettingsProcedure, lpbsconnect.StripeSettingsServiceRevealStripeSecretProcedure} {
 		router.Handle(path, requireAdmin(http.HandlerFunc(service.ServeHTTP))).Methods(http.MethodPost)

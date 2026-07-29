@@ -10,6 +10,52 @@
       "icon": "rocket",
       "documents": [
         {
+          "path": "../README.md",
+          "title": "Scenario Overview",
+          "description": "Scenario entrypoint, lifecycle commands, and documentation map",
+          "audience": [
+            "users",
+            "developers",
+            "agents"
+          ],
+          "docType": "readme",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "../PRD.md",
+          "title": "Product Requirements",
+          "description": "Authoritative product scope and operational targets",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "docType": "prd",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "manifest.json",
+          "title": "Documentation Manifest",
+          "description": "Scenario documentation contract and registry",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "docType": "docs-manifest",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
           "path": "QUICKSTART.md",
           "title": "Quick Start",
           "description": "Get your first landing page running in 5 minutes",
@@ -214,7 +260,7 @@
       "icon": "book",
       "documents": [
         {
-          "path": "reference/api/README.md",
+          "path": "reference/api/OVERVIEW.md",
           "title": "API Overview",
           "description": "REST API introduction and common patterns",
           "audience": [
@@ -575,6 +621,18 @@
           "description": "How the per-domain unit tests are organized",
           "internal": true,
           "docType": "internal-unit-test-architecture",
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "internal/STORAGE_AUDIT.md",
+          "title": "Storage Architecture",
+          "description": "Schema ownership, persistence seams, and deployment migration posture",
+          "internal": true,
+          "docType": "internal-storage-architecture",
           "maturity": "active",
           "requiredBy": [
             "validated"

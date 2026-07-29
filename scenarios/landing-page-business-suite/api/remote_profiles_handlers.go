@@ -4,21 +4,23 @@ import (
 	"context"
 	"errors"
 	"net/http"
+
+	"landing-page-business-suite-api/internal/administration"
 )
 
 type adminEmailResolver func(*http.Request) (string, bool)
 
 type RemoteProfileManager interface {
-	List(ctx context.Context) ([]RemoteProfile, error)
-	Create(ctx context.Context, req RemoteProfileCreateRequest, createdByEmail string) (*RemoteProfile, error)
-	Update(ctx context.Context, id int64, req RemoteProfileUpdateRequest) (*RemoteProfile, error)
+	List(ctx context.Context) ([]administration.RemoteProfile, error)
+	Create(ctx context.Context, req administration.RemoteProfileCreateRequest, createdByEmail string) (*administration.RemoteProfile, error)
+	Update(ctx context.Context, id int64, req administration.RemoteProfileUpdateRequest) (*administration.RemoteProfile, error)
 	Delete(ctx context.Context, id int64) error
-	Login(ctx context.Context, id int64, email string, password string) (*RemoteProfile, error)
-	Logout(ctx context.Context, id int64) (*RemoteProfile, error)
-	Test(ctx context.Context, id int64) (*RemoteProfile, error)
-	SessionLinks(ctx context.Context, id int64) (*RemoteProfileSessionLinks, error)
-	RevokeRemoteSessions(ctx context.Context, id int64) (*RemoteProfileSessionLinks, error)
-	Proxy(ctx context.Context, id int64, req RemoteProfileProxyRequest) (*RemoteProxyResponse, error)
+	Login(ctx context.Context, id int64, email string, password string) (*administration.RemoteProfile, error)
+	Logout(ctx context.Context, id int64) (*administration.RemoteProfile, error)
+	Test(ctx context.Context, id int64) (*administration.RemoteProfile, error)
+	SessionLinks(ctx context.Context, id int64) (*administration.RemoteProfileSessionLinks, error)
+	RevokeRemoteSessions(ctx context.Context, id int64) (*administration.RemoteProfileSessionLinks, error)
+	Proxy(ctx context.Context, id int64, req administration.RemoteProfileProxyRequest) (*administration.RemoteProxyResponse, error)
 }
 
 func handleAdminListRemoteProfiles(svc RemoteProfileManager) http.HandlerFunc {
@@ -32,7 +34,7 @@ func handleAdminListRemoteProfiles(svc RemoteProfileManager) http.HandlerFunc {
 			return
 		}
 		if profiles == nil {
-			profiles = []RemoteProfile{}
+			profiles = []administration.RemoteProfile{}
 		}
 		writeJSONSuccessData(w, map[string]interface{}{"profiles": profiles})
 	}
@@ -40,7 +42,7 @@ func handleAdminListRemoteProfiles(svc RemoteProfileManager) http.HandlerFunc {
 
 func handleAdminCreateRemoteProfile(svc RemoteProfileManager, resolveEmail adminEmailResolver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req RemoteProfileCreateRequest
+		var req administration.RemoteProfileCreateRequest
 		if !decodeJSONBody(w, r, &req) {
 			return
 		}
@@ -69,7 +71,7 @@ func handleAdminUpdateRemoteProfile(svc RemoteProfileManager) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		var req RemoteProfileUpdateRequest
+		var req administration.RemoteProfileUpdateRequest
 		if !decodeJSONBody(w, r, &req) {
 			return
 		}
@@ -106,7 +108,7 @@ func handleAdminRemoteProfileLogin(svc RemoteProfileManager) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		var req RemoteProfileLoginRequest
+		var req administration.RemoteProfileLoginRequest
 		if !decodeJSONBody(w, r, &req) {
 			return
 		}
@@ -207,8 +209,8 @@ func handleAdminRemoteProfileProxy(svc RemoteProfileManager) http.HandlerFunc {
 		if !ok {
 			return
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, remoteProfileProxyBodyLimit)
-		var req RemoteProfileProxyRequest
+		r.Body = http.MaxBytesReader(w, r.Body, administration.RemoteProfileProxyBodyLimit)
+		var req administration.RemoteProfileProxyRequest
 		if !decodeJSONBody(w, r, &req) {
 			return
 		}
@@ -246,28 +248,28 @@ func writeRemoteProfileError(w http.ResponseWriter, err error) bool {
 	if err == nil {
 		return false
 	}
-	var remoteErr *RemoteProfileError
+	var remoteErr *administration.RemoteProfileError
 	if errors.As(err, &remoteErr) {
 		writeJSONError(w, remoteErr.Status, remoteErr.Message, remoteErr.ErrorType)
 		return true
 	}
-	if errors.Is(err, ErrRemoteProfileNotFound) {
+	if errors.Is(err, administration.ErrRemoteProfileNotFound) {
 		writeJSONError(w, http.StatusNotFound, "Remote profile not found", ApiErrorTypeNotFound)
 		return true
 	}
-	if errors.Is(err, ErrRemoteProfileTagExists) {
+	if errors.Is(err, administration.ErrRemoteProfileTagExists) {
 		writeJSONError(w, http.StatusConflict, "Remote profile tag already exists", ApiErrorTypeValidation)
 		return true
 	}
-	if errors.Is(err, ErrRemoteProfileSessionMissing) {
+	if errors.Is(err, administration.ErrRemoteProfileSessionMissing) {
 		writeJSONError(w, http.StatusConflict, "Remote profile is not logged in", ApiErrorTypeValidation)
 		return true
 	}
-	if errors.Is(err, ErrRemoteProfileDisallowedPath) {
+	if errors.Is(err, administration.ErrRemoteProfileDisallowedPath) {
 		writeJSONError(w, http.StatusForbidden, "Remote proxy path is not allowed", ApiErrorTypeForbidden)
 		return true
 	}
-	if errors.Is(err, ErrRemoteProfileInvalid) {
+	if errors.Is(err, administration.ErrRemoteProfileInvalid) {
 		writeJSONError(w, http.StatusBadRequest, "Invalid remote profile data", ApiErrorTypeValidation)
 		return true
 	}

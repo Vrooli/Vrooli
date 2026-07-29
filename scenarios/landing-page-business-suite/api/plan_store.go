@@ -2,22 +2,19 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"sync"
 	"time"
 
+	"landing-page-business-suite-api/internal/commerce"
 	"landing-page-business-suite-api/internal/envx"
 
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
-	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 )
 
 // PlanStoreReader provides read-only access to plan configuration.
@@ -61,16 +58,6 @@ type PlanStore struct {
 	bundleKey      string
 	updatedAt      time.Time
 }
-
-var (
-	errStripeImportNoSelections                 = errors.New("no selections provided")
-	errStripeImportNoValidSelections            = errors.New("no valid selections provided")
-	errStripeImportMissingFetcher               = errors.New("stripe price fetcher required")
-	errStripeImportBundleMissing                = errors.New("bundle not configured")
-	errStripeImportBundleProductMissing         = errors.New("bundle_product_id is required")
-	errStripeImportInvalidMode                  = errors.New("import mode must be merge or replace")
-	errStripeImportProductSwitchRequiresReplace = errors.New("bundle product change requires replace mode")
-)
 
 // plansFileFormat represents the JSON file structure for plans.
 type plansFileFormat struct {
@@ -161,7 +148,7 @@ func (ps *PlanStore) validatePlanCatalogLocked() error {
 	if ps.bundle == nil {
 		return fmt.Errorf("bundle not configured")
 	}
-	if err := normalizeBundleProduct(ps.bundle, ps.bundleKey, ps.displayEnv); err != nil {
+	if err := commerce.NormalizeBundle(ps.bundle, ps.bundleKey, ps.displayEnv); err != nil {
 		return fmt.Errorf("invalid bundle: %w", err)
 	}
 
@@ -170,7 +157,7 @@ func (ps *PlanStore) validatePlanCatalogLocked() error {
 		if plan == nil {
 			return fmt.Errorf("plan is required")
 		}
-		if err := normalizePlanOption(plan, ps.bundleKey); err != nil {
+		if err := commerce.NormalizePlanOption(plan, ps.bundleKey); err != nil {
 			return fmt.Errorf("invalid plan %s: %w", strings.TrimSpace(plan.StripePriceId), err)
 		}
 		if _, exists := seenPriceIDs[plan.StripePriceId]; exists {
@@ -304,46 +291,7 @@ func (ps *PlanStore) RemoveCouponFromPlan(priceID string) error {
 func (ps *PlanStore) GetPricingOverview() (*PricingOverview, error) {
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
-
-	if ps.bundle == nil {
-		return nil, fmt.Errorf("bundle not configured")
-	}
-
-	monthly := make([]*PlanOption, 0)
-	yearly := make([]*PlanOption, 0)
-
-	for _, plan := range ps.plans {
-		if !plan.DisplayEnabled && strings.ToLower(strings.TrimSpace(plan.PlanTier)) != "free" {
-			continue
-		}
-
-		switch plan.BillingInterval {
-		case shared.BillingInterval_BILLING_INTERVAL_MONTH:
-			monthly = append(monthly, proto.Clone(plan).(*PlanOption))
-		case shared.BillingInterval_BILLING_INTERVAL_YEAR:
-			yearly = append(yearly, proto.Clone(plan).(*PlanOption))
-		}
-	}
-
-	// Sort by display weight (descending) then plan rank (ascending)
-	sortPlans := func(plans []*PlanOption) {
-		sort.SliceStable(plans, func(i, j int) bool {
-			if plans[i].DisplayWeight == plans[j].DisplayWeight {
-				return plans[i].PlanRank < plans[j].PlanRank
-			}
-			return plans[i].DisplayWeight > plans[j].DisplayWeight
-		})
-	}
-
-	sortPlans(monthly)
-	sortPlans(yearly)
-
-	return &PricingOverview{
-		Bundle:    proto.Clone(ps.bundle).(*BundleProduct),
-		Monthly:   monthly,
-		Yearly:    yearly,
-		UpdatedAt: timestamppb.Now(),
-	}, nil
+	return commerce.BuildPricingOverview(ps.bundle, ps.plans)
 }
 
 // ListBundleCatalog returns all bundles with their prices for admin UI.
@@ -351,29 +299,7 @@ func (ps *PlanStore) ListBundleCatalog(ctx context.Context) ([]BundleCatalogEntr
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
 
-	if ps.bundle == nil {
-		return []BundleCatalogEntry{}, nil
-	}
-
-	prices := make([]*PlanOption, 0, len(ps.plans))
-	for _, plan := range ps.plans {
-		prices = append(prices, proto.Clone(plan).(*PlanOption))
-	}
-
-	// Sort by display weight and plan rank
-	sort.SliceStable(prices, func(i, j int) bool {
-		if prices[i].DisplayWeight == prices[j].DisplayWeight {
-			return prices[i].PlanRank < prices[j].PlanRank
-		}
-		return prices[i].DisplayWeight > prices[j].DisplayWeight
-	})
-
-	return []BundleCatalogEntry{
-		{
-			Bundle: proto.Clone(ps.bundle).(*BundleProduct),
-			Prices: prices,
-		},
-	}, nil
+	return commerce.BuildBundleCatalog(ps.bundle, ps.plans), nil
 }
 
 // AddPlan adds a new plan to the store.
@@ -386,7 +312,7 @@ func (ps *PlanStore) AddPlan(plan *PlanOption) (*PlanOption, error) {
 	}
 
 	cloned := proto.Clone(plan).(*PlanOption)
-	if err := normalizePlanOption(cloned, ps.bundleKey); err != nil {
+	if err := commerce.NormalizePlanOption(cloned, ps.bundleKey); err != nil {
 		return nil, err
 	}
 
@@ -408,50 +334,6 @@ func (ps *PlanStore) AddPlan(plan *PlanOption) (*PlanOption, error) {
 	return proto.Clone(cloned).(*PlanOption), nil
 }
 
-func normalizeStripeImportSelections(selections []ImportPlanSelection) ([]ImportPlanSelection, []string, error) {
-	if len(selections) == 0 {
-		return nil, nil, errStripeImportNoSelections
-	}
-
-	normalizedSelections := make([]ImportPlanSelection, 0, len(selections))
-	seenSelections := make(map[string]struct{}, len(selections))
-	var errorsList []string
-
-	for _, selection := range selections {
-		priceID := strings.TrimSpace(selection.PriceID)
-		if priceID == "" {
-			errorsList = append(errorsList, "empty price ID in selection")
-			continue
-		}
-		if _, err := normalizeStripePriceID(priceID); err != nil {
-			errorsList = append(errorsList, fmt.Sprintf("invalid price id %s: %s", priceID, err.Error()))
-			continue
-		}
-		action := strings.ToLower(strings.TrimSpace(selection.Action))
-		switch action {
-		case "import", "overwrite", "skip":
-		default:
-			errorsList = append(errorsList, "unknown action: "+selection.Action)
-			continue
-		}
-		if _, exists := seenSelections[priceID]; exists {
-			errorsList = append(errorsList, "duplicate selection for price "+priceID)
-			continue
-		}
-		seenSelections[priceID] = struct{}{}
-		normalizedSelections = append(normalizedSelections, ImportPlanSelection{
-			PriceID: priceID,
-			Action:  action,
-		})
-	}
-
-	if len(normalizedSelections) == 0 {
-		return nil, errorsList, errStripeImportNoValidSelections
-	}
-
-	return normalizedSelections, errorsList, nil
-}
-
 // ApplyStripeImportSelections batches Stripe import updates into the plan store with a single save.
 func (ps *PlanStore) ApplyStripeImportSelections(ctx context.Context, selections []ImportPlanSelection, fetcher StripePriceFetcher) (*StripeImportResult, error) {
 	ps.mu.Lock()
@@ -465,7 +347,7 @@ func (ps *PlanStore) ApplyStripeImportSelections(ctx context.Context, selections
 		return result, errStripeImportBundleMissing
 	}
 
-	normalizedSelections, errorsList, err := normalizeStripeImportSelections(selections)
+	normalizedSelections, errorsList, err := commerce.NormalizeStripeImportSelections(selections)
 	if len(errorsList) > 0 {
 		result.Errors = append(result.Errors, errorsList...)
 	}
@@ -506,13 +388,13 @@ func (ps *PlanStore) ApplyStripeImportSelections(ctx context.Context, selections
 
 			if idx, exists := planIndex[selection.PriceID]; exists {
 				if selection.Action == "overwrite" {
-					name := planNameFromStripeImport(priceDetails)
+					name := commerce.PlanNameFromStripeImport(priceDetails)
 					displayEnabled := priceDetails.Active
 					input := UpdateBundlePriceInput{
 						PlanName:       &name,
 						DisplayEnabled: &displayEnabled,
 					}
-					derivedTier, ok := derivePlanTierFromStripe(priceDetails)
+					derivedTier, ok := commerce.DerivePlanTierFromStripe(priceDetails)
 					if !ok {
 						derivedTier = ""
 					}
@@ -529,8 +411,8 @@ func (ps *PlanStore) ApplyStripeImportSelections(ctx context.Context, selections
 				continue
 			}
 
-			plan := stripePriceImportToPlanOption(priceDetails)
-			if err := normalizePlanOption(plan, ps.bundleKey); err != nil {
+			plan := commerce.StripePriceImportToPlanOption(priceDetails)
+			if err := commerce.NormalizePlanOption(plan, ps.bundleKey); err != nil {
 				result.Errors = append(result.Errors, "failed to normalize "+selection.PriceID+": "+err.Error())
 				continue
 			}
@@ -583,7 +465,7 @@ func (ps *PlanStore) SetPlans(bundle *BundleProduct, plans []*PlanOption) error 
 
 	if bundle != nil {
 		clonedBundle := proto.Clone(bundle).(*BundleProduct)
-		if err := normalizeBundleProduct(clonedBundle, ps.bundleKey, ps.displayEnv); err != nil {
+		if err := commerce.NormalizeBundle(clonedBundle, ps.bundleKey, ps.displayEnv); err != nil {
 			return err
 		}
 		ps.bundle = clonedBundle
@@ -593,7 +475,7 @@ func (ps *PlanStore) SetPlans(bundle *BundleProduct, plans []*PlanOption) error 
 	seenPriceIDs := make(map[string]struct{}, len(plans))
 	for _, plan := range plans {
 		cloned := proto.Clone(plan).(*PlanOption)
-		if err := normalizePlanOption(cloned, ps.bundleKey); err != nil {
+		if err := commerce.NormalizePlanOption(cloned, ps.bundleKey); err != nil {
 			return err
 		}
 		if _, exists := seenPriceIDs[cloned.StripePriceId]; exists {
@@ -633,28 +515,6 @@ func convertProtoMetadataToMap(m map[string]*commonv1.JsonValue) map[string]inte
 	return result
 }
 
-func mapIntroPricingTypeFromString(s string) shared.IntroPricingType {
-	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "percentage", "percent", "pct":
-		return shared.IntroPricingType_INTRO_PRICING_TYPE_PERCENTAGE
-	case "flat_amount", "flat-amount", "flat", "amount":
-		return shared.IntroPricingType_INTRO_PRICING_TYPE_FLAT_AMOUNT
-	default:
-		return shared.IntroPricingType_INTRO_PRICING_TYPE_UNSPECIFIED
-	}
-}
-
-func introPricingTypeString(t shared.IntroPricingType) string {
-	switch t {
-	case shared.IntroPricingType_INTRO_PRICING_TYPE_PERCENTAGE:
-		return "percentage"
-	case shared.IntroPricingType_INTRO_PRICING_TYPE_FLAT_AMOUNT:
-		return "flat_amount"
-	default:
-		return ""
-	}
-}
-
 // resolvePlansPath finds the plans.json file.
 func resolvePlansPath() string {
 	candidates := []string{
@@ -667,134 +527,4 @@ func resolvePlansPath() string {
 		}
 	}
 	return filepath.Join("..", ".vrooli", "plans.json")
-}
-
-func normalizeBundleProduct(bundle *BundleProduct, bundleKeyFallback, envFallback string) error {
-	if bundle == nil {
-		return fmt.Errorf("bundle is required")
-	}
-
-	bundle.BundleKey = strings.TrimSpace(bundle.BundleKey)
-	if bundle.BundleKey == "" {
-		bundle.BundleKey = strings.TrimSpace(bundleKeyFallback)
-	}
-	if bundle.BundleKey == "" {
-		return fmt.Errorf("bundle_key is required")
-	}
-	if bundleKeyFallback != "" && bundle.BundleKey != bundleKeyFallback {
-		return fmt.Errorf("bundle_key mismatch: expected %s", bundleKeyFallback)
-	}
-
-	bundle.Name = strings.TrimSpace(bundle.Name)
-	if bundle.Name == "" {
-		return fmt.Errorf("bundle name is required")
-	}
-
-	bundle.StripeProductId = strings.TrimSpace(bundle.StripeProductId)
-	if bundle.StripeProductId == "" {
-		return fmt.Errorf("stripe_product_id is required")
-	}
-
-	if bundle.CreditsPerUsd <= 0 {
-		return fmt.Errorf("credits_per_usd must be > 0")
-	}
-
-	if bundle.DisplayCreditsMultiplier <= 0 {
-		bundle.DisplayCreditsMultiplier = 1
-	}
-	if strings.TrimSpace(bundle.DisplayCreditsLabel) == "" {
-		bundle.DisplayCreditsLabel = "credits"
-	}
-
-	if strings.TrimSpace(bundle.Environment) == "" {
-		bundle.Environment = strings.TrimSpace(envFallback)
-		if bundle.Environment == "" {
-			bundle.Environment = "production"
-		}
-	}
-
-	return nil
-}
-
-func normalizePlanOption(plan *PlanOption, bundleKey string) error {
-	if plan == nil {
-		return fmt.Errorf("plan is required")
-	}
-
-	priceID, err := normalizeStripePriceID(plan.StripePriceId)
-	if err != nil {
-		return err
-	}
-	plan.StripePriceId = priceID
-
-	name, err := normalizePlanName(plan.PlanName)
-	if err != nil {
-		return err
-	}
-	plan.PlanName = name
-
-	tier, err := normalizePlanTier(plan.PlanTier)
-	if err != nil {
-		return err
-	}
-	plan.PlanTier = tier
-
-	if err := validateBillingInterval(plan.BillingInterval); err != nil {
-		return err
-	}
-
-	currency, err := normalizeCurrency(plan.Currency)
-	if err != nil {
-		return err
-	}
-	plan.Currency = currency
-
-	if plan.AmountCents < 0 {
-		return fmt.Errorf("amount_cents must be >= 0")
-	}
-	if plan.MonthlyIncludedCredits < 0 {
-		return fmt.Errorf("monthly_included_credits must be >= 0")
-	}
-	if plan.OneTimeBonusCredits < 0 {
-		return fmt.Errorf("one_time_bonus_credits must be >= 0")
-	}
-	if plan.PlanRank < 0 {
-		return fmt.Errorf("plan_rank must be >= 0")
-	}
-	if plan.DisplayWeight < 0 {
-		return fmt.Errorf("display_weight must be >= 0")
-	}
-
-	expectedKind := planKindForTier(plan.PlanTier)
-	if plan.Kind == shared.PlanKind_PLAN_KIND_UNSPECIFIED {
-		plan.Kind = expectedKind
-	} else if plan.Kind != expectedKind {
-		return fmt.Errorf("plan_kind %s does not match plan_tier %s", planKindString(plan.Kind), plan.PlanTier)
-	}
-
-	plan.BundleKey = bundleKey
-	if err := validatePlanTierConstraints(plan); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func validatePlanTierConstraints(plan *PlanOption) error {
-	if plan == nil {
-		return nil
-	}
-
-	switch plan.PlanTier {
-	case "free":
-		if plan.AmountCents != 0 {
-			return fmt.Errorf("free plan amount_cents must be 0")
-		}
-	case "credits", "donation":
-		if plan.BillingInterval != shared.BillingInterval_BILLING_INTERVAL_ONE_TIME {
-			return fmt.Errorf("%s plans must use one_time billing_interval", plan.PlanTier)
-		}
-	}
-
-	return nil
 }

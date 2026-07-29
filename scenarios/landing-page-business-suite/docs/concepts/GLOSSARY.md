@@ -118,4 +118,4 @@ A comprehensive reference for terminology used throughout the Landing Page Busin
 - [Core Concepts](CONCEPTS.md) - Detailed explanations with diagrams
 - [Architecture](ARCHITECTURE.md) - System design and component relationships
 - [Configuration Guide](../guides/CONFIGURATION_GUIDE.md) - All config file formats
-- [API Reference](../reference/api/README.md) - Endpoint documentation
+- [API Reference](../reference/api/OVERVIEW.md) - Endpoint documentation

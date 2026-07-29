@@ -11,6 +11,8 @@ import (
 	"sync"
 	"testing"
 
+	"landing-page-business-suite-api/internal/commerce"
+
 	"landing-page-business-suite-api/internal/envx"
 )
 
@@ -248,13 +250,18 @@ func requireTestPlanService(t *testing.T) *PlanService {
 // payment_anomaly_log pipeline.
 type StripeTestStore interface {
 	StripeServiceStore
-	PaymentAnomalyStore
+	commerce.PaymentAnomalyStore
 }
 
 func requireTestStripeService(t *testing.T, db StripeTestStore) *StripeService {
 	t.Helper()
 	svc := NewStripeServiceWithSettings(db, requireTestPlanService(t), NewPaymentSettingsService(db))
-	anomaly := NewPaymentAnomalyService(context.Background(), db, context.Background())
+	anomaly := commerce.NewPaymentAnomalyService(context.Background(), db, context.Background(), commerce.PaymentAnomalyRuntime{
+		ScenarioName:   "landing-page-business-suite",
+		NormalizeEmail: NormalizeEmail,
+		Log:            logStructured,
+		LogError:       logStructuredError,
+	})
 	svc.SetPaymentAnomaly(anomaly)
 	return svc
 }

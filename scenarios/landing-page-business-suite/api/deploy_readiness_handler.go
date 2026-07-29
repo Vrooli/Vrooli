@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/delivery"
 )
 
@@ -36,7 +37,7 @@ type DeployReadinessResponse struct {
 // handleDeployReadiness runs the server-side equivalent of the CLI
 // `deploy-readiness` checks: storage configured, app exists, and (when a
 // remote-profile tag is supplied) the profile is registered.
-func handleDeployReadiness(downloadHosting *delivery.Service, downloadService *DownloadService, remoteProfiles *RemoteProfileService, planService *PlanService) http.HandlerFunc {
+func handleDeployReadiness(downloadHosting *delivery.Service, downloadService *DownloadService, remoteProfiles *administration.RemoteProfileService, planService *PlanService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req DeployReadinessRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err.Error() != "EOF" {
@@ -109,7 +110,7 @@ func checkAppGate(downloadService *DownloadService, bundleKey, appKey string) De
 	return gate
 }
 
-func checkRemoteProfileGate(ctx context.Context, remoteProfiles *RemoteProfileService, tag string) DeployReadinessGate {
+func checkRemoteProfileGate(ctx context.Context, remoteProfiles *administration.RemoteProfileService, tag string) DeployReadinessGate {
 	gate := DeployReadinessGate{Name: "remote_profile_registered"}
 	profiles, err := remoteProfiles.List(ctx)
 	if err != nil {

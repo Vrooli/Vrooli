@@ -14,6 +14,7 @@ import (
 	"time"
 
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // webhookTimestampTolerance defines the maximum age of webhook timestamps
@@ -315,7 +316,7 @@ func (s *StripeService) createSubscriptionSchedule(tx *sql.Tx, subscriptionID st
 		"plan_rank":          plan.PlanRank,
 		"intro_enabled":      plan.IntroEnabled,
 		"intro_periods":      plan.IntroPeriods,
-		"billing_interval":   billingIntervalLabel(plan.BillingInterval),
+		"billing_interval":   commerce.BillingIntervalLabel(plan.BillingInterval),
 		"subscription_price": plan.AmountCents,
 	}
 	metaBytes, _ := json.Marshal(meta)
@@ -338,7 +339,7 @@ func (s *StripeService) createSubscriptionSchedule(tx *sql.Tx, subscriptionID st
 			status = 'active',
 			metadata = EXCLUDED.metadata,
 			updated_at = NOW()
-	`, scheduleID, subscriptionID, plan.StripePriceId, billingIntervalLabel(plan.BillingInterval),
+	`, scheduleID, subscriptionID, plan.StripePriceId, commerce.BillingIntervalLabel(plan.BillingInterval),
 		plan.IntroEnabled, plan.IntroAmountCents, plan.IntroPeriods, amountCents,
 		nextBilling, string(metaBytes))
 	if err != nil {
@@ -484,12 +485,12 @@ func (s *StripeService) persistInvoiceStatus(subscriptionID, customerID, custome
 		}
 	}
 	if strings.TrimSpace(planTier) == "" && strings.TrimSpace(priceID) != "" {
-		if inferred, ok := detectTierToken(priceID); ok {
+		if inferred, ok := commerce.DetectTierToken(priceID); ok {
 			planTier = inferred
 		}
 	}
 	if strings.TrimSpace(planTier) != "" {
-		if _, err := normalizePlanTier(planTier); err != nil {
+		if _, err := commerce.NormalizePlanTier(planTier); err != nil {
 			logStructured("stripe_subscription_plan_tier_invalid", map[string]interface{}{
 				"level":        "warn",
 				"plan_tier":    planTier,

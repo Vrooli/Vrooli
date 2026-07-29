@@ -86,13 +86,9 @@ func createTestAPIKeyService(t *testing.T, httpClient HTTPDoer) (*APIKeyService,
 		httpClient = &mockHTTPDoer{statusCode: 200}
 	}
 
-	// Service without encryption key (development mode) with SQLite dialect
-	svc := &APIKeyService{
-		db:            db,
-		encryptionKey: nil,
-		httpClient:    httpClient,
-		dialects:      NewDialectHelper("sqlite"),
-	}
+	// Service without encryption key (development mode) with SQLite dialect.
+	// Construct through the Account domain rather than reaching into its fields.
+	svc := newAPIKeyServiceForTest(db, httpClient, "sqlite", nil)
 
 	return svc, db
 }
@@ -112,12 +108,7 @@ func createTestAPIKeyServiceWithEncryption(t *testing.T, httpClient HTTPDoer) (*
 		encryptionKey[i] = byte(i)
 	}
 
-	svc := &APIKeyService{
-		db:            db,
-		encryptionKey: encryptionKey,
-		httpClient:    httpClient,
-		dialects:      NewDialectHelper("sqlite"),
-	}
+	svc := newAPIKeyServiceForTest(db, httpClient, "sqlite", encryptionKey)
 
 	return svc, db
 }
@@ -1125,7 +1116,7 @@ func TestTestOpenAI_Success(t *testing.T) {
 	defer db.Close()
 
 	ctx := context.Background()
-	success, message := svc.testOpenAI(ctx, "sk-openai-test")
+	success, message := svc.TestOpenAIProvider(ctx, "sk-openai-test")
 
 	if !success {
 		t.Errorf("Expected success=true, got false with message: %s", message)
@@ -1153,7 +1144,7 @@ func TestTestOpenAI_InvalidKey(t *testing.T) {
 	defer db.Close()
 
 	ctx := context.Background()
-	success, message := svc.testOpenAI(ctx, "invalid-key")
+	success, message := svc.TestOpenAIProvider(ctx, "invalid-key")
 
 	if success {
 		t.Error("Expected success=false for 401 response")
@@ -1169,7 +1160,7 @@ func TestTestOpenAI_ConnectionError(t *testing.T) {
 	defer db.Close()
 
 	ctx := context.Background()
-	success, message := svc.testOpenAI(ctx, "sk-test")
+	success, message := svc.TestOpenAIProvider(ctx, "sk-test")
 
 	if success {
 		t.Error("Expected success=false for connection error")
@@ -1185,7 +1176,7 @@ func TestTestAnthropic_Success(t *testing.T) {
 	defer db.Close()
 
 	ctx := context.Background()
-	success, message := svc.testAnthropic(ctx, "sk-ant-test")
+	success, message := svc.TestAnthropicProvider(ctx, "sk-ant-test")
 
 	if !success {
 		t.Errorf("Expected success=true, got false with message: %s", message)
@@ -1213,7 +1204,7 @@ func TestTestAnthropic_RateLimited(t *testing.T) {
 	defer db.Close()
 
 	ctx := context.Background()
-	success, message := svc.testAnthropic(ctx, "sk-ant-test")
+	success, message := svc.TestAnthropicProvider(ctx, "sk-ant-test")
 
 	// 429 should still indicate the key is valid (just rate limited)
 	if !success {
@@ -1227,7 +1218,7 @@ func TestTestAnthropic_BadRequest(t *testing.T) {
 	defer db.Close()
 
 	ctx := context.Background()
-	success, message := svc.testAnthropic(ctx, "sk-ant-test")
+	success, message := svc.TestAnthropicProvider(ctx, "sk-ant-test")
 
 	// 400 should still indicate the key is valid (just validation error)
 	if !success {

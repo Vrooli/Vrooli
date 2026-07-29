@@ -20,7 +20,7 @@ func TestHandleAdminRemoteProfiles_CreateAndList(t *testing.T) {
 
 	svc := newRemoteProfileServiceForTest(db, nil)
 	sessionMgr := initSessionManager()
-	server := &Server{db: db, sessionManager: sessionMgr, remoteProfileService: svc}
+	server := &Server{db: db, sessionManager: sessionMgr, remoteProfileService: svc.domain()}
 
 	createReq := []byte(`{"tag":"prod","label":"Production","api_base":"https://example.com/api/v1"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/remote-profiles", bytes.NewBuffer(createReq))

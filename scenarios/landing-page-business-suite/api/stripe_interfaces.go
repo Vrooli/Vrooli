@@ -5,6 +5,7 @@ import (
 
 	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // StripeCheckoutService handles checkout session creation and price verification.
@@ -70,7 +71,7 @@ type StripeAdminService interface {
 	ListStripeProductsWithPrices(ctx context.Context, planStore *PlanStore) (*StripeImportPreview, error)
 
 	// FetchStripePriceDetails fetches detailed price info from Stripe.
-	FetchStripePriceDetails(ctx context.Context, priceID string) (*StripePriceImport, error)
+	FetchStripePriceDetails(ctx context.Context, priceID string) (*commerce.StripePriceImport, error)
 
 	// ConfigSnapshot returns the current Stripe configuration.
 	ConfigSnapshot() *landing_page_business_suite_v1.StripeConfigSnapshot

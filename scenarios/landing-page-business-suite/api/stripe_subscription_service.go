@@ -15,6 +15,7 @@ import (
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // --- StripeSubscriptionService Interface Implementation ---
@@ -106,7 +107,7 @@ func (s *StripeService) VerifySubscription(userIdentity string) (*shared.Subscri
 			}
 		}
 		if planTier.String != "" {
-			if _, err := normalizePlanTier(planTier.String); err != nil {
+			if _, err := commerce.NormalizePlanTier(planTier.String); err != nil {
 				logStructured("stripe_subscription_plan_tier_invalid", map[string]interface{}{
 					"level":        "warn",
 					"plan_tier":    planTier.String,
@@ -332,12 +333,12 @@ func (s *StripeService) persistSubscriptionFromStripe(userHint string, sub *stri
 		}
 	}
 	if strings.TrimSpace(planTier) == "" && strings.TrimSpace(priceID) != "" {
-		if inferred, ok := detectTierToken(priceID); ok {
+		if inferred, ok := commerce.DetectTierToken(priceID); ok {
 			planTier = inferred
 		}
 	}
 	if strings.TrimSpace(planTier) != "" {
-		if _, err := normalizePlanTier(planTier); err != nil {
+		if _, err := commerce.NormalizePlanTier(planTier); err != nil {
 			logStructured("stripe_subscription_plan_tier_invalid", map[string]interface{}{
 				"level":        "warn",
 				"plan_tier":    planTier,

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"landing-page-business-suite-api/internal/administration"
 )
 
 func TestHandleAdminListIncomingRemoteProfileSessions(t *testing.T) {
@@ -16,7 +17,7 @@ func TestHandleAdminListIncomingRemoteProfileSessions(t *testing.T) {
 		INSERT INTO admin_sessions (id, admin_email, expires_at, ip_address, user_agent, created_at, last_activity)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 	`, "remote-session-1", "admin@localhost", time.Now().Add(1*time.Hour), "127.0.0.1",
-		buildRemoteProfileSessionUserAgent(RemoteProfileSessionMetadata{
+		administration.BuildRemoteProfileSessionUserAgent(administration.RemoteProfileSessionMetadata{
 			ConnectorID: "connector-1",
 			ProfileTag:  "prod",
 			Origin:      "local-dev",
@@ -36,7 +37,7 @@ func TestHandleAdminListIncomingRemoteProfileSessions(t *testing.T) {
 	if err := db.QueryRow(`SELECT user_agent FROM admin_sessions WHERE id = $1`, "remote-session-1").Scan(&storedUA); err != nil {
 		t.Fatalf("read user_agent: %v", err)
 	}
-	if _, ok := parseRemoteProfileSessionUserAgent(storedUA); !ok {
+	if _, ok := administration.ParseRemoteProfileSessionUserAgent(storedUA); !ok {
 		t.Fatalf("stored user agent should parse, got %q", storedUA)
 	}
 
@@ -68,7 +69,7 @@ func TestHandleAdminRevokeIncomingRemoteProfileSession(t *testing.T) {
 		INSERT INTO admin_sessions (id, admin_email, expires_at, ip_address, user_agent, created_at, last_activity)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 	`, "remote-session-2", "admin@localhost", time.Now().Add(1*time.Hour), "127.0.0.1",
-		buildRemoteProfileSessionUserAgent(RemoteProfileSessionMetadata{ConnectorID: "connector-2"}),
+		administration.BuildRemoteProfileSessionUserAgent(administration.RemoteProfileSessionMetadata{ConnectorID: "connector-2"}),
 		time.Now().Add(-5*time.Minute), time.Now().Add(-1*time.Minute))
 	if err != nil {
 		t.Fatalf("insert admin session: %v", err)

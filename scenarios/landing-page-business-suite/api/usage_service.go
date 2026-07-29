@@ -9,20 +9,11 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"landing-page-business-suite-api/internal/commerce"
 )
 
-// UsageStore is the context-aware persistence contract for usage records and
-// credit reservations.
-//
-// seam: UsageStore keeps metering persistence independent of a concrete pool
-// and preserves request-scoped test isolation.
-type UsageStore interface {
-	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-	ExecContext(context.Context, string, ...any) (sql.Result, error)
-	PingContext(context.Context) error
-	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
-}
+type UsageStore = commerce.UsageStore
 
 // UsageService tracks credit usage per user and billing period.
 type UsageService struct {
@@ -32,43 +23,11 @@ type UsageService struct {
 	dialect      string         // "postgres" or "sqlite"
 }
 
-// UsageRecord represents a single usage record.
-type UsageRecord struct {
-	ID              string     `json:"id"`
-	UserIdentity    string     `json:"user_identity"`
-	BillingPeriod   string     `json:"billing_period"` // YYYY-MM
-	LimitKey        string     `json:"limit_key"`
-	UsageAmount     int64      `json:"usage_amount"`
-	AppBundleKey    *string    `json:"app_bundle_key"`
-	LastOperationAt *time.Time `json:"last_operation_at,omitempty"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
-}
+type UsageRecord = commerce.UsageRecord
 
-// UsageReportRequest is a request to report usage from an app.
-type UsageReportRequest struct {
-	UserIdentity string            `json:"user_identity"`
-	LimitKey     string            `json:"limit_key"` // e.g., "ai_credits"
-	Amount       int64             `json:"amount"`    // In internal units (for cost_based) or simple count
-	AppBundleKey string            `json:"app_bundle_key"`
-	Operation    string            `json:"operation,omitempty"`    // e.g., "ai.analysis"
-	IsBYOK       bool              `json:"is_byok,omitempty"`      // True if user used their own API key
-	Metadata     map[string]string `json:"metadata,omitempty"`     // Additional context
-	OperationID  *string           `json:"operation_id,omitempty"` // Idempotency key - retries with same ID won't double-count
-}
+type UsageReportRequest = commerce.UsageReportRequest
 
-// UsageSummary summarizes usage for a user.
-type UsageSummary struct {
-	UserIdentity   string             `json:"user_identity"`
-	BillingPeriod  string             `json:"billing_period"`
-	Tier           string             `json:"tier,omitempty"`
-	Limits         map[string]int64   `json:"limits"`          // limit_key -> limit_value
-	Usage          map[string]int64   `json:"usage"`           // limit_key -> usage_amount
-	Remaining      map[string]int64   `json:"remaining"`       // limit_key -> remaining (or -1 for unlimited)
-	DisplayCredits map[string]float64 `json:"display_credits"` // limit_key -> display value (divided by 100000)
-	ResetDate      time.Time          `json:"reset_date"`
-	ByApp          map[string]int64   `json:"by_app,omitempty"` // app_bundle_key -> total usage
-}
+type UsageSummary = commerce.UsageSummary
 
 // NewUsageService creates a new usage service.
 func NewUsageService(db UsageStore, limitsSvc LimitsServicer, dialect string) *UsageService {
@@ -123,25 +82,12 @@ func getResetDate() time.Time {
 // If OperationID is provided, this operation is idempotent - duplicate requests with
 // the same operation_id will return success without incrementing usage.
 func (s *UsageService) RecordUsage(ctx context.Context, req UsageReportRequest) error {
-	userIdentity := strings.TrimSpace(strings.ToLower(req.UserIdentity))
-	limitKey := strings.TrimSpace(strings.ToLower(req.LimitKey))
-	appBundleKey := strings.TrimSpace(strings.ToLower(req.AppBundleKey))
-
-	if userIdentity == "" {
-		return fmt.Errorf("user_identity is required")
+	normalized, err := commerce.NormalizeUsageReport(req)
+	if err != nil {
+		return err
 	}
-	if limitKey == "" {
-		return fmt.Errorf("limit_key is required")
-	}
-	if req.Amount <= 0 && !req.IsBYOK {
-		return fmt.Errorf("amount must be positive")
-	}
-
-	// BYOK operations are logged with 0 amount
-	amount := req.Amount
-	if req.IsBYOK {
-		amount = 0
-	}
+	req, amount := normalized.UsageReportRequest, normalized.Amount
+	userIdentity, limitKey, appBundleKey := req.UserIdentity, req.LimitKey, req.AppBundleKey
 
 	// Idempotency check: if operation_id is provided, check if it was already processed
 	if req.OperationID != nil && *req.OperationID != "" {
@@ -204,7 +150,7 @@ func (s *UsageService) RecordUsage(ctx context.Context, req UsageReportRequest) 
 		`
 	}
 
-	_, err := s.db.ExecContext(ctx, query, userIdentity, billingPeriod, limitKey, amount, appKey, opID)
+	_, err = s.db.ExecContext(ctx, query, userIdentity, billingPeriod, limitKey, amount, appKey, opID)
 	if err != nil {
 		return fmt.Errorf("record usage: %w", err)
 	}
@@ -465,15 +411,7 @@ func (s *UsageService) ValidateServiceToken(token string) bool {
 	return subtle.ConstantTimeCompare([]byte(token), []byte(s.serviceToken)) == 1
 }
 
-// UsageHealthStatus contains the health status of the usage service.
-type UsageHealthStatus struct {
-	Healthy               bool       `json:"healthy"`
-	DatabaseConnected     bool       `json:"database_connected"`
-	ServiceAuthConfigured bool       `json:"service_auth_configured"`
-	ServiceAuthMode       string     `json:"service_auth_mode"`
-	LastRecordAt          *time.Time `json:"last_record_at,omitempty"`
-	RecordsThisPeriod     int64      `json:"records_this_period"`
-}
+type UsageHealthStatus = commerce.UsageHealthStatus
 
 // HealthCheck returns the health status of the usage service.
 func (s *UsageService) HealthCheck(ctx context.Context) (*UsageHealthStatus, error) {

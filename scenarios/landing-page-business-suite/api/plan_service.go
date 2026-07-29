@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"landing-page-business-suite-api/internal/commerce"
 	"landing-page-business-suite-api/internal/envx"
 
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
@@ -25,30 +26,30 @@ type (
 	PricingOverview = shared.PricingOverview
 )
 
-// StripePriceFetcher resolves Stripe price details for plan updates.
-type StripePriceFetcher func(ctx context.Context, priceID string) (*StripePriceImport, error)
-
-// ImportPlanSelection represents a single price selection for import.
-type ImportPlanSelection struct {
-	PriceID string `json:"price_id"`
-	Action  string `json:"action"` // "import", "overwrite", "skip"
-}
-
-// StripeImportMode controls how Stripe imports reconcile existing plans.
-type StripeImportMode string
-
-const (
-	StripeImportModeMerge   StripeImportMode = "merge"
-	StripeImportModeReplace StripeImportMode = "replace"
+type (
+	StripePriceFetcher     = commerce.StripePriceFetcher
+	ImportPlanSelection    = commerce.ImportPlanSelection
+	StripeImportMode       = commerce.StripeImportMode
+	StripeImportResult     = commerce.StripeImportResult
+	BundleCatalogEntry     = commerce.BundleCatalogEntry
+	UpdateBundlePriceInput = commerce.UpdateBundlePriceInput
+	CreateBundlePriceInput = commerce.CreateBundlePriceInput
 )
 
-// StripeImportResult contains the results of the import operation.
-type StripeImportResult struct {
-	Imported    int      `json:"imported"`
-	Overwritten int      `json:"overwritten"`
-	Skipped     int      `json:"skipped"`
-	Errors      []string `json:"errors,omitempty"`
-}
+const (
+	StripeImportModeMerge   = commerce.StripeImportModeMerge
+	StripeImportModeReplace = commerce.StripeImportModeReplace
+)
+
+var (
+	errStripeImportNoSelections                 = commerce.ErrStripeImportNoSelections
+	errStripeImportNoValidSelections            = commerce.ErrStripeImportNoValidSelections
+	errStripeImportMissingFetcher               = commerce.ErrStripeImportMissingFetcher
+	errStripeImportBundleMissing                = commerce.ErrStripeImportBundleMissing
+	errStripeImportBundleProductMissing         = commerce.ErrStripeImportBundleProductMissing
+	errStripeImportInvalidMode                  = commerce.ErrStripeImportInvalidMode
+	errStripeImportProductSwitchRequiresReplace = commerce.ErrStripeImportProductSwitchRequiresReplace
+)
 
 // NewPlanService creates a PlanService with a PlanStore. Plans are file-backed;
 // the ignored legacy argument keeps existing callers source-compatible while
@@ -147,47 +148,10 @@ func (s *PlanService) GetBundleProduct() (*BundleProduct, error) {
 	return bundle, nil
 }
 
-// BundleCatalogEntry groups a bundle with all of its prices (visible + hidden).
-type BundleCatalogEntry struct {
-	Bundle *BundleProduct `json:"bundle"`
-	Prices []*PlanOption  `json:"prices"`
-}
-
 // ListBundleCatalog returns bundles for the configured environment so the admin UI
 // can toggle prices without raw SQL edits.
 func (s *PlanService) ListBundleCatalog(ctx context.Context) ([]BundleCatalogEntry, error) {
 	return s.planStore.ListBundleCatalog(ctx)
-}
-
-// UpdateBundlePriceInput contains editable fields for price display metadata.
-type UpdateBundlePriceInput struct {
-	StripePriceID  *string
-	PlanName       *string
-	DisplayWeight  *int
-	DisplayEnabled *bool
-	Subtitle       *string
-	Badge          *string
-	CtaLabel       *string
-	Highlight      *bool
-	Features       *[]string
-}
-
-// CreateBundlePriceInput contains fields for creating a new plan in the plan store.
-type CreateBundlePriceInput struct {
-	StripePriceID          string
-	PlanName               string
-	PlanTier               string
-	BillingInterval        string
-	AmountCents            *int64
-	Currency               *string
-	DisplayWeight          *int32
-	DisplayEnabled         *bool
-	MonthlyIncludedCredits *int64
-	Subtitle               *string
-	Badge                  *string
-	CtaLabel               *string
-	Highlight              *bool
-	Features               []string
 }
 
 // UpdateBundlePrice applies display overrides for a Stripe price row.
@@ -210,21 +174,21 @@ func (s *PlanService) CreateBundlePrice(ctx context.Context, bundleKey string, i
 		return nil, fmt.Errorf("plan store not available")
 	}
 
-	priceID, err := normalizeStripePriceID(input.StripePriceID)
+	priceID, err := commerce.NormalizeStripePriceID(input.StripePriceID)
 	if err != nil {
 		return nil, err
 	}
-	planName, err := normalizePlanName(input.PlanName)
+	planName, err := commerce.NormalizePlanName(input.PlanName)
 	if err != nil {
 		return nil, err
 	}
-	planTier, err := normalizePlanTier(input.PlanTier)
+	planTier, err := commerce.NormalizePlanTier(input.PlanTier)
 	if err != nil {
 		return nil, err
 	}
 
-	billingInterval := mapBillingInterval(input.BillingInterval)
-	if err := validateBillingInterval(billingInterval); err != nil {
+	billingInterval := commerce.MapBillingInterval(input.BillingInterval)
+	if err := commerce.ValidateBillingInterval(billingInterval); err != nil {
 		return nil, err
 	}
 
@@ -252,8 +216,8 @@ func (s *PlanService) CreateBundlePrice(ctx context.Context, bundleKey string, i
 		DisplayWeight:          pricing.displayWeight,
 		DisplayEnabled:         pricing.displayEnabled,
 		MonthlyIncludedCredits: pricing.monthlyCredits,
-		PlanRank:               planRankForTier(planTier),
-		Kind:                   planKindForTier(planTier),
+		PlanRank:               commerce.PlanRankForTier(planTier),
+		Kind:                   commerce.PlanKindForTier(planTier),
 		BundleKey:              bundleKey,
 	}
 
@@ -281,7 +245,7 @@ func (s *PlanService) UpdateBundlePriceWithStripe(ctx context.Context, bundleKey
 		return nil, fmt.Errorf("plan store not available")
 	}
 
-	var stripeDetails *StripePriceImport
+	var stripeDetails *commerce.StripePriceImport
 	if input.StripePriceID != nil {
 		nextID := strings.TrimSpace(*input.StripePriceID)
 		if nextID != "" {
@@ -348,7 +312,7 @@ func (s *PlanService) ImportStripePricesForProduct(ctx context.Context, selectio
 
 	bundle.StripeProductId = normalizedProductID
 
-	normalizedSelections, _, err := normalizeStripeImportSelections(selections)
+	normalizedSelections, _, err := commerce.NormalizeStripeImportSelections(selections)
 	if err != nil {
 		return nil, err
 	}

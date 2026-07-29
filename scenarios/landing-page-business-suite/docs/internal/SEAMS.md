@@ -32,13 +32,15 @@ This document reflects the current code; claims here have been verified against 
 | metrics.WaitlistStore | `api/internal/metrics/waitlist.go` | `*database.RoutedDB` in API composition | `api/internal/testutil/mocks.FakeWaitlistStore` | Route context-aware waitlist persistence to Test Genie’s lease-owned pool. |
 | metrics.FeedbackStore | `api/internal/metrics/feedback.go` | `*database.RoutedDB` in API composition | `api/internal/testutil/mocks.FakeFeedbackStore` | Route context-aware feedback persistence to Test Genie’s lease-owned pool. |
 | main.AccountStore | `api/account_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in account service tests | Route subscription, credit, and entitlement reads to Test Genie’s lease-owned pool. |
-| main.UserManagementStore | `api/user_management_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in user-management service tests | Keep admin user and session operations transport-free and routed to Test Genie’s lease-owned pool. |
-| main.APIKeyStore | `api/apikeys_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in API-key service tests | Route encrypted provider-key reads and writes through the request-scoped database seam. |
-| main.UsageStore | `api/usage_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in usage service tests | Route credit usage and reservations through the request-scoped database seam. |
-| main.RemoteProfileStore | `api/remote_profiles_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in remote-profile service tests | Route encrypted remote-profile configuration and session operations through the request-scoped database seam. |
-| main.PaymentSettingsStore | `api/payment_settings_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in payment-settings service tests | Route Stripe and payment-anomaly configuration through the request-scoped database seam. |
-| main.PaymentAnomalyStore | `api/payment_anomaly_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in payment-anomaly tests | Route payment anomaly records and delivery state through the request-scoped database seam. |
-| main.LimitsStore | `api/limits_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in limits service tests | Route subscription-tier limits through the request-scoped database seam. |
+| account.UserManagementStore | `api/internal/account/user_management_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in user-management service tests | Keep admin user and session operations transport-free and routed to Test Genie’s lease-owned pool. |
+| account.APIKeyStore | `api/internal/account/apikeys_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in API-key service tests | Route encrypted provider-key reads and writes through the request-scoped database seam. |
+| commerce.UsageStore | `api/internal/commerce/usage_contracts.go` | `*database.RoutedDB` in API composition | `*sql.DB` in usage service tests | Route credit usage and reservations through the request-scoped database seam. |
+| administration.RemoteProfileStore | `api/internal/administration/remote_profiles_store.go` | `*database.RoutedDB` in API composition | `*sql.DB` in remote-profile service tests | Route encrypted remote-profile configuration and session operations through the request-scoped database seam. |
+| administration.HTTPDoer | `api/internal/administration/remote_profile_http.go` | `*http.Client` in remote-profile service composition | Test HTTP client in remote-profile service tests | Keep remote-profile login, session, and proxy traffic deterministic in tests without coupling administration logic to a concrete client. |
+| commerce.PaymentSettingsStore | `api/internal/commerce/payment_settings_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in payment-settings service tests | Route Stripe and payment-anomaly configuration through the request-scoped database seam. |
+| commerce.PaymentAnomalyStore | `api/internal/commerce/anomaly_dispatcher.go` | `*database.RoutedDB` in API composition | `*sql.DB` in payment-anomaly tests | Route payment anomaly records and delivery state through the request-scoped database seam. |
+| commerce.LimitsStore | `api/internal/commerce/limits_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in limits service tests | Route subscription-tier limits through the request-scoped database seam. |
+| content.SEOStore | `api/internal/content/seo_service.go` | `seoConfigStoreAdapter` in `api/seo_service.go` | `fakeSEOStore` in content SEO tests | Keep SEO policy and crawler-document generation independent of the JSON configuration implementation. |
 | main.UserAuthStore | `api/user_auth_service.go` | `*database.RoutedDB` in API composition | `*sql.DB` in user-auth service tests | Route user identities, magic links, and sessions through the request-scoped database seam. |
 | delivery.EntitlementLookup | `api/internal/delivery/authorizer.go` | `entitlementStatusLookup` in `api/download_service.go` | `entitlementStub` in `api/internal/delivery/authorizer_test.go` | Keep paid-download policy independent of account persistence. |
 | delivery.Storage | `api/internal/delivery/storage.go` | `delivery.S3StorageProvider` wired from API composition | `mockDownloadStorage` in `api/download_hosting_test.go` | Keep artifact hosting independent of an S3-compatible provider and preserve deterministic delivery-service tests. |
@@ -175,7 +177,7 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
   authentication; each service remains responsible for whether a missing key is
   permitted in development and is rejected in production.
 
-- **Remote profile service** (`api/remote_profiles_service.go`)  
+- **Remote profile service** (`api/internal/administration/remote_profile_service.go`)
   Centralizes remote admin sessions in one place and encrypts stored `admin_session` cookies at rest. The service owns validation of remote API bases, connector IDs, remote session linkage (`remote_session_id`), and status updates so handlers remain transport-only.
 
 - **HTTP client seam** (`RemoteProfileService.httpClient`)  

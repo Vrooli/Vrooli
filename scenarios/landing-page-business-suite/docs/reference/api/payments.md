@@ -378,5 +378,5 @@ On successful save, the server refreshes its in-memory anomaly-dispatch config s
 
 ## See Also
 
-- [API Overview](README.md)
+- [API Overview](OVERVIEW.md)
 - [Admin Guide - Stripe Setup](../../guides/ADMIN_GUIDE.md#stripe-setup)
