@@ -117,9 +117,11 @@ func TestSuiteExecutionRepositoryListPlanSamplesPreservesComparabilityKey(t *tes
 	db := testsqlite.Open(t)
 	repo := NewSuiteExecutionRepository(db)
 	now := time.Now().UTC()
-	record := &SuiteExecutionRecord{ID: uuid.New(), ScenarioName: "demo", Success: false, TerminalOutcome: TerminalOutcomeTimeout,
+	record := &SuiteExecutionRecord{
+		ID: uuid.New(), ScenarioName: "demo", Success: false, TerminalOutcome: TerminalOutcomeTimeout,
 		PhaseSetDigest: "phase-set:demo", DescriptorSnapshotDigest: "ds:demo", ConfigurationFingerprint: "execution-config:demo",
-		Phases: []phases.ExecutionResult{}, StartedAt: now.Add(-7 * time.Minute), CompletedAt: now}
+		Phases: []phases.ExecutionResult{}, StartedAt: now.Add(-7 * time.Minute), CompletedAt: now,
+	}
 	if err := repo.Create(context.Background(), record); err != nil {
 		t.Fatalf("create: %v", err)
 	}

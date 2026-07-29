@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/maturity-go/assessment"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
@@ -241,6 +242,11 @@ func TestScanProviderMetricsRequired(t *testing.T) {
 	// provider whose response carries no ExecutionMetrics is a hard violation.
 	repo := t.TempDir()
 	writeSpec(t, repo, "cli-health", "contracts")
+	// Isolate the metrics dimension: this provider does answer DescribeProvider,
+	// so only metrics is missing out of the six scored dimensions.
+	restore := stubDescribeProbe(nil)
+	defer restore()
+
 	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("cli-health", "contracts", false), nil), repo, "test-genie", "contracts", "cli-health", time.Second)
 	if pr.MetricsAdopted {
 		t.Fatal("expected metrics_adopted=false when the response carries no metrics")
@@ -248,8 +254,8 @@ func TestScanProviderMetricsRequired(t *testing.T) {
 	if !pr.HasHardViolation() {
 		t.Fatalf("a reachable provider that dropped metrics must be a hard violation: %+v", pr)
 	}
-	if pr.AdoptionScore != 0.8 {
-		t.Fatalf("adoption_score = %v, want 0.8", pr.AdoptionScore)
+	if want := 5.0 / 6.0; pr.AdoptionScore != want {
+		t.Fatalf("adoption_score = %v, want %v", pr.AdoptionScore, want)
 	}
 }
 
@@ -407,4 +413,55 @@ func containsViolation(violations []string, needle string) bool {
 		}
 	}
 	return false
+}
+
+// stubDescribeProbe replaces the live DescribeProvider probe for one test and
+// returns a restore func. Without it, unit tests would attempt real discovery.
+func stubDescribeProbe(err error) func() {
+	prev := DescribeProbe
+	DescribeProbe = func(context.Context, string, time.Duration) error { return err }
+	return func() { DescribeProbe = prev }
+}
+
+func TestScanProviderReportsDescribeProviderAdoption(t *testing.T) {
+	repo := t.TempDir()
+	writeSpec(t, repo, "cli-health", "contracts")
+
+	restore := stubDescribeProbe(nil)
+	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("cli-health", "contracts", true), nil), repo, "test-genie", "contracts", "cli-health", time.Second)
+	restore()
+	if !pr.DescribeAdopted {
+		t.Fatalf("adopting provider reported describeAdopted=false: %+v", pr)
+	}
+	if pr.AdoptionScore != 1.0 {
+		t.Fatalf("adoption_score = %v, want 1.0 for a fully conformant provider", pr.AdoptionScore)
+	}
+}
+
+func TestScanProviderFlagsUnadoptedDescribeProviderWithoutFailingIt(t *testing.T) {
+	repo := t.TempDir()
+	writeSpec(t, repo, "cli-health", "contracts")
+
+	restore := stubDescribeProbe(connect.NewError(connect.CodeUnimplemented, errors.New("not adopted")))
+	pr := ScanProvider(context.Background(), probeFn(validProbeResponse("cli-health", "contracts", true), nil), repo, "test-genie", "contracts", "cli-health", time.Second)
+	restore()
+
+	if pr.DescribeAdopted {
+		t.Fatal("provider returning Unimplemented was scored as having adopted DescribeProvider")
+	}
+	// The cost must be named...
+	var named bool
+	for _, v := range pr.Violations {
+		if strings.Contains(v, "DescribeProvider not adopted") {
+			named = true
+		}
+	}
+	if !named {
+		t.Errorf("the fallback cost was not surfaced in violations: %+v", pr.Violations)
+	}
+	// ...but non-adoption is advisory during migration, so it must not turn an
+	// otherwise-healthy provider into a hard violation.
+	if pr.HasHardViolation() {
+		t.Errorf("non-adoption was treated as a hard violation while the fleet is still migrating: %+v", pr)
+	}
 }

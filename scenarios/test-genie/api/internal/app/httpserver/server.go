@@ -274,7 +274,7 @@ func (s *Server) setupRoutes() {
 	// .vrooli/test-genie.json phase descriptors (descriptor, embedded maturity,
 	// policy, stale-file, and live provider-contract conformance).
 	if s.validationService != nil {
-		path, handler := scenariovalidationconnect.NewScenarioValidationServiceHandler(s.validationService)
+		path, handler := scenariovalidationconnect.NewScenarioValidationServiceHandler(s.validationService.Served())
 		s.router.PathPrefix(path).Handler(handler)
 	}
 

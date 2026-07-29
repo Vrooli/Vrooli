@@ -93,6 +93,12 @@
           "type": "string",
           "description": "Detailed description of what this requirement validates"
         },
+        "delivery_scope": {
+          "type": "string",
+          "enum": ["committed", "roadmap"],
+          "default": "committed",
+          "description": "Whether this requirement belongs to the current delivery commitment or a linked, deferred roadmap. Roadmap requirements remain traceable but do not contribute to delivery-completeness scoring."
+        },
         "status": {
           "type": "string",
           "enum": ["pending", "planned", "in_progress", "complete", "not_implemented"],

@@ -37,6 +37,19 @@ func (o *SuiteOrchestrator) checkProviderReadiness(
 	if manager == nil {
 		manager = providerreadiness.NewManager()
 	}
+	// Enable the staleness gate against this repo. Without a root the gate is
+	// inert, which is the fail-open default: a provider is never restarted on
+	// the strength of a root we could not resolve.
+	if manager.RepoRoot == "" {
+		manager.RepoRoot = o.repoRoot()
+	}
+	// The cooldown window spans runs, so its ledger has to outlive this one.
+	if manager.Ledger == nil {
+		if root := o.repoRoot(); root != "" {
+			manager.Ledger = providerreadiness.NewRestartLedgerAt(
+				filepath.Join(root, "scenarios", "test-genie", "coverage", "runtime", "provider-restarts.json"))
+		}
+	}
 
 	for _, def := range defs {
 		policy := def.Policy
@@ -104,4 +117,18 @@ func (o *SuiteOrchestrator) newProviderReadinessPhaseResult(def phases.Definitio
 		Remediation:     providerreadiness.Remediation(outcome),
 		Observations:    []phases.Observation{obs},
 	}
+}
+
+// repoRoot resolves the repository root from the scenarios root the
+// orchestrator was constructed with. Returning "" disables the provider
+// staleness gate, which is the safe direction.
+func (o *SuiteOrchestrator) repoRoot() string {
+	if o == nil || strings.TrimSpace(o.scenariosRoot) == "" {
+		return ""
+	}
+	abs, err := filepath.Abs(o.scenariosRoot)
+	if err != nil {
+		return ""
+	}
+	return filepath.Dir(abs)
 }

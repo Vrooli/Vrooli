@@ -82,6 +82,16 @@ Declares child requirement files to import.
 | `status` | enum | See Status Values | Implementation progress |
 | `prd_ref` | string | - | Reference to PRD |
 
+#### Delivery scope
+
+`delivery_scope` is optional and defaults to `committed`. Use
+`"delivery_scope": "roadmap"` only for a linked, deferred capability that is
+intentionally outside the scenario's current delivery commitment. Roadmap
+requirements remain in the registry, must retain a valid `prd_ref`, and remain
+visible in reporting; they do not dilute current delivery-completeness or
+operational-target scores. Do not use this field to defer a P0 capability that
+the approved product contract requires for the current release.
+
 #### Title/Description Wording (EARS + RFC 2119)
 
 Write `title` (and `description`) as an **EARS** statement — a falsifiable

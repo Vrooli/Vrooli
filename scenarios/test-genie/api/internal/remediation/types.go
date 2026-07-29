@@ -196,8 +196,10 @@ func newAttempt(kind, state, key, roleRef, detail string, now time.Time) Attempt
 }
 
 func NewJob(plan Plan, selected, requirements []string, context string, now time.Time) Job {
-	job := Job{ID: uuid.NewString(), Scenario: plan.Scenario, Status: JobStatusCreated, Source: plan,
-		SelectedFindingIDs: normalizedIDs(selected), SelectedRequirementIDs: normalizedIDs(requirements), AdditionalContext: strings.TrimSpace(context), CreatedAt: now.UTC(), UpdatedAt: now.UTC()}
+	job := Job{
+		ID: uuid.NewString(), Scenario: plan.Scenario, Status: JobStatusCreated, Source: plan,
+		SelectedFindingIDs: normalizedIDs(selected), SelectedRequirementIDs: normalizedIDs(requirements), AdditionalContext: strings.TrimSpace(context), CreatedAt: now.UTC(), UpdatedAt: now.UTC(),
+	}
 	job.SourceHash = sourceHash(job.Source)
 	job.SelectionHash = selectionHash(job.SelectedFindingIDs, job.SelectedRequirementIDs)
 	return job

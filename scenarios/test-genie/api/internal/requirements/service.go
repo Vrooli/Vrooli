@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"log"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"test-genie/internal/orchestrator/phases"
@@ -174,6 +175,13 @@ func (s *Service) Sync(ctx context.Context, input SyncInput) (*SyncReport, error
 		evidenceBundle.PhaseResults.Merge(phaseEvidence)
 	}
 
+	// Provider phase results are intentionally compact: a provider may attest
+	// that its test command passed without serializing every test case. Preserve
+	// requirement traceability in that case only when the declared validation
+	// points at a test file that explicitly carries the requirement tag. This is
+	// execution evidence (the phase passed), not a source-only status promotion.
+	s.addTaggedTestEvidence(index, evidenceBundle, input.ScenarioDir)
+
 	// 5. Enrich requirements with live status
 	if err := s.enricher.Enrich(ctx, index, evidenceBundle); err != nil {
 		return nil, fmt.Errorf("enrichment: %w", err)
@@ -215,6 +223,57 @@ func (s *Service) Sync(ctx context.Context, input SyncInput) (*SyncReport, error
 		Changes:      collectStatusChanges(index, result.Changes),
 	}
 	return report, nil
+}
+
+// addTaggedTestEvidence derives per-requirement evidence from a passed test
+// phase when that phase did not publish individual test records. A validation
+// must name a readable test file and that file must explicitly tag its owning
+// requirement as [REQ:ID] (or the legacy [ID] form). No record is created for
+// failed, skipped, or unknown phases.
+func (s *Service) addTaggedTestEvidence(index *parsing.ModuleIndex, bundle *types.EvidenceBundle, scenarioDir string) {
+	if index == nil || bundle == nil {
+		return
+	}
+
+	for _, req := range index.AllRequirements() {
+		for _, validation := range req.Validations {
+			if !validation.IsTest() || strings.TrimSpace(validation.Ref) == "" {
+				continue
+			}
+
+			phase := strings.ToLower(strings.TrimSpace(validation.Phase))
+			if phase == "" {
+				phase = "unit"
+			}
+			if evidence.GetPhaseStatus(bundle.PhaseResults, phase) != types.LivePassed {
+				continue
+			}
+
+			ref := validation.Ref
+			path := ref
+			if !filepath.IsAbs(path) {
+				path = filepath.Join(scenarioDir, path)
+			}
+			source, err := s.reader.ReadFile(path)
+			if err != nil || !hasRequirementTag(string(source), req.ID) {
+				continue
+			}
+
+			bundle.PhaseResults.Add(types.EvidenceRecord{
+				RequirementID: req.ID,
+				ValidationRef: ref,
+				Status:        types.LivePassed,
+				Phase:         phase,
+				Evidence:      "passed " + phase + " phase with tagged test reference",
+				SourcePath:    ref,
+			})
+		}
+	}
+}
+
+func hasRequirementTag(source, requirementID string) bool {
+	return strings.Contains(source, "[REQ:"+requirementID+"]") ||
+		strings.Contains(source, "["+requirementID+"]")
 }
 
 // Snapshot reads the last persisted requirement state without writing anything.

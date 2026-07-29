@@ -114,28 +114,25 @@ func runWait(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 		return err
 	}
 
-	// Inside an agent-manager run, park instead of blocking: agent-manager owns
-	// the agent process and performs the wait on its behalf, waking the run with
-	// the result injected as the next turn (zero tokens while parked). Outside an
-	// AM run this is a no-op (parked=false) and we fall through to the normal
-	// blocking wait — human / CI / raw-terminal behaviour is unchanged.
-	// JSON wait is the documented machine contract: it must return a real
-	// WaitRun snapshot and exit code. Parking here can return success before a
-	// queued run is dispatched when the caller's agent host does not deliver the
-	// wake callback. Human waits may still park to save an agent turn.
-	if !*jsonOut {
-		if park, parked, perr := parkForAwait(cliutil.ParkRequest{
-			Producer: cliutil.ParkProducerTestGenie,
-			Key:      scenario + "/" + runID,
-		}); parked {
-			if perr == nil {
-				fmt.Fprintln(w, park.Message)
-				return nil
-			}
-			// We are in an AM run but park failed — degrade gracefully to the inline
-			// wait (no worse than before park existed).
-			fmt.Fprintf(stderrOut, "agent-manager park unavailable (%v) — waiting inline instead\n", perr)
+	// Inside an agent-manager run, park instead of holding the agent's command
+	// turn open. This applies equally to the canonical --json wait: agents are
+	// instructed to use that form, and making it wait inline lets a host-side
+	// command deadline be mistaken for a stalled Test Genie run. Agent Manager
+	// owns the real blocking `runs wait --json` attachment and injects its
+	// terminal JSON result when it resumes the agent. Outside AM this is a no-op
+	// (parked=false), so human / CI / raw-terminal JSON remains one real WaitRun
+	// RPC and one machine-readable snapshot.
+	if park, parked, perr := parkForAwait(cliutil.ParkRequest{
+		Producer: cliutil.ParkProducerTestGenie,
+		Key:      scenario + "/" + runID,
+	}); parked {
+		if perr == nil {
+			fmt.Fprintln(w, park.Message)
+			return nil
 		}
+		// We are in an AM run but park failed — degrade gracefully to the inline
+		// wait (no worse than before park existed).
+		fmt.Fprintf(stderrOut, "agent-manager park unavailable (%v) — waiting inline instead\n", perr)
 	}
 
 	cl, err := client(apiClient)
@@ -169,6 +166,7 @@ func runWait(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 // waitSnapshot is the scripted `--json` path: one WaitRun call, one structured
 // status, the suite exit code.
 func waitSnapshot(cl runs_v1connect.RunsServiceClient, w io.Writer, scenario, runID string, timeout int) error {
+	printWaitAttachmentReceipt(stderrOut, scenario, runID, timeout)
 	resp, err := cl.WaitRun(context.Background(), connect.NewRequest(&runspb.WaitRunRequest{
 		Scenario: scenario, RunId: runID, TimeoutSeconds: int32(timeout),
 	}))
@@ -209,6 +207,21 @@ func waitSnapshot(cl runs_v1connect.RunsServiceClient, w io.Writer, scenario, ru
 		return &exitErr{code: exitNotComparable, err: fmt.Errorf("run %s completed with provider_unavailable phase evidence", runID)}
 	}
 	return &exitErr{code: exitRegression, err: fmt.Errorf("run %s %s", runID, st.GetStatus())}
+}
+
+// printWaitAttachmentReceipt makes a quiet JSON wait observable to coding
+// environments whose tool-session attachment can detach while the child
+// process remains alive. stdout must stay empty until the terminal JSON
+// snapshot so parsers have one stable payload; stderr records that this process
+// successfully began the server-owned attachment and gives exactly one durable
+// recovery read for a detached session.
+func printWaitAttachmentReceipt(w io.Writer, scenario, runID string, timeout int) {
+	window := "until terminal"
+	if timeout > 0 {
+		window = fmt.Sprintf("up to %ds", timeout)
+	}
+	fmt.Fprintf(w, "wait attached (pid %d) to server-owned Test Genie run %s/%s; stdout stays empty until terminal JSON (%s).\n", os.Getpid(), scenario, runID, window)
+	fmt.Fprintf(w, "If this tool session returns without terminal JSON, do not infer that the waiter exited or that the run is stuck. Read durable state once: test-genie runs status --json %s %s\n", scenario, runID)
 }
 
 func terminalHasProviderUnavailable(run *runspb.RunInfo) bool {

@@ -34,7 +34,7 @@ Each finding caps the capability it names at the rung below its impact; only ERR
 | `interop_relative_base` / `interop_router_basename` / `interop_helmet_frame_ancestors` | interop | L1 | ERROR | Yes |
 | `interop_h_screen` / `interop_shortcut_relay` | interop | L1 | WARNING | No |
 | `freshness_ui_bundle_stale` | freshness | L2 | ERROR | Yes |
-| `runtime_load_failed` / `runtime_handshake_failed` / `visual_pixel_blank` | runtime_render | L3 | ERROR | Yes |
+| `runtime_load_failed` / `runtime_handshake_failed` / `runtime_bas_execution_failed` / `visual_pixel_blank` | runtime_render | L3 | ERROR | Yes |
 | `runtime_console_errors` / `visual_text_clipped` | runtime_render | L3 | WARNING | No |
 | `runtime_not_evaluated_static_only` / `runtime_skipped_*` / `runtime_evidence_incomplete` | runtime_render | L0 | INFO | Provider is DEGRADED, never PASSED |
 | `standard_tsconfig_strict` | project_standards | L4 | ERROR | Yes |
@@ -47,7 +47,7 @@ Each finding caps the capability it names at the rung below its impact; only ERR
 - **Manifest-contract findings** → repair `ui/manifest.json` and `service.json`: declare a known `template`, fix contract kind/schema, populate slots and overlays, and align slot directories on the filesystem. Some (`slot_dir_missing`, `slot_parent_dir_missing`) have implemented safe fixers.
 - **Interop findings** → adopt the relative Vite base, router basename, proxy-preserved API base, iframe bridge, and frame-ancestor helmet; remove hardcoded localhost. `interop_h_screen` and `interop_protective_comments` have safe fixers.
 - **Freshness findings** → rebuild the UI bundle so its content hash matches source (`freshness_ui_bundle_stale` gates); a stale bundle means the running UI does not reflect committed code.
-- **Runtime-render findings** → fix the live render: repair the iframe handshake, clear console/network/page errors, resolve visual defects (blank pixels, broken assets, viewport overflow, unsafe edge tap zones), and restore any missing artifact channel before claiming a visual pass.
+- **Runtime-render findings** → fix the live render: repair the iframe handshake, clear console/network/page errors, resolve visual defects (blank pixels, broken assets, viewport overflow, unsafe edge tap zones), and restore any missing artifact channel before claiming a visual pass. `runtime_bas_execution_failed` means BAS itself failed before the handshake; its message includes the BAS execution ID and causal error, which should be inspected in the execution timeline rather than misdiagnosed as a scenario bridge timeout.
 - **Project-standards findings** → restore i18n locale parity, replace raw hex with design tokens, add the required axe dependency, canonical helper, and baseline harness test, enable strict tsconfig, and satisfy React-stability lint. Several (i18n parity, tsconfig-strict) have implemented mechanical fixers. The harness is a static gate for UI scenarios; live browser unavailability remains `DEGRADED`, never a static pass.
 - **PWA findings** → complete install metadata, launch scope, service-worker offline fallback, and optional platform fields to climb toward native readiness.
 

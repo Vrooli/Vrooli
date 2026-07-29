@@ -1,0 +1,1 @@
+{"kind":"skill","schemaVersion":1,"id":"investigating-agent-runs","name":"Investigating Agent Runs","description":"Practice method for diagnosing agent runs from the shared bounded report and CLI drill-downs.","modes":["practice"],"tags":["agent-manager","investigation","reliability"],"status":"active","entry":"SKILL.md"}

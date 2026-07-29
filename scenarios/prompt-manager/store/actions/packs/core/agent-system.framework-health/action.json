@@ -1,0 +1,57 @@
+{
+  "kind": "action",
+  "schemaVersion": 1,
+  "id": "agent-system.framework-health",
+  "name": "Read Framework Health Sensors",
+  "description": "Run every framework-health sensor registered in docs/agent-system/FRAMEWORK_HEALTH.md and report each one's observed value against its deadband, with the actuator named for any sensor out of band. Covers operating-model contract validity, contract-mode coverage, graph/runtime drift, topic-flow declaration integrity, member-document conformance, prose/declaration coherence, cross-team coupling, and skill reachability. Read-only: it measures and reports, and changes nothing.",
+  "status": "active",
+  "owner": {
+    "type": "scenario",
+    "id": "prompt-manager"
+  },
+  "command": {
+    "argv": [
+      "prompt-manager",
+      "graph",
+      "audit"
+    ]
+  },
+  "inputs": {},
+  "outputs": {
+    "report": {
+      "type": "string",
+      "description": "Per-sensor report. Each sensor prints its observed value, its deadband, and — when out of band — the actuator decision context that owns the fix."
+    }
+  },
+  "permissions": {
+    "apiRead": true
+  },
+  "examples": [
+    {
+      "description": "Read every framework-health sensor before deciding what to audit this heartbeat.",
+      "input": {}
+    }
+  ],
+  "tags": [
+    "framework-health",
+    "agent-system",
+    "teams",
+    "audit",
+    "sensors",
+    "operating-model",
+    "drift",
+    "meta-optimization",
+    "health"
+  ],
+  "execution": {
+    "timeoutSeconds": 120,
+    "outputMode": "stdout",
+    "runEligible": true
+  },
+  "validation": {
+    "mode": "contract"
+  },
+  "revision": 1,
+  "createdAt": "2026-07-28T00:00:00Z",
+  "updatedAt": "2026-07-28T00:00:00Z"
+}

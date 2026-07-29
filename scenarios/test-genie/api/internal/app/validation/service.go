@@ -9,11 +9,13 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"path/filepath"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/metrics"
 	"github.com/vrooli/maturity-go/assessment"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"test-genie/internal/providerconformance"
@@ -26,6 +28,7 @@ type Service struct {
 	logger    *log.Logger
 	validator *providerconformance.Service
 	spec      *assessment.Spec
+	describer assessment.Describer
 }
 
 // NewService builds the provider-conformance validation service. repoRoot is
@@ -39,7 +42,10 @@ func NewService(logger *log.Logger, repoRoot string, spec *assessment.Spec) *Ser
 	validator := providerconformance.New(repoRoot)
 	validator.Probe = selfhealth.DefaultConformanceProbe
 	validator.DurableProbe = providerconformance.DefaultDurableConformanceProbe
-	return &Service{logger: logger, validator: validator, spec: spec}
+	// Test Genie answers the same readiness contract it asks of others. A load
+	// failure yields the zero Describer, which reports Unimplemented.
+	describer, _ := assessment.LoadDescriber(filepath.Join(repoRoot, "scenarios", "test-genie"))
+	return &Service{logger: logger, validator: validator, spec: spec, describer: describer}
 }
 
 // NewServiceForTest builds a Service with an injected validator seam.
@@ -103,4 +109,11 @@ func nativeDetail(report providerconformance.Report) (*structpb.Struct, error) {
 		detail["probeSkipReason"] = report.ProbeSkipReason
 	}
 	return structpb.NewStruct(detail)
+}
+
+// Served composes this service with the shared DescribeProvider implementation.
+// Test Genie is itself a provider (the provider-conformance phase), so it must
+// answer the same readiness contract it asks every other provider to answer.
+func (s *Service) Served() scenariovalidationv1connect.ScenarioValidationServiceHandler {
+	return assessment.Serve(s, s.describer)
 }

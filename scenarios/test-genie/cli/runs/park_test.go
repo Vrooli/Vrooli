@@ -21,9 +21,10 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// TestRunWaitHumanParksInsideAgentManagerRun proves that interactive waits may
-// park, while the JSON machine contract always performs its actual WaitRun RPC.
-func TestRunWaitHumanParksInsideAgentManagerRun(t *testing.T) {
+// TestRunWaitJSONParksInsideAgentManagerRun proves that the canonical agent
+// wait parks. Agent Manager performs the actual JSON wait from its non-agent
+// process and resumes the agent with the terminal snapshot.
+func TestRunWaitJSONParksInsideAgentManagerRun(t *testing.T) {
 	const runID = "run-uuid-tg"
 	am := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -62,7 +63,7 @@ func TestRunWaitHumanParksInsideAgentManagerRun(t *testing.T) {
 	withStreamServer(t, &streamServer{})
 
 	var buf bytes.Buffer
-	if err := runWait(nil, []string{"demo", "R"}, &buf); err != nil {
+	if err := runWait(nil, []string{"--json", "demo", "R"}, &buf); err != nil {
 		t.Fatalf("runWait should park cleanly, got: %v", err)
 	}
 	if !strings.Contains(buf.String(), "PARKED") {

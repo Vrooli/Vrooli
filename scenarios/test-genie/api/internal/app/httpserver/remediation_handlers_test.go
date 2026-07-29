@@ -15,6 +15,7 @@ type remediationStub struct{}
 func (remediationStub) Create(context.Context, remediation.Plan, []string, []string, string) (remediation.Job, error) {
 	return remediation.Job{}, nil
 }
+
 func (remediationStub) Get(context.Context, string) (remediation.Job, error) {
 	return remediation.Job{}, remediation.ErrNotFound
 }
@@ -22,36 +23,47 @@ func (remediationStub) List(context.Context, string, int) ([]remediation.Job, er
 func (remediationStub) Cancel(context.Context, string) (remediation.Job, error) {
 	return remediation.Job{}, nil
 }
+
 func (remediationStub) PrepareLaunch(context.Context, string, string) (remediation.Job, error) {
 	return remediation.Job{}, nil
 }
+
 func (remediationStub) RetryLaunch(context.Context, string) (remediation.Job, error) {
 	return remediation.Job{}, nil
 }
+
 func (remediationStub) RecordLaunchFailure(context.Context, string, string) (remediation.Job, error) {
 	return remediation.Job{}, nil
 }
+
 func (remediationStub) MarkRunning(context.Context, string, remediation.Attribution) (remediation.Job, error) {
 	return remediation.Job{}, nil
 }
+
 func (remediationStub) MarkAgentCompleted(context.Context, string, string) (remediation.Job, error) {
 	return remediation.Job{}, nil
 }
+
 func (remediationStub) StartVerification(context.Context, string, remediation.Verification) (remediation.Job, error) {
 	return remediation.Job{}, nil
 }
+
 func (remediationStub) ReserveVerification(context.Context, string) (remediation.Job, error) {
 	return remediation.Job{}, nil
 }
+
 func (remediationStub) SetVerificationRun(context.Context, string, remediation.Verification) (remediation.Job, error) {
 	return remediation.Job{}, nil
 }
+
 func (remediationStub) ReleaseVerificationReservation(context.Context, string) (remediation.Job, error) {
 	return remediation.Job{}, nil
 }
+
 func (remediationStub) CompleteVerification(context.Context, string, remediation.Verification, remediation.FindingDelta, remediation.RequirementDelta, string) (remediation.Job, error) {
 	return remediation.Job{}, nil
 }
+
 func (remediationStub) Fail(context.Context, string, string) (remediation.Job, error) {
 	return remediation.Job{}, nil
 }

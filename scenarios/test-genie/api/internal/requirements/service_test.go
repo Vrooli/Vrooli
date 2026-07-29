@@ -382,6 +382,46 @@ func TestConvertPhaseResults_Empty(t *testing.T) {
 	}
 }
 
+func TestAddTaggedTestEvidence_RequiresPassedPhaseAndExactTag(t *testing.T) {
+	fixture := newTestFixture(t)
+	service := NewServiceWithDeps(fixture.reader, fixture.writer)
+	moduleDir := filepath.Join(fixture.scenarioDir, "requirements", "01-core")
+	fixture.reader.AddDir(moduleDir, []fs.DirEntry{&memDirEntry{name: "module.json", isDir: false}})
+	fixture.addIndexFile(t, []string{"01-core/module.json"})
+	fixture.addRequirementModule(t, "01-core/module.json", map[string]any{
+		"_metadata": map[string]any{"module": "core"},
+		"requirements": []map[string]any{{
+			"id": "REQ-TRACE-001", "title": "Tagged proof", "status": "planned",
+			"validation": []map[string]any{{"type": "test", "phase": "unit", "ref": "api/proof_test.go", "status": "implemented"}},
+		}},
+	})
+	fixture.reader.AddFile(filepath.Join(fixture.scenarioDir, "api", "proof_test.go"), []byte("// [REQ:REQ-TRACE-001]\nfunc TestProof() {}\n"))
+
+	files, err := service.discoverer.Discover(context.Background(), fixture.scenarioDir)
+	if err != nil {
+		t.Fatalf("discover: %v", err)
+	}
+	index, err := service.parser.ParseAll(context.Background(), files)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	bundle := types.NewEvidenceBundle()
+	bundle.PhaseResults["__phase__unit"] = []types.EvidenceRecord{{Phase: "unit", Status: types.LivePassed}}
+
+	service.addTaggedTestEvidence(index, bundle, fixture.scenarioDir)
+	records := bundle.PhaseResults.Get("REQ-TRACE-001")
+	if len(records) != 1 || records[0].Status != types.LivePassed || records[0].ValidationRef != "api/proof_test.go" {
+		t.Fatalf("tagged evidence = %#v, want one passed record for api/proof_test.go", records)
+	}
+
+	bundle = types.NewEvidenceBundle()
+	bundle.PhaseResults["__phase__unit"] = []types.EvidenceRecord{{Phase: "unit", Status: types.LiveFailed}}
+	service.addTaggedTestEvidence(index, bundle, fixture.scenarioDir)
+	if records := bundle.PhaseResults.Get("REQ-TRACE-001"); len(records) != 0 {
+		t.Fatalf("failed phase must not create tagged evidence: %#v", records)
+	}
+}
+
 func TestService_Sync_ContextCancellation(t *testing.T) {
 	fixture := newTestFixture(t)
 	service := NewServiceWithDeps(fixture.reader, fixture.writer)

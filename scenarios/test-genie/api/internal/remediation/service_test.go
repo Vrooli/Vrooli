@@ -25,6 +25,7 @@ func (m *memoryRepo) Create(_ context.Context, job Job) error {
 	m.jobs[job.ID] = job
 	return nil
 }
+
 func (m *memoryRepo) Get(_ context.Context, id string) (Job, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -35,6 +36,7 @@ func (m *memoryRepo) Get(_ context.Context, id string) (Job, error) {
 	job.Attempts = append([]Attempt(nil), m.attempts[id]...)
 	return job, nil
 }
+
 func (m *memoryRepo) ListByScenario(_ context.Context, scenario string, _ int) ([]Job, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -47,6 +49,7 @@ func (m *memoryRepo) ListByScenario(_ context.Context, scenario string, _ int) (
 	}
 	return out, nil
 }
+
 func (m *memoryRepo) ActiveForScenario(_ context.Context, scenario string) (Job, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -58,6 +61,7 @@ func (m *memoryRepo) ActiveForScenario(_ context.Context, scenario string) (Job,
 	}
 	return Job{}, ErrNotFound
 }
+
 func (m *memoryRepo) Update(_ context.Context, job Job) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -67,6 +71,7 @@ func (m *memoryRepo) Update(_ context.Context, job Job) error {
 	m.jobs[job.ID] = job
 	return nil
 }
+
 func (m *memoryRepo) UpdateIfStatus(_ context.Context, job Job, expected string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -80,12 +85,14 @@ func (m *memoryRepo) UpdateIfStatus(_ context.Context, job Job, expected string)
 	m.jobs[job.ID] = job
 	return nil
 }
+
 func (m *memoryRepo) AppendAttempt(_ context.Context, attempt Attempt, jobID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.attempts[jobID] = append(m.attempts[jobID], attempt)
 	return nil
 }
+
 func (m *memoryRepo) ListAttempts(_ context.Context, jobID string) ([]Attempt, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -99,6 +106,7 @@ func (c fixedClock) Now() time.Time { return c.now }
 func readyPlan() Plan {
 	return BuildPlan(Evidence{SourceExecutionID: "exec", SourceRunID: "run", Scenario: "demo", CompletedAt: time.Now(), Phases: []Phase{{Name: "unit"}}, Findings: []Finding{{StableID: "afid:1", Phase: "unit"}}})
 }
+
 func TestServicePreventsCrossEntryActiveJobsAndRequiresVerification(t *testing.T) {
 	svc := NewService(&memoryRepo{jobs: map[string]Job{}, attempts: map[string][]Attempt{}}, fixedClock{now: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)})
 	job, err := svc.Create(context.Background(), readyPlan(), []string{"afid:1"}, nil, "context")

@@ -7,13 +7,15 @@ import (
 )
 
 func TestBuildPlanDeduplicatesRanksAndBundlesStableFindings(t *testing.T) {
-	plan := BuildPlan(Evidence{SourceExecutionID: "execution-1", SourceRunID: "run-1", Scenario: "demo", CompletedAt: time.Now(),
+	plan := BuildPlan(Evidence{
+		SourceExecutionID: "execution-1", SourceRunID: "run-1", Scenario: "demo", CompletedAt: time.Now(),
 		Phases: []Phase{{Name: "structure", Provider: "architecture-cartographer", ResultGating: "blocking"}, {Name: "docs", Provider: "knowledge-observatory", ResultGating: "advisory"}},
 		Findings: []Finding{
 			{StableID: "afid:advisory", Severity: "warning", Class: "heuristic", Phase: "docs", Locations: []string{"docs/README.md"}},
 			{StableID: "afid:blocker", Severity: "blocker", Class: "deterministic", Phase: "structure", Locations: []string{"api/internal/foo.go"}},
 			{StableID: "afid:blocker", Severity: "blocker", Class: "deterministic", Phase: "structure", Locations: []string{"api/internal/foo.go"}},
-		}})
+		},
+	})
 	if plan.Degraded {
 		t.Fatalf("plan unexpectedly degraded: %+v", plan.DegradedReasons)
 	}

@@ -20,6 +20,42 @@ The effective phase registry is built from checked-in provider descriptors plus 
 
 Applicability answers "should this phase judge this target?" Runnability answers "can this already-applicable phase execute in this environment?" Provider readiness answers "is the selected provider usable for this execution?" These are separate states in JSON previews and run records.
 
+### How provider readiness is established
+
+Readiness asks three questions, none of whose answers depend on the target: is the provider live, does it speak the current contract, and is it the provider its descriptor claims. It answers them with `ScenarioValidationService.DescribeProvider`, whose request carries no target fields at all — the provider replies from facts it resolved at startup, so the probe is O(1) regardless of how large the scenario under test is.
+
+Providers that have not adopted `DescribeProvider` return `Unimplemented`, and only then does readiness fall back to a `ValidateScenario` call with `include_execution=false`. That fallback answers the same three questions but pays a full target analysis to do so: for an inspection-only provider such as `security-health` or `architecture-cartographer`, `include_execution=false` and `true` mean the same thing, so the provider's entire phase workload ran twice per suite — once to prove readiness and once to produce the result. Adopting `DescribeProvider` is what removes that duplicate.
+
+Mount the shared implementation with `assessment.Serve(handler, describer)` (see `packages/maturity-go/assessment/describe.go`). The zero `Describer` is safe: it reports `Unimplemented`, which selects the fallback, so adoption is per-provider rather than a fleet-wide flag day.
+
+### Provider staleness
+
+A provider that answers readiness can still be running code that no longer matches the repository — a long-lived process never re-checks itself, so it can serve findings from a binary built weeks earlier. Readiness therefore also asks whether the running provider is current, using two exact digest comparisons and no git state at all (a commit changes no file content, so a design keyed to `HEAD` would mark every provider stale on every commit):
+
+1. **Rebuilt but not restarted** — the provider reports the freshness digest it read at startup; a different digest on disk means the live process is superseded.
+2. **Source changed since the build** — the ordinary freshness comparison, evaluated against the same manifest the provider's own preflight uses.
+
+When a provider is stale, readiness restarts it, which makes its preflight rebuild and re-exec so the phase scores against current source. Findings name what kind of change caused it, because the consequences differ sharply:
+
+| Class | Meaning |
+|---|---|
+| `own_code` | the provider's own source changed — its verdict is most likely to be wrong |
+| `shared_package` | a package it compiles changed — usually incidental |
+| `dependency` | `go.mod` / `go.sum` moved |
+| `toolchain` | Go version, arch, or cgo changed — hits every provider at once |
+| `rebuilt_not_restarted` | the binary moved underneath the running process |
+
+The provider's own tree is evaluated **first**, as its own subset. The underlying comparison stops at the first offending path in alphabetical order, so a change under `packages/` would otherwise mask a simultaneous change to the provider's own code.
+
+Four rails bound the cost, because on an active branch staleness is the normal state rather than the exception — one edit to a widely shared package legitimately stales most of the fleet:
+
+- **Per-run cap** (`DefaultMaxStaleRestarts`, 4). Past it, providers are reported rather than restarted, so a run always finishes. Set `MaxStaleRestarts` negative for report-only mode.
+- **Cool-down** (`DefaultRestartCooldown`, 30m), persisted across runs. It suppresses repeat restarts caused by churn **outside** the provider's own tree, so an agent editing a shared package for hours does not trigger a rebuild every run. It never applies to `own_code` or `rebuilt_not_restarted`.
+- **No cascade.** Only the provider itself is restarted; its own preflight decides about its dependencies.
+- **Fail open everywhere.** No repo root, no manifest, an unreadable manifest, an empty reported digest, or any evaluation error all mean *not stale*. A restart never happens on evidence that could not be read.
+
+Build and test outputs are excluded from freshness inputs in `cliutil` (`BuildOutputSkipNames`/`BuildOutputSkipSuffixes`), shared by the writer, the evaluator, and the preflight checker. Without that, a `go test -coverprofile` run would rewrite `coverage.out`, mark the binary stale, trigger a rebuild, and be invalidated again by the next test run.
+
 See [Phases Overview](../phases/README.md) for the generated effective registry, policy dimensions, and phase definitions.
 
 ## Provider Descriptor Contract

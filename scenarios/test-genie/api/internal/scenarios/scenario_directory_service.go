@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 
+	apistorage "github.com/vrooli/api-core/storage"
+
 	"test-genie/internal/shared"
 )
 
@@ -46,11 +48,39 @@ type RunScenarioTestOptions struct {
 	ExtraArgs []string
 }
 
+// scenarioTestLogDir resolves where scenario-test logs are written.
+//
+// These logs used to land in <scenariosRoot>/_artifacts/scenario-tests, i.e.
+// inside the scenarios/ SOURCE namespace, where the directory reads like a
+// scenario named "_artifacts" and every run dirtied the repo. Run logs are
+// runtime state, so they belong in the platform's logs class alongside every
+// other scenario's operational output.
+//
+// Resolution failure falls back to the OS temp dir, never to the repo: a log
+// path is not worth failing startup over, but it must never write into source.
+func scenarioTestLogDir() string {
+	resolver, err := apistorage.NewResolver(apistorage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: apistorage.ProfileAuto,
+	})
+	if err == nil {
+		path, perr := resolver.Path(
+			apistorage.Options{ScenarioID: "test-genie"},
+			apistorage.ClassLogs,
+			"scenario-tests",
+		)
+		if perr == nil {
+			return path
+		}
+	}
+	return filepath.Join(os.TempDir(), "vrooli-test-genie", "scenario-tests")
+}
+
 func NewScenarioDirectoryService(repo scenarioSummaryStore, lister ScenarioLister, scenariosRoot string) *ScenarioDirectoryService {
 	defaultRunner := TestingRunner{
 		Timeout: defaultTestingTimeout,
 		Output:  log.Writer(),
-		LogDir:  filepath.Join(strings.TrimSpace(scenariosRoot), "_artifacts", "scenario-tests"),
+		LogDir:  scenarioTestLogDir(),
 	}
 	return &ScenarioDirectoryService{
 		repo:          repo,

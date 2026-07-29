@@ -52,6 +52,7 @@ func (c *capturingDurableClient) StartValidationRun(_ context.Context, req *conn
 	c.start = req.Msg
 	return connect.NewResponse(&scenariovalidationv1.StartValidationRunResponse{Run: c.run}), nil
 }
+
 func (c *capturingDurableClient) WaitValidationRun(_ context.Context, req *connect.Request[scenariovalidationv1.WaitValidationRunRequest]) (*connect.Response[scenariovalidationv1.WaitValidationRunResponse], error) {
 	c.wait = req.Msg
 	if c.waitErr != nil {
@@ -59,6 +60,7 @@ func (c *capturingDurableClient) WaitValidationRun(_ context.Context, req *conne
 	}
 	return connect.NewResponse(&scenariovalidationv1.WaitValidationRunResponse{Run: c.run}), nil
 }
+
 func (c *capturingDurableClient) AbortValidationRun(_ context.Context, req *connect.Request[scenariovalidationv1.AbortValidationRunRequest]) (*connect.Response[scenariovalidationv1.AbortValidationRunResponse], error) {
 	c.abort = req.Msg
 	return connect.NewResponse(&scenariovalidationv1.AbortValidationRunResponse{Run: c.run}), nil

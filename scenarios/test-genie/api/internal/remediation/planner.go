@@ -24,9 +24,11 @@ type Evidence struct {
 // BuildPlan normalizes and ranks evidence without performing I/O. It refuses
 // to manufacture actionable work when the identity-bearing evidence is absent.
 func BuildPlan(e Evidence) Plan {
-	plan := Plan{SourceExecutionID: strings.TrimSpace(e.SourceExecutionID), SourceRunID: strings.TrimSpace(e.SourceRunID),
+	plan := Plan{
+		SourceExecutionID: strings.TrimSpace(e.SourceExecutionID), SourceRunID: strings.TrimSpace(e.SourceRunID),
 		Scenario: strings.TrimSpace(e.Scenario), CreatedAt: e.CompletedAt.UTC(), Phases: append([]Phase(nil), e.Phases...),
-		DegradedReasons: normalizedIDs(e.DegradedReasons)}
+		DegradedReasons: normalizedIDs(e.DegradedReasons),
+	}
 	if plan.CreatedAt.IsZero() {
 		plan.CreatedAt = time.Now().UTC()
 	}

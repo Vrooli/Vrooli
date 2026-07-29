@@ -145,19 +145,20 @@ type rawModule struct {
 
 // rawRequirement supports both "validation" and "validations" fields.
 type rawRequirement struct {
-	ID          string          `json:"id"`
-	Title       string          `json:"title"`
-	Status      string          `json:"status"`
-	PRDRef      string          `json:"prd_ref,omitempty"`
-	Category    string          `json:"category,omitempty"`
-	Criticality string          `json:"criticality,omitempty"`
-	Description string          `json:"description,omitempty"`
-	Tags        []string        `json:"tags,omitempty"`
-	Children    []string        `json:"children,omitempty"`
-	DependsOn   []string        `json:"depends_on,omitempty"`
-	Blocks      []string        `json:"blocks,omitempty"`
-	Validation  []rawValidation `json:"validation,omitempty"`
-	Validations []rawValidation `json:"validations,omitempty"`
+	ID            string          `json:"id"`
+	Title         string          `json:"title"`
+	Status        string          `json:"status"`
+	PRDRef        string          `json:"prd_ref,omitempty"`
+	Category      string          `json:"category,omitempty"`
+	Criticality   string          `json:"criticality,omitempty"`
+	DeliveryScope string          `json:"delivery_scope,omitempty"`
+	Description   string          `json:"description,omitempty"`
+	Tags          []string        `json:"tags,omitempty"`
+	Children      []string        `json:"children,omitempty"`
+	DependsOn     []string        `json:"depends_on,omitempty"`
+	Blocks        []string        `json:"blocks,omitempty"`
+	Validation    []rawValidation `json:"validation,omitempty"`
+	Validations   []rawValidation `json:"validations,omitempty"`
 }
 
 // rawValidation supports flexible validation parsing.
@@ -198,17 +199,18 @@ func ParseFlexible(data []byte) (*types.RequirementModule, error) {
 		}
 
 		req := types.Requirement{
-			ID:          rawReq.ID,
-			Title:       rawReq.Title,
-			Status:      types.NormalizeDeclaredStatus(rawReq.Status),
-			PRDRef:      rawReq.PRDRef,
-			Category:    rawReq.Category,
-			Criticality: types.NormalizeCriticality(rawReq.Criticality),
-			Description: rawReq.Description,
-			Tags:        rawReq.Tags,
-			Children:    rawReq.Children,
-			DependsOn:   rawReq.DependsOn,
-			Blocks:      rawReq.Blocks,
+			ID:            rawReq.ID,
+			Title:         rawReq.Title,
+			Status:        types.NormalizeDeclaredStatus(rawReq.Status),
+			PRDRef:        rawReq.PRDRef,
+			Category:      rawReq.Category,
+			Criticality:   types.NormalizeCriticality(rawReq.Criticality),
+			DeliveryScope: types.NormalizeDeliveryScope(rawReq.DeliveryScope),
+			Description:   rawReq.Description,
+			Tags:          rawReq.Tags,
+			Children:      rawReq.Children,
+			DependsOn:     rawReq.DependsOn,
+			Blocks:        rawReq.Blocks,
 		}
 
 		// Support both "validation" and "validations" fields

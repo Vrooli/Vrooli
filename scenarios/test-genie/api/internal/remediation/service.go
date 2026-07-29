@@ -6,8 +6,10 @@ import (
 	"time"
 )
 
-type Clock interface{ Now() time.Time }
-type systemClock struct{}
+type (
+	Clock       interface{ Now() time.Time }
+	systemClock struct{}
+)
 
 func (systemClock) Now() time.Time { return time.Now().UTC() }
 
@@ -53,6 +55,7 @@ func (s *Service) Get(ctx context.Context, id string) (Job, error) { return s.re
 func (s *Service) List(ctx context.Context, scenario string, limit int) ([]Job, error) {
 	return s.repo.ListByScenario(ctx, scenario, limit)
 }
+
 func (s *Service) Active(ctx context.Context, scenario string) (Job, error) {
 	return s.repo.ActiveForScenario(ctx, scenario)
 }
@@ -144,9 +147,11 @@ func (s *Service) RecordLaunchFailure(ctx context.Context, id, detail string) (J
 	}
 	return s.repo.Get(ctx, job.ID)
 }
+
 func (s *Service) MarkAgentCompleted(ctx context.Context, id, outputRef string) (Job, error) {
 	return s.transition(ctx, id, JobStatusRunning, JobStatusAgentCompleted, func(j *Job) { j.Attribution.OutputReference = outputRef })
 }
+
 func (s *Service) StartVerification(ctx context.Context, id string, verification Verification) (Job, error) {
 	job, err := s.transition(ctx, id, JobStatusAgentCompleted, JobStatusVerificationRunning, func(j *Job) { j.Verification = verification })
 	if err != nil {
@@ -195,6 +200,7 @@ func (s *Service) SetVerificationRun(ctx context.Context, id string, verificatio
 func (s *Service) ReleaseVerificationReservation(ctx context.Context, id string) (Job, error) {
 	return s.transition(ctx, id, JobStatusVerificationRunning, JobStatusAgentCompleted, func(j *Job) { j.Verification = Verification{} })
 }
+
 func (s *Service) CompleteVerification(ctx context.Context, id string, verification Verification, delta FindingDelta, requirementDelta RequirementDelta, degraded string) (Job, error) {
 	job, err := s.transition(ctx, id, JobStatusVerificationRunning, JobStatusVerified, func(j *Job) {
 		if verification.ExecutionID != "" {
@@ -225,6 +231,7 @@ func (s *Service) CompleteVerification(ctx context.Context, id string, verificat
 	}
 	return s.repo.Get(ctx, job.ID)
 }
+
 func (s *Service) Cancel(ctx context.Context, id string) (Job, error) {
 	job, err := s.repo.Get(ctx, id)
 	if err != nil {
@@ -246,6 +253,7 @@ func (s *Service) Cancel(ctx context.Context, id string) (Job, error) {
 	}
 	return s.repo.Get(ctx, job.ID)
 }
+
 func (s *Service) Fail(ctx context.Context, id, failure string) (Job, error) {
 	job, err := s.repo.Get(ctx, id)
 	if err != nil {
@@ -272,6 +280,7 @@ func (s *Service) Fail(ctx context.Context, id, failure string) (Job, error) {
 	}
 	return s.repo.Get(ctx, job.ID)
 }
+
 func (s *Service) transition(ctx context.Context, id, from, to string, mutate func(*Job)) (Job, error) {
 	job, err := s.repo.Get(ctx, id)
 	if err != nil {

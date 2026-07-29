@@ -241,6 +241,7 @@ func scanJob(s scanner) (Job, error) {
 	}
 	return job, nil
 }
+
 func nullableTime(t time.Time) any {
 	if t.IsZero() {
 		return nil

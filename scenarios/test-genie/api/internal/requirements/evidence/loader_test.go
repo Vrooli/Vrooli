@@ -325,6 +325,15 @@ func TestEvidenceMap_Merge(t *testing.T) {
 	}
 }
 
+func TestGetPhaseStatus_UsesUntimestampedPhaseRecord(t *testing.T) {
+	evidence := types.EvidenceMap{
+		"__phase__unit": {{Phase: "unit", Status: types.LivePassed}},
+	}
+	if got := GetPhaseStatus(evidence, "unit"); got != types.LivePassed {
+		t.Fatalf("GetPhaseStatus() = %q, want %q", got, types.LivePassed)
+	}
+}
+
 // Integration test using real filesystem
 func TestLoader_Integration(t *testing.T) {
 	if testing.Short() {

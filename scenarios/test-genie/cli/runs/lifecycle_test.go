@@ -283,11 +283,10 @@ func TestRunWaitAcceptsTrailingJSONFlag(t *testing.T) {
 	}
 }
 
-func TestRunWaitJSONNeverParksBeforeWaitRun(t *testing.T) {
+func TestRunWaitJSONFallsThroughToWaitRunOutsideAgentManager(t *testing.T) {
 	withStreamServer(t, &streamServer{waitStatus: &runspb.RunLiveStatus{Status: "passed"}})
 	previous := parkForAwait
 	parkForAwait = func(cliutil.ParkRequest) (*cliutil.ParkResult, bool, error) {
-		t.Fatal("JSON wait must call WaitRun, not park before the run is terminal")
 		return nil, false, nil
 	}
 	t.Cleanup(func() { parkForAwait = previous })
@@ -310,6 +309,31 @@ func TestRunWaitJSONRejectsNonterminalResponseWithoutTimeout(t *testing.T) {
 	}
 	if !json.Valid(bytes.TrimSpace(out.Bytes())) {
 		t.Fatalf("nonterminal response must still be rendered as JSON evidence, got %q", out.String())
+	}
+}
+
+func TestRunWaitJSONAnnouncesAttachmentWithoutPollGuidance(t *testing.T) {
+	withStreamServer(t, &streamServer{waitStatus: &runspb.RunLiveStatus{RunId: "R", Scenario: "demo", Status: "passed"}})
+	previous := stderrOut
+	var errOut bytes.Buffer
+	stderrOut = &errOut
+	t.Cleanup(func() { stderrOut = previous })
+
+	var out bytes.Buffer
+	if err := runWait(nil, []string{"--json", "--timeout=3600", "demo", "R"}, &out); err != nil {
+		t.Fatalf("terminal JSON wait: %v", err)
+	}
+	text := errOut.String()
+	for _, want := range []string{"wait attached", "terminal JSON", "test-genie runs status --json demo R", "do not infer"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("attachment receipt missing %q: %q", want, text)
+		}
+	}
+	if strings.Contains(strings.ToLower(text), "poll") {
+		t.Fatalf("attachment receipt must not encourage polling: %q", text)
+	}
+	if !json.Valid(bytes.TrimSpace(out.Bytes())) {
+		t.Fatalf("attachment receipt must not contaminate JSON stdout: %q", out.String())
 	}
 }
 

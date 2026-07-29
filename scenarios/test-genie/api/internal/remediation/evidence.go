@@ -39,8 +39,10 @@ func EvidenceFromExecution(executionID string, result *orchestrator.SuiteExecuti
 		if !found {
 			evidence.DegradedReasons = append(evidence.DegradedReasons, fmt.Sprintf("descriptor for phase %q is unavailable", phase.Name))
 		}
-		p := Phase{Name: phase.Name, Status: phase.Status, RunnabilityVerdict: phase.RunnabilityVerdict, RunnabilityReason: phase.RunnabilityReason,
-			Remediation: phase.Remediation, ResultGating: descriptor.Policy.ResultGating, DisplayName: descriptor.DisplayName, Provider: descriptor.Provider, DocsPath: descriptor.DocsPath}
+		p := Phase{
+			Name: phase.Name, Status: phase.Status, RunnabilityVerdict: phase.RunnabilityVerdict, RunnabilityReason: phase.RunnabilityReason,
+			Remediation: phase.Remediation, ResultGating: descriptor.Policy.ResultGating, DisplayName: descriptor.DisplayName, Provider: descriptor.Provider, DocsPath: descriptor.DocsPath,
+		}
 		if phase.PhasePresentation != nil {
 			p.PhasePresentation = phase.PhasePresentation.GetCurrentLevel()
 		}
@@ -59,17 +61,21 @@ func findingFromProto(phase string, finding *architecturev1.ArchitectureFinding)
 	if finding == nil {
 		return Finding{Phase: phase}
 	}
-	return Finding{StableID: finding.GetStableId(), Code: finding.GetCode(), Source: finding.GetSource().String(), Severity: severityName(finding.GetSeverity()),
+	return Finding{
+		StableID: finding.GetStableId(), Code: finding.GetCode(), Source: finding.GetSource().String(), Severity: severityName(finding.GetSeverity()),
 		Class: className(finding.GetFindingClass()), Locations: append([]string(nil), finding.GetLocations()...), Domains: append([]string(nil), finding.GetDomains()...),
-		Message: finding.GetMessage(), Suggestion: finding.GetSuggestion(), Effort: effortName(finding.GetEffort()), Phase: phase}
+		Message: finding.GetMessage(), Suggestion: finding.GetSuggestion(), Effort: effortName(finding.GetEffort()), Phase: phase,
+	}
 }
 
 func severityName(value architecturev1.FindingSeverity) string {
 	return strings.TrimPrefix(strings.ToLower(value.String()), "finding_severity_")
 }
+
 func className(value architecturev1.FindingClass) string {
 	return strings.TrimPrefix(strings.ToLower(value.String()), "finding_class_")
 }
+
 func effortName(value architecturev1.EffortHint) string {
 	return strings.TrimPrefix(strings.ToLower(value.String()), "effort_hint_")
 }

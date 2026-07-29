@@ -828,6 +828,20 @@
           "type": "boolean",
           "default": false,
           "description": "Whether this phase requires the scenario runtime to be running"
+        },
+        "budgets": {
+          "type": "object",
+          "description": "Optional phase-owned budgets. Tidiness uses duplication_line_debt, long_files, complexity_over_threshold, coupling_over_threshold, and debt_markers; absent budgets are advisory-only.",
+          "additionalProperties": false,
+          "properties": {
+            "duplication_line_debt": {"type": "integer", "minimum": 0},
+            "baseline_duplication_line_debt": {"type": "integer", "minimum": 0, "description": "Recorded duplication-line-debt baseline enforced when ratchet is true."},
+            "long_files": {"type": "integer", "minimum": 0},
+            "complexity_over_threshold": {"type": "integer", "minimum": 0},
+            "coupling_over_threshold": {"type": "integer", "minimum": 0},
+            "debt_markers": {"type": "integer", "minimum": 0},
+            "ratchet": {"type": "boolean", "default": false, "description": "Budget updates may only tighten recorded values."}
+          }
         }
       }
     },

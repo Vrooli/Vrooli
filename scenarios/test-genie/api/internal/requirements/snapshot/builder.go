@@ -42,11 +42,12 @@ type Snapshot struct {
 
 // SnapshotSummary contains high-level statistics.
 type SnapshotSummary struct {
-	TotalRequirements int     `json:"total_requirements"`
-	TotalValidations  int     `json:"total_validations"`
-	CompletionRate    float64 `json:"completion_rate"`
-	PassRate          float64 `json:"pass_rate"`
-	CriticalGap       int     `json:"critical_gap"`
+	TotalRequirements   int     `json:"total_requirements"`
+	RoadmapRequirements int     `json:"roadmap_requirements,omitempty"`
+	TotalValidations    int     `json:"total_validations"`
+	CompletionRate      float64 `json:"completion_rate"`
+	PassRate            float64 `json:"pass_rate"`
+	CriticalGap         int     `json:"critical_gap"`
 }
 
 // OperationalTarget represents a high-level business objective.
@@ -94,9 +95,10 @@ func (b *builder) Build(ctx context.Context, index *parsing.ModuleIndex, summary
 	// Build summary
 	complete := summary.ByDeclaredStatus[types.StatusComplete]
 	snapshot.Summary = SnapshotSummary{
-		TotalRequirements: summary.Total,
-		TotalValidations:  summary.ValidationStats.Total,
-		CriticalGap:       summary.CriticalityGap,
+		TotalRequirements:   summary.Total,
+		RoadmapRequirements: summary.RoadmapTotal,
+		TotalValidations:    summary.ValidationStats.Total,
+		CriticalGap:         summary.CriticalityGap,
 	}
 
 	if summary.Total > 0 {
@@ -133,6 +135,9 @@ func (b *builder) buildOperationalTargets(index *parsing.ModuleIndex) []Operatio
 
 	for _, module := range index.Modules {
 		for _, req := range module.Requirements {
+			if req.IsRoadmap() {
+				continue
+			}
 			if req.PRDRef == "" {
 				continue
 			}
@@ -199,6 +204,9 @@ func (b *builder) buildModuleSnapshots(index *parsing.ModuleIndex) []ModuleSnaps
 		var complete, inProgress, pending int
 
 		for _, req := range module.Requirements {
+			if req.IsRoadmap() {
+				continue
+			}
 			switch req.Status {
 			case types.StatusComplete:
 				complete++
@@ -209,7 +217,7 @@ func (b *builder) buildModuleSnapshots(index *parsing.ModuleIndex) []ModuleSnaps
 			}
 		}
 
-		total := len(module.Requirements)
+		total := complete + inProgress + pending
 		var completionRate float64
 		if total > 0 {
 			completionRate = float64(complete) / float64(total) * 100

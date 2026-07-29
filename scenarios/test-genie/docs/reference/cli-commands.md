@@ -43,6 +43,12 @@ instead of polling:
 test-genie runs wait --json --timeout=840 my-scenario <run-id>
 ```
 
+`--json` writes an immediate attachment receipt to stderr and reserves stdout
+for its one terminal JSON snapshot. If a coding-tool session detaches after the
+receipt without terminal JSON, the wait process or server-owned run may still
+be active; do not infer a failure. Read `runs status --json` once and use its
+typed next action.
+
 Use `test-genie runs abort my-scenario <run-id>` only when you intend to cancel
 the execution. The `runs` command also provides `status`, `follow`, `list`,
 `show`, `compare`, and freshness/history operations; refer to `test-genie runs

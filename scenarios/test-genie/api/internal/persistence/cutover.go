@@ -136,6 +136,7 @@ func createEmptyStore(path string) error {
 	defer db.Close()
 	return ApplySchema(db, false)
 }
+
 func verifySQLite(path string) error {
 	db, err := sql.Open("sqlite", sqlitedb.BuildDSN(path))
 	if err != nil {
@@ -151,6 +152,7 @@ func verifySQLite(path string) error {
 	}
 	return nil
 }
+
 func databaseDigest(path string) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -163,6 +165,7 @@ func databaseDigest(path string) (string, error) {
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
+
 func writeJSONAtomic(path string, value any) error {
 	payload, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {

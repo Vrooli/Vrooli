@@ -96,24 +96,31 @@ const (
 	ReasonIdentityMismatch    = "identity_mismatch"
 	ReasonMetricsMissing      = "metrics_missing"
 	ReasonFixContractInvalid  = "fix_contract_invalid"
+	ReasonDescribeNotAdopted  = "describe_provider_not_adopted"
 )
 
 // ProviderConformance is one provider's adoption scorecard against the shared
 // ScenarioValidationService contract.
 type ProviderConformance struct {
-	Provider            string                    `json:"provider"`
-	Phase               string                    `json:"phase"`
-	Classification      ConformanceClassification `json:"classification"`
-	ReasonCodes         []string                  `json:"reason_codes,omitempty"`
-	Reachable           bool                      `json:"reachable"`
-	ContractValid       bool                      `json:"contractValid"`
-	IdentityOK          bool                      `json:"identityOk"`
-	SpecValid           bool                      `json:"specValid"`
-	MetricsAdopted      bool                      `json:"metricsAdopted"`
-	FixContractRequired bool                      `json:"fixContractRequired"`
-	FixContractValid    bool                      `json:"fixContractValid"`
-	AdoptionScore       float64                   `json:"adoptionScore"`
-	Violations          []string                  `json:"violations,omitempty"`
+	Provider       string                    `json:"provider"`
+	Phase          string                    `json:"phase"`
+	Classification ConformanceClassification `json:"classification"`
+	ReasonCodes    []string                  `json:"reason_codes,omitempty"`
+	Reachable      bool                      `json:"reachable"`
+	ContractValid  bool                      `json:"contractValid"`
+	IdentityOK     bool                      `json:"identityOk"`
+	SpecValid      bool                      `json:"specValid"`
+	MetricsAdopted bool                      `json:"metricsAdopted"`
+	// DescribeAdopted reports whether the provider answers DescribeProvider.
+	// A provider that does not forces readiness onto the legacy ValidateScenario
+	// probe, which for an inspection-only provider costs a full target analysis
+	// on every suite run — the duplicate work DescribeProvider exists to remove.
+	// Tracking it here keeps that cost visible instead of silently returning.
+	DescribeAdopted     bool     `json:"describeAdopted"`
+	FixContractRequired bool     `json:"fixContractRequired"`
+	FixContractValid    bool     `json:"fixContractValid"`
+	AdoptionScore       float64  `json:"adoptionScore"`
+	Violations          []string `json:"violations,omitempty"`
 	// Autofix is the spec-derived autofix declaration rollup (Stage 1). It is the
 	// 6th, advisory conformance dimension: DeclarationComplete is the gated-later
 	// signal (every finding classified, every manual justified); Pending is the
@@ -351,6 +358,23 @@ func CheckProvider(ctx context.Context, probe ConformanceProbe, fixProbe FixConf
 	// Part B). The provider fleet emits it through the shared
 	// ScenarioValidationService contract.
 	pr.MetricsAdopted = resp.GetMetrics() != nil
+
+	// DescribeProvider adoption is advisory for now: it lowers the adoption
+	// score and names the cost, but does not classify the provider as a
+	// violation while the fleet is still migrating. Promote it to a reason code
+	// (and into IsHardViolation) once every provider reports it, exactly as
+	// metrics_adopted was promoted.
+	if probeFn := DescribeProbe; probeFn != nil {
+		switch err := probeFn(ctx, provider, timeout); {
+		case err == nil:
+			pr.DescribeAdopted = true
+		case connect.CodeOf(err) == connect.CodeUnimplemented:
+			pr.Violations = append(pr.Violations,
+				"DescribeProvider not adopted: readiness falls back to a full ValidateScenario probe, which re-runs this provider's entire analysis on every suite run")
+		default:
+			pr.Violations = append(pr.Violations, fmt.Sprintf("DescribeProvider probe failed: %v", err))
+		}
+	}
 	if pr.FixContractRequired {
 		if fixProbe == nil {
 			pr.Violations = append(pr.Violations, "implemented auto-fixes were not contract-probed")
@@ -487,14 +511,45 @@ func loadProviderDescriptorSpec(pr *ProviderConformance, repoRoot, provider stri
 }
 
 // adoptionScore is the fraction of the five adoption dimensions satisfied.
+// DescribeConformanceProbe reports whether a provider answers DescribeProvider.
+type DescribeConformanceProbe func(ctx context.Context, provider string, timeout time.Duration) error
+
+// DescribeProbe is the seam the conformance scan uses to test DescribeProvider
+// adoption. It is package-level so adopting the check did not require threading
+// another parameter through every scan entry point; tests override it.
+var DescribeProbe DescribeConformanceProbe = DefaultDescribeProbe
+
+// DefaultDescribeProbe calls DescribeProvider and reports the outcome. A
+// CodeUnimplemented error means the provider has not adopted the RPC, which is
+// the case worth surfacing: readiness then falls back to ValidateScenario, and
+// for a provider with no cheap inspection mode that re-runs its entire analysis
+// on every suite run.
+func DefaultDescribeProbe(ctx context.Context, provider string, timeout time.Duration) error {
+	if timeout <= 0 {
+		timeout = defaultConformanceTimeout
+	}
+	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, provider)
+	if err != nil {
+		return fmt.Errorf("resolve %s URL: %w", provider, err)
+	}
+	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if baseURL == "" {
+		return fmt.Errorf("%s base URL is empty", provider)
+	}
+	_, err = scenariovalidationconnect.NewScenarioValidationServiceClient(
+		&http.Client{Timeout: timeout}, baseURL,
+	).DescribeProvider(ctx, connect.NewRequest(&scenariovalidationv1.DescribeProviderRequest{}))
+	return err
+}
+
 func adoptionScore(r ProviderConformance) float64 {
 	satisfied := 0
-	for _, ok := range []bool{r.Reachable, r.ContractValid, r.IdentityOK, r.SpecValid, r.MetricsAdopted} {
+	for _, ok := range []bool{r.Reachable, r.ContractValid, r.IdentityOK, r.SpecValid, r.MetricsAdopted, r.DescribeAdopted} {
 		if ok {
 			satisfied++
 		}
 	}
-	return float64(satisfied) / 5.0
+	return float64(satisfied) / 6.0
 }
 
 // DefaultConformanceProbe is the live Connect probe used when no seam is
