@@ -33,6 +33,7 @@ type Services struct {
 	Operational      *OperationalService
 	HealthAudit      *HealthAuditService
 	Events           *EventsService
+	Findings         *FindingsService
 }
 
 // NewServices creates a new Services instance with all domain services.
@@ -51,7 +52,14 @@ func NewServices(api *cliutil.APIClient) *Services {
 		Operational:      &OperationalService{api: api},
 		HealthAudit:      &HealthAuditService{api: api},
 		Events:           &EventsService{api: api},
+		Findings:         &FindingsService{api: api},
 	}
+}
+
+type FindingsService struct{ api *cliutil.APIClient }
+
+func (s *FindingsService) List(query url.Values) ([]byte, error) {
+	return s.api.Get("/api/v1/findings", query)
 }
 
 type WorkflowService struct{ api *cliutil.APIClient }
@@ -599,6 +607,21 @@ func (s *RunService) Get(id string) ([]byte, *domainpb.Run, error) {
 		return body, nil, nil
 	}
 	return body, resp.Run, nil
+}
+
+// GetReport retrieves the bounded shared run-report projection.
+func (s *RunService) GetReport(id string) ([]byte, error) {
+	return s.api.Get("/api/v1/runs/"+id+"/report", nil)
+}
+
+// Stats returns the existing filtered run summary projection.
+func (s *RunService) Stats(query url.Values) ([]byte, error) {
+	return s.api.Get("/api/v1/stats/summary", query)
+}
+
+// GetReceipts retrieves platform observations for one run.
+func (s *RunService) GetReceipts(id string) ([]byte, error) {
+	return s.api.Get("/api/v1/runs/"+id+"/observed-receipts", nil)
 }
 
 // Create creates a new run.

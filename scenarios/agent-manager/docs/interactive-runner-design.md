@@ -188,8 +188,8 @@ Phase-3 scope item, not a seam change. Specifically:
 ### Transcript discovery rules (per agent)
 
 - **cwd→slug (claude)**: replace every non-alphanumeric character in the
-  absolute cwd with `-`. Verified against real dirs: `/home/matthalloran8/Vrooli`
-  → `-home-matthalloran8-Vrooli`.
+  absolute cwd with `-`. For example, a workspace at `$VROOLI_ROOT` maps to
+  its slash-separated, hyphen-prefixed slug.
 - **which file / which session**: because agent-manager owns the per-run
   `CODEX_HOME`/`GROK_HOME` (§4), the run's rollout/`updates.jsonl` is the
   **only** transcript under that run-scoped home — unambiguous, no
@@ -325,10 +325,10 @@ stdout `result`/`turn.completed`/`end` events.
 
 - CLIs installed: `claude` (~/.local/bin), `codex` (/usr/bin), `grok`
   (~/.local/bin), `opencode` (~/.opencode/bin), `tmux` present.
-- claude slug: `/home/matthalloran8/Vrooli` → dir
-  `~/.claude/projects/-home-matthalloran8-Vrooli/` (real).
+- claude slug: `$VROOLI_ROOT` → its corresponding directory beneath
+  `~/.claude/projects/` (real).
 - codex: `~/.codex/sessions/2025/11/30/rollout-2025-11-30T23-59-17-<uuid>.jsonl` (real).
-- grok: `~/.grok/sessions/%2Fhome%2Fmatthalloran8%2FVrooli.../<session>/updates.jsonl` (real).
+- grok: `~/.grok/sessions/<url-encoded-workspace>/<session>/updates.jsonl` (real).
 - claude `CLAUDE_CONFIG_DIR` relocation → OAuth re-onboarding (real, §4).
 
 ### 7d. Review against the seven locked decisions — no contradictions

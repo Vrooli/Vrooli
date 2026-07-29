@@ -89,11 +89,12 @@ export function RunStatusTrends() {
               />
               <Tooltip
                 contentStyle={TOOLTIP_STYLE}
-                labelFormatter={(label: string) => formatStatsDateTime(label)}
-                formatter={(value: number, name: string) => [
-                  formatNumber(value),
-                  name.charAt(0).toUpperCase() + name.slice(1),
-                ]}
+                labelFormatter={(label) => formatStatsDateTime(String(label ?? ""))}
+                formatter={(value, name) => {
+                  const numericValue = typeof value === "number" ? value : Number(value ?? 0);
+                  const label = String(name ?? "");
+                  return [formatNumber(numericValue), label.charAt(0).toUpperCase() + label.slice(1)];
+                }}
               />
               <Legend
                 wrapperStyle={{ fontSize: "12px", color: CHART_COLORS.text }}

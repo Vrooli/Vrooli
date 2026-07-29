@@ -36,6 +36,7 @@ import { Textarea } from "./ui/textarea";
 import { formatUsdFixed } from "../lib/currency";
 import { cn, formatDuration, runnerTypeLabel } from "../lib/utils";
 import { useCollapsiblePanel } from "../hooks/useCollapsiblePanel";
+import { useRunReport } from "../hooks/useApi";
 import { useResizablePanel } from "../hooks/useResizablePanel";
 import { useViewportSize } from "../hooks/useViewportSize";
 import type {
@@ -75,7 +76,7 @@ import {
   taskStatusLabel,
 } from "./RunDetailParts";
 
-type TabId = "task" | "timeline" | "diff" | "cost";
+type TabId = "task" | "timeline" | "diff" | "cost" | "report";
 
 interface RunDetailProps {
   run: Run;
@@ -128,6 +129,7 @@ export function RunDetail({
   onMobileHeaderLeft,
   onMobileHeaderRight,
 }: RunDetailProps) {
+	const report = useRunReport(run.id);
   const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? "timeline");
 
   // Reset tab when switching runs or when initialTab changes
@@ -616,6 +618,13 @@ export function RunDetail({
               <span className="hidden sm:inline mr-2"><DollarSign className="h-4 w-4 inline" /></span>
               Cost
             </button>
+            <button
+              className={cn("px-3 py-1.5 sm:px-4 sm:py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap", activeTab === "report" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}
+              onClick={() => setActiveTab("report")}
+            >
+              <span className="hidden sm:inline mr-2"><Info className="h-4 w-4 inline" /></span>
+              Report
+            </button>
           </div>
 
           {/* Tab content - fills remaining space, scrollable for most tabs but not Messages */}
@@ -648,6 +657,22 @@ export function RunDetail({
                 />
               </div>
             </div>
+          ) : activeTab === "report" ? (
+            report.loading ? <div className="py-8 text-center text-muted-foreground">Loading run report…</div> : report.error ? <div className="py-8 text-center text-destructive">Report unavailable: {report.error}</div> : report.data ? (
+              <div className="space-y-3 text-sm" data-testid="run-report">
+                <div><strong>Status:</strong> {report.data.status}{report.data.exit_code !== undefined ? ` (exit ${report.data.exit_code})` : ""}{report.data.error ? ` — ${report.data.error}` : ""}</div>
+                <div><strong>Timing:</strong> duration={report.data.duration_ms ?? "unavailable"}ms; heartbeat gap={report.data.heartbeat_gap_ms ?? "unavailable"}ms; turns={report.data.turns}; tokens={report.data.tokens}; cost=${report.data.cost_usd}</div>
+                <div><strong>Final output:</strong> {report.data.result.selection_status} ({report.data.result.selection_rule || "unavailable"}), candidates={report.data.result.candidate_count}</div>
+                <div><strong>Structured:</strong> {report.data.result.structured_status || "unavailable"} {report.data.result.diagnostic_codes?.join(", ")}</div>
+                <div><strong>Tools:</strong> project-owned={report.data.project_owned_tool_calls} external={report.data.external_tool_calls}; repeated={report.data.repeated_tool_calls}; files reread={report.data.files_read_more_than_once}</div>
+                <div><strong>Model:</strong> requested={report.data.requested_model || "unavailable"} actual={report.data.actual_model || "unavailable"} fallbacks={report.data.fallback_count}</div>
+                <div><strong>Diff:</strong> {report.data.diff.files} files, {report.data.diff.bytes} bytes ({report.data.diff.available.state})</div>
+                <div><strong>Events:</strong> {report.data.events_availability.state}</div>
+                <ul className="list-disc pl-5">{Object.entries(report.data.event_counts).sort(([left], [right]) => left.localeCompare(right)).map(([type, count]) => <li key={type}>{type}: {count}</li>)}</ul>
+                <div><strong>Receipts:</strong> {report.data.receipts_availability.state} ({report.data.receipt_count})</div>
+                <ul className="list-disc pl-5">{report.data.tools.map((tool) => <li key={tool.name}>{tool.name}: {tool.calls} calls, {tool.failures} failed, {tool.unresolved ?? 0} unresolved</li>)}</ul>
+              </div>
+            ) : <div className="py-8 text-center text-muted-foreground">Report unavailable</div>
           ) : activeTab === "diff" ? (
             diffLoading ? (
               <div className="py-8 text-center text-muted-foreground">

@@ -40,8 +40,13 @@ Stable seams worth canonical test doubles:
 
 - `mocks/`: hand-written fakes for stable seams.
 - `fixtures/`: domain object factories with explicit overrides.
+- `fixtures.ReplayPathology`: executes a named redacted pathology transcript
+  through `fake-agent`, then returns its finalized `Run` and decoded events.
 - `assertx/`: domain-aware assertions that call `t.Helper()`.
 - `httpx/`: HTTP doer and response helpers for package-neutral HTTP client tests.
+- `adapters/runner/codecs/testdata/corpus/pathology/`: named, redacted offline
+  captures for investigation failures. Replay these through `fake-agent` before
+  consuming a live-run validation slot.
 - Existing DB helpers remain available through `SetupTestDB`, `SetupTestRepos`, and `SetupTestReposWithDB` while tests migrate incrementally.
 
 Production code must not import `agent-manager/internal/testutil` or any child package. The `TestNoProductionImports` meta-test enforces that boundary.

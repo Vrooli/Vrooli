@@ -19,6 +19,7 @@ const RunsPage = lazy(async () => ({ default: (await import("./pages/RunsPage"))
 const WorkflowsPage = lazy(async () => ({ default: (await import("./pages/WorkflowsPage")).WorkflowsPage }));
 const StatsPage = lazy(async () => ({ default: (await import("./features/stats")).StatsPage }));
 const HealthPage = lazy(async () => ({ default: (await import("./features/health")).HealthPage }));
+const FindingsPage = lazy(async () => ({ default: (await import("./pages/FindingsPage")).FindingsPage }));
 const StatusDialog = lazy(async () => ({ default: (await import("./components/dialogs/StatusDialog")).StatusDialog }));
 const SettingsDialog = lazy(async () => ({ default: (await import("./components/dialogs/SettingsDialog")).SettingsDialog }));
 const QuickRunDialog = lazy(async () => ({ default: (await import("./components/QuickRunDialog")).QuickRunDialog }));
@@ -415,6 +416,7 @@ export default function App() {
                 </Suspense>
               }
             />
+            <Route path="/findings" element={<Suspense fallback={pageFallback}><ErrorBoundary section="Findings"><ProfiledPage id="FindingsPage"><FindingsPage /></ProfiledPage></ErrorBoundary></Suspense>} />
             {/* Redirect unknown paths to dashboard */}
             <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

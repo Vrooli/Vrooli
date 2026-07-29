@@ -27,6 +27,9 @@ import (
 
 // CreateRun creates a new run.
 func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
+	if h.denyRunInitiatedLifecycleOperation(w, r, "create-run") {
+		return
+	}
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		writeSimpleError(w, r, "body", "failed to read request body")
@@ -201,6 +204,9 @@ func validateCustomEnvironment(env map[string]string) error {
 
 // CreateInvestigationRun creates a new investigation run for specified run IDs.
 func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request) {
+	if h.denyRunInitiatedLifecycleOperation(w, r, "investigate") {
+		return
+	}
 	var req struct {
 		RunIDs        []string          `json:"runIds"`
 		CustomContext string            `json:"customContext,omitempty"`
@@ -268,6 +274,9 @@ func optionalTrimmedString(raw string) *string {
 // or cancelled run, inheriting its task + profile and seeding the prior
 // attempt's transcript and diff so the agent can complete the remaining work.
 func (h *Handler) ResumeFromFailedRun(w http.ResponseWriter, r *http.Request) {
+	if h.denyRunInitiatedLifecycleOperation(w, r, "resume-from-failed") {
+		return
+	}
 	var req struct {
 		RunID         string   `json:"runId"`
 		CustomContext string   `json:"customContext,omitempty"`
@@ -299,6 +308,9 @@ func (h *Handler) ResumeFromFailedRun(w http.ResponseWriter, r *http.Request) {
 
 // CreateInvestigationApplyRun creates a new run to apply investigation recommendations.
 func (h *Handler) CreateInvestigationApplyRun(w http.ResponseWriter, r *http.Request) {
+	if h.denyRunInitiatedLifecycleOperation(w, r, "investigation-apply") {
+		return
+	}
 	var req struct {
 		InvestigationRunID string            `json:"investigationRunId"`
 		Decision           string            `json:"decision,omitempty"`
@@ -559,6 +571,9 @@ func (h *Handler) DeleteRun(w http.ResponseWriter, r *http.Request) {
 
 // StopRun stops a running run.
 func (h *Handler) StopRun(w http.ResponseWriter, r *http.Request) {
+	if h.denyRunInitiatedLifecycleOperation(w, r, "stop-run") {
+		return
+	}
 	idStr := mux.Vars(r)["id"]
 	req := apipb.StopRunRequest{RunId: idStr}
 	if !h.validateProto(w, r, &req) {

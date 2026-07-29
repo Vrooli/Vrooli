@@ -9,11 +9,13 @@ afterEach(() => {
   sessionStorage.clear();
 });
 
-globalThis.ResizeObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-})) as unknown as typeof ResizeObserver;
+class ResizeObserverMock {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+}
+
+globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
 
 globalThis.IntersectionObserver = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),

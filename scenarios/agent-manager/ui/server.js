@@ -1,7 +1,19 @@
 import { createScenarioServer, injectBaseTag, proxyWebSocketUpgrade } from '@vrooli/api-base/server'
 
-const uiPort = process.env.UI_PORT || 3000
-const apiPort = process.env.API_PORT || 8080
+function requiredPort(name) {
+  const raw = process.env[name]
+  if (!raw || !/^\d+$/.test(raw)) {
+    throw new Error(`${name} must be set to a lifecycle-assigned TCP port`)
+  }
+  const port = Number(raw)
+  if (port < 1 || port > 65535) {
+    throw new Error(`${name} must be between 1 and 65535`)
+  }
+  return port
+}
+
+const uiPort = requiredPort('UI_PORT')
+const apiPort = requiredPort('API_PORT')
 
 const app = createScenarioServer({
   uiPort,

@@ -39,7 +39,7 @@
             "type": "object",
             "properties": {
               "summary": {"type": "string", "minLength": 1, "maxLength": 8192},
-              "primaryCategory": {"type": "string", "enum": ["Environment/Tooling", "Agent Setup", "Both"]},
+              "primaryCategory": {"type": "string", "minLength": 1, "maxLength": 64},
               "confidence": {"type": "string", "enum": ["High", "Medium", "Low"]},
               "categories": {
                 "type": "array",
@@ -58,7 +58,8 @@
                         "properties": {
                           "text": {"type": "string", "minLength": 1, "maxLength": 4096},
                           "severity": {"type": "string", "enum": ["Critical", "Major", "Gap", "Minor"]},
-                          "evidence": {"type": "string", "maxLength": 4096}
+                          "evidence": {"type": "string", "maxLength": 4096},
+                          "targetPath": {"type": "string", "maxLength": 2048}
                         },
                         "required": ["text"],
                         "additionalProperties": false
@@ -77,8 +78,8 @@
         "bindings": [
           {"name": "context", "source": "workflow_input", "selector": "$.context", "limit": 1, "maxBytes": 65536, "renderAs": "text", "missingPolicy": "error"}
         ],
-        "maxTurns": 75,
-        "timeoutSeconds": 600
+        "maxTurns": 1000,
+        "timeoutSeconds": 7200
       }
     },
     {
@@ -117,8 +118,8 @@
           {"name": "approval", "source": "signal", "selector": "$.payload", "limit": 1, "maxBytes": 8192, "renderAs": "text", "missingPolicy": "error"},
           {"name": "context", "source": "workflow_input", "selector": "$.context", "limit": 1, "maxBytes": 32768, "renderAs": "text", "missingPolicy": "omit"}
         ],
-        "maxTurns": 100,
-        "timeoutSeconds": 900
+        "maxTurns": 1000,
+        "timeoutSeconds": 7200
       }
     },
     {
@@ -162,7 +163,7 @@
   ],
   "budgets": {
     "wallTimeSeconds": 86400,
-    "maxTurns": 200,
+    "maxTurns": 2200,
     "maxTokens": 3000000,
     "maxCostUsd": 60,
     "maxNodeAttempts": 2,

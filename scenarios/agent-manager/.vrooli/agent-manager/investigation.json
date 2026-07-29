@@ -4,9 +4,10 @@
   "profileKey": "agent-manager/investigation",
   "description": "Agent profile for behavioral analysis of failed agent runs (read-only)",
   "roleRef": "code.smart",
-  "maxTurns": 75,
-  "timeout": "600s",
-  "allowedTools": ["read", "glob", "grep", "web_search"],
+  "maxTurns": 1000,
+  "timeout": "7200s",
+  "allowedTools": ["read", "glob", "grep", "shell", "web_search"],
+  "toolRestrictionPolicy": "advisory",
   "skipPermissionPrompt": false,
   "sandboxConfig": {
     "manualReview": true

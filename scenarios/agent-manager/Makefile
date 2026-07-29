@@ -10,8 +10,11 @@
 #   make test  - Run scenario tests
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
+#
+# This Makefile is a thin wrapper. All user-facing output (status, banners,
+# colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help setup start stop restart status logs test smoke open clean build fmt fmt-go fmt-ui lint lint-go lint-ui lint-fix check type-check run dev
+.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open orient temporal-models endpoints smoke lint-fix type-check
 
 .DEFAULT_GOAL := help
 
@@ -26,15 +29,11 @@ help: ## Show the supported scenario entrypoints
 	@printf "  make status                     Show scenario runtime status\n"
 	@printf "  make logs                       Show scenario logs\n"
 	@printf "  make test                       Run scenario tests\n"
-	@printf "  make smoke                      Run one bounded live tracking/provenance smoke check\n"
 	@printf "  make open                       Open the scenario in a browser\n"
 	@printf "  make run                        Alias for make start\n"
 	@printf "  make dev                        Alias for make start\n"
 	@printf "\n"
 	@printf "For scenario-specific commands, prefer the scenario CLI or 'vrooli scenario ...'.\n"
-
-setup: ## Run scenario setup lifecycle
-	@vrooli scenario setup "$(SCENARIO_NAME)"
 
 start: ## Start the scenario
 	@vrooli scenario start "$(SCENARIO_NAME)"
@@ -49,20 +48,14 @@ status: ## Show scenario runtime status
 	@vrooli scenario status "$(SCENARIO_NAME)"
 
 logs: ## Show scenario logs
-	@vrooli scenario logs "$(SCENARIO_NAME)" --tail 50
+	@vrooli scenario logs "$(SCENARIO_NAME)"
 
 test: ## Run scenario tests
 	@vrooli scenario test "$(SCENARIO_NAME)"
 
-smoke: ## Run a bounded live tracking/provenance verification (incurs real agent cost)
-	@WORKSPACE_SANDBOX_URL="http://127.0.0.1:$$(vrooli scenario port workspace-sandbox API_PORT)" agent-manager scenario-smoke
-
-open: ## Open the scenario in a browser
-	@vrooli scenario open "$(SCENARIO_NAME)"
-
 clean: ## Clean build artifacts
-	@rm -rf ui/dist || true
-	@rm -f api/$(SCENARIO_NAME)-api api/$(SCENARIO_NAME) || true
+	@rm -rf ui/dist 2>/dev/null || true
+	@rm -f api/$(SCENARIO_NAME)-api api/$(SCENARIO_NAME) 2>/dev/null || true
 
 build: ## Build the scenario
 	@if [ -f api/go.mod ]; then \
@@ -84,15 +77,15 @@ fmt-go: ## Format Go code
 	fi
 	@if [ -d cli ] && find cli -name "*.go" | head -1 | grep -q .; then \
 		if command -v gofumpt >/dev/null 2>&1; then \
-			cd cli && GOWORK=off gofumpt -w .; \
+			cd cli && gofumpt -w .; \
 		elif command -v gofmt >/dev/null 2>&1; then \
-			cd cli && GOWORK=off gofmt -w .; \
+			cd cli && gofmt -w .; \
 		fi; \
 	fi
 
 fmt-ui: ## Format UI code
 	@if [ -f ui/package.json ]; then \
-		cd ui && pnpm run lint:fix; \
+		cd ui && pnpm run lint:fix && pnpm run strings:check; \
 	fi
 
 lint: lint-go lint-ui ## Lint all code
@@ -100,14 +93,14 @@ lint: lint-go lint-ui ## Lint all code
 lint-go: ## Lint Go code
 	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
 		if command -v golangci-lint >/dev/null 2>&1; then \
-			cd api && golangci-lint run ./...; \
+			cd api && GOWORK=off golangci-lint run ./...; \
 		elif command -v go >/dev/null 2>&1; then \
 			cd api && GOWORK=off go vet ./... && GOWORK=off go fmt ./...; \
 		fi; \
 	fi
 	@if [ -d cli ] && find cli -name "*.go" | head -1 | grep -q .; then \
 		if command -v golangci-lint >/dev/null 2>&1; then \
-			cd cli && golangci-lint run ./...; \
+			cd cli && GOWORK=off golangci-lint run ./...; \
 		elif command -v go >/dev/null 2>&1; then \
 			cd cli && GOWORK=off go vet ./... && GOWORK=off go fmt ./...; \
 		fi; \
@@ -118,6 +111,30 @@ lint-ui: ## Lint UI code
 		cd ui && pnpm run lint && pnpm run type-check; \
 	fi
 
+check: fmt lint test ## Run full quality gates
+
+setup: ## Run scenario setup lifecycle
+	@vrooli scenario setup "$(SCENARIO_NAME)"
+
+temporal-models: ## Verify formal flow artifacts via the flow-verifier scenario CLI
+	@flow-verifier verify check --root "$(CURDIR)"
+
+open: ## Open the scenario in a browser
+	@vrooli scenario open "$(SCENARIO_NAME)"
+
+orient: ## Show generated-scenario orientation progress
+	@template-manager orient "$(SCENARIO_NAME)"
+
+endpoints: ## Regenerate .vrooli/endpoints.json from API modules (validated against cli/manifest.json)
+	@cd api && go run ./cmd/gen-endpoints --output ../.vrooli/endpoints.json
+
+run: start
+
+dev: start
+
+smoke: ## Run a bounded live tracking/provenance verification (incurs real agent cost)
+	@WORKSPACE_SANDBOX_URL="http://127.0.0.1:$$(vrooli scenario port workspace-sandbox API_PORT)" agent-manager scenario-smoke
+
 lint-fix: ## Auto-fix UI lint issues when supported
 	@if [ -f ui/package.json ]; then \
 		cd ui && pnpm run lint:fix; \
@@ -127,9 +144,3 @@ type-check: ## Run UI type checking
 	@if [ -f ui/package.json ]; then \
 		cd ui && pnpm run type-check; \
 	fi
-
-check: fmt lint test ## Run full quality gates
-
-# Development shortcuts
-run: start
-dev: start

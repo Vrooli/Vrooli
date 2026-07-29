@@ -53,10 +53,13 @@ export default defineConfig(({ mode }): UserConfig => {
           "src/**/generated/**",
         ],
         thresholds: {
-          lines: 0,
-          functions: 0,
-          branches: 0,
-          statements: 0
+          // Ratchet from Vitest 4's measured baseline; its V8 instrumentation
+          // counts branch/function sites differently from Vitest 2. Every new
+          // change must retain this meaningful investigation-UI coverage.
+          lines: 30,
+          functions: 25,
+          branches: 25,
+          statements: 30
         }
       }
     }

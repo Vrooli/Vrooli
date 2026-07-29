@@ -200,15 +200,17 @@ export function ModelUsageBreakdown() {
                   />
                   <Tooltip
                     contentStyle={TOOLTIP_STYLE}
-                    formatter={(value: number, name: string) => {
-                      if (name === "runs") {
-                        const pct = totalRuns > 0 ? (value / totalRuns) * 100 : 0;
-                        return [`${formatNumber(value)} (${pct.toFixed(1)}%)`, "Runs"];
+                    formatter={(value, name) => {
+                      const numericValue = typeof value === "number" ? value : Number(value ?? 0);
+                      const label = String(name ?? "");
+                      if (label === "runs") {
+                        const pct = totalRuns > 0 ? (numericValue / totalRuns) * 100 : 0;
+                        return [`${formatNumber(numericValue)} (${pct.toFixed(1)}%)`, "Runs"];
                       }
-                      return [value, name];
+                      return [numericValue, label];
                     }}
-                    labelFormatter={(label: string) => (
-                      <span className="font-medium">{formatUnknownLabel(label)}</span>
+                    labelFormatter={(label) => (
+                      <span className="font-medium">{formatUnknownLabel(String(label ?? ""))}</span>
                     )}
                     content={({ active, payload }) => {
                       if (!active || !payload?.[0]) return null;

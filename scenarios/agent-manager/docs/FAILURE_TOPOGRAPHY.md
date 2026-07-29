@@ -172,6 +172,16 @@ ApproveRun Request
 
 ## Failure Categories
 
+### Investigation self-spawn refusal
+
+Investigation profiles can invoke the Agent Manager CLI for read-side evidence,
+but a run-issued identity token is refused on lifecycle routes such as create,
+stop, quiesce, investigate, and investigation-apply. The API returns `403`
+with `run identity cannot perform lifecycle operation`. This is intentional:
+the report records it as a failed project-owned tool call, and the investigator
+should classify it as a policy boundary rather than retrying or weakening the
+profile's shell access.
+
 ### Category 1: Input Errors (Client Fixable)
 These require the client to correct their request.
 

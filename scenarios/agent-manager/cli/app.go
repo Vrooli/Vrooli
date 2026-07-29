@@ -54,6 +54,10 @@ func NewApp() (*App, error) {
 			app.core = core
 			return app.customCommandGroups()
 		},
+		SubcommandGroups: func(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
+			app.core = core
+			return domains.SubcommandGroups(app.dependencies())
+		},
 	})
 	if err != nil {
 		return nil, err
@@ -82,6 +86,7 @@ func (a *App) dependencies() support.Dependencies {
 		Workflow:         a.cmdWorkflow,
 		Task:             a.cmdTask,
 		Run:              a.cmdRun,
+		RunCommands:      a.runCommands(),
 		Runner:           a.cmdRunner,
 		Policy:           a.cmdPolicy,
 		PermissionPolicy: a.cmdPermissionPolicy,
@@ -90,8 +95,37 @@ func (a *App) dependencies() support.Dependencies {
 		Ops:              a.cmdOps,
 		Health:           a.cmdHealth,
 		Events:           a.cmdEvents,
+		Findings:         a.cmdFindings,
 		ScenarioSmoke:    a.cmdScenarioSmoke,
 	}
+}
+
+func (a *App) runCommands() []cliapp.Command {
+	type entry struct {
+		name, description, usage string
+		run                      func([]string) error
+	}
+	entries := []entry{
+		{"list", "List runs", "agent-manager run list [options]", a.runList}, {"get", "Get a run", "agent-manager run get <id> [--json]", a.runGet},
+		{"report", "Show bounded investigation diagnostics", "agent-manager run report <id> [--json]", a.runReport}, {"stats", "Show filtered aggregate run statistics", "agent-manager run stats [--profile UUID] [--since RFC3339] [--tag-prefix prefix]", a.runStats}, {"result", "Show final-output and structured-result provenance", "agent-manager run result <id>", a.runResult},
+		{"tools", "Show tool calls and failures", "agent-manager run tools <id> [--failed]", a.runTools}, {"messages", "Show recorded agent messages", "agent-manager run messages <id> [--all] [--range start:end] [--grep text]", a.runMessages},
+		{"receipts", "Show observed receipt state and evidence", "agent-manager run receipts <id> [--json]", a.runReceipts}, {"get-by-tag", "Get a run by tag", "agent-manager run get-by-tag <tag>", a.runGetByTag},
+		{"create", "Create and start a run", "agent-manager run create [options]", a.runCreate}, {"delete", "Delete a run", "agent-manager run delete <id>", a.runDelete},
+		{"stop", "Stop a run", "agent-manager run stop <id>", a.runStop}, {"stop-by-tag", "Stop runs by tag", "agent-manager run stop-by-tag <tag>", a.runStopByTag},
+		{"stop-all", "Stop all matching runs", "agent-manager run stop-all [options]", a.runStopAll}, {"quiesce", "Drain in-flight scenario runs", "agent-manager run quiesce --scenario <scenario>", a.runQuiesce},
+		{"continue", "Continue a run", "agent-manager run continue <id> --message <message>", a.runContinue}, {"park", "Park a run", "agent-manager run park <id>", a.runPark}, {"wake", "Wake a parked run", "agent-manager run wake <id>", a.runWake},
+		{"await-result", "Read a run's awaited result", "agent-manager run await-result <id>", a.runAwaitResult}, {"recover", "Reconcile a run", "agent-manager run recover <id>", a.runRecover},
+		{"investigate", "Create an investigation run", "agent-manager run investigate [options]", a.runInvestigate}, {"apply-investigation", "Apply investigation recommendations", "agent-manager run apply-investigation <id>", a.runApplyInvestigation},
+		{"sandbox-sync", "Sync run state from sandbox", "agent-manager run sandbox-sync <id>", a.runSandboxSync}, {"approve", "Approve run changes", "agent-manager run approve <id>", a.runApprove},
+		{"reject", "Reject run changes", "agent-manager run reject <id>", a.runReject}, {"diff", "Show sandbox diff", "agent-manager run diff <id> [--stat]", a.runDiff}, {"events", "Show run events", "agent-manager run events <id> [--stats] [--failed]", a.runEvents},
+	}
+	commands := make([]cliapp.Command, 0, len(entries))
+	for _, item := range entries {
+		command := support.Command(item.name, item.description, item.run)
+		command.Usage = item.usage
+		commands = append(commands, command)
+	}
+	return commands
 }
 
 func formatEnumValue(value fmt.Stringer, prefix, separator string) string {

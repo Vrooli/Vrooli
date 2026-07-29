@@ -11,8 +11,8 @@ import (
 	"fmt"
 	"strings"
 
-	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/runreport"
 
 	"github.com/google/uuid"
 )
@@ -105,22 +105,15 @@ func (o *Orchestrator) buildResumeFromFailureAttachments(
 	short := shortID(failedRun.ID)
 	prevKey := "prev-" + short
 
-	var profile *domain.AgentProfile
-	if failedRun.AgentProfileID != nil {
-		profile, _ = o.GetProfile(ctx, *failedRun.AgentProfileID)
+	report, err := o.BuildRunReport(ctx, failedRun.ID)
+	if err != nil {
+		return nil, err
 	}
-	attachments = append(attachments, buildRunOverview(failedRun, originalTask, profile, prevKey))
-
-	if o.events != nil {
-		events, err := o.GetRunEvents(ctx, failedRun.ID, event.GetOptions{
-			AfterSequence: -1,
-			Limit:         investigationEventLimit,
-		})
-		if err != nil {
-			return nil, err
-		}
-		attachments = append(attachments, buildRunTimeline(events, failedRun, prevKey))
-	}
+	attachments = append(attachments, domain.ContextAttachment{
+		Type: "note", Key: "previous-run-report-" + prevKey, Label: "Previous Attempt " + prevKey,
+		Content: runreport.Text(report), Format: "markdown", Priority: "high",
+		Summary: "Bounded diagnostics for the failed attempt", Tags: []string{"run", "resume", "report"},
+	})
 
 	diff, err := o.GetRunDiff(ctx, failedRun.ID)
 	if err == nil && diff != nil {

@@ -127,7 +127,7 @@ func TestGetObservedReceiptsReturnsConfiguredObservationState(t *testing.T) {
 		t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
 	}
 	var response map[string]any
-	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil || response["status"] != "available" {
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil || response["status"] != "unobserved" {
 		t.Fatalf("response=%v err=%v", response, err)
 	}
 	invalid := httptest.NewRecorder()

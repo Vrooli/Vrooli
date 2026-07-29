@@ -1,0 +1,15 @@
+Run 11111111-1111-1111-1111-111111111111
+Status: failed
+Error: tool failed
+Duration: 0s | heartbeat gap: 0s
+Turns: 3 | tokens: 42 | cost: $0.2500
+Final output: ambiguous (multiple), candidates=2
+Structured result: invalid () diagnostics=schema_invalid
+Model: requested=primary actual=fallback fallbacks=1
+Tools: project-owned=2 external=1
+Efficiency: repeated tool calls=2 files reread=1 longest event gap=0s
+  shell: calls=2 success=0 failed=1
+Events: model.fallback.attempted=1 tool_result=2
+Diff: files=1 bytes=8 (available)
+Receipts:  (0)
+Next: agent-manager run result 11111111-1111-1111-1111-111111111111; agent-manager run events 11111111-1111-1111-1111-111111111111; agent-manager run tools 11111111-1111-1111-1111-111111111111 --failed; agent-manager run diff 11111111-1111-1111-1111-111111111111; agent-manager run receipts 11111111-1111-1111-1111-111111111111

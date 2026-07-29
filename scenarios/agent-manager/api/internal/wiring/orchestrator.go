@@ -29,6 +29,7 @@ import (
 	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/rolepolicy"
+	"agent-manager/internal/runreport"
 	"agent-manager/internal/runstate"
 	"agent-manager/internal/stats"
 	"agent-manager/internal/storage"
@@ -37,6 +38,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/filerouting"
 )
 
@@ -177,6 +179,24 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		artifactCollector = artifact.NewSQLiteCollector(db, fileRoots[0])
 	}
 	extractor := &structuredresult.RunnerExtractor{Roles: roleState, Resolver: roleResolver, Runners: registry, WorkingDir: database.DataDir(), Timeout: 2 * time.Minute}
+	receiptsBaseURL := os.Getenv("VROOLI_EVENTS_API_BASE")
+	if receiptsBaseURL == "" {
+		receiptsBaseURL, _ = discovery.ResolveScenarioURLDefault(context.Background(), "vrooli-events")
+	}
+	receiptsClient := eventbus.Client{BaseURL: receiptsBaseURL}
+	receiptReader := orchestration.ReceiptSummaryReaderFunc(func(ctx context.Context, id uuid.UUID) (runreport.ReceiptSummary, error) {
+		if !receiptsClient.Enabled() {
+			return runreport.ReceiptSummary{State: "unavailable", Detail: "vrooli-events observations are not configured"}, nil
+		}
+		observations, err := receiptsClient.ReceiptQuery(ctx, id.String(), 100)
+		if err != nil {
+			return runreport.ReceiptSummary{}, err
+		}
+		if len(observations) == 0 {
+			return runreport.ReceiptSummary{State: "unobserved"}, nil
+		}
+		return runreport.ReceiptSummary{State: "available", Count: len(observations)}, nil
+	})
 	opts := []orchestration.Option{
 		orchestration.WithConfig(orchConfig), orchestration.WithEvents(eventStore), orchestration.WithRunners(registry), orchestration.WithSandbox(sandboxProvider),
 		orchestration.WithWorkspaceSandboxEnsurer(workspaceEnsurer), orchestration.WithCheckpoints(repos.Checkpoints), orchestration.WithIdempotency(repos.Idempotency),
@@ -185,7 +205,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		orchestration.WithStructuredExtractor(extractor), orchestration.WithHealthStore(healthStore), orchestration.WithInvestigationSettings(repos.InvestigationSettings),
 		orchestration.WithPromptClient(promptmanager.NewHTTPClient()), orchestration.WithFlagValidator(flagValidator), orchestration.WithAttachmentStorage(uploads),
 		orchestration.WithOrchestrationSettings(settingsStore), orchestration.WithIdentitySecret(identitySecret), orchestration.WithSpawnDispatcher(spawnDispatcher),
-		orchestration.WithRunStateRootResolver(runStateResolver), orchestration.WithArtifacts(artifactCollector),
+		orchestration.WithRunStateRootResolver(runStateResolver), orchestration.WithArtifacts(artifactCollector), orchestration.WithReceiptSummaryReader(receiptReader), orchestration.WithFindings(repos.Findings),
 	}
 	if interactiveSessions != nil {
 		opts = append(opts, orchestration.WithInteractiveSessions(interactiveSessions), orchestration.WithWebConsoleUIBase(webconsole.ResolveUIBaseURL()))
@@ -245,8 +265,11 @@ func resolveWorkspaceSandboxURL() string {
 		return resolved
 	}
 	port := os.Getenv("WORKSPACE_SANDBOX_API_PORT")
-	if port == "" {
-		port = "15427"
+	if strings.TrimSpace(port) == "" {
+		// An unavailable sandbox is represented explicitly. Sandboxed launches
+		// then fail with the provider's actionable connectivity error instead of
+		// being silently routed to an arbitrary legacy port.
+		return ""
 	}
 	return fmt.Sprintf("http://localhost:%s", port)
 }

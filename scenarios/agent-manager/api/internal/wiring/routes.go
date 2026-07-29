@@ -53,6 +53,7 @@ type RouteDependencies struct {
 // transport composition; every route's behavior remains in handlers.
 func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	router.Use(httpmw.Logging)
+	router.Use(httpmw.SecurityHeaders)
 	router.Use(httpmw.CORS)
 
 	healthHandler := health.New().

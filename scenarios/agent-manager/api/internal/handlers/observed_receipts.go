@@ -45,7 +45,11 @@ func (h *Handler) GetObservedReceipts(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"status": "degraded", "observations": []any{}, "message": "vrooli-events observations unavailable"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"status": "available", "observations": observations})
+	status := "available"
+	if len(observations) == 0 {
+		status = "unobserved"
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"status": status, "observations": observations})
 }
 
 // attachObservedReceipts adds platform evidence to the normal result model

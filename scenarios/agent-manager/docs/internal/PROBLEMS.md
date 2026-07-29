@@ -50,6 +50,13 @@
 
 ## Test Gaps
 
+## Work ladder
+
+- Rung: W3
+- Evidence: active goals `ecosystem-intelligence-loop`, `git-control-tower-ai-provenance`, `phone-agent`, and `swarm-manager-feature-parity` agree with Agent Manager's P0 run, sandbox, event, diff, and health targets; `business-health validate scenario agent-manager` and `vrooli scenario requirements validate agent-manager` pass, with six inherited orphaned P2 targets (`OT-P2-003` through `OT-P2-008`). Test Genie run `20260729-045047-b8b09a26` reached its terminal suite and had two unique errors: stale UI bundle freshness (repaired by the managed restart) and `UNIT_POLICY_PROJECTION_DRIFT` because measured UI coverage is below the declared 85% policy.
+- Blocker: implementation reliability is verified for the investigation path, but the scenario-wide UI coverage policy remains unsatisfied; continue behavior-focused coverage without weakening the policy.
+- Measured: 2026-07-29
+
 ### P-007: Unit coverage policy gaps remain after reliability hardening (2026-07-23)
 **Severity**: Medium (verification)
 **Description**: Unit Health now passes the production-to-testutil boundary and

@@ -73,6 +73,8 @@ export function DialogContent({
 }: DialogContentProps) {
   return (
     <div
+      role="dialog"
+      aria-modal="true"
       className={cn(
         "relative bg-card shadow-xl flex flex-col",
         fullScreenMobile

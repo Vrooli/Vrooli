@@ -69,6 +69,9 @@ func (h *Handler) StopRunByTag(w http.ResponseWriter, r *http.Request) {
 // POST /api/v1/runs/stop-all
 // Body: {"tagPrefix": "ecosystem-", "force": true}
 func (h *Handler) StopAllRuns(w http.ResponseWriter, r *http.Request) {
+	if h.denyRunInitiatedLifecycleOperation(w, r, "stop-all") {
+		return
+	}
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		writeSimpleError(w, r, "body", "failed to read request body")
@@ -113,6 +116,9 @@ func (h *Handler) StopAllRuns(w http.ResponseWriter, r *http.Request) {
 // promote can re-point and restart its live instance without killing in-flight
 // agent work (Baseline Modes P6).
 func (h *Handler) QuiesceScenario(w http.ResponseWriter, r *http.Request) {
+	if h.denyRunInitiatedLifecycleOperation(w, r, "quiesce") {
+		return
+	}
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		writeSimpleError(w, r, "body", "failed to read request body")

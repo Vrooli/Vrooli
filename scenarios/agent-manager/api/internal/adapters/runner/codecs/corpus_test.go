@@ -23,6 +23,7 @@ func TestReplayCorpusParsesWithoutSecrets(t *testing.T) {
 		{"claude-ondisk.jsonl", func(t *testing.T) Codec { t.Helper(); return NewClaudeForTest() }, "a94bac9c-0365-4246-9a92-2fb4f1f5b67c", 1, 2, 0},
 		{"codex-stdout.jsonl", func(t *testing.T) Codec { t.Helper(); return NewCodexForTest() }, "019b3906-b365-7403-b3d1-70d60f6f06c4", 2, 3, 1},
 		{"codex-rollout.jsonl", func(t *testing.T) Codec { t.Helper(); return NewCodexForTest() }, "019f46b3-b60d-7373-bf64-b8748b8d5992", 2, 4, 0},
+		{"codex-live-identity-guard.jsonl", func(t *testing.T) Codec { t.Helper(); return NewCodexForTest() }, "019fa64c-e19a-72b1-bf39-bf6ec9a028ab", 2, 0, 1},
 		{"grok-stdout.jsonl", func(t *testing.T) Codec { t.Helper(); return NewGrokForTest() }, "019f10db-c647-7d93-9278-8bd0ab1e7528", 1, 0, 0},
 		{"grok-updates.jsonl", func(t *testing.T) Codec { t.Helper(); return NewGrokForTest() }, "019f1023-e563-7513-a64e-96165fba4be6", 1, 2, 0},
 		{"opencode-stdout.jsonl", func(t *testing.T) Codec { t.Helper(); return NewOpenCodeForTest() }, "sess-1", 2, 3, 1},

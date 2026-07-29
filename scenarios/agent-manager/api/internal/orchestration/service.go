@@ -14,6 +14,7 @@ import (
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/adapters/webconsole"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/findings"
 	"agent-manager/internal/health"
 	"agent-manager/internal/identity"
 	"agent-manager/internal/orchestration/phases"
@@ -22,6 +23,7 @@ import (
 	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/rolepolicy"
+	"agent-manager/internal/runreport"
 	"agent-manager/internal/runstate"
 	"agent-manager/internal/storage"
 	"agent-manager/internal/structuredresult"
@@ -641,6 +643,11 @@ type Orchestrator struct {
 	// File storage for uploaded attachments.
 	storage storage.Service
 
+	// receipts is an optional, read-only Vrooli Events seam. It must never
+	// influence run execution or terminal state; reports surface its status.
+	receipts ReceiptSummaryReader
+	findings findings.Repository
+
 	// Orchestration settings store (file-backed, hot-reloadable).
 	orchestrationSettings *agentconfig.OrchestrationSettingsStore
 
@@ -727,6 +734,18 @@ func DefaultConfig() OrchestratorConfig {
 // Option configures the Orchestrator.
 type Option func(*Orchestrator)
 
+// ReceiptSummaryReader provides only the bounded receipt discriminator needed
+// by RunReport. Receipt payloads remain on the dedicated inspection endpoint.
+type ReceiptSummaryReader interface {
+	ReadReceiptSummary(context.Context, uuid.UUID) (runreport.ReceiptSummary, error)
+}
+
+type ReceiptSummaryReaderFunc func(context.Context, uuid.UUID) (runreport.ReceiptSummary, error)
+
+func (f ReceiptSummaryReaderFunc) ReadReceiptSummary(ctx context.Context, id uuid.UUID) (runreport.ReceiptSummary, error) {
+	return f(ctx, id)
+}
+
 // WithConfig sets the configuration.
 func WithConfig(cfg OrchestratorConfig) Option {
 	return func(o *Orchestrator) {
@@ -778,6 +797,14 @@ func WithEvents(e event.Store) Option {
 	return func(o *Orchestrator) {
 		o.events = e
 	}
+}
+
+func WithReceiptSummaryReader(reader ReceiptSummaryReader) Option {
+	return func(o *Orchestrator) { o.receipts = reader }
+}
+
+func WithFindings(repo findings.Repository) Option {
+	return func(o *Orchestrator) { o.findings = repo }
 }
 
 // WithArtifacts sets the artifact collector.

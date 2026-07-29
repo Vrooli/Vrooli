@@ -5,8 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
+	"agent-manager/cli/internal/support"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 	"google.golang.org/protobuf/proto"
@@ -14,10 +16,6 @@ import (
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
-
-// =============================================================================
-// Run Command Dispatcher
-// =============================================================================
 
 func (a *App) cmdRun(args []string) error {
 	if len(args) == 0 {
@@ -29,6 +27,18 @@ func (a *App) cmdRun(args []string) error {
 		return a.runList(args[1:])
 	case "get":
 		return a.runGet(args[1:])
+	case "report":
+		return a.runReport(args[1:])
+	case "stats":
+		return a.runStats(args[1:])
+	case "result":
+		return a.runResult(args[1:])
+	case "tools":
+		return a.runTools(args[1:])
+	case "messages":
+		return a.runMessages(args[1:])
+	case "receipts":
+		return a.runReceipts(args[1:])
 	case "get-by-tag":
 		return a.runGetByTag(args[1:])
 	case "create":
@@ -80,6 +90,11 @@ func (a *App) runHelp() error {
 Subcommands:
   list                        List runs (with optional filters)
   get <id>                    Get run details by UUID
+  report <id>                 Show bounded investigation diagnostics
+  result <id>                 Show final-output and structured-result provenance
+  tools <id>                  Show tool events (--failed limits to failures)
+  messages <id>               Show recorded agent messages
+  receipts <id>               Show observed receipt state and evidence
   get-by-tag <tag>            Get run details by custom tag
   create                      Create and start a new run
   delete <id>                 Delete a run
@@ -539,10 +554,6 @@ func (a *App) runStop(args []string) error {
 	})
 }
 
-// =============================================================================
-// Run Get By Tag
-// =============================================================================
-
 func (a *App) runGetByTag(args []string) error {
 	fs := flag.NewFlagSet("run get-by-tag", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
@@ -860,12 +871,9 @@ func (a *App) runReject(args []string) error {
 	return nil
 }
 
-// =============================================================================
-// Run Diff
-// =============================================================================
-
 func (a *App) runDiff(args []string) error {
 	fs := flag.NewFlagSet("run diff", flag.ContinueOnError)
+	stat := fs.Bool("stat", false, "Show changed-file statistics without unified diff content")
 
 	// Parse with positional ID first
 	var id string
@@ -879,12 +887,22 @@ func (a *App) runDiff(args []string) error {
 	}
 
 	if id == "" {
-		return fmt.Errorf("usage: agent-manager run diff <id>")
+		return fmt.Errorf("usage: agent-manager run diff <id> [--stat]")
 	}
 
 	body, diff, err := a.services.Runs.GetDiff(id)
 	if err != nil {
 		return err
+	}
+	if *stat && diff != nil {
+		additions, deletions := int64(0), int64(0)
+		for _, file := range diff.Files {
+			additions += int64(file.Additions)
+			deletions += int64(file.Deletions)
+		}
+		fmt.Printf("Files: %d | additions: %d | deletions: %d\n", len(diff.Files), additions, deletions)
+		support.NextSteps(fmt.Sprintf("agent-manager run report %s", id), fmt.Sprintf("agent-manager run diff %s", id))
+		return nil
 	}
 
 	// Just print the diff output directly
@@ -898,12 +916,9 @@ func (a *App) runDiff(args []string) error {
 	} else {
 		fmt.Println(string(body))
 	}
+	support.NextSteps(fmt.Sprintf("agent-manager run diff %s --stat", id), fmt.Sprintf("agent-manager run report %s", id))
 	return nil
 }
-
-// =============================================================================
-// Run Events
-// =============================================================================
 
 func (a *App) runEvents(args []string) error {
 	fs := flag.NewFlagSet("run events", flag.ContinueOnError)
@@ -911,6 +926,8 @@ func (a *App) runEvents(args []string) error {
 	follow := fs.Bool("follow", false, "Stream events in real-time (WebSocket)")
 	limit := fs.Int("limit", 0, "Maximum number of events to return")
 	afterSequence := fs.Int64("after-sequence", -1, "Only return events with sequence greater than this value")
+	stats := fs.Bool("stats", false, "Show an event-type summary instead of event payloads")
+	failed := fs.Bool("failed", false, "Only show failed tool-result events")
 
 	// Parse with positional ID first
 	var id string
@@ -924,7 +941,7 @@ func (a *App) runEvents(args []string) error {
 	}
 
 	if id == "" {
-		return fmt.Errorf("usage: agent-manager run events <id> [--follow] [--after-sequence N] [--limit N]")
+		return fmt.Errorf("usage: agent-manager run events <id> [--follow] [--stats] [--failed] [--after-sequence N] [--limit N]")
 	}
 
 	if *follow {
@@ -954,10 +971,30 @@ func (a *App) runEvents(args []string) error {
 		fmt.Println("No events found")
 		return nil
 	}
+	if *stats {
+		counts := map[string]int{}
+		for _, event := range events {
+			counts[formatEnumValue(event.EventType, "RUN_EVENT_TYPE_", "_")]++
+		}
+		keys := make([]string, 0, len(counts))
+		for key := range counts {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			fmt.Printf("%s=%d ", key, counts[key])
+		}
+		fmt.Println()
+		support.NextSteps(fmt.Sprintf("agent-manager run report %s", id), fmt.Sprintf("agent-manager run tools %s --failed", id))
+		return nil
+	}
 
 	fmt.Printf("%-6s  %-12s  %-24s  %s\n", "SEQ", "TYPE", "TIMESTAMP", "DATA")
 	fmt.Printf("%-6s  %-12s  %-24s  %s\n", strings.Repeat("-", 6), strings.Repeat("-", 12), strings.Repeat("-", 24), strings.Repeat("-", 40))
 	for _, e := range events {
+		if *failed && (e.GetToolResult() == nil || e.GetToolResult().GetSuccess()) {
+			continue
+		}
 		dataStr := runEventDataString(e)
 		if len(dataStr) > 60 {
 			dataStr = dataStr[:57] + "..."
@@ -969,12 +1006,10 @@ func (a *App) runEvents(args []string) error {
 		eventType := formatEnumValue(e.EventType, "RUN_EVENT_TYPE_", "_")
 		fmt.Printf("%-6d  %-12s  %-24s  %s\n", e.Sequence, eventType, timestamp, dataStr)
 	}
+	support.NextSteps(fmt.Sprintf("agent-manager run report %s", id), fmt.Sprintf("agent-manager run tools %s --failed", id))
 
 	return nil
 }
-
-// streamEvents is implemented in cmd_events.go
-
 func runEventDataString(event *domainpb.RunEvent) string {
 	if event == nil {
 		return ""
@@ -1014,10 +1049,6 @@ func runEventDataString(event *domainpb.RunEvent) string {
 
 	return marshalProtoJSON(payload)
 }
-
-// =============================================================================
-// Run Delete
-// =============================================================================
 
 func (a *App) runDelete(args []string) error {
 	fs := flag.NewFlagSet("run delete", flag.ContinueOnError)

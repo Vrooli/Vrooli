@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/findings"
 	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
@@ -29,6 +30,7 @@ type Repositories struct {
 	Locks                 repository.LockRepository
 	Stats                 repository.StatsRepository
 	InvestigationSettings repository.InvestigationSettingsRepository
+	Findings              findings.Repository
 }
 
 // NewRepositories creates all repository implementations using the given database connection.
@@ -46,6 +48,7 @@ func NewRepositories(db *DB, log *logrus.Logger) *Repositories {
 		Locks:                 &lockRepository{db: db, log: log},
 		Stats:                 &statsRepository{db: db, log: log},
 		InvestigationSettings: &investigationSettingsRepository{db: db, log: log},
+		Findings:              findings.NewSQLiteRepository(db),
 	}
 }
 

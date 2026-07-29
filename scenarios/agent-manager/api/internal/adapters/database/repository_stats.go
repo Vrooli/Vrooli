@@ -150,7 +150,7 @@ func (r *statsRepository) GetSuccessRate(ctx context.Context, filter repository.
 
 	query := `
 		SELECT
-			CASE
+			COALESCE(CASE
 				WHEN SUM(CASE WHEN status IN ('complete', 'failed', 'cancelled') THEN 1 ELSE 0 END) = 0
 				THEN 0.0
 				ELSE ROUND(
@@ -158,7 +158,7 @@ func (r *statsRepository) GetSuccessRate(ctx context.Context, filter repository.
 					SUM(CASE WHEN status IN ('complete', 'failed', 'cancelled') THEN 1 ELSE 0 END),
 					4
 				)
-			END as success_rate
+			END, 0.0) as success_rate
 		FROM runs
 		WHERE created_at >= ? AND created_at < ?`
 
@@ -250,7 +250,9 @@ func (r *statsRepository) GetRunnerBreakdown(ctx context.Context, filter reposit
 		LEFT JOIN run_events e ON r.id = e.run_id AND e.event_type = 'metric'
 		WHERE r.created_at >= ? AND r.created_at < ?
 		  AND r.resolved_config IS NOT NULL
-		  AND json_extract(r.resolved_config, '$.runnerType') IS NOT NULL
+		  AND json_extract(r.resolved_config, '$.runnerType') IS NOT NULL`
+	query, args = r.appendFiltersWithAlias(query, args, filter, "r")
+	query += `
 		GROUP BY json_extract(r.resolved_config, '$.runnerType')
 		ORDER BY run_count DESC`
 
@@ -298,7 +300,9 @@ func (r *statsRepository) GetProfileBreakdown(ctx context.Context, filter reposi
 		LEFT JOIN agent_profiles p ON r.agent_profile_id = p.id
 		LEFT JOIN run_events e ON r.id = e.run_id AND e.event_type = 'metric'
 		WHERE r.created_at >= ? AND r.created_at < ?
-		  AND r.agent_profile_id IS NOT NULL
+		  AND r.agent_profile_id IS NOT NULL`
+	query, args = r.appendFiltersWithAlias(query, args, filter, "r")
+	query += `
 		GROUP BY r.agent_profile_id, p.name
 		ORDER BY run_count DESC
 		LIMIT ?`
@@ -335,7 +339,9 @@ func (r *statsRepository) GetModelBreakdown(ctx context.Context, filter reposito
 		FROM runs r
 		LEFT JOIN run_events e ON r.id = e.run_id AND e.event_type = 'metric'
 		WHERE r.created_at >= ? AND r.created_at < ?
-		  AND r.resolved_config IS NOT NULL
+		  AND r.resolved_config IS NOT NULL`
+	query, args = r.appendFiltersWithAlias(query, args, filter, "r")
+	query += `
 		GROUP BY json_extract(r.resolved_config, '$.model')
 		ORDER BY run_count DESC
 		LIMIT ?`
@@ -366,7 +372,9 @@ func (r *statsRepository) GetToolUsageStats(ctx context.Context, filter reposito
 		FROM run_events e
 		JOIN runs r ON e.run_id = r.id
 		WHERE r.created_at >= ? AND r.created_at < ?
-		  AND e.event_type IN ('tool_call', 'tool_result')
+		  AND e.event_type IN ('tool_call', 'tool_result')`
+	query, args = r.appendFiltersWithAlias(query, args, filter, "r")
+	query += `
 		GROUP BY CASE
 			WHEN json_extract(e.data, '$.toolName') IS NULL OR json_extract(e.data, '$.toolName') = ''
 			THEN 'unknown'
@@ -641,6 +649,14 @@ func (r *statsRepository) appendFiltersWithAlias(query string, args []interface{
 	}
 
 	var conditions []string
+	if len(filter.RunIDs) > 0 {
+		placeholders := make([]string, len(filter.RunIDs))
+		for i, id := range filter.RunIDs {
+			placeholders[i] = "?"
+			args = append(args, id)
+		}
+		conditions = append(conditions, fmt.Sprintf("%sid IN (%s)", prefix, strings.Join(placeholders, ",")))
+	}
 
 	if len(filter.RunnerTypes) > 0 {
 		placeholders := make([]string, len(filter.RunnerTypes))
@@ -658,6 +674,15 @@ func (r *statsRepository) appendFiltersWithAlias(query string, args []interface{
 			args = append(args, id)
 		}
 		conditions = append(conditions, fmt.Sprintf("%sagent_profile_id IN (%s)", prefix, strings.Join(placeholders, ",")))
+	}
+
+	if len(filter.Models) > 0 {
+		placeholders := make([]string, len(filter.Models))
+		for i, model := range filter.Models {
+			placeholders[i] = "?"
+			args = append(args, model)
+		}
+		conditions = append(conditions, fmt.Sprintf("COALESCE(json_extract(%sresolved_config, '$.model'), 'unknown') IN (%s)", prefix, strings.Join(placeholders, ",")))
 	}
 
 	if filter.TagPrefix != "" {

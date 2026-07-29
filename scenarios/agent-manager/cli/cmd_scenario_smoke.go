@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -188,11 +190,26 @@ func scenarioSmokeHasAppliedProvenance(baseURL, projectRoot, runID string) (bool
 	if err != nil {
 		return false, err
 	}
-	query := endpoint.Query()
+	if endpoint.Scheme != "http" && endpoint.Scheme != "https" {
+		return false, fmt.Errorf("workspace-sandbox URL must use http or https")
+	}
+	hostname := strings.ToLower(endpoint.Hostname())
+	if hostname != "localhost" && hostname != "127.0.0.1" && hostname != "::1" {
+		return false, fmt.Errorf("workspace-sandbox URL must target a local lifecycle endpoint, got %q", hostname)
+	}
+	port, err := strconv.Atoi(endpoint.Port())
+	if err != nil || port < 1 || port > 65535 {
+		return false, fmt.Errorf("workspace-sandbox URL must include a valid local TCP port")
+	}
+	// Rebuild the request endpoint from a fixed loopback host. This makes the
+	// network boundary explicit: caller input can choose only a validated port,
+	// never a destination host, scheme, or path.
+	safeEndpoint := &url.URL{Scheme: "http", Host: net.JoinHostPort("127.0.0.1", strconv.Itoa(port)), Path: "/api/v1/provenance/by-run"}
+	query := safeEndpoint.Query()
 	query.Set("projectRoot", projectRoot)
-	endpoint.RawQuery = query.Encode()
+	safeEndpoint.RawQuery = query.Encode()
 	client := &http.Client{Timeout: 15 * time.Second}
-	response, err := client.Get(endpoint.String())
+	response, err := client.Get(safeEndpoint.String())
 	if err != nil {
 		return false, err
 	}

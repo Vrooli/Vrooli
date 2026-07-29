@@ -48,10 +48,11 @@ export default tseslint.config(
       // CRITICAL: Prevents non-null assertion (!) which bypasses TypeScript's null checks
       // Using ! hides bugs that will crash at runtime with "X is not a function"
       // Instead of arr[0]!, use: arr[0] ?? defaultValue or if (arr[0]) { ... }
+      // CRITICAL: no-non-null-assertion preserves runtime null safety.
       "@typescript-eslint/no-non-null-assertion": "error",
 
-      // CRITICAL: Catches operations on 'any' typed values that will crash at runtime
-      // These catch bugs like "v.trim is not a function" when v is not actually a string
+      // CRITICAL: no-unsafe-* catches operations on untrusted values that would crash at runtime.
+      // These catch bugs like "v.trim is not a function" when v is not actually a string.
       "@typescript-eslint/no-unsafe-member-access": "warn",
       "@typescript-eslint/no-unsafe-call": "warn",
       "@typescript-eslint/no-unsafe-argument": "warn",
@@ -61,7 +62,7 @@ export default tseslint.config(
       // Prevents explicit 'any' which disables all type checking for that value
       "@typescript-eslint/no-explicit-any": "error",
 
-      // CRITICAL: Detects circular dependencies that cause "Cannot access X before initialization"
+      // CRITICAL: no-cycle detects circular dependencies that cause "Cannot access X before initialization"
       // These runtime errors are extremely hard to debug in production (minified variable names).
       // Requires eslint-plugin-import and eslint-import-resolver-typescript
       "import/no-cycle": "error",

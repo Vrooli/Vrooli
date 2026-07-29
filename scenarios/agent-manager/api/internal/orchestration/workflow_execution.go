@@ -688,6 +688,7 @@ func (o *Orchestrator) onWorkflowExecutionSettled(execution *domain.WorkflowExec
 		o.workflowNudger.Enqueue(*execution.ParentExecutionID)
 	}
 	o.attributeExperimentForExecution(context.Background(), execution)
+	o.persistInvestigationFindings(context.Background(), execution)
 }
 
 // attributeExperimentForExecution emits primary evidence only after the

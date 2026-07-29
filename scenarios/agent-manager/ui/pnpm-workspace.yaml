@@ -12,3 +12,7 @@
 # Shared @vrooli/* packages are consumed via file: references (see package.json).
 packages:
   - .
+
+# Keep newly published packages out of the dependency graph until the same
+# seven-day aging window used by the Vrooli workspace has elapsed.
+minimumReleaseAge: 10080

@@ -332,7 +332,11 @@ type StatsTimeWindow struct {
 
 // StatsFilter specifies filtering options for stats queries.
 type StatsFilter struct {
-	Window      StatsTimeWindow
+	Window StatsTimeWindow
+	// RunIDs scopes aggregates to explicit runs. It is intentionally additive to
+	// the existing window and dimension filters so run inspection can reuse the
+	// same SQL aggregation seam as cross-run analytics.
+	RunIDs      []uuid.UUID
 	RunnerTypes []domain.RunnerType // Filter by specific runners
 	ProfileIDs  []uuid.UUID         // Filter by specific profiles
 	Models      []string            // Filter by specific models

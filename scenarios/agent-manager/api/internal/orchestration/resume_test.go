@@ -198,15 +198,15 @@ func TestResumeFromFailedRun_BuildsAttachments(t *testing.T) {
 		t.Error("resumed task missing original task's ContextAttachment (key=original-spec)")
 	}
 
-	hasPrevOverview := false
+	hasPreviousReport := false
 	for k := range keys {
-		if strings.HasPrefix(k, "run-overview-prev-") {
-			hasPrevOverview = true
+		if strings.HasPrefix(k, "previous-run-report-prev-") {
+			hasPreviousReport = true
 			break
 		}
 	}
-	if !hasPrevOverview {
-		t.Errorf("resumed task missing previous-attempt run overview attachment; keys=%v", keys)
+	if !hasPreviousReport {
+		t.Errorf("resumed task missing previous-attempt report attachment; keys=%v", keys)
 	}
 
 	if !keys["user-resume-context"] {

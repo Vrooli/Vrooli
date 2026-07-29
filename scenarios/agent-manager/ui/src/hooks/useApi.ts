@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { create, fromJson, toJson, type DescMessage, type MessageShape, type JsonValue } from "@bufbuild/protobuf";
-import { durationFromMs } from "@bufbuild/protobuf/wkt";
+import { durationFromMs, ValueSchema } from "@bufbuild/protobuf/wkt";
 import { getApiBaseUrl, jsonObjectToPlain, runnerTypeToSlug } from "../lib/utils";
 import type {
   AgentProfile,
@@ -130,6 +130,84 @@ export interface RunStatusCounts {
   cancelled: number;
   needsReview: number;
   total: number;
+}
+
+export interface RunReportView {
+  run_id: string;
+  status: string;
+  exit_code?: number;
+  error?: string;
+  duration_ms?: string;
+  heartbeat_gap_ms?: string;
+  turns: number;
+  tokens: number;
+  cost_usd: number;
+  result: { selection_status: string; selection_rule?: string; candidate_count: number; structured_status?: string; structured_method?: string; diagnostic_codes?: string[] };
+  event_counts: Record<string, number>;
+  tools: Array<{ name: string; calls: number; successes: number; failures: number; unresolved?: number }>;
+  project_owned_tool_calls: number;
+  external_tool_calls: number;
+  requested_model?: string;
+  actual_model?: string;
+  fallback_count: number;
+  repeated_tool_calls: number;
+  files_read_more_than_once: number;
+  longest_event_gap_ms: string;
+  diff: { files: number; bytes: number; available: { state: string; detail?: string } };
+  events_availability: { state: string; detail?: string };
+  receipts_availability: { state: string; detail?: string };
+  receipt_count: number;
+}
+
+export interface RecurringFindingView {
+  id: string;
+  runId: string;
+  investigationRunId: string;
+  category: string;
+  severity: string;
+  recommendation: string;
+  evidence?: string;
+  targetPath?: string;
+  fingerprint: string;
+  decision?: string;
+  createdAt: string;
+  occurrences: number;
+}
+
+export function useRecurringFindings() {
+  const { data, loading, error, setData, setLoading, setError } = useApiState<RecurringFindingView[]>(null);
+  const refetch = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await apiRequest<{ findings: RecurringFindingView[] }>("/findings");
+      setData(response.findings.sort((a, b) => b.occurrences - a.occurrences || b.createdAt.localeCompare(a.createdAt)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load investigation findings");
+    } finally {
+      setLoading(false);
+    }
+  }, [setData, setError, setLoading]);
+  useEffect(() => { void refetch(); }, [refetch]);
+  return { data, loading, error, refetch };
+}
+
+export function useRunReport(runId: string) {
+  const { data, loading, error, setData, setLoading, setError } = useApiState<RunReportView>(null);
+  const refetch = useCallback(async () => {
+    if (!runId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      setData(await apiRequest<RunReportView>(`/runs/${encodeURIComponent(runId)}/report`));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load run report");
+    } finally {
+      setLoading(false);
+    }
+  }, [runId, setData, setError, setLoading]);
+  useEffect(() => { void refetch(); }, [refetch]);
+  return { data, loading, error, refetch };
 }
 
 function useApiState<T>(initialData: T | null = null): ApiState<T> & {
@@ -321,7 +399,7 @@ export function useWorkflowExecutions() {
     setLoading(true);
     setError(null);
     try {
-      const raw = await apiRequest<unknown>("/api/v1/workflow-executions?limit=100");
+      const raw = await apiRequest<unknown>("/workflow-executions?limit=100");
       const response = parseProto(ListWorkflowExecutionsResponseSchema, raw);
       setData(response.executions);
     } catch (error) {
@@ -342,7 +420,7 @@ export function useWorkflowExecutions() {
   }, [refetch]);
 
   const getTrace = useCallback(async (executionId: string): Promise<WorkflowTraceView> => {
-    const raw = await apiRequest<unknown>(`/api/v1/workflow-executions/${encodeURIComponent(executionId)}/trace?limit=500`);
+    const raw = await apiRequest<unknown>(`/workflow-executions/${encodeURIComponent(executionId)}/trace?limit=500`);
     const response = parseProto(GetWorkflowExecutionTraceResponseSchema, raw);
     return { execution: response.execution, attempts: response.attempts, journal: response.journal };
   }, []);
@@ -354,7 +432,7 @@ export function useWorkflowExecutions() {
       expectedVersion: execution.version,
       reason: "Operator action from Agent Manager workflow console",
     });
-    const raw = await apiRequest<unknown>(`/api/v1/workflow-executions/${encodeURIComponent(execution.id)}/${operation}`, {
+    const raw = await apiRequest<unknown>(`/workflow-executions/${encodeURIComponent(execution.id)}/${operation}`, {
       method: "POST",
       body: JSON.stringify(toProtoJson(WorkflowExecutionOperationRequestSchema, request)),
     });
@@ -367,11 +445,11 @@ export function useWorkflowExecutions() {
     const request = create(SignalWorkflowExecutionRequestSchema, {
       executionId: execution.id,
       signal: name,
-      payload: normalizeJsonValueInput(payload),
+      payload: fromJson(ValueSchema, normalizeJsonValueInput(payload) as JsonValue, protoReadOptions),
       idempotencyKey: `ui-signal-${execution.id}-${execution.version.toString()}-${name}`,
       expectedVersion: execution.version,
     });
-    const raw = await apiRequest<unknown>(`/api/v1/workflow-executions/${encodeURIComponent(execution.id)}/signals`, {
+    const raw = await apiRequest<unknown>(`/workflow-executions/${encodeURIComponent(execution.id)}/signals`, {
       method: "POST",
       body: JSON.stringify(toProtoJson(SignalWorkflowExecutionRequestSchema, request)),
     });
@@ -1333,10 +1411,11 @@ export function getInvestigationFindings(run: Run | null | undefined): Investiga
     } catch {
       return null;
     }
-  } else if (raw instanceof Uint8Array) {
-    if (raw.length === 0) return null;
+  } else if (ArrayBuffer.isView(raw)) {
+    const bytes = new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength);
+    if (bytes.length === 0) return null;
     try {
-      parsed = JSON.parse(new TextDecoder().decode(raw));
+      parsed = JSON.parse(new TextDecoder().decode(bytes));
     } catch {
       return null;
     }

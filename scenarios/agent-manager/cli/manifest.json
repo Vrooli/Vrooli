@@ -45,7 +45,8 @@
           "flags": [{"name":"owner","required":true,"description":"Owning scenario"},{"name":"key","description":"Workflow key"},{"name":"limit","description":"Maximum revisions"},{"name":"offset","description":"Revisions to skip"}],
           "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"ListWorkflowRevisions"},
           "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"proto_list"}
+          "architecture": {"primitive":"proto_list"},
+          "measure": {"domain":"workflow","intent":"List durable workflow revisions for one owning scenario.","questions":["show workflow revisions for a scenario","list agent workflow definitions","which workflows does this scenario own"],"result":{"kind":"table","value_field":"revisions","unit":"workflow revisions","summary_template":"{count} workflow revisions"}}
         },
         {
           "name": "get",
@@ -173,7 +174,28 @@
           "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"ResumeWorkflowExecution"},
           "governance": {"effect":"write","run_eligible":false,"permissions":["network:internal"]},
           "architecture": {"primitive":"proto_mutation"}
-        }
+		}
+      ]
+    },
+    {
+      "name": "runtime-root",
+      "description": "Top-level local command dispatchers",
+      "flat": true,
+      "commands": [
+        {"name":"declarations","description":"Scenario declaration operations","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"events","description":"Typed operational event queries","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"findings","description":"Recurring investigation findings","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"health","description":"Health audit queries","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"maintenance","description":"Maintenance operations","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
+        {"name":"ops","description":"Operational statistics","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"permission-policy","description":"Permission policy operations","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"profile","description":"Agent profile operations","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"role-policy","description":"Role policy operations","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"runner","description":"Runner operations","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"scenario-smoke","description":"Live scenario smoke validation","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
+        {"name":"settings","description":"Settings operations","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"task","description":"Task operations","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"workflow","description":"Workflow operations","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
       ]
     },
     {
@@ -196,6 +218,114 @@
           "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
           "architecture": {"primitive":"operational"}
         }
+      ]
+    },
+    {
+      "name": "profile",
+      "description": "Agent profile inspection operations",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List agent profiles with a bounded total count",
+          "flags": [{"name":"limit","description":"Maximum profiles (1-100)"},{"name":"offset","description":"Profiles to skip"}],
+          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"ListProfiles"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_list"},
+          "measure": {"domain":"profile","intent":"List agent profiles and their total count.","questions":["how many agent profiles exist","show agent profiles","list available agent profiles"],"result":{"kind":"table","value_field":"profiles","unit":"profiles","summary_template":"{total} agent profiles"}}
+        }
+      ]
+    },
+    {
+      "name": "task",
+      "description": "Task inspection operations",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List tasks with optional status filtering and a bounded total count",
+          "flags": [{"name":"status","description":"Task status filter"},{"name":"limit","description":"Maximum tasks (1-100)"},{"name":"offset","description":"Tasks to skip"}],
+          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"ListTasks"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_list"},
+          "measure": {"domain":"task","intent":"List durable agent tasks and their total count.","questions":["how many agent tasks exist","show agent tasks","list pending agent tasks"],"result":{"kind":"table","value_field":"tasks","unit":"tasks","summary_template":"{total} agent tasks"}}
+        }
+      ]
+    },
+    {
+      "name": "run",
+      "description": "Bounded run inspection and execution operations",
+      "commands": [
+        {
+          "name": "report",
+          "description": "Show the bounded shared run investigation report",
+          "positionals": [{"name":"run_id","required":true,"description":"Run UUID"}],
+          "binding": {"kind":"connect-rpc","service":"AgentManagerService","method":"GetRunReport"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_list"}
+        },
+        {
+          "name": "result",
+          "description": "Show final-output and structured-result provenance",
+          "positionals": [{"name":"run_id","required":true,"description":"Run UUID"}],
+          "binding": {"kind":"local"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"operational"}
+        },
+        {
+          "name": "messages",
+          "description": "Inspect recorded messages with bounded filters",
+          "positionals": [{"name":"run_id","required":true,"description":"Run UUID"}],
+          "flags": [{"name":"all","bool":true,"description":"Include evidence-only messages"},{"name":"range","description":"Inclusive event sequence range"},{"name":"grep","description":"Message text filter"}],
+          "binding": {"kind":"local"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"operational"}
+        },
+        {
+          "name": "tools",
+          "description": "Inspect tool calls and failures",
+          "positionals": [{"name":"run_id","required":true,"description":"Run UUID"}],
+          "flags": [{"name":"failed","bool":true,"description":"Only failed tool results"}],
+          "binding": {"kind":"local"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"operational"}
+        },
+        {
+          "name": "receipts",
+          "description": "Inspect observed receipt state and evidence",
+          "positionals": [{"name":"run_id","required":true,"description":"Run UUID"}],
+          "binding": {"kind":"local"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"operational"}
+        },
+        {
+          "name": "events",
+          "description": "Inspect per-run events or event statistics",
+          "positionals": [{"name":"run_id","required":true,"description":"Run UUID"}],
+          "flags": [{"name":"stats","bool":true,"description":"Show event-type counts"},{"name":"failed","bool":true,"description":"Only failed tool results"}],
+          "binding": {"kind":"local"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"operational"}
+        },
+        {"name":"apply-investigation","description":"Apply investigation recommendations","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
+        {"name":"approve","description":"Approve run changes","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
+        {"name":"await-result","description":"Read an awaited result","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"continue","description":"Continue a run","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
+        {"name":"create","description":"Create a run","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
+        {"name":"delete","description":"Delete a run","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
+        {"name":"diff","description":"Inspect sandbox diff","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"get","description":"Get a run","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"get-by-tag","description":"Get a run by tag","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"investigate","description":"Create an investigation","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
+        {"name":"list","description":"List runs with bounded filters and a total count","flags":[{"name":"status","description":"Run status filter"},{"name":"task-id","description":"Task UUID filter"},{"name":"profile-id","description":"Profile UUID filter"},{"name":"tag-prefix","description":"Tag prefix filter"},{"name":"limit","description":"Maximum runs (1-100)"},{"name":"offset","description":"Runs to skip"}],"binding":{"kind":"connect-rpc","service":"AgentManagerService","method":"ListRuns"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"architecture":{"primitive":"proto_list"},"measure":{"domain":"run","intent":"List agent runs and their total count, optionally filtered by execution status or ownership.","questions":["how many agent runs exist","show failed agent runs","list agent runs for a profile"],"result":{"kind":"table","value_field":"runs","unit":"runs","summary_template":"{total} agent runs"}}},
+        {"name":"park","description":"Park a run","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
+        {"name":"quiesce","description":"Drain scenario runs","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
+        {"name":"recover","description":"Recover a run","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
+        {"name":"reject","description":"Reject run changes","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
+        {"name":"sandbox-sync","description":"Synchronize sandbox state","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
+        {"name":"stats","description":"Filtered aggregate run statistics","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"stop","description":"Stop a run","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
+        {"name":"stop-all","description":"Stop matching runs","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
+        {"name":"stop-by-tag","description":"Stop runs by tag","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
+        {"name":"wake","description":"Wake a parked run","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}}
       ]
     }
   ],
@@ -244,5 +374,17 @@
     {"service":"AgentManagerService","method":"ValidatePermissionPolicyCatalog","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
     {"service":"AgentManagerService","method":"ValidateRolePolicyCatalog","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."}
   ],
-  "measures": {"domains": []}
+  "measures": {
+    "domains": [],
+    "omitted": [
+      {
+        "domain": "events",
+        "reason": "Run events are append-only investigation evidence, not an independently meaningful historical business entity. Operators use the bounded per-run report, events, tools, and aggregate run-stats queries; a time-windowed event-count measure would only restate transport volume and risk optimizing for noisy telemetry rather than run outcomes."
+      },
+      {
+        "domain": "types",
+        "reason": "The types schema contains shared enums and value objects, not independently persisted records. It has no historical count whose optimization would improve Agent Manager behavior."
+      }
+    ]
+  }
 }

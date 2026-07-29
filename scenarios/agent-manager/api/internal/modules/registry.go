@@ -6,6 +6,7 @@ import (
 	"agent-manager/internal/adapters/artifact"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/eventlog"
+	"agent-manager/internal/findings"
 	"agent-manager/internal/modelhealth"
 	"agent-manager/internal/permissionpolicy"
 	"agent-manager/internal/policy"
@@ -25,6 +26,7 @@ func AllSchemas() []database.SchemaProvider {
 		database.SchemaProviderFunc(workflowruntime.Schema),
 		database.SchemaProviderFunc(runmodel.Schema),
 		database.SchemaProviderFunc(eventlog.Schema),
+		database.SchemaProviderFunc(findings.Schema),
 		database.SchemaProviderFunc(policy.Schema),
 		database.SchemaProviderFunc(permissionpolicy.Schema),
 		database.SchemaProviderFunc(pricing.Schema),

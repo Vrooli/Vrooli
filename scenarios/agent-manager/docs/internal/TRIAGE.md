@@ -98,3 +98,26 @@ than re-running an incident.
 
 See also [EVENT_TAXONOMY.md](EVENT_TAXONOMY.md), [SEAMS.md](SEAMS.md), and
 [TEMPORAL-FLOWS.md](TEMPORAL-FLOWS.md).
+
+## Investigation-quality baseline inventory — 2026-07-28
+
+Baseline: Test Genie run `20260728-211850-c48832d6` (FAIL; inherited) and
+`storage-health validate scenario agent-manager` (0 findings).
+
+The baseline suite has inherited failures in `structure`, `contracts`, `api`,
+`dependencies`, `quality`, `docs`, `unit`, `security`, `measures`, and `proto`.
+They are not evidence of a regression in this plan. The investigation-path
+inventory below is the work queue for this execution.
+
+| Entry | Classification | Evidence / disposition |
+| --- | --- | --- |
+| Duplicate investigation snapshot omits terminal result provenance and structured-result diagnostics | blocking | `orchestration/investigation.go` independently renders a partial overview; replace it with the shared report projection. |
+| Typed operational events are rendered as clipped JSON rather than discriminators | blocking | `formatEventSummary` has no cases for fallback, health, sandbox, heartbeat, checkpoint, or retry events. |
+| Raw unified diffs can consume the investigation context budget | blocking | The current diff attachment contains `UnifiedDiff` and the rendered attachment set is byte-truncated. |
+| Investigation contract skill restates workflow schema and lacks outcome selection rules | blocking | The workflow-node skill is currently a tools-mode method prompt rather than a contract. |
+| Investigation profile cannot invoke the project CLI | blocking | Its tool allowlist lacks `shell`, so documented CLI evidence commands are unreachable. |
+| A run can call lifecycle operations that create or stop other runs | blocking | Shell is necessarily broad; enforce the run identity boundary at HTTP handlers. |
+| Per-run SQL statistics cannot be scoped to a specific run | blocking | `repository.StatsFilter` has no run-id predicate. |
+| Typed-event aggregate is process-global only | blocking | `stats.Engine` has no throwaway per-run fold. |
+| Observed receipts are handler-only and unavailable to orchestration | blocking | The receipts dependency is held by `handlers.Handler`, preventing a shared report reader. |
+| Recurrence and successful-run efficiency evidence are not queryable | deferred | Implement only after the single-run report and live validation are sound; do not let cross-run work delay correctness. |

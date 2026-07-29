@@ -12,7 +12,7 @@ func TestAllSchemasDeclaresEveryDomainTableExactlyOnce(t *testing.T) {
 		"policies": true, "permission_policy_reconcile_audit": true, "scope_locks": true,
 		"model_pricing": true, "model_aliases": true, "manual_price_overrides": true, "pricing_settings": true,
 		"investigation_settings": true, "model_health_audit": true, "runner_health_audit": true, "stats_checkpoint": true,
-		"artifacts": true,
+		"artifacts": true, "run_findings": true,
 	}
 	create := regexp.MustCompile(`(?i)CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+([a-z_]+)`)
 	seen := map[string]int{}

@@ -8,8 +8,10 @@ import (
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/findings"
 	"agent-manager/internal/health"
 	"agent-manager/internal/orchestration/spawn"
+	"agent-manager/internal/runreport"
 
 	agentconfig "agent-manager/internal/config"
 
@@ -92,6 +94,14 @@ type IdentityService interface {
 	VerifyIdentityToken(context.Context, string) (*IdentityVerifyResult, error)
 }
 
+type RunReportService interface {
+	BuildRunReport(context.Context, uuid.UUID) (*runreport.RunReport, error)
+}
+
+type FindingsService interface {
+	ListFindings(context.Context, findings.Filter) ([]findings.Finding, error)
+}
+
 type ProjectRootService interface {
 	GetDefaultProjectRoot() string
 }
@@ -113,6 +123,8 @@ type HandlerServices struct {
 	OrchestrationSettingsService
 	PathValidationService
 	IdentityService
+	RunReportService
+	FindingsService
 	ProjectRootService
 }
 
@@ -134,6 +146,8 @@ func NewHandlerServices(orchestrator *Orchestrator) HandlerServices {
 		OrchestrationSettingsService: orchestrator,
 		PathValidationService:        orchestrator,
 		IdentityService:              orchestrator,
+		RunReportService:             orchestrator,
+		FindingsService:              orchestrator,
 		ProjectRootService:           orchestrator,
 	}
 }
@@ -153,5 +167,7 @@ var (
 	_ OrchestrationSettingsService = (*Orchestrator)(nil)
 	_ PathValidationService        = (*Orchestrator)(nil)
 	_ IdentityService              = (*Orchestrator)(nil)
+	_ RunReportService             = (*Orchestrator)(nil)
+	_ FindingsService              = (*Orchestrator)(nil)
 	_ ProjectRootService           = (*Orchestrator)(nil)
 )

@@ -97,10 +97,12 @@ export function CostDurationTrends() {
               />
               <Tooltip
                 contentStyle={TOOLTIP_STYLE}
-                labelFormatter={(label: string) => formatStatsDateTime(label)}
-                formatter={(value: number, name: string) => {
-                  if (name === "Cost") return [formatUsdFixed(value, 2), name];
-                  return [formatDuration(value), name];
+                labelFormatter={(label) => formatStatsDateTime(String(label ?? ""))}
+                formatter={(value, name) => {
+                  const numericValue = typeof value === "number" ? value : Number(value ?? 0);
+                  const label = String(name ?? "");
+                  if (label === "Cost") return [formatUsdFixed(numericValue, 2), label];
+                  return [formatDuration(numericValue), label];
                 }}
               />
               <Legend

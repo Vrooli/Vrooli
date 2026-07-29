@@ -187,6 +187,8 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/tag/{tag}", h.GetRunByTag).Methods("GET")
 	r.HandleFunc("/api/v1/runs/tag/{tag}/stop", h.StopRunByTag).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}", h.GetRun).Methods("GET")
+	r.HandleFunc("/api/v1/runs/{id}/report", h.GetRunReport).Methods("GET")
+	r.HandleFunc("/api/v1/findings", h.ListFindings).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/observed-receipts", h.GetObservedReceipts).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/audit-transcript", h.GetAuditTranscript).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}", h.DeleteRun).Methods("DELETE")
@@ -283,14 +285,16 @@ func (h *Handler) newCreateRunResponse(run *domain.Run) *apipb.CreateRunResponse
 // writeProtoJSON writes a proto message as JSON using protojson.
 // This ensures consistent snake_case field names per the proto schema.
 func writeProtoJSON(w http.ResponseWriter, status int, msg proto.Message) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
 	data, err := protoconv.MarshalJSON(msg)
 	if err != nil {
-		// Fallback to empty object on marshal error
+		// A serialization failure is an internal error, never an implicit 200.
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte("{}"))
 		return
 	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
 	_, _ = w.Write(data)
 }
 

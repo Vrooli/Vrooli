@@ -111,6 +111,22 @@ func TestStatsRepositoryAggregatesDurableRunEvidence(t *testing.T) {
 	if err != nil || filtered.Total != 1 || filtered.Complete != 1 {
 		t.Fatalf("filtered counts=%+v err=%v", filtered, err)
 	}
+	filteredStats := repository.StatsFilter{Window: filter.Window, TagPrefix: "analytics-complete"}
+	if rate, err := stats.GetSuccessRate(ctx, filteredStats); err != nil || rate != 1 {
+		t.Fatalf("filtered success rate=%v err=%v", rate, err)
+	}
+	if cost, err := stats.GetCostStats(ctx, filteredStats); err != nil || cost.TotalCostUSD != 1.5 {
+		t.Fatalf("filtered cost=%+v err=%v", cost, err)
+	}
+	if runners, err := stats.GetRunnerBreakdown(ctx, filteredStats); err != nil || len(runners) != 1 || runners[0].RunnerType != domain.RunnerTypeCodex {
+		t.Fatalf("filtered runners=%+v err=%v", runners, err)
+	}
+	if models, err := stats.GetModelBreakdown(ctx, filteredStats, 10); err != nil || len(models) != 1 || models[0].Model != "gpt-test" {
+		t.Fatalf("filtered models=%+v err=%v", models, err)
+	}
+	if tools, err := stats.GetToolUsageStats(ctx, filteredStats, 10); err != nil || len(tools) != 1 || tools[0].ToolName != "read_file" {
+		t.Fatalf("filtered tools=%+v err=%v", tools, err)
+	}
 	for _, bucket := range []time.Duration{24 * time.Hour, 6 * time.Hour, time.Hour, time.Minute} {
 		if getBucketSQL(bucket) == "" {
 			t.Fatalf("bucket SQL empty for %s", bucket)

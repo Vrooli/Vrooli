@@ -10,6 +10,7 @@ type Dependencies struct {
 	Workflow         CommandFunc
 	Task             CommandFunc
 	Run              CommandFunc
+	RunCommands      []cliapp.Command
 	Runner           CommandFunc
 	Policy           CommandFunc
 	PermissionPolicy CommandFunc
@@ -18,6 +19,7 @@ type Dependencies struct {
 	Ops              CommandFunc
 	Health           CommandFunc
 	Events           CommandFunc
+	Findings         CommandFunc
 	ScenarioSmoke    CommandFunc
 }
 
