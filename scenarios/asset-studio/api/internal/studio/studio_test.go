@@ -10,7 +10,7 @@ func product(id string) Identity {
 	return Identity{ID: id, Name: "Vrooli", Kind: Product, Traits: map[string]string{"form": "console", "finish": "slate"}}
 }
 
-func TestIdentityRevisionAndReleaseSpine(t *testing.T) {
+func TestIdentityRevisionAndReleaseSpine(t *testing.T) { // [REQ:ASSET-P0-001] [REQ:ASSET-P0-002] [REQ:ASSET-P0-010] [REQ:ASSET-P0-011] [REQ:ASSET-P0-012] [REQ:ASSET-P0-013] [REQ:ASSET-P0-017] [REQ:ASSET-P0-018]
 	s := New()
 	now := time.Date(2026, 7, 28, 0, 0, 0, 0, time.UTC)
 	id := product("product-v1")
@@ -51,7 +51,7 @@ func TestIdentityRevisionAndReleaseSpine(t *testing.T) {
 	}
 }
 
-func TestReleaseCausesAndRenderInvariants(t *testing.T) {
+func TestReleaseCausesAndRenderInvariants(t *testing.T) { // [REQ:ASSET-P0-006] [REQ:ASSET-P0-007] [REQ:ASSET-P0-008]
 	s := New()
 	s.Assets["a"] = &Asset{ID: "a", Status: InReview}
 	if !hasCause(s.Release("a"), CauseAltText) {
@@ -79,6 +79,26 @@ func TestReleaseCausesAndRenderInvariants(t *testing.T) {
 	r.Provenance = &Provenance{SpecID: "s"}
 	if err := r.Transition(RenderSucceeded); err == nil {
 		t.Fatal("missing actual cost accepted")
+	}
+}
+
+func TestCampaignBudgetRequiresRecordedOperatorConfirmation(t *testing.T) { // [REQ:ASSET-P1-006]
+	s := New()
+	if err := s.SetCampaignBudget("launch", 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AuthorizeRender("launch", 1.1, false, "", time.Now()); err == nil {
+		t.Fatal("over-budget render was accepted without confirmation")
+	}
+	if err := s.AuthorizeRender("launch", 1.1, true, "operator-1", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if len(s.CampaignBudgets["launch"].Confirmations) != 1 {
+		t.Fatal("confirmation not retained")
+	}
+	s.RecordRenderSpend("launch", 0.8)
+	if s.CampaignBudgets["launch"].SpentUSD != 0.8 {
+		t.Fatalf("spent=%f", s.CampaignBudgets["launch"].SpentUSD)
 	}
 }
 

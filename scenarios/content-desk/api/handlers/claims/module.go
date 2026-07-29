@@ -3,6 +3,7 @@ package claims
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"connectrpc.com/connect"
@@ -88,8 +89,54 @@ func (h handler) SweepClaims(ctx context.Context, _ *connect.Request[claimsv1.Sw
 	return connect.NewResponse(response), nil
 }
 
+func (h handler) GetClaimCoverage(ctx context.Context, request *connect.Request[claimsv1.GetClaimCoverageRequest]) (*connect.Response[claimsv1.GetClaimCoverageResponse], error) {
+	if request.Msg.DraftId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("draft_id is required"))
+	}
+	supported, uncovered, err := h.library.Coverage(ctx, request.Msg.DraftId, request.Msg.Body)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	response := &claimsv1.GetClaimCoverageResponse{}
+	for _, span := range supported {
+		response.SupportedSpans = append(response.SupportedSpans, &claimsv1.TextSpan{Start: int32(span.Start), End: int32(span.End), ClaimId: span.ClaimID, Supported: true})
+	}
+	for _, span := range uncovered {
+		response.UncoveredSpans = append(response.UncoveredSpans, &claimsv1.TextSpan{Start: int32(span.Start), End: int32(span.End), Supported: false})
+	}
+	return connect.NewResponse(response), nil
+}
+
+func (h handler) ExtractClaimProposals(ctx context.Context, request *connect.Request[claimsv1.ExtractClaimProposalsRequest]) (*connect.Response[claimsv1.ExtractClaimProposalsResponse], error) {
+	proposals, err := h.library.ExtractProposals(ctx, request.Msg.DraftId, request.Msg.Body)
+	if err != nil { return nil, connect.NewError(connect.CodeInvalidArgument, err) }
+	response := &claimsv1.ExtractClaimProposalsResponse{}
+	for _, proposal := range proposals { response.Proposals = append(response.Proposals, proposalMessage(proposal)) }
+	return connect.NewResponse(response), nil
+}
+
+func (h handler) ListClaimProposals(ctx context.Context, request *connect.Request[claimsv1.ListClaimProposalsRequest]) (*connect.Response[claimsv1.ListClaimProposalsResponse], error) {
+	proposals, err := h.library.ListProposals(ctx, request.Msg.DraftId)
+	if err != nil { return nil, connect.NewError(connect.CodeInternal, err) }
+	response := &claimsv1.ListClaimProposalsResponse{}
+	for _, proposal := range proposals { response.Proposals = append(response.Proposals, proposalMessage(proposal)) }
+	return connect.NewResponse(response), nil
+}
+
+func (h handler) DecideClaimProposal(ctx context.Context, request *connect.Request[claimsv1.DecideClaimProposalRequest]) (*connect.Response[claimsv1.DecideClaimProposalResponse], error) {
+	proposal, err := h.library.DecideProposal(ctx, request.Msg.Id, request.Msg.Status)
+	if err != nil { return nil, connect.NewError(connect.CodeFailedPrecondition, err) }
+	return connect.NewResponse(&claimsv1.DecideClaimProposalResponse{Proposal: proposalMessage(proposal)}), nil
+}
+
 func claimMessage(claim internalclaims.Claim) *claimsv1.Claim {
 	return &claimsv1.Claim{Id: claim.ID, Statement: claim.Statement, VerificationStatus: claim.VerificationStatus, Kind: claim.Kind}
+}
+
+func proposalMessage(proposal internalclaims.Proposal) *claimsv1.ClaimProposal {
+	message := &claimsv1.ClaimProposal{Id: proposal.ID, DraftId: proposal.DraftID, Statement: proposal.Statement, Status: proposal.Status, CreatedAt: proposal.CreatedAt.UTC().Format(time.RFC3339Nano)}
+	if !proposal.DecidedAt.IsZero() { message.DecidedAt = proposal.DecidedAt.UTC().Format(time.RFC3339Nano) }
+	return message
 }
 
 func Module(db *database.RoutedDB) module.Module {
@@ -105,4 +152,8 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "claims_cite", Path: claimsconnect.ClaimsServiceCiteClaimProcedure, Method: "POST", Summary: "Cite a claim at a draft span", Category: "claims"},
 	{ID: "claims_verify", Path: claimsconnect.ClaimsServiceVerifyClaimProcedure, Method: "POST", Summary: "Run claim verification", Category: "claims"},
 	{ID: "claims_sweep", Path: claimsconnect.ClaimsServiceSweepClaimsProcedure, Method: "POST", Summary: "Verify all check-backed claims", Category: "claims"},
+	{ID: "claims_coverage", Path: claimsconnect.ClaimsServiceGetClaimCoverageProcedure, Method: "POST", Summary: "Get supported and uncovered citation spans for a draft", Category: "claims"},
+	{ID: "claims_extract_proposals", Path: claimsconnect.ClaimsServiceExtractClaimProposalsProcedure, Method: "POST", Summary: "Create review-only claim proposals", Category: "claims"},
+	{ID: "claims_list_proposals", Path: claimsconnect.ClaimsServiceListClaimProposalsProcedure, Method: "POST", Summary: "List claim proposals for a draft", Category: "claims"},
+	{ID: "claims_decide_proposal", Path: claimsconnect.ClaimsServiceDecideClaimProposalProcedure, Method: "POST", Summary: "Accept or reject a claim proposal", Category: "claims"},
 }

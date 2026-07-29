@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 
@@ -29,6 +30,7 @@ type Deps struct {
 	Service *internalanalysis.Service
 	Jobs    Recorder
 	Guard   storage.Guard
+	Store   *storage.Store
 	Logger  *log.Logger
 }
 
@@ -108,7 +110,31 @@ func (h *Deps) analyze(ctx context.Context, op string, img []byte) (*analysisv1.
 }
 
 func (h *Deps) readImage(w http.ResponseWriter, r *http.Request) ([]byte, bool) {
+	inputRef := r.FormValue("input_ref")
 	file, _, err := r.FormFile("file")
+	if inputRef != "" && err == nil {
+		httpx.WriteError(w, http.StatusBadRequest, httpx.CodeInvalidRequest, "provide either \"file\" or \"input_ref\", not both")
+		_ = file.Close()
+		return nil, false
+	}
+	if inputRef != "" {
+		if h.Store == nil {
+			httpx.WriteError(w, http.StatusServiceUnavailable, httpx.CodeInternal, "stored input references are unavailable")
+			return nil, false
+		}
+		rc, _, getErr := h.Store.Get(r.Context(), inputRef)
+		if getErr != nil {
+			httpx.WriteError(w, http.StatusNotFound, httpx.CodeNotFound, fmt.Sprintf("input_ref %q not found", inputRef))
+			return nil, false
+		}
+		defer func() { _ = rc.Close() }()
+		inspected, inspectErr := h.Guard.Inspect(io.LimitReader(rc, maxMultipartMemory+1))
+		if inspectErr != nil {
+			httpx.WriteError(w, http.StatusUnprocessableEntity, httpx.CodeInvalidRequest, inspectErr.Error())
+			return nil, false
+		}
+		return inspected.Bytes, true
+	}
 	if err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, httpx.CodeInvalidRequest, "missing \"file\" image part")
 		return nil, false

@@ -19,12 +19,13 @@ import (
 // discovery handler (Connect-RPC) plus the REST multipart analyze edge
 // (POST /api/v1/analysis/{operation}). Analysis ops run synchronously and are
 // recorded as terminal durable jobs.
-func Module(service *internalanalysis.Service, jobs *internaljobs.Manager, logger *log.Logger) module.Module {
+func Module(service *internalanalysis.Service, store *storage.Store, jobs *internaljobs.Manager, logger *log.Logger) module.Module {
 	if logger == nil {
 		logger = log.Default()
 	}
 	rest := &Deps{
 		Service: service,
+		Store:   store,
 		Jobs:    jobs,
 		Guard:   storage.DefaultGuard(),
 		Logger:  logger,

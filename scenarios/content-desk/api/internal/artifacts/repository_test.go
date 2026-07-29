@@ -3,6 +3,7 @@ package artifacts
 import (
 	"context"
 	"testing"
+	"time"
 
 	internalcampaigns "content-desk/internal/campaigns"
 	internalclaims "content-desk/internal/claims"
@@ -40,6 +41,71 @@ func newRepository(t *testing.T) Repository {
 		}
 	}
 	return NewSQLiteRepository(db)
+}
+
+// [REQ:CONTENTD-P1-006]
+func TestRecordReleaseOutcomeIsAtomicAndIdempotent(t *testing.T) {
+	ctx := context.Background()
+	repo := newRepository(t)
+	draft, err := repo.Create(ctx, Draft{ID: "release-draft", CampaignID: "campaign-1", PostTypeID: "dev-log", Channel: "x-twitter", Format: "thread"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = repo.(*sqliteRepository).db.ExecContext(ctx, `UPDATE drafts SET status = 'approved' WHERE id = ?`, draft.ID); err != nil {
+		t.Fatal(err)
+	}
+	outcome := ReleaseOutcome{ReceiptID: "receipt-1", DraftID: draft.ID, Status: "partial", PlatformPostID: "post-1", PublishedURL: "https://example.test/post-1", PublishedAt: time.Date(2026, 7, 29, 0, 0, 0, 0, time.UTC)}
+	first, recordID, err := repo.RecordReleaseOutcome(ctx, outcome)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, repeatedID, err := repo.RecordReleaseOutcome(ctx, outcome)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.Status != DraftPublished || second.Status != DraftPublished || recordID == "" || recordID != repeatedID {
+		t.Fatalf("outcomes = %#v/%#v record=%q/%q", first, second, recordID, repeatedID)
+	}
+	var count int
+	if err := repo.(*sqliteRepository).db.QueryRowContext(ctx, `SELECT COUNT(*) FROM ledger_publish_records WHERE import_key = 'channel-manager:receipt-1'`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("receipt record count = %d", count)
+	}
+}
+
+// [REQ:CONTENTD-P1-006]
+func TestRevalidateForReleaseBlocksAnApprovedDraftWhenClaimEvidenceChanged(t *testing.T) {
+	ctx := context.Background()
+	repo := newRepository(t)
+	db := repo.(*sqliteRepository).db
+	if _, err := db.ExecContext(ctx, internalclaims.Schema()); err != nil {
+		t.Fatal(err)
+	}
+	draft, err := repo.Create(ctx, Draft{ID: "stale-at-handoff", CampaignID: "campaign-1", PostTypeID: "dev-log", Channel: "x-twitter", Format: "thread"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.ExecContext(ctx, `UPDATE drafts SET status = 'approved' WHERE id = ?`, draft.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.ExecContext(ctx, `INSERT INTO claims(id, statement, kind, verification_status, created_at) VALUES ('changed-claim', 'changed', 'fact', 'stale', '2026-07-29T00:00:00Z')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.ExecContext(ctx, `INSERT INTO claim_citations(draft_id, claim_id, span_start, span_end) VALUES (?, 'changed-claim', 0, 1)`, draft.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = repo.RevalidateForRelease(ctx, draft.ID); err == nil {
+		t.Fatal("stale claim was allowed to release")
+	}
+	stored, err := repo.Get(ctx, draft.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Status != DraftBlocked {
+		t.Fatalf("status = %s", stored.Status)
+	}
 }
 
 func TestRepositoryPersistsConstrainedLifecycle(t *testing.T) {
@@ -194,34 +260,52 @@ func TestUpdateBodyPersistsAttributedRevisionAndRejectsTerminalDraft(t *testing.
 	})
 }
 
-// [REQ:CONTENTD-P0-010]
-func TestPublishAtomicallyTransitionsApprovedDraftAndAppendsLedgerRecord(t *testing.T) {
-	t.Run("[CONTENTD-P0-010] publish appends an immutable ledger record", func(t *testing.T) {
-		ctx := context.Background()
-		repo := newRepository(t)
-		draft, err := repo.Create(ctx, Draft{ID: "publish-draft", CampaignID: "campaign-1", PostTypeID: "dev-log", Channel: "x-twitter", Format: "thread"})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, _, err := repo.Publish(ctx, draft.ID, PublishInput{PublishedURL: "https://example.test/p/1", PlatformPostID: "p-1"}); err == nil {
-			t.Fatal("non-approved draft published")
-		}
-		if _, err := repo.(*sqliteRepository).db.ExecContext(ctx, `UPDATE drafts SET status = 'approved' WHERE id = ?`, draft.ID); err != nil {
-			t.Fatal(err)
-		}
-		published, recordID, err := repo.Publish(ctx, draft.ID, PublishInput{Audience: "operators", PublishedURL: "https://example.test/p/1", PlatformPostID: "p-1", SeriesID: "series-1"})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if published.Status != DraftPublished || recordID == "" {
-			t.Fatalf("publish = %#v record=%q", published, recordID)
-		}
-		var storedDraft, channel string
-		if err := repo.(*sqliteRepository).db.QueryRowContext(ctx, `SELECT draft_id, channel FROM ledger_publish_records WHERE id = ?`, recordID).Scan(&storedDraft, &channel); err != nil {
-			t.Fatal(err)
-		}
-		if storedDraft != draft.ID || channel != "x-twitter" {
-			t.Fatalf("ledger = %q/%q", storedDraft, channel)
-		}
-	})
+// [REQ:CONTENTD-P1-009] Attachments retain metadata references only. The
+// Content Desk never receives or stores an image byte payload.
+func TestAttachmentRoundTripsReleasedAssetMetadataWithoutBytes(t *testing.T) {
+	ctx := context.Background()
+	repo := newRepository(t)
+	draft, err := repo.Create(ctx, Draft{ID: "attachment-draft", CampaignID: "campaign-1", PostTypeID: "dev-log", Channel: "x-twitter", Format: "thread"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	attachment, err := repo.Attach(ctx, Attachment{DraftID: draft.ID, AssetID: "asset-released-1", Role: "hero", AspectRatio: "16:9", AltText: "A descriptive image", Position: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if attachment.AssetID != "asset-released-1" {
+		t.Fatalf("asset id = %q", attachment.AssetID)
+	}
+	attachments, err := repo.ListAttachments(ctx, draft.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(attachments) != 1 || attachments[0].AltText != "A descriptive image" {
+		t.Fatalf("attachments = %#v", attachments)
+	}
+	if _, err = repo.Attach(ctx, Attachment{DraftID: draft.ID, AssetID: "asset-released-2", Role: "inline", AspectRatio: "1:1", AltText: "", Position: 1}); err == nil {
+		t.Fatal("empty alt text was accepted")
+	}
+}
+
+// [REQ:CONTENTD-P1-011] Agent work is an attributable, output-only editorial
+// commission. The ledger records no transcript, credentials, approval, or
+// publish authority.
+func TestAgentCommissionPersistsOnlyDurableProvenance(t *testing.T) {
+	ctx := context.Background()
+	repo := newRepository(t)
+	draft, err := repo.Create(ctx, Draft{ID: "agent-draft", CampaignID: "campaign-1", PostTypeID: "dev-log", Body: "Draft", Channel: "x-twitter", Format: "thread"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	commission, err := repo.RecordAgentCommission(ctx, AgentCommission{DraftID: draft.ID, Action: "evidence-hunt", TaskID: "task-1", RunID: "run-1", Status: "RUN_STATUS_QUEUED"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if commission.ID == "" || commission.RunID != "run-1" {
+		t.Fatalf("commission = %#v", commission)
+	}
+	if _, err = repo.RecordAgentCommission(ctx, AgentCommission{DraftID: draft.ID, Action: "publish", TaskID: "task-2", RunID: "run-2", Status: "RUN_STATUS_QUEUED"}); err == nil {
+		t.Fatal("unsupported agent action accepted")
+	}
 }

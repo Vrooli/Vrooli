@@ -110,10 +110,12 @@ func (s *service) Capture(
 
 	if isDryRun(req.Header().Get("X-Dry-Run")) {
 		execID := "dry-run-" + uuid.NewString()
+		artifacts := synthesizeArtifacts(outDir, captures)
+		attachArtifactReferences(execID, artifacts)
 		return connect.NewResponse(&capturev1.CaptureResponse{
 			ExecutionId: execID,
 			OutDir:      outDir,
-			Artifacts:   synthesizeArtifacts(outDir, captures),
+			Artifacts:   artifacts,
 			DurationMs:  0,
 			DryRun:      true,
 			Readiness:   captureReadinessDiagnostics(msg.GetWaitFor(), "generic-navigation", "dry-run", 0, "dry run does not navigate"),
@@ -202,6 +204,7 @@ func (s *service) Capture(
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("harvest artifacts: %w", err))
 	}
+	attachArtifactReferences(execID, artifacts)
 	if err := writeCaptureArtifactSummary(executionOutDir, artifacts); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("write capture artifact summary: %w", err))
 	}
@@ -258,6 +261,15 @@ func (s *service) Capture(
 		AccessibilityJson: accessibilityJSON,
 		Readiness:         captureReadinessDiagnosticsWithTiming(msg.GetWaitFor(), selectedReadiness, readinessOutcome, duration, fallbackReason, declaredResolution, timing),
 	}), nil
+}
+
+func attachArtifactReferences(executionID string, artifacts []*capturev1.CaptureArtifact) {
+	for _, artifact := range artifacts {
+		if artifact == nil {
+			continue
+		}
+		artifact.Reference = fmt.Sprintf("bas-capture://%s/%s", executionID, strings.ToLower(strings.TrimPrefix(artifact.GetType().String(), "CAPTURE_TYPE_")))
+	}
 }
 
 // readinessOutcomeForExecutionStatus preserves the readiness contract's

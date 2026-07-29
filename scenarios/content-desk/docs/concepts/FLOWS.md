@@ -31,7 +31,7 @@ outcome, statefulness, and validation level.
 | Review run | review | A draft reaches the reviewed-eligible state, or a reviewer re-runs scoring. | Per-failure-mode verdicts and a blocked-or-passed outcome. | Re-runnable; a later run supersedes an earlier one without deleting it. | L2 — additive, no partial runs. |
 | Campaign lifecycle | campaigns | Operator accepts a launch proposal; later, a close. | An active campaign with slots, then a closed historical record. | Activation is evidence-gated. Closing does not delete drafts already attached. | L2 — deterministic, gated. |
 | State import | ledger | Initial backfill, then scheduled or on demand. | New records from each source; unchanged items produce nothing. | **Idempotent by content-addressed key.** A per-source failure skips that source rather than recording a partial sweep as complete. | L3 — scheduled, resumable, no partial completion. |
-| Publish handoff | ledger | An approved draft is released. | A publish record carrying the URL and post id the scheduler returned. | A failed handoff leaves the draft approved rather than published. Retried release must not create a second record. | L3 — idempotent, externally dependent. |
+| Publish handoff | ledger | An approved draft is released through Channel Manager. | A publish record carrying the URL and post id Channel Manager returned. | A failed handoff leaves the draft approved rather than published. Retried release must not create a second record. | L3 — idempotent, externally dependent. |
 
 ## Flow Details
 
@@ -184,7 +184,7 @@ To add or rename a state/event:
 |---|---|---|
 | Publish-performance ingestion | Deferred to `CONTENTD-P2-001`. No social accounts and no measurement source exist, so an ingestion flow could be neither built against real shapes nor validated. | Once accounts are live and producing measurable posts. |
 | Variant derivation | Deferred to `CONTENTD-P2-002`. Deriving per-channel variants before the single-draft path has run end to end would fix the wrong shape. | Once the P0 loop has published repeatedly. |
-| Account eligibility handshake | Deferred to `CONTENTD-P1-005`. The scheduler is pre-template and exposes no Connect surface to call; the seam is designed but has nothing to talk to. | Once the scheduler is modernized and can answer the eligibility question. |
+| Account eligibility handshake | `CONTENTD-P1-005` calls Channel Manager's typed eligibility surface before targeted approval. A dependency outage is recorded as unknown and never treated as eligible. | The Channel Manager contract remains the sole identity/cadence authority. |
 
 ## Flow Diagram — the draft path
 
@@ -202,7 +202,7 @@ flowchart TD
     RV -->|all passed| PT{"post type active?"}
     PT -->|no| B
     PT -->|yes| AP["awaiting operator"]
-    AP -->|operator approves| PUB["handoff to scheduler"]
+    AP -->|operator approves| PUB["handoff to Channel Manager"]
     PUB --> LG["publish record<br/>+ mentions + narration"]
     LG --> ST{"a cited claim<br/>later goes stale?"}
     ST -->|yes| FLAG["published post flagged<br/>as contaminated"]

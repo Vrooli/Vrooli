@@ -227,7 +227,7 @@ flows one way, and every gate refuses rather than warns.**
   DESK      ── campaigns · artifacts · claims · posttypes · review · ledger
      │         Holds state. Enforces gates. Owns no judgement.
      ▼  (approved draft)
-  SCHEDULER ── release, account identity, warming, credentials.
+  CHANNEL MANAGER ── release, account identity, warming, credentials.
                Returns a URL and a post id, which become a ledger record.
 ```
 

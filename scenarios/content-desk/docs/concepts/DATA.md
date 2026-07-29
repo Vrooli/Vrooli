@@ -169,7 +169,7 @@ publish record, that is a change to the scenario's audit guarantee and belongs
 in [`../internal/DECISIONS.md`](../internal/DECISIONS.md), not in a migration.
 
 **Credentials.** This scenario stores none, in any table, in any form. Account
-identity and platform credentials belong to the scheduler and the `vault`
+identity and platform credentials belong to Channel Manager and the `vault`
 resource. A schema change that introduces a token column is a defect.
 
 ## Privacy Notes

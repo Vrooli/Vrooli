@@ -210,17 +210,17 @@
         "startup_policy": "try_start",
         "description": "Inbound caller. Releases approved drafts and asks whether an identity is eligible for a lane; this scenario answers rather than calls."
       },
-      "browser-automation-studio": {
-        "enabled": false,
+    "browser-automation-studio": {
+      "enabled": true,
         "required": false,
         "startup_policy": "ignore",
         "description": "Browser executor and per-identity session profiles (CHANMGR-P1-001). Disabled until a per-platform automation decision is recorded in docs/internal/DECISIONS.md."
       },
       "asset-studio": {
-        "enabled": false,
+        "enabled": true,
         "required": false,
         "startup_policy": "ignore",
-        "description": "Asset-uniqueness lookup (CHANMGR-P1-003). Disabled until P1."
+        "description": "Metadata-only released-asset provenance verification for uniqueness enforcement (CHANMGR-P1-003)."
       }
     }
   },

@@ -2,6 +2,7 @@ package domains
 
 import (
 	"asset-studio/cli/domains/identities"
+	"asset-studio/cli/domains/renders"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -37,6 +38,6 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
 	_ = manifest
-	groups := []cliapp.SubcommandGroup{identities.Register(core)}
+	groups := []cliapp.SubcommandGroup{identities.Register(core), renders.Register(core)}
 	return groups, nil
 }

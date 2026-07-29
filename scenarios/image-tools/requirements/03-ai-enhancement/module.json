@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-21T01:38:56-04:00"
+    "last_validated_at": "2026-07-28T23:34:11-04:00"
   },
   "requirements": [
     {
       "id": "IMG-P0-003",
       "title": "Core AI Enhancement",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "core",
       "description": "Upscale/super-resolution, background removal, and denoise/deblur/unblur run via standalone backends with CPU-capable default models and no ComfyUI requirement.",
@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/ai/enhancement_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Enhancement op runs against standalone backend; CPU fallback model selectable"
         },
         {

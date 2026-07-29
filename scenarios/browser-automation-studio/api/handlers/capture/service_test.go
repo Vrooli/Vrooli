@@ -57,6 +57,7 @@ func TestCapture_HappyPath_Screenshot(t *testing.T) {
 	require.False(t, resp.Msg.DryRun)
 	require.Len(t, resp.Msg.Artifacts, 1)
 	require.Equal(t, capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT, resp.Msg.Artifacts[0].Type)
+	require.Regexp(t, `^bas-capture://[0-9a-f-]+/screenshot$`, resp.Msg.Artifacts[0].Reference)
 
 	require.Equal(t, 1, exec.Calls)
 	require.NotNil(t, exec.LastReq)

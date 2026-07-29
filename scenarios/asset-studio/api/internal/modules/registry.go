@@ -23,9 +23,11 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "asset-studio/handlers/health"
+	searchH "asset-studio/handlers/search"
 	studioH "asset-studio/handlers/studio"
 	localdb "asset-studio/internal/database"
 
+	searchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/asset-studio/v1/search"
 	studiov1 "github.com/vrooli/vrooli/packages/proto/gen/go/asset-studio/v1/studio"
 )
 
@@ -36,6 +38,7 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
+	out = append(out, searchH.Endpoints...)
 	out = append(out, studioH.Endpoints...)
 	return out
 }
@@ -63,6 +66,7 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
+		{Module: "search", File: searchv1.File_asset_studio_v1_search_search_proto},
 		{Module: "studio", File: studiov1.File_asset_studio_v1_studio_studio_proto},
 	}
 }

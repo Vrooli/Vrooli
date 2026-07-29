@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-21T01:38:56-04:00"
+    "last_validated_at": "2026-07-28T23:34:11-04:00"
   },
   "requirements": [
     {
       "id": "IMG-P0-005",
       "title": "Backend Abstraction \u0026 Provider Interface",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "category": "core",
       "description": "Per-op provider interface with \u003e=1 standalone-lightweight backend (required), ComfyUI optional, BYOK-cloud fallback, guaranteed CPU fallback; \u003e=1 standalone backend enforced at registration.",
@@ -15,14 +15,14 @@
           "type": "test",
           "ref": "api/internal/backends/backends_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Provider registry rejects an op lacking a standalone backend"
         },
         {
           "type": "test",
           "ref": "api/internal/backends/backends_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Provider selection order standalone-\u003ecomfyui-\u003ebyok-\u003ecpu honored"
         }
       ]

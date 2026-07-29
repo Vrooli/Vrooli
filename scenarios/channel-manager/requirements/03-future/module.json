@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirements derived from the P2 operational targets in PRD.md.",
-    "last_validated_at": "2026-07-28T19:37:26-04:00",
+    "last_validated_at": "2026-07-29T01:49:25-04:00",
     "module": "P2-targets",
     "priority": "P2",
     "schema_version": "1.0.0"

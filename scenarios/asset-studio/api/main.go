@@ -23,6 +23,7 @@ import (
 	_ "modernc.org/sqlite"
 
 	healthH "asset-studio/handlers/health"
+	searchH "asset-studio/handlers/search"
 	studioH "asset-studio/handlers/studio"
 )
 
@@ -151,6 +152,7 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "asset-studio-api", "1.0.0"),
+		searchH.Module(db),
 		studioH.Module(db),
 	)
 

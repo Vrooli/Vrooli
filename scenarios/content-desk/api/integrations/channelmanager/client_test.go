@@ -29,7 +29,7 @@ func (releaseHandler) GetEligibility(_ context.Context, request *connect.Request
 }
 
 func (releaseHandler) SubmitRelease(_ context.Context, request *connect.Request[channelmanagerv1.SubmitReleaseRequest]) (*connect.Response[channelmanagerv1.SubmitReleaseResponse], error) {
-	if request.Msg.IdempotencyKey != "release-1" {
+	if request.Msg.IdempotencyKey != "release-1" || len(request.Msg.AssetIds) != 1 || request.Msg.AssetIds[0] != "asset-1" || !request.Msg.DisclosureVisible {
 		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
 	}
 	return connect.NewResponse(&channelmanagerv1.SubmitReleaseResponse{Receipt: &channelmanagerv1.ReleaseReceipt{Id: "release-1", ActionId: "action-1", Status: "scheduled"}}), nil
@@ -39,7 +39,7 @@ func TestClientUsesGeneratedContractAndResolvedURL(t *testing.T) {
 	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)
 	client := &Client{resolver: staticResolver{url: server.URL}, http: server.Client()}
-	receipt, err := client.SubmitRelease(context.Background(), Submission{IdentityID: "identity-1", Lane: "main", DraftID: "draft-1", IdempotencyKey: "release-1"})
+	receipt, err := client.SubmitRelease(context.Background(), Submission{IdentityID: "identity-1", Lane: "main", DraftID: "draft-1", IdempotencyKey: "release-1", AssetIDs: []string{"asset-1"}, DisclosureVisible: true})
 	require.NoError(t, err)
 	require.Equal(t, Receipt{ID: "release-1", ActionID: "action-1", Status: "scheduled"}, receipt)
 	eligibility, err := client.CheckEligibility(context.Background(), "identity-1", "main")

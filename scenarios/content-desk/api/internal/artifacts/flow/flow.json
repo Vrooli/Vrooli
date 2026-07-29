@@ -41,6 +41,7 @@
     { "from": "blocked", "event": "check", "to": "checking" },
     { "from": "reviewed", "event": "block", "to": "blocked" },
     { "from": "reviewed", "event": "approve", "to": "approved" },
+    { "from": "approved", "event": "block", "to": "blocked" },
     { "from": "approved", "event": "publish", "to": "published" },
     { "from": "requested", "event": "abandon", "to": "abandoned" },
     { "from": "drafting", "event": "abandon", "to": "abandoned" },

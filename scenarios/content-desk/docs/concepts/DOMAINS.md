@@ -137,7 +137,7 @@ belong in [`DATA.md`](DATA.md).
 - Owns: publish records with series linkage, coverage by campaign/lane/channel/SKU,
   subject familiarity per audience, and the narration log per subject.
 - Does not own: publishing itself. Releasing to a platform belongs to the
-  scheduler; this domain records the result it returns.
+  Channel Manager; this domain records the result it returns.
 - Invariant: the ledger is append-oriented. A correction is a new record, so
   publish history stays auditable.
 - Requirements: `CONTENTD-P0-010`, `CONTENTD-P0-011`, `CONTENTD-P0-012`,
@@ -184,7 +184,7 @@ are real enough to affect architecture or requirements.
 | Considered | Verdict | Reason |
 |---|---|---|
 | `generation` — producing draft copy | **Rejected.** | Generation prompts live in the paired `x-<type>` skills. Absorbing them would break the doc-plus-skill discipline that keeps strategic reasoning and executable procedure separate, and would freeze prompt iteration behind a deploy. |
-| `accounts` / `warming` — identity lifecycle and anti-shadowban cadence | **Rejected.** | Marketing canon already routes account handles, credentials, activation, warming, and cadence to `social-media-scheduler`. Warming state and the post queue are tightly coupled — the queue must refuse an account that is not warm — so splitting them would put a cross-scenario call on every publish. |
+| `accounts` / `warming` — identity lifecycle and anti-shadowban cadence | **Rejected.** | Marketing canon already routes account handles, credentials, activation, warming, and cadence to Channel Manager. Warming state and the post queue are tightly coupled — the queue must refuse an account that is not warm — so splitting them would put a cross-scenario call on every publish. |
 | `assets` — character, scene, and product definitions rendered to images and video | **Rejected.** | Structured rich-media data is operator-curated canon today and belongs to a future asset-production scenario that wraps existing image and browser-automation capabilities. Different clock, different failure mode: visual drift and generation spend, not a false claim. |
 | `identity` / `credentials` | **Rejected.** | No credential ever touches this scenario's storage. Account records elsewhere hold a vault reference; the desk holds none. |
 

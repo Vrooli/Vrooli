@@ -26,6 +26,8 @@ const (
 // respective owning scenarios.
 type Submission struct {
 	IdentityID, Lane, DraftID, IdempotencyKey string
+	AssetIDs                                  []string
+	DisclosureVisible                         bool
 }
 
 // Receipt is a projected Channel Manager release record. A scheduled receipt
@@ -67,7 +69,7 @@ func (c *Client) SubmitRelease(ctx context.Context, submission Submission) (Rece
 		baseURL, err := c.resolver.ResolveScenarioURLDefault(callCtx, scenarioID)
 		if err == nil {
 			client := channelmanagerconnect.NewChannelManagerServiceClient(c.http, strings.TrimRight(baseURL, "/"))
-			response, callErr := client.SubmitRelease(callCtx, connect.NewRequest(&channelmanagerv1.SubmitReleaseRequest{IdentityId: submission.IdentityID, Lane: submission.Lane, DraftId: submission.DraftID, IdempotencyKey: submission.IdempotencyKey}))
+			response, callErr := client.SubmitRelease(callCtx, connect.NewRequest(&channelmanagerv1.SubmitReleaseRequest{IdentityId: submission.IdentityID, Lane: submission.Lane, DraftId: submission.DraftID, IdempotencyKey: submission.IdempotencyKey, AssetIds: submission.AssetIDs, DisclosureVisible: submission.DisclosureVisible}))
 			if callErr == nil && response != nil && response.Msg != nil && response.Msg.Receipt != nil {
 				cancel()
 				return Receipt{ID: response.Msg.Receipt.Id, ActionID: response.Msg.Receipt.ActionId, Status: response.Msg.Receipt.Status}, nil

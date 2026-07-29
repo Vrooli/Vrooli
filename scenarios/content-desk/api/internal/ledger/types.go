@@ -14,6 +14,36 @@ type PublishRecord struct {
 	PublishedAt    time.Time
 }
 
+// ReleaseReceipt is the minimal, credential-free outcome Content Desk accepts
+// from Channel Manager. The receipt ID is an idempotency boundary: replaying a
+// delivery must return the original ledger record rather than add a post.
+type ReleaseReceipt struct {
+	ReceiptID      string
+	DraftID        string
+	Channel        string
+	PlatformPostID string
+	PublishedURL   string
+	Status         string
+	PublishedAt    time.Time
+}
+
+// MetricSample is the idempotent metric-delivery contract accepted from
+// Channel Manager. A sample ID identifies the measurement, not a transport
+// attempt, so retries cannot duplicate analytics.
+type MetricSample struct {
+	SampleID   string
+	ReleaseID  string
+	DraftID    string
+	Metric     string
+	Value      float64
+	ObservedAt time.Time
+}
+
+type Remediation struct {
+	ID, PublishRecordID, Kind, Status, Note string
+	CreatedAt, ResolvedAt                   time.Time
+}
+
 type CoverageCell struct {
 	CampaignID, Lane, Channel, SKU string
 	PublishCount                   int

@@ -59,3 +59,25 @@ CREATE TABLE IF NOT EXISTS ledger_import_runs (
   source_count INTEGER NOT NULL,
   failure_count INTEGER NOT NULL DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS ledger_metric_samples (
+  sample_id TEXT PRIMARY KEY,
+  release_id TEXT NOT NULL,
+  draft_id TEXT NOT NULL,
+  metric TEXT NOT NULL,
+  value REAL NOT NULL,
+  observed_at TEXT NOT NULL,
+  received_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ledger_metric_samples_draft_idx ON ledger_metric_samples(draft_id, observed_at);
+
+CREATE TABLE IF NOT EXISTS ledger_remediations (
+  id TEXT PRIMARY KEY,
+  publish_record_id TEXT NOT NULL REFERENCES ledger_publish_records(id),
+  kind TEXT NOT NULL,
+  status TEXT NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  resolved_at TEXT
+);
+CREATE INDEX IF NOT EXISTS ledger_remediations_record_idx ON ledger_remediations(publish_record_id, created_at DESC);

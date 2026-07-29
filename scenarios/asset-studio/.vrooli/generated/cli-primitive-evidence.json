@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "asset-studio",
   "generator": "v1.0.0",
-  "manifest_hash": "eb3324f488468c0a4ff4fee7fd5a32f039e57f07a8e5e4c3ab522d10bf10e32d",
+  "manifest_hash": "f63c650d04731e420e365c0e57b01fc2347a2d8602a68e0ea339c0e63c31ba33",
   "commands": [
     {
       "path": "identities create-product",
@@ -27,6 +27,38 @@
       "group": "identities",
       "command": "list",
       "binding": "StudioService.ListIdentities",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "renders analyze-conformance",
+      "group": "renders",
+      "command": "analyze-conformance",
+      "binding": "StudioService.AnalyzeConformance",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "renders regenerate",
+      "group": "renders",
+      "command": "regenerate",
+      "binding": "StudioService.RegenerateRender",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "renders set-campaign-budget",
+      "group": "renders",
+      "command": "set-campaign-budget",
+      "binding": "StudioService.SetCampaignBudget",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "renders show",
+      "group": "renders",
+      "command": "show",
+      "binding": "StudioService.GetRender",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     }

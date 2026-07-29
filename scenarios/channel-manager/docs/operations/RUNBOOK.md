@@ -45,6 +45,38 @@ behavioural signature from the one the program declared. And **record a metric
 observation whenever the platform shows you one**, even casually; a baseline is only
 as regular as the operator, and nothing downstream works without it.
 
+## Live browser-execution acceptance (operator-gated)
+
+Browser dispatch is available for synthetic validation, but it is **not** approved
+for a real platform by default. Do not dispatch a live action until every preflight
+item below has been completed by the accountable operator:
+
+- Add a dated per-platform, per-action-kind acceptance row to
+  [`../internal/DECISIONS.md`](../internal/DECISIONS.md) § D-009. The row must name
+  the operator and state the accepted platform-terms exposure; a generic approval
+  is not enough.
+- Use a dedicated sanctioned test identity, never a production identity. Confirm
+  its environment attestation and its Vault reference without printing a credential.
+- Create one BAS session profile for that identity only, record its opaque profile
+  ID, and use an operator-reviewed persisted BAS workflow UUID. Do not reuse either
+  reference for another identity.
+- Verify that the operator has the scoped Vault access required by the approved BAS
+  workflow. Channel Manager stores only the Vault path; credentials, cookies, and
+  session contents must not enter its database, API responses, or logs.
+- Queue one non-destructive, platform-approved test action through the normal
+  Channel Manager release path. Capture its action ID, BAS execution ID, timestamps,
+  outcome URL or platform-post ID, and any artifacts in the action evidence.
+
+If dispatch, the workflow, or the Vault read fails, leave the action uncompleted and
+use the permanent manual executor. If a live action succeeds unexpectedly or its
+account/environment becomes suspect, pause the identity immediately; quarantine it
+when the warming gate requires that terminal outcome. Record the incident and the
+action/BAS IDs in [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md), preserve the
+evidence, and do not retry browser execution until the accountable operator records
+a new decision. A live acceptance is complete only when the release receipt and any
+first-comment outcome are reconciled in Content Desk and the relevant requirement
+evidence is updated truthfully.
+
 ## Common Incidents
 
 | Symptom | Checks | Fix | Escalation |

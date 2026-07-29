@@ -53,6 +53,9 @@ func (s *sqliteStore) Load(ctx context.Context) (*Studio, error) {
 	if state.ImportHashes == nil {
 		state.ImportHashes = map[string]string{}
 	}
+	if state.CampaignBudgets == nil {
+		state.CampaignBudgets = map[string]*CampaignBudget{}
+	}
 	return state, nil
 }
 

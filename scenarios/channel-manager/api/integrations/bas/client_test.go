@@ -24,7 +24,7 @@ type workflowsHandler struct {
 }
 
 func (h workflowsHandler) ExecuteWorkflow(_ context.Context, request *connect.Request[basapi.ExecuteWorkflowRequest]) (*connect.Response[basapi.ExecuteWorkflowResponse], error) {
-	require.Equal(h.t, workflowID, request.Msg.GetWorkflowId())
+	require.Equal(h.t, "workflow-1", request.Msg.GetWorkflowId())
 	require.Equal(h.t, "profile-1", request.Msg.GetParameters().GetSessionProfileId())
 	require.Equal(h.t, "profile-1", request.Msg.GetParameters().GetSaveSessionProfileId())
 	require.Equal(h.t, map[string]string{"action_id": "action-1"}, request.Msg.GetParameters().GetVariables())
@@ -39,7 +39,7 @@ func TestDispatchSendsOnlyActionAndProfileReferences(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	client := &Client{resolver: staticResolver{url: server.URL}, http: server.Client()}
-	executionID, artifacts, err := client.Dispatch(context.Background(), "profile-1", "action-1")
+	executionID, artifacts, err := client.Dispatch(context.Background(), "profile-1", "workflow-1", "action-1")
 	require.NoError(t, err)
 	require.Equal(t, "execution-1", executionID)
 	require.Empty(t, artifacts)
@@ -47,6 +47,6 @@ func TestDispatchSendsOnlyActionAndProfileReferences(t *testing.T) {
 
 func TestDispatchRejectsMissingReferences(t *testing.T) {
 	client := &Client{}
-	_, _, err := client.Dispatch(context.Background(), "", "action-1")
+	_, _, err := client.Dispatch(context.Background(), "", "workflow-1", "action-1")
 	require.Error(t, err)
 }

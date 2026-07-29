@@ -16,8 +16,6 @@ import (
 	baseecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 )
 
-const workflowID = "channel-manager-dispatch"
-
 type resolver interface {
 	ResolveScenarioURLDefault(context.Context, string) (string, error)
 }
@@ -30,16 +28,16 @@ func NewClient() *Client {
 	return &Client{resolver: discovery.NewResolver(discovery.ResolverConfig{}), http: &http.Client{Timeout: 10 * time.Second}}
 }
 
-func (c *Client) Dispatch(ctx context.Context, profileRef, actionID string) (string, []string, error) {
-	if profileRef == "" || actionID == "" {
-		return "", nil, fmt.Errorf("BAS dispatch requires profile and action")
+func (c *Client) Dispatch(ctx context.Context, profileRef, workflowRef, actionID string) (string, []string, error) {
+	if profileRef == "" || workflowRef == "" || actionID == "" {
+		return "", nil, fmt.Errorf("BAS dispatch requires profile, workflow, and action")
 	}
 	base, err := c.resolver.ResolveScenarioURLDefault(ctx, "browser-automation-studio")
 	if err != nil {
 		return "", nil, fmt.Errorf("resolve BAS: %w", err)
 	}
 	client := basconnect.NewWorkflowsServiceClient(c.http, strings.TrimRight(base, "/"))
-	response, err := client.ExecuteWorkflow(ctx, connect.NewRequest(&basapi.ExecuteWorkflowRequest{WorkflowId: workflowID, Parameters: &baseecution.ExecutionParameters{SessionProfileId: &profileRef, SaveSessionProfileId: &profileRef, Variables: map[string]string{"action_id": actionID}}}))
+	response, err := client.ExecuteWorkflow(ctx, connect.NewRequest(&basapi.ExecuteWorkflowRequest{WorkflowId: workflowRef, Parameters: &baseecution.ExecutionParameters{SessionProfileId: &profileRef, SaveSessionProfileId: &profileRef, Variables: map[string]string{"action_id": actionID}}}))
 	if err != nil || response == nil || response.Msg == nil || response.Msg.ExecutionId == "" {
 		if err == nil {
 			err = fmt.Errorf("BAS returned no execution id")

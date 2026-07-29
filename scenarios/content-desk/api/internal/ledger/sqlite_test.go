@@ -138,6 +138,60 @@ func TestRecordPublishAllowsImportedHistoryWithoutDraftAndListsIt(t *testing.T) 
 	})
 }
 
+// [REQ:CONTENTD-P1-006] Channel Manager's completed or partial receipt is
+// ingested exactly once; its delivery identity never becomes a second post.
+func TestRecordReleaseReceiptIsAnIdempotentInbox(t *testing.T) {
+	fixture := newLedgerDB(t)
+	receipt := ledger.ReleaseReceipt{ReceiptID: "release-42", DraftID: "draft-42", Channel: "x", PlatformPostID: "post-42", PublishedURL: "https://example.test/post-42", Status: "partial", PublishedAt: time.Date(2026, 7, 28, 12, 0, 0, 0, time.UTC)}
+	first, err := fixture.repo.RecordReleaseReceipt(context.Background(), receipt)
+	require.NoError(t, err)
+	second, err := fixture.repo.RecordReleaseReceipt(context.Background(), receipt)
+	require.NoError(t, err)
+	require.Equal(t, first.ID, second.ID)
+	history, err := fixture.repo.ListPublishHistory(context.Background(), 10)
+	require.NoError(t, err)
+	require.Len(t, history, 1)
+	require.Equal(t, "channel-manager", history[0].SourceKind)
+}
+
+// [REQ:CHANMGR-P1-007] Channel Manager metric deliveries are acknowledged by
+// a unique sample identity, so retries retain one authoritative measurement.
+func TestIngestMetricSampleIsIdempotent(t *testing.T) {
+	fixture := newLedgerDB(t)
+	sample := ledger.MetricSample{SampleID: "metric-1", ReleaseID: "release-1", DraftID: "draft-1", Metric: "impressions", Value: 42, ObservedAt: time.Date(2026, 7, 28, 12, 0, 0, 0, time.UTC)}
+	first, err := fixture.repo.IngestMetricSample(context.Background(), sample)
+	require.NoError(t, err)
+	second, err := fixture.repo.IngestMetricSample(context.Background(), ledger.MetricSample{SampleID: sample.SampleID, ReleaseID: sample.ReleaseID, DraftID: sample.DraftID, Metric: sample.Metric, Value: 99, ObservedAt: sample.ObservedAt})
+	require.NoError(t, err)
+	require.Equal(t, first.Value, second.Value)
+}
+
+// [REQ:CONTENTD-P1-013] Remediation history is append-only and resolution
+// closes the operational item without deleting the publication evidence.
+func TestRemediationPersistsAndResolves(t *testing.T) {
+	fixture := newLedgerDB(t)
+	_, err := fixture.repo.RecordPublish(context.Background(), ledger.PublishRecord{ID: "publish-remediate", Channel: "x", PublishedAt: time.Now().UTC()})
+	require.NoError(t, err)
+	created, err := fixture.repo.CreateRemediation(context.Background(), ledger.Remediation{PublishRecordID: "publish-remediate", Kind: "correct_in_place", Note: "replace stale claim"})
+	require.NoError(t, err)
+	require.Equal(t, "open", created.Status)
+	open, err := fixture.repo.ListRemediations(context.Background(), "publish-remediate", true)
+	require.NoError(t, err)
+	require.Len(t, open, 1)
+	require.Equal(t, created.ID, open[0].ID)
+	resolved, err := fixture.repo.ResolveRemediation(context.Background(), created.ID)
+	require.NoError(t, err)
+	require.Equal(t, "resolved", resolved.Status)
+	require.False(t, resolved.ResolvedAt.IsZero())
+	open, err = fixture.repo.ListRemediations(context.Background(), "publish-remediate", true)
+	require.NoError(t, err)
+	require.Empty(t, open)
+	history, err := fixture.repo.ListRemediations(context.Background(), "publish-remediate", false)
+	require.NoError(t, err)
+	require.Len(t, history, 1)
+	require.Equal(t, "resolved", history[0].Status)
+}
+
 // [REQ:CONTENTD-P0-012]
 func TestImportedNarrationIsQueryableByScenario(t *testing.T) {
 	t.Run("[CONTENTD-P0-012] narration ledger is queryable by scenario", func(t *testing.T) {

@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-21T01:38:56-04:00"
+    "last_validated_at": "2026-07-28T23:34:11-04:00"
   },
   "requirements": [
     {
       "id": "IMG-P0-011",
       "title": "Graceful Fallback with Clear Messaging",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-011",
       "category": "core",
       "description": "Local-GPU -\u003e Local-CPU -\u003e BYOK-cloud fallback is automatic with explicit user-visible messaging at each transition, including hardware-fit and pre-op BYOK cost estimate.",
@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/backends/backends_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Fallback chain advances tiers and records the reason"
         },
         {

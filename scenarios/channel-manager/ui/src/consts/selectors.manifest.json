@@ -104,6 +104,10 @@
       "testId": "operator-action-ready",
       "selector": "[data-testid=\"operator-action-ready\"]"
     },
+    "operator.dueAction": {
+      "testId": "operator-due-action",
+      "selector": "[data-testid=\"operator-due-action\"]"
+    },
     "operator.evidenceInput": {
       "testId": "operator-evidence-input",
       "selector": "[data-testid=\"operator-evidence-input\"]"

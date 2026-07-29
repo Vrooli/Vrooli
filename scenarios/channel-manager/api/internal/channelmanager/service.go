@@ -4,6 +4,7 @@
 package channelmanager
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"slices"
@@ -35,11 +36,31 @@ func (p Provenance) Valid() bool {
 }
 
 type Platform struct {
-	ID                 string   `json:"id"`
-	DailyCeiling       int      `json:"daily_ceiling"`
-	ActionKinds        []string `json:"action_kinds"`
-	DisclosureRequired bool     `json:"disclosure_required"`
-	Formats            []Format `json:"formats"`
+	ID                 string      `json:"id"`
+	DailyCeiling       int         `json:"daily_ceiling"`
+	CaptionLimit       int         `json:"caption_limit"`
+	ActionKinds        []string    `json:"action_kinds"`
+	DisclosureRequired bool        `json:"disclosure_required"`
+	Retry              RetryPolicy `json:"retry"`
+	Formats            []Format    `json:"formats"`
+}
+
+// RetryPolicy is descriptor-owned because platform failure codes, retry
+// exposure, and safe backoff are not global assumptions.
+type RetryPolicy struct {
+	RetryableCodes []string `json:"retryable_codes"`
+	MaxAttempts    int      `json:"max_attempts"`
+	BackoffMinutes int      `json:"backoff_minutes"`
+}
+
+func (p RetryPolicy) Valid() error {
+	if p.MaxAttempts < 0 || p.BackoffMinutes < 0 {
+		return errors.New("retry policy values must not be negative")
+	}
+	if len(p.RetryableCodes) > 0 && p.MaxAttempts < 1 {
+		return errors.New("retryable platform codes require a positive attempt limit")
+	}
+	return nil
 }
 
 // Format is a platform-owned media contract. Limits declared as runtime
@@ -60,6 +81,9 @@ type Format struct {
 func (p Platform) Valid() error {
 	if p.ID == "" || p.DailyCeiling < 1 || len(p.ActionKinds) == 0 || len(p.Formats) == 0 {
 		return errors.New("platform descriptor requires id, positive daily_ceiling, action_kinds, and formats")
+	}
+	if err := p.Retry.Valid(); err != nil {
+		return fmt.Errorf("platform retry policy: %w", err)
 	}
 	for _, format := range p.Formats {
 		if format.Kind == "" || len(format.MIMETypes) == 0 || format.MaxBytes < 1 || format.MinWidth < 1 || format.MinHeight < 1 || format.MaxWidth < format.MinWidth || format.MaxHeight < format.MinHeight || (!format.DurationResolved && format.MaxDurationSecs < 1) {
@@ -135,10 +159,47 @@ type Identity struct {
 	Purpose        string          `json:"purpose"`
 	PersonaRef     string          `json:"persona_ref"`
 	EnvironmentRef string          `json:"environment_ref"`
+	ExpectedRegion string          `json:"expected_region"`
 	VaultRef       string          `json:"vault_ref"`
 	Status         string          `json:"status"`
 	LaneGrants     []string        `json:"lane_grants"`
 	Attestations   map[string]bool `json:"attestations"`
+}
+
+// EnvironmentProbe is intentionally credential-free. The environment provider
+// receives only the opaque environment reference and returns an observed
+// region; provisioning and proxy credentials remain outside Channel Manager.
+type EnvironmentProbe interface {
+	Probe(context.Context, string) (observedRegion string, err error)
+}
+
+type EnvironmentLiveness struct {
+	IdentityID     string    `json:"identity_id"`
+	ExpectedRegion string    `json:"expected_region"`
+	ObservedRegion string    `json:"observed_region"`
+	Status         string    `json:"status"`
+	Reason         string    `json:"reason"`
+	CheckedAt      time.Time `json:"checked_at"`
+}
+
+// PortfolioPolicy constrains publish timing across identities. It deliberately
+// does not affect warming or manual engagement actions: the policy exists to
+// keep a portfolio of published accounts from presenting coordinated output.
+// A zero-value policy is disabled until an operator configures it.
+type PortfolioPolicy struct {
+	MinimumPostGapMinutes int `json:"minimum_post_gap_minutes"`
+	WindowMinutes         int `json:"window_minutes"`
+	MaxPostsPerWindow     int `json:"max_posts_per_window"`
+}
+
+func (p PortfolioPolicy) Valid() error {
+	if p.MinimumPostGapMinutes < 0 || p.WindowMinutes < 0 || p.MaxPostsPerWindow < 0 {
+		return errors.New("portfolio policy values must not be negative")
+	}
+	if p.MaxPostsPerWindow > 0 && p.WindowMinutes < 1 {
+		return errors.New("portfolio window must be positive when a ceiling is configured")
+	}
+	return nil
 }
 
 func (i Identity) Valid(platforms map[string]Platform) error {
@@ -187,11 +248,88 @@ type Action struct {
 	CompletedAt    time.Time    `json:"completed_at"`
 	Deferred       bool         `json:"deferred"`
 	SessionNumber  int          `json:"session_number"`
+	ExecutionID    string       `json:"execution_id"`
+	ExecutionError string       `json:"execution_error"`
+	FailureClass   string       `json:"failure_class"`
+	AttemptCount   int          `json:"attempt_count"`
+	NextAttemptAt  time.Time    `json:"next_attempt_at"`
 }
+
+// BrowserDispatch is the minimum BAS adapter contract. Implementations receive
+// a profile reference and durable action ID only; they must never receive or
+// return browser cookies, passwords, or other credential material.
+type BrowserDispatch interface {
+	Dispatch(context.Context, string, string, string) (executionID string, artifacts []string, err error)
+}
+
+type AutomationAssignment struct {
+	ProfileRef   string   `json:"profile_ref"`
+	WorkflowRef  string   `json:"workflow_ref"`
+	EnabledKinds []string `json:"enabled_kinds"`
+	OperatorNote string   `json:"operator_note"`
+}
+
+// ReleaseReceipt is the durable publication ledger owned by Channel Manager.
+// A receipt is created when an approved draft is accepted into the unified
+// queue and is updated only by the executor that completes that queued action.
+// Content Desk receives this projection; it never receives identity state.
+type ReleaseReceipt struct {
+	ID                   string    `json:"id"`
+	DraftID              string    `json:"draft_id"`
+	ActionID             string    `json:"action_id"`
+	IdentityID           string    `json:"identity_id"`
+	Lane                 string    `json:"lane"`
+	IdempotencyKey       string    `json:"idempotency_key"`
+	Status               string    `json:"status"`
+	PlatformPostID       string    `json:"platform_post_id"`
+	PublishedURL         string    `json:"published_url"`
+	FirstCommentStatus   string    `json:"first_comment_status"`
+	FirstCommentEvidence string    `json:"first_comment_evidence"`
+	AssetIDs             []string  `json:"asset_ids"`
+	DisclosureVisible    bool      `json:"disclosure_visible"`
+	DeliveryStatus       string    `json:"delivery_status"`
+	DeliveryError        string    `json:"delivery_error"`
+	CreatedAt            time.Time `json:"created_at"`
+	CompletedAt          time.Time `json:"completed_at"`
+}
+
+type ReleaseOptions struct {
+	AssetIDs          []string
+	DisclosureVisible bool
+}
+
+// MetricSample is an append-only observation attributed to one release. The
+// delivery state is separate from collection so a temporary Content Desk
+// outage cannot lose or duplicate the measurement.
+type MetricSample struct {
+	ID             string    `json:"id"`
+	ReleaseID      string    `json:"release_id"`
+	DraftID        string    `json:"draft_id"`
+	Metric         string    `json:"metric"`
+	Value          float64   `json:"value"`
+	ObservedAt     time.Time `json:"observed_at"`
+	DeliveryStatus string    `json:"delivery_status"`
+}
+
+func (r ReleaseReceipt) Complete() bool {
+	return r.Status == "published" || r.Status == "partial"
+}
+
 type Observation struct {
 	Metric string
 	Value  float64
 	At     time.Time
+}
+
+// ProgramOutcome is append-only evidence for one warming-program decision.
+// Descriptor revisions never overwrite the gate results that justified a
+// graduation or quarantine.
+type ProgramOutcome struct {
+	IdentityID string                `json:"identity_id"`
+	ProgramID  string                `json:"program_id"`
+	Outcome    string                `json:"outcome"`
+	At         time.Time             `json:"at"`
+	Gates      map[string]GateResult `json:"gates"`
 }
 type Flag struct {
 	Metric          string
@@ -206,33 +344,45 @@ type GateResult struct {
 }
 
 type Service struct {
-	Platforms        map[string]Platform
-	Programs         map[string]Program
-	Identities       map[string]*Identity
-	Actions          map[string]*Action
-	Observations     map[string][]Observation
-	Flags            map[string][]Flag
-	RunningPrograms  map[string]string
-	ProgramStartedAt map[string]time.Time
-	GateResults      map[string]map[string]GateResult
-	releases         map[string]string
+	Platforms         map[string]Platform
+	Programs          map[string]Program
+	Identities        map[string]*Identity
+	Actions           map[string]*Action
+	Observations      map[string][]Observation
+	Flags             map[string][]Flag
+	RunningPrograms   map[string]string
+	ProgramStartedAt  map[string]time.Time
+	GateResults       map[string]map[string]GateResult
+	Releases          map[string]*ReleaseReceipt
+	Automation        map[string]AutomationAssignment
+	MetricSamples     map[string]*MetricSample
+	Portfolio         PortfolioPolicy
+	ProgramOutcomes   []ProgramOutcome
+	EnvironmentChecks map[string]EnvironmentLiveness
+	AssetPublications map[string]string
 }
 
 // State is the durable runtime projection. Descriptors remain files on disk;
 // this contains only accumulated operator state and never a credential value.
 type State struct {
-	Identities       map[string]*Identity             `json:"identities"`
-	Actions          map[string]*Action               `json:"actions"`
-	Observations     map[string][]Observation         `json:"observations"`
-	Flags            map[string][]Flag                `json:"flags"`
-	RunningPrograms  map[string]string                `json:"running_programs"`
-	ProgramStartedAt map[string]time.Time             `json:"program_started_at"`
-	GateResults      map[string]map[string]GateResult `json:"gate_results"`
-	Releases         map[string]string                `json:"releases"`
+	Identities        map[string]*Identity             `json:"identities"`
+	Actions           map[string]*Action               `json:"actions"`
+	Observations      map[string][]Observation         `json:"observations"`
+	Flags             map[string][]Flag                `json:"flags"`
+	RunningPrograms   map[string]string                `json:"running_programs"`
+	ProgramStartedAt  map[string]time.Time             `json:"program_started_at"`
+	GateResults       map[string]map[string]GateResult `json:"gate_results"`
+	Releases          map[string]*ReleaseReceipt       `json:"releases"`
+	Automation        map[string]AutomationAssignment  `json:"automation"`
+	MetricSamples     map[string]*MetricSample         `json:"metric_samples"`
+	Portfolio         PortfolioPolicy                  `json:"portfolio"`
+	ProgramOutcomes   []ProgramOutcome                 `json:"program_outcomes"`
+	EnvironmentChecks map[string]EnvironmentLiveness   `json:"environment_checks"`
+	AssetPublications map[string]string                `json:"asset_publications"`
 }
 
 func (s *Service) State() State {
-	return State{s.Identities, s.Actions, s.Observations, s.Flags, s.RunningPrograms, s.ProgramStartedAt, s.GateResults, s.releases}
+	return State{Identities: s.Identities, Actions: s.Actions, Observations: s.Observations, Flags: s.Flags, RunningPrograms: s.RunningPrograms, ProgramStartedAt: s.ProgramStartedAt, GateResults: s.GateResults, Releases: s.Releases, Automation: s.Automation, MetricSamples: s.MetricSamples, Portfolio: s.Portfolio, ProgramOutcomes: s.ProgramOutcomes, EnvironmentChecks: s.EnvironmentChecks, AssetPublications: s.AssetPublications}
 }
 
 func (s *Service) Restore(state State) {
@@ -258,12 +408,28 @@ func (s *Service) Restore(state State) {
 		s.GateResults = state.GateResults
 	}
 	if state.Releases != nil {
-		s.releases = state.Releases
+		s.Releases = state.Releases
+	}
+	if state.Automation != nil {
+		s.Automation = state.Automation
+	}
+	if state.MetricSamples != nil {
+		s.MetricSamples = state.MetricSamples
+	}
+	s.Portfolio = state.Portfolio
+	if state.ProgramOutcomes != nil {
+		s.ProgramOutcomes = state.ProgramOutcomes
+	}
+	if state.EnvironmentChecks != nil {
+		s.EnvironmentChecks = state.EnvironmentChecks
+	}
+	if state.AssetPublications != nil {
+		s.AssetPublications = state.AssetPublications
 	}
 }
 
 func New(platforms []Platform, programs []Program) (*Service, error) {
-	s := &Service{Platforms: map[string]Platform{}, Programs: map[string]Program{}, Identities: map[string]*Identity{}, Actions: map[string]*Action{}, Observations: map[string][]Observation{}, Flags: map[string][]Flag{}, RunningPrograms: map[string]string{}, ProgramStartedAt: map[string]time.Time{}, GateResults: map[string]map[string]GateResult{}, releases: map[string]string{}}
+	s := &Service{Platforms: map[string]Platform{}, Programs: map[string]Program{}, Identities: map[string]*Identity{}, Actions: map[string]*Action{}, Observations: map[string][]Observation{}, Flags: map[string][]Flag{}, RunningPrograms: map[string]string{}, ProgramStartedAt: map[string]time.Time{}, GateResults: map[string]map[string]GateResult{}, Releases: map[string]*ReleaseReceipt{}, Automation: map[string]AutomationAssignment{}, MetricSamples: map[string]*MetricSample{}, ProgramOutcomes: []ProgramOutcome{}, EnvironmentChecks: map[string]EnvironmentLiveness{}, AssetPublications: map[string]string{}}
 	for _, p := range platforms {
 		if err := p.Valid(); err != nil {
 			return nil, err
@@ -294,6 +460,16 @@ func (s *Service) CreateIdentity(i Identity) error {
 		i.Status = "draft"
 	}
 	s.Identities[i.ID] = &i
+	return nil
+}
+
+// ConfigurePortfolioPolicy is an explicit operator decision. Existing
+// scheduled work is not rewritten; the policy is enforced only at queue time.
+func (s *Service) ConfigurePortfolioPolicy(policy PortfolioPolicy) error {
+	if err := policy.Valid(); err != nil {
+		return err
+	}
+	s.Portfolio = policy
 	return nil
 }
 
@@ -359,12 +535,16 @@ func (s *Service) EvaluateGate(identityID, gateID string, now time.Time) (GateRe
 			break
 		}
 	}
-	if result.Outcome == "inconclusive" && result.Repeats >= gate.MaxRepeats {
-		result.Outcome = "fail"
-		_ = s.Quarantine(identityID)
-	}
 	if s.GateResults[identityID] == nil {
 		s.GateResults[identityID] = map[string]GateResult{}
+	}
+	// Record the deciding measurement before quarantine snapshots the program
+	// outcome, so the append-only evidence contains the terminal gate result.
+	s.GateResults[identityID][gateID] = result
+	if result.Outcome == "inconclusive" && result.Repeats >= gate.MaxRepeats {
+		result.Outcome = "fail"
+		s.GateResults[identityID][gateID] = result
+		_ = s.Quarantine(identityID)
 	}
 	s.GateResults[identityID][gateID] = result
 	return result, nil
@@ -391,6 +571,7 @@ func (s *Service) Graduate(identityID string, criteria map[string]bool, lanes []
 	}
 	i.Status = "active"
 	i.LaneGrants = append([]string(nil), lanes...)
+	s.appendProgramOutcome(identityID, "graduated", time.Now().UTC())
 	return nil
 }
 
@@ -425,6 +606,7 @@ func (s *Service) Enqueue(identityID, kind string, at time.Time, seed uint64, ke
 	if count >= p.DailyCeiling {
 		return nil, ErrCadence
 	}
+	window, deferred := s.portfolioWindow(identityID, kind, at)
 	minimum, maximum := 1, 3
 	if program := s.programFor(i); program != nil && len(program.Phases) > 0 {
 		phase := program.Phases[0]
@@ -445,9 +627,54 @@ func (s *Service) Enqueue(identityID, kind string, at time.Time, seed uint64, ke
 	mixed *= 0xbf58476d1ce4e5b9
 	mixed ^= mixed >> 27
 	rolled := minimum + int(mixed%span)
-	a := &Action{ID: fmt.Sprintf("act-%d", len(s.Actions)+1), IdentityID: identityID, Kind: kind, Window: at, RolledCount: rolled, Seed: seed, Status: Scheduled, IdempotencyKey: key}
+	a := &Action{ID: fmt.Sprintf("act-%d", len(s.Actions)+1), IdentityID: identityID, Kind: kind, Window: window, RolledCount: rolled, Seed: seed, Status: Scheduled, IdempotencyKey: key, Deferred: deferred}
 	s.Actions[a.ID] = a
 	return a, nil
+}
+
+// portfolioWindow chooses the earliest allowed slot for a new publish without
+// changing existing actions. A defer is visible on the queued action, giving
+// the operator a reason rather than silently losing requested work.
+func (s *Service) portfolioWindow(identityID, kind string, requested time.Time) (time.Time, bool) {
+	policy := s.Portfolio
+	if kind != "publish" || (policy.MinimumPostGapMinutes == 0 && policy.MaxPostsPerWindow == 0) {
+		return requested, false
+	}
+	window, deferred := requested, false
+	gap := time.Duration(policy.MinimumPostGapMinutes) * time.Minute
+	period := time.Duration(policy.WindowMinutes) * time.Minute
+	for {
+		changed := false
+		for _, action := range s.Actions {
+			if action.Kind != "publish" || action.IdentityID == identityID || action.Status == Cancelled {
+				continue
+			}
+			if gap > 0 && window.Before(action.Window.Add(gap)) && window.After(action.Window.Add(-gap)) {
+				window = action.Window.Add(gap)
+				deferred, changed = true, true
+			}
+		}
+		if policy.MaxPostsPerWindow > 0 {
+			count := 0
+			var latest time.Time
+			for _, action := range s.Actions {
+				if action.Kind != "publish" || action.Status == Cancelled || action.Window.Before(window.Add(-period)) || action.Window.After(window) {
+					continue
+				}
+				count++
+				if action.Window.After(latest) {
+					latest = action.Window
+				}
+			}
+			if count >= policy.MaxPostsPerWindow && !latest.IsZero() {
+				window = latest.Add(period)
+				deferred, changed = true, true
+			}
+		}
+		if !changed {
+			return window, deferred
+		}
+	}
 }
 
 // ScheduleSessions groups pending actions into the descriptor's session count
@@ -514,6 +741,131 @@ func (s *Service) Complete(id, evidence string, at time.Time) error {
 	return nil
 }
 
+// AssignAutomation records one BAS session-profile reference for an identity.
+// Reassignment is explicit and scopes which action kinds an operator accepts
+// for automation; absent or disabled assignments always retain manual work.
+func (s *Service) AssignAutomation(identityID, profileRef, workflowRef string, enabledKinds []string, note string) error {
+	if s.Identities[identityID] == nil || profileRef == "" || workflowRef == "" || len(enabledKinds) == 0 {
+		return errors.New("automation assignment requires known identity, profile reference, workflow reference, and enabled action kinds")
+	}
+	platform := s.platformFor(s.Identities[identityID])
+	for _, kind := range enabledKinds {
+		if !slices.Contains(platform.ActionKinds, kind) {
+			return fmt.Errorf("automation kind %q is not supported", kind)
+		}
+	}
+	s.Automation[identityID] = AutomationAssignment{ProfileRef: profileRef, WorkflowRef: workflowRef, EnabledKinds: append([]string(nil), enabledKinds...), OperatorNote: note}
+	return nil
+}
+
+// DispatchBrowser starts an already queued action through BAS. Dispatch failure
+// is recorded on the action and leaves it actionable manually; it never marks
+// the platform action completed.
+func (s *Service) DispatchBrowser(ctx context.Context, actionID string, dispatcher BrowserDispatch) (string, error) {
+	a := s.Actions[actionID]
+	if a == nil || dispatcher == nil {
+		return "", errors.New("browser dispatch requires queued action and dispatcher")
+	}
+	assignment, ok := s.Automation[a.IdentityID]
+	if !ok || !slices.Contains(assignment.EnabledKinds, a.Kind) {
+		return "", errors.New("browser automation is not enabled for this action")
+	}
+	if a.Status != Scheduled && a.Status != Due {
+		return "", errors.New("only pending actions may be dispatched")
+	}
+	if a.ExecutionID != "" {
+		return a.ExecutionID, nil
+	}
+	executionID, _, err := dispatcher.Dispatch(ctx, assignment.ProfileRef, assignment.WorkflowRef, a.ID)
+	if err != nil {
+		a.ExecutionError = err.Error()
+		a.FailureClass = "manual_fallback"
+		return "", err
+	}
+	a.ExecutionID = executionID
+	a.ExecutionError = ""
+	return executionID, nil
+}
+
+// RecordExecutionFailure classifies a platform outcome using the selected
+// platform descriptor. Only declared transient codes are retried, and every
+// retry remains a durable queued action with a bounded next-attempt time.
+func (s *Service) RecordExecutionFailure(actionID, code string, at time.Time) error {
+	a := s.Actions[actionID]
+	if a == nil {
+		return errors.New("action not found")
+	}
+	policy := s.platformFor(s.Identities[a.IdentityID]).Retry
+	a.ExecutionError = code
+	a.AttemptCount++
+	if slices.Contains(policy.RetryableCodes, code) && a.AttemptCount <= policy.MaxAttempts {
+		a.FailureClass = "retryable"
+		a.NextAttemptAt = at.Add(time.Duration(policy.BackoffMinutes*a.AttemptCount) * time.Minute)
+		a.Status = Scheduled
+		return nil
+	}
+	a.FailureClass = "terminal"
+	if a.Status == Scheduled {
+		if err := s.transitionAction(a, ActionMakeDue); err != nil {
+			return err
+		}
+	}
+	if a.Status == Due {
+		if err := s.transitionAction(a, ActionBegin); err != nil {
+			return err
+		}
+	}
+	if a.Status == Executing {
+		return s.transitionAction(a, ActionFail)
+	}
+	return errors.New("action cannot accept execution failure")
+}
+
+// CompleteRelease records the outcome of the already-queued publish action.
+// It is deliberately separate from Complete because a warming action has no
+// post receipt and a release must never be inferred from arbitrary evidence.
+func (s *Service) CompleteRelease(actionID, platformPostID, publishedURL, firstCommentStatus, firstCommentEvidence string, at time.Time) (*ReleaseReceipt, error) {
+	a := s.Actions[actionID]
+	if a == nil || a.Kind != "publish" {
+		return nil, errors.New("publish action not found")
+	}
+	if platformPostID == "" || publishedURL == "" {
+		return nil, errors.New("published release requires platform post id and URL")
+	}
+	var receipt *ReleaseReceipt
+	for _, candidate := range s.Releases {
+		if candidate.ActionID == actionID {
+			receipt = candidate
+			break
+		}
+	}
+	if receipt == nil {
+		return nil, errors.New("release receipt not found for action")
+	}
+	if receipt.Complete() {
+		return receipt, nil
+	}
+	if err := s.Complete(actionID, publishedURL, at); err != nil {
+		return nil, err
+	}
+	receipt.PlatformPostID = platformPostID
+	receipt.PublishedURL = publishedURL
+	receipt.FirstCommentStatus = firstCommentStatus
+	receipt.FirstCommentEvidence = firstCommentEvidence
+	receipt.CompletedAt = at
+	if firstCommentStatus == "failed" {
+		receipt.Status = "partial"
+	} else {
+		receipt.Status = "published"
+	}
+	receipt.DeliveryStatus = "pending"
+	receipt.DeliveryError = ""
+	for _, assetID := range receipt.AssetIDs {
+		s.AssetPublications[assetID] = receipt.IdentityID
+	}
+	return receipt, nil
+}
+
 // TransitionAction is the production entry point shared by the formal replay
 // and the manual operator workflow. The generated table is the single source
 // of truth for legal action-status transitions.
@@ -557,6 +909,92 @@ func (s *Service) RecordObservation(identityID, metric string, value float64, at
 	return nil, nil
 }
 
+// CheckEnvironment records liveness even when the provider cannot answer.
+// A configured identity is paused on mismatch or unknown so no queued action
+// can proceed while its region invariant is unproven.
+func (s *Service) CheckEnvironment(ctx context.Context, identityID string, probe EnvironmentProbe, at time.Time) (EnvironmentLiveness, error) {
+	identity := s.Identities[identityID]
+	if identity == nil {
+		return EnvironmentLiveness{}, errors.New("identity not found")
+	}
+	record := EnvironmentLiveness{IdentityID: identityID, ExpectedRegion: identity.ExpectedRegion, CheckedAt: at}
+	if identity.ExpectedRegion == "" {
+		record.Status, record.Reason = "not_configured", "identity has no expected region"
+		s.EnvironmentChecks[identityID] = record
+		return record, nil
+	}
+	if probe == nil {
+		record.Status, record.Reason = "unknown", "environment probe is unavailable"
+	} else {
+		observed, err := probe.Probe(ctx, identity.EnvironmentRef)
+		record.ObservedRegion = observed
+		if err != nil {
+			record.Status, record.Reason = "unknown", err.Error()
+		} else if observed != identity.ExpectedRegion {
+			record.Status, record.Reason = "mismatch", "observed region differs from identity expectation"
+		} else {
+			record.Status = "healthy"
+		}
+	}
+	if record.Status == "unknown" || record.Status == "mismatch" {
+		identity.Status = "paused"
+	}
+	s.EnvironmentChecks[identityID] = record
+	return record, nil
+}
+
+func (s *Service) RecordMetric(releaseID, sampleID, metric string, value float64, observedAt time.Time) (*MetricSample, error) {
+	if sampleID == "" || metric == "" {
+		return nil, errors.New("metric sample requires id and metric")
+	}
+	if prior := s.MetricSamples[sampleID]; prior != nil {
+		return prior, nil
+	}
+	var receipt *ReleaseReceipt
+	for _, candidate := range s.Releases {
+		if candidate.ID == releaseID {
+			receipt = candidate
+			break
+		}
+	}
+	if receipt == nil || !receipt.Complete() {
+		return nil, errors.New("metrics require completed release receipt")
+	}
+	sample := &MetricSample{ID: sampleID, ReleaseID: releaseID, DraftID: receipt.DraftID, Metric: metric, Value: value, ObservedAt: observedAt, DeliveryStatus: "pending"}
+	s.MetricSamples[sampleID] = sample
+	return sample, nil
+}
+
+func (s *Service) AcknowledgeMetric(sampleID string) error {
+	sample := s.MetricSamples[sampleID]
+	if sample == nil {
+		return errors.New("metric sample not found")
+	}
+	sample.DeliveryStatus = "acknowledged"
+	return nil
+}
+
+// MarkReleaseDelivery records the Content Desk inbox acknowledgement without
+// mutating the immutable platform outcome. Failed delivery stays retryable.
+func (s *Service) MarkReleaseDelivery(releaseID string, delivered bool, deliveryErr string) error {
+	var receipt *ReleaseReceipt
+	for _, candidate := range s.Releases {
+		if candidate.ID == releaseID {
+			receipt = candidate
+			break
+		}
+	}
+	if receipt == nil || !receipt.Complete() {
+		return fmt.Errorf("completed release %q not found", releaseID)
+	}
+	if delivered {
+		receipt.DeliveryStatus, receipt.DeliveryError = "delivered", ""
+		return nil
+	}
+	receipt.DeliveryStatus, receipt.DeliveryError = "pending", deliveryErr
+	return nil
+}
+
 func (s *Service) Eligibility(identityID, lane string) string {
 	i := s.Identities[identityID]
 	if i == nil {
@@ -571,19 +1009,40 @@ func (s *Service) Eligibility(identityID, lane string) string {
 	return "not_eligible"
 }
 
-func (s *Service) Release(identityID, lane, key string, at time.Time) (string, error) {
-	if prior := s.releases[key]; prior != "" {
+func (s *Service) Release(identityID, lane, draftID, key string, at time.Time) (*ReleaseReceipt, error) {
+	return s.ReleaseWithOptions(identityID, lane, draftID, key, ReleaseOptions{}, at)
+}
+
+func (s *Service) ReleaseWithOptions(identityID, lane, draftID, key string, options ReleaseOptions, at time.Time) (*ReleaseReceipt, error) {
+	if key == "" || draftID == "" {
+		return nil, errors.New("release requires draft id and idempotency key")
+	}
+	if prior := s.Releases[key]; prior != nil {
 		return prior, nil
 	}
 	if s.Eligibility(identityID, lane) != "eligible" {
-		return "", errors.New("identity is not eligible")
+		return nil, errors.New("identity is not eligible")
+	}
+	identity := s.Identities[identityID]
+	platform := s.platformFor(identity)
+	if identity.Purpose == "persona-actor" && platform.DisclosureRequired && !options.DisclosureVisible {
+		return nil, errors.New("persona-actor release requires visible platform disclosure")
+	}
+	for _, assetID := range options.AssetIDs {
+		if assetID == "" {
+			return nil, errors.New("release asset id must not be empty")
+		}
+		if publishedBy := s.AssetPublications[assetID]; publishedBy != "" && publishedBy != identityID {
+			return nil, fmt.Errorf("asset %q was already published by identity %q", assetID, publishedBy)
+		}
 	}
 	a, err := s.Enqueue(identityID, "publish", at, 0, key)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	s.releases[key] = a.ID
-	return a.ID, nil
+	receipt := &ReleaseReceipt{ID: "rel-" + a.ID, DraftID: draftID, ActionID: a.ID, IdentityID: identityID, Lane: lane, IdempotencyKey: key, Status: "queued", FirstCommentStatus: "not_requested", AssetIDs: append([]string(nil), options.AssetIDs...), DisclosureVisible: options.DisclosureVisible, CreatedAt: at}
+	s.Releases[key] = receipt
+	return receipt, nil
 }
 
 func (s *Service) Quarantine(identityID string) error {
@@ -597,7 +1056,20 @@ func (s *Service) Quarantine(identityID string) error {
 			_ = s.transitionAction(a, ActionCancel)
 		}
 	}
+	s.appendProgramOutcome(identityID, "quarantined", time.Now().UTC())
 	return nil
+}
+
+func (s *Service) appendProgramOutcome(identityID, outcome string, at time.Time) {
+	programID := s.RunningPrograms[identityID]
+	if programID == "" {
+		return
+	}
+	gates := make(map[string]GateResult, len(s.GateResults[identityID]))
+	for id, result := range s.GateResults[identityID] {
+		gates[id] = result
+	}
+	s.ProgramOutcomes = append(s.ProgramOutcomes, ProgramOutcome{IdentityID: identityID, ProgramID: programID, Outcome: outcome, At: at, Gates: gates})
 }
 func (s *Service) platformFor(i *Identity) Platform { return s.Platforms[i.PlatformID] }
 func (s *Service) programFor(i *Identity) *Program {

@@ -108,3 +108,38 @@ func TestNoveltyEvidenceExpiresToAssertedAfterConfiguredAge(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+// [REQ:CONTENTD-P1-007] Extraction is an operator-review queue. It never
+// creates a claim or changes the draft lifecycle by itself.
+func TestExtractionStoresReviewOnlyProposals(t *testing.T) {
+	library := newLibrary(t, &claimsmocks.FakeRunner{})
+	proposals, err := library.ExtractProposals(context.Background(), "draft-extract", "Vrooli has a typed API. It stores no credentials.")
+	require.NoError(t, err)
+	require.Len(t, proposals, 2)
+	require.Equal(t, "proposed", proposals[0].Status)
+	listed, err := library.ListProposals(context.Background(), "draft-extract")
+	require.NoError(t, err)
+	require.Equal(t, proposals, listed)
+	accepted, err := library.DecideProposal(context.Background(), proposals[0].ID, "accepted")
+	require.NoError(t, err)
+	require.Equal(t, "accepted", accepted.Status)
+	claimsAfter, err := library.List(context.Background())
+	require.NoError(t, err)
+	require.Empty(t, claimsAfter)
+	_, err = library.DecideProposal(context.Background(), proposals[0].ID, "accepted")
+	require.Error(t, err)
+}
+
+// [REQ:CONTENTD-P1-012] Citation spans produce a deterministic coverage map
+// with non-colour-safe uncovered intervals for reviewer presentation.
+func TestCoverageReturnsSupportedAndUncoveredTextSpans(t *testing.T) {
+	library := newLibrary(t, &claimsmocks.FakeRunner{})
+	claim, err := library.Create(context.Background(), claims.Claim{Statement: "verified", Kind: claims.KindCapability}, claims.Evidence{Kind: claims.EvidenceKindCitation, Reference: "canon"})
+	require.NoError(t, err)
+	body := "Alpha Beta Gamma"
+	require.NoError(t, library.Cite(context.Background(), claims.Citation{DraftID: "draft-coverage", ClaimID: claim.ID, Start: 6, End: 10}, body))
+	supported, uncovered, err := library.Coverage(context.Background(), "draft-coverage", body)
+	require.NoError(t, err)
+	require.Equal(t, []claims.TextSpan{{Start: 6, End: 10, ClaimID: claim.ID}}, supported)
+	require.Equal(t, []claims.TextSpan{{Start: 0, End: 6}, {Start: 10, End: len(body)}}, uncovered)
+}

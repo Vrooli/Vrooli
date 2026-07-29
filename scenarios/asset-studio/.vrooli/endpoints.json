@@ -45,6 +45,22 @@
       }
     },
     {
+      "id": "search_query",
+      "path": "/vrooli.asset_studio.v1.search.SearchService/Search",
+      "method": "POST",
+      "summary": "Search identities and released asset metadata",
+      "description": "",
+      "category": "search"
+    },
+    {
+      "id": "search_status",
+      "path": "/vrooli.asset_studio.v1.search.SearchService/Status",
+      "method": "POST",
+      "summary": "Report Asset Studio search metadata status",
+      "description": "",
+      "category": "search"
+    },
+    {
       "id": "studio_list_identities",
       "path": "/vrooli.asset_studio.v1.studio.StudioService/ListIdentities",
       "method": "POST",
@@ -81,6 +97,46 @@
       "path": "/vrooli.asset_studio.v1.studio.StudioService/CreateRender",
       "method": "POST",
       "summary": "Create render candidates",
+      "description": "",
+      "category": "studio"
+    },
+    {
+      "id": "studio_regenerate_render",
+      "path": "/vrooli.asset_studio.v1.studio.StudioService/RegenerateRender",
+      "method": "POST",
+      "summary": "Regenerate a render from recorded intent",
+      "description": "",
+      "category": "studio"
+    },
+    {
+      "id": "studio_analyze_conformance",
+      "path": "/vrooli.asset_studio.v1.studio.StudioService/AnalyzeConformance",
+      "method": "POST",
+      "summary": "Record advisory Image Tools conformance analysis",
+      "description": "",
+      "category": "studio"
+    },
+    {
+      "id": "studio_commission_agent",
+      "path": "/vrooli.asset_studio.v1.studio.StudioService/CommissionAgent",
+      "method": "POST",
+      "summary": "Commission an untrusted Agent Manager proposal",
+      "description": "",
+      "category": "studio"
+    },
+    {
+      "id": "studio_set_campaign_budget",
+      "path": "/vrooli.asset_studio.v1.studio.StudioService/SetCampaignBudget",
+      "method": "POST",
+      "summary": "Set a campaign media budget",
+      "description": "",
+      "category": "studio"
+    },
+    {
+      "id": "studio_get_render",
+      "path": "/vrooli.asset_studio.v1.studio.StudioService/GetRender",
+      "method": "POST",
+      "summary": "Inspect durable render receipt and candidates",
       "description": "",
       "category": "studio"
     },

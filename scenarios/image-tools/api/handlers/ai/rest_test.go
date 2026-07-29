@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -51,6 +52,11 @@ func (f *fakeSubmitter) Submit(_ context.Context, spec internaljobs.Spec) (inter
 }
 
 func newTestServer(t *testing.T, installed bool) (*mux.Router, *fakeSubmitter) {
+	r, sub, _ := newTestServerWithStore(t, installed)
+	return r, sub
+}
+
+func newTestServerWithStore(t *testing.T, installed bool) (*mux.Router, *fakeSubmitter, *storage.Store) {
 	t.Helper()
 	registry, err := models.Load()
 	if err != nil {
@@ -58,7 +64,7 @@ func newTestServer(t *testing.T, installed bool) (*mux.Router, *fakeSubmitter) {
 	}
 	def, _ := registry.DefaultFor("text_to_image")
 	backendReg := backends.New()
-	if err := backendReg.Register(&fakeProvider{name: def.Backend, ops: []string{"text_to_image"}}); err != nil {
+	if err := backendReg.Register(&fakeProvider{name: def.Backend, ops: []string{"text_to_image", "edit_instruct"}}); err != nil {
 		t.Fatalf("register provider: %v", err)
 	}
 	store := storage.NewWithBlobStore(blobstore.NewMemoryBlobStore(), t.TempDir())
@@ -77,7 +83,41 @@ func newTestServer(t *testing.T, installed bool) (*mux.Router, *fakeSubmitter) {
 	deps := &Deps{Engine: eng, Store: store, Jobs: sub, Guard: storage.DefaultGuard()}
 	r := mux.NewRouter()
 	r.HandleFunc("/api/v1/ai/{operation}", deps.submitHandler).Methods(http.MethodPost)
-	return r, sub
+	return r, sub, store
+}
+
+func TestSubmit_EditUsesExistingInputReferenceWithoutUploadingBytes(t *testing.T) {
+	r, sub, store := newTestServerWithStore(t, true)
+	if err := store.Put(context.Background(), "outputs/parent.png", bytes.NewReader([]byte("png")), "image/png"); err != nil {
+		t.Fatal(err)
+	}
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	_ = mw.WriteField("params", `{"prompt":"brighten"}`)
+	_ = mw.WriteField("input_ref", "outputs/parent.png")
+	if err := mw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai/edit_instruct", &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	var payload internalai.Payload
+	if err := json.Unmarshal(sub.last.Payload, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.InputKey != "outputs/parent.png" {
+		t.Fatalf("input key=%q", payload.InputKey)
+	}
+	reader, _, err := store.Get(context.Background(), "outputs/parent.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = io.ReadAll(reader)
+	_ = reader.Close()
 }
 
 func TestSubmit_TextToImage_Accepted(t *testing.T) {

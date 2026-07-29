@@ -71,19 +71,19 @@ func (h *handlers) updateBodyReport(_ cliapp.OperationContext, message *artifact
 	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Saved revision for draft %s.", message.Draft.Id)}}
 }
 
-func (h *handlers) publishCall(ctx cliapp.OperationContext) (*artifactsv1.PublishDraftResponse, error) {
-	response, err := h.client.PublishDraft(context.Background(), connect.NewRequest(&artifactsv1.PublishDraftRequest{Id: ctx.Positional("id"), Audience: ctx.Flag("audience"), PublishedUrl: ctx.Flag("url"), PlatformPostId: ctx.Flag("platform-post-id"), SeriesId: ctx.Flag("series"), PriorPublishId: ctx.Flag("prior-publish")}))
+func (h *handlers) submitReleaseCall(ctx cliapp.OperationContext) (*artifactsv1.SubmitReleaseDraftResponse, error) {
+	response, err := h.client.SubmitReleaseDraft(context.Background(), connect.NewRequest(&artifactsv1.SubmitReleaseDraftRequest{Id: ctx.Positional("id"), IdentityId: ctx.Flag("identity"), Lane: ctx.Flag("lane"), IdempotencyKey: ctx.Flag("idempotency-key")}))
 	if err != nil {
-		return nil, cliapp.WrapAPIError("publish draft", err, nil)
+		return nil, cliapp.WrapAPIError("submit release", err, nil)
 	}
 	if response == nil || response.Msg == nil || response.Msg.Draft == nil {
-		return nil, fmt.Errorf("server returned no published draft")
+		return nil, fmt.Errorf("server returned no release submission")
 	}
 	return response.Msg, nil
 }
 
-func (h *handlers) publishReport(_ cliapp.OperationContext, message *artifactsv1.PublishDraftResponse) cliapp.MutationReport {
-	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Published draft %s.", message.Draft.Id)}, Changes: []string{fmt.Sprintf("ledger_record=%s", message.PublishRecordId)}}
+func (h *handlers) submitReleaseReport(_ cliapp.OperationContext, message *artifactsv1.SubmitReleaseDraftResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Submitted draft %s to Channel Manager.", message.Draft.Id)}, Changes: []string{fmt.Sprintf("release=%s action=%s status=%s", message.ReleaseId, message.ActionId, message.ReleaseStatus)}}
 }
 
 func (h *handlers) transitionCall(ctx cliapp.OperationContext) (*artifactsv1.TransitionDraftResponse, error) {
@@ -119,12 +119,12 @@ func (h *handlers) approveReport(_ cliapp.OperationContext, message *artifactsv1
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{
-		"ArtifactsService.ApproveDraft":    cliapp.ProtoMutation(h.approveCall, h.approveReport),
-		"ArtifactsService.CreateDraft":     cliapp.ProtoMutation(h.createCall, h.createReport),
-		"ArtifactsService.ListDrafts":      cliapp.ProtoList(h.listCall, h.listReport),
-		"ArtifactsService.TransitionDraft": cliapp.ProtoMutation(h.transitionCall, h.transitionReport),
-		"ArtifactsService.UpdateDraftBody": cliapp.ProtoMutation(h.updateBodyCall, h.updateBodyReport),
-		"ArtifactsService.PublishDraft":    cliapp.ProtoMutation(h.publishCall, h.publishReport),
+		"ArtifactsService.ApproveDraft":       cliapp.ProtoMutation(h.approveCall, h.approveReport),
+		"ArtifactsService.CreateDraft":        cliapp.ProtoMutation(h.createCall, h.createReport),
+		"ArtifactsService.ListDrafts":         cliapp.ProtoList(h.listCall, h.listReport),
+		"ArtifactsService.TransitionDraft":    cliapp.ProtoMutation(h.transitionCall, h.transitionReport),
+		"ArtifactsService.UpdateDraftBody":    cliapp.ProtoMutation(h.updateBodyCall, h.updateBodyReport),
+		"ArtifactsService.SubmitReleaseDraft": cliapp.ProtoMutation(h.submitReleaseCall, h.submitReleaseReport),
 	})
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("artifacts: load from manifest: %w", err)

@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-21T01:38:56-04:00"
+    "last_validated_at": "2026-07-28T23:34:11-04:00"
   },
   "requirements": [
     {
       "id": "IMG-P1-002",
       "title": "AI Enhancement Breadth",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "category": "feature",
       "description": "Colorize, old-photo restore, face restoration (standalone op), Segment Anything (SAM), and depth/normal map via opt-in installs with CPU-capable defaults where feasible. SHIPPED: SAM (the selection domain's segment op, built-in region-grow + seeded SAM upgrade), colorize and depth_map (onnxruntime CPU sidecar modules colorize.py/depth.py, seeded ddcolor/depth-anything; wired into the AI catalog + submit edge + CLI). REMAINING (forward-declared, seeded, not yet wired): face_restore, old_photo_restore (torch python-sidecar), normal_map (computed-from-depth).",
@@ -15,14 +15,14 @@
           "type": "test",
           "ref": "api/internal/ai/catalog_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "colorize + depth_map registered in the AI catalog (enhancement, RequiresImage) and each gets a dispatcher runner."
         },
         {
           "type": "test",
           "ref": "api/internal/ai/providers_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "colorize + depth_map dispatch through the onnxruntime CPU sidecar (image_tools_sidecar.colorize / .depth)."
         },
         {

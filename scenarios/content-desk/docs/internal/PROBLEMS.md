@@ -126,19 +126,19 @@ server write deadline for it.
 **Refs:** `scenarios/business-health/api/internal/wizard/questions.go`;
 observed in `vrooli scenario logs business-health --step start-api`.
 
-### 2026-07-28 — Scheduler handoff is not yet a safe typed integration
+### 2026-07-28 — Channel Manager handoff was not yet a safe typed integration
 
-Read-only inspection of `social-media-scheduler` found an internal worker that
+Read-only inspection of the predecessor scheduler found an internal worker that
 returns `PlatformPostID` and `PostURL` after publishing, and a database lookup
 for an active account by platform. It exposes neither a typed cross-scenario
 handoff contract nor the required lane-eligibility question. Its API is legacy
 Gin/REST and its worker reads account credentials internally, which content-desk
 must never do.
 
-**Impact:** P0 can record a scheduler-returned URL and post id once a seam
+**Impact:** P0 can record a Channel Manager-returned URL and post id once a seam
 exists; P1 account eligibility remains unavailable rather than guessed.
 
-**Next step:** introduce a scheduler-owned typed handoff/eligibility contract in
+**Next step:** introduce a Channel Manager-owned typed handoff/eligibility contract in
 its modernization work. Content-desk consumes only `{eligible, reason}` and
 published `{url, post_id}`, with no account or credential fields.
 

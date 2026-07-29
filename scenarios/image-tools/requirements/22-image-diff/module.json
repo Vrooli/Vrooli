@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-21T01:38:56-04:00"
+    "last_validated_at": "2026-07-28T23:34:11-04:00"
   },
   "requirements": [
     {
       "id": "IMG-P1-009",
       "title": "Image Diff \u0026 Visual Comparison",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-009",
       "category": "feature",
       "description": "General-purpose image diff/visual-comparison op built as a first-class capability so test-genie can later adopt it without duplication. Pure-Go (no model): pixel metrics (changed-pixel fraction + MAE/RMSE/PSNR), perceptual metrics (DCT pHash distance + structural similarity), and a heat-map overlay. Proto DiffService + REST POST /api/v1/diff/compare edge + CLI `diff` + UI Compare view.",
@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/diff/diff_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Pixel + perceptual diff: identical/different/tolerance/dimension-mismatch verdicts, pHash robust to re-encode, heat-map highlights changed regions."
         },
         {

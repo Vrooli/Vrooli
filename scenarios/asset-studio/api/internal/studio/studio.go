@@ -124,6 +124,30 @@ func (s RenderStatus) terminal() bool {
 	return s == RenderSucceeded || s == RenderFailed || s == RenderCancelled
 }
 
+// Terminal reports whether no further producer transition is permitted.
+func (s RenderStatus) Terminal() bool { return s.terminal() }
+
+// ProducerKind names the capability that produced an artifact. It is a stable
+// product-level discriminator, never a provider or model name.
+type ProducerKind string
+
+const (
+	ProducerImage   ProducerKind = "image"
+	ProducerVideo   ProducerKind = "video"
+	ProducerCapture ProducerKind = "capture"
+	ProducerCompose ProducerKind = "compose"
+	ProducerRefine  ProducerKind = "refine"
+)
+
+func (k ProducerKind) Valid() bool {
+	switch k {
+	case ProducerImage, ProducerVideo, ProducerCapture, ProducerCompose, ProducerRefine:
+		return true
+	default:
+		return false
+	}
+}
+
 type Provenance struct {
 	SpecID                           string
 	IdentityVersionIDs               []string
@@ -136,6 +160,15 @@ type Render struct {
 	ActualCostRecorded        bool
 	Provenance                *Provenance
 	AssetIDs                  []string
+	Prompt                    string
+	CandidateCount            int
+	FailureCode               string
+	Producer                  ProducerKind
+	FrameCount                int
+	ParentAssetID             string
+	ParentAssetReference      string
+	CaptureURL                string
+	ConditioningReferences    []ConditioningReference
 }
 
 func (r *Render) Transition(next RenderStatus) error {
@@ -170,6 +203,9 @@ type Asset struct {
 	Status                                                       AssetStatus
 	AIgenerated                                                  bool
 	IdentityVersionIDs                                           []string
+	MediaType                                                    string
+	Width, Height                                                int
+	ParentAssetID, MaskReference, DerivationOperation            string
 }
 type VerdictBasis string
 
@@ -207,16 +243,109 @@ type ReleaseError struct {
 func (e *ReleaseError) Error() string { return string(e.Cause) + ": " + e.Detail }
 
 type Studio struct {
-	Identities   map[string]Identity
-	Specs        map[string]Spec
-	Renders      map[string]*Render
-	Assets       map[string]*Asset
-	Verdicts     []Verdict
-	ImportHashes map[string]string
+	Identities      map[string]Identity
+	Specs           map[string]Spec
+	Renders         map[string]*Render
+	Assets          map[string]*Asset
+	Verdicts        []Verdict
+	Advisories      []AdvisoryConformance
+	Commissions     []AgentCommission
+	ImportHashes    map[string]string
+	CampaignBudgets map[string]*CampaignBudget
+}
+type AgentCommission struct {
+	ID, AgentTaskID, AgentIdentity, Request, Status string
+	SourceIdentityVersionIDs                        []string
+	At                                              time.Time
+}
+
+func (s *Studio) RecordCommission(c AgentCommission) error {
+	if strings.TrimSpace(c.ID) == "" || strings.TrimSpace(c.AgentTaskID) == "" || strings.TrimSpace(c.Request) == "" {
+		return errors.New("commission id, agent task id, and request are required")
+	}
+	c.At = c.At.UTC()
+	c.SourceIdentityVersionIDs = append([]string(nil), c.SourceIdentityVersionIDs...)
+	s.Commissions = append(s.Commissions, c)
+	return nil
+}
+
+// AdvisoryConformance is a machine-produced observation retained beside human
+// review. It is deliberately not consulted by Release: a high score is never
+// release authority.
+type AdvisoryConformance struct {
+	AssetID, Source string
+	Score           float64
+	Notes           []string
+	At              time.Time
+}
+
+func (s *Studio) RecordAdvisory(advisory AdvisoryConformance) error {
+	if s.Assets[advisory.AssetID] == nil {
+		return fmt.Errorf("asset %q not found", advisory.AssetID)
+	}
+	if strings.TrimSpace(advisory.Source) == "" || advisory.Score < 0 || advisory.Score > 1 {
+		return errors.New("advisory source and score between zero and one are required")
+	}
+	advisory.At = advisory.At.UTC()
+	advisory.Notes = append([]string(nil), advisory.Notes...)
+	s.Advisories = append(s.Advisories, advisory)
+	return nil
+}
+
+type CampaignBudget struct {
+	CampaignRef   string
+	LimitUSD      float64
+	SpentUSD      float64
+	Confirmations []BudgetConfirmation
+}
+
+type BudgetConfirmation struct {
+	ActorID      string
+	ProjectedUSD float64
+	At           time.Time
 }
 
 func New() *Studio {
-	return &Studio{Identities: map[string]Identity{}, Specs: map[string]Spec{}, Renders: map[string]*Render{}, Assets: map[string]*Asset{}, Verdicts: nil, ImportHashes: map[string]string{}}
+	return &Studio{Identities: map[string]Identity{}, Specs: map[string]Spec{}, Renders: map[string]*Render{}, Assets: map[string]*Asset{}, Verdicts: nil, ImportHashes: map[string]string{}, CampaignBudgets: map[string]*CampaignBudget{}}
+}
+
+func (s *Studio) SetCampaignBudget(campaignRef string, limitUSD float64) error {
+	campaignRef = strings.TrimSpace(campaignRef)
+	if campaignRef == "" || limitUSD < 0 {
+		return errors.New("campaign reference and non-negative budget limit are required")
+	}
+	budget := s.CampaignBudgets[campaignRef]
+	if budget == nil {
+		budget = &CampaignBudget{CampaignRef: campaignRef}
+		s.CampaignBudgets[campaignRef] = budget
+	}
+	budget.LimitUSD = limitUSD
+	return nil
+}
+
+func (s *Studio) AuthorizeRender(campaignRef string, estimatedUSD float64, confirmed bool, actorID string, now time.Time) error {
+	if estimatedUSD < 0 {
+		return errors.New("estimated cost cannot be negative")
+	}
+	budget := s.CampaignBudgets[strings.TrimSpace(campaignRef)]
+	if budget == nil {
+		return nil
+	}
+	projected := budget.SpentUSD + estimatedUSD
+	if projected <= budget.LimitUSD {
+		return nil
+	}
+	if !confirmed || strings.TrimSpace(actorID) == "" {
+		return fmt.Errorf("campaign budget confirmation required: projected %.4f exceeds limit %.4f", projected, budget.LimitUSD)
+	}
+	budget.Confirmations = append(budget.Confirmations, BudgetConfirmation{ActorID: actorID, ProjectedUSD: projected, At: now.UTC()})
+	return nil
+}
+
+func (s *Studio) RecordRenderSpend(campaignRef string, actualUSD float64) {
+	if budget := s.CampaignBudgets[strings.TrimSpace(campaignRef)]; budget != nil && actualUSD >= 0 {
+		budget.SpentUSD += actualUSD
+	}
 }
 
 func (s *Studio) Author(identity Identity, actorID string, actor ActorKind, now time.Time) error {

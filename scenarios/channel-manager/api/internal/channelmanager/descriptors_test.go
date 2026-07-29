@@ -5,6 +5,8 @@ import (
 	"testing"
 )
 
+// [REQ:CHANMGR-P0-003] Shipped declarative descriptors load as one valid,
+// structurally varied set rather than accepting ad-hoc platform state.
 func TestShippedDescriptorsAreValidAndStructurallyDifferent(t *testing.T) {
 	p, w, e := LoadDescriptors(filepath.Join("..", "..", "..", "data"))
 	if e != nil {

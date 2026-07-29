@@ -31,4 +31,9 @@ describe("api/health.fetchHealth", () => {
       cache: "no-store",
     });
   });
+
+	it("surfaces the API envelope when health is unavailable", async () => {
+		fetchSpy.mockResolvedValueOnce(new Response('{"message":"starting"}', { status: 503 }));
+		await expect(fetchHealth()).rejects.toThrow("starting");
+	});
 });

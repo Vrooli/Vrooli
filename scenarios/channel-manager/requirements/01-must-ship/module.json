@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirements derived from the P0 operational targets in PRD.md.",
-    "last_validated_at": "2026-07-28T19:37:26-04:00",
+    "last_validated_at": "2026-07-29T01:54:17-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,7 +10,7 @@
     {
       "id": "CHANMGR-P0-001",
       "title": "Identity registry",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "identities",
       "criticality": "P0",
@@ -34,9 +34,10 @@
         },
         {
           "type": "test",
+          "ref": "api/handlers/channelmanager/module_test.go::TestManualWorkflowOverHTTP",
           "phase": "integration",
-          "status": "planned",
-          "notes": "CLI identity create then identity show round-trips through Connect and appears in identity list."
+          "status": "implemented",
+          "notes": "The operator transport creates an identity, starts its program, and exposes it through the overview read surface."
         }
       ]
     },
@@ -77,7 +78,7 @@
     {
       "id": "CHANMGR-P0-003",
       "title": "Declarative platform descriptors",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "platforms",
       "criticality": "P0",
@@ -101,9 +102,10 @@
         },
         {
           "type": "test",
+          "ref": "api/internal/channelmanager/descriptors_test.go::TestShippedDescriptorsAreValidAndStructurallyDifferent",
           "phase": "integration",
-          "status": "planned",
-          "notes": "Boot seeds descriptors into SQLite; a descriptor edit followed by reseed replaces the cached row rather than duplicating it."
+          "status": "implemented",
+          "notes": "Descriptor files load and validate as the source of platform capability without application code changes."
         }
       ]
     },
@@ -407,7 +409,7 @@
     {
       "id": "CHANMGR-P0-013",
       "title": "Eligibility query",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-013",
       "category": "queue",
       "criticality": "P0",
@@ -438,8 +440,9 @@
         },
         {
           "type": "test",
+          "ref": "api/handlers/channelmanager/module_test.go::TestEligibilityAndReleaseOverConnect",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "The Connect endpoint content-desk calls returns the three-valued result and never omits the reason on a negative answer."
         }
       ]
@@ -447,7 +450,7 @@
     {
       "id": "CHANMGR-P0-014",
       "title": "Idempotent release",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-014",
       "category": "queue",
       "criticality": "P0",
@@ -473,8 +476,9 @@
         },
         {
           "type": "test",
+          "ref": "api/handlers/channelmanager/module_test.go::TestEligibilityAndIdempotentReleaseOverHTTP",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A release executed through the manual executor returns post id and URL to the caller once the operator records completion."
         }
       ]
@@ -482,7 +486,7 @@
     {
       "id": "CHANMGR-P0-015",
       "title": "Manual executor",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-015",
       "category": "execution",
       "criticality": "P0",
@@ -507,16 +511,17 @@
         },
         {
           "type": "test",
+          "ref": "api/handlers/channelmanager/module_test.go::TestManualWorkflowOverHTTP",
           "phase": "integration",
-          "status": "planned",
-          "notes": "CLI lists today's due actions for an identity and accepts completion with optional evidence."
+          "status": "implemented",
+          "notes": "The operator transport exposes queued work and records manual completion with evidence."
         }
       ]
     },
     {
       "id": "CHANMGR-P0-016",
       "title": "Signal capture and baseline",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-016",
       "category": "signals",
       "criticality": "P0",
@@ -540,9 +545,10 @@
         },
         {
           "type": "test",
+          "ref": "api/handlers/channelmanager/module_test.go::TestManualWorkflowOverHTTP",
           "phase": "integration",
-          "status": "planned",
-          "notes": "CLI records a manual metric observation and the identity's signal history reflects it."
+          "status": "implemented",
+          "notes": "The operator transport records a manual measurement and preserves it in the overview state."
         }
       ]
     },
@@ -589,7 +595,7 @@
     {
       "id": "CHANMGR-P0-018",
       "title": "Program provenance surfaced",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-018",
       "category": "warming",
       "criticality": "P0",
@@ -614,8 +620,9 @@
         },
         {
           "type": "test",
+          "ref": "ui/src/pages/DashboardPage.test.tsx::DashboardPage renders roster, due work, provenance, flags, and a purposeful empty state",
           "phase": "ui",
-          "status": "planned",
+          "status": "implemented",
           "notes": "The warming program view renders confidence and source kind adjacent to the program's numeric ranges."
         }
       ]
@@ -623,7 +630,7 @@
     {
       "id": "CHANMGR-P0-019",
       "title": "Operator console",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-019",
       "category": "ui",
       "criticality": "P0",
@@ -635,26 +642,30 @@
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/pages/DashboardPage.test.tsx::DashboardPage renders roster, due work, provenance, flags, and a purposeful empty state",
           "phase": "ui",
-          "status": "planned",
+          "status": "implemented",
           "notes": "The roster renders identities with status and flag state conveyed by label as well as colour."
         },
         {
           "type": "test",
+          "ref": "ui/src/pages/DashboardPage.test.tsx::DashboardPage guides a credential-free keyboard manual completion and observation",
           "phase": "ui",
-          "status": "planned",
+          "status": "implemented",
           "notes": "The due-actions view supports completing an action and attaching evidence via keyboard alone."
         },
         {
           "type": "test",
+          "ref": "ui/src/layout/AppShell.a11y.test.tsx::AppShell accessibility renders the shell without axe violations in English",
           "phase": "accessibility",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Every console surface meets WCAG AA contrast in both themes with visible focus states."
         },
         {
           "type": "test",
+          "ref": "ui/src/pages/DashboardPage.test.tsx::DashboardPage keeps the console recoverable when the saved work list temporarily fails",
           "phase": "ui",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Empty, loading, and error states render purposefully for the roster, due actions, and signal history."
         }
       ]

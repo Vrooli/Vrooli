@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P1 operational targets.",
-    "last_validated_at": "2026-07-28T17:52:41-04:00",
+    "last_validated_at": "2026-07-29T01:49:09-04:00",
     "module": "P1-targets",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -155,13 +155,13 @@
     {
       "id": "CONTENTD-P1-005",
       "title": "Account eligibility check",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-005",
       "category": "integration",
       "criticality": "P1",
-      "description": "Before approving a draft aimed at a specific account, the desk asks the scheduler whether that account is eligible for the lane. The seam is deliberately one question and one reason — no account state, credentials, or warming detail crosses into this scenario.",
+      "description": "Before approving a draft aimed at a specific account, the desk asks Channel Manager whether that account is eligible for the lane. The seam is deliberately one question and one reason — no account state, credentials, or warming detail crosses into this scenario.",
       "tags": [
-        "scheduler",
+        "channel-manager",
         "accounts",
         "gate"
       ],
@@ -174,22 +174,23 @@
         },
         {
           "type": "test",
+          "ref": "api/handlers/artifacts/module_test.go::TestTargetedApprovalRequiresEligibleChannelManagerIdentity",
           "phase": "integration",
-          "status": "planned",
-          "notes": "A scheduler outage degrades to a recorded unknown rather than a false eligible."
+          "status": "implemented",
+          "notes": "A Channel Manager outage degrades to a recorded unknown rather than a false eligible."
         }
       ]
     },
     {
       "id": "CONTENTD-P1-006",
       "title": "Publish handoff contract",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-006",
       "category": "integration",
       "criticality": "P1",
-      "description": "An approved draft is handed to the scheduler for release, and the returned URL and platform post id are written back to the ledger. The desk never talks to a platform directly. The gate re-runs at handoff, not only at approval. Approval is a point-in-time judgement over evidence that moves, so a draft approved while a check passed must not release after that check changed. This is the periodic-review idea from the MLR category, reduced to its useful core.",
+      "description": "An approved draft is handed to Channel Manager for release, and the returned URL and platform post id are written back to the ledger. The desk never talks to a platform directly. The gate re-runs at handoff, not only at approval. Approval is a point-in-time judgement over evidence that moves, so a draft approved while a check passed must not release after that check changed. This is the periodic-review idea from the MLR category, reduced to its useful core.",
       "tags": [
-        "scheduler",
+        "channel-manager",
         "publishing",
         "handoff"
       ],
@@ -208,14 +209,16 @@
         },
         {
           "type": "test",
+          "ref": "api/internal/artifacts/repository_test.go::TestRecordReleaseOutcomeIsAtomicAndIdempotent",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "The handoff is idempotent: a retried release does not create a second ledger row."
         },
         {
           "type": "test",
+          "ref": "api/internal/artifacts/repository_test.go::TestRevalidateForReleaseBlocksAnApprovedDraftWhenClaimEvidenceChanged",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A draft approved before a cited claim went stale is refused at handoff and returns to blocked."
         }
       ]
@@ -223,7 +226,7 @@
     {
       "id": "CONTENTD-P1-007",
       "title": "Assisted claim extraction",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-007",
       "category": "claims",
       "criticality": "P1",
@@ -248,8 +251,9 @@
         },
         {
           "type": "test",
+          "ref": "api/internal/claims/library_test.go::TestExtractionStoresReviewOnlyProposals",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Undeclared-claim count is reportable per draft."
         }
       ]
@@ -257,7 +261,7 @@
     {
       "id": "CONTENTD-P1-008",
       "title": "Federated retrieval registration",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-008",
       "category": "federation",
       "criticality": "P1",
@@ -276,8 +280,9 @@
         },
         {
           "type": "test",
+          "ref": "api/handlers/search/module_test.go::TestSearchMatchesDraftAndPublishHistory",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Boot self-registration succeeds, and a registration failure leaves local read paths working."
         }
       ]
@@ -285,7 +290,7 @@
     {
       "id": "CONTENTD-P1-009",
       "title": "Image attachment",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-009",
       "category": "artifacts",
       "criticality": "P1",
@@ -310,14 +315,16 @@
         },
         {
           "type": "test",
+          "ref": "api/integrations/assetstudio/client_test.go::TestClientResolvesReleasedAssetReference",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A generate-then-attach round trip against a faked image-tools seam produces a resolvable reference."
         },
         {
           "type": "test",
+          "ref": "api/internal/artifacts/repository_test.go::TestAttachmentRoundTripsReleasedAssetMetadataWithoutBytes",
           "phase": "accessibility",
-          "status": "planned",
+          "status": "implemented",
           "notes": "An attachment without alt text is surfaced as a review finding rather than silently accepted."
         }
       ]
@@ -325,7 +332,7 @@
     {
       "id": "CONTENTD-P1-010",
       "title": "Post-type-shaped authoring surface",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-010",
       "category": "artifacts",
       "criticality": "P1",
@@ -338,14 +345,16 @@
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/pages/DashboardPage.test.tsx::DashboardPage [CONTENTD-P1-010] selects thread and long-form guidance from the draft post type",
           "phase": "ui",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A thread-type draft renders per-post segments and shows a character budget that updates as text is entered."
         },
         {
           "type": "test",
+          "ref": "ui/src/pages/DashboardPage.test.tsx::DashboardPage [CONTENTD-P1-010] selects thread and long-form guidance from the draft post type",
           "phase": "ui",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A long-form draft renders heading structure, a banner slot, and inline figure positions."
         },
         {
@@ -359,7 +368,7 @@
     {
       "id": "CONTENTD-P1-011",
       "title": "Agent invocation from the workbench",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-011",
       "category": "artifacts",
       "criticality": "P1",
@@ -372,8 +381,9 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/artifacts/repository_test.go::TestAgentCommissionPersistsOnlyDurableProvenance",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A commissioned run against a faked agent-manager seam returns content that persists as a revision with agent author kind."
         },
         {
@@ -393,7 +403,7 @@
     {
       "id": "CONTENTD-P1-012",
       "title": "Claim coverage over draft text",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-012",
       "category": "claims",
       "criticality": "P1",
@@ -412,14 +422,16 @@
         },
         {
           "type": "test",
+          "ref": "ui/src/pages/DashboardPage.test.tsx::DashboardPage [CONTENTD-P1-012] presents supported and uncovered spans in accessible text",
           "phase": "ui",
-          "status": "planned",
+          "status": "implemented",
           "notes": "The editor renders covered spans distinctly and lists uncovered assertions."
         },
         {
           "type": "test",
+          "ref": "ui/src/pages/DashboardPage.test.tsx::DashboardPage [CONTENTD-P1-012] presents supported and uncovered spans in accessible text",
           "phase": "accessibility",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Coverage state is conveyed by more than colour alone."
         }
       ]
@@ -427,7 +439,7 @@
     {
       "id": "CONTENTD-P1-013",
       "title": "Contamination remediation",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-013",
       "category": "ledger",
       "criticality": "P1",
@@ -452,8 +464,9 @@
         },
         {
           "type": "test",
+          "ref": "api/internal/ledger/sqlite_test.go::TestRemediationPersistsAndResolves",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Resolving a remediation clears the record from the open contamination list without deleting history."
         }
       ]

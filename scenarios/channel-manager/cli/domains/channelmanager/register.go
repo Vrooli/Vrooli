@@ -46,5 +46,11 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		{Name: "observe", Description: "Record a manually observed reach measurement", NeedsAPI: true, Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "identity", Required: true, Description: "Identity id"}}, Flags: []cliapp.Flag{{Name: "value", Required: true, Description: "Observed reach or impressions"}}}, RunCtx: func(ctx cliapp.RunContext) error {
 			return request(ctx, http.MethodPost, "/channel-manager/identities/"+ctx.Positional("identity")+"/observations", map[string]string{"metric": "reach", "value": ctx.Flag("value")}, "Observation recorded.")
 		}},
+		{Name: "assign-automation", Description: "Assign an operator-approved BAS profile and workflow reference", NeedsAPI: true, Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "identity-id", Required: true, Description: "Identity id"}, {Name: "session-profile-ref", Required: true, Description: "Opaque BAS profile reference"}, {Name: "workflow-ref", Required: true, Description: "Operator-approved BAS workflow UUID"}, {Name: "enabled-action-kind", Required: true, Description: "Permitted action kind"}, {Name: "operator-note", Required: true, Description: "Operator acceptance decision"}}}, RunCtx: func(ctx cliapp.RunContext) error {
+			return request(ctx, http.MethodPost, "/channel-manager/identities/"+ctx.Flag("identity-id")+"/automation", map[string]any{"session_profile_ref": ctx.Flag("session-profile-ref"), "workflow_ref": ctx.Flag("workflow-ref"), "enabled_action_kinds": []string{ctx.Flag("enabled-action-kind")}, "operator_note": ctx.Flag("operator-note")}, "Browser automation gate saved.")
+		}},
+		{Name: "dispatch-browser", Description: "Dispatch an approved durable action to BAS", NeedsAPI: true, Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "action-id", Required: true, Description: "Scheduled action id"}}}, RunCtx: func(ctx cliapp.RunContext) error {
+			return request(ctx, http.MethodPost, "/channel-manager/actions/"+ctx.Positional("action-id")+"/dispatch-browser", map[string]string{}, "Browser action dispatched.")
+		}},
 	}}
 }

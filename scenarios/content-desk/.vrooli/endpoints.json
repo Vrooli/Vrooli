@@ -69,6 +69,22 @@
       "category": "artifacts"
     },
     {
+      "id": "artifacts_submit_release",
+      "path": "/vrooli.content_desk.v1.artifacts.ArtifactsService/SubmitReleaseDraft",
+      "method": "POST",
+      "summary": "Submit an approved draft to Channel Manager",
+      "description": "",
+      "category": "artifacts"
+    },
+    {
+      "id": "artifacts_record_release_outcome",
+      "path": "/vrooli.content_desk.v1.artifacts.ArtifactsService/RecordReleaseOutcome",
+      "method": "POST",
+      "summary": "Record an idempotent Channel Manager publication outcome",
+      "description": "",
+      "category": "artifacts"
+    },
+    {
       "id": "artifacts_transition",
       "path": "/vrooli.content_desk.v1.artifacts.ArtifactsService/TransitionDraft",
       "method": "POST",
@@ -85,10 +101,42 @@
       "category": "artifacts"
     },
     {
-      "id": "artifacts_publish",
-      "path": "/vrooli.content_desk.v1.artifacts.ArtifactsService/PublishDraft",
+      "id": "artifacts_attach_asset",
+      "path": "/vrooli.content_desk.v1.artifacts.ArtifactsService/AttachReleasedAsset",
       "method": "POST",
-      "summary": "Publish an approved draft and append ledger record",
+      "summary": "Attach a released Asset Studio reference",
+      "description": "",
+      "category": "artifacts"
+    },
+    {
+      "id": "artifacts_list_attachments",
+      "path": "/vrooli.content_desk.v1.artifacts.ArtifactsService/ListDraftAttachments",
+      "method": "POST",
+      "summary": "List draft asset references",
+      "description": "",
+      "category": "artifacts"
+    },
+    {
+      "id": "artifacts_commission_agent_work",
+      "path": "/vrooli.content_desk.v1.artifacts.ArtifactsService/CommissionAgentWork",
+      "method": "POST",
+      "summary": "Commission a governed editorial Agent Manager run",
+      "description": "",
+      "category": "artifacts"
+    },
+    {
+      "id": "artifacts_get_agent_work_result",
+      "path": "/vrooli.content_desk.v1.artifacts.ArtifactsService/GetAgentWorkResult",
+      "method": "POST",
+      "summary": "Read a governed editorial Agent Manager result",
+      "description": "",
+      "category": "artifacts"
+    },
+    {
+      "id": "artifacts_adopt_agent_suggestion",
+      "path": "/vrooli.content_desk.v1.artifacts.ArtifactsService/AdoptAgentSuggestion",
+      "method": "POST",
+      "summary": "Operator-adopt an editable Agent Manager suggestion",
       "description": "",
       "category": "artifacts"
     },
@@ -165,6 +213,38 @@
       "category": "claims"
     },
     {
+      "id": "claims_coverage",
+      "path": "/vrooli.content_desk.v1.claims.ClaimsService/GetClaimCoverage",
+      "method": "POST",
+      "summary": "Get supported and uncovered citation spans for a draft",
+      "description": "",
+      "category": "claims"
+    },
+    {
+      "id": "claims_extract_proposals",
+      "path": "/vrooli.content_desk.v1.claims.ClaimsService/ExtractClaimProposals",
+      "method": "POST",
+      "summary": "Create review-only claim proposals",
+      "description": "",
+      "category": "claims"
+    },
+    {
+      "id": "claims_list_proposals",
+      "path": "/vrooli.content_desk.v1.claims.ClaimsService/ListClaimProposals",
+      "method": "POST",
+      "summary": "List claim proposals for a draft",
+      "description": "",
+      "category": "claims"
+    },
+    {
+      "id": "claims_decide_proposal",
+      "path": "/vrooli.content_desk.v1.claims.ClaimsService/DecideClaimProposal",
+      "method": "POST",
+      "summary": "Accept or reject a claim proposal",
+      "description": "",
+      "category": "claims"
+    },
+    {
       "id": "ledger_list",
       "path": "/vrooli.content_desk.v1.ledger.LedgerService/ListPublishRecords",
       "method": "POST",
@@ -185,6 +265,38 @@
       "path": "/vrooli.content_desk.v1.ledger.LedgerService/ListCoverage",
       "method": "POST",
       "summary": "List publish coverage cells and staleness",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "ledger_ingest_metric",
+      "path": "/vrooli.content_desk.v1.ledger.LedgerService/IngestMetricSample",
+      "method": "POST",
+      "summary": "Ingest idempotent Channel Manager metric sample",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "ledger_list_remediations",
+      "path": "/vrooli.content_desk.v1.ledger.LedgerService/ListRemediations",
+      "method": "POST",
+      "summary": "List active or historical contamination remediations",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "ledger_create_remediation",
+      "path": "/vrooli.content_desk.v1.ledger.LedgerService/CreateRemediation",
+      "method": "POST",
+      "summary": "Create a remediation for a published record",
+      "description": "",
+      "category": "ledger"
+    },
+    {
+      "id": "ledger_resolve_remediation",
+      "path": "/vrooli.content_desk.v1.ledger.LedgerService/ResolveRemediation",
+      "method": "POST",
+      "summary": "Resolve an open remediation without deleting history",
       "description": "",
       "category": "ledger"
     },

@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 
 	"image-tools/internal/ai"
 	"image-tools/internal/backends"
@@ -106,9 +107,29 @@ func (h *Deps) submitHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	inputKey, ok := h.storeOptionalInput(w, r, "file", meta.RequiresImage, "input")
+	inputRef := strings.TrimSpace(r.FormValue("input_ref"))
+	inputKey, ok := h.storeOptionalInput(w, r, "file", meta.RequiresImage && inputRef == "", "input")
 	if !ok {
 		return
+	}
+	if inputRef != "" {
+		if inputKey != "" {
+			httpx.WriteError(w, http.StatusBadRequest, httpx.CodeInvalidRequest, "provide either file or input_ref, not both")
+			return
+		}
+		if !meta.RequiresImage {
+			httpx.WriteError(w, http.StatusBadRequest, httpx.CodeInvalidRequest, "input_ref is only valid for image-input operations")
+			return
+		}
+		// input_ref names an already-owned Image Tools blob. Cross-scenario
+		// callers never provide filesystem paths or proxy the image bytes.
+		reader, _, getErr := h.Store.Get(r.Context(), inputRef)
+		if getErr != nil {
+			httpx.WriteError(w, http.StatusNotFound, httpx.CodeNotFound, "input_ref does not identify an Image Tools artifact")
+			return
+		}
+		_ = reader.Close()
+		inputKey = inputRef
 	}
 	maskKey, ok := h.storeOptionalInput(w, r, "mask", meta.RequiresMask, "mask")
 	if !ok {

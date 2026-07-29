@@ -28,6 +28,8 @@ export default defineConfig(({ mode }): UserConfig => {
   const isProfile = mode === "profile";
 
   return {
+    // INTEROP-CRITICAL: relative assets are required when this operator
+    // workbench is served through a Vrooli proxy, tunnel, or iframe path.
     base: './',  // Required for tunnel/proxy contexts
     plugins: [react(), stringsCodegen()],
     resolve: isProfile

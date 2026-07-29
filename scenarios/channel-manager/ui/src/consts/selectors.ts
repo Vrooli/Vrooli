@@ -329,6 +329,7 @@ const literalSelectors = {
     queueButton: "operator-queue-button",
     identityReady: "operator-identity-ready",
     actionReady: "operator-action-ready",
+    dueAction: "operator-due-action",
     evidenceInput: "operator-evidence-input",
     completeButton: "operator-complete-button",
     reachInput: "operator-reach-input",

@@ -20,6 +20,7 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	searchregister "github.com/vrooli/searchregister-go"
 	_ "modernc.org/sqlite"
 
 	artifactsH "content-desk/handlers/artifacts"
@@ -29,6 +30,7 @@ import (
 	ledgerH "content-desk/handlers/ledger"
 	posttypesH "content-desk/handlers/posttypes"
 	reviewH "content-desk/handlers/review"
+	searchH "content-desk/handlers/search"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -162,7 +164,19 @@ func main() {
 		ledgerH.Module(db),
 		posttypesH.Module(db),
 		reviewH.Module(db),
+		searchH.Module(db),
 	)
+
+	// Content Desk owns this descriptor and its live corpus. Search Hub receives
+	// only the transport mapping; inability to reach it never blocks editorial
+	// reads or lifecycle startup.
+	registerCtx, cancelSearchRegistration := context.WithCancel(context.Background())
+	defer cancelSearchRegistration()
+	go searchregister.Register(registerCtx, searchregister.Config{
+		ScenarioID:     "content-desk",
+		SearchFilePath: filepath.Join("..", ".vrooli", "search.json"),
+		Logger:         log.Default(),
+	})
 
 	// Top-level mux that mounts the API handler plus, when in development
 	// mode, the dev-only RoutingService used by test-genie to install a

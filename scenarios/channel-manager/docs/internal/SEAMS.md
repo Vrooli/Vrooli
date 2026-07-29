@@ -80,15 +80,25 @@ and use matrix/trace helpers from the relevant testutil package.
 
 ## Current seams
 
+### Content Desk delivery client
+
+| | |
+|---|---|
+| **Seam** | Delivery of completed release outcomes and metric samples to Content Desk. |
+| **Interface** | `api/integrations/contentdesk/client.go::Deliverer`; generated `ArtifactsService.RecordReleaseOutcome` and `LedgerService.IngestMetricSample` Connect clients. |
+| **Production wiring** | `handlers/channelmanager/module.go::Module` constructs `contentdesk.NewClient()`. The client resolves Content Desk per request through `api-core/discovery`, uses a bounded timeout, and retries only safe availability/deadline failures. |
+| **Test fake** | `handlers/channelmanager/module_test.go::deliveryStub`; `integrations/contentdesk/client_test.go` mounts generated Content Desk handlers and verifies both wire calls. |
+| **Why it exists** | Channel Manager owns the durable release/metric outbox. It marks a receipt delivered or a metric acknowledged only after Content Desk accepts its idempotent inbound record; failed delivery stays pending and visible for retry. |
+
 ### BAS and Vault execution handoff
 
 | | |
 |---|---|
 | **Seam** | Optional browser dispatch and credential retrieval; neither is used by the P0 manual executor. |
 | **Interface** | `browser-automation-studio workflows execute <workflow-id> --parameters-file <file>` and `resource-vault content get --path <kv-path> --key <field> --format raw`. |
-| **Production wiring** | P0 stores only `Identity.VaultRef` and presents manual steps. A later browser executor creates one BAS session profile per identity and passes its ID in `ExecutionParameters`; it must resolve the credential only at execution time and must never persist or log it. |
+| **Production wiring** | P0 stores only `Identity.VaultRef` and presents manual steps. The P1 browser executor records one BAS session-profile reference and one operator-approved BAS workflow UUID per identity, then passes both references plus the durable action ID in `ExecutionParameters`; it must resolve any credential only inside BAS and must never persist or log it. |
 | **Test fake** | The P0 BAS case uses the routed test database and synthetic evidence; it makes no platform request and supplies no credential. |
-| **Exact BAS shape** | Create once: `browser-automation-studio session-profiles create --name "channel-manager-<identity>" --json`. Dispatch a persisted workflow with a JSON file containing `{"session_profile_id":"<profile-id>","save_session_profile_id":"<profile-id>","initial_params":{"action_id":"<action-id>"}}`: `browser-automation-studio workflows execute <workflow-id> --parameters-file <file> --json`. Inspect the returned ID with `browser-automation-studio executions get <execution-id> --json`. The profile is the per-identity browser-state boundary; an operator performs any SSO interactively in that profile. |
+| **Exact BAS shape** | Create once: `browser-automation-studio session-profiles create --name "channel-manager-<identity>" --json`. The operator records the returned profile ID and a sanctioned persisted workflow UUID in the automation decision. Channel Manager dispatches the workflow with `session_profile_id`, `save_session_profile_id`, and the durable `action_id`; inspect the returned ID with `browser-automation-studio executions get <execution-id> --json`. The profile is the per-identity browser-state boundary; an operator performs any SSO interactively in that profile. |
 | **Exact Vault shape** | With an operator-provided scoped `VAULT_TOKEN`, run `resource-vault content set --path secret/test/channel-manager-plan-scratch --key value --value channel-manager-plan-20260728`, then `resource-vault content get --path secret/test/channel-manager-plan-scratch --key value --format raw`, verify the value, and remove it with `resource-vault content delete --path secret/test/channel-manager-plan-scratch`. This session confirmed the command contract but could not write because no scoped token was supplied. |
 | **Why it exists** | Separates a human-authorized platform login and secret read from deterministic queue policy. A dispatch or credential error cannot mark an action complete. |
 

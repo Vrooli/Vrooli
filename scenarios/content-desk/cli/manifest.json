@@ -259,8 +259,8 @@
           }
         },
         {
-          "name": "publish",
-          "description": "Publish an approved draft and record the ledger entry",
+          "name": "submit-release",
+          "description": "Submit an approved draft to Channel Manager's durable release queue",
           "positionals": [
             {
               "name": "id",
@@ -270,32 +270,25 @@
           ],
           "flags": [
             {
-              "name": "url",
+              "name": "identity",
               "required": true,
-              "description": "Published URL"
+              "description": "Channel Manager identity id"
             },
             {
-              "name": "platform-post-id",
+              "name": "lane",
               "required": true,
-              "description": "Platform post id"
+              "description": "Approved Channel Manager lane"
             },
             {
-              "name": "audience",
-              "description": "Audience key"
-            },
-            {
-              "name": "series",
-              "description": "Series id"
-            },
-            {
-              "name": "prior-publish",
-              "description": "Prior ledger record id"
+              "name": "idempotency-key",
+              "required": true,
+              "description": "Stable release idempotency key"
             }
           ],
           "binding": {
             "kind": "connect-rpc",
             "service": "ArtifactsService",
-            "method": "PublishDraft"
+            "method": "SubmitReleaseDraft"
           },
           "governance": {
             "effect": "write",
@@ -524,6 +517,37 @@
           "binding": {"kind": "connect-rpc", "service": "LedgerService", "method": "ListCoverage"},
           "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
           "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "remediations",
+          "description": "List active or historical correction actions for published content",
+          "flags": [
+            {"name": "publish-record-id", "description": "Optional publish record id"},
+            {"name": "open-only", "description": "Show only unresolved remediation actions", "bool": true}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "LedgerService", "method": "ListRemediations"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "remediate",
+          "description": "Record a corrective action for a contaminated published post",
+          "flags": [
+            {"name": "publish-record-id", "required": true, "description": "Published record to correct"},
+            {"name": "kind", "required": true, "description": "correct_in_place, publish_correction, retract, or accept_and_annotate"},
+            {"name": "note", "description": "Operator rationale and evidence reference"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "LedgerService", "method": "CreateRemediation"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "resolve-remediation",
+          "description": "Resolve an open remediation while retaining its audit history",
+          "positionals": [{"name": "id", "required": true, "description": "Remediation id"}],
+          "binding": {"kind": "connect-rpc", "service": "LedgerService", "method": "ResolveRemediation"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_mutation"}
         }
       ]
     },
@@ -601,10 +625,80 @@
       {
         "domain": "review_runs",
         "reason": "Review outcomes are read per draft in the desk inspector; a scalar count does not represent blocking-versus-passing verdict quality."
+      },
+      {
+        "domain": "ledger_remediations",
+        "reason": "Remediation safety is assessed per contaminated publication and state, not by a scalar total that could hide unresolved high-severity records."
       }
     ],
     "domains": []
   },
   "exceptions": [],
-  "omitted": []
+  "omitted": [
+    {
+      "service": "ArtifactsService",
+      "method": "RecordReleaseOutcome",
+      "reason": "Inbound authenticated Channel Manager completion callback is an idempotent integration endpoint, not an operator CLI action."
+    },
+    {
+      "service": "LedgerService",
+      "method": "IngestMetricSample",
+      "reason": "Inbound authenticated Channel Manager delivery is an idempotent integration callback, not an operator CLI action."
+    },
+  {
+    "service": "ClaimsService",
+    "method": "GetClaimCoverage",
+    "reason": "The coverage map is a structured editor-review presentation returned with its draft body; a standalone CLI rendering would lose the accessible span context."
+  },
+  {
+    "service": "ClaimsService",
+    "method": "ExtractClaimProposals",
+    "reason": "Extraction operates on the active editor body and its proposal list; the workbench preserves the review context needed before an operator decides."
+  },
+  {
+    "service": "ClaimsService",
+    "method": "ListClaimProposals",
+    "reason": "Proposal state is an editor-bound review surface, not a standalone operational command."
+  },
+  {
+    "service": "ClaimsService",
+    "method": "DecideClaimProposal",
+    "reason": "A proposal decision is made in the workbench beside the editable draft; a CLI command would lose that safety context."
+  },
+  {
+    "service": "ArtifactsService",
+    "method": "AttachReleasedAsset",
+    "reason": "Attachment placement and accessible alt text are editor-bound authoring decisions. The workbench keeps the draft and visual position visible."
+  },
+  {
+    "service": "ArtifactsService",
+    "method": "ListDraftAttachments",
+    "reason": "Attachment metadata is rendered in the draft authoring surface with its position and alt-text review context."
+  },
+  {
+    "service": "ArtifactsService",
+    "method": "CommissionAgentWork",
+    "reason": "Agent commissioning is an editor-bound operator action: the workbench preserves the selected draft, the restricted action, and the resulting provenance without encouraging detached autonomous runs."
+  },
+  {
+    "service": "ArtifactsService",
+    "method": "GetAgentWorkResult",
+    "reason": "Agent output is presented beside the selected editor so an operator can inspect it before adopting it; detached CLI output would lose that safety context."
+  },
+  {
+    "service": "ArtifactsService",
+    "method": "AdoptAgentSuggestion",
+    "reason": "Adoption is an explicit editor action that keeps the suggested body, editable draft, and Agent Manager provenance visible together."
+  },
+  {
+    "service": "SearchService",
+    "method": "Search",
+    "reason": "Search is an editor-assist surface whose source snippets and relevance context must remain beside the draft."
+  },
+  {
+    "service": "SearchService",
+    "method": "Status",
+    "reason": "Provider readiness is presented in the editorial workbench alongside search results and recovery guidance."
+  }
+]
 }

@@ -8,7 +8,7 @@ secrets, or sensitive business data.
 
 A full posture review waits on implementation, but one rule is already binding
 and must not be relaxed: **this scenario stores no credentials in any form.**
-Account identity and platform tokens belong to the scheduler and the `vault`
+Account identity and platform tokens belong to Channel Manager and the `vault`
 resource. A schema change that introduces a token, cookie, or session column is
 a defect. Claim evidence stores commands that will be re-run, so command
 provenance and execution boundaries are the first real review topic.

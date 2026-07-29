@@ -18,9 +18,9 @@
 
 ### 🔴 P0 – Must ship for viability
 
-- [ ] OT-P0-001 | Identity registry | The system shall persist each platform identity with its platform, purpose tag, persona reference, lane grants, and lifecycle status.
+- [x] OT-P0-001 | Identity registry | The system shall persist each platform identity with its platform, purpose tag, persona reference, lane grants, and lifecycle status.
 - [x] OT-P0-002 | Credential isolation | The system shall store only a vault reference for an identity and shall reject any write carrying a credential value.
-- [ ] OT-P0-003 | Declarative platform descriptors | The system shall load per-platform formats, limits, cadence ceilings, and disclosure requirements from validated descriptors, so that adding a platform requires no code change.
+- [x] OT-P0-003 | Declarative platform descriptors | The system shall load per-platform formats, limits, cadence ceilings, and disclosure requirements from validated descriptors, so that adding a platform requires no code change.
 - [x] OT-P0-004 | Declarative warming programs | The system shall express a warming program as a validated descriptor carrying preconditions, session policy, phases, gates, graduation, maintenance, and provenance.
 - [x] OT-P0-005 | Precondition gate | The system shall refuse to start a warming program for an identity until every required precondition is recorded as satisfied.
 - [x] OT-P0-006 | Unified action queue | The system shall route every platform action for an identity — warming, engagement, and publishing alike — through one queue.
@@ -30,13 +30,13 @@
 - [x] OT-P0-010 | Phase action guards | The system shall reject any queued action that the identity's active warming phase forbids.
 - [x] OT-P0-011 | Gate evaluation with terminal quarantine | The system shall evaluate a program gate against its declared measurement and shall support a terminal quarantine outcome that stops all scheduled actions for that identity.
 - [x] OT-P0-012 | Graduation by earned criteria | The system shall grant lane eligibility only when every graduation criterion passes, and shall never grant it on elapsed time alone.
-- [ ] OT-P0-013 | Eligibility query | The system shall answer whether an identity is eligible for a lane, returning unknown on any internal failure and never returning eligible by default.
-- [ ] OT-P0-014 | Idempotent release | The system shall accept an approved draft, return its post identifier and URL, and shall not create a second publish record when a release is retried.
-- [ ] OT-P0-015 | Manual executor | The system shall render any queued action as an operator checklist item and shall accept completion with optional evidence.
-- [ ] OT-P0-016 | Signal capture and baseline | The system shall record per-identity distribution metrics over time and shall maintain a rolling baseline per metric.
+- [x] OT-P0-013 | Eligibility query | The system shall answer whether an identity is eligible for a lane, returning unknown on any internal failure and never returning eligible by default.
+- [x] OT-P0-014 | Idempotent release | The system shall accept an approved draft, return its post identifier and URL, and shall not create a second publish record when a release is retried.
+- [x] OT-P0-015 | Manual executor | The system shall render any queued action as an operator checklist item and shall accept completion with optional evidence.
+- [x] OT-P0-016 | Signal capture and baseline | The system shall record per-identity distribution metrics over time and shall maintain a rolling baseline per metric.
 - [x] OT-P0-017 | Flag on distribution decay | The system shall raise a flag carrying the evidence that triggered it, shall pause that identity's queue, and shall take no corrective action automatically.
-- [ ] OT-P0-018 | Program provenance surfaced | The system shall carry each program's provenance and shall expose it wherever that program is displayed or applied.
-- [ ] OT-P0-019 | Operator console | The system shall provide a UI for the identity roster, the day's due actions, warming progress, and signal history.
+- [x] OT-P0-018 | Program provenance surfaced | The system shall carry each program's provenance and shall expose it wherever that program is displayed or applied.
+- [x] OT-P0-019 | Operator console | The system shall provide a UI for the identity roster, the day's due actions, warming progress, and signal history.
 
 ### 🟠 P1 – Should have post-launch
 
@@ -46,9 +46,9 @@
 - [x] OT-P1-004 | Disclosure enforcement | The system should require the platform's declared AI-content disclosure on any post from a persona-actor identity.
 - [x] OT-P1-005 | Retry classification | The system should classify execution failures as retryable or terminal per platform and should back off accordingly.
 - [x] OT-P1-006 | Observation capture | The system should append run outcomes to the program's observation log so that unvalidated defaults can be revised from evidence.
-- [ ] OT-P1-007 | Publish metrics handoff | The system should return post performance to `content-desk` so that its ledger can answer how published work performed.
+- [x] OT-P1-007 | Publish metrics handoff | The system should return post performance to `content-desk` so that its ledger can answer how published work performed.
 - [x] OT-P1-008 | First-comment atomicity | The system should treat a post and its first comment as one unit of work, and should report partial completion rather than success when the comment does not land.
-- [ ] OT-P1-009 | Per-platform post preview | The system should render how a post will appear on its target platform — truncation, media cropping, and disclosure placement — before it is released.
+- [x] OT-P1-009 | Per-platform post preview | The system should render how a post will appear on its target platform — truncation, media cropping, and disclosure placement — before it is released.
 - [x] OT-P1-010 | Environment liveness | The system should periodically verify that an identity's environment still presents the attested region and should flag divergence.
 
 ### 🟢 P2 – Future / expansion

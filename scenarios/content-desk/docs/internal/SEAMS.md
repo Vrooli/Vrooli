@@ -80,6 +80,26 @@ and use matrix/trace helpers from the relevant testutil package.
 
 ## Current seams
 
+### Channel Manager release submitter
+
+| | |
+|---|---|
+| **Seam** | Approved-draft release submission to Channel Manager. |
+| **Interface** | `api/integrations/channelmanager/client.go::Submitter`; request and response are generated from the Channel Manager `ChannelManagerService.SubmitRelease` Connect contract. |
+| **Production wiring** | `handlers/artifacts/module.go::Module` constructs `channelmanager.NewClient()`. The client resolves Channel Manager through `api-core/discovery` for every call, uses a bounded timeout, and retries only safe availability/deadline failures. |
+| **Test fake** | `handlers/artifacts/module_test.go::submitterStub`; `integrations/channelmanager/client_test.go` mounts the generated service and proves the adapter's request/receipt projection. |
+| **Why it exists** | Content Desk has no platform credentials or release executor. It may submit only an approved draft with an identity, lane, and idempotency key; an unavailable Channel Manager dependency leaves the draft approved and release fails closed. |
+
+### Channel Manager release outcome inbox
+
+| | |
+|---|---|
+| **Seam** | Idempotent published/partial completion receipt from Channel Manager. |
+| **Interface** | `ArtifactsService.RecordReleaseOutcome` in the artifacts proto and `internal/artifacts.Repository.RecordReleaseOutcome`. |
+| **Production wiring** | The artifacts handler accepts a typed receipt and the repository atomically changes an approved draft to published while inserting a `channel-manager:<receipt-id>` ledger record. |
+| **Test fake** | Repository and handler tests use the same SQLite transaction path; receipt replay returns the original publish record. |
+| **Why it exists** | A queued release is not proof of publication. The outcome is the only path that may append a publication record, and its receipt id prevents duplicate posts from transport retries. |
+
 ### claims.Runner (stored evidence-check execution)
 
 | | |

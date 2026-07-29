@@ -11,6 +11,9 @@ import (
 	"sync"
 	"time"
 
+	assetstudio "channel-manager/integrations/assetstudio"
+	bas "channel-manager/integrations/bas"
+	contentdesk "channel-manager/integrations/contentdesk"
 	core "channel-manager/internal/channelmanager"
 	"channel-manager/internal/module"
 
@@ -22,13 +25,28 @@ import (
 )
 
 type api struct {
-	service *core.Service
-	store   core.Store
-	mu      sync.Mutex
+	service   *core.Service
+	store     core.Store
+	deliverer contentdesk.Deliverer
+	browser   core.BrowserDispatch
+	assets    assetstudio.Resolver
+	mu        sync.Mutex
 }
 
 func Module(service *core.Service, store core.Store) module.Module {
-	h := &api{service: service, store: store}
+	return moduleWithAssetResolver(service, store, contentdesk.NewClient(), bas.NewClient(), assetstudio.NewClient())
+}
+
+func moduleWithDeliverer(service *core.Service, store core.Store, deliverer contentdesk.Deliverer) module.Module {
+	return moduleWithDependencies(service, store, deliverer, nil)
+}
+
+func moduleWithDependencies(service *core.Service, store core.Store, deliverer contentdesk.Deliverer, browser core.BrowserDispatch) module.Module {
+	return moduleWithAssetResolver(service, store, deliverer, browser, nil)
+}
+
+func moduleWithAssetResolver(service *core.Service, store core.Store, deliverer contentdesk.Deliverer, browser core.BrowserDispatch, assets assetstudio.Resolver) module.Module {
+	h := &api{service: service, store: store, deliverer: deliverer, browser: browser, assets: assets}
 	return module.Module{Name: "channel-manager", Endpoints: Endpoints, Mount: func(r *mux.Router) {
 		connectPath, connectHandler := channelmanagerconnect.NewChannelManagerServiceHandler(h)
 		connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
@@ -37,10 +55,97 @@ func Module(service *core.Service, store core.Store) module.Module {
 		r.HandleFunc("/api/v1/channel-manager/identities/{id}/start", h.start).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/channel-manager/actions", h.enqueue).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/channel-manager/actions/{id}/complete", h.complete).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/channel-manager/actions/{id}/complete-release", h.completeRelease).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/channel-manager/actions/{id}/dispatch-browser", h.dispatchBrowser).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/channel-manager/identities/{id}/automation", h.assignAutomation).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/channel-manager/portfolio", h.configurePortfolio).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/channel-manager/identities/{id}/observations", h.observe).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/channel-manager/identities/{id}/eligibility", h.eligibility).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/channel-manager/releases", h.release).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/channel-manager/releases/preview", h.previewRelease).Methods(http.MethodPost)
 	}}
+}
+
+func (h *api) dispatchBrowser(w http.ResponseWriter, r *http.Request) {
+	if h.browser == nil {
+		writeError(w, errors.New("browser automation is not configured"))
+		return
+	}
+	h.mu.Lock()
+	executionID, err := h.service.DispatchBrowser(r.Context(), mux.Vars(r)["id"], h.browser)
+	if err == nil {
+		err = h.store.Save(r.Context(), h.service)
+	}
+	h.mu.Unlock()
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"execution_id": executionID})
+}
+
+func (h *api) assignAutomation(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		SessionProfileRef  string   `json:"session_profile_ref"`
+		WorkflowRef        string   `json:"workflow_ref"`
+		EnabledActionKinds []string `json:"enabled_action_kinds"`
+		OperatorNote       string   `json:"operator_note"`
+	}
+	if !decode(w, r, &req) {
+		return
+	}
+	h.mu.Lock()
+	err := h.service.AssignAutomation(mux.Vars(r)["id"], req.SessionProfileRef, req.WorkflowRef, req.EnabledActionKinds, req.OperatorNote)
+	if err == nil {
+		err = h.store.Save(r.Context(), h.service)
+	}
+	h.mu.Unlock()
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"identity_id": mux.Vars(r)["id"]})
+}
+
+func (h *api) configurePortfolio(w http.ResponseWriter, r *http.Request) {
+	var policy core.PortfolioPolicy
+	if !decode(w, r, &policy) {
+		return
+	}
+	h.mu.Lock()
+	err := h.service.ConfigurePortfolioPolicy(policy)
+	if err == nil {
+		err = h.store.Save(r.Context(), h.service)
+	}
+	h.mu.Unlock()
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, policy)
+}
+
+func (h *api) previewRelease(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		PlatformID        string `json:"platform_id"`
+		Caption           string `json:"caption"`
+		FormatKind        string `json:"format_kind"`
+		MediaWidth        int    `json:"media_width"`
+		MediaHeight       int    `json:"media_height"`
+		DisclosureVisible bool   `json:"disclosure_visible"`
+		FirstComment      string `json:"first_comment"`
+	}
+	if !decode(w, r, &req) {
+		return
+	}
+	h.mu.Lock()
+	preview, err := h.service.PreviewRelease(core.PreviewInput{PlatformID: req.PlatformID, Caption: req.Caption, FormatKind: req.FormatKind, MediaWidth: req.MediaWidth, MediaHeight: req.MediaHeight, DisclosureVisible: req.DisclosureVisible, FirstComment: req.FirstComment})
+	h.mu.Unlock()
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, preview)
 }
 
 func (h *api) GetOverview(_ context.Context, _ *connect.Request[channelmanagerv1.GetOverviewRequest]) (*connect.Response[channelmanagerv1.GetOverviewResponse], error) {
@@ -56,18 +161,167 @@ func (h *api) GetOverview(_ context.Context, _ *connect.Request[channelmanagerv1
 	return connect.NewResponse(response), nil
 }
 
+func (h *api) GetEligibility(_ context.Context, request *connect.Request[channelmanagerv1.GetEligibilityRequest]) (*connect.Response[channelmanagerv1.GetEligibilityResponse], error) {
+	if request.Msg.IdentityId == "" || request.Msg.Lane == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("identity_id and lane are required"))
+	}
+	h.mu.Lock()
+	eligibility := h.service.Eligibility(request.Msg.IdentityId, request.Msg.Lane)
+	h.mu.Unlock()
+	return connect.NewResponse(&channelmanagerv1.GetEligibilityResponse{Eligibility: eligibility}), nil
+}
+
+func (h *api) SubmitRelease(ctx context.Context, request *connect.Request[channelmanagerv1.SubmitReleaseRequest]) (*connect.Response[channelmanagerv1.SubmitReleaseResponse], error) {
+	if len(request.Msg.AssetIds) > 0 {
+		if h.assets == nil {
+			return nil, connect.NewError(connect.CodeUnavailable, errors.New("asset studio verification is not configured"))
+		}
+		for _, assetID := range request.Msg.AssetIds {
+			reference, err := h.assets.ResolveReleasedAsset(ctx, assetID)
+			if err != nil || reference.ID != assetID {
+				if err == nil {
+					err = errors.New("asset studio returned a mismatched asset reference")
+				}
+				return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+			}
+		}
+	}
+	h.mu.Lock()
+	receipt, err := h.service.ReleaseWithOptions(request.Msg.IdentityId, request.Msg.Lane, request.Msg.DraftId, request.Msg.IdempotencyKey, core.ReleaseOptions{AssetIDs: request.Msg.AssetIds, DisclosureVisible: request.Msg.DisclosureVisible}, time.Now().UTC())
+	if err == nil {
+		err = h.store.Save(ctx, h.service)
+	}
+	h.mu.Unlock()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return connect.NewResponse(&channelmanagerv1.SubmitReleaseResponse{Receipt: receiptMessage(receipt)}), nil
+}
+
+func (h *api) DeliverReleaseOutcome(ctx context.Context, request *connect.Request[channelmanagerv1.DeliverReleaseOutcomeRequest]) (*connect.Response[channelmanagerv1.DeliverReleaseOutcomeResponse], error) {
+	if h.deliverer == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("content desk delivery is not configured"))
+	}
+	h.mu.Lock()
+	var receipt *core.ReleaseReceipt
+	for _, candidate := range h.service.Releases {
+		if candidate.ID == request.Msg.ReleaseId {
+			receipt = candidate
+			break
+		}
+	}
+	if receipt == nil || !receipt.Complete() {
+		h.mu.Unlock()
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("completed release receipt not found"))
+	}
+	copy := *receipt
+	h.mu.Unlock()
+	err := h.deliverer.DeliverRelease(ctx, contentdesk.ReleaseOutcome{ReceiptID: copy.ID, DraftID: copy.DraftID, Status: copy.Status, PlatformPostID: copy.PlatformPostID, PublishedURL: copy.PublishedURL, PublishedAt: copy.CompletedAt})
+	h.mu.Lock()
+	markErr := h.service.MarkReleaseDelivery(copy.ID, err == nil, errorText(err))
+	if markErr == nil {
+		markErr = h.store.Save(ctx, h.service)
+	}
+	h.mu.Unlock()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnavailable, err)
+	}
+	if markErr != nil {
+		return nil, connect.NewError(connect.CodeInternal, markErr)
+	}
+	return connect.NewResponse(&channelmanagerv1.DeliverReleaseOutcomeResponse{DeliveryStatus: "delivered"}), nil
+}
+
+func (h *api) DeliverMetricSample(ctx context.Context, request *connect.Request[channelmanagerv1.DeliverMetricSampleRequest]) (*connect.Response[channelmanagerv1.DeliverMetricSampleResponse], error) {
+	if h.deliverer == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("content desk delivery is not configured"))
+	}
+	h.mu.Lock()
+	sample := h.service.MetricSamples[request.Msg.SampleId]
+	if sample == nil {
+		h.mu.Unlock()
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("metric sample not found"))
+	}
+	copy := *sample
+	h.mu.Unlock()
+	err := h.deliverer.DeliverMetric(ctx, contentdesk.MetricSample{ID: copy.ID, ReleaseID: copy.ReleaseID, DraftID: copy.DraftID, Metric: copy.Metric, Value: copy.Value, ObservedAt: copy.ObservedAt})
+	h.mu.Lock()
+	if err == nil {
+		err = h.service.AcknowledgeMetric(copy.ID)
+	}
+	if err == nil {
+		err = h.store.Save(ctx, h.service)
+	}
+	h.mu.Unlock()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnavailable, err)
+	}
+	return connect.NewResponse(&channelmanagerv1.DeliverMetricSampleResponse{DeliveryStatus: "acknowledged"}), nil
+}
+
+func (h *api) AssignAutomation(ctx context.Context, request *connect.Request[channelmanagerv1.AssignAutomationRequest]) (*connect.Response[channelmanagerv1.AssignAutomationResponse], error) {
+	h.mu.Lock()
+	err := h.service.AssignAutomation(request.Msg.IdentityId, request.Msg.SessionProfileRef, request.Msg.WorkflowRef, request.Msg.EnabledActionKinds, request.Msg.OperatorNote)
+	if err == nil {
+		err = h.store.Save(ctx, h.service)
+	}
+	h.mu.Unlock()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return connect.NewResponse(&channelmanagerv1.AssignAutomationResponse{IdentityId: request.Msg.IdentityId}), nil
+}
+
+func (h *api) DispatchBrowserAction(ctx context.Context, request *connect.Request[channelmanagerv1.DispatchBrowserActionRequest]) (*connect.Response[channelmanagerv1.DispatchBrowserActionResponse], error) {
+	if h.browser == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("browser automation is not configured"))
+	}
+	h.mu.Lock()
+	executionID, err := h.service.DispatchBrowser(ctx, request.Msg.ActionId, h.browser)
+	if err == nil {
+		err = h.store.Save(ctx, h.service)
+	}
+	h.mu.Unlock()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return connect.NewResponse(&channelmanagerv1.DispatchBrowserActionResponse{ExecutionId: executionID}), nil
+}
+
+func errorText(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
+}
+
+func receiptMessage(receipt *core.ReleaseReceipt) *channelmanagerv1.ReleaseReceipt {
+	return &channelmanagerv1.ReleaseReceipt{Id: receipt.ID, DraftId: receipt.DraftID, ActionId: receipt.ActionID, Status: receipt.Status, PlatformPostId: receipt.PlatformPostID, PublishedUrl: receipt.PublishedURL, FirstCommentStatus: receipt.FirstCommentStatus}
+}
+
 func Schema() string { return core.Schema() }
 
 var Endpoints = []module.EndpointDescriptor{{
 	ID: "channel_manager_overview", Path: channelmanagerconnect.ChannelManagerServiceGetOverviewProcedure, Method: http.MethodPost,
 	Summary: "Get channel manager overview", Description: "Returns identity and queued-action references without credential values.", Category: "channel-manager",
 	Response: &module.Schema{Type: "object", Properties: map[string]string{"identities": "array<Identity>", "actions": "array<Action>"}},
-}}
+},
+	{ID: "channel_manager_eligibility", Path: channelmanagerconnect.ChannelManagerServiceGetEligibilityProcedure, Method: http.MethodPost, Summary: "Get identity lane eligibility", Category: "channel-manager"},
+	{ID: "channel_manager_submit_release", Path: channelmanagerconnect.ChannelManagerServiceSubmitReleaseProcedure, Method: http.MethodPost, Summary: "Submit idempotent release", Category: "channel-manager"},
+	{ID: "channel_manager_deliver_release", Path: channelmanagerconnect.ChannelManagerServiceDeliverReleaseOutcomeProcedure, Method: http.MethodPost, Summary: "Deliver completed release outcome to Content Desk", Category: "channel-manager"},
+	{ID: "channel_manager_deliver_metric", Path: channelmanagerconnect.ChannelManagerServiceDeliverMetricSampleProcedure, Method: http.MethodPost, Summary: "Deliver metric sample to Content Desk", Category: "channel-manager"},
+	{ID: "channel_manager_assign_automation", Path: channelmanagerconnect.ChannelManagerServiceAssignAutomationProcedure, Method: http.MethodPost, Summary: "Assign an operator-approved BAS profile reference", Category: "channel-manager"},
+	{ID: "channel_manager_dispatch_browser", Path: channelmanagerconnect.ChannelManagerServiceDispatchBrowserActionProcedure, Method: http.MethodPost, Summary: "Dispatch a durable queued action to BAS", Category: "channel-manager"},
+}
 
 func (h *api) overview(w http.ResponseWriter, _ *http.Request) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	writeJSON(w, http.StatusOK, map[string]any{"identities": h.service.Identities, "actions": h.service.Actions, "programs": h.service.Programs, "flags": h.service.Flags})
+	support := map[string]int{}
+	for _, outcome := range h.service.ProgramOutcomes {
+		support[outcome.ProgramID]++
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"identities": h.service.Identities, "actions": h.service.Actions, "platforms": h.service.Platforms, "programs": h.service.Programs, "program_support": support, "flags": h.service.Flags, "releases": h.service.Releases, "metric_samples": h.service.MetricSamples, "automation": h.service.Automation, "portfolio": h.service.Portfolio, "program_outcomes": h.service.ProgramOutcomes, "environment_checks": h.service.EnvironmentChecks})
 }
 
 func (h *api) createIdentity(w http.ResponseWriter, r *http.Request) {
@@ -155,6 +409,29 @@ func (h *api) complete(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "succeeded"})
 }
 
+func (h *api) completeRelease(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		PlatformPostID       string `json:"platform_post_id"`
+		PublishedURL         string `json:"published_url"`
+		FirstCommentStatus   string `json:"first_comment_status"`
+		FirstCommentEvidence string `json:"first_comment_evidence"`
+	}
+	if !decode(w, r, &req) {
+		return
+	}
+	h.mu.Lock()
+	receipt, err := h.service.CompleteRelease(mux.Vars(r)["id"], req.PlatformPostID, req.PublishedURL, req.FirstCommentStatus, req.FirstCommentEvidence, time.Now().UTC())
+	if err == nil {
+		err = h.store.Save(r.Context(), h.service)
+	}
+	h.mu.Unlock()
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, receipt)
+}
+
 func (h *api) observe(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Metric string  `json:"metric"`
@@ -190,6 +467,7 @@ func (h *api) release(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		IdentityID     string `json:"identity_id"`
 		Lane           string `json:"lane"`
+		DraftID        string `json:"draft_id"`
 		IdempotencyKey string `json:"idempotency_key"`
 	}
 	if !decode(w, r, &req) {
@@ -200,7 +478,7 @@ func (h *api) release(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.mu.Lock()
-	id, err := h.service.Release(req.IdentityID, req.Lane, req.IdempotencyKey, time.Now().UTC())
+	receipt, err := h.service.Release(req.IdentityID, req.Lane, req.DraftID, req.IdempotencyKey, time.Now().UTC())
 	if err == nil {
 		err = h.store.Save(r.Context(), h.service)
 	}
@@ -209,7 +487,7 @@ func (h *api) release(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, map[string]string{"post_id": id, "url": "manual://queued/" + id})
+	writeJSON(w, http.StatusCreated, receipt)
 }
 
 func decode(w http.ResponseWriter, r *http.Request, v any) bool {

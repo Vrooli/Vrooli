@@ -22,6 +22,7 @@ module DraftLifecycleFlow {
     (s == Reviewed and e == Block) or
     (s == Reviewed and e == Approve) or
     (s == Reviewed and e == Abandon) or
+    (s == Approved and e == Block) or
     (s == Approved and e == Publish)
 
   pure def nextStatus(s: Status, e: Event): Status =
@@ -39,6 +40,7 @@ module DraftLifecycleFlow {
     else if (s == Reviewed and e == Block) Blocked
     else if (s == Reviewed and e == Approve) Approved
     else if (s == Reviewed and e == Abandon) Abandoned
+    else if (s == Approved and e == Block) Blocked
     else if (s == Approved and e == Publish) Published
     else s
 
@@ -129,7 +131,7 @@ module DraftLifecycleFlow {
       .then(assert(not(isValid(Approved, Begin)) and nextStatus(Approved, Begin) == Approved))
       .then(assert(not(isValid(Approved, Complete)) and nextStatus(Approved, Complete) == Approved))
       .then(assert(not(isValid(Approved, Check)) and nextStatus(Approved, Check) == Approved))
-      .then(assert(not(isValid(Approved, Block)) and nextStatus(Approved, Block) == Approved))
+      .then(assert(isValid(Approved, Block) and nextStatus(Approved, Block) == Blocked))
       .then(assert(not(isValid(Approved, ReviewPass)) and nextStatus(Approved, ReviewPass) == Approved))
       .then(assert(not(isValid(Approved, Approve)) and nextStatus(Approved, Approve) == Approved))
       .then(assert(isValid(Approved, Publish) and nextStatus(Approved, Publish) == Published))

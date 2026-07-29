@@ -1,3 +1,20 @@
+# Requirements
+
+Requirement modules live here, one folder per group of operational targets.
+Every requirement links back to a PRD operational target via `prd_ref` and
+carries at least one validation entry pointing at its proof.
+
+- Statuses are earned, not asserted: auto-sync updates them from
+  `[REQ:ID]`-tagged test results on comprehensive suite runs.
+- Replace scaffolded manual validation stubs with test-typed entries (a `ref`
+  to the test file plus the `[REQ:ID]` tag) as behavior lands.
+- Validate with `business-health validate scenario <scenario>`; inspect
+  traceability with `business-health matrix show <scenario>`.
+
+---
+
+<!-- Prior content preserved below by the requirements_readme fixer. -->
+
 # Requirements Registry
 
 Organize requirement modules by PRD operational targets, keeping the filesystem structure aligned with the "what" articulated in the PRD. Create folders such as `01-<target-name>/` as needed (numbers preserve ordering but do **not** imply priority).

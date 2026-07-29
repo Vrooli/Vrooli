@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-21T01:38:56-04:00"
+    "last_validated_at": "2026-07-28T23:34:11-04:00"
   },
   "requirements": [
     {
       "id": "IMG-P1-012",
       "title": "Look / Style Library",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-012",
       "category": "feature",
       "description": "A data-defined, thumbnail-backed, AI-aware library that generalizes presets (OT-P1-010) + recipes (OT-P1-004). A Look = {name, thumbnail, op-chain, prompt template, params} that compiles to {prompt + optional mask/selection + backend params}. Adding a Look auto-generates its preview by applying the Look to a reference image. A UI picker (modal or full-page drawer) presents thumbnails. Film/lens/camera-emulation looks may be pure-deterministic (LUT/grain/vignette) and/or an AI pass.",
@@ -15,28 +15,28 @@
           "type": "test",
           "ref": "api/internal/looks/compiler_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Look → {prompt + params + ordered steps} compiler: fills the prompt template with the subject, merges Look defaults \u003c step params, flags requires_image, and warns on model-backed steps / missing input."
         },
         {
           "type": "test",
           "ref": "api/internal/looks/store_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "SQLite CRUD over the built-in seed: slug ids, built-in collision/read-only refusal, kind filter, thumbnail persistence — built-ins stay read-only, custom Looks round-trip."
         },
         {
           "type": "test",
           "ref": "api/internal/looks/preview_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "RenderPreview applies the deterministic step chain in-process to a reference image (film/camera Looks render exactly; AI steps reported as deferred) — the 'adding a Look auto-generates its preview' flow, no model required."
         },
         {
           "type": "test",
           "ref": "api/handlers/looks/connect_handler_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "LooksService Connect handler: list/get/create/compile/render-preview end to end over a test DB + blob store; built-in collision → AlreadyExists; built-in preview not persisted."
         },
         {

@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func TestImportCanonIsIdempotentAndRejectsTemplates(t *testing.T) {
+func TestImportCanonIsIdempotentAndRejectsTemplates(t *testing.T) { // [REQ:ASSET-P0-003]
 	root := t.TempDir()
 	products := filepath.Join(root, "products")
 	if err := os.MkdirAll(products, 0o755); err != nil {

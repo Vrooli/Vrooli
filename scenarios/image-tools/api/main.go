@@ -573,7 +573,7 @@ func main() {
 			return internaladapters.EstimateInstallSeconds(sizeMBApprox)
 		}, log.Default()),
 		aiH.Module(aiEngine, registry, blobStore, jobManager, safetyGate, log.Default()),
-		analysisH.Module(analysisService, jobManager, log.Default()),
+		analysisH.Module(analysisService, blobStore, jobManager, log.Default()),
 		diffH.Module(blobStore, jobManager, log.Default()),
 		jobsH.Module(jobManager, log.Default()),
 		looksH.Module(db, blobStore, log.Default()),

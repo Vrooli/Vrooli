@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-21T01:38:56-04:00"
+    "last_validated_at": "2026-07-28T23:34:11-04:00"
   },
   "requirements": [
     {
       "id": "IMG-P1-007",
       "title": "Safety \u0026 Provenance",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-007",
       "category": "feature",
       "description": "C2PA content-credential signing of AI output (opt-in, off by default); BYOK cost tracking surfaces an estimate before any cloud op.",
@@ -15,14 +15,14 @@
           "type": "manual",
           "ref": "api/internal/provenance/c2pa_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Planned (not yet implemented; automated test pending): C2PA credential embedded when opt-in enabled, absent otherwise"
         },
         {
           "type": "manual",
           "ref": "api/internal/byok/usage_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Planned (not yet implemented; automated test pending): BYOK spend is tracked per provider"
         }
       ]

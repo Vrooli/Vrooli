@@ -30,3 +30,15 @@ CREATE TABLE IF NOT EXISTS claim_novelty_evidence (
   claim_id TEXT PRIMARY KEY REFERENCES claims(id),
   observed_at TEXT NOT NULL
 );
+
+-- Extraction is advisory evidence. A proposal never creates a claim or
+-- changes a draft lifecycle state without a separate operator action.
+CREATE TABLE IF NOT EXISTS claim_proposals (
+  id TEXT PRIMARY KEY,
+  draft_id TEXT NOT NULL,
+  statement TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('proposed','accepted','rejected')),
+  created_at TEXT NOT NULL,
+  decided_at TEXT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS claim_proposals_draft_statement_idx ON claim_proposals(draft_id, statement);

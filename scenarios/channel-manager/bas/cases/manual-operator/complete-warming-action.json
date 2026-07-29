@@ -21,6 +21,7 @@
     {"id":"wait-identity","action":{"type":"ACTION_TYPE_WAIT","wait":{"selector":"@selector/operator.identityReady","state":"WAIT_STATE_VISIBLE","timeout_ms":10000},"metadata":{"label":"Wait for identity warming setup"}}},
     {"id":"queue","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"@selector/operator.queueButton"},"metadata":{"label":"Queue manual engagement"}}},
     {"id":"wait-action","action":{"type":"ACTION_TYPE_WAIT","wait":{"selector":"@selector/operator.actionReady","state":"WAIT_STATE_VISIBLE","timeout_ms":10000},"metadata":{"label":"Wait for queued action"}}},
+    {"id":"select-action","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"@selector/operator.dueAction"},"metadata":{"label":"Select the queued action for manual completion"}}},
     {"id":"evidence","action":{"type":"ACTION_TYPE_INPUT","input":{"selector":"@selector/operator.evidenceInput","value":"https://example.test/bas-proof","clear_first":true},"metadata":{"label":"Attach completion evidence"}}},
     {"id":"complete","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"@selector/operator.completeButton"},"metadata":{"label":"Record manual completion"}}},
     {"id":"reach","action":{"type":"ACTION_TYPE_INPUT","input":{"selector":"@selector/operator.reachInput","value":"120","clear_first":true},"metadata":{"label":"Enter reach observation"}}},
@@ -33,10 +34,11 @@
     {"id":"e3","source":"create","target":"wait-identity","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
     {"id":"e4","source":"wait-identity","target":"queue","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
     {"id":"e5","source":"queue","target":"wait-action","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e6","source":"wait-action","target":"evidence","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e7","source":"evidence","target":"complete","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e8","source":"complete","target":"reach","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e9","source":"reach","target":"observe","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
-    {"id":"e10","source":"observe","target":"assert","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"}
+    {"id":"e6","source":"wait-action","target":"select-action","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e7","source":"select-action","target":"evidence","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e8","source":"evidence","target":"complete","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e9","source":"complete","target":"reach","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e10","source":"reach","target":"observe","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"},
+    {"id":"e11","source":"observe","target":"assert","type":"WORKFLOW_EDGE_TYPE_SMOOTHSTEP"}
   ]
 }

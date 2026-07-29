@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirements derived from the P1 operational targets in PRD.md.",
-    "last_validated_at": "2026-07-28T19:37:26-04:00",
+    "last_validated_at": "2026-07-29T01:54:17-04:00",
     "module": "P1-targets",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -23,25 +23,28 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/channelmanager/service_test.go::TestBrowserDispatchUsesAssignedProfileAndPreservesManualFallback",
           "phase": "unit",
           "status": "implemented",
           "notes": "A dispatched action binds the identity's own session profile; two identities never share one profile."
         },
         {
           "type": "test",
+          "ref": "api/internal/channelmanager/service_test.go::TestBrowserDispatchUsesAssignedProfileAndPreservesManualFallback",
           "phase": "unit",
           "status": "implemented",
           "notes": "A browser-executed action produces a record with the same fields as the manual executor produces."
         },
         {
           "type": "test",
+          "ref": "api/internal/channelmanager/service_test.go::TestBrowserDispatchUsesAssignedProfileAndPreservesManualFallback",
           "phase": "unit",
           "status": "implemented",
           "notes": "Dispatch failure degrades the action to manual with the failure recorded, rather than marking it complete."
         },
         {
           "type": "manual",
-          "status": "planned",
+          "status": "not_implemented",
           "notes": "The browser executor is disabled for a platform until an operator decision recording the terms-of-service acceptance for that platform exists in DECISIONS.md."
         }
       ]
@@ -61,12 +64,14 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/channelmanager/service_test.go::TestPortfolioPolicySeparatesCrossIdentityPublishes",
           "phase": "unit",
           "status": "implemented",
           "notes": "Scheduling a post inside the separation window of another identity's post is shifted or refused per policy."
         },
         {
           "type": "test",
+          "ref": "api/internal/channelmanager/service_test.go::TestPortfolioPolicySeparatesCrossIdentityPublishes",
           "phase": "unit",
           "status": "implemented",
           "notes": "The per-hour identity ceiling is enforced across the whole portfolio, not per platform."
@@ -89,12 +94,14 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/channelmanager/service_test.go::TestReleaseRejectsReusedAssetAndMissingPersonaDisclosure",
           "phase": "unit",
           "status": "implemented",
           "notes": "A post whose asset ref was already published by another identity is refused with a typed error naming the prior identity."
         },
         {
           "type": "test",
+          "ref": "api/handlers/channelmanager/module_test.go::TestSubmitReleaseFailsClosedWhenAssetVerificationCannotBeProven",
           "phase": "unit",
           "status": "implemented",
           "notes": "An asset-studio lookup failure resolves to refuse rather than allow, matching the fail-closed posture used for eligibility."
@@ -117,12 +124,14 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/channelmanager/service_test.go::TestReleaseRejectsReusedAssetAndMissingPersonaDisclosure",
           "phase": "unit",
           "status": "implemented",
           "notes": "A post from a persona-actor identity without the platform's required disclosure marker is refused."
         },
         {
           "type": "test",
+          "ref": "api/internal/channelmanager/preview_test.go::TestPreviewReleaseBlocksInvisibleDisclosureAndInvalidMedia",
           "phase": "unit",
           "status": "implemented",
           "notes": "A brand identity on the same platform is not subject to the persona disclosure requirement."
@@ -144,12 +153,14 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/channelmanager/service_test.go::TestExecutionFailureUsesPlatformRetryPolicy",
           "phase": "unit",
           "status": "implemented",
           "notes": "A transient failure retries with increasing backoff up to the configured limit; a terminal failure does not retry."
         },
         {
           "type": "test",
+          "ref": "api/internal/channelmanager/service_test.go::TestExecutionFailureUsesPlatformRetryPolicy",
           "phase": "unit",
           "status": "implemented",
           "notes": "Retries consume cadence budget so that a retry storm cannot breach the platform ceiling."
@@ -172,18 +183,21 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/channelmanager/service_test.go::TestGateWaitsThenQuarantinesAfterBoundedInconclusiveResults",
           "phase": "unit",
           "status": "implemented",
           "notes": "Completing or quarantining a program run appends one observation carrying its measurements."
         },
         {
           "type": "test",
+          "ref": "api/internal/channelmanager/service_test.go::TestGateWaitsThenQuarantinesAfterBoundedInconclusiveResults",
           "phase": "unit",
           "status": "implemented",
           "notes": "Observations are append-only; no code path rewrites or deletes a recorded observation."
         },
         {
           "type": "test",
+          "ref": "api/internal/channelmanager/service_test.go::TestGraduationRequiresEveryCriterion",
           "phase": "unit",
           "status": "implemented",
           "notes": "A program with observations reports how many runs support it alongside its provenance confidence."
@@ -193,7 +207,7 @@
     {
       "id": "CHANMGR-P1-007",
       "title": "Publish metrics handoff",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-007",
       "category": "signals",
       "criticality": "P1",
@@ -206,14 +220,16 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/channelmanager/service_test.go::TestMetricSampleRequiresCompletedReceiptAndAcknowledgesOnce",
           "phase": "unit",
           "status": "implemented",
           "notes": "Metrics for a published post are attributable to the originating draft through the release identifier."
         },
         {
           "type": "test",
+          "ref": "api/handlers/channelmanager/module_test.go::TestDeliveryAcknowledgesDurableReleaseAndMetric",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A metrics push that content-desk cannot accept is retried without duplicating the observation."
         }
       ]
@@ -233,18 +249,21 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/channelmanager/service_test.go::TestReleaseReceiptCompletesExactlyOnceWithPartialFirstComment",
           "phase": "unit",
           "status": "implemented",
           "notes": "A post declaring a first comment schedules both parts as one unit; the comment is never scheduled independently of its post."
         },
         {
           "type": "test",
+          "ref": "api/internal/channelmanager/service_test.go::TestReleaseReceiptCompletesExactlyOnceWithPartialFirstComment",
           "phase": "unit",
           "status": "implemented",
           "notes": "A post that succeeds while its first comment fails is recorded as partially complete, not succeeded, and surfaces for operator attention."
         },
         {
           "type": "test",
+          "ref": "api/internal/channelmanager/service_test.go::TestReleaseReceiptCompletesExactlyOnceWithPartialFirstComment",
           "phase": "unit",
           "status": "implemented",
           "notes": "The pair consumes cadence budget as two actions, since the platform counts two."
@@ -254,7 +273,7 @@
     {
       "id": "CHANMGR-P1-009",
       "title": "Per-platform post preview",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-009",
       "category": "platforms",
       "criticality": "P1",
@@ -267,20 +286,23 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/channelmanager/preview_test.go::TestPreviewReleaseBlocksInvisibleDisclosureAndInvalidMedia",
           "phase": "unit",
           "status": "implemented",
           "notes": "Preview reports the caption truncation point derived from the platform descriptor rather than a hard-coded limit."
         },
         {
           "type": "test",
+          "ref": "api/internal/channelmanager/preview_test.go::TestPreviewReleaseBlocksInvisibleDisclosureAndInvalidMedia",
           "phase": "unit",
           "status": "implemented",
           "notes": "A required disclosure marker that would fall outside the visible region is reported as a preview failure, not a warning."
         },
         {
           "type": "test",
+          "ref": "ui/src/pages/DashboardPage.test.tsx::DashboardPage [CHANMGR-P1-009] renders a descriptor-driven preview before release",
           "phase": "ui",
-          "status": "planned",
+          "status": "implemented",
           "notes": "The preview surface renders for each configured platform and states which descriptor values produced it."
         }
       ]
@@ -301,18 +323,21 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/channelmanager/service_test.go::TestEnvironmentLivenessPausesUnknownOrMismatchedIdentity",
           "phase": "unit",
           "status": "implemented",
           "notes": "An observed region differing from the attested region raises a flag and pauses the identity's queue."
         },
         {
           "type": "test",
+          "ref": "api/internal/channelmanager/service_test.go::TestEnvironmentLivenessPausesUnknownOrMismatchedIdentity",
           "phase": "unit",
           "status": "implemented",
           "notes": "A liveness check that cannot complete is recorded as unknown and does not clear a prior divergence."
         },
         {
           "type": "test",
+          "ref": "api/internal/channelmanager/service_test.go::TestEnvironmentLivenessPausesUnknownOrMismatchedIdentity",
           "phase": "unit",
           "status": "implemented",
           "notes": "The check never reads or transmits a credential; it inspects egress properties only."

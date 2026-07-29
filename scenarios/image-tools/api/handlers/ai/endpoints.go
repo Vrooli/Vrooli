@@ -31,7 +31,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        "/api/v1/ai/{operation}",
 		Method:      "POST",
 		Summary:     "Submit a model-backed AI operation",
-		Description: "Submits one AI generation/enhancement op on optionally-uploaded image(s). The `file` part carries the input image (when required), `mask` carries a mask (inpaint/object_removal), and `params` carries AIParams as protojson. The op runs asynchronously on the durable job queue: the response (SubmitAIResponse) carries the job id + ETA + the resolved model/tier + any fallback warnings. Wait via the jobs verbs and fetch the output blob by the job's result ref.",
+		Description: "Submits one AI generation/enhancement op on optionally-uploaded image(s). The `file` part carries the input image (when required), or `input_ref` names an already-owned Image Tools artifact without copying bytes; `mask` carries a mask (inpaint/object_removal), and `params` carries AIParams as protojson. The op runs asynchronously on the durable job queue: the response (SubmitAIResponse) carries the job id + ETA + the resolved model/tier + any fallback warnings. Wait via the jobs verbs and fetch the output blob by the job's result ref.",
 		Category:    "ai",
 		Errors: []module.ErrorDesc{
 			{Status: 400, Code: "invalid_request", Description: "Malformed multipart form, missing required image/mask part, or invalid params"},

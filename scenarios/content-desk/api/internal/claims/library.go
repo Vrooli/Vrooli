@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -39,6 +40,14 @@ type (
 		DraftID, ClaimID string
 		Start, End       int
 	}
+	TextSpan struct {
+		Start, End int
+		ClaimID    string
+	}
+	Proposal struct {
+		ID, DraftID, Statement, Status string
+		CreatedAt, DecidedAt            time.Time
+	}
 )
 
 type (
@@ -56,12 +65,68 @@ type (
 		Verify(context.Context, string) (Claim, error)
 		Sweep(context.Context) ([]Claim, error)
 		ExpireNovelty(context.Context, time.Time, time.Duration) ([]Claim, error)
+		Coverage(context.Context, string, string) ([]TextSpan, []TextSpan, error)
+		ExtractProposals(context.Context, string, string) ([]Proposal, error)
+		ListProposals(context.Context, string) ([]Proposal, error)
+		DecideProposal(context.Context, string, string) (Proposal, error)
 	}
 	library struct {
 		db     SQLExecutor
 		runner Runner
 	}
 )
+
+// ExtractProposals creates review-only proposals from declarative sentences.
+// It is intentionally deterministic and local: an unavailable assistant must
+// leave the draft workable, and extraction cannot satisfy the evidence gate.
+func (l *library) ExtractProposals(ctx context.Context, draftID, body string) ([]Proposal, error) {
+	if draftID == "" { return nil, fmt.Errorf("draft id is required") }
+	for _, statement := range extractionCandidates(body) {
+		_, err := l.db.ExecContext(ctx, `INSERT INTO claim_proposals (id, draft_id, statement, status, created_at) VALUES (?, ?, ?, 'proposed', ?) ON CONFLICT(draft_id, statement) DO NOTHING`, uuid.NewString(), draftID, statement, time.Now().UTC().Format(time.RFC3339Nano))
+		if err != nil { return nil, err }
+	}
+	return l.ListProposals(ctx, draftID)
+}
+
+func extractionCandidates(body string) []string {
+	var out []string
+	start := 0
+	for i, r := range body {
+		if r != '.' && r != '!' && r != '?' { continue }
+		candidate := strings.TrimSpace(body[start:i+1])
+		start = i + 1
+		if len(candidate) >= 12 { out = append(out, candidate) }
+	}
+	if tail := strings.TrimSpace(body[start:]); len(tail) >= 12 { out = append(out, tail) }
+	return out
+}
+
+func (l *library) ListProposals(ctx context.Context, draftID string) ([]Proposal, error) {
+	rows, err := l.db.QueryContext(ctx, `SELECT id, draft_id, statement, status, created_at, COALESCE(decided_at,'') FROM claim_proposals WHERE draft_id = ? ORDER BY created_at, id`, draftID)
+	if err != nil { return nil, err }
+	defer rows.Close()
+	var proposals []Proposal
+	for rows.Next() {
+		var proposal Proposal; var createdAt, decidedAt string
+		if err := rows.Scan(&proposal.ID, &proposal.DraftID, &proposal.Statement, &proposal.Status, &createdAt, &decidedAt); err != nil { return nil, err }
+		proposal.CreatedAt, err = time.Parse(time.RFC3339Nano, createdAt); if err != nil { return nil, err }
+		if decidedAt != "" { proposal.DecidedAt, err = time.Parse(time.RFC3339Nano, decidedAt); if err != nil { return nil, err } }
+		proposals = append(proposals, proposal)
+	}
+	return proposals, rows.Err()
+}
+
+func (l *library) DecideProposal(ctx context.Context, id, status string) (Proposal, error) {
+	if status != "accepted" && status != "rejected" { return Proposal{}, fmt.Errorf("proposal status %q is invalid", status) }
+	now := time.Now().UTC()
+	result, err := l.db.ExecContext(ctx, `UPDATE claim_proposals SET status = ?, decided_at = ? WHERE id = ? AND status = 'proposed'`, status, now.Format(time.RFC3339Nano), id)
+	if err != nil { return Proposal{}, err }; affected, err := result.RowsAffected(); if err != nil { return Proposal{}, err }; if affected != 1 { return Proposal{}, fmt.Errorf("proposal %q is not pending", id) }
+	row := l.db.QueryRowContext(ctx, `SELECT id, draft_id, statement, status, created_at, decided_at FROM claim_proposals WHERE id = ?`, id)
+	var proposal Proposal; var createdAt, decidedAt string
+	if err = row.Scan(&proposal.ID, &proposal.DraftID, &proposal.Statement, &proposal.Status, &createdAt, &decidedAt); err != nil { return Proposal{}, err }
+	proposal.CreatedAt, err = time.Parse(time.RFC3339Nano, createdAt); if err != nil { return Proposal{}, err }; proposal.DecidedAt, err = time.Parse(time.RFC3339Nano, decidedAt)
+	return proposal, err
+}
 
 func NewLibrary(db SQLExecutor, runner Runner) Library { return &library{db: db, runner: runner} }
 
@@ -94,6 +159,44 @@ func (l *library) Create(ctx context.Context, claim Claim, evidence Evidence) (C
 		}
 	}
 	return claim, nil
+}
+
+// Coverage returns cited spans and the complementary text intervals. It is
+// mechanical evidence for review, not a claim-classification or approval rule.
+func (l *library) Coverage(ctx context.Context, draftID, body string) ([]TextSpan, []TextSpan, error) {
+	rows, err := l.db.QueryContext(ctx, `SELECT claim_id, span_start, span_end FROM claim_citations WHERE draft_id = ? ORDER BY span_start, span_end, claim_id`, draftID)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+	var supported []TextSpan
+	for rows.Next() {
+		var span TextSpan
+		if err := rows.Scan(&span.ClaimID, &span.Start, &span.End); err != nil {
+			return nil, nil, err
+		}
+		if span.Start < 0 || span.End > len(body) || span.End <= span.Start {
+			return nil, nil, ErrInvalidAnchor
+		}
+		supported = append(supported, span)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, err
+	}
+	coveredUntil := 0
+	var uncovered []TextSpan
+	for _, span := range supported {
+		if span.Start > coveredUntil {
+			uncovered = append(uncovered, TextSpan{Start: coveredUntil, End: span.Start})
+		}
+		if span.End > coveredUntil {
+			coveredUntil = span.End
+		}
+	}
+	if coveredUntil < len(body) {
+		uncovered = append(uncovered, TextSpan{Start: coveredUntil, End: len(body)})
+	}
+	return supported, uncovered, nil
 }
 
 // Sweep re-runs every check-backed claim. The returned claims include the

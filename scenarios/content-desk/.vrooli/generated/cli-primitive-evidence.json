@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "content-desk",
   "generator": "v1.0.0",
-  "manifest_hash": "df5b9703a7bdc06a7a8977ae99e94150565137bf40e993922521d3973ef6eeb7",
+  "manifest_hash": "ad62dfa79d19b11d622eb0ebde03ffdfeefabf8e51db976fdf58c2950d65532d",
   "commands": [
     {
       "path": "artifacts approve",
@@ -31,18 +31,18 @@
       "observed_primitive": "proto_list"
     },
     {
-      "path": "artifacts publish",
-      "group": "artifacts",
-      "command": "publish",
-      "binding": "ArtifactsService.PublishDraft",
-      "declared_primitive": "proto_mutation",
-      "observed_primitive": "proto_mutation"
-    },
-    {
       "path": "artifacts revise",
       "group": "artifacts",
       "command": "revise",
       "binding": "ArtifactsService.UpdateDraftBody",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "artifacts submit-release",
+      "group": "artifacts",
+      "command": "submit-release",
+      "binding": "ArtifactsService.SubmitReleaseDraft",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
     },
@@ -149,6 +149,30 @@
       "binding": "LedgerService.ListPublishRecords",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "ledger remediate",
+      "group": "ledger",
+      "command": "remediate",
+      "binding": "LedgerService.CreateRemediation",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "ledger remediations",
+      "group": "ledger",
+      "command": "remediations",
+      "binding": "LedgerService.ListRemediations",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "ledger resolve-remediation",
+      "group": "ledger",
+      "command": "resolve-remediation",
+      "binding": "LedgerService.ResolveRemediation",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
     },
     {
       "path": "posttypes list",

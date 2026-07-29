@@ -16,6 +16,7 @@ import (
 	"image-tools/internal/storage"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/blobstore"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	analysisv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/analysis"
@@ -40,6 +41,16 @@ func newTestServer(t *testing.T, svc *internalanalysis.Service) (*mux.Router, *f
 	r := mux.NewRouter()
 	r.HandleFunc("/api/v1/analysis/{operation}", deps.analyzeHandler).Methods(http.MethodPost)
 	return r, rec
+}
+
+func newTestServerWithStore(t *testing.T, svc *internalanalysis.Service) (*mux.Router, *fakeRecorder, *storage.Store) {
+	t.Helper()
+	rec := &fakeRecorder{}
+	store := storage.NewWithBlobStore(blobstore.NewMemoryBlobStore(), t.TempDir())
+	deps := &Deps{Service: svc, Jobs: rec, Guard: storage.DefaultGuard(), Store: store}
+	r := mux.NewRouter()
+	r.HandleFunc("/api/v1/analysis/{operation}", deps.analyzeHandler).Methods(http.MethodPost)
+	return r, rec, store
 }
 
 func pngBytes(t *testing.T, w, h int) []byte {
@@ -101,6 +112,34 @@ func TestAnalyze_Probe(t *testing.T) {
 	}
 	if resp.JobId == "" || len(rec.jobs) != 1 {
 		t.Errorf("expected a recorded job, got id=%q jobs=%d", resp.JobId, len(rec.jobs))
+	}
+}
+
+func TestAnalyze_ProbeUsesExistingInputReference(t *testing.T) {
+	svc := mustService(t, internalanalysis.Config{ModelInstalled: func(string) bool { return true }})
+	r, _, store := newTestServerWithStore(t, svc)
+	if err := store.Put(context.Background(), "outputs/parent.png", bytes.NewReader(pngBytes(t, 32, 24)), "image/png"); err != nil {
+		t.Fatal(err)
+	}
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	if err := mw.WriteField("input_ref", "outputs/parent.png"); err != nil {
+		t.Fatal(err)
+	}
+	_ = mw.Close()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/analysis/probe", &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, body=%s", w.Code, w.Body.String())
+	}
+	var resp analysisv1.AnalyzeResponse
+	if err := protojson.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if got := resp.GetProbe().GetWidth(); got != 32 {
+		t.Fatalf("width = %d", got)
 	}
 }
 

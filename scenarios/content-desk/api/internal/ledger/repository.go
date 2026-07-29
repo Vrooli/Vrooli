@@ -3,7 +3,9 @@ package ledger
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,11 +13,153 @@ import (
 
 type Repository interface {
 	RecordPublish(context.Context, PublishRecord) (PublishRecord, error)
+	RecordReleaseReceipt(context.Context, ReleaseReceipt) (PublishRecord, error)
+	IngestMetricSample(context.Context, MetricSample) (MetricSample, error)
+	CreateRemediation(context.Context, Remediation) (Remediation, error)
+	ResolveRemediation(context.Context, string) (Remediation, error)
+	ListRemediations(context.Context, string, bool) ([]Remediation, error)
 	ListPublishHistory(context.Context, int) ([]PublishRecord, error)
 	SubjectFamiliarity(context.Context, string, string) (SubjectFamiliarity, error)
 	NarratedForScenario(context.Context, string) ([]NarratedItem, error)
 	ContaminatedByClaim(context.Context, string) ([]PublishRecord, error)
 	Coverage(context.Context, time.Duration) ([]CoverageCell, error)
+}
+
+func (r *sqliteRepository) CreateRemediation(ctx context.Context, remediation Remediation) (Remediation, error) {
+	if remediation.PublishRecordID == "" || remediation.Kind == "" {
+		return Remediation{}, fmt.Errorf("remediation requires publish record and kind")
+	}
+	if remediation.ID == "" {
+		remediation.ID = uuid.NewString()
+	}
+	if remediation.Status == "" {
+		remediation.Status = "open"
+	}
+	if remediation.CreatedAt.IsZero() {
+		remediation.CreatedAt = time.Now().UTC()
+	}
+	_, err := r.db.ExecContext(ctx, `INSERT INTO ledger_remediations(id, publish_record_id, kind, status, note, created_at, resolved_at) VALUES (?, ?, ?, ?, ?, ?, NULL)`, remediation.ID, remediation.PublishRecordID, remediation.Kind, remediation.Status, remediation.Note, remediation.CreatedAt.UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return Remediation{}, fmt.Errorf("create remediation: %w", err)
+	}
+	return remediation, nil
+}
+
+func (r *sqliteRepository) ResolveRemediation(ctx context.Context, id string) (Remediation, error) {
+	when := time.Now().UTC()
+	result, err := r.db.ExecContext(ctx, `UPDATE ledger_remediations SET status = 'resolved', resolved_at = ? WHERE id = ? AND status <> 'resolved'`, when.Format(time.RFC3339Nano), id)
+	if err != nil {
+		return Remediation{}, fmt.Errorf("resolve remediation: %w", err)
+	}
+	count, _ := result.RowsAffected()
+	if count != 1 {
+		return Remediation{}, fmt.Errorf("open remediation %q not found", id)
+	}
+	var remediation Remediation
+	var created string
+	err = r.db.QueryRowContext(ctx, `SELECT id, publish_record_id, kind, status, note, created_at FROM ledger_remediations WHERE id = ?`, id).Scan(&remediation.ID, &remediation.PublishRecordID, &remediation.Kind, &remediation.Status, &remediation.Note, &created)
+	if err != nil {
+		return Remediation{}, err
+	}
+	remediation.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
+	remediation.ResolvedAt = when
+	return remediation, nil
+}
+
+// ListRemediations keeps remediation history visible. When openOnly is true,
+// it is the operator's active correction queue; history is never deleted.
+func (r *sqliteRepository) ListRemediations(ctx context.Context, publishRecordID string, openOnly bool) ([]Remediation, error) {
+	query := `SELECT id, publish_record_id, kind, status, note, created_at, resolved_at FROM ledger_remediations`
+	var args []any
+	clauses := make([]string, 0, 2)
+	if publishRecordID != "" {
+		clauses = append(clauses, "publish_record_id = ?")
+		args = append(args, publishRecordID)
+	}
+	if openOnly {
+		clauses = append(clauses, "status <> 'resolved'")
+	}
+	if len(clauses) > 0 {
+		query += " WHERE " + strings.Join(clauses, " AND ")
+	}
+	query += " ORDER BY created_at DESC, id DESC"
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list remediations: %w", err)
+	}
+	defer rows.Close()
+	var remediations []Remediation
+	for rows.Next() {
+		var remediation Remediation
+		var created string
+		var resolved sql.NullString
+		if err := rows.Scan(&remediation.ID, &remediation.PublishRecordID, &remediation.Kind, &remediation.Status, &remediation.Note, &created, &resolved); err != nil {
+			return nil, fmt.Errorf("scan remediation: %w", err)
+		}
+		if remediation.CreatedAt, err = time.Parse(time.RFC3339Nano, created); err != nil {
+			return nil, fmt.Errorf("parse remediation creation: %w", err)
+		}
+		if resolved.Valid {
+			if remediation.ResolvedAt, err = time.Parse(time.RFC3339Nano, resolved.String); err != nil {
+				return nil, fmt.Errorf("parse remediation resolution: %w", err)
+			}
+		}
+		remediations = append(remediations, remediation)
+	}
+	return remediations, rows.Err()
+}
+
+func (r *sqliteRepository) IngestMetricSample(ctx context.Context, sample MetricSample) (MetricSample, error) {
+	if sample.SampleID == "" || sample.ReleaseID == "" || sample.DraftID == "" || sample.Metric == "" || sample.ObservedAt.IsZero() {
+		return MetricSample{}, fmt.Errorf("metric sample requires identity, release, draft, metric, and observation time")
+	}
+	var existing MetricSample
+	var raw string
+	err := r.db.QueryRowContext(ctx, `SELECT sample_id, release_id, draft_id, metric, value, observed_at FROM ledger_metric_samples WHERE sample_id = ?`, sample.SampleID).Scan(&existing.SampleID, &existing.ReleaseID, &existing.DraftID, &existing.Metric, &existing.Value, &raw)
+	if err == nil {
+		existing.ObservedAt, err = time.Parse(time.RFC3339Nano, raw)
+		return existing, err
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return MetricSample{}, fmt.Errorf("lookup metric sample: %w", err)
+	}
+	_, err = r.db.ExecContext(ctx, `INSERT INTO ledger_metric_samples(sample_id, release_id, draft_id, metric, value, observed_at, received_at) VALUES (?, ?, ?, ?, ?, ?, ?)`, sample.SampleID, sample.ReleaseID, sample.DraftID, sample.Metric, sample.Value, sample.ObservedAt.UTC().Format(time.RFC3339Nano), time.Now().UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return MetricSample{}, fmt.Errorf("ingest metric sample: %w", err)
+	}
+	return sample, nil
+}
+
+// RecordReleaseReceipt is Content Desk's idempotent inbox for Channel Manager
+// publication outcomes. It intentionally accepts only completed or partial
+// publication results, never an identity, session, or executor credential.
+func (r *sqliteRepository) RecordReleaseReceipt(ctx context.Context, receipt ReleaseReceipt) (PublishRecord, error) {
+	if receipt.ReceiptID == "" || receipt.DraftID == "" || receipt.PlatformPostID == "" || receipt.PublishedURL == "" {
+		return PublishRecord{}, fmt.Errorf("release receipt requires id, draft, platform post id, and URL")
+	}
+	if receipt.Status != "published" && receipt.Status != "partial" {
+		return PublishRecord{}, fmt.Errorf("release receipt status %q is not publishable", receipt.Status)
+	}
+	var existing PublishRecord
+	var raw string
+	err := r.db.QueryRowContext(ctx, `SELECT id, COALESCE(draft_id,''), COALESCE(series_id,''), channel, audience, published_url, platform_post_id, source_kind, published_at FROM ledger_publish_records WHERE import_key = ?`, "channel-manager:"+receipt.ReceiptID).Scan(&existing.ID, &existing.DraftID, &existing.SeriesID, &existing.Channel, &existing.Audience, &existing.PublishedURL, &existing.PlatformPostID, &existing.SourceKind, &raw)
+	if err == nil {
+		existing.PublishedAt, err = time.Parse(time.RFC3339Nano, raw)
+		return existing, err
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return PublishRecord{}, fmt.Errorf("lookup release receipt: %w", err)
+	}
+	when := receipt.PublishedAt
+	if when.IsZero() {
+		when = time.Now().UTC()
+	}
+	record := PublishRecord{ID: uuid.NewString(), DraftID: receipt.DraftID, Channel: receipt.Channel, PublishedURL: receipt.PublishedURL, PlatformPostID: receipt.PlatformPostID, SourceKind: "channel-manager", PublishedAt: when}
+	_, err = r.db.ExecContext(ctx, `INSERT INTO ledger_publish_records (id, import_key, draft_id, series_id, channel, audience, published_url, platform_post_id, source_kind, published_at, payload_json) VALUES (?, ?, ?, NULL, ?, '', ?, ?, ?, ?, ?)`, record.ID, "channel-manager:"+receipt.ReceiptID, record.DraftID, record.Channel, record.PublishedURL, record.PlatformPostID, record.SourceKind, record.PublishedAt.UTC().Format(time.RFC3339Nano), `{"status":"`+receipt.Status+`"}`)
+	if err != nil {
+		return PublishRecord{}, fmt.Errorf("record release receipt: %w", err)
+	}
+	return record, nil
 }
 
 func (r *sqliteRepository) Coverage(ctx context.Context, staleAfter time.Duration) ([]CoverageCell, error) {

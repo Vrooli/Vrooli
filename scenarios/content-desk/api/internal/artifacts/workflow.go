@@ -78,6 +78,9 @@ func TransitionDraft(state DraftState, event DraftEvent) (DraftState, error) {
 			next = DraftApproved
 		}
 	case DraftApproved:
+		if event == DraftBlock {
+			next = DraftBlocked
+		}
 		if event == DraftPublish {
 			next = DraftPublished
 		}

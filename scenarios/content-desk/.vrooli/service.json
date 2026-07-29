@@ -195,7 +195,25 @@
     }
   },
   "dependencies": {
-    "resources": {}
+    "resources": {},
+    "scenarios": {
+      "channel-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Sole release authority. Content Desk resolves its typed Connect API for approved-draft submission and fails closed when release cannot be queued.",
+        "degraded_behavior": "Editorial work remains available, but an approved draft cannot be released until Channel Manager is reachable; Content Desk never falls back to direct platform publishing."
+      },
+      "asset-studio": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Metadata-only released-asset reference lookup for editor attachments; Content Desk never receives artifact bytes.",
+        "degraded_behavior": "Existing draft attachments remain visible, but a new Asset Studio reference cannot be attached until provenance can be resolved."
+      }
+    }
   },
   "environment": {
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/content-desk.db"
