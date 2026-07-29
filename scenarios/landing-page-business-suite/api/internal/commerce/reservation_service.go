@@ -1,13 +1,65 @@
-package main
+package commerce
 
 import (
 	"context"
 	cryptoRand "crypto/rand"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 )
+
+// ReservationService owns atomic credit reservations, settlement, expiry, and
+// adjustments. Its collaborators are explicit so monetization policy remains
+// testable without the root API package.
+type ReservationService struct {
+	db                  UsageStore
+	limitsSvc           LimitsServicer
+	dialect             string
+	insufficientCredits error
+	logf                func(string, map[string]interface{})
+	now                 func() time.Time
+	newID               func() string
+}
+
+type ReservationRuntime struct {
+	InsufficientCredits error
+	Log                 func(string, map[string]interface{})
+	Now                 func() time.Time
+	NewID               func() string
+}
+
+func NewReservationService(db UsageStore, limits LimitsServicer, dialect string, runtime ReservationRuntime) *ReservationService {
+	if dialect == "" {
+		dialect = "postgres"
+	}
+	if runtime.Now == nil {
+		runtime.Now = time.Now
+	}
+	if runtime.NewID == nil {
+		runtime.NewID = newReservationID
+	}
+	if runtime.Log == nil {
+		runtime.Log = func(string, map[string]interface{}) {}
+	}
+	if runtime.InsufficientCredits == nil {
+		runtime.InsufficientCredits = errors.New("insufficient credits")
+	}
+	return &ReservationService{db: db, limitsSvc: limits, dialect: dialect, insufficientCredits: runtime.InsufficientCredits, logf: runtime.Log, now: runtime.Now, newID: runtime.NewID}
+}
+
+func (s *ReservationService) billingPeriod() string                           { return s.now().Format("2006-01") }
+func (s *ReservationService) generateID() string                              { return s.newID() }
+func (s *ReservationService) log(event string, fields map[string]interface{}) { s.logf(event, fields) }
+
+func newReservationID() string {
+	b := make([]byte, 16)
+	if _, err := cryptoRand.Read(b); err != nil {
+		return fmt.Sprintf("reservation-%d", time.Now().UnixNano())
+	}
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+}
 
 // ReserveAndCharge atomically checks the credit limit and records usage in a single transaction.
 // This prevents TOCTOU (time-of-check to time-of-use) race conditions where a user could
@@ -15,7 +67,7 @@ import (
 //
 // The method uses SELECT FOR UPDATE to lock the user's usage records during the transaction,
 // ensuring that concurrent requests are serialized.
-func (s *UsageService) ReserveAndCharge(ctx context.Context, userIdentity, tier, limitKey string, amount int64, metadata UsageReportRequest) error {
+func (s *ReservationService) ReserveAndCharge(ctx context.Context, userIdentity, tier, limitKey string, amount int64, metadata UsageReportRequest) error {
 	userIdentity = strings.TrimSpace(strings.ToLower(userIdentity))
 	tier = strings.TrimSpace(strings.ToLower(tier))
 	limitKey = strings.TrimSpace(strings.ToLower(limitKey))
@@ -30,7 +82,7 @@ func (s *UsageService) ReserveAndCharge(ctx context.Context, userIdentity, tier,
 		return fmt.Errorf("amount must be positive")
 	}
 
-	billingPeriod := getCurrentBillingPeriod()
+	billingPeriod := s.billingPeriod()
 
 	// Start a serializable transaction to prevent concurrent limit bypass
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
@@ -74,7 +126,7 @@ func (s *UsageService) ReserveAndCharge(ctx context.Context, userIdentity, tier,
 			// Check if the new usage would exceed the limit
 			if currentUsage+amount > limit.LimitValue {
 				return fmt.Errorf("%w: would use %d, limit is %d, remaining is %d",
-					ErrInsufficientCredits, currentUsage+amount, limit.LimitValue, limit.LimitValue-currentUsage)
+					s.insufficientCredits, currentUsage+amount, limit.LimitValue, limit.LimitValue-currentUsage)
 			}
 		}
 		// If limit is nil or negative (unlimited), allow the operation
@@ -119,7 +171,7 @@ func (s *UsageService) ReserveAndCharge(ctx context.Context, userIdentity, tier,
 		return fmt.Errorf("commit transaction: %w", err)
 	}
 
-	logStructured("usage_reserved_and_charged", map[string]interface{}{
+	s.log("usage_reserved_and_charged", map[string]interface{}{
 		"level":          "debug",
 		"user_identity":  userIdentity,
 		"limit_key":      limitKey,
@@ -136,7 +188,7 @@ func (s *UsageService) ReserveAndCharge(ctx context.Context, userIdentity, tier,
 // This prevents TOCTOU race conditions in streaming requests where multiple concurrent
 // requests could exceed the credit limit.
 // Returns the reservation ID on success.
-func (s *UsageService) ReserveCredits(ctx context.Context, userIdentity, tier, limitKey string, amount int64) (string, error) {
+func (s *ReservationService) ReserveCredits(ctx context.Context, userIdentity, tier, limitKey string, amount int64) (string, error) {
 	userIdentity = strings.TrimSpace(strings.ToLower(userIdentity))
 	tier = strings.TrimSpace(strings.ToLower(tier))
 	limitKey = strings.TrimSpace(strings.ToLower(limitKey))
@@ -151,7 +203,7 @@ func (s *UsageService) ReserveCredits(ctx context.Context, userIdentity, tier, l
 		return "", fmt.Errorf("amount must be positive")
 	}
 
-	billingPeriod := getCurrentBillingPeriod()
+	billingPeriod := s.billingPeriod()
 
 	// Start a serializable transaction for atomic check-and-reserve
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
@@ -221,13 +273,13 @@ func (s *UsageService) ReserveCredits(ctx context.Context, userIdentity, tier, l
 			// Check if the new usage would exceed the limit
 			if effectiveUsage+amount > limit.LimitValue {
 				return "", fmt.Errorf("%w: would use %d, limit is %d, remaining is %d",
-					ErrInsufficientCredits, effectiveUsage+amount, limit.LimitValue, limit.LimitValue-effectiveUsage)
+					s.insufficientCredits, effectiveUsage+amount, limit.LimitValue, limit.LimitValue-effectiveUsage)
 			}
 		}
 	}
 
 	// Create the reservation (expires in 10 minutes)
-	reservationID := generateUUID()
+	reservationID := s.generateID()
 	expiresAt := time.Now().Add(10 * time.Minute)
 
 	var insertQuery string
@@ -253,7 +305,7 @@ func (s *UsageService) ReserveCredits(ctx context.Context, userIdentity, tier, l
 		return "", fmt.Errorf("commit transaction: %w", err)
 	}
 
-	logStructured("credits_reserved", map[string]interface{}{
+	s.log("credits_reserved", map[string]interface{}{
 		"level":          "debug",
 		"user_identity":  userIdentity,
 		"limit_key":      limitKey,
@@ -268,7 +320,7 @@ func (s *UsageService) ReserveCredits(ctx context.Context, userIdentity, tier, l
 
 // FinalizeReservation marks a reservation as finalized and records the actual usage.
 // Call this after a streaming request completes successfully.
-func (s *UsageService) FinalizeReservation(ctx context.Context, reservationID string, actualAmount int64) error {
+func (s *ReservationService) FinalizeReservation(ctx context.Context, reservationID string, actualAmount int64) error {
 	if reservationID == "" {
 		return fmt.Errorf("reservation_id is required")
 	}
@@ -368,7 +420,7 @@ func (s *UsageService) FinalizeReservation(ctx context.Context, reservationID st
 		return fmt.Errorf("commit transaction: %w", err)
 	}
 
-	logStructured("reservation_finalized", map[string]interface{}{
+	s.log("reservation_finalized", map[string]interface{}{
 		"level":          "debug",
 		"reservation_id": reservationID,
 		"user_identity":  userIdentity,
@@ -381,7 +433,7 @@ func (s *UsageService) FinalizeReservation(ctx context.Context, reservationID st
 
 // ReleaseReservation marks a reservation as released without recording usage.
 // Call this when a streaming request is cancelled or fails before completing.
-func (s *UsageService) ReleaseReservation(ctx context.Context, reservationID string) error {
+func (s *ReservationService) ReleaseReservation(ctx context.Context, reservationID string) error {
 	if reservationID == "" {
 		return fmt.Errorf("reservation_id is required")
 	}
@@ -408,13 +460,13 @@ func (s *UsageService) ReleaseReservation(ctx context.Context, reservationID str
 
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
-		logStructured("reservation_release_noop", map[string]interface{}{
+		s.log("reservation_release_noop", map[string]interface{}{
 			"level":          "debug",
 			"reservation_id": reservationID,
 			"reason":         "already finalized/released/expired or not found",
 		})
 	} else {
-		logStructured("reservation_released", map[string]interface{}{
+		s.log("reservation_released", map[string]interface{}{
 			"level":          "debug",
 			"reservation_id": reservationID,
 		})
@@ -425,7 +477,7 @@ func (s *UsageService) ReleaseReservation(ctx context.Context, reservationID str
 
 // CleanupExpiredReservations marks expired pending reservations as expired.
 // Returns the number of reservations that were expired.
-func (s *UsageService) CleanupExpiredReservations(ctx context.Context) (int, error) {
+func (s *ReservationService) CleanupExpiredReservations(ctx context.Context) (int, error) {
 	var query string
 	if s.dialect == "sqlite" {
 		query = `
@@ -448,7 +500,7 @@ func (s *UsageService) CleanupExpiredReservations(ctx context.Context) (int, err
 
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected > 0 {
-		logStructured("reservations_expired", map[string]interface{}{
+		s.log("reservations_expired", map[string]interface{}{
 			"level": "info",
 			"count": rowsAffected,
 		})
@@ -459,7 +511,7 @@ func (s *UsageService) CleanupExpiredReservations(ctx context.Context) (int, err
 
 // StartReservationCleanup starts a background goroutine that periodically cleans up
 // expired reservations. Returns a cancel function to stop the cleanup goroutine.
-func (s *UsageService) StartReservationCleanup(interval time.Duration) func() {
+func (s *ReservationService) StartReservationCleanup(interval time.Duration) func() {
 	done := make(chan struct{})
 	go func() {
 		ticker := time.NewTicker(interval)
@@ -480,20 +532,10 @@ func (s *UsageService) StartReservationCleanup(interval time.Duration) func() {
 	}
 }
 
-// generateUUID generates a UUID v4 string.
-func generateUUID() string {
-	// Simple UUID generation using crypto/rand
-	b := make([]byte, 16)
-	_, _ = cryptoRand.Read(b)
-	b[6] = (b[6] & 0x0f) | 0x40 // Version 4
-	b[8] = (b[8] & 0x3f) | 0x80 // Variant is 10
-	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
-}
-
 // AdjustUsage adjusts usage for a user, allowing both positive and negative amounts.
 // Negative amounts are used for refunds when actual usage was less than estimated.
 // Usage will not go below 0 (floor at 0).
-func (s *UsageService) AdjustUsage(ctx context.Context, userIdentity, limitKey string, adjustment int64, reason string) error {
+func (s *ReservationService) AdjustUsage(ctx context.Context, userIdentity, limitKey string, adjustment int64, reason string) error {
 	userIdentity = strings.TrimSpace(strings.ToLower(userIdentity))
 	limitKey = strings.TrimSpace(strings.ToLower(limitKey))
 
@@ -507,7 +549,7 @@ func (s *UsageService) AdjustUsage(ctx context.Context, userIdentity, limitKey s
 		return nil // No-op
 	}
 
-	billingPeriod := getCurrentBillingPeriod()
+	billingPeriod := s.billingPeriod()
 
 	var query string
 	if s.dialect == "sqlite" {
@@ -538,7 +580,7 @@ func (s *UsageService) AdjustUsage(ctx context.Context, userIdentity, limitKey s
 		}
 	}
 
-	logStructured("usage_adjusted", map[string]interface{}{
+	s.log("usage_adjusted", map[string]interface{}{
 		"level":         "debug",
 		"user_identity": userIdentity,
 		"limit_key":     limitKey,
@@ -548,8 +590,3 @@ func (s *UsageService) AdjustUsage(ctx context.Context, userIdentity, limitKey s
 
 	return nil
 }
-
-// Note: ErrInsufficientCredits is defined in ai_gateway_errors.go (centralized AI gateway errors)
-
-// Compile-time interface check for UsageServicer
-var _ UsageServicer = (*UsageService)(nil)

@@ -114,7 +114,7 @@ func TestAccountServiceCreditsFallbacksWhenPlanUnavailable(t *testing.T) {
 		PlansPath: "", // Empty path means no plans will be loaded
 		BundleKey: "missing_bundle",
 	})
-	planService := &PlanService{planStore: emptyStore, defaultBundle: "missing_bundle", displayEnv: "production"}
+	planService := NewPlanServiceWithOptions(PlanServiceOptions{PlanStore: emptyStore, DefaultBundle: "missing_bundle", DisplayEnv: "production"})
 	accountService := NewAccountService(db, planService)
 
 	credits, err := accountService.GetCredits("fallback@example.com")

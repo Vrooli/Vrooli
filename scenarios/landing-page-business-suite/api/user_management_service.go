@@ -1,10 +1,12 @@
 package main
 
-import "landing-page-business-suite-api/internal/account"
+import "landing-page-business-suite-api/internal/administration"
 
-type UserManagementStore = account.UserManagementStore
-type UserManagementService = account.UserManagementService
+type (
+	UserManagementStore   = administration.UserManagementStore
+	UserManagementService = administration.UserManagementService
+)
 
 func NewUserManagementService(db UserManagementStore) *UserManagementService {
-	return account.NewUserManagementService(db)
+	return administration.NewUserManagementService(db)
 }

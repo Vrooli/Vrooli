@@ -38,7 +38,7 @@ func TestHandleReportUsage_ValidRequest_Returns200(t *testing.T) {
 	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
 	defer db.Close()
 
-	handler := svc.requireServiceAuth(handleReportUsage(svc))
+	handler := requireUsageServiceAuth(svc, handleReportUsage(svc))
 
 	body := UsageReportRequest{
 		UserIdentity: "user@example.com",
@@ -75,7 +75,7 @@ func TestHandleReportUsage_MissingAuthHeader_Returns401(t *testing.T) {
 	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
 	defer db.Close()
 
-	handler := svc.requireServiceAuth(handleReportUsage(svc))
+	handler := requireUsageServiceAuth(svc, handleReportUsage(svc))
 
 	body := UsageReportRequest{
 		UserIdentity: "user@example.com",
@@ -98,7 +98,7 @@ func TestHandleReportUsage_InvalidAuthToken_Returns401(t *testing.T) {
 	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
 	defer db.Close()
 
-	handler := svc.requireServiceAuth(handleReportUsage(svc))
+	handler := requireUsageServiceAuth(svc, handleReportUsage(svc))
 
 	body := UsageReportRequest{
 		UserIdentity: "user@example.com",
@@ -121,7 +121,7 @@ func TestHandleReportUsage_AuthWithoutBearerPrefix_Returns401(t *testing.T) {
 	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
 	defer db.Close()
 
-	handler := svc.requireServiceAuth(handleReportUsage(svc))
+	handler := requireUsageServiceAuth(svc, handleReportUsage(svc))
 
 	body := UsageReportRequest{
 		UserIdentity: "user@example.com",
@@ -144,7 +144,7 @@ func TestHandleReportUsage_MalformedJSON_Returns400(t *testing.T) {
 	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
 	defer db.Close()
 
-	handler := svc.requireServiceAuth(handleReportUsage(svc))
+	handler := requireUsageServiceAuth(svc, handleReportUsage(svc))
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/usage/report", bytes.NewReader([]byte("not valid json")))
 	req.Header.Set("Content-Type", "application/json")
@@ -193,7 +193,7 @@ func TestHandleReportUsage_MissingRequiredFields_Returns400(t *testing.T) {
 			svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
 			defer db.Close()
 
-			handler := svc.requireServiceAuth(handleReportUsage(svc))
+			handler := requireUsageServiceAuth(svc, handleReportUsage(svc))
 
 			bodyBytes, _ := json.Marshal(tc.body)
 			req := httptest.NewRequest(http.MethodPost, "/api/v1/usage/report", bytes.NewReader(bodyBytes))
@@ -212,7 +212,7 @@ func TestHandleReportUsage_BYOK_RecordsZeroAmount(t *testing.T) {
 	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
 	defer db.Close()
 
-	handler := svc.requireServiceAuth(handleReportUsage(svc))
+	handler := requireUsageServiceAuth(svc, handleReportUsage(svc))
 
 	body := UsageReportRequest{
 		UserIdentity: "user@example.com",
@@ -465,7 +465,7 @@ func TestHandleReportUsage_EmptyConfiguredToken_RejectsAll(t *testing.T) {
 	svc, _, db := createTestUsageServiceWithToken(t, "") // Empty token
 	defer db.Close()
 
-	handler := svc.requireServiceAuth(handleReportUsage(svc))
+	handler := requireUsageServiceAuth(svc, handleReportUsage(svc))
 
 	body := UsageReportRequest{
 		UserIdentity: "user@example.com",
@@ -488,7 +488,7 @@ func TestHandleReportUsage_WhitespaceOnlyToken_Rejected(t *testing.T) {
 	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
 	defer db.Close()
 
-	handler := svc.requireServiceAuth(handleReportUsage(svc))
+	handler := requireUsageServiceAuth(svc, handleReportUsage(svc))
 
 	body := UsageReportRequest{
 		UserIdentity: "user@example.com",
@@ -515,7 +515,7 @@ func TestHandleReportUsage_WithMetadata(t *testing.T) {
 	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
 	defer db.Close()
 
-	handler := svc.requireServiceAuth(handleReportUsage(svc))
+	handler := requireUsageServiceAuth(svc, handleReportUsage(svc))
 
 	body := UsageReportRequest{
 		UserIdentity: "user@example.com",
@@ -555,7 +555,7 @@ func TestHandleReportUsage_ResponseFormat(t *testing.T) {
 	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
 	defer db.Close()
 
-	handler := svc.requireServiceAuth(handleReportUsage(svc))
+	handler := requireUsageServiceAuth(svc, handleReportUsage(svc))
 
 	body := UsageReportRequest{
 		UserIdentity: "user@example.com",

@@ -11,9 +11,11 @@ type SEOServicer interface {
 	RobotsTXT(fallbackBase string) (string, error)
 }
 
-type VariantSEOConfig = content.VariantSEOConfig
-type SEOResponse = content.SEOResponse
-type SEOService = content.SEOService
+type (
+	VariantSEOConfig = content.VariantSEOConfig
+	SEOResponse      = content.SEOResponse
+	SEOService       = content.SEOService
+)
 
 var _ SEOServicer = (*SEOService)(nil)
 

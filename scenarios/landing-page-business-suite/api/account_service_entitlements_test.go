@@ -103,7 +103,7 @@ func TestAccountServiceCreditsFallbackWithoutPricing(t *testing.T) {
 		BundleKey:  bundleKey,
 		DisplayEnv: "production",
 	})
-	planService := &PlanService{planStore: emptyStore, defaultBundle: bundleKey, displayEnv: "production"}
+	planService := NewPlanServiceWithOptions(PlanServiceOptions{PlanStore: emptyStore, DefaultBundle: bundleKey, DisplayEnv: "production"})
 	accountService := NewAccountService(db, planService)
 
 	credits, err := accountService.GetCredits("no-wallet@example.com")

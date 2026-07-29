@@ -1,4 +1,4 @@
-package main
+package commerce
 
 import (
 	"context"
@@ -1133,7 +1133,7 @@ func TestJsonValueHelpers(t *testing.T) {
 func TestResolvePlansPath(t *testing.T) {
 	// This tests the resolution logic - the function looks for plans.json
 	// in multiple locations and returns the first found or default
-	path := resolvePlansPath()
+	path := ResolvePlansPath()
 	assert.Contains(t, path, "plans.json")
 }
 

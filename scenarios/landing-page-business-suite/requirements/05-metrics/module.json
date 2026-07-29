@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-07-29T10:39:34-04:00"
+    "last_validated_at": "2026-07-29T13:32:33-04:00"
   },
   "requirements": [
     {
       "id": "METRIC-TAG",
       "title": "Event variant tagging",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-019",
       "description": "All events (page view, scroll, clicks, forms, conversions) include variant_id in payload",
       "validation": [
@@ -14,7 +14,7 @@
           "type": "test",
           "ref": "api/metrics_service_test.go::TestTrackEvent_Valid",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Go unit tests verify variant_id is included in event payload"
         },
         {
@@ -29,7 +29,7 @@
     {
       "id": "METRIC-FILTER",
       "title": "Analytics variant filtering",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-020",
       "description": "Admin analytics view filters stats by variant and time range",
       "validation": [
@@ -37,7 +37,7 @@
           "type": "test",
           "ref": "api/metrics_service_test.go::TestGetVariantStats_FilterBySlug",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Go unit test verifies filtering by variant slug and date range"
         },
         {
@@ -52,7 +52,7 @@
     {
       "id": "METRIC-EVENTS",
       "title": "Minimum event coverage",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-021",
       "description": "System emits events for: page_view, scroll_depth (bands), click (element ID), form_submit, conversion (Stripe success)",
       "validation": [
@@ -60,7 +60,7 @@
           "type": "test",
           "ref": "api/internal/metrics/service_test.go::TestValidateEventAcceptsRequiredEventTypes",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Frontend useMetrics hook tracks all required event types"
         },
         {
@@ -75,7 +75,7 @@
     {
       "id": "METRIC-IDEMPOTENT",
       "title": "Metrics idempotency",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-022",
       "description": "Metrics ingestion is idempotent or deduplicated to avoid double-counting on retries",
       "validation": [
@@ -83,7 +83,7 @@
           "type": "test",
           "ref": "api/metrics_service_test.go::TestTrackEvent_Idempotency",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Go unit test verifies duplicate events are ignored via event_id check"
         }
       ]
@@ -91,7 +91,7 @@
     {
       "id": "METRIC-SUMMARY",
       "title": "Analytics summary",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-023",
       "description": "Analytics home shows total visitors, conversion rate per variant, top CTAs by CTR",
       "validation": [
@@ -99,7 +99,7 @@
           "type": "test",
           "ref": "api/metrics_service_test.go::TestGetAnalyticsSummary",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Go unit test verifies summary aggregation (total visitors, variant stats, top CTA, CTR)"
         },
         {
@@ -114,7 +114,7 @@
     {
       "id": "METRIC-DETAIL",
       "title": "Variant detail view",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-024",
       "description": "Variant detail page shows views, CTA clicks, conversions, conversion rate, basic trend",
       "validation": [
@@ -122,7 +122,7 @@
           "type": "test",
           "ref": "api/metrics_handlers_test.go::TestHandleMetricsVariantStats_Success",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Go unit test verifies variant stats include views, CTA clicks, conversions, conversion rate"
         },
         {

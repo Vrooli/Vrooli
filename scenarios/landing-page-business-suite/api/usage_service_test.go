@@ -86,12 +86,9 @@ func createTestUsageService(t *testing.T) (*UsageService, *LimitsService, *sql.D
 	limitsSvc := NewLimitsService(db, "sqlite")
 
 	// Create usage service without service token for basic tests (with SQLite dialect)
-	usageSvc := &UsageService{
-		db:           db,
-		limitsSvc:    limitsSvc,
-		serviceToken: "",
-		dialect:      "sqlite",
-	}
+	usageSvc := NewUsageServiceWithOptions(UsageServiceOptions{
+		DB: db, LimitsService: limitsSvc, Dialect: "sqlite", ServiceToken: "",
+	})
 
 	return usageSvc, limitsSvc, db
 }
@@ -103,12 +100,9 @@ func createTestUsageServiceWithToken(t *testing.T, token string) (*UsageService,
 	db := createTestUsageDB(t)
 	limitsSvc := NewLimitsService(db, "sqlite")
 
-	usageSvc := &UsageService{
-		db:           db,
-		limitsSvc:    limitsSvc,
-		serviceToken: token,
-		dialect:      "sqlite",
-	}
+	usageSvc := NewUsageServiceWithOptions(UsageServiceOptions{
+		DB: db, LimitsService: limitsSvc, Dialect: "sqlite", ServiceToken: token,
+	})
 
 	return usageSvc, limitsSvc, db
 }
@@ -185,12 +179,9 @@ func createTestUsageServiceWithMock(t *testing.T, mock *MockLimitsService) (*Usa
 
 	db := createTestUsageDB(t)
 
-	usageSvc := &UsageService{
-		db:           db,
-		limitsSvc:    mock,
-		serviceToken: "",
-		dialect:      "sqlite",
-	}
+	usageSvc := NewUsageServiceWithOptions(UsageServiceOptions{
+		DB: db, LimitsService: mock, Dialect: "sqlite", ServiceToken: "",
+	})
 
 	return usageSvc, db
 }

@@ -1,4 +1,4 @@
-package main
+package experimentation
 
 import (
 	"fmt"
@@ -195,4 +195,22 @@ func normalizeHeaderCTA(input HeaderCTAConfig, fallback HeaderCTAConfig) HeaderC
 		cfg.Variant = variant
 	}
 	return cfg
+}
+
+func valueOrDefault(value, fallback string) string {
+	if trimmed := strings.TrimSpace(value); trimmed != "" {
+		return trimmed
+	}
+	return fallback
+}
+
+// NormalizeLandingHeaderConfig applies the canonical presentation defaults to
+// a persisted variant header configuration.
+func NormalizeLandingHeaderConfig(input *LandingHeaderConfig, variantName string) LandingHeaderConfig {
+	return normalizeLandingHeaderConfig(input, variantName)
+}
+
+// DefaultLandingHeaderConfig returns the complete header presentation defaults.
+func DefaultLandingHeaderConfig(variantName string) LandingHeaderConfig {
+	return defaultLandingHeaderConfig(variantName)
 }

@@ -1,5 +1,5 @@
-// Package account defines transport-safe account domain contracts.
-package account
+// Package commerce defines transport-safe subscription and entitlement contracts.
+package commerce
 
 import shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 

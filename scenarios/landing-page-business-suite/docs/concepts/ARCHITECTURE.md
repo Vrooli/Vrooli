@@ -22,7 +22,7 @@ subscription, credit, customer, download, and admin-operations service.
 - [CODE: api/ai_gateway_service.go] - AI gateway request routing + credit accounting
 - [CODE: api/user_auth_service.go] - End-user magic-link / JWT auth
 - [CODE: api/internal/administration/remote_profile_service.go] - Remote profile storage + proxy service
-- [CODE: api/plan_store.go] - File-based plan catalog (pricing source of truth)
+- [CODE: api/internal/commerce/plan_store.go] - File-based plan catalog (pricing source of truth)
 - [CODE: cli/main.go] - Operator CLI surface
 - [CODE: api/internal/schema/schema.go] - Ordered registry for authoritative, domain-owned database DDL
 
@@ -152,7 +152,7 @@ api/
 ├── ai_gateway_*.go          # AI Gateway: model listing, chat, stream, usage
 ├── billing_*.go             # Stripe checkout + portal + webhook
 ├── stripe_service.go        # Stripe client + plan/coupon import
-├── plan_*.go                # File-backed plan/pricing catalog (PlanStore)
+├── plan_catalog.go          # Commerce catalog composition adapter
 ├── download_*.go            # Download hosting, entitlement gating, S3 storage
 ├── content_handlers.go      # Branding, assets, SEO
 ├── variant_*.go             # A/B testing variant config
@@ -162,7 +162,8 @@ api/
 ├── remote_profile*.go       # Remote-profile storage, proxy, session linking, revoke
 ├── apikeys_service.go       # API-key vault for upstream LLM providers
 ├── limits_service.go        # Cost-based credit limits per tier / app
-├── usage_service.go         # Credit reservations, usage reporting
+├── usage_service.go         # HTTP handlers and composition for usage endpoints
+├── handlers/account/        # Generated AccountService Connect transport; commerce implementation
 └── *_test.go                # Per-domain tests (currently colocated in `package main`)
 
 cli/
@@ -173,12 +174,12 @@ cli/
 
 api/internal/
 ├── administration/          # Admin accounts, sessions, remote profiles + schema
-├── commerce/                # Plans, Stripe, subscriptions, credits, usage + schema
+├── commerce/                # Plans/catalog, Stripe, subscriptions, credits, usage/reservations + schema
 ├── delivery/                # Entitled download catalog/storage + schema
 ├── experimentation/         # Variant-selection policy, independent of config decoding
 ├── intelligence/            # Upstream AI-provider error classification
 ├── metrics/                 # Analytics event persistence + schema
-├── content/                 # Assets, feedback, waitlist + schema
+├── content/                 # Assets, feedback, waitlist, SEO + schema
 ├── schema/                  # Thin ordered schema registry (no business rules)
 └── testutil/                # Test-only shared helpers; forbidden in production imports
 ```

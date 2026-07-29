@@ -6,7 +6,9 @@ export default defineConfig(({ mode }) => {
   const isProfile = mode === "profile";
 
   return {
-    base: './',  // Required for tunnel/proxy contexts
+    // INTEROP-CRITICAL: relative assets keep the UI operable through Vrooli's
+    // tunnel/proxy paths as well as direct local serving.
+    base: './',
     resolve: {
       alias: {
         "@vrooli/proto-types/landing-page-business-suite": path.resolve(__dirname, "../../../packages/proto/gen/typescript/landing-page-business-suite/v1"),

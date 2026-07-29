@@ -12,7 +12,6 @@ import (
 	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
-	accountdomain "landing-page-business-suite-api/internal/account"
 )
 
 func TestAccountProceduresRequireIdentityBeforeLookup(t *testing.T) {
@@ -25,8 +24,8 @@ func TestAccountProceduresRequireIdentityBeforeLookup(t *testing.T) {
 }
 
 func TestGetMyCreditsPreservesDisplayConfiguration(t *testing.T) {
-	handler := NewHandler(fakeReader{credits: func(context.Context, string) (*accountdomain.CreditsEnvelope, error) {
-		return &accountdomain.CreditsEnvelope{DisplayCreditsLabel: "tokens", DisplayCreditsMultiplier: 2}, nil
+	handler := NewHandler(fakeReader{credits: func(context.Context, string) (*Credits, error) {
+		return &Credits{DisplayCreditsLabel: "tokens", DisplayCreditsMultiplier: 2}, nil
 	}}, testUser)
 	response, err := handler.GetMyCredits(context.Background(), connect.NewRequest(&lpbsv1.GetMyCreditsRequest{}))
 	if err != nil || response.Msg.GetDisplayCreditsLabel() != "tokens" || response.Msg.GetDisplayCreditsMultiplier() != 2 {
@@ -35,8 +34,8 @@ func TestGetMyCreditsPreservesDisplayConfiguration(t *testing.T) {
 }
 
 func TestGetEntitlementsPreservesBillingCycleStart(t *testing.T) {
-	handler := NewHandler(fakeReader{entitlements: func(context.Context, string) (*accountdomain.EntitlementPayload, error) {
-		return &accountdomain.EntitlementPayload{Status: "active", BillingCycleStart: 12}, nil
+	handler := NewHandler(fakeReader{entitlements: func(context.Context, string) (*Entitlements, error) {
+		return &Entitlements{Status: "active", BillingCycleStart: 12}, nil
 	}}, testUser)
 	response, err := handler.GetEntitlements(context.Background(), connect.NewRequest(&lpbsv1.GetEntitlementsRequest{}))
 	if err != nil || response.Msg.GetBillingCycleStart() != 12 {
@@ -45,7 +44,7 @@ func TestGetEntitlementsPreservesBillingCycleStart(t *testing.T) {
 }
 
 func TestGetEntitlementsMapsLookupFailureToInternal(t *testing.T) {
-	handler := NewHandler(fakeReader{entitlements: func(context.Context, string) (*accountdomain.EntitlementPayload, error) {
+	handler := NewHandler(fakeReader{entitlements: func(context.Context, string) (*Entitlements, error) {
 		return nil, errors.New("store")
 	}}, testUser)
 	_, err := handler.GetEntitlements(context.Background(), connect.NewRequest(&lpbsv1.GetEntitlementsRequest{}))
@@ -56,8 +55,8 @@ func TestGetEntitlementsMapsLookupFailureToInternal(t *testing.T) {
 
 func TestGetEntitlementsRejectsOutOfRangeBillingCycleStart(t *testing.T) {
 	tooLarge := int(^uint(0) >> 1)
-	handler := NewHandler(fakeReader{entitlements: func(context.Context, string) (*accountdomain.EntitlementPayload, error) {
-		return &accountdomain.EntitlementPayload{BillingCycleStart: tooLarge}, nil
+	handler := NewHandler(fakeReader{entitlements: func(context.Context, string) (*Entitlements, error) {
+		return &Entitlements{BillingCycleStart: tooLarge}, nil
 	}}, testUser)
 	_, err := handler.GetEntitlements(context.Background(), connect.NewRequest(&lpbsv1.GetEntitlementsRequest{}))
 	if got := connect.CodeOf(err); got != connect.CodeInternal {
@@ -83,8 +82,8 @@ var testUser = func(context.Context) string { return "user@example.test" }
 
 type fakeReader struct {
 	subscription func(context.Context, string) (*shared.SubscriptionStatus, error)
-	credits      func(context.Context, string) (*accountdomain.CreditsEnvelope, error)
-	entitlements func(context.Context, string) (*accountdomain.EntitlementPayload, error)
+	credits      func(context.Context, string) (*Credits, error)
+	entitlements func(context.Context, string) (*Entitlements, error)
 }
 
 func (f fakeReader) GetSubscriptionContext(c context.Context, u string) (*shared.SubscriptionStatus, error) {
@@ -94,14 +93,14 @@ func (f fakeReader) GetSubscriptionContext(c context.Context, u string) (*shared
 	return nil, nil
 }
 
-func (f fakeReader) GetCreditsContext(c context.Context, u string) (*accountdomain.CreditsEnvelope, error) {
+func (f fakeReader) GetCreditsContext(c context.Context, u string) (*Credits, error) {
 	if f.credits != nil {
 		return f.credits(c, u)
 	}
 	return nil, nil
 }
 
-func (f fakeReader) GetEntitlementsContext(c context.Context, u string) (*accountdomain.EntitlementPayload, error) {
+func (f fakeReader) GetEntitlementsContext(c context.Context, u string) (*Entitlements, error) {
 	if f.entitlements != nil {
 		return f.entitlements(c, u)
 	}

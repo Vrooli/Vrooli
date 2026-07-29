@@ -1,11 +1,10 @@
-package main
+package commerce
 
 import (
 	"context"
 	"fmt"
 	"strings"
 
-	"landing-page-business-suite-api/internal/commerce"
 	"landing-page-business-suite-api/internal/envx"
 
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
@@ -17,6 +16,7 @@ type PlanService struct {
 	planStore     *PlanStore
 	defaultBundle string
 	displayEnv    string
+	log           func(event string, fields map[string]interface{})
 }
 
 type (
@@ -25,55 +25,6 @@ type (
 	PlanOption      = shared.PlanOption
 	PricingOverview = shared.PricingOverview
 )
-
-type (
-	StripePriceFetcher     = commerce.StripePriceFetcher
-	ImportPlanSelection    = commerce.ImportPlanSelection
-	StripeImportMode       = commerce.StripeImportMode
-	StripeImportResult     = commerce.StripeImportResult
-	BundleCatalogEntry     = commerce.BundleCatalogEntry
-	UpdateBundlePriceInput = commerce.UpdateBundlePriceInput
-	CreateBundlePriceInput = commerce.CreateBundlePriceInput
-)
-
-const (
-	StripeImportModeMerge   = commerce.StripeImportModeMerge
-	StripeImportModeReplace = commerce.StripeImportModeReplace
-)
-
-var (
-	errStripeImportNoSelections                 = commerce.ErrStripeImportNoSelections
-	errStripeImportNoValidSelections            = commerce.ErrStripeImportNoValidSelections
-	errStripeImportMissingFetcher               = commerce.ErrStripeImportMissingFetcher
-	errStripeImportBundleMissing                = commerce.ErrStripeImportBundleMissing
-	errStripeImportBundleProductMissing         = commerce.ErrStripeImportBundleProductMissing
-	errStripeImportInvalidMode                  = commerce.ErrStripeImportInvalidMode
-	errStripeImportProductSwitchRequiresReplace = commerce.ErrStripeImportProductSwitchRequiresReplace
-)
-
-// NewPlanService creates a PlanService with a PlanStore. Plans are file-backed;
-// the ignored legacy argument keeps existing callers source-compatible while
-// ensuring this service never captures a database pool.
-func NewPlanService(_ any) *PlanService {
-	bundle := stringsTrimOrDefault(envx.Get("BUNDLE_KEY"), "business_suite")
-	env := stringsTrimOrDefault(envx.Get("BUNDLE_ENVIRONMENT"), "production")
-
-	// Create and load the plan store
-	plansPath := resolvePlansPath()
-	planStore := NewPlanStoreWithOptions(PlanStoreOptions{
-		PlansPath:  plansPath,
-		BundleKey:  bundle,
-		DisplayEnv: env,
-	})
-	if err := planStore.LoadAll(); err != nil {
-		logStructuredError("plan_store_load_failed", map[string]interface{}{
-			"error": err.Error(),
-			"path":  plansPath,
-		})
-	}
-
-	return &PlanService{planStore: planStore, defaultBundle: bundle, displayEnv: env}
-}
 
 // NewPlanServiceWithPlanStore creates a PlanService with an explicit PlanStore.
 func NewPlanServiceWithPlanStore(planStore *PlanStore) *PlanService {
@@ -87,6 +38,8 @@ type PlanServiceOptions struct {
 	PlanStore     *PlanStore
 	DefaultBundle string
 	DisplayEnv    string
+	// Log is an optional composition-root supplied observability seam.
+	Log func(event string, fields map[string]interface{})
 }
 
 // NewPlanServiceWithOptions creates a plan service with explicit configuration.
@@ -101,7 +54,7 @@ func NewPlanServiceWithOptions(opts PlanServiceOptions) *PlanService {
 	}
 	planStore := opts.PlanStore
 	if planStore == nil {
-		plansPath := resolvePlansPath()
+		plansPath := ResolvePlansPath()
 		planStore = NewPlanStoreWithOptions(PlanStoreOptions{
 			PlansPath:  plansPath,
 			BundleKey:  bundle,
@@ -109,7 +62,13 @@ func NewPlanServiceWithOptions(opts PlanServiceOptions) *PlanService {
 		})
 		_ = planStore.LoadAll()
 	}
-	return &PlanService{planStore: planStore, defaultBundle: bundle, displayEnv: env}
+	return &PlanService{planStore: planStore, defaultBundle: bundle, displayEnv: env, log: opts.Log}
+}
+
+func (s *PlanService) logEvent(event string, fields map[string]interface{}) {
+	if s.log != nil {
+		s.log(event, fields)
+	}
 }
 
 func stringsTrimOrDefault(value string, fallback string) string {
@@ -174,25 +133,25 @@ func (s *PlanService) CreateBundlePrice(ctx context.Context, bundleKey string, i
 		return nil, fmt.Errorf("plan store not available")
 	}
 
-	priceID, err := commerce.NormalizeStripePriceID(input.StripePriceID)
+	priceID, err := NormalizeStripePriceID(input.StripePriceID)
 	if err != nil {
 		return nil, err
 	}
-	planName, err := commerce.NormalizePlanName(input.PlanName)
+	planName, err := NormalizePlanName(input.PlanName)
 	if err != nil {
 		return nil, err
 	}
-	planTier, err := commerce.NormalizePlanTier(input.PlanTier)
+	planTier, err := NormalizePlanTier(input.PlanTier)
 	if err != nil {
 		return nil, err
 	}
 
-	billingInterval := commerce.MapBillingInterval(input.BillingInterval)
-	if err := commerce.ValidateBillingInterval(billingInterval); err != nil {
+	billingInterval := MapBillingInterval(input.BillingInterval)
+	if err := ValidateBillingInterval(billingInterval); err != nil {
 		return nil, err
 	}
 
-	stripeDetails := fetchStripePriceForCreation(ctx, priceID, fetcher)
+	stripeDetails := s.fetchStripePriceForCreation(ctx, priceID, fetcher)
 	pricing, err := resolveCreatedPlanPricing(input, priceID, billingInterval, stripeDetails, s.planStore.GetBundle())
 	if err != nil {
 		return nil, err
@@ -216,8 +175,8 @@ func (s *PlanService) CreateBundlePrice(ctx context.Context, bundleKey string, i
 		DisplayWeight:          pricing.displayWeight,
 		DisplayEnabled:         pricing.displayEnabled,
 		MonthlyIncludedCredits: pricing.monthlyCredits,
-		PlanRank:               commerce.PlanRankForTier(planTier),
-		Kind:                   commerce.PlanKindForTier(planTier),
+		PlanRank:               PlanRankForTier(planTier),
+		Kind:                   PlanKindForTier(planTier),
 		BundleKey:              bundleKey,
 	}
 
@@ -245,7 +204,7 @@ func (s *PlanService) UpdateBundlePriceWithStripe(ctx context.Context, bundleKey
 		return nil, fmt.Errorf("plan store not available")
 	}
 
-	var stripeDetails *commerce.StripePriceImport
+	var stripeDetails *StripePriceImport
 	if input.StripePriceID != nil {
 		nextID := strings.TrimSpace(*input.StripePriceID)
 		if nextID != "" {
@@ -276,7 +235,7 @@ func (s *PlanService) ImportStripePrices(ctx context.Context, selections []Impor
 	}
 	bundle := s.planStore.GetBundle()
 	if bundle == nil {
-		return nil, errStripeImportBundleMissing
+		return nil, ErrStripeImportBundleMissing
 	}
 	bundleProductID := strings.TrimSpace(bundle.StripeProductId)
 	return s.ImportStripePricesForProduct(ctx, selections, bundleProductID, StripeImportModeMerge, fetcher)
@@ -291,28 +250,28 @@ func (s *PlanService) ImportStripePricesForProduct(ctx context.Context, selectio
 
 	bundle := s.planStore.GetBundle()
 	if bundle == nil {
-		return nil, errStripeImportBundleMissing
+		return nil, ErrStripeImportBundleMissing
 	}
 
 	normalizedProductID := strings.TrimSpace(bundleProductID)
 	if normalizedProductID == "" {
-		return nil, errStripeImportBundleProductMissing
+		return nil, ErrStripeImportBundleProductMissing
 	}
 
 	switch mode {
 	case StripeImportModeMerge, StripeImportModeReplace:
 	default:
-		return nil, errStripeImportInvalidMode
+		return nil, ErrStripeImportInvalidMode
 	}
 
 	currentProductID := strings.TrimSpace(bundle.StripeProductId)
 	if mode == StripeImportModeMerge && currentProductID != "" && currentProductID != normalizedProductID {
-		return nil, errStripeImportProductSwitchRequiresReplace
+		return nil, ErrStripeImportProductSwitchRequiresReplace
 	}
 
 	bundle.StripeProductId = normalizedProductID
 
-	normalizedSelections, _, err := commerce.NormalizeStripeImportSelections(selections)
+	normalizedSelections, _, err := NormalizeStripeImportSelections(selections)
 	if err != nil {
 		return nil, err
 	}

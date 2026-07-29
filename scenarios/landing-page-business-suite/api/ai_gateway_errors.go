@@ -1,24 +1,19 @@
 package main
 
-import "errors"
+import (
+	"errors"
 
-// AI Gateway errors.
-// These are centralized here to maintain clear error ownership and avoid duplication
-// across ai_gateway_service.go and usage_service.go.
+	"landing-page-business-suite-api/internal/intelligence"
+)
+
+// Compatibility aliases preserve the existing API transport contract while
+// intelligence owns AI-provider and gateway error identities. Insufficient
+// credits remains composition-owned until the usage service's error contract
+// is moved into commerce, because it is shared policy rather than AI logic.
 var (
-	// ErrInsufficientCredits indicates the user doesn't have enough credits for the operation.
-	// Used by both the AI gateway (for request rejection) and usage service (for limit checking).
-	ErrInsufficientCredits = errors.New("insufficient credits for this operation")
-
-	// ErrNoAPIKeyConfigured indicates no OpenRouter API key is available.
-	ErrNoAPIKeyConfigured = errors.New("no OpenRouter API key configured")
-
-	// ErrModelNotAllowed indicates the requested model is not in the allowed list.
-	ErrModelNotAllowed = errors.New("model not in allowed list")
-
-	// ErrAIGatewayUnavailable indicates the AI gateway service is not available.
-	ErrAIGatewayUnavailable = errors.New("AI gateway service unavailable")
-
-	// ErrStreamingNotSupported indicates the client doesn't support HTTP streaming.
-	ErrStreamingNotSupported = errors.New("streaming not supported by client")
+	ErrInsufficientCredits   = errors.New("insufficient credits for this operation")
+	ErrNoAPIKeyConfigured    = intelligence.ErrNoAPIKeyConfigured
+	ErrModelNotAllowed       = intelligence.ErrModelNotAllowed
+	ErrAIGatewayUnavailable  = intelligence.ErrAIGatewayUnavailable
+	ErrStreamingNotSupported = intelligence.ErrStreamingNotSupported
 )

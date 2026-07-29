@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"landing-page-business-suite-api/internal/intelligence"
 )
 
 // ExecuteChatStream executes a streaming chat completion via Server-Sent Events.
@@ -74,7 +76,7 @@ func (s *AIGatewayService) ExecuteChatStream(ctx context.Context, userIdentity s
 		s.log("finalize_reservation_failed", map[string]interface{}{
 			"level": "error", "user_identity": userIdentity, "reservation_id": reservationID, "actual_cost": actualCost, "error": err.Error(),
 		})
-		if fallbackErr := s.usageService.RecordUsage(ctx, UsageReportRequest{
+		if fallbackErr := s.usageService.RecordUsage(ctx, intelligence.UsageReport{
 			UserIdentity: userIdentity, LimitKey: "ai_credits", Amount: actualCost,
 			AppBundleKey: req.Metadata.AppBundleKey, Operation: req.Metadata.Operation,
 		}); fallbackErr != nil {

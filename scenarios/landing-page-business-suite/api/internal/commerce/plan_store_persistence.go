@@ -1,4 +1,4 @@
-package main
+package commerce
 
 import (
 	"encoding/json"
@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/proto"
-	"landing-page-business-suite-api/internal/commerce"
 
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 )
@@ -19,13 +18,13 @@ func (ps *PlanStore) LoadAll() error {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 	if ps.plansPath == "" {
-		logStructured("plans_path_not_set", map[string]interface{}{"fallback": "empty plans"})
+		ps.logEvent("plans_path_not_set", map[string]interface{}{"fallback": "empty plans"})
 		return nil
 	}
 	data, err := os.ReadFile(ps.plansPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			logStructured("plans_file_not_found", map[string]interface{}{"path": ps.plansPath, "fallback": "empty plans"})
+			ps.logEvent("plans_file_not_found", map[string]interface{}{"path": ps.plansPath, "fallback": "empty plans"})
 			return nil
 		}
 		return err
@@ -38,23 +37,23 @@ func (ps *PlanStore) LoadAll() error {
 	if fileData.Bundle.Metadata != nil {
 		bundle.Metadata = convertMetadataToProto(fileData.Bundle.Metadata)
 	}
-	if err := commerce.NormalizeBundle(bundle, ps.bundleKey, ps.displayEnv); err != nil {
+	if err := NormalizeBundle(bundle, ps.bundleKey, ps.displayEnv); err != nil {
 		return fmt.Errorf("invalid bundle config: %w", err)
 	}
 	plans := make([]*PlanOption, 0, len(fileData.Plans))
 	seenPriceIDs := make(map[string]struct{}, len(fileData.Plans))
 	for _, planFile := range fileData.Plans {
-		plan := &PlanOption{StripePriceId: planFile.StripePriceID, PlanName: planFile.PlanName, PlanTier: planFile.PlanTier, BillingInterval: commerce.MapBillingInterval(planFile.BillingInterval), AmountCents: planFile.AmountCents, Currency: planFile.Currency, DisplayWeight: planFile.DisplayWeight, DisplayEnabled: planFile.DisplayEnabled, MonthlyIncludedCredits: planFile.MonthlyIncludedCredits, OneTimeBonusCredits: planFile.OneTimeBonusCredits, PlanRank: planFile.PlanRank, BonusType: planFile.BonusType, Kind: commerce.MapPlanKind(planFile.Kind), IntroEnabled: planFile.IntroEnabled, IntroPeriods: planFile.IntroPeriods, IntroPriceLookupKey: planFile.IntroPriceLookupKey, IsVariableAmount: planFile.IsVariableAmount, BundleKey: ps.bundleKey}
+		plan := &PlanOption{StripePriceId: planFile.StripePriceID, PlanName: planFile.PlanName, PlanTier: planFile.PlanTier, BillingInterval: MapBillingInterval(planFile.BillingInterval), AmountCents: planFile.AmountCents, Currency: planFile.Currency, DisplayWeight: planFile.DisplayWeight, DisplayEnabled: planFile.DisplayEnabled, MonthlyIncludedCredits: planFile.MonthlyIncludedCredits, OneTimeBonusCredits: planFile.OneTimeBonusCredits, PlanRank: planFile.PlanRank, BonusType: planFile.BonusType, Kind: MapPlanKind(planFile.Kind), IntroEnabled: planFile.IntroEnabled, IntroPeriods: planFile.IntroPeriods, IntroPriceLookupKey: planFile.IntroPriceLookupKey, IsVariableAmount: planFile.IsVariableAmount, BundleKey: ps.bundleKey}
 		if planFile.IntroAmountCents != nil {
 			plan.IntroAmountCents = proto.Int64(*planFile.IntroAmountCents)
 		}
 		if planFile.IntroType != "" {
-			plan.IntroType = commerce.MapIntroPricingType(planFile.IntroType)
+			plan.IntroType = MapIntroPricingType(planFile.IntroType)
 		}
 		if planFile.Metadata != nil {
 			plan.Metadata = convertMetadataToProto(planFile.Metadata)
 		}
-		if err := commerce.NormalizePlanOption(plan, ps.bundleKey); err != nil {
+		if err := NormalizePlanOption(plan, ps.bundleKey); err != nil {
 			return fmt.Errorf("invalid plan %s: %w", plan.StripePriceId, err)
 		}
 		if _, exists := seenPriceIDs[plan.StripePriceId]; exists {
@@ -75,7 +74,7 @@ func (ps *PlanStore) LoadAll() error {
 		}
 	}
 	ps.bundle, ps.plans, ps.couponMappings = bundle, plans, couponMappings
-	logStructured("plans_loaded", map[string]interface{}{"path": ps.plansPath, "plan_count": len(ps.plans), "bundle_key": ps.bundle.BundleKey, "coupon_mapping_count": len(ps.couponMappings)})
+	ps.logEvent("plans_loaded", map[string]interface{}{"path": ps.plansPath, "plan_count": len(ps.plans), "bundle_key": ps.bundle.BundleKey, "coupon_mapping_count": len(ps.couponMappings)})
 	return nil
 }
 
@@ -102,13 +101,13 @@ func (ps *PlanStore) savePlansLocked() error {
 	}
 	fileData.Plans = make([]planFileFormat, 0, len(ps.plans))
 	for _, plan := range ps.plans {
-		planFile := planFileFormat{StripePriceID: plan.StripePriceId, PlanName: plan.PlanName, PlanTier: plan.PlanTier, BillingInterval: commerce.BillingIntervalLabel(plan.BillingInterval), AmountCents: plan.AmountCents, Currency: plan.Currency, DisplayWeight: plan.DisplayWeight, DisplayEnabled: plan.DisplayEnabled, MonthlyIncludedCredits: plan.MonthlyIncludedCredits, OneTimeBonusCredits: plan.OneTimeBonusCredits, PlanRank: plan.PlanRank, BonusType: plan.BonusType, Kind: commerce.PlanKindString(plan.Kind), IntroEnabled: plan.IntroEnabled, IntroPeriods: plan.IntroPeriods, IntroPriceLookupKey: plan.IntroPriceLookupKey, IsVariableAmount: plan.IsVariableAmount}
+		planFile := planFileFormat{StripePriceID: plan.StripePriceId, PlanName: plan.PlanName, PlanTier: plan.PlanTier, BillingInterval: BillingIntervalLabel(plan.BillingInterval), AmountCents: plan.AmountCents, Currency: plan.Currency, DisplayWeight: plan.DisplayWeight, DisplayEnabled: plan.DisplayEnabled, MonthlyIncludedCredits: plan.MonthlyIncludedCredits, OneTimeBonusCredits: plan.OneTimeBonusCredits, PlanRank: plan.PlanRank, BonusType: plan.BonusType, Kind: PlanKindString(plan.Kind), IntroEnabled: plan.IntroEnabled, IntroPeriods: plan.IntroPeriods, IntroPriceLookupKey: plan.IntroPriceLookupKey, IsVariableAmount: plan.IsVariableAmount}
 		if plan.IntroAmountCents != nil {
 			value := *plan.IntroAmountCents
 			planFile.IntroAmountCents = &value
 		}
 		if plan.IntroType != shared.IntroPricingType_INTRO_PRICING_TYPE_UNSPECIFIED {
-			planFile.IntroType = commerce.IntroPricingTypeString(plan.IntroType)
+			planFile.IntroType = IntroPricingTypeString(plan.IntroType)
 		}
 		if plan.Metadata != nil {
 			planFile.Metadata = convertProtoMetadataToMap(plan.Metadata)
@@ -134,7 +133,7 @@ func (ps *PlanStore) savePlansLocked() error {
 		return fmt.Errorf("write plans file: %w", err)
 	}
 	ps.updatedAt = time.Now()
-	logStructured("plans_saved", map[string]interface{}{"path": ps.plansPath, "plan_count": len(ps.plans)})
+	ps.logEvent("plans_saved", map[string]interface{}{"path": ps.plansPath, "plan_count": len(ps.plans)})
 	return nil
 }
 

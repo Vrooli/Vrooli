@@ -1,4 +1,4 @@
-package account
+package commerce
 
 import (
 	"context"
@@ -6,8 +6,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"landing-page-business-suite-api/internal/commerce"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
@@ -163,7 +161,7 @@ func (s *Service) reconcileSubscriptionPlan(ctx context.Context, record *subscri
 	if record.planTier == "" {
 		return
 	}
-	if _, err := commerce.NormalizePlanTier(record.planTier); err != nil {
+	if _, err := NormalizePlanTier(record.planTier); err != nil {
 		s.logf("subscription_plan_tier_invalid", map[string]interface{}{
 			"level":     "warn",
 			"plan_tier": record.planTier,

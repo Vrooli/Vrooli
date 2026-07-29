@@ -6,32 +6,20 @@ import (
 	"fmt"
 	"strings"
 
-	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
+	"landing-page-business-suite-api/internal/intelligence"
 )
 
-// UsageServicer provides credit management for AI gateway.
-// This interface enables testing without the real UsageService.
-type UsageServicer interface {
-	ReserveAndCharge(ctx context.Context, userIdentity, tier, limitKey string, amount int64, metadata UsageReportRequest) error
-	ReserveCredits(ctx context.Context, userIdentity, tier, limitKey string, amount int64) (string, error)
-	FinalizeReservation(ctx context.Context, reservationID string, actualAmount int64) error
-	ReleaseReservation(ctx context.Context, reservationID string) error
-	AdjustUsage(ctx context.Context, userIdentity, limitKey string, adjustment int64, reason string) error
-	RecordUsage(ctx context.Context, req UsageReportRequest) error
-	GetUsageSummary(ctx context.Context, userIdentity, tier string) (*UsageSummary, error)
-}
-
-// AccountServicer provides tier lookup for AI gateway.
-// This interface enables testing without the real AccountService.
-type AccountServicer interface {
-	GetSubscriptionContext(context.Context, string) (*shared.SubscriptionStatus, error)
-}
-
-// APIKeyServicer provides API key retrieval for AI gateway.
-// This interface enables testing without the real APIKeyService.
-type APIKeyServicer interface {
-	Get(ctx context.Context, provider string) (string, error)
-}
+type (
+	UsageServicer   = intelligence.UsageServicer
+	AccountServicer = intelligence.AccountServicer
+	APIKeyServicer  = intelligence.APIKeyServicer
+	AIRequest       = intelligence.AIRequest
+	AIMessage       = intelligence.AIMessage
+	AIMetadata      = intelligence.AIMetadata
+	AIResponse      = intelligence.AIResponse
+	AIStreamEvent   = intelligence.AIStreamEvent
+	ModelPricing    = intelligence.ModelPricing
+)
 
 // AIGatewayService handles AI requests through the LPBS gateway.
 // It provides centralized AI access with credit management for all Vrooli applications.
@@ -97,7 +85,6 @@ type AIGatewayService struct {
 	apiKeyService  APIKeyServicer  // Interface for testing
 	usageService   UsageServicer   // Interface for testing
 	accountService AccountServicer // Interface for testing
-	limitsService  *LimitsService
 	log            func(event string, fields map[string]interface{})
 
 	// OpenRouter client - injectable for testing
@@ -108,19 +95,14 @@ type AIGatewayService struct {
 	modelPricing map[string]ModelPricing
 }
 
-// ModelPricing defines the cost per 1K tokens for a model.
-// Costs are in internal units (1/1,000,000 of a cent).
-type ModelPricing struct {
-	PromptCostPer1K     int64 `json:"prompt_cost_per_1k"`     // Cost per 1K input tokens
-	CompletionCostPer1K int64 `json:"completion_cost_per_1k"` // Cost per 1K output tokens
-}
-
 // AIGatewayServiceOptions configures the AI gateway service.
 type AIGatewayServiceOptions struct {
-	APIKeyService  *APIKeyService
-	UsageService   *UsageService
-	AccountService *AccountService
-	LimitsService  *LimitsService
+	// These contracts deliberately use the narrow interfaces above rather than
+	// root concrete services. The gateway orchestrates provider calls and credit
+	// policy; it does not own their persistence implementations.
+	APIKeyService  APIKeyServicer
+	UsageService   UsageServicer
+	AccountService AccountServicer
 	Logger         func(event string, fields map[string]interface{})
 
 	// OpenRouterClient allows injecting a custom client for testing.
@@ -128,69 +110,8 @@ type AIGatewayServiceOptions struct {
 	OpenRouterClient OpenRouterClient
 }
 
-// AIRequest is the request to execute an AI chat completion.
-type AIRequest struct {
-	Model     string      `json:"model"`
-	Messages  []AIMessage `json:"messages"`
-	Stream    bool        `json:"stream"`
-	MaxTokens int         `json:"max_tokens,omitempty"`
-	Metadata  AIMetadata  `json:"metadata,omitempty"`
-}
-
-// AIMessage represents a chat message.
-type AIMessage struct {
-	Role    string `json:"role"` // "user", "assistant", "system"
-	Content string `json:"content"`
-}
-
-// AIMetadata contains optional metadata about the request for tracking.
-type AIMetadata struct {
-	AppBundleKey string `json:"app_bundle_key,omitempty"` // e.g., "browser-automation-studio"
-	Operation    string `json:"operation,omitempty"`      // e.g., "ai.analysis", "ai.workflow_generate"
-}
-
-// AIResponse is the response from an AI chat completion.
-type AIResponse struct {
-	ID               string `json:"id"`
-	Model            string `json:"model"`
-	Content          string `json:"content"`
-	PromptTokens     int    `json:"prompt_tokens"`
-	CompletionTokens int    `json:"completion_tokens"`
-	TotalTokens      int    `json:"total_tokens"`
-	CreditsCharged   int64  `json:"credits_charged"`
-	FinishReason     string `json:"finish_reason,omitempty"`
-}
-
-// AIStreamEvent represents a Server-Sent Event for streaming responses.
-type AIStreamEvent struct {
-	Type    string `json:"type"`              // "chunk", "done", "error"
-	Content string `json:"content,omitempty"` // For chunk events
-	Error   string `json:"error,omitempty"`   // For error events
-	Usage   *struct {
-		PromptTokens     int   `json:"prompt_tokens"`
-		CompletionTokens int   `json:"completion_tokens"`
-		TotalTokens      int   `json:"total_tokens"`
-		CreditsCharged   int64 `json:"credits_charged"`
-	} `json:"usage,omitempty"` // For done events
-}
-
 // allowedModels is the whitelist of models users can request.
-var allowedModels = map[string]bool{
-	"openai/gpt-4o":               true,
-	"openai/gpt-4o-mini":          true,
-	"anthropic/claude-3.5-sonnet": true,
-	"anthropic/claude-3-haiku":    true,
-	"google/gemini-pro-1.5":       true,
-	"google/gemini-flash-1.5":     true,
-}
-
-// Token estimation constants with safety margin to reduce underestimation frequency.
-const (
-	charsPerToken               = 4    // Approximate characters per token
-	tokenEstimationSafetyMargin = 1.5  // 50% buffer to reduce underestimation
-	defaultCompletionTokens     = 1000 // Default expected completion length
-	messageFramingOverhead      = 10   // Overhead per message for role/framing
-)
+var allowedModels = intelligence.AllowedModels()
 
 // NewAIGatewayService creates a new AI gateway service.
 func NewAIGatewayService(opts AIGatewayServiceOptions) *AIGatewayService {
@@ -203,7 +124,6 @@ func NewAIGatewayService(opts AIGatewayServiceOptions) *AIGatewayService {
 		apiKeyService:    opts.APIKeyService,
 		usageService:     opts.UsageService,
 		accountService:   opts.AccountService,
-		limitsService:    opts.LimitsService,
 		log:              logger,
 		openRouterClient: opts.OpenRouterClient,
 		modelPricing:     defaultModelPricing(),
@@ -214,19 +134,7 @@ func NewAIGatewayService(opts AIGatewayServiceOptions) *AIGatewayService {
 // Prices are in internal units (1/1,000,000 of a cent) per 1K tokens.
 // Based on OpenRouter prices as of early 2025.
 func defaultModelPricing() map[string]ModelPricing {
-	return map[string]ModelPricing{
-		// GPT-4o family
-		"openai/gpt-4o":      {PromptCostPer1K: 2500000, CompletionCostPer1K: 10000000}, // $2.50/$10 per 1M tokens
-		"openai/gpt-4o-mini": {PromptCostPer1K: 150000, CompletionCostPer1K: 600000},    // $0.15/$0.60 per 1M tokens
-		// Claude family
-		"anthropic/claude-3.5-sonnet": {PromptCostPer1K: 3000000, CompletionCostPer1K: 15000000}, // $3/$15 per 1M
-		"anthropic/claude-3-haiku":    {PromptCostPer1K: 250000, CompletionCostPer1K: 1250000},   // $0.25/$1.25 per 1M
-		// Gemini family
-		"google/gemini-pro-1.5":   {PromptCostPer1K: 1250000, CompletionCostPer1K: 5000000}, // $1.25/$5 per 1M
-		"google/gemini-flash-1.5": {PromptCostPer1K: 75000, CompletionCostPer1K: 300000},    // $0.075/$0.30 per 1M
-		// Default fallback for unknown models
-		"default": {PromptCostPer1K: 1000000, CompletionCostPer1K: 2000000},
-	}
+	return intelligence.DefaultModelPricing()
 }
 
 // ExecuteChat executes a non-streaming chat completion.
@@ -253,7 +161,7 @@ func (s *AIGatewayService) ExecuteChat(ctx context.Context, userIdentity string,
 	estimatedCost := s.calculateCost(req.Model, estimate.prompt, estimate.completion)
 
 	// Reserve credits atomically (check + tentative charge)
-	if err := s.usageService.ReserveAndCharge(ctx, userIdentity, tier, "ai_credits", estimatedCost, UsageReportRequest{
+	if err := s.usageService.ReserveAndCharge(ctx, userIdentity, tier, "ai_credits", estimatedCost, intelligence.UsageReport{
 		UserIdentity: userIdentity,
 		LimitKey:     "ai_credits",
 		Amount:       estimatedCost,
@@ -294,7 +202,7 @@ func (s *AIGatewayService) ExecuteChat(ctx context.Context, userIdentity string,
 	if actualCost > estimatedCost {
 		// Charge additional credits if actual cost exceeds estimate
 		extraCost := actualCost - estimatedCost
-		if err := s.usageService.RecordUsage(ctx, UsageReportRequest{
+		if err := s.usageService.RecordUsage(ctx, intelligence.UsageReport{
 			UserIdentity: userIdentity,
 			LimitKey:     "ai_credits",
 			Amount:       extraCost,
@@ -407,46 +315,14 @@ type tokenEstimate struct {
 // Includes a safety margin to reduce the frequency of underestimation,
 // which leads to smoother UX with fewer post-request adjustments.
 func (s *AIGatewayService) estimateTokens(messages []AIMessage, maxTokens int) tokenEstimate {
-	// Calculate raw prompt characters
-	promptChars := 0
-	for _, msg := range messages {
-		promptChars += len(msg.Content) + len(msg.Role) + messageFramingOverhead
-	}
-
-	// Convert to tokens and apply safety margin
-	rawPromptTokens := promptChars / charsPerToken
-	promptTokens := int(float64(rawPromptTokens) * tokenEstimationSafetyMargin)
-
-	// Estimate completion tokens
-	completionTokens := defaultCompletionTokens
-	if maxTokens > 0 {
-		// User specified max_tokens - use it directly without multiplying
-		// (they've explicitly set their limit)
-		completionTokens = maxTokens
-	} else {
-		// Apply safety margin to default completion estimate
-		completionTokens = int(float64(completionTokens) * tokenEstimationSafetyMargin)
-	}
-
-	return tokenEstimate{
-		prompt:     promptTokens,
-		completion: completionTokens,
-	}
+	estimate := intelligence.EstimateTokens(messages, maxTokens)
+	return tokenEstimate{prompt: estimate.Prompt, completion: estimate.Completion}
 }
 
 // calculateCost calculates the cost in internal units for a request.
 // Internal unit = 1/1,000,000 of a cent.
 func (s *AIGatewayService) calculateCost(model string, promptTokens, completionTokens int) int64 {
-	pricing, ok := s.modelPricing[model]
-	if !ok {
-		pricing = s.modelPricing["default"]
-	}
-
-	// Cost per 1K tokens, so divide by 1000
-	promptCost := int64(promptTokens) * pricing.PromptCostPer1K / 1000
-	completionCost := int64(completionTokens) * pricing.CompletionCostPer1K / 1000
-
-	return promptCost + completionCost
+	return intelligence.CalculateCost(s.modelPricing, model, promptTokens, completionTokens)
 }
 
 // GetAvailableModels returns the list of models available through the gateway.

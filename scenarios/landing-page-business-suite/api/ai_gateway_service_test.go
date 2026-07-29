@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"landing-page-business-suite-api/internal/intelligence"
+
 	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 )
 
@@ -608,13 +610,12 @@ func TestIPRateLimiter_IndependentFromUserLimiter(t *testing.T) {
 
 // MockUsageService implements UsageServicer for testing credit flows.
 type MockUsageService struct {
-	ReserveAndChargeFn    func(ctx context.Context, userIdentity, tier, limitKey string, amount int64, metadata UsageReportRequest) error
+	ReserveAndChargeFn    func(ctx context.Context, userIdentity, tier, limitKey string, amount int64, metadata intelligence.UsageReport) error
 	ReserveCreditsFn      func(ctx context.Context, userIdentity, tier, limitKey string, amount int64) (string, error)
 	FinalizeReservationFn func(ctx context.Context, reservationID string, actualAmount int64) error
 	ReleaseReservationFn  func(ctx context.Context, reservationID string) error
 	AdjustUsageFn         func(ctx context.Context, userIdentity, limitKey string, adjustment int64, reason string) error
-	RecordUsageFn         func(ctx context.Context, req UsageReportRequest) error
-	GetUsageSummaryFn     func(ctx context.Context, userIdentity, tier string) (*UsageSummary, error)
+	RecordUsageFn         func(ctx context.Context, req intelligence.UsageReport) error
 	Calls                 map[string][]interface{}
 }
 
@@ -622,7 +623,7 @@ func NewMockUsageService() *MockUsageService {
 	return &MockUsageService{Calls: make(map[string][]interface{})}
 }
 
-func (m *MockUsageService) ReserveAndCharge(ctx context.Context, userIdentity, tier, limitKey string, amount int64, metadata UsageReportRequest) error {
+func (m *MockUsageService) ReserveAndCharge(ctx context.Context, userIdentity, tier, limitKey string, amount int64, metadata intelligence.UsageReport) error {
 	m.Calls["ReserveAndCharge"] = append(m.Calls["ReserveAndCharge"], []interface{}{userIdentity, tier, limitKey, amount, metadata})
 	if m.ReserveAndChargeFn != nil {
 		return m.ReserveAndChargeFn(ctx, userIdentity, tier, limitKey, amount, metadata)
@@ -662,20 +663,12 @@ func (m *MockUsageService) AdjustUsage(ctx context.Context, userIdentity, limitK
 	return nil
 }
 
-func (m *MockUsageService) RecordUsage(ctx context.Context, req UsageReportRequest) error {
+func (m *MockUsageService) RecordUsage(ctx context.Context, req intelligence.UsageReport) error {
 	m.Calls["RecordUsage"] = append(m.Calls["RecordUsage"], []interface{}{req})
 	if m.RecordUsageFn != nil {
 		return m.RecordUsageFn(ctx, req)
 	}
 	return nil
-}
-
-func (m *MockUsageService) GetUsageSummary(ctx context.Context, userIdentity, tier string) (*UsageSummary, error) {
-	m.Calls["GetUsageSummary"] = append(m.Calls["GetUsageSummary"], []interface{}{userIdentity, tier})
-	if m.GetUsageSummaryFn != nil {
-		return m.GetUsageSummaryFn(ctx, userIdentity, tier)
-	}
-	return &UsageSummary{}, nil
 }
 
 // Compile-time check
@@ -775,7 +768,7 @@ func TestExecuteChat_Success(t *testing.T) {
 // TestExecuteChat_InsufficientCredits tests credit check failure.
 func TestExecuteChat_InsufficientCredits(t *testing.T) {
 	mockUsage := NewMockUsageService()
-	mockUsage.ReserveAndChargeFn = func(ctx context.Context, userIdentity, tier, limitKey string, amount int64, metadata UsageReportRequest) error {
+	mockUsage.ReserveAndChargeFn = func(ctx context.Context, userIdentity, tier, limitKey string, amount int64, metadata intelligence.UsageReport) error {
 		return ErrInsufficientCredits
 	}
 

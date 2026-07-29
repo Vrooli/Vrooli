@@ -1,4 +1,7 @@
-// Package account owns authenticated account-read Connect transport.
+// Package account owns authenticated AccountService Connect transport.
+//
+// The generated AccountService is the protocol boundary; its business logic is
+// implemented by the commerce domain.
 package account
 
 import (
@@ -12,13 +15,32 @@ import (
 	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
-	accountdomain "landing-page-business-suite-api/internal/account"
 )
 
+// seam: Reader keeps Connect account transport independent from commerce.
 type Reader interface {
 	GetSubscriptionContext(context.Context, string) (*shared.SubscriptionStatus, error)
-	GetCreditsContext(context.Context, string) (*accountdomain.CreditsEnvelope, error)
-	GetEntitlementsContext(context.Context, string) (*accountdomain.EntitlementPayload, error)
+	GetCreditsContext(context.Context, string) (*Credits, error)
+	GetEntitlementsContext(context.Context, string) (*Entitlements, error)
+}
+
+// Credits and Entitlements are Connect transport DTOs. The API composition
+// layer adapts commerce values to them so generated transport stays independent
+// of the commerce domain implementation.
+type Credits struct {
+	Balance                  *shared.CreditsBalance
+	DisplayCreditsLabel      string
+	DisplayCreditsMultiplier float64
+}
+
+type Entitlements struct {
+	Status            string
+	PlanTier          string
+	PriceID           string
+	Features          []string
+	BillingCycleStart int
+	Credits           *shared.CreditsBalance
+	Subscription      *shared.SubscriptionStatus
 }
 
 type Handler struct {

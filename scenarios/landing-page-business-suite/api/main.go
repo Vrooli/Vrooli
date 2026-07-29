@@ -132,18 +132,22 @@ func (m devRoutingMux) Mount(pattern string, handler http.Handler) {
 
 // NewServer initializes configuration, database, and routes
 func NewServer() (*Server, error) {
+	logStructured("server_initialization_started", nil)
 	if err := validateProductionCredentials(); err != nil {
 		return nil, err
 	}
+	logStructured("server_credentials_validated", nil)
 
 	// Connect to database with automatic retry and backoff.
 	// Reads POSTGRES_* environment variables set by the lifecycle system.
 	routedDB, err := database.Open(context.Background(), database.Config{
 		Driver: "postgres",
+		Logger: logx.Printf,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
+	logStructured("server_database_connected", nil)
 	db := routedDB.Primary()
 	routedDB.SetTestPoolInitializer(func(ctx context.Context, testDB *sql.DB) error {
 		if err := database.EnsureSchemas(ctx, testDB, database.SchemaProviderFunc(runtimeSchema)); err != nil {
@@ -155,6 +159,7 @@ func NewServer() (*Server, error) {
 	if err := seedDefaultData(db); err != nil {
 		return nil, fmt.Errorf("failed to seed default data: %w", err)
 	}
+	logStructured("server_database_seeded", nil)
 
 	// Initialize config store from tracked scenario config files.
 	variantsDir := resolveVariantsDir()
@@ -163,6 +168,7 @@ func NewServer() (*Server, error) {
 	if err := configStore.LoadAll(); err != nil {
 		return nil, fmt.Errorf("failed to load config from JSON files: %w", err)
 	}
+	logStructured("server_configuration_loaded", nil)
 
 	variantSpace := defaultVariantSpace
 	planService := NewPlanService(db)
@@ -195,6 +201,7 @@ func NewServer() (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize API key service: %w", err)
 	}
+	logStructured("server_api_key_service_initialized", nil)
 	remoteProfileService, err := administration.NewRemoteProfileServiceWithRuntime(
 		routedDB,
 		nil,
@@ -206,6 +213,7 @@ func NewServer() (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize remote profile service: %w", err)
 	}
+	logStructured("server_remote_profile_service_initialized", nil)
 	limitsService := NewLimitsService(routedDB, "postgres")
 	usageService := NewUsageService(routedDB, limitsService, "postgres")
 
@@ -218,9 +226,8 @@ func NewServer() (*Server, error) {
 	// Initialize AI gateway service
 	aiGatewayService := NewAIGatewayService(AIGatewayServiceOptions{
 		APIKeyService:  apiKeyService,
-		UsageService:   usageService,
+		UsageService:   aiGatewayCreditAdapter{usage: usageService},
 		AccountService: accountService,
-		LimitsService:  limitsService,
 		Logger:         logStructured,
 	})
 
@@ -273,6 +280,7 @@ func NewServer() (*Server, error) {
 		_ = routedDB.Close()
 		return nil, fmt.Errorf("register development routing: %w", err)
 	}
+	logStructured("server_initialization_completed", nil)
 	return srv, nil
 }
 
@@ -383,14 +391,6 @@ func (s *Server) resetDemoData(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func valueOrDefault(value, fallback string) string {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return fallback
-	}
-	return trimmed
 }
 
 // NOTE: syncVariantSnapshots function has been removed.

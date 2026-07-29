@@ -21,7 +21,7 @@ import (
 )
 
 func TestAssetsServiceResolveStoragePathRejectsTraversalAndAbsolutePaths(t *testing.T) {
-	service := &AssetsService{uploadDir: t.TempDir()}
+	service := NewAssetsServiceWithOptions(AssetsOptions{UploadDir: t.TempDir()})
 	for _, storagePath := range []string{"../secret", "/etc/passwd", ".", ""} {
 		if _, err := service.ResolveStoragePath(storagePath); !errors.Is(err, ErrInvalidAssetPath) {
 			t.Fatalf("ResolveStoragePath(%q) error = %v, want ErrInvalidAssetPath", storagePath, err)
@@ -111,8 +111,8 @@ func TestGenerateLogoDerivatives(t *testing.T) {
 	}
 	out.Close()
 
-	svc := &AssetsService{uploadDir: tmpDir}
-	derivatives, err := svc.generateDerivatives(srcPath, "logos/logo.png", "image/png", "logo")
+	svc := NewAssetsServiceWithOptions(AssetsOptions{UploadDir: tmpDir})
+	derivatives, err := svc.GenerateDerivatives(srcPath, "logos/logo.png", "image/png", "logo")
 	if err != nil {
 		t.Fatalf("generate derivatives: %v", err)
 	}
@@ -168,8 +168,8 @@ func TestGenerateLogoDerivativesJpeg(t *testing.T) {
 	}
 	f.Close()
 
-	svc := &AssetsService{uploadDir: tmpDir}
-	derivatives, err := svc.generateDerivatives(srcPath, "logos/logo.jpg", "image/jpeg", "logo")
+	svc := NewAssetsServiceWithOptions(AssetsOptions{UploadDir: tmpDir})
+	derivatives, err := svc.GenerateDerivatives(srcPath, "logos/logo.jpg", "image/jpeg", "logo")
 	if err != nil {
 		t.Fatalf("generate derivatives: %v", err)
 	}
@@ -194,8 +194,8 @@ func TestGenerateDerivativesSvgFallback(t *testing.T) {
 		t.Fatalf("write svg: %v", err)
 	}
 
-	svc := &AssetsService{uploadDir: tmpDir}
-	derivatives, err := svc.generateDerivatives(srcPath, "logos/logo.svg", "image/svg+xml", "logo")
+	svc := NewAssetsServiceWithOptions(AssetsOptions{UploadDir: tmpDir})
+	derivatives, err := svc.GenerateDerivatives(srcPath, "logos/logo.svg", "image/svg+xml", "logo")
 	if err != nil {
 		t.Fatalf("svg fallback returned error: %v", err)
 	}
@@ -231,8 +231,8 @@ func TestGenerateFaviconDerivatives(t *testing.T) {
 	}
 	f.Close()
 
-	svc := &AssetsService{uploadDir: tmpDir}
-	derivatives, err := svc.generateDerivatives(srcPath, "favicons/favicon.png", "image/png", "favicon")
+	svc := NewAssetsServiceWithOptions(AssetsOptions{UploadDir: tmpDir})
+	derivatives, err := svc.GenerateDerivatives(srcPath, "favicons/favicon.png", "image/png", "favicon")
 	if err != nil {
 		t.Fatalf("generate derivatives: %v", err)
 	}
@@ -267,8 +267,8 @@ func TestGenerateOgDerivatives(t *testing.T) {
 	}
 	f.Close()
 
-	svc := &AssetsService{uploadDir: tmpDir}
-	derivatives, err := svc.generateDerivatives(srcPath, "og-images/og.png", "image/png", "og_image")
+	svc := NewAssetsServiceWithOptions(AssetsOptions{UploadDir: tmpDir})
+	derivatives, err := svc.GenerateDerivatives(srcPath, "og-images/og.png", "image/png", "og_image")
 	if err != nil {
 		t.Fatalf("generate derivatives: %v", err)
 	}
@@ -305,8 +305,8 @@ func TestGenerateDerivatives_InvalidImageFailsFast(t *testing.T) {
 		t.Fatalf("write corrupt source: %v", err)
 	}
 
-	svc := &AssetsService{uploadDir: tmpDir}
-	derivatives, err := svc.generateDerivatives(srcPath, "logos/logo.png", "image/png", "logo")
+	svc := NewAssetsServiceWithOptions(AssetsOptions{UploadDir: tmpDir})
+	derivatives, err := svc.GenerateDerivatives(srcPath, "logos/logo.png", "image/png", "logo")
 	if err == nil {
 		t.Fatal("expected decode error, got nil")
 	}
@@ -379,7 +379,7 @@ func TestAssetsServiceUpload_RespectsSizeLimit(t *testing.T) {
 	t.Setenv("UPLOAD_DIR", tmpDir)
 
 	svc := NewAssetsService(db)
-	svc.maxSize = 16
+	svc.SetMaxSize(16)
 
 	payloadPath := filepath.Join(tmpDir, "small.png")
 	if err := os.WriteFile(payloadPath, []byte{0, 1, 2, 3}, 0o644); err != nil {

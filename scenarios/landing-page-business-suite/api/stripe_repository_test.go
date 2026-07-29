@@ -14,8 +14,8 @@ func TestNewStripeRepository(t *testing.T) {
 	if repo == nil {
 		t.Fatal("NewStripeRepository returned nil")
 	}
-	if repo.db != db {
-		t.Error("Repository db field not set correctly")
+	if got := repo.LookupCustomerID(""); got != "" {
+		t.Errorf("LookupCustomerID(empty) = %q, want empty", got)
 	}
 }
 

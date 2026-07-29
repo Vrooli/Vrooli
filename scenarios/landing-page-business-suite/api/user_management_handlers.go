@@ -8,14 +8,16 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
-	"landing-page-business-suite-api/internal/account"
+	"landing-page-business-suite-api/internal/administration"
 )
 
-type UserAccountResponse = account.UserAccountResponse
-type SubscriptionInfo = account.SubscriptionInfo
-type CreditInfo = account.CreditInfo
-type UserSessionResponse = account.UserSessionResponse
-type UsersListResponse = account.UsersListResponse
+type (
+	UserAccountResponse = administration.UserAccountResponse
+	SubscriptionInfo    = administration.SubscriptionInfo
+	CreditInfo          = administration.CreditInfo
+	UserSessionResponse = administration.UserSessionResponse
+	UsersListResponse   = administration.UsersListResponse
+)
 
 func handleAdminListUsers(service *UserManagementService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

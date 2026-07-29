@@ -1,4 +1,4 @@
-package main
+package commerce
 
 import (
 	"context"
@@ -889,7 +889,7 @@ func TestPlanService_ImportStripePricesForProduct_MergeRejectsProductSwitch(t *t
 	if err == nil {
 		t.Fatal("expected error for product switch with merge mode")
 	}
-	if !errors.Is(err, errStripeImportProductSwitchRequiresReplace) {
+	if !errors.Is(err, ErrStripeImportProductSwitchRequiresReplace) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

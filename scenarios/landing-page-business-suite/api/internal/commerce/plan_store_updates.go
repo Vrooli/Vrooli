@@ -1,4 +1,4 @@
-package main
+package commerce
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"google.golang.org/protobuf/proto"
-	"landing-page-business-suite-api/internal/commerce"
 )
 
 // UpdatePlan applies partial updates to a plan.
@@ -15,13 +14,13 @@ func (ps *PlanStore) UpdatePlan(priceID string, input UpdateBundlePriceInput) (*
 }
 
 // UpdatePlanWithStripeDetails applies partial updates to a plan and optionally syncs Stripe fields.
-func (ps *PlanStore) UpdatePlanWithStripeDetails(priceID string, input UpdateBundlePriceInput, stripeDetails *commerce.StripePriceImport) (*PlanOption, error) {
+func (ps *PlanStore) UpdatePlanWithStripeDetails(priceID string, input UpdateBundlePriceInput, stripeDetails *StripePriceImport) (*PlanOption, error) {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
 	derivedTier := ""
 	if stripeDetails != nil {
-		if tier, ok := commerce.DerivePlanTierFromStripe(stripeDetails); ok {
+		if tier, ok := DerivePlanTierFromStripe(stripeDetails); ok {
 			derivedTier = tier
 		}
 	}
@@ -38,7 +37,7 @@ func (ps *PlanStore) UpdatePlanWithStripeDetails(priceID string, input UpdateBun
 	return proto.Clone(updatedPlan).(*PlanOption), nil
 }
 
-func (ps *PlanStore) updatePlanWithStripeDetailsLocked(priceID string, input UpdateBundlePriceInput, stripeDetails *commerce.StripePriceImport, derivedTier string) (*PlanOption, error) {
+func (ps *PlanStore) updatePlanWithStripeDetailsLocked(priceID string, input UpdateBundlePriceInput, stripeDetails *StripePriceImport, derivedTier string) (*PlanOption, error) {
 	if priceID == "" {
 		return nil, fmt.Errorf("price id is required")
 	}
@@ -60,16 +59,16 @@ func (ps *PlanStore) updatePlanWithStripeDetailsLocked(priceID string, input Upd
 	if err := ps.applyRequestedPlanFieldsLocked(updatedPlan, currentPlan, input, stripeDetails); err != nil {
 		return nil, err
 	}
-	if err := commerce.ApplyStripePriceDetails(updatedPlan, input, stripeDetails); err != nil {
+	if err := ApplyStripePriceDetails(updatedPlan, input, stripeDetails); err != nil {
 		return nil, err
 	}
-	if err := commerce.ApplyDerivedPlanTier(updatedPlan, derivedTier); err != nil {
+	if err := ApplyDerivedPlanTier(updatedPlan, derivedTier); err != nil {
 		return nil, err
 	}
-	commerce.ApplyPlanMetadata(updatedPlan, input)
+	ApplyPlanMetadata(updatedPlan, input)
 
 	updatedPlan.BundleKey = ps.bundleKey
-	if err := commerce.ValidateUpdatedPlan(updatedPlan); err != nil {
+	if err := ValidateUpdatedPlan(updatedPlan); err != nil {
 		return nil, err
 	}
 
@@ -90,9 +89,9 @@ func (ps *PlanStore) planIndexByPriceIDLocked(priceID string) (int, error) {
 	return -1, fmt.Errorf("price %s not found", priceID)
 }
 
-func (ps *PlanStore) applyRequestedPlanFieldsLocked(updated, current *PlanOption, input UpdateBundlePriceInput, stripeDetails *commerce.StripePriceImport) error {
+func (ps *PlanStore) applyRequestedPlanFieldsLocked(updated, current *PlanOption, input UpdateBundlePriceInput, stripeDetails *StripePriceImport) error {
 	if input.StripePriceID != nil {
-		priceID, err := commerce.NormalizeStripePriceID(*input.StripePriceID)
+		priceID, err := NormalizeStripePriceID(*input.StripePriceID)
 		if err != nil {
 			return err
 		}
@@ -131,7 +130,7 @@ func (ps *PlanStore) applyRequestedPlanFieldsLocked(updated, current *PlanOption
 	return nil
 }
 
-func (ps *PlanStore) ensureStripePriceMatchesBundleLocked(stripeDetails *commerce.StripePriceImport) error {
+func (ps *PlanStore) ensureStripePriceMatchesBundleLocked(stripeDetails *StripePriceImport) error {
 	if stripeDetails == nil {
 		return nil
 	}

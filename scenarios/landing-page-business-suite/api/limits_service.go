@@ -2,11 +2,13 @@ package main
 
 import "landing-page-business-suite-api/internal/commerce"
 
-type LimitsServicer = commerce.LimitsServicer
-type LimitsStore = commerce.LimitsStore
-type LimitsService = commerce.LimitsService
-type TierLimit = commerce.TierLimit
-type TierLimitUpdate = commerce.TierLimitUpdate
+type (
+	LimitsServicer  = commerce.LimitsServicer
+	LimitsStore     = commerce.LimitsStore
+	LimitsService   = commerce.LimitsService
+	TierLimit       = commerce.TierLimit
+	TierLimitUpdate = commerce.TierLimitUpdate
+)
 
 func NewLimitsService(db LimitsStore, dialect string) *LimitsService {
 	return commerce.NewLimitsService(db, dialect, logStructured)

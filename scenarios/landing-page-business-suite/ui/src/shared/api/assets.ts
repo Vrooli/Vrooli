@@ -16,7 +16,7 @@ export interface UploadAssetOptions {
 
 function assetFromProto(value: GeneratedAsset): Asset {
   const createdAt = value.createdAt
-    ? new Date(Number(value.createdAt.seconds) * 1000 + Number(value.createdAt.nanos) / 1_000_000)
+    ? new Date(Number(value.createdAt.seconds) * 1000 + value.createdAt.nanos / 1_000_000)
       .toISOString()
       .replace('.000Z', 'Z')
     : undefined;

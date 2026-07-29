@@ -14,50 +14,14 @@ import (
 	"landing-page-business-suite-api/internal/intelligence"
 )
 
-// OpenRouterClient is the interface for communicating with the OpenRouter API.
-// This seam enables testing the AI gateway without real network calls.
-type OpenRouterClient interface {
-	// Chat sends a non-streaming chat completion request.
-	// Returns the response content and token usage.
-	Chat(ctx context.Context, req OpenRouterChatRequest) (*OpenRouterChatResponse, error)
-
-	// ChatStream sends a streaming chat completion request.
-	// Calls onChunk for each content chunk received.
-	// Returns final usage statistics after the stream completes.
-	ChatStream(ctx context.Context, req OpenRouterChatRequest, onChunk func(content string)) (*OpenRouterUsage, error)
-
-	// VerifyAPIKey checks if the configured API key is valid.
-	VerifyAPIKey(ctx context.Context) error
-}
-
-// OpenRouterChatRequest is the request for a chat completion.
-type OpenRouterChatRequest struct {
-	Model    string              `json:"model"`
-	Messages []OpenRouterMessage `json:"messages"`
-	Stream   bool                `json:"stream,omitempty"`
-}
-
-// OpenRouterMessage represents a chat message.
-type OpenRouterMessage struct {
-	Role    string `json:"role"` // "user", "assistant", "system"
-	Content string `json:"content"`
-}
-
-// OpenRouterChatResponse is the response from a chat completion.
-type OpenRouterChatResponse struct {
-	ID           string          `json:"id"`
-	Model        string          `json:"model"`
-	Content      string          `json:"content"`
-	FinishReason string          `json:"finish_reason,omitempty"`
-	Usage        OpenRouterUsage `json:"usage"`
-}
-
-// OpenRouterUsage contains token usage statistics.
-type OpenRouterUsage struct {
-	PromptTokens     int `json:"prompt_tokens"`
-	CompletionTokens int `json:"completion_tokens"`
-	TotalTokens      int `json:"total_tokens"`
-}
+type (
+	OpenRouterClient        = intelligence.OpenRouterClient
+	OpenRouterChatRequest   = intelligence.OpenRouterChatRequest
+	OpenRouterMessage       = intelligence.OpenRouterMessage
+	OpenRouterChatResponse  = intelligence.OpenRouterChatResponse
+	OpenRouterUsage         = intelligence.OpenRouterUsage
+	OpenRouterClientOptions = intelligence.OpenRouterClientOptions
+)
 
 // httpOpenRouterClient implements OpenRouterClient using HTTP.
 type httpOpenRouterClient struct {
@@ -67,17 +31,6 @@ type httpOpenRouterClient struct {
 	title      string
 	httpClient *http.Client
 	log        func(event string, fields map[string]interface{})
-}
-
-// OpenRouterClientOptions configures the HTTP OpenRouter client.
-type OpenRouterClientOptions struct {
-	APIKey     string
-	BaseURL    string        // Default: "https://openrouter.ai"
-	Referer    string        // Default: "https://vrooli.com"
-	Title      string        // Default: "Vrooli AI Gateway"
-	Timeout    time.Duration // Default: 120s
-	HTTPClient *http.Client  // Optional: use custom HTTP client
-	Logger     func(event string, fields map[string]interface{})
 }
 
 // NewOpenRouterClient creates a new HTTP-based OpenRouter client.

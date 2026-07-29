@@ -1,4 +1,4 @@
-package main
+package experimentation
 
 import (
 	"encoding/json"
@@ -111,7 +111,7 @@ func TestConfigStore_SaveAndLoadVariant(t *testing.T) {
 	}
 
 	// Use defaultVariantSpace for axes validation
-	cs := NewConfigStore(variantsDir, brandingPath, defaultVariantSpace)
+	cs := NewConfigStore(variantsDir, brandingPath, DefaultVariantSpace())
 	if err := cs.LoadAll(); err != nil {
 		t.Fatalf("Failed to load config: %v", err)
 	}
@@ -199,7 +199,7 @@ func TestConfigStore_DeleteVariant(t *testing.T) {
 		t.Fatalf("Failed to write variant file: %v", err)
 	}
 
-	cs := NewConfigStore(variantsDir, brandingPath, defaultVariantSpace)
+	cs := NewConfigStore(variantsDir, brandingPath, DefaultVariantSpace())
 	if err := cs.LoadAll(); err != nil {
 		t.Fatalf("Failed to load config: %v", err)
 	}

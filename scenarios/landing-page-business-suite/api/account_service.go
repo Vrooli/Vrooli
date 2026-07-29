@@ -5,20 +5,21 @@ import (
 	"strings"
 	"time"
 
-	accountdomain "landing-page-business-suite-api/internal/account"
+	"landing-page-business-suite-api/internal/commerce"
 	"landing-page-business-suite-api/internal/envx"
 
-	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 )
 
-type AccountStore = accountdomain.Store
-type AccountService = accountdomain.Service
-type EntitlementPayload = accountdomain.EntitlementPayload
-type CreditsEnvelope = accountdomain.CreditsEnvelope
+type (
+	AccountStore       = commerce.Store
+	AccountService     = commerce.Service
+	EntitlementPayload = commerce.EntitlementPayload
+	CreditsEnvelope    = commerce.CreditsEnvelope
+)
 
 func NewAccountService(db AccountStore, planService *PlanService) *AccountService {
-	return accountdomain.NewService(db, planService, accountdomain.Runtime{
+	return commerce.NewService(db, planService, commerce.Runtime{
 		CacheTTL: loadCacheTTL(), NormalizeEmail: NormalizeEmail, Log: logStructured,
 	})
 }
@@ -37,28 +38,7 @@ func loadCacheTTL() time.Duration {
 }
 
 func mapSubscriptionState(state string) shared.SubscriptionState {
-	return accountdomain.MapSubscriptionState(state)
-}
-
-func extractFeatureFlags(metadata map[string]*commonv1.JsonValue) []string {
-	if metadata == nil {
-		return nil
-	}
-	value := metadata["features"]
-	if value == nil || value.Kind == nil {
-		return nil
-	}
-	list, ok := value.Kind.(*commonv1.JsonValue_ListValue)
-	if !ok || list.ListValue == nil {
-		return nil
-	}
-	features := make([]string, 0, len(list.ListValue.Values))
-	for _, item := range list.ListValue.Values {
-		if stringValue, ok := item.Kind.(*commonv1.JsonValue_StringValue); ok && stringValue.StringValue != "" {
-			features = append(features, stringValue.StringValue)
-		}
-	}
-	return features
+	return commerce.MapSubscriptionState(state)
 }
 
 func legacyStateLabel(state shared.SubscriptionState) string {

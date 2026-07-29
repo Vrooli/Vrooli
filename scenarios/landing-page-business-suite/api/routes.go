@@ -91,7 +91,7 @@ func registerAuthRoutes(s *Server) {
 }
 
 func registerAccountRoutes(s *Server) {
-	accounthttp.RegisterRoutes(s.router, s.accountService, getUserEmail, s.requireUserAuth)
+	accounthttp.RegisterRoutes(s.router, accountTransportReader{service: s.accountService}, getUserEmail, s.requireUserAuth)
 	s.router.HandleFunc("/api/v1/downloads", s.requireUserAuth(handleDownloads(s.downloadAuthorizer, s.downloadHosting, s.planService))).Methods("GET")
 }
 
@@ -243,7 +243,7 @@ func registerCreditsRoutes(s *Server) {
 	s.router.HandleFunc("/api/v1/admin/apps/{app}/limits", s.requireAdmin(handleGetAppLimits(s.limitsService))).Methods("GET")
 
 	// Credit System: Usage (Service-to-Service + User Auth + Admin)
-	s.router.HandleFunc("/api/v1/usage/report", s.usageService.requireServiceAuth(handleReportUsage(s.usageService))).Methods("POST")
+	s.router.HandleFunc("/api/v1/usage/report", requireUsageServiceAuth(s.usageService, handleReportUsage(s.usageService))).Methods("POST")
 	s.router.HandleFunc("/api/v1/usage/summary", s.requireUserAuth(handleGetUsageSummary(s.usageService, s.accountService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/usage/check", s.requireUserAuth(handleCheckLimit(s.usageService))).Methods("GET")
 	s.router.HandleFunc("/api/v1/usage/health", handleUsageHealth(s.usageService)).Methods("GET") // Unauthenticated for monitoring

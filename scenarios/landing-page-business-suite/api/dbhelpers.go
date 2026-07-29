@@ -8,22 +8,6 @@ import (
 	"time"
 )
 
-// logOnError logs an error if one occurred during a database operation.
-// This is used for non-critical operations where we want to log failures
-// but not fail the overall request (e.g., updating last_login, metrics).
-// The operation parameter describes what was being attempted.
-func logOnError(err error, operation string, context map[string]interface{}) {
-	if err == nil {
-		return
-	}
-	if context == nil {
-		context = make(map[string]interface{})
-	}
-	context["error"] = err.Error()
-	context["operation"] = operation
-	logStructuredError("silent_operation_failed", context)
-}
-
 // DialectHelper provides SQL dialect-specific expressions for databases
 // that need to support both PostgreSQL and SQLite.
 type DialectHelper struct {

@@ -1,4 +1,4 @@
-package main
+package commerce
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"landing-page-business-suite-api/internal/commerce"
 	"landing-page-business-suite-api/internal/envx"
 
 	"google.golang.org/protobuf/proto"
@@ -36,7 +35,7 @@ type PlanStoreWriter interface {
 	SetPlans(bundle *BundleProduct, plans []*PlanOption) error
 }
 
-// PlanStorer combines read and write access to plan configuration.
+// seam: PlanStorer combines read and write access to plan configuration.
 type PlanStorer interface {
 	PlanStoreReader
 	PlanStoreWriter
@@ -57,6 +56,7 @@ type PlanStore struct {
 	displayEnv     string
 	bundleKey      string
 	updatedAt      time.Time
+	log            func(event string, fields map[string]interface{})
 }
 
 // plansFileFormat represents the JSON file structure for plans.
@@ -101,6 +101,16 @@ type planFileFormat struct {
 	Metadata               map[string]interface{} `json:"metadata,omitempty"`
 }
 
+// PlansFileFormat and its component aliases are intentionally exposed only
+// within the API's internal package boundary. They support black-box callers
+// and test fixtures that must serialize the catalog without duplicating its
+// on-disk contract.
+type (
+	PlansFileFormat  = plansFileFormat
+	BundleFileFormat = bundleFileFormat
+	PlanFileFormat   = planFileFormat
+)
+
 // NewPlanStore creates a new PlanStore with path to the JSON file.
 func NewPlanStore(plansPath string) *PlanStore {
 	bundleKey := stringsTrimOrDefault(envx.Get("BUNDLE_KEY"), "business_suite")
@@ -119,6 +129,8 @@ type PlanStoreOptions struct {
 	PlansPath  string
 	BundleKey  string
 	DisplayEnv string
+	// Log is an optional composition-root supplied observability seam.
+	Log func(event string, fields map[string]interface{})
 }
 
 func NewPlanStoreWithOptions(opts PlanStoreOptions) *PlanStore {
@@ -136,6 +148,13 @@ func NewPlanStoreWithOptions(opts PlanStoreOptions) *PlanStore {
 		plansPath:      opts.PlansPath,
 		displayEnv:     env,
 		bundleKey:      bundleKey,
+		log:            opts.Log,
+	}
+}
+
+func (ps *PlanStore) logEvent(event string, fields map[string]interface{}) {
+	if ps.log != nil {
+		ps.log(event, fields)
 	}
 }
 
@@ -148,7 +167,7 @@ func (ps *PlanStore) validatePlanCatalogLocked() error {
 	if ps.bundle == nil {
 		return fmt.Errorf("bundle not configured")
 	}
-	if err := commerce.NormalizeBundle(ps.bundle, ps.bundleKey, ps.displayEnv); err != nil {
+	if err := NormalizeBundle(ps.bundle, ps.bundleKey, ps.displayEnv); err != nil {
 		return fmt.Errorf("invalid bundle: %w", err)
 	}
 
@@ -157,7 +176,7 @@ func (ps *PlanStore) validatePlanCatalogLocked() error {
 		if plan == nil {
 			return fmt.Errorf("plan is required")
 		}
-		if err := commerce.NormalizePlanOption(plan, ps.bundleKey); err != nil {
+		if err := NormalizePlanOption(plan, ps.bundleKey); err != nil {
 			return fmt.Errorf("invalid plan %s: %w", strings.TrimSpace(plan.StripePriceId), err)
 		}
 		if _, exists := seenPriceIDs[plan.StripePriceId]; exists {
@@ -291,7 +310,7 @@ func (ps *PlanStore) RemoveCouponFromPlan(priceID string) error {
 func (ps *PlanStore) GetPricingOverview() (*PricingOverview, error) {
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
-	return commerce.BuildPricingOverview(ps.bundle, ps.plans)
+	return BuildPricingOverview(ps.bundle, ps.plans)
 }
 
 // ListBundleCatalog returns all bundles with their prices for admin UI.
@@ -299,7 +318,7 @@ func (ps *PlanStore) ListBundleCatalog(ctx context.Context) ([]BundleCatalogEntr
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
 
-	return commerce.BuildBundleCatalog(ps.bundle, ps.plans), nil
+	return BuildBundleCatalog(ps.bundle, ps.plans), nil
 }
 
 // AddPlan adds a new plan to the store.
@@ -312,7 +331,7 @@ func (ps *PlanStore) AddPlan(plan *PlanOption) (*PlanOption, error) {
 	}
 
 	cloned := proto.Clone(plan).(*PlanOption)
-	if err := commerce.NormalizePlanOption(cloned, ps.bundleKey); err != nil {
+	if err := NormalizePlanOption(cloned, ps.bundleKey); err != nil {
 		return nil, err
 	}
 
@@ -341,13 +360,13 @@ func (ps *PlanStore) ApplyStripeImportSelections(ctx context.Context, selections
 
 	result := &StripeImportResult{}
 	if fetcher == nil {
-		return result, errStripeImportMissingFetcher
+		return result, ErrStripeImportMissingFetcher
 	}
 	if ps.bundle == nil {
-		return result, errStripeImportBundleMissing
+		return result, ErrStripeImportBundleMissing
 	}
 
-	normalizedSelections, errorsList, err := commerce.NormalizeStripeImportSelections(selections)
+	normalizedSelections, errorsList, err := NormalizeStripeImportSelections(selections)
 	if len(errorsList) > 0 {
 		result.Errors = append(result.Errors, errorsList...)
 	}
@@ -388,13 +407,13 @@ func (ps *PlanStore) ApplyStripeImportSelections(ctx context.Context, selections
 
 			if idx, exists := planIndex[selection.PriceID]; exists {
 				if selection.Action == "overwrite" {
-					name := commerce.PlanNameFromStripeImport(priceDetails)
+					name := PlanNameFromStripeImport(priceDetails)
 					displayEnabled := priceDetails.Active
 					input := UpdateBundlePriceInput{
 						PlanName:       &name,
 						DisplayEnabled: &displayEnabled,
 					}
-					derivedTier, ok := commerce.DerivePlanTierFromStripe(priceDetails)
+					derivedTier, ok := DerivePlanTierFromStripe(priceDetails)
 					if !ok {
 						derivedTier = ""
 					}
@@ -411,8 +430,8 @@ func (ps *PlanStore) ApplyStripeImportSelections(ctx context.Context, selections
 				continue
 			}
 
-			plan := commerce.StripePriceImportToPlanOption(priceDetails)
-			if err := commerce.NormalizePlanOption(plan, ps.bundleKey); err != nil {
+			plan := StripePriceImportToPlanOption(priceDetails)
+			if err := NormalizePlanOption(plan, ps.bundleKey); err != nil {
 				result.Errors = append(result.Errors, "failed to normalize "+selection.PriceID+": "+err.Error())
 				continue
 			}
@@ -465,7 +484,7 @@ func (ps *PlanStore) SetPlans(bundle *BundleProduct, plans []*PlanOption) error 
 
 	if bundle != nil {
 		clonedBundle := proto.Clone(bundle).(*BundleProduct)
-		if err := commerce.NormalizeBundle(clonedBundle, ps.bundleKey, ps.displayEnv); err != nil {
+		if err := NormalizeBundle(clonedBundle, ps.bundleKey, ps.displayEnv); err != nil {
 			return err
 		}
 		ps.bundle = clonedBundle
@@ -475,7 +494,7 @@ func (ps *PlanStore) SetPlans(bundle *BundleProduct, plans []*PlanOption) error 
 	seenPriceIDs := make(map[string]struct{}, len(plans))
 	for _, plan := range plans {
 		cloned := proto.Clone(plan).(*PlanOption)
-		if err := commerce.NormalizePlanOption(cloned, ps.bundleKey); err != nil {
+		if err := NormalizePlanOption(cloned, ps.bundleKey); err != nil {
 			return err
 		}
 		if _, exists := seenPriceIDs[cloned.StripePriceId]; exists {
@@ -515,8 +534,13 @@ func convertProtoMetadataToMap(m map[string]*commonv1.JsonValue) map[string]inte
 	return result
 }
 
-// resolvePlansPath finds the plans.json file.
-func resolvePlansPath() string {
+// ConvertProtoMetadataToMap converts protobuf metadata into JSON-compatible values.
+func ConvertProtoMetadataToMap(m map[string]*commonv1.JsonValue) map[string]interface{} {
+	return convertProtoMetadataToMap(m)
+}
+
+// ResolvePlansPath finds the plans.json file.
+func ResolvePlansPath() string {
 	candidates := []string{
 		filepath.Join("..", ".vrooli", "plans.json"),
 		filepath.Join(".", ".vrooli", "plans.json"),

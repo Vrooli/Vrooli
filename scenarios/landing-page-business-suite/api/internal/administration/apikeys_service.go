@@ -1,4 +1,4 @@
-package account
+package administration
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 )
 
 // HTTPDoer is an interface for making HTTP requests, used for testing.
-type HTTPDoer interface {
+type APIKeyHTTPDoer interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
@@ -33,7 +33,7 @@ type APIKeyStore interface {
 type APIKeyService struct {
 	db            APIKeyStore
 	encryptionKey []byte // 32 bytes for AES-256
-	httpClient    HTTPDoer
+	httpClient    APIKeyHTTPDoer
 	dialect       string
 	logEvent      func(string, map[string]interface{})
 	logError      func(string, map[string]interface{})
@@ -58,7 +58,7 @@ type APIKeyCreateRequest struct {
 
 // NewAPIKeyServiceWithRuntime wires application-owned secret, environment,
 // and logging behavior at the composition boundary.
-func NewAPIKeyServiceWithRuntime(db APIKeyStore, httpClient HTTPDoer, dialect string, resolveSecret func(string) string, isProduction func() bool, logEvent func(string, map[string]interface{}), logError func(string, map[string]interface{})) (*APIKeyService, error) {
+func NewAPIKeyServiceWithRuntime(db APIKeyStore, httpClient APIKeyHTTPDoer, dialect string, resolveSecret func(string) string, isProduction func() bool, logEvent func(string, map[string]interface{}), logError func(string, map[string]interface{})) (*APIKeyService, error) {
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: 15 * time.Second}
 	}
@@ -93,7 +93,7 @@ func NewAPIKeyServiceWithRuntime(db APIKeyStore, httpClient HTTPDoer, dialect st
 
 // NewAPIKeyServiceForTest constructs the domain service with an explicit key.
 // It is intentionally exported only within this repository's internal package.
-func NewAPIKeyServiceForTest(db APIKeyStore, httpClient HTTPDoer, dialect string, encryptionKey []byte, logEvent func(string, map[string]interface{}), logError func(string, map[string]interface{})) *APIKeyService {
+func NewAPIKeyServiceForTest(db APIKeyStore, httpClient APIKeyHTTPDoer, dialect string, encryptionKey []byte, logEvent func(string, map[string]interface{}), logError func(string, map[string]interface{})) *APIKeyService {
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: 15 * time.Second}
 	}

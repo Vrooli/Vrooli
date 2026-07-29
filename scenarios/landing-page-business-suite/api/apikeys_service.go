@@ -7,15 +7,17 @@ import (
 	"strings"
 	"time"
 
-	"landing-page-business-suite-api/internal/account"
+	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/envx"
 )
 
-type HTTPDoer = account.HTTPDoer
-type APIKeyStore = account.APIKeyStore
-type APIKeyService = account.APIKeyService
-type APIKey = account.APIKey
-type APIKeyCreateRequest = account.APIKeyCreateRequest
+type (
+	HTTPDoer            = administration.APIKeyHTTPDoer
+	APIKeyStore         = administration.APIKeyStore
+	APIKeyService       = administration.APIKeyService
+	APIKey              = administration.APIKey
+	APIKeyCreateRequest = administration.APIKeyCreateRequest
+)
 
 func isProductionEnvironment() bool {
 	env := strings.ToLower(strings.TrimSpace(envx.Get("LPBS_ENVIRONMENT")))
@@ -31,14 +33,14 @@ func NewAPIKeyServiceWithHTTPClient(db APIKeyStore, client HTTPDoer) (*APIKeySer
 }
 
 func NewAPIKeyServiceWithOptions(db APIKeyStore, client HTTPDoer, dialect string) (*APIKeyService, error) {
-	return account.NewAPIKeyServiceWithRuntime(db, client, dialect, resolveSecret, isProductionEnvironment, logStructured, logStructuredError)
+	return administration.NewAPIKeyServiceWithRuntime(db, client, dialect, resolveSecret, isProductionEnvironment, logStructured, logStructuredError)
 }
 
 func newAPIKeyServiceForTest(db APIKeyStore, client HTTPDoer, dialect string, key []byte) *APIKeyService {
-	return account.NewAPIKeyServiceForTest(db, client, dialect, key, nil, nil)
+	return administration.NewAPIKeyServiceForTest(db, client, dialect, key, nil, nil)
 }
 
-func GenerateEncryptionKey() string { return account.GenerateEncryptionKey() }
+func GenerateEncryptionKey() string { return administration.GenerateEncryptionKey() }
 
 // API Handlers
 
