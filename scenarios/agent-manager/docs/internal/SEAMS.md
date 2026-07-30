@@ -80,6 +80,27 @@ api/internal/
 
 ## Core Seams
 
+### Durable analytics read model
+
+**Purpose:** Make cross-run statistics stable after raw event retention and
+keep every analytical question on one compute path.
+
+**Contract:** `runreport` is the only fold from operational `run_events` into
+`invocation_read_model_facts`, `invocation_read_model_errors`, and
+`invocation_read_model_runs`. Projection replacement advances facts, errors,
+terminal run summary, signals, and watermark atomically. Typed Measures RPCs
+are the machine contract; legacy statistics routes are compatibility readers
+over the same projection and may only join product metadata (tasks/profiles).
+
+**Freshness:** A watermark records last event id/time, classifier version, and
+projection time per run. Missing watermarks are explicitly unprojected; replay
+never silently fabricates pruned source events.
+
+**Consumers:** Measures RPC/CLI, statistics UI, export, pricing model catalog,
+and retained stats compatibility routes. `repository_stats_test.go` seeds one
+snapshot and proves status, success, duration, costs, breakdowns, tools,
+errors, time series, and model catalog against projected data.
+
 ### Agent Run Environment
 
 **Purpose:** Keep runner process environment ownership explicit.

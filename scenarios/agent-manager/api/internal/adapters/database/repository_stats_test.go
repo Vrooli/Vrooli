@@ -6,7 +6,9 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/runreport"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -51,6 +53,24 @@ func TestStatsRepositoryAggregatesDurableRunEvidence(t *testing.T) {
 	insertEvent(failedID, 2, "tool_call", `{"toolName":""}`)
 	insertEvent(failedID, 3, "tool_result", `{"toolName":"","success":false}`)
 	insertEvent(failedID, 4, "error", `{"code":"runner_failed"}`)
+	readModel := NewRepositories(db, logrus.New()).InvocationReadModel.(invocationreadmodel.RunStore)
+	for _, fact := range []invocationreadmodel.RunFact{
+		{RunID: completeID.String(), OccurredAt: now, CreatedAt: now, DurationMS: 2000, Status: "complete", ProfileID: profile.ID.String(), RunnerType: "codex", Model: "gpt-test", Tag: "analytics-complete", TotalCostUSD: 1.5, AuthoritativeCostUSD: 1.5, InputCostUSD: .5, OutputCostUSD: 1, TotalTokens: 30, InputTokens: 10, OutputTokens: 20, ProjectedAt: now},
+		{RunID: failedID.String(), OccurredAt: now.Add(time.Minute), CreatedAt: now, DurationMS: 4000, Status: "failed", RunnerType: "claude-code", Model: "claude-test", Tag: "analytics-failed", TotalCostUSD: 2, EstimatedCostUSD: 2, TotalTokens: 10, InputTokens: 5, OutputTokens: 5, ProjectedAt: now},
+	} {
+		if err := readModel.ReplaceRun(ctx, fact); err != nil {
+			t.Fatalf("project run fact: %v", err)
+		}
+	}
+	if err := NewRepositories(db, logrus.New()).InvocationReadModel.Replace(ctx, []invocationreadmodel.Fact{
+		{InvocationFact: runreport.InvocationFact{ToolName: "read_file", Outcome: "success"}, RunID: completeID.String(), OccurredAt: now, TimeBasis: "event", RunnerType: "codex", Model: "gpt-test", Tag: "analytics-complete", RunStatus: "complete"},
+		{InvocationFact: runreport.InvocationFact{ToolName: "", Outcome: "failure"}, RunID: failedID.String(), OccurredAt: now.Add(time.Minute), TimeBasis: "event", RunnerType: "claude-code", Model: "claude-test", Tag: "analytics-failed", RunStatus: "failed"},
+	}, invocationreadmodel.Watermark{RunID: completeID.String(), LastEventID: "tool-1", LastEventAt: now, ClassifierVersion: runreport.InvocationFactVersion, ProjectedAt: now}); err != nil {
+		t.Fatalf("project invocation facts: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO invocation_read_model_errors (run_id,event_id,occurred_at,time_basis,error_code,profile_id,runner_type,model,tag) VALUES (?,?,?,?,?,?,?,?,?)`, failedID.String(), "error-1", SQLiteTime(now.Add(time.Minute)), "event", "runner_failed", "", "claude-code", "claude-test", "analytics-failed"); err != nil {
+		t.Fatalf("project error fact: %v", err)
+	}
 
 	filter := repository.StatsFilter{Window: repository.StatsTimeWindow{Start: now.Add(-time.Hour), End: now.Add(time.Hour)}}
 	counts, err := stats.GetRunStatusCounts(ctx, filter)

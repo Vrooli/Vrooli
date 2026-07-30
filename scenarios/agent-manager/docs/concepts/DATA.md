@@ -18,7 +18,8 @@ event time, classifier version, and projection time are committed atomically
 with the corresponding replacement facts. A missing watermark means the run
 has not yet been projected.
 
-`invocation_read_model_runs` is the durable terminal summary for throughput:
+`invocation_read_model_runs` is the durable terminal summary for throughput and
+all retained cross-run statistics:
 terminal time (with an explicit fallback basis), lifecycle status, profile,
 runner, model, tag, duration, cost, and token totals. Its companion
 `invocation_read_model_run_signals` retains read-call and reread counts using
@@ -53,7 +54,7 @@ profile, runner, model, tag prefix, and run status. Cohorts are bounded and
 return an explicit truncation flag; callers must never treat a truncated list
 as complete.
 
-## Statistics consumer inventory and parity boundary
+## Statistics consumer inventory and durable parity boundary
 
 The retained statistics product has three consumers: `agent-manager run stats`
 uses `/api/v1/stats/summary`; `ui/src/features/stats/` reads the summary plus
@@ -61,8 +62,14 @@ the status, duration, cost, runner, profile, model, tool, error, and
 time-series endpoints; `ops` reads the separate typed-event operational
 projection. The operational projection is not a candidate for this migration.
 
-Before the summary transport is removed, parity must be demonstrated at one
-database snapshot for these question families:
+The retained statistics compatibility transport is backed exclusively by the
+durable read model. Product metadata such as task and profile names can be
+joined at read time, but no statistic reopens `run_events` JSON. The typed
+measure service is the canonical machine-facing analytics contract; the legacy
+summary and drill-down routes remain only for existing product consumers while
+they migrate.
+
+Same-snapshot regression coverage proves these question families:
 
 - run volume and status counts;
 - terminal run success rate;
@@ -73,12 +80,10 @@ database snapshot for these question families:
 - error-pattern counts; and
 - time-series buckets.
 
-The durable read model already owns ownership, outcome, retry, help-recovery,
-repeated work, file rereads, run success, cycle time, cost, volume, and cohort
-questions. Legacy breakdown, error-pattern, and time-series questions remain
-explicitly unverified rather than being silently approximated. `StatsSummary`
-remains available until each question has a typed measure and a same-snapshot
-parity result.
+The durable read model owns ownership, outcome, retry, help-recovery, repeated
+work, file rereads, run success, cycle time, cost, volume, breakdowns, tools,
+errors, time series, and cohort questions. `StatsSummary` remains a
+compatibility transport, not a second compute path.
 
 The throughput parity fixture covers run volume, terminal success, average
 cycle time, total cost, and total tokens from one seeded database snapshot.

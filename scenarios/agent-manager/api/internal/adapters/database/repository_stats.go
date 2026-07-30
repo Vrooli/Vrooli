@@ -132,10 +132,10 @@ func (r *statsRepository) GetRunStatusCounts(ctx context.Context, filter reposit
 			COALESCE(SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END), 0) as cancelled,
 			COALESCE(SUM(CASE WHEN status = 'needs_review' THEN 1 ELSE 0 END), 0) as needs_review,
 			COUNT(*) as total
-		FROM runs
+		FROM invocation_read_model_runs
 		WHERE created_at >= ? AND created_at < ?`
 
-	query, args = r.appendFilters(query, args, filter)
+	query, args = r.appendDurableRunFilters(query, args, filter, "")
 
 	var counts repository.RunStatusCounts
 	if err := r.db.GetContext(ctx, &counts, query, args...); err != nil {
@@ -159,10 +159,10 @@ func (r *statsRepository) GetSuccessRate(ctx context.Context, filter repository.
 					4
 				)
 			END, 0.0) as success_rate
-		FROM runs
+		FROM invocation_read_model_runs
 		WHERE created_at >= ? AND created_at < ?`
 
-	query, args = r.appendFilters(query, args, filter)
+	query, args = r.appendDurableRunFilters(query, args, filter, "")
 
 	var rate float64
 	if err := r.db.GetContext(ctx, &rate, query, args...); err != nil {
@@ -178,19 +178,18 @@ func (r *statsRepository) GetDurationStats(ctx context.Context, filter repositor
 	// SQLite: use simple AVG, MIN, MAX (no native percentiles)
 	query := `
 		SELECT
-			COALESCE(CAST(AVG((julianday(ended_at) - julianday(started_at)) * 86400000) AS INTEGER), 0) as avg_ms,
-			COALESCE(CAST(AVG((julianday(ended_at) - julianday(started_at)) * 86400000) AS INTEGER), 0) as p50_ms,
-			COALESCE(CAST(AVG((julianday(ended_at) - julianday(started_at)) * 86400000) AS INTEGER), 0) as p95_ms,
-			COALESCE(CAST(AVG((julianday(ended_at) - julianday(started_at)) * 86400000) AS INTEGER), 0) as p99_ms,
-			COALESCE(CAST(MIN((julianday(ended_at) - julianday(started_at)) * 86400000) AS INTEGER), 0) as min_ms,
-			COALESCE(CAST(MAX((julianday(ended_at) - julianday(started_at)) * 86400000) AS INTEGER), 0) as max_ms,
+			COALESCE(CAST(AVG(duration_ms) AS INTEGER), 0) as avg_ms,
+			COALESCE(CAST(AVG(duration_ms) AS INTEGER), 0) as p50_ms,
+			COALESCE(CAST(AVG(duration_ms) AS INTEGER), 0) as p95_ms,
+			COALESCE(CAST(AVG(duration_ms) AS INTEGER), 0) as p99_ms,
+			COALESCE(MIN(duration_ms), 0) as min_ms,
+			COALESCE(MAX(duration_ms), 0) as max_ms,
 			COUNT(*) as count
-		FROM runs
+		FROM invocation_read_model_runs
 		WHERE created_at >= ? AND created_at < ?
-		  AND started_at IS NOT NULL
-		  AND ended_at IS NOT NULL`
+		  AND duration_ms > 0`
 
-	query, args = r.appendFilters(query, args, filter)
+	query, args = r.appendDurableRunFilters(query, args, filter, "")
 
 	var stats repository.DurationStats
 	if err := r.db.GetContext(ctx, &stats, query, args...); err != nil {
@@ -205,27 +204,23 @@ func (r *statsRepository) GetCostStats(ctx context.Context, filter repository.St
 
 	query := `
 		SELECT
-			COALESCE(SUM(CAST(json_extract(e.data, '$.totalCostUsd') AS REAL)), 0) as total_cost_usd,
-			COALESCE(SUM(CASE WHEN json_extract(e.data, '$.costSource') IN ('runner_reported', 'provider_usage_api') THEN CAST(json_extract(e.data, '$.totalCostUsd') AS REAL) ELSE 0 END), 0) as total_cost_usd_authoritative,
-			COALESCE(SUM(CASE WHEN json_extract(e.data, '$.costSource') = 'pricing_table_estimate' THEN CAST(json_extract(e.data, '$.totalCostUsd') AS REAL) ELSE 0 END), 0) as total_cost_usd_estimated,
-			COALESCE(SUM(CASE WHEN json_extract(e.data, '$.costSource') IS NULL OR json_extract(e.data, '$.costSource') = '' OR json_extract(e.data, '$.costSource') = 'unknown' THEN CAST(json_extract(e.data, '$.totalCostUsd') AS REAL) ELSE 0 END), 0) as total_cost_usd_unknown,
-			COALESCE(SUM(CAST(json_extract(e.data, '$.inputCostUsd') AS REAL)), 0) as input_cost_usd,
-			COALESCE(SUM(CAST(json_extract(e.data, '$.outputCostUsd') AS REAL)), 0) as output_cost_usd,
-			COALESCE(SUM(CAST(json_extract(e.data, '$.cacheReadCostUsd') AS REAL)), 0) as cache_read_cost_usd,
-			COALESCE(SUM(CAST(json_extract(e.data, '$.cacheCreationCostUsd') AS REAL)), 0) as cache_creation_cost_usd,
-			COALESCE(AVG(CAST(json_extract(e.data, '$.totalCostUsd') AS REAL)), 0) as avg_cost_usd,
-			COALESCE(SUM(CAST(json_extract(e.data, '$.inputTokens') AS INTEGER)), 0) as input_tokens,
-			COALESCE(SUM(CAST(json_extract(e.data, '$.outputTokens') AS INTEGER)), 0) as output_tokens,
-			COALESCE(SUM(CAST(json_extract(e.data, '$.cacheReadTokens') AS INTEGER)), 0) as cache_read_tokens,
-			COALESCE(SUM(
-				COALESCE(CAST(json_extract(e.data, '$.inputTokens') AS INTEGER), 0) +
-				COALESCE(CAST(json_extract(e.data, '$.outputTokens') AS INTEGER), 0)
-			), 0) as total_tokens
-		FROM runs r
-		LEFT JOIN run_events e ON r.id = e.run_id AND e.event_type = 'metric'
-		WHERE r.created_at >= ? AND r.created_at < ?`
+			COALESCE(SUM(total_cost_usd), 0) as total_cost_usd,
+			COALESCE(SUM(authoritative_cost_usd), 0) as total_cost_usd_authoritative,
+			COALESCE(SUM(estimated_cost_usd), 0) as total_cost_usd_estimated,
+			COALESCE(SUM(unknown_cost_usd), 0) as total_cost_usd_unknown,
+			COALESCE(SUM(input_cost_usd), 0) as input_cost_usd,
+			COALESCE(SUM(output_cost_usd), 0) as output_cost_usd,
+			COALESCE(SUM(cache_read_cost_usd), 0) as cache_read_cost_usd,
+			COALESCE(SUM(cache_creation_cost_usd), 0) as cache_creation_cost_usd,
+			COALESCE(AVG(total_cost_usd), 0) as avg_cost_usd,
+			COALESCE(SUM(input_tokens), 0) as input_tokens,
+			COALESCE(SUM(output_tokens), 0) as output_tokens,
+			COALESCE(SUM(cache_read_tokens), 0) as cache_read_tokens,
+			COALESCE(SUM(total_tokens), 0) as total_tokens
+		FROM invocation_read_model_runs
+		WHERE created_at >= ? AND created_at < ?`
 
-	query, args = r.appendFiltersWithAlias(query, args, filter, "r")
+	query, args = r.appendDurableRunFilters(query, args, filter, "")
 
 	var stats repository.CostStats
 	if err := r.db.GetContext(ctx, &stats, query, args...); err != nil {
@@ -240,20 +235,18 @@ func (r *statsRepository) GetRunnerBreakdown(ctx context.Context, filter reposit
 
 	query := `
 		SELECT
-			json_extract(r.resolved_config, '$.runnerType') as runner_type,
+			runner_type,
 			COUNT(*) as run_count,
-			SUM(CASE WHEN r.status = 'complete' THEN 1 ELSE 0 END) as success_count,
-			SUM(CASE WHEN r.status = 'failed' THEN 1 ELSE 0 END) as failed_count,
-			COALESCE(SUM(CAST(json_extract(e.data, '$.totalCostUsd') AS REAL)), 0) as total_cost_usd,
-			COALESCE(CAST(AVG((julianday(r.ended_at) - julianday(r.started_at)) * 86400000) AS INTEGER), 0) as avg_duration_ms
-		FROM runs r
-		LEFT JOIN run_events e ON r.id = e.run_id AND e.event_type = 'metric'
-		WHERE r.created_at >= ? AND r.created_at < ?
-		  AND r.resolved_config IS NOT NULL
-		  AND json_extract(r.resolved_config, '$.runnerType') IS NOT NULL`
-	query, args = r.appendFiltersWithAlias(query, args, filter, "r")
+			SUM(CASE WHEN status = 'complete' THEN 1 ELSE 0 END) as success_count,
+			SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_count,
+			COALESCE(SUM(total_cost_usd), 0) as total_cost_usd,
+			COALESCE(CAST(AVG(duration_ms) AS INTEGER), 0) as avg_duration_ms
+		FROM invocation_read_model_runs
+		WHERE created_at >= ? AND created_at < ?
+		  AND runner_type != ''`
+	query, args = r.appendDurableRunFilters(query, args, filter, "")
 	query += `
-		GROUP BY json_extract(r.resolved_config, '$.runnerType')
+		GROUP BY runner_type
 		ORDER BY run_count DESC`
 
 	type runnerRow struct {
@@ -290,20 +283,19 @@ func (r *statsRepository) GetProfileBreakdown(ctx context.Context, filter reposi
 
 	query := `
 		SELECT
-			r.agent_profile_id as profile_id,
+			r.profile_id as profile_id,
 			COALESCE(p.name, 'Unknown') as profile_name,
 			COUNT(*) as run_count,
 			SUM(CASE WHEN r.status = 'complete' THEN 1 ELSE 0 END) as success_count,
 			SUM(CASE WHEN r.status = 'failed' THEN 1 ELSE 0 END) as failed_count,
-			COALESCE(SUM(CAST(json_extract(e.data, '$.totalCostUsd') AS REAL)), 0) as total_cost_usd
-		FROM runs r
-		LEFT JOIN agent_profiles p ON r.agent_profile_id = p.id
-		LEFT JOIN run_events e ON r.id = e.run_id AND e.event_type = 'metric'
+			COALESCE(SUM(r.total_cost_usd), 0) as total_cost_usd
+		FROM invocation_read_model_runs r
+		LEFT JOIN agent_profiles p ON r.profile_id = p.id
 		WHERE r.created_at >= ? AND r.created_at < ?
-		  AND r.agent_profile_id IS NOT NULL`
-	query, args = r.appendFiltersWithAlias(query, args, filter, "r")
+		  AND r.profile_id != ''`
+	query, args = r.appendDurableRunFilters(query, args, filter, "r")
 	query += `
-		GROUP BY r.agent_profile_id, p.name
+		GROUP BY r.profile_id, p.name
 		ORDER BY run_count DESC
 		LIMIT ?`
 	args = append(args, limit)
@@ -321,28 +313,23 @@ func (r *statsRepository) GetModelBreakdown(ctx context.Context, filter reposito
 
 	query := `
 		SELECT
-			COALESCE(json_extract(r.resolved_config, '$.model'), 'unknown') as model,
+			model,
 			COUNT(*) as run_count,
-			SUM(CASE WHEN r.status = 'complete' THEN 1 ELSE 0 END) as success_count,
-			COALESCE(SUM(CAST(json_extract(e.data, '$.totalCostUsd') AS REAL)), 0) as total_cost_usd,
-			COALESCE(SUM(CASE WHEN json_extract(e.data, '$.costSource') IN ('runner_reported', 'provider_usage_api') THEN CAST(json_extract(e.data, '$.totalCostUsd') AS REAL) ELSE 0 END), 0) as total_cost_usd_authoritative,
-			COALESCE(SUM(CASE WHEN json_extract(e.data, '$.costSource') = 'pricing_table_estimate' THEN CAST(json_extract(e.data, '$.totalCostUsd') AS REAL) ELSE 0 END), 0) as total_cost_usd_estimated,
-			COALESCE(SUM(CASE WHEN json_extract(e.data, '$.costSource') IS NULL OR json_extract(e.data, '$.costSource') = '' OR json_extract(e.data, '$.costSource') = 'unknown' THEN CAST(json_extract(e.data, '$.totalCostUsd') AS REAL) ELSE 0 END), 0) as total_cost_usd_unknown,
-			COALESCE(SUM(CAST(json_extract(e.data, '$.inputCostUsd') AS REAL)), 0) as input_cost_usd,
-			COALESCE(SUM(CAST(json_extract(e.data, '$.outputCostUsd') AS REAL)), 0) as output_cost_usd,
-			COALESCE(SUM(CAST(json_extract(e.data, '$.cacheReadCostUsd') AS REAL)), 0) as cache_read_cost_usd,
-			COALESCE(SUM(CAST(json_extract(e.data, '$.cacheCreationCostUsd') AS REAL)), 0) as cache_creation_cost_usd,
-			COALESCE(SUM(
-				COALESCE(CAST(json_extract(e.data, '$.inputTokens') AS INTEGER), 0) +
-				COALESCE(CAST(json_extract(e.data, '$.outputTokens') AS INTEGER), 0)
-			), 0) as total_tokens
-		FROM runs r
-		LEFT JOIN run_events e ON r.id = e.run_id AND e.event_type = 'metric'
-		WHERE r.created_at >= ? AND r.created_at < ?
-		  AND r.resolved_config IS NOT NULL`
-	query, args = r.appendFiltersWithAlias(query, args, filter, "r")
+			SUM(CASE WHEN status = 'complete' THEN 1 ELSE 0 END) as success_count,
+			COALESCE(SUM(total_cost_usd), 0) as total_cost_usd,
+			COALESCE(SUM(authoritative_cost_usd), 0) as total_cost_usd_authoritative,
+			COALESCE(SUM(estimated_cost_usd), 0) as total_cost_usd_estimated,
+			COALESCE(SUM(unknown_cost_usd), 0) as total_cost_usd_unknown,
+			COALESCE(SUM(input_cost_usd), 0) as input_cost_usd,
+			COALESCE(SUM(output_cost_usd), 0) as output_cost_usd,
+			COALESCE(SUM(cache_read_cost_usd), 0) as cache_read_cost_usd,
+			COALESCE(SUM(cache_creation_cost_usd), 0) as cache_creation_cost_usd,
+			COALESCE(SUM(total_tokens), 0) as total_tokens
+		FROM invocation_read_model_runs
+		WHERE created_at >= ? AND created_at < ?`
+	query, args = r.appendDurableRunFilters(query, args, filter, "")
 	query += `
-		GROUP BY json_extract(r.resolved_config, '$.model')
+		GROUP BY model
 		ORDER BY run_count DESC
 		LIMIT ?`
 	args = append(args, limit)
@@ -358,28 +345,18 @@ func (r *statsRepository) GetModelBreakdown(ctx context.Context, filter reposito
 func (r *statsRepository) GetToolUsageStats(ctx context.Context, filter repository.StatsFilter, limit int) ([]*repository.ToolUsageStats, error) {
 	args := []interface{}{SQLiteTime(filter.Window.Start), SQLiteTime(filter.Window.End)}
 
-	// SQLite: Use CASE to normalize empty/NULL to 'unknown'
 	query := `
 		SELECT
-			CASE
-				WHEN json_extract(e.data, '$.toolName') IS NULL OR json_extract(e.data, '$.toolName') = ''
-				THEN 'unknown'
-				ELSE json_extract(e.data, '$.toolName')
-			END as tool_name,
+			CASE WHEN f.tool_name = '' THEN 'unknown' ELSE f.tool_name END as tool_name,
 			COUNT(*) as call_count,
-			SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 1 THEN 1 ELSE 0 END) as success_count,
-			SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 0 THEN 1 ELSE 0 END) as failed_count
-		FROM run_events e
-		JOIN runs r ON e.run_id = r.id
-		WHERE r.created_at >= ? AND r.created_at < ?
-		  AND e.event_type IN ('tool_call', 'tool_result')`
-	query, args = r.appendFiltersWithAlias(query, args, filter, "r")
+			SUM(CASE WHEN f.outcome = 'success' THEN 1 ELSE 0 END) as success_count,
+			SUM(CASE WHEN f.outcome = 'failure' THEN 1 ELSE 0 END) as failed_count
+		FROM invocation_read_model_facts f
+		JOIN invocation_read_model_runs r ON r.run_id = f.run_id
+		WHERE r.created_at >= ? AND r.created_at < ?`
+	query, args = r.appendDurableRunFilters(query, args, filter, "r")
 	query += `
-		GROUP BY CASE
-			WHEN json_extract(e.data, '$.toolName') IS NULL OR json_extract(e.data, '$.toolName') = ''
-			THEN 'unknown'
-			ELSE json_extract(e.data, '$.toolName')
-		END
+		GROUP BY CASE WHEN f.tool_name = '' THEN 'unknown' ELSE f.tool_name END
 		ORDER BY call_count DESC
 		LIMIT ?`
 	args = append(args, limit)
@@ -397,26 +374,22 @@ func (r *statsRepository) GetModelRunUsage(ctx context.Context, filter repositor
 
 	query := `
 		SELECT
-			r.id as run_id,
+			irm.run_id as run_id,
 			r.task_id as task_id,
 			COALESCE(t.title, 'Unknown Task') as task_title,
-			r.agent_profile_id as profile_id,
+			irm.profile_id as profile_id,
 			COALESCE(p.name, 'Unknown Profile') as profile_name,
-			r.status as status,
-			r.created_at as created_at,
-			COALESCE(SUM(CAST(json_extract(e.data, '$.totalCostUsd') AS REAL)), 0) as total_cost_usd,
-			COALESCE(SUM(
-				COALESCE(CAST(json_extract(e.data, '$.inputTokens') AS INTEGER), 0) +
-				COALESCE(CAST(json_extract(e.data, '$.outputTokens') AS INTEGER), 0)
-			), 0) as total_tokens
-		FROM runs r
+			irm.status as status,
+			irm.created_at as created_at,
+			irm.total_cost_usd as total_cost_usd,
+			irm.total_tokens as total_tokens
+		FROM invocation_read_model_runs irm
+		JOIN runs r ON r.id = irm.run_id
 		LEFT JOIN tasks t ON r.task_id = t.id
-		LEFT JOIN agent_profiles p ON r.agent_profile_id = p.id
-		LEFT JOIN run_events e ON r.id = e.run_id AND e.event_type = 'metric'
-		WHERE r.created_at >= ? AND r.created_at < ?
-		  AND COALESCE(json_extract(r.resolved_config, '$.model'), 'unknown') = ?
-		GROUP BY r.id, r.task_id, t.title, r.agent_profile_id, p.name, r.status, r.created_at
-		ORDER BY r.created_at DESC
+		LEFT JOIN agent_profiles p ON irm.profile_id = p.id
+		WHERE irm.created_at >= ? AND irm.created_at < ?
+		  AND irm.model = ?
+		ORDER BY irm.created_at DESC
 		LIMIT ?`
 
 	var rows []modelRunUsageRow
@@ -432,64 +405,19 @@ func (r *statsRepository) GetModelRunUsage(ctx context.Context, filter repositor
 
 // GetToolRunUsage returns run-level usage for a specific tool.
 func (r *statsRepository) GetToolRunUsage(ctx context.Context, filter repository.StatsFilter, toolName string, limit int) ([]*repository.ToolRunUsage, error) {
-	var query string
-	var args []interface{}
-
-	// When toolName is "unknown", match events where toolName is NULL, empty, or "unknown"
-	// This corresponds to the normalization done in GetToolUsageStats
-	isUnknown := toolName == "unknown"
-
-	if isUnknown {
-		args = []interface{}{SQLiteTime(filter.Window.Start), SQLiteTime(filter.Window.End), limit}
-		query = `
-			SELECT
-				r.id as run_id,
-				r.task_id as task_id,
-				COALESCE(t.title, 'Unknown Task') as task_title,
-				r.agent_profile_id as profile_id,
-				COALESCE(p.name, 'Unknown Profile') as profile_name,
-				r.status as status,
-				r.created_at as created_at,
-				COALESCE(json_extract(r.resolved_config, '$.model'), 'unknown') as model,
-				SUM(CASE WHEN e.event_type = 'tool_call' THEN 1 ELSE 0 END) as call_count,
-				SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 1 THEN 1 ELSE 0 END) as success_count,
-				SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 0 THEN 1 ELSE 0 END) as failed_count
-			FROM run_events e
-			JOIN runs r ON e.run_id = r.id
-			LEFT JOIN tasks t ON r.task_id = t.id
-			LEFT JOIN agent_profiles p ON r.agent_profile_id = p.id
-			WHERE r.created_at >= ? AND r.created_at < ?
-			  AND e.event_type IN ('tool_call', 'tool_result')
-			  AND (json_extract(e.data, '$.toolName') IS NULL OR json_extract(e.data, '$.toolName') = '' OR json_extract(e.data, '$.toolName') = 'unknown')
-			GROUP BY r.id, r.task_id, t.title, r.agent_profile_id, p.name, r.status, r.created_at, r.resolved_config
-			ORDER BY call_count DESC, r.created_at DESC
-			LIMIT ?`
+	args := []interface{}{SQLiteTime(filter.Window.Start), SQLiteTime(filter.Window.End)}
+	toolPredicate := "f.tool_name = ?"
+	if toolName == "unknown" {
+		toolPredicate = "(f.tool_name = '' OR f.tool_name = 'unknown')"
 	} else {
-		args = []interface{}{SQLiteTime(filter.Window.Start), SQLiteTime(filter.Window.End), toolName, limit}
-		query = `
-			SELECT
-				r.id as run_id,
-				r.task_id as task_id,
-				COALESCE(t.title, 'Unknown Task') as task_title,
-				r.agent_profile_id as profile_id,
-				COALESCE(p.name, 'Unknown Profile') as profile_name,
-				r.status as status,
-				r.created_at as created_at,
-				COALESCE(json_extract(r.resolved_config, '$.model'), 'unknown') as model,
-				SUM(CASE WHEN e.event_type = 'tool_call' THEN 1 ELSE 0 END) as call_count,
-				SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 1 THEN 1 ELSE 0 END) as success_count,
-				SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 0 THEN 1 ELSE 0 END) as failed_count
-			FROM run_events e
-			JOIN runs r ON e.run_id = r.id
-			LEFT JOIN tasks t ON r.task_id = t.id
-			LEFT JOIN agent_profiles p ON r.agent_profile_id = p.id
-			WHERE r.created_at >= ? AND r.created_at < ?
-			  AND e.event_type IN ('tool_call', 'tool_result')
-			  AND json_extract(e.data, '$.toolName') = ?
-			GROUP BY r.id, r.task_id, t.title, r.agent_profile_id, p.name, r.status, r.created_at, r.resolved_config
-			ORDER BY call_count DESC, r.created_at DESC
-			LIMIT ?`
+		args = append(args, toolName)
 	}
+	query := `SELECT irm.run_id, r.task_id, COALESCE(t.title, 'Unknown Task') AS task_title, irm.profile_id, COALESCE(p.name, 'Unknown Profile') AS profile_name, irm.status, irm.created_at, irm.model,
+		COUNT(*) AS call_count, SUM(CASE WHEN f.outcome = 'success' THEN 1 ELSE 0 END) AS success_count, SUM(CASE WHEN f.outcome = 'failure' THEN 1 ELSE 0 END) AS failed_count
+		FROM invocation_read_model_facts f JOIN invocation_read_model_runs irm ON irm.run_id = f.run_id JOIN runs r ON r.id = irm.run_id LEFT JOIN tasks t ON r.task_id = t.id LEFT JOIN agent_profiles p ON irm.profile_id = p.id
+		WHERE irm.created_at >= ? AND irm.created_at < ? AND ` + toolPredicate + `
+		GROUP BY irm.run_id, r.task_id, t.title, irm.profile_id, p.name, irm.status, irm.created_at, irm.model ORDER BY call_count DESC, irm.created_at DESC LIMIT ?`
+	args = append(args, limit)
 
 	var rows []toolRunUsageRow
 	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
@@ -504,48 +432,15 @@ func (r *statsRepository) GetToolRunUsage(ctx context.Context, filter repository
 
 // GetToolUsageByModel returns tool usage grouped by model.
 func (r *statsRepository) GetToolUsageByModel(ctx context.Context, filter repository.StatsFilter, toolName string, limit int) ([]*repository.ToolUsageModelBreakdown, error) {
-	var query string
-	var args []interface{}
-
-	// When toolName is "unknown", match events where toolName is NULL, empty, or "unknown"
-	// This corresponds to the normalization done in GetToolUsageStats
-	isUnknown := toolName == "unknown"
-
-	if isUnknown {
-		args = []interface{}{SQLiteTime(filter.Window.Start), SQLiteTime(filter.Window.End), limit}
-		query = `
-			SELECT
-				COALESCE(json_extract(r.resolved_config, '$.model'), 'unknown') as model,
-				COUNT(DISTINCT r.id) as run_count,
-				SUM(CASE WHEN e.event_type = 'tool_call' THEN 1 ELSE 0 END) as call_count,
-				SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 1 THEN 1 ELSE 0 END) as success_count,
-				SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 0 THEN 1 ELSE 0 END) as failed_count
-			FROM run_events e
-			JOIN runs r ON e.run_id = r.id
-			WHERE r.created_at >= ? AND r.created_at < ?
-			  AND e.event_type IN ('tool_call', 'tool_result')
-			  AND (json_extract(e.data, '$.toolName') IS NULL OR json_extract(e.data, '$.toolName') = '' OR json_extract(e.data, '$.toolName') = 'unknown')
-			GROUP BY json_extract(r.resolved_config, '$.model')
-			ORDER BY call_count DESC
-			LIMIT ?`
+	args := []interface{}{SQLiteTime(filter.Window.Start), SQLiteTime(filter.Window.End)}
+	toolPredicate := "f.tool_name = ?"
+	if toolName == "unknown" {
+		toolPredicate = "(f.tool_name = '' OR f.tool_name = 'unknown')"
 	} else {
-		args = []interface{}{SQLiteTime(filter.Window.Start), SQLiteTime(filter.Window.End), toolName, limit}
-		query = `
-			SELECT
-				COALESCE(json_extract(r.resolved_config, '$.model'), 'unknown') as model,
-				COUNT(DISTINCT r.id) as run_count,
-				SUM(CASE WHEN e.event_type = 'tool_call' THEN 1 ELSE 0 END) as call_count,
-				SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 1 THEN 1 ELSE 0 END) as success_count,
-				SUM(CASE WHEN e.event_type = 'tool_result' AND json_extract(e.data, '$.success') = 0 THEN 1 ELSE 0 END) as failed_count
-			FROM run_events e
-			JOIN runs r ON e.run_id = r.id
-			WHERE r.created_at >= ? AND r.created_at < ?
-			  AND e.event_type IN ('tool_call', 'tool_result')
-			  AND json_extract(e.data, '$.toolName') = ?
-			GROUP BY json_extract(r.resolved_config, '$.model')
-			ORDER BY call_count DESC
-			LIMIT ?`
+		args = append(args, toolName)
 	}
+	query := `SELECT irm.model, COUNT(DISTINCT irm.run_id) AS run_count, COUNT(*) AS call_count, SUM(CASE WHEN f.outcome = 'success' THEN 1 ELSE 0 END) AS success_count, SUM(CASE WHEN f.outcome = 'failure' THEN 1 ELSE 0 END) AS failed_count FROM invocation_read_model_facts f JOIN invocation_read_model_runs irm ON irm.run_id = f.run_id WHERE irm.created_at >= ? AND irm.created_at < ? AND ` + toolPredicate + ` GROUP BY irm.model ORDER BY call_count DESC LIMIT ?`
+	args = append(args, limit)
 
 	var rows []*repository.ToolUsageModelBreakdown
 	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
@@ -558,21 +453,18 @@ func (r *statsRepository) GetToolUsageByModel(ctx context.Context, filter reposi
 func (r *statsRepository) GetErrorPatterns(ctx context.Context, filter repository.StatsFilter, limit int) ([]*repository.ErrorPattern, error) {
 	args := []interface{}{SQLiteTime(filter.Window.Start), SQLiteTime(filter.Window.End)}
 
-	// SQLite doesn't have array_agg, use a subquery
 	query := `
 		SELECT
-			COALESCE(json_extract(e.data, '$.code'), 'unknown') as error_code,
+			e.error_code,
 			COUNT(*) as count,
-			MAX(e.timestamp) as last_seen,
-			(SELECT e2.run_id FROM run_events e2
-			 WHERE e2.event_type = 'error'
-			   AND COALESCE(json_extract(e2.data, '$.code'), 'unknown') = COALESCE(json_extract(e.data, '$.code'), 'unknown')
-			 ORDER BY e2.timestamp DESC LIMIT 1) as sample_run_id
-		FROM run_events e
-		JOIN runs r ON e.run_id = r.id
-		WHERE r.created_at >= ? AND r.created_at < ?
-		  AND e.event_type = 'error'
-		GROUP BY json_extract(e.data, '$.code')
+			MAX(e.occurred_at) as last_seen,
+			(SELECT recent.run_id FROM invocation_read_model_errors recent WHERE recent.error_code = e.error_code ORDER BY recent.occurred_at DESC, recent.run_id ASC LIMIT 1) as sample_run_id
+		FROM invocation_read_model_errors e
+		JOIN invocation_read_model_runs r ON r.run_id = e.run_id
+		WHERE r.created_at >= ? AND r.created_at < ?`
+	query, args = r.appendDurableRunFilters(query, args, filter, "r")
+	query += `
+		GROUP BY e.error_code
 		ORDER BY count DESC
 		LIMIT ?`
 	args = append(args, limit)
@@ -596,19 +488,18 @@ func (r *statsRepository) GetTimeSeries(ctx context.Context, filter repository.S
 	query := fmt.Sprintf(`
 		SELECT
 			%s as timestamp,
-			COUNT(DISTINCT r.id) as runs_started,
-			COUNT(DISTINCT CASE WHEN r.status = 'complete' THEN r.id END) as runs_completed,
-			COUNT(DISTINCT CASE WHEN r.status = 'failed' THEN r.id END) as runs_failed,
-			COUNT(DISTINCT CASE WHEN r.status = 'cancelled' THEN r.id END) as runs_cancelled,
-			COALESCE(SUM(CAST(json_extract(e.data, '$.totalCostUsd') AS REAL)), 0) as total_cost_usd,
-			COALESCE(CAST(AVG((julianday(r.ended_at) - julianday(r.started_at)) * 86400000) AS INTEGER), 0) as avg_duration_ms
-		FROM runs r
-		LEFT JOIN run_events e ON r.id = e.run_id AND e.event_type = 'metric'
+			COUNT(DISTINCT r.run_id) as runs_started,
+			COUNT(DISTINCT CASE WHEN r.status = 'complete' THEN r.run_id END) as runs_completed,
+			COUNT(DISTINCT CASE WHEN r.status = 'failed' THEN r.run_id END) as runs_failed,
+			COUNT(DISTINCT CASE WHEN r.status = 'cancelled' THEN r.run_id END) as runs_cancelled,
+			COALESCE(SUM(r.total_cost_usd), 0) as total_cost_usd,
+			COALESCE(CAST(AVG(r.duration_ms) AS INTEGER), 0) as avg_duration_ms
+		FROM invocation_read_model_runs r
 		WHERE r.created_at >= ? AND r.created_at < ?
 		GROUP BY %s
 		ORDER BY timestamp ASC`, bucketSQL, bucketSQL)
 
-	query, args = r.appendFiltersWithAlias(query, args, filter, "r")
+	query, args = r.appendDurableRunFilters(query, args, filter, "r")
 
 	var rows []timeSeriesBucketRow
 	if err := r.db.SelectContext(ctx, &rows, query, args...); err != nil {
@@ -636,64 +527,54 @@ func getBucketSQL(bucketDuration time.Duration) string {
 	}
 }
 
-// appendFilters adds common filter conditions to a query.
-func (r *statsRepository) appendFilters(query string, args []interface{}, filter repository.StatsFilter) (string, []interface{}) {
-	return r.appendFiltersWithAlias(query, args, filter, "")
-}
-
-// appendFiltersWithAlias adds common filter conditions with table alias.
-func (r *statsRepository) appendFiltersWithAlias(query string, args []interface{}, filter repository.StatsFilter, alias string) (string, []interface{}) {
+// appendDurableRunFilters applies the legacy StatsFilter directly to the
+// projected run schema. Compatibility endpoints therefore share the same
+// authoritative dimensions as typed measures instead of reopening run JSON.
+func (r *statsRepository) appendDurableRunFilters(query string, args []interface{}, filter repository.StatsFilter, alias string) (string, []interface{}) {
 	prefix := ""
 	if alias != "" {
 		prefix = alias + "."
 	}
-
-	var conditions []string
+	conditions := []string{}
 	if len(filter.RunIDs) > 0 {
 		placeholders := make([]string, len(filter.RunIDs))
 		for i, id := range filter.RunIDs {
 			placeholders[i] = "?"
-			args = append(args, id)
+			args = append(args, id.String())
 		}
-		conditions = append(conditions, fmt.Sprintf("%sid IN (%s)", prefix, strings.Join(placeholders, ",")))
+		conditions = append(conditions, fmt.Sprintf("%srun_id IN (%s)", prefix, strings.Join(placeholders, ",")))
 	}
-
 	if len(filter.RunnerTypes) > 0 {
 		placeholders := make([]string, len(filter.RunnerTypes))
-		for i, rt := range filter.RunnerTypes {
+		for i, value := range filter.RunnerTypes {
 			placeholders[i] = "?"
-			args = append(args, string(rt))
+			args = append(args, string(value))
 		}
-		conditions = append(conditions, fmt.Sprintf("json_extract(%sresolved_config, '$.runnerType') IN (%s)", prefix, strings.Join(placeholders, ",")))
+		conditions = append(conditions, fmt.Sprintf("%srunner_type IN (%s)", prefix, strings.Join(placeholders, ",")))
 	}
-
 	if len(filter.ProfileIDs) > 0 {
 		placeholders := make([]string, len(filter.ProfileIDs))
 		for i, id := range filter.ProfileIDs {
 			placeholders[i] = "?"
-			args = append(args, id)
+			args = append(args, id.String())
 		}
-		conditions = append(conditions, fmt.Sprintf("%sagent_profile_id IN (%s)", prefix, strings.Join(placeholders, ",")))
+		conditions = append(conditions, fmt.Sprintf("%sprofile_id IN (%s)", prefix, strings.Join(placeholders, ",")))
 	}
-
 	if len(filter.Models) > 0 {
 		placeholders := make([]string, len(filter.Models))
-		for i, model := range filter.Models {
+		for i, value := range filter.Models {
 			placeholders[i] = "?"
-			args = append(args, model)
+			args = append(args, value)
 		}
-		conditions = append(conditions, fmt.Sprintf("COALESCE(json_extract(%sresolved_config, '$.model'), 'unknown') IN (%s)", prefix, strings.Join(placeholders, ",")))
+		conditions = append(conditions, fmt.Sprintf("%smodel IN (%s)", prefix, strings.Join(placeholders, ",")))
 	}
-
 	if filter.TagPrefix != "" {
 		conditions = append(conditions, fmt.Sprintf("%stag LIKE ?", prefix))
 		args = append(args, filter.TagPrefix+"%")
 	}
-
 	if len(conditions) > 0 {
 		query += " AND " + strings.Join(conditions, " AND ")
 	}
-
 	return query, args
 }
 
@@ -702,13 +583,12 @@ func (r *statsRepository) GetPopularModels(ctx context.Context, since time.Time,
 	args := []interface{}{SQLiteTime(since), limit}
 
 	query := `
-		SELECT COALESCE(json_extract(resolved_config, '$.model'), 'unknown') as model
-		FROM runs
+		SELECT model
+		FROM invocation_read_model_runs
 		WHERE created_at >= ?
-		  AND resolved_config IS NOT NULL
-		  AND json_extract(resolved_config, '$.model') IS NOT NULL
-		  AND json_extract(resolved_config, '$.model') != ''
-		GROUP BY json_extract(resolved_config, '$.model')
+		  AND model != ''
+		  AND model != 'unknown'
+		GROUP BY model
 		ORDER BY COUNT(*) DESC
 		LIMIT ?`
 
@@ -725,12 +605,11 @@ func (r *statsRepository) GetRecentModels(ctx context.Context, limit int) ([]str
 
 	// SQLite: Group by model, get max created_at, order by that
 	query := `
-		SELECT COALESCE(json_extract(resolved_config, '$.model'), 'unknown') as model
-		FROM runs
-		WHERE resolved_config IS NOT NULL
-		  AND json_extract(resolved_config, '$.model') IS NOT NULL
-		  AND json_extract(resolved_config, '$.model') != ''
-		GROUP BY json_extract(resolved_config, '$.model')
+		SELECT model
+		FROM invocation_read_model_runs
+		WHERE model != ''
+		  AND model != 'unknown'
+		GROUP BY model
 		ORDER BY MAX(created_at) DESC
 		LIMIT ?`
 

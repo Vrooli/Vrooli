@@ -112,17 +112,13 @@ requirement-tagging debt outside this plan.
 
 ## Technical Debt
 
-### TD-003: Measures and legacy statistics parity remain incomplete
-**Description:** The durable invocation read model now owns friction facts and
-provides corpus metrics, aggregates, and cohort selection. The legacy
-`StatsSummary` aggregate and product statistics surfaces still exist because
-only the throughput subset (volume, terminal success, cycle time, cost, and
-tokens) has same-snapshot parity coverage. Legacy breakdown, tool-usage,
-error-pattern, and time-series questions still lack typed measures and parity.
-**Priority:** P0 analytics completion.
-**Constraint:** Do not remove the legacy aggregate contract or raw-event
-analytics until every documented question has a parity result and its machine
-consumer has migrated.
+### TD-003: Resolved — durable analytics parity and raw aggregate retirement (2026-07-30)
+**Resolution:** Every retained statistics question now reads
+`invocation_read_model_*` projections. The compatibility summary/drill-down
+transport remains for product callers, but it no longer computes from raw
+event JSON. Same-snapshot repository coverage includes status, success,
+duration, cost/token provenance, runner/profile/model breakdowns, tools,
+errors, time-series, and pricing model catalog.
 
 ### Resolved: Legacy profile inputs
 Profiles store one portable `roleRef`. Database startup applies the current
