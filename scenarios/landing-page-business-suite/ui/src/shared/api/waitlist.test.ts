@@ -6,7 +6,7 @@ vi.mock('./common', () => ({ API_BASE: 'http://api.example', apiCall: vi.fn() })
 const mockApiCall = vi.mocked(apiCall);
 
 describe('waitlist API transport', () => {
-  beforeEach(() => { vi.clearAllMocks(); mockApiCall.mockResolvedValue({} as never); });
+  beforeEach(() => { vi.clearAllMocks(); mockApiCall.mockResolvedValue({}); });
 
   it('submits public signups, manages admin records, and exposes the configured export URL', async () => {
     await waitlist.submitWaitlistEmail('customer@example.com');

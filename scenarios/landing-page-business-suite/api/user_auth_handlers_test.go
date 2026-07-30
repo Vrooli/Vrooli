@@ -10,13 +10,15 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"landing-page-business-suite-api/internal/administration"
 )
 
 func TestMagicLinkRequestHandler(t *testing.T) {
 	db := setupTestDB(t)
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 	rateLimiter := NewRateLimiter(5, 15*time.Minute)
 
 	testEmail := "test-magic-link-handler@example.com"
@@ -52,7 +54,7 @@ func TestMagicLinkRequestHandler_InvalidEmail(t *testing.T) {
 	db := setupTestDB(t)
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 
 	handler := handleMagicLinkRequest(authService, nil)
 
@@ -75,7 +77,7 @@ func TestMagicLinkRequestHandler_RateLimiting(t *testing.T) {
 	db := setupTestDB(t)
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 	// Create rate limiter with very low limit for testing
 	rateLimiter := NewRateLimiter(2, 15*time.Minute)
 
@@ -119,7 +121,7 @@ func TestTokenRefreshHandler(t *testing.T) {
 	db := setupTestDB(t)
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 
 	testEmail := "test-refresh-handler@example.com"
 	defer cleanupUserTestData(t, db, testEmail)
@@ -132,7 +134,7 @@ func TestTokenRefreshHandler(t *testing.T) {
 		t.Fatalf("GetOrCreateUser failed: %v", err)
 	}
 
-	tokenPair, err := authService.createSession(ctx, user, "127.0.0.1", "Test-Agent")
+	tokenPair, err := authService.CreateSession(ctx, user, "127.0.0.1", "Test-Agent")
 	if err != nil {
 		t.Fatalf("createSession failed: %v", err)
 	}
@@ -176,7 +178,7 @@ func TestTokenRefreshHandler_InvalidToken(t *testing.T) {
 	db := setupTestDB(t)
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 
 	handler := handleTokenRefresh(authService)
 
@@ -199,7 +201,7 @@ func TestAuthMeHandler(t *testing.T) {
 	db := setupTestDB(t)
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 
 	testEmail := "test-auth-me@example.com"
 	defer cleanupUserTestData(t, db, testEmail)
@@ -213,7 +215,7 @@ func TestAuthMeHandler(t *testing.T) {
 	}
 
 	// Create session and get access token
-	tokenPair, err := authService.createSession(ctx, user, "127.0.0.1", "Test-Agent")
+	tokenPair, err := authService.CreateSession(ctx, user, "127.0.0.1", "Test-Agent")
 	if err != nil {
 		t.Fatalf("createSession failed: %v", err)
 	}
@@ -263,7 +265,7 @@ func TestAuthMeHandler_Unauthorized(t *testing.T) {
 	db := setupTestDB(t)
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 
 	handler := handleAuthMe(authService)
 
@@ -285,7 +287,7 @@ func TestProtectedEndpointsRejectUnauthenticated(t *testing.T) {
 	db := setupTestDB(t)
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 
 	testCases := []struct {
 		name    string
@@ -313,7 +315,7 @@ func TestLogoutHandler(t *testing.T) {
 	db := setupTestDB(t)
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 
 	testEmail := "test-logout@example.com"
 	defer cleanupUserTestData(t, db, testEmail)
@@ -326,7 +328,7 @@ func TestLogoutHandler(t *testing.T) {
 		t.Fatalf("GetOrCreateUser failed: %v", err)
 	}
 
-	tokenPair, err := authService.createSession(ctx, user, "127.0.0.1", "Test-Agent")
+	tokenPair, err := authService.CreateSession(ctx, user, "127.0.0.1", "Test-Agent")
 	if err != nil {
 		t.Fatalf("createSession failed: %v", err)
 	}
@@ -356,8 +358,8 @@ func TestLogoutHandler(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error when using refresh token after logout")
 	}
-	if err != ErrSessionRevoked {
-		t.Errorf("Expected ErrSessionRevoked, got %v", err)
+	if err != administration.ErrSessionRevoked {
+		t.Errorf("Expected administration.ErrSessionRevoked, got %v", err)
 	}
 }
 
@@ -399,17 +401,7 @@ func TestMagicLinkVerifyHandler_Success(t *testing.T) {
 	emailService := NewEmailService()
 
 	// Use direct struct initialization to ensure consistent TTL settings
-	authService := &UserAuthService{
-		db:           db,
-		emailService: emailService,
-		jwtSecret:    []byte("test-secret-key"),
-		jwtIssuer:    "test",
-		accessTTL:    15 * time.Minute,
-		refreshTTL:   7 * 24 * time.Hour,
-		magicLinkTTL: 15 * time.Minute,
-		baseURL:      "http://localhost:3000/auth/verify",
-		appName:      "Test App",
-	}
+	authService := newUserAuthServiceForTest(db, emailService)
 
 	testEmail := "test-verify-handler-success@example.com"
 	defer cleanupUserTestData(t, db, testEmail)
@@ -477,17 +469,7 @@ func TestMagicLinkVerifyHandler_ExpiredToken(t *testing.T) {
 	emailService := NewEmailService()
 
 	// Create service with very short magic link TTL
-	authService := &UserAuthService{
-		db:           db,
-		emailService: emailService,
-		jwtSecret:    []byte("test-secret-key"),
-		jwtIssuer:    "test",
-		accessTTL:    15 * time.Minute,
-		refreshTTL:   7 * 24 * time.Hour,
-		magicLinkTTL: 1 * time.Millisecond, // Very short for testing
-		baseURL:      "http://localhost:3000/auth/verify",
-		appName:      "Test App",
-	}
+	authService := newUserAuthServiceForTestWithOptions(db, emailService, 15*time.Minute, 7*24*time.Hour, time.Millisecond)
 
 	testEmail := "test-verify-handler-expired@example.com"
 	defer cleanupUserTestData(t, db, testEmail)
@@ -527,17 +509,7 @@ func TestMagicLinkVerifyHandler_UsedToken(t *testing.T) {
 	emailService := NewEmailService()
 
 	// Use direct struct initialization to ensure consistent TTL settings
-	authService := &UserAuthService{
-		db:           db,
-		emailService: emailService,
-		jwtSecret:    []byte("test-secret-key"),
-		jwtIssuer:    "test",
-		accessTTL:    15 * time.Minute,
-		refreshTTL:   7 * 24 * time.Hour,
-		magicLinkTTL: 15 * time.Minute,
-		baseURL:      "http://localhost:3000/auth/verify",
-		appName:      "Test App",
-	}
+	authService := newUserAuthServiceForTest(db, emailService)
 
 	testEmail := "test-verify-handler-used@example.com"
 	defer cleanupUserTestData(t, db, testEmail)
@@ -581,7 +553,7 @@ func TestMagicLinkVerifyHandler_InvalidToken(t *testing.T) {
 	db := setupTestDB(t)
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 
 	handler := handleMagicLinkVerify(authService)
 
@@ -599,7 +571,7 @@ func TestMagicLinkVerifyHandler_MissingToken(t *testing.T) {
 	db := setupTestDB(t)
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 
 	handler := handleMagicLinkVerify(authService)
 
@@ -675,7 +647,7 @@ func TestSetAuthCookies_Attributes(t *testing.T) {
 	defer os.Unsetenv("AUTH_MAGIC_LINK_BASE_URL")
 
 	w := httptest.NewRecorder()
-	tokenPair := &TokenPair{
+	tokenPair := &administration.TokenPair{
 		AccessToken:  "test-access-token",
 		RefreshToken: "test-refresh-token",
 		ExpiresAt:    time.Now().Add(15 * time.Minute),
@@ -755,7 +727,7 @@ func TestClearAuthCookies(t *testing.T) {
 // --- redirectWithTokens Tests ---
 
 func TestRedirectWithTokens_ValidURL(t *testing.T) {
-	tokenPair := &TokenPair{
+	tokenPair := &administration.TokenPair{
 		AccessToken:  "test-access",
 		RefreshToken: "test-refresh",
 		ExpiresAt:    time.Now().Add(15 * time.Minute),
@@ -789,7 +761,7 @@ func TestRedirectWithTokens_ValidURL(t *testing.T) {
 }
 
 func TestRedirectWithTokens_InvalidURL(t *testing.T) {
-	tokenPair := &TokenPair{
+	tokenPair := &administration.TokenPair{
 		AccessToken:  "test-access",
 		RefreshToken: "test-refresh",
 		ExpiresAt:    time.Now().Add(15 * time.Minute),
@@ -824,7 +796,7 @@ func TestTokenRefresh_FromCookie(t *testing.T) {
 	db := setupTestDB(t)
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 
 	testEmail := "test-refresh-cookie@example.com"
 	defer cleanupUserTestData(t, db, testEmail)
@@ -837,7 +809,7 @@ func TestTokenRefresh_FromCookie(t *testing.T) {
 		t.Fatalf("GetOrCreateUser failed: %v", err)
 	}
 
-	tokenPair, err := authService.createSession(ctx, user, "127.0.0.1", "Test-Agent")
+	tokenPair, err := authService.CreateSession(ctx, user, "127.0.0.1", "Test-Agent")
 	if err != nil {
 		t.Fatalf("createSession failed: %v", err)
 	}
@@ -864,7 +836,7 @@ func TestTokenRefresh_EmptyBodyWithCookie(t *testing.T) {
 	db := setupTestDB(t)
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 
 	testEmail := "test-refresh-empty-body@example.com"
 	defer cleanupUserTestData(t, db, testEmail)
@@ -877,7 +849,7 @@ func TestTokenRefresh_EmptyBodyWithCookie(t *testing.T) {
 		t.Fatalf("GetOrCreateUser failed: %v", err)
 	}
 
-	tokenPair, err := authService.createSession(ctx, user, "127.0.0.1", "Test-Agent")
+	tokenPair, err := authService.CreateSession(ctx, user, "127.0.0.1", "Test-Agent")
 	if err != nil {
 		t.Fatalf("createSession failed: %v", err)
 	}
@@ -903,7 +875,7 @@ func TestTokenRefresh_MissingToken(t *testing.T) {
 	db := setupTestDB(t)
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 
 	handler := handleTokenRefresh(authService)
 

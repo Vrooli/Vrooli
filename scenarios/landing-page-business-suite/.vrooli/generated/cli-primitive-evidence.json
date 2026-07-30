@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "landing-page-business-suite",
   "generator": "v1.0.0",
-  "manifest_hash": "8c1066a36a0993d2bab7beaf405ad109a8c9b11eade586e72860573809a646ee",
+  "manifest_hash": "1314c18bd02220a975799e68b9eeb521430d5a6aeba71fa069a9c2238c6035b1",
   "commands": [
     {
       "path": "legacy admin-bundle-price-update",
@@ -79,6 +79,14 @@
       "observed_primitive": "proto_list"
     },
     {
+      "path": "legacy admin-download-apps-delete",
+      "group": "legacy",
+      "command": "admin-download-apps-delete",
+      "binding": "DownloadService.DeleteDownloadApp",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
       "path": "legacy admin-plan-coupon-remove",
       "group": "legacy",
       "command": "admin-plan-coupon-remove",
@@ -135,10 +143,66 @@
       "observed_primitive": "action"
     },
     {
+      "path": "legacy ai-chat",
+      "group": "legacy",
+      "command": "ai-chat",
+      "binding": "IntelligenceService.Chat",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy ai-health",
+      "group": "legacy",
+      "command": "ai-health",
+      "binding": "IntelligenceService.Health",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy ai-models",
+      "group": "legacy",
+      "command": "ai-models",
+      "binding": "IntelligenceService.ListModels",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy ai-usage",
+      "group": "legacy",
+      "command": "ai-usage",
+      "binding": "IntelligenceService.GetUsage",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
       "path": "legacy landing-config",
       "group": "legacy",
       "command": "landing-config",
       "binding": "LandingConfigService.GetLandingConfig",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy metrics-summary",
+      "group": "legacy",
+      "command": "metrics-summary",
+      "binding": "MetricsService.GetAnalyticsSummary",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy metrics-track",
+      "group": "legacy",
+      "command": "metrics-track",
+      "binding": "MetricsService.TrackEvent",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy metrics-variants",
+      "group": "legacy",
+      "command": "metrics-variants",
+      "binding": "MetricsService.GetVariantStats",
       "declared_primitive": "action",
       "observed_primitive": "action"
     },

@@ -8,7 +8,8 @@ import (
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-	downloadhttp "landing-page-business-suite-api/handlers/download"
+	downloadhttp "landing-page-business-suite-api/handlers/delivery"
+	"landing-page-business-suite-api/internal/commerce"
 	"landing-page-business-suite-api/internal/delivery"
 )
 
@@ -20,8 +21,8 @@ type managedDownloadResolutionError struct {
 func (e *managedDownloadResolutionError) Error() string { return e.err.Error() }
 func (e *managedDownloadResolutionError) Unwrap() error { return e.err }
 
-func handleDownloads(authorizer *DownloadAuthorizer, hosting *delivery.Service, plans *PlanService) http.HandlerFunc {
-	return downloadhttp.Authorize(downloadhttp.Dependencies{
+func downloadAuthorizationDependencies(authorizer *delivery.DownloadAuthorizer, hosting *delivery.Service, plans *commerce.PlanService) downloadhttp.Dependencies {
+	return downloadhttp.Dependencies{
 		UserEmail: getUserEmail,
 		Authorize: func(ctx context.Context, appKey, platform, user string) (downloadhttp.Authorization, error) {
 			asset, err := authorizer.Authorize(ctx, appKey, platform, user)
@@ -36,17 +37,17 @@ func handleDownloads(authorizer *DownloadAuthorizer, hosting *delivery.Service, 
 		},
 		ClassifyError: func(err error) downloadhttp.ErrorKind {
 			switch {
-			case errors.Is(err, ErrDownloadNotFound):
+			case errors.Is(err, delivery.ErrAssetNotFound):
 				return downloadhttp.ErrorNotFound
-			case errors.Is(err, ErrDownloadAppNotFound):
+			case errors.Is(err, delivery.ErrAppNotFound):
 				return downloadhttp.ErrorAppNotFound
-			case errors.Is(err, ErrDownloadRequiresActiveSubscription):
+			case errors.Is(err, delivery.ErrRequiresActiveSubscription):
 				return downloadhttp.ErrorSubscriptionRequired
-			case errors.Is(err, ErrDownloadIdentityRequired):
+			case errors.Is(err, delivery.ErrIdentityRequired):
 				return downloadhttp.ErrorIdentityRequired
-			case errors.Is(err, ErrDownloadPlatformRequired):
+			case errors.Is(err, delivery.ErrPlatformRequired):
 				return downloadhttp.ErrorPlatformRequired
-			case errors.Is(err, ErrDownloadEntitlementsUnavailable):
+			case errors.Is(err, delivery.ErrEntitlementsUnavailable):
 				return downloadhttp.ErrorEntitlementsUnavailable
 			}
 			return ""
@@ -75,7 +76,49 @@ func handleDownloads(authorizer *DownloadAuthorizer, hosting *delivery.Service, 
 		WriteJSON:  writeJSON,
 		WriteError: writeJSONError,
 		Log:        logStructuredError,
-	})
+	}
+}
+
+// downloadConnectAuthorizationDependencies composes the generated delivery
+// procedure around the same entitlement and managed-artifact services as the
+// established REST endpoint.
+func downloadConnectAuthorizationDependencies(authorizer *delivery.DownloadAuthorizer, hosting *delivery.Service, plans *commerce.PlanService) downloadhttp.ConnectAuthorizationDependencies {
+	return downloadhttp.ConnectAuthorizationDependencies{
+		UserEmail: getUserEmail,
+		Authorize: authorizer.Authorize,
+		ClassifyError: func(err error) downloadhttp.ErrorKind {
+			switch {
+			case errors.Is(err, delivery.ErrAssetNotFound):
+				return downloadhttp.ErrorNotFound
+			case errors.Is(err, delivery.ErrAppNotFound):
+				return downloadhttp.ErrorAppNotFound
+			case errors.Is(err, delivery.ErrRequiresActiveSubscription):
+				return downloadhttp.ErrorSubscriptionRequired
+			case errors.Is(err, delivery.ErrIdentityRequired):
+				return downloadhttp.ErrorIdentityRequired
+			case errors.Is(err, delivery.ErrPlatformRequired):
+				return downloadhttp.ErrorPlatformRequired
+			case errors.Is(err, delivery.ErrEntitlementsUnavailable):
+				return downloadhttp.ErrorEntitlementsUnavailable
+			}
+			return ""
+		},
+		ResolveManaged: func(ctx context.Context, id int64) (string, bool, error) {
+			artifact, err := hosting.GetArtifact(ctx, plans.BundleKey(), id)
+			if err != nil {
+				return "", false, &managedDownloadResolutionError{stage: "fetch", err: err}
+			}
+			if artifact == nil {
+				return "", false, nil
+			}
+			url, err := hosting.PresignGetArtifact(ctx, plans.BundleKey(), *artifact)
+			if err != nil {
+				return "", true, &managedDownloadResolutionError{stage: "presign", err: err}
+			}
+			return url, true, nil
+		},
+		Log: logStructuredError,
+	}
 }
 
 // NOTE: resolveUserIdentity has been removed as part of the user authentication implementation.

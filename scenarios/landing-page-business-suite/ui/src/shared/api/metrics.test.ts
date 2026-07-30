@@ -1,49 +1,47 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const metricsClient = vi.hoisted(() => ({ trackEvent: vi.fn(), getAnalyticsSummary: vi.fn(), getVariantStats: vi.fn() }));
+vi.mock('@connectrpc/connect', () => ({ createClient: vi.fn(() => metricsClient) }));
+
 import { getMetricsSummary, getVariantMetrics, trackMetric } from './metrics';
-import { apiCall } from './common';
-
-vi.mock('./common', () => ({ apiCall: vi.fn() }));
-
-const mockApiCall = vi.mocked(apiCall);
 
 describe('metrics API', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  beforeEach(() => vi.clearAllMocks());
+
+  it('tracks a metric through the generated contract', async () => {
+    metricsClient.trackEvent.mockResolvedValueOnce({ success: true });
+
+    await expect(trackMetric({ event_type: 'click', variant_slug: 'control', session_id: 'session-1', event_data: { element: 'hero', depth: 50 } })).resolves.toEqual({ success: true });
+    expect(metricsClient.trackEvent).toHaveBeenCalledWith({
+      eventType: 'click', variantSlug: 'control', sessionId: 'session-1', visitorId: '', eventData: { element: 'hero', depth: 50 },
+    });
   });
 
-  it('tracks a valid metric and accepts the API acknowledgement shape', async () => {
-    mockApiCall.mockResolvedValueOnce({ success: true });
-    await expect(trackMetric({ event_type: 'click', variant_slug: 'control', session_id: 'session-1' })).resolves.toEqual({ success: true });
-    expect(mockApiCall).toHaveBeenCalledWith('/metrics/track', expect.objectContaining({ method: 'POST' }));
+  it('maps generated summary fields to the established UI shape', async () => {
+    metricsClient.getAnalyticsSummary.mockResolvedValueOnce({
+      totalVisitors: 12n, totalDownloads: 3n, variantStats: [], topCta: 'hero', topCtaCtr: 12.5,
+    });
 
-    mockApiCall.mockResolvedValueOnce({});
-    await expect(trackMetric({ event_type: 'click', variant_slug: 'control', session_id: 'session-1' })).resolves.toEqual({});
+    await expect(getMetricsSummary('2026-01-01', '2026-01-31')).resolves.toEqual({
+      total_visitors: 12, total_downloads: 3, variant_stats: [], top_cta: 'hero', top_cta_ctr: 12.5,
+    });
+    expect(metricsClient.getAnalyticsSummary).toHaveBeenCalledWith({ startDate: '2026-01-01', endDate: '2026-01-31' });
   });
 
-  it('rejects malformed metric acknowledgements rather than claiming a tracked conversion', async () => {
-    mockApiCall.mockResolvedValueOnce({ success: 'yes' });
-    await expect(trackMetric({ event_type: 'conversion', variant_slug: 'control', session_id: 'session-1' })).rejects.toThrow('Invalid track metric response');
-  });
+  it('maps generated variant statistics and optional filters', async () => {
+    metricsClient.getVariantStats.mockResolvedValueOnce({
+      startDate: '2026-01-01', endDate: '2026-01-31', stats: [{
+        variantId: 7n, variantSlug: 'control', variantName: 'Control', views: 100n,
+        ctaClicks: 10n, conversions: 4n, downloads: 2n, conversionRate: 4, avgScrollDepth: 76.5,
+      }],
+    });
 
-  it('serializes summary date filters and preserves a valid analytics response', async () => {
-    const response = { total_visitors: 12, variant_stats: [] };
-    mockApiCall.mockResolvedValueOnce(response);
-    await expect(getMetricsSummary('2026-01-01', '2026-01-31')).resolves.toEqual(response);
-    expect(mockApiCall).toHaveBeenCalledWith('/metrics/summary?start_date=2026-01-01&end_date=2026-01-31');
-  });
-
-  it('uses a safe empty summary when the API payload fails validation', async () => {
-    mockApiCall.mockResolvedValueOnce({ total_visitors: 'invalid' });
-    await expect(getMetricsSummary()).resolves.toEqual({ total_visitors: 0, variant_stats: [] });
-    expect(mockApiCall).toHaveBeenCalledWith('/metrics/summary');
-  });
-
-  it('serializes variant filters and uses an empty result for malformed payloads', async () => {
-    mockApiCall.mockResolvedValueOnce({ start_date: '2026-01-01', end_date: '2026-01-31', stats: [] });
-    await expect(getVariantMetrics('control', '2026-01-01', '2026-01-31')).resolves.toEqual({ start_date: '2026-01-01', end_date: '2026-01-31', stats: [] });
-    expect(mockApiCall).toHaveBeenCalledWith('/metrics/variants?variant=control&start_date=2026-01-01&end_date=2026-01-31');
-
-    mockApiCall.mockResolvedValueOnce({});
-    await expect(getVariantMetrics()).resolves.toEqual({ start_date: '', end_date: '', stats: [] });
+    await expect(getVariantMetrics('control', '2026-01-01', '2026-01-31')).resolves.toEqual({
+      start_date: '2026-01-01', end_date: '2026-01-31', stats: [{
+        variant_id: 7, variant_slug: 'control', variant_name: 'Control', views: 100,
+        cta_clicks: 10, conversions: 4, downloads: 2, conversion_rate: 4, avg_scroll_depth: 76.5,
+      }],
+    });
+    expect(metricsClient.getVariantStats).toHaveBeenCalledWith({ variant: 'control', startDate: '2026-01-01', endDate: '2026-01-31' });
   });
 });

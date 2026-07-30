@@ -9,15 +9,23 @@ import (
 	"testing"
 	"time"
 
+	"landing-page-business-suite-api/internal/commerce"
 	"landing-page-business-suite-api/internal/envx"
 )
 
-func newAccountServiceWithTestPlanStore(t *testing.T, db *sql.DB) *AccountService {
+func newAccountServiceWithTestPlanStore(t *testing.T, db *sql.DB) *commerce.Service {
 	t.Helper()
 
 	planStore := getTestPlanStore()
 	if planStore == nil {
-		t.Fatal("test plan store not initialized; call upsertTestBundleProduct first")
+		// Tests without pricing fixtures must not depend on another test having
+		// initialized the process-global catalog. An explicit empty catalog
+		// preserves the production service contract while keeping this helper
+		// independently runnable.
+		planStore = NewPlanStoreWithOptions(commerce.PlanStoreOptions{
+			BundleKey:  "business_suite",
+			DisplayEnv: "test",
+		})
 	}
 
 	return NewAccountService(db, NewPlanServiceWithPlanStore(planStore))
@@ -98,12 +106,12 @@ func TestAccountServiceCreditsFallbackWithoutPricing(t *testing.T) {
 	db := setupTestDB(t)
 
 	bundleKey := configureAccountBundleEnv(t, "missing_pricing_env")
-	emptyStore := NewPlanStoreWithOptions(PlanStoreOptions{
+	emptyStore := NewPlanStoreWithOptions(commerce.PlanStoreOptions{
 		PlansPath:  "",
 		BundleKey:  bundleKey,
 		DisplayEnv: "production",
 	})
-	planService := NewPlanServiceWithOptions(PlanServiceOptions{PlanStore: emptyStore, DefaultBundle: bundleKey, DisplayEnv: "production"})
+	planService := NewPlanServiceWithOptions(commerce.PlanServiceOptions{PlanStore: emptyStore, DefaultBundle: bundleKey, DisplayEnv: "production"})
 	accountService := NewAccountService(db, planService)
 
 	credits, err := accountService.GetCredits("no-wallet@example.com")

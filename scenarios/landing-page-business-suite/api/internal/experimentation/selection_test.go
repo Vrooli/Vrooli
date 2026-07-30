@@ -38,3 +38,44 @@ func TestValidateSelectionEnforcesExperimentAssignmentPolicy(t *testing.T) {
 		})
 	}
 }
+
+func TestSelectWeightedRandomVariant(t *testing.T) {
+	t.Run("empty", func(t *testing.T) {
+		if got := SelectWeightedRandomVariant(nil); got != nil {
+			t.Fatalf("SelectWeightedRandomVariant(nil) = %#v, want nil", got)
+		}
+	})
+	t.Run("zero weights preserve first fallback", func(t *testing.T) {
+		variants := []*VariantSnapshot{{Variant: VariantSnapshotMeta{Slug: "first"}}, {Variant: VariantSnapshotMeta{Slug: "second"}}}
+		if got := SelectWeightedRandomVariant(variants); got == nil || got.Variant.Slug != "first" {
+			t.Fatalf("fallback = %#v, want first", got)
+		}
+	})
+	t.Run("disabled variants are never selected", func(t *testing.T) {
+		variants := []*VariantSnapshot{{Variant: VariantSnapshotMeta{Slug: "archived", Status: "archived", Weight: 1000}}, {Variant: VariantSnapshotMeta{Slug: "active", Weight: 1}}}
+		for range 100 {
+			if got := SelectWeightedRandomVariant(variants); got == nil || got.Variant.Slug != "active" {
+				t.Fatalf("selected %#v, want active", got)
+			}
+		}
+	})
+}
+
+func TestVariantWeight(t *testing.T) {
+	for name, test := range map[string]struct {
+		snapshot *VariantSnapshot
+		want     int
+	}{
+		"nil":      {nil, 0},
+		"positive": {&VariantSnapshot{Variant: VariantSnapshotMeta{Weight: 75}}, 75},
+		"zero":     {&VariantSnapshot{Variant: VariantSnapshotMeta{Weight: 0}}, 0},
+		"negative": {&VariantSnapshot{Variant: VariantSnapshotMeta{Weight: -5}}, 0},
+		"archived": {&VariantSnapshot{Variant: VariantSnapshotMeta{Status: "archived", Weight: 75}}, 0},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := VariantWeight(test.snapshot); got != test.want {
+				t.Fatalf("VariantWeight() = %d, want %d", got, test.want)
+			}
+		})
+	}
+}

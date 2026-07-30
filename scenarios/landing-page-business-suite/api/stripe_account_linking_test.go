@@ -13,11 +13,16 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // ============================================================================
 // Account Linking Tests
 // ============================================================================
+
+func accountLinks(service *StripeService) *commerce.AccountLinkService {
+	return commerce.NewAccountLinkService(service.db)
+}
 
 // TestLinkUserToStripeCustomer_NewUser verifies linking a new user to a Stripe customer.
 func TestLinkUserToStripeCustomer_NewUser(t *testing.T) {
@@ -43,7 +48,7 @@ func TestLinkUserToStripeCustomer_NewUser(t *testing.T) {
 	service := NewStripeService(db)
 
 	// Link a new user
-	err = service.linkUserToStripeCustomer("newuser@example.com", "cus_new_123")
+	err = accountLinks(service).LinkUserToStripeCustomer("newuser@example.com", "cus_new_123")
 	require.NoError(t, err)
 
 	// Verify the user was created with the correct customer ID
@@ -86,7 +91,7 @@ func TestLinkUserToStripeCustomer_ExistingUser_UpdatesCustomerID(t *testing.T) {
 	service := NewStripeService(db)
 
 	// Link with new customer ID
-	err = service.linkUserToStripeCustomer("existing@example.com", "cus_new_456")
+	err = accountLinks(service).LinkUserToStripeCustomer("existing@example.com", "cus_new_456")
 	require.NoError(t, err)
 
 	// Verify the customer ID was updated
@@ -121,7 +126,7 @@ func TestLinkUserToStripeCustomer_EmailNormalized(t *testing.T) {
 	service := NewStripeService(db)
 
 	// Link with uppercase email
-	err = service.linkUserToStripeCustomer("UPPERCASE@EXAMPLE.COM", "cus_upper_123")
+	err = accountLinks(service).LinkUserToStripeCustomer("UPPERCASE@EXAMPLE.COM", "cus_upper_123")
 	require.NoError(t, err)
 
 	// Verify it was stored as lowercase
@@ -139,22 +144,22 @@ func TestLinkUserToStripeCustomer_RequiresEmailAndCustomerID(t *testing.T) {
 	service := NewStripeService(db)
 
 	// Test empty email
-	err := service.linkUserToStripeCustomer("", "cus_123")
+	err := accountLinks(service).LinkUserToStripeCustomer("", "cus_123")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "email and customer ID are required")
 
 	// Test empty customer ID
-	err = service.linkUserToStripeCustomer("test@example.com", "")
+	err = accountLinks(service).LinkUserToStripeCustomer("test@example.com", "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "email and customer ID are required")
 
 	// Test both empty
-	err = service.linkUserToStripeCustomer("", "")
+	err = accountLinks(service).LinkUserToStripeCustomer("", "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "email and customer ID are required")
 
 	// Test whitespace only
-	err = service.linkUserToStripeCustomer("  ", "   ")
+	err = accountLinks(service).LinkUserToStripeCustomer("  ", "   ")
 	require.Error(t, err)
 }
 
@@ -418,11 +423,11 @@ func TestLookupCustomerID_ByEmail(t *testing.T) {
 	service := NewStripeService(db)
 
 	// Lookup by email
-	customerID := service.lookupCustomerID("lookup@example.com")
+	customerID := accountLinks(service).LookupCustomerID("lookup@example.com")
 	assert.Equal(t, "cus_lookup_email", customerID)
 
 	// Lookup by uppercase email (case insensitive)
-	customerID = service.lookupCustomerID("LOOKUP@EXAMPLE.COM")
+	customerID = accountLinks(service).LookupCustomerID("LOOKUP@EXAMPLE.COM")
 	assert.Equal(t, "cus_lookup_email", customerID)
 }
 
@@ -461,7 +466,7 @@ func TestLookupCustomerID_ByCustomerID(t *testing.T) {
 	service := NewStripeService(db)
 
 	// Lookup by customer ID directly
-	customerID := service.lookupCustomerID("cus_direct_lookup")
+	customerID := accountLinks(service).LookupCustomerID("cus_direct_lookup")
 	assert.Equal(t, "cus_direct_lookup", customerID)
 }
 
@@ -493,15 +498,15 @@ func TestLookupCustomerID_NotFound(t *testing.T) {
 	service := NewStripeService(db)
 
 	// Lookup non-existent email
-	customerID := service.lookupCustomerID("notfound@example.com")
+	customerID := accountLinks(service).LookupCustomerID("notfound@example.com")
 	assert.Equal(t, "", customerID)
 
 	// Lookup non-existent customer ID
-	customerID = service.lookupCustomerID("cus_nonexistent")
+	customerID = accountLinks(service).LookupCustomerID("cus_nonexistent")
 	assert.Equal(t, "", customerID)
 
 	// Lookup empty string
-	customerID = service.lookupCustomerID("")
+	customerID = accountLinks(service).LookupCustomerID("")
 	assert.Equal(t, "", customerID)
 }
 
@@ -550,7 +555,7 @@ func TestLookupCustomerID_MostRecentSubscription(t *testing.T) {
 	service := NewStripeService(db)
 
 	// Should return the most recent (cus_new)
-	customerID := service.lookupCustomerID("multisubscription@example.com")
+	customerID := accountLinks(service).LookupCustomerID("multisubscription@example.com")
 	assert.Equal(t, "cus_new", customerID)
 }
 
@@ -847,7 +852,7 @@ func TestStripeRepository_LinkUserToStripeCustomer(t *testing.T) {
 	`)
 	require.NoError(t, err)
 
-	repo := NewStripeRepository(db)
+	repo := commerce.NewStripeRepository(db)
 
 	// Test new user
 	err = repo.LinkUserToStripeCustomer("repo@example.com", "cus_repo_123")
@@ -946,7 +951,7 @@ func TestStripeRepository_MigrateCustomerEmail(t *testing.T) {
 	_, err = db.Exec(`INSERT INTO credit_wallets (customer_email, balance_credits) VALUES ($1, $2)`, oldEmail, 500)
 	require.NoError(t, err)
 
-	repo := NewStripeRepository(db)
+	repo := commerce.NewStripeRepository(db)
 
 	err = repo.MigrateCustomerEmail(context.Background(), oldEmail, newEmail, customerID)
 	require.NoError(t, err)
@@ -997,7 +1002,7 @@ func TestStripeRepository_LookupCustomerID(t *testing.T) {
 		"sub_repo_lookup", "cus_repo_lookup", "repo_lookup@example.com", "active")
 	require.NoError(t, err)
 
-	repo := NewStripeRepository(db)
+	repo := commerce.NewStripeRepository(db)
 
 	// Lookup by email
 	customerID := repo.LookupCustomerID("repo_lookup@example.com")

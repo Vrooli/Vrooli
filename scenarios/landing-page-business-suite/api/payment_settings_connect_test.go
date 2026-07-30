@@ -12,15 +12,17 @@ import (
 	"github.com/gorilla/mux"
 	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect"
+	billinghttp "landing-page-business-suite-api/handlers/commerce"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
-func newStripeSettingsConnectHandler(t *testing.T) (stripeSettingsConnectHandler, *PaymentSettingsService) {
+func newStripeSettingsConnectHandler(t *testing.T) (billinghttp.StripeSettingsConnectHandler, *commerce.PaymentSettingsService) {
 	t.Helper()
 	db := setupTestDB(t)
 	t.Cleanup(func() { db.Close() })
 	resetStripeTestData(t, db)
 	payment := NewPaymentSettingsService(db)
-	return stripeSettingsConnectHandler{payment: payment, stripe: NewStripeServiceWithSettings(db, NewPlanService(db), payment), anomaly: NewPaymentAnomalyService(context.Background(), db, context.Background())}, payment
+	return billinghttp.NewStripeSettingsConnectHandler(payment, NewStripeServiceWithSettings(db, NewPlanService(db), payment), newPaymentAnomalyServiceForTest(context.Background(), db, context.Background())), payment
 }
 
 func TestStripeSettingsConnectUpdateRedactsSecretsAndRefreshesRuntime(t *testing.T) {
@@ -74,7 +76,7 @@ func TestStripeSettingsConnectRoutesRequireAdminAndExposeOnlyProcedures(t *testi
 	handler, _ := newStripeSettingsConnectHandler(t)
 	router := mux.NewRouter()
 	required := false
-	registerStripeSettingsConnectRoutes(router, handler.payment, handler.stripe, handler.anomaly, func(next http.HandlerFunc) http.HandlerFunc {
+	handler.RegisterRoutes(router, func(next http.HandlerFunc) http.HandlerFunc {
 		return func(writer http.ResponseWriter, request *http.Request) {
 			required = true
 			next(writer, request)

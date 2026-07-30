@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/unbound-method -- assertions exercise Vitest/browser mocks, not detached production methods. */
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import { renderWithProviders as render } from "../../../test-utils/renderWithProviders";
 import { fireEvent, screen } from "@testing-library/react";
@@ -66,7 +67,7 @@ describe('getDownloadAssetKey', () => {
 });
 
 describe('DownloadSection', () => {
-  const originalWindowOpen = window.open;
+  const originalWindowOpen = window.open.bind(window);
   const originalNavigator = window.navigator;
 
   afterEach(() => {

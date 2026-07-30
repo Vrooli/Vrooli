@@ -34,7 +34,7 @@ func requireInt32(t *testing.T, field string, value int) int32 {
 // This is needed because the old test pattern used database inserts,
 // but now we use file-based storage.
 var (
-	globalTestPlanStore     *PlanStore
+	globalTestPlanStore     *commerce.PlanStore
 	globalTestPlanStoreMu   sync.Mutex
 	globalTestPlansPath     string
 	globalTestBundleCounter int
@@ -120,7 +120,7 @@ func upsertTestBundleProduct(
 	}
 
 	globalTestPlansPath = plansPath
-	globalTestPlanStore = NewPlanStoreWithOptions(PlanStoreOptions{
+	globalTestPlanStore = NewPlanStoreWithOptions(commerce.PlanStoreOptions{
 		PlansPath:  plansPath,
 		BundleKey:  bundleKey,
 		DisplayEnv: environment,
@@ -229,18 +229,26 @@ func cleanupBundleProductRecords(t *testing.T, db *sql.DB, productID int64) {
 
 // getTestPlanStore returns the global test plan store.
 // This can be used by tests that need direct access to the plan store.
-func getTestPlanStore() *PlanStore {
+func getTestPlanStore() *commerce.PlanStore {
 	globalTestPlanStoreMu.Lock()
 	defer globalTestPlanStoreMu.Unlock()
 	return globalTestPlanStore
 }
 
 // requireTestPlanService returns a PlanService backed by the test plan store.
-func requireTestPlanService(t *testing.T) *PlanService {
+//
+// Stripe transport tests that only exercise the remote API do not need pricing
+// fixtures. They must remain independently runnable, so use an explicit empty
+// store when a test has not configured a bundle instead of depending on global
+// test execution order.
+func requireTestPlanService(t *testing.T) *commerce.PlanService {
 	t.Helper()
 	planStore := getTestPlanStore()
 	if planStore == nil {
-		t.Fatal("test plan store not initialized; call upsertTestBundleProduct first")
+		planStore = NewPlanStoreWithOptions(commerce.PlanStoreOptions{
+			BundleKey:  "business_suite",
+			DisplayEnv: "test",
+		})
 	}
 	return NewPlanServiceWithPlanStore(planStore)
 }

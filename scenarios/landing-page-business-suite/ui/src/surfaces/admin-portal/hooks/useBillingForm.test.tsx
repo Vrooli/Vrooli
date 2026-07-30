@@ -66,7 +66,7 @@ vi.mock('../services/pricing.service', async () => {
             display_enabled: true,
             display_weight: 50,
             metadata: { __demo_placeholder: true },
-          } as PlanOption,
+          },
         ],
       }));
     },

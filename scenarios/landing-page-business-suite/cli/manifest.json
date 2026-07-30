@@ -433,9 +433,14 @@
         },
         {
           "name": "admin-download-apps-delete",
-          "description": "Legacy local command: admin-download-apps-delete.",
+          "description": "Delete a download app through the generated DownloadService Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "DownloadService",
+            "method": "DeleteDownloadApp"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           },
           "governance": {
             "effect": "write",
@@ -629,9 +634,14 @@
         },
         {
           "name": "admin-feedback-bulk-delete",
-          "description": "Legacy local command: admin-feedback-bulk-delete.",
+          "description": "Bulk delete feedback through the generated Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "FeedbackService",
+            "method": "DeleteFeedbackBulk"
+          },
+          "architecture": {
+            "primitive": "action"
           },
           "governance": {
             "effect": "write",
@@ -643,9 +653,14 @@
         },
         {
           "name": "admin-feedback-delete",
-          "description": "Legacy local command: admin-feedback-delete.",
+          "description": "Delete feedback through the generated Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "FeedbackService",
+            "method": "DeleteFeedback"
+          },
+          "architecture": {
+            "primitive": "action"
           },
           "governance": {
             "effect": "write",
@@ -657,9 +672,14 @@
         },
         {
           "name": "admin-feedback-get",
-          "description": "Legacy local command: admin-feedback-get.",
+          "description": "Get feedback through the generated Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "FeedbackService",
+            "method": "GetFeedback"
+          },
+          "architecture": {
+            "primitive": "action"
           },
           "governance": {
             "effect": "write",
@@ -671,9 +691,14 @@
         },
         {
           "name": "admin-feedback-list",
-          "description": "Legacy local command: admin-feedback-list.",
+          "description": "List feedback through the generated Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "FeedbackService",
+            "method": "ListFeedback"
+          },
+          "architecture": {
+            "primitive": "action"
           },
           "governance": {
             "effect": "write",
@@ -685,9 +710,14 @@
         },
         {
           "name": "admin-feedback-status-update",
-          "description": "Legacy local command: admin-feedback-status-update.",
+          "description": "Update feedback status through the generated Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "FeedbackService",
+            "method": "UpdateFeedbackStatus"
+          },
+          "architecture": {
+            "primitive": "action"
           },
           "governance": {
             "effect": "write",
@@ -1196,10 +1226,13 @@
         },
         {
           "name": "ai-chat",
-          "description": "Legacy local command: ai-chat.",
+          "description": "Run AI chat through the generated Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "IntelligenceService",
+            "method": "Chat"
           },
+          "architecture": {"primitive": "action"},
           "governance": {
             "effect": "write",
             "run_eligible": false,
@@ -1210,10 +1243,13 @@
         },
         {
           "name": "ai-health",
-          "description": "Legacy local command: ai-health.",
+          "description": "Get AI gateway health through the generated Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "IntelligenceService",
+            "method": "Health"
           },
+          "architecture": {"primitive": "action"},
           "governance": {
             "effect": "write",
             "run_eligible": false,
@@ -1224,10 +1260,13 @@
         },
         {
           "name": "ai-models",
-          "description": "Legacy local command: ai-models.",
+          "description": "List AI models through the generated Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "IntelligenceService",
+            "method": "ListModels"
           },
+          "architecture": {"primitive": "action"},
           "governance": {
             "effect": "write",
             "run_eligible": false,
@@ -1252,10 +1291,13 @@
         },
         {
           "name": "ai-usage",
-          "description": "Legacy local command: ai-usage.",
+          "description": "Get AI usage through the generated Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "IntelligenceService",
+            "method": "GetUsage"
           },
+          "architecture": {"primitive": "action"},
           "governance": {
             "effect": "write",
             "run_eligible": false,
@@ -1462,9 +1504,14 @@
         },
         {
           "name": "feedback-create",
-          "description": "Legacy local command: feedback-create.",
+          "description": "Submit feedback through the generated Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "FeedbackService",
+            "method": "CreateFeedback"
+          },
+          "architecture": {
+            "primitive": "action"
           },
           "governance": {
             "effect": "write",
@@ -1533,10 +1580,13 @@
         },
         {
           "name": "metrics-summary",
-          "description": "Legacy local command: metrics-summary.",
+          "description": "Get metrics summary through the generated Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "MetricsService",
+            "method": "GetAnalyticsSummary"
           },
+          "architecture": {"primitive": "action"},
           "governance": {
             "effect": "write",
             "run_eligible": false,
@@ -1547,10 +1597,13 @@
         },
         {
           "name": "metrics-track",
-          "description": "Legacy local command: metrics-track.",
+          "description": "Track a metrics event through the generated Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "MetricsService",
+            "method": "TrackEvent"
           },
+          "architecture": {"primitive": "action"},
           "governance": {
             "effect": "write",
             "run_eligible": false,
@@ -1561,10 +1614,13 @@
         },
         {
           "name": "metrics-variants",
-          "description": "Legacy local command: metrics-variants.",
+          "description": "Get variant metrics through the generated Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "MetricsService",
+            "method": "GetVariantStats"
           },
+          "architecture": {"primitive": "action"},
           "governance": {
             "effect": "write",
             "run_eligible": false,
@@ -2235,36 +2291,6 @@
       "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
     },
     {
-      "service": "ContentService",
-      "method": "CreateSection",
-      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
-    },
-    {
-      "service": "ContentService",
-      "method": "DeleteSection",
-      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
-    },
-    {
-      "service": "ContentService",
-      "method": "GetPublicSections",
-      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
-    },
-    {
-      "service": "ContentService",
-      "method": "GetSection",
-      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
-    },
-    {
-      "service": "ContentService",
-      "method": "GetSections",
-      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
-    },
-    {
-      "service": "ContentService",
-      "method": "UpdateSection",
-      "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
-    },
-    {
       "service": "DocsService",
       "method": "GetDocContent",
       "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
@@ -2381,8 +2407,68 @@
     },
     {
       "service": "VariantService",
+      "method": "SyncVariantSnapshots",
+      "reason": "Snapshot synchronization is an administrator UI/service maintenance operation; it intentionally has no standalone CLI command."
+    },
+    {
+      "service": "VariantService",
       "method": "UpdateVariant",
       "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
+    },
+    {
+      "service": "DeploymentService",
+      "method": "CheckReadiness",
+      "reason": "Deployment readiness is an admin-or-service preflight invoked by deployment automation; it is intentionally not exposed as an end-user CLI command."
+    },
+    {
+      "service": "AdministrationService",
+      "method": "ListAPIKeys",
+      "reason": "The existing admin API-key CLI commands retain their legacy REST facade during the incremental Connect client migration."
+    },
+    {
+      "service": "AdministrationService",
+      "method": "CreateAPIKey",
+      "reason": "The existing admin API-key CLI commands retain their legacy REST facade during the incremental Connect client migration."
+    },
+    {
+      "service": "AdministrationService",
+      "method": "DeleteAPIKey",
+      "reason": "The existing admin API-key CLI commands retain their legacy REST facade during the incremental Connect client migration."
+    },
+    {
+      "service": "AdministrationService",
+      "method": "TestAPIKey",
+      "reason": "The existing admin API-key CLI commands retain their legacy REST facade during the incremental Connect client migration."
+    },
+    {
+      "service": "AdministrationService",
+      "method": "SetAPIKeyActive",
+      "reason": "The existing admin API-key CLI commands retain their legacy REST facade during the incremental Connect client migration."
+    },
+    {
+      "service": "VariantSectionService",
+      "method": "GetVariantSections",
+      "reason": "Variant section editing is an administrator UI workflow; it intentionally has no standalone CLI command."
+    },
+    {
+      "service": "VariantSectionService",
+      "method": "GetVariantSection",
+      "reason": "Variant section editing is an administrator UI workflow; it intentionally has no standalone CLI command."
+    },
+    {
+      "service": "VariantSectionService",
+      "method": "CreateVariantSection",
+      "reason": "Variant section editing is an administrator UI workflow; it intentionally has no standalone CLI command."
+    },
+    {
+      "service": "VariantSectionService",
+      "method": "UpdateVariantSection",
+      "reason": "Variant section editing is an administrator UI workflow; it intentionally has no standalone CLI command."
+    },
+    {
+      "service": "VariantSectionService",
+      "method": "DeleteVariantSection",
+      "reason": "Variant section editing is an administrator UI workflow; it intentionally has no standalone CLI command."
     }
   ]
 }

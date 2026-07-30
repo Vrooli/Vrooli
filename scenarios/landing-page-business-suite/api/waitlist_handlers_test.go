@@ -12,11 +12,12 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	domainmetrics "landing-page-business-suite-api/internal/metrics"
 )
 
 // mockWaitlistService provides a configurable mock for WaitlistServicer
 type mockWaitlistService struct {
-	emails map[int64]*WaitlistEmail
+	emails map[int64]*domainmetrics.WaitlistEmail
 	nextID int64
 
 	// Error injection
@@ -28,12 +29,12 @@ type mockWaitlistService struct {
 
 func newMockWaitlistService() *mockWaitlistService {
 	return &mockWaitlistService{
-		emails: make(map[int64]*WaitlistEmail),
+		emails: make(map[int64]*domainmetrics.WaitlistEmail),
 		nextID: 1,
 	}
 }
 
-func (m *mockWaitlistService) Create(ctx context.Context, email, source string) (*WaitlistEmail, error) {
+func (m *mockWaitlistService) Create(ctx context.Context, email, source string) (*domainmetrics.WaitlistEmail, error) {
 	if m.createErr != nil {
 		return nil, m.createErr
 	}
@@ -44,7 +45,7 @@ func (m *mockWaitlistService) Create(ctx context.Context, email, source string) 
 			return e, nil
 		}
 	}
-	entry := &WaitlistEmail{
+	entry := &domainmetrics.WaitlistEmail{
 		ID:        m.nextID,
 		Email:     email,
 		Source:    source,
@@ -55,11 +56,11 @@ func (m *mockWaitlistService) Create(ctx context.Context, email, source string) 
 	return entry, nil
 }
 
-func (m *mockWaitlistService) List(ctx context.Context) ([]WaitlistEmail, error) {
+func (m *mockWaitlistService) List(ctx context.Context) ([]domainmetrics.WaitlistEmail, error) {
 	if m.listErr != nil {
 		return nil, m.listErr
 	}
-	var result []WaitlistEmail
+	var result []domainmetrics.WaitlistEmail
 	for _, e := range m.emails {
 		result = append(result, *e)
 	}
@@ -85,7 +86,7 @@ func (m *mockWaitlistService) Count(ctx context.Context) (int64, error) {
 }
 
 // Compile-time check that mockWaitlistService implements WaitlistServicer
-var _ WaitlistServicer = (*mockWaitlistService)(nil)
+var _ domainmetrics.WaitlistServicer = (*mockWaitlistService)(nil)
 
 // --- handleWaitlistCreate Tests ---
 
@@ -93,7 +94,7 @@ func TestHandleWaitlistCreate_Success(t *testing.T) {
 	db := setupTestDB(t)
 
 	svc := NewWaitlistService(db)
-	handler := handleWaitlistCreate(svc)
+	handler := metricsHTTPDependencies.CreateWaitlist(svc)
 
 	body := `{"email": "test@example.com", "source": "landing_page"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/waitlist", strings.NewReader(body))
@@ -111,7 +112,7 @@ func TestHandleWaitlistCreate_InvalidEmail(t *testing.T) {
 	db := setupTestDB(t)
 
 	svc := NewWaitlistService(db)
-	handler := handleWaitlistCreate(svc)
+	handler := metricsHTTPDependencies.CreateWaitlist(svc)
 
 	body := `{"email": "not-an-email", "source": "landing_page"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/waitlist", strings.NewReader(body))
@@ -129,7 +130,7 @@ func TestHandleWaitlistCreate_MissingEmail(t *testing.T) {
 	db := setupTestDB(t)
 
 	svc := NewWaitlistService(db)
-	handler := handleWaitlistCreate(svc)
+	handler := metricsHTTPDependencies.CreateWaitlist(svc)
 
 	body := `{"source": "landing_page"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/waitlist", strings.NewReader(body))
@@ -147,7 +148,7 @@ func TestHandleWaitlistCreate_DuplicateEmail(t *testing.T) {
 	db := setupTestDB(t)
 
 	svc := NewWaitlistService(db)
-	handler := handleWaitlistCreate(svc)
+	handler := metricsHTTPDependencies.CreateWaitlist(svc)
 
 	// First request
 	body := `{"email": "duplicate@example.com", "source": "source1"}`
@@ -176,7 +177,7 @@ func TestHandleWaitlistCreate_DefaultSource(t *testing.T) {
 	db := setupTestDB(t)
 
 	svc := NewWaitlistService(db)
-	handler := handleWaitlistCreate(svc)
+	handler := metricsHTTPDependencies.CreateWaitlist(svc)
 
 	// No source provided - should default to "coming_soon"
 	body := `{"email": "nosource@example.com"}`
@@ -203,7 +204,7 @@ func TestHandleWaitlistList_Success(t *testing.T) {
 	_, _ = svc.Create(ctx, "list1@example.com", "test")
 	_, _ = svc.Create(ctx, "list2@example.com", "test")
 
-	handler := handleWaitlistList(svc)
+	handler := metricsHTTPDependencies.ListWaitlist(svc)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/waitlist", nil)
 	w := httptest.NewRecorder()
@@ -215,7 +216,7 @@ func TestHandleWaitlistList_Success(t *testing.T) {
 	}
 
 	// writeJSONSuccessData encodes data directly (array)
-	var emails []WaitlistEmail
+	var emails []domainmetrics.WaitlistEmail
 	if err := json.NewDecoder(w.Body).Decode(&emails); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -229,7 +230,7 @@ func TestHandleWaitlistList_ReturnsArray(t *testing.T) {
 	db := setupTestDB(t)
 
 	svc := NewWaitlistService(db)
-	handler := handleWaitlistList(svc)
+	handler := metricsHTTPDependencies.ListWaitlist(svc)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/waitlist", nil)
 	w := httptest.NewRecorder()
@@ -241,7 +242,7 @@ func TestHandleWaitlistList_ReturnsArray(t *testing.T) {
 	}
 
 	// Verify response is a valid JSON array (not null)
-	var emails []WaitlistEmail
+	var emails []domainmetrics.WaitlistEmail
 	if err := json.NewDecoder(w.Body).Decode(&emails); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -263,7 +264,7 @@ func TestHandleWaitlistDelete_Success(t *testing.T) {
 	ctx := context.Background()
 	entry, _ := svc.Create(ctx, "delete@example.com", "test")
 
-	handler := handleWaitlistDelete(svc)
+	handler := metricsHTTPDependencies.DeleteWaitlist(svc)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/admin/waitlist/{id}", handler).Methods("DELETE")
@@ -282,7 +283,7 @@ func TestHandleWaitlistDelete_NotFound(t *testing.T) {
 	db := setupTestDB(t)
 
 	svc := NewWaitlistService(db)
-	handler := handleWaitlistDelete(svc)
+	handler := metricsHTTPDependencies.DeleteWaitlist(svc)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/admin/waitlist/{id}", handler).Methods("DELETE")
@@ -309,7 +310,7 @@ func TestHandleWaitlistExport_Success(t *testing.T) {
 	_, _ = svc.Create(ctx, "export1@example.com", "test")
 	_, _ = svc.Create(ctx, "export2@example.com", "test")
 
-	handler := handleWaitlistExport(svc)
+	handler := metricsHTTPDependencies.ExportWaitlist(svc)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/waitlist/export", nil)
 	w := httptest.NewRecorder()
@@ -346,7 +347,7 @@ func TestHandleWaitlistExport_Empty(t *testing.T) {
 	db := setupTestDB(t)
 
 	svc := NewWaitlistService(db)
-	handler := handleWaitlistExport(svc)
+	handler := metricsHTTPDependencies.ExportWaitlist(svc)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/waitlist/export", nil)
 	w := httptest.NewRecorder()
@@ -422,7 +423,7 @@ func TestHandleWaitlistCreate_ServiceError(t *testing.T) {
 	mock := newMockWaitlistService()
 	mock.createErr = errors.New("database connection failed")
 
-	handler := handleWaitlistCreate(mock)
+	handler := metricsHTTPDependencies.CreateWaitlist(mock)
 
 	body := `{"email": "test@example.com", "source": "landing_page"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/waitlist", strings.NewReader(body))
@@ -438,7 +439,7 @@ func TestHandleWaitlistCreate_ServiceError(t *testing.T) {
 
 func TestHandleWaitlistCreate_InvalidJSON(t *testing.T) {
 	mock := newMockWaitlistService()
-	handler := handleWaitlistCreate(mock)
+	handler := metricsHTTPDependencies.CreateWaitlist(mock)
 
 	body := `{invalid json`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/waitlist", strings.NewReader(body))
@@ -456,7 +457,7 @@ func TestHandleWaitlistList_ServiceError(t *testing.T) {
 	mock := newMockWaitlistService()
 	mock.listErr = errors.New("query failed")
 
-	handler := handleWaitlistList(mock)
+	handler := metricsHTTPDependencies.ListWaitlist(mock)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/waitlist", nil)
 	w := httptest.NewRecorder()
@@ -472,7 +473,7 @@ func TestHandleWaitlistList_NilToEmptyArray(t *testing.T) {
 	mock := newMockWaitlistService()
 	// Empty mock returns empty array (not nil)
 
-	handler := handleWaitlistList(mock)
+	handler := metricsHTTPDependencies.ListWaitlist(mock)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/waitlist", nil)
 	w := httptest.NewRecorder()
@@ -489,7 +490,7 @@ func TestHandleWaitlistList_NilToEmptyArray(t *testing.T) {
 		t.Error("Expected empty array, got null")
 	}
 
-	var emails []WaitlistEmail
+	var emails []domainmetrics.WaitlistEmail
 	if err := json.NewDecoder(strings.NewReader(body)).Decode(&emails); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -501,7 +502,7 @@ func TestHandleWaitlistList_NilToEmptyArray(t *testing.T) {
 
 func TestHandleWaitlistDelete_InvalidID(t *testing.T) {
 	mock := newMockWaitlistService()
-	handler := handleWaitlistDelete(mock)
+	handler := metricsHTTPDependencies.DeleteWaitlist(mock)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/admin/waitlist/{id}", handler).Methods("DELETE")
@@ -525,7 +526,7 @@ func TestHandleWaitlistDelete_ServiceError(t *testing.T) {
 		t.Fatalf("Failed to create waitlist entry: %v", err)
 	}
 
-	handler := handleWaitlistDelete(mock)
+	handler := metricsHTTPDependencies.DeleteWaitlist(mock)
 
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/admin/waitlist/{id}", handler).Methods("DELETE")
@@ -544,7 +545,7 @@ func TestHandleWaitlistExport_ServiceError(t *testing.T) {
 	mock := newMockWaitlistService()
 	mock.listErr = errors.New("export query failed")
 
-	handler := handleWaitlistExport(mock)
+	handler := metricsHTTPDependencies.ExportWaitlist(mock)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/waitlist/export", nil)
 	w := httptest.NewRecorder()
@@ -566,7 +567,7 @@ func TestHandleWaitlistExport_VerifyCSVFormat(t *testing.T) {
 		t.Fatalf("Failed to create waitlist entry: %v", err)
 	}
 
-	handler := handleWaitlistExport(mock)
+	handler := metricsHTTPDependencies.ExportWaitlist(mock)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/waitlist/export", nil)
 	w := httptest.NewRecorder()

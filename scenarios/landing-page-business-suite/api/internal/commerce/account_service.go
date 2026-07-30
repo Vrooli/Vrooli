@@ -303,6 +303,19 @@ func (s *Service) GetEntitlements(userIdentity string) (*EntitlementPayload, err
 	return s.GetEntitlementsContext(context.Background(), userIdentity)
 }
 
+// GetEntitlementStatus is the narrow delivery-facing entitlement seam. It
+// avoids leaking the commerce payload into download authorization.
+func (s *Service) GetEntitlementStatus(ctx context.Context, userIdentity string) (string, error) {
+	entitlements, err := s.GetEntitlementsContext(ctx, userIdentity)
+	if err != nil {
+		return "", err
+	}
+	if entitlements == nil {
+		return "", nil
+	}
+	return entitlements.Status, nil
+}
+
 // GetEntitlementsContext resolves subscription and credit state using the
 // caller's context for all account persistence.
 func (s *Service) GetEntitlementsContext(ctx context.Context, userIdentity string) (*EntitlementPayload, error) {
@@ -318,7 +331,7 @@ func (s *Service) GetEntitlementsContext(ctx context.Context, userIdentity strin
 	}
 
 	payload := &EntitlementPayload{
-		Status:            legacyStateLabel(subscription.State),
+		Status:            SubscriptionStateLabel(subscription.State),
 		PlanTier:          subscription.GetPlanTier(),
 		PriceID:           subscription.GetStripePriceId(),
 		BillingCycleStart: s.billingCycleStartContext(ctx, userIdentity),
@@ -429,7 +442,10 @@ func flattenCredits(resp *CreditsEnvelope) *shared.CreditsBalance {
 	return resp.Balance
 }
 
-func legacyStateLabel(state shared.SubscriptionState) string {
+// SubscriptionStateLabel returns the stable persistence label for a typed
+// subscription state. Stripe reconciliation and account reads share this
+// commerce-owned mapping.
+func SubscriptionStateLabel(state shared.SubscriptionState) string {
 	switch state {
 	case shared.SubscriptionState_SUBSCRIPTION_STATE_ACTIVE:
 		return "active"

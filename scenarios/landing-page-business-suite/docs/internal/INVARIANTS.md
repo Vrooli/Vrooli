@@ -29,23 +29,24 @@ Properties that must hold **at all times** across the data + behavior of the sce
 8. **A finalized credit reservation is immutable.** `credit_reservations.status` transitions are `pending → finalized | released | expired`. No row may go back to `pending`.
 9. **Usage cannot exceed a non-`-1` tier limit.** A `usage_records.usage_amount > limit_value` row, where `limit_value != -1`, indicates a metering bug — usage reporting must reject the increment instead of clamping it silently.
 10. **Bonus credits are spent before subscription credits.** `credit_wallets.bonus_credits` decrements first, then `balance_credits`.
+11. **Credit ledger mutations are replay-safe.** `CreditWalletService` records a top-up and its wallet update in one transaction; a repeated non-empty Stripe event ID is a successful no-op. Consumption locks the wallet row and uses its caller-provided idempotency key to make a retried debit a successful no-op after the first commit. Distinct keys remain independent debits.
 
 ## Configuration
 
-11. **`config/variants/*.json` and `config/branding.json` are the source of truth for landing config.** The runtime `ConfigStore` reflects them; a database row is never authoritative for variant or branding fields.
-12. **`.vrooli/plans.json` is the source of truth for pricing.** Database `bundle_prices` may exist for in-flight data but does not override the file.
-13. **`metrics_events.event_type` is constrained.** Only the values listed in the `CHECK` constraint (`page_view`, `scroll_depth`, `click`, `form_submit`, `conversion`, `download`) are accepted; ingestion rejects others with `400`.
+12. **`config/variants/*.json` and `config/branding.json` are the source of truth for landing config.** The runtime `ConfigStore` reflects them; a database row is never authoritative for variant or branding fields.
+13. **`.vrooli/plans.json` is the source of truth for pricing.** Database `bundle_prices` may exist for in-flight data but does not override the file.
+14. **`metrics_events.event_type` is constrained.** Only the values listed in the `CHECK` constraint (`page_view`, `scroll_depth`, `click`, `form_submit`, `conversion`, `download`) are accepted; ingestion rejects others with `400`.
 
 ## Anomalies & alerts
 
-14. **Every detected payment anomaly produces exactly one `payment_anomaly_log` row.** The dispatcher may retry sending the alert N times; that is reflected in `dispatch_attempts`, never in duplicate rows.
-15. **Anomaly detection is best-effort and never fails the originating request.** A failure in `payment_anomaly` writes a structured log line but does not propagate to the caller.
+15. **Every detected payment anomaly produces exactly one `payment_anomaly_log` row.** The dispatcher may retry sending the alert N times; that is reflected in `dispatch_attempts`, never in duplicate rows.
+16. **Anomaly detection is best-effort and never fails the originating request.** A failure in `payment_anomaly` writes a structured log line but does not propagate to the caller.
 
 ## Routing
 
-16. **Every public-facing route is also reachable when coming-soon mode is on.** The UI's `PublicRouteGuard` wraps public routes — when `branding.coming_soon_enabled = true`, those routes render `ComingSoonPage` *instead of* their normal content but are still mounted.
-17. **Admin and user-auth routes are never gated by coming-soon mode.** `/admin/*`, `/admin/login`, `/auth/login`, and `/auth/verify` always render their real content.
+17. **Every public-facing route is also reachable when coming-soon mode is on.** The UI's `PublicRouteGuard` wraps public routes — when `branding.coming_soon_enabled = true`, those routes render `ComingSoonPage` *instead of* their normal content but are still mounted.
+18. **Admin and user-auth routes are never gated by coming-soon mode.** `/admin/*`, `/admin/login`, `/auth/login`, and `/auth/verify` always render their real content.
 
 ## Tests
 
-18. **No test mocks the database.** Integration tests run against a real Postgres (matches our prod migration discipline).
+19. **No test mocks the database.** Integration tests run against a real Postgres (matches our prod migration discipline).

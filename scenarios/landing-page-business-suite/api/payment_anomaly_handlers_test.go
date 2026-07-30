@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	billinghttp "landing-page-business-suite-api/handlers/commerce"
 	"landing-page-business-suite-api/internal/commerce"
 
 	"connectrpc.com/connect"
@@ -20,9 +21,9 @@ func TestUpdate_RejectsEnabledWithoutURL(t *testing.T) {
 
 	paymentService := NewPaymentSettingsService(db)
 	stripeService := NewStripeServiceWithSettings(db, NewPlanService(db), paymentService)
-	anomalyService := NewPaymentAnomalyService(context.Background(), db, context.Background())
+	anomalyService := newPaymentAnomalyServiceForTest(context.Background(), db, context.Background())
 
-	h := stripeSettingsConnectHandler{payment: paymentService, stripe: stripeService, anomaly: anomalyService}
+	h := billinghttp.NewStripeSettingsConnectHandler(paymentService, stripeService, anomalyService)
 	_, err := h.UpdateStripeSettings(context.Background(), connect.NewRequest(&landing_page_business_suite_v1.UpdateStripeSettingsRequest{AnomalyWebhookEnabled: protoBool(true)}))
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("expected invalid argument, got %v", err)
@@ -35,9 +36,9 @@ func TestUpdate_RejectsNonHTTPSWebhookURL(t *testing.T) {
 
 	paymentService := NewPaymentSettingsService(db)
 	stripeService := NewStripeServiceWithSettings(db, NewPlanService(db), paymentService)
-	anomalyService := NewPaymentAnomalyService(context.Background(), db, context.Background())
+	anomalyService := newPaymentAnomalyServiceForTest(context.Background(), db, context.Background())
 
-	h := stripeSettingsConnectHandler{payment: paymentService, stripe: stripeService, anomaly: anomalyService}
+	h := billinghttp.NewStripeSettingsConnectHandler(paymentService, stripeService, anomalyService)
 	_, err := h.UpdateStripeSettings(context.Background(), connect.NewRequest(&landing_page_business_suite_v1.UpdateStripeSettingsRequest{AnomalyWebhookUrl: protoString("http://insecure.example.com/hook")}))
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("expected invalid argument, got %v", err)
@@ -57,13 +58,13 @@ func TestUpdate_RefreshesAnomalyConfig(t *testing.T) {
 
 	paymentService := NewPaymentSettingsService(db)
 	stripeService := NewStripeServiceWithSettings(db, NewPlanService(db), paymentService)
-	anomalyService := NewPaymentAnomalyService(context.Background(), db, context.Background())
+	anomalyService := newPaymentAnomalyServiceForTest(context.Background(), db, context.Background())
 
 	if cfg := anomalyService.DispatchConfig(); cfg.Enabled || cfg.WebhookURL != "" {
 		t.Fatalf("baseline config non-empty: %+v", cfg)
 	}
 
-	h := stripeSettingsConnectHandler{payment: paymentService, stripe: stripeService, anomaly: anomalyService}
+	h := billinghttp.NewStripeSettingsConnectHandler(paymentService, stripeService, anomalyService)
 	// Convert stub.URL (http://) into an https-looking URL for validation,
 	// but we need the stub to receive. So we swap to a non-https check by
 	// testing the push-on-PATCH behaviour with a URL we know was accepted.
@@ -88,7 +89,7 @@ func TestUpdate_RefreshesAnomalyConfig(t *testing.T) {
 	}
 
 	// Issue a Log to prove end-to-end dispatch on the refreshed config.
-	id, err := anomalyService.Log(context.Background(), PaymentAnomaly{Type: "post_refresh"})
+	id, err := anomalyService.Log(context.Background(), commerce.PaymentAnomaly{Type: "post_refresh"})
 	if err != nil {
 		t.Fatalf("Log: %v", err)
 	}
@@ -112,9 +113,9 @@ func TestUpdate_AcceptsRateLimitsObject(t *testing.T) {
 
 	paymentService := NewPaymentSettingsService(db)
 	stripeService := NewStripeServiceWithSettings(db, NewPlanService(db), paymentService)
-	anomalyService := NewPaymentAnomalyService(context.Background(), db, context.Background())
+	anomalyService := newPaymentAnomalyServiceForTest(context.Background(), db, context.Background())
 
-	h := stripeSettingsConnectHandler{payment: paymentService, stripe: stripeService, anomaly: anomalyService}
+	h := billinghttp.NewStripeSettingsConnectHandler(paymentService, stripeService, anomalyService)
 	if _, err := h.UpdateStripeSettings(context.Background(), connect.NewRequest(&landing_page_business_suite_v1.UpdateStripeSettingsRequest{AnomalyRateLimits: protoString(`{"checkout_subscription_missing":{"burst":3,"refill_seconds":300}}`)})); err != nil {
 		t.Fatalf("update: %v", err)
 	}
@@ -149,7 +150,7 @@ func TestReveal_AnomalyWebhookURL(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	h := stripeSettingsConnectHandler{payment: paymentService, stripe: stripeService}
+	h := billinghttp.NewStripeSettingsConnectHandler(paymentService, stripeService, nil)
 	response, err := h.RevealStripeSecret(context.Background(), connect.NewRequest(&landing_page_business_suite_v1.RevealStripeSecretRequest{Field: "anomaly_webhook_url"}))
 	if err != nil {
 		t.Fatal(err)

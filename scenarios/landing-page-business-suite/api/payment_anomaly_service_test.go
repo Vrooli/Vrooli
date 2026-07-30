@@ -29,7 +29,7 @@ func resetAnomalyTestData(t *testing.T, db *sql.DB) {
 
 // configureAnomalyWebhook writes a full-dispatch-enabled row into
 // payment_settings and refreshes the service so cfg.Load() picks it up.
-func configureAnomalyWebhook(t *testing.T, svc *PaymentAnomalyService, db *sql.DB, url string, rateLimits string) {
+func configureAnomalyWebhook(t *testing.T, svc *commerce.PaymentAnomalyService, db *sql.DB, url string, rateLimits string) {
 	t.Helper()
 	if rateLimits == "" {
 		rateLimits = "{}"
@@ -169,9 +169,9 @@ func TestLog_InsertsRow(t *testing.T) {
 	db := setupTestDB(t)
 	resetAnomalyTestData(t, db)
 
-	svc := NewPaymentAnomalyService(context.Background(), db, context.Background())
+	svc := newPaymentAnomalyServiceForTest(context.Background(), db, context.Background())
 
-	id, err := svc.Log(context.Background(), PaymentAnomaly{
+	id, err := svc.Log(context.Background(), commerce.PaymentAnomaly{
 		Type:        "intro_ineligible",
 		Severity:    "error",
 		Email:       "Test@Example.com",
@@ -221,8 +221,8 @@ func TestLog_NoDispatchWhenDisabled(t *testing.T) {
 	db := setupTestDB(t)
 	resetAnomalyTestData(t, db)
 
-	svc := NewPaymentAnomalyService(context.Background(), db, context.Background())
-	id, err := svc.Log(context.Background(), PaymentAnomaly{Type: "disabled_case"})
+	svc := newPaymentAnomalyServiceForTest(context.Background(), db, context.Background())
+	id, err := svc.Log(context.Background(), commerce.PaymentAnomaly{Type: "disabled_case"})
 	if err != nil {
 		t.Fatalf("Log: %v", err)
 	}
@@ -259,10 +259,10 @@ func TestLog_DispatchesWhenEnabled(t *testing.T) {
 	}))
 	defer stub.Close()
 
-	svc := NewPaymentAnomalyService(context.Background(), db, context.Background())
+	svc := newPaymentAnomalyServiceForTest(context.Background(), db, context.Background())
 	configureAnomalyWebhook(t, svc, db, stub.URL, "")
 
-	id, err := svc.Log(context.Background(), PaymentAnomaly{
+	id, err := svc.Log(context.Background(), commerce.PaymentAnomaly{
 		Type:        "enabled_case",
 		Email:       "a@b.com",
 		SubjectID:   "cs_1",
@@ -313,13 +313,13 @@ func TestLog_RateLimited(t *testing.T) {
 	}))
 	defer stub.Close()
 
-	svc := NewPaymentAnomalyService(context.Background(), db, context.Background())
+	svc := newPaymentAnomalyServiceForTest(context.Background(), db, context.Background())
 	// burst=2 to make the assertion small and deterministic.
 	configureAnomalyWebhook(t, svc, db, stub.URL, `{"rate_type":{"burst":2,"refill_seconds":3600}}`)
 
 	var ids []int64
 	for i := 0; i < 3; i++ {
-		id, err := svc.Log(context.Background(), PaymentAnomaly{Type: "rate_type"})
+		id, err := svc.Log(context.Background(), commerce.PaymentAnomaly{Type: "rate_type"})
 		if err != nil {
 			t.Fatalf("Log %d: %v", i, err)
 		}
@@ -380,7 +380,7 @@ func TestWaitForDispatch_Timeout(t *testing.T) {
 	}, dispatcher)
 	configureAnomalyWebhook(t, svc, db, stub.URL, "")
 
-	id, err := svc.Log(context.Background(), PaymentAnomaly{Type: "slow_type"})
+	id, err := svc.Log(context.Background(), commerce.PaymentAnomaly{Type: "slow_type"})
 	if err != nil {
 		t.Fatalf("Log: %v", err)
 	}
@@ -393,7 +393,7 @@ func TestWaitForDispatch_Timeout(t *testing.T) {
 }
 
 func TestLogPaymentAnomaly_NilServer(t *testing.T) {
-	if _, err := LogPaymentAnomaly(context.Background(), nil, PaymentAnomaly{Type: "x"}); err == nil {
+	if _, err := LogPaymentAnomaly(context.Background(), nil, commerce.PaymentAnomaly{Type: "x"}); err == nil {
 		t.Fatal("expected error for nil server")
 	}
 }

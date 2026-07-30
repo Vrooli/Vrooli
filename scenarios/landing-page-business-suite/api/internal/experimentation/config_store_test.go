@@ -110,7 +110,8 @@ func TestConfigStore_SaveAndLoadVariant(t *testing.T) {
 		t.Fatalf("Failed to write branding file: %v", err)
 	}
 
-	// Use defaultVariantSpace for axes validation
+	// Use the package fallback so this test is independent of the process
+	// working directory and its tracked scenario configuration.
 	cs := NewConfigStore(variantsDir, brandingPath, DefaultVariantSpace())
 	if err := cs.LoadAll(); err != nil {
 		t.Fatalf("Failed to load config: %v", err)
@@ -123,9 +124,9 @@ func TestConfigStore_SaveAndLoadVariant(t *testing.T) {
 			Name:        "Test Variant",
 			Description: "A test variant",
 			Axes: map[string]string{
-				"persona":         "silentFounder",
-				"jtbd":            "automation",
-				"conversionStyle": "emotional",
+				"persona":         "ops_leader",
+				"jtbd":            "launch_bundle",
+				"conversionStyle": "demo_led",
 			},
 			HeaderConfig: LandingHeaderConfig{
 				Branding: HeaderBrandingConfig{

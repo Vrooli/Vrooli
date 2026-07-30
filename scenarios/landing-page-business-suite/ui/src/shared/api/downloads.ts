@@ -1,4 +1,9 @@
+import { createClient } from '@connectrpc/connect';
+import { createScenarioConnectTransport } from '@vrooli/api-base';
+import { DownloadService } from '@vrooli/proto-types/landing-page-business-suite/download_pb';
+import type { DownloadApp as GeneratedDownloadApp, DownloadAsset as GeneratedDownloadAsset } from '@vrooli/proto-types/landing-page-business-suite/shared/downloads_pb';
 import { apiCall } from './common';
+import { CONNECT_API_BASE } from './common';
 import { parseOrNull } from './safeParse';
 import {
   DownloadAssetSchema,
@@ -12,6 +17,8 @@ import {
 } from './schemas/downloads.schema';
 import { SuccessResponseSchema } from './schemas/common.schema';
 import type { DownloadApp, DownloadArtifact, DownloadAsset, DownloadStorageSettingsSnapshot, DownloadStorefront } from './types';
+
+const downloadClient = createClient(DownloadService, createScenarioConnectTransport({ baseUrl: CONNECT_API_BASE }));
 
 export interface DownloadAssetInput {
   platform: string;
@@ -41,13 +48,11 @@ export interface DownloadAppInput {
 }
 
 export function requestDownload(appKey: string, platform: string, user?: string) {
-  const params = new URLSearchParams({ app: appKey, platform });
-  if (user) {
-    params.set('user', user);
-  }
-
-  return apiCall<DownloadAsset>(`/downloads?${params.toString()}`).then((resp) => {
-    const validated = parseOrNull(DownloadAssetSchema, resp, 'DownloadAsset');
+  // Identity is derived from the authenticated session. The optional legacy
+  // user argument remains source-compatible but is never sent over the wire.
+  void user;
+  return downloadClient.authorizeDownload({ app: appKey, platform }).then((response) => {
+    const validated = response.asset && parseOrNull(DownloadAssetSchema, downloadAssetFromProto(response.asset), 'DownloadAsset');
     if (!validated) {
       throw new Error('Invalid download asset response from API');
     }
@@ -56,57 +61,58 @@ export function requestDownload(appKey: string, platform: string, user?: string)
 }
 
 export function listDownloadAppsAdmin() {
-  return apiCall<{ apps: DownloadApp[] }>('/admin/download-apps').then((resp) => {
-    const validated = parseOrNull(DownloadAppsListResponseSchema, resp, 'DownloadAppsListResponse');
-    if (!validated) {
-      return { apps: [] };
-    }
-    return validated;
-  });
+  return downloadClient.listDownloadApps({}).then((response) => parseOrNull(DownloadAppsListResponseSchema, { apps: response.apps.map(downloadAppFromProto) }, 'DownloadAppsListResponse') ?? { apps: [] });
 }
 
 export function saveDownloadAppAdmin(appKey: string, payload: DownloadAppInput) {
-  return apiCall<DownloadApp>(`/admin/download-apps/${appKey}`, {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  }).then((resp) => {
-    const validated = parseOrNull(DownloadAppSchema, resp, 'DownloadApp');
-    if (!validated) {
-      throw new Error('Invalid download app response from API');
-    }
-    return validated;
-  });
+  return downloadClient.saveDownloadApp({ appKey, app: downloadAppToProto(payload) }).then((response) => requireDownloadApp(response.app, 'SaveDownloadApp'));
 }
 
 export function createDownloadAppAdmin(payload: DownloadAppInput) {
-  return apiCall<DownloadApp>('/admin/download-apps', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  }).then((resp) => {
-    const validated = parseOrNull(DownloadAppSchema, resp, 'DownloadApp');
-    if (!validated) {
-      throw new Error('Invalid download app response from API');
-    }
-    return validated;
-  });
+  return downloadClient.createDownloadApp({ app: downloadAppToProto(payload) }).then((response) => requireDownloadApp(response.app, 'CreateDownloadApp'));
 }
 
 export function deleteDownloadAppAdmin(appKey: string) {
-  return apiCall<{ success: boolean }>(`/admin/download-apps/${appKey}`, {
-    method: 'DELETE',
-  }).then((resp) => {
-    const validated = parseOrNull(SuccessResponseSchema, resp, 'DeleteDownloadAppResponse');
-    if (!validated) {
-      throw new Error('Invalid delete download app response from API');
-    }
-    return validated;
-  });
+  return downloadClient.deleteDownloadApp({ appKey }).then(() => ({}));
+}
+
+function downloadAssetFromProto(asset: GeneratedDownloadAsset): DownloadAsset {
+  return {
+    id: Number(asset.id), bundle_key: asset.bundleKey, app_key: asset.appKey, platform: asset.platform,
+    artifact_url: asset.artifactUrl, artifact_source: asset.artifactSource === 'managed' ? 'managed' : 'direct',
+    ...(asset.artifactId !== undefined ? { artifact_id: Number(asset.artifactId) } : {}),
+    release_version: asset.releaseVersion, release_notes: asset.releaseNotes || undefined,
+    checksum: asset.checksum || undefined, requires_entitlement: asset.requiresEntitlement,
+    metadata: asset.metadata,
+  };
+}
+
+function downloadAppFromProto(app: GeneratedDownloadApp): DownloadApp {
+  return {
+    bundle_key: app.bundleKey, app_key: app.appKey, name: app.name,
+    tagline: app.tagline || undefined, description: app.description || undefined,
+    icon_url: app.iconUrl || undefined, screenshot_url: app.screenshotUrl || undefined,
+    install_overview: app.installOverview || undefined, install_steps: app.installSteps,
+    storefronts: app.storefronts.map((store) => ({ store: store.store, label: store.label, url: store.url, badge: store.badge || undefined })),
+    metadata: app.metadata, display_order: app.displayOrder,
+    platforms: app.platforms.map(downloadAssetFromProto),
+  };
+}
+
+function downloadAppToProto(app: DownloadAppInput) {
+  return {
+    appKey: app.app_key ?? '', name: app.name, tagline: app.tagline ?? '', description: app.description ?? '',
+    iconUrl: app.icon_url ?? '', screenshotUrl: app.screenshot_url ?? '', installOverview: app.install_overview ?? '',
+    installSteps: app.install_steps ?? [], storefronts: app.storefronts?.map((store) => ({ store: store.store, label: store.label, url: store.url, badge: store.badge ?? '' })) ?? [],
+    metadata: app.metadata, displayOrder: app.display_order ?? 0,
+    platforms: app.platforms.map((asset) => ({ platform: asset.platform, artifactUrl: asset.artifact_url, artifactSource: asset.artifact_source ?? 'direct', artifactId: asset.artifact_id === undefined ? undefined : BigInt(asset.artifact_id), releaseVersion: asset.release_version, releaseNotes: asset.release_notes ?? '', checksum: asset.checksum ?? '', requiresEntitlement: asset.requires_entitlement ?? false, metadata: asset.metadata })),
+  };
+}
+
+function requireDownloadApp(app: GeneratedDownloadApp | undefined, operation: string): DownloadApp {
+  const value = app && parseOrNull(DownloadAppSchema, downloadAppFromProto(app), 'DownloadApp');
+  if (!value) throw new Error(`Invalid download app response from ${operation}`);
+  return value;
 }
 
 export interface DownloadStorageSettingsUpdate {

@@ -10,9 +10,10 @@ import (
 	"github.com/gorilla/mux"
 	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	bundlehttp "landing-page-business-suite-api/handlers/bundles"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
-func bundleConnectDependencies(planService *PlanService, stripe *StripeService) bundlehttp.ConnectDependencies {
+func bundleConnectDependencies(planService *commerce.PlanService, stripe *StripeService) bundlehttp.ConnectDependencies {
 	return bundlehttp.ConnectDependencies{
 		ListCatalog: func(ctx context.Context) ([]*lpbsv1.BundleCatalogEntry, error) {
 			catalog, err := planService.ListBundleCatalog(ctx)
@@ -25,12 +26,12 @@ func bundleConnectDependencies(planService *PlanService, stripe *StripeService) 
 			}
 			return result, nil
 		},
-		UpdatePrice: func(ctx context.Context, bundleKey, priceID string, input bundlehttp.UpdatePriceInput) (*PlanOption, error) {
-			var fetcher StripePriceFetcher
+		UpdatePrice: func(ctx context.Context, bundleKey, priceID string, input bundlehttp.UpdatePriceInput) (*commerce.PlanOption, error) {
+			var fetcher commerce.StripePriceFetcher
 			if stripe != nil {
 				fetcher = stripe.FetchStripePriceDetails
 			}
-			return planService.UpdateBundlePriceWithStripe(ctx, bundleKey, priceID, UpdateBundlePriceInput{
+			return planService.UpdateBundlePriceWithStripe(ctx, bundleKey, priceID, commerce.UpdateBundlePriceInput{
 				StripePriceID: input.StripePriceID, PlanName: input.PlanName, DisplayWeight: input.DisplayWeight,
 				DisplayEnabled: input.DisplayEnabled, Subtitle: input.Subtitle, Badge: input.Badge,
 				CtaLabel: input.CtaLabel, Highlight: input.Highlight, Features: input.Features,
@@ -78,6 +79,6 @@ func classifyBundleConnectError(err error) connect.Code {
 	return connect.CodeInvalidArgument
 }
 
-func registerBundleAdminConnectRoutes(router *mux.Router, planService *PlanService, stripe *StripeService, requireAdmin func(http.HandlerFunc) http.HandlerFunc) {
+func registerBundleAdminConnectRoutes(router *mux.Router, planService *commerce.PlanService, stripe *StripeService, requireAdmin func(http.HandlerFunc) http.HandlerFunc) {
 	bundlehttp.RegisterConnectRoutes(router, bundleConnectDependencies(planService, stripe), requireAdmin)
 }

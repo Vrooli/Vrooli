@@ -6,7 +6,7 @@ vi.mock('./common', () => ({ apiCall: vi.fn() }));
 const mockApiCall = vi.mocked(apiCall);
 
 describe('remote profile API transport', () => {
-  beforeEach(() => { vi.resetAllMocks(); mockApiCall.mockResolvedValue({} as never); });
+  beforeEach(() => { vi.resetAllMocks(); mockApiCall.mockResolvedValue({}); });
 
   it('keeps invalid list payloads safely empty and sends all profile lifecycle requests to their scoped endpoints', async () => {
     await expect(remoteProfiles.listRemoteProfilesAdmin()).resolves.toEqual({ profiles: [] });
@@ -47,15 +47,15 @@ describe('remote profile API transport', () => {
     const incoming = { session_id: 'session-1', admin_email: 'admin@example.com', connector_id: 'connector-1', created_at: '2026-01-01T00:00:00Z', last_activity: '2026-01-01T01:00:00Z', expires_at: '2026-02-01T00:00:00Z' };
     const links = { profile_id: 7, profile_tag: 'partner', connector_id: 'connector-1', local_has_session: true, local_status: 'active', local_session_expires_at: '2026-02-01T00:00:00Z', remote_sessions: [incoming] };
     mockApiCall
-      .mockResolvedValueOnce({ profiles: [profile] } as never)
-      .mockResolvedValueOnce(profile as never)
-      .mockResolvedValueOnce(profile as never)
-      .mockResolvedValueOnce(profile as never)
-      .mockResolvedValueOnce(profile as never)
-      .mockResolvedValueOnce(profile as never)
-      .mockResolvedValueOnce(links as never)
-      .mockResolvedValueOnce(links as never)
-      .mockResolvedValueOnce({ sessions: [incoming] } as never);
+      .mockResolvedValueOnce({ profiles: [profile] })
+      .mockResolvedValueOnce(profile)
+      .mockResolvedValueOnce(profile)
+      .mockResolvedValueOnce(profile)
+      .mockResolvedValueOnce(profile)
+      .mockResolvedValueOnce(profile)
+      .mockResolvedValueOnce(links)
+      .mockResolvedValueOnce(links)
+      .mockResolvedValueOnce({ sessions: [incoming] });
 
     await expect(remoteProfiles.listRemoteProfilesAdmin()).resolves.toEqual({ profiles: [profile] });
     await expect(remoteProfiles.createRemoteProfileAdmin({ tag: 'partner', api_base: profile.api_base })).resolves.toMatchObject({ id: 7 });

@@ -88,7 +88,7 @@ func (s *StripeService) VerifySubscription(userIdentity string) (*shared.Subscri
 		}, nil
 	}
 
-	state := mapSubscriptionState(status)
+	state := commerce.MapSubscriptionState(status)
 	result := &shared.SubscriptionStatus{
 		State:        state,
 		UserIdentity: user,
@@ -191,7 +191,7 @@ func (s *StripeService) CancelSubscription(userIdentity string) (*landing_page_b
 
 	return &landing_page_business_suite_v1.CancelSubscriptionResponse{
 		SubscriptionId: proto.String(subscriptionID),
-		State:          mapSubscriptionState("canceled"),
+		State:          commerce.MapSubscriptionState("canceled"),
 		CanceledAt:     timestamppb.New(now),
 		Message:        proto.String("Subscription canceled successfully"),
 	}, nil
@@ -204,7 +204,7 @@ func (s *StripeService) CreateBillingPortalSession(ctx context.Context, userIden
 		return nil, errors.New("user identity is required")
 	}
 
-	customerID := s.lookupCustomerID(user)
+	customerID := commerce.NewAccountLinkService(s.db).LookupCustomerID(user)
 	if customerID == "" {
 		if strings.Contains(user, "@") {
 			customer, err := s.findCustomerByEmail(ctx, user)
@@ -349,7 +349,7 @@ func (s *StripeService) persistSubscriptionFromStripe(userHint string, sub *stri
 		}
 	}
 
-	state := mapSubscriptionState(sub.Status)
+	state := commerce.MapSubscriptionState(sub.Status)
 	now := time.Now()
 
 	var canceledAt *time.Time
@@ -374,7 +374,7 @@ func (s *StripeService) persistSubscriptionFromStripe(userHint string, sub *stri
 			billing_cycle_start = EXCLUDED.billing_cycle_start,
 			canceled_at = EXCLUDED.canceled_at,
 			updated_at = NOW()
-	`, sub.ID, sub.Customer, sub.CustomerEmail, legacyStateLabel(state), planTier, priceID, bundleKey, billingCycleStart, canceledAt)
+	`, sub.ID, sub.Customer, sub.CustomerEmail, commerce.SubscriptionStateLabel(state), planTier, priceID, bundleKey, billingCycleStart, canceledAt)
 	if err != nil {
 		return nil, err
 	}

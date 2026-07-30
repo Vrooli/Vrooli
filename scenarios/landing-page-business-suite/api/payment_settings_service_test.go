@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 func TestPaymentSettingsServiceUpsert(t *testing.T) {
@@ -18,7 +20,7 @@ func TestPaymentSettingsServiceUpsert(t *testing.T) {
 	service := NewPaymentSettingsService(db)
 	ctx := context.Background()
 
-	record, err := service.SaveStripeSettings(ctx, StripeSettingsInput{
+	record, err := service.SaveStripeSettings(ctx, commerce.StripeSettingsInput{
 		PublishableKey: ptrStripe("pk_live_123"),
 		SecretKey:      ptrStripe("sk_live_123"),
 		WebhookSecret:  ptrStripe("whsec_live_456"),
@@ -40,7 +42,7 @@ func TestPaymentSettingsServiceUpsert(t *testing.T) {
 		t.Fatalf("expected secret key to persist")
 	}
 
-	_, err = service.SaveStripeSettings(ctx, StripeSettingsInput{
+	_, err = service.SaveStripeSettings(ctx, commerce.StripeSettingsInput{
 		DashboardURL: ptrStripe("https://dashboard.stripe.com/alt"),
 	})
 	if err != nil {
@@ -71,7 +73,7 @@ func TestPaymentSettingsService_TrimsWhitespace(t *testing.T) {
 	service := NewPaymentSettingsService(db)
 	ctx := context.Background()
 
-	trimmed, err := service.SaveStripeSettings(ctx, StripeSettingsInput{
+	trimmed, err := service.SaveStripeSettings(ctx, commerce.StripeSettingsInput{
 		PublishableKey: ptrStripe("  pk_trim  "),
 		SecretKey:      ptrStripe("sk_trim  "),
 		WebhookSecret:  ptrStripe("\twhsec_trim\n"),

@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // TestCheckoutSession_NormalizesEmail verifies that CreateCheckoutSession normalizes
@@ -253,7 +254,7 @@ func TestLookupCustomerID_CaseInsensitive(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			customerID := service.lookupCustomerID(tt.lookupEmail)
+			customerID := commerce.NewAccountLinkService(service.db).LookupCustomerID(tt.lookupEmail)
 			assert.Equal(t, tt.expectedCustomerID, customerID)
 		})
 	}

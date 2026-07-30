@@ -167,13 +167,19 @@ func (s *StripeService) handleCheckoutCompleted(obj map[string]interface{}, stri
 
 	// Link user account to Stripe customer (creates user if not exists)
 	if customerEmail != "" && customerID != "" {
-		if err := s.linkUserToStripeCustomer(customerEmail, customerID); err != nil {
+		if err := commerce.NewAccountLinkService(s.db).LinkUserToStripeCustomer(customerEmail, customerID); err != nil {
 			logStructuredError("link_stripe_customer_failed", map[string]interface{}{
 				"email":       customerEmail,
 				"customer_id": customerID,
 				"error":       err.Error(),
 			})
 			// Continue - don't fail checkout for this
+		} else {
+			logStructured("stripe_customer_linked", map[string]interface{}{
+				"level":       "info",
+				"email":       customerEmail,
+				"customer_id": customerID,
+			})
 		}
 	}
 
@@ -189,7 +195,7 @@ func (s *StripeService) handleCheckoutCompleted(obj map[string]interface{}, stri
 		return nil
 	}
 
-	var plan *PlanOption
+	var plan *commerce.PlanOption
 	if sessionRec.PriceID.Valid {
 		if p, planErr := s.planService.GetPlanByPriceID(sessionRec.PriceID.String); planErr == nil {
 			plan = p
@@ -243,7 +249,7 @@ func (s *StripeService) handleCheckoutCompleted(obj map[string]interface{}, stri
 	}
 }
 
-func (s *StripeService) handleSubscriptionCompletion(tx *sql.Tx, subscriptionID, customerID, customerEmail string, plan *PlanOption, session *checkoutSessionRecord, amountCents int64) error {
+func (s *StripeService) handleSubscriptionCompletion(tx *sql.Tx, subscriptionID, customerID, customerEmail string, plan *commerce.PlanOption, session *checkoutSessionRecord, amountCents int64) error {
 	if plan == nil {
 		// Without plan metadata we cannot create enriched entries
 		return nil
@@ -300,7 +306,7 @@ func (s *StripeService) handleSubscriptionCompletion(tx *sql.Tx, subscriptionID,
 	return nil
 }
 
-func (s *StripeService) createSubscriptionSchedule(tx *sql.Tx, subscriptionID string, plan *PlanOption, amountCents int64) (string, error) {
+func (s *StripeService) createSubscriptionSchedule(tx *sql.Tx, subscriptionID string, plan *commerce.PlanOption, amountCents int64) (string, error) {
 	if plan == nil || subscriptionID == "" {
 		return "", nil
 	}

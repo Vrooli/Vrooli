@@ -17,7 +17,7 @@ const asset = (overrides: Partial<DownloadAsset> = {}): DownloadAsset => ({
   release_version: '1.2.3',
   requires_entitlement: false,
   ...overrides,
-} as DownloadAsset);
+});
 
 describe('public download service', () => {
   afterEach(() => {

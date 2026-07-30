@@ -3,6 +3,8 @@ package main
 import (
 	"strings"
 	"testing"
+
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 func TestResolvePlanFromMetadata(t *testing.T) {
@@ -88,7 +90,7 @@ func TestResolvePlanFromMetadata(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ResolvePlanFromMetadata(tt.metadata, tt.defaultBundle)
+			result := commerce.ResolvePlanFromMetadata(tt.metadata, tt.defaultBundle)
 			if result.PlanTier != tt.wantPlanTier {
 				t.Errorf("PlanTier = %q, want %q", result.PlanTier, tt.wantPlanTier)
 			}
@@ -167,85 +169,9 @@ func TestInferPlanTierFromPriceID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := InferPlanTierFromPriceID(tt.priceID, tt.currentTier)
+			got := commerce.InferPlanTierFromPriceID(tt.priceID, tt.currentTier)
 			if got != tt.want {
 				t.Errorf("InferPlanTierFromPriceID(%q, %q) = %q, want %q", tt.priceID, tt.currentTier, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestValidatePlanTier(t *testing.T) {
-	tests := []struct {
-		name           string
-		planTier       string
-		priceID        string
-		subscriptionID string
-		want           string
-	}{
-		{
-			name:           "returns empty for empty planTier",
-			planTier:       "",
-			priceID:        "price_123",
-			subscriptionID: "sub_123",
-			want:           "",
-		},
-		{
-			name:           "returns empty for whitespace planTier",
-			planTier:       "   ",
-			priceID:        "price_123",
-			subscriptionID: "sub_123",
-			want:           "",
-		},
-		{
-			name:           "returns valid tier for solo",
-			planTier:       "solo",
-			priceID:        "price_123",
-			subscriptionID: "sub_123",
-			want:           "solo",
-		},
-		{
-			name:           "returns valid tier for pro",
-			planTier:       "pro",
-			priceID:        "price_123",
-			subscriptionID: "sub_123",
-			want:           "pro",
-		},
-		{
-			name:           "returns valid tier for business",
-			planTier:       "business",
-			priceID:        "price_123",
-			subscriptionID: "sub_123",
-			want:           "business",
-		},
-		{
-			name:           "returns valid tier for studio",
-			planTier:       "studio",
-			priceID:        "price_123",
-			subscriptionID: "sub_123",
-			want:           "studio",
-		},
-		{
-			name:           "returns valid tier for free",
-			planTier:       "free",
-			priceID:        "price_123",
-			subscriptionID: "sub_123",
-			want:           "free",
-		},
-		{
-			name:           "returns empty for invalid tier",
-			planTier:       "invalid_tier",
-			priceID:        "price_123",
-			subscriptionID: "sub_123",
-			want:           "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := ValidatePlanTier(tt.planTier, tt.priceID, tt.subscriptionID)
-			if got != tt.want {
-				t.Errorf("ValidatePlanTier(%q, %q, %q) = %q, want %q", tt.planTier, tt.priceID, tt.subscriptionID, got, tt.want)
 			}
 		})
 	}
@@ -306,7 +232,7 @@ func TestExtractCouponIDFromDiscount(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ExtractCouponIDFromDiscount(tt.discount)
+			got := commerce.ExtractCouponIDFromDiscount(tt.discount)
 			if got != tt.want {
 				t.Errorf("ExtractCouponIDFromDiscount() = %q, want %q", got, tt.want)
 			}
@@ -352,48 +278,12 @@ func TestExtractCouponFromDiscountAmount(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ExtractCouponFromDiscountAmount(tt.tda)
+			got := commerce.ExtractCouponFromDiscountAmount(tt.tda)
 			if got != tt.want {
 				t.Errorf("ExtractCouponFromDiscountAmount() = %q, want %q", got, tt.want)
 			}
 		})
 	}
-}
-
-func TestExtractFirstSubscriptionItem(t *testing.T) {
-	t.Run("returns empty for nil items data", func(t *testing.T) {
-		sub := &stripeSubscription{}
-		sub.Items.Data = nil
-		got := ExtractFirstSubscriptionItem(sub)
-		if got != "" {
-			t.Errorf("ExtractFirstSubscriptionItem() = %q, want empty", got)
-		}
-	})
-
-	t.Run("returns empty for empty items data", func(t *testing.T) {
-		sub := &stripeSubscription{}
-		sub.Items.Data = []struct {
-			Price stripePriceRef `json:"price"`
-		}{}
-		got := ExtractFirstSubscriptionItem(sub)
-		if got != "" {
-			t.Errorf("ExtractFirstSubscriptionItem() = %q, want empty", got)
-		}
-	})
-
-	t.Run("extracts first item price ID", func(t *testing.T) {
-		sub := &stripeSubscription{}
-		sub.Items.Data = []struct {
-			Price stripePriceRef `json:"price"`
-		}{
-			{Price: stripePriceRef{ID: "price_first"}},
-			{Price: stripePriceRef{ID: "price_second"}},
-		}
-		got := ExtractFirstSubscriptionItem(sub)
-		if got != "price_first" {
-			t.Errorf("ExtractFirstSubscriptionItem() = %q, want price_first", got)
-		}
-	})
 }
 
 func TestSafeStringFromMap(t *testing.T) {
@@ -437,7 +327,7 @@ func TestSafeStringFromMap(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := SafeStringFromMap(tt.m, tt.key)
+			got := commerce.SafeStringFromMap(tt.m, tt.key)
 			if got != tt.want {
 				t.Errorf("SafeStringFromMap() = %q, want %q", got, tt.want)
 			}
@@ -498,7 +388,7 @@ func TestSafeInt64FromMap(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := SafeInt64FromMap(tt.m, tt.key)
+			got := commerce.SafeInt64FromMap(tt.m, tt.key)
 			if got != tt.want {
 				t.Errorf("SafeInt64FromMap() = %d, want %d", got, tt.want)
 			}
@@ -541,7 +431,7 @@ func TestSafeMapFromMap(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := SafeMapFromMap(tt.m, tt.key)
+			got := commerce.SafeMapFromMap(tt.m, tt.key)
 			if tt.wantNil && got != nil {
 				t.Errorf("SafeMapFromMap() = %v, want nil", got)
 			}
@@ -587,7 +477,7 @@ func TestSafeArrayFromMap(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := SafeArrayFromMap(tt.m, tt.key)
+			got := commerce.SafeArrayFromMap(tt.m, tt.key)
 			if tt.wantNil && got != nil {
 				t.Errorf("SafeArrayFromMap() = %v, want nil", got)
 			}
@@ -599,7 +489,7 @@ func TestSafeArrayFromMap(t *testing.T) {
 }
 
 func TestBuildSubscriptionUpsertSQL(t *testing.T) {
-	sql := BuildSubscriptionUpsertSQL()
+	sql := commerce.BuildSubscriptionUpsertSQL()
 
 	// Verify the SQL contains expected parts
 	if sql == "" {
@@ -665,52 +555,9 @@ func TestCoalesceString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := CoalesceString(tt.values...)
+			got := commerce.CoalesceString(tt.values...)
 			if got != tt.want {
 				t.Errorf("CoalesceString() = %q, want %q", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestChooseUserIdentityFromSubscription(t *testing.T) {
-	tests := []struct {
-		name     string
-		userHint string
-		sub      *stripeSubscription
-		want     string
-	}{
-		{
-			name:     "returns trimmed userHint if provided",
-			userHint: "  user@example.com  ",
-			sub:      &stripeSubscription{CustomerEmail: "other@example.com", Customer: "cus_123"},
-			want:     "user@example.com",
-		},
-		{
-			name:     "returns customer email if userHint is empty",
-			userHint: "",
-			sub:      &stripeSubscription{CustomerEmail: "customer@example.com", Customer: "cus_123"},
-			want:     "customer@example.com",
-		},
-		{
-			name:     "returns customer email if userHint is whitespace",
-			userHint: "   ",
-			sub:      &stripeSubscription{CustomerEmail: "customer@example.com", Customer: "cus_123"},
-			want:     "customer@example.com",
-		},
-		{
-			name:     "returns customer ID if email is empty",
-			userHint: "",
-			sub:      &stripeSubscription{CustomerEmail: "", Customer: "cus_fallback"},
-			want:     "cus_fallback",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := ChooseUserIdentityFromSubscription(tt.userHint, tt.sub)
-			if got != tt.want {
-				t.Errorf("ChooseUserIdentityFromSubscription() = %q, want %q", got, tt.want)
 			}
 		})
 	}

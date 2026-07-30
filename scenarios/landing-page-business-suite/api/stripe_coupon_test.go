@@ -13,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // ============================================================================
@@ -498,7 +499,7 @@ func TestCreateCoupon_PercentOff_Valid(t *testing.T) {
 
 	ctx := context.Background()
 	percentOff := float64(50)
-	coupon, err := service.CreateCoupon(ctx, CreateCouponRequest{
+	coupon, err := service.CreateCoupon(ctx, commerce.CreateCouponInput{
 		ID:         "coupon_percent_50",
 		PercentOff: &percentOff,
 		Duration:   "once",
@@ -546,7 +547,7 @@ func TestCreateCoupon_AmountOff_Valid(t *testing.T) {
 
 	ctx := context.Background()
 	amountOff := int64(1000)
-	coupon, err := service.CreateCoupon(ctx, CreateCouponRequest{
+	coupon, err := service.CreateCoupon(ctx, commerce.CreateCouponInput{
 		ID:        "coupon_amount_1000",
 		AmountOff: &amountOff,
 		Currency:  "usd",
@@ -851,7 +852,7 @@ func TestCouponUpdateMetadata(t *testing.T) {
 	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
 	ctx := context.Background()
-	coupon, err := service.UpdateCoupon(ctx, "coupon_to_update", UpdateCouponRequest{
+	coupon, err := service.UpdateCoupon(ctx, "coupon_to_update", commerce.UpdateCouponInput{
 		Name: "Updated Coupon Name",
 	})
 	require.NoError(t, err)

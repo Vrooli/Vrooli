@@ -1,6 +1,7 @@
 package downloads
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -10,18 +11,19 @@ import (
 	"path/filepath"
 	"strings"
 
+	"connectrpc.com/connect"
 	"landing-page-business-suite/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
+	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func Register(deps support.Dependencies) cliapp.CommandGroup {
 	commands := deps.EndpointCommands([]support.EndpointDef{
-		{Name: "admin-download-apps-list", Method: "GET", Path: "/admin/download-apps", Description: "List download apps"},
-		{Name: "admin-download-apps-create", Method: "POST", Path: "/admin/download-apps", Description: "Create download app"},
-		{Name: "admin-download-apps-save", Method: "PUT", Path: "/admin/download-apps/{app_key}", Description: "Update download app"},
-		{Name: "admin-download-apps-delete", Method: "DELETE", Path: "/admin/download-apps/{app_key}", Description: "Delete download app"},
 		{Name: "admin-download-storage-get", Method: "GET", Path: "/admin/download-storage", Description: "Get download storage"},
 		{Name: "admin-download-storage-update", Method: "PUT", Path: "/admin/download-storage", Description: "Update download storage"},
 		{Name: "admin-download-storage-test", Method: "POST", Path: "/admin/download-storage/test", Description: "Test download storage"},
@@ -33,6 +35,7 @@ func Register(deps support.Dependencies) cliapp.CommandGroup {
 		{Name: "admin-download-assets-apply", Method: "POST", Path: "/admin/download-assets/apply", Description: "Apply download artifact"},
 		{Name: "admin-download-assets-set-current", Method: "POST", Path: "/admin/download-assets/set-current", Description: "Set artifact as current"},
 	})
+	commands = append(commands, listAppsCommand(deps), createAppCommand(deps), saveAppCommand(deps), deleteAppCommand(deps))
 	commands = append(commands, cliapp.Command{
 		Name:        "admin-downloads-upload-managed",
 		NeedsAPI:    true,
@@ -40,6 +43,110 @@ func Register(deps support.Dependencies) cliapp.CommandGroup {
 		Run:         func(args []string) error { return runUploadManaged(deps, args) },
 	})
 	return cliapp.CommandGroup{Title: "Admin Commerce - Downloads", Commands: commands}
+}
+
+func client(deps support.Dependencies) (lpbsconnect.DownloadServiceClient, error) {
+	httpClient, baseURL, err := deps.AdminConnectHTTPClient()
+	if err != nil {
+		return nil, err
+	}
+	return lpbsconnect.NewDownloadServiceClient(httpClient, baseURL), nil
+}
+
+func listAppsCommand(deps support.Dependencies) cliapp.Command {
+	op := cliapp.ProtoList(func(cliapp.OperationContext) (*lpbsv1.ListDownloadAppsResponse, error) {
+		service, err := client(deps)
+		if err != nil {
+			return nil, err
+		}
+		response, err := service.ListDownloadApps(context.Background(), connect.NewRequest(&lpbsv1.ListDownloadAppsRequest{}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("list download apps", err, nil)
+		}
+		return response.Msg, nil
+	}, func(cliapp.OperationContext, *lpbsv1.ListDownloadAppsResponse) cliapp.ListReport {
+		return cliapp.ListReport{Summary: []string{"Download application catalog."}, ResultsHeading: "Download apps"}
+	})
+	return (cliapp.Command{Name: "admin-download-apps-list", NeedsAPI: true, Description: "List download apps through the generated Connect contract", Architecture: cliapp.CommandArchitecture{Primitive: cliapp.PrimitiveProtoList}}).WithPrimitive(op)
+}
+
+func createAppCommand(deps support.Dependencies) cliapp.Command {
+	op := cliapp.ProtoMutation(func(ctx cliapp.OperationContext) (*lpbsv1.DownloadAppResponse, error) {
+		app, err := decodeAppBody(ctx)
+		if err != nil {
+			return nil, err
+		}
+		service, err := client(deps)
+		if err != nil {
+			return nil, err
+		}
+		response, err := service.CreateDownloadApp(context.Background(), connect.NewRequest(&lpbsv1.CreateDownloadAppRequest{App: app}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("create download app", err, nil)
+		}
+		return response.Msg, nil
+	}, func(cliapp.OperationContext, *lpbsv1.DownloadAppResponse) cliapp.MutationReport {
+		return cliapp.MutationReport{Result: []string{"Download app created."}}
+	})
+	return (cliapp.Command{Name: "admin-download-apps-create", NeedsAPI: true, Description: "Create download app through the generated Connect contract (--body JSON)", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "body", Description: "Download app JSON payload or @file.json", Required: true}}}, Architecture: cliapp.CommandArchitecture{Primitive: cliapp.PrimitiveProtoMutation}}).WithPrimitive(op)
+}
+
+func saveAppCommand(deps support.Dependencies) cliapp.Command {
+	op := cliapp.ProtoMutation(func(ctx cliapp.OperationContext) (*lpbsv1.DownloadAppResponse, error) {
+		key := strings.TrimSpace(ctx.Positional("app_key"))
+		if key == "" {
+			return nil, fmt.Errorf("app_key is required")
+		}
+		app, err := decodeAppBody(ctx)
+		if err != nil {
+			return nil, err
+		}
+		service, err := client(deps)
+		if err != nil {
+			return nil, err
+		}
+		response, err := service.SaveDownloadApp(context.Background(), connect.NewRequest(&lpbsv1.SaveDownloadAppRequest{AppKey: key, App: app}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("save download app", err, nil)
+		}
+		return response.Msg, nil
+	}, func(cliapp.OperationContext, *lpbsv1.DownloadAppResponse) cliapp.MutationReport {
+		return cliapp.MutationReport{Result: []string{"Download app saved."}}
+	})
+	return (cliapp.Command{Name: "admin-download-apps-save", NeedsAPI: true, Description: "Save download app through the generated Connect contract (APP_KEY --body JSON)", Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "app_key", Required: true}}, Flags: []cliapp.Flag{{Name: "body", Description: "Download app JSON payload or @file.json", Required: true}}}, Architecture: cliapp.CommandArchitecture{Primitive: cliapp.PrimitiveProtoMutation}}).WithPrimitive(op)
+}
+
+func deleteAppCommand(deps support.Dependencies) cliapp.Command {
+	op := cliapp.ProtoMutation(func(ctx cliapp.OperationContext) (*lpbsv1.DeleteDownloadAppResponse, error) {
+		key := strings.TrimSpace(ctx.Positional("app_key"))
+		if key == "" {
+			return nil, fmt.Errorf("app_key is required")
+		}
+		service, err := client(deps)
+		if err != nil {
+			return nil, err
+		}
+		response, err := service.DeleteDownloadApp(context.Background(), connect.NewRequest(&lpbsv1.DeleteDownloadAppRequest{AppKey: key}))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("delete download app", err, nil)
+		}
+		return response.Msg, nil
+	}, func(cliapp.OperationContext, *lpbsv1.DeleteDownloadAppResponse) cliapp.MutationReport {
+		return cliapp.MutationReport{Result: []string{"Download app deleted."}}
+	})
+	return (cliapp.Command{Name: "admin-download-apps-delete", NeedsAPI: true, Description: "Delete download app through the generated Connect contract (APP_KEY)", Args: cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "app_key", Required: true}}}, Architecture: cliapp.CommandArchitecture{Primitive: cliapp.PrimitiveProtoMutation}}).WithPrimitive(op)
+}
+
+func decodeAppBody(ctx cliapp.OperationContext) (*shared.DownloadApp, error) {
+	payload, err := support.ParseBody(ctx.Flag("body"))
+	if err != nil {
+		return nil, err
+	}
+	app := &shared.DownloadApp{}
+	if err := protojson.Unmarshal(payload, app); err != nil {
+		return nil, fmt.Errorf("decode download app: %w", err)
+	}
+	return app, nil
 }
 
 func runUploadManaged(deps support.Dependencies, args []string) error {

@@ -24,13 +24,18 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	corestorage "github.com/vrooli/api-core/storage"
+	aihandler "landing-page-business-suite-api/handlers/intelligence"
 	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/analytics"
 	"landing-page-business-suite-api/internal/commerce"
 	"landing-page-business-suite-api/internal/content"
 	"landing-page-business-suite-api/internal/delivery"
 	"landing-page-business-suite-api/internal/envx"
+	"landing-page-business-suite-api/internal/experimentation"
+	"landing-page-business-suite-api/internal/intelligence"
+	"landing-page-business-suite-api/internal/landing"
 	"landing-page-business-suite-api/internal/logx"
+	domainmetrics "landing-page-business-suite-api/internal/metrics"
 	runtimeschema "landing-page-business-suite-api/internal/schema"
 )
 
@@ -47,37 +52,38 @@ type Server struct {
 	routedDB             *database.RoutedDB
 	fileRoots            *filerouting.RoutedRoots
 	router               *mux.Router
-	variantSpace         *VariantSpace
-	configStore          *ConfigStore
-	metricsService       *MetricsService
+	variantSpace         *experimentation.VariantSpace
+	configStore          *experimentation.ConfigStore
+	metricsService       *domainmetrics.Service
 	stripeService        *StripeService
-	planService          *PlanService
-	downloadService      *DownloadService
+	planService          *commerce.PlanService
+	downloadService      *delivery.CatalogService
 	downloadHosting      *delivery.Service
-	downloadAuthorizer   *DownloadAuthorizer
-	accountService       *AccountService
-	landingConfigService *LandingConfigService
-	paymentSettings      *PaymentSettingsService
+	downloadAuthorizer   *delivery.DownloadAuthorizer
+	accountService       *commerce.Service
+	landingConfigService *landing.LandingConfigService
+	paymentSettings      *commerce.PaymentSettingsService
 	paymentAnomaly       *commerce.PaymentAnomalyService
-	assetsService        *AssetsService
-	seoService           *SEOService
-	feedbackService      *FeedbackService
-	adminAuthService     *AdminAuthService
+	assetsService        *content.AssetsService
+	seoService           *content.SEOService
+	feedbackService      *domainmetrics.FeedbackService
+	adminAuthService     *administration.AdminAuthService
 	emailService         *EmailService
-	waitlistService      *WaitlistService
+	waitlistService      *domainmetrics.WaitlistService
 	// Credit system services
-	apiKeyService *APIKeyService
-	limitsService *LimitsService
-	usageService  *UsageService
+	apiKeyService *administration.APIKeyService
+	limitsService *commerce.LimitsService
+	usageService  *commerce.UsageService
 	// Remote profile service (admin-managed remote connections)
 	remoteProfileService *administration.RemoteProfileService
 	// User authentication services
-	userAuthService       *UserAuthService
-	userManagementService *UserManagementService
+	userAuthService       *administration.UserAuthService
+	userManagementService *administration.UserManagementService
 	magicLinkLimiter      *RateLimiter
 	// AI Gateway service
-	aiGatewayService *AIGatewayService
-	aiGatewayDeps    *AIGatewayDeps
+	aiGatewayService *intelligence.AIGatewayService
+	aiGatewayHandler *aihandler.Handler
+	aiGatewayDeps    aihandler.Dependencies
 	// Session management for admin auth
 	sessionManager SessionManager
 }
@@ -164,19 +170,19 @@ func NewServer() (*Server, error) {
 	// Initialize config store from tracked scenario config files.
 	variantsDir := resolveVariantsDir()
 	brandingPath := resolveBrandingPath()
-	configStore := NewConfigStore(variantsDir, brandingPath, defaultVariantSpace)
+	variantSpace := experimentation.DefaultVariantSpace()
+	configStore := experimentation.NewConfigStore(variantsDir, brandingPath, variantSpace)
 	if err := configStore.LoadAll(); err != nil {
 		return nil, fmt.Errorf("failed to load config from JSON files: %w", err)
 	}
 	logStructured("server_configuration_loaded", nil)
 
-	variantSpace := defaultVariantSpace
 	planService := NewPlanService(db)
-	downloadService := NewDownloadService(newRoutedDownloadStore(routedDB))
+	downloadService := delivery.NewCatalogService(delivery.NewRoutedCatalogStore(routedDB))
 	downloadHosting := delivery.NewService(db, delivery.S3StorageProvider{})
-	accountService := NewAccountService(routedDB, planService)
-	downloadAuthorizer := NewDownloadAuthorizer(downloadService, accountService, planService.BundleKey())
-	paymentSettings := NewPaymentSettingsService(routedDB)
+	accountService := newAccountService(routedDB, planService)
+	downloadAuthorizer := delivery.NewDownloadAuthorizer(downloadService, accountService, planService.BundleKey())
+	paymentSettings := commerce.NewPaymentSettingsService(routedDB)
 	paymentAnomaly := commerce.NewPaymentAnomalyService(context.Background(), routedDB, context.Background(), commerce.PaymentAnomalyRuntime{
 		ScenarioName:   "landing-page-business-suite",
 		NormalizeEmail: NormalizeEmail,
@@ -188,13 +194,13 @@ func NewServer() (*Server, error) {
 	assetsService := NewAssetsService(db)
 	fileRoots := filerouting.New(runtimeStoragePaths(variantsDir, assetsService.GetUploadDir()))
 	assetsService.SetFileRoots(fileRoots)
-	seoService := NewSEOServiceWithConfigStore(configStore)
-	feedbackService := NewFeedbackService(routedDB)
+	seoService := NewSEOService(configStore)
+	feedbackService := domainmetrics.NewFeedbackService(routedDB)
 	emailService := NewEmailService()
 	// Waitlist is the first request-context-aware domain migrated to RoutedDB.
 	// Test-mode requests reach the lease-owned pool while all other services
 	// continue their explicit, staged migration from the primary pool.
-	waitlistService := NewWaitlistService(routedDB)
+	waitlistService := domainmetrics.NewWaitlistService(routedDB)
 
 	// Initialize credit system services
 	apiKeyService, err := NewAPIKeyService(routedDB)
@@ -214,25 +220,44 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("failed to initialize remote profile service: %w", err)
 	}
 	logStructured("server_remote_profile_service_initialized", nil)
-	limitsService := NewLimitsService(routedDB, "postgres")
-	usageService := NewUsageService(routedDB, limitsService, "postgres")
+	limitsService := commerce.NewLimitsService(routedDB, "postgres", logStructured)
+	usageService := newRuntimeUsageService(routedDB, limitsService, "postgres")
 
 	// Initialize user authentication services
-	userAuthService := NewUserAuthService(routedDB, emailService)
-	userManagementService := NewUserManagementService(routedDB)
+	userAuthService := administration.NewUserAuthService(administration.UserAuthServiceOptions{
+		Store:        routedDB,
+		EmailService: emailService,
+		JWTSecret:    resolveSecret("JWT_SECRET"),
+		JWTIssuer:    resolveSecret("JWT_ISSUER"),
+		BaseURL:      resolveSecret("AUTH_MAGIC_LINK_BASE_URL"),
+		AppName:      resolveSecret("EMAIL_FROM_NAME"),
+		Log:          logStructured,
+		LogError:     logStructuredError,
+	})
+	userManagementService := administration.NewUserManagementService(routedDB)
 	// Rate limiter: 5 requests per 15 minutes per email for magic link
 	magicLinkLimiter := NewRateLimiter(5, 15*time.Minute)
 
 	// Initialize AI gateway service
-	aiGatewayService := NewAIGatewayService(AIGatewayServiceOptions{
+	aiGatewayService := intelligence.NewAIGatewayService(intelligence.AIGatewayServiceOptions{
 		APIKeyService:  apiKeyService,
-		UsageService:   aiGatewayCreditAdapter{usage: usageService},
+		UsageService:   newCommerceUsageServicer(usageService),
 		AccountService: accountService,
 		Logger:         logStructured,
+		ClientFactory: func(apiKey string, logger func(string, map[string]interface{})) intelligence.OpenRouterClient {
+			return intelligence.NewOpenRouterClient(intelligence.OpenRouterClientOptions{
+				APIKey:  apiKey,
+				BaseURL: envx.Get("OPENROUTER_BASE_URL"),
+				Referer: envx.Get("OPENROUTER_REFERER"),
+				Title:   envx.Get("OPENROUTER_TITLE"),
+				Logger:  logger,
+			})
+		},
 	})
 
 	// Create AI gateway dependencies with rate limiters
-	aiGatewayDeps := DefaultAIGatewayDeps(aiGatewayService, usageService, accountService)
+	aiGatewayDeps := newAIGatewayDependencies(aiGatewayService, usageService, accountService)
+	aiGatewayHandler := aihandler.New(aiGatewayDeps)
 
 	srv := &Server{
 		config:               &Config{},
@@ -242,20 +267,20 @@ func NewServer() (*Server, error) {
 		router:               mux.NewRouter(),
 		variantSpace:         variantSpace,
 		configStore:          configStore,
-		metricsService:       NewMetricsService(db),
+		metricsService:       domainmetrics.NewService(db),
 		stripeService:        stripeService,
 		planService:          planService,
 		downloadService:      downloadService,
 		downloadHosting:      downloadHosting,
 		downloadAuthorizer:   downloadAuthorizer,
 		accountService:       accountService,
-		landingConfigService: NewLandingConfigServiceWithConfigStore(configStore, planService, downloadService, stripeService),
+		landingConfigService: newLandingConfigService(configStore, planService, downloadService, stripeService),
 		paymentSettings:      paymentSettings,
 		paymentAnomaly:       paymentAnomaly,
 		assetsService:        assetsService,
 		seoService:           seoService,
 		feedbackService:      feedbackService,
-		adminAuthService:     NewAdminAuthService(routedDB),
+		adminAuthService:     administration.NewAdminAuthService(routedDB),
 		emailService:         emailService,
 		waitlistService:      waitlistService,
 		// Credit system services
@@ -270,6 +295,7 @@ func NewServer() (*Server, error) {
 		magicLinkLimiter:      magicLinkLimiter,
 		// AI Gateway service
 		aiGatewayService: aiGatewayService,
+		aiGatewayHandler: aiGatewayHandler,
 		aiGatewayDeps:    aiGatewayDeps,
 		// Session management
 		sessionManager: initSessionManager(),
@@ -282,6 +308,28 @@ func NewServer() (*Server, error) {
 	}
 	logStructured("server_initialization_completed", nil)
 	return srv, nil
+}
+
+// newRuntimeUsageService supplies process configuration at the composition
+// boundary. Commerce owns usage rules; this function owns only environment and
+// logging policy needed to start the process.
+func newRuntimeUsageService(db commerce.UsageStore, limitsSvc commerce.LimitsServicer, dialect string) *commerce.UsageService {
+	serviceToken := resolveSecret("LPBS_SERVICE_SECRET")
+	if serviceToken == "" {
+		logStructured("usage_service_no_token", map[string]interface{}{
+			"level":   "warn",
+			"message": "LPBS_SERVICE_SECRET not set; service-to-service auth disabled",
+		})
+	}
+
+	return commerce.NewUsageServiceWithOptions(commerce.UsageServiceOptions{
+		DB:                  db,
+		LimitsService:       limitsSvc,
+		Dialect:             dialect,
+		ServiceToken:        serviceToken,
+		Log:                 logStructured,
+		InsufficientCredits: intelligence.ErrInsufficientCredits,
+	})
 }
 
 // resolveVariantsDir finds the variants directory

@@ -149,6 +149,16 @@ func connectRoutes() []route {
 	routes = append(routes, serviceRoutes(lpbsv1.File_landing_page_business_suite_v1_config_proto.Services().ByName("LandingConfigService"))...)
 	routes = append(routes, serviceRoutes(lpbsv1.File_landing_page_business_suite_v1_bundles_proto.Services().ByName("BundleAdminService"))...)
 	routes = append(routes, serviceRoutes(lpbsv1.File_landing_page_business_suite_v1_coupons_proto.Services().ByName("CouponAdminService"))...)
+	routes = append(routes, serviceRoutes(lpbsv1.File_landing_page_business_suite_v1_assets_proto.Services().ByName("AssetsService"))...)
+	routes = append(routes, serviceRoutes(lpbsv1.File_landing_page_business_suite_v1_variant_proto.Services().ByName("VariantService"))...)
+	routes = append(routes, serviceRoutes(lpbsv1.File_landing_page_business_suite_v1_metrics_proto.Services().ByName("MetricsService"))...)
+	routes = append(routes, serviceRoutes(lpbsv1.File_landing_page_business_suite_v1_intelligence_proto.Services().ByName("IntelligenceService"))...)
+	routes = append(routes, serviceRoutes(lpbsv1.File_landing_page_business_suite_v1_admin_proto.Services().ByName("AdministrationService"))...)
+	routes = append(routes, serviceRoutes(lpbsv1.File_landing_page_business_suite_v1_admin_proto.Services().ByName("AdminAuthService"))...)
+	routes = append(routes, serviceRoutes(lpbsv1.File_landing_page_business_suite_v1_admin_proto.Services().ByName("AdminResetService"))...)
+	routes = append(routes, serviceRoutes(lpbsv1.File_landing_page_business_suite_v1_deployment_proto.Services().ByName("DeploymentService"))...)
+	routes = append(routes, serviceRoutes(lpbsv1.File_landing_page_business_suite_v1_docs_proto.Services().ByName("DocsService"))...)
+	routes = append(routes, serviceRoutesNamed(lpbsv1.File_landing_page_business_suite_v1_download_proto.Services().ByName("DownloadService"), "AuthorizeDownload", "ListDownloadApps", "CreateDownloadApp", "SaveDownloadApp", "DeleteDownloadApp")...)
 	return append(routes, serviceRoutes(measuresv1.File_landing_page_business_suite_v1_measures_measures_proto.Services().ByName("MeasuresService"))...)
 }
 
@@ -160,6 +170,20 @@ func serviceRoutes(service protoreflect.ServiceDescriptor) []route {
 	for index := 0; index < service.Methods().Len(); index++ {
 		method := service.Methods().Get(index)
 		routes = append(routes, route{Path: "/" + string(service.FullName()) + "/" + string(method.Name()), Method: "POST"})
+	}
+	return routes
+}
+
+func serviceRoutesNamed(service protoreflect.ServiceDescriptor, names ...string) []route {
+	if service == nil {
+		return nil
+	}
+	routes := make([]route, 0, len(names))
+	for _, name := range names {
+		method := service.Methods().ByName(protoreflect.Name(name))
+		if method != nil {
+			routes = append(routes, route{Path: "/" + string(service.FullName()) + "/" + string(method.Name()), Method: "POST"})
+		}
 	}
 	return routes
 }

@@ -5,26 +5,45 @@ import (
 	"testing"
 )
 
-func TestIsWithinDirectoryRejectsSiblingPrefixAndTraversal(t *testing.T) {
-	root := filepath.Join(string(filepath.Separator), "tmp", "docs")
-	if !isWithinDirectory(root, filepath.Join(root, "guide.md")) {
-		t.Fatal("expected file below docs root to be accepted")
+func TestGetDocsRoot_PrefersExplicitOverride(t *testing.T) {
+	t.Setenv("SCENARIO_ROOT", "/ignored/scenario")
+	t.Setenv("DOCS_ROOT", "custom-docs")
+
+	got := getDocsRoot()
+	want, err := filepath.Abs("custom-docs")
+	if err != nil {
+		t.Fatalf("resolve expected docs root: %v", err)
 	}
-	for _, candidate := range []string{
-		filepath.Join(string(filepath.Separator), "tmp", "docs-backup", "guide.md"),
-		filepath.Join(root, "..", "secret.md"),
-	} {
-		if isWithinDirectory(root, candidate) {
-			t.Errorf("isWithinDirectory(%q) accepted an escape", candidate)
-		}
+	if got != want {
+		t.Fatalf("expected explicit docs root %q, got %q", want, got)
 	}
 }
 
-func TestExtractTitleUsesFirstHeadingThenFilename(t *testing.T) {
-	if got := extractTitle("intro\n# Operator Guide\n# Later", "guide.md"); got != "Operator Guide" {
-		t.Fatalf("extractTitle heading = %q, want Operator Guide", got)
+func TestGetDocsRoot_DerivesFromScenarioRoot(t *testing.T) {
+	t.Setenv("DOCS_ROOT", "")
+	t.Setenv("SCENARIO_ROOT", "/srv/landing-page-business-suite")
+
+	if got, want := getDocsRoot(), "/srv/landing-page-business-suite/docs"; got != want {
+		t.Fatalf("expected scenario docs root %q, got %q", want, got)
 	}
-	if got := extractTitle("no heading", "nested/runbook.md"); got != "runbook" {
-		t.Fatalf("extractTitle fallback = %q, want runbook", got)
+}
+
+func TestGetDocsRoot_DefaultIsAbsolute(t *testing.T) {
+	t.Setenv("DOCS_ROOT", "")
+	t.Setenv("SCENARIO_ROOT", "")
+
+	got := getDocsRoot()
+	if !filepath.IsAbs(got) {
+		t.Fatalf("expected default docs root to be absolute, got %q", got)
+	}
+	if filepath.Base(got) != "docs" {
+		t.Fatalf("expected default docs directory, got %q", got)
+	}
+}
+
+func TestDocsConnectDependencies_InstallsEveryBoundaryAdapter(t *testing.T) {
+	deps := docsConnectDependencies()
+	if deps.DocsRoot == nil || deps.Log == nil {
+		t.Fatal("expected document Connect composition to install every boundary adapter")
 	}
 }

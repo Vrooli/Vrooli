@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	accounthttp "landing-page-business-suite-api/handlers/account"
 	"landing-page-business-suite-api/internal/commerce"
 
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
@@ -14,7 +15,7 @@ func TestAccountTransportReaderMapsCommerceDTOs(t *testing.T) {
 	subscription := &shared.SubscriptionStatus{UserIdentity: "customer@example.test"}
 	credits := &commerce.CreditsEnvelope{DisplayCreditsLabel: "tokens", DisplayCreditsMultiplier: 2}
 	entitlements := &commerce.EntitlementPayload{Status: "active", PlanTier: "pro", PriceID: "price_123", Features: []string{"downloads"}, BillingCycleStart: 42, Subscription: subscription}
-	reader := accountTransportReader{service: fakeAccountTransportSource{subscription: subscription, credits: credits, entitlements: entitlements}}
+	reader := accounthttp.NewCommerceReader(fakeAccountTransportSource{subscription: subscription, credits: credits, entitlements: entitlements})
 
 	gotSubscription, err := reader.GetSubscriptionContext(context.Background(), "customer@example.test")
 	if err != nil || gotSubscription != subscription {
@@ -32,7 +33,7 @@ func TestAccountTransportReaderMapsCommerceDTOs(t *testing.T) {
 
 func TestAccountTransportReaderPropagatesSourceErrors(t *testing.T) {
 	want := errors.New("store unavailable")
-	reader := accountTransportReader{service: fakeAccountTransportSource{err: want}}
+	reader := accounthttp.NewCommerceReader(fakeAccountTransportSource{err: want})
 	if _, err := reader.GetCreditsContext(context.Background(), "customer@example.test"); !errors.Is(err, want) {
 		t.Fatalf("credits error=%v, want %v", err, want)
 	}

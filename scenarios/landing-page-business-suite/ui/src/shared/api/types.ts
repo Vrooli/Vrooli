@@ -272,6 +272,8 @@ export type SectionType =
 export interface ContentSection {
   id: number;
   variant_id: number;
+  /** Stable identifier within a JSON-backed variant snapshot. */
+  key?: string;
   section_type: SectionType;
   content: Record<string, unknown>;
   order: number;
@@ -282,6 +284,8 @@ export interface ContentSection {
 
 export interface LandingSection {
   id?: number;
+  /** Stable identifier within the selected variant snapshot. */
+  key?: string;
   section_type: string;
   content: Record<string, unknown>;
   order: number;

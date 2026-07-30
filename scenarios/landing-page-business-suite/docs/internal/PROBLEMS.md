@@ -6,6 +6,21 @@ This file tracks known issues and technical debt that need attention.
 
 ## Work ladder
 
+## Landing configuration orchestration crosses sibling domains
+
+**Severity:** Architecture blocker
+**Status:** Resolved
+**Resolved:** 2026-07-30
+
+`internal/landing/LandingConfigService` now coordinates commerce, delivery,
+and experimentation as the declared `landing` aggregation domain. Its
+composition and Connect transport remain at the API root, and
+`docs/concepts/DOMAINS.md` plus `ARCHITECTURE.md` document the permitted
+sibling dependencies. Architecture Cartographer accepts this boundary with no
+remaining `layering/domain-imports-sibling-domain` error.
+
+---
+
 - Rung: W3 / R2–R3 implementation hardening
 - Evidence: active goal `landing-page-api-domain-subpackages` requires behavior-preserving domain extraction; the PRD's P0 monetization/download targets remain compatible, and `vrooli scenario requirements validate landing-page-business-suite` passed on 2026-07-28. The latest API suite is green, while Tidiness reports 27 long files and 315 duplication findings, including the 1,039-line Download Settings route.
 - Blocker: none; continue domain-oriented API work and direct-UI decomposition without weakening requirements or validator rules.
@@ -295,12 +310,15 @@ matcher supports canonical nested source paths.
 
 ## Work ladder
 
-- Rung: W0
-- Evidence: active swarm goal `landing-page-api-domain-subpackages` directs the
-  API decomposition to `api/domain/<name>/`, while the active modernization
-  plan's Outcome and Phase 7 direct `api/internal/<domain>/` plus
-  `api/handlers/<domain>/`; the current implementation follows the latter.
-- Blocker: the two governing artifacts specify incompatible package layouts;
-  a decision is required before treating either layout as the settled
-  architectural contract.
-- Measured: 2026-07-27
+- Rung: W3 / R2–R3 implementation hardening
+- Evidence: the user's active objective explicitly requires implementation of
+  `landing-page-business-suite-in-place-modernization.md`, whose Outcome and
+  Phase 7 direct `api/internal/<domain>/` plus `api/handlers/<domain>/`. The
+  active swarm goal's earlier `api/domain/<name>/` wording conflicts with that
+  current instruction; the implementation and Architecture Cartographer now
+  use the requested handler/internal layout (architecture L3 in Test Genie run
+  `20260730-033431-64b6ffcd`).
+- Blocker: none; do not create an `api/domain/` parallel tree. Continue the
+  requested domain decomposition and transport migration in the existing
+  `handlers` and `internal` boundaries.
+- Measured: 2026-07-30

@@ -71,8 +71,8 @@ export function AdminLogin() {
   return (
     <div className="min-h-full bg-mesh-gradient flex items-center justify-center p-6 relative overflow-hidden">
       {/* Background decoration */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"></div>
+      <div aria-hidden="true" className="pointer-events-none absolute top-0 left-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"></div>
+      <div aria-hidden="true" className="pointer-events-none absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"></div>
 
       <div className={`relative z-10 w-full ${LAYOUT.maxWidth.narrow}`}>
         {/* Logo/Branding */}
@@ -206,7 +206,7 @@ export function AdminLogin() {
         <div className="text-center mt-6">
           <a
             href="/"
-            className="text-sm text-slate-400 hover:text-slate-300 transition-colors"
+            className="inline-flex min-h-11 items-center px-2 text-sm text-slate-400 transition-colors hover:text-slate-300"
           >
             ← Back to Landing Page
           </a>

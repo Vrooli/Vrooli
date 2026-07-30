@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/unbound-method -- assertions exercise Vitest/browser mocks, not detached production methods. */
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders as render } from '../../../test-utils/renderWithProviders';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -48,7 +49,7 @@ describe('DownloadSettings', () => {
     const hosting = hostingState({ artifacts: [artifact] });
     vi.mocked(downloadsForm.useDownloadsForm).mockReturnValue(state);
     vi.mocked(downloadHosting.useDownloadHosting).mockReturnValue(hosting);
-    vi.mocked(presignDownloadArtifactGetAdmin).mockResolvedValue({ url: 'https://downloads.example/artifact' } as never);
+    vi.mocked(presignDownloadArtifactGetAdmin).mockResolvedValue({ url: 'https://downloads.example/artifact' });
     render(<DownloadSettings />);
     fireEvent.click(screen.getByRole('button', { name: 'Hosting' }));
     expect(screen.getByText('Storage wizard')).toBeInTheDocument();

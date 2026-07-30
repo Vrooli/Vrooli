@@ -13,6 +13,12 @@ import (
 	"time"
 )
 
+const (
+	remoteAdminLoginProcedure   = "/landing_page_business_suite.v1.AdminAuthService/Login"
+	remoteAdminLogoutProcedure  = "/landing_page_business_suite.v1.AdminAuthService/Logout"
+	remoteAdminSessionProcedure = "/landing_page_business_suite.v1.AdminAuthService/Session"
+)
+
 func (s *RemoteProfileService) buildRemoteURL(apiBase string, pathValue string, query map[string]string) (string, error) {
 	parsed, err := url.Parse(apiBase)
 	if err != nil {
@@ -59,11 +65,14 @@ func (s *RemoteProfileService) remoteLogin(ctx context.Context, apiBase string, 
 	if err != nil {
 		return "", "", nil, err
 	}
-	urlValue := strings.TrimSuffix(apiBase, "/") + "/admin/login"
+	urlValue, err := remoteConnectURL(apiBase, remoteAdminLoginProcedure)
+	if err != nil {
+		return "", "", nil, err
+	}
 	headers := map[string]string{
 		"User-Agent": BuildRemoteProfileSessionUserAgent(metadata),
 	}
-	resp, body, err := s.doJSONRequestWithHeaders(ctx, http.MethodPost, urlValue, payload, nil, headers)
+	resp, body, err := s.doConnectRequest(ctx, urlValue, payload, nil, headers)
 	if err != nil {
 		return "", "", nil, err
 	}
@@ -120,9 +129,12 @@ func (s *RemoteProfileService) nowTime() time.Time {
 }
 
 func (s *RemoteProfileService) remoteSessionCheck(ctx context.Context, apiBase string, sessionValue string) (bool, error) {
-	urlValue := strings.TrimSuffix(apiBase, "/") + "/admin/session"
+	urlValue, err := remoteConnectURL(apiBase, remoteAdminSessionProcedure)
+	if err != nil {
+		return false, err
+	}
 	cookies := []*http.Cookie{remoteProfileSessionCookie(sessionValue)}
-	resp, body, err := s.doJSONRequest(ctx, http.MethodGet, urlValue, nil, cookies)
+	resp, body, err := s.doConnectRequest(ctx, urlValue, []byte(`{}`), cookies, nil)
 	if err != nil {
 		return false, err
 	}
@@ -145,9 +157,12 @@ func (s *RemoteProfileService) remoteSessionCheck(ctx context.Context, apiBase s
 }
 
 func (s *RemoteProfileService) remoteLogout(ctx context.Context, apiBase string, sessionValue string) error {
-	urlValue := strings.TrimSuffix(apiBase, "/") + "/admin/logout"
+	urlValue, err := remoteConnectURL(apiBase, remoteAdminLogoutProcedure)
+	if err != nil {
+		return err
+	}
 	cookies := []*http.Cookie{remoteProfileSessionCookie(sessionValue)}
-	resp, _, err := s.doJSONRequest(ctx, http.MethodPost, urlValue, nil, cookies)
+	resp, _, err := s.doConnectRequest(ctx, urlValue, []byte(`{}`), cookies, nil)
 	if err != nil {
 		return err
 	}
@@ -162,6 +177,46 @@ func (s *RemoteProfileService) remoteLogout(ctx context.Context, apiBase string,
 		}
 	}
 	return nil
+}
+
+func remoteConnectURL(apiBase, procedure string) (string, error) {
+	parsed, err := url.Parse(apiBase)
+	if err != nil {
+		return "", err
+	}
+	parsed.Path = strings.TrimSuffix(strings.TrimSuffix(parsed.Path, "/"), "/api/v1") + procedure
+	parsed.RawQuery = ""
+	return parsed.String(), nil
+}
+
+func (s *RemoteProfileService) doConnectRequest(ctx context.Context, urlValue string, body []byte, cookies []*http.Cookie, headers map[string]string) (*http.Response, []byte, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, urlValue, bytes.NewReader(body))
+	if err != nil {
+		return nil, nil, err
+	}
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Connect-Protocol-Version", "1")
+	for key, value := range headers {
+		if strings.TrimSpace(key) != "" && strings.TrimSpace(value) != "" {
+			request.Header.Set(key, value)
+		}
+	}
+	for _, cookie := range cookies {
+		if cookie != nil {
+			request.AddCookie(cookie)
+		}
+	}
+	response, err := s.HTTPClient.Do(request)
+	if err != nil {
+		return nil, nil, classifyRemoteError(err)
+	}
+	defer response.Body.Close()
+	responseBody, err := readLimitedBody(response.Body, remoteProfileProxyResponseMax)
+	if err != nil {
+		return response, nil, err
+	}
+	return response, responseBody, nil
 }
 
 func (s *RemoteProfileService) listIncomingRemoteSessions(ctx context.Context, apiBase string, sessionValue string, connectorID string) ([]IncomingRemoteProfileSession, error) {

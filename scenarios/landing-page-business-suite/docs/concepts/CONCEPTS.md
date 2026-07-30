@@ -13,8 +13,8 @@ This document explains the key concepts and architecture of your landing page.
 **Key Implementation Files:**
 - [CODE: api/variant_handlers.go] - A/B testing variant selection and management
 - [CODE: api/internal/experimentation/variant_space.go] - Variant space configuration
-- [CODE: api/stripe_handlers.go] - Stripe payment integration
-- [CODE: api/metrics_handlers.go] - Analytics event tracking
+- [CODE: api/handlers/commerce/connect.go] - Stripe payment integration
+- [CODE: api/handlers/metrics/connect.go] - Analytics event tracking
 - [CODE: ui/src/app/providers/LandingVariantProvider.tsx] - Client-side variant handling
 
 ## Table of Contents

@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	billinghttp "landing-page-business-suite-api/handlers/commerce"
+	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/testutil"
 
 	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
@@ -37,7 +39,7 @@ func TestHandleBillingCreateCheckoutSession_Success(t *testing.T) {
 
 	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
-	handler := handleBillingCreateCheckoutSession(service)
+	handler := billinghttp.Checkout(billingDependencies(service), "billing_checkout_session_failed", "Failed to create checkout session. Please try again.", false)
 
 	reqBody := `{"price_id":"price_test_success","success_url":"/success","cancel_url":"/cancel","customer_email":"test@example.com"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/billing/checkout", strings.NewReader(reqBody))
@@ -64,7 +66,7 @@ func TestHandleBillingCreateCheckoutSession_InvalidBody(t *testing.T) {
 	db := setupTestDB(t)
 
 	service := NewStripeService(db)
-	handler := handleBillingCreateCheckoutSession(service)
+	handler := billinghttp.Checkout(billingDependencies(service), "billing_checkout_session_failed", "Failed to create checkout session. Please try again.", false)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/billing/checkout", strings.NewReader("invalid json"))
 	req.Header.Set("Content-Type", "application/json")
@@ -99,7 +101,7 @@ func TestHandleBillingCreateCheckoutSession_StripeError(t *testing.T) {
 
 	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
-	handler := handleBillingCreateCheckoutSession(service)
+	handler := billinghttp.Checkout(billingDependencies(service), "billing_checkout_session_failed", "Failed to create checkout session. Please try again.", false)
 
 	reqBody := `{"price_id":"price_error_test","success_url":"/success","cancel_url":"/cancel","customer_email":"test@example.com"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/billing/checkout", strings.NewReader(reqBody))
@@ -137,7 +139,7 @@ func TestHandleBillingCreateCreditsSession_Success(t *testing.T) {
 
 	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
-	handler := handleBillingCreateCreditsSession(service)
+	handler := billinghttp.Checkout(billingDependencies(service), "billing_credits_session_failed", "Failed to create credits checkout. Please try again.", true)
 
 	reqBody := `{"price_id":"price_credits_test","success_url":"/success","cancel_url":"/cancel","customer_email":"credits@example.com"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/billing/credits", strings.NewReader(reqBody))
@@ -174,11 +176,11 @@ func TestHandleBillingPortalURL_Success(t *testing.T) {
 
 	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
-	handler := handleBillingPortalURL(service)
+	handler := billinghttp.Portal(billingDependencies(service))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/billing/portal?return_url=https://example.com/account", nil)
 	// Inject authenticated user context
-	ctx := context.WithValue(req.Context(), userClaimsKey, &UserClaims{Email: "portal@example.com"})
+	ctx := context.WithValue(req.Context(), userClaimsKey, &administration.UserClaims{Email: "portal@example.com"})
 	req = req.WithContext(ctx)
 	rr := httptest.NewRecorder()
 
@@ -198,7 +200,7 @@ func TestHandleBillingPortalURL_Unauthenticated(t *testing.T) {
 	db := setupTestDB(t)
 
 	service := NewStripeService(db)
-	handler := handleBillingPortalURL(service)
+	handler := billinghttp.Portal(billingDependencies(service))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/billing/portal?return_url=https://example.com/account", nil)
 	// No user context injected
@@ -237,10 +239,10 @@ func TestHandleBillingPortalURL_StripeError(t *testing.T) {
 
 	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
-	handler := handleBillingPortalURL(service)
+	handler := billinghttp.Portal(billingDependencies(service))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/billing/portal?return_url=https://example.com/account", nil)
-	ctx := context.WithValue(req.Context(), userClaimsKey, &UserClaims{Email: "error@example.com"})
+	ctx := context.WithValue(req.Context(), userClaimsKey, &administration.UserClaims{Email: "error@example.com"})
 	req = req.WithContext(ctx)
 	rr := httptest.NewRecorder()
 
@@ -270,7 +272,7 @@ func TestCreateCheckoutSessionHandler_ConsolidatedLogic(t *testing.T) {
 	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
 	// Test with custom log key and error message
-	handler := createCheckoutSessionHandler(service, "custom_log_key", "Custom error message", false)
+	handler := billinghttp.Checkout(billingDependencies(service), "custom_log_key", "Custom error message", false)
 
 	reqBody, _ := json.Marshal(map[string]string{
 		"price_id":       "price_consolidated_test",
@@ -311,10 +313,10 @@ func TestHandleBillingPortalURL_NoCustomerFound(t *testing.T) {
 	defer stripeServer.Close()
 
 	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
-	handler := handleBillingPortalURL(service)
+	handler := billinghttp.Portal(billingDependencies(service))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/billing/portal?return_url=https://example.com/account", nil)
-	ctx := context.WithValue(req.Context(), userClaimsKey, &UserClaims{Email: "nocustomer@example.com"})
+	ctx := context.WithValue(req.Context(), userClaimsKey, &administration.UserClaims{Email: "nocustomer@example.com"})
 	req = req.WithContext(ctx)
 	rr := httptest.NewRecorder()
 
@@ -356,10 +358,10 @@ func TestHandleBillingPortalURL_CustomerLookupFallback(t *testing.T) {
 
 	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
-	handler := handleBillingPortalURL(service)
+	handler := billinghttp.Portal(billingDependencies(service))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/billing/portal?return_url=https://example.com/account", nil)
-	ctx := context.WithValue(req.Context(), userClaimsKey, &UserClaims{Email: "fallback@example.com"})
+	ctx := context.WithValue(req.Context(), userClaimsKey, &administration.UserClaims{Email: "fallback@example.com"})
 	req = req.WithContext(ctx)
 	rr := httptest.NewRecorder()
 
@@ -405,11 +407,11 @@ func TestHandleBillingPortalURL_ReturnURLValidation(t *testing.T) {
 
 	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
-	handler := handleBillingPortalURL(service)
+	handler := billinghttp.Portal(billingDependencies(service))
 
 	// Test with return_url
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/billing/portal?return_url=https://myapp.com/billing", nil)
-	ctx := context.WithValue(req.Context(), userClaimsKey, &UserClaims{Email: "returnurl@example.com"})
+	ctx := context.WithValue(req.Context(), userClaimsKey, &administration.UserClaims{Email: "returnurl@example.com"})
 	req = req.WithContext(ctx)
 	rr := httptest.NewRecorder()
 
@@ -451,11 +453,11 @@ func TestHandleBillingPortalURL_NoReturnURL(t *testing.T) {
 
 	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
-	handler := handleBillingPortalURL(service)
+	handler := billinghttp.Portal(billingDependencies(service))
 
 	// Request without return_url
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/billing/portal", nil)
-	ctx := context.WithValue(req.Context(), userClaimsKey, &UserClaims{Email: "noreturn@example.com"})
+	ctx := context.WithValue(req.Context(), userClaimsKey, &administration.UserClaims{Email: "noreturn@example.com"})
 	req = req.WithContext(ctx)
 	rr := httptest.NewRecorder()
 
@@ -498,10 +500,10 @@ func TestHandleBillingPortalURL_CustomerIDLookup(t *testing.T) {
 
 	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
-	handler := handleBillingPortalURL(service)
+	handler := billinghttp.Portal(billingDependencies(service))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/billing/portal?return_url=https://example.com", nil)
-	ctx := context.WithValue(req.Context(), userClaimsKey, &UserClaims{Email: "cusidlookup@example.com"})
+	ctx := context.WithValue(req.Context(), userClaimsKey, &administration.UserClaims{Email: "cusidlookup@example.com"})
 	req = req.WithContext(ctx)
 	rr := httptest.NewRecorder()
 
@@ -539,11 +541,11 @@ func TestHandleBillingPortalURL_CaseInsensitiveEmail(t *testing.T) {
 
 	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
-	handler := handleBillingPortalURL(service)
+	handler := billinghttp.Portal(billingDependencies(service))
 
 	// Request with uppercase email
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/billing/portal?return_url=https://example.com", nil)
-	ctx := context.WithValue(req.Context(), userClaimsKey, &UserClaims{Email: "CASETEST@EXAMPLE.COM"})
+	ctx := context.WithValue(req.Context(), userClaimsKey, &administration.UserClaims{Email: "CASETEST@EXAMPLE.COM"})
 	req = req.WithContext(ctx)
 	rr := httptest.NewRecorder()
 
@@ -580,10 +582,10 @@ func TestHandleBillingPortalURL_PortalConfigurationError(t *testing.T) {
 
 	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
-	handler := handleBillingPortalURL(service)
+	handler := billinghttp.Portal(billingDependencies(service))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/billing/portal?return_url=https://example.com", nil)
-	ctx := context.WithValue(req.Context(), userClaimsKey, &UserClaims{Email: "configerr@example.com"})
+	ctx := context.WithValue(req.Context(), userClaimsKey, &administration.UserClaims{Email: "configerr@example.com"})
 	req = req.WithContext(ctx)
 	rr := httptest.NewRecorder()
 

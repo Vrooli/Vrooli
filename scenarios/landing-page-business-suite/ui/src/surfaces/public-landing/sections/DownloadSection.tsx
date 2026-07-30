@@ -28,6 +28,11 @@ type DownloadStatus = {
   message?: string;
 };
 
+type EntitlementStatus = {
+  text: string;
+  type: 'loading' | 'error' | 'neutral' | 'success' | 'warning';
+};
+
 interface PlatformGroup {
   platform: string;
   installers: DownloadAsset[];
@@ -199,14 +204,14 @@ export function DownloadSection({ content, downloads, supportEmail }: DownloadSe
     }
   };
 
-  const entitlementsStatus = useMemo(() => {
-    if (entitlementsLoading) return { text: 'Checking...', type: 'loading' as const };
-    if (entitlementsError) return { text: entitlementsError, type: 'error' as const };
-    if (!email.trim()) return { text: 'Enter email to verify', type: 'neutral' as const };
-    if (!entitlements) return { text: 'Not verified', type: 'neutral' as const };
-    if (entitlements.status === 'active') return { text: 'Active subscription', type: 'success' as const };
-    if (entitlements.status === 'trialing') return { text: 'Trial active', type: 'success' as const };
-    return { text: 'No active subscription', type: 'warning' as const };
+  const entitlementsStatus = useMemo<EntitlementStatus>(() => {
+    if (entitlementsLoading) return { text: 'Checking...', type: 'loading' };
+    if (entitlementsError) return { text: entitlementsError, type: 'error' };
+    if (!email.trim()) return { text: 'Enter email to verify', type: 'neutral' };
+    if (!entitlements) return { text: 'Not verified', type: 'neutral' };
+    if (entitlements.status === 'active') return { text: 'Active subscription', type: 'success' };
+    if (entitlements.status === 'trialing') return { text: 'Trial active', type: 'success' };
+    return { text: 'No active subscription', type: 'warning' };
   }, [email, entitlements, entitlementsError, entitlementsLoading]);
 
   const platformKey = recommendedGroup?.platform ?? 'windows';

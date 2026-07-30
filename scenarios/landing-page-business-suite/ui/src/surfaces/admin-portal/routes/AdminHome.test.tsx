@@ -144,7 +144,7 @@ describe('AdminHome [REQ:ADMIN-MODES]', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false } as Response);
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false });
     window.history.replaceState({}, '', '/admin');
     window.localStorage.clear();
     mockedListVariants.mockResolvedValue(mockVariantsResponse);

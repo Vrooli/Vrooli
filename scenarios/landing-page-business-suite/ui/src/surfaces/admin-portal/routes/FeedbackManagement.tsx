@@ -213,9 +213,9 @@ export function FeedbackManagement() {
             </div>
 
             {filteredFeedback.map((feedback) => {
-              const statusConfig = STATUS_CONFIG[feedback.status as FeedbackStatus];
-              const typeIcon = typeIcons[feedback.type as FeedbackType] || typeIcons.general;
-              const statusIcon = statusIcons[feedback.status as FeedbackStatus] || statusIcons.pending;
+              const statusConfig = STATUS_CONFIG[feedback.status];
+              const typeIcon = typeIcons[feedback.type] || typeIcons.general;
+              const statusIcon = statusIcons[feedback.status] || statusIcons.pending;
               const isExpanded = expandedId === feedback.id;
               const isSelected = selectedIds.has(feedback.id);
               const isLoading = actionLoading === feedback.id;

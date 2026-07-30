@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	"landing-page-business-suite-api/internal/administration"
 )
 
 func TestDecodeJSONBody_ValidJSON(t *testing.T) {
@@ -82,7 +83,7 @@ func TestDecodeJSONBody_EmptyBody(t *testing.T) {
 
 func TestRequireAuth_Authenticated(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	claims := &UserClaims{Email: "test@example.com"}
+	claims := &administration.UserClaims{Email: "test@example.com"}
 	ctx := context.WithValue(req.Context(), userClaimsKey, claims)
 	req = req.WithContext(ctx)
 	w := httptest.NewRecorder()

@@ -5,14 +5,18 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/envx"
+	"landing-page-business-suite-api/internal/experimentation"
 
 	_ "github.com/lib/pq"
 	tc "github.com/testcontainers/testcontainers-go"
@@ -32,27 +36,30 @@ func setupTestDB(t *testing.T) *sql.DB {
 	// is absent or unavailable, the suite creates an isolated testcontainer.
 	if dbURL, configured := configuredTestDatabaseURL(); configured {
 		if db, err := openAndPrepareTestDatabase(dbURL); err == nil {
-			return registerTestDatabaseCleanup(t, db)
+			return registerTestDatabaseCleanup(t, db, nil)
 		} else {
 			t.Logf("Failed to connect using configured test database; using isolated container: %v", err)
 		}
 	}
 
-	db, err := openAndPrepareTestDatabase(startTestContainerDB(t))
+	db, cleanup, err := openIsolatedTestDatabase(t, startTestContainerDB(t))
 	if err != nil {
 		t.Fatalf("Failed to initialize isolated test database: %v", err)
 	}
-	return registerTestDatabaseCleanup(t, db)
+	return registerTestDatabaseCleanup(t, db, cleanup)
 }
 
 // registerTestDatabaseCleanup makes database lifecycle ownership explicit at
 // the fixture boundary. Existing callers that close the database themselves
 // remain safe during the incremental migration because sql.DB.Close is
 // idempotent for this purpose.
-func registerTestDatabaseCleanup(t *testing.T, db *sql.DB) *sql.DB {
+func registerTestDatabaseCleanup(t *testing.T, db *sql.DB, cleanup func()) *sql.DB {
 	t.Helper()
 	t.Cleanup(func() {
 		_ = db.Close()
+		if cleanup != nil {
+			cleanup()
+		}
 	})
 	return db
 }
@@ -94,6 +101,11 @@ func openAndPrepareTestDatabase(dbURL string) (*sql.DB, error) {
 		return nil, err
 	}
 
+	if err := resetTestSchema(db); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+
 	if err := applyRuntimeSchema(db); err != nil {
 		_ = db.Close()
 		return nil, err
@@ -111,13 +123,165 @@ func openAndPrepareTestDatabase(dbURL string) (*sql.DB, error) {
 	return db, nil
 }
 
+// resetTestSchema gives every test that uses setupTestDB an empty, isolated
+// schema. Several integration tests intentionally recreate individual tables
+// to model Stripe edge cases; without this reset those abbreviated tables leak
+// into unrelated tests and diverge from the declarative runtime schema.
+func resetTestSchema(db *sql.DB) error {
+	if _, err := db.Exec(`DROP SCHEMA public CASCADE; CREATE SCHEMA public`); err != nil {
+		return fmt.Errorf("reset test schema: %w", err)
+	}
+	return nil
+}
+
+func TestSetupTestDBRestoresDeclarativeSubscriptionSchema(t *testing.T) {
+	db := setupTestDB(t)
+	if _, err := db.Exec(`DROP TABLE subscriptions; CREATE TABLE subscriptions (subscription_id TEXT PRIMARY KEY)`); err != nil {
+		t.Fatalf("create intentionally incomplete subscription table: %v", err)
+	}
+
+	restored := setupTestDB(t)
+	for _, column := range []string{"plan_tier", "canceled_at"} {
+		var exists bool
+		if err := restored.QueryRow(`
+			SELECT EXISTS (
+				SELECT 1
+				FROM information_schema.columns
+				WHERE table_schema = 'public' AND table_name = 'subscriptions' AND column_name = $1
+			)
+		`, column).Scan(&exists); err != nil {
+			t.Fatalf("query subscription column %q: %v", column, err)
+		}
+		if !exists {
+			t.Errorf("subscriptions.%s was not restored from the declarative schema", column)
+		}
+	}
+}
+
 var (
 	testRequestContext   = context.Background()
 	testContainerOnce    sync.Once
 	testContainerURL     string
 	testContainerCleanup func()
 	testContainerInitErr error
+	testTemplateOnce     sync.Once
+	testTemplateInitErr  error
+	testDatabaseSequence atomic.Uint64
 )
+
+const testTemplateDatabaseName = "lpbs_test_template"
+
+// openIsolatedTestDatabase creates a database cloned from one declarative,
+// seeded template. Tests can freely drop or recreate tables without leaking
+// DDL to the next test, while avoiding a full schema rebuild for every call to
+// setupTestDB.
+func openIsolatedTestDatabase(t *testing.T, containerURL string) (*sql.DB, func(), error) {
+	t.Helper()
+	if err := initializeTestTemplate(containerURL); err != nil {
+		return nil, nil, err
+	}
+
+	cloneName := fmt.Sprintf("lpbs_test_%d", testDatabaseSequence.Add(1))
+	adminURL, err := databaseURLWithName(containerURL, "postgres")
+	if err != nil {
+		return nil, nil, err
+	}
+	admin, err := sql.Open("postgres", adminURL)
+	if err != nil {
+		return nil, nil, fmt.Errorf("open template admin database: %w", err)
+	}
+	defer admin.Close()
+	if _, err := admin.Exec(`CREATE DATABASE ` + quoteDatabaseIdentifier(cloneName) + ` TEMPLATE ` + quoteDatabaseIdentifier(testTemplateDatabaseName)); err != nil {
+		return nil, nil, fmt.Errorf("clone test database: %w", err)
+	}
+
+	cloneURL, err := databaseURLWithName(containerURL, cloneName)
+	if err != nil {
+		return nil, nil, err
+	}
+	db, err := sql.Open("postgres", cloneURL)
+	if err != nil {
+		return nil, nil, fmt.Errorf("open cloned test database: %w", err)
+	}
+	if err := db.Ping(); err != nil {
+		_ = db.Close()
+		return nil, nil, fmt.Errorf("ping cloned test database: %w", err)
+	}
+
+	return db, func() {
+		cleanupAdmin, err := sql.Open("postgres", adminURL)
+		if err != nil {
+			return
+		}
+		defer cleanupAdmin.Close()
+		_, _ = cleanupAdmin.Exec(`DROP DATABASE IF EXISTS ` + quoteDatabaseIdentifier(cloneName) + ` WITH (FORCE)`)
+	}, nil
+}
+
+func initializeTestTemplate(containerURL string) error {
+	testTemplateOnce.Do(func() {
+		base, err := openAndPrepareTestDatabase(containerURL)
+		if err != nil {
+			testTemplateInitErr = fmt.Errorf("prepare test database template: %w", err)
+			return
+		}
+		if err := base.Close(); err != nil {
+			testTemplateInitErr = fmt.Errorf("close prepared template source: %w", err)
+			return
+		}
+
+		adminURL, err := databaseURLWithName(containerURL, "postgres")
+		if err != nil {
+			testTemplateInitErr = err
+			return
+		}
+		admin, err := sql.Open("postgres", adminURL)
+		if err != nil {
+			testTemplateInitErr = fmt.Errorf("open template admin database: %w", err)
+			return
+		}
+		defer admin.Close()
+		if _, err := admin.Exec(`DROP DATABASE IF EXISTS ` + quoteDatabaseIdentifier(testTemplateDatabaseName) + ` WITH (FORCE)`); err != nil {
+			testTemplateInitErr = fmt.Errorf("drop stale test database template: %w", err)
+			return
+		}
+		baseName, err := databaseNameFromURL(containerURL)
+		if err != nil {
+			testTemplateInitErr = err
+			return
+		}
+		if _, err := admin.Exec(`CREATE DATABASE ` + quoteDatabaseIdentifier(testTemplateDatabaseName) + ` TEMPLATE ` + quoteDatabaseIdentifier(baseName)); err != nil {
+			testTemplateInitErr = fmt.Errorf("create test database template: %w", err)
+			return
+		}
+	})
+	return testTemplateInitErr
+}
+
+func databaseURLWithName(rawURL, name string) (string, error) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return "", fmt.Errorf("parse test database URL: %w", err)
+	}
+	parsed.Path = "/" + name
+	return parsed.String(), nil
+}
+
+func databaseNameFromURL(rawURL string) (string, error) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return "", fmt.Errorf("parse test database URL: %w", err)
+	}
+	name := strings.TrimPrefix(parsed.EscapedPath(), "/")
+	if name == "" || strings.ContainsAny(name, "\"'") {
+		return "", fmt.Errorf("invalid test database name")
+	}
+	return name, nil
+}
+
+func quoteDatabaseIdentifier(name string) string {
+	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
+}
 
 func startTestContainerDB(t *testing.T) string {
 	t.Helper()
@@ -170,7 +334,7 @@ func startTestContainerDB(t *testing.T) string {
 }
 
 // setupTestConfigStore creates a ConfigStore for testing using the project's JSON files
-func setupTestConfigStore(t *testing.T) *ConfigStore {
+func setupTestConfigStore(t *testing.T) *experimentation.ConfigStore {
 	t.Helper()
 
 	// Find the variants directory - look up from the api directory
@@ -208,7 +372,7 @@ func setupTestConfigStore(t *testing.T) *ConfigStore {
 		t.Fatal("branding.json not found; ConfigStore tests require the tracked scenario config")
 	}
 
-	cs := NewConfigStore(variantsDir, brandingPath, nil) // nil uses defaultVariantSpace
+	cs := experimentation.NewConfigStore(variantsDir, brandingPath, nil)
 	if err := cs.LoadAll(); err != nil {
 		t.Fatalf("Failed to load ConfigStore: %v", err)
 	}
@@ -246,14 +410,14 @@ func setupTestServer(t *testing.T) (*Server, func()) {
 	paymentSettings := NewPaymentSettingsService(db)
 	stripeService := NewStripeServiceWithSettings(db, planService, paymentSettings)
 	downloadService := NewDownloadService(db)
-	seoService := NewSEOServiceWithConfigStore(configStore)
+	seoService := NewSEOService(configStore)
 	feedbackService := NewFeedbackService(db)
 	emailService := NewEmailService()
 
 	server := &Server{
 		config:               config,
 		db:                   db,
-		variantSpace:         defaultVariantSpace,
+		variantSpace:         experimentation.DefaultVariantSpace(),
 		configStore:          configStore,
 		metricsService:       metricsService,
 		stripeService:        stripeService,
@@ -304,7 +468,7 @@ func resetStripeTestData(t *testing.T, db *sql.DB) {
 }
 
 // writeSnapshot writes a variant snapshot to a JSON file for testing
-func writeSnapshot(t *testing.T, dir string, snapshot VariantSnapshotInput) {
+func writeSnapshot(t *testing.T, dir string, snapshot experimentation.VariantSnapshotInput) {
 	t.Helper()
 
 	data, err := json.MarshalIndent(snapshot, "", "  ")
@@ -334,7 +498,25 @@ func defaultAxesSelection() map[string]string {
 
 // setupMinimalAuthServer creates a lightweight server for middleware testing.
 // Only initializes the userAuthService, which is all that's needed for auth middleware tests.
-func setupMinimalAuthServer(t *testing.T, authService *UserAuthService) *Server {
+func newUserAuthServiceForTest(db *sql.DB, emailService *EmailService) *administration.UserAuthService {
+	return newUserAuthServiceForTestWithOptions(db, emailService, 15*time.Minute, 7*24*time.Hour, 15*time.Minute)
+}
+
+func newUserAuthServiceForTestWithOptions(db *sql.DB, emailService *EmailService, accessTTL, refreshTTL, magicLinkTTL time.Duration) *administration.UserAuthService {
+	return administration.NewUserAuthService(administration.UserAuthServiceOptions{
+		Store:        db,
+		EmailService: emailService,
+		JWTSecret:    "test-secret-key",
+		JWTIssuer:    "test",
+		BaseURL:      "http://localhost:3000/auth/verify",
+		AppName:      "Test App",
+		AccessTTL:    accessTTL,
+		RefreshTTL:   refreshTTL,
+		MagicLinkTTL: magicLinkTTL,
+	})
+}
+
+func setupMinimalAuthServer(t *testing.T, authService *administration.UserAuthService) *Server {
 	t.Helper()
 	return &Server{
 		userAuthService: authService,

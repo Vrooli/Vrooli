@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/envx"
 )
 
@@ -144,7 +145,7 @@ func (s *Server) requireUserAuth(next http.HandlerFunc) http.HandlerFunc {
 		claims, err := s.userAuthService.ValidateAccessToken(tokenString)
 		if err != nil {
 			var msg string
-			if errors.Is(err, ErrTokenExpired) {
+			if errors.Is(err, administration.ErrTokenExpired) {
 				msg = "Token has expired. Please refresh your session."
 			} else {
 				msg = "Invalid or expired token"
@@ -181,8 +182,8 @@ func (s *Server) optionalUserAuth(next http.HandlerFunc) http.HandlerFunc {
 
 // getUserClaims retrieves user claims from the request context.
 // Returns nil, false if not authenticated.
-func getUserClaims(ctx context.Context) (*UserClaims, bool) {
-	claims, ok := ctx.Value(userClaimsKey).(*UserClaims)
+func getUserClaims(ctx context.Context) (*administration.UserClaims, bool) {
+	claims, ok := ctx.Value(userClaimsKey).(*administration.UserClaims)
 	return claims, ok
 }
 

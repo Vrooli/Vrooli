@@ -12,6 +12,7 @@ import (
 	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // --- StripeCheckoutService Interface Implementation ---
@@ -195,7 +196,7 @@ func (s *StripeService) CreateCheckoutSession(priceID string, successURL string,
 		values.Set("metadata[user_identity]", customerEmail)
 	}
 
-	if existingCustomerID := s.lookupCustomerID(customerEmail); existingCustomerID != "" {
+	if existingCustomerID := commerce.NewAccountLinkService(s.db).LookupCustomerID(customerEmail); existingCustomerID != "" {
 		values.Del("customer_email")
 		values.Set("customer", existingCustomerID)
 	}

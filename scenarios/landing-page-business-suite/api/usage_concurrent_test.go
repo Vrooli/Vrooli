@@ -8,6 +8,7 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // ============================================================================
@@ -37,7 +38,7 @@ func TestConcurrent_MultipleUsageReports_SameUser(t *testing.T) {
 		go func(workerID int) {
 			defer wg.Done()
 			for j := 0; j < reportsPerGoroutine; j++ {
-				err := svc.RecordUsage(ctx, UsageReportRequest{
+				err := svc.RecordUsage(ctx, commerce.UsageReportRequest{
 					UserIdentity: "concurrent-user@example.com",
 					LimitKey:     "ai_credits",
 					Amount:       1000,
@@ -86,7 +87,7 @@ func TestConcurrent_MultipleUsageReports_DifferentUsers(t *testing.T) {
 		go func(email string, userID int) {
 			defer wg.Done()
 			for j := 0; j < reportsPerUser; j++ {
-				err := svc.RecordUsage(ctx, UsageReportRequest{
+				err := svc.RecordUsage(ctx, commerce.UsageReportRequest{
 					UserIdentity: email,
 					LimitKey:     "ai_credits",
 					Amount:       1000,
@@ -140,7 +141,7 @@ func TestConcurrent_CheckLimit_RaceCondition(t *testing.T) {
 			case <-stopRecording:
 				return
 			default:
-				err := svc.RecordUsage(ctx, UsageReportRequest{
+				err := svc.RecordUsage(ctx, commerce.UsageReportRequest{
 					UserIdentity: "race-test@example.com",
 					LimitKey:     "ai_credits",
 					Amount:       1000,
@@ -199,7 +200,7 @@ func TestConcurrent_RecordUsage_AtomicUpsert(t *testing.T) {
 		wg.Add(1)
 		go func(workerID int) {
 			defer wg.Done()
-			err := svc.RecordUsage(ctx, UsageReportRequest{
+			err := svc.RecordUsage(ctx, commerce.UsageReportRequest{
 				UserIdentity: "atomic-test@example.com",
 				LimitKey:     "ai_credits",
 				Amount:       amountPerReport,
@@ -266,7 +267,7 @@ func TestConcurrent_GetUsageSummary_DuringRecords(t *testing.T) {
 				case <-stopChan:
 					return
 				default:
-					err := svc.RecordUsage(ctx, UsageReportRequest{
+					err := svc.RecordUsage(ctx, commerce.UsageReportRequest{
 						UserIdentity: "summary-test@example.com",
 						LimitKey:     "ai_credits",
 						Amount:       1000,
@@ -325,7 +326,7 @@ func TestConcurrent_MultipleApps_SameUser(t *testing.T) {
 		go func(appKey string) {
 			defer wg.Done()
 			for j := 0; j < reportsPerApp; j++ {
-				err := svc.RecordUsage(ctx, UsageReportRequest{
+				err := svc.RecordUsage(ctx, commerce.UsageReportRequest{
 					UserIdentity: "multiapp-user@example.com",
 					LimitKey:     "ai_credits",
 					Amount:       1000,
@@ -387,7 +388,7 @@ func TestConcurrent_BYOKAndNonBYOK_Interleaved(t *testing.T) {
 		go func(workerID int, byok bool) {
 			defer wg.Done()
 			for j := 0; j < 10; j++ {
-				err := svc.RecordUsage(ctx, UsageReportRequest{
+				err := svc.RecordUsage(ctx, commerce.UsageReportRequest{
 					UserIdentity: "byok-test@example.com",
 					LimitKey:     "ai_credits",
 					Amount:       1000,
@@ -438,7 +439,7 @@ func TestConcurrent_HighContention_StressTest(t *testing.T) {
 		go func(workerID int) {
 			defer wg.Done()
 			for j := 0; j < opsPerGoroutine; j++ {
-				err := svc.RecordUsage(ctx, UsageReportRequest{
+				err := svc.RecordUsage(ctx, commerce.UsageReportRequest{
 					UserIdentity: "stress-test@example.com",
 					LimitKey:     "ai_credits",
 					Amount:       1,
@@ -485,7 +486,7 @@ func TestConcurrent_DifferentLimitKeys(t *testing.T) {
 		go func(limitKey string) {
 			defer wg.Done()
 			for j := 0; j < reportsPerKey; j++ {
-				err := svc.RecordUsage(ctx, UsageReportRequest{
+				err := svc.RecordUsage(ctx, commerce.UsageReportRequest{
 					UserIdentity: "multikey-user@example.com",
 					LimitKey:     limitKey,
 					Amount:       1000,

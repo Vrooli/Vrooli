@@ -203,10 +203,11 @@ describe('PublicLanding header rails', () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByTestId('landing-experience-header')).toBeInTheDocument();
-    expect(screen.getByTestId('landing-nav-cta')).toBeInTheDocument();
+    expect(screen.getByTestId('landing-experience-header')).toHaveProperty('tagName', 'HEADER');
+    expect(screen.getByTestId('landing-nav-cta')).toHaveClass('min-h-11');
     const downloadButton = screen.getByTestId('landing-nav-download');
     expect(downloadButton).toBeInTheDocument();
+    expect(screen.getByTestId('landing-nav-mobile').querySelector('a')).toHaveClass('min-h-11');
     expect(within(downloadButton).getByText(/Download macOS/i)).toBeInTheDocument();
   });
 

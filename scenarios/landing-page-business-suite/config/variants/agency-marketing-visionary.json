@@ -70,6 +70,7 @@
   },
   "sections": [
     {
+      "key": "section-1-hero",
       "section_type": "hero",
       "content": {
         "title": "Deliver client-ready demos in hours.",
@@ -83,6 +84,7 @@
       "enabled": true
     },
     {
+      "key": "section-2-video",
       "section_type": "video",
       "content": {
         "title": "Cinematic browser replays",
@@ -94,6 +96,7 @@
       "enabled": true
     },
     {
+      "key": "section-3-features",
       "section_type": "features",
       "content": {
         "title": "Vrooli Ascension is live now. The suite keeps growing.",
@@ -130,6 +133,7 @@
       "enabled": true
     },
     {
+      "key": "section-4-pricing",
       "section_type": "pricing",
       "content": {
         "title": "Simple, transparent pricing",
@@ -210,6 +214,7 @@
       "enabled": true
     },
     {
+      "key": "section-5-faq",
       "section_type": "faq",
       "content": {
         "title": "Answers for quiet founders",
@@ -237,6 +242,7 @@
       "enabled": true
     },
     {
+      "key": "section-6-cta",
       "section_type": "cta",
       "content": {
         "title": "Make replays your deliverable",
@@ -248,6 +254,7 @@
       "enabled": true
     },
     {
+      "key": "section-7-downloads",
       "section_type": "downloads",
       "content": {
         "title": "Download Vrooli Ascension",

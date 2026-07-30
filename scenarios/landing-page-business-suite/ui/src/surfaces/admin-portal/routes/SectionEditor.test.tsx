@@ -9,7 +9,7 @@ import * as api from '../../../shared/api';
 import type { LandingConfigResponse } from '../../../shared/api';
 import { ToastProvider } from '../../../shared/ui/Toast';
 
-let routeParams = { variantSlug: 'test-variant', sectionId: '1' };
+let routeParams = { variantSlug: 'test-variant', sectionId: 'section-1-hero' };
 
 // Mock the controller module
 vi.mock('../controllers/sectionEditorController', () => ({
@@ -136,7 +136,7 @@ const mockLandingConfig: LandingConfigResponse = {
 
 describe('SectionEditor [REQ:CUSTOM-SPLIT,CUSTOM-LIVE]', () => {
   beforeEach(() => {
-    routeParams = { variantSlug: 'test-variant', sectionId: '1' };
+    routeParams = { variantSlug: 'test-variant', sectionId: 'section-1-hero' };
     vi.clearAllMocks();
     vi.mocked(controller.loadSectionEditor).mockResolvedValue(mockControllerState);
     vi.mocked(controller.persistExistingSectionContent).mockResolvedValue(mockControllerState);
@@ -228,7 +228,7 @@ describe('SectionEditor [REQ:CUSTOM-SPLIT,CUSTOM-LIVE]', () => {
     renderEditor();
 
     await waitFor(() => {
-      expect(controller.loadSectionEditor).toHaveBeenCalledWith(1);
+      expect(controller.loadSectionEditor).toHaveBeenCalledWith('test-variant', 'section-1-hero');
     });
 
     // Verify form fields are populated
@@ -357,7 +357,8 @@ describe('SectionEditor [REQ:CUSTOM-SPLIT,CUSTOM-LIVE]', () => {
     fireEvent.click(screen.getByTestId('save-section'));
     await waitFor(() => {
       expect(controller.persistExistingSectionContent).toHaveBeenCalledWith(
-        1,
+        'test-variant',
+        'section-1-hero',
         expect.objectContaining({ title: 'Updated hero', subtitle: 'Updated subtitle', cta_text: 'Start now', cta_url: '/start' }),
       );
     });

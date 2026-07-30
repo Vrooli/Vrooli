@@ -19,7 +19,7 @@ const createBranding = (overrides: Partial<SiteBranding>): SiteBranding => ({
   site_name: 'Test Site',
   theme_primary_color: '#000',
   ...overrides,
-} as SiteBranding);
+});
 
 // Helper to create test download apps
 const createDownloadApp = (overrides: Partial<DownloadApp>): DownloadApp => ({
@@ -28,7 +28,7 @@ const createDownloadApp = (overrides: Partial<DownloadApp>): DownloadApp => ({
   name: 'Test App',
   platforms: [],
   ...overrides,
-} as DownloadApp);
+});
 
 // Helper to create test download assets
 const createDownloadAsset = (overrides: Partial<DownloadAsset>): DownloadAsset => ({
@@ -39,7 +39,7 @@ const createDownloadAsset = (overrides: Partial<DownloadAsset>): DownloadAsset =
   release_version: '',
   requires_entitlement: false,
   ...overrides,
-} as DownloadAsset);
+});
 
 // Helper to create test variant stats
 const createVariantStats = (overrides: Partial<VariantStats>): VariantStats => ({
@@ -52,7 +52,7 @@ const createVariantStats = (overrides: Partial<VariantStats>): VariantStats => (
   cta_clicks: 5,
   downloads: 3,
   ...overrides,
-} as VariantStats);
+});
 
 describe('adminHome.service', () => {
   describe('constants', () => {

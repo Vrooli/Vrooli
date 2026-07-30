@@ -185,9 +185,9 @@ However, you'd lose Vrooli's lifecycle management, resource sharing, and deploym
 
 ### What tech stack is used?
 
-**Frontend**: React 18, TypeScript, Vite, TailwindCSS, shadcn/ui, Lucide icons
+**Frontend**: React 18, TypeScript, Vite, TailwindCSS, and Lucide icons.
 
-**Backend**: Go 1.21+, Gin framework, direct PostgreSQL
+**Backend**: Go with Connect-RPC and Gorilla Mux transport adapters, backed by PostgreSQL through the routed database seam.
 
 **Database**: PostgreSQL 14+
 
@@ -201,19 +201,17 @@ You would need to create a new template with a different framework. This templat
 
 ### How do I add dependencies?
 
-**Frontend**:
+Use Scenario Dependency Analyzer for every dependency change. It checks the
+approved dependency policy and invokes the correct package manager:
+
 ```bash
-cd ui
-pnpm add <package>
+scenario-dependency-analyzer deps install "<ecosystem>/<package>@<version>" \
+  --scenario landing-page-business-suite --surface "<ui|api|cli>" --apply
 ```
 
-**Backend**:
-```bash
-cd api
-go get <package>
-```
-
-Then rebuild.
+Replace the quoted placeholders with the approved package and its target
+surface. Do not run `pnpm add` or `go get` directly. Rebuild and test the
+scenario after the governed installation completes.
 
 ### Where are metrics stored?
 

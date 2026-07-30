@@ -138,10 +138,10 @@ export function getPlans() {
 
     // Normalize and filter out invalid plans
     const monthlyPlans = (pricing?.monthly ?? [])
-      .map((p) => normalizePlan(p as RawPlan))
+      .map((p) => normalizePlan(p))
       .filter((p): p is PlanOption => p !== null);
     const yearlyPlans = (pricing?.yearly ?? [])
-      .map((p) => normalizePlan(p as RawPlan))
+      .map((p) => normalizePlan(p))
       .filter((p): p is PlanOption => p !== null);
 
     const overview: PricingOverview = {

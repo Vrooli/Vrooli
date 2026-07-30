@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	contenthttp "landing-page-business-suite-api/handlers/content"
 	"landing-page-business-suite-api/internal/testutil"
 
 	"github.com/gorilla/mux"
@@ -17,7 +18,7 @@ import (
 func TestHandleGetPublicSections_Success(t *testing.T) {
 	cs := setupTestConfigStore(t)
 
-	handler := handleGetPublicSectionsFromConfigStore(cs)
+	handler := contenthttp.Public(contentHTTPDependencies(cs))
 
 	// Get the first available variant slug from the config store
 	variants := cs.ListVariants()
@@ -79,7 +80,7 @@ func TestHandleGetPublicSections_FiltersDisabled(t *testing.T) {
 		}
 	}
 
-	handler := handleGetPublicSectionsFromConfigStore(cs)
+	handler := contenthttp.Public(contentHTTPDependencies(cs))
 	req := httptest.NewRequest(http.MethodGet, "/public/variants/"+slug+"/sections", nil)
 	req = mux.SetURLVars(req, map[string]string{"variant_slug": slug})
 
@@ -104,7 +105,7 @@ func TestHandleGetPublicSections_FiltersDisabled(t *testing.T) {
 func TestHandleGetPublicSections_MissingSlug(t *testing.T) {
 	cs := setupTestConfigStore(t)
 
-	handler := handleGetPublicSectionsFromConfigStore(cs)
+	handler := contenthttp.Public(contentHTTPDependencies(cs))
 
 	req := httptest.NewRequest(http.MethodGet, "/public/variants//sections", nil)
 	req = mux.SetURLVars(req, map[string]string{"variant_slug": ""})
@@ -118,7 +119,7 @@ func TestHandleGetPublicSections_MissingSlug(t *testing.T) {
 func TestHandleGetPublicSections_NotFound(t *testing.T) {
 	cs := setupTestConfigStore(t)
 
-	handler := handleGetPublicSectionsFromConfigStore(cs)
+	handler := contenthttp.Public(contentHTTPDependencies(cs))
 
 	req := httptest.NewRequest(http.MethodGet, "/public/variants/nonexistent_variant/sections", nil)
 	req = mux.SetURLVars(req, map[string]string{"variant_slug": "nonexistent_variant"})
@@ -147,7 +148,7 @@ func TestHandleGetSections_ReturnsAllSections(t *testing.T) {
 		t.Fatalf("get tracked variant %s: %v", slug, err)
 	}
 
-	handler := handleGetSectionsFromConfigStore(cs)
+	handler := contenthttp.Admin(contentHTTPDependencies(cs))
 	req := httptest.NewRequest(http.MethodGet, "/admin/variants/"+slug+"/sections", nil)
 	req = mux.SetURLVars(req, map[string]string{"variant_slug": slug})
 
@@ -193,7 +194,7 @@ func TestHandleGetSections_IncludesDisabled(t *testing.T) {
 		}
 	}
 
-	handler := handleGetSectionsFromConfigStore(cs)
+	handler := contenthttp.Admin(contentHTTPDependencies(cs))
 	req := httptest.NewRequest(http.MethodGet, "/admin/variants/"+slug+"/sections", nil)
 	req = mux.SetURLVars(req, map[string]string{"variant_slug": slug})
 
@@ -232,7 +233,7 @@ func TestHandleGetSections_IncludesDisabled(t *testing.T) {
 func TestHandleGetSections_MissingSlug(t *testing.T) {
 	cs := setupTestConfigStore(t)
 
-	handler := handleGetSectionsFromConfigStore(cs)
+	handler := contenthttp.Admin(contentHTTPDependencies(cs))
 
 	req := httptest.NewRequest(http.MethodGet, "/admin/variants//sections", nil)
 	req = mux.SetURLVars(req, map[string]string{"variant_slug": ""})
@@ -246,7 +247,7 @@ func TestHandleGetSections_MissingSlug(t *testing.T) {
 func TestHandleGetSections_NotFound(t *testing.T) {
 	cs := setupTestConfigStore(t)
 
-	handler := handleGetSectionsFromConfigStore(cs)
+	handler := contenthttp.Admin(contentHTTPDependencies(cs))
 
 	req := httptest.NewRequest(http.MethodGet, "/admin/variants/nonexistent_variant/sections", nil)
 	req = mux.SetURLVars(req, map[string]string{"variant_slug": "nonexistent_variant"})
@@ -271,7 +272,7 @@ func TestHandleGetPublicSections_EmptySections(t *testing.T) {
 
 	// This test ensures the handler doesn't crash on variants with no sections
 	// (even if unlikely in practice)
-	handler := handleGetPublicSectionsFromConfigStore(cs)
+	handler := contenthttp.Public(contentHTTPDependencies(cs))
 
 	slug := variants[0].Variant.Slug
 	req := httptest.NewRequest(http.MethodGet, "/public/variants/"+slug+"/sections", nil)
@@ -300,7 +301,7 @@ func TestHandleGetSections_ResponseFormat(t *testing.T) {
 	}
 	slug := variants[0].Variant.Slug
 
-	handler := handleGetSectionsFromConfigStore(cs)
+	handler := contenthttp.Admin(contentHTTPDependencies(cs))
 	req := httptest.NewRequest(http.MethodGet, "/admin/variants/"+slug+"/sections", nil)
 	req = mux.SetURLVars(req, map[string]string{"variant_slug": slug})
 

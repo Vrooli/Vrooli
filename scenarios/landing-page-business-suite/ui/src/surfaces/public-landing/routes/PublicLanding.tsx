@@ -380,7 +380,7 @@ function LandingExperienceHeader({
   ].join(' ');
 
   return (
-    <div className={containerClasses} data-testid="landing-experience-header">
+    <header className={containerClasses} data-testid="landing-experience-header">
       <div className="mx-auto flex max-w-6xl flex-col gap-3 px-6 py-4 md:flex-row md:items-center md:justify-between">
         <BrandingBlock
           header={headerConfig}
@@ -434,7 +434,7 @@ function LandingExperienceHeader({
         {(ctas.primary || ctas.secondary) && (
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-nowrap sm:items-center">
             {ctas.primary && (
-              <Button asChild size="sm" className="gap-1 whitespace-nowrap" data-testid={ctas.primary.testId}>
+              <Button asChild size="sm" className="min-h-11 gap-1 whitespace-nowrap" data-testid={ctas.primary.testId}>
                 <a href={ctas.primary.href}>
                   {ctas.primary.label}
                   <ArrowRight className="ml-1 h-4 w-4" />
@@ -446,7 +446,7 @@ function LandingExperienceHeader({
                 asChild
                 size="sm"
                 variant={ctas.secondary.variant === 'ghost' ? 'ghost' : undefined}
-                className={ctas.secondary.variant === 'ghost' ? 'gap-1 whitespace-nowrap bg-white/5 text-white hover:bg-white/10' : 'gap-1 whitespace-nowrap'}
+                className={ctas.secondary.variant === 'ghost' ? 'min-h-11 gap-1 whitespace-nowrap bg-white/5 text-white hover:bg-white/10' : 'min-h-11 gap-1 whitespace-nowrap'}
                 data-testid={ctas.secondary.testId}
               >
                 <a href={ctas.secondary.href}>
@@ -470,21 +470,21 @@ function LandingExperienceHeader({
                     <a
                       key={`${link.id}-${child.id}`}
                       href={child.href}
-                      className="whitespace-nowrap rounded-full border border-white/10 px-3 py-1"
+                      className="inline-flex min-h-11 items-center whitespace-nowrap rounded-full border border-white/10 px-3 py-1"
                     >
                       {link.label} · {child.label}
                     </a>
                   ));
               }
               return (
-                <a key={link.id} href={link.href} className="whitespace-nowrap rounded-full border border-white/10 px-3 py-1">
+                <a key={link.id} href={link.href} className="inline-flex min-h-11 items-center whitespace-nowrap rounded-full border border-white/10 px-3 py-1">
                   {link.label}
                 </a>
               );
             })}
         </div>
       )}
-    </div>
+    </header>
   );
 }
 

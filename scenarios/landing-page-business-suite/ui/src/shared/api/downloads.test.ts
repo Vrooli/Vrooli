@@ -2,11 +2,36 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as downloads from './downloads';
 import { apiCall } from './common';
 
-vi.mock('./common', () => ({ apiCall: vi.fn() }));
+const downloadClient = vi.hoisted(() => ({
+  authorizeDownload: vi.fn(),
+  listDownloadApps: vi.fn(),
+  saveDownloadApp: vi.fn(),
+  createDownloadApp: vi.fn(),
+  deleteDownloadApp: vi.fn(),
+}));
+
+vi.mock('@connectrpc/connect', () => ({ createClient: vi.fn(() => downloadClient) }));
+vi.mock('./common', () => ({ apiCall: vi.fn(), CONNECT_API_BASE: 'http://api.test' }));
 const mockApiCall = vi.mocked(apiCall);
 
+function generatedAsset(asset: { bundle_key: string; app_key: string; platform: string; artifact_url: string; release_version: string; requires_entitlement: boolean; artifact_source?: string }) {
+  return { id: 0n, bundleKey: asset.bundle_key, appKey: asset.app_key, platform: asset.platform, artifactUrl: asset.artifact_url, artifactSource: asset.artifact_source ?? 'direct', releaseVersion: asset.release_version, releaseNotes: '', checksum: '', requiresEntitlement: asset.requires_entitlement, variantKey: '', artifactFilename: '', artifactSizeBytes: 0n, artifactCount: 0 };
+}
+
+function generatedApp(app: { bundle_key: string; app_key: string; name: string; platforms: Array<ReturnType<typeof generatedAsset>> }) {
+  return { id: 0n, bundleKey: app.bundle_key, appKey: app.app_key, name: app.name, tagline: '', description: '', iconUrl: '', screenshotUrl: '', installOverview: '', installSteps: [], storefronts: [], displayOrder: 0, platforms: app.platforms, updateApiKey: '' };
+}
+
 describe('download API transport', () => {
-  beforeEach(() => { vi.resetAllMocks(); mockApiCall.mockResolvedValue({} as never); });
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockApiCall.mockResolvedValue({});
+    downloadClient.authorizeDownload.mockResolvedValue({});
+    downloadClient.listDownloadApps.mockResolvedValue({ apps: [] });
+    downloadClient.saveDownloadApp.mockResolvedValue({});
+    downloadClient.createDownloadApp.mockResolvedValue({});
+    downloadClient.deleteDownloadApp.mockResolvedValue({});
+  });
 
   it('uses public/app/storage endpoints and rejects malformed required payloads', async () => {
     const app = { name: 'Desktop', platforms: [] };
@@ -15,9 +40,9 @@ describe('download API transport', () => {
     await expect(downloads.createDownloadAppAdmin(app)).rejects.toThrow('Invalid download app response');
     await expect(downloads.getDownloadStorageAdmin()).rejects.toThrow('Invalid download storage settings response');
     await expect(downloads.updateDownloadStorageAdmin({ bucket: 'installers' })).rejects.toThrow('Invalid download storage settings response');
-    expect(mockApiCall).toHaveBeenCalledWith('/downloads?app=desktop&platform=windows&user=customer');
-    expect(mockApiCall).toHaveBeenCalledWith('/admin/download-apps/desktop', expect.objectContaining({ method: 'PUT' }));
-    expect(mockApiCall).toHaveBeenCalledWith('/admin/download-apps', expect.objectContaining({ method: 'POST' }));
+    expect(downloadClient.authorizeDownload).toHaveBeenCalledWith({ app: 'desktop', platform: 'windows' });
+    expect(downloadClient.saveDownloadApp).toHaveBeenCalledWith(expect.objectContaining({ appKey: 'desktop' }));
+    expect(downloadClient.createDownloadApp).toHaveBeenCalledTimes(1);
     expect(mockApiCall).toHaveBeenCalledWith('/admin/download-storage');
     expect(mockApiCall).toHaveBeenCalledWith('/admin/download-storage', expect.objectContaining({ method: 'PUT' }));
   });
@@ -45,7 +70,7 @@ describe('download API transport', () => {
   it('accepts generic success envelopes for destructive/storage probes', async () => {
     await expect(downloads.deleteDownloadAppAdmin('desktop')).resolves.toEqual({});
     await expect(downloads.testDownloadStorageAdmin()).resolves.toEqual({});
-    expect(mockApiCall).toHaveBeenCalledWith('/admin/download-apps/desktop', { method: 'DELETE' });
+    expect(downloadClient.deleteDownloadApp).toHaveBeenCalledWith({ appKey: 'desktop' });
     expect(mockApiCall).toHaveBeenCalledWith('/admin/download-storage/test', { method: 'POST' });
   });
 
@@ -54,19 +79,19 @@ describe('download API transport', () => {
     const app = { bundle_key: 'bundle', app_key: 'desktop', name: 'Desktop', platforms: [asset] };
     const settings = { provider: 's3', force_path_style: false, signed_url_ttl_seconds: 900, access_key_id_set: true, secret_access_key_set: true, session_token_set: false, credentials_from_env: true, settings_row_available: true };
     const artifact = { id: 1, bundle_key: 'bundle', provider: 's3', bucket: 'releases', object_key: 'desktop/app.exe', metadata: {}, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' };
+    downloadClient.authorizeDownload.mockResolvedValueOnce({ asset: generatedAsset(asset) });
+    downloadClient.listDownloadApps.mockResolvedValueOnce({ apps: [generatedApp({ ...app, platforms: [generatedAsset(asset)] })] });
+    downloadClient.createDownloadApp.mockResolvedValueOnce({ app: generatedApp({ ...app, platforms: [generatedAsset(asset)] }) });
     mockApiCall
-      .mockResolvedValueOnce(asset as never)
-      .mockResolvedValueOnce({ apps: [app] } as never)
-      .mockResolvedValueOnce(app as never)
-      .mockResolvedValueOnce({ settings } as never)
-      .mockResolvedValueOnce({ artifacts: [artifact], page: 2, page_size: 25, total: 1 } as never)
-      .mockResolvedValueOnce({ upload_url: 'https://storage.example.test/upload', required_headers: {}, bucket: 'releases', object_key: 'desktop/app.exe', expires_at: '2026-01-02T00:00:00Z', stable_object_uri: 's3://releases/desktop/app.exe' } as never)
-      .mockResolvedValueOnce(artifact as never)
-      .mockResolvedValueOnce({ url: 'https://storage.example.test/get' } as never);
+      .mockResolvedValueOnce({ settings })
+      .mockResolvedValueOnce({ artifacts: [artifact], page: 2, page_size: 25, total: 1 })
+      .mockResolvedValueOnce({ upload_url: 'https://storage.example.test/upload', required_headers: {}, bucket: 'releases', object_key: 'desktop/app.exe', expires_at: '2026-01-02T00:00:00Z', stable_object_uri: 's3://releases/desktop/app.exe' })
+      .mockResolvedValueOnce(artifact)
+      .mockResolvedValueOnce({ url: 'https://storage.example.test/get' });
 
-    await expect(downloads.requestDownload('desktop', 'windows')).resolves.toEqual(asset);
-    await expect(downloads.listDownloadAppsAdmin()).resolves.toEqual({ apps: [app] });
-    await expect(downloads.createDownloadAppAdmin({ name: 'Desktop', platforms: [] })).resolves.toEqual(app);
+    await expect(downloads.requestDownload('desktop', 'windows')).resolves.toMatchObject(asset);
+    await expect(downloads.listDownloadAppsAdmin()).resolves.toMatchObject({ apps: [app] });
+    await expect(downloads.createDownloadAppAdmin({ name: 'Desktop', platforms: [] })).resolves.toMatchObject(app);
     await expect(downloads.getDownloadStorageAdmin()).resolves.toEqual({ settings });
     await expect(downloads.listDownloadArtifactsAdmin({ page: 2, page_size: 25 })).resolves.toEqual({ artifacts: [artifact], page: 2, page_size: 25, total: 1 });
     await expect(downloads.presignDownloadArtifactUploadAdmin({ filename: 'app.exe' })).resolves.toMatchObject({ bucket: 'releases' });
@@ -78,14 +103,14 @@ describe('download API transport', () => {
     const asset = { bundle_key: 'bundle', app_key: 'desktop', platform: 'windows', artifact_url: 'https://cdn.example.test/app.exe', release_version: '1.0.0', requires_entitlement: false };
     const app = { bundle_key: 'bundle', app_key: 'desktop', name: 'Desktop', platforms: [asset] };
     const settings = { provider: 's3', force_path_style: true, signed_url_ttl_seconds: 600, access_key_id_set: false, secret_access_key_set: false, session_token_set: false, credentials_from_env: false, settings_row_available: true };
+    downloadClient.saveDownloadApp.mockResolvedValueOnce({ app: generatedApp({ ...app, platforms: [generatedAsset(asset)] }) });
     mockApiCall
-      .mockResolvedValueOnce(app as never)
-      .mockResolvedValueOnce({ settings } as never)
-      .mockResolvedValueOnce({ success: true } as never)
-      .mockResolvedValueOnce(asset as never)
-      .mockResolvedValueOnce(asset as never);
+      .mockResolvedValueOnce({ settings })
+      .mockResolvedValueOnce({ success: true })
+      .mockResolvedValueOnce(asset)
+      .mockResolvedValueOnce(asset);
 
-    await expect(downloads.saveDownloadAppAdmin('desktop', { name: 'Desktop', platforms: [] })).resolves.toEqual(app);
+    await expect(downloads.saveDownloadAppAdmin('desktop', { name: 'Desktop', platforms: [] })).resolves.toMatchObject(app);
     await expect(downloads.updateDownloadStorageAdmin({ bucket: 'releases', force_path_style: true })).resolves.toEqual({ settings });
     await expect(downloads.testDownloadStorageAdmin()).resolves.toEqual({ success: true });
     await expect(downloads.applyDownloadArtifactAdmin({ app_key: 'desktop', platform: 'windows', artifact_id: 1 })).resolves.toEqual(asset);

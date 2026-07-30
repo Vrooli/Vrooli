@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"net/http"
 	"os"
 	"strings"
@@ -9,14 +8,7 @@ import (
 
 	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/envx"
-)
-
-type (
-	HTTPDoer            = administration.APIKeyHTTPDoer
-	APIKeyStore         = administration.APIKeyStore
-	APIKeyService       = administration.APIKeyService
-	APIKey              = administration.APIKey
-	APIKeyCreateRequest = administration.APIKeyCreateRequest
+	"landing-page-business-suite-api/internal/intelligence"
 )
 
 func isProductionEnvironment() bool {
@@ -24,147 +16,23 @@ func isProductionEnvironment() bool {
 	return env == "production" || env == "prod"
 }
 
-func NewAPIKeyService(db APIKeyStore) (*APIKeyService, error) {
+func NewAPIKeyService(db administration.APIKeyStore) (*administration.APIKeyService, error) {
 	return NewAPIKeyServiceWithHTTPClient(db, &http.Client{Timeout: 15 * time.Second})
 }
 
-func NewAPIKeyServiceWithHTTPClient(db APIKeyStore, client HTTPDoer) (*APIKeyService, error) {
+func NewAPIKeyServiceWithHTTPClient(db administration.APIKeyStore, client administration.APIKeyHTTPDoer) (*administration.APIKeyService, error) {
 	return NewAPIKeyServiceWithOptions(db, client, "postgres")
 }
 
-func NewAPIKeyServiceWithOptions(db APIKeyStore, client HTTPDoer, dialect string) (*APIKeyService, error) {
+func NewAPIKeyServiceWithOptions(db administration.APIKeyStore, client administration.APIKeyHTTPDoer, dialect string) (*administration.APIKeyService, error) {
 	return administration.NewAPIKeyServiceWithRuntime(db, client, dialect, resolveSecret, isProductionEnvironment, logStructured, logStructuredError)
 }
 
-func newAPIKeyServiceForTest(db APIKeyStore, client HTTPDoer, dialect string, key []byte) *APIKeyService {
+func newAPIKeyServiceForTest(db administration.APIKeyStore, client administration.APIKeyHTTPDoer, dialect string, key []byte) *administration.APIKeyService {
 	return administration.NewAPIKeyServiceForTest(db, client, dialect, key, nil, nil)
 }
 
 func GenerateEncryptionKey() string { return administration.GenerateEncryptionKey() }
-
-// API Handlers
-
-func handleListAPIKeys(svc *APIKeyService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		keys, err := svc.List(r.Context())
-		if err != nil {
-			logStructuredError("list_api_keys_failed", map[string]interface{}{"error": err.Error()})
-			writeJSONError(w, http.StatusInternalServerError, "Failed to list API keys", ApiErrorTypeServerError)
-			return
-		}
-
-		if keys == nil {
-			keys = []APIKey{}
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(map[string]interface{}{
-			"keys": keys,
-		}); err != nil {
-			logStructuredError("encode_response_failed", map[string]interface{}{"error": err.Error()})
-		}
-	}
-}
-
-func handleCreateAPIKey(svc *APIKeyService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req APIKeyCreateRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeJSONError(w, http.StatusBadRequest, "Invalid request body", ApiErrorTypeValidation)
-			return
-		}
-
-		key, err := svc.Store(r.Context(), req.Provider, req.Key)
-		if err != nil {
-			logStructuredError("create_api_key_failed", map[string]interface{}{
-				"error":    err.Error(),
-				"provider": req.Provider,
-			})
-			writeJSONError(w, http.StatusBadRequest, err.Error(), ApiErrorTypeValidation)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		if err := json.NewEncoder(w).Encode(key); err != nil {
-			logStructuredError("encode_response_failed", map[string]interface{}{"error": err.Error()})
-		}
-	}
-}
-
-func handleDeleteAPIKey(svc *APIKeyService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		provider := r.URL.Query().Get("provider")
-		if provider == "" {
-			writeJSONError(w, http.StatusBadRequest, "Provider is required", ApiErrorTypeValidation)
-			return
-		}
-
-		if err := svc.Delete(r.Context(), provider); err != nil {
-			logStructuredError("delete_api_key_failed", map[string]interface{}{
-				"error":    err.Error(),
-				"provider": provider,
-			})
-			writeJSONError(w, http.StatusNotFound, err.Error(), ApiErrorTypeNotFound)
-			return
-		}
-
-		w.WriteHeader(http.StatusNoContent)
-	}
-}
-
-func handleTestAPIKey(svc *APIKeyService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		provider := r.URL.Query().Get("provider")
-		if provider == "" {
-			writeJSONError(w, http.StatusBadRequest, "Provider is required", ApiErrorTypeValidation)
-			return
-		}
-
-		success, message, err := svc.Test(r.Context(), provider)
-		if err != nil {
-			logStructuredError("test_api_key_failed", map[string]interface{}{
-				"error":    err.Error(),
-				"provider": provider,
-			})
-			writeJSONError(w, http.StatusInternalServerError, err.Error(), ApiErrorTypeServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(map[string]interface{}{
-			"success":  success,
-			"message":  message,
-			"provider": provider,
-		}); err != nil {
-			logStructuredError("encode_response_failed", map[string]interface{}{"error": err.Error()})
-		}
-	}
-}
-
-func handleToggleAPIKey(svc *APIKeyService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Provider string `json:"provider"`
-			Active   bool   `json:"active"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeJSONError(w, http.StatusBadRequest, "Invalid request body", ApiErrorTypeValidation)
-			return
-		}
-
-		if err := svc.SetActive(r.Context(), req.Provider, req.Active); err != nil {
-			logStructuredError("toggle_api_key_failed", map[string]interface{}{
-				"error":    err.Error(),
-				"provider": req.Provider,
-			})
-			writeJSONError(w, http.StatusNotFound, err.Error(), ApiErrorTypeNotFound)
-			return
-		}
-
-		w.WriteHeader(http.StatusNoContent)
-	}
-}
 
 // init registers the key generation command for setup
 func init() {
@@ -176,4 +44,4 @@ func init() {
 }
 
 // Compile-time interface check for APIKeyServicer
-var _ APIKeyServicer = (*APIKeyService)(nil)
+var _ intelligence.APIKeyServicer = (*administration.APIKeyService)(nil)

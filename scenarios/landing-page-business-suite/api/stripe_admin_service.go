@@ -93,7 +93,7 @@ type stripePrice struct {
 }
 
 // ListStripeProductsWithPrices fetches all products and prices from Stripe for import preview.
-func (s *StripeService) ListStripeProductsWithPrices(ctx context.Context, planStore *PlanStore) (*StripeImportPreview, error) {
+func (s *StripeService) ListStripeProductsWithPrices(ctx context.Context, planStore *commerce.PlanStore) (*StripeImportPreview, error) {
 	// Fetch all active products from Stripe
 	products, err := s.fetchStripeProducts(ctx)
 	if err != nil {

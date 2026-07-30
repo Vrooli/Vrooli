@@ -18,7 +18,6 @@ import {
   sanitizeSlugInput,
   validateVariantForm,
   type VariantFormState,
-  type VariantSnapshotPayload,
 } from '../controllers/variantEditorController';
 import { buildDefaultHeaderConfig, normalizeHeaderConfig } from '../../../shared/lib/headerConfig';
 import { VariantSnapshotSchema } from '../../../shared/api/schemas/variants.schema';
@@ -312,7 +311,7 @@ export function useVariantForm({
       if (!validated.success) {
         throw new Error('Invalid JSON structure for variant snapshot');
       }
-      const saved = await persistVariantSnapshot(slug, validated.data as VariantSnapshotPayload);
+      const saved = await persistVariantSnapshot(slug, validated.data);
       setSnapshotDraft(JSON.stringify(saved, null, 2));
       await fetchVariant();
       onSuccess?.('Variant JSON applied successfully', 'JSON saved');

@@ -14,7 +14,7 @@ func TestRequireUserAuth_ValidBearerToken(t *testing.T) {
 	db := setupTestDB(t)
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 	server := setupMinimalAuthServer(t, authService)
 
 	testEmail := "test-middleware-bearer@example.com"
@@ -28,7 +28,7 @@ func TestRequireUserAuth_ValidBearerToken(t *testing.T) {
 		t.Fatalf("GetOrCreateUser failed: %v", err)
 	}
 
-	tokenPair, err := authService.createSession(ctx, user, "127.0.0.1", "Test-Agent")
+	tokenPair, err := authService.CreateSession(ctx, user, "127.0.0.1", "Test-Agent")
 	if err != nil {
 		t.Fatalf("createSession failed: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestRequireUserAuth_ValidCookie(t *testing.T) {
 	db := setupTestDB(t)
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 	server := setupMinimalAuthServer(t, authService)
 
 	testEmail := "test-middleware-cookie@example.com"
@@ -86,7 +86,7 @@ func TestRequireUserAuth_ValidCookie(t *testing.T) {
 		t.Fatalf("GetOrCreateUser failed: %v", err)
 	}
 
-	tokenPair, err := authService.createSession(ctx, user, "127.0.0.1", "Test-Agent")
+	tokenPair, err := authService.CreateSession(ctx, user, "127.0.0.1", "Test-Agent")
 	if err != nil {
 		t.Fatalf("createSession failed: %v", err)
 	}
@@ -129,17 +129,7 @@ func TestRequireUserAuth_ExpiredToken(t *testing.T) {
 	emailService := NewEmailService()
 
 	// Create service with very short access TTL
-	authService := &UserAuthService{
-		db:           db,
-		emailService: emailService,
-		jwtSecret:    []byte("test-secret-key"),
-		jwtIssuer:    "test",
-		accessTTL:    1 * time.Millisecond, // Very short for testing
-		refreshTTL:   7 * 24 * time.Hour,
-		magicLinkTTL: 15 * time.Minute,
-		baseURL:      "http://localhost:3000/auth/verify",
-		appName:      "Test App",
-	}
+	authService := newUserAuthServiceForTestWithOptions(db, emailService, time.Millisecond, 7*24*time.Hour, 15*time.Minute)
 	server := setupMinimalAuthServer(t, authService)
 
 	testEmail := "test-middleware-expired@example.com"
@@ -153,7 +143,7 @@ func TestRequireUserAuth_ExpiredToken(t *testing.T) {
 		t.Fatalf("GetOrCreateUser failed: %v", err)
 	}
 
-	tokenPair, err := authService.createSession(ctx, user, "127.0.0.1", "Test-Agent")
+	tokenPair, err := authService.CreateSession(ctx, user, "127.0.0.1", "Test-Agent")
 	if err != nil {
 		t.Fatalf("createSession failed: %v", err)
 	}
@@ -186,7 +176,7 @@ func TestRequireUserAuth_InvalidToken(t *testing.T) {
 	db := setupTestDB(t)
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 	server := setupMinimalAuthServer(t, authService)
 
 	var handlerCalled bool
@@ -214,7 +204,7 @@ func TestRequireUserAuth_MissingToken(t *testing.T) {
 	db := setupTestDB(t)
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 	server := setupMinimalAuthServer(t, authService)
 
 	var handlerCalled bool
@@ -241,7 +231,7 @@ func TestRequireUserAuth_BearerTakesPrecedence(t *testing.T) {
 	db := setupTestDB(t)
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 	server := setupMinimalAuthServer(t, authService)
 
 	testEmail1 := "test-middleware-bearer-prec@example.com"
@@ -256,7 +246,7 @@ func TestRequireUserAuth_BearerTakesPrecedence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetOrCreateUser 1 failed: %v", err)
 	}
-	tokenPair1, err := authService.createSession(ctx, user1, "127.0.0.1", "Agent-1")
+	tokenPair1, err := authService.CreateSession(ctx, user1, "127.0.0.1", "Agent-1")
 	if err != nil {
 		t.Fatalf("createSession 1 failed: %v", err)
 	}
@@ -265,7 +255,7 @@ func TestRequireUserAuth_BearerTakesPrecedence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetOrCreateUser 2 failed: %v", err)
 	}
-	tokenPair2, err := authService.createSession(ctx, user2, "127.0.0.2", "Agent-2")
+	tokenPair2, err := authService.CreateSession(ctx, user2, "127.0.0.2", "Agent-2")
 	if err != nil {
 		t.Fatalf("createSession 2 failed: %v", err)
 	}
@@ -302,7 +292,7 @@ func TestOptionalUserAuth_WithValidToken(t *testing.T) {
 	db := setupTestDB(t)
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 	server := setupMinimalAuthServer(t, authService)
 
 	testEmail := "test-optional-valid@example.com"
@@ -316,7 +306,7 @@ func TestOptionalUserAuth_WithValidToken(t *testing.T) {
 		t.Fatalf("GetOrCreateUser failed: %v", err)
 	}
 
-	tokenPair, err := authService.createSession(ctx, user, "127.0.0.1", "Test-Agent")
+	tokenPair, err := authService.CreateSession(ctx, user, "127.0.0.1", "Test-Agent")
 	if err != nil {
 		t.Fatalf("createSession failed: %v", err)
 	}
@@ -353,7 +343,7 @@ func TestOptionalUserAuth_WithInvalidToken(t *testing.T) {
 	db := setupTestDB(t)
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 	server := setupMinimalAuthServer(t, authService)
 
 	var handlerCalled bool
@@ -390,7 +380,7 @@ func TestOptionalUserAuth_NoToken(t *testing.T) {
 	db := setupTestDB(t)
 
 	emailService := NewEmailService()
-	authService := NewUserAuthService(db, emailService)
+	authService := newUserAuthServiceForTest(db, emailService)
 	server := setupMinimalAuthServer(t, authService)
 
 	var handlerCalled bool

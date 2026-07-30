@@ -7,6 +7,7 @@ import (
 	"time"
 
 	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 func TestAccountServiceCreditsContextCancellationReachesPersistence(t *testing.T) {
@@ -110,11 +111,11 @@ func TestAccountServiceCreditsFallbacksWhenPlanUnavailable(t *testing.T) {
 
 	// Force a plan lookup miss to exercise fallback defaults.
 	// Use an empty PlanStore with no plans configured
-	emptyStore := NewPlanStoreWithOptions(PlanStoreOptions{
+	emptyStore := NewPlanStoreWithOptions(commerce.PlanStoreOptions{
 		PlansPath: "", // Empty path means no plans will be loaded
 		BundleKey: "missing_bundle",
 	})
-	planService := NewPlanServiceWithOptions(PlanServiceOptions{PlanStore: emptyStore, DefaultBundle: "missing_bundle", DisplayEnv: "production"})
+	planService := NewPlanServiceWithOptions(commerce.PlanServiceOptions{PlanStore: emptyStore, DefaultBundle: "missing_bundle", DisplayEnv: "production"})
 	accountService := NewAccountService(db, planService)
 
 	credits, err := accountService.GetCredits("fallback@example.com")

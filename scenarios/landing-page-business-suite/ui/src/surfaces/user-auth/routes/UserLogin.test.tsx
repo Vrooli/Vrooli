@@ -55,4 +55,19 @@ describe('UserLogin', () => {
 
     expect(await screen.findByText('Too many login attempts. Please wait a moment and try again.')).toBeInTheDocument();
   });
+
+  it.each([
+    ['validation', 'Please enter a valid email address.'],
+    ['network', 'Unable to reach the server. Please check your connection.'],
+    ['unexpected', 'Something went wrong. Please try again.'],
+  ] as const)('maps %s request failures to a customer-safe message', async (type, expectedMessage) => {
+    requestMagicLink.mockRejectedValue(
+      type === 'unexpected' ? new Error('unexpected failure') : new api.ApiError('request failed', type),
+    );
+    renderLogin();
+    fireEvent.change(screen.getByTestId('email-input'), { target: { value: 'buyer@example.com' } });
+    fireEvent.click(screen.getByTestId('submit-button'));
+
+    expect(await screen.findByText(expectedMessage)).toBeInTheDocument();
+  });
 });

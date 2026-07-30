@@ -11,11 +11,15 @@ import (
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
+	adminhttp "landing-page-business-suite-api/handlers/administration"
 )
 
-func attachAdminSession(t *testing.T, req *http.Request, email string) {
+func attachAdminSession(t *testing.T, manager SessionManager, req *http.Request, email string) {
 	t.Helper()
-	session, _ := sessionStore.Get(req, "admin_session")
+	session, err := manager.GetSession(req, "admin_session")
+	if err != nil {
+		t.Fatalf("get admin session: %v", err)
+	}
 	session.Values["email"] = email
 	rr := httptest.NewRecorder()
 	if err := session.Save(req, rr); err != nil {
@@ -60,16 +64,16 @@ func TestHandleAdminProfile_ReturnsCurrentAdmin(t *testing.T) {
 	server := &Server{db: db, sessionManager: sessionMgr}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/profile", nil)
-	attachAdminSession(t, req, defaultAdminEmail)
+	attachAdminSession(t, sessionMgr, req, defaultAdminEmail)
 	resp := httptest.NewRecorder()
 
-	server.requireAdmin(server.handleAdminProfile)(resp, req)
+	server.requireAdmin(adminhttp.Profile(server.adminProfileDependencies()))(resp, req)
 
 	if resp.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.Code)
 	}
 
-	var profile AdminProfileResponse
+	var profile adminhttp.ProfileResponse
 	decodeJSONResponse(t, resp.Body.Bytes(), &profile)
 
 	if profile.Email != defaultAdminEmail {
@@ -98,16 +102,16 @@ func TestHandleAdminProfileUpdate_ChangesEmailAndPassword(t *testing.T) {
 	}
 	payload := fmt.Sprintf(`{"current_password":"changeme123","new_email":"%s","new_password":"Sup3rSecurePass!"}`, newEmail)
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/profile", bytes.NewBufferString(payload))
-	attachAdminSession(t, req, defaultAdminEmail)
+	attachAdminSession(t, sessionMgr, req, defaultAdminEmail)
 	resp := httptest.NewRecorder()
 
-	server.requireAdmin(server.handleAdminProfileUpdate)(resp, req)
+	server.requireAdmin(adminhttp.UpdateProfile(server.adminProfileDependencies()))(resp, req)
 
 	if resp.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())
 	}
 
-	var profile AdminProfileResponse
+	var profile adminhttp.ProfileResponse
 	decodeJSONResponse(t, resp.Body.Bytes(), &profile)
 
 	if profile.Email != newEmail {
@@ -133,7 +137,10 @@ func TestHandleAdminProfileUpdate_ChangesEmailAndPassword(t *testing.T) {
 	for _, cookie := range resp.Result().Cookies() {
 		sessionProbeReq.AddCookie(cookie)
 	}
-	session, _ := sessionStore.Get(sessionProbeReq, "admin_session")
+	session, err := sessionMgr.GetSession(sessionProbeReq, "admin_session")
+	if err != nil {
+		t.Fatalf("read updated admin session: %v", err)
+	}
 	if session.Values["email"] != newEmail {
 		t.Fatalf("session email not updated, got %v", session.Values["email"])
 	}
@@ -161,10 +168,10 @@ func TestHandleAdminProfileUpdate_InvalidPassword(t *testing.T) {
 
 	payload := `{"current_password":"wrongpass","new_password":"Sup3rSecurePass!"}`
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/profile", bytes.NewBufferString(payload))
-	attachAdminSession(t, req, defaultAdminEmail)
+	attachAdminSession(t, sessionMgr, req, defaultAdminEmail)
 	resp := httptest.NewRecorder()
 
-	server.requireAdmin(server.handleAdminProfileUpdate)(resp, req)
+	server.requireAdmin(adminhttp.UpdateProfile(server.adminProfileDependencies()))(resp, req)
 
 	if resp.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401 for invalid credentials, got %d", resp.Code)
@@ -208,10 +215,10 @@ func TestHandleAdminProfileUpdate_EmailConflict(t *testing.T) {
 
 	payload := fmt.Sprintf(`{"current_password":"changeme123","new_email":"%s"}`, takenEmail)
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/profile", bytes.NewBufferString(payload))
-	attachAdminSession(t, req, defaultAdminEmail)
+	attachAdminSession(t, sessionMgr, req, defaultAdminEmail)
 	resp := httptest.NewRecorder()
 
-	server.requireAdmin(server.handleAdminProfileUpdate)(resp, req)
+	server.requireAdmin(adminhttp.UpdateProfile(server.adminProfileDependencies()))(resp, req)
 
 	if resp.Code != http.StatusConflict {
 		t.Fatalf("expected 409 for email conflict, got %d", resp.Code)

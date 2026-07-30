@@ -79,7 +79,7 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
 
   beforeEach(() => {
     vi.clearAllMocks();
-    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false } as Response);
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false });
     window.history.replaceState({}, '', '/admin/analytics');
     window.localStorage.clear();
     vi.stubGlobal('open', vi.fn());

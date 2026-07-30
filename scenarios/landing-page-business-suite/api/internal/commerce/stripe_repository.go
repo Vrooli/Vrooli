@@ -85,22 +85,7 @@ type CreditTransactionRecord struct {
 
 // LookupCustomerID finds the customer ID for a user (by email or customer ID).
 func (r *StripeRepository) LookupCustomerID(user string) string {
-	if user == "" {
-		return ""
-	}
-	normalizedUser := normalizeEmail(user)
-	var customerID sql.NullString
-	err := r.db.QueryRow(`
-		SELECT customer_id
-		FROM subscriptions
-		WHERE customer_email = $1 OR customer_id = $1
-		ORDER BY updated_at DESC
-		LIMIT 1
-	`, normalizedUser).Scan(&customerID)
-	if err != nil || !customerID.Valid {
-		return ""
-	}
-	return customerID.String
+	return NewAccountLinkService(r.db).LookupCustomerID(user)
 }
 
 // GetSubscriptionByUser finds the most recent subscription for a user.
@@ -232,69 +217,6 @@ func (r *StripeRepository) UpdateCheckoutSessionSchedule(sessionID, scheduleID s
 	return err
 }
 
-// --- Credit Operations ---
-
-// AddCreditsWithIdempotency adds credits to a wallet with idempotency protection.
-// Returns (wasProcessed, error). If wasProcessed is false, the event was already processed.
-func (r *StripeRepository) AddCreditsWithIdempotency(customerEmail string, amount int64, txnType, stripeEventID string, metadata map[string]interface{}) (bool, error) {
-	tx, err := r.db.Begin()
-	if err != nil {
-		return false, err
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	metadataJSON, _ := json.Marshal(metadata)
-
-	// Insert transaction first - unique index on stripe_event_id fails duplicates
-	result, err := tx.Exec(`
-		INSERT INTO credit_transactions (customer_email, amount_credits, transaction_type, stripe_event_id, metadata, created_at)
-		VALUES ($1, $2, $3, $4, $5::jsonb, NOW())
-		ON CONFLICT (stripe_event_id) DO NOTHING
-	`, normalizeEmail(customerEmail), amount, txnType, stripeEventID, string(metadataJSON))
-	if err != nil {
-		return false, err
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return false, err
-	}
-
-	// If no rows affected, event was already processed
-	if rowsAffected == 0 {
-		return false, nil
-	}
-
-	// Update wallet balance
-	_, err = tx.Exec(`
-		INSERT INTO credit_wallets (customer_email, balance_credits, updated_at)
-		VALUES ($1, $2, NOW())
-		ON CONFLICT (customer_email) DO UPDATE SET
-			balance_credits = credit_wallets.balance_credits + EXCLUDED.balance_credits,
-			updated_at = NOW()
-	`, normalizeEmail(customerEmail), amount)
-	if err != nil {
-		return false, err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
-// GetCreditBalance returns the credit balance for a customer.
-func (r *StripeRepository) GetCreditBalance(customerEmail string) (int64, error) {
-	var balance int64
-	err := r.db.QueryRow(`
-		SELECT COALESCE(balance_credits, 0) FROM credit_wallets WHERE customer_email = $1
-	`, normalizeEmail(customerEmail)).Scan(&balance)
-	if err == sql.ErrNoRows {
-		return 0, nil
-	}
-	return balance, err
-}
-
 // --- Intro Coupon Operations ---
 
 // CheckIntroEligibility checks if a user is eligible for intro pricing.
@@ -354,15 +276,7 @@ func (r *StripeRepository) MarkIntroUsed(ctx context.Context, email, customerID,
 
 // LinkUserToStripeCustomer links a user email to a Stripe customer ID.
 func (r *StripeRepository) LinkUserToStripeCustomer(email, customerID string) error {
-	normalizedEmail := normalizeEmail(email)
-	_, err := r.db.Exec(`
-		INSERT INTO users (email, stripe_customer_id, updated_at)
-		VALUES ($1, $2, NOW())
-		ON CONFLICT (email) DO UPDATE SET
-			stripe_customer_id = EXCLUDED.stripe_customer_id,
-			updated_at = NOW()
-	`, normalizedEmail, customerID)
-	return err
+	return NewAccountLinkService(r.db).LinkUserToStripeCustomer(email, customerID)
 }
 
 // GetOldEmailForCustomer finds the previous email for a customer ID.
@@ -379,61 +293,7 @@ func (r *StripeRepository) GetOldEmailForCustomer(customerID string) (string, er
 
 // MigrateCustomerEmail updates email across all tables atomically.
 func (r *StripeRepository) MigrateCustomerEmail(ctx context.Context, oldEmail, newEmail, customerID string) error {
-	normalizedOld := normalizeEmail(oldEmail)
-	normalizedNew := normalizeEmail(newEmail)
-
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	// Update users table
-	_, err = tx.ExecContext(ctx, `
-		UPDATE users SET email = $1, updated_at = NOW()
-		WHERE email = $2 OR stripe_customer_id = $3
-	`, normalizedNew, normalizedOld, customerID)
-	if err != nil {
-		return err
-	}
-
-	// Update subscriptions table
-	_, err = tx.ExecContext(ctx, `
-		UPDATE subscriptions SET customer_email = $1, updated_at = NOW()
-		WHERE customer_email = $2 OR customer_id = $3
-	`, normalizedNew, normalizedOld, customerID)
-	if err != nil {
-		return err
-	}
-
-	// Update credit_wallets table
-	_, err = tx.ExecContext(ctx, `
-		UPDATE credit_wallets SET customer_email = $1, updated_at = NOW()
-		WHERE customer_email = $2
-	`, normalizedNew, normalizedOld)
-	if err != nil {
-		return err
-	}
-
-	// Update credit_transactions table
-	_, err = tx.ExecContext(ctx, `
-		UPDATE credit_transactions SET customer_email = $1
-		WHERE customer_email = $2
-	`, normalizedNew, normalizedOld)
-	if err != nil {
-		return err
-	}
-
-	// Update intro_coupon_usage table
-	_, err = tx.ExecContext(ctx, `
-		UPDATE intro_coupon_usage SET email = $1
-		WHERE email = $2 OR stripe_customer_id = $3
-	`, normalizedNew, normalizedOld, customerID)
-	if err != nil {
-		return err
-	}
-
-	return tx.Commit()
+	return NewAccountLinkService(r.db).MigrateCustomerEmail(ctx, oldEmail, newEmail, customerID)
 }
 
 // --- Invoice Status Operations ---

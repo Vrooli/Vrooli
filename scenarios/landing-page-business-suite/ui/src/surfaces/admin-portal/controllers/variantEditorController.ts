@@ -1,6 +1,6 @@
 import {
   createVariant,
-  getAdminSections,
+  getVariantSections,
   getVariant,
   getVariantSpace,
   exportVariantSnapshot,
@@ -30,11 +30,7 @@ export interface VariantFormState {
 
 export async function loadVariantEditorData(slug: string): Promise<VariantEditorData> {
   const variant = await getVariant(slug);
-  if (!variant.id) {
-    throw new Error('Variant payload missing ID');
-  }
-
-  const { sections } = await getAdminSections(variant.id);
+  const { sections } = await getVariantSections(slug);
   return { variant, sections };
 }
 

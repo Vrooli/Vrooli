@@ -309,7 +309,7 @@ const PricingTierCard = memo(function PricingTierCard({
 
         <Button
           variant={highlight ? 'default' : 'ghost'}
-          className={`w-full ${highlight ? '' : 'bg-slate-900/5 text-slate-900 hover:bg-slate-900/10'}`}
+          className={`min-h-11 w-full ${highlight ? '' : 'bg-slate-900/5 text-slate-900 hover:bg-slate-900/10'}`}
           size="lg"
           onClick={() => { onSelect(tier); }}
           disabled={loading}
@@ -617,6 +617,7 @@ export function PricingSection({ content, pricingOverview, couponMappings, avail
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
+                className="min-h-11"
                 onClick={() => { void handleTierSelect(featuredTier); }}
                 disabled={
                   resolvePriceId(featuredTier.cta_url) !== null &&
@@ -630,7 +631,7 @@ export function PricingSection({ content, pricingOverview, couponMappings, avail
               </Button>
               <button
                 type="button"
-                className="text-xs text-slate-500 hover:text-slate-700"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center text-xs text-slate-500 hover:text-slate-700"
                 onClick={() => { setStickyDismissed(true); }}
                 aria-label="Dismiss pricing sticky"
               >

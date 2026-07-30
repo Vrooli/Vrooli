@@ -98,7 +98,7 @@ export function SectionEditor() {
     saving,
     error,
     isNew,
-    numericSectionId,
+    sectionKey,
 
     // Form state
     sectionType,
@@ -231,7 +231,7 @@ export function SectionEditor() {
                 sections={timelineSections}
                 loading={previewConfigLoading}
                 error={previewConfigError}
-                currentSectionId={numericSectionId}
+                currentSectionKey={sectionKey}
                 currentSectionType={sectionType}
                 onNavigateSection={handleNavigateSection}
                 onAddSection={handleAddSection}

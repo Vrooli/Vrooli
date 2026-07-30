@@ -37,7 +37,7 @@ const createMockBranding = (overrides: Partial<SiteBranding> = {}): SiteBranding
   site_name: 'Test Site',
   coming_soon_enabled: false,
   ...overrides,
-} as SiteBranding);
+});
 
 describe('waitlist.service', () => {
   describe('calculateStats', () => {

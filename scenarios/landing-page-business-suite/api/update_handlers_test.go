@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"landing-page-business-suite-api/internal/delivery"
+
 	"github.com/gorilla/mux"
 )
 
@@ -550,17 +552,17 @@ func TestRequireUpdateAPIKeyMiddleware_Mock(t *testing.T) {
 // --- Channel discovery tests ---
 
 type mockChannelDiscoveryLookup struct {
-	ListChannelsFn func(bundleKey, appKey string) ([]ChannelInfo, error)
+	ListChannelsFn func(bundleKey, appKey string) ([]delivery.ChannelInfo, error)
 }
 
-func (m *mockChannelDiscoveryLookup) ListChannels(bundleKey, appKey string) ([]ChannelInfo, error) {
+func (m *mockChannelDiscoveryLookup) ListChannels(bundleKey, appKey string) ([]delivery.ChannelInfo, error) {
 	return m.ListChannelsFn(bundleKey, appKey)
 }
 
 func TestHandleChannelDiscovery(t *testing.T) {
 	channelsMock := &mockChannelDiscoveryLookup{
-		ListChannelsFn: func(_, _ string) ([]ChannelInfo, error) {
-			return []ChannelInfo{
+		ListChannelsFn: func(_, _ string) ([]delivery.ChannelInfo, error) {
+			return []delivery.ChannelInfo{
 				{Channel: "stable", Platform: "windows", Version: "1.0.0", UpdatedAt: "2026-01-01T00:00:00Z"},
 				{Channel: "beta", Platform: "windows", Version: "1.1.0-beta", UpdatedAt: "2026-01-02T00:00:00Z"},
 			}, nil
@@ -579,7 +581,7 @@ func TestHandleChannelDiscovery(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var result []ChannelInfo
+	var result []delivery.ChannelInfo
 	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}

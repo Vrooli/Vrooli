@@ -16,6 +16,7 @@ import (
 
 	"connectrpc.com/connect"
 	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
+	billinghttp "landing-page-business-suite-api/handlers/commerce"
 )
 
 func newMockStripeServer(t *testing.T) *httptest.Server {
@@ -59,15 +60,10 @@ func TestHandleCheckoutCreateValidation(t *testing.T) {
 	resetStripeTestData(t, db)
 	upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_validation", "production", 1000000, 0.001, "credits")
 	service := ConfigureStripeServiceSimple(t, db)
-	handler := handleCheckoutCreate(service)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/checkout/create", bytes.NewBufferString(`{"price_id":""}`))
-	rec := httptest.NewRecorder()
-
-	handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400 for missing fields, got %d", rec.Code)
+	handler := billinghttp.NewConnectHandler(billingConnectDependencies(service))
+	_, err := handler.CreateCheckoutSession(context.Background(), connect.NewRequest(&landing_page_business_suite_v1.CreateCheckoutSessionRequest{}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("expected invalid argument for missing fields, got %v", connect.CodeOf(err))
 	}
 }
 
@@ -142,12 +138,10 @@ func TestHandleCheckoutCreateAndWebhookEndToEnd(t *testing.T) {
 		t.Fatalf("expected active subscription, got %s", status)
 	}
 
-	verifyHandler := handleSubscriptionVerify(stripeService)
-	verifyReq := httptest.NewRequest(http.MethodGet, "/api/v1/subscription/verify?user=handler@example.com", nil)
-	verifyRec := httptest.NewRecorder()
-	verifyHandler.ServeHTTP(verifyRec, verifyReq)
-	if verifyRec.Code != http.StatusOK {
-		t.Fatalf("verify handler returned %d", verifyRec.Code)
+	payments := billinghttp.NewConnectHandler(billingConnectDependencies(stripeService))
+	_, err = payments.VerifySubscription(context.Background(), connect.NewRequest(&landing_page_business_suite_v1.VerifySubscriptionRequest{UserIdentity: "handler@example.com"}))
+	if err != nil {
+		t.Fatalf("verify subscription: %v", err)
 	}
 }
 
@@ -381,7 +375,7 @@ func TestStripeSettingsHandlers(t *testing.T) {
 	paymentService := NewPaymentSettingsService(db)
 	stripeService := NewStripeServiceWithSettings(db, NewPlanService(db), paymentService)
 
-	handler := stripeSettingsConnectHandler{payment: paymentService, stripe: stripeService}
+	handler := billinghttp.NewStripeSettingsConnectHandler(paymentService, stripeService, nil)
 	if _, err := handler.UpdateStripeSettings(context.Background(), connect.NewRequest(&landing_page_business_suite_v1.UpdateStripeSettingsRequest{PublishableKey: protoString("pk_live_handlers"), SecretKey: protoString("sk_live_handlers"), WebhookSecret: protoString("whsec_live_handlers"), DashboardUrl: protoString("https://dashboard.stripe.com/test")})); err != nil {
 		t.Fatalf("update settings: %v", err)
 	}
@@ -417,19 +411,12 @@ func TestSubscriptionHandlersVerifyAndCancel(t *testing.T) {
 
 	stripeService := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
 
-	verifyRec := httptest.NewRecorder()
-	verifyReq := httptest.NewRequest(http.MethodGet, "/api/v1/subscription/verify?user=cancelme@example.com", nil)
-	handleSubscriptionVerify(stripeService).ServeHTTP(verifyRec, verifyReq)
-	if verifyRec.Code != http.StatusOK {
-		t.Fatalf("verify handler returned %d", verifyRec.Code)
+	payments := billinghttp.NewConnectHandler(billingConnectDependencies(stripeService))
+	if _, err := payments.VerifySubscription(context.Background(), connect.NewRequest(&landing_page_business_suite_v1.VerifySubscriptionRequest{UserIdentity: "cancelme@example.com"})); err != nil {
+		t.Fatalf("verify subscription: %v", err)
 	}
-
-	cancelBody := bytes.NewBufferString(`{"user_identity":"cancelme@example.com"}`)
-	cancelReq := httptest.NewRequest(http.MethodPost, "/api/v1/subscription/cancel", cancelBody)
-	cancelRec := httptest.NewRecorder()
-	handleSubscriptionCancel(stripeService).ServeHTTP(cancelRec, cancelReq)
-	if cancelRec.Code != http.StatusOK {
-		t.Fatalf("cancel handler returned %d: %s", cancelRec.Code, cancelRec.Body.String())
+	if _, err := payments.CancelSubscription(context.Background(), connect.NewRequest(&landing_page_business_suite_v1.CancelSubscriptionRequest{UserIdentity: "cancelme@example.com"})); err != nil {
+		t.Fatalf("cancel subscription: %v", err)
 	}
 
 	var status string

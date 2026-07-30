@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	adminhttp "landing-page-business-suite-api/handlers/administration"
 	"landing-page-business-suite-api/internal/administration"
 )
 
@@ -115,8 +116,8 @@ func TestRemoteProfileService_LoginAndProxy(t *testing.T) {
 	var lastCookie string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/v1/admin/login":
-			var req LoginRequest
+		case "/landing_page_business_suite.v1.AdminAuthService/Login":
+			var req adminhttp.LoginRequest
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				return
@@ -128,16 +129,16 @@ func TestRemoteProfileService_LoginAndProxy(t *testing.T) {
 				Expires: time.Now().Add(1 * time.Hour),
 			})
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(LoginResponse{Email: req.Email, Authenticated: true, ResetEnabled: true})
-		case "/api/v1/admin/session":
+			_ = json.NewEncoder(w).Encode(adminhttp.SessionResponse{Email: req.Email, Authenticated: true, ResetEnabled: true})
+		case "/landing_page_business_suite.v1.AdminAuthService/Session":
 			cookie, _ := r.Cookie(remoteProfileCookieName)
 			if cookie == nil || cookie.Value != "session-123" {
 				w.WriteHeader(http.StatusUnauthorized)
-				_ = json.NewEncoder(w).Encode(LoginResponse{Authenticated: false, ResetEnabled: true})
+				_ = json.NewEncoder(w).Encode(adminhttp.SessionResponse{Authenticated: false, ResetEnabled: true})
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(LoginResponse{Authenticated: true, ResetEnabled: true})
+			_ = json.NewEncoder(w).Encode(adminhttp.SessionResponse{Authenticated: true, ResetEnabled: true})
 		case "/api/v1/admin/download-storage":
 			cookie, _ := r.Cookie(remoteProfileCookieName)
 			if cookie == nil {
@@ -377,9 +378,9 @@ func TestRemoteProfileService_TestExpiredSessionClears(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/v1/admin/session":
+		case "/landing_page_business_suite.v1.AdminAuthService/Session":
 			w.WriteHeader(http.StatusUnauthorized)
-			_ = json.NewEncoder(w).Encode(LoginResponse{Authenticated: false, ResetEnabled: true})
+			_ = json.NewEncoder(w).Encode(adminhttp.SessionResponse{Authenticated: false, ResetEnabled: true})
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -562,7 +563,7 @@ func TestRemoteProfileService_LogoutClearsSession(t *testing.T) {
 
 	client := stubHTTPClient{
 		do: func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path != "/api/v1/admin/logout" {
+			if req.URL.Path != "/landing_page_business_suite.v1.AdminAuthService/Logout" {
 				t.Fatalf("unexpected logout path: %s", req.URL.Path)
 			}
 			return newHTTPResponse(http.StatusOK, `{}`, nil, "application/json"), nil
@@ -599,7 +600,7 @@ func TestRemoteProfileService_LogoutClearsSession(t *testing.T) {
 func TestRemoteProfileService_RemoteLogoutUnauthorizedNoError(t *testing.T) {
 	client := stubHTTPClient{
 		do: func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path != "/api/v1/admin/logout" {
+			if req.URL.Path != "/landing_page_business_suite.v1.AdminAuthService/Logout" {
 				t.Fatalf("unexpected logout path: %s", req.URL.Path)
 			}
 			return newHTTPResponse(http.StatusUnauthorized, "unauthorized", nil, "application/json"), nil
@@ -615,7 +616,7 @@ func TestRemoteProfileService_RemoteLogoutUnauthorizedNoError(t *testing.T) {
 func TestRemoteProfileService_RemoteLogoutServerError(t *testing.T) {
 	client := stubHTTPClient{
 		do: func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path != "/api/v1/admin/logout" {
+			if req.URL.Path != "/landing_page_business_suite.v1.AdminAuthService/Logout" {
 				t.Fatalf("unexpected logout path: %s", req.URL.Path)
 			}
 			return newHTTPResponse(http.StatusInternalServerError, "boom", nil, "application/json"), nil
@@ -1119,11 +1120,11 @@ func TestRemoteProfileService_RemoteLoginHappyPath(t *testing.T) {
 	client := stubHTTPClient{
 		do: func(req *http.Request) (*http.Response, error) {
 			switch req.URL.Path {
-			case "/api/v1/admin/login":
+			case "/landing_page_business_suite.v1.AdminAuthService/Login":
 				cookie := &http.Cookie{Name: remoteProfileCookieName, Value: "session-abc", MaxAge: 3600}
 				body := `{"authenticated":true,"reset_enabled":true}`
 				return newHTTPResponse(http.StatusOK, body, []*http.Cookie{cookie}, "application/json"), nil
-			case "/api/v1/admin/session":
+			case "/landing_page_business_suite.v1.AdminAuthService/Session":
 				body := `{"authenticated":true,"reset_enabled":true}`
 				return newHTTPResponse(http.StatusOK, body, nil, "application/json"), nil
 			default:
@@ -1154,7 +1155,7 @@ func TestRemoteProfileService_RemoteLoginHappyPath(t *testing.T) {
 func TestRemoteProfileService_RemoteLoginMissingCookie(t *testing.T) {
 	client := stubHTTPClient{
 		do: func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path != "/api/v1/admin/login" {
+			if req.URL.Path != "/landing_page_business_suite.v1.AdminAuthService/Login" {
 				return newHTTPResponse(http.StatusNotFound, "missing", nil, "text/plain"), nil
 			}
 			body := `{"authenticated":true,"reset_enabled":true}`
@@ -1179,7 +1180,7 @@ func TestRemoteProfileService_RemoteLoginMissingCookie(t *testing.T) {
 func TestRemoteProfileService_RemoteLoginNotAuthenticated(t *testing.T) {
 	client := stubHTTPClient{
 		do: func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path != "/api/v1/admin/login" {
+			if req.URL.Path != "/landing_page_business_suite.v1.AdminAuthService/Login" {
 				return newHTTPResponse(http.StatusNotFound, "missing", nil, "text/plain"), nil
 			}
 			cookie := &http.Cookie{Name: remoteProfileCookieName, Value: "session-abc"}
@@ -1203,11 +1204,11 @@ func TestRemoteProfileService_RemoteLoginSessionVerificationFails(t *testing.T) 
 	client := stubHTTPClient{
 		do: func(req *http.Request) (*http.Response, error) {
 			switch req.URL.Path {
-			case "/api/v1/admin/login":
+			case "/landing_page_business_suite.v1.AdminAuthService/Login":
 				cookie := &http.Cookie{Name: remoteProfileCookieName, Value: "session-abc"}
 				body := `{"authenticated":true}`
 				return newHTTPResponse(http.StatusOK, body, []*http.Cookie{cookie}, "application/json"), nil
-			case "/api/v1/admin/session":
+			case "/landing_page_business_suite.v1.AdminAuthService/Session":
 				body := `{"authenticated":false}`
 				return newHTTPResponse(http.StatusOK, body, nil, "application/json"), nil
 			default:
@@ -1230,7 +1231,7 @@ func TestRemoteProfileService_RemoteLoginSessionVerificationFails(t *testing.T) 
 func TestRemoteProfileService_RemoteLoginInvalidJSON(t *testing.T) {
 	client := stubHTTPClient{
 		do: func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path != "/api/v1/admin/login" {
+			if req.URL.Path != "/landing_page_business_suite.v1.AdminAuthService/Login" {
 				return newHTTPResponse(http.StatusNotFound, "missing", nil, "text/plain"), nil
 			}
 			cookie := &http.Cookie{Name: remoteProfileCookieName, Value: "session-abc"}
@@ -1248,7 +1249,7 @@ func TestRemoteProfileService_RemoteLoginInvalidJSON(t *testing.T) {
 func TestRemoteProfileService_RemoteSessionCheckUnauthorized(t *testing.T) {
 	client := stubHTTPClient{
 		do: func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path != "/api/v1/admin/session" {
+			if req.URL.Path != "/landing_page_business_suite.v1.AdminAuthService/Session" {
 				return newHTTPResponse(http.StatusNotFound, "missing", nil, "text/plain"), nil
 			}
 			return newHTTPResponse(http.StatusUnauthorized, `{"authenticated":false}`, nil, "application/json"), nil
@@ -1268,7 +1269,7 @@ func TestRemoteProfileService_RemoteSessionCheckUnauthorized(t *testing.T) {
 func TestRemoteProfileService_RemoteSessionCheckServerError(t *testing.T) {
 	client := stubHTTPClient{
 		do: func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path != "/api/v1/admin/session" {
+			if req.URL.Path != "/landing_page_business_suite.v1.AdminAuthService/Session" {
 				return newHTTPResponse(http.StatusNotFound, "missing", nil, "text/plain"), nil
 			}
 			return newHTTPResponse(http.StatusInternalServerError, `{"error":"boom"}`, nil, "application/json"), nil
@@ -1292,7 +1293,7 @@ func TestRemoteProfileService_RemoteSessionCheckServerError(t *testing.T) {
 func TestRemoteProfileService_RemoteSessionCheckInvalidJSON(t *testing.T) {
 	client := stubHTTPClient{
 		do: func(req *http.Request) (*http.Response, error) {
-			if req.URL.Path != "/api/v1/admin/session" {
+			if req.URL.Path != "/landing_page_business_suite.v1.AdminAuthService/Session" {
 				return newHTTPResponse(http.StatusNotFound, "missing", nil, "text/plain"), nil
 			}
 			return newHTTPResponse(http.StatusOK, "{invalid", nil, "application/json"), nil

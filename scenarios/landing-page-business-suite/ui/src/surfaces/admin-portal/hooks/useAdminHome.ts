@@ -300,8 +300,8 @@ export function useAdminHome(): UseAdminHomeReturn {
     const resumeVariant = experience?.lastVariant;
     if (!resumeVariant) return null;
 
-    return resumeVariant.surface === 'section' && resumeVariant.sectionId
-      ? `/admin/customization/variants/${resumeVariant.slug}/sections/${String(resumeVariant.sectionId)}`
+    return resumeVariant.surface === 'section' && (resumeVariant.sectionKey || resumeVariant.sectionId)
+      ? `/admin/customization/variants/${resumeVariant.slug}/sections/${encodeURIComponent(resumeVariant.sectionKey ?? String(resumeVariant.sectionId))}`
       : `/admin/customization/variants/${resumeVariant.slug}`;
   }, [experience]);
 

@@ -50,6 +50,46 @@ func TestUpdatePriceClassifiesProviderFailures(t *testing.T) {
 	}
 }
 
+func TestDeletePriceRejectsMissingOrForeignBundle(t *testing.T) {
+	deps := testDependencies()
+	called := false
+	deps.DeletePrice = func(string) error { called = true; return nil }
+	handler := DeletePrice(deps)
+	for _, path := range []string{"/api/v1/admin/bundles/starter/prices", "/api/v1/admin/bundles/other/prices/price"} {
+		w := httptest.NewRecorder()
+		handler(w, httptest.NewRequest(http.MethodDelete, path, nil))
+		if w.Code != http.StatusBadRequest || called {
+			t.Fatalf("path %q: status = %d, delete called = %t", path, w.Code, called)
+		}
+	}
+}
+
+func TestDeletePriceMapsStoreOutcomes(t *testing.T) {
+	deps := testDependencies()
+	handler := DeletePrice(deps)
+	w := httptest.NewRecorder()
+	handler(w, httptest.NewRequest(http.MethodDelete, "/api/v1/admin/bundles/starter/prices/price", nil))
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("missing store status = %d", w.Code)
+	}
+
+	deps.DeletePrice = func(string) error { return errors.New("missing price") }
+	handler = DeletePrice(deps)
+	w = httptest.NewRecorder()
+	handler(w, httptest.NewRequest(http.MethodDelete, "/api/v1/admin/bundles/starter/prices/price", nil))
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("not found status = %d", w.Code)
+	}
+
+	deps.DeletePrice = func(string) error { return nil }
+	handler = DeletePrice(deps)
+	w = httptest.NewRecorder()
+	handler(w, httptest.NewRequest(http.MethodDelete, "/api/v1/admin/bundles/starter/prices/price", nil))
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "Plan deleted successfully") {
+		t.Fatalf("success status = %d, body = %q", w.Code, w.Body.String())
+	}
+}
+
 func testDependencies() Dependencies {
 	return Dependencies{
 		Catalog:   func(context.Context) (any, error) { return map[string]any{"bundles": []string{"starter"}}, nil },
@@ -74,7 +114,8 @@ func testDependencies() Dependencies {
 			w.WriteHeader(status)
 			_, _ = w.Write([]byte(message))
 		},
-		WriteSuccess:  func(w http.ResponseWriter, response any) { _ = json.NewEncoder(w).Encode(response) },
-		ClassifyError: func(error) (int, string, string, bool) { return 0, "", "", false },
+		WriteSuccess:        func(w http.ResponseWriter, response any) { _ = json.NewEncoder(w).Encode(response) },
+		WriteSuccessMessage: func(w http.ResponseWriter, message string) { _, _ = w.Write([]byte(message)) },
+		ClassifyError:       func(error) (int, string, string, bool) { return 0, "", "", false },
 	}
 }

@@ -77,10 +77,10 @@
 ### 🟠 P1 – Should have post-launch
 
 #### Performance & Accessibility
-- [ ] OT-P1-001 | Lighthouse performance | Default generated landing page achieves Lighthouse performance score ≥ 90 on desktop
-- [ ] OT-P1-002 | Time to interactive | Cold load TTI < 2.0s on typical broadband for main landing page
-- [ ] OT-P1-003 | Lighthouse accessibility | Lighthouse accessibility score ≥ 90 for generated template
-- [ ] OT-P1-004 | Keyboard accessibility | All interactive elements keyboard-accessible with discernible labels
+- [x] OT-P1-001 | Lighthouse performance | Default generated landing page achieves Lighthouse performance score ≥ 90 on desktop
+- [x] OT-P1-002 | Time to interactive | Cold load TTI < 2.0s on typical broadband for main landing page
+- [x] OT-P1-003 | Lighthouse accessibility | Lighthouse accessibility score ≥ 90 for generated template
+- [x] OT-P1-004 | Keyboard accessibility | All interactive elements keyboard-accessible with discernible labels
 
 #### Design & Branding
 - [x] OT-P1-005 | Aesthetic guidelines in template | Template specification includes `<frontend_aesthetics>` block in description for design agents

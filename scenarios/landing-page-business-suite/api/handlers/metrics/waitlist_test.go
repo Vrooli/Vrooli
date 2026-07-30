@@ -3,26 +3,14 @@ package metricshttp
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
-	feedbackhttp "landing-page-business-suite-api/handlers/feedback"
 	metrics "landing-page-business-suite-api/internal/metrics"
 )
-
-func asFeedbackDependencies(dependencies Dependencies) feedbackhttp.Dependencies {
-	return feedbackhttp.Dependencies{
-		DecodeJSON:     dependencies.DecodeJSON,
-		PathInt:        dependencies.PathInt,
-		WriteErrorType: dependencies.WriteErrorType,
-		WriteJSON:      dependencies.WriteJSON,
-		LogError:       dependencies.LogError,
-	}
-}
 
 type waitlistFake struct{ created metrics.WaitlistEmail }
 
@@ -62,54 +50,6 @@ type trackerFake struct {
 	event metrics.Event
 	err   error
 }
-
-type feedbackFake struct {
-	requests []metrics.FeedbackRequest
-}
-
-func (f *feedbackFake) Create(context.Context, *metrics.CreateFeedbackInput) (*metrics.FeedbackRequest, error) {
-	return nil, nil
-}
-
-func (f *feedbackFake) List(context.Context, string) ([]metrics.FeedbackRequest, error) {
-	return f.requests, nil
-}
-
-func (f *feedbackFake) GetByID(_ context.Context, id int) (*metrics.FeedbackRequest, error) {
-	for _, request := range f.requests {
-		if request.ID == id {
-			return &request, nil
-		}
-	}
-	return nil, errors.New("not found")
-}
-
-func (f *feedbackFake) UpdateStatus(context.Context, int, string) (*metrics.FeedbackRequest, error) {
-	return nil, nil
-}
-func (f *feedbackFake) Delete(context.Context, int) error                { return nil }
-func (f *feedbackFake) DeleteBulk(context.Context, []int) (int64, error) { return 0, nil }
-
-type feedbackCreateFake struct{ input metrics.CreateFeedbackInput }
-
-func (f *feedbackCreateFake) Create(_ context.Context, input *metrics.CreateFeedbackInput) (*metrics.FeedbackRequest, error) {
-	f.input = *input
-	return &metrics.FeedbackRequest{ID: 7, Type: input.Type, Email: input.Email}, nil
-}
-
-func (f *feedbackCreateFake) List(context.Context, string) ([]metrics.FeedbackRequest, error) {
-	return nil, nil
-}
-
-func (f *feedbackCreateFake) GetByID(context.Context, int) (*metrics.FeedbackRequest, error) {
-	return nil, nil
-}
-
-func (f *feedbackCreateFake) UpdateStatus(context.Context, int, string) (*metrics.FeedbackRequest, error) {
-	return nil, nil
-}
-func (f *feedbackCreateFake) Delete(context.Context, int) error                { return nil }
-func (f *feedbackCreateFake) DeleteBulk(context.Context, []int) (int64, error) { return 0, nil }
 
 type feedbackNotifierFake struct{ notifications []*metrics.FeedbackRequest }
 
@@ -168,48 +108,5 @@ func TestTrackMapsDomainValidationErrorsToThePublicValidationResponse(t *testing
 
 	if gotStatus != http.StatusBadRequest || gotMessage != "event_type is required" || gotType != "validation" {
 		t.Fatalf("error response = (%d, %q, %q)", gotStatus, gotMessage, gotType)
-	}
-}
-
-func TestListFeedbackSerializesAnEmptyArrayInsteadOfNull(t *testing.T) {
-	deps := Dependencies{
-		WriteJSON: func(w http.ResponseWriter, value interface{}) error { return json.NewEncoder(w).Encode(value) },
-		LogError:  func(string, map[string]interface{}) {},
-	}
-	response := httptest.NewRecorder()
-
-	feedbackhttp.List(asFeedbackDependencies(deps), &feedbackFake{}).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/admin/feedback", nil))
-
-	if response.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
-	}
-	if body := strings.TrimSpace(response.Body.String()); body != "[]" {
-		t.Fatalf("body = %s, want []", body)
-	}
-}
-
-func TestCreateFeedbackDefaultsTheTypeAndNotifiesAfterPersistence(t *testing.T) {
-	service := &feedbackCreateFake{}
-	notifier := &feedbackNotifierFake{}
-	deps := Dependencies{
-		DecodeJSON: func(_ http.ResponseWriter, r *http.Request, target interface{}) bool {
-			return json.NewDecoder(r.Body).Decode(target) == nil
-		},
-		WriteJSON: func(w http.ResponseWriter, value interface{}) error { return json.NewEncoder(w).Encode(value) },
-		LogError:  func(string, map[string]interface{}) {},
-	}
-	response := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/feedback", strings.NewReader(`{"type":"unexpected","email":"customer@example.com","subject":"Question","message":"Hello"}`))
-
-	feedbackhttp.Create(asFeedbackDependencies(deps), service, notifier).ServeHTTP(response, req)
-
-	if response.Code != http.StatusCreated {
-		t.Fatalf("status = %d, want %d", response.Code, http.StatusCreated)
-	}
-	if service.input.Type != "general" {
-		t.Fatalf("type = %q, want general", service.input.Type)
-	}
-	if len(notifier.notifications) != 1 || notifier.notifications[0].ID != 7 {
-		t.Fatalf("notifications = %+v", notifier.notifications)
 	}
 }

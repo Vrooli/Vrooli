@@ -1,7 +1,7 @@
 import {
-  getSection,
-  updateSection,
-  patchSection,
+  getVariantSection,
+  updateVariantSection,
+  createVariantSection,
   getVariant,
   getVariantSpace,
   type ContentSection,
@@ -37,8 +37,8 @@ export function buildFormFields(section: ContentSection): SectionFormFields {
   };
 }
 
-export async function loadSectionEditor(sectionId: number): Promise<SectionEditorState> {
-  const section = await getSection(sectionId);
+export async function loadSectionEditor(variantSlug: string, sectionKey: string): Promise<SectionEditorState> {
+  const section = await getVariantSection(variantSlug, sectionKey);
   return {
     section,
     form: buildFormFields(section),
@@ -46,18 +46,29 @@ export async function loadSectionEditor(sectionId: number): Promise<SectionEdito
 }
 
 export async function persistExistingSectionContent(
-  sectionId: number,
+  variantSlug: string,
+  sectionKey: string,
   content: Record<string, unknown>,
 ): Promise<SectionEditorState> {
-  await updateSection(sectionId, content);
-  return loadSectionEditor(sectionId);
+  await updateVariantSection(variantSlug, sectionKey, { content });
+  return loadSectionEditor(variantSlug, sectionKey);
 }
 
-export async function updateSectionOrder(sectionId: number, order: number) {
-  if (!sectionId || Number.isNaN(order)) {
-    throw new Error('Section ID and order are required');
+export async function createSection(
+  variantSlug: string,
+  section: Pick<ContentSection, 'section_type' | 'content' | 'order' | 'enabled'>,
+) {
+  if (!variantSlug) {
+    throw new Error('Variant slug is required');
   }
-  await patchSection(sectionId, { order });
+  return createVariantSection(variantSlug, section);
+}
+
+export async function updateSectionOrder(variantSlug: string, sectionKey: string, order: number) {
+  if (!variantSlug || !sectionKey || Number.isNaN(order)) {
+    throw new Error('Variant slug, section key, and order are required');
+  }
+  await updateVariantSection(variantSlug, sectionKey, { order });
 }
 
 export interface VariantAxisContext {

@@ -9,6 +9,9 @@ import (
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
+	billinghttp "landing-page-business-suite-api/handlers/commerce"
+	"landing-page-business-suite-api/internal/administration"
+	"landing-page-business-suite-api/internal/commerce"
 	"landing-page-business-suite-api/internal/testutil"
 )
 
@@ -22,12 +25,25 @@ func requestWithUserAuth(method, url string, body []byte, userEmail string) *htt
 		req = httptest.NewRequest(method, url, nil)
 	}
 	// Inject user claims into context (simulating authenticated user)
-	claims := &UserClaims{
+	claims := &administration.UserClaims{
 		Email:  userEmail,
 		UserID: "test-user-id",
 	}
 	ctx := context.WithValue(req.Context(), userClaimsKey, claims)
 	return req.WithContext(ctx)
+}
+
+func usageReportHandler(svc *commerce.UsageService) http.HandlerFunc {
+	deps := usageHTTPDependencies()
+	return billinghttp.RequireUsageServiceAuth(svc, deps, billinghttp.ReportUsage(svc, deps))
+}
+
+func usageCheckHandler(svc *commerce.UsageService) http.HandlerFunc {
+	return billinghttp.CheckLimit(svc, usageHTTPDependencies())
+}
+
+func usageSummaryHandler(svc *commerce.UsageService) http.HandlerFunc {
+	return billinghttp.GetUsageSummary(svc, nil, usageHTTPDependencies())
 }
 
 // ============================================================================
@@ -38,9 +54,9 @@ func TestHandleReportUsage_ValidRequest_Returns200(t *testing.T) {
 	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
 	defer db.Close()
 
-	handler := requireUsageServiceAuth(svc, handleReportUsage(svc))
+	handler := usageReportHandler(svc)
 
-	body := UsageReportRequest{
+	body := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       100000,
@@ -75,9 +91,9 @@ func TestHandleReportUsage_MissingAuthHeader_Returns401(t *testing.T) {
 	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
 	defer db.Close()
 
-	handler := requireUsageServiceAuth(svc, handleReportUsage(svc))
+	handler := usageReportHandler(svc)
 
-	body := UsageReportRequest{
+	body := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       100000,
@@ -98,9 +114,9 @@ func TestHandleReportUsage_InvalidAuthToken_Returns401(t *testing.T) {
 	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
 	defer db.Close()
 
-	handler := requireUsageServiceAuth(svc, handleReportUsage(svc))
+	handler := usageReportHandler(svc)
 
-	body := UsageReportRequest{
+	body := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       100000,
@@ -121,9 +137,9 @@ func TestHandleReportUsage_AuthWithoutBearerPrefix_Returns401(t *testing.T) {
 	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
 	defer db.Close()
 
-	handler := requireUsageServiceAuth(svc, handleReportUsage(svc))
+	handler := usageReportHandler(svc)
 
-	body := UsageReportRequest{
+	body := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       100000,
@@ -144,7 +160,7 @@ func TestHandleReportUsage_MalformedJSON_Returns400(t *testing.T) {
 	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
 	defer db.Close()
 
-	handler := requireUsageServiceAuth(svc, handleReportUsage(svc))
+	handler := usageReportHandler(svc)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/usage/report", bytes.NewReader([]byte("not valid json")))
 	req.Header.Set("Content-Type", "application/json")
@@ -159,11 +175,11 @@ func TestHandleReportUsage_MalformedJSON_Returns400(t *testing.T) {
 func TestHandleReportUsage_MissingRequiredFields_Returns400(t *testing.T) {
 	testCases := []struct {
 		name string
-		body UsageReportRequest
+		body commerce.UsageReportRequest
 	}{
 		{
 			name: "missing user_identity",
-			body: UsageReportRequest{
+			body: commerce.UsageReportRequest{
 				UserIdentity: "",
 				LimitKey:     "ai_credits",
 				Amount:       100000,
@@ -171,7 +187,7 @@ func TestHandleReportUsage_MissingRequiredFields_Returns400(t *testing.T) {
 		},
 		{
 			name: "missing limit_key",
-			body: UsageReportRequest{
+			body: commerce.UsageReportRequest{
 				UserIdentity: "user@example.com",
 				LimitKey:     "",
 				Amount:       100000,
@@ -179,7 +195,7 @@ func TestHandleReportUsage_MissingRequiredFields_Returns400(t *testing.T) {
 		},
 		{
 			name: "zero amount without BYOK",
-			body: UsageReportRequest{
+			body: commerce.UsageReportRequest{
 				UserIdentity: "user@example.com",
 				LimitKey:     "ai_credits",
 				Amount:       0,
@@ -193,7 +209,7 @@ func TestHandleReportUsage_MissingRequiredFields_Returns400(t *testing.T) {
 			svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
 			defer db.Close()
 
-			handler := requireUsageServiceAuth(svc, handleReportUsage(svc))
+			handler := usageReportHandler(svc)
 
 			bodyBytes, _ := json.Marshal(tc.body)
 			req := httptest.NewRequest(http.MethodPost, "/api/v1/usage/report", bytes.NewReader(bodyBytes))
@@ -212,9 +228,9 @@ func TestHandleReportUsage_BYOK_RecordsZeroAmount(t *testing.T) {
 	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
 	defer db.Close()
 
-	handler := requireUsageServiceAuth(svc, handleReportUsage(svc))
+	handler := usageReportHandler(svc)
 
-	body := UsageReportRequest{
+	body := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       100000, // Should be ignored
@@ -266,7 +282,7 @@ func TestHandleCheckLimit_ValidCheck_ReturnsCanProceedAndRemaining(t *testing.T)
 		t.Fatalf("Failed to seed usage: %v", err)
 	}
 
-	handler := handleCheckLimit(svc)
+	handler := usageCheckHandler(svc)
 
 	req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/check?tier=solo&limit_key=ai_credits", nil, "user@example.com")
 	w := httptest.NewRecorder()
@@ -302,7 +318,7 @@ func TestHandleCheckLimit_UserAtLimit_ReturnsCanProceedFalse(t *testing.T) {
 		t.Fatalf("Failed to seed usage: %v", err)
 	}
 
-	handler := handleCheckLimit(svc)
+	handler := usageCheckHandler(svc)
 
 	req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/check?tier=solo&limit_key=ai_credits", nil, "user@example.com")
 	w := httptest.NewRecorder()
@@ -326,7 +342,7 @@ func TestHandleCheckLimit_MissingParams_Returns400(t *testing.T) {
 		svc, _, db := createTestUsageService(t)
 		defer db.Close()
 
-		handler := handleCheckLimit(svc)
+		handler := usageCheckHandler(svc)
 
 		req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/check?tier=solo", nil, "user@example.com")
 		w := httptest.NewRecorder()
@@ -340,7 +356,7 @@ func TestHandleCheckLimit_Unauthenticated_Returns401(t *testing.T) {
 	svc, _, db := createTestUsageService(t)
 	defer db.Close()
 
-	handler := handleCheckLimit(svc)
+	handler := usageCheckHandler(svc)
 
 	// Request without auth context
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/usage/check?tier=solo&limit_key=ai_credits", nil)
@@ -356,7 +372,7 @@ func TestHandleCheckLimit_UnlimitedTier_ReturnsNegativeOneRemaining(t *testing.T
 
 	seedTestUsageTierLimits(t, db)
 
-	handler := handleCheckLimit(svc)
+	handler := usageCheckHandler(svc)
 
 	req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/check?tier=business&limit_key=ai_credits", nil, "user@example.com")
 	w := httptest.NewRecorder()
@@ -398,7 +414,7 @@ func TestHandleGetUsageSummary_ReturnsCorrectValues(t *testing.T) {
 		t.Fatalf("Failed to seed usage: %v", err)
 	}
 
-	handler := handleGetUsageSummary(svc, nil)
+	handler := usageSummaryHandler(svc)
 
 	req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/summary?tier=solo", nil, "user@example.com")
 	w := httptest.NewRecorder()
@@ -406,7 +422,7 @@ func TestHandleGetUsageSummary_ReturnsCorrectValues(t *testing.T) {
 
 	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
-	var resp UsageSummary
+	var resp commerce.UsageSummary
 	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	// Total usage should be 100000000 + 50000000 = 150000000
@@ -434,7 +450,7 @@ func TestHandleGetUsageSummary_NewUser_ReturnsEmptyUsage(t *testing.T) {
 
 	seedTestUsageTierLimits(t, db)
 
-	handler := handleGetUsageSummary(svc, nil)
+	handler := usageSummaryHandler(svc)
 
 	req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/summary?tier=solo", nil, "newuser@example.com")
 	w := httptest.NewRecorder()
@@ -442,7 +458,7 @@ func TestHandleGetUsageSummary_NewUser_ReturnsEmptyUsage(t *testing.T) {
 
 	testutil.RequireHTTPStatus(t, w, http.StatusOK)
 
-	var resp UsageSummary
+	var resp commerce.UsageSummary
 	decodeJSONResponse(t, w.Body.Bytes(), &resp)
 
 	// New user should have 0 usage
@@ -465,9 +481,9 @@ func TestHandleReportUsage_EmptyConfiguredToken_RejectsAll(t *testing.T) {
 	svc, _, db := createTestUsageServiceWithToken(t, "") // Empty token
 	defer db.Close()
 
-	handler := requireUsageServiceAuth(svc, handleReportUsage(svc))
+	handler := usageReportHandler(svc)
 
-	body := UsageReportRequest{
+	body := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       100000,
@@ -488,9 +504,9 @@ func TestHandleReportUsage_WhitespaceOnlyToken_Rejected(t *testing.T) {
 	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
 	defer db.Close()
 
-	handler := requireUsageServiceAuth(svc, handleReportUsage(svc))
+	handler := usageReportHandler(svc)
 
-	body := UsageReportRequest{
+	body := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       100000,
@@ -515,9 +531,9 @@ func TestHandleReportUsage_WithMetadata(t *testing.T) {
 	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
 	defer db.Close()
 
-	handler := requireUsageServiceAuth(svc, handleReportUsage(svc))
+	handler := usageReportHandler(svc)
 
-	body := UsageReportRequest{
+	body := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       100000,
@@ -555,9 +571,9 @@ func TestHandleReportUsage_ResponseFormat(t *testing.T) {
 	svc, _, db := createTestUsageServiceWithToken(t, "test-secret-token")
 	defer db.Close()
 
-	handler := requireUsageServiceAuth(svc, handleReportUsage(svc))
+	handler := usageReportHandler(svc)
 
-	body := UsageReportRequest{
+	body := commerce.UsageReportRequest{
 		UserIdentity: "user@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       100000,
@@ -588,7 +604,7 @@ func TestHandleCheckLimit_ResponseFormat(t *testing.T) {
 
 	seedTestUsageTierLimits(t, db)
 
-	handler := handleCheckLimit(svc)
+	handler := usageCheckHandler(svc)
 
 	req := requestWithUserAuth(http.MethodGet, "/api/v1/usage/check?tier=solo&limit_key=ai_credits", nil, "user@example.com")
 	w := httptest.NewRecorder()

@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { Code, ConnectError } from '@connectrpc/connect';
 import { renderWithProviders } from '../../../test-utils/renderWithProviders';
+import { createFeedback } from '../../../shared/api/feedback';
 import { FeedbackPage } from './FeedbackPage';
+
+vi.mock('../../../shared/api/feedback', () => ({ createFeedback: vi.fn() }));
 
 function renderFeedbackPage() {
   return renderWithProviders(<FeedbackPage />, { route: '/feedback' });
@@ -15,26 +19,25 @@ function completeForm() {
 
 describe('FeedbackPage', () => {
   beforeEach(() => {
-    vi.unstubAllGlobals();
-    vi.stubGlobal('fetch', vi.fn());
+    vi.mocked(createFeedback).mockReset();
   });
 
   it('submits a complete public feedback request and confirms durable receipt', async () => {
-    const fetchMock = vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ success: true, id: 7 }), { status: 201 }));
+    vi.mocked(createFeedback).mockResolvedValue({ success: true, id: 7 });
     renderFeedbackPage();
     completeForm();
 
     fireEvent.click(screen.getByRole('button', { name: /send general/i }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(createFeedback).toHaveBeenCalledTimes(1);
     });
-    expect(fetchMock).toHaveBeenCalledWith('/api/v1/feedback', expect.objectContaining({ method: 'POST' }));
+    expect(createFeedback).toHaveBeenCalledWith(expect.objectContaining({ type: 'general', email: 'buyer@example.com' }), expect.any(AbortSignal));
     expect(await screen.findByText('Thank you for your feedback!')).toBeInTheDocument();
   });
 
   it('shows refund-specific fields and preserves the selected feedback type in the request', async () => {
-    const fetchMock = vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ success: true, id: 8 }), { status: 201 }));
+    vi.mocked(createFeedback).mockResolvedValue({ success: true, id: 8 });
     renderFeedbackPage();
     fireEvent.click(screen.getByRole('button', { name: /request a refund/i }));
     expect(screen.getByText('30-Day Money-Back Guarantee')).toBeInTheDocument();
@@ -46,14 +49,13 @@ describe('FeedbackPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /send request/i }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(createFeedback).toHaveBeenCalledTimes(1);
     });
-    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
-    expect(JSON.parse(requestInit.body as string)).toMatchObject({ type: 'refund', orderId: 'sub_123' });
+    expect(createFeedback).toHaveBeenCalledWith(expect.objectContaining({ type: 'refund', orderId: 'sub_123' }), expect.any(AbortSignal));
   });
 
   it('surfaces a server validation error without offering an unsafe retry', async () => {
-    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ error: 'Subject is required' }), { status: 400 }));
+    vi.mocked(createFeedback).mockRejectedValue(new ConnectError('Subject is required', Code.InvalidArgument));
     renderFeedbackPage();
     completeForm();
     fireEvent.click(screen.getByRole('button', { name: /send general/i }));
@@ -63,7 +65,7 @@ describe('FeedbackPage', () => {
   });
 
   it('offers retry after a recoverable network failure', async () => {
-    vi.mocked(fetch).mockRejectedValue(new TypeError('offline'));
+    vi.mocked(createFeedback).mockRejectedValue(new TypeError('offline'));
     renderFeedbackPage();
     completeForm();
     fireEvent.click(screen.getByRole('button', { name: /send general/i }));

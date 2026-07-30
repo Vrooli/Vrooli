@@ -9,6 +9,9 @@ import (
 	"net/smtp"
 	"strings"
 	"time"
+
+	"landing-page-business-suite-api/internal/experimentation"
+	domainmetrics "landing-page-business-suite-api/internal/metrics"
 )
 
 // SMTPConfig holds SMTP configuration from database
@@ -120,7 +123,7 @@ func (s *EmailService) IsSendGridConfigured() bool {
 }
 
 // SendFeedbackNotification sends an email notification for new feedback
-func (s *EmailService) SendFeedbackNotification(branding *SiteBranding, feedback *FeedbackRequest) error {
+func (s *EmailService) SendFeedbackNotification(branding *experimentation.SiteBranding, feedback *domainmetrics.FeedbackRequest) error {
 	config := s.extractSMTPConfig(branding)
 
 	if !config.IsConfigured() {
@@ -157,7 +160,7 @@ Message:
 }
 
 // extractSMTPConfig pulls SMTP settings from branding
-func (s *EmailService) extractSMTPConfig(branding *SiteBranding) *SMTPConfig {
+func (s *EmailService) extractSMTPConfig(branding *experimentation.SiteBranding) *SMTPConfig {
 	config := &SMTPConfig{
 		Port: 587, // default
 	}

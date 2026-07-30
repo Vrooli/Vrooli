@@ -16,6 +16,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // ============================================================================
@@ -27,7 +28,7 @@ import (
 type monetizationTestHarness struct {
 	db             *sql.DB
 	stripeService  *StripeService
-	accountService *AccountService
+	accountService *commerce.Service
 	authorizer     *DownloadAuthorizer
 	webhookSecret  string
 }
@@ -562,7 +563,7 @@ func TestE2E_Webhook_UserDeletedBetweenEvents(t *testing.T) {
 	_, err = h.db.Exec(`DELETE FROM users WHERE email = $1`, "deleted@example.com")
 	require.NoError(t, err)
 
-	// Webhook should still succeed — handleCheckoutCompleted re-creates user via linkUserToStripeCustomer
+	// Webhook should still succeed — handleCheckoutCompleted re-creates the user/customer link.
 	h.fireWebhook(t, map[string]interface{}{
 		"id":   "evt_deleted_user",
 		"type": "checkout.session.completed",

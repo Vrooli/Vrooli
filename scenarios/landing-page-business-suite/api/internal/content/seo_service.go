@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"landing-page-business-suite-api/internal/contracts"
 )
 
 // seam: SEOStore supplies only the content data needed to render SEO documents.
@@ -13,6 +15,7 @@ type SEOStore interface {
 	Branding() SEOBranding
 	Variant(slug string) (SEOVariant, error)
 	Variants() []SEOVariant
+	UpdateVariantSEO(slug string, config contracts.VariantSEOConfig) error
 }
 
 type SEOBranding struct {
@@ -30,18 +33,6 @@ type SEOBranding struct {
 type SEOVariant struct {
 	Slug      string
 	SEOConfig json.RawMessage
-}
-
-type VariantSEOConfig struct {
-	Title          string                 `json:"title,omitempty"`
-	Description    string                 `json:"description,omitempty"`
-	OGTitle        string                 `json:"og_title,omitempty"`
-	OGDescription  string                 `json:"og_description,omitempty"`
-	OGImageURL     string                 `json:"og_image_url,omitempty"`
-	TwitterCard    string                 `json:"twitter_card,omitempty"`
-	CanonicalPath  string                 `json:"canonical_path,omitempty"`
-	NoIndex        bool                   `json:"noindex,omitempty"`
-	StructuredData map[string]interface{} `json:"structured_data,omitempty"`
 }
 
 type SEOResponse struct {
@@ -79,7 +70,7 @@ func (s *SEOService) VariantSEO(slug string) (*SEOResponse, error) {
 		return nil, err
 	}
 
-	var variantSEO VariantSEOConfig
+	var variantSEO contracts.VariantSEOConfig
 	if len(variant.SEOConfig) > 0 {
 		if err := json.Unmarshal(variant.SEOConfig, &variantSEO); err != nil {
 			s.logf("parse_variant_seo_failed", map[string]interface{}{"slug": slug, "error": err.Error()})
@@ -114,6 +105,12 @@ func (s *SEOService) VariantSEO(slug string) (*SEOResponse, error) {
 	return &response, nil
 }
 
+// UpdateVariantSEO persists a variant's SEO policy through the content-owned
+// store seam. Transport adapters do not need to know how variants are stored.
+func (s *SEOService) UpdateVariantSEO(slug string, config contracts.VariantSEOConfig) error {
+	return s.store.UpdateVariantSEO(slug, config)
+}
+
 func (s *SEOService) SitemapXML(fallbackBase string) (string, error) {
 	branding := s.store.Branding()
 	baseURL := strings.TrimSpace(fallbackBase)
@@ -125,7 +122,7 @@ func (s *SEOService) SitemapXML(fallbackBase string) (string, error) {
 	sb.WriteString("<urlset xmlns=\\\"http://www.sitemaps.org/schemas/sitemap/0.9\\\">\\n")
 	sb.WriteString(fmt.Sprintf("  <url>\\n    <loc>%s/</loc>\\n    <changefreq>weekly</changefreq>\\n    <priority>1.0</priority>\\n  </url>\\n", baseURL))
 	for _, variant := range s.store.Variants() {
-		var seoConfig VariantSEOConfig
+		var seoConfig contracts.VariantSEOConfig
 		if len(variant.SEOConfig) > 0 {
 			if err := json.Unmarshal(variant.SEOConfig, &seoConfig); err != nil {
 				s.logf("seo_config_parse_failed", map[string]interface{}{"slug": variant.Slug, "error": err.Error()})

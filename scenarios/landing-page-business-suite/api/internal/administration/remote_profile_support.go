@@ -28,7 +28,7 @@ type remoteProfileLoginRequest struct {
 
 type remoteProfileLoginResponse struct {
 	Authenticated bool   `json:"authenticated"`
-	SessionID     string `json:"session_id"`
+	SessionID     string `json:"sessionId"`
 }
 
 type remoteProfileAPIErrorResponse struct {

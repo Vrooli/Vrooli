@@ -1,6 +1,7 @@
 package delivery
 
 import (
+	"context"
 	"errors"
 	"testing"
 )
@@ -41,5 +42,38 @@ func TestAuthorizeUngatedAssetSkipsEntitlements(t *testing.T) {
 	}
 	if lookup.user != "" {
 		t.Fatal("unexpected entitlement lookup for ungated asset")
+	}
+}
+
+type assetLookupStub struct{ asset *Asset }
+
+func (s assetLookupStub) GetAsset(_, _, _ string) (*Asset, error) { return s.asset, nil }
+
+type entitlementStatusStub struct {
+	ctx    context.Context
+	user   string
+	status string
+}
+
+func (s *entitlementStatusStub) GetEntitlementStatus(ctx context.Context, user string) (string, error) {
+	s.ctx = ctx
+	s.user = user
+	return s.status, nil
+}
+
+func TestDownloadAuthorizerPassesContextAndTrimmedIdentity(t *testing.T) {
+	ctx := context.WithValue(context.Background(), "request-id", "delivery-test")
+	entitlements := &entitlementStatusStub{status: "active"}
+	authorizer := NewDownloadAuthorizer(assetLookupStub{asset: &Asset{RequiresEntitlement: true}}, entitlements, "bundle")
+
+	asset, err := authorizer.Authorize(ctx, " app ", " windows ", " user@example.com ")
+	if err != nil {
+		t.Fatalf("Authorize() error = %v", err)
+	}
+	if asset == nil {
+		t.Fatal("Authorize() returned nil asset")
+	}
+	if entitlements.ctx != ctx || entitlements.user != "user@example.com" {
+		t.Fatalf("entitlement call = context %v user %q, want original context and trimmed identity", entitlements.ctx, entitlements.user)
 	}
 }

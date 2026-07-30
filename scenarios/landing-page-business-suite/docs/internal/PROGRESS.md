@@ -6,6 +6,35 @@ This file tracks progress on scenario improvements made by AI agents.
 
 | Date | Author | Change Summary |
 |------|--------|----------------|
+| 2026-07-30 | Codex | Fresh server-owned Test Genie run `20260730-074236-a17feee4` eliminated the prior proto-orphan, stale-requirement, and UI-coverage execution failures. Its sole remaining error was a stale UI production bundle after the new test changed source freshness; rebuilding through `pnpm build` restored UI Health to passed. The run still reports advisory maturity debt (notably schema/proto domain naming and dependency advisories), so it is not treated as a full-green result. |
+| 2026-07-30 | Codex | Removed a process-global test-order dependency from account entitlement coverage: tests without configured catalog fixtures now receive an explicit empty plan store, while fixture-backed tests retain their configured catalog. The formerly flaky no-subscription contract passes repeatedly and the complete API suite passes. Repaired requirements evidence after the Stripe-handler extraction so checkout, verification, and cancellation point at the active Commerce Connect tests; Business Health passes. Also expanded magic-link UI coverage across validation, network, and unexpected failure classes; all UI tests pass and the enforced global branch-coverage gate now clears at 85.02% (previously 84.98% against 85%). |
+| 2026-07-30 | Codex | Added direct serialized-contract coverage for `internal/contracts/VariantSEOConfig`, clearing Structure Health's missing-test-file finding for that shared domain package. Structure Health now reports 44 remaining hardcoded-value findings; its remediation preview confirms none are mechanically auto-fixable, so they require domain-specific configuration decisions rather than blind rewrites. |
+| 2026-07-30 | Codex | Repaired stale CLI Connect evidence for `DownloadService.DeleteDownloadApp`: its manifest now binds the generated RPC and its primitive-evidence assembly includes the migrated command. Regenerated the committed evidence artifact. Full CLI tests/build and CLI Health now pass with zero blocking findings; remaining measure-tier entries are advisory only. |
+| 2026-07-30 | Codex | Removed the final direct root HTTP handler: REST download authorization now invokes `handlers/delivery.Authorize` directly, sharing the same concrete entitlement and managed-artifact dependencies as generated Connect authorization. Existing REST characterization tests now target the domain transport. Focused delivery/root tests, complete API tests/build, Go lint, and diff integrity pass. |
+| 2026-07-30 | Codex | Moved the customize queued-job HTTP contract into `handlers/content` and deleted its root `Server` method. Route composition now injects the clock; direct malformed-request coverage protects the new transport seam while existing characterization tests preserve the response contract. Focused content/root tests, complete API tests/build, Go lint, and diff integrity pass. |
+| 2026-07-30 | Codex | Removed the remaining root experimentation read-handler adapters. Variant select, public/admin get, and list routes now compose the existing `handlers/experimentation` transport directly; tests likewise target the domain handler with the root limited to dependency composition. Focused experimentation/root tests, complete API tests/build, Go lint, and diff integrity pass. |
+| 2026-07-30 | Codex | Moved all five admin API-key HTTP operations into `handlers/administration` and rewired production routes directly to that domain transport. Deleted root handler implementations, preserved existing status/response contracts through retargeted characterization tests, and added a direct malformed-create-request contract test. Focused administration/root tests, complete API tests/build, Go lint, and diff integrity pass. |
+| 2026-07-30 | Codex | Moved deploy-readiness request/response transport and its storage, catalog, and remote-profile gates into `handlers/deployment`; routing now supplies explicit dependencies and the root implementation was deleted. Added direct malformed-JSON coverage and retained database-backed readiness characterization tests. The handler now reports a failed gate rather than panicking if remote-profile integration is unavailable. Focused handler/root tests, complete API tests/build, Go lint, and diff integrity pass. |
+| 2026-07-30 | Codex | Completed the admin-profile transport extraction into `handlers/admin`: production routes now compose the domain handler directly, root duplicate DTOs/handlers/password policy were deleted, and direct handler tests cover authenticated profile projection plus configured-default-password rejection. The extraction also fixed a real policy defect discovered by that test: a plaintext configured default password was incorrectly passed to bcrypt as if it were a hash; it now uses constant-time plaintext comparison. Focused admin/root tests, complete API tests/build, Go lint, diff integrity, and a lifecycle restart all pass; scenario health is healthy. |
+| 2026-07-30 | Codex | Removed two concrete Security Health G115 blockers from delivery Connect serialization by range-checking app display order and asset artifact count before generated `int32` projection; added overflow characterization coverage. Delivery tests/build/lint pass and Security Health dropped from 44 to 42 blockers. The remaining blockers are dependency advisories, led by transitive UI lockfile packages; governed `x/crypto` install attempts retained v0.54.0 and did not clear its advisory. |
+| 2026-07-30 | Codex | Migrated CLI download-app list/create/save/delete from generic REST descriptors to generated `DownloadService` Connect primitives, preserving command names and raw app JSON input while enforcing required body/app-key contracts. Storage and artifact CLI commands remain REST because their proto procedures do not exist. Direct primitive-contract tests, complete CLI tests/build, scenario Go lint, and diff integrity pass. |
+| 2026-07-30 | Codex | Migrated public download authorization and admin download-app list/create/save/delete calls in the UI to the generated `DownloadService` Connect client, retaining REST only for download storage and artifact operations that have no proto procedure yet. Added generated-client compiler declarations and direct response/payload mapping tests. Focused downloads tests, UI typecheck, and UI lint pass. A complete UI suite was started and showed no failures through the shared download consumers before the terminal runner detached; its final result remains unproven. |
+| 2026-07-30 | Codex | Added the generated `DownloadService/AuthorizeDownload` Connect procedure over the established entitlement and managed-artifact presign seams. It preserves request-scoped user identity and maps missing input, unauthenticated callers, subscription denial, unavailable entitlements, and missing assets to typed Connect errors. The endpoint generator and manifest now include the mounted procedure. Direct delivery Connect tests, complete API tests/build, Go lint, and a scenario restart with healthy API/database all pass. REST remains temporarily for existing clients during UI/CLI generated-client migration. |
+| 2026-07-30 | Codex | Moved the remaining variant read response mapping and weighted-selection composition into `handlers/experimentation`, consolidating read/write transport on one response model while retaining only route-compatible root adapters. Added direct constructor coverage. Also fixed an order-dependent Stripe test seam: remote-API-only Stripe tests now use an explicit empty plan store rather than relying on another test to initialize global pricing state. Focused handler/root tests, the independently run coupon test, complete API tests/build, and Go lint pass. |
+| 2026-07-30 | Codex | Cleared the Go lint gate: removed an unused root bundle-price request type and normalized all reported formatting drift across API/CLI test and handler files. `make lint-go`, complete API tests/build, and complete CLI tests/build pass. |
+| 2026-07-30 | Codex | Added direct delivery update-transport tests proving API-key requests reject a missing app key, update-file requests reject a missing channel before lookup, and invalid policy intervals reject before persistence. Delivery handler coverage is 10.1%; complete API suite/build pass. |
+| 2026-07-30 | Codex | Added direct magic-link transport tests for invalid-email rejection, rate-limit enforcement, and enumeration-safe provider failure. Administration handler coverage increased from 34.9% to 40.1%; complete API suite/build pass. |
+| 2026-07-30 | Codex | Added direct `handlers/administration` tests for auth-cookie security attributes and deletion matching, fragment-only token redirects, and nullable timestamps. This closes the coverage seam where root compatibility tests did not cover moved transport code; administration handler coverage is now 34.9%. Complete API suite/build pass. |
+| 2026-07-30 | Codex | Expanded deterministic CLI support coverage for remote-profile API-base validation, ID normalization, query/path/key-value parsing, platform/content-type normalization, and cookie helpers. Support coverage rose from 2.1% to 20.1%; aggregate CLI coverage rose from 8.2% to 13.1%. Full CLI suite remains green; 75% policy target remains unmet. |
+| 2026-07-30 | Codex | Began the required CLI coverage expansion with deterministic managed-download upload validation contracts. Missing arguments, invalid platform, and missing artifact all fail before network access; the downloads command domain rose from 2.7% to 25.0% coverage and aggregate CLI coverage from 6.9% to 8.2%. The 75% policy target remains substantially unmet. |
+| 2026-07-30 | Codex | Executed native policy coverage commands: API aggregate is 30.0% and CLI aggregate is 6.9%, both below the committed 75% total minimum. Unit Health currently reports coverage clean without executing these commands; filed provider-evidence defect `knw-1785391363985649977`. Coverage expansion remains real modernization work, not a green result. |
+| 2026-07-30 | Codex | Deleted unregistered root checkout/subscription REST handlers after migrating their characterization coverage to the already-mounted generated `LandingPagePaymentsService` Connect handler. Checkout validation, subscription verification, and cancellation remain tested through the actual production protocol; no legacy production wrapper remains. Full API tests/build pass. |
+| 2026-07-30 | Codex | Started comprehensive Test Genie run `20260730-055738-322848fc` after recent delivery/security changes. Its required durable waiter detached without terminal JSON after the one permitted status read showed Architecture in progress (5/20); this repeats the known waiter-orchestration defect, so no full-suite result is claimed. |
+| 2026-07-30 | Codex | Moved Stripe's third-party signed webhook transport into `handlers/commerce`, retaining it as a justified REST exception while adding a 1 MiB body limit before signature processing. Focused webhook contracts plus complete API tests/build/vet pass. |
+| 2026-07-30 | Codex | Resolved the security scanner's four G124 cookie findings in the moved user-auth transport. Cookies retain deployment-selected `Secure` behavior (required for local HTTP development) with explicit reviewed rationale, while `HttpOnly`, `SameSite=Lax`, and scoped refresh paths remain enforced. Fresh Security Health scan no longer reports G124; remaining security blockers are dependency advisories. |
+| 2026-07-30 | Codex | Moved download-app administration HTTP transport and payload normalization into `handlers/delivery/apps.go`; production routes now bind that package directly through a small root composition seam. Existing validation and route-characterization tests remain active through test-only adapters. Full API tests, build, and vet pass. |
+| 2026-07-30 | Codex | Moved desktop auto-update HTTP transport out of the API root into `handlers/delivery/update.go`. The root now only composes concrete catalog/hosting/plan services, mux paths, and established envelope adapters; update API-key comparison, manifest/binary behavior, channel discovery, verification, and policy validation remain covered through retained characterization adapters. Full API tests and build pass. |
+| 2026-07-30 | Codex | Continued root-package decomposition: moved remote-profile, incoming-session, user-auth, and user-management HTTP transport into domain handler packages; moved variant response DTO ownership to experimentation transport; removed all non-test delivery aliases in favor of `internal/delivery` concrete types. Full API tests/build, UI suite/lint/type-check, unit health, experience validation, and lifecycle health pass. The latest server-owned Test Genie suite started and progressed through architecture but its durable waiter exited without terminal JSON (known infrastructure defect), so full-suite green remains unproven. |
 | 2026-07-28 | Codex | Decomposed the secret-bearing Stripe settings Connect update into request normalization/validation, stored-webhook enablement verification, persistence, and runtime activation. Key-prefix, HTTPS, redaction, Connect-error, and Stripe/anomaly refresh safeguards remain intact; focused settings and anomaly contracts pass, and Tidiness no longer flags the update path for high complexity. |
 | 2026-07-28 | Codex | Split subscription-context loading, catalog-derived tier reconciliation/backfill, and protobuf projection into explicit helpers. The cached purchase/access status contract, inactive-user handling, validation, and best-effort persistence repair remain intact; focused account, entitlement, and concurrency contracts plus the complete API suite pass. |
 | 2026-07-28 | Codex | Consolidated five remote-profile ID-operation handlers behind one shared protocol for path parsing, typed domain-error mapping, structured logging, and internal-error responses while retaining each endpoint’s message and success shape. Focused handler contracts and the complete API suite pass. |
@@ -1196,3 +1225,63 @@ All modified handlers now have `[REQ:SIGNAL-FEEDBACK]` annotations for traceabil
 - Add integration tests that assert expected log events
 - Consider adding request correlation IDs
 - Add metrics for log event volume monitoring
+
+## 2026-07-30 — Commerce usage transport extraction
+
+- Moved all usage HTTP endpoints from `api/usage_service.go` into
+  `api/handlers/commerce/usage.go`: service-token authorization, usage report,
+  customer/admin summaries, entitlement limit check, and health probe.
+- Removed `api/usage_service.go` after moving its last composition code to its
+  actual owners: `main.go` supplies runtime-only secret/logging policy and
+  `routes.go` composes commerce transport dependencies. Routes invoke the
+  commerce handler package directly; no production compatibility wrapper
+  remains.
+- Repointed existing characterization tests to the exported commerce transport
+  and added direct package tests for missing bearer credentials, malformed JSON,
+  missing authenticated identity, and missing limit key. These reject before
+  reaching a service, which documents the security and validation boundary.
+
+Validation:
+
+- `go test ./... -count=1 -timeout 10m` (API) passed.
+- `go build ./...` and `make lint-go` (API) passed.
+- `make restart` followed by `make status` reports the scenario healthy on API
+  port 17691 and UI port 23224.
+
+## 2026-07-30 — Endpoint inventory and dead bundle transport cleanup
+
+- Deleted obsolete root bundle catalog/update handler entry points. They had no
+  registered production routes after the Connect migration; tests now invoke
+  `handlers/bundles` directly through the same root dependency composition.
+- Corrected `api/cmd/gen-endpoints` to include every currently mounted generated
+  service previously omitted from Connect inventory: Assets, Variant, Metrics,
+  and Intelligence. Added explicit assertions for representative procedure
+  paths and regenerated `.vrooli/endpoints.json` (182 endpoints).
+
+Validation:
+
+- `go test ./... -count=1 -timeout 10m`, `go build ./...`, and `make lint-go`
+  passed in `api/`.
+- Generator test verifies the committed manifest exactly matches the route and
+  mounted-Connect inventory.
+
+## 2026-07-30 — Delivery app-catalog Connect server
+
+- Extended `DownloadService` with `DeleteDownloadApp`, regenerated governed
+  proto artifacts through `vrooli package generate proto`, and implemented
+  list/create/save/delete in `api/handlers/delivery/connect.go`.
+- The handler converts only at the transport edge and delegates validation and
+  persistence to the existing delivery catalog. Direct tests cover generated
+  response conversion, validation rejection, and not-found deletion mapping.
+- Mounted only the four implemented app-catalog procedures behind admin auth.
+  `AuthorizeDownload` is deliberately not mounted yet: its entitlement-aware
+  behavior remains on the established REST path until it is fully migrated.
+- The endpoint generator inventories exactly these mounted DownloadService
+  operations, avoiding an endpoint manifest that advertises an unimplemented
+  procedure.
+
+Validation:
+
+- `vrooli package generate proto` completed.
+- `go test ./... -count=1 -timeout 10m`, `go build ./...`, and `make lint-go`
+  passed in `api/` after regenerating `.vrooli/endpoints.json`.

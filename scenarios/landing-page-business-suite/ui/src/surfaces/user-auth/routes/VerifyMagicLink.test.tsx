@@ -57,4 +57,23 @@ describe('VerifyMagicLink', () => {
     });
     expect(await screen.findByText('Verification successful')).toBeInTheDocument();
   });
+
+  it.each([
+    ['expired', 'This link has expired', 'Request new link'],
+    ['already used', 'This link was already used', 'Request new link'],
+    ['invalid', 'This link is invalid', 'Request new link'],
+    ['unexpected failure', 'An unexpected failure occurred', null],
+  ] as const)('classifies %s verification failures without exposing credentials', async (message, userMessage, expectedAction) => {
+    const error = new api.ApiError(message, 'unknown', undefined, userMessage);
+    verifyMagicLink.mockRejectedValue(error);
+    renderVerify();
+
+    expect(await screen.findByText(userMessage)).toBeInTheDocument();
+    if (expectedAction) {
+      expect(screen.getByRole('link', { name: expectedAction })).toHaveAttribute('href', '/auth/login');
+    } else {
+      expect(screen.queryByRole('link', { name: /request new link/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /try again/i })).not.toBeInTheDocument();
+    }
+  });
 });

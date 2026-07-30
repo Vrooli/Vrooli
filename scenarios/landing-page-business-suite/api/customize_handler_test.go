@@ -6,12 +6,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
+	contenthttp "landing-page-business-suite-api/handlers/content"
 	"landing-page-business-suite-api/internal/testutil"
 )
 
 func TestHandleCustomizeQueuesJob(t *testing.T) {
-	srv := &Server{}
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/customize", bytes.NewBufferString(`{
 		"scenario_id":"landing-page-business-suite",
 		"brief":"Improve pricing copy",
@@ -20,7 +21,7 @@ func TestHandleCustomizeQueuesJob(t *testing.T) {
 	}`))
 	recorder := httptest.NewRecorder()
 
-	srv.handleCustomize(recorder, req)
+	contenthttp.Customize(time.Now)(recorder, req)
 
 	testutil.RequireHTTPStatus(t, recorder, http.StatusAccepted)
 	if got := recorder.Header().Get("Content-Type"); got != "application/json" {
@@ -41,11 +42,10 @@ func TestHandleCustomizeQueuesJob(t *testing.T) {
 }
 
 func TestHandleCustomizeRejectsMalformedRequest(t *testing.T) {
-	srv := &Server{}
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/customize", bytes.NewBufferString(`{"scenario_id":`))
 	recorder := httptest.NewRecorder()
 
-	srv.handleCustomize(recorder, req)
+	contenthttp.Customize(time.Now)(recorder, req)
 
 	testutil.RequireHTTPStatus(t, recorder, http.StatusBadRequest)
 }

@@ -18,19 +18,19 @@ const mockApiCall = vi.mocked(apiCall);
 describe('billing API transport', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    mockApiCall.mockResolvedValue({} as never);
-    paymentsClient.createCheckoutSession.mockResolvedValue({} as never);
-    paymentsClient.getBillingPortal.mockResolvedValue({} as never);
-		stripeSettingsClient.getStripeSettings.mockResolvedValue({} as never);
-		stripeSettingsClient.updateStripeSettings.mockResolvedValue({} as never);
-		stripeSettingsClient.revealStripeSecret.mockResolvedValue({} as never);
-    bundleAdminClient.listBundleCatalog.mockResolvedValue({} as never);
-    bundleAdminClient.updateBundlePrice.mockResolvedValue({} as never);
-    couponAdminClient.listCoupons.mockResolvedValue({} as never); couponAdminClient.createCoupon.mockResolvedValue({} as never);
-    couponAdminClient.getCoupon.mockResolvedValue({} as never); couponAdminClient.updateCoupon.mockResolvedValue({} as never);
-    couponAdminClient.deleteCoupon.mockResolvedValue({ deleted: true } as never); couponAdminClient.listCouponUsage.mockResolvedValue({} as never);
-    couponAdminClient.getCouponMappings.mockResolvedValue({} as never); couponAdminClient.setCouponForPlan.mockResolvedValue({ assigned: true } as never);
-    couponAdminClient.removeCouponFromPlan.mockResolvedValue({ removed: true } as never); couponAdminClient.getCouponImportPreview.mockResolvedValue({} as never);
+    mockApiCall.mockResolvedValue({});
+    paymentsClient.createCheckoutSession.mockResolvedValue({});
+    paymentsClient.getBillingPortal.mockResolvedValue({});
+		stripeSettingsClient.getStripeSettings.mockResolvedValue({});
+		stripeSettingsClient.updateStripeSettings.mockResolvedValue({});
+		stripeSettingsClient.revealStripeSecret.mockResolvedValue({});
+    bundleAdminClient.listBundleCatalog.mockResolvedValue({});
+    bundleAdminClient.updateBundlePrice.mockResolvedValue({});
+    couponAdminClient.listCoupons.mockResolvedValue({}); couponAdminClient.createCoupon.mockResolvedValue({});
+    couponAdminClient.getCoupon.mockResolvedValue({}); couponAdminClient.updateCoupon.mockResolvedValue({});
+    couponAdminClient.deleteCoupon.mockResolvedValue({ deleted: true }); couponAdminClient.listCouponUsage.mockResolvedValue({});
+    couponAdminClient.getCouponMappings.mockResolvedValue({}); couponAdminClient.setCouponForPlan.mockResolvedValue({ assigned: true });
+    couponAdminClient.removeCouponFromPlan.mockResolvedValue({ removed: true }); couponAdminClient.getCouponImportPreview.mockResolvedValue({});
   });
 
   it('uses settings, catalog, price, and checkout endpoints and rejects malformed required responses', async () => {
@@ -67,7 +67,7 @@ describe('billing API transport', () => {
   });
 
   it('uses coupon and mapping endpoints, validates read responses, and preserves destructive request contracts', async () => {
-    couponAdminClient.listCoupons.mockResolvedValueOnce({ coupons: [{}] } as never);
+    couponAdminClient.listCoupons.mockResolvedValueOnce({ coupons: [{}] });
     await expect(billing.listCoupons()).rejects.toThrow('Invalid coupons list response');
     await expect(billing.createCoupon({ duration: 'forever', percent_off: 20 })).rejects.toThrow('Invalid coupon response');
     await expect(billing.getCoupon('coupon/1')).rejects.toThrow('Invalid coupon response');
@@ -175,12 +175,12 @@ describe('billing API transport', () => {
       .mockResolvedValueOnce({
         snapshot: { publishableKeyPreview: 'pk_live_…', publishableKeySet: true, secretKeySet: true, webhookSecretSet: false, source: 2 },
         settings: { dashboardUrl: 'https://dashboard.stripe.com', updatedAt: '2026-01-01T00:00:00Z' },
-      } as never)
-      .mockResolvedValueOnce({ snapshot: { source: 0 }, settings: {} } as never)
-      .mockResolvedValueOnce({ snapshot: { source: 'managed' }, settings: {} } as never)
-      .mockResolvedValueOnce({ snapshot: { source: 42 }, settings: {} } as never)
-      .mockResolvedValueOnce({ snapshot: { source: {} }, settings: {} } as never)
-      .mockResolvedValueOnce({ snapshot: { source: 1 }, settings: {} } as never);
+      })
+      .mockResolvedValueOnce({ snapshot: { source: 0 }, settings: {} })
+      .mockResolvedValueOnce({ snapshot: { source: 'managed' }, settings: {} })
+      .mockResolvedValueOnce({ snapshot: { source: 42 }, settings: {} })
+      .mockResolvedValueOnce({ snapshot: { source: {} }, settings: {} })
+      .mockResolvedValueOnce({ snapshot: { source: 1 }, settings: {} });
 
     await expect(billing.getStripeSettings()).resolves.toMatchObject({
       publishable_key_preview: 'pk_live_…', publishable_key_set: true, secret_key_set: true,
@@ -196,9 +196,9 @@ describe('billing API transport', () => {
   it('returns validated Stripe import, verification, and coupon read models', async () => {
     const coupon = { id: 'coupon_1', duration: 1, timesRedeemed: 0, valid: true, created: 1n, isIntroCoupon: false };
     mockApiCall
-      .mockResolvedValueOnce({ id: 'price_1', currency: 'usd', amount_cents: 1000, active: true } as never)
-      .mockResolvedValueOnce({ products: [{ product_id: 'prod_1', product_name: 'Product', prices: [] }], total_prices: 0, conflict_count: 0, new_count: 0 } as never)
-      .mockResolvedValueOnce({ imported: 1, overwritten: 0, skipped: 0 } as never);
+      .mockResolvedValueOnce({ id: 'price_1', currency: 'usd', amount_cents: 1000, active: true })
+      .mockResolvedValueOnce({ products: [{ product_id: 'prod_1', product_name: 'Product', prices: [] }], total_prices: 0, conflict_count: 0, new_count: 0 })
+      .mockResolvedValueOnce({ imported: 1, overwritten: 0, skipped: 0 });
     couponAdminClient.listCoupons.mockResolvedValueOnce({ coupons: [coupon], introCouponMap: { price_1: 'coupon_1' } });
     couponAdminClient.getCoupon.mockResolvedValueOnce({ coupon });
     couponAdminClient.listCouponUsage.mockResolvedValueOnce({ usage: [{ couponId: 'coupon_1', totalUses: 3n }] });

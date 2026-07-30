@@ -1,5 +1,5 @@
 import { createClient } from '@connectrpc/connect';
-import { toJson } from '@bufbuild/protobuf';
+import { create, toJson, type JsonObject, type JsonValue } from '@bufbuild/protobuf';
 import { createScenarioConnectTransport } from '@vrooli/api-base';
 import { SeoService, type SEOResponse, type UpdateVariantSEOResponse } from '@vrooli/proto-types/landing-page-business-suite/seo_pb';
 import {
@@ -9,9 +9,12 @@ import {
   type Variant as VariantMessage,
   type VariantSnapshot as VariantSnapshotMessage,
 } from '@vrooli/proto-types/landing-page-business-suite/variant_pb';
+import { VariantSectionService } from '@vrooli/proto-types/landing-page-business-suite/variant_section_pb';
+import type { ContentSection as VariantSectionMessage } from '@vrooli/proto-types/landing-page-business-suite/shared/content_pb';
 import { VariantSpaceService } from '@vrooli/proto-types/landing-page-business-suite/variant_space_pb';
 import { CONNECT_API_BASE } from './common';
 import { parseOrNull } from './safeParse';
+import { isRecord } from '../lib/utils';
 import {
   VariantSchema,
   VariantSnapshotSchema,
@@ -26,6 +29,7 @@ import type {
   VariantSnapshot,
   VariantSEOConfig,
   VariantSEOResponse,
+  ContentSection,
 } from './types';
 
 const variantSpaceClient = createClient(
@@ -38,6 +42,10 @@ const seoClient = createClient(
 );
 const variantClient = createClient(
   VariantService,
+  createScenarioConnectTransport({ baseUrl: CONNECT_API_BASE }),
+);
+const variantSectionClient = createClient(
+  VariantSectionService,
   createScenarioConnectTransport({ baseUrl: CONNECT_API_BASE }),
 );
 
@@ -100,13 +108,78 @@ export function deleteVariant(slug: string) {
   return variantClient.deleteVariant({ slug }).then((response) => ({ success: response.deleted }));
 }
 
+function parseVariantSection(message: VariantSectionMessage | undefined): ContentSection {
+  if (!message?.key || !message.sectionType) {
+    throw new Error('Variant section response did not include a stable key and section type');
+  }
+  return {
+    id: 0,
+    variant_id: 0,
+    key: message.key,
+    section_type: message.sectionType as ContentSection['section_type'],
+    content: message.content ?? {},
+    order: message.order,
+    enabled: message.enabled,
+    created_at: '',
+    updated_at: '',
+  };
+}
+
+function isJsonValue(value: unknown): value is JsonValue {
+  if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return true;
+  }
+  if (Array.isArray(value)) {
+    return value.every(isJsonValue);
+  }
+  return isRecord(value) && Object.values(value).every(isJsonValue);
+}
+
+function jsonObjectFromContent(content: Record<string, unknown>): JsonObject {
+  if (!isJsonValue(content) || Array.isArray(content) || content === null) {
+    throw new Error('Section content must be a JSON object');
+  }
+  return content;
+}
+
+export function getVariantSections(slug: string) {
+  return variantSectionClient.getVariantSections({ slug }).then((response) => ({ sections: response.sections.map(parseVariantSection) }));
+}
+
+export function getVariantSection(slug: string, sectionKey: string) {
+  return variantSectionClient.getVariantSection({ slug, sectionKey }).then((response) => parseVariantSection(response.section));
+}
+
+export function createVariantSection(slug: string, section: Pick<ContentSection, 'key' | 'section_type' | 'content' | 'order' | 'enabled'>) {
+  return variantSectionClient.createVariantSection({
+    slug,
+    section: { key: section.key ?? '', sectionType: section.section_type, content: jsonObjectFromContent(section.content), order: section.order, enabled: section.enabled },
+  }).then((response) => parseVariantSection(response.section));
+}
+
+export function updateVariantSection(slug: string, sectionKey: string, patch: Partial<Pick<ContentSection, 'section_type' | 'content' | 'order' | 'enabled'>>) {
+  return variantSectionClient.updateVariantSection({
+    slug,
+    sectionKey,
+    sectionType: patch.section_type,
+    content: patch.content ? jsonObjectFromContent(patch.content) : undefined,
+    order: patch.order,
+    enabled: patch.enabled,
+  }).then((response) => parseVariantSection(response.section));
+}
+
+export function deleteVariantSection(slug: string, sectionKey: string) {
+  return variantSectionClient.deleteVariantSection({ slug, sectionKey }).then((response) => ({ success: response.deleted }));
+}
+
 export function selectVariant(_variantSlug?: string) {
   return variantClient.selectVariant({}).then((response) => parseVariant(response.variant));
 }
 
 function parseVariant(message: VariantMessage | undefined): Variant {
   if (!message) throw new Error('Variant response did not include a variant');
-  const raw = toJson(VariantMessageSchema, message, { useProtoFieldName: true }) as Record<string, unknown>;
+	const raw = toJson(VariantMessageSchema, message, { useProtoFieldName: true });
+	if (!isRecord(raw)) throw new Error('Invalid variant response from API');
   if (raw.id === '0') delete raw.id;
   const validated = parseOrNull(VariantSchema, raw, 'Variant');
   if (!validated) throw new Error('Invalid variant response from API');
@@ -115,7 +188,8 @@ function parseVariant(message: VariantMessage | undefined): Variant {
 
 function parseSnapshot(message: VariantSnapshotMessage | undefined): VariantSnapshot {
   if (!message) throw new Error('Variant snapshot response did not include a snapshot');
-  const raw = toJson(VariantSnapshotMessageSchema, message, { useProtoFieldName: true }) as Record<string, unknown>;
+	const raw = toJson(VariantSnapshotMessageSchema, message, { useProtoFieldName: true });
+	if (!isRecord(raw)) throw new Error('Invalid variant snapshot response from API');
   const snapshot = {
     variant: {
       slug: raw.slug, name: raw.name, description: raw.description, weight: raw.weight, status: raw.status, axes: raw.axes ?? {},
@@ -129,11 +203,11 @@ function parseSnapshot(message: VariantSnapshotMessage | undefined): VariantSnap
 }
 
 function snapshotToProto(snapshot: VariantSnapshot): VariantSnapshotMessage {
-  return {
+	return create(VariantSnapshotMessageSchema, {
     slug: snapshot.variant.slug, name: snapshot.variant.name, description: snapshot.variant.description ?? '', weight: snapshot.variant.weight ?? 0,
 	status: snapshot.variant.status ?? 'active', axes: snapshot.variant.axes, headerConfig: snapshot.variant.header_config ? headerConfigFromLegacy(snapshot.variant.header_config) : undefined,
     sections: snapshot.sections.map((section) => ({ id: 0n, variantId: 0n, sectionType: section.section_type, content: { fields: section.content }, order: section.order, enabled: section.enabled ?? true })),
-  } as VariantSnapshotMessage;
+	});
 }
 
 function headerConfigFromLegacy(config: LandingHeaderConfig) {

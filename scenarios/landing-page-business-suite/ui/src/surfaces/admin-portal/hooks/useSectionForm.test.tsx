@@ -12,6 +12,7 @@ import { useSectionForm } from './useSectionForm';
 import type {
   loadSectionEditor,
   persistExistingSectionContent,
+  createSection,
   loadVariantContext,
   updateSectionOrder,
 } from '../controllers/sectionEditorController';
@@ -30,11 +31,13 @@ vi.mock('../../../shared/hooks/useDebounce', () => ({
 // Mock the controller
 type LoadSectionEditorFn = typeof loadSectionEditor;
 type PersistExistingSectionContentFn = typeof persistExistingSectionContent;
+type CreateSectionFn = typeof createSection;
 type LoadVariantContextFn = typeof loadVariantContext;
 type UpdateSectionOrderFn = typeof updateSectionOrder;
 
 const loadSectionEditorMock = vi.fn<LoadSectionEditorFn>();
 const persistExistingSectionContentMock = vi.fn<PersistExistingSectionContentFn>();
+const createSectionMock = vi.fn<CreateSectionFn>();
 const loadVariantContextMock = vi.fn<LoadVariantContextFn>();
 const updateSectionOrderMock = vi.fn<UpdateSectionOrderFn>();
 
@@ -44,6 +47,7 @@ vi.mock('../controllers/sectionEditorController', async () => {
     ...actual,
     loadSectionEditor: (...args: Parameters<LoadSectionEditorFn>) => loadSectionEditorMock(...args),
     persistExistingSectionContent: (...args: Parameters<PersistExistingSectionContentFn>) => persistExistingSectionContentMock(...args),
+    createSection: (...args: Parameters<CreateSectionFn>) => createSectionMock(...args),
     loadVariantContext: (...args: Parameters<LoadVariantContextFn>) => loadVariantContextMock(...args),
     updateSectionOrder: (...args: Parameters<UpdateSectionOrderFn>) => updateSectionOrderMock(...args),
   };
@@ -88,6 +92,7 @@ vi.mock('../../../shared/lib/adminExperience', () => ({
 const mockSection: ContentSection = {
   id: 42,
   variant_id: 1,
+  key: 'section-1-hero',
   section_type: 'hero',
   content: { title: 'Welcome', subtitle: 'Get started' },
   order: 1,
@@ -97,8 +102,8 @@ const mockSection: ContentSection = {
 };
 
 const mockLandingSections: LandingSection[] = [
-  { id: 42, section_type: 'hero', content: { title: 'Welcome' }, order: 1, enabled: true },
-  { id: 43, section_type: 'features', content: {}, order: 2, enabled: true },
+  { key: 'section-1-hero', section_type: 'hero', content: { title: 'Welcome' }, order: 1, enabled: true },
+  { key: 'section-2-features', section_type: 'features', content: {}, order: 2, enabled: true },
 ];
 
 const mockLandingConfig: LandingConfigResponse = {
@@ -163,6 +168,7 @@ describe('useSectionForm', () => {
     loadVariantContextMock.mockResolvedValue(mockVariantContext);
     getLandingConfigMock.mockResolvedValue(mockLandingConfig);
     listVariantsMock.mockResolvedValue({ variants: mockVariants });
+    createSectionMock.mockResolvedValue({ ...mockSection, key: 'section-1-hero' });
   });
 
   describe('initial state', () => {
@@ -175,7 +181,7 @@ describe('useSectionForm', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(loadSectionEditorMock).toHaveBeenCalledWith(42);
+      expect(loadSectionEditorMock).toHaveBeenCalledWith('control', '42');
       expect(result.current.section).toEqual(mockSection);
       expect(result.current.sectionType).toBe('hero');
     });
@@ -318,7 +324,7 @@ describe('useSectionForm', () => {
         await result.current.handleSave();
       });
 
-      expect(persistExistingSectionContentMock).toHaveBeenCalledWith(42, expect.objectContaining({ title: 'Updated' }));
+      expect(persistExistingSectionContentMock).toHaveBeenCalledWith('control', '42', expect.objectContaining({ title: 'Updated' }));
       expect(onSuccess).toHaveBeenCalled();
     });
 
@@ -335,22 +341,22 @@ describe('useSectionForm', () => {
       expect(onError).toHaveBeenCalledWith('Variant slug is required to save section');
     });
 
-    it('reports unsupported new-section saves and malformed section identifiers', async () => {
+    it('creates new sections and treats non-numeric keys as valid identities', async () => {
       const onError = vi.fn();
       const { result: newResult } = renderHook(() =>
         useSectionForm({ variantSlug: 'control', sectionId: 'new', onError })
       );
       await waitForExistingVariantReady(newResult);
       await act(async () => { await newResult.current.handleSave(); });
-      expect(onError).toHaveBeenCalledWith('Creating new sections requires variant ID. This is a placeholder.');
+      expect(createSectionMock).toHaveBeenCalledWith('control', expect.objectContaining({ section_type: 'hero' }));
+      expect(navigateMock).toHaveBeenCalledWith('/admin/customization/variants/control/sections/section-1-hero');
 
-      const { result: invalidResult } = renderHook(() =>
-        useSectionForm({ variantSlug: 'control', sectionId: 'not-a-number', onError })
+      const { result: keyedResult } = renderHook(() =>
+        useSectionForm({ variantSlug: 'control', sectionId: 'legacy-imported-key', onError })
       );
-      await waitForExistingVariantReady(invalidResult);
-      await act(async () => { await invalidResult.current.handleSave(); });
-      expect(invalidResult.current.error).toBe('Section ID is missing.');
-      expect(onError).toHaveBeenCalledWith('Cannot save: section ID is missing');
+      await waitForExistingVariantReady(keyedResult);
+      await act(async () => { await keyedResult.current.handleSave(); });
+      expect(persistExistingSectionContentMock).toHaveBeenCalledWith('control', 'legacy-imported-key', expect.any(Object));
     });
 
     it('handles save error', async () => {
@@ -388,10 +394,10 @@ describe('useSectionForm', () => {
       });
 
       act(() => {
-        result.current.handleNavigateSection({ id: 43, section_type: 'features', content: {}, order: 2 });
+        result.current.handleNavigateSection({ key: 'section-2-features', section_type: 'features', content: {}, order: 2 });
       });
 
-      expect(navigateMock).toHaveBeenCalledWith('/admin/customization/variants/control/sections/43');
+      expect(navigateMock).toHaveBeenCalledWith('/admin/customization/variants/control/sections/section-2-features');
     });
 
     it('navigates to new section route when id is missing', async () => {
@@ -440,7 +446,7 @@ describe('useSectionForm', () => {
 
       await act(async () => {
         await result.current.handleReorderSection(
-          { id: 43, section_type: 'features', content: {}, order: 2 },
+          { key: 'section-2-features', section_type: 'features', content: {}, order: 2 },
           'up'
         );
       });
@@ -462,7 +468,7 @@ describe('useSectionForm', () => {
 
       await act(async () => {
         await result.current.handleReorderSection(
-          { id: 43, section_type: 'features', content: {}, order: 2 },
+          { key: 'section-2-features', section_type: 'features', content: {}, order: 2 },
           'up'
         );
       });
@@ -478,7 +484,7 @@ describe('useSectionForm', () => {
       await waitForExistingVariantReady(result);
 
       await act(async () => {
-        await result.current.handleReorderSection({ id: 42, section_type: 'hero', content: {}, order: 1 }, 'up');
+        await result.current.handleReorderSection({ key: 'section-1-hero', section_type: 'hero', content: {}, order: 1 }, 'up');
       });
       expect(result.current.reorderError).toBe('Unable to move section. Missing neighbor information.');
       expect(updateSectionOrderMock).not.toHaveBeenCalled();
@@ -652,7 +658,7 @@ describe('useSectionForm', () => {
       // Reorder operation (sequential, not concurrent to avoid overlapping act() calls)
       await act(async () => {
         await result.current.handleReorderSection(
-          { id: 43, section_type: 'features', content: {}, order: 2 },
+          { key: 'section-2-features', section_type: 'features', content: {}, order: 2 },
           'up'
         );
       });
@@ -732,7 +738,7 @@ describe('useSectionForm', () => {
         expect(result.current.previewConfigLoading).toBe(false);
       });
 
-      const section = { id: 43, section_type: 'features', content: {}, order: 2 };
+      const section = { key: 'section-2-features', section_type: 'features', content: {}, order: 2 };
 
       // First reorder attempt fails
       await act(async () => {

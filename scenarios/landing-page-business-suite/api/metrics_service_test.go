@@ -6,9 +6,11 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	domainmetrics "landing-page-business-suite-api/internal/metrics"
 )
 
-func setupMetricsTestDB(t *testing.T) (*sql.DB, *MetricsService) {
+func setupMetricsTestDB(t *testing.T) (*sql.DB, *domainmetrics.Service) {
 	t.Helper()
 	db := setupTestDB(t)
 
@@ -35,7 +37,7 @@ func setupMetricsTestDB(t *testing.T) (*sql.DB, *MetricsService) {
 func TestTrackEvent_Valid(t *testing.T) {
 	db, service := setupMetricsTestDB(t)
 
-	event := MetricEvent{
+	event := domainmetrics.Event{
 		EventType:   "page_view",
 		VariantSlug: "control",
 		SessionID:   "test-session-123",
@@ -69,7 +71,7 @@ func TestTrackEvent_Valid(t *testing.T) {
 func TestTrackEvent_Idempotency(t *testing.T) {
 	db, service := setupMetricsTestDB(t)
 
-	event := MetricEvent{
+	event := domainmetrics.Event{
 		EventType:   "page_view",
 		VariantSlug: "control",
 		SessionID:   "test-session-idem",
@@ -100,7 +102,7 @@ func TestTrackEvent_Idempotency(t *testing.T) {
 func TestTrackEvent_AppendsGeneratedEventID(t *testing.T) {
 	db, service := setupMetricsTestDB(t)
 
-	event := MetricEvent{
+	event := domainmetrics.Event{
 		EventType:   "page_view",
 		VariantSlug: "control",
 		SessionID:   "test-session-generated",
@@ -133,7 +135,7 @@ func TestTrackEvent_IdempotencyCheckError(t *testing.T) {
 	db, service := setupMetricsTestDB(t)
 	db.Close()
 
-	err := service.TrackEvent(MetricEvent{
+	err := service.TrackEvent(domainmetrics.Event{
 		EventType:   "page_view",
 		VariantSlug: "control",
 		SessionID:   "session-closed-db",
@@ -150,14 +152,14 @@ func TestTrackEvent_IdempotencyCheckError(t *testing.T) {
 func TestTrackEvent_InvalidEventType(t *testing.T) {
 	_, service := setupMetricsTestDB(t)
 
-	event := MetricEvent{
+	event := domainmetrics.Event{
 		EventType:   "invalid_type",
 		VariantSlug: "control",
 		SessionID:   "test-session",
 	}
 
 	err := service.TrackEvent(event)
-	var validationErr *MetricValidationError
+	var validationErr *domainmetrics.ValidationError
 	if !errors.As(err, &validationErr) {
 		t.Fatalf("expected MetricValidationError, got %v", err)
 	}
@@ -169,13 +171,13 @@ func TestTrackEvent_InvalidEventType(t *testing.T) {
 func TestTrackEvent_MissingRequiredFields(t *testing.T) {
 	_, service := setupMetricsTestDB(t)
 
-	event := MetricEvent{
+	event := domainmetrics.Event{
 		EventType:   "page_view",
 		VariantSlug: "",
 		SessionID:   "",
 	}
 
-	var validationErr *MetricValidationError
+	var validationErr *domainmetrics.ValidationError
 	if err := service.TrackEvent(event); !errors.As(err, &validationErr) {
 		t.Fatalf("expected MetricValidationError, got %v", err)
 	}
@@ -184,14 +186,14 @@ func TestTrackEvent_MissingRequiredFields(t *testing.T) {
 func TestTrackEvent_MissingVariantSlug(t *testing.T) {
 	_, service := setupMetricsTestDB(t)
 
-	event := MetricEvent{
+	event := domainmetrics.Event{
 		EventType: "page_view",
 		SessionID: "test-session",
 		// VariantSlug is missing
 	}
 
 	err := service.TrackEvent(event)
-	var validationErr *MetricValidationError
+	var validationErr *domainmetrics.ValidationError
 	if !errors.As(err, &validationErr) {
 		t.Fatalf("expected MetricValidationError, got %v", err)
 	}
@@ -205,7 +207,7 @@ func TestGetVariantStats(t *testing.T) {
 	_, service := setupMetricsTestDB(t)
 
 	// Insert test events
-	events := []MetricEvent{
+	events := []domainmetrics.Event{
 		{EventType: "page_view", VariantSlug: "control", SessionID: "session1", EventID: "evt1"},
 		{EventType: "page_view", VariantSlug: "control", SessionID: "session2", EventID: "evt2"},
 		{EventType: "click", VariantSlug: "control", SessionID: "session1", EventID: "evt3", EventData: map[string]interface{}{"element_type": "cta"}},
@@ -233,7 +235,7 @@ func TestGetVariantStats(t *testing.T) {
 	}
 
 	// Find control stats
-	var controlStats *VariantStats
+	var controlStats *domainmetrics.VariantStats
 	for i := range stats {
 		if stats[i].VariantSlug == "control" {
 			controlStats = &stats[i]
@@ -268,7 +270,7 @@ func TestGetVariantStats_FilterBySlug(t *testing.T) {
 	_, service := setupMetricsTestDB(t)
 
 	// Insert test events for multiple variants
-	if err := service.TrackEvent(MetricEvent{
+	if err := service.TrackEvent(domainmetrics.Event{
 		EventType:   "page_view",
 		VariantSlug: "control",
 		SessionID:   "session1",
@@ -277,7 +279,7 @@ func TestGetVariantStats_FilterBySlug(t *testing.T) {
 		t.Fatalf("failed to track event: %v", err)
 	}
 
-	if err := service.TrackEvent(MetricEvent{
+	if err := service.TrackEvent(domainmetrics.Event{
 		EventType:   "page_view",
 		VariantSlug: "variant-a",
 		SessionID:   "session2",
@@ -309,7 +311,7 @@ func TestGetAnalyticsSummary(t *testing.T) {
 	_, service := setupMetricsTestDB(t)
 
 	// Insert test events
-	events := []MetricEvent{
+	events := []domainmetrics.Event{
 		{EventType: "page_view", VariantSlug: "control", SessionID: "session1", EventID: "sum1"},
 		{EventType: "page_view", VariantSlug: "control", SessionID: "session2", EventID: "sum2"},
 		{EventType: "click", VariantSlug: "control", SessionID: "session1", EventID: "sum3", EventData: map[string]interface{}{"element_id": "hero-cta", "element_type": "cta"}},
@@ -356,7 +358,7 @@ func TestGetAnalyticsSummary(t *testing.T) {
 func TestGetAnalyticsSummary_NoCTAEvents(t *testing.T) {
 	_, service := setupMetricsTestDB(t)
 
-	if err := service.TrackEvent(MetricEvent{
+	if err := service.TrackEvent(domainmetrics.Event{
 		EventType:   "page_view",
 		VariantSlug: "control",
 		SessionID:   "lonely-session",
@@ -383,12 +385,12 @@ func TestGetAnalyticsSummary_NoCTAEvents(t *testing.T) {
 
 // TestGenerateEventID tests the event ID generation for idempotency
 func TestGenerateEventID(t *testing.T) {
-	event1 := MetricEvent{
+	event1 := domainmetrics.Event{
 		EventType:   "page_view",
 		VariantSlug: "control",
 		SessionID:   "session1",
 	}
-	event2 := MetricEvent{
+	event2 := domainmetrics.Event{
 		EventType:   "page_view",
 		VariantSlug: "control",
 		SessionID:   "session1",
@@ -403,7 +405,7 @@ func TestGenerateEventID(t *testing.T) {
 	}
 
 	// Different session should generate different ID
-	event3 := MetricEvent{
+	event3 := domainmetrics.Event{
 		EventType:   "page_view",
 		VariantSlug: "control",
 		SessionID:   "session2",

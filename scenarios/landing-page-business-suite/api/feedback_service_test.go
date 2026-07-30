@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"testing"
+
+	domainmetrics "landing-page-business-suite-api/internal/metrics"
 )
 
 var feedbackTestContext = context.Background()
@@ -26,7 +28,7 @@ func TestFeedbackService_Create_Success(t *testing.T) {
 
 	service := NewFeedbackService(db)
 
-	input := &CreateFeedbackInput{
+	input := &domainmetrics.CreateFeedbackInput{
 		Type:    "bug",
 		Email:   "test@example.com",
 		Subject: "Test Subject",
@@ -63,7 +65,7 @@ func TestFeedbackService_Create_StatusPending(t *testing.T) {
 
 	service := NewFeedbackService(db)
 
-	input := &CreateFeedbackInput{
+	input := &domainmetrics.CreateFeedbackInput{
 		Type:    "feature",
 		Email:   "pending@example.com",
 		Subject: "Feature Request",
@@ -86,7 +88,7 @@ func TestFeedbackService_Create_WithOrderID(t *testing.T) {
 	service := NewFeedbackService(db)
 	orderID := "order_123"
 
-	input := &CreateFeedbackInput{
+	input := &domainmetrics.CreateFeedbackInput{
 		Type:    "refund",
 		Email:   "order@example.com",
 		Subject: "Refund Request",
@@ -114,7 +116,7 @@ func TestFeedbackService_List_All(t *testing.T) {
 
 	// Create multiple feedback entries
 	for i := 0; i < 3; i++ {
-		_, err := service.Create(feedbackTestContext, &CreateFeedbackInput{
+		_, err := service.Create(feedbackTestContext, &domainmetrics.CreateFeedbackInput{
 			Type:    "general",
 			Email:   "list@example.com",
 			Subject: "Test",
@@ -142,13 +144,13 @@ func TestFeedbackService_List_ByStatus(t *testing.T) {
 	service := NewFeedbackService(db)
 
 	// Create entries
-	feedback1, err := service.Create(feedbackTestContext, &CreateFeedbackInput{
+	feedback1, err := service.Create(feedbackTestContext, &domainmetrics.CreateFeedbackInput{
 		Type: "bug", Email: "1@example.com", Subject: "S1", Message: "M1",
 	})
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
-	_, err = service.Create(feedbackTestContext, &CreateFeedbackInput{
+	_, err = service.Create(feedbackTestContext, &domainmetrics.CreateFeedbackInput{
 		Type: "bug", Email: "2@example.com", Subject: "S2", Message: "M2",
 	})
 	if err != nil {
@@ -202,7 +204,7 @@ func TestFeedbackService_GetByID_Success(t *testing.T) {
 
 	service := NewFeedbackService(db)
 
-	created, err := service.Create(feedbackTestContext, &CreateFeedbackInput{
+	created, err := service.Create(feedbackTestContext, &domainmetrics.CreateFeedbackInput{
 		Type:    "general",
 		Email:   "getbyid@example.com",
 		Subject: "Help needed",
@@ -248,7 +250,7 @@ func TestFeedbackService_UpdateStatus_Success(t *testing.T) {
 
 	service := NewFeedbackService(db)
 
-	created, err := service.Create(feedbackTestContext, &CreateFeedbackInput{
+	created, err := service.Create(feedbackTestContext, &domainmetrics.CreateFeedbackInput{
 		Type: "bug", Email: "update@example.com", Subject: "S", Message: "M",
 	})
 	if err != nil {
@@ -288,7 +290,7 @@ func TestFeedbackService_Delete_Success(t *testing.T) {
 
 	service := NewFeedbackService(db)
 
-	created, err := service.Create(feedbackTestContext, &CreateFeedbackInput{
+	created, err := service.Create(feedbackTestContext, &domainmetrics.CreateFeedbackInput{
 		Type: "bug", Email: "delete@example.com", Subject: "S", Message: "M",
 	})
 	if err != nil {
@@ -331,7 +333,7 @@ func TestFeedbackService_DeleteBulk_Success(t *testing.T) {
 	// Create multiple entries
 	var ids []int
 	for i := 0; i < 5; i++ {
-		created, err := service.Create(feedbackTestContext, &CreateFeedbackInput{
+		created, err := service.Create(feedbackTestContext, &domainmetrics.CreateFeedbackInput{
 			Type: "bug", Email: "bulk@example.com", Subject: "S", Message: "M",
 		})
 		if err != nil {
@@ -381,7 +383,7 @@ func TestFeedbackService_DeleteBulk_PartialMatch(t *testing.T) {
 	service := NewFeedbackService(db)
 
 	// Create one entry
-	created, err := service.Create(feedbackTestContext, &CreateFeedbackInput{
+	created, err := service.Create(feedbackTestContext, &domainmetrics.CreateFeedbackInput{
 		Type: "bug", Email: "partial@example.com", Subject: "S", Message: "M",
 	})
 	if err != nil {
@@ -407,7 +409,7 @@ func TestFeedbackService_List_OrderByCreatedDesc(t *testing.T) {
 	// Create entries with different subjects to identify them
 	subjects := []string{"First", "Second", "Third"}
 	for _, subject := range subjects {
-		_, err := service.Create(feedbackTestContext, &CreateFeedbackInput{
+		_, err := service.Create(feedbackTestContext, &domainmetrics.CreateFeedbackInput{
 			Type: "general", Email: "order@example.com", Subject: subject, Message: "M",
 		})
 		if err != nil {

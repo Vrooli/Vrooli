@@ -6,7 +6,8 @@ import { Input } from '../../../shared/ui/input';
 import { Textarea } from '../../../shared/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../shared/ui/card';
 import { InlineAlert } from '../../../shared/ui/InlineAlert';
-import { isRecord, safeParseJson } from '../../../shared/lib/utils';
+import { Code, ConnectError } from '@connectrpc/connect';
+import { createFeedback } from '../../../shared/api/feedback';
 
 type FeedbackType = 'refund' | 'bug' | 'feature' | 'general';
 
@@ -17,17 +18,6 @@ interface FeedbackFormData {
   message: string;
   orderId?: string;
 }
-
-type ClassifiedError = Error & {
-  type: 'server' | 'validation' | 'unknown';
-  message: string;
-};
-
-const classifiedError = (type: ClassifiedError['type'], message: string): ClassifiedError =>
-  Object.assign(new Error(message), { type });
-
-const isClassifiedError = (value: unknown): value is ClassifiedError =>
-  value instanceof Error && isRecord(value) && typeof value.type === 'string';
 
 const feedbackTypes: { value: FeedbackType; label: string; icon: React.ReactNode; description: string }[] = [
   {
@@ -87,37 +77,8 @@ export function FeedbackPage() {
     const timeoutId = setTimeout(() => { controller.abort(); }, 30000);
 
     try {
-      const response = await fetch('/api/v1/feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-        signal: controller.signal,
-      });
-
+      await createFeedback(form, controller.signal);
       clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const status = response.status;
-        let errorMessage: string | undefined;
-        try {
-          const raw = await response.text();
-          const parsed = safeParseJson(raw);
-          if (isRecord(parsed) && typeof parsed.error === 'string') {
-            errorMessage = parsed.error;
-          }
-        } catch {
-          // ignore invalid JSON
-        }
-
-        if (status >= 500) {
-          throw classifiedError('server', errorMessage || 'Our servers are experiencing issues. Please try again later.');
-        }
-        if (status === 400 || status === 422) {
-          throw classifiedError('validation', errorMessage || 'Please check your input and try again.');
-        }
-        throw classifiedError('unknown', errorMessage || 'Failed to submit feedback');
-      }
-
       setSubmitted(true);
     } catch (err) {
       clearTimeout(timeoutId);
@@ -135,12 +96,13 @@ export function FeedbackPage() {
           type: 'network',
           retryable: true,
         });
-      } else if (isClassifiedError(err)) {
-        // Classified error from above
+      } else if (err instanceof ConnectError) {
+        const validation = err.code === Code.InvalidArgument;
+        const server = err.code === Code.Internal || err.code === Code.Unavailable;
         setError({
-          message: err.message,
-          type: err.type as FeedbackError['type'],
-          retryable: err.type !== 'validation',
+          message: err.rawMessage || (validation ? 'Please check your input and try again.' : 'Failed to submit feedback'),
+          type: validation ? 'validation' : server ? 'server' : 'unknown',
+          retryable: !validation,
         });
       } else {
         setError({

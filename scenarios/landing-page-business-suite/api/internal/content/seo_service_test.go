@@ -5,6 +5,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"landing-page-business-suite-api/internal/contracts"
 )
 
 type fakeSEOStore struct {
@@ -30,10 +32,24 @@ func (s fakeSEOStore) Variants() []SEOVariant {
 	return result
 }
 
+func (s fakeSEOStore) UpdateVariantSEO(slug string, config contracts.VariantSEOConfig) error {
+	variant, ok := s.variants[slug]
+	if !ok {
+		return errors.New("variant not found")
+	}
+	encoded, err := json.Marshal(config)
+	if err != nil {
+		return err
+	}
+	variant.SEOConfig = encoded
+	s.variants[slug] = variant
+	return nil
+}
+
 func TestSEOServiceAppliesBrandingAndVariantOverrides(t *testing.T) {
 	canonical := "https://example.test/"
 	defaultTitle := "Default title"
-	config, err := json.Marshal(VariantSEOConfig{Title: "Variant title", CanonicalPath: "/variant"})
+	config, err := json.Marshal(contracts.VariantSEOConfig{Title: "Variant title", CanonicalPath: "/variant"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,9 +67,20 @@ func TestSEOServiceAppliesBrandingAndVariantOverrides(t *testing.T) {
 	}
 }
 
+func TestSEOServiceUpdatesVariantSEOThroughStoreSeam(t *testing.T) {
+	store := fakeSEOStore{variants: map[string]SEOVariant{"variant": {Slug: "variant"}}}
+	service := NewSEOService(store, nil)
+	if err := service.UpdateVariantSEO("variant", contracts.VariantSEOConfig{Title: "Updated title"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := string(store.variants["variant"].SEOConfig); !strings.Contains(got, "Updated title") {
+		t.Fatalf("stored SEO config = %s, want updated title", got)
+	}
+}
+
 func TestSEOServiceSitemapExcludesNoIndexVariants(t *testing.T) {
-	visible, _ := json.Marshal(VariantSEOConfig{CanonicalPath: "/visible"})
-	hidden, _ := json.Marshal(VariantSEOConfig{CanonicalPath: "/hidden", NoIndex: true})
+	visible, _ := json.Marshal(contracts.VariantSEOConfig{CanonicalPath: "/visible"})
+	hidden, _ := json.Marshal(contracts.VariantSEOConfig{CanonicalPath: "/hidden", NoIndex: true})
 	service := NewSEOService(fakeSEOStore{
 		variants: map[string]SEOVariant{
 			"visible": {Slug: "visible", SEOConfig: visible},

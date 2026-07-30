@@ -1,4 +1,4 @@
-import { vi, type Mock } from 'vitest';
+import { vi, type Mock, type MockInstance } from 'vitest';
 import { ApiError, type ApiErrorType } from '../api/common';
 import { isRecord, safeParseJson } from '../lib/utils';
 
@@ -225,17 +225,17 @@ export function expectApiError(
  * Returns the mock function and a cleanup function.
  */
 export function createWindowOpenMock(): {
-  mock: Mock<(...args: Parameters<typeof window.open>) => ReturnType<typeof window.open>>;
+  mock: Mock<(...args: Parameters<typeof window.open>) => ReturnType<typeof window.open>> & Pick<MockInstance<(...args: Parameters<typeof window.open>) => ReturnType<typeof window.open>>, 'mockRestore'>;
   restore: () => void;
 } {
-  const originalOpen = window.open;
-  const mock = vi.fn<(...args: Parameters<typeof window.open>) => ReturnType<typeof window.open>>();
-  window.open = mock;
+  const mock = vi.spyOn(window, 'open').mockImplementation(
+    vi.fn<(...args: Parameters<typeof window.open>) => ReturnType<typeof window.open>>()
+  );
 
   return {
-    mock,
+    mock: mock as Mock<(...args: Parameters<typeof window.open>) => ReturnType<typeof window.open>> & Pick<MockInstance<(...args: Parameters<typeof window.open>) => ReturnType<typeof window.open>>, 'mockRestore'>,
     restore: () => {
-      window.open = originalOpen;
+      mock.mockRestore();
     },
   };
 }
@@ -254,8 +254,8 @@ export function createObjectURLMock(): {
     createObjectURL?: typeof URL.createObjectURL;
     revokeObjectURL?: typeof URL.revokeObjectURL;
   };
-  const originalCreateObjectURL = urlApi.createObjectURL;
-  const originalRevokeObjectURL = urlApi.revokeObjectURL;
+  const originalCreateObjectURL = Object.getOwnPropertyDescriptor(urlApi, 'createObjectURL');
+  const originalRevokeObjectURL = Object.getOwnPropertyDescriptor(urlApi, 'revokeObjectURL');
   const mock = vi.fn<(...args: Parameters<typeof URL.createObjectURL>) => ReturnType<typeof URL.createObjectURL>>(
     () => 'blob:test-url'
   );
@@ -266,8 +266,16 @@ export function createObjectURLMock(): {
   return {
     mock,
     restore: () => {
-      urlApi.createObjectURL = originalCreateObjectURL;
-      urlApi.revokeObjectURL = originalRevokeObjectURL;
+      if (originalCreateObjectURL) {
+        Object.defineProperty(urlApi, 'createObjectURL', originalCreateObjectURL);
+      } else {
+        Reflect.deleteProperty(urlApi, 'createObjectURL');
+      }
+      if (originalRevokeObjectURL) {
+        Object.defineProperty(urlApi, 'revokeObjectURL', originalRevokeObjectURL);
+      } else {
+        Reflect.deleteProperty(urlApi, 'revokeObjectURL');
+      }
     },
   };
 }
@@ -370,12 +378,12 @@ export function createDownloadLinkMock(): {
 
   vi.spyOn(document.body, 'appendChild').mockImplementation((node) => {
     appendChildSpy(node);
-    return node as unknown as HTMLAnchorElement;
+    return node;
   });
 
   vi.spyOn(document.body, 'removeChild').mockImplementation((node) => {
     removeChildSpy(node);
-    return node as unknown as HTMLAnchorElement;
+    return node;
   });
 
   return {

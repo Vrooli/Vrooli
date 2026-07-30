@@ -44,6 +44,7 @@ type VariantSnapshotInput struct {
 
 // VariantSection represents a content section within a variant
 type VariantSection struct {
+	Key         string          `json:"key"`
 	SectionType string          `json:"section_type"`
 	Content     json.RawMessage `json:"content"`
 	Order       int             `json:"order"`
@@ -52,6 +53,7 @@ type VariantSection struct {
 
 // VariantSectionInput is the JSON file format for variant sections
 type VariantSectionInput struct {
+	Key         string          `json:"key,omitempty"`
 	SectionType string          `json:"section_type"`
 	Content     json.RawMessage `json:"content"`
 	Order       int             `json:"order,omitempty"`

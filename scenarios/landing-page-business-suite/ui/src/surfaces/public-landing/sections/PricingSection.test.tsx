@@ -1,6 +1,6 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { renderWithProviders as render } from "../../../test-utils/renderWithProviders";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { PricingSection } from './PricingSection';
 import { createCheckoutSession, type PricingOverview } from '../../../shared/api';
 
@@ -162,7 +162,10 @@ describe('PricingSection', () => {
       expect(createCheckoutSession).toHaveBeenCalledWith(expect.objectContaining({ price_id: 'price-growth' }));
       expect(screen.getByText('Checkout is unavailable')).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Dismiss pricing sticky' }));
+    const dismissButton = screen.getByRole('button', { name: 'Dismiss pricing sticky' });
+    expect(within(dismissButton.parentElement!).getByRole('button', { name: 'Choose plan' })).toHaveClass('min-h-11');
+    expect(dismissButton).toHaveClass('min-h-11');
+    fireEvent.click(dismissButton);
     expect(screen.queryByRole('button', { name: 'Dismiss pricing sticky' })).not.toBeInTheDocument();
   });
 
@@ -292,12 +295,13 @@ describe('PricingSection', () => {
     expect(screen.getByText('welcome bonus')).toBeInTheDocument();
     expect(screen.getByText('Plan rank #8')).toBeInTheDocument();
     expect(screen.getByTestId('pricing-cta-scale')).toHaveTextContent('Choose plan');
+    expect(screen.getByTestId('pricing-cta-scale')).toHaveClass('min-h-11');
   });
 
   it('keeps paid checkout controls loading only for the selected price and recovers after a successful session response', async () => {
     let resolveCheckout: (value: { url: string }) => void = () => undefined;
     const onCheckoutRedirect = vi.fn();
-    vi.mocked(createCheckoutSession).mockImplementationOnce(() => new Promise((resolve) => { resolveCheckout = resolve as typeof resolveCheckout; }) as never);
+    vi.mocked(createCheckoutSession).mockImplementationOnce(() => new Promise((resolve) => { resolveCheckout = resolve; }) as never);
     const pricingOverview: PricingOverview = {
       bundle,
       monthly: [

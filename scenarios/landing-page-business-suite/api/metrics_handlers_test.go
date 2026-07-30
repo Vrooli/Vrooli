@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	domainmetrics "landing-page-business-suite-api/internal/metrics"
 )
 
 // --- handleMetricsTrack Tests ---
@@ -16,7 +18,7 @@ func TestHandleMetricsTrack_Success(t *testing.T) {
 	cleanupMetricsEvents(t, db)
 
 	metricsService := NewMetricsService(db)
-	handler := handleMetricsTrack(metricsService)
+	handler := metricsHTTPDependencies.Track(metricsService)
 
 	body := `{
 		"event_type": "page_view",
@@ -51,7 +53,7 @@ func TestHandleMetricsTrack_InvalidJSON(t *testing.T) {
 	db := setupTestDB(t)
 
 	metricsService := NewMetricsService(db)
-	handler := handleMetricsTrack(metricsService)
+	handler := metricsHTTPDependencies.Track(metricsService)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/metrics/track", strings.NewReader("{invalid"))
 	req.Header.Set("Content-Type", "application/json")
@@ -68,7 +70,7 @@ func TestHandleMetricsTrack_ValidationError(t *testing.T) {
 	db := setupTestDB(t)
 
 	metricsService := NewMetricsService(db)
-	handler := handleMetricsTrack(metricsService)
+	handler := metricsHTTPDependencies.Track(metricsService)
 
 	// Missing required fields
 	body := `{
@@ -90,7 +92,7 @@ func TestHandleMetricsTrack_InvalidEventType(t *testing.T) {
 	db := setupTestDB(t)
 
 	metricsService := NewMetricsService(db)
-	handler := handleMetricsTrack(metricsService)
+	handler := metricsHTTPDependencies.Track(metricsService)
 
 	body := `{
 		"event_type": "invalid_event",
@@ -121,7 +123,7 @@ func TestHandleMetricsSummary_Success(t *testing.T) {
 	insertTestMetricEvent(t, db, "page_view", "variant-a", "session2")
 	insertTestMetricEvent(t, db, "conversion", "control", "session1")
 
-	handler := handleMetricsSummary(metricsService)
+	handler := metricsHTTPDependencies.Summary(metricsService)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/summary", nil)
 	w := httptest.NewRecorder()
@@ -132,7 +134,7 @@ func TestHandleMetricsSummary_Success(t *testing.T) {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusOK, w.Code, w.Body.String())
 	}
 
-	var resp AnalyticsSummary
+	var resp domainmetrics.AnalyticsSummary
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -148,7 +150,7 @@ func TestHandleMetricsSummary_CustomDates(t *testing.T) {
 	cleanupMetricsEvents(t, db)
 
 	metricsService := NewMetricsService(db)
-	handler := handleMetricsSummary(metricsService)
+	handler := metricsHTTPDependencies.Summary(metricsService)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/summary?start_date=2025-01-01&end_date=2025-12-31", nil)
 	w := httptest.NewRecorder()
@@ -164,7 +166,7 @@ func TestHandleMetricsSummary_InvalidDateFormat(t *testing.T) {
 	db := setupTestDB(t)
 
 	metricsService := NewMetricsService(db)
-	handler := handleMetricsSummary(metricsService)
+	handler := metricsHTTPDependencies.Summary(metricsService)
 
 	// Invalid date format should silently use defaults
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/summary?start_date=invalid&end_date=also-invalid", nil)
@@ -192,7 +194,7 @@ func TestHandleMetricsVariantStats_Success(t *testing.T) {
 	insertTestMetricEvent(t, db, "page_view", "variant-a", "session2")
 	insertTestMetricEvent(t, db, "click", "control", "session1")
 
-	handler := handleMetricsVariantStats(metricsService)
+	handler := metricsHTTPDependencies.VariantStats(metricsService)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/variants", nil)
 	w := httptest.NewRecorder()
@@ -227,7 +229,7 @@ func TestHandleMetricsVariantStats_FilterByVariant(t *testing.T) {
 	insertTestMetricEvent(t, db, "page_view", "control", "session1")
 	insertTestMetricEvent(t, db, "page_view", "variant-a", "session2")
 
-	handler := handleMetricsVariantStats(metricsService)
+	handler := metricsHTTPDependencies.VariantStats(metricsService)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/variants?variant=control", nil)
 	w := httptest.NewRecorder()
@@ -244,7 +246,7 @@ func TestHandleMetricsVariantStats_CustomDates(t *testing.T) {
 	cleanupMetricsEvents(t, db)
 
 	metricsService := NewMetricsService(db)
-	handler := handleMetricsVariantStats(metricsService)
+	handler := metricsHTTPDependencies.VariantStats(metricsService)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics/variants?start_date=2025-01-01&end_date=2025-12-31", nil)
 	w := httptest.NewRecorder()

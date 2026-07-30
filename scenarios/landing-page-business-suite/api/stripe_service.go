@@ -21,8 +21,9 @@ import (
 // StripeService handles Stripe payment integration
 type StripeService struct {
 	db                StripeServiceStore
-	planService       *PlanService
-	paymentSettings   *PaymentSettingsService
+	planService       *commerce.PlanService
+	creditWallet      commerce.CreditWallet
+	paymentSettings   *commerce.PaymentSettingsService
 	paymentAnomaly    *commerce.PaymentAnomalyService
 	checkoutCacheTTL  time.Duration
 	httpClient        *http.Client
@@ -156,21 +157,22 @@ func (e *StripeBundleProductNotFoundError) Error() string {
 
 // NewStripeService creates a new Stripe service instance.
 func NewStripeService(db StripeServiceStore) *StripeService {
-	return NewStripeServiceWithSettings(db, NewPlanService(db), NewPaymentSettingsService(db))
+	return NewStripeServiceWithSettings(db, NewPlanService(db), commerce.NewPaymentSettingsService(db))
 }
 
 // NewStripeServiceWithSettings wires explicit plan/payment dependencies (used by server).
-func NewStripeServiceWithSettings(db StripeServiceStore, planService *PlanService, paymentSettings *PaymentSettingsService) *StripeService {
+func NewStripeServiceWithSettings(db StripeServiceStore, planService *commerce.PlanService, paymentSettings *commerce.PaymentSettingsService) *StripeService {
 	if planService == nil {
 		planService = NewPlanService(db)
 	}
 	if paymentSettings == nil {
-		paymentSettings = NewPaymentSettingsService(db)
+		paymentSettings = commerce.NewPaymentSettingsService(db)
 	}
 
 	service := &StripeService{
 		db:                db,
 		planService:       planService,
+		creditWallet:      commerce.NewCreditWalletService(db),
 		paymentSettings:   paymentSettings,
 		checkoutCacheTTL:  60 * time.Second,
 		introCouponConfig: loadIntroCouponConfig(),

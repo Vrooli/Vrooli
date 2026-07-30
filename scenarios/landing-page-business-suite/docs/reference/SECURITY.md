@@ -35,7 +35,7 @@ The admin portal uses session-based authentication with bcrypt password hashing:
 │                    Authentication Flow                           │
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  1. POST /api/v1/admin/login                                     │
+│  1. POST /landing_page_business_suite.v1.AdminAuthService/Login │
 │     ┌─────────┐                                                  │
 │     │ Client  │ ──── email + password ────►  ┌─────────┐        │
 │     └─────────┘                               │   API   │        │
@@ -258,8 +258,8 @@ Endpoints are categorized by access level:
 All admin operations require authentication:
 
 ```
-POST   /api/v1/admin/logout
-POST   /api/v1/admin/reset-demo-data
+POST   /landing_page_business_suite.v1.AdminAuthService/Logout
+POST   /landing_page_business_suite.v1.AdminResetService/ResetDemoData
 POST   /landing_page_business_suite.v1.StripeSettingsService/GetStripeSettings
 POST   /landing_page_business_suite.v1.StripeSettingsService/UpdateStripeSettings
 POST   /landing_page_business_suite.v1.StripeSettingsService/RevealStripeSecret

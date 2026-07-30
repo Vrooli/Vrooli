@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -12,12 +11,11 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"unicode"
 
-	"github.com/gorilla/sessions"
 	apisecrets "github.com/vrooli/api-core/secrets"
 	"golang.org/x/crypto/bcrypt"
-	adminhttp "landing-page-business-suite-api/handlers/admin"
+	adminhttp "landing-page-business-suite-api/handlers/administration"
+	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/envx"
 )
 
@@ -123,12 +121,7 @@ func getAdminDefaults() (email string, passwordHash string, err error) {
 	return email, string(passwordHashBytes), nil
 }
 
-// sessionStore is kept for backwards compatibility with sessionAdminEmail helper.
-// New code should use Server.sessionManager instead.
-var sessionStore *sessions.CookieStore
-
 // initSessionManager creates and returns a SessionManager for the server.
-// It also initializes the global sessionStore for backwards compatibility.
 func initSessionManager() SessionManager {
 	secret := resolveSecret("SESSION_SECRET")
 	if secret == "" {
@@ -143,8 +136,6 @@ func initSessionManager() SessionManager {
 		})
 		secret = hex.EncodeToString(ephemeral)
 	}
-	// Initialize global for backwards compatibility
-	sessionStore = sessions.NewCookieStore([]byte(secret))
 	return NewCookieSessionManager(secret)
 }
 
@@ -178,13 +169,6 @@ func validateProductionCredentials() error {
 	return nil
 }
 
-// LoginRequest and LoginResponse remain package aliases for remote-profile
-// transport compatibility. HTTP ownership lives in handlers/admin.
-type (
-	LoginRequest  = adminhttp.LoginRequest
-	LoginResponse = adminhttp.SessionResponse
-)
-
 func (s *Server) adminSessionDependencies() adminhttp.Dependencies {
 	return adminhttp.Dependencies{
 		Auth:          s.adminAuth(),
@@ -199,14 +183,24 @@ func (s *Server) adminSessionDependencies() adminhttp.Dependencies {
 	}
 }
 
-func (s *Server) adminAuth() *AdminAuthService {
+func (s *Server) adminProfileDependencies() adminhttp.ProfileDependencies {
+	return adminhttp.ProfileDependencies{
+		Auth: s.adminAuth(), Sessions: s.sessionManager,
+		DefaultEmail:    func() string { email, _, _ := getAdminDefaults(); return email },
+		DefaultPassword: func() string { return resolveSecret("ADMIN_DEFAULT_PASSWORD") },
+		ValidateEmail:   func(email string) error { _, err := ValidateEmail(email); return err },
+		WriteError:      writeJSONError, Log: logStructured, LogError: logStructuredError,
+	}
+}
+
+func (s *Server) adminAuth() *administration.AdminAuthService {
 	if s.adminAuthService != nil {
 		return s.adminAuthService
 	}
 	if s.routedDB != nil {
-		return NewAdminAuthService(s.routedDB)
+		return administration.NewAdminAuthService(s.routedDB)
 	}
-	return NewAdminAuthService(s.db)
+	return administration.NewAdminAuthService(s.db)
 }
 
 // requireAdminOrService accepts either admin session cookie OR service bearer token.
@@ -216,7 +210,7 @@ func (s *Server) requireAdminOrService(next http.HandlerFunc) http.HandlerFunc {
 		// Try service token first (inter-scenario calls)
 		if auth := r.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
 			token := strings.TrimPrefix(auth, "Bearer ")
-			if s.usageService.ValidateServiceToken(token) {
+			if s.usageService != nil && s.usageService.ValidateServiceToken(token) {
 				next(w, r)
 				return
 			}
@@ -229,7 +223,11 @@ func (s *Server) requireAdminOrService(next http.HandlerFunc) http.HandlerFunc {
 // requireAdmin is middleware to protect admin routes
 func (s *Server) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		session, _ := s.sessionManager.GetSession(r, "admin_session")
+		session, err := s.sessionManager.GetSession(r, "admin_session")
+		if err != nil || session == nil {
+			writeJSONError(w, http.StatusUnauthorized, "Session expired. Please log in again.", ApiErrorTypeUnauthorized)
+			return
+		}
 		email, ok := session.Values["email"].(string)
 		if !ok || email == "" {
 			writeJSONError(w, http.StatusUnauthorized, "Session expired. Please log in again.", ApiErrorTypeUnauthorized)
@@ -263,228 +261,14 @@ func (s *Server) requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-type AdminProfileResponse struct {
-	Email             string `json:"email"`
-	IsDefaultEmail    bool   `json:"is_default_email"`
-	IsDefaultPassword bool   `json:"is_default_password"`
-}
-
-type AdminProfileUpdateRequest struct {
-	CurrentPassword string `json:"current_password"`
-	NewEmail        string `json:"new_email"`
-	NewPassword     string `json:"new_password"`
-}
-
-func buildAdminProfileResponse(email, passwordHash string) AdminProfileResponse {
-	envEmail, _, _ := getAdminDefaults()
-	configuredPassword := resolveSecret("ADMIN_DEFAULT_PASSWORD")
-	isDefaultPassword := configuredPassword != "" && bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(configuredPassword)) == nil
-	return AdminProfileResponse{
-		Email:             email,
-		IsDefaultEmail:    strings.EqualFold(email, envEmail),
-		IsDefaultPassword: isDefaultPassword,
-	}
-}
-
 func (s *Server) sessionAdminEmail(r *http.Request) (string, bool) {
-	session, _ := s.sessionManager.GetSession(r, "admin_session")
+	session, err := s.sessionManager.GetSession(r, "admin_session")
+	if err != nil || session == nil {
+		return "", false
+	}
 	email, ok := session.Values["email"].(string)
 	if !ok || strings.TrimSpace(email) == "" {
 		return "", false
 	}
 	return email, true
-}
-
-// handleAdminProfile returns the authenticated admin's profile
-func (s *Server) handleAdminProfile(w http.ResponseWriter, r *http.Request) {
-	email, ok := s.sessionAdminEmail(r)
-	if !ok {
-		writeJSONError(w, http.StatusUnauthorized, "Session expired. Please log in again.", ApiErrorTypeUnauthorized)
-		return
-	}
-
-	profile, err := s.adminAuth().Profile(r.Context(), email)
-	if err == sql.ErrNoRows {
-		writeJSONError(w, http.StatusUnauthorized, "Session expired. Please log in again.", ApiErrorTypeUnauthorized)
-		return
-	} else if err != nil {
-		logStructuredError("admin_profile_lookup_failed", map[string]interface{}{
-			"error": err.Error(),
-		})
-		writeJSONError(w, http.StatusInternalServerError, "Failed to load profile. Please try again.", ApiErrorTypeServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(buildAdminProfileResponse(profile.Email, profile.PasswordHash)); err != nil {
-		logStructuredError("admin_profile_encode_failed", map[string]interface{}{
-			"error": err.Error(),
-		})
-	}
-}
-
-// handleAdminProfileUpdate updates the admin email and/or password
-func (s *Server) handleAdminProfileUpdate(w http.ResponseWriter, r *http.Request) {
-	currentEmail, ok := s.sessionAdminEmail(r)
-	if !ok {
-		writeJSONError(w, http.StatusUnauthorized, "Session expired. Please log in again.", ApiErrorTypeUnauthorized)
-		return
-	}
-
-	var req AdminProfileUpdateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, http.StatusBadRequest, "Invalid request body", ApiErrorTypeValidation)
-		return
-	}
-
-	req.CurrentPassword = strings.TrimSpace(req.CurrentPassword)
-	req.NewEmail = strings.TrimSpace(req.NewEmail)
-	req.NewPassword = strings.TrimSpace(req.NewPassword)
-
-	if req.CurrentPassword == "" {
-		writeJSONError(w, http.StatusBadRequest, "Current password is required", ApiErrorTypeValidation)
-		return
-	}
-	if req.NewEmail == "" && req.NewPassword == "" {
-		writeJSONError(w, http.StatusBadRequest, "Provide a new email or password to update", ApiErrorTypeValidation)
-		return
-	}
-
-	profile, err := s.adminAuth().Profile(r.Context(), currentEmail)
-	if err == sql.ErrNoRows {
-		writeJSONError(w, http.StatusUnauthorized, "Session expired. Please log in again.", ApiErrorTypeUnauthorized)
-		return
-	} else if err != nil {
-		logStructuredError("admin_profile_load_failed", map[string]interface{}{
-			"error": err.Error(),
-		})
-		writeJSONError(w, http.StatusInternalServerError, "Failed to load admin profile. Please try again.", ApiErrorTypeServerError)
-		return
-	}
-
-	if err := bcrypt.CompareHashAndPassword([]byte(profile.PasswordHash), []byte(req.CurrentPassword)); err != nil {
-		writeJSONError(w, http.StatusUnauthorized, "Invalid credentials", ApiErrorTypeUnauthorized)
-		return
-	}
-
-	targetEmail := profile.Email
-	if req.NewEmail != "" && !strings.EqualFold(req.NewEmail, profile.Email) {
-		// Use centralized email validation (RFC 5322 compliant)
-		if _, err := ValidateEmail(req.NewEmail); err != nil {
-			writeJSONError(w, http.StatusBadRequest, "Invalid email address", ApiErrorTypeValidation)
-			return
-		}
-		exists, err := s.adminAuth().EmailInUse(r.Context(), req.NewEmail, profile.ID)
-		if err != nil {
-			logStructuredError("admin_email_validation_failed", map[string]interface{}{
-				"error": err.Error(),
-			})
-			writeJSONError(w, http.StatusInternalServerError, "Failed to validate email. Please try again.", ApiErrorTypeServerError)
-			return
-		}
-		if exists {
-			writeJSONError(w, http.StatusConflict, "Email already in use", ApiErrorTypeValidation)
-			return
-		}
-		targetEmail = req.NewEmail
-	}
-
-	targetPasswordHash := profile.PasswordHash
-	if req.NewPassword != "" {
-		if err := validateAdminPasswordUpdate(req.NewPassword, profile.PasswordHash); err != nil {
-			writeJSONError(w, http.StatusBadRequest, err.Error(), ApiErrorTypeValidation)
-			return
-		}
-		hashed, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
-		if err != nil {
-			logStructuredError("admin_password_hash_failed", map[string]interface{}{
-				"error": err.Error(),
-			})
-			writeJSONError(w, http.StatusInternalServerError, "Failed to process password. Please try again.", ApiErrorTypeServerError)
-			return
-		}
-		targetPasswordHash = string(hashed)
-	}
-
-	if targetEmail == profile.Email && targetPasswordHash == profile.PasswordHash {
-		writeJSONError(w, http.StatusBadRequest, "No changes detected", ApiErrorTypeValidation)
-		return
-	}
-
-	if err := s.adminAuth().UpdateProfile(r.Context(), profile.ID, targetEmail, targetPasswordHash); err != nil {
-		logStructuredError("admin_profile_update_failed", map[string]interface{}{
-			"error": err.Error(),
-		})
-		writeJSONError(w, http.StatusInternalServerError, "Failed to update profile. Please try again.", ApiErrorTypeServerError)
-		return
-	}
-
-	session, _ := s.sessionManager.GetSession(r, "admin_session")
-	currentSessionID, _ := session.Values["session_id"].(string)
-
-	// If password was changed, invalidate all other sessions for security
-	if targetPasswordHash != profile.PasswordHash {
-		affected, err := s.adminAuth().RevokeOtherSessions(r.Context(), currentEmail, currentSessionID)
-		if err != nil {
-			logStructuredError("admin_sessions_invalidation_failed", map[string]interface{}{
-				"error": err.Error(),
-				"email": currentEmail,
-			})
-		} else if affected > 0 {
-			logStructured("admin_sessions_invalidated_on_password_change", map[string]interface{}{
-				"level":            "info",
-				"email":            currentEmail,
-				"sessions_revoked": affected,
-				"security":         true,
-			})
-		}
-	}
-
-	// Update email in current session if changed
-	session.Values["email"] = targetEmail
-	if err := s.sessionManager.SaveSession(r, w, session); err != nil {
-		logStructuredError("session_save_after_profile_update_failed", map[string]interface{}{
-			"error": err.Error(),
-		})
-	}
-
-	logStructured("admin_profile_updated", map[string]interface{}{
-		"level":          "info",
-		"changed_email":  targetEmail != profile.Email,
-		"changed_secret": targetPasswordHash != profile.PasswordHash,
-	})
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(buildAdminProfileResponse(targetEmail, targetPasswordHash)); err != nil {
-		logStructuredError("admin_profile_update_encode_failed", map[string]interface{}{
-			"error": err.Error(),
-		})
-	}
-}
-
-func validateAdminPasswordUpdate(candidate, currentHash string) error {
-	if len(candidate) < 12 {
-		return fmt.Errorf("Password must be at least 12 characters")
-	}
-	hasLetter := false
-	hasDigit := false
-	for _, c := range candidate {
-		if unicode.IsLetter(c) {
-			hasLetter = true
-		}
-		if unicode.IsDigit(c) {
-			hasDigit = true
-		}
-	}
-	if !hasLetter || !hasDigit {
-		return fmt.Errorf("Password must include letters and numbers")
-	}
-	if bcrypt.CompareHashAndPassword([]byte(currentHash), []byte(candidate)) == nil {
-		return fmt.Errorf("New password must be different from the current password")
-	}
-	_, envHash, _ := getAdminDefaults()
-	if bcrypt.CompareHashAndPassword([]byte(envHash), []byte(candidate)) == nil {
-		return fmt.Errorf("New password cannot use the default credential")
-	}
-	return nil
 }

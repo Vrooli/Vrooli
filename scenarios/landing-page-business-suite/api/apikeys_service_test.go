@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	adminhttp "landing-page-business-suite-api/handlers/administration"
+	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/envx"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -25,6 +27,14 @@ type mockHTTPDoer struct {
 	body       string
 	err        error
 	requests   []*http.Request
+}
+
+func apiKeyHandlerDependencies(service *administration.APIKeyService) adminhttp.APIKeyDependencies {
+	return adminhttp.APIKeyDependencies{
+		Service:    service,
+		WriteError: writeJSONError,
+		LogError:   logStructuredError,
+	}
 }
 
 func (m *mockHTTPDoer) Do(req *http.Request) (*http.Response, error) {
@@ -78,7 +88,7 @@ func createTestAPIKeysDB(t *testing.T) *sql.DB {
 }
 
 // createTestAPIKeyService creates an API key service for testing without encryption.
-func createTestAPIKeyService(t *testing.T, httpClient HTTPDoer) (*APIKeyService, *sql.DB) {
+func createTestAPIKeyService(t *testing.T, httpClient administration.APIKeyHTTPDoer) (*administration.APIKeyService, *sql.DB) {
 	t.Helper()
 
 	db := createTestAPIKeysDB(t)
@@ -94,7 +104,7 @@ func createTestAPIKeyService(t *testing.T, httpClient HTTPDoer) (*APIKeyService,
 }
 
 // createTestAPIKeyServiceWithEncryption creates an API key service with encryption enabled.
-func createTestAPIKeyServiceWithEncryption(t *testing.T, httpClient HTTPDoer) (*APIKeyService, *sql.DB) {
+func createTestAPIKeyServiceWithEncryption(t *testing.T, httpClient administration.APIKeyHTTPDoer) (*administration.APIKeyService, *sql.DB) {
 	t.Helper()
 
 	db := createTestAPIKeysDB(t)
@@ -756,7 +766,7 @@ func TestHandleListAPIKeys_Empty(t *testing.T) {
 	svc, db := createTestAPIKeyService(t, nil)
 	defer db.Close()
 
-	handler := handleListAPIKeys(svc)
+	handler := adminhttp.ListAPIKeys(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/api-keys", nil)
 	w := httptest.NewRecorder()
@@ -790,7 +800,7 @@ func TestHandleListAPIKeys_MultipleKeys(t *testing.T) {
 	_, _ = svc.Store(ctx, "openai", "sk-openai-test")
 	_, _ = svc.Store(ctx, "anthropic", "sk-ant-test")
 
-	handler := handleListAPIKeys(svc)
+	handler := adminhttp.ListAPIKeys(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/api-keys", nil)
 	w := httptest.NewRecorder()
@@ -819,7 +829,7 @@ func TestHandleCreateAPIKey_Success(t *testing.T) {
 	svc, db := createTestAPIKeyService(t, nil)
 	defer db.Close()
 
-	handler := handleCreateAPIKey(svc)
+	handler := adminhttp.CreateAPIKey(apiKeyHandlerDependencies(svc))
 
 	body := `{"provider": "openrouter", "key": "test-openrouter-key-12345678"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/api-keys", strings.NewReader(body))
@@ -832,7 +842,7 @@ func TestHandleCreateAPIKey_Success(t *testing.T) {
 		t.Errorf("Expected status %d, got %d: %s", http.StatusCreated, w.Code, w.Body.String())
 	}
 
-	var resp APIKey
+	var resp administration.APIKey
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -849,7 +859,7 @@ func TestHandleCreateAPIKey_InvalidProvider(t *testing.T) {
 	svc, db := createTestAPIKeyService(t, nil)
 	defer db.Close()
 
-	handler := handleCreateAPIKey(svc)
+	handler := adminhttp.CreateAPIKey(apiKeyHandlerDependencies(svc))
 
 	body := `{"provider": "invalid-provider", "key": "some-key"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/api-keys", strings.NewReader(body))
@@ -867,7 +877,7 @@ func TestHandleCreateAPIKey_EmptyKey(t *testing.T) {
 	svc, db := createTestAPIKeyService(t, nil)
 	defer db.Close()
 
-	handler := handleCreateAPIKey(svc)
+	handler := adminhttp.CreateAPIKey(apiKeyHandlerDependencies(svc))
 
 	body := `{"provider": "openrouter", "key": ""}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/api-keys", strings.NewReader(body))
@@ -885,7 +895,7 @@ func TestHandleCreateAPIKey_InvalidJSON(t *testing.T) {
 	svc, db := createTestAPIKeyService(t, nil)
 	defer db.Close()
 
-	handler := handleCreateAPIKey(svc)
+	handler := adminhttp.CreateAPIKey(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/api-keys", strings.NewReader("{invalid"))
 	req.Header.Set("Content-Type", "application/json")
@@ -905,7 +915,7 @@ func TestHandleDeleteAPIKey_Success(t *testing.T) {
 	ctx := context.Background()
 	_, _ = svc.Store(ctx, "openrouter", "sk-or-test")
 
-	handler := handleDeleteAPIKey(svc)
+	handler := adminhttp.DeleteAPIKey(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/api-keys?provider=openrouter", nil)
 	w := httptest.NewRecorder()
@@ -927,7 +937,7 @@ func TestHandleDeleteAPIKey_MissingProvider(t *testing.T) {
 	svc, db := createTestAPIKeyService(t, nil)
 	defer db.Close()
 
-	handler := handleDeleteAPIKey(svc)
+	handler := adminhttp.DeleteAPIKey(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/api-keys", nil)
 	w := httptest.NewRecorder()
@@ -943,7 +953,7 @@ func TestHandleDeleteAPIKey_NotFound(t *testing.T) {
 	svc, db := createTestAPIKeyService(t, nil)
 	defer db.Close()
 
-	handler := handleDeleteAPIKey(svc)
+	handler := adminhttp.DeleteAPIKey(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/api-keys?provider=nonexistent", nil)
 	w := httptest.NewRecorder()
@@ -963,7 +973,7 @@ func TestHandleTestAPIKey_ValidKey(t *testing.T) {
 	ctx := context.Background()
 	_, _ = svc.Store(ctx, "openrouter", "sk-or-test")
 
-	handler := handleTestAPIKey(svc)
+	handler := adminhttp.TestAPIKey(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/api-keys/test?provider=openrouter", nil)
 	w := httptest.NewRecorder()
@@ -995,7 +1005,7 @@ func TestHandleTestAPIKey_InvalidKey(t *testing.T) {
 	ctx := context.Background()
 	_, _ = svc.Store(ctx, "openrouter", "invalid-key")
 
-	handler := handleTestAPIKey(svc)
+	handler := adminhttp.TestAPIKey(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/api-keys/test?provider=openrouter", nil)
 	w := httptest.NewRecorder()
@@ -1020,7 +1030,7 @@ func TestHandleTestAPIKey_MissingProvider(t *testing.T) {
 	svc, db := createTestAPIKeyService(t, nil)
 	defer db.Close()
 
-	handler := handleTestAPIKey(svc)
+	handler := adminhttp.TestAPIKey(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/api-keys/test", nil)
 	w := httptest.NewRecorder()
@@ -1036,7 +1046,7 @@ func TestHandleTestAPIKey_NoKeyConfigured(t *testing.T) {
 	svc, db := createTestAPIKeyService(t, nil)
 	defer db.Close()
 
-	handler := handleTestAPIKey(svc)
+	handler := adminhttp.TestAPIKey(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/api-keys/test?provider=openrouter", nil)
 	w := httptest.NewRecorder()
@@ -1068,7 +1078,7 @@ func TestHandleToggleAPIKey_Success(t *testing.T) {
 	ctx := context.Background()
 	_, _ = svc.Store(ctx, "openrouter", "sk-or-test")
 
-	handler := handleToggleAPIKey(svc)
+	handler := adminhttp.ToggleAPIKey(apiKeyHandlerDependencies(svc))
 
 	// Toggle off
 	body := `{"provider": "openrouter", "active": false}`
@@ -1093,7 +1103,7 @@ func TestHandleToggleAPIKey_InvalidJSON(t *testing.T) {
 	svc, db := createTestAPIKeyService(t, nil)
 	defer db.Close()
 
-	handler := handleToggleAPIKey(svc)
+	handler := adminhttp.ToggleAPIKey(apiKeyHandlerDependencies(svc))
 
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/api-keys/toggle", strings.NewReader("{invalid"))
 	req.Header.Set("Content-Type", "application/json")

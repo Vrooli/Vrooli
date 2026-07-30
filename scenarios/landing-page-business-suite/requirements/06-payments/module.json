@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-07-29T13:32:33-04:00"
+    "last_validated_at": "2026-07-30T11:17:02-04:00"
   },
   "requirements": [
     {
@@ -39,7 +39,7 @@
         },
         {
           "type": "test",
-          "ref": "api/stripe_handlers.go",
+          "ref": "api/handlers/commerce/connect_test.go",
           "phase": "business",
           "status": "implemented"
         }
@@ -81,7 +81,7 @@
         },
         {
           "type": "test",
-          "ref": "api/stripe_handlers.go",
+          "ref": "api/handlers/commerce/connect_test.go",
           "phase": "business",
           "status": "implemented"
         }
@@ -123,7 +123,7 @@
         },
         {
           "type": "test",
-          "ref": "api/stripe_handlers.go",
+          "ref": "api/handlers/commerce/connect_test.go",
           "phase": "business",
           "status": "implemented"
         }
@@ -140,14 +140,14 @@
           "type": "test",
           "ref": "api/internal/commerce/plan_service_test.go",
           "phase": "unit",
-          "status": "passing",
+          "status": "failing",
           "notes": "PlanService tests validate monthly/yearly tier ordering and lookup by Stripe price."
         },
         {
           "type": "test",
           "ref": "api/internal/commerce/plan_service.go",
           "phase": "unit",
-          "status": "passing",
+          "status": "failing",
           "notes": "PlanService loads bundle metadata, sorts tiers, and exposes lookups used by /plans."
         }
       ]
@@ -168,10 +168,10 @@
         },
         {
           "type": "test",
-          "ref": "api/account_service.go",
+          "ref": "api/internal/commerce/account_service.go",
           "phase": "unit",
           "status": "failing",
-          "notes": "AccountService reads bundle metadata and exposes credits via /me/credits."
+          "notes": "The commerce account domain reads bundle metadata and exposes credits through the generated AccountService contract."
         }
       ]
     },
@@ -191,10 +191,10 @@
         },
         {
           "type": "test",
-          "ref": "api/account_service.go",
+          "ref": "api/internal/commerce/account_service.go",
           "phase": "unit",
           "status": "failing",
-          "notes": "AccountService exposes entitlements with cached subscription lookups and metadata."
+          "notes": "The commerce account domain exposes entitlements with cached subscription lookups and metadata through the generated AccountService contract."
         }
       ]
     },

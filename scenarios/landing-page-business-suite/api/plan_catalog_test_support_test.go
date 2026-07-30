@@ -31,9 +31,9 @@ func createTestPlansFile(t *testing.T, bundle bundleFileFormat, plans []planFile
 	return plansPath
 }
 
-func createTestPlanService(t *testing.T, bundle bundleFileFormat, plans []planFileFormat) *PlanService {
+func createTestPlanService(t *testing.T, bundle bundleFileFormat, plans []planFileFormat) *commerce.PlanService {
 	t.Helper()
-	store := NewPlanStoreWithOptions(PlanStoreOptions{
+	store := NewPlanStoreWithOptions(commerce.PlanStoreOptions{
 		PlansPath:  createTestPlansFile(t, bundle, plans),
 		BundleKey:  bundle.BundleKey,
 		DisplayEnv: bundle.Environment,
@@ -41,7 +41,7 @@ func createTestPlanService(t *testing.T, bundle bundleFileFormat, plans []planFi
 	if err := store.LoadAll(); err != nil {
 		t.Fatalf("load test plans: %v", err)
 	}
-	return NewPlanServiceWithOptions(PlanServiceOptions{PlanStore: store, DefaultBundle: bundle.BundleKey, DisplayEnv: bundle.Environment})
+	return NewPlanServiceWithOptions(commerce.PlanServiceOptions{PlanStore: store, DefaultBundle: bundle.BundleKey, DisplayEnv: bundle.Environment})
 }
 
 func testBundle(key, env string) bundleFileFormat {

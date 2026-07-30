@@ -54,7 +54,7 @@ describe('useDownloadHosting', () => {
     vi.mocked(api.listDownloadArtifactsAdmin).mockResolvedValue({ artifacts: [artifact] } as Awaited<ReturnType<typeof api.listDownloadArtifactsAdmin>>);
     vi.mocked(api.listDownloadArtifactsByAppAdmin).mockResolvedValue({ artifacts: [artifact] } as Awaited<ReturnType<typeof api.listDownloadArtifactsByAppAdmin>>);
     vi.mocked(api.updateDownloadStorageAdmin).mockResolvedValue({ settings: storageSettings } as Awaited<ReturnType<typeof api.updateDownloadStorageAdmin>>);
-    vi.mocked(api.testDownloadStorageAdmin).mockResolvedValue({} as Awaited<ReturnType<typeof api.testDownloadStorageAdmin>>);
+    vi.mocked(api.testDownloadStorageAdmin).mockResolvedValue({});
     vi.mocked(api.applyDownloadArtifactAdmin).mockResolvedValue({} as Awaited<ReturnType<typeof api.applyDownloadArtifactAdmin>>);
     vi.mocked(api.setArtifactAsCurrentAdmin).mockResolvedValue({} as Awaited<ReturnType<typeof api.setArtifactAsCurrentAdmin>>);
   });

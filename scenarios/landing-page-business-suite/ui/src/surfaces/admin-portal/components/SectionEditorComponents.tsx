@@ -18,12 +18,12 @@ interface VariantSectionTimelineProps {
   sections: LandingSection[];
   loading: boolean;
   error: string | null;
-  currentSectionId: number | null;
+  currentSectionKey: string | null;
   currentSectionType: ContentSection['section_type'];
   onNavigateSection: (section: LandingSection) => void;
   onAddSection: () => void;
   onReorderSection: (section: LandingSection, direction: 'up' | 'down') => void;
-  reorderingSectionId: number | null;
+  reorderingSectionId: string | null;
   reorderError: string | null;
 }
 
@@ -32,7 +32,7 @@ export function VariantSectionTimeline({
   sections,
   loading,
   error,
-  currentSectionId,
+  currentSectionKey,
   currentSectionType,
   onNavigateSection,
   onAddSection,
@@ -67,15 +67,15 @@ export function VariantSectionTimeline({
       {!loading && !error && sections.length > 0 && (
         <div className="space-y-2">
           {sections.map((section) => {
-            const isActive = currentSectionId
-              ? section.id === currentSectionId
+            const isActive = currentSectionKey
+              ? section.key === currentSectionKey
               : section.section_type === currentSectionType;
             const badge = section.enabled === false ? 'Disabled' : 'Enabled';
-            const isFirst = sections.at(0)?.id === section.id;
-            const isLast = sections.at(-1)?.id === section.id;
+            const isFirst = sections.at(0)?.key === section.key;
+            const isLast = sections.at(-1)?.key === section.key;
             return (
               <div
-                key={`${section.section_type}-${String(section.id ?? section.order)}`}
+                key={section.key ?? `${section.section_type}-${String(section.order)}`}
                 role="button"
                 tabIndex={0}
                 onClick={() => { onNavigateSection(section); }}
@@ -96,7 +96,7 @@ export function VariantSectionTimeline({
                     <div className="text-[11px] uppercase tracking-wide text-slate-500">{badge}</div>
                   </div>
                   <div className="flex flex-wrap gap-2 text-xs text-slate-400">
-                    {section.id && (
+                    {section.key && (
                       <>
                         <button
                           type="button"

@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-07-29T15:19:25-04:00"
+    "last_validated_at": "2026-07-29T17:34:56-04:00"
   },
   "requirements": [
     {
       "id": "PERF-LIGHTHOUSE",
       "title": "Lighthouse performance",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-001",
       "description": "Default generated landing page achieves Lighthouse performance score ≥ 90 on desktop",
       "validation": [
@@ -14,14 +14,14 @@
           "type": "lighthouse",
           "ref": "coverage/phase-results/performance.json",
           "phase": "performance",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "PERF-TTI",
       "title": "Time to interactive",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "description": "Cold load TTI \u003c 2.0s on typical broadband for main landing page",
       "validation": [
@@ -29,14 +29,14 @@
           "type": "lighthouse",
           "ref": "coverage/phase-results/performance.json",
           "phase": "performance",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "A11Y-LIGHTHOUSE",
       "title": "Lighthouse accessibility",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-003",
       "description": "Lighthouse accessibility score ≥ 90 for generated template",
       "validation": [
@@ -44,14 +44,14 @@
           "type": "lighthouse",
           "ref": "coverage/phase-results/performance.json",
           "phase": "performance",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "A11Y-KEYBOARD",
       "title": "Keyboard accessibility",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-004",
       "description": "All interactive elements keyboard-accessible with discernible labels",
       "validation": [
@@ -59,7 +59,7 @@
           "type": "lighthouse",
           "ref": "coverage/phase-results/performance.json",
           "phase": "performance",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     }

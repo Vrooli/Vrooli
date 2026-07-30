@@ -1,4 +1,7 @@
-import { apiCall, apiPost, apiGet } from './common';
+import { createClient } from '@connectrpc/connect';
+import { createScenarioConnectTransport } from '@vrooli/api-base';
+import { AdminAuthService } from '@vrooli/proto-types/landing-page-business-suite/admin_pb';
+import { apiCall, apiPost, apiGet, CONNECT_API_BASE } from './common';
 import { parseOrNull } from './safeParse';
 import {
   AdminSessionResponseSchema,
@@ -8,7 +11,8 @@ import {
   UserAuthTokensSchema,
   UserAuthMeResponseSchema,
 } from './schemas/auth.schema';
-import { SuccessResponseSchema } from './schemas/common.schema';
+
+const adminAuthClient = createClient(AdminAuthService, createScenarioConnectTransport({ baseUrl: CONNECT_API_BASE }));
 
 // ===== Admin Auth Types =====
 
@@ -31,11 +35,12 @@ export interface AdminProfileUpdatePayload {
 }
 
 export async function adminLogin(email: string, password: string) {
-  return apiCall<AdminSessionResponse>('/admin/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  }).then((resp) => {
-    const validated = parseOrNull(AdminSessionResponseSchema, resp, 'AdminSessionResponse');
+  return adminAuthClient.login({ email, password }).then((resp) => {
+    const validated = parseOrNull(AdminSessionResponseSchema, {
+      authenticated: resp.authenticated,
+      ...(resp.email ? { email: resp.email } : {}),
+      reset_enabled: resp.resetEnabled,
+    }, 'AdminSessionResponse');
     if (!validated) {
       throw new Error('Invalid admin login response from API');
     }
@@ -44,20 +49,21 @@ export async function adminLogin(email: string, password: string) {
 }
 
 export async function adminLogout() {
-  return apiCall<{ success: boolean }>('/admin/logout', {
-    method: 'POST',
-  }).then((resp) => {
-    const validated = parseOrNull(SuccessResponseSchema, resp, 'AdminLogoutResponse');
-    if (!validated) {
+  return adminAuthClient.logout({}).then((resp) => {
+    if (!resp.success) {
       throw new Error('Invalid admin logout response from API');
     }
-    return validated;
+    return { success: true };
   });
 }
 
 export async function checkAdminSession() {
-  return apiCall<AdminSessionResponse>('/admin/session').then((resp) => {
-    const validated = parseOrNull(AdminSessionResponseSchema, resp, 'AdminSessionResponse');
+  return adminAuthClient.session({}).then((resp) => {
+    const validated = parseOrNull(AdminSessionResponseSchema, {
+      authenticated: resp.authenticated,
+      ...(resp.email ? { email: resp.email } : {}),
+      reset_enabled: resp.resetEnabled,
+    }, 'AdminSessionResponse');
     if (!validated) {
       return { authenticated: false };
     }

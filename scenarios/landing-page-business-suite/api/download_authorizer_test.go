@@ -5,6 +5,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 type fakeDownloads struct {
@@ -24,13 +26,13 @@ func (f *fakeDownloads) GetAsset(bundleKey, appKey, platform string) (*DownloadA
 }
 
 type trackingEntitlements struct {
-	payload  *EntitlementPayload
+	payload  *commerce.EntitlementPayload
 	calls    int
 	lastUser string
 	err      error
 }
 
-func (t *trackingEntitlements) GetEntitlementsContext(_ context.Context, user string) (*EntitlementPayload, error) {
+func (t *trackingEntitlements) GetEntitlementsContext(_ context.Context, user string) (*commerce.EntitlementPayload, error) {
 	t.calls++
 	t.lastUser = user
 	if t.err != nil {
@@ -46,7 +48,7 @@ func TestDownloadAuthorizerAuthorize_AllowsUngatedAssets(t *testing.T) {
 		},
 	}
 	entitlements := &trackingEntitlements{
-		payload: &EntitlementPayload{Status: "inactive"},
+		payload: &commerce.EntitlementPayload{Status: "inactive"},
 	}
 
 	authorizer := NewDownloadAuthorizer(downloads, entitlements, "bundle")
@@ -71,7 +73,7 @@ func TestDownloadAuthorizerAuthorize_RequiresActiveSubscription(t *testing.T) {
 		},
 	}
 	entitlements := &trackingEntitlements{
-		payload: &EntitlementPayload{Status: "trialing"},
+		payload: &commerce.EntitlementPayload{Status: "trialing"},
 	}
 
 	authorizer := NewDownloadAuthorizer(downloads, entitlements, "bundle")
@@ -110,7 +112,7 @@ func TestDownloadAuthorizerAuthorize_RequiresIdentityForGatedAssets(t *testing.T
 		},
 	}
 	entitlements := &trackingEntitlements{
-		payload: &EntitlementPayload{Status: "active"},
+		payload: &commerce.EntitlementPayload{Status: "active"},
 	}
 
 	authorizer := NewDownloadAuthorizer(downloads, entitlements, "bundle")
@@ -183,7 +185,7 @@ func TestDownloadAuthorizerAuthorize_TrimsInputsBeforeLookup(t *testing.T) {
 		},
 	}
 	entitlements := &trackingEntitlements{
-		payload: &EntitlementPayload{Status: "active"},
+		payload: &commerce.EntitlementPayload{Status: "active"},
 	}
 
 	authorizer := NewDownloadAuthorizer(downloads, entitlements, "bundle")

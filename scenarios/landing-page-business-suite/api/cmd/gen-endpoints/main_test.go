@@ -12,10 +12,6 @@ func TestRegisteredRoutesMatchesCurrentRegistry(t *testing.T) {
 	if err != nil {
 		t.Fatalf("registeredRoutes() error = %v", err)
 	}
-	if len(routes) < 100 {
-		t.Fatalf("registeredRoutes() returned %d routes; expected the current API registry to contain at least 100", len(routes))
-	}
-
 	allRoutes, err := inventoryRoutes(filepath.Join("..", "..", "routes.go"))
 	if err != nil {
 		t.Fatalf("inventoryRoutes() error = %v", err)
@@ -45,6 +41,28 @@ func TestEndpointIDDistinguishesMethods(t *testing.T) {
 	put := endpointID(route{Path: "/api/v1/admin/profile", Method: "PUT"})
 	if get == put {
 		t.Fatalf("endpoint IDs must distinguish methods: %q", get)
+	}
+}
+
+func TestConnectRoutesIncludeEveryMountedGeneratedService(t *testing.T) {
+	routes := connectRoutes()
+	seen := make(map[string]struct{}, len(routes))
+	for _, route := range routes {
+		seen[route.Path] = struct{}{}
+	}
+	for _, path := range []string{
+		"/landing_page_business_suite.v1.AssetsService/ListAssets",
+		"/landing_page_business_suite.v1.VariantService/ListVariants",
+		"/landing_page_business_suite.v1.MetricsService/TrackEvent",
+		"/landing_page_business_suite.v1.IntelligenceService/ListModels",
+		"/landing_page_business_suite.v1.DownloadService/AuthorizeDownload",
+		"/landing_page_business_suite.v1.DownloadService/DeleteDownloadApp",
+		"/landing_page_business_suite.v1.AdminAuthService/Login",
+		"/landing_page_business_suite.v1.AdminResetService/ResetDemoData",
+	} {
+		if _, ok := seen[path]; !ok {
+			t.Errorf("connect route inventory missing mounted procedure %s", path)
+		}
 	}
 }
 

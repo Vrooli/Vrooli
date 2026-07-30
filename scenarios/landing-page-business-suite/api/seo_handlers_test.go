@@ -12,6 +12,8 @@ import (
 	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
+	contenthandler "landing-page-business-suite-api/handlers/content"
+	seohttp "landing-page-business-suite-api/handlers/seo"
 	"landing-page-business-suite-api/internal/testutil"
 )
 
@@ -21,7 +23,7 @@ func TestSEOConnectHandler_GetVariantSEO(t *testing.T) {
 	if len(variants) == 0 {
 		t.Fatal("tracked test configuration must contain at least one variant")
 	}
-	handler := newSEOConnectHandler(NewSEOService(cs), cs)
+	handler := contenthandler.NewSEOConnectHandler(NewSEOService(cs))
 	response, err := handler.GetVariantSEO(context.Background(), connect.NewRequest(&lpbsv1.GetVariantSEORequest{Slug: variants[0].Variant.Slug}))
 	testutil.RequireNoError(t, err)
 	if response.Msg.GetSiteName() == "" || response.Msg.GetTitle() == "" {
@@ -31,7 +33,7 @@ func TestSEOConnectHandler_GetVariantSEO(t *testing.T) {
 
 func TestSEOConnectHandler_GetVariantSEORejectsInvalidAndMissingSlugs(t *testing.T) {
 	cs := setupTestConfigStore(t)
-	handler := newSEOConnectHandler(NewSEOService(cs), cs)
+	handler := contenthandler.NewSEOConnectHandler(NewSEOService(cs))
 	for _, request := range []*lpbsv1.GetVariantSEORequest{{}, {Slug: "missing"}} {
 		_, err := handler.GetVariantSEO(context.Background(), connect.NewRequest(request))
 		if got := connect.CodeOf(err); got != connect.CodeInvalidArgument && got != connect.CodeNotFound {
@@ -46,7 +48,7 @@ func TestSEOConnectHandler_UpdateVariantSEOPersistsProtoConfig(t *testing.T) {
 	if len(variants) == 0 {
 		t.Fatal("tracked test configuration must contain at least one variant")
 	}
-	handler := newSEOConnectHandler(NewSEOService(cs), cs)
+	handler := contenthandler.NewSEOConnectHandler(NewSEOService(cs))
 	response, err := handler.UpdateVariantSEO(context.Background(), connect.NewRequest(&lpbsv1.UpdateVariantSEORequest{
 		Slug:   variants[0].Variant.Slug,
 		Config: &sharedv1.VariantSEOConfig{Title: "Connect title", OgImageUrl: "https://example.test/og.png"},
@@ -69,7 +71,7 @@ func TestSEOConnectRoutesServeGeneratedClient(t *testing.T) {
 		t.Fatal("tracked test configuration must contain at least one variant")
 	}
 	router := mux.NewRouter()
-	registerSEOConnectRoutes(router, NewSEOService(cs), cs, func(handler http.HandlerFunc) http.HandlerFunc { return handler })
+	contenthandler.RegisterSEOConnectRoutes(router, NewSEOService(cs), func(handler http.HandlerFunc) http.HandlerFunc { return handler })
 	server := httptest.NewServer(router)
 	t.Cleanup(server.Close)
 
@@ -93,7 +95,7 @@ func TestSEOConnectRoutesServeGeneratedClient(t *testing.T) {
 func TestHandleSitemapXML_Success(t *testing.T) {
 	cs := setupTestConfigStore(t)
 	seoService := NewSEOService(cs)
-	handler := handleSitemapXML(seoService)
+	handler := seohttp.Sitemap(seoHTTPDependencies(seoService))
 
 	req := httptest.NewRequest(http.MethodGet, "/sitemap.xml", nil)
 	req.Host = "example.com"
@@ -132,7 +134,7 @@ func TestHandleSitemapXML_UsesCanonicalURL(t *testing.T) {
 	_ = cs.SaveBranding(branding)
 
 	seoService := NewSEOService(cs)
-	handler := handleSitemapXML(seoService)
+	handler := seohttp.Sitemap(seoHTTPDependencies(seoService))
 
 	req := httptest.NewRequest(http.MethodGet, "/sitemap.xml", nil)
 	req.Host = "localhost:8080"
@@ -153,7 +155,7 @@ func TestHandleSitemapXML_UsesCanonicalURL(t *testing.T) {
 func TestHandleRobotsTXT_Success(t *testing.T) {
 	cs := setupTestConfigStore(t)
 	seoService := NewSEOService(cs)
-	handler := handleRobotsTXT(seoService)
+	handler := seohttp.Robots(seoHTTPDependencies(seoService))
 
 	req := httptest.NewRequest(http.MethodGet, "/robots.txt", nil)
 	req.Host = "example.com"
@@ -186,7 +188,7 @@ func TestHandleRobotsTXT_IncludesSitemap(t *testing.T) {
 	_ = cs.SaveBranding(branding)
 
 	seoService := NewSEOService(cs)
-	handler := handleRobotsTXT(seoService)
+	handler := seohttp.Robots(seoHTTPDependencies(seoService))
 
 	req := httptest.NewRequest(http.MethodGet, "/robots.txt", nil)
 	req.Host = "localhost:8080"
@@ -215,7 +217,7 @@ func TestHandleRobotsTXT_UsesCustomRobotsTxt(t *testing.T) {
 	_ = cs.SaveBranding(branding)
 
 	seoService := NewSEOService(cs)
-	handler := handleRobotsTXT(seoService)
+	handler := seohttp.Robots(seoHTTPDependencies(seoService))
 
 	req := httptest.NewRequest(http.MethodGet, "/robots.txt", nil)
 	req.Host = "localhost:8080"

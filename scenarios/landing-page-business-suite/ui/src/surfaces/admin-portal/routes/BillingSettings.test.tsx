@@ -102,7 +102,7 @@ describe('BillingSettings', () => {
       source: 'database',
     });
     // Use type assertion because the mock return type is stricter than BundleCatalogEntry
-    mockedGetBundleCatalog.mockResolvedValue({ bundles: [demoBundle] } as Awaited<ReturnType<typeof getBundleCatalog>>);
+    mockedGetBundleCatalog.mockResolvedValue({ bundles: [demoBundle] });
   });
 
   it('renders Stripe status and bundle catalog entries', async () => {

@@ -69,6 +69,7 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
     expect(screen.getByLabelText(/Email Address/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Password/i)).toBeInTheDocument();
     expect(screen.getByTestId('admin-login-submit')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /back to landing page/i })).toHaveClass('min-h-11');
   });
 
   it('[REQ:ADMIN-AUTH] should call login API with email and password on form submit', async () => {

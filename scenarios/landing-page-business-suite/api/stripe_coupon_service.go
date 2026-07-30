@@ -9,73 +9,16 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // --- StripeCouponService Interface Implementation ---
 // This file contains all coupon-related operations: CRUD for coupons,
 // intro coupon eligibility checking, and coupon import preview.
 
-// StripeCoupon represents a Stripe coupon for admin management.
-type StripeCoupon struct {
-	ID               string   `json:"id"`
-	Name             string   `json:"name,omitempty"`
-	AmountOff        *int64   `json:"amount_off,omitempty"`
-	PercentOff       *float64 `json:"percent_off,omitempty"`
-	Currency         string   `json:"currency,omitempty"`
-	Duration         string   `json:"duration"`
-	DurationInMonths *int     `json:"duration_in_months,omitempty"`
-	MaxRedemptions   *int     `json:"max_redemptions,omitempty"`
-	RedeemBy         *int64   `json:"redeem_by,omitempty"`
-	TimesRedeemed    int      `json:"times_redeemed"`
-	Valid            bool     `json:"valid"`
-	Created          int64    `json:"created"`
-	IsIntroCoupon    bool     `json:"is_intro_coupon"`
-	IntroTier        string   `json:"intro_tier,omitempty"`
-}
-
-// CreateCouponRequest contains parameters for creating a new coupon.
-type CreateCouponRequest struct {
-	ID               string   `json:"id,omitempty"`
-	Name             string   `json:"name,omitempty"`
-	AmountOff        *int64   `json:"amount_off,omitempty"`
-	PercentOff       *float64 `json:"percent_off,omitempty"`
-	Currency         string   `json:"currency,omitempty"`
-	Duration         string   `json:"duration"`
-	DurationInMonths *int     `json:"duration_in_months,omitempty"`
-	MaxRedemptions   *int     `json:"max_redemptions,omitempty"`
-	RedeemBy         *int64   `json:"redeem_by,omitempty"`
-}
-
-// UpdateCouponRequest contains the fields that can be updated on a coupon.
-// Note: Stripe only allows updating name and metadata on existing coupons.
-type UpdateCouponRequest struct {
-	Name string `json:"name,omitempty"`
-}
-
-// CouponImportPreviewItem represents a single coupon in the import preview.
-type CouponImportPreviewItem struct {
-	ID               string   `json:"id"`
-	Name             string   `json:"name,omitempty"`
-	AmountOff        *int64   `json:"amount_off,omitempty"`
-	PercentOff       *float64 `json:"percent_off,omitempty"`
-	Currency         string   `json:"currency,omitempty"`
-	Duration         string   `json:"duration"`
-	DurationInMonths *int     `json:"duration_in_months,omitempty"`
-	TimesRedeemed    int      `json:"times_redeemed"`
-	Valid            bool     `json:"valid"`
-	ExistsLocally    bool     `json:"exists_locally"`
-}
-
-// CouponImportPreview contains the preview of coupons available to import from Stripe.
-type CouponImportPreview struct {
-	Coupons       []CouponImportPreviewItem `json:"coupons"`
-	TotalCoupons  int                       `json:"total_coupons"`
-	ExistingCount int                       `json:"existing_count"`
-	NewCount      int                       `json:"new_count"`
-}
-
 // ListCoupons fetches all coupons from Stripe.
-func (s *StripeService) ListCoupons(ctx context.Context) ([]StripeCoupon, error) {
+func (s *StripeService) ListCoupons(ctx context.Context) ([]commerce.Coupon, error) {
 	values := url.Values{}
 	values.Set("limit", "100")
 	path := "/v1/coupons?" + values.Encode()
@@ -105,9 +48,9 @@ func (s *StripeService) ListCoupons(ctx context.Context) ([]StripeCoupon, error)
 		return nil, fmt.Errorf("decode stripe coupons: %w", err)
 	}
 
-	coupons := make([]StripeCoupon, 0, len(resp.Data))
+	coupons := make([]commerce.Coupon, 0, len(resp.Data))
 	for _, c := range resp.Data {
-		coupon := StripeCoupon{
+		coupon := commerce.Coupon{
 			ID:               c.ID,
 			Name:             c.Name,
 			AmountOff:        c.AmountOff,
@@ -130,7 +73,7 @@ func (s *StripeService) ListCoupons(ctx context.Context) ([]StripeCoupon, error)
 }
 
 // GetCoupon fetches a single coupon from Stripe by ID.
-func (s *StripeService) GetCoupon(ctx context.Context, couponID string) (*StripeCoupon, error) {
+func (s *StripeService) GetCoupon(ctx context.Context, couponID string) (*commerce.Coupon, error) {
 	if strings.TrimSpace(couponID) == "" {
 		return nil, errors.New("coupon ID is required")
 	}
@@ -159,7 +102,7 @@ func (s *StripeService) GetCoupon(ctx context.Context, couponID string) (*Stripe
 		return nil, fmt.Errorf("decode stripe coupon: %w", err)
 	}
 
-	coupon := &StripeCoupon{
+	coupon := &commerce.Coupon{
 		ID:               c.ID,
 		Name:             c.Name,
 		AmountOff:        c.AmountOff,
@@ -179,7 +122,7 @@ func (s *StripeService) GetCoupon(ctx context.Context, couponID string) (*Stripe
 }
 
 // CreateCoupon creates a new coupon in Stripe.
-func (s *StripeService) CreateCoupon(ctx context.Context, req CreateCouponRequest) (*StripeCoupon, error) {
+func (s *StripeService) CreateCoupon(ctx context.Context, req commerce.CreateCouponInput) (*commerce.Coupon, error) {
 	// Validate discount type
 	if req.AmountOff == nil && req.PercentOff == nil {
 		return nil, errors.New("either amount_off or percent_off is required")
@@ -254,7 +197,7 @@ func (s *StripeService) CreateCoupon(ctx context.Context, req CreateCouponReques
 		return nil, fmt.Errorf("decode stripe coupon: %w", err)
 	}
 
-	coupon := &StripeCoupon{
+	coupon := &commerce.Coupon{
 		ID:               c.ID,
 		Name:             c.Name,
 		AmountOff:        c.AmountOff,
@@ -274,7 +217,7 @@ func (s *StripeService) CreateCoupon(ctx context.Context, req CreateCouponReques
 }
 
 // UpdateCoupon updates a coupon in Stripe (only name can be updated).
-func (s *StripeService) UpdateCoupon(ctx context.Context, couponID string, req UpdateCouponRequest) (*StripeCoupon, error) {
+func (s *StripeService) UpdateCoupon(ctx context.Context, couponID string, req commerce.UpdateCouponInput) (*commerce.Coupon, error) {
 	if strings.TrimSpace(couponID) == "" {
 		return nil, errors.New("coupon ID is required")
 	}
@@ -308,7 +251,7 @@ func (s *StripeService) UpdateCoupon(ctx context.Context, couponID string, req U
 		return nil, fmt.Errorf("parse coupon response: %w", err)
 	}
 
-	coupon := &StripeCoupon{
+	coupon := &commerce.Coupon{
 		ID:               resp.ID,
 		Name:             resp.Name,
 		AmountOff:        resp.AmountOff,
@@ -340,7 +283,7 @@ func (s *StripeService) DeleteCoupon(ctx context.Context, couponID string) error
 
 // GetCouponImportPreview returns a preview of coupons available to import from Stripe.
 // It marks which coupons are already assigned to plans locally.
-func (s *StripeService) GetCouponImportPreview(ctx context.Context) (*CouponImportPreview, error) {
+func (s *StripeService) GetCouponImportPreview(ctx context.Context) (*commerce.CouponImportPreview, error) {
 	// Fetch all coupons from Stripe
 	coupons, err := s.ListCoupons(ctx)
 	if err != nil {
@@ -359,13 +302,13 @@ func (s *StripeService) GetCouponImportPreview(ctx context.Context) (*CouponImpo
 		usedCouponIDs[couponID] = struct{}{}
 	}
 
-	preview := &CouponImportPreview{
-		Coupons: make([]CouponImportPreviewItem, 0, len(coupons)),
+	preview := &commerce.CouponImportPreview{
+		Coupons: make([]commerce.CouponImportPreviewItem, 0, len(coupons)),
 	}
 
 	for _, c := range coupons {
 		_, existsLocally := usedCouponIDs[c.ID]
-		item := CouponImportPreviewItem{
+		item := commerce.CouponImportPreviewItem{
 			ID:               c.ID,
 			Name:             c.Name,
 			AmountOff:        c.AmountOff,

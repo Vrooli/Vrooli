@@ -7,6 +7,11 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	deploymenthttp "landing-page-business-suite-api/handlers/deployment"
+	"landing-page-business-suite-api/internal/administration"
+	"landing-page-business-suite-api/internal/commerce"
+	"landing-page-business-suite-api/internal/delivery"
 )
 
 func TestDeployReadiness_StorageNotConfigured(t *testing.T) {
@@ -17,9 +22,9 @@ func TestDeployReadiness_StorageNotConfigured(t *testing.T) {
 	hosting := NewDownloadHostingService(db)
 	downloads := NewDownloadService(db)
 	plans := newTestPlanService(t, "no_storage_bundle")
-	handler := handleDeployReadiness(hosting, downloads, nil, plans)
+	handler := deployReadinessHandler(hosting, downloads, nil, plans)
 
-	body, _ := json.Marshal(DeployReadinessRequest{AppKey: "any-app"})
+	body, _ := json.Marshal(deploymenthttp.Request{AppKey: "any-app"})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/deploy-readiness", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -29,7 +34,7 @@ func TestDeployReadiness_StorageNotConfigured(t *testing.T) {
 	if w.Code != http.StatusConflict {
 		t.Fatalf("expected 409 when storage missing, got %d: %s", w.Code, w.Body.String())
 	}
-	var resp DeployReadinessResponse
+	var resp deploymenthttp.Response
 	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
@@ -52,9 +57,9 @@ func TestDeployReadiness_AppMissing(t *testing.T) {
 	hosting := NewDownloadHostingService(db)
 	downloads := NewDownloadService(db)
 	plans := newTestPlanService(t, "readiness_bundle")
-	handler := handleDeployReadiness(hosting, downloads, nil, plans)
+	handler := deployReadinessHandler(hosting, downloads, nil, plans)
 
-	body, _ := json.Marshal(DeployReadinessRequest{AppKey: "missing-app"})
+	body, _ := json.Marshal(deploymenthttp.Request{AppKey: "missing-app"})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/deploy-readiness", bytes.NewReader(body))
 	w := httptest.NewRecorder()
 	handler(w, req)
@@ -62,7 +67,7 @@ func TestDeployReadiness_AppMissing(t *testing.T) {
 	if w.Code != http.StatusConflict {
 		t.Fatalf("expected 409 for missing app, got %d: %s", w.Code, w.Body.String())
 	}
-	var resp DeployReadinessResponse
+	var resp deploymenthttp.Response
 	_ = json.NewDecoder(w.Body).Decode(&resp)
 	foundApp := false
 	for _, g := range resp.Gates {
@@ -88,9 +93,9 @@ func TestDeployReadiness_StorageAndAppOK(t *testing.T) {
 	hosting := NewDownloadHostingService(db)
 	downloads := NewDownloadService(db)
 	plans := newTestPlanService(t, "ready_bundle")
-	handler := handleDeployReadiness(hosting, downloads, nil, plans)
+	handler := deployReadinessHandler(hosting, downloads, nil, plans)
 
-	body, _ := json.Marshal(DeployReadinessRequest{AppKey: "ready-app"})
+	body, _ := json.Marshal(deploymenthttp.Request{AppKey: "ready-app"})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/deploy-readiness", bytes.NewReader(body))
 	w := httptest.NewRecorder()
 	handler(w, req)
@@ -98,9 +103,18 @@ func TestDeployReadiness_StorageAndAppOK(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
-	var resp DeployReadinessResponse
+	var resp deploymenthttp.Response
 	_ = json.NewDecoder(w.Body).Decode(&resp)
 	if !resp.Ready {
 		t.Errorf("expected ready=true; gates=%+v", resp.Gates)
 	}
+}
+
+func deployReadinessHandler(storage *delivery.Service, catalog *delivery.CatalogService, profiles *administration.RemoteProfileService, plans *commerce.PlanService) http.HandlerFunc {
+	return deploymenthttp.Readiness(deploymenthttp.Dependencies{
+		Storage: storage, Catalog: catalog, RemoteProfiles: profiles, BundleKey: plans.BundleKey,
+		WriteError: func(w http.ResponseWriter, status int, message, kind string) {
+			writeJSONError(w, status, message, kind)
+		},
+	})
 }

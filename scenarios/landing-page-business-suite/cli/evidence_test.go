@@ -74,7 +74,8 @@ func evidenceGroups() ([]cliapp.SubcommandGroup, error) {
 		for _, command := range group.Commands {
 			switch command.Name {
 			case "admin-stripe-settings", "admin-stripe-settings-update", "admin-stripe-secret", "variant-space", "seo", "admin-variant-seo-update", "landing-config",
-				"admin-bundles", "admin-bundle-price-update", "admin-coupon-mappings", "admin-coupons-create", "admin-coupons-delete", "admin-coupons-get", "admin-coupons-list", "admin-coupons-update", "admin-coupons-usage", "admin-plan-coupon-remove", "admin-plan-coupon-set", "admin-stripe-coupons-preview":
+				"admin-bundles", "admin-bundle-price-update", "admin-coupon-mappings", "admin-coupons-create", "admin-coupons-delete", "admin-coupons-get", "admin-coupons-list", "admin-coupons-update", "admin-coupons-usage", "admin-plan-coupon-remove", "admin-plan-coupon-set", "admin-stripe-coupons-preview",
+				"admin-download-apps-delete", "ai-chat", "ai-health", "ai-models", "ai-usage", "metrics-track", "metrics-summary", "metrics-variants":
 				legacyCommands = append(legacyCommands, command)
 			}
 		}

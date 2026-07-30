@@ -5,12 +5,13 @@ import (
 	"errors"
 	"testing"
 
+	"landing-page-business-suite-api/internal/commerce"
 	"landing-page-business-suite-api/internal/intelligence"
 )
 
 func TestAIGatewayCreditAdapterMapsAndDelegatesUsage(t *testing.T) {
 	source := &fakeAIGatewayUsageSource{reservationID: "reservation-1"}
-	adapter := aiGatewayCreditAdapter{usage: source}
+	adapter := newCommerceUsageServicer(source)
 	report := intelligence.UsageReport{UserIdentity: "customer@example.test", LimitKey: "ai_credits", Amount: 99, AppBundleKey: "suite", Operation: "chat", Metadata: map[string]string{"request": "1"}}
 
 	if err := adapter.ReserveAndCharge(context.Background(), "customer@example.test", "pro", "ai_credits", 99, report); err != nil {
@@ -42,7 +43,7 @@ func TestAIGatewayCreditAdapterMapsAndDelegatesUsage(t *testing.T) {
 
 func TestAIGatewayCreditAdapterPropagatesErrors(t *testing.T) {
 	want := errors.New("usage store unavailable")
-	adapter := aiGatewayCreditAdapter{usage: &fakeAIGatewayUsageSource{err: want}}
+	adapter := newCommerceUsageServicer(&fakeAIGatewayUsageSource{err: want})
 	if err := adapter.RecordUsage(context.Background(), intelligence.UsageReport{}); !errors.Is(err, want) {
 		t.Fatalf("record error=%v, want %v", err, want)
 	}
@@ -51,19 +52,21 @@ func TestAIGatewayCreditAdapterPropagatesErrors(t *testing.T) {
 type fakeAIGatewayUsageSource struct {
 	err             error
 	reservationID   string
-	reserveReport   UsageReportRequest
-	recordReport    UsageReportRequest
+	reserveReport   commerce.UsageReportRequest
+	recordReport    commerce.UsageReportRequest
 	finalizedAmount int64
 	adjustment      int64
 }
 
-func (f *fakeAIGatewayUsageSource) ReserveAndCharge(_ context.Context, _ string, _ string, _ string, _ int64, report UsageReportRequest) error {
+func (f *fakeAIGatewayUsageSource) ReserveAndCharge(_ context.Context, _ string, _ string, _ string, _ int64, report commerce.UsageReportRequest) error {
 	f.reserveReport = report
 	return f.err
 }
+
 func (f *fakeAIGatewayUsageSource) ReserveCredits(context.Context, string, string, string, int64) (string, error) {
 	return f.reservationID, f.err
 }
+
 func (f *fakeAIGatewayUsageSource) FinalizeReservation(_ context.Context, _ string, amount int64) error {
 	f.finalizedAmount = amount
 	return f.err
@@ -73,7 +76,8 @@ func (f *fakeAIGatewayUsageSource) AdjustUsage(_ context.Context, _ string, _ st
 	f.adjustment = adjustment
 	return f.err
 }
-func (f *fakeAIGatewayUsageSource) RecordUsage(_ context.Context, report UsageReportRequest) error {
+
+func (f *fakeAIGatewayUsageSource) RecordUsage(_ context.Context, report commerce.UsageReportRequest) error {
 	f.recordReport = report
 	return f.err
 }

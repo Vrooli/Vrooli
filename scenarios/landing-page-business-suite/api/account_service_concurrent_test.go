@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // ============================================================================
@@ -136,7 +137,7 @@ func TestConcurrent_ServiceInitialization(t *testing.T) {
 
 	var wg sync.WaitGroup
 	var errors int32
-	services := make([]*AccountService, numGoroutines)
+	services := make([]*commerce.Service, numGoroutines)
 
 	for i := 0; i < numGoroutines; i++ {
 		wg.Add(1)

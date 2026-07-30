@@ -1,73 +1,110 @@
-// Package experimentation owns the policy used to decide whether a landing
-// variant-axis selection can be served. Transport and config decoding stay at
-// the API boundary; this package deliberately has no HTTP or filesystem deps.
 package experimentation
 
 import (
+	"crypto/rand"
 	"fmt"
-	"strings"
+	"math/big"
+	"sort"
 )
 
-// Axis lists the selectable identifiers for one experiment dimension.
+// Axis is the assignable vocabulary for one experiment dimension.
 type Axis struct {
 	Variants []string
 }
 
-// Space is the policy-relevant view of a landing variant space.
+// Space is the normalized experiment-assignment policy used by persisted
+// variant configuration and request validation.
 type Space struct {
 	Axes                   map[string]Axis
 	DisallowedCombinations []map[string]string
 }
 
 // ValidateSelection rejects unknown, incomplete, invalid, and explicitly
-// disallowed variant selections. A complete selection is required so a served
-// landing experience always has a reproducible experiment assignment.
+// disallowed experiment assignments.
 func ValidateSelection(space Space, selection map[string]string) error {
-	if len(space.Axes) == 0 {
-		return fmt.Errorf("variant space has no axes defined")
-	}
-
-	for axisID := range selection {
-		if _, ok := space.Axes[axisID]; !ok {
-			return fmt.Errorf("unknown axis %s", axisID)
+	for axis := range selection {
+		if _, ok := space.Axes[axis]; !ok {
+			return fmt.Errorf("unknown axis %s", axis)
 		}
 	}
-
-	for axisID, axis := range space.Axes {
-		value, ok := selection[axisID]
-		if !ok || strings.TrimSpace(value) == "" {
-			return fmt.Errorf("axis %s is required", axisID)
+	axisIDs := make([]string, 0, len(space.Axes))
+	for axis := range space.Axes {
+		axisIDs = append(axisIDs, axis)
+	}
+	sort.Strings(axisIDs)
+	for _, axis := range axisIDs {
+		value, ok := selection[axis]
+		if !ok || value == "" {
+			return fmt.Errorf("axis %s is required", axis)
 		}
-		if !contains(axis.Variants, value) {
-			return fmt.Errorf("invalid value '%s' for axis %s", value, axisID)
+		valid := false
+		for _, candidate := range space.Axes[axis].Variants {
+			if candidate == value {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			return fmt.Errorf("invalid value '%s' for axis %s", value, axis)
 		}
 	}
-
 	for _, combination := range space.DisallowedCombinations {
-		if matches(selection, combination) {
-			return fmt.Errorf("axis combination %v is disallowed", combination)
+		matches := true
+		for axis, value := range combination {
+			if selection[axis] != value {
+				matches = false
+				break
+			}
+		}
+		if matches {
+			return fmt.Errorf("selection is disallowed by experiment policy")
 		}
 	}
 	return nil
 }
 
-func contains(values []string, target string) bool {
-	for _, value := range values {
-		if value == target {
-			return true
-		}
+// NormalizeVariantStatus maps legacy and missing persisted values to the only
+// statuses understood by the experiment domain.
+func NormalizeVariantStatus(status string) string {
+	if status == "archived" {
+		return "archived"
 	}
-	return false
+	return "active"
 }
 
-func matches(selection, combination map[string]string) bool {
-	if len(combination) == 0 {
-		return false
+// VariantWeight returns zero for archived or disabled variants, so callers
+// cannot accidentally select an inactive variant.
+func VariantWeight(snapshot *VariantSnapshot) int {
+	if snapshot == nil || NormalizeVariantStatus(snapshot.Variant.Status) != "active" || snapshot.Variant.Weight <= 0 {
+		return 0
 	}
-	for axisID, expected := range combination {
-		if actual, ok := selection[axisID]; !ok || actual != expected {
-			return false
+	return snapshot.Variant.Weight
+}
+
+// SelectWeightedRandomVariant chooses from active weighted variants. It keeps
+// the historic deterministic fallback for zero-weight and entropy failures so
+// landing configuration remains available when selection cannot be randomized.
+func SelectWeightedRandomVariant(variants []*VariantSnapshot) *VariantSnapshot {
+	if len(variants) == 0 {
+		return nil
+	}
+	totalWeight := 0
+	for _, variant := range variants {
+		totalWeight += VariantWeight(variant)
+	}
+	if totalWeight == 0 {
+		return variants[0]
+	}
+	picked, err := rand.Int(rand.Reader, big.NewInt(int64(totalWeight)))
+	if err != nil {
+		return variants[0]
+	}
+	cumulative := 0
+	for _, variant := range variants {
+		cumulative += VariantWeight(variant)
+		if picked.Int64() < int64(cumulative) {
+			return variant
 		}
 	}
-	return true
+	return variants[0]
 }

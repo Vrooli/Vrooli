@@ -74,6 +74,7 @@ export const PricingOverviewSchema = z.object({
 // Landing section schema
 export const LandingSectionSchema = z.object({
   id: z.number().optional(),
+  key: z.string().min(1).optional(),
   section_type: z.string(),
   content: z.record(z.string(), z.unknown()),
   order: z.number(),

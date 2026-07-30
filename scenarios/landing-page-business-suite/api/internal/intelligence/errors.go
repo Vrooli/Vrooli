@@ -12,6 +12,7 @@ var ErrProvider = errors.New("AI provider error")
 // prevents provider, gateway, and credit orchestration code from depending on
 // the API composition package.
 var (
+	ErrInsufficientCredits   = errors.New("insufficient credits for this operation")
 	ErrNoAPIKeyConfigured    = errors.New("no OpenRouter API key configured")
 	ErrModelNotAllowed       = errors.New("model not in allowed list")
 	ErrAIGatewayUnavailable  = errors.New("AI gateway service unavailable")

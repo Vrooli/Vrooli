@@ -75,22 +75,6 @@
       "category": "admin"
     },
     {
-      "id": "get-api-v1-admin-docs-content",
-      "path": "/api/v1/admin/docs/content",
-      "method": "GET",
-      "summary": "GET /api/v1/admin/docs/content",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "get-api-v1-admin-docs-tree",
-      "path": "/api/v1/admin/docs/tree",
-      "method": "GET",
-      "summary": "GET /api/v1/admin/docs/tree",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
       "id": "get-api-v1-admin-download-apps",
       "path": "/api/v1/admin/download-apps",
       "method": "GET",
@@ -203,46 +187,6 @@
       "category": "admin"
     },
     {
-      "id": "get-api-v1-admin-feedback",
-      "path": "/api/v1/admin/feedback",
-      "method": "GET",
-      "summary": "GET /api/v1/admin/feedback",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "post-api-v1-admin-feedback-bulk-delete",
-      "path": "/api/v1/admin/feedback/bulk-delete",
-      "method": "POST",
-      "summary": "POST /api/v1/admin/feedback/bulk-delete",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "delete-api-v1-admin-feedback-id",
-      "path": "/api/v1/admin/feedback/{id}",
-      "method": "DELETE",
-      "summary": "DELETE /api/v1/admin/feedback/{id}",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "get-api-v1-admin-feedback-id",
-      "path": "/api/v1/admin/feedback/{id}",
-      "method": "GET",
-      "summary": "GET /api/v1/admin/feedback/{id}",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "patch-api-v1-admin-feedback-id-status",
-      "path": "/api/v1/admin/feedback/{id}/status",
-      "method": "PATCH",
-      "summary": "PATCH /api/v1/admin/feedback/{id}/status",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
       "id": "delete-api-v1-admin-limits",
       "path": "/api/v1/admin/limits",
       "method": "DELETE",
@@ -255,22 +199,6 @@
       "path": "/api/v1/admin/limits",
       "method": "POST",
       "summary": "POST /api/v1/admin/limits",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "post-api-v1-admin-login",
-      "path": "/api/v1/admin/login",
-      "method": "POST",
-      "summary": "POST /api/v1/admin/login",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "post-api-v1-admin-logout",
-      "path": "/api/v1/admin/logout",
-      "method": "POST",
-      "summary": "POST /api/v1/admin/logout",
       "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
       "category": "admin"
     },
@@ -383,22 +311,6 @@
       "path": "/api/v1/admin/remote-profiles/{id}/test",
       "method": "POST",
       "summary": "POST /api/v1/admin/remote-profiles/{id}/test",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "post-api-v1-admin-reset-demo-data",
-      "path": "/api/v1/admin/reset-demo-data",
-      "method": "POST",
-      "summary": "POST /api/v1/admin/reset-demo-data",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "get-api-v1-admin-session",
-      "path": "/api/v1/admin/session",
-      "method": "GET",
-      "summary": "GET /api/v1/admin/session",
       "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
       "category": "admin"
     },
@@ -651,14 +563,6 @@
       "category": "downloads"
     },
     {
-      "id": "post-api-v1-feedback",
-      "path": "/api/v1/feedback",
-      "method": "POST",
-      "summary": "POST /api/v1/feedback",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "feedback"
-    },
-    {
       "id": "get-api-v1-health",
       "path": "/api/v1/health",
       "method": "GET",
@@ -851,6 +755,102 @@
       "category": "system"
     },
     {
+      "id": "post-landing-page-business-suite-v1-adminauthservice-login",
+      "path": "/landing_page_business_suite.v1.AdminAuthService/Login",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.AdminAuthService/Login",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-adminauthservice-logout",
+      "path": "/landing_page_business_suite.v1.AdminAuthService/Logout",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.AdminAuthService/Logout",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-adminauthservice-session",
+      "path": "/landing_page_business_suite.v1.AdminAuthService/Session",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.AdminAuthService/Session",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-adminresetservice-resetdemodata",
+      "path": "/landing_page_business_suite.v1.AdminResetService/ResetDemoData",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.AdminResetService/ResetDemoData",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-administrationservice-createapikey",
+      "path": "/landing_page_business_suite.v1.AdministrationService/CreateAPIKey",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.AdministrationService/CreateAPIKey",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-administrationservice-deleteapikey",
+      "path": "/landing_page_business_suite.v1.AdministrationService/DeleteAPIKey",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.AdministrationService/DeleteAPIKey",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-administrationservice-listapikeys",
+      "path": "/landing_page_business_suite.v1.AdministrationService/ListAPIKeys",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.AdministrationService/ListAPIKeys",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-administrationservice-setapikeyactive",
+      "path": "/landing_page_business_suite.v1.AdministrationService/SetAPIKeyActive",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.AdministrationService/SetAPIKeyActive",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-administrationservice-testapikey",
+      "path": "/landing_page_business_suite.v1.AdministrationService/TestAPIKey",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.AdministrationService/TestAPIKey",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-assetsservice-deleteasset",
+      "path": "/landing_page_business_suite.v1.AssetsService/DeleteAsset",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.AssetsService/DeleteAsset",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-assetsservice-getasset",
+      "path": "/landing_page_business_suite.v1.AssetsService/GetAsset",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.AssetsService/GetAsset",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-assetsservice-listassets",
+      "path": "/landing_page_business_suite.v1.AssetsService/ListAssets",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.AssetsService/ListAssets",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
       "id": "post-landing-page-business-suite-v1-brandingservice-clearbrandingfield",
       "path": "/landing_page_business_suite.v1.BrandingService/ClearBrandingField",
       "method": "POST",
@@ -975,6 +975,102 @@
       "path": "/landing_page_business_suite.v1.CouponAdminService/UpdateCoupon",
       "method": "POST",
       "summary": "POST /landing_page_business_suite.v1.CouponAdminService/UpdateCoupon",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-deploymentservice-checkreadiness",
+      "path": "/landing_page_business_suite.v1.DeploymentService/CheckReadiness",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.DeploymentService/CheckReadiness",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-docsservice-getdoccontent",
+      "path": "/landing_page_business_suite.v1.DocsService/GetDocContent",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.DocsService/GetDocContent",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-docsservice-getdocstree",
+      "path": "/landing_page_business_suite.v1.DocsService/GetDocsTree",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.DocsService/GetDocsTree",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-downloadservice-authorizedownload",
+      "path": "/landing_page_business_suite.v1.DownloadService/AuthorizeDownload",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.DownloadService/AuthorizeDownload",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-downloadservice-createdownloadapp",
+      "path": "/landing_page_business_suite.v1.DownloadService/CreateDownloadApp",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.DownloadService/CreateDownloadApp",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-downloadservice-deletedownloadapp",
+      "path": "/landing_page_business_suite.v1.DownloadService/DeleteDownloadApp",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.DownloadService/DeleteDownloadApp",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-downloadservice-listdownloadapps",
+      "path": "/landing_page_business_suite.v1.DownloadService/ListDownloadApps",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.DownloadService/ListDownloadApps",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-downloadservice-savedownloadapp",
+      "path": "/landing_page_business_suite.v1.DownloadService/SaveDownloadApp",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.DownloadService/SaveDownloadApp",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-intelligenceservice-chat",
+      "path": "/landing_page_business_suite.v1.IntelligenceService/Chat",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.IntelligenceService/Chat",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-intelligenceservice-getusage",
+      "path": "/landing_page_business_suite.v1.IntelligenceService/GetUsage",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.IntelligenceService/GetUsage",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-intelligenceservice-health",
+      "path": "/landing_page_business_suite.v1.IntelligenceService/Health",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.IntelligenceService/Health",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-intelligenceservice-listmodels",
+      "path": "/landing_page_business_suite.v1.IntelligenceService/ListModels",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.IntelligenceService/ListModels",
       "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
       "category": "system"
     },
@@ -1227,6 +1323,30 @@
       "category": "system"
     },
     {
+      "id": "post-landing-page-business-suite-v1-metricsservice-getanalyticssummary",
+      "path": "/landing_page_business_suite.v1.MetricsService/GetAnalyticsSummary",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MetricsService/GetAnalyticsSummary",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-metricsservice-getvariantstats",
+      "path": "/landing_page_business_suite.v1.MetricsService/GetVariantStats",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MetricsService/GetVariantStats",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-metricsservice-trackevent",
+      "path": "/landing_page_business_suite.v1.MetricsService/TrackEvent",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.MetricsService/TrackEvent",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
       "id": "post-landing-page-business-suite-v1-pricingservice-getpricing",
       "path": "/landing_page_business_suite.v1.PricingService/GetPricing",
       "method": "POST",
@@ -1271,6 +1391,94 @@
       "path": "/landing_page_business_suite.v1.StripeSettingsService/UpdateStripeSettings",
       "method": "POST",
       "summary": "POST /landing_page_business_suite.v1.StripeSettingsService/UpdateStripeSettings",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-variantservice-archivevariant",
+      "path": "/landing_page_business_suite.v1.VariantService/ArchiveVariant",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.VariantService/ArchiveVariant",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-variantservice-createvariant",
+      "path": "/landing_page_business_suite.v1.VariantService/CreateVariant",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.VariantService/CreateVariant",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-variantservice-deletevariant",
+      "path": "/landing_page_business_suite.v1.VariantService/DeleteVariant",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.VariantService/DeleteVariant",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-variantservice-exportvariantsnapshot",
+      "path": "/landing_page_business_suite.v1.VariantService/ExportVariantSnapshot",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.VariantService/ExportVariantSnapshot",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-variantservice-getpublicvariant",
+      "path": "/landing_page_business_suite.v1.VariantService/GetPublicVariant",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.VariantService/GetPublicVariant",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-variantservice-getvariant",
+      "path": "/landing_page_business_suite.v1.VariantService/GetVariant",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.VariantService/GetVariant",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-variantservice-importvariantsnapshot",
+      "path": "/landing_page_business_suite.v1.VariantService/ImportVariantSnapshot",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.VariantService/ImportVariantSnapshot",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-variantservice-listvariants",
+      "path": "/landing_page_business_suite.v1.VariantService/ListVariants",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.VariantService/ListVariants",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-variantservice-selectvariant",
+      "path": "/landing_page_business_suite.v1.VariantService/SelectVariant",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.VariantService/SelectVariant",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-variantservice-syncvariantsnapshots",
+      "path": "/landing_page_business_suite.v1.VariantService/SyncVariantSnapshots",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.VariantService/SyncVariantSnapshots",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-variantservice-updatevariant",
+      "path": "/landing_page_business_suite.v1.VariantService/UpdateVariant",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.VariantService/UpdateVariant",
       "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
       "category": "system"
     },

@@ -18,7 +18,8 @@ The user-facing security surface is also covered by `docs/reference/SECURITY.md`
                   │
    public ───────►│
                   ├── LandingConfigService.GetLandingConfig, /api/v1/plans, /api/v1/branding,
-                  │   /api/v1/metrics/track, /api/v1/waitlist, /api/v1/feedback
+                  │   /api/v1/metrics/track, /api/v1/waitlist,
+                  │   FeedbackService.CreateFeedback
                   │   (NO auth — rate-limited only at infra)
                   │
                   ├── /api/v1/auth/*           (public; internal rate limiter, 5 / 15 min)
@@ -54,7 +55,7 @@ The user-facing security surface is also covered by `docs/reference/SECURITY.md`
 - Secrets are read from env vars first, then from `~/.vrooli/secrets.json` (lifecycle "Secrets Tab"). They are **never** read from a tracked file.
 - Stripe restricted keys are preferred (`docs/reference/STRIPE_RESTRICTED_KEYS.md`).
 - Remote-profile sessions are encrypted-at-rest in `remote_profiles.encrypted_session`. The key lives in env, not in the DB.
-- The admin reset endpoint (`/api/v1/admin/reset-demo-data`) does **not** wipe `admin_users` — credentials persist across resets.
+- The admin reset procedure (`AdminResetService/ResetDemoData`) does **not** wipe `admin_users` — credentials persist across resets.
 
 ## Authorization model
 
@@ -76,3 +77,5 @@ The user-facing security surface is also covered by `docs/reference/SECURITY.md`
 - Service bearer is HMAC of a static secret, not a JWT — fine for a small s2s mesh, would not scale to many callers.
 - The UI uses `BrowserRouter` and does not use React Router's unstable RSC APIs. GHSA-qwww-vcr4-c8h2 is therefore tracked as a dependency warning rather than a shipped attack path; introducing an RSC router, RSC package, or unstable RSC API requires upgrading React Router to a patched release first.
 - Security Health currently reports residual lockfile advisories from transitive build and test tooling, plus the `x/crypto/openpgp` advisory. OpenTelemetry was upgraded through Scenario Dependency Analyzer to `v1.42.0`, clearing GO-2026-5158. The UI directly pins `picomatch` 4.0.5 through Scenario Dependency Analyzer, which removed the vulnerable 4.x resolver path without weakening coverage policy. The remaining old `minimatch`, `brace-expansion`, `flatted`, and `picomatch` 2.x paths are held by ESLint, Tailwind, and test-tooling dependency graphs; `monaco-editor@0.56.0` similarly owns the residual `dompurify@3.4.8` path. Governed requests for the current Monaco packages resolve to those already-installed versions, so these paths cannot be safely overridden by hand. `golang.org/x/crypto@0.54.0` is also already current; GO-2026-5932 concerns its intentionally unmaintained `openpgp` package and has no named patched upstream release. Treat every new production dependency path as a trigger to re-run Security Health, and re-evaluate these residuals when their upstream owners publish a compatible release.
+
+- `config/variants/agency-marketing-visionary.json` is a public content fixture. Its stable section identifiers trigger gitleaks' generic-key heuristic even though the file contains no credential fields. The scenario-local `.gitleaks.toml` suppresses only that exact fixture path while retaining every default rule for all other source and configuration files. Any future secret-bearing configuration must use the vault/env path and must never be added to this fixture allowlist.

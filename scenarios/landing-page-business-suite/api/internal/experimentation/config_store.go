@@ -244,6 +244,7 @@ func (cs *ConfigStore) loadVariantFileLocked(path string) error {
 			enabled = *sec.Enabled
 		}
 		sections = append(sections, VariantSection{
+			Key:         strings.TrimSpace(sec.Key),
 			SectionType: sec.SectionType,
 			Content:     sec.Content,
 			Order:       order,
@@ -255,6 +256,7 @@ func (cs *ConfigStore) loadVariantFileLocked(path string) error {
 	sort.Slice(sections, func(i, j int) bool {
 		return sections[i].Order < sections[j].Order
 	})
+	normalizeSectionKeys(sections)
 
 	snapshot := &VariantSnapshot{
 		Variant: VariantSnapshotMeta{
@@ -324,6 +326,7 @@ func (cs *ConfigStore) SaveVariant(slug string, snapshot *VariantSnapshot) error
 	if err := cs.space.ValidateSelection(snapshot.Variant.Axes); err != nil {
 		return err
 	}
+	normalizeSectionKeys(snapshot.Sections)
 
 	// Build the file structure
 	fileData := VariantSnapshotInput{
@@ -343,6 +346,7 @@ func (cs *ConfigStore) SaveVariant(slug string, snapshot *VariantSnapshot) error
 	for _, sec := range snapshot.Sections {
 		enabled := sec.Enabled
 		fileData.Sections = append(fileData.Sections, VariantSectionInput{
+			Key:         sec.Key,
 			SectionType: sec.SectionType,
 			Content:     sec.Content,
 			Order:       sec.Order,
@@ -374,6 +378,28 @@ func (cs *ConfigStore) SaveVariant(slug string, snapshot *VariantSnapshot) error
 		"path": path,
 	})
 	return nil
+}
+
+// normalizeSectionKeys gives legacy JSON snapshots a deterministic key and
+// guarantees uniqueness before a snapshot is persisted. New keys are written
+// with the next save, so section routes never rely on process-local indices.
+func normalizeSectionKeys(sections []VariantSection) {
+	used := make(map[string]struct{}, len(sections))
+	for index := range sections {
+		base := strings.TrimSpace(sections[index].Key)
+		if base == "" {
+			base = fmt.Sprintf("section-%d-%s", sections[index].Order, strings.TrimSpace(sections[index].SectionType))
+		}
+		key := base
+		for suffix := 2; ; suffix++ {
+			if _, exists := used[key]; !exists {
+				break
+			}
+			key = fmt.Sprintf("%s-%d", base, suffix)
+		}
+		sections[index].Key = key
+		used[key] = struct{}{}
+	}
 }
 
 // DeleteVariant removes a variant from the cache and deletes its JSON file.
@@ -787,8 +813,5 @@ func defaultBranding() *SiteBranding {
 }
 
 func normalizeVariantStatus(status string) string {
-	if status == "archived" {
-		return "archived"
-	}
-	return "active"
+	return NormalizeVariantStatus(status)
 }

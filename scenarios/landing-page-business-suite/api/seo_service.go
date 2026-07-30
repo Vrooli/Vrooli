@@ -1,25 +1,23 @@
 package main
 
 import (
+	"encoding/json"
+
 	"landing-page-business-suite-api/internal/content"
+	"landing-page-business-suite-api/internal/contracts"
+	"landing-page-business-suite-api/internal/experimentation"
 )
 
 // SEOServicer is the transport-facing SEO contract.
 type SEOServicer interface {
-	VariantSEO(slug string) (*SEOResponse, error)
+	VariantSEO(slug string) (*content.SEOResponse, error)
 	SitemapXML(fallbackBase string) (string, error)
 	RobotsTXT(fallbackBase string) (string, error)
 }
 
-type (
-	VariantSEOConfig = content.VariantSEOConfig
-	SEOResponse      = content.SEOResponse
-	SEOService       = content.SEOService
-)
+var _ SEOServicer = (*content.SEOService)(nil)
 
-var _ SEOServicer = (*SEOService)(nil)
-
-type seoConfigStoreAdapter struct{ store *ConfigStore }
+type seoConfigStoreAdapter struct{ store *experimentation.ConfigStore }
 
 func (a seoConfigStoreAdapter) Branding() content.SEOBranding {
 	b := a.store.GetBranding()
@@ -48,10 +46,20 @@ func (a seoConfigStoreAdapter) Variants() []content.SEOVariant {
 	return result
 }
 
-// NewSEOService constructs content-domain SEO policy over the JSON configuration adapter.
-func NewSEOService(store *ConfigStore) *SEOService {
-	return content.NewSEOService(seoConfigStoreAdapter{store: store}, logStructuredError)
+func (a seoConfigStoreAdapter) UpdateVariantSEO(slug string, config contracts.VariantSEOConfig) error {
+	variant, err := a.store.GetVariant(slug)
+	if err != nil {
+		return err
+	}
+	encoded, err := json.Marshal(config)
+	if err != nil {
+		return err
+	}
+	variant.Variant.SEOConfig = encoded
+	return a.store.SaveVariant(slug, variant)
 }
 
-// NewSEOServiceWithConfigStore is retained for compatibility with existing callers.
-func NewSEOServiceWithConfigStore(store *ConfigStore) *SEOService { return NewSEOService(store) }
+// NewSEOService constructs content-domain SEO policy over the JSON configuration adapter.
+func NewSEOService(store *experimentation.ConfigStore) *content.SEOService {
+	return content.NewSEOService(seoConfigStoreAdapter{store: store}, logStructuredError)
+}

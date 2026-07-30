@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/vrooli/api-core/database"
+	"landing-page-business-suite-api/internal/delivery"
+	"landing-page-business-suite-api/internal/landing"
 )
 
 // applyRuntimeSchema applies the ordered, domain-owned declarative schemas.
@@ -49,13 +51,13 @@ func seedDefaultData(db StartupStore) error {
 	if _, err := db.Exec(seedPaymentSettingsSQL); err != nil {
 		return fmt.Errorf("failed to seed payment settings: %w", err)
 	}
-	if err := seedDownloadDefaults(db, fallbackLanding.Downloads); err != nil {
+	if err := seedDownloadDefaults(db, landing.DefaultFallbackDownloads()); err != nil {
 		return err
 	}
 	return seedTierLimitsDefaults(db)
 }
 
-func seedDownloadDefaults(db StartupStore, downloads []DownloadApp) error {
+func seedDownloadDefaults(db StartupStore, downloads []delivery.App) error {
 	if len(downloads) == 0 {
 		return nil
 	}

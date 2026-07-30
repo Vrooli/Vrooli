@@ -203,7 +203,7 @@ export function buildPriceFormsFromBundles(bundles: BundleCatalogEntry[]): Recor
  * Get unique identifier for a price option
  */
 export function getPriceIdentifier(price: PlanOption): string {
-  const metadata = price.metadata as Record<string, unknown> | undefined;
+  const metadata = price.metadata;
   const primaryKey = metadata?.__price_pk;
   const metadataIdentifier =
     typeof primaryKey === 'string'

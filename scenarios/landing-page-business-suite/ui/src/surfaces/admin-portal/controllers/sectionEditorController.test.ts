@@ -4,9 +4,8 @@ import type {
   Variant,
   VariantSpace,
   VariantAxes,
-  getSection,
-  updateSection,
-  patchSection,
+  getVariantSection,
+  updateVariantSection,
   getVariant,
   getVariantSpace,
 } from '../../../shared/api';
@@ -20,15 +19,13 @@ import {
 } from './sectionEditorController';
 
 // Mock the API module
-type GetSectionFn = typeof getSection;
-type UpdateSectionFn = typeof updateSection;
-type PatchSectionFn = typeof patchSection;
+type GetVariantSectionFn = typeof getVariantSection;
+type UpdateVariantSectionFn = typeof updateVariantSection;
 type GetVariantFn = typeof getVariant;
 type GetVariantSpaceFn = typeof getVariantSpace;
 
-const getSectionMock = vi.fn<GetSectionFn>();
-const updateSectionMock = vi.fn<UpdateSectionFn>();
-const patchSectionMock = vi.fn<PatchSectionFn>();
+const getVariantSectionMock = vi.fn<GetVariantSectionFn>();
+const updateVariantSectionMock = vi.fn<UpdateVariantSectionFn>();
 const getVariantMock = vi.fn<GetVariantFn>();
 const getVariantSpaceMock = vi.fn<GetVariantSpaceFn>();
 
@@ -36,9 +33,8 @@ vi.mock('../../../shared/api', async () => {
   const actual = await vi.importActual<typeof import('../../../shared/api')>('../../../shared/api');
   return {
     ...actual,
-    getSection: (...args: Parameters<GetSectionFn>) => getSectionMock(...args),
-    updateSection: (...args: Parameters<UpdateSectionFn>) => updateSectionMock(...args),
-    patchSection: (...args: Parameters<PatchSectionFn>) => patchSectionMock(...args),
+    getVariantSection: (...args: Parameters<GetVariantSectionFn>) => getVariantSectionMock(...args),
+    updateVariantSection: (...args: Parameters<UpdateVariantSectionFn>) => updateVariantSectionMock(...args),
     getVariant: (...args: Parameters<GetVariantFn>) => getVariantMock(...args),
     getVariantSpace: (...args: Parameters<GetVariantSpaceFn>) => getVariantSpaceMock(...args),
   };
@@ -47,6 +43,7 @@ vi.mock('../../../shared/api', async () => {
 const mockSection: ContentSection = {
   id: 42,
   variant_id: 1,
+  key: 'section-1-hero',
   section_type: 'hero',
   content: { title: 'Welcome', subtitle: 'Get started today' },
   order: 1,
@@ -133,67 +130,67 @@ describe('sectionEditorController', () => {
 
   describe('loadSectionEditor', () => {
     it('fetches section and returns editor state', async () => {
-      getSectionMock.mockResolvedValue(mockSection);
+      getVariantSectionMock.mockResolvedValue(mockSection);
 
-      const result = await loadSectionEditor(42);
+      const result = await loadSectionEditor('control', 'section-1-hero');
 
-      expect(getSectionMock).toHaveBeenCalledWith(42);
+      expect(getVariantSectionMock).toHaveBeenCalledWith('control', 'section-1-hero');
       expect(result.section).toEqual(mockSection);
       expect(result.form.sectionType).toBe('hero');
       expect(result.form.enabled).toBe(true);
     });
 
     it('propagates API errors', async () => {
-      getSectionMock.mockRejectedValue(new Error('Section not found'));
+      getVariantSectionMock.mockRejectedValue(new Error('Section not found'));
 
-      await expect(loadSectionEditor(999)).rejects.toThrow('Section not found');
+      await expect(loadSectionEditor('control', 'missing')).rejects.toThrow('Section not found');
     });
   });
 
   describe('persistExistingSectionContent', () => {
     it('updates section and reloads editor state', async () => {
-      updateSectionMock.mockResolvedValue({ success: true, message: 'Updated' });
-      getSectionMock.mockResolvedValue({
+      updateVariantSectionMock.mockResolvedValue({ ...mockSection, content: { title: 'Updated', subtitle: 'New subtitle' } });
+      getVariantSectionMock.mockResolvedValue({
         ...mockSection,
         content: { title: 'Updated', subtitle: 'New subtitle' },
       });
 
       const newContent = { title: 'Updated', subtitle: 'New subtitle' };
-      const result = await persistExistingSectionContent(42, newContent);
+      const result = await persistExistingSectionContent('control', 'section-1-hero', newContent);
 
-      expect(updateSectionMock).toHaveBeenCalledWith(42, newContent);
-      expect(getSectionMock).toHaveBeenCalledWith(42);
+      expect(updateVariantSectionMock).toHaveBeenCalledWith('control', 'section-1-hero', { content: newContent });
+      expect(getVariantSectionMock).toHaveBeenCalledWith('control', 'section-1-hero');
       expect(result.form.content.title).toBe('Updated');
     });
 
     it('propagates update errors', async () => {
-      updateSectionMock.mockRejectedValue(new Error('Update failed'));
+      updateVariantSectionMock.mockRejectedValue(new Error('Update failed'));
 
-      await expect(persistExistingSectionContent(42, {})).rejects.toThrow('Update failed');
+      await expect(persistExistingSectionContent('control', 'section-1-hero', {})).rejects.toThrow('Update failed');
     });
   });
 
   describe('updateSectionOrder', () => {
     it('patches section with new order', async () => {
-      patchSectionMock.mockResolvedValue({ success: true });
+      updateVariantSectionMock.mockResolvedValue(mockSection);
 
-      await updateSectionOrder(42, 5);
+      await updateSectionOrder('control', 'section-1-hero', 5);
 
-      expect(patchSectionMock).toHaveBeenCalledWith(42, { order: 5 });
+      expect(updateVariantSectionMock).toHaveBeenCalledWith('control', 'section-1-hero', { order: 5 });
     });
 
-    it('throws error when sectionId is falsy', async () => {
-      await expect(updateSectionOrder(0, 5)).rejects.toThrow('Section ID and order are required');
+    it('throws error when section key is missing', async () => {
+      await expect(updateSectionOrder('control', '', 5)).rejects.toThrow('Variant slug, section key, and order are required');
     });
 
     it('throws error when order is NaN', async () => {
-      await expect(updateSectionOrder(42, NaN)).rejects.toThrow('Section ID and order are required');
+      await expect(updateSectionOrder('control', 'section-1-hero', NaN)).rejects.toThrow('Variant slug, section key, and order are required');
     });
 
     it('propagates API errors', async () => {
-      patchSectionMock.mockRejectedValue(new Error('Patch failed'));
+      updateVariantSectionMock.mockRejectedValue(new Error('Patch failed'));
 
-      await expect(updateSectionOrder(42, 5)).rejects.toThrow('Patch failed');
+      await expect(updateSectionOrder('control', 'section-1-hero', 5)).rejects.toThrow('Patch failed');
     });
   });
 

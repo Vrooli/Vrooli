@@ -297,7 +297,7 @@ export function getUniqueValues<T, K extends keyof T>(
   property: K
 ): T[K][] {
   const values = new Set(items.map((item) => item[property]));
-  return Array.from(values).sort() as T[K][];
+  return Array.from(values).sort();
 }
 
 /**

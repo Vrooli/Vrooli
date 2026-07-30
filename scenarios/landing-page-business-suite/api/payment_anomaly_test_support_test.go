@@ -6,12 +6,7 @@ import (
 	"landing-page-business-suite-api/internal/commerce"
 )
 
-type (
-	PaymentAnomaly        = commerce.PaymentAnomaly
-	PaymentAnomalyService = commerce.PaymentAnomalyService
-)
-
-func NewPaymentAnomalyService(ctx context.Context, db commerce.PaymentAnomalyStore, shutdownCtx context.Context) *commerce.PaymentAnomalyService {
+func newPaymentAnomalyServiceForTest(ctx context.Context, db commerce.PaymentAnomalyStore, shutdownCtx context.Context) *commerce.PaymentAnomalyService {
 	return commerce.NewPaymentAnomalyService(ctx, db, shutdownCtx, commerce.PaymentAnomalyRuntime{
 		ScenarioName:   "landing-page-business-suite",
 		NormalizeEmail: NormalizeEmail,

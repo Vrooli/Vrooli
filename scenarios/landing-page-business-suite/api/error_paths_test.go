@@ -7,6 +7,7 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // ============================================================================
@@ -25,7 +26,7 @@ func TestErrorPaths_ContextCancellation(t *testing.T) {
 	cancel()
 
 	// Test that operations properly handle cancelled context
-	err := usageSvc.RecordUsage(ctx, UsageReportRequest{
+	err := usageSvc.RecordUsage(ctx, commerce.UsageReportRequest{
 		UserIdentity: "cancel-test@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       1000,
@@ -48,7 +49,7 @@ func TestErrorPaths_ContextTimeout(t *testing.T) {
 	// Allow the context to actually expire
 	time.Sleep(1 * time.Millisecond)
 
-	err := usageSvc.RecordUsage(ctx, UsageReportRequest{
+	err := usageSvc.RecordUsage(ctx, commerce.UsageReportRequest{
 		UserIdentity: "timeout-test@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       1000,
@@ -67,7 +68,7 @@ func TestErrorPaths_InvalidUserIdentity(t *testing.T) {
 	ctx := context.Background()
 
 	// Test empty user identity
-	err := usageSvc.RecordUsage(ctx, UsageReportRequest{
+	err := usageSvc.RecordUsage(ctx, commerce.UsageReportRequest{
 		UserIdentity: "",
 		LimitKey:     "ai_credits",
 		Amount:       1000,
@@ -86,7 +87,7 @@ func TestErrorPaths_InvalidLimitKey(t *testing.T) {
 	ctx := context.Background()
 
 	// Test empty limit key
-	err := usageSvc.RecordUsage(ctx, UsageReportRequest{
+	err := usageSvc.RecordUsage(ctx, commerce.UsageReportRequest{
 		UserIdentity: "valid@example.com",
 		LimitKey:     "",
 		Amount:       1000,
@@ -105,7 +106,7 @@ func TestErrorPaths_NegativeAmount(t *testing.T) {
 	ctx := context.Background()
 
 	// Test negative amount
-	err := usageSvc.RecordUsage(ctx, UsageReportRequest{
+	err := usageSvc.RecordUsage(ctx, commerce.UsageReportRequest{
 		UserIdentity: "valid@example.com",
 		LimitKey:     "ai_credits",
 		Amount:       -100,
@@ -219,7 +220,7 @@ func TestErrorPaths_LimitsService_UpdateNonexistent(t *testing.T) {
 
 	// Try to update a non-existent limit
 	newValue := int64(5000)
-	_, err := svc.UpdateLimit(ctx, "nonexistent_tier", "nonexistent_key", nil, TierLimitUpdate{
+	_, err := svc.UpdateLimit(ctx, "nonexistent_tier", "nonexistent_key", nil, commerce.TierLimitUpdate{
 		LimitValue: &newValue,
 	})
 
@@ -236,7 +237,7 @@ func TestErrorPaths_LimitsService_CreateDuplicate(t *testing.T) {
 
 	// Create a limit - must set AppBundleKey because NULL != NULL in unique constraints
 	appKey := "test_app_dup"
-	limit := TierLimit{
+	limit := commerce.TierLimit{
 		TierID:         "test_tier_dup",
 		LimitType:      "cost_based",
 		LimitKey:       "test_limit_dup",
