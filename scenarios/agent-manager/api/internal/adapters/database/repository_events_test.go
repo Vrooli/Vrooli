@@ -8,12 +8,30 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/runreport"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	_ "modernc.org/sqlite" // SQLite driver for tests
 )
+
+// projectStatsRun seeds the authoritative read model used by stats queries.
+// Run persistence is intentionally not an implicit analytics write path.
+func projectStatsRun(t *testing.T, repos *Repositories, ctx context.Context, run *domain.Run, at time.Time) {
+	t.Helper()
+	config := run.ResolvedConfig
+	if config == nil {
+		config = &domain.RunConfig{}
+	}
+	if err := repos.InvocationReadModel.(invocationreadmodel.RunStore).ReplaceRun(ctx, invocationreadmodel.RunFact{
+		RunID: run.ID.String(), OccurredAt: at, CreatedAt: at, Status: string(run.Status), Tag: run.Tag,
+		RunnerType: string(config.RunnerType), Model: config.Model, ProjectedAt: at,
+	}); err != nil {
+		t.Fatalf("project run fact: %v", err)
+	}
+}
 
 func TestCheckpointRepository(t *testing.T) {
 	db, cleanup := setupTestDB(t)
@@ -751,6 +769,7 @@ func TestStatsGetTimeSeries_DailyBucketParsesTimestamp(t *testing.T) {
 	}
 
 	now := time.Now()
+	projectStatsRun(t, repos, ctx, run, now)
 	filter := repository.StatsFilter{
 		Window: repository.StatsTimeWindow{
 			Start: now.Add(-24 * time.Hour),
@@ -810,6 +829,10 @@ func TestStatsUsageQueries_ParseCreatedAtTimestamps(t *testing.T) {
 	}
 
 	now := time.Now()
+	projectStatsRun(t, repos, ctx, run, now)
+	if err := repos.InvocationReadModel.Replace(ctx, []invocationreadmodel.Fact{{InvocationFact: runreport.InvocationFact{Version: runreport.InvocationFactVersion, CallEventID: "call-1", ToolName: "read", Ownership: "project", Outcome: "success", Fingerprint: "read", Availability: "available"}, RunID: run.ID.String(), OccurredAt: now, TimeBasis: "call_event", RunnerType: string(run.ResolvedConfig.RunnerType), Model: run.ResolvedConfig.Model, RunStatus: string(run.Status)}}, invocationreadmodel.Watermark{RunID: run.ID.String(), LastEventID: "call-1", LastEventAt: now, ClassifierVersion: runreport.InvocationFactVersion, ProjectedAt: now}); err != nil {
+		t.Fatalf("project invocation fact: %v", err)
+	}
 	filter := repository.StatsFilter{
 		Window: repository.StatsTimeWindow{
 			Start: now.Add(-24 * time.Hour),
@@ -875,6 +898,10 @@ func TestStatsGetErrorPatterns_ParsesLastSeenTimestamp(t *testing.T) {
 	}
 
 	now := time.Now()
+	projectStatsRun(t, repos, ctx, run, now)
+	if _, err := db.ExecContext(ctx, `INSERT INTO invocation_read_model_errors (run_id,event_id,occurred_at,time_basis,error_code,profile_id,runner_type,model,tag) VALUES (?,?,?,?,?,?,?,?,?)`, run.ID.String(), "error-1", SQLiteTime(now), "error_event", "TOOL_FAILED", "", "", "", run.Tag); err != nil {
+		t.Fatalf("project error fact: %v", err)
+	}
 	filter := repository.StatsFilter{
 		Window: repository.StatsTimeWindow{
 			Start: now.Add(-24 * time.Hour),

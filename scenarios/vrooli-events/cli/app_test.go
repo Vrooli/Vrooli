@@ -52,6 +52,8 @@ func TestRunRegistersCommands(t *testing.T) {
 		{"ingest"},
 		{"query"},
 		{"subscribe"},
+		{"capture-preview"},
+		{"capture-reconcile"},
 		{"stats"},
 		{"status"},
 		{"configure"},
@@ -150,6 +152,35 @@ func TestStatsUsesRootHealth(t *testing.T) {
 	}
 	if receivedPath != "/health" {
 		t.Fatalf("expected /health, got %s", receivedPath)
+	}
+}
+
+func TestCapturePreviewAndReconcileCommands(t *testing.T) {
+	var requests []map[string]any
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"status": "healthy"})
+	})
+	mux.HandleFunc("/api/v1/receipt-capture-policies/reconcile", func(w http.ResponseWriter, r *http.Request) {
+		var request map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatal(err)
+		}
+		requests = append(requests, request)
+		_ = json.NewEncoder(w).Encode(map[string]any{"scenario": "agent-manager", "validated": true, "policies": 1, "created": 1, "updated": 0})
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	t.Setenv("VROOLI_EVENTS_API_BASE", srv.URL)
+	app := mustNewApp(t)
+	if err := app.Run([]string{"capture-preview", "--scenario", "agent-manager"}); err != nil {
+		t.Fatalf("preview: %v", err)
+	}
+	if err := app.Run([]string{"capture-reconcile", "--scenario", "agent-manager"}); err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+	if len(requests) != 2 || requests[0]["dryRun"] != true || requests[1]["dryRun"] != false {
+		t.Fatalf("requests=%+v", requests)
 	}
 }
 

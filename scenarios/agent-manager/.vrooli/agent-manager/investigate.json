@@ -78,8 +78,8 @@
         "bindings": [
           {"name": "context", "source": "workflow_input", "selector": "$.context", "limit": 1, "maxBytes": 65536, "renderAs": "text", "missingPolicy": "error"}
         ],
-        "maxTurns": 1000,
-        "timeoutSeconds": 7200
+        "maxTurns": 12,
+        "timeoutSeconds": 1200
       }
     },
     {
@@ -118,8 +118,8 @@
           {"name": "approval", "source": "signal", "selector": "$.payload", "limit": 1, "maxBytes": 8192, "renderAs": "text", "missingPolicy": "error"},
           {"name": "context", "source": "workflow_input", "selector": "$.context", "limit": 1, "maxBytes": 32768, "renderAs": "text", "missingPolicy": "omit"}
         ],
-        "maxTurns": 1000,
-        "timeoutSeconds": 7200
+        "maxTurns": 12,
+        "timeoutSeconds": 1200
       }
     },
     {
@@ -162,16 +162,16 @@
     {"from": "apply", "to": "end-completed"}
   ],
   "budgets": {
-    "wallTimeSeconds": 86400,
-    "maxTurns": 2200,
-    "maxTokens": 3000000,
-    "maxCostUsd": 60,
+    "wallTimeSeconds": 1200,
+    "maxTurns": 12,
+    "maxTokens": 30000,
+    "maxCostUsd": 5,
     "maxNodeAttempts": 2,
     "maxChildren": 2,
     "maxConcurrency": 1,
     "maxRecursion": 1,
     "maxRetries": 1,
-    "maxWaitSeconds": 86400
+    "maxWaitSeconds": 60
   },
   "metadata": {"feature": "investigation", "owner": "agent-manager"}
 }

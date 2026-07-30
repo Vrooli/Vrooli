@@ -698,6 +698,14 @@ consumer-domain action node.
 
 ## Related Documentation
 
+## Friction investigation transport
+
+`EpisodesService` is the proto-first boundary for bounded friction evidence:
+`GetEpisodes`, `GetSelfReportSpans`, `GetCrossScenarioLedger`, and
+`ImportTranscript`. The CLI invokes each through its generated Connect client;
+the retained REST paths are compatibility routes rather than new command
+bindings. Episode cohort selection is owned by `MeasuresService.EpisodeCohort`.
+
 - [SEAMS.md](../internal/SEAMS.md) - Architectural boundaries and interfaces
 - [FAILURE_TOPOGRAPHY.md](../FAILURE_TOPOGRAPHY.md) - Failure mode analysis
 - [PROBLEMS.md](../internal/PROBLEMS.md) - Known issues and deferred work

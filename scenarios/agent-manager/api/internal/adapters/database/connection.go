@@ -77,7 +77,8 @@ func NewRoutedDB(routed *coredb.RoutedDB, log *logrus.Logger) *DB {
 // DataDir returns the directory where the SQLite database file is stored.
 // This follows the same resolution priority as SQLiteDSN.
 func DataDir() string {
-	root := strings.TrimSpace(os.Getenv("AM_SQLITE_PATH"))
+	root, _ := os.LookupEnv("AM_SQLITE_PATH")
+	root = strings.TrimSpace(root)
 	if root != "" {
 		return filepath.Dir(root)
 	}
@@ -91,9 +92,11 @@ func DataDir() string {
 // connection seam. It is intentionally exported to keep main's composition
 // root explicit without exposing path-resolution internals.
 func SQLiteDSN(log *logrus.Logger) (string, error) {
-	root := strings.TrimSpace(os.Getenv("AM_SQLITE_PATH"))
+	root, _ := os.LookupEnv("AM_SQLITE_PATH")
+	root = strings.TrimSpace(root)
 	if root == "" {
-		if custom := strings.TrimSpace(os.Getenv("DATABASE_URL")); strings.HasPrefix(custom, "file:") {
+		custom, _ := os.LookupEnv("DATABASE_URL")
+		if custom = strings.TrimSpace(custom); strings.HasPrefix(custom, "file:") {
 			return custom, nil
 		}
 		path, err := scenarioDBPath()
@@ -401,6 +404,23 @@ func (db *DB) initSchema() error {
 			return err
 		}
 	}
+	// investigation_cross_scenario_calls gained receipt timing after the
+	// original projection shipped. Apply this before schema validation for
+	// existing databases, just as we do for the durable invocation projection.
+	if columns, err := db.tableColumns(ctx, "investigation_cross_scenario_calls"); err != nil {
+		return err
+	} else if len(columns) > 0 {
+		if err := db.migrateInvestigationProjectionColumns(ctx); err != nil {
+			return err
+		}
+	}
+	if columns, err := db.tableColumns(ctx, "investigation_friction_episodes"); err != nil {
+		return err
+	} else if len(columns) > 0 {
+		if err := db.migrateFrictionEpisodeColumns(ctx); err != nil {
+			return err
+		}
+	}
 	if err := coredb.EnsureSchemas(ctx, db, modules.AllSchemas()...); err != nil {
 		if db.log != nil {
 			db.log.WithError(err).Error("Failed to apply domain schemas")
@@ -429,6 +449,12 @@ func (db *DB) initSchema() error {
 		return err
 	}
 	if err := db.migrateInvocationReadModelRunColumns(ctx); err != nil {
+		return err
+	}
+	if err := db.migrateInvestigationProjectionColumns(ctx); err != nil {
+		return err
+	}
+	if err := db.migrateFrictionEpisodeColumns(ctx); err != nil {
 		return err
 	}
 	if db.log != nil {
@@ -464,6 +490,22 @@ var invocationReadModelRunColumnMigrations = []columnMigration{
 
 func (db *DB) migrateInvocationReadModelRunColumns(ctx context.Context) error {
 	return db.migrateColumns(ctx, "invocation_read_model_runs", invocationReadModelRunColumnMigrations)
+}
+
+var investigationProjectionColumnMigrations = []columnMigration{
+	{column: "occurred_at", ddl: "ALTER TABLE investigation_cross_scenario_calls ADD COLUMN occurred_at TEXT"},
+}
+
+func (db *DB) migrateInvestigationProjectionColumns(ctx context.Context) error {
+	return db.migrateColumns(ctx, "investigation_cross_scenario_calls", investigationProjectionColumnMigrations)
+}
+
+var frictionEpisodeColumnMigrations = []columnMigration{
+	{column: "failed_joined_calls", ddl: "ALTER TABLE investigation_friction_episodes ADD COLUMN failed_joined_calls INTEGER NOT NULL DEFAULT 0"},
+}
+
+func (db *DB) migrateFrictionEpisodeColumns(ctx context.Context) error {
+	return db.migrateColumns(ctx, "investigation_friction_episodes", frictionEpisodeColumnMigrations)
 }
 
 // runColumnMigrations lists columns added to the runs table after its original

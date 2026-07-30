@@ -40,18 +40,22 @@ func (s *fakeStore) RunStatusCounts(_ context.Context, filter invocationreadmode
 	s.filter = filter
 	return s.statusCounts, nil
 }
+
 func (s *fakeStore) RunBreakdown(_ context.Context, filter invocationreadmodel.Filter, dimension string, _ int) ([]invocationreadmodel.RunBreakdownRow, error) {
 	s.filter = filter
 	return s.breakdowns[dimension], nil
 }
+
 func (s *fakeStore) RunTimeSeries(_ context.Context, filter invocationreadmodel.Filter, _ time.Duration) ([]invocationreadmodel.RunTimeSeriesBucket, error) {
 	s.filter = filter
 	return s.runTimeSeries, nil
 }
+
 func (s *fakeStore) ToolUsage(_ context.Context, filter invocationreadmodel.Filter, _ int) ([]invocationreadmodel.ToolUsageRow, error) {
 	s.filter = filter
 	return s.toolUsage, nil
 }
+
 func (s *fakeStore) ErrorPatterns(_ context.Context, filter invocationreadmodel.Filter, _ int) ([]invocationreadmodel.ErrorPattern, error) {
 	s.filter = filter
 	return s.errorPatterns, nil

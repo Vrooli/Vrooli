@@ -17,10 +17,20 @@ type reportSource struct {
 	diff   *sandbox.DiffResult
 }
 
+type receiptReportSource struct {
+	reportSource
+	receipts ReceiptSummary
+}
+
+func (s receiptReportSource) Receipts(context.Context, uuid.UUID) (ReceiptSummary, error) {
+	return s.receipts, nil
+}
+
 func (s reportSource) Run(context.Context, uuid.UUID) (*domain.Run, error) { return s.run, nil }
 func (s reportSource) Events(context.Context, uuid.UUID) ([]*domain.RunEvent, error) {
 	return s.events, nil
 }
+
 func (s reportSource) Diff(context.Context, uuid.UUID) (*sandbox.DiffResult, error) {
 	return s.diff, nil
 }
@@ -71,6 +81,38 @@ func TestBuildPrefersDetailedCostEventsOverSummary(t *testing.T) {
 	}
 	if report.Tokens != 10 || report.CostUSD != 0.12 {
 		t.Fatalf("event cost should replace summary, got tokens=%d cost=%f", report.Tokens, report.CostUSD)
+	}
+}
+
+func TestBoundProjectionReportsOversizedAvailability(t *testing.T) {
+	bounded, dropped := BoundProjection(map[string]any{"too_large": string(make([]byte, 4096))})
+	if len(bounded) != 0 || dropped != 1 {
+		t.Fatalf("bounded projection = %#v, dropped = %d", bounded, dropped)
+	}
+	availability := projectionAvailability([]CrossScenarioCall{{Projection: bounded, ProjectionDropCount: dropped, PolicyVersion: "v1"}})
+	if availability.State != "oversized" {
+		t.Fatalf("projection availability = %#v, want oversized", availability)
+	}
+}
+
+func TestProjectionAvailabilityDistinguishesUnobservedPolicy(t *testing.T) {
+	availability := projectionAvailability(nil)
+	if availability.State != "policy_absent" {
+		t.Fatalf("empty receipts availability = %#v, want policy_absent", availability)
+	}
+}
+
+func TestBuildKeepsUnverifiedReceiptWhenLedgerIsUnobserved(t *testing.T) {
+	id := uuid.New()
+	report, err := Build(context.Background(), receiptReportSource{
+		reportSource: reportSource{run: &domain.Run{ID: id}, events: []*domain.RunEvent{}},
+		receipts:     ReceiptSummary{State: "unobserved", Detail: "no verified receipts", Calls: []CrossScenarioCall{{ReceiptEventID: "receipt-unverified", TargetScenario: "search-hub", Verified: false, DurationMS: 42}}},
+	}, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.LedgerAvailability.State != "unobserved" || report.LedgerAvailability.Detail == "" || len(report.CrossScenarioCalls) != 1 || report.CrossScenarioCalls[0].Verified {
+		t.Fatalf("unverified receipt evidence was not retained honestly: %+v", report)
 	}
 }
 

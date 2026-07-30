@@ -112,6 +112,34 @@ func TestInitSchemaMigratesExistingInvocationReadModelRunColumnsBeforeValidation
 	}
 }
 
+func TestInitSchemaMigratesExistingInvestigationReceiptTimingColumn(t *testing.T) {
+	tmpDir := t.TempDir()
+	sqlDB, err := sqlx.Connect("sqlite", fmt.Sprintf("file:%s?_pragma=foreign_keys(ON)", filepath.Join(tmpDir, "legacy-investigation.db")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sqlDB.Close()
+	if _, err := sqlDB.Exec(`CREATE TABLE investigation_cross_scenario_calls (
+		run_id TEXT NOT NULL, receipt_event_id TEXT NOT NULL, target_scenario TEXT NOT NULL,
+		operation TEXT NOT NULL, outcome TEXT NOT NULL, status_code INTEGER NOT NULL,
+		duration_ms INTEGER NOT NULL, verified INTEGER NOT NULL, projection TEXT NOT NULL,
+		ledger_availability TEXT NOT NULL, PRIMARY KEY (run_id, receipt_event_id)
+	)`); err != nil {
+		t.Fatal(err)
+	}
+	wrapped := NewDB(sqlDB, logrus.New())
+	if err := wrapped.InitializeSchema(); err != nil {
+		t.Fatalf("initialize legacy investigation schema: %v", err)
+	}
+	var count int
+	if err := sqlDB.Get(&count, "SELECT COUNT(*) FROM pragma_table_info('investigation_cross_scenario_calls') WHERE name = 'occurred_at'"); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("occurred_at column count = %d, want 1", count)
+	}
+}
+
 func TestDataDirPrefersCanonicalStorageOverLegacyFallbackEnv(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)

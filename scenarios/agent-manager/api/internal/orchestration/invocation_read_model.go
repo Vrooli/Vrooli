@@ -12,13 +12,38 @@ import (
 	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/repository"
+	"agent-manager/internal/runreport"
 	"github.com/google/uuid"
 )
+
+func (o *Orchestrator) EpisodeCohort(ctx context.Context, filter invocationreadmodel.Filter, limit int) (runreport.EpisodeCohort, error) {
+	if o.invocationReadModel == nil {
+		return runreport.EpisodeCohort{}, fmt.Errorf("invocation read model is not configured")
+	}
+	cohort, err := o.invocationReadModel.Cohort(ctx, filter, limit)
+	if err != nil {
+		return runreport.EpisodeCohort{}, err
+	}
+	selected := map[string][]runreport.FrictionEpisode{}
+	for _, rawID := range cohort.RunIDs {
+		id, err := uuid.Parse(rawID)
+		if err != nil {
+			return runreport.EpisodeCohort{}, err
+		}
+		episodes, err := o.Episodes(ctx, id)
+		if err != nil {
+			return runreport.EpisodeCohort{}, err
+		}
+		selected[rawID] = episodes
+	}
+	return runreport.BuildEpisodeCohort(selected), nil
+}
 
 type ReplayResult struct {
 	RunID             string `json:"runId"`
 	Status            string `json:"status"`
 	FactCount         int    `json:"factCount"`
+	EpisodeCount      int    `json:"episodeCount"`
 	ClassifierVersion string `json:"classifierVersion"`
 }
 
@@ -34,11 +59,12 @@ type ReplayFilter struct {
 }
 
 type ReplaySummary struct {
-	Replayed     int  `json:"replayed"`
-	Refreshed    int  `json:"refreshed"`
-	Skipped      int  `json:"skipped"`
-	Unreplayable int  `json:"unreplayable"`
-	Truncated    bool `json:"truncated"`
+	Replayed          int  `json:"replayed"`
+	Refreshed         int  `json:"refreshed"`
+	Skipped           int  `json:"skipped"`
+	Unreplayable      int  `json:"unreplayable"`
+	EpisodesReDerived int  `json:"episodesReDerived"`
+	Truncated         bool `json:"truncated"`
 }
 
 func (o *Orchestrator) AggregateInvocationFacts(ctx context.Context, filter invocationreadmodel.Filter, dimension string, limit int) ([]invocationreadmodel.AggregateRow, error) {
@@ -93,7 +119,11 @@ func (o *Orchestrator) ReplayInvocationFacts(ctx context.Context, runID uuid.UUI
 	} else if err := o.invocationReadModel.Replace(ctx, facts, next); err != nil {
 		return nil, err
 	}
-	return &ReplayResult{RunID: runID.String(), Status: "replayed", FactCount: len(facts), ClassifierVersion: next.ClassifierVersion}, nil
+	report, err := o.BuildRunReport(ctx, runID)
+	if err != nil {
+		return nil, fmt.Errorf("re-derive episodes: %w", err)
+	}
+	return &ReplayResult{RunID: runID.String(), Status: "replayed", FactCount: len(facts), EpisodeCount: len(report.Episodes), ClassifierVersion: next.ClassifierVersion}, nil
 }
 
 // RefreshInvocationFacts avoids a write unless source events advanced beyond
@@ -154,6 +184,17 @@ func (o *Orchestrator) ReplayInvocationCorpus(ctx context.Context, filter Replay
 		if err != nil {
 			return nil, fmt.Errorf("%s run %s: %w", map[bool]string{true: "refresh", false: "replay"}[refresh], run.ID, err)
 		}
+		// Refresh deliberately preserves the no-new-events skip invariant for the
+		// invocation-fact projection. Episodes are a separately versioned derived
+		// projection, though, so refresh must still re-derive them from the durable
+		// corpus even when that fact projection is already current.
+		if refresh && result.Status == "skipped" {
+			report, reportErr := o.BuildRunReport(ctx, run.ID)
+			if reportErr != nil {
+				return nil, fmt.Errorf("refresh episodes for run %s: %w", run.ID, reportErr)
+			}
+			result.EpisodeCount = len(report.Episodes)
+		}
 		switch result.Status {
 		case "replayed":
 			summary.Replayed++
@@ -164,6 +205,7 @@ func (o *Orchestrator) ReplayInvocationCorpus(ctx context.Context, filter Replay
 		case "unreplayable":
 			summary.Unreplayable++
 		}
+		summary.EpisodesReDerived += result.EpisodeCount
 	}
 	return summary, nil
 }

@@ -14,6 +14,7 @@ func (s *Server) routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/v1/policies/snapshot", s.handlePolicySnapshot)
 	mux.HandleFunc("POST /api/v1/receipt-capture-policies", s.handleCreateCapturePolicy)
 	mux.HandleFunc("GET /api/v1/receipt-capture-policies", s.handleListCapturePolicies)
+	mux.HandleFunc("POST /api/v1/receipt-capture-policies/reconcile", s.handleReconcileCapturePolicies)
 	mux.HandleFunc("GET /api/v1/policies/subscribe", s.handlePolicySubscribe)
 
 	// Subscription endpoints
@@ -27,6 +28,8 @@ func (s *Server) routes() *http.ServeMux {
 	mux.HandleFunc("POST /api/v1/subscriptions/{id}/deliver", s.handleDeliverSubscription)
 
 	// Health
-	mux.HandleFunc("GET /health", s.handleHealth)
+	// Keep the canonical root route unqualified so lifecycle and static
+	// conformance tools can verify the same health surface callers use.
+	mux.HandleFunc("/health", s.handleHealth)
 	return mux
 }

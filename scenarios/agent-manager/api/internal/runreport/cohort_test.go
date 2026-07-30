@@ -28,3 +28,10 @@ func TestBuildCohortRanksBoundedSignals(t *testing.T) {
 		t.Fatalf("failure signal=%+v", failures)
 	}
 }
+
+func TestBuildEpisodeCohortDegradesForSelectedRunWithoutEpisodes(t *testing.T) {
+	cohort := BuildEpisodeCohort(map[string][]FrictionEpisode{"run-without-episodes": {}})
+	if cohort.Availability.State != "degraded" || cohort.Availability.Detail == "" {
+		t.Fatalf("availability = %#v, want named degraded state", cohort.Availability)
+	}
+}

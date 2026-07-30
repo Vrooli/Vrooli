@@ -49,6 +49,9 @@ func (o *Orchestrator) ContinueRun(ctx context.Context, req ContinueRunRequest) 
 	if err != nil {
 		return nil, err
 	}
+	if run.ExecutionMode.Normalized() == domain.ExecutionModeImported {
+		return nil, importedRunLifecycleError("continue")
+	}
 
 	if allowed, reason := domain.CanContinueRun(run); !allowed {
 		return nil, domain.NewStateError("Run", string(run.Status), "continue", reason)
@@ -1065,6 +1068,9 @@ func (o *Orchestrator) ResumeRun(ctx context.Context, id uuid.UUID) (*domain.Run
 	if err != nil {
 		return nil, err
 	}
+	if run.ExecutionMode.Normalized() == domain.ExecutionModeImported {
+		return nil, importedRunLifecycleError("resume")
+	}
 
 	// Validate resumability using domain decision helper
 	if !run.IsResumable() {
@@ -1283,6 +1289,9 @@ func (o *Orchestrator) GetRunDiff(ctx context.Context, runID uuid.UUID) (*sandbo
 	}
 
 	if run.SandboxID == nil {
+		if run.ExecutionMode.Normalized() == domain.ExecutionModeImported {
+			return nil, &domain.ValidationError{Field: "sandboxId", Message: "imported run has no sandbox"}
+		}
 		return nil, &domain.ValidationError{Field: "sandboxId", Message: "run has no sandbox"}
 	}
 

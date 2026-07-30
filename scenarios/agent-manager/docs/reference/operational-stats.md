@@ -131,6 +131,19 @@ product judgment, not a per-card setting.
 
 ## See also
 
+## Cross-scenario receipt ledger
+
+`agent-manager run ledger <run-id>` exposes project-owned calls correlated to
+one agent run. The ledger preserves the generic receipt envelope target,
+operation, outcome, status, duration, verifier state, and policy-governed
+projection only; it does not interpret target-specific projection keys.
+
+Projection values are bounded to sixteen keys and two KiB per receipt. The
+availability state is `available`, `empty`, `oversized`, `policy_absent`, or
+`unavailable`, so missing receipt policy is never presented as a zero result.
+
+- [Event Taxonomy](../internal/EVENT_TAXONOMY.md) — every typed event_type, its payload, and the schema_version contract.
+
 - [Event Taxonomy](../internal/EVENT_TAXONOMY.md) — every typed event_type, its payload, and the schema_version contract.
 - [Error Semantics](../internal/ERROR_SEMANTICS.md) — the `fallback.Reason` enum that drives `*.fallback.*` events.
 - [Seams](../internal/SEAMS.md) — testability boundaries (stats engine, health store, eventlog).

@@ -7,7 +7,7 @@ import type { Run, RunEvent } from "./types";
 import { useIsMobile } from "./hooks/useViewportSize";
 import { QueryProvider } from "./providers/QueryProvider";
 import { AppHeader } from "./components/layout/AppHeader";
-import { MobileNav, type NavSection } from "./components/layout/MobileNav";
+import { SideNav, type NavSection } from "./components/layout/SideNav";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { jsonValueToPlain } from "./lib/utils";
 import { onProfilerRender } from "./lib/profiler";
@@ -20,6 +20,8 @@ const WorkflowsPage = lazy(async () => ({ default: (await import("./pages/Workfl
 const StatsPage = lazy(async () => ({ default: (await import("./features/stats")).StatsPage }));
 const HealthPage = lazy(async () => ({ default: (await import("./features/health")).HealthPage }));
 const FindingsPage = lazy(async () => ({ default: (await import("./pages/FindingsPage")).FindingsPage }));
+const InvestigationsPage = lazy(async () => ({ default: (await import("./pages/InvestigationsPage")).InvestigationsPage }));
+const ImportPage = lazy(async () => ({ default: (await import("./pages/ImportPage")).ImportPage }));
 const StatusDialog = lazy(async () => ({ default: (await import("./components/dialogs/StatusDialog")).StatusDialog }));
 const SettingsDialog = lazy(async () => ({ default: (await import("./components/dialogs/SettingsDialog")).SettingsDialog }));
 const QuickRunDialog = lazy(async () => ({ default: (await import("./components/QuickRunDialog")).QuickRunDialog }));
@@ -39,6 +41,7 @@ export default function App() {
   const [statusOpen, setStatusOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [quickRunOpen, setQuickRunOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const path = location.pathname;
   const isDashboardRoute = path === "/";
@@ -78,6 +81,9 @@ export default function App() {
     if (path.startsWith("/workflows")) return "workflows";
     if (path.startsWith("/stats")) return "stats";
     if (path.startsWith("/observability")) return "health";
+    if (path.startsWith("/investigations")) return "investigations";
+    if (path.startsWith("/findings")) return "findings";
+    if (path.startsWith("/import")) return "import";
     return "dashboard";
   }, [location.pathname]);
 
@@ -207,7 +213,9 @@ export default function App() {
 
   return (
     <QueryProvider>
-      <div className="h-full bg-transparent text-foreground flex flex-col overflow-hidden">
+      <div className="h-full bg-transparent text-foreground flex overflow-hidden">
+        <SideNav activeSection={activeSection} onSectionChange={handleSectionChange} onSettingsClick={() => setSettingsOpen(true)} mobileOpen={mobileNavOpen} onMobileOpenChange={setMobileNavOpen} />
+        <div className="min-w-0 flex flex-1 flex-col">
         <AppHeader
           health={health.data}
           wsStatus={ws.status}
@@ -217,6 +225,7 @@ export default function App() {
           onStatusClick={() => setStatusOpen(true)}
           onSettingsClick={() => setSettingsOpen(true)}
           onQuickRunClick={() => setQuickRunOpen(true)}
+          onNavigationClick={() => setMobileNavOpen(true)}
         />
 
         {statusOpen ? (
@@ -417,19 +426,15 @@ export default function App() {
               }
             />
             <Route path="/findings" element={<Suspense fallback={pageFallback}><ErrorBoundary section="Findings"><ProfiledPage id="FindingsPage"><FindingsPage /></ProfiledPage></ErrorBoundary></Suspense>} />
+            <Route path="/investigations" element={<Suspense fallback={pageFallback}><ErrorBoundary section="Investigations"><ProfiledPage id="InvestigationsPage"><InvestigationsPage /></ProfiledPage></ErrorBoundary></Suspense>} />
+            <Route path="/import" element={<Suspense fallback={pageFallback}><ErrorBoundary section="Import"><ProfiledPage id="ImportPage"><ImportPage /></ProfiledPage></ErrorBoundary></Suspense>} />
             {/* Redirect unknown paths to dashboard */}
             <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </ErrorBoundary>
         </main>
 
-        {/* Mobile bottom navigation */}
-        {isMobile && (
-          <MobileNav
-            activeSection={activeSection}
-            onSectionChange={handleSectionChange}
-          />
-        )}
+        </div>
       </div>
     </QueryProvider>
   );

@@ -173,7 +173,7 @@ export function ContextAttachmentEditor({
                     id={`url-${index}`}
                     value={attachment.url || ""}
                     onChange={(e) => updateAttachment(index, { url: e.target.value })}
-                    placeholder="https://..."
+					placeholder="Source URL"
                     disabled={disabled}
                   />
                 </div>

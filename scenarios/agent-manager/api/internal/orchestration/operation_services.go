@@ -44,6 +44,7 @@ type RunService interface {
 	GetRunProgress(context.Context, uuid.UUID) (*domain.RunProgress, error)
 	ListStaleRuns(context.Context, time.Duration) ([]*domain.Run, error)
 	GetRunDiff(context.Context, uuid.UUID) (*sandbox.DiffResult, error)
+	ImportTranscript(context.Context, ImportTranscriptRequest) (*domain.Run, error)
 }
 
 type ApprovalService interface {
@@ -101,6 +102,9 @@ type RunReportService interface {
 
 type InvocationFactService interface {
 	InvocationFacts(context.Context, uuid.UUID) ([]runreport.InvocationFact, error)
+	Episodes(context.Context, uuid.UUID) ([]runreport.FrictionEpisode, error)
+	SelfReportSpans(context.Context, uuid.UUID) ([]runreport.SelfReportSpan, error)
+	EpisodeCohort(context.Context, invocationreadmodel.Filter, int) (runreport.EpisodeCohort, error)
 	ReplayInvocationFacts(context.Context, uuid.UUID) (*ReplayResult, error)
 	RefreshInvocationFacts(context.Context, uuid.UUID) (*ReplayResult, error)
 	ReplayInvocationCorpus(context.Context, ReplayFilter, bool) (*ReplaySummary, error)

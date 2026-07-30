@@ -17,7 +17,23 @@ import (
 	"agent-manager/internal/workflowruntime"
 
 	"github.com/vrooli/api-core/database"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
+
+// ProtoFileEntry connects a mounted Connect domain to its generated source
+// descriptor. It is intentionally explicit so parity tests can prevent
+// orphaned proto methods as domains are added.
+type ProtoFileEntry struct {
+	Module string
+	File   protoreflect.FileDescriptor
+}
+
+// AllProtoFiles lists every Agent Manager domain proto that owns a served
+// Connect surface. New proto domains must be registered here.
+func AllProtoFiles() []ProtoFileEntry {
+	return []ProtoFileEntry{{Module: "episodes", File: domainpb.File_agent_manager_v1_domain_episode_proto}}
+}
 
 func AllSchemas() []database.SchemaProvider {
 	return []database.SchemaProvider{

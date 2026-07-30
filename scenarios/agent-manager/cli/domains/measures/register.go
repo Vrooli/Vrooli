@@ -16,9 +16,11 @@ import (
 
 var windowValues = []string{"this_week", "last_7d", "last_30d", "this_month", "last_month", "this_quarter"}
 
-type rateResponse interface{ proto.Message }
-type rateCall[Resp rateResponse] func(measureconnect.MeasuresServiceClient, context.Context, *sharedmeasurepb.TimeWindow) (Resp, error)
-type renderer[Resp rateResponse] func(Resp) string
+type (
+	rateResponse                interface{ proto.Message }
+	rateCall[Resp rateResponse] func(measureconnect.MeasuresServiceClient, context.Context, *sharedmeasurepb.TimeWindow) (Resp, error)
+	renderer[Resp rateResponse] func(Resp) string
+)
 
 // Register exposes every declared friction question through its generated
 // Connect client. The API is the sole computation owner.
@@ -204,6 +206,15 @@ func Register() cliapp.SubcommandGroup {
 			return response.Msg, nil
 		}, func(r *measurepb.FindingRecurrenceRateResponse) string {
 			return fmt.Sprintf("Finding recurrence rate: %.1f%% (%d recurring / %d findings; %d fingerprints)", r.GetRate()*100, r.GetRecurringFindings(), r.GetTotalFindings(), r.GetRecurringFingerprints())
+		}),
+		windowMeasure("select-cohort", "Select the durable run cohort behind a measure", func(c measureconnect.MeasuresServiceClient, ctx context.Context, window *sharedmeasurepb.TimeWindow) (*measurepb.SelectCohortResponse, error) {
+			response, err := c.SelectCohort(ctx, connect.NewRequest(&measurepb.SelectCohortRequest{Window: window}))
+			if err != nil {
+				return nil, err
+			}
+			return response.Msg, nil
+		}, func(r *measurepb.SelectCohortResponse) string {
+			return fmt.Sprintf("Selected run cohort: %s", strings.Join(r.GetRunIds(), ", "))
 		}),
 	}}
 }

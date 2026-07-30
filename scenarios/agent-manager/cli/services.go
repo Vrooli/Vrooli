@@ -896,6 +896,29 @@ func (s *RunService) InvocationFacts(id string) ([]byte, error) {
 	return s.api.Request("GET", "/api/v1/runs/"+id+"/invocation-facts", nil, nil)
 }
 
+func (s *RunService) Episodes(id string) ([]byte, error) {
+	return s.api.Request("GET", "/api/v1/runs/"+id+"/episodes", nil, nil)
+}
+
+func (s *RunService) MessageFriction(id string) ([]byte, error) {
+	return s.api.Request("GET", "/api/v1/runs/"+id+"/messages-friction", nil, nil)
+}
+func (s *RunService) Ledger(id string, withProjections bool) ([]byte, error) {
+	values := url.Values{}
+	if withProjections {
+		values.Set("with_projections", "true")
+	}
+	return s.api.Request("GET", "/api/v1/runs/"+id+"/ledger", values, nil)
+}
+
+func (s *RunService) EpisodeCohort(values url.Values) ([]byte, error) {
+	return s.api.Request("GET", "/api/v1/runs/episode-cohort", values, nil)
+}
+
+func (s *RunService) ImportTranscript(payload []byte) ([]byte, error) {
+	return s.api.Request("POST", "/api/v1/runs/import-transcript", nil, payload)
+}
+
 func (s *RunService) ReplayInvocationFacts(id string) ([]byte, error) {
 	return s.api.Request("POST", "/api/v1/runs/"+id+"/invocation-facts/replay", nil, nil)
 }

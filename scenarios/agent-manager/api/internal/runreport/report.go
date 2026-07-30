@@ -4,6 +4,7 @@ package runreport
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -37,6 +38,57 @@ type ReceiptSummary struct {
 	Detail   string
 	Count    int
 	EventIDs []string
+	Calls    []CrossScenarioCall
+}
+
+type CrossScenarioCall struct {
+	OccurredAt          time.Time      `json:"occurredAt,omitempty"`
+	TargetScenario      string         `json:"targetScenario"`
+	Operation           string         `json:"operation"`
+	Outcome             string         `json:"outcome"`
+	StatusCode          uint32         `json:"statusCode"`
+	DurationMS          uint64         `json:"durationMs"`
+	ReceiptEventID      string         `json:"receiptEventId"`
+	Verified            bool           `json:"verified"`
+	Projection          map[string]any `json:"projection,omitempty"`
+	ProjectionDropCount int            `json:"projectionDropCount,omitempty"`
+	PolicyVersion       string         `json:"policyVersion,omitempty"`
+}
+
+// LedgerTargetRollup summarizes one target without hiding individual receipt
+// evidence from callers that need to inspect it.
+type LedgerTargetRollup struct {
+	TargetScenario   string `json:"targetScenario"`
+	Calls            int    `json:"calls"`
+	Failures         int    `json:"failures"`
+	TotalDurationMS  uint64 `json:"totalDurationMs"`
+	MedianDurationMS uint64 `json:"medianDurationMs"`
+}
+
+func BoundProjection(projection map[string]any) (map[string]any, int) {
+	if len(projection) == 0 {
+		return nil, 0
+	}
+	out := map[string]any{}
+	dropped := 0
+	for key, value := range projection {
+		if len(out) >= 16 {
+			dropped++
+			continue
+		}
+		candidate := make(map[string]any, len(out)+1)
+		for k, v := range out {
+			candidate[k] = v
+		}
+		candidate[key] = value
+		body, _ := json.Marshal(candidate)
+		if len(body) > 2048 {
+			dropped++
+			continue
+		}
+		out[key] = value
+	}
+	return out, dropped
 }
 
 // ReceiptSource is optional so fixture-only report sources stay lightweight.
@@ -70,34 +122,40 @@ type DiffSummary struct {
 	Available Availability `json:"available"`
 }
 type RunReport struct {
-	RunID                 uuid.UUID        `json:"runId"`
-	Status                domain.RunStatus `json:"status"`
-	ExitCode              *int             `json:"exitCode,omitempty"`
-	Error                 string           `json:"error,omitempty"`
-	Duration              time.Duration    `json:"duration,omitempty"`
-	HeartbeatGap          time.Duration    `json:"heartbeatGap,omitempty"`
-	Turns                 int              `json:"turns"`
-	Tokens                int              `json:"tokens"`
-	CostUSD               float64          `json:"costUsd"`
-	Result                ResultSummary    `json:"result"`
-	Events                map[string]int   `json:"events"`
-	Tools                 []ToolSummary    `json:"tools"`
-	ProjectOwnedToolCalls int              `json:"projectOwnedToolCalls"`
-	ExternalToolCalls     int              `json:"externalToolCalls"`
-	RequestedModel        string           `json:"requestedModel,omitempty"`
-	ActualModel           string           `json:"actualModel,omitempty"`
-	FallbackCount         int              `json:"fallbackCount"`
-	Diff                  DiffSummary      `json:"diff"`
-	EventsAvailability    Availability     `json:"eventsAvailability"`
-	ReceiptsAvailability  Availability     `json:"receiptsAvailability"`
-	ReceiptCount          int              `json:"receiptCount"`
-	ReceiptEvidenceIDs    []string         `json:"receiptEvidenceIds,omitempty"`
-	RepeatedToolCalls     int              `json:"repeatedToolCalls"`
-	FilesReadMoreThanOnce int              `json:"filesReadMoreThanOnce"`
-	LongestEventGap       time.Duration    `json:"longestEventGap"`
-	InvocationFacts       []InvocationFact `json:"-"`
-	HelpRecoveries        int              `json:"helpRecoveries"`
-	UnknownInvocations    int              `json:"unknownInvocations"`
+	RunID                  uuid.UUID            `json:"runId"`
+	Status                 domain.RunStatus     `json:"status"`
+	ExitCode               *int                 `json:"exitCode,omitempty"`
+	Error                  string               `json:"error,omitempty"`
+	Duration               time.Duration        `json:"duration,omitempty"`
+	HeartbeatGap           time.Duration        `json:"heartbeatGap,omitempty"`
+	Turns                  int                  `json:"turns"`
+	Tokens                 int                  `json:"tokens"`
+	CostUSD                float64              `json:"costUsd"`
+	Result                 ResultSummary        `json:"result"`
+	Events                 map[string]int       `json:"events"`
+	Tools                  []ToolSummary        `json:"tools"`
+	ProjectOwnedToolCalls  int                  `json:"projectOwnedToolCalls"`
+	ExternalToolCalls      int                  `json:"externalToolCalls"`
+	RequestedModel         string               `json:"requestedModel,omitempty"`
+	ActualModel            string               `json:"actualModel,omitempty"`
+	FallbackCount          int                  `json:"fallbackCount"`
+	Diff                   DiffSummary          `json:"diff"`
+	EventsAvailability     Availability         `json:"eventsAvailability"`
+	ReceiptsAvailability   Availability         `json:"receiptsAvailability"`
+	LedgerAvailability     Availability         `json:"ledgerAvailability"`
+	ProjectionAvailability Availability         `json:"projectionAvailability"`
+	ReceiptCount           int                  `json:"receiptCount"`
+	ReceiptEvidenceIDs     []string             `json:"receiptEvidenceIds,omitempty"`
+	CrossScenarioCalls     []CrossScenarioCall  `json:"crossScenarioCalls,omitempty"`
+	LedgerTargetRollups    []LedgerTargetRollup `json:"ledgerTargetRollups,omitempty"`
+	RepeatedToolCalls      int                  `json:"repeatedToolCalls"`
+	FilesReadMoreThanOnce  int                  `json:"filesReadMoreThanOnce"`
+	LongestEventGap        time.Duration        `json:"longestEventGap"`
+	InvocationFacts        []InvocationFact     `json:"-"`
+	Episodes               []FrictionEpisode    `json:"episodes,omitempty"`
+	SelfReportSpans        []SelfReportSpan     `json:"selfReportSpans,omitempty"`
+	HelpRecoveries         int                  `json:"helpRecoveries"`
+	UnknownInvocations     int                  `json:"unknownInvocations"`
 }
 
 func Build(ctx context.Context, source Source, runID uuid.UUID) (*RunReport, error) {
@@ -108,7 +166,13 @@ func Build(ctx context.Context, source Source, runID uuid.UUID) (*RunReport, err
 	if err != nil {
 		return nil, err
 	}
-	r := &RunReport{RunID: run.ID, Status: run.Status, ExitCode: run.ExitCode, Error: run.ErrorMsg, Events: map[string]int{}, EventsAvailability: Availability{State: "available"}, ReceiptsAvailability: Availability{State: "unavailable", Detail: "receipt reader is not configured"}, RequestedModel: run.RequestedModel, ActualModel: run.ActualModel, Diff: DiffSummary{Files: run.ChangedFiles, Bytes: run.TotalSizeBytes, Available: Availability{State: "unavailable"}}}
+	r := &RunReport{RunID: run.ID, Status: run.Status, ExitCode: run.ExitCode, Error: run.ErrorMsg, Events: map[string]int{}, EventsAvailability: Availability{State: "available"}, ReceiptsAvailability: Availability{State: "unavailable", Detail: "receipt reader is not configured"}, LedgerAvailability: Availability{State: "unavailable", Detail: "receipt reader is not configured"}, ProjectionAvailability: Availability{State: "unavailable", Detail: "receipt reader is not configured"}, RequestedModel: run.RequestedModel, ActualModel: run.ActualModel, Diff: DiffSummary{Files: run.ChangedFiles, Bytes: run.TotalSizeBytes, Available: Availability{State: "unavailable"}}}
+	imported := run.ExecutionMode.Normalized() == domain.ExecutionModeImported
+	if imported {
+		r.Diff.Available = Availability{State: "unavailable", Detail: "imported run has no sandbox"}
+		r.ReceiptsAvailability = Availability{State: "unavailable", Detail: "imported run predates run identity correlation"}
+		r.LedgerAvailability = Availability{State: "unavailable", Detail: "imported run predates run identity correlation"}
+	}
 	if run.StartedAt != nil && run.EndedAt != nil {
 		r.Duration = run.EndedAt.Sub(*run.StartedAt)
 	}
@@ -158,28 +222,142 @@ func Build(ctx context.Context, source Source, runID uuid.UUID) (*RunReport, err
 				return nil, fmt.Errorf("persist invocation facts: %w", err)
 			}
 		}
-	}
-	if diff, err := source.Diff(ctx, runID); err == nil && diff != nil {
-		r.Diff = DiffSummary{Files: len(diff.Files), Bytes: run.TotalSizeBytes, Available: Availability{State: "available"}}
-	} else if err != nil {
-		r.Diff.Available.Detail = err.Error()
-	}
-	if receipts, ok := source.(ReceiptSource); ok {
-		summary, err := receipts.Receipts(ctx, runID)
-		if err != nil {
-			r.ReceiptsAvailability = Availability{State: "degraded", Detail: err.Error()}
-		} else {
-			r.ReceiptsAvailability = Availability{State: summary.State, Detail: summary.Detail}
-			r.ReceiptCount = summary.Count
-			r.ReceiptEvidenceIDs = append([]string(nil), summary.EventIDs...)
+		r.Episodes = DeriveEpisodes(r.InvocationFacts, events)
+		if imported {
+			for index := range r.Episodes {
+				r.Episodes[index].OwnerConfidence = "manifest-derived-historical"
+			}
 		}
-		if store, ok := source.(ReceiptJoinStore); ok {
-			if err := store.ReplaceReceiptEvidence(ctx, runID, r.ReceiptsAvailability.State, r.ReceiptEvidenceIDs); err != nil {
-				return nil, fmt.Errorf("persist receipt evidence: %w", err)
+		r.SelfReportSpans = DeriveSelfReportSpans(events)
+		raiseEpisodeSeverityForRepeatedRules(r.Episodes, r.SelfReportSpans, events)
+		if store, ok := source.(SelfReportStore); ok {
+			if err := store.ReplaceSelfReportSpans(ctx, runID, r.SelfReportSpans); err != nil {
+				return nil, fmt.Errorf("persist self-report spans: %w", err)
+			}
+		}
+		if store, ok := source.(EpisodeStore); ok {
+			if err := store.ReplaceEpisodes(ctx, runID, r.Episodes); err != nil {
+				return nil, fmt.Errorf("persist friction episodes: %w", err)
+			}
+		}
+	}
+	if !imported {
+		if diff, err := source.Diff(ctx, runID); err == nil && diff != nil {
+			r.Diff = DiffSummary{Files: len(diff.Files), Bytes: run.TotalSizeBytes, Available: Availability{State: "available"}}
+		} else if err != nil {
+			r.Diff.Available.Detail = err.Error()
+		}
+	}
+	if !imported {
+		if receipts, ok := source.(ReceiptSource); ok {
+			summary, err := receipts.Receipts(ctx, runID)
+			if err != nil {
+				r.ReceiptsAvailability = Availability{State: "degraded", Detail: err.Error()}
+			} else {
+				r.ReceiptsAvailability = Availability{State: summary.State, Detail: summary.Detail}
+				r.LedgerAvailability = Availability{State: summary.State, Detail: summary.Detail}
+				r.ReceiptCount = summary.Count
+				r.ReceiptEvidenceIDs = append([]string(nil), summary.EventIDs...)
+				r.CrossScenarioCalls = append([]CrossScenarioCall(nil), summary.Calls...)
+				r.LedgerTargetRollups = ledgerTargetRollups(r.CrossScenarioCalls)
+				r.ProjectionAvailability = projectionAvailability(r.CrossScenarioCalls)
+				r.Episodes = UpgradeEpisodeOwnership(r.Episodes, events, r.CrossScenarioCalls, r.LedgerAvailability)
+				if store, ok := source.(EpisodeStore); ok {
+					if err := store.ReplaceEpisodes(ctx, runID, r.Episodes); err != nil {
+						return nil, fmt.Errorf("persist receipt-owned episodes: %w", err)
+					}
+				}
+				if store, ok := source.(LedgerStore); ok {
+					if err := store.ReplaceCrossScenarioCalls(ctx, runID, r.LedgerAvailability.State, r.CrossScenarioCalls); err != nil {
+						return nil, fmt.Errorf("persist cross-scenario ledger: %w", err)
+					}
+				}
+			}
+			if store, ok := source.(ReceiptJoinStore); ok {
+				if err := store.ReplaceReceiptEvidence(ctx, runID, r.ReceiptsAvailability.State, r.ReceiptEvidenceIDs); err != nil {
+					return nil, fmt.Errorf("persist receipt evidence: %w", err)
+				}
 			}
 		}
 	}
 	return r, nil
+}
+
+func ledgerTargetRollups(calls []CrossScenarioCall) []LedgerTargetRollup {
+	byTarget := map[string]*LedgerTargetRollup{}
+	durations := map[string][]uint64{}
+	for _, call := range calls {
+		target := call.TargetScenario
+		if target == "" {
+			target = "unknown"
+		}
+		rollup := byTarget[target]
+		if rollup == nil {
+			rollup = &LedgerTargetRollup{TargetScenario: target}
+			byTarget[target] = rollup
+		}
+		rollup.Calls++
+		if call.Outcome != "success" {
+			rollup.Failures++
+		}
+		rollup.TotalDurationMS += call.DurationMS
+		durations[target] = append(durations[target], call.DurationMS)
+	}
+	out := make([]LedgerTargetRollup, 0, len(byTarget))
+	for target, rollup := range byTarget {
+		values := durations[target]
+		sort.Slice(values, func(i, j int) bool { return values[i] < values[j] })
+		rollup.MedianDurationMS = values[len(values)/2]
+		out = append(out, *rollup)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].TargetScenario < out[j].TargetScenario })
+	return out
+}
+
+func projectionAvailability(calls []CrossScenarioCall) Availability {
+	if len(calls) == 0 {
+		return Availability{State: "policy_absent", Detail: "vrooli-events receipt projection policy produced no receipts"}
+	}
+	for _, call := range calls {
+		if call.ProjectionDropCount > 0 {
+			return Availability{State: "oversized", Detail: "receipt projection exceeded bounded storage caps"}
+		}
+		if len(call.Projection) > 0 {
+			return Availability{State: "available"}
+		}
+		if call.PolicyVersion != "" {
+			return Availability{State: "empty", Detail: "receipt projection policy returned no fields"}
+		}
+	}
+	return Availability{State: "policy_absent", Detail: "vrooli-events receipt projection policy is absent"}
+}
+
+func raiseEpisodeSeverityForRepeatedRules(episodes []FrictionEpisode, spans []SelfReportSpan, events []*domain.RunEvent) {
+	position := make(map[string]int, len(events))
+	for index, event := range events {
+		if event != nil {
+			position[event.ID.String()] = index
+		}
+	}
+	for index := range episodes {
+		start, startOK := position[episodes[index].StartEventID]
+		end, endOK := position[episodes[index].EndEventID]
+		if !startOK || !endOK || end < start {
+			continue
+		}
+		seen := map[string]bool{}
+		for _, span := range spans {
+			at, ok := position[span.EventID]
+			if !ok || at < start || at > end {
+				continue
+			}
+			if seen[span.RuleID] {
+				episodes[index].Severity = "recurring"
+				break
+			}
+			seen[span.RuleID] = true
+		}
+	}
 }
 
 func (r *RunReport) foldEvents(events []*domain.RunEvent) {

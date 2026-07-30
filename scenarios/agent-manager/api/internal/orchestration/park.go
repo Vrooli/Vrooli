@@ -123,6 +123,9 @@ func (o *Orchestrator) ParkRun(ctx context.Context, in ParkRunInput) (*domain.Ru
 	if err != nil {
 		return nil, err
 	}
+	if run.ExecutionMode.Normalized() == domain.ExecutionModeImported {
+		return nil, importedRunLifecycleError("park")
+	}
 	if allowed, reason := domain.CanParkRun(run); !allowed {
 		return nil, domain.NewStateError("Run", string(run.Status), "park", reason)
 	}
@@ -191,6 +194,9 @@ func (o *Orchestrator) WakeRun(ctx context.Context, in WakeRunInput) (*domain.Ru
 	run, err := o.GetRun(ctx, in.RunID)
 	if err != nil {
 		return nil, err
+	}
+	if run.ExecutionMode.Normalized() == domain.ExecutionModeImported {
+		return nil, importedRunLifecycleError("wake")
 	}
 
 	// Idempotency / replay-safety: only a parked run is woken. If it already

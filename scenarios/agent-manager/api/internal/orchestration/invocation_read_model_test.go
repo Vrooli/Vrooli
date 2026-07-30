@@ -37,42 +37,55 @@ func (s *recordingInvocationReadModel) Replace(_ context.Context, facts []invoca
 	s.watermark = &w
 	return nil
 }
+
 func (s *recordingInvocationReadModel) Facts(_ context.Context, _ string) ([]invocationreadmodel.Fact, error) {
 	return s.facts, nil
 }
+
 func (s *recordingInvocationReadModel) Watermark(_ context.Context, _ string) (*invocationreadmodel.Watermark, error) {
 	return s.watermark, nil
 }
+
 func (s *recordingInvocationReadModel) Aggregate(context.Context, invocationreadmodel.Filter, string, int) ([]invocationreadmodel.AggregateRow, error) {
 	return nil, nil
 }
+
 func (s *recordingInvocationReadModel) Cohort(context.Context, invocationreadmodel.Filter, int) (invocationreadmodel.Cohort, error) {
 	return invocationreadmodel.Cohort{}, nil
 }
+
 func (s *recordingInvocationReadModel) Metrics(context.Context, invocationreadmodel.Filter) (invocationreadmodel.Metrics, error) {
 	return invocationreadmodel.Metrics{}, nil
 }
+
 func (s *recordingInvocationReadModel) RunMetrics(context.Context, invocationreadmodel.Filter) (invocationreadmodel.RunMetrics, error) {
 	return invocationreadmodel.RunMetrics{}, nil
 }
+
 func (s *recordingInvocationReadModel) RunDurationStatistics(context.Context, invocationreadmodel.Filter) (invocationreadmodel.RunDurationStatistics, error) {
 	return invocationreadmodel.RunDurationStatistics{}, nil
 }
+
 func (s *recordingInvocationReadModel) RunStatusCounts(context.Context, invocationreadmodel.Filter) ([]invocationreadmodel.RunStatusCount, error) {
 	return nil, nil
 }
+
 func (s *recordingInvocationReadModel) RunBreakdown(context.Context, invocationreadmodel.Filter, string, int) ([]invocationreadmodel.RunBreakdownRow, error) {
 	return nil, nil
 }
+
 func (s *recordingInvocationReadModel) RunTimeSeries(context.Context, invocationreadmodel.Filter, time.Duration) ([]invocationreadmodel.RunTimeSeriesBucket, error) {
 	return nil, nil
 }
+
 func (s *recordingInvocationReadModel) ToolUsage(context.Context, invocationreadmodel.Filter, int) ([]invocationreadmodel.ToolUsageRow, error) {
 	return nil, nil
 }
+
 func (s *recordingInvocationReadModel) ErrorPatterns(context.Context, invocationreadmodel.Filter, int) ([]invocationreadmodel.ErrorPattern, error) {
 	return nil, nil
 }
+
 func (s *recordingInvocationReadModel) FindingMetrics(context.Context, invocationreadmodel.Filter) (invocationreadmodel.FindingMetrics, error) {
 	return invocationreadmodel.FindingMetrics{}, nil
 }

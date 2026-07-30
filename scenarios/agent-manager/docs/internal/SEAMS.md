@@ -1826,6 +1826,14 @@ The goal reader is independently tested against a temporary SQLite store.
 
 ## Related Documentation
 
+## Friction investigation seam
+
+`handlers.EpisodesService` is the sole transport adapter for episode reads,
+deterministic self-report spans, receipt-ledger disclosure, and transcript
+import. It translates Connect requests into `runreport` and `orchestration`
+calls; `runreport` remains transport-free and receipt projections remain
+opaque `Struct` values at the boundary.
+
 - [PRD.md](../../PRD.md) - Product requirements and operational targets
 - [README.md](../../README.md) - Overview and quick start
 - [requirements/README.md](../../requirements/README.md) - Detailed requirements by module

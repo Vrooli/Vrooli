@@ -1,10 +1,16 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"connectrpc.com/connect"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
 
 func TestReceiptCapturePolicySnapshotUsesTypedContract(t *testing.T) {
@@ -17,6 +23,14 @@ func TestReceiptCapturePolicySnapshotUsesTypedContract(t *testing.T) {
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create status=%d", resp.StatusCode)
+	}
+	resp, err = http.Post(ts.URL+"/api/v1/receipt-capture-policies", "application/json", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("reconcile status=%d", resp.StatusCode)
 	}
 	resp, err = http.Get(ts.URL + "/api/v1/policies/snapshot")
 	if err != nil {
@@ -46,5 +60,91 @@ func TestReceiptCapturePolicySnapshotUsesTypedContract(t *testing.T) {
 	p := snapshot.Policies[0]
 	if p.PolicyID != "plan-manager-create-plan" || p.Selector.Target != "plan-manager" || p.Selector.Operation != "POST /vrooli.plan_manager.v1.plans.PlansService/CreatePlan" || p.Selector.Protocol != "connect" || p.Selector.EventType != receiptEventType || p.ResponseType != "vrooli.plan_manager.v1.plans.CreatePlanResponse" || len(p.Paths) != 1 || p.Paths[0] != "plan.id" {
 		t.Fatalf("policy=%+v", p)
+	}
+}
+
+func TestReceiptCaptureDeclarationReconcileIsIdempotent(t *testing.T) {
+	_, ts := newTestServer(t)
+	repoRoot, err := filepath.Abs("../../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(repoRoot, "scenarios", "agent-manager", ".vrooli", "service.json")); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PROJECT_ROOT", repoRoot)
+	body := `{"scenario":"agent-manager","dryRun":true}`
+	response, err := http.Post(ts.URL+"/api/v1/receipt-capture-policies/reconcile", "application/json", strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("dry-run status=%d", response.StatusCode)
+	}
+	response, err = http.Post(ts.URL+"/api/v1/receipt-capture-policies/reconcile", "application/json", strings.NewReader(`{"scenario":"agent-manager"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("first reconcile status=%d", response.StatusCode)
+	}
+	response, err = http.Post(ts.URL+"/api/v1/receipt-capture-policies/reconcile", "application/json", strings.NewReader(`{"scenario":"agent-manager"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("repeat reconcile status=%d", response.StatusCode)
+	}
+}
+
+func TestValidateDeclaredResponseRejectsUndeclaredProjection(t *testing.T) {
+	repoRoot, err := filepath.Abs("../../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := validateDeclaredResponse(repoRoot, "POST /agent_manager.v1.AgentManagerService/CreateRun", "agent_manager.v1.CreateRunResponse", []string{"run.id"}); err != nil {
+		t.Fatalf("valid declaration rejected: %v", err)
+	}
+	if err := validateDeclaredResponse(repoRoot, "POST /agent_manager.v1.AgentManagerService/CreateRun", "agent_manager.v1.CreateRunResponse", []string{"run.not_a_field"}); err == nil {
+		t.Fatal("undeclared projection was accepted")
+	}
+	if err := validateDeclaredResponse(repoRoot, "POST /agent_manager.v1.AgentManagerService/CreateRun", "agent_manager.v1.StopRunResponse", []string{"status"}); err == nil {
+		t.Fatal("mismatched response type was accepted")
+	}
+}
+
+func TestCaptureValidationRequiresReconciledPolicy(t *testing.T) {
+	srv, _ := newTestServer(t)
+	repoRoot, err := filepath.Abs("../../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := newCaptureValidationHandler(repoRoot, srv.policyStore)
+	response, err := handler.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "agent-manager"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.Msg.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED {
+		t.Fatalf("unreconciled validation status = %s", response.Msg.GetStatus())
+	}
+	if response.Msg.GetMetrics() == nil || response.Msg.GetAssessment().GetFindings()[0].GetMaturity() == nil {
+		t.Fatalf("validation response lacks provider contract metadata: %#v", response.Msg)
+	}
+	rules, err := loadCaptureDeclarationRulesAtRoot(repoRoot, "agent-manager")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := srv.policyStore.ReconcileReceiptProjections(context.Background(), rules); err != nil {
+		t.Fatal(err)
+	}
+	response, err = handler.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "agent-manager"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.Msg.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED || !response.Msg.GetAssessment().GetLocal().GetClean() {
+		t.Fatalf("reconciled validation = %#v", response.Msg)
 	}
 }

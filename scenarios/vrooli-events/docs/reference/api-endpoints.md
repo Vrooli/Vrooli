@@ -38,7 +38,7 @@ Accepts an event and stores it durably. Returns immediately (202 Accepted) — s
 
 #### Receipt observations
 
-`vrooli.receipt.observed.v1` is the platform receipt type. It requires `correlationId` (the verified Agent Manager run ID), `metadata.operation`, and `metadata.outcome`; `metadata.safe_projection` is limited to 64 KiB. Receipt ingestion requires a valid `X-Agent-Identity-Token` verified by Agent Manager. An unverified header or claimed run ID returns `401` and is never stored as agent-attributed evidence.
+`vrooli.events.receipt.v1` is the platform receipt type. It requires `correlationId` (the verified Agent Manager run ID), `metadata.operation`, and `metadata.outcome`; `metadata.safe_projection` is limited to 64 KiB. Receipt ingestion requires a valid `X-Agent-Identity-Token` verified by Agent Manager. An unverified header or claimed run ID returns `401` and is never stored as agent-attributed evidence.
 
 Receipts are post-response, best-effort observations. Absence of a receipt means **unobserved**, not failed.
 

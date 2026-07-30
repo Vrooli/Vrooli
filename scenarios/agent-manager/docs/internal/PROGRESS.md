@@ -182,3 +182,25 @@
 3. Wire WebSocket broadcasts to run executor events
 4. Address "ungrouped operational targets" by grouping related requirements under shared OTs
 5. Set up __test folder for test-genie integration
+
+### Friction Investigation Substrate (2026-07-30)
+
+- Added durable friction episodes, deterministic self-report spans, episode cohorts, and the cross-scenario receipt ledger projection.
+- Added the proto-first `EpisodesService` Connect surface and generated-client CLI commands for episodes, self-reported friction, ledger disclosure, and transcript import; cohorts use `MeasuresService.EpisodeCohort`.
+- Receipt projections are bounded and explicitly report availability while the vrooli-events policy engine remains unavailable.
+- Validation: focused API and CLI suites pass; the UI suite passes (95 files, 398 tests). Full Test Genie validation remains non-green because of pre-existing scenario maturity debt. Endpoint inventory generation is now restored through `api/cmd/gen-endpoints`.
+- Follow-up hardening completed: episode cohorts now have a typed
+  `MeasuresService.EpisodeCohort` RPC, `measures select-cohort` is reachable,
+  receipt ownership is constrained to the episode time window, and imported
+  runs pin a manifest-index snapshot and report historical ownership.
+- The final typed-transport follow-up added Connect procedures for self-report
+  spans, cross-scenario ledger disclosure, and transcript import. Test Genie
+  run `20260730-071202-62ccbb38` confirmed endpoint/proto generation and
+  removed the transient stale-UI-bundle finding; its overall FAIL remains
+  inherited scenario-wide structure/security maturity debt.
+- Final validation follow-up removed the Agent Manager direct-runner probe
+  bypass by routing it through the registered runner adapter, and added the
+  additive SQLite migration for legacy episode rows missing
+  `failed_joined_calls`. Test Genie run `20260730-073048-3b83256b` confirms
+  agent-conformance is clean; its remaining FAIL is the pre-existing
+  structure-health profile debt.

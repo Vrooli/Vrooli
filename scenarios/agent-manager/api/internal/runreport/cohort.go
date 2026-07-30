@@ -26,6 +26,67 @@ type CohortSignal struct {
 	RepresentativeRunIDs []string `json:"representativeRunIds"`
 }
 
+type EpisodeCohort struct {
+	Availability Availability    `json:"availability"`
+	Signals      []EpisodeSignal `json:"signals"`
+}
+type EpisodeSignal struct {
+	Fingerprint          string   `json:"fingerprint"`
+	Occurrences          int      `json:"occurrences"`
+	DistinctRuns         int      `json:"distinctRuns"`
+	SummedCostMS         int64    `json:"summedCostMs"`
+	Confidence           string   `json:"confidence"`
+	RepresentativeRunIDs []string `json:"representativeRunIds"`
+}
+
+func BuildEpisodeCohort(episodesByRun map[string][]FrictionEpisode) EpisodeCohort {
+	out := EpisodeCohort{Availability: Availability{State: "available"}}
+	type bucket struct {
+		occurrences int
+		cost        int64
+		ids         map[string]bool
+	}
+	buckets := map[string]*bucket{}
+	for runID, episodes := range episodesByRun {
+		if len(episodes) == 0 {
+			out.Availability = Availability{State: "degraded", Detail: "one or more selected runs have no derived episodes"}
+			continue
+		}
+		for _, episode := range episodes {
+			b := buckets[episode.Fingerprint]
+			if b == nil {
+				b = &bucket{ids: map[string]bool{}}
+				buckets[episode.Fingerprint] = b
+			}
+			b.occurrences++
+			b.cost += episode.WallClockMS
+			b.ids[runID] = true
+		}
+	}
+	for fingerprint, b := range buckets {
+		ids := make([]string, 0, len(b.ids))
+		for id := range b.ids {
+			ids = append(ids, id)
+		}
+		sort.Strings(ids)
+		confidence := "medium"
+		if len(ids) >= 2 {
+			confidence = "high"
+		}
+		if len(ids) > 5 {
+			ids = ids[:5]
+		}
+		out.Signals = append(out.Signals, EpisodeSignal{Fingerprint: fingerprint, Occurrences: b.occurrences, DistinctRuns: len(b.ids), SummedCostMS: b.cost, Confidence: confidence, RepresentativeRunIDs: ids})
+	}
+	sort.Slice(out.Signals, func(i, j int) bool {
+		if out.Signals[i].SummedCostMS != out.Signals[j].SummedCostMS {
+			return out.Signals[i].SummedCostMS > out.Signals[j].SummedCostMS
+		}
+		return out.Signals[i].DistinctRuns > out.Signals[j].DistinctRuns
+	})
+	return out
+}
+
 // BuildCohort folds a caller-selected, comparable set of reports. It never
 // reads raw transcript data and caps both signals and representatives.
 func BuildCohort(reports []*RunReport) Cohort {

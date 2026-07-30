@@ -411,6 +411,11 @@ func sortFindings(findings []Finding) {
 // to a known coding-agent command. It is advisory because static analysis is
 // necessarily incomplete; resource-owned implementations are outside a target
 // scenario and are never scanned here.
+var (
+	directAgentCommand   = regexp.MustCompile(`(?s)exec\.command(?:context)?\s*\([^)]*"(?:claude|codex|opencode|grok)"`)
+	assignedAgentCommand = regexp.MustCompile(`(?:cmdname|command)\s*[:=]+\s*"(?:claude|codex|opencode|grok)"`)
+)
+
 func directSpawnBypasses(root string) []string {
 	var matches []string
 	_ = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
@@ -418,6 +423,9 @@ func directSpawnBypasses(root string) []string {
 			if entry != nil && entry.IsDir() && (entry.Name() == ".git" || entry.Name() == "node_modules" || entry.Name() == "vendor") {
 				return filepath.SkipDir
 			}
+			return nil
+		}
+		if strings.HasSuffix(entry.Name(), "_test.go") {
 			return nil
 		}
 		switch filepath.Ext(path) {
@@ -430,14 +438,11 @@ func directSpawnBypasses(root string) []string {
 			return nil
 		}
 		text := strings.ToLower(string(data))
-		if !(strings.Contains(text, "exec.command") || strings.Contains(text, "commandcontext") || strings.Contains(text, "spawn(") || strings.Contains(text, "execfile(") || strings.Contains(text, "subprocess.")) {
-			return nil
-		}
-		for _, command := range []string{"\"claude\"", "\"codex\"", "\"opencode\"", "\"grok\"", "resource-claude-code", "resource-codex", "resource-opencode", "resource-grok"} {
-			if strings.Contains(text, command) {
-				matches = append(matches, path)
-				break
-			}
+		// A direct launch has to construct a process for a known coding-agent
+		// executable. Process discovery (for example, pgrep with a runner name)
+		// and test fixtures are not launches and must not block conformance.
+		if directAgentCommand.MatchString(text) || (strings.Contains(text, "exec.command") && assignedAgentCommand.MatchString(text)) {
+			matches = append(matches, path)
 		}
 		return nil
 	})

@@ -64,6 +64,14 @@ func resolveCatalog(command string) CatalogResolution {
 	return CatalogResolution{Owner: tokens[0], Snapshot: snapshot, State: "unknown"}
 }
 
+// CurrentCatalogSnapshot returns the deterministic digest of the manifest
+// index used for ownership resolution. Import stores it on the run so callers
+// can distinguish historical ownership from a later live-index derivation.
+func CurrentCatalogSnapshot() string {
+	_, _, snapshot := loadCatalog()
+	return snapshot
+}
+
 // unwrapShellCommand recognizes only the literal non-interpolated wrapper
 // emitted by supported runners. It never evaluates shell syntax: anything
 // compound, unquoted, or containing a second quote remains unresolved.
@@ -142,7 +150,8 @@ func collectCommands(owner string, prefix []string, group manifestGroup, paths m
 }
 
 func projectRoot() string {
-	if root := strings.TrimSpace(os.Getenv("VROOLI_PROJECT_ROOT")); root != "" {
+	root, _ := os.LookupEnv("VROOLI_PROJECT_ROOT")
+	if root = strings.TrimSpace(root); root != "" {
 		return root
 	}
 	dir, err := os.Getwd()

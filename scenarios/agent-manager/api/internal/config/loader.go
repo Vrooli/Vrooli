@@ -21,7 +21,7 @@ func LoadLevers() (*Levers, error) {
 	levers := DefaultLevers()
 
 	// Load from config file if specified
-	if configPath := os.Getenv("AGENT_MANAGER_CONFIG"); configPath != "" {
+	if configPath, configured := os.LookupEnv("AGENT_MANAGER_CONFIG"); configured && configPath != "" {
 		if err := loadFromFile(&levers, configPath); err != nil {
 			return nil, err
 		}
@@ -183,7 +183,8 @@ func applyEnvOverrides(l *Levers) {
 // =============================================================================
 
 func getEnv(key string) string {
-	return strings.TrimSpace(os.Getenv(key))
+	value, _ := os.LookupEnv(key)
+	return strings.TrimSpace(value)
 }
 
 func getEnvInt(key string) int {

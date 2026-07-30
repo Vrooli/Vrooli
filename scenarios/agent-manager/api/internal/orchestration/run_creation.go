@@ -1271,6 +1271,9 @@ func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
 	if err != nil {
 		return err
 	}
+	if run.ExecutionMode.Normalized() == domain.ExecutionModeImported {
+		return importedRunLifecycleError("stop")
+	}
 
 	if allowed, reason := domain.CanStopRun(run); !allowed {
 		return domain.NewStateError("Run", string(run.Status), "stop", reason)
@@ -1352,6 +1355,13 @@ func (o *Orchestrator) StopRun(ctx context.Context, id uuid.UUID) error {
 }
 
 func (o *Orchestrator) RecoverRun(ctx context.Context, id uuid.UUID) (*RecoverResult, error) {
+	run, err := o.GetRun(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if run.ExecutionMode.Normalized() == domain.ExecutionModeImported {
+		return nil, importedRunLifecycleError("recover")
+	}
 	if o.reconciler == nil {
 		return nil, domain.NewConfigMissingError("reconciler", "reconciler not configured", nil)
 	}

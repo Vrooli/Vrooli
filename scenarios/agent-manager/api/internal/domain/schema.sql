@@ -58,6 +58,65 @@ CREATE TABLE IF NOT EXISTS investigation_invocation_facts (
 );
 CREATE INDEX IF NOT EXISTS idx_investigation_invocation_facts_fingerprint ON investigation_invocation_facts(run_id, fingerprint);
 
+CREATE TABLE IF NOT EXISTS investigation_friction_episodes (
+    run_id TEXT NOT NULL,
+    episode_id TEXT NOT NULL,
+    classifier_version TEXT NOT NULL,
+    pattern TEXT NOT NULL,
+    cause_scope TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    honesty_flags TEXT NOT NULL DEFAULT '[]',
+    start_event_id TEXT NOT NULL,
+    end_event_id TEXT NOT NULL,
+    evidence_event_ids TEXT NOT NULL DEFAULT '[]',
+    turns INTEGER NOT NULL,
+    tokens INTEGER NOT NULL,
+    wall_clock_ms INTEGER NOT NULL,
+    suspected_owner_scenario TEXT NOT NULL DEFAULT '',
+    suspected_owner_command TEXT NOT NULL DEFAULT '',
+    owner_confidence TEXT NOT NULL,
+    failed_joined_calls INTEGER NOT NULL DEFAULT 0,
+    fingerprint TEXT NOT NULL,
+    PRIMARY KEY (run_id, episode_id)
+);
+CREATE INDEX IF NOT EXISTS idx_investigation_friction_episodes_run ON investigation_friction_episodes(run_id);
+CREATE INDEX IF NOT EXISTS idx_investigation_friction_episodes_fingerprint ON investigation_friction_episodes(fingerprint);
+
+CREATE TABLE IF NOT EXISTS investigation_self_report_spans (
+    run_id TEXT NOT NULL,
+    event_id TEXT NOT NULL,
+    rule_id TEXT NOT NULL,
+    classifier_version TEXT NOT NULL,
+    cause_scope TEXT NOT NULL,
+    start_offset INTEGER NOT NULL,
+    end_offset INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    PRIMARY KEY (run_id, event_id, rule_id, start_offset)
+);
+CREATE INDEX IF NOT EXISTS idx_investigation_self_report_spans_run ON investigation_self_report_spans(run_id, event_id);
+
+CREATE TABLE IF NOT EXISTS investigation_cross_scenario_calls (
+    run_id TEXT NOT NULL,
+    receipt_event_id TEXT NOT NULL,
+	occurred_at TEXT,
+    target_scenario TEXT NOT NULL,
+    operation TEXT NOT NULL,
+    outcome TEXT NOT NULL,
+    status_code INTEGER NOT NULL,
+    duration_ms INTEGER NOT NULL,
+    verified INTEGER NOT NULL,
+    projection TEXT NOT NULL DEFAULT '{}',
+    ledger_availability TEXT NOT NULL,
+    PRIMARY KEY (run_id, receipt_event_id)
+);
+CREATE INDEX IF NOT EXISTS idx_investigation_cross_scenario_calls_run ON investigation_cross_scenario_calls(run_id);
+CREATE TABLE IF NOT EXISTS investigation_cross_scenario_call_projections (
+	receipt_event_id TEXT NOT NULL,
+	key TEXT NOT NULL,
+	value_json TEXT NOT NULL,
+	PRIMARY KEY (receipt_event_id, key)
+);
+
 -- Durable analytics read model. Unlike the investigation cache above, these
 -- facts are written at terminal run completion and retained after run_events
 -- are pruned. The source-event identifiers keep the model replayable while

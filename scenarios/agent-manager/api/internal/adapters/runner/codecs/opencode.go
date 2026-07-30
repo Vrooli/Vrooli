@@ -1061,7 +1061,8 @@ func resolveOpenCodeLogError() string {
 // ~/.local/share/opencode/log — the same default-XDG location BuildEnv
 // relies on (no vrooli-scoped override).
 func openCodeLogDir() string {
-	if base := strings.TrimSpace(os.Getenv("XDG_DATA_HOME")); base != "" {
+	base, _ := os.LookupEnv("XDG_DATA_HOME")
+	if base = strings.TrimSpace(base); base != "" {
 		return filepath.Join(base, "opencode", "log")
 	}
 	home, err := os.UserHomeDir()

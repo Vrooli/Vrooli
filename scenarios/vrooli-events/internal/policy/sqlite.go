@@ -299,6 +299,65 @@ func (s *SQLiteStore) UpdateReceiptProjection(ctx context.Context, r ReceiptProj
 	return nil
 }
 
+// ReconcileReceiptProjections is intentionally one transaction: a capture
+// declaration is useful only when its complete policy set is visible.
+func (s *SQLiteStore) ReconcileReceiptProjections(ctx context.Context, rules []ReceiptProjectionRule) (ReceiptProjectionReconcileResult, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return ReceiptProjectionReconcileResult{}, fmt.Errorf("begin receipt projection reconcile: %w", err)
+	}
+	defer tx.Rollback()
+	rows, err := tx.QueryContext(ctx, receiptProjectionSelect+" ORDER BY priority DESC, id ASC")
+	if err != nil {
+		return ReceiptProjectionReconcileResult{}, fmt.Errorf("list receipt projection rules: %w", err)
+	}
+	byPolicyID := map[string]ReceiptProjectionRule{}
+	for rows.Next() {
+		rule, scanErr := scanReceiptProjection(rows)
+		if scanErr != nil {
+			rows.Close()
+			return ReceiptProjectionReconcileResult{}, scanErr
+		}
+		byPolicyID[rule.PolicyID] = rule
+	}
+	if err := rows.Close(); err != nil {
+		return ReceiptProjectionReconcileResult{}, err
+	}
+	if err := rows.Err(); err != nil {
+		return ReceiptProjectionReconcileResult{}, err
+	}
+	result := ReceiptProjectionReconcileResult{}
+	for _, rule := range rules {
+		fields, err := json.Marshal(rule.ResponseFields)
+		if err != nil {
+			return ReceiptProjectionReconcileResult{}, fmt.Errorf("marshal response fields: %w", err)
+		}
+		redactions, err := json.Marshal(rule.RedactFields)
+		if err != nil {
+			return ReceiptProjectionReconcileResult{}, fmt.Errorf("marshal redact fields: %w", err)
+		}
+		principals, err := json.Marshal(rule.ReadPrincipals)
+		if err != nil {
+			return ReceiptProjectionReconcileResult{}, fmt.Errorf("marshal read principals: %w", err)
+		}
+		if existing, ok := byPolicyID[rule.PolicyID]; ok {
+			if _, err := tx.ExecContext(ctx, `UPDATE receipt_projection_rules SET policy_id=?, source_scenario=?, target_scenario=?, operation_pattern=?, protocol=?, event_type=?, response_type=?, response_fields_json=?, read_principals_json=?, redact_fields_json=?, max_bytes=?, sample_per_ten_k=?, retention_days=?, priority=?, enabled=?, updated_at=strftime('%Y-%m-%dT%H:%M:%f','now') WHERE id=?`, rule.PolicyID, rule.SourceScenario, rule.TargetScenario, rule.OperationPattern, rule.Protocol, rule.EventType, rule.ResponseType, string(fields), string(principals), string(redactions), rule.MaxBytes, rule.SamplePerTenK, rule.RetentionDays, rule.Priority, sqlutil.BoolToInt(rule.Enabled), existing.ID); err != nil {
+				return ReceiptProjectionReconcileResult{}, fmt.Errorf("update receipt projection rule: %w", err)
+			}
+			result.Updated++
+			continue
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO receipt_projection_rules (policy_id, source_scenario, target_scenario, operation_pattern, protocol, event_type, response_type, response_fields_json, read_principals_json, redact_fields_json, max_bytes, sample_per_ten_k, retention_days, priority, enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, rule.PolicyID, rule.SourceScenario, rule.TargetScenario, rule.OperationPattern, rule.Protocol, rule.EventType, rule.ResponseType, string(fields), string(principals), string(redactions), rule.MaxBytes, rule.SamplePerTenK, rule.RetentionDays, rule.Priority, sqlutil.BoolToInt(rule.Enabled)); err != nil {
+			return ReceiptProjectionReconcileResult{}, fmt.Errorf("insert receipt projection rule: %w", err)
+		}
+		result.Created++
+	}
+	if err := tx.Commit(); err != nil {
+		return ReceiptProjectionReconcileResult{}, fmt.Errorf("commit receipt projection reconcile: %w", err)
+	}
+	return result, nil
+}
+
 func (s *SQLiteStore) DeleteReceiptProjection(ctx context.Context, id int64) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM receipt_projection_rules WHERE id = ?`, id)
 	if err != nil {

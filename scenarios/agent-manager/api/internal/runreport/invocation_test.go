@@ -1,9 +1,10 @@
 package runreport
 
 import (
+	"testing"
+
 	"agent-manager/internal/domain"
 	"github.com/google/uuid"
-	"testing"
 )
 
 func TestDeriveInvocationFactsPairsAndRedacts(t *testing.T) {

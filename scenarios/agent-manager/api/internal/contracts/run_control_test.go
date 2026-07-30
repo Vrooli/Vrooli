@@ -89,7 +89,7 @@ func TestRunConfigFieldLivenessRegistryIsComplete(t *testing.T) {
 	registry := map[string]string{
 		"RunnerType": "resolveExecutionPolicy", "Model": "BuildArgs", "RoleRef": "resolveExecutionPolicy", "MaxTurns": "BuildArgs", "Timeout": "WithTimeout", "Effort": "BuildArgs",
 		"PolicySnapshot": "resolveExecutionPolicy", "ResultSpec": "structuredResults.Resolve", "AllowedTools": "BuildArgs", "DeniedTools": "BuildArgs", "ToolRestrictionPolicy": "validateToolRestriction",
-		"SkipPermissionPrompt": "BuildArgs", "Features": "BuildArgs", "ExtraFlags": "BuildArgs", "NetworkAccess": "BuildArgs", "SandboxConfig": "DeriveRunMode", "AllowedPaths": "CreateSandbox", "DeniedPaths": "CreateSandbox",
+		"SkipPermissionPrompt": "BuildArgs", "Features": "BuildArgs", "ExtraFlags": "BuildArgs", "NetworkAccess": "BuildArgs", "SandboxConfig": "DeriveRunMode", "AllowedPaths": "CreateSandbox", "DeniedPaths": "CreateSandbox", "ManifestIndexSnapshot": "ImportTranscript",
 	}
 	assertFieldRegistry(t, reflect.TypeOf(domain.RunConfig{}), "RunConfig", registry)
 }

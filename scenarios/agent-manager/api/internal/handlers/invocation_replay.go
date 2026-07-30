@@ -95,6 +95,28 @@ func (h *Handler) SelectInvocationCohort(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, cohort)
 }
 
+func (h *Handler) EpisodeCohort(w http.ResponseWriter, r *http.Request) {
+	filter, err := invocationReadModelFilter(r)
+	if err != nil {
+		writeSimpleError(w, r, "time_window", "from and to must be RFC3339 timestamps")
+		return
+	}
+	limit := 100
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		limit, err = strconv.Atoi(raw)
+		if err != nil || limit < 1 {
+			writeSimpleError(w, r, "limit", "limit must be a positive integer")
+			return
+		}
+	}
+	cohort, err := h.svc.EpisodeCohort(r.Context(), filter, limit)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, cohort)
+}
+
 func (h *Handler) InvocationMetrics(w http.ResponseWriter, r *http.Request) {
 	filter, err := invocationReadModelFilter(r)
 	if err != nil {

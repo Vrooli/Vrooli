@@ -36,6 +36,16 @@ func (a *App) cmdRun(args []string) error {
 		return a.runCohortReport(args[1:])
 	case "invocation-facts":
 		return a.runInvocationFacts(args[1:])
+	case "episodes":
+		return a.runEpisodes(args[1:])
+	case "messages-friction":
+		return a.runMessageFriction(args[1:])
+	case "episode-cohort":
+		return a.runEpisodeCohort(args[1:])
+	case "ledger":
+		return a.runLedger(args[1:])
+	case "import-transcript":
+		return a.runImportTranscript(args[1:])
 	case "replay-invocation-facts":
 		return a.runReplayInvocationFacts(args[1:])
 	case "refresh-invocation-facts":

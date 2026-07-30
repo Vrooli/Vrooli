@@ -21,7 +21,7 @@ const app = createScenarioServer({
   distDir: './dist',
   serviceName: 'agent-manager',
   corsOrigins: '*',
-  verbose: process.env.NODE_ENV === 'development',
+  verbose: false,
   // Extended timeout for LLM-based operations (recommendation extraction)
   proxyTimeoutMs: 180000, // 3 minutes
   embeddedProxy: true,
@@ -62,7 +62,7 @@ server.on('upgrade', (req, socket, head) => {
     proxyWebSocketUpgrade(req, socket, head, {
       apiPort,
       apiHost: '127.0.0.1',
-      verbose: process.env.NODE_ENV === 'development',
+      verbose: false,
     })
   } else {
     // Reject non-API WebSocket connections

@@ -2,8 +2,6 @@ package orchestration
 
 import (
 	"context"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"agent-manager/internal/adapters/event"
@@ -175,25 +173,18 @@ func TestGetHealthReportsMissingCoreDependenciesAsDegraded(t *testing.T) {
 	}
 }
 
-func TestProbeRunnerUsesSupportedCLIContractsWithoutLiveAgents(t *testing.T) {
-	binDir := t.TempDir()
-	writeProbeCommand := func(name, script string) {
-		t.Helper()
-		path := filepath.Join(binDir, name)
-		if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
-			t.Fatalf("write %s stub: %v", name, err)
-		}
-	}
-	writeProbeCommand("claude", "#!/bin/sh\nprintf 'PROBE_OK\\n'\n")
-	writeProbeCommand("opencode", "#!/bin/sh\nprintf 'PROBE_OK\\n'\n")
-	writeProbeCommand("grok", "#!/bin/sh\nprintf 'PROBE_OK\\n'\n")
-	writeProbeCommand("codex", "#!/bin/sh\nprevious=''\nfor arg in \"$@\"; do\n  if [ \"$previous\" = '-o' ]; then\n    printf 'PROBE_OK\\n' > \"$arg\"\n    exit 0\n  fi\n  previous=\"$arg\"\ndone\nprintf 'missing -o output path' >&2\nexit 1\n")
-	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
-
+func TestProbeRunnerUsesManagedRunnerExecution(t *testing.T) {
 	registry := runner.NewRegistry()
 	for _, runnerType := range []domain.RunnerType{domain.RunnerTypeClaudeCode, domain.RunnerTypeCodex, domain.RunnerTypeOpenCode, domain.RunnerTypeGrok} {
+		wantRunnerType := runnerType
 		mock := runner.NewMockRunner(runnerType)
 		mock.SetAvailable(true, "available")
+		mock.ExecuteFunc = func(_ context.Context, req runner.ExecuteRequest) (*runner.ExecuteResult, error) {
+			if req.ResolvedConfig == nil || req.ResolvedConfig.RunnerType != wantRunnerType || req.ResolvedConfig.MaxTurns != 1 || req.Prompt != "Reply with exactly one word: PROBE_OK" {
+				t.Fatalf("managed probe request = %+v", req)
+			}
+			return &runner.ExecuteResult{Success: true}, nil
+		}
 		if err := registry.Register(mock); err != nil {
 			t.Fatalf("register %s: %v", runnerType, err)
 		}
@@ -201,7 +192,7 @@ func TestProbeRunnerUsesSupportedCLIContractsWithoutLiveAgents(t *testing.T) {
 	o := New(nil, nil, nil, WithRunners(registry))
 	for _, runnerType := range []domain.RunnerType{domain.RunnerTypeClaudeCode, domain.RunnerTypeCodex, domain.RunnerTypeOpenCode, domain.RunnerTypeGrok} {
 		result, err := o.ProbeRunner(context.Background(), runnerType)
-		if err != nil || !result.Success || result.Response != "PROBE_OK" {
+		if err != nil || !result.Success || result.Message != "runner completed managed probe" {
 			t.Fatalf("probe %s result=%+v err=%v", runnerType, result, err)
 		}
 	}

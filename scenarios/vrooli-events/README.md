@@ -2,6 +2,8 @@
 
 The platform service for durable event receipts, real-time pub/sub, analytics, compliance auditing, and policy distribution across Vrooli.
 
+Receipt observations use the canonical event type `vrooli.events.receipt.v1`.
+
 ## Why This Exists
 
 Before vrooli-events, inter-scenario communication was invisible — scenario A called scenario B via HTTP, and nobody tracked it. There was no way to:

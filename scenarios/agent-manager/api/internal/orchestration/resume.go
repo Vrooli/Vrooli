@@ -27,6 +27,9 @@ func (o *Orchestrator) ResumeFromFailedRun(
 	if err != nil {
 		return nil, err
 	}
+	if failedRun.ExecutionMode.Normalized() == domain.ExecutionModeImported {
+		return nil, importedRunLifecycleError("resume-from-failed")
+	}
 	if allowed, reason := domain.CanResumeFromFailureRun(failedRun); !allowed {
 		return nil, domain.NewValidationError("runId", reason)
 	}

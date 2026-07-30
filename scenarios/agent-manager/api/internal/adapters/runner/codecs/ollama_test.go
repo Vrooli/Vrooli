@@ -108,7 +108,8 @@ func TestDefaultOllamaFetch_ExecBridge(t *testing.T) {
 	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	pathValue, _ := os.LookupEnv("PATH")
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+pathValue)
 
 	got, err := defaultOllamaFetch(context.Background())
 	if err != nil {

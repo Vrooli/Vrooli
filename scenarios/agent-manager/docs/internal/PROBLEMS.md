@@ -62,6 +62,17 @@ both API/UI listeners bound without an API key.
 
 ## Test Gaps
 
+## UX Issues
+
+### Resolved: Import did not match runner-backed conversation workflow (2026-07-30)
+
+The initial import surface required a local file upload and mobile navigation
+used a bottom-positioned menu. Import now reads the session locations declared
+by coding-agent resource manifests, lets an operator choose a runner and select
+saved conversations, and marks conversations already associated with a run.
+The header hamburger opens the same primary navigation in an overlay drawer on
+mobile; desktop retains the persistent sidebar.
+
 ## Work ladder
 
 - Rung: W3
@@ -149,6 +160,21 @@ so normal and resumed executor runs update Stats without replay.
 **Validation**: API orchestration tests pass. In the live scenario, a completed
 Codex smoke run increased the selected profile's Stats count from 1 to 2
 without replay; terminal trends showed the new run.
+
+### P-006: Receipt projection policy engine remains externally owned (2026-07-30)
+**Status**: Deliberate dependency.
+**Detail**: Agent Manager preserves opaque receipt projections and reports
+`policy_absent` when Vrooli Events provides no policy version or projected
+fields. Enabling scenario-specific projection fields requires the Vrooli Events
+receipt projection policy engine; Agent Manager must not infer or hardcode
+response keys.
+
+### P-007: Endpoint generation target was unavailable (resolved 2026-07-30)
+**Status**: Resolved in Agent Manager.
+**Detail**: `api/cmd/gen-endpoints` now derives the endpoint inventory from
+the mux route registrations and served Connect descriptors. `make endpoints`
+regenerates `.vrooli/endpoints.json` deterministically; the former blocker
+`knw-1785387885739969825` is no longer applicable.
 
 ### R-005: Model-policy hard cutover omitted first-party consumers (2026-07-10)
 **Symptom**: Managed `test-genie` startup failed to compile after the generated

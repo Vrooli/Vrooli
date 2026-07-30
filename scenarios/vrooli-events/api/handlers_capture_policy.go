@@ -122,7 +122,29 @@ func (s *Server) handleCreateCapturePolicy(w http.ResponseWriter, r *http.Reques
 		writeError(w, http.StatusBadRequest, ErrCodeValidation, message)
 		return
 	}
-	id, err := s.policyStore.CreateReceiptProjection(r.Context(), p.rule())
+	rule := p.rule()
+	// A declaration reconcile may safely submit the same policy repeatedly.
+	// policy_id is the declaration identity, so update in place instead of
+	// accumulating duplicate rules with ambiguous matching precedence.
+	existing, err := s.policyStore.ListReceiptProjections(r.Context(), policy.ReceiptProjectionFilters{})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, ErrCodePolicyRead, "failed to inspect receipt capture policies")
+		return
+	}
+	for _, candidate := range existing {
+		if candidate.PolicyID != rule.PolicyID {
+			continue
+		}
+		rule.ID = candidate.ID
+		if err := s.policyStore.UpdateReceiptProjection(r.Context(), rule); err != nil {
+			writeError(w, http.StatusInternalServerError, ErrCodePolicyWrite, "failed to reconcile receipt capture policy")
+			return
+		}
+		s.broadcastPolicySnapshot(r.Context())
+		writeJSON(w, http.StatusOK, map[string]any{"id": rule.ID, "policy_id": p.PolicyID, "reconciled": true})
+		return
+	}
+	id, err := s.policyStore.CreateReceiptProjection(r.Context(), rule)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, ErrCodePolicyWrite, "failed to create receipt capture policy")
 		return

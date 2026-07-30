@@ -43,6 +43,25 @@ func (o *Orchestrator) InvocationFacts(ctx context.Context, runID uuid.UUID) ([]
 	return o.invocationFacts.InvocationFacts(ctx, runID)
 }
 
+// Episodes returns the durable episode projection for one run. A report build
+// creates it, so callers receive an explicit empty collection before evidence
+// has been derived rather than a fabricated aggregate.
+func (o *Orchestrator) Episodes(ctx context.Context, runID uuid.UUID) ([]runreport.FrictionEpisode, error) {
+	store, ok := o.invocationFacts.(runreport.EpisodeStore)
+	if !ok {
+		return []runreport.FrictionEpisode{}, nil
+	}
+	return store.Episodes(ctx, runID)
+}
+
+func (o *Orchestrator) SelfReportSpans(ctx context.Context, runID uuid.UUID) ([]runreport.SelfReportSpan, error) {
+	store, ok := o.invocationFacts.(runreport.SelfReportStore)
+	if !ok {
+		return []runreport.SelfReportSpan{}, nil
+	}
+	return store.SelfReportSpans(ctx, runID)
+}
+
 func (s orchestratorReportSource) DurableInvocationFacts(ctx context.Context, id uuid.UUID) ([]runreport.InvocationFact, bool, error) {
 	if s.o.invocationReadModel == nil {
 		return nil, false, nil
@@ -59,15 +78,20 @@ type orchestratorReportSource struct{ o *Orchestrator }
 
 var (
 	_ runreport.InvocationFactStore = orchestratorReportSource{}
+	_ runreport.EpisodeStore        = orchestratorReportSource{}
+	_ runreport.SelfReportStore     = orchestratorReportSource{}
+	_ runreport.LedgerStore         = orchestratorReportSource{}
 	_ runreport.ReceiptJoinStore    = orchestratorReportSource{}
 )
 
 func (s orchestratorReportSource) Run(ctx context.Context, id uuid.UUID) (*domain.Run, error) {
 	return s.o.GetRun(ctx, id)
 }
+
 func (s orchestratorReportSource) Events(ctx context.Context, id uuid.UUID) ([]*domain.RunEvent, error) {
 	return s.o.GetRunEvents(ctx, id, event.GetOptions{AfterSequence: -1, Limit: 10000})
 }
+
 func (s orchestratorReportSource) Diff(ctx context.Context, id uuid.UUID) (*sandbox.DiffResult, error) {
 	return s.o.GetRunDiff(ctx, id)
 }
@@ -93,6 +117,38 @@ func (s orchestratorReportSource) InvocationFacts(ctx context.Context, id uuid.U
 	return s.o.invocationFacts.InvocationFacts(ctx, id)
 }
 
+func (s orchestratorReportSource) ReplaceEpisodes(ctx context.Context, id uuid.UUID, episodes []runreport.FrictionEpisode) error {
+	store, ok := s.o.invocationFacts.(runreport.EpisodeStore)
+	if !ok {
+		return nil
+	}
+	return store.ReplaceEpisodes(ctx, id, episodes)
+}
+
+func (s orchestratorReportSource) Episodes(ctx context.Context, id uuid.UUID) ([]runreport.FrictionEpisode, error) {
+	store, ok := s.o.invocationFacts.(runreport.EpisodeStore)
+	if !ok {
+		return []runreport.FrictionEpisode{}, nil
+	}
+	return store.Episodes(ctx, id)
+}
+
+func (s orchestratorReportSource) ReplaceSelfReportSpans(ctx context.Context, id uuid.UUID, spans []runreport.SelfReportSpan) error {
+	store, ok := s.o.invocationFacts.(runreport.SelfReportStore)
+	if !ok {
+		return nil
+	}
+	return store.ReplaceSelfReportSpans(ctx, id, spans)
+}
+
+func (s orchestratorReportSource) SelfReportSpans(ctx context.Context, id uuid.UUID) ([]runreport.SelfReportSpan, error) {
+	store, ok := s.o.invocationFacts.(runreport.SelfReportStore)
+	if !ok {
+		return []runreport.SelfReportSpan{}, nil
+	}
+	return store.SelfReportSpans(ctx, id)
+}
+
 func (s orchestratorReportSource) ReplaceReceiptEvidence(ctx context.Context, id uuid.UUID, availability string, eventIDs []string) error {
 	if s.o.invocationFacts == nil {
 		return nil
@@ -113,4 +169,20 @@ func (s orchestratorReportSource) ReceiptEvidence(ctx context.Context, id uuid.U
 		return []string{}, nil
 	}
 	return store.ReceiptEvidence(ctx, id)
+}
+
+func (s orchestratorReportSource) ReplaceCrossScenarioCalls(ctx context.Context, id uuid.UUID, availability string, calls []runreport.CrossScenarioCall) error {
+	store, ok := s.o.invocationFacts.(runreport.LedgerStore)
+	if !ok {
+		return nil
+	}
+	return store.ReplaceCrossScenarioCalls(ctx, id, availability, calls)
+}
+
+func (s orchestratorReportSource) CrossScenarioCalls(ctx context.Context, id uuid.UUID) ([]runreport.CrossScenarioCall, error) {
+	store, ok := s.o.invocationFacts.(runreport.LedgerStore)
+	if !ok {
+		return []runreport.CrossScenarioCall{}, nil
+	}
+	return store.CrossScenarioCalls(ctx, id)
 }

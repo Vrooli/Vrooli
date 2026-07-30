@@ -30,7 +30,8 @@ func (a *App) cmdScenarioSmoke(args []string) error {
 	fs := flag.NewFlagSet("scenario-smoke", flag.ContinueOnError)
 	profileID := fs.String("profile-id", "", "Profile ID to use; defaults to an available code.cheap profile")
 	projectRoot := fs.String("project-root", "", "Project root for the scratch task (defaults to the current directory)")
-	workspaceSandboxURL := fs.String("workspace-sandbox-url", os.Getenv("WORKSPACE_SANDBOX_URL"), "Workspace Sandbox API URL")
+	workspaceSandboxURLDefault, _ := os.LookupEnv("WORKSPACE_SANDBOX_URL")
+	workspaceSandboxURL := fs.String("workspace-sandbox-url", workspaceSandboxURLDefault, "Workspace Sandbox API URL")
 	timeout := fs.Duration("timeout", defaultScenarioSmokeTimeout, "Maximum time to wait for terminal completion")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -44,7 +45,7 @@ func (a *App) cmdScenarioSmoke(args []string) error {
 		return err
 	}
 	if *workspaceSandboxURL == "" {
-		*workspaceSandboxURL = "http://127.0.0.1:15427"
+		return fmt.Errorf("--workspace-sandbox-url or WORKSPACE_SANDBOX_URL is required")
 	}
 
 	chosenProfileID, err := a.scenarioSmokeProfileID(*profileID)

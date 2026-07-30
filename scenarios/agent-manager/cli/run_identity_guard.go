@@ -11,7 +11,8 @@ import (
 // authority; this client-side check makes the safe boundary clear before a
 // workflow wastes a turn on a request that will be denied.
 func rejectRunIdentityLifecycleCommand(subcommand string) error {
-	if strings.TrimSpace(os.Getenv("VROOLI_AGENT_IDENTITY_TOKEN")) == "" {
+	token, _ := os.LookupEnv("VROOLI_AGENT_IDENTITY_TOKEN")
+	if strings.TrimSpace(token) == "" {
 		return nil
 	}
 

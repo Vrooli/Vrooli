@@ -897,6 +897,9 @@ type ExecutionMode string
 const (
 	ExecutionModeCodecPipe   ExecutionMode = "codec_pipe"
 	ExecutionModeInteractive ExecutionMode = "interactive"
+	// ExecutionModeImported marks a terminal, read-only run adopted from an
+	// external harness transcript. It never owns a runner process or sandbox.
+	ExecutionModeImported ExecutionMode = "imported"
 )
 
 // Normalized returns the mode with the empty value defaulted to
@@ -912,7 +915,7 @@ func (m ExecutionMode) Normalized() ExecutionMode {
 // IsValid reports whether the mode is one of the known execution modes.
 func (m ExecutionMode) IsValid() bool {
 	switch m {
-	case ExecutionModeCodecPipe, ExecutionModeInteractive:
+	case ExecutionModeCodecPipe, ExecutionModeInteractive, ExecutionModeImported:
 		return true
 	default:
 		return false
@@ -1140,12 +1143,15 @@ type StructuredResult struct {
 // This can be loaded from a profile, provided inline, or a combination of both.
 type RunConfig struct {
 	// Runner configuration
-	RunnerType RunnerType    `json:"runnerType"`
-	Model      string        `json:"model,omitempty"`
-	RoleRef    string        `json:"roleRef,omitempty"`
-	MaxTurns   int           `json:"maxTurns,omitempty"`
-	Timeout    time.Duration `json:"timeout,omitempty"`
-	Effort     Effort        `json:"effort,omitempty"`
+	RunnerType RunnerType `json:"runnerType"`
+	// ManifestIndexSnapshot pins the CLI catalog index used by an imported
+	// transcript. Imported episode attribution remains historical evidence.
+	ManifestIndexSnapshot string        `json:"manifestIndexSnapshot,omitempty"`
+	Model                 string        `json:"model,omitempty"`
+	RoleRef               string        `json:"roleRef,omitempty"`
+	MaxTurns              int           `json:"maxTurns,omitempty"`
+	Timeout               time.Duration `json:"timeout,omitempty"`
+	Effort                Effort        `json:"effort,omitempty"`
 
 	// PolicySnapshot pins the exact active catalog revision and ordered
 	// candidate sequence selected before this run was persisted.

@@ -1,25 +1,11 @@
 // Application header with nav links, status badge and settings button
 
-import {
-  Activity,
-  AlertCircle,
-  BarChart3,
-  Bot,
-  CheckCircle2,
-  ClipboardList,
-  Cog,
-  HeartPulse,
-  Play,
-  GitBranch,
-  Settings2,
-  Wifi,
-  WifiOff,
-} from "lucide-react";
+import { AlertCircle, CheckCircle2, Cog, Menu, Play, Wifi, WifiOff } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import type { HealthResponse } from "../../types";
 import { HealthStatus } from "../../types";
-import type { NavSection } from "./MobileNav";
+import type { NavSection } from "./SideNav";
 
 type WsStatus = "connected" | "connecting" | "disconnected" | "error";
 
@@ -32,21 +18,8 @@ interface AppHeaderProps {
   onStatusClick: () => void;
   onSettingsClick: () => void;
   onQuickRunClick: () => void;
+  onNavigationClick: () => void;
 }
-
-const navItems: Array<{
-  id: NavSection;
-  label: string;
-  icon: typeof Activity;
-}> = [
-  { id: "dashboard", label: "Dashboard", icon: Activity },
-  { id: "profiles", label: "Profiles", icon: Settings2 },
-  { id: "tasks", label: "Tasks", icon: ClipboardList },
-  { id: "runs", label: "Runs", icon: Play },
-  { id: "workflows", label: "Workflows", icon: GitBranch },
-  { id: "stats", label: "Stats", icon: BarChart3 },
-  { id: "health", label: "Health", icon: HeartPulse },
-];
 
 export function AppHeader({
   health,
@@ -57,6 +30,7 @@ export function AppHeader({
   onStatusClick,
   onSettingsClick,
   onQuickRunClick,
+  onNavigationClick,
 }: AppHeaderProps) {
   const isHealthy = health?.status === HealthStatus.HEALTHY;
   const healthLabel = health ? (isHealthy ? "Healthy" : "Degraded") : "Unknown";
@@ -82,7 +56,9 @@ export function AppHeader({
     <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-border bg-background/95 backdrop-blur-sm px-4 py-2 sm:px-6 lg:px-10">
       {/* Left: Logo and status */}
       <div className="flex items-center gap-3 shrink-0">
-        <Bot className="h-6 w-6 text-primary" />
+        <Button variant="ghost" size="icon" onClick={onNavigationClick} aria-label="Open navigation menu">
+          <Menu className="h-5 w-5" />
+        </Button>
         <span className="text-lg font-semibold hidden sm:inline">Agent Manager</span>
         <Badge
           variant={statusVariant}
@@ -112,36 +88,8 @@ export function AppHeader({
         </Badge>
       </div>
 
-      {/* Right: Navigation + Settings */}
+      {/* Right: quick run and settings; primary navigation belongs in SideNav. */}
       <div className="flex items-center gap-2">
-        {/* Navigation - hidden on mobile */}
-        {!isMobile && (
-          <nav className="flex items-center gap-1">
-            {navItems.map((item) => {
-              const isActive = activeSection === item.id;
-              const Icon = item.icon;
-
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => onSectionChange(item.id)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                  }`}
-                  aria-current={isActive ? "page" : undefined}
-                >
-                  <Icon className="h-4 w-4" />
-                  {/* Show label on larger screens, hide when narrower to avoid overflow */}
-                  <span className="hidden min-[1120px]:inline">{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-        )}
-
         {/* Quick Run button */}
         <Button
           variant="default"

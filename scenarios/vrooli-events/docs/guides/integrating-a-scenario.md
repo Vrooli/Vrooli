@@ -41,7 +41,7 @@ Receipt emission is post-response and best effort. A receipt that cannot be obse
 
 ## Agent-attributed receipts
 
-`eventbus` derives a run correlation only from verified provenance placed in request context by `api-core/provenance`. It never trusts a caller-provided run header. Vrooli Events accepts `vrooli.receipt.observed.v1` only with a verified Agent Manager identity, a run correlation, operation/outcome metadata, and a bounded safe projection.
+`eventbus` derives a run correlation only from verified provenance placed in request context by `api-core/provenance`. It never trusts a caller-provided run header. Vrooli Events accepts `vrooli.events.receipt.v1` only with a verified Agent Manager identity, a run correlation, operation/outcome metadata, and a bounded safe projection.
 
 ## Publishing Custom Events
 

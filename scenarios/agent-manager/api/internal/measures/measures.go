@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"agent-manager/internal/invocationreadmodel"
+	"agent-manager/internal/runreport"
 
 	"connectrpc.com/connect"
 	measurelib "github.com/vrooli/measures-go"
@@ -106,7 +107,8 @@ func declaration(spec struct {
 	name, method, intent, unit, summary string
 	questions                           []string
 	kind                                metricKind
-}) measurelib.MeasureDeclaration {
+},
+) measurelib.MeasureDeclaration {
 	domain := "friction"
 	if spec.kind == runSuccessRate || spec.kind == runCycleTime || spec.kind == runCost || spec.kind == runVolume {
 		domain = "run"
@@ -203,8 +205,16 @@ func filterWithWindow(input *measurepb.InvocationFilter, window *sharedmeasurepb
 // Handler is both the typed Connect surface and the owner of the shared
 // compute functions used by the measures-go registry.
 type Handler struct {
-	store Store
-	now   func() time.Time
+	store         Store
+	now           func() time.Time
+	episodeCohort func(context.Context, invocationreadmodel.Filter, int) (runreport.EpisodeCohort, error)
+}
+
+// SetEpisodeCohort connects the episode-specific durable projection without
+// widening the generic invocation metric store. The callback is supplied by
+// orchestration, which owns the episode repository seam.
+func (h *Handler) SetEpisodeCohort(fn func(context.Context, invocationreadmodel.Filter, int) (runreport.EpisodeCohort, error)) {
+	h.episodeCohort = fn
 }
 
 func NewHandler(store Store, now func() time.Time) *Handler {
@@ -233,6 +243,7 @@ func (h *Handler) ExternalToolShare(ctx context.Context, req *connect.Request[me
 	}
 	return connect.NewResponse(&measurepb.ExternalToolShareResponse{Share: r.Rate, ExternalCalls: r.Numerator, ResolvedCalls: r.Denom, UnknownCalls: r.Unknown, ExecutedQuery: r.Query}), nil
 }
+
 func (h *Handler) RetryRate(ctx context.Context, req *connect.Request[measurepb.RetryRateRequest]) (*connect.Response[measurepb.RetryRateResponse], error) {
 	r, err := h.metric(ctx, retryRate, req.Msg.GetFilter(), req.Msg.GetWindow())
 	if err != nil {
@@ -240,6 +251,7 @@ func (h *Handler) RetryRate(ctx context.Context, req *connect.Request[measurepb.
 	}
 	return connect.NewResponse(&measurepb.RetryRateResponse{Rate: r.Rate, RetryCalls: r.Numerator, TotalCalls: r.Denom, ExecutedQuery: r.Query}), nil
 }
+
 func (h *Handler) HelpRecoveryRate(ctx context.Context, req *connect.Request[measurepb.HelpRecoveryRateRequest]) (*connect.Response[measurepb.HelpRecoveryRateResponse], error) {
 	r, err := h.metric(ctx, helpRecoveryRate, req.Msg.GetFilter(), req.Msg.GetWindow())
 	if err != nil {
@@ -247,6 +259,7 @@ func (h *Handler) HelpRecoveryRate(ctx context.Context, req *connect.Request[mea
 	}
 	return connect.NewResponse(&measurepb.HelpRecoveryRateResponse{Rate: r.Rate, HelpRecoveries: r.Numerator, TotalCalls: r.Denom, ExecutedQuery: r.Query}), nil
 }
+
 func (h *Handler) RepeatedWorkRate(ctx context.Context, req *connect.Request[measurepb.RepeatedWorkRateRequest]) (*connect.Response[measurepb.RepeatedWorkRateResponse], error) {
 	r, err := h.metric(ctx, repeatedWorkRate, req.Msg.GetFilter(), req.Msg.GetWindow())
 	if err != nil {
@@ -254,6 +267,7 @@ func (h *Handler) RepeatedWorkRate(ctx context.Context, req *connect.Request[mea
 	}
 	return connect.NewResponse(&measurepb.RepeatedWorkRateResponse{Rate: r.Rate, RepeatedCalls: r.Numerator, TotalCalls: r.Denom, ExecutedQuery: r.Query}), nil
 }
+
 func (h *Handler) ToolFailureRate(ctx context.Context, req *connect.Request[measurepb.ToolFailureRateRequest]) (*connect.Response[measurepb.ToolFailureRateResponse], error) {
 	r, err := h.metric(ctx, toolFailureRate, req.Msg.GetFilter(), req.Msg.GetWindow())
 	if err != nil {
@@ -261,6 +275,7 @@ func (h *Handler) ToolFailureRate(ctx context.Context, req *connect.Request[meas
 	}
 	return connect.NewResponse(&measurepb.ToolFailureRateResponse{Rate: r.Rate, FailedCalls: r.Numerator, TotalCalls: r.Denom, ExecutedQuery: r.Query}), nil
 }
+
 func (h *Handler) RunSuccessRate(ctx context.Context, req *connect.Request[measurepb.RunSuccessRateRequest]) (*connect.Response[measurepb.RunSuccessRateResponse], error) {
 	r, err := h.metric(ctx, runSuccessRate, req.Msg.GetFilter(), req.Msg.GetWindow())
 	if err != nil {
@@ -268,6 +283,7 @@ func (h *Handler) RunSuccessRate(ctx context.Context, req *connect.Request[measu
 	}
 	return connect.NewResponse(&measurepb.RunSuccessRateResponse{Rate: r.Rate, SuccessfulRuns: r.Numerator, TerminalRuns: r.Denom, ExecutedQuery: r.Query}), nil
 }
+
 func (h *Handler) RunCycleTime(ctx context.Context, req *connect.Request[measurepb.RunCycleTimeRequest]) (*connect.Response[measurepb.RunCycleTimeResponse], error) {
 	r, err := h.metric(ctx, runCycleTime, req.Msg.GetFilter(), req.Msg.GetWindow())
 	if err != nil {
@@ -275,6 +291,7 @@ func (h *Handler) RunCycleTime(ctx context.Context, req *connect.Request[measure
 	}
 	return connect.NewResponse(&measurepb.RunCycleTimeResponse{AverageDurationMs: r.Rate, CompletedDurationRuns: r.Numerator, ExecutedQuery: r.Query}), nil
 }
+
 func (h *Handler) RunCost(ctx context.Context, req *connect.Request[measurepb.RunCostRequest]) (*connect.Response[measurepb.RunCostResponse], error) {
 	filter, err := filterWithWindow(req.Msg.GetFilter(), req.Msg.GetWindow(), h.now())
 	if err != nil {
@@ -287,6 +304,7 @@ func (h *Handler) RunCost(ctx context.Context, req *connect.Request[measurepb.Ru
 	query := fmt.Sprintf("SELECT durable cost aggregate FROM invocation_read_model_runs WHERE occurred_at >= %q AND occurred_at < %q", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano))
 	return connect.NewResponse(&measurepb.RunCostResponse{TotalCostUsd: runs.TotalCostUSD, AverageCostUsd: runs.AverageCostUSD, TotalRuns: runs.TotalRuns, TotalTokens: runs.TotalTokens, InputTokens: runs.InputTokens, OutputTokens: runs.OutputTokens, CacheReadTokens: runs.CacheReadTokens, CacheCreationTokens: runs.CacheCreationTokens, InputCostUsd: runs.InputCostUSD, OutputCostUsd: runs.OutputCostUSD, CacheReadCostUsd: runs.CacheReadCostUSD, CacheCreationCostUsd: runs.CacheCreationCostUSD, AuthoritativeCostUsd: runs.AuthoritativeCostUSD, EstimatedCostUsd: runs.EstimatedCostUSD, UnknownCostUsd: runs.UnknownCostUSD, ExecutedQuery: query}), nil
 }
+
 func (h *Handler) RunVolume(ctx context.Context, req *connect.Request[measurepb.RunVolumeRequest]) (*connect.Response[measurepb.RunVolumeResponse], error) {
 	r, err := h.metric(ctx, runVolume, req.Msg.GetFilter(), req.Msg.GetWindow())
 	if err != nil {
@@ -319,6 +337,32 @@ func (h *Handler) SelectCohort(ctx context.Context, req *connect.Request[measure
 	}
 	query := fmt.Sprintf("SELECT DISTINCT run_id FROM invocation_read_model_facts WHERE occurred_at >= %q AND occurred_at < %q ORDER BY run_id LIMIT %d", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano), limit)
 	return connect.NewResponse(&measurepb.SelectCohortResponse{RunIds: cohort.RunIDs, Truncated: cohort.Truncated, ExecutedQuery: query}), nil
+}
+
+// EpisodeCohort exposes the ranked friction-episode investigation projection
+// through the typed measures surface. It shares SelectCohort's predicate and
+// bounded limit, then folds only persisted episode records.
+func (h *Handler) EpisodeCohort(ctx context.Context, req *connect.Request[measurepb.EpisodeCohortRequest]) (*connect.Response[measurepb.EpisodeCohortResponse], error) {
+	if h.episodeCohort == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("episode cohort source is not configured"))
+	}
+	filter, err := filterWithWindow(req.Msg.GetFilter(), req.Msg.GetWindow(), h.now())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	limit := int(req.Msg.GetLimit())
+	if limit <= 0 {
+		limit = 25
+	}
+	cohort, err := h.episodeCohort(ctx, filter, limit)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	response := &measurepb.EpisodeCohortResponse{AvailabilityState: cohort.Availability.State, AvailabilityDetail: cohort.Availability.Detail, ExecutedQuery: fmt.Sprintf("SELECT persisted friction episodes FROM selected durable run cohort LIMIT %d", limit)}
+	for _, signal := range cohort.Signals {
+		response.Signals = append(response.Signals, &measurepb.EpisodeCohortSignal{Fingerprint: signal.Fingerprint, Occurrences: int64(signal.Occurrences), DistinctRuns: int64(signal.DistinctRuns), SummedCostMs: signal.SummedCostMS, Confidence: signal.Confidence, RepresentativeRunIds: append([]string(nil), signal.RepresentativeRunIDs...)})
+	}
+	return connect.NewResponse(response), nil
 }
 
 func (h *Handler) runStatusRows(ctx context.Context, input *measurepb.InvocationFilter, window *sharedmeasurepb.TimeWindow) ([]invocationreadmodel.RunStatusCount, string, error) {
@@ -369,6 +413,7 @@ func (h *Handler) runBreakdownRows(ctx context.Context, input *measurepb.Invocat
 	}
 	return rows, fmt.Sprintf("SELECT %s, terminal run aggregates FROM invocation_read_model_runs WHERE occurred_at >= %q AND occurred_at < %q GROUP BY %s LIMIT 20", dimension, filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano), dimension), nil
 }
+
 func protoBreakdownRows(rows []invocationreadmodel.RunBreakdownRow) []*measurepb.RunBreakdownRow {
 	out := make([]*measurepb.RunBreakdownRow, 0, len(rows))
 	for _, row := range rows {
@@ -376,6 +421,7 @@ func protoBreakdownRows(rows []invocationreadmodel.RunBreakdownRow) []*measurepb
 	}
 	return out
 }
+
 func (h *Handler) RunnerBreakdown(ctx context.Context, req *connect.Request[measurepb.RunnerBreakdownRequest]) (*connect.Response[measurepb.RunnerBreakdownResponse], error) {
 	rows, query, err := h.runBreakdownRows(ctx, req.Msg.GetFilter(), req.Msg.GetWindow(), "runner")
 	if err != nil {
@@ -383,6 +429,7 @@ func (h *Handler) RunnerBreakdown(ctx context.Context, req *connect.Request[meas
 	}
 	return connect.NewResponse(&measurepb.RunnerBreakdownResponse{Rows: protoBreakdownRows(rows), ExecutedQuery: query}), nil
 }
+
 func (h *Handler) ModelBreakdown(ctx context.Context, req *connect.Request[measurepb.ModelBreakdownRequest]) (*connect.Response[measurepb.ModelBreakdownResponse], error) {
 	rows, query, err := h.runBreakdownRows(ctx, req.Msg.GetFilter(), req.Msg.GetWindow(), "model")
 	if err != nil {
@@ -390,6 +437,7 @@ func (h *Handler) ModelBreakdown(ctx context.Context, req *connect.Request[measu
 	}
 	return connect.NewResponse(&measurepb.ModelBreakdownResponse{Rows: protoBreakdownRows(rows), ExecutedQuery: query}), nil
 }
+
 func (h *Handler) ProfileBreakdown(ctx context.Context, req *connect.Request[measurepb.ProfileBreakdownRequest]) (*connect.Response[measurepb.ProfileBreakdownResponse], error) {
 	rows, query, err := h.runBreakdownRows(ctx, req.Msg.GetFilter(), req.Msg.GetWindow(), "profile")
 	if err != nil {
@@ -445,6 +493,7 @@ func (h *Handler) ErrorPatterns(ctx context.Context, req *connect.Request[measur
 	}
 	return connect.NewResponse(response), nil
 }
+
 func (h *Handler) FileRereadRate(ctx context.Context, req *connect.Request[measurepb.FileRereadRateRequest]) (*connect.Response[measurepb.FileRereadRateResponse], error) {
 	r, err := h.metric(ctx, fileRereadRate, req.Msg.GetFilter(), req.Msg.GetWindow())
 	if err != nil {
@@ -510,9 +559,11 @@ func (h *Handler) Registry() (*measurelib.Registry, error) {
 		{ProfileBreakdown, "ProfileBreakdown", "profile", "Durable terminal-run performance grouped by profile."},
 	} {
 		spec := spec
-		if err := registry.Register(measurelib.MeasureDeclaration{Name: spec.name, Scenario: "agent-manager", Domain: "run", Intent: spec.intent,
+		if err := registry.Register(measurelib.MeasureDeclaration{
+			Name: spec.name, Scenario: "agent-manager", Domain: "run", Intent: spec.intent,
 			Questions: []string{"agent run " + spec.dimension + " breakdown this week"}, Params: map[string]measurelib.Param{"window": {Name: "window", Type: measurelib.ParamTypeTimeWindow, Default: string(measurelib.TokenThisWeek)}},
-			Result: measurelib.Result{Kind: measurelib.ResultTable, ValueField: "value", Unit: "runs", SummaryTemplate: spec.dimension + " run breakdown ({window})"}, Effect: measurelib.EffectRead, RunEligible: true, Service: "MeasuresService", Method: spec.method}, func(ctx context.Context, request measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
+			Result: measurelib.Result{Kind: measurelib.ResultTable, ValueField: "value", Unit: "runs", SummaryTemplate: spec.dimension + " run breakdown ({window})"}, Effect: measurelib.EffectRead, RunEligible: true, Service: "MeasuresService", Method: spec.method,
+		}, func(ctx context.Context, request measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
 			rangeValue, err := measurelib.ResolveToken(measurelib.TimeWindowToken(request.Params["window"]), h.now(), time.UTC)
 			if err != nil {
 				return measurelib.MeasureResult{}, err

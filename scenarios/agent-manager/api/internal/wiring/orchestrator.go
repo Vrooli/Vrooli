@@ -188,7 +188,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		artifactCollector = artifact.NewSQLiteCollector(db, fileRoots[0])
 	}
 	extractor := &structuredresult.RunnerExtractor{Roles: roleState, Resolver: roleResolver, Runners: registry, WorkingDir: database.DataDir(), Timeout: 2 * time.Minute}
-	receiptsBaseURL := os.Getenv("VROOLI_EVENTS_API_BASE")
+	receiptsBaseURL, _ := os.LookupEnv("VROOLI_EVENTS_API_BASE")
 	if receiptsBaseURL == "" {
 		receiptsBaseURL, _ = discovery.ResolveScenarioURLDefault(context.Background(), "vrooli-events")
 	}
@@ -203,17 +203,34 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		}
 		verified := 0
 		eventIDs := []string{}
+		calls := []runreport.CrossScenarioCall{}
 		for _, raw := range observations {
 			envelope := &eventspb.EventEnvelope{}
-			if protojson.Unmarshal(raw, envelope) == nil && envelope.EventType == eventbus.ReceiptEventType && envelope.Attribution != nil && envelope.Attribution.Verified && envelope.Correlation != nil && envelope.Correlation.AgentRunId == id.String() {
+			if protojson.Unmarshal(raw, envelope) != nil || envelope.EventType != eventbus.ReceiptEventType || envelope.Correlation == nil || envelope.Correlation.AgentRunId != id.String() {
+				continue
+			}
+			call := runreport.CrossScenarioCall{TargetScenario: envelope.GetTarget().GetScenario(), Operation: envelope.GetTarget().GetOperation(), ReceiptEventID: envelope.EventId, Verified: envelope.GetAttribution() != nil && envelope.GetAttribution().GetVerified()}
+			if occurredAt := envelope.GetOccurredAt(); occurredAt != nil {
+				call.OccurredAt = occurredAt.AsTime()
+			}
+			receipt := &eventspb.ReceiptData{}
+			if envelope.GetData() != nil && envelope.GetData().UnmarshalTo(receipt) == nil {
+				call.Outcome, call.StatusCode, call.DurationMS = receipt.GetOutcome(), receipt.GetStatusCode(), receipt.GetDurationMs()
+				call.PolicyVersion = receipt.GetPolicyVersion()
+				if receipt.GetProjection() != nil {
+					call.Projection, call.ProjectionDropCount = runreport.BoundProjection(receipt.GetProjection().AsMap())
+				}
+			}
+			calls = append(calls, call)
+			if call.Verified {
 				verified++
 				eventIDs = append(eventIDs, envelope.EventId)
 			}
 		}
 		if verified == 0 {
-			return runreport.ReceiptSummary{State: "unobserved"}, nil
+			return runreport.ReceiptSummary{State: "unobserved", Detail: "no verified receipts correlated to this run", Calls: calls}, nil
 		}
-		return runreport.ReceiptSummary{State: "available", Count: verified, EventIDs: eventIDs}, nil
+		return runreport.ReceiptSummary{State: "available", Count: verified, EventIDs: eventIDs, Calls: calls}, nil
 	})
 	opts := []orchestration.Option{
 		orchestration.WithConfig(orchConfig), orchestration.WithEvents(eventStore), orchestration.WithRunners(registry), orchestration.WithSandbox(sandboxProvider),
@@ -262,7 +279,8 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		return prober
 	}
 	probeCfg := healthstore.DefaultProbeConfig()
-	if raw := strings.TrimSpace(os.Getenv("AGENT_MANAGER_MODEL_HEALTH_INTERVAL")); raw != "" {
+	raw, _ := os.LookupEnv("AGENT_MANAGER_MODEL_HEALTH_INTERVAL")
+	if raw = strings.TrimSpace(raw); raw != "" {
 		if parsed, err := time.ParseDuration(raw); err == nil {
 			probeCfg.Interval = parsed
 		} else {
@@ -276,13 +294,14 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 }
 
 func resolveWorkspaceSandboxURL() string {
-	if configured := strings.TrimSpace(os.Getenv("WORKSPACE_SANDBOX_URL")); configured != "" {
+	configured, _ := os.LookupEnv("WORKSPACE_SANDBOX_URL")
+	if configured = strings.TrimSpace(configured); configured != "" {
 		return configured
 	}
 	if resolved, err := discovery.ResolveScenarioURLDefault(context.Background(), "workspace-sandbox"); err == nil && resolved != "" {
 		return resolved
 	}
-	port := os.Getenv("WORKSPACE_SANDBOX_API_PORT")
+	port, _ := os.LookupEnv("WORKSPACE_SANDBOX_API_PORT")
 	if strings.TrimSpace(port) == "" {
 		// An unavailable sandbox is represented explicitly. Sandboxed launches
 		// then fail with the provider's actionable connectivity error instead of

@@ -88,6 +88,13 @@ type ReceiptProjectionFilters struct {
 	Enabled *bool
 }
 
+// ReceiptProjectionReconcileResult reports the committed changes from one
+// declaration batch.
+type ReceiptProjectionReconcileResult struct {
+	Created int
+	Updated int
+}
+
 // Violation records a policy denial.
 type Violation struct {
 	ID             int64    `json:"id"`
@@ -169,6 +176,7 @@ type Store interface {
 	GetReceiptProjection(ctx context.Context, id int64) (ReceiptProjectionRule, error)
 	ListReceiptProjections(ctx context.Context, f ReceiptProjectionFilters) ([]ReceiptProjectionRule, error)
 	UpdateReceiptProjection(ctx context.Context, r ReceiptProjectionRule) error
+	ReconcileReceiptProjections(ctx context.Context, rules []ReceiptProjectionRule) (ReceiptProjectionReconcileResult, error)
 	DeleteReceiptProjection(ctx context.Context, id int64) error
 	MatchReceiptProjection(ctx context.Context, source, target, operation string) (*ReceiptProjectionRule, error)
 	Close() error

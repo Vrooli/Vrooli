@@ -26,7 +26,7 @@ vi.mock("../src/hooks/useApi.js", () => ({
 vi.mock("../src/hooks/useWebSocket.js", () => ({ useWebSocket: (options: unknown) => { state.websocket(options); return { status: "connected", subscribe: vi.fn(), unsubscribe: vi.fn() }; } }));
 vi.mock("../src/hooks/useRunEventStore.js", () => ({ useRunEventStore: () => { state.events(); return { state: { runsById: state.api.snapshots }, actions: emptyActions, reconciliationIntents: [] }; } }));
 vi.mock("../src/hooks/useViewportSize.js", () => ({ useIsMobile: () => state.api.mobile }));
-vi.mock("../src/components/layout/AppHeader.js", () => ({ AppHeader: ({ activeSection, onSectionChange, onStatusClick, onSettingsClick, onQuickRunClick }: any) => createElement("div", null, createElement("span", { "data-testid": "active" }, activeSection), ...["dashboard", "profiles", "tasks", "runs", "workflows", "stats", "health"].map((section) => createElement("button", { key: section, onClick: () => onSectionChange(section) }, `${section} nav`)), createElement("button", { onClick: onStatusClick }, "Status"), createElement("button", { onClick: onSettingsClick }, "Settings"), createElement("button", { onClick: onQuickRunClick }, "Quick run")) }));
+vi.mock("../src/components/layout/AppHeader.js", () => ({ AppHeader: ({ activeSection, onSectionChange, onStatusClick, onSettingsClick, onQuickRunClick, onNavigationClick }: any) => createElement("div", null, createElement("span", { "data-testid": "active" }, activeSection), ...["dashboard", "profiles", "tasks", "runs", "workflows", "stats", "health"].map((section) => createElement("button", { key: section, onClick: () => onSectionChange(section) }, `${section} nav`)), createElement("button", { onClick: onStatusClick }, "Status"), createElement("button", { onClick: onSettingsClick }, "Settings"), createElement("button", { onClick: onQuickRunClick }, "Quick run"), createElement("button", { onClick: onNavigationClick }, "Open navigation menu")) }));
 vi.mock("../src/components/layout/MobileNav.js", () => ({ MobileNav: ({ activeSection, onSectionChange }: any) => createElement("button", { onClick: () => onSectionChange("runs") }, `mobile ${activeSection}`) }));
 vi.mock("../src/pages/DashboardPage.js", () => ({ DashboardPage: ({ onRefresh, onNavigateToRun, runs }: any) => createElement("div", null, "Dashboard page", createElement("span", { "data-testid": "dashboard-runs" }, String(runs.length)), createElement("button", { onClick: onRefresh }, "Dashboard refresh"), createElement("button", { onClick: () => onNavigateToRun("run-9", "diff") }, "Dashboard run")) }));
 vi.mock("../src/pages/ProfilesPage.js", () => ({ ProfilesPage: () => createElement("div", null, "Profiles page") }));
@@ -145,6 +145,7 @@ test("App supplies quick-run route data, task refreshes, mobile navigation, and 
   state.api.health = { metrics: { default_project_root: { kind: { case: "stringValue", value: "/workspace/project" } } } };
   renderWithProviders(createElement(App), { initialEntries: ["/tasks"] });
   assert.ok(await screen.findByText("Tasks page"));
+  await user.click(screen.getByRole("button", { name: "Open navigation menu" }));
   assert.ok(screen.getByRole("button", { name: "mobile tasks" }));
   await user.click(screen.getByRole("button", { name: "Quick run" }));
   assert.equal((await screen.findByTestId("quick-root")).textContent, "/workspace/project:1");

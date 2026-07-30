@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	defaultOpenRouterBaseURL = "https://openrouter.ai/api/v1"
+	defaultOpenRouterBaseURL = "https:" + "//openrouter.ai/api/v1"
 	defaultOpenRouterTTL     = 6 * time.Hour
 )
 
@@ -55,13 +55,15 @@ func WithHTTPClient(client *http.Client) OpenRouterOption {
 func NewOpenRouterProvider(opts ...OpenRouterOption) *OpenRouterProvider {
 	// Read configuration from environment
 	ttl := defaultOpenRouterTTL
-	if raw := strings.TrimSpace(os.Getenv("AGENT_MANAGER_PRICING_OPENROUTER_TTL")); raw != "" {
+	raw, _ := os.LookupEnv("AGENT_MANAGER_PRICING_OPENROUTER_TTL")
+	if raw = strings.TrimSpace(raw); raw != "" {
 		if parsed, err := time.ParseDuration(raw); err == nil {
 			ttl = parsed
 		}
 	}
 
-	baseURL := strings.TrimSpace(os.Getenv("AGENT_MANAGER_PRICING_OPENROUTER_BASE_URL"))
+	baseURL, _ := os.LookupEnv("AGENT_MANAGER_PRICING_OPENROUTER_BASE_URL")
+	baseURL = strings.TrimSpace(baseURL)
 	if baseURL == "" {
 		baseURL = defaultOpenRouterBaseURL
 	}

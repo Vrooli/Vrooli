@@ -13,9 +13,11 @@ import (
 
 type invocationReadModelRepository struct{ db *DB }
 
-var _ invocationreadmodel.Store = (*invocationReadModelRepository)(nil)
-var _ invocationreadmodel.RunStore = (*invocationReadModelRepository)(nil)
-var _ invocationreadmodel.ProjectionStore = (*invocationReadModelRepository)(nil)
+var (
+	_ invocationreadmodel.Store           = (*invocationReadModelRepository)(nil)
+	_ invocationreadmodel.RunStore        = (*invocationReadModelRepository)(nil)
+	_ invocationreadmodel.ProjectionStore = (*invocationReadModelRepository)(nil)
+)
 
 func nullableSQLiteTime(value *time.Time) any {
 	if value == nil {

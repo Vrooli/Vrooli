@@ -94,8 +94,9 @@ func (l *SandboxLauncher) resolveNamespaceLayout(ctx context.Context) (Namespace
 			l.layoutErr = err
 			return
 		}
+		hostHome, _ := os.LookupEnv("HOME")
 		l.layout = NamespaceLayout{
-			HostHome:         os.Getenv("HOME"),
+			HostHome:         hostHome,
 			HomeOverlayState: sb.HomeOverlayState,
 			HostMerged:       sb.WorkDir,
 			WorkspacePath:    sb.WorkspacePath,

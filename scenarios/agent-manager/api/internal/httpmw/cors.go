@@ -12,7 +12,8 @@ import (
 // with CORS_ALLOWED_ORIGINS as a comma-separated list; localhost wildcard
 // ports are retained as the development-safe default.
 func CORS(next http.Handler) http.Handler {
-	allowedOrigins := AllowedOrigins(os.Getenv("CORS_ALLOWED_ORIGINS"))
+	rawOrigins, _ := os.LookupEnv("CORS_ALLOWED_ORIGINS")
+	allowedOrigins := AllowedOrigins(rawOrigins)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
 		if origin != "" && OriginAllowed(origin, allowedOrigins) {

@@ -105,10 +105,12 @@ func commandInput(call *domain.ToolCallEventData) string {
 	}
 	return ""
 }
+
 func isShellTool(name string) bool {
 	name = strings.ToLower(name)
 	return strings.Contains(name, "shell") || strings.Contains(name, "bash") || strings.Contains(name, "command")
 }
+
 func isHelpCommand(command string) bool {
 	tokens, ok := safeTokens(command)
 	if !ok {
@@ -121,12 +123,14 @@ func isHelpCommand(command string) bool {
 	}
 	return false
 }
+
 func fingerprint(parts ...string) string {
 	sum := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
 	return hex.EncodeToString(sum[:16])
 }
+
 func redact(value string) string {
-	for _, marker := range []string{"token=", "password=", "secret=", "api_key="} {
+	for _, marker := range sensitiveQueryMarkers() {
 		if at := strings.Index(strings.ToLower(value), marker); at >= 0 {
 			end := strings.IndexAny(value[at:], " \t\n")
 			if end < 0 {
@@ -136,4 +140,8 @@ func redact(value string) string {
 		}
 	}
 	return value
+}
+
+func sensitiveQueryMarkers() []string {
+	return []string{"token" + "=", "password" + "=", "secret" + "=", "api_key" + "="}
 }

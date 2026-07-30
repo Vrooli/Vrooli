@@ -82,6 +82,21 @@ func TestProductionOrchestrationDoesNotImportDatabase(t *testing.T) {
 	}
 }
 
+// Self-report extraction is a deterministic replayable projection. A model or
+// HTTP client here would make corpus output depend on live services.
+func TestSelfReportClassifierDoesNotImportModelOrHTTPClients(t *testing.T) {
+	path := filepath.Join(scenarioRoot(t), "api/internal/runreport/selfreport.go")
+	imports, err := importsFromFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, imported := range imports {
+		if imported == "net/http" || strings.Contains(imported, "model") || strings.Contains(imported, "openai") {
+			t.Fatalf("selfreport.go must remain deterministic and local, found forbidden import %q", imported)
+		}
+	}
+}
+
 // Configuration is substrate: validation errors and loading mechanics must
 // remain usable without importing business entities from internal/domain.
 func TestConfigDoesNotImportDomain(t *testing.T) {

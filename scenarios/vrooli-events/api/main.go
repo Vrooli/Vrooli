@@ -12,6 +12,7 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/api-core/server"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/broker"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/config"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/policy"
@@ -91,7 +92,10 @@ func main() {
 	// These baseline headers apply to every API response, including rejected
 	// provenance and malformed-ingest requests. They are safe on localhost and
 	// prevent accidental weakening when Events is later exposed behind TLS.
-	mux := securityHeaders(provenance.Middleware(provenance.CLIUtilVerifier{})(srv.routes()))
+	routes := srv.routes()
+	validationPath, validationHandler := scenariovalidationv1connect.NewScenarioValidationServiceHandler(newCaptureValidationHandler(captureValidationRepoRoot(), polStore))
+	routes.Handle(validationPath, validationHandler)
+	mux := securityHeaders(provenance.Middleware(provenance.CLIUtilVerifier{})(routes))
 
 	if err := server.Run(server.Config{
 		Handler:      mux,

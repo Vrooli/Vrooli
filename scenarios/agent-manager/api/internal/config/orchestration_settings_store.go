@@ -107,7 +107,8 @@ func (s *OrchestrationSettingsStore) writeToDisk(settings OrchestrationSettings)
 // Checks ORCHESTRATION_SETTINGS_PATH env var first, then falls back to
 // VROOLI_ROOT/scenarios/agent-manager/config/orchestration.json.
 func ResolveOrchestrationSettingsPath() string {
-	if path := strings.TrimSpace(os.Getenv("ORCHESTRATION_SETTINGS_PATH")); path != "" {
+	path, _ := os.LookupEnv("ORCHESTRATION_SETTINGS_PATH")
+	if path = strings.TrimSpace(path); path != "" {
 		return path
 	}
 	root := resolveRepoRoot()

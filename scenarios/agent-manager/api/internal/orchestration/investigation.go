@@ -32,8 +32,6 @@ const (
 	investigationInvestigateNodeID = "investigate"
 	investigationApplyNodeID       = "apply"
 
-	investigationEventLimit = 500
-
 	// maxInvestigationContextBytes caps the rendered context snapshot that
 	// becomes the workflow input. The run node renders this input into the agent
 	// prompt, which the runtime bounds at workflowruntime.MaxRenderedPromptBytes
@@ -233,8 +231,9 @@ func (o *Orchestrator) CreateInvestigationApplyRun(
 		selected = []string{}
 	}
 	note := req.CustomContext
-	if len(note) > 8192 {
-		note = note[:8192]
+	const maxApprovalContextBytes = 8 * 1024
+	if len(note) > maxApprovalContextBytes {
+		note = note[:maxApprovalContextBytes]
 	}
 	payload, err := json.Marshal(map[string]any{
 		"decision": decision,

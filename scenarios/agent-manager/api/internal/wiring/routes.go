@@ -30,6 +30,7 @@ import (
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/health"
+	domainconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain/domainconnect"
 	measureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures/measures_v1connect"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 )
@@ -88,6 +89,8 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		handlers.WithObservedReceipts(eventbus.Client{BaseURL: eventsBaseURL}),
 	)
 	handler.SetWebSocketHub(deps.WebSocketHub)
+	episodesPath, episodesHandler := domainconnect.NewEpisodesServiceHandler(handler)
+	router.PathPrefix(strings.TrimRight(episodesPath, "/")).Handler(episodesHandler)
 	router.HandleFunc("/api/v1/health", handler.Health).Methods("GET")
 
 	repoRoot := os.Getenv("PROJECT_ROOT")
@@ -117,6 +120,7 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	}
 	if deps.InvocationReadModel != nil {
 		measureHandler := analyticsmeasures.NewHandler(deps.InvocationReadModel, nil)
+		measureHandler.SetEpisodeCohort(deps.Orchestrator.EpisodeCohort)
 		if registryHandler, err := measureHandler.MeasuresHandler(); err != nil {
 			routesLog.Error("measures registry unavailable", obs.KeyError, err.Error())
 		} else {

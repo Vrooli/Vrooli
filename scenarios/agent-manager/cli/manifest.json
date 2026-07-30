@@ -263,16 +263,59 @@
           "name": "cohort-report",
           "description": "Show a bounded ranked projection for an explicit comparable run cohort",
           "flags": [{"name":"run-ids","required":true,"description":"Comma-separated run UUIDs"}],
-          "binding": {"kind":"local"},
+          "binding": {"kind":"connect-rpc","service":"EpisodesService","method":"GetSelfReportSpans"},
           "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
-          "architecture": {"primitive":"operational"}
+          "architecture": {"primitive":"proto_list"}
         },
         {
           "name": "invocation-facts",
           "description": "Drill into redacted normalized invocation evidence for one run",
           "positionals": [{"name":"run_id","required":true,"description":"Run UUID"}],
+		  "binding": {"kind":"connect-rpc","service":"EpisodesService","method":"GetCrossScenarioLedger"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"operational"}
+        },
+        {
+          "name": "episodes",
+          "description": "Show bounded friction episodes for one run",
+          "positionals": [{"name":"run_id","required":true,"description":"Run UUID"}],
+          "binding": {"kind":"connect-rpc","service":"EpisodesService","method":"GetEpisodes"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"operational"}
+        },
+        {
+          "name": "messages-friction",
+          "description": "Show deterministic self-reported friction spans",
+          "positionals": [{"name":"run_id","required":true,"description":"Run UUID"}],
+          "binding": {"kind":"connect-rpc","service":"EpisodesService","method":"ImportTranscript"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"operational"}
+        },
+        {
+          "name": "episode-cohort",
+          "description": "Fold friction episodes across a predicate-selected run cohort",
+          "flags": [{"name":"tag-prefix","description":"Tag prefix filter"},{"name":"limit","description":"Maximum selected runs"}],
+          "binding": {"kind":"connect-rpc","service":"MeasuresService","method":"EpisodeCohort"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"proto_list"},
+          "measure": {"domain":"episode","intent":"Rank recurring friction episode fingerprints across the selected durable run cohort.","questions":["which friction episodes recur across agent runs","what recurring agent friction costs the most","show the episode recurrence rate"],"params":{"window":{"type":"time_window","default":"this_week"},"limit":{"default":"25"}},"result":{"kind":"table","value_field":"signals","unit":"episodes","summary_template":"recurring friction episodes ({window})"}}
+        },
+        {
+          "name": "ledger",
+          "description": "Show per-run cross-scenario receipt calls",
+          "positionals": [{"name":"run_id","required":true,"description":"Run UUID"}],
+		  "flags": [{"name":"with-projections","bool":true,"description":"Include bounded opaque receipt projections"}],
           "binding": {"kind":"local"},
           "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"operational"}
+        },
+        {
+          "name": "import-transcript",
+          "description": "Adopt an external harness transcript as a read-only run",
+          "positionals": [{"name":"path","required":true,"description":"Transcript path"}],
+          "flags": [{"name":"runner","description":"Optional runner type"},{"name":"label","description":"Optional import label"}],
+          "binding": {"kind":"local"},
+          "governance": {"effect":"write","run_eligible":false,"permissions":["filesystem:read","network:internal"]},
           "architecture": {"primitive":"operational"}
         },
         {"name":"replay-invocation-facts","description":"Rebuild one run's durable invocation evidence from retained events.","positionals":[{"name":"run_id","required":true,"description":"Run UUID"}],"binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]},"architecture":{"primitive":"operational"}},
@@ -366,7 +409,8 @@
         {"name":"tool-usage","description":"Durable tool invocation counts and outcomes.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"ToolUsage"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"friction","intent":"Durable tool invocation counts and classified outcomes by tool.","questions":["which tools do agents use most","agent tool usage this week"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"table","value_field":"tool_name","unit":"calls","summary_template":"tool usage ({window})"}}},
         {"name":"error-patterns","description":"Durable error-code frequency and sample runs.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"ErrorPatterns"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"friction","intent":"Durable error-code frequency and recent sample runs.","questions":["what agent errors recur this week","show agent error patterns"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"table","value_field":"error_code","unit":"errors","summary_template":"error patterns ({window})"}}},
         {"name":"file-reread-rate","description":"Share of file-read calls that revisit a path.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"FileRereadRate"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"friction","intent":"Share of file-read calls that revisit a path already read in the same run.","questions":["what is the agent file reread rate","how often do agents reread files"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"rate","unit":"share","summary_template":"{rate} file reread rate ({window})"}}},
-        {"name":"finding-recurrence-rate","description":"Share of investigation findings whose fingerprint recurs.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"FindingRecurrenceRate"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"friction","intent":"Share of persisted investigation findings whose fingerprint recurs in the same filtered finding corpus.","questions":["what is the recurring finding rate","which agent findings recur"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"rate","unit":"share","summary_template":"{rate} finding recurrence rate ({window})"}}}
+        {"name":"finding-recurrence-rate","description":"Share of investigation findings whose fingerprint recurs.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"FindingRecurrenceRate"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"friction","intent":"Share of persisted investigation findings whose fingerprint recurs in the same filtered finding corpus.","questions":["what is the recurring finding rate","which agent findings recur"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"rate","unit":"share","summary_template":"{rate} finding recurrence rate ({window})"}}},
+        {"name":"select-cohort","description":"Select the durable runs behind a typed measure.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"SelectCohort"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
       ]
     }
   ],
@@ -388,7 +432,6 @@
     {"service":"AgentManagerService","method":"GetRolePolicyCatalog","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
     {"service":"AgentManagerService","method":"GetRolePolicyStatus","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
     {"service":"AgentManagerService","method":"GetRun","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
-    {"service":"MeasuresService","method":"SelectCohort","reason":"The typed cohort selector is consumed by the statistics drilldown and run cohort workflow; it is not an independent natural-language measure command."},
     {"service":"AgentManagerService","method":"GetRunByTag","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
     {"service":"AgentManagerService","method":"GetRunDiff","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
     {"service":"AgentManagerService","method":"GetRunEvents","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
@@ -418,7 +461,8 @@
   ],
   "measures": {
     "domains": [
-      {"domain":"run","stateful":true,"reason":"Terminal run throughput is measured through the durable invocation read model rather than raw run-event transport."}
+      {"domain":"run","stateful":true,"reason":"Terminal run throughput is measured through the durable invocation read model rather than raw run-event transport."},
+      {"domain":"episode","stateful":true,"reason":"Episode recurrence is exposed by the bounded run episodes measure and will be aggregated by episode cohorts."}
     ],
     "omitted": [
       {

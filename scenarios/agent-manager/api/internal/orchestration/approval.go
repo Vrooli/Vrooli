@@ -34,6 +34,9 @@ func (o *Orchestrator) ApproveRun(ctx context.Context, req ApproveRequest) (*App
 	if err != nil {
 		return nil, err
 	}
+	if run.ExecutionMode.Normalized() == domain.ExecutionModeImported {
+		return nil, importedRunLifecycleError("approve")
+	}
 
 	if allowed, reason := domain.CanApproveRun(run); !allowed {
 		return nil, domain.NewStateError("Run", string(run.Status), "approve", reason)
@@ -68,6 +71,9 @@ func (o *Orchestrator) RejectRun(ctx context.Context, id uuid.UUID, actor, reaso
 	run, err := o.getRunForApproval(ctx, id)
 	if err != nil {
 		return err
+	}
+	if run.ExecutionMode.Normalized() == domain.ExecutionModeImported {
+		return importedRunLifecycleError("reject")
 	}
 
 	if allowed, rejectReason := domain.CanRejectRun(run); !allowed {
@@ -108,6 +114,9 @@ func (o *Orchestrator) PartialApprove(ctx context.Context, req PartialApproveReq
 	if err != nil {
 		return nil, err
 	}
+	if run.ExecutionMode.Normalized() == domain.ExecutionModeImported {
+		return nil, importedRunLifecycleError("partial-approve")
+	}
 
 	if allowed, reason := domain.CanApproveRun(run); !allowed {
 		return nil, domain.NewStateError("Run", string(run.Status), "partial_approve", reason)
@@ -123,7 +132,6 @@ func (o *Orchestrator) PartialApprove(ctx context.Context, req PartialApproveReq
 	if err != nil {
 		return nil, err
 	}
-
 	// Update run state based on remaining files
 	if result.Remaining == 0 {
 		if err := o.markRunApproved(ctx, run, req.Actor); err != nil {
@@ -143,6 +151,9 @@ func (o *Orchestrator) SyncRunFromSandbox(ctx context.Context, req SandboxSyncRe
 	run, err := o.GetRun(ctx, req.RunID)
 	if err != nil {
 		return nil, err
+	}
+	if run.ExecutionMode.Normalized() == domain.ExecutionModeImported {
+		return nil, importedRunLifecycleError("sandbox-sync")
 	}
 
 	if req.SandboxID != nil && run.SandboxID != nil && *req.SandboxID != *run.SandboxID {

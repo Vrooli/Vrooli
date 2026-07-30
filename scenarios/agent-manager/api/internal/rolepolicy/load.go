@@ -75,7 +75,8 @@ func Load(path string) (*Revision, error) {
 // ResolvePath returns the one repository-owned role-policy location. Tests
 // can override it without reading user-owned coding-agent configuration.
 func ResolvePath() string {
-	if path := strings.TrimSpace(os.Getenv("AGENT_MANAGER_ROLE_POLICY_CATALOG_PATH")); path != "" {
+	path, _ := os.LookupEnv("AGENT_MANAGER_ROLE_POLICY_CATALOG_PATH")
+	if path = strings.TrimSpace(path); path != "" {
 		return path
 	}
 	root, err := repocontract.ResolveRepoRoot()

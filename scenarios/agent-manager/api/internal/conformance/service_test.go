@@ -336,6 +336,16 @@ func TestValidateReportsUndeclaredUnifiedSourcesAndDirectSpawnAsBlocking(t *test
 	}
 }
 
+func TestAgentManagerSourceHasNoDirectCodingAgentSpawn(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if matches := directSpawnBypasses(root); len(matches) != 0 {
+		t.Fatalf("direct coding-agent spawn bypasses: %v", matches)
+	}
+}
+
 func TestValidateReportsUnreadyGlobalPermissionPosture(t *testing.T) {
 	repo := t.TempDir()
 	copyRoleCatalog(t, repo)

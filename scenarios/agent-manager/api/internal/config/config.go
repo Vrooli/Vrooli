@@ -91,7 +91,7 @@ func Load() *Config {
 			ConnMaxLifetime: envDuration("DB_CONN_MAX_LIFETIME", 5*time.Minute),
 		},
 		Sandbox: SandboxConfig{
-			URL:            envString("WORKSPACE_SANDBOX_URL", "http://localhost:8081"),
+			URL:            envString("WORKSPACE_SANDBOX_URL", ""),
 			DefaultTimeout: envDuration("SANDBOX_DEFAULT_TIMEOUT", 30*time.Minute),
 			ProjectRoot:    envString("PROJECT_ROOT", ""),
 		},
