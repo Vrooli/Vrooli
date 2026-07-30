@@ -208,6 +208,10 @@ const shouldBootstrapLocalVrooli = APP_CONFIG.DEPLOYMENT_MODE === "external-serv
     && Boolean(LOCAL_VROOLI_BOOTSTRAP.SCENARIO_NAME);
 const isBundledMode = APP_CONFIG.DEPLOYMENT_MODE === "bundled";
 const isSmokeTest = process.argv.includes("--smoke-test") || process.env.SMOKE_TEST === "1";
+// Test harness only: accepts the normal update-ready confirmation after the
+// updater has verified and downloaded an update. Regular desktop sessions
+// retain the user-facing confirmation dialog.
+const isUpdateApplyTest = process.env.VROOLI_DESKTOP_UPDATE_APPLY_TEST === "1";
 if (isSmokeTest) sessionKind = "smoke_test";
 const smokeTestUploadURL = process.env.SMOKE_TEST_UPLOAD_URL || "";
 const smokeTestTimeoutCandidate = Number(process.env.SMOKE_TEST_TIMEOUT_MS || "");
@@ -1017,7 +1021,10 @@ function setupAutoUpdater(): void {
     autoUpdater.logger = console;
     autoUpdater.autoDownload = true;
     autoUpdater.autoInstallOnAppQuit = true;
-    autoUpdater.channel = UPDATE_CONFIG.CHANNEL;
+    // electron-updater resolves its default stable feed as latest-<platform>.yml.
+    // Assigning "stable" explicitly changes that lookup to stable-<platform>.yml,
+    // which electron-builder does not emit for its normal stable channel.
+    if (UPDATE_CONFIG.CHANNEL !== "stable") autoUpdater.channel = UPDATE_CONFIG.CHANNEL;
     if (UPDATE_CONFIG.PROVIDER === "github") autoUpdater.allowPrerelease = UPDATE_CONFIG.CHANNEL !== "stable";
     console.log(`[Desktop App] Auto-updater configured: Provider=${UPDATE_CONFIG.PROVIDER}, Channel=${UPDATE_CONFIG.CHANNEL}`);
     autoUpdater.on("checking-for-update", () => { console.log("[Desktop App] Checking for update..."); recordTelemetry("update_check_started", { channel: UPDATE_CONFIG.CHANNEL }); });
@@ -1025,7 +1032,13 @@ function setupAutoUpdater(): void {
     autoUpdater.on("update-not-available", info => { console.log("[Desktop App] Already on latest version:", info.version); });
     autoUpdater.on("error", err => { console.error("[Desktop App] Update error:", err.message); recordTelemetry("update_error", { error: err.message, channel: UPDATE_CONFIG.CHANNEL }); });
     autoUpdater.on("download-progress", progressObj => { console.log(`[Desktop App] Download progress: ${Math.round(progressObj.percent)}%`); });
-    autoUpdater.on("update-downloaded", info => { console.log("[Desktop App] Update downloaded:", info.version); recordTelemetry("update_downloaded", { version: info.version, channel: UPDATE_CONFIG.CHANNEL }); if (mainWindow && !mainWindow.isDestroyed()) dialog.showMessageBox(mainWindow, { type: "info", title: "Update Ready", message: `Version ${info.version} has been downloaded. The application will restart to apply the update.`, buttons: ["Restart Now", "Later"], defaultId: 0 }).then(({ response }) => { if (response === 0) autoUpdater.quitAndInstall(false, true); }); });
+    autoUpdater.on("update-downloaded", info => {
+        console.log("[Desktop App] Update downloaded:", info.version);
+        recordTelemetry("update_downloaded", { version: info.version, channel: UPDATE_CONFIG.CHANNEL });
+        const applyUpdate = () => { recordTelemetry("update_apply_requested", { version: info.version, channel: UPDATE_CONFIG.CHANNEL }); autoUpdater.quitAndInstall(false, true); };
+        if (isUpdateApplyTest) { applyUpdate(); return; }
+        if (mainWindow && !mainWindow.isDestroyed()) dialog.showMessageBox(mainWindow, { type: "info", title: "Update Ready", message: `Version ${info.version} has been downloaded. The application will restart to apply the update.`, buttons: ["Restart Now", "Later"], defaultId: 0 }).then(({ response }) => { if (response === 0) applyUpdate(); });
+    });
     if (UPDATE_CONFIG.AUTO_CHECK) setTimeout(() => { console.log("[Desktop App] Performing automatic update check..."); autoUpdater.checkForUpdatesAndNotify().catch(err => { console.error("[Desktop App] Failed to check for updates:", err.message); }); }, 3000);
 }
 
@@ -1119,6 +1132,7 @@ app.whenReady().then(async () => {
     }
     try {
         await createSplashWindowManager();
+        console.log(`[Desktop App] Version: ${APP_CONFIG.APP_VERSION}`);
         updateSplashStatus("initializing");
         setupAutoUpdater();
         createApplicationMenu();
@@ -1150,7 +1164,7 @@ app.whenReady().then(async () => {
         await authManager.initialize();
 
         appSessionStartedAt = new Date().toISOString();
-        await recordTelemetry("app_start", { deploymentMode: APP_CONFIG.DEPLOYMENT_MODE });
+        await recordTelemetry("app_start", { deploymentMode: APP_CONFIG.DEPLOYMENT_MODE, appVersion: APP_CONFIG.APP_VERSION });
         let targetUrl = SERVER_URL;
 
         if (isBundledMode) {

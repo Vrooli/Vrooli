@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "codex",
+  "description": "Codex command-line client supplied by the operator",
+  "commands": ["codex"],
+  "versionArgs": ["--version"],
+  "installHint": "Install and authenticate the Codex CLI before using this host-managed resource.",
+  "platforms": ["linux", "macos", "windows"],
+  "manual": true,
+  "bundling": "host-required"
+}

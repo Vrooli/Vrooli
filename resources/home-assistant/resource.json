@@ -62,7 +62,7 @@
             "arm64"
           ],
           "requires": [
-            "docker-engine"
+            "docker"
           ],
           "limitations": [
             "Compose images, storage, and networking remain host-managed."
@@ -80,7 +80,7 @@
             "arm64"
           ],
           "requires": [
-            "docker-desktop"
+            "docker"
           ],
           "limitations": [
             "Docker Desktop must be installed and running."
@@ -98,7 +98,7 @@
             "arm64"
           ],
           "requires": [
-            "docker-desktop"
+            "docker"
           ],
           "limitations": [
             "Docker Desktop must be installed and running."

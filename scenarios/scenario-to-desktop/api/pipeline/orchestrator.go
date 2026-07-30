@@ -477,6 +477,9 @@ func applyConfigStringFields(dst, src *Config) {
 	if src.Version != "" {
 		dst.Version = src.Version
 	}
+	if src.UpdateConfig != nil {
+		dst.UpdateConfig = src.UpdateConfig
+	}
 }
 
 // applyConfigBoolFields applies boolean field updates from src to dst.

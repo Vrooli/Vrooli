@@ -83,6 +83,7 @@ type Server struct {
 	systemHandler    *system.Handler
 	pipelineHandler  *pipeline.Handler
 	stateHandler     *state.Handler
+	stateService     *state.Service
 	deployHandler    *deploy.Handler
 	signingHandler   *signing.Handler
 	preflightService preflightdomain.Service
@@ -279,8 +280,9 @@ func NewServer(port int) *Server {
 		stateStore = nil
 	}
 	var stateHandler *state.Handler
+	var stateService *state.Service
 	if stateStore != nil {
-		stateService := state.NewService(stateStore, logger)
+		stateService = state.NewService(stateStore, logger)
 		stateHandler = state.NewHandler(stateService)
 	}
 
@@ -333,6 +335,7 @@ func NewServer(port int) *Server {
 		systemHandler:    systemHandler,
 		pipelineHandler:  pipelineHandler,
 		stateHandler:     stateHandler,
+		stateService:     stateService,
 		deployHandler:    deployHandler,
 		signingHandler:   signingHandler,
 		preflightService: preflightService,
@@ -594,6 +597,11 @@ func (s *Server) registerDomainHandlers() {
 
 	// Icon preview
 	s.router.HandleFunc("/api/v1/icons/preview", s.iconPreviewHandler).Methods("GET")
+
+	// The BAS desktop-evidence fixture is test-mode-only. It is intentionally
+	// not part of the normal desktop-generation surface because it creates
+	// deterministic evidence in the routed lease rather than a shippable app.
+	s.router.HandleFunc("/api/v1/test-fixtures/desktop-evidence", s.desktopEvidenceFixtureHandler).Methods("POST")
 
 	// Setup middleware - CORS must be registered before logging to handle OPTIONS requests correctly
 	s.router.Use(httputil.SecurityHeaders())

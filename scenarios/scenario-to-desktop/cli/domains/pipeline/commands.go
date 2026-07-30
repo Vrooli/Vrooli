@@ -55,6 +55,10 @@ func pipelineRunArgs() cliapp.ArgSchema {
 		cliapp.Flag{Name: "location-mode", Values: []string{"proper", "staging", "temp"}, Description: "Output location"},
 		cliapp.Flag{Name: "resource-artifact-root", Description: "Verified signed resource-artifact directory"},
 		cliapp.Flag{Name: "artifact-trust-mode", Values: []string{"development-local", "production"}, Description: "Required with resource-artifact-root; development-local is non-promotable, production requires release-manifest signature"},
+		cliapp.Flag{Name: "update-provider", Values: []string{"generic", "none"}, Description: "Auto-update provider embedded in the generated app"},
+		cliapp.Flag{Name: "update-url", Description: "Generic update-feed base URL; HTTP is limited to development-local evidence"},
+		cliapp.Flag{Name: "update-channel", Description: "Auto-update channel (default: stable)"},
+		cliapp.Flag{Name: "update-auto-check", Bool: true, Description: "Check the configured update feed when the packaged app starts"},
 		cliapp.Flag{Name: "clean", Bool: true, Description: "Clean existing desktop output first"},
 		cliapp.Flag{Name: "version", Description: "Run-only version override"},
 	)

@@ -56,10 +56,10 @@ func TestToolSchemaAcceptsSourceTypes(t *testing.T) {
 	sha := "1111111111111111111111111111111111111111111111111111111111111111"
 
 	cases := map[string]string{
-		"package-implicit": `{"name":"jq","description":"x","commands":["jq"],"versionArgs":["--version"],"defaultPackage":"jq"}`,
-		"url":              `{"name":"t","description":"x","commands":["t"],"versionArgs":["-v"],"source":{"type":"url","targets":{"linux/amd64":{"url":"https://e/t","sha256":"` + sha + `"}}}}`,
-		"release":          `{"name":"sd","description":"x","commands":["sd"],"versionArgs":["--help"],"source":{"type":"release","targets":{"linux/amd64":{"url":"https://e/sd.tar.gz","sha256":"` + sha + `","archive":"tar.gz","binPath":"bin/sd","mode":"0755"}}},"requires":{"gpu":true,"minVramGb":4,"arch":["amd64"],"minRamGb":8}}`,
-		"hybrid":           `{"name":"yq","description":"x","commands":["yq"],"versionArgs":["--version"],"packages":{"brew":"yq","winget":"MikeF.yq"},"source":{"type":"release","targets":{"linux/amd64":{"url":"https://e/yq","sha256":"` + sha + `"}}}}`,
+		"package-implicit": `{"name":"jq","description":"x","commands":["jq"],"versionArgs":["--version"],"defaultPackage":"jq","bundling":"host-required"}`,
+		"url":              `{"name":"t","description":"x","commands":["t"],"versionArgs":["-v"],"bundling":"vendorable","source":{"type":"url","targets":{"linux/amd64":{"url":"https://e/t","sha256":"` + sha + `"}}}}`,
+		"release":          `{"name":"sd","description":"x","commands":["sd"],"versionArgs":["--help"],"bundling":"vendorable","source":{"type":"release","targets":{"linux/amd64":{"url":"https://e/sd.tar.gz","sha256":"` + sha + `","archive":"tar.gz","binPath":"bin/sd","mode":"0755"}}},"requires":{"gpu":true,"minVramGb":4,"arch":["amd64"],"minRamGb":8}}`,
+		"hybrid":           `{"name":"yq","description":"x","commands":["yq"],"versionArgs":["--version"],"bundling":"vendorable","packages":{"brew":"yq","winget":"MikeF.yq"},"source":{"type":"release","targets":{"linux/amd64":{"url":"https://e/yq","sha256":"` + sha + `"}}}}`,
 	}
 	for name, raw := range cases {
 		if err := validateAgainst(t, schema, raw); err != nil {

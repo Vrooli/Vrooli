@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	hostreq "github.com/vrooli/vrooli/packages/hostreq"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
@@ -21,6 +23,23 @@ type ResourceDeploymentPlan struct {
 	ArtifactTrustMode resourcedeployment.ArtifactTrustMode `json:"artifact_trust_mode"`
 	Promotable        bool                                 `json:"promotable"`
 	Resources         []ResourceDeploymentPlanItem         `json:"resources"`
+	HostRequirements  []HostRequirementPlanItem            `json:"host_requirements,omitempty"`
+}
+
+// HostRequirementPlanItem records the selected scenario/resource host
+// requirement independently from the resource service artifact decision.
+// It preserves the resolver's provenance and terminal eligibility reason in
+// the bundle plan instead of making runtime discovery a hidden prerequisite.
+type HostRequirementPlanItem struct {
+	Name       string   `json:"name"`
+	Kind       string   `json:"kind"`
+	OS         string   `json:"os"`
+	Privilege  string   `json:"privilege"`
+	Bundling   string   `json:"bundling"`
+	Required   bool     `json:"required"`
+	Verdict    string   `json:"verdict"`
+	Reason     string   `json:"reason"`
+	Provenance []string `json:"provenance,omitempty"`
 }
 
 type ResourceDeploymentPlanItem struct {
@@ -32,6 +51,8 @@ type ResourceDeploymentPlanItem struct {
 	Support           string                       `json:"support"`
 	Privilege         string                       `json:"privilege"`
 	Bundling          string                       `json:"bundling"`
+	Eligibility       string                       `json:"eligibility"`
+	EligibilityReason string                       `json:"eligibility_reason,omitempty"`
 	Requires          []string                     `json:"requires,omitempty"`
 	Limitations       []string                     `json:"limitations,omitempty"`
 	Evidence          []string                     `json:"evidence,omitempty"`
@@ -126,12 +147,17 @@ func resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot string, p
 		platforms = append(platforms, platform)
 	}
 	checksums := map[string]string(nil)
-	plan := &ResourceDeploymentPlan{SchemaVersion: "v4", ArtifactTrustMode: trustMode, Promotable: trustMode == resourcedeployment.ArtifactTrustProduction}
+	plan := &ResourceDeploymentPlan{SchemaVersion: "v6", ArtifactTrustMode: trustMode, Promotable: trustMode == resourcedeployment.ArtifactTrustProduction}
 	for _, requested := range required {
 		for _, platform := range platforms {
 			item, bundled, err := resolveResourceForTarget(root, requested, requested, fallbacks[requested], platform, map[string]bool{})
 			if err != nil {
 				return nil, err
+			}
+			if item.Eligibility == "ineligible" {
+				// An inspectable artifact may still be built for target validation,
+				// but it must never be promoted as a deployable release.
+				plan.Promotable = false
 			}
 			if bundled {
 				if artifactRoot == "" {
@@ -150,6 +176,18 @@ func resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot string, p
 			plan.Resources = append(plan.Resources, item)
 		}
 	}
+	for _, platform := range platforms {
+		hostItems, err := resolveDesktopHostRequirements(root, scenarioPath, required, platform)
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range hostItems {
+			if item.Verdict == string(hostreq.EligibilityIneligible) {
+				plan.Promotable = false
+			}
+			plan.HostRequirements = append(plan.HostRequirements, item)
+		}
+	}
 	sort.Slice(plan.Resources, func(i, j int) bool {
 		if plan.Resources[i].RequestedResource == plan.Resources[j].RequestedResource {
 			return plan.Resources[i].OS+plan.Resources[i].Architecture < plan.Resources[j].OS+plan.Resources[j].Architecture
@@ -157,6 +195,56 @@ func resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot string, p
 		return plan.Resources[i].RequestedResource < plan.Resources[j].RequestedResource
 	})
 	return plan, nil
+}
+
+func resolveDesktopHostRequirements(root, scenarioPath string, resources []string, platform resourcedeployment.Platform) ([]HostRequirementPlanItem, error) {
+	// Unit-level artifact fixtures deliberately contain only the resource and
+	// scenario contracts. A real pipeline always has the repository service
+	// manifest; do not make those isolated fixture plans invent host state.
+	if _, err := os.Stat(filepath.Join(root, ".vrooli", "service.json")); os.IsNotExist(err) {
+		return nil, nil
+	} else if err != nil {
+		return nil, fmt.Errorf("stat repository service manifest: %w", err)
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("resolve desktop host home: %w", err)
+	}
+	resolution, err := hostreq.Resolve(root, home, hostreq.ResolveOptions{
+		ExcludeRoot:   true,
+		Environment:   "production",
+		When:          "develop",
+		Resources:     strings.Join(resources, ","),
+		ScenarioPaths: []string{scenarioPath},
+		Platform:      platform.OS,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("resolve desktop host requirements: %w", err)
+	}
+	items := make([]HostRequirementPlanItem, 0, len(resolution.Tools)+len(resolution.Safeguards))
+	appendRequirement := func(requirement hostreq.ResolvedRequirement) {
+		present := requirement.Bundling == "vendorable"
+		if requirement.Bundling == "host-required" && platform.OS == hostreq.CurrentPlatform() {
+			_, lookupErr := exec.LookPath(requirement.Name)
+			present = lookupErr == nil
+		}
+		eligibility := hostreq.EvaluateEligibility(requirement, hostreq.TierDesktop, platform.OS, present)
+		provenance := make([]string, 0, len(requirement.Provenance))
+		for _, source := range requirement.Provenance {
+			provenance = append(provenance, source.Kind+":"+source.Name+":"+source.Source)
+		}
+		items = append(items, HostRequirementPlanItem{Name: requirement.Name, Kind: string(requirement.Kind), OS: platform.OS, Privilege: string(requirement.Privilege), Bundling: string(requirement.Bundling), Required: requirement.Required, Verdict: string(eligibility.Verdict), Reason: eligibility.Reason, Provenance: provenance})
+	}
+	for _, requirement := range resolution.Tools {
+		appendRequirement(requirement)
+	}
+	for _, requirement := range resolution.Safeguards {
+		appendRequirement(requirement)
+	}
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].Kind+items[i].Name+items[i].OS < items[j].Kind+items[j].Name+items[j].OS
+	})
+	return items, nil
 }
 
 func loadReleaseManifestArtifacts(root string, mode resourcedeployment.ArtifactTrustMode, publicKeyPath string) (map[string]string, error) {
@@ -198,7 +286,11 @@ func resolveResourceForTarget(root, requested, candidate string, alternatives []
 			return item, bundled, nil
 		}
 	}
-	return ResourceDeploymentPlanItem{}, false, fmt.Errorf("resource %s cannot deploy on %s: %s", requested, platform.String(), reason)
+	// Unsupported targets are a packaging limitation, not an admission failure.
+	// The bundle records the reason so the runtime can refuse the missing
+	// required service with an explanation instead of leaving the operator with
+	// an artifact that appears universally deployable.
+	return unsupportedResourcePlanItem(requested, candidate, &manifest, platform, reason), false, nil
 }
 
 func resourcePlanItem(requested, candidate string, manifest *resourceArtifactManifest, platform resourcedeployment.Platform) (ResourceDeploymentPlanItem, bool, bool, error) {
@@ -206,7 +298,7 @@ func resourcePlanItem(requested, candidate string, manifest *resourceArtifactMan
 	if !found || target.Support == "unsupported" {
 		return ResourceDeploymentPlanItem{}, false, false, nil
 	}
-	item := ResourceDeploymentPlanItem{RequestedResource: requested, Resource: candidate, OS: platform.OS, Architecture: platform.Arch, Mode: target.Mode, Support: target.Support, Privilege: manifest.Privilege, Bundling: manifest.Bundling, Requires: target.Requires, Limitations: target.Limitations, Evidence: target.Evidence}
+	item := ResourceDeploymentPlanItem{RequestedResource: requested, Resource: candidate, OS: platform.OS, Architecture: platform.Arch, Mode: target.Mode, Support: target.Support, Privilege: manifest.Privilege, Bundling: manifest.Bundling, Eligibility: "eligible", Requires: target.Requires, Limitations: target.Limitations, Evidence: target.Evidence}
 	if !strings.HasPrefix(target.Mode, "bundled-") {
 		return item, false, true, nil
 	}
@@ -214,6 +306,52 @@ func resourcePlanItem(requested, candidate string, manifest *resourceArtifactMan
 		return ResourceDeploymentPlanItem{}, false, false, err
 	}
 	return item, true, true, nil
+}
+
+func unsupportedResourcePlanItem(requested, candidate string, manifest *resourceArtifactManifest, platform resourcedeployment.Platform, reason string) ResourceDeploymentPlanItem {
+	target, found := manifest.Deployment.ResolveTarget("desktop", platform)
+	limitations := []string{reason}
+	if found {
+		limitations = append(limitations, target.Limitations...)
+	}
+	return ResourceDeploymentPlanItem{
+		RequestedResource: requested,
+		Resource:          candidate,
+		OS:                platform.OS,
+		Architecture:      platform.Arch,
+		Mode:              targetMode(target, found),
+		Support:           "unsupported",
+		Privilege:         manifest.Privilege,
+		Bundling:          manifest.Bundling,
+		Eligibility:       "ineligible",
+		EligibilityReason: reason,
+		Limitations:       sortedUniqueStrings(limitations),
+	}
+}
+
+func targetMode(target resourcedeployment.Target, found bool) string {
+	if !found {
+		return ""
+	}
+	return target.Mode
+}
+
+func sortedUniqueStrings(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	sort.Strings(result)
+	return result
 }
 
 func unsupportedResourceReason(manifest *resourceArtifactManifest, platform resourcedeployment.Platform) string {

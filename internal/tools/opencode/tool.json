@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "opencode",
+  "description": "OpenCode command-line client supplied by the operator",
+  "commands": ["opencode"],
+  "versionArgs": ["--version"],
+  "installHint": "Install and authenticate OpenCode before using this host-managed resource.",
+  "platforms": ["linux", "macos", "windows"],
+  "manual": true,
+  "bundling": "host-required"
+}

@@ -21,6 +21,8 @@ const literalSelectors = {
     liveDesktopLaunch: "generator-live-desktop-launch",
     buildSection: "generator-build-section",
     smokeTestSection: "generator-smoke-test-section",
+    evidenceFixtureRun: "generator-evidence-fixture-run",
+    evidenceFixtureResult: "generator-evidence-fixture-result",
   },
   signing: {
     scenarioSelect: "signing-scenario-select",

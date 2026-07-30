@@ -48,6 +48,14 @@
       "testId": "generator-smoke-test-section",
       "selector": "[data-testid=\"generator-smoke-test-section\"]"
     },
+    "generator.evidenceFixtureRun": {
+      "testId": "generator-evidence-fixture-run",
+      "selector": "[data-testid=\"generator-evidence-fixture-run\"]"
+    },
+    "generator.evidenceFixtureResult": {
+      "testId": "generator-evidence-fixture-result",
+      "selector": "[data-testid=\"generator-evidence-fixture-result\"]"
+    },
     "signing.scenarioSelect": {
       "testId": "signing-scenario-select",
       "selector": "[data-testid=\"signing-scenario-select\"]"

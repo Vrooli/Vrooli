@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "grok",
+  "description": "Grok command-line client supplied by the operator",
+  "commands": ["grok"],
+  "versionArgs": ["--version"],
+  "installHint": "Install and authenticate the Grok CLI before using this host-managed resource.",
+  "platforms": ["linux", "macos", "windows"],
+  "manual": true,
+  "bundling": "host-required"
+}

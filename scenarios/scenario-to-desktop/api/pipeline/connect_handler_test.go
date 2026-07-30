@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	pipelinev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared"
 )
@@ -335,13 +336,25 @@ func TestPipelineConfigProtoRoundTripPreservesExplicitControls(t *testing.T) {
 		BundleManifestPath: "bundle.json", ResourceArtifactRoot: "resources", LocationMode: "staging", Clean: true,
 		Sign: true, Publish: true, Version: "1.2.3", PreflightTimeoutSeconds: 45, StopAfterStage: StageBuild,
 		ResumeFromStage: StagePreflight, ParentPipelineID: "parent", IdempotencyKey: "key", Stages: []string{StageBundle, StageBuild},
+		UpdateConfig: &generation.UpdateConfig{Provider: "generic", Channel: "stable", AutoCheck: true, Generic: &generation.GenericUpdateConfig{URL: "http://127.0.0.1:8765/updates"}},
 	}
 	value, err := configFromProto(configToProto(config))
 	if err != nil {
 		t.Fatalf("config round trip: %v", err)
 	}
-	if value.DeploymentMode != DeploymentModeProxy || !value.SkipPreflight || !value.Clean || value.StopAfterStage != StageBuild || value.IdempotencyKey != "key" || len(value.Platforms) != 2 {
+	if value.DeploymentMode != DeploymentModeProxy || !value.SkipPreflight || !value.Clean || value.StopAfterStage != StageBuild || value.IdempotencyKey != "key" || len(value.Platforms) != 2 || value.UpdateConfig == nil || value.UpdateConfig.Generic == nil || value.UpdateConfig.Generic.URL != "http://127.0.0.1:8765/updates" {
 		t.Fatalf("round-tripped config = %#v", value)
+	}
+}
+
+func TestConfigFromProtoRejectsInsecureProductionUpdateFeed(t *testing.T) {
+	provider, feedURL, trustMode := "generic", "http://127.0.0.1:8765/updates", "production"
+	_, err := configFromProto(&pipelinev1.PipelineConfig{
+		ScenarioName: "example", ArtifactTrustMode: &trustMode,
+		UpdateConfig: &domainv1.UpdateConfig{Provider: &provider, Generic: &domainv1.GenericUpdateConfig{Url: feedURL}},
+	})
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("configFromProto() code = %v, want invalid argument (err=%v)", connect.CodeOf(err), err)
 	}
 }
 

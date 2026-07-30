@@ -156,11 +156,24 @@ func (s *PreflightStage) appendResourceEligibilityWarnings(input *StageInput, re
 		return
 	}
 	for _, item := range input.ResourceDeploymentPlan.Resources {
+		if item.Eligibility == "ineligible" || item.Support == "unsupported" {
+			reason := item.EligibilityReason
+			if reason == "" {
+				reason = strings.Join(item.Limitations, "; ")
+			}
+			result.Logs = append(result.Logs, fmt.Sprintf("Warning: resource %s is ineligible for %s-%s; %s", item.Resource, item.OS, item.Architecture, reason))
+			continue
+		}
 		switch item.Bundling {
 		case "prohibited":
 			result.Logs = append(result.Logs, fmt.Sprintf("Warning: resource %s is prohibited from desktop bundles; %s", item.Resource, strings.Join(item.Limitations, "; ")))
 		case "host-required":
 			result.Logs = append(result.Logs, fmt.Sprintf("Warning: resource %s requires target-host provisioning (%s)", item.Resource, strings.Join(item.Requires, ", ")))
+		}
+	}
+	for _, item := range input.ResourceDeploymentPlan.HostRequirements {
+		if item.Verdict == "ineligible" || item.Verdict == "degraded" {
+			result.Logs = append(result.Logs, fmt.Sprintf("Warning: %s %s is %s for %s; %s", item.Kind, item.Name, item.Verdict, item.OS, item.Reason))
 		}
 	}
 }

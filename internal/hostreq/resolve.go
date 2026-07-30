@@ -12,6 +12,10 @@ import (
 )
 
 type ResolveOptions struct {
+	// ExcludeRoot limits resolution to the requested scenario/resource scope.
+	// Desktop packaging must not inherit Vrooli's development-machine setup
+	// requirements (for example, Docker or host hardening safeguards).
+	ExcludeRoot   bool
 	Environment   string
 	When          string
 	Resources     string
@@ -51,18 +55,20 @@ func Resolve(root, home string, opts ResolveOptions) (Resolution, error) {
 		safeguards:  make(map[string]*ResolvedRequirement),
 	}
 
-	state.addAll(rootManifest.HostTools, KindTool, Provenance{
-		Kind:   "root",
-		Name:   "vrooli",
-		Path:   rootManifestPath,
-		Source: manifestSourcePath(root, rootManifestPath),
-	})
-	state.addAll(rootManifest.HostSafeguards, KindSafeguard, Provenance{
-		Kind:   "root",
-		Name:   "vrooli",
-		Path:   rootManifestPath,
-		Source: manifestSourcePath(root, rootManifestPath),
-	})
+	if !opts.ExcludeRoot {
+		state.addAll(rootManifest.HostTools, KindTool, Provenance{
+			Kind:   "root",
+			Name:   "vrooli",
+			Path:   rootManifestPath,
+			Source: manifestSourcePath(root, rootManifestPath),
+		})
+		state.addAll(rootManifest.HostSafeguards, KindSafeguard, Provenance{
+			Kind:   "root",
+			Name:   "vrooli",
+			Path:   rootManifestPath,
+			Source: manifestSourcePath(root, rootManifestPath),
+		})
+	}
 
 	if err := state.addResources(home, opts.Resources); err != nil {
 		return Resolution{}, err

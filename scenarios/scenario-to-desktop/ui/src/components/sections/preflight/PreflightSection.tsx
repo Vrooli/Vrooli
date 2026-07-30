@@ -35,6 +35,7 @@ import { Button } from "../../ui/button";
 import { selectors } from "../../../consts/selectors";
 import { Checkbox } from "../../ui/checkbox";
 import type { StageResult } from "@vrooli/proto-types/scenario-to-desktop/v1/pipeline/types_pb";
+import type { ResourceDeploymentPlan } from "@vrooli/proto-types/scenario-to-desktop/v1/pipeline/types_pb";
 import { StageStatus } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/common_pb";
 import {
   CoverageMap,
@@ -56,6 +57,21 @@ import {
   selectPreflightOk,
   selectMissingSecrets,
 } from "../../../store";
+
+type HostRequirementPresentation = {
+  name: string;
+  kind: string;
+  os: string;
+  privilege: string;
+  bundling: string;
+  required: boolean;
+  verdict: string;
+  reason: string;
+};
+
+type DeploymentPlanPresentation = ResourceDeploymentPlan & {
+  hostRequirements?: HostRequirementPresentation[];
+};
 
 interface PreflightSectionProps {
   scenarioName: string;
@@ -206,6 +222,12 @@ export const PreflightSection = forwardRef<
     const logTails = preflight?.logTails;
     const checks = preflight?.checks ?? [];
     const preflightErrors = preflight?.errors ?? [];
+    const deploymentPlan = useMemo<DeploymentPlanPresentation | null>(() => {
+      const details = pipelineStatus?.stages.resolveDeployment?.details;
+      return details?.kind.case === "resolveDeployment"
+        ? (details.kind.value as DeploymentPlanPresentation)
+        : null;
+    }, [pipelineStatus?.stages]);
 
     const bundleRootPreview = getBundleRootFromManifestPath(bundleManifestPath);
     const readinessDetails = readiness?.details
@@ -305,9 +327,16 @@ export const PreflightSection = forwardRef<
         start_services: true,
         result: preflightResult,
         error: preflightError || undefined,
+        resource_deployment_plan: deploymentPlan ?? undefined,
         missing_secrets: missingSecrets,
       }),
-      [bundleManifestPath, preflightResult, preflightError, missingSecrets],
+      [
+        bundleManifestPath,
+        deploymentPlan,
+        preflightResult,
+        preflightError,
+        missingSecrets,
+      ],
     );
 
     // ============================================================================
@@ -516,6 +545,112 @@ export const PreflightSection = forwardRef<
 
             {/* Runtime Info */}
             {runtimeInfo && <RuntimeInfoPanel runtimeInfo={runtimeInfo} />}
+
+            {deploymentPlan && (
+              <div className="rounded-md border border-slate-800 bg-slate-950/40 p-3 text-xs text-slate-200">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-semibold text-slate-100">
+                    Target deployment eligibility
+                  </p>
+                  <span
+                    className={
+                      deploymentPlan.promotable
+                        ? "text-emerald-200"
+                        : "text-amber-200"
+                    }
+                  >
+                    {deploymentPlan.promotable
+                      ? "Promotable"
+                      : "Non-promotable"}
+                  </span>
+                </div>
+                <p className="mt-1 text-[11px] text-slate-400">
+                  This is the resolved resource substrate for the selected
+                  target. Unsupported resources remain recorded here, but make
+                  the resulting bundle non-promotable.
+                </p>
+                <div className="mt-3 space-y-2">
+                  {deploymentPlan.resources.map((resource) => (
+                    <div
+                      key={`${resource.requestedResource}-${resource.os}-${resource.architecture}`}
+                      className="rounded border border-slate-800/70 bg-slate-950/70 p-2 text-[11px]"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-medium text-slate-100">
+                          {resource.requestedResource || resource.resource}
+                        </span>
+                        <span
+                          className={
+                            resource.eligibility === "eligible"
+                              ? "text-emerald-200"
+                              : "text-amber-200"
+                          }
+                        >
+                          {resource.eligibility ||
+                            resource.support ||
+                            "unknown"}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-slate-400">
+                        {resource.os}/{resource.architecture} · bundling:{" "}
+                        {resource.bundling || "unspecified"} · privilege:{" "}
+                        {resource.privilege || "unspecified"}
+                      </p>
+                      {resource.eligibilityReason && (
+                        <p className="mt-1 text-amber-100">
+                          {resource.eligibilityReason}
+                        </p>
+                      )}
+                      {resource.requires.length > 0 && (
+                        <p className="mt-1 text-slate-300">
+                          Requires: {resource.requires.join(", ")}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {(deploymentPlan.hostRequirements ?? []).length > 0 && (
+                  <div className="mt-3 border-t border-slate-800 pt-3">
+                    <p className="font-medium text-slate-100">
+                      Host requirements
+                    </p>
+                    <div className="mt-2 space-y-2">
+                      {(deploymentPlan.hostRequirements ?? []).map(
+                        (requirement) => (
+                          <div
+                            key={`${requirement.kind}-${requirement.name}-${requirement.os}`}
+                            className="rounded border border-slate-800/70 bg-slate-950/70 p-2 text-[11px]"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className="font-medium text-slate-100">
+                                {requirement.kind}: {requirement.name}
+                              </span>
+                              <span
+                                className={
+                                  requirement.verdict === "eligible"
+                                    ? "text-emerald-200"
+                                    : "text-amber-200"
+                                }
+                              >
+                                {requirement.verdict}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-slate-400">
+                              {requirement.os} · bundling:{" "}
+                              {requirement.bundling} · privilege:{" "}
+                              {requirement.privilege}
+                            </p>
+                            <p className="mt-1 text-amber-100">
+                              {requirement.reason}
+                            </p>
+                          </div>
+                        ),
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Steps */}
             <div className="space-y-3">

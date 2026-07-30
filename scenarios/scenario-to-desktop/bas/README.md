@@ -5,13 +5,15 @@ signing, and live-desktop prerequisite surfaces against the running scenario.
 They use stable selectors in `ui/src/constants/selectors.ts` rather than visual
 classes or copy.
 
-The current catalog is intentionally observer-only: generating wrappers,
-building installers, saving signing configuration, and starting a VNC session
-all mutate file-backed scenario state. Those actions must not run until the
-scenario opts into a Test Genie routed file lease and has a deterministic
-desktop-artifact fixture. The live-desktop case therefore records the honest
-pre-artifact state instead of falsely claiming a VNC canvas was reached.
+The catalog includes one deliberately scoped mutating case:
+`04-evidence/leased-desktop-evidence.json`. Test Genie installs a routed file
+lease, BAS supplies `X-Vrooli-Test-Mode`, and the console fixture refuses any
+request without that active lease. It creates a deterministic fixture AppImage
+and smoke report under the leased data root, then asserts the returned routed
+write count. This proves the console mutation path, its lease, and its BAS
+artifacts without writing normal scenario state.
 
-Once that fixture exists, add mutating cases labelled `requires_confirmation`
-and `routed_isolation`, then assert the generated artifact, build result,
-smoke report, and `@selector/liveDesktop.canvas` respectively.
+The fixture is not a substitute for a real release. Real installer build,
+launch, use, update, and quit evidence remains under the desktop-readiness
+artifact directory. The live-desktop case continues to record its honest
+pre-artifact state until a separately isolated VNC success fixture exists.

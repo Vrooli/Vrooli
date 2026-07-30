@@ -9,31 +9,32 @@ import (
 type CommandID string
 
 const (
-	CommandSetup        CommandID = "setup"
-	CommandDevelop      CommandID = "develop"
-	CommandBuild        CommandID = "build"
-	CommandClean        CommandID = "clean"
-	CommandStatus       CommandID = "status"
-	CommandStop         CommandID = "stop"
-	CommandBackup       CommandID = "backup"
-	CommandRestore      CommandID = "restore"
-	CommandScenario     CommandID = "scenario"
-	CommandPackage      CommandID = "package"
-	CommandResource     CommandID = "resource"
-	CommandRuntime      CommandID = "runtime"
-	CommandCleanup      CommandID = "cleanup"
-	CommandDoctor       CommandID = "doctor"
-	CommandOrphans      CommandID = "orphans"
-	CommandLocks        CommandID = "locks"
-	CommandDiagnosePort CommandID = "diagnose-port"
-	CommandContract     CommandID = "contract"
-	CommandHygiene      CommandID = "hygiene"
-	CommandLifecycle    CommandID = "lifecycle"
-	CommandAuth         CommandID = "auth"
-	CommandRecovery     CommandID = "recovery"
-	CommandHost         CommandID = "host"
-	CommandCapacity     CommandID = "capacity"
-	CommandCredentials  CommandID = "credentials"
+	CommandSetup            CommandID = "setup"
+	CommandDevelop          CommandID = "develop"
+	CommandBuild            CommandID = "build"
+	CommandClean            CommandID = "clean"
+	CommandStatus           CommandID = "status"
+	CommandStop             CommandID = "stop"
+	CommandBackup           CommandID = "backup"
+	CommandRestore          CommandID = "restore"
+	CommandScenario         CommandID = "scenario"
+	CommandPackage          CommandID = "package"
+	CommandResource         CommandID = "resource"
+	CommandRuntime          CommandID = "runtime"
+	CommandCleanup          CommandID = "cleanup"
+	CommandDoctor           CommandID = "doctor"
+	CommandOrphans          CommandID = "orphans"
+	CommandLocks            CommandID = "locks"
+	CommandDiagnosePort     CommandID = "diagnose-port"
+	CommandContract         CommandID = "contract"
+	CommandHygiene          CommandID = "hygiene"
+	CommandLifecycle        CommandID = "lifecycle"
+	CommandAuth             CommandID = "auth"
+	CommandRecovery         CommandID = "recovery"
+	CommandHost             CommandID = "host"
+	CommandCapacity         CommandID = "capacity"
+	CommandCredentials      CommandID = "credentials"
+	CommandReleaseAuthority CommandID = "release-authority"
 )
 
 func CommandSpecs() []commandtree.Spec[CommandID] {
@@ -62,6 +63,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{Name: string(CommandHost), Group: "Maintenance Commands", Summary: "Inspect local host inventory via the shared Go collector", Handler: CommandHost, Suggestable: true},
 		{Name: string(CommandCapacity), Group: "Maintenance Commands", Summary: "Arbitrate host resource capacity (GPU VRAM/RAM/CPU) via the claim ledger", Handler: CommandCapacity, Suggestable: true},
 		{Name: string(CommandCredentials), Group: "Configuration Commands", Summary: "Provision and inspect credentials through the native secure-store authority", Handler: CommandCredentials, Suggestable: true},
+		{Name: string(CommandReleaseAuthority), Group: "Configuration Commands", Summary: "Create, inspect, and use the managed release signing authority", Handler: CommandReleaseAuthority, Suggestable: true},
 		{Name: string(CommandLifecycle), Group: "Maintenance Commands", Summary: "Internal lifecycle command plumbing", Handler: CommandLifecycle, Hidden: true, Suggestable: false, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 	}
 }

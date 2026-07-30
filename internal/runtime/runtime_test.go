@@ -526,10 +526,10 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 	}
 	toolNames := reg.names(hostreq.KindTool)
 	expectedTools := []string{
-		"Xvfb", "ast-grep", "bats", "buf", "cloudflared", "curl",
-		"docker", "ffmpeg", "git", "go", "helm", "iopaint", "java", "jq", "kdump-tools",
+		"Xvfb", "agy", "ast-grep", "bats", "buf", "claude", "cloudflared", "codex", "curl",
+		"docker", "ffmpeg", "git", "go", "grok", "helm", "iopaint", "java", "jq", "k6", "kdump-tools", "kopia",
 		"llama-cpp", "lychee",
-		"mcelog", "node", "openbox", "pnpm", "protoc", "protoc-gen-connect-go",
+		"mcelog", "node", "openbox", "opencode", "pnpm", "protoc", "protoc-gen-connect-go",
 		"protoc-gen-es", "protoc-gen-go",
 		"python", "quint", "rasdaemon", "realesrgan-ncnn-vulkan", "rembg", "sd", "sd-gpu",
 		"secret-tool", "stripe", "tmux", "uv", "vault", "websockify",

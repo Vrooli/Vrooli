@@ -51,10 +51,7 @@
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "network",
-            "GEMINI_API_KEY"
-          ],
+          "requires": [],
           "limitations": [
             "Requires a Google AI account and network access."
           ],
@@ -70,10 +67,7 @@
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "network",
-            "GEMINI_API_KEY"
-          ],
+          "requires": [],
           "limitations": [
             "Requires a Google AI account and network access."
           ],
@@ -89,10 +83,7 @@
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "network",
-            "GEMINI_API_KEY"
-          ],
+          "requires": [],
           "limitations": [
             "Requires a Google AI account and network access."
           ],

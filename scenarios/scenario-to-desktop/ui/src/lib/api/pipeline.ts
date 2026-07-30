@@ -8,6 +8,7 @@ import type {
 } from "@vrooli/proto-types/scenario-to-desktop/v1/pipeline/types_pb";
 import type { BundleStageDetails } from "@vrooli/proto-types/scenario-to-desktop/v1/pipeline/types_pb";
 import type { DeployStageDetails as ProtoDeployStageDetails } from "@vrooli/proto-types/scenario-to-desktop/v1/pipeline/types_pb";
+import type { ResourceDeploymentPlan as ProtoResourceDeploymentPlan } from "@vrooli/proto-types/scenario-to-desktop/v1/pipeline/types_pb";
 import type { SmokeTestStatusResponse as ProtoSmokeTestStatusResponse } from "@vrooli/proto-types/scenario-to-desktop/v1/shared/operation_results_pb";
 import type {
   BuildStatusResponse as ProtoBuildStatusResponse,
@@ -59,6 +60,7 @@ export type SmokeTestStageDetails = ProtoSmokeTestStatusResponse;
 export type PreflightStageDetails = ProtoPreflightResponse;
 
 export type DeployStageDetails = ProtoDeployStageDetails;
+export type ResourceDeploymentPlan = ProtoResourceDeploymentPlan;
 
 /** Union type for all possible stage details */
 export type StageDetails =
@@ -67,7 +69,8 @@ export type StageDetails =
   | GenerateStageDetails
   | BuildStageDetails
   | SmokeTestStageDetails
-  | DeployStageDetails;
+  | DeployStageDetails
+  | ResourceDeploymentPlan;
 
 /** Pipeline status is the generated wire message; display projections live in domain/. */
 export type VerbosePipelineStatus = ProtoPipelineStatus;
@@ -143,7 +146,7 @@ export function stageDetailsFromProto(
     case "preflight":
       return value.kind.value;
     case "resolveDeployment":
-      return undefined;
+      return value.kind.value;
   }
 }
 

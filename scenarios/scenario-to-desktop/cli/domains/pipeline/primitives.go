@@ -8,6 +8,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
+	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	pipelinev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared"
 )
@@ -197,6 +198,23 @@ func pipelineConfigFromContext(ctx cliapp.OperationContext) (*pipelinev1.Pipelin
 	}
 	if value := strings.TrimSpace(ctx.Flag("artifact-trust-mode")); value != "" {
 		config.ArtifactTrustMode = &value
+	}
+	if provider, updateURL, channel := strings.TrimSpace(ctx.Flag("update-provider")), strings.TrimSpace(ctx.Flag("update-url")), strings.TrimSpace(ctx.Flag("update-channel")); provider != "" || updateURL != "" || channel != "" || ctx.BoolFlag("update-auto-check") {
+		if provider == "" {
+			provider = "generic"
+		}
+		update := &domainv1.UpdateConfig{Provider: &provider}
+		if channel != "" {
+			update.Channel = &channel
+		}
+		if ctx.BoolFlag("update-auto-check") {
+			autoCheck := true
+			update.AutoCheck = &autoCheck
+		}
+		if updateURL != "" {
+			update.Generic = &domainv1.GenericUpdateConfig{Url: updateURL}
+		}
+		config.UpdateConfig = update
 	}
 	if ctx.BoolFlag("clean") {
 		clean := true

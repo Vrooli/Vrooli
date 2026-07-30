@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "claude",
+  "description": "Claude Code command-line client supplied by the operator",
+  "commands": ["claude"],
+  "versionArgs": ["--version"],
+  "installHint": "Install and authenticate Claude Code before using this host-managed resource.",
+  "platforms": ["linux", "macos", "windows"],
+  "manual": true,
+  "bundling": "host-required"
+}

@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/bundle"
 	"scenario-to-desktop-api/generation"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	pipelinev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline/pipelineconnect"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared"
@@ -313,6 +315,10 @@ func configFromProto(value *pipelinev1.PipelineConfig) (*Config, error) {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unsupported stage %q", stage))
 		}
 	}
+	updateConfig, err := updateConfigFromProto(value.GetUpdateConfig(), resourcedeployment.ArtifactTrustMode(value.GetArtifactTrustMode()))
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	config := &Config{
 		ScenarioName:         value.GetScenarioName(),
 		Platforms:            platformsFromProto(value.GetPlatforms()),
@@ -324,6 +330,7 @@ func configFromProto(value *pipelinev1.PipelineConfig) (*Config, error) {
 		ArtifactTrustMode:    resourcedeployment.ArtifactTrustMode(value.GetArtifactTrustMode()),
 		LocationMode:         value.GetLocationMode(),
 		Stages:               stagesFromProto(value.GetStages()),
+		UpdateConfig:         updateConfig,
 	}
 	applyOptionalConfigFromProto(config, value)
 	if config.ScenarioName == "" {
@@ -385,6 +392,38 @@ func applyOptionalConfigExecutionFromProto(config *Config, value *pipelinev1.Pip
 	if value.ArtifactTrustMode != nil {
 		config.ArtifactTrustMode = resourcedeployment.ArtifactTrustMode(value.GetArtifactTrustMode())
 	}
+}
+
+func updateConfigFromProto(value *domainv1.UpdateConfig, trustMode resourcedeployment.ArtifactTrustMode) (*generation.UpdateConfig, error) {
+	if value == nil {
+		return nil, nil
+	}
+	provider := strings.TrimSpace(value.GetProvider())
+	if provider == "" {
+		provider = "generic"
+	}
+	if provider != "generic" && provider != "none" && provider != "github" {
+		return nil, fmt.Errorf("unsupported update provider %q", provider)
+	}
+	config := &generation.UpdateConfig{Provider: provider, Channel: strings.TrimSpace(value.GetChannel()), AutoCheck: value.GetAutoCheck()}
+	if value.Generic != nil {
+		feedURL := strings.TrimSpace(value.GetGeneric().GetUrl())
+		parsed, err := url.Parse(feedURL)
+		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+			return nil, fmt.Errorf("generic update URL must be an absolute http(s) URL")
+		}
+		if trustMode == resourcedeployment.ArtifactTrustProduction && parsed.Scheme != "https" {
+			return nil, fmt.Errorf("production update URL must use HTTPS")
+		}
+		config.Generic = &generation.GenericUpdateConfig{URL: feedURL, ChannelPath: strings.TrimSpace(value.GetGeneric().GetChannelPath())}
+	}
+	if provider == "generic" && config.Generic == nil {
+		return nil, fmt.Errorf("generic update provider requires update_config.generic.url")
+	}
+	if provider == "github" && value.Github != nil {
+		config.GitHub = &generation.GitHubUpdateConfig{Owner: value.GetGithub().GetOwner(), Repo: value.GetGithub().GetRepo(), Private: value.GetGithub().GetPrivate()}
+	}
+	return config, nil
 }
 
 func statusToProto(status *Status) *pipelinev1.PipelineStatus {
@@ -489,6 +528,10 @@ func resourceDeploymentPlanToProto(value *ResourceDeploymentPlan) *pipelinev1.Re
 			Architecture:      resource.Architecture,
 			Mode:              resource.Mode,
 			Support:           resource.Support,
+			Privilege:         resource.Privilege,
+			Bundling:          resource.Bundling,
+			Eligibility:       resource.Eligibility,
+			EligibilityReason: resource.EligibilityReason,
 			Requires:          append([]string(nil), resource.Requires...),
 			Limitations:       append([]string(nil), resource.Limitations...),
 			Evidence:          append([]string(nil), resource.Evidence...),
@@ -538,6 +581,19 @@ func resourceDeploymentPlanToProto(value *ResourceDeploymentPlan) *pipelinev1.Re
 			}
 		}
 		result.Resources = append(result.Resources, item)
+	}
+	for _, requirement := range value.HostRequirements {
+		result.HostRequirements = append(result.HostRequirements, &pipelinev1.HostRequirementPlanItem{
+			Name:       requirement.Name,
+			Kind:       requirement.Kind,
+			Os:         requirement.OS,
+			Privilege:  requirement.Privilege,
+			Bundling:   requirement.Bundling,
+			Required:   requirement.Required,
+			Verdict:    requirement.Verdict,
+			Reason:     requirement.Reason,
+			Provenance: append([]string(nil), requirement.Provenance...),
+		})
 	}
 	return result
 }
@@ -675,6 +731,38 @@ func applyOptionalProtoExecutionConfig(result *pipelinev1.PipelineConfig, config
 	if config.IdempotencyKey != "" {
 		result.IdempotencyKey = stringPtr(config.IdempotencyKey)
 	}
+	if config.UpdateConfig != nil {
+		result.UpdateConfig = updateConfigToProto(config.UpdateConfig)
+	}
+}
+
+func updateConfigToProto(value *generation.UpdateConfig) *domainv1.UpdateConfig {
+	if value == nil {
+		return nil
+	}
+	result := &domainv1.UpdateConfig{}
+	if value.Channel != "" {
+		result.Channel = stringPtr(value.Channel)
+	}
+	if value.Provider != "" {
+		result.Provider = stringPtr(value.Provider)
+	}
+	if value.AutoCheck {
+		result.AutoCheck = boolPtr(true)
+	}
+	if value.Generic != nil {
+		result.Generic = &domainv1.GenericUpdateConfig{Url: value.Generic.URL}
+		if value.Generic.ChannelPath != "" {
+			result.Generic.ChannelPath = stringPtr(value.Generic.ChannelPath)
+		}
+	}
+	if value.GitHub != nil {
+		result.Github = &domainv1.GitHubUpdateConfig{Owner: value.GitHub.Owner, Repo: value.GitHub.Repo}
+		if value.GitHub.Private {
+			result.Github.Private = boolPtr(true)
+		}
+	}
+	return result
 }
 
 func platformToProto(value string) sharedv1.Platform {

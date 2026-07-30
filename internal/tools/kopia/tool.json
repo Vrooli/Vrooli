@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "kopia",
+  "description": "Kopia backup CLI supplied by the operator",
+  "commands": ["kopia"],
+  "versionArgs": ["--version"],
+  "installHint": "Install Kopia before using this host-managed resource.",
+  "platforms": ["linux", "macos", "windows"],
+  "manual": true,
+  "bundling": "host-required"
+}

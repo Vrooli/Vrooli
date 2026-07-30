@@ -51,10 +51,7 @@
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "network",
-            "Twilio credentials"
-          ],
+          "requires": [],
           "limitations": [
             "Requires a Twilio account and network access."
           ],
@@ -70,10 +67,7 @@
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "network",
-            "Twilio credentials"
-          ],
+          "requires": [],
           "limitations": [
             "Requires a Twilio account and network access."
           ],
@@ -89,10 +83,7 @@
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "network",
-            "Twilio credentials"
-          ],
+          "requires": [],
           "limitations": [
             "Requires a Twilio account and network access."
           ],

@@ -174,6 +174,56 @@ func TestValidateRejectsDeploymentModeOutsideArchetypeBaseline(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsUnknownDeploymentTargetRequirement(t *testing.T) {
+	manifest := ResourceManifest{
+		Name:            "fixture",
+		CLI:             validCLI("resource-fixture"),
+		Driver:          "external-cli",
+		Binary:          "fixture",
+		PortabilityTier: "full",
+		Privilege:       "user",
+		Bundling:        "host-required",
+		Deployment: ResourceDeployment{Profiles: map[string]ResourceDeploymentProfile{
+			"desktop": {
+				Linux: &ResourceDeploymentTarget{
+					Support: "conditional", Mode: "native-host-tool", Architectures: []string{"amd64"},
+					Requires: []string{"secret-toool"}, Limitations: []string{"fixture host dependency"}, Evidence: []string{"fixture-test"},
+				},
+				MacOS:   &ResourceDeploymentTarget{Support: "unsupported", Mode: "native-host-tool", Reason: "fixture"},
+				Windows: &ResourceDeploymentTarget{Support: "unsupported", Mode: "native-host-tool", Reason: "fixture"},
+			},
+		}},
+	}
+	if err := Validate(manifest); err == nil || !strings.Contains(err.Error(), "unknown registered tool or safeguard") || !strings.Contains(err.Error(), "secret-toool") {
+		t.Fatalf("Validate() error = %v, want unknown target requirement", err)
+	}
+}
+
+func TestValidateRejectsDuplicateDeploymentTargetRequirement(t *testing.T) {
+	manifest := ResourceManifest{
+		Name:            "fixture",
+		CLI:             validCLI("resource-fixture"),
+		Driver:          "external-cli",
+		Binary:          "fixture",
+		PortabilityTier: "full",
+		Privilege:       "user",
+		Bundling:        "host-required",
+		Deployment: ResourceDeployment{Profiles: map[string]ResourceDeploymentProfile{
+			"desktop": {
+				Linux: &ResourceDeploymentTarget{
+					Support: "conditional", Mode: "native-host-tool", Architectures: []string{"amd64"},
+					Requires: []string{"secret-tool", "secret-tool"}, Limitations: []string{"fixture host dependency"}, Evidence: []string{"fixture-test"},
+				},
+				MacOS:   &ResourceDeploymentTarget{Support: "unsupported", Mode: "native-host-tool", Reason: "fixture"},
+				Windows: &ResourceDeploymentTarget{Support: "unsupported", Mode: "native-host-tool", Reason: "fixture"},
+			},
+		}},
+	}
+	if err := Validate(manifest); err == nil || !strings.Contains(err.Error(), "duplicate") || !strings.Contains(err.Error(), "secret-tool") {
+		t.Fatalf("Validate() error = %v, want duplicate target requirement", err)
+	}
+}
+
 func TestValidateAppliesDefaultCLIArtifacts(t *testing.T) {
 	manifest := ResourceManifest{
 		Name:            "redis",

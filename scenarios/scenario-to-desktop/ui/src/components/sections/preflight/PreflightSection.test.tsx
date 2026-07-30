@@ -67,6 +67,67 @@ describe("PreflightSection", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows resource eligibility and a non-promotable warning from the resolved target plan", () => {
+    usePipelineStore.setState({
+      pipelineStatus: {
+        stages: {
+          resolveDeployment: {
+            status: StageStatus.COMPLETED,
+            details: {
+              kind: {
+                case: "resolveDeployment",
+                value: {
+                  promotable: false,
+                  resources: [
+                    {
+                      requestedResource: "vault",
+                      os: "windows",
+                      architecture: "amd64",
+                      bundling: "required",
+                      privilege: "none",
+                      eligibility: "ineligible",
+                      eligibilityReason:
+                        "Windows credential store is unavailable",
+                      requires: ["secret-tool"],
+                    },
+                  ],
+                  hostRequirements: [
+                    {
+                      name: "secret-tool",
+                      kind: "tool",
+                      os: "windows",
+                      bundling: "host-required",
+                      privilege: "user",
+                      required: true,
+                      verdict: "ineligible",
+                      reason: "required host tool is absent on windows",
+                    },
+                  ],
+                },
+              },
+            } as never,
+          },
+        },
+      } as never,
+    });
+
+    renderWithProviders(<PreflightSection scenarioName="desktop-app" />);
+
+    expect(
+      screen.getByText("Target deployment eligibility"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Non-promotable")).toBeInTheDocument();
+    expect(
+      screen.getByText("Windows credential store is unavailable"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Requires: secret-tool")).toBeInTheDocument();
+    expect(screen.getByText("Host requirements")).toBeInTheDocument();
+    expect(screen.getByText("tool: secret-tool")).toBeInTheDocument();
+    expect(
+      screen.getByText("required host tool is absent on windows"),
+    ).toBeInTheDocument();
+  });
+
   it("shows a running preflight honestly and lets the operator cancel it", async () => {
     const user = userEvent.setup();
     const cancelPipeline = vi.fn().mockResolvedValue(undefined);

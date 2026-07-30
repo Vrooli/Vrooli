@@ -237,8 +237,19 @@ func TestResolveResourceDeploymentPlanSelectsOnlyValidatedFallback(t *testing.T)
 	if plan.Resources[0].SelectedFallback == nil || plan.Resources[0].SelectedFallback.Resource != "fallback" || plan.Resources[0].SelectedFallback.Reason == "" {
 		t.Fatalf("fallback selection must be explicit: %#v", plan.Resources[0])
 	}
-	if _, err := resolveResourceDeploymentPlanWithTrust(scenarioPath, "", []string{"windows-amd64"}, resourcedeployment.ArtifactTrustDevelopmentLocal); err == nil {
-		t.Fatal("expected unsupported fallback to be rejected")
+	windowsPlan, err := resolveResourceDeploymentPlanWithTrust(scenarioPath, "", []string{"windows-amd64"}, resourcedeployment.ArtifactTrustDevelopmentLocal)
+	if err != nil {
+		t.Fatalf("unsupported target must remain a buildable, recorded limitation: %v", err)
+	}
+	if len(windowsPlan.Resources) != 1 {
+		t.Fatalf("windows resources = %#v", windowsPlan.Resources)
+	}
+	windows := windowsPlan.Resources[0]
+	if windows.Eligibility != "ineligible" || windows.Support != "unsupported" || !strings.Contains(windows.EligibilityReason, "not available") {
+		t.Fatalf("windows limitation = %#v", windows)
+	}
+	if windowsPlan.Promotable {
+		t.Fatal("an artifact with an ineligible required resource must be non-promotable")
 	}
 }
 

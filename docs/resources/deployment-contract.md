@@ -72,7 +72,7 @@ runtime readiness remains terminal rather than silently degraded.
 | `supported` | The mode is intended to work on this target and has required evidence. |
 | `conditional` | It works only with explicit host requirements, permissions, hardware, or user setup. |
 | `degraded` | The scenario can still run, but a declared capability/fallback changes. |
-| `unsupported` | The target must be rejected before runtime execution. |
+| `unsupported` | The target cannot satisfy a required resource at runtime. A validation artifact may still be built with an explicit limitation, but it is non-promotable and the runtime must refuse the unavailable service. |
 
 ### Deployment readiness versus maturity
 
@@ -433,13 +433,15 @@ embedded. For every required resource and requested target it should:
 |---|---|---|
 | ready | Every required capability has a supported, evidenced route. | Include selected artifacts/configuration. |
 | warning | A conditional/degraded route is valid. | Require acknowledgement; include remediation and limitation text. |
-| error | No valid route exists. | Refuse to create a misleading bundle. |
+| ineligible | A required resource has no valid runtime route on this target. | Build an explicitly non-promotable validation artifact, record the named limitation in `resource-deployment-plan.json`, and keep runtime readiness terminal. |
+| error | The plan or its verified inputs are invalid. | Refuse to create any bundle. |
 
 Example: a Windows desktop request that needs a `docker-service` should report
-that Docker Desktop is required. A resource declared `unsupported` should stop
-the bundle unless the scenario explicitly accepts a compatible fallback. The
-system must not discover this by trying to source a Linux shell script during
-desktop startup.
+that Docker Desktop is required. A resource declared `unsupported` may still
+produce a non-promotable validation artifact with its limitation recorded; it
+must not reach a healthy runtime unless the scenario explicitly accepts a
+compatible fallback. The system must not discover this by trying to source a
+Linux shell script during desktop startup.
 
 ## Desktop Runtime Boundary
 
@@ -517,12 +519,14 @@ role, platform metadata where applicable, and upstream-provenance evidence.
 `development-local` verifies that manifest and every staged file, but does not
 require a Vrooli authority signature. Bundles built this way are explicitly
 non-promotable and must not be published. `production` additionally requires
-`release-manifest.sig.json`, a detached RSA/SHA-256 envelope signed by a
-configured Vrooli release public key. The private key is external to this
-repository; key rotation updates the configured trust set and releases identify
-the signing key with `key_id`. Missing or invalid production signatures fail
-before packaging. Installer code-signing remains separately optional and is
-documented by scenario-to-desktop's code-signing guide.
+`release-manifest.sig.json`, a detached RSA/SHA-256 envelope signed by the
+project-managed release authority. `vrooli release-authority` generates and
+retains the private half in the native credential authority and publishes only
+the public trust anchor at `install/vrooli-release.pub`; releases identify the
+signing key with `key_id`. Missing or invalid production signatures fail before
+packaging. Installer code-signing remains separately optional and is documented
+by scenario-to-desktop's code-signing guide. See
+[`docs/configuration/release-authority.md`](../configuration/release-authority.md).
 
 Release automation may verify the staged directory independently before
 bundling:

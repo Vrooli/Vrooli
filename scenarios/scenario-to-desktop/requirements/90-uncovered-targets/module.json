@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Explicit planned requirements for operational targets that are not yet implemented or backed by live test evidence.",
-    "last_validated_at": "2026-07-30T10:42:33-04:00",
+    "last_validated_at": "2026-07-30T13:04:20-04:00",
     "module": "uncovered-targets",
     "schema_version": "1.0.0"
   },
@@ -19,7 +19,52 @@
           "ref": "api/template_generator_test.go::TestTemplateGeneratorInterpolatesPlaceholders",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Generated templates carry the electron-updater wiring. Signed-feed acceptance remains a release-pipeline roadmap item."
+          "notes": "Generated templates carry the electron-updater wiring. A signed feed and an observed detect/download/apply/relaunch sequence remain required before this requirement can be complete."
+        }
+      ]
+    },
+    {
+      "id": "SCENARIO-P0-008",
+      "title": "Deployment eligibility report",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "description": "When a desktop target is selected, the system shall resolve required host and resource prerequisites and record an eligible, degraded, or ineligible reason in the artifact manifest.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Requires a Linux and Windows-target preflight report plus the corresponding generated artifact manifests."
+        }
+      ]
+    },
+    {
+      "id": "SCENARIO-P0-009",
+      "title": "Release trust boundary",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "description": "When production resources are bundled, the system shall accept only a release-authority-signed manifest while retaining an explicitly non-promotable development-local path.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Requires independent development-local and production verification against a release authority signature."
+        }
+      ]
+    },
+    {
+      "id": "SCENARIO-P0-010",
+      "title": "Isolated desktop-console evidence",
+      "status": "planned",
+      "prd_ref": "OT-P0-010",
+      "criticality": "P0",
+      "description": "When the console performs a mutating desktop journey, the system shall use a routed leased state root and retain BAS evidence of the generated artifact, build, and smoke outcome.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Requires a routed BAS run that proves the lease, generated artifact, build result, and smoke report."
         }
       ]
     },

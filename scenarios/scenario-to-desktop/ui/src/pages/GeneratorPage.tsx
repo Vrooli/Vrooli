@@ -20,6 +20,8 @@ import {
   DeploySection,
 } from "../components/sections";
 import { useSidebarStore, type SectionId } from "../store/sidebarStore";
+import { buildUrl } from "../lib/api";
+import { selectors } from "../consts/selectors";
 // NOTE: Pipeline scenario is set by App.tsx - no need to set it here
 
 interface GeneratorPageProps {
@@ -46,6 +48,47 @@ export function GeneratorPage({
   onOpenSigningTab,
 }: GeneratorPageProps) {
   const setActiveSection = useSidebarStore((s) => s.setActiveSection);
+  const basEvidenceFixture = useMemo(
+    () =>
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("bas_fixture") === "1",
+    [],
+  );
+  const [fixtureStatus, setFixtureStatus] = useState<string | null>(null);
+  const [fixtureError, setFixtureError] = useState<string | null>(null);
+  const runEvidenceFixture = useCallback(async () => {
+    setFixtureStatus("running");
+    setFixtureError(null);
+    try {
+      const response = await fetch(
+        buildUrl("/test-fixtures/desktop-evidence"),
+        {
+          method: "POST",
+        },
+      );
+      if (!response.ok) {
+        throw new Error(
+          `Fixture request failed with ${String(response.status)}`,
+        );
+      }
+      const result = (await response.json()) as {
+        artifact?: string;
+        smoke_report?: string;
+        test_root_writes?: number;
+      };
+      if ((result.test_root_writes ?? 0) < 3) {
+        throw new Error(
+          "Fixture did not record its required routed file writes",
+        );
+      }
+      setFixtureStatus(
+        `passed: ${result.artifact ?? "artifact"} and ${result.smoke_report ?? "smoke report"}; leased writes: ${String(result.test_root_writes)}`,
+      );
+    } catch (error) {
+      setFixtureStatus(null);
+      setFixtureError(error instanceof Error ? error.message : String(error));
+    }
+  }, []);
 
   // State shared between ConfigurationSection and PreflightSection/BundleSection
   const [formState, setFormState] = useState<ExposedFormState | null>(null);
@@ -131,6 +174,43 @@ export function GeneratorPage({
   return (
     <GeneratorLayout sectionRefs={sectionRefs}>
       <div className="space-y-4 md:space-y-8">
+        {basEvidenceFixture && (
+          <section className="rounded-lg border border-amber-700/70 bg-amber-950/20 p-4">
+            <h2 className="text-sm font-semibold text-amber-100">
+              BAS isolated evidence fixture
+            </h2>
+            <p className="mt-1 text-xs text-amber-200/80">
+              Available only to routed test-mode requests. It creates a
+              deterministic leased artifact and smoke report; it never creates a
+              production desktop application.
+            </p>
+            <button
+              type="button"
+              className="mt-3 rounded bg-amber-500 px-3 py-2 text-sm font-medium text-slate-950 hover:bg-amber-400 disabled:opacity-60"
+              data-testid={selectors.generator.evidenceFixtureRun}
+              disabled={fixtureStatus === "running"}
+              onClick={() => {
+                void runEvidenceFixture();
+              }}
+            >
+              {fixtureStatus === "running"
+                ? "Creating isolated evidence…"
+                : "Create isolated evidence"}
+            </button>
+            {(fixtureStatus || fixtureError) && (
+              <p
+                className={
+                  fixtureError
+                    ? "mt-2 text-sm text-red-300"
+                    : "mt-2 text-sm text-emerald-300"
+                }
+                data-testid={selectors.generator.evidenceFixtureResult}
+              >
+                {fixtureError ?? fixtureStatus}
+              </p>
+            )}
+          </section>
+        )}
         {/* Section 0: Configuration */}
         <SectionCard
           ref={sectionRefs.configuration}

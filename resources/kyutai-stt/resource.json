@@ -53,7 +53,7 @@
             "arm64"
           ],
           "requires": [
-            "docker-engine"
+            "docker"
           ],
           "limitations": [
             "Compose images, storage, and networking remain host-managed."

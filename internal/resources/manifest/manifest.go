@@ -3,6 +3,7 @@ package manifest
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"regexp"
 	"runtime"
@@ -11,7 +12,9 @@ import (
 
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/safeguards"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/tools"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
@@ -446,6 +449,10 @@ var (
 )
 
 func validateDeployment(manifest ResourceManifest) error {
+	requirementNames, err := registeredRequirementNames()
+	if err != nil {
+		return err
+	}
 	platformSupport := map[string]string{
 		"linux":   strings.TrimSpace(manifest.Platforms.Linux),
 		"macos":   strings.TrimSpace(manifest.Platforms.MacOS),
@@ -476,6 +483,9 @@ func validateDeployment(manifest ResourceManifest) error {
 					return fmt.Errorf("deployment.profiles.%s.%s.reason is required for unsupported targets", profileName, platform)
 				}
 				continue
+			}
+			if err := validateTargetRequirements(profileName, platform, target.Requires, requirementNames); err != nil {
+				return err
 			}
 			if len(target.Architectures) == 0 {
 				return fmt.Errorf("deployment.profiles.%s.%s.architectures is required", profileName, platform)
@@ -515,6 +525,71 @@ func validateDeployment(manifest ResourceManifest) error {
 				}
 			}
 		}
+	}
+	return nil
+}
+
+// registeredRequirementNames provides the authoritative vocabulary for a
+// resource deployment target's requires list. These names are intentionally
+// sourced from the embedded catalogs rather than duplicated in a schema enum:
+// the catalog is the registry that owns install and bundle semantics.
+func registeredRequirementNames() (map[string]struct{}, error) {
+	names := make(map[string]struct{})
+	for _, catalog := range []struct {
+		fs       fs.FS
+		filename string
+	}{
+		{fs: tools.Manifests, filename: "tool.json"},
+		{fs: safeguards.Manifests, filename: "safeguard.json"},
+	} {
+		err := fs.WalkDir(catalog.fs, ".", func(path string, entry fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if entry.IsDir() || entry.Name() != catalog.filename {
+				return nil
+			}
+			data, readErr := fs.ReadFile(catalog.fs, path)
+			if readErr != nil {
+				return readErr
+			}
+			var item struct {
+				Name string `json:"name"`
+			}
+			if decodeErr := json.Unmarshal(data, &item); decodeErr != nil {
+				return fmt.Errorf("decode %s: %w", path, decodeErr)
+			}
+			name := strings.TrimSpace(item.Name)
+			if name == "" {
+				return fmt.Errorf("catalog manifest %s has no name", path)
+			}
+			if _, exists := names[name]; exists {
+				return fmt.Errorf("host requirement catalog name %q is ambiguous", name)
+			}
+			names[name] = struct{}{}
+			return nil
+		})
+		if err != nil {
+			return nil, fmt.Errorf("load host requirement catalog: %w", err)
+		}
+	}
+	return names, nil
+}
+
+func validateTargetRequirements(profile, platform string, requirements []string, registered map[string]struct{}) error {
+	seen := make(map[string]struct{}, len(requirements))
+	for _, raw := range requirements {
+		name := strings.TrimSpace(raw)
+		if name == "" {
+			return fmt.Errorf("deployment.profiles.%s.%s.requires contains an empty name", profile, platform)
+		}
+		if _, exists := registered[name]; !exists {
+			return fmt.Errorf("deployment.profiles.%s.%s.requires names unknown registered tool or safeguard %q", profile, platform, name)
+		}
+		if _, duplicate := seen[name]; duplicate {
+			return fmt.Errorf("deployment.profiles.%s.%s.requires contains duplicate %q", profile, platform, name)
+		}
+		seen[name] = struct{}{}
 	}
 	return nil
 }

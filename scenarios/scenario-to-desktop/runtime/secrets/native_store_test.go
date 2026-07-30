@@ -18,6 +18,7 @@ func (s *nativeTestStore) Put(service, key, value string) error {
 	s.values[service+"/"+key] = value
 	return nil
 }
+
 func (s *nativeTestStore) Get(service, key string) (string, error) {
 	value, ok := s.values[service+"/"+key]
 	if !ok {
@@ -25,6 +26,7 @@ func (s *nativeTestStore) Get(service, key string) (string, error) {
 	}
 	return value, nil
 }
+
 func (s *nativeTestStore) Delete(service, key string) error {
 	delete(s.values, service+"/"+key)
 	return nil

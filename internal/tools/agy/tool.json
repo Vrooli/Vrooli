@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "agy",
+  "description": "Antigravity command-line client supplied by the operator",
+  "commands": ["agy"],
+  "versionArgs": ["--version"],
+  "installHint": "Install and authenticate the Antigravity CLI before using this host-managed resource.",
+  "platforms": ["linux", "macos", "windows"],
+  "manual": true,
+  "bundling": "host-required"
+}

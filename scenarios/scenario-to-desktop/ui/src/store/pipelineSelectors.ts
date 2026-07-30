@@ -25,12 +25,13 @@ export const selectCurrentStage = (state: PipelineStore) =>
 /** Calculate overall progress (0-1) based on completed stages */
 export const selectProgress = (state: PipelineStore) => {
   if (!state.pipelineStatus) return 0;
-  // A persisted or in-flight status can legitimately be partial while the API
-  // is assembling its stage map. Treat missing collections as no progress
-  // instead of crashing the owning screen.
-  const stageOrder = state.pipelineStatus.stageOrder ?? [];
-  const stages = state.pipelineStatus.stages ?? {};
-  if (!stageOrder.length) return 0;
+  // Persisted status is an API boundary: old or in-flight records can omit
+  // collections even though the current generated type requires them.
+  const stageOrder = state.pipelineStatus.stageOrder as StageName[] | undefined;
+  const stages = state.pipelineStatus.stages as
+    | Record<string, { status?: StageStatus }>
+    | undefined;
+  if (!stageOrder?.length || !stages) return 0;
   const completed = stageOrder.filter(
     (s) =>
       stages[stageResultKey(s)]?.status === StageStatus.COMPLETED ||

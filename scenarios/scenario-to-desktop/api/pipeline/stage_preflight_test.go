@@ -478,19 +478,23 @@ func TestPreflightStageRecordsResourceEligibilityWarnings(t *testing.T) {
 	stage := NewPreflightStage()
 	result := newStageResult(stage.Name(), NewRealTimeProvider())
 	input := &StageInput{ResourceDeploymentPlan: &ResourceDeploymentPlan{Resources: []ResourceDeploymentPlanItem{
+		{Resource: "vault", OS: "windows", Architecture: "amd64", Support: "unsupported", Eligibility: "ineligible", EligibilityReason: "credential storage is unavailable"},
 		{Resource: "postgres", Bundling: "host-required", Requires: []string{"docker"}},
 		{Resource: "host-safeguard", Bundling: "prohibited", Limitations: []string{"host mutation is forbidden"}},
 	}}}
 
 	stage.appendResourceEligibilityWarnings(input, result)
-	if len(result.Logs) != 3 {
-		t.Fatalf("warning logs = %v, want stage-start plus two entries", result.Logs)
+	if len(result.Logs) != 4 {
+		t.Fatalf("warning logs = %v, want stage-start plus three entries", result.Logs)
 	}
-	if !containsSubstring(result.Logs[1], "postgres") || !containsSubstring(result.Logs[1], "docker") {
-		t.Fatalf("host-required warning = %q", result.Logs[1])
+	if !containsSubstring(result.Logs[1], "vault") || !containsSubstring(result.Logs[1], "windows-amd64") || !containsSubstring(result.Logs[1], "credential storage") {
+		t.Fatalf("ineligible warning = %q", result.Logs[1])
 	}
-	if !containsSubstring(result.Logs[2], "host-safeguard") || !containsSubstring(result.Logs[2], "prohibited") {
-		t.Fatalf("prohibited warning = %q", result.Logs[2])
+	if !containsSubstring(result.Logs[2], "postgres") || !containsSubstring(result.Logs[2], "docker") {
+		t.Fatalf("host-required warning = %q", result.Logs[2])
+	}
+	if !containsSubstring(result.Logs[3], "host-safeguard") || !containsSubstring(result.Logs[3], "prohibited") {
+		t.Fatalf("prohibited warning = %q", result.Logs[3])
 	}
 }
 

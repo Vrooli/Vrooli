@@ -10,8 +10,11 @@ For a local evidence build, provide a verified staged artifact root and choose
 `--artifact-trust-mode development-local`; the resulting bundle is visibly
 non-promotable and deployment/publishing is refused. Production instead uses
 `--artifact-trust-mode production`, which requires a valid detached
-`release-manifest.sig.json` from the external Vrooli release authority before
-packaging begins. Neither mode creates or requires an OS code-signing key.
+`release-manifest.sig.json` from the project-managed Vrooli release authority
+before packaging begins. `vrooli release-authority` retains that authority's
+private key in the native credential store; see
+[`docs/configuration/release-authority.md`](../../../../docs/configuration/release-authority.md).
+Neither mode creates or requires an OS code-signing key.
 
 ## Platform Summary (What to Sign, Where to Sign, Cost/Keys, Reuse)
 

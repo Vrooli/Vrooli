@@ -209,6 +209,12 @@ func (s *GenerateStage) buildDesktopConfig(input *StageInput, metadata *generati
 	if input.Config.ProxyURL != "" {
 		desktopConfig.ProxyURL = input.Config.ProxyURL
 	}
+	if input.Config.Version != "" {
+		desktopConfig.Version = input.Config.Version
+	}
+	if input.Config.UpdateConfig != nil {
+		desktopConfig.UpdateConfig = input.Config.UpdateConfig
+	}
 
 	s.applyBundleConfig(input, desktopConfig, result)
 

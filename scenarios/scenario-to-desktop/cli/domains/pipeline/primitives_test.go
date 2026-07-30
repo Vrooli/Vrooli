@@ -77,9 +77,12 @@ func TestPipelineConfigFromContext_BuildsTypedReleaseRequest(t *testing.T) {
 			"location-mode":          "staging",
 			"resource-artifact-root": "/verified/artifacts",
 			"artifact-trust-mode":    "development-local",
+			"update-provider":        "generic",
+			"update-url":             "http://127.0.0.1:8765/updates",
+			"update-channel":         "stable",
 			"version":                "1.2.3",
 		},
-		BoolFlags: map[string]bool{"clean": true},
+		BoolFlags: map[string]bool{"clean": true, "update-auto-check": true},
 	})
 
 	config, err := pipelineConfigFromContext(ctx)
@@ -97,6 +100,9 @@ func TestPipelineConfigFromContext_BuildsTypedReleaseRequest(t *testing.T) {
 	}
 	if config.GetDeploymentMode() != sharedv1.DeploymentMode_DEPLOYMENT_MODE_PROXY || config.GetLocationMode() != "staging" || config.GetResourceArtifactRoot() != "/verified/artifacts" || config.GetArtifactTrustMode() != "development-local" || !config.GetClean() || config.GetVersion() != "1.2.3" {
 		t.Errorf("unexpected config: %+v", config)
+	}
+	if config.GetUpdateConfig().GetProvider() != "generic" || config.GetUpdateConfig().GetGeneric().GetUrl() != "http://127.0.0.1:8765/updates" || config.GetUpdateConfig().GetChannel() != "stable" || !config.GetUpdateConfig().GetAutoCheck() {
+		t.Errorf("unexpected update config: %+v", config.GetUpdateConfig())
 	}
 }
 

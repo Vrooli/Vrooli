@@ -29,7 +29,10 @@
 - [x] OT-P0-004 | Development tooling | Make targets, CLI commands, and test infrastructure are in place
 - [x] OT-P0-005 | Integration with scenario APIs | Templates include secure IPC and API integration patterns
 - [x] OT-P0-006 | Native OS features | Menus, tray, notifications, and file dialogs implemented in templates
-- [x] OT-P0-007 | Runtime auto-update | electron-updater wiring exists, but a signed release feed and an observed detect/download/apply/relaunch sequence are still required.
+- [x] OT-P0-007 | Runtime auto-update | Both Linux evidence runs observed electron-updater detect version 1.0.1, download it, execute the replacement AppImage, and quit the prior 1.0.0 process. The signed evidence manifest records the two updater logs and display recordings.
+- [x] OT-P0-008 | Deployment eligibility | The deployment stage resolves selected scenario/resource host requirements and resource artifacts through the canonical host-requirement policy, records verdicts, reasons, privilege, bundling, and provenance in the target plan, and renders them before packaging.
+- [ ] OT-P0-009 | Release trust boundary | Production accepts only a release-authority-signed manifest; the project-managed native-secure-store authority signs staged bytes, while development-local remains explicitly non-promotable.
+- [x] OT-P0-010 | Isolated desktop-console evidence | The routed mutating BAS fixture creates a leased deterministic artifact and smoke report, persists only leased state, asserts the routed write count, and is retained in the signed evidence release.
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Code signing + notarization | Automate per-platform signing workflows

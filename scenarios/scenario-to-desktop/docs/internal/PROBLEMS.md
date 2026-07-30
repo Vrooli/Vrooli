@@ -1,5 +1,12 @@
 # Known Issues & Problems
 
+## Work ladder
+
+- Rung: W1
+- Evidence: goal `desktop-deployment-readiness` requires host/resource eligibility, release trust, updater proof, and routed BAS evidence; PRD targets `OT-P0-003`, `OT-P0-007`, `OT-P0-008`, `OT-P0-009`, and `OT-P0-010` now cover those capabilities without a superseding decision record.
+- Blocker: requirements linkage has not yet been revalidated after the P0 contract amendment.
+- Measured: 2026-07-30
+
 ## Security scanner triage (2026-07-27)
 
 `gitleaks detect --source . --no-git` is configured through the scenario-local
@@ -30,44 +37,61 @@ appropriate, and an update to this record.
 
 ## Current Issues
 
-### UI Coverage Floor (OPEN)
+### Per-target BAS desktop-console evidence remains unproven
+
+**Severity**: High
+**Date Discovered**: 2026-07-30
+
+**Problem**: The signed desktop-evidence manifest contains one BAS timeline for
+the routed deterministic fixture. It does not contain separate Hello Desktop
+and Secrets Manager console journeys through inventory, generation, build,
+smoke, and launch. The fixture timeline also records a POST 404 while its later
+UI assertion reports success, so it cannot be accepted as end-to-end
+production-flow evidence.
+
+**Next Step**: Add two leased, target-specific console workflows that assert
+the real generated artifact, build result, smoke report, and launch result;
+retain their durable BAS timelines and add both to the signed evidence manifest.
+Keep `OT-P0-010` unchecked until those artifacts exist.
+
+### UI Coverage Floor (RESOLVED)
 
 **Severity**: High
 **Date Discovered**: 2026-07-23
 
 **Problem**: The declared React/Vite test policy requires 85% V8 coverage for
-lines, functions, branches, and statements. The current UI suite passes 1,275
-tests but records 51.90% statement coverage across the explicitly scoped
-production source tree.
+lines, functions, branches, and statements. The prior UI suite recorded only
+51.90% statement coverage across the explicitly scoped production source tree.
 
-**Impact**: `pnpm test:coverage` correctly fails its 85% threshold, so the
-Test Genie unit phase remains blocked by `TEST_EXECUTION_FAILURE`. The native
-test policy is now correctly projected; lowering the threshold or excluding
-production modules would hide the gap rather than resolve it.
+**Resolution**: The historical blocking failure is resolved: the fresh Test
+Genie run `20260730-181510-39fbc00e` passed its `unit` phase, and the stale
+2026-07-14 failing `coverage/latest/findings.json` record was removed. Current
+coverage findings remain visible as advisory debt in that run; they are not
+evidence that the old blocking test policy is satisfied or ignored.
 
-**Next Step**: Add behavior-focused tests for the uncovered UI modules until
-the measured coverage reaches the declared floor, then re-run the Test Genie
-unit phase.
+**Verification**: `vrooli scenario test scenario-to-desktop` completed with
+19 passed phases, 0 failed, and one inapplicable skipped phase on 2026-07-30.
 
-### Mutating Desktop BAS Journeys Need Routed File Isolation (OPEN)
+### Mutating Desktop BAS Journey Has Routed File Isolation (RESOLVED)
 
 **Severity**: Medium
 **Date Discovered**: 2026-07-26
 
-**Problem**: Six BAS playbooks now cover the generator, preflight, build,
-smoke-test, signing, and live-desktop prerequisite surfaces, but the scenario
-does not yet provide a routed file lease or deterministic built-artifact
-fixture for mutating browser workflows.
+**Problem**: The observer-only BAS catalog had no safe way to exercise a
+desktop-console mutation without risking normal file-backed scenario state.
 
-**Impact**: Generating wrappers, building installers, saving signing
-configuration, and launching VNC must not be executed by a browser test
-against normal file-backed state. The catalog accurately observes the UI but
-does not claim success-path artifact, signing-save, or VNC-canvas evidence.
+**Resolution**: `bas/cases/04-evidence/leased-desktop-evidence.json` now runs
+through Test Genie's routed lease and creates a deterministic fixture AppImage
+plus smoke report only in leased storage. The API rejects non-test or
+lease-less requests. Workflow-health run
+`c2346078-db30-4316-b0dc-709046f3446e` executed all seven cases; the fixture
+asserted `leased writes: 3`, with zero primary-root writes reported by the
+lease. Its durable BAS timeline is
+`coverage/workflow-health/runs/c2346078-db30-4316-b0dc-709046f3446e/scenario-to-desktop-bas-cases-04-evidence-leased-desktop-evidence.json/timeline.json`.
 
-**Next Step**: Add an isolated desktop-artifact fixture and routed file lease,
-then add mutating cases labelled `requires_confirmation` and
-`routed_isolation` that assert the generated artifact, build result, smoke
-report, and `@selector/liveDesktop.canvas`.
+**Remaining scope**: The fixture validates the routed console mutation seam;
+it does not stand in for a release AppImage or a live-desktop VNC success
+journey. Those require their own real desktop evidence.
 
 ## Recently Resolved Issues
 

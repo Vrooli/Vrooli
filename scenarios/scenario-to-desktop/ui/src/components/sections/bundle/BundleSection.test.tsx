@@ -25,14 +25,18 @@ beforeEach(() => {
 });
 
 describe("BundleSection", () => {
-	it("makes development-local non-promotion visible", () => {
-		act(() => {
-			usePipelineStore.setState({ pipelineStatus: createPipelineStatus({ config: { artifactTrustMode: "development-local" } }) });
-		});
-		render(<BundleSection scenarioName="test-scenario" isBundled={true} />);
-		expect(screen.getByText(/Development-local trust/)).toBeInTheDocument();
-		expect(screen.getByText(/non-promotable/)).toBeInTheDocument();
-	});
+  it("makes development-local non-promotion visible", () => {
+    act(() => {
+      usePipelineStore.setState({
+        pipelineStatus: createPipelineStatus({
+          config: { artifactTrustMode: "development-local" },
+        }),
+      });
+    });
+    render(<BundleSection scenarioName="test-scenario" isBundled={true} />);
+    expect(screen.getByText(/Development-local trust/)).toBeInTheDocument();
+    expect(screen.getByText(/non-promotable/)).toBeInTheDocument();
+  });
 
   it("renders pending state when no result", () => {
     render(<BundleSection scenarioName="test-scenario" />);
