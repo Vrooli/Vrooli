@@ -43,3 +43,12 @@ func TestResolveDeploymentStageRejectsDirectVaultEndpointForThinClient(t *testin
 		t.Fatalf("direct Vault endpoint must not receive a resource deployment plan: %#v", input.ResourceDeploymentPlan)
 	}
 }
+
+func TestResolveDeploymentStageRequiresExplicitArtifactTrustMode(t *testing.T) {
+	stage := NewResolveDeploymentStage(WithResolveDeploymentScenarioRoot(t.TempDir()))
+	input := &StageInput{Config: &Config{DeploymentMode: DeploymentModeBundled, ScenarioName: "demo", ResourceArtifactRoot: t.TempDir(), Platforms: []string{"linux-amd64"}}}
+	result := stage.Execute(context.Background(), input)
+	if result.Status != StatusFailed || !strings.Contains(result.Error, "artifact trust mode is required") {
+		t.Fatalf("result = %#v, want explicit artifact trust mode rejection", result)
+	}
+}

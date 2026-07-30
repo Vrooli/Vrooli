@@ -41,7 +41,8 @@ ticker := clock.NewTicker(time.Second)
 ```go
 fs := testutil.NewMockFileSystem()
 
-// Pre-populate files
+// Pre-populate ordinary fixture files. Production code does not read
+// secrets.json; use this only when exercising the explicit legacy migration.
 fs.Files["config.json"] = []byte(`{"key": "value"}`)
 
 // Set up directories

@@ -6,6 +6,7 @@ import (
 	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/preflight"
 	"scenario-to-desktop-api/shared/errors"
+	"strings"
 
 	runtimeapi "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/api"
 )
@@ -100,6 +101,7 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 	if failed := s.checkBundleability(input, result); failed {
 		return result
 	}
+	s.appendResourceEligibilityWarnings(input, result)
 
 	if s.service == nil {
 		failStage(result, s.timeProvider, errors.ErrPreflightServiceNotConfigured())
@@ -116,6 +118,14 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 	if err != nil {
 		failStage(result, s.timeProvider, errors.ErrPreflightValidationFailed(err, nil))
 		return result
+	}
+	// Pipeline preflight is an evidence gate, not a long-lived runtime session.
+	// Always release the temporary runtime so a subsequent bundle can replace
+	// its staged executables without colliding with a running service.
+	if response != nil && response.SessionID != "" {
+		if _, stopErr := s.service.RunBundlePreflight(preflight.Request{BundleManifestPath: input.BundleResult.ManifestPath, SessionID: response.SessionID, SessionStop: true}); stopErr != nil {
+			appendWarn(result, "Could not stop temporary preflight runtime: %v", stopErr)
+		}
 	}
 
 	// Validate response status and contents
@@ -134,6 +144,25 @@ func (s *PreflightStage) Execute(ctx context.Context, input *StageInput) *StageR
 	appendResponseSummaryLogs(response, result)
 
 	return result
+}
+
+// appendResourceEligibilityWarnings exposes the resource-level contract that
+// was resolved before packaging. It intentionally warns instead of rejecting
+// an artifact: a target-specific limitation must be inspectable in the plan
+// and artifact even when its runtime will correctly refuse an unavailable
+// required service.
+func (s *PreflightStage) appendResourceEligibilityWarnings(input *StageInput, result *StageResult) {
+	if input.ResourceDeploymentPlan == nil {
+		return
+	}
+	for _, item := range input.ResourceDeploymentPlan.Resources {
+		switch item.Bundling {
+		case "prohibited":
+			result.Logs = append(result.Logs, fmt.Sprintf("Warning: resource %s is prohibited from desktop bundles; %s", item.Resource, strings.Join(item.Limitations, "; ")))
+		case "host-required":
+			result.Logs = append(result.Logs, fmt.Sprintf("Warning: resource %s requires target-host provisioning (%s)", item.Resource, strings.Join(item.Requires, ", ")))
+		}
+	}
 }
 
 // checkBundleability checks if the scenario can run in bundled mode.

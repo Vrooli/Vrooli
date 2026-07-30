@@ -56,7 +56,7 @@ func TestDesktopVaultArtifactIntegration(t *testing.T) {
 		Ports:        []ServicePort{{Name: "http", Host: 8200}},
 		HealthChecks: []HealthCheck{{Type: "http", Target: "http://127.0.0.1:${RESOURCE_PORT_HTTP}/v1/sys/health", ExpectedStatus: []int{200, 429, 472, 473}, TimeoutSeconds: 20}},
 	}
-	plan := &Plan{SchemaVersion: "v2", Resources: []Item{{RequestedResource: "vault", Resource: "vault", OS: runtimeOS(), Architecture: runtime.GOARCH, Mode: "bundled-service", Support: "conditional", Service: service}}}
+	plan := &Plan{SchemaVersion: "v3", Resources: []Item{{RequestedResource: "vault", Resource: "vault", OS: runtimeOS(), Architecture: runtime.GOARCH, Mode: "bundled-service", Support: "conditional", Privilege: "user", Bundling: "vendorable", Service: service}}}
 	start := func(appDataDir string) (*ServiceSupervisor, map[string]string) {
 		t.Helper()
 		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)

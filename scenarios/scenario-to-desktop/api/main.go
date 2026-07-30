@@ -219,7 +219,7 @@ func NewServer(port int) *Server {
 
 	// Wire screen recording into smoke test service
 	smokeTestExecutor := smoketest.NewProcessExecutor(smokeTestLogger)
-	recorder := screenrecording.NewRecorder(&screenrecordingExecutorAdapter{executor: smokeTestExecutor})
+	recorder := screenrecording.NewSystemRecorder(&screenrecordingExecutorAdapter{executor: smokeTestExecutor})
 	displayMgr := screenrecording.NewDisplayManager()
 	smokeTestService.WithRecording(recorder, displayMgr)
 
@@ -243,7 +243,7 @@ func NewServer(port int) *Server {
 	capturesService, capturesHandler := initCapturesDomain(storePaths, logger)
 
 	// Live desktop domain (interactive VNC sessions)
-	linuxBackend := livedesktop.NewLinuxBackend(logger)
+	linuxBackend := livedesktop.NewBackend(logger)
 	liveDesktopStore := livedesktop.NewInMemoryStore()
 	liveDesktopService := livedesktop.NewService(liveDesktopStore, linuxBackend, logger, vrooliRoot)
 	liveDesktopDataDir, err := storePaths.EnsureLiveDesktopDir()

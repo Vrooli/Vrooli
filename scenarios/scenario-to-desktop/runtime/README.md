@@ -47,7 +47,7 @@ flowchart TB
     end
 
     subgraph Storage["Persistent Storage"]
-        SFILE[secrets.json]
+        SSTORE[Native OS credential store]
         MFILE[migrations.json]
         TFILE[telemetry.jsonl]
         LOGS[Service Logs]
@@ -72,7 +72,7 @@ flowchart TB
 
     HEALTH --> SVC1 & SVC2 & SVC3
 
-    SECRETS --> SFILE
+    SECRETS --> SSTORE
     MIG --> MFILE
     TEL --> TFILE
     SVC1 & SVC2 & SVC3 --> LOGS

@@ -226,6 +226,16 @@ func (p *DefaultPackager) Package(appPath, manifestPath, framework string, reque
 	}
 	copied = append(copied, svcCopied...)
 
+	// Desktop applications do not receive VROOLI_ROOT. Stage a deliberately
+	// narrow, read-only manifest catalog so manifest-driven applications (such
+	// as Vrooli Onboarding) remain functional without copying a working tree or
+	// any operator configuration into the artifact.
+	catalogCopied, err := p.stageManifestCatalog(paths.appAbs, bundleDir)
+	if err != nil {
+		return nil, err
+	}
+	copied = append(copied, catalogCopied...)
+
 	if err := p.stageCLIHelpers(platforms, bundleDir); err != nil {
 		return nil, err
 	}
@@ -260,6 +270,54 @@ func (p *DefaultPackager) Package(appPath, manifestPath, framework string, reque
 		TotalSizeHuman:  HumanReadableSize(totalSize),
 		SizeWarning:     sizeWarning,
 	}, nil
+}
+
+// stageManifestCatalog copies only declarative service and resource manifests
+// from a repository-shaped scenario path. It intentionally excludes every
+// config directory, generated file, and secret-bearing operator state.
+// Synthetic and standalone scenarios have no repository catalog and simply
+// receive no catalog.
+func (p *DefaultPackager) stageManifestCatalog(appPath, bundleDir string) ([]string, error) {
+	scenariosRoot := filepath.Dir(appPath)
+	if filepath.Base(scenariosRoot) != "scenarios" {
+		return nil, nil
+	}
+	repoRoot := filepath.Dir(scenariosRoot)
+	resourcesRoot := filepath.Join(repoRoot, "resources")
+	if info, err := os.Stat(resourcesRoot); err != nil || !info.IsDir() {
+		return nil, nil
+	}
+
+	var copied []string
+	for _, root := range []struct {
+		source string
+		file   string
+	}{
+		{source: scenariosRoot, file: filepath.Join(".vrooli", "service.json")},
+		{source: resourcesRoot, file: "resource.json"},
+	} {
+		entries, err := os.ReadDir(root.source)
+		if err != nil {
+			return nil, fmt.Errorf("read manifest catalog %s: %w", root.source, err)
+		}
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			src := filepath.Join(root.source, entry.Name(), root.file)
+			if _, err := os.Stat(src); os.IsNotExist(err) {
+				continue
+			} else if err != nil {
+				return nil, fmt.Errorf("stat manifest catalog entry %s: %w", src, err)
+			}
+			dst := filepath.Join(bundleDir, "catalog", filepath.Base(root.source), entry.Name(), root.file)
+			if err := p.fileOps.CopyFile(src, dst); err != nil {
+				return nil, fmt.Errorf("copy manifest catalog entry %s: %w", src, err)
+			}
+			copied = append(copied, dst)
+		}
+	}
+	return copied, nil
 }
 
 // stageServiceBinaries resolves or compiles binaries for a single service across all requested platforms,

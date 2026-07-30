@@ -76,6 +76,45 @@ func TestPackagerPackageStagesManifestServiceAndRuntime(t *testing.T) {
 	}
 }
 
+func TestStageManifestCatalogCopiesOnlyDeclarativeManifests(t *testing.T) {
+	repo := t.TempDir()
+	app := filepath.Join(repo, "scenarios", "onboarding")
+	for path, content := range map[string]string{
+		"scenarios/onboarding/.vrooli/service.json": `{"service":{"name":"onboarding"}}`,
+		"scenarios/other/.vrooli/service.json":      `{"service":{"name":"other"}}`,
+		"resources/openrouter/resource.json":        `{"credentials":{"descriptors":[]}}`,
+		"resources/openrouter/config/private.json":  `{"must_not_ship":true}`,
+	} {
+		full := filepath.Join(repo, path)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	bundleDir := filepath.Join(t.TempDir(), "bundle")
+	copied, err := NewPackager().stageManifestCatalog(app, bundleDir)
+	if err != nil {
+		t.Fatalf("stage manifest catalog: %v", err)
+	}
+	if len(copied) != 3 {
+		t.Fatalf("copied %d catalog files, want 3: %v", len(copied), copied)
+	}
+	for _, path := range []string{
+		filepath.Join(bundleDir, "catalog", "scenarios", "onboarding", ".vrooli", "service.json"),
+		filepath.Join(bundleDir, "catalog", "scenarios", "other", ".vrooli", "service.json"),
+		filepath.Join(bundleDir, "catalog", "resources", "openrouter", "resource.json"),
+	} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("expected catalog file %s: %v", path, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(bundleDir, "catalog", "resources", "openrouter", "config", "private.json")); !os.IsNotExist(err) {
+		t.Fatalf("non-manifest configuration shipped in catalog: %v", err)
+	}
+}
+
 func TestResolvePackagePathsAndManifestValidationRejectUnsafeInputs(t *testing.T) {
 	if _, err := resolvePackagePaths("", "manifest.json", nil); err == nil {
 		t.Fatal("expected required path error")

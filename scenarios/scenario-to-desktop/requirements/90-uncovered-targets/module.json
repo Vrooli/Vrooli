@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Explicit planned requirements for operational targets that are not yet implemented or backed by live test evidence.",
-    "last_validated_at": "2026-07-28T00:55:00-04:00",
+    "last_validated_at": "2026-07-30T10:42:33-04:00",
     "module": "uncovered-targets",
     "schema_version": "1.0.0"
   },
@@ -29,7 +29,6 @@
       "status": "planned",
       "prd_ref": "OT-P1-001",
       "criticality": "P1",
-      "delivery_scope": "roadmap",
       "description": "For each supported signing platform, the release pipeline shall produce a platform-appropriate signed artifact and complete the required notarization step where the platform requires it.",
       "validation": [
         {
@@ -45,7 +44,6 @@
       "status": "planned",
       "prd_ref": "OT-P1-002",
       "criticality": "P1",
-      "delivery_scope": "roadmap",
       "description": "When a release is approved for a configured store, the distribution pipeline shall produce the store submission artifact and record the provider response as deployment evidence.",
       "validation": [
         {
@@ -61,7 +59,6 @@
       "status": "planned",
       "prd_ref": "OT-P1-003",
       "criticality": "P1",
-      "delivery_scope": "roadmap",
       "description": "When a generated application opens or restores multiple windows, it shall persist the declared window state and route communication only through the approved Electron IPC boundary.",
       "validation": [
         {
@@ -77,7 +74,6 @@
       "status": "planned",
       "prd_ref": "OT-P1-004",
       "criticality": "P1",
-      "delivery_scope": "roadmap",
       "description": "When a generated application runs, it shall record the approved performance and build telemetry with the configured privacy boundary and expose it to authorized operators.",
       "validation": [
         {
@@ -93,7 +89,6 @@
       "status": "planned",
       "prd_ref": "OT-P1-005",
       "criticality": "P1",
-      "delivery_scope": "roadmap",
       "description": "When an enterprise distribution profile is selected, the pipeline shall produce the configured installer format and support its documented unattended-install contract.",
       "validation": [
         {
@@ -109,7 +104,6 @@
       "status": "planned",
       "prd_ref": "OT-P2-001",
       "criticality": "P2",
-      "delivery_scope": "roadmap",
       "description": "The system may provide an operator interface that composes a desktop application configuration from supported scenarios, templates, and deployment options.",
       "validation": [
         {
@@ -125,7 +119,6 @@
       "status": "planned",
       "prd_ref": "OT-P2-002",
       "criticality": "P2",
-      "delivery_scope": "roadmap",
       "description": "The system may load versioned template feature packs only when their declared capabilities, integrity metadata, and compatibility constraints are satisfied.",
       "validation": [
         {
@@ -141,7 +134,6 @@
       "status": "planned",
       "prd_ref": "OT-P2-003",
       "criticality": "P2",
-      "delivery_scope": "roadmap",
       "description": "When kiosk controls are enabled, the generated application may enforce the configured hardware restrictions and provide authorized remote-control operations with auditable evidence.",
       "validation": [
         {

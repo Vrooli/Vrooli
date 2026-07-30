@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -152,9 +154,21 @@ func (o *osvScanner) Scan(ctx context.Context, scenarioDir string, _ Substrate) 
 // run executes osv-scanner and parses its JSON report. Exposed within the
 // package so the dependencies domain can call it for vuln annotation.
 func (o *osvScanner) run(ctx context.Context, scenarioDir string) (OSVReport, error) {
-	// -r recurses into subdirectories; --format json emits the structured
-	// report. osv-scanner exits non-zero when vulns are found.
-	args := []string{"scan", "--format", "json", "-r", "."}
+	lockfiles, err := discoverOSVLockfiles(scenarioDir)
+	if err != nil {
+		return OSVReport{}, err
+	}
+	if len(lockfiles) == 0 {
+		return OSVReport{}, nil
+	}
+
+	// Scan only first-party dependency manifests. Recursive scanning would also
+	// read package-manager fixtures bundled below node_modules, producing CVEs
+	// that cannot affect the scenario's resolved dependency graph.
+	args := []string{"scan", "--format", "json"}
+	for _, lockfile := range lockfiles {
+		args = append(args, "--lockfile", lockfile)
+	}
 	stdout, stderr, _, err := o.cmd.Run(ctx, scenarioDir, "osv-scanner", args...)
 	if err != nil {
 		return OSVReport{}, fmt.Errorf("osv-scanner failed to run: %w", err)
@@ -172,6 +186,45 @@ func (o *osvScanner) run(ctx context.Context, scenarioDir string) (OSVReport, er
 		return OSVReport{}, fmt.Errorf("parse osv-scanner json: %w", err)
 	}
 	return report, nil
+}
+
+var osvLockfileNames = map[string]struct{}{
+	"go.mod":              {},
+	"pnpm-lock.yaml":      {},
+	"package-lock.json":   {},
+	"yarn.lock":           {},
+	"npm-shrinkwrap.json": {},
+}
+
+// discoverOSVLockfiles returns the scenario-owned manifests that describe its
+// dependency graph. It deliberately uses the same excluded directories as
+// substrate discovery, so installed dependencies and build artifacts never
+// become scanner inputs.
+func discoverOSVLockfiles(scenarioDir string) ([]string, error) {
+	var lockfiles []string
+	err := filepath.WalkDir(scenarioDir, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return nil
+		}
+		if entry.IsDir() {
+			if _, skip := skipDirs[entry.Name()]; skip {
+				return filepath.SkipDir
+			}
+			if path != scenarioDir && strings.HasPrefix(entry.Name(), ".") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if _, ok := osvLockfileNames[entry.Name()]; ok {
+			lockfiles = append(lockfiles, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(lockfiles)
+	return lockfiles, nil
 }
 
 // osvGroupMaxSeverity returns the highest max_severity (CVSS score string)

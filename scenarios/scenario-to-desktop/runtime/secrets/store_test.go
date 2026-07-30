@@ -1,10 +1,8 @@
 package secrets
 
 import (
-	"path/filepath"
 	"testing"
 
-	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/testutil"
 )
@@ -22,7 +20,7 @@ func TestManagerLoad_MissingFile(t *testing.T) {
 	}
 }
 
-func TestManagerLoad_NewFormat(t *testing.T) {
+func TestManagerLoad_IgnoresRetiredWrappedFile(t *testing.T) {
 	mockFS := testutil.NewMockFileSystem()
 	mockFS.Files["/app/data/secrets.json"] = []byte(`{"secrets": {"API_KEY": "secret123", "DB_PASS": "password"}}`)
 
@@ -32,18 +30,12 @@ func TestManagerLoad_NewFormat(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if len(secrets) != 2 {
-		t.Errorf("Load() returned %d secrets, want 2", len(secrets))
-	}
-	if secrets["API_KEY"] != "secret123" {
-		t.Errorf("secrets[API_KEY] = %q, want %q", secrets["API_KEY"], "secret123")
-	}
-	if secrets["DB_PASS"] != "password" {
-		t.Errorf("secrets[DB_PASS] = %q, want %q", secrets["DB_PASS"], "password")
+	if len(secrets) != 0 {
+		t.Fatalf("retired wrapped file was read: %v", secrets)
 	}
 }
 
-func TestManagerLoad_LegacyFormat(t *testing.T) {
+func TestManagerLoad_IgnoresRetiredFlatFile(t *testing.T) {
 	mockFS := testutil.NewMockFileSystem()
 	mockFS.Files["/app/data/secrets.json"] = []byte(`{"API_KEY": "legacy_key"}`)
 
@@ -53,16 +45,13 @@ func TestManagerLoad_LegacyFormat(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if secrets["API_KEY"] != "legacy_key" {
-		t.Errorf("secrets[API_KEY] = %q, want %q", secrets["API_KEY"], "legacy_key")
+	if len(secrets) != 0 {
+		t.Fatalf("retired flat file was read: %v", secrets)
 	}
 }
 
-func TestManagerPersist(t *testing.T) {
-	tmp := t.TempDir()
-	secretsPath := filepath.Join(tmp, "subdir", "secrets.json")
-
-	sm := NewManager(&manifest.Manifest{}, infra.RealFileSystem{}, secretsPath)
+func TestManagerPersistKeepsExplicitInMemoryState(t *testing.T) {
+	sm := NewManager(&manifest.Manifest{}, testutil.NewMockFileSystem(), "/retired/secrets.json")
 
 	secrets := map[string]string{
 		"API_KEY": "test_key",

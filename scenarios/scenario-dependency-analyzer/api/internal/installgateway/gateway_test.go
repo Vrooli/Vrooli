@@ -27,6 +27,7 @@ func TestResolveBuildsArgvPerEcosystem(t *testing.T) {
 	mkSurface(t, repoRoot, "demo", "api", map[string]string{"go.mod": "module demo\n"})
 	mkSurface(t, repoRoot, "demo", "cli", map[string]string{"requirements.txt": ""})
 	mkSurface(t, repoRoot, "demo", "tools/mermaid-lint", map[string]string{"pnpm-lock.yaml": "", "package.json": "{}"})
+	mkSurface(t, repoRoot, "demo", "platforms/electron", map[string]string{"package-lock.json": "", "package.json": "{}"})
 
 	cases := []struct {
 		surface, ecosystem, pkg, version string
@@ -38,6 +39,7 @@ func TestResolveBuildsArgvPerEcosystem(t *testing.T) {
 		{"api", "go", "github.com/foo/bar", "v1.2.3", "go", "go get github.com/foo/bar@v1.2.3"},
 		{"cli", "pip", "requests", "2.31.0", "pip", "pip install requests==2.31.0"},
 		{"tools/mermaid-lint", "npm", "mermaid", "11.13.0", "pnpm", "pnpm add mermaid@11.13.0"},
+		{"platforms/electron", "npm", "brace-expansion", "^5.0.8", "npm", "npm install brace-expansion@^5.0.8"},
 	}
 	for _, tc := range cases {
 		r, err := Resolve(repoRoot, "demo", tc.surface, tc.ecosystem, tc.pkg, tc.version)
@@ -67,6 +69,41 @@ func TestResolveAddsPnpmWorkspaceRootForSurfaceWorkspace(t *testing.T) {
 	}
 	if r.Command() != "pnpm add --workspace-root helmet@^6.1.0" {
 		t.Fatalf("command = %q", r.Command())
+	}
+}
+
+func TestResolveNpmOverrideAndPersistOverride(t *testing.T) {
+	repoRoot := t.TempDir()
+	mkSurface(t, repoRoot, "demo", "ui", map[string]string{
+		"package.json":        `{"name":"demo"}`,
+		"pnpm-lock.yaml":      "",
+		"pnpm-workspace.yaml": "packages:\n  - .\n",
+	})
+
+	r, err := ResolveNpmOverride(repoRoot, "demo", "ui")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Command() != "pnpm install --workspace-root" {
+		t.Fatalf("command = %q", r.Command())
+	}
+	if err := SetNpmOverride(r.ManifestPath, "minimatch", "^10.2.6"); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(r.ManifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"minimatch": "^10.2.6"`) {
+		t.Fatalf("override was not recorded: %s", data)
+	}
+}
+
+func TestResolveNpmOverrideRejectsNonPnpmSurface(t *testing.T) {
+	repoRoot := t.TempDir()
+	mkSurface(t, repoRoot, "demo", "platforms/electron", map[string]string{"package.json": "{}", "package-lock.json": ""})
+	if _, err := ResolveNpmOverride(repoRoot, "demo", "platforms/electron"); err == nil {
+		t.Fatal("expected npm override to reject an npm-lock surface")
 	}
 }
 
@@ -129,6 +166,9 @@ func TestResolveRejectsBadSurfaceAndEcosystem(t *testing.T) {
 	}
 	if _, err := Resolve(repoRoot, "demo", "tools", "npm", "x", ""); err == nil {
 		t.Fatal("expected tools root to be rejected; a tools package is required")
+	}
+	if _, err := Resolve(repoRoot, "demo", "platforms", "npm", "x", ""); err == nil {
+		t.Fatal("expected platforms root to be rejected; a platform package is required")
 	}
 	if _, err := Resolve(repoRoot, "demo", "tools/../api", "npm", "x", ""); err == nil {
 		t.Fatal("expected tools traversal to be rejected")

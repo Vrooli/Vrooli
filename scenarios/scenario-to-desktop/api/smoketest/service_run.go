@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"os"
 	"path/filepath"
 	"scenario-to-desktop-api/procmetrics"
 	"scenario-to-desktop-api/screenrecording"
@@ -123,11 +124,13 @@ func (s *DefaultService) setupScreenRecording(ctx context.Context, smokeTestID s
 	}
 
 	cID, err := s.recorder.StartCapture(ctx, screenrecording.CaptureConfig{
-		Display:    displayID,
-		Width:      width,
-		Height:     height,
-		FPS:        fps,
-		OutputPath: "", // let FFmpeg resource choose path
+		Display: displayID,
+		Width:   width,
+		Height:  height,
+		FPS:     fps,
+		// Supplying an explicit, durable path makes the built-in ffmpeg fallback
+		// and the resource-backed recorder produce the same evidence contract.
+		OutputPath: filepath.Join(os.TempDir(), "vrooli-screen-recordings", smokeTestID+".mp4"),
 	})
 	if err != nil {
 		s.logger.Warn("screen_recording_start_failed", "smoke_test_id", smokeTestID, "error", err.Error())

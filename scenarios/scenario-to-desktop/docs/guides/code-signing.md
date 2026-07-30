@@ -2,6 +2,17 @@
 
 This guide explains what must be signed for each platform, which OS can perform the signing, how to obtain certificates/keys, and how to configure signing in scenario-to-desktop.
 
+## Before installer signing: release trust
+
+Release trust is a separate, earlier gate for bundled resource bytes. It does
+not affect whether Windows, macOS, or Linux recognizes an installer publisher.
+For a local evidence build, provide a verified staged artifact root and choose
+`--artifact-trust-mode development-local`; the resulting bundle is visibly
+non-promotable and deployment/publishing is refused. Production instead uses
+`--artifact-trust-mode production`, which requires a valid detached
+`release-manifest.sig.json` from the external Vrooli release authority before
+packaging begins. Neither mode creates or requires an OS code-signing key.
+
 ## Platform Summary (What to Sign, Where to Sign, Cost/Keys, Reuse)
 
 | Platform | What is signed | Where you must sign | Keys/certs & cost | Can reuse across scenarios? |

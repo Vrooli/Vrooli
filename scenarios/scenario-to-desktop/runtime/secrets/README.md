@@ -4,7 +4,7 @@ The `secrets` package handles secure storage, retrieval, and injection of secret
 
 ## Overview
 
-Desktop applications often need API keys, database passwords, and other sensitive values. This package manages the full secret lifecycle: prompting users, persisting to disk, and injecting into service processes via environment variables or files.
+Desktop applications often need API keys, database passwords, and other sensitive values. This package manages the full secret lifecycle: prompting users, persisting through Vrooli's native OS credential authority, and injecting values into service processes via environment variables or explicitly declared files.
 
 ## Key Types
 
@@ -47,9 +47,12 @@ type Store interface {
 ## Usage
 
 ```go
-// Create manager
-secretsPath := filepath.Join(appData, "secrets.json")
-manager := secrets.NewManager(manifest, fs, secretsPath)
+// Create the production manager. It fails closed when the native credential
+// authority is unavailable.
+manager, err := secrets.NewNativeManager(manifest)
+if err != nil {
+    return err
+}
 
 // Load persisted secrets
 loaded, err := manager.Load()
@@ -88,23 +91,22 @@ Secrets can be injected as:
 | `env` | Environment variable | `API_KEY=secret123` |
 | `file` | Written to file | `/app/data/.credentials` |
 
-## Storage Format
+## Storage
 
-Secrets are stored in `secrets.json`:
+Production secrets are stored only by the Vrooli credential authority, which
+uses the native OS credential store. The runtime never reads or writes a
+`secrets.json` file during normal operation.
 
-```json
-{
-  "API_KEY": "sk-xxx...",
-  "DB_PASSWORD": "hunter2"
-}
-```
-
-File permissions are set to `0600` (owner read/write only).
+`MigrateLegacyFile` is the sole compatibility path for an older JSON file. It
+requires an explicit source path, imports only secret IDs declared in the
+desktop manifest, verifies the native write, and leaves the source intact
+unless the caller explicitly requests deletion after a successful import.
 
 ## Security Considerations
 
-- Secrets file is stored in user config directory
-- File permissions restrict access to current user
+- Production values are never persisted in the desktop app data directory
+- Native-store unavailability is a startup/configuration error; there is no
+  plaintext fallback
 - Secrets are never logged or included in telemetry
 - Memory is not explicitly zeroed (Go limitation)
 

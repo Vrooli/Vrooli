@@ -76,6 +76,7 @@ func TestPipelineConfigFromContext_BuildsTypedReleaseRequest(t *testing.T) {
 			"deployment-mode":        "proxy",
 			"location-mode":          "staging",
 			"resource-artifact-root": "/verified/artifacts",
+			"artifact-trust-mode":    "development-local",
 			"version":                "1.2.3",
 		},
 		BoolFlags: map[string]bool{"clean": true},
@@ -94,7 +95,7 @@ func TestPipelineConfigFromContext_BuildsTypedReleaseRequest(t *testing.T) {
 	if got, want := config.GetStages(), []sharedv1.StageName{sharedv1.StageName_STAGE_NAME_BUNDLE, sharedv1.StageName_STAGE_NAME_PREFLIGHT, sharedv1.StageName_STAGE_NAME_SMOKE_TEST}; !equalStages(got, want) {
 		t.Errorf("stages = %v, want %v", got, want)
 	}
-	if config.GetDeploymentMode() != sharedv1.DeploymentMode_DEPLOYMENT_MODE_PROXY || config.GetLocationMode() != "staging" || config.GetResourceArtifactRoot() != "/verified/artifacts" || !config.GetClean() || config.GetVersion() != "1.2.3" {
+	if config.GetDeploymentMode() != sharedv1.DeploymentMode_DEPLOYMENT_MODE_PROXY || config.GetLocationMode() != "staging" || config.GetResourceArtifactRoot() != "/verified/artifacts" || config.GetArtifactTrustMode() != "development-local" || !config.GetClean() || config.GetVersion() != "1.2.3" {
 		t.Errorf("unexpected config: %+v", config)
 	}
 }

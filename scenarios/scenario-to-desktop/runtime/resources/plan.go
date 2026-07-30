@@ -18,8 +18,10 @@ import (
 )
 
 type Plan struct {
-	SchemaVersion string `json:"schema_version"`
-	Resources     []Item `json:"resources"`
+	SchemaVersion     string `json:"schema_version"`
+	ArtifactTrustMode string `json:"artifact_trust_mode,omitempty"`
+	Promotable        bool   `json:"promotable"`
+	Resources         []Item `json:"resources"`
 }
 type Item struct {
 	RequestedResource string     `json:"requested_resource"`
@@ -28,6 +30,8 @@ type Item struct {
 	Architecture      string     `json:"architecture"`
 	Mode              string     `json:"mode"`
 	Support           string     `json:"support"`
+	Privilege         string     `json:"privilege"`
+	Bundling          string     `json:"bundling"`
 	Requires          []string   `json:"requires,omitempty"`
 	Limitations       []string   `json:"limitations,omitempty"`
 	Evidence          []string   `json:"evidence,omitempty"`
@@ -84,7 +88,7 @@ func Load(bundleRoot string) (*Plan, error) {
 	path := filepath.Join(bundleRoot, "resource-deployment-plan.json")
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
-		return &Plan{SchemaVersion: "v2"}, nil
+		return &Plan{SchemaVersion: "v4"}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("read resource deployment plan: %w", err)
@@ -93,7 +97,7 @@ func Load(bundleRoot string) (*Plan, error) {
 	if err := json.Unmarshal(data, &plan); err != nil {
 		return nil, fmt.Errorf("parse resource deployment plan: %w", err)
 	}
-	if plan.SchemaVersion != "v2" {
+	if plan.SchemaVersion != "v3" && plan.SchemaVersion != "v4" {
 		return nil, fmt.Errorf("unsupported resource deployment plan version %q", plan.SchemaVersion)
 	}
 	for _, item := range plan.Resources {
@@ -137,6 +141,12 @@ func validateItem(item Item) error {
 	}
 	if item.Support == "unsupported" {
 		return fmt.Errorf("resolved resource %s is unsupported", item.RequestedResource)
+	}
+	if item.Privilege != "none" && item.Privilege != "user" && item.Privilege != "elevated" {
+		return fmt.Errorf("resource %s has unknown privilege %q", item.Resource, item.Privilege)
+	}
+	if item.Bundling != "vendorable" && item.Bundling != "host-required" && item.Bundling != "prohibited" {
+		return fmt.Errorf("resource %s has unknown bundling policy %q", item.Resource, item.Bundling)
 	}
 	switch item.Mode {
 	case "bundled-client", "bundled-service", "docker-desktop", "native-host-tool", "remote-service", "manual":

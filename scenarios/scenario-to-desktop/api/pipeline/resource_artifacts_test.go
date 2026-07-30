@@ -45,7 +45,7 @@ func TestStageBundledResourceArtifactsStagesVerifiedArtifactsAndPlan(t *testing.
 	writeTestReleaseSignature(t, root, artifactRoot, checksumData)
 
 	bundleDir := filepath.Join(root, "bundle")
-	plan, err := resolveResourceDeploymentPlan(scenarioPath, artifactRoot, []string{"linux-amd64"})
+	plan, err := resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot, []string{"linux-amd64"}, resourcedeployment.ArtifactTrustProduction)
 	mustNoError(t, err, "resolve plan")
 	copied, err := stageBundledResourceArtifacts(bundleDir, artifactRoot, plan)
 	mustNoError(t, err, "stage artifacts")
@@ -87,7 +87,7 @@ func TestStageBundledServiceStagesSeparatelyPinnedServer(t *testing.T) {
 	mustWriteFile(t, filepath.Join(artifactRoot, "SHA256SUMS"), checksumData, 0o644)
 	writeTestReleaseSignature(t, root, artifactRoot, checksumData)
 
-	plan, err := resolveResourceDeploymentPlan(scenarioPath, artifactRoot, []string{"linux-amd64"})
+	plan, err := resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot, []string{"linux-amd64"}, resourcedeployment.ArtifactTrustProduction)
 	mustNoError(t, err, "resolve plan")
 	item := plan.Resources[0]
 	if item.Service == nil || item.Service.Artifact != serverName || len(item.Service.Files) != 1 {
@@ -179,19 +179,28 @@ func TestStageBundledResourceArtifactsRejectsChecksumMismatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeTestReleaseSignature(t, root, artifactRoot, checksumData)
-	if _, err := resolveResourceDeploymentPlan(scenarioPath, artifactRoot, []string{"linux-amd64"}); err == nil || !strings.Contains(err.Error(), "checksum mismatch") {
+	if _, err := resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot, []string{"linux-amd64"}, resourcedeployment.ArtifactTrustProduction); err == nil || !strings.Contains(err.Error(), "hash mismatch") {
 		t.Fatalf("expected checksum mismatch, got %v", err)
 	}
 }
 
-func TestLoadReleaseChecksumsExplainsMissingReleaseSignature(t *testing.T) {
+func TestProductionTrustExplainsMissingReleaseSignature(t *testing.T) {
 	artifactRoot := t.TempDir()
-	if err := os.WriteFile(filepath.Join(artifactRoot, "SHA256SUMS"), []byte(strings.Repeat("0", 64)+"  resource-vault_linux_amd64\n"), 0o644); err != nil {
+	artifactName := "resource-vault_linux_amd64"
+	if err := os.WriteFile(filepath.Join(artifactRoot, artifactName), []byte("fixture"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-
-	_, err := loadReleaseChecksums(artifactRoot, filepath.Join(artifactRoot, "vrooli-release.pub"))
-	if err == nil || !strings.Contains(err.Error(), "Vrooli release signing authority") || !strings.Contains(err.Error(), "SHA256SUMS.sig") {
+	sum := sha256.Sum256([]byte("fixture"))
+	manifest := resourcedeployment.ReleaseManifest{SchemaVersion: "v1", Artifacts: []resourcedeployment.ReleaseArtifact{{Name: artifactName, SHA256: hex.EncodeToString(sum[:]), Role: "fixture", UpstreamProvenance: "fixture"}}}
+	canonical, err := manifest.CanonicalBytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(artifactRoot, "release-manifest.json"), canonical, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = resourcedeployment.VerifyReleaseDirectory(artifactRoot, resourcedeployment.ArtifactTrustProduction, filepath.Join(artifactRoot, "vrooli-release.pub"))
+	if err == nil || !strings.Contains(err.Error(), "production release signature missing") || !strings.Contains(err.Error(), "release-manifest.sig.json") {
 		t.Fatalf("missing signature error = %v, want release-authority guidance", err)
 	}
 }
@@ -218,7 +227,7 @@ func TestResolveResourceDeploymentPlanSelectsOnlyValidatedFallback(t *testing.T)
 			t.Fatal(err)
 		}
 	}
-	plan, err := resolveResourceDeploymentPlan(scenarioPath, "", []string{"linux-amd64"})
+	plan, err := resolveResourceDeploymentPlanWithTrust(scenarioPath, "", []string{"linux-amd64"}, resourcedeployment.ArtifactTrustDevelopmentLocal)
 	if err != nil {
 		t.Fatalf("resolve fallback: %v", err)
 	}
@@ -228,7 +237,7 @@ func TestResolveResourceDeploymentPlanSelectsOnlyValidatedFallback(t *testing.T)
 	if plan.Resources[0].SelectedFallback == nil || plan.Resources[0].SelectedFallback.Resource != "fallback" || plan.Resources[0].SelectedFallback.Reason == "" {
 		t.Fatalf("fallback selection must be explicit: %#v", plan.Resources[0])
 	}
-	if _, err := resolveResourceDeploymentPlan(scenarioPath, "", []string{"windows-amd64"}); err == nil {
+	if _, err := resolveResourceDeploymentPlanWithTrust(scenarioPath, "", []string{"windows-amd64"}, resourcedeployment.ArtifactTrustDevelopmentLocal); err == nil {
 		t.Fatal("expected unsupported fallback to be rejected")
 	}
 }
@@ -242,7 +251,7 @@ func TestResolveResourceDeploymentPlanRejectsEmptyOrDuplicateTargetMatrix(t *tes
 	if err := os.WriteFile(filepath.Join(scenarioPath, ".vrooli", "service.json"), []byte(`{"dependencies":{"resources":{}}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := resolveResourceDeploymentPlan(scenarioPath, "", nil); err == nil || !strings.Contains(err.Error(), "target matrix") {
+	if _, err := resolveResourceDeploymentPlanWithTrust(scenarioPath, "", nil, resourcedeployment.ArtifactTrustDevelopmentLocal); err == nil || !strings.Contains(err.Error(), "target matrix") {
 		t.Fatalf("expected empty matrix to fail, got %v", err)
 	}
 }
@@ -263,12 +272,27 @@ func writeTestReleaseSignature(t *testing.T, root, artifactRoot string, checksum
 	if err := os.WriteFile(filepath.Join(root, "install", "vrooli-release.pub"), pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: pub}), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	digest := sha256.Sum256(checksums)
+	var artifacts []resourcedeployment.ReleaseArtifact
+	for _, line := range strings.Split(strings.TrimSpace(string(checksums)), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 2 {
+			artifacts = append(artifacts, resourcedeployment.ReleaseArtifact{Name: fields[1], SHA256: fields[0], Role: "fixture", UpstreamProvenance: "fixture"})
+		}
+	}
+	canonical, err := (resourcedeployment.ReleaseManifest{SchemaVersion: "v1", Artifacts: artifacts}).CanonicalBytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(artifactRoot, "release-manifest.json"), canonical, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(canonical)
 	signature, err := rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, digest[:])
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(artifactRoot, "SHA256SUMS.sig"), []byte(base64.StdEncoding.EncodeToString(signature)), 0o644); err != nil {
+	envelope := []byte(`{"schema_version":"v1","key_id":"fixture","algorithm":"rsa-pkcs1v15-sha256","signature":"` + base64.StdEncoding.EncodeToString(signature) + `"}`)
+	if err := os.WriteFile(filepath.Join(artifactRoot, "release-manifest.sig.json"), envelope, 0o644); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -268,6 +268,8 @@ func TestPlatformResolver_NormalizeRuntime(t *testing.T) {
 		expected string
 	}{
 		{"linux", "linux-x64"},
+		{"linux-amd64", "linux-x64"},
+		{"linux-arm64", "linux-arm64"},
 		{"mac", "darwin-x64"},
 		{"darwin", "darwin-x64"},
 		{"win", "win-x64"},

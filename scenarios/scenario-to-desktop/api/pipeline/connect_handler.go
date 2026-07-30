@@ -15,6 +15,7 @@ import (
 	pipelinev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline/pipelineconnect"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared"
+	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -320,6 +321,7 @@ func configFromProto(value *pipelinev1.PipelineConfig) (*Config, error) {
 		TemplateType:         templateTypeFromProto(value.GetTemplateType()),
 		PreflightSecrets:     value.GetPreflightSecrets(),
 		ResourceArtifactRoot: value.GetResourceArtifactRoot(),
+		ArtifactTrustMode:    resourcedeployment.ArtifactTrustMode(value.GetArtifactTrustMode()),
 		LocationMode:         value.GetLocationMode(),
 		Stages:               stagesFromProto(value.GetStages()),
 	}
@@ -379,6 +381,9 @@ func applyOptionalConfigExecutionFromProto(config *Config, value *pipelinev1.Pip
 	}
 	if value.IdempotencyKey != nil {
 		config.IdempotencyKey = value.GetIdempotencyKey()
+	}
+	if value.ArtifactTrustMode != nil {
+		config.ArtifactTrustMode = resourcedeployment.ArtifactTrustMode(value.GetArtifactTrustMode())
 	}
 }
 
@@ -475,7 +480,7 @@ func resourceDeploymentPlanToProto(value *ResourceDeploymentPlan) *pipelinev1.Re
 	if value == nil {
 		return nil
 	}
-	result := &pipelinev1.ResourceDeploymentPlan{SchemaVersion: value.SchemaVersion}
+	result := &pipelinev1.ResourceDeploymentPlan{SchemaVersion: value.SchemaVersion, ArtifactTrustMode: string(value.ArtifactTrustMode), Promotable: value.Promotable}
 	for _, resource := range value.Resources {
 		item := &pipelinev1.ResourceDeploymentPlanItem{
 			RequestedResource: resource.RequestedResource,
@@ -504,6 +509,7 @@ func resourceDeploymentPlanToProto(value *ResourceDeploymentPlan) *pipelinev1.Re
 					SharedReuseRequiresConsent: service.ProviderPolicy.SharedReuseRequiresConsent,
 					ExternalManagement:         service.ProviderPolicy.ExternalManagement,
 					ExternalAccessCapabilities: stringSlice(service.ProviderPolicy.ExternalAccessCapabilities),
+					TargetDefaults:             map[string]string{},
 				},
 				Artifact:    service.Artifact,
 				Version:     service.Version,
@@ -632,6 +638,9 @@ func applyOptionalProtoConfig(result *pipelinev1.PipelineConfig, config *Config)
 func applyOptionalProtoExecutionConfig(result *pipelinev1.PipelineConfig, config *Config) {
 	if config.ResourceArtifactRoot != "" {
 		result.ResourceArtifactRoot = stringPtr(config.ResourceArtifactRoot)
+	}
+	if config.ArtifactTrustMode != "" {
+		result.ArtifactTrustMode = stringPtr(string(config.ArtifactTrustMode))
 	}
 	if config.LocationMode != "" {
 		result.LocationMode = stringPtr(config.LocationMode)

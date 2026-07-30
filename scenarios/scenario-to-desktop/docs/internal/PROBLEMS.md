@@ -8,8 +8,9 @@ The allowlist is deliberately path-scoped and covers only reviewed non-secret
 material:
 
 - `.build-fingerprint.json` is a generated, gitignored map of source hashes.
-- `.vrooli/secrets.json` is a gitignored local-development secret store; it is
-  not tracked and is surfaced by Security Health as an informational observation.
+- Historical `.vrooli/secrets.json` files are migration inputs only. The
+  desktop runtime does not read them during normal startup; operators may use
+  the explicit native-store migration flag with separately confirmed deletion.
 - `coverage/logs/` contains generated test output, not source or deployable
   configuration.
 - `api/signing/validation/prerequisites_test.go` uses the public fake GPG key

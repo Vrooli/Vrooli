@@ -31,7 +31,18 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 		repoRoot = filepath.Dir(h.scenariosDir())
 	}
 
-	resolution, err := installgateway.Resolve(repoRoot, msg.GetScenario(), msg.GetSurface(), msg.GetEcosystem(), msg.GetPackageName(), msg.GetVersion())
+	overrideVersion := strings.TrimPrefix(strings.TrimSpace(msg.GetVersion()), "override:")
+	isNpmOverride := strings.HasPrefix(strings.TrimSpace(msg.GetVersion()), "override:")
+	var resolution installgateway.Resolution
+	var err error
+	if isNpmOverride {
+		if strings.ToLower(strings.TrimSpace(msg.GetEcosystem())) != "npm" || strings.TrimSpace(overrideVersion) == "" {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("override: requires npm and a version"))
+		}
+		resolution, err = installgateway.ResolveNpmOverride(repoRoot, msg.GetScenario(), msg.GetSurface())
+	} else {
+		resolution, err = installgateway.Resolve(repoRoot, msg.GetScenario(), msg.GetSurface(), msg.GetEcosystem(), msg.GetPackageName(), msg.GetVersion())
+	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -58,6 +69,11 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 		resp.Message = fmt.Sprintf("Dry run (%s): would run `%s` in scenarios/%s/%s. Re-run with --apply to install.",
 			verdict, resolution.Command(), msg.GetScenario(), msg.GetSurface())
 	default:
+		if isNpmOverride {
+			if err := installgateway.SetNpmOverride(resolution.ManifestPath, msg.GetPackageName(), overrideVersion); err != nil {
+				return nil, connect.NewError(connect.CodeInternal, err)
+			}
+		}
 		installer := h.installer
 		if installer == nil {
 			installer = installgateway.ExecInstaller{}
@@ -69,7 +85,11 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 			return connect.NewResponse(resp), nil
 		}
 		resp.Installed = true
-		resp.Message = fmt.Sprintf("Installed (%s): %s/%s into scenarios/%s/%s via %s.",
+		verb := "Installed"
+		if isNpmOverride {
+			verb = "Applied governed npm override"
+		}
+		resp.Message = fmt.Sprintf("%s (%s): %s/%s into scenarios/%s/%s via %s.", verb,
 			verdict, msg.GetEcosystem(), msg.GetPackageName(), msg.GetScenario(), msg.GetSurface(), resolution.PackageManager)
 		resp.NextSteps = append(resp.NextSteps,
 			fmt.Sprintf("Re-validate governance: %s deps approved validate %s", scenarioCLIName(), msg.GetScenario()),
@@ -85,6 +105,19 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 func (r *Registry) governInstall(msg *governancev1.InstallDependencyRequest, _ installgateway.Resolution) (verdict string, blocked bool, nextSteps, secNotes []string) {
 	ecosystem := strings.TrimSpace(msg.GetEcosystem())
 	pkg := strings.TrimSpace(msg.GetPackageName())
+	version := strings.TrimSpace(msg.GetVersion())
+	if strings.HasPrefix(version, "override:") {
+		version = strings.TrimSpace(strings.TrimPrefix(version, "override:"))
+	}
+	// npm aliases replace a legacy package name with a separately governed
+	// successor while preserving consumers that import the original name. The
+	// successor—not the legacy alias key—is the package whose approval and
+	// version policy must be evaluated.
+	if ecosystem == "npm" {
+		if aliasPkg, aliasVersion, ok := npmAliasTarget(version); ok {
+			pkg, version = aliasPkg, aliasVersion
+		}
+	}
 	surface := strings.ToLower(strings.TrimSpace(msg.GetSurface()))
 
 	record, found, err := r.Explain(ecosystem, pkg)
@@ -115,7 +148,7 @@ func (r *Registry) governInstall(msg *governancev1.InstallDependencyRequest, _ i
 			fmt.Sprintf("%s/%s is approved only for surfaces: %s. Install into one of those, or widen the approval.", ecosystem, pkg, strings.Join(allowed, ", ")),
 		}, secNotes
 	}
-	if v := strings.TrimSpace(msg.GetVersion()); v != "" {
+	if v := version; v != "" {
 		if decision := evaluateVersionPolicy(ecosystem, v, record.GetVersionRange(), record.GetRangePolicy()); !decision.Allowed {
 			return "out_of_range", true, []string{
 				fmt.Sprintf("Version %s is outside the approved range %s. Use a version in range, or widen it: %s deps approved widen-range %s/%s --to-major-line --apply", v, record.GetVersionRange(), scenarioCLIName(), ecosystem, pkg),
@@ -124,6 +157,22 @@ func (r *Registry) governInstall(msg *governancev1.InstallDependencyRequest, _ i
 	}
 
 	return firstNonEmpty(normalize(record.GetState()), "approved"), false, nil, secNotes
+}
+
+// npmAliasTarget parses npm's supported "npm:<package>@<version>" alias
+// specifier. Scoped package names are handled by splitting at the final @.
+func npmAliasTarget(version string) (packageName, targetVersion string, ok bool) {
+	alias := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(version), "npm:"))
+	if alias == "" || !strings.HasPrefix(strings.TrimSpace(version), "npm:") {
+		return "", "", false
+	}
+	index := strings.LastIndex(alias, "@")
+	if index <= 0 || index == len(alias)-1 {
+		return "", "", false
+	}
+	packageName = strings.TrimSpace(alias[:index])
+	targetVersion = strings.TrimSpace(alias[index+1:])
+	return packageName, targetVersion, packageName != "" && targetVersion != ""
 }
 
 // scenarioCLIName is the CLI binary that fronts this service.

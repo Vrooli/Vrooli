@@ -79,6 +79,9 @@ func TestTemplateGeneratorInterpolatesPlaceholders(t *testing.T) {
 	if !strings.Contains(mainContent, "autoUpdater") {
 		t.Fatal("generated main.ts does not include electron-updater wiring")
 	}
+	if !strings.Contains(mainContent, "await shutdownRuntime();\n            app.quit();") || !strings.Contains(mainContent, "child.kill(\"SIGKILL\")") {
+		t.Fatal("generated main.ts does not await bounded bundled-runtime shutdown before demo quit")
+	}
 }
 
 func TestTemplateGeneratorInjectsBundledRuntimeConfig(t *testing.T) {

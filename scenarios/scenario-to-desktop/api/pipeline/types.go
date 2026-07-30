@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"scenario-to-desktop-api/generation"
 	"time"
+
+	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
 // Stage names as constants for consistency.
@@ -178,6 +180,10 @@ type Config struct {
 	// package from source when this is absent.
 	ResourceArtifactRoot string `json:"resource_artifact_root,omitempty"`
 
+	// ArtifactTrustMode governs Vrooli release-manifest admission. It is
+	// independent of installer/app code signing.
+	ArtifactTrustMode resourcedeployment.ArtifactTrustMode `json:"artifact_trust_mode,omitempty"`
+
 	// Clean forces a clean build (removes existing desktop output).
 	Clean bool `json:"clean,omitempty"`
 
@@ -232,6 +238,10 @@ type Config struct {
 	// If nil, the default provider (generic) is used but auto-updates are disabled
 	// until generic.url is configured.
 	UpdateConfig *generation.UpdateConfig `json:"update_config,omitempty"`
+}
+
+func (c *Config) GetArtifactTrustMode() resourcedeployment.ArtifactTrustMode {
+	return c.ArtifactTrustMode
 }
 
 // ValidateFramework rejects framework values that the generation pipeline does

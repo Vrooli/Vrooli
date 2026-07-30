@@ -99,6 +99,17 @@ func TestDeployStage_CanSkip(t *testing.T) {
 	}
 }
 
+func TestDeployStageRejectsDevelopmentLocalBundle(t *testing.T) {
+	stage := NewDeployStage()
+	result := stage.Execute(context.Background(), &StageInput{
+		Config:                 &Config{DeployConfig: &DeployConfig{AppKey: "demo"}},
+		ResourceDeploymentPlan: &ResourceDeploymentPlan{ArtifactTrustMode: "development-local", Promotable: false},
+	})
+	if result.Status != StatusFailed || !strings.Contains(result.Error, "non-promotable") {
+		t.Fatalf("result = %#v, want development-local promotion refusal", result)
+	}
+}
+
 func TestDeployStage_Execute_NilConfig(t *testing.T) {
 	stage := NewDeployStage(WithDeployTimeProvider(newMockTP()))
 

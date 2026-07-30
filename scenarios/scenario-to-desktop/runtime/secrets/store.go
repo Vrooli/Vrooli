@@ -2,12 +2,13 @@
 package secrets
 
 import (
-	"encoding/json"
-	"path/filepath"
+	"errors"
+	"fmt"
 	"strings"
 	"sync"
 
-	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/internal/resources/securestore"
+	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
 
@@ -38,75 +39,126 @@ type Store interface {
 
 // Manager implements Store for managing secrets.
 type Manager struct {
-	manifest    *manifest.Manifest
-	fs          infra.FileSystem
-	secretsPath string
-	validator   *Validator
-	generator   *Generator
+	manifest  *manifest.Manifest
+	validator *Validator
+	generator *Generator
+	authority *credentialauthority.Authority
+	identity  credentialauthority.Identity
+	initErr   error
 
 	mu      sync.RWMutex
 	secrets map[string]string
 }
 
-// NewManager creates a new Manager with the given dependencies.
-func NewManager(m *manifest.Manifest, fs infra.FileSystem, secretsPath string) *Manager {
+// NewNativeManager creates the production desktop credential store. Values are
+// held only by the OS-native authority; the app-data directory is never a
+// credential persistence location.
+func NewNativeManager(m *manifest.Manifest) (*Manager, error) {
+	if m == nil || len(m.Secrets) == 0 {
+		return newManager(m), nil
+	}
+	authority, err := credentialauthority.NewAuthority(securestore.Default())
+	if err != nil {
+		return nil, err
+	}
+	return NewNativeManagerWithAuthority(m, authority)
+}
+
+// NewNativeManagerWithAuthority supplies the already-probed authority used by
+// a desktop runtime. It is useful to embedders that own native-store startup
+// and to deterministic tests; it never accepts a file-backed substitute.
+func NewNativeManagerWithAuthority(m *manifest.Manifest, authority *credentialauthority.Authority) (*Manager, error) {
+	if authority == nil {
+		return nil, fmt.Errorf("native credential authority is required")
+	}
+	identity, err := desktopIdentity(m)
+	if err != nil {
+		return nil, err
+	}
+	manager := newManager(m)
+	manager.authority = authority
+	manager.identity = identity
+	return manager, nil
+}
+
+// NewUnavailableManager preserves a useful runtime error when the platform
+// cannot provide a native authority. It intentionally does not fall back to a
+// file, environment variable, or legacy secrets reader.
+func NewUnavailableManager(m *manifest.Manifest, err error) *Manager {
+	manager := newManager(m)
+	manager.initErr = err
+	return manager
+}
+
+// NewManager creates an in-memory manager for explicitly injected test or
+// embedding flows. It deliberately ignores the historical filesystem
+// parameters: desktop credentials must be supplied through NewNativeManager.
+func NewManager(m *manifest.Manifest, _ any, _ string) *Manager {
+	return newManager(m)
+}
+
+func newManager(m *manifest.Manifest) *Manager {
 	return &Manager{
-		manifest:    m,
-		fs:          fs,
-		secretsPath: secretsPath,
-		validator:   NewValidator(m),
-		generator:   NewGenerator(),
-		secrets:     make(map[string]string),
+		manifest:  m,
+		validator: NewValidator(m),
+		generator: NewGenerator(),
+		secrets:   make(map[string]string),
 	}
 }
 
-// Load reads secrets from persistent storage.
-// Returns an empty map if the file doesn't exist.
+// Load reads credentials from native authority or returns the explicitly
+// injected in-memory values. It never reads a desktop secrets file.
 func (sm *Manager) Load() (map[string]string, error) {
 	out := map[string]string{}
-	data, err := sm.fs.ReadFile(sm.secretsPath)
-	if err != nil {
-		// Check if file doesn't exist
-		if _, statErr := sm.fs.Stat(sm.secretsPath); statErr != nil {
-			return out, nil
+	if sm.initErr != nil {
+		return nil, fmt.Errorf("native credential authority unavailable: %w", sm.initErr)
+	}
+	if sm.authority != nil {
+		for _, definition := range sm.manifest.Secrets {
+			field := strings.TrimSpace(definition.ID)
+			if field == "" {
+				return nil, fmt.Errorf("bundle credential has an empty id")
+			}
+			if err := sm.authority.Inject(sm.identity, field, field, out); err != nil {
+				if errors.Is(err, credentialauthority.ErrUnconfigured) {
+					continue
+				}
+				return nil, fmt.Errorf("read desktop credential %s: %w", field, err)
+			}
 		}
-		return nil, err
+		return out, nil
 	}
-
-	// Try new format first: {"secrets": {...}}
-	var wrapper struct {
-		Secrets map[string]string `json:"secrets"`
-	}
-	if err := json.Unmarshal(data, &wrapper); err != nil || wrapper.Secrets == nil {
-		// Fall back to legacy flat format.
-		var legacy map[string]string
-		if err2 := json.Unmarshal(data, &legacy); err2 == nil {
-			return legacy, nil
-		}
-		return nil, err
-	}
-	return wrapper.Secrets, nil
+	return sm.Get(), nil
 }
 
-// Persist saves secrets to persistent storage.
-// The file is created with 0600 permissions for security.
+// Persist writes native authority fields or updates injected in-memory values.
+// It never creates a plaintext file.
 func (sm *Manager) Persist(secrets map[string]string) error {
-	if err := sm.fs.MkdirAll(filepath.Dir(sm.secretsPath), 0o700); err != nil {
-		return err
+	if sm.initErr != nil {
+		return fmt.Errorf("native credential authority unavailable: %w", sm.initErr)
 	}
-
-	payload := struct {
-		Secrets map[string]string `json:"secrets"`
-	}{
-		Secrets: secrets,
+	if sm.authority != nil {
+		for _, definition := range sm.manifest.Secrets {
+			field := strings.TrimSpace(definition.ID)
+			if field == "" {
+				return fmt.Errorf("bundle credential has an empty id")
+			}
+			value := strings.TrimSpace(secrets[field])
+			if value == "" {
+				if err := sm.authority.Delete(sm.identity, field); err != nil {
+					return fmt.Errorf("delete desktop credential %s: %w", field, err)
+				}
+				continue
+			}
+			if err := sm.authority.Put(sm.identity, field, value); err != nil {
+				return fmt.Errorf("store desktop credential %s: %w", field, err)
+			}
+		}
+		sm.Set(secrets)
+		return nil
 	}
-
-	data, err := json.MarshalIndent(payload, "", "  ")
-	if err != nil {
-		return err
-	}
-	data = append(data, '\n')
-	return sm.fs.WriteFile(sm.secretsPath, data, 0o600)
+	sm.Set(secrets)
+	return nil
 }
 
 // Get returns a copy of the current secrets.
@@ -190,3 +242,22 @@ func (sm *Manager) GenerateMissing(existingSecrets map[string]string) (map[strin
 
 // Ensure Manager implements Store.
 var _ Store = (*Manager)(nil)
+
+func desktopIdentity(m *manifest.Manifest) (credentialauthority.Identity, error) {
+	name := "desktop-app"
+	if m != nil {
+		name = strings.ToLower(strings.TrimSpace(m.App.Name))
+	}
+	name = strings.ReplaceAll(name, " ", "-")
+	name = strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
+			return r
+		}
+		return '-'
+	}, name)
+	name = strings.Trim(name, "-.")
+	if name == "" {
+		name = "desktop-app"
+	}
+	return credentialauthority.ParseIdentity("vrooli/desktop/" + name)
+}

@@ -51,12 +51,14 @@ func (ExecInstaller) Install(ctx context.Context, r Resolution) (string, error) 
 }
 
 // allowedSurfaces is the closed set of installable top-level scenario surfaces.
-// playwright-driver is a lifecycle-managed production sidecar, while tools
-// packages are addressed as tools/<package> to keep helper installs scoped.
+// playwright-driver is a lifecycle-managed production sidecar, while tools and
+// platforms packages are addressed as tools/<package> and platforms/<package>
+// to keep auxiliary and distribution installs scoped.
 var allowedSurfaces = map[string]struct{}{"ui": {}, "api": {}, "cli": {}, "playwright-driver": {}}
 
 // Resolve maps a request to a Resolution. repoRoot is the Vrooli repo root;
-// surface is ui/api/cli/playwright-driver or tools/<package>. It validates the surface exists and that the ecosystem
+// surface is ui/api/cli/playwright-driver, tools/<package>, or platforms/<package>.
+// It validates the surface exists and that the ecosystem
 // matches the surface's detected package manager, and builds the install argv.
 func Resolve(repoRoot, scenario, surface, ecosystem, packageName, version string) (Resolution, error) {
 	surface, err := normalizedSurface(surface)
@@ -84,16 +86,67 @@ func Resolve(repoRoot, scenario, surface, ecosystem, packageName, version string
 	}, nil
 }
 
+// ResolveNpmOverride builds a lockfile-refresh plan for a governed pnpm
+// resolver override. The caller persists the override only after governance
+// accepts it, then this command regenerates the lock without hand-editing it.
+func ResolveNpmOverride(repoRoot, scenario, surface string) (Resolution, error) {
+	surface, err := normalizedSurface(surface)
+	if err != nil {
+		return Resolution{}, err
+	}
+	surfaceRoot := filepath.Join(repoRoot, "scenarios", scenario, surface)
+	if info, err := os.Stat(surfaceRoot); err != nil || !info.IsDir() {
+		return Resolution{}, fmt.Errorf("surface directory not found: scenarios/%s/%s", scenario, surface)
+	}
+	if manager := jsManager(surfaceRoot); manager != "pnpm" {
+		return Resolution{}, fmt.Errorf("npm overrides require a pnpm surface, got %s", manager)
+	}
+	argv := []string{"pnpm", "install"}
+	if fileExists(filepath.Join(surfaceRoot, "pnpm-workspace.yaml")) {
+		argv = append(argv, "--workspace-root")
+	}
+	return Resolution{SurfaceRoot: surfaceRoot, PackageManager: "pnpm", ManifestPath: filepath.Join(surfaceRoot, "package.json"), Argv: argv}, nil
+}
+
+// SetNpmOverride records a pnpm override in package.json. It intentionally
+// owns only manifest mutation; ResolveNpmOverride regenerates the lockfile.
+func SetNpmOverride(manifestPath, packageName, version string) error {
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return fmt.Errorf("read package manifest: %w", err)
+	}
+	var manifest map[string]any
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return fmt.Errorf("parse package manifest: %w", err)
+	}
+	pnpm, _ := manifest["pnpm"].(map[string]any)
+	if pnpm == nil {
+		pnpm = map[string]any{}
+		manifest["pnpm"] = pnpm
+	}
+	overrides, _ := pnpm["overrides"].(map[string]any)
+	if overrides == nil {
+		overrides = map[string]any{}
+		pnpm["overrides"] = overrides
+	}
+	overrides[packageName] = version
+	encoded, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode package manifest: %w", err)
+	}
+	return os.WriteFile(manifestPath, append(encoded, '\n'), 0o644)
+}
+
 func normalizedSurface(surface string) (string, error) {
 	surface = strings.ToLower(strings.TrimSpace(surface))
 	if _, ok := allowedSurfaces[surface]; ok {
 		return surface, nil
 	}
 	parts := strings.Split(surface, "/")
-	if len(parts) == 2 && parts[0] == "tools" && parts[1] != "" && parts[1] != "." && parts[1] != ".." && !strings.Contains(parts[1], `\\`) {
+	if len(parts) == 2 && (parts[0] == "tools" || parts[0] == "platforms") && parts[1] != "" && parts[1] != "." && parts[1] != ".." && !strings.Contains(parts[1], `\\`) {
 		return surface, nil
 	}
-	return "", fmt.Errorf("surface %q is not ui/api/cli/playwright-driver or tools/<package>", surface)
+	return "", fmt.Errorf("surface %q is not ui/api/cli/playwright-driver, tools/<package>, or platforms/<package>", surface)
 }
 
 // planForEcosystem builds the package manager, manifest path, and install argv

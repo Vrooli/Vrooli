@@ -195,6 +195,9 @@ func pipelineConfigFromContext(ctx cliapp.OperationContext) (*pipelinev1.Pipelin
 	if value := strings.TrimSpace(ctx.Flag("resource-artifact-root")); value != "" {
 		config.ResourceArtifactRoot = &value
 	}
+	if value := strings.TrimSpace(ctx.Flag("artifact-trust-mode")); value != "" {
+		config.ArtifactTrustMode = &value
+	}
 	if ctx.BoolFlag("clean") {
 		clean := true
 		config.Clean = &clean

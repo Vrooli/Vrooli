@@ -265,7 +265,12 @@ func resolveDependencies(opts Options, appData string) runtimeDependencies {
 		deps.portAllocator = ports.NewManager(opts.Manifest, deps.dialer)
 	}
 	if deps.secretStore == nil {
-		deps.secretStore = secrets.NewManager(opts.Manifest, deps.fileSystem, filepath.Join(appData, "secrets.json"))
+		nativeStore, err := secrets.NewNativeManager(opts.Manifest)
+		if err != nil {
+			deps.secretStore = secrets.NewUnavailableManager(opts.Manifest, err)
+		} else {
+			deps.secretStore = nativeStore
+		}
 	}
 	return deps
 }

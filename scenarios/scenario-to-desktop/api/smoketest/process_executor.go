@@ -7,10 +7,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"runtime"
-	"strconv"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -136,9 +133,7 @@ func normalizedTimeout(timeout time.Duration) time.Duration {
 func (e *DefaultProcessExecutor) executionCommand(workDir, command string, args, env []string) (*exec.Cmd, executionCapture) {
 	cmd := exec.Command(command, args...)
 	cmd.Dir = workDir
-	if runtime.GOOS != "windows" {
-		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	}
+	configureProcessGroup(cmd)
 	if len(env) > 0 {
 		cmd.Env = append(os.Environ(), env...)
 	}
@@ -185,6 +180,10 @@ func (e *DefaultProcessExecutor) waitForProcess(ctx context.Context, cmd *exec.C
 	go func() { completed <- cmd.Wait() }()
 	select {
 	case err := <-completed:
+		// The launcher can exit successfully while a descendant (notably an
+		// Electron-launched runtime) survives in its dedicated process group.
+		// Success is not a cleanup exemption: the smoke test owns that group.
+		e.cleanupExitedProcessGroup(cmd.Process.Pid)
 		return result(true), err
 	case <-ctx.Done():
 		e.terminateProcess(cmd)
@@ -195,6 +194,10 @@ func (e *DefaultProcessExecutor) waitForProcess(ctx context.Context, cmd *exec.C
 	case <-e.clock.After(e.killGracePeriod):
 		return result(false), commandContextError(ctx.Err(), timeout)
 	}
+}
+
+func (e *DefaultProcessExecutor) cleanupExitedProcessGroup(pid int) {
+	cleanupProcessGroupAfterLeaderExit(pid, e.killGracePeriod)
 }
 
 // LookPath searches for an executable in the system PATH.
@@ -208,26 +211,7 @@ func (e *DefaultProcessExecutor) terminateProcess(cmd *exec.Cmd) {
 		return
 	}
 
-	if runtime.GOOS == "windows" {
-		// Use taskkill with /T flag to kill the entire process tree
-		// /F = force, /T = tree (all child processes), /PID = process ID
-		killCmd := exec.Command("taskkill", "/F", "/T", "/PID", strconv.Itoa(cmd.Process.Pid))
-		if err := killCmd.Run(); err != nil {
-			// Fallback to direct process kill if taskkill fails
-			_ = cmd.Process.Kill()
-		}
-		return
-	}
-
-	// On Unix, kill the process group
-	pgid, err := syscall.Getpgid(cmd.Process.Pid)
-	if err == nil {
-		_ = syscall.Kill(-pgid, syscall.SIGKILL)
-		return
-	}
-
-	// Fallback to killing just the process
-	_ = cmd.Process.Kill()
+	terminateProcessTree(cmd)
 }
 
 // limitedWriter wraps a buffer and limits the amount of data written.

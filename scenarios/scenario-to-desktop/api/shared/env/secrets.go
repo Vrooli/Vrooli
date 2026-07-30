@@ -3,8 +3,6 @@ package env
 import (
 	"os"
 	"strings"
-
-	apisecrets "github.com/vrooli/api-core/secrets"
 )
 
 // SecretResolution describes where a secret value was resolved from.
@@ -14,33 +12,16 @@ type SecretResolution struct {
 	SourcePath string
 }
 
-// ResolveSecret resolves a secret using the standard order:
-// 1) environment variable, 2) ~/.vrooli/secrets.json, 3) empty string.
+// ResolveSecret reads a process-scoped value injected by the deployment host.
+// Durable credentials remain owned by the Vrooli control plane.
 func ResolveSecret(key string) string {
 	return ResolveSecretWithSource(key).Value
 }
 
-// ResolveSecretWithSource resolves a secret and reports where it came from.
 func ResolveSecretWithSource(key string) SecretResolution {
-	store, err := apisecrets.NewUserStore(apisecrets.Config{
-		EnvLookup: os.Getenv,
-	})
-	if err != nil {
-		if value := strings.TrimSpace(os.Getenv(key)); value != "" {
-			return SecretResolution{
-				Value:  value,
-				Source: apisecrets.SourceEnv,
-			}
-		}
-		return SecretResolution{Source: apisecrets.SourceMissing}
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return SecretResolution{Source: "missing"}
 	}
-	resolved, err := store.Resolve(key)
-	if err != nil {
-		return SecretResolution{Source: apisecrets.SourceMissing}
-	}
-	return SecretResolution{
-		Value:      resolved.Value,
-		Source:     resolved.Source,
-		SourcePath: resolved.SourcePath,
-	}
+	return SecretResolution{Value: value, Source: "process"}
 }

@@ -15,6 +15,7 @@ import (
 
 	bundleruntime "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/secrets"
 )
 
 func main() {
@@ -26,11 +27,15 @@ func main() {
 	var appData string
 	var bundleRoot string
 	var dryRun bool
+	var migrateLegacySecrets string
+	var deleteMigratedSecrets bool
 
 	flag.StringVar(&manifestPath, "manifest", "bundle.json", "Path to bundle.json")
 	flag.StringVar(&appData, "app-data", "", "Override app data directory (defaults to OS config dir + app name)")
 	flag.StringVar(&bundleRoot, "bundle-root", "", "Root directory containing bundle assets; defaults to manifest directory")
 	flag.BoolVar(&dryRun, "dry-run", false, "Skip launching service binaries (control API + validation only)")
+	flag.StringVar(&migrateLegacySecrets, "migrate-legacy-secrets", "", "Explicit path to a retired desktop secrets file to import into native storage")
+	flag.BoolVar(&deleteMigratedSecrets, "delete-migrated-secrets", false, "Delete --migrate-legacy-secrets only after a successful native import")
 	flag.Parse()
 
 	absManifest, err := filepath.Abs(manifestPath)
@@ -50,13 +55,33 @@ func main() {
 	if bundleRoot == "" {
 		bundleRoot = filepath.Dir(absManifest)
 	}
+	if deleteMigratedSecrets && migrateLegacySecrets == "" {
+		log.Fatal("--delete-migrated-secrets requires --migrate-legacy-secrets")
+	}
 
-	supervisor, err := bundleruntime.NewSupervisor(bundleruntime.Options{
+	var nativeStore *secrets.Manager
+	if migrateLegacySecrets != "" {
+		nativeStore, err = secrets.NewNativeManager(m)
+		if err != nil {
+			log.Fatalf("initialize native credential authority: %v", err)
+		}
+		report, err := nativeStore.MigrateLegacyFile(migrateLegacySecrets, deleteMigratedSecrets)
+		if err != nil {
+			log.Fatalf("migrate legacy credentials: %v", err)
+		}
+		fmt.Printf("migrated %d desktop credential(s); source_deleted=%t\n", len(report.Imported), report.SourceDeleted)
+	}
+
+	options := bundleruntime.Options{
 		AppDataDir: appData,
 		Manifest:   m,
 		BundlePath: bundleRoot,
 		DryRun:     dryRun,
-	})
+	}
+	if nativeStore != nil {
+		options.SecretStore = nativeStore
+	}
+	supervisor, err := bundleruntime.NewSupervisor(options)
 	if err != nil {
 		log.Fatalf("init supervisor: %v", err)
 	}
@@ -73,7 +98,11 @@ func main() {
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	<-sigCh
-	fmt.Println("shutdown requested")
-	_ = supervisor.Shutdown(context.Background())
+	select {
+	case <-sigCh:
+		fmt.Println("shutdown requested")
+		_ = supervisor.Shutdown(context.Background())
+	case <-supervisor.Done():
+		fmt.Println("shutdown requested by control API")
+	}
 }

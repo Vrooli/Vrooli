@@ -22,6 +22,16 @@ type stubOut struct {
 	err            error
 }
 
+type argsCapturingCommander struct {
+	stubCommander
+	args []string
+}
+
+func (c *argsCapturingCommander) Run(ctx context.Context, dir, name string, args ...string) ([]byte, []byte, int, error) {
+	c.args = append([]string(nil), args...)
+	return c.stubCommander.Run(ctx, dir, name, args...)
+}
+
 func (s stubCommander) LookPath(name string) (string, error) {
 	if s.present[name] {
 		return "/usr/bin/" + name, nil
@@ -221,13 +231,15 @@ func TestGovulncheckScanner_StdlibIsWarningThirdPartyIsError(t *testing.T) {
 func TestOSVScanner_IsAdvisoryInGate(t *testing.T) {
 	// osv-scanner findings stay INFO in the gate even for a high-CVSS CVE —
 	// govulncheck/pnpm-audit are the gating authorities.
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "api", "go.mod"), "module example.com/demo\n")
 	report := `{"results":[{"source":{"path":"go.mod"},"packages":[{"package":{"name":"foo","version":"1.0.0","ecosystem":"Go"},"vulnerabilities":[{"id":"GHSA-x","summary":"bad","database_specific":{"severity":"CRITICAL"}}],"groups":[{"ids":["GHSA-x"],"max_severity":"9.8"}]}]}]}`
 	cmd := stubCommander{
 		present: map[string]bool{"osv-scanner": true},
 		out:     map[string]stubOut{"osv-scanner": {stdout: []byte(report)}},
 	}
 	sc := newOSVScanner(cmd)
-	findings, err := sc.Scan(context.Background(), "/tmp/x", Substrate{Go: true})
+	findings, err := sc.Scan(context.Background(), dir, Substrate{Go: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -236,6 +248,32 @@ func TestOSVScanner_IsAdvisoryInGate(t *testing.T) {
 	}
 	if findings[0].Severity != SeverityInfo {
 		t.Errorf("osv findings must be advisory (INFO) in the gate, got %v", findings[0].Severity)
+	}
+}
+
+func TestOSVScanner_ScansOnlyFirstPartyLockfiles(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "api", "go.mod"), "module example.com/demo\n")
+	writeFile(t, filepath.Join(dir, "ui", "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n")
+	writeFile(t, filepath.Join(dir, "ui", "node_modules", "fixture", "package-lock.json"), "{}\n")
+	cmd := &argsCapturingCommander{stubCommander: stubCommander{
+		present: map[string]bool{"osv-scanner": true},
+		out:     map[string]stubOut{"osv-scanner": {stdout: []byte(`{"results":[]}`)}},
+	}}
+	if _, err := newOSVScanner(cmd).Scan(context.Background(), dir, Substrate{Go: true, PnpmUI: true}); err != nil {
+		t.Fatal(err)
+	}
+	got := strings.Join(cmd.args, " ")
+	if strings.Contains(got, " -r ") || strings.Contains(got, " .") {
+		t.Fatalf("osv scanner must not recurse across the scenario: %v", cmd.args)
+	}
+	if strings.Contains(got, "node_modules") {
+		t.Fatalf("osv scanner must not scan installed dependency fixtures: %v", cmd.args)
+	}
+	for _, want := range []string{"api/go.mod", "ui/pnpm-lock.yaml"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("scanner arguments %v missing first-party lockfile %s", cmd.args, want)
+		}
 	}
 }
 

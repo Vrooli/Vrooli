@@ -163,7 +163,10 @@ func (o *DefaultOrchestrator) RunPipeline(ctx context.Context, config *Config) (
 	}
 	status := o.newPipelineStatus(config)
 	o.store.Save(status)
-	pipelineCtx, cancel := context.WithCancel(ctx)
+	// A pipeline is server-owned work. Its lifetime must not be coupled to the
+	// short-lived Connect request that created it; explicit cancellation remains
+	// available through the cancel manager.
+	pipelineCtx, cancel := context.WithCancel(context.Background())
 	o.cancelManager.Set(status.PipelineID, cancel)
 	go o.runPipelineAsync(pipelineCtx, status.PipelineID, config)
 	return status, nil
@@ -385,7 +388,8 @@ func (o *DefaultOrchestrator) StartPipeline(ctx context.Context, pipelineID stri
 	})
 
 	// Create cancellable context
-	pipelineCtx, cancel := context.WithCancel(ctx)
+	// Resuming follows the same server-owned lifetime rule as a new pipeline.
+	pipelineCtx, cancel := context.WithCancel(context.Background())
 	o.cancelManager.Set(pipelineID, cancel)
 
 	// Run pipeline asynchronously

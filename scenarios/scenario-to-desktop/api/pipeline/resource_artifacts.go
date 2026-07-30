@@ -1,15 +1,9 @@
 package pipeline
 
 import (
-	"crypto"
-	"crypto/rsa"
 	"crypto/sha256"
-	"crypto/x509"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"encoding/pem"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -23,8 +17,10 @@ import (
 // is resolved before bundle packaging, staged verbatim, and consumed by the
 // desktop runtime. A resource is never silently omitted from a target.
 type ResourceDeploymentPlan struct {
-	SchemaVersion string                       `json:"schema_version"`
-	Resources     []ResourceDeploymentPlanItem `json:"resources"`
+	SchemaVersion     string                               `json:"schema_version"`
+	ArtifactTrustMode resourcedeployment.ArtifactTrustMode `json:"artifact_trust_mode"`
+	Promotable        bool                                 `json:"promotable"`
+	Resources         []ResourceDeploymentPlanItem         `json:"resources"`
 }
 
 type ResourceDeploymentPlanItem struct {
@@ -34,6 +30,8 @@ type ResourceDeploymentPlanItem struct {
 	Architecture      string                       `json:"architecture"`
 	Mode              string                       `json:"mode"`
 	Support           string                       `json:"support"`
+	Privilege         string                       `json:"privilege"`
+	Bundling          string                       `json:"bundling"`
 	Requires          []string                     `json:"requires,omitempty"`
 	Limitations       []string                     `json:"limitations,omitempty"`
 	Evidence          []string                     `json:"evidence,omitempty"`
@@ -88,7 +86,9 @@ type ResourceDeploymentServicePort struct {
 }
 
 type resourceArtifactManifest struct {
-	CLI struct {
+	Privilege string `json:"privilege"`
+	Bundling  string `json:"bundling"`
+	CLI       struct {
 		Distribution *struct {
 			Kind         string `json:"kind"`
 			ArtifactName string `json:"artifact_name"`
@@ -100,10 +100,10 @@ type resourceArtifactManifest struct {
 	Ports          []ResourceDeploymentServicePort    `json:"ports,omitempty"`
 }
 
-// resolveResourceDeploymentPlan makes every resource selection before any
-// bundle output is written. The artifact hashes are resolved here as well so
-// staging cannot change the deployment choice after the gate has passed.
-func resolveResourceDeploymentPlan(scenarioPath, artifactRoot string, platformInputs []string) (*ResourceDeploymentPlan, error) {
+// resolveResourceDeploymentPlanWithTrust makes every resource selection before
+// any bundle output is written. The artifact hashes are resolved here as well
+// so staging cannot change the deployment choice after the gate has passed.
+func resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot string, platformInputs []string, trustMode resourcedeployment.ArtifactTrustMode) (*ResourceDeploymentPlan, error) {
 	required, fallbacks, err := requiredScenarioResources(filepath.Join(scenarioPath, ".vrooli", "service.json"))
 	if err != nil {
 		return nil, err
@@ -126,7 +126,7 @@ func resolveResourceDeploymentPlan(scenarioPath, artifactRoot string, platformIn
 		platforms = append(platforms, platform)
 	}
 	checksums := map[string]string(nil)
-	plan := &ResourceDeploymentPlan{SchemaVersion: "v2"}
+	plan := &ResourceDeploymentPlan{SchemaVersion: "v4", ArtifactTrustMode: trustMode, Promotable: trustMode == resourcedeployment.ArtifactTrustProduction}
 	for _, requested := range required {
 		for _, platform := range platforms {
 			item, bundled, err := resolveResourceForTarget(root, requested, requested, fallbacks[requested], platform, map[string]bool{})
@@ -138,7 +138,7 @@ func resolveResourceDeploymentPlan(scenarioPath, artifactRoot string, platformIn
 					return nil, fmt.Errorf("resource %s uses %s on %s but resource_artifact_root is not set", item.Resource, item.Mode, platform.String())
 				}
 				if checksums == nil {
-					checksums, err = loadReleaseChecksums(artifactRoot, filepath.Join(root, "install", "vrooli-release.pub"))
+					checksums, err = loadReleaseManifestArtifacts(artifactRoot, trustMode, filepath.Join(root, "install", "vrooli-release.pub"))
 					if err != nil {
 						return nil, err
 					}
@@ -157,6 +157,18 @@ func resolveResourceDeploymentPlan(scenarioPath, artifactRoot string, platformIn
 		return plan.Resources[i].RequestedResource < plan.Resources[j].RequestedResource
 	})
 	return plan, nil
+}
+
+func loadReleaseManifestArtifacts(root string, mode resourcedeployment.ArtifactTrustMode, publicKeyPath string) (map[string]string, error) {
+	m, _, err := resourcedeployment.VerifyReleaseDirectory(root, mode, publicKeyPath)
+	if err != nil {
+		return nil, err
+	}
+	checksums := make(map[string]string, len(m.Artifacts))
+	for _, a := range m.Artifacts {
+		checksums[a.Name] = a.SHA256
+	}
+	return checksums, nil
 }
 
 func resolveResourceForTarget(root, requested, candidate string, alternatives []string, platform resourcedeployment.Platform, seen map[string]bool) (ResourceDeploymentPlanItem, bool, error) {
@@ -194,7 +206,7 @@ func resourcePlanItem(requested, candidate string, manifest *resourceArtifactMan
 	if !found || target.Support == "unsupported" {
 		return ResourceDeploymentPlanItem{}, false, false, nil
 	}
-	item := ResourceDeploymentPlanItem{RequestedResource: requested, Resource: candidate, OS: platform.OS, Architecture: platform.Arch, Mode: target.Mode, Support: target.Support, Requires: target.Requires, Limitations: target.Limitations, Evidence: target.Evidence}
+	item := ResourceDeploymentPlanItem{RequestedResource: requested, Resource: candidate, OS: platform.OS, Architecture: platform.Arch, Mode: target.Mode, Support: target.Support, Privilege: manifest.Privilege, Bundling: manifest.Bundling, Requires: target.Requires, Limitations: target.Limitations, Evidence: target.Evidence}
 	if !strings.HasPrefix(target.Mode, "bundled-") {
 		return item, false, true, nil
 	}
@@ -404,62 +416,6 @@ func loadResourceArtifactManifest(path string) (resourceArtifactManifest, error)
 	}
 	var manifest resourceArtifactManifest
 	return manifest, json.Unmarshal(data, &manifest)
-}
-
-func loadReleaseChecksums(root, trustedPublicKeyPath string) (map[string]string, error) {
-	data, err := os.ReadFile(filepath.Join(root, "SHA256SUMS"))
-	if err != nil {
-		return nil, fmt.Errorf("read signed release checksums: %w", err)
-	}
-	if err := verifyReleaseChecksumSignature(data, filepath.Join(root, "SHA256SUMS.sig"), trustedPublicKeyPath); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("release artifact root is unsigned: Vrooli release signing authority must provide SHA256SUMS.sig for this exact SHA256SUMS manifest")
-		}
-		return nil, err
-	}
-	checksums := map[string]string{}
-	for _, line := range strings.Split(string(data), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) == 2 && len(fields[0]) == 64 && resourcedeployment.IsSafeArtifactName(fields[1]) {
-			checksums[fields[1]] = fields[0]
-		}
-	}
-	if len(checksums) == 0 {
-		return nil, fmt.Errorf("release checksum manifest has no entries")
-	}
-	return checksums, nil
-}
-
-func verifyReleaseChecksumSignature(checksums []byte, signaturePath, publicKeyPath string) error {
-	signatureText, err := os.ReadFile(signaturePath)
-	if err != nil {
-		return fmt.Errorf("read release checksum signature: %w", err)
-	}
-	signature, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(signatureText)))
-	if err != nil {
-		return fmt.Errorf("decode release checksum signature: %w", err)
-	}
-	pemData, err := os.ReadFile(publicKeyPath)
-	if err != nil {
-		return fmt.Errorf("read trusted release public key: %w", err)
-	}
-	block, _ := pem.Decode(pemData)
-	if block == nil {
-		return fmt.Errorf("parse trusted release public key: invalid PEM")
-	}
-	parsed, err := x509.ParsePKIXPublicKey(block.Bytes)
-	if err != nil {
-		return fmt.Errorf("parse trusted release public key: %w", err)
-	}
-	key, ok := parsed.(*rsa.PublicKey)
-	if !ok {
-		return fmt.Errorf("trusted release public key is not RSA")
-	}
-	digest := sha256.Sum256(checksums)
-	if err := rsa.VerifyPKCS1v15(key, crypto.SHA256, digest[:], signature); err != nil {
-		return fmt.Errorf("verify release checksum signature: %w", err)
-	}
-	return nil
 }
 
 func sha256File(path string) (string, error) {

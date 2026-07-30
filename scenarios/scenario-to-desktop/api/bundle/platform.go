@@ -54,12 +54,18 @@ func (p *defaultPlatformResolver) ParseKey(key string) (string, string, error) {
 // NormalizeRuntime normalizes a platform key for runtime staging.
 func (p *defaultPlatformResolver) NormalizeRuntime(platform string) string {
 	switch platform {
-	case "linux":
+	case "linux", "linux-amd64", "linux-x64":
 		return "linux-x64"
-	case "mac", "darwin":
+	case "linux-arm64", "linux-aarch64":
+		return "linux-arm64"
+	case "mac", "darwin", "mac-x64", "darwin-amd64", "darwin-x64":
 		return "darwin-x64"
-	case "win", "windows":
+	case "mac-arm64", "darwin-arm64":
+		return "darwin-arm64"
+	case "win", "windows", "win-x64", "windows-amd64", "windows-x64":
 		return "win-x64"
+	case "win-arm64", "windows-arm64":
+		return "win-arm64"
 	default:
 		return platform
 	}

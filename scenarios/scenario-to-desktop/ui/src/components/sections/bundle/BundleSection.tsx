@@ -106,6 +106,7 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
     const stageLogs = usePipelineStore((s) => s.stageLogs);
     const pipelineId = usePipelineStore((s) => s.pipelineId);
     const isRunning = usePipelineStore(selectIsRunning);
+		const artifactTrustMode = pipelineStatus?.config?.artifactTrustMode;
 
     // Pipeline store actions
     const runBundleStage = usePipelineStore((s) => s.runBundleStage);
@@ -363,6 +364,18 @@ export const BundleSection = forwardRef<HTMLDivElement, BundleSectionProps>(
             </div>
           </div>
         </div>
+
+        {artifactTrustMode === "development-local" && (
+          <div className="rounded-md border border-amber-700 bg-amber-950/40 p-3 text-sm text-amber-100">
+            Development-local trust: staged bytes were verified for local use, but this bundle is non-promotable and cannot be published. This is separate from installer code signing.
+          </div>
+        )}
+
+        {artifactTrustMode === "production" && (
+          <div className="rounded-md border border-emerald-700 bg-emerald-950/40 p-3 text-sm text-emerald-100">
+            Production release trust: the staged release manifest must be authorized by the Vrooli release authority. Installer code signing remains a separate platform step.
+          </div>
+        )}
 
         {/* Error display */}
         {pipelineError && (

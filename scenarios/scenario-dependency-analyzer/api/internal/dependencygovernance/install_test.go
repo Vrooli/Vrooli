@@ -18,6 +18,7 @@ func TestGovernInstallVerdicts(t *testing.T) {
 	writeRegistry(t, repoRoot, `{
 		"records": [
 			{"ecosystem":"npm","package_name":"react-hook-form","version_range":">=7.0.0 <8.0.0","state":"approved","rationale":"Approved forms lib.","allowed_surfaces":["ui"]},
+			{"ecosystem":"npm","package_name":"react-hook-form-x","version_range":"^4.0.0","state":"approved","rationale":"Approved successor."},
 			{"ecosystem":"npm","package_name":"left-pad","version_range":"*","state":"denied","rationale":"Denied.","replacement":"Use native padding."}
 		]
 	}`)
@@ -33,6 +34,7 @@ func TestGovernInstallVerdicts(t *testing.T) {
 		{"out-of-range", "npm", "react-hook-form", "ui", "8.1.0", "out_of_range", true},
 		{"surface-not-allowed", "npm", "react-hook-form", "api", "7.2.0", "surface_not_allowed", true},
 		{"denied", "npm", "left-pad", "ui", "1.0.0", "denied", true},
+		{"approved-npm-alias", "npm", "react-hook-form", "ui", "npm:react-hook-form-x@^4.0.0", "approved", false},
 		{"unrecorded", "npm", "totally-new-pkg", "ui", "1.0.0", "unrecorded", true},
 	}
 	for _, tc := range cases {
@@ -48,6 +50,16 @@ func TestGovernInstallVerdicts(t *testing.T) {
 				t.Fatalf("verdict=%q blocked=%v, want verdict=%q blocked=%v", verdict, blocked, tc.wantVerdict, tc.wantBlocked)
 			}
 		})
+	}
+}
+
+func TestNpmAliasTarget(t *testing.T) {
+	pkg, version, ok := npmAliasTarget("npm:@scope/plugin@^4.0.0")
+	if !ok || pkg != "@scope/plugin" || version != "^4.0.0" {
+		t.Fatalf("npmAliasTarget() = %q, %q, %v", pkg, version, ok)
+	}
+	if _, _, ok := npmAliasTarget("not-an-alias"); ok {
+		t.Fatal("non-alias must not parse as npm alias")
 	}
 }
 

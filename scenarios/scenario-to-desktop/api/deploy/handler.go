@@ -61,11 +61,7 @@ func runDeployTargetDoctor(ctx context.Context, name string, target *DeployTarge
 		)
 	} else {
 		tokenCheck.Passed = true
-		if secret.Source == "file" && strings.TrimSpace(secret.SourcePath) != "" {
-			tokenCheck.Detail = fmt.Sprintf("LPBS_SERVICE_SECRET is set (source=file %s)", secret.SourcePath)
-		} else {
-			tokenCheck.Detail = fmt.Sprintf("LPBS_SERVICE_SECRET is set (source=%s)", secret.Source)
-		}
+		tokenCheck.Detail = fmt.Sprintf("LPBS_SERVICE_SECRET is injected for this process (source=%s)", secret.Source)
 	}
 	report.Checks = append(report.Checks, tokenCheck)
 
@@ -135,7 +131,7 @@ func runDeployTargetDoctor(ctx context.Context, name string, target *DeployTarge
 }
 
 func missingScenarioToDesktopSecretMessage() string {
-	return "LPBS_SERVICE_SECRET is not set for scenario-to-desktop runtime (checked env and ~/.vrooli/secrets.json)"
+	return "LPBS_SERVICE_SECRET is not injected for this scenario-to-desktop process"
 }
 
 func appendUnique(values []string, additions ...string) []string {

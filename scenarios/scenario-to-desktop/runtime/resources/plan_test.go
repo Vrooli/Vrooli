@@ -39,7 +39,7 @@ func TestLoadValidatesBundledClientArtifacts(t *testing.T) {
 		sum := sha256.Sum256(body)
 		artifacts = append(artifacts, Artifact{Name: file, SHA256: hex.EncodeToString(sum[:])})
 	}
-	plan := Plan{SchemaVersion: "v2", Resources: []Item{{RequestedResource: "demo", Resource: "demo", OS: runtimeOS(), Architecture: runtime.GOARCH, Mode: "bundled-client", Support: "supported", Artifact: name, Files: artifacts}}}
+	plan := Plan{SchemaVersion: "v3", Resources: []Item{{RequestedResource: "demo", Resource: "demo", OS: runtimeOS(), Architecture: runtime.GOARCH, Mode: "bundled-client", Support: "supported", Privilege: "user", Bundling: "vendorable", Artifact: name, Files: artifacts}}}
 	data, _ := json.Marshal(plan)
 	if err := os.WriteFile(filepath.Join(root, "resource-deployment-plan.json"), data, 0o644); err != nil {
 		t.Fatal(err)
@@ -78,7 +78,7 @@ func TestLoadRejectsMismatchedBuildMetadata(t *testing.T) {
 		sum := sha256.Sum256(body)
 		artifacts = append(artifacts, Artifact{Name: file, SHA256: hex.EncodeToString(sum[:])})
 	}
-	plan := Plan{SchemaVersion: "v2", Resources: []Item{{RequestedResource: "demo", Resource: "demo", OS: runtimeOS(), Architecture: runtime.GOARCH, Mode: "bundled-client", Support: "supported", Artifact: name, Files: artifacts}}}
+	plan := Plan{SchemaVersion: "v3", Resources: []Item{{RequestedResource: "demo", Resource: "demo", OS: runtimeOS(), Architecture: runtime.GOARCH, Mode: "bundled-client", Support: "supported", Privilege: "user", Bundling: "vendorable", Artifact: name, Files: artifacts}}}
 	data, _ := json.Marshal(plan)
 	if err := os.WriteFile(filepath.Join(root, "resource-deployment-plan.json"), data, 0o644); err != nil {
 		t.Fatal(err)
@@ -93,13 +93,15 @@ func TestLoadReturnsActionableDockerPreflight(t *testing.T) {
 	findDocker = func(string) (string, error) { return "", os.ErrNotExist }
 	t.Cleanup(func() { findDocker = originalFindDocker })
 	root := t.TempDir()
-	plan := Plan{SchemaVersion: "v2", Resources: []Item{{
+	plan := Plan{SchemaVersion: "v3", Resources: []Item{{
 		RequestedResource: "redis",
 		Resource:          "redis",
 		OS:                runtimeOS(),
 		Architecture:      runtime.GOARCH,
 		Mode:              "docker-desktop",
 		Support:           "conditional",
+		Privilege:         "user",
+		Bundling:          "host-required",
 		Requires:          []string{"docker-desktop"},
 		Limitations:       []string{"Docker must be running"},
 	}}}
@@ -117,7 +119,7 @@ func TestLoadReturnsActionableDockerPreflight(t *testing.T) {
 
 func TestLoadRejectsUnknownModeBeforeHostSelection(t *testing.T) {
 	root := t.TempDir()
-	plan := Plan{SchemaVersion: "v2", Resources: []Item{{RequestedResource: "demo", Resource: "demo", OS: "windows", Architecture: "arm64", Mode: "server-mode", Support: "supported"}}}
+	plan := Plan{SchemaVersion: "v3", Resources: []Item{{RequestedResource: "demo", Resource: "demo", OS: "windows", Architecture: "arm64", Mode: "server-mode", Support: "supported", Privilege: "user", Bundling: "vendorable"}}}
 	data, _ := json.Marshal(plan)
 	if err := os.WriteFile(filepath.Join(root, "resource-deployment-plan.json"), data, 0o644); err != nil {
 		t.Fatal(err)
@@ -155,9 +157,9 @@ func TestLoadValidatesSeparatelyPinnedBundledService(t *testing.T) {
 		t.Fatal(err)
 	}
 	serverSum := sha256.Sum256(serverBody)
-	plan := Plan{SchemaVersion: "v2", Resources: []Item{{
+	plan := Plan{SchemaVersion: "v3", Resources: []Item{{
 		RequestedResource: "demo", Resource: "demo", OS: runtimeOS(), Architecture: runtime.GOARCH,
-		Mode: "bundled-service", Support: "supported", Artifact: controller, Files: artifacts,
+		Mode: "bundled-service", Support: "supported", Privilege: "user", Bundling: "vendorable", Artifact: controller, Files: artifacts,
 		Service: &Service{ProviderPolicy: resourcedeployment.ProviderPolicy{TargetDefaults: map[resourcedeployment.ProviderTarget]resourcedeployment.ProviderMode{resourcedeployment.ProviderTargetControlPlane: resourcedeployment.ProviderManagedShared, resourcedeployment.ProviderTargetDesktopBundle: resourcedeployment.ProviderManagedPrivate}, AllowedModes: []resourcedeployment.ProviderMode{resourcedeployment.ProviderManagedPrivate, resourcedeployment.ProviderManagedShared}, SharedReuseRequiresConsent: true, ExternalManagement: "forbidden"}, Artifact: serverName, Version: "1.0.0", SHA256: hex.EncodeToString(serverSum[:]), Files: []Artifact{{Name: serverName, SHA256: hex.EncodeToString(serverSum[:])}}},
 	}}}
 	data, _ := json.Marshal(plan)

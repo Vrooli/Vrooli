@@ -33,7 +33,7 @@ func TestDeploymentManagerGeneratorExportsRequestAndWritesReturnedManifest(t *te
 	if err != nil {
 		t.Fatalf("GenerateManifest(): %v", err)
 	}
-	if request.Scenario != "hello-desktop" || request.Tier != "tier-2-desktop" || request.IncludeSecrets == nil || !*request.IncludeSecrets || request.StageBundle || request.OutputDir != outputDir {
+	if request.Scenario != "hello-desktop" || request.Tier != "tier-2-desktop" || request.IncludeSecrets == nil || *request.IncludeSecrets || request.StageBundle || request.OutputDir != outputDir {
 		t.Fatalf("export request = %#v", request)
 	}
 	if path != filepath.Join(outputDir, "bundle.json") {

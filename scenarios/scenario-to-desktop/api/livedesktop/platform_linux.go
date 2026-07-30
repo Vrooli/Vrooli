@@ -1,3 +1,5 @@
+//go:build linux
+
 package livedesktop
 
 import (
@@ -28,6 +30,9 @@ func NewLinuxBackend(logger *slog.Logger) *LinuxBackend {
 		logger:     logger,
 	}
 }
+
+// NewBackend selects the supported local backend for this build target.
+func NewBackend(logger *slog.Logger) PlatformBackend { return NewLinuxBackend(logger) }
 
 func (b *LinuxBackend) PlatformID() string { return "linux-xvfb" }
 

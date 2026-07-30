@@ -54,6 +54,7 @@ func pipelineRunArgs() cliapp.ArgSchema {
 		cliapp.Flag{Name: "deployment-mode", Default: "bundled", Values: []string{"bundled", "proxy"}, Description: "Deployment mode"},
 		cliapp.Flag{Name: "location-mode", Values: []string{"proper", "staging", "temp"}, Description: "Output location"},
 		cliapp.Flag{Name: "resource-artifact-root", Description: "Verified signed resource-artifact directory"},
+		cliapp.Flag{Name: "artifact-trust-mode", Values: []string{"development-local", "production"}, Description: "Required with resource-artifact-root; development-local is non-promotable, production requires release-manifest signature"},
 		cliapp.Flag{Name: "clean", Bool: true, Description: "Clean existing desktop output first"},
 		cliapp.Flag{Name: "version", Description: "Run-only version override"},
 	)

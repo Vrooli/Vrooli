@@ -135,6 +135,13 @@ describe("pipelineSelectors", () => {
       expect(selectProgress(state)).toBe(0);
     });
 
+    it("returns 0 for a partial status missing its stage collections", () => {
+      const state = createTestState({
+        pipelineStatus: { status: StageStatus.PENDING } as PipelineStore["pipelineStatus"],
+      });
+      expect(selectProgress(state)).toBe(0);
+    });
+
     it("returns 0 when stage_order is empty", () => {
       const state = createTestState({
         pipelineStatus: createPipelineStatus({ stageOrder: [], stages: {} }),

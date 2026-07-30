@@ -864,10 +864,22 @@ async function startBundledRuntime(): Promise<string> {
 }
 
 async function shutdownRuntime(): Promise<void> {
+    const child = runtimeProcess;
+    runtimeProcess = null;
     if (RUNTIME_CONTROL.ENABLED && runtimeControlClient) {
         try { await runtimeControlClient.request("/shutdown", { method: "POST" }); } catch (error) { console.warn("[Desktop App] Failed to request runtime shutdown", error); }
     }
-    if (runtimeProcess) { try { runtimeProcess.kill(); } catch { /* ignore */ } runtimeProcess = null; }
+    if (!child || child.exitCode !== null) return;
+    const waitForExit = async (timeoutMs: number): Promise<boolean> => await new Promise(resolve => {
+        const timer = setTimeout(() => { child.removeListener("exit", onExit); resolve(false); }, timeoutMs);
+        const onExit = () => { clearTimeout(timer); resolve(true); };
+        child.once("exit", onExit);
+    });
+    if (await waitForExit(5000)) return;
+    try { child.kill("SIGTERM"); } catch { /* process already exited */ }
+    if (await waitForExit(2000)) return;
+    try { child.kill("SIGKILL"); } catch { /* process already exited */ }
+    await waitForExit(1000);
 }
 
 // ===== SCENARIO SERVER (NON-BUNDLED MODES) =====
@@ -1085,7 +1097,11 @@ async function runSmokeTest(): Promise<void> {
         } catch (error) { SmokeTestProtocol.upload(false, String(error)); }
     }
     SmokeTestProtocol.exit();
-    app.exit(success ? 0 : 1);
+    // A smoke run has no user-facing windows and must not remain alive because
+    // Electron retains an internal handle after app.exit(). The runtime has
+    // already been shut down in the finally block, so force the one-shot
+    // validation process to terminate after its final evidence marker.
+    process.exit(success ? 0 : 1);
 }
 
 // ===== APP LIFECYCLE =====
@@ -1207,6 +1223,7 @@ app.whenReady().then(async () => {
             console.log(`[Desktop App] Demo recording: app ready, holding for ${smokeTestDemoHoldMs}ms`);
             await delay(smokeTestDemoHoldMs);
             console.log("[Desktop App] Demo recording: hold complete, quitting");
+            await shutdownRuntime();
             app.quit();
             return;
         }

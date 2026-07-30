@@ -2,7 +2,7 @@
   "_metadata": {
     "auto_sync_enabled": true,
     "description": "Evidence-backed Secrets Manager requirements mapped to the PRD operational targets.",
-    "last_validated_at": "2026-07-29T14:48:12-04:00",
+    "last_validated_at": "2026-07-29T16:41:02-04:00",
     "module": "operational-targets",
     "schema_version": "1.0.0"
   },
@@ -147,7 +147,7 @@
           "type": "manual",
           "ref": ".vrooli/testing.json",
           "phase": "integration",
-          "status": "implemented",
+          "status": "not_implemented",
           "notes": "Test Genie owns the configured phased suite."
         }
       ]
