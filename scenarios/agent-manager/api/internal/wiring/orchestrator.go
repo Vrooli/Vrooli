@@ -20,6 +20,7 @@ import (
 	"agent-manager/internal/handlers"
 	healthstore "agent-manager/internal/health"
 	"agent-manager/internal/identity"
+	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/orchestration/spawn"
@@ -62,6 +63,7 @@ type OrchestratorDependencies struct {
 	StatsEngine           *stats.Engine
 	HealthStore           *healthstore.Store
 	EventRepository       eventlog.Repository
+	InvocationReadModel   invocationreadmodel.Store
 }
 
 // NewOrchestrator builds the production orchestration graph. No background
@@ -84,6 +86,11 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	}
 	bootLog.Info("using SQLite persistence")
 	repos := database.NewRepositories(db, logger)
+	if migrated, migrationErr := repos.MigrateInvocationReadModel(context.Background()); migrationErr != nil {
+		bootLog.Warn("legacy invocation-fact migration deferred", obs.KeyError, migrationErr.Error())
+	} else if migrated > 0 {
+		bootLog.Info("migrated legacy invocation facts", "count", migrated)
+	}
 	eventStore := event.NewSQLiteStore(db, logger)
 
 	rolePolicyPath := rolepolicy.ResolvePath()
@@ -216,7 +223,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		orchestration.WithStructuredExtractor(extractor), orchestration.WithHealthStore(healthStore), orchestration.WithInvestigationSettings(repos.InvestigationSettings),
 		orchestration.WithPromptClient(promptmanager.NewHTTPClient()), orchestration.WithFlagValidator(flagValidator), orchestration.WithAttachmentStorage(uploads),
 		orchestration.WithOrchestrationSettings(settingsStore), orchestration.WithIdentitySecret(identitySecret), orchestration.WithSpawnDispatcher(spawnDispatcher),
-		orchestration.WithRunStateRootResolver(runStateResolver), orchestration.WithArtifacts(artifactCollector), orchestration.WithReceiptSummaryReader(receiptReader), orchestration.WithFindings(repos.Findings), orchestration.WithInvocationFactStore(repos.InvocationFacts),
+		orchestration.WithRunStateRootResolver(runStateResolver), orchestration.WithArtifacts(artifactCollector), orchestration.WithReceiptSummaryReader(receiptReader), orchestration.WithFindings(repos.Findings), orchestration.WithInvocationFactStore(repos.InvocationFacts), orchestration.WithInvocationReadModel(repos.InvocationReadModel),
 	}
 	if interactiveSessions != nil {
 		opts = append(opts, orchestration.WithInteractiveSessions(interactiveSessions), orchestration.WithWebConsoleUIBase(webconsole.ResolveUIBaseURL()))
@@ -265,7 +272,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	eventRepo := eventlog.NewSQLiteRepository(db)
 	statsEngine := stats.NewEngine(eventRepo, stats.NewSQLiteCheckpointStore(db), "operational")
 	bootLog.Info("orchestrator initialized", "storage", "sqlite", "sandbox", sandboxURL)
-	return OrchestratorDependencies{Orchestrator: orch, StatsService: orchestration.NewStatsOrchestrator(repos.Stats), StatsRepository: repos.Stats, PricingService: pricingService, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, StatsEngine: statsEngine, HealthStore: healthStore, EventRepository: eventRepo}, nil
+	return OrchestratorDependencies{Orchestrator: orch, StatsService: orchestration.NewStatsOrchestrator(repos.Stats), StatsRepository: repos.Stats, PricingService: pricingService, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, StatsEngine: statsEngine, HealthStore: healthStore, EventRepository: eventRepo, InvocationReadModel: repos.InvocationReadModel}, nil
 }
 
 func resolveWorkspaceSandboxURL() string {

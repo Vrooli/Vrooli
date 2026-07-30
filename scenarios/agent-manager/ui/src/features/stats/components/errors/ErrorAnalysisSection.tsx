@@ -3,11 +3,11 @@
 import { useErrorAnalysis } from "../../hooks/useErrorAnalysis";
 import { formatNumber } from "../../utils/formatters";
 import { AlertTriangle, ExternalLink } from "lucide-react";
-import type { ErrorPattern } from "../../api/types";
+import type { ErrorPatternMeasureRow } from "../../api/statsClient";
 import { formatStatsRelativeTime } from "../../../../lib/dateTime";
 
 interface ErrorItemProps {
-  error: ErrorPattern;
+  error: ErrorPatternMeasureRow;
 }
 
 function ErrorItem({ error }: ErrorItemProps) {
@@ -76,7 +76,7 @@ export function ErrorAnalysisSection() {
     );
   }
 
-  const errors = data?.errors ?? [];
+  const errors = data?.rows ?? [];
 
   return (
     <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">

@@ -10,6 +10,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/findings"
 	"agent-manager/internal/health"
+	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/orchestration/spawn"
 	"agent-manager/internal/runreport"
 
@@ -100,6 +101,12 @@ type RunReportService interface {
 
 type InvocationFactService interface {
 	InvocationFacts(context.Context, uuid.UUID) ([]runreport.InvocationFact, error)
+	ReplayInvocationFacts(context.Context, uuid.UUID) (*ReplayResult, error)
+	RefreshInvocationFacts(context.Context, uuid.UUID) (*ReplayResult, error)
+	ReplayInvocationCorpus(context.Context, ReplayFilter, bool) (*ReplaySummary, error)
+	AggregateInvocationFacts(context.Context, invocationreadmodel.Filter, string, int) ([]invocationreadmodel.AggregateRow, error)
+	SelectInvocationCohort(context.Context, invocationreadmodel.Filter, int) (invocationreadmodel.Cohort, error)
+	InvocationMetrics(context.Context, invocationreadmodel.Filter) (invocationreadmodel.Metrics, error)
 }
 
 type FindingsService interface {

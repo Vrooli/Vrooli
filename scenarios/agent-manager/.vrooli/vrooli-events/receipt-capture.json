@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "policies": [
+    {
+      "policyId": "agent-manager-test-genie-start-run",
+      "targetScenario": "test-genie",
+      "operation": "POST /vrooli.test_genie.v1.runs.RunsService/StartRun",
+      "protocol": "connect",
+      "responseType": "vrooli.test_genie.v1.runs.StartRunResponse",
+      "responseProjectionPaths": ["run_id", "scenario"],
+      "retentionDays": 3650,
+      "readPrincipals": ["agent-manager"]
+    }
+  ]
+}

@@ -106,12 +106,17 @@
         ]
       },
       "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o agent-manager-api .",
-          "description": "Build Go API server"
-        },
-        {
+      {
+        "name": "build-api",
+        "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o agent-manager-api .",
+        "description": "Build Go API server"
+      },
+      {
+        "name": "install-cli",
+        "run": "bash cli/install.sh",
+        "description": "Install the fresh Agent Manager CLI artifact"
+      },
+      {
           "name": "install-ui-deps",
           "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
           "description": "Install UI dependencies",
@@ -211,6 +216,17 @@
         "enabled": true,
         "required": true,
         "description": "Provides sandbox creation, diff generation, and patch application for isolated agent execution"
+      },
+      "vrooli-events": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Publishes non-blocking observed receipts for declared Agent Manager operations",
+        "config": {
+          "declarations": [
+            ".vrooli/vrooli-events/receipt-capture.json"
+          ]
+        }
       }
     }
   },

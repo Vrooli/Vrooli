@@ -3,6 +3,7 @@ package wiring
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,6 +14,8 @@ import (
 	"agent-manager/internal/handlers"
 	healthstore "agent-manager/internal/health"
 	"agent-manager/internal/httpmw"
+	"agent-manager/internal/invocationreadmodel"
+	analyticsmeasures "agent-manager/internal/measures"
 	"agent-manager/internal/metrics"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/obs"
@@ -27,6 +30,7 @@ import (
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/health"
+	measureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures/measures_v1connect"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 )
 
@@ -47,6 +51,7 @@ type RouteDependencies struct {
 	StatsEngine           *stats.Engine
 	HealthStore           *healthstore.Store
 	EventRepository       eventlog.Repository
+	InvocationReadModel   invocationreadmodel.Store
 }
 
 // SetupRoutes registers the complete HTTP surface. It intentionally owns only
@@ -109,6 +114,17 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	if deps.EventRepository != nil {
 		handlers.NewEventsHandler(deps.EventRepository).RegisterRoutes(router)
 		routesLog.Info("events endpoint registered", "path", "/api/v1/events")
+	}
+	if deps.InvocationReadModel != nil {
+		measureHandler := analyticsmeasures.NewHandler(deps.InvocationReadModel, nil)
+		if registryHandler, err := measureHandler.MeasuresHandler(); err != nil {
+			routesLog.Error("measures registry unavailable", obs.KeyError, err.Error())
+		} else {
+			router.PathPrefix("/measures").Handler(http.StripPrefix("/measures", registryHandler))
+			connectPath, connectHandler := measureconnect.NewMeasuresServiceHandler(measureHandler)
+			router.PathPrefix(strings.TrimRight(connectPath, "/")).Handler(connectHandler)
+			routesLog.Info("durable friction measures registered", "paths", "/measures, "+connectPath)
+		}
 	}
 	if deps.PricingService != nil && deps.StatsRepository != nil {
 		handlers.NewPricingHandler(deps.PricingService, deps.StatsRepository).RegisterRoutes(router)

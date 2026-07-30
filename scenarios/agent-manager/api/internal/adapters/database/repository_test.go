@@ -76,6 +76,42 @@ func TestInitSchemaCreatesRoleOnlyProfileTable(t *testing.T) {
 	}
 }
 
+func TestInitSchemaMigratesExistingInvocationReadModelRunColumnsBeforeValidation(t *testing.T) {
+	tmpDir := t.TempDir()
+	sqlDB, err := sqlx.Connect("sqlite", fmt.Sprintf("file:%s?_pragma=foreign_keys(ON)", filepath.Join(tmpDir, "legacy.db")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sqlDB.Close()
+	// This is the exact pre-cost-attribution projection shape. The schema
+	// validator must not reject it before the additive migration has a chance
+	// to add the new columns.
+	if _, err := sqlDB.Exec(`CREATE TABLE invocation_read_model_runs (
+		run_id TEXT PRIMARY KEY, occurred_at TEXT NOT NULL, created_at TEXT NOT NULL,
+		started_at TEXT, ended_at TEXT, duration_ms INTEGER NOT NULL DEFAULT 0,
+		status TEXT NOT NULL, profile_id TEXT NOT NULL DEFAULT 'unknown',
+		runner_type TEXT NOT NULL DEFAULT 'unknown', model TEXT NOT NULL DEFAULT 'unknown',
+		tag TEXT NOT NULL DEFAULT 'unknown', total_cost_usd REAL NOT NULL DEFAULT 0,
+		total_tokens INTEGER NOT NULL DEFAULT 0, cost_time_basis TEXT NOT NULL DEFAULT 'terminal_projection',
+		projected_at TEXT NOT NULL DEFAULT (datetime('now'))
+	)`); err != nil {
+		t.Fatal(err)
+	}
+	wrapped := NewDB(sqlDB, logrus.New())
+	if err := wrapped.InitializeSchema(); err != nil {
+		t.Fatalf("InitializeSchema: %v", err)
+	}
+	columns, err := wrapped.tableColumns(context.Background(), "invocation_read_model_runs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, column := range []string{"input_cost_usd", "output_cost_usd", "cache_read_cost_usd", "cache_creation_cost_usd", "input_tokens", "output_tokens", "cache_read_tokens", "cache_creation_tokens"} {
+		if _, ok := columns[column]; !ok {
+			t.Fatalf("migration did not add %s; columns=%v", column, columns)
+		}
+	}
+}
+
 func TestDataDirPrefersCanonicalStorageOverLegacyFallbackEnv(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)

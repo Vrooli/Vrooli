@@ -207,6 +207,25 @@ func TestCreateInvestigationRun_RejectsNonVrooliEnv(t *testing.T) {
 	}
 }
 
+func TestCreateInvestigationRunRejectsAmbiguousCohortSelection(t *testing.T) {
+	_, router := setupTestHandler(t)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/investigate", bytes.NewReader([]byte(`{
+		"runIds":["`+uuid.New().String()+`"],
+		"selector":{"filter":{"ownership":"external"}}
+	}`)))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected ambiguous selector to return 400, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), "either runIds or selector") {
+		t.Fatalf("expected actionable selector error, got %s", rr.Body.String())
+	}
+}
+
 // TestUpdateProfile_InvalidUUID tests profile update with invalid UUID.
 func TestUpdateProfile_InvalidUUID(t *testing.T) {
 	_, router := setupTestHandler(t)

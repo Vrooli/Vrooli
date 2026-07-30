@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { resolveApiBase } from "@vrooli/api-base";
+import { resolveAgentManagerApiBase } from "./api";
 import { JsonObject, JsonValue, NetworkAccess, RunnerType, SandboxMode } from "../types";
 
 export function cn(...inputs: ClassValue[]) {
@@ -10,7 +10,7 @@ export function cn(...inputs: ClassValue[]) {
 export function getApiBaseUrl(): string {
   // Use api-base resolution which handles localhost/proxy scenarios correctly
   // The UI server proxies /api/* to the actual API server
-  return resolveApiBase({ appendSuffix: true });
+  return resolveAgentManagerApiBase(true);
 }
 
 export function formatDuration(ms: number): string {
@@ -149,4 +149,3 @@ export function truncate(str: string, maxLen: number): string {
   if (str.length <= maxLen) return str;
   return str.slice(0, maxLen - 3) + "...";
 }
-

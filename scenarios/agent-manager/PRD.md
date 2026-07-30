@@ -26,6 +26,7 @@ Value proposition: Provides standardized, policy-driven agent execution manageme
 - [x] OT-P0-009 | Diff Collection | Generate and store diffs from sandbox changes
 - [x] OT-P0-010 | Basic Approval Flow | Support approve/reject workflows for runs
 - [x] OT-P0-011 | Health Check API | Provide health monitoring endpoint
+- [ ] OT-P0-012 | Durable Run Analytics | The system shall retain durable invocation facts and provide typed historical run analytics with non-blocking event-capture observability
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Scope Locks | Implement path-scoped exclusive locks
@@ -46,7 +47,6 @@ Value proposition: Provides standardized, policy-driven agent execution manageme
 - [ ] OT-P2-005 | Webhook Notifications | Add external system notifications
 - [ ] OT-P2-006 | Batch Operations | Enable multi-task batch management
 - [ ] OT-P2-007 | UI Dashboard | Build web interface for management
-- [ ] OT-P2-008 | Run Analytics | Implement historical run data analysis
 
 ## 🧱 Tech Direction Snapshot
 Preferred stacks:

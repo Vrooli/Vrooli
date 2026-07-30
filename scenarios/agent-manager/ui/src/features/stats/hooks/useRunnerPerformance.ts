@@ -1,7 +1,7 @@
 // React Query hook for fetching runner breakdown
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchRunnerBreakdown, statsQueryKeys } from "../api/statsClient";
+import { fetchDurableRunnerBreakdown, statsQueryKeys, type DurableRunBreakdown } from "../api/statsClient";
 import type { RunnerBreakdownResponse, StatsFilter } from "../api/types";
 import { useTimeWindow } from "./useTimeWindow";
 
@@ -15,9 +15,19 @@ export function useRunnerPerformance(options: UseRunnerPerformanceOptions = {}) 
   const { filter: defaultFilter } = useTimeWindow();
   const filter = options.filter ?? defaultFilter;
 
-  return useQuery<RunnerBreakdownResponse, Error>({
-    queryKey: statsQueryKeys.runners(filter),
-    queryFn: () => fetchRunnerBreakdown(filter),
+  return useQuery<DurableRunBreakdown, Error, RunnerBreakdownResponse>({
+    queryKey: [...statsQueryKeys.runners(filter), "durable"] as const,
+    queryFn: () => fetchDurableRunnerBreakdown(filter),
+    select: (result) => ({
+      runners: result.rows.map((row) => ({
+        runnerType: row.value,
+        runCount: row.runCount,
+        successCount: row.successCount,
+        failedCount: row.failedCount,
+        totalCostUsd: row.totalCostUsd,
+        avgDurationMs: row.averageDurationMs,
+      })),
+    }),
     enabled: options.enabled ?? true,
     staleTime: options.staleTime ?? 30_000,
     refetchInterval: 60_000,

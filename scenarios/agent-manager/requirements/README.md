@@ -31,6 +31,7 @@ Requirements are linked to PRD operational targets using the `prd_ref` field.
 | P0 | OT-P0-009 | Diff Collection | 1 |
 | P0 | OT-P0-010 | Basic Approval Flow | 1 |
 | P0 | OT-P0-011 | Health Check API | 1 |
+| P0 | OT-P0-012 | Durable Run Analytics | 1 |
 | P1 | OT-P1-001 | Scope Locks | 1 |
 | P1 | OT-P1-002 | Resource Limits | 1 |
 | P1 | OT-P1-003 | Partial Approval | 1 |

@@ -14,6 +14,7 @@ import { ToolUsageAnalytics } from "./components/breakdown/ToolUsageAnalytics";
 import { ErrorAnalysisSection } from "./components/errors/ErrorAnalysisSection";
 import { FallbackInsightsCard } from "./components/operational/FallbackInsightsCard";
 import { ModelFailureAlertBanner } from "./components/operational/ModelFailureAlertBanner";
+import { FrictionOverviewCard } from "./components/operational/FrictionOverviewCard";
 import { onProfilerRender } from "../../lib/profiler";
 
 function ProfiledStatsSection({ id, children }: { id: string; children: ReactNode }) {
@@ -47,6 +48,9 @@ export function StatsPage() {
         {/* Fallback insights (typed event-derived) */}
         <ProfiledStatsSection id="Stats:FallbackInsightsCard">
           <FallbackInsightsCard />
+        </ProfiledStatsSection>
+        <ProfiledStatsSection id="Stats:FrictionOverviewCard">
+          <FrictionOverviewCard />
         </ProfiledStatsSection>
 
         {/* Charts Row */}

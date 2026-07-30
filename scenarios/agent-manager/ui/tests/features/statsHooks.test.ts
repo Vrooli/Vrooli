@@ -14,18 +14,24 @@ import { getPresetLabel, getPresetShortLabel, TimeWindowProvider, useStatsFilter
 import { useToolUsage, useToolUsageModels, useToolUsageRuns } from "../../src/features/stats/hooks/useToolUsage.js";
 
 const client = vi.hoisted(() => ({
-  cost: vi.fn(async () => ({ value: "cost" })), errors: vi.fn(async () => ({ value: "errors" })),
-  models: vi.fn(async () => ({ value: "models" })), modelRuns: vi.fn(async () => ({ value: "model-runs" })),
-  timeSeries: vi.fn(async () => ({ value: "trends" })), runners: vi.fn(async () => ({ value: "runners" })),
-  summary: vi.fn(async () => ({ value: "summary" })), tools: vi.fn(async () => ({ value: "tools" })),
-  toolModels: vi.fn(async () => ({ value: "tool-models" })), toolRuns: vi.fn(async () => ({ value: "tool-runs" })),
+  durableCost: vi.fn(async () => ({ totalCostUsd: 0, averageCostUsd: 0, totalRuns: 0, totalTokens: 0, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0, inputCostUsd: 0, outputCostUsd: 0, cacheReadCostUsd: 0, cacheCreationCostUsd: 0, executedQuery: "SELECT" })), errors: vi.fn(async () => ({ value: "errors" })),
+  models: vi.fn(async () => ({ value: "models" })), durableModels: vi.fn(async () => ({ rows: [], executedQuery: "SELECT" })),
+  profiles: vi.fn(async () => ({ rows: [], executedQuery: "SELECT" })), durableModelCohort: vi.fn(async () => ({ runIds: [], truncated: false, executedQuery: "SELECT" })),
+  timeSeries: vi.fn(async () => ({ value: "trends" })), durableTrends: vi.fn(async () => ({ rows: [], executedQuery: "SELECT" })),
+  runners: vi.fn(async () => ({ value: "runners" })), durableRunners: vi.fn(async () => ({ rows: [], executedQuery: "SELECT" })),
+  summary: vi.fn(async () => ({ value: "summary" })), durableTools: vi.fn(async () => ({ rows: [], executedQuery: "SELECT" })),
+  durableToolModels: vi.fn(async () => ({ rows: [], executedQuery: "SELECT" })), durableToolCohort: vi.fn(async () => ({ runIds: [], truncated: false, executedQuery: "SELECT" })),
+  durableSuccess: vi.fn(async () => ({ rate: 0, executedQuery: "SELECT" })), durableDuration: vi.fn(async () => ({ averageDurationMs: 0, p50DurationMs: 0, p95DurationMs: 0, p99DurationMs: 0, minDurationMs: 0, maxDurationMs: 0, count: 0, executedQuery: "SELECT" })),
+  durableStatus: vi.fn(async () => ({ rows: [], executedQuery: "SELECT" })),
 }));
 const key = (name: string, ...values: unknown[]) => [name, ...values];
 vi.mock("../../src/features/stats/api/statsClient.js", () => ({
-  fetchCostStats: client.cost, fetchErrorPatterns: client.errors, fetchModelBreakdown: client.models,
-  fetchModelUsageRuns: client.modelRuns, fetchTimeSeries: client.timeSeries, fetchRunnerBreakdown: client.runners,
-  fetchStatsSummary: client.summary, fetchToolUsage: client.tools, fetchToolUsageModels: client.toolModels,
-  fetchToolUsageRuns: client.toolRuns,
+  fetchDurableRunCost: client.durableCost, fetchDurableErrorPatterns: client.errors, fetchModelBreakdown: client.models, fetchDurableModelBreakdown: client.durableModels,
+  fetchDurableProfileBreakdown: client.profiles,
+  fetchDurableModelCohort: client.durableModelCohort, fetchTimeSeries: client.timeSeries, fetchDurableTerminalTrend: client.durableTrends,
+  fetchRunnerBreakdown: client.runners, fetchDurableRunnerBreakdown: client.durableRunners,
+  fetchStatsSummary: client.summary, fetchDurableRunSuccess: client.durableSuccess, fetchDurableRunDurationStatistics: client.durableDuration, fetchDurableRunStatusDistribution: client.durableStatus, fetchDurableToolUsage: client.durableTools, fetchDurableToolModels: client.durableToolModels,
+  fetchDurableToolCohort: client.durableToolCohort,
   statsQueryKeys: { cost: (f: unknown) => key("cost", f), errors: (f: unknown, l: unknown) => key("errors", f, l), models: (f: unknown, l: unknown) => key("models", f, l), modelRuns: (f: unknown, l: unknown) => key("model-runs", f, l), timeSeries: (f: unknown, b: unknown) => key("trends", f, b), runners: (f: unknown) => key("runners", f), summary: (f: unknown) => key("summary", f), tools: (f: unknown, l: unknown) => key("tools", f, l), toolModels: (f: unknown, n: unknown, l: unknown) => key("tool-models", f, n, l), toolRuns: (f: unknown, n: unknown, l: unknown) => key("tool-runs", f, n, l) },
 }));
 
@@ -42,13 +48,19 @@ test("stats query hooks fetch the intended analytics with explicit filters and l
     renderHook(() => useToolUsageModels({ filter, toolName: "bash", limit: 2 }), { wrapper }), renderHook(() => useToolUsageRuns({ filter, toolName: "bash", limit: 2 }), { wrapper }),
   ];
   await waitFor(() => hooks.forEach(({ result }) => assert.equal(result.current.isSuccess, true)));
-  assert.deepEqual(client.errors.mock.calls[0], [filter, 4]);
-  assert.deepEqual(client.models.mock.calls[0], [filter, 3]);
-  assert.deepEqual(client.modelRuns.mock.calls[0], [{ ...filter, model: "gpt-5" }, 2]);
-  assert.deepEqual(client.timeSeries.mock.calls[0], [filter, "hour"]);
-  assert.deepEqual(client.tools.mock.calls[0], [filter, 6]);
-  assert.deepEqual(client.toolModels.mock.calls[0], [filter, "bash", 2]);
-  assert.deepEqual(client.toolRuns.mock.calls[0], [filter, "bash", 2]);
+  assert.equal(client.errors.mock.calls[0]?.[0]?.window?.custom?.from.endsWith("Z"), true);
+  assert.equal(client.errors.mock.calls[0]?.[0]?.window?.custom?.to.endsWith("Z"), true);
+  assert.deepEqual(client.durableModels.mock.calls[0], [filter]);
+	assert.deepEqual(client.durableCost.mock.calls[0], [filter]);
+  assert.deepEqual(client.durableSuccess.mock.calls[0], [filter]);
+  assert.deepEqual(client.durableDuration.mock.calls[0], [filter]);
+  assert.deepEqual(client.durableStatus.mock.calls[0], [filter]);
+  assert.deepEqual(client.durableModelCohort.mock.calls[0], [filter, "gpt-5", 2]);
+  assert.deepEqual(client.durableTrends.mock.calls[0], [filter]);
+  assert.deepEqual(client.durableRunners.mock.calls[0], [filter]);
+  assert.deepEqual(client.durableTools.mock.calls[0], [filter]);
+  assert.deepEqual(client.durableToolModels.mock.calls[0], [filter, "bash"]);
+  assert.deepEqual(client.durableToolCohort.mock.calls[0], [filter, "bash", 2]);
 });
 
 test("optional model and tool detail hooks remain disabled until an operator selects an item", () => {

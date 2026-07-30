@@ -20,10 +20,39 @@ func (o *Orchestrator) BuildRunReport(ctx context.Context, runID uuid.UUID) (*ru
 }
 
 func (o *Orchestrator) InvocationFacts(ctx context.Context, runID uuid.UUID) ([]runreport.InvocationFact, error) {
+	if o.invocationReadModel != nil {
+		watermark, err := o.invocationReadModel.Watermark(ctx, runID.String())
+		if err != nil {
+			return nil, err
+		}
+		if watermark != nil {
+			facts, err := o.invocationReadModel.Facts(ctx, runID.String())
+			if err != nil {
+				return nil, err
+			}
+			out := make([]runreport.InvocationFact, 0, len(facts))
+			for _, fact := range facts {
+				out = append(out, fact.InvocationFact)
+			}
+			return out, nil
+		}
+	}
 	if o.invocationFacts == nil {
 		return []runreport.InvocationFact{}, nil
 	}
 	return o.invocationFacts.InvocationFacts(ctx, runID)
+}
+
+func (s orchestratorReportSource) DurableInvocationFacts(ctx context.Context, id uuid.UUID) ([]runreport.InvocationFact, bool, error) {
+	if s.o.invocationReadModel == nil {
+		return nil, false, nil
+	}
+	watermark, err := s.o.invocationReadModel.Watermark(ctx, id.String())
+	if err != nil || watermark == nil {
+		return nil, false, err
+	}
+	facts, err := s.o.InvocationFacts(ctx, id)
+	return facts, true, err
 }
 
 type orchestratorReportSource struct{ o *Orchestrator }

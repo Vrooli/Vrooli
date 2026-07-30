@@ -17,6 +17,7 @@ import (
 	"agent-manager/internal/findings"
 	"agent-manager/internal/health"
 	"agent-manager/internal/identity"
+	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/orchestration/phases"
 	"agent-manager/internal/orchestration/spawn"
 	"agent-manager/internal/policy"
@@ -645,9 +646,10 @@ type Orchestrator struct {
 
 	// receipts is an optional, read-only Vrooli Events seam. It must never
 	// influence run execution or terminal state; reports surface its status.
-	receipts        ReceiptSummaryReader
-	findings        findings.Repository
-	invocationFacts runreport.InvocationFactStore
+	receipts            ReceiptSummaryReader
+	findings            findings.Repository
+	invocationFacts     runreport.InvocationFactStore
+	invocationReadModel invocationreadmodel.Store
 
 	// Orchestration settings store (file-backed, hot-reloadable).
 	orchestrationSettings *agentconfig.OrchestrationSettingsStore
@@ -810,6 +812,12 @@ func WithFindings(repo findings.Repository) Option {
 
 func WithInvocationFactStore(store runreport.InvocationFactStore) Option {
 	return func(o *Orchestrator) { o.invocationFacts = store }
+}
+
+// WithInvocationReadModel wires the independent durable analytics projection.
+// It is deliberately distinct from the legacy report cache.
+func WithInvocationReadModel(store invocationreadmodel.Store) Option {
+	return func(o *Orchestrator) { o.invocationReadModel = store }
 }
 
 // WithArtifacts sets the artifact collector.

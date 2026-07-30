@@ -96,6 +96,12 @@ reconciliation evidence for the active catalog digest must show a native or
 hook-backed resource; missing or stale evidence, or a missing enforcing
 candidate, makes `/health` degraded with an actionable operator message.
 
+Runner credentials are optional startup inputs. Agent Manager may start with
+every runner unavailable; it records runner readiness through probes and
+selects or rejects a runner only when a run is requested. In particular, Codex
+can authenticate through its signed-in CLI session, so `OPENAI_API_KEY` is an
+optional API-key alternative rather than a scenario-start prerequisite.
+
 ## Agent-conformance validation
 
 `agent-conformance` is a read-only Test Genie phase declared by Agent Manager.

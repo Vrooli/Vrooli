@@ -48,13 +48,25 @@
 **Reason for deferral**: Complex ML/feedback loop; out of scope for orchestration layer.
 **Consideration**: Event logs provide training data if needed later.
 
+## Resolved Issues
+
+### P-008: Lifecycle incorrectly required Codex API key (resolved 2026-07-29)
+**Root cause**: The Codex resource declared `OPENAI_API_KEY` as required, so the
+lifecycle credential resolver stopped Agent Manager before runner probes ran.
+This contradicted the optional Agent Manager runner dependency and Codex's
+signed-in CLI authentication path.
+**Resolution**: The descriptor is now optional and a real-manifest regression
+test enforces that every Agent Manager runner resource has only optional
+credentials. `make start` subsequently completed with Agent Manager healthy and
+both API/UI listeners bound without an API key.
+
 ## Test Gaps
 
 ## Work ladder
 
 - Rung: W3
-- Evidence: active goals `ecosystem-intelligence-loop`, `git-control-tower-ai-provenance`, `phone-agent`, and `swarm-manager-feature-parity` agree with Agent Manager's P0 run, sandbox, event, diff, and health targets; `business-health validate scenario agent-manager` and `vrooli scenario requirements validate agent-manager` pass, with six inherited orphaned P2 targets (`OT-P2-003` through `OT-P2-008`). Test Genie run `20260729-045047-b8b09a26` reached its terminal suite and had two unique errors: stale UI bundle freshness (repaired by the managed restart) and `UNIT_POLICY_PROJECTION_DRIFT` because measured UI coverage is below the declared 85% policy.
-- Blocker: implementation reliability is verified for the investigation path, but the scenario-wide UI coverage policy remains unsatisfied; continue behavior-focused coverage without weakening the policy.
+- Evidence: `OT-P0-012` has the planned, truthfully pending `REQ-P0-014`; `business-health validate scenario agent-manager` and `vrooli scenario requirements validate agent-manager --json` pass, with only inherited orphaned P2 warnings.
+- Blocker: obtain a fresh implementation baseline before changing the durable analytics projection.
 - Measured: 2026-07-29
 
 ### P-007: Unit coverage policy gaps remain after reliability hardening (2026-07-23)
@@ -99,6 +111,18 @@ Health also reports pre-existing UI policy-projection drift and
 requirement-tagging debt outside this plan.
 
 ## Technical Debt
+
+### TD-003: Measures and legacy statistics parity remain incomplete
+**Description:** The durable invocation read model now owns friction facts and
+provides corpus metrics, aggregates, and cohort selection. The legacy
+`StatsSummary` aggregate and product statistics surfaces still exist because
+only the throughput subset (volume, terminal success, cycle time, cost, and
+tokens) has same-snapshot parity coverage. Legacy breakdown, tool-usage,
+error-pattern, and time-series questions still lack typed measures and parity.
+**Priority:** P0 analytics completion.
+**Constraint:** Do not remove the legacy aggregate contract or raw-event
+analytics until every documented question has a parity result and its machine
+consumer has migrated.
 
 ### Resolved: Legacy profile inputs
 Profiles store one portable `roleRef`. Database startup applies the current

@@ -15,7 +15,7 @@ import (
 	"agent-manager/internal/eventlog"
 	"agent-manager/internal/handlers"
 	healthstore "agent-manager/internal/health"
-	"agent-manager/internal/modules"
+	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/permissionpolicy"
@@ -60,6 +60,7 @@ type Server struct {
 	statsEngine           *stats.Engine
 	healthStore           *healthstore.Store
 	eventRepo             eventlog.Repository
+	invocationReadModel   invocationreadmodel.Store
 }
 
 // NewServer builds the graph, then starts durable recovery in dependency order.
@@ -105,18 +106,11 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("connect database: %w", err)
 	}
 	db := database.NewRoutedDB(routedDB, logger)
-	if err := coredb.EnsureSchemas(dbCtx, routedDB.Primary(), modules.AllSchemas()...); err != nil {
-		_ = db.Close()
-		return nil, fmt.Errorf("apply database schema: %w", err)
-	}
 	if err := db.InitializeSchema(); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("initialize database schema: %w", err)
 	}
 	routedDB.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
-		if err := coredb.EnsureSchemas(ctx, pool, modules.AllSchemas()...); err != nil {
-			return err
-		}
 		return database.NewDB(sqlx.NewDb(pool, "sqlite"), logger).InitializeSchema()
 	})
 	wsHub := handlers.NewWebSocketHub()
@@ -137,7 +131,7 @@ func NewServer() (*Server, error) {
 		wsHub: wsHub, reconciler: deps.Reconciler, awaitRegistry: deps.AwaitRegistry, workflowNudger: deps.WorkflowNudger,
 		modelHealthProbe: deps.ModelHealthProbe, rolePolicyState: deps.RolePolicyState, permissionPolicyState: deps.PermissionPolicyState,
 		permissionPolicy: deps.PermissionPolicy, storage: uploadStorage, statsEngine: deps.StatsEngine,
-		healthStore: deps.HealthStore, eventRepo: deps.EventRepository,
+		healthStore: deps.HealthStore, eventRepo: deps.EventRepository, invocationReadModel: deps.InvocationReadModel,
 	}
 	srv.startRecovery()
 	srv.setupRoutes()
@@ -196,7 +190,7 @@ func (s *Server) setupRoutes() {
 		DB: s.db, Orchestrator: s.orchestrator, StatsService: s.statsService, StatsRepository: s.statsRepo,
 		PricingService: s.pricingService, WebSocketHub: s.wsHub, RolePolicyState: s.rolePolicyState,
 		PermissionPolicyState: s.permissionPolicyState, PermissionPolicy: s.permissionPolicy, Storage: s.storage,
-		StatsEngine: s.statsEngine, HealthStore: s.healthStore, EventRepository: s.eventRepo,
+		StatsEngine: s.statsEngine, HealthStore: s.healthStore, EventRepository: s.eventRepo, InvocationReadModel: s.invocationReadModel,
 	})
 }
 

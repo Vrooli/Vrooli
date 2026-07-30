@@ -23,6 +23,12 @@ type Source interface {
 	Diff(context.Context, uuid.UUID) (*sandbox.DiffResult, error)
 }
 
+// DurableInvocationFactSource supplies a completed durable projection. The
+// boolean distinguishes a valid empty projection from an absent projection.
+type DurableInvocationFactSource interface {
+	DurableInvocationFacts(context.Context, uuid.UUID) ([]InvocationFact, bool, error)
+}
+
 // ReceiptSummary is deliberately bounded: the report needs availability and
 // count to route an investigation, while the receipts command owns payload
 // disclosure.
@@ -126,7 +132,19 @@ func Build(ctx context.Context, source Source, runID uuid.UUID) (*RunReport, err
 		r.EventsAvailability = Availability{State: "unavailable", Detail: err.Error()}
 	} else {
 		r.foldEvents(events)
-		r.InvocationFacts = DeriveInvocationFacts(events)
+		if durable, ok := source.(DurableInvocationFactSource); ok {
+			facts, present, durableErr := durable.DurableInvocationFacts(ctx, runID)
+			if durableErr != nil {
+				return nil, fmt.Errorf("read durable invocation facts: %w", durableErr)
+			}
+			if present {
+				r.InvocationFacts = facts
+			} else {
+				r.InvocationFacts = DeriveInvocationFacts(events)
+			}
+		} else {
+			r.InvocationFacts = DeriveInvocationFacts(events)
+		}
 		for _, fact := range r.InvocationFacts {
 			if fact.HelpRecovery {
 				r.HelpRecoveries++
@@ -183,7 +201,7 @@ func (r *RunReport) foldEvents(events []*domain.RunEvent) {
 				if toolCalls[call.ToolName] > 1 {
 					r.RepeatedToolCalls++
 				}
-				if path := readPath(call); path != "" {
+				if path := ReadPath(call); path != "" {
 					fileReads[path]++
 					if fileReads[path] == 2 {
 						r.FilesReadMoreThanOnce++
@@ -200,7 +218,10 @@ func (r *RunReport) foldEvents(events []*domain.RunEvent) {
 	sort.Slice(r.Tools, func(i, j int) bool { return r.Tools[i].Name < r.Tools[j].Name })
 }
 
-func readPath(call *domain.ToolCallEventData) string {
+// ReadPath is the canonical conservative classifier for file-read tool calls.
+// It is shared by the report and durable projection so reread semantics stay
+// identical at per-run and corpus scope.
+func ReadPath(call *domain.ToolCallEventData) string {
 	name := strings.ToLower(call.ToolName)
 	if !strings.Contains(name, "read") && !strings.Contains(name, "cat") && !strings.Contains(name, "view") {
 		return ""

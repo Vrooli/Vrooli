@@ -896,6 +896,28 @@ func (s *RunService) InvocationFacts(id string) ([]byte, error) {
 	return s.api.Request("GET", "/api/v1/runs/"+id+"/invocation-facts", nil, nil)
 }
 
+func (s *RunService) ReplayInvocationFacts(id string) ([]byte, error) {
+	return s.api.Request("POST", "/api/v1/runs/"+id+"/invocation-facts/replay", nil, nil)
+}
+
+func (s *RunService) RefreshInvocationFacts(id string) ([]byte, error) {
+	return s.api.Request("POST", "/api/v1/runs/"+id+"/invocation-facts/refresh", nil, nil)
+}
+
+func (s *RunService) ReplayInvocationCorpus(values url.Values) ([]byte, error) {
+	return s.api.Request("POST", "/api/v1/runs/invocation-facts/replay", values, nil)
+}
+
+func (s *RunService) AggregateInvocationFacts(values url.Values) ([]byte, error) {
+	return s.api.Request("GET", "/api/v1/runs/invocation-facts/aggregate", values, nil)
+}
+func (s *RunService) SelectInvocationCohort(values url.Values) ([]byte, error) {
+	return s.api.Request("GET", "/api/v1/runs/invocation-facts/cohort", values, nil)
+}
+func (s *RunService) InvocationMetrics(values url.Values) ([]byte, error) {
+	return s.api.Request("GET", "/api/v1/runs/invocation-facts/metrics", values, nil)
+}
+
 // InvestigationApply creates a run that applies investigation recommendations.
 func (s *RunService) InvestigationApply(req json.RawMessage) ([]byte, *domainpb.Run, error) {
 	body, err := s.api.Request("POST", "/api/v1/runs/investigation-apply", nil, req)

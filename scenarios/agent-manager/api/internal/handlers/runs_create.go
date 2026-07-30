@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/protoconv"
 
@@ -216,6 +217,10 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 		AttachmentIDs []string          `json:"attachmentIds,omitempty"`
 		RoleRef       string            `json:"roleRef,omitempty"`
 		Environment   map[string]string `json:"environment,omitempty"`
+		Selector      *struct {
+			Filter invocationreadmodel.Filter `json:"filter"`
+			Limit  int                        `json:"limit,omitempty"`
+		} `json:"selector,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeSimpleError(w, r, "body", "invalid JSON")
@@ -226,6 +231,10 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	if len(req.RunIDs) > 0 && req.Selector != nil {
+		writeSimpleError(w, r, "selector", "provide either runIds or selector, not both")
+		return
+	}
 	runIDs := make([]uuid.UUID, 0, len(req.RunIDs))
 	for _, idStr := range req.RunIDs {
 		id, err := uuid.Parse(idStr)
@@ -234,6 +243,29 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		runIDs = append(runIDs, id)
+	}
+	if req.Selector != nil {
+		limit := req.Selector.Limit
+		if limit <= 0 {
+			limit = 100
+		}
+		cohort, err := h.svc.SelectInvocationCohort(r.Context(), req.Selector.Filter, limit)
+		if err != nil {
+			writeError(w, r, err)
+			return
+		}
+		if cohort.Truncated {
+			writeSimpleError(w, r, "selector.limit", "selector matched more runs than its limit; refine the selector or raise the limit")
+			return
+		}
+		for _, idStr := range cohort.RunIDs {
+			id, err := uuid.Parse(idStr)
+			if err != nil {
+				writeError(w, r, fmt.Errorf("selector returned invalid run ID: %w", err))
+				return
+			}
+			runIDs = append(runIDs, id)
+		}
 	}
 
 	// Validate depth if provided

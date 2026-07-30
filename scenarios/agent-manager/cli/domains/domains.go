@@ -6,6 +6,7 @@ import (
 	"agent-manager/cli/domains/findings"
 	"agent-manager/cli/domains/health"
 	"agent-manager/cli/domains/maintenance"
+	"agent-manager/cli/domains/measures"
 	"agent-manager/cli/domains/ops"
 	"agent-manager/cli/domains/policy"
 	"agent-manager/cli/domains/profiles"
@@ -38,5 +39,5 @@ func CommandGroups(deps support.Dependencies) []cliapp.CommandGroup {
 }
 
 func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
-	return []cliapp.SubcommandGroup{runs.SubcommandGroup(deps)}
+	return []cliapp.SubcommandGroup{runs.SubcommandGroup(deps), measures.Register()}
 }

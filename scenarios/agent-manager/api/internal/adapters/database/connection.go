@@ -388,6 +388,19 @@ func isScannable(dest any) bool {
 func (db *DB) initSchema() error {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultSchemaTimeout)
 	defer cancel()
+	// EnsureSchemas validates declared columns before it returns. SQLite's
+	// CREATE TABLE IF NOT EXISTS cannot add columns to a table that already
+	// exists, so an additive migration for an existing projection table must
+	// happen before that validation step. A fresh database has no columns yet;
+	// the declarative schema creates it and the normal post-schema migration is
+	// then a harmless no-op.
+	if columns, err := db.tableColumns(ctx, "invocation_read_model_runs"); err != nil {
+		return err
+	} else if len(columns) > 0 {
+		if err := db.migrateInvocationReadModelRunColumns(ctx); err != nil {
+			return err
+		}
+	}
 	if err := coredb.EnsureSchemas(ctx, db, modules.AllSchemas()...); err != nil {
 		if db.log != nil {
 			db.log.WithError(err).Error("Failed to apply domain schemas")
@@ -415,6 +428,9 @@ func (db *DB) initSchema() error {
 	if err := db.migrateColumns(ctx, "workflow_node_attempts", []columnMigration{{column: "child_execution_id", ddl: "ALTER TABLE workflow_node_attempts ADD COLUMN child_execution_id TEXT"}, {column: "raw_output", ddl: "ALTER TABLE workflow_node_attempts ADD COLUMN raw_output TEXT"}, {column: "validation_error", ddl: "ALTER TABLE workflow_node_attempts ADD COLUMN validation_error TEXT"}, {column: "experiment_id", ddl: "ALTER TABLE workflow_node_attempts ADD COLUMN experiment_id TEXT"}, {column: "variant_id", ddl: "ALTER TABLE workflow_node_attempts ADD COLUMN variant_id TEXT"}, {column: "prompt_hash", ddl: "ALTER TABLE workflow_node_attempts ADD COLUMN prompt_hash TEXT"}}); err != nil {
 		return err
 	}
+	if err := db.migrateInvocationReadModelRunColumns(ctx); err != nil {
+		return err
+	}
 	if db.log != nil {
 		db.log.Info("Database schema initialized successfully")
 	}
@@ -430,6 +446,24 @@ func (db *DB) InitializeSchema() error { return db.initSchema() }
 type columnMigration struct {
 	column string
 	ddl    string
+}
+
+var invocationReadModelRunColumnMigrations = []columnMigration{
+	{column: "authoritative_cost_usd", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN authoritative_cost_usd REAL NOT NULL DEFAULT 0"},
+	{column: "estimated_cost_usd", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN estimated_cost_usd REAL NOT NULL DEFAULT 0"},
+	{column: "unknown_cost_usd", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN unknown_cost_usd REAL NOT NULL DEFAULT 0"},
+	{column: "input_cost_usd", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN input_cost_usd REAL NOT NULL DEFAULT 0"},
+	{column: "output_cost_usd", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN output_cost_usd REAL NOT NULL DEFAULT 0"},
+	{column: "cache_read_cost_usd", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN cache_read_cost_usd REAL NOT NULL DEFAULT 0"},
+	{column: "cache_creation_cost_usd", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN cache_creation_cost_usd REAL NOT NULL DEFAULT 0"},
+	{column: "input_tokens", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN input_tokens INTEGER NOT NULL DEFAULT 0"},
+	{column: "output_tokens", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN output_tokens INTEGER NOT NULL DEFAULT 0"},
+	{column: "cache_read_tokens", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN cache_read_tokens INTEGER NOT NULL DEFAULT 0"},
+	{column: "cache_creation_tokens", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN cache_creation_tokens INTEGER NOT NULL DEFAULT 0"},
+}
+
+func (db *DB) migrateInvocationReadModelRunColumns(ctx context.Context) error {
+	return db.migrateColumns(ctx, "invocation_read_model_runs", invocationReadModelRunColumnMigrations)
 }
 
 // runColumnMigrations lists columns added to the runs table after its original

@@ -12,7 +12,7 @@
     "default": "not_applicable",
     "any": [
       {"scenarioDependency": "agent-manager"},
-      {"pathGlob": ".vrooli/agent-profiles/*.json"}
+      {"pathGlob": ".vrooli/agent-manager/*.json"}
     ]
   },
   "policy": {

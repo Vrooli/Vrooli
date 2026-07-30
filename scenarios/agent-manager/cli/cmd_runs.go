@@ -36,6 +36,18 @@ func (a *App) cmdRun(args []string) error {
 		return a.runCohortReport(args[1:])
 	case "invocation-facts":
 		return a.runInvocationFacts(args[1:])
+	case "replay-invocation-facts":
+		return a.runReplayInvocationFacts(args[1:])
+	case "refresh-invocation-facts":
+		return a.runRefreshInvocationFacts(args[1:])
+	case "replay-invocation-corpus":
+		return a.runReplayInvocationCorpus(args[1:])
+	case "invocation-aggregate":
+		return a.runAggregateInvocationFacts(args[1:])
+	case "invocation-cohort":
+		return a.runSelectInvocationCohort(args[1:])
+	case "invocation-metrics":
+		return a.runInvocationMetrics(args[1:])
 	case "stats":
 		return a.runStats(args[1:])
 	case "result":
@@ -100,6 +112,12 @@ Subcommands:
   report <id>                 Show bounded investigation diagnostics
 	  cohort-report --run-ids ids  Show ranked, bounded evidence across selected runs
 	  invocation-facts <id>        Drill into redacted normalized invocation evidence
+	  replay-invocation-facts <id> Rebuild durable invocation evidence from retained events
+	  refresh-invocation-facts <id> Refresh evidence only when events advanced
+	  replay-invocation-corpus    Rebuild or refresh a filtered run corpus
+	  invocation-aggregate        Aggregate durable invocation facts
+	  invocation-cohort           Select run IDs from durable invocation facts
+	  invocation-metrics          Calculate durable friction metric counts
   result <id>                 Show final-output and structured-result provenance
   tools <id>                  Show tool events (--failed limits to failures)
   messages <id>               Show recorded agent messages
@@ -1431,69 +1449,5 @@ func (a *App) runApplyInvestigation(args []string) error {
 	}
 
 	fmt.Printf("Created apply run: %s\n", run.Id)
-	return nil
-}
-
-// =============================================================================
-// Run Sandbox Sync
-// =============================================================================
-
-func (a *App) runSandboxSync(args []string) error {
-	fs := flag.NewFlagSet("run sandbox-sync", flag.ContinueOnError)
-	jsonOutput := cliutil.JSONFlag(fs)
-	status := fs.String("status", "", "Status to sync (required)")
-	sandboxID := fs.String("sandbox-id", "", "Sandbox ID")
-	actor := fs.String("actor", "", "Actor identifier")
-	reason := fs.String("reason", "", "Reason for sync")
-
-	// Parse with positional ID first
-	var id string
-	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-		id = args[0]
-		args = args[1:]
-	}
-
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if id == "" {
-		return fmt.Errorf("usage: agent-manager run sandbox-sync <id> --status <status>")
-	}
-
-	if *status == "" {
-		return fmt.Errorf("--status is required")
-	}
-
-	req := map[string]interface{}{
-		"runId":  id,
-		"status": *status,
-	}
-	if *sandboxID != "" {
-		req["sandboxId"] = *sandboxID
-	}
-	if *actor != "" {
-		req["actor"] = *actor
-	}
-	if *reason != "" {
-		req["reason"] = *reason
-	}
-
-	payload, err := json.Marshal(req)
-	if err != nil {
-		return err
-	}
-
-	body, err := a.services.Runs.SandboxSync(id, payload)
-	if err != nil {
-		return err
-	}
-
-	if *jsonOutput {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	fmt.Printf("Synced run: %s\n", id)
 	return nil
 }

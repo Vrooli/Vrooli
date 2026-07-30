@@ -94,6 +94,9 @@ func (o *Orchestrator) applyRunStatusTransition(ctx context.Context, input RunSt
 	if o.broadcaster != nil {
 		o.broadcaster.BroadcastRunStatus(hydrated)
 	}
+	if previousStatus != input.NewStatus && hydrated.Status.IsTerminal() {
+		o.projectTerminalInvocationReadModel(hydrated)
+	}
 
 	return hydrated, nil
 }

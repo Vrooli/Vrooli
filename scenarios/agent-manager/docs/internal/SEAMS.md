@@ -720,6 +720,49 @@ func RegisterProcessor(eventType domain.RunEventType, schemaVersion int, p Proce
 
 ---
 
+### 3bb. Durable Invocation Analytics Read Model (`internal/invocationreadmodel`)
+
+**Purpose:** Preserve the versioned tool-invocation evidence and terminal run
+summaries used for friction and throughput analysis after source `run_events`
+retention expires. This is the authoritative substrate for ownership, retry,
+help-recovery, repeated work, file rereads, per-tool outcomes, run success,
+cycle time, cost, and volume questions across the run corpus.
+
+**Ownership and freshness:** `runreport.DeriveInvocationFacts` remains the
+single classifier fold. `orchestration` starts a fire-and-forget projection
+when a run reaches a terminal state; projection failures are logged and never
+alter the run transition. Facts, watermark, terminal run summary, and reread
+signals advance in the same transaction, so no analytical surface can observe
+a partially advanced run. A refresh reports `skipped`, `refreshed`,
+or `unreplayable`; an unreplayable run has no retained source events and keeps
+its prior facts and classifier version unchanged.
+
+**Consumer surfaces:**
+
+- `GET /api/v1/runs/invocation-facts/{metrics,aggregate,cohort}` supplies the
+  corpus analytics and bounded run-id selector.
+- `agent-manager run invocation-{metrics,aggregate,cohort}` exposes the same
+  predicate for operators; replay and refresh remain maintenance commands.
+- `run report` reads durable facts when available, retaining its on-demand
+  derivation fallback only for historical runs that were never projected.
+- The Statistics UI's friction overview consumes the metrics endpoint and its
+  shared time-window state.
+- Investigation creation accepts the same selector predicate instead of only
+  pre-known run ids; a truncated selector is rejected so it cannot be mistaken
+  for complete evidence.
+
+**Retained product boundary:** the existing operational statistics UI and
+`StatsSummary` machine contract remain while per-question parity is incomplete.
+They must not be removed or silently re-derived from raw event JSON until that
+parity gate passes. Trend views and full UI migration remain tracked work.
+
+**Tests:** `internal/invocationreadmodel/contract_test.go`,
+`internal/adapters/database/repository_investigation_projection_test.go`, and
+`internal/orchestration/invocation_read_model_test.go` pin projection,
+migration, aggregate/cohort, and replay behaviour.
+
+---
+
 ### 3c. Fallback Classifier (`internal/fallback`)
 
 **Purpose:** Single source of truth for "why did the runner or model reject this attempt?" Replaces the regex `runner.ClassifyModelError` and 3-value `ModelErrorKind` (deleted 2026-05-07, Phase 2).

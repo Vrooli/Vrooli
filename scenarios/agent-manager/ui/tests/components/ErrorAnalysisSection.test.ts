@@ -4,16 +4,15 @@ import { createElement } from "react";
 import { test, vi } from "vitest";
 import type { useQuery } from "@tanstack/react-query";
 import { ErrorAnalysisSection } from "../../src/features/stats/components/errors/ErrorAnalysisSection.js";
-import type { ErrorPatternsResponse } from "../../src/features/stats/api/types.js";
+import type { ErrorPatternsMeasure } from "../../src/features/stats/api/statsClient.js";
 import { useErrorAnalysis } from "../../src/features/stats/hooks/useErrorAnalysis.js";
 import { renderWithProviders } from "../../src/test-utils/index.js";
-import { makeErrorPatternsResponse } from "../testutil/stats.js";
 
 vi.mock("../../src/features/stats/hooks/useErrorAnalysis.js", () => ({
   useErrorAnalysis: vi.fn(),
 }));
 
-type QueryResult = ReturnType<typeof useQuery<ErrorPatternsResponse, Error>>;
+type QueryResult = ReturnType<typeof useQuery<ErrorPatternsMeasure, Error>>;
 
 function queryResult(overrides: Partial<QueryResult>): QueryResult {
   return {
@@ -26,7 +25,10 @@ function queryResult(overrides: Partial<QueryResult>): QueryResult {
 
 test("ErrorAnalysisSection renders error totals, messages, and sample run links", () => {
   vi.mocked(useErrorAnalysis).mockReturnValue(queryResult({
-    data: makeErrorPatternsResponse(),
+    data: { executedQuery: "durable", rows: [
+      { errorCode: "workspace-sandbox unavailable while applying patch", count: 12, lastSeen: "2026-05-01T12:00:00.000Z", sampleRunId: "run-error-12345678" },
+      { errorCode: "model exhausted fallback chain", count: 1, lastSeen: "2026-05-01T11:00:00.000Z", sampleRunId: "run-error-87654321" },
+    ] },
   }));
 
   renderWithProviders(createElement(ErrorAnalysisSection));
@@ -48,8 +50,9 @@ test("ErrorAnalysisSection renders error totals, messages, and sample run links"
 test("ErrorAnalysisSection truncates long error codes but keeps the full title", () => {
   const longError = "model ".repeat(25).trim();
   vi.mocked(useErrorAnalysis).mockReturnValue(queryResult({
-    data: makeErrorPatternsResponse({
-      errors: [
+    data: {
+      executedQuery: "durable",
+      rows: [
         {
           errorCode: longError,
           count: 3,
@@ -57,7 +60,7 @@ test("ErrorAnalysisSection truncates long error codes but keeps the full title",
           sampleRunId: "run-long-error",
         },
       ],
-    }),
+    },
   }));
 
   renderWithProviders(createElement(ErrorAnalysisSection));
@@ -69,7 +72,7 @@ test("ErrorAnalysisSection truncates long error codes but keeps the full title",
 
 test("ErrorAnalysisSection renders empty, loading, and error states", () => {
   vi.mocked(useErrorAnalysis).mockReturnValue(queryResult({
-    data: makeErrorPatternsResponse({ errors: [] }),
+    data: { executedQuery: "durable", rows: [] },
   }));
 
   const empty = renderWithProviders(createElement(ErrorAnalysisSection));
