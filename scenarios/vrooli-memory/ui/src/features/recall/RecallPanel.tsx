@@ -5,6 +5,7 @@ import { recallMemory } from "../../api/recall";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { EmptyState } from "../../components/ui/empty-state";
+import { ExperienceSurface, type ExperienceSurfaceState } from "../../components/experience/ExperienceSurface";
 import { Input } from "../../components/ui/input";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
@@ -16,7 +17,9 @@ export function RecallPanel() {
   const [input, setInput] = useState("");
   const [query, setQuery] = useState("");
   const result = useQuery({ queryKey: ["recall", query], queryFn: () => recallMemory(query, 10), enabled: query.length > 0 });
-  return <Card data-testid={selectors.recall.surface} aria-label={t(strings.recall.title)}>
+  const experienceState: ExperienceSurfaceState = result.isLoading ? "loading" : result.error ? "error" : query && result.data?.length === 0 ? "empty" : "ready";
+  return <ExperienceSurface surfaceId="results" state={experienceState} data-testid={selectors.recall.surface} aria-label={t(strings.recall.title)}>
+    <Card>
     <CardHeader><CardTitle>{t(strings.recall.title)}</CardTitle></CardHeader>
     <CardContent className="space-y-4">
       <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); setQuery(input.trim()); }}>
@@ -30,5 +33,6 @@ export function RecallPanel() {
         {result.data.map((hit) => <li key={hit.nodeId} className="rounded-control border border-app-border p-3"><p className="whitespace-pre-wrap">{hit.text}</p><p className="mt-2 text-sm text-app-muted-foreground">{hit.facetId} · {t(strings.recall.score, { score: hit.score.toFixed(2) })}{hit.summary ? ` · ${t(strings.recall.summary, { count: hit.span })}` : ""}</p></li>)}
       </ol>}
     </CardContent>
-  </Card>;
+    </Card>
+  </ExperienceSurface>;
 }

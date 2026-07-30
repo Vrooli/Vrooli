@@ -2,25 +2,32 @@ package recall
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"connectrpc.com/connect"
 
 	recallv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/recall"
 
+	internaljournal "vrooli-memory/internal/journal"
 	internalrecall "vrooli-memory/internal/recall"
 )
 
 type connectHandler struct {
 	service *internalrecall.Service
+	journal *internaljournal.Service
 	logger  *log.Logger
 }
 
-func NewConnectHandler(s *internalrecall.Service, l *log.Logger) *connectHandler {
+func NewConnectHandler(s *internalrecall.Service, l *log.Logger, journals ...*internaljournal.Service) *connectHandler {
 	if l == nil {
 		l = log.Default()
 	}
-	return &connectHandler{service: s, logger: l}
+	h := &connectHandler{service: s, logger: l}
+	if len(journals) > 0 {
+		h.journal = journals[0]
+	}
+	return h
 }
 
 func (h *connectHandler) Recall(ctx context.Context, req *connect.Request[recallv1.RecallRequest]) (*connect.Response[recallv1.RecallResponse], error) {
@@ -51,8 +58,31 @@ func (h *connectHandler) Zoom(ctx context.Context, req *connect.Request[recallv1
 	return connect.NewResponse(&recallv1.ZoomResponse{Constituents: hitsProto(hits)}), nil
 }
 
-func (h *connectHandler) ListSiblingEvents(context.Context, *connect.Request[recallv1.ListSiblingEventsRequest]) (*connect.Response[recallv1.ListSiblingEventsResponse], error) {
-	return connect.NewResponse(&recallv1.ListSiblingEventsResponse{}), nil
+func (h *connectHandler) ListSiblingEvents(ctx context.Context, req *connect.Request[recallv1.ListSiblingEventsRequest]) (*connect.Response[recallv1.ListSiblingEventsResponse], error) {
+	if req.Msg.GetEntryId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("entry_id is required"))
+	}
+	if h.journal == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("journal source unavailable"))
+	}
+	entry, err := h.journal.Get(ctx, req.Msg.GetEntryId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	if entry.Correlation.RunID == "" {
+		return connect.NewResponse(&recallv1.ListSiblingEventsResponse{}), nil
+	}
+	entries, err := h.journal.ListByRun(ctx, entry.Correlation.RunID, 500)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	response := &recallv1.ListSiblingEventsResponse{}
+	for _, sibling := range entries {
+		if sibling.ID != entry.ID {
+			response.Entries = append(response.Entries, &recallv1.RecallHit{EntryId: sibling.ID, FacetId: sibling.FacetID, Text: sibling.Body})
+		}
+	}
+	return connect.NewResponse(response), nil
 }
 
 func hitsProto(hits []internalrecall.Hit) []*recallv1.RecallHit {

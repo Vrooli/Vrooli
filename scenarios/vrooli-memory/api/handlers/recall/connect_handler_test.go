@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	recallv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/recall"
+	internaljournal "vrooli-memory/internal/journal"
+	"vrooli-memory/internal/journal/mocks"
 	internalrecall "vrooli-memory/internal/recall"
 )
 
@@ -40,4 +42,16 @@ func TestWakeReportsOverflowAndRecallExposesZoomableNodeID(t *testing.T) {
 	require.Equal(t, "summary-1", recall.Msg.GetHits()[0].GetNodeId())
 	require.True(t, recall.Msg.GetHits()[0].GetSummary())
 	require.EqualValues(t, 2, recall.Msg.GetHits()[0].GetSpan())
+}
+
+func TestListSiblingEventsUsesOnlyTheStoredRunCorrelation(t *testing.T) { // [REQ:VMEM-P1-002]
+	entry := internaljournal.Entry{ID: "entry-1", Body: "first", Correlation: internaljournal.Correlation{RunID: "run-1"}}
+	sibling := internaljournal.Entry{ID: "entry-2", Body: "second", Correlation: internaljournal.Correlation{RunID: "run-1"}}
+	repo := &mocks.Repository{GetOut: entry, ListOut: []internaljournal.Entry{entry, sibling}}
+	journal := internaljournal.NewService(repo, nil)
+	h := NewConnectHandler(internalrecall.NewService(handlerSource{}, handlerEmbedder{}, internalrecall.Config{}), nil, journal)
+	resp, err := h.ListSiblingEvents(context.Background(), connect.NewRequest(&recallv1.ListSiblingEventsRequest{EntryId: entry.ID}))
+	require.NoError(t, err)
+	require.Len(t, resp.Msg.GetEntries(), 1)
+	require.Equal(t, sibling.ID, resp.Msg.GetEntries()[0].GetEntryId())
 }

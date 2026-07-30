@@ -30,16 +30,6 @@ content. That is accepted for single-tenant local infrastructure. It would be
 unacceptable in a multi-tenant or shared-host deployment, so multi-tenancy is
 explicitly out of scope until this decision is revisited.
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-The shipped worked-example `notes` domain carries placeholder data only
-(removed by `template-manager detemplate`):
-
-| Data | Sensitivity | Owner | Details |
-|---|---|---|---|
-| Template notes data | low | notes reference | Local development data only; replace with real scenario data classification. |
-| Attachment bytes | unknown | notes reference | Treat as potentially sensitive if retained in product scope. |
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Auth And Authorization
 
 The generated template does not include an auth provider. Add auth only

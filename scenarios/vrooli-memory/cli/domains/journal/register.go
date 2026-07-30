@@ -21,7 +21,7 @@ func Command(core *cliapp.ScenarioApp) cliapp.Command {
 	h := newHandlers(core)
 	return cliapp.Command{Name: "note", Description: "Append an immutable memory entry", Args: cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "body", Required: true, Description: "Memory prose"}},
-		Flags:       []cliapp.Flag{{Name: "kind", Description: "Entry kind"}},
+		Flags:       []cliapp.Flag{{Name: "kind", Description: "Entry kind"}, {Name: "trigger", Description: "Work-record trigger"}, {Name: "approach", Description: "Work-record approach"}, {Name: "evidence", Description: "Work-record evidence"}, {Name: "outcome", Description: "Work-record outcome"}},
 	}}.WithPrimitive(cliapp.ProtoMutation(h.noteCall, h.noteReport))
 }
 

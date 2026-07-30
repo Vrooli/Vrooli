@@ -7,7 +7,6 @@ import {
 
 import { AppShell } from "../layout/AppShell";
 import { DashboardPage } from "../pages/DashboardPage";
-import { NotesPage } from "../pages/NotesPage"; // EXAMPLE-DOMAIN:notes
 import { JournalPage } from "../pages/JournalPage";
 import { RecallPage } from "../pages/RecallPage";
 import { SettingsPage } from "../pages/SettingsPage";
@@ -24,7 +23,6 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     children: [
       { index: true, element: <DashboardPage /> },
-      { path: "notes", element: <NotesPage /> }, // EXAMPLE-DOMAIN:notes
       { path: "journal", element: <JournalPage /> },
       { path: "recall", element: <RecallPage /> },
       { path: "settings", element: <SettingsPage /> },

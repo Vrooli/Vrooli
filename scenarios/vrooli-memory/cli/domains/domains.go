@@ -1,9 +1,9 @@
 package domains
 
 import (
+	"vrooli-memory/cli/domains/forest"
 	"vrooli-memory/cli/domains/harness"
 	"vrooli-memory/cli/domains/journal"
-	"vrooli-memory/cli/domains/notes" // EXAMPLE-DOMAIN:notes
 	"vrooli-memory/cli/domains/recall"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -19,6 +19,7 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 	commands := append([]cliapp.Command{}, journal.Commands(core)...)
 	commands = append(commands, recall.Commands(core)...)
 	commands = append(commands, harness.Commands(core)...)
+	commands = append(commands, forest.Commands(core)...)
 	return []cliapp.CommandGroup{{Title: "Memory", Commands: commands}}
 }
 
@@ -42,13 +43,6 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
 	groups := []cliapp.SubcommandGroup{}
-	// EXAMPLE-DOMAIN:notes START
-	notesGroup, err := notes.Register(core, manifest)
-	if err != nil {
-		return nil, err
-	}
-	groups = append(groups, notesGroup)
-	// EXAMPLE-DOMAIN:notes END
 	journalGroup, err := journal.Register(core, manifest)
 	if err != nil {
 		return nil, err
@@ -61,6 +55,10 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	groups = append(groups, journalGroup, harnessGroup, recallGroup)
+	forestGroup, err := forest.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, journalGroup, harnessGroup, recallGroup, forestGroup)
 	return groups, nil
 }

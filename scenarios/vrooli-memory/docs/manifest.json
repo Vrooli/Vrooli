@@ -651,11 +651,16 @@
             "agents",
             "operators"
           ],
-          "canonicalFor": [
-            "replacement-scope",
-            "migration-plan"
-          ],
-          "maturity": "active"
+  "canonicalFor": [
+    "replacement-scope",
+    "migration-plan"
+  ],
+  "maturity": "active",
+  "requiredBy": [
+    "implemented",
+    "validated"
+  ],
+  "completion": "required"
         }
       ]
     },

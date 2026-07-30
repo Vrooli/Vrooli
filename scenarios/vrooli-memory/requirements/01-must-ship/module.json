@@ -1,6 +1,7 @@
 {
   "_metadata": {
     "description": "P0 requirements — the journal, the retrieval contract, facet-routed retention, and the compaction loop. Nothing here is implemented yet: every status is planned, and every validation entry declares intended evidence without asserting a ref to a test that does not exist.",
+    "last_validated_at": "2026-07-29T17:30:00-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -9,171 +10,407 @@
     {
       "id": "VMEM-P0-001",
       "title": "Append-only journal",
-      "criticality": "P0",
       "status": "planned",
       "prd_ref": "OT-P0-001",
       "category": "storage",
+      "criticality": "P0",
       "description": "The journal is the sole authority. A memory write appends one immutable entry; no code path rewrites or deletes an existing entry. Compaction adds summary nodes above the journal and never removes what it summarized. An entry carries prose body, facet tag, derived facet texts, embeddings, author attribution, receipt correlation, and creation timestamp.",
-      "tags": ["journal", "storage", "invariant"],
+      "tags": [
+        "journal",
+        "storage",
+        "invariant"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Appending N entries then reading yields exactly N entries in write order with stable ids." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "No repository method exposes update or delete of a journal entry; a compaction pass leaves leaf count unchanged." },
-        { "type": "test", "phase": "integration", "status": "planned", "notes": "After a compaction pass reduces the frontier, every original leaf is still individually retrievable by id." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Appending N entries then reading yields exactly N entries in write order with stable ids."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "No repository method exposes update or delete of a journal entry; a compaction pass leaves leaf count unchanged."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "After a compaction pass reduces the frontier, every original leaf is still individually retrievable by id."
+        }
       ]
     },
     {
       "id": "VMEM-P0-002",
       "title": "Deliberate write verb",
-      "criticality": "P0",
       "status": "planned",
       "prd_ref": "OT-P0-002",
       "category": "write-path",
+      "criticality": "P0",
       "description": "`memory note` is the single agent-facing write verb. On invocation the API classifies the entry into exactly one facet via ai-gateway, derives its facet texts, embeds each, and appends. Classification failure must not lose the write: the entry is appended with an unclassified facet and queued for reclassification rather than rejected.",
-      "tags": ["cli", "write-path", "ai-gateway"],
+      "tags": [
+        "cli",
+        "write-path",
+        "ai-gateway"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "A note with a stubbed classifier is appended with the returned facet and its derived texts embedded." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "When the classifier errors, the entry is still appended, marked unclassified, and enqueued for retry." },
-        { "type": "test", "phase": "integration", "status": "planned", "notes": "CLI note round-trips through Connect to a retrievable journal entry." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A note with a stubbed classifier is appended with the returned facet and its derived texts embedded."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "When the classifier errors, the entry is still appended, marked unclassified, and enqueued for retry."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "CLI note round-trips through Connect to a retrievable journal entry."
+        }
       ]
     },
     {
       "id": "VMEM-P0-003",
       "title": "Full-fidelity semantic recall",
-      "criticality": "P0",
       "status": "planned",
       "prd_ref": "OT-P0-003",
       "category": "retrieval",
+      "criticality": "P0",
       "description": "Recall searches the union of journal leaves and summary nodes in one vector space. Compaction status never excludes a leaf from the candidate set — the invariant that makes compaction a context-budget device rather than a storage device. Summaries are embedded on creation so they are searchable alongside leaves.",
-      "tags": ["retrieval", "invariant", "search"],
+      "tags": [
+        "retrieval",
+        "invariant",
+        "search"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "A leaf that has been absorbed into a summary is still returned for a query matching its text." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "A summary node is returned for a query matching the summary text but no individual leaf." },
-        { "type": "test", "phase": "integration", "status": "planned", "notes": "Recall over a corpus compacted to depth 2 returns hits drawn from all three depths." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A leaf that has been absorbed into a summary is still returned for a query matching its text."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A summary node is returned for a query matching the summary text but no individual leaf."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Recall over a corpus compacted to depth 2 returns hits drawn from all three depths."
+        }
       ]
     },
     {
       "id": "VMEM-P0-004",
       "title": "Best-node retrieval with descendant collapse",
-      "criticality": "P0",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "retrieval",
+      "criticality": "P0",
       "description": "Ranking selects the best-scoring node at any depth; a leaf that outscores its ancestor is returned in preference to that ancestor. Once a node is in the result set its descendants are collapsed under it rather than emitted as sibling hits, so one region of the tree cannot flood the results.",
-      "tags": ["retrieval", "ranking"],
+      "tags": [
+        "retrieval",
+        "ranking"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "A query matching a leaf verbatim returns that leaf, not its vaguer ancestor summary." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "When a summary and two of its children all score above threshold, the summary is returned once with children collapsed." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A query matching a leaf verbatim returns that leaf, not its vaguer ancestor summary."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "When a summary and two of its children all score above threshold, the summary is returned once with children collapsed."
+        }
       ]
     },
     {
       "id": "VMEM-P0-005",
       "title": "Facet-routed retention policy",
-      "criticality": "P0",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "facets",
+      "criticality": "P0",
       "description": "Each memory carries exactly one facet from the closed set: standing-rule, environment-fact, gotcha, episode, thread, entity-record. The facet determines retention — standing-rule is pinned and never absorbed; environment-fact and gotcha supersede or merge near-duplicates; episode is the only facet admitted to compaction; thread expires on resolution; entity-record follows a retention window. A facet the policy table does not cover is a hard error, not a default.",
-      "tags": ["facets", "policy", "compaction"],
+      "tags": [
+        "facets",
+        "policy",
+        "compaction"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Compaction candidate selection admits episode-facet entries and rejects all five other facets." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "An entry with an unknown facet value is rejected at write rather than silently defaulted." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "A thread entry marked resolved is excluded from wake and from compaction candidacy." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Compaction candidate selection admits episode-facet entries and rejects all five other facets."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "An entry with an unknown facet value is rejected at write rather than silently defaulted."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A thread entry marked resolved is excluded from wake and from compaction candidacy."
+        }
       ]
     },
     {
       "id": "VMEM-P0-006",
       "title": "Guaranteed pinned recall",
-      "criticality": "P0",
       "status": "planned",
       "prd_ref": "OT-P0-006",
       "category": "retrieval",
+      "criticality": "P0",
       "description": "Every pinned standing-rule memory appears in wake output unconditionally — not ranked, not budget-evicted, not similarity-filtered. This is the property semantic retrieval structurally cannot provide, and the reason standing rules are held out of the compaction forest. If pinned content alone exceeds the budget, wake reports the overflow rather than silently truncating.",
-      "tags": ["wake", "pinning", "invariant", "safety"],
+      "tags": [
+        "wake",
+        "pinning",
+        "invariant",
+        "safety"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "A pinned rule semantically unrelated to every other memory still appears in wake output." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "With a budget smaller than the pinned set, wake emits all pinned entries and reports explicit overflow." },
-        { "type": "test", "phase": "integration", "status": "planned", "notes": "Pinned entries survive a compaction pass that collapses the rest of the frontier." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A pinned rule semantically unrelated to every other memory still appears in wake output."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "With a budget smaller than the pinned set, wake emits all pinned entries and reports explicit overflow."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Pinned entries survive a compaction pass that collapses the rest of the frontier."
+        }
       ]
     },
     {
       "id": "VMEM-P0-007",
       "title": "Pressure-driven compaction",
-      "criticality": "P0",
       "status": "planned",
       "prd_ref": "OT-P0-007",
       "category": "compaction",
-      "description": "Compaction runs when the frontier exceeds its target size — not on a fixed cohesion threshold and not on a timer. Each pass scores candidate clusters over the frontier by cohesion multiplied by slots freed, collapses the single highest scorer via ai-gateway summarization, re-embeds the resulting summary onto the frontier, and repeats until the frontier is under target. Guards: entries inside the recency floor are not candidates, pinned entries are never candidates, and only the episode facet is admitted.",
-      "tags": ["compaction", "clustering", "ai-gateway"],
+      "criticality": "P0",
+      "description": "When the compaction-eligible frontier exceeds its target size, the system shall score candidate clusters by cohesion multiplied by slots freed, collapse the single highest scorer via ai-gateway summarization, re-embed the resulting summary, and repeat until that eligible frontier is under target. The mixed recall frontier may retain non-episode roots. Guards: entries inside the recency floor are not candidates, pinned entries are never candidates, and only the episode facet is admitted.",
+      "tags": [
+        "compaction",
+        "clustering",
+        "ai-gateway"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "With the frontier under target, a compaction pass is a no-op." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Given two candidate clusters, the higher cohesion-times-slots-freed score is collapsed first." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "An orphan entry with no near neighbours is not collapsed while any tighter cluster remains." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Entries inside the recency floor are excluded from candidacy regardless of cohesion." },
-        { "type": "test", "phase": "integration", "status": "planned", "notes": "A newly created summary is embedded and appears as a frontier node eligible for further collapse." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "With the frontier under target, a compaction pass is a no-op."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Given two candidate clusters, the higher cohesion-times-slots-freed score is collapsed first."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "An orphan entry with no near neighbours is not collapsed while any tighter cluster remains."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Entries inside the recency floor are excluded from candidacy regardless of cohesion."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "A newly created summary is embedded and appears as a frontier node eligible for further collapse."
+        }
       ]
     },
     {
       "id": "VMEM-P0-008",
       "title": "Budgeted ambient recall",
-      "criticality": "P0",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "category": "wake",
+      "criticality": "P0",
       "description": "`memory wake` emits pinned standing rules plus a budget-bounded cover over the frontier, finest-grained for the most recent material. Output size is a function of the configured budget, not of corpus size — the same budget holds at a hundred memories and at a hundred thousand. Frontier target size and wake budget are independent settings; the frontier may greatly exceed what wake renders.",
-      "tags": ["wake", "budget", "cover"],
+      "tags": [
+        "wake",
+        "budget",
+        "cover"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Wake output stays within the configured line budget across corpus sizes spanning three orders of magnitude." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Cover selection returns finer-grained nodes for recent spans and coarser nodes for old spans." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Raising the frontier target does not change wake output size." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Wake output stays within the configured line budget across corpus sizes spanning three orders of magnitude."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Cover selection returns finer-grained nodes for recent spans and coarser nodes for old spans."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Raising the frontier target does not change wake output size."
+        }
       ]
     },
     {
       "id": "VMEM-P0-009",
       "title": "Federated retrieval registration",
-      "criticality": "P0",
       "status": "planned",
       "prd_ref": "OT-P0-009",
       "category": "integration",
+      "criticality": "P0",
       "description": "The scenario owns `.vrooli/search.json` declaring its provider descriptors — natural-language routing description, result mapping, tuning, reindex and config control endpoints — and self-registers with search-hub at boot. Memory becomes reachable from `search-hub query` with no router change, per the registry contract.",
-      "tags": ["search-hub", "integration", "provider"],
+      "tags": [
+        "search-hub",
+        "integration",
+        "provider"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "The descriptor in .vrooli/search.json validates against .vrooli/schemas/search.schema.json." },
-        { "type": "test", "phase": "integration", "status": "planned", "notes": "The scenario self-registers at boot and its provider appears in search-hub providers list." },
-        { "type": "test", "phase": "integration", "status": "planned", "notes": "A federated search-hub query routed to the memory provider returns normalized hits via the declared result mapping." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The descriptor in .vrooli/search.json validates against .vrooli/schemas/search.schema.json."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "The scenario self-registers at boot and its provider appears in search-hub providers list."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "A federated search-hub query routed to the memory provider returns normalized hits via the declared result mapping."
+        }
       ]
     },
     {
       "id": "VMEM-P0-010",
       "title": "Harness memory projection",
-      "criticality": "P0",
       "status": "planned",
       "prd_ref": "OT-P0-010",
       "category": "integration",
+      "criticality": "P0",
       "description": "Wake output is written to the harness memory file (MEMORY.md or the runtime's equivalent) as a generated, one-directional projection. The projection is never read back as input, so there is no bidirectional sync and no merge-conflict surface. The file carries a generated-artifact header warning that hand edits are overwritten and directing writers to the CLI.",
-      "tags": ["harness", "projection", "integration"],
+      "tags": [
+        "harness",
+        "projection",
+        "integration"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Projection writes a generated-artifact header followed by the current wake output." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "No read path ingests the projected file as a memory source." },
-        { "type": "test", "phase": "integration", "status": "planned", "notes": "Hand edits to the projected file are discarded on the next projection and the journal is unchanged." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Projection writes a generated-artifact header followed by the current wake output."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "No read path ingests the projected file as a memory source."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Hand edits to the projected file are discarded on the next projection and the journal is unchanged."
+        }
       ]
     },
     {
       "id": "VMEM-P0-011",
       "title": "Harness memory import",
-      "criticality": "P0",
       "status": "planned",
       "prd_ref": "OT-P0-011",
       "category": "harness",
+      "criticality": "P0",
       "description": "A recurring, idempotent import of existing harness memory stores into the journal, driven by declarative per-harness adapters supporting markdown file-per-fact, markdown section, single-blob markdown, JSONL, and SQLite. Idempotency is by content-addressed import key hash(harness_id, source_path, normalized_content) with a unique index — never by offset or watermark, because every source is a file a human or agent may rewrite out of order. Import is permanent capability, not one-time migration: it performs the initial backfill and recovers drift when capture fails or an agent writes through an unanticipated path. Imported entries carry source provenance and are never auto-promoted to pinned. Promoted from P1 to P0 (D-022): it is the only P0 path that puts a real corpus in the journal, and without one the compaction, budget, and federation targets cannot be exercised at the milestone that is supposed to prove them.",
-      "tags": ["harness", "import", "idempotency", "migration", "dogfooding"],
+      "tags": [
+        "harness",
+        "import",
+        "idempotency",
+        "migration",
+        "dogfooding"
+      ],
       "validation": [
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Running import twice over an unchanged source creates zero additional journal entries." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Reordering entries within a source markdown file produces zero new entries, proving the key is content-addressed rather than positional." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Editing a source entry in place creates a new journal entry rather than mutating the original, preserving append-only semantics." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "An adapter extracting zero items from a non-empty source fails rather than reporting an empty diff, so a vendor format change cannot look like 'nothing new'." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Each supported format — markdown-per-file, markdown-section, markdown-blob, jsonl, sqlite — round-trips through its adapter." },
-        { "type": "test", "phase": "unit", "status": "planned", "notes": "Imported entries are never written with a pinned facet without operator confirmation." },
-        { "type": "test", "phase": "integration", "status": "planned", "notes": "After importing this machine's existing harness stores, the frontier exceeds its target and a compaction pass runs — proving VMEM-P0-007 and VMEM-P0-008 are exercisable at P0 rather than only asserted." }
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Running import twice over an unchanged source creates zero additional journal entries."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Reordering entries within a source markdown file produces zero new entries, proving the key is content-addressed rather than positional."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Editing a source entry in place creates a new journal entry rather than mutating the original, preserving append-only semantics."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "An adapter extracting zero items from a non-empty source fails rather than reporting an empty diff, so a vendor format change cannot look like 'nothing new'."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Each supported format — markdown-per-file, markdown-section, markdown-blob, jsonl, sqlite — round-trips through its adapter."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Imported entries are never written with a pinned facet without operator confirmation."
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "After importing this machine's existing harness stores, the frontier exceeds its target and a compaction pass runs — proving VMEM-P0-007 and VMEM-P0-008 are exercisable at P0 rather than only asserted."
+        }
       ]
     }
   ]

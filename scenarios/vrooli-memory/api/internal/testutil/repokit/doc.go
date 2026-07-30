@@ -7,18 +7,8 @@
 // substrate so each new domain stops re-implementing ~100 lines of mock
 // + ~100 lines of mock-self-tests.
 //
-// Per-domain wiring (see internal/notes/mocks/repository.go for the
-// canonical example) is a 5–15 line type alias + extractor plumbing:
-//
-//	type FakeRepository = repokit.SliceRepo[notes.Note]
-//
-//	func NewFakeRepository() *FakeRepository {
-//	    return &FakeRepository{
-//	        GetID:    func(n notes.Note) string { return n.ID },
-//	        SetID:    func(n *notes.Note, id string) { n.ID = id },
-//	        NotFound: func(id string) error { return notes.ErrNoteNotFound{ID: id} },
-//	    }
-//	}
+// Per-domain wiring is a small type alias plus domain-owned identifier and
+// not-found extractors.
 //
 // Test-only — production code must not import this package. The contract
 // is enforced by api/internal/testutil/no_prod_import_test.go (the AST

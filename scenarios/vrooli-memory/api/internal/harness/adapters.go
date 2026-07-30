@@ -2,7 +2,7 @@ package harness
 
 import (
 	"bufio"
-	"database/sql"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/vrooli/api-core/database"
 
 	// Register the SQLite driver for the read-only Cursor-format adapter.
 	_ "modernc.org/sqlite"
@@ -42,12 +44,13 @@ type (
 
 func defaultAdapters(claudeRoot, home string) map[string]AdapterDescriptor {
 	return map[string]AdapterDescriptor{
-		"claude-code": {HarnessID: "claude-code", Locations: []string{claudeRoot}, Format: MarkdownPerFile, Extract: wholeMarkdown, Provenance: Provenance{SourceRuntime: "claude-code"}},
-		"gemini":      {HarnessID: "gemini", Locations: []string{filepath.Join(home, ".gemini", "GEMINI.md")}, Format: MarkdownSection, Extract: markdownSection("Gemini Added Memories"), Provenance: Provenance{SourceRuntime: "gemini"}},
-		"codex":       {HarnessID: "codex", Locations: []string{filepath.Join(home, ".codex", "AGENTS.md")}, Format: MarkdownBlob, Extract: wholeMarkdown, Provenance: Provenance{SourceRuntime: "codex"}},
-		"opencode":    {HarnessID: "opencode", Locations: []string{filepath.Join(home, ".config", "opencode", "AGENTS.md")}, Format: MarkdownBlob, Extract: wholeMarkdown, Provenance: Provenance{SourceRuntime: "opencode"}},
-		"grok":        {HarnessID: "grok", Locations: []string{filepath.Join(home, ".grok", "memory")}, Format: MarkdownPerFile, Extract: wholeMarkdown, Provenance: Provenance{SourceRuntime: "grok"}},
-		"antigravity": {HarnessID: "antigravity", Locations: []string{filepath.Join(home, ".gemini", "antigravity", "brain")}, Format: MarkdownPerFile, Extract: wholeMarkdown, Provenance: Provenance{SourceRuntime: "antigravity"}},
+		"claude-code":           {HarnessID: "claude-code", Locations: []string{claudeRoot}, Format: MarkdownPerFile, Extract: wholeMarkdown, Provenance: Provenance{SourceRuntime: "claude-code"}},
+		"gemini":                {HarnessID: "gemini", Locations: []string{filepath.Join(home, ".gemini", "GEMINI.md")}, Format: MarkdownSection, Extract: markdownSection("Gemini Added Memories"), Provenance: Provenance{SourceRuntime: "gemini"}},
+		"codex":                 {HarnessID: "codex", Locations: []string{filepath.Join(home, ".codex", "AGENTS.md")}, Format: MarkdownBlob, Extract: wholeMarkdown, Provenance: Provenance{SourceRuntime: "codex"}},
+		"opencode":              {HarnessID: "opencode", Locations: []string{filepath.Join(home, ".config", "opencode", "AGENTS.md")}, Format: MarkdownBlob, Extract: wholeMarkdown, Provenance: Provenance{SourceRuntime: "opencode"}},
+		"grok":                  {HarnessID: "grok", Locations: []string{filepath.Join(home, ".grok", "memory")}, Format: MarkdownPerFile, Extract: wholeMarkdown, Provenance: Provenance{SourceRuntime: "grok"}},
+		"antigravity":           {HarnessID: "antigravity", Locations: []string{filepath.Join(home, ".gemini", "antigravity", "brain")}, Format: MarkdownPerFile, Extract: wholeMarkdown, Provenance: Provenance{SourceRuntime: "antigravity"}},
+		"swarm-manager-records": {HarnessID: "swarm-manager-records", Locations: []string{filepath.Join(home, ".vrooli", "data", "vrooli", "swarm-manager", "records")}, Format: JSONL, Extract: swarmRecord, Provenance: Provenance{SourceRuntime: "swarm-manager"}},
 	}
 }
 
@@ -68,7 +71,7 @@ func (d AdapterDescriptor) discover() ([]sourceItem, error) {
 				if walkErr != nil {
 					return walkErr
 				}
-				if entry.IsDir() || !matchesFormat(path, d.Format) {
+				if entry.IsDir() || (!matchesFormat(path, d.Format) && d.HarnessID != "swarm-manager-records") {
 					return nil
 				}
 				loaded, err := d.extractPath(path)
@@ -107,6 +110,11 @@ func (d AdapterDescriptor) extractPath(path string) ([]sourceItem, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", path, err)
 	}
+	// A generated projection is output-only. Never make an import sweep read it
+	// back as a native harness memory source; that would create a feedback loop.
+	if strings.HasPrefix(string(b), generatedHeader) {
+		return nil, nil
+	}
 	items, err := d.Extract(path, b)
 	if err != nil {
 		return nil, fmt.Errorf("extract %s: %w", path, err)
@@ -120,7 +128,7 @@ func matchesFormat(path string, format Format) bool {
 	case MarkdownPerFile, MarkdownSection, MarkdownBlob:
 		return ext == ".md"
 	case JSONL:
-		return ext == ".jsonl"
+		return ext == ".jsonl" || ext == ".json"
 	case SQLite:
 		return ext == ".db" || ext == ".sqlite" || ext == ".sqlite3" || ext == ".vscdb"
 	}
@@ -195,14 +203,33 @@ func jsonlItems(path string, data []byte) ([]sourceItem, error) {
 }
 
 func extractSQLite(path string) ([]sourceItem, error) {
-	db, err := sql.Open("sqlite", "file:"+path+"?mode=ro")
+	db, err := database.Open(context.Background(), database.Config{Driver: database.DriverSQLite, DSN: "file:" + path + "?mode=ro", MaxOpenConns: 1, MaxIdleConns: 1})
 	if err != nil {
 		return nil, err
 	}
 	defer db.Close()
 	var value string
-	if err := db.QueryRow(`SELECT value FROM ItemTable WHERE key='aicontext.personalContext'`).Scan(&value); err != nil {
+	if err := db.Primary().QueryRowContext(context.Background(), `SELECT value FROM ItemTable WHERE key='aicontext.personalContext'`).Scan(&value); err != nil {
 		return nil, err
 	}
 	return wholeMarkdown(path+"#aicontext.personalContext", []byte(value))
+}
+
+// swarmRecord is intentionally a read-only compatibility adapter. It imports
+// the durable narrative, not swarm-manager's relational linkage fields.
+func swarmRecord(path string, data []byte) ([]sourceItem, error) {
+	var r struct {
+		ID, Trigger, Approach, Evidence, Outcome string
+		Scenario                                 string `json:"scenario"`
+	}
+	if err := json.Unmarshal(data, &r); err != nil {
+		return nil, err
+	}
+	// The directory also contains private drafts and adjacent runtime metadata.
+	// They are not published historical records, so ignore them.
+	if strings.TrimSpace(r.ID) == "" || strings.TrimSpace(r.Trigger) == "" || strings.TrimSpace(r.Approach) == "" || strings.TrimSpace(r.Outcome) == "" {
+		return nil, nil
+	}
+	body := fmt.Sprintf("Work record from swarm-manager (%s)\n\nTrigger: %s\nApproach: %s\nEvidence: %s\nOutcome: %s", r.Scenario, r.Trigger, r.Approach, r.Evidence, r.Outcome)
+	return []sourceItem{{Path: path, Body: body}}, nil
 }

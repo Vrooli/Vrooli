@@ -90,6 +90,13 @@ func (r *SQLiteRepository) List(ctx context.Context, limit int) ([]Entry, error)
 	return r.list(ctx, "", limit)
 }
 
+func (r *SQLiteRepository) ListByRun(ctx context.Context, runID string, limit int) ([]Entry, error) {
+	if runID == "" {
+		return nil, nil
+	}
+	return r.list(ctx, "WHERE e.run_id = ?", limit, runID)
+}
+
 func (r *SQLiteRepository) FindByImportKey(ctx context.Context, key string) (Entry, bool, error) {
 	var id string
 	err := r.db.QueryRowContext(ctx, `SELECT id FROM entries WHERE import_key=?`, key).Scan(&id)
@@ -219,6 +226,7 @@ func (r *SQLiteRepository) list(ctx context.Context, where string, limit int, ar
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	var out []Entry
 	for rows.Next() {
 		var e Entry
@@ -235,28 +243,35 @@ func (r *SQLiteRepository) list(ctx context.Context, where string, limit int, ar
 		out = append(out, e)
 	}
 	if err := rows.Err(); err != nil {
-		rows.Close()
-		return nil, err
-	}
-	if err := rows.Close(); err != nil {
 		return nil, err
 	}
 	for i := range out {
-		fs, err := r.db.QueryContext(ctx, `SELECT id,kind,text,embedding_ref FROM facet_texts WHERE entry_id=? ORDER BY id`, out[i].ID)
+		facetTexts, err := r.listFacetTexts(ctx, out[i].ID)
 		if err != nil {
 			return nil, err
 		}
-		for fs.Next() {
-			var f FacetText
-			if err = fs.Scan(&f.ID, &f.Kind, &f.Text, &f.EmbeddingRef); err != nil {
-				fs.Close()
-				return nil, err
-			}
-			out[i].FacetTexts = append(out[i].FacetTexts, f)
-		}
-		if err := fs.Close(); err != nil {
-			return nil, err
-		}
+		out[i].FacetTexts = facetTexts
 	}
 	return out, nil
+}
+
+func (r *SQLiteRepository) listFacetTexts(ctx context.Context, entryID string) ([]FacetText, error) {
+	fs, err := r.db.QueryContext(ctx, `SELECT id,kind,text,embedding_ref FROM facet_texts WHERE entry_id=? ORDER BY id`, entryID)
+	if err != nil {
+		return nil, err
+	}
+	defer fs.Close()
+
+	var facetTexts []FacetText
+	for fs.Next() {
+		var facetText FacetText
+		if err := fs.Scan(&facetText.ID, &facetText.Kind, &facetText.Text, &facetText.EmbeddingRef); err != nil {
+			return nil, err
+		}
+		facetTexts = append(facetTexts, facetText)
+	}
+	if err := fs.Err(); err != nil {
+		return nil, err
+	}
+	return facetTexts, nil
 }

@@ -8,7 +8,7 @@ import { JournalTimeline } from "./JournalTimeline";
 
 vi.mock("../../api/journal", () => ({ listJournalEntries: vi.fn() }));
 
-describe("JournalTimeline", () => {
+describe("[REQ:VMEM-P1-006] JournalTimeline", () => {
   afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
   it("renders empty, ready, and error states accessibly in light and dark themes", async () => {

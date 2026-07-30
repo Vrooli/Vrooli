@@ -15,7 +15,7 @@ func (s source) Nodes(context.Context) ([]Node, error) { return s, nil }
 type embedder struct{ v []float64 }
 
 func (e embedder) EmbedQuery(context.Context, string) ([]float64, error) { return e.v, nil }
-func TestRecallKeepsAbsorbedLeafAndCollapsesDescendants(t *testing.T) {
+func TestRecallKeepsAbsorbedLeafAndCollapsesDescendants(t *testing.T) { // [REQ:VMEM-P0-003] [REQ:VMEM-P0-004]
 	now := time.Now()
 	svc := NewService(source{{ID: "summary", Text: "weak summary", Vector: []float64{.1, 1}, Depth: 1}, {ID: "leaf", ParentID: "summary", EntryID: "leaf", Text: "exact leaf", Vector: []float64{1, 0}, CreatedAt: now}}, embedder{[]float64{1, 0}}, Config{})
 	hits, err := svc.Recall(context.Background(), "exact", 10)
@@ -24,7 +24,7 @@ func TestRecallKeepsAbsorbedLeafAndCollapsesDescendants(t *testing.T) {
 	require.Equal(t, "leaf", hits[0].Node.ID)
 }
 
-func TestWakePinsFirstAndNeverSilentlyTruncatesPins(t *testing.T) {
+func TestWakePinsFirstAndNeverSilentlyTruncatesPins(t *testing.T) { // [REQ:VMEM-P0-006] [REQ:VMEM-P0-008]
 	now := time.Now()
 	svc := NewService(source{{ID: "p1", Pinned: true, Text: "one\ntwo", CreatedAt: now}, {ID: "p2", Pinned: true, Text: "three\nfour", CreatedAt: now}, {ID: "frontier", Frontier: true, Text: "later", CreatedAt: now}}, embedder{}, Config{WakeBudget: 3})
 	wake, err := svc.Wake(context.Background(), 0)

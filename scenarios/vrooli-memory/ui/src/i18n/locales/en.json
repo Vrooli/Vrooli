@@ -10,7 +10,6 @@
     "bottomNavLabel": "Mobile navigation",
     "nav": {
       "dashboard": "Dashboard",
-      "notes": "Notes",
       "journal": "Journal",
       "recall": "Recall",
       "settings": "Settings"
@@ -30,11 +29,12 @@
       "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
       "statPlaceholderLabel": "Stat"
     },
-    "notes": {
-      "title": "Notes"
+    "journal": {
+      "title": "Journal"
     },
-    "journal": {"title": "Journal"},
-    "recall": {"title": "Recall"},
+    "recall": {
+      "title": "Recall"
+    },
     "settings": {
       "title": "Settings",
       "themeHeading": "Appearance",
@@ -57,31 +57,15 @@
     "summary_zero": "No notifications",
     "summary_one": "1 notification"
   },
-  "recall": {"title": "Recall memory", "queryLabel": "Memory query", "queryPlaceholder": "Search shared memory", "submit": "Recall", "loading": "Searching memory…", "empty": "No matching memories", "score": "score {{score}}", "summary": "summary of {{count}} memories"},
-  "notes": {
-    "title": "Notes",
-    "loading": "Loading notes…",
-    "empty": "No notes yet.",
-    "create": "Create note",
-    "createdAtLabel": "Created:",
-    "attachmentsLabel": "{{count}} attachments",
-    "attachmentsLabel_one": "1 attachment",
-    "table": {
-      "title": "Title",
-      "created": "Created",
-      "attachments": "Attachments",
-      "actions": "Actions",
-      "search": "Search notes"
-    },
-    "uploadAttachment": "Upload attachment",
-    "attachmentFileLabel": "Attachment file",
-    "uploadSuccess": "Uploaded {{name}}.",
-    "noFileSelected": "Select a file before uploading.",
-    "measure": {
-      "title": "Notes this week",
-      "loading": "Counting…",
-      "thisWeek": "{{count}} notes created this week"
-    }
+  "recall": {
+    "title": "Recall memory",
+    "queryLabel": "Memory query",
+    "queryPlaceholder": "Search shared memory",
+    "submit": "Recall",
+    "loading": "Searching memory…",
+    "empty": "No matching memories",
+    "score": "score {{score}}",
+    "summary": "summary of {{count}} memories"
   },
   "errors": {
     "canceled": "Operation canceled.",

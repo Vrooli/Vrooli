@@ -162,10 +162,13 @@ constraints:
 
 `DESIGN.md` is the source of truth for scenario UI decisions. Stack-specific adapters may translate these tokens into CSS, Tailwind, egui, native mobile themes, or future targets, but adapters must not redefine the design language.
 
-> ORIENTATION-TODO: scenario-design-adaptation — Replace this marker with a
-> short note explaining why this design language fits the generated scenario's
-> users, density, workflow, and accessibility needs. Keep the token contract
-> intact unless the scenario intentionally adopts another design kit.
+> Vrooli Memory uses this operational design language because its operators
+> repeatedly inspect durable timelines, bounded recall results, import progress,
+> and compaction state. Compact information surfaces, explicit asynchronous
+> states, semantic status color, keyboard-safe navigation, and equivalent
+> mobile routes make high-volume memory work legible without turning the
+> console into a decorative dashboard. The token contract remains the shared
+> accessibility and responsive baseline for all memory surfaces.
 
 ## How To Read This Document
 

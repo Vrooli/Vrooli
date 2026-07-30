@@ -1,0 +1,82 @@
+{
+  "metadata": {
+    "name": "experience-recall-spec-smoke",
+    "description": "Generated observer smoke for active experience page recall.",
+    "requirement": "OT-P0-002",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "recall",
+      "surface": "experience-recall"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-recall",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "vrooli-memory",
+          "scenario_path": "/recall",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {"label": "Open Recall"}
+      }
+    },
+    {
+      "id": "wait-recall-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.recall",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {"label": "Recall page visible"}
+      }
+    },
+    {
+      "id": "wait-recall-results",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"recall-surface\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {"label": "Recall results visible"}
+      }
+    },
+    {
+      "id": "wait-recall-loading-settles",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"recall-surface\"][data-experience-state=\"loading\"]",
+          "state": "WAIT_STATE_HIDDEN",
+          "timeout_ms": 15000
+        },
+        "metadata": {"label": "Recall loading settles"}
+      }
+    },
+    {
+      "id": "wait-recall-ready-state",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"recall-surface\"][data-experience-state=\"ready\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {"label": "Recall ready state visible"}
+      }
+    }
+  ]
+}

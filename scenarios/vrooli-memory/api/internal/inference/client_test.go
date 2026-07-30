@@ -61,6 +61,13 @@ func TestGatewayClientUsesGenerationTimeoutAndDecodesClassification(t *testing.T
 	}
 }
 
+func TestGatewayClientUsesLongerTimeoutForCompactionSummary(t *testing.T) {
+	client := NewGatewayClient(fakeRouting{response: `{"response":"summary"}`, wantRole: SummaryRole, wantInput: "cluster", wantTimeout: SummaryTimeout, wantMaxOutputTokens: SummaryMaxOutputTokens})
+	got, err := client.Summarize(context.Background(), "cluster")
+	require.NoError(t, err)
+	require.Equal(t, "summary", got)
+}
+
 func TestGeneratedTextPreservesPlainTextForNonResourceFakes(t *testing.T) {
 	got, err := generatedText("plain summary")
 	if err != nil {
@@ -124,5 +131,25 @@ func (fakeRouting) GetRouteEvidence(context.Context, *connect.Request[routingv1.
 }
 
 func (fakeRouting) ListProviderHealth(context.Context, *connect.Request[routingv1.ListProviderHealthRequest]) (*connect.Response[routingv1.ListProviderHealthResponse], error) {
+	return nil, nil
+}
+
+func (fakeRouting) CancelMediaExecution(context.Context, *connect.Request[routingv1.CancelMediaExecutionRequest]) (*connect.Response[routingv1.CancelMediaExecutionResponse], error) {
+	return nil, nil
+}
+
+func (fakeRouting) SubmitMedia(context.Context, *connect.Request[routingv1.SubmitMediaRequest]) (*connect.Response[routingv1.SubmitMediaResponse], error) {
+	return nil, nil
+}
+
+func (fakeRouting) GetMediaExecution(context.Context, *connect.Request[routingv1.GetMediaExecutionRequest]) (*connect.Response[routingv1.GetMediaExecutionResponse], error) {
+	return nil, nil
+}
+
+func (fakeRouting) WaitMediaExecution(context.Context, *connect.Request[routingv1.WaitMediaExecutionRequest]) (*connect.Response[routingv1.WaitMediaExecutionResponse], error) {
+	return nil, nil
+}
+
+func (fakeRouting) RetryMediaExecution(context.Context, *connect.Request[routingv1.RetryMediaExecutionRequest]) (*connect.Response[routingv1.RetryMediaExecutionResponse], error) {
 	return nil, nil
 }

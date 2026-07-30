@@ -15,3 +15,11 @@ CREATE TABLE IF NOT EXISTS harness_import_runs (
   updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_harness_import_runs_runtime_updated ON harness_import_runs(runtime, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS harness_projections (
+  runtime TEXT PRIMARY KEY,
+  target_path TEXT NOT NULL,
+  content_hash TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  updated_at TEXT NOT NULL
+);

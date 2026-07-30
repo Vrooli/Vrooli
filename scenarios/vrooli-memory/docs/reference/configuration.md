@@ -31,8 +31,22 @@ ports as outbound source ports. See the project-level port allocation reference
 | `SQLITE_PATH` | `${SCENARIO_DATA_DIR}/vrooli-memory.db` | Override SQLite file location. The default routes through `api-core/storage` and resolves to a writable per-scenario data directory. |
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
-| `VROOLI_MEMORY_FRONTIER_TARGET` | `100` | Target number of unpinned frontier nodes before compaction considers a reduction. This is a compaction-pressure control, not a prompt-size limit. Must be a positive integer. |
+| `VROOLI_MEMORY_FRONTIER_TARGET` | `16` | Target number of compaction-eligible, unpinned frontier nodes before compaction considers a reduction. This is a compaction-pressure control, not a prompt-size limit. The full recall frontier also contains non-episode roots, which are deliberately not compacted. The value is calibrated from the initial 412-entry, single-harness import: it retains a 16-node working episode frontier while requiring only cohesive episode clusters to collapse. Must be a positive integer. Recalibrate after the first multi-harness import. |
 | `VROOLI_MEMORY_WAKE_BUDGET` | `40` | Maximum wake-context line budget for non-pinned frontier content. Pinned content is always retained and sets `overflow=true` when it alone exceeds this value. Must be a positive integer. |
+| `VROOLI_MEMORY_PIN_BUDGET` | `4` | Maximum operator-confirmed pins before the operator must consolidate, renew, or lapse a pin. One of 50 reviewed imports was nominated; four preserves three slots of headroom without allowing the unconditional wake section to become an unreadable policy dump. Recalibrate if routine reviews find all four pins independently necessary. |
+| `VROOLI_MEMORY_PIN_REVIEW_INTERVAL_DAYS` | `90` | Age at which a pin must be reviewed for renewal, consolidation, or lapse. Ninety days is long enough for durable workstation and workflow constraints to prove useful, but short enough to catch stale environment guidance quarterly. Recalibrate if normal pin turnover is materially faster or slower. |
+
+## Compaction calibration
+
+The compaction scorer is `mean pairwise cosine cohesion × slots freed`.
+It is deliberately pressure-driven: it ranks available clusters rather than
+requiring a fixed cohesion cutoff. On the initial imported corpus, the 28
+episode topic-vector candidates produced 378 pairwise comparisons with cosine
+similarity `0.5752` minimum, `0.7343` mean, and `0.9391` maximum. That spread
+supports ranking rather than a magic threshold: isolated material remains on
+the frontier until stronger clusters have freed the required slots. The first
+multi-harness import is the revisit trigger because this calibration is drawn
+only from Claude Code material.
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through
 the UI origin, and `ui/server.js` proxies `/api/*` plus the scenario's Connect

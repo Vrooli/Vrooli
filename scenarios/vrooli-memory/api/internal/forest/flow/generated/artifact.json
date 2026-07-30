@@ -1,0 +1,558 @@
+{
+  "schemaVersion": 6,
+  "flowId": "forest.compaction.pass",
+  "source": {
+    "contractPath": "api/internal/forest/flow/flow.json",
+    "contractSha256": "1ac660f413f21336e7cc11699916361e0cb83a73232ee11b0e4f42c62a91570a",
+    "generatorPath": "flow-verifier",
+    "generatorSha256": "2f4bdb4736a693e8d45276b8ad50a7f9078816d749b1d31b315d67302d62b864",
+    "generatorVersion": 7,
+    "modelPath": "api/internal/forest/flow/generated/model.qnt",
+    "modelSha256": "ac588db65d1a22ac15b8a81f444a854b54d7e00356bf9e66e2e710af26f8c740",
+    "quintVersion": "0.32.0",
+    "verificationBackend": "apalache"
+  },
+  "commands": {
+    "run": [
+      "quint",
+      "run",
+      "api/internal/forest/flow/generated/model.qnt",
+      "--mbt",
+      "--seed",
+      "2026072901",
+      "--max-samples",
+      "8",
+      "--n-traces",
+      "8",
+      "--max-steps",
+      "5",
+      "--out-itf",
+      "<temp-itf-pattern>"
+    ],
+    "test": [
+      "quint",
+      "test",
+      "api/internal/forest/flow/generated/model.qnt",
+      "--seed",
+      "2026072901"
+    ],
+    "typecheck": [
+      "quint",
+      "typecheck",
+      "api/internal/forest/flow/generated/model.qnt"
+    ],
+    "verify": [
+      "quint",
+      "verify",
+      "api/internal/forest/flow/generated/model.qnt",
+      "--invariants",
+      "TypeOK",
+      "TerminalClosure",
+      "IllegalTransitionsPreserveState",
+      "SummaryWriteIsAtomic",
+      "--max-steps",
+      "5"
+    ]
+  },
+  "states": [
+    "idle",
+    "scoring",
+    "summarizing",
+    "written"
+  ],
+  "events": [
+    "score",
+    "summarize",
+    "write",
+    "fail",
+    "finish"
+  ],
+  "transitions": [
+    {
+      "from": "idle",
+      "event": "score",
+      "to": "scoring",
+      "wantError": false
+    },
+    {
+      "from": "idle",
+      "event": "summarize",
+      "to": "idle",
+      "wantError": true
+    },
+    {
+      "from": "idle",
+      "event": "write",
+      "to": "idle",
+      "wantError": true
+    },
+    {
+      "from": "idle",
+      "event": "fail",
+      "to": "idle",
+      "wantError": true
+    },
+    {
+      "from": "idle",
+      "event": "finish",
+      "to": "idle",
+      "wantError": true
+    },
+    {
+      "from": "scoring",
+      "event": "score",
+      "to": "scoring",
+      "wantError": true
+    },
+    {
+      "from": "scoring",
+      "event": "summarize",
+      "to": "summarizing",
+      "wantError": false
+    },
+    {
+      "from": "scoring",
+      "event": "write",
+      "to": "scoring",
+      "wantError": true
+    },
+    {
+      "from": "scoring",
+      "event": "fail",
+      "to": "scoring",
+      "wantError": true
+    },
+    {
+      "from": "scoring",
+      "event": "finish",
+      "to": "scoring",
+      "wantError": true
+    },
+    {
+      "from": "summarizing",
+      "event": "score",
+      "to": "summarizing",
+      "wantError": true
+    },
+    {
+      "from": "summarizing",
+      "event": "summarize",
+      "to": "summarizing",
+      "wantError": true
+    },
+    {
+      "from": "summarizing",
+      "event": "write",
+      "to": "written",
+      "wantError": false
+    },
+    {
+      "from": "summarizing",
+      "event": "fail",
+      "to": "idle",
+      "wantError": false
+    },
+    {
+      "from": "summarizing",
+      "event": "finish",
+      "to": "summarizing",
+      "wantError": true
+    },
+    {
+      "from": "written",
+      "event": "score",
+      "to": "written",
+      "wantError": true
+    },
+    {
+      "from": "written",
+      "event": "summarize",
+      "to": "written",
+      "wantError": true
+    },
+    {
+      "from": "written",
+      "event": "write",
+      "to": "written",
+      "wantError": true
+    },
+    {
+      "from": "written",
+      "event": "fail",
+      "to": "written",
+      "wantError": true
+    },
+    {
+      "from": "written",
+      "event": "finish",
+      "to": "idle",
+      "wantError": false
+    }
+  ],
+  "namedTraces": [
+    {
+      "name": "successful_pass",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "score",
+          "want": "scoring",
+          "wantError": false
+        },
+        {
+          "event": "summarize",
+          "want": "summarizing",
+          "wantError": false
+        },
+        {
+          "event": "write",
+          "want": "written",
+          "wantError": false
+        },
+        {
+          "event": "finish",
+          "want": "idle",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "summary_failure_leaves_no_write",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "score",
+          "want": "scoring",
+          "wantError": false
+        },
+        {
+          "event": "summarize",
+          "want": "summarizing",
+          "wantError": false
+        },
+        {
+          "event": "fail",
+          "want": "idle",
+          "wantError": false
+        }
+      ]
+    }
+  ],
+  "generatedTraces": [
+    {
+      "name": "generated_model_001",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "write",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "write",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "write",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "write",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "score",
+          "want": "scoring",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_002",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "summarize",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "finish",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "summarize",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "finish",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "write",
+          "want": "idle",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_003",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "fail",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "finish",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "write",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "write",
+          "want": "idle",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_004",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "summarize",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "finish",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "write",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "summarize",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "score",
+          "want": "scoring",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_005",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "summarize",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "write",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "write",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "finish",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "score",
+          "want": "scoring",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_006",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "score",
+          "want": "scoring",
+          "wantError": false
+        },
+        {
+          "event": "score",
+          "want": "scoring",
+          "wantError": true
+        },
+        {
+          "event": "write",
+          "want": "scoring",
+          "wantError": true
+        },
+        {
+          "event": "summarize",
+          "want": "summarizing",
+          "wantError": false
+        },
+        {
+          "event": "finish",
+          "want": "summarizing",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_007",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "score",
+          "want": "scoring",
+          "wantError": false
+        },
+        {
+          "event": "summarize",
+          "want": "summarizing",
+          "wantError": false
+        },
+        {
+          "event": "finish",
+          "want": "summarizing",
+          "wantError": true
+        },
+        {
+          "event": "score",
+          "want": "summarizing",
+          "wantError": true
+        },
+        {
+          "event": "summarize",
+          "want": "summarizing",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_008",
+      "initial": "idle",
+      "steps": [
+        {
+          "event": "write",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "fail",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "write",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "write",
+          "want": "idle",
+          "wantError": true
+        },
+        {
+          "event": "summarize",
+          "want": "idle",
+          "wantError": true
+        }
+      ]
+    }
+  ],
+  "invariants": [
+    "TypeOK",
+    "TerminalClosure",
+    "IllegalTransitionsPreserveState",
+    "SummaryWriteIsAtomic"
+  ],
+  "generatedChecks": [
+    "transitionTable"
+  ],
+  "coverage": {
+    "transitionMatrixComplete": true,
+    "terminalTransitionsChecked": true,
+    "namedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "idle",
+        "scoring",
+        "summarizing",
+        "written"
+      ],
+      "coveredEvents": [
+        "score",
+        "summarize",
+        "write",
+        "fail",
+        "finish"
+      ]
+    },
+    "generatedTraces": {
+      "allStatesCovered": false,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "idle",
+        "scoring",
+        "summarizing"
+      ],
+      "coveredEvents": [
+        "score",
+        "summarize",
+        "write",
+        "fail",
+        "finish"
+      ],
+      "coveredPairs": [
+        "idle/score",
+        "idle/summarize",
+        "idle/write",
+        "idle/fail",
+        "idle/finish",
+        "scoring/score",
+        "scoring/summarize",
+        "scoring/write",
+        "summarizing/score",
+        "summarizing/summarize",
+        "summarizing/finish"
+      ],
+      "allPairsCovered": false
+    }
+  },
+  "checks": {
+    "typechecked": true,
+    "tested": true,
+    "verified": true,
+    "generatedFromContract": true,
+    "generatedFromModel": true
+  }
+}

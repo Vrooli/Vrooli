@@ -16,12 +16,6 @@
       "status": "active"
     },
     {
-      "id": "notes",
-      "path": "pages/notes.json",
-      "title": "Notes",
-      "status": "active"
-    },
-    {
       "id": "journal",
       "path": "pages/journal.json",
       "title": "Journal",
@@ -43,8 +37,9 @@
   "journeys": [
     {
       "id": "write-and-recall-memory",
+      "path": "journeys/write-and-recall-memory.json",
       "title": "Write and recall a shared memory",
-      "steps": ["journal", "recall"]
+      "status": "active"
     }
   ]
 }

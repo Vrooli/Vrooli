@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/vrooli/api-core/provenance"
 	journalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/journal"
 	internaljournal "vrooli-memory/internal/journal"
 )
@@ -29,7 +30,14 @@ func (h *connectHandler) AppendEntry(ctx context.Context, req *connect.Request[j
 	if strings.TrimSpace(req.Msg.GetBody()) == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errRequired("body"))
 	}
-	created, err := h.service.Append(ctx, entryFromAppend(req.Msg))
+	if req.Msg.GetKind() == "work-record" {
+		for _, field := range []struct{ name, value string }{{"trigger", req.Msg.GetTrigger()}, {"approach", req.Msg.GetApproach()}, {"evidence", req.Msg.GetEvidence()}, {"outcome", req.Msg.GetOutcome()}} {
+			if strings.TrimSpace(field.value) == "" {
+				return nil, connect.NewError(connect.CodeInvalidArgument, errRequired(field.name))
+			}
+		}
+	}
+	created, err := h.service.Append(ctx, entryFromAppend(req.Msg, provenance.FromContext(ctx)))
 	if err != nil {
 		h.logger.Printf("journal.AppendEntry: %v", err)
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -104,8 +112,19 @@ type errRequired string
 
 func (e errRequired) Error() string { return string(e) + " is required" }
 
-func entryFromAppend(in *journalv1.AppendEntryRequest) internaljournal.Entry {
-	return internaljournal.Entry{Body: in.GetBody(), FacetID: in.GetFacetId(), Kind: in.GetKind(), Attribution: attributionFromProto(in.GetAttribution()), Correlation: correlationFromProto(in.GetCorrelation()), ImportKey: importKey(in.GetImportProvenance())}
+func entryFromAppend(in *journalv1.AppendEntryRequest, source provenance.Provenance) internaljournal.Entry {
+	body := in.GetBody()
+	if in.GetKind() == "work-record" {
+		body += "\n\nTrigger: " + in.GetTrigger() + "\nApproach: " + in.GetApproach() + "\nEvidence: " + in.GetEvidence() + "\nOutcome: " + in.GetOutcome()
+	}
+	// Correlation comes only from api-core's verified provenance. Request fields
+	// are deliberately ignored: a caller must not be able to forge an agent run
+	// or accidentally omit it while working inside one.
+	correlation := internaljournal.Correlation{}
+	if source.IsVerifiedAgent() {
+		correlation = internaljournal.Correlation{RunID: source.RunID, WorkflowExecutionID: source.WorkflowExecutionID, ActorKind: source.Actor}
+	}
+	return internaljournal.Entry{Body: body, FacetID: in.GetFacetId(), Kind: in.GetKind(), Attribution: attributionFromProto(in.GetAttribution()), Correlation: correlation, ImportKey: importKey(in.GetImportProvenance())}
 }
 
 func importKey(p *journalv1.ImportProvenance) string {
@@ -120,13 +139,6 @@ func attributionFromProto(a *journalv1.Attribution) internaljournal.Attribution 
 		return internaljournal.Attribution{}
 	}
 	return internaljournal.Attribution{ActorID: a.GetActorId(), ActorKind: a.GetActorKind(), SourceRuntime: a.GetSourceRuntime()}
-}
-
-func correlationFromProto(c *journalv1.Correlation) internaljournal.Correlation {
-	if c == nil {
-		return internaljournal.Correlation{}
-	}
-	return internaljournal.Correlation{RunID: c.GetRunId(), WorkflowExecutionID: c.GetWorkflowExecutionId(), ActorKind: c.GetActorKind()}
 }
 
 func entryToProto(e internaljournal.Entry) *journalv1.Entry {

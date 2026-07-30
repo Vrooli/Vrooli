@@ -42,3 +42,23 @@ func TestSQLiteReaderAndNonEmptyParserFailure(t *testing.T) {
 	_, err = d.discover()
 	require.ErrorContains(t, err, "extract")
 }
+
+func TestGeneratedProjectionIsNeverAnImportItem(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "MEMORY.md")
+	require.NoError(t, os.WriteFile(path, []byte(generatedHeader+"# Unified Vrooli Memory\n"), 0o600))
+	d := AdapterDescriptor{HarnessID: "test", Locations: []string{path}, Format: MarkdownBlob, Extract: wholeMarkdown}
+	_, err := d.discover()
+	require.ErrorContains(t, err, "yielded zero importable items")
+}
+
+func TestSwarmRecordAdapterImportsOnlyCompletedNarratives(t *testing.T) {
+	completed, err := swarmRecord("record.json", []byte(`{"id":"rec-1","scenario":"vrooli-memory","trigger":"need memory","approach":"implemented it","evidence":"tests passed","outcome":"shipped"}`))
+	require.NoError(t, err)
+	require.Len(t, completed, 1)
+	require.Contains(t, completed[0].Body, "Trigger: need memory")
+	require.Contains(t, completed[0].Body, "Outcome: shipped")
+
+	draft, err := swarmRecord("draft.json", []byte(`{"id":"rec-draft","trigger":"partial"}`))
+	require.NoError(t, err)
+	require.Empty(t, draft)
+}

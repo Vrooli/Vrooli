@@ -47,7 +47,7 @@ func TestJournalWriteRejectsUnknownExplicitFacet(t *testing.T) {
 	require.Equal(t, "invented", unknown.ID)
 }
 
-func TestOnlyEpisodeIsCompactionEligibleAndPinExemptsIt(t *testing.T) {
+func TestOnlyEpisodeIsCompactionEligibleAndPinExemptsIt(t *testing.T) { // [REQ:VMEM-P0-005]
 	s, j := newService(t)
 	ctx := context.Background()
 	episode, err := j.Append(ctx, journal.Entry{Body: "episode", FacetID: "episode"}, nil)
@@ -86,7 +86,7 @@ func TestRefacetRetainsHistory(t *testing.T) {
 	require.Equal(t, "standing-rule", history[1].FacetID)
 }
 
-func TestSupersessionLeavesOriginalEntryRetrievable(t *testing.T) {
+func TestSupersessionLeavesOriginalEntryRetrievable(t *testing.T) { // [REQ:VMEM-P1-004]
 	s, j := newService(t)
 	ctx := context.Background()
 	original, err := j.Append(ctx, journal.Entry{Body: "old rule", FacetID: "standing-rule"}, nil)

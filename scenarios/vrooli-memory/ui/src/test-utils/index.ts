@@ -56,7 +56,7 @@ export { expectNoA11yViolations } from "./a11y";
 //
 // Domain-specific factories (Note, NotesListResponse, etc.) are NOT
 // re-exported here — they live next to the feature they double for
-// (e.g. `features/notes/mocks/factories.ts`) so deleting a feature
+// (e.g. `features/journal/mocks/factories.ts`) so deleting a feature
 // folder takes them along.
 export { makeHealthResponse } from "./factories";
 export type { HealthResponse } from "./factories";

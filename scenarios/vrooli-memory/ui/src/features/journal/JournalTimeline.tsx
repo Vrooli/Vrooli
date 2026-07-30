@@ -5,6 +5,7 @@ import { listJournalEntries } from "../../api/journal";
 import { Button } from "../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { EmptyState } from "../../components/ui/empty-state";
+import { ExperienceSurface, type ExperienceSurfaceState } from "../../components/experience/ExperienceSurface";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -14,7 +15,9 @@ import { errorMessage } from "../../lib/errorMessage";
 export function JournalTimeline() {
   const { t } = useTranslation();
   const query = useQuery({ queryKey: ["journal", "timeline"], queryFn: () => listJournalEntries() });
-  return <Card data-testid={selectors.journal.surface} aria-label={t(strings.journal.title)}>
+  const experienceState: ExperienceSurfaceState = query.isLoading ? "loading" : query.error ? "error" : query.data?.length === 0 ? "empty" : "ready";
+  return <ExperienceSurface surfaceId="timeline" state={experienceState} data-testid={selectors.journal.surface} aria-label={t(strings.journal.title)}>
+    <Card>
     <CardHeader className="flex-row items-center justify-between gap-3">
       <CardTitle>{t(strings.journal.title)}</CardTitle>
       <Button size="sm" variant="secondary" onClick={() => void query.refetch()} disabled={query.isFetching}>{t(strings.journal.retry)}</Button>
@@ -30,5 +33,6 @@ export function JournalTimeline() {
         </li>)}
       </ol>}
     </CardContent>
-  </Card>;
+    </Card>
+  </ExperienceSurface>;
 }

@@ -44,73 +44,49 @@
       "testId": "health-refresh-count",
       "selector": "[data-testid=\"health-refresh-count\"]"
     },
+    "journal.surface": {
+      "testId": "journal-surface",
+      "selector": "[data-testid=\"journal-surface\"]"
+    },
+    "journal.loading": {
+      "testId": "journal-loading",
+      "selector": "[data-testid=\"journal-loading\"]"
+    },
+    "journal.empty": {
+      "testId": "journal-empty",
+      "selector": "[data-testid=\"journal-empty\"]"
+    },
+    "journal.error": {
+      "testId": "journal-error",
+      "selector": "[data-testid=\"journal-error\"]"
+    },
+    "journal.list": {
+      "testId": "journal-list",
+      "selector": "[data-testid=\"journal-list\"]"
+    },
+    "recall.surface": {
+      "testId": "recall-surface",
+      "selector": "[data-testid=\"recall-surface\"]"
+    },
+    "recall.loading": {
+      "testId": "recall-loading",
+      "selector": "[data-testid=\"recall-loading\"]"
+    },
+    "recall.empty": {
+      "testId": "recall-empty",
+      "selector": "[data-testid=\"recall-empty\"]"
+    },
+    "recall.error": {
+      "testId": "recall-error",
+      "selector": "[data-testid=\"recall-error\"]"
+    },
+    "recall.list": {
+      "testId": "recall-list",
+      "selector": "[data-testid=\"recall-list\"]"
+    },
     "notifications.summary": {
       "testId": "notifications-summary",
       "selector": "[data-testid=\"notifications-summary\"]"
-    },
-    "notes.card": {
-      "testId": "notes-card",
-      "selector": "[data-testid=\"notes-card\"]"
-    },
-    "notes.list": {
-      "testId": "notes-list",
-      "selector": "[data-testid=\"notes-list\"]"
-    },
-    "notes.loading": {
-      "testId": "notes-loading",
-      "selector": "[data-testid=\"notes-loading\"]"
-    },
-    "notes.empty": {
-      "testId": "notes-empty",
-      "selector": "[data-testid=\"notes-empty\"]"
-    },
-    "notes.error": {
-      "testId": "notes-error",
-      "selector": "[data-testid=\"notes-error\"]"
-    },
-    "notes.createButton": {
-      "testId": "notes-create-button",
-      "selector": "[data-testid=\"notes-create-button\"]"
-    },
-    "notes.createdAt": {
-      "testId": "notes-created-at",
-      "selector": "[data-testid=\"notes-created-at\"]"
-    },
-    "notes.attachmentCount": {
-      "testId": "notes-attachment-count",
-      "selector": "[data-testid=\"notes-attachment-count\"]"
-    },
-    "notes.attachmentUpload": {
-      "testId": "notes-attachment-upload",
-      "selector": "[data-testid=\"notes-attachment-upload\"]"
-    },
-    "notes.attachmentFile": {
-      "testId": "notes-attachment-file",
-      "selector": "[data-testid=\"notes-attachment-file\"]"
-    },
-    "notes.attachmentButton": {
-      "testId": "notes-attachment-button",
-      "selector": "[data-testid=\"notes-attachment-button\"]"
-    },
-    "notes.attachmentStatus": {
-      "testId": "notes-attachment-status",
-      "selector": "[data-testid=\"notes-attachment-status\"]"
-    },
-    "notes.measure.card": {
-      "testId": "notes-measure-card",
-      "selector": "[data-testid=\"notes-measure-card\"]"
-    },
-    "notes.measure.value": {
-      "testId": "notes-measure-value",
-      "selector": "[data-testid=\"notes-measure-value\"]"
-    },
-    "notes.measure.loading": {
-      "testId": "notes-measure-loading",
-      "selector": "[data-testid=\"notes-measure-loading\"]"
-    },
-    "notes.measure.error": {
-      "testId": "notes-measure-error",
-      "selector": "[data-testid=\"notes-measure-error\"]"
     },
     "layout.shell": {
       "testId": "layout-shell",
@@ -144,9 +120,13 @@
       "testId": "page-dashboard",
       "selector": "[data-testid=\"page-dashboard\"]"
     },
-    "pages.notes": {
-      "testId": "page-notes",
-      "selector": "[data-testid=\"page-notes\"]"
+    "pages.journal": {
+      "testId": "page-journal",
+      "selector": "[data-testid=\"page-journal\"]"
+    },
+    "pages.recall": {
+      "testId": "page-recall",
+      "selector": "[data-testid=\"page-recall\"]"
     },
     "pages.settings": {
       "testId": "page-settings",
@@ -172,7 +152,8 @@
           "type": "enum",
           "values": [
             "dashboard",
-            "notes",
+            "journal",
+            "recall",
             "settings"
           ]
         }
@@ -188,7 +169,8 @@
           "type": "enum",
           "values": [
             "dashboard",
-            "notes",
+            "journal",
+            "recall",
             "settings"
           ]
         }

@@ -26,7 +26,7 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 }
 
 func (h *handlers) noteCall(ctx cliapp.OperationContext) (*journalv1.AppendEntryResponse, error) {
-	resp, err := h.client.AppendEntry(context.Background(), connect.NewRequest(&journalv1.AppendEntryRequest{Body: ctx.Positional("body"), Kind: ctx.Flag("kind")}))
+	resp, err := h.client.AppendEntry(context.Background(), connect.NewRequest(&journalv1.AppendEntryRequest{Body: ctx.Positional("body"), Kind: ctx.Flag("kind"), Trigger: ctx.Flag("trigger"), Approach: ctx.Flag("approach"), Evidence: ctx.Flag("evidence"), Outcome: ctx.Flag("outcome")}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("append memory", err, nil)
 	}

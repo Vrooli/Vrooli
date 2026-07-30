@@ -51,6 +51,16 @@ func (r *Repository) List(context.Context, int) ([]journal.Entry, error) {
 	return append([]journal.Entry(nil), r.ListOut...), nil
 }
 
+func (r *Repository) ListByRun(_ context.Context, runID string, _ int) ([]journal.Entry, error) {
+	var out []journal.Entry
+	for _, entry := range r.ListOut {
+		if entry.Correlation.RunID == runID {
+			out = append(out, entry)
+		}
+	}
+	return out, r.ListErr
+}
+
 func (r *Repository) FindByImportKey(_ context.Context, key string) (journal.Entry, bool, error) {
 	for _, entry := range r.Appends {
 		if entry.ImportKey == key {

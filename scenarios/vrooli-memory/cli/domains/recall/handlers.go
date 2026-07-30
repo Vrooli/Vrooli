@@ -22,7 +22,10 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 }
 
 func intFlag(ctx cliapp.OperationContext, name string) int32 {
-	n, _ := strconv.Atoi(ctx.Flag(name))
+	n, err := strconv.ParseInt(ctx.Flag(name), 10, 32)
+	if err != nil {
+		return 0
+	}
 	return int32(n)
 }
 
@@ -42,12 +45,24 @@ func (h *handlers) wakeCall(ctx cliapp.OperationContext) (*recallv1.WakeResponse
 	return resp.Msg, nil
 }
 
+func (h *handlers) siblingsCall(ctx cliapp.OperationContext) (*recallv1.ListSiblingEventsResponse, error) {
+	resp, err := h.client.ListSiblingEvents(context.Background(), connect.NewRequest(&recallv1.ListSiblingEventsRequest{EntryId: ctx.Positional("entry-id")}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("list sibling events", err, nil)
+	}
+	return resp.Msg, nil
+}
+
 func (h *handlers) recallReport(_ cliapp.OperationContext, msg *recallv1.RecallResponse) cliapp.ListReport {
 	return report("Recall", msg.Hits)
 }
 
 func (h *handlers) wakeReport(_ cliapp.OperationContext, msg *recallv1.WakeResponse) cliapp.ListReport {
 	return report("Wake", msg.Hits)
+}
+
+func (h *handlers) siblingsReport(_ cliapp.OperationContext, msg *recallv1.ListSiblingEventsResponse) cliapp.ListReport {
+	return report("Sibling events", msg.Entries)
 }
 
 func report(title string, hits []*recallv1.RecallHit) cliapp.ListReport {

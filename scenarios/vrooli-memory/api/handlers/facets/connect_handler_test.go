@@ -26,7 +26,7 @@ func newHandler(t *testing.T) (*connectHandler, *journal.SQLiteRepository) {
 	return NewConnectHandler(internalfacets.NewService(repo), nil), journal.NewSQLiteRepository(db.Primary())
 }
 
-func TestAssignFacetRejectsUnknownFacetAndSetsPin(t *testing.T) {
+func TestAssignFacetRejectsUnknownFacetAndSetsPin(t *testing.T) { // [REQ:VMEM-P1-006] [REQ:VMEM-P1-010]
 	h, journalRepo := newHandler(t)
 	ctx := context.Background()
 	entry, err := journalRepo.Append(ctx, journal.Entry{Body: "operator rule", FacetID: "standing-rule"}, nil)

@@ -27,14 +27,15 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	"github.com/vrooli/searchregister-go"
 	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing/routing_v1connect"
 	_ "modernc.org/sqlite"
 
 	facetsH "vrooli-memory/handlers/facets"
+	forestH "vrooli-memory/handlers/forest"
 	harnessH "vrooli-memory/handlers/harness"
 	healthH "vrooli-memory/handlers/health"
 	journalH "vrooli-memory/handlers/journal"
-	notesH "vrooli-memory/handlers/notes" // EXAMPLE-DOMAIN:notes
 	recallH "vrooli-memory/handlers/recall"
 )
 
@@ -168,17 +169,23 @@ func main() {
 	if err != nil {
 		log.Fatalf("recall configuration failed: %v", err)
 	}
+	// Federation is best-effort: a stopped search-hub must never block local
+	// recall. The shared registrar retries briefly in this background goroutine
+	// and re-upserts the descriptor/corpus safely on every scenario boot.
+	searchJSONPath := filepath.Join("..", ".vrooli", "search.json")
+	go searchregister.Register(context.Background(), searchregister.Config{
+		ScenarioID: "vrooli-memory", SearchFilePath: searchJSONPath, Logger: log.Default(),
+	})
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "vrooli-memory-api", "1.0.0"),
-		notesH.Module(db, clock.System{}, log.Default()), // EXAMPLE-DOMAIN:notes
 		journalH.Module(db, gatewayClient, facetService, log.Default()),
 		facetsH.Module(db, log.Default()),
-		forest.Module(),
+		forestH.Module(db, gatewayClient, recallConfig.FrontierTarget, log.Default()),
 		recallH.Module(db, gatewayClient, recallConfig, log.Default()),
 		federation.Module(),
-		harnessH.Module(db, gatewayClient, log.Default()),
+		harnessH.Module(db, fileRoots, gatewayClient, log.Default()),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -186,19 +193,6 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
-
-	// EXAMPLE-DOMAIN:notes START
-	// /measures is the measures-go serve substrate: the central measures
-	// index (measures-health) harvests <prefix>/declarations and the
-	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
-	// one reference measure (notes.count); a real multi-domain scenario
-	// registers each domain's measures on one shared registry here.
-	notesMeasures, err := notesH.MeasuresHandler(db, clock.System{})
-	if err != nil {
-		log.Fatalf("measures registry: %v", err)
-	}
-	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
-	// EXAMPLE-DOMAIN:notes END
 
 	rootMux.Handle("/", srv.Handler())
 

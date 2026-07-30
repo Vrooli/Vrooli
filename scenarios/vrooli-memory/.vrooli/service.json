@@ -227,6 +227,7 @@
     }
   },
   "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/vrooli-memory.db"
+    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/vrooli-memory.db",
+    "VROOLI_MEMORY_WORKSPACE_ROOT": "/home/matthalloran8/Vrooli"
   }
 }

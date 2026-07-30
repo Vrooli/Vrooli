@@ -3,8 +3,7 @@
 Lifecycle log for meaningful scenario changes. Future agents read this
 file to understand what changed without reconstructing history from git.
 
-This file ships empty in newly generated scenarios. Append entries when
-work lands, not while work is still speculative.
+This is the durable handoff for the shipped unified-memory implementation.
 
 ## Progress Log
 
@@ -16,6 +15,14 @@ work lands, not while work is still speculative.
 | 2026-07-28 | codex | done | Completed the harness capability measurement gate. Inspected each installed runtime and its resource-owned integration: documented exact stores, native write surface, hook availability, capture channel, and projection behavior. Corrected Codex from a falsely claimed `PreToolUse` hook to store-diff capture; its resource adapter confirms no native hook. Confirmed `~/.codex/memories/` exists, Codex clips injected `AGENTS.md` context rather than rewriting the file, and Claude rejects over-limit memory-index writes explicitly. No harness memory source was written. |
 | 2026-07-28 | codex | done | Completed facets-domain invariants: the seeded, table-owned vocabulary remains exactly six rows after repeated live restarts; journal writes reject an explicit unknown facet with the typed error; only episode entries are compaction candidates and pins exempt them; re-facet retains assignment history; supersession preserves the original journal entry. Focused domain, handler, journal, formatter, and lint validation passed. |
 | 2026-07-28 | codex | done | Completed cross-depth recall and wake-budget contract hardening. The persistent source unions leaves and derived summary vectors while retaining absorbed leaves; collapse returns an antichain; wake reports pinned-content overflow explicitly; response hits identify the zoomable node plus summary/depth/span metadata. Added replay-safe summary-vector migration, independent validated `VROOLI_MEMORY_FRONTIER_TARGET` and `VROOLI_MEMORY_WAKE_BUDGET` controls, focused API/handler/migration coverage, regenerated contracts, and a healthy managed restart. The formal Test Genie run passed API and proto phases but remains broadly red on pre-existing maturity debt. |
+| 2026-07-29 | codex | done | Phase 1: centralized embeddings, classification, and summarization behind the ai-gateway inference seam with injected fakes. |
+| 2026-07-29 | codex | done | Phase 2: measured harness stores, context limits, projection behavior, and available capture surfaces. |
+| 2026-07-29 | codex | done | Phase 3: regenerated and validated journal, facet, forest, recall, federation, and harness contracts. |
+| 2026-07-29 | codex | done | Phases 4–8: completed append-only journal, closed facet policy, full-fidelity recall, pin-first wake, and derived forest behavior. |
+| 2026-07-29 | codex | done | Phases 9–11: imported the existing corpus idempotently, recorded calibration outcomes, and validated compaction invariants and temporal models. |
+| 2026-07-29 | codex | done | Phases 12–15: federated memory through search-hub, projected/captured harness memory, and absorbed swarm work records with provenance. |
+| 2026-07-29 | codex | done | Phase 16: delivered the operator surface for journal, frontier, facets, and pin curation. |
+| 2026-07-29 | partial | Phase 17: mechanically removed the template notes domain; API/CLI/UI focused suites and both temporal models pass. Full server-owned validation remains queued as run `20260729-204845-06289cfc`. |
 
 ## Entry Template
 

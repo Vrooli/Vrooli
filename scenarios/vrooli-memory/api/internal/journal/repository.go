@@ -8,6 +8,7 @@ type Repository interface {
 	Append(context.Context, Entry, []string) (Entry, error)
 	Get(context.Context, string) (Entry, error)
 	List(context.Context, int) ([]Entry, error)
+	ListByRun(context.Context, string, int) ([]Entry, error)
 	FindByImportKey(context.Context, string) (Entry, bool, error)
 	// RepairImportProvenance fills only missing provenance on an already
 	// content-addressed imported entry. It never changes memory content.

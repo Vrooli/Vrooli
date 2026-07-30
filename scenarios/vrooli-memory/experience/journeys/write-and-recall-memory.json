@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.1.0",
+  "journey": {
+    "id": "write-and-recall-memory",
+    "title": "Write and recall a shared memory",
+    "purpose": "Record durable context, then retrieve it through the bounded shared-memory recall surface.",
+    "prd_refs": ["OT-P0-001", "OT-P0-002"]
+  },
+  "steps": [
+    {
+      "page": "journal",
+      "intent": "Inspect and append durable shared-memory context."
+    },
+    {
+      "page": "recall",
+      "intent": "Retrieve the relevant shared-memory context."
+    }
+  ]
+}

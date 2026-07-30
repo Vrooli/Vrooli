@@ -10,7 +10,6 @@
     "bottomNavLabel": "التنقل على الهاتف",
     "nav": {
       "dashboard": "لوحة التحكم",
-      "notes": "الملاحظات",
       "journal": "السجل",
       "recall": "الاستدعاء",
       "settings": "الإعدادات"
@@ -30,11 +29,12 @@
       "description": "نظرة عامة على حالة السيناريو والمقاييس الرئيسية. استبدل هذه البطاقات بأسطح حقيقية مع نمو منتجك.",
       "statPlaceholderLabel": "إحصائية"
     },
-    "notes": {
-      "title": "الملاحظات"
+    "journal": {
+      "title": "السجل"
     },
-    "journal": {"title": "السجل"},
-    "recall": {"title": "الاستدعاء"},
+    "recall": {
+      "title": "الاستدعاء"
+    },
     "settings": {
       "title": "الإعدادات",
       "themeHeading": "المظهر",
@@ -57,32 +57,22 @@
     "summary_zero": "لا توجد إشعارات",
     "summary_one": "إشعار واحد"
   },
-  "journal": {"title": "الخط الزمني للسجل", "loading": "جارٍ تحميل السجل…", "retry": "إعادة المحاولة", "empty": "لا توجد ذكريات بعد", "unknownTime": "وقت غير معروف"},
-  "recall": {"title": "استدعاء الذاكرة", "queryLabel": "استعلام الذاكرة", "queryPlaceholder": "ابحث في الذاكرة المشتركة", "submit": "استدعاء", "loading": "جارٍ البحث في الذاكرة…", "empty": "لا توجد ذكريات مطابقة", "score": "النتيجة {{score}}", "summary": "ملخص لـ {{count}} ذكريات"},
-  "notes": {
-    "title": "الملاحظات",
-    "loading": "جارٍ تحميل الملاحظات…",
-    "empty": "لا توجد ملاحظات بعد.",
-    "create": "إنشاء ملاحظة",
-    "createdAtLabel": "تاريخ الإنشاء:",
-    "attachmentsLabel": "{{count}} مرفقات",
-    "attachmentsLabel_one": "مرفق واحد",
-    "table": {
-      "title": "العنوان",
-      "created": "تاريخ الإنشاء",
-      "attachments": "المرفقات",
-      "actions": "الإجراءات",
-      "search": "البحث في الملاحظات"
-    },
-    "uploadAttachment": "رفع مرفق",
-    "attachmentFileLabel": "ملف المرفق",
-    "uploadSuccess": "تم رفع {{name}}.",
-    "noFileSelected": "اختر ملفًا قبل الرفع.",
-    "measure": {
-      "title": "ملاحظات هذا الأسبوع",
-      "loading": "جارٍ العد…",
-      "thisWeek": "{{count}} ملاحظة أُنشئت هذا الأسبوع"
-    }
+  "journal": {
+    "title": "الخط الزمني للسجل",
+    "loading": "جارٍ تحميل السجل…",
+    "retry": "إعادة المحاولة",
+    "empty": "لا توجد ذكريات بعد",
+    "unknownTime": "وقت غير معروف"
+  },
+  "recall": {
+    "title": "استدعاء الذاكرة",
+    "queryLabel": "استعلام الذاكرة",
+    "queryPlaceholder": "ابحث في الذاكرة المشتركة",
+    "submit": "استدعاء",
+    "loading": "جارٍ البحث في الذاكرة…",
+    "empty": "لا توجد ذكريات مطابقة",
+    "score": "النتيجة {{score}}",
+    "summary": "ملخص لـ {{count}} ذكريات"
   },
   "errors": {
     "canceled": "Operation canceled.",

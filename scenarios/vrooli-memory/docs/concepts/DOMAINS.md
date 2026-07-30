@@ -44,34 +44,6 @@ belong in [`DATA.md`](DATA.md).
 | federation | Own the search-hub provider descriptor and control surface. | One registry row makes memory reachable from federated query with no router change. | Descriptor config; no memory content. | integration | service | Descriptor, ResultMapping | `api/internal/federation/` |
 | harness | Own the memory-file projection, prompt-block install, native-write capture, and store import. | The integration point that makes every agent runtime share one memory. | Projection and import-key state only. | integration | service | Projection, PromptBlock, Capture, Import | `api/internal/harness/` |
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
-
-The template ships `notes` as a worked CRUD vertical slice with a binary
-upload exception. Copy its shape for your own domains, then remove it.
-
-| Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |
-|---|---|---|---|---|---|---|---|
-| notes | Provide the worked CRUD reference with attachment upload exception. | Demonstrate the expected vertical slice for a real domain. | Notes and attachment metadata. | crud | service | Note, Attachment | `api/internal/notes/`, `api/handlers/notes/`, `cli/domains/notes/`, `ui/src/features/notes/`, `packages/proto/schemas/vrooli-memory/v1/notes/` |
-
-- Purpose: demonstrate the expected vertical slice for a real domain.
-- Primary archetype: CRUD / entity.
-- Secondary traits: binary/blob attachment upload, upload workflow.
-- Owns: note records, attachment metadata, note validation, note
-  service/repository seams, UI note interactions, CLI notes commands.
-- Does not own: product scope for a generated scenario.
-- API: `api/internal/notes/`, `api/handlers/notes/`.
-- CLI: `cli/domains/notes/`.
-- UI: `ui/src/features/notes/`, `ui/src/api/notes.ts`.
-- Storage: domain-owned SQLite schema in `api/internal/notes/schema.sql`.
-- Requirements: template starter only; replace with PRD-specific
-  requirements.
-- Tests: repository, service, handler, CLI, UI, accessibility, and
-  workflow tests.
-- Related docs: [`FLOWS.md`](FLOWS.md), [`DATA.md`](DATA.md),
-  [`../internal/SEAMS.md`](../internal/SEAMS.md).
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Domain Details
 
 ### journal
@@ -116,8 +88,8 @@ upload exception. Copy its shape for your own domains, then remove it.
 
 ### forest
 
-- Purpose: keep the frontier under its target size by collapsing the cheapest
-  available cluster.
+- Purpose: keep the compaction-eligible portion of the frontier under its
+  target size by collapsing the cheapest available cluster.
 - Primary archetype: service with a scheduled pass.
 - Owns: summary nodes and their spans, parent/child edges, frontier membership,
   cluster scoring, and the compaction pass itself.
@@ -128,6 +100,10 @@ upload exception. Copy its shape for your own domains, then remove it.
 - Frontier = the antichain of roots: every journal leaf not yet inside a summary
   plus every summary not yet inside a summary. It mixes depths freely, so a
   fresh leaf can cluster with a depth-2 summary.
+- Compaction pressure counts only roots whose current facet policy is eligible
+  (currently `episode`). Non-episode roots remain in the mixed frontier for
+  full-fidelity recall; counting them against a target they are forbidden to
+  satisfy would make the pressure loop impossible.
 - Requirements: `VMEM-P0-007`, `VMEM-P1-004`, `VMEM-P2-003`.
 
 ### recall

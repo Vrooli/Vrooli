@@ -4,8 +4,32 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "vrooli-memory",
   "generator": "v1.0.0",
-  "manifest_hash": "c97e0a329f4fd599265cc657978ffd6bee375cc3911da7199c71be93abea5b5f",
+  "manifest_hash": "e9f357ccdb02f32112bcb7f5bb5c28db715486d71b8a07d2087ee36168c4409c",
   "commands": [
+    {
+      "path": "forest compact",
+      "group": "forest",
+      "command": "compact",
+      "binding": "ForestService.RunCompactionPass",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "forest rebuild-forest",
+      "group": "forest",
+      "command": "rebuild-forest",
+      "binding": "ForestService.RebuildForest",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "harness capture",
+      "group": "harness",
+      "command": "capture",
+      "binding": "HarnessService.CaptureWrite",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
     {
       "path": "harness import",
       "group": "harness",
@@ -21,6 +45,22 @@
       "binding": "HarnessService.GetImportStatus",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "harness install-prompt",
+      "group": "harness",
+      "command": "install-prompt",
+      "binding": "HarnessService.InstallPromptBlock",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "harness project",
+      "group": "harness",
+      "command": "project",
+      "binding": "HarnessService.RefreshProjection",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
     },
     {
       "path": "journal note",
@@ -47,49 +87,18 @@
       "observed_primitive": "proto_mutation"
     },
     {
-      "path": "notes attach",
-      "group": "notes",
-      "command": "attach",
-      "declared_exception": "upload",
-      "observed_primitive": "upload"
-    },
-    {
-      "path": "notes count",
-      "group": "notes",
-      "command": "count",
-      "binding": "NotesService.CountNotes",
-      "declared_primitive": "proto_list",
-      "observed_primitive": "proto_list"
-    },
-    {
-      "path": "notes create",
-      "group": "notes",
-      "command": "create",
-      "binding": "NotesService.CreateNote",
-      "declared_primitive": "proto_mutation",
-      "observed_primitive": "proto_mutation"
-    },
-    {
-      "path": "notes get",
-      "group": "notes",
-      "command": "get",
-      "binding": "NotesService.GetNote",
-      "declared_primitive": "proto_list",
-      "observed_primitive": "proto_list"
-    },
-    {
-      "path": "notes list",
-      "group": "notes",
-      "command": "list",
-      "binding": "NotesService.ListNotes",
-      "declared_primitive": "proto_list",
-      "observed_primitive": "proto_list"
-    },
-    {
       "path": "recall recall",
       "group": "recall",
       "command": "recall",
       "binding": "RecallService.Recall",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "recall siblings",
+      "group": "recall",
+      "command": "siblings",
+      "binding": "RecallService.ListSiblingEvents",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },

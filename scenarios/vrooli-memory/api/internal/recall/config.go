@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	DefaultFrontierTarget = 100
+	DefaultFrontierTarget = 16
 	DefaultWakeBudget     = 40
 	FrontierTargetEnv     = "VROOLI_MEMORY_FRONTIER_TARGET"
 	WakeBudgetEnv         = "VROOLI_MEMORY_WAKE_BUDGET"

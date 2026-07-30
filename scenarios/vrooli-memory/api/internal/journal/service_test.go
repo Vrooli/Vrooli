@@ -21,7 +21,7 @@ func journalDB(t *testing.T) *SQLiteRepository {
 	return NewSQLiteRepository(d)
 }
 
-func TestAppendPreservesWriteOrderAndFacetEmbeddings(t *testing.T) {
+func TestAppendPreservesWriteOrderAndFacetEmbeddings(t *testing.T) { // [REQ:VMEM-P0-001] [REQ:VMEM-P0-002] [REQ:VMEM-P1-005]
 	repo := journalDB(t)
 	client := &mocks.FakeInference{ClassifyOut: "project", EmbedOut: []float64{0.1, 0.2}}
 	svc := NewService(repo, client)
@@ -39,7 +39,7 @@ func TestAppendPreservesWriteOrderAndFacetEmbeddings(t *testing.T) {
 	}
 }
 
-func TestClassifierFailureStillAppendsUnclassifiedEntry(t *testing.T) {
+func TestClassifierFailureStillAppendsUnclassifiedEntry(t *testing.T) { // [REQ:VMEM-P0-002]
 	repo := journalDB(t)
 	client := &mocks.FakeInference{ClassifyErr: errors.New("gateway unavailable"), EmbedOut: []float64{1}}
 	entry, err := NewService(repo, client).Append(context.Background(), Entry{Body: "never lose this", Kind: "memory"})
@@ -54,7 +54,7 @@ func TestClassifierFailureStillAppendsUnclassifiedEntry(t *testing.T) {
 	require.Equal(t, "classify", reason)
 }
 
-func TestRepositoryExposesNoMutationMethods(t *testing.T) {
+func TestRepositoryExposesNoMutationMethods(t *testing.T) { // [REQ:VMEM-P0-001]
 	typ := reflect.TypeOf((*Repository)(nil)).Elem()
 	for i := 0; i < typ.NumMethod(); i++ {
 		name := typ.Method(i).Name

@@ -3,6 +3,7 @@ package harness
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
@@ -18,12 +19,21 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	http, base := cliapp.NewConnectHTTPClient(core)
 	return &handlers{client: harnessconnect.NewHarnessServiceClient(http, base)}
 }
+
 func runtime(ctx cliapp.OperationContext) string {
 	if v := ctx.Flag("runtime"); v != "" {
 		return v
 	}
 	return "claude-code"
 }
+
+func projectRuntime(ctx cliapp.OperationContext) string {
+	if v := ctx.Flag("harness"); v != "" {
+		return v
+	}
+	return runtime(ctx)
+}
+
 func (h *handlers) importCall(ctx cliapp.OperationContext) (*harnessv1.RunImportResponse, error) {
 	resp, err := h.client.RunImport(context.Background(), connect.NewRequest(&harnessv1.RunImportRequest{Runtime: runtime(ctx), DryRun: ctx.BoolFlag("dry-run")}))
 	if err != nil {
@@ -31,6 +41,7 @@ func (h *handlers) importCall(ctx cliapp.OperationContext) (*harnessv1.RunImport
 	}
 	return resp.Msg, nil
 }
+
 func (h *handlers) statusCall(ctx cliapp.OperationContext) (*harnessv1.GetImportStatusResponse, error) {
 	resp, err := h.client.GetImportStatus(context.Background(), connect.NewRequest(&harnessv1.GetImportStatusRequest{RunId: ctx.Flag("run-id"), Runtime: runtime(ctx)}))
 	if err != nil {
@@ -38,6 +49,31 @@ func (h *handlers) statusCall(ctx cliapp.OperationContext) (*harnessv1.GetImport
 	}
 	return resp.Msg, nil
 }
+
+func (h *handlers) projectCall(ctx cliapp.OperationContext) (*harnessv1.RefreshProjectionResponse, error) {
+	resp, err := h.client.RefreshProjection(context.Background(), connect.NewRequest(&harnessv1.RefreshProjectionRequest{Runtime: projectRuntime(ctx), DryRun: ctx.BoolFlag("dry-run")}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("project unified memory", err, nil)
+	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) captureCall(ctx cliapp.OperationContext) (*harnessv1.CaptureWriteResponse, error) {
+	resp, err := h.client.CaptureWrite(context.Background(), connect.NewRequest(&harnessv1.CaptureWriteRequest{Runtime: runtime(ctx), SourcePath: ctx.Flag("source-path"), Content: ctx.Flag("content")}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("capture native memory", err, nil)
+	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) promptCall(ctx cliapp.OperationContext) (*harnessv1.InstallPromptBlockResponse, error) {
+	resp, err := h.client.InstallPromptBlock(context.Background(), connect.NewRequest(&harnessv1.InstallPromptBlockRequest{Runtime: runtime(ctx)}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("install memory prompt", err, nil)
+	}
+	return resp.Msg, nil
+}
+
 func (h *handlers) importReport(_ cliapp.OperationContext, msg *harnessv1.RunImportResponse) cliapp.MutationReport {
 	if msg.DryRun {
 		return cliapp.MutationReport{Result: []string{fmt.Sprintf("Dry run validated %d importable memory source(s); no journal entries were written.", msg.ImportedCount)}}
@@ -57,5 +93,44 @@ func (h *handlers) statusReport(_ cliapp.OperationContext, msg *harnessv1.GetImp
 		return cliapp.ListReport{Summary: []string{"No import run found."}}
 	}
 	r := msg.Run
-	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Import %s: %s (%d/%d processed).", r.Id, r.Status, r.ProcessedSources, r.TotalSources)}, ResultsHeading: "Counters", Results: []string{fmt.Sprintf("imported: %d", r.ImportedCount), fmt.Sprintf("already present: %d", r.ExistingCount), fmt.Sprintf("failed: %d", r.FailedCount), fmt.Sprintf("checkpoint: %s", r.CurrentPath)}}
+	results := []string{fmt.Sprintf("imported: %d", r.ImportedCount), fmt.Sprintf("already present: %d", r.ExistingCount), fmt.Sprintf("failed: %d", r.FailedCount), fmt.Sprintf("checkpoint: %s", r.CurrentPath)}
+	if rate, eta, ok := importProgressEstimate(r, time.Now()); ok {
+		results = append(results, fmt.Sprintf("throughput: %.1f sources/min", rate), fmt.Sprintf("estimated remaining: %s", eta.Round(time.Second)))
+	}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Import %s: %s (%d/%d processed).", r.Id, r.Status, r.ProcessedSources, r.TotalSources)}, ResultsHeading: "Counters", Results: results}
+}
+
+// importProgressEstimate makes a long-running, durable import observable
+// without guessing from polling intervals. It derives rate from the run's own
+// persisted start time and only projects an ETA for an in-progress run with a
+// positive observed rate.
+func importProgressEstimate(run *harnessv1.ImportRun, now time.Time) (float64, time.Duration, bool) {
+	if run.GetStatus() != "running" || run.GetProcessedSources() <= 0 || run.GetTotalSources() <= run.GetProcessedSources() {
+		return 0, 0, false
+	}
+	started, err := time.Parse(time.RFC3339Nano, run.GetStartedAt())
+	if err != nil || !now.After(started) {
+		return 0, 0, false
+	}
+	elapsed := now.Sub(started)
+	ratePerSecond := float64(run.GetProcessedSources()) / elapsed.Seconds()
+	if ratePerSecond <= 0 {
+		return 0, 0, false
+	}
+	return ratePerSecond * 60, time.Duration(float64(run.GetTotalSources()-run.GetProcessedSources())/ratePerSecond) * time.Second, true
+}
+
+func (h *handlers) projectReport(_ cliapp.OperationContext, msg *harnessv1.RefreshProjectionResponse) cliapp.MutationReport {
+	if msg.DryRun {
+		return cliapp.MutationReport{Result: []string{fmt.Sprintf("Dry run rendered %d bytes for %s (overflow=%t).", msg.SizeBytes, msg.Path, msg.Overflow), msg.RenderedContent}}
+	}
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Projected %d bytes to %s (overflow=%t).", msg.SizeBytes, msg.Path, msg.Overflow)}}
+}
+
+func (h *handlers) captureReport(_ cliapp.OperationContext, msg *harnessv1.CaptureWriteResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Captured native memory as %s.", msg.EntryId)}}
+}
+
+func (h *handlers) promptReport(_ cliapp.OperationContext, msg *harnessv1.InstallPromptBlockResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Memory prompt installed: %t.", msg.Installed)}}
 }

@@ -4,46 +4,45 @@
   "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
   "groups": [
     {
-      "name": "notes",
-      "description": "Manage notes (CRUD reference)",
+      "name": "journal",
+      "description": "Write durable shared memories",
       "commands": [
         {
-          "name": "list",
-          "description": "List all notes",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "ListNotes"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
-        },
-        {
-          "name": "create",
-          "description": "Create a note",
-          "flags": [
-            {
-              "name": "title",
-              "required": true,
-              "description": "Note title"
-            },
+          "name": "note",
+          "description": "Append an immutable memory entry",
+          "positionals": [
             {
               "name": "body",
-              "description": "Note body"
+              "required": true,
+              "description": "Memory prose"
+            }
+          ],
+          "flags": [
+            {
+              "name": "kind",
+              "description": "Entry kind"
+            },
+            {
+              "name": "trigger",
+              "description": "Work-record trigger"
+            },
+            {
+              "name": "approach",
+              "description": "Work-record approach"
+            },
+            {
+              "name": "evidence",
+              "description": "Work-record evidence"
+            },
+            {
+              "name": "outcome",
+              "description": "Work-record outcome"
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CreateNote"
+            "service": "JournalService",
+            "method": "AppendEntry"
           },
           "governance": {
             "effect": "write",
@@ -57,106 +56,54 @@
           }
         },
         {
-          "name": "get",
-          "description": "Get a note by id",
-          "positionals": [
-            {
-              "name": "id",
-              "required": true,
-              "description": "Note id"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "GetNote"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          }
-        },
-        {
-          "name": "count",
-          "description": "Count notes created in a time window (the reference measure)",
-          "flags": [
-            {
-              "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "NotesService",
-            "method": "CountNotes"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "measure": {
-            "intent": "How many notes were created in a given time window.",
-            "questions": [
-              "how many notes were created this week",
-              "notes created last month",
-              "how many notes did we add in the last 7 days"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "count",
-              "unit": "notes",
-              "summary_template": "{count} notes created ({window})"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "journal",
-      "description": "Write durable shared memories",
-      "commands": [
-        {
-          "name": "note",
-          "description": "Append an immutable memory entry",
-          "positionals": [{"name": "body", "required": true, "description": "Memory prose"}],
-          "flags": [{"name": "kind", "description": "Entry kind"}],
-          "binding": {"kind": "connect-rpc", "service": "JournalService", "method": "AppendEntry"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_mutation"}
-        },
-        {
           "name": "retry-classifications",
           "description": "Replay queued classification failures through append-only facet assignments",
-          "flags": [{"name": "limit", "description": "Maximum queue items (up to 500)"}],
-          "binding": {"kind": "connect-rpc", "service": "JournalService", "method": "ProcessClassificationRetries"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_mutation"}
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum queue items (up to 500)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "JournalService",
+            "method": "ProcessClassificationRetries"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         },
         {
           "name": "retry-embeddings",
           "description": "Replay queued embedding failures",
-          "flags": [{"name": "limit", "description": "Maximum queue items (up to 500)"}],
-          "binding": {"kind": "connect-rpc", "service": "JournalService", "method": "ProcessEmbeddingRetries"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_mutation"}
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum queue items (up to 500)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "JournalService",
+            "method": "ProcessEmbeddingRetries"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         }
       ]
     },
@@ -167,18 +114,198 @@
         {
           "name": "import",
           "description": "Start an observable, replay-safe harness import",
-          "flags": [{"name": "runtime", "description": "Harness runtime", "default": "claude-code"}, {"name": "dry-run", "description": "Read and validate sources without writing journal entries"}],
-          "binding": {"kind": "connect-rpc", "service": "HarnessService", "method": "RunImport"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_mutation"}
+          "flags": [
+            {
+              "name": "runtime",
+              "description": "Harness runtime",
+              "default": "claude-code"
+            },
+            {
+              "name": "dry-run",
+              "description": "Read and validate sources without writing journal entries"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HarnessService",
+            "method": "RunImport"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         },
         {
           "name": "import-status",
           "description": "Show persisted import progress or final result",
-          "flags": [{"name": "run-id", "description": "Specific import run ID"}, {"name": "runtime", "description": "Harness runtime", "default": "claude-code"}],
-          "binding": {"kind": "connect-rpc", "service": "HarnessService", "method": "GetImportStatus"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_list"}
+          "flags": [
+            {
+              "name": "run-id",
+              "description": "Specific import run ID"
+            },
+            {
+              "name": "runtime",
+              "description": "Harness runtime",
+              "default": "claude-code"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HarnessService",
+            "method": "GetImportStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "project",
+          "description": "Render or refresh a one-directional harness memory projection",
+          "flags": [
+            {
+              "name": "harness",
+              "description": "Harness runtime",
+              "default": "claude-code"
+            },
+            {
+              "name": "dry-run",
+              "description": "Render without writing the harness file"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HarnessService",
+            "method": "RefreshProjection"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "capture",
+          "description": "Capture a native harness memory write",
+          "flags": [
+            {
+              "name": "runtime",
+              "description": "Harness runtime",
+              "default": "claude-code"
+            },
+            {
+              "name": "source-path",
+              "description": "Native source path"
+            },
+            {
+              "name": "content",
+              "description": "Native memory content"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HarnessService",
+            "method": "CaptureWrite"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "install-prompt",
+          "description": "Install native-memory guidance in a harness convention file",
+          "flags": [
+            {
+              "name": "runtime",
+              "description": "Harness runtime",
+              "default": "claude-code"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "HarnessService",
+            "method": "InstallPromptBlock"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "forest",
+      "description": "Operate the derived compaction forest",
+      "commands": [
+        {
+          "name": "compact",
+          "description": "Compact eligible memory frontier",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ForestService",
+            "method": "RunCompactionPass"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "rebuild-forest",
+          "description": "Rebuild derived memory forest",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ForestService",
+            "method": "RebuildForest"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         }
       ]
     },
@@ -189,31 +316,91 @@
         {
           "name": "recall",
           "description": "Semantically recall memories",
-          "positionals": [{"name": "query", "required": true, "description": "Semantic query"}],
-          "flags": [{"name": "limit", "description": "Maximum hits"}],
-          "binding": {"kind": "connect-rpc", "service": "RecallService", "method": "Recall"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_list"}
+          "positionals": [
+            {
+              "name": "query",
+              "required": true,
+              "description": "Semantic query"
+            }
+          ],
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum hits"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecallService",
+            "method": "Recall"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "wake",
           "description": "Render bounded ambient memory",
-          "flags": [{"name": "budget", "description": "Line budget"}],
-          "binding": {"kind": "connect-rpc", "service": "RecallService", "method": "Wake"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_list"}
+          "flags": [
+            {
+              "name": "budget",
+              "description": "Line budget"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecallService",
+            "method": "Wake"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "siblings",
+          "description": "List memories from the same agent run",
+          "positionals": [
+            {
+              "name": "entry-id",
+              "required": true,
+              "description": "Memory entry id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecallService",
+            "method": "ListSiblingEvents"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         }
       ]
     }
   ],
   "measures": {
-    "domains": [
-      {
-        "domain": "notes",
-        "stateful": true,
-        "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier."
-      }
-    ]
+    "domains": []
   },
   "exceptions": [
     {
@@ -242,6 +429,31 @@
       "reason": "Root alias for the manifest-bound harness status command; exposes durable import progress without group topology."
     },
     {
+      "command": "project",
+      "class": "passthrough",
+      "reason": "Root alias for the manifest-bound projection command."
+    },
+    {
+      "command": "capture",
+      "class": "passthrough",
+      "reason": "Root alias for the manifest-bound native-memory capture command."
+    },
+    {
+      "command": "install-prompt",
+      "class": "passthrough",
+      "reason": "Root alias for the manifest-bound prompt installation command."
+    },
+    {
+      "command": "compact",
+      "class": "passthrough",
+      "reason": "Root alias for the manifest-bound forest compaction command."
+    },
+    {
+      "command": "rebuild-forest",
+      "class": "passthrough",
+      "reason": "Root alias for the manifest-bound forest rebuild command."
+    },
+    {
       "command": "recall",
       "class": "passthrough",
       "reason": "Root alias for the manifest-bound recall command; semantic recall is the primary agent read workflow."
@@ -252,9 +464,9 @@
       "reason": "Root alias for the manifest-bound recall wake command; ambient projection is intentionally topology-free."
     },
     {
-      "command": "notes attach",
-      "class": "upload",
-      "reason": "Multipart file upload is exposed through the notes REST attachment endpoint, while cli-manifest/v1 only models Connect-RPC bindings."
+      "command": "siblings",
+      "class": "passthrough",
+      "reason": "Root alias for same-run memory event inspection."
     }
   ],
   "omitted": [
@@ -314,11 +526,6 @@
       "reason": "Node inspection is deferred to the operator tree surface."
     },
     {
-      "service": "ForestService",
-      "method": "RebuildForest",
-      "reason": "Rebuild is an API maintenance operation until compaction is implemented."
-    },
-    {
       "service": "SearchControlService",
       "method": "Reindex",
       "reason": "Federation is not yet implemented and reindex remains API-only."
@@ -332,11 +539,6 @@
       "service": "RecallService",
       "method": "Zoom",
       "reason": "Tree exploration is introduced with the operator surface phase."
-    },
-    {
-      "service": "RecallService",
-      "method": "ListSiblingEvents",
-      "reason": "Sibling-event inspection is introduced with the operator surface phase."
     },
     {
       "service": "HarnessService",

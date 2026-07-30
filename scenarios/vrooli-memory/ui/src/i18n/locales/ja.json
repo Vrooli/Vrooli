@@ -10,7 +10,6 @@
     "bottomNavLabel": "モバイルナビゲーション",
     "nav": {
       "dashboard": "ダッシュボード",
-      "notes": "ノート",
       "journal": "ジャーナル",
       "recall": "想起",
       "settings": "設定"
@@ -30,11 +29,12 @@
       "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
       "statPlaceholderLabel": "指標"
     },
-    "notes": {
-      "title": "ノート"
+    "journal": {
+      "title": "ジャーナル"
     },
-    "journal": {"title": "ジャーナル"},
-    "recall": {"title": "想起"},
+    "recall": {
+      "title": "想起"
+    },
     "settings": {
       "title": "設定",
       "themeHeading": "外観",
@@ -54,31 +54,22 @@
   "notifications": {
     "summary": "{{count}} 件の通知"
   },
-  "journal": {"title": "ジャーナルのタイムライン", "loading": "ジャーナルを読み込み中…", "retry": "再試行", "empty": "まだメモリはありません", "unknownTime": "時刻不明"},
-  "recall": {"title": "メモリを想起", "queryLabel": "メモリの検索", "queryPlaceholder": "共有メモリを検索", "submit": "想起", "loading": "メモリを検索中…", "empty": "一致するメモリはありません", "score": "スコア {{score}}", "summary": "{{count}} 件のメモリの要約"},
-  "notes": {
-    "title": "ノート",
-    "loading": "ノートを読み込み中…",
-    "empty": "まだノートはありません。",
-    "create": "ノートを作成",
-    "createdAtLabel": "作成:",
-    "attachmentsLabel": "添付ファイル {{count}} 件",
-    "table": {
-      "title": "タイトル",
-      "created": "作成日",
-      "attachments": "添付",
-      "actions": "操作",
-      "search": "ノートを検索"
-    },
-    "uploadAttachment": "添付ファイルをアップロード",
-    "attachmentFileLabel": "添付ファイル",
-    "uploadSuccess": "{{name}} をアップロードしました。",
-    "noFileSelected": "アップロードするファイルを選択してください。",
-    "measure": {
-      "title": "今週のノート",
-      "loading": "集計中…",
-      "thisWeek": "今週作成されたノート: {{count}} 件"
-    }
+  "journal": {
+    "title": "ジャーナルのタイムライン",
+    "loading": "ジャーナルを読み込み中…",
+    "retry": "再試行",
+    "empty": "まだメモリはありません",
+    "unknownTime": "時刻不明"
+  },
+  "recall": {
+    "title": "メモリを想起",
+    "queryLabel": "メモリの検索",
+    "queryPlaceholder": "共有メモリを検索",
+    "submit": "想起",
+    "loading": "メモリを検索中…",
+    "empty": "一致するメモリはありません",
+    "score": "スコア {{score}}",
+    "summary": "{{count}} 件のメモリの要約"
   },
   "errors": {
     "canceled": "Operation canceled.",

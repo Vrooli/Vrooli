@@ -32,13 +32,26 @@ func (r *SQLiteRepository) CreateSummary(ctx context.Context, s Summary, edges [
 		return Summary{}, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	for _, e := range edges {
+		if e.ParentID != s.ID {
+			e.ParentID = s.ID
+		}
+		if e.ChildKind != "entry" && e.ChildKind != "summary" {
+			return Summary{}, fmt.Errorf("unknown child kind %q", e.ChildKind)
+		}
+		var parents int
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM tree_edges WHERE child_id=? AND child_kind=?`, e.ChildID, e.ChildKind).Scan(&parents); err != nil {
+			return Summary{}, err
+		}
+		if parents != 0 {
+			return Summary{}, fmt.Errorf("child %s/%s is no longer on frontier", e.ChildKind, e.ChildID)
+		}
+	}
 	if _, err = tx.ExecContext(ctx, `INSERT INTO summaries (id,body,facet_id,vector_json,depth,generation,created_at) VALUES (?,?,?,?,?,?,?)`, s.ID, s.Body, s.FacetID, string(vector), s.Depth, s.Generation, s.CreatedAt.Format(time.RFC3339Nano)); err != nil {
 		return Summary{}, err
 	}
 	for _, e := range edges {
-		if e.ParentID != s.ID {
-			return Summary{}, fmt.Errorf("edge parent %q does not match summary %q", e.ParentID, s.ID)
-		}
+		e.ParentID = s.ID
 		if _, err = tx.ExecContext(ctx, `INSERT INTO tree_edges (parent_id,child_id,child_kind) VALUES (?,?,?)`, e.ParentID, e.ChildID, e.ChildKind); err != nil {
 			return Summary{}, err
 		}
@@ -47,6 +60,34 @@ func (r *SQLiteRepository) CreateSummary(ctx context.Context, s Summary, edges [
 		return Summary{}, err
 	}
 	return s, nil
+}
+
+func (r *SQLiteRepository) Nodes(ctx context.Context) ([]Node, error) {
+	rows, err := r.db.QueryContext(ctx, `
+SELECT e.id,e.id,e.facet_id,e.body,COALESCE((SELECT em.vector_json FROM facet_texts ft JOIN embeddings em ON em.facet_text_id=ft.id WHERE ft.entry_id=e.id ORDER BY ft.id LIMIT 1),'[]'),0,0,e.created_at,0
+FROM entries e WHERE NOT EXISTS(SELECT 1 FROM tree_edges WHERE child_id=e.id AND child_kind='entry')
+UNION ALL
+SELECT s.id,s.id,s.facet_id,s.body,s.vector_json,s.depth,s.generation,s.created_at,1
+FROM summaries s WHERE NOT EXISTS(SELECT 1 FROM tree_edges WHERE child_id=s.id AND child_kind='summary')
+ORDER BY 8,1`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Node
+	for rows.Next() {
+		var n Node
+		var raw, created string
+		if err := rows.Scan(&n.ID, &n.EntryID, &n.FacetID, &n.Body, &raw, &n.Depth, &n.Generation, &created, &n.Summary); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal([]byte(raw), &n.Vector); err != nil {
+			return nil, fmt.Errorf("decode node vector: %w", err)
+		}
+		n.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
+		out = append(out, n)
+	}
+	return out, rows.Err()
 }
 
 func (r *SQLiteRepository) Frontier(ctx context.Context) ([]Summary, error) {

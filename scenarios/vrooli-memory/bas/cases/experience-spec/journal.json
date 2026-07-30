@@ -1,0 +1,82 @@
+{
+  "metadata": {
+    "name": "experience-journal-spec-smoke",
+    "description": "Generated observer smoke for active experience page journal.",
+    "requirement": "OT-P0-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "journal",
+      "surface": "experience-journal"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-journal",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "vrooli-memory",
+          "scenario_path": "/journal",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {"label": "Open Journal"}
+      }
+    },
+    {
+      "id": "wait-journal-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.journal",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {"label": "Journal page visible"}
+      }
+    },
+    {
+      "id": "wait-journal-timeline",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"journal-surface\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {"label": "Journal timeline visible"}
+      }
+    },
+    {
+      "id": "wait-journal-loading-settles",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"journal-surface\"][data-experience-state=\"loading\"]",
+          "state": "WAIT_STATE_HIDDEN",
+          "timeout_ms": 15000
+        },
+        "metadata": {"label": "Journal loading settles"}
+      }
+    },
+    {
+      "id": "wait-journal-empty-state",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"journal-surface\"][data-experience-state=\"empty\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {"label": "Journal empty state visible"}
+      }
+    }
+  ]
+}

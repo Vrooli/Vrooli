@@ -27,14 +27,12 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	facetsH "vrooli-memory/handlers/facets"
+	forestH "vrooli-memory/handlers/forest"
 	harnessH "vrooli-memory/handlers/harness"
 	healthH "vrooli-memory/handlers/health"
 	journalH "vrooli-memory/handlers/journal"
-	notesH "vrooli-memory/handlers/notes" // EXAMPLE-DOMAIN:notes
 	recallH "vrooli-memory/handlers/recall"
 	localdb "vrooli-memory/internal/database"
-
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/notes" // EXAMPLE-DOMAIN:notes
 )
 
 // MemoryDomainNames is the authoritative skeleton registry. Runtime mounting
@@ -49,9 +47,9 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, facetsH.Endpoints...)
+	out = append(out, forestH.Endpoints...)
 	out = append(out, recallH.Endpoints...)
 	out = append(out, harnessH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
 	out = append(out, journalH.Endpoints...)
 	return out
 }
@@ -80,9 +78,9 @@ type ProtoFileEntry struct {
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "facets", File: facetsH.ProtoFile},
+		{Module: "forest", File: forestH.ProtoFile},
 		{Module: "recall", File: recallH.ProtoFile},
 		{Module: "harness", File: harnessH.ProtoFile},
-		{Module: "notes", File: notesv1.File_vrooli_memory_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
 		{Module: "journal", File: journalH.ProtoFile},
 	}
 }
@@ -98,7 +96,6 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
 		apidb.SchemaProviderFunc(journal.Schema),
 		apidb.SchemaProviderFunc(facets.Schema),
 		apidb.SchemaProviderFunc(forest.Schema),

@@ -24,7 +24,12 @@ const (
 	// local models.  Leaving this at the gateway's short provider default turns
 	// normal cold-start latency into breaker failures.
 	GenerationTimeout = 60 * time.Second
-	EmbeddingTimeout  = 15 * time.Second
+	// Compaction summarizes real clusters and can legitimately require a cold
+	// local model load plus generation. It is a background, cancellable pass;
+	// applying the short classification deadline turns normal work into a
+	// misleading infrastructure failure and leaves the frontier unchanged.
+	SummaryTimeout   = 5 * time.Minute
+	EmbeddingTimeout = 15 * time.Second
 	// Classification is a label-selection operation, not free-form generation.
 	// Bounding its output keeps the queue moving and prevents a concise request
 	// from monopolizing a local model context window.
@@ -95,7 +100,7 @@ func (c *GatewayClient) Classify(ctx context.Context, prompt string) (string, er
 }
 
 func (c *GatewayClient) Summarize(ctx context.Context, prompt string) (string, error) {
-	output, err := c.execute(ctx, sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION, SummaryRole, prompt, GenerationTimeout, SummaryMaxOutputTokens)
+	output, err := c.execute(ctx, sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION, SummaryRole, prompt, SummaryTimeout, SummaryMaxOutputTokens)
 	if err != nil {
 		return "", err
 	}

@@ -74,6 +74,10 @@ func (s *Service) List(ctx context.Context, limit int) ([]Entry, error) {
 	return s.repo.List(ctx, limit)
 }
 
+func (s *Service) ListByRun(ctx context.Context, runID string, limit int) ([]Entry, error) {
+	return s.repo.ListByRun(ctx, runID, limit)
+}
+
 func (s *Service) FindByImportKey(ctx context.Context, key string) (Entry, bool, error) {
 	return s.repo.FindByImportKey(ctx, key)
 }

@@ -17,7 +17,7 @@ import (
 	"vrooli-memory/internal/testutil/mocks"
 )
 
-func TestClaudeImportIsContentAddressedAndReadOnly(t *testing.T) {
+func TestClaudeImportIsContentAddressedAndReadOnly(t *testing.T) { // [REQ:VMEM-P0-011]
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "one.md"), []byte("first memory"), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "two.md"), []byte("second memory"), 0o600))
@@ -73,4 +73,66 @@ func TestStartPersistsProgressAndJoinsRepeatedRequest(t *testing.T) {
 	run, err := importer.Status(context.Background(), "", "claude-code")
 	require.NoError(t, err)
 	require.Equal(t, first.ID, run.ID)
+}
+
+func TestCaptureAndLaterImportConvergeOnOneEntry(t *testing.T) { // [REQ:VMEM-P1-008]
+	dir := t.TempDir()
+	path := filepath.Join(dir, "native.md")
+	const body = "native durable memory"
+	require.NoError(t, os.WriteFile(path, []byte(body), 0o600))
+	db, err := apidb.Open(context.Background(), apidb.Config{Driver: apidb.DriverSQLite, DSN: "file:harness-capture-dedup?mode=memory&cache=shared"})
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, db.Close()) })
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), db.Primary(), apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(journal.Schema), apidb.SchemaProviderFunc(facets.Schema), apidb.SchemaProviderFunc(Schema)))
+	fr := facets.NewSQLiteRepository(db.Primary())
+	require.NoError(t, fr.Seed(context.Background()))
+	svc := journal.NewService(journal.NewSQLiteRepository(db.Primary()), &mocks.FakeInference{ClassifyOut: "episode", EmbedOut: []float64{1}}, facets.NewService(fr))
+	importer := NewImporter(svc, dir)
+	captured, err := importer.Capture(context.Background(), "claude-code", path, body)
+	require.NoError(t, err)
+	require.NotEmpty(t, captured.ID)
+	result, err := importer.Import(context.Background(), "claude-code", false)
+	require.NoError(t, err)
+	require.Zero(t, result.Imported)
+	require.Equal(t, 1, result.Existing)
+	entries, err := svc.List(context.Background(), 10)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+}
+
+func TestSwarmManagerRecordsImportIsWorkRecordAndIdempotent(t *testing.T) { // [REQ:VMEM-P1-001]
+	dir := t.TempDir()
+	record := `{"id":"rec-1","trigger":"need a durable memory","approach":"implemented the import","evidence":"focused tests pass","outcome":"ready for validation"}`
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "rec-1.json"), []byte(record), 0o600))
+	db, err := apidb.Open(context.Background(), apidb.Config{Driver: apidb.DriverSQLite, DSN: "file:swarm-record-import?mode=memory&cache=shared"})
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, db.Close()) })
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), db.Primary(), apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(journal.Schema), apidb.SchemaProviderFunc(facets.Schema), apidb.SchemaProviderFunc(Schema)))
+	fr := facets.NewSQLiteRepository(db.Primary())
+	require.NoError(t, fr.Seed(context.Background()))
+	svc := journal.NewService(journal.NewSQLiteRepository(db.Primary()), &mocks.FakeInference{ClassifyOut: "episode", EmbedOut: []float64{1}}, facets.NewService(fr))
+	importer := NewImporter(svc, t.TempDir())
+	importer.adapters["swarm-manager-records"] = AdapterDescriptor{HarnessID: "swarm-manager-records", Locations: []string{dir}, Format: JSONL, Extract: swarmRecord, Provenance: Provenance{SourceRuntime: "swarm-manager"}}
+
+	first, err := importer.Import(context.Background(), "swarm-manager-records", false)
+	require.NoError(t, err)
+	require.Equal(t, 1, first.Imported)
+	entries, err := svc.List(context.Background(), 10)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	require.Equal(t, "work-record", entries[0].Kind)
+
+	second, err := importer.Import(context.Background(), "swarm-manager-records", false)
+	require.NoError(t, err)
+	require.Zero(t, second.Imported)
+	require.Equal(t, 1, second.Existing)
+}
+
+func TestImportWorkerCountIsBoundedAndConfigurable(t *testing.T) {
+	t.Setenv("VROOLI_MEMORY_IMPORT_CONCURRENCY", "8")
+	require.Equal(t, 8, importWorkerCount())
+	t.Setenv("VROOLI_MEMORY_IMPORT_CONCURRENCY", "99")
+	require.Equal(t, 16, importWorkerCount())
+	t.Setenv("VROOLI_MEMORY_IMPORT_CONCURRENCY", "0")
+	require.Equal(t, 4, importWorkerCount())
 }

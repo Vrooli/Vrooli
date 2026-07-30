@@ -6,6 +6,7 @@
 |---|---|---|---|---|---|---|
 | `journal-write` | journal | high: permanent append and degraded inference | Level 5 checked model, generated artifacts, and replay | `path:api/internal/journal/flow/flow.json` | `path:api/internal/journal/flow/flow_test.go`, `path:api/internal/journal/service_test.go` | None for the write flow. |
 | `harness-import` | harness | high: background work, retries, interruption | Level 2 explicit persisted state | `path:api/internal/harness/runs.go` | `path:api/internal/harness/import_test.go` | Add formal transition spec once the verifier root defect is repaired. |
+| `forest.compaction.pass` | forest | high: derived-tree mutation after fallible inference | Level 5 checked model, generated artifacts, and replay | `path:api/internal/forest/flow/flow.json` | `path:api/internal/forest/flow/flow_test.go`, `path:api/internal/forest/service_test.go` | Flow verifier rejects the plan's hyphenated id and its scaffold falsely reported success; tracked as `knw-1785298130564326686`. |
 
 ## Checkpoint Flows
 
