@@ -18,8 +18,8 @@ const validResponse: api.VerifyMagicLinkResponse = {
   user: { id: 'user-1', email: 'buyer@example.com', email_verified: true },
 };
 
-function renderVerify(token = 'valid-token') {
-  return renderWithProviders(<VerifyMagicLink />, { route: `/auth/verify?token=${token}` });
+function renderVerify(token = 'valid-token', redirectTo?: (url: string) => void) {
+  return renderWithProviders(<VerifyMagicLink redirectTo={redirectTo} />, { route: `/auth/verify?token=${token}` });
 }
 
 describe('VerifyMagicLink', () => {
@@ -43,6 +43,37 @@ describe('VerifyMagicLink', () => {
     expect(await screen.findByText('Verification successful')).toBeInTheDocument();
     expect(sessionStorage.getItem('auth_callback_params')).toBeNull();
     expect(window.location.href).not.toContain('access-token');
+  });
+
+  it('recovers safely from malformed persisted callback state', async () => {
+    verifyMagicLink.mockResolvedValue(validResponse);
+    sessionStorage.setItem('auth_callback_params', '{not-json');
+    renderVerify();
+
+    expect(await screen.findByText('Verification successful')).toBeInTheDocument();
+    expect(window.location.href).not.toContain('access-token');
+  });
+
+  it('recovers safely when persisted callback state lacks required fields', async () => {
+    verifyMagicLink.mockResolvedValue(validResponse);
+    sessionStorage.setItem('auth_callback_params', JSON.stringify({ app: 'Desktop' }));
+    renderVerify();
+
+    expect(await screen.findByText('Verification successful')).toBeInTheDocument();
+    expect(window.location.href).not.toContain('access-token');
+  });
+
+  it('sends trusted callback tokens in the URL fragment through the redirect seam', async () => {
+    const redirectTo = vi.fn();
+    verifyMagicLink.mockResolvedValue(validResponse);
+    sessionStorage.setItem('auth_callback_params', JSON.stringify({ redirect_uri: 'vrooli://auth/callback', app: 'Desktop', state: 'nonce' }));
+    renderVerify('valid-token', redirectTo);
+
+    expect(await screen.findByText('Signed in!')).toBeInTheDocument();
+    expect(screen.getByText('Redirecting you back to the app...')).toBeInTheDocument();
+    expect(redirectTo).toHaveBeenCalledWith(expect.stringContaining('#access_token=access-token'));
+    expect(redirectTo).toHaveBeenCalledWith(expect.stringContaining('state=nonce'));
+    expect(sessionStorage.getItem('auth_callback_params')).toBeNull();
   });
 
   it('offers a retry path for network failures and completes after recovery', async () => {

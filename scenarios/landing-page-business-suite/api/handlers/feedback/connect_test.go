@@ -4,11 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/gorilla/mux"
 	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
+	lpbsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/landing_page_business_suite_v1connect"
 	metrics "landing-page-business-suite-api/internal/metrics"
 )
 
@@ -143,5 +147,35 @@ func TestConnectCreateFeedbackDoesNotNotifyWhenPersistenceFails(t *testing.T) {
 	_, err := NewConnectHandler(service, notifier).CreateFeedback(context.Background(), connect.NewRequest(&lpbsv1.FeedbackCreateRequest{Email: "customer@example.test", Subject: "Question", Message: "Hello"}))
 	if connect.CodeOf(err) != connect.CodeInternal || len(notifier.notified) != 0 {
 		t.Fatalf("CreateFeedback() = %v, notifications = %#v", err, notifier.notified)
+	}
+}
+
+func TestRegisterConnectRoutesProtectsEveryAdminProcedure(t *testing.T) {
+	router := mux.NewRouter()
+	requireAdmin := func(next http.HandlerFunc) http.HandlerFunc {
+		return func(writer http.ResponseWriter, request *http.Request) {
+			writer.WriteHeader(http.StatusUnauthorized)
+		}
+	}
+	RegisterConnectRoutes(router, &feedbackServiceFake{}, nil, requireAdmin)
+
+	for _, procedure := range []string{
+		lpbsconnect.FeedbackServiceListFeedbackProcedure,
+		lpbsconnect.FeedbackServiceGetFeedbackProcedure,
+		lpbsconnect.FeedbackServiceUpdateFeedbackStatusProcedure,
+		lpbsconnect.FeedbackServiceDeleteFeedbackProcedure,
+		lpbsconnect.FeedbackServiceDeleteFeedbackBulkProcedure,
+	} {
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, procedure, nil))
+		if response.Code != http.StatusUnauthorized {
+			t.Errorf("%s status = %d, want %d", procedure, response.Code, http.StatusUnauthorized)
+		}
+	}
+
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, lpbsconnect.FeedbackServiceCreateFeedbackProcedure, nil))
+	if response.Code == http.StatusUnauthorized {
+		t.Fatal("public feedback creation must not require an admin session")
 	}
 }

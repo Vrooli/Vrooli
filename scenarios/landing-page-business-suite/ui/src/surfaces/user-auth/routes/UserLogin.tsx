@@ -14,7 +14,7 @@ interface AuthCallbackParams {
   state: string;
 }
 
-function isValidEmail(email: string): boolean {
+export function isValidEmail(email: string): boolean {
   const trimmed = email.trim();
   if (!trimmed) return false;
   const atIndex = trimmed.indexOf('@');
@@ -102,7 +102,7 @@ export function UserLogin() {
             We sent a login link to <span className="text-white font-medium">{email}</span>
           </p>
           <p className="text-sm text-slate-500 mb-8">
-            Click the link in the email to sign in{appName ? ` to ${appName}` : ''}.
+            Click the link in the email to sign in to {appName}.
             The link expires in 15 minutes.
           </p>
           <button

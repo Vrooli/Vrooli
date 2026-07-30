@@ -233,10 +233,6 @@ func registerContentRoutes(s *Server) {
 
 func registerMetricsRoutes(s *Server) {
 	metricshttp.RegisterConnectRoutes(s.router, metricsConnectDependencies(s.metricsService), s.requireAdmin)
-	// Metrics & Analytics endpoints (OT-P0-019 through OT-P0-024)
-	s.router.HandleFunc("/api/v1/metrics/track", metricsHTTPDependencies.Track(s.metricsService)).Methods("POST")
-	s.router.HandleFunc("/api/v1/metrics/summary", s.requireAdmin(metricsHTTPDependencies.Summary(s.metricsService))).Methods("GET")
-	s.router.HandleFunc("/api/v1/metrics/variants", s.requireAdmin(metricsHTTPDependencies.VariantStats(s.metricsService))).Methods("GET")
 }
 
 func registerFeedbackRoutes(s *Server) {
@@ -244,22 +240,12 @@ func registerFeedbackRoutes(s *Server) {
 }
 
 func registerWaitlistRoutes(s *Server) {
-	// Waitlist endpoints (for coming soon mode)
-	s.router.HandleFunc("/api/v1/waitlist", metricsHTTPDependencies.CreateWaitlist(s.waitlistService)).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/waitlist", s.requireAdmin(metricsHTTPDependencies.ListWaitlist(s.waitlistService))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/waitlist/{id}", s.requireAdmin(metricsHTTPDependencies.DeleteWaitlist(s.waitlistService))).Methods("DELETE")
-	s.router.HandleFunc("/api/v1/admin/waitlist/export", s.requireAdmin(metricsHTTPDependencies.ExportWaitlist(s.waitlistService))).Methods("GET")
+	metricshttp.RegisterWaitlistConnectRoutes(s.router, metricshttp.WaitlistConnectDependencies{
+		Service: s.waitlistService, ValidateEmail: ValidateEmail,
+	}, s.requireAdmin)
 }
 
 func registerCreditsRoutes(s *Server) {
-	// Credit System: API Keys Management (Admin)
-	apiKeyDeps := userauthhttp.APIKeyDependencies{Service: s.apiKeyService, WriteError: writeJSONError, LogError: logStructuredError}
-	s.router.HandleFunc("/api/v1/admin/api-keys", s.requireAdmin(userauthhttp.ListAPIKeys(apiKeyDeps))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/api-keys", s.requireAdmin(userauthhttp.CreateAPIKey(apiKeyDeps))).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/api-keys", s.requireAdmin(userauthhttp.DeleteAPIKey(apiKeyDeps))).Methods("DELETE")
-	s.router.HandleFunc("/api/v1/admin/api-keys/test", s.requireAdmin(userauthhttp.TestAPIKey(apiKeyDeps))).Methods("POST")
-	s.router.HandleFunc("/api/v1/admin/api-keys/toggle", s.requireAdmin(userauthhttp.ToggleAPIKey(apiKeyDeps))).Methods("POST")
-
 	// Credit System: Tier Limits (Admin)
 	limitsDeps := billingLimitsDependencies()
 	s.router.HandleFunc("/api/v1/admin/tiers/limits", s.requireAdmin(billinghttp.GetTierLimits(s.limitsService, limitsDeps))).Methods("GET")

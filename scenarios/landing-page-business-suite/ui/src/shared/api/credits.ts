@@ -1,4 +1,9 @@
-import { apiGet, apiPost, apiDelete, apiPut } from './common';
+import { createClient } from '@connectrpc/connect';
+import { createScenarioConnectTransport } from '@vrooli/api-base';
+import { AdministrationService, type APIKey as GeneratedAPIKey } from '@vrooli/proto-types/landing-page-business-suite/admin_pb';
+import { apiGet, apiPost, apiDelete, apiPut, CONNECT_API_BASE } from './common';
+
+const administrationClient = createClient(AdministrationService, createScenarioConnectTransport({ baseUrl: CONNECT_API_BASE }));
 
 // Types for the credit system
 
@@ -69,24 +74,40 @@ export interface UsageSummary {
 
 // API Key Management
 
+function apiKeyFromProto(key: GeneratedAPIKey): APIKey {
+  return {
+    id: key.id,
+    provider: key.provider,
+    key_hint: key.keyHint,
+    is_active: key.isActive,
+    ...(key.lastVerifiedAt ? { last_verified_at: key.lastVerifiedAt } : {}),
+    created_at: key.createdAt,
+    updated_at: key.updatedAt,
+  };
+}
+
 export async function listAPIKeys(): Promise<{ keys: APIKey[] }> {
-  return apiGet<{ keys: APIKey[] }>('/api/v1/admin/api-keys');
+  const response = await administrationClient.listAPIKeys({});
+  return { keys: response.keys.map(apiKeyFromProto) };
 }
 
 export async function createAPIKey(request: APIKeyCreateRequest): Promise<APIKey> {
-  return apiPost<APIKey>('/api/v1/admin/api-keys', request);
+  const response = await administrationClient.createAPIKey(request);
+  if (!response.key) throw new Error('API key creation response did not include a key');
+  return apiKeyFromProto(response.key);
 }
 
 export async function deleteAPIKey(provider: string): Promise<void> {
-  await apiDelete<undefined>(`/api/v1/admin/api-keys?provider=${encodeURIComponent(provider)}`);
+  await administrationClient.deleteAPIKey({ provider });
 }
 
 export async function testAPIKey(provider: string): Promise<APIKeyTestResult> {
-  return apiPost<APIKeyTestResult>(`/api/v1/admin/api-keys/test?provider=${encodeURIComponent(provider)}`, {});
+  const response = await administrationClient.testAPIKey({ provider });
+  return { success: response.success, message: response.message, provider: response.provider };
 }
 
 export async function toggleAPIKey(provider: string, active: boolean): Promise<void> {
-  await apiPost<undefined>('/api/v1/admin/api-keys/toggle', { provider, active });
+  await administrationClient.setAPIKeyActive({ provider, active });
 }
 
 // Tier Limits Management

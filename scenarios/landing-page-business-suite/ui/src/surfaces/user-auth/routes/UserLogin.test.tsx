@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '../../../test-utils/renderWithProviders';
-import { UserLogin } from './UserLogin';
+import { isValidEmail, UserLogin } from './UserLogin';
 import * as api from '../../../shared/api';
 
 vi.mock('../../../shared/api', async () => {
@@ -19,6 +19,10 @@ describe('UserLogin', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sessionStorage.clear();
+  });
+
+  it('rejects a blank email at the shared validation boundary', () => {
+    expect(isValidEmail('   ')).toBe(false);
   });
 
   it('validates missing and malformed email without calling the API', async () => {
@@ -45,6 +49,18 @@ describe('UserLogin', () => {
     });
     expect(await screen.findByText('Check your email')).toBeInTheDocument();
     expect(sessionStorage.getItem('auth_callback_params')).toBe(JSON.stringify({ redirect_uri: 'vrooli://callback', app: 'Desktop', state: 'nonce' }));
+  });
+
+  it('lets a customer restart after a successful request', async () => {
+    requestMagicLink.mockResolvedValue({ message: 'Request sent' });
+    renderLogin();
+    fireEvent.change(screen.getByTestId('email-input'), { target: { value: 'buyer@example.com' } });
+    fireEvent.click(screen.getByTestId('submit-button'));
+
+    expect(await screen.findByText('Check your email')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /use a different email/i }));
+    expect(await screen.findByRole('heading', { name: 'Sign In' })).toBeInTheDocument();
+    expect(screen.getByTestId('email-input')).toHaveValue('');
   });
 
   it('maps rate limiting to a non-enumerating customer-safe message', async () => {

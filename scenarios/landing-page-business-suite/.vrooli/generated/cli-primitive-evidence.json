@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "landing-page-business-suite",
   "generator": "v1.0.0",
-  "manifest_hash": "1314c18bd02220a975799e68b9eeb521430d5a6aeba71fa069a9c2238c6035b1",
+  "manifest_hash": "9d6d30a421d25a8f79fdaf2cf0f3dd482e027b6b79807dfc931bf7c857cf371a",
   "commands": [
     {
       "path": "legacy admin-bundle-price-update",
@@ -87,6 +87,46 @@
       "observed_primitive": "proto_mutation"
     },
     {
+      "path": "legacy admin-feedback-bulk-delete",
+      "group": "legacy",
+      "command": "admin-feedback-bulk-delete",
+      "binding": "FeedbackService.DeleteFeedbackBulk",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy admin-feedback-delete",
+      "group": "legacy",
+      "command": "admin-feedback-delete",
+      "binding": "FeedbackService.DeleteFeedback",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy admin-feedback-get",
+      "group": "legacy",
+      "command": "admin-feedback-get",
+      "binding": "FeedbackService.GetFeedback",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy admin-feedback-list",
+      "group": "legacy",
+      "command": "admin-feedback-list",
+      "binding": "FeedbackService.ListFeedback",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy admin-feedback-status-update",
+      "group": "legacy",
+      "command": "admin-feedback-status-update",
+      "binding": "FeedbackService.UpdateFeedbackStatus",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
       "path": "legacy admin-plan-coupon-remove",
       "group": "legacy",
       "command": "admin-plan-coupon-remove",
@@ -143,6 +183,30 @@
       "observed_primitive": "action"
     },
     {
+      "path": "legacy admin-waitlist-delete",
+      "group": "legacy",
+      "command": "admin-waitlist-delete",
+      "binding": "WaitlistService.DeleteWaitlistEntry",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "legacy admin-waitlist-export",
+      "group": "legacy",
+      "command": "admin-waitlist-export",
+      "binding": "WaitlistService.ExportWaitlistEntries",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "legacy admin-waitlist-list",
+      "group": "legacy",
+      "command": "admin-waitlist-list",
+      "binding": "WaitlistService.ListWaitlistEntries",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
       "path": "legacy ai-chat",
       "group": "legacy",
       "command": "ai-chat",
@@ -171,6 +235,14 @@
       "group": "legacy",
       "command": "ai-usage",
       "binding": "IntelligenceService.GetUsage",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "legacy feedback-create",
+      "group": "legacy",
+      "command": "feedback-create",
+      "binding": "FeedbackService.CreateFeedback",
       "declared_primitive": "action",
       "observed_primitive": "action"
     },
@@ -221,6 +293,14 @@
       "binding": "VariantSpaceService.GetVariantSpace",
       "declared_primitive": "action",
       "observed_primitive": "action"
+    },
+    {
+      "path": "legacy waitlist-create",
+      "group": "legacy",
+      "command": "waitlist-create",
+      "binding": "WaitlistService.CreateWaitlistEntry",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
     },
     {
       "path": "measures measures-admin-sessions-created",

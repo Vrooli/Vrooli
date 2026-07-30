@@ -27,4 +27,28 @@ describe('feedback API transport', () => {
     expect(feedbackClient.updateFeedbackStatus).toHaveBeenCalledWith({ id: 7n, status: 3 });
     expect(feedbackClient.deleteFeedbackBulk).toHaveBeenCalledWith({ ids: [7n, 8n] });
   });
+
+  it('maps optional fields deliberately and rejects incomplete or invalid admin responses', async () => {
+    feedbackClient.createFeedback.mockResolvedValue({ success: true, id: 9n });
+    feedbackClient.listFeedback.mockResolvedValue({
+      feedback: [{ id: 9n, type: 0, email: 'customer@example.com', subject: 'Question', message: 'Details', status: 0 }],
+    });
+    feedbackClient.getFeedback.mockResolvedValue({});
+    feedbackClient.updateFeedbackStatus.mockResolvedValue({});
+
+    await expect(feedback.createFeedback({
+      type: 'general', email: 'customer@example.com', subject: 'Question', message: 'Details', orderId: 'order_9',
+    })).resolves.toEqual({ success: true, id: 9 });
+    await expect(feedback.fetchFeedbackList()).resolves.toEqual([{
+      id: 9, type: 'general', email: 'customer@example.com', subject: 'Question', message: 'Details',
+      status: 'pending', created_at: '', updated_at: '',
+    }]);
+    await expect(feedback.fetchFeedbackById(9)).rejects.toThrow('did not include a record');
+    await expect(feedback.updateFeedbackStatus(9, 'pending')).rejects.toThrow('did not include a record');
+    await expect(feedback.updateFeedbackStatus(9, '')).rejects.toThrow('Invalid feedback status');
+    expect(feedbackClient.createFeedback).toHaveBeenCalledWith({
+      type: 'general', email: 'customer@example.com', subject: 'Question', message: 'Details', orderId: 'order_9',
+    }, { signal: undefined });
+    expect(feedbackClient.listFeedback).toHaveBeenCalledWith({ status: undefined });
+  });
 });

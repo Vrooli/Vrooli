@@ -27,7 +27,7 @@ export interface UseWaitlistFormReturn {
   loadData: () => Promise<void>;
   handleDelete: (id: number) => Promise<{ success: boolean; message?: string }>;
   handleToggleComingSoon: () => Promise<{ success: boolean; message?: string }>;
-  handleExport: () => void;
+  handleExport: () => Promise<void>;
   clearError: () => void;
 }
 
@@ -122,8 +122,12 @@ export function useWaitlistForm(): UseWaitlistFormReturn {
   /**
    * Export emails to CSV
    */
-  const handleExport = useCallback(() => {
-    exportToCsv();
+  const handleExport = useCallback(async () => {
+    try {
+      await exportToCsv();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to export waitlist');
+    }
   }, []);
 
   /**

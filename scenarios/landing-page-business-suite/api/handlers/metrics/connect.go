@@ -20,6 +20,19 @@ type ConnectDependencies struct {
 	Reader  AnalyticsReader
 }
 
+// EventTracker records an idempotent analytics event. The production service
+// is wired once by the API composition root; tests use a narrow fake.
+type EventTracker interface {
+	TrackEvent(metrics.Event) error
+}
+
+// AnalyticsReader supplies reporting projections without exposing persistence
+// details to the generated transport.
+type AnalyticsReader interface {
+	GetAnalyticsSummary(time.Time, time.Time) (*metrics.AnalyticsSummary, error)
+	GetVariantStats(time.Time, time.Time, string) ([]metrics.VariantStats, error)
+}
+
 type ConnectHandler struct{ deps ConnectDependencies }
 
 func NewConnectHandler(deps ConnectDependencies) *ConnectHandler { return &ConnectHandler{deps: deps} }

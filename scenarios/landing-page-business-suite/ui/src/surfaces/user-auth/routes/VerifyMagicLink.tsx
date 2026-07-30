@@ -26,6 +26,10 @@ interface VerifyState {
   errorCode?: 'expired' | 'used' | 'invalid' | 'network' | 'unknown';
 }
 
+function redirectBrowser(url: string): void {
+  window.location.href = url;
+}
+
 function parseAuthCallbackParams(raw: string): AuthCallbackParams | null {
   const parsed = safeParseJson(raw);
   if (!isRecord(parsed)) {
@@ -46,7 +50,7 @@ function parseAuthCallbackParams(raw: string): AuthCallbackParams | null {
  * - vrooli:// scheme (for desktop apps)
  * - localhost/127.0.0.1 (for development)
  */
-function isAllowedCallbackUrl(urlString: string): boolean {
+export function isAllowedCallbackUrl(urlString: string): boolean {
   try {
     const url = new URL(urlString);
 
@@ -89,7 +93,7 @@ function buildRedirectUrl(baseUrl: string, tokens: VerifyMagicLinkResponse, stat
   return url.toString();
 }
 
-export function VerifyMagicLink() {
+export function VerifyMagicLink({ redirectTo = redirectBrowser }: { redirectTo?: (url: string) => void }) {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [state, setState] = useState<VerifyState>({ status: 'verifying' });
@@ -132,7 +136,7 @@ export function VerifyMagicLink() {
             setState({ status: 'success' });
 
             // Redirect to the callback URL
-            window.location.href = redirectUrl;
+            redirectTo(redirectUrl);
             return;
           } else {
             console.warn('Invalid callback URL rejected:', params.redirect_uri);
@@ -177,7 +181,7 @@ export function VerifyMagicLink() {
         errorCode,
       });
     }
-  }, [token, navigate]);
+  }, [token, navigate, redirectTo]);
 
   // Run verification on mount
   useEffect(() => {

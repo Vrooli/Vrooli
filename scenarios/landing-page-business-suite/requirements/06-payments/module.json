@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-07-30T11:17:02-04:00"
+    "last_validated_at": "2026-07-30T12:53:03-04:00"
   },
   "requirements": [
     {
@@ -41,7 +41,7 @@
           "type": "test",
           "ref": "api/handlers/commerce/connect_test.go",
           "phase": "business",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
@@ -83,7 +83,7 @@
           "type": "test",
           "ref": "api/handlers/commerce/connect_test.go",
           "phase": "business",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
@@ -104,7 +104,7 @@
           "type": "test",
           "ref": "api/stripe_service.go",
           "phase": "business",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
@@ -125,7 +125,7 @@
           "type": "test",
           "ref": "api/handlers/commerce/connect_test.go",
           "phase": "business",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },

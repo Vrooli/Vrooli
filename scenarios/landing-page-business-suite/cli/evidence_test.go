@@ -75,7 +75,9 @@ func evidenceGroups() ([]cliapp.SubcommandGroup, error) {
 			switch command.Name {
 			case "admin-stripe-settings", "admin-stripe-settings-update", "admin-stripe-secret", "variant-space", "seo", "admin-variant-seo-update", "landing-config",
 				"admin-bundles", "admin-bundle-price-update", "admin-coupon-mappings", "admin-coupons-create", "admin-coupons-delete", "admin-coupons-get", "admin-coupons-list", "admin-coupons-update", "admin-coupons-usage", "admin-plan-coupon-remove", "admin-plan-coupon-set", "admin-stripe-coupons-preview",
-				"admin-download-apps-delete", "ai-chat", "ai-health", "ai-models", "ai-usage", "metrics-track", "metrics-summary", "metrics-variants":
+				"admin-download-apps-delete", "ai-chat", "ai-health", "ai-models", "ai-usage", "metrics-track", "metrics-summary", "metrics-variants",
+				"feedback-create", "admin-feedback-list", "admin-feedback-get", "admin-feedback-status-update", "admin-feedback-delete", "admin-feedback-bulk-delete",
+				"waitlist-create", "admin-waitlist-list", "admin-waitlist-delete", "admin-waitlist-export":
 				legacyCommands = append(legacyCommands, command)
 			}
 		}

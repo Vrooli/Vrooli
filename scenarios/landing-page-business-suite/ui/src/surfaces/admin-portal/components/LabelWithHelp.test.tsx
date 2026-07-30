@@ -1,10 +1,11 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { renderWithProviders } from '../../../test-utils/renderWithProviders';
 import { LabelWithHelp } from './LabelWithHelp';
 
 describe('LabelWithHelp', () => {
   it('links the label, exposes contextual help, and lets the operator dismiss it', () => {
-    render(<LabelWithHelp label="SMTP host" help="Use the hostname supplied by your provider." htmlFor="smtp-host" className="settings-label" />);
+    renderWithProviders(<LabelWithHelp label="SMTP host" help="Use the hostname supplied by your provider." htmlFor="smtp-host" className="settings-label" />);
 
     expect(screen.getByText('SMTP host').closest('label')).toHaveAttribute('for', 'smtp-host');
     expect(screen.getByText('SMTP host').parentElement).toHaveClass('settings-label');
@@ -18,7 +19,7 @@ describe('LabelWithHelp', () => {
   });
 
   it('uses the default wrapper class when no optional class is supplied', () => {
-    render(<LabelWithHelp label="Support email" help="Replies are sent here." />);
+    renderWithProviders(<LabelWithHelp label="Support email" help="Replies are sent here." />);
     expect(screen.getByText('Support email').parentElement).toHaveClass('relative');
   });
 });

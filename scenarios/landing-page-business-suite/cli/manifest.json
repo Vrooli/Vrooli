@@ -1184,10 +1184,13 @@
         },
         {
           "name": "admin-waitlist-delete",
-          "description": "Legacy local command: admin-waitlist-delete.",
+          "description": "Delete a waitlist entry through the generated Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "WaitlistService",
+            "method": "DeleteWaitlistEntry"
           },
+          "architecture": { "primitive": "proto_mutation" },
           "governance": {
             "effect": "write",
             "run_eligible": false,
@@ -1198,10 +1201,13 @@
         },
         {
           "name": "admin-waitlist-export",
-          "description": "Legacy local command: admin-waitlist-export.",
+          "description": "Export waitlist entries through the generated Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "WaitlistService",
+            "method": "ExportWaitlistEntries"
           },
+          "architecture": { "primitive": "proto_list" },
           "governance": {
             "effect": "write",
             "run_eligible": false,
@@ -1212,10 +1218,13 @@
         },
         {
           "name": "admin-waitlist-list",
-          "description": "Legacy local command: admin-waitlist-list.",
+          "description": "List waitlist entries through the generated Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "WaitlistService",
+            "method": "ListWaitlistEntries"
           },
+          "architecture": { "primitive": "proto_list" },
           "governance": {
             "effect": "write",
             "run_eligible": false,
@@ -2075,10 +2084,13 @@
         },
         {
           "name": "waitlist-create",
-          "description": "Legacy local command: waitlist-create.",
+          "description": "Create a waitlist entry through the generated Connect contract.",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "WaitlistService",
+            "method": "CreateWaitlistEntry"
           },
+          "architecture": { "primitive": "proto_mutation" },
           "governance": {
             "effect": "write",
             "run_eligible": false,

@@ -197,34 +197,6 @@ declare module '@vrooli/proto-types/landing-page-business-suite/docs_pb' {
   }>;
 }
 
-declare module '@vrooli/proto-types/landing-page-business-suite/admin_pb' {
-  import type { Message } from '@bufbuild/protobuf';
-  import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';
-
-  export interface LoginRequest extends Message<'landing_page_business_suite.v1.LoginRequest'> { email: string; password: string; }
-  export interface AdminSessionResponse extends Message<'landing_page_business_suite.v1.AdminSessionResponse'> { email: string; authenticated: boolean; resetEnabled: boolean; sessionId?: string; }
-  export type LogoutRequest = Message<'landing_page_business_suite.v1.LogoutRequest'>;
-  export interface LogoutResponse extends Message<'landing_page_business_suite.v1.LogoutResponse'> { success: boolean; }
-  export type SessionRequest = Message<'landing_page_business_suite.v1.SessionRequest'>;
-  export type ResetDemoDataRequest = Message<'landing_page_business_suite.v1.ResetDemoDataRequest'>;
-  export interface ResetDemoDataResponse extends Message<'landing_page_business_suite.v1.ResetDemoDataResponse'> { reset: boolean; timestamp: string; }
-  export const LoginRequestSchema: GenMessage<LoginRequest>;
-  export const AdminSessionResponseSchema: GenMessage<AdminSessionResponse>;
-  export const LogoutRequestSchema: GenMessage<LogoutRequest>;
-  export const LogoutResponseSchema: GenMessage<LogoutResponse>;
-  export const SessionRequestSchema: GenMessage<SessionRequest>;
-  export const ResetDemoDataRequestSchema: GenMessage<ResetDemoDataRequest>;
-  export const ResetDemoDataResponseSchema: GenMessage<ResetDemoDataResponse>;
-  export const AdminAuthService: GenService<{
-    login: { methodKind: 'unary'; input: typeof LoginRequestSchema; output: typeof AdminSessionResponseSchema };
-    logout: { methodKind: 'unary'; input: typeof LogoutRequestSchema; output: typeof LogoutResponseSchema };
-    session: { methodKind: 'unary'; input: typeof SessionRequestSchema; output: typeof AdminSessionResponseSchema };
-  }>;
-  export const AdminResetService: GenService<{
-    resetDemoData: { methodKind: 'unary'; input: typeof ResetDemoDataRequestSchema; output: typeof ResetDemoDataResponseSchema };
-  }>;
-}
-
 declare module '@vrooli/proto-types/landing-page-business-suite/bundles_pb' {
   import type { Message } from '@bufbuild/protobuf';
   import type { GenMessage, GenService } from '@bufbuild/protobuf/codegenv2';

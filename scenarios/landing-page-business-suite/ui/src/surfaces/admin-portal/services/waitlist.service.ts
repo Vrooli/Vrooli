@@ -2,7 +2,7 @@ import type { WaitlistEmail, SiteBranding } from '../../../shared/api';
 import {
   getWaitlistEmails,
   deleteWaitlistEmail as apiDeleteWaitlistEmail,
-  getWaitlistExportUrl,
+  exportWaitlistCsv,
   getBranding,
   updateBranding,
 } from '../../../shared/api';
@@ -64,13 +64,12 @@ export async function toggleComingSoonMode(
 /**
  * Get export URL for CSV download
  */
-export function getExportUrl(): string {
-  return getWaitlistExportUrl();
-}
-
-/**
- * Open export URL in new window
- */
-export function exportToCsv(): void {
-  window.open(getExportUrl(), '_blank');
+export async function exportToCsv(): Promise<void> {
+  const { csv, filename } = await exportWaitlistCsv();
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
 }

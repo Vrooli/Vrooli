@@ -3,46 +3,6 @@
   "version": "1.0.0",
   "endpoints": [
     {
-      "id": "delete-api-v1-admin-api-keys",
-      "path": "/api/v1/admin/api-keys",
-      "method": "DELETE",
-      "summary": "DELETE /api/v1/admin/api-keys",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "get-api-v1-admin-api-keys",
-      "path": "/api/v1/admin/api-keys",
-      "method": "GET",
-      "summary": "GET /api/v1/admin/api-keys",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "post-api-v1-admin-api-keys",
-      "path": "/api/v1/admin/api-keys",
-      "method": "POST",
-      "summary": "POST /api/v1/admin/api-keys",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "post-api-v1-admin-api-keys-test",
-      "path": "/api/v1/admin/api-keys/test",
-      "method": "POST",
-      "summary": "POST /api/v1/admin/api-keys/test",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "post-api-v1-admin-api-keys-toggle",
-      "path": "/api/v1/admin/api-keys/toggle",
-      "method": "POST",
-      "summary": "POST /api/v1/admin/api-keys/toggle",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
       "id": "get-api-v1-admin-apps-app-limits",
       "path": "/api/v1/admin/apps/{app}/limits",
       "method": "GET",
@@ -435,30 +395,6 @@
       "category": "admin"
     },
     {
-      "id": "get-api-v1-admin-waitlist",
-      "path": "/api/v1/admin/waitlist",
-      "method": "GET",
-      "summary": "GET /api/v1/admin/waitlist",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "get-api-v1-admin-waitlist-export",
-      "path": "/api/v1/admin/waitlist/export",
-      "method": "GET",
-      "summary": "GET /api/v1/admin/waitlist/export",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "delete-api-v1-admin-waitlist-id",
-      "path": "/api/v1/admin/waitlist/{id}",
-      "method": "DELETE",
-      "summary": "DELETE /api/v1/admin/waitlist/{id}",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
       "id": "post-api-v1-ai-chat",
       "path": "/api/v1/ai/chat",
       "method": "POST",
@@ -571,30 +507,6 @@
       "category": "system"
     },
     {
-      "id": "get-api-v1-metrics-summary",
-      "path": "/api/v1/metrics/summary",
-      "method": "GET",
-      "summary": "GET /api/v1/metrics/summary",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "metrics"
-    },
-    {
-      "id": "post-api-v1-metrics-track",
-      "path": "/api/v1/metrics/track",
-      "method": "POST",
-      "summary": "POST /api/v1/metrics/track",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "metrics"
-    },
-    {
-      "id": "get-api-v1-metrics-variants",
-      "path": "/api/v1/metrics/variants",
-      "method": "GET",
-      "summary": "GET /api/v1/metrics/variants",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "metrics"
-    },
-    {
       "id": "get-api-v1-public-variants-slug",
       "path": "/api/v1/public/variants/{slug}",
       "method": "GET",
@@ -705,14 +617,6 @@
       "summary": "GET /api/v1/variants/{variant_slug}/sections",
       "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
       "category": "variants"
-    },
-    {
-      "id": "post-api-v1-waitlist",
-      "path": "/api/v1/waitlist",
-      "method": "POST",
-      "summary": "POST /api/v1/waitlist",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "waitlist"
     },
     {
       "id": "post-api-v1-webhooks-stripe",
