@@ -11,7 +11,9 @@ import (
 	"strings"
 	"testing"
 
+	"swarm-manager/internal/attemptstore"
 	"swarm-manager/internal/followup"
+	"swarm-manager/internal/review"
 
 	"github.com/gorilla/mux"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
@@ -20,6 +22,38 @@ import (
 type recordingFollowUpDispatcher struct {
 	called   bool
 	steering string
+}
+
+func TestDecideReview_RecordsVerifiedAtAccept(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	item := BacklogItem{Name: "verification-snapshot", Title: "Verification snapshot", Status: StatusReviewPending, Kind: KindExecute}
+	createTestItem(t, rootDir, KindExecute, item)
+	itemDir := filepath.Join(rootDir, backlogKindDirs[KindExecute], item.Name)
+	if err := attemptstore.SaveRound(itemDir, "review", review.Round{RoundNum: 1, Status: review.RoundStatusComplete, Evidence: []review.EvidenceItem{
+		{ID: "verified", Title: "Verified", Verified: true},
+		{ID: "unverified", Title: "Unverified", Verified: false},
+	}}); err != nil {
+		t.Fatalf("save review round: %v", err)
+	}
+	if _, err := h.DecideReview(context.Background(), KindExecute, item.Name, ReviewDecideRequest{Decision: ReviewDecisionAccept, DecidedBy: "operator:test", Rationale: "Reviewed the available proof."}); err != nil {
+		t.Fatalf("DecideReview: %v", err)
+	}
+	decisionsDir := filepath.Join(itemDir, "review", "decisions")
+	entries, err := os.ReadDir(decisionsDir)
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("decision entries = %d, %v", len(entries), err)
+	}
+	var record reviewDecisionRecord
+	data, err := os.ReadFile(filepath.Join(decisionsDir, entries[0].Name()))
+	if err != nil {
+		t.Fatalf("read decision: %v", err)
+	}
+	if err := json.Unmarshal(data, &record); err != nil {
+		t.Fatalf("decode decision: %v", err)
+	}
+	if got := record.VerifiedAtAccept; got.Verified != 1 || got.Total != 2 || got.Ratio != 0.5 {
+		t.Fatalf("verified_at_accept = %+v, want verified=1 total=2 ratio=.5", got)
+	}
 }
 
 func (d *recordingFollowUpDispatcher) DispatchFollowUp(_ context.Context, _ BacklogKind, _ string, steering string) error {

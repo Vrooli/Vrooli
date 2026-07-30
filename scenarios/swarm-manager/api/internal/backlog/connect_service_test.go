@@ -2,12 +2,29 @@ package backlog
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 
 	"connectrpc.com/connect"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	sharedpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared"
+	"swarm-manager/internal/attempt"
+	"swarm-manager/internal/attemptstore"
+	"swarm-manager/internal/review"
 )
+
+type recordingReviewEvidenceVerifier struct {
+	called   bool
+	verified bool
+	actor    string
+	reason   string
+}
+
+func (v *recordingReviewEvidenceVerifier) VerifyEvidenceWithActor(_ context.Context, _, _ string, _ int, _ string, verified bool, _ string, actor, reason string) error {
+	v.called, v.verified, v.actor, v.reason = true, verified, actor, reason
+	return nil
+}
 
 func createViaConnect(t *testing.T, svc *ConnectService, req *apipb.CreateBacklogItemRequest) *apipb.BacklogItemResponse {
 	t.Helper()
@@ -57,6 +74,35 @@ func TestConnectCreateItem_FilesFixWithOriginTag(t *testing.T) {
 	}
 	if !hasSig {
 		t.Errorf("dedup signature tag not attached: %v", item.Tags)
+	}
+}
+
+func TestConnectCreateItemAssignsStableCriteria(t *testing.T) {
+	h, _ := setupTestHandler(t)
+	resp := createViaConnect(t, NewConnectService(h), &apipb.CreateBacklogItemRequest{
+		Name: "criteria-on-create", Title: "Criteria on create", Kind: "fix",
+		AcceptanceCriteria: []*sharedpb.BacklogCriterion{{Gherkin: "Given the item is created When it is read Then its criterion has a stable id."}},
+	})
+	criteria := resp.GetItem().GetAcceptanceCriteria()
+	if len(criteria) != 1 || criteria[0].GetId() != "criterion-1" {
+		t.Fatalf("criteria = %+v, want criterion-1", criteria)
+	}
+}
+
+func TestConnectUpdateItem_ReplacesCriteriaWithExplicitFieldPresence(t *testing.T) {
+	h, _ := setupTestHandler(t)
+	svc := NewConnectService(h)
+	createViaConnect(t, svc, &apipb.CreateBacklogItemRequest{Name: "criteria-update", Title: "Criteria update", Kind: "fix", AcceptanceCriteria: []*sharedpb.BacklogCriterion{{Gherkin: "Given the item exists When it is reviewed Then the initial criterion is retained."}}})
+	updated, err := svc.UpdateItem(context.Background(), connect.NewRequest(&apipb.UpdateItemRequest{
+		Kind: "fix", Name: "criteria-update", Fields: []string{"acceptance_criteria"},
+		Patch: &apipb.UpdateBacklogItemRequest{AcceptanceCriteria: []*sharedpb.BacklogCriterion{{Gherkin: "Given the item changes When it is reviewed Then the replacement criterion has a new id."}}},
+	}))
+	if err != nil {
+		t.Fatalf("UpdateItem failed: %v", err)
+	}
+	criteria := updated.Msg.GetItem().GetAcceptanceCriteria()
+	if len(criteria) != 1 || criteria[0].GetId() != "criterion-2" {
+		t.Fatalf("criteria = %+v, want replacement criterion-2", criteria)
 	}
 }
 
@@ -137,6 +183,108 @@ func TestConnectGetItem_QueuePosition(t *testing.T) {
 	}
 	if gotHigh.Msg.Item.GetQueuePosition() != 0 {
 		t.Errorf("expected high-priority item at position 0, got %d", gotHigh.Msg.Item.GetQueuePosition())
+	}
+}
+
+func TestConnectDecideAttemptRequiresActorAndWritesTerminalDecision(t *testing.T) {
+	h, root := setupTestHandler(t)
+	createTestItem(t, root, KindExecute, BacklogItem{Name: "reviewed", Title: "Reviewed", Kind: KindExecute, Status: StatusReviewPending})
+	if err := attemptstore.SaveRound(filepath.Join(root, backlogKindDirs[KindExecute], "reviewed"), "review", review.Round{RoundNum: 1, Status: review.RoundStatusComplete}); err != nil {
+		t.Fatalf("save round: %v", err)
+	}
+	svc := NewConnectService(h)
+
+	_, err := svc.DecideAttempt(context.Background(), connect.NewRequest(&apipb.DecideAttemptRequest{SubjectKind: "backlog-item", SubjectRef: "execute/reviewed", RoundNum: 1, Decision: "accept"}))
+	if err == nil || connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("missing actor error = %v, want invalid argument", err)
+	}
+
+	resp, err := svc.DecideAttempt(context.Background(), connect.NewRequest(&apipb.DecideAttemptRequest{SubjectKind: "backlog-item", SubjectRef: "execute/reviewed", RoundNum: 1, Decision: "accept", Actor: "operator@example.test", Rationale: "Criterion evidence is sufficient."}))
+	if err != nil {
+		t.Fatalf("DecideAttempt: %v", err)
+	}
+	if resp.Msg.GetStatus() != string(StatusCompleted) || resp.Msg.GetItem().GetStatus() != string(StatusCompleted) {
+		t.Fatalf("response = %+v, want completed", resp.Msg)
+	}
+}
+
+func TestConnectDecideAttemptDispatchesNonBacklogSubjectToTypedRouter(t *testing.T) {
+	h, _ := setupTestHandler(t)
+	router := attempt.NewRouter()
+	if err := router.Register("fixture-attempt", attempt.DeciderFunc(func(_ context.Context, request attempt.DecisionRequest) (attempt.DecisionResult, error) {
+		if request.SubjectRef != "session-1/proposal-1" || request.Decision != "accept" || request.Actor != "operator@example.test" {
+			t.Fatalf("request = %#v", request)
+		}
+		return attempt.DecisionResult{Decision: request.Decision, Status: "applied", Rationale: request.Rationale, DecidedAt: "2026-07-30T00:00:00Z"}, nil
+	})); err != nil {
+		t.Fatal(err)
+	}
+	h.SetAttemptDecisionRouter(router)
+
+	response, err := NewConnectService(h).DecideAttempt(context.Background(), connect.NewRequest(&apipb.DecideAttemptRequest{
+		SubjectKind: "fixture-attempt", SubjectRef: "session-1/proposal-1", RoundNum: 1, Decision: "accept", Actor: "operator@example.test", Rationale: "Approved after review.",
+	}))
+	if err != nil {
+		t.Fatalf("DecideAttempt: %v", err)
+	}
+	if response.Msg.GetStatus() != "applied" || response.Msg.GetItem() != nil {
+		t.Fatalf("response = %#v", response.Msg)
+	}
+}
+
+func TestConnectDecideAttemptRequiresExistingAddressedRound(t *testing.T) {
+	h, root := setupTestHandler(t)
+	item := BacklogItem{Name: "attempt-reviewed", Title: "Attempt reviewed", Kind: KindExecute, Status: StatusReviewPending}
+	createTestItem(t, root, KindExecute, item)
+	itemDir := filepath.Join(root, backlogKindDirs[KindExecute], item.Name)
+	if err := attemptstore.SaveRound(itemDir, "review", review.Round{RoundNum: 2, Status: review.RoundStatusComplete}); err != nil {
+		t.Fatalf("save round: %v", err)
+	}
+	svc := NewConnectService(h)
+	_, err := svc.DecideAttempt(context.Background(), connect.NewRequest(&apipb.DecideAttemptRequest{SubjectKind: "backlog-item", SubjectRef: "execute/attempt-reviewed", RoundNum: 1, Decision: "accept", Actor: "operator@example.test"}))
+	if err == nil || connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("missing round error = %v, want not found", err)
+	}
+	resp, err := svc.DecideAttempt(context.Background(), connect.NewRequest(&apipb.DecideAttemptRequest{SubjectKind: "backlog-item", SubjectRef: "execute/attempt-reviewed", RoundNum: 2, Decision: "accept", Actor: "operator@example.test", Rationale: "Evidence reviewed."}))
+	if err != nil {
+		t.Fatalf("DecideAttempt: %v", err)
+	}
+	if resp.Msg.GetStatus() != string(StatusCompleted) {
+		t.Fatalf("status = %q, want completed", resp.Msg.GetStatus())
+	}
+}
+
+func TestConnectDecideAttemptRejectsStaleRound(t *testing.T) {
+	h, root := setupTestHandler(t)
+	item := BacklogItem{Name: "stale-attempt", Title: "Stale attempt", Kind: KindExecute, Status: StatusReviewPending}
+	createTestItem(t, root, KindExecute, item)
+	itemDir := filepath.Join(root, backlogKindDirs[KindExecute], item.Name)
+	for _, number := range []int{1, 2} {
+		if err := attemptstore.SaveRound(itemDir, "review", review.Round{RoundNum: number, Status: review.RoundStatusComplete}); err != nil {
+			t.Fatalf("save round %d: %v", number, err)
+		}
+	}
+	_, err := NewConnectService(h).DecideAttempt(context.Background(), connect.NewRequest(&apipb.DecideAttemptRequest{SubjectKind: "backlog-item", SubjectRef: "execute/stale-attempt", RoundNum: 1, Decision: "accept", Actor: "operator@example.test"}))
+	if err == nil || connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("stale round error = %v, want failed precondition", err)
+	}
+}
+
+func TestConnectVerifyAttemptEvidenceUsesReviewOwnedVerifier(t *testing.T) {
+	h, root := setupTestHandler(t)
+	createTestItem(t, root, KindExecute, BacklogItem{Name: "evidence-reviewed", Title: "Evidence reviewed", Kind: KindExecute, Status: StatusReviewPending})
+	itemDir := filepath.Join(root, backlogKindDirs[KindExecute], "evidence-reviewed")
+	if err := attemptstore.SaveRound(itemDir, "review", review.Round{RoundNum: 1, Status: review.RoundStatusComplete, Evidence: []review.EvidenceItem{{ID: "proof"}}}); err != nil {
+		t.Fatalf("save round: %v", err)
+	}
+	verifier := &recordingReviewEvidenceVerifier{}
+	h.SetReviewEvidenceVerifier(verifier)
+	resp, err := NewConnectService(h).VerifyAttemptEvidence(context.Background(), connect.NewRequest(&apipb.VerifyAttemptEvidenceRequest{SubjectKind: "backlog-item", SubjectRef: "execute/evidence-reviewed", RoundNum: 1, EvidenceId: "proof", Verified: true, Actor: "operator@example.test", Reason: "I inspected the artifact."}))
+	if err != nil {
+		t.Fatalf("VerifyAttemptEvidence: %v", err)
+	}
+	if !resp.Msg.GetVerified() || !verifier.called || !verifier.verified || verifier.actor != "operator@example.test" || verifier.reason != "I inspected the artifact." {
+		t.Fatalf("response/verifier = %+v/%+v", resp.Msg, verifier)
 	}
 }
 

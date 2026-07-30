@@ -14,23 +14,25 @@ import (
 	"swarm-manager/internal/backlogstatus"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	sharedpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared"
 )
 
 const (
-	updateFieldTitle           = "title"
-	updateFieldDescription     = "description"
-	updateFieldStatus          = "status"
-	updateFieldPriority        = "priority"
-	updateFieldTags            = "tags"
-	updateFieldDependsOn       = "depends_on"
-	updateFieldMilestone       = "milestone"
-	updateFieldEffort          = "effort"
-	updateFieldAcceptanceAllow = "acceptance_allow"
-	updateFieldAcceptanceDeny  = "acceptance_deny"
-	updateFieldCreates         = "creates"
-	updateFieldSpawnedFrom     = "spawned_from"
-	updateFieldPlanRef         = "plan_ref"
-	updateFieldNote            = "note"
+	updateFieldTitle              = "title"
+	updateFieldDescription        = "description"
+	updateFieldStatus             = "status"
+	updateFieldPriority           = "priority"
+	updateFieldTags               = "tags"
+	updateFieldDependsOn          = "depends_on"
+	updateFieldMilestone          = "milestone"
+	updateFieldEffort             = "effort"
+	updateFieldAcceptanceAllow    = "acceptance_allow"
+	updateFieldAcceptanceDeny     = "acceptance_deny"
+	updateFieldAcceptanceCriteria = "acceptance_criteria"
+	updateFieldCreates            = "creates"
+	updateFieldSpawnedFrom        = "spawned_from"
+	updateFieldPlanRef            = "plan_ref"
+	updateFieldNote               = "note"
 )
 
 type backlogUpdateFieldSet map[string]struct{}
@@ -192,6 +194,11 @@ func validateUpdateBacklogItemRequest(req *apipb.UpdateBacklogItemRequest, field
 			return "acceptance_deny: " + err.Error()
 		}
 	}
+	if fields.Has(updateFieldAcceptanceCriteria) {
+		if _, err := criteriaFromProto(req.AcceptanceCriteria); err != nil {
+			return "acceptance_criteria: " + err.Error()
+		}
+	}
 	if fields.Has(updateFieldCreates) {
 		if err := validateGlobs(req.Creates); err != nil {
 			return "creates: " + err.Error()
@@ -303,6 +310,10 @@ func applyUpdateBacklogPatch(item *BacklogItem, req *apipb.UpdateBacklogItemRequ
 		v := cloneStrings(req.AcceptanceDeny)
 		patch.AcceptanceDeny = &v
 	}
+	if fields.Has(updateFieldAcceptanceCriteria) {
+		v, _ := criteriaFromProto(req.AcceptanceCriteria)
+		patch.AcceptanceCriteria = &v
+	}
 	if fields.Has(updateFieldCreates) {
 		v := cloneStrings(req.Creates)
 		patch.Creates = &v
@@ -320,6 +331,25 @@ func applyUpdateBacklogPatch(item *BacklogItem, req *apipb.UpdateBacklogItemRequ
 		patch.Note = &v
 	}
 	ApplyItemPatch(item, patch)
+}
+
+func criteriaFromProto(values []*sharedpb.BacklogCriterion) ([]Criterion, error) {
+	criteria := make([]Criterion, 0, len(values))
+	for _, value := range values {
+		if value == nil {
+			return nil, fmt.Errorf("criterion is required")
+		}
+		criterion := Criterion{ID: value.GetId(), Gherkin: value.GetGherkin()}
+		if value.Check != nil {
+			criterion.Check = &Check{Kind: value.Check.GetKind(), Scenario: value.Check.GetScenario(), Phase: value.Check.GetPhase(), Argv: cloneStrings(value.Check.GetArgv()), ExpectExit: int(value.Check.GetExpectExit())}
+		}
+		criteria = append(criteria, criterion)
+	}
+	normalized := NormalizeCriteria(nil, criteria)
+	if len(normalized) != len(criteria) {
+		return nil, fmt.Errorf("criteria must be unique Given/When/Then conditions with valid checks")
+	}
+	return criteria, nil
 }
 
 func cloneStrings(values []string) []string {

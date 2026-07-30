@@ -353,7 +353,7 @@ func renderRequirementGroups(b *strings.Builder, groups []ArchiveRequirementGrou
 
 // renderWorkshopItems reads the latest workshop round and renders questions/proposals.
 func renderWorkshopItems(b *strings.Builder, itemDir string, kind BacklogKind, name string) {
-	latestRound, roundCount, err := LoadLatestRound(itemDir)
+	latestRound, roundCount, err := LoadLatestWorkshopRound(itemDir)
 	if err != nil || latestRound == nil {
 		return
 	}

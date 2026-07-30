@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"swarm-manager/internal/stringsx"
 	"swarm-manager/internal/transitions"
 )
 
@@ -135,17 +136,8 @@ func (p *Provider) Preflight(ctx context.Context, definition transitions.Definit
 			return fmt.Errorf("transition %q preflight %q: %w", definition.Key, requirement, err)
 		}
 		if !status.ReadyAt(p.now()) {
-			return fmt.Errorf("transition %q blocked by %q: %s", definition.Key, requirement, firstNonEmpty(status.Diagnostic, string(status.Availability)))
+			return fmt.Errorf("transition %q blocked by %q: %s", definition.Key, requirement, stringsx.FirstNonEmpty(status.Diagnostic, string(status.Availability), "unavailable"))
 		}
 	}
 	return nil
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if value = strings.TrimSpace(value); value != "" {
-			return value
-		}
-	}
-	return "unavailable"
 }

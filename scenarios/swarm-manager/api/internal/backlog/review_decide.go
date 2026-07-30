@@ -11,11 +11,10 @@
 package backlog
 
 import (
-	"encoding/json"
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,6 +22,7 @@ import (
 
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
+	"swarm-manager/internal/review"
 	"swarm-manager/internal/storage"
 )
 
@@ -70,13 +70,23 @@ type ReviewDecideResponse struct {
 // reviewDecisionRecord is the on-disk record of a terminal decision. Stored
 // under `review/decisions/{timestamp}-{decision}.json` inside the item folder.
 type reviewDecisionRecord struct {
-	Decision    string    `json:"decision"`
-	Status      string    `json:"status"`
-	Rationale   string    `json:"rationale,omitempty"`
-	DecidedBy   string    `json:"decided_by,omitempty"`
-	DecidedAt   string    `json:"decided_at"`
-	PriorStatus string    `json:"prior_status"`
-	FollowUp    *FollowUp `json:"follow_up,omitempty"`
+	Decision         string                      `json:"decision"`
+	Status           string                      `json:"status"`
+	Rationale        string                      `json:"rationale,omitempty"`
+	DecidedBy        string                      `json:"decided_by,omitempty"`
+	DecidedAt        string                      `json:"decided_at"`
+	PriorStatus      string                      `json:"prior_status"`
+	FollowUp         *FollowUp                   `json:"follow_up,omitempty"`
+	VerifiedAtAccept evidenceVerificationSummary `json:"verified_at_accept"`
+}
+
+// evidenceVerificationSummary preserves what the operator had actually
+// inspected when accepting a review. It deliberately informs the audit rather
+// than gating acceptance: evidence may be useful before every artifact is read.
+type evidenceVerificationSummary struct {
+	Verified int     `json:"verified"`
+	Total    int     `json:"total"`
+	Ratio    float64 `json:"ratio"`
 }
 
 // decisionToStatus maps a decision to the resulting backlog status.
@@ -94,79 +104,66 @@ func decisionToStatus(d ReviewDecision) (BacklogStatus, error) {
 	return "", fmt.Errorf("invalid decision %q: must be accept, fail, followup, or drop", string(d))
 }
 
-// ReviewDecide is the HTTP handler for POST /api/v1/backlog/{kind}/{name}/review-decide.
-func (h *Handler) ReviewDecide(w http.ResponseWriter, r *http.Request) {
-	kind, name, ok := h.parseKindAndName(w, r, "review-decide")
-	if !ok {
-		return
-	}
-
-	var req ReviewDecideRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		apierr.MapError(w, "[backlog] review-decide", apierr.BadRequest("invalid request body: %s", err.Error()))
-		return
-	}
+// DecideReview is the transport-neutral, operator-only review decision
+// mutation. Both Connect and the retiring REST route call this one boundary so
+// an audit record, terminal hook, and actor rule can never drift by transport.
+func (h *Handler) DecideReview(ctx context.Context, kind BacklogKind, name string, req ReviewDecideRequest) (*ReviewDecideResponse, error) {
 	req.Decision = ReviewDecision(strings.ToLower(strings.TrimSpace(string(req.Decision))))
 	req.Rationale = strings.TrimSpace(req.Rationale)
 	req.DecidedBy = strings.TrimSpace(req.DecidedBy)
 	if req.DecidedBy == "" {
-		req.DecidedBy = "user"
+		return nil, apierr.BadRequest("decided_by is required")
 	}
 
 	targetStatus, err := decisionToStatus(req.Decision)
 	if err != nil {
-		apierr.MapError(w, "[backlog] review-decide", apierr.BadRequest("%s", err.Error()))
-		return
+		return nil, apierr.BadRequest("%s", err.Error())
 	}
 	if req.Decision == ReviewDecisionFollowup {
 		if err := validateFollowUp(req.FollowUp); err != nil {
-			apierr.MapError(w, "[backlog] review-decide", apierr.BadRequest("%s", err))
-			return
+			return nil, apierr.BadRequest("%s", err)
 		}
 	}
 
 	item, err := h.store.LoadItem(kind, name)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) || os.IsNotExist(err) {
-			apierr.MapError(w, "[backlog] review-decide", apierr.NotFound("backlog item not found"))
-			return
+			return nil, apierr.NotFound("backlog item not found")
 		}
 		slog.Error("review-decide: load item", "kind", kind, "name", name, "err", err)
-		apierr.MapError(w, "[backlog] review-decide", apierr.Internal("%s", httputil.TruncateErrorMessage(err, 240)))
-		return
+		return nil, apierr.Internal("%s", httputil.TruncateErrorMessage(err, 240))
 	}
 
 	// Only items awaiting a user decision can be decided. This guards against
 	// double-decides and accidental flips from in_progress/in_review states.
 	if item.Status != StatusReviewPending {
-		apierr.MapError(w, "[backlog] review-decide",
-			apierr.BadRequest("item is in status %q; review-decide requires status %q", item.Status, StatusReviewPending))
-		return
+		return nil, apierr.BadRequest("item is in status %q; review decision requires status %q", item.Status, StatusReviewPending)
 	}
 
 	priorStatus := item.Status
 	decidedAt := time.Now().UTC().Format(time.RFC3339)
+	verification := h.verificationAtAccept(kind, name)
 
 	item.Status = targetStatus
 	item.PendingFollowUp = req.FollowUp
 	item.Updated = decidedAt
 	if err := h.store.SaveItem(item); err != nil {
 		slog.Error("review-decide: save item", "kind", kind, "name", name, "err", err)
-		apierr.MapError(w, "[backlog] review-decide", apierr.Internal("failed to persist decision"))
-		return
+		return nil, apierr.Internal("failed to persist decision")
 	}
 
 	// Persist the decision record. Failure to write the audit record is
 	// logged but doesn't roll back the status change — the status is the
 	// source of truth, the record is supplementary context.
 	if writeErr := writeDecisionRecord(h.dataRoot, kind, name, reviewDecisionRecord{
-		Decision:    string(req.Decision),
-		Status:      string(targetStatus),
-		Rationale:   req.Rationale,
-		DecidedBy:   req.DecidedBy,
-		DecidedAt:   decidedAt,
-		PriorStatus: string(priorStatus),
-		FollowUp:    req.FollowUp,
+		Decision:         string(req.Decision),
+		Status:           string(targetStatus),
+		Rationale:        req.Rationale,
+		DecidedBy:        req.DecidedBy,
+		DecidedAt:        decidedAt,
+		PriorStatus:      string(priorStatus),
+		FollowUp:         req.FollowUp,
+		VerifiedAtAccept: verification,
 	}); writeErr != nil {
 		slog.Warn("review-decide: failed to write decision record (status change persisted)",
 			"kind", kind, "name", name, "err", writeErr)
@@ -186,7 +183,7 @@ func (h *Handler) ReviewDecide(w http.ResponseWriter, r *http.Request) {
 	// or fail the terminal transition.
 	var recordID string
 	if !req.NoRecord && h.recordCreator != nil {
-		id, err := h.recordCreator.CreateBacklogRecord(r.Context(), BacklogRecordRequest{
+		id, err := h.recordCreator.CreateBacklogRecord(ctx, BacklogRecordRequest{
 			Kind:            string(kind),
 			Name:            name,
 			Title:           item.Title,
@@ -209,20 +206,35 @@ func (h *Handler) ReviewDecide(w http.ResponseWriter, r *http.Request) {
 	// to self-dispatch expensive work. Errors are not surfaced — the
 	// terminal decision is authoritative regardless of side-effect outcome.
 	if h.itemTerminalHandler != nil {
-		h.itemTerminalHandler(r.Context(), string(kind), name, targetStatus)
+		h.itemTerminalHandler(ctx, string(kind), name, targetStatus)
 	}
 
-	resp := ReviewDecideResponse{
+	return &ReviewDecideResponse{
 		Item:      &item,
 		Decision:  string(req.Decision),
 		Status:    string(targetStatus),
 		Rationale: req.Rationale,
 		DecidedAt: decidedAt,
 		RecordID:  recordID,
+	}, nil
+}
+
+func (h *Handler) verificationAtAccept(kind BacklogKind, name string) evidenceVerificationSummary {
+	itemDir := filepath.Join(h.dataRoot, backlogKindDirs[kind], name)
+	round, _, err := review.ReadLatestRound(itemDir)
+	if err != nil || round == nil {
+		return evidenceVerificationSummary{}
 	}
-	if err := httputil.JSON(w, resp); err != nil {
-		apierr.MapError(w, "[backlog] review-decide", apierr.Internal("failed to encode response"))
+	summary := evidenceVerificationSummary{Total: len(round.Evidence)}
+	for _, evidence := range round.Evidence {
+		if evidence.Verified {
+			summary.Verified++
+		}
 	}
+	if summary.Total > 0 {
+		summary.Ratio = float64(summary.Verified) / float64(summary.Total)
+	}
+	return summary
 }
 
 func validateFollowUp(followUp *FollowUp) error {

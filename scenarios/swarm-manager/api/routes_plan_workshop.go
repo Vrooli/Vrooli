@@ -26,9 +26,9 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
-func (s *Server) registerPlanWorkshopRoutes(dataRoot string) {
+func (s *Server) registerPlanWorkshopRoutes(dataRoot string) *planworkshop.Service {
 	if s.backlogHandler == nil {
-		return
+		return nil
 	}
 	if _, err := planworkshop.MigrateLegacyHistory(dataRoot, time.Now()); err != nil {
 		// The migration is additive. Refusing to start the new operator surface
@@ -328,7 +328,7 @@ func (s *Server) registerPlanWorkshopRoutes(dataRoot string) {
 			log.Printf("plan workshop review evidence projection %s/%s round %d: %v", kind, name, round.RoundNum, err)
 			return
 		}
-		if err := s.attachFollowUpProposal(ctx, service, planworkshop.Subject{Kind: subjectKind, Ref: subjectRef}, finding.Evidence, round.ExecutionID, disposition); err != nil {
+		if err := s.attachFollowUpProposal(ctx, service, planworkshop.Subject{Kind: subjectKind, Ref: subjectRef}, finding.Evidence, review.ExecutionIDFromSnapshot(round.AgentWorkflowSnapshot), disposition); err != nil {
 			log.Printf("plan workshop review follow-up proposal %s/%s round %d: %v", kind, name, round.RoundNum, err)
 		}
 	}
@@ -336,6 +336,7 @@ func (s *Server) registerPlanWorkshopRoutes(dataRoot string) {
 		s.reviewSvc.SetRoundTerminalObserver(attachReviewFinding)
 	}
 	planworkshop.NewHandler(service).RegisterRoutes(s.router)
+	return service
 }
 
 func planWorkshopDisposition(round review.Round) planworkshop.Disposition {

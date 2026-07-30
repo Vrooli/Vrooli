@@ -121,11 +121,16 @@ func (h *Handler) ApplyWorkflow(w http.ResponseWriter, r *http.Request) {
 		apierr.MapError(w, "[execution] workflow-apply", err)
 		return
 	}
+	correlation, err := h.service.transitionCorrelation(record)
+	if err != nil {
+		apierr.MapError(w, "[execution] workflow-apply", err)
+		return
+	}
 	var result PhasedPlanApplyResult
 	switch {
-	case h.service.isTransitionWorkflow(record.AgentWorkflowKey, "work.follow_up"), h.service.isTransitionWorkflow(record.AgentWorkflowKey, "work.correct"):
+	case h.service.isTransitionWorkflow(correlation.TransitionKey, "work.follow_up"), h.service.isTransitionWorkflow(correlation.TransitionKey, "work.correct"):
 		result, err = h.service.ApplyWorkWorkflow(r.Context(), executionID)
-	case h.service.isTransitionWorkflow(record.AgentWorkflowKey, "scenario.spec_sync"):
+	case h.service.isTransitionWorkflow(correlation.TransitionKey, "scenario.spec_sync"):
 		result, err = h.service.ApplySpecSyncWorkflow(r.Context(), executionID)
 	default:
 		result, err = h.service.ApplyPhasedPlanWorkflow(r.Context(), executionID)

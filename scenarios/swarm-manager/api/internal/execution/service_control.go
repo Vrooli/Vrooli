@@ -128,7 +128,6 @@ func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record
 	if err != nil {
 		return Record{}, wrapAgentError(err)
 	}
-	snapshot := phasedPlanSnapshot{EntityVersion: started.EntityVersion, FrontierDigest: started.FrontierDigest}
 	res := agentmanager.WorkflowStart{ExecutionID: started.ExecutionID, DefinitionDigest: started.DefinitionDigest}
 	if len(started.Attempts) > 0 {
 		res.RunID = started.Attempts[0].RunID
@@ -139,11 +138,6 @@ func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record
 
 	record.RunID = res.RunID
 	record.TaskID = res.ExecutionID
-	record.AgentWorkflowExecutionID = res.ExecutionID
-	record.AgentWorkflowKey = workflow.Key
-	record.AgentWorkflowDefinition = res.DefinitionDigest
-	record.AgentWorkflowFrontier = snapshot.FrontierDigest
-	record.AgentWorkflowEntityVersion = snapshot.EntityVersion
 	record.StartedAt = nowRFC3339()
 	record.FinishedAt = ""
 	record.FailureReason = ""
@@ -224,7 +218,7 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 		}
 		return record, nil
 	case StatusStarting, StatusRunning, StatusNeedsReview:
-		if strings.TrimSpace(record.AgentWorkflowExecutionID) != "" {
+		if correlation, correlationErr := s.transitionCorrelation(record); correlationErr == nil {
 			// One cancel path for every transition. The previous per-transition
 			// branches each reached for a workflow client that composition never
 			// set, so cancelling any in-flight execution reported "cancel is not
@@ -232,20 +226,18 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 			if s.transitionRunner == nil {
 				return Record{}, apierr.Unavailable("transition runner is not configured")
 			}
-			if err := s.transitionRunner.Cancel(ctx, record.AgentWorkflowExecutionID, "cancel-"+record.ExecutionID, "consumer execution canceled"); err != nil {
+			if err := s.transitionRunner.Cancel(ctx, correlation.ExecutionID, "cancel-"+record.ExecutionID, "consumer execution canceled"); err != nil {
 				return Record{}, wrapAgentError(err)
 			}
 			// Close the correlation too. Cancellation ends the engagement with no
 			// terminal result to apply, so leaving it claimed would keep the
 			// sweeper retrying a cancelled execution indefinitely.
-			if err := s.transitionRunner.CloseUnapplied(record.AgentWorkflowExecutionID, "cancelled"); err != nil {
+			if err := s.transitionRunner.CloseUnapplied(correlation.ExecutionID, "cancelled"); err != nil {
 				return Record{}, err
 			}
 			record.Status = StatusCanceled
-			record.AgentWorkflowOutcome = "cancelled"
 			record.UpdatedAt = nowRFC3339()
 			record.FinishedAt = record.UpdatedAt
-			record.AgentWorkflowAppliedAt = record.UpdatedAt
 			records[idx] = record
 			if err := s.store.Save(records); err != nil {
 				return Record{}, err

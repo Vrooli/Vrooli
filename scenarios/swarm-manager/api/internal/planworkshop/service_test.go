@@ -80,6 +80,14 @@ func TestProposalResponseRequiresOneReconciliation(t *testing.T) {
 	}
 }
 
+func TestReviewRunAsAttemptUsesPacketProposalReferences(t *testing.T) {
+	session := Session{ID: "session-1", Subject: Subject{Kind: SubjectBacklog, Ref: "execute/example"}, Packet: ReviewPacket{Proposals: []ProposalRef{{SessionID: "agent-session", ProposalID: "proposal-1", ApplyMode: "direct"}}}}
+	value := (ReviewRun{State: ReviewApplied, Workflow: WorkflowProvenance{StartedAt: "2026-07-29T00:00:00Z"}}).AsAttempt(session)
+	if value.SubjectRef != "execute/example" || value.Status != string(ReviewApplied) || len(value.Proposals) != 1 || value.Proposals[0].ID != "agent-session/proposal-1" {
+		t.Fatalf("attempt = %#v", value)
+	}
+}
+
 func TestDirectProposalUsesCanonicalPacketModeOnce(t *testing.T) {
 	svc := NewService(NewStore(t.TempDir()), func(Subject) (string, string, string, error) { return "v1", "plan-1", "hash-1", nil })
 	applied := 0

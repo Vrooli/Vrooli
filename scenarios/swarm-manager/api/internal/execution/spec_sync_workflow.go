@@ -7,6 +7,7 @@ import (
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/stringsx"
 	"swarm-manager/internal/transitionrunner"
 
 	"google.golang.org/protobuf/types/known/structpb"
@@ -103,24 +104,22 @@ func (s *Service) applySpecSyncTransition(ctx context.Context, executionID strin
 	if outcome.TransitionKey != "scenario.spec_sync" {
 		return fmt.Errorf("execution %q is not a scenario spec-sync transition", executionID)
 	}
-	record.AgentWorkflowTerminalCode, record.AgentWorkflowBudgetName = outcome.TerminalCode, outcome.BudgetName
-	record.AgentWorkflowResult, record.AgentWorkflowOutcome = append([]byte(nil), outcome.Result...), outcome.Name
-	if outcome.Name == "synced" {
-		record.AgentWorkflowOutcome = "complete"
+	workflowOutcome := outcome.Name
+	if workflowOutcome == "synced" {
+		workflowOutcome = "complete"
 	}
 	previous := record.Status
 	record.FinishedAt = nowRFC3339()
-	if record.AgentWorkflowOutcome == "complete" {
+	if workflowOutcome == "complete" {
 		record.Status = StatusCompleted
 		s.handleSpecSyncComplete(ctx, &record)
 	} else if outcome.Name == "cancelled" {
 		record.Status = StatusCanceled
 	} else {
 		record.Status = StatusFailed
-		record.FailureReason = firstNonEmpty(outcome.TerminalCode, outcome.Name, "spec-sync workflow failed")
+		record.FailureReason = stringsx.FirstNonEmpty(outcome.TerminalCode, outcome.Name, "spec-sync workflow failed")
 	}
 	s.logExecutionEvent(record, previous)
-	record.AgentWorkflowAppliedAt = nowRFC3339()
 	record.UpdatedAt = nowRFC3339()
 	records[idx] = record
 	if err := s.store.Save(records); err != nil {

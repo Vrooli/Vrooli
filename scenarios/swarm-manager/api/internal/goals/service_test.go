@@ -1,6 +1,7 @@
 package goals
 
 import (
+	"strings"
 	"testing"
 
 	"swarm-manager/internal/backlog"
@@ -85,11 +86,11 @@ func TestService_CloseOutRequiresVerifiedMilestones(t *testing.T) {
 	if _, err := svc.CreateMilestone("release", Milestone{Name: "ship", Title: "Ship", Items: []string{"execute/a"}, AcceptanceCriteria: []string{"Given the release work, when it lands, then the artifact ships."}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.CloseOut("release"); err == nil {
-		t.Fatal("CloseOut accepted an unverified milestone")
+	if _, err := svc.CloseOut("release"); err == nil || !strings.Contains(err.Error(), "ship") {
+		t.Fatalf("CloseOut error = %v, want unresolved milestone name", err)
 	}
-	if _, err := svc.MarkMilestoneDelivered("release", "ship"); err != nil {
-		t.Fatalf("MarkMilestoneDelivered: %v", err)
+	if _, err := svc.MarkMilestoneDeliveredWithVerdicts("release", "ship", []CriterionVerdict{{Criterion: "Given the release work, when it lands, then the artifact ships.", Verdict: "delivered", Evidence: []string{"evidence-1"}}}); err != nil {
+		t.Fatalf("MarkMilestoneDeliveredWithVerdicts: %v", err)
 	}
 	goal, err := svc.CloseOut("release")
 	if err != nil {
@@ -97,6 +98,23 @@ func TestService_CloseOutRequiresVerifiedMilestones(t *testing.T) {
 	}
 	if goal.Status != StatusAchieved {
 		t.Fatalf("status = %q, want %q", goal.Status, StatusAchieved)
+	}
+}
+
+func TestService_MilestoneDeliveryRequiresCriterionCoverage(t *testing.T) {
+	svc := newTestService(t, nil)
+	if _, err := svc.Create(CreateRequest{Name: "criteria", Title: "Criteria"}); err != nil {
+		t.Fatal(err)
+	}
+	criteria := []string{"Given one When reviewed Then proven", "Given two When reviewed Then proven"}
+	if _, err := svc.CreateMilestone("criteria", Milestone{Name: "proof", Title: "Proof", AcceptanceCriteria: criteria}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.MarkMilestoneDeliveredWithVerdicts("criteria", "proof", []CriterionVerdict{{Criterion: criteria[0], Verdict: "delivered", Evidence: []string{"e1"}}}); err == nil {
+		t.Fatal("expected missing criterion coverage rejection")
+	}
+	if _, err := svc.MarkMilestoneDeliveredWithVerdicts("criteria", "proof", []CriterionVerdict{{Criterion: criteria[0], Verdict: "delivered", Evidence: []string{"e1"}}, {Criterion: criteria[1], Verdict: "delivered", Evidence: []string{"e2"}}}); err != nil {
+		t.Fatalf("expected full coverage: %v", err)
 	}
 }
 

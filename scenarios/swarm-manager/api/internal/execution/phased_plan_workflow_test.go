@@ -68,10 +68,20 @@ func setupPhasedPlanExecution(t *testing.T, name string) (*Service, *stubPhasedP
 	return service, workflow, started, root
 }
 
+func workflowCorrelationFor(t *testing.T, service *Service, record Record) transitionrun.Correlation {
+	t.Helper()
+	correlation, err := service.transitionCorrelation(record)
+	if err != nil {
+		t.Fatalf("transition correlation for %s: %v", record.ExecutionID, err)
+	}
+	return correlation
+}
+
 func TestApplyPhasedPlanWorkflow_BlockedExactlyOnce(t *testing.T) { // [REQ:REQ-P0-011-IMMUTABLE-EXECUTION] [REQ:REQ-P0-011-ENVELOPE-PROVENANCE]
 	service, workflow, started, root := setupPhasedPlanExecution(t, "blocked-plan")
+	correlation := workflowCorrelationFor(t, service, started)
 	workflow.completion = agentmanager.InvocationCompletion{
-		ExecutionID: started.AgentWorkflowExecutionID, DefinitionDigest: started.AgentWorkflowDefinition,
+		ExecutionID: correlation.ExecutionID, DefinitionDigest: correlation.DefinitionDigest,
 		Status:   domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED,
 		Input:    workflow.invocation.Input,
 		Output:   mustWorkflowOutput(t, map[string]any{"outcome": "needs_review", "handoff": "paused", "blocker": map[string]any{"code": "operator_input", "summary": "operator input required", "retryable": true}}),
@@ -82,11 +92,11 @@ func TestApplyPhasedPlanWorkflow_BlockedExactlyOnce(t *testing.T) { // [REQ:REQ-
 	if err != nil {
 		t.Fatalf("apply: %v", err)
 	}
-	if first.Idempotent || first.Record.Status != StatusNeedsReview || transitionApplyStateFor(t, service, first.Record.AgentWorkflowExecutionID) != transitionrun.ApplyStateComplete {
+	if first.Idempotent || first.Record.Status != StatusNeedsReview || transitionApplyStateFor(t, service, correlation.ExecutionID) != transitionrun.ApplyStateComplete {
 		t.Fatalf("unexpected first apply: %#v", first)
 	}
-	if len(first.Record.AgentWorkflowAttempts) != 1 || first.Record.AgentWorkflowAttempts[0].RunID != "run-1" {
-		t.Fatalf("attempt provenance not retained: %#v", first.Record.AgentWorkflowAttempts)
+	if applied := workflowCorrelationFor(t, service, first.Record); len(applied.Attempts) != 1 || applied.Attempts[0].RunID != "run-1" {
+		t.Fatalf("attempt provenance not retained in correlation: %#v", applied.Attempts)
 	}
 	second, err := service.ApplyPhasedPlanWorkflow(context.Background(), started.ExecutionID)
 	if err != nil {
@@ -103,8 +113,9 @@ func TestApplyPhasedPlanWorkflow_BlockedExactlyOnce(t *testing.T) { // [REQ:REQ-
 
 func TestProcessActiveExecutionsDoesNotApplyPhasedPlanWorkflow(t *testing.T) {
 	service, workflow, started, _ := setupPhasedPlanExecution(t, "auto-plan")
+	correlation := workflowCorrelationFor(t, service, started)
 	workflow.completion = agentmanager.InvocationCompletion{
-		ExecutionID: started.AgentWorkflowExecutionID, DefinitionDigest: started.AgentWorkflowDefinition,
+		ExecutionID: correlation.ExecutionID, DefinitionDigest: correlation.DefinitionDigest,
 		Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BLOCKED, Input: workflow.invocation.Input,
 		Output: mustWorkflowOutput(t, map[string]any{"outcome": "blocked", "reason": "operator input"}),
 	}
@@ -121,7 +132,7 @@ func TestProcessActiveExecutionsDoesNotApplyPhasedPlanWorkflow(t *testing.T) {
 			applied = record
 		}
 	}
-	if applied.Status != StatusStarting || transitionApplyStateFor(t, service, applied.AgentWorkflowExecutionID) == transitionrun.ApplyStateComplete || workflow.collectCalls != 0 {
+	if applied.Status != StatusStarting || transitionApplyStateFor(t, service, correlation.ExecutionID) == transitionrun.ApplyStateComplete || workflow.collectCalls != 0 {
 		t.Fatalf("legacy housekeeping must not apply workflow: record=%#v collects=%d", applied, workflow.collectCalls)
 	}
 }
@@ -180,14 +191,14 @@ func TestQueueBacklogRejectsUnknownStrategy(t *testing.T) {
 func TestReconcilePlanManagerCompletionCompletesBoundExecution(t *testing.T) {
 	renderer := &resumeCapableRenderer{fakeMarkdownRenderer: testPlanRenderer()}
 	service := NewService(ServiceConfig{DataRoot: t.TempDir(), PlanRenderer: renderer})
-	record := Record{AgentWorkflowOutcome: "complete", PlanManagerExecutionID: "plan-exec-1"}
-	if err := service.reconcilePlanManagerCompletion(context.Background(), &record); err != nil {
+	record := Record{PlanManagerExecutionID: "plan-exec-1"}
+	if err := service.reconcilePlanManagerCompletion(context.Background(), &record, "complete"); err != nil {
 		t.Fatalf("reconcile plan-manager completion: %v", err)
 	}
 	if renderer.completeCalls != 1 || record.PlanManagerReconciledAt == "" {
 		t.Fatalf("completion reconciliation = calls:%d record:%#v", renderer.completeCalls, record)
 	}
-	if err := service.reconcilePlanManagerCompletion(context.Background(), &record); err != nil {
+	if err := service.reconcilePlanManagerCompletion(context.Background(), &record, "complete"); err != nil {
 		t.Fatalf("idempotent reconciliation: %v", err)
 	}
 	if renderer.completeCalls != 1 {
@@ -208,7 +219,7 @@ func TestParsePhasedPlanOutcomeUsesTypedWorkflowTerminalStatus(t *testing.T) {
 
 func TestApprovePhasedPlanWorkflow_PersistsDecisionBeforeIdempotentSignal(t *testing.T) {
 	service, workflow, started, _ := setupPhasedPlanExecution(t, "approval-plan")
-	first, err := service.ApprovePhasedPlanWorkflow(context.Background(), started.ExecutionID, "alice")
+	_, err := service.ApprovePhasedPlanWorkflow(context.Background(), started.ExecutionID, "alice")
 	if err != nil {
 		t.Fatalf("approve: %v", err)
 	}
@@ -216,8 +227,9 @@ func TestApprovePhasedPlanWorkflow_PersistsDecisionBeforeIdempotentSignal(t *tes
 	if err != nil {
 		t.Fatalf("approve replay: %v", err)
 	}
-	if first.AgentWorkflowApprovalAt == "" || second.AgentWorkflowApprovalBy != "alice" {
-		t.Fatalf("approval decision was not stable: %#v", second)
+	correlation := workflowCorrelationFor(t, service, second)
+	if correlation.ApprovalTime == "" || correlation.ApprovalActor != "alice" {
+		t.Fatalf("approval decision was not stable: %#v", correlation)
 	}
 	if workflow.approveCalls != 2 {
 		t.Fatalf("expected idempotent signal redelivery, got %d", workflow.approveCalls)
@@ -226,8 +238,9 @@ func TestApprovePhasedPlanWorkflow_PersistsDecisionBeforeIdempotentSignal(t *tes
 
 func TestApplyPhasedPlanWorkflow_RejectsChangedFrontier(t *testing.T) { // [REQ:REQ-P0-011-IMMUTABLE-EXECUTION]
 	service, workflow, started, _ := setupPhasedPlanExecution(t, "stale-plan")
+	correlation := workflowCorrelationFor(t, service, started)
 	workflow.completion = agentmanager.InvocationCompletion{
-		ExecutionID: started.AgentWorkflowExecutionID, DefinitionDigest: started.AgentWorkflowDefinition,
+		ExecutionID: correlation.ExecutionID, DefinitionDigest: correlation.DefinitionDigest,
 		Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED,
 		Input: func() *structpb.Value {
 			payload, _ := workflow.invocation.Input.AsInterface().(map[string]any)
@@ -246,7 +259,7 @@ func TestApplyPhasedPlanWorkflow_RejectsChangedFrontier(t *testing.T) { // [REQ:
 	}
 	records, _, _ := service.loadRecordLocked(started.ExecutionID)
 	for _, record := range records {
-		if record.ExecutionID == started.ExecutionID && transitionApplyStateFor(t, service, record.AgentWorkflowExecutionID) == transitionrun.ApplyStateComplete {
+		if record.ExecutionID == started.ExecutionID && transitionApplyStateFor(t, service, correlation.ExecutionID) == transitionrun.ApplyStateComplete {
 			t.Fatalf("stale result was claimed: %#v", record)
 		}
 	}

@@ -1,13 +1,18 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"net/url"
 	"strings"
 
+	"connectrpc.com/connect"
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
 )
 
 // Proposals are the operator's decision surface: an agent workflow proposes a
@@ -243,22 +248,30 @@ func (a *App) cmdProposalsDecide(args []string) error {
 	if err != nil {
 		return err
 	}
-	request := map[string]any{"note": strings.TrimSpace(*note)}
-	if trimmed := strings.TrimSpace(*accept); trimmed != "" {
-		request["accepted_mutation_ids"] = splitCSV(trimmed)
-	}
-	payload, err := json.Marshal(request)
+	accepted := splitCSV(strings.TrimSpace(*accept))
+	h, base := cliapp.NewConnectHTTPClient(a.core)
+	response, err := apiconnect.NewBacklogServiceClient(h, base).DecideAttempt(context.Background(), connect.NewRequest(&apipb.DecideAttemptRequest{
+		SubjectKind:         "agent-session-proposal",
+		SubjectRef:          session.ID + "/" + proposal.ID,
+		RoundNum:            1,
+		Decision:            "accept",
+		Actor:               "operator-cli",
+		Rationale:           strings.TrimSpace(*note),
+		AcceptedProposalIds: accepted,
+	}))
 	if err != nil {
 		return err
 	}
-	body, err := a.requestMultipart("POST", "/agent-sessions/"+session.ID+"/proposals/"+proposal.ID+"/decide", payload, "application/json")
-	if err != nil {
-		return err
-	}
-	if printJSONIfRequested(*jsonOut, body) {
+	if *jsonOut {
+		body, err := json.Marshal(response.Msg)
+		if err != nil {
+			return fmt.Errorf("encode decision response: %w", err)
+		}
+		fmt.Println(string(body))
 		return nil
 	}
-	return printProposalOutcome(body, proposal.ID, "decided")
+	fmt.Printf("Proposal %s decided: %s (%s)\n", proposal.ID, response.Msg.Decision, response.Msg.Status)
+	return nil
 }
 
 func (a *App) cmdProposalsAcceptKeep(args []string) error {

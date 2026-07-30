@@ -151,6 +151,13 @@ asking the operator anything:
 - An **independent review** workflow reads the deliverable, the diff, and the
   test evidence and returns a typed verdict (accepted / changes requested /
   inconclusive / failed) with findings.
+- Each backlog criterion is a stable `Given / When / Then` record. Evidence
+  names the criterion it settles, its producer, trust, and settlement state;
+  deterministic command checks are attached before agent review as observed
+  evidence. A missing Test Genie phase result is represented as unavailable,
+  never silently re-run or claimed as a pass. An unavailable result states the
+  attempted registered producer and its reason, while the review returns a
+  per-criterion verdict table linked to evidence identifiers.
 - The verdict is **advisory**. It classifies the round and organizes the
   evidence; it never completes the item.
 
@@ -180,6 +187,14 @@ that reaches a terminal status:
   exactly once on acceptance.
 - No terminal status is ever written by an agent, a scheduler, or a review
   verdict.
+- The operator supplies a real actor and rationale. The decision stream shows
+  the criterion/evidence relationship and records the verified evidence ratio
+  at acceptance without turning verification into a global hard gate.
+
+For scripted authoring, `swarm-manager backlog criteria-set --kind KIND --name
+NAME --criteria JSON` replaces the complete typed criterion array through the
+Connect API. Passing `[]` intentionally clears it; the item detail and review
+surfaces expose the resulting stable criterion ids.
 
 ### 8. Learn
 
@@ -220,7 +235,7 @@ Wait states (`queued`, `in_progress`, and `in_review`) never enter that feed.
 | --- | ---: | --- | --- |
 | `decide` | 1 | backlog, goal | Resolve workshop questions or ready proposals. |
 | `review` | 1 | backlog, goal | Decide review evidence or a milestone review. |
-| `accept_plan`, `author_plan`, `repair_plan`, `plan_goal` | 2 | backlog / goal | Establish or authorize executable structure. |
+| `accept_plan`, `author_plan`, `repair_plan`, `plan_goal`, `define_criteria` | 2 | backlog / goal | Establish or authorize executable structure and a reviewable definition of done. |
 | `run`, `dispatch_followup`, `author_followup`, `resolve_dependencies` | 3 | backlog | Start or unblock actionable work. |
 | `accept_suggestion`, `retry`, `archive`, `close_out` | 4 | backlog / goal | Intake, recovery, or housekeeping decisions. |
 | `chain` | inherited | goal | Delegates to the top-priority member item's action; it is not a second action. |
@@ -303,8 +318,9 @@ and proposes items to close them.
 The goal surfaces derived progress (rollup, ETA bands from simulation,
 scope-creep history) and, as the layer matures, velocity against trajectory.
 The goal-level next action is a complete funnel: pending goal proposals →
-`decide`; a milestone awaiting review → `review`; no milestones and no targets
-→ `plan_goal`; all milestones verified-delivered → `close_out`; otherwise it
+`decide`; a milestone awaiting review → `review`; a milestone without its
+definition of done → `define_criteria`; no milestones and no targets →
+`plan_goal`; all milestones verified-delivered → `close_out`; otherwise it
 **chains into the top-priority member item's next action**, so "work the goal"
 always resolves to one concrete step. `close_out` is an operator decision that
 changes the goal to `achieved`; archived and achieved goals have no action.

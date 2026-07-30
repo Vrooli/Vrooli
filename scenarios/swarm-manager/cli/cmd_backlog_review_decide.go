@@ -1,12 +1,17 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"strings"
 
+	"connectrpc.com/connect"
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
 )
 
 // cmdBacklogReviewDecide handles `swarm-manager backlog review-decide`.
@@ -19,18 +24,19 @@ func (a *App) cmdBacklogReviewDecide(args []string) error {
 	fs := flag.NewFlagSet("backlog review-decide", flag.ContinueOnError)
 	kindFlag := fs.String("kind", "", "Backlog item kind")
 	nameFlag := fs.String("name", "", "Backlog item name")
+	roundFlag := fs.Uint("round", 0, "Review round number")
 	acceptFlag := fs.Bool("accept", false, "Accept review → status = completed")
 	failFlag := fs.Bool("fail", false, "Reject review → status = failed")
 	followupFlag := fs.Bool("followup", false, "Needs follow-up → status = needs_followup")
 	dropFlag := fs.Bool("drop", false, "Decided not to pursue → status = dropped (no verdict on the work)")
 	rationaleFlag := fs.String("rationale", "", "Short explanation of the decision (logged alongside the review rounds)")
-	decidedByFlag := fs.String("decided-by", "", "Identifier for who made the decision (defaults to 'user')")
+	decidedByFlag := fs.String("decided-by", "", "Identifier for who made the decision")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if err := requireFlags("kind", *kindFlag, "name", *nameFlag); err != nil {
-		return fmt.Errorf("usage: backlog review-decide --kind KIND --name NAME (--accept|--fail|--followup|--drop) [--rationale MSG] [--decided-by NAME] [--json]\n\n%s", err)
+	if err := requireFlags("kind", *kindFlag, "name", *nameFlag, "decided-by", *decidedByFlag); err != nil {
+		return fmt.Errorf("usage: backlog review-decide --kind KIND --name NAME --round N --decided-by ACTOR (--accept|--fail|--followup|--drop) [--rationale MSG] [--json]\n\n%s", err)
 	}
 
 	// Counted rather than compared pairwise: the exclusivity check stays O(n)
@@ -60,34 +66,26 @@ func (a *App) cmdBacklogReviewDecide(args []string) error {
 
 	kind := strings.TrimSpace(*kindFlag)
 	name := strings.TrimSpace(*nameFlag)
-
-	payload, err := json.Marshal(map[string]any{
-		"decision":   decision,
-		"rationale":  strings.TrimSpace(*rationaleFlag),
-		"decided_by": strings.TrimSpace(*decidedByFlag),
-	})
-	if err != nil {
-		return fmt.Errorf("failed to encode request: %w", err)
+	if *roundFlag == 0 {
+		return fmt.Errorf("--round must be a positive integer")
 	}
 
-	body, err := a.core.Request("POST", "/backlog/"+kind+"/"+name+"/review-decide", nil, json.RawMessage(payload))
+	h, base := cliapp.NewConnectHTTPClient(a.core)
+	result, err := apiconnect.NewBacklogServiceClient(h, base).DecideAttempt(context.Background(), connect.NewRequest(&apipb.DecideAttemptRequest{
+		SubjectKind: "backlog-item", SubjectRef: kind + "/" + name, RoundNum: uint32(*roundFlag), Decision: decision, Actor: strings.TrimSpace(*decidedByFlag), Rationale: strings.TrimSpace(*rationaleFlag),
+	}))
 	if err != nil {
 		return err
 	}
-	if printJSONIfRequested(*jsonOut, body) {
+	if *jsonOut {
+		body, err := json.Marshal(result.Msg)
+		if err != nil {
+			return fmt.Errorf("encode response: %w", err)
+		}
+		fmt.Println(string(body))
 		return nil
 	}
-
-	var response struct {
-		Decision  string `json:"decision"`
-		Status    string `json:"status"`
-		Rationale string `json:"rationale,omitempty"`
-		DecidedAt string `json:"decided_at"`
-		RecordID  string `json:"record_id,omitempty"`
-	}
-	if err := json.Unmarshal(body, &response); err != nil {
-		return fmt.Errorf("decode response: %w", err)
-	}
+	response := result.Msg
 
 	printSection("Review Decision")
 	fmt.Printf("  Item:     %s/%s\n", kind, name)
@@ -101,9 +99,9 @@ func (a *App) cmdBacklogReviewDecide(args []string) error {
 	// work (the recursive-learning write-side). Surface its id with the enrich
 	// path so the agent can improve the narrative — records are born immutable,
 	// so enrichment is via `records supersede`, not `records edit`.
-	if response.RecordID != "" {
+	if response.GetRecordId() != "" {
 		fmt.Printf("  Record:   %s (auto-captured; enrich via `swarm-manager records supersede %s`)\n",
-			response.RecordID, response.RecordID)
+			response.GetRecordId(), response.GetRecordId())
 	}
 	return nil
 }

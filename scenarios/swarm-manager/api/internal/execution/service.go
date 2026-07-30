@@ -338,14 +338,15 @@ func (s *Service) WorkflowProgress(ctx context.Context, executionID string) (age
 	if err != nil {
 		return agentmanager.WorkflowProgress{}, err
 	}
-	if strings.TrimSpace(record.AgentWorkflowExecutionID) == "" {
+	correlation, err := s.transitionCorrelation(record)
+	if err != nil {
 		return agentmanager.WorkflowProgress{}, apierr.Conflict("execution has no agent workflow")
 	}
 	reader, ok := s.phasedPlanWorkflow.(workflowProgressReader)
 	if !ok {
 		return agentmanager.WorkflowProgress{}, apierr.Unavailable("workflow progress is unavailable")
 	}
-	return reader.GetWorkflowProgress(ctx, record.AgentWorkflowExecutionID)
+	return reader.GetWorkflowProgress(ctx, correlation.ExecutionID)
 }
 
 // SetEventLogger injects an optional event logger for analytics tracking.

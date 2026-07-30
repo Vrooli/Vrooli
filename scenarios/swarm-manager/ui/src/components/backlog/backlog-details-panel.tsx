@@ -265,6 +265,24 @@ export function BacklogDetailsPanel({
             </div>
           </div>
         )}
+        <div className="space-y-2 border-t border-slate-800 pt-3" data-orientation-target="acceptance-criteria">
+          <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
+            <Target className="h-3.5 w-3.5" />
+            Acceptance Criteria
+          </div>
+          {item.acceptanceCriteria && item.acceptanceCriteria.length > 0 ? (
+            <ol className="space-y-1.5">
+              {item.acceptanceCriteria.map((criterion) => (
+                <li key={criterion.id} className="rounded bg-slate-800/70 px-2 py-1.5 text-xs text-slate-200">
+                  <span className="mr-2 font-mono text-[10px] text-slate-500">{criterion.id}</span>
+                  {criterion.gherkin}
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="text-xs italic text-slate-500">No acceptance criteria defined.</p>
+          )}
+        </div>
         <div className="space-y-2 border-t border-slate-800 pt-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">

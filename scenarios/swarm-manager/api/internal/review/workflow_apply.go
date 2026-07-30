@@ -3,14 +3,13 @@ package review
 import (
 	"context"
 	"fmt"
-	"strings"
 )
 
 // ApplyWorkflowRound collects and applies one terminal independent-review
 // result. It is the explicit local mutation boundary for declared reviews.
 func (s *Service) ApplyWorkflowRound(ctx context.Context, kind, name string, roundNum int) (Round, bool, error) {
 	itemDir := s.resolveItemDir(kind, name)
-	round, err := LoadRound(itemDir, roundNum)
+	round, err := readRound(itemDir, roundNum)
 	if err != nil {
 		return Round{}, false, fmt.Errorf("load review round: %w", err)
 	}
@@ -20,14 +19,15 @@ func (s *Service) ApplyWorkflowRound(ctx context.Context, kind, name string, rou
 	if s.transitionRunner == nil {
 		return Round{}, false, fmt.Errorf("transition runner is not configured")
 	}
-	if strings.TrimSpace(round.AgentWorkflowExecutionID) == "" {
-		return Round{}, false, fmt.Errorf("round is not owned by a review transition")
+	correlation, err := s.transitionRunner.FindCorrelation("work.review", reviewSubject(kind, name, roundNum))
+	if err != nil {
+		return Round{}, false, fmt.Errorf("find review transition correlation: %w", err)
 	}
 	alreadyApplied := round.Status != RoundStatusGathering
-	if _, err := s.transitionRunner.ApplyExecution(ctx, round.AgentWorkflowExecutionID); err != nil {
+	if _, err := s.transitionRunner.ApplyExecution(ctx, correlation.ExecutionID); err != nil {
 		return Round{}, false, err
 	}
-	applied, err := LoadRound(itemDir, roundNum)
+	applied, err := readRound(itemDir, roundNum)
 	if err != nil || applied == nil {
 		return Round{}, false, fmt.Errorf("reload applied review round: %w", err)
 	}

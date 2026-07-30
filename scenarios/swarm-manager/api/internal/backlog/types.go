@@ -143,15 +143,16 @@ type BacklogItem struct {
 	// Execution readiness reads it to decide whether the target scenario
 	// already exists, so the item type must carry it rather than force a
 	// second read of the same spec.
-	SourceScenarioName string   `json:"sourceScenarioName,omitempty"`
-	DependsOn          []string `json:"depends_on,omitempty"`
-	Milestone          string   `json:"milestone,omitempty"`
-	Effort             string   `json:"effort,omitempty"`
-	AcceptanceAllow    []string `json:"acceptance_allow,omitempty"`
-	AcceptanceDeny     []string `json:"acceptance_deny,omitempty"`
-	Creates            []string `json:"creates,omitempty"`
-	SpawnedFrom        string   `json:"spawned_from,omitempty"`
-	PlanRef            *PlanRef `json:"plan_ref,omitempty"`
+	SourceScenarioName string      `json:"sourceScenarioName,omitempty"`
+	DependsOn          []string    `json:"depends_on,omitempty"`
+	Milestone          string      `json:"milestone,omitempty"`
+	Effort             string      `json:"effort,omitempty"`
+	AcceptanceAllow    []string    `json:"acceptance_allow,omitempty"`
+	AcceptanceDeny     []string    `json:"acceptance_deny,omitempty"`
+	AcceptanceCriteria []Criterion `json:"acceptance_criteria,omitempty"`
+	Creates            []string    `json:"creates,omitempty"`
+	SpawnedFrom        string      `json:"spawned_from,omitempty"`
+	PlanRef            *PlanRef    `json:"plan_ref,omitempty"`
 	// PlanAcceptance is the operator's explicit acceptance of the exact
 	// canonical plan revision this item may execute. It is intentionally
 	// separate from workshop history: workshops inform planning, while this
@@ -167,6 +168,24 @@ type BacklogItem struct {
 	// instruction attached by review-decide. needs_followup is actionable only
 	// while this durable instruction remains undispatched.
 	PendingFollowUp *FollowUp `json:"pending_follow_up,omitempty"`
+}
+
+// Criterion is one stable, independently settleable definition of done.
+// IDs are local to an item and never reused, so historical evidence remains
+// attributable when authors edit wording or remove another criterion.
+type Criterion struct {
+	ID      string `json:"id"`
+	Gherkin string `json:"gherkin"`
+	Check   *Check `json:"check,omitempty"`
+}
+
+// Check declares the optional deterministic settlement for a criterion.
+type Check struct {
+	Kind       string   `json:"kind"`
+	Scenario   string   `json:"scenario,omitempty"`
+	Phase      string   `json:"phase,omitempty"`
+	Argv       []string `json:"argv,omitempty"`
+	ExpectExit int      `json:"expect_exit,omitempty"`
 }
 
 type (
@@ -308,6 +327,9 @@ func backlogToProto(item BacklogItem) *domainpb.BacklogItem {
 	if len(item.AcceptanceDeny) > 0 {
 		result.AcceptanceDeny = item.AcceptanceDeny
 	}
+	if len(item.AcceptanceCriteria) > 0 {
+		result.AcceptanceCriteria = criteriaToProto(item.AcceptanceCriteria)
+	}
 	if len(item.Creates) > 0 {
 		result.Creates = item.Creates
 	}
@@ -350,6 +372,18 @@ func backlogToProto(item BacklogItem) *domainpb.BacklogItem {
 		}
 	}
 	return result
+}
+
+func criteriaToProto(criteria []Criterion) []*sharedpb.BacklogCriterion {
+	out := make([]*sharedpb.BacklogCriterion, 0, len(criteria))
+	for _, criterion := range criteria {
+		value := &sharedpb.BacklogCriterion{Id: criterion.ID, Gherkin: criterion.Gherkin}
+		if criterion.Check != nil {
+			value.Check = &sharedpb.CriterionCheck{Kind: criterion.Check.Kind, Scenario: criterion.Check.Scenario, Phase: criterion.Check.Phase, Argv: append([]string(nil), criterion.Check.Argv...), ExpectExit: int32(criterion.Check.ExpectExit)}
+		}
+		out = append(out, value)
+	}
+	return out
 }
 
 // ToProto converts a domain BacklogItem to its protobuf representation for

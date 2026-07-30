@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"net/http"
 	"sort"
 	"strings"
@@ -13,8 +14,12 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 
+	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/attempt"
 	"swarm-manager/internal/backlogstatus"
+	"swarm-manager/internal/followup"
 	"swarm-manager/internal/identity"
+	"swarm-manager/internal/review"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
@@ -90,6 +95,184 @@ func (s *ConnectService) DeleteItem(_ context.Context, req *connect.Request[apip
 		return nil, connect.NewError(code, apiErr)
 	}
 	return connect.NewResponse(&apipb.DeleteBacklogItemResponse{Deleted: deleted}), nil
+}
+
+// UpdateItem applies the same field-preserving mutation as the former PATCH
+// transport. The explicit field list prevents proto's zero values from
+// accidentally clearing a field the caller omitted.
+func (s *ConnectService) UpdateItem(ctx context.Context, req *connect.Request[apipb.UpdateItemRequest]) (*connect.Response[apipb.BacklogItemResponse], error) {
+	if req.Msg == nil || req.Msg.GetPatch() == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("patch is required"))
+	}
+	kind, err := ParseBacklogKind(strings.TrimSpace(req.Msg.GetKind()))
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	name := sanitizeName(strings.TrimSpace(req.Msg.GetName()))
+	if name == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("name is required"))
+	}
+	fields := make(backlogUpdateFieldSet, len(req.Msg.GetFields()))
+	aliases := getUpdateFieldAliases()
+	for _, field := range req.Msg.GetFields() {
+		canonical, ok := aliases[strings.TrimSpace(field)]
+		if !ok {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unknown update field %q", field))
+		}
+		fields[canonical] = struct{}{}
+	}
+	if fields.Empty() {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("at least one update field is required"))
+	}
+	patch := req.Msg.GetPatch()
+	normalizeUpdateBacklogPatch(patch, fields)
+	updated, apiErr := s.h.doUpdatePatch(ctx, kind, name, patch, fields)
+	if apiErr != nil {
+		return nil, mapDecisionConnectError(apiErr)
+	}
+	s.h.invalidateAllGraphLenses()
+	return connect.NewResponse(&apipb.BacklogItemResponse{Item: backlogToProto(updated)}), nil
+}
+
+// DecideAttempt is the common typed decision envelope. Review is the first
+// migrated subject; its existing domain handler remains the single owner of
+// terminal state, audit records, and follow-up validation.
+func (s *ConnectService) DecideAttempt(ctx context.Context, req *connect.Request[apipb.DecideAttemptRequest]) (*connect.Response[apipb.DecideAttemptResponse], error) {
+	if req.Msg == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("request is required"))
+	}
+	in := req.Msg
+	if strings.TrimSpace(in.GetSubjectKind()) != "backlog-item" {
+		if s.h.attemptDecisionRouter == nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported attempt subject_kind"))
+		}
+		result, err := s.h.attemptDecisionRouter.DecideAttempt(ctx, attempt.DecisionRequest{
+			SubjectKind:         in.GetSubjectKind(),
+			SubjectRef:          in.GetSubjectRef(),
+			RoundNum:            int(in.GetRoundNum()),
+			Decision:            in.GetDecision(),
+			Actor:               in.GetActor(),
+			Rationale:           in.GetRationale(),
+			AcceptedProposalIDs: append([]string(nil), in.GetAcceptedProposalIds()...),
+		})
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		return connect.NewResponse(&apipb.DecideAttemptResponse{Decision: result.Decision, Status: result.Status, Rationale: result.Rationale, DecidedAt: result.DecidedAt}), nil
+	}
+	parts := strings.Split(strings.TrimSpace(in.GetSubjectRef()), "/")
+	if len(parts) != 2 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("backlog-item subject_ref must be kind/name"))
+	}
+	kind, err := ParseBacklogKind(parts[0])
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	name := sanitizeName(parts[1])
+	if name == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("subject_ref name is required"))
+	}
+	itemDir := s.h.store.ItemDir(kind, name)
+	round, err := review.ReadRound(itemDir, int(in.GetRoundNum()))
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if round == nil {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("attempt round not found"))
+	}
+	latest, _, err := review.ReadLatestRound(itemDir)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if latest == nil || latest.RoundNum != round.RoundNum {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("only the latest attempt round can be decided"))
+	}
+	followUp, err := reviewFollowUpFromProto(in.GetFollowUp())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	result, err := s.h.DecideReview(ctx, kind, name, ReviewDecideRequest{
+		Decision: ReviewDecision(in.GetDecision()), Rationale: in.GetRationale(), DecidedBy: in.GetActor(), FollowUp: followUp,
+	})
+	if err != nil {
+		return nil, mapDecisionConnectError(err)
+	}
+	response := &apipb.DecideAttemptResponse{Item: backlogToProto(*result.Item), Decision: result.Decision, Status: result.Status, Rationale: result.Rationale, DecidedAt: result.DecidedAt}
+	if result.RecordID != "" {
+		response.RecordId = &result.RecordID
+	}
+	return connect.NewResponse(response), nil
+}
+
+// VerifyAttemptEvidence records an actor-attributed verification change through
+// the same typed attempt identity used by DecideAttempt. Review retains the
+// mutation authority; the Connect service only validates the envelope.
+func (s *ConnectService) VerifyAttemptEvidence(ctx context.Context, req *connect.Request[apipb.VerifyAttemptEvidenceRequest]) (*connect.Response[apipb.VerifyAttemptEvidenceResponse], error) {
+	if req.Msg == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("request is required"))
+	}
+	if s.h.reviewEvidenceVerifier == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("review evidence verification is unavailable"))
+	}
+	in := req.Msg
+	if strings.TrimSpace(in.GetSubjectKind()) != "backlog-item" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported attempt subject_kind"))
+	}
+	parts := strings.Split(strings.TrimSpace(in.GetSubjectRef()), "/")
+	if len(parts) != 2 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("backlog-item subject_ref must be kind/name"))
+	}
+	kind, err := ParseBacklogKind(parts[0])
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	name := sanitizeName(parts[1])
+	if name == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("subject_ref name is required"))
+	}
+	itemDir := s.h.store.ItemDir(kind, name)
+	round, err := review.ReadRound(itemDir, int(in.GetRoundNum()))
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if round == nil {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("attempt round not found"))
+	}
+	if err := s.h.reviewEvidenceVerifier.VerifyEvidenceWithActor(ctx, string(kind), name, int(in.GetRoundNum()), strings.TrimSpace(in.GetEvidenceId()), in.GetVerified(), review.ExecutionIDFromSnapshot(round.AgentWorkflowSnapshot), strings.TrimSpace(in.GetActor()), strings.TrimSpace(in.GetReason())); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(&apipb.VerifyAttemptEvidenceResponse{Verified: in.GetVerified()}), nil
+}
+
+func reviewFollowUpFromProto(in *apipb.ReviewFollowUp) (*FollowUp, error) {
+	if in == nil {
+		return nil, nil
+	}
+	result := &followup.Contract{Steering: strings.TrimSpace(in.GetSteering()), Disposition: followup.Disposition(in.GetDisposition())}
+	for _, item := range in.GetItems() {
+		if item == nil {
+			return nil, errors.New("follow_up.items cannot contain null")
+		}
+		result.Items = append(result.Items, followup.ItemSpec{Kind: strings.TrimSpace(item.GetKind()), Name: strings.TrimSpace(item.GetName()), Title: strings.TrimSpace(item.GetTitle())})
+	}
+	return result, nil
+}
+
+func mapDecisionConnectError(err error) error {
+	var domainErr *apierr.DomainError
+	if !errors.As(err, &domainErr) {
+		return connect.NewError(connect.CodeInternal, err)
+	}
+	switch domainErr.Status {
+	case http.StatusBadRequest:
+		return connect.NewError(connect.CodeInvalidArgument, domainErr)
+	case http.StatusNotFound:
+		return connect.NewError(connect.CodeNotFound, domainErr)
+	case http.StatusConflict:
+		return connect.NewError(connect.CodeFailedPrecondition, domainErr)
+	default:
+		return connect.NewError(connect.CodeInternal, domainErr)
+	}
 }
 
 func listFiltersFromProto(in *apipb.ListBacklogItemsRequest) (ListFilters, error) {

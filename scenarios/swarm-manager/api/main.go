@@ -33,6 +33,7 @@ import (
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/agentsessions"
 	"swarm-manager/internal/aisearch"
+	"swarm-manager/internal/attempt"
 	"swarm-manager/internal/audioports"
 	"swarm-manager/internal/autodrain"
 	"swarm-manager/internal/autofiler"
@@ -49,6 +50,7 @@ import (
 	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/planclient"
 	"swarm-manager/internal/planimport"
+	"swarm-manager/internal/planworkshop"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/prompts"
 	"swarm-manager/internal/proposals"
@@ -87,6 +89,7 @@ type Server struct {
 	agentSessionSvc     *agentsessions.Service
 	agentSessionStore   agentsessions.Store
 	transitionRegistry  transitions.Registry
+	attemptDecisions    *attempt.Router
 	transitionRunner    *transitionrunner.Runner
 	transitionSweeper   *transitionrunner.Sweeper
 	transitionSweepStop chan struct{}
@@ -108,7 +111,6 @@ type Server struct {
 	reviewSvc           *review.Service
 	reviewHandler       *review.Handler
 	executionStopChan   chan struct{}
-	reviewStopChan      chan struct{}
 	graphBroker         *graph.Broker
 	graphDispatch       *graph.Dispatch
 	graphProjection     *graph.ProjectionService
@@ -125,7 +127,6 @@ type Server struct {
 	aiSearchReconciler  *aisearch.Reconciler
 	aiSearchSyncLoop    *aisearch.SyncLoop
 	aiSearchStopChan    chan struct{}
-	reviewSweeperStop   chan struct{}
 	autoFilerSweeper    *autofiler.Sweeper
 	autoFilerStopChan   chan struct{}
 	audioToolsResolver  audiotools.URLResolver
@@ -198,9 +199,7 @@ func newServerWithRoot(scenarioRoot string, promptClient promptmanager.Client) *
 		router:              mux.NewRouter(),
 		agentSvc:            agentSvc,
 		executionStopChan:   make(chan struct{}),
-		reviewStopChan:      make(chan struct{}),
 		aiSearchStopChan:    make(chan struct{}),
-		reviewSweeperStop:   make(chan struct{}),
 		autoFilerStopChan:   make(chan struct{}),
 		transitionSweepStop: make(chan struct{}),
 		scenarioRoot:        scenarioRoot,
@@ -274,6 +273,12 @@ func (s *Server) setupRoutes() {
 	decisionProvider := sessionDecisionProvider{sessions: s.agentSessionSvc}
 	backlogHandler.SetDecisionCountProvider(decisionProvider)
 	goalService := s.registerGoalsRoutes(s.dataRoot, backlogHandler)
+	attemptDecisions := attempt.NewRouter()
+	if err := attemptDecisions.Register(agentsessions.AttemptSubjectProposal, agentsessions.NewAttemptDecider(s.agentSessionSvc)); err != nil {
+		panic(fmt.Errorf("register agent-session proposal attempt decider: %w", err))
+	}
+	backlogHandler.SetAttemptDecisionRouter(attemptDecisions)
+	s.attemptDecisions = attemptDecisions
 	feed := nextActionFeed{backlog: backlogHandler, goals: goalService, decisions: decisionProvider}
 	// One projection serves both the inbox feed and the Plan board. It is
 	// registered on the server so plan routes and graph invalidation can reach
@@ -291,7 +296,10 @@ func (s *Server) setupRoutes() {
 	s.registerReviewRoutes(scenarioRoot, execSvc)
 	s.wireWorkflowStartGuards(backlogHandler, execSvc)
 	s.configureTransitionRunner()
-	s.registerPlanWorkshopRoutes(s.dataRoot)
+	planWorkshopService := s.registerPlanWorkshopRoutes(s.dataRoot)
+	if err := s.attemptDecisions.Register(planworkshop.AttemptSubjectCandidate, planworkshop.NewAttemptDecider(planWorkshopService)); err != nil {
+		panic(fmt.Errorf("register plan workshop candidate attempt decider: %w", err))
+	}
 	if err := s.transitionRunner.VerifyDispatchTable(); err != nil {
 		panic(fmt.Errorf("verify transition dispatch table: %w", err))
 	}
@@ -986,10 +994,6 @@ func main() {
 	if srv.executionHandler != nil {
 		go srv.executionHandler.StartBackgroundWorker(srv.executionStopChan)
 	}
-	if srv.reviewSvc != nil {
-		srv.reviewSvc.RecoverActiveRounds()
-		go srv.reviewSvc.StartBackgroundWorker(srv.reviewStopChan)
-	}
 
 	if srv.autoFilerSweeper != nil {
 		go func() {
@@ -1052,9 +1056,7 @@ func main() {
 		log.Fatalf("Server error: %v", err)
 	}
 	close(srv.executionStopChan)
-	close(srv.reviewStopChan)
 	close(srv.aiSearchStopChan)
-	close(srv.reviewSweeperStop)
 	close(srv.autoFilerStopChan)
 	close(srv.transitionSweepStop)
 }

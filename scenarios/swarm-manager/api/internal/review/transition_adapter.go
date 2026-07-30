@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"swarm-manager/internal/stringsx"
 	"swarm-manager/internal/transitionrunner"
 
 	"google.golang.org/protobuf/types/known/structpb"
@@ -61,23 +62,24 @@ func (s *Service) buildReviewInput(_ context.Context, subject string) (transitio
 	if err != nil {
 		return transitionrunner.Snapshot{}, err
 	}
-	round, err := LoadRound(s.resolveItemDir(kind, name), roundNum)
+	round, err := readRound(s.resolveItemDir(kind, name), roundNum)
 	if err != nil || round == nil {
 		return transitionrunner.Snapshot{}, fmt.Errorf("load review round: %w", err)
 	}
 	if len(round.AgentWorkflowSnapshot) == 0 {
 		return transitionrunner.Snapshot{}, fmt.Errorf("review round %d has no persisted request snapshot", roundNum)
 	}
-	return reviewRoundSnapshot(kind, name, round.ExecutionID, round.AgentWorkflowSnapshot)
+	return reviewRoundSnapshot(kind, name, round.AgentWorkflowSnapshot)
 }
 
 // reviewRoundSnapshot is the single projection used by both the start and the
 // apply-time rebuild, so the two can never drift.
-func reviewRoundSnapshot(kind, name, executionID string, raw json.RawMessage) (transitionrunner.Snapshot, error) {
+func reviewRoundSnapshot(kind, name string, raw json.RawMessage) (transitionrunner.Snapshot, error) {
 	var snapshot map[string]any
 	if err := json.Unmarshal(raw, &snapshot); err != nil {
 		return transitionrunner.Snapshot{}, fmt.Errorf("decode independent review snapshot: %w", err)
 	}
+	executionID, _ := snapshot["executionId"].(string)
 	version := snapshotVersion(raw)
 	input, err := structpb.NewValue(map[string]any{"entity": map[string]any{"kind": kind, "name": name, "executionId": executionID, "version": version}, "snapshot": snapshot})
 	if err != nil {
@@ -93,7 +95,7 @@ func (s *Service) buildEvidenceRequestInput(_ context.Context, subject string) (
 	if err != nil {
 		return transitionrunner.Snapshot{}, err
 	}
-	round, err := LoadRound(s.resolveItemDir(kind, name), roundNum)
+	round, err := readRound(s.resolveItemDir(kind, name), roundNum)
 	if err != nil || round == nil {
 		return transitionrunner.Snapshot{}, fmt.Errorf("load review round: %w", err)
 	}
@@ -105,7 +107,7 @@ func (s *Service) buildEvidenceRequestInput(_ context.Context, subject string) (
 		if len(thread.Messages) > 0 {
 			request = thread.Messages[0].Content
 		}
-		return evidenceRequestSnapshot(kind, name, round.ExecutionID, roundNum, threadID, request, thread.EvidenceID)
+		return evidenceRequestSnapshot(kind, name, ExecutionIDFromSnapshot(round.AgentWorkflowSnapshot), roundNum, threadID, request, thread.EvidenceID)
 	}
 	return transitionrunner.Snapshot{}, fmt.Errorf("review thread %q not found", threadID)
 }
@@ -128,7 +130,7 @@ func evidenceRequestSnapshot(kind, name, executionID string, roundNum int, threa
 }
 
 func (s *Service) startReviewTransition(ctx context.Context, params startReviewParams) error {
-	roundNum, err := NextRoundNumber(params.ItemDir)
+	roundNum, err := nextRoundNumber(params.ItemDir)
 	if err != nil {
 		return fmt.Errorf("determine next round: %w", err)
 	}
@@ -136,29 +138,39 @@ func (s *Service) startReviewTransition(ctx context.Context, params startReviewP
 	if err != nil {
 		return fmt.Errorf("encode independent review snapshot: %w", err)
 	}
-	version := snapshotVersion(encoded)
 	// Persist the request snapshot with the round before starting. The runner's
 	// registered builder reads it back to construct the input, so the round has
 	// to be on disk first.
-	round := Round{RoundNum: roundNum, GeneratedAt: time.Now().UTC().Format(time.RFC3339), ExecutionID: params.ExecutionID, Status: RoundStatusGathering, Evidence: []EvidenceItem{}, AgentWorkflowVersion: version, AgentWorkflowSnapshot: encoded}
-	if err := SaveRound(params.ItemDir, round); err != nil {
+	round := Round{RoundNum: roundNum, GeneratedAt: time.Now().UTC().Format(time.RFC3339), Status: RoundStatusGathering, Evidence: append([]EvidenceItem(nil), params.MachineEvidence...), AgentWorkflowSnapshot: encoded}
+	if err := saveRound(params.ItemDir, round); err != nil {
 		return fmt.Errorf("save review round: %w", err)
 	}
 	started, err := s.transitionRunner.StartWith(ctx, "work.review", reviewSubject(params.BacklogKind, params.BacklogName, roundNum), transitionrunner.PreparedInput{FirstRunNodeID: "review", Activity: &transitionrunner.Activity{OwnerType: "backlog", OwnerKind: params.BacklogKind, OwnerName: params.BacklogName, OwnerTitle: params.ItemTitle, Purpose: "review"}})
 	if err != nil {
 		return fmt.Errorf("start independent review transition: %w", err)
 	}
-	round.AgentWorkflowExecutionID, round.AgentWorkflowDefinition = started.ExecutionID, started.DefinitionDigest
 	if len(started.Attempts) > 0 {
 		round.RunID = started.Attempts[0].RunID
 	}
-	if err := SaveRound(params.ItemDir, round); err != nil {
+	if err := saveRound(params.ItemDir, round); err != nil {
 		return fmt.Errorf("save review round run association: %w", err)
 	}
 	if s.eventLogger != nil {
 		s.eventLogger.EmitReviewStarted(params.ExecutionID, roundNum)
 	}
 	return nil
+}
+
+// ExecutionIDFromSnapshot projects the transition execution identity from the
+// persisted immutable review input. Round deliberately owns no lifecycle ID.
+func ExecutionIDFromSnapshot(raw json.RawMessage) string {
+	var snapshot struct {
+		ExecutionID string `json:"executionId"`
+	}
+	if json.Unmarshal(raw, &snapshot) != nil {
+		return ""
+	}
+	return strings.TrimSpace(snapshot.ExecutionID)
 }
 
 func snapshotVersion(raw []byte) string { // stable snapshot version keeps runner idempotency exact.
@@ -173,18 +185,111 @@ func (s *Service) applyReviewOutcome(ctx context.Context, subject string, outcom
 		return err
 	}
 	itemDir := s.resolveItemDir(kind, name)
-	round, err := LoadRound(itemDir, roundNum)
+	round, err := readRound(itemDir, roundNum)
 	if err != nil || round == nil {
 		return fmt.Errorf("load review round: %w", err)
 	}
 	FinalizeRoundFromResult(round, outcome.Result, outcome.Name)
-	if err := SaveRound(itemDir, *round); err != nil {
+	criteria, err := criteriaFromReviewSnapshot(round.AgentWorkflowSnapshot)
+	if err != nil {
 		return err
+	}
+	if err := validateRoundEvidence(round.Evidence, criteria); err != nil {
+		return err
+	}
+	if err := validateCriterionVerdicts(round.CriterionVerdicts, criteria, round.Evidence); err != nil {
+		return err
+	}
+	if err := saveRound(itemDir, *round); err != nil {
+		return err
+	}
+	if s.evidenceRecorder != nil {
+		if err := s.evidenceRecorder(ctx, kind, name, *round); err != nil {
+			return fmt.Errorf("record review evidence: %w", err)
+		}
 	}
 	if s.onRoundTerminal != nil {
 		s.onRoundTerminal(ctx, kind, name, *round)
 	}
 	s.notifyRoundTerminal(ctx, kind, name, *round)
+	return nil
+}
+
+func criteriaFromReviewSnapshot(raw json.RawMessage) (map[string]struct{}, error) {
+	var snapshot struct {
+		AcceptanceCriteria []struct {
+			ID string `json:"id"`
+		} `json:"acceptanceCriteria"`
+	}
+	if err := json.Unmarshal(raw, &snapshot); err != nil {
+		return nil, fmt.Errorf("decode review criteria: %w", err)
+	}
+	criteria := make(map[string]struct{}, len(snapshot.AcceptanceCriteria))
+	for _, criterion := range snapshot.AcceptanceCriteria {
+		if id := strings.TrimSpace(criterion.ID); id != "" {
+			criteria[id] = struct{}{}
+		}
+	}
+	return criteria, nil
+}
+
+func validateRoundEvidence(evidence []EvidenceItem, criteria map[string]struct{}) error {
+	for _, item := range evidence {
+		if strings.TrimSpace(item.ID) == "" || strings.TrimSpace(string(item.Type)) == "" || strings.TrimSpace(item.Title) == "" || strings.TrimSpace(item.Producer) == "" || strings.TrimSpace(item.Trust) == "" {
+			return fmt.Errorf("review evidence must include id, type, title, producer, and trust")
+		}
+		switch item.Settlement {
+		case "settled", "refuted":
+		case "unavailable":
+			if strings.TrimSpace(item.UnavailableReason) == "" || strings.TrimSpace(item.AttemptedProducer) == "" {
+				return fmt.Errorf("unavailable review evidence must include unavailable_reason and attempted_producer")
+			}
+		default:
+			return fmt.Errorf("review evidence has invalid settlement %q", item.Settlement)
+		}
+		if criterionID := strings.TrimSpace(item.CriterionID); criterionID != "" {
+			if _, ok := criteria[criterionID]; !ok {
+				return fmt.Errorf("review evidence references unknown criterion %q", criterionID)
+			}
+		}
+	}
+	return nil
+}
+
+func validateCriterionVerdicts(verdicts []CriterionVerdict, criteria map[string]struct{}, evidence []EvidenceItem) error {
+	if len(criteria) == 0 && len(verdicts) == 0 {
+		return nil
+	}
+	if len(verdicts) != len(criteria) {
+		return fmt.Errorf("review result must include one criterion verdict for every acceptance criterion")
+	}
+	evidenceIDs := make(map[string]struct{}, len(evidence))
+	for _, item := range evidence {
+		evidenceIDs[item.ID] = struct{}{}
+	}
+	seen := make(map[string]struct{}, len(verdicts))
+	for _, verdict := range verdicts {
+		if _, ok := criteria[strings.TrimSpace(verdict.CriterionID)]; !ok {
+			return fmt.Errorf("review verdict references unknown criterion %q", verdict.CriterionID)
+		}
+		switch verdict.Settlement {
+		case "settled", "refuted", "unavailable":
+		default:
+			return fmt.Errorf("review criterion verdict has invalid settlement %q", verdict.Settlement)
+		}
+		if len(verdict.EvidenceIDs) == 0 {
+			return fmt.Errorf("review criterion verdict %q must reference evidence", verdict.CriterionID)
+		}
+		for _, evidenceID := range verdict.EvidenceIDs {
+			if _, ok := evidenceIDs[evidenceID]; !ok {
+				return fmt.Errorf("review criterion verdict %q references unknown evidence %q", verdict.CriterionID, evidenceID)
+			}
+		}
+		seen[verdict.CriterionID] = struct{}{}
+	}
+	if len(seen) != len(criteria) {
+		return fmt.Errorf("review result must include unique verdicts for every acceptance criterion")
+	}
 	return nil
 }
 
@@ -194,7 +299,7 @@ func (s *Service) applyEvidenceRequestOutcome(_ context.Context, subject string,
 		return err
 	}
 	itemDir := s.resolveItemDir(kind, name)
-	round, err := LoadRound(itemDir, roundNum)
+	round, err := readRound(itemDir, roundNum)
 	if err != nil || round == nil {
 		return fmt.Errorf("load review round: %w", err)
 	}
@@ -207,7 +312,7 @@ func (s *Service) applyEvidenceRequestOutcome(_ context.Context, subject string,
 			}
 			_ = json.Unmarshal(outcome.Result, &result)
 			if strings.TrimSpace(result.Summary) == "" {
-				result.Summary = firstNonEmptyString(outcome.TerminalCode, "Evidence request did not complete.")
+				result.Summary = stringsx.FirstNonEmpty(outcome.TerminalCode, "Evidence request did not complete.")
 			}
 			round.Evidence = append(round.Evidence, result.Evidence...)
 			ids := make([]string, 0, len(result.Evidence))
@@ -220,7 +325,7 @@ func (s *Service) applyEvidenceRequestOutcome(_ context.Context, subject string,
 			if outcome.Name == "fulfilled" {
 				thread.Status = "fulfilled"
 			}
-			return SaveRound(itemDir, *round)
+			return saveRound(itemDir, *round)
 		}
 	}
 	return fmt.Errorf("review thread %q not found", threadID)

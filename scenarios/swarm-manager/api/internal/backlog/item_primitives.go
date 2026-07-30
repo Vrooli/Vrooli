@@ -19,21 +19,22 @@ type ItemAttacher interface {
 // by both the HTTP PATCH handler and the proposals.OpUpdateItem path, so
 // adding a new updatable field requires touching exactly one place.
 type ItemPatch struct {
-	Title           *string
-	Description     *string
-	Status          *string
-	Priority        *int
-	Tags            *[]string
-	DependsOn       *[]string
-	Milestone       *string
-	Effort          *string
-	AcceptanceAllow *[]string
-	AcceptanceDeny  *[]string
-	Creates         *[]string
-	SpawnedFrom     *string
-	PlanRef         *PlanRef
-	PlanRefSet      bool
-	Note            *string
+	Title              *string
+	Description        *string
+	Status             *string
+	Priority           *int
+	Tags               *[]string
+	DependsOn          *[]string
+	Milestone          *string
+	Effort             *string
+	AcceptanceAllow    *[]string
+	AcceptanceDeny     *[]string
+	AcceptanceCriteria *[]Criterion
+	Creates            *[]string
+	SpawnedFrom        *string
+	PlanRef            *PlanRef
+	PlanRefSet         bool
+	Note               *string
 }
 
 // ApplyItemPatch mutates item in-place according to patch. Callers remain
@@ -44,6 +45,7 @@ type ItemPatch struct {
 func ApplyItemPatch(item *BacklogItem, patch ItemPatch) {
 	contractChanged := patch.Title != nil || patch.Description != nil ||
 		patch.AcceptanceAllow != nil || patch.AcceptanceDeny != nil ||
+		patch.AcceptanceCriteria != nil ||
 		patch.Creates != nil || patch.PlanRefSet
 	if patch.Title != nil {
 		item.Title = strings.TrimSpace(*patch.Title)
@@ -74,6 +76,9 @@ func ApplyItemPatch(item *BacklogItem, patch ItemPatch) {
 	}
 	if patch.AcceptanceDeny != nil {
 		item.AcceptanceDeny = cloneStrings(*patch.AcceptanceDeny)
+	}
+	if patch.AcceptanceCriteria != nil {
+		item.AcceptanceCriteria = NormalizeCriteria(item.AcceptanceCriteria, *patch.AcceptanceCriteria)
 	}
 	if patch.Creates != nil {
 		item.Creates = cloneStrings(*patch.Creates)

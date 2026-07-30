@@ -3,8 +3,12 @@ package goals
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
+	"time"
 
+	"swarm-manager/internal/attempt"
+	"swarm-manager/internal/attemptstore"
 	"swarm-manager/internal/storage"
 	"swarm-manager/internal/transitionrunner"
 
@@ -102,13 +106,45 @@ func (h *Handler) applyGoalOutcome(ctx context.Context, goalName, milestone stri
 		return nil
 	}
 	if milestone != "" && result.Outcome == "delivered" {
-		if _, err := h.service.MarkMilestoneDelivered(goalName, milestone); err != nil {
+		if _, err := h.service.MarkMilestoneDeliveredWithVerdicts(goalName, milestone, result.CriterionVerdicts); err != nil {
 			return err
 		}
+	}
+	if err := h.saveWorkflowAttempt(goalName, milestone, outcome, result); err != nil {
+		return err
 	}
 	receipt, err := h.proposalRecorder.RecordGoalWorkflowProposals(ctx, GoalWorkflowProposal{GoalName: goalName, GoalVersion: outcome.EntityVersion, Title: outcome.TransitionKey + " for " + goal.Goal.Title, Summary: result.Summary, ExecutionID: outcome.ExecutionID, WorkflowKey: outcome.TransitionKey, Payloads: result.Payloads})
 	if err != nil {
 		return err
 	}
 	return storage.WriteJSONAtomic(h.transitionReceiptPath(goalName, outcome.ExecutionID), newGoalTransitionReceipt(outcome.ExecutionID, receipt))
+}
+
+func (h *Handler) saveWorkflowAttempt(goalName, milestone string, outcome transitionrunner.Outcome, result decodedWorkflowResult) error {
+	// Execution identity is storage provenance, not payload lifecycle state. It
+	// makes replay after a crash idempotent while Attempt itself remains a pure
+	// projection joined with transitionrun at read time.
+	relativeDir := filepath.Join("attempts", outcome.TransitionKey)
+	if milestone != "" {
+		relativeDir = filepath.Join(relativeDir, milestone)
+	}
+	relativeDir = filepath.Join(relativeDir, outcome.ExecutionID)
+	root := h.service.GoalDir(goalName)
+	round, err := attemptstore.NextRoundNumber(root, relativeDir)
+	if err != nil {
+		return err
+	}
+	proposals := make([]attempt.Proposal, 0, len(result.Payloads))
+	for index, payload := range result.Payloads {
+		proposals = append(proposals, attempt.Proposal{ID: fmt.Sprintf("proposal-%d", index+1), Type: "workflow_proposal", Payload: payload})
+	}
+	subjectKind, subjectRef := "goal", goalName
+	if milestone != "" {
+		subjectKind, subjectRef = "milestone", goalName+"/"+milestone
+	}
+	return attemptstore.SaveRound(root, relativeDir, attempt.Attempt{
+		SubjectKind: subjectKind, SubjectRef: subjectRef, TransitionKey: outcome.TransitionKey,
+		RoundNum: round, Status: "complete", GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+		Assessment: result.Summary, Verdict: result.Outcome, Evidence: result.Evidence, Proposals: proposals,
+	})
 }

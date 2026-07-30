@@ -9,6 +9,7 @@ type reviewHandoff struct {
 	Verdict                string                  `json:"verdict"`
 	AgentAssessment        string                  `json:"agent_assessment"`
 	Evidence               []EvidenceItem          `json:"evidence"`
+	CriterionVerdicts      []CriterionVerdict      `json:"criterion_verdicts"`
 	ImprovementSuggestions []ImprovementSuggestion `json:"improvement_suggestions"`
 	RegressionIntroduced   bool                    `json:"regression_introduced"`
 	Notes                  []string                `json:"notes"`
@@ -41,6 +42,9 @@ func applyReviewHandoff(round *Round, handoff reviewHandoff) {
 	round.RegressionIntroduced = handoff.RegressionIntroduced
 	if len(handoff.Evidence) > 0 {
 		round.Evidence = handoff.Evidence
+	}
+	if handoff.CriterionVerdicts != nil {
+		round.CriterionVerdicts = handoff.CriterionVerdicts
 	}
 	if round.Evidence == nil {
 		round.Evidence = []EvidenceItem{}
@@ -95,17 +99,8 @@ func reviewAbstainReason(outcome string) string {
 	return "review agent could not derive an honest verdict; round abstained to operator attention"
 }
 
-func firstNonEmptyString(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return strings.TrimSpace(value)
-		}
-	}
-	return ""
-}
-
 func FindGatheringRoundByRunID(itemDir, runID string) (*Round, error) {
-	rounds, err := LoadRounds(itemDir)
+	rounds, err := readRounds(itemDir)
 	if err != nil {
 		return nil, err
 	}

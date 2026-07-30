@@ -5,7 +5,7 @@
 import type {
   BacklogItem as ProtoBacklogItem,
 } from "@vrooli/proto-types/swarm-manager/v1/domain/backlog_pb";
-import type { BacklogFile as ProtoBacklogFile } from "@vrooli/proto-types/swarm-manager/v1/shared/backlog_pb";
+import type { BacklogCriterion, BacklogFile as ProtoBacklogFile } from "@vrooli/proto-types/swarm-manager/v1/shared/backlog_pb";
 import type { ProtoMessage } from "./shared";
 import type { PlanRef } from "./shared";
 import type { AgentSessionAttribution } from "./agent-session";
@@ -35,7 +35,7 @@ export type BacklogKind = "idea" | "research" | "fix" | "execute" | "chore";
 /**
  * A backlog item represents a unit of work for the swarm.
  */
-export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind" | "dependsOn" | "milestone" | "acceptanceAllow" | "acceptanceDeny" | "creates" | "createdBy" | "stale"> & {
+export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind" | "dependsOn" | "milestone" | "acceptanceAllow" | "acceptanceDeny" | "acceptanceCriteria" | "creates" | "createdBy" | "stale"> & {
   /** Current lifecycle state */
   status: BacklogStatus;
   /** ISO timestamp when the item was archived, or undefined if not archived. */
@@ -50,6 +50,8 @@ export type BacklogItem = Omit<ProtoMessage<ProtoBacklogItem>, "status" | "kind"
   acceptanceAllow?: string[];
   /** Glob patterns for forbidden file modifications. */
   acceptanceDeny?: string[];
+  /** Stable, criterion-bound definition of done. Absent on legacy items. */
+  acceptanceCriteria?: BacklogCriterion[];
   /** Glob patterns for paths the work plans to create (forward-looking acceptance). */
   creates?: string[];
   /** Verified provenance for the actor/session that created this item. */

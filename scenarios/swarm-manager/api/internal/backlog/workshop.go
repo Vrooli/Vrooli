@@ -16,11 +16,11 @@ type (
 )
 
 func LoadWorkshopRounds(itemDir string) ([]WorkshopRound, error) {
-	return workshop.LoadRounds(itemDir)
+	return workshop.ReadRounds(itemDir)
 }
 
-func LoadLatestRound(itemDir string) (*WorkshopRound, int, error) {
-	return workshop.LoadLatestRound(itemDir)
+func LoadLatestWorkshopRound(itemDir string) (*WorkshopRound, int, error) {
+	return workshop.ReadLatestRound(itemDir)
 }
 
 func HasPlanByName(itemDir, filename string) bool {

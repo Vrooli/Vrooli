@@ -228,7 +228,7 @@ func (s *Service) inspectRunningRecordsLocked(_ context.Context, records []Recor
 		if strings.TrimSpace(record.OpExecutionID) != "" {
 			continue
 		}
-		if strings.TrimSpace(record.AgentWorkflowExecutionID) != "" {
+		if _, err := s.transitionCorrelation(*record); err == nil {
 			continue
 		}
 		s.markRunFailed(record, "record has no operation correlation; the legacy poll driver was removed after the state migration",

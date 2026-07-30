@@ -2,7 +2,9 @@ package backlog
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -10,6 +12,7 @@ import (
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
+	sharedpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared"
 	"swarm-manager/cli/internal/support"
 )
 
@@ -21,6 +24,7 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			listCommand(),
 			support.APICommand("pending-questions", "List pending independent-review questions [--source review] [--limit N] [--milestone NAME] [--brief]", deps.BacklogPendingQuestions),
 			getCommand(),
+			criteriaSetCommand(),
 			support.APICommand("create", "Create a backlog item (--data JSON)", deps.BacklogCreate),
 			support.APICommand("update", "Update a backlog item (--kind KIND --name NAME --data JSON)", deps.BacklogUpdate),
 			deleteCommand(),
@@ -37,12 +41,69 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			support.APICommand("batch-queue", "Batch queue backlog items (--items kind/name,kind/name [--execute] [--force] [--mode MODE])", deps.BacklogBatchQueue),
 			support.APICommand("export", "Export backlog items to markdown for offline editing", deps.BacklogExport),
 			support.APICommand("import", "Import edited markdown back into the backlog (--file FILE)", deps.BacklogImport),
-			support.APICommand("review-decide", "Decide the terminal status of a review_pending item (--kind KIND --name NAME --accept|--fail|--followup [--rationale MSG])", deps.BacklogReviewDecide),
+			reviewDecideCommand(),
 			support.APICommand("recover-review", "Recover an item stranded in_review with no live review round → review_pending (default) or backlog (--kind KIND --name NAME [--to review_pending|backlog] [--rationale MSG])", deps.BacklogRecoverReview),
 			support.APICommand("retry", "Re-dispatch the latest terminal execution as a NEW attempt (--kind KIND --name NAME [--note MSG])", deps.BacklogRetry),
 			support.APICommand("search-ai", "Semantic search over backlog items (<query> [--limit N] [--kind K,...] [--status S,...] [--milestone N] [--include-archived] [--json])", deps.BacklogSearchAI),
 		},
 	}
+}
+
+func reviewDecideCommand() cliapp.Command {
+	cmd := cliapp.Command{Name: "review-decide", NeedsAPI: true, Description: "Decide review (--kind KIND --name NAME --round N --decided-by ACTOR --accept|--fail|--drop|--followup [--rationale MSG])", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "kind", Required: true}, {Name: "name", Required: true}, {Name: "round", Required: true}, {Name: "decided-by", Required: true}, {Name: "accept", Bool: true}, {Name: "fail", Bool: true}, {Name: "drop", Bool: true}, {Name: "followup", Bool: true}, {Name: "steering"}, {Name: "disposition", Values: []string{"follow_up_run", "replan", "new_items"}}, {Name: "rationale"}}}}
+	return cmd.WithPrimitive(cliapp.ProtoMutation(
+		func(op cliapp.OperationContext) (*apipb.DecideAttemptResponse, error) {
+			decision := ""
+			for _, candidate := range []string{"accept", "fail", "drop", "followup"} {
+				if op.Flag(candidate) == "true" {
+					if decision != "" {
+						return nil, fmt.Errorf("exactly one decision flag is required")
+					}
+					decision = candidate
+				}
+			}
+			if decision == "" {
+				return nil, fmt.Errorf("exactly one decision flag is required")
+			}
+			kind, name := strings.TrimSpace(op.Flag("kind")), strings.TrimSpace(op.Flag("name"))
+			round, err := strconv.ParseUint(strings.TrimSpace(op.Flag("round")), 10, 32)
+			if err != nil || round == 0 {
+				return nil, fmt.Errorf("--round must be a positive integer")
+			}
+			req := &apipb.DecideAttemptRequest{SubjectKind: "backlog-item", SubjectRef: kind + "/" + name, RoundNum: uint32(round), Actor: strings.TrimSpace(op.Flag("decided-by")), Decision: decision, Rationale: strings.TrimSpace(op.Flag("rationale"))}
+			if decision == "followup" {
+				req.FollowUp = &apipb.ReviewFollowUp{Steering: strings.TrimSpace(op.Flag("steering")), Disposition: strings.TrimSpace(op.Flag("disposition"))}
+			}
+			response, err := backlogClient(op).DecideAttempt(context.Background(), connect.NewRequest(req))
+			if err != nil {
+				return nil, err
+			}
+			return response.Msg, nil
+		},
+		func(_ cliapp.OperationContext, response *apipb.DecideAttemptResponse) cliapp.MutationReport {
+			return cliapp.MutationReport{Result: []string{fmt.Sprintf("Review %s: %s", response.GetDecision(), response.GetStatus())}}
+		},
+	))
+}
+
+func criteriaSetCommand() cliapp.Command {
+	cmd := cliapp.Command{Name: "criteria-set", NeedsAPI: true, Description: "Replace typed acceptance criteria (--kind KIND --name NAME --criteria JSON)", Args: cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "kind", Description: "Backlog item kind", Required: true}, {Name: "name", Description: "Backlog item name", Required: true}, {Name: "criteria", Description: "JSON array of {gherkin,check?}", Required: true}}}}
+	return cmd.WithPrimitive(cliapp.ProtoMutation(
+		func(op cliapp.OperationContext) (*apipb.BacklogItemResponse, error) {
+			var criteria []*sharedpb.BacklogCriterion
+			if err := json.Unmarshal([]byte(op.Flag("criteria")), &criteria); err != nil {
+				return nil, fmt.Errorf("--criteria must be a JSON array of criteria: %w", err)
+			}
+			response, err := backlogClient(op).UpdateItem(context.Background(), connect.NewRequest(&apipb.UpdateItemRequest{Kind: strings.TrimSpace(op.Flag("kind")), Name: strings.TrimSpace(op.Flag("name")), Fields: []string{"acceptance_criteria"}, Patch: &apipb.UpdateBacklogItemRequest{AcceptanceCriteria: criteria}}))
+			if err != nil {
+				return nil, err
+			}
+			return response.Msg, nil
+		},
+		func(_ cliapp.OperationContext, response *apipb.BacklogItemResponse) cliapp.MutationReport {
+			return cliapp.MutationReport{Result: []string{fmt.Sprintf("Stored %d acceptance criteria.", len(response.GetItem().GetAcceptanceCriteria()))}}
+		},
+	))
 }
 
 func listCommand() cliapp.Command {
@@ -141,6 +202,9 @@ func getCommand() cliapp.Command {
 			}
 			if len(item.GetTags()) > 0 {
 				rows = append(rows, "Tags: "+strings.Join(item.GetTags(), ", "))
+			}
+			for _, criterion := range item.GetAcceptanceCriteria() {
+				rows = append(rows, fmt.Sprintf("Criterion [%s]: %s", criterion.GetId(), criterion.GetGherkin()))
 			}
 			return cliapp.ListReport{Summary: []string{fmt.Sprintf("%s/%s — %s", item.GetKind(), item.GetName(), item.GetTitle())}, ResultsHeading: "Details", Results: rows}
 		},

@@ -34,19 +34,20 @@ func TestScenarioSpecSyncWorkflow_QueuesAndAppliesExactlyOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if started.AgentWorkflowKey != "swarm-manager/scenario-spec-sync" || started.OpExecutionID != "" {
+	correlation := workflowCorrelationFor(t, service, started)
+	if correlation.WorkflowKey != "swarm-manager/scenario-spec-sync" || started.OpExecutionID != "" {
 		t.Fatalf("expected workflow-backed spec sync, got %#v", started)
 	}
 	output, err := structpb.NewValue(map[string]any{"result": map[string]any{"outcome": "synced", "summary": "synced"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	workflow.completion = agentmanager.InvocationCompletion{ExecutionID: started.AgentWorkflowExecutionID, DefinitionDigest: started.AgentWorkflowDefinition, Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Input: workflow.invocation.Input, Output: output}
+	workflow.completion = agentmanager.InvocationCompletion{ExecutionID: correlation.ExecutionID, DefinitionDigest: correlation.DefinitionDigest, Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Input: workflow.invocation.Input, Output: output}
 	first, err := service.ApplySpecSyncWorkflow(context.Background(), started.ExecutionID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if first.Idempotent || first.Record.Status != StatusCompleted || transitionApplyStateFor(t, service, first.Record.AgentWorkflowExecutionID) != transitionrun.ApplyStateComplete {
+	if first.Idempotent || first.Record.Status != StatusCompleted || transitionApplyStateFor(t, service, correlation.ExecutionID) != transitionrun.ApplyStateComplete {
 		t.Fatalf("unexpected first apply: %#v", first)
 	}
 	if archiver.calls != 1 {

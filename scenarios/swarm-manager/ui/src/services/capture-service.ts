@@ -11,11 +11,10 @@ import type { IApiClient } from "../lib/api-client";
 import { defaultApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
 import type { Capture, CaptureClassification, CaptureFailureReason } from "../types";
+import { transitionService, type ITransitionService } from "./transition-service";
 
 export interface ClassifyResponse {
   workflowExecutionId: string;
-  workflowDefinitionDigest: string;
-  created: string;
 }
 
 export interface CreateCaptureResponse {
@@ -63,7 +62,10 @@ function mapCapture(raw: Record<string, unknown>): Capture {
   };
 }
 
-export function createCaptureService(apiClient: IApiClient = defaultApiClient): ICaptureService {
+export function createCaptureService(
+  apiClient: IApiClient = defaultApiClient,
+  transitions: ITransitionService = transitionService,
+): ICaptureService {
   return {
     async list(): Promise<Capture[]> {
       const data = await apiClient.get<{ captures: Record<string, unknown>[] }>(API_ENDPOINTS.captures);
@@ -100,23 +102,15 @@ export function createCaptureService(apiClient: IApiClient = defaultApiClient): 
     },
 
     async classify(id: string): Promise<ClassifyResponse> {
-      const data = await apiClient.post<{
-        workflow_execution_id: string;
-        workflow_definition_digest: string;
-        created: string;
-      }>(API_ENDPOINTS.captureClassify(id), {});
+      const data = await transitions.start("capture.classify", id);
       return {
-        workflowExecutionId: data.workflow_execution_id,
-        workflowDefinitionDigest: data.workflow_definition_digest,
-        created: data.created,
+        workflowExecutionId: data.executionId,
       };
     },
 
     async applyClassification(id: string, executionId: string): Promise<Capture> {
-      const data = await apiClient.post<{ capture: Record<string, unknown> }>(
-        API_ENDPOINTS.captureClassificationApply(id, executionId),
-        {},
-      );
+      await transitions.apply("capture.classify", executionId);
+      const data = await apiClient.get<{ capture: Record<string, unknown> }>(API_ENDPOINTS.captureById(id));
       return mapCapture(data.capture);
     },
 

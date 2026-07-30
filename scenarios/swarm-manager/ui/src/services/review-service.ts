@@ -7,6 +7,10 @@
 
 import { defaultApiClient, type IApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
+import { createClient } from "@connectrpc/connect";
+import { createConnectTransport } from "@connectrpc/connect-web";
+import { BacklogService } from "@vrooli/proto-types/swarm-manager/v1/api/backlog_pb";
+import { API_BASE } from "../lib/api-client";
 
 // --- Types ---
 
@@ -28,7 +32,12 @@ export interface EvidenceTestResult {
 
 export interface EvidenceItem {
   id: string;
+  criterion_id?: string;
   type: EvidenceType;
+  producer?: string;
+  trust?: string;
+  settlement?: "settled" | "refuted" | "unavailable" | "pending";
+  unavailable_reason?: string;
   title: string;
   description: string;
   capture_path?: string;
@@ -81,6 +90,8 @@ export interface IReviewService {
     evidenceId: string,
     verified: boolean,
     executionId?: string,
+	actor?: string,
+	reason?: string,
   ): Promise<void>;
   requestMoreEvidence(
     kind: string,
@@ -106,8 +117,15 @@ export interface IReviewService {
   getCaptureUrl(kind: string, name: string, capturePath: string): string;
 }
 
+function defaultVerificationClient() {
+  return createClient(BacklogService, createConnectTransport({ baseUrl: API_BASE }));
+}
+
+export type ReviewVerificationClient = Pick<ReturnType<typeof defaultVerificationClient>, "verifyAttemptEvidence">;
+
 export function createReviewService(
   apiClient: IApiClient = defaultApiClient,
+  verificationClient: ReviewVerificationClient = defaultVerificationClient(),
 ): IReviewService {
   return {
     async listRounds(kind, name) {
@@ -117,11 +135,17 @@ export function createReviewService(
       return data.rounds ?? [];
     },
 
-    async verifyEvidence(kind, name, round, evidenceId, verified, executionId) {
-      await apiClient.post(
-        API_ENDPOINTS.reviewVerify(kind, name, round, evidenceId),
-        { verified, execution_id: executionId },
-      );
+    async verifyEvidence(kind, name, round, evidenceId, verified, executionId, actor, reason) {
+		void executionId; // Attempt correlation is resolved server-side.
+      await verificationClient.verifyAttemptEvidence({
+        subjectKind: "backlog-item",
+        subjectRef: `${kind}/${name}`,
+        roundNum: round,
+        evidenceId,
+        verified,
+        actor: actor?.trim() ?? "",
+        reason: reason?.trim() ?? "",
+      });
     },
 
     async requestMoreEvidence(kind, name, round, message, evidenceId) {

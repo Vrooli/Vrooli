@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"swarm-manager/internal/httputil"
+
 	"github.com/gorilla/mux"
 )
 
@@ -15,11 +17,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/plan-workshops/{id}", h.Get).Methods(http.MethodGet)
 	// Deprecated transition aliases: use TransitionService.StartTransition/ApplyTransition.
 	r.HandleFunc("/api/v1/plan-workshops/{id}/review", h.StartReview).Methods(http.MethodPost)
-	r.HandleFunc("/api/v1/plan-workshops/{id}/review/apply", h.ApplyReview).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/plan-workshops/{id}/responses", h.SubmitResponse).Methods(http.MethodPost)
-	r.HandleFunc("/api/v1/plan-workshops/{id}/responses/{responseID}/reconciliation/apply", h.ApplyReconciliation).Methods(http.MethodPost)
-	r.HandleFunc("/api/v1/plan-workshops/{id}/responses/{responseID}/candidate/apply", h.ApplyCandidate).Methods(http.MethodPost)
-	r.HandleFunc("/api/v1/plan-workshops/{id}/responses/{responseID}/candidate/discard", h.DiscardCandidate).Methods(http.MethodPost)
 }
 
 func (h *Handler) StartReview(w http.ResponseWriter, r *http.Request) {
@@ -28,7 +26,7 @@ func (h *Handler) StartReview(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, struct {
+	_ = httputil.JSONWithStatus(w, http.StatusOK, struct {
 		Session Session   `json:"session"`
 		Review  ReviewRun `json:"review"`
 	}{session, review})
@@ -40,7 +38,7 @@ func (h *Handler) ApplyReview(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, struct {
+	_ = httputil.JSONWithStatus(w, http.StatusOK, struct {
 		Session Session   `json:"session"`
 		Review  ReviewRun `json:"review"`
 	}{session, review})
@@ -52,7 +50,7 @@ func (h *Handler) ApplyReconciliation(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, struct {
+	_ = httputil.JSONWithStatus(w, http.StatusOK, struct {
 		Session    Session    `json:"session"`
 		Resolution Resolution `json:"resolution"`
 	}{session, resolution})
@@ -71,7 +69,7 @@ func (h *Handler) ApplyCandidate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, struct {
+	_ = httputil.JSONWithStatus(w, http.StatusOK, struct {
 		Session    Session    `json:"session"`
 		Resolution Resolution `json:"resolution"`
 	}{session, resolution})
@@ -90,7 +88,7 @@ func (h *Handler) DiscardCandidate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, struct {
+	_ = httputil.JSONWithStatus(w, http.StatusOK, struct {
 		Session    Session    `json:"session"`
 		Resolution Resolution `json:"resolution"`
 	}{session, resolution})
@@ -110,7 +108,7 @@ func (h *Handler) Open(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, session)
+	_ = httputil.JSONWithStatus(w, http.StatusOK, session)
 }
 
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
@@ -119,7 +117,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "plan workshop not found")
 		return
 	}
-	writeJSON(w, http.StatusOK, session)
+	_ = httputil.JSONWithStatus(w, http.StatusOK, session)
 }
 
 func (h *Handler) SubmitResponse(w http.ResponseWriter, r *http.Request) {
@@ -133,18 +131,12 @@ func (h *Handler) SubmitResponse(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, struct {
+	_ = httputil.JSONWithStatus(w, http.StatusOK, struct {
 		Session    Session    `json:"session"`
 		Resolution Resolution `json:"resolution"`
 	}{session, resolution})
 }
 
-func writeJSON(w http.ResponseWriter, status int, value any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(value)
-}
-
 func writeError(w http.ResponseWriter, status int, message string) {
-	writeJSON(w, status, map[string]string{"error": message})
+	_ = httputil.JSONWithStatus(w, status, map[string]string{"error": message})
 }

@@ -294,7 +294,7 @@ func (s *Service) QueueSpecSyncArchive(ctx context.Context, ac ArchiveContext) (
 
 	// The declared workflow owns the spec-sync agent work. Swarm retains the
 	// archive capability and applies a matching typed terminal result explicitly.
-	res, snapshot, err := s.startSpecSyncWorkflow(ctx, record)
+	res, _, err := s.startSpecSyncWorkflow(ctx, record)
 	if err != nil {
 		return Record{}, wrapAgentError(err)
 	}
@@ -303,10 +303,6 @@ func (s *Service) QueueSpecSyncArchive(ctx context.Context, ac ArchiveContext) (
 	}
 	record.RunID = res.RunID
 	record.TaskID = res.ExecutionID
-	record.AgentWorkflowExecutionID = res.ExecutionID
-	record.AgentWorkflowKey = snapshot.WorkflowKey
-	record.AgentWorkflowDefinition = res.DefinitionDigest
-	record.AgentWorkflowEntityVersion = snapshot.EntityVersion
 	record.StartedAt = nowRFC3339()
 	record.Status = StatusStarting
 	record.UpdatedAt = nowRFC3339()

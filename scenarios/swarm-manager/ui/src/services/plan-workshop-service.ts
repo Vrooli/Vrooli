@@ -1,5 +1,7 @@
 import { defaultApiClient, type IApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
+import { transitionService, type ITransitionService } from "./transition-service";
+import { createAttemptDecisionService, type IAttemptDecisionService } from "./review-decision-service";
 
 export type PlanWorkshopSubject = {
   kind: "backlog_item";
@@ -36,6 +38,7 @@ export type PlanWorkshopResolution = {
   response_id: string;
   state: "direct_applied" | "reconciliation_required" | "candidate_ready" | "candidate_applied" | "candidate_discarded" | "needs_attention" | "stale" | "pending" | "integration_unavailable";
   reconciliation_id?: string;
+  workflow?: { execution_id?: string; run_id?: string; started_at?: string };
   applied_at?: string;
   error?: string;
   candidate?: {
@@ -93,7 +96,11 @@ export interface IPlanWorkshopService {
   unacceptPlan(kind: string, name: string): Promise<void>;
 }
 
-export function createPlanWorkshopService(apiClient: IApiClient = defaultApiClient): IPlanWorkshopService {
+export function createPlanWorkshopService(
+  apiClient: IApiClient = defaultApiClient,
+  transitions: ITransitionService = transitionService,
+  decisions: IAttemptDecisionService = createAttemptDecisionService(),
+): IPlanWorkshopService {
   return {
     open(subject, packet) {
       return apiClient.post<PlanWorkshopSession>(API_ENDPOINTS.planWorkshops, {
@@ -107,20 +114,56 @@ export function createPlanWorkshopService(apiClient: IApiClient = defaultApiClie
     startReview(id) {
       return apiClient.post<{ session: PlanWorkshopSession; review: PlanWorkshopReviewRun }>(API_ENDPOINTS.planWorkshopReview(id), {});
     },
-    applyReview(id) {
-      return apiClient.post<{ session: PlanWorkshopSession; review: PlanWorkshopReviewRun }>(API_ENDPOINTS.planWorkshopReviewApply(id), {});
+    async applyReview(id) {
+      const session = await apiClient.get<PlanWorkshopSession>(API_ENDPOINTS.planWorkshopById(id));
+      const executionId = session.review?.workflow?.execution_id;
+      if (!executionId) throw new Error("Plan workshop review has no transition execution.");
+      await transitions.apply("plan.workshop.review", executionId);
+      const updated = await apiClient.get<PlanWorkshopSession>(API_ENDPOINTS.planWorkshopById(id));
+      if (!updated.review) throw new Error("Plan workshop review disappeared after transition application.");
+      return { session: updated, review: updated.review };
     },
     submitResponse(id, response) {
       return apiClient.post<{ session: PlanWorkshopSession; resolution: PlanWorkshopResolution }>(API_ENDPOINTS.planWorkshopResponses(id), response);
     },
-    applyReconciliation(id, responseId) {
-      return apiClient.post<{ session: PlanWorkshopSession; resolution: PlanWorkshopResolution }>(API_ENDPOINTS.planWorkshopReconciliationApply(id, responseId), {});
+    async applyReconciliation(id, responseId) {
+      const session = await apiClient.get<PlanWorkshopSession>(API_ENDPOINTS.planWorkshopById(id));
+      const resolution = session.resolutions?.find((candidate) => candidate.response_id === responseId);
+      const executionId = resolution?.workflow?.execution_id;
+      if (!executionId) throw new Error("Plan workshop reconciliation has no transition execution.");
+      await transitions.apply("plan.workshop.reconcile", executionId);
+      const updated = await apiClient.get<PlanWorkshopSession>(API_ENDPOINTS.planWorkshopById(id));
+      const updatedResolution = updated.resolutions?.find((candidate) => candidate.response_id === responseId);
+      if (!updatedResolution) throw new Error("Plan workshop reconciliation disappeared after transition application.");
+      return { session: updated, resolution: updatedResolution };
     },
-    applyCandidate(id, responseId) {
-      return apiClient.post<{ session: PlanWorkshopSession; resolution: PlanWorkshopResolution }>(API_ENDPOINTS.planWorkshopCandidateApply(id, responseId), { acknowledge_quality_impact: true });
+    async applyCandidate(id, responseId) {
+      await decisions.decide({
+        subjectKind: "plan-workshop-candidate",
+        subjectRef: `${id}/${responseId}`,
+        roundNum: 1,
+        decision: "accept",
+        actor: "operator-ui",
+        rationale: "Candidate accepted after review.",
+      });
+      const session = await apiClient.get<PlanWorkshopSession>(API_ENDPOINTS.planWorkshopById(id));
+      const resolution = session.resolutions?.find((candidate) => candidate.response_id === responseId);
+      if (!resolution) throw new Error("Plan workshop candidate disappeared after decision.");
+      return { session, resolution };
     },
-    discardCandidate(id, responseId, reason) {
-      return apiClient.post<{ session: PlanWorkshopSession; resolution: PlanWorkshopResolution }>(API_ENDPOINTS.planWorkshopCandidateDiscard(id, responseId), { reason: reason || "ignored by operator in Plan Workshop" });
+    async discardCandidate(id, responseId, reason) {
+      await decisions.decide({
+        subjectKind: "plan-workshop-candidate",
+        subjectRef: `${id}/${responseId}`,
+        roundNum: 1,
+        decision: "drop",
+        actor: "operator-ui",
+        rationale: reason || "Ignored by operator in Plan Workshop.",
+      });
+      const session = await apiClient.get<PlanWorkshopSession>(API_ENDPOINTS.planWorkshopById(id));
+      const resolution = session.resolutions?.find((candidate) => candidate.response_id === responseId);
+      if (!resolution) throw new Error("Plan workshop candidate disappeared after decision.");
+      return { session, resolution };
     },
     acceptPlan(kind, name, planContentHash) {
       return apiClient.post<{ plan_acceptance: { actor: string; accepted_at: string; plan_content_hash: string; subject_version: string } }>(API_ENDPOINTS.backlogPlanAccept(kind, name), {

@@ -159,9 +159,6 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/captures/{id}", h.Get).Methods("GET")
 	r.HandleFunc("/api/v1/captures/{id}", h.Update).Methods("PATCH")
 	r.HandleFunc("/api/v1/captures/{id}", h.Delete).Methods("DELETE")
-	// Deprecated transition aliases: use TransitionService.StartTransition/ApplyTransition.
-	r.HandleFunc("/api/v1/captures/{id}/classify", h.Classify).Methods("POST")
-	r.HandleFunc("/api/v1/captures/{id}/classify/{executionID}/apply", h.ApplyClassification).Methods("POST")
 	r.HandleFunc("/api/v1/captures/{id}/create-item", h.CreateItem).Methods("POST")
 }
 

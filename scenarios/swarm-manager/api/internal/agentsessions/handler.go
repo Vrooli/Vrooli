@@ -36,7 +36,6 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/refresh", h.Refresh).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/cancel", h.Cancel).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/apply", h.ApplyProposal).Methods(http.MethodPost)
-	r.HandleFunc("/api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/decide", h.DecideMutationProposal).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/accept-keep", h.AcceptNoChangeRecommendation).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/revise", h.ReviseMutationProposal).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/proposal-sessions", h.CreateProposalSession).Methods(http.MethodPost)
@@ -68,7 +67,7 @@ func (h *Handler) CreateProposalSession(w http.ResponseWriter, r *http.Request) 
 		apierr.MapError(w, "[agent-sessions] create proposal session", err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, session)
+	_ = httputil.JSONWithStatus(w, http.StatusCreated, session)
 }
 
 func (h *Handler) ListProposalSessions(w http.ResponseWriter, r *http.Request) {
@@ -93,7 +92,7 @@ func (h *Handler) ListProposalSessions(w http.ResponseWriter, r *http.Request) {
 		}
 		filtered = append(filtered, session)
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"sessions": filtered})
+	_ = httputil.JSONWithStatus(w, http.StatusOK, map[string]any{"sessions": filtered})
 }
 
 type mutationProposalDecisionRequest struct {
@@ -113,7 +112,7 @@ func (h *Handler) DecideMutationProposal(w http.ResponseWriter, r *http.Request)
 		apierr.MapError(w, "[agent-sessions] decide mutation proposal", err)
 		return
 	}
-	writeJSON(w, http.StatusOK, session)
+	_ = httputil.JSONWithStatus(w, http.StatusOK, session)
 }
 
 func (h *Handler) AcceptNoChangeRecommendation(w http.ResponseWriter, r *http.Request) {
@@ -128,7 +127,7 @@ func (h *Handler) AcceptNoChangeRecommendation(w http.ResponseWriter, r *http.Re
 		apierr.MapError(w, "[agent-sessions] accept no-change recommendation", err)
 		return
 	}
-	writeJSON(w, http.StatusOK, session)
+	_ = httputil.JSONWithStatus(w, http.StatusOK, session)
 }
 
 type mutationProposalRevisionRequest struct {
@@ -147,13 +146,7 @@ func (h *Handler) ReviseMutationProposal(w http.ResponseWriter, r *http.Request)
 		apierr.MapError(w, "[agent-sessions] revise mutation proposal", err)
 		return
 	}
-	writeJSON(w, http.StatusOK, session)
-}
-
-func writeJSON(w http.ResponseWriter, status int, value any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(value)
+	_ = httputil.JSONWithStatus(w, http.StatusOK, session)
 }
 
 func (h *Handler) StartupBrief(w http.ResponseWriter, r *http.Request) {

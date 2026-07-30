@@ -206,6 +206,7 @@
               ".vrooli/agent-manager/default.json",
               ".vrooli/agent-manager/deep-work.json",
               ".vrooli/agent-manager/analysis.json",
+              ".vrooli/agent-manager/review-evidence.json",
               ".vrooli/agent-manager/plan-workshop-review.json",
               ".vrooli/agent-manager/plan-workshop-reconcile.json",
               ".vrooli/agent-manager/plan-author.json",

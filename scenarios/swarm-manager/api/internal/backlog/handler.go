@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/attempt"
 	"swarm-manager/internal/dispatch"
 	"swarm-manager/internal/eventlog"
 	"swarm-manager/internal/pathutil"
@@ -101,26 +102,36 @@ type RecordCreator interface {
 // scenario source path used purely as a repo anchor (e.g. by
 // validate_globs.go to resolve `.vrooli/repo-contract.json`).
 type Handler struct {
-	dataRoot             string
-	repoRoot             string
-	store                Store
-	activityChecker      AgentActivityChecker
-	promptClient         promptmanager.Client
-	planClient           planclient.Client
-	milestoneAssigner    MilestoneAssigner
-	sessionArtifacts     sessionArtifactRecorder
-	executionQueuer      ExecutionQueuer
-	executionActivity    ExecutionActivityChecker
-	eventDispatcher      dispatch.Invalidator
-	eventLogger          EventLogger
-	itemTerminalHandler  ItemTerminalHandler
-	recordCreator        RecordCreator
-	reviewRoundInspector ReviewRoundInspector
-	transitionRunner     *transitionrunner.Runner
-	transitionRegistry   transitions.Registry
-	lifecycleService     *Service
-	decisionCount        DecisionCountProvider
-	followUpDispatcher   FollowUpDispatcher
+	dataRoot               string
+	repoRoot               string
+	store                  Store
+	activityChecker        AgentActivityChecker
+	promptClient           promptmanager.Client
+	planClient             planclient.Client
+	milestoneAssigner      MilestoneAssigner
+	sessionArtifacts       sessionArtifactRecorder
+	executionQueuer        ExecutionQueuer
+	executionActivity      ExecutionActivityChecker
+	eventDispatcher        dispatch.Invalidator
+	eventLogger            EventLogger
+	itemTerminalHandler    ItemTerminalHandler
+	recordCreator          RecordCreator
+	reviewRoundInspector   ReviewRoundInspector
+	reviewEvidenceVerifier ReviewEvidenceVerifier
+	transitionRunner       *transitionrunner.Runner
+	transitionRegistry     transitions.Registry
+	lifecycleService       *Service
+	decisionCount          DecisionCountProvider
+	followUpDispatcher     FollowUpDispatcher
+	attemptDecisionRouter  attempt.Decider
+}
+
+// ReviewEvidenceVerifier is the narrow review-domain mutation seam used by
+// the typed BacklogService transport. It keeps evidence verification out of
+// REST while preserving review as the owner of its round projection and ledger
+// event.
+type ReviewEvidenceVerifier interface {
+	VerifyEvidenceWithActor(ctx context.Context, kind, name string, roundNum int, evidenceID string, verified bool, executionID, actor, reason string) error
 }
 
 // DecisionCountProvider supplies cross-domain decisions (for example durable
@@ -139,6 +150,18 @@ type DecisionCountProvider interface {
 // ResolveNextAction. Passing nil restores backlog-only resolution.
 func (h *Handler) SetDecisionCountProvider(provider DecisionCountProvider) {
 	h.decisionCount = provider
+}
+
+// SetReviewEvidenceVerifier installs the review-owned evidence mutation seam.
+func (h *Handler) SetReviewEvidenceVerifier(verifier ReviewEvidenceVerifier) {
+	h.reviewEvidenceVerifier = verifier
+}
+
+// SetAttemptDecisionRouter installs cross-domain attempt decision adapters.
+// Backlog review remains locally owned; other subject kinds dispatch through
+// this seam from the single BacklogService.DecideAttempt RPC.
+func (h *Handler) SetAttemptDecisionRouter(router attempt.Decider) {
+	h.attemptDecisionRouter = router
 }
 
 // FollowUpDispatcher bridges an item-level recovery instruction to the
@@ -411,7 +434,6 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive-item", h.Archive).Methods("PATCH")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/archive-item", h.Unarchive).Methods("DELETE")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/queue", h.Queue).Methods("POST")
-	r.HandleFunc("/api/v1/backlog/{kind}/{name}/review-decide", h.ReviewDecide).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/follow-up/author", h.AuthorFollowUp).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/follow-up/dispatch", h.DispatchFollowUp).Methods("POST")
 	r.HandleFunc("/api/v1/backlog/{kind}/{name}/recover-review", h.RecoverReview).Methods("POST")

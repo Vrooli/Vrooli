@@ -87,6 +87,13 @@
           }
         },
         {
+          "name": "criteria-set",
+          "description": "Replace typed acceptance criteria (--kind KIND --name NAME --criteria JSON)",
+          "binding": {"kind": "connect-rpc", "service": "BacklogService", "method": "UpdateItem"},
+          "architecture": {"primitive": "proto_mutation"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
           "name": "create",
           "description": "Create a backlog item (--data JSON)",
           "binding": {
@@ -320,10 +327,13 @@
         },
         {
           "name": "review-decide",
-          "description": "Decide the terminal status of a review_pending item (--kind KIND --name NAME --accept|--fail|--followup [--rationale MSG])",
+          "description": "Decide review (--kind KIND --name NAME --round N --decided-by ACTOR --accept|--fail|--drop|--followup [--rationale MSG])",
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "BacklogService",
+            "method": "DecideAttempt"
           },
+          "architecture": {"primitive": "proto_mutation"},
           "governance": {
             "effect": "write",
             "run_eligible": true,
@@ -2564,6 +2574,11 @@
       "service": "BacklogService",
       "method": "GetItem",
       "reason": "Cross-scenario backlog contract RPC consumed by other scenarios' Connect clients (api/internal/backlog/connect_service.go); item retrieval is offered to operators via the hand-registered 'backlog get' command, not this raw contract method."
+    },
+    {
+      "service": "BacklogService",
+      "method": "VerifyAttemptEvidence",
+      "reason": "The operator-facing Connect RPC is exposed by the hand-registered 'review verify' command (cli/cmd_review.go); it is intentionally not duplicated as a raw manifest command."
     },
     {
       "service": "DiscoveryService",

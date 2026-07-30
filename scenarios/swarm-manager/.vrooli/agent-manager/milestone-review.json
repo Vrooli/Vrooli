@@ -69,6 +69,41 @@
             "minLength": 1,
             "maxLength": 16384
           },
+          "evidence": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {"type": "string", "minLength": 1},
+                "criterion_id": {"type": "string", "minLength": 1},
+                "type": {"type": "string", "minLength": 1},
+                "title": {"type": "string", "minLength": 1},
+                "description": {"type": "string", "minLength": 1},
+                "producer": {"type": "string", "minLength": 1},
+                "trust": {"type": "string", "enum": ["authoritative", "observed", "reported", "operator_verified"]},
+                "settlement": {"type": "string", "enum": ["settled", "refuted", "unavailable"]},
+                "unavailable_reason": {"type": "string", "maxLength": 4096},
+                "attempted_producer": {"type": "string", "minLength": 1, "maxLength": 256}
+              },
+              "required": ["id", "criterion_id", "type", "title", "description", "producer", "trust", "settlement"],
+              "allOf": [{"if": {"properties": {"settlement": {"const": "unavailable"}}, "required": ["settlement"]}, "then": {"required": ["unavailable_reason", "attempted_producer"]}}],
+              "additionalProperties": true
+            }
+          },
+          "criterion_verdicts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "criterion": {"type": "string", "minLength": 1},
+                "verdict": {"type": "string", "enum": ["delivered", "partial", "failed", "unavailable"]},
+                "evidence": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+              },
+              "required": ["criterion", "verdict", "evidence"],
+              "additionalProperties": false
+            }
+          },
           "proposals": {
             "type": "array"
           }
@@ -76,6 +111,8 @@
         "required": [
           "verdict",
           "assessment",
+          "evidence",
+          "criterion_verdicts",
           "proposals"
         ],
         "additionalProperties": false
@@ -92,7 +129,7 @@
       "id": "review",
       "kind": "run",
       "run": {
-        "profileKey": "swarm-manager/deep-work",
+        "profileKey": "swarm-manager/review-evidence",
         "resultSpec": {
           "version": "result-spec/v1",
           "kind": "json_schema",
@@ -114,6 +151,41 @@
                 "minLength": 1,
                 "maxLength": 16384
               },
+              "evidence": {
+                "type": "array",
+                "maxItems": 100,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {"type": "string", "minLength": 1},
+                    "criterion_id": {"type": "string", "minLength": 1},
+                    "type": {"type": "string", "minLength": 1},
+                    "title": {"type": "string", "minLength": 1},
+                    "description": {"type": "string", "minLength": 1},
+                    "producer": {"type": "string", "minLength": 1},
+                    "trust": {"type": "string", "enum": ["authoritative", "observed", "reported", "operator_verified"]},
+                    "settlement": {"type": "string", "enum": ["settled", "refuted", "unavailable"]},
+                    "unavailable_reason": {"type": "string", "maxLength": 4096},
+                    "attempted_producer": {"type": "string", "minLength": 1, "maxLength": 256}
+                  },
+                  "required": ["id", "criterion_id", "type", "title", "description", "producer", "trust", "settlement"],
+                  "allOf": [{"if": {"properties": {"settlement": {"const": "unavailable"}}, "required": ["settlement"]}, "then": {"required": ["unavailable_reason", "attempted_producer"]}}],
+                  "additionalProperties": true
+                }
+              },
+              "criterion_verdicts": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "criterion": {"type": "string", "minLength": 1},
+                    "verdict": {"type": "string", "enum": ["delivered", "partial", "failed", "unavailable"]},
+                    "evidence": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+                  },
+                  "required": ["criterion", "verdict", "evidence"],
+                  "additionalProperties": false
+                }
+              },
               "proposals": {
                 "type": "array"
               }
@@ -121,6 +193,8 @@
             "required": [
               "verdict",
               "assessment",
+              "evidence",
+              "criterion_verdicts",
               "proposals"
             ],
             "additionalProperties": false

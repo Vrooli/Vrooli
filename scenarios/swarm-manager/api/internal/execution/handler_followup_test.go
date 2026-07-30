@@ -106,8 +106,11 @@ func TestFollowUp_NewRunFromCompleted(t *testing.T) {
 	if agent.spawnCalls != 0 {
 		t.Fatalf("expected 0 direct agent spawns (rerouted through the runner), got %d", agent.spawnCalls)
 	}
-	if record.RunID == "" || record.AgentWorkflowExecutionID == "" || record.OpExecutionID != "" {
+	if record.RunID == "" || record.OpExecutionID != "" {
 		t.Fatalf("expected workflow correlation without an operation execution, got %#v", record)
+	}
+	if _, err := svc.transitionCorrelation(record); err != nil {
+		t.Fatalf("expected workflow correlation in transition journal: %v", err)
 	}
 }
 
@@ -257,8 +260,11 @@ func TestFollowUp_ContinueCollapsesToFreshWorkflow(t *testing.T) {
 	if record.RunID == "run-continue-1" {
 		t.Fatal("expected a fresh run id, not the inherited parent run id")
 	}
-	if record.AgentWorkflowExecutionID == "" || record.OpExecutionID != "" {
+	if record.OpExecutionID != "" {
 		t.Fatal("expected a workflow correlation and no operation-execution correlation")
+	}
+	if _, err := svc.transitionCorrelation(record); err != nil {
+		t.Fatalf("expected workflow correlation in transition journal: %v", err)
 	}
 	if workflow.startCalls != 1 || workflow.invocation.WorkflowKey != "swarm-manager/work-follow-up" {
 		t.Fatalf("expected work-follow-up workflow start, got calls=%d key=%q", workflow.startCalls, workflow.invocation.WorkflowKey)
@@ -329,12 +335,13 @@ func TestApplyWorkWorkflow_ExactlyOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	workflow.completion = agentmanager.InvocationCompletion{ExecutionID: started.AgentWorkflowExecutionID, DefinitionDigest: started.AgentWorkflowDefinition, Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Input: workflow.invocation.Input, Output: output}
+	correlation := workflowCorrelationFor(t, svc, started)
+	workflow.completion = agentmanager.InvocationCompletion{ExecutionID: correlation.ExecutionID, DefinitionDigest: correlation.DefinitionDigest, Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, Input: workflow.invocation.Input, Output: output}
 	first, err := svc.ApplyWorkWorkflow(context.Background(), started.ExecutionID)
 	if err != nil {
 		t.Fatalf("apply work workflow: %T %[1]v", err)
 	}
-	if first.Idempotent || first.Record.Status != StatusNeedsReview || transitionApplyStateFor(t, svc, first.Record.AgentWorkflowExecutionID) != transitionrun.ApplyStateComplete {
+	if first.Idempotent || first.Record.Status != StatusNeedsReview || transitionApplyStateFor(t, svc, correlation.ExecutionID) != transitionrun.ApplyStateComplete {
 		t.Fatalf("unexpected first apply: %#v", first)
 	}
 	second, err := svc.ApplyWorkWorkflow(context.Background(), started.ExecutionID)

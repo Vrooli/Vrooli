@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"testing"
 
+	"connectrpc.com/connect"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
 	clitest "swarm-manager/cli/internal/testutil"
 )
 
@@ -112,18 +116,30 @@ func TestCmdCapturesDelete_RequiresIDAndDeletes(t *testing.T) {
 	}
 }
 
-func TestCmdCapturesClassify_PostsAndRenders(t *testing.T) {
-	var path string
-	clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		path = r.URL.Path
-		_, _ = w.Write([]byte(`{"task_id":"t1","run_id":"r1"}`))
-	}))
+func TestCmdCapturesClassify_StartsDeclaredTransitionAndRenders(t *testing.T) {
+	service := &captureTransitionService{}
+	_, handler := apiconnect.NewTransitionServiceHandler(service)
+	clitest.NewAPIServer(t, handler)
 	app := newAppT(t)
 	out := clitest.CaptureStdout(t, func() error { return app.cmdCapturesClassify([]string{"--id", "c9"}) })
-	if path != "/api/v1/captures/c9/classify" {
-		t.Errorf("path = %s", path)
+	if service.transitionKey != "capture.classify" || service.subject != "capture" || service.subjectRef != "c9" {
+		t.Errorf("start request = %#v", service)
 	}
-	if !strings.Contains(out, "Run ID: r1") || !strings.Contains(out, "Task ID: t1") {
+	if !strings.Contains(out, "Execution ID: exec-c9") {
 		t.Errorf("output = %q", out)
 	}
+}
+
+type captureTransitionService struct {
+	apiconnect.UnimplementedTransitionServiceHandler
+	transitionKey string
+	subject       string
+	subjectRef    string
+}
+
+func (s *captureTransitionService) StartTransition(_ context.Context, req *connect.Request[apipb.StartTransitionRequest]) (*connect.Response[apipb.StartTransitionResponse], error) {
+	s.transitionKey = req.Msg.GetTransitionKey()
+	s.subject = req.Msg.GetSubjectRef().GetSubject()
+	s.subjectRef = req.Msg.GetSubjectRef().GetValue()
+	return connect.NewResponse(&apipb.StartTransitionResponse{ExecutionId: "exec-c9"}), nil
 }

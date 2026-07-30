@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { cn } from "../../../lib/utils";
 import { defaultApiClient } from "../../../lib/api-client";
-import { backlogService } from "../../../services";
+import { backlogService, transitionService } from "../../../services";
 import { API_ENDPOINTS } from "../../../lib/api-endpoints";
 import { useBacklogStore } from "../../../stores/backlog-store";
 import { executionDetailPath } from "../../../app/routes/route-paths";
@@ -248,7 +248,7 @@ function CaptureActions({ nodeData }: { nodeData: CaptureGraphNodeData }) {
   const queryClient = useQueryClient();
 
   const classifyMutation = useMutation({
-    mutationFn: () => defaultApiClient.post(API_ENDPOINTS.captureClassify(nodeData.id), {}),
+    mutationFn: () => transitionService.start("capture.classify", nodeData.id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["backlog-summary"] });
     },

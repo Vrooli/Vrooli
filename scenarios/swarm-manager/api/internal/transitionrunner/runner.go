@@ -123,6 +123,36 @@ func (r *Runner) GetCorrelation(executionID string) (transitionrun.Correlation, 
 	return r.store.Get(executionID)
 }
 
+// UpdateCorrelation applies a narrow, serialized mutation to the shared
+// lifecycle journal. Subject domains use this only for operator facts that the
+// correlation explicitly owns (for example approval attribution); they must
+// never copy those facts back onto their own records.
+func (r *Runner) UpdateCorrelation(executionID string, mutate func(*transitionrun.Correlation) error) (transitionrun.Correlation, error) {
+	if mutate == nil {
+		return transitionrun.Correlation{}, errors.New("transition correlation mutation is required")
+	}
+	lock := r.applyLock(executionID)
+	lock.Lock()
+	defer lock.Unlock()
+	correlation, err := r.store.Get(executionID)
+	if err != nil {
+		return transitionrun.Correlation{}, err
+	}
+	if err := mutate(&correlation); err != nil {
+		return transitionrun.Correlation{}, err
+	}
+	if err := r.store.Put(correlation); err != nil {
+		return transitionrun.Correlation{}, err
+	}
+	return correlation, nil
+}
+
+// FindCorrelation projects lifecycle state by the transition subject, so
+// domains need not persist a second copy of the correlation execution ID.
+func (r *Runner) FindCorrelation(transitionKey, subjectRef string) (transitionrun.Correlation, error) {
+	return r.store.FindBySubject(strings.TrimSpace(transitionKey), strings.TrimSpace(subjectRef))
+}
+
 // Cancel stops a runner-owned workflow execution. Subjects route cancellation
 // here rather than holding their own workflow client, so the transport stays in
 // one place and a subject cannot end up with a nil client that silently reports

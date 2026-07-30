@@ -12,6 +12,7 @@ import (
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/goals"
 	"swarm-manager/internal/operations"
+	"swarm-manager/internal/stringsx"
 )
 
 const (
@@ -178,7 +179,7 @@ func formatRankedGoals(snap *operations.OperationsSnapshot, rows []rankedGoalBri
 		if row.Priority > 0 {
 			priority = fmt.Sprintf("P%d", row.Priority)
 		}
-		fmt.Fprintf(&b, "- `goal:%s` [%s %s]: %s\n", row.Name, priority, row.Readiness, firstNonEmpty(row.Title, row.Name))
+		fmt.Fprintf(&b, "- `goal:%s` [%s %s]: %s\n", row.Name, priority, row.Readiness, stringsx.FirstNonEmpty(row.Title, row.Name))
 	}
 	return b.String()
 }

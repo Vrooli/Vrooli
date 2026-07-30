@@ -61,7 +61,7 @@
       "id": "gather",
       "kind": "run",
       "run": {
-        "profileKey": "swarm-manager/deep-work",
+        "profileKey": "swarm-manager/review-evidence",
         "resultSpec": {
           "version": "result-spec/v1",
           "kind": "json_schema",

@@ -15,6 +15,19 @@ neither is guessed.
 the ledger. `operator_verified` is reserved for an explicit operator repair
 with actor and reason.
 
+`swarm-review` is the producer for criterion-bound review observations. Review
+agent narrative enters as `reported`; only bounded Test Genie, Git Control
+Tower, or command artifacts are recorded as `observed`. Operator verification
+and revocation are separate immutable operator observations, never a trust
+upgrade of agent prose. The ledger projects the latest operator event for an
+evidence item, so a later revocation or re-verification remains auditable.
+
+Every review evidence item is bound to a stable criterion when it settles a
+claim. The review result also contains one criterion verdict per declared
+criterion, with the evidence identifiers that support it. `unavailable` is an
+honest settlement only when it records both a specific reason and the
+registered producer that was attempted; it is never a synonym for `refuted`.
+
 Producers record a checkpoint only after their observations are linked. A
 terminal watermark is scoped to producer, run, and fact kind. Therefore an
 absent fact is `pending_evidence` until the requirement's producer supplies a
@@ -47,3 +60,11 @@ source/projection digests to `evidence_migration_audits` under
 `agent-session-artifacts/v1`. A parity mismatch keeps the read-only JSONL
 recovery path active. The local file is therefore a bounded recovery input,
 not a second authority or an ongoing write target.
+
+## Review migration and projection
+
+Historical review rounds are imported under `review-evidence/v1`. The importer
+records source and projection digests plus counts in `evidence_migration_audits`.
+Until that audit proves parity, round-file verification flags remain the
+recovery projection. After parity, the review surface derives verification
+state from the latest linked operator verification or revocation observation.

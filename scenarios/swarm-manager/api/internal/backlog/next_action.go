@@ -12,31 +12,33 @@ import (
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/httputil"
+	"swarm-manager/internal/nextaction"
 )
 
 // NextActionID is the stable, server-owned vocabulary for the primary action
 // an operator can take on a backlog item. Presentation copy belongs to clients;
 // policy does not.
-type NextActionID string
+type NextActionID = nextaction.ID
 
 const (
-	NextActionNone                NextActionID = "none"
-	NextActionAcceptSuggestion    NextActionID = "accept_suggestion"
-	NextActionAuthorPlan          NextActionID = "author_plan"
-	NextActionAcceptPlan          NextActionID = "accept_plan"
-	NextActionRepairPlan          NextActionID = "repair_plan"
-	NextActionResolveDependencies NextActionID = "resolve_dependencies"
-	NextActionReview              NextActionID = "review"
-	NextActionViewExecution       NextActionID = "view_execution"
-	NextActionRun                 NextActionID = "run"
-	NextActionRetry               NextActionID = "retry"
-	NextActionArchive             NextActionID = "archive"
-	NextActionDecide              NextActionID = "decide"
-	NextActionDispatchFollowup    NextActionID = "dispatch_followup"
-	NextActionAuthorFollowup      NextActionID = "author_followup"
-	NextActionPlanGoal            NextActionID = "plan_goal"
-	NextActionCloseOut            NextActionID = "close_out"
-	NextActionChain               NextActionID = "chain"
+	NextActionNone                = nextaction.None
+	NextActionAcceptSuggestion    = nextaction.AcceptSuggestion
+	NextActionAuthorPlan          = nextaction.AuthorPlan
+	NextActionAcceptPlan          = nextaction.AcceptPlan
+	NextActionRepairPlan          = nextaction.RepairPlan
+	NextActionResolveDependencies = nextaction.ResolveDependencies
+	NextActionReview              = nextaction.Review
+	NextActionViewExecution       = nextaction.ViewExecution
+	NextActionRun                 = nextaction.Run
+	NextActionRetry               = nextaction.Retry
+	NextActionArchive             = nextaction.Archive
+	NextActionDecide              = nextaction.Decide
+	NextActionDispatchFollowup    = nextaction.DispatchFollowup
+	NextActionAuthorFollowup      = nextaction.AuthorFollowup
+	NextActionPlanGoal            = nextaction.PlanGoal
+	NextActionDefineCriteria      = nextaction.DefineCriteria
+	NextActionCloseOut            = nextaction.CloseOut
+	NextActionChain               = nextaction.Chain
 )
 
 // NextActionProjection is a read-only resolution. Existing backlog, plan,
@@ -160,6 +162,9 @@ func (h *Handler) ResolveNextActionWith(ctx context.Context, item BacklogItem, i
 	if !hasCanonicalExecutionPlan(item) {
 		return nextAction(NextActionAuthorPlan, "Plan", "Author plan", true, "A canonical execution plan is required before this item can run.", nil, "plan_author"), nil
 	}
+	if len(item.AcceptanceCriteria) == 0 {
+		return nextAction(NextActionDefineCriteria, "Define criteria", "Define acceptance criteria", true, "This item needs typed acceptance criteria before it can be independently reviewed.", nil, "item_criteria"), nil
+	}
 	if h.executionQueuer == nil {
 		return nextAction(NextActionNone, "Unavailable", "Execution readiness unavailable", false, "Execution service is not available.", nil, ""), nil
 	}
@@ -174,14 +179,15 @@ func (h *Handler) ResolveNextActionWith(ctx context.Context, item BacklogItem, i
 	if preflight.Ready && len(blockers) == 0 {
 		return nextAction(NextActionRun, "Run", "Run item", true, "The current accepted plan is ready for execution.", nil, "run"), nil
 	}
-	if hasBlockerCode(blockers, "plan_changed") || hasBlockerCode(blockers, "plan_not_accepted") {
-		return nextAction(NextActionAcceptPlan, "Plan", "Accept plan", true, firstBlocker(blockers), blockers, "plan_accept"), nil
-	}
-	if hasBlockerCode(blockers, "plan_invalid") {
-		return nextAction(NextActionRepairPlan, "Plan", "Repair plan", true, firstBlocker(blockers), blockers, "plan_repair"), nil
-	}
-	if hasBlockerCode(blockers, "unmet_dependencies") {
-		return nextAction(NextActionResolveDependencies, "Blocked", "Resolve dependencies", true, firstBlocker(blockers), blockers, "dependencies"), nil
+	for _, blocker := range blockers {
+		switch nextaction.ActionForBlocker(blocker.Code) {
+		case nextaction.AcceptPlan:
+			return nextAction(NextActionAcceptPlan, "Plan", "Accept plan", true, firstBlocker(blockers), blockers, "plan_accept"), nil
+		case nextaction.RepairPlan:
+			return nextAction(NextActionRepairPlan, "Plan", "Repair plan", true, firstBlocker(blockers), blockers, "plan_repair"), nil
+		case nextaction.ResolveDependencies:
+			return nextAction(NextActionResolveDependencies, "Blocked", "Resolve dependencies", true, firstBlocker(blockers), blockers, "dependencies"), nil
+		}
 	}
 	return nextAction(NextActionRun, "Run", "Retry queue when capacity clears", true, firstBlocker(blockers), blockers, "run"), nil
 }
@@ -229,38 +235,13 @@ func nextAction(id NextActionID, compact, expanded string, enabled bool, reason 
 // decision to a declared transition. Clients consume TransitionKey from the
 // projection and never duplicate this capability mapping.
 func TransitionKeyForNextAction(id NextActionID) string {
-	switch id {
-	case NextActionAuthorPlan:
-		return "plan.author"
-	case NextActionRepairPlan:
-		return "plan.repair"
-	case NextActionDispatchFollowup:
-		return "follow_up.dispatch"
-	case NextActionPlanGoal:
-		return "goal.plan"
-	case NextActionCloseOut:
-		return "goal.close_out"
-	default:
-		return ""
-	}
-}
-
-func hasBlockerCode(blockers []BlockingReason, code string) bool {
-	for _, blocker := range blockers {
-		if blocker.Code == code {
-			return true
-		}
-	}
-	return false
+	return nextaction.TransitionKey(id)
 }
 
 func validateBlockerCodes(blockers []BlockingReason) error {
 	for _, blocker := range blockers {
-		switch blocker.Code {
-		case "plan_changed", "plan_not_accepted", "plan_invalid", "unmet_dependencies", "queue_cap", "cost_cap", "circuit_open":
-			continue
-		default:
-			return fmt.Errorf("unmapped next-action blocker code %q", blocker.Code)
+		if err := nextaction.ValidateBlockerCode(blocker.Code); err != nil {
+			return err
 		}
 	}
 	return nil

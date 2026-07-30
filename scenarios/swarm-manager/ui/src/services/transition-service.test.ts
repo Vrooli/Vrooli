@@ -18,4 +18,13 @@ describe("transition service", () => {
       subjectRef: { subject: "temporary_subject", value: "temporary-1" },
     });
   });
+
+  it("applies a declared transition through the generated client", async () => {
+    const applyTransition = vi.fn().mockResolvedValue({});
+    const service = createTransitionService({ listTransitions: vi.fn(), startTransition: vi.fn(), applyTransition } as unknown as TransitionClient);
+
+    await service.apply("capture.classify", "exec-capture");
+
+    expect(applyTransition).toHaveBeenCalledWith({ transitionKey: "capture.classify", executionId: "exec-capture" });
+  });
 });

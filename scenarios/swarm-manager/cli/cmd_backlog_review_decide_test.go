@@ -1,12 +1,13 @@
 package main
 
 import (
-	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
 
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	"google.golang.org/protobuf/proto"
 	clitest "swarm-manager/cli/internal/testutil"
 )
 
@@ -32,7 +33,7 @@ func TestCmdBacklogReviewDecide_RejectsZeroOrMultipleDecisionFlags(t *testing.T)
 	if err != nil {
 		t.Fatalf("NewApp: %v", err)
 	}
-	base := []string{"--kind", "execute", "--name", "foo"}
+	base := []string{"--kind", "execute", "--name", "foo", "--round", "1", "--decided-by", "operator:test"}
 	cases := [][]string{
 		base,
 		append(append([]string{}, base...), "--accept", "--fail"),
@@ -63,7 +64,7 @@ func TestCmdBacklogReviewDecide_PostsDecisionPayload(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.decision, func(t *testing.T) {
-			var got map[string]any
+			var got apipb.DecideAttemptRequest
 			var gotPath string
 			clitest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.Method != http.MethodPost {
@@ -71,28 +72,36 @@ func TestCmdBacklogReviewDecide_PostsDecisionPayload(t *testing.T) {
 				}
 				gotPath = r.URL.Path
 				body, _ := io.ReadAll(r.Body)
-				if err := json.Unmarshal(body, &got); err != nil {
+				if err := proto.Unmarshal(body, &got); err != nil {
 					t.Fatalf("decode: %v", err)
 				}
-				_, _ = w.Write([]byte(`{"decision":"` + tc.decision + `","status":"completed","decided_at":"2026-04-23T00:00:00Z"}`))
+				response, err := proto.Marshal(&apipb.DecideAttemptResponse{Decision: tc.decision, Status: "completed", DecidedAt: "2026-04-23T00:00:00Z"})
+				if err != nil {
+					t.Fatalf("encode response: %v", err)
+				}
+				w.Header().Set("Content-Type", "application/proto")
+				_, _ = w.Write(response)
 			}))
 
 			app, err := NewApp()
 			if err != nil {
 				t.Fatalf("NewApp: %v", err)
 			}
-			args := []string{"--kind", "execute", "--name", "foo", tc.flag, "--rationale", "ship it", "--json"}
+			args := []string{"--kind", "execute", "--name", "foo", "--round", "2", "--decided-by", "operator:test", tc.flag, "--rationale", "ship it", "--json"}
 			if err := app.cmdBacklogReviewDecide(args); err != nil {
 				t.Fatalf("run: %v", err)
 			}
-			if gotPath != "/api/v1/backlog/execute/foo/review-decide" {
+			if gotPath != "/vrooli.swarm_manager.v1.api.BacklogService/DecideAttempt" {
 				t.Errorf("path: %s", gotPath)
 			}
-			if got["decision"] != tc.decision {
-				t.Errorf("decision: %v", got["decision"])
+			if got.GetDecision() != tc.decision {
+				t.Errorf("decision: %v", got.GetDecision())
 			}
-			if got["rationale"] != "ship it" {
-				t.Errorf("rationale: %v", got["rationale"])
+			if got.GetRationale() != "ship it" {
+				t.Errorf("rationale: %v", got.GetRationale())
+			}
+			if got.GetSubjectKind() != "backlog-item" || got.GetSubjectRef() != "execute/foo" || got.GetRoundNum() != 2 {
+				t.Errorf("attempt target = %s %s round %d", got.GetSubjectKind(), got.GetSubjectRef(), got.GetRoundNum())
 			}
 		})
 	}

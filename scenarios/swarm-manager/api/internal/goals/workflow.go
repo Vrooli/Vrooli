@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"swarm-manager/internal/attempt"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/storage"
 	"swarm-manager/internal/transitionrun"
@@ -147,8 +148,10 @@ func (h *Handler) ApplyWorkflowResult(ctx context.Context, goalName, executionID
 }
 
 type decodedWorkflowResult struct {
-	Outcome, Summary string
-	Payloads         []string
+	Outcome, Summary  string
+	Payloads          []string
+	CriterionVerdicts []CriterionVerdict
+	Evidence          []attempt.Evidence
 }
 
 func decodeWorkflowResult(output *structpb.Value, transition string) (decodedWorkflowResult, error) {
@@ -181,7 +184,24 @@ func decodeWorkflowResult(output *structpb.Value, transition string) (decodedWor
 		}
 		payloads = append(payloads, string(encoded))
 	}
-	return decodedWorkflowResult{Outcome: outcome, Summary: summary, Payloads: payloads}, nil
+	verdicts := make([]CriterionVerdict, 0)
+	if transition == "milestone.review" {
+		if raw, ok := result["criterion_verdicts"].([]any); ok {
+			encoded, _ := json.Marshal(raw)
+			_ = json.Unmarshal(encoded, &verdicts)
+		}
+	}
+	evidence := make([]attempt.Evidence, 0)
+	if raw, ok := result["evidence"].([]any); ok {
+		encoded, marshalErr := json.Marshal(raw)
+		if marshalErr != nil {
+			return decodedWorkflowResult{}, fmt.Errorf("encode workflow evidence: %w", marshalErr)
+		}
+		if err := json.Unmarshal(encoded, &evidence); err != nil {
+			return decodedWorkflowResult{}, fmt.Errorf("decode workflow evidence: %w", err)
+		}
+	}
+	return decodedWorkflowResult{Outcome: outcome, Summary: summary, Payloads: payloads, CriterionVerdicts: verdicts, Evidence: evidence}, nil
 }
 
 func (h *Handler) StartMilestoneReviewsForTerminalItem(ctx context.Context, kind, name string, status backlog.BacklogStatus) {

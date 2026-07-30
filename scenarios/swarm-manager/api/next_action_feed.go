@@ -201,7 +201,7 @@ func actionTier(id backlog.NextActionID) int {
 	switch id {
 	case backlog.NextActionDecide, backlog.NextActionReview:
 		return 1
-	case backlog.NextActionAcceptPlan, backlog.NextActionAuthorPlan, backlog.NextActionRepairPlan, backlog.NextActionPlanGoal:
+	case backlog.NextActionAcceptPlan, backlog.NextActionAuthorPlan, backlog.NextActionRepairPlan, backlog.NextActionPlanGoal, backlog.NextActionDefineCriteria:
 		return 2
 	case backlog.NextActionRun, backlog.NextActionDispatchFollowup, backlog.NextActionAuthorFollowup, backlog.NextActionResolveDependencies:
 		return 3

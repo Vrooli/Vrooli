@@ -114,3 +114,11 @@ func TestSummarizeRound_NilRound(t *testing.T) {
 		t.Errorf("expected zero summary for nil round, got %+v", got)
 	}
 }
+
+func TestRoundAsAttemptUsesSharedProposalVocabulary(t *testing.T) {
+	round := Round{RoundNum: 2, GeneratedAt: "2026-07-29T00:00:00Z", Readiness: map[string]int{"plan": 80}, Items: []Item{{ID: "decision-1", Type: "decision", Topic: "Choose"}}}
+	attempt := round.AsAttempt("execute/example")
+	if attempt.SubjectKind != "backlog-item" || attempt.SubjectRef != "execute/example" || attempt.RoundNum != 2 || len(attempt.Proposals) != 1 || attempt.Proposals[0].ID != "decision-1" {
+		t.Fatalf("attempt = %#v", attempt)
+	}
+}

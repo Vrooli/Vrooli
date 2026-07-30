@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"swarm-manager/internal/attempt"
 )
 
 type SubjectKind string
@@ -253,6 +255,17 @@ type ReviewRun struct {
 	AgentSessionID string             `json:"agent_session_id,omitempty"`
 	Error          string             `json:"error,omitempty"`
 	AppliedAt      string             `json:"applied_at,omitempty"`
+}
+
+// AsAttempt projects a Plan Workshop review packet into the shared attempt
+// vocabulary. Workflow lifecycle facts are deliberately absent: callers join
+// them from the transition correlation using Workflow.ExecutionID.
+func (r ReviewRun) AsAttempt(session Session) attempt.Attempt {
+	proposals := make([]attempt.Proposal, 0, len(session.Packet.Proposals))
+	for _, proposal := range session.Packet.Proposals {
+		proposals = append(proposals, attempt.Proposal{ID: proposal.SessionID + "/" + proposal.ProposalID, Type: "workshop_proposal", Payload: proposal.ApplyMode})
+	}
+	return attempt.Attempt{SubjectKind: string(session.Subject.Kind), SubjectRef: session.Subject.Ref, TransitionKey: "plan.workshop.review", RoundNum: 1, Status: string(r.State), GeneratedAt: r.Workflow.StartedAt, Assessment: r.Error, Proposals: proposals}
 }
 
 // ProposalDraft is the bounded workflow result used to create one record in

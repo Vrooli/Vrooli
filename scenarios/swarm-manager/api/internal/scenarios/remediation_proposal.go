@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"swarm-manager/internal/stringsx"
 )
 
 // RemediationProposal is a pure, source-neutral preview. Construction has no
@@ -92,10 +94,10 @@ func BuildPhaseRemediationProposal(snapshot ScenarioHealthSnapshot, target Remed
 	if strings.TrimSpace(phase.PriorityCapabilityID) != normalized.CapabilityID {
 		return RemediationProposal{}, fmt.Errorf("capability target %q is not the provider priority for phase %q", normalized.CapabilityID, normalized.ProviderPhase)
 	}
-	label := firstNonEmpty(phase.PriorityCapabilityLabel, phase.PriorityCapabilityID)
+	label := stringsx.FirstNonEmpty(phase.PriorityCapabilityLabel, phase.PriorityCapabilityID)
 	title := fmt.Sprintf("[%s] Improve %s in %s", normalized.Scenario, label, phase.Phase)
 	description := fmt.Sprintf("Improve the provider-defined %s capability for the %s phase. Preserve Test Genie as the evidence authority; validate the outcome against fresh comparable evidence.", label, phase.Phase)
-	criteria := []string{fmt.Sprintf("Given fresh Test Genie evidence for %s, when the %s phase is evaluated, then the provider reports progress from %s toward %s for %s.", normalized.Scenario, phase.Phase, firstNonEmpty(phase.CurrentRung, "the current rung"), firstNonEmpty(phase.NextRung, "the next provider rung"), label)}
+	criteria := []string{fmt.Sprintf("Given fresh Test Genie evidence for %s, when the %s phase is evaluated, then the provider reports progress from %s toward %s for %s.", normalized.Scenario, phase.Phase, stringsx.FirstNonEmpty(phase.CurrentRung, "the current rung"), stringsx.FirstNonEmpty(phase.NextRung, "the next provider rung"), label)}
 	return RemediationProposal{Target: normalized, Fingerprint: fingerprint, Provenance: strings.TrimSpace(provenance), Title: title, Description: description, AcceptanceCriteria: criteria, AcceptanceAllow: []string{"scenarios/" + normalized.Scenario + "/**"}, RecommendedWorkflows: []string{"scenario-improvement-campaign"}}, nil
 }
 
@@ -106,13 +108,4 @@ func findHealthPhase(phases []ScenarioHealthPhase, name string) (ScenarioHealthP
 		}
 	}
 	return ScenarioHealthPhase{}, false
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return strings.TrimSpace(value)
-		}
-	}
-	return ""
 }

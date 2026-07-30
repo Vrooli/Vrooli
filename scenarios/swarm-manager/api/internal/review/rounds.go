@@ -2,6 +2,7 @@ package review
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -16,9 +17,20 @@ import (
 // state inline and updates the round if the run has completed.
 func (s *Service) ListRounds(kind, name string) ([]Round, error) {
 	itemDir := s.resolveItemDir(kind, name)
-	rounds, err := LoadRounds(itemDir)
+	rounds, err := readRounds(itemDir)
 	if err != nil {
 		return nil, err
+	}
+	if s.verificationProjection != nil {
+		for i := range rounds {
+			verified, authoritative, projectionErr := s.verificationProjection(context.Background(), kind, name, rounds[i])
+			if projectionErr != nil || !authoritative {
+				continue
+			}
+			for j := range rounds[i].Evidence {
+				rounds[i].Evidence[j].Verified = verified[rounds[i].Evidence[j].ID]
+			}
+		}
 	}
 
 	if s.inspector == nil {
@@ -33,8 +45,10 @@ func (s *Service) ListRounds(kind, name string) ([]Round, error) {
 		// Runner-owned rounds are finalized by the operation runner's completion
 		// bridge (commit-review-round), not this poll — defer so the two never
 		// race to drive the same round.
-		if round.RunnerOwned() || round.WorkflowOwned() {
-			continue
+		if s.transitionRunner != nil {
+			if _, err := s.transitionRunner.FindCorrelation("work.review", reviewSubject(kind, name, round.RoundNum)); err == nil {
+				continue
+			}
 		}
 		state, stateErr := s.inspector.GetRunState(context.Background(), round.RunID)
 		if stateErr != nil {
@@ -45,12 +59,8 @@ func (s *Service) ListRounds(kind, name string) ([]Round, error) {
 			continue
 		}
 		*round = finalizeRoundFromRunState(*round, state)
-		_ = SaveRound(itemDir, *round)
+		_ = saveRound(itemDir, *round)
 
-		// Remove from active tracking if present.
-		s.mu.Lock()
-		delete(s.activeRounds, round.RunID)
-		s.mu.Unlock()
 	}
 
 	return rounds, nil
@@ -59,13 +69,26 @@ func (s *Service) ListRounds(kind, name string) ([]Round, error) {
 // GetRound returns a specific review round by number.
 func (s *Service) GetRound(kind, name string, roundNum int) (*Round, error) {
 	itemDir := s.resolveItemDir(kind, name)
-	return LoadRound(itemDir, roundNum)
+	return readRound(itemDir, roundNum)
 }
 
 // VerifyEvidence toggles the verified flag on an evidence item.
 func (s *Service) VerifyEvidence(kind, name string, roundNum int, evidenceID string, verified bool, executionID string) error {
+	return s.verifyEvidence(context.Background(), kind, name, roundNum, evidenceID, verified, executionID, "", "")
+}
+
+// VerifyEvidenceWithActor writes an actor-and-reasoned operator verification
+// observation in addition to updating the human-readable round projection.
+func (s *Service) VerifyEvidenceWithActor(ctx context.Context, kind, name string, roundNum int, evidenceID string, verified bool, executionID, actor, reason string) error {
+	if strings.TrimSpace(actor) == "" || strings.TrimSpace(reason) == "" {
+		return fmt.Errorf("evidence verification changes require actor and reason")
+	}
+	return s.verifyEvidence(ctx, kind, name, roundNum, evidenceID, verified, executionID, actor, reason)
+}
+
+func (s *Service) verifyEvidence(ctx context.Context, kind, name string, roundNum int, evidenceID string, verified bool, executionID, actor, reason string) error {
 	itemDir := s.resolveItemDir(kind, name)
-	round, err := LoadRound(itemDir, roundNum)
+	round, err := readRound(itemDir, roundNum)
 	if err != nil {
 		return fmt.Errorf("load round %d: %w", roundNum, err)
 	}
@@ -74,6 +97,7 @@ func (s *Service) VerifyEvidence(kind, name string, roundNum int, evidenceID str
 	}
 
 	found := false
+	var verifiedEvidence EvidenceItem
 	for i := range round.Evidence {
 		if round.Evidence[i].ID == evidenceID {
 			round.Evidence[i].Verified = verified
@@ -83,6 +107,7 @@ func (s *Service) VerifyEvidence(kind, name string, roundNum int, evidenceID str
 				round.Evidence[i].VerifiedAt = ""
 			}
 			found = true
+			verifiedEvidence = round.Evidence[i]
 			break
 		}
 	}
@@ -90,8 +115,13 @@ func (s *Service) VerifyEvidence(kind, name string, roundNum int, evidenceID str
 		return fmt.Errorf("evidence item %s not found in round %d", evidenceID, roundNum)
 	}
 
-	if err := SaveRound(itemDir, *round); err != nil {
+	if err := saveRound(itemDir, *round); err != nil {
 		return fmt.Errorf("save round: %w", err)
+	}
+	if s.verificationRecorder != nil {
+		if err := s.verificationRecorder(ctx, kind, name, *round, verifiedEvidence, verified, strings.TrimSpace(actor), strings.TrimSpace(reason)); err != nil {
+			return fmt.Errorf("record operator verification change: %w", err)
+		}
 	}
 
 	if s.eventLogger != nil && executionID != "" {
@@ -104,7 +134,7 @@ func (s *Service) VerifyEvidence(kind, name string, roundNum int, evidenceID str
 // evidence-request workflow when workflow support is available.
 func (s *Service) RequestMoreEvidence(ctx context.Context, kind, name string, roundNum int, message string, evidenceID string) (string, error) {
 	itemDir := s.resolveItemDir(kind, name)
-	round, err := LoadRound(itemDir, roundNum)
+	round, err := readRound(itemDir, roundNum)
 	if err != nil {
 		return "", fmt.Errorf("load round %d: %w", roundNum, err)
 	}
@@ -128,12 +158,12 @@ func (s *Service) RequestMoreEvidence(ctx context.Context, kind, name string, ro
 	}
 
 	round.RequestThreads = append(round.RequestThreads, thread)
-	if err := SaveRound(itemDir, *round); err != nil {
+	if err := saveRound(itemDir, *round); err != nil {
 		return "", fmt.Errorf("save round: %w", err)
 	}
 
-	if s.eventLogger != nil && round.ExecutionID != "" {
-		s.eventLogger.EmitReviewRequestCreated(round.ExecutionID, threadID, message)
+	if executionID := ExecutionIDFromSnapshot(round.AgentWorkflowSnapshot); s.eventLogger != nil && executionID != "" {
+		s.eventLogger.EmitReviewRequestCreated(executionID, threadID, message)
 	}
 
 	// Start the declared evidence-request workflow with the operator's request.
@@ -152,34 +182,30 @@ func (s *Service) RequestMoreEvidence(ctx context.Context, kind, name string, ro
 			defer cancel()
 			// The thread was saved above, so the runner's registered builder can
 			// reproject exactly this snapshot here and again at apply time.
-			var executionID, definitionDigest, runID, entityVersion string
+			var runID string
 			started, startErr := s.transitionRunner.StartWith(opCtx, "review.evidence_request", reviewThreadSubject(kind, name, roundNum, threadID), transitionrunner.PreparedInput{FirstRunNodeID: "gather", Activity: &transitionrunner.Activity{OwnerType: "backlog", OwnerKind: kind, OwnerName: name, Purpose: "review"}})
 			if startErr != nil {
 				slog.Error("start evidence-request transition", "error", startErr, "thread_id", threadID)
 				return
 			}
-			executionID, definitionDigest, entityVersion = started.ExecutionID, started.DefinitionDigest, started.EntityVersion
 			if len(started.Attempts) > 0 {
 				runID = started.Attempts[0].RunID
 			}
 
 			// Stamp the run id on the thread so the request-evidence completion
 			// handler correlates the gathered evidence back to it.
-			r, loadErr := LoadRound(itemDir, roundNum)
+			r, loadErr := readRound(itemDir, roundNum)
 			if loadErr != nil || r == nil {
 				return
 			}
 			for i := range r.RequestThreads {
 				if r.RequestThreads[i].ID == threadID {
 					r.RequestThreads[i].RunID = runID
-					r.RequestThreads[i].AgentWorkflowExecutionID = executionID
-					r.RequestThreads[i].AgentWorkflowDefinition = definitionDigest
-					r.RequestThreads[i].AgentWorkflowVersion = entityVersion
 					break
 				}
 			}
-			_ = SaveRound(itemDir, *r)
-			slog.Info("evidence-request workflow started", "thread_id", threadID, "run_id", runID, "workflow_execution_id", executionID)
+			_ = saveRound(itemDir, *r)
+			slog.Info("evidence-request workflow started", "thread_id", threadID, "run_id", runID, "workflow_execution_id", started.ExecutionID)
 		}()
 	}
 
@@ -191,7 +217,7 @@ func (s *Service) RequestMoreEvidence(ctx context.Context, kind, name string, ro
 // authority.
 func (s *Service) ApplyEvidenceRequestWorkflow(ctx context.Context, kind, name string, roundNum int, threadID string) (Round, bool, error) {
 	itemDir := s.resolveItemDir(kind, name)
-	round, err := LoadRound(itemDir, roundNum)
+	round, err := readRound(itemDir, roundNum)
 	if err != nil {
 		return Round{}, false, fmt.Errorf("load review round: %w", err)
 	}
@@ -205,14 +231,15 @@ func (s *Service) ApplyEvidenceRequestWorkflow(ctx context.Context, kind, name s
 		if thread.ID != threadID {
 			continue
 		}
-		if strings.TrimSpace(thread.AgentWorkflowExecutionID) == "" {
-			return Round{}, false, fmt.Errorf("thread is not owned by an evidence-request transition")
+		correlation, err := s.transitionRunner.FindCorrelation("review.evidence_request", reviewThreadSubject(kind, name, roundNum, threadID))
+		if err != nil {
+			return Round{}, false, fmt.Errorf("find evidence-request transition correlation: %w", err)
 		}
 		alreadyApplied := thread.Status != "pending"
-		if _, err := s.transitionRunner.ApplyExecution(ctx, thread.AgentWorkflowExecutionID); err != nil {
+		if _, err := s.transitionRunner.ApplyExecution(ctx, correlation.ExecutionID); err != nil {
 			return Round{}, false, err
 		}
-		applied, err := LoadRound(itemDir, roundNum)
+		applied, err := readRound(itemDir, roundNum)
 		if err != nil || applied == nil {
 			return Round{}, false, fmt.Errorf("reload applied review round: %w", err)
 		}
@@ -224,7 +251,7 @@ func (s *Service) ApplyEvidenceRequestWorkflow(ctx context.Context, kind, name s
 // ContinueRequest appends a user message to an existing request thread.
 func (s *Service) ContinueRequest(kind, name string, roundNum int, threadID, message string) error {
 	itemDir := s.resolveItemDir(kind, name)
-	round, err := LoadRound(itemDir, roundNum)
+	round, err := readRound(itemDir, roundNum)
 	if err != nil {
 		return fmt.Errorf("load round %d: %w", roundNum, err)
 	}
@@ -248,13 +275,13 @@ func (s *Service) ContinueRequest(kind, name string, roundNum int, threadID, mes
 		return fmt.Errorf("thread %s not found in round %d", threadID, roundNum)
 	}
 
-	return SaveRound(itemDir, *round)
+	return saveRound(itemDir, *round)
 }
 
 // DismissRequest marks a request thread as dismissed.
 func (s *Service) DismissRequest(kind, name string, roundNum int, threadID string) error {
 	itemDir := s.resolveItemDir(kind, name)
-	round, err := LoadRound(itemDir, roundNum)
+	round, err := readRound(itemDir, roundNum)
 	if err != nil {
 		return fmt.Errorf("load round %d: %w", roundNum, err)
 	}
@@ -274,7 +301,7 @@ func (s *Service) DismissRequest(kind, name string, roundNum int, threadID strin
 		return fmt.Errorf("thread %s not found in round %d", threadID, roundNum)
 	}
 
-	return SaveRound(itemDir, *round)
+	return saveRound(itemDir, *round)
 }
 
 // RecordUnavailableReview writes a synthetic terminal review round for an item
@@ -287,7 +314,7 @@ func (s *Service) DismissRequest(kind, name string, roundNum int, threadID strin
 // finalization.
 func (s *Service) RecordUnavailableReview(kind, name, executionID, reason string) error {
 	itemDir := s.resolveItemDir(kind, name)
-	roundNum, err := NextRoundNumber(itemDir)
+	roundNum, err := nextRoundNumber(itemDir)
 	if err != nil {
 		return fmt.Errorf("determine next round: %w", err)
 	}
@@ -295,17 +322,42 @@ func (s *Service) RecordUnavailableReview(kind, name, executionID, reason string
 		reason = "review agent did not run; routed to review_pending for manual decision"
 	}
 	round := Round{
-		RoundNum:      roundNum,
-		GeneratedAt:   time.Now().UTC().Format(time.RFC3339),
-		ExecutionID:   executionID,
-		Status:        RoundStatusFailed,
-		FailureReason: reason,
-		Notes:         []string{"No review agent ran for this item. Decide a terminal status via review-decide, or recover the item if it was handled out-of-band."},
-		Evidence:      []EvidenceItem{},
+		RoundNum:              roundNum,
+		GeneratedAt:           time.Now().UTC().Format(time.RFC3339),
+		Status:                RoundStatusFailed,
+		FailureReason:         reason,
+		Notes:                 []string{"No review agent ran for this item. Decide a terminal status via review-decide, or recover the item if it was handled out-of-band."},
+		Evidence:              []EvidenceItem{},
+		AgentWorkflowSnapshot: mustReviewExecutionSnapshot(executionID),
 	}
-	if err := SaveRound(itemDir, round); err != nil {
+	if err := saveRound(itemDir, round); err != nil {
 		return fmt.Errorf("save review-unavailable round: %w", err)
 	}
 	slog.Info("recorded review-unavailable round", "kind", kind, "name", name, "round", roundNum, "execution_id", executionID)
 	return nil
+}
+
+func mustReviewExecutionSnapshot(executionID string) json.RawMessage {
+	raw, err := json.Marshal(map[string]string{"executionId": executionID})
+	if err != nil {
+		return nil
+	}
+	return raw
+}
+
+func normalizeLiveRunStatus(status string) string {
+	return strings.ToLower(strings.TrimSpace(status))
+}
+
+// mapRunStatusToRoundStatus converts an agent-manager run status to a terminal
+// round status. Returns "" if the run is still in progress.
+func mapRunStatusToRoundStatus(status string) RoundStatus {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "complete":
+		return RoundStatusComplete
+	case "failed", "cancelled":
+		return RoundStatusFailed
+	default:
+		return ""
+	}
 }

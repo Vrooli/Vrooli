@@ -7,6 +7,7 @@ import { API_BASE } from "../lib/api-client";
 export interface ITransitionService {
   list(): Promise<readonly Transition[]>;
   start(transitionKey: string, subjectRef: string): Promise<{ executionId: string }>;
+  apply(transitionKey: string, executionId: string): Promise<void>;
 }
 
 function defaultClient() {
@@ -15,7 +16,10 @@ function defaultClient() {
 
 // Kept small so a catalog-projected action can be tested without a browser
 // transport. This is deliberately not a UI transition registry.
-export type TransitionClient = Pick<ReturnType<typeof defaultClient>, "listTransitions" | "startTransition">;
+export type TransitionClient = Pick<
+  ReturnType<typeof defaultClient>,
+  "listTransitions" | "startTransition" | "applyTransition"
+>;
 
 export function createTransitionService(client: TransitionClient = defaultClient()): ITransitionService {
   let catalog: readonly Transition[] | undefined;
@@ -39,6 +43,9 @@ export function createTransitionService(client: TransitionClient = defaultClient
       if (!transition) throw new Error(`Transition ${transitionKey} is not declared.`);
       const response = await client.startTransition({ transitionKey, subjectRef: { subject: transition.subject, value: subjectRef } });
       return { executionId: response.executionId };
+    },
+    async apply(transitionKey, executionId) {
+      await client.applyTransition({ transitionKey, executionId });
     },
   };
 }

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"swarm-manager/internal/attempt"
 )
 
 // Failure reason categories for capture classification.
@@ -56,6 +58,22 @@ type classificationItem struct {
 	Priority    int      `json:"priority"`
 	Tags        []string `json:"tags"`
 	Confidence  float64  `json:"confidence"`
+}
+
+// asAttempt gives capture classification the same read-model shape as every
+// other agentic feature. Classification items are proposals; applying them is
+// still owned by the capture mutation boundary.
+func (c capture) asAttempt() attempt.Attempt {
+	proposals := make([]attempt.Proposal, 0)
+	generatedAt := c.Created
+	if c.Classification != nil {
+		generatedAt = c.Classification.ClassifiedAt
+		for index, item := range c.Classification.Items {
+			payload, _ := json.Marshal(item)
+			proposals = append(proposals, attempt.Proposal{ID: fmt.Sprintf("classification-%d", index+1), Type: item.Kind, Payload: string(payload)})
+		}
+	}
+	return attempt.Attempt{SubjectKind: "capture", SubjectRef: c.ID, TransitionKey: "capture.classify", RoundNum: 1, Status: c.Status, GeneratedAt: generatedAt, Assessment: c.Note, Proposals: proposals}
 }
 
 func (h *Handler) capturesDir() string {

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +10,7 @@ import (
 
 	"swarm-manager/internal/autofiler"
 	"swarm-manager/internal/backlog"
+	"swarm-manager/internal/evidence"
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/planclient"
 	"swarm-manager/internal/review"
@@ -195,6 +195,13 @@ func (s *Server) registerReviewRoutes(scenarioRoot string, execSvc *execution.Se
 			}
 			return item.Title, nil
 		},
+		LoadReviewContract: func(kind, name string) (review.ReviewContract, error) {
+			item, err := backlogStore.LoadItem(backlog.BacklogKind(kind), name)
+			if err != nil {
+				return review.ReviewContract{}, err
+			}
+			return review.ReviewContract{Description: item.Description, Criteria: item.AcceptanceCriteria}, nil
+		},
 		PlanContentResolver: func(ctx context.Context, kind, name, _ string) (string, error) {
 			if strings.EqualFold(strings.TrimSpace(kind), string(backlog.KindResearch)) {
 				return "", nil
@@ -285,6 +292,54 @@ func (s *Server) registerReviewRoutes(scenarioRoot string, execSvc *execution.Se
 		}
 	}
 	s.reviewSvc = review.NewService(cfg)
+	if s.backlogHandler != nil {
+		s.backlogHandler.SetReviewEvidenceVerifier(s.reviewSvc)
+	}
+	if s.eventDB != nil {
+		ledger := evidence.NewLedger(s.eventDB)
+		s.reviewSvc.SetEvidenceRecorder(func(ctx context.Context, kind, name string, round review.Round) error {
+			attemptRef := fmt.Sprintf("backlog/%s/%s/work.review/%d", kind, name, round.RoundNum)
+			for _, item := range round.Evidence {
+				// A review result is agent narrative by default. Its declared trust
+				// must never promote it beyond reported; only bounded machine
+				// producers can supply observed evidence.
+				confidence := "reported"
+				if item.Producer == "test-genie" || item.Producer == "git-control-tower" || item.Producer == "command" {
+					confidence = "observed"
+				}
+				if err := ledger.Record(ctx, evidence.Observation{ID: attemptRef + "/" + item.ID, Producer: "swarm-review", SourceSystem: "work.review", RunID: review.ExecutionIDFromSnapshot(round.AgentWorkflowSnapshot), SubjectKind: "criterion", SubjectID: kind + "/" + name + "/" + item.CriterionID, Action: item.Settlement, Confidence: confidence, Title: item.Title, Description: item.Description}, attemptRef); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		s.reviewSvc.SetEvidenceVerificationRecorder(func(ctx context.Context, kind, name string, round review.Round, item review.EvidenceItem, verified bool, actor, reason string) error {
+			attemptRef := fmt.Sprintf("backlog/%s/%s/work.review/%d", kind, name, round.RoundNum)
+			action := "operator_unverified"
+			if verified {
+				action = "operator_verified"
+			}
+			// Events are append-only so an operator can revise a prior decision;
+			// the ledger projection selects the latest event for each evidence id.
+			observationID := fmt.Sprintf("%s/%s/operator-verification/%d", attemptRef, item.ID, time.Now().UTC().UnixNano())
+			return ledger.Record(ctx, evidence.Observation{ID: observationID, Producer: "swarm-review", SourceSystem: "work.review", RunID: review.ExecutionIDFromSnapshot(round.AgentWorkflowSnapshot), SubjectKind: "criterion", SubjectID: kind + "/" + name + "/" + item.CriterionID, Action: action, Confidence: "operator_verified", Title: item.Title, Description: item.Description, Actor: actor, Reason: reason}, attemptRef)
+		})
+		s.reviewSvc.SetEvidenceVerificationProjection(func(ctx context.Context, kind, name string, round review.Round) (map[string]bool, bool, error) {
+			if ok, err := ledger.ParityProven(ctx, "review-evidence/v1"); err != nil || !ok {
+				return nil, false, err
+			}
+			attemptRef := fmt.Sprintf("backlog/%s/%s/work.review/%d", kind, name, round.RoundNum)
+			ids, err := ledger.OperatorVerifiedEvidenceIDs(ctx, attemptRef)
+			if err != nil {
+				return nil, false, err
+			}
+			result := make(map[string]bool, len(ids))
+			for observationID := range ids {
+				result[strings.TrimPrefix(observationID, attemptRef+"/")] = true
+			}
+			return result, true, nil
+		})
+	}
 	s.reviewHandler = review.NewHandler(s.reviewSvc)
 	s.reviewHandler.RegisterRoutes(s.router)
 
@@ -297,27 +352,5 @@ func (s *Server) registerReviewRoutes(scenarioRoot string, execSvc *execution.Se
 	// refuse to short-circuit an in-flight review.
 	if s.backlogHandler != nil {
 		s.backlogHandler.SetReviewRoundInspector(s.reviewSvc)
-
-		// Orphaned-in_review safety net: a boot-time sweep recovers any items
-		// stranded in in_review with no live review round (work done
-		// out-of-band, a review run that died, or a premature mark), and the
-		// ticker keeps the invariant for the process lifetime. Mirrors the
-		// feedback sweeper. Recovery routes items to review_pending so a human
-		// still decides the terminal state.
-		sweeper := review.NewSweeper(s.reviewSvc, backlogStore, s.backlogHandler.RecoverOrphanedReview)
-		if recovered, err := sweeper.RunOnce(context.Background()); err != nil {
-			slog.Warn("review: boot-time orphaned-in_review sweep failed", "err", err)
-		} else if recovered > 0 {
-			slog.Info("review: boot-time orphaned-in_review sweep recovered items", "count", recovered)
-		}
-		go func() {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			go func() {
-				<-s.reviewSweeperStop
-				cancel()
-			}()
-			sweeper.Start(ctx)
-		}()
 	}
 }

@@ -31,6 +31,19 @@ func ReviewableMilestone(goal Goal, items map[string]backlog.BacklogItem) string
 	return ""
 }
 
+// MilestoneMissingCriteria identifies the first active milestone whose
+// definition of done is absent. It is intentionally separate from
+// ReviewableMilestone: missing criteria is an operator action, not a reason to
+// silently suppress the milestone from the funnel.
+func MilestoneMissingCriteria(goal Goal) string {
+	for _, milestone := range goal.Milestones {
+		if milestone.ArchivedAt == nil && milestone.VerifiedDeliveredAt == nil && len(milestone.AcceptanceCriteria) == 0 {
+			return milestone.Name
+		}
+	}
+	return ""
+}
+
 // ResolveNextAction is the goal-domain half of the server-owned operator
 // inbox. It never creates a second action for a member: chain preserves the
 // member's resolved action and records its ref for the caller.
@@ -43,6 +56,9 @@ func ResolveNextAction(goal Goal, input NextActionInput) (backlog.NextActionProj
 	}
 	if input.ReviewMilestone != "" {
 		return goalAction(backlog.NextActionReview, "Review", "Review milestone evidence", "A delivered milestone is awaiting evidence review.", "milestone_review:"+input.ReviewMilestone), ""
+	}
+	if milestone := MilestoneMissingCriteria(goal); milestone != "" {
+		return goalAction(backlog.NextActionDefineCriteria, "Define criteria", "Define milestone criteria", "This milestone needs acceptance criteria before it can be independently reviewed.", "milestone_criteria:"+milestone), ""
 	}
 	if len(goal.Milestones) == 0 && len(goal.Targets) == 0 {
 		return goalAction(backlog.NextActionPlanGoal, "Plan goal", "Create goal structure", "This goal has no milestones or target items.", "goal_plan"), ""

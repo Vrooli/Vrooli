@@ -135,8 +135,40 @@ func CanApply(c Correlation, completion Completion) error {
 type Store interface {
 	Put(Correlation) error
 	Get(string) (Correlation, error)
+	FindBySubject(transitionKey, subjectRef string) (Correlation, error)
 	ListUnapplied() ([]Correlation, error)
 	Delete(string) error
+}
+
+// FindBySubject returns the durable correlation for one declared transition
+// subject. It scans both applied and unapplied entries because a projection
+// must be able to explain historical rounds after application.
+func (s *FileStore) FindBySubject(transitionKey, subjectRef string) (Correlation, error) {
+	entries, err := os.ReadDir(s.root)
+	if errors.Is(err, os.ErrNotExist) {
+		return Correlation{}, os.ErrNotExist
+	}
+	if err != nil {
+		return Correlation{}, err
+	}
+	var matches []Correlation
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		correlation, err := s.Get(strings.TrimSuffix(entry.Name(), ".json"))
+		if err != nil {
+			return Correlation{}, err
+		}
+		if correlation.TransitionKey == transitionKey && correlation.SubjectRef == subjectRef {
+			matches = append(matches, correlation)
+		}
+	}
+	if len(matches) == 0 {
+		return Correlation{}, os.ErrNotExist
+	}
+	sort.Slice(matches, func(i, j int) bool { return matches[i].ExecutionID > matches[j].ExecutionID })
+	return matches[0], nil
 }
 
 // FileStore stores one JSON document per workflow execution under root.

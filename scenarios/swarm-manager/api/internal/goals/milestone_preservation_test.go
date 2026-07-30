@@ -66,8 +66,8 @@ func TestUpdateMilestoneClearsVerifiedStampOnlyWhenCriteriaChange(t *testing.T) 
 			if _, err := svc.AssignMilestoneItems("goal", "ms", []string{"execute/a"}); err != nil {
 				t.Fatalf("AssignMilestoneItems: %v", err)
 			}
-			if _, err := svc.MarkMilestoneDelivered("goal", "ms"); err != nil {
-				t.Fatalf("MarkMilestoneDelivered: %v", err)
+			if _, err := svc.MarkMilestoneDeliveredWithVerdicts("goal", "ms", []CriterionVerdict{{Criterion: "Given x, when y, then z.", Verdict: "delivered", Evidence: []string{"evidence-1"}}}); err != nil {
+				t.Fatalf("MarkMilestoneDeliveredWithVerdicts: %v", err)
 			}
 
 			if _, err := svc.UpdateMilestone("goal", Milestone{Name: "ms", Title: "Ms", AcceptanceCriteria: tc.criteria}); err != nil {

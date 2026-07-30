@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"swarm-manager/internal/overview"
+	"swarm-manager/internal/stringsx"
 )
 
 const (
@@ -207,13 +208,13 @@ func needsAttention(view *OperationsView, summary OperationsBriefingSummary) []B
 			reason = "needs_attention"
 		}
 		out = append(out, BriefingAttentionItem{
-			ID:       firstNonEmpty(row.RunID, row.ActivityID),
+			ID:       stringsx.FirstNonEmpty(row.RunID, row.ActivityID),
 			Severity: severityForStatus(row.Status),
 			Reason:   reason,
 			Title:    activityTitle(row),
 			Status:   row.Status,
 			Lane:     row.Lane,
-			Ref:      firstNonEmpty(row.RunID, row.ActivityID),
+			Ref:      stringsx.FirstNonEmpty(row.RunID, row.ActivityID),
 			Command:  commandForActivity(row),
 		})
 	}
@@ -331,7 +332,7 @@ func activityTitle(row ActivityRow) string {
 	if row.OwnerKind != "" && row.OwnerName != "" {
 		return row.OwnerKind + "/" + row.OwnerName
 	}
-	return firstNonEmpty(row.OwnerName, row.RunID, row.ActivityID)
+	return stringsx.FirstNonEmpty(row.OwnerName, row.RunID, row.ActivityID)
 }
 
 func commandForActivity(row ActivityRow) string {
@@ -353,15 +354,6 @@ func severityForStatus(status string) string {
 	default:
 		return "low"
 	}
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if trimmed := strings.TrimSpace(value); trimmed != "" {
-			return trimmed
-		}
-	}
-	return ""
 }
 
 func uniqueStrings(values []string) []string {

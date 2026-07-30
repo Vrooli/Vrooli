@@ -35,7 +35,7 @@ func envDuration(name string, fallback time.Duration) time.Duration {
 // treated as NOT live so recovery isn't blocked by a dead run — recovery is a
 // deliberate operator action and the sweeper would reclaim such an item anyway.
 func (s *Service) HasLiveReviewRound(kind, name string) bool {
-	rounds, err := LoadRounds(s.resolveItemDir(kind, name))
+	rounds, err := readRounds(s.resolveItemDir(kind, name))
 	if err != nil || len(rounds) == 0 {
 		return false
 	}
@@ -69,7 +69,7 @@ func (s *Service) HasLiveReviewRound(kind, name string) bool {
 //
 // A live gathering round younger than maxAge is healthy → not orphaned.
 func (s *Service) ClassifyOrphan(kind, name, itemUpdated string, maxAge time.Duration) (bool, string) {
-	rounds, err := LoadRounds(s.resolveItemDir(kind, name))
+	rounds, err := readRounds(s.resolveItemDir(kind, name))
 	if err != nil {
 		return false, "" // never act on a read error
 	}

@@ -32,11 +32,7 @@ export const API_ENDPOINTS = {
   planWorkshops: "/plan-workshops",
   planWorkshopById: (id: string) => `/plan-workshops/${id}`,
   planWorkshopReview: (id: string) => `/plan-workshops/${id}/review`,
-  planWorkshopReviewApply: (id: string) => `/plan-workshops/${id}/review/apply`,
   planWorkshopResponses: (id: string) => `/plan-workshops/${id}/responses`,
-  planWorkshopReconciliationApply: (id: string, responseId: string) => `/plan-workshops/${id}/responses/${responseId}/reconciliation/apply`,
-  planWorkshopCandidateApply: (id: string, responseId: string) => `/plan-workshops/${id}/responses/${responseId}/candidate/apply`,
-  planWorkshopCandidateDiscard: (id: string, responseId: string) => `/plan-workshops/${id}/responses/${responseId}/candidate/discard`,
   backlogQueue: (kind: string, name: string) => `/backlog/${kind}/${name}/queue`,
   backlogWorkFeed: (kind: string, name: string) => `/backlog/${kind}/${name}/work-feed`,
   backlogRetry: (kind: string, name: string) => `/backlog/${kind}/${name}/retry`,
@@ -99,8 +95,6 @@ export const API_ENDPOINTS = {
   agentSessionApplyProposal: (sessionId: string, proposalId: string) =>
     `/agent-sessions/${sessionId}/proposals/${proposalId}/apply`,
   proposalSessions: "/proposal-sessions",
-  agentSessionDecideMutationProposal: (sessionId: string, proposalId: string) =>
-    `/agent-sessions/${sessionId}/proposals/${proposalId}/decide`,
   agentSessionAcceptKeepRecommendation: (sessionId: string, proposalId: string) =>
     `/agent-sessions/${sessionId}/proposals/${proposalId}/accept-keep`,
   agentSessionReviseMutationProposal: (sessionId: string, proposalId: string) =>
@@ -117,8 +111,6 @@ export const API_ENDPOINTS = {
   promptExperimentResults: (experimentId: string) => `/prompts/experiments/${experimentId}/results`,
   captures: "/captures",
   captureById: (id: string) => `/captures/${id}`,
-  captureClassify: (id: string) => `/captures/${id}/classify`,
-  captureClassificationApply: (id: string, executionId: string) => `/captures/${id}/classify/${executionId}/apply`,
   captureCreateItem: (id: string) => `/captures/${id}/create-item`,
   records: "/records",
   recordsCapture: "/records/capture",
@@ -139,11 +131,8 @@ export const API_ENDPOINTS = {
   operationsBulkStop: "/operations/bulk-stop",
   // Review evidence endpoints
   reviewRounds: (kind: string, name: string) => `/backlog/${kind}/${name}/review`,
-  reviewDecide: (kind: string, name: string) => `/backlog/${kind}/${name}/review-decide`,
   reviewCapture: (kind: string, name: string, capturePath: string) =>
     `/backlog/${kind}/${name}/review/captures/${capturePath}`,
-  reviewVerify: (kind: string, name: string, round: number, evidenceId: string) =>
-    `/backlog/${kind}/${name}/review/${round}/verify/${evidenceId}`,
   reviewRequest: (kind: string, name: string, round: number) =>
     `/backlog/${kind}/${name}/review/${round}/request`,
   reviewContinueRequest: (kind: string, name: string, round: number, threadId: string) =>

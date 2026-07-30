@@ -36,6 +36,17 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 // apierr.MapError+return pairs into a single error-return path at the call
 // site, which is the dominant source of cyclomatic complexity in Update.
 func (h *Handler) doUpdate(ctx context.Context, kind BacklogKind, name string, r *http.Request) (BacklogItem, *apierr.DomainError) {
+	update, fields, err := decodeUpdateBacklogPatch(r)
+	if err != nil {
+		return BacklogItem{}, apierr.BadRequest("%s", err.Error())
+	}
+	return h.doUpdatePatch(ctx, kind, name, update, fields)
+}
+
+// doUpdatePatch is the transport-neutral update mutation shared by REST and
+// Connect. The caller supplies the explicit set of fields whose presence is
+// meaningful, including deliberately empty repeated fields.
+func (h *Handler) doUpdatePatch(ctx context.Context, kind BacklogKind, name string, update *apipb.UpdateBacklogItemRequest, fields backlogUpdateFieldSet) (BacklogItem, *apierr.DomainError) {
 	existing, err := h.store.LoadItem(kind, name)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
@@ -45,10 +56,6 @@ func (h *Handler) doUpdate(ctx context.Context, kind BacklogKind, name string, r
 		return BacklogItem{}, apierr.Internal("%s", httputil.TruncateErrorMessage(err, 240))
 	}
 
-	update, fields, err := decodeUpdateBacklogPatch(r)
-	if err != nil {
-		return BacklogItem{}, apierr.BadRequest("%s", err.Error())
-	}
 	if validationErr := validateUpdateBacklogItemRequest(update, fields, existing.Kind, existing.Status); validationErr != "" {
 		return BacklogItem{}, apierr.BadRequest("%s", validationErr)
 	}

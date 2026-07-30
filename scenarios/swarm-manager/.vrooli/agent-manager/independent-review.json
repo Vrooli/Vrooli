@@ -70,7 +70,35 @@
                 "maxItems": 100,
                 "items": {
                   "type": "object",
+                  "properties": {
+                    "id": {"type": "string", "minLength": 1},
+                    "criterion_id": {"type": "string", "minLength": 1},
+                    "type": {"type": "string", "minLength": 1},
+                    "title": {"type": "string", "minLength": 1},
+                    "description": {"type": "string", "minLength": 1},
+                    "producer": {"type": "string", "minLength": 1},
+                    "trust": {"type": "string", "enum": ["authoritative", "observed", "reported", "operator_verified"]},
+                    "settlement": {"type": "string", "enum": ["settled", "refuted", "unavailable"]},
+                    "unavailable_reason": {"type": "string", "maxLength": 4096},
+                    "attempted_producer": {"type": "string", "minLength": 1, "maxLength": 256}
+                  },
+                  "required": ["id", "criterion_id", "type", "title", "description", "producer", "trust", "settlement"],
+                  "allOf": [{"if": {"properties": {"settlement": {"const": "unavailable"}}, "required": ["settlement"]}, "then": {"required": ["unavailable_reason", "attempted_producer"]}}],
                   "additionalProperties": true
+                }
+              },
+              "criterion_verdicts": {
+                "type": "array",
+                "maxItems": 100,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "criterion_id": {"type": "string", "minLength": 1},
+                    "settlement": {"type": "string", "enum": ["settled", "refuted", "unavailable"]},
+                    "evidence_ids": {"type": "array", "items": {"type": "string", "minLength": 1}}
+                  },
+                  "required": ["criterion_id", "settlement", "evidence_ids"],
+                  "additionalProperties": false
                 }
               },
               "improvement_suggestions": {
@@ -123,6 +151,7 @@
               "verdict",
               "agent_assessment",
               "evidence",
+              "criterion_verdicts",
               "improvement_suggestions",
               "regression_introduced",
               "notes",
@@ -149,7 +178,7 @@
       "id": "review",
       "kind": "run",
       "run": {
-        "profileKey": "swarm-manager/analysis",
+        "profileKey": "swarm-manager/review-evidence",
         "resultSpec": {
           "version": "result-spec/v1",
           "kind": "json_schema",
@@ -179,7 +208,35 @@
                     "maxItems": 100,
                     "items": {
                       "type": "object",
+                      "properties": {
+                        "id": {"type": "string", "minLength": 1},
+                        "criterion_id": {"type": "string", "minLength": 1},
+                        "type": {"type": "string", "minLength": 1},
+                        "title": {"type": "string", "minLength": 1},
+                        "description": {"type": "string", "minLength": 1},
+                        "producer": {"type": "string", "minLength": 1},
+                        "trust": {"type": "string", "enum": ["authoritative", "observed", "reported", "operator_verified"]},
+                        "settlement": {"type": "string", "enum": ["settled", "refuted", "unavailable"]},
+                        "unavailable_reason": {"type": "string", "maxLength": 4096},
+                        "attempted_producer": {"type": "string", "minLength": 1, "maxLength": 256}
+                      },
+                      "required": ["id", "criterion_id", "type", "title", "description", "producer", "trust", "settlement"],
+                      "allOf": [{"if": {"properties": {"settlement": {"const": "unavailable"}}, "required": ["settlement"]}, "then": {"required": ["unavailable_reason", "attempted_producer"]}}],
                       "additionalProperties": true
+                    }
+                  },
+                  "criterion_verdicts": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "criterion_id": {"type": "string", "minLength": 1},
+                        "settlement": {"type": "string", "enum": ["settled", "refuted", "unavailable"]},
+                        "evidence_ids": {"type": "array", "items": {"type": "string", "minLength": 1}}
+                      },
+                      "required": ["criterion_id", "settlement", "evidence_ids"],
+                      "additionalProperties": false
                     }
                   },
                   "improvement_suggestions": {
@@ -232,6 +289,7 @@
                   "verdict",
                   "agent_assessment",
                   "evidence",
+                  "criterion_verdicts",
                   "improvement_suggestions",
                   "regression_introduced",
                   "notes",

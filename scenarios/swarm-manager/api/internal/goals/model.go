@@ -58,7 +58,15 @@ type Milestone struct {
 	ArchivedAt         *string  `json:"archived_at,omitempty"`
 	// VerifiedDeliveredAt is written only when the milestone-review workflow
 	// returns the delivered verdict. Item terminal statuses are not evidence.
-	VerifiedDeliveredAt *string `json:"verified_delivered_at,omitempty"`
+	VerifiedDeliveredAt *string            `json:"verified_delivered_at,omitempty"`
+	CriterionVerdicts   []CriterionVerdict `json:"criterion_verdicts,omitempty"`
+}
+
+// CriterionVerdict is the durable proof summary from milestone review.
+type CriterionVerdict struct {
+	Criterion string   `json:"criterion"`
+	Verdict   string   `json:"verdict"`
+	Evidence  []string `json:"evidence,omitempty"`
 }
 
 // ReadyGoalItem is a ready-to-run backlog item in an active goal's closure,

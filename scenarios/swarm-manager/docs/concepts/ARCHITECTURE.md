@@ -360,7 +360,13 @@ api/internal/
 - `/api/v1/agent-activities/*` - tracked agent activity history and active runtime telemetry
 - `/api/v1/prompts/*` - prompt catalog, skill CRUD, versions, revert, preview, simulate
 - `/api/v1/agent-manager/status` - agent-manager availability
-- `/vrooli.swarm_manager.v1.discovery.DiscoveryService/GetAudioToolsEndpoint` - **Connect-RPC**; resolves audio-tools' base URL for the browser. The only Connect-RPC surface in swarm-manager today; remaining REST domains tracked in `docs/internal/PROBLEMS.md`.
+- `BacklogService` - **Connect-RPC**; owns typed backlog create, read, update,
+  delete, and `DecideAttempt` mutations. `DecideAttempt` addresses a durable
+  attempt by subject and round, so a review decision has one audited typed
+  mutation path. Legacy REST domains remain tracked in
+  `docs/internal/PROBLEMS.md`.
+- `/vrooli.swarm_manager.v1.discovery.DiscoveryService/GetAudioToolsEndpoint` -
+  **Connect-RPC**; resolves audio-tools' base URL for the browser.
 
 ### Audio capability (via audio-tools)
 

@@ -14,6 +14,7 @@ import (
 	"swarm-manager/internal/agentsessions"
 	"swarm-manager/internal/operations"
 	"swarm-manager/internal/runtimepaths"
+	"swarm-manager/internal/stringsx"
 )
 
 type Resolver struct {
@@ -180,7 +181,7 @@ func formatOperationsBriefingSummary(briefing *operations.OperationsBriefing) st
 	if len(briefing.ActiveWork) > 0 {
 		b.WriteString("Active work:\n")
 		for _, item := range briefing.ActiveWork {
-			fmt.Fprintf(&b, "- %s [%s/%s] %s", firstNonEmpty(item.OwnerTitle, item.OwnerName, item.ActivityID), item.Lane, item.Status, firstNonEmpty(item.RunID, item.ActivityID))
+			fmt.Fprintf(&b, "- %s [%s/%s] %s", stringsx.FirstNonEmpty(item.OwnerTitle, item.OwnerName, item.ActivityID), item.Lane, item.Status, stringsx.FirstNonEmpty(item.RunID, item.ActivityID))
 			if item.Mode != "" || item.Phase != "" {
 				fmt.Fprintf(&b, " mode=%s phase=%s", item.Mode, item.Phase)
 			}
@@ -207,15 +208,6 @@ func formatOperationsBriefingSummary(briefing *operations.OperationsBriefing) st
 		fmt.Fprintf(&b, "Warnings: %s.\n", strings.Join(briefing.Warnings, "; "))
 	}
 	return b.String()
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if trimmed := strings.TrimSpace(value); trimmed != "" {
-			return trimmed
-		}
-	}
-	return ""
 }
 
 func (r *Resolver) resolveBacklogItem(ref string, limits agentsessions.ContextLimits) (agentsessions.ContextItem, error) {
@@ -270,7 +262,7 @@ func resolvePlanEta(ref string, limits agentsessions.ContextLimits) (agentsessio
 		eta.P50Label, eta.P80Label,
 		eta.RemainingItems, plural(eta.RemainingItems, "item", "items"),
 		eta.LaneCapacity, plural(eta.LaneCapacity, "lane", "lanes"),
-		firstNonEmpty(eta.Confidence, "unknown"), firstNonEmpty(eta.BasisLabel, "priors only"),
+		stringsx.FirstNonEmpty(eta.Confidence, "unknown"), stringsx.FirstNonEmpty(eta.BasisLabel, "priors only"),
 	)
 	return agentsessions.ContextItem{
 		Type:    agentsessions.ContextPlanEta,

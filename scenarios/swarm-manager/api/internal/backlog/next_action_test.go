@@ -29,10 +29,11 @@ func TestResolveNextActionDecisionTable(t *testing.T) {
 	}{
 		{name: "no canonical plan authors plan", item: BacklogItem{Name: "no-plan", Kind: KindIdea, Status: StatusBacklog}, want: NextActionAuthorPlan},
 		{name: "suggestion is accepted before planning", item: BacklogItem{Name: "suggested", Kind: KindIdea, Status: StatusSuggested}, want: NextActionAcceptSuggestion},
-		{name: "ready item runs", item: BacklogItem{Name: "ready", Kind: KindIdea, Status: StatusReady, PlanRef: testPlanRef("ready")}, preflight: execution.ProcessPreflight{Ready: true}, want: NextActionRun},
-		{name: "unaccepted plan is accepted", item: BacklogItem{Name: "unaccepted", Kind: KindIdea, Status: StatusReady, PlanRef: testPlanRef("unaccepted")}, preflight: execution.ProcessPreflight{BlockingReasons: []string{"canonical plan has not been explicitly accepted — accept the current plan revision before queueing"}, BlockingDetails: []execution.ProcessBlockingReason{{Code: "plan_not_accepted", Message: "canonical plan has not been explicitly accepted — accept the current plan revision before queueing"}}}, want: NextActionAcceptPlan},
-		{name: "invalid plan is repaired", item: BacklogItem{Name: "invalid", Kind: KindIdea, Status: StatusReady, PlanRef: testPlanRef("invalid")}, preflight: execution.ProcessPreflight{BlockingReasons: []string{"canonical plan is not valid: quality status is \"fail\""}, BlockingDetails: []execution.ProcessBlockingReason{{Code: "plan_invalid", Message: "canonical plan is not valid: quality status is \"fail\""}}}, want: NextActionRepairPlan},
-		{name: "dependencies are resolved", item: BacklogItem{Name: "blocked", Kind: KindIdea, Status: StatusReady, PlanRef: testPlanRef("blocked"), DependsOn: []string{"idea/upstream"}}, preflight: execution.ProcessPreflight{Ready: true}, want: NextActionResolveDependencies},
+		{name: "plan-ready item without criteria defines them", item: BacklogItem{Name: "criteria", Kind: KindIdea, Status: StatusReady, PlanRef: testPlanRef("criteria")}, want: NextActionDefineCriteria},
+		{name: "ready item runs", item: BacklogItem{Name: "ready", Kind: KindIdea, Status: StatusReady, PlanRef: testPlanRef("ready"), AcceptanceCriteria: testAcceptanceCriteria()}, preflight: execution.ProcessPreflight{Ready: true}, want: NextActionRun},
+		{name: "unaccepted plan is accepted", item: BacklogItem{Name: "unaccepted", Kind: KindIdea, Status: StatusReady, PlanRef: testPlanRef("unaccepted"), AcceptanceCriteria: testAcceptanceCriteria()}, preflight: execution.ProcessPreflight{BlockingReasons: []string{"canonical plan has not been explicitly accepted — accept the current plan revision before queueing"}, BlockingDetails: []execution.ProcessBlockingReason{{Code: "plan_not_accepted", Message: "canonical plan has not been explicitly accepted — accept the current plan revision before queueing"}}}, want: NextActionAcceptPlan},
+		{name: "invalid plan is repaired", item: BacklogItem{Name: "invalid", Kind: KindIdea, Status: StatusReady, PlanRef: testPlanRef("invalid"), AcceptanceCriteria: testAcceptanceCriteria()}, preflight: execution.ProcessPreflight{BlockingReasons: []string{"canonical plan is not valid: quality status is \"fail\""}, BlockingDetails: []execution.ProcessBlockingReason{{Code: "plan_invalid", Message: "canonical plan is not valid: quality status is \"fail\""}}}, want: NextActionRepairPlan},
+		{name: "dependencies are resolved", item: BacklogItem{Name: "blocked", Kind: KindIdea, Status: StatusReady, PlanRef: testPlanRef("blocked"), AcceptanceCriteria: testAcceptanceCriteria(), DependsOn: []string{"idea/upstream"}}, preflight: execution.ProcessPreflight{Ready: true}, want: NextActionResolveDependencies},
 		{name: "review is reviewed", item: BacklogItem{Name: "review", Kind: KindIdea, Status: StatusReviewPending}, want: NextActionReview},
 		{name: "active review views execution", item: BacklogItem{Name: "in-review", Kind: KindIdea, Status: StatusInReview}, want: NextActionViewExecution},
 		{name: "active item views execution", item: BacklogItem{Name: "active", Kind: KindIdea, Status: StatusInProgress}, want: NextActionViewExecution},
@@ -101,7 +102,7 @@ func TestResolveNextActionLifecycleMatrix(t *testing.T) {
 func TestNextActionEndpointsSingleAndBoundedBatch(t *testing.T) {
 	h, root := setupTestHandler(t)
 	h.SetExecutionQueuer(&mockExecutionQueuer{preflightResult: execution.ProcessPreflight{Ready: true}})
-	createReadyTestItem(t, root, KindIdea, BacklogItem{Name: "ready", Kind: KindIdea, Status: StatusReady})
+	createReadyTestItem(t, root, KindIdea, BacklogItem{Name: "ready", Kind: KindIdea, Status: StatusReady, AcceptanceCriteria: testAcceptanceCriteria()})
 	router := mux.NewRouter()
 	h.RegisterRoutes(router)
 
@@ -158,7 +159,7 @@ func TestResolveNextActionRejectsUnmappedBlockerCode(t *testing.T) {
 		BlockingReasons: []string{"a new blocker"},
 		BlockingDetails: []execution.ProcessBlockingReason{{Code: "unknown", Message: "a new blocker"}},
 	}})
-	item := BacklogItem{Name: "unknown-blocker", Kind: KindIdea, Status: StatusReady, PlanRef: testPlanRef("unknown-blocker")}
+	item := BacklogItem{Name: "unknown-blocker", Kind: KindIdea, Status: StatusReady, PlanRef: testPlanRef("unknown-blocker"), AcceptanceCriteria: testAcceptanceCriteria()}
 	createTestItem(t, root, item.Kind, item)
 	if _, err := h.ResolveNextAction(t.Context(), item); err == nil {
 		t.Fatal("ResolveNextAction accepted an unmapped blocker code")
@@ -190,7 +191,7 @@ func TestResolveNextActionCoversCanonicalBlockerCodes(t *testing.T) {
 				BlockingReasons: []string{tt.code},
 				BlockingDetails: []execution.ProcessBlockingReason{{Code: tt.code, Message: tt.code}},
 			}})
-			item := BacklogItem{Name: tt.code, Kind: KindIdea, Status: StatusReady, PlanRef: testPlanRef(tt.code)}
+			item := BacklogItem{Name: tt.code, Kind: KindIdea, Status: StatusReady, PlanRef: testPlanRef(tt.code), AcceptanceCriteria: testAcceptanceCriteria()}
 			if tt.code == "unmet_dependencies" {
 				item.DependsOn = []string{"idea/upstream"}
 				createTestItem(t, root, KindIdea, BacklogItem{Name: "upstream", Kind: KindIdea, Status: StatusBacklog})
@@ -205,6 +206,10 @@ func TestResolveNextActionCoversCanonicalBlockerCodes(t *testing.T) {
 			}
 		})
 	}
+}
+
+func testAcceptanceCriteria() []Criterion {
+	return []Criterion{{ID: "criterion-1", Gherkin: "Given a valid plan When it executes Then it has an independently reviewable outcome."}}
 }
 
 func TestResolveNextActionDispatchesPersistedFollowUp(t *testing.T) {

@@ -131,7 +131,7 @@ func BuildIdeaPackage(req BuildRequest) (*Package, error) {
 		generatedAt = time.Now()
 	}
 
-	rounds, err := workshop.LoadRounds(itemFolder)
+	rounds, err := workshop.ReadRounds(itemFolder)
 	if err != nil {
 		return nil, fmt.Errorf("load workshop rounds: %w", err)
 	}

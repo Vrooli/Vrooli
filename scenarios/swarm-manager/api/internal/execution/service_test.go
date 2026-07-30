@@ -96,25 +96,22 @@ func (s *stubPhasedPlanWorkflow) GetWorkflowProgress(_ context.Context, _ string
 }
 
 func TestWorkflowProgressReadsAgentManagerTraceWithoutPersistingIt(t *testing.T) {
-	root := t.TempDir()
 	workflow := &stubPhasedPlanWorkflow{progress: agentmanager.WorkflowProgress{CurrentNode: "slice", SliceCount: 2, Turns: 7, CostUSD: 0.42, EdgeTraversals: map[string]int32{"slice->review": 2}, UpdatedAt: "2026-07-22T12:00:00Z"}}
-	service := NewService(ServiceConfig{DataRoot: root, StorePath: filepath.Join(root, "executions.json"), PlanRenderer: testPlanRenderer(), PhasedPlanWorkflow: workflow})
-	if err := service.store.Save([]Record{{ExecutionID: "execution-1", AgentWorkflowExecutionID: "workflow-1", BacklogKind: "execute", BacklogName: "item-a", Status: StatusRunning, Mode: ModeYOLO}}); err != nil {
-		t.Fatal(err)
-	}
-	progress, err := service.WorkflowProgress(context.Background(), "execution-1")
+	service, _, started, _ := setupPhasedPlanExecution(t, "progress-plan")
+	service.phasedPlanWorkflow = workflow
+	progress, err := service.WorkflowProgress(context.Background(), started.ExecutionID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if progress.CurrentNode != "slice" || progress.SliceCount != 2 || progress.Turns != 7 {
 		t.Fatalf("progress=%+v", progress)
 	}
-	stored, err := service.Get(context.Background(), "execution-1")
+	stored, err := service.Get(context.Background(), started.ExecutionID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stored.AgentWorkflowExecutionID != "workflow-1" {
-		t.Fatalf("live progress mutated execution correlation: %+v", stored)
+	if _, err := service.transitionCorrelation(stored); err != nil {
+		t.Fatalf("live progress lost execution correlation: %v", err)
 	}
 }
 
@@ -256,8 +253,8 @@ func TestQueueAndStartManualExecution(t *testing.T) {
 	if started.RunID != "run-1" {
 		t.Fatalf("expected run id from operation start, got %q", started.RunID)
 	}
-	if started.AgentWorkflowExecutionID != "wfx-1" || started.TaskID != "wfx-1" {
-		t.Fatalf("expected workflow execution refs on record, got workflow=%q task=%q", started.AgentWorkflowExecutionID, started.TaskID)
+	if correlation := workflowCorrelationFor(t, service, started); correlation.ExecutionID != "wfx-1" || started.TaskID != "wfx-1" {
+		t.Fatalf("expected journal workflow execution and task ref, got correlation=%q task=%q", correlation.ExecutionID, started.TaskID)
 	}
 	if agent.spawnCalls != 0 {
 		t.Fatalf("expected no direct spawn for a plan-backed item, got %d", agent.spawnCalls)
@@ -680,7 +677,7 @@ func TestCancel_StartingExecution(t *testing.T) {
 	if canceled.Status != StatusCanceled {
 		t.Fatalf("expected canceled, got %s", canceled.Status)
 	}
-	if state := transitionApplyStateFor(t, service, canceled.AgentWorkflowExecutionID); state != transitionrun.ApplyStateComplete {
+	if state := transitionApplyStateFor(t, service, workflowCorrelationFor(t, service, canceled).ExecutionID); state != transitionrun.ApplyStateComplete {
 		t.Fatalf("workflow cancellation must close the consumer apply boundary, got %q", state)
 	}
 	if stopper.stopCalls != 0 {

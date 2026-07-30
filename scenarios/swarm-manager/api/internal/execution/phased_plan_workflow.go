@@ -10,6 +10,8 @@ import (
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/stringsx"
+	"swarm-manager/internal/transitionrun"
 	"swarm-manager/internal/transitionrunner"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -171,35 +173,37 @@ func (s *Service) ApprovePhasedPlanWorkflow(ctx context.Context, executionID, ac
 		return Record{}, err
 	}
 	record := records[idx]
-	if strings.TrimSpace(record.AgentWorkflowExecutionID) == "" {
+	correlation, err := s.transitionCorrelation(record)
+	if err != nil || correlation.TransitionKey != "plan.execute" {
 		return Record{}, apierr.BadRequest("execution is not owned by a phased-plan workflow")
 	}
 	// Apply state lives on the shared correlation, not on this record. Keeping a
 	// second copy here meant two sources of truth for whether a terminal result
 	// had already been consumed.
-	if s.transitionApplyComplete(record.AgentWorkflowExecutionID) || isWorkflowConsumerTerminal(record.Status) {
+	if correlation.ApplyState == transitionrun.ApplyStateComplete || isWorkflowConsumerTerminal(record.Status) {
 		return Record{}, apierr.Conflict("execution workflow is already terminal")
 	}
-	if strings.TrimSpace(record.AgentWorkflowApprovalAt) == "" {
-		record.AgentWorkflowApprovalAt = nowRFC3339()
-		record.AgentWorkflowApprovalBy = strings.TrimSpace(actor)
-		record.UpdatedAt = nowRFC3339()
-		records[idx] = record
-		if err := s.store.Save(records); err != nil {
+	if strings.TrimSpace(correlation.ApprovalTime) == "" {
+		correlation, err = s.transitionRunner.UpdateCorrelation(correlation.ExecutionID, func(value *transitionrun.Correlation) error {
+			value.ApprovalTime = nowRFC3339()
+			value.ApprovalActor = strings.TrimSpace(actor)
+			return nil
+		})
+		if err != nil {
 			return Record{}, err
 		}
 	}
-	payload, err := structpb.NewValue(map[string]any{"executionId": record.ExecutionID, "actor": record.AgentWorkflowApprovalBy})
+	payload, err := structpb.NewValue(map[string]any{"executionId": record.ExecutionID, "actor": correlation.ApprovalActor})
 	if err != nil {
 		return Record{}, apierr.Internal("encode workflow approval: %s", err.Error())
 	}
 	var signalErr error
 	if s.transitionRunner != nil {
-		signalErr = s.transitionRunner.Signal(ctx, record.AgentWorkflowExecutionID, "slice_approved", payload, "approve-"+record.ExecutionID)
+		signalErr = s.transitionRunner.Signal(ctx, correlation.ExecutionID, "slice_approved", payload, "approve-"+record.ExecutionID)
 	} else if signaler, ok := s.phasedPlanWorkflow.(interface {
 		SignalWorkflow(context.Context, string, string, *structpb.Value, string) error
 	}); ok {
-		signalErr = signaler.SignalWorkflow(ctx, record.AgentWorkflowExecutionID, "slice_approved", payload, "approve-"+record.ExecutionID)
+		signalErr = signaler.SignalWorkflow(ctx, correlation.ExecutionID, "slice_approved", payload, "approve-"+record.ExecutionID)
 	} else {
 		return Record{}, apierr.BadRequest("approval is not supported by current workflow service")
 	}
@@ -249,19 +253,12 @@ func (s *Service) applyPlanExecuteTransition(ctx context.Context, executionID st
 	if err != nil {
 		return err
 	}
-	record.AgentWorkflowTerminalCode, record.AgentWorkflowBudgetName = outcome.TerminalCode, outcome.BudgetName
-	record.AgentWorkflowResult, record.AgentWorkflowOutcome = append(json.RawMessage(nil), outcome.Result...), result.Outcome
-	record.AgentWorkflowAttempts = make([]WorkflowAttemptProvenance, 0, len(outcome.Attempts))
-	for _, attempt := range outcome.Attempts {
-		record.AgentWorkflowAttempts = append(record.AgentWorkflowAttempts, WorkflowAttemptProvenance{NodeID: attempt.NodeID, Ordinal: attempt.Ordinal, Strategy: attempt.Strategy, RunID: attempt.RunID, ConversationID: attempt.ConversationID, SourceAttemptID: attempt.SourceAttemptID, ProfileIdentity: attempt.ProfileIdentity})
-	}
-	if err := s.reconcilePlanManagerCompletion(ctx, &record); err != nil {
+	if err := s.reconcilePlanManagerCompletion(ctx, &record, result.Outcome); err != nil {
 		return err
 	}
-	if err := s.finishPhasedPlanClaim(&record); err != nil {
+	if err := s.finishPhasedPlanClaim(&record, outcome, result); err != nil {
 		return err
 	}
-	record.AgentWorkflowAppliedAt = nowRFC3339()
 	record.UpdatedAt = nowRFC3339()
 	records[idx] = record
 	if err := s.store.Save(records); err != nil {
@@ -275,8 +272,8 @@ func (s *Service) applyPlanExecuteTransition(ctx context.Context, executionID st
 // drain that claims completion. The agent can complete phases through the
 // bound execution, but Swarm never infers the terminal plan state from a
 // handoff alone.
-func (s *Service) reconcilePlanManagerCompletion(ctx context.Context, record *Record) error {
-	if record.AgentWorkflowOutcome != "complete" || strings.TrimSpace(record.PlanManagerExecutionID) == "" || strings.TrimSpace(record.PlanManagerReconciledAt) != "" {
+func (s *Service) reconcilePlanManagerCompletion(ctx context.Context, record *Record, workflowOutcome string) error {
+	if workflowOutcome != "complete" || strings.TrimSpace(record.PlanManagerExecutionID) == "" || strings.TrimSpace(record.PlanManagerReconciledAt) != "" {
 		return nil
 	}
 	client, ok := s.planRenderer.(interface {
@@ -343,15 +340,14 @@ func parsePhasedPlanOutcome(status domainpb.WorkflowExecutionStatus, raw json.Ra
 	}
 }
 
-func (s *Service) finishPhasedPlanClaim(record *Record) error {
+func (s *Service) finishPhasedPlanClaim(record *Record, outcome transitionrunner.Outcome, result phasedPlanResult) error {
 	item, err := s.loadBacklogItemByRecord(record)
 	if err != nil {
 		return err
 	}
-	result, _ := parsePhasedPlanOutcome(domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, record.AgentWorkflowResult)
 	previous := record.Status
 	record.FinishedAt = nowRFC3339()
-	switch record.AgentWorkflowOutcome {
+	switch result.Outcome {
 	case "complete":
 		record.Status = StatusCompleted
 		candidates := []string{}
@@ -363,13 +359,13 @@ func (s *Service) finishPhasedPlanClaim(record *Record) error {
 		}
 	case "blocked", "needs_review", "needs_attention", "abstained":
 		record.Status = StatusNeedsReview
-		record.FailureReason = firstNonEmpty(result.Blocker.Summary, result.Reason, result.Summary, "workflow "+record.AgentWorkflowOutcome)
+		record.FailureReason = stringsx.FirstNonEmpty(result.Blocker.Summary, result.Reason, result.Summary, "workflow "+result.Outcome)
 		if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
 			return err
 		}
 	default:
 		record.Status = StatusFailed
-		record.FailureReason = firstNonEmpty(record.AgentWorkflowTerminalCode, record.AgentWorkflowOutcome)
+		record.FailureReason = stringsx.FirstNonEmpty(outcome.TerminalCode, result.Outcome)
 		if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
 			return err
 		}

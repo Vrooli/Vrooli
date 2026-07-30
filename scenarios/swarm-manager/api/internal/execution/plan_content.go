@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"swarm-manager/internal/planclient"
+	"swarm-manager/internal/stringsx"
 )
 
 const (
@@ -67,7 +68,7 @@ func resolveRenderedPlanContent(ctx context.Context, item backlogItem, renderer 
 	if strings.TrimSpace(ref.Role) != planRefRoleExecutionSpec {
 		return renderedPlanContent{}, fmt.Errorf("backlog item %s/%s plan_ref.role must be %q", item.Kind, item.Name, planRefRoleExecutionSpec)
 	}
-	planID := firstNonEmpty(ref.PlanID, ref.Slug)
+	planID := stringsx.FirstNonEmpty(ref.PlanID, ref.Slug)
 	if planID == "" {
 		return renderedPlanContent{}, fmt.Errorf("backlog item %s/%s plan_ref requires plan_id or slug", item.Kind, item.Name)
 	}
@@ -78,7 +79,7 @@ func resolveRenderedPlanContent(ctx context.Context, item backlogItem, renderer 
 	}
 	// Path is derived per item, not memoized: two items may address the same
 	// plan by different halves of their plan_ref.
-	pathID := firstNonEmpty(ref.Slug, ref.PlanID, planID)
+	pathID := stringsx.FirstNonEmpty(ref.Slug, ref.PlanID, planID)
 	rendered.Path = "plan-manager:" + pathID
 	return rendered, nil
 }
@@ -126,11 +127,5 @@ func renderPlan(ctx context.Context, planID string, renderer planclient.Markdown
 	}, nil
 }
 
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if trimmed := strings.TrimSpace(value); trimmed != "" {
-			return trimmed
-		}
-	}
-	return ""
-}
+// firstNonEmpty delegates to the canonical primitive while package-local
+// workflow callers are migrated incrementally.

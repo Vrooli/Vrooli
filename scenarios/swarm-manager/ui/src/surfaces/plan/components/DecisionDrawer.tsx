@@ -445,7 +445,7 @@ function EntryBody({ entry, variant, questions, proposals, onSnooze, onOpen, onC
   if (variant === "review") {
     return (
       <section className="space-y-3 p-4" data-testid="next-action-stream-review">
-        <ReviewDecisionCard kind={backlogKind} name={backlogName} round={reviewQuery.data?.[0]} onDecided={onChanged} />
+        <ReviewDecisionCard kind={backlogKind} name={backlogName} round={reviewQuery.data?.at(-1)} onDecided={onChanged} />
         <button type="button" onClick={onOpen} className="rounded border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800">
           Open
         </button>

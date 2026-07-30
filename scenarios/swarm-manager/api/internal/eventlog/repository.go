@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vrooli/api-core/database"
@@ -57,6 +58,50 @@ const schemaSQL = `
 		);
 		CREATE INDEX IF NOT EXISTS idx_events_entity ON events(entity_type, entity_id, id);
 		CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type);
+		CREATE TABLE IF NOT EXISTS evidence_observations (
+			id TEXT PRIMARY KEY,
+			producer TEXT NOT NULL,
+			source_system TEXT NOT NULL,
+			run_id TEXT NOT NULL,
+			subject_kind TEXT NOT NULL,
+			subject_id TEXT NOT NULL,
+			action TEXT NOT NULL,
+			confidence TEXT NOT NULL,
+			title TEXT NOT NULL,
+			description TEXT NOT NULL DEFAULT '',
+			actor TEXT NOT NULL DEFAULT '',
+			reason TEXT NOT NULL DEFAULT '',
+			observed_at TEXT NOT NULL
+		);
+		CREATE TABLE IF NOT EXISTS evidence_links (
+			observation_id TEXT NOT NULL,
+			attempt_ref TEXT NOT NULL,
+			PRIMARY KEY (observation_id, attempt_ref)
+		);
+		CREATE TABLE IF NOT EXISTS evidence_watermarks (
+			producer TEXT NOT NULL,
+			run_id TEXT NOT NULL,
+			fact_kind TEXT NOT NULL,
+			terminal_at TEXT NOT NULL,
+			PRIMARY KEY (producer, run_id, fact_kind)
+		);
+		CREATE TABLE IF NOT EXISTS evidence_checkpoints (
+			producer TEXT NOT NULL,
+			run_id TEXT NOT NULL,
+			fact_kind TEXT NOT NULL,
+			checkpoint_at TEXT NOT NULL,
+			PRIMARY KEY (producer, run_id, fact_kind)
+		);
+		CREATE TABLE IF NOT EXISTS evidence_migration_audits (
+			migration_key TEXT PRIMARY KEY,
+			source_digest TEXT NOT NULL,
+			projection_digest TEXT NOT NULL,
+			source_count INTEGER NOT NULL,
+			projection_count INTEGER NOT NULL,
+			parity_proven INTEGER NOT NULL DEFAULT 0,
+			audited_at TEXT NOT NULL
+		);
+		CREATE INDEX IF NOT EXISTS idx_evidence_subject ON evidence_observations(subject_kind, subject_id);
 	`
 
 // Schema returns the declarative event-log schema for database.EnsureSchemas.
@@ -64,8 +109,20 @@ func Schema() string { return schemaSQL }
 
 // InitSchema creates the events table and indexes if they don't exist.
 func (r *SQLiteRepository) InitSchema(ctx context.Context) error {
-	_, err := r.db.ExecContext(ctx, schemaSQL)
-	return err
+	if _, err := r.db.ExecContext(ctx, schemaSQL); err != nil {
+		return err
+	}
+	// Existing event databases predate the operator-verification columns. SQLite
+	// lacks ADD COLUMN IF NOT EXISTS, so duplicate-column errors are benign.
+	for _, statement := range []string{
+		"ALTER TABLE evidence_observations ADD COLUMN actor TEXT NOT NULL DEFAULT ''",
+		"ALTER TABLE evidence_observations ADD COLUMN reason TEXT NOT NULL DEFAULT ''",
+	} {
+		if _, err := r.db.ExecContext(ctx, statement); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+			return err
+		}
+	}
+	return nil
 }
 
 // Append inserts a new event and returns its auto-generated ID.

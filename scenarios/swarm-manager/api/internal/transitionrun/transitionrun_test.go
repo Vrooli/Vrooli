@@ -95,3 +95,28 @@ func TestCanApplyRejectsDigestAndOutcome(t *testing.T) {
 		t.Fatal("expected undeclared outcome")
 	}
 }
+
+func TestFileStoreFindBySubjectIncludesAppliedCorrelations(t *testing.T) {
+	store := NewFileStore(t.TempDir())
+	first := validCorrelation()
+	first.ExecutionID = "exec-1"
+	first.TransitionKey = "work.review"
+	first.SubjectRef = "execute/item/1"
+	first.ApplyState = ApplyStateComplete
+	if err := store.Put(first); err != nil {
+		t.Fatalf("put first: %v", err)
+	}
+	second := first
+	second.ExecutionID = "exec-2"
+	second.ApplyState = ApplyStateClaimed
+	if err := store.Put(second); err != nil {
+		t.Fatalf("put second: %v", err)
+	}
+	got, err := store.FindBySubject("work.review", "execute/item/1")
+	if err != nil {
+		t.Fatalf("find subject: %v", err)
+	}
+	if got.ExecutionID != "exec-2" {
+		t.Fatalf("execution id = %q, want latest matching exec-2", got.ExecutionID)
+	}
+}

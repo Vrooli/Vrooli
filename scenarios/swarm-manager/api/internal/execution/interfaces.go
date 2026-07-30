@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"swarm-manager/internal/agentactivity"
+	"swarm-manager/internal/review"
 )
 
 // AgentManagerAvailability probes whether agent-manager is reachable. Used as
@@ -85,7 +86,7 @@ type AutoDrainProvider interface {
 // needs to trigger evidence gathering. Uses a callback signature to avoid
 // import cycles between the execution and review packages.
 type ReviewServiceIntegration interface {
-	StartReviewForExecution(ctx context.Context, executionID, backlogKind, backlogName, itemTitle, itemDir string, affectedScenarios []string, changedPathsByScenario map[string][]string, gctResultsJSON, baselineDiffJSON string) error
+	StartReviewForExecution(ctx context.Context, executionID, backlogKind, backlogName, itemTitle, itemDescription, itemDir string, acceptanceCriteria any, machineEvidence []review.EvidenceItem, affectedScenarios []string, changedPathsByScenario map[string][]string, gctResultsJSON, baselineDiffJSON string) error
 	// RecordUnavailableReview writes a synthetic terminal review round when no
 	// review agent ran (disabled or spawn failure) so the review surface can
 	// explain why no evidence exists for an item routed straight to

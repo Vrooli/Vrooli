@@ -16,6 +16,7 @@ import (
 	plansv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/plans"
 	plansconnect "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/plans/plans_v1connect"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
+	"swarm-manager/internal/stringsx"
 )
 
 const scenarioName = "plan-manager"
@@ -225,7 +226,7 @@ func (c *ConnectClient) ImportPlan(ctx context.Context, input ImportPlanInput) (
 		Supersede:  input.Supersede,
 	}))
 	if err != nil {
-		return nil, opError("ImportPlan", firstNonEmpty(input.Slug, input.SourcePath, input.Title), err)
+		return nil, opError("ImportPlan", stringsx.FirstNonEmpty(input.Slug, input.SourcePath, input.Title), err)
 	}
 	return resp.Msg.GetPlan(), nil
 }
@@ -466,13 +467,4 @@ func opError(op, target string, err error) error {
 		return fmt.Errorf("plan-manager %s: %w", op, err)
 	}
 	return fmt.Errorf("plan-manager %s %q: %w", op, target, err)
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
 }

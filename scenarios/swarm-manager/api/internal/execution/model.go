@@ -127,30 +127,12 @@ type Record struct {
 	// execution history from the workflow. Empty for records whose run was not
 	// launched as an operation (e.g. spec-sync-archive, which stays a direct
 	// spawn through slice B).
-	OpWorkflowID  string `json:"op_workflow_id,omitempty"`
-	OpExecutionID string `json:"op_execution_id,omitempty"`
-	// AgentWorkflow* fields are this record's read-only projection of the
-	// workflow it is correlated to, for status display and history. They are not
-	// a journal: apply state lives solely on the shared transitionrun.Correlation
-	// keyed by AgentWorkflowExecutionID. Keeping a second copy here meant two
-	// sources of truth for whether a terminal result had been consumed.
-	AgentWorkflowExecutionID   string                      `json:"agent_workflow_execution_id,omitempty"`
-	AgentWorkflowKey           string                      `json:"agent_workflow_key,omitempty"`
-	AgentWorkflowDefinition    string                      `json:"agent_workflow_definition_digest,omitempty"`
-	AgentWorkflowFrontier      string                      `json:"agent_workflow_frontier_digest,omitempty"`
-	AgentWorkflowEntityVersion string                      `json:"agent_workflow_entity_version,omitempty"`
-	AgentWorkflowOutcome       string                      `json:"agent_workflow_outcome,omitempty"`
-	AgentWorkflowTerminalCode  string                      `json:"agent_workflow_terminal_code,omitempty"`
-	AgentWorkflowBudgetName    string                      `json:"agent_workflow_budget_name,omitempty"`
-	AgentWorkflowResult        json.RawMessage             `json:"agent_workflow_result,omitempty"`
-	AgentWorkflowAttempts      []WorkflowAttemptProvenance `json:"agent_workflow_attempts,omitempty"`
-	AgentWorkflowApprovalAt    string                      `json:"agent_workflow_approval_at,omitempty"`
-	AgentWorkflowApprovalBy    string                      `json:"agent_workflow_approval_by,omitempty"`
-	AgentWorkflowAppliedAt     string                      `json:"agent_workflow_applied_at,omitempty"`
-	PlanManagerExecutionID     string                      `json:"plan_manager_execution_id,omitempty"`
-	PlanManagerReconciledAt    string                      `json:"plan_manager_reconciled_at,omitempty"`
-	ExecutionStrategy          string                      `json:"execution_strategy,omitempty"`
-	MaxSlices                  int                         `json:"max_slices,omitempty"`
+	OpWorkflowID            string `json:"op_workflow_id,omitempty"`
+	OpExecutionID           string `json:"op_execution_id,omitempty"`
+	PlanManagerExecutionID  string `json:"plan_manager_execution_id,omitempty"`
+	PlanManagerReconciledAt string `json:"plan_manager_reconciled_at,omitempty"`
+	ExecutionStrategy       string `json:"execution_strategy,omitempty"`
+	MaxSlices               int    `json:"max_slices,omitempty"`
 	// PreExecBaselines maps an affected scenario name to the GCT baseline
 	// captured for it just before execution started. Finalization diffs each
 	// of these against the post-execution working tree to separate regressions

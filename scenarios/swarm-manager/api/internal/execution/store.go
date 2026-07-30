@@ -56,7 +56,7 @@ func (s *FileStore) Load() ([]Record, error) {
 // be resolved — mark them failed so they surface in the UI for retry.
 func migrateRecords(records []Record) []Record {
 	for i := range records {
-		if records[i].Status == StatusRunning && strings.TrimSpace(records[i].RunID) == "" && strings.TrimSpace(records[i].AgentWorkflowExecutionID) == "" {
+		if records[i].Status == StatusRunning && strings.TrimSpace(records[i].RunID) == "" {
 			records[i].Status = StatusFailed
 			records[i].FailureReason = "orphaned execution: no run ID"
 		}

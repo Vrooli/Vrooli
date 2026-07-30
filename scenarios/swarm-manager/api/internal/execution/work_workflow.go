@@ -8,6 +8,7 @@ import (
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/stringsx"
 	"swarm-manager/internal/transitionrun"
 	"swarm-manager/internal/transitionrunner"
 	"swarm-manager/internal/transitions"
@@ -134,10 +135,37 @@ func (s *Service) transitionExecutionID(ctx context.Context, executionID string)
 	if err != nil {
 		return "", err
 	}
-	if record.AgentWorkflowExecutionID == "" {
-		return "", fmt.Errorf("execution %q has no transition workflow", executionID)
+	correlation, err := s.transitionCorrelation(record)
+	if err != nil {
+		return "", fmt.Errorf("execution %q has no transition workflow: %w", executionID, err)
 	}
-	return record.AgentWorkflowExecutionID, nil
+	return correlation.ExecutionID, nil
+}
+
+// transitionCorrelation projects the workflow journal for one execution
+// record. The record itself is the transition subject, so it never persists a
+// second workflow execution ID or any other correlation field.
+func (s *Service) transitionCorrelation(record Record) (transitionrun.Correlation, error) {
+	if s.transitionRunner == nil {
+		return transitionrun.Correlation{}, agentmanager.ErrNotAvailable
+	}
+	for _, key := range []string{"plan.execute", "scenario.spec_sync", "work.correct", "work.follow_up"} {
+		correlation, err := s.transitionRunner.FindCorrelation(key, record.ExecutionID)
+		if err == nil {
+			return correlation, nil
+		}
+	}
+	return transitionrun.Correlation{}, fmt.Errorf("no transition correlation")
+}
+
+// CorrelationForExecution projects the runner-owned lifecycle record for an
+// execution without exposing the execution package's private record lookup.
+func (s *Service) CorrelationForExecution(ctx context.Context, executionID string) (transitionrun.Correlation, error) {
+	record, err := s.Get(ctx, executionID)
+	if err != nil {
+		return transitionrun.Correlation{}, err
+	}
+	return s.transitionCorrelation(record)
 }
 
 // SetTransitionRunner installs the shared workflow lifecycle owner.
@@ -262,13 +290,10 @@ func (s *Service) applyWorkTransition(_ context.Context, executionID string, out
 	if outcome.TransitionKey == "work.correct" && outcome.Name == "corrected" {
 		outcome.Name = "complete"
 	}
-	record.AgentWorkflowTerminalCode, record.AgentWorkflowBudgetName = outcome.TerminalCode, outcome.BudgetName
-	record.AgentWorkflowResult, record.AgentWorkflowOutcome = append([]byte(nil), outcome.Result...), outcome.Name
-	if err := s.finishWorkWorkflowClaim(&record); err != nil {
+	if err := s.finishWorkWorkflowClaim(&record, outcome); err != nil {
 		return err
 	}
-	record.AgentWorkflowAppliedAt = nowRFC3339()
-	record.UpdatedAt = record.AgentWorkflowAppliedAt
+	record.UpdatedAt = nowRFC3339()
 	records[idx] = record
 	if err := s.store.Save(records); err != nil {
 		return err
@@ -277,14 +302,14 @@ func (s *Service) applyWorkTransition(_ context.Context, executionID string, out
 	return nil
 }
 
-func (s *Service) finishWorkWorkflowClaim(record *Record) error {
+func (s *Service) finishWorkWorkflowClaim(record *Record, outcome transitionrunner.Outcome) error {
 	item, err := s.loadBacklogItemByRecord(record)
 	if err != nil {
 		return err
 	}
 	previous := record.Status
 	record.FinishedAt = nowRFC3339()
-	switch record.AgentWorkflowOutcome {
+	switch outcome.Name {
 	case "complete":
 		record.Status = StatusCompleted
 		candidates := []string{}
@@ -296,22 +321,11 @@ func (s *Service) finishWorkWorkflowClaim(record *Record) error {
 		}
 	default:
 		record.Status = StatusNeedsReview
-		record.FailureReason = firstNonEmpty(record.AgentWorkflowTerminalCode, record.AgentWorkflowOutcome, "work workflow needs attention")
+		record.FailureReason = stringsx.FirstNonEmpty(outcome.TerminalCode, outcome.Name, "work workflow needs attention")
 		if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
 			return err
 		}
 	}
 	s.logExecutionEvent(*record, previous)
 	return nil
-}
-
-// transitionApplyComplete reports whether the shared correlation has already
-// consumed this workflow's terminal result. It is the single source of truth
-// for apply state; the execution record deliberately keeps no copy.
-func (s *Service) transitionApplyComplete(workflowExecutionID string) bool {
-	if s.transitionRunner == nil || strings.TrimSpace(workflowExecutionID) == "" {
-		return false
-	}
-	correlation, err := s.transitionRunner.GetCorrelation(workflowExecutionID)
-	return err == nil && correlation.ApplyState == transitionrun.ApplyStateComplete
 }

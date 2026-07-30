@@ -49,7 +49,10 @@ func (s *Service) ReconcileStrandedRecords() (ReconcileReport, error) {
 	var changes []swept
 	for i := range records {
 		r := &records[i]
-		if !isInspectableStatus(r.Status) || strings.TrimSpace(r.RunID) != "" || strings.TrimSpace(r.AgentWorkflowExecutionID) != "" {
+		if !isInspectableStatus(r.Status) || strings.TrimSpace(r.RunID) != "" {
+			continue
+		}
+		if _, correlationErr := s.transitionCorrelation(*r); correlationErr == nil {
 			continue
 		}
 		prev := r.Status

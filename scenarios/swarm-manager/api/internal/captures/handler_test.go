@@ -696,3 +696,10 @@ func TestApplyClassificationRecoversAfterHandlerRestart(t *testing.T) {
 		t.Fatalf("recovered capture = %#v", stored)
 	}
 }
+
+func TestCaptureAsAttemptProjectsClassificationItemsAsProposals(t *testing.T) {
+	value := capture{ID: "cap-1", Created: "2026-07-29T00:00:00Z", Status: "classified", Classification: &classification{ClassifiedAt: "2026-07-29T01:00:00Z", Items: []classificationItem{{Kind: "fix", Title: "Repair", Priority: 2}}}}.asAttempt()
+	if value.SubjectKind != "capture" || value.SubjectRef != "cap-1" || value.GeneratedAt != "2026-07-29T01:00:00Z" || len(value.Proposals) != 1 || value.Proposals[0].Type != "fix" {
+		t.Fatalf("attempt = %#v", value)
+	}
+}

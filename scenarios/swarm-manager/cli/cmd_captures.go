@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -10,7 +11,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	"connectrpc.com/connect"
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func (a *App) cmdCapturesList(args []string) error {
@@ -227,36 +233,29 @@ func (a *App) cmdCapturesClassify(args []string) error {
 	}
 	id := strings.TrimSpace(*idFlag)
 
-	body, err := a.core.Request("POST", "/captures/"+id+"/classify", nil, nil)
+	h, base := cliapp.NewConnectHTTPClient(a.core)
+	response, err := apiconnect.NewTransitionServiceClient(h, base).StartTransition(context.Background(), connect.NewRequest(&apipb.StartTransitionRequest{
+		TransitionKey: "capture.classify",
+		SubjectRef:    &apipb.SubjectReference{Subject: "capture", Value: id},
+	}))
 	if err != nil {
 		return err
 	}
-	if printJSONIfRequested(*jsonOut, body) {
+	if *jsonOut {
+		payload, marshalErr := protojson.Marshal(response.Msg)
+		if marshalErr != nil {
+			return fmt.Errorf("encode transition response: %w", marshalErr)
+		}
+		cliutil.PrintJSON(payload)
 		return nil
-	}
-
-	type classifyResponse struct {
-		TaskID  string `json:"task_id"`
-		RunID   string `json:"run_id"`
-		BaseURL string `json:"base_url"`
-		Created string `json:"created"`
-	}
-	response, err := decodeResponse[classifyResponse](body)
-	if err != nil {
-		return err
 	}
 
 	printSection("Result")
 	fmt.Printf("  Classification triggered for capture: %s\n", id)
-	if response.RunID != "" {
-		fmt.Printf("  Run ID: %s\n", response.RunID)
-	}
-	if response.TaskID != "" {
-		fmt.Printf("  Task ID: %s\n", response.TaskID)
-	}
+	fmt.Printf("  Execution ID: %s\n", response.Msg.GetExecutionId())
 	printCommandListSection("Next Steps", []string{
 		cliCommand("captures", "get", "--id", id),
-		cliCommand("agent-manager", "run-get", "--id", response.RunID),
+		cliCommand("transitions", "apply", "--transition", "capture.classify", "--execution-id", response.Msg.GetExecutionId()),
 	})
 	return nil
 }

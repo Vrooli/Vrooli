@@ -45,7 +45,8 @@ rule: it records that the operator decided not to do the work, or that the work
 stopped being relevant. It carries no verdict about quality, so it needs no run
 and no review round behind it — a PATCH may set it directly from any
 non-review-gated status (items already in `in_review` / `review_pending` still
-route through `review-decide --drop`, which preserves the audit trail).
+route through `backlog review-decide --round N --drop`, which reaches the
+typed `DecideAttempt` mutation and preserves the audit trail).
 
 ## Resolved vs Completed
 Two different questions about a finished item, and the distinction the

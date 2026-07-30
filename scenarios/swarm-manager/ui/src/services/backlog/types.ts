@@ -31,7 +31,7 @@ export interface BacklogFileOperationResult {
 
 export type BacklogUpdatePatch = Partial<Pick<
   BacklogItem,
-  "title" | "description" | "status" | "priority" | "tags" | "dependsOn" | "milestone" | "effort" | "acceptanceAllow" | "acceptanceDeny" | "note"
+  "title" | "description" | "status" | "priority" | "tags" | "dependsOn" | "milestone" | "effort" | "acceptanceAllow" | "acceptanceDeny" | "acceptanceCriteria" | "note"
 >>;
 
 export interface ImportBacklogResponse {
@@ -49,7 +49,7 @@ export interface RenderedBacklogPlan {
   planRef?: PlanRef;
 }
 
-export type BacklogNextActionID = "none" | "decide" | "accept_suggestion" | "author_plan" | "accept_plan" | "repair_plan" | "resolve_dependencies" | "review" | "view_execution" | "run" | "retry" | "archive" | "dispatch_followup" | "author_followup" | "plan_goal" | "close_out" | "chain";
+export type BacklogNextActionID = "none" | "decide" | "accept_suggestion" | "author_plan" | "accept_plan" | "repair_plan" | "resolve_dependencies" | "review" | "view_execution" | "run" | "retry" | "archive" | "dispatch_followup" | "author_followup" | "plan_goal" | "define_criteria" | "close_out" | "chain";
 
 export interface BacklogNextAction {
   id: BacklogNextActionID;

@@ -2,12 +2,14 @@ package review
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"swarm-manager/internal/agentmanager"
+	"swarm-manager/internal/pathutil"
 	"swarm-manager/internal/promptmanager"
 	"swarm-manager/internal/transitionrunner"
 )
@@ -33,6 +35,14 @@ type BacklogItemDirResolver interface {
 
 type PlanContentResolver func(ctx context.Context, kind, name, itemDir string) (string, error)
 
+// ReviewContract is the immutable, item-authored material the reviewer must
+// assess. It deliberately has no backlog dependency so review remains a
+// projection package rather than a second owner of backlog state.
+type ReviewContract struct {
+	Description string `json:"description"`
+	Criteria    any    `json:"criteria"`
+}
+
 // ExecutionContext captures the finalized execution data needed to launch a
 // review agent with the same context that automatic post-run checks use.
 type ExecutionContext struct {
@@ -57,6 +67,20 @@ type ExecutionContext struct {
 // do not block review processing.
 type RoundTerminalHandler func(ctx context.Context, kind, name string, round Round)
 
+// RoundEvidenceRecorder projects a completed round into the canonical evidence
+// ledger. The round file remains the recovery input; a recorder failure is
+// returned to transitionrunner so its idempotent apply journal can retry.
+type RoundEvidenceRecorder func(ctx context.Context, kind, name string, round Round) error
+
+// EvidenceVerificationRecorder writes an explicit operator verification or
+// revocation observation. The boolean in Round remains a readable projection
+// only; the ledger is authoritative once migration parity is proven.
+type EvidenceVerificationRecorder func(ctx context.Context, kind, name string, round Round, evidence EvidenceItem, verified bool, actor, reason string) error
+
+// EvidenceVerificationProjection returns ledger verification state. The bool
+// reports whether a completed parity audit permits it to replace file flags.
+type EvidenceVerificationProjection func(ctx context.Context, kind, name string, round Round) (verified map[string]bool, authoritative bool, err error)
+
 // ServiceConfig configures the review service dependencies.
 type ServiceConfig struct {
 	DataRoot string
@@ -66,12 +90,16 @@ type ServiceConfig struct {
 	PromptClient         promptmanager.Client
 	ItemDirFn            func(kind, name string) string
 	LoadItemTitle        func(kind, name string) (string, error)
+	LoadReviewContract   func(kind, name string) (ReviewContract, error)
 	LoadExecutionContext func(ctx context.Context, executionID string) (*ExecutionContext, error)
 	PlanContentResolver  PlanContentResolver
 	// OnRoundTerminal fires when a review round transitions to complete/failed.
 	// Used to flip the backlog item's status to review_pending.
-	OnRoundTerminal       RoundTerminalHandler
-	RoundTerminalObserver RoundTerminalObserver
+	OnRoundTerminal        RoundTerminalHandler
+	RoundTerminalObserver  RoundTerminalObserver
+	EvidenceRecorder       RoundEvidenceRecorder
+	VerificationRecorder   EvidenceVerificationRecorder
+	VerificationProjection EvidenceVerificationProjection
 	// RoundMaxAge bounds how long a round may sit in `gathering` before the
 	// poller treats its run as abandoned and finalizes it as failed (which
 	// fires OnRoundTerminal so the item leaves in_review). Zero uses
@@ -88,28 +116,36 @@ const DefaultRoundMaxAge = 30 * time.Minute
 
 // Service provides review evidence management for completed executions.
 type Service struct {
-	dataRoot              string
-	transitionRunner      *transitionrunner.Runner
-	inspector             RunInspector
-	promptClient          promptmanager.Client
-	eventLogger           EventLogger
-	itemDirFn             func(kind, name string) string
-	loadItemTitle         func(kind, name string) (string, error)
-	loadExecutionContext  func(ctx context.Context, executionID string) (*ExecutionContext, error)
-	planContentResolver   PlanContentResolver
-	onRoundTerminal       RoundTerminalHandler
-	roundTerminalObserver RoundTerminalObserver
-	roundMaxAge           time.Duration
-	clock                 func() time.Time
-
-	mu           sync.Mutex
-	activeRounds map[string]activeRound // keyed by RunID
+	dataRoot               string
+	transitionRunner       *transitionrunner.Runner
+	inspector              RunInspector
+	promptClient           promptmanager.Client
+	eventLogger            EventLogger
+	itemDirFn              func(kind, name string) string
+	loadItemTitle          func(kind, name string) (string, error)
+	loadReviewContract     func(kind, name string) (ReviewContract, error)
+	loadExecutionContext   func(ctx context.Context, executionID string) (*ExecutionContext, error)
+	planContentResolver    PlanContentResolver
+	onRoundTerminal        RoundTerminalHandler
+	roundTerminalObserver  RoundTerminalObserver
+	evidenceRecorder       RoundEvidenceRecorder
+	verificationRecorder   EvidenceVerificationRecorder
+	verificationProjection EvidenceVerificationProjection
+	roundMaxAge            time.Duration
+	clock                  func() time.Time
 }
 
 // SetTransitionRunner installs the shared lifecycle owner for declared review
 // workflows. The review package retains only snapshot construction and result
 // projection into the operator-facing round ledger.
 func (s *Service) SetTransitionRunner(runner *transitionrunner.Runner) { s.transitionRunner = runner }
+
+func (s *Service) now() time.Time {
+	if s.clock != nil {
+		return s.clock().UTC()
+	}
+	return time.Now().UTC()
+}
 
 // NewService creates a new review service.
 func NewService(cfg ServiceConfig) *Service {
@@ -122,20 +158,43 @@ func NewService(cfg ServiceConfig) *Service {
 		roundMaxAge = envDuration("SWARM_MANAGER_REVIEW_ROUND_MAX_AGE", DefaultRoundMaxAge)
 	}
 	svc := &Service{
-		dataRoot:              cfg.DataRoot,
-		inspector:             cfg.RunInspector,
-		promptClient:          pc,
-		itemDirFn:             cfg.ItemDirFn,
-		loadItemTitle:         cfg.LoadItemTitle,
-		loadExecutionContext:  cfg.LoadExecutionContext,
-		planContentResolver:   cfg.PlanContentResolver,
-		onRoundTerminal:       cfg.OnRoundTerminal,
-		roundTerminalObserver: cfg.RoundTerminalObserver,
-		roundMaxAge:           roundMaxAge,
-		clock:                 time.Now,
-		activeRounds:          make(map[string]activeRound),
+		dataRoot:               cfg.DataRoot,
+		inspector:              cfg.RunInspector,
+		promptClient:           pc,
+		itemDirFn:              cfg.ItemDirFn,
+		loadItemTitle:          cfg.LoadItemTitle,
+		loadReviewContract:     cfg.LoadReviewContract,
+		loadExecutionContext:   cfg.LoadExecutionContext,
+		planContentResolver:    cfg.PlanContentResolver,
+		onRoundTerminal:        cfg.OnRoundTerminal,
+		roundTerminalObserver:  cfg.RoundTerminalObserver,
+		evidenceRecorder:       cfg.EvidenceRecorder,
+		verificationRecorder:   cfg.VerificationRecorder,
+		verificationProjection: cfg.VerificationProjection,
+		roundMaxAge:            roundMaxAge,
+		clock:                  time.Now,
 	}
 	return svc
+}
+
+// SetEvidenceRecorder installs the canonical ledger projection after database
+// initialization; it is separate from the backlog terminal callback.
+func (s *Service) SetEvidenceRecorder(recorder RoundEvidenceRecorder) {
+	if s != nil {
+		s.evidenceRecorder = recorder
+	}
+}
+
+func (s *Service) SetEvidenceVerificationRecorder(recorder EvidenceVerificationRecorder) {
+	if s != nil {
+		s.verificationRecorder = recorder
+	}
+}
+
+func (s *Service) SetEvidenceVerificationProjection(projection EvidenceVerificationProjection) {
+	if s != nil {
+		s.verificationProjection = projection
+	}
 }
 
 // SetRoundTerminalObserver configures the optional projection into the common
@@ -160,12 +219,15 @@ func (s *Service) SetEventLogger(e EventLogger) {
 
 // StartReviewForExecution is called by the execution service during finalization
 // to spawn a review agent. It satisfies execution.ReviewServiceIntegration.
-func (s *Service) StartReviewForExecution(ctx context.Context, executionID, backlogKind, backlogName, itemTitle, itemDir string, affectedScenarios []string, changedPathsByScenario map[string][]string, gctResultsJSON, baselineDiffJSON string) error {
+func (s *Service) StartReviewForExecution(ctx context.Context, executionID, backlogKind, backlogName, itemTitle, itemDescription, itemDir string, acceptanceCriteria any, machineEvidence []EvidenceItem, affectedScenarios []string, changedPathsByScenario map[string][]string, gctResultsJSON, baselineDiffJSON string) error {
 	return s.startReview(ctx, startReviewParams{
 		ExecutionID:            executionID,
 		BacklogKind:            backlogKind,
 		BacklogName:            backlogName,
 		ItemTitle:              itemTitle,
+		ItemDescription:        itemDescription,
+		AcceptanceCriteria:     acceptanceCriteria,
+		MachineEvidence:        machineEvidence,
 		ItemDir:                itemDir,
 		AffectedScenarios:      affectedScenarios,
 		ChangedPathsByScenario: changedPathsByScenario,
@@ -176,15 +238,19 @@ func (s *Service) StartReviewForExecution(ctx context.Context, executionID, back
 
 // startReviewParams packages the data needed to begin evidence gathering.
 type startReviewParams struct {
-	ExecutionID            string
-	BacklogKind            string
-	BacklogName            string
-	ItemTitle              string
-	ItemDir                string
-	AffectedScenarios      []string
-	ChangedPathsByScenario map[string][]string
-	GCTResultsJSON         string // Pre-serialized GCT review results per scenario
-	BaselineDiffJSON       string // Pre-serialized before/after baseline diff per scenario
+	ExecutionID            string              `json:"executionId"`
+	BacklogKind            string              `json:"backlogKind"`
+	BacklogName            string              `json:"backlogName"`
+	ItemTitle              string              `json:"itemTitle"`
+	ItemDescription        string              `json:"itemDescription"`
+	PlanContent            string              `json:"planContent"`
+	AcceptanceCriteria     any                 `json:"acceptanceCriteria"`
+	MachineEvidence        []EvidenceItem      `json:"machineEvidence,omitempty"`
+	ItemDir                string              `json:"itemDir"`
+	AffectedScenarios      []string            `json:"affectedScenarios"`
+	ChangedPathsByScenario map[string][]string `json:"changedPathsByScenario"`
+	GCTResultsJSON         string              `json:"gctResultsJSON"`   // Pre-serialized GCT review results per scenario
+	BaselineDiffJSON       string              `json:"baselineDiffJSON"` // Pre-serialized before/after baseline diff per scenario
 }
 
 // startReview creates a review round then invokes the declared independent-review
@@ -193,6 +259,20 @@ type startReviewParams struct {
 func (s *Service) startReview(ctx context.Context, params startReviewParams) error {
 	if s.transitionRunner == nil {
 		return fmt.Errorf("transition runner is not configured")
+	}
+	if s.loadReviewContract != nil && params.AcceptanceCriteria == nil && params.ItemDescription == "" {
+		contract, err := s.loadReviewContract(params.BacklogKind, params.BacklogName)
+		if err != nil {
+			return fmt.Errorf("load review contract: %w", err)
+		}
+		params.ItemDescription, params.AcceptanceCriteria = contract.Description, contract.Criteria
+	}
+	if strings.TrimSpace(params.PlanContent) == "" && s.planContentResolver != nil {
+		content, err := s.planContentResolver(ctx, params.BacklogKind, params.BacklogName, params.ItemDir)
+		if err != nil {
+			return fmt.Errorf("load review plan content: %w", err)
+		}
+		params.PlanContent = content
 	}
 	return s.startReviewTransition(ctx, params)
 }
@@ -235,15 +315,50 @@ func (s *Service) buildStartReviewParamsFromExecution(ctx context.Context, execu
 		return startReviewParams{}, fmt.Errorf("execution %s is missing backlog identity", executionID)
 	}
 
+	contract := ReviewContract{}
+	if s.loadReviewContract != nil {
+		contract, err = s.loadReviewContract(execCtx.BacklogKind, execCtx.BacklogName)
+		if err != nil {
+			return startReviewParams{}, fmt.Errorf("load review contract: %w", err)
+		}
+	}
 	return startReviewParams{
 		ExecutionID:            executionID,
 		BacklogKind:            execCtx.BacklogKind,
 		BacklogName:            execCtx.BacklogName,
 		ItemTitle:              execCtx.ItemTitle,
+		ItemDescription:        contract.Description,
+		AcceptanceCriteria:     contract.Criteria,
 		ItemDir:                s.resolveItemDir(execCtx.BacklogKind, execCtx.BacklogName),
 		AffectedScenarios:      append([]string(nil), execCtx.AffectedScenarios...),
 		ChangedPathsByScenario: cloneChangedPaths(execCtx.ChangedPathsByScenario),
 		GCTResultsJSON:         execCtx.GCTResultsJSON,
 		BaselineDiffJSON:       execCtx.BaselineDiffJSON,
 	}, nil
+}
+
+func cloneChangedPaths(changedPathsByScenario map[string][]string) map[string][]string {
+	if len(changedPathsByScenario) == 0 {
+		return nil
+	}
+	cloned := make(map[string][]string, len(changedPathsByScenario))
+	for scenarioName, paths := range changedPathsByScenario {
+		cloned[scenarioName] = append([]string(nil), paths...)
+		sort.Strings(cloned[scenarioName])
+		cloned[scenarioName] = pathutil.UniqueSortedStrings(cloned[scenarioName])
+	}
+	return cloned
+}
+
+// MarshalScenarioGCTResults preserves the canonical GCT result projection in
+// the immutable review input without adding a second attachment protocol.
+func MarshalScenarioGCTResults(results map[string]any) string {
+	if len(results) == 0 {
+		return ""
+	}
+	data, err := json.Marshal(results)
+	if err != nil {
+		return ""
+	}
+	return string(data)
 }

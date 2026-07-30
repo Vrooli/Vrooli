@@ -78,6 +78,10 @@ func (r Redactor) RedactString(value string) string {
 	for _, home := range r.HomeDirs {
 		out = redactHomeDir(out, filepath.ToSlash(home))
 	}
+	// Artifacts can contain paths captured by another operator or CI fixture.
+	// Redacting only this process's home leaks those identities when the
+	// artifact crosses machines, so apply the portable home-dir shape too.
+	out = redactGenericHomeDirs(out)
 	for _, term := range r.IdentityTerms {
 		out = replaceStandalone(out, term, "<user>", false)
 	}
@@ -171,6 +175,17 @@ func redactHomeDir(value, home string) string {
 	out = strings.ReplaceAll(out, home+"/", "<home>/")
 	out = strings.ReplaceAll(out, home, "<home>")
 	return out
+}
+
+var genericHomeDir = regexp.MustCompile(`(?i)(?:file://)?/(?:home|users)/[^/\\]+(?:/\.vrooli)?/`)
+
+func redactGenericHomeDirs(value string) string {
+	return genericHomeDir.ReplaceAllStringFunc(value, func(match string) string {
+		if strings.HasPrefix(strings.ToLower(match), "file://") {
+			return "file://<home>/"
+		}
+		return "<home>/"
+	})
 }
 
 func replaceStandalone(value, needle, replacement string, caseInsensitive bool) string {

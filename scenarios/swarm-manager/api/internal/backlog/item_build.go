@@ -97,6 +97,10 @@ func buildItemFromCreateRequest(req *apipb.CreateBacklogItemRequest, prov identi
 	if err := validateGlobs(req.Creates); err != nil {
 		return BacklogItem{}, badCreate("creates: " + err.Error())
 	}
+	criteria, err := criteriaFromProto(req.AcceptanceCriteria)
+	if err != nil {
+		return BacklogItem{}, badCreate("acceptance_criteria: " + err.Error())
+	}
 
 	spawnedFrom := ""
 	if req.SpawnedFrom != nil {
@@ -113,25 +117,26 @@ func buildItemFromCreateRequest(req *apipb.CreateBacklogItemRequest, prov identi
 	}
 
 	item := BacklogItem{
-		Name:            name,
-		Title:           req.Title,
-		Description:     description,
-		Status:          StatusBacklog,
-		Priority:        priority,
-		Tags:            tags,
-		Created:         now,
-		Updated:         now,
-		Kind:            kind,
-		DependsOn:       dependsOn,
-		Milestone:       milestone,
-		Effort:          effort,
-		AcceptanceAllow: req.AcceptanceAllow,
-		AcceptanceDeny:  req.AcceptanceDeny,
-		Creates:         req.Creates,
-		SpawnedFrom:     spawnedFrom,
-		PlanRef:         planRef,
-		Note:            note,
-		CreatedBy:       &prov,
+		Name:               name,
+		Title:              req.Title,
+		Description:        description,
+		Status:             StatusBacklog,
+		Priority:           priority,
+		Tags:               tags,
+		Created:            now,
+		Updated:            now,
+		Kind:               kind,
+		DependsOn:          dependsOn,
+		Milestone:          milestone,
+		Effort:             effort,
+		AcceptanceAllow:    req.AcceptanceAllow,
+		AcceptanceDeny:     req.AcceptanceDeny,
+		AcceptanceCriteria: NormalizeCriteria(nil, criteria),
+		Creates:            req.Creates,
+		SpawnedFrom:        spawnedFrom,
+		PlanRef:            planRef,
+		Note:               note,
+		CreatedBy:          &prov,
 	}
 	return item, nil
 }

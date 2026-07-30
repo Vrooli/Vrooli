@@ -15,6 +15,7 @@ import (
 	"swarm-manager/internal/execution"
 	"swarm-manager/internal/httputil"
 	"swarm-manager/internal/planworkshop"
+	"swarm-manager/internal/review"
 
 	"github.com/gorilla/mux"
 )
@@ -70,7 +71,11 @@ func (s *Server) getBacklogWorkFeed(w http.ResponseWriter, r *http.Request) {
 		if strategyID == "" {
 			strategyID = "phased-plan-drain"
 		}
-		entries = append(entries, workFeedEntry{ID: "execution/" + item.ExecutionID, Kind: "execution", Title: "Executing plan", Outcome: string(item.Status), Actor: item.StartedBy, StartedAt: firstTime(item.StartedAt, item.QueuedAt, item.CreatedAt), EndedAt: item.FinishedAt, CostEstimate: costByStrategy[strategyID], Correlation: compactCorrelation(map[string]string{"execution_id": item.ExecutionID, "workflow_execution_id": item.AgentWorkflowExecutionID, "plan_execution_id": item.PlanManagerExecutionID}), DetailRef: "/executions/" + item.ExecutionID, DetailAPIRef: "/api/v1/execution/" + item.ExecutionID})
+		workflowExecutionID := ""
+		if correlation, correlationErr := s.executionSvc.CorrelationForExecution(r.Context(), item.ExecutionID); correlationErr == nil {
+			workflowExecutionID = correlation.ExecutionID
+		}
+		entries = append(entries, workFeedEntry{ID: "execution/" + item.ExecutionID, Kind: "execution", Title: "Executing plan", Outcome: string(item.Status), Actor: item.StartedBy, StartedAt: firstTime(item.StartedAt, item.QueuedAt, item.CreatedAt), EndedAt: item.FinishedAt, CostEstimate: costByStrategy[strategyID], Correlation: compactCorrelation(map[string]string{"execution_id": item.ExecutionID, "workflow_execution_id": workflowExecutionID, "plan_execution_id": item.PlanManagerExecutionID}), DetailRef: "/executions/" + item.ExecutionID, DetailAPIRef: "/api/v1/execution/" + item.ExecutionID})
 	}
 	activities, err := s.agentActivitySvc.ListSnapshot(r.Context(), agentactivity.ListFilters{OwnerType: "backlog", OwnerKind: kind, OwnerName: name})
 	if err != nil {
@@ -86,7 +91,7 @@ func (s *Server) getBacklogWorkFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, round := range rounds {
-		entries = append(entries, workFeedEntry{ID: "review/" + strconv.Itoa(round.RoundNum), Kind: "review", Title: "Reviewing result", Outcome: round.Classification, StartedAt: round.GeneratedAt, Correlation: compactCorrelation(map[string]string{"execution_id": round.ExecutionID, "workflow_execution_id": round.AgentWorkflowExecutionID}), DetailRef: "/api/v1/backlog/" + kind + "/" + name + "/review/" + strconv.Itoa(round.RoundNum), DetailAPIRef: "/api/v1/backlog/" + kind + "/" + name + "/review/" + strconv.Itoa(round.RoundNum)})
+		entries = append(entries, workFeedEntry{ID: "review/" + strconv.Itoa(round.RoundNum), Kind: "review", Title: "Reviewing result", Outcome: round.Classification, StartedAt: round.GeneratedAt, Correlation: compactCorrelation(map[string]string{"execution_id": review.ExecutionIDFromSnapshot(round.AgentWorkflowSnapshot)}), DetailRef: "/api/v1/backlog/" + kind + "/" + name + "/review/" + strconv.Itoa(round.RoundNum), DetailAPIRef: "/api/v1/backlog/" + kind + "/" + name + "/review/" + strconv.Itoa(round.RoundNum)})
 	}
 	// A workshop is a durable, operator-facing work episode even when no agent
 	// run is active. Its embedded review correlation adds the corresponding

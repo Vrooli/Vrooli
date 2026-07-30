@@ -69,10 +69,11 @@ func TestRetry_NewAttemptFromFailed(t *testing.T) {
 	if agent.spawnCalls != 0 {
 		t.Fatalf("plan-backed retry must not direct-spawn, got %d", agent.spawnCalls)
 	}
-	if record.RunID == "" || record.AgentWorkflowExecutionID == "" {
+	if record.RunID == "" {
 		t.Fatal("expected declared workflow correlation on retry record")
 	}
-	if record.AgentWorkflowKey != "swarm-manager/phased-plan-drain" || record.OpExecutionID != "" {
+	correlation := workflowCorrelationFor(t, svc, record)
+	if correlation.WorkflowKey != "swarm-manager/phased-plan-drain" || record.OpExecutionID != "" {
 		t.Fatalf("retry must use phased-plan workflow, not operation runtime: %#v", record)
 	}
 
@@ -275,7 +276,7 @@ func TestRetry_DoesNotPersistConsumerOwnedPrompt(t *testing.T) {
 	if rec.PromptTrace != nil {
 		t.Fatalf("retry must not persist a consumer-built prompt, got %#v", rec.PromptTrace)
 	}
-	if rec.AgentWorkflowKey != "swarm-manager/phased-plan-drain" {
-		t.Fatalf("expected declared phased-plan workflow, got %q", rec.AgentWorkflowKey)
+	if correlation := workflowCorrelationFor(t, svc, rec); correlation.WorkflowKey != "swarm-manager/phased-plan-drain" {
+		t.Fatalf("expected declared phased-plan workflow, got %q", correlation.WorkflowKey)
 	}
 }

@@ -34,6 +34,7 @@ import (
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
+	sharedpb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared"
 )
 
 // ScenarioStatus represents the runtime state of a scenario.
@@ -241,7 +242,7 @@ func healthSnapshotToProto(snapshot ScenarioHealthSnapshot) *domainpb.ScenarioHe
 	proto := &domainpb.ScenarioHealthSnapshot{
 		EvidenceState: string(snapshot.EvidenceState),
 		Phases:        make([]*domainpb.ScenarioHealthPhase, 0, len(snapshot.Phases)),
-		Remediation:   make([]*domainpb.ScenarioRemediationSummary, 0, len(snapshot.Remediation)),
+		Remediation:   make([]*sharedpb.ScenarioRemediationSummary, 0, len(snapshot.Remediation)),
 	}
 	if snapshot.Reason != "" {
 		proto.Reason = &snapshot.Reason
@@ -285,7 +286,7 @@ func healthSnapshotToProto(snapshot ScenarioHealthSnapshot) *domainpb.ScenarioHe
 		proto.Phases = append(proto.Phases, phaseProto)
 	}
 	for _, remediation := range snapshot.Remediation {
-		remediationProto := &domainpb.ScenarioRemediationSummary{
+		remediationProto := &sharedpb.ScenarioRemediationSummary{
 			Fingerprint: remediation.Fingerprint,
 			State:       remediation.State,
 		}
@@ -530,7 +531,7 @@ func (h *Handler) PreviewRemediation(w http.ResponseWriter, r *http.Request) {
 	response := &apipb.PreviewScenarioRemediationResponse{Proposal: &apipb.ScenarioRemediationProposal{Target: req.Target, Fingerprint: proposal.Fingerprint, Provenance: proposal.Provenance, Title: proposal.Title, Description: proposal.Description, AcceptanceCriteria: proposal.AcceptanceCriteria, AcceptanceAllow: proposal.AcceptanceAllow, RecommendedWorkflows: proposal.RecommendedWorkflows}}
 	for _, existing := range scenario.Health.Remediation {
 		if existing.Fingerprint == proposal.Fingerprint {
-			response.Existing = &domainpb.ScenarioRemediationSummary{Fingerprint: existing.Fingerprint, State: existing.State}
+			response.Existing = &sharedpb.ScenarioRemediationSummary{Fingerprint: existing.Fingerprint, State: existing.State}
 			break
 		}
 	}

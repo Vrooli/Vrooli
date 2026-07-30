@@ -52,6 +52,7 @@ export function buildBacklogUpdatePayload(patch: BacklogUpdatePatch): Record<str
   if (patch.effort !== undefined) payload.effort = patch.effort;
   if (patch.acceptanceAllow !== undefined) payload.acceptance_allow = patch.acceptanceAllow;
   if (patch.acceptanceDeny !== undefined) payload.acceptance_deny = patch.acceptanceDeny;
+  if (patch.acceptanceCriteria !== undefined) payload.acceptance_criteria = patch.acceptanceCriteria;
   if (patch.note !== undefined) payload.note = patch.note;
   return payload;
 }
@@ -119,6 +120,7 @@ export function createCrudMethods(apiClient: IApiClient) {
         kind: item.kind,
         dependsOn: item.dependsOn ?? [],
         milestone: item.milestone || undefined,
+        acceptanceCriteria: item.acceptanceCriteria ?? [],
       });
       const payload = toProtoJson(CreateBacklogItemRequestSchema, message);
       const data = await apiClient.post<unknown>(API_ENDPOINTS.backlog, payload);

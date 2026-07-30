@@ -82,7 +82,7 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 		return
 	}
 
-	res, snapshot, startErr := s.startWorkWorkflow(ctx, fixupRecord, "fixup")
+	res, _, startErr := s.startWorkWorkflow(ctx, fixupRecord, "fixup")
 	if startErr != nil || strings.TrimSpace(res.ExecutionID) == "" {
 		failureReason := "fixup workflow returned no execution id"
 		if startErr != nil {
@@ -111,11 +111,6 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 		if records[i].ExecutionID == fixupRecord.ExecutionID {
 			records[i].RunID = res.RunID
 			records[i].TaskID = res.ExecutionID
-			records[i].AgentWorkflowExecutionID = res.ExecutionID
-			records[i].AgentWorkflowKey = snapshot.WorkflowKey
-			records[i].AgentWorkflowDefinition = res.DefinitionDigest
-			records[i].AgentWorkflowFrontier = snapshot.FrontierDigest
-			records[i].AgentWorkflowEntityVersion = snapshot.EntityVersion
 			records[i].Status = StatusStarting
 			records[i].StartedAt = now
 			break
@@ -231,7 +226,7 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 
 	// The declared workflow owns the prompt, run lifecycle, and structured
 	// result. This adapter supplies only an immutable domain snapshot.
-	res, snapshot, startErr := s.startWorkWorkflow(ctx, followUpRecord, runType)
+	res, _, startErr := s.startWorkWorkflow(ctx, followUpRecord, runType)
 	if startErr != nil {
 		return Record{}, wrapAgentError(startErr)
 	}
@@ -240,11 +235,6 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 	}
 	followUpRecord.RunID = res.RunID
 	followUpRecord.TaskID = res.ExecutionID
-	followUpRecord.AgentWorkflowExecutionID = res.ExecutionID
-	followUpRecord.AgentWorkflowKey = snapshot.WorkflowKey
-	followUpRecord.AgentWorkflowDefinition = res.DefinitionDigest
-	followUpRecord.AgentWorkflowFrontier = snapshot.FrontierDigest
-	followUpRecord.AgentWorkflowEntityVersion = snapshot.EntityVersion
 	followUpRecord.Status = StatusStarting
 	followUpRecord.StartedAt = now
 

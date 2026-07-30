@@ -24,6 +24,7 @@ import { getGraphNodeStatus, type GraphNode } from "../types";
 import { parseNodeId } from "./node-id-parser";
 import { API_ENDPOINTS } from "../../../lib/api-endpoints";
 import { defaultApiClient } from "../../../lib/api-client";
+import { transitionService } from "../../../services/transition-service";
 import type { DetailRouteTarget } from "../../../app/routes/route-paths";
 
 export interface InspectorAction {
@@ -79,7 +80,7 @@ function makeCaptureClassifyAction(): InspectorAction {
     async handler(node: GraphNode) {
       const parsed = parseNodeId(node.id);
       if (!parsed) throw new Error("Cannot determine capture identity");
-      await defaultApiClient.post(API_ENDPOINTS.captureClassify(parsed.identifier), {});
+      await transitionService.start("capture.classify", parsed.identifier);
     },
   };
 }

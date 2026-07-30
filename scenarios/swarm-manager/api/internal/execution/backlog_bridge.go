@@ -12,23 +12,43 @@ import (
 
 // backlogItem represents a backlog entry loaded from spec.json.
 type backlogItem struct {
-	Name               string          `json:"name"`
-	Title              string          `json:"title"`
-	Description        string          `json:"description"`
-	Status             string          `json:"status"`
-	Priority           int             `json:"priority"`
-	Tags               []string        `json:"tags"`
-	Created            string          `json:"created"`
-	Updated            string          `json:"updated"`
-	Kind               string          `json:"kind"`
-	SourceScenarioName string          `json:"sourceScenarioName,omitempty"`
-	AcceptanceAllow    []string        `json:"acceptance_allow,omitempty"`
-	AcceptanceDeny     []string        `json:"acceptance_deny,omitempty"`
-	Creates            []string        `json:"creates,omitempty"`
-	ArchivedAt         *string         `json:"archived_at,omitempty"`
-	SuggestedSkills    []string        `json:"suggested_skills,omitempty"`
-	PlanRef            *planRef        `json:"plan_ref,omitempty"`
-	PlanAcceptance     *planAcceptance `json:"plan_acceptance,omitempty"`
+	Name               string             `json:"name"`
+	Title              string             `json:"title"`
+	Description        string             `json:"description"`
+	Status             string             `json:"status"`
+	Priority           int                `json:"priority"`
+	Tags               []string           `json:"tags"`
+	Created            string             `json:"created"`
+	Updated            string             `json:"updated"`
+	Kind               string             `json:"kind"`
+	SourceScenarioName string             `json:"sourceScenarioName,omitempty"`
+	AcceptanceAllow    []string           `json:"acceptance_allow,omitempty"`
+	AcceptanceDeny     []string           `json:"acceptance_deny,omitempty"`
+	AcceptanceCriteria []backlogCriterion `json:"acceptance_criteria,omitempty"`
+	Creates            []string           `json:"creates,omitempty"`
+	ArchivedAt         *string            `json:"archived_at,omitempty"`
+	SuggestedSkills    []string           `json:"suggested_skills,omitempty"`
+	PlanRef            *planRef           `json:"plan_ref,omitempty"`
+	PlanAcceptance     *planAcceptance    `json:"plan_acceptance,omitempty"`
+}
+
+// backlogCriterion mirrors the persisted, typed definition of done without
+// making execution depend on the backlog package.
+type backlogCriterion struct {
+	ID      string                 `json:"id"`
+	Gherkin string                 `json:"gherkin"`
+	Check   *backlogCriterionCheck `json:"check,omitempty"`
+}
+
+// backlogCriterionCheck is the persisted deterministic settlement contract.
+// Keeping it explicit at the execution boundary prevents a malformed opaque
+// JSON value from being silently treated as a checkable criterion.
+type backlogCriterionCheck struct {
+	Kind       string   `json:"kind"`
+	Scenario   string   `json:"scenario,omitempty"`
+	Phase      string   `json:"phase,omitempty"`
+	Argv       []string `json:"argv,omitempty"`
+	ExpectExit int      `json:"expect_exit,omitempty"`
 }
 
 type planRef struct {

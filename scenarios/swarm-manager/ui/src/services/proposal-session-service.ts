@@ -1,6 +1,7 @@
 import { defaultApiClient, type IApiClient } from "../lib/api-client";
 import { API_ENDPOINTS } from "../lib/api-endpoints";
 import { buildQueryString } from "../lib/query-utils";
+import { createAttemptDecisionService, type IAttemptDecisionService } from "./review-decision-service";
 
 export type ProposalSessionTargetType = "goal" | "backlog_item";
 
@@ -54,7 +55,10 @@ export interface IProposalSessionService {
   revise(sessionId: string, proposalId: string, note?: string): Promise<ProposalSession>;
 }
 
-export function createProposalSessionService(apiClient: IApiClient = defaultApiClient): IProposalSessionService {
+export function createProposalSessionService(
+  apiClient: IApiClient = defaultApiClient,
+  decisions: IAttemptDecisionService = createAttemptDecisionService(),
+): IProposalSessionService {
   return {
 	async list(target) {
 	  const data = await apiClient.get<{ sessions?: ProposalSession[] }>(`${API_ENDPOINTS.proposalSessions}${buildQueryString(target ? { target_type: target.type, target_ref: target.ref } : {})}`);
@@ -63,11 +67,17 @@ export function createProposalSessionService(apiClient: IApiClient = defaultApiC
     create(args) {
       return apiClient.post<ProposalSession>(API_ENDPOINTS.proposalSessions, { kind: "swarm_operations", ...args });
     },
-    decide(sessionId, proposalId, acceptedMutationIds, note) {
-      return apiClient.post<ProposalSession>(API_ENDPOINTS.agentSessionDecideMutationProposal(sessionId, proposalId), {
-        accepted_mutation_ids: acceptedMutationIds,
-        note: note ?? "",
+    async decide(sessionId, proposalId, acceptedMutationIds, note) {
+      await decisions.decide({
+        subjectKind: "agent-session-proposal",
+        subjectRef: `${sessionId}/${proposalId}`,
+        roundNum: 1,
+        decision: acceptedMutationIds.length > 0 ? "accept" : "drop",
+        actor: "operator-ui",
+        rationale: note ?? "",
+        acceptedProposalIds: acceptedMutationIds,
       });
+      return apiClient.get<ProposalSession>(API_ENDPOINTS.agentSessionById(sessionId));
     },
     acceptKeep(sessionId, proposalId, note) {
       return apiClient.post<ProposalSession>(API_ENDPOINTS.agentSessionAcceptKeepRecommendation(sessionId, proposalId), { note: note ?? "" });

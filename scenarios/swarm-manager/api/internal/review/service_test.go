@@ -71,11 +71,95 @@ func newTestService(spawner *capturingSpawner, promptResult string) *Service {
 		// Disable the abandoned-round age backstop by default so tests that use
 		// fixed placeholder timestamps aren't force-failed by it. Tests that
 		// exercise the backstop set roundMaxAge + clock explicitly.
-		roundMaxAge:  100 * 365 * 24 * time.Hour,
-		activeRounds: make(map[string]activeRound),
+		roundMaxAge: 100 * 365 * 24 * time.Hour,
 	}
 	setTestReviewRunner(nil, svc, &fakeReviewWorkflow{})
 	return svc
+}
+
+func TestListRoundsUsesAuthoritativeVerificationProjection(t *testing.T) {
+	dir := t.TempDir()
+	svc := newTestService(nil, "")
+	svc.itemDirFn = func(_, _ string) string { return dir }
+	if err := saveRound(dir, Round{RoundNum: 1, Status: RoundStatusComplete, Evidence: []EvidenceItem{{ID: "proof", Verified: true}, {ID: "other", Verified: false}}}); err != nil {
+		t.Fatal(err)
+	}
+	svc.SetEvidenceVerificationProjection(func(context.Context, string, string, Round) (map[string]bool, bool, error) {
+		return map[string]bool{"other": true}, true, nil
+	})
+	rounds, err := svc.ListRounds("execute", "item")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rounds[0].Evidence[0].Verified || !rounds[0].Evidence[1].Verified {
+		t.Fatalf("verification projection = %#v", rounds[0].Evidence)
+	}
+}
+
+func TestVerifyEvidenceRecordsAppendOnlyVerificationAndRevocation(t *testing.T) {
+	dir := t.TempDir()
+	svc := newTestService(nil, "")
+	svc.itemDirFn = func(_, _ string) string { return dir }
+	if err := saveRound(dir, Round{RoundNum: 1, Status: RoundStatusComplete, Evidence: []EvidenceItem{{ID: "proof", Title: "Proof"}}}); err != nil {
+		t.Fatal(err)
+	}
+	var events []bool
+	svc.SetEvidenceVerificationRecorder(func(_ context.Context, _, _ string, _ Round, evidence EvidenceItem, verified bool, actor, reason string) error {
+		if evidence.ID != "proof" || actor != "operator@example.test" || reason != "Rechecked evidence." {
+			t.Fatalf("unexpected recorder input: evidence=%+v verified=%v actor=%q reason=%q", evidence, verified, actor, reason)
+		}
+		events = append(events, verified)
+		return nil
+	})
+	if err := svc.VerifyEvidenceWithActor(context.Background(), "execute", "item", 1, "proof", true, "exec-1", "operator@example.test", "Rechecked evidence."); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	if err := svc.VerifyEvidenceWithActor(context.Background(), "execute", "item", 1, "proof", false, "exec-1", "operator@example.test", "Rechecked evidence."); err != nil {
+		t.Fatalf("unverify: %v", err)
+	}
+	if got, want := fmt.Sprint(events), "[true false]"; got != want {
+		t.Fatalf("verification events = %s, want %s", got, want)
+	}
+	if err := svc.VerifyEvidenceWithActor(context.Background(), "execute", "item", 1, "proof", true, "exec-1", "operator@example.test", ""); err == nil {
+		t.Fatal("expected actor/reason validation")
+	}
+}
+
+func TestValidateRoundEvidenceRejectsUnboundAndDishonestGaps(t *testing.T) {
+	criteria := map[string]struct{}{"criterion-1": {}}
+	for _, tc := range []struct {
+		name     string
+		evidence EvidenceItem
+	}{
+		{name: "unknown criterion", evidence: EvidenceItem{ID: "e1", CriterionID: "missing", Type: EvidenceTypeCLIOutput, Title: "output", Producer: "command", Trust: "observed", Settlement: "settled"}},
+		{name: "unavailable without reason", evidence: EvidenceItem{ID: "e1", CriterionID: "criterion-1", Type: EvidenceTypeCLIOutput, Title: "output", Producer: "command", Trust: "reported", Settlement: "unavailable", AttemptedProducer: "command"}},
+		{name: "unavailable without attempted producer", evidence: EvidenceItem{ID: "e1", CriterionID: "criterion-1", Type: EvidenceTypeCLIOutput, Title: "output", Producer: "command", Trust: "reported", Settlement: "unavailable", UnavailableReason: "runner unavailable"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := validateRoundEvidence([]EvidenceItem{tc.evidence}, criteria); err == nil {
+				t.Fatal("expected validation error")
+			}
+		})
+	}
+	valid := EvidenceItem{ID: "e1", CriterionID: "criterion-1", Type: EvidenceTypeCLIOutput, Title: "output", Producer: "command", Trust: "reported", Settlement: "unavailable", UnavailableReason: "runner unavailable", AttemptedProducer: "command"}
+	if err := validateRoundEvidence([]EvidenceItem{valid}, criteria); err != nil {
+		t.Fatalf("valid unavailable evidence rejected: %v", err)
+	}
+}
+
+func TestValidateCriterionVerdictsRequireCompleteBoundEvidence(t *testing.T) {
+	criteria := map[string]struct{}{"criterion-1": {}, "criterion-2": {}}
+	evidence := []EvidenceItem{{ID: "e1"}, {ID: "e2"}}
+	if err := validateCriterionVerdicts([]CriterionVerdict{{CriterionID: "criterion-1", Settlement: "settled", EvidenceIDs: []string{"e1"}}}, criteria, evidence); err == nil {
+		t.Fatal("expected incomplete criterion verdict rejection")
+	}
+	if err := validateCriterionVerdicts([]CriterionVerdict{{CriterionID: "criterion-1", Settlement: "settled", EvidenceIDs: []string{"e1"}}, {CriterionID: "criterion-2", Settlement: "unavailable", EvidenceIDs: []string{"missing"}}}, criteria, evidence); err == nil {
+		t.Fatal("expected unknown evidence rejection")
+	}
+	valid := []CriterionVerdict{{CriterionID: "criterion-1", Settlement: "settled", EvidenceIDs: []string{"e1"}}, {CriterionID: "criterion-2", Settlement: "unavailable", EvidenceIDs: []string{"e2"}}}
+	if err := validateCriterionVerdicts(valid, criteria, evidence); err != nil {
+		t.Fatalf("valid criterion verdicts rejected: %v", err)
+	}
 }
 
 func setTestReviewRunner(t *testing.T, svc *Service, workflow *fakeReviewWorkflow) {
@@ -96,50 +180,6 @@ func setTestReviewRunner(t *testing.T, svc *Service, workflow *fakeReviewWorkflo
 // callback is fired with the item's kind, name, and final round state.
 // This is the hook the backlog layer uses to flip items from in_review to
 // review_pending.
-func TestRefreshGatheringRounds_InvokesOnRoundTerminal(t *testing.T) {
-	itemDir := t.TempDir()
-	writeRound(t, itemDir, Round{
-		RoundNum:    1,
-		GeneratedAt: "2026-04-02T00:00:00Z",
-		ExecutionID: "exec-callback",
-		Status:      RoundStatusGathering,
-		RunID:       "run-callback",
-		Evidence: []EvidenceItem{
-			{ID: "e1", Type: EvidenceTypeScreenshot, Title: "t", Description: "d", Verified: true},
-		},
-	})
-
-	spawner := &capturingSpawner{
-		enabled: true,
-		runState: agentmanager.RunState{
-			RunID:  "run-callback",
-			Status: "complete",
-		},
-	}
-	svc := newTestService(spawner, "")
-
-	var gotKind, gotName string
-	var gotStatus RoundStatus
-	svc.onRoundTerminal = func(_ context.Context, kind, name string, r Round) {
-		gotKind = kind
-		gotName = name
-		gotStatus = r.Status
-	}
-
-	svc.trackActiveRound("run-callback", "execute", "sample-item", itemDir, 1)
-	svc.RefreshGatheringRounds(context.Background())
-
-	if gotKind != "execute" {
-		t.Errorf("callback kind = %q, want %q", gotKind, "execute")
-	}
-	if gotName != "sample-item" {
-		t.Errorf("callback name = %q, want %q", gotName, "sample-item")
-	}
-	if gotStatus != RoundStatusComplete && gotStatus != RoundStatusFailed {
-		t.Errorf("callback round status = %q, want complete or failed", gotStatus)
-	}
-}
-
 // setupItemDir creates a temporary backlog item directory. Every backlog kind
 // resolves its actionable plan through planContentResolver.
 func setupItemDir(t *testing.T, kind string) string {
@@ -180,8 +220,36 @@ func TestStartReview_StartsDeclaredWorkflowAndWritesRound(t *testing.T) {
 	if round.RunID != "test-run-id" {
 		t.Errorf("round RunID = %q, want test-run-id", round.RunID)
 	}
-	if round.AgentWorkflowExecutionID != "review-workflow" || round.AgentWorkflowDefinition != "sha256:review" || round.AgentWorkflowVersion == "" || round.OpExecutionID != "" {
-		t.Fatalf("round did not retain declared workflow provenance: %#v", round)
+}
+
+func TestStartReviewPersistsTypedCriteriaInImmutableSnapshot(t *testing.T) {
+	svc := newTestService(&capturingSpawner{enabled: true}, "instructions")
+	itemDir := t.TempDir()
+	svc.itemDirFn = func(_, _ string) string { return itemDir }
+	svc.loadReviewContract = func(_, _ string) (ReviewContract, error) {
+		return ReviewContract{Description: "Outcome statement", Criteria: []map[string]any{{"id": "criterion-1", "gherkin": "Given work When reviewed Then evidence exists"}}}, nil
+	}
+	setTestReviewRunner(t, svc, &fakeReviewWorkflow{})
+	if err := svc.startReview(context.Background(), startReviewParams{ExecutionID: "exec-criteria", BacklogKind: "execute", BacklogName: "criteria-item", ItemTitle: "Criteria", ItemDir: itemDir}); err != nil {
+		t.Fatal(err)
+	}
+	round, err := LoadRound(itemDir, 1)
+	if err != nil || round == nil {
+		t.Fatalf("load round: %v", err)
+	}
+	var snapshot map[string]any
+	if err := json.Unmarshal(round.AgentWorkflowSnapshot, &snapshot); err != nil {
+		t.Fatal(err)
+	}
+	if snapshot["itemDescription"] != "Outcome statement" {
+		t.Fatalf("description missing from snapshot: %#v", snapshot)
+	}
+	if snapshot["planContent"] != "# Test Plan\nDo the thing from plan-manager." {
+		t.Fatalf("plan content missing from snapshot: %#v", snapshot)
+	}
+	criteria, ok := snapshot["acceptanceCriteria"].([]any)
+	if !ok || len(criteria) != 1 {
+		t.Fatalf("criteria missing from snapshot: %#v", snapshot)
 	}
 }
 
@@ -221,8 +289,8 @@ func TestApplyWorkflowRound_ExactlyOnce(t *testing.T) {
 	// Persist the round with its request snapshot first, then start through the
 	// registered builder — the same order production uses, so the version the
 	// correlation pins is the version the apply-time rebuild recomputes.
-	requestSnapshot := []byte(`{"ExecutionID":"exec-1","BacklogKind":"task","BacklogName":"item"}`)
-	if err := SaveRound(itemDir, Round{RoundNum: 1, GeneratedAt: time.Now().UTC().Format(time.RFC3339), ExecutionID: "exec-1", Status: RoundStatusGathering, Evidence: []EvidenceItem{}, AgentWorkflowSnapshot: requestSnapshot}); err != nil {
+	requestSnapshot := []byte(`{"executionId":"exec-1","backlogKind":"task","backlogName":"item"}`)
+	if err := SaveRound(itemDir, Round{RoundNum: 1, GeneratedAt: time.Now().UTC().Format(time.RFC3339), Status: RoundStatusGathering, Evidence: []EvidenceItem{}, AgentWorkflowSnapshot: requestSnapshot}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := svc.transitionRunner.StartWith(context.Background(), "work.review", reviewSubject("task", "item", 1), transitionrunner.PreparedInput{}); err != nil {
@@ -235,7 +303,7 @@ func TestApplyWorkflowRound_ExactlyOnce(t *testing.T) {
 			t.Fatalf("unexpected terminal projection: %s/%s %#v", kind, name, round)
 		}
 	})
-	if err := SaveRound(itemDir, Round{RoundNum: 1, GeneratedAt: time.Now().UTC().Format(time.RFC3339), ExecutionID: "exec-1", Status: RoundStatusGathering, Evidence: []EvidenceItem{}, AgentWorkflowSnapshot: requestSnapshot, AgentWorkflowExecutionID: "workflow-1", AgentWorkflowDefinition: "sha256:def", AgentWorkflowVersion: snapshotVersion(requestSnapshot)}); err != nil {
+	if err := SaveRound(itemDir, Round{RoundNum: 1, GeneratedAt: time.Now().UTC().Format(time.RFC3339), Status: RoundStatusGathering, Evidence: []EvidenceItem{}, AgentWorkflowSnapshot: requestSnapshot}); err != nil {
 		t.Fatal(err)
 	}
 	first, replay, err := svc.ApplyWorkflowRound(context.Background(), "task", "item", 1)
@@ -268,18 +336,13 @@ func TestApplyEvidenceRequestWorkflow_ExactlyOnce(t *testing.T) {
 	// Save the thread before starting so the registered builder can reproject it,
 	// then reuse that same projection for the stored version.
 	thread := RequestThread{ID: "thread-1", Status: "pending", Messages: []RequestMessage{{Role: "user", Content: "please gather", Timestamp: time.Now().UTC().Format(time.RFC3339)}}}
-	if err := SaveRound(itemDir, Round{RoundNum: 1, GeneratedAt: time.Now().UTC().Format(time.RFC3339), ExecutionID: "exec-1", Status: RoundStatusGathering, RequestThreads: []RequestThread{thread}}); err != nil {
+	if err := SaveRound(itemDir, Round{RoundNum: 1, GeneratedAt: time.Now().UTC().Format(time.RFC3339), Status: RoundStatusGathering, RequestThreads: []RequestThread{thread}}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := svc.transitionRunner.StartWith(context.Background(), "review.evidence_request", reviewThreadSubject("task", "item", 1, "thread-1"), transitionrunner.PreparedInput{}); err != nil {
 		t.Fatal(err)
 	}
-	rebuilt, err := svc.buildEvidenceRequestInput(context.Background(), reviewThreadSubject("task", "item", 1, "thread-1"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	thread.AgentWorkflowExecutionID, thread.AgentWorkflowDefinition, thread.AgentWorkflowVersion = "workflow-1", "sha256:def", rebuilt.EntityVersion
-	if err := SaveRound(itemDir, Round{RoundNum: 1, GeneratedAt: time.Now().UTC().Format(time.RFC3339), ExecutionID: "exec-1", Status: RoundStatusGathering, RequestThreads: []RequestThread{thread}}); err != nil {
+	if _, err := svc.buildEvidenceRequestInput(context.Background(), reviewThreadSubject("task", "item", 1, "thread-1")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -292,119 +355,6 @@ func TestApplyEvidenceRequestWorkflow_ExactlyOnce(t *testing.T) {
 	second, replay, err := svc.ApplyEvidenceRequestWorkflow(context.Background(), "task", "item", 1, "thread-1")
 	if err != nil || !replay || second.RequestThreads[0].Status != "fulfilled" || workflow.collects != 1 {
 		t.Fatalf("replay = %#v replay=%v collects=%d err=%v", second, replay, workflow.collects, err)
-	}
-}
-
-func TestBuildReviewAttachments_UserRequest(t *testing.T) {
-	atts := buildReviewAttachments("plan text", []string{"a.go"}, []string{"scen"}, "", "", "show me the logs")
-
-	var found bool
-	for _, att := range atts {
-		if att.Key == "user-request" {
-			found = true
-			if att.Content != "show me the logs" {
-				t.Errorf("user-request content = %q, want %q", att.Content, "show me the logs")
-			}
-			if att.Priority != "high" {
-				t.Errorf("user-request priority = %q, want %q", att.Priority, "high")
-			}
-		}
-	}
-	if !found {
-		t.Error("expected user-request attachment")
-	}
-}
-
-func TestBuildReviewAttachments_NoUserRequest(t *testing.T) {
-	atts := buildReviewAttachments("plan", nil, nil, "", "", "")
-	for _, att := range atts {
-		if att.Key == "user-request" {
-			t.Error("user-request should be absent when empty")
-		}
-	}
-}
-
-func TestBuildReviewAttachments_NonSandboxDiffSummary(t *testing.T) {
-	// When there are 0 changed paths (non-sandbox execution), the diff-summary
-	// should explain that changes may exist but weren't tracked.
-	atts := buildReviewAttachments("plan", nil, nil, "", "", "")
-
-	for _, att := range atts {
-		if att.Key == "diff-summary" {
-			if att.Content == "Changed 0 files across 0 scenarios" {
-				t.Error("diff-summary should include non-sandbox explanation when 0 changed paths")
-			}
-			if !strings.Contains(att.Content, "without sandbox mode") {
-				t.Error("diff-summary should mention non-sandbox mode")
-			}
-			if !strings.Contains(att.Content, "examining the codebase directly") {
-				t.Error("diff-summary should instruct agent to examine codebase directly")
-			}
-			return
-		}
-	}
-	t.Error("expected diff-summary attachment")
-}
-
-func TestBuildReviewAttachments_SandboxDiffSummary(t *testing.T) {
-	// When there ARE changed paths, the diff-summary should NOT include the non-sandbox note.
-	atts := buildReviewAttachments("plan", []string{"a.go", "b.go"}, []string{"scen"}, "", "", "")
-
-	for _, att := range atts {
-		if att.Key == "diff-summary" {
-			if strings.Contains(att.Content, "without sandbox mode") {
-				t.Error("diff-summary should NOT mention non-sandbox mode when changes are present")
-			}
-			if !strings.Contains(att.Content, "Changed 2 files across 1 scenarios") {
-				t.Errorf("unexpected diff-summary content: %q", att.Content)
-			}
-			return
-		}
-	}
-	t.Error("expected diff-summary attachment")
-}
-
-func TestBuildReviewAttachments_Priorities(t *testing.T) {
-	atts := buildReviewAttachments("plan", []string{"a.go"}, []string{"scen"}, `{"s":"ready"}`, `{"scen":{"verdict":"regression"}}`, "")
-
-	priorities := make(map[string]string)
-	for _, att := range atts {
-		priorities[att.Key] = att.Priority
-	}
-
-	highKeys := []string{"plan-content", "diff-summary", "changed-paths", "gct-review-results", "baseline-diff-results"}
-	for _, key := range highKeys {
-		if priorities[key] != "high" {
-			t.Errorf("attachment %q priority = %q, want %q", key, priorities[key], "high")
-		}
-	}
-	if priorities["affected-scenarios"] != "medium" {
-		t.Errorf("affected-scenarios priority = %q, want %q", priorities["affected-scenarios"], "medium")
-	}
-}
-
-func TestBuildReviewAttachments_BaselineDiffPresentIffData(t *testing.T) {
-	// Present when baseline diff JSON is supplied.
-	withDiff := buildReviewAttachments("plan", []string{"a.go"}, []string{"scen"}, "", `{"scen":{"verdict":"regression"}}`, "")
-	var found bool
-	for _, att := range withDiff {
-		if att.Key == "baseline-diff-results" {
-			found = true
-			if att.Format != "json" {
-				t.Errorf("baseline-diff-results format = %q, want json", att.Format)
-			}
-		}
-	}
-	if !found {
-		t.Error("expected baseline-diff-results attachment when diff data is present")
-	}
-
-	// Absent when baseline diff JSON is empty.
-	withoutDiff := buildReviewAttachments("plan", []string{"a.go"}, []string{"scen"}, "", "", "")
-	for _, att := range withoutDiff {
-		if att.Key == "baseline-diff-results" {
-			t.Error("baseline-diff-results should be absent when no diff data")
-		}
 	}
 }
 
@@ -422,158 +372,6 @@ func writeRound(t *testing.T, itemDir string, round Round) {
 	}
 	if err := os.WriteFile(filepath.Join(reviewDir, RoundFilename(round.RoundNum)), data, 0o644); err != nil {
 		t.Fatal(err)
-	}
-}
-
-func TestRefreshGatheringRounds_CompletesRound(t *testing.T) {
-	itemDir := t.TempDir()
-	writeRound(t, itemDir, Round{
-		RoundNum:    1,
-		GeneratedAt: "2026-04-02T00:00:00Z",
-		ExecutionID: "exec-1",
-		Status:      RoundStatusGathering,
-		RunID:       "run-abc",
-		Evidence:    []EvidenceItem{},
-	})
-
-	spawner := &capturingSpawner{
-		enabled: true,
-		runState: agentmanager.RunState{
-			RunID:  "run-abc",
-			Status: "complete",
-		},
-	}
-	svc := newTestService(spawner, "")
-	svc.trackActiveRound("run-abc", "execute", "sample-item", itemDir, 1)
-
-	svc.RefreshGatheringRounds(context.Background())
-
-	// Verify round status was updated on disk.
-	round, err := LoadRound(itemDir, 1)
-	if err != nil {
-		t.Fatalf("LoadRound: %v", err)
-	}
-	if round.Status != RoundStatusFailed {
-		t.Errorf("round status = %q, want %q", round.Status, RoundStatusFailed)
-	}
-	if !strings.Contains(round.FailureReason, "agent_assessment") {
-		t.Fatalf("expected missing assessment failure reason, got %q", round.FailureReason)
-	}
-
-	// Verify it was removed from active tracking.
-	svc.mu.Lock()
-	remaining := len(svc.activeRounds)
-	svc.mu.Unlock()
-	if remaining != 0 {
-		t.Errorf("expected 0 active rounds after completion, got %d", remaining)
-	}
-}
-
-func TestRefreshGatheringRounds_FailedRound(t *testing.T) {
-	itemDir := t.TempDir()
-	writeRound(t, itemDir, Round{
-		RoundNum:    1,
-		GeneratedAt: "2026-04-02T00:00:00Z",
-		ExecutionID: "exec-2",
-		Status:      RoundStatusGathering,
-		RunID:       "run-fail",
-		Evidence:    []EvidenceItem{},
-	})
-
-	spawner := &capturingSpawner{
-		enabled: true,
-		runState: agentmanager.RunState{
-			RunID:  "run-fail",
-			Status: "failed",
-		},
-	}
-	svc := newTestService(spawner, "")
-	svc.trackActiveRound("run-fail", "execute", "sample-item", itemDir, 1)
-
-	svc.RefreshGatheringRounds(context.Background())
-
-	round, err := LoadRound(itemDir, 1)
-	if err != nil {
-		t.Fatalf("LoadRound: %v", err)
-	}
-	if round.Status != RoundStatusFailed {
-		t.Errorf("round status = %q, want %q", round.Status, RoundStatusFailed)
-	}
-}
-
-func TestRefreshGatheringRounds_StillRunning(t *testing.T) {
-	itemDir := t.TempDir()
-	writeRound(t, itemDir, Round{
-		RoundNum:    1,
-		GeneratedAt: "2026-04-02T00:00:00Z",
-		ExecutionID: "exec-3",
-		Status:      RoundStatusGathering,
-		RunID:       "run-running",
-		Evidence:    []EvidenceItem{},
-	})
-
-	spawner := &capturingSpawner{
-		enabled: true,
-		runState: agentmanager.RunState{
-			RunID:  "run-running",
-			Status: "running",
-		},
-	}
-	svc := newTestService(spawner, "")
-	svc.trackActiveRound("run-running", "execute", "sample-item", itemDir, 1)
-
-	svc.RefreshGatheringRounds(context.Background())
-
-	// Round should still be gathering.
-	round, err := LoadRound(itemDir, 1)
-	if err != nil {
-		t.Fatalf("LoadRound: %v", err)
-	}
-	if round.Status != RoundStatusGathering {
-		t.Errorf("round status = %q, want %q (should remain gathering)", round.Status, RoundStatusGathering)
-	}
-
-	// Should still be tracked.
-	svc.mu.Lock()
-	remaining := len(svc.activeRounds)
-	svc.mu.Unlock()
-	if remaining != 1 {
-		t.Errorf("expected 1 active round while still running, got %d", remaining)
-	}
-}
-
-func TestRefreshGatheringRounds_AlreadyComplete(t *testing.T) {
-	itemDir := t.TempDir()
-	// Round was already marked complete (e.g. agent wrote the file itself).
-	writeRound(t, itemDir, Round{
-		RoundNum:        1,
-		GeneratedAt:     "2026-04-02T00:00:00Z",
-		ExecutionID:     "exec-4",
-		Status:          RoundStatusComplete,
-		RunID:           "run-done",
-		AgentAssessment: "Looks good.",
-		Classification:  "ready",
-		Evidence:        []EvidenceItem{},
-	})
-
-	spawner := &capturingSpawner{
-		enabled: true,
-		runState: agentmanager.RunState{
-			RunID:  "run-done",
-			Status: "complete",
-		},
-	}
-	svc := newTestService(spawner, "")
-	svc.trackActiveRound("run-done", "execute", "sample-item", itemDir, 1)
-
-	svc.RefreshGatheringRounds(context.Background())
-
-	// Should be removed from tracking without re-saving.
-	svc.mu.Lock()
-	remaining := len(svc.activeRounds)
-	svc.mu.Unlock()
-	if remaining != 0 {
-		t.Errorf("expected 0 active rounds, got %d", remaining)
 	}
 }
 
@@ -598,42 +396,11 @@ func TestMapRunStatusToRoundStatus(t *testing.T) {
 	}
 }
 
-// TestStartReview_DoesNotTrackRunnerOwnedRound verifies the rerouted startReview
-// does NOT enter the runner-owned round into the legacy polling map. Runner-owned
-// rounds are finalized by the operation runner's completion bridge, so tracking
-// them would race the poller against the commit handler.
-func TestStartReview_DoesNotTrackRunnerOwnedRound(t *testing.T) {
-	spawner := &capturingSpawner{enabled: true}
-	svc := newTestService(spawner, "instructions")
-	itemDir := setupItemDir(t, "task")
-	svc.itemDirFn = func(_, _ string) string { return itemDir }
-	setTestReviewRunner(t, svc, &fakeReviewWorkflow{})
-
-	err := svc.startReview(context.Background(), startReviewParams{
-		ExecutionID: "exec-track",
-		BacklogKind: "task",
-		BacklogName: "test-item",
-		ItemTitle:   "Test",
-		ItemDir:     itemDir,
-	})
-	if err != nil {
-		t.Fatalf("startReview: %v", err)
-	}
-
-	svc.mu.Lock()
-	count := len(svc.activeRounds)
-	svc.mu.Unlock()
-	if count != 0 {
-		t.Errorf("runner-owned rounds must not be tracked for legacy polling, got %d tracked", count)
-	}
-}
-
 func TestListRounds_InlineRefresh(t *testing.T) {
 	itemDir := t.TempDir()
 	writeRound(t, itemDir, Round{
 		RoundNum:        1,
 		GeneratedAt:     "2026-04-02T00:00:00Z",
-		ExecutionID:     "exec-list",
 		Status:          RoundStatusGathering,
 		RunID:           "run-inline",
 		AgentAssessment: "Looks good.",
@@ -674,7 +441,6 @@ func TestListRounds_ExposesCurrentRunStatusForNeedsReview(t *testing.T) {
 	writeRound(t, itemDir, Round{
 		RoundNum:    1,
 		GeneratedAt: "2026-04-02T00:00:00Z",
-		ExecutionID: "exec-awaiting-review",
 		Status:      RoundStatusGathering,
 		RunID:       "run-awaiting-review",
 		Evidence:    []EvidenceItem{},
@@ -736,7 +502,7 @@ func TestTriggerReviewAgent_RoutesToDeclaredWorkflow(t *testing.T) {
 	if err != nil || round == nil {
 		t.Fatalf("expected round 1 on disk: err=%v round=%v", err, round)
 	}
-	if round.RunID != "test-run-id" || round.AgentWorkflowExecutionID != "review-workflow" || round.OpExecutionID != "" {
+	if round.RunID != "test-run-id" {
 		t.Errorf("round missing workflow association: %#v", round)
 	}
 }

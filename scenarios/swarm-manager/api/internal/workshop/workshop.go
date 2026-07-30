@@ -12,10 +12,9 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
 
-	"swarm-manager/internal/jsonutil"
+	"swarm-manager/internal/attempt"
+	"swarm-manager/internal/attemptstore"
 )
 
 // ---------------------------------------------------------------------------
@@ -31,6 +30,21 @@ type Round struct {
 	Readiness        map[string]int `json:"readiness"`
 	Items            []Item         `json:"items"`
 	PlanUpdates      string         `json:"plan_updates,omitempty"`
+}
+
+func (r Round) RoundNumber() int { return r.RoundNum }
+
+// AsAttempt projects a legacy workshop round into the shared attempt shape.
+// Workshop-specific question rendering remains local, but operators and
+// cross-domain read models no longer need a second lifecycle vocabulary.
+func (r Round) AsAttempt(subjectRef string) attempt.Attempt {
+	readiness, _ := json.Marshal(r.Readiness)
+	proposals := make([]attempt.Proposal, 0, len(r.Items))
+	for _, item := range r.Items {
+		payload, _ := json.Marshal(item)
+		proposals = append(proposals, attempt.Proposal{ID: item.ID, Type: item.Type, Payload: string(payload)})
+	}
+	return attempt.Attempt{SubjectKind: "backlog-item", SubjectRef: subjectRef, TransitionKey: "plan.workshop", RoundNum: r.RoundNum, Status: "complete", GeneratedAt: r.GeneratedAt, Assessment: string(readiness), Proposals: proposals}
 }
 
 // Item is a single decision or info item within a workshop round.
@@ -67,47 +81,14 @@ const OtherKey = "__other__"
 // LoadRounds reads historical legacy round files from an item directory,
 // sorted by round number ascending. It is a read-only compatibility parser;
 // current Plan Workshop state is stored separately.
-func LoadRounds(itemDir string) ([]Round, error) {
-	workshopDir := filepath.Join(itemDir, "workshop")
-	entries, err := os.ReadDir(workshopDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("read workshop dir: %w", err)
-	}
-
-	var rounds []Round
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasPrefix(entry.Name(), "round-") || !strings.HasSuffix(entry.Name(), ".json") {
-			continue
-		}
-		data, err := os.ReadFile(filepath.Join(workshopDir, entry.Name()))
-		if err != nil {
-			continue
-		}
-		var round Round
-		if err := json.Unmarshal(data, &round); err != nil {
-			if repaired := jsonutil.RepairTruncatedJSON(data); repaired != nil {
-				if json.Unmarshal(repaired, &round) == nil {
-					rounds = append(rounds, round)
-				}
-			}
-			continue
-		}
-		rounds = append(rounds, round)
-	}
-
-	sort.Slice(rounds, func(i, j int) bool {
-		return rounds[i].RoundNum < rounds[j].RoundNum
-	})
-	return rounds, nil
+func ReadRounds(itemDir string) ([]Round, error) {
+	return attemptstore.LoadRounds(itemDir, "workshop", decodeRound)
 }
 
 // LoadLatestRound returns the most recent workshop round and total round count.
 // Returns nil round and 0 count if no rounds exist.
-func LoadLatestRound(itemDir string) (*Round, int, error) {
-	rounds, err := LoadRounds(itemDir)
+func ReadLatestRound(itemDir string) (*Round, int, error) {
+	rounds, err := ReadRounds(itemDir)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -146,9 +127,9 @@ func BuildHistory(rounds []Round) string {
 	return string(data)
 }
 
-// RoundFilename returns the standard zero-padded filename for a round number.
-func RoundFilename(n int) string {
-	return fmt.Sprintf("round-%03d.json", n)
+func decodeRound(data []byte) (Round, error) {
+	var round Round
+	return round, json.Unmarshal(data, &round)
 }
 
 // DeleteRoundAndRenumber removes a workshop round file and renumbers all
@@ -156,7 +137,7 @@ func RoundFilename(n int) string {
 // rounds after deletion.
 func DeleteRoundAndRenumber(itemDir string, roundNum int) (remaining int, err error) {
 	workshopDir := filepath.Join(itemDir, "workshop")
-	rounds, err := LoadRounds(itemDir)
+	rounds, err := ReadRounds(itemDir)
 	if err != nil {
 		return 0, fmt.Errorf("load rounds: %w", err)
 	}
@@ -174,7 +155,7 @@ func DeleteRoundAndRenumber(itemDir string, roundNum int) (remaining int, err er
 	}
 
 	// Delete the target round file.
-	targetFile := filepath.Join(workshopDir, RoundFilename(roundNum))
+	targetFile := filepath.Join(workshopDir, attemptstore.RoundFilename(roundNum))
 	if err := os.Remove(targetFile); err != nil {
 		return len(rounds), fmt.Errorf("delete round file: %w", err)
 	}
@@ -185,14 +166,14 @@ func DeleteRoundAndRenumber(itemDir string, roundNum int) (remaining int, err er
 		if r.RoundNum <= roundNum {
 			continue
 		}
-		oldFile := filepath.Join(workshopDir, RoundFilename(r.RoundNum))
+		oldFile := filepath.Join(workshopDir, attemptstore.RoundFilename(r.RoundNum))
 		newNum := r.RoundNum - 1
 		r.RoundNum = newNum
 		data, err := json.MarshalIndent(r, "", "  ")
 		if err != nil {
 			return 0, fmt.Errorf("marshal round %d: %w", r.RoundNum, err)
 		}
-		newFile := filepath.Join(workshopDir, RoundFilename(newNum))
+		newFile := filepath.Join(workshopDir, attemptstore.RoundFilename(newNum))
 		if err := os.WriteFile(newFile, data, 0o600); err != nil {
 			return 0, fmt.Errorf("write round %d: %w", newNum, err)
 		}
@@ -213,7 +194,7 @@ func DeleteRoundAndRenumber(itemDir string, roundNum int) (remaining int, err er
 // local deliverable file, when one still exists.
 // Returns the number of rounds that existed before deletion.
 func ResetWorkshop(itemDir string, deliverableFile string) (deletedRounds int, err error) {
-	rounds, err := LoadRounds(itemDir)
+	rounds, err := ReadRounds(itemDir)
 	if err != nil {
 		return 0, fmt.Errorf("load rounds: %w", err)
 	}

@@ -236,6 +236,11 @@ func (s *FileStore) SaveItem(item BacklogItem) error {
 	} else {
 		delete(merged, "acceptance_deny")
 	}
+	if len(item.AcceptanceCriteria) > 0 {
+		merged["acceptance_criteria"] = item.AcceptanceCriteria
+	} else {
+		delete(merged, "acceptance_criteria")
+	}
 	if len(item.Creates) > 0 {
 		merged["creates"] = item.Creates
 	} else {

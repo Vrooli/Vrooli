@@ -538,8 +538,8 @@ func (s *Service) CloseOut(name string) (*Goal, error) {
 	if g.Status != StatusActive {
 		return nil, validationErr("only active goals can be closed out")
 	}
-	if !allMilestonesVerifiedDelivered(g.Milestones) {
-		return nil, validationErr("every non-archived milestone must be verified delivered before close-out")
+	if milestone := firstUnverifiedMilestone(g.Milestones); milestone != "" {
+		return nil, validationErr("milestone %q is not verified delivered; review its criterion evidence before close-out", milestone)
 	}
 	g.Status = StatusAchieved
 	g.Updated = nowRFC3339()
@@ -551,10 +551,14 @@ func (s *Service) CloseOut(name string) (*Goal, error) {
 	return g, nil
 }
 
-// MarkMilestoneDelivered records the independent-review verdict used by
-// CloseOut. It is deliberately package-owned so workflow application cannot
-// bypass the goal lifecycle boundary.
-func (s *Service) MarkMilestoneDelivered(goalName, milestoneName string) (*GoalWithScope, error) {
+// MarkMilestoneDeliveredWithVerdicts is the workflow-only delivery gate. A
+// milestone cannot be independently verified unless every declared criterion
+// is explicitly delivered with at least one evidence reference.
+func (s *Service) MarkMilestoneDeliveredWithVerdicts(goalName, milestoneName string, verdicts []CriterionVerdict) (*GoalWithScope, error) {
+	return s.markMilestoneDelivered(goalName, milestoneName, verdicts)
+}
+
+func (s *Service) markMilestoneDelivered(goalName, milestoneName string, verdicts []CriterionVerdict) (*GoalWithScope, error) {
 	g, err := s.store.Load(goalName)
 	if err != nil {
 		return nil, err
@@ -563,8 +567,12 @@ func (s *Service) MarkMilestoneDelivered(goalName, milestoneName string) (*GoalW
 	if index < 0 {
 		return nil, validationErr("milestone %q not found", milestoneName)
 	}
+	if !coversMilestoneCriteria(g.Milestones[index].AcceptanceCriteria, verdicts) {
+		return nil, validationErr("milestone review must deliver every acceptance criterion with evidence")
+	}
 	now := nowRFC3339()
 	g.Milestones[index].VerifiedDeliveredAt = &now
+	g.Milestones[index].CriterionVerdicts = append([]CriterionVerdict(nil), verdicts...)
 	g.Updated = now
 	scope, err := s.computeScope(g)
 	if err != nil {
@@ -578,7 +586,30 @@ func (s *Service) MarkMilestoneDelivered(goalName, milestoneName string) (*GoalW
 	return &GoalWithScope{Goal: *g, Scope: scope}, nil
 }
 
+func coversMilestoneCriteria(criteria []string, verdicts []CriterionVerdict) bool {
+	if len(criteria) == 0 || len(verdicts) != len(criteria) {
+		return false
+	}
+	seen := make(map[string]struct{}, len(verdicts))
+	for _, verdict := range verdicts {
+		if strings.TrimSpace(verdict.Verdict) != "delivered" || len(verdict.Evidence) == 0 {
+			return false
+		}
+		seen[strings.TrimSpace(verdict.Criterion)] = struct{}{}
+	}
+	for _, criterion := range criteria {
+		if _, ok := seen[strings.TrimSpace(criterion)]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
 func allMilestonesVerifiedDelivered(milestones []Milestone) bool {
+	return firstUnverifiedMilestone(milestones) == ""
+}
+
+func firstUnverifiedMilestone(milestones []Milestone) string {
 	count := 0
 	for _, milestone := range milestones {
 		if milestone.ArchivedAt != nil {
@@ -586,10 +617,13 @@ func allMilestonesVerifiedDelivered(milestones []Milestone) bool {
 		}
 		count++
 		if milestone.VerifiedDeliveredAt == nil || strings.TrimSpace(*milestone.VerifiedDeliveredAt) == "" {
-			return false
+			return milestone.Name
 		}
 	}
-	return count > 0
+	if count == 0 {
+		return "__none__"
+	}
+	return ""
 }
 
 // IsCloseOutReady reports whether the goal has evidence for the operator-only

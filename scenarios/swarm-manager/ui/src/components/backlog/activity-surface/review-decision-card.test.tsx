@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "../../../test-utils";
+import type { BacklogCriterion } from "@vrooli/proto-types/swarm-manager/v1/shared/backlog_pb";
+import type { EvidenceItem } from "../../../services/review-service";
 
-const post = vi.fn();
+const decide = vi.fn();
 
-vi.mock("../../../lib/api-client", () => ({
-  defaultApiClient: { post: (...args: unknown[]) => post(...args) },
-}));
+vi.mock("../../../services/review-decision-service", () => ({ reviewDecisionService: { decide: (...args: unknown[]) => decide(...args) } }));
 
 import { ReviewDecisionCard } from "./review-decision-card";
 
@@ -25,28 +25,42 @@ describe("ReviewDecisionCard", () => {
   it("shows gathering instead of terminal controls while evidence is live", () => {
     renderWithProviders(<ReviewDecisionCard kind="execute" name="item-a" round={{ ...baseRound, status: "gathering" }} onDecided={vi.fn()} />);
     expect(screen.getByText("Review is gathering evidence")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Accept" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Accept/ })).not.toBeInTheDocument();
   });
 
   it("labels inconclusive review honestly and sends the explicit decision", async () => {
-    post.mockResolvedValue({});
+    decide.mockResolvedValue({});
     const onDecided = vi.fn();
     renderWithProviders(<ReviewDecisionCard kind="execute" name="item-a" round={baseRound} onDecided={onDecided} />);
     expect(screen.getByText("inconclusive")).toBeInTheDocument();
     expect(screen.getByText(/Advisory: attention/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "View changed files" })).toHaveAttribute("href", "/executions/execution-42?tab=changes");
 
-    fireEvent.click(screen.getByRole("button", { name: "Accept" }));
-    await waitFor(() => expect(post).toHaveBeenCalledWith("/backlog/execute/item-a/review-decide", expect.objectContaining({ decision: "accept" })));
+    fireEvent.change(screen.getByLabelText("Operator identity"), { target: { value: "operator@example.test" } });
+    fireEvent.click(screen.getByLabelText("Agree with the review's assessment"));
+    fireEvent.click(screen.getByRole("button", { name: /Accept \(0 unverified\)/ }));
+    await waitFor(() => expect(decide).toHaveBeenCalledWith(expect.objectContaining({ decision: "accept", actor: "operator@example.test" })));
     expect(onDecided).toHaveBeenCalledOnce();
   });
 
+  it("starts with an empty rationale and renders criterion-bound evidence", () => {
+    const criterion = { $typeName: "vrooli.swarm_manager.v1.shared.BacklogCriterion", id: "criterion-1", gherkin: "Given proof When reviewed Then it is settled." } as BacklogCriterion;
+    const evidence = { id: "evidence-1", type: "api_test", title: "API contract", description: "response", verified: true, criterion_id: "criterion-1", settlement: "settled" } as EvidenceItem;
+    renderWithProviders(<ReviewDecisionCard kind="execute" name="item-a" round={{ ...baseRound, evidence: [evidence] }} criteria={[criterion]} onDecided={vi.fn()} />);
+    expect(screen.getByLabelText("Decision rationale")).toHaveValue("");
+    expect(screen.getByText("Given proof When reviewed Then it is settled.")).toBeInTheDocument();
+    expect(screen.getByText("settled")).toBeInTheDocument();
+  });
+
   it("opens the prepared follow-up path only after saving Send back", async () => {
-    post.mockResolvedValue({});
+    decide.mockResolvedValue({});
     const onSendBack = vi.fn();
     renderWithProviders(<ReviewDecisionCard kind="execute" name="item-a" round={baseRound} onDecided={vi.fn()} onSendBack={onSendBack} />);
+    fireEvent.change(screen.getByLabelText("Operator identity"), { target: { value: "operator@example.test" } });
+    fireEvent.change(screen.getByLabelText("Decision rationale"), { target: { value: "Investigate the missing proof." } });
+    fireEvent.change(screen.getByLabelText("Follow-up disposition"), { target: { value: "replan" } });
     fireEvent.click(screen.getByRole("button", { name: "Send back" }));
-    await waitFor(() => expect(post).toHaveBeenCalledWith("/backlog/execute/item-a/review-decide", expect.objectContaining({ decision: "followup" })));
+    await waitFor(() => expect(decide).toHaveBeenCalledWith(expect.objectContaining({ decision: "followup", followUp: { steering: "Investigate the missing proof.", disposition: "replan" } })));
     expect(onSendBack).toHaveBeenCalledOnce();
   });
 });

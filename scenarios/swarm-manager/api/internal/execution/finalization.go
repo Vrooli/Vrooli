@@ -479,9 +479,12 @@ func (s *Service) triggerReviewAgent(ctx context.Context, executionID string, sc
 	}
 	baselineJSON := MarshalBaselineDiffResults(baselineByScenario)
 
+	machineEvidence := resolveCriterionChecks(ctx, item.AcceptanceCriteria, defaultCriterionCommandRunner{})
 	return s.reviewService.StartReviewForExecution(ctx,
-		executionID, item.Kind, item.Name, item.Title,
+		executionID, item.Kind, item.Name, item.Title, item.Description,
 		s.itemDir(item.Kind, item.Name),
+		item.AcceptanceCriteria,
+		machineEvidence,
 		scope.affectedScenarios, scope.changedPathsByScenario,
 		gctJSON, baselineJSON,
 	)
