@@ -189,7 +189,7 @@ func (s *Server) adminProfileDependencies() adminhttp.ProfileDependencies {
 		DefaultEmail:    func() string { email, _, _ := getAdminDefaults(); return email },
 		DefaultPassword: func() string { return resolveSecret("ADMIN_DEFAULT_PASSWORD") },
 		ValidateEmail:   func(email string) error { _, err := ValidateEmail(email); return err },
-		WriteError:      writeJSONError, Log: logStructured, LogError: logStructuredError,
+		Log:             logStructured, LogError: logStructuredError,
 	}
 }
 

@@ -20,12 +20,14 @@ type ConnectDependencies struct {
 	Reader  AnalyticsReader
 }
 
+// seam: interface
 // EventTracker records an idempotent analytics event. The production service
 // is wired once by the API composition root; tests use a narrow fake.
 type EventTracker interface {
 	TrackEvent(metrics.Event) error
 }
 
+// seam: interface
 // AnalyticsReader supplies reporting projections without exposing persistence
 // details to the generated transport.
 type AnalyticsReader interface {

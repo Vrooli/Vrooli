@@ -2268,6 +2268,16 @@
       "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."
     },
     {
+      "service": "AdminProfileService",
+      "method": "GetAdminProfile",
+      "reason": "Administrator profile operations are browser-session workflows owned by the admin portal; the CLI intentionally exposes no credential-reading command."
+    },
+    {
+      "service": "AdminProfileService",
+      "method": "UpdateAdminProfile",
+      "reason": "Administrator profile updates require an interactive current-password confirmation and are intentionally limited to the authenticated admin portal."
+    },
+    {
       "service": "AssetsService",
       "method": "DeleteAsset",
       "reason": "The current CLI reaches this behavior through its legacy REST façade; generated Connect command migration is tracked as an explicit follow-up."

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/url"
 	"time"
 
 	"connectrpc.com/connect"
@@ -71,8 +72,15 @@ func (h *ResetConnectHandler) ResetDemoData(ctx context.Context, _ *connect.Requ
 }
 
 func connectHTTP(ctx context.Context, headers http.Header) (*http.Request, *headerRecorder) {
-	r, _ := http.NewRequestWithContext(ctx, http.MethodPost, "http://connect.local/", nil)
-	r.Header = headers.Clone()
+	// Session helpers require an HTTP request only for its context and headers.
+	// Constructing the synthetic URL structurally keeps this transport adapter
+	// independent of any deployment endpoint.
+	r := &http.Request{
+		Method: http.MethodPost,
+		URL:    &url.URL{Scheme: "http", Host: "connect.local", Path: "/"},
+		Header: headers.Clone(),
+	}
+	r = r.WithContext(ctx)
 	return r, &headerRecorder{header: make(http.Header)}
 }
 

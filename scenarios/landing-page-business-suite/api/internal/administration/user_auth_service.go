@@ -115,7 +115,9 @@ type UserAuthServiceOptions struct {
 }
 
 // NewUserAuthService creates a user-authentication service from explicit
-// composition inputs. Empty values use documented development-safe defaults.
+// composition inputs. Authentication origins are deliberately not defaulted:
+// an unset origin must not result in a magic link for an unrelated localhost
+// application.
 func NewUserAuthService(opts UserAuthServiceOptions) *UserAuthService {
 	jwtSecret := opts.JWTSecret
 	log := opts.Log
@@ -146,9 +148,6 @@ func NewUserAuthService(opts UserAuthServiceOptions) *UserAuthService {
 	}
 
 	baseURL := opts.BaseURL
-	if baseURL == "" {
-		baseURL = "http://localhost:3000/auth/verify"
-	}
 
 	appName := opts.AppName
 	if appName == "" {
@@ -188,6 +187,9 @@ func (s *UserAuthService) RequestMagicLink(ctx context.Context, email, ipAddress
 	email = strings.TrimSpace(strings.ToLower(email))
 	if email == "" || !strings.Contains(email, "@") {
 		return errors.New("valid email address is required")
+	}
+	if strings.TrimSpace(s.baseURL) == "" {
+		return errors.New("AUTH_MAGIC_LINK_BASE_URL must be configured before requesting a magic link")
 	}
 
 	// Get or create user

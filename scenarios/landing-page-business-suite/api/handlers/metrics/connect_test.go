@@ -79,6 +79,8 @@ func TestConnectAnalyticsSummaryPreservesRequestedWindowAndProjection(t *testing
 	}
 }
 
+// [REQ:METRIC-DETAIL] The generated analytics edge preserves the variant-detail
+// projection used by the operator analytics view.
 func TestConnectVariantStatsMapsFilterAndServiceFailures(t *testing.T) {
 	reader := &connectReader{stats: []metrics.VariantStats{{VariantSlug: "campaign", Views: 7}}}
 	handler := NewConnectHandler(ConnectDependencies{Reader: reader})

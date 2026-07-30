@@ -393,7 +393,7 @@ func (s *StripeService) handleSubscriptionUpdated(obj map[string]interface{}) er
 
 	status, _ := obj["status"].(string)
 	if payload, err := json.Marshal(obj); err == nil {
-		var sub stripeSubscription
+		var sub commerce.StripeSubscription
 		if err := json.Unmarshal(payload, &sub); err == nil && sub.ID != "" {
 			if _, persistErr := s.persistSubscriptionFromStripe("", &sub); persistErr == nil {
 				return nil
@@ -419,7 +419,7 @@ func (s *StripeService) handleSubscriptionDeleted(obj map[string]interface{}) er
 
 	now := time.Now()
 	if payload, err := json.Marshal(obj); err == nil {
-		var sub stripeSubscription
+		var sub commerce.StripeSubscription
 		if err := json.Unmarshal(payload, &sub); err == nil && sub.ID != "" {
 			sub.Status = "canceled"
 			sub.CanceledAt = now.Unix()

@@ -5,8 +5,6 @@ import (
 
 	"landing-page-business-suite-api/internal/commerce"
 	"landing-page-business-suite-api/internal/envx"
-
-	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 func planEnv(value, fallback string) string {
@@ -52,10 +50,4 @@ func NewPlanServiceWithOptions(opts commerce.PlanServiceOptions) *commerce.PlanS
 		opts.Log = logStructured
 	}
 	return commerce.NewPlanServiceWithOptions(opts)
-}
-
-// convertProtoMetadataToMap keeps the administrative transport focused on
-// request shaping while commerce owns the catalog serialization contract.
-func convertProtoMetadataToMap(metadata map[string]*commonv1.JsonValue) map[string]interface{} {
-	return commerce.ConvertProtoMetadataToMap(metadata)
 }

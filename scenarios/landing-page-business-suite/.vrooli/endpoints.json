@@ -163,22 +163,6 @@
       "category": "admin"
     },
     {
-      "id": "get-api-v1-admin-profile",
-      "path": "/api/v1/admin/profile",
-      "method": "GET",
-      "summary": "GET /api/v1/admin/profile",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
-      "id": "put-api-v1-admin-profile",
-      "path": "/api/v1/admin/profile",
-      "method": "PUT",
-      "summary": "PUT /api/v1/admin/profile",
-      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
-      "category": "admin"
-    },
-    {
       "id": "get-api-v1-admin-remote-profile-sessions",
       "path": "/api/v1/admin/remote-profile-sessions",
       "method": "GET",
@@ -683,6 +667,22 @@
       "category": "system"
     },
     {
+      "id": "post-landing-page-business-suite-v1-adminprofileservice-getadminprofile",
+      "path": "/landing_page_business_suite.v1.AdminProfileService/GetAdminProfile",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.AdminProfileService/GetAdminProfile",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-adminprofileservice-updateadminprofile",
+      "path": "/landing_page_business_suite.v1.AdminProfileService/UpdateAdminProfile",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.AdminProfileService/UpdateAdminProfile",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
       "id": "post-landing-page-business-suite-v1-adminresetservice-resetdemodata",
       "path": "/landing_page_business_suite.v1.AdminResetService/ResetDemoData",
       "method": "POST",
@@ -943,6 +943,54 @@
       "path": "/landing_page_business_suite.v1.DownloadService/SaveDownloadApp",
       "method": "POST",
       "summary": "POST /landing_page_business_suite.v1.DownloadService/SaveDownloadApp",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-feedbackservice-createfeedback",
+      "path": "/landing_page_business_suite.v1.FeedbackService/CreateFeedback",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.FeedbackService/CreateFeedback",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-feedbackservice-deletefeedback",
+      "path": "/landing_page_business_suite.v1.FeedbackService/DeleteFeedback",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.FeedbackService/DeleteFeedback",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-feedbackservice-deletefeedbackbulk",
+      "path": "/landing_page_business_suite.v1.FeedbackService/DeleteFeedbackBulk",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.FeedbackService/DeleteFeedbackBulk",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-feedbackservice-getfeedback",
+      "path": "/landing_page_business_suite.v1.FeedbackService/GetFeedback",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.FeedbackService/GetFeedback",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-feedbackservice-listfeedback",
+      "path": "/landing_page_business_suite.v1.FeedbackService/ListFeedback",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.FeedbackService/ListFeedback",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
+      "id": "post-landing-page-business-suite-v1-feedbackservice-updatefeedbackstatus",
+      "path": "/landing_page_business_suite.v1.FeedbackService/UpdateFeedbackStatus",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.FeedbackService/UpdateFeedbackStatus",
       "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
       "category": "system"
     },

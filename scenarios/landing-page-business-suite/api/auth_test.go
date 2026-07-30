@@ -1,9 +1,8 @@
 package main
 
 import (
-	"bytes"
+	"context"
 	"database/sql"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/sessions"
+	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	"golang.org/x/crypto/bcrypt"
 	adminhttp "landing-page-business-suite-api/handlers/administration"
 	"landing-page-business-suite-api/internal/commerce"
@@ -795,19 +795,13 @@ func TestHandleAdminProfile_Success(t *testing.T) {
 		sessionManager: mockSession,
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/profile", nil)
-	rr := httptest.NewRecorder()
-
-	adminhttp.Profile(server.adminProfileDependencies())(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	response, err := adminhttp.NewProfileConnectHandler(server.adminProfileDependencies()).GetAdminProfile(context.Background(), profileGetRequest(req))
+	if err != nil {
+		t.Fatalf("get profile: %v", err)
 	}
-
-	var resp adminhttp.ProfileResponse
-	decodeJSONResponse(t, rr.Body.Bytes(), &resp)
-	if resp.Email != "profile@test.com" {
-		t.Errorf("Expected email 'profile@test.com', got '%s'", resp.Email)
+	if response.Msg.GetProfile().GetEmail() != "profile@test.com" {
+		t.Errorf("Expected email 'profile@test.com', got '%s'", response.Msg.GetProfile().GetEmail())
 	}
 }
 
@@ -847,18 +841,13 @@ func TestHandleAdminProfileUpdate_SessionInvalidation(t *testing.T) {
 		sessionManager: mockSession,
 	}
 
-	reqBody, _ := json.Marshal(map[string]string{
-		"current_password": "oldpassword123",
-		"new_password":     "newpassword456",
-	})
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/profile", bytes.NewReader(reqBody))
-	req.Header.Set("Content-Type", "application/json")
-	rr := httptest.NewRecorder()
-
-	adminhttp.UpdateProfile(server.adminProfileDependencies())(rr, req)
-
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	req := httptest.NewRequest(http.MethodPost, "/", nil)
+	response, err := adminhttp.NewProfileConnectHandler(server.adminProfileDependencies()).UpdateAdminProfile(context.Background(), profileUpdateRequest(req, &lpbsv1.UpdateAdminProfileRequest{CurrentPassword: "oldpassword123", NewPassword: "newpassword456"}))
+	if err != nil {
+		t.Fatalf("update profile: %v", err)
+	}
+	if response.Msg.GetProfile().GetEmail() != "update@test.com" {
+		t.Errorf("updated profile email = %q", response.Msg.GetProfile().GetEmail())
 	}
 
 	// Verify other sessions were invalidated

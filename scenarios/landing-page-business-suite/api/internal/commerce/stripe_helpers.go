@@ -37,16 +37,19 @@ func ExtractCouponIDFromDiscount(discount map[string]interface{}) string {
 	}
 	return ""
 }
+
 func ExtractCouponFromDiscountAmount(amount map[string]interface{}) string {
 	if discount, ok := amount["discount"].(map[string]interface{}); ok {
 		return ExtractCouponIDFromDiscount(discount)
 	}
 	return ""
 }
+
 func SafeStringFromMap(values map[string]interface{}, key string) string {
 	value, _ := values[key].(string)
 	return value
 }
+
 func SafeInt64FromMap(values map[string]interface{}, key string) int64 {
 	switch value := values[key].(type) {
 	case float64:
@@ -58,14 +61,17 @@ func SafeInt64FromMap(values map[string]interface{}, key string) int64 {
 	}
 	return 0
 }
+
 func SafeMapFromMap(values map[string]interface{}, key string) map[string]interface{} {
 	value, _ := values[key].(map[string]interface{})
 	return value
 }
+
 func SafeArrayFromMap(values map[string]interface{}, key string) []interface{} {
 	value, _ := values[key].([]interface{})
 	return value
 }
+
 func BuildSubscriptionUpsertSQL() string {
 	return `
 		INSERT INTO subscriptions (subscription_id, customer_id, customer_email, status, plan_tier, price_id, bundle_key, billing_cycle_start, canceled_at, created_at, updated_at)
@@ -73,6 +79,7 @@ func BuildSubscriptionUpsertSQL() string {
 		ON CONFLICT (subscription_id) DO UPDATE SET customer_id = EXCLUDED.customer_id, customer_email = EXCLUDED.customer_email, status = EXCLUDED.status, plan_tier = COALESCE(NULLIF(EXCLUDED.plan_tier,''), subscriptions.plan_tier), price_id = COALESCE(NULLIF(EXCLUDED.price_id,''), subscriptions.price_id), bundle_key = COALESCE(NULLIF(EXCLUDED.bundle_key,''), subscriptions.bundle_key), billing_cycle_start = EXCLUDED.billing_cycle_start, canceled_at = EXCLUDED.canceled_at, updated_at = NOW()
 	`
 }
+
 func CoalesceString(values ...string) string {
 	for _, value := range values {
 		if strings.TrimSpace(value) != "" {

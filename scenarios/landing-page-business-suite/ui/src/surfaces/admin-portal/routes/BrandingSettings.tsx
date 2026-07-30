@@ -267,7 +267,7 @@ export function BrandingSettings() {
                       type="text"
                       value={form.theme_primary_color}
                       onChange={handleInput('theme_primary_color')}
-                      placeholder="#3B82F6"
+                      placeholder="e.g. a six-digit hex color"
                       className={`flex-1 ${inputClassName}`}
                     />
                     <input
@@ -295,7 +295,7 @@ export function BrandingSettings() {
                       type="text"
                       value={form.theme_background_color}
                       onChange={handleInput('theme_background_color')}
-                      placeholder="#07090F"
+                      placeholder="e.g. a six-digit hex color"
                       className={`flex-1 ${inputClassName}`}
                     />
                     <input

@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-07-30T12:53:03-04:00"
+    "last_validated_at": "2026-07-30T15:01:07-04:00"
   },
   "requirements": [
     {
       "id": "LANDING-CONFIG",
       "title": "API-driven landing config + fallback",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-031",
       "description": "Public landing page renders ordered sections, pricing, and download entries from LandingConfigService.GetLandingConfig with an optional variant_slug and includes a baked fallback variant when the API fails or configuration prevents fetching live data.",
       "validation": [
@@ -14,7 +14,7 @@
           "type": "test",
           "ref": "api/landing_config_service_test.go::TestParseFallbackLandingConfigNormalizesSectionsAndAxes",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "The fallback parser test proves the baked landing configuration is normalized into renderable sections and pricing axes."
         },
         {
@@ -29,7 +29,7 @@
     {
       "id": "CUSTOM-SPLIT",
       "title": "Split customization layout",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-012",
       "description": "Each slide customization page shows form (one column) + live preview (other column), stacked on mobile",
       "validation": [
@@ -37,7 +37,7 @@
           "type": "test",
           "ref": "ui/src/surfaces/admin-portal/routes/SectionEditor.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Responsive grid layout using lg:grid-cols-2 for desktop split view and stacked layout on mobile. Form and preview panes marked with data-testid and covered by unit tests."
         }
       ]
@@ -45,7 +45,7 @@
     {
       "id": "CUSTOM-LIVE",
       "title": "Live preview updates",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-013",
       "description": "Form field changes update preview within 300ms (debounced) without page reload",
       "validation": [
@@ -53,7 +53,7 @@
           "type": "test",
           "ref": "ui/src/surfaces/admin-portal/routes/SectionEditor.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Live preview uses 300ms debounce (useDebounce) to refresh preview without reload when form fields change; covered by unit tests."
         }
       ]

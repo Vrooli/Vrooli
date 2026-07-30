@@ -43,9 +43,11 @@ func (h *Handler) providerError(err error) error {
 	}
 	return connect.NewError(connect.CodeInvalidArgument, err)
 }
+
 func unavailable(name string) error {
 	return connect.NewError(connect.CodeUnavailable, fmt.Errorf("%s unavailable", name))
 }
+
 func (h *Handler) event(name string, fields map[string]interface{}) {
 	if h.log != nil {
 		h.log(name, fields)
@@ -160,12 +162,14 @@ func (h *Handler) ListCouponUsage(ctx context.Context, _ *connect.Request[lpbsv1
 	}
 	return connect.NewResponse(&lpbsv1.ListCouponUsageResponse{Usage: result}), nil
 }
+
 func (h *Handler) GetCouponMappings(context.Context, *connect.Request[lpbsv1.GetCouponMappingsRequest]) (*connect.Response[lpbsv1.GetCouponMappingsResponse], error) {
 	if h.plans == nil {
 		return nil, unavailable("plan service")
 	}
 	return connect.NewResponse(&lpbsv1.GetCouponMappingsResponse{Mappings: h.plans.GetCouponMappings()}), nil
 }
+
 func (h *Handler) SetCouponForPlan(_ context.Context, request *connect.Request[lpbsv1.SetCouponForPlanRequest]) (*connect.Response[lpbsv1.SetCouponForPlanResponse], error) {
 	if h.plans == nil {
 		return nil, unavailable("plan service")
@@ -180,6 +184,7 @@ func (h *Handler) SetCouponForPlan(_ context.Context, request *connect.Request[l
 	h.event("admin_coupon_assigned_to_plan", map[string]interface{}{"price_id": priceID, "coupon_id": couponID})
 	return connect.NewResponse(&lpbsv1.SetCouponForPlanResponse{Assigned: true}), nil
 }
+
 func (h *Handler) RemoveCouponFromPlan(_ context.Context, request *connect.Request[lpbsv1.RemoveCouponFromPlanRequest]) (*connect.Response[lpbsv1.RemoveCouponFromPlanResponse], error) {
 	if h.plans == nil {
 		return nil, unavailable("plan service")
@@ -194,6 +199,7 @@ func (h *Handler) RemoveCouponFromPlan(_ context.Context, request *connect.Reque
 	h.event("admin_coupon_removed_from_plan", map[string]interface{}{"price_id": priceID})
 	return connect.NewResponse(&lpbsv1.RemoveCouponFromPlanResponse{Removed: true}), nil
 }
+
 func (h *Handler) GetCouponImportPreview(ctx context.Context, _ *connect.Request[lpbsv1.GetCouponImportPreviewRequest]) (*connect.Response[lpbsv1.GetCouponImportPreviewResponse], error) {
 	if h.stripe == nil {
 		return nil, unavailable("Stripe service")
@@ -239,6 +245,7 @@ func couponProto(coupon *commerce.Coupon) (*lpbsv1.Coupon, error) {
 	}
 	return couponValueProto(*coupon)
 }
+
 func couponsProto(coupons []commerce.Coupon) ([]*lpbsv1.Coupon, error) {
 	result := make([]*lpbsv1.Coupon, 0, len(coupons))
 	for _, coupon := range coupons {
@@ -250,6 +257,7 @@ func couponsProto(coupons []commerce.Coupon) ([]*lpbsv1.Coupon, error) {
 	}
 	return result, nil
 }
+
 func couponValueProto(coupon commerce.Coupon) (*lpbsv1.Coupon, error) {
 	duration, err := couponDurationProto(coupon.Duration)
 	if err != nil {
@@ -269,6 +277,7 @@ func couponValueProto(coupon commerce.Coupon) (*lpbsv1.Coupon, error) {
 	}
 	return &lpbsv1.Coupon{Id: coupon.ID, Name: optionalString(coupon.Name), AmountOff: coupon.AmountOff, PercentOff: coupon.PercentOff, Currency: optionalString(coupon.Currency), Duration: duration, DurationInMonths: months, MaxRedemptions: max, RedeemBy: coupon.RedeemBy, TimesRedeemed: times, Valid: coupon.Valid, Created: coupon.Created, IsIntroCoupon: coupon.IsIntroCoupon, IntroTier: optionalString(coupon.IntroTier)}, nil
 }
+
 func createCouponInput(input *lpbsv1.CreateCouponRequest) (commerce.CreateCouponInput, error) {
 	duration, err := couponDurationString(input.GetDuration())
 	if err != nil {
@@ -284,6 +293,7 @@ func createCouponInput(input *lpbsv1.CreateCouponRequest) (commerce.CreateCoupon
 	}
 	return commerce.CreateCouponInput{ID: input.GetId(), Name: input.GetName(), AmountOff: input.AmountOff, PercentOff: input.PercentOff, Currency: input.GetCurrency(), Duration: duration, DurationInMonths: months, MaxRedemptions: max, RedeemBy: input.RedeemBy}, nil
 }
+
 func couponDurationProto(value string) (lpbsv1.CouponDuration, error) {
 	switch value {
 	case "once":
@@ -296,6 +306,7 @@ func couponDurationProto(value string) (lpbsv1.CouponDuration, error) {
 		return lpbsv1.CouponDuration_COUPON_DURATION_UNSPECIFIED, fmt.Errorf("unknown coupon duration %q", value)
 	}
 }
+
 func couponDurationString(value lpbsv1.CouponDuration) (string, error) {
 	switch value {
 	case lpbsv1.CouponDuration_COUPON_DURATION_ONCE:
@@ -308,18 +319,21 @@ func couponDurationString(value lpbsv1.CouponDuration) (string, error) {
 		return "", errors.New("duration must be once, repeating, or forever")
 	}
 }
+
 func optionalString(value string) *string {
 	if strings.TrimSpace(value) == "" {
 		return nil
 	}
 	return &value
 }
+
 func int32Value(value int) (int32, error) {
 	if value < math.MinInt32 || value > math.MaxInt32 {
 		return 0, fmt.Errorf("coupon value %d outside protobuf int32 range", value)
 	}
 	return int32(value), nil
 }
+
 func optionalInt32(value *int) (*int32, error) {
 	if value == nil {
 		return nil, nil
@@ -327,6 +341,7 @@ func optionalInt32(value *int) (*int32, error) {
 	result, err := int32Value(*value)
 	return &result, err
 }
+
 func optionalInt(value *int32) (*int, error) {
 	if value == nil {
 		return nil, nil

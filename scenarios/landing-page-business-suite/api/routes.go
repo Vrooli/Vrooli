@@ -134,8 +134,7 @@ func registerAdminCoreRoutes(s *Server) {
 	// remain response headers and never enter protobuf payloads.
 	remoteprofilehttp.RegisterSessionConnectRoutes(s.router, s.adminSessionDependencies(), remoteprofilehttp.ResetDependencies{Reset: s.resetDemoData, Now: time.Now, LogError: logStructuredError}, s.requireAdmin)
 	profileDeps := s.adminProfileDependencies()
-	s.router.HandleFunc("/api/v1/admin/profile", s.requireAdmin(remoteprofilehttp.Profile(profileDeps))).Methods("GET")
-	s.router.HandleFunc("/api/v1/admin/profile", s.requireAdmin(remoteprofilehttp.UpdateProfile(profileDeps))).Methods("PUT")
+	remoteprofilehttp.RegisterProfileConnectRoutes(s.router, profileDeps, s.requireAdmin)
 	billinghttp.RegisterStripeSettingsConnectRoutes(s.router, s.paymentSettings, s.stripeService, s.paymentAnomaly, s.requireAdmin)
 	s.router.HandleFunc("/api/v1/admin/stripe/verify-price", s.requireAdmin(bundlehttp.VerifyStripePrice(bundleStripeHandlerDependencies(s.stripeService)))).Methods("GET")
 	userauthhttp.RegisterAPIKeyConnectRoutes(s.router, s.apiKeyService, s.requireAdmin)

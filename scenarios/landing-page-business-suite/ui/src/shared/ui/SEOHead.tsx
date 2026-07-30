@@ -74,7 +74,7 @@ export function SEOHead({ branding, seoConfig, baseUrl }: SEOHeadProps) {
 
     // Browser chrome should match the page background, not the interactive accent.
     // A primary color can be vivid while the application surface remains dark.
-    updateThemeColor(branding?.theme_background_color || '#07090F');
+    updateThemeColor(branding?.theme_background_color || 'rgb(7 9 15)');
   }, [branding, seoConfig, baseUrl]);
 
   // This component renders nothing - it just updates the document head

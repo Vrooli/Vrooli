@@ -1,7 +1,7 @@
 import { createClient } from '@connectrpc/connect';
 import { createScenarioConnectTransport } from '@vrooli/api-base';
-import { AdminAuthService } from '@vrooli/proto-types/landing-page-business-suite/admin_pb';
-import { apiCall, apiPost, apiGet, CONNECT_API_BASE } from './common';
+import { AdminAuthService, AdminProfileService } from '@vrooli/proto-types/landing-page-business-suite/admin_pb';
+import { apiPost, apiGet, CONNECT_API_BASE } from './common';
 import { parseOrNull } from './safeParse';
 import {
   AdminSessionResponseSchema,
@@ -13,6 +13,7 @@ import {
 } from './schemas/auth.schema';
 
 const adminAuthClient = createClient(AdminAuthService, createScenarioConnectTransport({ baseUrl: CONNECT_API_BASE }));
+const adminProfileClient = createClient(AdminProfileService, createScenarioConnectTransport({ baseUrl: CONNECT_API_BASE }));
 
 // ===== Admin Auth Types =====
 
@@ -72,8 +73,13 @@ export async function checkAdminSession() {
 }
 
 export async function getAdminProfile() {
-  return apiCall<AdminProfile>('/admin/profile').then((resp) => {
-    const validated = parseOrNull(AdminProfileSchema, resp, 'AdminProfile');
+  return adminProfileClient.getAdminProfile({}).then((resp) => {
+    const profile = resp.profile;
+    const validated = parseOrNull(AdminProfileSchema, profile && {
+      email: profile.email,
+      is_default_email: profile.isDefaultEmail,
+      is_default_password: profile.isDefaultPassword,
+    }, 'AdminProfile');
     if (!validated) {
       throw new Error('Invalid admin profile response from API');
     }
@@ -82,11 +88,17 @@ export async function getAdminProfile() {
 }
 
 export async function updateAdminProfile(payload: AdminProfileUpdatePayload) {
-  return apiCall<AdminProfile>('/admin/profile', {
-    method: 'PUT',
-    body: JSON.stringify(payload),
+  return adminProfileClient.updateAdminProfile({
+    currentPassword: payload.current_password,
+    newEmail: payload.new_email ?? '',
+    newPassword: payload.new_password ?? '',
   }).then((resp) => {
-    const validated = parseOrNull(AdminProfileSchema, resp, 'AdminProfile');
+    const profile = resp.profile;
+    const validated = parseOrNull(AdminProfileSchema, profile && {
+      email: profile.email,
+      is_default_email: profile.isDefaultEmail,
+      is_default_password: profile.isDefaultPassword,
+    }, 'AdminProfile');
     if (!validated) {
       throw new Error('Invalid update admin profile response from API');
     }

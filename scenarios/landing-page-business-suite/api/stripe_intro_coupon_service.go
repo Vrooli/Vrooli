@@ -2,102 +2,23 @@ package main
 
 import (
 	"context"
-	"database/sql"
-	"errors"
-	"fmt"
-	"net/http"
-	"net/url"
 
 	"landing-page-business-suite-api/internal/commerce"
 )
 
-// checkIntroEligibility checks if a user is eligible for the intro pricing coupon.
-// Returns true if the user has never used the intro offer before.
-func (s *StripeService) checkIntroEligibility(ctx context.Context, email string) (bool, error) {
-	email = NormalizeEmail(email)
-	if email == "" {
-		// No email means we can't track eligibility, so don't apply intro.
-		return false, nil
-	}
+func (s *StripeService) introOfferService() *commerce.IntroOfferService {
+	return commerce.NewIntroOfferService(s.db, stripeCouponRequester{service: s}, logStructuredError)
+}
 
-	var hasUsedIntro sql.NullBool
-	err := s.db.QueryRowContext(ctx, `
-		SELECT has_used_intro FROM users WHERE email = $1
-	`, email).Scan(&hasUsedIntro)
-	if err == sql.ErrNoRows {
-		return true, nil
-	}
-	if err != nil {
-		return false, fmt.Errorf("check intro eligibility: %w", err)
-	}
-	return !hasUsedIntro.Valid || !hasUsedIntro.Bool, nil
+// checkIntroEligibility delegates durable offer policy to commerce.
+func (s *StripeService) checkIntroEligibility(ctx context.Context, email string) (bool, error) {
+	return s.introOfferService().Eligible(ctx, email)
 }
 
 // markIntroUsed records a successfully redeemed intro offer and synchronizes
 // Stripe customer metadata as a best-effort secondary audit trail.
 func (s *StripeService) markIntroUsed(ctx context.Context, email, customerID, couponID, planTier, subscriptionID string) error {
-	email = NormalizeEmail(email)
-	if email == "" {
-		return errors.New("email required to mark intro used")
-	}
-
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("begin transaction: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	_, err = tx.ExecContext(ctx, `
-		INSERT INTO users (email, has_used_intro, stripe_customer_id)
-		VALUES ($1, TRUE, $2)
-		ON CONFLICT (email) DO UPDATE SET
-			has_used_intro = TRUE,
-			stripe_customer_id = COALESCE(NULLIF($2, ''), users.stripe_customer_id),
-			updated_at = NOW()
-	`, email, customerID)
-	if err != nil {
-		return fmt.Errorf("update user intro flag: %w", err)
-	}
-
-	_, err = tx.ExecContext(ctx, `
-		INSERT INTO intro_coupon_usage (email, stripe_customer_id, coupon_id, plan_tier, subscription_id)
-		VALUES ($1, $2, $3, $4, $5)
-	`, email, customerID, couponID, planTier, subscriptionID)
-	if err != nil {
-		return fmt.Errorf("insert intro coupon usage: %w", err)
-	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit transaction: %w", err)
-	}
-
-	if customerID != "" {
-		stripeCustomerID := customerID
-		introCouponID := couponID
-		// #nosec G118 -- best-effort metadata sync receives immutable string copies.
-		metadataCtx := context.WithoutCancel(ctx)
-		go func(ctx context.Context, customerID, couponID string) {
-			values := url.Values{}
-			values.Set("metadata[has_used_intro]", "true")
-			values.Set("metadata[intro_coupon_id]", couponID)
-			_, updateErr := s.doStripeForm(ctx, http.MethodPost, "/v1/customers/"+url.PathEscape(customerID), values)
-			if updateErr != nil {
-				logStructuredError("stripe_customer_metadata_update_failed", map[string]interface{}{
-					"customer_id": customerID,
-					"error":       updateErr.Error(),
-				})
-			}
-		}(metadataCtx, stripeCustomerID, introCouponID)
-	}
-
-	logStructured("intro_coupon_marked_used", map[string]interface{}{
-		"level":           "info",
-		"email":           email,
-		"customer_id":     customerID,
-		"coupon_id":       couponID,
-		"plan_tier":       planTier,
-		"subscription_id": subscriptionID,
-	})
-	return nil
+	return s.introOfferService().MarkUsed(ctx, email, customerID, couponID, planTier, subscriptionID)
 }
 
 // isIntroCoupon reports whether couponID appears in the configured intro map.

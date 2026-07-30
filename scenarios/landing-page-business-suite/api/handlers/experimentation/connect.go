@@ -502,5 +502,7 @@ func RegisterConnectRoutes(router *mux.Router, store experimentation.ConfigStore
 	}
 }
 
-var _ lpbsconnect.VariantServiceHandler = (*variantConnectHandler)(nil)
-var _ lpbsconnect.VariantSectionServiceHandler = (*variantConnectHandler)(nil)
+var (
+	_ lpbsconnect.VariantServiceHandler        = (*variantConnectHandler)(nil)
+	_ lpbsconnect.VariantSectionServiceHandler = (*variantConnectHandler)(nil)
+)

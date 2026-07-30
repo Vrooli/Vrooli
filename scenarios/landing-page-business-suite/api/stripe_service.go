@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -357,10 +356,6 @@ func (s *StripeService) stripeAPIURL(path string) string {
 	return strings.TrimRight(base, "/") + path
 }
 
-func (s *StripeService) doStripeForm(ctx context.Context, method, path string, values url.Values) ([]byte, error) {
-	return s.doStripeRequest(ctx, method, path, strings.NewReader(values.Encode()), "application/x-www-form-urlencoded")
-}
-
 func (s *StripeService) doStripeRequest(ctx context.Context, method, path string, body io.Reader, contentType string) ([]byte, error) {
 	cfg := s.getConfig()
 	if !cfg.hasSecret {
@@ -501,50 +496,6 @@ type checkoutSessionRecord struct {
 	SubscriptionID sql.NullString
 }
 
-type stripePriceRef struct {
-	ID         string `json:"id"`
-	Currency   string `json:"currency"`
-	UnitAmount int64  `json:"unit_amount"`
-	Recurring  struct {
-		Interval string `json:"interval"`
-	} `json:"recurring"`
-	Metadata map[string]interface{} `json:"metadata"`
-}
-
-type stripeSubscription struct {
-	ID                 string `json:"id"`
-	Status             string `json:"status"`
-	Customer           string `json:"customer"`
-	CustomerEmail      string `json:"customer_email"`
-	CancelAtPeriodEnd  bool   `json:"cancel_at_period_end"`
-	CanceledAt         int64  `json:"canceled_at"`
-	BillingCycleAnchor int64  `json:"billing_cycle_anchor"`
-	Items              struct {
-		Data []struct {
-			Price stripePriceRef `json:"price"`
-		} `json:"data"`
-	} `json:"items"`
-	Metadata map[string]interface{} `json:"metadata"`
-}
-
-// extractBillingCycleDay converts a Unix timestamp to day of month (1-28).
-// Returns 0 if invalid. Days > 28 are capped to avoid short-month issues.
-func extractBillingCycleDay(timestamp int64) int {
-	if timestamp <= 0 {
-		return 0
-	}
-	day := time.Unix(timestamp, 0).UTC().Day()
-	if day > 28 {
-		day = 28
-	}
-	return day
-}
-
-type stripeCustomer struct {
-	ID    string `json:"id"`
-	Email string `json:"email"`
-}
-
 func (s *StripeService) loadCheckoutSession(sessionID string) (*checkoutSessionRecord, error) {
 	record := &checkoutSessionRecord{}
 	err := s.db.QueryRow(`
@@ -566,82 +517,6 @@ func (s *StripeService) loadCheckoutSession(sessionID string) (*checkoutSessionR
 		return nil, err
 	}
 	return record, nil
-}
-
-func (s *StripeService) fetchSubscription(ctx context.Context, subscriptionID string) (*stripeSubscription, error) {
-	body, err := s.doStripeRequest(ctx, http.MethodGet, "/v1/subscriptions/"+url.PathEscape(subscriptionID), nil, "")
-	if err != nil {
-		return nil, err
-	}
-	var resp stripeSubscription
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, err
-	}
-	if resp.ID == "" {
-		return nil, fmt.Errorf("subscription %s not found", subscriptionID)
-	}
-	return &resp, nil
-}
-
-func (s *StripeService) findCustomerByEmail(ctx context.Context, email string) (*stripeCustomer, error) {
-	if strings.TrimSpace(email) == "" {
-		return nil, nil
-	}
-	query := fmt.Sprintf(`email:"%s"`, email)
-	params := url.Values{}
-	params.Set("query", query)
-	params.Set("limit", "1")
-	body, err := s.doStripeRequest(ctx, http.MethodGet, "/v1/customers/search?"+params.Encode(), nil, "")
-	if err != nil {
-		return nil, err
-	}
-	var resp struct {
-		Data []stripeCustomer `json:"data"`
-	}
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, err
-	}
-	if len(resp.Data) == 0 {
-		return nil, nil
-	}
-	return &resp.Data[0], nil
-}
-
-func (s *StripeService) latestSubscriptionForCustomer(ctx context.Context, customerID string) (*stripeSubscription, error) {
-	if strings.TrimSpace(customerID) == "" {
-		return nil, nil
-	}
-	params := url.Values{}
-	params.Set("customer", customerID)
-	params.Set("limit", "1")
-	params.Set("status", "all")
-	body, err := s.doStripeRequest(ctx, http.MethodGet, "/v1/subscriptions?"+params.Encode(), nil, "")
-	if err != nil {
-		return nil, err
-	}
-	var resp struct {
-		Data []stripeSubscription `json:"data"`
-	}
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, err
-	}
-	if len(resp.Data) == 0 {
-		return nil, nil
-	}
-	return &resp.Data[0], nil
-}
-
-func chooseUserIdentity(userHint string, sub *stripeSubscription) string {
-	if strings.TrimSpace(userHint) != "" {
-		return userHint
-	}
-	if sub == nil {
-		return ""
-	}
-	if strings.TrimSpace(sub.CustomerEmail) != "" {
-		return sub.CustomerEmail
-	}
-	return strings.TrimSpace(sub.Customer)
 }
 
 func (s *StripeService) extractAmount(obj map[string]interface{}, session *checkoutSessionRecord) int64 {

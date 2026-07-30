@@ -2,42 +2,14 @@ package administration
 
 import (
 	"context"
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
+	"connectrpc.com/connect"
 	"github.com/gorilla/sessions"
+	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	"golang.org/x/crypto/bcrypt"
 	"landing-page-business-suite-api/internal/administration"
 )
-
-func TestProfileReturnsAuthenticatedAdministrator(t *testing.T) {
-	hash, err := bcrypt.GenerateFromPassword([]byte("not-the-default-password"), bcrypt.MinCost)
-	if err != nil {
-		t.Fatal(err)
-	}
-	manager := &fakeSessions{session: sessions.NewSession(nil, sessionName)}
-	manager.session.Values = map[any]any{"email": "admin@example.test"}
-	service := &fakeProfileService{profile: administration.AdminProfile{ID: 7, Email: "admin@example.test", PasswordHash: string(hash)}}
-	w := httptest.NewRecorder()
-
-	Profile(profileDependencies(service, manager)).ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/v1/admin/profile", nil))
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
-	}
-	if got := w.Header().Get("Content-Type"); got != "application/json" {
-		t.Fatalf("content type=%q", got)
-	}
-	var response ProfileResponse
-	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
-		t.Fatal(err)
-	}
-	if response.Email != "admin@example.test" || response.IsDefaultEmail || response.IsDefaultPassword {
-		t.Fatalf("response=%+v", response)
-	}
-}
 
 func TestValidateProfilePasswordRejectsConfiguredDefault(t *testing.T) {
 	currentHash, err := bcrypt.GenerateFromPassword([]byte("current-password-123"), bcrypt.MinCost)
@@ -46,6 +18,39 @@ func TestValidateProfilePasswordRejectsConfiguredDefault(t *testing.T) {
 	}
 	if err := ValidateProfilePassword("default-password-123", string(currentHash), "default-password-123"); err == nil {
 		t.Fatal("expected configured default password to be rejected")
+	}
+}
+
+func TestProfileConnectReturnsDisplaySafeProfile(t *testing.T) {
+	hash, err := bcrypt.GenerateFromPassword([]byte("not-the-default-password"), bcrypt.MinCost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager := &fakeSessions{session: sessions.NewSession(nil, sessionName)}
+	manager.session.Values = map[any]any{"email": "admin@example.test"}
+	handler := NewProfileConnectHandler(profileDependencies(&fakeProfileService{profile: administration.AdminProfile{ID: 7, Email: "admin@example.test", PasswordHash: string(hash)}}, manager))
+
+	response, err := handler.GetAdminProfile(context.Background(), connect.NewRequest(&lpbsv1.GetAdminProfileRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := response.Msg.GetProfile(); got.GetEmail() != "admin@example.test" || got.GetIsDefaultEmail() || got.GetIsDefaultPassword() {
+		t.Fatalf("profile = %+v", got)
+	}
+}
+
+func TestProfileConnectUpdateRequiresCurrentPassword(t *testing.T) {
+	hash, err := bcrypt.GenerateFromPassword([]byte("current-password-123"), bcrypt.MinCost)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager := &fakeSessions{session: sessions.NewSession(nil, sessionName)}
+	manager.session.Values = map[any]any{"email": "admin@example.test"}
+	handler := NewProfileConnectHandler(profileDependencies(&fakeProfileService{profile: administration.AdminProfile{ID: 7, Email: "admin@example.test", PasswordHash: string(hash)}}, manager))
+
+	_, err = handler.UpdateAdminProfile(context.Background(), connect.NewRequest(&lpbsv1.UpdateAdminProfileRequest{NewEmail: "changed@example.test"}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("UpdateAdminProfile() error code = %v, want invalid argument", connect.CodeOf(err))
 	}
 }
 
@@ -69,7 +74,6 @@ func profileDependencies(service ProfileService, manager SessionManager) Profile
 		DefaultEmail:    func() string { return "default@example.test" },
 		DefaultPassword: func() string { return "" },
 		ValidateEmail:   func(string) error { return nil },
-		WriteError:      func(w http.ResponseWriter, status int, _, _ string) { w.WriteHeader(status) },
 		Log:             func(string, map[string]any) {}, LogError: func(string, map[string]any) {},
 	}
 }

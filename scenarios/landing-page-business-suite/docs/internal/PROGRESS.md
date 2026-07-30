@@ -1285,3 +1285,100 @@ Validation:
 - `vrooli package generate proto` completed.
 - `go test ./... -count=1 -timeout 10m`, `go build ./...`, and `make lint-go`
   passed in `api/` after regenerating `.vrooli/endpoints.json`.
+
+## 2026-07-30 — Admin profile legacy transport retirement
+
+- Retired the unmounted JSON `GET/PUT /api/v1/admin/profile` handlers after
+  the generated `AdminProfileService` became the UI's only production client.
+  This removes the duplicated password-change workflow rather than preserving
+  a compatibility shim with no registered route.
+- Kept one Connect handler responsible for current-password verification,
+  email uniqueness, password policy/hash generation, session revocation, and
+  the updated signed session cookie. Root characterization tests now call its
+  typed RPC methods and preserve cookie propagation explicitly.
+
+Validation:
+
+- Focused profile tests and `go test ./... -timeout 600s` passed in `api/`.
+- `go build ./...` and `git diff --check` passed.
+
+## 2026-07-30 — API lint and post-extraction cleanup
+
+- Removed unused root catalog/Stripe compatibility adapters revealed by the
+  migration and applied `gofumpt` to the API tree.
+- Corrected the lone staticcheck finding in the delivery authorizer test by
+  using a private typed context key rather than a built-in string key.
+
+Validation:
+
+- `make lint-go`, `go test ./... -timeout 600s`, `go build ./...`, and
+  `git diff --check` passed.
+
+## 2026-07-30 — Governed DOMPurify remediation
+
+- Applied the dependency analyzer's approved pnpm override to force DOMPurify
+  `3.4.12` across Monaco's transitive dependency path. This removes the stale
+  `3.4.8` copy without changing application code or weakening lockfile
+  governance.
+- Did not force unrelated transitive packages across incompatible major lines:
+  remaining minimatch/brace-expansion/picomatch warnings are owned by the
+  Vitest, ESLint, and Tailwind dependency trees and require compatible upstream
+  upgrades or selector-aware overrides.
+
+Validation:
+
+- Full UI Vitest suite and TypeScript typecheck passed.
+- Dependency governance validation passed.
+- Security findings fell from 32 to 26; no DOMPurify advisory remains.
+
+## 2026-07-30 — Governed Vitest 4 security upgrade
+
+- Upgraded `vitest` and `@vitest/coverage-v8` together to `4.0.18` through
+  the dependency analyzer, preserving their peer compatibility. The prior
+  Vitest 3 coverage graph retained vulnerable minimatch and brace-expansion
+  paths.
+- Deliberately deferred Tailwind 4: it is the remaining owner of an old
+  Picomatch path but requires a separate CSS tooling/configuration migration,
+  not a blanket transitive override.
+
+Validation:
+
+- Full UI test run progressed cleanly on Vitest 4.0.18; UI typecheck and
+  production build passed.
+- Security findings fell from 26 to 17 and `git diff --check` passed.
+
+## 2026-07-30 — Tailwind 4 security/toolchain migration
+
+- Migrated from Tailwind 3 to governed Tailwind `4.3.3` with the official
+  `@tailwindcss/postcss` adapter, updating the PostCSS plugin and CSS entry
+  directives while retaining the existing scenario theme configuration.
+- Fixed the CSS import ordering warning introduced by the v4 `@config`
+  directive. The production build is warning-free.
+
+Validation:
+
+- UI typecheck and production build passed; the complete Vitest run progressed
+  cleanly on the upgraded toolchain.
+- Security findings fell from 17 to 13; the Picomatch advisories are gone.
+
+## 2026-07-30 — Native color-input validation semantics
+
+- Corrected UI Health's raw-hex static rule to exempt only hex values inside a
+  statically declared native `input[type=color]`. Those values are required by
+  the browser control's HTML value contract, not inline component styling;
+  normal styled hex values remain detected. Added a focused regression test
+  that proves the distinction.
+- Replaced Branding Settings' text-field hex examples with descriptive format
+  guidance while preserving the color picker defaults and the existing user
+  experience.
+
+Validation:
+
+- The focused UI Health checker package test passed.
+- Restarted UI Health through the scenario lifecycle, then confirmed the
+  landing-page static validation reports zero `standard_no_raw_hex` findings.
+- Landing-page UI typecheck and warning-free production build passed.
+- UI Health's comprehensive run exercised its API and UI-health phases
+  successfully; its overall failure is pre-existing unrelated scenario debt
+  (dependency, unit-policy, storage, workflow, business, security, and proto
+  phases), not this checker change.

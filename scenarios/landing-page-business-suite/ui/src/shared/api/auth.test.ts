@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 
-const adminAuthClient = vi.hoisted(() => ({ login: vi.fn(), logout: vi.fn(), session: vi.fn() }));
+const adminAuthClient = vi.hoisted(() => ({
+  login: vi.fn(), logout: vi.fn(), session: vi.fn(), getAdminProfile: vi.fn(), updateAdminProfile: vi.fn(),
+}));
 vi.mock('@connectrpc/connect', () => ({ createClient: vi.fn(() => adminAuthClient) }));
 import {
   adminLogin,
@@ -114,7 +116,7 @@ describe('auth API', () => {
           is_default_email: false,
           is_default_password: false,
         };
-        fetchMock.mockResolvedValue(mockResponses.success(profile));
+        adminAuthClient.getAdminProfile.mockResolvedValue({ profile: { email: profile.email, isDefaultEmail: false, isDefaultPassword: false } });
 
         const result = await getAdminProfile();
 
@@ -127,7 +129,7 @@ describe('auth API', () => {
           is_default_email: true,
           is_default_password: true,
         };
-        fetchMock.mockResolvedValue(mockResponses.success(profile));
+        adminAuthClient.getAdminProfile.mockResolvedValue({ profile: { email: profile.email, isDefaultEmail: true, isDefaultPassword: true } });
 
         const result = await getAdminProfile();
 
@@ -137,24 +139,23 @@ describe('auth API', () => {
     });
 
     describe('updateAdminProfile', () => {
-      it('sends PUT request with update payload', async () => {
+      it('sends the generated update request with update payload', async () => {
         const profile: AdminProfile = {
           email: 'new@example.com',
           is_default_email: false,
           is_default_password: false,
         };
-        fetchMock.mockResolvedValue(mockResponses.success(profile));
+        adminAuthClient.updateAdminProfile.mockResolvedValue({ profile: { email: profile.email, isDefaultEmail: false, isDefaultPassword: false } });
 
         await updateAdminProfile({
           current_password: 'oldpassword',
           new_email: 'new@example.com',
         });
 
-        const [, options] = getFetchCall(fetchMock);
-        expect(options.method).toBe('PUT');
-        expect(parseJsonBody(options.body)).toEqual({
-          current_password: 'oldpassword',
-          new_email: 'new@example.com',
+        expect(adminAuthClient.updateAdminProfile).toHaveBeenCalledWith({
+          currentPassword: 'oldpassword',
+          newEmail: 'new@example.com',
+          newPassword: '',
         });
       });
 
@@ -164,29 +165,29 @@ describe('auth API', () => {
           is_default_email: false,
           is_default_password: false,
         };
-        fetchMock.mockResolvedValue(mockResponses.success(profile));
+        adminAuthClient.updateAdminProfile.mockResolvedValue({ profile: { email: profile.email, isDefaultEmail: false, isDefaultPassword: false } });
 
         await updateAdminProfile({
           current_password: 'oldpassword',
           new_password: 'newpassword',
         });
 
-        const [, options] = getFetchCall(fetchMock);
-        expect(parseJsonBody(options.body)).toEqual({
-          current_password: 'oldpassword',
-          new_password: 'newpassword',
+        expect(adminAuthClient.updateAdminProfile).toHaveBeenCalledWith({
+          currentPassword: 'oldpassword',
+          newEmail: '',
+          newPassword: 'newpassword',
         });
       });
 
-      it('throws on incorrect current password', async () => {
-        fetchMock.mockResolvedValue(mockResponses.error(400, 'Current password is incorrect'));
+      it('propagates a generated-client credential failure', async () => {
+        adminAuthClient.updateAdminProfile.mockRejectedValue(new Error('Invalid credentials'));
 
         await expect(
           updateAdminProfile({
             current_password: 'wrong',
             new_email: 'new@example.com',
           })
-        ).rejects.toBeInstanceOf(ApiError);
+        ).rejects.toThrow('Invalid credentials');
       });
     });
   });

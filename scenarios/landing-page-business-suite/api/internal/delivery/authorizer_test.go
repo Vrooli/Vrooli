@@ -55,6 +55,8 @@ type entitlementStatusStub struct {
 	status string
 }
 
+type requestIDContextKey struct{}
+
 func (s *entitlementStatusStub) GetEntitlementStatus(ctx context.Context, user string) (string, error) {
 	s.ctx = ctx
 	s.user = user
@@ -62,7 +64,7 @@ func (s *entitlementStatusStub) GetEntitlementStatus(ctx context.Context, user s
 }
 
 func TestDownloadAuthorizerPassesContextAndTrimmedIdentity(t *testing.T) {
-	ctx := context.WithValue(context.Background(), "request-id", "delivery-test")
+	ctx := context.WithValue(context.Background(), requestIDContextKey{}, "delivery-test")
 	entitlements := &entitlementStatusStub{status: "active"}
 	authorizer := NewDownloadAuthorizer(assetLookupStub{asset: &Asset{RequiresEntitlement: true}}, entitlements, "bundle")
 

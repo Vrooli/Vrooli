@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bytes"
+	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
+	lpbsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	"golang.org/x/crypto/bcrypt"
 	adminhttp "landing-page-business-suite-api/handlers/administration"
 )
@@ -27,6 +29,30 @@ func attachAdminSession(t *testing.T, manager SessionManager, req *http.Request,
 	}
 	for _, cookie := range rr.Result().Cookies() {
 		req.AddCookie(cookie)
+	}
+}
+
+func attachProfileConnectSession[T any](request *http.Request, connectRequest *connect.Request[T]) {
+	connectRequest.Header().Set("Cookie", request.Header.Get("Cookie"))
+}
+
+func profileGetRequest(request *http.Request) *connect.Request[lpbsv1.GetAdminProfileRequest] {
+	connectRequest := connect.NewRequest(&lpbsv1.GetAdminProfileRequest{})
+	attachProfileConnectSession(request, connectRequest)
+	return connectRequest
+}
+
+func profileUpdateRequest(request *http.Request, message *lpbsv1.UpdateAdminProfileRequest) *connect.Request[lpbsv1.UpdateAdminProfileRequest] {
+	connectRequest := connect.NewRequest(message)
+	attachProfileConnectSession(request, connectRequest)
+	return connectRequest
+}
+
+func attachConnectSessionCookies(request *http.Request, headers http.Header) {
+	for _, cookie := range headers.Values("Set-Cookie") {
+		if value, _, found := strings.Cut(cookie, ";"); found {
+			request.Header.Add("Cookie", value)
+		}
 	}
 }
 
@@ -65,16 +91,11 @@ func TestHandleAdminProfile_ReturnsCurrentAdmin(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/profile", nil)
 	attachAdminSession(t, sessionMgr, req, defaultAdminEmail)
-	resp := httptest.NewRecorder()
-
-	server.requireAdmin(adminhttp.Profile(server.adminProfileDependencies()))(resp, req)
-
-	if resp.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", resp.Code)
+	response, err := adminhttp.NewProfileConnectHandler(server.adminProfileDependencies()).GetAdminProfile(context.Background(), profileGetRequest(req))
+	if err != nil {
+		t.Fatalf("get profile: %v", err)
 	}
-
-	var profile adminhttp.ProfileResponse
-	decodeJSONResponse(t, resp.Body.Bytes(), &profile)
+	profile := response.Msg.GetProfile()
 
 	if profile.Email != defaultAdminEmail {
 		t.Fatalf("expected email %s, got %s", defaultAdminEmail, profile.Email)
@@ -100,19 +121,13 @@ func TestHandleAdminProfileUpdate_ChangesEmailAndPassword(t *testing.T) {
 	if _, err := db.Exec(`DELETE FROM admin_users WHERE email = $1`, newEmail); err != nil {
 		t.Fatalf("failed to cleanup admin user: %v", err)
 	}
-	payload := fmt.Sprintf(`{"current_password":"changeme123","new_email":"%s","new_password":"Sup3rSecurePass!"}`, newEmail)
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/profile", bytes.NewBufferString(payload))
+	req := httptest.NewRequest(http.MethodPost, "/", nil)
 	attachAdminSession(t, sessionMgr, req, defaultAdminEmail)
-	resp := httptest.NewRecorder()
-
-	server.requireAdmin(adminhttp.UpdateProfile(server.adminProfileDependencies()))(resp, req)
-
-	if resp.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())
+	response, err := adminhttp.NewProfileConnectHandler(server.adminProfileDependencies()).UpdateAdminProfile(context.Background(), profileUpdateRequest(req, &lpbsv1.UpdateAdminProfileRequest{CurrentPassword: "changeme123", NewEmail: newEmail, NewPassword: "Sup3rSecurePass!"}))
+	if err != nil {
+		t.Fatalf("update profile: %v", err)
 	}
-
-	var profile adminhttp.ProfileResponse
-	decodeJSONResponse(t, resp.Body.Bytes(), &profile)
+	profile := response.Msg.GetProfile()
 
 	if profile.Email != newEmail {
 		t.Fatalf("expected updated email, got %s", profile.Email)
@@ -134,9 +149,7 @@ func TestHandleAdminProfileUpdate_ChangesEmailAndPassword(t *testing.T) {
 
 	// Ensure the session now references the updated email
 	sessionProbeReq := httptest.NewRequest(http.MethodGet, "/", nil)
-	for _, cookie := range resp.Result().Cookies() {
-		sessionProbeReq.AddCookie(cookie)
-	}
+	attachConnectSessionCookies(sessionProbeReq, response.Header())
 	session, err := sessionMgr.GetSession(sessionProbeReq, "admin_session")
 	if err != nil {
 		t.Fatalf("read updated admin session: %v", err)
@@ -166,15 +179,11 @@ func TestHandleAdminProfileUpdate_InvalidPassword(t *testing.T) {
 	sessionMgr := initSessionManager()
 	server := &Server{db: db, sessionManager: sessionMgr}
 
-	payload := `{"current_password":"wrongpass","new_password":"Sup3rSecurePass!"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/profile", bytes.NewBufferString(payload))
+	req := httptest.NewRequest(http.MethodPost, "/", nil)
 	attachAdminSession(t, sessionMgr, req, defaultAdminEmail)
-	resp := httptest.NewRecorder()
-
-	server.requireAdmin(adminhttp.UpdateProfile(server.adminProfileDependencies()))(resp, req)
-
-	if resp.Code != http.StatusUnauthorized {
-		t.Fatalf("expected 401 for invalid credentials, got %d", resp.Code)
+	_, err := adminhttp.NewProfileConnectHandler(server.adminProfileDependencies()).UpdateAdminProfile(context.Background(), profileUpdateRequest(req, &lpbsv1.UpdateAdminProfileRequest{CurrentPassword: "wrongpass", NewPassword: "Sup3rSecurePass!"}))
+	if connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("expected unauthenticated for invalid credentials, got %v", connect.CodeOf(err))
 	}
 }
 
@@ -213,14 +222,10 @@ func TestHandleAdminProfileUpdate_EmailConflict(t *testing.T) {
 		}
 	})
 
-	payload := fmt.Sprintf(`{"current_password":"changeme123","new_email":"%s"}`, takenEmail)
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/profile", bytes.NewBufferString(payload))
+	req := httptest.NewRequest(http.MethodPost, "/", nil)
 	attachAdminSession(t, sessionMgr, req, defaultAdminEmail)
-	resp := httptest.NewRecorder()
-
-	server.requireAdmin(adminhttp.UpdateProfile(server.adminProfileDependencies()))(resp, req)
-
-	if resp.Code != http.StatusConflict {
-		t.Fatalf("expected 409 for email conflict, got %d", resp.Code)
+	_, err = adminhttp.NewProfileConnectHandler(server.adminProfileDependencies()).UpdateAdminProfile(context.Background(), profileUpdateRequest(req, &lpbsv1.UpdateAdminProfileRequest{CurrentPassword: "changeme123", NewEmail: takenEmail}))
+	if connect.CodeOf(err) != connect.CodeAlreadyExists {
+		t.Fatalf("expected already exists for email conflict, got %v", connect.CodeOf(err))
 	}
 }
