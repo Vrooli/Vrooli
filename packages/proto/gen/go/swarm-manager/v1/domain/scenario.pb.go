@@ -8,6 +8,7 @@ package domain
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -181,7 +182,7 @@ type ScenarioHealthSnapshot struct {
 	// Provider-presented phases in provider order.
 	Phases []*ScenarioHealthPhase `protobuf:"bytes,7,rep,name=phases,proto3" json:"phases,omitempty"`
 	// Swarm-owned reconciliation summary for previously proposed work.
-	Remediation   []*ScenarioRemediationSummary `protobuf:"bytes,8,rep,name=remediation,proto3" json:"remediation,omitempty"`
+	Remediation   []*shared.ScenarioRemediationSummary `protobuf:"bytes,8,rep,name=remediation,proto3" json:"remediation,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -265,7 +266,7 @@ func (x *ScenarioHealthSnapshot) GetPhases() []*ScenarioHealthPhase {
 	return nil
 }
 
-func (x *ScenarioHealthSnapshot) GetRemediation() []*ScenarioRemediationSummary {
+func (x *ScenarioHealthSnapshot) GetRemediation() []*shared.ScenarioRemediationSummary {
 	if x != nil {
 		return x.Remediation
 	}
@@ -383,78 +384,6 @@ func (x *ScenarioHealthPhase) GetRemediationTopics() []string {
 	return nil
 }
 
-// ScenarioRemediationSummary is Swarm-owned reconciliation state keyed by a
-// canonical remediation fingerprint. It links governed work without copying
-// provider findings into local storage.
-type ScenarioRemediationSummary struct {
-	state       protoimpl.MessageState `protogen:"open.v1"`
-	Fingerprint string                 `protobuf:"bytes,1,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
-	// suggested, accepted, dismissed, or none.
-	State         string  `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
-	WorkRef       *string `protobuf:"bytes,3,opt,name=work_ref,json=workRef,proto3,oneof" json:"work_ref,omitempty"`
-	UpdatedAt     *string `protobuf:"bytes,4,opt,name=updated_at,json=updatedAt,proto3,oneof" json:"updated_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ScenarioRemediationSummary) Reset() {
-	*x = ScenarioRemediationSummary{}
-	mi := &file_swarm_manager_v1_domain_scenario_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ScenarioRemediationSummary) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ScenarioRemediationSummary) ProtoMessage() {}
-
-func (x *ScenarioRemediationSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_scenario_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ScenarioRemediationSummary.ProtoReflect.Descriptor instead.
-func (*ScenarioRemediationSummary) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_scenario_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *ScenarioRemediationSummary) GetFingerprint() string {
-	if x != nil {
-		return x.Fingerprint
-	}
-	return ""
-}
-
-func (x *ScenarioRemediationSummary) GetState() string {
-	if x != nil {
-		return x.State
-	}
-	return ""
-}
-
-func (x *ScenarioRemediationSummary) GetWorkRef() string {
-	if x != nil && x.WorkRef != nil {
-		return *x.WorkRef
-	}
-	return ""
-}
-
-func (x *ScenarioRemediationSummary) GetUpdatedAt() string {
-	if x != nil && x.UpdatedAt != nil {
-		return *x.UpdatedAt
-	}
-	return ""
-}
-
 // ScenarioMetadata stores editable metadata for a scenario.
 type ScenarioMetadata struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -466,7 +395,7 @@ type ScenarioMetadata struct {
 
 func (x *ScenarioMetadata) Reset() {
 	*x = ScenarioMetadata{}
-	mi := &file_swarm_manager_v1_domain_scenario_proto_msgTypes[4]
+	mi := &file_swarm_manager_v1_domain_scenario_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -478,7 +407,7 @@ func (x *ScenarioMetadata) String() string {
 func (*ScenarioMetadata) ProtoMessage() {}
 
 func (x *ScenarioMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_scenario_proto_msgTypes[4]
+	mi := &file_swarm_manager_v1_domain_scenario_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -491,7 +420,7 @@ func (x *ScenarioMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioMetadata.ProtoReflect.Descriptor instead.
 func (*ScenarioMetadata) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_scenario_proto_rawDescGZIP(), []int{4}
+	return file_swarm_manager_v1_domain_scenario_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ScenarioMetadata) GetIsGreenfield() bool {
@@ -505,7 +434,7 @@ var File_swarm_manager_v1_domain_scenario_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_scenario_proto_rawDesc = "" +
 	"\n" +
-	"&swarm-manager/v1/domain/scenario.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\"\xf6\x04\n" +
+	"&swarm-manager/v1/domain/scenario.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a$swarm-manager/v1/shared/health.proto\"\xf6\x04\n" +
 	"\bScenario\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12*\n" +
 	"\fdisplay_name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vdisplayName\x12 \n" +
@@ -533,7 +462,7 @@ const file_swarm_manager_v1_domain_scenario_proto_rawDesc = "" +
 	"\tfreshness\x18\x05 \x01(\tH\x03R\tfreshness\x88\x01\x01\x12\x1d\n" +
 	"\averdict\x18\x06 \x01(\tH\x04R\averdict\x88\x01\x01\x12K\n" +
 	"\x06phases\x18\a \x03(\v23.vrooli.swarm_manager.v1.domain.ScenarioHealthPhaseR\x06phases\x12\\\n" +
-	"\vremediation\x18\b \x03(\v2:.vrooli.swarm_manager.v1.domain.ScenarioRemediationSummaryR\vremediationB\t\n" +
+	"\vremediation\x18\b \x03(\v2:.vrooli.swarm_manager.v1.shared.ScenarioRemediationSummaryR\vremediationB\t\n" +
 	"\a_reasonB\x10\n" +
 	"\x0e_source_run_idB\x0e\n" +
 	"\f_observed_atB\f\n" +
@@ -558,15 +487,7 @@ const file_swarm_manager_v1_domain_scenario_proto_rawDesc = "" +
 	"\n" +
 	"_next_rungB\x19\n" +
 	"\x17_priority_capability_idB\x1c\n" +
-	"\x1a_priority_capability_label\"\xea\x01\n" +
-	"\x1aScenarioRemediationSummary\x12)\n" +
-	"\vfingerprint\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vfingerprint\x12A\n" +
-	"\x05state\x18\x02 \x01(\tB+\xbaH(r&R\tsuggestedR\bacceptedR\tdismissedR\x04noneR\x05state\x12\x1e\n" +
-	"\bwork_ref\x18\x03 \x01(\tH\x00R\aworkRef\x88\x01\x01\x12\"\n" +
-	"\n" +
-	"updated_at\x18\x04 \x01(\tH\x01R\tupdatedAt\x88\x01\x01B\v\n" +
-	"\t_work_refB\r\n" +
-	"\v_updated_at\"7\n" +
+	"\x1a_priority_capability_label\"7\n" +
 	"\x10ScenarioMetadata\x12#\n" +
 	"\ris_greenfield\x18\x01 \x01(\bR\fisGreenfieldBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domainb\x06proto3"
 
@@ -582,18 +503,18 @@ func file_swarm_manager_v1_domain_scenario_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_domain_scenario_proto_rawDescData
 }
 
-var file_swarm_manager_v1_domain_scenario_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_swarm_manager_v1_domain_scenario_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_swarm_manager_v1_domain_scenario_proto_goTypes = []any{
-	(*Scenario)(nil),                   // 0: vrooli.swarm_manager.v1.domain.Scenario
-	(*ScenarioHealthSnapshot)(nil),     // 1: vrooli.swarm_manager.v1.domain.ScenarioHealthSnapshot
-	(*ScenarioHealthPhase)(nil),        // 2: vrooli.swarm_manager.v1.domain.ScenarioHealthPhase
-	(*ScenarioRemediationSummary)(nil), // 3: vrooli.swarm_manager.v1.domain.ScenarioRemediationSummary
-	(*ScenarioMetadata)(nil),           // 4: vrooli.swarm_manager.v1.domain.ScenarioMetadata
+	(*Scenario)(nil),                          // 0: vrooli.swarm_manager.v1.domain.Scenario
+	(*ScenarioHealthSnapshot)(nil),            // 1: vrooli.swarm_manager.v1.domain.ScenarioHealthSnapshot
+	(*ScenarioHealthPhase)(nil),               // 2: vrooli.swarm_manager.v1.domain.ScenarioHealthPhase
+	(*ScenarioMetadata)(nil),                  // 3: vrooli.swarm_manager.v1.domain.ScenarioMetadata
+	(*shared.ScenarioRemediationSummary)(nil), // 4: vrooli.swarm_manager.v1.shared.ScenarioRemediationSummary
 }
 var file_swarm_manager_v1_domain_scenario_proto_depIdxs = []int32{
 	1, // 0: vrooli.swarm_manager.v1.domain.Scenario.health:type_name -> vrooli.swarm_manager.v1.domain.ScenarioHealthSnapshot
 	2, // 1: vrooli.swarm_manager.v1.domain.ScenarioHealthSnapshot.phases:type_name -> vrooli.swarm_manager.v1.domain.ScenarioHealthPhase
-	3, // 2: vrooli.swarm_manager.v1.domain.ScenarioHealthSnapshot.remediation:type_name -> vrooli.swarm_manager.v1.domain.ScenarioRemediationSummary
+	4, // 2: vrooli.swarm_manager.v1.domain.ScenarioHealthSnapshot.remediation:type_name -> vrooli.swarm_manager.v1.shared.ScenarioRemediationSummary
 	3, // [3:3] is the sub-list for method output_type
 	3, // [3:3] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name
@@ -609,14 +530,13 @@ func file_swarm_manager_v1_domain_scenario_proto_init() {
 	file_swarm_manager_v1_domain_scenario_proto_msgTypes[0].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_scenario_proto_msgTypes[1].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_scenario_proto_msgTypes[2].OneofWrappers = []any{}
-	file_swarm_manager_v1_domain_scenario_proto_msgTypes[3].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_domain_scenario_proto_rawDesc), len(file_swarm_manager_v1_domain_scenario_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

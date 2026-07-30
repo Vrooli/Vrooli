@@ -39,7 +39,10 @@ type TrackEventRequest struct {
 	// Optional stable visitor identifier spanning sessions.
 	VisitorId string `protobuf:"bytes,5,opt,name=visitor_id,json=visitorId,proto3" json:"visitor_id,omitempty"`
 	// Optional client-supplied idempotency id; server derives one when empty.
-	EventId       string `protobuf:"bytes,6,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	EventId string `protobuf:"bytes,6,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	// Variant slug used by the existing analytics store and public UI. Clients
+	// should supply this when they do not have the internal numeric variant id.
+	VariantSlug   string `protobuf:"bytes,7,opt,name=variant_slug,json=variantSlug,proto3" json:"variant_slug,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -112,6 +115,13 @@ func (x *TrackEventRequest) GetVisitorId() string {
 func (x *TrackEventRequest) GetEventId() string {
 	if x != nil {
 		return x.EventId
+	}
+	return ""
+}
+
+func (x *TrackEventRequest) GetVariantSlug() string {
+	if x != nil {
+		return x.VariantSlug
 	}
 	return ""
 }
@@ -550,7 +560,7 @@ var File_landing_page_business_suite_v1_metrics_proto protoreflect.FileDescripto
 
 const file_landing_page_business_suite_v1_metrics_proto_rawDesc = "" +
 	"\n" +
-	",landing-page-business-suite/v1/metrics.proto\x12\x1elanding_page_business_suite.v1\x1a\x1cgoogle/protobuf/struct.proto\"\xe2\x01\n" +
+	",landing-page-business-suite/v1/metrics.proto\x12\x1elanding_page_business_suite.v1\x1a\x1cgoogle/protobuf/struct.proto\"\x85\x02\n" +
 	"\x11TrackEventRequest\x12\x1d\n" +
 	"\n" +
 	"event_type\x18\x01 \x01(\tR\teventType\x12\x1d\n" +
@@ -562,7 +572,8 @@ const file_landing_page_business_suite_v1_metrics_proto_rawDesc = "" +
 	"session_id\x18\x04 \x01(\tR\tsessionId\x12\x1d\n" +
 	"\n" +
 	"visitor_id\x18\x05 \x01(\tR\tvisitorId\x12\x19\n" +
-	"\bevent_id\x18\x06 \x01(\tR\aeventId\"H\n" +
+	"\bevent_id\x18\x06 \x01(\tR\aeventId\x12!\n" +
+	"\fvariant_slug\x18\a \x01(\tR\vvariantSlug\"H\n" +
 	"\x12TrackEventResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"\xfa\x02\n" +

@@ -43,9 +43,18 @@ const (
 	BacklogServiceCreateItemProcedure = "/vrooli.swarm_manager.v1.api.BacklogService/CreateItem"
 	// BacklogServiceGetItemProcedure is the fully-qualified name of the BacklogService's GetItem RPC.
 	BacklogServiceGetItemProcedure = "/vrooli.swarm_manager.v1.api.BacklogService/GetItem"
+	// BacklogServiceUpdateItemProcedure is the fully-qualified name of the BacklogService's UpdateItem
+	// RPC.
+	BacklogServiceUpdateItemProcedure = "/vrooli.swarm_manager.v1.api.BacklogService/UpdateItem"
 	// BacklogServiceDeleteItemProcedure is the fully-qualified name of the BacklogService's DeleteItem
 	// RPC.
 	BacklogServiceDeleteItemProcedure = "/vrooli.swarm_manager.v1.api.BacklogService/DeleteItem"
+	// BacklogServiceDecideAttemptProcedure is the fully-qualified name of the BacklogService's
+	// DecideAttempt RPC.
+	BacklogServiceDecideAttemptProcedure = "/vrooli.swarm_manager.v1.api.BacklogService/DecideAttempt"
+	// BacklogServiceVerifyAttemptEvidenceProcedure is the fully-qualified name of the BacklogService's
+	// VerifyAttemptEvidence RPC.
+	BacklogServiceVerifyAttemptEvidenceProcedure = "/vrooli.swarm_manager.v1.api.BacklogService/VerifyAttemptEvidence"
 	// AutoFilerServiceGetStatusProcedure is the fully-qualified name of the AutoFilerService's
 	// GetStatus RPC.
 	AutoFilerServiceGetStatusProcedure = "/vrooli.swarm_manager.v1.api.AutoFilerService/GetStatus"
@@ -67,8 +76,16 @@ type BacklogServiceClient interface {
 	// GetItem returns a single backlog item with its current status and computed
 	// queue_position (items-ahead in the ranked pending set).
 	GetItem(context.Context, *connect.Request[api.GetBacklogItemRequest]) (*connect.Response[api.BacklogItemResponse], error)
+	// UpdateItem applies an explicit field-preserving patch.
+	UpdateItem(context.Context, *connect.Request[api.UpdateItemRequest]) (*connect.Response[api.BacklogItemResponse], error)
 	// DeleteItem removes an item and cleans dependent references. It is idempotent.
 	DeleteItem(context.Context, *connect.Request[api.DeleteBacklogItemRequest]) (*connect.Response[api.DeleteBacklogItemResponse], error)
+	// DecideAttempt applies an auditable decision to a durable attempt. The
+	// subject-specific domain validates allowed decisions and proposals.
+	DecideAttempt(context.Context, *connect.Request[api.DecideAttemptRequest]) (*connect.Response[api.DecideAttemptResponse], error)
+	// VerifyAttemptEvidence records an auditable operator verification change
+	// for evidence attached to the addressed attempt.
+	VerifyAttemptEvidence(context.Context, *connect.Request[api.VerifyAttemptEvidenceRequest]) (*connect.Response[api.VerifyAttemptEvidenceResponse], error)
 }
 
 // NewBacklogServiceClient constructs a client for the vrooli.swarm_manager.v1.api.BacklogService
@@ -100,10 +117,28 @@ func NewBacklogServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(backlogServiceMethods.ByName("GetItem")),
 			connect.WithClientOptions(opts...),
 		),
+		updateItem: connect.NewClient[api.UpdateItemRequest, api.BacklogItemResponse](
+			httpClient,
+			baseURL+BacklogServiceUpdateItemProcedure,
+			connect.WithSchema(backlogServiceMethods.ByName("UpdateItem")),
+			connect.WithClientOptions(opts...),
+		),
 		deleteItem: connect.NewClient[api.DeleteBacklogItemRequest, api.DeleteBacklogItemResponse](
 			httpClient,
 			baseURL+BacklogServiceDeleteItemProcedure,
 			connect.WithSchema(backlogServiceMethods.ByName("DeleteItem")),
+			connect.WithClientOptions(opts...),
+		),
+		decideAttempt: connect.NewClient[api.DecideAttemptRequest, api.DecideAttemptResponse](
+			httpClient,
+			baseURL+BacklogServiceDecideAttemptProcedure,
+			connect.WithSchema(backlogServiceMethods.ByName("DecideAttempt")),
+			connect.WithClientOptions(opts...),
+		),
+		verifyAttemptEvidence: connect.NewClient[api.VerifyAttemptEvidenceRequest, api.VerifyAttemptEvidenceResponse](
+			httpClient,
+			baseURL+BacklogServiceVerifyAttemptEvidenceProcedure,
+			connect.WithSchema(backlogServiceMethods.ByName("VerifyAttemptEvidence")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -111,10 +146,13 @@ func NewBacklogServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 
 // backlogServiceClient implements BacklogServiceClient.
 type backlogServiceClient struct {
-	listItems  *connect.Client[api.ListBacklogItemsRequest, api.ListBacklogItemsResponse]
-	createItem *connect.Client[api.CreateBacklogItemRequest, api.BacklogItemResponse]
-	getItem    *connect.Client[api.GetBacklogItemRequest, api.BacklogItemResponse]
-	deleteItem *connect.Client[api.DeleteBacklogItemRequest, api.DeleteBacklogItemResponse]
+	listItems             *connect.Client[api.ListBacklogItemsRequest, api.ListBacklogItemsResponse]
+	createItem            *connect.Client[api.CreateBacklogItemRequest, api.BacklogItemResponse]
+	getItem               *connect.Client[api.GetBacklogItemRequest, api.BacklogItemResponse]
+	updateItem            *connect.Client[api.UpdateItemRequest, api.BacklogItemResponse]
+	deleteItem            *connect.Client[api.DeleteBacklogItemRequest, api.DeleteBacklogItemResponse]
+	decideAttempt         *connect.Client[api.DecideAttemptRequest, api.DecideAttemptResponse]
+	verifyAttemptEvidence *connect.Client[api.VerifyAttemptEvidenceRequest, api.VerifyAttemptEvidenceResponse]
 }
 
 // ListItems calls vrooli.swarm_manager.v1.api.BacklogService.ListItems.
@@ -132,9 +170,24 @@ func (c *backlogServiceClient) GetItem(ctx context.Context, req *connect.Request
 	return c.getItem.CallUnary(ctx, req)
 }
 
+// UpdateItem calls vrooli.swarm_manager.v1.api.BacklogService.UpdateItem.
+func (c *backlogServiceClient) UpdateItem(ctx context.Context, req *connect.Request[api.UpdateItemRequest]) (*connect.Response[api.BacklogItemResponse], error) {
+	return c.updateItem.CallUnary(ctx, req)
+}
+
 // DeleteItem calls vrooli.swarm_manager.v1.api.BacklogService.DeleteItem.
 func (c *backlogServiceClient) DeleteItem(ctx context.Context, req *connect.Request[api.DeleteBacklogItemRequest]) (*connect.Response[api.DeleteBacklogItemResponse], error) {
 	return c.deleteItem.CallUnary(ctx, req)
+}
+
+// DecideAttempt calls vrooli.swarm_manager.v1.api.BacklogService.DecideAttempt.
+func (c *backlogServiceClient) DecideAttempt(ctx context.Context, req *connect.Request[api.DecideAttemptRequest]) (*connect.Response[api.DecideAttemptResponse], error) {
+	return c.decideAttempt.CallUnary(ctx, req)
+}
+
+// VerifyAttemptEvidence calls vrooli.swarm_manager.v1.api.BacklogService.VerifyAttemptEvidence.
+func (c *backlogServiceClient) VerifyAttemptEvidence(ctx context.Context, req *connect.Request[api.VerifyAttemptEvidenceRequest]) (*connect.Response[api.VerifyAttemptEvidenceResponse], error) {
+	return c.verifyAttemptEvidence.CallUnary(ctx, req)
 }
 
 // BacklogServiceHandler is an implementation of the vrooli.swarm_manager.v1.api.BacklogService
@@ -149,8 +202,16 @@ type BacklogServiceHandler interface {
 	// GetItem returns a single backlog item with its current status and computed
 	// queue_position (items-ahead in the ranked pending set).
 	GetItem(context.Context, *connect.Request[api.GetBacklogItemRequest]) (*connect.Response[api.BacklogItemResponse], error)
+	// UpdateItem applies an explicit field-preserving patch.
+	UpdateItem(context.Context, *connect.Request[api.UpdateItemRequest]) (*connect.Response[api.BacklogItemResponse], error)
 	// DeleteItem removes an item and cleans dependent references. It is idempotent.
 	DeleteItem(context.Context, *connect.Request[api.DeleteBacklogItemRequest]) (*connect.Response[api.DeleteBacklogItemResponse], error)
+	// DecideAttempt applies an auditable decision to a durable attempt. The
+	// subject-specific domain validates allowed decisions and proposals.
+	DecideAttempt(context.Context, *connect.Request[api.DecideAttemptRequest]) (*connect.Response[api.DecideAttemptResponse], error)
+	// VerifyAttemptEvidence records an auditable operator verification change
+	// for evidence attached to the addressed attempt.
+	VerifyAttemptEvidence(context.Context, *connect.Request[api.VerifyAttemptEvidenceRequest]) (*connect.Response[api.VerifyAttemptEvidenceResponse], error)
 }
 
 // NewBacklogServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -178,10 +239,28 @@ func NewBacklogServiceHandler(svc BacklogServiceHandler, opts ...connect.Handler
 		connect.WithSchema(backlogServiceMethods.ByName("GetItem")),
 		connect.WithHandlerOptions(opts...),
 	)
+	backlogServiceUpdateItemHandler := connect.NewUnaryHandler(
+		BacklogServiceUpdateItemProcedure,
+		svc.UpdateItem,
+		connect.WithSchema(backlogServiceMethods.ByName("UpdateItem")),
+		connect.WithHandlerOptions(opts...),
+	)
 	backlogServiceDeleteItemHandler := connect.NewUnaryHandler(
 		BacklogServiceDeleteItemProcedure,
 		svc.DeleteItem,
 		connect.WithSchema(backlogServiceMethods.ByName("DeleteItem")),
+		connect.WithHandlerOptions(opts...),
+	)
+	backlogServiceDecideAttemptHandler := connect.NewUnaryHandler(
+		BacklogServiceDecideAttemptProcedure,
+		svc.DecideAttempt,
+		connect.WithSchema(backlogServiceMethods.ByName("DecideAttempt")),
+		connect.WithHandlerOptions(opts...),
+	)
+	backlogServiceVerifyAttemptEvidenceHandler := connect.NewUnaryHandler(
+		BacklogServiceVerifyAttemptEvidenceProcedure,
+		svc.VerifyAttemptEvidence,
+		connect.WithSchema(backlogServiceMethods.ByName("VerifyAttemptEvidence")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/vrooli.swarm_manager.v1.api.BacklogService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -192,8 +271,14 @@ func NewBacklogServiceHandler(svc BacklogServiceHandler, opts ...connect.Handler
 			backlogServiceCreateItemHandler.ServeHTTP(w, r)
 		case BacklogServiceGetItemProcedure:
 			backlogServiceGetItemHandler.ServeHTTP(w, r)
+		case BacklogServiceUpdateItemProcedure:
+			backlogServiceUpdateItemHandler.ServeHTTP(w, r)
 		case BacklogServiceDeleteItemProcedure:
 			backlogServiceDeleteItemHandler.ServeHTTP(w, r)
+		case BacklogServiceDecideAttemptProcedure:
+			backlogServiceDecideAttemptHandler.ServeHTTP(w, r)
+		case BacklogServiceVerifyAttemptEvidenceProcedure:
+			backlogServiceVerifyAttemptEvidenceHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -215,8 +300,20 @@ func (UnimplementedBacklogServiceHandler) GetItem(context.Context, *connect.Requ
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.BacklogService.GetItem is not implemented"))
 }
 
+func (UnimplementedBacklogServiceHandler) UpdateItem(context.Context, *connect.Request[api.UpdateItemRequest]) (*connect.Response[api.BacklogItemResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.BacklogService.UpdateItem is not implemented"))
+}
+
 func (UnimplementedBacklogServiceHandler) DeleteItem(context.Context, *connect.Request[api.DeleteBacklogItemRequest]) (*connect.Response[api.DeleteBacklogItemResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.BacklogService.DeleteItem is not implemented"))
+}
+
+func (UnimplementedBacklogServiceHandler) DecideAttempt(context.Context, *connect.Request[api.DecideAttemptRequest]) (*connect.Response[api.DecideAttemptResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.BacklogService.DecideAttempt is not implemented"))
+}
+
+func (UnimplementedBacklogServiceHandler) VerifyAttemptEvidence(context.Context, *connect.Request[api.VerifyAttemptEvidenceRequest]) (*connect.Response[api.VerifyAttemptEvidenceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.BacklogService.VerifyAttemptEvidence is not implemented"))
 }
 
 // AutoFilerServiceClient is a client for the vrooli.swarm_manager.v1.api.AutoFilerService service.

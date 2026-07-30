@@ -386,6 +386,10 @@ type AppendEntryRequest struct {
 	Attribution      *Attribution           `protobuf:"bytes,4,opt,name=attribution,proto3" json:"attribution,omitempty"`
 	Correlation      *Correlation           `protobuf:"bytes,5,opt,name=correlation,proto3" json:"correlation,omitempty"`
 	ImportProvenance *ImportProvenance      `protobuf:"bytes,6,opt,name=import_provenance,json=importProvenance,proto3" json:"import_provenance,omitempty"`
+	Trigger          string                 `protobuf:"bytes,7,opt,name=trigger,proto3" json:"trigger,omitempty"`
+	Approach         string                 `protobuf:"bytes,8,opt,name=approach,proto3" json:"approach,omitempty"`
+	Evidence         string                 `protobuf:"bytes,9,opt,name=evidence,proto3" json:"evidence,omitempty"`
+	Outcome          string                 `protobuf:"bytes,10,opt,name=outcome,proto3" json:"outcome,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -460,6 +464,34 @@ func (x *AppendEntryRequest) GetImportProvenance() *ImportProvenance {
 		return x.ImportProvenance
 	}
 	return nil
+}
+
+func (x *AppendEntryRequest) GetTrigger() string {
+	if x != nil {
+		return x.Trigger
+	}
+	return ""
+}
+
+func (x *AppendEntryRequest) GetApproach() string {
+	if x != nil {
+		return x.Approach
+	}
+	return ""
+}
+
+func (x *AppendEntryRequest) GetEvidence() string {
+	if x != nil {
+		return x.Evidence
+	}
+	return ""
+}
+
+func (x *AppendEntryRequest) GetOutcome() string {
+	if x != nil {
+		return x.Outcome
+	}
+	return ""
 }
 
 type AppendEntryResponse struct {
@@ -950,14 +982,19 @@ const file_vrooli_memory_v1_journal_journal_proto_rawDesc = "" +
 	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12?\n" +
 	"\rsuperseded_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\fsupersededAt\x12\x12\n" +
 	"\x04kind\x18\n" +
-	" \x01(\tR\x04kind\"\xd7\x02\n" +
+	" \x01(\tR\x04kind\"\xc3\x03\n" +
 	"\x12AppendEntryRequest\x12\x12\n" +
 	"\x04body\x18\x01 \x01(\tR\x04body\x12\x19\n" +
 	"\bfacet_id\x18\x02 \x01(\tR\afacetId\x12\x12\n" +
 	"\x04kind\x18\x03 \x01(\tR\x04kind\x12N\n" +
 	"\vattribution\x18\x04 \x01(\v2,.vrooli.vrooli_memory.v1.journal.AttributionR\vattribution\x12N\n" +
 	"\vcorrelation\x18\x05 \x01(\v2,.vrooli.vrooli_memory.v1.journal.CorrelationR\vcorrelation\x12^\n" +
-	"\x11import_provenance\x18\x06 \x01(\v21.vrooli.vrooli_memory.v1.journal.ImportProvenanceR\x10importProvenance\"S\n" +
+	"\x11import_provenance\x18\x06 \x01(\v21.vrooli.vrooli_memory.v1.journal.ImportProvenanceR\x10importProvenance\x12\x18\n" +
+	"\atrigger\x18\a \x01(\tR\atrigger\x12\x1a\n" +
+	"\bapproach\x18\b \x01(\tR\bapproach\x12\x1a\n" +
+	"\bevidence\x18\t \x01(\tR\bevidence\x12\x18\n" +
+	"\aoutcome\x18\n" +
+	" \x01(\tR\aoutcome\"S\n" +
 	"\x13AppendEntryResponse\x12<\n" +
 	"\x05entry\x18\x01 \x01(\v2&.vrooli.vrooli_memory.v1.journal.EntryR\x05entry\"!\n" +
 	"\x0fGetEntryRequest\x12\x0e\n" +

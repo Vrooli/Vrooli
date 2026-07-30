@@ -105,8 +105,10 @@ type BacklogItem struct {
 	// Explicit operator authorization for the current canonical plan frontier.
 	// A changed content hash or work-contract version makes this record stale.
 	PlanAcceptance *PlanAcceptance `protobuf:"bytes,29,opt,name=plan_acceptance,json=planAcceptance,proto3,oneof" json:"plan_acceptance,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Independently settleable definitions of done for this item.
+	AcceptanceCriteria []*shared.BacklogCriterion `protobuf:"bytes,30,rep,name=acceptance_criteria,json=acceptanceCriteria,proto3" json:"acceptance_criteria,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *BacklogItem) Reset() {
@@ -317,6 +319,13 @@ func (x *BacklogItem) GetLastReview() *BacklogReviewRecord {
 func (x *BacklogItem) GetPlanAcceptance() *PlanAcceptance {
 	if x != nil {
 		return x.PlanAcceptance
+	}
+	return nil
+}
+
+func (x *BacklogItem) GetAcceptanceCriteria() []*shared.BacklogCriterion {
+	if x != nil {
+		return x.AcceptanceCriteria
 	}
 	return nil
 }
@@ -735,8 +744,7 @@ var File_swarm_manager_v1_domain_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\n" +
-	"%swarm-manager/v1/domain/backlog.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/shared/agent_session.proto\x1a&swarm-manager/v1/shared/plan_ref.proto\"\xd6\n" +
-	"\n" +
+	"%swarm-manager/v1/domain/backlog.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/shared/agent_session.proto\x1a%swarm-manager/v1/shared/backlog.proto\x1a&swarm-manager/v1/shared/plan_ref.proto\"\xb9\v\n" +
 	"\vBacklogItem\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
@@ -770,7 +778,8 @@ const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\vlast_review\x18\x1c \x01(\v23.vrooli.swarm_manager.v1.domain.BacklogReviewRecordH\tR\n" +
 	"lastReview\x88\x01\x01\x12\\\n" +
 	"\x0fplan_acceptance\x18\x1d \x01(\v2..vrooli.swarm_manager.v1.domain.PlanAcceptanceH\n" +
-	"R\x0eplanAcceptance\x88\x01\x01B\f\n" +
+	"R\x0eplanAcceptance\x88\x01\x01\x12a\n" +
+	"\x13acceptance_criteria\x18\x1e \x03(\v20.vrooli.swarm_manager.v1.shared.BacklogCriterionR\x12acceptanceCriteriaB\f\n" +
 	"\n" +
 	"_milestoneB\t\n" +
 	"\a_effortB\x0f\n" +
@@ -845,19 +854,21 @@ var file_swarm_manager_v1_domain_backlog_proto_goTypes = []any{
 	(*ClarificationThread)(nil),            // 5: vrooli.swarm_manager.v1.domain.ClarificationThread
 	(*shared.AgentSessionAttribution)(nil), // 6: vrooli.swarm_manager.v1.shared.AgentSessionAttribution
 	(*shared.PlanRef)(nil),                 // 7: vrooli.swarm_manager.v1.shared.PlanRef
+	(*shared.BacklogCriterion)(nil),        // 8: vrooli.swarm_manager.v1.shared.BacklogCriterion
 }
 var file_swarm_manager_v1_domain_backlog_proto_depIdxs = []int32{
 	6, // 0: vrooli.swarm_manager.v1.domain.BacklogItem.created_by:type_name -> vrooli.swarm_manager.v1.shared.AgentSessionAttribution
 	7, // 1: vrooli.swarm_manager.v1.domain.BacklogItem.plan_ref:type_name -> vrooli.swarm_manager.v1.shared.PlanRef
 	2, // 2: vrooli.swarm_manager.v1.domain.BacklogItem.last_review:type_name -> vrooli.swarm_manager.v1.domain.BacklogReviewRecord
 	1, // 3: vrooli.swarm_manager.v1.domain.BacklogItem.plan_acceptance:type_name -> vrooli.swarm_manager.v1.domain.PlanAcceptance
-	3, // 4: vrooli.swarm_manager.v1.domain.ClarificationThread.messages:type_name -> vrooli.swarm_manager.v1.domain.ClarificationMessage
-	4, // 5: vrooli.swarm_manager.v1.domain.ClarificationThread.latest_impact:type_name -> vrooli.swarm_manager.v1.domain.ClarificationImpact
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	8, // 4: vrooli.swarm_manager.v1.domain.BacklogItem.acceptance_criteria:type_name -> vrooli.swarm_manager.v1.shared.BacklogCriterion
+	3, // 5: vrooli.swarm_manager.v1.domain.ClarificationThread.messages:type_name -> vrooli.swarm_manager.v1.domain.ClarificationMessage
+	4, // 6: vrooli.swarm_manager.v1.domain.ClarificationThread.latest_impact:type_name -> vrooli.swarm_manager.v1.domain.ClarificationImpact
+	7, // [7:7] is the sub-list for method output_type
+	7, // [7:7] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_domain_backlog_proto_init() }

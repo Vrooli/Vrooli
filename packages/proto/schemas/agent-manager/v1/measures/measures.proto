@@ -1,0 +1,320 @@
+syntax = "proto3";
+
+package agent_manager.v1.measures;
+
+import "measures/v1/measures.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures;measures_v1";
+
+// MeasuresService exposes one typed, read-only analytical question per RPC.
+// Each method is backed by Agent Manager's durable invocation read model.
+service MeasuresService {
+  rpc ExternalToolShare(ExternalToolShareRequest) returns (ExternalToolShareResponse);
+  rpc RetryRate(RetryRateRequest) returns (RetryRateResponse);
+  rpc HelpRecoveryRate(HelpRecoveryRateRequest) returns (HelpRecoveryRateResponse);
+  rpc RepeatedWorkRate(RepeatedWorkRateRequest) returns (RepeatedWorkRateResponse);
+  rpc ToolFailureRate(ToolFailureRateRequest) returns (ToolFailureRateResponse);
+  rpc RunSuccessRate(RunSuccessRateRequest) returns (RunSuccessRateResponse);
+  rpc RunCycleTime(RunCycleTimeRequest) returns (RunCycleTimeResponse);
+  rpc RunDurationStatistics(RunDurationStatisticsRequest) returns (RunDurationStatisticsResponse);
+  rpc RunCost(RunCostRequest) returns (RunCostResponse);
+  rpc RunVolume(RunVolumeRequest) returns (RunVolumeResponse);
+  rpc RunStatusDistribution(RunStatusDistributionRequest) returns (RunStatusDistributionResponse);
+  rpc RunnerBreakdown(RunnerBreakdownRequest) returns (RunnerBreakdownResponse);
+  rpc ModelBreakdown(ModelBreakdownRequest) returns (ModelBreakdownResponse);
+  rpc ProfileBreakdown(ProfileBreakdownRequest) returns (ProfileBreakdownResponse);
+  rpc TerminalRunTrend(TerminalRunTrendRequest) returns (TerminalRunTrendResponse);
+  rpc ToolUsage(ToolUsageRequest) returns (ToolUsageResponse);
+  rpc ErrorPatterns(ErrorPatternsRequest) returns (ErrorPatternsResponse);
+  rpc FileRereadRate(FileRereadRateRequest) returns (FileRereadRateResponse);
+  rpc FindingRecurrenceRate(FindingRecurrenceRateRequest) returns (FindingRecurrenceRateResponse);
+  // SelectCohort is the non-aggregate companion to the measures: it exposes
+  // the run ids behind the exact same durable filter used by an aggregate.
+  rpc SelectCohort(SelectCohortRequest) returns (SelectCohortResponse);
+}
+
+// InvocationFilter is shared by all friction measures. Empty dimensions mean
+// that dimension is not constrained; window defaults are declared in the
+// measure manifest and resolved deterministically by the provider.
+message InvocationFilter {
+  vrooli.measures.v1.TimeWindow window = 1;
+  string ownership = 2;
+  string outcome = 3;
+  string executable = 4;
+  string fingerprint = 5;
+  string profile_id = 6;
+  string runner_type = 7;
+  string model = 8;
+  string tag_prefix = 9;
+  string run_status = 10;
+  string tool_name = 11;
+}
+
+message ExternalToolShareRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+}
+message ExternalToolShareResponse {
+  double share = 1;
+  int64 external_calls = 2;
+  int64 resolved_calls = 3;
+  int64 unknown_calls = 4;
+  string executed_query = 5;
+}
+
+message RetryRateRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+}
+message RetryRateResponse {
+  double rate = 1;
+  int64 retry_calls = 2;
+  int64 total_calls = 3;
+  string executed_query = 4;
+}
+
+message HelpRecoveryRateRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+}
+message HelpRecoveryRateResponse {
+  double rate = 1;
+  int64 help_recoveries = 2;
+  int64 total_calls = 3;
+  string executed_query = 4;
+}
+
+message RepeatedWorkRateRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+}
+message RepeatedWorkRateResponse {
+  double rate = 1;
+  int64 repeated_calls = 2;
+  int64 total_calls = 3;
+  string executed_query = 4;
+}
+
+message ToolFailureRateRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+}
+message ToolFailureRateResponse {
+  double rate = 1;
+  int64 failed_calls = 2;
+  int64 total_calls = 3;
+  string executed_query = 4;
+}
+
+message RunSuccessRateRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+}
+message RunSuccessRateResponse {
+  double rate = 1;
+  int64 successful_runs = 2;
+  int64 terminal_runs = 3;
+  string executed_query = 4;
+}
+
+message RunCycleTimeRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+}
+message RunCycleTimeResponse {
+  double average_duration_ms = 1;
+  int64 completed_duration_runs = 2;
+  string executed_query = 3;
+}
+
+// RunDurationStatistics preserves the complete duration summary that the
+// legacy dashboard/export exposed. SQLite's retained projection uses its
+// deterministic mean for the percentile fields, matching the former SQLite
+// implementation until a percentile-capable store is introduced.
+message RunDurationStatisticsRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+}
+message RunDurationStatisticsResponse {
+  double average_duration_ms = 1;
+  double p50_duration_ms = 2;
+  double p95_duration_ms = 3;
+  double p99_duration_ms = 4;
+  int64 min_duration_ms = 5;
+  int64 max_duration_ms = 6;
+  int64 count = 7;
+  string executed_query = 8;
+}
+
+message RunCostRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+}
+message RunCostResponse {
+  double total_cost_usd = 1;
+  double average_cost_usd = 2;
+  int64 total_tokens = 3;
+  int64 total_runs = 4;
+  string executed_query = 5;
+  int64 input_tokens = 6;
+  int64 output_tokens = 7;
+  int64 cache_read_tokens = 8;
+  int64 cache_creation_tokens = 9;
+  double input_cost_usd = 10;
+  double output_cost_usd = 11;
+  double cache_read_cost_usd = 12;
+  double cache_creation_cost_usd = 13;
+  double authoritative_cost_usd = 14;
+  double estimated_cost_usd = 15;
+  double unknown_cost_usd = 16;
+}
+
+message RunVolumeRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+}
+message RunVolumeResponse {
+  int64 total_runs = 1;
+  int64 terminal_runs = 2;
+  string executed_query = 3;
+}
+
+// RunStatusDistribution preserves the existing status-count question as a
+// durable table. Each row is backed by invocation_read_model_runs, never the
+// prunable event stream.
+message RunStatusDistributionRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+}
+message RunStatusCount {
+  string status = 1;
+  int64 count = 2;
+}
+message RunStatusDistributionResponse {
+  repeated RunStatusCount rows = 1;
+  string executed_query = 2;
+}
+
+// RunBreakdownRow is a compact, durable terminal-run aggregate. Individual
+// measure methods select the dimension; clients never pass a generic kind.
+message RunBreakdownRow {
+  string value = 1;
+  int64 run_count = 2;
+  int64 success_count = 3;
+  int64 failed_count = 4;
+  double total_cost_usd = 5;
+  double average_duration_ms = 6;
+  int64 total_tokens = 7;
+  // key is the stable dimension identifier. It differs from value for
+  // profiles, where value is the current product display label.
+  string key = 8;
+}
+message RunnerBreakdownRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+}
+message RunnerBreakdownResponse {
+  repeated RunBreakdownRow rows = 1;
+  string executed_query = 2;
+}
+message ModelBreakdownRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+}
+message ModelBreakdownResponse {
+  repeated RunBreakdownRow rows = 1;
+  string executed_query = 2;
+}
+message ProfileBreakdownRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+}
+message ProfileBreakdownResponse {
+  repeated RunBreakdownRow rows = 1;
+  string executed_query = 2;
+}
+
+// TerminalRunTrend is an hourly terminal-time series. It intentionally does
+// not claim a started-run count, because this durable projection owns terminal
+// summaries rather than mutable in-flight lifecycle state.
+message TerminalRunTrendRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+}
+message TerminalRunTrendRow {
+  string bucket = 1;
+  int64 terminal_runs = 2;
+  int64 completed_runs = 3;
+  int64 failed_runs = 4;
+  int64 cancelled_runs = 5;
+  double total_cost_usd = 6;
+  double average_duration_ms = 7;
+}
+message TerminalRunTrendResponse {
+  repeated TerminalRunTrendRow rows = 1;
+  string executed_query = 2;
+}
+
+message ToolUsageRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+}
+message ToolUsageRow {
+  string tool_name = 1;
+  int64 call_count = 2;
+  int64 success_count = 3;
+  int64 failed_count = 4;
+}
+message ToolUsageResponse {
+  repeated ToolUsageRow rows = 1;
+  string executed_query = 2;
+}
+
+message ErrorPatternsRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+}
+message ErrorPatternRow {
+  string error_code = 1;
+  int64 count = 2;
+  string last_seen = 3;
+  string sample_run_id = 4;
+}
+message ErrorPatternsResponse {
+  repeated ErrorPatternRow rows = 1;
+  string executed_query = 2;
+}
+
+message FileRereadRateRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+}
+message FileRereadRateResponse {
+  double rate = 1;
+  int64 files_read_more_than_once = 2;
+  int64 read_calls = 3;
+  string executed_query = 4;
+}
+
+message FindingRecurrenceRateRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+}
+message FindingRecurrenceRateResponse {
+  double rate = 1;
+  int64 recurring_findings = 2;
+  int64 total_findings = 3;
+  int64 recurring_fingerprints = 4;
+  string executed_query = 5;
+}
+
+message SelectCohortRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+  int32 limit = 3;
+}
+message SelectCohortResponse {
+  repeated string run_ids = 1;
+  bool truncated = 2;
+  string executed_query = 3;
+}

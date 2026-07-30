@@ -9,6 +9,7 @@ package api
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	domain "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -1023,7 +1024,7 @@ type PreviewScenarioRemediationResponse struct {
 	Proposal *ScenarioRemediationProposal `protobuf:"bytes,1,opt,name=proposal,proto3" json:"proposal,omitempty"`
 	// Existing reconciliation state is returned rather than silently creating
 	// a duplicate proposal or work item.
-	Existing      *domain.ScenarioRemediationSummary `protobuf:"bytes,2,opt,name=existing,proto3,oneof" json:"existing,omitempty"`
+	Existing      *shared.ScenarioRemediationSummary `protobuf:"bytes,2,opt,name=existing,proto3,oneof" json:"existing,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1065,7 +1066,7 @@ func (x *PreviewScenarioRemediationResponse) GetProposal() *ScenarioRemediationP
 	return nil
 }
 
-func (x *PreviewScenarioRemediationResponse) GetExisting() *domain.ScenarioRemediationSummary {
+func (x *PreviewScenarioRemediationResponse) GetExisting() *shared.ScenarioRemediationSummary {
 	if x != nil {
 		return x.Existing
 	}
@@ -1574,7 +1575,7 @@ var File_swarm_manager_v1_api_scenarios_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_scenarios_proto_rawDesc = "" +
 	"\n" +
-	"$swarm-manager/v1/api/scenarios.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a\x1bbuf/validate/validate.proto\x1a&swarm-manager/v1/domain/scenario.proto\"_\n" +
+	"$swarm-manager/v1/api/scenarios.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a\x1bbuf/validate/validate.proto\x1a&swarm-manager/v1/domain/scenario.proto\x1a$swarm-manager/v1/shared/health.proto\"_\n" +
 	"\x15ListScenariosResponse\x12F\n" +
 	"\tscenarios\x18\x01 \x03(\v2(.vrooli.swarm_manager.v1.domain.ScenarioR\tscenarios\"X\n" +
 	"\x10ScenarioResponse\x12D\n" +
@@ -1653,7 +1654,7 @@ const file_swarm_manager_v1_api_scenarios_proto_rawDesc = "" +
 	"\x06target\x18\x01 \x01(\v26.vrooli.swarm_manager.v1.api.ScenarioRemediationTargetB\x06\xbaH\x03\xc8\x01\x01R\x06target\"\xec\x01\n" +
 	"\"PreviewScenarioRemediationResponse\x12\\\n" +
 	"\bproposal\x18\x01 \x01(\v28.vrooli.swarm_manager.v1.api.ScenarioRemediationProposalB\x06\xbaH\x03\xc8\x01\x01R\bproposal\x12[\n" +
-	"\bexisting\x18\x02 \x01(\v2:.vrooli.swarm_manager.v1.domain.ScenarioRemediationSummaryH\x00R\bexisting\x88\x01\x01B\v\n" +
+	"\bexisting\x18\x02 \x01(\v2:.vrooli.swarm_manager.v1.shared.ScenarioRemediationSummaryH\x00R\bexisting\x88\x01\x01B\v\n" +
 	"\t_existing\"\xa4\x01\n" +
 	"\x1fApplyScenarioRemediationRequest\x12V\n" +
 	"\x06target\x18\x01 \x01(\v26.vrooli.swarm_manager.v1.api.ScenarioRemediationTargetB\x06\xbaH\x03\xc8\x01\x01R\x06target\x12)\n" +
@@ -1735,7 +1736,7 @@ var file_swarm_manager_v1_api_scenarios_proto_goTypes = []any{
 	(*ApplyScenarioMaturityCampaignRequest)(nil),    // 23: vrooli.swarm_manager.v1.api.ApplyScenarioMaturityCampaignRequest
 	(*ApplyScenarioMaturityCampaignResponse)(nil),   // 24: vrooli.swarm_manager.v1.api.ApplyScenarioMaturityCampaignResponse
 	(*domain.Scenario)(nil),                         // 25: vrooli.swarm_manager.v1.domain.Scenario
-	(*domain.ScenarioRemediationSummary)(nil),       // 26: vrooli.swarm_manager.v1.domain.ScenarioRemediationSummary
+	(*shared.ScenarioRemediationSummary)(nil),       // 26: vrooli.swarm_manager.v1.shared.ScenarioRemediationSummary
 }
 var file_swarm_manager_v1_api_scenarios_proto_depIdxs = []int32{
 	25, // 0: vrooli.swarm_manager.v1.api.ListScenariosResponse.scenarios:type_name -> vrooli.swarm_manager.v1.domain.Scenario
@@ -1748,7 +1749,7 @@ var file_swarm_manager_v1_api_scenarios_proto_depIdxs = []int32{
 	13, // 7: vrooli.swarm_manager.v1.api.ScenarioRemediationProposal.target:type_name -> vrooli.swarm_manager.v1.api.ScenarioRemediationTarget
 	13, // 8: vrooli.swarm_manager.v1.api.PreviewScenarioRemediationRequest.target:type_name -> vrooli.swarm_manager.v1.api.ScenarioRemediationTarget
 	14, // 9: vrooli.swarm_manager.v1.api.PreviewScenarioRemediationResponse.proposal:type_name -> vrooli.swarm_manager.v1.api.ScenarioRemediationProposal
-	26, // 10: vrooli.swarm_manager.v1.api.PreviewScenarioRemediationResponse.existing:type_name -> vrooli.swarm_manager.v1.domain.ScenarioRemediationSummary
+	26, // 10: vrooli.swarm_manager.v1.api.PreviewScenarioRemediationResponse.existing:type_name -> vrooli.swarm_manager.v1.shared.ScenarioRemediationSummary
 	13, // 11: vrooli.swarm_manager.v1.api.ApplyScenarioRemediationRequest.target:type_name -> vrooli.swarm_manager.v1.api.ScenarioRemediationTarget
 	14, // 12: vrooli.swarm_manager.v1.api.ApplyScenarioRemediationResponse.proposal:type_name -> vrooli.swarm_manager.v1.api.ScenarioRemediationProposal
 	19, // 13: vrooli.swarm_manager.v1.api.ScenarioMaturityCampaignProposal.target:type_name -> vrooli.swarm_manager.v1.api.ScenarioMaturityCampaignTarget

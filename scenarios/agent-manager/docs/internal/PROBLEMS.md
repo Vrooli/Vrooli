@@ -136,6 +136,20 @@ projection) without consulting current policy.
 
 ## Resolved Incidents
 
+### R-006: Stats projection stopped at replay boundary (2026-07-30)
+**Symptom**: The Stats page showed no data despite completed Codex runs. A
+manual invocation-corpus replay populated historical metrics, but newly
+completed executor runs still did not appear.
+**Root cause**: The executor's finalization seam persisted terminal runs
+directly. It bypassed the shared status-transition helper, which was the only
+path that invoked the durable invocation read-model projection.
+**Fix**: The executor now invokes a best-effort terminal observer after final
+state persistence. Agent Manager wires that observer to the durable projection,
+so normal and resumed executor runs update Stats without replay.
+**Validation**: API orchestration tests pass. In the live scenario, a completed
+Codex smoke run increased the selected profile's Stats count from 1 to 2
+without replay; terminal trends showed the new run.
+
 ### R-005: Model-policy hard cutover omitted first-party consumers (2026-07-10)
 **Symptom**: Managed `test-genie` startup failed to compile after the generated
 agent-manager contract removed `ModelPreset`; prompt-manager's manual JSON

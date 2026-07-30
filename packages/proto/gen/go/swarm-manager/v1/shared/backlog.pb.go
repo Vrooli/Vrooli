@@ -105,6 +105,149 @@ func (x *BacklogFile) GetChildren() []*BacklogFile {
 	return nil
 }
 
+// BacklogCriterion is an independently settleable definition of done. It is
+// shared because both the backlog domain projection and its API commands carry
+// the same stable criterion identity.
+type BacklogCriterion struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Assigned by the server when criteria are first persisted. Clients omit it
+	// when creating or replacing criteria; retained IDs support review evidence
+	// and historical correlation.
+	Id            string          `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Gherkin       string          `protobuf:"bytes,2,opt,name=gherkin,proto3" json:"gherkin,omitempty"`
+	Check         *CriterionCheck `protobuf:"bytes,3,opt,name=check,proto3,oneof" json:"check,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BacklogCriterion) Reset() {
+	*x = BacklogCriterion{}
+	mi := &file_swarm_manager_v1_shared_backlog_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BacklogCriterion) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BacklogCriterion) ProtoMessage() {}
+
+func (x *BacklogCriterion) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_shared_backlog_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BacklogCriterion.ProtoReflect.Descriptor instead.
+func (*BacklogCriterion) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_shared_backlog_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *BacklogCriterion) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *BacklogCriterion) GetGherkin() string {
+	if x != nil {
+		return x.Gherkin
+	}
+	return ""
+}
+
+func (x *BacklogCriterion) GetCheck() *CriterionCheck {
+	if x != nil {
+		return x.Check
+	}
+	return nil
+}
+
+// CriterionCheck is the machine-verifiable check bound to a criterion.
+type CriterionCheck struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Scenario      string                 `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Phase         string                 `protobuf:"bytes,3,opt,name=phase,proto3" json:"phase,omitempty"`
+	Argv          []string               `protobuf:"bytes,4,rep,name=argv,proto3" json:"argv,omitempty"`
+	ExpectExit    int32                  `protobuf:"varint,5,opt,name=expect_exit,json=expectExit,proto3" json:"expect_exit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CriterionCheck) Reset() {
+	*x = CriterionCheck{}
+	mi := &file_swarm_manager_v1_shared_backlog_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CriterionCheck) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CriterionCheck) ProtoMessage() {}
+
+func (x *CriterionCheck) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_shared_backlog_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CriterionCheck.ProtoReflect.Descriptor instead.
+func (*CriterionCheck) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_shared_backlog_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *CriterionCheck) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *CriterionCheck) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *CriterionCheck) GetPhase() string {
+	if x != nil {
+		return x.Phase
+	}
+	return ""
+}
+
+func (x *CriterionCheck) GetArgv() []string {
+	if x != nil {
+		return x.Argv
+	}
+	return nil
+}
+
+func (x *CriterionCheck) GetExpectExit() int32 {
+	if x != nil {
+		return x.ExpectExit
+	}
+	return 0
+}
+
 var File_swarm_manager_v1_shared_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_shared_backlog_proto_rawDesc = "" +
@@ -116,7 +259,19 @@ const file_swarm_manager_v1_shared_backlog_proto_rawDesc = "" +
 	"\x04type\x18\x03 \x01(\tB\x16\xbaH\x13r\x11R\x04fileR\tdirectoryR\x04type\x12 \n" +
 	"\x04size\x18\x04 \x01(\x03B\a\xbaH\x04\"\x02(\x00H\x00R\x04size\x88\x01\x01\x12G\n" +
 	"\bchildren\x18\x05 \x03(\v2+.vrooli.swarm_manager.v1.shared.BacklogFileR\bchildrenB\a\n" +
-	"\x05_sizeBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared;sharedb\x06proto3"
+	"\x05_size\"\x9a\x01\n" +
+	"\x10BacklogCriterion\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
+	"\agherkin\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\agherkin\x12I\n" +
+	"\x05check\x18\x03 \x01(\v2..vrooli.swarm_manager.v1.shared.CriterionCheckH\x00R\x05check\x88\x01\x01B\b\n" +
+	"\x06_check\"\xad\x01\n" +
+	"\x0eCriterionCheck\x124\n" +
+	"\x04kind\x18\x01 \x01(\tB \xbaH\x1dr\x1bR\x10test_genie_phaseR\acommandR\x04kind\x12\x1a\n" +
+	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x14\n" +
+	"\x05phase\x18\x03 \x01(\tR\x05phase\x12\x12\n" +
+	"\x04argv\x18\x04 \x03(\tR\x04argv\x12\x1f\n" +
+	"\vexpect_exit\x18\x05 \x01(\x05R\n" +
+	"expectExitBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared;sharedb\x06proto3"
 
 var (
 	file_swarm_manager_v1_shared_backlog_proto_rawDescOnce sync.Once
@@ -130,17 +285,20 @@ func file_swarm_manager_v1_shared_backlog_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_shared_backlog_proto_rawDescData
 }
 
-var file_swarm_manager_v1_shared_backlog_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_swarm_manager_v1_shared_backlog_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_swarm_manager_v1_shared_backlog_proto_goTypes = []any{
-	(*BacklogFile)(nil), // 0: vrooli.swarm_manager.v1.shared.BacklogFile
+	(*BacklogFile)(nil),      // 0: vrooli.swarm_manager.v1.shared.BacklogFile
+	(*BacklogCriterion)(nil), // 1: vrooli.swarm_manager.v1.shared.BacklogCriterion
+	(*CriterionCheck)(nil),   // 2: vrooli.swarm_manager.v1.shared.CriterionCheck
 }
 var file_swarm_manager_v1_shared_backlog_proto_depIdxs = []int32{
 	0, // 0: vrooli.swarm_manager.v1.shared.BacklogFile.children:type_name -> vrooli.swarm_manager.v1.shared.BacklogFile
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	2, // 1: vrooli.swarm_manager.v1.shared.BacklogCriterion.check:type_name -> vrooli.swarm_manager.v1.shared.CriterionCheck
+	2, // [2:2] is the sub-list for method output_type
+	2, // [2:2] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_shared_backlog_proto_init() }
@@ -149,13 +307,14 @@ func file_swarm_manager_v1_shared_backlog_proto_init() {
 		return
 	}
 	file_swarm_manager_v1_shared_backlog_proto_msgTypes[0].OneofWrappers = []any{}
+	file_swarm_manager_v1_shared_backlog_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_shared_backlog_proto_rawDesc), len(file_swarm_manager_v1_shared_backlog_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   1,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

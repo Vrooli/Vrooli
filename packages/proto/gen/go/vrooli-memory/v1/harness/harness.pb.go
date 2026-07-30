@@ -432,6 +432,7 @@ func (x *ImportRun) GetUpdatedAt() string {
 type RefreshProjectionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Runtime       string                 `protobuf:"bytes,1,opt,name=runtime,proto3" json:"runtime,omitempty"`
+	DryRun        bool                   `protobuf:"varint,2,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -473,12 +474,22 @@ func (x *RefreshProjectionRequest) GetRuntime() string {
 	return ""
 }
 
+func (x *RefreshProjectionRequest) GetDryRun() bool {
+	if x != nil {
+		return x.DryRun
+	}
+	return false
+}
+
 type RefreshProjectionResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
-	SizeBytes     int64                  `protobuf:"varint,2,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Path            string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	SizeBytes       int64                  `protobuf:"varint,2,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	Overflow        bool                   `protobuf:"varint,3,opt,name=overflow,proto3" json:"overflow,omitempty"`
+	DryRun          bool                   `protobuf:"varint,4,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	RenderedContent string                 `protobuf:"bytes,5,opt,name=rendered_content,json=renderedContent,proto3" json:"rendered_content,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *RefreshProjectionResponse) Reset() {
@@ -523,6 +534,27 @@ func (x *RefreshProjectionResponse) GetSizeBytes() int64 {
 		return x.SizeBytes
 	}
 	return 0
+}
+
+func (x *RefreshProjectionResponse) GetOverflow() bool {
+	if x != nil {
+		return x.Overflow
+	}
+	return false
+}
+
+func (x *RefreshProjectionResponse) GetDryRun() bool {
+	if x != nil {
+		return x.DryRun
+	}
+	return false
+}
+
+func (x *RefreshProjectionResponse) GetRenderedContent() string {
+	if x != nil {
+		return x.RenderedContent
+	}
+	return ""
 }
 
 type InstallPromptBlockRequest struct {
@@ -617,6 +649,7 @@ type CaptureWriteRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Runtime       string                 `protobuf:"bytes,1,opt,name=runtime,proto3" json:"runtime,omitempty"`
 	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+	SourcePath    string                 `protobuf:"bytes,3,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -661,6 +694,13 @@ func (x *CaptureWriteRequest) GetRuntime() string {
 func (x *CaptureWriteRequest) GetContent() string {
 	if x != nil {
 		return x.Content
+	}
+	return ""
+}
+
+func (x *CaptureWriteRequest) GetSourcePath() string {
+	if x != nil {
+		return x.SourcePath
 	}
 	return ""
 }
@@ -747,20 +787,26 @@ const file_vrooli_memory_v1_harness_harness_proto_rawDesc = "" +
 	"started_at\x18\f \x01(\tR\tstartedAt\x12!\n" +
 	"\fcompleted_at\x18\r \x01(\tR\vcompletedAt\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\x0e \x01(\tR\tupdatedAt\"4\n" +
+	"updated_at\x18\x0e \x01(\tR\tupdatedAt\"M\n" +
 	"\x18RefreshProjectionRequest\x12\x18\n" +
-	"\aruntime\x18\x01 \x01(\tR\aruntime\"N\n" +
+	"\aruntime\x18\x01 \x01(\tR\aruntime\x12\x17\n" +
+	"\adry_run\x18\x02 \x01(\bR\x06dryRun\"\xae\x01\n" +
 	"\x19RefreshProjectionResponse\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x1d\n" +
 	"\n" +
-	"size_bytes\x18\x02 \x01(\x03R\tsizeBytes\"5\n" +
+	"size_bytes\x18\x02 \x01(\x03R\tsizeBytes\x12\x1a\n" +
+	"\boverflow\x18\x03 \x01(\bR\boverflow\x12\x17\n" +
+	"\adry_run\x18\x04 \x01(\bR\x06dryRun\x12)\n" +
+	"\x10rendered_content\x18\x05 \x01(\tR\x0frenderedContent\"5\n" +
 	"\x19InstallPromptBlockRequest\x12\x18\n" +
 	"\aruntime\x18\x01 \x01(\tR\aruntime\":\n" +
 	"\x1aInstallPromptBlockResponse\x12\x1c\n" +
-	"\tinstalled\x18\x01 \x01(\bR\tinstalled\"I\n" +
+	"\tinstalled\x18\x01 \x01(\bR\tinstalled\"j\n" +
 	"\x13CaptureWriteRequest\x12\x18\n" +
 	"\aruntime\x18\x01 \x01(\tR\aruntime\x12\x18\n" +
-	"\acontent\x18\x02 \x01(\tR\acontent\"1\n" +
+	"\acontent\x18\x02 \x01(\tR\acontent\x12\x1f\n" +
+	"\vsource_path\x18\x03 \x01(\tR\n" +
+	"sourcePath\"1\n" +
 	"\x14CaptureWriteResponse\x12\x19\n" +
 	"\bentry_id\x18\x01 \x01(\tR\aentryId2\xa5\x05\n" +
 	"\x0eHarnessService\x12r\n" +

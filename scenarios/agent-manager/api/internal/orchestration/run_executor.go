@@ -131,6 +131,11 @@ type RunExecutor struct {
 	// RunStatusRunning. Wired by the spawn dispatcher to release the
 	// startup slot. Nil is safe — the executor still runs.
 	onRunning func()
+
+	// onTerminal receives the persisted terminal run after the finalization
+	// seam. It is deliberately best-effort so analytics capture cannot alter a
+	// completed run's result.
+	onTerminal func(*domain.Run)
 }
 
 // NewRunExecutor creates a new executor for the given run.
@@ -177,6 +182,14 @@ func (e *RunExecutor) WithRunStateWriteObserver(observer func()) *RunExecutor {
 
 // WithClock supplies deterministic timestamps to all execution phases.
 func (e *RunExecutor) WithClock(clock func() time.Time) *RunExecutor { e.clock = clock; return e }
+
+// WithTerminalObserver installs a best-effort observer after the final run
+// state is persisted. The owner uses this to keep the durable analytics read
+// model current for normal executor-driven runs.
+func (e *RunExecutor) WithTerminalObserver(observer func(*domain.Run)) *RunExecutor {
+	e.onTerminal = observer
+	return e
+}
 
 func (e *RunExecutor) WithCheckpointRepository(repo repository.CheckpointRepository) *RunExecutor {
 	e.checkpoints = repo
@@ -652,6 +665,9 @@ func (e *RunExecutor) finalize() {
 		SandboxID: e.sandboxID,
 		Sandbox:   e.sandbox,
 	})
+	if e.onTerminal != nil && e.run != nil && e.run.Status.IsTerminal() {
+		e.onTerminal(e.run)
+	}
 }
 
 // =============================================================================

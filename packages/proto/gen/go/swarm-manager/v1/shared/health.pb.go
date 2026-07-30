@@ -7,6 +7,7 @@
 package shared
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -186,11 +187,84 @@ func (x *HealthResponse) GetDependencies() map[string]*DependencyStatus {
 	return nil
 }
 
+// ScenarioRemediationSummary is Swarm-owned reconciliation state keyed by a
+// canonical remediation fingerprint. It links governed work without copying
+// provider findings into local storage. It is shared by the scenario domain
+// health projection and remediation API responses.
+type ScenarioRemediationSummary struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Fingerprint string                 `protobuf:"bytes,1,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	// suggested, accepted, dismissed, or none.
+	State         string  `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+	WorkRef       *string `protobuf:"bytes,3,opt,name=work_ref,json=workRef,proto3,oneof" json:"work_ref,omitempty"`
+	UpdatedAt     *string `protobuf:"bytes,4,opt,name=updated_at,json=updatedAt,proto3,oneof" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScenarioRemediationSummary) Reset() {
+	*x = ScenarioRemediationSummary{}
+	mi := &file_swarm_manager_v1_shared_health_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioRemediationSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioRemediationSummary) ProtoMessage() {}
+
+func (x *ScenarioRemediationSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_shared_health_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioRemediationSummary.ProtoReflect.Descriptor instead.
+func (*ScenarioRemediationSummary) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_shared_health_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ScenarioRemediationSummary) GetFingerprint() string {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return ""
+}
+
+func (x *ScenarioRemediationSummary) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *ScenarioRemediationSummary) GetWorkRef() string {
+	if x != nil && x.WorkRef != nil {
+		return *x.WorkRef
+	}
+	return ""
+}
+
+func (x *ScenarioRemediationSummary) GetUpdatedAt() string {
+	if x != nil && x.UpdatedAt != nil {
+		return *x.UpdatedAt
+	}
+	return ""
+}
+
 var File_swarm_manager_v1_shared_health_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_shared_health_proto_rawDesc = "" +
 	"\n" +
-	"$swarm-manager/v1/shared/health.proto\x12\x1evrooli.swarm_manager.v1.shared\"\x81\x01\n" +
+	"$swarm-manager/v1/shared/health.proto\x12\x1evrooli.swarm_manager.v1.shared\x1a\x1bbuf/validate/validate.proto\"\x81\x01\n" +
 	"\x10DependencyStatus\x12\x1c\n" +
 	"\tconnected\x18\x01 \x01(\bR\tconnected\x12\x1d\n" +
 	"\n" +
@@ -207,7 +281,15 @@ const file_swarm_manager_v1_shared_health_proto_rawDesc = "" +
 	"\fdependencies\x18\a \x03(\v2@.vrooli.swarm_manager.v1.shared.HealthResponse.DependenciesEntryR\fdependencies\x1aq\n" +
 	"\x11DependenciesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12F\n" +
-	"\x05value\x18\x02 \x01(\v20.vrooli.swarm_manager.v1.shared.DependencyStatusR\x05value:\x028\x01BOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared;sharedb\x06proto3"
+	"\x05value\x18\x02 \x01(\v20.vrooli.swarm_manager.v1.shared.DependencyStatusR\x05value:\x028\x01\"\xea\x01\n" +
+	"\x1aScenarioRemediationSummary\x12)\n" +
+	"\vfingerprint\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vfingerprint\x12A\n" +
+	"\x05state\x18\x02 \x01(\tB+\xbaH(r&R\tsuggestedR\bacceptedR\tdismissedR\x04noneR\x05state\x12\x1e\n" +
+	"\bwork_ref\x18\x03 \x01(\tH\x00R\aworkRef\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"updated_at\x18\x04 \x01(\tH\x01R\tupdatedAt\x88\x01\x01B\v\n" +
+	"\t_work_refB\r\n" +
+	"\v_updated_atBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared;sharedb\x06proto3"
 
 var (
 	file_swarm_manager_v1_shared_health_proto_rawDescOnce sync.Once
@@ -221,14 +303,15 @@ func file_swarm_manager_v1_shared_health_proto_rawDescGZIP() []byte {
 	return file_swarm_manager_v1_shared_health_proto_rawDescData
 }
 
-var file_swarm_manager_v1_shared_health_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_swarm_manager_v1_shared_health_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_swarm_manager_v1_shared_health_proto_goTypes = []any{
-	(*DependencyStatus)(nil), // 0: vrooli.swarm_manager.v1.shared.DependencyStatus
-	(*HealthResponse)(nil),   // 1: vrooli.swarm_manager.v1.shared.HealthResponse
-	nil,                      // 2: vrooli.swarm_manager.v1.shared.HealthResponse.DependenciesEntry
+	(*DependencyStatus)(nil),           // 0: vrooli.swarm_manager.v1.shared.DependencyStatus
+	(*HealthResponse)(nil),             // 1: vrooli.swarm_manager.v1.shared.HealthResponse
+	(*ScenarioRemediationSummary)(nil), // 2: vrooli.swarm_manager.v1.shared.ScenarioRemediationSummary
+	nil,                                // 3: vrooli.swarm_manager.v1.shared.HealthResponse.DependenciesEntry
 }
 var file_swarm_manager_v1_shared_health_proto_depIdxs = []int32{
-	2, // 0: vrooli.swarm_manager.v1.shared.HealthResponse.dependencies:type_name -> vrooli.swarm_manager.v1.shared.HealthResponse.DependenciesEntry
+	3, // 0: vrooli.swarm_manager.v1.shared.HealthResponse.dependencies:type_name -> vrooli.swarm_manager.v1.shared.HealthResponse.DependenciesEntry
 	0, // 1: vrooli.swarm_manager.v1.shared.HealthResponse.DependenciesEntry.value:type_name -> vrooli.swarm_manager.v1.shared.DependencyStatus
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
@@ -242,13 +325,14 @@ func file_swarm_manager_v1_shared_health_proto_init() {
 	if File_swarm_manager_v1_shared_health_proto != nil {
 		return
 	}
+	file_swarm_manager_v1_shared_health_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_shared_health_proto_rawDesc), len(file_swarm_manager_v1_shared_health_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

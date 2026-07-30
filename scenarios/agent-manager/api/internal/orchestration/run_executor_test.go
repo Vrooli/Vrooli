@@ -1064,6 +1064,8 @@ func TestRunExecutor_UpdatesRunStatus(t *testing.T) {
 		"test prompt",
 		"", // no system prompt
 	).WithLevers(levers)
+	terminal := make(chan *domain.Run, 1)
+	executor.WithTerminalObserver(func(run *domain.Run) { terminal <- run })
 
 	ctx := context.Background()
 	executor.Execute(ctx)
@@ -1082,6 +1084,15 @@ func TestRunExecutor_UpdatesRunStatus(t *testing.T) {
 	// Verify EndedAt was set
 	if updatedRun.EndedAt == nil {
 		t.Error("expected EndedAt to be set")
+	}
+
+	select {
+	case observed := <-terminal:
+		if observed.ID != f.run.ID || observed.Status != domain.RunStatusComplete {
+			t.Fatalf("terminal observer received %+v", observed)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("terminal observer was not called")
 	}
 }
 

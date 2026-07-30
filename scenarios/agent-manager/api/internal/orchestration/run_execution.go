@@ -794,6 +794,7 @@ func (o *Orchestrator) executeRun(ctx context.Context, run *domain.Run, task *do
 		systemPrompt,
 	)
 	executor.WithClock(o.now)
+	executor.WithTerminalObserver(o.projectTerminalInvocationReadModel)
 	executor.WithRunStateRoot(runStateRoot)
 	executor.WithRunStateWriteObserver(func() { o.recordRunStateWrite(ctx) })
 	executor.WithStructuredResultResolver(o.structuredResults)
@@ -1159,6 +1160,7 @@ func (o *Orchestrator) resumeRun(ctx context.Context, run *domain.Run, task *dom
 		"", // No system prompt for resume (session persists instructions)
 	)
 	executor.WithClock(o.now)
+	executor.WithTerminalObserver(o.projectTerminalInvocationReadModel)
 	executor.WithRunStateRoot(runStateRoot)
 	executor.WithRunStateWriteObserver(func() { o.recordRunStateWrite(ctx) })
 	executor.WithStructuredResultResolver(o.structuredResults)
