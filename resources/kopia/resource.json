@@ -155,28 +155,29 @@
     }
   },
   "credentials": {
-    "secret_ref": "secret/resources/kopia",
-    "env": [
+    "descriptors": [
       {
+        "logical_id": "vrooli/kopia",
+        "field": "repository-passphrase",
         "env": "KOPIA_PASSWORD",
         "label": "Kopia repository passphrase",
         "description": "Per-repository client-side encryption passphrase. System-generated (32+ chars) on repo creation and stored in Vault; never user-typed and never written to a config file. Without it, an encrypted repository cannot be opened.",
-        "classification": "infrastructure",
-        "required": true,
-        "default_hint": "Auto-generated 32+ character random string"
+        "required": true
       },
       {
+        "logical_id": "vrooli/kopia",
+        "field": "s3-access-key-id",
         "env": "AWS_ACCESS_KEY_ID",
         "label": "S3 access key ID",
         "description": "Access key for an S3/MinIO-compatible backend. Only required for repositories created with --backend s3.",
-        "classification": "user",
         "required": false
       },
       {
+        "logical_id": "vrooli/kopia",
+        "field": "s3-secret-access-key",
         "env": "AWS_SECRET_ACCESS_KEY",
         "label": "S3 secret access key",
         "description": "Secret key for an S3/MinIO-compatible backend. Only required for repositories created with --backend s3.",
-        "classification": "user",
         "required": false
       }
     ]
@@ -194,5 +195,7 @@
     "supports_logs": false,
     "supports_content_ops": true
   },
-  "template_version": "2"
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
 }

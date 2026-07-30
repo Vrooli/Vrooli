@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 
@@ -311,7 +310,7 @@ func TestValidateHealthCheckKind(t *testing.T) {
 	}
 }
 
-func TestResourceCredentialsUnmarshalAcceptsSecretDescriptors(t *testing.T) {
+func TestResourceCredentialsUnmarshalAcceptsCanonicalDescriptors(t *testing.T) {
 	var manifest ResourceManifest
 	err := json.Unmarshal([]byte(`{
 		"name": "openrouter",
@@ -323,29 +322,18 @@ func TestResourceCredentialsUnmarshalAcceptsSecretDescriptors(t *testing.T) {
 		"driver": "cloud-api",
 		"endpoint": "https://openrouter.ai/api/v1/models",
 		"portability_tier": "full",
-		"credentials": {
-			"env": [
-				{
-					"env": "OPENROUTER_API_KEY",
-					"label": "OpenRouter API Key",
-					"description": "OpenRouter unified API gateway.",
-					"classification": "user",
-					"required": true,
-					"obtain_url": "https://openrouter.ai/keys"
-				},
-				"OPENROUTER_SITE_URL"
-			],
-			"secret_ref": "secret/openrouter"
-		}
+		"credentials": {"descriptors": [{
+			"logical_id": "vrooli/openrouter", "field": "api-key",
+			"env": "OPENROUTER_API_KEY", "label": "OpenRouter API Key",
+			"description": "OpenRouter unified API gateway.", "required": true,
+			"obtain_url": "https://openrouter.ai/keys"
+		}]}
 	}`), &manifest)
 	if err != nil {
 		t.Fatalf("Unmarshal(): %v", err)
 	}
-	if got, want := manifest.Credentials.Env, []string{"OPENROUTER_API_KEY", "OPENROUTER_SITE_URL"}; !slices.Equal(got, want) {
-		t.Fatalf("Credentials.Env = %#v, want %#v", got, want)
-	}
-	if manifest.Credentials.SecretRef != "secret/openrouter" {
-		t.Fatalf("Credentials.SecretRef = %q", manifest.Credentials.SecretRef)
+	if got := manifest.Credentials.All(); len(got) != 1 || got[0].LogicalID != "vrooli/openrouter" {
+		t.Fatalf("Credentials.All() = %#v", got)
 	}
 }
 

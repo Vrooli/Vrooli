@@ -485,8 +485,8 @@ substrate itself (storage-steer §6) for when a scenario crosses to real users.
    only meaningful once a corpus large enough to clear the guards exists — grow it
    first with `evals generate --apply`). Reconfirm **KO recall@5 = 0.818**
    (`KO_AISEARCH_LIVE=1 go test ./internal/aisearch/ -run TestAccuracyCorpus`).
-2. On plan completion, write the `kind: execute` record
-   (`swarm-manager records create`) per plan §13.
+2. On plan completion, write a `work-record` memory with trigger, approach,
+   evidence, and outcome per plan §13.
 
 **Refs:** `packages/ai-go/search/docs/reference/{search-json,configuration}.md`,
 `packages/ai-go/search/README.md`; `scenarios/{search-hub,cli-health,

@@ -5,18 +5,15 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"net"
 	"net/http"
-	"os"
-	"os/signal"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	apiserver "github.com/vrooli/api-core/server"
 
 	"test-genie/agentmanager"
 	appelig "test-genie/internal/app/eligibility"
@@ -291,80 +288,49 @@ func (s *Server) setupRoutes() {
 	}
 }
 
-// Start launches the HTTP server with graceful shutdown.
+// Handler preserves Test Genie's router, development routing, test-mode
+// isolation, and recovery middleware while delegating lifecycle and receipt
+// observation to api-core/server.
+func (s *Server) Handler() http.Handler {
+	rootMux := http.NewServeMux()
+	if s.db != nil {
+		devrouting.Register(rootMux, s.db)
+	}
+	rootMux.Handle("/", s.router)
+	return handlers.RecoveryHandler()(apihttp.TestModeMiddleware(rootMux))
+}
+
+// Start launches through the standard API Core server so receipt observation,
+// verified provenance, streaming-safe wrappers, and graceful shutdown are
+// shared with the rest of the fleet.
 func (s *Server) Start() error {
 	s.log("starting server", map[string]interface{}{
 		"service": s.serviceName(),
 		"port":    s.config.Port,
 	})
 
-	// Mount the dev-only RoutingService alongside the API so test-genie (or, on
-	// a self-test, this very process) can install a runtime test-DB pool on the
-	// live *database.RoutedDB without a restart. devrouting.Register is a no-op
-	// in production mode; TestModeMiddleware self-disables there too. gorilla's
-	// Router does not satisfy the ServeMux-shaped Mux, so a parent ServeMux owns
-	// the routing route and delegates everything else to the API router.
-	rootMux := http.NewServeMux()
-	if s.db != nil {
-		devrouting.Register(rootMux, s.db)
-	}
-	rootMux.Handle("/", s.router)
-	rootHandler := apihttp.TestModeMiddleware(rootMux)
-
-	httpServer := &http.Server{
-		Addr:    fmt.Sprintf(":%s", s.config.Port),
-		Handler: handlers.RecoveryHandler()(rootHandler),
-		// Extended timeouts to support long-running SSE streams for test execution
-		// Test suites can run for up to 15 minutes
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 20 * time.Minute, // Extended for SSE streaming
-		IdleTimeout:  120 * time.Second,
-	}
-
-	listener, err := net.Listen("tcp", httpServer.Addr)
-	if err != nil {
-		return fmt.Errorf("server startup failed: %w", err)
-	}
-
 	backgroundCtx, cancelBackground := context.WithCancel(context.Background())
 	defer cancelBackground()
-	errCh := make(chan error, 1)
-	go func() {
-		if err := httpServer.Serve(listener); err != nil && err != http.ErrServerClosed {
-			errCh <- err
-		}
-	}()
 	if s.startBackground != nil {
 		s.startBackground(backgroundCtx)
 	}
-	if s.healthDB != nil {
-		defer s.healthDB.Close()
-	}
-
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
-	select {
-	case <-quit:
-	case err := <-errCh:
-		return fmt.Errorf("server startup failed: %w", err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// Cancel any in-flight durable runs so the process exits promptly; the next
-	// boot's startup sweep marks their index entries aborted.
-	if s.runManager != nil {
-		s.runManager.Shutdown()
-	}
-
-	if err := httpServer.Shutdown(ctx); err != nil {
-		return fmt.Errorf("server shutdown failed: %w", err)
-	}
-
-	s.log("server stopped", nil)
-	return nil
+	return apiserver.Run(apiserver.Config{
+		Handler:      s.Handler(),
+		Port:         s.config.Port,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 20 * time.Minute,
+		IdleTimeout:  120 * time.Second,
+		Cleanup: func(context.Context) error {
+			cancelBackground()
+			if s.runManager != nil {
+				s.runManager.Shutdown()
+			}
+			if s.healthDB != nil {
+				return s.healthDB.Close()
+			}
+			return nil
+		},
+	})
 }
 
 // loggingMiddleware prints simple request logs.

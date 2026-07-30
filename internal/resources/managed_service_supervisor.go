@@ -64,7 +64,7 @@ func newManagedServiceSupervisor(statePath, logPath string) *ManagedServiceSuper
 }
 
 func managedServiceSupervisorFor(resource string) (*ManagedServiceSupervisor, runtimestorage.Paths, error) {
-	resolver, err := runtimestorage.NewResolver(runtimestorage.ResolverConfig{AppID: "vrooli"})
+	resolver, err := resourceStorageResolver()
 	if err != nil {
 		return nil, runtimestorage.Paths{}, err
 	}

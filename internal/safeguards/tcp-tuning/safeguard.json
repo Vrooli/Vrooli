@@ -3,9 +3,16 @@
   "name": "tcp_tuning",
   "description": "Optimize TCP stack parameters for reliable connectivity (PMTU probing, ECN, base MSS)",
   "handler": "tcp_tuning",
-  "platforms": ["linux"],
+  "platforms": [
+    "linux"
+  ],
   "risk": "medium",
   "verificationCheck": {
-    "files": ["/etc/sysctl.d/99-vrooli-tcp.conf"]
-  }
+    "files": [
+      "/etc/sysctl.d/99-vrooli-tcp.conf"
+    ]
+  },
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "deployment": {"profiles": {"desktop": {"linux": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "macos": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "windows": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}}}}
 }

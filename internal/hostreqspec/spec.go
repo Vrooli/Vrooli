@@ -8,21 +8,68 @@ import (
 
 type Kind string
 
+// Privilege describes the highest privilege an object needs on a target host.
+// It is deliberately independent of Bundling: a vendorable binary may need
+// elevated installation on one OS while still being safe to ship in a bundle.
+type Privilege string
+
+const (
+	PrivilegeNone     Privilege = "none"
+	PrivilegeUser     Privilege = "user"
+	PrivilegeElevated Privilege = "elevated"
+)
+
+// Bundling describes whether a host requirement may be part of a Tier 2
+// desktop application.
+type Bundling string
+
+const (
+	BundlingVendorable   Bundling = "vendorable"
+	BundlingHostRequired Bundling = "host-required"
+	BundlingProhibited   Bundling = "prohibited"
+)
+
 const (
 	KindTool      Kind = "tool"
 	KindSafeguard Kind = "safeguard"
 )
 
 type Declaration struct {
-	Name         string                 `json:"name"`
-	Required     bool                   `json:"required"`
-	Reason       string                 `json:"reason"`
-	When         []string               `json:"when,omitempty"`
-	Environments []string               `json:"environments,omitempty"`
-	Platforms    []string               `json:"platforms,omitempty"`
-	Notes        string                 `json:"notes,omitempty"`
-	Manual       bool                   `json:"manual,omitempty"`
-	Requires     *CapabilityRequirement `json:"requires,omitempty"`
+	Name         string    `json:"name"`
+	Required     bool      `json:"required"`
+	Reason       string    `json:"reason"`
+	When         []string  `json:"when,omitempty"`
+	Environments []string  `json:"environments,omitempty"`
+	Platforms    []string  `json:"platforms,omitempty"`
+	Notes        string    `json:"notes,omitempty"`
+	Manual       bool      `json:"manual,omitempty"`
+	Privilege    Privilege `json:"privilege,omitempty"`
+	// PrivilegeReason is mandatory for an explicit tool privilege because tools
+	// otherwise derive their value from their source mechanism per platform.
+	PrivilegeReason string                 `json:"privilegeReason,omitempty"`
+	Bundling        Bundling               `json:"bundling,omitempty"`
+	Requires        *CapabilityRequirement `json:"requires,omitempty"`
+}
+
+// DerivePrivilege returns an explicit value when the manifest explains why the
+// normal source-mechanism rule is wrong. Release artifacts install into a user
+// directory. Package-manager installs need elevation on Linux and Windows but
+// not on macOS, where Homebrew is user-owned.
+func (d Declaration) DerivePrivilege(platform string) Privilege {
+	if d.Privilege != "" {
+		return d.Privilege
+	}
+	platform = strings.ToLower(strings.TrimSpace(platform))
+	if platform == "darwin" {
+		platform = "macos"
+	}
+	// Host declarations do not carry a source type. Their default is user: the
+	// object is consumed from an already configured host. Tool manifests supply
+	// an explicit or derived value during registry resolution.
+	if platform == "linux" || platform == "windows" {
+		return PrivilegeUser
+	}
+	return PrivilegeUser
 }
 
 // CapabilityRequirement gates a host requirement on hardware facts collected by
@@ -124,8 +171,25 @@ func ValidateDeclarations(kind Kind, declarations []Declaration) error {
 		if err := validateList(kind, name, "platforms", declaration.Platforms); err != nil {
 			return err
 		}
+		if declaration.Privilege != "" && !isPrivilege(declaration.Privilege) {
+			return fmt.Errorf("%s %q has unknown privilege %q", kind, name, declaration.Privilege)
+		}
+		if declaration.Privilege != "" && strings.TrimSpace(declaration.PrivilegeReason) == "" {
+			return fmt.Errorf("%s %q explicit privilege requires privilegeReason", kind, name)
+		}
+		if declaration.Bundling != "" && !isBundling(declaration.Bundling) {
+			return fmt.Errorf("%s %q has unknown bundling %q", kind, name, declaration.Bundling)
+		}
 	}
 	return nil
+}
+
+func isPrivilege(value Privilege) bool {
+	return value == PrivilegeNone || value == PrivilegeUser || value == PrivilegeElevated
+}
+
+func isBundling(value Bundling) bool {
+	return value == BundlingVendorable || value == BundlingHostRequired || value == BundlingProhibited
 }
 
 func validateList(kind Kind, name, field string, values []string) error {
@@ -149,6 +213,8 @@ type ResolvedRequirement struct {
 	Kind         Kind                   `json:"kind"`
 	Required     bool                   `json:"required"`
 	Manual       bool                   `json:"manual"`
+	Privilege    Privilege              `json:"privilege"`
+	Bundling     Bundling               `json:"bundling"`
 	Reasons      []string               `json:"reasons,omitempty"`
 	When         []string               `json:"when,omitempty"`
 	Environments []string               `json:"environments,omitempty"`

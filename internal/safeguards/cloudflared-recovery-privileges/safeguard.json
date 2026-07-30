@@ -3,9 +3,16 @@
   "name": "cloudflared_recovery_privileges",
   "description": "Write the minimal NOPASSWD sudoers grant (/etc/sudoers.d/tunnel-manager) that lets the non-root tunnel-manager process restart and reset-failed the root cloudflared systemd unit, so its auto-recovery loop can actuate without an interactive sudo prompt",
   "handler": "cloudflared_recovery_privileges",
-  "platforms": ["linux"],
+  "platforms": [
+    "linux"
+  ],
   "risk": "medium",
   "verificationCheck": {
-    "files": ["/etc/sudoers.d/tunnel-manager"]
-  }
+    "files": [
+      "/etc/sudoers.d/tunnel-manager"
+    ]
+  },
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "deployment": {"profiles": {"desktop": {"linux": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "macos": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "windows": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}}}}
 }

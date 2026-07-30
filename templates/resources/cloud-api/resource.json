@@ -108,10 +108,12 @@
   "category": "{{RESOURCE_CATEGORY}}",
   "endpoint": "{{RESOURCE_ENDPOINT}}",
   "credentials": {
-    "env": [
-      "{{RESOURCE_CREDENTIAL_ENV}}"
-    ],
-    "secret_ref": "replace/me"
+    "descriptors": [{
+      "logical_id": "vrooli/{{RESOURCE_NAME}}",
+      "field": "api-key",
+      "env": "{{RESOURCE_CREDENTIAL_ENV}}",
+      "required": true
+    }]
   },
   "dependency_schema": {
     "type": "object",

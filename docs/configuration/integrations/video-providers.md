@@ -29,8 +29,10 @@ When the first consuming scenario is built (likely `rich-media-studio` per [`doc
   "resource_id": "fal-ai",
   "category": "hosted-service",
   "credentials": {
-    "env": [
+    "descriptors": [
       {
+        "logical_id": "vrooli/fal",
+        "field": "api-key",
         "env": "FAL_API_KEY",
         "label": "fal.ai API Key",
         "description": "Aggregator for pay-per-use AI video and image generation models including Seedance, Kling, and Flux. Single key gives access to multiple providers.",
@@ -39,8 +41,7 @@ When the first consuming scenario is built (likely `rich-media-studio` per [`doc
         "obtain_url": "https://fal.ai/dashboard/keys",
         "default_hint": "Starts with 'fal-...'"
       }
-    ],
-    "secret_ref": "secret/vrooli/fal"
+    ]
   }
 }
 ```

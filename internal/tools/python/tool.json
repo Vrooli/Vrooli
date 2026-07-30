@@ -2,8 +2,13 @@
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "python",
   "description": "Python programming language runtime",
-  "commands": ["python3", "python"],
-  "versionArgs": ["--version"],
+  "commands": [
+    "python3",
+    "python"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
   "defaultPackage": "python3",
   "packages": {
     "brew": "python",
@@ -11,5 +16,10 @@
     "pacman": "python"
   },
   "installHint": "Install Python 3.10+",
-  "platforms": ["linux", "macos", "windows"]
+  "platforms": [
+    "linux",
+    "macos",
+    "windows"
+  ],
+  "bundling": "host-required"
 }

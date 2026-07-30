@@ -217,5 +217,7 @@
     "docs_pinned_at": "2026-06-29",
     "schema_version": 1
   },
-  "template_version": "2"
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
 }

@@ -2,8 +2,12 @@
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "yq",
   "description": "YAML processor for shell workflows and configuration parsing",
-  "commands": ["yq"],
-  "versionArgs": ["--version"],
+  "commands": [
+    "yq"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
   "packages": {
     "brew": "yq",
     "winget": "MikeF.yq"
@@ -27,5 +31,10 @@
   },
   "installHint": "Linux installs the pinned Mike Farah yq v4.53.2 release into ~/.vrooli/bin with SHA-256 verification; macOS and Windows fall back to the declared Homebrew and winget packages. apt's yq is a different tool and is intentionally not used.",
   "notes": "Linux release checksums were verified against the official v4.53.2 checksums asset.",
-  "platforms": ["linux", "macos", "windows"]
+  "platforms": [
+    "linux",
+    "macos",
+    "windows"
+  ],
+  "bundling": "vendorable"
 }

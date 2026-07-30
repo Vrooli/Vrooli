@@ -49,6 +49,22 @@ The mode says how the resource reaches and runs on that target:
 | `remote-service` | The bundle validates and connects to a user- or organization-managed endpoint. |
 | `manual` | Vrooli can document/validate prerequisites but does not own lifecycle. |
 
+### Host requirement axes
+
+Every host tool, safeguard, and resource carries two independent declarations.
+They are inputs to desktop admission; neither is an informal label.
+
+| Axis | Values | Meaning |
+|---|---|---|
+| `privilege` | `none`, `user`, `elevated` | The maximum privilege needed to install or operate the requirement on a Vrooli-owned host. `elevated` work is confined to the explicit project setup boundary. |
+| `bundling` | `vendorable`, `host-required`, `prohibited` | Whether a desktop application may supply the requirement itself, must discover it on the target, or must never ship it. |
+
+`privilege` and `bundling` answer different questions. For example, a package
+may require elevation to install on Linux yet still be vendorable; a host
+safeguard is elevated and prohibited from bundles. A required resource that is
+not eligible for a target is recorded as a named build limitation, while its
+runtime readiness remains terminal rather than silently degraded.
+
 ### Support status
 
 | Status | Meaning |
@@ -489,6 +505,34 @@ checksums before it writes
 without a supplied signed artifact root.
 
 ### Resource release handoff
+
+### Release trust versus installer signing
+
+Release trust proves that every bundled resource executable and vendored tool
+is the exact byte set approved for a Vrooli release. It is not Windows,
+macOS, or Linux installer code signing. A staged release contains one
+deterministic `release-manifest.json`, listing every shipped file, its SHA-256,
+role, platform metadata where applicable, and upstream-provenance evidence.
+
+`development-local` verifies that manifest and every staged file, but does not
+require a Vrooli authority signature. Bundles built this way are explicitly
+non-promotable and must not be published. `production` additionally requires
+`release-manifest.sig.json`, a detached RSA/SHA-256 envelope signed by a
+configured Vrooli release public key. The private key is external to this
+repository; key rotation updates the configured trust set and releases identify
+the signing key with `key_id`. Missing or invalid production signatures fail
+before packaging. Installer code-signing remains separately optional and is
+documented by scenario-to-desktop's code-signing guide.
+
+Release automation may verify the staged directory independently before
+bundling:
+
+```bash
+vrooli-dist --verify-release-manifest \
+  --release-artifact-root /path/to/staged-release \
+  --trust-mode production \
+  --release-public-key /secure/trust/vrooli-release.pub
+```
 
 `vrooli-dist --resource-artifacts` is the source-build boundary. It stages the
 controller artifacts, any separately pinned managed-service server artifacts,

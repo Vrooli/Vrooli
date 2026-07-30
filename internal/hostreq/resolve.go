@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
@@ -36,11 +37,16 @@ func Resolve(root, home string, opts ResolveOptions) (Resolution, error) {
 		platform = CurrentPlatform()
 	}
 
+	catalog, err := loadRequirementCatalog()
+	if err != nil {
+		return Resolution{}, err
+	}
 	state := resolverState{
 		root:        root,
 		environment: NormalizeEnvironment(opts.Environment),
 		when:        strings.ToLower(strings.TrimSpace(opts.When)),
 		platform:    platform,
+		catalog:     catalog,
 		tools:       make(map[string]*ResolvedRequirement),
 		safeguards:  make(map[string]*ResolvedRequirement),
 	}
@@ -122,6 +128,7 @@ type resolverState struct {
 	environment string
 	when        string
 	platform    string
+	catalog     requirementCatalog
 	tools       map[string]*ResolvedRequirement
 	safeguards  map[string]*ResolvedRequirement
 }
@@ -177,6 +184,23 @@ func (s resolverState) addResources(home, selector string) error {
 		}
 		s.addAll(manifest.HostTools, KindTool, provenance)
 		s.addAll(manifest.HostSafeguards, KindSafeguard, provenance)
+		// A resource's target profile is part of its deployment contract, not
+		// advisory text. Promote registered tool/safeguard requirements into the
+		// same typed resolution as hostTools/hostSafeguards so callers receive
+		// provenance and eligibility rather than having to parse profile strings.
+		if target, found := manifest.Deployment.Target("desktop", s.platform, ""); found {
+			for _, name := range target.Requires {
+				name = strings.TrimSpace(name)
+				reason := fmt.Sprintf("resource %s desktop target requires %s", item.Name, name)
+				if _, ok := s.catalog.tools[name]; ok {
+					s.add(Declaration{Name: name, Required: true, Reason: reason}, KindTool, provenance)
+					continue
+				}
+				if _, ok := s.catalog.safeguards[name]; ok {
+					s.add(Declaration{Name: name, Required: true, Reason: reason}, KindSafeguard, provenance)
+				}
+			}
+		}
 	}
 
 	return nil
@@ -241,6 +265,18 @@ func (s resolverState) add(declaration Declaration, kind Kind, provenance Proven
 	}
 
 	key := strings.TrimSpace(declaration.Name)
+	privilege, bundling, err := s.catalog.details(kind, key, s.platform)
+	if err != nil {
+		// Resolver fixtures and third-party extension manifests can name objects
+		// outside the embedded catalog. Keep them visible and conservative; the
+		// conformance validator remains responsible for rejecting an undeclared
+		// production registry entry.
+		privilege = declaration.DerivePrivilege(s.platform)
+		bundling = declaration.Bundling
+		if bundling == "" {
+			bundling = hostreqspec.BundlingHostRequired
+		}
+	}
 	resolved, exists := target[key]
 	if !exists {
 		target[key] = &ResolvedRequirement{
@@ -248,6 +284,8 @@ func (s resolverState) add(declaration Declaration, kind Kind, provenance Proven
 			Kind:         kind,
 			Required:     declaration.Required,
 			Manual:       declaration.Manual,
+			Privilege:    privilege,
+			Bundling:     bundling,
 			Reasons:      uniqueStrings([]string{strings.TrimSpace(declaration.Reason)}),
 			When:         uniqueStrings(declaration.When),
 			Environments: uniqueStrings(declaration.Environments),

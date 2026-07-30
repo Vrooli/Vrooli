@@ -3,10 +3,12 @@ package health
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 
 	"resource-openrouter/cli/internal/auth"
@@ -130,6 +132,67 @@ func Generate(ctx context.Context, client HTTPClient, runtime resourceenv.Runtim
 			return nil, fmt.Errorf("OpenRouter generate failed: %s", failure.Error.Message)
 		}
 		return nil, fmt.Errorf("OpenRouter generate failed with status %d", resp.StatusCode)
+	}
+	return responseBody, nil
+}
+
+// GenerateImage performs the resource-owned OpenRouter image request. Callers
+// provide a policy-resolved model and prompt; credentials, base URL, transport,
+// and provider error handling remain inside this resource.
+func GenerateImage(ctx context.Context, client HTTPClient, runtime resourceenv.Runtime, creds auth.Credentials, model, prompt, inputFile string, outputCount int) ([]byte, error) {
+	if client == nil {
+		client = http.DefaultClient
+	}
+	endpoint := config.ImagesEndpoint(runtime.APIBaseURL)
+	if endpoint == "" {
+		return nil, fmt.Errorf("OpenRouter images endpoint is required")
+	}
+	if strings.TrimSpace(model) == "" || strings.TrimSpace(prompt) == "" {
+		return nil, fmt.Errorf("image model and prompt are required")
+	}
+	payload := map[string]any{"model": model, "prompt": prompt}
+	if outputCount > 1 {
+		payload["n"] = outputCount
+	}
+	if strings.TrimSpace(inputFile) != "" {
+		image, err := os.ReadFile(inputFile)
+		if err != nil {
+			return nil, fmt.Errorf("read image input: %w", err)
+		}
+		if len(image) == 0 {
+			return nil, fmt.Errorf("image input is empty")
+		}
+		// OpenRouter accepts provider-neutral input references. Keeping the
+		// encoding here makes image-to-image and instructed edits a resource
+		// capability instead of leaking provider transport into callers.
+		payload["input_references"] = []any{map[string]any{
+			"type": "image_url",
+			"image_url": map[string]string{
+				"url": "data:image/png;base64," + base64.StdEncoding.EncodeToString(image),
+			},
+		}}
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+creds.APIKey)
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("OpenRouter image generation failed with status %d", resp.StatusCode)
 	}
 	return responseBody, nil
 }

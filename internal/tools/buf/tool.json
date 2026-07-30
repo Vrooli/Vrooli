@@ -2,13 +2,21 @@
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "buf",
   "description": "Protobuf tooling for linting, breaking change detection, and code generation",
-  "commands": ["buf"],
-  "versionArgs": ["--version"],
+  "commands": [
+    "buf"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
   "version": "1.37.0",
   "packages": {
     "winget": "Bufbuild.Buf"
   },
-  "platforms": ["linux", "macos", "windows"],
+  "platforms": [
+    "linux",
+    "macos",
+    "windows"
+  ],
   "installHint": "Installed from Buf's checksum-verified GitHub release into ~/.vrooli/bin on Linux/macOS (no sudo). Windows uses the declared winget fallback.",
   "source": {
     "type": "release",
@@ -35,5 +43,6 @@
       }
     }
   },
-  "notes": "Pinned to 1.37.0 alongside packages/proto codegen. Bump in lockstep with the proto-codegen byte-stability gate (`make check`)."
+  "notes": "Pinned to 1.37.0 alongside packages/proto codegen. Bump in lockstep with the proto-codegen byte-stability gate (`make check`).",
+  "bundling": "vendorable"
 }

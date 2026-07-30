@@ -10,8 +10,8 @@ Resources are local services scenarios compose with — Postgres, Redis, Vault, 
 | What this resource is and how it runs | `resources/<name>/resource.json` | top-level manifest |
 | Resources this one depends on | `resources/<name>/resource.json` | `dependencies` |
 | Optional dependencies (graceful degradation) | `resources/<name>/resource.json` | `optional_dependencies` |
-| Credential metadata | `resources/<name>/resource.json` | `credentials.env` (per item: bare string OR `secretDescriptor`) |
-| Where credential values are stored | `resources/<name>/resource.json` | `credentials.secret_ref` (Vault path) |
+| Credential metadata | `resources/<name>/resource.json` | `credentials.descriptors[]` |
+| Where credential values are stored | native credential authority | logical identity + field from the descriptor |
 
 ## Required vs optional resources
 
@@ -25,37 +25,17 @@ The wizard's resource step has no manual-only path: it always derives from the s
 
 ## Credential descriptors
 
-`credentials.env` historically accepted only bare environment-variable names:
+Each descriptor supplies a logical identity, field, and process-scoped
+injection name:
 
 ```json
 "credentials": {
-  "env": ["GEMINI_API_KEY"],
-  "secret_ref": "secret/vrooli/gemini"
+  "descriptors": [{"logical_id":"vrooli/gemini","field":"api-key","env":"GEMINI_API_KEY","required":true}]
 }
 ```
 
-This is still valid. For new resources or when enriching existing ones, prefer the `secretDescriptor` form, which surfaces operator-facing metadata directly to the wizard:
-
-```json
-"credentials": {
-  "env": [
-    {
-      "env": "GEMINI_API_KEY",
-      "label": "Gemini API Key",
-      "description": "Google Gemini multimodal LLM. Required for scenarios that call Gemini directly.",
-      "classification": "user",
-      "required": true,
-      "obtain_url": "https://aistudio.google.com/app/apikey",
-      "default_hint": "Starts with 'AIza...'"
-    }
-  ],
-  "secret_ref": "secret/vrooli/gemini"
-}
-```
-
-The two forms can be mixed in the same array — the wizard renders bare strings as a minimal label and rich entries with full metadata.
-
-For the full set of `secretDescriptor` fields and how they map to wizard UI, see [`secrets.md`](secrets.md).
+`credentials.env`, bare descriptor strings, and `secret_ref` are retired and
+must not be added to new manifests. For field details see [`secrets.md`](secrets.md).
 
 ## Adding a new resource
 

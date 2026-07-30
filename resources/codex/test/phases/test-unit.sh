@@ -164,19 +164,12 @@ test_json_validation() {
     fi
 }
 
-test_yaml_validation() {
-    log::info "Testing YAML configuration files..."
-    
-    # Test secrets.yaml (if yq is available)
-    if command -v yq &>/dev/null; then
-        ((TESTS_RUN++))
-        if yq eval '.' "${CODEX_DIR}/config/secrets.yaml" &>/dev/null; then
-            test_pass "secrets.yaml is valid YAML"
-        else
-            test_fail "secrets.yaml validation" "Invalid YAML format"
-        fi
+test_credential_descriptors() {
+    ((TESTS_RUN++))
+    if jq -e '.credentials.descriptors | type == "array"' "${CODEX_DIR}/resource.json" &>/dev/null; then
+        test_pass "credential descriptors are valid"
     else
-        log::warning "yq not available, skipping YAML validation"
+        test_fail "credential descriptor validation" "Missing or invalid credentials.descriptors"
     fi
 }
 
@@ -190,7 +183,7 @@ main() {
     test_api_key_retrieval
     test_configuration_check
     test_json_validation
-    test_yaml_validation
+    test_credential_descriptors
     
     # Report results
     log::info "Test Results: $TESTS_PASSED/$TESTS_RUN passed"

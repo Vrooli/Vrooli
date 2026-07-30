@@ -119,6 +119,16 @@
         "runtime"
       ],
       "notes": "Docker must be available before lifecycle commands run."
+    },
+    {
+      "name": "yq",
+      "required": true,
+      "reason": "SearXNG lifecycle scripts render and inspect YAML configuration.",
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "notes": "The native handler provides deterministic YAML parsing for SearXNG configuration."
     }
   ],
   "dependencies": [],
@@ -189,5 +199,7 @@
     "supports_logs": true,
     "supports_content_ops": false
   },
-  "template_version": "2"
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
 }

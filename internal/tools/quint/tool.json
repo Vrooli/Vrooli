@@ -2,11 +2,20 @@
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "quint",
   "description": "Quint formal specification tool for temporal-flow model checking and model-based test artifact generation",
-  "commands": ["quint"],
-  "versionArgs": ["--version"],
+  "commands": [
+    "quint"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
   "handler": "quint",
   "version": "0.32.0",
-  "platforms": ["linux", "macos", "windows"],
+  "platforms": [
+    "linux",
+    "macos",
+    "windows"
+  ],
   "installHint": "Installed via `npm install --prefix ~/.cache/vrooli/formal-tools/quint/node @informalsystems/quint@0.32.0` then symlinked to ~/.local/bin/quint. Requires Node/npm on PATH and Java 17+ for `quint verify`.",
-  "notes": "Pinned for deterministic formal-model validation; bump with generated temporal-flow artifacts."
+  "notes": "Pinned for deterministic formal-model validation; bump with generated temporal-flow artifacts.",
+  "bundling": "host-required"
 }

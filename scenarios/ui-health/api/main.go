@@ -159,6 +159,11 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: srv.Handler(),
+		// Execution-enabled validation collects BAS runtime evidence and can take
+		// longer than the platform's 30-second default. The HTTP write deadline
+		// spans handler execution, so keep the response channel alive for the
+		// bounded provider phase instead of returning a misleading EOF to clients.
+		WriteTimeout: 5 * time.Minute,
 		Cleanup: func(ctx context.Context) error {
 			cancelSync()
 			return db.Close()

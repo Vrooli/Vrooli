@@ -1300,8 +1300,20 @@ func (d cloudAPIDriver) Status(ctx context.Context, controller *Controller, item
 
 	missing, err := resourceenv.MissingCredentialKeys(controller.Root, controller.Home, manifest)
 	if err != nil {
+		healthy := false
+		status.Healthy = &healthy
+		status.Health = "unhealthy"
 		status.StatusCode = StatusCodeCommandError
-		status.Message = "credential resolution failed"
+		names := make([]string, 0, len(manifest.Credentials.All()))
+		for _, descriptor := range manifest.Credentials.All() {
+			if name := strings.TrimSpace(descriptor.Env); name != "" {
+				names = append(names, name)
+			}
+		}
+		status.Message = "credential authority unavailable"
+		if len(names) > 0 {
+			status.Message += ": " + strings.Join(names, ", ")
+		}
 		status.ProbeError = err.Error()
 		return status, nil
 	}

@@ -895,7 +895,7 @@ func TestManagedDiscoveredExternalCLIRefusesImplicitInstall(t *testing.T) {
 	}
 }
 
-func TestStatusForManifestNativeCloudAPIResource(t *testing.T) {
+func TestStatusForManifestNativeCloudAPILegacyEnvironmentIsNotCredentialAuthority(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
@@ -931,8 +931,11 @@ func TestStatusForManifestNativeCloudAPIResource(t *testing.T) {
 	if !status.Installed || !status.Running {
 		t.Fatalf("status = %#v, expected installed/running", status)
 	}
-	if status.Healthy == nil || !*status.Healthy {
-		t.Fatalf("Healthy = %#v, want true", status.Healthy)
+	if status.Healthy == nil || *status.Healthy {
+		t.Fatalf("Healthy = %#v, want false", status.Healthy)
+	}
+	if !strings.Contains(status.Message, "FIXTURE_API_KEY") {
+		t.Fatalf("Message = %q, want migration-safe credential hint", status.Message)
 	}
 }
 
@@ -966,7 +969,7 @@ func TestStatusForManifestNativeCloudAPIMissingCredentials(t *testing.T) {
 	}
 }
 
-func TestStatusForManifestNativeCloudAPIReadsCredentialsFromUserSecrets(t *testing.T) {
+func TestStatusForManifestNativeCloudAPIRejectsPlaintextUserSecrets(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
@@ -996,11 +999,11 @@ func TestStatusForManifestNativeCloudAPIReadsCredentialsFromUserSecrets(t *testi
 	if err != nil {
 		t.Fatalf("Status: %v", err)
 	}
-	if status.Healthy == nil || !*status.Healthy {
-		t.Fatalf("Healthy = %#v, want true", status.Healthy)
+	if status.Healthy == nil || *status.Healthy {
+		t.Fatalf("Healthy = %#v, want false", status.Healthy)
 	}
-	if status.Message != "configured" {
-		t.Fatalf("Message = %q, want %q", status.Message, "configured")
+	if !strings.Contains(status.Message, "FIXTURE_API_KEY") {
+		t.Fatalf("Message = %q, want migration-safe credential hint", status.Message)
 	}
 }
 
@@ -1089,8 +1092,8 @@ func TestVaultManagedServiceDoesNotOverclaimTargetReadiness(t *testing.T) {
 		t.Fatalf("Vault hostTools = %+v, want one Linux Secret Service declaration", manifest.HostTools)
 	}
 	secretTool := manifest.HostTools[0]
-	if secretTool.Name != "secret-tool" || !secretTool.Required || !slices.Contains(secretTool.Platforms, "linux") || !slices.Contains(secretTool.When, "setup") || !slices.Contains(secretTool.When, "develop") {
-		t.Fatalf("Vault secret-tool declaration = %+v, want required Linux setup and develop host tool", secretTool)
+	if secretTool.Name != "secret-tool" || !secretTool.Required || !slices.Contains(secretTool.Platforms, "linux") || strings.Contains(secretTool.Notes, "do not rely") {
+		t.Fatalf("Vault secret-tool declaration = %+v, want required Linux bootstrap host tool without a desktop-independence claim", secretTool)
 	}
 	if manifest.PortabilityTier != "partial" {
 		t.Fatalf("Vault portability_tier = %q, want partial until every target artifact has native-host evidence", manifest.PortabilityTier)
@@ -1107,9 +1110,8 @@ func TestVaultManagedServiceDoesNotOverclaimTargetReadiness(t *testing.T) {
 
 	desktop := manifest.Deployment.Profiles["desktop"]
 	for platform, target := range map[string]*manifestpkg.ResourceDeploymentTarget{
-		"linux":   desktop.Linux,
-		"macos":   desktop.MacOS,
-		"windows": desktop.Windows,
+		"linux": desktop.Linux,
+		"macos": desktop.MacOS,
 	} {
 		if target == nil {
 			t.Errorf("Vault desktop target %s is missing", platform)
@@ -1118,6 +1120,12 @@ func TestVaultManagedServiceDoesNotOverclaimTargetReadiness(t *testing.T) {
 		if target.Support != "conditional" || target.Mode != "bundled-service" {
 			t.Errorf("Vault desktop target %s = support %q mode %q, want conditional bundled-service", platform, target.Support, target.Mode)
 		}
+	}
+	if desktop.Windows == nil || desktop.Windows.Support != "unsupported" || !strings.Contains(desktop.Windows.Reason, "credential storage") {
+		t.Fatalf("Vault Windows desktop target = %+v, want unsupported target naming unavailable credential storage", desktop.Windows)
+	}
+	if !slices.Contains(desktop.Linux.Requires, "secret-tool") {
+		t.Fatalf("Vault Linux desktop requirements = %v, want secret-tool", desktop.Linux.Requires)
 	}
 }
 

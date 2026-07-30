@@ -32,25 +32,18 @@ Dynamic runtime paths such as Kopia repository passphrases should include the ru
 
 ## Inventory Without Disclosure
 
-Use declaration workflows for operator visibility:
+Use the control plane for metadata-safe credential visibility:
 
 ```bash
-resource-vault secrets scan
-resource-vault secrets check twilio
-resource-vault secrets validate
+vrooli credentials status --identity vrooli/twilio --field account-sid
 ```
 
 These commands report presence and missing status without printing secret values.
 
-## Environment Export
+## Runtime injection
 
-Only use export for a specific resource and only in a trusted shell context:
-
-```bash
-eval "$(resource-vault secrets export opencode)"
-```
-
-`export` prints shell-safe assignments for declared `default_env` fields that are present in Vault. Missing optional secrets are omitted.
+Credential values are injected only into the process environment selected by a
+manifest descriptor. They are not exported into an operator shell.
 
 ## Kopia Backup Passphrases
 
@@ -72,8 +65,8 @@ Before external production use, add and validate TLS, operator-managed unseal or
 
 ## Checklist
 
-- [ ] Secret values are printed only by explicit `content get` or `secrets export` commands.
-- [ ] Resource code shells `resource-vault`, not Vault HTTP APIs.
-- [ ] Required secrets are declared in `config/secrets.yaml`.
+- [ ] Ordinary credential values are never printed or shell-exported.
+- [ ] Resource code obtains ordinary credentials through the control plane.
+- [ ] Required secrets are declared in `credentials.descriptors` in a manifest.
 - [ ] Dynamic paths include their runtime identifier.
 - [ ] Backup passphrases are never stored in files, config JSON, logs, command history, or scenario databases.

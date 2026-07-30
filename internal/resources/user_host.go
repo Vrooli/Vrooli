@@ -89,7 +89,7 @@ func OpenUserResourceHost(store securestore.Store, ownerScope string) (*UserReso
 	if ownerScope == "" {
 		return nil, fmt.Errorf("user resource host owner scope is required")
 	}
-	resolver, err := runtimestorage.NewResolver(runtimestorage.ResolverConfig{AppID: "vrooli"})
+	resolver, err := resourceStorageResolver()
 	if err != nil {
 		return nil, err
 	}

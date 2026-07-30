@@ -40,6 +40,14 @@
       "kind": "go_module"
     }
   },
+  "credentials": {
+    "descriptors": [
+      {"logical_id":"vrooli/openrouter","field":"api-key","env":"OPENROUTER_API_KEY","label":"OpenRouter API key","description":"Optional gateway credential shared with the OpenRouter resource.","required":false,"obtain_url":"https://openrouter.ai/keys"},
+      {"logical_id":"vrooli/opencode","field":"cloudflare-api-token","env":"CLOUDFLARE_API_TOKEN","label":"Cloudflare AI Gateway token","description":"Optional token for Cloudflare AI Gateway.","required":false},
+      {"logical_id":"vrooli/opencode","field":"cloudflare-account-id","env":"CLOUDFLARE_ACCOUNT_ID","label":"Cloudflare account ID","description":"Optional Cloudflare account identifier for an AI Gateway.","required":false},
+      {"logical_id":"vrooli/opencode","field":"cloudflare-gateway-slug","env":"CLOUDFLARE_AI_GATEWAY_SLUG","label":"Cloudflare AI Gateway slug","description":"Optional AI Gateway slug.","required":false}
+    ]
+  },
   "template": "external-cli",
   "driver": "external-cli",
   "deployment": {
@@ -205,5 +213,7 @@
     "docs_pinned_at": "2026-06-22",
     "schema_version": 1
   },
-  "template_version": "2"
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
 }

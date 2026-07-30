@@ -3,12 +3,17 @@
   "name": "host_hardening",
   "description": "Make kernel hangs and oopses produce diagnostics: enable sysrq, set hung-task/softlockup/NMI panic, and rate-limit journald so UFW BLOCK floods don't drown panic info",
   "handler": "host_hardening",
-  "platforms": ["linux"],
+  "platforms": [
+    "linux"
+  ],
   "risk": "high",
   "verificationCheck": {
     "files": [
       "/etc/sysctl.d/99-vrooli-host-hardening.conf",
       "/etc/systemd/journald.conf.d/99-vrooli-ratelimit.conf"
     ]
-  }
+  },
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "deployment": {"profiles": {"desktop": {"linux": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "macos": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "windows": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}}}}
 }

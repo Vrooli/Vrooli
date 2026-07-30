@@ -2,13 +2,23 @@
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "helm",
   "description": "Kubernetes package manager",
-  "commands": ["helm"],
-  "versionArgs": ["version", "--short"],
+  "commands": [
+    "helm"
+  ],
+  "versionArgs": [
+    "version",
+    "--short"
+  ],
   "packages": {
     "brew": "helm",
     "winget": "Helm.Helm"
   },
   "installHint": "Helm is not in standard apt repos. Install via: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash — or use snap install helm --classic",
-  "platforms": ["linux", "macos", "windows"],
-  "notes": "Not yet declared by any scenario — kept for upcoming scenario-to-cloud integration"
+  "platforms": [
+    "linux",
+    "macos",
+    "windows"
+  ],
+  "notes": "Not yet declared by any scenario — kept for upcoming scenario-to-cloud integration",
+  "bundling": "host-required"
 }

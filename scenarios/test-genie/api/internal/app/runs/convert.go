@@ -587,6 +587,17 @@ func symmetricNeutralAbsence(recordA sharedruns.PhaseRecord, okA bool, recordB s
 	if descriptorInapplicable(descriptorA) && descriptorInapplicable(descriptorB) {
 		return true
 	}
+	// Catalog evolution can add or retire a conditional phase that is explicitly
+	// inapplicable for the only run that knows about it. Because an inapplicable
+	// phase has no execution record, this is also a matched absence of behavioral
+	// evidence rather than an asymmetric exercised surface. Keep its diagnostic
+	// visible, but do not poison the aggregate comparison.
+	if descriptorA == nil && descriptorInapplicable(descriptorB) && !okB {
+		return true
+	}
+	if descriptorB == nil && descriptorInapplicable(descriptorA) && !okA {
+		return true
+	}
 	return okA && okB && recordA.Status == "provider_unavailable" && recordB.Status == "provider_unavailable" && providerUnavailableIsBestEffort(descriptorA) && providerUnavailableIsBestEffort(descriptorB)
 }
 

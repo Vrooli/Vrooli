@@ -163,8 +163,12 @@
     {
       "name": "nvidia_driver",
       "required": true,
-      "when": ["setup"],
-      "platforms": ["linux"],
+      "when": [
+        "setup"
+      ],
+      "platforms": [
+        "linux"
+      ],
       "reason": "Repair and validate the host NVIDIA kernel driver when NVIDIA hardware is present; GPU containers require a working host driver.",
       "notes": "No-op on hosts without NVIDIA display hardware. On Ubuntu, setup repairs the current-kernel module package and its installed kernel meta package, then reports a required reboot."
     }
@@ -320,5 +324,7 @@
     "supports_content_ops": true,
     "supports_ensure": true
   },
-  "template_version": "2"
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
 }

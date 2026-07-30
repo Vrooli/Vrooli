@@ -2,12 +2,19 @@
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "xdotool",
   "description": "X11 automation tool for window inspection and desktop automation",
-  "commands": ["xdotool"],
-  "versionArgs": ["-v"],
+  "commands": [
+    "xdotool"
+  ],
+  "versionArgs": [
+    "-v"
+  ],
   "defaultPackage": "xdotool",
   "packages": {
     "apt-get": "xdotool"
   },
   "installHint": "Install xdotool for X11 window inspection and desktop automation helpers",
-  "platforms": ["linux"]
+  "platforms": [
+    "linux"
+  ],
+  "bundling": "host-required"
 }

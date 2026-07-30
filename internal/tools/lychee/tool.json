@@ -2,11 +2,19 @@
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "lychee",
   "description": "Fast link checker for markdown files and websites",
-  "commands": ["lychee"],
-  "versionArgs": ["--version"],
+  "commands": [
+    "lychee"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
   "packages": {
     "brew": "lychee"
   },
   "installHint": "Install lychee from GitHub releases: https://github.com/lycheeverse/lychee/releases — or via cargo install lychee, or brew install lychee",
-  "platforms": ["linux", "macos"]
+  "platforms": [
+    "linux",
+    "macos"
+  ],
+  "bundling": "host-required"
 }

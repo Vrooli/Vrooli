@@ -293,7 +293,7 @@ func (isoFileRoutedSeams) Analyze(_ context.Context, ac AnalyzerContext) ([]Find
 			case "github.com/vrooli/api-core/filerouting":
 				hasRoots = hasRoots || sel.Sel.Name == "New"
 			case "github.com/vrooli/api-core/devrouting":
-				hasRegistration = hasRegistration || sel.Sel.Name == "RegisterWithFileRoots" || sel.Sel.Name == "RegisterWithFileRootsService"
+				hasRegistration = hasRegistration || sel.Sel.Name == "RegisterWithFileRoots" || sel.Sel.Name == "RegisterWithFileRootsService" || sel.Sel.Name == "RegisterFileRoots"
 			}
 			return true
 		})
@@ -317,7 +317,7 @@ func (isoFileRoutedSeams) Analyze(_ context.Context, ac AnalyzerContext) ([]Find
 		Title:       "File test-isolation seams unwired",
 		Message:     "File-persisting API lacks required routed file seams: " + strings.Join(missing, ", ") + ". Mutating E2E cannot be proven safe.",
 		Location:    isoMainLocation(ac),
-		Remediation: "Construct filerouting.RoutedRoots from startup storage paths, mount devrouting.RegisterWithFileRoots, and route file-store paths through RoutedRoots.Pick(ctx, class). See scenarios/storage-health/docs/concepts/test-isolation-contract.md.",
+		Remediation: "Construct filerouting.RoutedRoots from startup storage paths, mount devrouting.RegisterFileRoots (or RegisterWithFileRoots when SQL is also present), and route file-store paths through RoutedRoots.Pick(ctx, class). See scenarios/storage-health/docs/concepts/test-isolation-contract.md.",
 		Analyzer:    "isolation.file-routed-seams",
 	}}, nil
 }

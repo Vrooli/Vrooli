@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -26,6 +28,70 @@ func init() {
 // bootstrap contract observable in tests. Production always resolves the
 // platform credential store and fails closed when it is unavailable.
 var privateVaultSecureStore = defaultManagedSharedSecureStore
+
+const legacyVaultBootstrapFilename = ".vrooli-bootstrap.json"
+
+type legacyVaultBootstrap struct {
+	UnsealKeys []string `json:"unseal_keys_b64"`
+	RootToken  string   `json:"root_token"`
+}
+
+// loadLegacyVaultBootstrapMaterial is a one-way migration boundary for the
+// Docker-era Vault marker. That marker held plaintext recovery material in the
+// Vault data directory; the managed-service contract requires it in the OS
+// credential store. Callers must store and verify the material before removing
+// the marker. Nothing from this function is logged or returned to a CLI.
+func loadLegacyVaultBootstrapMaterial(dataDir string) (VaultBootstrapMaterial, bool, error) {
+	path := filepath.Join(dataDir, legacyVaultBootstrapFilename)
+	info, err := os.Lstat(path)
+	if os.IsNotExist(err) {
+		return VaultBootstrapMaterial{}, false, nil
+	}
+	if err != nil {
+		return VaultBootstrapMaterial{}, false, fmt.Errorf("inspect legacy Vault bootstrap marker: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return VaultBootstrapMaterial{}, false, fmt.Errorf("legacy Vault bootstrap marker is not a regular file")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return VaultBootstrapMaterial{}, false, fmt.Errorf("read legacy Vault bootstrap marker: %w", err)
+	}
+	var legacy legacyVaultBootstrap
+	if err := json.Unmarshal(data, &legacy); err != nil {
+		return VaultBootstrapMaterial{}, false, fmt.Errorf("parse legacy Vault bootstrap marker: %w", err)
+	}
+	if len(legacy.UnsealKeys) == 0 || strings.TrimSpace(legacy.UnsealKeys[0]) == "" || strings.TrimSpace(legacy.RootToken) == "" {
+		return VaultBootstrapMaterial{}, false, fmt.Errorf("legacy Vault bootstrap marker has incomplete management material")
+	}
+	return VaultBootstrapMaterial{RootToken: legacy.RootToken, UnsealKey: legacy.UnsealKeys[0]}, true, nil
+}
+
+func removeLegacyVaultBootstrapMarker(dataDir string) error {
+	path := filepath.Join(dataDir, legacyVaultBootstrapFilename)
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove migrated legacy Vault bootstrap marker: %w", err)
+	}
+	return nil
+}
+
+func storeVaultBootstrapMaterial(store securestore.Store, instanceID string, material VaultBootstrapMaterial) error {
+	encoded, err := json.Marshal(material)
+	if err != nil {
+		return err
+	}
+	if err := store.Put("vrooli.resource.vault", instanceID, string(encoded)); err != nil {
+		return fmt.Errorf("securely store Vault management material: %w", err)
+	}
+	stored, err := store.Get("vrooli.resource.vault", instanceID)
+	if err != nil {
+		return fmt.Errorf("verify stored Vault management material: %w", err)
+	}
+	if stored != string(encoded) {
+		return fmt.Errorf("verify stored Vault management material: secure-store readback did not match")
+	}
+	return nil
+}
 
 // bootstrapPrivateVault gives locally supervised Vault instances the same
 // safety transition as shared instances, without registering a reusable
@@ -196,6 +262,8 @@ func (h *UserResourceHost) EnsureVault(ctx context.Context, instance ManagedInst
 	if err := waitForVaultBootstrapReachability(ctx, instance.Endpoint); err != nil {
 		return ManagedInstance{}, err
 	}
+	var legacyDataDir string
+	legacyMarker := false
 	var material VaultBootstrapMaterial
 	if raw, err := h.Secrets.Get("vrooli.resource.vault", instance.ID); err == nil {
 		if err := json.Unmarshal([]byte(raw), &material); err != nil {
@@ -211,18 +279,34 @@ func (h *UserResourceHost) EnsureVault(ctx context.Context, instance ManagedInst
 	} else {
 		material, err = bootstrap.Bootstrap(ctx, instance.Endpoint)
 		if err != nil {
-			return ManagedInstance{}, fmt.Errorf("bootstrap user-hosted Vault: %w", err)
+			paths, pathsErr := resourceStoragePaths("vault")
+			if pathsErr != nil {
+				return ManagedInstance{}, fmt.Errorf("bootstrap user-hosted Vault: %w", err)
+			}
+			legacyMaterial, found, migrationErr := loadLegacyVaultBootstrapMaterial(paths.DataDir)
+			if migrationErr != nil {
+				return ManagedInstance{}, fmt.Errorf("migrate legacy Vault bootstrap material: %w", migrationErr)
+			}
+			if !found {
+				return ManagedInstance{}, fmt.Errorf("bootstrap user-hosted Vault: %w", err)
+			}
+			recovery, ok := bootstrap.(VaultRecoveryBootstrapper)
+			if !ok {
+				return ManagedInstance{}, fmt.Errorf("Vault bootstrap adapter cannot recover migrated legacy material")
+			}
+			material = legacyMaterial
+			if err := recovery.Unseal(ctx, instance.Endpoint, material); err != nil {
+				return ManagedInstance{}, fmt.Errorf("recover user-hosted Vault from migrated legacy material: %w", err)
+			}
+			legacyDataDir = paths.DataDir
+			legacyMarker = true
 		}
 	}
 	if strings.TrimSpace(material.RootToken) == "" || strings.TrimSpace(material.UnsealKey) == "" {
 		return ManagedInstance{}, fmt.Errorf("Vault bootstrap returned incomplete management material")
 	}
-	encoded, err := json.Marshal(material)
-	if err != nil {
+	if err := storeVaultBootstrapMaterial(h.Secrets, instance.ID, material); err != nil {
 		return ManagedInstance{}, err
-	}
-	if err := h.Secrets.Put("vrooli.resource.vault", instance.ID, string(encoded)); err != nil {
-		return ManagedInstance{}, fmt.Errorf("securely store Vault management material: %w", err)
 	}
 	if err := ensureVaultKVv2(ctx, instance.Endpoint, material.RootToken); err != nil {
 		return ManagedInstance{}, fmt.Errorf("configure shared Vault KV v2: %w", err)
@@ -251,6 +335,11 @@ func (h *UserResourceHost) EnsureVault(ctx context.Context, instance ManagedInst
 	registered, err := h.Broker.RegisterOrGrantScope(instance, appScope)
 	if err != nil {
 		return ManagedInstance{}, err
+	}
+	if legacyMarker {
+		if err := removeLegacyVaultBootstrapMarker(legacyDataDir); err != nil {
+			return ManagedInstance{}, err
+		}
 	}
 	return registered, nil
 }

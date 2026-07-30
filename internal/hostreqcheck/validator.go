@@ -1,6 +1,7 @@
 package hostreqcheck
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -9,6 +10,8 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/hostreq"
+	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -17,9 +20,12 @@ import (
 type FindingCode string
 
 const (
-	FindingUndeclaredReference FindingCode = "undeclared_reference"
-	FindingMissingHandler      FindingCode = "missing_handler"
-	FindingRootOverreach       FindingCode = "root_overreach"
+	FindingUndeclaredReference   FindingCode = "undeclared_reference"
+	FindingMissingHandler        FindingCode = "missing_handler"
+	FindingRootOverreach         FindingCode = "root_overreach"
+	FindingMissingClassification FindingCode = "missing_classification"
+	FindingPrivilegeMismatch     FindingCode = "privilege_mismatch"
+	FindingUnvendorable          FindingCode = "unvendorable"
 )
 
 type Finding struct {
@@ -40,6 +46,8 @@ type ownerManifest struct {
 	name       string
 	basePath   string
 	manifest   string
+	privilege  string
+	bundling   string
 	hostTools  []hostreq.Declaration
 	safeguards []hostreq.Declaration
 }
@@ -68,6 +76,7 @@ var (
 		"kdump-tools":           {},
 		"mcelog":                {},
 		"node":                  {},
+		"pnpm":                  {},
 		"protoc":                {},
 		"protoc-gen-connect-go": {},
 		"protoc-gen-es":         {},
@@ -77,26 +86,8 @@ var (
 		"rasdaemon":             {},
 		"yq":                    {},
 	}
-	referenceScanCandidates = []string{
-		"stripe",
-		"ffmpeg",
-		"tmux",
-		"helm",
-		"yq",
-		"bats",
-		"ast-grep",
-		"cloudflared",
-		"lychee",
-		"Xvfb",
-		"xdotool",
-		"x11vnc",
-		"websockify",
-		"openbox",
-	}
-	scannableExtensions = map[string]struct{}{
-		".go": {},
-		".sh": {},
-	}
+	referenceScanCandidates = []string{"stripe", "ffmpeg", "tmux", "helm", "yq", "bats", "ast-grep", "cloudflared", "lychee", "Xvfb", "xdotool", "x11vnc", "websockify", "openbox"}
+	scannableExtensions     = map[string]struct{}{".go": {}, ".sh": {}}
 )
 
 func Validate(root, home string) (Report, error) {
@@ -112,8 +103,8 @@ func Validate(root, home string) (Report, error) {
 			return Report{}, declErr
 		}
 		findings = append(findings, declarationFindings...)
-		findings = append(findings, validateReferences(root, owner)...)
 	}
+	findings = append(findings, validateCatalogDeclarations(root)...)
 
 	sort.Slice(findings, func(i, j int) bool {
 		if findings[i].Code == findings[j].Code {
@@ -132,6 +123,138 @@ func Validate(root, home string) (Report, error) {
 	})
 
 	return Report{Findings: findings}, nil
+}
+
+// validateCatalogDeclarations is deliberately limited to the deployable
+// substrate. Scenario source scans are too broad to be a deployment gate: a
+// scenario can invoke a command for an optional operational path without that
+// command being a desktop requirement. The catalogue manifests and the native
+// handler sources are the authoritative pair for this conformance check.
+func validateCatalogDeclarations(root string) []Finding {
+	findings := make([]Finding, 0)
+	findings = append(findings, validateToolCatalog(root)...)
+	findings = append(findings, validateSafeguardCatalog(root)...)
+	return findings
+}
+
+func validateToolCatalog(root string) []Finding {
+	entries, err := os.ReadDir(filepath.Join(root, "internal", "tools"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return []Finding{{Code: FindingMissingClassification, OwnerKind: "tool", OwnerName: "catalog", Message: err.Error()}}
+	}
+	findings := make([]Finding, 0)
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		path := filepath.Join(root, "internal", "tools", entry.Name(), "tool.json")
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var manifest hostreqkit.ToolManifest
+		if json.Unmarshal(data, &manifest) != nil {
+			continue // schema/registry loaders report malformed manifests separately.
+		}
+		if manifest.Bundling == "vendorable" && !hasPortableToolSource(manifest) {
+			findings = append(findings, Finding{Code: FindingUnvendorable, OwnerKind: "tool", OwnerName: manifest.Name, Source: manifestSource(path), Message: "tool declares bundling vendorable without a checksummed per-platform source target"})
+		}
+		if sourceRequiresElevation(filepath.Join(root, "internal", "tools", entry.Name())) && effectiveToolPrivilege(manifest) != "elevated" {
+			findings = append(findings, privilegeFinding("tool", manifest.Name, path, effectiveToolPrivilege(manifest), "handler invokes sudo or writes a system path"))
+		}
+	}
+	return findings
+}
+
+func validateSafeguardCatalog(root string) []Finding {
+	entries, err := os.ReadDir(filepath.Join(root, "internal", "safeguards"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return []Finding{{Code: FindingMissingClassification, OwnerKind: "safeguard", OwnerName: "catalog", Message: err.Error()}}
+	}
+	findings := make([]Finding, 0)
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		path := filepath.Join(root, "internal", "safeguards", entry.Name(), "safeguard.json")
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var manifest hostreqkit.SafeguardManifest
+		if json.Unmarshal(data, &manifest) != nil {
+			continue
+		}
+		evidence := sourceRequiresElevation(filepath.Join(root, "internal", "safeguards", entry.Name()))
+		if manifest.VerificationCheck != nil {
+			for _, file := range manifest.VerificationCheck.Files {
+				if isSystemPath(file) {
+					evidence = true
+					break
+				}
+			}
+		}
+		if evidence && manifest.Privilege != "elevated" {
+			findings = append(findings, privilegeFinding("safeguard", manifest.Name, path, manifest.Privilege, "handler or verification check accesses a system path"))
+		}
+	}
+	return findings
+}
+
+func effectiveToolPrivilege(manifest hostreqkit.ToolManifest) hostreqspec.Privilege {
+	if manifest.Privilege != "" {
+		return manifest.Privilege
+	}
+	if manifest.SourceType() == "package" {
+		return hostreqspec.PrivilegeElevated
+	}
+	return hostreqspec.PrivilegeUser
+}
+
+func hasPortableToolSource(manifest hostreqkit.ToolManifest) bool {
+	if manifest.Source == nil || len(manifest.Source.Targets) == 0 {
+		return false
+	}
+	for _, target := range manifest.Source.Targets {
+		if strings.TrimSpace(target.URL) == "" || len(strings.TrimSpace(target.SHA256)) != 64 {
+			return false
+		}
+	}
+	return true
+}
+
+func sourceRequiresElevation(dir string) bool {
+	requires := false
+	_ = filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() || (filepath.Ext(path) != ".go" && filepath.Ext(path) != ".sh") {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		text := string(data)
+		if strings.Contains(text, "sudo") || strings.Contains(text, "/etc/") || strings.Contains(text, "/usr/") || strings.Contains(text, "/var/") {
+			requires = true
+		}
+		return nil
+	})
+	return requires
+}
+
+func isSystemPath(path string) bool {
+	clean := filepath.ToSlash(strings.TrimSpace(path))
+	return strings.HasPrefix(clean, "/etc/") || strings.HasPrefix(clean, "/usr/") || strings.HasPrefix(clean, "/var/") || strings.HasPrefix(clean, "/opt/")
+}
+
+func privilegeFinding(kind, name, path string, declared hostreqspec.Privilege, evidence string) Finding {
+	return Finding{Code: FindingPrivilegeMismatch, OwnerKind: kind, OwnerName: name, Source: manifestSource(path), Message: fmt.Sprintf("declares privilege %q but %s; required value is %q", declared, evidence, hostreqspec.PrivilegeElevated)}
 }
 
 func loadOwners(root, home string) ([]ownerManifest, error) {
@@ -170,6 +293,8 @@ func loadOwners(root, home string) ([]ownerManifest, error) {
 			manifest:   item.ManifestPath,
 			hostTools:  manifest.HostTools,
 			safeguards: manifest.HostSafeguards,
+			privilege:  string(manifest.Privilege),
+			bundling:   string(manifest.Bundling),
 		})
 	}
 
@@ -193,6 +318,15 @@ func loadOwners(root, home string) ([]ownerManifest, error) {
 
 func validateDeclarations(owner ownerManifest) ([]Finding, error) {
 	findings := make([]Finding, 0)
+	if owner.kind == "resource" {
+		if owner.privilege == "" || owner.bundling == "" {
+			findings = append(findings, Finding{
+				Code: FindingMissingClassification, OwnerKind: owner.kind, OwnerName: owner.name,
+				Source:  manifestSource(owner.manifest),
+				Message: "resource must declare both privilege and bundling for deployment eligibility",
+			})
+		}
+	}
 
 	for _, declaration := range owner.hostTools {
 		name := strings.TrimSpace(declaration.Name)

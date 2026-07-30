@@ -3,9 +3,17 @@
   "name": "vrooli_launcher",
   "description": "Install a POSIX shim at /usr/local/bin/vrooli so `sudo vrooli` works. See package doc for design rationale.",
   "handler": "vrooli_launcher",
-  "platforms": ["linux", "darwin"],
+  "platforms": [
+    "linux",
+    "darwin"
+  ],
   "risk": "low",
   "verificationCheck": {
-    "files": ["/usr/local/bin/vrooli"]
-  }
+    "files": [
+      "/usr/local/bin/vrooli"
+    ]
+  },
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "deployment": {"profiles": {"desktop": {"linux": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "macos": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "windows": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}}}}
 }

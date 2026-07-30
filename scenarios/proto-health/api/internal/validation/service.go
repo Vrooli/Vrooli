@@ -1593,6 +1593,15 @@ func (s *Service) checkDomainMismatch(surface protosurface.Surface) []Finding {
 	if s.repoRoot == "" {
 		return nil
 	}
+	aliases, err := s.loadProtoDomainAliases(surface.Scenario)
+	if err != nil {
+		return []Finding{{
+			Code:       CodeDomainMismatch,
+			Location:   filepath.Join("scenarios", surface.Scenario, ".vrooli", "proto-domain-aliases.json"),
+			Message:    fmt.Sprintf("invalid proto domain alias configuration: %v", err),
+			Suggestion: "declare a JSON object mapping stable proto domains to their semantic handler domains",
+		}}
+	}
 	handlerRoot := filepath.Join(s.repoRoot, "scenarios", surface.Scenario, "api", "handlers")
 	entries, err := os.ReadDir(handlerRoot)
 	if err != nil {
@@ -1610,20 +1619,32 @@ func (s *Service) checkDomainMismatch(surface protosurface.Surface) []Finding {
 			protoDomains[f.Domain] = true
 		}
 	}
+	expectedHandlerDomains := map[string]bool{}
+	for domain := range protoDomains {
+		handlerDomain := aliases[domain]
+		if handlerDomain == "" {
+			handlerDomain = domain
+		}
+		expectedHandlerDomains[handlerDomain] = true
+	}
 	var findings []Finding
 	for domain := range protoDomains {
-		if handlerDomains[domain] {
+		handlerDomain := aliases[domain]
+		if handlerDomain == "" {
+			handlerDomain = domain
+		}
+		if handlerDomains[handlerDomain] {
 			continue
 		}
 		findings = append(findings, Finding{
 			Code:       CodeDomainMismatch,
 			Location:   "packages/proto/schemas/" + surface.Scenario + "/v1/" + domain,
-			Message:    fmt.Sprintf("proto domain %q has no matching api/handlers/%s directory", domain, domain),
+			Message:    fmt.Sprintf("proto domain %q has no matching api/handlers/%s directory", domain, handlerDomain),
 			Suggestion: "add the handler domain when the proto is implemented, or move shared-only types into v1/shared/",
 		})
 	}
 	for domain := range handlerDomains {
-		if protoDomains[domain] || isConventionalHandlerlessDomain(domain) {
+		if expectedHandlerDomains[domain] || isConventionalHandlerlessDomain(domain) {
 			continue
 		}
 		findings = append(findings, Finding{
@@ -1634,6 +1655,38 @@ func (s *Service) checkDomainMismatch(surface protosurface.Surface) []Finding {
 		})
 	}
 	return findings
+}
+
+// loadProtoDomainAliases supports stable wire contracts whose original folder
+// vocabulary predates the semantic API owner. The mapping is scenario-owned so
+// the validator never guesses that two product domains are interchangeable.
+func (s *Service) loadProtoDomainAliases(scenario string) (map[string]string, error) {
+	aliases := map[string]string{}
+	path := filepath.Join(s.repoRoot, "scenarios", scenario, ".vrooli", "proto-domain-aliases.json")
+	contents, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return aliases, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", path, err)
+	}
+	var config struct {
+		ProtoToHandler map[string]string `json:"proto_to_handler"`
+	}
+	decoder := json.NewDecoder(bytes.NewReader(contents))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&config); err != nil {
+		return nil, err
+	}
+	for protoDomain, handlerDomain := range config.ProtoToHandler {
+		protoDomain = strings.TrimSpace(protoDomain)
+		handlerDomain = strings.TrimSpace(handlerDomain)
+		if protoDomain == "" || handlerDomain == "" {
+			return nil, fmt.Errorf("proto_to_handler entries require non-empty domains")
+		}
+		aliases[protoDomain] = handlerDomain
+	}
+	return aliases, nil
 }
 
 func sortFindings(findings []Finding) {

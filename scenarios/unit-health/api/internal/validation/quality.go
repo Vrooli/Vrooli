@@ -35,6 +35,15 @@ var goAssertionPackages = map[string]bool{
 	"assert": true, "require": true, "is": true, "qt": true, "should": true,
 }
 
+// testutil Require* helpers conventionally receive *testing.T and fail it on
+// an unmet expectation. Recognising that shared test seam avoids treating a
+// tested HTTP response as an assertion-free test while remaining narrower than
+// accepting arbitrary helper calls.
+func isTestutilRequireCall(sel *ast.SelectorExpr) bool {
+	ident, ok := sel.X.(*ast.Ident)
+	return ok && ident.Name == "testutil" && strings.HasPrefix(sel.Sel.Name, "Require")
+}
+
 // analyzeQuality runs the static test-quality checks: skipped/only tests,
 // assertion-free tests, render-only and snapshot-heavy UI tests, edge-case
 // coverage, and requirement tagging.
@@ -118,6 +127,12 @@ func analyzeGoQuality(scenario string, ws Workspace, now string) []Finding {
 			if !ok || fn.Body == nil || fn.Recv != nil || !strings.HasPrefix(fn.Name.Name, "Test") {
 				continue
 			}
+			// TestMain is Go's package lifecycle hook, not a test case. It owns
+			// setup/teardown and invokes m.Run(), so requiring an assertion here
+			// would reward meaningless checks rather than test quality.
+			if fn.Name.Name == "TestMain" {
+				continue
+			}
 			testFuncs++
 			hasSkip, hasAssert := inspectGoTestBody(fn.Body, assertingFuncs)
 			if hasSkip {
@@ -189,6 +204,9 @@ func inspectGoTestBody(body *ast.BlockStmt, assertingFuncs map[string]bool) (has
 			if ident, ok := fun.X.(*ast.Ident); ok && goAssertionPackages[ident.Name] {
 				hasAssert = true
 			}
+			if isTestutilRequireCall(fun) {
+				hasAssert = true
+			}
 		case *ast.Ident:
 			// A call to a local helper (assertEqual(t, …)) whose body asserts.
 			if assertingFuncs[fun.Name] {
@@ -215,6 +233,9 @@ func goFuncBodyAsserts(body *ast.BlockStmt) bool {
 				found = true
 			}
 			if id, ok := sel.X.(*ast.Ident); ok && goAssertionPackages[id.Name] {
+				found = true
+			}
+			if isTestutilRequireCall(sel) {
 				found = true
 			}
 		}
@@ -272,7 +293,7 @@ func nameSignalsEdge(name string) bool {
 }
 
 var (
-	tsSkipOnlyRe   = regexp.MustCompile(`\b(describe|it|test)\s*\.\s*(skip|only)\b|\b(xit|xdescribe|fit|fdescribe)\b`)
+	tsSkipOnlyRe   = regexp.MustCompile(`\b(describe|it|test)\s*\.\s*(skip|only)\b|\b(xit|xdescribe|fit|fdescribe)\s*\(`)
 	tsExpectRe     = regexp.MustCompile(`\bexpect\s*\(|\bassert\b`)
 	tsRenderRe     = regexp.MustCompile(`\brender\s*\(`)
 	tsSnapshotRe   = regexp.MustCompile(`\btoMatch(Inline)?Snapshot\s*\(`)

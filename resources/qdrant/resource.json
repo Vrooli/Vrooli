@@ -214,5 +214,7 @@
   "capabilities": {
     "supports_logs": true
   },
-  "template_version": "2"
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
 }

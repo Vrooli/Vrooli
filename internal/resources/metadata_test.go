@@ -1,7 +1,6 @@
 package resources
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,7 +9,6 @@ import (
 	apicoresecrets "github.com/vrooli/api-core/secrets"
 	repocontract "github.com/vrooli/repo-contract-go"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
-	"github.com/vrooli/vrooli/internal/secrets"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
 	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
 )
@@ -34,7 +32,7 @@ func TestLoadPortRegistryReadsTypedJSON(t *testing.T) {
 	}
 }
 
-func TestLoadResourceEnvironmentUsesTypedDefaultsAndSecrets(t *testing.T) {
+func TestLoadResourceEnvironmentIgnoresRetiredFileStores(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
@@ -80,15 +78,7 @@ func TestLoadResourceEnvironmentUsesTypedDefaultsAndSecrets(t *testing.T) {
 			},
 		},
 	})
-	t.Setenv(secrets.KeyEnvVar, "metadata-test-secret-key")
-	store := secrets.NewUserStore(home)
-	if err := store.Save(map[string]string{
-		"POSTGRES_PASSWORD": "secret",
-		"POSTGRES_USER":     "vrooli",
-		"FIXTUREHTTP_TOKEN": "abc123",
-	}); err != nil {
-		t.Fatalf("Save encrypted secrets: %v", err)
-	}
+	writeRetiredEncryptedFixture(t, home)
 
 	postgresEnv, err := LoadResourceEnvironment(root, home, "postgres")
 	if err != nil {
@@ -100,8 +90,8 @@ func TestLoadResourceEnvironmentUsesTypedDefaultsAndSecrets(t *testing.T) {
 	if got := postgresEnv["POSTGRES_HOST"]; got != "localhost" {
 		t.Fatalf("POSTGRES_HOST = %q, want localhost", got)
 	}
-	if got := postgresEnv["POSTGRES_PASSWORD"]; got != "secret" {
-		t.Fatalf("POSTGRES_PASSWORD = %q, want secret", got)
+	if _, found := postgresEnv["POSTGRES_PASSWORD"]; found {
+		t.Fatal("retired file-store value was injected into POSTGRES_PASSWORD")
 	}
 
 	fixtureEnv, err := LoadResourceEnvironment(root, home, "fixturehttp")
@@ -117,12 +107,12 @@ func TestLoadResourceEnvironmentUsesTypedDefaultsAndSecrets(t *testing.T) {
 	if got := fixtureEnv["FIXTUREHTTP_URL"]; got != "http://localhost:4110" {
 		t.Fatalf("FIXTUREHTTP_URL = %q, want http://localhost:4110", got)
 	}
-	if got := fixtureEnv["FIXTUREHTTP_TOKEN"]; got != "abc123" {
-		t.Fatalf("FIXTUREHTTP_TOKEN = %q, want abc123", got)
+	if _, found := fixtureEnv["FIXTUREHTTP_TOKEN"]; found {
+		t.Fatal("retired file-store value was injected into FIXTUREHTTP_TOKEN")
 	}
 }
 
-func TestLoadResourceEnvironmentUsesEncryptedSecrets(t *testing.T) {
+func TestLoadResourceEnvironmentDoesNotReadEncryptedFileSecrets(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
@@ -132,28 +122,21 @@ func TestLoadResourceEnvironmentUsesEncryptedSecrets(t *testing.T) {
 	})
 	writePostgresManifestFixture(t, root)
 
-	t.Setenv(secrets.KeyEnvVar, "resource-secret-key")
-	store := secrets.NewUserStore(home)
-	if err := store.Save(map[string]string{
-		"POSTGRES_PASSWORD": "encrypted-secret",
-		"POSTGRES_USER":     "vrooli",
-	}); err != nil {
-		t.Fatalf("Save encrypted secrets: %v", err)
-	}
+	writeRetiredEncryptedFixture(t, home)
 
 	postgresEnv, err := LoadResourceEnvironment(root, home, "postgres")
 	if err != nil {
 		t.Fatalf("LoadResourceEnvironment(postgres): %v", err)
 	}
-	if got := postgresEnv["POSTGRES_PASSWORD"]; got != "encrypted-secret" {
-		t.Fatalf("POSTGRES_PASSWORD = %q, want encrypted-secret", got)
+	if _, found := postgresEnv["POSTGRES_PASSWORD"]; found {
+		t.Fatal("retired encrypted-file value was injected into POSTGRES_PASSWORD")
 	}
 	if got := postgresEnv["POSTGRES_USER"]; got != "vrooli" {
 		t.Fatalf("POSTGRES_USER = %q, want vrooli", got)
 	}
 }
 
-func TestLoadResourceEnvironmentPrefersSecretsOverRuntimePlaceholders(t *testing.T) {
+func TestLoadResourceEnvironmentKeepsManifestRuntimeValuesOverRetiredStores(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
@@ -185,27 +168,21 @@ func TestLoadResourceEnvironmentPrefersSecretsOverRuntimePlaceholders(t *testing
 		},
 	})
 
-	t.Setenv(secrets.KeyEnvVar, "metadata-prefers-encrypted")
-	store := secrets.NewUserStore(home)
-	if err := store.Save(map[string]string{
-		"POSTGRES_PASSWORD": "real-secret",
-	}); err != nil {
-		t.Fatalf("Save encrypted secrets: %v", err)
-	}
+	writeRetiredEncryptedFixture(t, home)
 
 	postgresEnv, err := LoadResourceEnvironment(root, home, "postgres")
 	if err != nil {
 		t.Fatalf("LoadResourceEnvironment(postgres): %v", err)
 	}
-	if got := postgresEnv["POSTGRES_PASSWORD"]; got != "real-secret" {
-		t.Fatalf("POSTGRES_PASSWORD = %q, want real-secret", got)
+	if got := postgresEnv["POSTGRES_PASSWORD"]; got != "placeholder" {
+		t.Fatalf("POSTGRES_PASSWORD = %q, want manifest placeholder", got)
 	}
-	if got := postgresEnv["DATABASE_URL"]; !strings.Contains(got, ":real-secret@") {
-		t.Fatalf("DATABASE_URL = %q, want runtime password from secrets", got)
+	if got := postgresEnv["DATABASE_URL"]; !strings.Contains(got, ":placeholder@") {
+		t.Fatalf("DATABASE_URL = %q, want manifest value", got)
 	}
 }
 
-func TestLoadResourceEnvironmentFallsBackToPlaintextUserSecrets(t *testing.T) {
+func TestLoadResourceEnvironmentDoesNotReadPlaintextUserSecrets(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
@@ -230,15 +207,15 @@ func TestLoadResourceEnvironmentFallsBackToPlaintextUserSecrets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadResourceEnvironment(postgres): %v", err)
 	}
-	if got := postgresEnv["POSTGRES_PASSWORD"]; got != "plaintext-secret" {
-		t.Fatalf("POSTGRES_PASSWORD = %q, want plaintext-secret", got)
+	if _, found := postgresEnv["POSTGRES_PASSWORD"]; found {
+		t.Fatal("plaintext user-store value was injected")
 	}
-	if got := postgresEnv["DATABASE_URL"]; !strings.Contains(got, ":plaintext-secret@") {
-		t.Fatalf("DATABASE_URL = %q, want plaintext user secret", got)
+	if got := postgresEnv["DATABASE_URL"]; strings.Contains(got, "plaintext-secret") {
+		t.Fatalf("DATABASE_URL included a plaintext user-store value: %q", got)
 	}
 }
 
-func TestLoadResourceEnvironmentPrefersEncryptedSecretsOverPlaintextUserSecrets(t *testing.T) {
+func TestLoadResourceEnvironmentDoesNotReadAnyRetiredUserStore(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
@@ -259,23 +236,17 @@ func TestLoadResourceEnvironmentPrefersEncryptedSecretsOverPlaintextUserSecrets(
 		t.Fatalf("Save plaintext secrets: %v", err)
 	}
 
-	t.Setenv(secrets.KeyEnvVar, "metadata-prefers-encrypted-over-plaintext")
-	encryptedStore := secrets.NewUserStore(home)
-	if err := encryptedStore.Save(map[string]string{
-		"POSTGRES_PASSWORD": "encrypted-secret",
-	}); err != nil {
-		t.Fatalf("Save encrypted secrets: %v", err)
-	}
+	writeRetiredEncryptedFixture(t, home)
 
 	postgresEnv, err := LoadResourceEnvironment(root, home, "postgres")
 	if err != nil {
 		t.Fatalf("LoadResourceEnvironment(postgres): %v", err)
 	}
-	if got := postgresEnv["POSTGRES_PASSWORD"]; got != "encrypted-secret" {
-		t.Fatalf("POSTGRES_PASSWORD = %q, want encrypted-secret", got)
+	if _, found := postgresEnv["POSTGRES_PASSWORD"]; found {
+		t.Fatal("retired user-store value was injected")
 	}
-	if got := postgresEnv["DATABASE_URL"]; !strings.Contains(got, ":encrypted-secret@") {
-		t.Fatalf("DATABASE_URL = %q, want encrypted user secret", got)
+	if got := postgresEnv["DATABASE_URL"]; strings.Contains(got, "encrypted-secret") || strings.Contains(got, "plaintext-secret") {
+		t.Fatalf("DATABASE_URL included a retired user-store value: %q", got)
 	}
 }
 
@@ -640,15 +611,7 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 			},
 		},
 	})
-	t.Setenv(secrets.KeyEnvVar, "native-non-docker-encrypted")
-	store := secrets.NewUserStore(home)
-	if err := store.Save(map[string]string{
-		"OPENROUTER_API_KEY":   "sk-or-test",
-		"HOME_ASSISTANT_TOKEN": "ha-token",
-		"FIXTUREEXEC_API_KEY":  "fixtureexec-token",
-	}); err != nil {
-		t.Fatalf("Save encrypted secrets: %v", err)
-	}
+	writeRetiredEncryptedFixture(t, home)
 
 	fixtureEnv, err := LoadResourceEnvironment(root, home, "fixturecli")
 	if err != nil {
@@ -660,13 +623,16 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 
 	openrouterEnv, err := LoadResourceEnvironment(root, home, "openrouter")
 	if err != nil {
+		if strings.Contains(err.Error(), "credential is not configured") || strings.Contains(err.Error(), "credential provider is unsupported") {
+			t.Skipf("OpenRouter native credential is not configured on this host: %v", err)
+		}
 		t.Fatalf("LoadResourceEnvironment(openrouter): %v", err)
 	}
 	if got := openrouterEnv["RESOURCE_OPENROUTER_URL"]; got != "https://openrouter.ai/api/v1" {
 		t.Fatalf("RESOURCE_OPENROUTER_URL = %q", got)
 	}
-	if got := openrouterEnv["OPENROUTER_API_KEY"]; got != "sk-or-test" {
-		t.Fatalf("OPENROUTER_API_KEY = %q", got)
+	if _, found := openrouterEnv["OPENROUTER_API_KEY"]; found {
+		t.Fatal("OpenRouter key from retired file storage was injected")
 	}
 
 	homeAssistantEnv, err := LoadResourceEnvironment(root, home, "home-assistant")
@@ -703,8 +669,8 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 	if got := fixtureExecEnv["FIXTUREEXEC_URL"]; got != "http://localhost:9999" {
 		t.Fatalf("FIXTUREEXEC_URL = %q", got)
 	}
-	if got := fixtureExecEnv["FIXTUREEXEC_API_KEY"]; got != "fixtureexec-token" {
-		t.Fatalf("FIXTUREEXEC_API_KEY = %q", got)
+	if _, found := fixtureExecEnv["FIXTUREEXEC_API_KEY"]; found {
+		t.Fatal("fixture credential from retired file storage was injected")
 	}
 
 	claudeEnv, err := LoadResourceEnvironment(root, home, "claude-code")
@@ -747,7 +713,7 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 	}
 }
 
-func TestLoadResourceEnvironmentFailsWhenEncryptedSecretsRequireKey(t *testing.T) {
+func TestLoadResourceEnvironmentIgnoresEncryptedSecretsWithoutAKey(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
@@ -761,23 +727,15 @@ func TestLoadResourceEnvironmentFailsWhenEncryptedSecretsRequireKey(t *testing.T
 		"POSTGRES_USER":     "vrooli",
 	}, 0o600)
 
-	t.Setenv(secrets.KeyEnvVar, "writer-secret-key")
-	store := secrets.NewUserStore(home)
-	if err := store.Save(map[string]string{
-		"POSTGRES_PASSWORD": "encrypted-secret",
-		"POSTGRES_USER":     "vrooli",
-	}); err != nil {
-		t.Fatalf("Save encrypted secrets: %v", err)
-	}
-	t.Setenv(secrets.KeyEnvVar, "")
+	writeRetiredEncryptedFixture(t, home)
 
 	_, err := LoadResourceEnvironment(root, home, "postgres")
-	if err == nil || !errors.Is(err, secrets.ErrMissingKey) {
-		t.Fatalf("LoadResourceEnvironment(postgres) error = %v, want ErrMissingKey", err)
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment must ignore retired encrypted storage: %v", err)
 	}
 }
 
-func TestLoadResourceEnvironmentFailsClosedWhenEncryptedSecretsAreInvalid(t *testing.T) {
+func TestLoadResourceEnvironmentIgnoresInvalidRetiredEncryptedStorage(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
@@ -793,8 +751,8 @@ func TestLoadResourceEnvironmentFailsClosedWhenEncryptedSecretsAreInvalid(t *tes
 	testkitgo.WriteRawJSON(t, encryptedPath, `{`, 0o600)
 
 	_, err = LoadResourceEnvironment(root, home, "postgres")
-	if err == nil {
-		t.Fatal("expected invalid encrypted secrets to fail closed")
+	if err != nil {
+		t.Fatalf("LoadResourceEnvironment must ignore retired encrypted storage: %v", err)
 	}
 }
 
@@ -803,7 +761,6 @@ func TestActualNonDockerResourceManifestsResolveNativeExports(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve repo root: %v", err)
 	}
-	skipIfRepoSecretsRequireMigrationOrKey(t, root)
 	home, err := os.UserHomeDir()
 	if err != nil {
 		t.Fatalf("resolve home: %v", err)
@@ -811,6 +768,9 @@ func TestActualNonDockerResourceManifestsResolveNativeExports(t *testing.T) {
 
 	openrouterEnv, err := LoadResourceEnvironment(root, home, "openrouter")
 	if err != nil {
+		if strings.Contains(err.Error(), "credential is not configured") || strings.Contains(err.Error(), "credential provider is unsupported") {
+			t.Skipf("OpenRouter native credential is not configured on this host: %v", err)
+		}
 		t.Fatalf("LoadResourceEnvironment(openrouter): %v", err)
 	}
 	if got := openrouterEnv["RESOURCE_OPENROUTER_URL"]; got != "https://openrouter.ai/api/v1" {
@@ -892,17 +852,16 @@ func writePostgresManifestFixture(t *testing.T, root string) {
 	})
 }
 
-func skipIfRepoSecretsRequireMigrationOrKey(t *testing.T, root string) {
+func writeRetiredEncryptedFixture(t *testing.T, home string) {
 	t.Helper()
-
-	home, err := os.UserHomeDir()
+	path, err := repocontract.UserEncryptedSecretsPath(home)
 	if err != nil {
-		t.Skipf("resolve home dir: %v", err)
+		t.Fatalf("retired encrypted path: %v", err)
 	}
-	store := secrets.NewUserStore(home)
-	if _, err := os.Stat(store.EncryptedPath()); err == nil {
-		if strings.TrimSpace(os.Getenv(secrets.KeyEnvVar)) == "" {
-			t.Skipf("user secrets at %s are encrypted but %s is unset", store.EncryptedPath(), secrets.KeyEnvVar)
-		}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatalf("mkdir retired encrypted path: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(`{"retired":true}`), 0o600); err != nil {
+		t.Fatalf("write retired encrypted fixture: %v", err)
 	}
 }

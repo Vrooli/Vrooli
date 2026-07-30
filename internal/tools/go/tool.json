@@ -2,12 +2,20 @@
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "go",
   "description": "Pinned Go programming language toolchain used to build and validate Vrooli",
-  "commands": ["go"],
-  "versionArgs": ["version"],
+  "commands": [
+    "go"
+  ],
+  "versionArgs": [
+    "version"
+  ],
   "version": "1.25.12",
   "installHint": "Managed as an exact, checksum-verified Go release in ~/.vrooli/opt/go. It is the workspace Go toolchain source of truth; do not substitute an OS package version.",
   "notes": "The root go.mod toolchain directive and GitHub workflows consume this manifest's exact release. The go directive remains the module language/API compatibility floor.",
-  "platforms": ["linux", "macos", "windows"],
+  "platforms": [
+    "linux",
+    "macos",
+    "windows"
+  ],
   "source": {
     "type": "release",
     "targets": {
@@ -17,7 +25,9 @@
         "archive": "tar.gz",
         "layout": "dir",
         "binPath": "go/bin/go",
-        "runtimeEnv": {"GOROOT": "go"}
+        "runtimeEnv": {
+          "GOROOT": "go"
+        }
       },
       "linux/arm64": {
         "url": "https://go.dev/dl/go1.25.12.linux-arm64.tar.gz",
@@ -25,7 +35,9 @@
         "archive": "tar.gz",
         "layout": "dir",
         "binPath": "go/bin/go",
-        "runtimeEnv": {"GOROOT": "go"}
+        "runtimeEnv": {
+          "GOROOT": "go"
+        }
       },
       "darwin/amd64": {
         "url": "https://go.dev/dl/go1.25.12.darwin-amd64.tar.gz",
@@ -33,7 +45,9 @@
         "archive": "tar.gz",
         "layout": "dir",
         "binPath": "go/bin/go",
-        "runtimeEnv": {"GOROOT": "go"}
+        "runtimeEnv": {
+          "GOROOT": "go"
+        }
       },
       "darwin/arm64": {
         "url": "https://go.dev/dl/go1.25.12.darwin-arm64.tar.gz",
@@ -41,7 +55,9 @@
         "archive": "tar.gz",
         "layout": "dir",
         "binPath": "go/bin/go",
-        "runtimeEnv": {"GOROOT": "go"}
+        "runtimeEnv": {
+          "GOROOT": "go"
+        }
       },
       "windows/amd64": {
         "url": "https://go.dev/dl/go1.25.12.windows-amd64.zip",
@@ -49,8 +65,11 @@
         "archive": "zip",
         "layout": "dir",
         "binPath": "go/bin/go.exe",
-        "runtimeEnv": {"GOROOT": "go"}
+        "runtimeEnv": {
+          "GOROOT": "go"
+        }
       }
     }
-  }
+  },
+  "bundling": "vendorable"
 }

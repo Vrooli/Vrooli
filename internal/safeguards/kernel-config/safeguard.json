@@ -3,9 +3,16 @@
   "name": "kernel_config",
   "description": "Configure kernel parameters for optimal Vrooli operation (inotify file watcher limits)",
   "handler": "kernel_config",
-  "platforms": ["linux"],
+  "platforms": [
+    "linux"
+  ],
   "risk": "medium",
   "verificationCheck": {
-    "files": ["/etc/sysctl.d/99-vrooli.conf"]
-  }
+    "files": [
+      "/etc/sysctl.d/99-vrooli.conf"
+    ]
+  },
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "deployment": {"profiles": {"desktop": {"linux": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "macos": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "windows": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}}}}
 }

@@ -2,9 +2,18 @@
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "curl",
   "description": "HTTP client for setup, diagnostics, and resource flows",
-  "commands": ["curl"],
-  "versionArgs": ["--version"],
+  "commands": [
+    "curl"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
   "defaultPackage": "curl",
   "installHint": "Install curl for HTTP-based setup and diagnostics",
-  "platforms": ["linux", "macos", "windows"]
+  "platforms": [
+    "linux",
+    "macos",
+    "windows"
+  ],
+  "bundling": "host-required"
 }

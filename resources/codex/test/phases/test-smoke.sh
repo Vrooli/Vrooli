@@ -117,13 +117,13 @@ else
     TESTS_FAILED=$((TESTS_FAILED + 1))
 fi
 
-# Test 10: Secrets config exists
-if [[ -f "${CODEX_DIR}/config/secrets.yaml" ]]; then
-    log::success "✓ Secrets configuration exists"
-    TESTS_PASSED=$((TESTS_PASSED + 1))
+# Test 10: Credential descriptors exist
+if jq -e '.credentials.descriptors | type == "array"' "${CODEX_DIR}/resource.json" &>/dev/null; then
+	log::success "✓ Credential descriptors exist"
+	TESTS_PASSED=$((TESTS_PASSED + 1))
 else
-    log::error "✗ Secrets configuration: Missing secrets.yaml"
-    TESTS_FAILED=$((TESTS_FAILED + 1))
+	log::error "✗ Credential descriptors: missing from resource.json"
+	TESTS_FAILED=$((TESTS_FAILED + 1))
 fi
 
 # Report results

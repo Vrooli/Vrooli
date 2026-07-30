@@ -2,9 +2,17 @@
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "uv",
   "description": "uv — Astral's fast Python package/venv manager. Builds and syncs the per-scenario isolated Python virtualenvs that model-managing scenarios (image-tools, future video-tools) provision from a committed requirements.lock.",
-  "commands": ["uv"],
-  "versionArgs": ["--version"],
-  "platforms": ["linux", "macos", "windows"],
+  "commands": [
+    "uv"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
+  "platforms": [
+    "linux",
+    "macos",
+    "windows"
+  ],
   "installHint": "Install on demand with `vrooli host install uv` (no sudo — a single static binary into ~/.vrooli/bin). Required for scenarios that provision an isolated Python venv from requirements.lock.",
   "source": {
     "type": "release",
@@ -45,5 +53,6 @@
         "layout": "file"
       }
     }
-  }
+  },
+  "bundling": "vendorable"
 }

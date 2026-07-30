@@ -110,23 +110,22 @@
   },
   "dependencies": [],
   "credentials": {
-    "secret_ref": "secret/resources/adguard-home/admin",
-    "env": [
+    "descriptors": [
       {
+        "logical_id": "vrooli/adguard-home",
+        "field": "admin-username",
         "env": "ADGUARD_HOME_USERNAME",
         "label": "AdGuard Home admin username",
         "description": "Administrator username used by resource-local diagnostics and Network Manager when checking AdGuard Home.",
-        "classification": "infrastructure",
-        "required": false,
-        "default_hint": "admin"
+        "required": false
       },
       {
+        "logical_id": "vrooli/adguard-home",
+        "field": "admin-password",
         "env": "ADGUARD_HOME_PASSWORD",
         "label": "AdGuard Home admin password",
         "description": "Administrator password stored through the Vrooli secret flow; never pass this value to Network Manager directly.",
-        "classification": "infrastructure",
-        "required": false,
-        "default_hint": "Generate a high-entropy password during bootstrap."
+        "required": false
       }
     ]
   },
@@ -228,5 +227,7 @@
     "supports_logs": true,
     "supports_content_ops": false
   },
-  "template_version": "2"
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
 }

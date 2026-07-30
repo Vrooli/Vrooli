@@ -2,9 +2,17 @@
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "sd-gpu",
   "description": "GPU-accelerated stable-diffusion.cpp build for image-tools, installed as a distinct `sd-gpu` command from a GPU release (Vulkan on Linux — runs on NVIDIA and AMD; CUDA 12 on Windows). The image-tools stable-diffusion.cpp provider prefers `sd-gpu` over the CPU `sd` when present, so its tier reports local-gpu and the capacity broker can arbitrate op-scoped GPU VRAM. Capability-gated: cleanly skipped on hosts with no GPU.",
-  "commands": ["sd-gpu"],
-  "versionArgs": ["--help"],
-  "platforms": ["linux", "macos", "windows"],
+  "commands": [
+    "sd-gpu"
+  ],
+  "versionArgs": [
+    "--help"
+  ],
+  "platforms": [
+    "linux",
+    "macos",
+    "windows"
+  ],
   "requires": {
     "gpu": true,
     "minVramGb": 4
@@ -29,5 +37,6 @@
         "binPath": "sd-cli.exe"
       }
     }
-  }
+  },
+  "bundling": "vendorable"
 }

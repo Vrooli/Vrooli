@@ -2,6 +2,7 @@ package env
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,13 +11,13 @@ import (
 	"strconv"
 	"strings"
 
-	apicoresecrets "github.com/vrooli/api-core/secrets"
 	repocontract "github.com/vrooli/repo-contract-go"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	runtimestorage "github.com/vrooli/vrooli/internal/resources/runtime/storage"
+	"github.com/vrooli/vrooli/internal/resources/securestore"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
-	"github.com/vrooli/vrooli/internal/secrets"
+	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
 )
 
 const (
@@ -121,22 +122,48 @@ func ResolveResource(root, home, resourceName string, opts ResolveOptions) (Reso
 }
 
 func ResolveCredentialValues(root, home string, resourceManifest manifestpkg.ResourceManifest) (map[string]string, error) {
-	values, _, err := resolveRequestedEnvValues(root, home, resourceManifest, resourceManifest.Credentials.Env, nil)
+	_ = root
+	_ = home
+	values := map[string]string{}
+	descriptors := resourceManifest.Credentials.All()
+	if len(descriptors) == 0 {
+		return values, nil
+	}
+	authority, err := credentialauthority.NewAuthority(securestore.Default())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolve %s credentials: %w", resourceManifest.Name, err)
+	}
+	for _, descriptor := range descriptors {
+		identity, err := credentialauthority.ParseIdentity(descriptor.LogicalID)
+		if err != nil {
+			return nil, fmt.Errorf("resolve %s credential %s: %w", resourceManifest.Name, descriptor.Env, err)
+		}
+		field := strings.TrimSpace(descriptor.Field)
+		if field == "" {
+			field = "value"
+		}
+		if err := authority.Inject(identity, field, descriptor.Env, values); err != nil {
+			if !descriptor.Required && errors.Is(err, credentialauthority.ErrUnconfigured) {
+				continue
+			}
+			return nil, fmt.Errorf("resolve %s credential %s: %w", resourceManifest.Name, descriptor.Env, err)
+		}
 	}
 	return values, nil
 }
 
 func MissingCredentialKeys(root, home string, resourceManifest manifestpkg.ResourceManifest) ([]string, error) {
+	if len(resourceManifest.Credentials.All()) == 0 {
+		return nil, nil
+	}
 	resolved, err := ResolveCredentialValues(root, home, resourceManifest)
 	if err != nil {
 		return nil, err
 	}
 
 	missing := make([]string, 0)
-	for _, key := range resourceManifest.Credentials.Env {
-		name := strings.TrimSpace(key)
+	for _, descriptor := range resourceManifest.Credentials.All() {
+		name := strings.TrimSpace(descriptor.Env)
 		if name == "" {
 			continue
 		}
@@ -177,6 +204,17 @@ func resolveFromManifest(root, home string, resourceManifest manifestpkg.Resourc
 	}
 	warnings = append(warnings, runtimeWarnings...)
 
+	// Credentials are the authoritative source for their declared process
+	// variables. Apply them after manifest defaults so a persisted resource can
+	// safely outlive a changed bootstrap value in its image configuration.
+	credentialValues, err := ResolveCredentialValues(root, home, resourceManifest)
+	if err != nil {
+		return nil, nil, err
+	}
+	for key, value := range credentialValues {
+		values[key] = value
+	}
+
 	applyDependencyOverrides(resourceManifest.Name, opts, values)
 
 	if len(resourceManifest.EnvironmentExports.Static) == 0 &&
@@ -208,23 +246,11 @@ func resolveRequestedEnvValues(
 	values := map[string]string{}
 	warnings := []string{}
 
-	secretsMap, err := loadSecrets(home)
-	if err != nil {
-		return nil, nil, err
-	}
 	templateContext := buildTemplateContext(root, home, resourceManifest.Name)
 
 	for _, key := range requested {
 		name := strings.TrimSpace(key)
 		if name == "" {
-			continue
-		}
-		if value := strings.TrimSpace(os.Getenv(name)); value != "" {
-			values[name] = value
-			continue
-		}
-		if value, ok := secretsMap[name]; ok {
-			values[name] = value
 			continue
 		}
 		if value, ok := resourceManifest.Runtime.Env[name]; ok {
@@ -458,33 +484,6 @@ func LoadPortRegistry(root string) (PortRegistry, error) {
 		registry.ReservedRanges = map[string]string{}
 	}
 	return registry, nil
-}
-
-func loadSecrets(home string) (map[string]string, error) {
-	merged := map[string]string{}
-
-	plaintextStore, err := apicoresecrets.NewUserStore(apicoresecrets.Config{HomeDir: home})
-	if err != nil {
-		return nil, err
-	}
-	plaintextValues, err := plaintextStore.Load()
-	if err != nil {
-		return nil, err
-	}
-	for key, value := range plaintextValues {
-		merged[key] = value
-	}
-
-	encryptedStore := secrets.NewUserStore(home)
-	encryptedValues, err := encryptedStore.Load()
-	if err != nil {
-		return nil, err
-	}
-	for key, value := range encryptedValues {
-		merged[key] = value
-	}
-
-	return merged, nil
 }
 
 func applyFallbackDefaults(resourceName string, values map[string]string, hostPorts map[string]int) {

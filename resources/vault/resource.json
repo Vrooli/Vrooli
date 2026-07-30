@@ -56,7 +56,10 @@
       ],
       "shared_reuse_requires_consent": true,
       "external_management": "forbidden",
-      "external_access_capabilities": ["read-only", "read-write"]
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
     },
     "artifact": {
       "path": "server/vault",
@@ -95,7 +98,9 @@
             "amd64",
             "arm64"
           ],
-          "requires": [],
+          "requires": [
+            "secret-tool"
+          ],
           "limitations": [
             "The Vault API is deliberately bound to 127.0.0.1; initialization and unseal material must be supplied through an authorized provider."
           ],
@@ -123,20 +128,9 @@
           ]
         },
         "windows": {
-          "support": "conditional",
+          "support": "unsupported",
           "mode": "bundled-service",
-          "architectures": [
-            "amd64"
-          ],
-          "requires": [],
-          "limitations": [
-            "The Vault API is deliberately bound to 127.0.0.1; initialization and unseal material must be supplied through an authorized provider."
-          ],
-          "evidence": [
-            "manifest-validation",
-            "artifact-checksum",
-            "fixture-runtime-test"
-          ]
+          "reason": "Windows credential storage is unavailable for managed Vault recovery material."
         }
       }
     }
@@ -153,14 +147,10 @@
       "name": "secret-tool",
       "required": true,
       "reason": "Linux managed-shared Vault stores recovery material only in the active user Secret Service",
-      "when": [
-        "setup",
-        "develop"
-      ],
       "platforms": [
         "linux"
       ],
-      "notes": "Required for the control-plane managed-shared provider. Desktop bundles use managed-private Vault and do not rely on this host credential store."
+      "notes": "Required by Linux managed Vault bootstrap for recovery material in both control-plane and desktop-bundle modes."
     }
   ],
   "dependencies": [],
@@ -217,5 +207,7 @@
   "capabilities": {
     "supports_logs": true
   },
-  "template_version": "2"
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "vendorable"
 }

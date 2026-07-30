@@ -39,6 +39,16 @@
       "kind": "go_module"
     }
   },
+  "credentials": {
+    "descriptors": [
+      {"logical_id":"vrooli/home-assistant","field":"long-lived-token","env":"HOME_ASSISTANT_TOKEN","label":"Home Assistant long-lived token","description":"Optional API token for Home Assistant automation.","required":false},
+      {"logical_id":"vrooli/home-assistant","field":"webhook-secret","env":"HOME_ASSISTANT_WEBHOOK_SECRET","label":"Webhook secret","description":"Optional secret for validating incoming Home Assistant webhooks.","required":false},
+      {"logical_id":"vrooli/home-assistant","field":"github-token","env":"GITHUB_TOKEN","label":"GitHub token","description":"Optional token for HACS and update integrations.","required":false},
+      {"logical_id":"vrooli/home-assistant","field":"openweathermap-api-key","env":"OPENWEATHERMAP_API_KEY","label":"OpenWeatherMap API key","description":"Optional weather integration credential.","required":false},
+      {"logical_id":"vrooli/home-assistant","field":"recorder-database-url","env":"HOME_ASSISTANT_RECORDER_DB_URL","label":"Recorder database URL","description":"Optional recorder database connection credential.","required":false},
+      {"logical_id":"vrooli/home-assistant","field":"mqtt-password","env":"MQTT_PASSWORD","label":"MQTT password","description":"Optional password for a configured MQTT broker.","required":false}
+    ]
+  },
   "template": "compose-service",
   "driver": "compose-service",
   "deployment": {
@@ -174,5 +184,7 @@
     "supports_logs": true,
     "supports_content_ops": true
   },
-  "template_version": "2"
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
 }

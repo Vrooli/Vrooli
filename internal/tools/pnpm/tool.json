@@ -2,9 +2,17 @@
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "pnpm",
   "description": "pnpm package manager — builds and installs scenario UI dependencies. Scenario lifecycle steps invoke `corepack pnpm … || pnpm …`; this tool guarantees the plain `pnpm` fallback exists on hosts where the system Node.js does not ship corepack shims (e.g. Homebrew node on macOS).",
-  "commands": ["pnpm"],
-  "versionArgs": ["--version"],
-  "platforms": ["linux", "macos", "windows"],
+  "commands": [
+    "pnpm"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
+  "platforms": [
+    "linux",
+    "macos",
+    "windows"
+  ],
   "installHint": "Installed as a pinned standalone binary into ~/.vrooli/bin (no sudo). Pinned to the workspace packageManager version in pnpm-workspace.yaml — bump both together.",
   "notes": "Pinned to pnpm 10.19.0, matching the root pnpm-workspace.yaml packageManager field. Assets are the official standalone executables from the pnpm GitHub release (raw binaries, no archive). sha256 values were computed from downloaded assets; the linux/amd64 binary was executed and reports 10.19.0.",
   "source": {
@@ -36,5 +44,6 @@
         "layout": "file"
       }
     }
-  }
+  },
+  "bundling": "vendorable"
 }

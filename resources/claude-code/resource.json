@@ -40,6 +40,14 @@
       "kind": "go_module"
     }
   },
+  "credentials": {
+    "descriptors": [
+      {"logical_id":"vrooli/openrouter","field":"api-key","env":"OPENROUTER_API_KEY","label":"OpenRouter API key","description":"Optional gateway credential shared with the OpenRouter resource.","required":false,"obtain_url":"https://openrouter.ai/keys"},
+      {"logical_id":"vrooli/claude-code","field":"anthropic-api-key","env":"ANTHROPIC_API_KEY","label":"Anthropic API key","description":"Optional credential for Claude models.","required":false,"obtain_url":"https://console.anthropic.com/settings/keys"},
+      {"logical_id":"vrooli/claude-code","field":"openai-api-key","env":"OPENAI_API_KEY","label":"OpenAI API key","description":"Optional credential for OpenAI models.","required":false,"obtain_url":"https://platform.openai.com/api-keys"},
+      {"logical_id":"vrooli/gemini","field":"api-key","env":"GEMINI_API_KEY","label":"Gemini API key","description":"Optional credential shared with the Gemini resource.","required":false,"obtain_url":"https://aistudio.google.com/app/apikey"}
+    ]
+  },
   "template": "external-cli",
   "driver": "external-cli",
   "deployment": {
@@ -201,5 +209,7 @@
     "docs_pinned_at": "2026-05-28",
     "schema_version": 1
   },
-  "template_version": "2"
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
 }

@@ -34,6 +34,13 @@ type Service struct {
 	roots *filerouting.RoutedRoots
 }
 
+// FileService implements the routing lease for scenarios that persist only
+// files. It deliberately does not manufacture a database pool: its sole
+// authority is the leased RoutedRoots instance.
+type FileService struct {
+	roots *filerouting.RoutedRoots
+}
+
 // NewService returns a Service bound to db.
 func NewService(db *database.RoutedDB, roots ...*filerouting.RoutedRoots) *Service {
 	service := &Service{db: db}
@@ -41,6 +48,44 @@ func NewService(db *database.RoutedDB, roots ...*filerouting.RoutedRoots) *Servi
 		service.roots = roots[0]
 	}
 	return service
+}
+
+// NewFileService returns a routing service for a file-only scenario.
+func NewFileService(roots *filerouting.RoutedRoots) *FileService {
+	return &FileService{roots: roots}
+}
+
+func (s *FileService) InstallTestPool(_ context.Context, req *connect.Request[routingv1.InstallTestPoolRequest]) (*connect.Response[routingv1.InstallTestPoolResponse], error) {
+	if s == nil || s.roots == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("file routing roots are unavailable"))
+	}
+	ttl := time.Duration(req.Msg.GetLeaseTtlMs()) * time.Millisecond
+	if _, err := s.roots.InstallLeasedTestRoots(req.Msg.GetLeaseId(), ttl, req.Msg.GetEmptyConfig()); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("install test file roots: %w", err))
+	}
+	return connect.NewResponse(&routingv1.InstallTestPoolResponse{ActiveLeaseId: req.Msg.GetLeaseId(), FileRootsInstalled: true}), nil
+}
+
+func (s *FileService) ClearTestPool(_ context.Context, req *connect.Request[routingv1.ClearTestPoolRequest]) (*connect.Response[routingv1.ClearTestPoolResponse], error) {
+	if s == nil || s.roots == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("file routing roots are unavailable"))
+	}
+	snapshot := s.roots.LeaseStats()
+	if err := s.roots.ClearTestRoots(req.Msg.GetLeaseId()); err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return connect.NewResponse(&routingv1.ClearTestPoolResponse{Stats: &routingv1.LeaseStats{TestRootWrites: snapshot.TestRootWrites, PrimaryRootWritesDuringTestMode: snapshot.PrimaryWritesDuringTestMode}}), nil
+}
+
+func (s *FileService) HeartbeatTestPool(_ context.Context, req *connect.Request[routingv1.HeartbeatTestPoolRequest]) (*connect.Response[routingv1.HeartbeatTestPoolResponse], error) {
+	if s == nil || s.roots == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("file routing roots are unavailable"))
+	}
+	expiresAt, err := s.roots.HeartbeatTestRoots(req.Msg.GetLeaseId(), 0)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return connect.NewResponse(&routingv1.HeartbeatTestPoolResponse{ExpiresAtUnixMs: expiresAt.UnixMilli()}), nil
 }
 
 // InstallTestPool implements routing_v1connect.RoutingServiceHandler.
@@ -163,6 +208,18 @@ func RegisterWithFileRoots(mux Mux, db *database.RoutedDB, roots *filerouting.Ro
 		return false
 	}
 	path, handler := routing_v1connect.NewRoutingServiceHandler(NewService(db, roots), opts...)
+	mountService(mux, path, handler)
+	return true
+}
+
+// RegisterFileRoots mounts the development routing surface for a file-only
+// scenario. It is intentionally separate from RegisterWithFileRoots so a
+// scenario never needs an unused SQL database merely to isolate file writes.
+func RegisterFileRoots(mux Mux, roots *filerouting.RoutedRoots, opts ...connect.HandlerOption) bool {
+	if !enabled() || roots == nil {
+		return false
+	}
+	path, handler := routing_v1connect.NewRoutingServiceHandler(NewFileService(roots), opts...)
 	mountService(mux, path, handler)
 	return true
 }

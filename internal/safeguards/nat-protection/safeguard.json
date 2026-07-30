@@ -3,6 +3,11 @@
   "name": "nat_protection",
   "description": "Detect and remove dead NAT iptables REDIRECT rules that hijack web traffic",
   "handler": "nat_protection",
-  "platforms": ["linux"],
-  "risk": "medium"
+  "platforms": [
+    "linux"
+  ],
+  "risk": "medium",
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "deployment": {"profiles": {"desktop": {"linux": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "macos": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "windows": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}}}}
 }

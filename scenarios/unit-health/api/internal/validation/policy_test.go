@@ -178,6 +178,34 @@ func TestResolveUnitPolicyProfileUngovernedUnsupportedSurface(t *testing.T) {
 	}
 }
 
+func TestResolveUnitPolicyProfileIgnoresMissingSurface(t *testing.T) {
+	root := t.TempDir()
+	writeUnitPolicyProfile(t, root, reactViteUnitPolicyProfile())
+	inv := discovery.Inventory{
+		Scenario: "demo",
+		RootPath: root,
+		Surfaces: []discovery.Surface{
+			{ID: "api", Kind: "api", Language: "go", RootPath: filepath.Join(root, "api")},
+			{ID: "cli", Kind: "cli", Language: "go", RootPath: filepath.Join(root, "cli")},
+			{ID: "ui", Kind: "ui", Language: "typescript", Framework: "vite", RootPath: filepath.Join(root, "ui")},
+			{ID: "runtime", Kind: "runtime", Language: "unknown", RootPath: filepath.Join(root, "runtime"), Status: "missing"},
+		},
+	}
+
+	findings := resolveUnitPolicyFindings("demo", inv, fixedNowStr)
+	if _, ok := findingByCode(findings, codeUnitSurfaceUngoverned); ok {
+		t.Fatalf("missing surfaces must not require a unit policy role, got %+v", findings)
+	}
+
+	_, workspaces, _, findings := buildPlan("demo", inv, fixedNowStr)
+	if len(workspaces) != 3 {
+		t.Fatalf("missing surfaces must not become workspaces, got %+v", workspaces)
+	}
+	if _, ok := findingByCode(findings, codeUnsupportedParseUnit); ok {
+		t.Fatalf("missing surfaces must not produce unsupported-workspace findings, got %+v", findings)
+	}
+}
+
 func TestResolveUnitPolicyProfileAddedPythonSurfaceUsesUnitHealthDefault(t *testing.T) {
 	root := t.TempDir()
 	writeUnitPolicyProfile(t, root, reactViteUnitPolicyProfile())

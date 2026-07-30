@@ -103,6 +103,9 @@ func (m nodeManifest) hasScript(name string) bool {
 func buildPlan(scenario string, inv discovery.Inventory, now string) ([]Surface, []Workspace, ExecutionPlan, []Finding) {
 	surfaces := make([]Surface, 0, len(inv.Surfaces))
 	for _, s := range inv.Surfaces {
+		if strings.EqualFold(s.Status, "missing") {
+			continue
+		}
 		surfaces = append(surfaces, Surface{
 			ID:             s.ID,
 			Kind:           s.Kind,
@@ -141,6 +144,9 @@ func buildPlan(scenario string, inv discovery.Inventory, now string) ([]Surface,
 	workspaces := make([]Workspace, 0, len(inv.Surfaces))
 	seen := map[string]struct{}{}
 	for _, s := range inv.Surfaces {
+		if strings.EqualFold(s.Status, "missing") {
+			continue
+		}
 		lang := normalizeLanguage(s.Language, s.RootPath)
 		key := lang + "|" + filepath.Clean(s.RootPath)
 		if _, ok := seen[key]; ok {

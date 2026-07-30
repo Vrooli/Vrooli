@@ -188,7 +188,7 @@ confirm the SandboxLauncher path works against a live macOS sandbox:
 
 ## Recording results
 
-Log outcomes with `swarm-manager records create` (or file defects via the
+Log outcomes with `vrooli-memory note --kind work-record` (or file defects via the
 report-bug skill). Capture, for each step: the exact command, the observed
 signature, and pass/fail. A green run across Steps 1–6 supplies the Sandbox
 portion of real-Mac evidence; it does not by itself qualify all macOS setup or

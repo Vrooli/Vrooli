@@ -308,7 +308,11 @@ func (r *RoutedDB) InstallTestPool(ctx context.Context, dsn, leaseID string, ttl
 	if dsn == "" {
 		return errors.New("database.RoutedDB.InstallTestPool: dsn is empty")
 	}
-	if err := validateDSNMatchesDriver(r.cfg.Driver, dsn); err != nil {
+	testDriver := r.cfg.TestDriver
+	if testDriver == "" {
+		testDriver = r.cfg.Driver
+	}
+	if err := validateDSNMatchesDriver(testDriver, dsn); err != nil {
 		return fmt.Errorf("install test pool: %w", err)
 	}
 	if ttl <= 0 {
@@ -326,6 +330,7 @@ func (r *RoutedDB) InstallTestPool(ctx context.Context, dsn, leaseID string, ttl
 
 	testCfg := r.cfg
 	testCfg.DSN = dsn
+	testCfg.Driver = testDriver
 	pool, err := Connect(ctx, testCfg)
 	if err != nil {
 		return fmt.Errorf("install test pool: %w", err)

@@ -106,18 +106,17 @@
   },
   "endpoint": "https://generativelanguage.googleapis.com/v1beta/models",
   "credentials": {
-    "env": [
+    "descriptors": [
       {
+        "logical_id": "vrooli/gemini",
+        "field": "api-key",
         "env": "GEMINI_API_KEY",
         "label": "Gemini API Key",
         "description": "Google Gemini multimodal LLM. Required for scenarios that call Gemini directly for text generation, vision, or multimodal reasoning.",
-        "classification": "user",
         "required": true,
-        "obtain_url": "https://aistudio.google.com/app/apikey",
-        "default_hint": "Starts with 'AIza...'"
+        "obtain_url": "https://aistudio.google.com/app/apikey"
       }
-    ],
-    "secret_ref": "secret/vrooli/gemini"
+    ]
   },
   "dependency_schema": {
     "type": "object",
@@ -186,5 +185,7 @@
   "capabilities": {
     "supports_logs": false
   },
-  "template_version": "2"
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
 }

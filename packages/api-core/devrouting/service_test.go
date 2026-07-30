@@ -182,6 +182,38 @@ func TestRegisterWithFileRootsOwnsLeasedRoots(t *testing.T) {
 	}
 }
 
+func TestRegisterFileRootsOwnsLeasedRootsWithoutDatabase(t *testing.T) {
+	writeMode(t, "development")
+	primary := filepath.Join(t.TempDir(), "primary-config")
+	if err := os.MkdirAll(primary, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	roots := filerouting.New(storage.Paths{ConfigDir: primary, DataDir: filepath.Join(t.TempDir(), "data"), CacheDir: filepath.Join(t.TempDir(), "cache"), LogsDir: filepath.Join(t.TempDir(), "logs"), StateDir: filepath.Join(t.TempDir(), "state")})
+	mux := http.NewServeMux()
+	if !devrouting.RegisterFileRoots(mux, roots) {
+		t.Fatal("RegisterFileRoots returned false")
+	}
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	client := routing_v1connect.NewRoutingServiceClient(http.DefaultClient, srv.URL)
+	leaseID := "file-only"
+	installed, err := client.InstallTestPool(context.Background(), connect.NewRequest(&routingv1.InstallTestPoolRequest{LeaseId: leaseID}))
+	if err != nil {
+		t.Fatalf("InstallTestPool: %v", err)
+	}
+	if !installed.Msg.GetFileRootsInstalled() {
+		t.Fatal("file roots were not installed")
+	}
+	roots.RecordWrite(database.WithTestMode(context.Background()))
+	cleared, err := client.ClearTestPool(context.Background(), connect.NewRequest(&routingv1.ClearTestPoolRequest{LeaseId: leaseID}))
+	if err != nil {
+		t.Fatalf("ClearTestPool: %v", err)
+	}
+	if got := cleared.Msg.GetStats().GetTestRootWrites(); got != 1 {
+		t.Fatalf("test root writes = %d, want 1", got)
+	}
+}
+
 func TestRegisterMountsConnectServiceSubtreeWhenRouterSupportsMount(t *testing.T) {
 	t.Setenv(apihttp.TestModeForceEnableEnv, "1")
 	db := openRouted(t)

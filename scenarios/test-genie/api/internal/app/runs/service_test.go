@@ -528,6 +528,46 @@ func TestCompareRunsAsymmetricInapplicableStillNotComparable(t *testing.T) {
 	}
 }
 
+// A newly catalogued phase that is explicitly not applicable and consequently
+// has no phase result did not exercise a surface on either side. It remains
+// visible as an unmeasured catalog change, but must not make otherwise measured
+// behavior incomparable.
+func TestCompareRunsNewInapplicablePhaseWithoutResultIsNeutral(t *testing.T) {
+	svc, root := newTestService(t)
+	seedRecord(t, root, sharedruns.RunRecord{
+		RunID: "base", Scenario: "demo", StartedAt: time.Now().UTC(), Status: sharedruns.StatusPassed,
+		Phases: []sharedruns.PhaseRecord{{Name: "structure", Status: "passed"}},
+	})
+	seedDescriptorSnapshot(t, root, "base", capturedPhase("structure", "Structure"))
+	seedRecord(t, root, sharedruns.RunRecord{
+		RunID: "cur", Scenario: "demo", StartedAt: time.Now().UTC().Add(time.Minute), Status: sharedruns.StatusPassed,
+		Phases: []sharedruns.PhaseRecord{{Name: "structure", Status: "passed"}},
+	})
+	seedDescriptorSnapshot(t, root, "cur",
+		capturedPhase("structure", "Structure"), inapplicablePhase("new-conditional", "New Conditional"),
+	)
+
+	resp, err := svc.CompareRuns(context.Background(), connect.NewRequest(&runspb.CompareRunsRequest{Scenario: "demo", RunIdA: "base", RunIdB: "cur"}))
+	if err != nil {
+		t.Fatalf("CompareRuns: %v", err)
+	}
+	byPhase := map[string]*runspb.PhaseDiff{}
+	for _, diff := range resp.Msg.GetPhases() {
+		byPhase[diff.GetPhase()] = diff
+	}
+	assertComparisonReason(t, byPhase["new-conditional"], runspb.PhaseComparisonReasonCode_PHASE_COMPARISON_REASON_CODE_NEW_PHASE)
+	assertComparisonReason(t, byPhase["new-conditional"], runspb.PhaseComparisonReasonCode_PHASE_COMPARISON_REASON_CODE_INAPPLICABLE)
+	if got := byPhase["new-conditional"].GetCoverage(); got != "unmeasured" {
+		t.Fatalf("new conditional coverage: want unmeasured, got %s", got)
+	}
+	if got := resp.Msg.GetCoverage(); got != "measured" {
+		t.Errorf("aggregate coverage: want measured, got %s", got)
+	}
+	if got := resp.Msg.GetVerdict(); got != verdictClean {
+		t.Errorf("overall verdict: want %s, got %s", verdictClean, got)
+	}
+}
+
 func assertComparisonReason(t *testing.T, diff *runspb.PhaseDiff, code runspb.PhaseComparisonReasonCode) {
 	t.Helper()
 	if diff == nil {

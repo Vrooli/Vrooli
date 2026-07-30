@@ -205,6 +205,18 @@ func TestResolveCarriesCapabilityRequires(t *testing.T) {
 	}
 }
 
+func TestResolvePromotesRegisteredResourceTargetRequirements(t *testing.T) {
+	root := testkitgo.ProjectRoot(t)
+	resolution, err := Resolve(root, t.TempDir(), ResolveOptions{Resources: "vault", Platform: "linux"})
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	item := findRequirement(t, resolution.Tools, "secret-tool")
+	if !item.Required || len(item.Provenance) < 1 || item.Provenance[0].Kind != "resource" || !strings.Contains(strings.Join(item.Reasons, " "), "desktop target requires secret-tool") {
+		t.Fatalf("target requirement was not promoted with resource provenance: %#v", item)
+	}
+}
+
 func TestSchemaFilesDeclareHostRequirementProperties(t *testing.T) {
 	root := testkitgo.ProjectRoot(t)
 

@@ -87,6 +87,26 @@ func TestThroughHelper(t *testing.T) {
 	}
 }
 
+func TestThroughSharedTestutilRequireHelper(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module demo\n\ngo 1.25\n")
+	writeFile(t, filepath.Join(root, "x_test.go"), `package demo
+
+import (
+    "testing"
+    "demo/internal/testutil"
+)
+
+func TestResponse(t *testing.T) {
+    testutil.RequireHTTPStatus(t, 200, 200)
+}
+`)
+	findings := analyzeQuality("demo", root, []Workspace{{ID: "api", Language: "go", RootPath: root}}, fixedNowStr)
+	if _, ok := findingByCode(findings, codeTestNoAssertion); ok {
+		t.Errorf("a test using testutil.Require* must not be flagged assertion-free, got %v", codes(findings))
+	}
+}
+
 // --- B3: per-function edge detection ------------------------------------
 
 func TestEdgeCaseFiresWithoutErrorAssertion(t *testing.T) {

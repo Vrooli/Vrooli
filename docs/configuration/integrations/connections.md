@@ -157,8 +157,11 @@ These are the same reasons every integration-platform product converges on a hub
 
 The `integration-hub` scenario doesn't exist yet. Building it is a non-trivial chunk of work (probably 2–4 weeks of scenario development when scoped) and is on the [open work items](../architecture.md#open-work-items) list for that reason. Until then:
 
-- API-key credentials for resources continue to use the existing `resource.credentials.env` + Vault path pattern. See [`../secrets.md`](../secrets.md).
-- Loose / scratch keys for ad-hoc testing have no clean home today; either store them in Vault under an ad-hoc path and document the path manually, or delay the testing until integration-hub ships. The former is the pragmatic choice; the latter avoids accreting cleanup debt.
+- API-key credentials for resources use manifest `credentials.descriptors` and
+  the control-plane credential authority. See [`../secrets.md`](../secrets.md).
+- Loose / scratch keys for ad-hoc testing have no integration binding surface
+  until integration-hub ships; delay that setup rather than inventing an
+  unmanaged Vault path.
 
 When integration-hub ships, scratch keys created during the gap migrate by being recreated as unbound connections. There is no automatic migration path; operator runs `integration-hub create` once per scratch key.
 

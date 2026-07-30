@@ -6,6 +6,7 @@ type ErrorKind string
 
 const (
 	ErrInvalidInput ErrorKind = "invalid_input"
+	ErrOwnership    ErrorKind = "ownership"
 	ErrResolve      ErrorKind = "resolve"
 )
 

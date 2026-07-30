@@ -13,7 +13,7 @@ import (
 	testscenario "github.com/vrooli/vrooli/packages/testkit-go/scenariofixture"
 )
 
-func TestValidateReportsUndeclaredReferencesMissingHandlersAndRootOverreach(t *testing.T) {
+func TestValidateReportsRootOverreachWithoutScanningUnrelatedScenarioSources(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
@@ -30,30 +30,35 @@ func TestValidateReportsUndeclaredReferencesMissingHandlersAndRootOverreach(t *t
 			{Name: "x11vnc", Required: false, Reason: "desktop bridge"},
 		},
 	})
-	testkitgo.WriteFile(t, filepath.Join(root, "scenarios", "alpha", "api", "main.go"), `package main
-
-import "os/exec"
-
-func main() {
-	_ = exec.Command("websockify", "--help")
-}`)
 	testresource.WriteResourceManifest(t, root, "beta", manifestpkg.ResourceManifest{
 		Name:            "beta",
 		Driver:          "external-cli",
 		Binary:          "beta",
 		PortabilityTier: "full",
+		Privilege:       hostreqspec.PrivilegeUser,
+		Bundling:        hostreqspec.BundlingHostRequired,
 	})
-	testkitgo.WriteFile(t, filepath.Join(root, "resources", "beta", "lib", "install.sh"), `#!/usr/bin/env bash
-echo ffmpeg`)
-
 	report, err := Validate(root, home)
 	if err != nil {
 		t.Fatalf("Validate: %v", err)
 	}
 
 	assertFinding(t, report, FindingRootOverreach, "root", "vrooli", "ffmpeg")
-	assertFinding(t, report, FindingUndeclaredReference, "scenario", "alpha", "websockify")
-	assertFinding(t, report, FindingUndeclaredReference, "resource", "beta", "ffmpeg")
+}
+
+func TestValidateReportsResourceWithoutDeploymentClassification(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testscenario.WriteProjectService(t, root, scenario.ServiceManifest{Service: scenario.ServiceMetadata{Name: "vrooli"}})
+	testresource.WriteResourceManifest(t, root, "unclassified", manifestpkg.ResourceManifest{
+		Name: "unclassified", Driver: "external-cli", Binary: "unclassified", PortabilityTier: "full",
+	})
+
+	report, err := Validate(root, home)
+	if err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	assertFinding(t, report, FindingMissingClassification, "resource", "unclassified", "")
 }
 
 func TestCurrentRepoPhase4DeclarationsPresent(t *testing.T) {
@@ -67,19 +72,16 @@ func TestCurrentRepoPhase4DeclarationsPresent(t *testing.T) {
 	assertManifestContainsTool(t, filepath.Join(root, "resources", "searxng", "resource.json"), "yq")
 	assertManifestContainsTool(t, filepath.Join(root, "resources", "codex", "resource.json"), "yq")
 	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "web-console", ".vrooli", "service.json"), "tmux")
-	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "web-console", ".vrooli", "service.json"), "ffmpeg")
-	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "browser-automation-studio", ".vrooli", "service.json"), "ffmpeg")
-	assertManifestContainsTool(t, filepath.Join(root, "templates", "scenarios", "landing-page-react-vite", ".vrooli", "service.json"), "stripe")
-	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "landing-page-business-suite", ".vrooli", "service.json"), "stripe")
 	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "scenario-to-desktop", ".vrooli", "service.json"), "Xvfb")
 	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "scenario-to-desktop", ".vrooli", "service.json"), "websockify")
-	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "swarm-manager", ".vrooli", "service.json"), "bats")
-	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "palette-gen", ".vrooli", "service.json"), "bats")
-	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "scenario-completeness-scoring", ".vrooli", "service.json"), "bats")
 	assertManifestContainsTool(t, filepath.Join(root, "resources", "whisper", "resource.json"), "ffmpeg")
-	assertManifestContainsTool(t, filepath.Join(root, "resources", "vault", "resource.json"), "vault")
-	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "tunnel-manager", ".vrooli", "service.json"), "cloudflared")
-	assertManifestContainsTool(t, filepath.Join(root, "scenarios", "deployment-manager", ".vrooli", "service.json"), "helm")
+}
+
+func TestCatalogConformanceFailsForPrivilegeMismatch(t *testing.T) {
+	root := t.TempDir()
+	testkitgo.WriteFile(t, filepath.Join(root, "internal", "safeguards", "bad", "safeguard.json"), `{"name":"bad","privilege":"user","bundling":"prohibited","verificationCheck":{"files":["/etc/bad.conf"]}}`)
+	report := validateSafeguardCatalog(root)
+	assertFinding(t, Report{Findings: report}, FindingPrivilegeMismatch, "safeguard", "bad", "")
 }
 
 func TestCurrentRepoPhase4ValidatorIsClean(t *testing.T) {

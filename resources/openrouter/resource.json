@@ -106,18 +106,17 @@
   },
   "endpoint": "https://openrouter.ai/api/v1/models",
   "credentials": {
-    "env": [
+    "descriptors": [
       {
+        "logical_id": "vrooli/openrouter",
+        "field": "api-key",
         "env": "OPENROUTER_API_KEY",
         "label": "OpenRouter API Key",
         "description": "OpenRouter unified API gateway across LLM providers. Required for scenarios that route LLM calls through OpenRouter rather than calling providers directly.",
-        "classification": "user",
         "required": true,
-        "obtain_url": "https://openrouter.ai/keys",
-        "default_hint": "Starts with 'sk-or-...'"
+        "obtain_url": "https://openrouter.ai/keys"
       }
-    ],
-    "secret_ref": "secret/openrouter"
+    ]
   },
   "orchestration": {
     "startup_order": 640,
@@ -205,5 +204,7 @@
     },
     "additionalProperties": false
   },
-  "template_version": "2"
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
 }

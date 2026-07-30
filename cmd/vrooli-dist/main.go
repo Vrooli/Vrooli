@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
+	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
 func main() {
@@ -27,6 +28,13 @@ func run(args []string) int {
 	version := flags.String("version", "", "release version (normally the git tag)")
 	all := flags.Bool("all", false, "build every supported target")
 	matrixJSON := flags.Bool("matrix-json", false, "print the supported target matrix as JSON")
+	vaultServer := flags.Bool("vault-server", false, "stage a checksum-verified Vault server from the checked-in catalog")
+	vaultTarget := flags.String("vault-target", "", "managed Vault target (for example linux-amd64)")
+	resourceArtifacts := flags.Bool("resource-artifacts", false, "build and stage release-signable resource controller and service artifacts")
+	verifyReleaseManifest := flags.Bool("verify-release-manifest", false, "verify a staged generic release manifest before it is bundled")
+	trustMode := flags.String("trust-mode", "", "artifact trust mode for manifest verification: development-local or production")
+	releaseArtifactRoot := flags.String("release-artifact-root", "", "staged release artifact directory to verify")
+	releasePublicKey := flags.String("release-public-key", "", "PEM public key used to verify a production release manifest")
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
@@ -37,6 +45,62 @@ func run(args []string) int {
 			return 1
 		}
 		fmt.Println(string(payload))
+		return 0
+	}
+	if *verifyReleaseManifest {
+		if strings.TrimSpace(*releaseArtifactRoot) == "" || strings.TrimSpace(*trustMode) == "" {
+			fmt.Fprintln(os.Stderr, "--verify-release-manifest requires --release-artifact-root and --trust-mode")
+			return 2
+		}
+		mode := resourcedeployment.ArtifactTrustMode(*trustMode)
+		publicKeyPath := *releasePublicKey
+		if mode == resourcedeployment.ArtifactTrustProduction && strings.TrimSpace(publicKeyPath) == "" {
+			if strings.TrimSpace(*root) == "" {
+				fmt.Fprintln(os.Stderr, "production verification requires --release-public-key or --root (for install/vrooli-release.pub)")
+				return 2
+			}
+			publicKeyPath = filepath.Join(*root, "install", "vrooli-release.pub")
+		}
+		manifest, signature, err := resourcedeployment.VerifyReleaseDirectory(*releaseArtifactRoot, mode, publicKeyPath)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		if signature == nil {
+			fmt.Printf("verified %d artifacts in development-local mode (non-promotable)\n", len(manifest.Artifacts))
+		} else {
+			fmt.Printf("verified %d artifacts in production mode (key %s)\n", len(manifest.Artifacts), signature.KeyID)
+		}
+		return 0
+	}
+	stagedReleaseArtifacts := false
+	if *vaultServer {
+		if strings.TrimSpace(*root) == "" || strings.TrimSpace(*outDir) == "" || strings.TrimSpace(*vaultTarget) == "" {
+			fmt.Fprintln(os.Stderr, "--vault-server requires --root, --out-dir, and --vault-target")
+			return 2
+		}
+		if err := stageVaultServer(context.Background(), *root, *outDir, *vaultTarget); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		stagedReleaseArtifacts = true
+	}
+	if *resourceArtifacts {
+		if strings.TrimSpace(*root) == "" || strings.TrimSpace(*outDir) == "" {
+			fmt.Fprintln(os.Stderr, "--resource-artifacts requires --root and --out-dir")
+			return 2
+		}
+		if err := stageResourceArtifacts(context.Background(), *root, *outDir); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		if err := writeReleaseChecksumManifest(*outDir); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		stagedReleaseArtifacts = true
+	}
+	if stagedReleaseArtifacts {
 		return 0
 	}
 	if *all {

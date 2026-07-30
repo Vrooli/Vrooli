@@ -2,13 +2,22 @@
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "vault",
   "description": "HashiCorp Vault CLI for secrets management and credential operations",
-  "commands": ["vault"],
-  "versionArgs": ["version"],
+  "commands": [
+    "vault"
+  ],
+  "versionArgs": [
+    "version"
+  ],
   "handler": "vault",
   "packages": {
     "brew": "hashicorp/tap/vault",
     "winget": "Hashicorp.Vault"
   },
   "installHint": "Install the Vault CLI from https://developer.hashicorp.com/vault/install",
-  "platforms": ["linux", "macos", "windows"]
+  "platforms": [
+    "linux",
+    "macos",
+    "windows"
+  ],
+  "bundling": "host-required"
 }

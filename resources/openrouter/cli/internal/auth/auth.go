@@ -2,22 +2,13 @@ package auth
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 )
 
 const (
 	APIKeyEnv = "OPENROUTER_API_KEY"
-
-	defaultVaultCommand = "resource-vault"
-	defaultSecretPath   = "resources/openrouter/api/main"
-	defaultSecretKey    = "value"
-	legacySecretPath    = "vrooli/openrouter"
-	legacySecretKey     = "api_key"
 )
 
 var ErrCredentialsNotConfigured = errors.New("openrouter credentials not configured")
@@ -46,45 +37,26 @@ func (c Credentials) RedactedAPIKey() string {
 	}
 }
 
-// Resolver owns OpenRouter-specific credential lookup across Vault, env vars,
-// and optional compatibility files.
+// Resolver accepts only the process-scoped credential injected by the control
+// plane. Vault, user files, and a caller's shell environment are not credential
+// authorities; runtime injection is the sole way a value reaches this CLI.
 type Resolver struct {
-	LookupEnv    func(string) (string, bool)
-	LookPathFunc func(string) (string, error)
-	RunCommand   func(context.Context, string, ...string) (string, error)
-
-	VaultCommand        string
-	SecretPath          string
-	SecretKey           string
-	LegacySecretPath    string
-	LegacySecretKey     string
-	CredentialsFilePath string
+	LookupEnv func(string) (string, bool)
 }
 
 // NewResolver returns a Resolver with standard process and environment hooks.
 func NewResolver() Resolver {
 	return Resolver{
-		LookupEnv:        os.LookupEnv,
-		LookPathFunc:     exec.LookPath,
-		RunCommand:       runCommand,
-		VaultCommand:     defaultVaultCommand,
-		SecretPath:       defaultSecretPath,
-		SecretKey:        defaultSecretKey,
-		LegacySecretPath: legacySecretPath,
-		LegacySecretKey:  legacySecretKey,
+		LookupEnv: os.LookupEnv,
 	}
 }
 
-// Resolve returns the first complete credential set found from Vault, the
-// process environment, or the optional compatibility credentials file.
+// Resolve returns the ephemeral credential injected into this process. Context
+// remains part of the method contract for provider callers, but this resolver
+// intentionally makes no subprocess or filesystem credential request.
 func (r Resolver) Resolve(ctx context.Context) (Credentials, error) {
-	if creds, ok := r.resolveFromVault(ctx); ok {
-		return creds, nil
-	}
+	_ = ctx
 	if creds, ok := r.resolveFromEnv(); ok {
-		return creds, nil
-	}
-	if creds, ok := r.resolveFromCredentialsFile(); ok {
 		return creds, nil
 	}
 	return Credentials{}, ErrCredentialsNotConfigured
@@ -98,124 +70,7 @@ func (r Resolver) resolveFromEnv() (Credentials, bool) {
 	value, _ := lookup(APIKeyEnv)
 	creds := Credentials{
 		APIKey: strings.TrimSpace(value),
-		Source: "env",
+		Source: "ephemeral-injection",
 	}
 	return creds, creds.Valid()
-}
-
-func (r Resolver) resolveFromVault(ctx context.Context) (Credentials, bool) {
-	command := strings.TrimSpace(r.VaultCommand)
-	if command == "" {
-		command = defaultVaultCommand
-	}
-
-	lookPath := r.LookPathFunc
-	if lookPath == nil {
-		lookPath = exec.LookPath
-	}
-	if _, err := lookPath(command); err != nil {
-		return Credentials{}, false
-	}
-
-	run := r.RunCommand
-	if run == nil {
-		run = runCommand
-	}
-
-	candidates := []struct {
-		path   string
-		key    string
-		source string
-	}{
-		{path: firstNonEmpty(r.SecretPath, defaultSecretPath), key: firstNonEmpty(r.SecretKey, defaultSecretKey), source: "vault"},
-		{path: firstNonEmpty(r.LegacySecretPath, legacySecretPath), key: firstNonEmpty(r.LegacySecretKey, legacySecretKey), source: "vault-legacy"},
-	}
-
-	for _, candidate := range candidates {
-		if strings.TrimSpace(candidate.path) == "" || strings.TrimSpace(candidate.key) == "" {
-			continue
-		}
-		value, err := run(ctx, command, "content", "get", "--path", candidate.path, "--key", candidate.key, "--format", "raw")
-		if err != nil {
-			continue
-		}
-		creds := Credentials{
-			APIKey: strings.TrimSpace(value),
-			Source: candidate.source,
-		}
-		if creds.Valid() {
-			return creds, true
-		}
-	}
-
-	for _, scope := range []string{"openrouter", "opencode"} {
-		value, err := run(ctx, command, "secrets", "export", scope)
-		if err != nil {
-			continue
-		}
-		creds := Credentials{
-			APIKey: parseExportedKey(value, APIKeyEnv),
-			Source: "vault-export-" + scope,
-		}
-		if creds.Valid() {
-			return creds, true
-		}
-	}
-
-	return Credentials{}, false
-}
-
-func parseExportedKey(out, name string) string {
-	for _, line := range strings.Split(out, "\n") {
-		line = strings.TrimSpace(line)
-		line = strings.TrimPrefix(line, "export ")
-		eq := strings.IndexByte(line, '=')
-		if eq <= 0 || strings.TrimSpace(line[:eq]) != name {
-			continue
-		}
-		return strings.Trim(strings.TrimSpace(line[eq+1:]), `"'`)
-	}
-	return ""
-}
-
-func (r Resolver) resolveFromCredentialsFile() (Credentials, bool) {
-	path := strings.TrimSpace(r.CredentialsFilePath)
-	if path == "" {
-		return Credentials{}, false
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return Credentials{}, false
-	}
-	var payload struct {
-		Data struct {
-			APIKey string `json:"apiKey"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(data, &payload); err != nil {
-		return Credentials{}, false
-	}
-	creds := Credentials{
-		APIKey: strings.TrimSpace(payload.Data.APIKey),
-		Source: "file",
-	}
-	return creds, creds.Valid()
-}
-
-func runCommand(ctx context.Context, name string, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("%s %s: %w", name, strings.Join(args, " "), err)
-	}
-	return strings.TrimSpace(string(output)), nil
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if trimmed := strings.TrimSpace(value); trimmed != "" {
-			return trimmed
-		}
-	}
-	return ""
 }

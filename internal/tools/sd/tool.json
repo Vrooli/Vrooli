@@ -2,9 +2,17 @@
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "sd",
   "description": "stable-diffusion.cpp (sd) text-to-image / image-to-image backend for image-tools",
-  "commands": ["sd"],
-  "versionArgs": ["--help"],
-  "platforms": ["linux", "macos", "windows"],
+  "commands": [
+    "sd"
+  ],
+  "versionArgs": [
+    "--help"
+  ],
+  "platforms": [
+    "linux",
+    "macos",
+    "windows"
+  ],
   "installHint": "Installs the prebuilt CPU build of stable-diffusion.cpp (sd-cli + libstable-diffusion.so) into ~/.vrooli/opt/sd with a launcher on PATH; runs on any x86_64 host with no GPU required. For GPU-accelerated generation on a GPU host, run `vrooli host install sd-gpu` instead — it supersedes this CPU launcher with a Vulkan (Linux) or CUDA 12 (Windows) build so image-tools runs on the GPU.",
   "source": {
     "type": "release",
@@ -24,5 +32,6 @@
         "binPath": "sd-cli.exe"
       }
     }
-  }
+  },
+  "bundling": "vendorable"
 }

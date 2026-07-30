@@ -3,6 +3,11 @@
   "name": "edac_modules",
   "description": "Load EDAC drivers for memory error reporting on supported chipsets",
   "handler": "edac_modules",
-  "platforms": ["linux"],
-  "risk": "high"
+  "platforms": [
+    "linux"
+  ],
+  "risk": "high",
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "deployment": {"profiles": {"desktop": {"linux": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "macos": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "windows": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}}}}
 }

@@ -40,11 +40,19 @@
       "kind": "go_module"
     }
   },
+  "credentials": {
+    "descriptors": [
+      {"logical_id":"vrooli/codex","field":"openai-api-key","env":"OPENAI_API_KEY","label":"OpenAI API key","description":"Optional API-key authentication for Codex workflows; a signed-in Codex CLI session is also supported.","required":false,"obtain_url":"https://platform.openai.com/api-keys"},
+      {"logical_id":"vrooli/codex","field":"openai-organization","env":"OPENAI_ORG_ID","label":"OpenAI organization ID","description":"Optional organization identifier used with the OpenAI API.","required":false}
+    ]
+  },
   "template": "external-cli",
   "driver": "external-cli",
   "provider_policy": {
     "default_mode": "managed-discovered",
-    "allowed_modes": ["managed-discovered"],
+    "allowed_modes": [
+      "managed-discovered"
+    ],
     "external_management": "forbidden"
   },
   "deployment": {
@@ -251,5 +259,7 @@
     "docs_pinned_at": "2026-05-28",
     "schema_version": 1
   },
-  "template_version": "2"
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
 }

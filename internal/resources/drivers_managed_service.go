@@ -190,7 +190,7 @@ func (d managedServiceDriver) Run(ctx context.Context, controller *Controller, i
 		if err != nil {
 			return managedServiceDriverError(item.Name, action, "Provider", err)
 		}
-		if mode == resourcedeployment.ProviderManagedShared && (action == "start" || action == "restart") {
+		if mode == resourcedeployment.ProviderManagedShared {
 			return d.runUserHosted(ctx, controller, item, manifest, action, stdout)
 		}
 		if mode == resourcedeployment.ProviderManagedDiscovered && (action == "start" || action == "restart") {

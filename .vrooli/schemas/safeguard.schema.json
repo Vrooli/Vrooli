@@ -3,7 +3,7 @@
   "title": "Safeguard Manifest",
   "description": "Declares a host safeguard (idempotent machine-state modification) managed by the Vrooli runtime",
   "type": "object",
-  "required": ["name", "description", "handler"],
+  "required": ["name", "description", "handler", "privilege", "bundling", "deployment"],
   "additionalProperties": false,
   "properties": {
     "$schema": {
@@ -34,6 +34,32 @@
       "enum": ["low", "medium", "high"],
       "default": "low",
       "description": "Operator-facing risk indicator. 'low' = no system state changes outside Vrooli's tree (probes, reads); 'medium' = writes config files outside Vrooli's tree or modifies networking rules; 'high' = modifies kernel parameters or requires root in ways that broadly affect host behavior. Used by onboarding to surface risk before opt-in."
+    },
+    "privilege": {
+      "enum": ["none", "user", "elevated"],
+      "description": "Machine-readable privilege gate, distinct from the operator-facing risk label."
+    },
+    "bundling": {
+      "enum": ["vendorable", "host-required", "prohibited"],
+      "description": "Tier 2 bundle policy. Safeguards are normally prohibited."
+    },
+    "bundlingReason": {
+      "type": "string",
+      "description": "Required justification when a safeguard is not prohibited from bundles."
+    },
+    "deployment": {
+      "type": "object",
+      "description": "Deployment profile. Safeguards are host-mutating and are unsupported on Tier 2 desktop targets.",
+      "required": ["profiles"],
+      "properties": {
+        "profiles": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "resource.schema.json#/definitions/deploymentProfile"
+          }
+        }
+      },
+      "additionalProperties": false
     },
     "verificationCheck": {
       "$ref": "common.schema.json#/definitions/verificationCheck",

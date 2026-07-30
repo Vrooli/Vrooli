@@ -681,6 +681,16 @@
           "type": "string",
           "description": "Human-readable context for the dependency"
         },
+        "runtime_only": {
+          "type": "boolean",
+          "default": false,
+          "description": "Declare true only when this dependency is exercised exclusively through runtime orchestration or an external CLI/service boundary, so import-graph evidence is not expected. Requires runtime_only_rationale."
+        },
+        "runtime_only_rationale": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Concrete explanation of the runtime-only interaction and why source-level import evidence is intentionally absent."
+        },
         "degraded_behavior": {
           "type": "string",
           "description": "Human explanation of the fallback behavior when this dependency is unavailable. Required for intentional degradation patterns such as `required=true` with `startup_policy=try_start`."
@@ -691,6 +701,15 @@
           "additionalProperties": true
         }
       },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"runtime_only": {"const": true}},
+            "required": ["runtime_only"]
+          },
+          "then": {"required": ["runtime_only_rationale"]}
+        }
+      ],
       "additionalProperties": true
     },
     "deploymentRequirements": {

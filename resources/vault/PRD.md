@@ -15,7 +15,7 @@ Vault provides local durable secret storage for Vrooli resources and scenarios. 
 - [x] `content get --format json` passthrough for Vault JSON.
 - [x] `content set` patch-then-put behavior to preserve sibling fields.
 - [x] Rejection of `@`-prefixed values to avoid implicit file reads.
-- [x] Resource secret inventory commands: `secrets scan`, `secrets check`, `secrets validate`, `secrets export`, `secrets provision`.
+- [x] Vault capability lifecycle and scoped content commands.
 - [x] `secrets init` alias for non-interactive provisioning where existing resources call it.
 - [x] Kopia consumer integration through `resource-vault content get/set`.
 - [x] Kopia missing-secret handling distinguishes absence from Vault service failure.
@@ -51,11 +51,7 @@ Single-value secrets use field `value` by default. Kopia passphrases use field `
 Resource declarations:
 
 ```bash
-resource-vault secrets scan
-resource-vault secrets check <resource>
-resource-vault secrets validate [resource]
-resource-vault secrets export <resource>
-resource-vault secrets provision <resource>
+vrooli credentials status --identity <logical-id> --field <field>
 ```
 
 ## Runtime Posture

@@ -5,11 +5,44 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 )
+
+func TestLoadLegacyVaultBootstrapMaterial(t *testing.T) {
+	dataDir := t.TempDir()
+	marker := filepath.Join(dataDir, legacyVaultBootstrapFilename)
+	if err := os.WriteFile(marker, []byte(`{"unseal_keys_b64":["unseal"],"root_token":"root"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	material, found, err := loadLegacyVaultBootstrapMaterial(dataDir)
+	if err != nil {
+		t.Fatalf("load legacy material: %v", err)
+	}
+	if !found || material.RootToken != "root" || material.UnsealKey != "unseal" {
+		t.Fatalf("legacy material = %#v, found=%t", material, found)
+	}
+}
+
+type writeOnlySecureStore struct{ memorySecureStore }
+
+func (s *writeOnlySecureStore) Get(service, key string) (string, error) {
+	if service == "vrooli.resource.vault" {
+		return "", os.ErrNotExist
+	}
+	return s.memorySecureStore.Get(service, key)
+}
+
+func TestStoreVaultBootstrapMaterialRequiresSecureStoreReadback(t *testing.T) {
+	store := &writeOnlySecureStore{memorySecureStore: memorySecureStore{values: map[string]string{}}}
+	if err := storeVaultBootstrapMaterial(store, "vault-user", VaultBootstrapMaterial{RootToken: "root", UnsealKey: "unseal"}); err == nil {
+		t.Fatal("storeVaultBootstrapMaterial accepted a write that cannot be read back")
+	}
+}
 
 func TestBootstrapPrivateVaultInitializesThenRecoversWithScopedReadiness(t *testing.T) {
 	store := &memorySecureStore{values: map[string]string{}}

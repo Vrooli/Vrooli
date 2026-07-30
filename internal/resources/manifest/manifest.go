@@ -51,6 +51,8 @@ type ResourceManifest struct {
 	Endpoint              string                       `json:"endpoint,omitempty"`
 	Credentials           ResourceCredentials          `json:"credentials,omitempty"`
 	PortabilityTier       string                       `json:"portability_tier,omitempty"`
+	Privilege             hostreqspec.Privilege        `json:"privilege"`
+	Bundling              hostreqspec.Bundling         `json:"bundling"`
 	Category              string                       `json:"category,omitempty"`
 	Platforms             ResourcePlatforms            `json:"platforms,omitempty"`
 	Dependencies          []string                     `json:"dependencies,omitempty"`
@@ -204,44 +206,29 @@ type ResourceInstall struct {
 }
 
 type ResourceCredentials struct {
-	Env       []string `json:"env,omitempty"`
-	SecretRef string   `json:"secret_ref,omitempty"`
+	// Descriptors is the sole credential declaration. The control plane
+	// addresses values by LogicalID, never by a provider-shaped path.
+	Descriptors []CredentialDescriptor `json:"descriptors,omitempty"`
 }
 
-func (c *ResourceCredentials) UnmarshalJSON(data []byte) error {
-	type rawCredentials struct {
-		Env       []json.RawMessage `json:"env,omitempty"`
-		SecretRef string            `json:"secret_ref,omitempty"`
-	}
+// CredentialDescriptor declares one credential without binding it to Vault,
+// an environment variable, or a local file. Values are always held by the
+// credential authority and injected into a process only for its lifetime.
+type CredentialDescriptor struct {
+	LogicalID   string `json:"logical_id"`
+	Field       string `json:"field,omitempty"`
+	Env         string `json:"env"`
+	Required    bool   `json:"required,omitempty"`
+	Label       string `json:"label,omitempty"`
+	Description string `json:"description,omitempty"`
+	ObtainURL   string `json:"obtain_url,omitempty"`
+}
 
-	var raw rawCredentials
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-
-	env := make([]string, 0, len(raw.Env))
-	for _, item := range raw.Env {
-		var legacy string
-		if err := json.Unmarshal(item, &legacy); err == nil {
-			env = append(env, legacy)
-			continue
-		}
-
-		var descriptor struct {
-			Env string `json:"env"`
-		}
-		if err := json.Unmarshal(item, &descriptor); err != nil {
-			return fmt.Errorf("credentials.env entry must be a string or object with env: %w", err)
-		}
-		if strings.TrimSpace(descriptor.Env) == "" {
-			return fmt.Errorf("credentials.env descriptor env is required")
-		}
-		env = append(env, descriptor.Env)
-	}
-
-	c.Env = env
-	c.SecretRef = raw.SecretRef
-	return nil
+// All returns the canonical descriptors. It intentionally does not synthesize
+// descriptors from legacy fields: doing so would make legacy declarations a
+// permanent runtime contract.
+func (c ResourceCredentials) All() []CredentialDescriptor {
+	return append([]CredentialDescriptor(nil), c.Descriptors...)
 }
 
 type ResourceRuntime struct {

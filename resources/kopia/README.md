@@ -35,16 +35,19 @@ via `--endpoint`).
 
 ## Secrets
 
-All credentials are sourced from the **vault** resource via `resource-vault`,
-never from config files or committed env:
+Credentials are sourced through the control-plane credential authority and
+injected only into the owning runtime process, never from config files or
+committed environment files:
 
-- repository passphrase → `secret/resources/kopia/repo/<name>/passphrase`
+- repository passphrase → logical identity `vrooli/kopia`, field
+  `repository-passphrase`
   (auto-generated 32+ chars on `repo create`; the resource fails closed if it
   is missing — it never uses a default/empty passphrase)
-- S3 credentials → `secret/resources/kopia/s3/<name>/{access_key,secret_key}`
+- S3 credentials → logical identity `vrooli/kopia`, fields `s3-access-key-id`
+  and `s3-secret-access-key`
   (only for `--backend s3`)
 
-See [`config/secrets.yaml`](config/secrets.yaml) and
+See [`resource.json`](resource.json) and
 [`resources/vault/docs/SECRETS-STANDARD.md`](../vault/docs/SECRETS-STANDARD.md).
 
 ## Disaster recovery

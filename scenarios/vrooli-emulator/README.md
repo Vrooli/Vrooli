@@ -1,4 +1,8 @@
-# React + Vite Scenario Template (Go API + CLI)
+# Vrooli Emulator — Dormant
+
+This scenario is dormant. It contains forked desktop-live-session and screen-recording code that is not the canonical implementation; `scenario-to-desktop` remains the authoritative delivery path. Do not add features or use this scenario as a template. Any future extraction must be an explicit shared-capability project with a migration plan.
+
+## Historical scaffold reference
 
 Use this template to bootstrap every new scenario. It mirrors the patterns from `browser-automation-studio`:
 

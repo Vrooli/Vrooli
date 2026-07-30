@@ -123,6 +123,13 @@ func resolveUnitPolicyFindings(scenario string, inv discovery.Inventory, now str
 	}
 
 	for _, surface := range inv.Surfaces {
+		// Code Facts can retain a declared surface after its directory has been
+		// removed. A missing path is not a runnable product surface, so it must
+		// not require a policy role or lower maturity until discovery reports it
+		// as present again.
+		if strings.EqualFold(surface.Status, "missing") {
+			continue
+		}
 		if _, ok := roleBySurface[surface.ID]; ok {
 			continue
 		}

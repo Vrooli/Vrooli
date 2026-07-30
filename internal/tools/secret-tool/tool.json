@@ -2,7 +2,9 @@
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "secret-tool",
   "description": "libsecret Secret Service command client used only by the Linux managed-resource credential store",
-  "commands": ["secret-tool"],
+  "commands": [
+    "secret-tool"
+  ],
   "versionArgs": [],
   "defaultPackage": "libsecret-tools",
   "packages": {
@@ -12,5 +14,8 @@
     "apk": "libsecret"
   },
   "installHint": "Install libsecret-tools, then start and unlock a user Secret Service session before starting a shared managed resource.",
-  "platforms": ["linux"]
+  "platforms": [
+    "linux"
+  ],
+  "bundling": "host-required"
 }

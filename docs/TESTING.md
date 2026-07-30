@@ -6,6 +6,10 @@ Project-level testing guidance is intentionally thin. The canonical rule is:
 - use the relevant Go or package-level test commands for the platform code you changed
 - prefer current CLI surfaces and maintained fixtures over shell-era ad hoc test flows
 
+For mutating BAS/E2E workflows, follow the two-engine
+[routed test-storage contract](agent-system/routed-test-db.md): SQL and file
+writes must be leased and test-mode routed before execution.
+
 ## Start Here
 
 - [reference/cli-commands.md](reference/cli-commands.md)
@@ -24,6 +28,34 @@ make validate-package-governance
 
 Use the smallest validation surface that honestly covers your change.
 
+## Tiered confidence for agent behavior
+
+Agent behavior requires more than a replay fixture, but a live agent run is
+not the default unit-test loop. Use these rungs in order:
+
+1. **Tier 1 — deterministic/unit tests.** Exercise codecs, policy, persistence,
+   and HTTP contracts using fakes. These are fast and mandatory for changed Go
+   behavior.
+2. **Tier 2 — replay and recorded corpus.** Re-run representative provider
+   transcripts and wire fixtures to detect parser/regression drift without
+   incurring model cost.
+3. **Tier 3 — bounded live smoke.** Run one deliberately tiny real-agent
+   exercise only when the behavior crosses a live boundary that fixtures cannot
+   prove (for example, sandbox apply plus provenance). The command must have a
+   deadline, print each assertion, leave no intentional scratch artifact, and
+   fail nonzero if an assertion is false.
+
+For Agent Manager's tracking/provenance boundary, `make smoke` is the Tier 3
+entrypoint. It makes one sandboxed tracking run, verifies terminal completion,
+`changed_files > 0`, and an applied Workspace Sandbox provenance row, then
+removes its uniquely named scratch file. It selects an unrestricted code
+profile, preferring `code.cheap` when it has the required write capability; use
+`agent-manager scenario-smoke --profile-id <id>` when that choice must be
+explicit. This is a real model invocation and therefore incurs cost;
+do not use it as a retry loop. A deliberately wrong endpoint (for example
+`--workspace-sandbox-url http://127.0.0.1:1`) is an intentional negative check
+and exits nonzero at the provenance assertion.
+
 For provider-specific health maturity, use the provider's default human CLI output. Reserve `--json` for Test Genie and other automation.
 
 ## Waiting on runs (for agents)
@@ -33,6 +65,7 @@ The run is owned by the test-genie server, so it survives your command being can
 **Do NOT poll with repeated "still waiting" checks. To wait, block ONCE with the quiet wait verb:**
 
 - `test-genie runs wait --json <scenario> <run-id>` (also `vrooli scenario test wait <scenario> <run-id>`). It blocks server-side and returns exactly once with the verdict + the run's real exit code (`0` passed, `1` failed/aborted, `124` if you pass `--timeout` and it elapses first). It does NOT stream — one call, one return. This is the verb the start banner and re-attach commands print; copy it verbatim.
+- **A quiet wait announces its attachment on stderr immediately.** Its JSON stdout deliberately stays empty until the terminal snapshot. If a coding tool/session returns after that attachment receipt but before terminal JSON, the session detached; it does **not** mean the waiter exited or the run is stuck. Read `test-genie runs status --json <scenario> <run-id>` once for durable state, then follow its typed action rather than treating the attachment loss as a blocker.
 - `test-genie runs status <scenario> <run-id>` is a snapshot, not a polling loop. While pending, human output prints the same one-wait command exactly once and JSON adds a typed `nextAction` (`kind=wait`, command, timeout, `doNotPoll=true`). Terminal status omits it. The `vrooli scenario test status` proxy has the same behavior.
 - **A terminal wait is a durable run read, not a reduced status summary.** For a terminal run, `runs wait --json` and `runs show --json` must project the same run id, verdict, phase set, per-phase statuses, and durations from the canonical persisted run snapshot. This invariant must still hold after the live run retires from memory and after Test Genie restarts. Missing or corrupt historical fields are explicit degraded/UNKNOWN evidence, never zero-filled success-shaped data.
 - **Run evidence is catalogued and path-free.** New runs atomically persist a typed artifact catalog over their existing run-owned files. Consumers list/filter evidence by open kind strings (not phase names) and fetch bytes with a run-scoped opaque artifact ID; provider relative/absolute paths never cross the API boundary. Historical runs without a catalog use explicit degraded legacy discovery. Missing bytes, unsafe symlinks, cross-run IDs, and incompatible catalogs are errors, never absent evidence interpreted as PASS.
@@ -57,6 +90,19 @@ decide completion from client timing. `baseline collection show --wait` and
 `baseline collection diff wait` are the only blocking attachments. A bounded
 wait exits `124` after emitting its detached standing and exact reattach
 command; cancellation never rewrites durable state or becomes success.
+
+**Freeze each pending member's captured source scope.** A queued collection
+child is normal server-owned work, not permission to continue implementing in
+that scenario. Editing files in a pending member's declared source scope makes
+strict provenance reject the immutable capture: Test Genie recorded the
+before-state fingerprint at start, and the later evidence would otherwise
+describe different source. Wait for the collection's terminal result first, or
+work only outside every pending member's source scope.
+
+Start a collection comparison with `git-control-tower baseline collection diff
+--name <collection> --operation-id <stable-operation-id> [--member <scenario>
+...]`. The operation id is an idempotency key: retain and reuse it to inspect or
+reattach the same operation; do not invent a new id after an interrupted start.
 
 **Plan Manager delegates; it does not wait.** A Plan Manager execution first
 renders a Git Control Tower baseline-collection capture command. Run that exact

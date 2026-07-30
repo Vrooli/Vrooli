@@ -7,7 +7,8 @@ Managed HashiCorp Vault runtime for local Vrooli secret storage and resource-sec
 - `resource.json` is the lifecycle authority for the signed native Vault server, its loopback listener, data path, health check, and provider policy.
 - `resource-vault` is the supported CLI for resources and scenarios.
 - `resource-vault content ...` is the supported machine interface for reading and writing KV v2 secrets.
-- `resource-vault secrets ...` is the supported inventory interface for `resources/*/config/secrets.yaml`.
+- `vrooli credentials ...` is the metadata-safe credential inventory and
+  provisioning surface for manifest descriptors.
 
 ## Runtime Posture
 
@@ -49,13 +50,11 @@ Contract:
 
 ## Resource Secret Inventory
 
-Resources declare expected secrets in `resources/<name>/config/secrets.yaml`.
+Resources declare expected credentials in `resource.json` under
+`credentials.descriptors`.
 
 ```bash
-resource-vault secrets scan
-resource-vault secrets check kopia
-resource-vault secrets validate
-resource-vault secrets export twilio
+vrooli credentials status --identity vrooli/openrouter --field api-key
 ```
 
 `check` and `validate` never print secret values. `export` prints shell-safe `export KEY='value'` lines only for present secrets with `default_env` declarations. Dynamic paths such as `{repo-name}` are reported as dynamic inventory entries and are not treated as globally missing.

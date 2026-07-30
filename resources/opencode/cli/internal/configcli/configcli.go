@@ -48,9 +48,8 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 	}
 }
 
-// Ensure resolves the OpenRouter key, writes opencode.json via the Go config
-// writer (model discovery + sampling from the resource-ollama SSOT), and syncs
-// the auth store.
+// Ensure resolves the ephemeral OpenRouter injection and writes non-secret
+// OpenCode configuration. It never persists a provider key.
 func (h *Handlers) Ensure(args []string) error {
 	fs := flag.NewFlagSet("config ensure", flag.ContinueOnError)
 	fs.SetOutput(h.Stderr)
@@ -63,12 +62,8 @@ func (h *Handlers) Ensure(args []string) error {
 	}
 	ctx := context.Background()
 
-	key := secrets.ResolveOpenRouterKey(ctx, secrets.Options{Getenv: getenv})
+	key := secrets.ResolveOpenRouterKey(secrets.Options{Getenv: getenv})
 	haveOpenRouter := secrets.KeyUsable(key)
-
-	if err := secrets.SyncAuth(authPath(getenv), key); err != nil {
-		fmt.Fprintf(h.Stderr, "warning: sync OpenRouter auth: %v\n", err)
-	}
 
 	changed, err := config.Ensure(ctx, config.EnsureOptions{
 		ConfigPath:     configPath(getenv),

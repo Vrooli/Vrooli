@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/hostobservability"
@@ -241,12 +240,8 @@ func dirModeGroupOK(path string) bool {
 	if info.Mode().Perm() != 0o750 {
 		return false
 	}
-	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !ok {
-		return false
-	}
 	gid, ok := groupGID()
-	return ok && stat.Gid == gid
+	return ok && fileInfoGroupMatches(info, gid)
 }
 
 func groupGID() (uint32, bool) {

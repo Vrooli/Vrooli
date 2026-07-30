@@ -28,8 +28,8 @@ For each operator-visible decision, exactly one file is the source of truth. Oth
 | Scenario → scenario dependencies | `scenarios/<name>/.vrooli/service.json` → `dependencies.scenarios` | onboarding scenarios step (cascade hint) |
 | Whether a resource is enabled | `.vrooli/operator-state.json` → `resources.<name>.enabled` | onboarding resources step |
 | Resource → resource dependencies | `resources/<name>/resource.json` → `dependencies` | onboarding resources step (cascade) |
-| Resource credential descriptors | `resources/<name>/resource.json` → `credentials.env[]` (each item: bare string OR `secretDescriptor`) | onboarding secrets step |
-| Where a credential value is stored | Vault path declared at `resources/<name>/resource.json` → `credentials.secret_ref` | secrets-manager scenario; runtime via `path:packages/api-core/secrets` |
+| Resource credential descriptors | `resources/<name>/resource.json` → `credentials.descriptors[]` | onboarding secrets step |
+| Where an ordinary credential value is stored | probed native credential authority keyed by descriptor logical identity + field | control plane runtime injection |
 | Host tool opt-in | `.vrooli/operator-state.json` → `host_tools.<name>.opted_in` (override of manifest `required`) | onboarding host step |
 | Host safeguard opt-in | `.vrooli/operator-state.json` → `host_safeguards.<name>.opted_in` (override of manifest `required`) | onboarding host step |
 | Safeguard risk indicator | `internal/safeguards/<name>/safeguard.json` → `risk` | onboarding host step (risk column) |
@@ -74,9 +74,8 @@ To answer "what is the *effective* value of X right now?", the system applies a 
 ### What credential metadata is shown to the operator
 
 ```
-1. resources/<name>/resource.json → credentials.env[]   — for each entry:
-     a. if string  → render bare label (legacy form)
-     b. if object  → render full secretDescriptor (label, description, obtain_url, default_hint)
+1. resources/<name>/resource.json → credentials.descriptors[] — render the
+   logical identity, field, label, description, and obtain URL without a value
 2. fall back: empty (resource declares no credentials)
 ```
 

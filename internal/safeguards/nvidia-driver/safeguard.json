@@ -3,6 +3,11 @@
   "name": "nvidia_driver",
   "description": "Validate and repair the NVIDIA kernel driver for the running Ubuntu kernel when NVIDIA display hardware is present",
   "handler": "nvidia_driver",
-  "platforms": ["linux"],
-  "risk": "high"
+  "platforms": [
+    "linux"
+  ],
+  "risk": "high",
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "deployment": {"profiles": {"desktop": {"linux": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "macos": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "windows": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}}}}
 }

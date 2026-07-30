@@ -221,6 +221,47 @@ describe.only("App", () => {
 	}
 }
 
+func TestAnalyzeQualityTSDoesNotTreatFitTextAsFocusedTest(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "src", "App.test.tsx"), `
+it("reports a rejection", () => {
+  const message = "Not a fit";
+  expect(message).toContain("fit");
+});
+`)
+	ws := Workspace{ID: "ui", Language: "typescript", RootPath: root}
+	findings := analyzeQuality("demo", root, []Workspace{ws}, fixedNowStr)
+	if _, ok := findingByCode(findings, codeTestSkippedOrOnly); ok {
+		t.Errorf("ordinary fit text must not be treated as a focused test, got %v", codes(findings))
+	}
+}
+
+func TestAnalyzeQualityGoDoesNotTreatTestMainAsAssertionFree(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "x_test.go"), `package demo
+
+import (
+  "os"
+  "testing"
+)
+
+func TestMain(m *testing.M) {
+  os.Exit(m.Run())
+}
+
+func TestProtectedBehavior(t *testing.T) {
+  if 1 != 1 {
+    t.Fatal("unexpected")
+  }
+}
+`)
+	ws := Workspace{ID: "api", Language: "go", RootPath: root}
+	findings := analyzeQuality("demo", root, []Workspace{ws}, fixedNowStr)
+	if _, ok := findingByCode(findings, codeTestNoAssertion); ok {
+		t.Errorf("TestMain lifecycle hook must not be treated as assertion-free, got %v", codes(findings))
+	}
+}
+
 func TestAnalyzeQualityUntaggedRequirement(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "requirements", "core.md"), "# Core\n\n- REQ-CORE-001: must validate\n")

@@ -53,9 +53,9 @@ func TestManifestContract(t *testing.T) {
 			Dependencies []string `json:"dependencies"`
 		} `json:"orchestration"`
 		Credentials struct {
-			Env []struct {
+			Descriptors []struct {
 				Env string `json:"env"`
-			} `json:"env"`
+			} `json:"descriptors"`
 		} `json:"credentials"`
 	}
 	if err := json.Unmarshal(data, &m); err != nil {
@@ -77,11 +77,11 @@ func TestManifestContract(t *testing.T) {
 		t.Errorf("orchestration.dependencies must include vault, got %v", m.Orchestration.Dependencies)
 	}
 	var envNames []string
-	for _, e := range m.Credentials.Env {
+	for _, e := range m.Credentials.Descriptors {
 		envNames = append(envNames, e.Env)
 	}
 	if !contains(envNames, "KOPIA_PASSWORD") {
-		t.Errorf("credentials.env must declare KOPIA_PASSWORD, got %v", envNames)
+		t.Errorf("credentials.descriptors must declare KOPIA_PASSWORD, got %v", envNames)
 	}
 }
 

@@ -20,7 +20,6 @@ import (
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
-	"github.com/vrooli/vrooli/internal/secrets"
 	testresource "github.com/vrooli/vrooli/packages/testkit-go/resourcefixture"
 )
 
@@ -87,12 +86,6 @@ func TestBuildEnvironmentAllocatesPortsAndExpandsScenarioEnv(t *testing.T) {
 	root := t.TempDir()
 	home := root
 	writePortRegistry(t, root, map[string]int{"postgres": 5433})
-	writeSecrets(t, home, root, map[string]string{
-		"POSTGRES_USER":     "tester",
-		"POSTGRES_PASSWORD": "secret",
-		"POSTGRES_HOST":     "localhost",
-		"POSTGRES_SSLMODE":  "disable",
-	})
 
 	manager, err := NewManager(root, home)
 	if err != nil {
@@ -384,10 +377,6 @@ func TestBuildEnvironmentUsesTypedResourceMetadataAndSecrets(t *testing.T) {
 	root := t.TempDir()
 	home := root
 	writePortRegistry(t, root, map[string]int{"postgres": 5433})
-	writeSecrets(t, home, root, map[string]string{
-		"POSTGRES_USER":     "legacy",
-		"POSTGRES_PASSWORD": "secret",
-	})
 
 	item := scenario.Scenario{
 		Slug: "alpha",
@@ -413,11 +402,8 @@ func TestBuildEnvironmentUsesTypedResourceMetadataAndSecrets(t *testing.T) {
 		t.Fatalf("BuildEnvironment: %v", err)
 	}
 
-	if env.EnvVars["POSTGRES_USER"] != "legacy" {
-		t.Fatalf("POSTGRES_USER = %q, want legacy", env.EnvVars["POSTGRES_USER"])
-	}
-	if env.EnvVars["POSTGRES_PASSWORD"] != "secret" {
-		t.Fatalf("POSTGRES_PASSWORD = %q, want secret", env.EnvVars["POSTGRES_PASSWORD"])
+	if _, found := env.EnvVars["POSTGRES_PASSWORD"]; found {
+		t.Fatal("legacy file-store credential was injected into the scenario environment")
 	}
 }
 
@@ -1595,16 +1581,6 @@ func writePortRegistry(t *testing.T, root string, ports map[string]int) {
 	t.Helper()
 	ensureTypedResourceMetadata(t, root)
 	testresource.WritePortRegistry(t, root, ports)
-}
-
-func writeSecrets(t *testing.T, home, root string, payload map[string]string) {
-	t.Helper()
-	ensureTypedResourceMetadata(t, root)
-	t.Setenv(secrets.KeyEnvVar, "test-secret-passphrase")
-	store := secrets.NewUserStore(home)
-	if err := store.Save(payload); err != nil {
-		t.Fatalf("save secrets: %v", err)
-	}
 }
 
 func ensureTypedResourceMetadata(t *testing.T, root string) {

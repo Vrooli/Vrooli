@@ -106,11 +106,10 @@
   },
   "endpoint": "https://api.twilio.com/2010-04-01/Accounts.json",
   "credentials": {
-    "env": [
-      "TWILIO_ACCOUNT_SID",
-      "TWILIO_AUTH_TOKEN"
-    ],
-    "secret_ref": "secret/resources/twilio"
+    "descriptors": [
+      { "logical_id": "vrooli/twilio", "field": "account-sid", "env": "TWILIO_ACCOUNT_SID", "label": "Twilio account SID", "required": true },
+      { "logical_id": "vrooli/twilio", "field": "auth-token", "env": "TWILIO_AUTH_TOKEN", "label": "Twilio auth token", "required": true }
+    ]
   },
   "orchestration": {
     "startup_order": 320,
@@ -143,5 +142,7 @@
     "supports_logs": false,
     "supports_content_ops": true
   },
-  "template_version": "2"
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
 }

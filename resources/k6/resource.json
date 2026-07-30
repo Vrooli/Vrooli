@@ -155,5 +155,7 @@
     "supports_logs": false,
     "supports_content_ops": true
   },
-  "template_version": "2"
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
 }

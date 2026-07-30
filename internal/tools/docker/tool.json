@@ -3,8 +3,12 @@
   "name": "docker",
   "description": "Container runtime for running resources and services",
   "handler": "docker",
-  "commands": ["docker"],
-  "versionArgs": ["--version"],
+  "commands": [
+    "docker"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
   "defaultPackage": "docker.io",
   "packages": {
     "brew": "docker",
@@ -14,10 +18,17 @@
     "apk": "docker"
   },
   "installHint": "Install Docker Engine or Docker Desktop",
-  "platforms": ["linux", "macos", "windows"],
+  "platforms": [
+    "linux",
+    "macos",
+    "windows"
+  ],
   "verificationCheck": {
     "command": "docker",
-    "args": ["info"],
+    "args": [
+      "info"
+    ],
     "expectExitCode": 0
-  }
+  },
+  "bundling": "host-required"
 }

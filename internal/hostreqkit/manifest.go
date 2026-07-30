@@ -14,6 +14,9 @@ type ToolManifest struct {
 	Platforms         []string                           `json:"platforms,omitempty"`
 	Handler           string                             `json:"handler,omitempty"`
 	Manual            bool                               `json:"manual,omitempty"`
+	Privilege         hostreqspec.Privilege              `json:"privilege,omitempty"`
+	PrivilegeReason   string                             `json:"privilegeReason,omitempty"`
+	Bundling          hostreqspec.Bundling               `json:"bundling"`
 	Source            *ToolSource                        `json:"source,omitempty"`
 	Requires          *hostreqspec.CapabilityRequirement `json:"requires,omitempty"`
 	VerificationCheck *VerificationCheck                 `json:"verificationCheck,omitempty"`
@@ -77,14 +80,17 @@ func (s *ToolSource) TargetFor(osName, arch string) (ToolSourceTarget, bool) {
 }
 
 type SafeguardManifest struct {
-	Schema            string             `json:"$schema,omitempty"`
-	Name              string             `json:"name"`
-	Description       string             `json:"description"`
-	Platforms         []string           `json:"platforms,omitempty"`
-	Handler           string             `json:"handler"`
-	VerificationCheck *VerificationCheck `json:"verificationCheck,omitempty"`
-	Version           string             `json:"version,omitempty"`
-	Notes             string             `json:"notes,omitempty"`
+	Schema            string                `json:"$schema,omitempty"`
+	Name              string                `json:"name"`
+	Description       string                `json:"description"`
+	Platforms         []string              `json:"platforms,omitempty"`
+	Handler           string                `json:"handler"`
+	Privilege         hostreqspec.Privilege `json:"privilege"`
+	Bundling          hostreqspec.Bundling  `json:"bundling"`
+	BundlingReason    string                `json:"bundlingReason,omitempty"`
+	VerificationCheck *VerificationCheck    `json:"verificationCheck,omitempty"`
+	Version           string                `json:"version,omitempty"`
+	Notes             string                `json:"notes,omitempty"`
 }
 
 type VerificationCheck struct {

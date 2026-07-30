@@ -65,6 +65,11 @@ type Config struct {
 	// Required.
 	Driver string
 
+	// TestDriver optionally selects a different driver for ephemeral routed test
+	// pools. Production always uses Driver; Test Genie may provide an isolated
+	// SQLite lease even when the primary authority is PostgreSQL.
+	TestDriver string
+
 	// DSN overrides automatic environment-based configuration.
 	// If set, environment variables are ignored for connection string.
 	// Optional.

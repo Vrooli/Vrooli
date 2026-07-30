@@ -7,7 +7,8 @@
     "name",
     "description",
     "commands",
-    "versionArgs"
+    "versionArgs",
+    "bundling"
   ],
   "additionalProperties": false,
   "properties": {
@@ -72,6 +73,19 @@
       "type": "boolean",
       "description": "When true, this tool has no automatic install path (e.g. a pip CLI or a from-source build). The runtime surfaces it as manual-action-required with installHint rather than attempting a fetch/package install."
     },
+    "privilege": {
+      "enum": ["none", "user", "elevated"],
+      "description": "Optional override for the privilege derived from the install mechanism; privilegeReason is required when set."
+    },
+    "privilegeReason": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Why this tool's explicit privilege overrides the source-mechanism derivation."
+    },
+    "bundling": {
+      "enum": ["vendorable", "host-required", "prohibited"],
+      "description": "Whether the tool may be included in a Tier 2 desktop bundle."
+    },
     "source": {
       "type": "object",
       "description": "Verified fetch targets for the generic handler. Absent or type=package uses the OS package manager (defaultPackage/packages). type=url|release prefers a matching verified binary target installed into user-local ~/.vrooli/bin (no sudo), then falls back to an explicitly declared host package when that target is absent.",
@@ -135,6 +149,14 @@
                 "type": "string",
                 "pattern": "^0[0-7]{3}$",
                 "description": "Octal file mode for the placed binary (default 0755)"
+              },
+              "runtimeEnv": {
+                "type": "object",
+                "description": "Environment variables set by a dir-layout launcher. Each value is a path relative to the extracted opt directory, so the launcher never inherits an incompatible ambient runtime home.",
+                "additionalProperties": {
+                  "type": "string",
+                  "minLength": 1
+                }
               }
             }
           }
@@ -179,5 +201,11 @@
       "type": "string",
       "description": "Freeform annotation for maintainers (not shown to users during install)"
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {"required": ["privilege"]},
+      "then": {"required": ["privilegeReason"]}
+    }
+  ]
 }

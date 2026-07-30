@@ -7,7 +7,8 @@
 - `resource.json` owns the pinned server artifact, loopback configuration, provider policy, ports, health checks, and lifecycle metadata.
 - `cli/` owns the `resource-vault` binary and custom resource commands.
 - `cli/internal/content` owns the canonical KV v2 content wrapper.
-- `cli/internal/secrets` owns `config/secrets.yaml` inventory workflows.
+- Credential inventory and provisioning are owned by the `vrooli credentials`
+  control-plane command and manifest descriptors.
 
 ## Runtime Mode
 
@@ -121,7 +122,9 @@ with a plaintext bootstrap or recovery file.
 
 ## Secret Handling
 
-Default status, check, validate, list, and lifecycle commands must not print secret values. Commands that reveal values are limited to direct `content get` and `secrets export` requests.
+Default status, check, validate, list, and lifecycle commands must not print
+credential values. Ordinary credential values have no Vault CLI read or export
+workflow.
 
 ## Production Gaps
 

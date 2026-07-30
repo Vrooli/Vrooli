@@ -974,7 +974,8 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 			Stdout:       commandStdout,
 			OutputFormat: projectOutputFormat,
 		}),
-		topcli.CommandLifecycle: projectcli.LifecycleHandler(commandStdout, func(ctx *CommandContext, args []string) error { return ctx.app.runLifecycleProtectCommand(ctx, args) }),
+		topcli.CommandCredentials: func(ctx *CommandContext, args []string) error { return ctx.app.runCredentialsCommand(ctx, args) },
+		topcli.CommandLifecycle:   projectcli.LifecycleHandler(commandStdout, func(ctx *CommandContext, args []string) error { return ctx.app.runLifecycleProtectCommand(ctx, args) }),
 	}
 	templateValidationCleanupHandler := projectcli.TemplateValidationCleanupHandler(commandStdout, projectOutputFormat, func(ctx *CommandContext, req projectcli.TemplateValidationCleanupRequest) (projectcli.TemplateValidationCleanupResponse, error) {
 		command, err := ctx.app.newProjectCommandService(ctx)

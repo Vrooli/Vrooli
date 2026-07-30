@@ -29,7 +29,6 @@ type liveCatalogChecker struct {
 func NewCatalogChecker(ctx context.Context) CatalogChecker {
 	runtime := resourceenv.Load()
 	resolver := auth.NewResolver()
-	resolver.CredentialsFilePath = runtime.CredentialsFile
 	creds, _ := resolver.Resolve(ctx)
 	if !creds.Valid() {
 		return nil
@@ -39,7 +38,6 @@ func NewCatalogChecker(ctx context.Context) CatalogChecker {
 		runtime:    runtime,
 		resolveKey: func(ctx context.Context) (auth.Credentials, error) {
 			r := auth.NewResolver()
-			r.CredentialsFilePath = runtime.CredentialsFile
 			return r.Resolve(ctx)
 		},
 	}

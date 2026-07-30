@@ -738,6 +738,29 @@ func TestCheckDomainMismatchExemptsContractModelAndCommonBuckets(t *testing.T) {
 	require.Empty(t, svc.checkDomainMismatch(surface))
 }
 
+func TestCheckDomainMismatchHonorsExplicitSemanticDomainAlias(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "scenarios", "demo", "api", "handlers", "commerce"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "scenarios", "demo", ".vrooli"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "scenarios", "demo", ".vrooli", "proto-domain-aliases.json"), []byte(`{"proto_to_handler":{"billing":"commerce"}}`), 0o600))
+	svc := &Service{repoRoot: root}
+	surface := protosurface.Surface{Scenario: "demo", Files: []protosurface.File{{Path: "demo/v1/billing/billing.proto", Domain: "billing"}}}
+
+	require.Empty(t, svc.checkDomainMismatch(surface))
+}
+
+func TestCheckDomainMismatchRejectsInvalidSemanticDomainAlias(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "scenarios", "demo", ".vrooli"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "scenarios", "demo", ".vrooli", "proto-domain-aliases.json"), []byte(`{"unexpected":true}`), 0o600))
+	svc := &Service{repoRoot: root}
+	surface := protosurface.Surface{Scenario: "demo"}
+
+	findings := svc.checkDomainMismatch(surface)
+	require.Len(t, findings, 1)
+	require.Contains(t, findings[0].Message, "invalid proto domain alias configuration")
+}
+
 func TestValidateScenarioSkipsMapEntryPossiblyUnused(t *testing.T) {
 	surface := cleanSurface()
 	surface.Messages = append(surface.Messages, protosurface.Message{

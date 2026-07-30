@@ -17,7 +17,8 @@
     "shared-component": {
       "dir": "ui/src/shared/ui",
       "description": "Cross-cutting components used by multiple surfaces (e.g. ErrorBoundary, RuntimeSignalStrip).",
-      "pathPattern": "{dir}/{ComponentName}.tsx"
+      "pathPattern": "{dir}/{ComponentName}.tsx",
+      "multiFile": true
     },
     "layout-shell": {
       "dir": "ui/src/app",

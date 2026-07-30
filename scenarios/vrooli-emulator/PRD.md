@@ -1,4 +1,8 @@
-# Product Requirements Document (PRD)
+# Vrooli Emulator — Dormant
+
+This scenario is intentionally frozen. Its current source is a historical scaffold with forked copies of desktop-live-session and screen-recording behavior. New work belongs in `scenario-to-desktop` until an explicitly approved shared-capability extraction replaces the forks.
+
+## Historical product requirements document
 
 > **Template Version**: 2.0
 > **Canonical Reference**: `/scenarios/business-health/docs/reference/canonical-prd-template.md`

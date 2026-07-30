@@ -10,6 +10,8 @@
     "cli",
     "driver",
     "portability_tier",
+    "privilege",
+    "bundling",
     "deployment"
   ],
   "properties": {
@@ -139,21 +141,24 @@
     },
     "credentials": {
       "type": "object",
-      "description": "Declares the secrets this resource needs at runtime. Each entry in `env` is either a bare environment-variable name (legacy, minimal) or a secretDescriptor (preferred, surfaces label/description/obtain_url to onboarding). `secret_ref` is the canonical Vault path where the value is stored.",
+      "description": "Declares credentials through backend-neutral descriptors. A logical_id is the only durable identifier; values are held by the selected credential authority and injected only into the target process.",
       "properties": {
-        "env": {
+        "descriptors": {
           "type": "array",
-          "description": "Environment variables required at runtime. Strings are accepted for backward compatibility; objects supply the rich descriptor used by onboarding and admin UIs. Mix freely.",
           "items": {
-            "oneOf": [
-              { "type": "string" },
-              { "$ref": "common.schema.json#/definitions/secretDescriptor" }
-            ]
+            "type": "object",
+            "required": ["logical_id", "env"],
+            "additionalProperties": false,
+            "properties": {
+              "logical_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]+/[a-z0-9][a-z0-9._/-]+$" },
+              "field": { "type": "string", "pattern": "^[a-zA-Z0-9._-]+$" },
+              "env": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+              "required": { "type": "boolean" },
+              "label": { "type": "string" },
+              "description": { "type": "string" },
+              "obtain_url": { "type": "string", "format": "uri" }
+            }
           }
-        },
-        "secret_ref": {
-          "type": "string",
-          "description": "Canonical Vault path where the secret values are stored (e.g. 'secret/vrooli/gemini')."
         }
       }
     },
@@ -164,6 +169,16 @@
         "partial",
         "platform-specific"
       ]
+    },
+    "privilege": {
+      "type": "string",
+      "enum": ["none", "user", "elevated"],
+      "description": "Host privilege needed to operate this resource outside a desktop bundle."
+    },
+    "bundling": {
+      "type": "string",
+      "enum": ["vendorable", "host-required", "prohibited"],
+      "description": "Whether the resource may be supplied by a desktop application bundle."
     },
     "category": {
       "type": "string"

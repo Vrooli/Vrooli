@@ -2,9 +2,18 @@
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "rembg",
   "description": "rembg background-removal CLI for image-tools (Python/pip)",
-  "commands": ["rembg"],
-  "versionArgs": ["--version"],
-  "platforms": ["linux", "macos", "windows"],
+  "commands": [
+    "rembg"
+  ],
+  "versionArgs": [
+    "--version"
+  ],
+  "platforms": [
+    "linux",
+    "macos",
+    "windows"
+  ],
   "manual": true,
-  "installHint": "Python tool — install with `pipx install \"rembg[cli]\"` (or `pip install \"rembg[cli]\"`). Not a single-binary release, so it is not auto-fetched."
+  "installHint": "Python tool — install with `pipx install \"rembg[cli]\"` (or `pip install \"rembg[cli]\"`). Not a single-binary release, so it is not auto-fetched.",
+  "bundling": "host-required"
 }

@@ -36,10 +36,7 @@ resource-vault content delete --path secret/test/quickstart
 ## Resource Declarations
 
 ```bash
-resource-vault secrets scan
-resource-vault secrets check kopia
-resource-vault secrets validate
-resource-vault secrets export opencode
+vrooli credentials status --identity vrooli/openrouter --field api-key
 ```
 
 `check` and `validate` report presence without values. `export` emits shell-safe `export KEY='value'` lines for present secrets declared with `default_env`.

@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"resource-openrouter/cli/internal/auth"
 	"resource-openrouter/cli/internal/config"
 	"resource-openrouter/cli/internal/ensure"
@@ -74,7 +75,7 @@ func commandGroups(app *cliapp.ResourceApp) []cliapp.CommandGroup {
 				},
 				{
 					Name:        "configure",
-					Description: "Store an OpenRouter API key in the native credentials file",
+					Description: "Provision an OpenRouter API key through the Vrooli credential authority",
 					Run: func(args []string) error {
 						return runConfigure(app, args, os.Stdout)
 					},
@@ -94,6 +95,14 @@ func commandGroups(app *cliapp.ResourceApp) []cliapp.CommandGroup {
 func commandSubgroups(app *cliapp.ResourceApp) []cliapp.SubcommandGroup {
 	return []cliapp.SubcommandGroup{
 		{
+			Name:        "images",
+			Description: "OpenRouter image generation operations",
+			Subcommands: []cliapp.Command{{
+				Name: "generate", Description: "Generate image output through a policy role",
+				Run: func(args []string) error { return runImageGenerate(app, args, os.Stdout, os.Stdin) },
+			}},
+		},
+		{
 			Name:        "content",
 			Description: "OpenRouter content operations",
 			Subcommands: []cliapp.Command{
@@ -108,6 +117,50 @@ func commandSubgroups(app *cliapp.ResourceApp) []cliapp.SubcommandGroup {
 		},
 		policycmd.Commands(nil),
 	}
+}
+
+func runImageGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin io.Reader) error {
+	if err := checkStale(app); err != nil {
+		if errors.Is(err, errReexeced) {
+			return nil
+		}
+		return err
+	}
+	fs := flag.NewFlagSet("images generate", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	var role, promptFlag, promptFile, inputFile string
+	var count int
+	fs.StringVar(&role, "role", "image.generate.default", "OpenRouter image policy role")
+	fs.StringVar(&promptFlag, "prompt", "", "Image prompt")
+	fs.StringVar(&promptFile, "prompt-file", "", "Read image prompt from file")
+	fs.StringVar(&inputFile, "input-file", "", "Optional source image for image-to-image or instructed editing")
+	fs.IntVar(&count, "output-count", 1, "Number of image outputs")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if count < 1 {
+		return fmt.Errorf("output-count must be at least 1")
+	}
+	model, err := resolveRoleModel(role)
+	if err != nil {
+		return err
+	}
+	prompt, err := resolvePrompt(promptFlag, promptFile, fs.Args(), stdin)
+	if err != nil {
+		return err
+	}
+	runtime := resourceenv.Load()
+	resolver := auth.NewResolver()
+	creds, err := resolver.Resolve(context.Background())
+	if err != nil {
+		return err
+	}
+	body, err := health.GenerateImage(context.Background(), http.DefaultClient, runtime, creds, model, prompt, inputFile, count)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(stdout, string(body))
+	return err
 }
 
 // resolveDefaultModel resolves the OpenRouter default role to a concrete model
@@ -170,7 +223,6 @@ func runListModels(app *cliapp.ResourceApp, args []string, stdout io.Writer) err
 
 	runtime := resourceenv.Load()
 	resolver := auth.NewResolver()
-	resolver.CredentialsFilePath = runtime.CredentialsFile
 	creds, _ := resolver.Resolve(context.Background())
 
 	body, err := fetchModels(context.Background(), http.DefaultClient, runtime, creds)
@@ -258,7 +310,6 @@ func runGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin
 	}
 
 	resolver := auth.NewResolver()
-	resolver.CredentialsFilePath = runtime.CredentialsFile
 	creds, err := resolver.Resolve(context.Background())
 	if err != nil {
 		return err
@@ -291,29 +342,24 @@ func runConfigure(app *cliapp.ResourceApp, args []string, stdout io.Writer) erro
 
 	fs := flag.NewFlagSet("configure", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	var apiKey string
-	fs.StringVar(&apiKey, "api-key", "", "OpenRouter API key to store")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
-			fmt.Fprintln(stdout, "Usage:\n  resource-openrouter configure --api-key <key>")
+			fmt.Fprintln(stdout, "Usage:\n  resource-openrouter configure\n\nThe key is read from standard input and is never accepted as an argument.")
 			return nil
 		}
 		return err
 	}
-	apiKey = strings.TrimSpace(apiKey)
-	if apiKey == "" {
-		return fmt.Errorf("api key is required")
+	if len(fs.Args()) != 0 {
+		return fmt.Errorf("configure accepts no positional arguments; provide the value on standard input")
 	}
-
-	runtime := resourceenv.Load()
-	if err := runtime.EnsureDirectories(); err != nil {
-		return err
+	command := exec.Command("vrooli", "credentials", "provision", "--identity", "vrooli/openrouter", "--field", "api-key")
+	command.Stdin = os.Stdin
+	command.Stdout = stdout
+	command.Stderr = os.Stderr
+	if err := command.Run(); err != nil {
+		return fmt.Errorf("provision OpenRouter credential through control plane: %w", err)
 	}
-	if err := config.SaveCredentialsFile(runtime.CredentialsFile, apiKey); err != nil {
-		return err
-	}
-	_, err := fmt.Fprintf(stdout, "Stored OpenRouter API key in %s\n", runtime.CredentialsFile)
-	return err
+	return nil
 }
 
 func runShowConfig(app *cliapp.ResourceApp, args []string, stdout io.Writer) error {
@@ -338,14 +384,12 @@ func runShowConfig(app *cliapp.ResourceApp, args []string, stdout io.Writer) err
 
 	runtime := resourceenv.Load()
 	resolver := auth.NewResolver()
-	resolver.CredentialsFilePath = runtime.CredentialsFile
 	creds, _ := resolver.Resolve(context.Background())
 
 	payload := struct {
 		APIBaseURL       string `json:"api_base_url"`
 		DefaultRole      string `json:"default_role"`
 		DefaultRoleModel string `json:"default_role_model,omitempty"`
-		CredentialsFile  string `json:"credentials_file"`
 		ManualModels     string `json:"manual_models_file"`
 		APIKeySource     string `json:"api_key_source,omitempty"`
 		APIKeyPreview    string `json:"api_key_preview,omitempty"`
@@ -353,7 +397,6 @@ func runShowConfig(app *cliapp.ResourceApp, args []string, stdout io.Writer) err
 		APIBaseURL:       runtime.APIBaseURL,
 		DefaultRole:      runtime.DefaultRole,
 		DefaultRoleModel: resolveDefaultModel(runtime.DefaultRole),
-		CredentialsFile:  runtime.CredentialsFile,
 		ManualModels:     runtime.ManualModelsFile,
 		APIKeySource:     creds.Source,
 		APIKeyPreview:    creds.RedactedAPIKey(),
@@ -368,11 +411,10 @@ func runShowConfig(app *cliapp.ResourceApp, args []string, stdout io.Writer) err
 		return err
 	}
 
-	_, err := fmt.Fprintf(stdout, "API Base: %s\nDefault Role: %s\nDefault Role Model: %s\nCredentials File: %s\nManual Models File: %s\nAPI Key Source: %s\nAPI Key Preview: %s\n",
+	_, err := fmt.Fprintf(stdout, "API Base: %s\nDefault Role: %s\nDefault Role Model: %s\nManual Models File: %s\nAPI Key Source: %s\nAPI Key Preview: %s\n",
 		payload.APIBaseURL,
 		payload.DefaultRole,
 		firstNonEmpty(payload.DefaultRoleModel, "unresolved"),
-		payload.CredentialsFile,
 		payload.ManualModels,
 		firstNonEmpty(payload.APIKeySource, "not configured"),
 		firstNonEmpty(payload.APIKeyPreview, "not configured"),

@@ -15,7 +15,6 @@ import (
 	catalogpkg "github.com/vrooli/vrooli/internal/resources/catalog"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
-	runtimestorage "github.com/vrooli/vrooli/internal/resources/runtime/storage"
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/vroolierr"
 )
@@ -319,11 +318,7 @@ func resourceEnvForResource(root, home, resourceName string) []string {
 	if resourceName == "" {
 		return env
 	}
-	resolver, err := runtimestorage.NewResolver(runtimestorage.ResolverConfig{AppID: "vrooli"})
-	if err != nil {
-		return env
-	}
-	paths, err := resolver.Resolve(runtimestorage.Options{ResourceID: resourceName})
+	paths, err := resourceStoragePaths(resourceName)
 	if err != nil {
 		return env
 	}

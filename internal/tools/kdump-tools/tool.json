@@ -2,10 +2,17 @@
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "kdump-tools",
   "description": "kdump capture-kernel framework — captures full kernel crash dumps on panic to /var/crash for forensic analysis",
-  "commands": ["kdump-config"],
-  "versionArgs": ["show"],
+  "commands": [
+    "kdump-config"
+  ],
+  "versionArgs": [
+    "show"
+  ],
   "handler": "kdump_tools",
   "defaultPackage": "kdump-tools",
-  "platforms": ["linux"],
-  "installHint": "Install kdump-tools and reboot after the crashkernel_reserve safeguard adds the crashkernel= parameter. Without crashkernel reserved, kdump cannot operate."
+  "platforms": [
+    "linux"
+  ],
+  "installHint": "Install kdump-tools and reboot after the crashkernel_reserve safeguard adds the crashkernel= parameter. Without crashkernel reserved, kdump cannot operate.",
+  "bundling": "host-required"
 }

@@ -227,7 +227,7 @@ func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 	// Loud warning when the active provider needs a key we can't resolve and
 	// there is no local fallback — otherwise the failure is silent until a run.
 	if !useOllama && currentProvider == "openrouter" && !opts.HaveOpenRouter && !ollamaReachable {
-		logf("WARNING: OpenCode model %q uses OpenRouter but no OPENROUTER_API_KEY is resolvable and no local Ollama is reachable — runs will fail. Set the key (resource-vault) or start Ollama.", currentModel)
+		logf("WARNING: OpenCode model %q uses OpenRouter but no OPENROUTER_API_KEY was injected and no local Ollama is reachable — runs will fail. Provision the canonical OpenRouter credential through Vrooli onboarding or `vrooli credentials provision`, then retry.", currentModel)
 	}
 	return true, nil
 }

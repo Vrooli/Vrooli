@@ -41,6 +41,18 @@
   },
   "template": "docker-service",
   "driver": "docker-service",
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/postgres",
+        "field": "password",
+        "env": "POSTGRES_PASSWORD",
+        "label": "PostgreSQL password",
+        "description": "Password for the managed PostgreSQL service account.",
+        "required": true
+      }
+    ]
+  },
   "deployment": {
     "profiles": {
       "desktop": {
@@ -223,5 +235,7 @@
   "capabilities": {
     "supports_logs": true
   },
-  "template_version": "2"
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "host-required"
 }
