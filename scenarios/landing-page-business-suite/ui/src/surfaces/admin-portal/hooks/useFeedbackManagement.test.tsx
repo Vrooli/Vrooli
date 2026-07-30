@@ -100,6 +100,14 @@ describe('useFeedbackManagement', () => {
       expect(result.current.error).toBe('Network error');
     });
 
+    it('uses a safe fallback for non-Error loading failures', async () => {
+      mockFetchFeedbackList.mockRejectedValue('offline');
+      const { result } = renderHook(() => useFeedbackManagement());
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
+
+      expect(result.current.error).toBe('Failed to load feedback');
+    });
+
     it('can reload data', async () => {
       mockFetchFeedbackList.mockResolvedValue([]);
 
@@ -553,6 +561,31 @@ describe('useFeedbackManagement', () => {
       });
 
       expect(result.current.bulkActionLoading).toBe(false);
+    });
+
+    it('keeps selected records and exposes safe fallbacks for non-Error operation failures', async () => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      mockFetchFeedbackList.mockResolvedValue([createMockFeedback({ id: 1 })]);
+      mockUpdateFeedbackStatus.mockRejectedValue('offline');
+      mockDeleteFeedback.mockRejectedValue('offline');
+      mockDeleteFeedbackBulk.mockRejectedValue('offline');
+      const { result } = renderHook(() => useFeedbackManagement());
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
+
+      await act(async () => {
+        await expect(result.current.handleStatusChange(1, 'resolved')).resolves.toEqual({ success: false, message: 'Failed to update status' });
+        await expect(result.current.handleDelete(1)).resolves.toEqual({ success: false, message: 'Failed to delete feedback' });
+      });
+      act(() => { result.current.handleToggleSelect(1); });
+      await act(async () => {
+        await expect(result.current.handleBulkDelete()).resolves.toEqual({ success: false, message: 'Failed to bulk delete' });
+      });
+
+      expect(result.current.feedbackList).toHaveLength(1);
+      expect(result.current.selectedIds).toEqual(new Set([1]));
+      expect(result.current.actionLoading).toBeNull();
+      expect(result.current.bulkActionLoading).toBe(false);
+      consoleError.mockRestore();
     });
   });
 

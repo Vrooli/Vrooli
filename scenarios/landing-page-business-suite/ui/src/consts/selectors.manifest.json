@@ -270,21 +270,6 @@
     }
   },
   "dynamicSelectors": {
-    "publicLanding.experienceState": {
-      "description": "Public landing experience surface by lifecycle state",
-      "selectorPattern": "[data-testid=\"landing-experience-surface\"][data-experience-state=\"${state}\"]",
-      "params": [
-        {
-          "name": "state",
-          "type": "enum",
-          "values": [
-            "loading",
-            "ready",
-            "error"
-          ]
-        }
-      ]
-    },
     "admin.analytics.variantRow": {
       "description": "Analytics variant performance row by variant ID",
       "selectorPattern": "[data-testid=\"analytics-variant-row-${id}\"]",
@@ -428,7 +413,7 @@
         }
       ]
     },
-    "admin.breadcrumb": {
+    "admin.breadcrumbSegment": {
       "description": "Breadcrumb segment by index",
       "selectorPattern": "[data-testid=\"breadcrumb-${index}\"]",
       "testIdPattern": "breadcrumb-${index}",

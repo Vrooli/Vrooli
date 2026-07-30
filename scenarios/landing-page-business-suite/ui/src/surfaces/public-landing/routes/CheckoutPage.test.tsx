@@ -154,4 +154,27 @@ describe('CheckoutPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry Checkout' }));
     await waitFor(() => { expect(createCheckoutSession).toHaveBeenCalledTimes(2); });
   });
+
+  it('renders custom yearly plan details without invalid metadata and prevents retry for validation failures', async () => {
+    createCheckoutSession.mockRejectedValue(new ApiError('Checkout parameters rejected', 'validation', 400, 'Choose a supported billing option'));
+    getPlans.mockResolvedValue({
+      ...pricing,
+      monthly: [],
+      yearly: [{
+        ...pricing.monthly[0]!,
+        plan_name: 'Enterprise annual',
+        billing_interval: 'year',
+        amount_cents: 0,
+        stripe_price_id: 'price_enterprise',
+        metadata: undefined,
+      }],
+    });
+    renderCheckout('/checkout?price_id=price_enterprise');
+
+    expect(await screen.findByRole('heading', { name: 'Enterprise annual', level: 2 })).toBeInTheDocument();
+    expect(screen.getByText('Custom / year')).toBeInTheDocument();
+    expect(await screen.findByText('Choose a supported billing option')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Retry Checkout' })).toBeNull();
+  });
+
 });

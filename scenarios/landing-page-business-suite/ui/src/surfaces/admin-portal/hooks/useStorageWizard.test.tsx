@@ -70,4 +70,59 @@ describe('useStorageWizard', () => {
     expect(result.current.state.saveStatus).toBe('success');
     expect(onComplete).toHaveBeenCalledOnce();
   });
+
+  it.each([
+    ['minio', { ...settings, endpoint: 'http://minio.test:9000', force_path_style: true }, 'minio'],
+    ['aws', { ...settings, endpoint: '', region: 'eu-west-1', force_path_style: false }, 'aws-s3'],
+    ['custom', { ...settings, endpoint: 'https://object.example.test', region: '', force_path_style: false }, 'custom'],
+  ] as const)('detects %s provider settings without assuming credentials are present', async (_name, storedSettings, provider) => {
+    vi.mocked(api.getDownloadStorageAdmin).mockResolvedValue({ settings: storedSettings });
+    const { result } = renderHook(() => useStorageWizard({ onComplete: vi.fn() }));
+
+    await act(async () => { await result.current.loadExistingSettings(); });
+
+    expect(result.current.state).toMatchObject({ provider, loading: false, loadError: null });
+    expect(result.current.state.form.bucket).toBe('releases');
+  });
+
+  it('retains a safe wizard state when settings cannot be loaded or the failure is non-Error', async () => {
+    vi.mocked(api.getDownloadStorageAdmin).mockRejectedValueOnce(new Error('Storage control plane unavailable'));
+    const { result } = renderHook(() => useStorageWizard({ onComplete: vi.fn() }));
+
+    await act(async () => { await result.current.loadExistingSettings(); });
+    expect(result.current.state).toMatchObject({ loading: false, loadError: 'Storage control plane unavailable', provider: null });
+
+    vi.mocked(api.getDownloadStorageAdmin).mockRejectedValueOnce('unknown failure');
+    await act(async () => { await result.current.loadExistingSettings(); });
+    expect(result.current.state.loadError).toBe('Failed to load settings');
+  });
+
+  it('does not navigate past bounds and resets all transient wizard state', () => {
+    const { result } = renderHook(() => useStorageWizard({ onComplete: vi.fn() }));
+    act(() => {
+      result.current.goToStep(-1);
+      result.current.goToStep(99);
+      result.current.goBack();
+      result.current.setProvider('cloudflare-r2');
+      result.current.setCloudflareAccountId('account-42');
+      result.current.goToStep(3);
+      result.current.goNext();
+      result.current.reset();
+    });
+    expect(result.current.state).toMatchObject({ step: 0, provider: null, cloudflareAccountId: '', testStatus: 'idle', saveStatus: 'idle' });
+    expect(result.current.currentStepId).toBe('provider');
+  });
+
+  it('reports safe fallback messages for non-Error test and save failures without completing', async () => {
+    const onComplete = vi.fn();
+    vi.mocked(api.testDownloadStorageAdmin).mockRejectedValueOnce('network failure');
+    vi.mocked(api.updateDownloadStorageAdmin).mockRejectedValueOnce('persistence failure');
+    const { result } = renderHook(() => useStorageWizard({ onComplete }));
+
+    await act(async () => { await result.current.testConnection(); });
+    expect(result.current.state).toMatchObject({ testStatus: 'error', testError: 'Connection test failed' });
+    await act(async () => { await result.current.saveSettings(); });
+    expect(result.current.state).toMatchObject({ saveStatus: 'error', saveError: 'Failed to save settings' });
+    expect(onComplete).not.toHaveBeenCalled();
+  });
 });

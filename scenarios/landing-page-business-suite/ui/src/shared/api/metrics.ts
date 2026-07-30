@@ -1,5 +1,5 @@
 import { createClient } from '@connectrpc/connect';
-import type { JsonObject } from '@bufbuild/protobuf';
+import type { JsonObject, JsonValue } from '@bufbuild/protobuf';
 import { createScenarioConnectTransport } from '@vrooli/api-base';
 import {
   MetricsService,
@@ -14,7 +14,24 @@ const metricsClient = createClient(MetricsService, createScenarioConnectTranspor
 function metricDataToProto(value?: Record<string, unknown>): JsonObject | undefined {
   if (value === undefined) return undefined;
   const encoded = JSON.stringify(value);
-  return encoded === undefined ? undefined : JSON.parse(encoded) as JsonObject;
+  const parsed: unknown = JSON.parse(encoded);
+  if (!isJsonObject(parsed)) {
+    throw new Error('Metric event data must serialize to a JSON object');
+  }
+  return parsed;
+}
+
+function isJsonValue(value: unknown): value is JsonValue {
+  if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return true;
+  if (Array.isArray(value)) return value.every(isJsonValue);
+  return isJsonObject(value);
+}
+
+function isJsonObject(value: unknown): value is JsonObject {
+  return value !== null
+    && typeof value === 'object'
+    && !Array.isArray(value)
+    && Object.values(value).every(isJsonValue);
 }
 
 function variantStatsFromProto(value: GeneratedVariantStats): VariantStats {

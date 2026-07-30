@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-07-30T15:01:07-04:00"
+    "last_validated_at": "2026-07-30T15:31:41-04:00"
   },
   "requirements": [
     {
@@ -22,7 +22,7 @@
     {
       "id": "DESIGN-FONT",
       "title": "Custom typography",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-006",
       "description": "Default template declares custom font stack (not Inter, Roboto, Arial, or system default)",
       "validation": [
@@ -30,7 +30,7 @@
           "type": "test",
           "ref": "ui/src/styles.css",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Space Grotesk font implemented in ui/src/styles.css:1"
         }
       ]
@@ -38,7 +38,7 @@
     {
       "id": "DESIGN-VARS",
       "title": "CSS theming",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-007",
       "description": "Template uses defined CSS variables for colors and spacing",
       "validation": [
@@ -46,7 +46,7 @@
           "type": "test",
           "ref": "ui/src/styles.css",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "CSS variables defined in ui/src/styles.css for colors, spacing, radius, and shadows"
         }
       ]
@@ -54,7 +54,7 @@
     {
       "id": "DESIGN-BG",
       "title": "Non-trivial backgrounds",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-008",
       "description": "Template includes at least one layered gradient/shape/texture background (not flat solid)",
       "validation": [
@@ -62,7 +62,7 @@
           "type": "test",
           "ref": "ui/src/styles.css",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Layered mesh gradient (radial + linear) implemented in ui/src/styles.css and applied in PublicHome layout backgrounds"
         }
       ]
@@ -70,7 +70,7 @@
     {
       "id": "DESIGN-VIDEO",
       "title": "Video section support",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-009",
       "description": "Template supports at least one video demo section (URL, thumbnail, caption, layout) configurable via admin",
       "validation": [
@@ -78,7 +78,7 @@
           "type": "test",
           "ref": "ui/src/surfaces/public-landing/sections/VideoSection.test.tsx",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "VideoSection component with YouTube/Vimeo embed support, thumbnail overlay, and responsive layout"
         }
       ]

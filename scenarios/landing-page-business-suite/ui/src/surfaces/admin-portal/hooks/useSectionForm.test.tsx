@@ -906,5 +906,68 @@ describe('useSectionForm', () => {
 
       expect(result.current.content.title).toBe('   ');
     });
+
+    it('rejects a newly created section without a stable key and retains a safe error state', async () => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      createSectionMock.mockResolvedValue({ ...mockSection, key: '' });
+      const onError = vi.fn();
+      const { result } = renderHook(() =>
+        useSectionForm({ variantSlug: 'control', sectionId: 'new', onError })
+      );
+      await waitForExistingVariantReady(result);
+
+      await act(async () => { await result.current.handleSave(); });
+
+      expect(result.current.error).toBe('Created section did not include a stable key');
+      expect(onError).toHaveBeenCalledWith('Failed to save section changes');
+      expect(navigateMock).not.toHaveBeenCalled();
+      consoleError.mockRestore();
+    });
+
+    it('does not navigate or persist when the variant or existing section key is unavailable', async () => {
+      const onError = vi.fn();
+      const { result: missingVariant } = renderHook(() =>
+        useSectionForm({ variantSlug: undefined, sectionId: 'new', onError })
+      );
+      await waitForNewFormReady(missingVariant);
+      act(() => {
+        missingVariant.current.handleAddSection();
+        missingVariant.current.handleNavigateSection({ key: 'hero', section_type: 'hero', content: {}, order: 1 });
+      });
+      expect(navigateMock).not.toHaveBeenCalled();
+
+      const { result: missingKey } = renderHook(() =>
+        useSectionForm({ variantSlug: 'control', sectionId: '   ', onError })
+      );
+      await waitForExistingVariantReady(missingKey);
+      await act(async () => { await missingKey.current.handleSave(); });
+      expect(missingKey.current.error).toBe('Section key is missing.');
+      expect(onError).toHaveBeenCalledWith('Cannot save: section key is missing');
+      expect(persistExistingSectionContentMock).not.toHaveBeenCalled();
+    });
+
+    it('uses fallback messages for non-Error async failures without retaining stale preview or comparison data', async () => {
+      loadVariantContextMock.mockRejectedValueOnce('context failure');
+      getLandingConfigMock.mockRejectedValueOnce('preview failure');
+      listVariantsMock.mockRejectedValueOnce('variant list failure');
+      const { result } = renderHook(() =>
+        useSectionForm({ variantSlug: 'control', sectionId: '42' })
+      );
+      await waitFor(() => {
+        expect(result.current.variantContextLoading).toBe(false);
+        expect(result.current.previewConfigLoading).toBe(false);
+        expect(result.current.variantOptionsLoading).toBe(false);
+      });
+      expect(result.current.variantContextError).toBe('Failed to load variant guidance');
+      expect(result.current.previewConfigError).toBe('Failed to load landing preview context');
+      expect(result.current.variantOptionsError).toBe('Failed to load variants');
+      expect(result.current.previewConfig).toBeNull();
+
+      getLandingConfigMock.mockRejectedValueOnce('comparison failure');
+      await act(async () => { await result.current.handleCompareVariantChange('other'); });
+      expect(result.current.compareError).toBe('Failed to load comparison variant');
+      expect(result.current.compareConfig).toBeNull();
+      expect(result.current.comparisonVariantLabel).toBe('other');
+    });
   });
 });

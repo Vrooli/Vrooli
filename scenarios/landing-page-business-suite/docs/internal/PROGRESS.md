@@ -1382,3 +1382,232 @@ Validation:
   successfully; its overall failure is pre-existing unrelated scenario debt
   (dependency, unit-policy, storage, workflow, business, security, and proto
   phases), not this checker change.
+
+## 2026-07-30 — UI coverage-gate diagnosis and VariantSection transport tests
+
+- Reproduced the full-suite unit failure as a real UI coverage threshold miss:
+  all Vitest assertions pass, but V8 branch coverage is 79.6% against the
+  required 85%. The threshold remains unchanged; this is a test-depth work
+  item, not a configuration workaround.
+- Extended the typed variant transport tests through the full VariantSection
+  lifecycle (list, get, create, update, delete), stable response identity
+  validation, JSON-object content validation, malformed generated response
+  handling, complete nested header mapping, and SEO optional-field mapping.
+- Corrected the section-content conversion boundary to accept `unknown` before
+  narrowing it to a JSON object. This makes its defensive null/array rejection
+  type-correct rather than relying on an impossible `Record` null check.
+
+Validation:
+
+- Focused `src/shared/api/variants.test.ts` passes (8 tests).
+- Focused ESLint for the changed source/tests and `git diff --check` pass.
+- The post-first-slice full coverage run improved branch coverage from 79.3%
+  to 79.6%; additional behavior-focused test slices are required to reach 85%.
+
+### Follow-up coverage and lint slice
+
+- Added focused `useInlineAlert` tests for error classification, retry policy,
+  auto-dismiss timing, warning, success, and explicit clear behavior.
+- Extended Remote Profiles route coverage to verify failed test/logout/inspect/
+  revoke/delete operations report errors instead of falsely presenting success.
+- Cleared the declared UI ESLint errors found during certification: made the
+  metrics JSON boundary type-safe, removed a redundant test-mock assertion,
+  awaited the async waitlist export in its test, and explicitly discarded the
+  async click callback promise.
+
+Validation:
+
+- UI typecheck, complete UI lint, and the affected focused Vitest suites pass.
+- Full V8 coverage now reports 80.13% branches. The remaining 4.87 points are
+  intentionally retained as behavior-test work rather than masking them with
+  threshold or exclusion changes.
+
+### Public landing and editor-navigation coverage slice
+
+- Added behavior coverage for the public landing header's custom, section, and
+  nested menu links, including device-specific visibility, hidden CTAs, the
+  fallback signal, and safe initials-only branding when a logo is absent.
+- Added customization-page coverage for direct section navigation, asynchronous
+  section target resolution, and safe fallback when that lookup rejects.
+- Kept the Connect metric payload boundary defensive: serialized metric data is
+  accepted only when it re-parses as a JSON object.
+
+Validation:
+
+- Focused PublicLanding and metrics tests, UI typecheck, complete UI lint, and
+  `git diff --check` pass (lint retains 14 pre-existing warnings and no errors).
+- Complete V8 run: 172 files / 2,056 tests pass. Global branch coverage is
+  80.56% (6,062 / 7,525) against the deliberate 85% gate, so certification
+  remains correctly blocked by 338 uncovered branch outcomes.
+
+### Route and remote-profile hook coverage slice
+
+- Added direct behavior tests for admin-login error classification and retry,
+  public-feedback retry/error recovery, and remote-profile route states
+  (sessionless controls, rejected credentials, save failures, and destructive
+  confirmation).
+- Extended the remote-profile hook seam with success, unknown-error, refresh,
+  state-reconciliation, and busy-state cleanup cases across every action.
+- Added the pricing catalog edge case that preserves a free plan with an
+  unexpected interval while rejecting invalid paid/yearly interval records.
+
+Validation:
+
+- All affected focused Vitest suites, focused ESLint, UI typecheck, and
+  `git diff --check` pass.
+- The complete V8 run after the route slice passed 172 files / 2,062 tests and
+  reached 80.95% branches. After the hook slice it reached 81.12%; the 85%
+  branch gate is still deliberately unmet. The pricing edge test was added
+  after that measurement and has focused validation only.
+
+### Billing catalog hook coverage slice
+
+- Added direct tests for price-form validation, confirmed and declined plan
+  deletion, delete failure recovery, price-check cleanup, and reordering known
+  catalog entries while ignoring unknown ids.
+
+Validation:
+
+- `useBillingForm` passes 31 focused tests; focused lint, UI typecheck, and
+  `git diff --check` pass.
+- The complete V8 run completed all UI tests and reached 81.32% branches. It
+  remains a deliberate certification failure until the required 85% is met.
+
+### Storage wizard coverage slice
+
+- Added direct storage-wizard tests for R2, MinIO, S3, and custom provider
+  detection; invalid navigation bounds; reset behavior; failed settings loads;
+  and safe error handling for connection tests and persistence.
+
+Validation:
+
+- The focused storage-wizard suite passes 10 tests, with focused lint and UI
+  typecheck passing.
+- The complete V8 run passed every UI test and improved global branch coverage
+  to 81.62%. The required 85% branch gate remains open.
+
+### Section, analytics, and metrics resilience coverage slice
+
+- Added section-editor tests for stable-key enforcement, unavailable route
+  identifiers, no-op navigation safeguards, and safe fallback messages from
+  every asynchronous context/preview/comparison source.
+- Added analytics dashboard tests for retryable load failure and incomplete,
+  down-trending detail data.
+- Added metrics hook tests for each interaction event type and for page-view /
+  scroll-band deduplication across concurrent consumers and unmount cleanup.
+- Added a public-landing fallback test proving a signed-off offline page still
+  renders when the remote configuration request also reports an error, and
+  skips disabled or unknown content safely.
+
+Validation:
+
+- Focused Vitest suites, focused lint, and UI typecheck pass for all changed
+  surfaces.
+- The full V8 suite passes every UI test and now reports 81.98% branches. It
+  continues to fail only the deliberate 85% global branch gate.
+
+### Variant editor transport resilience coverage slice
+
+- Added behavior-focused tests for non-`Error` failures while loading a
+  variant, its axes, and its JSON snapshot; these verify the messages shown to
+  operators and ensure loading state is cleared.
+- Covered non-`Error` failures in both form and JSON persistence paths, plus a
+  denied clipboard write while copying actual Monaco validation issues.
+
+Validation:
+
+- The focused `useVariantForm` suite passes all 36 tests, with focused ESLint
+  and UI typecheck passing.
+- The complete V8 suite completes all UI assertions and increases branch
+  coverage to 82.09%. Certification correctly remains blocked solely by the
+  enforced 85% global branch threshold. Full lint has no errors and retains 14
+  unrelated warnings in existing barrel and Fast Refresh files.
+
+### Customization and public-preview coverage slice
+
+- Corrected the customization-hook test seam to mock the hook modules that the
+  production hook actually imports, then added operator-visible coverage for
+  analytics recovery, archive/delete failure alerts, destination navigation,
+  and first-section resolution.
+- Added a public hero preview test that advances through the complete recorded
+  action timeline before the showcase rotates.
+
+Validation:
+
+- Focused customization and hero suites pass 35 assertions, focused ESLint and
+  UI typecheck pass, and the scenario diff has no whitespace errors.
+- The complete V8 suite completes all assertions and reaches 82.11% global
+  branch coverage. The deliberate 85% certification gate remains open.
+
+### Navigation and commerce-hook resilience coverage slice
+
+- Added direct navigation-utility coverage for active route/group discovery,
+  stub recognition, and static plus dynamic breadcrumb construction.
+- Added resizable-column behavior coverage for local persistence validation,
+  constrained dragging, missing-container safety, and cleanup.
+- Expanded waitlist, coupon, and customer-management hooks with their
+  operator-visible non-`Error` fallback and recovery paths.
+
+Validation:
+
+- All focused Vitest suites, focused ESLint, UI typecheck, and scenario diff
+  whitespace checks pass.
+- The complete V8 suite completes all assertions and raises global branch
+  coverage from 82.11% to 82.62%. The 85% certification threshold is still
+  intentionally enforced and remains the sole UI test failure.
+
+### URL focus and feedback-operation coverage slice
+
+- Added customization-flow tests for URL-pinned variants, direct section IDs,
+  and asynchronous section-type resolution; completed requests are consumed to
+  prevent repeated operator navigation.
+- Added feedback-management tests proving fail-closed, operator-safe behavior
+  for non-`Error` load/status/delete/bulk-delete failures.
+
+Validation:
+
+- Focused customization and feedback suites, focused ESLint, and UI typecheck
+  pass.
+- The complete V8 suite completes all assertions and raises global branch
+  coverage from 82.62% to 82.87%. The required 85% threshold remains enforced.
+
+### Selector registry contract repair
+
+- Repaired a selector registry collision: the literal `admin.breadcrumb`
+  selector was overwriting the dynamic selector with the same object key.
+  The dynamic contract is now explicitly named `admin.breadcrumbSegment`, while
+  the legacy literal selector remains stable.
+- Corrected the selector-manifest generator to use the scenario's actual
+  `src/consts` source and output paths, regenerated the manifest, and added
+  contract tests that invoke every published dynamic selector and reject invalid
+  parameter shapes.
+
+Validation:
+
+- Selector contract tests, focused lint, UI typecheck, and scenario whitespace
+  checks pass.
+- The complete V8 suite passes every assertion and reports 82.91% global
+  branch coverage. Certification remains blocked solely by the unchanged 85%
+  global branch threshold.
+
+### UI transport and operator-recovery coverage slice
+
+- Added CTA behavior tests for configured conversion paths and safe no-destination
+  behavior, plus artifact-upload tests for drag-and-drop metadata detection,
+  cancellation, and non-`Error` presign failures.
+- Corrected shared API request wrappers so valid falsy JSON bodies (`false`,
+  `0`, and `null`) are serialized instead of silently discarded; added response
+  fallback, classification override, retryability, compatibility-response, and
+  error-message tests.
+- Added checkout coverage for custom annual plans, malformed optional metadata,
+  and non-retryable validation failures; added remote-profile coverage for
+  remote-side session visibility and busy-action states.
+
+Validation:
+
+- Focused Vitest suites, focused ESLint, UI typecheck, and scenario whitespace
+  checks pass for each completed slice.
+- Full V8 coverage advanced from 82.91% to 83.67% after the CTA, artifact,
+  shared transport, checkout, remote-profile, header-configuration, and
+  download-form slices. The unchanged 85% global branch gate remains the sole
+  unit-test execution error.

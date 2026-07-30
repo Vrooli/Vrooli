@@ -116,4 +116,52 @@ describe('download API transport', () => {
     await expect(downloads.applyDownloadArtifactAdmin({ app_key: 'desktop', platform: 'windows', artifact_id: 1 })).resolves.toEqual(asset);
     await expect(downloads.setArtifactAsCurrentAdmin({ app_key: 'desktop', platform: 'windows', artifact_id: 1 })).resolves.toEqual(asset);
   });
+
+  it('preserves optional app, storefront, and managed-artifact metadata through the Connect boundary', async () => {
+    const response = {
+      app: {
+        id: 0n,
+        bundleKey: 'bundle', appKey: 'desktop', name: 'Desktop', tagline: 'Ship safely', description: 'Managed desktop delivery',
+        iconUrl: 'https://cdn.example.test/icon.svg', screenshotUrl: 'https://cdn.example.test/screenshot.png', installOverview: 'Install and sign in',
+        installSteps: ['Download', 'Open'], storefronts: [{ store: 'windows', label: 'Windows Store', url: 'https://store.example.test', badge: 'Recommended' }],
+        metadata: { channel: 'stable' }, displayOrder: 7, updateApiKey: '',
+        platforms: [{
+          id: 0n, bundleKey: 'bundle', appKey: 'desktop', platform: 'windows', artifactUrl: 'https://cdn.example.test/app.exe',
+          artifactSource: 'managed', artifactId: 8n, releaseVersion: '2.0.0', releaseNotes: 'Improved delivery', checksum: 'sha256',
+          requiresEntitlement: true, metadata: { signed: true }, variantKey: '', artifactFilename: '', artifactSizeBytes: 0n, artifactCount: 0,
+        }],
+      },
+    };
+    downloadClient.createDownloadApp.mockResolvedValueOnce(response);
+
+    const result = await downloads.createDownloadAppAdmin({
+      app_key: 'desktop', name: 'Desktop', tagline: 'Ship safely', description: 'Managed desktop delivery',
+      icon_url: 'https://cdn.example.test/icon.svg', screenshot_url: 'https://cdn.example.test/screenshot.png', install_overview: 'Install and sign in',
+      install_steps: ['Download', 'Open'], storefronts: [{ store: 'windows', label: 'Windows Store', url: 'https://store.example.test', badge: 'Recommended' }],
+      metadata: { channel: 'stable' }, display_order: 7,
+      platforms: [{ platform: 'windows', artifact_url: 'https://cdn.example.test/app.exe', artifact_source: 'managed', artifact_id: 8, release_version: '2.0.0', release_notes: 'Improved delivery', checksum: 'sha256', requires_entitlement: true, metadata: { signed: true } }],
+    });
+
+    expect(downloadClient.createDownloadApp).toHaveBeenCalledWith({
+      app: {
+        appKey: 'desktop', name: 'Desktop', tagline: 'Ship safely', description: 'Managed desktop delivery',
+        iconUrl: 'https://cdn.example.test/icon.svg', screenshotUrl: 'https://cdn.example.test/screenshot.png', installOverview: 'Install and sign in',
+        installSteps: ['Download', 'Open'], storefronts: [{ store: 'windows', label: 'Windows Store', url: 'https://store.example.test', badge: 'Recommended' }],
+        metadata: { channel: 'stable' }, displayOrder: 7,
+        platforms: [{ platform: 'windows', artifactUrl: 'https://cdn.example.test/app.exe', artifactSource: 'managed', artifactId: 8n, releaseVersion: '2.0.0', releaseNotes: 'Improved delivery', checksum: 'sha256', requiresEntitlement: true, metadata: { signed: true } }],
+      },
+    });
+    expect(result).toMatchObject({
+      tagline: 'Ship safely', icon_url: 'https://cdn.example.test/icon.svg', metadata: { channel: 'stable' },
+      storefronts: [{ badge: 'Recommended' }], platforms: [{ artifact_source: 'managed', artifact_id: 8, checksum: 'sha256' }],
+    });
+  });
+
+  it('does not turn empty or zero optional artifact filters into accidental query parameters', async () => {
+    await downloads.listDownloadArtifactsAdmin({ query: '', platform: '', app_key: '', page: 0, page_size: 0 });
+    await downloads.listDownloadArtifactsByAppAdmin({ app_key: 'desktop', platform: '', page: 0, page_size: 0 });
+
+    expect(mockApiCall).toHaveBeenCalledWith('/admin/download-artifacts');
+    expect(mockApiCall).toHaveBeenCalledWith('/admin/download-artifacts/by-app?app_key=desktop');
+  });
 });

@@ -95,6 +95,19 @@ describe('useWaitlistForm', () => {
       expect(result.current.error).toBe('Network error');
     });
 
+    it('uses safe defaults for absent branding state and non-Error load failures', async () => {
+      mockFetchBranding.mockResolvedValue(createMockBranding({ coming_soon_enabled: undefined }));
+      const initial = renderHook(() => useWaitlistForm());
+      await waitFor(() => { expect(initial.result.current.loading).toBe(false); });
+      expect(initial.result.current.comingSoonEnabled).toBe(false);
+      initial.unmount();
+
+      mockFetchWaitlistEmails.mockRejectedValue('offline');
+      const failed = renderHook(() => useWaitlistForm());
+      await waitFor(() => { expect(failed.result.current.loading).toBe(false); });
+      expect(failed.result.current.error).toBe('Failed to load data');
+    });
+
     it('can reload data', async () => {
       mockFetchWaitlistEmails.mockResolvedValue([]);
       mockFetchBranding.mockResolvedValue(createMockBranding());
@@ -169,6 +182,17 @@ describe('useWaitlistForm', () => {
       expect(deleteResult!.success).toBe(false);
       expect(deleteResult!.message).toBe('Delete failed');
       expect(result.current.error).toBe('Delete failed');
+    });
+
+    it('uses a safe fallback for a non-Error delete failure', async () => {
+      mockDeleteWaitlistEmail.mockRejectedValue('offline');
+      const { result } = renderHook(() => useWaitlistForm());
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
+
+      const response = await act(async () => result.current.handleDelete(1));
+
+      expect(response).toEqual({ success: false, message: 'Failed to delete email' });
+      expect(result.current.error).toBe('Failed to delete email');
     });
 
     it('sets deleting state during delete', async () => {
@@ -254,6 +278,17 @@ describe('useWaitlistForm', () => {
       expect(result.current.error).toBe('Toggle failed');
     });
 
+    it('uses a safe fallback for a non-Error toggle failure', async () => {
+      mockToggleComingSoonMode.mockRejectedValue('offline');
+      const { result } = renderHook(() => useWaitlistForm());
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
+
+      const response = await act(async () => result.current.handleToggleComingSoon());
+
+      expect(response).toEqual({ success: false, message: 'Failed to toggle coming soon mode' });
+      expect(result.current.error).toBe('Failed to toggle coming soon mode');
+    });
+
     it('sets togglingComingSoon state during toggle', async () => {
       let resolvePromise: () => void;
       mockFetchBranding.mockResolvedValue(createMockBranding({ coming_soon_enabled: false }));
@@ -287,11 +322,23 @@ describe('useWaitlistForm', () => {
       const { result } = renderHook(() => useWaitlistForm());
       await waitFor(() => { expect(result.current.loading).toBe(false); });
 
-      act(() => {
-        result.current.handleExport();
+      await act(async () => {
+        await result.current.handleExport();
       });
 
       expect(mockExportToCsv).toHaveBeenCalled();
+    });
+
+    it('keeps the operator-visible export error safe for non-Error failures', async () => {
+      mockExportToCsv.mockRejectedValue('offline');
+      const { result } = renderHook(() => useWaitlistForm());
+      await waitFor(() => { expect(result.current.loading).toBe(false); });
+
+      await act(async () => {
+        await result.current.handleExport();
+      });
+
+      expect(result.current.error).toBe('Failed to export waitlist');
     });
   });
 

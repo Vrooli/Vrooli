@@ -202,6 +202,38 @@ describe('useVariantForm', () => {
       expect(consoleError).toHaveBeenCalledWith('Variant fetch error:', expect.any(Error));
       consoleError.mockRestore();
     });
+
+    it('uses safe fallback messages when loading data or axes fails with non-Error values', async () => {
+      loadVariantEditorDataMock.mockRejectedValue('not an error');
+      loadVariantSpaceDefinitionMock.mockRejectedValue('not an error');
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+      const { result } = renderHook(() => useVariantForm(defaultProps));
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+        expect(result.current.variantSpace).toBeNull();
+      });
+
+      expect(result.current.error).toBe('Failed to load variant axes');
+      expect(consoleError).toHaveBeenCalledWith('Variant fetch error:', 'not an error');
+      expect(consoleError).toHaveBeenCalledWith('Variant space fetch error:', 'not an error');
+      consoleError.mockRestore();
+    });
+
+    it('reports a snapshot load error without leaving the JSON editor loading', async () => {
+      loadVariantSnapshotMock.mockRejectedValue('not an error');
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const { result } = renderHook(() => useVariantForm(defaultProps));
+
+      await waitFor(() => {
+        expect(result.current.snapshotLoading).toBe(false);
+      });
+
+      expect(result.current.snapshotError).toBe('Failed to load variant JSON');
+      expect(consoleError).toHaveBeenCalledWith('Variant snapshot fetch error:', 'not an error');
+      consoleError.mockRestore();
+    });
   });
 
   describe('form state', () => {
@@ -379,6 +411,23 @@ describe('useVariantForm', () => {
       expect(saveResult.success).toBe(true);
       expect(saveResult.savedVariant).toEqual(newVariant);
     });
+
+    it('returns the fallback message when saving fails with a non-Error value', async () => {
+      persistVariantMock.mockRejectedValue('not an error');
+      const onError = vi.fn();
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const { result } = renderHook(() => useVariantForm({ ...defaultProps, onError }));
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+      const saveResult = await act(async () => result.current.handleSave());
+
+      expect(saveResult).toEqual({ success: false, savedVariant: null });
+      expect(result.current.error).toBe('Failed to save variant');
+      expect(onError).toHaveBeenCalledWith('Failed to save variant changes');
+      consoleError.mockRestore();
+    });
   });
 
   describe('handleSaveJson', () => {
@@ -480,6 +529,21 @@ describe('useVariantForm', () => {
 
       expect(saveResult).toBe(false);
       expect(result.current.snapshotError).toBe('Snapshot save failed');
+    });
+
+    it('uses the JSON save fallback message for a non-Error persistence failure', async () => {
+      persistVariantSnapshotMock.mockRejectedValue('not an error');
+      const onError = vi.fn();
+      const { result } = renderHook(() => useVariantForm({ ...defaultProps, onError }));
+
+      await waitFor(() => {
+        expect(result.current.snapshotLoading).toBe(false);
+      });
+      const saveResult = await act(async () => result.current.handleSaveJson());
+
+      expect(saveResult).toBe(false);
+      expect(result.current.snapshotError).toBe('Failed to save variant JSON');
+      expect(onError).toHaveBeenCalledWith('Failed to apply variant JSON');
     });
   });
 
@@ -600,6 +664,32 @@ describe('useVariantForm', () => {
       expect(result.current.copyStatus).toBe('Copy failed');
       expect(consoleError).toHaveBeenCalledWith('Schema copy failed', expect.any(Error));
       consoleError.mockRestore();
+    });
+
+    it('reports a blocked clipboard when copying actual schema issues', async () => {
+      const marker = { message: 'Missing title', startLineNumber: 3, startColumn: 7 };
+      const monaco = {
+        languages: { json: { jsonDefaults: { setDiagnosticsOptions: vi.fn() } } },
+        Uri: { parse: vi.fn((value: string) => ({ toString: () => value })) },
+        editor: {
+          getModelMarkers: vi.fn(() => [marker]),
+          onDidChangeMarkers: vi.fn(() => ({ dispose: vi.fn() })),
+        },
+      };
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { writeText: vi.fn().mockRejectedValue(new Error('Clipboard blocked')) },
+        configurable: true,
+      });
+      const { result } = renderHook(() => useVariantForm(defaultProps));
+
+      act(() => {
+        result.current.handleEditorMount({} as never, monaco as never);
+      });
+      await act(async () => {
+        await result.current.handleCopyIssues();
+      });
+
+      expect(result.current.copyStatus).toBe('Copy failed (clipboard blocked)');
     });
 
     it('copies Monaco marker details and disposes the listener when unmounted', async () => {

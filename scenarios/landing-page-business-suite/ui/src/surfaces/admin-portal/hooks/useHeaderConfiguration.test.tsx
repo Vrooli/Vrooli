@@ -67,4 +67,36 @@ describe('useHeaderConfiguration', () => {
     expect(result.current.config.nav.links[0]?.children).toHaveLength(2);
     expect(result.current.config.ctas.primary).toMatchObject({ mode: 'custom', label: 'Start trial', href: '/start' });
   });
+
+  it('preserves configuration when operators target missing links or unavailable sections', () => {
+    const initial = buildDefaultHeaderConfig('Acme');
+    initial.nav.links = [{ id: 'custom', type: 'custom', label: 'Custom', href: '#custom' }];
+    const { result } = renderConfiguration(initial);
+
+    act(() => { result.current.hook.handleAddLink(); });
+    act(() => { result.current.hook.setNavTarget(JSON.stringify({ type: 'section', id: 999 })); });
+    act(() => { result.current.hook.handleAddLink(); });
+    act(() => { result.current.hook.handleNavLabelChange(99, 'Ignored'); });
+    act(() => { result.current.hook.handleMenuChildChange(0, 0, 'label', 'Ignored'); });
+    act(() => { result.current.hook.handleAddMenuChild(0); });
+    act(() => { result.current.hook.handleRemoveMenuChild(0, 0); });
+    act(() => { result.current.hook.handleRemoveLink(-1); });
+    act(() => { result.current.hook.handleMoveLink(0, -1); });
+
+    expect(result.current.config.nav.links).toEqual([{ id: 'custom', type: 'custom', label: 'Custom', href: '#custom' }]);
+  });
+
+  it('initializes missing menu children and visibility values without overwriting the other device', () => {
+    const initial = buildDefaultHeaderConfig('Acme');
+    initial.nav.links = [{ id: 'menu', type: 'menu', label: 'Resources', children: undefined, visible_on: undefined }];
+    const { result } = renderConfiguration(initial);
+
+    act(() => { result.current.hook.handleMenuChildChange(0, 1, 'href', '/guides'); });
+    act(() => { result.current.hook.handleVisibilityToggle(0, 'desktop', false); });
+    act(() => { result.current.hook.handleVisibilityToggle(0, 'mobile', false); });
+    act(() => { result.current.hook.handleRemoveLink(0); });
+
+    expect(result.current.config.nav.links).toHaveLength(0);
+    expect(initial.nav.links[0]?.children).toBeUndefined();
+  });
 });

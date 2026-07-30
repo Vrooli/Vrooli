@@ -61,6 +61,23 @@ describe('useUserManagement', () => {
     expect(result.current.total).toBe(1);
   });
 
+  it('uses safe messages and clears loading state for non-Error list, detail, and session failures', async () => {
+    listUsers.mockRejectedValue('offline');
+    const { result } = renderHook(() => useUserManagement());
+    await waitFor(() => { expect(result.current.loading).toBe(false); });
+    expect(result.current.error).toBe('Failed to load users');
+
+    getUserDetails.mockRejectedValue('offline');
+    await act(async () => { await result.current.loadUserDetails(user.id); });
+    expect(result.current.error).toBe('Failed to load user details');
+    expect(result.current.detailsLoading).toBe(false);
+
+    getUserSessions.mockRejectedValue('offline');
+    await act(async () => { await result.current.loadUserSessions(user.id); });
+    expect(result.current.error).toBe('Failed to load sessions');
+    expect(result.current.sessionsLoading).toBe(false);
+  });
+
   it('debounces search, resets pagination, and loads the filtered customer list', async () => {
     const { result } = renderHook(() => useUserManagement());
     await waitFor(() => { expect(result.current.loading).toBe(false); });
@@ -131,5 +148,35 @@ describe('useUserManagement', () => {
     expect(revokeResult).toEqual({ success: false, message: 'Authorization expired' });
     expect(result.current.selectedUserSessions[0]?.revoked).toBe(false);
     expect(result.current.actionLoading).toBeNull();
+  });
+
+  it('does not reload unselected users and returns safe fallbacks for non-Error revocation failures', async () => {
+    revokeSession.mockRejectedValue('offline');
+    revokeAllSessions.mockRejectedValue('offline');
+    const { result } = renderHook(() => useUserManagement());
+    await waitFor(() => { expect(result.current.loading).toBe(false); });
+    getUserDetails.mockClear();
+
+    let sessionResult: { success: boolean; message?: string } | undefined;
+    let allResult: { success: boolean; message?: string } | undefined;
+    await act(async () => { sessionResult = await result.current.handleRevokeSession('another-user', activeSession.id); });
+    await act(async () => { allResult = await result.current.handleRevokeAllSessions('another-user'); });
+
+    expect(sessionResult).toEqual({ success: false, message: 'Failed to revoke session' });
+    expect(allResult).toEqual({ success: false, message: 'Failed to revoke sessions' });
+    expect(getUserDetails).not.toHaveBeenCalled();
+    expect(result.current.actionLoading).toBeNull();
+  });
+
+  it('clears a list error on request and keeps a selected customer when their details refresh', async () => {
+    listUsers.mockRejectedValue(new Error('Temporary error'));
+    const { result } = renderHook(() => useUserManagement());
+    await waitFor(() => { expect(result.current.loading).toBe(false); });
+    expect(result.current.error).toBe('Temporary error');
+
+    act(() => { result.current.clearError(); });
+    expect(result.current.error).toBeNull();
+    await act(async () => { await result.current.loadUserDetails(user.id); });
+    expect(result.current.selectedUser).toEqual(user);
   });
 });

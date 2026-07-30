@@ -88,4 +88,31 @@ describe('ArtifactUploader', () => {
       platform: 'linux', release_version: '1.2.4', set_as_current: false,
     })); });
   });
+
+  it('keeps an operator-safe failure message when presigning rejects with a non-Error value', async () => {
+    vi.mocked(api.presignDownloadArtifactUploadAdmin).mockRejectedValue('storage unavailable');
+    render(<ArtifactUploader apps={apps} />);
+    selectInstaller();
+    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+
+    expect(await screen.findByText('Upload failed')).toBeInTheDocument();
+    expect(screen.getByText('desktop-win-v1.2.3.exe')).toBeInTheDocument();
+    expect(api.commitDownloadArtifactAdmin).not.toHaveBeenCalled();
+  });
+
+  it('supports drag-and-drop file selection and lets the operator cancel before upload', () => {
+    const onCancel = vi.fn();
+    const linuxInstaller = new File(['binary'], 'desktop-linux-2.0.0.AppImage', { type: '' });
+    render(<ArtifactUploader apps={apps} onCancel={onCancel} />);
+    const dropZone = screen.getByText('Drag & drop your installer').parentElement?.parentElement;
+    if (!dropZone) throw new Error('upload drop zone is missing');
+
+    fireEvent.dragOver(dropZone, { dataTransfer: { files: [linuxInstaller] } });
+    fireEvent.drop(dropZone, { dataTransfer: { files: [linuxInstaller] } });
+    expect(screen.getByText('LINUX')).toBeInTheDocument();
+    expect(screen.getByText('v2.0.0')).toBeInTheDocument();
+    expect(screen.getByText('6 B')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
 });

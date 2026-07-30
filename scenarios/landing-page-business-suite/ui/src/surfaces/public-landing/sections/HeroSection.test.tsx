@@ -60,4 +60,17 @@ describe('HeroSection', () => {
     expect(within(showcase).getByText('0:00')).toBeInTheDocument();
     expect(screen.getByText('Recording in progress...')).toBeInTheDocument();
   });
+
+  it('shows the complete recording timeline before the automatic showcase rotation begins', () => {
+    vi.useFakeTimers();
+    render(<HeroSection content={{}} />);
+
+    act(() => { vi.advanceTimersByTime(600 + 800 * 5); });
+
+    expect(screen.getByText('amazon.com')).toBeInTheDocument();
+    expect(screen.getByText('Search button')).toBeInTheDocument();
+    expect(screen.getByText('First result')).toBeInTheDocument();
+    expect(screen.getAllByText('click')).toHaveLength(3);
+  });
+
 });

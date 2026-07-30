@@ -12,6 +12,7 @@ import type {
   saveStripeSettings,
   loadBundleCatalog,
   savePriceForm,
+  deletePriceForm,
   verifyPriceId,
   PriceVerificationResult,
 } from '../services/billing.service';
@@ -21,12 +22,14 @@ type LoadStripeSettingsFn = typeof loadStripeSettings;
 type SaveStripeSettingsFn = typeof saveStripeSettings;
 type LoadBundleCatalogFn = typeof loadBundleCatalog;
 type SavePriceFormFn = typeof savePriceForm;
+type DeletePriceFormFn = typeof deletePriceForm;
 type VerifyPriceIdFn = typeof verifyPriceId;
 
 const loadStripeSettingsMock = vi.fn<LoadStripeSettingsFn>();
 const saveStripeSettingsMock = vi.fn<SaveStripeSettingsFn>();
 const loadBundleCatalogMock = vi.fn<LoadBundleCatalogFn>();
 const savePriceFormMock = vi.fn<SavePriceFormFn>();
+const deletePriceFormMock = vi.fn<DeletePriceFormFn>();
 const verifyPriceIdMock = vi.fn<VerifyPriceIdFn>();
 
 vi.mock('../services/billing.service', async () => {
@@ -37,6 +40,7 @@ vi.mock('../services/billing.service', async () => {
     saveStripeSettings: (...args: Parameters<SaveStripeSettingsFn>) => saveStripeSettingsMock(...args),
     loadBundleCatalog: (...args: Parameters<LoadBundleCatalogFn>) => loadBundleCatalogMock(...args),
     savePriceForm: (...args: Parameters<SavePriceFormFn>) => savePriceFormMock(...args),
+    deletePriceForm: (...args: Parameters<DeletePriceFormFn>) => deletePriceFormMock(...args),
     verifyPriceId: (...args: Parameters<VerifyPriceIdFn>) => verifyPriceIdMock(...args),
   };
 });
@@ -398,6 +402,82 @@ describe('useBillingForm', () => {
       });
 
       expect(savePriceFormMock).toHaveBeenCalled();
+    });
+
+    it.each([
+      ['planName', '   ', 'Plan name is required.'],
+      ['stripePriceId', '   ', 'Stripe price ID is required.'],
+      ['stripePriceId', 'product_invalid', 'Stripe price IDs must start with "price_".'],
+    ] as const)('prevents invalid %s values from being persisted', async (field, value, expectedError) => {
+      const { result } = renderHook(() => useBillingForm());
+      await waitFor(() => {
+        expect(result.current.loadingBundles).toBe(false);
+      });
+      act(() => {
+        result.current.handlePriceChange('test_bundle', 'price_123', field)({
+          target: { value },
+        } as React.ChangeEvent<HTMLInputElement>);
+      });
+      await act(async () => {
+        await result.current.handleSavePrice('test_bundle', 'price_123');
+      });
+      expect(result.current.priceForms['test_bundle:price_123']?.error).toBe(expectedError);
+      expect(savePriceFormMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('catalog maintenance', () => {
+    it('deletes a confirmed plan and removes its local form and price check', async () => {
+      deletePriceFormMock.mockResolvedValue(undefined);
+      vi.stubGlobal('confirm', vi.fn(() => true));
+      const { result } = renderHook(() => useBillingForm());
+      await waitFor(() => {
+        expect(result.current.loadingBundles).toBe(false);
+      });
+      await act(async () => {
+        await result.current.handleVerifyPrice('test_bundle', 'price_123');
+        await result.current.handleDeletePlan('test_bundle', 'price_123');
+      });
+      expect(deletePriceFormMock).toHaveBeenCalledWith('test_bundle', 'price_123');
+      expect(result.current.bundles[0]?.prices).toHaveLength(0);
+      expect(result.current.priceForms['test_bundle:price_123']).toBeUndefined();
+      expect(result.current.priceChecks['test_bundle:price_123']).toBeUndefined();
+    });
+
+    it('does not delete when confirmation is declined and surfaces a delete error when the service rejects', async () => {
+      const { result } = renderHook(() => useBillingForm());
+      await waitFor(() => {
+        expect(result.current.loadingBundles).toBe(false);
+      });
+      vi.stubGlobal('confirm', vi.fn(() => false));
+      await act(async () => {
+        await result.current.handleDeletePlan('test_bundle', 'price_123');
+      });
+      expect(deletePriceFormMock).not.toHaveBeenCalled();
+
+      vi.stubGlobal('confirm', vi.fn(() => true));
+      deletePriceFormMock.mockRejectedValue(new Error('Stripe catalog rejected deletion'));
+      await act(async () => {
+        await result.current.handleDeletePlan('test_bundle', 'price_123');
+      });
+      expect(result.current.priceForms['test_bundle:price_123']?.error).toBe('Stripe catalog rejected deletion');
+      expect(result.current.priceForms['test_bundle:price_123']?.saving).toBe(false);
+    });
+
+    it('reorders only known plan forms and clears their stale field errors', async () => {
+      const secondPlan = { ...mockPlan, stripe_price_id: 'price_456', plan_name: 'Team Plan', display_weight: 10 };
+      loadBundleCatalogMock.mockResolvedValue({ bundles: [{ bundle: mockBundle, prices: [mockPlan, secondPlan] }] });
+      const { result } = renderHook(() => useBillingForm());
+      await waitFor(() => {
+        expect(result.current.loadingBundles).toBe(false);
+        expect(result.current.priceForms['test_bundle:price_456']).toBeDefined();
+      });
+      act(() => {
+        result.current.handleReorderPlans('test_bundle', []);
+        result.current.handleReorderPlans('test_bundle', ['price_456', 'unknown', 'price_123']);
+      });
+      expect(result.current.priceForms['test_bundle:price_456']?.values.displayWeight).toBe(30);
+      expect(result.current.priceForms['test_bundle:price_123']?.values.displayWeight).toBe(10);
     });
   });
 

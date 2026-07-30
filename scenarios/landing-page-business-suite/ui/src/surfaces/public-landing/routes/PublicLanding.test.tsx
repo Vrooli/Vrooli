@@ -224,6 +224,66 @@ describe('PublicLanding header rails', () => {
     expect(screen.getByAltText(/Acme Launchpad logo/i)).toBeInTheDocument();
   });
 
+  it('renders configured custom, section, and menu navigation with visibility-aware child links', () => {
+    useLandingVariantMock.mockReturnValue({
+      variant: { slug: 'configured', name: 'Configured', status: 'active' },
+      config: {
+        variant: { id: 2, slug: 'configured', name: 'Configured' },
+        branding: { site_name: 'Configured Landing', tagline: 'A tailored experience' },
+        sections: [
+          { id: 11, key: 'hero', section_type: 'hero', order: 1, enabled: true, content: { title: 'Hero' } },
+          { id: 12, key: 'features', section_type: 'features', order: 2, enabled: true, content: { items: [] } },
+        ],
+        downloads: [], fallback: false, pricing: null,
+        header: {
+          branding: { mode: 'name', label: 'Configured Landing', mobile_preference: 'logo' },
+          nav: { links: [
+            { id: 'docs', type: 'custom', label: 'Documentation', href: 'https://docs.example.test', visible_on: { desktop: true, mobile: false } },
+            { id: 'features', type: 'section', label: '', section_id: 12, visible_on: { desktop: false, mobile: true } },
+            { id: 'resources', type: 'menu', label: 'Resources', children: [
+              { id: 'hero-child', type: 'section', label: '', section_type: 'hero', visible_on: { desktop: true, mobile: true } },
+              { id: 'custom-child', type: 'custom', label: 'Guide', href: '/guide', visible_on: { desktop: true, mobile: false } },
+            ] },
+          ] },
+          ctas: { primary: { mode: 'hidden' }, secondary: { mode: 'hidden' } },
+          behavior: { sticky: false, hide_on_scroll: false },
+        },
+      },
+      loading: false, error: null, resolution: 'url_param', statusNote: 'Preview', lastUpdated: Date.now(), refresh: vi.fn(),
+    });
+
+    render(<BrowserRouter><PublicLanding /></BrowserRouter>);
+
+    expect(screen.getByRole('link', { name: 'Documentation' })).toHaveAttribute('href', 'https://docs.example.test');
+    expect(within(screen.getByTestId('landing-nav-mobile')).getByRole('link', { name: 'Section' })).toHaveAttribute('href', '#features-12');
+    expect(screen.getByRole('link', { name: 'Resources · Section' })).toHaveAttribute('href', '#hero-11');
+    expect(screen.getByRole('link', { name: 'Guide' })).toHaveAttribute('href', '/guide');
+    expect(screen.queryByTestId('landing-nav-cta')).not.toBeInTheDocument();
+    expect(screen.getByText('Configured Landing')).toBeInTheDocument();
+  });
+
+  it('uses fallback runtime metadata and a safe branding placeholder when no logo is configured', () => {
+    useLandingVariantMock.mockReturnValue({
+      variant: { slug: 'fallback', name: 'Fallback Variant', status: 'active' },
+      config: {
+        variant: { id: 3, slug: 'fallback', name: 'Fallback Variant' },
+        branding: { site_name: 'Fallback Variant' }, sections: [{ id: 1, section_type: 'hero', order: 1, enabled: true, content: { title: 'Fallback' } }],
+        downloads: [], fallback: true, pricing: null,
+        header: {
+          branding: { mode: 'logo_and_name', label: 'Fallback Variant', logo_icon_url: '', logo_url: '', mobile_preference: 'name' },
+          nav: { links: [] }, ctas: { primary: { mode: 'hidden' }, secondary: { mode: 'hidden' } }, behavior: { sticky: false, hide_on_scroll: false },
+        },
+      },
+      loading: false, error: null, resolution: 'fallback', statusNote: 'Offline copy', lastUpdated: null, refresh: vi.fn(),
+    });
+
+    render(<BrowserRouter><PublicLanding /></BrowserRouter>);
+
+    expect(screen.getByTestId('fallback-signal-banner')).toHaveTextContent('Offline-safe fallback variant is active');
+    expect(screen.getByText('FV')).toBeInTheDocument();
+    expect(screen.queryByTestId('branding-logo')).not.toBeInTheDocument();
+  });
+
   it('renders a loading state without attempting to resolve sections', () => {
     useLandingVariantMock.mockReturnValue({ loading: true });
 
@@ -322,6 +382,49 @@ describe('PublicLanding header rails', () => {
     Object.defineProperty(window, 'scrollY', { configurable: true, value: 100 });
     fireEvent.scroll(window);
     expect(header).toHaveClass('translate-y-0');
+  });
+
+  it('keeps the fallback landing usable when an API error accompanies offline-safe content and skips unknown sections', () => {
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    useLandingVariantMock.mockReturnValue({
+      variant: { slug: 'offline', name: 'Offline', status: 'active' },
+      config: {
+        variant: { id: 4, slug: 'offline', name: 'Offline' },
+        branding: { site_name: '' },
+        sections: [
+          { id: 1, section_type: 'hero', order: 1, enabled: true, content: { title: 'Available offline' } },
+          { id: 2, section_type: 'retired-section' as never, order: 2, enabled: true, content: {} },
+          { id: 3, section_type: 'features', order: 3, enabled: false, content: { title: 'Disabled' } },
+        ],
+        downloads: [{ bundle_key: 'bundle', app_key: 'empty', name: 'Empty app', tagline: '', description: '', install_overview: '', install_steps: [], storefronts: [], display_order: 1, platforms: [] }],
+        fallback: true,
+        pricing: null,
+        header: {
+          branding: { mode: 'none', label: '', mobile_preference: 'auto' },
+          nav: { links: [
+            { id: 'missing-section', type: 'section', label: 'Missing', section_type: 'faq' },
+            { id: 'empty-menu', type: 'menu', label: 'Empty', children: [] },
+          ] },
+          ctas: { primary: { mode: 'downloads' }, secondary: { mode: 'custom', label: 'Incomplete' } },
+          behavior: { sticky: false, hide_on_scroll: false },
+        },
+      },
+      loading: false,
+      error: 'Remote configuration is unavailable',
+      resolution: 'fallback',
+      statusNote: '',
+      lastUpdated: null,
+      refresh: vi.fn(),
+    });
+
+    render(<BrowserRouter><PublicLanding /></BrowserRouter>);
+
+    expect(screen.getByText('Available offline')).toBeInTheDocument();
+    expect(screen.queryByText('Disabled')).not.toBeInTheDocument();
+    expect(screen.queryByText('Missing')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('landing-nav-cta')).not.toBeInTheDocument();
+    expect(consoleWarn).toHaveBeenCalledWith('Unknown section type: retired-section');
+    consoleWarn.mockRestore();
   });
 
   it('renders each supported section and the offline-safe operational signals', () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import type React from 'react';
 import { MetricsModeContext } from './MetricsModeContext';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { useMetrics } from './useMetricsHook';
 import type { MetricEvent } from '../api/types';
 import type { useLandingVariant } from '../../app/providers/useLandingVariant';
@@ -128,6 +128,26 @@ describe('useMetrics storage fallbacks [REQ:METRIC-RESILIENCE]', () => {
     expect(secondEvent.visitor_id).toBe(firstEvent.visitor_id);
   });
 
+  it('continues tracking with generated identifiers when browser storage access itself throws', async () => {
+    Object.defineProperty(window, 'sessionStorage', {
+      configurable: true,
+      get: () => { throw new Error('session storage denied'); },
+    });
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      get: () => { throw new Error('local storage denied'); },
+    });
+    trackMetricMock.mockResolvedValue({ success: true });
+
+    const { result } = renderHook(() => useMetrics());
+    await waitFor(() => { expect(trackMetricMock).toHaveBeenCalledOnce(); });
+    result.current.trackConversion({ source: 'restricted-browser' });
+    await waitFor(() => { expect(trackMetricMock).toHaveBeenCalledTimes(2); });
+    expect(trackMetricMock.mock.calls[1]?.[0]).toMatchObject({
+      event_type: 'conversion', variant_slug: 'control', event_data: { source: 'restricted-browser' },
+    });
+  });
+
   it('does not emit metrics in preview mode or when a variant is absent', async () => {
     const previewWrapper = ({ children }: { children: React.ReactNode }) => (
       <MetricsModeContext.Provider value="preview">{children}</MetricsModeContext.Provider>
@@ -161,5 +181,71 @@ describe('useMetrics storage fallbacks [REQ:METRIC-RESILIENCE]', () => {
     await waitFor(() => { expect(trackMetricMock).toHaveBeenCalledTimes(3); });
     expect(errorSpy).toHaveBeenCalledWith('[useMetrics] Error tracking event:', expect.any(Error));
     errorSpy.mockRestore();
+  });
+
+  it('tracks each interaction helper with its semantic event payload', async () => {
+    trackMetricMock.mockResolvedValue({ success: true });
+    const { result } = renderHook(() => useMetrics());
+    await waitFor(() => { expect(trackMetricMock).toHaveBeenCalledTimes(1); });
+    trackMetricMock.mockClear();
+
+    result.current.trackCTAClick('hero-cta', { placement: 'hero' });
+    result.current.trackFormSubmit('waitlist', { source: 'footer' });
+    result.current.trackConversion({ order_id: 'order_1' });
+    result.current.trackDownload({ platform: 'linux' });
+
+    await waitFor(() => { expect(trackMetricMock).toHaveBeenCalledTimes(4); });
+    expect(trackMetricMock.mock.calls.map(([event]) => event.event_type)).toEqual(['click', 'form_submit', 'conversion', 'download']);
+    expect(trackMetricMock.mock.calls[0]?.[0].event_data).toEqual({ element_id: 'hero-cta', element_type: 'cta', placement: 'hero' });
+    expect(trackMetricMock.mock.calls[1]?.[0].event_data).toEqual({ form_id: 'waitlist', source: 'footer' });
+  });
+
+  it('deduplicates page views and scroll-depth bands across concurrent hook consumers, then cleans up', async () => {
+    trackMetricMock.mockResolvedValue({ success: true });
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 100 });
+    Object.defineProperty(document.documentElement, 'scrollHeight', { configurable: true, value: 400 });
+    Object.defineProperty(window, 'scrollY', { configurable: true, value: 0 });
+
+    const first = renderHook(() => useMetrics());
+    await waitFor(() => { expect(trackMetricMock).toHaveBeenCalledTimes(1); });
+    const second = renderHook(() => useMetrics());
+    await Promise.resolve();
+    expect(trackMetricMock).toHaveBeenCalledTimes(1);
+
+    Object.defineProperty(window, 'scrollY', { configurable: true, value: 200 });
+    act(() => { window.dispatchEvent(new Event('scroll')); });
+    await waitFor(() => { expect(trackMetricMock).toHaveBeenCalledTimes(4); });
+    expect(trackMetricMock.mock.calls.slice(1).map(([event]) => event.event_data)).toEqual([
+      { depth: 25 }, { depth: 50 }, { depth: 75 },
+    ]);
+
+    act(() => { window.dispatchEvent(new Event('scroll')); });
+    await Promise.resolve();
+    expect(trackMetricMock).toHaveBeenCalledTimes(4);
+    first.unmount();
+    second.unmount();
+
+    const remount = renderHook(() => useMetrics());
+    await waitFor(() => { expect(trackMetricMock).toHaveBeenCalledTimes(5); });
+    remount.unmount();
+  });
+
+  it('records the final 100-percent depth band exactly once', async () => {
+    trackMetricMock.mockResolvedValue({ success: true });
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 100 });
+    Object.defineProperty(document.documentElement, 'scrollHeight', { configurable: true, value: 400 });
+    Object.defineProperty(window, 'scrollY', { configurable: true, value: 300 });
+
+    const hook = renderHook(() => useMetrics());
+    await waitFor(() => { expect(trackMetricMock).toHaveBeenCalledOnce(); });
+    act(() => { window.dispatchEvent(new Event('scroll')); });
+    await waitFor(() => { expect(trackMetricMock).toHaveBeenCalledTimes(5); });
+    expect(trackMetricMock.mock.calls.slice(1).map(([event]) => event.event_data)).toEqual([
+      { depth: 25 }, { depth: 50 }, { depth: 75 }, { depth: 100 },
+    ]);
+    act(() => { window.dispatchEvent(new Event('scroll')); });
+    await Promise.resolve();
+    expect(trackMetricMock).toHaveBeenCalledTimes(5);
+    hook.unmount();
   });
 });

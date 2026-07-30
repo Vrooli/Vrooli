@@ -242,4 +242,46 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
     fireEvent.click(await screen.findByRole('option', { name: 'Last 24 hours' }));
     await waitFor(() => { expect(vi.mocked(api.getMetricsSummary).mock.calls.length).toBeGreaterThan(1); });
   });
+
+  it('shows a recoverable analytics load error and retries without leaving the dashboard unavailable', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.mocked(api.getMetricsSummary)
+      .mockRejectedValueOnce(new Error('Analytics warehouse unavailable'))
+      .mockResolvedValueOnce(mockSummary);
+    await renderWithAuth(<AdminAnalytics />);
+
+    expect(await screen.findByText('Error: Analytics warehouse unavailable')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByTestId('analytics-total-visitors')).toBeInTheDocument();
+    expect(consoleError).toHaveBeenCalledWith('Analytics fetch error:', expect.any(Error));
+    consoleError.mockRestore();
+  });
+
+  it('renders robust detail fallbacks for down-trending, incomplete analytics records', async () => {
+    const fallbackStat = {
+      variant_id: 3, variant_slug: 'fallback', variant_name: 'Fallback', views: 10,
+      cta_clicks: 0, conversions: 0, downloads: 0, conversion_rate: Number.NaN,
+      trend: 'down' as const,
+    };
+    const incomplete = {
+      total_visitors: 10,
+      total_downloads: undefined,
+      top_cta: undefined,
+      top_cta_ctr: undefined,
+      variant_stats: [fallbackStat],
+    };
+    vi.mocked(api.getMetricsSummary).mockResolvedValue(incomplete);
+    vi.mocked(api.getVariantMetrics).mockResolvedValue({
+      start_date: '2026-01-01', end_date: '2026-01-07',
+      stats: [{ ...fallbackStat, avg_scroll_depth: 0 }],
+    });
+    await renderWithAuth(<AdminAnalytics />);
+
+    expect(await screen.findByText('0.00%')).toBeInTheDocument();
+    expect(screen.getByText('No data yet')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('analytics-view-details-3'));
+    expect(await screen.findByTestId('analytics-variant-detail')).toBeInTheDocument();
+    expect(screen.getByText('Average Scroll Depth')).toBeInTheDocument();
+    expect(screen.getByText('0.0%')).toBeInTheDocument();
+  });
 });

@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { AdminLogin } from './AdminLogin';
 import { AdminAuthProvider } from '../../../app/providers/AdminAuthProvider';
-import { adminLogin, checkAdminSession } from '../../../shared/api';
+import { ApiError, adminLogin, checkAdminSession } from '../../../shared/api';
 
 const { mockAdminLogin, mockCheckAdminSession } = vi.hoisted(() => ({
   mockAdminLogin: vi.fn(),
@@ -199,5 +199,45 @@ describe('AdminLogin [REQ:ADMIN-AUTH]', () => {
 
     expect(emailInput).toHaveAttribute('type', 'email');
     expect(passwordInput).toHaveAttribute('type', 'password');
+  });
+
+  it('shows retryable network guidance and retries the submitted credentials', async () => {
+    const user = userEvent.setup();
+    mockAdminLogin
+      .mockRejectedValueOnce(new ApiError('offline', 'network'))
+      .mockResolvedValueOnce({ authenticated: true, email: 'admin@test.com' });
+    await renderWithAuth(<AdminLogin />);
+
+    await user.type(screen.getByTestId('admin-login-email'), 'admin@test.com');
+    await user.type(screen.getByTestId('admin-login-password'), 'password123');
+    await user.click(screen.getByTestId('admin-login-submit'));
+
+    expect(await screen.findByText('Unable to connect. Please check your internet connection and try again.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() => {
+      expect(mockAdminLogin).toHaveBeenCalledTimes(2);
+      expect(mockNavigate).toHaveBeenCalledWith('/admin');
+    });
+  });
+
+  it.each([
+    ['timeout', 'The server is taking too long to respond. Please try again.'],
+    ['server_error', 'The server encountered an error. Please try again later.'],
+    ['unauthorized', 'Invalid email or password.'],
+  ] as const)('classifies %s login failures without exposing server details', async (type, expectedMessage) => {
+    const user = userEvent.setup();
+    mockAdminLogin.mockRejectedValueOnce(new ApiError('internal detail', type));
+    await renderWithAuth(<AdminLogin />);
+
+    await user.type(screen.getByTestId('admin-login-email'), 'admin@test.com');
+    await user.type(screen.getByTestId('admin-login-password'), 'password123');
+    await user.click(screen.getByTestId('admin-login-submit'));
+
+    expect(await screen.findByText(expectedMessage)).toBeInTheDocument();
+    if (type === 'timeout') {
+      expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    } else {
+      expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
+    }
   });
 });

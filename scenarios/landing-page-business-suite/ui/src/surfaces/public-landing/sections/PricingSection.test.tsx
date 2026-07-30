@@ -330,4 +330,21 @@ describe('PricingSection', () => {
     expect(screen.getByRole('heading', { name: 'Paid only' })).toBeInTheDocument();
   });
 
+  it('retains custom catalog records with a zero price only when they are valid free plans', () => {
+    const pricingOverview: PricingOverview = {
+      bundle,
+      monthly: [
+        { plan_name: 'Free access', plan_tier: 'free', billing_interval: 'unexpected' as never, amount_cents: 0, currency: 'usd', intro_enabled: false, stripe_price_id: '', monthly_included_credits: 0, one_time_bonus_credits: 0, display_enabled: true, display_weight: 1, metadata: {} },
+        { plan_name: 'Invalid interval paid', plan_tier: 'pro', billing_interval: 'unexpected' as never, amount_cents: 1000, currency: 'usd', intro_enabled: false, stripe_price_id: 'price_invalid', monthly_included_credits: 0, one_time_bonus_credits: 0, display_enabled: true, display_weight: 2, metadata: {} },
+      ],
+      yearly: [{ plan_name: 'Invalid yearly interval', plan_tier: 'pro', billing_interval: 'month', amount_cents: 10000, currency: 'usd', intro_enabled: false, stripe_price_id: 'price_invalid_year', monthly_included_credits: 0, one_time_bonus_credits: 0, display_enabled: true, display_weight: 1, metadata: {} }],
+      updated_at: '2025-01-01T00:00:00Z',
+    };
+
+    render(<PricingSection content={{ title: 'Pricing' }} pricingOverview={pricingOverview} />);
+    expect(screen.getByRole('heading', { name: 'Free access' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Invalid interval paid' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Yearly billing' })).not.toBeInTheDocument();
+  });
+
 });

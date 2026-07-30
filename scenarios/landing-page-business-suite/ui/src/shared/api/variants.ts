@@ -135,11 +135,11 @@ function isJsonValue(value: unknown): value is JsonValue {
   return isRecord(value) && Object.values(value).every(isJsonValue);
 }
 
-function jsonObjectFromContent(content: Record<string, unknown>): JsonObject {
-  if (!isJsonValue(content) || Array.isArray(content) || content === null) {
-    throw new Error('Section content must be a JSON object');
-  }
-  return content;
+function jsonObjectFromContent(content: unknown): JsonObject {
+	if (!isRecord(content) || Array.isArray(content) || !isJsonValue(content)) {
+		throw new Error('Section content must be a JSON object');
+	}
+	return content;
 }
 
 export function getVariantSections(slug: string) {

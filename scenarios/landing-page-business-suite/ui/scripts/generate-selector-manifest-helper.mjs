@@ -10,14 +10,14 @@ const tempDir = mkdtempSync(join(tmpdir(), 'landing-page-business-suite-selector
 
 try {
   execSync(
-    `pnpm exec tsc src/shared/consts/selectors.ts --module commonjs --moduleResolution node --target es2022 --skipLibCheck --outDir ${tempDir}`,
+    `pnpm exec tsc src/consts/selectors.ts --module commonjs --moduleResolution node --target es2022 --skipLibCheck --outDir ${tempDir}`,
     { stdio: 'pipe' },
   );
 
   const selectorsModule = await import(
     pathToFileURL(join(tempDir, 'selectors.js')).href,
   );
-  const manifestPath = 'src/shared/consts/selectors.manifest.json';
+  const manifestPath = 'src/consts/selectors.manifest.json';
   writeFileSync(manifestPath, `${JSON.stringify(selectorsModule.selectorsManifest, null, 2)}\n`, 'utf8');
   process.stdout.write(`Generated ${manifestPath}\n`);
 } finally {

@@ -438,7 +438,7 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
         params: { id: { type: 'number' } },
       }),
     },
-    breadcrumb: defineDynamicSelector({
+    breadcrumbSegment: defineDynamicSelector({
       description: 'Breadcrumb segment by index',
       testIdPattern: 'breadcrumb-${index}',
       params: { index: { type: 'number' } },

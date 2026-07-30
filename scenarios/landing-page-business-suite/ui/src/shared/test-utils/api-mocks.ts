@@ -233,7 +233,7 @@ export function createWindowOpenMock(): {
   );
 
   return {
-    mock: mock as Mock<(...args: Parameters<typeof window.open>) => ReturnType<typeof window.open>> & Pick<MockInstance<(...args: Parameters<typeof window.open>) => ReturnType<typeof window.open>>, 'mockRestore'>,
+    mock,
     restore: () => {
       mock.mockRestore();
     },

@@ -249,7 +249,7 @@ export async function apiPost<T>(endpoint: string, body?: unknown, options?: Omi
   return apiCall<T>(endpoint, {
     ...options,
     method: 'POST',
-    body: body ? JSON.stringify(body) : undefined,
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
 }
 
@@ -260,7 +260,7 @@ export async function apiPut<T>(endpoint: string, body?: unknown, options?: Omit
   return apiCall<T>(endpoint, {
     ...options,
     method: 'PUT',
-    body: body ? JSON.stringify(body) : undefined,
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
 }
 
@@ -271,6 +271,6 @@ export async function apiDelete<T>(endpoint: string, body?: unknown, options?: O
   return apiCall<T>(endpoint, {
     ...options,
     method: 'DELETE',
-    body: body ? JSON.stringify(body) : undefined,
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
 }
