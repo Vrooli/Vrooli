@@ -24,6 +24,25 @@ func TestValidateAcceptsProviderNeutralRequest(t *testing.T) { // [REQ:AIGW-CONT
 	require.Empty(t, issues)
 }
 
+func TestValidateAcceptsProviderNeutralMediaRequests(t *testing.T) { // [REQ:AIGW-MEDIA-CONTRACT]
+	svc := gateway.New()
+	for _, kind := range []sharedv1.RequestKind{
+		sharedv1.RequestKind_REQUEST_KIND_IMAGE_GENERATION,
+		sharedv1.RequestKind_REQUEST_KIND_VIDEO_GENERATION,
+	} {
+		t.Run(kind.String(), func(t *testing.T) {
+			issues := svc.Validate(&sharedv1.GatewayRequest{
+				Kind:         kind,
+				Role:         "media.generate",
+				Profile:      sharedv1.Profile_PROFILE_LOCAL_FIRST,
+				PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
+				Metadata:     map[string]string{"correlation_id": "media-1"},
+			})
+			require.Empty(t, issues)
+		})
+	}
+}
+
 func TestValidateRejectsProviderSpecificMetadata(t *testing.T) { // [REQ:AIGW-CONTRACT-TEXT]
 	svc := gateway.New()
 	issues := svc.Validate(validRequest(map[string]string{

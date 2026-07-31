@@ -31,12 +31,16 @@ naming, ports, health checks, and logs.
 ## The daily loop
 
 At P0 every action is executed by hand, so the operator *is* the executor. This is
-the core procedure, not a fallback:
+the core procedure, not a fallback. Create the identity first with its public
+metadata, purpose, goals, notes, lifecycle, and environment reference; a Vault
+path is optional for manual work and is never a credential value:
 
 ```bash
-channel-manager queue due                    # today's actions, grouped by session
-channel-manager queue complete <action-id> --evidence <url|note>
-channel-manager signals record <identity> --metric views --value 1240
+channel-manager channel create --id "<identity>" --platform "<platform>" --purpose "<purpose>" --environment "<environment>" --handle "<public-handle>" --label "<operator-label>" --goals "<goal-a,goal-b>" --notes "<operator-note>"
+channel-manager channel overview
+channel-manager channel complete "<action-id>" --evidence "<url-or-note>"
+channel-manager channel observe "<identity>" --value 1240
+channel-manager channel timeline "<identity>"
 ```
 
 Two habits matter more than the commands. **Complete actions inside their window** —
@@ -57,15 +61,20 @@ item below has been completed by the accountable operator:
   is not enough.
 - Use a dedicated sanctioned test identity, never a production identity. Confirm
   its environment attestation and its Vault reference without printing a credential.
-- Create one BAS session profile for that identity only, record its opaque profile
-  ID, and use an operator-reviewed persisted BAS workflow UUID. Do not reuse either
-  reference for another identity.
+- Create one BAS session profile for that identity only and choose one declared
+  profile key from `.vrooli/browser-automation-studio/consumer-declaration.json`.
+  Record the opaque BAS profile ID and an operator-reviewed persisted BAS workflow
+  UUID only in Channel Manager's runtime assignment. Do not reuse either reference
+  for another identity. The declaration is scenario-owned configuration, while BAS
+  keeps the protected browser state in its own encrypted store.
 - Verify that the operator has the scoped Vault access required by the approved BAS
   workflow. Channel Manager stores only the Vault path; credentials, cookies, and
   session contents must not enter its database, API responses, or logs.
 - Queue one non-destructive, platform-approved test action through the normal
   Channel Manager release path. Capture its action ID, BAS execution ID, timestamps,
-  outcome URL or platform-post ID, and any artifacts in the action evidence.
+  outcome URL or platform-post ID, and any artifacts in the action evidence. The
+  execution-review endpoint returns only BAS status and stable artifact identifiers;
+  it is never evidence that the platform action completed.
 
 If dispatch, the workflow, or the Vault read fails, leave the action uncompleted and
 use the permanent manual executor. If a live action succeeds unexpectedly or its
@@ -85,12 +94,12 @@ evidence is updated truthfully.
 | API unhealthy | `/health`, SQLite path, API logs | Run `make setup`, verify writable data dir | Check `INTEGRATIONS.md` for dependency expectations. |
 | UI blank or stale | UI port, browser console, `ui/dist` freshness | `make setup` then `make restart` | Add troubleshooting entry if recurring. |
 | CLI talks to old API | `channel-manager status`, configured API base | Reinstall via `make setup` | Update CLI reference if command changed. |
-| An identity's queue is empty and it is mid-program | `channel-manager warming show <identity>` — is a gate waiting, or is the identity paused? | A waiting gate is normal until its interval elapses. A pause needs a flag resolution. | A gate stalled well past its interval is a defect; file it. |
+| An identity's queue is empty and it is mid-program | `channel-manager channel overview` — inspect its program, queue, and flag state. | A waiting gate is normal until its interval elapses. A pause needs a flag resolution. | A gate stalled well past its interval is a defect; file it. |
 | An action cannot be queued | Read the refusal reason — it names phase, ceiling, or eligibility. | Refusals are correct behaviour, not errors. A phase-forbidden action means the program is not ready for it. | If a *valid* action is refused, the descriptor or the ceiling is wrong. |
-| Identity flagged and paused | `channel-manager signals flags <identity>` for the evidence that raised it | **Operator decision. Never auto-resume.** Judge the measurement against the baseline; resolve or keep paused. | If flags fire constantly on healthy accounts, the decay thresholds are too tight — record it against the platform descriptor. |
+| Identity flagged and paused | `channel-manager channel overview` and `channel-manager channel timeline "<identity>"` for the evidence that raised it | **Operator decision. Never auto-resume.** Judge the measurement against the baseline; resolve or keep paused. | If flags fire constantly on healthy accounts, the decay thresholds are too tight — record it against the platform descriptor. |
 | Identity quarantined | The gate measurement that failed | **Do not resume.** Quarantine means abandon and rebuild with a tighter environment (D-007). | Repeated quarantines on one environment are evidence the attestation was wrong. |
 | Vault unreachable | `resource-vault` status | Browser and API execution fail terminally; manual execution is unaffected. | No action is ever marked complete on a credential failure. |
-| Descriptor edit not taking effect | Confirm reseed ran | `channel-manager descriptors reseed` — the file is authoritative, the table is a cache. | A descriptor that fails validation blocks the seed loudly; read the error. |
+| Descriptor edit not taking effect | Confirm the lifecycle was restarted against the intended immutable descriptor directory. | Stop, inspect the descriptor JSON, and restart through `make restart`; descriptors are read and validated at boot. | A descriptor validation failure blocks startup loudly; read the error. |
 
 ## Backup / Restore
 
@@ -100,7 +109,7 @@ is "almost none of them."
 | Data | Backup Procedure | Restore Procedure | Status |
 |---|---|---|---|
 | SQLite database | Include the scenario data dir in the machine's normal backup. | Restore the file with the scenario stopped. | **Irreplaceable.** Action records, release records, metric observations, and program observations are the only record of what was done as real accounts, and no second copy exists anywhere (`DATA.md` § Rebuild contract). |
-| Descriptors under `data/` | Versioned in git. | `git checkout` plus `descriptors reseed`. | Fully recoverable. |
+| Descriptors under `data/` | Versioned in git. | Restore the files, then restart the lifecycle so boot-time validation reloads them. | Fully recoverable. |
 | Baselines | None needed. | Recomputed from observations. | Rebuildable cache. |
 | Credentials | **Not here.** `vault` owns them and has its own backup story. | n/a | Backing up this database never backs up a credential — by design. |
 

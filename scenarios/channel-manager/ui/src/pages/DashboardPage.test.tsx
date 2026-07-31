@@ -2,11 +2,11 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { DashboardPage } from "./DashboardPage";
 import { renderWithProviders } from "../test-utils";
-import { assignAutomation, configurePortfolio, createIdentity, overview, previewRelease } from "../api/channelManager";
+import { assignAutomation, configurePortfolio, createIdentity, enqueueAction, overview, previewRelease, retireIdentity, updateIdentity } from "../api/channelManager";
 
 vi.mock("../api/channelManager", () => ({
   createIdentity: vi.fn().mockResolvedValue({}),
-  overview: vi.fn().mockResolvedValue({ identities: {}, actions: {} }),
+  overview: vi.fn().mockResolvedValue({ identities: {}, actions: {}, platforms: { x: { id: "x" } } }),
   startProgram: vi.fn().mockResolvedValue({ status: "warming" }),
   enqueueAction: vi.fn().mockResolvedValue({ id: "action-1" }),
   completeAction: vi.fn().mockResolvedValue({ status: "succeeded" }),
@@ -15,14 +15,19 @@ vi.mock("../api/channelManager", () => ({
 	assignAutomation: vi.fn().mockResolvedValue({ identity_id: "x-1" }),
 	dispatchBrowserAction: vi.fn().mockResolvedValue({ execution_id: "bas-execution-1" }),
 	configurePortfolio: vi.fn().mockResolvedValue({}),
+	retireIdentity: vi.fn().mockResolvedValue({ status: "retired" }),
+	updateIdentity: vi.fn().mockResolvedValue({}),
 }));
 
 describe("DashboardPage", () => {
   // [REQ:CHANMGR-P0-015] [REQ:CHANMGR-P0-016] [REQ:CHANMGR-P0-019]
-  it("guides a credential-free keyboard manual completion and observation", async () => {
+	it("guides a credential-free keyboard manual completion and observation", async () => {
+		vi.mocked(overview).mockResolvedValueOnce({ identities: {}, actions: {}, platforms: { x: { id: "x" } }, programs: { "x-conservative": { id: "x-conservative", platform_id: "x", provenance: { confidence: "speculative", source_kind: "operator", revisit_trigger: "five runs" } } } });
     renderWithProviders(<DashboardPage />);
+		await screen.findByText(/No identities yet/i);
     fireEvent.change(screen.getByLabelText("New identity ID"), { target: { value: "x-1" } });
-    fireEvent.click(screen.getByRole("button", { name: "Create and start X warming" }));
+    fireEvent.change(screen.getByLabelText("Vault credential reference"), { target: { value: "vault://channel/x-1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create identity and start warming" }));
     await waitFor(() => expect(screen.getByTestId("operator-identity-ready")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "Queue manual engagement" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Record manual completion" })).not.toBeDisabled());
@@ -33,6 +38,15 @@ describe("DashboardPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Record observation" }));
     await waitFor(() => expect(screen.getByText(/evidence, not a claim/i)).toBeInTheDocument());
   });
+
+	it("allows a manual-only identity before a Vault reference is needed", async () => {
+		vi.mocked(overview).mockResolvedValueOnce({ identities: {}, actions: {}, platforms: { x: { id: "x" } }, programs: { "x-conservative": { id: "x-conservative", platform_id: "x", provenance: { confidence: "speculative", source_kind: "operator", revisit_trigger: "five runs" } } } });
+		renderWithProviders(<DashboardPage />);
+		await screen.findByText(/No identities yet/i);
+		fireEvent.change(screen.getByLabelText("New identity ID"), { target: { value: "manual-only" } });
+		fireEvent.click(screen.getByRole("button", { name: "Create identity and start warming" }));
+		await waitFor(() => expect(createIdentity).toHaveBeenCalledWith(expect.objectContaining({ id: "manual-only", vault_ref: "" })));
+	});
 
   // [REQ:CHANMGR-P0-018] [REQ:CHANMGR-P0-019]
   it("renders roster, due work, provenance, flags, and a purposeful empty state", async () => {
@@ -60,10 +74,27 @@ describe("DashboardPage", () => {
 	expect(screen.getByText(/impressions 12/i)).toBeInTheDocument();
   });
 
+	it("retires an identity without deleting its roster record", async () => {
+		vi.mocked(overview).mockResolvedValueOnce({ identities: { "x-brand": { id: "x-brand", platform_id: "x", purpose: "brand", environment_ref: "env", vault_ref: "vault://ref", status: "active" } }, actions: {} });
+		renderWithProviders(<DashboardPage />);
+		fireEvent.click(await screen.findByRole("button", { name: "Retire" }));
+		await waitFor(() => expect(retireIdentity).toHaveBeenCalledWith("x-brand"));
+	});
+
+	it("updates existing identity metadata through the operator console", async () => {
+		vi.mocked(overview).mockResolvedValueOnce({ identities: { "x-brand": { id: "x-brand", platform_id: "x", purpose: "brand", environment_ref: "env", vault_ref: "vault://ref", status: "active" } }, actions: {} });
+		renderWithProviders(<DashboardPage />);
+		await screen.findByLabelText("x-brand: active");
+		fireEvent.change(screen.getByLabelText("New identity ID"), { target: { value: "x-brand" } });
+		fireEvent.change(screen.getByLabelText("Identity display label"), { target: { value: "Brand account" } });
+		fireEvent.click(screen.getByRole("button", { name: "Save identity metadata" }));
+		await waitFor(() => expect(updateIdentity).toHaveBeenCalledWith("x-brand", expect.objectContaining({ display_label: "Brand account" })));
+	});
+
 	it("[CHANMGR-P1-009] renders a descriptor-driven preview before release", async () => {
 		vi.mocked(overview).mockResolvedValueOnce({ identities: {}, actions: {}, platforms: { x: { id: "x" }, tiktok: { id: "tiktok" } } });
 		renderWithProviders(<DashboardPage />);
-		await screen.findByRole("option", { name: "tiktok" });
+		await screen.findAllByRole("option", { name: "tiktok" });
 		fireEvent.change(screen.getByLabelText("Preview platform"), { target: { value: "tiktok" } });
 		fireEvent.change(screen.getByLabelText("Caption"), { target: { value: "A preview" } });
 		fireEvent.click(screen.getByLabelText(/Disclosure visible/i));
@@ -75,11 +106,12 @@ describe("DashboardPage", () => {
 	it("[CHANMGR-P1-001] requires an operator decision before saving a BAS profile reference", async () => {
 		renderWithProviders(<DashboardPage />);
 		fireEvent.change(screen.getByLabelText("New identity ID"), { target: { value: "x-1" } });
+		fireEvent.change(screen.getByLabelText("Declared BAS profile key"), { target: { value: "operator-account" } });
 		fireEvent.change(screen.getByLabelText("BAS session profile reference"), { target: { value: "profile-1" } });
 		fireEvent.change(screen.getByLabelText("BAS workflow reference"), { target: { value: "workflow-1" } });
 		fireEvent.change(screen.getByLabelText("Automation acceptance note"), { target: { value: "approved sanctioned synthetic test" } });
 		fireEvent.click(screen.getByRole("button", { name: "Save browser automation gate" }));
-		await waitFor(() => expect(assignAutomation).toHaveBeenCalledWith("x-1", expect.objectContaining({ session_profile_ref: "profile-1", workflow_ref: "workflow-1", enabled_action_kinds: ["engage"] })));
+		await waitFor(() => expect(assignAutomation).toHaveBeenCalledWith("x-1", expect.objectContaining({ consumer_profile_key: "operator-account", session_profile_ref: "profile-1", workflow_ref: "workflow-1", enabled_action_kinds: ["engage"] })));
 	});
 
 	it("[CHANMGR-P1-002] saves the explicit cross-identity portfolio policy", async () => {
@@ -107,10 +139,44 @@ describe("DashboardPage", () => {
 	});
 
 	it("does not invent a second identity when creation and resume both fail", async () => {
+		vi.mocked(overview).mockResolvedValueOnce({ identities: {}, actions: {}, platforms: { x: { id: "x" } } }).mockResolvedValueOnce({ identities: {}, actions: {}, platforms: { x: { id: "x" } } });
 		vi.mocked(createIdentity).mockRejectedValueOnce(new Error("unavailable"));
 		renderWithProviders(<DashboardPage />);
+		await screen.findAllByRole("option", { name: "x" });
 		fireEvent.change(screen.getByLabelText("New identity ID"), { target: { value: "x-missing" } });
-		fireEvent.click(screen.getByRole("button", { name: "Create and start X warming" }));
+		fireEvent.change(screen.getByLabelText("Vault credential reference"), { target: { value: "vault://channel/x-missing" } });
+		fireEvent.click(screen.getByRole("button", { name: "Create identity and start warming" }));
+		await waitFor(() => expect(createIdentity).toHaveBeenCalled());
 		expect(await screen.findByTestId("operator-status")).toHaveTextContent("Could not create or resume the identity");
+	});
+
+	it("recovers an existing identity and its already-scheduled action after a transient submit failure", async () => {
+		vi.mocked(overview)
+			.mockResolvedValueOnce({ identities: { "x-existing": { id: "x-existing", platform_id: "x", purpose: "brand", environment_ref: "env", status: "warming" } }, actions: { "action-existing": { id: "action-existing", identity_id: "x-existing", kind: "engage", window: "2026-07-28T12:00:00Z", status: "scheduled", rolled_count: 0 } }, platforms: { x: { id: "x" } } })
+			.mockResolvedValueOnce({ identities: { "x-existing": { id: "x-existing", platform_id: "x", purpose: "brand", environment_ref: "env", status: "warming" } }, actions: { "action-existing": { id: "action-existing", identity_id: "x-existing", kind: "engage", window: "2026-07-28T12:00:00Z", status: "scheduled", rolled_count: 0 } }, platforms: { x: { id: "x" } } })
+			.mockResolvedValueOnce({ identities: { "x-existing": { id: "x-existing", platform_id: "x", purpose: "brand", environment_ref: "env", status: "warming" } }, actions: { "action-existing": { id: "action-existing", identity_id: "x-existing", kind: "engage", window: "2026-07-28T12:00:00Z", status: "scheduled", rolled_count: 0 } }, platforms: { x: { id: "x" } } });
+		vi.mocked(createIdentity).mockRejectedValueOnce(new Error("already exists"));
+		vi.mocked(enqueueAction).mockRejectedValueOnce(new Error("already queued"));
+		renderWithProviders(<DashboardPage />);
+		await screen.findByLabelText("x-existing: warming");
+		fireEvent.change(screen.getByLabelText("New identity ID"), { target: { value: "x-existing" } });
+		fireEvent.click(screen.getByRole("button", { name: "Create identity and start warming" }));
+		await screen.findByText(/Existing identity resumed/i);
+		fireEvent.click(screen.getByRole("button", { name: "Queue manual engagement" }));
+		await screen.findByText(/Existing manual action resumed/i);
+	});
+
+	it("explains when a rejected queue request has no durable action to resume", async () => {
+		vi.mocked(overview)
+			.mockResolvedValueOnce({ identities: {}, actions: {}, platforms: { x: { id: "x" } }, programs: { "x-warm": { id: "x-warm", platform_id: "x" } } })
+			.mockResolvedValueOnce({ identities: {}, actions: {} });
+		vi.mocked(enqueueAction).mockRejectedValueOnce(new Error("cadence"));
+		renderWithProviders(<DashboardPage />);
+		await screen.findByText(/No identities yet/i);
+		fireEvent.change(screen.getByLabelText("New identity ID"), { target: { value: "x-new" } });
+		fireEvent.click(screen.getByRole("button", { name: "Create identity and start warming" }));
+		await screen.findByText(/Identity created and warming program started/i);
+		fireEvent.click(screen.getByRole("button", { name: "Queue manual engagement" }));
+		expect(await screen.findByTestId("operator-status")).toHaveTextContent("Could not queue or resume this action");
 	});
 });

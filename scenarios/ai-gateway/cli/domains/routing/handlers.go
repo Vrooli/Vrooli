@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"connectrpc.com/connect"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing"
@@ -16,6 +17,76 @@ import (
 
 type handlers struct {
 	client routingconnect.RoutingServiceClient
+}
+
+func (h *handlers) mediaSubmit(ctx cliapp.RunContext) error {
+	request, err := gatewayreq.FromContext(ctx)
+	if err != nil {
+		return err
+	}
+	count, err := parseLimit(ctx.Flag("output-count"))
+	if err != nil || count < 1 {
+		return fmt.Errorf("--output-count must be a positive integer")
+	}
+	resp, err := h.client.SubmitMedia(context.Background(), connect.NewRequest(&routingv1.SubmitMediaRequest{Request: request, Prompt: ctx.Flag("prompt"), OutputCount: count, IdempotencyKey: ctx.Flag("idempotency-key")}))
+	if err != nil {
+		return cliapp.WrapAPIError("submit media", err, nil)
+	}
+	return renderMediaMutation(ctx, "Submitted", resp.Msg.GetExecution())
+}
+
+func (h *handlers) mediaShow(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetMediaExecution(context.Background(), connect.NewRequest(&routingv1.GetMediaExecutionRequest{ExecutionId: ctx.Positional("execution-id")}))
+	if err != nil {
+		return cliapp.WrapAPIError("show media execution", err, nil)
+	}
+	return renderMediaList(ctx, resp.Msg.GetExecution())
+}
+
+func (h *handlers) mediaWait(ctx cliapp.RunContext) error {
+	resp, err := h.client.WaitMediaExecution(context.Background(), connect.NewRequest(&routingv1.WaitMediaExecutionRequest{ExecutionId: ctx.Positional("execution-id")}))
+	if err != nil {
+		return cliapp.WrapAPIError("wait for media execution", err, nil)
+	}
+	return renderMediaList(ctx, resp.Msg.GetExecution())
+}
+
+func (h *handlers) mediaCancel(ctx cliapp.RunContext) error {
+	resp, err := h.client.CancelMediaExecution(context.Background(), connect.NewRequest(&routingv1.CancelMediaExecutionRequest{ExecutionId: ctx.Positional("execution-id")}))
+	if err != nil {
+		return cliapp.WrapAPIError("cancel media execution", err, nil)
+	}
+	return renderMediaMutation(ctx, "Cancelled", resp.Msg.GetExecution())
+}
+
+func (h *handlers) mediaRetry(ctx cliapp.RunContext) error {
+	resp, err := h.client.RetryMediaExecution(context.Background(), connect.NewRequest(&routingv1.RetryMediaExecutionRequest{ExecutionId: ctx.Positional("execution-id"), IdempotencyKey: ctx.Flag("idempotency-key")}))
+	if err != nil {
+		return cliapp.WrapAPIError("retry media execution", err, nil)
+	}
+	return renderMediaMutation(ctx, "Retried", resp.Msg.GetExecution())
+}
+
+func renderMediaMutation(ctx cliapp.RunContext, action string, execution *routingv1.MediaExecution) error {
+	return cliapp.RenderProtoMutation(ctx, &routingv1.SubmitMediaResponse{Execution: execution}, cliapp.MutationReport{Result: []string{fmt.Sprintf("%s media execution %s.", action, execution.GetExecutionId())}, Changes: mediaLines(execution)})
+}
+
+func renderMediaList(ctx cliapp.RunContext, execution *routingv1.MediaExecution) error {
+	return cliapp.RenderProtoList(ctx, &routingv1.GetMediaExecutionResponse{Execution: execution}, cliapp.ListReport{Summary: []string{fmt.Sprintf("Media execution %s.", execution.GetExecutionId())}, ResultsHeading: "Media receipt", Results: mediaLines(execution)})
+}
+
+func mediaLines(execution *routingv1.MediaExecution) []string {
+	if execution == nil {
+		return []string{"(no execution returned)"}
+	}
+	lines := []string{fmt.Sprintf("status=%s model=%s actual_cost_usd=%.4f", execution.GetStatus(), execution.GetResolvedModel(), execution.GetActualCostUsd())}
+	for _, output := range execution.GetOutputs() {
+		lines = append(lines, fmt.Sprintf("output=%s media_type=%s bytes=%d", output.GetReference(), output.GetMediaType(), output.GetBytes()))
+	}
+	if execution.GetErrorCode() != "" {
+		lines = append(lines, "error="+execution.GetErrorCode()+": "+strings.TrimSpace(execution.GetErrorMessage()))
+	}
+	return lines
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {

@@ -48,6 +48,21 @@ func (h *handlers) validate(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) describeProvider(ctx cliapp.RunContext) error {
+	resp, err := h.client.DescribeProvider(context.Background(), connect.NewRequest(&scenariovalidationv1.DescribeProviderRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("describe AI conformance provider", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no provider descriptor")
+	}
+	results := []string{fmt.Sprintf("provider=%s phase=%s contract=%s", resp.Msg.GetProvider(), resp.Msg.GetPhase(), resp.Msg.GetContract())}
+	if caps := resp.Msg.GetCapabilities(); caps != nil {
+		results = append(results, fmt.Sprintf("supports_execution=%t supports_fixes=%t delivery=%s", caps.GetSupportsExecution(), caps.GetSupportsFixes(), caps.GetDeliveryMode()))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{"AI Gateway validation provider descriptor."}, ResultsHeading: "Provider", Results: results})
+}
+
 func (h *handlers) previewFix(ctx cliapp.RunContext) error {
 	return h.fix(ctx, false)
 }

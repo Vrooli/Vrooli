@@ -13,13 +13,15 @@ import (
 )
 
 type Deps struct {
-	DB       *sql.DB
-	Adapters []providers.Adapter
-	Service  *internalrouting.Service
+	DB            *sql.DB
+	Adapters      []providers.Adapter
+	Service       *internalrouting.Service
+	MediaExecutor internalrouting.MediaExecutor
 }
 
 type connectHandler struct {
 	service *internalrouting.Service
+	media   *internalrouting.MediaService
 }
 
 func NewConnectHandler(d Deps) *connectHandler {
@@ -30,7 +32,16 @@ func NewConnectHandler(d Deps) *connectHandler {
 		}
 		d.Service = internalrouting.NewSQLService(d.DB, adapters)
 	}
-	return &connectHandler{service: d.Service}
+	return &connectHandler{service: d.Service, media: internalrouting.NewMediaService(d.DB, d.MediaExecutor)}
+}
+
+// RecoverMedia resumes durable, non-terminal receipts after schema setup and
+// before the handler accepts new requests. It is called once from the module
+// lifecycle rather than racing every handler construction.
+func (h *connectHandler) RecoverMedia(ctx context.Context) {
+	if h != nil && h.media != nil {
+		h.media.Recover(ctx)
+	}
 }
 
 func (h *connectHandler) PreviewRoute(ctx context.Context, req *connect.Request[routingv1.PreviewRouteRequest]) (*connect.Response[routingv1.PreviewRouteResponse], error) {
@@ -47,6 +58,49 @@ func (h *connectHandler) ExecuteRoute(ctx context.Context, req *connect.Request[
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(resp), nil
+}
+
+// Media execution is intentionally a separate asynchronous contract from text
+// routing. The receipt store and executor wiring land with the media runtime;
+// until then, fail explicitly rather than manufacturing a successful render.
+func (h *connectHandler) SubmitMedia(ctx context.Context, req *connect.Request[routingv1.SubmitMediaRequest]) (*connect.Response[routingv1.SubmitMediaResponse], error) {
+	execution, err := h.media.Submit(ctx, req.Msg)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(&routingv1.SubmitMediaResponse{Execution: execution}), nil
+}
+
+func (h *connectHandler) GetMediaExecution(ctx context.Context, req *connect.Request[routingv1.GetMediaExecutionRequest]) (*connect.Response[routingv1.GetMediaExecutionResponse], error) {
+	execution, err := h.media.Get(ctx, req.Msg.GetExecutionId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	return connect.NewResponse(&routingv1.GetMediaExecutionResponse{Execution: execution}), nil
+}
+
+func (h *connectHandler) WaitMediaExecution(ctx context.Context, req *connect.Request[routingv1.WaitMediaExecutionRequest]) (*connect.Response[routingv1.WaitMediaExecutionResponse], error) {
+	execution, err := h.media.Wait(ctx, req.Msg.GetExecutionId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeDeadlineExceeded, err)
+	}
+	return connect.NewResponse(&routingv1.WaitMediaExecutionResponse{Execution: execution}), nil
+}
+
+func (h *connectHandler) CancelMediaExecution(ctx context.Context, req *connect.Request[routingv1.CancelMediaExecutionRequest]) (*connect.Response[routingv1.CancelMediaExecutionResponse], error) {
+	execution, err := h.media.Cancel(ctx, req.Msg.GetExecutionId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(&routingv1.CancelMediaExecutionResponse{Execution: execution}), nil
+}
+
+func (h *connectHandler) RetryMediaExecution(ctx context.Context, req *connect.Request[routingv1.RetryMediaExecutionRequest]) (*connect.Response[routingv1.RetryMediaExecutionResponse], error) {
+	execution, err := h.media.Retry(ctx, req.Msg.GetExecutionId(), req.Msg.GetIdempotencyKey())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(&routingv1.RetryMediaExecutionResponse{Execution: execution}), nil
 }
 
 func (h *connectHandler) ListRouteEvidence(ctx context.Context, req *connect.Request[routingv1.ListRouteEvidenceRequest]) (*connect.Response[routingv1.ListRouteEvidenceResponse], error) {

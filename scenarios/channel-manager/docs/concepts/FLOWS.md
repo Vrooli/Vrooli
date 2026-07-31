@@ -31,7 +31,7 @@ outcome, statefulness, and validation level.
 | Gate evaluation | warming | A gate's declared wait interval elapses after its phase completes. | Pass, inconclusive with a bounded repeat, or fail to quarantine. | Idempotent — re-evaluating an already-resolved gate returns the recorded outcome rather than re-measuring. | L3 — outcome matrix over threshold boundaries. |
 | Release handoff | queue | `content-desk` releases an approved draft. | A post action is queued; post id and URL return once executed. | Idempotent by key. A retry returns the original result and never creates a second publish record. | L2 — deterministic, idempotency asserted directly. |
 | Signal sweep | signals | Scheduled, or an observation is recorded manually. | Baselines updated; a flag raised if decay criteria are met. | Read-mostly. Raising a flag pauses the identity's queue and does nothing else. | L2 — deterministic given a fixed clock and observation series. |
-| Descriptor seeding | platforms, warming | Boot, or an explicit reseed. | Descriptor tables match the JSON files on disk. | Idempotent. Reseeding replaces rows; it never duplicates. A malformed descriptor fails the seed loudly rather than being skipped. | L2 — idempotent write. |
+| Descriptor loading | platforms, warming | Boot. | Validated immutable JSON descriptors become the service's in-memory policy inputs. | Read-only. A malformed descriptor fails startup loudly rather than being skipped. | L2 — deterministic validation. |
 
 ## Flow Details
 

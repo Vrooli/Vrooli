@@ -35,6 +35,10 @@ func fixture(t *testing.T) *Service {
 	if e != nil {
 		t.Fatal(e)
 	}
+	s.SetBASProfileDeclarations(map[string]BASProfileDeclaration{
+		"profile-a": {Key: "profile-a", WorkflowRef: "workflow-declaration-a"},
+		"profile-b": {Key: "profile-b", WorkflowRef: "workflow-declaration-b"},
+	})
 	return s
 }
 
@@ -280,14 +284,14 @@ func TestReleaseReceiptCompletesExactlyOnceWithPartialFirstComment(t *testing.T)
 // reference; failures preserve manual fallback and never complete the action.
 func TestBrowserDispatchUsesAssignedProfileAndPreservesManualFallback(t *testing.T) {
 	s := fixture(t)
-	if err := s.CreateIdentity(Identity{ID: "i", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", Status: "active"}); err != nil {
+	if err := s.CreateIdentity(Identity{ID: "i", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", Status: "active", D009AcceptanceRef: "D-009/synthetic", AutomationMode: "operator-gated"}); err != nil {
 		t.Fatal(err)
 	}
 	a, err := s.Enqueue("i", "engage", time.Now().UTC(), 1, "browser-1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = s.AssignAutomation("i", "bas-profile-i", "workflow-i", []string{"engage"}, "operator accepted synthetic test"); err != nil {
+	if err = s.AssignAutomation("i", "profile-a", "bas-profile-i", "workflow-i", []string{"engage"}, "operator accepted synthetic test"); err != nil {
 		t.Fatal(err)
 	}
 	browser := &fakeBrowser{id: "bas-exec-1"}
@@ -305,6 +309,64 @@ func TestBrowserDispatchUsesAssignedProfileAndPreservesManualFallback(t *testing
 	}
 	if _, err = s.DispatchBrowser(context.Background(), b.ID, failing); err == nil || b.ExecutionError == "" || b.Status != Scheduled {
 		t.Fatal("dispatch failure must retain manual fallback")
+	}
+}
+
+// [REQ:CHANMGR-P0-008] Timeline facts are chronological, append-only, and
+// distinguish BAS dispatch from the operator's completion verification.
+func TestActivityLedgerPreservesProvenanceAndRedactsSensitiveReferences(t *testing.T) {
+	s := fixture(t)
+	if err := s.CreateIdentity(Identity{ID: "i", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", Status: "active", D009AcceptanceRef: "D-009/synthetic", AutomationMode: "operator-gated"}); err != nil {
+		t.Fatal(err)
+	}
+	a, err := s.Enqueue("i", "engage", time.Now().UTC(), 1, "ledger-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.AssignAutomation("i", "profile-a", "bas-profile-i", "workflow-i", []string{"engage"}, "accepted"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.DispatchBrowser(context.Background(), a.ID, &fakeBrowser{id: "bas-exec-ledger"}); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.Complete(a.ID, "https://evidence.test/post", time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+	s.appendActivity(ActivityEvent{EventType: "unsafe", OccurredAt: time.Now().UTC(), IdentityID: "i", ActorType: "system", ArtifactRefs: []string{"cookie=secret"}, Details: map[string]string{"token": "secret"}})
+	events := s.Timeline("i", a.ID, "")
+	if len(events) < 3 || events[0].EventType != "action.queued" {
+		t.Fatalf("timeline=%+v", events)
+	}
+	var dispatched, completed bool
+	for _, event := range events {
+		dispatched = dispatched || event.EventType == "browser.dispatched" && event.ExecutionID == "bas-exec-ledger"
+		completed = completed || event.EventType == "action.completed" && event.ExecutorType == "manual_verification"
+	}
+	if !dispatched || !completed {
+		t.Fatalf("missing provenance events: %+v", events)
+	}
+	unsafe := s.Timeline("i", "", "unsafe")
+	if len(unsafe) != 1 || len(unsafe[0].ArtifactRefs) != 0 || len(unsafe[0].Details) != 0 {
+		t.Fatalf("sensitive values leaked: %+v", unsafe)
+	}
+}
+
+func TestAssignAutomationRequiresUniqueProfileAndOperatorPolicy(t *testing.T) {
+	s := fixture(t)
+	for _, id := range []string{"a", "b"} {
+		if err := s.CreateIdentity(Identity{ID: id, PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", Status: "active", D009AcceptanceRef: "D-009/synthetic", AutomationMode: "operator-gated"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.AssignAutomation("a", "profile-a", "runtime-profile-a", "workflow-a", []string{"engage"}, "accepted"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AssignAutomation("b", "profile-a", "runtime-profile-b", "workflow-b", []string{"engage"}, "accepted"); err == nil {
+		t.Fatal("expected duplicate declared BAS profile key rejection")
+	}
+	s.Identities["b"].D009AcceptanceRef = ""
+	if err := s.AssignAutomation("b", "profile-b", "runtime-profile-b", "workflow-b", []string{"engage"}, "accepted"); err == nil {
+		t.Fatal("expected D-009 rejection")
 	}
 }
 

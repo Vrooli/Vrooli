@@ -160,6 +160,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("validate channel-manager descriptors: %v", err)
 	}
+	declarationPath := strings.TrimSpace(os.Getenv("CHANNEL_MANAGER_BAS_DECLARATION_PATH"))
+	if declarationPath == "" {
+		declarationPath = filepath.Join(filepath.Dir(dataRoot), ".vrooli", "browser-automation-studio", "consumer-declaration.json")
+	}
+	basProfiles, err := core.LoadBASProfileDeclarations(declarationPath)
+	if err != nil {
+		log.Fatalf("load Channel Manager BAS consumer declaration: %v", err)
+	}
+	channelService.SetBASProfileDeclarations(basProfiles)
 	channelStore := core.NewStore(db)
 	if err := channelStore.Load(context.Background(), channelService); err != nil {
 		log.Fatalf("load channel-manager state: %v", err)

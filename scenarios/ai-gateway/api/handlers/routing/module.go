@@ -1,6 +1,8 @@
 package routing
 
 import (
+	"context"
+
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing"
@@ -13,7 +15,9 @@ import (
 var ProtoFile = routingv1.File_ai_gateway_v1_routing_routing_proto
 
 func Module(deps Deps) module.Module {
-	connectPath, connectHandler := routingconnect.NewRoutingServiceHandler(NewConnectHandler(deps))
+	h := NewConnectHandler(deps)
+	h.RecoverMedia(context.Background())
+	connectPath, connectHandler := routingconnect.NewRoutingServiceHandler(h)
 	return module.Module{
 		Name: "routing",
 		Mount: func(r *mux.Router) {

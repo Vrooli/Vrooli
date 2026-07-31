@@ -258,10 +258,10 @@ temporal behavior, update [`FLOWS.md`](FLOWS.md).
 
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| API | Scaffold | Template shape generated 2026-07-28; no product domain implemented. | All five product domains must be built. |
-| UI | Scaffold | Template feature folders and shell only. | Operator console surfaces must be built. |
-| CLI | Scaffold | Template domain groups only. | Identity, queue, warming, and signal verbs must be added. |
-| Docs | Designed | PRD, requirements registry, and the concepts set authored against a completed design pass. | Kept truthful as implementation lands. |
+| API | Domain-owned | `api/internal/channelmanager/` owns identity policy, descriptors, the action ledger, scheduling, release records, and metric delivery; `api/handlers/channelmanager/` is its Connect transport edge. | The consolidated domain should stay cohesive; do not recreate the removed design-only packages. |
+| UI | Operator console | `DashboardPage` presents identity configuration, due actions, manual evidence, previews, browser-dispatch status, and the redacted activity timeline. | Keep UI policy-free and derive platform behavior from descriptors returned by the API. |
+| CLI | Operator wrapper | `channel-manager channel` exposes the same non-secret lifecycle, queue, evidence, timeline, and guarded-browser-dispatch operations as the API. | New RPCs must either receive a manifest command or an explicit omission reason. |
+| Docs | Active | The requirements registry, data model, security boundary, seams, temporal flows, and runbook describe the shipped account-operations domain. | Preserve the controlled-live-acceptance boundary until D-009 evidence exists. |
 
 Use `docs/manifest.json` as the documentation contract. The declared
 `maturity` values are expected to be maintained by agents and later

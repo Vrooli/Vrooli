@@ -52,6 +52,9 @@ func moduleWithAssetResolver(service *core.Service, store core.Store, deliverer 
 		connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
 		r.HandleFunc("/api/v1/channel-manager/overview", h.overview).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/channel-manager/identities", h.createIdentity).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/channel-manager/identities/{id}", h.updateIdentity).Methods(http.MethodPut)
+		r.HandleFunc("/api/v1/channel-manager/identities/{id}/retire", h.retireIdentity).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/channel-manager/identities/{id}/timeline", h.timeline).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/channel-manager/identities/{id}/start", h.start).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/channel-manager/actions", h.enqueue).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/channel-manager/actions/{id}/complete", h.complete).Methods(http.MethodPost)
@@ -64,6 +67,26 @@ func moduleWithAssetResolver(service *core.Service, store core.Store, deliverer 
 		r.HandleFunc("/api/v1/channel-manager/releases", h.release).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/channel-manager/releases/preview", h.previewRelease).Methods(http.MethodPost)
 	}}
+}
+
+func (h *api) GetBrowserExecutionReview(ctx context.Context, request *connect.Request[channelmanagerv1.GetBrowserExecutionReviewRequest]) (*connect.Response[channelmanagerv1.GetBrowserExecutionReviewResponse], error) {
+	inspector, ok := h.browser.(core.BrowserInspector)
+	if !ok || inspector == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("browser execution review is not configured"))
+	}
+	h.mu.Lock()
+	action := h.service.Actions[request.Msg.ActionId]
+	if action == nil || action.ExecutionID == "" {
+		h.mu.Unlock()
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("browser execution not found for action"))
+	}
+	executionID := action.ExecutionID
+	h.mu.Unlock()
+	review, err := inspector.Inspect(ctx, executionID)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnavailable, err)
+	}
+	return connect.NewResponse(&channelmanagerv1.GetBrowserExecutionReviewResponse{ExecutionId: review.ExecutionID, Status: review.Status, Failure: review.Failure, ArtifactRefs: review.ArtifactRefs}), nil
 }
 
 func (h *api) dispatchBrowser(w http.ResponseWriter, r *http.Request) {
@@ -86,6 +109,7 @@ func (h *api) dispatchBrowser(w http.ResponseWriter, r *http.Request) {
 
 func (h *api) assignAutomation(w http.ResponseWriter, r *http.Request) {
 	var req struct {
+		ConsumerProfileKey string   `json:"consumer_profile_key"`
 		SessionProfileRef  string   `json:"session_profile_ref"`
 		WorkflowRef        string   `json:"workflow_ref"`
 		EnabledActionKinds []string `json:"enabled_action_kinds"`
@@ -95,7 +119,7 @@ func (h *api) assignAutomation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.mu.Lock()
-	err := h.service.AssignAutomation(mux.Vars(r)["id"], req.SessionProfileRef, req.WorkflowRef, req.EnabledActionKinds, req.OperatorNote)
+	err := h.service.AssignAutomation(mux.Vars(r)["id"], req.ConsumerProfileKey, req.SessionProfileRef, req.WorkflowRef, req.EnabledActionKinds, req.OperatorNote)
 	if err == nil {
 		err = h.store.Save(r.Context(), h.service)
 	}
@@ -127,19 +151,22 @@ func (h *api) configurePortfolio(w http.ResponseWriter, r *http.Request) {
 
 func (h *api) previewRelease(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		PlatformID        string `json:"platform_id"`
-		Caption           string `json:"caption"`
-		FormatKind        string `json:"format_kind"`
-		MediaWidth        int    `json:"media_width"`
-		MediaHeight       int    `json:"media_height"`
-		DisclosureVisible bool   `json:"disclosure_visible"`
-		FirstComment      string `json:"first_comment"`
+		PlatformID                string `json:"platform_id"`
+		Caption                   string `json:"caption"`
+		Title                     string `json:"title"`
+		PostType                  string `json:"post_type"`
+		FormatKind                string `json:"format_kind"`
+		MediaWidth                int    `json:"media_width"`
+		MediaHeight               int    `json:"media_height"`
+		DisclosureVisible         bool   `json:"disclosure_visible"`
+		DisclosureInVisibleRegion bool   `json:"disclosure_in_visible_region"`
+		FirstComment              string `json:"first_comment"`
 	}
 	if !decode(w, r, &req) {
 		return
 	}
 	h.mu.Lock()
-	preview, err := h.service.PreviewRelease(core.PreviewInput{PlatformID: req.PlatformID, Caption: req.Caption, FormatKind: req.FormatKind, MediaWidth: req.MediaWidth, MediaHeight: req.MediaHeight, DisclosureVisible: req.DisclosureVisible, FirstComment: req.FirstComment})
+	preview, err := h.service.PreviewRelease(core.PreviewInput{PlatformID: req.PlatformID, Caption: req.Caption, Title: req.Title, PostType: req.PostType, FormatKind: req.FormatKind, MediaWidth: req.MediaWidth, MediaHeight: req.MediaHeight, DisclosureVisible: req.DisclosureVisible, DisclosureInVisibleRegion: req.DisclosureInVisibleRegion, FirstComment: req.FirstComment})
 	h.mu.Unlock()
 	if err != nil {
 		writeError(w, err)
@@ -153,7 +180,7 @@ func (h *api) GetOverview(_ context.Context, _ *connect.Request[channelmanagerv1
 	defer h.mu.Unlock()
 	response := &channelmanagerv1.GetOverviewResponse{}
 	for _, identity := range h.service.Identities {
-		response.Identities = append(response.Identities, &channelmanagerv1.Identity{Id: identity.ID, PlatformId: identity.PlatformID, Purpose: identity.Purpose, EnvironmentRef: identity.EnvironmentRef, VaultRef: identity.VaultRef, Status: identity.Status, LaneGrants: identity.LaneGrants})
+		response.Identities = append(response.Identities, &channelmanagerv1.Identity{Id: identity.ID, PlatformId: identity.PlatformID, Purpose: identity.Purpose, EnvironmentRef: identity.EnvironmentRef, Status: identity.Status, LaneGrants: identity.LaneGrants, Handle: identity.Handle, DisplayLabel: identity.DisplayLabel, Lifecycle: identity.Lifecycle, AutomationMode: identity.AutomationMode})
 	}
 	for _, action := range h.service.Actions {
 		response.Actions = append(response.Actions, &channelmanagerv1.Action{Id: action.ID, IdentityId: action.IdentityID, Kind: action.Kind, Window: action.Window.Format(time.RFC3339), Status: string(action.Status), RolledCount: int32(action.RolledCount)})
@@ -261,7 +288,7 @@ func (h *api) DeliverMetricSample(ctx context.Context, request *connect.Request[
 
 func (h *api) AssignAutomation(ctx context.Context, request *connect.Request[channelmanagerv1.AssignAutomationRequest]) (*connect.Response[channelmanagerv1.AssignAutomationResponse], error) {
 	h.mu.Lock()
-	err := h.service.AssignAutomation(request.Msg.IdentityId, request.Msg.SessionProfileRef, request.Msg.WorkflowRef, request.Msg.EnabledActionKinds, request.Msg.OperatorNote)
+	err := h.service.AssignAutomation(request.Msg.IdentityId, request.Msg.ConsumerProfileKey, request.Msg.SessionProfileRef, request.Msg.WorkflowRef, request.Msg.EnabledActionKinds, request.Msg.OperatorNote)
 	if err == nil {
 		err = h.store.Save(ctx, h.service)
 	}
@@ -312,6 +339,7 @@ var Endpoints = []module.EndpointDescriptor{{
 	{ID: "channel_manager_deliver_metric", Path: channelmanagerconnect.ChannelManagerServiceDeliverMetricSampleProcedure, Method: http.MethodPost, Summary: "Deliver metric sample to Content Desk", Category: "channel-manager"},
 	{ID: "channel_manager_assign_automation", Path: channelmanagerconnect.ChannelManagerServiceAssignAutomationProcedure, Method: http.MethodPost, Summary: "Assign an operator-approved BAS profile reference", Category: "channel-manager"},
 	{ID: "channel_manager_dispatch_browser", Path: channelmanagerconnect.ChannelManagerServiceDispatchBrowserActionProcedure, Method: http.MethodPost, Summary: "Dispatch a durable queued action to BAS", Category: "channel-manager"},
+	{ID: "channel_manager_browser_execution_review", Path: channelmanagerconnect.ChannelManagerServiceGetBrowserExecutionReviewProcedure, Method: http.MethodPost, Summary: "Review bounded BAS execution status and artifact references", Category: "channel-manager"},
 }
 
 func (h *api) overview(w http.ResponseWriter, _ *http.Request) {
@@ -321,7 +349,32 @@ func (h *api) overview(w http.ResponseWriter, _ *http.Request) {
 	for _, outcome := range h.service.ProgramOutcomes {
 		support[outcome.ProgramID]++
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"identities": h.service.Identities, "actions": h.service.Actions, "platforms": h.service.Platforms, "programs": h.service.Programs, "program_support": support, "flags": h.service.Flags, "releases": h.service.Releases, "metric_samples": h.service.MetricSamples, "automation": h.service.Automation, "portfolio": h.service.Portfolio, "program_outcomes": h.service.ProgramOutcomes, "environment_checks": h.service.EnvironmentChecks})
+	identities := make(map[string]core.Identity, len(h.service.Identities))
+	for id, identity := range h.service.Identities {
+		identities[id] = publicIdentity(*identity)
+	}
+	automation := make(map[string]publicAutomationAssignment, len(h.service.Automation))
+	for identityID, assignment := range h.service.Automation {
+		automation[identityID] = publicAutomation(assignment)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"identities": identities, "actions": h.service.Actions, "platforms": h.service.Platforms, "programs": h.service.Programs, "program_support": support, "flags": h.service.Flags, "releases": h.service.Releases, "metric_samples": h.service.MetricSamples, "automation": automation, "portfolio": h.service.Portfolio, "program_outcomes": h.service.ProgramOutcomes, "environment_checks": h.service.EnvironmentChecks, "activity_events": h.service.Timeline("", "", "")})
+}
+
+func publicIdentity(identity core.Identity) core.Identity {
+	identity.VaultRef = ""
+	return identity
+}
+
+// publicAutomation preserves operator readiness without disclosing BAS's
+// opaque profile/workflow references through the unauthenticated overview.
+type publicAutomationAssignment struct {
+	ProfileKey   string   `json:"profile_key"`
+	EnabledKinds []string `json:"enabled_kinds"`
+	OperatorNote string   `json:"operator_note"`
+}
+
+func publicAutomation(assignment core.AutomationAssignment) publicAutomationAssignment {
+	return publicAutomationAssignment{ProfileKey: assignment.ProfileKey, EnabledKinds: append([]string(nil), assignment.EnabledKinds...), OperatorNote: assignment.OperatorNote}
 }
 
 func (h *api) createIdentity(w http.ResponseWriter, r *http.Request) {
@@ -339,7 +392,46 @@ func (h *api) createIdentity(w http.ResponseWriter, r *http.Request) {
 		writeError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, identity)
+	writeJSON(w, http.StatusCreated, publicIdentity(identity))
+}
+
+func (h *api) updateIdentity(w http.ResponseWriter, r *http.Request) {
+	var identity core.Identity
+	if !decode(w, r, &identity) {
+		return
+	}
+	h.mu.Lock()
+	err := h.service.UpdateIdentity(mux.Vars(r)["id"], identity)
+	if err == nil {
+		err = h.store.Save(r.Context(), h.service)
+	}
+	h.mu.Unlock()
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, publicIdentity(identity))
+}
+
+func (h *api) retireIdentity(w http.ResponseWriter, r *http.Request) {
+	h.mu.Lock()
+	err := h.service.RetireIdentity(mux.Vars(r)["id"])
+	if err == nil {
+		err = h.store.Save(r.Context(), h.service)
+	}
+	h.mu.Unlock()
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "retired"})
+}
+
+func (h *api) timeline(w http.ResponseWriter, r *http.Request) {
+	h.mu.Lock()
+	events := h.service.Timeline(mux.Vars(r)["id"], r.URL.Query().Get("action_id"), r.URL.Query().Get("event_type"))
+	h.mu.Unlock()
+	writeJSON(w, http.StatusOK, map[string]any{"events": events})
 }
 
 func (h *api) start(w http.ResponseWriter, r *http.Request) {

@@ -194,10 +194,10 @@
           "path": "concepts/FLOWS.md",
           "docType": "flows",
           "title": "Flows",
-          "aliases": ["flow", "workflows", "temporal-flows"],
+          "aliases": ["flow", "workflows"],
           "description": "User/system workflows, lifecycle states, transitions, retries, cancellation, stale-completion risks, and checked formal model status",
           "audience": ["developers", "agents"],
-          "canonicalFor": ["workflows", "temporal-flows", "state-transitions"],
+          "canonicalFor": ["workflows", "state-transitions"],
           "maturity": "active",
           "requiredBy": ["implemented", "validated"],
           "completion": "conditional",
@@ -645,6 +645,23 @@
           },
           "validation": {
             "requiredHeadings": ["Progress Log"],
+            "forbiddenPlaceholders": ["[TODO]"]
+          }
+        },
+        {
+          "path": "internal/TEMPORAL-FLOWS.md",
+          "docType": "temporal-flows",
+          "title": "Temporal Flows",
+          "aliases": ["lifecycle-flows", "async-flows"],
+          "description": "Temporal state-machine, ledger, retry, and completion invariants",
+          "audience": ["developers", "agents"],
+          "canonicalFor": ["temporal-workflows", "lifecycle-invariants"],
+          "maturity": "active",
+          "requiredBy": ["implemented", "validated"],
+          "completion": "required",
+          "ownerSkills": ["temporal-flow-audit"],
+          "validation": {
+            "requiredHeadings": ["Flow Index", "Audit Notes"],
             "forbiddenPlaceholders": ["[TODO]"]
           }
         }

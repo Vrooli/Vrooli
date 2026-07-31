@@ -8,9 +8,12 @@ The scaffold also ships one clearly fenced worked example domain (never
 product scope) as a copyable reference; `template-manager detemplate
 <scenario>` removes every fenced example once the real domains are green.
 
-**Status: designed, not implemented.** The domain map below is the output of a
-design pass completed 2026-07-28. Only `health` exists in code today. Each row
-states the boundary the implementation is expected to honour.
+**Status: implemented.** The account-operations domain is intentionally
+consolidated in `channelmanager`: its identity, platform-policy, warming,
+queue, signal, release, and ledger concepts share one durable action lifecycle
+and SQLite state model. The earlier design-only folders (`identities`,
+`platforms`, `warming`, `queue`, and `signals`) were never shipped and are not
+ownership boundaries in the current codebase.
 
 The load-bearing split is between **descriptors** (versioned JSON that declares
 how a platform behaves and how an identity is warmed) and **state** (what an
@@ -35,14 +38,16 @@ belong in [`DATA.md`](DATA.md).
 
 | Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |
 |---|---|---|---|---|---|---|---|
-| health | Report runtime readiness and dependency reachability. | Expose API/database readiness and show the UI can read live backend state. | No product data. | reporting | query | HealthHandler | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/channel-manager/v1/shared/health.proto` |
-| identities | Own the account roster, its environment record, credential references, and lane grants. | One row per account the fleet operates; everything else in the scenario is scoped to an identity. | Identities, environments, precondition satisfaction, lane grants. | crud | policy | Identity, Environment, PurposeTag, LaneGrant | `api/internal/identities/` |
-| platforms | Own the declarative per-platform capability descriptors. | Storage shape, limits, cadence ceilings, and disclosure rules differ per platform; adding one should be a descriptor, not a build. | Platform descriptors and their seeded cache. | policy | reference | PlatformDescriptor, ActionKind, Ceiling | `api/internal/platforms/` |
-| warming | Own warming programs, generated plans, phase progression, gates, and graduation. | An account earns distribution before it earns a lane. This domain is how that is declared, scheduled, and judged. | Programs, plans, rolls, phase state, gate evaluations, observations. | service | scheduler | Program, Phase, Gate, Graduation, Provenance | `api/internal/warming/` |
-| queue | Own the unified action queue, sessions, cadence accounting, execution dispatch, and the release handoff. | Every platform action for an identity passes through here, because cadence is counted per account and not per workflow. | Queued actions, sessions, action records, release records. | workflow | service | Action, Session, Cadence, Release, Executor | `api/internal/queue/` |
-| signals | Own observed distribution metrics, rolling baselines, and flags. | Decay is only detectable against a baseline, and it is always inferred rather than observed. | Observations, baselines, flags. | reporting | query | Observation, Baseline, Flag | `api/internal/signals/` |
+| channelmanager | Own account identity policy and its complete action lifecycle. | Every operation affecting a managed account must be governed by the same identity, descriptor, cadence, evidence, and audit rules. | Identities, attestations, bindings, queued actions, action projection, append-only ledger events, releases, metric delivery, observations, baselines, and flags. | service | workflow, policy, reporting | Identity, Platform, Action, Release, Observation | `api/internal/channelmanager/`, `api/handlers/channelmanager/`, `api/integrations/bas/`, `api/integrations/contentdesk/`, `cli/domains/channelmanager/`, `ui/src/api/`, `ui/src/pages/`, `ui/src/layout/`, `data/platforms/`, `.vrooli/browser-automation-studio/` |
 
 ## Domain Details
+
+## Conceptual responsibilities inside `channelmanager`
+
+The following sections remain the canonical conceptual map. They are not
+separate source-code packages: each is a responsibility within the one
+domain-owned service because every action must share the same identity and
+audit record.
 
 ### identities
 
@@ -74,8 +79,8 @@ belong in [`DATA.md`](DATA.md).
   actions.
 - Does not own: channel strategy or account purpose — those are canon in
   `docs/marketing/strategy/CHANNELS.md` and are read-only input here.
-- Invariant: the descriptor file is the source of truth and the table is a seeded
-  cache. Reseeding replaces rows rather than duplicating them.
+- Invariant: descriptor files are immutable boot-time inputs. They are loaded and
+  validated on startup; runtime state never copies, reseeds, or rewrites them.
 - Invariant: **the ceiling always wins.** A warming program that asks for more
   actions than the platform ceiling allows is clamped or rejected at plan
   generation, so a badly written program fails safe rather than at the platform.
@@ -233,6 +238,9 @@ These are important but should not become product domains:
 - `api/internal/modules/` — thin registry for boot/codegen.
 - `api/internal/database/` — cross-cutting database infrastructure.
 - `api/internal/testutil/` — cross-domain test harnesses.
+- `api/handlers/health/` — operational readiness probe, not account health.
+- `ui/src/features/health/` — readiness display, not account health.
+- `packages/proto/schemas/channel-manager/v1/shared/health.proto` — generic readiness wire shape.
 - `ui/src/components/` — shared presentation primitives.
 - `ui/src/test-utils/` — cross-feature testing support.
 

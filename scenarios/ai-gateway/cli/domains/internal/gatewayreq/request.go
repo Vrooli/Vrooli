@@ -57,8 +57,12 @@ func parseKind(value string) (sharedv1.RequestKind, error) {
 		return sharedv1.RequestKind_REQUEST_KIND_TEXT_EMBEDDING, nil
 	case "extract", "structured", "structured_extraction":
 		return sharedv1.RequestKind_REQUEST_KIND_STRUCTURED_EXTRACTION, nil
+	case "image", "image_generation":
+		return sharedv1.RequestKind_REQUEST_KIND_IMAGE_GENERATION, nil
+	case "video", "video_generation":
+		return sharedv1.RequestKind_REQUEST_KIND_VIDEO_GENERATION, nil
 	default:
-		return 0, fmt.Errorf("unknown kind %q (use text, embedding, or extract)", value)
+		return 0, fmt.Errorf("unknown kind %q (use text, embedding, extract, image, or video)", value)
 	}
 }
 

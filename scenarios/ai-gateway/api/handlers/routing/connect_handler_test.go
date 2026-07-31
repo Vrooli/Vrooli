@@ -28,3 +28,20 @@ func TestPreviewRouteUsesGatewayValidationBeforeRouting(t *testing.T) { // [REQ:
 	require.Equal(t, "privacy_profile_conflict", resp.Msg.GetIssues()[0].GetCode())
 	require.Empty(t, resp.Msg.GetCandidates(), "Phase 2 preview must not synthesize provider candidates")
 }
+
+func TestSubmitMediaNeverManufacturesAnExecutionWithoutDurableStore(t *testing.T) { // [REQ:AIGW-MEDIA-EXECUTION]
+	h := handler.NewConnectHandler(handler.Deps{})
+	_, err := h.SubmitMedia(context.Background(), connect.NewRequest(&routingv1.SubmitMediaRequest{
+		Request: &sharedv1.GatewayRequest{
+			Kind:         sharedv1.RequestKind_REQUEST_KIND_IMAGE_GENERATION,
+			Role:         "media.generate",
+			Profile:      sharedv1.Profile_PROFILE_LOCAL_FIRST,
+			PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
+		},
+		Prompt:         "a red square",
+		OutputCount:    1,
+		IdempotencyKey: "media-test-1",
+	}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+}

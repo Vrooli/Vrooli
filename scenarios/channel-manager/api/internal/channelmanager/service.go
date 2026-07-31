@@ -36,13 +36,27 @@ func (p Provenance) Valid() bool {
 }
 
 type Platform struct {
-	ID                 string      `json:"id"`
-	DailyCeiling       int         `json:"daily_ceiling"`
-	CaptionLimit       int         `json:"caption_limit"`
-	ActionKinds        []string    `json:"action_kinds"`
-	DisclosureRequired bool        `json:"disclosure_required"`
-	Retry              RetryPolicy `json:"retry"`
-	Formats            []Format    `json:"formats"`
+	ID                    string      `json:"id"`
+	DailyCeiling          int         `json:"daily_ceiling"`
+	CaptionLimit          int         `json:"caption_limit"`
+	TitleLimit            int         `json:"title_limit"`
+	ActionKinds           []string    `json:"action_kinds"`
+	PostTypes             []PostType  `json:"post_types"`
+	DisclosureRequired    bool        `json:"disclosure_required"`
+	DisclosurePlacement   string      `json:"disclosure_placement"`
+	FirstCommentSupported bool        `json:"first_comment_supported"`
+	Provenance            Provenance  `json:"provenance"`
+	Retry                 RetryPolicy `json:"retry"`
+	Formats               []Format    `json:"formats"`
+}
+
+// PostType names a descriptor-declared publishing shape. It keeps platform
+// variations out of queue and preview branching.
+type PostType struct {
+	ID              string `json:"id"`
+	FormatKind      string `json:"format_kind"`
+	CaptionRequired bool   `json:"caption_required"`
+	TitleRequired   bool   `json:"title_required"`
 }
 
 // RetryPolicy is descriptor-owned because platform failure codes, retry
@@ -67,15 +81,18 @@ func (p RetryPolicy) Valid() error {
 // resolved must be queried from the platform for the particular identity;
 // they must never be replaced with a guessed global maximum.
 type Format struct {
-	Kind             string   `json:"kind"`
-	MIMETypes        []string `json:"mime_types"`
-	MaxBytes         int64    `json:"max_bytes"`
-	MaxDurationSecs  int      `json:"max_duration_secs"`
-	DurationResolved bool     `json:"duration_resolved_per_identity"`
-	MinWidth         int      `json:"min_width"`
-	MinHeight        int      `json:"min_height"`
-	MaxWidth         int      `json:"max_width"`
-	MaxHeight        int      `json:"max_height"`
+	Kind                 string   `json:"kind"`
+	MIMETypes            []string `json:"mime_types"`
+	MaxBytes             int64    `json:"max_bytes"`
+	BytesResolved        bool     `json:"bytes_resolved_per_identity"`
+	MaxDurationSecs      int      `json:"max_duration_secs"`
+	DurationResolved     bool     `json:"duration_resolved_per_identity"`
+	MinWidth             int      `json:"min_width"`
+	MinHeight            int      `json:"min_height"`
+	MaxWidth             int      `json:"max_width"`
+	MaxHeight            int      `json:"max_height"`
+	PreferredAspectRatio string   `json:"preferred_aspect_ratio"`
+	PreviewFit           string   `json:"preview_fit"`
 }
 
 func (p Platform) Valid() error {
@@ -86,8 +103,13 @@ func (p Platform) Valid() error {
 		return fmt.Errorf("platform retry policy: %w", err)
 	}
 	for _, format := range p.Formats {
-		if format.Kind == "" || len(format.MIMETypes) == 0 || format.MaxBytes < 1 || format.MinWidth < 1 || format.MinHeight < 1 || format.MaxWidth < format.MinWidth || format.MaxHeight < format.MinHeight || (!format.DurationResolved && format.MaxDurationSecs < 1) {
+		if format.Kind == "" || len(format.MIMETypes) == 0 || (!format.BytesResolved && format.MaxBytes < 1) || format.MinWidth < 1 || format.MinHeight < 1 || format.MaxWidth < format.MinWidth || format.MaxHeight < format.MinHeight || (!format.DurationResolved && format.MaxDurationSecs < 1) {
 			return fmt.Errorf("invalid platform format %q", format.Kind)
+		}
+	}
+	for _, postType := range p.PostTypes {
+		if postType.ID == "" || postType.FormatKind == "" || !slices.ContainsFunc(p.Formats, func(format Format) bool { return format.Kind == postType.FormatKind }) {
+			return fmt.Errorf("invalid platform post type %q", postType.ID)
 		}
 	}
 	return nil
@@ -154,16 +176,24 @@ func (p Program) Valid(platform Platform) error {
 }
 
 type Identity struct {
-	ID             string          `json:"id"`
-	PlatformID     string          `json:"platform_id"`
-	Purpose        string          `json:"purpose"`
-	PersonaRef     string          `json:"persona_ref"`
-	EnvironmentRef string          `json:"environment_ref"`
-	ExpectedRegion string          `json:"expected_region"`
-	VaultRef       string          `json:"vault_ref"`
-	Status         string          `json:"status"`
-	LaneGrants     []string        `json:"lane_grants"`
-	Attestations   map[string]bool `json:"attestations"`
+	ID                string          `json:"id"`
+	PlatformID        string          `json:"platform_id"`
+	Handle            string          `json:"handle"`
+	DisplayLabel      string          `json:"display_label"`
+	Purpose           string          `json:"purpose"`
+	PersonaRef        string          `json:"persona_ref"`
+	Goals             []string        `json:"goals"`
+	Notes             string          `json:"notes"`
+	OwnerRef          string          `json:"owner_ref"`
+	Lifecycle         string          `json:"lifecycle"`
+	EnvironmentRef    string          `json:"environment_ref"`
+	ExpectedRegion    string          `json:"expected_region"`
+	VaultRef          string          `json:"vault_ref"`
+	Status            string          `json:"status"`
+	LaneGrants        []string        `json:"lane_grants"`
+	Attestations      map[string]bool `json:"attestations"`
+	D009AcceptanceRef string          `json:"d009_acceptance_ref"`
+	AutomationMode    string          `json:"automation_mode"`
 }
 
 // EnvironmentProbe is intentionally credential-free. The environment provider
@@ -262,7 +292,26 @@ type BrowserDispatch interface {
 	Dispatch(context.Context, string, string, string) (executionID string, artifacts []string, err error)
 }
 
+// BrowserExecution is the bounded review projection Channel Manager may obtain
+// from BAS. It deliberately contains no storage state, credentials, or raw
+// evidence bytes: artifact identifiers are resolved only by BAS's own access
+// policy.
+type BrowserExecution struct {
+	ExecutionID  string   `json:"execution_id"`
+	Status       string   `json:"status"`
+	Failure      string   `json:"failure,omitempty"`
+	ArtifactRefs []string `json:"artifact_refs,omitempty"`
+}
+
+// BrowserInspector is optional so the durable dispatch boundary remains small.
+// A missing inspector never changes an action's state; manual verification is
+// still the only path that records platform completion.
+type BrowserInspector interface {
+	Inspect(context.Context, string) (BrowserExecution, error)
+}
+
 type AutomationAssignment struct {
+	ProfileKey   string   `json:"profile_key"`
 	ProfileRef   string   `json:"profile_ref"`
 	WorkflowRef  string   `json:"workflow_ref"`
 	EnabledKinds []string `json:"enabled_kinds"`
@@ -355,11 +404,13 @@ type Service struct {
 	GateResults       map[string]map[string]GateResult
 	Releases          map[string]*ReleaseReceipt
 	Automation        map[string]AutomationAssignment
+	BASProfiles       map[string]BASProfileDeclaration
 	MetricSamples     map[string]*MetricSample
 	Portfolio         PortfolioPolicy
 	ProgramOutcomes   []ProgramOutcome
 	EnvironmentChecks map[string]EnvironmentLiveness
 	AssetPublications map[string]string
+	ActivityEvents    []ActivityEvent
 }
 
 // State is the durable runtime projection. Descriptors remain files on disk;
@@ -379,10 +430,11 @@ type State struct {
 	ProgramOutcomes   []ProgramOutcome                 `json:"program_outcomes"`
 	EnvironmentChecks map[string]EnvironmentLiveness   `json:"environment_checks"`
 	AssetPublications map[string]string                `json:"asset_publications"`
+	ActivityEvents    []ActivityEvent                  `json:"activity_events"`
 }
 
 func (s *Service) State() State {
-	return State{Identities: s.Identities, Actions: s.Actions, Observations: s.Observations, Flags: s.Flags, RunningPrograms: s.RunningPrograms, ProgramStartedAt: s.ProgramStartedAt, GateResults: s.GateResults, Releases: s.Releases, Automation: s.Automation, MetricSamples: s.MetricSamples, Portfolio: s.Portfolio, ProgramOutcomes: s.ProgramOutcomes, EnvironmentChecks: s.EnvironmentChecks, AssetPublications: s.AssetPublications}
+	return State{Identities: s.Identities, Actions: s.Actions, Observations: s.Observations, Flags: s.Flags, RunningPrograms: s.RunningPrograms, ProgramStartedAt: s.ProgramStartedAt, GateResults: s.GateResults, Releases: s.Releases, Automation: s.Automation, MetricSamples: s.MetricSamples, Portfolio: s.Portfolio, ProgramOutcomes: s.ProgramOutcomes, EnvironmentChecks: s.EnvironmentChecks, AssetPublications: s.AssetPublications, ActivityEvents: s.ActivityEvents}
 }
 
 func (s *Service) Restore(state State) {
@@ -426,10 +478,13 @@ func (s *Service) Restore(state State) {
 	if state.AssetPublications != nil {
 		s.AssetPublications = state.AssetPublications
 	}
+	if state.ActivityEvents != nil {
+		s.ActivityEvents = state.ActivityEvents
+	}
 }
 
 func New(platforms []Platform, programs []Program) (*Service, error) {
-	s := &Service{Platforms: map[string]Platform{}, Programs: map[string]Program{}, Identities: map[string]*Identity{}, Actions: map[string]*Action{}, Observations: map[string][]Observation{}, Flags: map[string][]Flag{}, RunningPrograms: map[string]string{}, ProgramStartedAt: map[string]time.Time{}, GateResults: map[string]map[string]GateResult{}, Releases: map[string]*ReleaseReceipt{}, Automation: map[string]AutomationAssignment{}, MetricSamples: map[string]*MetricSample{}, ProgramOutcomes: []ProgramOutcome{}, EnvironmentChecks: map[string]EnvironmentLiveness{}, AssetPublications: map[string]string{}}
+	s := &Service{Platforms: map[string]Platform{}, Programs: map[string]Program{}, Identities: map[string]*Identity{}, Actions: map[string]*Action{}, Observations: map[string][]Observation{}, Flags: map[string][]Flag{}, RunningPrograms: map[string]string{}, ProgramStartedAt: map[string]time.Time{}, GateResults: map[string]map[string]GateResult{}, Releases: map[string]*ReleaseReceipt{}, Automation: map[string]AutomationAssignment{}, BASProfiles: map[string]BASProfileDeclaration{}, MetricSamples: map[string]*MetricSample{}, ProgramOutcomes: []ProgramOutcome{}, EnvironmentChecks: map[string]EnvironmentLiveness{}, AssetPublications: map[string]string{}, ActivityEvents: []ActivityEvent{}}
 	for _, p := range platforms {
 		if err := p.Valid(); err != nil {
 			return nil, err
@@ -449,6 +504,16 @@ func New(platforms []Platform, programs []Program) (*Service, error) {
 	return s, nil
 }
 
+// SetBASProfileDeclarations installs the non-secret, scenario-owned profile
+// declaration after descriptors load. It is configuration, never persisted
+// account state.
+func (s *Service) SetBASProfileDeclarations(profiles map[string]BASProfileDeclaration) {
+	s.BASProfiles = make(map[string]BASProfileDeclaration, len(profiles))
+	for key, profile := range profiles {
+		s.BASProfiles[key] = profile
+	}
+}
+
 func (s *Service) CreateIdentity(i Identity) error {
 	if err := i.Valid(s.Platforms); err != nil {
 		return err
@@ -459,7 +524,55 @@ func (s *Service) CreateIdentity(i Identity) error {
 	if i.Status == "" {
 		i.Status = "draft"
 	}
+	if i.Lifecycle == "" {
+		i.Lifecycle = "draft"
+	}
+	if i.AutomationMode == "" {
+		i.AutomationMode = "manual"
+	}
 	s.Identities[i.ID] = &i
+	s.appendActivity(ActivityEvent{EventType: "identity.created", OccurredAt: time.Now().UTC(), IdentityID: i.ID, ActorType: "operator", Details: map[string]string{"platform_id": i.PlatformID, "lifecycle": i.Lifecycle}})
+	return nil
+}
+
+// UpdateIdentity changes operator metadata only. Credential material remains
+// an opaque Vault reference established during identity creation.
+func (s *Service) UpdateIdentity(id string, update Identity) error {
+	current := s.Identities[id]
+	if current == nil {
+		return errors.New("identity not found")
+	}
+	if update.Purpose == "" {
+		update.Purpose = current.Purpose
+	}
+	if update.EnvironmentRef == "" {
+		update.EnvironmentRef = current.EnvironmentRef
+	}
+	if update.Lifecycle == "" {
+		update.Lifecycle = current.Lifecycle
+	}
+	if update.AutomationMode == "" {
+		update.AutomationMode = current.AutomationMode
+	}
+	if update.D009AcceptanceRef == "" {
+		update.D009AcceptanceRef = current.D009AcceptanceRef
+	}
+	update.ID, update.PlatformID, update.VaultRef, update.Status, update.LaneGrants, update.Attestations = current.ID, current.PlatformID, current.VaultRef, current.Status, current.LaneGrants, current.Attestations
+	if err := update.Valid(s.Platforms); err != nil {
+		return err
+	}
+	*current = update
+	s.appendActivity(ActivityEvent{EventType: "identity.updated", OccurredAt: time.Now().UTC(), IdentityID: id, ActorType: "operator", Details: map[string]string{"lifecycle": update.Lifecycle, "automation_mode": update.AutomationMode}})
+	return nil
+}
+
+func (s *Service) RetireIdentity(id string) error {
+	identity := s.Identities[id]
+	if identity == nil {
+		return errors.New("identity not found")
+	}
+	identity.Status, identity.Lifecycle = "retired", "retired"
+	s.appendActivity(ActivityEvent{EventType: "identity.retired", OccurredAt: time.Now().UTC(), IdentityID: id, ActorType: "operator"})
 	return nil
 }
 
@@ -487,6 +600,7 @@ func (s *Service) StartProgram(identityID, programID string) error {
 	i.Status = "warming"
 	s.RunningPrograms[identityID] = programID
 	s.ProgramStartedAt[identityID] = time.Now().UTC()
+	s.appendActivity(ActivityEvent{EventType: "program.started", OccurredAt: s.ProgramStartedAt[identityID], IdentityID: identityID, ActorType: "operator", CorrelationID: programID})
 	return nil
 }
 
@@ -629,6 +743,7 @@ func (s *Service) Enqueue(identityID, kind string, at time.Time, seed uint64, ke
 	rolled := minimum + int(mixed%span)
 	a := &Action{ID: fmt.Sprintf("act-%d", len(s.Actions)+1), IdentityID: identityID, Kind: kind, Window: window, RolledCount: rolled, Seed: seed, Status: Scheduled, IdempotencyKey: key, Deferred: deferred}
 	s.Actions[a.ID] = a
+	s.appendActivity(ActivityEvent{EventType: "action.queued", OccurredAt: at, IdentityID: identityID, ActionID: a.ID, ActorType: "operator", CorrelationID: key, Details: map[string]string{"kind": kind, "deferred": fmt.Sprintf("%t", deferred)}})
 	return a, nil
 }
 
@@ -736,17 +851,33 @@ func (s *Service) Complete(id, evidence string, at time.Time) error {
 		return err
 	}
 	a.Evidence = evidence
-	a.Executor = "manual"
+	if a.ExecutionID == "" {
+		a.Executor = "manual"
+	} else {
+		a.Executor = "manual_verification"
+	}
 	a.CompletedAt = at
+	s.appendActivity(ActivityEvent{EventType: "action.completed", OccurredAt: at, IdentityID: a.IdentityID, ActionID: a.ID, ExecutionID: a.ExecutionID, ActorType: "operator", ExecutorType: a.Executor, CorrelationID: a.IdempotencyKey, ArtifactRefs: []string{evidence}})
 	return nil
 }
 
 // AssignAutomation records one BAS session-profile reference for an identity.
 // Reassignment is explicit and scopes which action kinds an operator accepts
 // for automation; absent or disabled assignments always retain manual work.
-func (s *Service) AssignAutomation(identityID, profileRef, workflowRef string, enabledKinds []string, note string) error {
-	if s.Identities[identityID] == nil || profileRef == "" || workflowRef == "" || len(enabledKinds) == 0 {
-		return errors.New("automation assignment requires known identity, profile reference, workflow reference, and enabled action kinds")
+func (s *Service) AssignAutomation(identityID, profileKey, profileRef, workflowRef string, enabledKinds []string, note string) error {
+	if s.Identities[identityID] == nil || profileKey == "" || profileRef == "" || workflowRef == "" || len(enabledKinds) == 0 {
+		return errors.New("automation assignment requires known identity, declared profile key, profile reference, workflow reference, and enabled action kinds")
+	}
+	if _, declared := s.BASProfiles[profileKey]; !declared {
+		return fmt.Errorf("BAS profile key %q is not declared for Channel Manager", profileKey)
+	}
+	if s.Identities[identityID].D009AcceptanceRef == "" || s.Identities[identityID].AutomationMode != "operator-gated" {
+		return errors.New("browser automation requires D-009 acceptance and operator-gated mode")
+	}
+	for otherIdentityID, assignment := range s.Automation {
+		if otherIdentityID != identityID && (assignment.ProfileRef == profileRef || assignment.ProfileKey == profileKey) {
+			return errors.New("BAS profile reference or declared profile key is already bound to another identity")
+		}
 	}
 	platform := s.platformFor(s.Identities[identityID])
 	for _, kind := range enabledKinds {
@@ -754,7 +885,8 @@ func (s *Service) AssignAutomation(identityID, profileRef, workflowRef string, e
 			return fmt.Errorf("automation kind %q is not supported", kind)
 		}
 	}
-	s.Automation[identityID] = AutomationAssignment{ProfileRef: profileRef, WorkflowRef: workflowRef, EnabledKinds: append([]string(nil), enabledKinds...), OperatorNote: note}
+	s.Automation[identityID] = AutomationAssignment{ProfileKey: profileKey, ProfileRef: profileRef, WorkflowRef: workflowRef, EnabledKinds: append([]string(nil), enabledKinds...), OperatorNote: note}
+	s.appendActivity(ActivityEvent{EventType: "automation.assigned", OccurredAt: time.Now().UTC(), IdentityID: identityID, ActorType: "operator", Details: map[string]string{"profile_key": profileKey, "workflow_ref": workflowRef, "enabled_kinds": strings.Join(enabledKinds, ",")}})
 	return nil
 }
 
@@ -776,14 +908,16 @@ func (s *Service) DispatchBrowser(ctx context.Context, actionID string, dispatch
 	if a.ExecutionID != "" {
 		return a.ExecutionID, nil
 	}
-	executionID, _, err := dispatcher.Dispatch(ctx, assignment.ProfileRef, assignment.WorkflowRef, a.ID)
+	executionID, artifacts, err := dispatcher.Dispatch(ctx, assignment.ProfileRef, assignment.WorkflowRef, a.ID)
 	if err != nil {
 		a.ExecutionError = err.Error()
 		a.FailureClass = "manual_fallback"
+		s.appendActivity(ActivityEvent{EventType: "browser.dispatch_failed", OccurredAt: time.Now().UTC(), IdentityID: a.IdentityID, ActionID: a.ID, ActorType: "system", ExecutorType: "browser", CorrelationID: a.IdempotencyKey, Details: map[string]string{"failure_class": a.FailureClass}})
 		return "", err
 	}
 	a.ExecutionID = executionID
 	a.ExecutionError = ""
+	s.appendActivity(ActivityEvent{EventType: "browser.dispatched", OccurredAt: time.Now().UTC(), IdentityID: a.IdentityID, ActionID: a.ID, ExecutionID: executionID, ActorType: "operator", ExecutorType: "browser", CorrelationID: a.IdempotencyKey, ArtifactRefs: artifacts})
 	return executionID, nil
 }
 
@@ -802,6 +936,7 @@ func (s *Service) RecordExecutionFailure(actionID, code string, at time.Time) er
 		a.FailureClass = "retryable"
 		a.NextAttemptAt = at.Add(time.Duration(policy.BackoffMinutes*a.AttemptCount) * time.Minute)
 		a.Status = Scheduled
+		s.appendActivity(ActivityEvent{EventType: "action.retry_scheduled", OccurredAt: at, IdentityID: a.IdentityID, ActionID: a.ID, ExecutionID: a.ExecutionID, ActorType: "system", ExecutorType: "browser", CorrelationID: a.IdempotencyKey, Details: map[string]string{"failure_class": a.FailureClass, "attempt": fmt.Sprintf("%d", a.AttemptCount)}})
 		return nil
 	}
 	a.FailureClass = "terminal"
@@ -816,7 +951,11 @@ func (s *Service) RecordExecutionFailure(actionID, code string, at time.Time) er
 		}
 	}
 	if a.Status == Executing {
-		return s.transitionAction(a, ActionFail)
+		err := s.transitionAction(a, ActionFail)
+		if err == nil {
+			s.appendActivity(ActivityEvent{EventType: "action.failed", OccurredAt: at, IdentityID: a.IdentityID, ActionID: a.ID, ExecutionID: a.ExecutionID, ActorType: "system", ExecutorType: "browser", CorrelationID: a.IdempotencyKey, Details: map[string]string{"failure_class": a.FailureClass}})
+		}
+		return err
 	}
 	return errors.New("action cannot accept execution failure")
 }
@@ -863,6 +1002,7 @@ func (s *Service) CompleteRelease(actionID, platformPostID, publishedURL, firstC
 	for _, assetID := range receipt.AssetIDs {
 		s.AssetPublications[assetID] = receipt.IdentityID
 	}
+	s.appendActivity(ActivityEvent{EventType: "release.completed", OccurredAt: at, IdentityID: a.IdentityID, ActionID: a.ID, ReleaseID: receipt.ID, ExecutionID: a.ExecutionID, ActorType: "operator", ExecutorType: a.Executor, CorrelationID: receipt.IdempotencyKey, ArtifactRefs: []string{publishedURL}, Details: map[string]string{"status": receipt.Status, "first_comment_status": firstCommentStatus}})
 	return receipt, nil
 }
 
@@ -888,6 +1028,7 @@ func (s *Service) RecordObservation(identityID, metric string, value float64, at
 	}
 	items := append(s.Observations[identityID], Observation{metric, value, at})
 	s.Observations[identityID] = items
+	s.appendActivity(ActivityEvent{EventType: "observation.recorded", OccurredAt: at, IdentityID: identityID, ActorType: "operator", Details: map[string]string{"metric": metric}})
 	var total float64
 	var n int
 	for _, o := range items {
@@ -940,6 +1081,7 @@ func (s *Service) CheckEnvironment(ctx context.Context, identityID string, probe
 		identity.Status = "paused"
 	}
 	s.EnvironmentChecks[identityID] = record
+	s.appendActivity(ActivityEvent{EventType: "environment.checked", OccurredAt: at, IdentityID: identityID, ActorType: "system", Details: map[string]string{"status": record.Status}})
 	return record, nil
 }
 
@@ -962,6 +1104,7 @@ func (s *Service) RecordMetric(releaseID, sampleID, metric string, value float64
 	}
 	sample := &MetricSample{ID: sampleID, ReleaseID: releaseID, DraftID: receipt.DraftID, Metric: metric, Value: value, ObservedAt: observedAt, DeliveryStatus: "pending"}
 	s.MetricSamples[sampleID] = sample
+	s.appendActivity(ActivityEvent{EventType: "metric.recorded", OccurredAt: observedAt, IdentityID: receipt.IdentityID, ReleaseID: releaseID, ActorType: "operator", CorrelationID: sampleID, Details: map[string]string{"metric": metric}})
 	return sample, nil
 }
 
@@ -971,6 +1114,7 @@ func (s *Service) AcknowledgeMetric(sampleID string) error {
 		return errors.New("metric sample not found")
 	}
 	sample.DeliveryStatus = "acknowledged"
+	s.appendActivity(ActivityEvent{EventType: "metric.acknowledged", OccurredAt: time.Now().UTC(), IdentityID: "", ReleaseID: sample.ReleaseID, ActorType: "system", CorrelationID: sampleID})
 	return nil
 }
 
@@ -989,9 +1133,11 @@ func (s *Service) MarkReleaseDelivery(releaseID string, delivered bool, delivery
 	}
 	if delivered {
 		receipt.DeliveryStatus, receipt.DeliveryError = "delivered", ""
+		s.appendActivity(ActivityEvent{EventType: "release.delivery_acknowledged", OccurredAt: time.Now().UTC(), IdentityID: receipt.IdentityID, ReleaseID: receipt.ID, ActorType: "system", CorrelationID: receipt.IdempotencyKey})
 		return nil
 	}
 	receipt.DeliveryStatus, receipt.DeliveryError = "pending", deliveryErr
+	s.appendActivity(ActivityEvent{EventType: "release.delivery_pending", OccurredAt: time.Now().UTC(), IdentityID: receipt.IdentityID, ReleaseID: receipt.ID, ActorType: "system", CorrelationID: receipt.IdempotencyKey})
 	return nil
 }
 
@@ -1042,6 +1188,7 @@ func (s *Service) ReleaseWithOptions(identityID, lane, draftID, key string, opti
 	}
 	receipt := &ReleaseReceipt{ID: "rel-" + a.ID, DraftID: draftID, ActionID: a.ID, IdentityID: identityID, Lane: lane, IdempotencyKey: key, Status: "queued", FirstCommentStatus: "not_requested", AssetIDs: append([]string(nil), options.AssetIDs...), DisclosureVisible: options.DisclosureVisible, CreatedAt: at}
 	s.Releases[key] = receipt
+	s.appendActivity(ActivityEvent{EventType: "release.queued", OccurredAt: at, IdentityID: identityID, ActionID: a.ID, ReleaseID: receipt.ID, ActorType: "system", CorrelationID: key, Details: map[string]string{"draft_id": draftID, "lane": lane}})
 	return receipt, nil
 }
 
@@ -1057,6 +1204,7 @@ func (s *Service) Quarantine(identityID string) error {
 		}
 	}
 	s.appendProgramOutcome(identityID, "quarantined", time.Now().UTC())
+	s.appendActivity(ActivityEvent{EventType: "identity.quarantined", OccurredAt: time.Now().UTC(), IdentityID: identityID, ActorType: "system"})
 	return nil
 }
 

@@ -95,6 +95,34 @@
       }
     },
     {
+      "id": "validation_describe_provider",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/DescribeProvider",
+      "method": "POST",
+      "summary": "Describe this provider's identity and contract",
+      "description": "Reports provider identity, backed phase, maturity spec version, contract, build provenance, and capabilities. Inspects no target, so readiness consumers can confirm this provider is live and current without paying for a full validation run.",
+      "category": "validation",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "build": "scenario_validation.v1.ProviderBuild",
+          "capabilities": "scenario_validation.v1.ProviderCapabilities",
+          "contract": "string",
+          "phase": "string",
+          "provider": "string",
+          "spec_version": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Describe provider",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/DescribeProvider -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
       "id": "conformance_preview_fix",
       "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
       "method": "POST",
@@ -411,6 +439,99 @@
           "output_text": "string",
           "policy_reasons": "array<string>",
           "valid": "bool"
+        }
+      }
+    },
+    {
+      "id": "routing_submit_media",
+      "path": "/vrooli.ai_gateway.v1.routing.RoutingService/SubmitMedia",
+      "method": "POST",
+      "summary": "Submit asynchronous provider-neutral media work",
+      "description": "Creates a durable image or video execution receipt. The executor owns output bytes and returns only stable output references, route evidence, and terminal accounting.",
+      "category": "routing",
+      "request": {
+        "type": "SubmitMediaRequest",
+        "properties": {
+          "idempotency_key": "string",
+          "inputs": "array<MediaInput>",
+          "output_count": "int32",
+          "prompt": "string",
+          "request": "GatewayRequest"
+        }
+      },
+      "response": {
+        "type": "SubmitMediaResponse",
+        "properties": {
+          "execution": "MediaExecution"
+        }
+      }
+    },
+    {
+      "id": "routing_get_media_execution",
+      "path": "/vrooli.ai_gateway.v1.routing.RoutingService/GetMediaExecution",
+      "method": "POST",
+      "summary": "Inspect a media execution receipt",
+      "description": "Returns the durable lifecycle, route evidence, output references, and terminal accounting for one media execution.",
+      "category": "routing",
+      "request": {
+        "type": "GetMediaExecutionRequest",
+        "properties": {
+          "execution_id": "string"
+        }
+      },
+      "response": {
+        "type": "GetMediaExecutionResponse",
+        "properties": {
+          "execution": "MediaExecution"
+        }
+      }
+    },
+    {
+      "id": "routing_wait_media_execution",
+      "path": "/vrooli.ai_gateway.v1.routing.RoutingService/WaitMediaExecution",
+      "method": "POST",
+      "summary": "Wait for a durable media execution to become terminal",
+      "description": "Blocks server-side until a queued or running media receipt reaches succeeded, failed, or cancelled.",
+      "category": "routing"
+    },
+    {
+      "id": "routing_cancel_media_execution",
+      "path": "/vrooli.ai_gateway.v1.routing.RoutingService/CancelMediaExecution",
+      "method": "POST",
+      "summary": "Cancel a queued or running media execution",
+      "description": "Requests cancellation through the registered media executor and returns the updated durable receipt.",
+      "category": "routing",
+      "request": {
+        "type": "CancelMediaExecutionRequest",
+        "properties": {
+          "execution_id": "string"
+        }
+      },
+      "response": {
+        "type": "CancelMediaExecutionResponse",
+        "properties": {
+          "execution": "MediaExecution"
+        }
+      }
+    },
+    {
+      "id": "routing_retry_media_execution",
+      "path": "/vrooli.ai_gateway.v1.routing.RoutingService/RetryMediaExecution",
+      "method": "POST",
+      "summary": "Retry a terminal media execution",
+      "description": "Creates a new media receipt from a failed or cancelled execution with an explicit idempotency key.",
+      "category": "routing",
+      "request": {
+        "type": "RetryMediaExecutionRequest",
+        "properties": {
+          "execution_id": "string",
+          "idempotency_key": "string"
+        }
+      },
+      "response": {
+        "type": "RetryMediaExecutionResponse",
+        "properties": {
+          "execution": "MediaExecution"
         }
       }
     },

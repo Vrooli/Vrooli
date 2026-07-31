@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "channel-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "303ee6350d913044ab057c4834176cc23bfe02623b1d3a38c027bf168ed5a5b4",
+  "manifest_hash": "f38d496cce1df4c09bb53deca96a11441b4a71cf2ef4caa4f7316ad0023e52c2",
   "commands": [
     {
       "path": "channel assign-automation",
@@ -31,6 +31,12 @@
       "binding": "ChannelManagerService.DispatchBrowserAction"
     },
     {
+      "path": "channel edit",
+      "group": "channel",
+      "command": "edit",
+      "binding": "."
+    },
+    {
       "path": "channel observe",
       "group": "channel",
       "command": "observe",
@@ -49,9 +55,21 @@
       "binding": "."
     },
     {
+      "path": "channel retire",
+      "group": "channel",
+      "command": "retire",
+      "binding": "."
+    },
+    {
       "path": "channel start",
       "group": "channel",
       "command": "start",
+      "binding": "."
+    },
+    {
+      "path": "channel timeline",
+      "group": "channel",
+      "command": "timeline",
       "binding": "."
     }
   ]

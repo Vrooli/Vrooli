@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { i18n } from "./index";
+import { getCurrentLocale, i18n, setLocale } from "./index";
 import {
   formatCurrency,
   formatDate,
@@ -15,12 +15,25 @@ describe("locale-aware Intl formatters", () => {
     await i18n.changeLanguage("cimode");
   });
 
+	it("persists supported locale choices and applies their document direction", async () => {
+		await setLocale("ar");
+		expect(window.localStorage.getItem("vrooli.locale")).toBe("ar");
+		expect(document.documentElement.dir).toBe("rtl");
+		expect(getCurrentLocale()).toBe("ar");
+		await i18n.changeLanguage("cimode");
+		expect(getCurrentLocale()).toBe("en");
+	});
+
   describe("formatNumber", () => {
-    it("uses Intl defaults when called from cimode (pseudo-locale)", () => {
+	it("uses Intl defaults when called from cimode (pseudo-locale)", () => {
       // cimode is not a valid BCP-47 tag; the helper falls back to the
       // runtime default, so the result must at least contain the digits.
       expect(formatNumber(12345.6)).toMatch(/12.?345/);
-    });
+	});
+
+	it("falls back to the runtime locale for an empty explicit override", () => {
+		expect(formatNumber(42, undefined, "")).toMatch(/42/);
+	});
 
     it("respects an explicit locale override", () => {
       // German uses '.' as thousands separator and ',' as decimal.

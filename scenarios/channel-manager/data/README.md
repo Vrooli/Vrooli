@@ -8,13 +8,14 @@ not a build. This is the same idiom the fleet uses for search providers
 ```
 data/
   platforms/<platform>.json                 # what a platform allows
-  warming-programs/<platform>/<id>.json     # how an identity is warmed
+  warming-programs/<id>.json                # how an identity is warmed
 ```
 
-**The file is the source of truth; the SQLite table is a seeded cache.** Reseeding
-replaces rows and never duplicates. An edited descriptor is applied by reseeding,
-never by an UPDATE against the cache. A malformed descriptor fails the seed loudly —
-a silently skipped platform descriptor would remove a cadence ceiling.
+**The files are the source of truth.** Channel Manager loads only the immediate
+JSON files in `platforms/` and `warming-programs/`; nested files are unsupported.
+The SQLite state record deliberately stores accumulated operator state only, never
+a descriptor cache. A malformed descriptor fails startup loudly — a silently
+skipped platform descriptor would remove a cadence ceiling.
 
 ## Every descriptor carries provenance
 
@@ -56,7 +57,6 @@ revise and a constant nobody dares touch.
 ```bash
 channel-manager warming programs validate            # schema + cross-reference checks
 channel-manager platforms validate
-channel-manager descriptors reseed                   # replace cached rows
 ```
 
 Validation checks more than shape. A warming program naming an action kind its

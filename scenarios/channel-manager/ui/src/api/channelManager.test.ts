@@ -17,7 +17,7 @@ describe("channel-manager API", () => {
 		await completeAction("action-1", "evidence");
 		await recordObservation("identity-1", 3);
 		await previewRelease({ platform_id: "x", caption: "caption", format_kind: "image", media_width: 1200, media_height: 1200, disclosure_visible: true, first_comment: "" });
-		await assignAutomation("identity-1", { session_profile_ref: "profile-1", workflow_ref: "workflow-1", enabled_action_kinds: ["engage"], operator_note: "accepted" });
+		await assignAutomation("identity-1", { consumer_profile_key: "operator-account", session_profile_ref: "profile-1", workflow_ref: "workflow-1", enabled_action_kinds: ["engage"], operator_note: "accepted" });
 		await dispatchBrowserAction("action-1");
 		expect(fetchSpy).toHaveBeenCalledTimes(9);
 		expect(fetchSpy.mock.calls[0]![1]).toMatchObject({ method: "GET" });

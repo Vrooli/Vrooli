@@ -48,3 +48,23 @@ CREATE TABLE IF NOT EXISTS provider_health (
   updated_at TEXT NOT NULL DEFAULT '',
   PRIMARY KEY (provider, role, kind)
 );
+
+CREATE TABLE IF NOT EXISTS media_executions (
+  execution_id TEXT PRIMARY KEY,
+  idempotency_key TEXT NOT NULL UNIQUE,
+  status INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  started_at TEXT NOT NULL DEFAULT '',
+  completed_at TEXT NOT NULL DEFAULT '',
+  request_json TEXT NOT NULL,
+  route_evidence_json TEXT NOT NULL DEFAULT '',
+  outputs_json TEXT NOT NULL DEFAULT '',
+  actual_cost_usd REAL NOT NULL DEFAULT 0,
+  resolved_model TEXT NOT NULL DEFAULT '',
+  seed TEXT NOT NULL DEFAULT '',
+  warnings_json TEXT NOT NULL DEFAULT '',
+  error_code TEXT NOT NULL DEFAULT '',
+  error_message TEXT NOT NULL DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_media_executions_created_at ON media_executions(created_at DESC);

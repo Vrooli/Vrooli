@@ -106,6 +106,14 @@
       "summary": "Dispatch a durable queued action to BAS",
       "description": "",
       "category": "channel-manager"
+    },
+    {
+      "id": "channel_manager_browser_execution_review",
+      "path": "/vrooli.channel_manager.v1.channelmanager.ChannelManagerService/GetBrowserExecutionReview",
+      "method": "POST",
+      "summary": "Review bounded BAS execution status and artifact references",
+      "description": "",
+      "category": "channel-manager"
     }
   ]
 }

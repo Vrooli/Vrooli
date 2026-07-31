@@ -12,8 +12,8 @@ func TestShippedDescriptorsAreValidAndStructurallyDifferent(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if len(p) != 2 || len(w) != 2 {
-		t.Fatalf("want two platform/program descriptors, got %d/%d", len(p), len(w))
+	if len(p) != 4 || len(w) != 2 {
+		t.Fatalf("want four platform/two program descriptors, got %d/%d", len(p), len(w))
 	}
 	if _, e = New(p, w); e != nil {
 		t.Fatal(e)
@@ -21,6 +21,12 @@ func TestShippedDescriptorsAreValidAndStructurallyDifferent(t *testing.T) {
 	for _, platform := range p {
 		if len(platform.Formats) == 0 {
 			t.Fatalf("platform %q has no format constraints", platform.ID)
+		}
+		if len(platform.PostTypes) == 0 {
+			t.Fatalf("platform %q has no explicit post-type contract", platform.ID)
+		}
+		if !platform.Provenance.Valid() {
+			t.Fatalf("platform %q has no complete source provenance", platform.ID)
 		}
 	}
 	if p[0].ActionKinds[0] == p[1].ActionKinds[0] && len(p[0].ActionKinds) == len(p[1].ActionKinds) {

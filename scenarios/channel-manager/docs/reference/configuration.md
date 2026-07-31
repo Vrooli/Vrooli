@@ -93,11 +93,10 @@ collects them in order (system first, then domains alphabetical), and
 all DDL uses `CREATE TABLE IF NOT EXISTS` / `ALTER TABLE … ADD COLUMN
 IF NOT EXISTS`, so re-runs on every boot are no-ops.
 
-Adding a column lands in the same diff as the Go struct field, the
-repository scan, and the proto wire shape — single location, single
-edit. Drops/renames in production data need the brownfield
-versioned-migration helpers (`Migrate` / `MigrationProvider` in
-`api-core/database`, deferred until the first scenario hits the pain).
+Channel Manager uses one versioned JSON state document rather than a relational
+schema evolution surface. Its storage contract intentionally has no migration,
+backfill, relocation, or compatibility path: a changed state shape is a new
+greenfield contract and must be validated as such.
 
 See [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#domain-owned-schema)
 for the design rationale and [`../internal/SEAMS.md`](../internal/SEAMS.md)

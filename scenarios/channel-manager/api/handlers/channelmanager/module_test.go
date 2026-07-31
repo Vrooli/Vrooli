@@ -52,6 +52,19 @@ func (b browserStub) Dispatch(context.Context, string, string, string) (string, 
 	return b.id, nil, b.err
 }
 
+type inspectingBrowserStub struct {
+	browserStub
+	review core.BrowserExecution
+	err    error
+}
+
+func (b inspectingBrowserStub) Inspect(_ context.Context, executionID string) (core.BrowserExecution, error) {
+	if b.review.ExecutionID == "" {
+		b.review.ExecutionID = executionID
+	}
+	return b.review, b.err
+}
+
 func (d *deliveryStub) DeliverRelease(_ context.Context, outcome contentdesk.ReleaseOutcome) error {
 	d.release = outcome
 	return d.err
@@ -68,7 +81,8 @@ func TestEligibilityAndReleaseOverConnect(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = service.CreateIdentity(core.Identity{ID: "active", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", LaneGrants: []string{"main"}, Status: "active"}); err != nil {
+	service.SetBASProfileDeclarations(map[string]core.BASProfileDeclaration{"operator-account": {Key: "operator-account", WorkflowRef: "declared-workflow"}})
+	if err = service.CreateIdentity(core.Identity{ID: "active", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", LaneGrants: []string{"main"}, Status: "active", D009AcceptanceRef: "D-009/synthetic", AutomationMode: "operator-gated"}); err != nil {
 		t.Fatal(err)
 	}
 	db, err := sql.Open("sqlite", "file:connect-release?mode=memory&cache=shared")
@@ -105,7 +119,7 @@ func TestSubmitReleaseFailsClosedWhenAssetVerificationCannotBeProven(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = service.CreateIdentity(core.Identity{ID: "active", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", LaneGrants: []string{"main"}, Status: "active"}); err != nil {
+	if err = service.CreateIdentity(core.Identity{ID: "active", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", LaneGrants: []string{"main"}, Status: "active", D009AcceptanceRef: "D-009/synthetic", AutomationMode: "operator-gated"}); err != nil {
 		t.Fatal(err)
 	}
 	db, err := sql.Open("sqlite", "file:asset-release?mode=memory&cache=shared")
@@ -182,6 +196,95 @@ func TestManualWorkflowOverHTTP(t *testing.T) {
 	overview := call(http.MethodGet, "/api/v1/channel-manager/overview", nil)
 	if overview.Code != http.StatusOK || !strings.Contains(overview.Body.String(), "x-1") {
 		t.Fatalf("overview=%d %s", overview.Code, overview.Body.String())
+	}
+}
+
+func TestIdentityMetadataUpdateAndRetirementOverHTTP(t *testing.T) {
+	service, err := core.New([]core.Platform{{ID: "x", DailyCeiling: 2, ActionKinds: []string{"engage"}, Formats: testFormats()}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = service.CreateIdentity(core.Identity{ID: "identity", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", VaultRef: "vault://identity", Status: "active"}); err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("sqlite", "file:identity-lifecycle?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err = db.Exec(core.Schema()); err != nil {
+		t.Fatal(err)
+	}
+	router := mux.NewRouter()
+	Module(service, core.NewStore(db)).Mount(router)
+	call := func(method, path string, body any) *httptest.ResponseRecorder {
+		raw, _ := json.Marshal(body)
+		request := httptest.NewRequest(method, path, bytes.NewReader(raw))
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		return response
+	}
+	update := call(http.MethodPut, "/api/v1/channel-manager/identities/identity", map[string]any{"handle": "@brand", "display_label": "Brand account", "purpose": "brand", "environment_ref": "env", "lifecycle": "active", "d009_acceptance_ref": "D-009/test", "automation_mode": "operator-gated"})
+	if update.Code != http.StatusOK || service.Identities["identity"].DisplayLabel != "Brand account" || service.Identities["identity"].VaultRef != "vault://identity" {
+		t.Fatalf("update=%d identity=%+v", update.Code, service.Identities["identity"])
+	}
+	retire := call(http.MethodPost, "/api/v1/channel-manager/identities/identity/retire", map[string]any{})
+	if retire.Code != http.StatusOK || service.Identities["identity"].Status != "retired" {
+		t.Fatalf("retire=%d identity=%+v", retire.Code, service.Identities["identity"])
+	}
+}
+
+func TestConnectOverviewDoesNotExposeVaultReference(t *testing.T) {
+	service, err := core.New([]core.Platform{{ID: "x", DailyCeiling: 2, ActionKinds: []string{"engage"}, Formats: testFormats()}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = service.CreateIdentity(core.Identity{ID: "identity", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", VaultRef: "vault://private/path", Status: "active", DisplayLabel: "Safe label"}); err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("sqlite", "file:identity-overview?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err = db.Exec(core.Schema()); err != nil {
+		t.Fatal(err)
+	}
+	router := mux.NewRouter()
+	Module(service, core.NewStore(db)).Mount(router)
+	server := httptest.NewServer(router)
+	defer server.Close()
+	response, err := channelmanagerconnect.NewChannelManagerServiceClient(http.DefaultClient, server.URL).GetOverview(t.Context(), connect.NewRequest(&channelmanagerv1.GetOverviewRequest{}))
+	if err != nil || len(response.Msg.Identities) != 1 {
+		t.Fatalf("overview=%v err=%v", response, err)
+	}
+	if got := response.Msg.Identities[0]; got.VaultRef != "" || got.DisplayLabel != "Safe label" {
+		t.Fatalf("identity=%+v", got)
+	}
+}
+
+func TestRESTOverviewDoesNotExposeVaultReference(t *testing.T) {
+	service, err := core.New([]core.Platform{{ID: "x", DailyCeiling: 2, ActionKinds: []string{"engage"}, Formats: testFormats()}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = service.CreateIdentity(core.Identity{ID: "identity", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", VaultRef: "vault://private/path", Status: "active"}); err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("sqlite", "file:identity-rest-overview?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err = db.Exec(core.Schema()); err != nil {
+		t.Fatal(err)
+	}
+	router := mux.NewRouter()
+	Module(service, core.NewStore(db)).Mount(router)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/channel-manager/overview", nil))
+	if response.Code != http.StatusOK || strings.Contains(response.Body.String(), "vault://private/path") {
+		t.Fatalf("overview=%d %s", response.Code, response.Body.String())
 	}
 }
 
@@ -267,7 +370,8 @@ func TestBrowserAutomationOverConnect(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = service.CreateIdentity(core.Identity{ID: "active", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", LaneGrants: []string{"main"}, Status: "active"}); err != nil {
+	service.SetBASProfileDeclarations(map[string]core.BASProfileDeclaration{"operator-account": {Key: "operator-account", WorkflowRef: "declared-workflow"}})
+	if err = service.CreateIdentity(core.Identity{ID: "active", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", LaneGrants: []string{"main"}, Status: "active", D009AcceptanceRef: "D-009/synthetic", AutomationMode: "operator-gated"}); err != nil {
 		t.Fatal(err)
 	}
 	action, err := service.Enqueue("active", "engage", time.Now().UTC(), 1, "browser-action")
@@ -287,12 +391,56 @@ func TestBrowserAutomationOverConnect(t *testing.T) {
 	server := httptest.NewServer(router)
 	defer server.Close()
 	client := channelmanagerconnect.NewChannelManagerServiceClient(http.DefaultClient, server.URL)
-	if _, err = client.AssignAutomation(t.Context(), connect.NewRequest(&channelmanagerv1.AssignAutomationRequest{IdentityId: "active", SessionProfileRef: "profile-active", WorkflowRef: "workflow-active", EnabledActionKinds: []string{"engage"}, OperatorNote: "synthetic acceptance"})); err != nil {
+	if _, err = client.AssignAutomation(t.Context(), connect.NewRequest(&channelmanagerv1.AssignAutomationRequest{IdentityId: "active", ConsumerProfileKey: "operator-account", SessionProfileRef: "profile-active", WorkflowRef: "workflow-active", EnabledActionKinds: []string{"engage"}, OperatorNote: "synthetic acceptance"})); err != nil {
 		t.Fatal(err)
 	}
 	dispatch, err := client.DispatchBrowserAction(t.Context(), connect.NewRequest(&channelmanagerv1.DispatchBrowserActionRequest{ActionId: action.ID}))
 	if err != nil || dispatch.Msg.ExecutionId != "bas-execution-1" {
 		t.Fatalf("dispatch=%v err=%v", dispatch, err)
+	}
+}
+
+// [REQ:CHANMGR-P1-001] BAS review uses the generic execution/evidence
+// boundary and cannot promote browser completion into platform completion.
+func TestBrowserExecutionReviewOverHTTP(t *testing.T) {
+	service, err := core.New([]core.Platform{{ID: "x", DailyCeiling: 3, ActionKinds: []string{"engage"}, Formats: testFormats()}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service.SetBASProfileDeclarations(map[string]core.BASProfileDeclaration{"operator-account": {Key: "operator-account", WorkflowRef: "declared-workflow"}})
+	if err = service.CreateIdentity(core.Identity{ID: "active", PlatformID: "x", Purpose: "brand", EnvironmentRef: "env", Status: "active", D009AcceptanceRef: "D-009/synthetic", AutomationMode: "operator-gated"}); err != nil {
+		t.Fatal(err)
+	}
+	if err = service.AssignAutomation("active", "operator-account", "profile-active", "workflow-active", []string{"engage"}, "synthetic acceptance"); err != nil {
+		t.Fatal(err)
+	}
+	action, err := service.Enqueue("active", "engage", time.Now().UTC(), 1, "browser-review")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("sqlite", "file:browser-review?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err = db.Exec(core.Schema()); err != nil {
+		t.Fatal(err)
+	}
+	browser := inspectingBrowserStub{browserStub: browserStub{id: "bas-execution-review"}, review: core.BrowserExecution{Status: "execution_status_completed", ArtifactRefs: []string{"artifact-safe"}}}
+	router := mux.NewRouter()
+	moduleWithDependencies(service, core.NewStore(db), nil, browser).Mount(router)
+	if _, err = service.DispatchBrowser(t.Context(), action.ID, browser); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(router)
+	defer server.Close()
+	client := channelmanagerconnect.NewChannelManagerServiceClient(http.DefaultClient, server.URL)
+	review, err := client.GetBrowserExecutionReview(t.Context(), connect.NewRequest(&channelmanagerv1.GetBrowserExecutionReviewRequest{ActionId: action.ID}))
+	if err != nil || review.Msg.GetStatus() != "execution_status_completed" || len(review.Msg.GetArtifactRefs()) != 1 {
+		t.Fatalf("review=%v err=%v", review, err)
+	}
+	if action.Status == core.Succeeded {
+		t.Fatal("browser review must not mark a platform action complete")
 	}
 }
 

@@ -118,6 +118,36 @@ the Vault resource/operator.
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.
+
+### 2026-07-29 — comprehensive validation is not yet a green acceptance gate
+
+**Symptom:** Product-focused API, CLI, UI, storage, and formal-flow validation
+passes, and the refreshed Channel Manager comprehensive run is green. BAS's own
+comprehensive run still fails across pre-existing broad health phases, so the Git
+Control Tower collection cannot terminalize a final comparison that includes both
+scenarios.
+
+**Root cause:** These maturity findings predate the account-operation hardening
+work and span template shape, documentation hygiene, architecture declarations,
+and BAS-owned validation infrastructure rather than the bounded Channel Manager ↔
+BAS contract.
+
+**Workaround:** Use the passing Channel Manager comprehensive and focused
+validations for this capability, preserve the BAS and Git Control Tower run IDs in
+the Plan Manager log, and do not claim a collection-wide green baseline or a live
+platform acceptance.
+
+**Real fix:** Resolve the scenario-wide validation debt in its owning workstreams,
+then recapture the baseline collection and rerun both comprehensive suites.
+
+**Owner:** Channel Manager and BAS maintainers, split by each finding's source.
+
+**Refs:** Test Genie `channel-manager/20260729-161851-88f8ca37` (20/20 phases
+passed after the documentation-contract repair), Test Genie
+`browser-automation-studio/20260729-162243-10ef07c5` (11/19 phases passed; the
+same broad BAS maturity debt remains), and Git Control Tower
+collection `channel-manager-bas-account-operations-hardening-baseline` operation
+`phase8-final-cm-20260729` (non-comparable applicability mismatch).
 Do not create a standalone architecture-audit report unless the work is
 a migration handoff with a planned retirement path back into
 `ARCHITECTURE.md`, `SEAMS.md`, or this file.

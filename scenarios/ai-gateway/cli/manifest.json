@@ -636,6 +636,55 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "media-submit",
+          "description": "Submit a provider-neutral asynchronous image or video request",
+          "flags": [
+            {"name":"kind","required":true,"description":"Media kind: image or video"},
+            {"name":"role","required":true,"description":"Provider-neutral media policy role"},
+            {"name":"prompt","required":true,"description":"Media prompt sent in request body"},
+            {"name":"output-count","default":"1","description":"Number of requested outputs"},
+            {"name":"idempotency-key","required":true,"description":"Caller retry key"},
+            {"name":"profile","default":"local-first","description":"Routing profile"},
+            {"name":"privacy","default":"internal","description":"Privacy class"},
+            {"name":"operation","description":"Caller operation label"},
+            {"name":"scenario","description":"Caller scenario slug"},
+            {"name":"timeout-ms","description":"Optional execution timeout"},
+            {"name":"max-cost-usd","description":"Optional maximum cost"},
+            {"name":"request-id","description":"Optional caller request id"}
+          ],
+          "binding":{"kind":"connect-rpc","service":"RoutingService","method":"SubmitMedia"},
+          "governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"],"requires_confirmation":true}
+        },
+        {
+          "name":"media-show",
+          "description":"Show one durable media execution receipt",
+          "positionals":[{"name":"execution-id","required":true,"description":"Media execution identifier"}],
+          "binding":{"kind":"connect-rpc","service":"RoutingService","method":"GetMediaExecution"},
+          "governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}
+        },
+        {
+          "name":"media-wait",
+          "description":"Block once until a media receipt reaches a terminal state",
+          "positionals":[{"name":"execution-id","required":true,"description":"Media execution identifier"}],
+          "binding":{"kind":"connect-rpc","service":"RoutingService","method":"WaitMediaExecution"},
+          "governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}
+        },
+        {
+          "name":"media-cancel",
+          "description":"Cancel a queued or running media execution",
+          "positionals":[{"name":"execution-id","required":true,"description":"Media execution identifier"}],
+          "binding":{"kind":"connect-rpc","service":"RoutingService","method":"CancelMediaExecution"},
+          "governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"],"requires_confirmation":true}
+        },
+        {
+          "name":"media-retry",
+          "description":"Retry a terminal media execution with a new idempotency key",
+          "positionals":[{"name":"execution-id","required":true,"description":"Media execution identifier"}],
+          "flags":[{"name":"idempotency-key","required":true,"description":"New caller retry key"}],
+          "binding":{"kind":"connect-rpc","service":"RoutingService","method":"RetryMediaExecution"},
+          "governance":{"effect":"write","run_eligible":true,"permissions":["network:internal"],"requires_confirmation":true}
         }
       ]
     },
@@ -675,6 +724,12 @@
       "name": "validation",
       "description": "Exercise AI Gateway's shared Test Genie validation provider contract",
       "commands": [
+        {
+          "name": "describe-provider",
+          "description": "Describe AI Gateway's shared validation provider capabilities",
+          "binding": {"kind":"connect-rpc","service":"ScenarioValidationService","method":"DescribeProvider"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]}
+        },
         {
           "name": "validate",
           "description": "Run the shared ScenarioValidationService AI conformance validation",
