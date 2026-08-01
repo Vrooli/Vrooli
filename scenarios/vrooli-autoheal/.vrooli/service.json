@@ -116,7 +116,7 @@
         {
           "name": "build-loop",
           "run": "cd cli/loop && go build -o ../vrooli-autoheal-loop.new . && sync -f ../vrooli-autoheal-loop.new && mv -f ../vrooli-autoheal-loop.new ../vrooli-autoheal-loop && sync -f ../vrooli-autoheal-loop",
-          "description": "Compile cross-platform Go loop binary for watchdog. Atomic install (write .new, sync, rename, sync) mirrors root Makefile atomic_install — prevents zero-byte stub on crash mid-write."
+          "description": "Compile cross-platform Go loop binary for watchdog. Atomic install (write .new, sync, rename, sync) mirrors root Makefile atomic_install \u2014 prevents zero-byte stub on crash mid-write."
         },
         {
           "name": "install-ui-deps",
@@ -233,6 +233,62 @@
     },
     "source_build": {
       "kind": "go_module"
+    }
+  },
+  "retention": {
+    "budgets": {
+      "system_events": {
+        "target": {
+          "kind": "sqlite_table",
+          "class": "data",
+          "database": "autoheal.sqlite",
+          "table": "system_events",
+          "time_column": "occurred_at"
+        },
+        "max_age": "30d",
+        "max_bytes": "2GiB",
+        "pruner": "builtin",
+        "rationale": "Host journal ingest. Volume is driven by host conditions Vrooli does not control - an AMDGPU driver fault emitted roughly 1000 lines per second for 17 days, producing 846M rows and 453 GB while the 30d horizon correctly deleted nothing. The byte ceiling is the real bound; the horizon alone is not one. 2GiB is an operator-approved starting figure, not a measured optimum - revisit once normal ingest volume is visible."
+      },
+      "health_results": {
+        "target": {
+          "kind": "sqlite_table",
+          "class": "data",
+          "database": "autoheal.sqlite",
+          "table": "health_results",
+          "time_column": "created_at"
+        },
+        "max_age": "30d",
+        "pruner": "builtin",
+        "rationale": "One row per health check per tick, and measured as the LARGEST table in this database: 12.2 GiB against system_events' 0.86 GiB after the 2026-07-31 remediation. An age bound alone was not a bound here either - the same failure this plan exists to fix, one table over. Each budget's ceiling applies to its own table and indexes.",
+        "max_bytes": "2GiB"
+      },
+      "host_inventory_snapshots": {
+        "target": {
+          "kind": "sqlite_table",
+          "class": "data",
+          "database": "autoheal.sqlite",
+          "table": "host_inventory_snapshots",
+          "time_column": "collected_at"
+        },
+        "max_age": "90d",
+        "pruner": "builtin",
+        "rationale": "Full host inventory documents, written only when the fingerprint changes. Measured at 1.7 GiB, so the 90d horizon alone was already letting it drift; the ceiling bounds it.",
+        "max_bytes": "1GiB"
+      },
+      "incident_observations": {
+        "target": {
+          "kind": "sqlite_table",
+          "class": "data",
+          "database": "autoheal.sqlite",
+          "table": "incident_observations",
+          "time_column": "observed_at"
+        },
+        "max_age": "90d",
+        "pruner": "builtin",
+        "rationale": "Incident forensics: one row per open incident per source check, throttled to a 30-minute quiet window unless the evidence changes. It had NO deletion path of any kind - no DELETE statement anywhere in the scenario and no ON DELETE CASCADE, so closing an incident never freed its observations and the table only ever grew. Measured at 0.249 GiB over 50 days (12,117 rows averaging 21 KB of evidence_json each, one incident alone holding 2,317), which is ~1 GiB/year at a healthy baseline. The rate is not the reason for the ceiling: growth scales with how many incidents are open, so it is fastest exactly when the fleet is broken and autoheal matters most. 90d keeps forensics across a full quarter of incident history; 512MiB is the bound for when that assumption stops holding.",
+        "max_bytes": "512MiB"
+      }
     }
   }
 }

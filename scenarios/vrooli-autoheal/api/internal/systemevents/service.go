@@ -16,14 +16,11 @@ import (
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
-const DefaultRetention = 30 * 24 * time.Hour
-
 type Store interface {
 	UpsertSystemEvents(ctx context.Context, events []Event) (inserted int, deduped int, err error)
 	UpsertSystemEventSource(ctx context.Context, source SourceStatus) error
 	ListSystemEvents(ctx context.Context, filters Filters) (*Response, error)
 	GetSystemEventSources(ctx context.Context) ([]SourceStatus, error)
-	CleanupOldSystemEvents(ctx context.Context, before time.Time) (int64, error)
 	CursorStore
 }
 
@@ -52,7 +49,6 @@ type Service struct {
 	store      Store
 	collectors []Collector
 	now        func() time.Time
-	retention  time.Duration
 
 	// interval gates IngestIfDue (the tick path). lastIngest is the last time
 	// an ingest actually ran. mu guards lastIngest against the (rare) concurrent
@@ -68,9 +64,8 @@ func NewService(store Store, plat *platform.Capabilities) *Service {
 		collectors: []Collector{
 			NewHostCollectorWithCursors(plat, checks.DefaultExecutor, journal.NewReader(checks.DefaultExecutor), store),
 		},
-		now:       func() time.Time { return time.Now().UTC() },
-		retention: DefaultRetention,
-		interval:  DefaultIngestInterval,
+		now:      func() time.Time { return time.Now().UTC() },
+		interval: DefaultIngestInterval,
 	}
 }
 
@@ -78,7 +73,7 @@ func NewServiceWithCollectors(store Store, collectors []Collector, now func() ti
 	if now == nil {
 		now = func() time.Time { return time.Now().UTC() }
 	}
-	return &Service{store: store, collectors: collectors, now: now, retention: DefaultRetention, interval: DefaultIngestInterval}
+	return &Service{store: store, collectors: collectors, now: now, interval: DefaultIngestInterval}
 }
 
 // SetIngestInterval overrides the tick-path ingest throttle, clamped to
@@ -167,9 +162,6 @@ func (s *Service) Ingest(ctx context.Context) (*IngestSummary, error) {
 		if err := s.store.UpsertSystemEventSource(ctx, status); err != nil {
 			return nil, err
 		}
-	}
-	if s.retention > 0 {
-		_, _ = s.store.CleanupOldSystemEvents(ctx, start.Add(-s.retention))
 	}
 	s.mu.Lock()
 	s.lastIngest = s.now()

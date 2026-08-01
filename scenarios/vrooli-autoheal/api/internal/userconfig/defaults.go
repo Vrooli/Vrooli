@@ -176,8 +176,13 @@ var KnownCheckDefaults = map[string]CheckDefaults{
 
 	// System checks
 	"system-disk": {
-		Enabled:         true,
-		AutoHeal:        false, // Can't auto-heal disk space
+		Enabled: true,
+		// Disk pressure IS auto-healable: the request-cleanup action reports
+		// to cleanup-manager, which reclaims safe-tier space unattended and
+		// refuses anything above safe tier. This was previously false with the
+		// comment "Can't auto-heal disk space", which is why the 2026-07-31
+		// host filled to 100 percent overnight with nobody awake to act.
+		AutoHeal:        true,
 		AutoHealOn:      "critical",
 		IntervalSeconds: 120,
 		Thresholds: &Thresholds{

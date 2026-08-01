@@ -40,6 +40,12 @@ type DefaultCheckFactory struct {
 	criticalScenarios      []string
 	nonCriticalScenarios   []string
 	resources              []string
+
+	// diskConfig carries the resolved system-disk configuration so the check
+	// is built from the same values the configuration surface reports. A zero
+	// value means "use the check's own defaults", which are read from
+	// userconfig anyway.
+	diskConfig userconfig.CheckConfig
 }
 
 // NewDefaultCheckFactory creates a factory with standard configuration.
@@ -72,6 +78,8 @@ func NewCheckFactoryFromConfigManager(mgr *userconfig.Manager) *DefaultCheckFact
 	if cloudflaredCfg.Settings.TunnelTestURL != "" {
 		factory.cloudflaredExternalURL = cloudflaredCfg.Settings.TunnelTestURL
 	}
+
+	factory.diskConfig = mgr.GetCheck("system-disk")
 
 	return factory
 }
@@ -139,10 +147,33 @@ func (f *DefaultCheckFactory) CreateInfrastructureChecks(caps *platform.Capabili
 	}
 }
 
+// diskCheckOptions translates the resolved system-disk configuration into
+// check options. The interval matters most: the registry schedules from
+// Check.IntervalSeconds(), so a configured interval that never reaches the
+// check is a setting the operator can change with no effect.
+func (f *DefaultCheckFactory) diskCheckOptions() []system.DiskCheckOption {
+	cfg := f.diskConfig
+	var opts []system.DiskCheckOption
+
+	if cfg.IntervalSeconds > 0 {
+		opts = append(opts, system.WithDiskInterval(cfg.IntervalSeconds))
+	}
+	if len(cfg.Thresholds.Partitions) > 0 {
+		opts = append(opts, system.WithPartitions(cfg.Thresholds.Partitions))
+	}
+	if cfg.Thresholds.WarningPercent != nil && cfg.Thresholds.CriticalPercent != nil {
+		opts = append(opts, system.WithDiskThresholds(
+			int(*cfg.Thresholds.WarningPercent),
+			int(*cfg.Thresholds.CriticalPercent),
+		))
+	}
+	return opts
+}
+
 // CreateSystemChecks creates all system checks
 func (f *DefaultCheckFactory) CreateSystemChecks() []checks.Check {
 	systemChecks := []checks.Check{
-		system.NewDiskCheck(),
+		system.NewDiskCheck(f.diskCheckOptions()...),
 		system.NewInodeCheck(),
 		system.NewSwapCheck(),
 		system.NewMemoryCheck(), // RAM usage monitoring

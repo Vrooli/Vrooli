@@ -7,6 +7,7 @@ import (
 	"vrooli-autoheal/cli/domains/host"
 	"vrooli-autoheal/cli/domains/incidents"
 	"vrooli-autoheal/cli/domains/monitoring"
+	"vrooli-autoheal/cli/domains/retention"
 	"vrooli-autoheal/cli/domains/timeline"
 	"vrooli-autoheal/cli/internal/support"
 
@@ -28,6 +29,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp, _ support.Dependencies) []cliapp
 		host.Register(core),
 		incidents.Register(core),
 		monitoring.Register(core),
+		retention.Register(core),
 		timeline.Register(core),
 	}
 }

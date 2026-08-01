@@ -14,7 +14,10 @@ import (
 
 // mockStore implements StoreInterface for testing.
 type mockStore struct {
-	pingErr          error
+	pingErr error
+	// pingDelay simulates a database that is reachable but slow, which is what
+	// a live retention cycle looks like from the health probe.
+	pingDelay        time.Duration
 	saveErr          error
 	recentResults    []checks.Result
 	recentErr        error
@@ -46,6 +49,13 @@ func (m *mockStore) PruneOperationalHistory(_ context.Context, before time.Time,
 }
 
 func (m *mockStore) Ping(ctx context.Context) error {
+	if m.pingDelay > 0 {
+		select {
+		case <-time.After(m.pingDelay):
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 	return m.pingErr
 }
 
@@ -144,10 +154,6 @@ func (m *mockStore) ListSystemEvents(ctx context.Context, filters systemevents.F
 
 func (m *mockStore) GetSystemEventSources(ctx context.Context) ([]systemevents.SourceStatus, error) {
 	return []systemevents.SourceStatus{}, nil
-}
-
-func (m *mockStore) CleanupOldSystemEvents(ctx context.Context, before time.Time) (int64, error) {
-	return 0, nil
 }
 
 func (m *mockStore) SaveHostInventorySnapshot(ctx context.Context, inv hostinventory.HostInventory) (*hostinventory.SnapshotRecord, []hostinventory.Change, error) {

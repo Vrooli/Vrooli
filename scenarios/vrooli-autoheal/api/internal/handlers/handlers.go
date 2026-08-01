@@ -6,6 +6,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -28,6 +29,16 @@ import (
 const (
 	statusFreshnessThreshold = 3 * time.Minute
 	healthDependencyTimeout  = 150 * time.Millisecond
+	// healthDependencyConfirm is the second, longer probe a timed-out first
+	// probe escalates to before the database is called unreachable.
+	//
+	// 150ms is a latency budget, not a liveness test, and conflating the two is
+	// what turned a working retention cycle into an outage: every probe during
+	// the cycle expired against a busy connection pool, /health reported the
+	// database disconnected, and the supervisor restarted an API whose database
+	// was fine. A probe that has to distinguish "slow" from "gone" must be
+	// willing to wait longer than the fast path before it accuses anything.
+	healthDependencyConfirm = 5 * time.Second
 )
 
 // StoreInterface defines the database operations needed by handlers
@@ -44,7 +55,6 @@ type StoreInterface interface {
 	UpsertSystemEventSource(ctx context.Context, source systemevents.SourceStatus) error
 	ListSystemEvents(ctx context.Context, filters systemevents.Filters) (*systemevents.Response, error)
 	GetSystemEventSources(ctx context.Context) ([]systemevents.SourceStatus, error)
-	CleanupOldSystemEvents(ctx context.Context, before time.Time) (int64, error)
 	SaveHostInventorySnapshot(ctx context.Context, inv hostinventory.HostInventory) (*hostinventory.SnapshotRecord, []hostinventory.Change, error)
 	GetLatestHostInventorySnapshot(ctx context.Context) (*hostinventory.SnapshotRecord, error)
 	GetRecentHostInventoryChanges(ctx context.Context, limit int) ([]hostinventory.Change, error)
@@ -160,6 +170,21 @@ func (h *Handlers) SetHistoryRetentionHoursProvider(provider func() int) {
 	h.historyRetentionHours = provider
 }
 
+// pruneOperationalHistory is the scenario's own pre-framework retention pass.
+//
+// It is NO LONGER CALLED FROM THE TICK, and that is deliberate. Until
+// 2026-08-01 this ran on the tick path at the same time as the framework
+// retention engine declared in .vrooli/service.json — two independent cleanup
+// systems, on the same tables, through the same one-connection pool, each
+// unaware of the other. The framework engine is the one with byte ceilings,
+// batching, a wall-clock allowance, and findings; this one has an hour timer and
+// an age cutoff, and its only remaining effect was to add write contention to
+// the path the ceilings were already covering.
+//
+// It is kept, unwired, because it is still reachable from the operator retention
+// command and remains the right tool there: an explicit, immediate, age-only
+// prune with no schedule attached. Anything that wires it back into the tick is
+// reintroducing the second system.
 func (h *Handlers) pruneOperationalHistory(ctx context.Context) {
 	if h.historyRetentionHours == nil || !h.lastRetentionAt.IsZero() && time.Since(h.lastRetentionAt) < time.Hour {
 		return
@@ -194,14 +219,20 @@ func (h *Handlers) pruneOperationalHistory(ctx context.Context) {
 // "cannot unmarshal string into Go struct field Response.dependencies".
 func (h *Handlers) Health(w http.ResponseWriter, r *http.Request) {
 	status := "healthy"
-	pingErr := h.pingStoreForHealth()
+	busy, pingErr := h.pingStoreForHealth()
 	dbDependency := map[string]interface{}{
 		"connected": pingErr == nil,
 		"database":  "sqlite",
 	}
-	if pingErr != nil {
+	switch {
+	case pingErr != nil:
 		status = "unhealthy"
 		dbDependency["error"] = pingErr.Error()
+	case busy:
+		// Connected, answering, and slow. Readiness stays true: the service can
+		// serve, and the one thing that must not happen is a supervisor reading
+		// contention as death and restarting into the same contention.
+		dbDependency["busy"] = true
 	}
 
 	response := map[string]interface{}{
@@ -221,8 +252,41 @@ func (h *Handlers) Health(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handlers) pingStoreForHealth() error {
-	ctx, cancel := context.WithTimeout(context.Background(), healthDependencyTimeout)
+// pingStoreForHealth probes the database and reports whether it is reachable and
+// whether it is merely busy.
+//
+// The two are different facts and the caller must not collapse them. A busy
+// database is a healthy database under load — maintenance holding the write
+// lock, a slow query ahead in the queue — and reporting it as a failed
+// dependency invites whatever is watching to restart a process that has nothing
+// wrong with it. That is not hypothetical: it is what happened on 2026-08-01,
+// and the restart aborted the retention cycle that would have ended the load.
+//
+// So a timed-out fast probe escalates rather than concludes. Only a probe that
+// fails outright, or that cannot complete even with seconds to work in, is
+// reported as unreachable.
+func (h *Handlers) pingStoreForHealth() (busy bool, err error) {
+	if err := h.pingStoreWithin(healthDependencyTimeout); err == nil {
+		return false, nil
+	} else if !errors.Is(err, context.DeadlineExceeded) {
+		// A real error from the driver is an answer, and a fast one. Only a
+		// timeout is ambiguous enough to be worth a second probe.
+		return false, err
+	}
+
+	if err := h.pingStoreWithin(healthDependencyConfirm); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// pingStoreWithin runs one probe under its own deadline.
+//
+// The probe runs on its own goroutine because a driver that is blocked on a lock
+// may not observe context cancellation promptly, and the health handler must
+// return within its budget regardless of what the driver does.
+func (h *Handlers) pingStoreWithin(timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	done := make(chan error, 1)
@@ -363,7 +427,6 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 	}
 	h.upsertIncidentsFromInventoryChanges(ctx, inventoryChanges)
 	h.refreshSystemEvents(ctx)
-	h.pruneOperationalHistory(ctx)
 
 	// Run auto-heal for critical checks with auto-heal enabled
 	// [REQ:CONFIG-CHECK-001] [REQ:HEAL-ACTION-001]

@@ -26,9 +26,6 @@ func (f *fakeStore) ListSystemEvents(_ context.Context, _ Filters) (*Response, e
 	return &Response{}, nil
 }
 func (f *fakeStore) GetSystemEventSources(_ context.Context) ([]SourceStatus, error) { return nil, nil }
-func (f *fakeStore) CleanupOldSystemEvents(_ context.Context, _ time.Time) (int64, error) {
-	return 0, nil
-}
 
 // countingCollector records how many times Collect runs and exposes an
 // ExecsAvoided count for the observability assertion.

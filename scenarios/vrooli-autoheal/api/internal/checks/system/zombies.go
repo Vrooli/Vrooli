@@ -8,7 +8,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
@@ -264,7 +263,7 @@ func (c *ZombieCheck) executeReap(ctx context.Context, start time.Time) checks.A
 		if ppid <= 1 {
 			continue // Never signal init
 		}
-		if err := syscall.Kill(ppid, syscall.SIGCHLD); err != nil {
+		if err := signalChild(ppid); err != nil {
 			failed = append(failed, ppid)
 		} else {
 			signaled = append(signaled, ppid)

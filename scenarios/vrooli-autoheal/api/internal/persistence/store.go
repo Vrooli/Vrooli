@@ -197,10 +197,6 @@ func (s *Store) GetSystemEventSources(ctx context.Context) ([]systemevents.Sourc
 	return s.getSystemEventSourcesSQLite(ctx)
 }
 
-func (s *Store) CleanupOldSystemEvents(ctx context.Context, before time.Time) (int64, error) {
-	return s.cleanupOldSystemEventsSQLite(ctx, before)
-}
-
 // GetJournalCursor returns the persisted incremental-ingest cursor for the
 // given logical source key (empty state if none recorded).
 func (s *Store) GetJournalCursor(ctx context.Context, sourceKey string) (systemevents.CursorState, error) {

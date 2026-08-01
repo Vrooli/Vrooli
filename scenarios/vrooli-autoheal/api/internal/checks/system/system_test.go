@@ -6,6 +6,7 @@ import (
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/userconfig"
 )
 
 func TestDiskCheck_Interface(t *testing.T) {
@@ -374,7 +375,8 @@ func TestDiskCheck_WithMockReader(t *testing.T) {
 		reader := &mockFSReader{
 			statfsResult: &checks.StatfsResult{
 				Blocks: 1000000,
-				Bfree:  500000,
+				Bfree:  550000,
+				Bavail: 500000,
 				Bsize:  4096,
 			},
 		}
@@ -385,7 +387,7 @@ func TestDiskCheck_WithMockReader(t *testing.T) {
 
 		result := c.Run(context.Background())
 		if result.Status != checks.StatusOK {
-			t.Errorf("expected OK status for 50%% usage, got %s", result.Status)
+			t.Errorf("expected OK status for 47%% usage, got %s", result.Status)
 		}
 	})
 
@@ -393,7 +395,8 @@ func TestDiskCheck_WithMockReader(t *testing.T) {
 		reader := &mockFSReader{
 			statfsResult: &checks.StatfsResult{
 				Blocks: 1000000,
-				Bfree:  150000, // 85% used
+				Bfree:  200000,
+				Bavail: 150000, // 800000 used of 950000 usable = 85%
 				Bsize:  4096,
 			},
 		}
@@ -405,7 +408,7 @@ func TestDiskCheck_WithMockReader(t *testing.T) {
 
 		result := c.Run(context.Background())
 		if result.Status != checks.StatusWarning {
-			t.Errorf("expected Warning status for 85%% usage, got %s", result.Status)
+			t.Errorf("expected Warning status for 84%% usage, got %s", result.Status)
 		}
 	})
 
@@ -413,7 +416,8 @@ func TestDiskCheck_WithMockReader(t *testing.T) {
 		reader := &mockFSReader{
 			statfsResult: &checks.StatfsResult{
 				Blocks: 1000000,
-				Bfree:  50000, // 95% used
+				Bfree:  60000,
+				Bavail: 20000, // 940000 used of 960000 usable = 98%
 				Bsize:  4096,
 			},
 		}
@@ -425,7 +429,7 @@ func TestDiskCheck_WithMockReader(t *testing.T) {
 
 		result := c.Run(context.Background())
 		if result.Status != checks.StatusCritical {
-			t.Errorf("expected Critical status for 95%% usage, got %s", result.Status)
+			t.Errorf("expected Critical status for 97%% usage, got %s", result.Status)
 		}
 	})
 
@@ -445,32 +449,21 @@ func TestDiskCheck_WithMockReader(t *testing.T) {
 	})
 
 	t.Run("multiple partitions", func(t *testing.T) {
-		callCount := 0
-		reader := &mockFSReader{
-			statfsResult: &checks.StatfsResult{
-				Blocks: 1000000,
-				Bfree:  500000,
-				Bsize:  4096,
-			},
-		}
-		// Override to track calls
-		customReader := &multiCallFSReader{
+		reader := &multiCallFSReader{
 			results: map[string]*checks.StatfsResult{
-				"/":     {Blocks: 1000000, Bfree: 500000, Bsize: 4096},
-				"/home": {Blocks: 1000000, Bfree: 100000, Bsize: 4096}, // 90% used
+				"/":     {Blocks: 1000000, Bfree: 550000, Bavail: 500000, Bsize: 4096},
+				"/home": {Blocks: 1000000, Bfree: 150000, Bavail: 100000, Bsize: 4096}, // 90% used
 			},
 		}
-		_ = reader
-		_ = callCount
 
 		c := NewDiskCheck(
 			WithPartitions([]string{"/", "/home"}),
 			WithDiskThresholds(80, 95),
-			WithFileSystemReader(customReader),
+			WithFileSystemReader(reader),
 		)
 
 		result := c.Run(context.Background())
-		// Should be warning because /home is at 90%
+		// Warning because /home is at 90%, below the 95% critical threshold.
 		if result.Status != checks.StatusWarning {
 			t.Errorf("expected Warning status, got %s", result.Status)
 		}
@@ -483,6 +476,171 @@ func TestDiskCheck_WithMockReader(t *testing.T) {
 			t.Errorf("expected 2 partitions, got %d", len(partitions))
 		}
 	})
+
+	t.Run("no partitions configured", func(t *testing.T) {
+		c := NewDiskCheck(
+			WithPartitions([]string{}),
+			WithFileSystemReader(&mockFSReader{}),
+		)
+
+		result := c.Run(context.Background())
+		if result.Status != checks.StatusWarning {
+			t.Errorf("expected Warning status with no partitions, got %s", result.Status)
+		}
+	})
+}
+
+// TestDiskCheck_UsesAvailableNotFreeBlocks pins the accounting bug that let the
+// 2026-07-31 disk-exhaustion incident go unremediated.
+//
+// Bfree includes blocks reserved for the superuser; Bavail does not. Reading
+// Bfree reports free space that no unprivileged writer can ever use. The mock
+// values below are the real figures measured on the incident host, scaled to
+// 4 KiB blocks: 1831.7 GB total, 221.3 GB free, 128.2 GB available — a 93.1 GB
+// reserve. The old code reported 87%; `df` reported 93%.
+//
+// A test that sets Bfree and Bavail to the same value proves nothing, so every
+// case here keeps them distinct.
+func TestDiskCheck_UsesAvailableNotFreeBlocks(t *testing.T) {
+	const gib = 1024 * 1024 * 1024 / 4096 // blocks per GiB at a 4 KiB block size
+
+	tests := []struct {
+		name            string
+		blocks          uint64
+		bfree           uint64
+		bavail          uint64
+		wantPercent     int
+		wantStatus      checks.Status
+		bfreeWouldYield int // what the old implementation reported
+	}{
+		{
+			name:            "incident host: reserve hides critical pressure",
+			blocks:          18317 * gib / 10,
+			bfree:           2213 * gib / 10,
+			bavail:          1282 * gib / 10,
+			wantPercent:     93,
+			wantStatus:      checks.StatusCritical,
+			bfreeWouldYield: 87,
+		},
+		{
+			name:            "large reserve at moderate fill",
+			blocks:          100000,
+			bfree:           50000,
+			bavail:          40000,
+			wantPercent:     56,
+			wantStatus:      checks.StatusOK,
+			bfreeWouldYield: 50,
+		},
+		{
+			name:            "reserve fully consumed",
+			blocks:          100000,
+			bfree:           10000,
+			bavail:          0,
+			wantPercent:     100,
+			wantStatus:      checks.StatusCritical,
+			bfreeWouldYield: 90,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.bfree == tc.bavail {
+				t.Fatal("test is meaningless unless Bfree and Bavail differ")
+			}
+
+			reader := &mockFSReader{
+				statfsResult: &checks.StatfsResult{
+					Blocks: tc.blocks,
+					Bfree:  tc.bfree,
+					Bavail: tc.bavail,
+					Bsize:  4096,
+				},
+			}
+			c := NewDiskCheck(
+				WithPartitions([]string{"/"}),
+				WithDiskThresholds(80, 90),
+				WithFileSystemReader(reader),
+			)
+
+			result := c.Run(context.Background())
+
+			partitions, ok := result.Details["partitions"].([]map[string]interface{})
+			if !ok || len(partitions) != 1 {
+				t.Fatalf("expected 1 partition detail, got %v", result.Details["partitions"])
+			}
+			got, ok := partitions[0]["usedPercent"].(int)
+			if !ok {
+				t.Fatalf("usedPercent missing or not an int: %v", partitions[0]["usedPercent"])
+			}
+
+			if got != tc.wantPercent {
+				t.Errorf("usedPercent = %d, want %d", got, tc.wantPercent)
+			}
+			if got == tc.bfreeWouldYield {
+				t.Errorf("usedPercent = %d matches the Bfree-based reading; the implementation regressed to free blocks", got)
+			}
+			if result.Status != tc.wantStatus {
+				t.Errorf("status = %s, want %s", result.Status, tc.wantStatus)
+			}
+
+			// The reported available bytes must be the unprivileged figure.
+			wantAvailable := tc.bavail * 4096
+			if gotAvailable, _ := partitions[0]["availableBytes"].(uint64); gotAvailable != wantAvailable {
+				t.Errorf("availableBytes = %d, want %d", gotAvailable, wantAvailable)
+			}
+		})
+	}
+}
+
+// TestDiskCheck_IntervalIsSingleSourced asserts the interval the scheduler
+// applies is the interval the configuration declares. Before this was fixed
+// the check hardcoded 300 seconds while the configuration said 120, and the
+// configured value was silently ignored.
+func TestDiskCheck_IntervalIsSingleSourced(t *testing.T) {
+	t.Run("defaults to the configured value", func(t *testing.T) {
+		want := userconfig.GetCheckDefaults("system-disk").IntervalSeconds
+		if want <= 0 {
+			t.Fatal("system-disk defaults declare no interval")
+		}
+		if got := NewDiskCheck().IntervalSeconds(); got != want {
+			t.Errorf("IntervalSeconds() = %d, want the configured %d", got, want)
+		}
+	})
+
+	t.Run("honours an override", func(t *testing.T) {
+		c := NewDiskCheck(WithDiskInterval(45))
+		if got := c.IntervalSeconds(); got != 45 {
+			t.Errorf("IntervalSeconds() = %d, want 45", got)
+		}
+	})
+
+	t.Run("ignores a non-positive override", func(t *testing.T) {
+		want := NewDiskCheck().IntervalSeconds()
+		if got := NewDiskCheck(WithDiskInterval(0)).IntervalSeconds(); got != want {
+			t.Errorf("IntervalSeconds() = %d, want the default %d", got, want)
+		}
+	})
+}
+
+// TestDiskCheck_ThresholdsComeFromConfig asserts the check is born with the
+// thresholds and partitions the configuration declares, rather than a second
+// copy of those numbers that can drift.
+func TestDiskCheck_ThresholdsComeFromConfig(t *testing.T) {
+	defaults := userconfig.GetCheckDefaults("system-disk")
+	if defaults.Thresholds == nil {
+		t.Fatal("system-disk defaults declare no thresholds")
+	}
+
+	c := NewDiskCheck()
+	if want := int(*defaults.Thresholds.WarningPercent); c.warningThreshold != want {
+		t.Errorf("warningThreshold = %d, want %d", c.warningThreshold, want)
+	}
+	if want := int(*defaults.Thresholds.CriticalPercent); c.criticalThreshold != want {
+		t.Errorf("criticalThreshold = %d, want %d", c.criticalThreshold, want)
+	}
+	if len(c.partitions) != len(defaults.Thresholds.Partitions) {
+		t.Errorf("partitions = %v, want %v", c.partitions, defaults.Thresholds.Partitions)
+	}
 }
 
 func TestPortCheck_WithMockReader(t *testing.T) {

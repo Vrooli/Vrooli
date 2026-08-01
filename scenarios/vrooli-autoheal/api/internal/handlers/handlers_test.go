@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -1647,5 +1648,74 @@ func TestExecuteCheckAction_Failed(t *testing.T) {
 
 	if resp.Error == "" {
 		t.Error("Expected error message for failed action")
+	}
+}
+
+// The distinction this test protects is the one whose absence caused the
+// 2026-08-01 outage: a database that is reachable but slow is NOT a database
+// that is down.
+//
+// While a retention cycle held the write lock, every 150ms health probe expired,
+// /health reported the database disconnected, and the supervisor restarted an
+// API that was serving correctly — which aborted the cycle and guaranteed the
+// next one met the same state. Readiness must survive contention.
+func TestHealth_SlowDatabaseIsBusyNotUnhealthy(t *testing.T) {
+	// Longer than the fast probe's budget, well inside the confirming probe's.
+	store := &mockStore{pingDelay: healthDependencyTimeout * 4}
+	h := setupTestHandlers(store)
+
+	req := httptest.NewRequest("GET", "/health", nil)
+	w := httptest.NewRecorder()
+	h.Health(w, req)
+
+	resp := testutil.MustDecodeJSON[map[string]interface{}](t, w)
+
+	if resp["status"] != "healthy" {
+		t.Errorf("status = %v, want healthy: a slow database is a live one", resp["status"])
+	}
+	if resp["readiness"] != true {
+		t.Error("readiness = false for a reachable database; this is the signal that gets the process restarted")
+	}
+
+	deps := resp["dependencies"].(map[string]interface{})
+	db, ok := deps["database"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("dependencies.database should be a DependencyStatus object, got %T", deps["database"])
+	}
+	if db["connected"] != true {
+		t.Errorf("dependencies.database.connected = %v, want true", db["connected"])
+	}
+	if db["busy"] != true {
+		t.Error("a slow probe should be reported as busy, so the condition is visible rather than merely tolerated")
+	}
+	if db["error"] != nil {
+		t.Errorf("dependencies.database.error = %v, want none for a reachable database", db["error"])
+	}
+}
+
+// The escalation must not blunt real failure detection: a database that is
+// genuinely gone still has to report unhealthy, promptly.
+func TestHealth_UnreachableDatabaseStillReportsUnhealthy(t *testing.T) {
+	store := &mockStore{pingErr: errors.New("database is closed")}
+	h := setupTestHandlers(store)
+
+	req := httptest.NewRequest("GET", "/health", nil)
+	w := httptest.NewRecorder()
+
+	start := time.Now()
+	h.Health(w, req)
+	elapsed := time.Since(start)
+
+	resp := testutil.MustDecodeJSON[map[string]interface{}](t, w)
+	if resp["status"] != "unhealthy" {
+		t.Errorf("status = %v, want unhealthy", resp["status"])
+	}
+	if resp["readiness"] != false {
+		t.Error("readiness should be false when the database is genuinely unreachable")
+	}
+	// A driver error is an answer and needs no second probe; only an ambiguous
+	// timeout does.
+	if elapsed > healthDependencyTimeout {
+		t.Errorf("a definite driver error took %s to report; it must not wait out the confirming probe", elapsed)
 	}
 }

@@ -565,14 +565,6 @@ func (s *Store) getSystemEventSourcesSQLite(ctx context.Context) ([]systemevents
 	return sources, rows.Err()
 }
 
-func (s *Store) cleanupOldSystemEventsSQLite(ctx context.Context, before time.Time) (int64, error) {
-	result, err := s.db.ExecContext(ctx, `DELETE FROM system_events WHERE occurred_at < ?`, before.UTC().Format(time.RFC3339Nano))
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
-}
-
 func (s *Store) getUptimeStatsSQLite(ctx context.Context, windowHours int) (*UptimeStats, error) {
 	if windowHours <= 0 {
 		windowHours = 24

@@ -9,20 +9,27 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"syscall"
+	"time"
 
 	sharedhost "github.com/vrooli/vrooli/internal/hostinventory"
 )
 
-// StatfsResult contains filesystem statistics
+// StatfsResult contains filesystem statistics.
+//
+// Bfree and Bavail are deliberately distinct and must not be used
+// interchangeably. Bfree counts every unallocated block, including the blocks
+// a filesystem holds back for the superuser; Bavail counts only the blocks an
+// unprivileged writer can actually consume. `df` reports capacity against
+// Bavail, so every disk-pressure decision in this scenario does too. Reading
+// Bfree under-reports pressure by the size of the reserve — on the incident
+// host that was a 93 GB, 6-percentage-point gap.
 type StatfsResult struct {
-	Blocks  uint64 // Total blocks
-	Bfree   uint64 // Free blocks
-	Bavail  uint64 // Available blocks (non-root)
-	Files   uint64 // Total inodes
-	Ffree   uint64 // Free inodes
-	Bsize   int64  // Block size
-	Namemax uint64 // Max filename length
+	Blocks uint64 // Total blocks
+	Bfree  uint64 // Free blocks, including blocks reserved for the superuser
+	Bavail uint64 // Blocks available to an unprivileged writer
+	Files  uint64 // Total inodes (zero where the platform has no inode concept)
+	Ffree  uint64 // Free inodes (zero where the platform has no inode concept)
+	Bsize  int64  // Block size
 }
 
 // FileSystemReader abstracts filesystem operations for testability.
@@ -34,24 +41,9 @@ type FileSystemReader interface {
 }
 
 // RealFileSystemReader is the production implementation of FileSystemReader.
+// Statfs is implemented per platform in filesystem_statfs_unix.go and
+// filesystem_statfs_windows.go.
 type RealFileSystemReader struct{}
-
-// Statfs returns real filesystem statistics using syscall.
-func (r *RealFileSystemReader) Statfs(path string) (*StatfsResult, error) {
-	var stat syscall.Statfs_t
-	if err := syscall.Statfs(path, &stat); err != nil {
-		return nil, err
-	}
-	return &StatfsResult{
-		Blocks:  stat.Blocks,
-		Bfree:   stat.Bfree,
-		Bavail:  stat.Bavail,
-		Files:   stat.Files,
-		Ffree:   stat.Ffree,
-		Bsize:   stat.Bsize,
-		Namemax: uint64(stat.Namelen),
-	}, nil
-}
 
 // DefaultFileSystemReader is the global filesystem reader used when none is injected.
 var DefaultFileSystemReader FileSystemReader = &RealFileSystemReader{}
@@ -327,9 +319,7 @@ func ProcessAge(startTime uint64) float64 {
 // unixNow returns the current Unix timestamp in seconds.
 // Extracted for potential testability.
 func unixNow() int64 {
-	var t syscall.Timeval
-	_ = syscall.Gettimeofday(&t)
-	return t.Sec
+	return time.Now().Unix()
 }
 
 // PortInfo contains information about port usage

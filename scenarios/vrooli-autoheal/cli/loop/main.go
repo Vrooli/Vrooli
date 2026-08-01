@@ -8,7 +8,9 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -199,8 +201,20 @@ func main() {
 				log.Printf("[Tick %d] Error: %v (failures: %d/%d)",
 					tickCount, err, consecutiveFailures, config.MaxFailures)
 
-				if config.ManageAPILifecycle && consecutiveFailures >= config.MaxFailures {
-					log.Printf("Max failures reached, attempting to restart API...")
+				// A failing tick is not by itself evidence that the API needs
+				// restarting. Ticks also fail when the API is alive and its
+				// database is busy — and restarting into that condition aborts
+				// whatever was making progress and guarantees the next attempt
+				// meets the same state. Confirm the process has actually stopped
+				// answering before reaching for the biggest hammer available.
+				if config.ManageAPILifecycle && consecutiveFailures >= config.MaxFailures && apiIsAlive(config.APIPort) {
+					log.Printf("[Tick %d] %d consecutive tick failures, but the API is still answering on port %s; not restarting. Ticks fail this way while the database is busy, and a restart would only interrupt it.",
+						tickCount, consecutiveFailures, config.APIPort)
+					// Reset so the next sustained outage gets a fresh count
+					// rather than restarting on the first failure after this.
+					consecutiveFailures = 0
+				} else if config.ManageAPILifecycle && consecutiveFailures >= config.MaxFailures {
+					log.Printf("Max failures reached and the API is not answering, attempting to restart API...")
 					if restartErr := restartAPI(config); restartErr != nil {
 						log.Printf("Restart failed: %v, trying full start...", restartErr)
 						if startErr := ensureAPIRunning(config); startErr != nil {
@@ -399,13 +413,108 @@ func buildVrooliCmd(vrooliCmdPath string, subArgs ...string) *exec.Cmd {
 	return exec.Command(vrooliCmdPath, args...)
 }
 
-// getPortFromVrooliCLI tries to get the port using vrooli scenario port command
-func getPortFromVrooliCLI(config *Config) string {
-	cmd := buildVrooliCmd(config.VrooliCmdPath, "scenario", "port", config.ScenarioName, "API_PORT")
+// vrooliCommandTimeout bounds any single vrooli CLI invocation the loop makes.
+//
+// Lifecycle commands are the slowest thing here — a start does setup, develop,
+// and a health wait — so this is generous. It is a backstop against hanging
+// forever, not a latency target.
+const vrooliCommandTimeout = 10 * time.Minute
 
+// vrooliOutputGrace is how long we keep reading a finished command's output
+// before giving up on descendants that inherited the pipe.
+const vrooliOutputGrace = 5 * time.Second
+
+// runVrooliCommand runs a vrooli CLI command and returns its combined output,
+// and it is the ONLY way this loop should invoke that CLI.
+//
+// The plain exec.Cmd.CombinedOutput it replaces cannot be used here, and the
+// reason is the 2026-08-01 outage. CombinedOutput hands the child a PIPE and
+// then reads it until EOF. EOF arrives when every write end is closed — not when
+// the child exits. `vrooli scenario start` spawns the long-lived runtime
+// supervisor, which inherits that pipe as its stderr and holds it open for as
+// long as it runs, which is forever. So the loop's very first action on boot —
+// ensuring the API is up — blocked in Wait permanently. It never reached its
+// tick loop, never ran a single health check, and never started any of the
+// scenarios it exists to start. Observed directly: the loop parked in
+// futex_do_wait holding the read end of pipe:[623670] while the supervisor held
+// the write end as fd 2.
+//
+// Two things fix it, and both are here because either alone leaves a hole:
+//
+//   - WaitDelay bounds how long Wait will keep reading after the process itself
+//     has exited, so an inherited pipe delays the result by seconds instead of
+//     ending the loop's useful life.
+//   - The context timeout bounds the command itself, for the different failure
+//     where the CLI genuinely hangs rather than exiting and leaking a pipe.
+//
+// A supervisor that can be blocked forever by the thing it supervises is not a
+// supervisor.
+func runVrooliCommand(config *Config, subArgs ...string) ([]byte, error) {
+	var combined bytes.Buffer
+	err := runVrooliCommandInto(config, &combined, &combined, subArgs...)
+	return combined.Bytes(), err
+}
+
+// runVrooliCommandStdout is the same, for commands whose stdout is parsed and
+// must not have diagnostics interleaved into it.
+func runVrooliCommandStdout(config *Config, subArgs ...string) ([]byte, error) {
+	var stdout, stderr bytes.Buffer
+	err := runVrooliCommandInto(config, &stdout, &stderr, subArgs...)
+	return stdout.Bytes(), err
+}
+
+// runVrooliCommandInto is the shared body: timeout, WaitDelay, and the
+// inherited-pipe tolerance described on runVrooliCommand.
+func runVrooliCommandInto(config *Config, stdout, stderr io.Writer, subArgs ...string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), vrooliCommandTimeout)
+	defer cancel()
+
+	cmd := buildVrooliCmd(config.VrooliCmdPath, subArgs...)
 	cmd.Env = append(os.Environ(), fmt.Sprintf("VROOLI_ROOT=%s", config.VrooliRoot))
 
-	output, err := cmd.Output()
+	// Stop waiting on inherited pipes shortly after the direct child is gone.
+	cmd.WaitDelay = vrooliOutputGrace
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+
+	if err := cmdStartWithContext(ctx, cmd); err != nil {
+		return err
+	}
+	err := cmd.Wait()
+	// A WaitDelay expiry means the command finished but something it spawned
+	// still holds the output pipe. The command's own result is what we asked
+	// for, and it is complete; the leftover descendant is expected and is not
+	// this call's failure.
+	if errors.Is(err, exec.ErrWaitDelay) {
+		return nil
+	}
+	if ctx.Err() != nil {
+		return fmt.Errorf("vrooli %s timed out after %v: %w",
+			strings.Join(subArgs, " "), vrooliCommandTimeout, ctx.Err())
+	}
+	return err
+}
+
+// cmdStartWithContext attaches ctx to cmd and starts it. exec.CommandContext
+// cannot be used directly because buildVrooliCmd owns command construction
+// (including the Windows powershell wrapper), so the context is wired onto the
+// already-built command instead.
+func cmdStartWithContext(ctx context.Context, cmd *exec.Cmd) error {
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	go func() {
+		<-ctx.Done()
+		if ctx.Err() == context.DeadlineExceeded && cmd.Process != nil {
+			_ = cmd.Process.Kill()
+		}
+	}()
+	return nil
+}
+
+// getPortFromVrooliCLI tries to get the port using vrooli scenario port command
+func getPortFromVrooliCLI(config *Config) string {
+	output, err := runVrooliCommandStdout(config, "scenario", "port", config.ScenarioName, "API_PORT")
 	if err != nil {
 		return ""
 	}
@@ -420,11 +529,7 @@ func getPortFromVrooliCLI(config *Config) string {
 }
 
 func getPortFromScenarioStatus(config *Config) string {
-	cmd := buildVrooliCmd(config.VrooliCmdPath, "scenario", "status", config.ScenarioName, "--json")
-
-	cmd.Env = append(os.Environ(), fmt.Sprintf("VROOLI_ROOT=%s", config.VrooliRoot))
-
-	output, err := cmd.Output()
+	output, err := runVrooliCommandStdout(config, "scenario", "status", config.ScenarioName, "--json")
 	if err != nil {
 		return ""
 	}
@@ -465,6 +570,38 @@ func isPortHealthy(port string) bool {
 	}
 	resp.Body.Close()
 	return resp.StatusCode == 200
+}
+
+// apiIsAlive reports whether the API process is still answering HTTP at all,
+// regardless of what it says about its own health.
+//
+// This is the question a supervisor should ask before restarting something, and
+// it is NOT the question isPortHealthy answers. On 2026-08-01 the API was
+// serving every request correctly while its database was busy with a retention
+// cycle; /health reported unhealthy, ticks timed out behind the same
+// contention, and this loop restarted a process with nothing wrong with it. The
+// restart aborted the cycle, and RunOnStart began it again — so the supervisor
+// was the mechanism that prevented recovery, on every iteration, indefinitely.
+//
+// A process that completes an HTTP round trip is not the failure a restart
+// fixes. Restarting is for a process that has stopped answering.
+func apiIsAlive(port string) bool {
+	if port == "" {
+		return false
+	}
+	url := fmt.Sprintf("http://localhost:%s/health", port)
+	// Generous relative to the health handler's own budget: the point is to
+	// find out whether anything is listening and answering, not whether it is
+	// answering quickly.
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get(url)
+	if err != nil {
+		return false
+	}
+	resp.Body.Close()
+	// Any status is an answer. A 503 from a service reporting its own degraded
+	// dependency is still a live process that a restart cannot improve.
+	return true
 }
 
 // isScenarioRunning checks if the scenario process is active
@@ -552,11 +689,7 @@ func ensureAPIRunning(config *Config) error {
 
 // startAPI starts the scenario using vrooli
 func startAPI(config *Config) error {
-	cmd := buildVrooliCmd(config.VrooliCmdPath, "scenario", "start", config.ScenarioName, "--best-effort")
-
-	cmd.Env = append(os.Environ(), fmt.Sprintf("VROOLI_ROOT=%s", config.VrooliRoot))
-
-	output, err := cmd.CombinedOutput()
+	output, err := runVrooliCommand(config, "scenario", "start", config.ScenarioName, "--best-effort")
 	if err != nil {
 		return fmt.Errorf("start command failed: %v\nOutput: %s", err, string(output))
 	}
@@ -571,11 +704,7 @@ func restartAPI(config *Config) error {
 		return fmt.Errorf("vrooli command not found")
 	}
 
-	cmd := buildVrooliCmd(config.VrooliCmdPath, "scenario", "restart", config.ScenarioName, "--best-effort")
-
-	cmd.Env = append(os.Environ(), fmt.Sprintf("VROOLI_ROOT=%s", config.VrooliRoot))
-
-	output, err := cmd.CombinedOutput()
+	output, err := runVrooliCommand(config, "scenario", "restart", config.ScenarioName, "--best-effort")
 	if err != nil {
 		return fmt.Errorf("restart command failed: %v\nOutput: %s", err, string(output))
 	}

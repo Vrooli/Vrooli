@@ -23,6 +23,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/retention"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	apiHandlers "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/handlers"
@@ -137,14 +138,103 @@ func run() error {
 	configHandlers := apiHandlers.NewConfigHandlers(configMgr, registry)
 	router := setupRouter(h, configHandlers, db)
 
+	// Retention is declared in .vrooli/service.json and enforced by the
+	// framework. This is the entire integration: no selection rule, no
+	// scheduler, and no cleanup loop lives in this scenario.
+	retentionManager, retentionDB, err := startRetention(context.Background())
+	if err != nil {
+		return fmt.Errorf("start retention: %w", err)
+	}
+
 	log.Printf("starting server | service=vrooli-autoheal-api platform=%s", plat.Platform)
 
 	// Start server with graceful shutdown
 	return server.Run(server.Config{
 		Handler:      handlers.RecoveryHandler()(router),
 		WriteTimeout: 6 * time.Minute,
-		Cleanup:      func(ctx context.Context) error { return db.Close() },
+		Cleanup: func(ctx context.Context) error {
+			// Retention stops first and Stop waits for the in-flight cycle, so
+			// its connection is idle before either handle closes.
+			retentionManager.Stop()
+			if err := retentionDB.Close(); err != nil {
+				log.Printf("warning: closing retention database handle: %v", err)
+			}
+			return db.Close()
+		},
 	})
+}
+
+// startRetention builds the retention engine from this scenario's own manifest
+// and starts its schedule.
+//
+// Retention gets its OWN database handle, and the reason is the outage of
+// 2026-08-01 rather than a preference about tidiness.
+//
+// It used to share the serving handle. That handle's pool is capped at one
+// connection, so every statement retention issued — and a cycle issues thousands
+// — took the only connection the API had. A correct, bounded, batched prune
+// therefore presented to the rest of the process as a database that had stopped
+// answering: the health probe's 150ms budget expired against the queue rather
+// than against any real fault, /health reported the database disconnected, the
+// supervisor loop counted three failed ticks and restarted the API, and
+// RunOnStart began the cycle again from zero. Nothing was broken; the retention
+// cycle simply could never finish, and no scenario was ever started because the
+// tick loop never ran again.
+//
+// The old comment argued a second handle would contend for the write lock. It
+// would, and that is the correct trade: SQLite in WAL mode lets readers proceed
+// throughout, writer-vs-writer contention resolves in milliseconds under
+// busy_timeout because every batch is its own short transaction, and contention
+// measured in milliseconds is what we are buying instead of starvation measured
+// in minutes. Sharing did not avoid the lock — it converted a lock into a queue
+// in front of the entire API.
+//
+// A BoundBytes cycle is logged as a finding, not swallowed. It means the host is
+// producing events faster than the declared 30-day horizon allows — which is
+// exactly the condition that let this database reach 453 GB while its retention
+// policy ran correctly and deleted nothing.
+func startRetention(ctx context.Context) (*retention.Manager, *sql.DB, error) {
+	retentionDB, err := connectPersistenceDB(ctx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("open retention database handle: %w", err)
+	}
+
+	manager, err := retention.NewForScenario(retention.ScenarioConfig{
+		ManifestPath: manifestPath(),
+		Scenario:     "vrooli-autoheal",
+		OpenDatabase: func(string) (retention.Execer, error) { return retentionDB, nil },
+		RunOnStart:   true,
+		OnFinding: func(f retention.Finding) {
+			log.Printf("RETENTION FINDING: %s", f)
+		},
+	})
+	if err != nil {
+		_ = retentionDB.Close()
+		return nil, nil, err
+	}
+	for _, b := range manager.Budgets() {
+		log.Printf("retention budget declared | name=%s max_age=%s max_bytes=%s", b.Name, b.MaxAge, retention.FormatBytes(b.MaxBytes))
+	}
+	manager.Start(context.Background())
+	return manager, retentionDB, nil
+}
+
+// manifestPath locates .vrooli/service.json next to the running binary or in the
+// working directory, matching how the schema and config files above are found.
+func manifestPath() string {
+	candidates := []string{
+		filepath.Join(filepath.Dir(os.Args[0]), "..", ".vrooli", "service.json"),
+		filepath.Join("..", ".vrooli", "service.json"),
+		filepath.Join(".vrooli", "service.json"),
+	}
+	for _, candidate := range candidates {
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+			return candidate
+		}
+	}
+	// Empty means "discover by walking up", which is the right fallback when
+	// the binary runs from an unexpected location.
+	return ""
 }
 
 // setupRouter configures HTTP routes
@@ -358,8 +448,16 @@ func resolveSQLiteDSN() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("create storage resolver: %w", err)
 	}
+	// The variant-aware namespace, not the bare slug: hardcoding the scenario
+	// name here would make a shadow variant read and write live's database, and
+	// would put the retention engine (which resolves through the same helper)
+	// on a different file than the store.
+	scenarioID, err := storage.ScenarioNamespace("vrooli-autoheal")
+	if err != nil {
+		return "", fmt.Errorf("resolve storage namespace: %w", err)
+	}
 	paths, err := storage.EnsureAllDirs(resolver, storage.Options{
-		ScenarioID: "vrooli-autoheal",
+		ScenarioID: scenarioID,
 	}, 0)
 	if err != nil {
 		return "", fmt.Errorf("ensure storage directories: %w", err)

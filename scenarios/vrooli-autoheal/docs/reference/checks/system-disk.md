@@ -72,7 +72,7 @@ cleanup-manager cleanup plan
 du -sh /var/lib/postgresql/
 
 # For Vrooli's PostgreSQL resource
-vrooli resource logs postgres | tail -20
+vrooli resource logs postgres --tail 20
 ```
 
 ### 4. Build Artifacts

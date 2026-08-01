@@ -307,13 +307,12 @@ func TestDefaultCacheCheckerExists(t *testing.T) {
 // TestStatfsResultFields verifies struct fields
 func TestStatfsResultFields(t *testing.T) {
 	result := StatfsResult{
-		Blocks:  1000000,
-		Bfree:   500000,
-		Bavail:  400000,
-		Files:   100000,
-		Ffree:   80000,
-		Bsize:   4096,
-		Namemax: 255,
+		Blocks: 1000000,
+		Bfree:  500000,
+		Bavail: 400000,
+		Files:  100000,
+		Ffree:  80000,
+		Bsize:  4096,
 	}
 
 	if result.Blocks != 1000000 {

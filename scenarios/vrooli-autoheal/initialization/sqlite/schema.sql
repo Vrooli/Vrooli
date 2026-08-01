@@ -164,6 +164,15 @@ CREATE TABLE IF NOT EXISTS incident_observations (
 CREATE INDEX IF NOT EXISTS idx_incident_observations_incident
     ON incident_observations (incident_id, observed_at DESC);
 
+-- Retention orders deletes by observed_at across the WHOLE table, which the
+-- composite index above cannot serve: it is led by incident_id, so a query with
+-- no incident_id predicate has to scan and sort. Every other budgeted table in
+-- this schema carries a dedicated index on its time column for the same reason —
+-- without one, each prune batch reads the entire table, which is how batched
+-- deletion degrades to ~330 rows/sec on a large file.
+CREATE INDEX IF NOT EXISTS idx_incident_observations_observed
+    ON incident_observations (observed_at);
+
 CREATE TABLE IF NOT EXISTS incident_status_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     incident_id TEXT NOT NULL,
