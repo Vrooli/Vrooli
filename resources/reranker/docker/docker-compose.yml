@@ -11,11 +11,10 @@ services:
     ports:
       - "${RERANKER_BIND_ADDRESS:-127.0.0.1}:${RERANKER_PORT:-11453}:80"
     volumes:
-      # TEI caches downloaded models under /data (HUGGINGFACE_HUB_CACHE). A
-      # Docker-managed named volume persists the ~2.3GB bge-reranker-v2-m3 pull
-      # across restarts (one-time download, then fully local). Named (not bind)
-      # so it auto-creates with no host-side mkdir step.
-      - reranker_models:/data:rw
+      # TEI caches downloaded models under /data (HUGGINGFACE_HUB_CACHE).
+      # Keep the cache in the resource storage contract so storage-manager can
+      # measure and operators can relocate it safely.
+      - ${RESOURCE_DATA_DIR}/model-cache:/data:rw
     environment:
       # TEI reads each router arg from an env var; MODEL_ID is auto-pulled from
       # the HF Hub on first start. No HF token needed (public model).
@@ -38,10 +37,6 @@ services:
           memory: ${RERANKER_MEMORY_LIMIT:-6G}
         reservations:
           memory: ${RERANKER_MEMORY_RESERVATION:-3G}
-
-volumes:
-  reranker_models:
-    driver: local
 
 networks:
   reranker-network:

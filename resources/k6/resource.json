@@ -1,6 +1,9 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "k6",
+  "storage": {"entries": {
+    "content": {"rung": "owned", "path": "$USER_HOME/.k6", "kind": "dir", "class": "data", "regenerable": false, "rationale": "The resource's K6_DATA_DIR contains operator-owned scripts, input data, configuration, and test results."}
+  }},
   "display_name": "k6",
   "description": "Grafana k6 CLI resource with a thin Go entrypoint and external-cli-specific logic organized under internal packages.",
   "cli": {

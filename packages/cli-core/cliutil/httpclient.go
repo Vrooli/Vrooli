@@ -8,9 +8,13 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
+	"sync"
 	"time"
 )
+
+var installIdentityForwardingTransport sync.Once
 
 // APIError represents a structured error from the API with rich recovery information.
 type APIError struct {
@@ -126,6 +130,9 @@ type HTTPClientOptions struct {
 }
 
 func NewHTTPClient(opts HTTPClientOptions) *HTTPClient {
+	installIdentityForwardingTransport.Do(func() {
+		http.DefaultTransport = identityForwardingTransport{next: http.DefaultTransport}
+	})
 	client := opts.Client
 	if client == nil {
 		timeout := opts.Timeout
@@ -141,6 +148,37 @@ func NewHTTPClient(opts HTTPClientOptions) *HTTPClient {
 		baseOptions: opts.BaseOptions,
 		token:       opts.Token,
 	}
+}
+
+// identityForwardingTransport keeps verified Agent Manager identity attached to
+// raw HTTP and Connect clients that use http.DefaultTransport. Scenario CLIs
+// normally use HTTPClient.ApplyRequestHeaders, but durable streaming clients
+// intentionally create their own no-timeout http.Client. Reading the token at
+// request time makes both paths carry the same provenance without each
+// scenario needing a special case.
+type identityForwardingTransport struct{ next http.RoundTripper }
+
+func (t identityForwardingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req == nil {
+		return t.roundTripper().RoundTrip(req)
+	}
+	if strings.TrimSpace(req.Header.Get(HeaderAgentIdentityToken)) != "" || strings.TrimSpace(os.Getenv(EnvIdentityToken)) == "" {
+		return t.roundTripper().RoundTrip(req)
+	}
+	clone := req.Clone(req.Context())
+	clone.Header = req.Header.Clone()
+	if clone.Header == nil {
+		clone.Header = make(http.Header)
+	}
+	clone.Header.Set(HeaderAgentIdentityToken, os.Getenv(EnvIdentityToken))
+	return t.roundTripper().RoundTrip(clone)
+}
+
+func (t identityForwardingTransport) roundTripper() http.RoundTripper {
+	if t.next == nil {
+		return http.DefaultTransport
+	}
+	return t.next
 }
 
 func (h *HTTPClient) SetToken(token string) {

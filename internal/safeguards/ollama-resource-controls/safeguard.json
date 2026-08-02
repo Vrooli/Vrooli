@@ -1,6 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
-  "name": "ollama_resource_controls",
+ "name": "ollama_resource_controls",
+  "storage": {"entries": {"systemd_dropin": {"rung": "pinned", "path": {"linux": "/etc/systemd/system/ollama.service.d/99-vrooli-resource-controls.conf", "macos": null, "windows": null}, "kind": "file", "class": "config", "sensitive": true, "rationale": "The safeguard writes a Linux systemd resource-control drop-in."}}, "rationale": "Linux-only system configuration is verified by the safeguard file check."},
   "description": "Cap ollama.service memory and bias OOM killer toward it via a systemd drop-in, so an embeddings burst from any caller cannot exhaust host RAM",
   "handler": "ollama_resource_controls",
   "platforms": [

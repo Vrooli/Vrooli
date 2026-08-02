@@ -1,6 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
-  "name": "crashkernel_reserve",
+ "name": "crashkernel_reserve",
+  "storage": {"entries": {"grub_config": {"rung": "pinned", "path": {"linux": "/etc/default/grub", "macos": null, "windows": null}, "kind": "file", "class": "config", "sensitive": true, "rationale": "The safeguard edits the Linux GRUB configuration and requires an operator reboot."}}, "rationale": "Linux-only boot configuration is verified by the handler's GRUB seam."},
   "description": "Reserve memory for the kdump capture kernel via the crashkernel= boot parameter",
   "handler": "crashkernel_reserve",
   "platforms": [

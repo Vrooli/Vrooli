@@ -1,6 +1,10 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "qdrant",
+  "storage": {"entries": {
+    "storage": {"rung": "pinned", "path": {"linux": "$USER_HOME/.local/share/vrooli/resources/qdrant", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/qdrant", "windows": "$USER_HOME/AppData/Local/vrooli/resources/qdrant"}, "kind": "dir", "class": "data", "regenerable": false, "rationale": "Qdrant collections and WAL data are bind-mounted to /qdrant/storage."},
+    "snapshots": {"rung": "pinned", "path": {"linux": "$USER_STATE_DIR/vrooli/resources/qdrant/snapshots", "macos": "$USER_STATE_DIR/vrooli/resources/qdrant/snapshots", "windows": "$USER_STATE_DIR/vrooli/resources/qdrant/snapshots"}, "kind": "dir", "class": "state", "regenerable": false, "rationale": "Qdrant snapshots are persisted separately from live collection storage."}
+  }},
   "display_name": "Qdrant Vector Database",
   "description": "Vector database for embeddings and semantic search workloads.",
   "cli": {

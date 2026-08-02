@@ -92,6 +92,12 @@ const (
 	// MeasuresServiceEpisodeCohortProcedure is the fully-qualified name of the MeasuresService's
 	// EpisodeCohort RPC.
 	MeasuresServiceEpisodeCohortProcedure = "/agent_manager.v1.measures.MeasuresService/EpisodeCohort"
+	// MeasuresServiceCapabilityUsageProcedure is the fully-qualified name of the MeasuresService's
+	// CapabilityUsage RPC.
+	MeasuresServiceCapabilityUsageProcedure = "/agent_manager.v1.measures.MeasuresService/CapabilityUsage"
+	// MeasuresServiceCapabilityEfficacyProcedure is the fully-qualified name of the MeasuresService's
+	// CapabilityEfficacy RPC.
+	MeasuresServiceCapabilityEfficacyProcedure = "/agent_manager.v1.measures.MeasuresService/CapabilityEfficacy"
 	// MeasuresServiceSelectCohortProcedure is the fully-qualified name of the MeasuresService's
 	// SelectCohort RPC.
 	MeasuresServiceSelectCohortProcedure = "/agent_manager.v1.measures.MeasuresService/SelectCohort"
@@ -119,6 +125,8 @@ type MeasuresServiceClient interface {
 	FileRereadRate(context.Context, *connect.Request[measures.FileRereadRateRequest]) (*connect.Response[measures.FileRereadRateResponse], error)
 	FindingRecurrenceRate(context.Context, *connect.Request[measures.FindingRecurrenceRateRequest]) (*connect.Response[measures.FindingRecurrenceRateResponse], error)
 	EpisodeCohort(context.Context, *connect.Request[measures.EpisodeCohortRequest]) (*connect.Response[measures.EpisodeCohortResponse], error)
+	CapabilityUsage(context.Context, *connect.Request[measures.CapabilityUsageRequest]) (*connect.Response[measures.CapabilityUsageResponse], error)
+	CapabilityEfficacy(context.Context, *connect.Request[measures.CapabilityEfficacyRequest]) (*connect.Response[measures.CapabilityEfficacyResponse], error)
 	// SelectCohort is the non-aggregate companion to the measures: it exposes
 	// the run ids behind the exact same durable filter used by an aggregate.
 	SelectCohort(context.Context, *connect.Request[measures.SelectCohortRequest]) (*connect.Response[measures.SelectCohortResponse], error)
@@ -255,6 +263,18 @@ func NewMeasuresServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(measuresServiceMethods.ByName("EpisodeCohort")),
 			connect.WithClientOptions(opts...),
 		),
+		capabilityUsage: connect.NewClient[measures.CapabilityUsageRequest, measures.CapabilityUsageResponse](
+			httpClient,
+			baseURL+MeasuresServiceCapabilityUsageProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("CapabilityUsage")),
+			connect.WithClientOptions(opts...),
+		),
+		capabilityEfficacy: connect.NewClient[measures.CapabilityEfficacyRequest, measures.CapabilityEfficacyResponse](
+			httpClient,
+			baseURL+MeasuresServiceCapabilityEfficacyProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("CapabilityEfficacy")),
+			connect.WithClientOptions(opts...),
+		),
 		selectCohort: connect.NewClient[measures.SelectCohortRequest, measures.SelectCohortResponse](
 			httpClient,
 			baseURL+MeasuresServiceSelectCohortProcedure,
@@ -286,6 +306,8 @@ type measuresServiceClient struct {
 	fileRereadRate        *connect.Client[measures.FileRereadRateRequest, measures.FileRereadRateResponse]
 	findingRecurrenceRate *connect.Client[measures.FindingRecurrenceRateRequest, measures.FindingRecurrenceRateResponse]
 	episodeCohort         *connect.Client[measures.EpisodeCohortRequest, measures.EpisodeCohortResponse]
+	capabilityUsage       *connect.Client[measures.CapabilityUsageRequest, measures.CapabilityUsageResponse]
+	capabilityEfficacy    *connect.Client[measures.CapabilityEfficacyRequest, measures.CapabilityEfficacyResponse]
 	selectCohort          *connect.Client[measures.SelectCohortRequest, measures.SelectCohortResponse]
 }
 
@@ -389,6 +411,16 @@ func (c *measuresServiceClient) EpisodeCohort(ctx context.Context, req *connect.
 	return c.episodeCohort.CallUnary(ctx, req)
 }
 
+// CapabilityUsage calls agent_manager.v1.measures.MeasuresService.CapabilityUsage.
+func (c *measuresServiceClient) CapabilityUsage(ctx context.Context, req *connect.Request[measures.CapabilityUsageRequest]) (*connect.Response[measures.CapabilityUsageResponse], error) {
+	return c.capabilityUsage.CallUnary(ctx, req)
+}
+
+// CapabilityEfficacy calls agent_manager.v1.measures.MeasuresService.CapabilityEfficacy.
+func (c *measuresServiceClient) CapabilityEfficacy(ctx context.Context, req *connect.Request[measures.CapabilityEfficacyRequest]) (*connect.Response[measures.CapabilityEfficacyResponse], error) {
+	return c.capabilityEfficacy.CallUnary(ctx, req)
+}
+
 // SelectCohort calls agent_manager.v1.measures.MeasuresService.SelectCohort.
 func (c *measuresServiceClient) SelectCohort(ctx context.Context, req *connect.Request[measures.SelectCohortRequest]) (*connect.Response[measures.SelectCohortResponse], error) {
 	return c.selectCohort.CallUnary(ctx, req)
@@ -417,6 +449,8 @@ type MeasuresServiceHandler interface {
 	FileRereadRate(context.Context, *connect.Request[measures.FileRereadRateRequest]) (*connect.Response[measures.FileRereadRateResponse], error)
 	FindingRecurrenceRate(context.Context, *connect.Request[measures.FindingRecurrenceRateRequest]) (*connect.Response[measures.FindingRecurrenceRateResponse], error)
 	EpisodeCohort(context.Context, *connect.Request[measures.EpisodeCohortRequest]) (*connect.Response[measures.EpisodeCohortResponse], error)
+	CapabilityUsage(context.Context, *connect.Request[measures.CapabilityUsageRequest]) (*connect.Response[measures.CapabilityUsageResponse], error)
+	CapabilityEfficacy(context.Context, *connect.Request[measures.CapabilityEfficacyRequest]) (*connect.Response[measures.CapabilityEfficacyResponse], error)
 	// SelectCohort is the non-aggregate companion to the measures: it exposes
 	// the run ids behind the exact same durable filter used by an aggregate.
 	SelectCohort(context.Context, *connect.Request[measures.SelectCohortRequest]) (*connect.Response[measures.SelectCohortResponse], error)
@@ -549,6 +583,18 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 		connect.WithSchema(measuresServiceMethods.ByName("EpisodeCohort")),
 		connect.WithHandlerOptions(opts...),
 	)
+	measuresServiceCapabilityUsageHandler := connect.NewUnaryHandler(
+		MeasuresServiceCapabilityUsageProcedure,
+		svc.CapabilityUsage,
+		connect.WithSchema(measuresServiceMethods.ByName("CapabilityUsage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceCapabilityEfficacyHandler := connect.NewUnaryHandler(
+		MeasuresServiceCapabilityEfficacyProcedure,
+		svc.CapabilityEfficacy,
+		connect.WithSchema(measuresServiceMethods.ByName("CapabilityEfficacy")),
+		connect.WithHandlerOptions(opts...),
+	)
 	measuresServiceSelectCohortHandler := connect.NewUnaryHandler(
 		MeasuresServiceSelectCohortProcedure,
 		svc.SelectCohort,
@@ -597,6 +643,10 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 			measuresServiceFindingRecurrenceRateHandler.ServeHTTP(w, r)
 		case MeasuresServiceEpisodeCohortProcedure:
 			measuresServiceEpisodeCohortHandler.ServeHTTP(w, r)
+		case MeasuresServiceCapabilityUsageProcedure:
+			measuresServiceCapabilityUsageHandler.ServeHTTP(w, r)
+		case MeasuresServiceCapabilityEfficacyProcedure:
+			measuresServiceCapabilityEfficacyHandler.ServeHTTP(w, r)
 		case MeasuresServiceSelectCohortProcedure:
 			measuresServiceSelectCohortHandler.ServeHTTP(w, r)
 		default:
@@ -686,6 +736,14 @@ func (UnimplementedMeasuresServiceHandler) FindingRecurrenceRate(context.Context
 
 func (UnimplementedMeasuresServiceHandler) EpisodeCohort(context.Context, *connect.Request[measures.EpisodeCohortRequest]) (*connect.Response[measures.EpisodeCohortResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.EpisodeCohort is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) CapabilityUsage(context.Context, *connect.Request[measures.CapabilityUsageRequest]) (*connect.Response[measures.CapabilityUsageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.CapabilityUsage is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) CapabilityEfficacy(context.Context, *connect.Request[measures.CapabilityEfficacyRequest]) (*connect.Response[measures.CapabilityEfficacyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.CapabilityEfficacy is not implemented"))
 }
 
 func (UnimplementedMeasuresServiceHandler) SelectCohort(context.Context, *connect.Request[measures.SelectCohortRequest]) (*connect.Response[measures.SelectCohortResponse], error) {

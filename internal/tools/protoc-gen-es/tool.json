@@ -1,6 +1,7 @@
 {
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
-  "name": "protoc-gen-es",
+ "name": "protoc-gen-es",
+  "storage": {"entries": {}, "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."},
   "description": "TypeScript/JavaScript protoc plugin (@bufbuild/protoc-gen-es) used by packages/proto codegen (local plugin, no BSR fetch)",
   "commands": [
     "protoc-gen-es"

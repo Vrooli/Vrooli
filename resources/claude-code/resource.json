@@ -1,6 +1,9 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "claude-code",
+  "storage": {"entries": {
+    "home": {"rung": "owned", "path": "$USER_HOME/.claude", "kind": "dir", "class": "data", "regenerable": false, "sensitive": true, "rationale": "Claude Code documents ~/.claude as the cross-project user scope; this resource retains transcripts, settings, plans, and credentials there."}
+  }},
   "display_name": "Claude Code CLI",
   "description": "Anthropic's Claude Code CLI for interactive and scripted development workflows.",
   "cli": {

@@ -1,6 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
-  "name": "pstore_ramoops",
+ "name": "pstore_ramoops",
+  "storage": {"entries": {}, "rationale": "This safeguard contributes kernel parameters to the shared /etc/default/grub file owned by crashkernel-reserve; declaring that file twice would double-count it."},
   "description": "Reserve a RAM-backed pstore region for kernel oops/panic capture across resets (GRUB-editing fallback when native pstore is unavailable)",
   "handler": "pstore_ramoops",
   "platforms": [

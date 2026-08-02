@@ -30,6 +30,7 @@ import (
 	"github.com/vrooli/vrooli/internal/projectstate"
 	"github.com/vrooli/vrooli/internal/resources"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
+	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	resourcemanifest "github.com/vrooli/vrooli/internal/resources/manifest"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/runtimesupervisor"
@@ -286,6 +287,10 @@ type Result struct {
 	FailedDependencies []string
 	FailedResources    []string
 	AlreadyRunning     bool
+	// CredentialGaps names the declared credentials that did not resolve for
+	// this start. The scenario still ran; these are the resources that cannot
+	// do their job until an operator acts.
+	CredentialGaps []resourceenv.MissingCredential
 }
 
 func NewRunner(root, home string, stdout, stderr io.Writer, logger ...*slog.Logger) (*Runner, error) {
@@ -705,12 +710,15 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 		)
 	}
 
+	r.printCredentialGapSummary(env)
+
 	result = Result{
 		Scenario:           item,
 		AllocatedPorts:     env.AllocatedPorts,
 		Health:             healthStatus,
 		FailedDependencies: failedDeps,
 		FailedResources:    failedResources,
+		CredentialGaps:     env.CredentialGaps,
 	}
 	cleanupOnError = false
 	return result, nil
@@ -728,6 +736,60 @@ func (r *Runner) bootstrapScenarioDependencies(item scenario.Scenario, opts Star
 	return failedDeps, failedResources, nil
 }
 
+// printCredentialGapSummary tells the operator, at the end of a successful
+// start, exactly which variable is missing from which resource and the command
+// that fixes it. The start succeeded; this is the follow-up work, so it reads
+// as a to-do list rather than as a failure.
+func (r *Runner) printCredentialGapSummary(env ports.Environment) {
+	if len(env.CredentialGaps) == 0 {
+		return
+	}
+	// Routed through r.Err directly rather than consoleErr: this is actionable
+	// operator work, so it must survive quiet mode exactly as error replay does.
+	out := r.Err
+	if out == nil {
+		return
+	}
+	fmt.Fprintf(out, "\nCredentials not resolved (%d); the scenario is running and these resources are degraded:\n",
+		len(env.CredentialGaps))
+	for _, gap := range env.CredentialGaps {
+		label := gap.Env
+		if gap.Label != "" {
+			label += " (" + gap.Label + ")"
+		}
+		requirement := "optional"
+		if gap.Required {
+			requirement = "required"
+		}
+		fmt.Fprintf(out, "  %s → %s [%s]\n      %s\n", gap.Resource, label, requirement, gap.Remediation)
+	}
+	fmt.Fprintf(out, "  Provisioning a credential takes effect on the next resource use; no control-plane restart is needed.\n\n")
+}
+
+// logCredentialGaps emits one line per start, not one per descriptor: a
+// resource such as home-assistant declares six credentials, and six identical
+// warnings would bury the one fact the operator needs.
+func (r *Runner) logCredentialGaps(slug string, env ports.Environment) {
+	if len(env.CredentialGaps) == 0 {
+		return
+	}
+	required := 0
+	for _, gap := range env.CredentialGaps {
+		if gap.Required {
+			required++
+		}
+	}
+	first := env.CredentialGaps[0]
+	r.logWarn("Scenario started with unresolved credentials",
+		logx.AttrScenario, slug,
+		"credential_gaps", len(env.CredentialGaps),
+		"required_gaps", required,
+		"provider_state", string(env.CredentialProvider),
+		"first_variable", first.Env,
+		"remediation", first.Remediation,
+	)
+}
+
 func (r *Runner) prepareScenarioEnvironment(item scenario.Scenario, runtimeSession runtimeRegistrySession) (ports.Environment, error) {
 	if err := r.cleanupFixedPortOrphans(item); err != nil {
 		return ports.Environment{}, err
@@ -737,6 +799,7 @@ func (r *Runner) prepareScenarioEnvironment(item scenario.Scenario, runtimeSessi
 	if err != nil {
 		return ports.Environment{}, err
 	}
+	r.logCredentialGaps(item.Slug, env)
 
 	if _, err := r.runWithLifecycleLog(lifecycleLogContext{Scenario: item.Slug, Operation: "environment", Phase: "database"}, func(logWriter, _ io.Writer) error {
 		return r.ensureScenarioDatabase(item, env.EnvVars, logWriter)

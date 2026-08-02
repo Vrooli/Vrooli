@@ -554,6 +554,7 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 		"nvidia_driver",
 		"ollama_resource_controls",
 		"pstore_native", "pstore_observability", "pstore_ramoops", "remote_session_protection", "tcp_tuning",
+		"tpm_credential_access",
 		"vrooli_launcher", "workspace_sandbox_userns",
 	}
 	if len(safeguardNames) != len(expectedSafeguards) {

@@ -1,6 +1,9 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "twilio",
+  "storage": {"entries": {
+    "config": {"rung": "owned", "path": "$USER_CONFIG_DIR/vrooli/resources/twilio", "kind": "dir", "class": "config", "regenerable": false, "sensitive": true, "rationale": "The resource documentation stores Twilio phone-number and credential configuration under the user config root."}
+  }},
   "display_name": "Twilio",
   "description": "Hosted Twilio API resource with typed Go credential and provider diagnostics.",
   "cli": {

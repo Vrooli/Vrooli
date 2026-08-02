@@ -1,6 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
-  "name": "clock",
+ "name": "clock",
+  "storage": {"entries": {}, "rationale": "This safeguard does not persist a host file or directory; the explicit empty declaration records that its effect is runtime-only or externally owned."},
   "description": "Verify and synchronize system clock accuracy for TLS and authentication",
   "handler": "clock",
   "platforms": [

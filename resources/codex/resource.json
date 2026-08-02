@@ -1,6 +1,9 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "codex",
+  "storage": {"entries": {
+    "home": {"rung": "owned", "path": "$USER_HOME/.codex", "kind": "dir", "class": "data", "regenerable": false, "sensitive": true, "rationale": "Codex CLI state, sessions, configuration, memories, and authentication are rooted at CODEX_HOME, defaulting to ~/.codex."}
+  }},
   "display_name": "OpenAI Codex CLI",
   "description": "OpenAI Codex CLI for local code generation and agentic engineering workflows.",
   "cli": {

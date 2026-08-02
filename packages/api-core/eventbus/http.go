@@ -41,7 +41,7 @@ type Projection func(*http.Request, int, []byte) (fields map[string]any, ok bool
 // ReceiptProjectionPolicy is supplied by the refreshed local policy cache.
 // A nil policy means receipt emission is disabled rather than self-authorized.
 type ReceiptProjectionPolicy interface {
-	ProjectReceipt(source, target, operation string, candidate map[string]any) (projection map[string]any, policyVersion string, ok bool)
+	ProjectReceipt(source, target, operation, protocol string, candidate map[string]any) (projection map[string]any, policyVersion string, ok bool)
 }
 
 // MiddlewareConfig describes one standard typed server surface. It contains no
@@ -90,7 +90,7 @@ func Middleware(cfg MiddlewareConfig) func(http.Handler) http.Handler {
 				return
 			}
 			policyVersion := ""
-			projection, policyVersion, ok = cfg.ReceiptPolicy.ProjectReceipt(source, cfg.Target, op, projection)
+			projection, policyVersion, ok = cfg.ReceiptPolicy.ProjectReceipt(source, cfg.Target, op, requestProtocol(r), projection)
 			if !ok {
 				return
 			}
@@ -108,6 +108,13 @@ func Middleware(cfg MiddlewareConfig) func(http.Handler) http.Handler {
 			})
 		})
 	}
+}
+
+func requestProtocol(r *http.Request) string {
+	if r != nil && strings.HasPrefix(strings.TrimPrefix(r.URL.Path, "/"), "vrooli.") {
+		return "connect"
+	}
+	return "http"
 }
 
 func hasSuppliedUnverifiedIdentity(r *http.Request) bool {

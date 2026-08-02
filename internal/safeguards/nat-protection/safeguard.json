@@ -1,6 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
-  "name": "nat_protection",
+ "name": "nat_protection",
+  "storage": {"entries": {}, "rationale": "This safeguard does not persist a host file or directory; the explicit empty declaration records that its effect is runtime-only or externally owned."},
   "description": "Detect and remove dead NAT iptables REDIRECT rules that hijack web traffic",
   "handler": "nat_protection",
   "platforms": [

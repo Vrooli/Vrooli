@@ -1,6 +1,7 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "openrouter",
+  "storage": {"entries": {}, "rationale": "No additional host storage is owned by this resource on the supported lifecycle path; the explicit empty declaration prevents an implicit-storage assumption."},
   "display_name": "OpenRouter API",
   "description": "Hosted OpenRouter API gateway for access to multiple model providers.",
   "cli": {

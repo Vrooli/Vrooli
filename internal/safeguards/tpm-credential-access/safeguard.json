@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+ "name": "tpm_credential_access",
+  "storage": {"entries": {}, "rationale": "This safeguard does not persist a host file or directory; the explicit empty declaration records that its effect is runtime-only or externally owned."},
+  "description": "Grant the operator account access to the TPM so the encrypted credential store opens unattended after a reboot",
+  "handler": "tpm_credential_access",
+  "platforms": [
+    "linux"
+  ],
+  "risk": "medium",
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "deployment": {"profiles": {"desktop": {"linux": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "macos": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}, "windows": {"support": "unsupported", "mode": "manual", "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."}}}}
+}

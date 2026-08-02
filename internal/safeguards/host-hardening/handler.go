@@ -4,21 +4,21 @@
 //     turns kernel hangs and oopses into observable, recoverable events:
 //
 //     kernel.sysrq                  enables manual `echo c > /proc/sysrq-trigger`
-//                                   for kdump validation testing.
+//     for kdump validation testing.
 //     kernel.hung_task_timeout_secs flag tasks blocked >120s in dmesg.
 //     kernel.softlockup_panic       panic on a CPU softlockup so kdump fires
-//                                   instead of the kernel sitting wedged
-//                                   until a hardware watchdog hard-resets.
+//     instead of the kernel sitting wedged
+//     until a hardware watchdog hard-resets.
 //     kernel.unknown_nmi_panic      panic on unknown NMIs (firmware/IPMI
-//                                   watchdog NMIs). Same diagnostic
-//                                   motivation: silent hard resets defeat
-//                                   debugging.
+//     watchdog NMIs). Same diagnostic
+//     motivation: silent hard resets defeat
+//     debugging.
 //     kernel.panic_on_oops          turn an oops into a panic so kdump
-//                                   captures a vmcore. Without this, the
-//                                   kernel logs the oops and limps onward.
+//     captures a vmcore. Without this, the
+//     kernel logs the oops and limps onward.
 //     kernel.panic                  reboot 10s after panic if vmcore capture
-//                                   succeeded (or failed) — so the box
-//                                   doesn't sit dead at 4am.
+//     succeeded (or failed) — so the box
+//     doesn't sit dead at 4am.
 //
 //  2. Journald rate-limit drop-in at
 //     /etc/systemd/journald.conf.d/99-vrooli-ratelimit.conf that raises the
@@ -45,8 +45,8 @@ import (
 )
 
 const (
-	sysctlPath  = "/etc/sysctl.d/99-vrooli-host-hardening.conf"
-	journaldDir = "/etc/systemd/journald.conf.d"
+	sysctlPath   = "/etc/sysctl.d/99-vrooli-host-hardening.conf"
+	journaldDir  = "/etc/systemd/journald.conf.d"
 	journaldPath = journaldDir + "/99-vrooli-ratelimit.conf"
 )
 

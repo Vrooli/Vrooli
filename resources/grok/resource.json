@@ -1,6 +1,9 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "grok",
+  "storage": {"entries": {
+    "home": {"rung": "owned", "path": "$USER_HOME/.grok", "kind": "dir", "class": "data", "regenerable": false, "sensitive": true, "rationale": "The managed Grok CLI sets GROK_DATA_DIR to ~/.grok for sessions, memory, configuration, and authentication."}
+  }},
   "display_name": "Grok Build CLI",
   "description": "xAI Grok Build coding CLI resource: a thin Go entrypoint wiring lifecycle and an upstream update-check; agent-manager (when later wired) invokes the raw grok binary directly.",
   "cli": {

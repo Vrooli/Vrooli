@@ -1,6 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
-  "name": "nvidia_driver",
+ "name": "nvidia_driver",
+  "storage": {"entries": {}, "rationale": "This safeguard does not persist a host file or directory; the explicit empty declaration records that its effect is runtime-only or externally owned."},
   "description": "Validate and repair the NVIDIA kernel driver for the running Ubuntu kernel when NVIDIA display hardware is present",
   "handler": "nvidia_driver",
   "platforms": [

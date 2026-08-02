@@ -1,6 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
-  "name": "kernel_config",
+ "name": "kernel_config",
+  "storage": {"entries": {"sysctl_config": {"rung": "pinned", "path": {"linux": "/etc/sysctl.d/99-vrooli.conf", "macos": null, "windows": null}, "kind": "file", "class": "config", "sensitive": true, "rationale": "The safeguard writes Linux kernel parameters."}}, "rationale": "Linux-only system configuration is verified by the safeguard file check."},
   "description": "Configure kernel parameters for optimal Vrooli operation (inotify file watcher limits)",
   "handler": "kernel_config",
   "platforms": [

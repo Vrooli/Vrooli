@@ -622,10 +622,11 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 	}
 
 	openrouterEnv, err := LoadResourceEnvironment(root, home, "openrouter")
+	// No skip on credential state: resolving environment must succeed whether
+	// or not the OpenRouter key is provisioned and whether or not this host has
+	// a reachable secure store. A skip here would let the regression this test
+	// guards pass unnoticed on exactly the hosts that hit it.
 	if err != nil {
-		if strings.Contains(err.Error(), "credential is not configured") || strings.Contains(err.Error(), "credential provider is unsupported") {
-			t.Skipf("OpenRouter native credential is not configured on this host: %v", err)
-		}
 		t.Fatalf("LoadResourceEnvironment(openrouter): %v", err)
 	}
 	if got := openrouterEnv["RESOURCE_OPENROUTER_URL"]; got != "https://openrouter.ai/api/v1" {
@@ -767,10 +768,11 @@ func TestActualNonDockerResourceManifestsResolveNativeExports(t *testing.T) {
 	}
 
 	openrouterEnv, err := LoadResourceEnvironment(root, home, "openrouter")
+	// No skip on credential state: resolving environment must succeed whether
+	// or not the OpenRouter key is provisioned and whether or not this host has
+	// a reachable secure store. A skip here would let the regression this test
+	// guards pass unnoticed on exactly the hosts that hit it.
 	if err != nil {
-		if strings.Contains(err.Error(), "credential is not configured") || strings.Contains(err.Error(), "credential provider is unsupported") {
-			t.Skipf("OpenRouter native credential is not configured on this host: %v", err)
-		}
 		t.Fatalf("LoadResourceEnvironment(openrouter): %v", err)
 	}
 	if got := openrouterEnv["RESOURCE_OPENROUTER_URL"]; got != "https://openrouter.ai/api/v1" {

@@ -1,6 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
-  "name": "workspace_sandbox_userns",
+ "name": "workspace_sandbox_userns",
+  "storage": {"entries": {"apparmor_profile": {"rung": "pinned", "path": {"linux": "/etc/apparmor.d/vrooli-workspace-sandbox", "macos": null, "windows": null}, "kind": "file", "class": "config", "sensitive": true, "rationale": "The safeguard writes the Linux AppArmor profile."}}, "rationale": "Linux-only system configuration is verified by the safeguard file check."},
   "description": "Allow workspace-sandbox to enter the AppArmor profile needed for unprivileged user and mount namespace startup",
   "handler": "workspace_sandbox_userns",
   "platforms": [

@@ -452,6 +452,50 @@ func TestHTTPClientApplicationAndInvocationHeaderSourcesCompose(t *testing.T) {
 	}
 }
 
+func TestIdentityForwardingTransportAddsProcessIdentityForRawClient(t *testing.T) {
+	t.Setenv(EnvIdentityToken, "opaque-agent-token")
+	gotIdentity := ""
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotIdentity = r.Header.Get(HeaderAgentIdentityToken)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	client := &http.Client{Transport: identityForwardingTransport{next: http.DefaultTransport}}
+	resp, err := client.Get(server.URL)
+	if err != nil {
+		t.Fatalf("raw client request: %v", err)
+	}
+	resp.Body.Close()
+	if gotIdentity != "opaque-agent-token" {
+		t.Fatalf("identity header = %q, want process token", gotIdentity)
+	}
+}
+
+func TestIdentityForwardingTransportPreservesExplicitIdentity(t *testing.T) {
+	t.Setenv(EnvIdentityToken, "environment-token")
+	gotIdentity := ""
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotIdentity = r.Header.Get(HeaderAgentIdentityToken)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	req, err := http.NewRequest(http.MethodGet, server.URL, nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.Header.Set(HeaderAgentIdentityToken, "explicit-token")
+	resp, err := identityForwardingTransport{next: http.DefaultTransport}.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("round trip: %v", err)
+	}
+	resp.Body.Close()
+	if gotIdentity != "explicit-token" {
+		t.Fatalf("identity header = %q, want explicit token", gotIdentity)
+	}
+}
+
 func TestStringListFlagCollectsValues(t *testing.T) {
 	var list StringList
 	list.Set("a")

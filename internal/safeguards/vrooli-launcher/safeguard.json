@@ -1,6 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
-  "name": "vrooli_launcher",
+ "name": "vrooli_launcher",
+  "storage": {"entries": {"launcher": {"rung": "pinned", "path": {"linux": "/usr/local/bin/vrooli", "macos": "/usr/local/bin/vrooli", "windows": null}, "kind": "file", "class": "state", "sensitive": false, "rationale": "The safeguard installs the POSIX launcher on Linux and macOS."}}, "rationale": "The launcher is an explicitly verified host installation artifact."},
   "description": "Install a POSIX shim at /usr/local/bin/vrooli so `sudo vrooli` works. See package doc for design rationale.",
   "handler": "vrooli_launcher",
   "platforms": [

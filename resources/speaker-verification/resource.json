@@ -1,6 +1,10 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "speaker-verification",
+  "storage": {"entries": {
+    "profiles": {"rung": "pinned", "path": {"linux": "$USER_HOME/.local/share/vrooli/resources/speaker-verification/profiles", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/speaker-verification/profiles", "windows": "$USER_HOME/AppData/Local/vrooli/resources/speaker-verification/profiles"}, "kind": "dir", "class": "data", "regenerable": false, "sensitive": true, "rationale": "Enrolled speaker profiles are bind-mounted into the service and are not regenerable without re-enrollment."},
+    "model_cache": {"rung": "relocatable", "path": {"linux": "$USER_HOME/.local/share/vrooli/resources/speaker-verification/model-cache", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/speaker-verification/model-cache", "windows": "$USER_HOME/AppData/Local/vrooli/resources/speaker-verification/model-cache"}, "kind": "dir", "class": "cache", "regenerable": true, "relocation": {"key": "SPEAKER_VERIFICATION_MODELS_DIR", "scope": "container"}, "rationale": "Downloaded SpeechBrain models are re-fetchable and mounted as model-cache."}
+  }},
   "display_name": "Speaker Verification",
   "description": "Managed SpeechBrain ECAPA-TDNN speaker-embedding service with native compose-backed lifecycle for speaker enrollment, verification, and reserved target-speaker extraction workflows.",
   "cli": {

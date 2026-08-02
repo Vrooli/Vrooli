@@ -1,6 +1,10 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "home-assistant",
+  "storage": {"entries": {
+    "config": {"rung": "pinned", "path": {"linux": "$USER_HOME/.config/vrooli/resources/home-assistant", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/home-assistant", "windows": "$USER_HOME/AppData/Local/vrooli/resources/home-assistant"}, "kind": "dir", "class": "config", "regenerable": false, "sensitive": true, "rationale": "Home Assistant's compose service bind-mounts this directory to /config; it contains the recorder database, integrations, and secrets."},
+    "backups": {"rung": "pinned", "path": {"linux": "$USER_HOME/.local/share/vrooli/resources/home-assistant", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/home-assistant", "windows": "$USER_HOME/AppData/Local/vrooli/resources/home-assistant"}, "kind": "dir", "class": "data", "regenerable": false, "rationale": "The resource stores backup archives beneath its managed data root."}
+  }},
   "display_name": "Home Assistant",
   "description": "Managed Home Assistant service with native compose-backed lifecycle and shell-retained automation, backup, and voice workflows.",
   "cli": {

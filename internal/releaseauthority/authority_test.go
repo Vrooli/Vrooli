@@ -3,6 +3,7 @@ package releaseauthority
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,7 +27,9 @@ func (s *memoryStore) Put(service, key, value string) error {
 func (s *memoryStore) Get(service, key string) (string, error) {
 	value, ok := s.values[service+"/"+key]
 	if !ok {
-		return "", os.ErrNotExist
+		// A conforming Store answers a missing key with ErrNotFound so the
+		// authority can tell an unset key from an unreachable backend.
+		return "", fmt.Errorf("%w: %s/%s", securestore.ErrNotFound, service, key)
 	}
 	return value, nil
 }

@@ -8,7 +8,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class InvocationFilter(_message.Message):
-    __slots__ = ("window", "ownership", "outcome", "executable", "fingerprint", "profile_id", "runner_type", "model", "tag_prefix", "run_status", "tool_name", "episode_pattern", "episode_cause_scope", "episode_fingerprint", "self_report_rule_id", "self_report_cause_scope")
+    __slots__ = ("window", "ownership", "outcome", "executable", "fingerprint", "profile_id", "runner_type", "model", "tag_prefix", "run_status", "tool_name", "episode_pattern", "episode_cause_scope", "episode_fingerprint", "self_report_rule_id", "self_report_cause_scope", "target_scenario", "operation")
     WINDOW_FIELD_NUMBER: _ClassVar[int]
     OWNERSHIP_FIELD_NUMBER: _ClassVar[int]
     OUTCOME_FIELD_NUMBER: _ClassVar[int]
@@ -25,6 +25,8 @@ class InvocationFilter(_message.Message):
     EPISODE_FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
     SELF_REPORT_RULE_ID_FIELD_NUMBER: _ClassVar[int]
     SELF_REPORT_CAUSE_SCOPE_FIELD_NUMBER: _ClassVar[int]
+    TARGET_SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
     window: _measures_pb2.TimeWindow
     ownership: str
     outcome: str
@@ -41,7 +43,9 @@ class InvocationFilter(_message.Message):
     episode_fingerprint: str
     self_report_rule_id: str
     self_report_cause_scope: str
-    def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., ownership: _Optional[str] = ..., outcome: _Optional[str] = ..., executable: _Optional[str] = ..., fingerprint: _Optional[str] = ..., profile_id: _Optional[str] = ..., runner_type: _Optional[str] = ..., model: _Optional[str] = ..., tag_prefix: _Optional[str] = ..., run_status: _Optional[str] = ..., tool_name: _Optional[str] = ..., episode_pattern: _Optional[str] = ..., episode_cause_scope: _Optional[str] = ..., episode_fingerprint: _Optional[str] = ..., self_report_rule_id: _Optional[str] = ..., self_report_cause_scope: _Optional[str] = ...) -> None: ...
+    target_scenario: str
+    operation: str
+    def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., ownership: _Optional[str] = ..., outcome: _Optional[str] = ..., executable: _Optional[str] = ..., fingerprint: _Optional[str] = ..., profile_id: _Optional[str] = ..., runner_type: _Optional[str] = ..., model: _Optional[str] = ..., tag_prefix: _Optional[str] = ..., run_status: _Optional[str] = ..., tool_name: _Optional[str] = ..., episode_pattern: _Optional[str] = ..., episode_cause_scope: _Optional[str] = ..., episode_fingerprint: _Optional[str] = ..., self_report_rule_id: _Optional[str] = ..., self_report_cause_scope: _Optional[str] = ..., target_scenario: _Optional[str] = ..., operation: _Optional[str] = ...) -> None: ...
 
 class MeasureValidity(_message.Message):
     __slots__ = ("state", "reason", "sample_size", "largest_fingerprint_bucket", "largest_fingerprint_share")
@@ -472,6 +476,74 @@ class ToolUsageResponse(_message.Message):
     executed_query: str
     validity: MeasureValidity
     def __init__(self, rows: _Optional[_Iterable[_Union[ToolUsageRow, _Mapping]]] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ...) -> None: ...
+
+class CapabilityUsageRequest(_message.Message):
+    __slots__ = ("window", "filter")
+    WINDOW_FIELD_NUMBER: _ClassVar[int]
+    FILTER_FIELD_NUMBER: _ClassVar[int]
+    window: _measures_pb2.TimeWindow
+    filter: InvocationFilter
+    def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ...) -> None: ...
+
+class CapabilityUsageRow(_message.Message):
+    __slots__ = ("target_scenario", "operation", "call_count", "success_count", "failed_count", "total_duration_ms")
+    TARGET_SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    CALL_COUNT_FIELD_NUMBER: _ClassVar[int]
+    SUCCESS_COUNT_FIELD_NUMBER: _ClassVar[int]
+    FAILED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_DURATION_MS_FIELD_NUMBER: _ClassVar[int]
+    target_scenario: str
+    operation: str
+    call_count: int
+    success_count: int
+    failed_count: int
+    total_duration_ms: int
+    def __init__(self, target_scenario: _Optional[str] = ..., operation: _Optional[str] = ..., call_count: _Optional[int] = ..., success_count: _Optional[int] = ..., failed_count: _Optional[int] = ..., total_duration_ms: _Optional[int] = ...) -> None: ...
+
+class CapabilityUsageResponse(_message.Message):
+    __slots__ = ("rows", "executed_query", "validity")
+    ROWS_FIELD_NUMBER: _ClassVar[int]
+    EXECUTED_QUERY_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
+    rows: _containers.RepeatedCompositeFieldContainer[CapabilityUsageRow]
+    executed_query: str
+    validity: MeasureValidity
+    def __init__(self, rows: _Optional[_Iterable[_Union[CapabilityUsageRow, _Mapping]]] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ...) -> None: ...
+
+class CapabilityEfficacyRequest(_message.Message):
+    __slots__ = ("window", "filter")
+    WINDOW_FIELD_NUMBER: _ClassVar[int]
+    FILTER_FIELD_NUMBER: _ClassVar[int]
+    window: _measures_pb2.TimeWindow
+    filter: InvocationFilter
+    def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ...) -> None: ...
+
+class CapabilityEfficacyRow(_message.Message):
+    __slots__ = ("target_scenario", "operation", "call_count", "success_count", "fallback_after_count", "abandoned_count")
+    TARGET_SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    CALL_COUNT_FIELD_NUMBER: _ClassVar[int]
+    SUCCESS_COUNT_FIELD_NUMBER: _ClassVar[int]
+    FALLBACK_AFTER_COUNT_FIELD_NUMBER: _ClassVar[int]
+    ABANDONED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    target_scenario: str
+    operation: str
+    call_count: int
+    success_count: int
+    fallback_after_count: int
+    abandoned_count: int
+    def __init__(self, target_scenario: _Optional[str] = ..., operation: _Optional[str] = ..., call_count: _Optional[int] = ..., success_count: _Optional[int] = ..., fallback_after_count: _Optional[int] = ..., abandoned_count: _Optional[int] = ...) -> None: ...
+
+class CapabilityEfficacyResponse(_message.Message):
+    __slots__ = ("rows", "executed_query", "validity")
+    ROWS_FIELD_NUMBER: _ClassVar[int]
+    EXECUTED_QUERY_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
+    rows: _containers.RepeatedCompositeFieldContainer[CapabilityEfficacyRow]
+    executed_query: str
+    validity: MeasureValidity
+    def __init__(self, rows: _Optional[_Iterable[_Union[CapabilityEfficacyRow, _Mapping]]] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ...) -> None: ...
 
 class ErrorPatternsRequest(_message.Message):
     __slots__ = ("window", "filter")

@@ -1,6 +1,9 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "redis",
+  "storage": {"entries": {
+    "data": {"rung": "pinned", "path": {"linux": "$USER_HOME/.local/share/vrooli/resources/redis", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/redis", "windows": "$USER_HOME/AppData/Local/vrooli/resources/redis"}, "kind": "dir", "class": "data", "regenerable": true, "rationale": "Redis is configured as a bounded cache/event bus; its append-only persistence directory is bind-mounted to /data."}
+  }},
   "display_name": "Redis Cache",
   "description": "Redis event bus and cache layer for project and scenario workflows.",
   "cli": {

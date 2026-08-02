@@ -1,6 +1,7 @@
 {
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
-  "name": "mcelog",
+ "name": "mcelog",
+  "storage": {"entries": {"error_log": {"rung": "owned", "path": "/var/log/mcelog", "kind": "file", "class": "logs", "regenerable": true, "rationale": "mcelog writes machine-check error records to this host log."}}, "rationale": "mcelog owns a host log on Linux; the log is diagnostic and regenerable."},
   "description": "Machine Check Exception logger — companion to rasdaemon for AMD/Intel hardware error capture; logs to /var/log/mcelog",
   "commands": [
     "mcelog"

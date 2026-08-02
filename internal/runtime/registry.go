@@ -29,6 +29,7 @@ import (
 	pstoreramoops "github.com/vrooli/vrooli/internal/safeguards/pstore-ramoops"
 	remotesessionprotection "github.com/vrooli/vrooli/internal/safeguards/remote-session-protection"
 	tcptuning "github.com/vrooli/vrooli/internal/safeguards/tcp-tuning"
+	tpmcredentialaccess "github.com/vrooli/vrooli/internal/safeguards/tpm-credential-access"
 	vroolilauncher "github.com/vrooli/vrooli/internal/safeguards/vrooli-launcher"
 	workspacesandboxuserns "github.com/vrooli/vrooli/internal/safeguards/workspace-sandbox-userns"
 	"github.com/vrooli/vrooli/internal/tools"
@@ -73,6 +74,7 @@ var customSafeguardHandlers = map[string]func(hostreqkit.SafeguardManifest) host
 	"crashkernel_reserve":             crashkernelreserve.NewHandler,
 	"dns_resolution":                  dnsresolution.NewHandler,
 	"docker_host_firewall":            dockerhostfirewall.NewHandler,
+	"tpm_credential_access":           tpmcredentialaccess.NewHandler,
 	"edac_modules":                    edacmodules.NewHandler,
 	"host_hardening":                  hosthardening.NewHandler,
 	"kernel_config":                   kernelconfig.NewHandler,

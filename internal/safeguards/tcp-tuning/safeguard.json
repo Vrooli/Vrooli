@@ -1,6 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
-  "name": "tcp_tuning",
+ "name": "tcp_tuning",
+  "storage": {"entries": {"sysctl_config": {"rung": "pinned", "path": {"linux": "/etc/sysctl.d/99-vrooli-tcp.conf", "macos": null, "windows": null}, "kind": "file", "class": "config", "sensitive": true, "rationale": "The safeguard writes Linux TCP kernel settings."}}, "rationale": "Linux-only system configuration is verified by the safeguard file check."},
   "description": "Optimize TCP stack parameters for reliable connectivity (PMTU probing, ECN, base MSS)",
   "handler": "tcp_tuning",
   "platforms": [

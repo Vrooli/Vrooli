@@ -103,7 +103,7 @@ func bootstrapPrivateVault(ctx context.Context, state ManagedServiceState, endpo
 		return fmt.Errorf("private Vault bootstrap requires a verified supervised loopback instance")
 	}
 	store := privateVaultSecureStore()
-	if err := securestore.Probe(store); err != nil {
+	if err := securestore.ProbeWritable(store); err != nil {
 		return fmt.Errorf("private Vault requires operating-system secure storage: %w", err)
 	}
 	instance := ManagedInstance{ID: state.InstanceID, Resource: "vault", Provider: resourcedeployment.ProviderManagedPrivate, Endpoint: endpoint}

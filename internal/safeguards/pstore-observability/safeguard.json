@@ -1,6 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
-  "name": "pstore_observability",
+ "name": "pstore_observability",
+  "storage": {"entries": {"collector": {"rung": "pinned", "path": {"linux": "/usr/local/libexec/vrooli/pstore-collector", "macos": null, "windows": null}, "kind": "file", "class": "state", "sensitive": false, "rationale": "The safeguard installs the Linux pstore collector executable."}, "systemd_service": {"rung": "pinned", "path": {"linux": "/etc/systemd/system/vrooli-pstore-collector.service", "macos": null, "windows": null}, "kind": "file", "class": "config", "sensitive": true, "rationale": "The safeguard installs the Linux pstore collector service."}, "systemd_timer": {"rung": "pinned", "path": {"linux": "/etc/systemd/system/vrooli-pstore-collector.timer", "macos": null, "windows": null}, "kind": "file", "class": "config", "sensitive": true, "rationale": "The safeguard installs the Linux pstore collector timer."}}, "rationale": "Linux-only system configuration and executable files are verified by the safeguard file check."},
   "description": "Export privileged pstore crash artifacts into a Vrooli read-only host-observability directory for unprivileged scenarios",
   "handler": "pstore_observability",
   "platforms": [

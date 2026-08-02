@@ -1,6 +1,7 @@
 {
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
-  "name": "sd",
+ "name": "sd",
+  "storage": {"entries": {}, "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."},
   "description": "stable-diffusion.cpp (sd) text-to-image / image-to-image backend for image-tools",
   "commands": [
     "sd"

@@ -20,8 +20,10 @@ type managedSharedBootstrapper func(context.Context, *UserResourceHost, ManagedI
 // cannot be pointed at an arbitrary service.
 type managedPrivateBootstrapper func(context.Context, ManagedServiceState, string) error
 
-var managedSharedBootstrappers = map[string]managedSharedBootstrapper{}
-var managedPrivateBootstrappers = map[string]managedPrivateBootstrapper{}
+var (
+	managedSharedBootstrappers  = map[string]managedSharedBootstrapper{}
+	managedPrivateBootstrappers = map[string]managedPrivateBootstrapper{}
+)
 
 func registerManagedSharedBootstrapper(resource string, bootstrap managedSharedBootstrapper) {
 	if strings.TrimSpace(resource) == "" || bootstrap == nil {
@@ -72,7 +74,7 @@ func (h *UserResourceHost) SecureStorageReady(instanceID string) error {
 	if h == nil || h.Secrets == nil || strings.TrimSpace(instanceID) == "" {
 		return fmt.Errorf("user resource host secure store is unavailable")
 	}
-	if err := securestore.Probe(h.Secrets); err != nil {
+	if err := securestore.ProbeWritable(h.Secrets); err != nil {
 		return fmt.Errorf("verify secure storage: %w", err)
 	}
 	return nil

@@ -1,6 +1,7 @@
 {
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
-  "name": "k6",
+ "name": "k6",
+  "storage": {"entries": {}, "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."},
   "description": "k6 load-testing CLI supplied by the operator",
   "commands": ["k6"],
   "versionArgs": ["version"],

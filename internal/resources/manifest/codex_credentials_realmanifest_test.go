@@ -26,3 +26,23 @@ func TestAgentRunnerCredentialsAreOptional(t *testing.T) {
 		})
 	}
 }
+
+// TestOpenAIRunnerCredentialIsShared ensures runners that inject the same
+// process variable refer to one durable credential rather than racing to
+// supply different values at scenario startup.
+func TestOpenAIRunnerCredentialIsShared(t *testing.T) {
+	repoRoot := findRepoRoot(t)
+	for _, name := range []string{"claude-code", "codex"} {
+		t.Run(name, func(t *testing.T) {
+			resource, err := manifest.Load(filepath.Join(repoRoot, "resources", name, "resource.json"))
+			if err != nil {
+				t.Fatalf("load %s resource manifest: %v", name, err)
+			}
+			for _, credential := range resource.Credentials.All() {
+				if credential.Env == "OPENAI_API_KEY" && (credential.LogicalID != "vrooli/openai" || credential.Field != "api-key") {
+					t.Fatalf("%s OPENAI_API_KEY descriptor = %s/%s, want vrooli/openai/api-key", name, credential.LogicalID, credential.Field)
+				}
+			}
+		})
+	}
+}

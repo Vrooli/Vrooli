@@ -1,6 +1,9 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "reranker",
+  "storage": {"entries": {
+    "model_cache": {"rung": "relocatable", "path": {"linux": "$USER_HOME/.local/share/vrooli/resources/reranker/model-cache", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/reranker/model-cache", "windows": "$USER_HOME/AppData/Local/vrooli/resources/reranker/model-cache"}, "kind": "dir", "class": "cache", "regenerable": true, "relocation": {"key": "RESOURCE_DATA_DIR", "scope": "container"}, "rationale": "Text Embeddings Inference downloads the model into the bind-mounted /data cache; the model is re-downloadable."}
+  }},
   "display_name": "Reranker",
   "description": "Managed cross-encoder reranking service (HuggingFace Text-Embeddings-Inference serving BAAI/bge-reranker-v2-m3) with a compose-backed lifecycle. Scores query/passage relevance for the second stage of hybrid retrieval; consumed by aisearch-go and search-hub.",
   "cli": {

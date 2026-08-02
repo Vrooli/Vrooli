@@ -1,6 +1,7 @@
 {
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
-  "name": "openbox",
+ "name": "openbox",
+  "storage": {"entries": {}, "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."},
   "description": "Lightweight X11 window manager for virtual desktop sessions",
   "commands": [
     "openbox"

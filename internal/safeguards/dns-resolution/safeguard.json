@@ -1,6 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
-  "name": "dns_resolution",
+ "name": "dns_resolution",
+  "storage": {"entries": {"resolved_config": {"rung": "pinned", "path": {"linux": "/etc/systemd/resolved.conf.d/99-vrooli-dns.conf", "macos": null, "windows": null}, "kind": "file", "class": "config", "sensitive": true, "rationale": "The safeguard writes a Linux systemd-resolved drop-in."}}, "rationale": "Linux-only system configuration is verified by the safeguard file check."},
   "description": "Configure reliable DNS servers via systemd-resolved for resilient name resolution",
   "handler": "dns_resolution",
   "platforms": [

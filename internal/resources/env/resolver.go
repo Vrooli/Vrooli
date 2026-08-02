@@ -2,7 +2,6 @@ package env
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,7 +13,6 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	runtimestorage "github.com/vrooli/vrooli/internal/resources/runtime/storage"
-	"github.com/vrooli/vrooli/internal/resources/securestore"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
@@ -46,12 +44,22 @@ type ResourceReport struct {
 	Manifest string            `json:"manifest_path,omitempty"`
 	Values   map[string]string `json:"values,omitempty"`
 	Warnings []string          `json:"warnings,omitempty"`
+	// MissingCredentials names every declared credential that did not resolve.
+	// It is additive: a consumer that ignores it sees exactly the shape it saw
+	// before, minus the variables that were never resolvable anyway.
+	MissingCredentials []MissingCredential               `json:"missing_credentials,omitempty"`
+	CredentialProvider credentialauthority.ProviderState `json:"credential_provider_state,omitempty"`
 }
 
 type ScenarioResolution struct {
 	Values    map[string]string `json:"values"`
 	Resources []ResourceReport  `json:"resources,omitempty"`
 	Warnings  []string          `json:"warnings,omitempty"`
+	// MissingCredentials aggregates every resource gap for this scenario, so a
+	// lifecycle caller can summarize once per start instead of once per
+	// descriptor.
+	MissingCredentials []MissingCredential               `json:"missing_credentials,omitempty"`
+	CredentialProvider credentialauthority.ProviderState `json:"credential_provider_state,omitempty"`
 }
 
 func ResolveScenario(root, home, scenarioName, variant string, manifest scenario.ServiceManifest) (ScenarioResolution, error) {
@@ -60,7 +68,13 @@ func ResolveScenario(root, home, scenarioName, variant string, manifest scenario
 		Resources: []ResourceReport{},
 		Warnings:  []string{},
 	}
+	report.CredentialProvider = credentialauthority.ProviderAvailable
 	owners := map[string]string{}
+	// credentialOwners checks the durable credential identity, not just the
+	// process-scoped injection name. Multiple resources may intentionally share
+	// one credential (for example two runners using the same OpenAI API key),
+	// but distinct identities must never compete to inject one environment name.
+	credentialOwners := map[string]credentialEnvDeclaration{}
 
 	resourceNames := make([]string, 0, len(manifest.Dependencies.Resources))
 	for name, dep := range manifest.Dependencies.Resources {
@@ -81,6 +95,18 @@ func ResolveScenario(root, home, scenarioName, variant string, manifest scenario
 			return ScenarioResolution{}, err
 		}
 		report.Resources = append(report.Resources, result)
+		report.MissingCredentials = append(report.MissingCredentials, result.MissingCredentials...)
+		if result.CredentialProvider != "" {
+			report.CredentialProvider = mergeProviderState(report.CredentialProvider, result.CredentialProvider)
+		}
+		for _, credential := range declaredCredentialEnvDeclarations(root, resourceName) {
+			if owner, exists := credentialOwners[credential.Env]; exists && !owner.sameCredential(credential) {
+				return ScenarioResolution{}, fmt.Errorf(
+					"credential env collision for %s: %s (%s/%s) and %s (%s/%s) declare different credentials",
+					credential.Env, owner.Resource, owner.LogicalID, owner.Field, resourceName, credential.LogicalID, credential.Field)
+			}
+			credentialOwners[credential.Env] = credential
+		}
 		for key, value := range result.Values {
 			if owner, exists := owners[key]; exists && report.Values[key] != value {
 				return ScenarioResolution{}, fmt.Errorf("resource env collision for %s: %s and %s export different values", key, owner, resourceName)
@@ -108,73 +134,60 @@ func ResolveResource(root, home, resourceName string, opts ResolveOptions) (Reso
 		return ResourceReport{}, err
 	}
 
-	values, warnings, err := resolveFromManifest(root, home, resourceManifest, opts)
+	values, warnings, credentials, err := resolveFromManifest(root, home, resourceManifest, opts)
 	if err != nil {
 		return ResourceReport{}, err
 	}
 
 	return ResourceReport{
-		Name:     resourceName,
-		Manifest: manifestPath,
-		Values:   values,
-		Warnings: warnings,
+		Name:               resourceName,
+		Manifest:           manifestPath,
+		Values:             values,
+		Warnings:           warnings,
+		MissingCredentials: credentials.Missing,
+		CredentialProvider: credentials.Provider,
 	}, nil
 }
 
-func ResolveCredentialValues(root, home string, resourceManifest manifestpkg.ResourceManifest) (map[string]string, error) {
-	_ = root
-	_ = home
-	values := map[string]string{}
-	descriptors := resourceManifest.Credentials.All()
-	if len(descriptors) == 0 {
-		return values, nil
-	}
-	authority, err := credentialauthority.NewAuthority(securestore.Default())
-	if err != nil {
-		return nil, fmt.Errorf("resolve %s credentials: %w", resourceManifest.Name, err)
-	}
-	for _, descriptor := range descriptors {
-		identity, err := credentialauthority.ParseIdentity(descriptor.LogicalID)
-		if err != nil {
-			return nil, fmt.Errorf("resolve %s credential %s: %w", resourceManifest.Name, descriptor.Env, err)
-		}
-		field := strings.TrimSpace(descriptor.Field)
-		if field == "" {
-			field = "value"
-		}
-		if err := authority.Inject(identity, field, descriptor.Env, values); err != nil {
-			if !descriptor.Required && errors.Is(err, credentialauthority.ErrUnconfigured) {
-				continue
-			}
-			return nil, fmt.Errorf("resolve %s credential %s: %w", resourceManifest.Name, descriptor.Env, err)
-		}
-	}
-	return values, nil
+type credentialEnvDeclaration struct {
+	Resource  string
+	Env       string
+	LogicalID string
+	Field     string
 }
 
-func MissingCredentialKeys(root, home string, resourceManifest manifestpkg.ResourceManifest) ([]string, error) {
-	if len(resourceManifest.Credentials.All()) == 0 {
-		return nil, nil
-	}
-	resolved, err := ResolveCredentialValues(root, home, resourceManifest)
-	if err != nil {
-		return nil, err
-	}
+func (declaration credentialEnvDeclaration) sameCredential(other credentialEnvDeclaration) bool {
+	return declaration.LogicalID == other.LogicalID && declaration.Field == other.Field
+}
 
-	missing := make([]string, 0)
+// declaredCredentialEnvDeclarations reports the credential identity each
+// resource injects into an environment variable, without resolving a value.
+// Returning nothing for an unreadable manifest is safe: ResolveResource has
+// already surfaced that defect.
+func declaredCredentialEnvDeclarations(root, resourceName string) []credentialEnvDeclaration {
+	resourceManifest, err := manifestpkg.Load(manifestpkg.DefaultPath(root, resourceName))
+	if err != nil {
+		return nil
+	}
+	declarations := make([]credentialEnvDeclaration, 0, len(resourceManifest.Credentials.All()))
 	for _, descriptor := range resourceManifest.Credentials.All() {
-		name := strings.TrimSpace(descriptor.Env)
-		if name == "" {
-			continue
-		}
-		if strings.TrimSpace(resolved[name]) == "" {
-			missing = append(missing, name)
+		if envName := strings.TrimSpace(descriptor.Env); envName != "" {
+			field := strings.TrimSpace(descriptor.Field)
+			if field == "" {
+				field = "value"
+			}
+			declarations = append(declarations, credentialEnvDeclaration{
+				Resource:  resourceName,
+				Env:       envName,
+				LogicalID: strings.TrimSpace(descriptor.LogicalID),
+				Field:     field,
+			})
 		}
 	}
-	return missing, nil
+	return declarations
 }
 
-func resolveFromManifest(root, home string, resourceManifest manifestpkg.ResourceManifest, opts ResolveOptions) (map[string]string, []string, error) {
+func resolveFromManifest(root, home string, resourceManifest manifestpkg.ResourceManifest, opts ResolveOptions) (map[string]string, []string, CredentialResolution, error) {
 	values := map[string]string{}
 	warnings := []string{}
 	templateContext := buildTemplateContext(root, home, resourceManifest.Name)
@@ -185,19 +198,19 @@ func resolveFromManifest(root, home string, resourceManifest manifestpkg.Resourc
 
 	hostPorts, err := loadHostPorts(root, resourceManifest)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, CredentialResolution{}, err
 	}
 	for key, portName := range resourceManifest.EnvironmentExports.FromPorts {
 		resolved, ok := hostPorts[strings.TrimSpace(portName)]
 		if !ok {
-			return nil, nil, fmt.Errorf("resource %s environment_exports.from_ports[%s] references unknown port %q", resourceManifest.Name, key, portName)
+			return nil, nil, CredentialResolution{}, fmt.Errorf("resource %s environment_exports.from_ports[%s] references unknown port %q", resourceManifest.Name, key, portName)
 		}
 		values[key] = strconv.Itoa(resolved)
 	}
 
 	runtimeValues, runtimeWarnings, err := resolveRequestedEnvValues(root, home, resourceManifest, resourceManifest.EnvironmentExports.FromRuntimeEnv, values)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, CredentialResolution{}, err
 	}
 	for key, value := range runtimeValues {
 		values[key] = value
@@ -207,12 +220,29 @@ func resolveFromManifest(root, home string, resourceManifest manifestpkg.Resourc
 	// Credentials are the authoritative source for their declared process
 	// variables. Apply them after manifest defaults so a persisted resource can
 	// safely outlive a changed bootstrap value in its image configuration.
-	credentialValues, err := ResolveCredentialValues(root, home, resourceManifest)
+	//
+	// A credential that did not resolve leaves its variable absent rather than
+	// empty, and never fails the resolve: credential state decides what a
+	// resource can do, not whether the control plane runs.
+	credentials, err := ResolveCredentialValues(resourceManifest)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, CredentialResolution{}, err
 	}
-	for key, value := range credentialValues {
+	for key, value := range credentials.Values {
 		values[key] = value
+	}
+	for _, gap := range credentials.Missing {
+		if _, hasNonCredentialSource := values[gap.Env]; hasNonCredentialSource {
+			// The manifest declares another source for this variable — a
+			// bootstrap default in runtime.env, typically. Deleting it would
+			// hand the resource an empty password rather than no password,
+			// which is strictly worse than the pre-credential behavior.
+			warnings = append(warnings, fmt.Sprintf(
+				"%s is running on the %s manifest default because its credential did not resolve; %s",
+				gap.Env, resourceManifest.Name, gap.Remediation))
+			continue
+		}
+		delete(values, gap.Env)
 	}
 
 	applyDependencyOverrides(resourceManifest.Name, opts, values)
@@ -221,7 +251,7 @@ func resolveFromManifest(root, home string, resourceManifest manifestpkg.Resourc
 		len(resourceManifest.EnvironmentExports.FromPorts) == 0 &&
 		len(resourceManifest.EnvironmentExports.FromRuntimeEnv) == 0 &&
 		len(resourceManifest.EnvironmentExports.Derived) == 0 {
-		return values, warnings, nil
+		return values, warnings, credentials, nil
 	} else {
 		for key, derived := range resourceManifest.EnvironmentExports.Derived {
 			values[key] = expandTemplateWithContext(derived.Template, values, templateContext)
@@ -234,7 +264,7 @@ func resolveFromManifest(root, home string, resourceManifest manifestpkg.Resourc
 		values[key] = expandTemplateWithContext(derived.Template, values, templateContext)
 	}
 
-	return values, warnings, nil
+	return values, warnings, credentials, nil
 }
 
 func resolveRequestedEnvValues(

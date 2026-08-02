@@ -57,8 +57,10 @@ func invalid(event Event, state State, detail string) error {
 	return &LifecycleError{Code: ErrorInvalidTransition, Operation: string(event), State: state, Cause: errors.New(detail)}
 }
 
-type Clock interface{ Now() time.Time }
-type RealClock struct{}
+type (
+	Clock     interface{ Now() time.Time }
+	RealClock struct{}
+)
 
 func (RealClock) Now() time.Time { return time.Now().UTC() }
 

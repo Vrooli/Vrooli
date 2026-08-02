@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "architecture-cartographer",
-  "input_digest": "sha256:d53167ae0cb1c848788f20fe28d55819179e6f3873337050dfcdeb82ecd6b244",
+  "input_digest": "sha256:7411b485af4513a4fb7b906e641095f3192e52613ec3d072eb6f7613d579dd07",
   "input_files": [
     "schemas/architecture-cartographer/v1/analytics/analytics.proto",
     "schemas/architecture-cartographer/v1/apply/apply.proto",
@@ -45,7 +45,7 @@
     "gen/go/architecture-cartographer/v1/domains/domains_v1connect/domains.connect.go": "sha256:338fe81c130e5e0fdeb8c0ccd0627c59889defe6bb63a7208c827c3b5f76c13f",
     "gen/go/architecture-cartographer/v1/errors/errors.pb.go": "sha256:7ddf4751b88a489a9a57c8bbf900a8e54f4595239e2903c7ca8684df88a3ee90",
     "gen/go/architecture-cartographer/v1/graph/graph.pb.go": "sha256:e802f68ec7ef12550cd2946eed4c8cb00f3d79157569a0090f3e168b2486349e",
-    "gen/go/architecture-cartographer/v1/graph/graph_v1connect/graph.connect.go": "sha256:470e6f07978e52d37d64cdac4b5818ff95f22700f6c8ccf50d8686fdf7d4b372",
+    "gen/go/architecture-cartographer/v1/graph/graph_v1connect/graph.connect.go": "sha256:fc0739eda178ada5cb55c61336e849a9b872c4c48023e01f57ed814d67bbb3b4",
     "gen/go/architecture-cartographer/v1/health/health.pb.go": "sha256:e8ca28f579f9f7509146b6d5c62fd93e8a83be21a108806b14d7d7ef423f66fb",
     "gen/go/architecture-cartographer/v1/search/search.pb.go": "sha256:d13e55f4443b15da461b2110700f64303577f390504ce8d0d6c7e8a09acd26d1",
     "gen/go/architecture-cartographer/v1/search/search_v1connect/search.connect.go": "sha256:87d6cbbb0687db912545eafc7c5ae8ca9f1cf52d991ef3b6ba0d0f9680dcb981",
@@ -97,7 +97,7 @@
     "gen/typescript/architecture-cartographer/v1/conflicts/conflicts_pb.ts": "sha256:a3172b8413c8915abf9c55cab428b721391e9597ffd6a42456df78cdf1a88c5d",
     "gen/typescript/architecture-cartographer/v1/domains/domains_pb.ts": "sha256:3d0e10eef0666b530c1cb975895d5beef8e744b3725b693086318a06c265dfe4",
     "gen/typescript/architecture-cartographer/v1/errors/errors_pb.ts": "sha256:43ec6920eb50bd383b36d4984469ad1e2e24d2e93e2865a464da358eefd41eef",
-    "gen/typescript/architecture-cartographer/v1/graph/graph_pb.ts": "sha256:2a701a441b878f5c644a295265c6e1bc1abce7eec1ad586db41a63265bee6dad",
+    "gen/typescript/architecture-cartographer/v1/graph/graph_pb.ts": "sha256:8bf040d0c13669b9ca20c018f340ee10ad8980f900f4527cb7a1dbcb3d0db7bb",
     "gen/typescript/architecture-cartographer/v1/health/health_pb.ts": "sha256:88fd7367d1335f6d069033621be98c2b8001f59c680ebdabe0665aad0759bb3e",
     "gen/typescript/architecture-cartographer/v1/search/search_pb.ts": "sha256:e10f72fddd1e0968079f503b705d0bb84f29fdd5cc1c8d1bbc298078ce5947b8",
     "gen/typescript/architecture-cartographer/v1/shared/shared_pb.ts": "sha256:35a2fbeb2a170ee504ea4ba444e4ae96c4fcf88e8f49f14312c20838b7b0ac7f",

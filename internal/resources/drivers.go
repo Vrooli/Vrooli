@@ -22,6 +22,7 @@ import (
 	runtimelogs "github.com/vrooli/vrooli/internal/resources/runtime/logs"
 	runtimestorage "github.com/vrooli/vrooli/internal/resources/runtime/storage"
 	"github.com/vrooli/vrooli/internal/scenario"
+	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
 	"github.com/vrooli/vrooli/internal/shell"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
@@ -1279,6 +1280,26 @@ func probeExternalCLICommand(ctx context.Context, controller *Controller, manife
 	return result.err
 }
 
+// credentialGapMessage gives the operator one line that names both what is
+// wrong and how to fix it. The two classes stay distinct: a host condition
+// tells the operator to repair the session, an unset value tells them to
+// provision it.
+func credentialGapMessage(gaps resourceenv.CredentialResolution) string {
+	names := make([]string, 0, len(gaps.Missing))
+	for _, gap := range gaps.Missing {
+		names = append(names, gap.Env)
+	}
+	first := gaps.Missing[0]
+	switch first.Reason {
+	case resourceenv.GapProviderUnavailable:
+		return "credential store unreachable, so " + strings.Join(names, ", ") + " could not be read: " + first.Remediation
+	case resourceenv.GapProviderAbsent:
+		return "no credential backend on this host, so " + strings.Join(names, ", ") + " could not be read: " + first.Remediation
+	default:
+		return "missing credentials: " + strings.Join(names, ", ") + "; " + first.Remediation
+	}
+}
+
 type cloudAPIDriver struct{}
 
 func (cloudAPIDriver) Name() string { return "cloud-api" }
@@ -1298,30 +1319,32 @@ func (d cloudAPIDriver) Status(ctx context.Context, controller *Controller, item
 		return status, nil
 	}
 
-	missing, err := resourceenv.MissingCredentialKeys(controller.Root, controller.Home, manifest)
+	// A credential gap makes this resource unhealthy; it never makes the status
+	// call fail. The resolver already knows every descriptor, so the driver
+	// consumes its entries rather than rebuilding the same list by hand.
+	gaps, err := resourceenv.ResolveCredentialGaps(manifest)
 	if err != nil {
+		// Only a manifest defect reaches here, and that is genuinely broken
+		// configuration rather than a runtime credential condition.
 		healthy := false
 		status.Healthy = &healthy
 		status.Health = "unhealthy"
 		status.StatusCode = StatusCodeCommandError
-		names := make([]string, 0, len(manifest.Credentials.All()))
-		for _, descriptor := range manifest.Credentials.All() {
-			if name := strings.TrimSpace(descriptor.Env); name != "" {
-				names = append(names, name)
-			}
-		}
-		status.Message = "credential authority unavailable"
-		if len(names) > 0 {
-			status.Message += ": " + strings.Join(names, ", ")
-		}
+		status.Message = "credential declaration is invalid"
 		status.ProbeError = err.Error()
 		return status, nil
 	}
-	if len(missing) > 0 {
+	if len(gaps.Missing) > 0 {
 		healthy := false
 		status.Healthy = &healthy
 		status.Health = "unhealthy"
-		status.Message = "missing credentials: " + strings.Join(missing, ", ")
+		status.Message = credentialGapMessage(gaps)
+		if gaps.Provider != credentialauthority.ProviderAvailable {
+			// A host condition is a different class of problem from an unset
+			// value, so it gets its own status code and its own instruction.
+			status.StatusCode = StatusCodeCommandError
+			status.ProbeError = gaps.Missing[0].Detail
+		}
 		return status, nil
 	}
 

@@ -14,8 +14,20 @@
         },
         "kind": "dir",
         "regenerable": false,
-        "relocation": { "key": "RESOURCE_DATA_DIR", "scope": "process-tree" },
+        "relocation": { "key": "RESOURCE_DATA_DIR", "scope": "container" },
         "rationale": "The PostgreSQL container's bind-mounted data directory; relocation requires the resource to be stopped."
+      }
+      ,"config": {
+        "rung": "owned",
+        "path": {
+          "linux": "$USER_HOME/.config/vrooli/resources/postgres",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/postgres",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/postgres"
+        },
+        "kind": "dir",
+        "class": "config",
+        "regenerable": true,
+        "rationale": "Instance configuration and connection metadata are generated under the resource config root."
       }
     }
   },

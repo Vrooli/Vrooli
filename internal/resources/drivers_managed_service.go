@@ -654,6 +654,7 @@ func renderManagedServiceEnvironment(env []string, overrides map[string]string) 
 	}
 	return env
 }
+
 func renderManagedServiceValue(value string, values map[string]string) string {
 	return os.Expand(value, func(key string) string {
 		if value, ok := values[key]; ok {

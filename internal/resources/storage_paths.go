@@ -3,6 +3,7 @@ package resources
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	runtimestorage "github.com/vrooli/vrooli/internal/resources/runtime/storage"
@@ -23,14 +24,8 @@ func resourceStorageResolver() (*runtimestorage.Resolver, error) {
 		UserHomeDir: func() (string, error) {
 			return home, nil
 		},
-		UserConfigDir: func() (string, error) {
-			return filepath.Join(home, ".config"), nil
-		},
-		UserCacheDir: func() (string, error) {
-			return filepath.Join(home, ".cache"), nil
-		},
 		EnvGet: func(key string) string {
-			if sudoed {
+			if sudoed && runtime.GOOS == "linux" {
 				switch key {
 				case "XDG_DATA_HOME":
 					return filepath.Join(home, ".local", "share")

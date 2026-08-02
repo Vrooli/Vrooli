@@ -1,6 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
-  "name": "pstore_native",
+ "name": "pstore_native",
+  "storage": {"entries": {"efi_module_load": {"rung": "pinned", "path": {"linux": "/etc/modules-load.d/99-vrooli-efi_pstore.conf", "macos": null, "windows": null}, "kind": "file", "class": "config", "sensitive": true, "rationale": "The safeguard persists the Linux EFI pstore module load."}, "erst_module_load": {"rung": "pinned", "path": {"linux": "/etc/modules-load.d/99-vrooli-erst.conf", "macos": null, "windows": null}, "kind": "file", "class": "config", "sensitive": true, "rationale": "The safeguard persists the Linux ERST pstore module load."}}, "rationale": "Linux-only module-load configuration is verified by the handler's module seam."},
   "description": "Activate native kernel pstore backends (efi_pstore / erst) so panic dumps survive resets without modifying GRUB",
   "handler": "pstore_native",
   "platforms": [

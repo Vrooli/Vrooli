@@ -1,6 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
-  "name": "edac_modules",
+ "name": "edac_modules",
+  "storage": {"entries": {"module_load": {"rung": "pinned", "path": {"linux": "/etc/modules-load.d/99-vrooli-amd64_edac.conf", "macos": null, "windows": null}, "kind": "file", "class": "config", "sensitive": true, "rationale": "The Linux safeguard persists the detected AMD EDAC module load."}}, "rationale": "Linux-only module-load configuration is verified by the handler's driver detection."},
   "description": "Load EDAC drivers for memory error reporting on supported chipsets",
   "handler": "edac_modules",
   "platforms": [

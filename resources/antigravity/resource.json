@@ -1,6 +1,10 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "antigravity",
+  "storage": {"entries": {
+    "home": {"rung": "owned", "path": "$USER_HOME/.gemini", "kind": "dir", "class": "data", "regenerable": false, "sensitive": true, "rationale": "The Antigravity CLI and desktop app share settings, authentication, conversations, and memory under the documented Gemini home."},
+    "cache": {"rung": "relocatable", "path": "$USER_CACHE_DIR/antigravity", "kind": "dir", "class": "cache", "regenerable": true, "relocation": {"key": "ANTIGRAVITY_STATE_DIR", "scope": "process-tree"}, "rationale": "Antigravity's local cache/state is rebuildable and may be redirected independently of durable account data."}
+  }},
   "display_name": "Antigravity CLI",
   "description": "Google Antigravity coding CLI resource (binary `agy`): a thin Go entrypoint wiring lifecycle, an upstream update-check, and shared command-permission governance. Optional external-cli; sudo-free install; on-disk state backed up. NOT wired as an agent-manager runner (deferred follow-up).",
   "cli": {

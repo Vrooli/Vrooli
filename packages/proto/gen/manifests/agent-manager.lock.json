@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "agent-manager",
-  "input_digest": "sha256:f3457353131386672a5b26985ff6cb7a680b27e48c8d10b2f10a5d57b9c09d78",
+  "input_digest": "sha256:9d1dbe67ea709517390c44a440c0140c8aa50a25b236025f256e44df3110b2b1",
   "input_files": [
     "schemas/agent-manager/v1/api/service.proto",
     "schemas/agent-manager/v1/domain/episode.proto",
@@ -39,8 +39,8 @@
     "gen/go/agent-manager/v1/domain/task.pb.go": "sha256:cbbaba31e69b9be6a28714c300cf2870e38e10feac12d8aaf43726124e500954",
     "gen/go/agent-manager/v1/domain/types.pb.go": "sha256:994be43b272c0ef5e6cab0635935c2f91bba3ac0055eb50cb9a87563f14797fa",
     "gen/go/agent-manager/v1/domain/workflow.pb.go": "sha256:7d8e90f5c3df4037ec3d3d3b4a77eebd9350a749688a0a1e8262c9dc7a23e2e5",
-    "gen/go/agent-manager/v1/measures/measures.pb.go": "sha256:755dc26687f43d4efd30364b163257a04a7f62cb7498cadd7cf9855af796f51d",
-    "gen/go/agent-manager/v1/measures/measures_v1connect/measures.connect.go": "sha256:7245c79483ecac51a5170f63ba609a7a190b12777f21121b3e9b0c8b22bd09aa",
+    "gen/go/agent-manager/v1/measures/measures.pb.go": "sha256:90eaeb02eef0c16b8740e3193ebd750b1bdbf1647635f4511ff10137ff03beff",
+    "gen/go/agent-manager/v1/measures/measures_v1connect/measures.connect.go": "sha256:29d96b8869d05fa3fcae2961c6347a1c44b1d632a3e262442a24ba6d48fa0c36",
     "gen/python/agent_manager/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/agent_manager/v1/api/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/agent_manager/v1/api/service_pb2.py": "sha256:23232312ec45e27fd106d090b539e347967f2dd59c14541465f5425957b97155",
@@ -60,8 +60,8 @@
     "gen/python/agent_manager/v1/domain/types_pb2.pyi": "sha256:3a05fcd75f6fe0374690dde172d33b4ef491317d594ad145439c7403984ae6a7",
     "gen/python/agent_manager/v1/domain/workflow_pb2.py": "sha256:a3662f88fea1a63221fd904a6d6f673a311be7a804265e7b2ac55a2824979c25",
     "gen/python/agent_manager/v1/domain/workflow_pb2.pyi": "sha256:7555b78aeb69870f25341f6ddac0e29b069880f408ab7d144d0420f488adf4b7",
-    "gen/python/agent_manager/v1/measures/measures_pb2.py": "sha256:3e021dad77d393f6ff19fd3a6dd557685390c92efaae77821c762cc85f9790d2",
-    "gen/python/agent_manager/v1/measures/measures_pb2.pyi": "sha256:6d14389239cea7cd4189039042d751846421d67ab0ab0f0a144790fa0d295404",
+    "gen/python/agent_manager/v1/measures/measures_pb2.py": "sha256:d05f5616f43a908d8431ff7ddb54e82b30867908a010e44c7792d41e7ca7f3f2",
+    "gen/python/agent_manager/v1/measures/measures_pb2.pyi": "sha256:08264b3f0c233c13a731b52a23ce4475760491d0bbde5ba60fc8ad8416cc72f8",
     "gen/python/agent_manager/v1/measures/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/agent_manager/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/typescript/agent-manager/v1/api/service_pb.ts": "sha256:4bc7e066d89a04e410ef2c4e84b83fc412d3f17780d56d2666e3a01b693c4cc4",
@@ -72,7 +72,7 @@
     "gen/typescript/agent-manager/v1/domain/task_pb.ts": "sha256:f722278314a9ffd8fb344a8b2592aad2f40df85544cb9eefe5f4f629bf2b5730",
     "gen/typescript/agent-manager/v1/domain/types_pb.ts": "sha256:65d233a71eae618b270b65dc1c8e4c6388241045575221984d8e37f034946eb5",
     "gen/typescript/agent-manager/v1/domain/workflow_pb.ts": "sha256:83e65c5a1e06fdc38e66368e456014266b0015705941137dcace4d24f9eaea43",
-    "gen/typescript/agent-manager/v1/measures/measures_pb.ts": "sha256:1a93e3596eb5f98423bc64000d22cc9b665876c662e64db6abfc90bc57cb532a",
+    "gen/typescript/agent-manager/v1/measures/measures_pb.ts": "sha256:8aeb1c2d3731c101171e1e6339bf2495a4c89b90376578032b6f70b0b0e08dbe",
     "gen/typescript/js/agent-manager/v1/api/service_pb.js": "sha256:6edca873ec06d9d55480f9bd5699da91ad12b468f38c0a32ba5accadb52bcc6d",
     "gen/typescript/js/agent-manager/v1/domain/episode_pb.js": "sha256:17566c5366d770808f98b1c0b3b2ea1edaef80d81cf31e7078d6631e94fcd8b3",
     "gen/typescript/js/agent-manager/v1/domain/events_pb.js": "sha256:c49c2bc2671cb39be036967b8e2e525f2b187d9caf531dfeea52529b534cb9b2",
@@ -81,6 +81,6 @@
     "gen/typescript/js/agent-manager/v1/domain/task_pb.js": "sha256:d0a50862922ea218023735afd549ebcc02d97ee0faabdaee0668e56abb1f61f6",
     "gen/typescript/js/agent-manager/v1/domain/types_pb.js": "sha256:841dc15dc0c893113466631e60258e5278ac680ce6594e4c411d47e69a4dd449",
     "gen/typescript/js/agent-manager/v1/domain/workflow_pb.js": "sha256:acefcaaabb2d91f6082227fc16a6c2a07b32df9c9c4b409cf4072e24ed59252a",
-    "gen/typescript/js/agent-manager/v1/measures/measures_pb.js": "sha256:6cddd247da229611147f979215a67725c9e4f65ec27a9b3293410744d55e41f6"
+    "gen/typescript/js/agent-manager/v1/measures/measures_pb.js": "sha256:9562d98ffa001055b546a3f44e954f86021d04821f22aa6d6c070a6ffe3d7ea7"
   }
 }

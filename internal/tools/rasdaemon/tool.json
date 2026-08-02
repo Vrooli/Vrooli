@@ -1,6 +1,7 @@
 {
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
-  "name": "rasdaemon",
+ "name": "rasdaemon",
+  "storage": {"entries": {"event_database": {"rung": "owned", "path": "/var/lib/rasdaemon/ras-mc_event.db", "kind": "file", "class": "data", "format": "sqlite", "regenerable": false, "rationale": "rasdaemon persists hardware-error events in its SQLite database."}}, "rationale": "rasdaemon owns its Linux event database."},
   "description": "AMD/Intel hardware error capture daemon (memory ECC, PCIe AER, MCE) — writes events to /var/lib/rasdaemon/ras-mc_event.db",
   "commands": [
     "rasdaemon"

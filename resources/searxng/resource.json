@@ -1,6 +1,10 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "searxng",
+  "storage": {"entries": {
+    "config": {"rung": "pinned", "path": {"linux": "$USER_HOME/.config/vrooli/resources/searxng", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/searxng", "windows": "$USER_HOME/AppData/Local/vrooli/resources/searxng"}, "kind": "dir", "class": "config", "regenerable": false, "rationale": "SearXNG settings are bind-mounted to /etc/searxng."},
+    "cache": {"rung": "relocatable", "path": {"linux": "$USER_HOME/.local/share/vrooli/resources/searxng", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/searxng", "windows": "$USER_HOME/AppData/Local/vrooli/resources/searxng"}, "kind": "dir", "class": "cache", "regenerable": true, "relocation": {"key": "RESOURCE_DATA_DIR", "scope": "container"}, "rationale": "SearXNG's /var/cache/searxng mount is disposable runtime cache."}
+  }},
   "display_name": "SearXNG",
   "description": "Managed SearXNG metasearch service: one Docker container with Go-native lifecycle, configuration, and diagnostics.",
   "cli": {

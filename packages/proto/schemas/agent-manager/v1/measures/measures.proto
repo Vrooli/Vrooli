@@ -29,6 +29,8 @@ service MeasuresService {
   rpc FileRereadRate(FileRereadRateRequest) returns (FileRereadRateResponse);
   rpc FindingRecurrenceRate(FindingRecurrenceRateRequest) returns (FindingRecurrenceRateResponse);
   rpc EpisodeCohort(EpisodeCohortRequest) returns (EpisodeCohortResponse);
+  rpc CapabilityUsage(CapabilityUsageRequest) returns (CapabilityUsageResponse);
+  rpc CapabilityEfficacy(CapabilityEfficacyRequest) returns (CapabilityEfficacyResponse);
   // SelectCohort is the non-aggregate companion to the measures: it exposes
   // the run ids behind the exact same durable filter used by an aggregate.
   rpc SelectCohort(SelectCohortRequest) returns (SelectCohortResponse);
@@ -54,6 +56,8 @@ message InvocationFilter {
   string episode_fingerprint = 14;
   string self_report_rule_id = 15;
   string self_report_cause_scope = 16;
+  string target_scenario = 17;
+  string operation = 18;
 }
 
 message MeasureValidity {
@@ -296,6 +300,46 @@ message ToolUsageRow {
 }
 message ToolUsageResponse {
   repeated ToolUsageRow rows = 1;
+  string executed_query = 2;
+  MeasureValidity validity = 100;
+}
+
+message CapabilityUsageRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+}
+
+message CapabilityUsageRow {
+  string target_scenario = 1;
+  string operation = 2;
+  int64 call_count = 3;
+  int64 success_count = 4;
+  int64 failed_count = 5;
+  uint64 total_duration_ms = 6;
+}
+
+message CapabilityUsageResponse {
+  repeated CapabilityUsageRow rows = 1;
+  string executed_query = 2;
+  MeasureValidity validity = 100;
+}
+
+message CapabilityEfficacyRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+}
+
+message CapabilityEfficacyRow {
+  string target_scenario = 1;
+  string operation = 2;
+  int64 call_count = 3;
+  int64 success_count = 4;
+  int64 fallback_after_count = 5;
+  int64 abandoned_count = 6;
+}
+
+message CapabilityEfficacyResponse {
+  repeated CapabilityEfficacyRow rows = 1;
   string executed_query = 2;
   MeasureValidity validity = 100;
 }

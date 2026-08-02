@@ -1,6 +1,10 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "opencode",
+  "storage": {"entries": {
+    "config": {"rung": "owned", "path": "$USER_HOME/.config/opencode", "kind": "dir", "class": "config", "regenerable": false, "sensitive": true, "rationale": "OpenCode uses the XDG config directory for operator configuration and permissions."},
+    "storage": {"rung": "owned", "path": "$USER_HOME/.local/share/opencode/storage", "kind": "dir", "class": "data", "regenerable": false, "rationale": "OpenCode stores sessions and messages in its XDG data storage directory."}
+  }},
   "display_name": "OpenCode",
   "description": "OpenCode CLI resource: a thin Go entrypoint wiring lifecycle, governed permissions, and an upstream update-check; agent-manager invokes the raw opencode binary directly.",
   "cli": {

@@ -5,11 +5,19 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/provenance"
+)
+
+const (
+	RuntimeStateHeader       = "X-Vrooli-Events-Runtime-State"
+	RuntimeArmedHeader       = "X-Vrooli-Events-Armed"
+	RuntimePolicyCountHeader = "X-Vrooli-Events-Policy-Count"
+	RuntimeLastRefreshHeader = "X-Vrooli-Events-Last-Refresh"
 )
 
 // AutomaticRuntime is installed once by api-core/server.Run. It deliberately
@@ -18,42 +26,96 @@ import (
 // service leaves the business handler untouched.
 func AutomaticRuntime(next http.Handler) http.Handler {
 	target := strings.TrimSpace(os.Getenv("VROOLI_SCENARIO"))
+	return automaticRuntime(next, target, strings.TrimSpace(os.Getenv("VROOLI_EVENTS_API_BASE")), func(ctx context.Context) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, "vrooli-events")
+	})
+}
+
+func automaticRuntime(next http.Handler, target, baseURL string, resolve func(context.Context) (string, error)) http.Handler {
 	if target == "" || target == "vrooli-events" {
 		return next
 	}
 	cache := NewCache()
-	client, setEndpoint := newDynamicClient(strings.TrimSpace(os.Getenv("VROOLI_EVENTS_API_BASE")))
+	client, setEndpoint := newDynamicClient(baseURL)
 	if client.Enabled() {
 		StartRefresher(context.Background(), client, cache, RefreshConfig{})
 	} else {
-		// Discovery is deliberately asynchronous. A scenario must never delay
-		// startup or a business request while Events is down or not yet started.
-		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-			defer cancel()
-			base, err := discovery.ResolveScenarioURLDefault(ctx, "vrooli-events")
-			if err == nil && strings.TrimSpace(base) != "" {
-				setEndpoint(base)
-				StartRefresher(context.Background(), client, cache, RefreshConfig{})
-			}
-		}()
+		startDiscoveryRefresher(context.Background(), client, setEndpoint, cache, RefreshConfig{}, resolve)
 	}
-	return Middleware(MiddlewareConfig{Target: target, Reporter: client, ReceiptPolicy: cache,
+	handler := Middleware(MiddlewareConfig{
+		Target: target, Reporter: client, ReceiptPolicy: cache,
 		Operation:         func(r *http.Request) string { return r.Method + " " + r.URL.Path },
 		Projection:        automaticProjection,
 		Correlation:       VerifiedCorrelation,
 		SourceFromRequest: automaticSource,
 	})(next)
+	return runtimeHealthHeaders(cache, handler)
 }
 
-// automaticProjection decodes only a bounded JSON response object. The policy
-// cache strips every unlisted key, so this never becomes implicit id capture.
-func automaticProjection(_ *http.Request, status int, body []byte) (map[string]any, bool) {
+func runtimeHealthHeaders(cache *Cache, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		state := cache.RuntimeState(time.Now())
+		w.Header().Set(RuntimeStateHeader, state.State)
+		w.Header().Set(RuntimeArmedHeader, strconv.FormatBool(state.Armed))
+		w.Header().Set(RuntimePolicyCountHeader, strconv.Itoa(state.PolicyCount))
+		if !state.LastRefresh.IsZero() {
+			w.Header().Set(RuntimeLastRefreshHeader, state.LastRefresh.Format(time.RFC3339Nano))
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// startDiscoveryRefresher uses the refresher's existing backoff and jitter to
+// arm a dynamically addressed client. Discovery stays wholly asynchronous: a
+// missing Events scenario cannot delay startup or any business request.
+func startDiscoveryRefresher(ctx context.Context, client Client, setEndpoint func(string), cache *Cache, cfg RefreshConfig, resolve func(context.Context) (string, error)) {
+	if cache == nil || client.Enabled() || resolve == nil {
+		return
+	}
+	cfg = cfg.normalized()
+	go func() {
+		wait, backoff := time.Duration(0), cfg.MinBackoff
+		for {
+			if wait > 0 {
+				timer := time.NewTimer(wait)
+				select {
+				case <-ctx.Done():
+					timer.Stop()
+					return
+				case <-timer.C:
+				}
+			}
+			discoveryCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+			base, err := resolve(discoveryCtx)
+			cancel()
+			if err == nil && strings.TrimSpace(base) != "" {
+				setEndpoint(base)
+				StartRefresher(ctx, client, cache, cfg)
+				return
+			}
+			wait = cfg.Jitter(backoff)
+			backoff *= 2
+			if backoff > cfg.MaxBackoff {
+				backoff = cfg.MaxBackoff
+			}
+		}
+	}()
+}
+
+// automaticProjection decodes a bounded JSON response object. Connect clients
+// may legitimately negotiate binary protobuf: in that case a declared policy
+// still receives an empty candidate and emits a receipt, while its explicit
+// projection remains empty. Dropping the whole receipt would make provenance
+// depend on a caller's wire encoding.
+func automaticProjection(request *http.Request, status int, body []byte) (map[string]any, bool) {
 	if status < 200 || status >= 400 || len(body) == 0 {
 		return nil, false
 	}
 	var response map[string]any
 	if err := json.Unmarshal(body, &response); err != nil {
+		if requestProtocol(request) == "connect" {
+			return map[string]any{}, true
+		}
 		return nil, false
 	}
 	return response, true

@@ -3,7 +3,7 @@
   "name": "docker",
   "description": "Container runtime for running resources and services",
   "storage": { "entries": {
-    "graph_root": { "rung": "relocatable", "path": { "linux": "/var/lib/docker", "macos": "$USER_HOME/Library/Containers/com.docker.docker/Data/vms/0/data", "windows": "$USER_HOME/AppData/Local/Docker/wsl/data" }, "kind": "dir", "relocation": { "config": "daemon.json:data-root", "scope": "daemon" }, "rationale": "Docker owns this graph; migration must use daemon configuration and a stopped engine." }
+    "graph_root": { "rung": "relocatable", "path": { "linux": "/var/lib/docker", "macos": null, "windows": "C:/ProgramData/docker" }, "kind": "dir", "relocation": { "config": "daemon.json:data-root", "scope": "daemon" }, "rationale": "Docker Engine uses /var/lib/docker on Linux and C:/ProgramData/docker on Windows. Docker Desktop stores its VM disk image at an operator-selected location on macOS, so no guessed host path is declared there; relocation must use Docker's settings or daemon configuration while stopped." }
   } },
   "handler": "docker",
   "commands": [

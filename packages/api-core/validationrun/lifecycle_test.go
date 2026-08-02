@@ -202,6 +202,7 @@ type memoryRepository struct {
 func newMemoryRepository() *memoryRepository {
 	return &memoryRepository{byID: map[string]Run{}, byKey: map[string]string{}}
 }
+
 func (r *memoryRepository) FindByIdempotency(_ context.Context, key string) (Run, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -211,6 +212,7 @@ func (r *memoryRepository) FindByIdempotency(_ context.Context, key string) (Run
 	}
 	return r.byID[id], nil
 }
+
 func (r *memoryRepository) Get(_ context.Context, id string) (Run, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -220,6 +222,7 @@ func (r *memoryRepository) Get(_ context.Context, id string) (Run, error) {
 	}
 	return run, nil
 }
+
 func (r *memoryRepository) Create(_ context.Context, run Run) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -230,6 +233,7 @@ func (r *memoryRepository) Create(_ context.Context, run Run) error {
 	r.byKey[run.IdempotencyKey] = run.ID
 	return nil
 }
+
 func (r *memoryRepository) Update(_ context.Context, run Run, expected int64) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -243,6 +247,7 @@ func (r *memoryRepository) Update(_ context.Context, run Run, expected int64) er
 	r.byID[run.ID] = run
 	return nil
 }
+
 func (r *memoryRepository) put(run Run) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -268,6 +273,7 @@ func (e *recordingExecutor) Run(_ context.Context, _ string) {
 		}
 	}
 }
+
 func (e *recordingExecutor) Abort(_ context.Context, _ string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()

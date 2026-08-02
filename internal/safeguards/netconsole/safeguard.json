@@ -1,6 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
-  "name": "netconsole",
+ "name": "netconsole",
+  "storage": {"entries": {"module_load": {"rung": "pinned", "path": {"linux": "/etc/modules-load.d/99-vrooli-netconsole.conf", "macos": null, "windows": null}, "kind": "file", "class": "config", "sensitive": true, "rationale": "The Linux safeguard persists the netconsole module load."}, "module_options": {"rung": "pinned", "path": {"linux": "/etc/modprobe.d/99-vrooli-netconsole.conf", "macos": null, "windows": null}, "kind": "file", "class": "config", "sensitive": true, "rationale": "The Linux safeguard persists the operator-supplied netconsole target."}}, "rationale": "Linux-only module configuration is verified by the handler's module seam."},
   "description": "Stream kernel oops/panic output to a remote log collector via the netconsole module",
   "handler": "netconsole",
   "platforms": [

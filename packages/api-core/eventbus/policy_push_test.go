@@ -40,7 +40,7 @@ func TestPolicyPushAtomicallyAppliesCompleteSnapshot(t *testing.T) {
 		}
 		time.Sleep(time.Millisecond)
 	}
-	if projected, _, ok := cache.ProjectReceipt("a", "b", "POST /x", map[string]any{"id": "x"}); !ok || projected["id"] != "x" {
+	if projected, _, ok := cache.ProjectReceipt("a", "b", "POST /x", "connect", map[string]any{"id": "x"}); !ok || projected["id"] != "x" {
 		t.Fatalf("pushed receipt projection was not applied: %#v, %t", projected, ok)
 	}
 	cancel()

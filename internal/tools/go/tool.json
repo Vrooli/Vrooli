@@ -4,7 +4,7 @@
   "description": "Pinned Go programming language toolchain used to build and validate Vrooli",
   "storage": { "entries": {
     "build_cache": { "rung": "relocatable", "path": "$USER_CACHE_DIR/go-build", "kind": "dir", "regenerable": true, "relocation": { "key": "GOCACHE", "scope": "process-tree" }, "rationale": "Rebuildable compiler cache." },
-    "module_cache": { "rung": "relocatable", "path": "$USER_CACHE_DIR/go-mod", "kind": "dir", "regenerable": true, "relocation": { "key": "GOMODCACHE", "scope": "process-tree" }, "rationale": "Re-downloadable Go modules." }
+    "module_cache": { "rung": "relocatable", "path": "$USER_HOME/go/pkg/mod", "kind": "dir", "regenerable": true, "relocation": { "key": "GOMODCACHE", "scope": "process-tree" }, "rationale": "Go's default module cache is GOPATH/pkg/mod; this declaration describes the default user GOPATH location and can be overridden with GOMODCACHE." }
   } },
   "commands": [
     "go"

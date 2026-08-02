@@ -1,6 +1,10 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "vault",
+  "storage": {"entries": {
+    "data": {"rung": "pinned", "path": {"linux": "$USER_HOME/.local/share/vrooli/resources/vault", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/vault", "windows": "$USER_HOME/AppData/Local/vrooli/resources/vault"}, "kind": "dir", "class": "data", "regenerable": false, "sensitive": true, "rationale": "Managed Vault uses file storage under RESOURCE_DATA_DIR; this contains encrypted secret state and must be preserved."},
+    "config": {"rung": "owned", "path": {"linux": "$USER_HOME/.config/vrooli/resources/vault", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/vault", "windows": "$USER_HOME/AppData/Local/vrooli/resources/vault"}, "kind": "dir", "class": "config", "regenerable": true, "sensitive": true, "rationale": "The generated loopback-only vault.hcl lives under RESOURCE_CONFIG_DIR."}
+  }},
   "display_name": "HashiCorp Vault",
   "description": "Managed Vault service for local secret storage and resource secret validation.",
   "cli": {

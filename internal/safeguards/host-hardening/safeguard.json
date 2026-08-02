@@ -1,6 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
-  "name": "host_hardening",
+ "name": "host_hardening",
+  "storage": {"entries": {"sysctl_config": {"rung": "pinned", "path": {"linux": "/etc/sysctl.d/99-vrooli-host-hardening.conf", "macos": null, "windows": null}, "kind": "file", "class": "config", "sensitive": true, "rationale": "The safeguard writes Linux kernel hardening settings."}, "journald_config": {"rung": "pinned", "path": {"linux": "/etc/systemd/journald.conf.d/99-vrooli-ratelimit.conf", "macos": null, "windows": null}, "kind": "file", "class": "config", "sensitive": true, "rationale": "The safeguard writes the Linux journald rate-limit drop-in."}}, "rationale": "Linux-only system configuration is verified by the safeguard file check."},
   "description": "Make kernel hangs and oopses produce diagnostics: enable sysrq, set hung-task/softlockup/NMI panic, and rate-limit journald so UFW BLOCK floods don't drown panic info",
   "handler": "host_hardening",
   "platforms": [

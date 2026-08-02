@@ -1,6 +1,10 @@
 {
   "$schema": "../../.vrooli/schemas/resource.schema.json",
   "name": "adguard-home",
+  "storage": {"entries": {
+    "work": {"rung": "pinned", "path": {"linux": "$USER_HOME/.local/share/vrooli/resources/adguard-home", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/adguard-home", "windows": "$USER_HOME/AppData/Local/vrooli/resources/adguard-home"}, "kind": "dir", "class": "data", "regenerable": false, "rationale": "AdGuard Home work data is bind-mounted to /opt/adguardhome/work by the managed resource."},
+    "config": {"rung": "pinned", "path": {"linux": "$USER_HOME/.config/vrooli/resources/adguard-home", "macos": "$USER_HOME/Library/Application Support/vrooli/resources/adguard-home", "windows": "$USER_HOME/AppData/Local/vrooli/resources/adguard-home"}, "kind": "dir", "class": "config", "regenerable": false, "sensitive": true, "rationale": "AdGuard Home configuration is bind-mounted to /opt/adguardhome/conf and contains administrative settings."}
+  }},
   "display_name": "AdGuard Home",
   "description": "Managed AdGuard Home DNS filtering and resolver service",
   "cli": {

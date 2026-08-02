@@ -12,7 +12,7 @@ services:
     ports:
       - "${RERANKER_BIND_ADDRESS:-127.0.0.1}:${RERANKER_PORT:-11453}:80"
     volumes:
-      - reranker_models:/data:rw
+      - ${RESOURCE_DATA_DIR}/model-cache:/data:rw
     environment:
       - MODEL_ID=${RERANKER_MODEL:-BAAI/bge-reranker-v2-m3}
       - PORT=80
@@ -36,10 +36,6 @@ services:
               count: all
               capabilities: [gpu]
     runtime: nvidia
-
-volumes:
-  reranker_models:
-    driver: local
 
 networks:
   reranker-network:

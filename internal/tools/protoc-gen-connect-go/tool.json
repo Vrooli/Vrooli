@@ -1,6 +1,7 @@
 {
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
-  "name": "protoc-gen-connect-go",
+ "name": "protoc-gen-connect-go",
+  "storage": {"entries": {}, "rationale": "This tool has no tool-owned persistent storage in the supported Vrooli workflow; the explicit empty declaration records that caches or credentials are owned by the invoking workflow."},
   "description": "Go Connect-RPC protoc plugin used by packages/proto service codegen (local plugin, no BSR fetch)",
   "commands": [
     "protoc-gen-connect-go"
