@@ -37,3 +37,30 @@ func TestDeriveTimeAccountingLeavesMissingRunBoundsUnknown(t *testing.T) {
 		t.Fatalf("got %+v", got)
 	}
 }
+
+func TestDeriveTimeAccountingDoesNotTreatUntypedEventsAsIdle(t *testing.T) {
+	start := time.Date(2026, 7, 31, 12, 0, 0, 0, time.UTC)
+	end := start.Add(time.Minute)
+	event := &domain.RunEvent{ID: uuid.New(), Timestamp: start.Add(30 * time.Second), Data: &domain.LogEventData{Message: "heartbeat"}}
+	accounting := DeriveTimeAccounting([]*domain.RunEvent{event}, &start, &end)
+	if accounting.IdleWaitingMS != 0 || accounting.UnattributableMS != end.Sub(start).Milliseconds() {
+		t.Fatalf("untyped interval was classified as idle: %+v", accounting)
+	}
+}
+
+func TestDeriveTimeAccountingConservesSubMillisecondIntervals(t *testing.T) {
+	start := time.Date(2026, 7, 31, 12, 0, 0, 0, time.UTC)
+	end := start.Add(10 * time.Millisecond)
+	events := make([]*domain.RunEvent, 0, 10)
+	for offset := time.Microsecond; offset < end.Sub(start); offset += time.Microsecond {
+		events = append(events, &domain.RunEvent{
+			ID:        uuid.New(),
+			Timestamp: start.Add(offset),
+			Data:      &domain.LogEventData{Message: "heartbeat"},
+		})
+	}
+	accounting := DeriveTimeAccounting(events, &start, &end)
+	if got, want := accounting.DurationMS(), end.Sub(start).Milliseconds(); got != want {
+		t.Fatalf("duration=%d want %d: %+v", got, want, accounting)
+	}
+}

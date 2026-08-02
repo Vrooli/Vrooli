@@ -103,6 +103,15 @@ func TestProjectRun_SumsUsageWhenChargeIsUnpriced(t *testing.T) {
 	}
 }
 
+func TestProjectRunMarksImportedNoUsageAsUnknownCostBasis(t *testing.T) {
+	now := time.Now().UTC()
+	run := &domain.Run{ID: uuid.New(), CreatedAt: now.Add(-time.Minute), ExecutionMode: domain.ExecutionModeImported, Status: domain.RunStatusComplete}
+	fact := ProjectRun(run, nil, now)
+	if fact.CostTimeBasis != "unknown" {
+		t.Fatalf("cost time basis=%q, want unknown", fact.CostTimeBasis)
+	}
+}
+
 func TestConsumptionPerSuccessfulCompletionCountsFailedAttempts(t *testing.T) {
 	got := ConsumptionPerSuccessfulCompletion([]RunFact{{Status: "failed", TotalTokens: 90}, {Status: "complete", TotalTokens: 10}})
 	if got.Consumption != 100 || got.SuccessfulRuns != 1 || got.PerSuccessfulRun != 100 {

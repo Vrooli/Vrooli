@@ -28,6 +28,13 @@ func (r *receiptEvidenceRepository) ReplaceCrossScenarioCalls(ctx context.Contex
 		return err
 	}
 	for _, call := range calls {
+		// The ledger is an efficacy projection, so only Vrooli Events-verified
+		// receipts with a concrete target are durable rows. Unverified or empty
+		// observations remain available through the diagnostic report but cannot
+		// manufacture a capability population.
+		if !call.Verified || call.TargetScenario == "" || call.Operation == "" || call.ReceiptEventID == "" {
+			continue
+		}
 		projection, err := json.Marshal(call.Projection)
 		if err != nil {
 			return err
@@ -46,11 +53,6 @@ func (r *receiptEvidenceRepository) ReplaceCrossScenarioCalls(ctx context.Contex
 			if _, err = tx.ExecContext(ctx, `INSERT INTO investigation_cross_scenario_call_projections (receipt_event_id,key,value_json) VALUES (?,?,?)`, call.ReceiptEventID, key, string(encoded)); err != nil {
 				return err
 			}
-		}
-	}
-	if len(calls) == 0 {
-		if _, err = tx.ExecContext(ctx, `INSERT INTO investigation_cross_scenario_calls (run_id,receipt_event_id,occurred_at,target_scenario,operation,outcome,status_code,duration_ms,verified,projection,ledger_availability) VALUES (?, '', NULL, '', '', '', 0, 0, 0, '{}', ?)`, runID.String(), availability); err != nil {
-			return err
 		}
 	}
 	return tx.Commit()

@@ -42,8 +42,11 @@ type accuracyFact struct {
 	CallEventID   string `json:"callEventId"`
 	ResultEventID string `json:"resultEventId"`
 	Outcome       string `json:"outcome"`
+	Ownership     string `json:"ownership"`
 	Executable    string `json:"executable"`
 	Fingerprint   string `json:"fingerprint"`
+	Capability    string `json:"capability"`
+	IntentClass   string `json:"intentClass"`
 	HelpRecovery  bool   `json:"helpRecovery"`
 }
 
@@ -53,6 +56,7 @@ type accuracyEvent struct {
 	Kind           string              `json:"kind"`
 	Role           string              `json:"role"`
 	Content        string              `json:"content"`
+	Terminal       bool                `json:"terminal"`
 	ToolName       string              `json:"toolName"`
 	Input          map[string]any      `json:"input"`
 	Files          []map[string]string `json:"files"`
@@ -187,7 +191,7 @@ func detectorOutput(fixture accuracyCase) map[string]bool {
 		event := &domain.RunEvent{ID: id, Timestamp: now.Add(time.Duration(item.AtMilliseconds) * time.Millisecond)}
 		switch item.Kind {
 		case "assistant_message":
-			event.EventType, event.Data = domain.EventTypeMessage, &domain.MessageEventData{Role: "assistant", Content: item.Content}
+			event.EventType, event.Data = domain.EventTypeMessage, &domain.MessageEventData{Role: "assistant", Content: item.Content, Terminal: item.Terminal}
 		case "user_message":
 			event.EventType, event.Data = domain.EventTypeMessage, &domain.MessageEventData{Role: "user", Content: item.Content}
 		case "tool_call":
@@ -206,7 +210,7 @@ func detectorOutput(fixture accuracyCase) map[string]bool {
 	}
 	facts := make([]InvocationFact, 0, len(fixture.Facts))
 	for _, item := range fixture.Facts {
-		facts = append(facts, InvocationFact{CallEventID: ids[item.CallEventID].String(), ResultEventID: ids[item.ResultEventID].String(), Outcome: item.Outcome, Executable: item.Executable, Fingerprint: item.Fingerprint, HelpRecovery: item.HelpRecovery})
+		facts = append(facts, InvocationFact{CallEventID: ids[item.CallEventID].String(), ResultEventID: ids[item.ResultEventID].String(), Outcome: item.Outcome, Ownership: item.Ownership, Executable: item.Executable, Capability: item.Capability, IntentClass: item.IntentClass, Fingerprint: item.Fingerprint, HelpRecovery: item.HelpRecovery})
 	}
 	actual := map[string]bool{}
 	for _, episode := range DeriveEpisodes(facts, events) {

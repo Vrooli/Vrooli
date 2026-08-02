@@ -34,6 +34,8 @@ func (a *App) cmdRun(args []string) error {
 		return a.runReport(args[1:])
 	case "cohort-report":
 		return a.runCohortReport(args[1:])
+	case "cohort-compare":
+		return a.runCohortCompare(args[1:])
 	case "invocation-facts":
 		return a.runInvocationFacts(args[1:])
 	case "episodes":
@@ -42,12 +44,18 @@ func (a *App) cmdRun(args []string) error {
 		return a.runMessageFriction(args[1:])
 	case "episode-cohort":
 		return a.runEpisodeCohort(args[1:])
+	case "episode-trend":
+		return a.runEpisodeTrend(args[1:])
+	case "publish-recurring-friction":
+		return a.runPublishRecurringFriction(args[1:])
 	case "ledger":
 		return a.runLedger(args[1:])
 	case "import-transcript":
 		return a.runImportTranscript(args[1:])
 	case "import-session-corpus":
 		return a.runImportSessionCorpus(args[1:])
+	case "mine-self-report-vocabulary":
+		return a.runMineSelfReportVocabulary(args[1:])
 	case "replay-invocation-facts":
 		return a.runReplayInvocationFacts(args[1:])
 	case "refresh-invocation-facts":
@@ -114,7 +122,6 @@ func (a *App) cmdRun(args []string) error {
 		return fmt.Errorf("unknown run subcommand: %s\n\nRun 'agent-manager run help' for usage", args[0])
 	}
 }
-
 func (a *App) runHelp() error {
 	fmt.Println(`Usage: agent-manager run <subcommand> [options]
 
@@ -177,7 +184,6 @@ Examples:
 // =============================================================================
 // Run List
 // =============================================================================
-
 func (a *App) runList(args []string) error {
 	fs := flag.NewFlagSet("run list", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
@@ -188,21 +194,17 @@ func (a *App) runList(args []string) error {
 	profileID := fs.String("profile-id", "", "Filter by profile ID")
 	status := fs.String("status", "", "Filter by status")
 	tagPrefix := fs.String("tag-prefix", "", "Filter by tag prefix")
-
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-
 	body, runs, err := a.services.Runs.List(*limit, *offset, *taskID, *profileID, *status, *tagPrefix)
 	if err != nil {
 		return err
 	}
-
 	if *jsonOutput {
 		cliutil.PrintJSON(body)
 		return nil
 	}
-
 	if runs == nil {
 		cliutil.PrintJSON(body)
 		return nil
@@ -1484,12 +1486,10 @@ func (a *App) runApplyInvestigation(args []string) error {
 	if err != nil {
 		return err
 	}
-
 	body, run, err := a.services.Runs.InvestigationApply(payload)
 	if err != nil {
 		return err
 	}
-
 	if *jsonOutput || run == nil {
 		cliutil.PrintJSON(body)
 		return nil

@@ -110,6 +110,13 @@ func Consume(ctx context.Context, args ConsumeArgs) (int64, *TranscriptTerminal,
 				return cursor, terminal, err
 			}
 		}
+		if !result.Timestamp.IsZero() {
+			for _, event := range result.Events {
+				if event != nil {
+					event.Timestamp = result.Timestamp
+				}
+			}
+		}
 		if len(result.Events) > 0 && args.OnEvents != nil {
 			args.OnEvents(result.Events)
 		}

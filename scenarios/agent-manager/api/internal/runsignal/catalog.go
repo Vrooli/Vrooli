@@ -17,6 +17,106 @@ import (
 type CatalogResolution struct {
 	Owner, Command, Snapshot string
 	State                    availability.State
+	Reason                   string
+}
+
+const (
+	OwnershipResolved           = "resolved"
+	OwnershipExternal           = "external"
+	OwnershipNotACommand        = "not-a-command"
+	OwnershipCompoundUnresolved = "compound-unresolved"
+	OwnershipUnparseable        = "unparseable"
+)
+
+// shellSegments is deliberately a non-evaluating lexer. It recognizes only
+// the separators Agent Manager can classify safely; command substitution,
+// process substitution, malformed quotes, and other shell grammar remain
+// unparseable evidence rather than being guessed at.
+func shellSegments(command string) ([]string, bool, bool) {
+	command = strings.TrimSpace(command)
+	if command == "" {
+		return nil, false, false
+	}
+	segments := []string{}
+	start := 0
+	var quote rune
+	escaped := false
+	compound := false
+	for i, r := range command {
+		if escaped {
+			escaped = false
+			continue
+		}
+		if r == '\\' && quote != '\'' {
+			escaped = true
+			continue
+		}
+		if quote != 0 {
+			if r == quote {
+				quote = 0
+			}
+			continue
+		}
+		// The first byte of &&/|| advances start past the second byte;
+		// ignore that second byte when range visits it.
+		if (r == '|' || r == '&') && i < start {
+			continue
+		}
+		switch r {
+		case '\'', '"':
+			quote = r
+		case '`':
+			return nil, false, true
+		case '$':
+			// `$(` and `${` can change the command or arguments. The
+			// latter is also rejected because expanding it requires shell.
+			return nil, false, true
+		case '<', '>':
+			// Process substitution is explicitly unparseable. Ordinary
+			// redirection is retained as part of the segment.
+			if i+1 < len(command) && command[i+1] == '(' {
+				return nil, false, true
+			}
+		case ';', '|', '&':
+			if r == '&' && i+1 >= len(command) {
+				return nil, false, true
+			}
+			if r == '|' && i+1 < len(command) && command[i+1] == '|' || r == '&' && i+1 < len(command) && command[i+1] == '&' {
+				// The range index is a byte offset for ASCII operators.
+				compound = true
+			}
+			if r == ';' || r == '|' || r == '&' {
+				part := strings.TrimSpace(command[start:i])
+				if part == "" {
+					return nil, false, true
+				}
+				segments = append(segments, part)
+				start = i + 1
+				if (r == '|' || r == '&') && start < len(command) && command[start] == byte(r) {
+					start++
+				}
+			}
+		}
+	}
+	if quote != 0 || escaped {
+		return nil, false, true
+	}
+	part := strings.TrimSpace(command[start:])
+	if part == "" {
+		return nil, false, true
+	}
+	segments = append(segments, part)
+	return segments, compound || len(segments) > 1, false
+}
+
+// SegmentShell returns literal shell segments and whether the source was a
+// compound command. It never executes or expands the input.
+func SegmentShell(command string) ([]string, bool, string) {
+	segments, compound, unparseable := shellSegments(command)
+	if unparseable {
+		return nil, false, "shell syntax requires evaluation"
+	}
+	return segments, compound, ""
 }
 
 type manifest struct {
@@ -44,7 +144,7 @@ func ResolveCatalog(command string) CatalogResolution {
 	command = unwrapShellCommand(command)
 	tokens, ok := safeTokens(command)
 	if !ok || len(tokens) == 0 {
-		return CatalogResolution{State: availability.Unknown}
+		return CatalogResolution{State: availability.Unknown, Reason: "command cannot be safely tokenized"}
 	}
 	_, owners, snapshot := loadCatalog()
 	paths, known := owners[tokens[0]]
@@ -65,7 +165,7 @@ func ResolveCatalog(command string) CatalogResolution {
 			return CatalogResolution{Owner: tokens[0], Command: candidate, Snapshot: snapshot, State: availability.Resolved}
 		}
 	}
-	return CatalogResolution{Owner: tokens[0], Snapshot: snapshot, State: availability.Unknown}
+	return CatalogResolution{Owner: tokens[0], Snapshot: snapshot, State: availability.Unknown, Reason: "catalog executable has no matching command path"}
 }
 
 // CurrentCatalogSnapshot returns the manifest-index digest used at import time.
@@ -90,10 +190,7 @@ func unwrapShellCommand(command string) string {
 		if strings.ContainsRune(inner, rune(quote)) {
 			return command
 		}
-		if _, ok := safeTokens(inner); ok {
-			return inner
-		}
-		return command
+		return inner
 	}
 	return command
 }

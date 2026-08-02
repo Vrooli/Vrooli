@@ -74,11 +74,21 @@ func DeriveTimeAccounting(events []*domain.RunEvent, startedAt, endedAt *time.Ti
 		previousAt = event.Timestamp
 	}
 	addDuration(&out, state, endedAt.Sub(previousAt))
+	// Converting each interval independently to milliseconds can drop a
+	// fractional millisecond at every event boundary. Preserve the supplied
+	// run interval exactly by assigning the bounded residual to the explicit
+	// unattributable bucket.
+	if residual := endedAt.Sub(*startedAt).Milliseconds() - out.DurationMS(); residual > 0 {
+		out.UnattributableMS += residual
+	}
 	return out
 }
 
 func timeStateAfter(event *domain.RunEvent) TimeAttributionState {
-	if _, ok := event.Data.(*domain.ToolCallEventData); ok {
+	if call, ok := event.Data.(*domain.ToolCallEventData); ok {
+		if CapabilityForTool(call.ToolName) == "wait" {
+			return TimeAttributionIdleWaiting
+		}
 		return TimeAttributionToolExecuting
 	}
 	if message, ok := event.Data.(*domain.MessageEventData); ok {
@@ -92,7 +102,10 @@ func timeStateAfter(event *domain.RunEvent) TimeAttributionState {
 	if _, ok := event.Data.(*domain.ToolResultEventData); ok {
 		return TimeAttributionModelGenerating
 	}
-	return TimeAttributionIdleWaiting
+	// An arbitrary log/metric/lifecycle event does not prove the agent was
+	// idle. Keep the interval explicitly unattributable until a typed signal
+	// establishes a state.
+	return TimeAttributionUnattributable
 }
 
 func addDuration(accounting *TimeAccounting, state TimeAttributionState, duration time.Duration) {

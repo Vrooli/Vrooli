@@ -70,9 +70,14 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_facts (
     occurred_at TEXT NOT NULL,
     time_basis TEXT NOT NULL DEFAULT 'event',
     tool_name TEXT NOT NULL,
+    capability TEXT NOT NULL DEFAULT 'other',
+    intent_class TEXT NOT NULL DEFAULT '',
     executable TEXT,
     command_path TEXT,
     ownership TEXT NOT NULL,
+    ownership_reason TEXT NOT NULL DEFAULT '',
+    segment_index INTEGER NOT NULL DEFAULT 0,
+    segment_count INTEGER NOT NULL DEFAULT 1,
     catalog_snapshot TEXT,
     outcome TEXT NOT NULL,
     pairing_basis TEXT NOT NULL DEFAULT 'unpaired',
@@ -88,7 +93,7 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_facts (
     model TEXT NOT NULL DEFAULT '',
     tag TEXT NOT NULL DEFAULT '',
     run_status TEXT NOT NULL,
-    PRIMARY KEY (run_id, call_event_id)
+    PRIMARY KEY (run_id, call_event_id, segment_index)
 );
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_occurred_at ON invocation_read_model_facts(occurred_at);
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_ownership ON invocation_read_model_facts(ownership, occurred_at);
@@ -101,6 +106,8 @@ CREATE INDEX IF NOT EXISTS idx_invocation_read_model_fingerprint ON invocation_r
 -- retain terminal timing and cost after the source event log is pruned.
 CREATE TABLE IF NOT EXISTS invocation_read_model_runs (
     run_id TEXT PRIMARY KEY,
+    goal_id TEXT NOT NULL DEFAULT '',
+    goal_status TEXT NOT NULL DEFAULT '',
     occurred_at TEXT NOT NULL,
     created_at TEXT NOT NULL,
     started_at TEXT,
@@ -130,6 +137,7 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_runs (
     metered_charge_micro_usd INTEGER NOT NULL DEFAULT 0,
     unpriced_token_count INTEGER NOT NULL DEFAULT 0,
     cost_time_basis TEXT NOT NULL DEFAULT 'terminal_projection',
+    time_basis TEXT NOT NULL DEFAULT 'ingestion',
     projected_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_runs_occurred_at ON invocation_read_model_runs(occurred_at);
@@ -227,6 +235,9 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_self_report_spans (
     classifier_version TEXT NOT NULL,
     cause_scope TEXT NOT NULL,
     text TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'assistant',
+    operator_correction INTEGER NOT NULL DEFAULT 0,
+    span_capped INTEGER NOT NULL DEFAULT 0,
     profile_id TEXT NOT NULL DEFAULT 'unknown',
     runner_type TEXT NOT NULL DEFAULT 'unknown',
     model TEXT NOT NULL DEFAULT 'unknown',

@@ -19,7 +19,7 @@ func detectPollLoops(ctx EpisodeDetectorContext) []FrictionEpisode {
 	var out []FrictionEpisode
 	for start := 0; start+pollLoopMinimumCalls <= len(ctx.Facts); {
 		first := ctx.Facts[start]
-		if first.Fingerprint == "" || !isReadOnlyFact(first, ctx.EventsByID) {
+		if !comparableFingerprintFact(first) || !isReadOnlyFact(first, ctx.EventsByID) {
 			start++
 			continue
 		}
@@ -42,7 +42,7 @@ func detectPollLoops(ctx EpisodeDetectorContext) []FrictionEpisode {
 }
 
 func samePollStep(ctx EpisodeDetectorContext, previous, next InvocationFact) bool {
-	if previous.Fingerprint != next.Fingerprint || !isReadOnlyFact(next, ctx.EventsByID) {
+	if !comparableFingerprintFact(previous) || !comparableFingerprintFact(next) || previous.Fingerprint != next.Fingerprint || !isReadOnlyFact(next, ctx.EventsByID) {
 		return false
 	}
 	previousEvent, nextEvent := ctx.EventsByID[previous.ResultEventID], ctx.EventsByID[next.CallEventID]

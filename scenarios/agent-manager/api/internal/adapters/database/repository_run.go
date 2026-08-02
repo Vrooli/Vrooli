@@ -44,6 +44,8 @@ type runRow struct {
 	Status              string             `db:"status"`
 	StartedAt           NullableTime       `db:"started_at"`
 	EndedAt             NullableTime       `db:"ended_at"`
+	GoalID              sql.NullString     `db:"goal_id"`
+	GoalStatus          sql.NullString     `db:"goal_status"`
 	Phase               string             `db:"phase"`
 	LastCheckpointID    NullableUUID       `db:"last_checkpoint_id"`
 	LastHeartbeat       NullableTime       `db:"last_heartbeat"`
@@ -118,6 +120,8 @@ func (row *runRow) toDomain() *domain.Run {
 		Status:                   domain.RunStatus(row.Status),
 		StartedAt:                row.StartedAt.ToPtr(),
 		EndedAt:                  row.EndedAt.ToPtr(),
+		GoalID:                   row.GoalID.String,
+		GoalStatus:               row.GoalStatus.String,
 		Phase:                    domain.RunPhase(row.Phase),
 		LastCheckpointID:         row.LastCheckpointID.ToPtr(),
 		LastHeartbeat:            row.LastHeartbeat.ToPtr(),
@@ -197,6 +201,8 @@ func runFromDomain(r *domain.Run) *runRow {
 		Status:                   string(r.Status),
 		StartedAt:                NewNullableTime(r.StartedAt),
 		EndedAt:                  NewNullableTime(r.EndedAt),
+		GoalID:                   sql.NullString{String: r.GoalID, Valid: true},
+		GoalStatus:               sql.NullString{String: r.GoalStatus, Valid: true},
 		Phase:                    string(r.Phase),
 		LastCheckpointID:         NewNullableUUID(r.LastCheckpointID),
 		LastHeartbeat:            NewNullableTime(r.LastHeartbeat),
@@ -365,7 +371,7 @@ func marshalUUIDSliceJSON(ids []uuid.UUID) string {
 
 const runColumns = `id, task_id, agent_profile_id, tag, workload_kind, workload_key, workload_instance, billing_snapshot, sandbox_id, run_mode,
 	execution_mode, web_console_session_id, status,
-	started_at, ended_at, phase, last_checkpoint_id, last_heartbeat, progress_percent,
+	started_at, ended_at, goal_id, goal_status, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 	idempotency_key, summary, run_result, error_msg, exit_code, approval_state, approved_by, approved_at,
 	finalization_status, finalization_error, finalized_at,
 	resolved_config, diff_path, log_path, changed_files, total_size_bytes, commit_hash, sandbox_config, session_id,
@@ -507,7 +513,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 	row := runFromDomain(run)
 	query := `INSERT INTO runs (id, task_id, agent_profile_id, tag, workload_kind, workload_key, workload_instance, billing_snapshot, sandbox_id, run_mode,
 			execution_mode, web_console_session_id, status,
-			started_at, ended_at, phase, last_checkpoint_id, last_heartbeat, progress_percent,
+			started_at, ended_at, goal_id, goal_status, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 			idempotency_key, summary, run_result, error_msg, exit_code, approval_state, approved_by, approved_at,
 			finalization_status, finalization_error, finalized_at,
 			resolved_config, diff_path, log_path, changed_files, total_size_bytes, commit_hash, sandbox_config, session_id,
@@ -519,7 +525,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			created_at, updated_at)
 			VALUES (:id, :task_id, :agent_profile_id, :tag, :workload_kind, :workload_key, :workload_instance, :billing_snapshot, :sandbox_id, :run_mode,
 			:execution_mode, :web_console_session_id, :status,
-			:started_at, :ended_at, :phase, :last_checkpoint_id, :last_heartbeat, :progress_percent,
+			:started_at, :ended_at, :goal_id, :goal_status, :phase, :last_checkpoint_id, :last_heartbeat, :progress_percent,
 			:idempotency_key, :summary, :run_result, :error_msg, :exit_code, :approval_state, :approved_by, :approved_at,
 			:finalization_status, :finalization_error, :finalized_at,
 			:resolved_config, :diff_path, :log_path, :changed_files, :total_size_bytes, :commit_hash, :sandbox_config, :session_id,

@@ -160,7 +160,8 @@ func newFakeCodec() *fakeCodec {
 	}
 }
 
-func (c *fakeCodec) Type() domain.RunnerType { return c.rt }
+func (c *fakeCodec) Type() domain.RunnerType              { return c.rt }
+func (c *fakeCodec) ToolCapabilityMap() map[string]string { return map[string]string{} }
 
 func (c *fakeCodec) Capabilities() runner.Capabilities {
 	return runner.Capabilities{

@@ -442,6 +442,9 @@ func (db *DB) initSchema() error {
 		if err := db.migrateInvocationReadModelEpisodeColumns(ctx); err != nil {
 			return err
 		}
+		if err := db.migrateInvocationReadModelSelfReportColumns(ctx); err != nil {
+			return err
+		}
 	}
 	// investigation_cross_scenario_calls gained receipt timing after the
 	// original projection shipped. Apply this before schema validation for
@@ -515,6 +518,9 @@ func (db *DB) initSchema() error {
 	if err := db.migrateInvocationReadModelEpisodeColumns(ctx); err != nil {
 		return err
 	}
+	if err := db.migrateInvocationReadModelSelfReportColumns(ctx); err != nil {
+		return err
+	}
 	if err := db.migrateInvestigationProjectionColumns(ctx); err != nil {
 		return err
 	}
@@ -536,6 +542,8 @@ type columnMigration struct {
 }
 
 var invocationReadModelRunColumnMigrations = []columnMigration{
+	{column: "goal_id", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN goal_id TEXT NOT NULL DEFAULT ''"},
+	{column: "goal_status", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN goal_status TEXT NOT NULL DEFAULT ''"},
 	{column: "input_cost_usd", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN input_cost_usd REAL NOT NULL DEFAULT 0"},
 	{column: "output_cost_usd", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN output_cost_usd REAL NOT NULL DEFAULT 0"},
 	{column: "cache_read_cost_usd", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN cache_read_cost_usd REAL NOT NULL DEFAULT 0"},
@@ -552,6 +560,7 @@ var invocationReadModelRunColumnMigrations = []columnMigration{
 	{column: "workload_kind", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN workload_kind TEXT NOT NULL DEFAULT 'adhoc'"},
 	{column: "workload_key", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN workload_key TEXT NOT NULL DEFAULT ''"},
 	{column: "workload_instance", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN workload_instance TEXT NOT NULL DEFAULT ''"},
+	{column: "time_basis", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN time_basis TEXT NOT NULL DEFAULT 'ingestion'"},
 }
 
 var runFindingColumnMigrations = []columnMigration{
@@ -580,7 +589,7 @@ func (db *DB) removeRetiredInvocationReadModelColumns(ctx context.Context) error
 	if err != nil {
 		return err
 	}
-	retired := []string{"authoritative_cost_usd", "estimated_cost_usd", "unknown_cost_usd", "goal_id", "goal_status", "goal_token_budget", "goal_tokens_used", "goal_time_used_seconds"}
+	retired := []string{"authoritative_cost_usd", "estimated_cost_usd", "unknown_cost_usd", "goal_token_budget", "goal_tokens_used", "goal_time_used_seconds"}
 	needsRebuild := false
 	for _, column := range retired {
 		if _, ok := columns[column]; ok {
@@ -600,6 +609,8 @@ func (db *DB) removeRetiredInvocationReadModelColumns(ctx context.Context) error
 		"ALTER TABLE invocation_read_model_runs RENAME TO invocation_read_model_runs_retired",
 		`CREATE TABLE invocation_read_model_runs (
             run_id TEXT PRIMARY KEY,
+            goal_id TEXT NOT NULL DEFAULT '',
+            goal_status TEXT NOT NULL DEFAULT '',
             occurred_at TEXT NOT NULL,
             created_at TEXT NOT NULL,
             started_at TEXT,
@@ -629,10 +640,11 @@ func (db *DB) removeRetiredInvocationReadModelColumns(ctx context.Context) error
             metered_charge_micro_usd INTEGER NOT NULL DEFAULT 0,
             unpriced_token_count INTEGER NOT NULL DEFAULT 0,
             cost_time_basis TEXT NOT NULL DEFAULT 'terminal_projection',
+            time_basis TEXT NOT NULL DEFAULT 'ingestion',
             projected_at TEXT NOT NULL DEFAULT (datetime('now'))
         )`,
-		`INSERT INTO invocation_read_model_runs (run_id,occurred_at,created_at,started_at,ended_at,duration_ms,status,profile_id,runner_type,model,tag,workload_kind,workload_key,workload_instance,total_cost_usd,input_cost_usd,output_cost_usd,cache_read_cost_usd,cache_creation_cost_usd,total_tokens,input_tokens,output_tokens,cache_read_tokens,cache_creation_tokens,turns,tool_calls,total_charge_micro_usd,metered_charge_micro_usd,unpriced_token_count,cost_time_basis,projected_at)
-         SELECT run_id,occurred_at,created_at,started_at,ended_at,duration_ms,status,profile_id,runner_type,model,tag,workload_kind,workload_key,workload_instance,total_cost_usd,input_cost_usd,output_cost_usd,cache_read_cost_usd,cache_creation_cost_usd,total_tokens,input_tokens,output_tokens,cache_read_tokens,cache_creation_tokens,turns,tool_calls,total_charge_micro_usd,metered_charge_micro_usd,unpriced_token_count,cost_time_basis,projected_at
+		`INSERT INTO invocation_read_model_runs (run_id,goal_id,goal_status,occurred_at,created_at,started_at,ended_at,duration_ms,status,profile_id,runner_type,model,tag,workload_kind,workload_key,workload_instance,total_cost_usd,input_cost_usd,output_cost_usd,cache_read_cost_usd,cache_creation_cost_usd,total_tokens,input_tokens,output_tokens,cache_read_tokens,cache_creation_tokens,turns,tool_calls,total_charge_micro_usd,metered_charge_micro_usd,unpriced_token_count,cost_time_basis,time_basis,projected_at)
+         SELECT run_id,goal_id,goal_status,occurred_at,created_at,started_at,ended_at,duration_ms,status,profile_id,runner_type,model,tag,workload_kind,workload_key,workload_instance,total_cost_usd,input_cost_usd,output_cost_usd,cache_read_cost_usd,cache_creation_cost_usd,total_tokens,input_tokens,output_tokens,cache_read_tokens,cache_creation_tokens,turns,tool_calls,total_charge_micro_usd,metered_charge_micro_usd,unpriced_token_count,cost_time_basis,time_basis,projected_at
          FROM invocation_read_model_runs_retired`,
 		"DROP TABLE invocation_read_model_runs_retired",
 		"CREATE INDEX IF NOT EXISTS idx_invocation_read_model_runs_occurred_at ON invocation_read_model_runs(occurred_at)",
@@ -653,12 +665,68 @@ func (db *DB) removeRetiredInvocationReadModelColumns(ctx context.Context) error
 }
 
 var invocationReadModelFactColumnMigrations = []columnMigration{
+	{column: "ownership_reason", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN ownership_reason TEXT NOT NULL DEFAULT ''"},
+	{column: "segment_index", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN segment_index INTEGER NOT NULL DEFAULT 0"},
+	{column: "segment_count", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN segment_count INTEGER NOT NULL DEFAULT 1"},
+	{column: "capability", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN capability TEXT NOT NULL DEFAULT 'other'"},
+	{column: "intent_class", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN intent_class TEXT NOT NULL DEFAULT ''"},
 	{column: "pairing_basis", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN pairing_basis TEXT NOT NULL DEFAULT 'unpaired'"},
 	{column: "failure_signature", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN failure_signature TEXT NOT NULL DEFAULT ''"},
 	{column: "signature_truncated", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN signature_truncated INTEGER NOT NULL DEFAULT 0"},
 }
 
 func (db *DB) migrateInvocationReadModelFactColumns(ctx context.Context) error {
+	columns, err := db.tableColumns(ctx, "invocation_read_model_facts")
+	if err != nil {
+		return err
+	}
+	// Compound calls require a composite identity. An additive column cannot
+	// alter SQLite's old (run_id, call_event_id) primary key, so perform one
+	// narrow, replay-safe rebuild when upgrading an older projection.
+	if len(columns) > 0 {
+		if _, ok := columns["segment_index"]; !ok {
+			statements := []string{
+				"DROP INDEX IF EXISTS idx_invocation_read_model_occurred_at",
+				"DROP INDEX IF EXISTS idx_invocation_read_model_ownership",
+				"DROP INDEX IF EXISTS idx_invocation_read_model_outcome",
+				"DROP INDEX IF EXISTS idx_invocation_read_model_executable",
+				"DROP INDEX IF EXISTS idx_invocation_read_model_fingerprint",
+				"ALTER TABLE invocation_read_model_facts RENAME TO invocation_read_model_facts_retired",
+				`CREATE TABLE invocation_read_model_facts (
+                    run_id TEXT NOT NULL, call_event_id TEXT NOT NULL, result_event_id TEXT,
+                    tool_call_id TEXT, occurred_at TEXT NOT NULL, time_basis TEXT NOT NULL DEFAULT 'event',
+                    tool_name TEXT NOT NULL, capability TEXT NOT NULL DEFAULT 'other', intent_class TEXT NOT NULL DEFAULT '', executable TEXT, command_path TEXT, ownership TEXT NOT NULL,
+                    ownership_reason TEXT NOT NULL DEFAULT '', segment_index INTEGER NOT NULL DEFAULT 0,
+                    segment_count INTEGER NOT NULL DEFAULT 1, catalog_snapshot TEXT, outcome TEXT NOT NULL,
+                    pairing_basis TEXT NOT NULL DEFAULT 'unpaired', failure_signature TEXT NOT NULL DEFAULT '',
+                    signature_truncated INTEGER NOT NULL DEFAULT 0, retry_of_call_event_id TEXT,
+                    help_recovery INTEGER NOT NULL DEFAULT 0, fingerprint TEXT NOT NULL, availability TEXT NOT NULL,
+                    classifier_version TEXT NOT NULL, profile_id TEXT, runner_type TEXT NOT NULL DEFAULT 'unknown',
+                    model TEXT NOT NULL DEFAULT '', tag TEXT NOT NULL DEFAULT '', run_status TEXT NOT NULL,
+                    PRIMARY KEY (run_id, call_event_id, segment_index)
+                )`,
+				`INSERT INTO invocation_read_model_facts (run_id,call_event_id,result_event_id,tool_call_id,occurred_at,time_basis,tool_name,capability,intent_class,executable,command_path,ownership,ownership_reason,segment_index,segment_count,catalog_snapshot,outcome,pairing_basis,failure_signature,signature_truncated,retry_of_call_event_id,help_recovery,fingerprint,availability,classifier_version,profile_id,runner_type,model,tag,run_status)
+                 SELECT run_id,call_event_id,result_event_id,tool_call_id,occurred_at,time_basis,tool_name,'other','',executable,command_path,
+                    CASE ownership WHEN 'project' THEN 'resolved' WHEN 'unknown' THEN 'unparseable' ELSE ownership END,
+                    CASE ownership WHEN 'unknown' THEN 'legacy ownership was not classified' ELSE '' END,
+                    0,1,catalog_snapshot,outcome,COALESCE(pairing_basis,'unpaired'),COALESCE(failure_signature,''),COALESCE(signature_truncated,0),
+                    COALESCE(retry_of_call_event_id,''),COALESCE(help_recovery,0),fingerprint,availability,classifier_version,profile_id,runner_type,model,tag,run_status
+                 FROM invocation_read_model_facts_retired`,
+				"DROP TABLE invocation_read_model_facts_retired",
+				"CREATE INDEX IF NOT EXISTS idx_invocation_read_model_occurred_at ON invocation_read_model_facts(occurred_at)",
+				"CREATE INDEX IF NOT EXISTS idx_invocation_read_model_ownership ON invocation_read_model_facts(ownership, occurred_at)",
+				"CREATE INDEX IF NOT EXISTS idx_invocation_read_model_outcome ON invocation_read_model_facts(outcome, occurred_at)",
+				"CREATE INDEX IF NOT EXISTS idx_invocation_read_model_executable ON invocation_read_model_facts(executable, occurred_at)",
+				"CREATE INDEX IF NOT EXISTS idx_invocation_read_model_fingerprint ON invocation_read_model_facts(fingerprint, occurred_at)",
+			}
+			for _, statement := range statements {
+				if _, err := db.ExecContext(ctx, statement); err != nil {
+					return &domain.DatabaseError{Operation: "schema_invocation_fact_rebuild", EntityType: "Schema", Cause: err}
+				}
+			}
+			return nil
+		}
+	}
 	return db.migrateColumns(ctx, "invocation_read_model_facts", invocationReadModelFactColumnMigrations)
 }
 
@@ -683,12 +751,29 @@ func (db *DB) migrateInvocationReadModelEpisodeColumns(ctx context.Context) erro
 	return db.migrateColumns(ctx, "invocation_read_model_episodes", invocationReadModelEpisodeColumnMigrations)
 }
 
+var invocationReadModelSelfReportColumnMigrations = []columnMigration{
+	{column: "role", ddl: "ALTER TABLE invocation_read_model_self_report_spans ADD COLUMN role TEXT NOT NULL DEFAULT 'assistant'"},
+	{column: "operator_correction", ddl: "ALTER TABLE invocation_read_model_self_report_spans ADD COLUMN operator_correction INTEGER NOT NULL DEFAULT 0"},
+	{column: "span_capped", ddl: "ALTER TABLE invocation_read_model_self_report_spans ADD COLUMN span_capped INTEGER NOT NULL DEFAULT 0"},
+}
+
+func (db *DB) migrateInvocationReadModelSelfReportColumns(ctx context.Context) error {
+	return db.migrateColumns(ctx, "invocation_read_model_self_report_spans", invocationReadModelSelfReportColumnMigrations)
+}
+
 var investigationProjectionColumnMigrations = []columnMigration{
 	{column: "occurred_at", ddl: "ALTER TABLE investigation_cross_scenario_calls ADD COLUMN occurred_at TEXT"},
 }
 
 func (db *DB) migrateInvestigationProjectionColumns(ctx context.Context) error {
-	return db.migrateColumns(ctx, "investigation_cross_scenario_calls", investigationProjectionColumnMigrations)
+	if err := db.migrateColumns(ctx, "investigation_cross_scenario_calls", investigationProjectionColumnMigrations); err != nil {
+		return err
+	}
+	// Older report builds used an empty sentinel row to preserve availability.
+	// Availability now lives in the report state, while the ledger is strictly
+	// receipt evidence; remove those non-evidence rows during normal startup.
+	_, err := db.ExecContext(ctx, `DELETE FROM investigation_cross_scenario_calls WHERE target_scenario = '' OR operation = ''`)
+	return err
 }
 
 var frictionEpisodeColumnMigrations = []columnMigration{
@@ -786,6 +871,8 @@ var runColumnMigrations = []columnMigration{
 	{column: "workload_kind", ddl: "ALTER TABLE runs ADD COLUMN workload_kind TEXT NOT NULL DEFAULT 'adhoc'"},
 	{column: "workload_instance", ddl: "ALTER TABLE runs ADD COLUMN workload_instance TEXT NOT NULL DEFAULT ''"},
 	{column: "billing_snapshot", ddl: "ALTER TABLE runs ADD COLUMN billing_snapshot TEXT NOT NULL DEFAULT '{}'"},
+	{column: "goal_id", ddl: "ALTER TABLE runs ADD COLUMN goal_id TEXT NOT NULL DEFAULT ''"},
+	{column: "goal_status", ddl: "ALTER TABLE runs ADD COLUMN goal_status TEXT NOT NULL DEFAULT ''"},
 }
 
 // migrateRunColumns adds any missing additive columns to the runs table.

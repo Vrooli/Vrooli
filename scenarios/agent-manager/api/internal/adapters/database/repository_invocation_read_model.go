@@ -44,13 +44,13 @@ type sqlExecutor interface {
 
 func replaceRunTx(ctx context.Context, executor sqlExecutor, fact invocationreadmodel.RunFact) error {
 	query := `INSERT INTO invocation_read_model_runs (
-		run_id,occurred_at,created_at,started_at,ended_at,duration_ms,status,profile_id,runner_type,model,tag,
+		run_id,goal_id,goal_status,occurred_at,created_at,started_at,ended_at,duration_ms,status,profile_id,runner_type,model,tag,
 		workload_kind,workload_key,workload_instance,total_cost_usd,input_cost_usd,output_cost_usd,cache_read_cost_usd,
 		cache_creation_cost_usd,total_tokens,input_tokens,output_tokens,cache_read_tokens,cache_creation_tokens,turns,
-		tool_calls,total_charge_micro_usd,metered_charge_micro_usd,unpriced_token_count,cost_time_basis,projected_at
-	) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+		tool_calls,total_charge_micro_usd,metered_charge_micro_usd,unpriced_token_count,cost_time_basis,time_basis,projected_at
+	) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 	ON CONFLICT(run_id) DO UPDATE SET
-		occurred_at=excluded.occurred_at,created_at=excluded.created_at,started_at=excluded.started_at,ended_at=excluded.ended_at,
+		goal_id=excluded.goal_id,goal_status=excluded.goal_status,occurred_at=excluded.occurred_at,created_at=excluded.created_at,started_at=excluded.started_at,ended_at=excluded.ended_at,
 		duration_ms=excluded.duration_ms,status=excluded.status,profile_id=excluded.profile_id,runner_type=excluded.runner_type,
 		model=excluded.model,tag=excluded.tag,workload_kind=excluded.workload_kind,workload_key=excluded.workload_key,
 		workload_instance=excluded.workload_instance,total_cost_usd=excluded.total_cost_usd,input_cost_usd=excluded.input_cost_usd,
@@ -59,8 +59,8 @@ func replaceRunTx(ctx context.Context, executor sqlExecutor, fact invocationread
 		output_tokens=excluded.output_tokens,cache_read_tokens=excluded.cache_read_tokens,cache_creation_tokens=excluded.cache_creation_tokens,
 		turns=excluded.turns,tool_calls=excluded.tool_calls,total_charge_micro_usd=excluded.total_charge_micro_usd,
 		metered_charge_micro_usd=excluded.metered_charge_micro_usd,unpriced_token_count=excluded.unpriced_token_count,
-		cost_time_basis=excluded.cost_time_basis,projected_at=excluded.projected_at`
-	if _, err := executor.ExecContext(ctx, query, fact.RunID, SQLiteTime(fact.OccurredAt), SQLiteTime(fact.CreatedAt), nullableSQLiteTime(fact.StartedAt), nullableSQLiteTime(fact.EndedAt), fact.DurationMS, fact.Status, fact.ProfileID, fact.RunnerType, fact.Model, fact.Tag, fact.WorkloadKind, fact.WorkloadKey, fact.WorkloadInstance, fact.TotalCostUSD, fact.InputCostUSD, fact.OutputCostUSD, fact.CacheReadCostUSD, fact.CacheCreationCostUSD, fact.TotalTokens, fact.InputTokens, fact.OutputTokens, fact.CacheReadTokens, fact.CacheCreationTokens, fact.Turns, fact.ToolCalls, fact.TotalChargeMicroUSD, fact.MeteredChargeMicroUSD, fact.UnpricedTokenCount, fact.CostTimeBasis, SQLiteTime(fact.ProjectedAt)); err != nil {
+		cost_time_basis=excluded.cost_time_basis,time_basis=excluded.time_basis,projected_at=excluded.projected_at`
+	if _, err := executor.ExecContext(ctx, query, fact.RunID, fact.GoalID, fact.GoalStatus, SQLiteTime(fact.OccurredAt), SQLiteTime(fact.CreatedAt), nullableSQLiteTime(fact.StartedAt), nullableSQLiteTime(fact.EndedAt), fact.DurationMS, fact.Status, fact.ProfileID, fact.RunnerType, fact.Model, fact.Tag, fact.WorkloadKind, fact.WorkloadKey, fact.WorkloadInstance, fact.TotalCostUSD, fact.InputCostUSD, fact.OutputCostUSD, fact.CacheReadCostUSD, fact.CacheCreationCostUSD, fact.TotalTokens, fact.InputTokens, fact.OutputTokens, fact.CacheReadTokens, fact.CacheCreationTokens, fact.Turns, fact.ToolCalls, fact.TotalChargeMicroUSD, fact.MeteredChargeMicroUSD, fact.UnpricedTokenCount, fact.CostTimeBasis, fact.TimeBasis, SQLiteTime(fact.ProjectedAt)); err != nil {
 		return fmt.Errorf("upsert run read-model fact: %w", err)
 	}
 	if _, err := executor.ExecContext(ctx, `INSERT INTO invocation_read_model_run_signals (run_id,read_calls,files_read_more_than_once) VALUES (?,?,?) ON CONFLICT(run_id) DO UPDATE SET read_calls=excluded.read_calls,files_read_more_than_once=excluded.files_read_more_than_once`, fact.RunID, fact.ReadCalls, fact.FileRereads); err != nil {
@@ -160,7 +160,7 @@ func replaceSelfReportSpansTx(ctx context.Context, executor sqlExecutor, spans [
 		return fmt.Errorf("clear read-model self-report spans: %w", err)
 	}
 	for _, span := range spans {
-		if _, err := executor.ExecContext(ctx, `INSERT INTO invocation_read_model_self_report_spans (run_id,event_id,rule_id,start_offset,end_offset,occurred_at,time_basis,classifier_version,cause_scope,text,profile_id,runner_type,model,tag,run_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, span.RunID, span.EventID, span.RuleID, span.StartOffset, span.EndOffset, SQLiteTime(span.OccurredAt), span.TimeBasis, span.ClassifierVersion, span.CauseScope, span.Text, span.ProfileID, span.RunnerType, span.Model, span.Tag, span.RunStatus); err != nil {
+		if _, err := executor.ExecContext(ctx, `INSERT INTO invocation_read_model_self_report_spans (run_id,event_id,rule_id,start_offset,end_offset,occurred_at,time_basis,classifier_version,cause_scope,text,role,operator_correction,span_capped,profile_id,runner_type,model,tag,run_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, span.RunID, span.EventID, span.RuleID, span.StartOffset, span.EndOffset, SQLiteTime(span.OccurredAt), span.TimeBasis, span.ClassifierVersion, span.CauseScope, span.Text, span.Role, span.OperatorCorrection, span.SpanCapped, span.ProfileID, span.RunnerType, span.Model, span.Tag, span.RunStatus); err != nil {
 			return fmt.Errorf("insert read-model self-report span: %w", err)
 		}
 	}
@@ -184,7 +184,7 @@ func (r *invocationReadModelRepository) replaceFactsTx(ctx context.Context, tx s
 		return fmt.Errorf("clear read-model facts: %w", err)
 	}
 	for _, fact := range facts {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO invocation_read_model_facts (run_id,call_event_id,result_event_id,tool_call_id,occurred_at,time_basis,tool_name,executable,command_path,ownership,catalog_snapshot,outcome,pairing_basis,failure_signature,signature_truncated,retry_of_call_event_id,help_recovery,fingerprint,availability,classifier_version,profile_id,runner_type,model,tag,run_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, fact.RunID, fact.CallEventID, fact.ResultEventID, fact.ToolCallID, SQLiteTime(fact.OccurredAt), fact.TimeBasis, fact.ToolName, fact.Executable, fact.CommandPath, fact.Ownership, fact.CatalogSnapshot, fact.Outcome, fact.PairingBasis, fact.FailureSignature, fact.SignatureTruncated, fact.RetryOfCallEventID, fact.HelpRecovery, fact.Fingerprint, fact.Availability, fact.Version, fact.ProfileID, fact.RunnerType, fact.Model, fact.Tag, fact.RunStatus); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO invocation_read_model_facts (run_id,call_event_id,result_event_id,tool_call_id,occurred_at,time_basis,tool_name,capability,intent_class,executable,command_path,ownership,ownership_reason,segment_index,segment_count,catalog_snapshot,outcome,pairing_basis,failure_signature,signature_truncated,retry_of_call_event_id,help_recovery,fingerprint,availability,classifier_version,profile_id,runner_type,model,tag,run_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, fact.RunID, fact.CallEventID, fact.ResultEventID, fact.ToolCallID, SQLiteTime(fact.OccurredAt), fact.TimeBasis, fact.ToolName, fact.Capability, fact.IntentClass, fact.Executable, fact.CommandPath, fact.Ownership, fact.OwnershipReason, fact.SegmentIndex, fact.SegmentCount, fact.CatalogSnapshot, fact.Outcome, fact.PairingBasis, fact.FailureSignature, fact.SignatureTruncated, fact.RetryOfCallEventID, fact.HelpRecovery, fact.Fingerprint, fact.Availability, fact.Version, fact.ProfileID, fact.RunnerType, fact.Model, fact.Tag, fact.RunStatus); err != nil {
 			return fmt.Errorf("insert read-model fact: %w", err)
 		}
 	}
@@ -301,7 +301,7 @@ func (r *invocationReadModelRepository) queryEpisodes(ctx context.Context, query
 }
 
 func (r *invocationReadModelRepository) SelfReportSpansForRun(ctx context.Context, runID string) ([]invocationreadmodel.SelfReportSpan, error) {
-	rows, err := r.db.QueryxContext(ctx, `SELECT run_id,event_id,rule_id,start_offset,end_offset,occurred_at,time_basis,classifier_version,cause_scope,text,profile_id,runner_type,model,tag,run_status FROM invocation_read_model_self_report_spans WHERE run_id=? ORDER BY occurred_at,event_id,start_offset`, runID)
+	rows, err := r.db.QueryxContext(ctx, `SELECT run_id,event_id,rule_id,start_offset,end_offset,occurred_at,time_basis,classifier_version,cause_scope,text,role,operator_correction,span_capped,profile_id,runner_type,model,tag,run_status FROM invocation_read_model_self_report_spans WHERE run_id=? ORDER BY occurred_at,event_id,start_offset`, runID)
 	if err != nil {
 		return nil, err
 	}
@@ -310,7 +310,7 @@ func (r *invocationReadModelRepository) SelfReportSpansForRun(ctx context.Contex
 	for rows.Next() {
 		var s invocationreadmodel.SelfReportSpan
 		var occurredAt SQLiteTime
-		if err := rows.Scan(&s.RunID, &s.EventID, &s.RuleID, &s.StartOffset, &s.EndOffset, &occurredAt, &s.TimeBasis, &s.ClassifierVersion, &s.CauseScope, &s.Text, &s.ProfileID, &s.RunnerType, &s.Model, &s.Tag, &s.RunStatus); err != nil {
+		if err := rows.Scan(&s.RunID, &s.EventID, &s.RuleID, &s.StartOffset, &s.EndOffset, &occurredAt, &s.TimeBasis, &s.ClassifierVersion, &s.CauseScope, &s.Text, &s.Role, &s.OperatorCorrection, &s.SpanCapped, &s.ProfileID, &s.RunnerType, &s.Model, &s.Tag, &s.RunStatus); err != nil {
 			return nil, err
 		}
 		s.OccurredAt = occurredAt.Time()
@@ -322,9 +322,11 @@ func (r *invocationReadModelRepository) SelfReportSpansForRun(ctx context.Contex
 func (r *invocationReadModelRepository) Metrics(ctx context.Context, filter invocationreadmodel.Filter) (invocationreadmodel.Metrics, error) {
 	where, args := invocationReadModelWhere(filter)
 	query := `SELECT COUNT(*),
-		SUM(CASE WHEN ownership <> 'unknown' THEN 1 ELSE 0 END),
+		SUM(CASE WHEN ownership IN ('resolved', 'project', 'external') THEN 1 ELSE 0 END),
 		SUM(CASE WHEN ownership = 'external' THEN 1 ELSE 0 END),
-		SUM(CASE WHEN ownership = 'unknown' THEN 1 ELSE 0 END),
+		SUM(CASE WHEN ownership = 'not-a-command' THEN 1 ELSE 0 END),
+		SUM(CASE WHEN ownership = 'compound-unresolved' THEN 1 ELSE 0 END),
+		SUM(CASE WHEN ownership = 'unparseable' THEN 1 ELSE 0 END),
 		SUM(CASE WHEN outcome = 'failure' THEN 1 ELSE 0 END),
 		SUM(CASE WHEN retry_of_call_event_id <> '' THEN 1 ELSE 0 END),
 		SUM(CASE WHEN help_recovery = 1 THEN 1 ELSE 0 END),
@@ -334,13 +336,26 @@ func (r *invocationReadModelRepository) Metrics(ctx context.Context, filter invo
 	// The repeated-fingerprint subquery has the same predicate, so bind it
 	// twice; it cannot accidentally measure a wider population than the rates.
 	allArgs := append(append(append([]any{}, args...), args...), args...)
-	var values [9]sql.NullInt64
-	if err := r.db.QueryRowContext(ctx, query, allArgs...).Scan(&values[0], &values[1], &values[2], &values[3], &values[4], &values[5], &values[6], &values[7], &values[8]); err != nil {
+	var values [11]sql.NullInt64
+	if err := r.db.QueryRowContext(ctx, query, allArgs...).Scan(&values[0], &values[1], &values[2], &values[3], &values[4], &values[5], &values[6], &values[7], &values[8], &values[9], &values[10]); err != nil {
 		return invocationreadmodel.Metrics{}, err
 	}
-	m := invocationreadmodel.Metrics{TotalCalls: values[0].Int64, ResolvedCalls: values[1].Int64, ExternalCalls: values[2].Int64, UnknownCalls: values[3].Int64, FailedCalls: values[4].Int64, RetryCalls: values[5].Int64, HelpRecoveries: values[6].Int64, RepeatedCalls: values[7].Int64, LargestFingerprintBucket: values[8].Int64}
-	if m.ResolvedCalls > 0 {
-		m.ExternalToolShare = float64(m.ExternalCalls) / float64(m.ResolvedCalls)
+	m := invocationreadmodel.Metrics{TotalCalls: values[0].Int64, ResolvedCalls: values[1].Int64, ExternalCalls: values[2].Int64, NotACommandCalls: values[3].Int64, CompoundUnresolvedCalls: values[4].Int64, UnparseableCalls: values[5].Int64, FailedCalls: values[6].Int64, RetryCalls: values[7].Int64, HelpRecoveries: values[8].Int64, RepeatedCalls: values[9].Int64, LargestFingerprintBucket: values[10].Int64}
+	// `unknown` is retained only for pre-v5 rows; count it as explicitly
+	// unclassified while replay removes it from current projections.
+	var legacyUnknown int64
+	legacyWhere := " WHERE ownership = 'unknown'"
+	if where != "" {
+		legacyWhere = where + " AND ownership = 'unknown'"
+	}
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM invocation_read_model_facts`+legacyWhere, args...).Scan(&legacyUnknown); err == nil {
+		m.UnclassifiedCalls = m.NotACommandCalls + m.CompoundUnresolvedCalls + m.UnparseableCalls + legacyUnknown
+	} else {
+		m.UnclassifiedCalls = m.NotACommandCalls + m.CompoundUnresolvedCalls + m.UnparseableCalls
+	}
+	m.UnknownCalls = m.UnclassifiedCalls
+	if m.TotalCalls > 0 {
+		m.ExternalToolShare = float64(m.ExternalCalls) / float64(m.TotalCalls)
 	}
 	if m.TotalCalls > 0 {
 		m.FailureRate = float64(m.FailedCalls) / float64(m.TotalCalls)
@@ -532,6 +547,94 @@ func (r *invocationReadModelRepository) ToolUsage(ctx context.Context, filter in
 	for rows.Next() {
 		var row invocationreadmodel.ToolUsageRow
 		if err := rows.Scan(&row.ToolName, &row.CallCount, &row.SuccessCount, &row.FailedCount); err != nil {
+			return nil, err
+		}
+		out = append(out, row)
+	}
+	return out, rows.Err()
+}
+
+func (r *invocationReadModelRepository) CapabilityUsage(ctx context.Context, filter invocationreadmodel.Filter, limit int) ([]invocationreadmodel.CapabilityUsageRow, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	clauses := []string{"verified = 1", "target_scenario <> ''"}
+	args := []any{}
+	if filter.From != nil {
+		clauses = append(clauses, "occurred_at >= ?")
+		args = append(args, SQLiteTime(*filter.From))
+	}
+	if filter.To != nil {
+		clauses = append(clauses, "occurred_at < ?")
+		args = append(args, SQLiteTime(*filter.To))
+	}
+	if filter.TargetScenario != "" {
+		clauses = append(clauses, "target_scenario = ?")
+		args = append(args, filter.TargetScenario)
+	}
+	if filter.Operation != "" {
+		clauses = append(clauses, "operation = ?")
+		args = append(args, filter.Operation)
+	}
+	args = append(args, limit)
+	rows, err := r.db.QueryxContext(ctx, `SELECT target_scenario, operation, COUNT(*) AS call_count,
+		SUM(CASE WHEN outcome = 'success' THEN 1 ELSE 0 END) AS success_count,
+		SUM(CASE WHEN outcome <> 'success' THEN 1 ELSE 0 END) AS failed_count,
+		COALESCE(SUM(duration_ms), 0) AS total_duration_ms
+		FROM investigation_cross_scenario_calls WHERE `+strings.Join(clauses, " AND ")+`
+		GROUP BY target_scenario, operation ORDER BY call_count DESC, target_scenario ASC, operation ASC LIMIT ?`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []invocationreadmodel.CapabilityUsageRow{}
+	for rows.Next() {
+		var row invocationreadmodel.CapabilityUsageRow
+		if err := rows.Scan(&row.TargetScenario, &row.Operation, &row.CallCount, &row.SuccessCount, &row.FailedCount, &row.TotalDurationMS); err != nil {
+			return nil, err
+		}
+		out = append(out, row)
+	}
+	return out, rows.Err()
+}
+
+func (r *invocationReadModelRepository) CapabilityEfficacy(ctx context.Context, filter invocationreadmodel.Filter, limit int) ([]invocationreadmodel.CapabilityEfficacyRow, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	clauses := []string{"c.verified = 1", "c.target_scenario <> ''"}
+	args := []any{}
+	if filter.From != nil {
+		clauses = append(clauses, "c.occurred_at >= ?")
+		args = append(args, SQLiteTime(*filter.From))
+	}
+	if filter.To != nil {
+		clauses = append(clauses, "c.occurred_at < ?")
+		args = append(args, SQLiteTime(*filter.To))
+	}
+	if filter.TargetScenario != "" {
+		clauses = append(clauses, "c.target_scenario = ?")
+		args = append(args, filter.TargetScenario)
+	}
+	if filter.Operation != "" {
+		clauses = append(clauses, "c.operation = ?")
+		args = append(args, filter.Operation)
+	}
+	args = append(args, limit)
+	query := `SELECT c.target_scenario, c.operation, COUNT(*) AS call_count,
+		SUM(CASE WHEN c.outcome = 'success' THEN 1 ELSE 0 END) AS success_count,
+		COALESCE(SUM(CASE WHEN EXISTS (SELECT 1 FROM invocation_read_model_episodes e WHERE e.run_id = c.run_id AND e.pattern = 'fallback-after-capability' AND e.suspected_owner_scenario = c.target_scenario) THEN 1 ELSE 0 END), 0) AS fallback_after_count,
+		COALESCE(SUM(CASE WHEN EXISTS (SELECT 1 FROM invocation_read_model_episodes e WHERE e.run_id = c.run_id AND e.pattern = 'capability-abandoned' AND e.suspected_owner_scenario = c.target_scenario) THEN 1 ELSE 0 END), 0) AS abandoned_count
+		FROM investigation_cross_scenario_calls c WHERE ` + strings.Join(clauses, " AND ") + ` GROUP BY c.target_scenario, c.operation ORDER BY call_count DESC, c.target_scenario ASC, c.operation ASC LIMIT ?`
+	rows, err := r.db.QueryxContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []invocationreadmodel.CapabilityEfficacyRow{}
+	for rows.Next() {
+		var row invocationreadmodel.CapabilityEfficacyRow
+		if err := rows.Scan(&row.TargetScenario, &row.Operation, &row.CallCount, &row.SuccessCount, &row.FallbackAfterCount, &row.AbandonedCount); err != nil {
 			return nil, err
 		}
 		out = append(out, row)
@@ -767,7 +870,7 @@ func invocationReadModelFindingWhere(filter invocationreadmodel.Filter) (string,
 }
 
 func (r *invocationReadModelRepository) Facts(ctx context.Context, runID string) ([]invocationreadmodel.Fact, error) {
-	rows, err := r.db.QueryxContext(ctx, `SELECT run_id,classifier_version,call_event_id,COALESCE(result_event_id,''),COALESCE(tool_call_id,''),occurred_at,time_basis,tool_name,COALESCE(executable,''),COALESCE(command_path,''),ownership,COALESCE(catalog_snapshot,''),outcome,COALESCE(pairing_basis,'unpaired'),COALESCE(failure_signature,''),COALESCE(signature_truncated,0),COALESCE(retry_of_call_event_id,''),help_recovery,fingerprint,availability,profile_id,runner_type,model,tag,run_status FROM invocation_read_model_facts WHERE run_id=? ORDER BY occurred_at, call_event_id`, runID)
+	rows, err := r.db.QueryxContext(ctx, `SELECT run_id,classifier_version,call_event_id,COALESCE(result_event_id,''),COALESCE(tool_call_id,''),occurred_at,time_basis,tool_name,COALESCE(capability,'other'),COALESCE(intent_class,''),COALESCE(executable,''),COALESCE(command_path,''),ownership,COALESCE(ownership_reason,''),COALESCE(segment_index,0),COALESCE(segment_count,1),COALESCE(catalog_snapshot,''),outcome,COALESCE(pairing_basis,'unpaired'),COALESCE(failure_signature,''),COALESCE(signature_truncated,0),COALESCE(retry_of_call_event_id,''),help_recovery,fingerprint,availability,profile_id,runner_type,model,tag,run_status FROM invocation_read_model_facts WHERE run_id=? ORDER BY occurred_at, call_event_id, segment_index`, runID)
 	if err != nil {
 		return nil, err
 	}
@@ -776,7 +879,7 @@ func (r *invocationReadModelRepository) Facts(ctx context.Context, runID string)
 	for rows.Next() {
 		var f invocationreadmodel.Fact
 		var occurredAt SQLiteTime
-		if err := rows.Scan(&f.RunID, &f.Version, &f.CallEventID, &f.ResultEventID, &f.ToolCallID, &occurredAt, &f.TimeBasis, &f.ToolName, &f.Executable, &f.CommandPath, &f.Ownership, &f.CatalogSnapshot, &f.Outcome, &f.PairingBasis, &f.FailureSignature, &f.SignatureTruncated, &f.RetryOfCallEventID, &f.HelpRecovery, &f.Fingerprint, &f.Availability, &f.ProfileID, &f.RunnerType, &f.Model, &f.Tag, &f.RunStatus); err != nil {
+		if err := rows.Scan(&f.RunID, &f.Version, &f.CallEventID, &f.ResultEventID, &f.ToolCallID, &occurredAt, &f.TimeBasis, &f.ToolName, &f.Capability, &f.IntentClass, &f.Executable, &f.CommandPath, &f.Ownership, &f.OwnershipReason, &f.SegmentIndex, &f.SegmentCount, &f.CatalogSnapshot, &f.Outcome, &f.PairingBasis, &f.FailureSignature, &f.SignatureTruncated, &f.RetryOfCallEventID, &f.HelpRecovery, &f.Fingerprint, &f.Availability, &f.ProfileID, &f.RunnerType, &f.Model, &f.Tag, &f.RunStatus); err != nil {
 			return nil, err
 		}
 		f.OccurredAt = occurredAt.Time()

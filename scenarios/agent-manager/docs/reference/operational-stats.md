@@ -179,7 +179,61 @@ missing receipt policy is never presented as a zero result. In particular,
 means a policy returned no projection fields; and `policy_absent` means no
 applicable capture or projection policy exists.
 
-- [Event Taxonomy](../internal/EVENT_TAXONOMY.md) — every typed event_type, its payload, and the schema_version contract.
+### Receipt-backed capability measures
+
+`agent-manager measures capability-usage --json` reports verified calls grouped
+by target scenario and operation, with call count, success/failure outcome, and
+total duration. `capability-efficacy` adds separate `fallback-after` and
+`abandoned` counts; it deliberately does not collapse them into one score.
+Both responses carry `validity`. No verified receipt means `unavailable` with a
+reason, not a zero. Filters may constrain `target_scenario` and `operation`.
+
+The shared API-core runtime emits receipts after an instrumented request only
+when the local vrooli-events policy cache authorizes a bounded projection and
+the inbound Agent Manager provenance is verified. Ledger rows are limited to
+verified receipts with non-empty target and operation; empty sentinel rows are
+not evidence.
+
+### Corpus import selection
+
+`agent-manager run import-session-corpus` supports `--strategy deterministic-per-month`,
+`--strategy stratified`
+(deterministic runner-month coverage), `--strategy recent` (newest governed
+sessions first), and `--strategy all` (bounded by `--limit`). Every response
+reports selected, imported/existing, replayed, unreplayable, failed, and named
+skipped counts. Imported runs remain terminal and are replayed through pinned
+classifier versions; partial import is visible in the returned coverage.
+
+### Evidence-spine answer surfaces
+
+The retained projection answers the plan's twelve target questions through
+these bounded surfaces:
+
+- `run report <run-id>`: time accounting, episode cost, suspected ownership,
+  self-report spans, and receipt availability for one run.
+- `run invocation-facts <run-id>`: ownership, unclassified reason, capability,
+  intent class, segment, outcome, and classifier version per invocation.
+- `run ledger <run-id>` and `measures capability-usage`: verified capability
+  calls, outcomes, duration, population, and receipt validity.
+- `measures capability-efficacy`: separate calls, successes, fallback-after,
+  and abandoned counts; no blended score is emitted.
+- `run episode-cohort` and `run cohort-compare`: recurring fingerprint cost,
+  distinct-run counts, population sizes, and before/after deltas.
+- `run episode-trend`: time-bucketed episode occurrence, distinct-run, and
+  wall-clock cost trends with the episode classifier version.
+- `run messages-friction` and `run episodes`: bounded struggle vocabulary,
+  operator corrections, guidance repair, wait misuse, abandonment, and
+  handoff continuation.
+- `run publish-recurring-friction`: idempotent three-distinct-run routing to
+  `friction-inbox/<scope>/`, with `recurring`, `auto-generated`, recurrence
+  evidence, and a reported daily cap/withheld count.
+- `run import-session-corpus` and `run replay-invocation-corpus`: named
+  sampling strategy, candidate/omitted counts, checkpoint, per-item failure,
+  transcript time basis, cost basis, and pinned classifier replay.
+
+Every surface carries either a validity or availability contract. Missing
+receipts, too-small comparison populations, unclassified calls, and absent
+transcript usage are reported explicitly rather than converted to zeroes.
 
 - [Event Taxonomy](../internal/EVENT_TAXONOMY.md) — every typed event_type, its payload, and the schema_version contract.
 - [Error Semantics](../internal/ERROR_SEMANTICS.md) — the `fallback.Reason` enum that drives `*.fallback.*` events.

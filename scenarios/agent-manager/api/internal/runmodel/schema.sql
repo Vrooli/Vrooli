@@ -37,6 +37,8 @@ CREATE TABLE IF NOT EXISTS runs (
     status TEXT DEFAULT 'pending',
     started_at TEXT,
     ended_at TEXT,
+    goal_id TEXT NOT NULL DEFAULT '',
+    goal_status TEXT NOT NULL DEFAULT '',
     phase TEXT DEFAULT 'queued',
     last_checkpoint_id TEXT,
     last_heartbeat TEXT,

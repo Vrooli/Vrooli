@@ -2,6 +2,7 @@ package runreport
 
 import (
 	"sort"
+	"time"
 
 	"agent-manager/internal/runsignal"
 )
@@ -40,6 +41,38 @@ type EpisodeSignal struct {
 	SummedCostMS         int64    `json:"summedCostMs"`
 	Confidence           string   `json:"confidence"`
 	RepresentativeRunIDs []string `json:"representativeRunIds"`
+}
+
+type CohortComparison struct {
+	ClassifierVersion string             `json:"classifierVersion"`
+	LeftPopulation    int                `json:"leftPopulation"`
+	RightPopulation   int                `json:"rightPopulation"`
+	Availability      Availability       `json:"availability"`
+	Signals           []ComparisonSignal `json:"signals"`
+}
+
+type ComparisonSignal struct {
+	Fingerprint       string `json:"fingerprint"`
+	LeftOccurrences   int    `json:"leftOccurrences"`
+	RightOccurrences  int    `json:"rightOccurrences"`
+	LeftDistinctRuns  int    `json:"leftDistinctRuns"`
+	RightDistinctRuns int    `json:"rightDistinctRuns"`
+	LeftCostMS        int64  `json:"leftCostMs"`
+	RightCostMS       int64  `json:"rightCostMs"`
+	OccurrenceDelta   int    `json:"occurrenceDelta"`
+	CostDeltaMS       int64  `json:"costDeltaMs"`
+}
+
+type EpisodeTrendBucket struct {
+	Bucket       time.Time `json:"bucket"`
+	Occurrences  int       `json:"occurrences"`
+	DistinctRuns int       `json:"distinctRuns"`
+	CostMS       int64     `json:"costMs"`
+}
+
+type TimedEpisode struct {
+	Episode    runsignal.FrictionEpisode
+	OccurredAt time.Time
 }
 
 func BuildEpisodeCohort(episodesByRun map[string][]runsignal.FrictionEpisode) EpisodeCohort {
@@ -88,6 +121,99 @@ func BuildEpisodeCohort(episodesByRun map[string][]runsignal.FrictionEpisode) Ep
 		return out.Signals[i].DistinctRuns > out.Signals[j].DistinctRuns
 	})
 	return out
+}
+
+func BuildCohortComparison(left, right []runsignal.FrictionEpisode, leftPopulation, rightPopulation, limit int) CohortComparison {
+	type bucket struct {
+		occurrences int
+		cost        int64
+		runs        map[string]bool
+	}
+	build := func(episodes []runsignal.FrictionEpisode) map[string]*bucket {
+		result := map[string]*bucket{}
+		for _, episode := range episodes {
+			b := result[episode.Fingerprint]
+			if b == nil {
+				b = &bucket{runs: map[string]bool{}}
+				result[episode.Fingerprint] = b
+			}
+			b.occurrences++
+			b.cost += episode.WallClockMS
+			b.runs[episode.RunID] = true
+		}
+		return result
+	}
+	l, r := build(left), build(right)
+	keys := map[string]bool{}
+	for key := range l {
+		keys[key] = true
+	}
+	for key := range r {
+		keys[key] = true
+	}
+	out := CohortComparison{ClassifierVersion: runsignal.EpisodeClassifierVersion, LeftPopulation: leftPopulation, RightPopulation: rightPopulation, Availability: Availability{State: AvailabilityAvailable}}
+	for key := range keys {
+		lb, rb := l[key], r[key]
+		if lb == nil {
+			lb = &bucket{runs: map[string]bool{}}
+		}
+		if rb == nil {
+			rb = &bucket{runs: map[string]bool{}}
+		}
+		out.Signals = append(out.Signals, ComparisonSignal{Fingerprint: key, LeftOccurrences: lb.occurrences, RightOccurrences: rb.occurrences, LeftDistinctRuns: len(lb.runs), RightDistinctRuns: len(rb.runs), LeftCostMS: lb.cost, RightCostMS: rb.cost, OccurrenceDelta: rb.occurrences - lb.occurrences, CostDeltaMS: rb.cost - lb.cost})
+	}
+	sort.Slice(out.Signals, func(i, j int) bool {
+		if absInt(out.Signals[i].OccurrenceDelta) != absInt(out.Signals[j].OccurrenceDelta) {
+			return absInt(out.Signals[i].OccurrenceDelta) > absInt(out.Signals[j].OccurrenceDelta)
+		}
+		return out.Signals[i].Fingerprint < out.Signals[j].Fingerprint
+	})
+	if limit > 0 && len(out.Signals) > limit {
+		out.Signals = out.Signals[:limit]
+	}
+	if leftPopulation < 5 || rightPopulation < 5 {
+		out.Availability = Availability{State: AvailabilityUnreliable, Reason: "both comparison populations require at least five runs"}
+	}
+	return out
+}
+
+func BuildEpisodeTrend(episodes []TimedEpisode, bucket time.Duration) []EpisodeTrendBucket {
+	if bucket <= 0 {
+		bucket = 24 * time.Hour
+	}
+	type aggregate struct {
+		occurrences, runs int
+		cost              int64
+		ids               map[string]bool
+	}
+	aggregates := map[time.Time]*aggregate{}
+	for _, timed := range episodes {
+		if timed.OccurredAt.IsZero() {
+			continue
+		}
+		stamp := timed.OccurredAt.UTC().Truncate(bucket)
+		a := aggregates[stamp]
+		if a == nil {
+			a = &aggregate{ids: map[string]bool{}}
+			aggregates[stamp] = a
+		}
+		a.occurrences++
+		a.ids[timed.Episode.RunID] = true
+		a.cost += timed.Episode.WallClockMS
+	}
+	out := make([]EpisodeTrendBucket, 0, len(aggregates))
+	for stamp, a := range aggregates {
+		out = append(out, EpisodeTrendBucket{Bucket: stamp, Occurrences: a.occurrences, DistinctRuns: len(a.ids), CostMS: a.cost})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Bucket.Before(out[j].Bucket) })
+	return out
+}
+
+func absInt(value int) int {
+	if value < 0 {
+		return -value
+	}
+	return value
 }
 
 // BuildCohort folds a caller-selected, comparable set of reports. It never

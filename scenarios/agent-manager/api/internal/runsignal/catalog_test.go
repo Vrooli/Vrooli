@@ -11,6 +11,21 @@ func TestSafeTokensRejectsCompoundShell(t *testing.T) {
 	}
 }
 
+func TestSegmentShellSplitsOnlyOutsideQuotes(t *testing.T) {
+	segments, compound, reason := SegmentShell(`cd "a|b" && vrooli scenario test agent-manager | tee out`)
+	if reason != "" || !compound || len(segments) != 3 || segments[0] != `cd "a|b"` {
+		t.Fatalf("segments=%v compound=%v reason=%q", segments, compound, reason)
+	}
+}
+
+func TestSegmentShellRefusesEvaluation(t *testing.T) {
+	for _, command := range []string{"echo $(pwd)", "cat <(echo x)", "echo `pwd`"} {
+		if segments, _, reason := SegmentShell(command); len(segments) != 0 || reason == "" {
+			t.Fatalf("command %q segments=%v reason=%q", command, segments, reason)
+		}
+	}
+}
+
 func TestResolveCatalogUsesManifestIndex(t *testing.T) {
 	catalogCache.Lock()
 	catalogCache.root, catalogCache.owners, catalogCache.snapshot = "", nil, ""

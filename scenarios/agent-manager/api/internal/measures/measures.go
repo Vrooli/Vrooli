@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"agent-manager/internal/availability"
 	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/runreport"
 
@@ -73,13 +74,14 @@ const (
 )
 
 type metricResult struct {
-	Rate      float64
-	Numerator int64
-	Denom     int64
-	Unknown   int64
-	Secondary int64
-	Query     string
-	Validity  Validity
+	Rate       float64
+	Numerator  int64
+	Denom      int64
+	Population int64
+	Unknown    int64
+	Secondary  int64
+	Query      string
+	Validity   Validity
 }
 
 func declarations() []struct {
@@ -157,10 +159,20 @@ func execute(ctx context.Context, store Store, kind metricKind, filter invocatio
 	if err != nil {
 		return metricResult{}, err
 	}
-	result := metricResult{Unknown: metrics.UnknownCalls, Query: query}
+	unclassified := metrics.UnclassifiedCalls
+	if unclassified == 0 {
+		unclassified = metrics.UnknownCalls
+	}
+	result := metricResult{Unknown: unclassified, Query: query}
+	population := metrics.TotalCalls
+	if population == 0 {
+		// Compatibility for focused stores created before the explicit total
+		// population field; production repositories always populate it.
+		population = metrics.ResolvedCalls + metrics.UnknownCalls
+	}
 	switch kind {
 	case externalToolShare:
-		result.Rate, result.Numerator, result.Denom = metrics.ExternalToolShare, metrics.ExternalCalls, metrics.ResolvedCalls
+		result.Rate, result.Numerator, result.Denom, result.Population = metrics.ExternalToolShare, metrics.ExternalCalls, metrics.ResolvedCalls, population
 	case retryRate:
 		result.Rate, result.Numerator, result.Denom = metrics.RetryRate, metrics.RetryCalls, metrics.TotalCalls
 	case helpRecoveryRate:
@@ -179,7 +191,7 @@ func filterFromProto(input *measurepb.InvocationFilter, now time.Time) (invocati
 	if input == nil {
 		input = &measurepb.InvocationFilter{}
 	}
-	filter := invocationreadmodel.Filter{Ownership: input.GetOwnership(), Outcome: input.GetOutcome(), Executable: input.GetExecutable(), Fingerprint: input.GetFingerprint(), ProfileID: input.GetProfileId(), RunnerType: input.GetRunnerType(), Model: input.GetModel(), TagPrefix: input.GetTagPrefix(), RunStatus: input.GetRunStatus(), ToolName: input.GetToolName(), EpisodePattern: input.GetEpisodePattern(), EpisodeCauseScope: input.GetEpisodeCauseScope(), EpisodeFingerprint: input.GetEpisodeFingerprint(), SelfReportRuleID: input.GetSelfReportRuleId(), SelfReportCauseScope: input.GetSelfReportCauseScope()}
+	filter := invocationreadmodel.Filter{Ownership: input.GetOwnership(), Outcome: input.GetOutcome(), Executable: input.GetExecutable(), Fingerprint: input.GetFingerprint(), ProfileID: input.GetProfileId(), RunnerType: input.GetRunnerType(), Model: input.GetModel(), TagPrefix: input.GetTagPrefix(), RunStatus: input.GetRunStatus(), ToolName: input.GetToolName(), EpisodePattern: input.GetEpisodePattern(), EpisodeCauseScope: input.GetEpisodeCauseScope(), EpisodeFingerprint: input.GetEpisodeFingerprint(), SelfReportRuleID: input.GetSelfReportRuleId(), SelfReportCauseScope: input.GetSelfReportCauseScope(), TargetScenario: input.GetTargetScenario(), Operation: input.GetOperation()}
 	window := input.GetWindow()
 	if window == nil {
 		window = &sharedmeasurepb.TimeWindow{Window: &sharedmeasurepb.TimeWindow_Token{Token: sharedmeasurepb.TimeWindowToken_TIME_WINDOW_TOKEN_THIS_WEEK}}
@@ -246,7 +258,22 @@ func (h *Handler) metric(ctx context.Context, kind metricKind, input *measurepb.
 		if metricErr != nil {
 			return metricResult{}, connect.NewError(connect.CodeInternal, metricErr)
 		}
-		result.Validity = assessValidity(result.Denom, metrics.LargestFingerprintBucket, h.validityConfig)
+		population := metrics.TotalCalls
+		if population == 0 {
+			population = metrics.ResolvedCalls + metrics.UnknownCalls
+		}
+		unclassified := metrics.UnclassifiedCalls
+		if unclassified == 0 {
+			unclassified = metrics.UnknownCalls
+		}
+		sample := result.Denom
+		if result.Population > 0 {
+			sample = result.Population
+		}
+		result.Validity = assessValidity(sample, metrics.LargestFingerprintBucket, h.validityConfig)
+		if kind == externalToolShare && population > 0 && float64(unclassified)/float64(population) > 1.0/3.0 {
+			result.Validity = Validity{Availability: availability.New(availability.Unreliable, "unclassified ownership exceeds one third of all invocation facts"), SampleSize: population, LargestFingerprintBucket: metrics.LargestFingerprintBucket, LargestFingerprintShare: float64(metrics.LargestFingerprintBucket) / float64(population)}
+		}
 	} else {
 		result.Validity = assessValidity(result.Denom, 0, h.validityConfig)
 	}
@@ -336,6 +363,66 @@ func (h *Handler) RunVolume(ctx context.Context, req *connect.Request[measurepb.
 		return nil, err
 	}
 	return connect.NewResponse(&measurepb.RunVolumeResponse{TotalRuns: r.Numerator, TerminalRuns: r.Denom, ExecutedQuery: r.Query, Validity: protoValidity(r.Validity)}), nil
+}
+
+func (h *Handler) CapabilityUsage(ctx context.Context, req *connect.Request[measurepb.CapabilityUsageRequest]) (*connect.Response[measurepb.CapabilityUsageResponse], error) {
+	filter, err := filterWithWindow(nil, req.Msg.GetWindow(), h.now())
+	if req.Msg.GetFilter() != nil {
+		filter, err = filterWithWindow(req.Msg.GetFilter(), req.Msg.GetWindow(), h.now())
+	}
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	capabilityStore, ok := h.store.(interface {
+		CapabilityUsage(context.Context, invocationreadmodel.Filter, int) ([]invocationreadmodel.CapabilityUsageRow, error)
+	})
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("receipt capability usage is unavailable"))
+	}
+	rows, err := capabilityStore.CapabilityUsage(ctx, filter, 100)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	protoRows := make([]*measurepb.CapabilityUsageRow, 0, len(rows))
+	var sample int64
+	for _, row := range rows {
+		sample += row.CallCount
+		protoRows = append(protoRows, &measurepb.CapabilityUsageRow{TargetScenario: row.TargetScenario, Operation: row.Operation, CallCount: row.CallCount, SuccessCount: row.SuccessCount, FailedCount: row.FailedCount, TotalDurationMs: row.TotalDurationMS})
+	}
+	validity := assessValidity(sample, 0, h.validityConfig)
+	if sample == 0 {
+		validity.Availability = availability.New(availability.Unavailable, "no verified receipt exists for the filtered population")
+	}
+	query := "SELECT target_scenario, operation, outcome, duration_ms FROM investigation_cross_scenario_calls WHERE verified = 1 AND target_scenario <> ''"
+	return connect.NewResponse(&measurepb.CapabilityUsageResponse{Rows: protoRows, ExecutedQuery: query, Validity: protoValidity(validity)}), nil
+}
+
+func (h *Handler) CapabilityEfficacy(ctx context.Context, req *connect.Request[measurepb.CapabilityEfficacyRequest]) (*connect.Response[measurepb.CapabilityEfficacyResponse], error) {
+	filter, err := filterWithWindow(req.Msg.GetFilter(), req.Msg.GetWindow(), h.now())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	efficacyStore, ok := h.store.(interface {
+		CapabilityEfficacy(context.Context, invocationreadmodel.Filter, int) ([]invocationreadmodel.CapabilityEfficacyRow, error)
+	})
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("receipt capability efficacy is unavailable"))
+	}
+	rows, err := efficacyStore.CapabilityEfficacy(ctx, filter, 100)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	protoRows := make([]*measurepb.CapabilityEfficacyRow, 0, len(rows))
+	var sample int64
+	for _, row := range rows {
+		sample += row.CallCount
+		protoRows = append(protoRows, &measurepb.CapabilityEfficacyRow{TargetScenario: row.TargetScenario, Operation: row.Operation, CallCount: row.CallCount, SuccessCount: row.SuccessCount, FallbackAfterCount: row.FallbackAfterCount, AbandonedCount: row.AbandonedCount})
+	}
+	validity := assessValidity(sample, 0, h.validityConfig)
+	if sample == 0 {
+		validity.Availability = availability.New(availability.Unavailable, "no verified receipt exists for the filtered population")
+	}
+	return connect.NewResponse(&measurepb.CapabilityEfficacyResponse{Rows: protoRows, ExecutedQuery: "SELECT receipt calls joined to fallback and abandoned episode projections", Validity: protoValidity(validity)}), nil
 }
 
 // SelectCohort preserves the aggregate-to-run drill-down without reopening
@@ -704,6 +791,53 @@ func (h *Handler) Registry() (*measurelib.Registry, error) {
 		}
 		query := fmt.Sprintf("SELECT tool_name, classified outcomes FROM invocation_read_model_facts WHERE occurred_at >= %q AND occurred_at < %q GROUP BY tool_name LIMIT 20", rangeValue.From.UTC().Format(time.RFC3339Nano), rangeValue.To.UTC().Format(time.RFC3339Nano))
 		return measurelib.MeasureResult{Fields: fields, Provenance: measurelib.Provenance{ExecutedQuery: query}}, nil
+	}); err != nil {
+		return nil, err
+	}
+	if err := registry.Register(measurelib.MeasureDeclaration{Name: "friction.capability_usage", Scenario: "agent-manager", Domain: "friction", Intent: "Receipt-backed project capability calls, outcomes, and duration.", Questions: []string{"which project capabilities do agents use", "how effective are project-owned capability calls"}, Params: map[string]measurelib.Param{"window": {Name: "window", Type: measurelib.ParamTypeTimeWindow, Default: string(measurelib.TokenThisWeek)}}, Result: measurelib.Result{Kind: measurelib.ResultTable, ValueField: "target_scenario", Unit: "calls", SummaryTemplate: "capability usage ({window})"}, Effect: measurelib.EffectRead, RunEligible: true, Service: "MeasuresService", Method: "CapabilityUsage"}, func(ctx context.Context, request measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
+		rangeValue, err := measurelib.ResolveToken(measurelib.TimeWindowToken(request.Params["window"]), h.now(), time.UTC)
+		if err != nil {
+			return measurelib.MeasureResult{}, err
+		}
+		capabilityStore, ok := h.store.(interface {
+			CapabilityUsage(context.Context, invocationreadmodel.Filter, int) ([]invocationreadmodel.CapabilityUsageRow, error)
+		})
+		if !ok {
+			return measurelib.MeasureResult{}, fmt.Errorf("receipt capability usage is unavailable")
+		}
+		rows, err := capabilityStore.CapabilityUsage(ctx, invocationreadmodel.Filter{From: &rangeValue.From, To: &rangeValue.To}, 100)
+		if err != nil {
+			return measurelib.MeasureResult{}, err
+		}
+		fields := make([]map[string]string, 0, len(rows))
+		for _, row := range rows {
+			fields = append(fields, map[string]string{"target_scenario": row.TargetScenario, "operation": row.Operation, "call_count": strconv.FormatInt(row.CallCount, 10), "success_count": strconv.FormatInt(row.SuccessCount, 10), "failed_count": strconv.FormatInt(row.FailedCount, 10), "total_duration_ms": strconv.FormatUint(row.TotalDurationMS, 10)})
+		}
+		query := fmt.Sprintf("SELECT target_scenario, operation, outcome, duration_ms FROM investigation_cross_scenario_calls WHERE verified = 1 AND occurred_at >= %q AND occurred_at < %q GROUP BY target_scenario, operation", rangeValue.From.UTC().Format(time.RFC3339Nano), rangeValue.To.UTC().Format(time.RFC3339Nano))
+		return measurelib.MeasureResult{Fields: fields, Provenance: measurelib.Provenance{ExecutedQuery: query}}, nil
+	}); err != nil {
+		return nil, err
+	}
+	if err := registry.Register(measurelib.MeasureDeclaration{Name: "friction.capability_efficacy", Scenario: "agent-manager", Domain: "friction", Intent: "Receipt-backed capability success, fallback, and abandonment counts.", Questions: []string{"which capabilities work for agents", "where do capability calls lead to fallback"}, Params: map[string]measurelib.Param{"window": {Name: "window", Type: measurelib.ParamTypeTimeWindow, Default: string(measurelib.TokenThisWeek)}}, Result: measurelib.Result{Kind: measurelib.ResultTable, ValueField: "target_scenario", Unit: "calls", SummaryTemplate: "capability efficacy ({window})"}, Effect: measurelib.EffectRead, RunEligible: true, Service: "MeasuresService", Method: "CapabilityEfficacy"}, func(ctx context.Context, request measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
+		rangeValue, err := measurelib.ResolveToken(measurelib.TimeWindowToken(request.Params["window"]), h.now(), time.UTC)
+		if err != nil {
+			return measurelib.MeasureResult{}, err
+		}
+		efficacyStore, ok := h.store.(interface {
+			CapabilityEfficacy(context.Context, invocationreadmodel.Filter, int) ([]invocationreadmodel.CapabilityEfficacyRow, error)
+		})
+		if !ok {
+			return measurelib.MeasureResult{}, fmt.Errorf("receipt capability efficacy is unavailable")
+		}
+		rows, err := efficacyStore.CapabilityEfficacy(ctx, invocationreadmodel.Filter{From: &rangeValue.From, To: &rangeValue.To}, 100)
+		if err != nil {
+			return measurelib.MeasureResult{}, err
+		}
+		fields := make([]map[string]string, 0, len(rows))
+		for _, row := range rows {
+			fields = append(fields, map[string]string{"target_scenario": row.TargetScenario, "operation": row.Operation, "call_count": strconv.FormatInt(row.CallCount, 10), "success_count": strconv.FormatInt(row.SuccessCount, 10), "fallback_after_count": strconv.FormatInt(row.FallbackAfterCount, 10), "abandoned_count": strconv.FormatInt(row.AbandonedCount, 10)})
+		}
+		return measurelib.MeasureResult{Fields: fields, Provenance: measurelib.Provenance{ExecutedQuery: "SELECT receipt calls joined to fallback and abandoned episode projections"}}, nil
 	}); err != nil {
 		return nil, err
 	}

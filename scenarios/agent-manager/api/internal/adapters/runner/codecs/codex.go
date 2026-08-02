@@ -56,6 +56,12 @@ type Codex struct {
 	ollama         *ollamaLister
 }
 
+// ToolCapabilityMap declares Codex's native tool vocabulary at the codec
+// boundary; runsignal consumes the same closed capability labels.
+func (c *Codex) ToolCapabilityMap() map[string]string {
+	return map[string]string{"bash": "shell", "command_execution": "shell", "apply_patch": "file-edit", "file_change": "file-edit", "read": "file-read", "grep": "search", "wait": "wait", "update_plan": "plan", "task": "delegate"}
+}
+
 // Codex exposes no per-launch native tool allowlist.
 var codexToolTranslations = map[domain.CanonicalTool]string{}
 
@@ -468,6 +474,7 @@ func (p *codexTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string
 	result := runner.TranscriptParseResult{
 		Events:    events,
 		SessionID: streamEvent.ThreadID,
+		Timestamp: transcriptLineTimestamp(line),
 	}
 
 	switch streamEvent.Type {
@@ -513,7 +520,12 @@ type codexRolloutPayload struct {
 	// function_call_output / custom_tool_call_output
 	Output string `json:"output"`
 	// turn_aborted
-	Reason string `json:"reason"`
+	Reason string               `json:"reason"`
+	Info   *codexTokenCountInfo `json:"info"`
+}
+
+type codexTokenCountInfo struct {
+	LastTokenUsage *CodexUsage `json:"last_token_usage"`
 }
 
 // rolloutWrapperTypes are the outer `type` values that mark a line as the
@@ -551,7 +563,7 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 		return runner.TranscriptParseResult{}, false
 	}
 
-	var result runner.TranscriptParseResult
+	result := runner.TranscriptParseResult{Timestamp: transcriptLineTimestamp(line)}
 	pl := rl.Payload
 
 	switch rl.Type {
@@ -572,6 +584,15 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 
 	case "event_msg":
 		switch pl.Type {
+		case "token_count":
+			if pl.Info != nil && pl.Info.LastTokenUsage != nil {
+				usage := pl.Info.LastTokenUsage
+				result.Events = buildCostEvents(runID, domain.RunnerTypeCodex, p.codec.pricingService, p.state.runModel, usageTokens{
+					InputTokens:     usage.InputTokens,
+					OutputTokens:    usage.OutputTokens,
+					CacheReadTokens: usage.CachedInputTokens,
+				})
+			}
 		case "agent_message":
 			if text := runner.StripANSI(strings.TrimSpace(pl.Message)); text != "" {
 				p.state.lastMessage = text

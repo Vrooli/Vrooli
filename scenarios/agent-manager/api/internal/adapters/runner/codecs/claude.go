@@ -53,6 +53,10 @@ type Claude struct {
 	baseCodec
 }
 
+func (c *Claude) ToolCapabilityMap() map[string]string {
+	return map[string]string{"Read": "file-read", "Write": "file-edit", "Edit": "file-edit", "Bash": "shell", "Glob": "search", "Grep": "search", "WebSearch": "network", "WebFetch": "network", "Task": "delegate", "TodoWrite": "plan", "wait": "wait"}
+}
+
 var claudeToolTranslations = map[domain.CanonicalTool]string{
 	domain.CanonicalToolRead: "Read", domain.CanonicalToolWrite: "Write", domain.CanonicalToolEdit: "Edit",
 	domain.CanonicalToolGlob: "Glob", domain.CanonicalToolGrep: "Grep", domain.CanonicalToolShell: "Bash",
@@ -602,8 +606,9 @@ type claudeTranscriptParser struct {
 func (p *claudeTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
 	events, err := parseClaudeStreamEvents(p.state, runID, line)
 	result := runner.TranscriptParseResult{
-		Events: events,
-		Err:    err,
+		Events:    events,
+		Timestamp: transcriptLineTimestamp(line),
+		Err:       err,
 	}
 
 	var streamEvent ClaudeStreamEvent

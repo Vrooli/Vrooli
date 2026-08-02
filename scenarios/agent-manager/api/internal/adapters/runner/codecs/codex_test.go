@@ -578,6 +578,18 @@ func TestCodex_ParseTranscriptLine_SessionID(t *testing.T) {
 	}
 }
 
+func TestCodex_ParseTranscriptLine_RolloutTokenCountProjectsUsage(t *testing.T) {
+	parser := NewCodexForTest().NewTranscriptParser()
+	result := parser.ParseTranscriptLine(uuid.New(), `{"timestamp":"2026-08-02T12:00:00Z","type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":120,"cached_input_tokens":80,"output_tokens":30}}}}`)
+	if len(result.Events) != 1 {
+		t.Fatalf("events=%d, want one usage event", len(result.Events))
+	}
+	usage, ok := result.Events[0].Data.(*domain.UsageEventData)
+	if !ok || usage.InputTokens != 120 || usage.OutputTokens != 30 || usage.CacheReadTokens != 80 {
+		t.Fatalf("usage=%+v, want transcript token counts", result.Events[0].Data)
+	}
+}
+
 // =============================================================================
 // Continue rejects empty session
 // =============================================================================

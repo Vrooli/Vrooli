@@ -916,6 +916,22 @@ func (s *RunService) EpisodeCohort(values url.Values) ([]byte, error) {
 	return s.api.Request("GET", "/api/v1/runs/episode-cohort", values, nil)
 }
 
+func (s *RunService) CompareEpisodeCohorts(payload []byte, limit int) ([]byte, error) {
+	values := url.Values{}
+	if limit > 0 {
+		values.Set("limit", strconv.Itoa(limit))
+	}
+	return s.api.Request("POST", "/api/v1/runs/episode-cohort/compare", values, payload)
+}
+
+func (s *RunService) EpisodeTrend(values url.Values) ([]byte, error) {
+	return s.api.Request("GET", "/api/v1/runs/episode-trend", values, nil)
+}
+
+func (s *RunService) PublishRecurringFriction(values url.Values) ([]byte, error) {
+	return s.api.Request("POST", "/api/v1/runs/episodes/publish-recurring", values, nil)
+}
+
 func (s *RunService) ImportTranscript(payload []byte) ([]byte, error) {
 	return s.api.Request("POST", "/api/v1/runs/import-transcript", nil, payload)
 }

@@ -9,7 +9,7 @@ import (
 
 // Project is the one adapter from durable run events to the analytical row
 // shape. Classification itself remains owned by runsignal.
-func Project(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time) ([]Fact, Watermark) {
+func Project(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time, resolver ...runsignal.CapabilityResolver) ([]Fact, Watermark) {
 	timestamps := make(map[string]time.Time, len(events))
 	var last *domain.RunEvent
 	for _, event := range events {
@@ -27,7 +27,11 @@ func Project(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time) 
 		tag = "unknown"
 	}
 	facts := make([]Fact, 0)
-	for _, fact := range runsignal.DeriveInvocationFacts(events) {
+	var capabilityResolver runsignal.CapabilityResolver
+	if len(resolver) > 0 {
+		capabilityResolver = resolver[0]
+	}
+	for _, fact := range runsignal.DeriveInvocationFactsWithResolver(events, capabilityResolver) {
 		occurredAt, ok := timestamps[fact.CallEventID]
 		timeBasis := "call_event"
 		if !ok {
@@ -132,7 +136,7 @@ func ProjectErrors(run *domain.Run, events []*domain.RunEvent, projectedAt time.
 // ProjectRun folds a terminal run and its retained cost events into one
 // durable throughput fact. Cost events are additive because runners can emit
 // usage for several turns; cache tokens are usage and therefore included.
-func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time) RunFact {
+func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time, resolver ...runsignal.CapabilityResolver) RunFact {
 	profileID, runnerType, model := runDimensions(run)
 	tag := run.Tag
 	if tag == "" {
@@ -158,6 +162,7 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 	var tokens, inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens int64
 	var turns, toolCalls, totalChargeMicroUSD, meteredChargeMicroUSD, unpricedTokenCount int64
 	unpriced := false
+	charged := false
 	var readCalls, rereads int64
 	fileReads := map[string]int{}
 	// Retained streams can contain the same cumulative usage snapshot twice
@@ -179,6 +184,7 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 		if charge.AmountMicroUSD == nil {
 			return
 		}
+		charged = true
 		amount := float64(*charge.AmountMicroUSD) / 1_000_000
 		totalChargeMicroUSD += *charge.AmountMicroUSD
 		cost += amount
@@ -245,7 +251,26 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 			duration = 0
 		}
 	}
-	return RunFact{RunID: run.ID.String(), OccurredAt: occurredAt, CreatedAt: run.CreatedAt, StartedAt: run.StartedAt, EndedAt: run.EndedAt, DurationMS: duration, Status: string(run.Status), ProfileID: profileID, RunnerType: runnerType, Model: model, Tag: tag, WorkloadKind: workloadKind, WorkloadKey: workloadKey, WorkloadInstance: workloadInstance, TotalCostUSD: cost, InputCostUSD: inputCost, OutputCostUSD: outputCost, CacheReadCostUSD: cacheReadCost, CacheCreationCostUSD: cacheCreationCost, TotalTokens: tokens, InputTokens: inputTokens, OutputTokens: outputTokens, CacheReadTokens: cacheReadTokens, CacheCreationTokens: cacheCreationTokens, Turns: turns, ToolCalls: toolCalls, TotalChargeMicroUSD: totalChargeMicroUSD, MeteredChargeMicroUSD: meteredChargeMicroUSD, UnpricedTokenCount: unpricedTokenCount, ReadCalls: readCalls, FileRereads: rereads, TimeAccounting: runsignal.DeriveTimeAccounting(events, run.StartedAt, run.EndedAt), CostTimeBasis: timeBasis, ProjectedAt: projectedAt}
+	eventTimeBasis := "ingestion"
+	if run.ExecutionMode == domain.ExecutionModeImported && hasEventTimestamp(events) {
+		eventTimeBasis = "transcript"
+	}
+	costBasis := timeBasis
+	if run.ExecutionMode == domain.ExecutionModeImported && cost == 0 && !charged && !unpriced {
+		// A transcript without usage is not a free run. Keep that distinction
+		// durable so cost aggregates can exclude it or report it explicitly.
+		costBasis = "unknown"
+	}
+	return RunFact{RunID: run.ID.String(), GoalID: run.GoalID, GoalStatus: run.GoalStatus, OccurredAt: occurredAt, CreatedAt: run.CreatedAt, StartedAt: run.StartedAt, EndedAt: run.EndedAt, DurationMS: duration, Status: string(run.Status), ProfileID: profileID, RunnerType: runnerType, Model: model, Tag: tag, WorkloadKind: workloadKind, WorkloadKey: workloadKey, WorkloadInstance: workloadInstance, TotalCostUSD: cost, InputCostUSD: inputCost, OutputCostUSD: outputCost, CacheReadCostUSD: cacheReadCost, CacheCreationCostUSD: cacheCreationCost, TotalTokens: tokens, InputTokens: inputTokens, OutputTokens: outputTokens, CacheReadTokens: cacheReadTokens, CacheCreationTokens: cacheCreationTokens, Turns: turns, ToolCalls: toolCalls, TotalChargeMicroUSD: totalChargeMicroUSD, MeteredChargeMicroUSD: meteredChargeMicroUSD, UnpricedTokenCount: unpricedTokenCount, ReadCalls: readCalls, FileRereads: rereads, TimeAccounting: runsignal.DeriveTimeAccounting(events, run.StartedAt, run.EndedAt), CostTimeBasis: costBasis, TimeBasis: eventTimeBasis, ProjectedAt: projectedAt}
+}
+
+func hasEventTimestamp(events []*domain.RunEvent) bool {
+	for _, event := range events {
+		if event != nil && !event.Timestamp.IsZero() {
+			return true
+		}
+	}
+	return false
 }
 
 func runDimensions(run *domain.Run) (profileID, runnerType, model string) {

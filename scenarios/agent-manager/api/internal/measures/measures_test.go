@@ -14,16 +14,17 @@ import (
 )
 
 type fakeStore struct {
-	metrics        invocationreadmodel.Metrics
-	runMetrics     invocationreadmodel.RunMetrics
-	durationStats  invocationreadmodel.RunDurationStatistics
-	statusCounts   []invocationreadmodel.RunStatusCount
-	breakdowns     map[string][]invocationreadmodel.RunBreakdownRow
-	runTimeSeries  []invocationreadmodel.RunTimeSeriesBucket
-	toolUsage      []invocationreadmodel.ToolUsageRow
-	errorPatterns  []invocationreadmodel.ErrorPattern
-	findingMetrics invocationreadmodel.FindingMetrics
-	filter         invocationreadmodel.Filter
+	metrics         invocationreadmodel.Metrics
+	runMetrics      invocationreadmodel.RunMetrics
+	durationStats   invocationreadmodel.RunDurationStatistics
+	statusCounts    []invocationreadmodel.RunStatusCount
+	breakdowns      map[string][]invocationreadmodel.RunBreakdownRow
+	runTimeSeries   []invocationreadmodel.RunTimeSeriesBucket
+	toolUsage       []invocationreadmodel.ToolUsageRow
+	capabilityUsage []invocationreadmodel.CapabilityUsageRow
+	errorPatterns   []invocationreadmodel.ErrorPattern
+	findingMetrics  invocationreadmodel.FindingMetrics
+	filter          invocationreadmodel.Filter
 }
 
 func (s *fakeStore) RunMetrics(_ context.Context, filter invocationreadmodel.Filter) (invocationreadmodel.RunMetrics, error) {
@@ -54,6 +55,11 @@ func (s *fakeStore) RunTimeSeries(_ context.Context, filter invocationreadmodel.
 func (s *fakeStore) ToolUsage(_ context.Context, filter invocationreadmodel.Filter, _ int) ([]invocationreadmodel.ToolUsageRow, error) {
 	s.filter = filter
 	return s.toolUsage, nil
+}
+
+func (s *fakeStore) CapabilityUsage(_ context.Context, filter invocationreadmodel.Filter, _ int) ([]invocationreadmodel.CapabilityUsageRow, error) {
+	s.filter = filter
+	return s.capabilityUsage, nil
 }
 
 func (s *fakeStore) ErrorPatterns(_ context.Context, filter invocationreadmodel.Filter, _ int) ([]invocationreadmodel.ErrorPattern, error) {

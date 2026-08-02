@@ -10,19 +10,23 @@ import (
 )
 
 // SelfReportClassifierVersion pins deterministic message-pattern extraction.
-const SelfReportClassifierVersion = "self-report.v2"
+const SelfReportClassifierVersion = "self-report.v3"
+const selfReportSpanLimit = 8
 
 //go:embed testdata/classification/self-report-rule-pack.json
 var embeddedSelfReportRulePack []byte
 
 type SelfReportSpan struct {
-	ClassifierVersion string `json:"classifierVersion"`
-	EventID           string `json:"eventId"`
-	RuleID            string `json:"ruleId"`
-	CauseScope        string `json:"causeScope"`
-	StartOffset       int    `json:"startOffset"`
-	EndOffset         int    `json:"endOffset"`
-	Text              string `json:"text"`
+	ClassifierVersion  string `json:"classifierVersion"`
+	EventID            string `json:"eventId"`
+	RuleID             string `json:"ruleId"`
+	CauseScope         string `json:"causeScope"`
+	StartOffset        int    `json:"startOffset"`
+	EndOffset          int    `json:"endOffset"`
+	Text               string `json:"text"`
+	Role               string `json:"role"`
+	OperatorCorrection bool   `json:"operatorCorrection,omitempty"`
+	SpanCapped         bool   `json:"spanCapped,omitempty"`
 }
 
 type (
@@ -53,19 +57,29 @@ func (d selfReportDetector) ClassifierVersion() string { return SelfReportClassi
 func (d selfReportDetector) CauseScope() string        { return d.rule.CauseScope }
 func (d selfReportDetector) Detect(event *domain.RunEvent) []SelfReportSpan {
 	message, ok := event.Data.(*domain.MessageEventData)
-	if !ok || !strings.EqualFold(message.Role, "assistant") {
+	if !ok || (d.rule.ID == "operator-correction" && !strings.EqualFold(message.Role, "user")) || (d.rule.ID != "operator-correction" && !strings.EqualFold(message.Role, "assistant")) {
 		return nil
 	}
 	lower := strings.ToLower(message.Content)
+	spans := make([]SelfReportSpan, 0)
 	for _, phrase := range d.rule.Phrases {
-		at := strings.Index(lower, strings.ToLower(phrase))
-		if at < 0 {
-			continue
+		needle := strings.ToLower(phrase)
+		for start := 0; start < len(lower); {
+			at := strings.Index(lower[start:], needle)
+			if at < 0 {
+				break
+			}
+			at += start
+			end := at + len(phrase)
+			spans = append(spans, SelfReportSpan{ClassifierVersion: d.ClassifierVersion(), EventID: event.ID.String(), RuleID: d.Identifier(), CauseScope: d.CauseScope(), StartOffset: at, EndOffset: end, Text: redact(message.Content[at:end]), Role: strings.ToLower(message.Role), OperatorCorrection: d.rule.ID == "operator-correction"})
+			if len(spans) >= selfReportSpanLimit {
+				spans[len(spans)-1].SpanCapped = strings.Index(lower[end:], needle) >= 0
+				return spans
+			}
+			start = end
 		}
-		end := at + len(phrase)
-		return []SelfReportSpan{{ClassifierVersion: d.ClassifierVersion(), EventID: event.ID.String(), RuleID: d.Identifier(), CauseScope: d.CauseScope(), StartOffset: at, EndOffset: end, Text: redact(message.Content[at:end])}}
 	}
-	return nil
+	return spans
 }
 
 var (

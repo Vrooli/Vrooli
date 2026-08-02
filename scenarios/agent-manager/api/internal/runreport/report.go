@@ -133,6 +133,7 @@ const (
 	AvailabilityExternal     = sharedavailability.External
 	AvailabilityEmpty        = sharedavailability.Empty
 	AvailabilityComplete     = sharedavailability.Complete
+	AvailabilityUnreliable   = sharedavailability.Unreliable
 )
 
 type ToolSummary struct {

@@ -4,6 +4,7 @@ package orchestration
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -68,6 +69,10 @@ func (o *Orchestrator) ImportTranscript(ctx context.Context, req ImportTranscrip
 	if _, err := source.Seek(0, io.SeekStart); err != nil {
 		return nil, fmt.Errorf("rewind transcript: %w", err)
 	}
+	goalID, goalStatus := transcriptGoalMetadata(source)
+	if _, err := source.Seek(0, io.SeekStart); err != nil {
+		return nil, fmt.Errorf("rewind transcript after goal scan: %w", err)
+	}
 	root, err := o.resolveRunStateRoot(ctx)
 	if err != nil {
 		return nil, err
@@ -78,6 +83,7 @@ func (o *Orchestrator) ImportTranscript(ctx context.Context, req ImportTranscrip
 		return nil, err
 	}
 	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Tag: "agent-manager-imported", RunMode: domain.RunModeInPlace, ExecutionMode: domain.ExecutionModeImported, Status: domain.RunStatusFailed, ResolvedConfig: &domain.RunConfig{RunnerType: runnerType, ManifestIndexSnapshot: runsignal.CurrentCatalogSnapshot()}, ImportSourceHarness: req.SourceHarness, ImportSourceSessionID: req.SourceSessionID, ImportedAt: &now}
+	run.GoalID, run.GoalStatus = goalID, goalStatus
 	if strings.TrimSpace(req.Label) != "" {
 		run.Tag = "agent-manager-imported-" + strings.TrimSpace(req.Label)
 	}
@@ -135,6 +141,60 @@ func (o *Orchestrator) ImportTranscript(ctx context.Context, req ImportTranscrip
 		return nil, fmt.Errorf("project imported transcript: %w", err)
 	}
 	return o.attachRunActions(ctx, run), nil
+}
+
+func transcriptGoalMetadata(source *os.File) (string, string) {
+	scanner := bufio.NewScanner(source)
+	scanner.Buffer(make([]byte, 4096), 4<<20)
+	for scanner.Scan() {
+		var value any
+		if json.Unmarshal(scanner.Bytes(), &value) != nil {
+			continue
+		}
+		if condition, met, ok := findGoalStatus(value); ok {
+			goalID := uuid.NewSHA1(uuid.NameSpaceURL, []byte("agent-manager/goal/"+condition)).String()
+			status := "unmet"
+			if met {
+				status = "met"
+			}
+			return goalID, status
+		}
+	}
+	return "", ""
+}
+
+func findGoalStatus(value any) (string, bool, bool) {
+	object, ok := value.(map[string]any)
+	if !ok {
+		if array, ok := value.([]any); ok {
+			for _, child := range array {
+				if condition, met, found := findGoalStatus(child); found {
+					return condition, met, true
+				}
+			}
+		}
+		return "", false, false
+	}
+	if object["type"] == "goal_status" {
+		condition, _ := object["condition"].(string)
+		met, _ := object["met"].(bool)
+		if strings.TrimSpace(condition) != "" {
+			return condition, met, true
+		}
+	}
+	if attachment, ok := object["attachment"].(map[string]any); ok && attachment["type"] == "goal_status" {
+		condition, _ := attachment["condition"].(string)
+		met, _ := attachment["met"].(bool)
+		if strings.TrimSpace(condition) != "" {
+			return condition, met, true
+		}
+	}
+	for _, child := range object {
+		if condition, met, ok := findGoalStatus(child); ok {
+			return condition, met, true
+		}
+	}
+	return "", false, false
 }
 
 func eventWindow(events []*domain.RunEvent) (time.Time, time.Time, bool) {

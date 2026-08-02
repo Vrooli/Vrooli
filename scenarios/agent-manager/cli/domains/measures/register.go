@@ -183,6 +183,38 @@ func Register() cliapp.SubcommandGroup {
 			}
 			return "Tool usage: " + strings.Join(parts, ", ")
 		}),
+		windowMeasure("capability-usage", "Show receipt-backed project capability usage", func(c measureconnect.MeasuresServiceClient, ctx context.Context, window *sharedmeasurepb.TimeWindow) (*measurepb.CapabilityUsageResponse, error) {
+			response, err := c.CapabilityUsage(ctx, connect.NewRequest(&measurepb.CapabilityUsageRequest{Window: window}))
+			if err != nil {
+				return nil, err
+			}
+			return response.Msg, nil
+		}, func(r *measurepb.CapabilityUsageResponse) string {
+			if validity := r.GetValidity(); validity != nil && validity.GetState() != "available" {
+				return fmt.Sprintf("Capability usage unavailable: %s", validity.GetReason())
+			}
+			parts := make([]string, 0, len(r.GetRows()))
+			for _, row := range r.GetRows() {
+				parts = append(parts, fmt.Sprintf("%s %s=%d (%d success, %d failed, %d ms)", row.GetTargetScenario(), row.GetOperation(), row.GetCallCount(), row.GetSuccessCount(), row.GetFailedCount(), row.GetTotalDurationMs()))
+			}
+			return "Capability usage: " + strings.Join(parts, ", ")
+		}),
+		windowMeasure("capability-efficacy", "Show receipt-backed capability efficacy counts", func(c measureconnect.MeasuresServiceClient, ctx context.Context, window *sharedmeasurepb.TimeWindow) (*measurepb.CapabilityEfficacyResponse, error) {
+			response, err := c.CapabilityEfficacy(ctx, connect.NewRequest(&measurepb.CapabilityEfficacyRequest{Window: window}))
+			if err != nil {
+				return nil, err
+			}
+			return response.Msg, nil
+		}, func(r *measurepb.CapabilityEfficacyResponse) string {
+			if validity := r.GetValidity(); validity != nil && validity.GetState() != "available" {
+				return fmt.Sprintf("Capability efficacy unavailable: %s", validity.GetReason())
+			}
+			parts := make([]string, 0, len(r.GetRows()))
+			for _, row := range r.GetRows() {
+				parts = append(parts, fmt.Sprintf("%s %s=%d (%d success, %d fallback-after, %d abandoned)", row.GetTargetScenario(), row.GetOperation(), row.GetCallCount(), row.GetSuccessCount(), row.GetFallbackAfterCount(), row.GetAbandonedCount()))
+			}
+			return "Capability efficacy: " + strings.Join(parts, ", ")
+		}),
 		windowMeasure("error-patterns", "Show durable agent error patterns", func(c measureconnect.MeasuresServiceClient, ctx context.Context, window *sharedmeasurepb.TimeWindow) (*measurepb.ErrorPatternsResponse, error) {
 			response, err := c.ErrorPatterns(ctx, connect.NewRequest(&measurepb.ErrorPatternsRequest{Window: window}))
 			if err != nil {

@@ -401,6 +401,8 @@ type SequencedEventSink interface {
 type TranscriptParseResult struct {
 	Events    []*domain.RunEvent
 	SessionID string
+	// Timestamp is the source timestamp for this transcript line.
+	Timestamp time.Time
 	Terminal  *TranscriptTerminal
 	Err       error
 }

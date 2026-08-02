@@ -58,6 +58,11 @@ type Codec interface {
 	// Type returns the runner type identifier this codec handles.
 	Type() domain.RunnerType
 
+	// ToolCapabilityMap declares the native harness tool vocabulary owned by
+	// this codec. Unknown names intentionally resolve to "other" at the
+	// evidence boundary; shared classifiers do not maintain harness switches.
+	ToolCapabilityMap() map[string]string
+
 	// Capabilities reports what features the runner exposes.
 	Capabilities() runner.Capabilities
 

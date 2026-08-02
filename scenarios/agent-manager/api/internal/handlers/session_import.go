@@ -232,6 +232,7 @@ func scanRunnerSessionsLimit(source runnerSessionSource, associated map[string]s
 
 type corpusImportRequest struct {
 	RunnerTypes []string `json:"runnerTypes"`
+	Strategy    string   `json:"strategy,omitempty"`
 	From        string   `json:"from,omitempty"`
 	To          string   `json:"to,omitempty"`
 	PerMonth    int      `json:"perMonth,omitempty"`
@@ -240,6 +241,11 @@ type corpusImportRequest struct {
 
 type corpusImportCoverage struct {
 	SelectionRule   string         `json:"selectionRule"`
+	Strategy        string         `json:"strategy"`
+	CandidateCount  int            `json:"candidateCount"`
+	Omitted         int            `json:"omitted"`
+	Bounded         bool           `json:"bounded"`
+	Checkpoint      string         `json:"checkpoint,omitempty"`
 	Selected        int            `json:"selected"`
 	Imported        int            `json:"imported"`
 	AlreadyImported int            `json:"alreadyImported"`
@@ -267,15 +273,23 @@ func (h *Handler) ImportSessionCorpus(w http.ResponseWriter, r *http.Request) {
 	if perMonth <= 0 {
 		perMonth = 1
 	}
-	if perMonth > 10 || limit > 100 || limit < 0 {
-		writeSimpleError(w, r, "selection", "perMonth must be 1..10 and limit must be 1..100")
+	strategy := strings.ToLower(strings.TrimSpace(request.Strategy))
+	if strategy == "" {
+		strategy = "stratified"
+	}
+	if strategy != "deterministic-per-month" && strategy != "stratified" && strategy != "recent" && strategy != "all" {
+		writeSimpleError(w, r, "strategy", "strategy must be deterministic-per-month, stratified, recent, or all")
+		return
+	}
+	if perMonth > 500 || limit > 500 || limit < 0 {
+		writeSimpleError(w, r, "selection", "perMonth must be 1..500 and limit must be 1..500")
 		return
 	}
 	if limit == 0 {
 		limit = 24
 	}
 	sources, invalid := corpusSources(request.RunnerTypes)
-	coverage := corpusImportCoverage{SelectionRule: fmt.Sprintf("one deterministic pathname-sorted session per runner-month (up to %d per month, %d total), round-robin by runner with each runner's months ascending", perMonth, limit), Skipped: map[string]int{}}
+	coverage := corpusImportCoverage{SelectionRule: fmt.Sprintf("%s selection over governed runner sessions (up to %d per month, %d total)", strategy, perMonth, limit), Strategy: strategy, Bounded: true, Skipped: map[string]int{}}
 	for _, runnerType := range invalid {
 		coverage.Skipped["unknown_runner:"+runnerType]++
 	}
@@ -294,7 +308,9 @@ func (h *Handler) ImportSessionCorpus(w http.ResponseWriter, r *http.Request) {
 			candidates = append(candidates, corpusCandidate{source: source, session: session, month: updated.UTC().Format("2006-01")})
 		}
 	}
-	selected := selectCorpusCandidates(candidates, perMonth, limit)
+	coverage.CandidateCount = len(candidates)
+	selected := selectCorpusCandidatesWithStrategy(candidates, perMonth, limit, strategy)
+	coverage.Omitted = len(candidates) - len(selected)
 	coverage.Selected = len(selected)
 	for _, candidate := range selected {
 		path, ok := safeSessionPath(candidate.source, candidate.session.Key)
@@ -330,6 +346,7 @@ func (h *Handler) ImportSessionCorpus(w http.ResponseWriter, r *http.Request) {
 		} else {
 			coverage.Replayed++
 		}
+		coverage.Checkpoint = candidate.source.Harness + ":" + candidate.session.SessionID
 	}
 	writeJSON(w, http.StatusOK, coverage)
 }
@@ -392,6 +409,10 @@ func corpusSources(requested []string) ([]runnerSessionSource, []string) {
 }
 
 func selectCorpusCandidates(candidates []corpusCandidate, perMonth, limit int) []corpusCandidate {
+	return selectCorpusCandidatesWithStrategy(candidates, perMonth, limit, "stratified")
+}
+
+func selectCorpusCandidatesWithStrategy(candidates []corpusCandidate, perMonth, limit int, strategy string) []corpusCandidate {
 	sort.Slice(candidates, func(i, j int) bool {
 		if candidates[i].source.RunnerType != candidates[j].source.RunnerType {
 			return candidates[i].source.RunnerType < candidates[j].source.RunnerType
@@ -401,6 +422,15 @@ func selectCorpusCandidates(candidates []corpusCandidate, perMonth, limit int) [
 		}
 		return candidates[i].session.Key < candidates[j].session.Key
 	})
+	if strategy == "recent" {
+		sort.SliceStable(candidates, func(i, j int) bool { return candidates[i].session.UpdatedAt > candidates[j].session.UpdatedAt })
+	}
+	if strategy == "all" {
+		if limit > len(candidates) {
+			limit = len(candidates)
+		}
+		return append([]corpusCandidate(nil), candidates[:limit]...)
+	}
 	byRunner := make(map[domain.RunnerType][]corpusCandidate)
 	runners := make([]domain.RunnerType, 0)
 	counts := map[string]int{}

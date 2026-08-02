@@ -781,6 +781,12 @@ type Run struct {
 	StartedAt *time.Time `json:"startedAt,omitempty" db:"started_at"`
 	EndedAt   *time.Time `json:"endedAt,omitempty" db:"ended_at"`
 
+	// Goal accounting is populated when an imported harness exposes a
+	// structured goal-status attachment. Empty means the source did not expose
+	// goal accounting; it is never interpreted as success.
+	GoalID     string `json:"goalId,omitempty" db:"goal_id"`
+	GoalStatus string `json:"goalStatus,omitempty" db:"goal_status"`
+
 	// Progress tracking (for resumption and visibility)
 	Phase            RunPhase   `json:"phase" db:"phase"`
 	LastCheckpointID *uuid.UUID `json:"lastCheckpointId,omitempty" db:"last_checkpoint_id"`

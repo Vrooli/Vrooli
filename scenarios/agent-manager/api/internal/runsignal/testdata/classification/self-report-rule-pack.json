@@ -1,11 +1,12 @@
 {
-  "version": "self-report.v2",
+  "version": "self-report.v3",
   "owner": "agent-manager",
   "rules": [
     {"id": "cannot-find", "causeScope": "toolchain", "phrases": ["cannot find", "unable to find", "could not locate"]},
     {"id": "repeated-failure", "causeScope": "run-execution", "phrases": ["keeps failing", "still failing", "continues to fail"]},
     {"id": "strategy-change", "causeScope": "recurring-workaround", "phrases": ["instead i will", "i will try a different", "changing approach"]},
     {"id": "blocked", "causeScope": "run-execution", "phrases": ["i am blocked", "i'm blocked", "cannot proceed"]},
-    {"id": "permission-request", "causeScope": "prompt-team-agent-storage", "phrases": ["need permission", "requires permission", "awaiting approval"]}
+    {"id": "permission-request", "causeScope": "prompt-team-agent-storage", "phrases": ["need permission", "requires permission", "awaiting approval"]},
+    {"id": "operator-correction", "causeScope": "run-execution", "phrases": ["you should", "please use", "that is wrong", "do not", "instead"]}
   ]
 }

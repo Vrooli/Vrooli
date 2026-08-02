@@ -76,12 +76,34 @@ type Filter struct {
 	EpisodeFingerprint   string     `json:"episodeFingerprint,omitempty"`
 	SelfReportRuleID     string     `json:"selfReportRuleId,omitempty"`
 	SelfReportCauseScope string     `json:"selfReportCauseScope,omitempty"`
+	TargetScenario       string     `json:"targetScenario,omitempty"`
+	Operation            string     `json:"operation,omitempty"`
 }
 
 type AggregateRow struct {
 	Dimension string `json:"dimension"`
 	Value     string `json:"value"`
 	Count     int64  `json:"count"`
+}
+
+// CapabilityUsageRow is the receipt-backed efficacy population. A receipt is
+// the only evidence that a project-owned capability returned an outcome.
+type CapabilityUsageRow struct {
+	TargetScenario  string `json:"targetScenario"`
+	Operation       string `json:"operation"`
+	CallCount       int64  `json:"callCount"`
+	SuccessCount    int64  `json:"successCount"`
+	FailedCount     int64  `json:"failedCount"`
+	TotalDurationMS uint64 `json:"totalDurationMs"`
+}
+
+type CapabilityEfficacyRow struct {
+	TargetScenario     string `json:"targetScenario"`
+	Operation          string `json:"operation"`
+	CallCount          int64  `json:"callCount"`
+	SuccessCount       int64  `json:"successCount"`
+	FallbackAfterCount int64  `json:"fallbackAfterCount"`
+	AbandonedCount     int64  `json:"abandonedCount"`
 }
 type Cohort struct {
 	RunIDs      []string `json:"runIds"`
@@ -98,6 +120,10 @@ type Metrics struct {
 	ResolvedCalls            int64   `json:"resolvedCalls"`
 	ExternalCalls            int64   `json:"externalCalls"`
 	UnknownCalls             int64   `json:"unknownCalls"`
+	NotACommandCalls         int64   `json:"notACommandCalls"`
+	CompoundUnresolvedCalls  int64   `json:"compoundUnresolvedCalls"`
+	UnparseableCalls         int64   `json:"unparseableCalls"`
+	UnclassifiedCalls        int64   `json:"unclassifiedCalls"`
 	FailedCalls              int64   `json:"failedCalls"`
 	RetryCalls               int64   `json:"retryCalls"`
 	HelpRecoveries           int64   `json:"helpRecoveries"`
@@ -288,6 +314,8 @@ type Fact struct {
 // creation time, with TimeBasis making that fallback visible to consumers.
 type RunFact struct {
 	RunID                 string
+	GoalID                string
+	GoalStatus            string
 	OccurredAt            time.Time
 	CreatedAt             time.Time
 	StartedAt             *time.Time
@@ -320,7 +348,10 @@ type RunFact struct {
 	FileRereads           int64
 	TimeAccounting        runsignal.TimeAccounting
 	CostTimeBasis         string
-	ProjectedAt           time.Time
+	// TimeBasis identifies whether lifecycle/event time came from the source
+	// transcript or was assigned while Agent Manager ingested the run.
+	TimeBasis   string
+	ProjectedAt time.Time
 }
 
 type Efficiency struct {

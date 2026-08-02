@@ -9,7 +9,7 @@ import (
 
 // EpisodeClassifierVersion pins the deterministic episode rules so retained
 // evidence is never silently compared across classifier changes.
-const EpisodeClassifierVersion = "friction-episode.v3"
+const EpisodeClassifierVersion = "friction-episode.v6"
 
 const idleEpisodeThreshold = 5 * time.Minute
 
@@ -50,7 +50,7 @@ func DeriveEpisodes(facts []InvocationFact, events []*domain.RunEvent) []Frictio
 			byID[event.ID.String()] = event
 		}
 	}
-	context := EpisodeDetectorContext{Facts: facts, Events: ordered, EventsByID: byID}
+	context := EpisodeDetectorContext{Facts: facts, Events: ordered, EventsByID: byID, SelfReports: DeriveSelfReportSpans(ordered)}
 	// A malformed or imported transcript can repeat the same tool-call event
 	// while preserving its original identifier. Detectors operate over facts,
 	// so that repetition must not create two rows with the same durable episode

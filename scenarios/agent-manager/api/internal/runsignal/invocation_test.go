@@ -55,10 +55,10 @@ func TestDeriveInvocationFactsPreservesUnpairedBasis(t *testing.T) {
 	}
 }
 
-func TestDeriveInvocationFactsMarksCompoundShellUnknown(t *testing.T) {
+func TestDeriveInvocationFactsLabelsCompoundShell(t *testing.T) {
 	runID := uuid.New()
-	facts := DeriveInvocationFacts([]*domain.RunEvent{domain.NewToolCallEvent(runID, "shell", "call-1", map[string]any{"command": "vrooli help; echo no"})})
-	if facts[0].Ownership != "unknown" || facts[0].Availability != "available" {
+	facts := DeriveInvocationFacts([]*domain.RunEvent{domain.NewToolCallEvent(runID, "shell", "call-1", map[string]any{"command": "agent-manager run report x && rm scratch"})})
+	if len(facts) != 2 || facts[0].Ownership != OwnershipResolved || facts[1].Ownership != OwnershipExternal || facts[0].CallEventID != facts[1].CallEventID {
 		t.Fatalf("fact=%+v", facts[0])
 	}
 }
@@ -92,11 +92,11 @@ func TestDeriveInvocationFactsFingerprintsArgumentShapeWithoutValues(t *testing.
 	}
 }
 
-func TestDeriveInvocationFactsKeepsCompoundShellUnknown(t *testing.T) {
+func TestDeriveInvocationFactsKeepsUnparseableReason(t *testing.T) {
 	runID := uuid.New()
-	call := domain.NewToolCallEvent(runID, "shell", "one", map[string]any{"command": "git status && rm scratch"})
+	call := domain.NewToolCallEvent(runID, "shell", "one", map[string]any{"command": "git status $(pwd)"})
 	fact := DeriveInvocationFacts([]*domain.RunEvent{call})[0]
-	if fact.Ownership != "unknown" || fact.Executable != "" {
+	if fact.Ownership != OwnershipUnparseable || fact.OwnershipReason == "" || fact.Executable != "" {
 		t.Fatalf("compound shell was promoted: %+v", fact)
 	}
 }

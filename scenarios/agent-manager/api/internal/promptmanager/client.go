@@ -37,6 +37,8 @@ type FrictionReport struct {
 	Recommendation     string
 	Evidence           string
 	TargetPath         string
+	HonestyFlags       []string
+	RecurrenceEvidence string
 }
 
 // FrictionIntakeClient is an optional prompt-manager capability. Keeping it
@@ -486,7 +488,19 @@ func frictionContent(report FrictionReport, scope, severity string) string {
 	if evidence == "" {
 		evidence = "The structured investigation produced this recommendation."
 	}
-	return fmt.Sprintf("---\nseverity: %s\nscope: %s\nreporter: agent-manager\nreporter_team: meta-optimization\nobserved_at: %s\ncontext:\n  scenario: agent-manager\n  skill: null\n  member: null\n  command: null\n  doc: null\n  task: %s\nexpected: %s\nactual: %s\ndescription: |\n  An Agent Manager investigation produced this durable finding.\n  Fingerprint: %s.\n  Evidence: %s\nhonesty_flags: [auto-generated]\n---\n\nWhat happened\n\n%s\n", severity, scope, time.Now().UTC().Format("2006-01-02"), report.InvestigationRunID, yamlLine(recommendation), yamlLine(evidence), report.Fingerprint, indentLine(evidence), recommendation)
+	flags := append([]string(nil), report.HonestyFlags...)
+	if len(flags) == 0 {
+		flags = []string{"auto-generated"}
+	}
+	for i := range flags {
+		flags[i] = strings.TrimSpace(flags[i])
+	}
+	flagText := "[" + strings.Join(flags, ", ") + "]"
+	recurrence := strings.TrimSpace(report.RecurrenceEvidence)
+	if recurrence == "" {
+		recurrence = "not captured"
+	}
+	return fmt.Sprintf("---\nseverity: %s\nscope: %s\nreporter: agent-manager\nreporter_team: meta-optimization\nobserved_at: %s\ncontext:\n  scenario: agent-manager\n  skill: null\n  member: null\n  command: null\n  doc: null\n  task: %s\nexpected: %s\nactual: %s\ndescription: |\n  An Agent Manager investigation produced this durable finding.\n  Fingerprint: %s.\n  Evidence: %s\nrecurrence_evidence: %s\nhonesty_flags: %s\n---\n\nWhat happened\n\n%s\n", severity, scope, time.Now().UTC().Format("2006-01-02"), report.InvestigationRunID, yamlLine(recommendation), yamlLine(evidence), report.Fingerprint, indentLine(evidence), yamlLine(recurrence), flagText, recommendation)
 }
 
 func yamlLine(value string) string { return strconv.Quote(strings.Join(strings.Fields(value), " ")) }

@@ -6,7 +6,7 @@
     "5f34450e-fcbb-49aa-b1ff-6ff55f5cb674",
     "6188692f-8579-4ea4-b08c-e59c1004c0d7"
   ],
-  "labellingRule": "Label an episode only when its two adjacent invocation facts meet the production pattern definition. Label a self-report only when the exact case-insensitive rule phrase appears in an assistant message; tool and user text never qualify.",
+  "labellingRule": "Label an episode only when its two adjacent invocation facts meet the production pattern definition. Label a self-report only when the exact case-insensitive rule phrase appears in an assistant message; label operator-correction only when its phrase appears in user text.",
   "thresholds": {
     "episode/repeated-work": 1.0,
     "episode/command-failure": 1.0,
@@ -15,11 +15,18 @@
     "episode/poll-loop": 1.0,
     "episode/oscillation": 1.0,
     "episode/edit-revert": 1.0,
+    "episode/wait-misuse": 1.0,
+    "episode/blocked-then-abandoned": 1.0,
+    "episode/guidance-repair": 1.0,
+    "episode/handoff-continuation": 1.0,
+    "episode/fallback-after-capability": 1.0,
+    "episode/capability-abandoned": 1.0,
     "span/cannot-find": 1.0,
     "span/repeated-failure": 1.0,
     "span/strategy-change": 1.0,
     "span/blocked": 1.0,
-    "span/permission-request": 1.0
+    "span/permission-request": 1.0,
+    "span/operator-correction": 1.0
   },
   "expected": [
     "episode/repeated-work",
@@ -29,16 +36,23 @@
     "episode/poll-loop",
     "episode/oscillation",
     "episode/edit-revert",
+    "episode/wait-misuse",
+    "episode/blocked-then-abandoned",
+    "episode/guidance-repair",
+    "episode/handoff-continuation",
+    "episode/fallback-after-capability",
+    "episode/capability-abandoned",
     "span/cannot-find",
     "span/repeated-failure",
     "span/strategy-change",
     "span/blocked",
-    "span/permission-request"
+    "span/permission-request",
+    "span/operator-correction"
   ],
   "cases": [
     {
       "name": "redacted-positive-window",
-      "expected": ["episode/repeated-work", "episode/command-failure", "episode/help-recovery", "episode/stall", "episode/poll-loop", "episode/oscillation", "episode/edit-revert", "span/cannot-find", "span/repeated-failure", "span/strategy-change", "span/blocked", "span/permission-request"],
+      "expected": ["episode/repeated-work", "episode/command-failure", "episode/help-recovery", "episode/stall", "episode/poll-loop", "episode/oscillation", "episode/edit-revert", "episode/blocked-then-abandoned", "span/cannot-find", "span/repeated-failure", "span/strategy-change", "span/blocked", "span/permission-request", "span/operator-correction"],
       "facts": [
         {"callEventId":"f1","resultEventId":"r1","outcome":"failure","executable":"shell","fingerprint":"same"},
         {"callEventId":"f2","resultEventId":"r2","outcome":"failure","executable":"shell","fingerprint":"same"},
@@ -65,8 +79,73 @@
         {"id":"b2","atMilliseconds":26000,"kind":"tool_call","toolName":"shell","input":{"read":true}}, {"id":"br2","atMilliseconds":27000,"kind":"tool_result"},
         {"id":"edit-a","atMilliseconds":30000,"kind":"tool_call","toolName":"file_change","files":[{"path":"fixture.txt","kind":"add"}]},
         {"id":"edit-b","atMilliseconds":31000,"kind":"tool_call","toolName":"file_change","files":[{"path":"fixture.txt","kind":"delete"}]},
-        {"id":"report","atMilliseconds":400000,"kind":"assistant_message","content":"I cannot find it; this keeps failing; instead I will retry. I am blocked and need permission."}
+        {"id":"report","atMilliseconds":400000,"kind":"assistant_message","content":"I cannot find it; this keeps failing; instead I will retry. I am blocked and need permission."},
+        {"id":"correction","atMilliseconds":401000,"kind":"user_message","content":"You should use the documented path instead."}
       ]
+    },
+    {
+      "name": "wait-misuse-positive",
+      "expected": ["episode/wait-misuse", "episode/repeated-work"],
+      "facts": [
+        {"callEventId":"w1","resultEventId":"wr1","outcome":"unknown","capability":"wait","fingerprint":"pending"},
+        {"callEventId":"w2","resultEventId":"wr2","outcome":"unknown","capability":"wait","fingerprint":"pending"},
+        {"callEventId":"w3","resultEventId":"wr3","outcome":"unknown","capability":"wait","fingerprint":"pending"}
+      ],
+      "events": [
+        {"id":"w1","atMilliseconds":0,"kind":"tool_call","toolName":"wait","input":{"status":true}}, {"id":"wr1","atMilliseconds":1000,"kind":"tool_result"},
+        {"id":"w2","atMilliseconds":2000,"kind":"tool_call","toolName":"wait","input":{"status":true}}, {"id":"wr2","atMilliseconds":3000,"kind":"tool_result"},
+        {"id":"w3","atMilliseconds":4000,"kind":"tool_call","toolName":"wait","input":{"status":true}}, {"id":"wr3","atMilliseconds":5000,"kind":"tool_result"}
+      ]
+    },
+    {
+      "name": "blocked-abandoned-positive",
+      "expected": ["episode/blocked-then-abandoned", "span/blocked"],
+      "facts": [],
+      "events": [{"id":"blocked","atMilliseconds":0,"kind":"assistant_message","content":"I am blocked and cannot proceed."}]
+    },
+    {
+      "name": "guidance-repair-positive",
+      "expected": ["episode/guidance-repair", "span/operator-correction"],
+      "facts": [
+        {"callEventId":"before","resultEventId":"before-result","outcome":"failure","fingerprint":"old-approach"},
+        {"callEventId":"after","resultEventId":"after-result","outcome":"success","fingerprint":"new-approach"}
+      ],
+      "events": [
+        {"id":"before","atMilliseconds":0,"kind":"tool_call","toolName":"shell","input":{"status":true}}, {"id":"before-result","atMilliseconds":1000,"kind":"tool_result"},
+        {"id":"correction","atMilliseconds":2000,"kind":"user_message","content":"You should use a different approach."},
+        {"id":"after","atMilliseconds":3000,"kind":"tool_call","toolName":"shell","input":{"status":true}}, {"id":"after-result","atMilliseconds":4000,"kind":"tool_result"}
+      ]
+    },
+    {
+      "name": "handoff-continuation-positive",
+      "expected": ["episode/handoff-continuation"],
+      "facts": [
+        {"callEventId":"after-one","resultEventId":"after-one-result","outcome":"success","fingerprint":"post-a"},
+        {"callEventId":"after-two","resultEventId":"after-two-result","outcome":"success","fingerprint":"post-b"}
+      ],
+      "events": [
+        {"id":"handoff","atMilliseconds":0,"kind":"assistant_message","content":"handoff complete","terminal":true},
+        {"id":"after-one","atMilliseconds":1000,"kind":"tool_call","toolName":"shell","input":{"status":true}}, {"id":"after-one-result","atMilliseconds":2000,"kind":"tool_result"},
+        {"id":"after-two","atMilliseconds":3000,"kind":"tool_call","toolName":"shell","input":{"status":true}}, {"id":"after-two-result","atMilliseconds":4000,"kind":"tool_result"}
+      ]
+    },
+    {
+      "name": "fallback-after-capability-positive",
+      "expected": ["episode/fallback-after-capability"],
+      "facts": [
+        {"callEventId":"project","resultEventId":"project-result","outcome":"success","ownership":"resolved","executable":"project-tool","intentClass":"file-read:path" ,"fingerprint":"project-read"},
+        {"callEventId":"external","resultEventId":"external-result","outcome":"success","executable":"external-tool","ownership":"external","intentClass":"file-read:path","fingerprint":"external-read"}
+      ],
+      "events": [
+        {"id":"project","atMilliseconds":0,"kind":"tool_call","toolName":"Read","input":{"path":"a.txt"}}, {"id":"project-result","atMilliseconds":1000,"kind":"tool_result"},
+        {"id":"external","atMilliseconds":2000,"kind":"tool_call","toolName":"grep","input":{"path":"a.txt"}}, {"id":"external-result","atMilliseconds":3000,"kind":"tool_result"}
+      ]
+    },
+    {
+      "name": "capability-abandoned-positive",
+      "expected": ["episode/capability-abandoned"],
+      "facts": [{"callEventId":"failed-capability","resultEventId":"failed-result","outcome":"failure","executable":"project-tool","ownership":"resolved","intentClass":"search:text","fingerprint":"failed-search"}],
+      "events": [{"id":"failed-capability","atMilliseconds":0,"kind":"tool_call","toolName":"Grep","input":{"pattern":"x"}}, {"id":"failed-result","atMilliseconds":1000,"kind":"tool_result"}]
     },
     {
       "name": "redacted-near-miss-window",

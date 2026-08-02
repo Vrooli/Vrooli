@@ -51,6 +51,10 @@ type baseCodec struct {
 // Type satisfies [Codec].
 func (b *baseCodec) Type() domain.RunnerType { return b.runnerType }
 
+// ToolCapabilityMap satisfies [Codec] for codecs that have no native tool
+// declarations. Concrete harness codecs override it with their vocabulary.
+func (b *baseCodec) ToolCapabilityMap() map[string]string { return map[string]string{} }
+
 // BinaryPath satisfies [Codec].
 func (b *baseCodec) BinaryPath() string { return b.binaryPath }
 

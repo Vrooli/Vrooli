@@ -39,3 +39,13 @@ func TestThrashDetectorsFindBoundedCyclesOnly(t *testing.T) {
 		t.Fatalf("refinement=%+v", got)
 	}
 }
+
+func TestDetectEditRevertsAcceptsJSONDecodedFiles(t *testing.T) {
+	events := []*domain.RunEvent{
+		{ID: uuid.New(), Timestamp: time.Now(), Data: &domain.ToolCallEventData{ToolName: "file_change", Input: map[string]any{"files": []any{map[string]any{"path": "safe.txt", "kind": "add"}}}}},
+		{ID: uuid.New(), Timestamp: time.Now().Add(time.Second), Data: &domain.ToolCallEventData{ToolName: "file_change", Input: map[string]any{"files": []any{map[string]any{"path": "safe.txt", "kind": "delete"}}}}},
+	}
+	if got := detectEditReverts(EpisodeDetectorContext{Events: events, EventsByID: eventMap(events)}); len(got) != 1 {
+		t.Fatalf("got %d edit-revert episodes", len(got))
+	}
+}

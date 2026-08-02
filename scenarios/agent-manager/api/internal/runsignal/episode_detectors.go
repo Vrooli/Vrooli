@@ -13,9 +13,10 @@ type EpisodeDetector interface {
 }
 
 type EpisodeDetectorContext struct {
-	Facts      []InvocationFact
-	Events     []*domain.RunEvent
-	EventsByID map[string]*domain.RunEvent
+	Facts       []InvocationFact
+	Events      []*domain.RunEvent
+	EventsByID  map[string]*domain.RunEvent
+	SelfReports []SelfReportSpan
 }
 
 type episodeDetector struct {
@@ -41,7 +42,13 @@ func EpisodeDetectors() []EpisodeDetector {
 		episodeDetector{"stall", EpisodeClassifierVersion, "run-execution", detectStalls},
 		episodeDetector{"poll-loop", EpisodeClassifierVersion, "recurring-workaround", detectPollLoops},
 		episodeDetector{"oscillation", EpisodeClassifierVersion, "recurring-workaround", detectOscillations},
-		episodeDetector{"edit-revert", EpisodeClassifierVersion, "file-editing", detectEditReverts},
+		episodeDetector{"edit-revert", EpisodeClassifierVersion, "recurring-workaround", detectEditReverts},
+		episodeDetector{"wait-misuse", EpisodeClassifierVersion, "toolchain", detectWaitMisuse},
+		episodeDetector{"blocked-then-abandoned", EpisodeClassifierVersion, "run-execution", detectBlockedThenAbandoned},
+		episodeDetector{"guidance-repair", EpisodeClassifierVersion, "prompt-team-agent-storage", detectGuidanceRepair},
+		episodeDetector{"handoff-continuation", EpisodeClassifierVersion, "run-execution", detectHandoffContinuation},
+		episodeDetector{"fallback-after-capability", EpisodeClassifierVersion, "toolchain", detectFallbackAfterCapability},
+		episodeDetector{"capability-abandoned", EpisodeClassifierVersion, "toolchain", detectCapabilityAbandoned},
 	}
 }
 
@@ -62,7 +69,7 @@ func adjacentEpisode(pattern string, matches func(InvocationFact, InvocationFact
 	return func(ctx EpisodeDetectorContext) []FrictionEpisode {
 		out := []FrictionEpisode{}
 		for i := 1; i < len(ctx.Facts); i++ {
-			if matches(ctx.Facts[i-1], ctx.Facts[i]) {
+			if comparableFingerprintFact(ctx.Facts[i-1]) && comparableFingerprintFact(ctx.Facts[i]) && matches(ctx.Facts[i-1], ctx.Facts[i]) {
 				out = append(out, newEpisode(pattern, ctx.Facts[i-1], ctx.Facts[i], ctx.EventsByID, ctx.Events))
 			}
 		}

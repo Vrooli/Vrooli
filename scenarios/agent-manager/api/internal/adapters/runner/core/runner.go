@@ -122,6 +122,15 @@ func NewRunner(codec codecs.Codec, host runner.Launcher, sandboxFactory runner.S
 	}
 }
 
+// ToolCapabilityMap exposes the codec-owned harness vocabulary to durable
+// evidence projection without making the registry depend on concrete codecs.
+func (r *Runner) ToolCapabilityMap() map[string]string {
+	if r == nil || r.codec == nil {
+		return nil
+	}
+	return r.codec.ToolCapabilityMap()
+}
+
 // SetSandboxLauncherFactory swaps in (or removes) the protected-mode
 // factory. Used by main.go where the sandbox provider is constructed
 // after the runner registry; tests can also use it to inject a mock.

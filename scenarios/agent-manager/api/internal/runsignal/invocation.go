@@ -20,7 +20,7 @@ import (
 // v4 backfills bounded failure signatures into durable facts produced before
 // that field was projected, so historical failed invocations remain actionable
 // after a replay without retaining raw tool output.
-const InvocationFactVersion = "invocation-fact.v4"
+const InvocationFactVersion = "invocation-fact.v5"
 
 // FailureSignatureMaxLength bounds retained failure vocabulary. Signatures are
 // controlled class labels, never copied error text.
@@ -34,9 +34,14 @@ type InvocationFact struct {
 	ResultEventID      string             `json:"resultEventId,omitempty"`
 	ToolCallID         string             `json:"toolCallId,omitempty"`
 	ToolName           string             `json:"toolName"`
+	Capability         string             `json:"capability"`
+	IntentClass        string             `json:"intentClass"`
 	Executable         string             `json:"executable,omitempty"`
 	CommandPath        string             `json:"commandPath,omitempty"`
 	Ownership          string             `json:"ownership"`
+	OwnershipReason    string             `json:"ownershipReason,omitempty"`
+	SegmentIndex       int                `json:"segmentIndex"`
+	SegmentCount       int                `json:"segmentCount"`
 	CatalogSnapshot    string             `json:"catalogSnapshot,omitempty"`
 	Outcome            string             `json:"outcome"`
 	PairingBasis       string             `json:"pairingBasis"`
@@ -53,7 +58,16 @@ type InvocationFact struct {
 // that identifier, so unmatched calls/results fall back to their stable stream
 // ordinal. The basis is retained on every fact rather than silently treating a
 // best-effort historical pairing as provider-proven correlation.
+// CapabilityResolver is supplied by the runner codec that owns a harness
+// tool surface. A nil resolver retains the conservative generic fallback used
+// by standalone callers and historical fixtures.
+type CapabilityResolver func(string) string
+
 func DeriveInvocationFacts(events []*domain.RunEvent) []InvocationFact {
+	return DeriveInvocationFactsWithResolver(events, nil)
+}
+
+func DeriveInvocationFactsWithResolver(events []*domain.RunEvent, resolver CapabilityResolver) []InvocationFact {
 	results := map[string]*domain.RunEvent{}
 	ordinalResults := make([]*domain.RunEvent, 0)
 	for _, event := range events {
@@ -81,56 +95,117 @@ func DeriveInvocationFacts(events []*domain.RunEvent) []InvocationFact {
 		if !ok {
 			continue
 		}
-		fact := InvocationFact{Version: InvocationFactVersion, CallEventID: event.ID.String(), ToolCallID: call.ToolCallID, ToolName: call.ToolName, Ownership: "unknown", Outcome: "unknown", PairingBasis: "unpaired", Availability: availability.Available}
+		capability := CapabilityForTool(call.ToolName)
+		if resolver != nil {
+			capability = resolver(call.ToolName)
+			if capability == "" {
+				capability = "other"
+			}
+		}
+		factBase := InvocationFact{Version: InvocationFactVersion, CallEventID: event.ID.String(), ToolCallID: call.ToolCallID, ToolName: call.ToolName, Capability: capability, IntentClass: intentClass(call), Ownership: OwnershipNotACommand, OwnershipReason: "tool input has no command or cmd field", Outcome: "unknown", PairingBasis: "unpaired", Availability: availability.Available}
 		command := commandInput(call)
-		if command != "" {
-			resolution := ResolveCatalog(command)
-			fact.Executable = resolution.Owner
-			fact.CommandPath, fact.CatalogSnapshot, fact.Ownership = resolution.Command, resolution.Snapshot, string(resolution.State)
-		} else if isShellTool(call.ToolName) {
-			fact.Availability = availability.Unknown
+		segments, compound, segmentError := SegmentShell(command)
+		if command == "" {
+			segments = []string{""}
+		}
+		if segmentError != "" {
+			segments = []string{command}
+		}
+		if len(segments) == 0 {
+			segments = []string{""}
 		}
 		var result *domain.RunEvent
 		if call.ToolCallID != "" {
 			result = results[call.ToolCallID]
 			if result != nil {
-				fact.PairingBasis = "tool_call_id"
+				factBase.PairingBasis = "tool_call_id"
 			}
 		} else if ordinalResultIndex < len(ordinalResults) {
 			result = ordinalResults[ordinalResultIndex]
 			ordinalResultIndex++
-			fact.PairingBasis = "ordinal"
+			factBase.PairingBasis = "ordinal"
 		}
-		if result != nil {
-			fact.ResultEventID = result.ID.String()
-			if data, ok := result.Data.(*domain.ToolResultEventData); ok {
-				fact.Outcome = toolResultOutcome(data)
-				if fact.Outcome == "failure" {
-					fact.FailureSignature, fact.SignatureTruncated = failureSignature(data)
+		for segmentIndex, segment := range segments {
+			fact := factBase
+			fact.SegmentIndex, fact.SegmentCount = segmentIndex, len(segments)
+			if segmentError != "" {
+				fact.Ownership, fact.OwnershipReason = OwnershipUnparseable, segmentError
+			} else if command != "" {
+				resolution := ResolveCatalog(segment)
+				fact.Executable, fact.CommandPath, fact.CatalogSnapshot = resolution.Owner, resolution.Command, resolution.Snapshot
+				fact.Ownership, fact.OwnershipReason = string(resolution.State), resolution.Reason
+				if fact.Ownership == string(availability.Unknown) {
+					fact.Ownership = OwnershipCompoundUnresolved
+					if fact.OwnershipReason == "" {
+						fact.OwnershipReason = "segment is not resolved by the manifest"
+					}
 				}
 			}
-		}
-		// The fingerprint deliberately receives only a structural description of
-		// arguments. Raw command values must never become durable derived data,
-		// while the shape prevents every invocation of an external executable
-		// from collapsing into a single bucket.
-		fact.Fingerprint = fingerprint(fact.ToolName, fact.CommandPath, fact.Ownership, normalizedArgumentShape(call.Input))
-		if prior := previousByFingerprint[fact.Fingerprint]; prior != "" {
-			fact.RetryOfCallEventID = prior
-			if helpAfterFailure[fact.Executable] {
-				fact.HelpRecovery = true
+			if compound && fact.Ownership != OwnershipResolved && fact.Ownership != OwnershipExternal {
+				fact.Ownership = OwnershipCompoundUnresolved
 			}
+			if result != nil {
+				fact.ResultEventID = result.ID.String()
+				if data, ok := result.Data.(*domain.ToolResultEventData); ok {
+					fact.Outcome = toolResultOutcome(data)
+					if fact.Outcome == "failure" {
+						fact.FailureSignature, fact.SignatureTruncated = failureSignature(data)
+					}
+				}
+			}
+			fact.Fingerprint = fingerprint(fact.ToolName, fact.CommandPath, fact.Ownership, normalizedArgumentShape(call.Input), strconv.Itoa(segmentIndex))
+			if prior := previousByFingerprint[fact.Fingerprint]; prior != "" {
+				fact.RetryOfCallEventID = prior
+				if helpAfterFailure[fact.Executable] {
+					fact.HelpRecovery = true
+				}
+			}
+			if fact.Outcome == "failure" && fact.Executable != "" {
+				lastFailureByExecutable[fact.Executable] = fact.CallEventID
+			}
+			if isHelpCommand(segment) && fact.Executable != "" && lastFailureByExecutable[fact.Executable] != "" {
+				helpAfterFailure[fact.Executable] = true
+			}
+			previousByFingerprint[fact.Fingerprint] = fact.CallEventID
+			facts = append(facts, fact)
 		}
-		if fact.Outcome == "failure" && fact.Executable != "" {
-			lastFailureByExecutable[fact.Executable] = fact.CallEventID
-		}
-		if isHelpCommand(command) && fact.Executable != "" && lastFailureByExecutable[fact.Executable] != "" {
-			helpAfterFailure[fact.Executable] = true
-		}
-		previousByFingerprint[fact.Fingerprint] = fact.CallEventID
-		facts = append(facts, fact)
 	}
 	return facts
+}
+
+// CapabilityForTool is the closed harness capability vocabulary. Runner
+// adapters use these same labels when translating their native tool names;
+// the classifier accepts unknown names as other rather than guessing a
+// scenario-specific owner.
+func CapabilityForTool(tool string) string {
+	name := strings.ToLower(strings.TrimSpace(tool))
+	switch {
+	case name == "read" || strings.Contains(name, "read") || name == "cat" || name == "view":
+		return "file-read"
+	case name == "write" || name == "edit" || name == "apply_patch" || name == "file_change" || strings.Contains(name, "write"):
+		return "file-edit"
+	case strings.Contains(name, "grep") || strings.Contains(name, "search") || name == "glob":
+		return "search"
+	case name == "wait" || strings.Contains(name, "poll"):
+		return "wait"
+	case strings.Contains(name, "plan"):
+		return "plan"
+	case name == "task" || strings.Contains(name, "delegate") || strings.Contains(name, "agent"):
+		return "delegate"
+	case strings.Contains(name, "web") || strings.Contains(name, "network") || strings.Contains(name, "fetch"):
+		return "network"
+	case isShellTool(name) || name == "exec" || name == "bash":
+		return "shell"
+	default:
+		return "other"
+	}
+}
+
+func intentClass(call *domain.ToolCallEventData) string {
+	if call == nil {
+		return "other"
+	}
+	return CapabilityForTool(call.ToolName) + ":" + normalizedArgumentShape(call.Input)
 }
 
 // normalizedArgumentShape returns a deterministic, redacted description of a
@@ -184,7 +259,7 @@ func stringArgumentShape(value string) string {
 		}
 		return "command:" + strings.Join(parts, "+")
 	}
-	return "opaque:" + characterShape(value)
+	return "shell:unparseable"
 }
 
 func tokenShape(token string) string {
@@ -192,12 +267,12 @@ func tokenShape(token string) string {
 		return "flag:" + strings.SplitN(token, "=", 2)[0]
 	}
 	if extension := strings.ToLower(filepath.Ext(token)); extension != "" && len(extension) <= 12 {
-		return "path:" + extension + ":" + characterShape(token)
+		return "path:" + extension
 	}
 	if allDigits(token) {
 		return "number"
 	}
-	return "text:" + characterShape(token)
+	return "text"
 }
 
 func allDigits(value string) bool {
@@ -210,30 +285,6 @@ func allDigits(value string) bool {
 		}
 	}
 	return true
-}
-
-func characterShape(value string) string {
-	const maxRunes = 128
-	var b strings.Builder
-	count := 0
-	for _, r := range value {
-		if count >= maxRunes {
-			b.WriteString("+")
-			break
-		}
-		switch {
-		case unicode.IsLetter(r):
-			b.WriteByte('a')
-		case unicode.IsDigit(r):
-			b.WriteByte('0')
-		case unicode.IsSpace(r):
-			b.WriteByte('s')
-		default:
-			b.WriteByte('p')
-		}
-		count++
-	}
-	return b.String()
 }
 
 func toolResultOutcome(data *domain.ToolResultEventData) string {

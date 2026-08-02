@@ -1,12 +1,16 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"net/url"
+	"os"
+	"sort"
 	"strings"
+	"unicode"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
@@ -51,6 +55,7 @@ func (a *App) runImportSessionCorpus(args []string) error {
 	fs := flag.NewFlagSet("run import-session-corpus", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
 	runners := fs.String("runners", "codex,claude-code", "comma-separated governed runner types")
+	strategy := fs.String("strategy", "stratified", "selection strategy: deterministic-per-month, stratified, recent, or all")
 	from := fs.String("from", "", "RFC3339 inclusive session-update time")
 	to := fs.String("to", "", "RFC3339 exclusive session-update time")
 	perMonth := fs.Int("per-month", 1, "deterministic sessions per runner-month")
@@ -64,7 +69,7 @@ func (a *App) runImportSessionCorpus(args []string) error {
 			runnerTypes = append(runnerTypes, value)
 		}
 	}
-	payload, err := json.Marshal(map[string]any{"runnerTypes": runnerTypes, "from": *from, "to": *to, "perMonth": *perMonth, "limit": *limit})
+	payload, err := json.Marshal(map[string]any{"runnerTypes": runnerTypes, "strategy": *strategy, "from": *from, "to": *to, "perMonth": *perMonth, "limit": *limit})
 	if err != nil {
 		return err
 	}
@@ -78,6 +83,105 @@ func (a *App) runImportSessionCorpus(args []string) error {
 		fmt.Println(string(body))
 	}
 	return nil
+}
+
+// runMineSelfReportVocabulary is deliberately offline. It reads assistant
+// turns from transcript files and writes ranked review candidates; promotion
+// into the embedded rule pack remains a human, versioned decision.
+func (a *App) runMineSelfReportVocabulary(args []string) error {
+	fs := flag.NewFlagSet("run mine-self-report-vocabulary", flag.ContinueOnError)
+	output := fs.String("output", "", "review JSON path (default stdout)")
+	limit := fs.Int("limit", 100, "maximum ranked candidates")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	paths := fs.Args()
+	if len(paths) == 0 {
+		return fmt.Errorf("usage: agent-manager run mine-self-report-vocabulary [--output review.json] <transcript.jsonl> ...")
+	}
+	type candidate struct {
+		Phrase string `json:"phrase"`
+		Count  int    `json:"count"`
+	}
+	counts := map[string]int{}
+	for _, path := range paths {
+		file, err := os.Open(path)
+		if err != nil {
+			return fmt.Errorf("open transcript %s: %w", path, err)
+		}
+		scanner := bufio.NewScanner(file)
+		scanner.Buffer(make([]byte, 4096), 4<<20)
+		for scanner.Scan() {
+			var value map[string]any
+			if json.Unmarshal(scanner.Bytes(), &value) != nil || strings.ToLower(stringValue(value, "role", "type")) != "assistant" {
+				continue
+			}
+			text := stringValue(value, "content", "text", "message")
+			words := strings.FieldsFunc(strings.ToLower(text), func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsNumber(r) && r != '\'' })
+			for n := 3; n <= 6; n++ {
+				for i := 0; i+n <= len(words); i++ {
+					phrase := strings.Join(words[i:i+n], " ")
+					if hasStruggleVocabulary(phrase) {
+						counts[phrase]++
+					}
+				}
+			}
+		}
+		closeErr := file.Close()
+		if err := scanner.Err(); err != nil {
+			return fmt.Errorf("read transcript %s: %w", path, err)
+		}
+		if closeErr != nil {
+			return fmt.Errorf("close transcript %s: %w", path, closeErr)
+		}
+	}
+	items := make([]candidate, 0, len(counts))
+	for phrase, count := range counts {
+		items = append(items, candidate{Phrase: phrase, Count: count})
+	}
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].Count != items[j].Count {
+			return items[i].Count > items[j].Count
+		}
+		return items[i].Phrase < items[j].Phrase
+	})
+	if *limit < 1 {
+		return fmt.Errorf("--limit must be positive")
+	}
+	if len(items) > *limit {
+		items = items[:*limit]
+	}
+	body, err := json.MarshalIndent(map[string]any{"strategy": "frequency-and-struggle-vocabulary", "sourceCount": len(paths), "candidates": items}, "", "  ")
+	if err != nil {
+		return err
+	}
+	if *output != "" {
+		if err := os.WriteFile(*output, append(body, '\n'), 0o600); err != nil {
+			return fmt.Errorf("write review file: %w", err)
+		}
+		fmt.Printf("wrote %d review candidates to %s\n", len(items), *output)
+		return nil
+	}
+	fmt.Println(string(body))
+	return nil
+}
+
+func stringValue(value map[string]any, keys ...string) string {
+	for _, key := range keys {
+		if text, ok := value[key].(string); ok {
+			return text
+		}
+	}
+	return ""
+}
+
+func hasStruggleVocabulary(phrase string) bool {
+	for _, term := range []string{"blocked", "stuck", "cannot", "can't", "unable", "failed", "wait", "confused", "instead", "wrong", "retry", "permission"} {
+		if strings.Contains(phrase, term) {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *App) runInvocationFacts(args []string) error {

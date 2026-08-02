@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
@@ -48,5 +50,85 @@ func (a *App) runCohortReport(args []string) error {
 	for _, signal := range report.Signals {
 		fmt.Printf("- %s: count=%d impact=%d confidence=%s evidence=%s\n", signal.Kind, signal.Count, signal.Impact, signal.Confidence, strings.Join(signal.RepresentativeRunIDs, ","))
 	}
+	return nil
+}
+
+func (a *App) runCohortCompare(args []string) error {
+	fs := flag.NewFlagSet("run cohort-compare", flag.ContinueOnError)
+	left := fs.String("left-filter-json", "{}", "JSON invocation filter for the left population")
+	right := fs.String("right-filter-json", "{}", "JSON invocation filter for the right population")
+	limit := fs.Int("limit", 100, "maximum fingerprint signals")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	var leftFilter, rightFilter map[string]any
+	if err := json.Unmarshal([]byte(*left), &leftFilter); err != nil {
+		return fmt.Errorf("decode left filter: %w", err)
+	}
+	if err := json.Unmarshal([]byte(*right), &rightFilter); err != nil {
+		return fmt.Errorf("decode right filter: %w", err)
+	}
+	payload, err := json.Marshal(map[string]any{"left": leftFilter, "right": rightFilter})
+	if err != nil {
+		return err
+	}
+	body, err := a.services.Runs.CompareEpisodeCohorts(payload, *limit)
+	if err != nil {
+		return err
+	}
+	if *jsonOutput {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+	fmt.Println(string(body))
+	return nil
+}
+
+func (a *App) runEpisodeTrend(args []string) error {
+	fs := flag.NewFlagSet("measures episode-trend", flag.ContinueOnError)
+	from := fs.String("from", "", "RFC3339 inclusive time")
+	to := fs.String("to", "", "RFC3339 exclusive time")
+	bucket := fs.String("bucket", "24h", "positive Go duration bucket")
+	limit := fs.Int("limit", 100, "maximum buckets")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	values := url.Values{"bucket": []string{*bucket}, "limit": []string{strconv.Itoa(*limit)}}
+	if *from != "" {
+		values.Set("from", *from)
+	}
+	if *to != "" {
+		values.Set("to", *to)
+	}
+	body, err := a.services.Runs.EpisodeTrend(values)
+	if err != nil {
+		return err
+	}
+	if *jsonOutput {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+	fmt.Println(string(body))
+	return nil
+}
+
+func (a *App) runPublishRecurringFriction(args []string) error {
+	fs := flag.NewFlagSet("run publish-recurring-friction", flag.ContinueOnError)
+	cap := fs.Int("cap", 25, "daily filing cap")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	body, err := a.services.Runs.PublishRecurringFriction(url.Values{"cap": []string{strconv.Itoa(*cap)}})
+	if err != nil {
+		return err
+	}
+	if *jsonOutput {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+	fmt.Println(string(body))
 	return nil
 }

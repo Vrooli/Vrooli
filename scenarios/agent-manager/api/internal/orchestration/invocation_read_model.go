@@ -17,13 +17,15 @@ import (
 	"github.com/google/uuid"
 )
 
+const invocationEvidenceLimit = 1_000_000
+
 func (o *Orchestrator) EpisodeCohort(ctx context.Context, filter invocationreadmodel.Filter, limit int) (runreport.EpisodeCohort, error) {
 	if o.invocationReadModel == nil {
 		return runreport.EpisodeCohort{}, fmt.Errorf("invocation read model is not configured")
 	}
 	selected := map[string][]runsignal.FrictionEpisode{}
 	if projection, ok := o.invocationReadModel.(invocationreadmodel.ProjectionStore); ok {
-		episodes, err := projection.Episodes(ctx, filter, 10000)
+		episodes, err := projection.Episodes(ctx, filter, invocationEvidenceLimit)
 		if err != nil {
 			return runreport.EpisodeCohort{}, err
 		}
@@ -53,6 +55,64 @@ func (o *Orchestrator) EpisodeCohort(ctx context.Context, filter invocationreadm
 		}
 	}
 	return runreport.BuildEpisodeCohort(selected), nil
+}
+
+func (o *Orchestrator) CompareEpisodeCohorts(ctx context.Context, left, right invocationreadmodel.Filter, limit int) (runreport.CohortComparison, error) {
+	projection, ok := o.invocationReadModel.(invocationreadmodel.ProjectionStore)
+	if !ok {
+		return runreport.CohortComparison{}, fmt.Errorf("episode comparison requires a projection store")
+	}
+	leftCohort, err := o.invocationReadModel.Cohort(ctx, left, invocationEvidenceLimit)
+	if err != nil {
+		return runreport.CohortComparison{}, err
+	}
+	rightCohort, err := o.invocationReadModel.Cohort(ctx, right, invocationEvidenceLimit)
+	if err != nil {
+		return runreport.CohortComparison{}, err
+	}
+	leftEpisodes, err := projection.Episodes(ctx, left, invocationEvidenceLimit)
+	if err != nil {
+		return runreport.CohortComparison{}, err
+	}
+	rightEpisodes, err := projection.Episodes(ctx, right, invocationEvidenceLimit)
+	if err != nil {
+		return runreport.CohortComparison{}, err
+	}
+	leftFacts := make([]runsignal.FrictionEpisode, 0, len(leftEpisodes))
+	for _, episode := range leftEpisodes {
+		fact := episode.FrictionEpisode
+		fact.RunID = episode.RunID
+		leftFacts = append(leftFacts, fact)
+	}
+	rightFacts := make([]runsignal.FrictionEpisode, 0, len(rightEpisodes))
+	for _, episode := range rightEpisodes {
+		fact := episode.FrictionEpisode
+		fact.RunID = episode.RunID
+		rightFacts = append(rightFacts, fact)
+	}
+	return runreport.BuildCohortComparison(leftFacts, rightFacts, leftCohort.MatchedRuns, rightCohort.MatchedRuns, limit), nil
+}
+
+func (o *Orchestrator) EpisodeTrend(ctx context.Context, filter invocationreadmodel.Filter, bucket time.Duration, limit int) ([]runreport.EpisodeTrendBucket, error) {
+	projection, ok := o.invocationReadModel.(invocationreadmodel.ProjectionStore)
+	if !ok {
+		return nil, fmt.Errorf("episode trend requires a projection store")
+	}
+	episodes, err := projection.Episodes(ctx, filter, invocationEvidenceLimit)
+	if err != nil {
+		return nil, err
+	}
+	timed := make([]runreport.TimedEpisode, 0, len(episodes))
+	for _, episode := range episodes {
+		fact := episode.FrictionEpisode
+		fact.RunID = episode.RunID
+		timed = append(timed, runreport.TimedEpisode{Episode: fact, OccurredAt: episode.OccurredAt})
+	}
+	result := runreport.BuildEpisodeTrend(timed, bucket)
+	if limit > 0 && len(result) > limit {
+		result = result[len(result)-limit:]
+	}
+	return result, nil
 }
 
 type ReplayResult struct {
@@ -260,11 +320,33 @@ func (o *Orchestrator) projectInvocationReadModel(ctx context.Context, run *doma
 		return fmt.Errorf("load run events: %w", err)
 	}
 	projectedAt := o.now()
-	facts, watermark := invocationreadmodel.Project(run, events, projectedAt)
+	capabilityResolver := o.capabilityResolver(run)
+	facts, watermark := invocationreadmodel.Project(run, events, projectedAt, capabilityResolver)
 	if projection, ok := o.invocationReadModel.(invocationreadmodel.ProjectionStore); ok {
-		return projection.ReplaceProjection(ctx, facts, invocationreadmodel.ProjectErrors(run, events, projectedAt), invocationreadmodel.ProjectEpisodes(run, facts, events, projectedAt), invocationreadmodel.ProjectSelfReportSpans(run, events, projectedAt), watermark, invocationreadmodel.ProjectRun(run, events, projectedAt))
+		return projection.ReplaceProjection(ctx, facts, invocationreadmodel.ProjectErrors(run, events, projectedAt), invocationreadmodel.ProjectEpisodes(run, facts, events, projectedAt), invocationreadmodel.ProjectSelfReportSpans(run, events, projectedAt), watermark, invocationreadmodel.ProjectRun(run, events, projectedAt, capabilityResolver))
 	}
 	return o.invocationReadModel.Replace(ctx, facts, watermark)
+}
+
+func (o *Orchestrator) capabilityResolver(run *domain.Run) runsignal.CapabilityResolver {
+	if o == nil || o.runners == nil || run == nil || run.ResolvedConfig == nil {
+		return nil
+	}
+	owned, err := o.runners.Get(run.ResolvedConfig.RunnerType)
+	if err != nil {
+		return nil
+	}
+	provider, ok := owned.(interface{ ToolCapabilityMap() map[string]string })
+	if !ok {
+		return nil
+	}
+	declared := provider.ToolCapabilityMap()
+	return func(tool string) string {
+		if value := declared[tool]; value != "" {
+			return value
+		}
+		return "other"
+	}
 }
 
 func (o *Orchestrator) projectTerminalInvocationReadModel(run *domain.Run) {
