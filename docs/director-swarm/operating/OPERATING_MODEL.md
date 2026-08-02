@@ -59,116 +59,130 @@ actor_alias.vision walk: external:vision-walk
 -->
 ```mermaid
 flowchart LR
-  subgraph INFLOWS["Inflows / Producers"]
-    %% @node OP external:operator
-    OP([Operator])
-    %% @node VW external:vision-walk
-    VW([Vision Walk])
-  end
-
-  %% Members
-  %% @node PM member:portfolio-manager
-  PM[Portfolio Manager]
-  %% @node OS member:outcome-strategist
-  OS[Outcome Strategist]
-  %% @node VWP member:vision-walk-prep
-  VWP[Vision Walk Prep]
-
-  %% Topics
   %% @node APP topic:decision-application/<decision-id>
   APP[(decision-application/<decision-id>)]
-  %% @node PORT topic:goal-portfolio-record/YYYY-MM-DD
-  PORT[(goal-portfolio-record/YYYY-MM-DD)]
-  %% @node OUT topic:outcome-target-record/YYYY-MM-DD
-  OUT[(outcome-target-record/YYYY-MM-DD)]
-  %% @node WALK topic:vision-walk-record/<date>/<slug>
-  WALK[(vision-walk-record/<date>/<slug>)]
-  %% @node RI topic:research-inbox/*
-  RI[(research-inbox/*)]
-  %% @node OI topic:opportunity-inbox/*
-  OI[(opportunity-inbox/*)]
-  %% @node VI topic:validation-inbox/*
-  VI[(validation-inbox/*)]
-
-  %% Peer teams
-  %% @node MKT team:marketing-crew
-  MKT[[Marketing Crew]]
-  %% @node MON team:monetization
-  MON[[Monetization]]
-
-  %% Decisions
+  %% @node APPROVAL process:operator-approval
+  APPROVAL([Operator approval])
+  %% @node CANON process:operator-curated-canon
+  CANON([Operator-curated canon])
+  %% @node CG decision:capability-gap
+  CG{capability-gap}
   %% @node GP decision:goal-portfolio
   GP{goal-portfolio}
-  %% @node GS decision:goal-supplement
-  GS{goal-supplement}
   %% @node GPR decision:goal-proposal
   GPR{goal-proposal}
   %% @node GR decision:goal-readiness
   GR{goal-readiness}
-  %% @node CG decision:capability-gap
-  CG{capability-gap}
-  %% @node OG decision:outcome-gap
-  OG{outcome-gap}
+  %% @node GS decision:goal-supplement
+  GS{goal-supplement}
+  %% @node MKT team:marketing-crew
+  MKT[[Marketing Crew]]
+  %% @node MON team:monetization
+  MON[[Monetization]]
   %% @node OD decision:outcome-direction
   OD{outcome-direction}
+  %% @node OG decision:outcome-gap
+  OG{outcome-gap}
+  %% @node OI topic:opportunity-inbox/*
+  OI[(opportunity-inbox/*)]
+  %% @node OP external:operator
+  OP([Operator])
+  %% @node OS member:outcome-strategist
+  OS[Outcome Strategist]
+  %% @node OUT topic:outcome-target-record/YYYY-MM-DD
+  OUT[(outcome-target-record/YYYY-MM-DD)]
+  %% @node PM member:portfolio-manager
+  PM[Portfolio Manager]
+  %% @node PORT topic:goal-portfolio-record/YYYY-MM-DD
+  PORT[(goal-portfolio-record/YYYY-MM-DD)]
+  %% @node RI topic:research-inbox/*
+  RI[(research-inbox/*)]
+  %% @node SMWORK external:swarm-manager-work
+  SMWORK([Swarm Manager work])
+  %% @node VI topic:validation-inbox/*
+  VI[(validation-inbox/*)]
   %% @node VU decision:vision-update
   VU{vision-update}
+  %% @node VW external:vision-walk
+  VW([Vision Walk])
+  %% @node VWP member:vision-walk-prep
+  VWP[Vision Walk Prep]
+  %% @node WALK topic:vision-walk-record/<date>/<slug>
+  WALK[(vision-walk-record/<date>/<slug>)]
+  %% @node DOCSDIRECTOR por:docs/director-swarm/README.md
+  DOCSDIRECTOR[/docs/director-swarm/README.md/]
+  %% @node DOCSDIRECTOR2 por:docs/director-swarm/evidence/OUTCOMES_CHARTER.md
+  DOCSDIRECTOR2[/docs/director-swarm/evidence/OUTCOMES_CHARTER.md/]
+  %% @node DOCSDIRECTOR3 por:docs/director-swarm/evidence/README.md
+  DOCSDIRECTOR3[/docs/director-swarm/evidence/README.md/]
+  %% @node DOCSDIRECTOR4 por:docs/director-swarm/governance/adoption-validation.md
+  DOCSDIRECTOR4[/docs/director-swarm/governance/adoption-validation.md/]
+  %% @node DOCSDIRECTOR5 por:docs/director-swarm/governance/changelog.md
+  DOCSDIRECTOR5[/docs/director-swarm/governance/changelog.md/]
+  %% @node DOCSDIRECTOR6 por:docs/director-swarm/governance/editing.md
+  DOCSDIRECTOR6[/docs/director-swarm/governance/editing.md/]
+  %% @node DOCSDIRECTOR7 por:docs/director-swarm/operating/OPERATING_MODEL.md
+  DOCSDIRECTOR7[/docs/director-swarm/operating/OPERATING_MODEL.md/]
+  %% @node DOCSDIRECTOR8 por:docs/director-swarm/operating/README.md
+  DOCSDIRECTOR8[/docs/director-swarm/operating/README.md/]
+  %% @node DOCSDIRECTOR9 por:docs/director-swarm/strategy/OBJECTIVES.md
+  DOCSDIRECTOR9[/docs/director-swarm/strategy/OBJECTIVES.md/]
+  %% @node DOCSDIRECTOR10 por:docs/director-swarm/strategy/PORTFOLIO_PHILOSOPHY.md
+  DOCSDIRECTOR10[/docs/director-swarm/strategy/PORTFOLIO_PHILOSOPHY.md/]
+  %% @node DOCSDIRECTOR11 por:docs/director-swarm/strategy/README.md
+  DOCSDIRECTOR11[/docs/director-swarm/strategy/README.md/]
+  %% @node DOCSDIRECTOR12 por:docs/director-swarm/strategy/ROADMAP.md
+  DOCSDIRECTOR12[/docs/director-swarm/strategy/ROADMAP.md/]
+  %% @node DECISIONAPPL topic:decision-application/*
+  DECISIONAPPL[(decision-application/*)]
+  %% @node GOALPORTFOLI topic:goal-portfolio-record/*
+  GOALPORTFOLI[(goal-portfolio-record/*)]
+  %% @node OUTCOMETARGE topic:outcome-target-record/*
+  OUTCOMETARGE[(outcome-target-record/*)]
+  %% @node VISIONWALKRE topic:vision-walk-record/*
+  VISIONWALKRE[(vision-walk-record/*)]
 
-  subgraph OUTFLOWS["Downstream outflows"]
-    %% @node APPROVAL process:operator-approval
-    APPROVAL([Operator approval])
-    %% @node CANON process:operator-curated-canon
-    CANON([Operator-curated canon])
-    %% @node SMWORK external:swarm-manager-work
-    SMWORK([Swarm Manager work])
-  end
-
-  OP --> PM
-  OP --> OS
-  OP --> VWP
-  VW --> PM
-  VW --> OS
-
-  APP --> PM
-  PORT --> PM
-  PM --> PORT
-  PM --> APP
-  PM --> GP
-  PM --> GS
-  PM --> GPR
-  PM --> GR
-  PM --> CG
   CG --> PM
-  VU --> PM
-  OD --> PM
-
-  APP --> OS
-  OUT --> OS
-  OS --> OUT
-  OS --> OG
-  OS --> OD
-
-  WALK --> VWP
-  VWP --> WALK
-  VWP --> VU
-
-  VWP --> RI
-  VWP --> OI
-  VWP --> VI
-  RI --> MKT
-  OI --> MON
-  VI --> MON
-
+  CG --> APPROVAL
   GP --> APPROVAL
-  GS --> APPROVAL
   GPR --> APPROVAL
   GR --> APPROVAL
-  CG --> APPROVAL
-  OG --> APPROVAL
+  GS --> APPROVAL
+  OD --> PM
   OD --> APPROVAL
+  OG --> APPROVAL
+  VU --> PM
   VU --> APPROVAL
-  APPROVAL --> CANON
+  OP --> OS
+  OP --> PM
+  OP --> VWP
+  VW --> OS
+  VW --> PM
+  OS --> OD
+  OS --> OG
+  OS --> OUTCOMETARGE
+  PM --> CG
+  PM --> GP
+  PM --> GPR
+  PM --> GR
+  PM --> GS
+  PM --> DECISIONAPPL
+  PM --> GOALPORTFOLI
+  VWP --> VU
+  VWP --> OI
+  VWP --> RI
+  VWP --> VI
+  VWP --> VISIONWALKRE
   APPROVAL --> SMWORK
+  APPROVAL --> CANON
+  APP --> OS
+  APP --> PM
+  PORT --> PM
+  OI --> MON
+  OUT --> OS
+  RI --> MKT
+  VI --> MON
+  WALK --> VWP
 ```
 
 Swarm Manager goal state and Command Center metrics are tool-read surfaces, not knowledge producers: members inspect them directly (`swarm-manager goals context`, Command Center `/api/v1/gaps`) and never copy live status into the PoR.
@@ -177,13 +191,17 @@ Swarm Manager goal state and Command Center metrics are tool-read surfaces, not 
 
 | Topic family | Status | Owner / primary writer | Primary readers | Purpose |
 |---|---|---|---|---|
-| `topic:decision-application/<decision-id>` | live | portfolio-manager | portfolio-manager, outcome-strategist | Record exact accepted-decision application work and avoid duplicate application. |
-| `topic:goal-portfolio-record/YYYY-MM-DD` | live | portfolio-manager | portfolio-manager | Snapshot portfolio interpretation against the ranking criteria. |
-| `topic:outcome-target-record/YYYY-MM-DD` | live | outcome-strategist | outcome-strategist | Snapshot outcome target, gap, or prediction-score interpretation when Command Center evidence exists. |
-| `topic:vision-walk-record/<date>/<slug>` | live | vision-walk-prep | vision-walk-prep | Read-only morning vision-walk briefing material. |
-| `topic:research-inbox/*` | live | vision-walk-prep | team:marketing-crew | Route vision-walk research signal into the marketing research queue for that team's drainer to classify. |
-| `topic:opportunity-inbox/*` | live | vision-walk-prep | team:monetization | Route vision-walk revenue-opportunity signal into the monetization opportunity queue for that team's drainer to classify. |
-| `topic:validation-inbox/*` | live | vision-walk-prep | team:monetization | Route vision-walk demand-validation signal into the monetization validation queue for that team's drainer to classify. |
+| `topic:decision-application/*` | live | member:portfolio-manager | member:outcome-strategist, member:portfolio-manager | Record exact accepted-decision application work and avoid duplicate application. |
+| `topic:decision-application/<decision-id>` | live | member:portfolio-manager | member:outcome-strategist, member:portfolio-manager | Record exact accepted-decision application work and avoid duplicate application. |
+| `topic:goal-portfolio-record/*` | live | member:portfolio-manager | member:portfolio-manager | Snapshot portfolio interpretation against the ranking criteria. |
+| `topic:goal-portfolio-record/YYYY-MM-DD` | live | member:portfolio-manager | member:portfolio-manager | Snapshot portfolio interpretation against the ranking criteria. |
+| `topic:opportunity-inbox/*` | live | member:vision-walk-prep |  | Route vision-walk revenue-opportunity signal into the monetization opportunity queue for that team's drainer to classify. |
+| `topic:outcome-target-record/*` | live | member:outcome-strategist | member:outcome-strategist | Snapshot outcome target, gap, or prediction-score interpretation when Command Center evidence exists. |
+| `topic:outcome-target-record/YYYY-MM-DD` | live | member:outcome-strategist | member:outcome-strategist | Snapshot outcome target, gap, or prediction-score interpretation when Command Center evidence exists. |
+| `topic:research-inbox/*` | live | member:vision-walk-prep |  | Route vision-walk research signal into the marketing research queue for that team's drainer to classify. |
+| `topic:validation-inbox/*` | live | member:vision-walk-prep |  | Route vision-walk demand-validation signal into the monetization validation queue for that team's drainer to classify. |
+| `topic:vision-walk-record/*` | live | member:vision-walk-prep | member:vision-walk-prep | Read-only morning vision-walk briefing material. |
+| `topic:vision-walk-record/<date>/<slug>` | live | member:vision-walk-prep | member:vision-walk-prep | Read-only morning vision-walk briefing material. |
 
 ## Decisions
 

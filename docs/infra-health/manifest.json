@@ -1,5 +1,4 @@
 {
-  "$schema": "../agent-system/team-plan-of-record.schema.json",
   "version": "1.0.0",
   "title": "Infra Health Plan of Record",
   "description": "Plan-of-record manifest for the infra-health team canon",
@@ -19,7 +18,14 @@
           "docType": "por-readme",
           "required": true,
           "validation": {
-            "requiredHeadings": ["Start here for agents", "Folder map", "Organizing principle", "Editing rules", "Cross-references", "Future PoR work"]
+            "requiredHeadings": [
+              "Start here for agents",
+              "Folder map",
+              "Organizing principle",
+              "Editing rules",
+              "Cross-references",
+              "Future PoR work"
+            ]
           }
         }
       ]
@@ -33,7 +39,10 @@
           "docType": "operating-hub",
           "required": true,
           "validation": {
-            "requiredHeadings": ["Operating Documents", "Validation"]
+            "requiredHeadings": [
+              "Operating Documents",
+              "Validation"
+            ]
           }
         },
         {
@@ -52,7 +61,10 @@
           "docType": "strategy-hub",
           "required": true,
           "validation": {
-            "requiredHeadings": ["Strategy Documents", "Extension Rules"]
+            "requiredHeadings": [
+              "Strategy Documents",
+              "Extension Rules"
+            ]
           }
         },
         {
@@ -92,7 +104,11 @@
           "docType": "editing-rules",
           "required": true,
           "validation": {
-            "requiredHeadings": ["Authority", "Change Flow", "Direct Edits"]
+            "requiredHeadings": [
+              "Authority",
+              "Change Flow",
+              "Direct Edits"
+            ]
           }
         },
         {
@@ -100,7 +116,11 @@
           "docType": "validation-runbook",
           "required": true,
           "validation": {
-            "requiredHeadings": ["Validation Commands", "Expected Clean State", "Enforcement Scope"]
+            "requiredHeadings": [
+              "Validation Commands",
+              "Expected Clean State",
+              "Enforcement Scope"
+            ]
           }
         },
         {
@@ -108,7 +128,9 @@
           "docType": "por-changelog",
           "required": true,
           "validation": {
-            "requiredHeadings": ["Changelog"]
+            "requiredHeadings": [
+              "Changelog"
+            ]
           }
         }
       ]

@@ -68,6 +68,20 @@ A decision in `proposed` is written for a reviewer who was not inside the analys
 
 A decision that fails this contract is challengeable on legibility alone: an illegible decision cannot be meaningfully accepted, so it is not yet a decision.
 
+### Durability (where each sentence goes)
+
+Legibility governs whether a reviewer can read the decision today. Durability governs whether it still says something true when it is read again — and decisions outlive backlog items, so they rot harder. Sort every sentence by how fast it decays, using the three content classes in `swarm-manager-work-authoring` §"The three content classes". The classes are defined there and are not restated here; what follows is only where they land in a decision.
+
+| Class | Lands in |
+|---|---|
+| Outcome — what becomes true if this is accepted, and what happens if it is rejected | the decision body |
+| Evidence and provenance — what was observed, when, where, and by which run | the evidence block, `finding_ref`, or a knowledge entry the decision cites |
+| Prescribed solution — the commands or edits predicted to work | usually nowhere |
+
+The prescribed-solution class carries the risk that matters here. A frozen route in an accepted decision does not merely go stale, it **forecloses**: it outranks fresh evidence for no reason other than having been written down, and unlike a backlog item a decision is cited as authority afterwards. Name the outcome and let the executing agent find the route. Prescribe a route only when the route *is* what is being approved — an operator-mandated approach, a compatibility constraint, a safety boundary — and then say why it is mandatory.
+
+This does not change §"Operator legibility" rule 3. Rationale, tradeoffs, risk, and confidence stay in normal explanatory prose; the classes govern placement, not register.
+
 ### Contrarian review sidecar
 
 Team-local contrarian review runs while a decision is pending. It does not add new decision states; it attaches a sidecar lifecycle through `challenge-report/<decision-id>` and `challenge-resolution-record/<decision-id>` knowledge topics. The decision remains pending until the operator or approving team accepts, rejects, defers, or supersedes it.

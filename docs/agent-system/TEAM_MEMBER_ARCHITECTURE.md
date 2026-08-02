@@ -194,6 +194,7 @@ Recurring smells that the audit skill flags. The fix column is a default; specif
 | Proactive-only scan | Agent searches broadly but ignores operator-fed discoveries | Add inbox/intake from vision walk or team handoff |
 | Promotion fog | No rule for observation vs synthesis vs decision vs backlog | Add `topics.json` declarations + promotion/routing matrix |
 | Dead-end gap | Member observes missing capability but cannot route it | Add `raises_capability_gaps: true` and an owning optimizer path |
+| State-in-prose | Team docs copy answers a scenario can serve at read time, or hold incubating data with no named promotion target (`path:docs/agent-system/OPERATING_GRAPHS.md` §"State belongs to scenarios; prose holds judgment") | Replace copies with typed references or the exact query command; add incubation markers; route existing-scenario promotions to the owning team and missing-scenario data to `capability-gap` |
 
 ---
 

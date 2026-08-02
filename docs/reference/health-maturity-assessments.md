@@ -141,7 +141,7 @@ Adopted provider phases use Connect-RPC `ScenarioValidationService.ValidateScena
 | `measures` | `measures-health` | Connect-RPC `ScenarioValidationService` | `ScenarioCoverageReport` | `FINDING_SOURCE_MEASURES` |
 | `proto` | `proto-health` | Connect-RPC `ScenarioValidationService` | none | `FINDING_SOURCE_PROTO` |
 | `unit` | `unit-health` | Connect-RPC `ScenarioValidationService` | unit-health validation response | dimension-routed, including `FINDING_SOURCE_COVERAGE` |
-| `storage` | `storage-health` | Connect-RPC `ScenarioValidationService` | none | `FINDING_SOURCE_STORAGE` |
+| `storage` | `storage-manager` | Connect-RPC `ScenarioValidationService` | none | `FINDING_SOURCE_STORAGE` |
 | `branding` | `brand-manager` | Connect-RPC `ScenarioValidationService` | none | `FINDING_SOURCE_BRANDING` |
 | `search` | `search-hub` | Connect-RPC `ScenarioValidationService` | none | descriptor-defined search maturity findings |
 | `provider-conformance` | `test-genie` | Connect-RPC `ScenarioValidationService` | none | descriptor-defined provider-conformance findings |

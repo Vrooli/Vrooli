@@ -424,69 +424,35 @@ Prefer graph labels for one-to-one actor references in readable tables. Use expl
 
 Current rules:
 
-| Rule | Severity | Meaning |
-|---|---|---|
-| `graph_unknown_member` | error | `member:` node not in the team contract. |
-| `graph_unknown_decision` | error | `decision:` node not in this graph team's decision contexts. |
-| `graph_unknown_team` | warning | `team:` node not found in the team registry. |
-| `graph_unknown_por` | error | `por:` filesystem path does not exist. This is not yet a separate PoR authority-registry check. |
-| `graph_untyped_node` | error | Contract node lacks a typed machine label. |
-| `graph_topic_unresolved` | error | Live `topic:` node has no matching runtime topic relationship. |
-| `graph_future_topic_live_edge` | warning | Future topic appears on an active direct edge. |
-| `graph_unsupported_edge_semantics` | error | Direct edge between actionable typed nodes does not map to a supported operating relationship. |
-| `graph_edge_unbacked` | error | Direct edge implies a runtime relationship absent from config. |
-| `graph_declared_member_missing` | error | Active team-contract member is missing from a contract graph. |
-| `graph_declared_intake_missing` | error | Live intake in `topics.json` is missing from a contract graph. |
-| `graph_declared_required_read_missing` | error | Live required read in `topics.json` is missing from a contract graph. |
-| `graph_declared_evidence_missing` | error | Live evidence source in `topics.json` is missing from a contract graph. |
-| `graph_declared_output_missing` | warning | Live output in `topics.json` is missing from a contract graph. |
-| `graph_declared_decision_owned_missing` | error | Live decision ownership in `topics.json` is missing from a contract graph. |
-| `graph_declared_decision_consumed_missing` | error | Live decision consumption in `topics.json` is missing from a contract graph. |
-| `graph_declared_capability_gap_missing` | warning | Member capability-gap routing is missing from a contract graph. |
-| `graph_declared_external_producer_missing` | warning | Member external producer declaration is missing from a contract graph. |
-| `graph_declared_cross_team_output_missing` | error | Cross-team output destination is missing from a contract graph. |
-| `graph_declared_universal_source_write_missing` | error | A peer team's declared universal-source write is missing from a contract graph. |
-| `graph_topic_catalog_missing` | error | Contract graph source does not include a scoped `## Topic Catalog` table. |
-| `graph_topic_catalog_invalid_topic` | error | Topic Catalog row does not use a parseable `topic:` token. |
-| `graph_topic_catalog_drift` | error | Topic Catalog rows and graph topic nodes differ. |
-| `graph_topic_catalog_unknown_status` | error | Topic Catalog row uses a status outside the canonical status set. |
-| `graph_topic_catalog_status_qualifier_drift` | error | Topic Catalog status and topic qualifier disagree, such as `live` with `topic[future]:`. |
-| `graph_topic_catalog_live_status_unbacked` | error | Topic Catalog row is marked current/live but has no matching live graph topic node. |
-| `graph_topic_catalog_transitional_without_target` | warning | `live transitional` row does not reference a future replacement topic. |
-| `graph_topic_catalog_purpose_drift` | error | Topic Catalog purpose is missing from or differs from `team.json::topicCatalog`. |
-| `graph_docs_unknown_actor` | error | Topic Catalog or Decisions table actor reference is not recognized. |
-| `graph_topic_catalog_writer_drift` | error | Topic Catalog writer claim is not backed by the corresponding graph/runtime relationship. |
-| `graph_topic_catalog_reader_drift` | error, warning for `live but under-consumed` reader gaps | Topic Catalog reader claim is not backed by the corresponding graph/runtime relationship. |
-| `graph_topic_catalog_actor_unsupported` | warning | Topic Catalog actor is recognized but not enforceable by the current graph/runtime relationship model. |
-| `graph_decisions_table_missing` | error | Contract graph source does not include a scoped `## Decisions` table. |
-| `graph_decisions_table_drift` | error | Decisions table rows and graph decision nodes differ. |
-| `graph_decisions_table_owner_drift` | error | Decisions table member owner is not shown as a graph decision owner. |
-| `operating_model_required_section_missing` | error | Canonical contract operating model is missing one of the required `##` sections. |
-| `operating_model_duplicate_section` | error | A required operating-model section appears more than once. |
-| `operating_model_decisions_header_drift` | error | Decisions table headers differ from the canonical five-column shape. |
-| `operating_model_decisions_empty` | error | Decisions table contains no decision rows. |
-| `operating_model_decisions_row_incomplete` | error | Decisions row is missing decision context, owner, purpose, expected evidence/trigger, or accepted effect. |
-| `operating_model_decisions_effect_weak` | error | Decision accepted effect does not name a concrete downstream surface. |
-| `operating_model_external_inputs_table_missing` | error | External Inputs / Triggers section does not contain a Markdown table. |
-| `operating_model_external_inputs_header_drift` | error | External Inputs / Triggers table headers differ from the canonical four-column shape. |
-| `operating_model_external_inputs_empty` | error | External Inputs / Triggers table contains no rows. |
-| `operating_model_external_inputs_row_incomplete` | error | External Inputs / Triggers row has an empty producer/trigger, entry surface, drainer, or routing rule cell. |
-| `operating_model_outputs_table_missing` | error | Outputs / Downstream Consumers section does not contain a Markdown table. |
-| `operating_model_outputs_header_drift` | error | Outputs / Downstream Consumers table headers differ from the canonical four-column shape. |
-| `operating_model_outputs_empty` | error | Outputs / Downstream Consumers table contains no rows. |
-| `operating_model_outputs_row_incomplete` | error | Outputs / Downstream Consumers row has an empty output, surface, consumer, or purpose cell. |
-| `operating_model_feedback_steps_missing` | error | Feedback / Capability Improvement Loop section has no ordered steps. |
-| `operating_model_feedback_step_unanchored` | error | Feedback step does not name a backed operating-model surface. |
-| `operating_model_feedback_reference_unbacked` | error | Feedback step names an inline-code reference not represented by the operating model. |
-| `operating_model_gaps_items_missing` | error | Current Implementation Gaps section has no explicit list items. |
-| `operating_model_gap_item_unanchored` | error | Current Implementation Gaps item does not name a concrete inline-code surface. |
-| `operating_model_gap_item_target_state_missing` | error | Current Implementation Gaps item does not state a target-state disposition. |
-| `operating_model_adoption_command_missing` | error | Adoption / Validation is missing a required validate, diff, or coverage command for the model's team/id. |
-| `operating_model_plan_of_record_missing` | error | `team.json::operatingContract.documents.planOfRecord` does not register the operating-model path. |
-| `operating_model_readme_link_missing` | error | The team README does not link to the operating-model document. |
-| `graph_prompt_topic_contract_missing` | error | Contract graph member does not receive a generated `topic-contract` prompt section. |
-| `graph_prompt_topic_contract_source_mismatch` | error | Generated `topic-contract` prompt section does not point at that member's `topics.json`. |
-| `graph_prompt_topic_contract_content_mismatch` | error | Actual generated `topic-contract` prompt content differs from the renderer output for that member's `topics.json`. |
+<!-- BEGIN GENERATED: rule-catalog graph -->
+_Generated from the validation rule catalog by `prompt-manager graph rules`. Do not edit inside the markers; edit the catalog in `scenarios/prompt-manager/api/memberflow` and regenerate._
+
+| Rule | Group | Default severity | Kind | Description | Actuator |
+|---|---|---|---|---|---|
+| `graph_decisions_table_drift` | `docs` | `error` | `declaration` | The Decisions table disagrees with the graph. | Correct the declared graph or the supporting runtime contract |
+| `graph_decisions_table_missing` | `docs` | `error` | `declaration` | The graph document omits its Decisions table. | Correct the declared graph or the supporting runtime contract |
+| `graph_decisions_table_owner_drift` | `docs` | `error` | `declaration` | A Decisions table owner disagrees with the graph. | Correct the declared graph or the supporting runtime contract |
+| `graph_future_topic_live_edge` | `edge_truth` | `warning` | `declaration` | A live edge targets a future topic. | Correct the declared graph or the supporting runtime contract |
+| `graph_node_shape_convention_drift` | `entity` | `warning` | `declaration` | A graph node shape conflicts with its declared type. | Correct the declared graph or the supporting runtime contract |
+| `graph_prompt_topic_contract_content_mismatch` | `prompt` | `error` | `declaration` | A prompt topic-contract content differs from the declaration render. | Correct the declared graph or the supporting runtime contract |
+| `graph_prompt_topic_contract_missing` | `prompt` | `error` | `declaration` | A member lacks its generated topic-contract prompt section. | Correct the declared graph or the supporting runtime contract |
+| `graph_prompt_topic_contract_source_mismatch` | `prompt` | `error` | `declaration` | A prompt topic-contract source disagrees with the declaration. | Correct the declared graph or the supporting runtime contract |
+| `graph_topic_catalog_drift` | `docs` | `error` | `declaration` | The topic catalog disagrees with the graph. | Correct the declared graph or the supporting runtime contract |
+| `graph_topic_catalog_invalid_topic` | `docs` | `error` | `declaration` | The topic catalog contains an invalid topic token. | Correct the declared graph or the supporting runtime contract |
+| `graph_topic_catalog_live_status_unbacked` | `docs` | `error` | `declaration` | A live topic status has no graph evidence. | Correct the declared graph or the supporting runtime contract |
+| `graph_topic_catalog_missing` | `docs` | `error` | `declaration` | The graph document omits its topic catalog. | Correct the declared graph or the supporting runtime contract |
+| `graph_topic_catalog_purpose_drift` | `docs` | `error` | `declaration` | A topic catalog purpose disagrees with its graph role. | Correct the declared graph or the supporting runtime contract |
+| `graph_topic_catalog_status_qualifier_drift` | `docs` | `error` | `declaration` | A topic status conflicts with its qualifier. | Correct the declared graph or the supporting runtime contract |
+| `graph_topic_catalog_transitional_without_target` | `docs` | `warning` | `declaration` | A transitional topic has no target state. | Correct the declared graph or the supporting runtime contract |
+| `graph_topic_catalog_unknown_status` | `docs` | `error` | `declaration` | The topic catalog uses an unknown status. | Correct the declared graph or the supporting runtime contract |
+| `graph_unknown_decision` | `entity` | `error` | `declaration` | A graph references an unknown decision. | Correct the declared graph or the supporting runtime contract |
+| `graph_unknown_member` | `entity` | `error` | `declaration` | A graph references an unknown member. | Correct the declared graph or the supporting runtime contract |
+| `graph_unknown_node_kind` | `entity` | `error` | `declaration` | A graph node uses an unknown type. | Correct the declared graph or the supporting runtime contract |
+| `graph_unknown_por` | `entity` | `error` | `declaration` | A graph references an unknown plan-of-record surface. | Correct the declared graph or the supporting runtime contract |
+| `graph_unknown_team` | `entity` | `warning` | `declaration` | A graph references an unknown team. | Correct the declared graph or the supporting runtime contract |
+| `graph_unsupported_edge_semantics` | `edge_truth` | `error` | `declaration` | A graph edge has unsupported semantics. | Correct the declared graph or the supporting runtime contract |
+| `graph_untyped_node` | `entity` | `error` | `declaration` | A graph node has no recognized type. | Correct the declared graph or the supporting runtime contract |
+<!-- END GENERATED: rule-catalog graph -->
 
 The completeness rules use the same normalized relationship matcher as diff. A broad Mermaid `topic -> member` read can satisfy runtime `intake[]`, `required_read[]`, or `evidence_consumed[]`; a `decision -> member` edge can satisfy decision consumption visibility.
 

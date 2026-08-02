@@ -280,12 +280,65 @@ grant start, stop, configuration, initialization, or unseal authority.
 `managed-shared` means a verified Vrooli-owned **user resource host**, not a
 network-shared endpoint. It owns bootstrap, recovery, upgrades, and the
 credential-free broker state once per user. Its secure management material is
-stored only through a platform credential-store adapter. The host must fail
-before Vault initialization when that adapter is unavailable; a mode-0600
-state file is not an acceptable fallback. `managed-discovered` is reserved for
-a verified executable candidate. It never adopts a running process or external
+stored only through a credential-store adapter — a native platform store, or
+the encrypted file store on a host that has none. The host must fail before
+Vault initialization when no adapter can store a value. A mode-0600 plaintext
+state file is not an acceptable fallback, because its protection is the file
+mode alone. `managed-discovered` is reserved for a verified executable
+candidate. It never adopts a running process or external
 endpoint; after checksum/version or trusted-distribution verification, Vrooli
 may supervise that executable with Vrooli-owned state and configuration.
+
+### Credential-store adapters
+
+Every supported platform has a native credential-store adapter, and every
+adapter passes one shared conformance suite in
+`internal/resources/securestore`:
+
+| Platform | Adapter | Value path |
+|---|---|---|
+| Linux | libsecret (`secret-tool`) via the Secret Service | value on stdin |
+| macOS | Security framework (`SecItemAdd`/`SecItemCopyMatching`/`SecItemUpdate`/`SecItemDelete`) via cgo | value in a `CFData` |
+| Windows | Credential Manager (`CredWriteW`/`CredReadW`/`CredDeleteW`) | value in a `CREDENTIALW` |
+| Any host with no native store | Encrypted file store (AES-256-GCM per entry) under a key wrapped by the host TPM or an operator passphrase | value sealed in the file, key held outside it |
+
+Every native adapter requires a logged-in desktop session, so a headless host —
+a server, a CI runner, a Raspberry Pi — has none of them. The encrypted file
+store is the floor under that host class. It is selected only when the native
+adapter reports `ErrAbsent`; where a native store works it stays the authority.
+A native store that is merely unreachable (`ErrUnavailable`) never falls back,
+because splitting credentials across two backends according to transient
+session health is worse than an honest degraded state.
+
+No adapter places a credential value in a process argument, and **no adapter
+writes a credential value that is recoverable from the file alone.** An
+AES-256-GCM sealed entry whose data key is wrapped by the TPM or by an operator
+passphrase satisfies that rule: reading the file yields ciphertext, and the key
+that opens it is not in the file. A mode-0600 plaintext file does not, because
+any root process, backup, disk image, or wrong file mode recovers the value from
+the file by itself. Owner-only permissions stay required on every file the
+credential path writes; they are no longer what the protection rests on.
+
+This amends, and does not reverse, the Tier-1 decision recorded in swarm record
+`rec-72cedb904accee1c`, which removed plaintext local-store provisioning from
+Secrets Manager. Plaintext credential storage stays prohibited on every
+platform, in every condition, and so does an environment-variable fallback.
+
+A darwin build without cgo reports an absent provider rather than failing to
+build, and therefore reaches the encrypted file store like any other host with
+no native adapter.
+
+Adapters must keep three conditions distinct, because each has a different
+operator action: the backend answered and holds no value (`ErrNotFound`), the
+backend exists but is unreachable (`ErrUnavailable`), and this host has no
+adapter at all (`ErrAbsent`). Collapsing them is what once let an unreachable
+keyring session read as an unset API key.
+
+Credential state never blocks a start. A resource whose credential cannot be
+resolved reports unhealthy with a named remediation while the scenario runs;
+see [Secrets and credentials](../configuration/secrets.md). Write paths are the
+exception and stay fail-closed: durable recovery material is only written after
+`securestore.ProbeWritable` proves the backend accepts a write.
 
 The generic user-resource host stays resource-agnostic: it owns secure-store
 readiness, broker state, loopback ownership checks, and bootstrapper

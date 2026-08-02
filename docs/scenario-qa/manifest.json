@@ -1,5 +1,4 @@
 {
-  "$schema": "../agent-system/team-plan-of-record.schema.json",
   "version": "1.0.0",
   "title": "Scenario QA Plan of Record",
   "description": "Plan-of-record manifest for the scenario-qa team canon",
@@ -19,7 +18,16 @@
           "docType": "por-readme",
           "required": true,
           "validation": {
-            "requiredHeadings": ["Start here for agents", "Team shape", "Folder map", "Cross-team flow", "Editing rules", "Doc + paired skill discipline", "Cross-references", "Future PoR work"]
+            "requiredHeadings": [
+              "Start here for agents",
+              "Team shape",
+              "Folder map",
+              "Cross-team flow",
+              "Editing rules",
+              "Doc + paired skill discipline",
+              "Cross-references",
+              "Future PoR work"
+            ]
           }
         }
       ]
@@ -43,7 +51,10 @@
           "id": "bug-report",
           "path": "bug-report/",
           "packageType": "taxonomy",
-          "requiredFiles": ["README.md", "taxonomy.json"]
+          "requiredFiles": [
+            "README.md",
+            "taxonomy.json"
+          ]
         }
       ]
     },
@@ -55,7 +66,9 @@
           "id": "investigation",
           "path": "investigation/",
           "packageType": "method-registry",
-          "requiredFiles": ["README.md"],
+          "requiredFiles": [
+            "README.md"
+          ],
           "entryPattern": "*.md",
           "minimumEntries": 1
         },
@@ -63,7 +76,9 @@
           "id": "audit",
           "path": "audit/",
           "packageType": "method-registry",
-          "requiredFiles": ["README.md"],
+          "requiredFiles": [
+            "README.md"
+          ],
           "entryPattern": "*.md",
           "minimumEntries": 1
         },
@@ -71,7 +86,9 @@
           "id": "readiness",
           "path": "readiness/",
           "packageType": "method-registry",
-          "requiredFiles": ["README.md"],
+          "requiredFiles": [
+            "README.md"
+          ],
           "entryPattern": "*.md",
           "minimumEntries": 0
         }
@@ -86,7 +103,11 @@
           "docType": "editing-rules",
           "required": true,
           "validation": {
-            "requiredHeadings": ["Authority", "Change Flow", "Direct Edits"]
+            "requiredHeadings": [
+              "Authority",
+              "Change Flow",
+              "Direct Edits"
+            ]
           }
         },
         {
@@ -94,7 +115,11 @@
           "docType": "validation-runbook",
           "required": true,
           "validation": {
-            "requiredHeadings": ["Validation Commands", "Expected Clean State", "Enforcement Scope"]
+            "requiredHeadings": [
+              "Validation Commands",
+              "Expected Clean State",
+              "Enforcement Scope"
+            ]
           }
         },
         {
@@ -102,7 +127,9 @@
           "docType": "por-changelog",
           "required": true,
           "validation": {
-            "requiredHeadings": ["Changelog"]
+            "requiredHeadings": [
+              "Changelog"
+            ]
           }
         }
       ]

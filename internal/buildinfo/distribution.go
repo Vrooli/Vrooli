@@ -2,6 +2,7 @@ package buildinfo
 
 import (
 	"context"
+	gobuildinfo "debug/buildinfo"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -54,6 +55,10 @@ type DistributionBuildOptions struct {
 	BuildTime time.Time
 	Stdout    *os.File
 	Stderr    *os.File
+	// AllowMissingDarwinKeychain permits building a darwin target from a
+	// non-darwin host, which produces a CLI with no macOS credential backend.
+	// It exists for local convenience only; a release must never set it.
+	AllowMissingDarwinKeychain bool
 }
 
 // DistributionArtifact is the binary and freshness metadata emitted by a build.
@@ -66,8 +71,9 @@ type DistributionArtifact struct {
 
 var distributionRun = shell.Run
 
-// BuildDistribution cross-compiles the project-level vrooli CLI with CGO
-// disabled and writes the exact freshness fingerprint consumed by CheckStaleness.
+// BuildDistribution cross-compiles the project-level vrooli CLI and writes the
+// exact freshness fingerprint consumed by CheckStaleness. CGO is disabled for
+// every target except darwin, whose Keychain adapter requires it.
 func BuildDistribution(ctx context.Context, options DistributionBuildOptions) (DistributionArtifact, error) {
 	if !isDistributionTarget(options.Target) {
 		return DistributionArtifact{}, fmt.Errorf("unsupported distribution target %s/%s", options.Target.OS, options.Target.Arch)
@@ -119,8 +125,12 @@ func BuildDistribution(ctx context.Context, options DistributionBuildOptions) (D
 		"-s -w -X github.com/vrooli/vrooli/internal/buildinfo.Fingerprint=%s -X github.com/vrooli/vrooli/internal/buildinfo.GitCommit=%s -X github.com/vrooli/vrooli/internal/buildinfo.BuildTime=%s -X main.vrooliVersion=%s",
 		report.Fingerprint, gitCommit, buildTime.Format(time.RFC3339), version,
 	)
+	cgoEnabled, err := distributionCgoSetting(options.Target, options.AllowMissingDarwinKeychain)
+	if err != nil {
+		return DistributionArtifact{}, err
+	}
 	env := append([]string(nil), os.Environ()...)
-	env = setEnvValue(env, "CGO_ENABLED", "0")
+	env = setEnvValue(env, "CGO_ENABLED", cgoEnabled)
 	env = setEnvValue(env, "GOOS", options.Target.OS)
 	env = setEnvValue(env, "GOARCH", options.Target.Arch)
 	buildArgs := []string{"build", "-trimpath"}
@@ -142,6 +152,10 @@ func BuildDistribution(ctx context.Context, options DistributionBuildOptions) (D
 	}); err != nil {
 		_ = os.Remove(output)
 		return DistributionArtifact{}, fmt.Errorf("cross-compile vrooli for %s/%s: %w", options.Target.OS, options.Target.Arch, err)
+	}
+	if err := verifyDarwinKeychainLinked(output, options.Target, options.AllowMissingDarwinKeychain); err != nil {
+		_ = os.Remove(output)
+		return DistributionArtifact{}, err
 	}
 	if err := WriteSidecarFingerprint(output, report.Fingerprint); err != nil {
 		_ = os.Remove(output)
@@ -190,6 +204,57 @@ func distributionOverlay(root string, target DistributionTarget) ([]string, func
 		return nil, func() {}, fmt.Errorf("close Windows distribution overlay: %w", err)
 	}
 	return []string{"-overlay", overlay.Name()}, cleanup, nil
+}
+
+// distributionCgoSetting decides CGO_ENABLED for one target.
+//
+// Every target but darwin builds cgo-free, which keeps the artifact static and
+// portable. darwin is the exception on purpose: the macOS Keychain adapter in
+// internal/resources/securestore is guarded by `//go:build darwin && cgo`, so a
+// CGO_ENABLED=0 darwin build silently selects the ErrProviderAbsent fallback and
+// ships a CLI with no credential backend at all. Linking the Security framework
+// needs the macOS SDK, so that build has to happen on a darwin host.
+func distributionCgoSetting(target DistributionTarget, allowMissingDarwinKeychain bool) (string, error) {
+	if target.OS != "darwin" {
+		return "0", nil
+	}
+	if runtime.GOOS == "darwin" {
+		return "1", nil
+	}
+	if allowMissingDarwinKeychain {
+		return "0", nil
+	}
+	return "", fmt.Errorf(
+		"refusing to build darwin/%s from a %s host: the macOS Keychain adapter requires cgo and the macOS SDK, "+
+			"and a cgo-free darwin build ships with no credential backend. "+
+			"Build darwin targets on a macOS runner, or pass --allow-missing-darwin-keychain for a local throwaway build",
+		target.Arch, runtime.GOOS)
+}
+
+// verifyDarwinKeychainLinked reads the freshly built binary's own recorded build
+// settings and fails when a darwin artifact was produced without cgo. A Go
+// binary carries CGO_ENABLED in its build info, so this holds on any host and
+// cannot be defeated by an environment that quietly disabled cgo mid-build.
+func verifyDarwinKeychainLinked(output string, target DistributionTarget, allowMissingDarwinKeychain bool) error {
+	if target.OS != "darwin" || allowMissingDarwinKeychain {
+		return nil
+	}
+	info, err := gobuildinfo.ReadFile(output)
+	if err != nil {
+		return fmt.Errorf("read build settings for darwin/%s: %w", target.Arch, err)
+	}
+	for _, setting := range info.Settings {
+		if setting.Key != "CGO_ENABLED" {
+			continue
+		}
+		if setting.Value == "1" {
+			return nil
+		}
+		return fmt.Errorf(
+			"darwin/%s was built with CGO_ENABLED=%s, so it has no macOS Keychain adapter and every credentialed resource would report an absent provider",
+			target.Arch, setting.Value)
+	}
+	return fmt.Errorf("darwin/%s build info records no CGO_ENABLED setting; cannot prove the Keychain adapter is linked", target.Arch)
 }
 
 func isDistributionTarget(target DistributionTarget) bool {

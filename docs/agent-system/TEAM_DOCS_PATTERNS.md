@@ -16,6 +16,7 @@ Teams that produce durable intent use a **plan of record**. The plan of record i
 - **Growth direction:** grows only when the team's accepted truth expands.
 - **Health signal:** stable, discoverable, and structured. High churn means the plan or its ownership boundary is unclear.
 - **Shape:** manifest-declared modules. Use the local `manifest.json` and the shared `path:docs/agent-system/team-plan-of-record.manifest.json` contract as the source of truth.
+- **Authority:** that base manifest is the contract; the Go structs in `path:scenarios/prompt-manager/api/memberflow/plan_of_record_manifest.go` are its parser, not a second authority. The JSON Schema that used to sit beside it was enforced by nothing and was deleted rather than kept as a third description of the same shape.
 
 Use a plan of record when at least one of these holds:
 

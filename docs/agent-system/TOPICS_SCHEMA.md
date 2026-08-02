@@ -183,53 +183,43 @@ The operating-model Topic Catalog table is a human-readable projection of this s
 
 Implemented in `path:scenarios/prompt-manager/api/memberflow/validation.go`. Run via `prompt-manager graph topics`.
 
-| Rule | Smell | Severity | Detection |
-|---|---|---|---|
-| `loop_kind_missing` | Member declares no loop kind | warning | Empty `loop_kind` on a member with any flow declaration. Warning during adoption: the value is a judgment call owned by the member's team, and inferring it fleet-wide would make the declaration layer fiction. Promote to error once every member carries a value. |
-| `loop_kind_invalid` | Loop kind is not a known value | error | Not one of `queue` \| `reactive` \| `sweep` \| `generative`. |
-| `loop_kind_intake_mismatch` | Member drains an intake but is not `queue` | error | `len(intake) > 0` and `loop_kind != queue`. This is what makes the field self-checking against declarations that already exist, so `loop_kind` cannot silently drift from the flow it describes. |
-| `sweep_without_ledger` | A sweep has no coverage memory | error | `loop_kind == sweep` and no output prefix that the same member also reads. Gated behind the declaration, so it cannot fire on an undeclared member. |
-| `ledger_shape_invalid` | Ledger-shaped output nobody reads back | error | An output matching `<subject>-visited/` not covered by its writer's own read declarations. Independent of `loop_kind` so a mis-shaped ledger is caught even before the loop kind is declared. |
-| `sweep_population_missing` | A sweep does not name what it iterates | warning | `loop_kind == sweep` and `population` empty. Never hardens to an error: a population that is not graph-resident (a time window over recent runs) legitimately omits it and is honestly unmeasurable rather than silently counted as covered. |
-| `orphan_output` | Knowledge output prefix has no consumer | warning | For each `destination_kind=knowledge` output: any member declares the prefix on `intake[]`, `required_read[]`, or `evidence_consumed[]`. Non-knowledge sinks (decision, por_file, capability_gap, skill_proposal, backlog) are never orphans. |
-| `orphan_input` | Intake prefix has no producer | error | For each intake: another member's output prefix overlaps, or an `external_producer` claims it, or `source_team == "*"` |
-| `unread_required` | `required_read[]` prefix has no producer | error | For each required_read entry (excluding `source_team == "*"`): some member's `output[]` overlaps, or a writer skill's `skill.json::writes_to[]` overlaps. Member-level `external_producers` is intentionally NOT honored here so the rule surfaces drift between declared read and write prefixes. |
-| `conflicting_drain` | Two members' intake prefixes overlap | error | Pairwise overlap check |
-| `wildcard_source_misuse` | `source_team == "*"` intake without any documented `external_producers` | warning | Universal-source declarations need a producer-side anchor (writer skill, external system) for auditability. |
-| `unknown_taxonomy` | `intake[].taxonomy` does not resolve in the registry | error | Cross-check against `LoadAllTaxonomies` |
-| `missing_taxonomy` | `intake[].taxonomy` is unset | error | Surfaces intake entries that have not been migrated to the inbox-flow taxonomy model. |
-| `missing_destination_schema` | `output[].schema` doesn't resolve under any taxonomy | warning | Cross-check against `taxonomy.schemas.<id>` across the registry |
-| `dangling_por_sink` | `destination_kind=por_file` references missing `destination_path` | error | Filesystem stat |
-| `dangling_evidence_decision` | `evidence_consumed[].for_decisions[]` references a decision-context id not declared in any team.json | error | Cross-check against `LoadAllTeamContracts` |
-| `team_role_member_drift` | `roles.json` and the contract member set disagree | error | Both directions: a role id with no matching `team.json::operatingContract.members` entry, and a member with no role entry. Teams that declare no `roles.json` are skipped — the file is optional, and requiring one from every team is a separate decision. |
-| `topic_key_prefix_mismatch` | Knowledge entry's `topic` doesn't match any declared prefix on its team | warning | Cross-check against the team's combined intake/output prefix set, grouped per topic family (see § Per-defect grouping) |
-| `stalled_drain` | Intake has unrouted entries older than threshold (default 7d) | warning | Cross-check against `team knowledge-list` timestamps |
-| `piling_inbox` | Intake has > N unrouted entries (default 50) | warning | Same query |
-| `member_doc_file_missing` | Member has no `HEARTBEAT.md` / `RESPONSIBILITIES.md` | error / warning | Filesystem stat. Error for `HEARTBEAT.md` — that member runs the generic fallback task. Warning for `RESPONSIBILITIES.md` — the member still receives its full generated contract. |
-| `member_doc_section_missing` | Required canonical section absent | error | Level-two heading scan, fenced blocks skipped. Required set is `TEAM_MEMBER_ARCHITECTURE.md` §"Canonical section vocabulary". |
-| `member_doc_section_alias` | Retired heading name in use | error | Heading matches the retired-alias table. The alias satisfies its canonical slot, so a rename reports once rather than as both an alias and a missing section. |
-| `member_doc_section_duplicate` | One canonical section declared twice | error | Counts canonical headings plus aliases mapped onto them, so a file mid-rename reports the rename *and* the resulting duplicate. |
-| `member_doc_section_recommended` | Recommended section absent | warning | Never hardens to an error: the content is team judgment, and an error would push a validator into authoring prose. Closes through the owning team's decision context. |
+<!-- BEGIN GENERATED: rule-catalog topic -->
+_Generated from the validation rule catalog by `prompt-manager graph rules`. Do not edit inside the markers; edit the catalog in `scenarios/prompt-manager/api/memberflow` and regenerate._
 
-Errors fail `prompt-manager graph topics` with exit code 1. Warnings do not affect exit code.
-
-The `member_doc_*` family checks the two per-member Markdown files that reach a running agent verbatim. The vocabulary they enforce is canon in `TEAM_MEMBER_ARCHITECTURE.md` §"Member document contract"; the tables in `path:scenarios/prompt-manager/api/memberflow/member_doc.go` are its machine copy. Fenced-block skipping is load-bearing rather than defensive — every `HEARTBEAT.md` embeds a handoff template whose first line is `## HANDOFF`, and a naive scan reports it as a section on every member.
-
-### Per-defect grouping
-
-Rules that scan `knowledge.jsonl` — `actual_writer_undeclared` and `topic_key_prefix_mismatch` — report **one finding per (member, topic family)**, not one per entry.
-
-An undeclared prefix fires on every entry the member ever wrote under it, so a per-entry count measures how long the team has been running, not how many declarations need fixing. One missing `output[]` line produced 25 errors; the repair was one line. Reported that way, a sweep reads as a large repair job and the operator cannot see how many distinct declarations actually need attention.
-
-The collapsed finding carries the family prefix, the occurrence count, and a sample entry id, so the evidence trail survives. The family is derived by truncating the observed topic at its first variable segment — an ISO date, a generated id, or a bare number — which yields the prefix an operator would declare:
-
-| Observed topic | Family |
-|---|---|
-| `initiative-portfolio-record/2026-05-14` | `initiative-portfolio-record/*` |
-| `challenge-resolution-record/dec-1778803361775636366` | `challenge-resolution-record/*` |
-| `friction-report/recurring-workaround/2026-06-15/toolchain-fallback` | `friction-report/recurring-workaround/*` |
-| `contrarian-scan-2026-06-14` | `contrarian-scan-*` |
-| `quality-audit/audio-tools/api-steer` | unchanged — no variable segment |
+| Rule | Group | Default severity | Kind | Description | Actuator |
+|---|---|---|---|---|---|
+| `actual_writer_undeclared` | `topic` | `error` | `runtime` | Runtime attribution shows a member wrote outside its declared outputs. | Route the declaration or runtime-state correction through the owning team |
+| `attribution_malformed` | `topic` | `error` | `runtime` | Runtime attribution cannot be safely interpreted. | Route the declaration or runtime-state correction through the owning team |
+| `conflicting_drain` | `topic` | `error` | `declaration` | A required intake is drained by incompatible member contracts. | Route the declaration or runtime-state correction through the owning team |
+| `dangling_evidence_decision` | `topic` | `error` | `declaration` | A topic flow references a decision that does not exist. | Route the declaration or runtime-state correction through the owning team |
+| `dangling_por_sink` | `topic` | `error` | `declaration` | A topic flow points to a missing plan-of-record sink. | Route the declaration or runtime-state correction through the owning team |
+| `drain_status_unavailable` | `topic` | `warning` | `runtime` | Drain status cannot be read, so intake health is unknown this cycle. | Route the declaration or runtime-state correction through the owning team |
+| `ledger_shape_invalid` | `topic` | `error` | `declaration` | A sweep evidence ledger has an invalid shape. | Route the declaration or runtime-state correction through the owning team |
+| `loop_kind_intake_mismatch` | `topic` | `error` | `declaration` | A loop-kind declaration disagrees with its intake contract. | Route the declaration or runtime-state correction through the owning team |
+| `loop_kind_invalid` | `topic` | `error` | `declaration` | A declared loop uses an invalid loop-kind classification. | Route the declaration or runtime-state correction through the owning team |
+| `loop_kind_missing` | `topic` | `warning` | `declaration` | A declared loop has no loop-kind classification. | Route the declaration or runtime-state correction through the owning team |
+| `member_doc_file_missing` | `topic` | `error` | `declaration` | A required member document is absent. | Route the declaration or runtime-state correction through the owning team |
+| `member_doc_section_alias` | `topic` | `error` | `declaration` | A member document uses an ambiguous section alias. | Route the declaration or runtime-state correction through the owning team |
+| `member_doc_section_duplicate` | `topic` | `error` | `declaration` | A member document defines a required section more than once. | Route the declaration or runtime-state correction through the owning team |
+| `member_doc_section_missing` | `topic` | `error` | `declaration` | A member document omits a required section. | Route the declaration or runtime-state correction through the owning team |
+| `member_doc_section_recommended` | `topic` | `warning` | `declaration` | A member document omits a recommended section. | Route the declaration or runtime-state correction through the owning team |
+| `member_doc_unreadable` | `topic` | `error` | `declaration` | A required member document cannot be read. | Route the declaration or runtime-state correction through the owning team |
+| `missing_destination_schema` | `topic` | `warning` | `declaration` | A destination topic has no declared storage schema. | Route the declaration or runtime-state correction through the owning team |
+| `missing_taxonomy` | `topic` | `error` | `declaration` | A topic declaration omits the required taxonomy. | Route the declaration or runtime-state correction through the owning team |
+| `orphan_input` | `topic` | `error` | `declaration` | An intake has no declared producer. | Route the declaration or runtime-state correction through the owning team |
+| `orphan_output` | `topic` | `warning` | `declaration` | A declared output has no declared consumer. | Route the declaration or runtime-state correction through the owning team |
+| `piling_inbox` | `topic` | `warning` | `runtime` | A declared intake is accumulating unrouted entries faster than it drains. | Route the declaration or runtime-state correction through the owning team |
+| `prose_topic_leak` | `topic` | `warning` | `declaration` | Operator prose references an undeclared or impermissible topic. | Route the declaration or runtime-state correction through the owning team |
+| `stalled_drain` | `topic` | `warning` | `runtime` | A declared intake has unrouted entries older than the team's drain threshold. | Route the declaration or runtime-state correction through the owning team |
+| `sweep_population_missing` | `topic` | `warning` | `declaration` | A sweep loop does not declare its population. | Route the declaration or runtime-state correction through the owning team |
+| `sweep_without_ledger` | `topic` | `error` | `declaration` | A sweep loop has no evidence ledger. | Route the declaration or runtime-state correction through the owning team |
+| `team_role_member_drift` | `topic` | `error` | `declaration` | A team role and its member declaration disagree. | Route the declaration or runtime-state correction through the owning team |
+| `topic_key_prefix_mismatch` | `topic` | `warning` | `runtime` | A live knowledge key does not match the prefix its member declares. | Route the declaration or runtime-state correction through the owning team |
+| `topic_key_query_unavailable` | `topic` | `warning` | `runtime` | The knowledge key query failed, so prefix conformance is unknown this cycle. | Route the declaration or runtime-state correction through the owning team |
+| `unknown_taxonomy` | `topic` | `error` | `declaration` | A topic declaration names an unregistered taxonomy. | Route the declaration or runtime-state correction through the owning team |
+| `unread_required` | `topic` | `error` | `declaration` | A required read is not consumed by its member contract. | Route the declaration or runtime-state correction through the owning team |
+| `wildcard_source_misuse` | `topic` | `warning` | `declaration` | A wildcard source makes a topic-flow declaration ambiguous. | Route the declaration or runtime-state correction through the owning team |
+<!-- END GENERATED: rule-catalog topic -->
 
 The fourth row is the case that shaped the rule. A member that builds its topic key by string concatenation instead of path join produces a malformed family, and collapsing it to `contrarian-scan-*` makes a month of the same typo read as one defect — while keeping it visibly distinct from the correctly-formed `contrarian-scan/*` family, because a malformed key and a missing declaration are two different problems with two different fixes.
 
@@ -352,7 +342,7 @@ When loaded, `prompt-manager graph topics --team marketing-crew` should:
 
 ## Stability gate
 
-This schema is canon as of the inbox-flow refactor (Phase I cleanup landed; five adopters in production: `team:marketing-crew/researcher`, `team:marketing-crew/brand-manager`, `team:meta-optimization/debt-curator`, `team:monetization/opportunity-scout`, `team:monetization/market-validator`).
+This schema is canon as of the inbox-flow refactor (Phase I cleanup landed; five adopters in production: `team:marketing-crew/producer`, `team:marketing-crew/brand-manager`, `team:meta-optimization/debt-curator`, `team:monetization/opportunity-scout`, `team:monetization/market-validator`).
 
 Backwards-incompatible changes from here require a `meta-optimization` decision and a migration plan covering: (a) every `topics.json` file in `path:scenarios/prompt-manager/store/teams/*/members/*/`, (b) every `team.json::topicCatalog` that describes those topic families, (c) the Go schemas at `path:scenarios/prompt-manager/api/memberflow/schema.go` and `path:scenarios/prompt-manager/api/memberflow/team_contracts.go`, (d) the heartbeat builder section templates, and (e) the validation rules.
 

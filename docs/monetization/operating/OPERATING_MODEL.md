@@ -55,249 +55,251 @@ actor_alias.decision owners: none
 -->
 ```mermaid
 flowchart LR
-  subgraph INFLOWS["Inflows / Producers"]
-    %% @node OP external:operator
-    OP([Operator])
-    %% @node VW external:vision-walk
-    VW([Vision Walk])
-    %% @node SI external:signal-inbox
-    SI([Signal Inbox])
-  end
-
-  %% Members
-  %% @node OS member:opportunity-scout
-  OS[Opportunity Scout]
-  %% @node CS member:catalog-strategist
-  CS[Catalog Strategist]
-  %% @node FT member:financial-tracker
-  FT[Financial Tracker]
-  %% @node MV member:market-validator
-  MV[Market Validator]
-  %% @node MC member:monetization-contrarian
-  MC[Monetization Contrarian]
-
-  %% Topics
-  %% @node OIN topic:opportunity-inbox/*
-  OIN[(opportunity-inbox/*)]
+  %% @node ADJ topic:monetization-benchmark-adjacent-record/*
+  ADJ[(monetization-benchmark-adjacent-record/*)]
+  %% @node ASSUMP decision:financial-model-assumption-update
+  ASSUMP{financial-model-assumption-update}
+  %% @node ATTRIB decision:channel-attribution-gap
+  ATTRIB{channel-attribution-gap}
+  %% @node BENCH topic:monetization-benchmark-record/*
+  BENCH[(monetization-benchmark-record/*)]
+  %% @node BENCHDEC decision:benchmark-update
+  BENCHDEC{benchmark-update}
+  %% @node BM por:docs/monetization/evidence/BENCHMARKS.md
+  BM[/docs/monetization/evidence/BENCHMARKS.md/]
   %% @node CAND topic:candidate-sku-record/*
   CAND[(candidate-sku-record/*)]
-  %% @node SCOUT topic:scout-scan/*
-  SCOUT[(scout-scan/*)]
-  %% @node OPP topic:monetization/opportunity/*
-  OPP[(monetization/opportunity/*)]
-  %% @node SNAP topic:catalog-snapshot/*
-  SNAP[(catalog-snapshot/*)]
+  %% @node CAP decision:capability-gap
+  CAP{capability-gap}
+  %% @node CATALOG por:docs/monetization/catalogs/CATALOG.md
+  CATALOG[/docs/monetization/catalogs/CATALOG.md/]
+  %% @node CATPROMO decision:catalog-promotion
+  CATPROMO{catalog-promotion}
+  %% @node CHACT decision:channel-activation
+  CHACT{channel-activation}
+  %% @node CHAL topic:challenge-report/*
+  CHAL[(challenge-report/*)]
+  %% @node CS member:catalog-strategist
+  CS[Catalog Strategist]
+  %% @node FIN por:docs/monetization/evidence/FINANCIAL_MODEL.md
+  FIN[/docs/monetization/evidence/FINANCIAL_MODEL.md/]
+  %% @node FRAME decision:framework-update
+  FRAME{framework-update}
+  %% @node FT member:financial-tracker
+  FT[Financial Tracker]
+  %% @node FUNNEL decision:funnel-bottleneck
+  FUNNEL{funnel-bottleneck}
   %% @node LEDGER topic:ledger-snapshot/*
   LEDGER[(ledger-snapshot/*)]
   %% @node LEDGERLOG topic:monetization-ledger-log/*
   LEDGERLOG[(monetization-ledger-log/*)]
-  %% @node VAIN topic:validation-inbox/*
-  VAIN[(validation-inbox/*)]
-  %% @node ADJ topic:monetization-benchmark-adjacent-record/*
-  ADJ[(monetization-benchmark-adjacent-record/*)]
-  %% @node BENCH topic:monetization-benchmark-record/*
-  BENCH[(monetization-benchmark-record/*)]
-  %% @node MSCAN topic:monetization/market-scan/*
-  MSCAN[(monetization/market-scan/*)]
-  %% @node CHAL topic:challenge-report/*
-  CHAL[(challenge-report/*)]
-  %% @node RES topic:challenge-resolution-record/*
-  RES[(challenge-resolution-record/*)]
-
-  %% PoR
-  %% @node CATALOG por:docs/monetization/catalogs/CATALOG.md
-  CATALOG[/docs/monetization/catalogs/CATALOG.md/]
-  %% @node SKU por:docs/monetization/catalogs/scenario-sku-map.json
-  SKU[/docs/monetization/catalogs/scenario-sku-map.json/]
-  %% @node STRAT por:docs/monetization/strategy/STRATEGY.md
-  STRAT[/docs/monetization/strategy/STRATEGY.md/]
-  %% @node PRICE por:docs/monetization/strategy/PRICING.md
-  PRICE[/docs/monetization/strategy/PRICING.md/]
-  %% @node FIN por:docs/monetization/evidence/FINANCIAL_MODEL.md
-  FIN[/docs/monetization/evidence/FINANCIAL_MODEL.md/]
-  %% @node BM por:docs/monetization/evidence/BENCHMARKS.md
-  BM[/docs/monetization/evidence/BENCHMARKS.md/]
-
-  %% Decisions
-  %% @node CATPROMO decision:catalog-promotion
-  CATPROMO{catalog-promotion}
   %% @node MAP decision:catalog-mapping-update
   MAP{catalog-mapping-update}
-  %% @node CHACT decision:channel-activation
-  CHACT{channel-activation}
-  %% @node SERVACT decision:services-activation
-  SERVACT{services-activation}
+  %% @node MC member:monetization-contrarian
+  MC[Monetization Contrarian]
+  %% @node MSCAN topic:monetization/market-scan/*
+  MSCAN[(monetization/market-scan/*)]
+  %% @node MV member:market-validator
+  MV[Market Validator]
+  %% @node OIN topic:opportunity-inbox/*
+  OIN[(opportunity-inbox/*)]
+  %% @node OP external:operator
+  OP([Operator])
+  %% @node OPP topic:monetization/opportunity/*
+  OPP[(monetization/opportunity/*)]
+  %% @node OS member:opportunity-scout
+  OS[Opportunity Scout]
+  %% @node PRICE por:docs/monetization/strategy/PRICING.md
+  PRICE[/docs/monetization/strategy/PRICING.md/]
   %% @node PRICEDEC decision:pricing-decision
   PRICEDEC{pricing-decision}
-  %% @node ASSUMP decision:financial-model-assumption-update
-  ASSUMP{financial-model-assumption-update}
-  %% @node RUNWAY decision:runway-warning
-  RUNWAY{runway-warning}
-  %% @node BENCHDEC decision:benchmark-update
-  BENCHDEC{benchmark-update}
   %% @node REJECT decision:decision-rejection-proposed
   REJECT{decision-rejection-proposed}
-  %% @node FRAME decision:framework-update
-  FRAME{framework-update}
+  %% @node RES topic:challenge-resolution-record/*
+  RES[(challenge-resolution-record/*)]
+  %% @node RETENTION decision:retention-concern
+  RETENTION{retention-concern}
   %% @node RETIRE decision:sku-retirement
   RETIRE{sku-retirement}
+  %% @node RUNWAY decision:runway-warning
+  RUNWAY{runway-warning}
+  %% @node SCOUT topic:scout-scan/*
+  SCOUT[(scout-scan/*)]
+  %% @node SERVACT decision:services-activation
+  SERVACT{services-activation}
   %% @node SERVCONV decision:services-conversion
   SERVCONV{services-conversion}
   %% @node SERVSUN decision:services-sunset
   SERVSUN{services-sunset}
-  %% @node ATTRIB decision:channel-attribution-gap
-  ATTRIB{channel-attribution-gap}
+  %% @node SI external:signal-inbox
+  SI([Signal Inbox])
+  %% @node SKU por:docs/monetization/catalogs/scenario-sku-map.json
+  SKU[/docs/monetization/catalogs/scenario-sku-map.json/]
+  %% @node SNAP topic:catalog-snapshot/*
+  SNAP[(catalog-snapshot/*)]
   %% @node STRAP decision:services-trap-warning
   STRAP{services-trap-warning}
-  %% @node FUNNEL decision:funnel-bottleneck
-  FUNNEL{funnel-bottleneck}
-  %% @node RETENTION decision:retention-concern
-  RETENTION{retention-concern}
-  %% @node CAP decision:capability-gap
-  CAP{capability-gap}
+  %% @node STRAT por:docs/monetization/strategy/STRATEGY.md
+  STRAT[/docs/monetization/strategy/STRATEGY.md/]
+  %% @node VAIN topic:validation-inbox/*
+  VAIN[(validation-inbox/*)]
+  %% @node VW external:vision-walk
+  VW([Vision Walk])
+  %% @node DOCSMONETIZA por:docs/monetization/README.md
+  DOCSMONETIZA[/docs/monetization/README.md/]
+  %% @node DOCSMONETIZA2 por:docs/monetization/catalogs/README.md
+  DOCSMONETIZA2[/docs/monetization/catalogs/README.md/]
+  %% @node DOCSMONETIZA3 por:docs/monetization/evidence/README.md
+  DOCSMONETIZA3[/docs/monetization/evidence/README.md/]
+  %% @node DOCSMONETIZA4 por:docs/monetization/evidence/TELEMETRY_ROADMAP.md
+  DOCSMONETIZA4[/docs/monetization/evidence/TELEMETRY_ROADMAP.md/]
+  %% @node DOCSMONETIZA5 por:docs/monetization/governance/HOW_TO_GATHER_INPUTS.md
+  DOCSMONETIZA5[/docs/monetization/governance/HOW_TO_GATHER_INPUTS.md/]
+  %% @node DOCSMONETIZA6 por:docs/monetization/governance/adoption-validation.md
+  DOCSMONETIZA6[/docs/monetization/governance/adoption-validation.md/]
+  %% @node DOCSMONETIZA7 por:docs/monetization/governance/changelog.md
+  DOCSMONETIZA7[/docs/monetization/governance/changelog.md/]
+  %% @node DOCSMONETIZA8 por:docs/monetization/governance/editing.md
+  DOCSMONETIZA8[/docs/monetization/governance/editing.md/]
+  %% @node DOCSMONETIZA9 por:docs/monetization/operating/OPERATING_MODEL.md
+  DOCSMONETIZA9[/docs/monetization/operating/OPERATING_MODEL.md/]
+  %% @node DOCSMONETIZA10 por:docs/monetization/operating/README.md
+  DOCSMONETIZA10[/docs/monetization/operating/README.md/]
+  %% @node DOCSMONETIZA11 por:docs/monetization/strategy/FUNNEL.md
+  DOCSMONETIZA11[/docs/monetization/strategy/FUNNEL.md/]
+  %% @node DOCSMONETIZA12 por:docs/monetization/strategy/README.md
+  DOCSMONETIZA12[/docs/monetization/strategy/README.md/]
+  %% @node DOCSMONETIZA13 por:docs/monetization/strategy/TIERS.md
+  DOCSMONETIZA13[/docs/monetization/strategy/TIERS.md/]
+  %% @node CATALOGSNAPS topic:catalog-snapshot/YYYY-MM-DD
+  CATALOGSNAPS[(catalog-snapshot/YYYY-MM-DD)]
+  %% @node CHALLENGEREP topic:challenge-report/<decision-id>
+  CHALLENGEREP[(challenge-report/<decision-id>)]
+  %% @node CHALLENGERES topic:challenge-resolution-record/<decision-id>
+  CHALLENGERES[(challenge-resolution-record/<decision-id>)]
+  %% @node LEDGERSNAPSH topic:ledger-snapshot/YYYY-MM-DD
+  LEDGERSNAPSH[(ledger-snapshot/YYYY-MM-DD)]
+  %% @node MONETIZATION topic:monetization/market-scan/<slug>
+  MONETIZATION[(monetization/market-scan/<slug>)]
+  %% @node SCOUTSCANYYY topic:scout-scan/YYYY-MM-DD
+  SCOUTSCANYYY[(scout-scan/YYYY-MM-DD)]
 
-  OP --> OIN
-  VW --> OIN
-  OP --> OS
-  VW --> OS
-  OP --> VAIN
-  VW --> VAIN
-  SI --> VAIN
-  OP --> ADJ
-  VW --> ADJ
-  SI --> ADJ
+  BENCHDEC --> CS
+  BENCHDEC --> FT
+  BENCHDEC --> MC
+  CAP --> CS
+  CAP --> FT
+  CAP --> MV
+  CAP --> OS
+  MAP --> MC
+  CATPROMO --> MC
+  CHACT --> MC
+  ATTRIB --> MC
+  ASSUMP --> MC
+  FUNNEL --> MC
+  PRICEDEC --> MC
+  RETENTION --> MC
+  RUNWAY --> MC
+  SERVACT --> MC
+  SERVCONV --> MC
+  SERVSUN --> MC
+  STRAP --> MC
+  RETIRE --> MC
   OP --> CS
-  VW --> CS
   OP --> FT
   OP --> MV
-  VW --> MV
+  OP --> OS
+  OP --> ADJ
+  OP --> OIN
+  OP --> VAIN
   SI --> MV
-
-  OIN --> OS
-  SCOUT --> OS
-  CHAL --> OS
-  RES --> OS
-  OS --> CAND
-  OS --> SCOUT
-  OS --> OPP
+  SI --> ADJ
+  SI --> VAIN
+  VW --> CS
+  VW --> MV
+  VW --> OS
+  VW --> ADJ
+  VW --> OIN
+  VW --> VAIN
+  CS --> MAP
+  CS --> CATPROMO
+  CS --> CHACT
+  CS --> SERVACT
+  CS --> SERVCONV
+  CS --> SERVSUN
+  CS --> RETIRE
+  CS --> CATALOG
+  CS --> SNAP
+  FT --> ATTRIB
+  FT --> ASSUMP
+  FT --> FUNNEL
+  FT --> PRICEDEC
+  FT --> RETENTION
+  FT --> RUNWAY
+  FT --> STRAP
+  FT --> LEDGER
+  FT --> LEDGERLOG
+  MV --> BENCHDEC
+  MV --> CAP
+  MV --> ASSUMP
+  MV --> PRICEDEC
+  MV --> BENCH
+  MV --> MSCAN
+  MC --> REJECT
+  MC --> FRAME
+  MC --> CHAL
+  MC --> RES
+  OS --> CAP
   OS --> CATPROMO
   OS --> CHACT
   OS --> SERVACT
-
+  OS --> CAND
+  OS --> OPP
+  OS --> SCOUT
   CAND --> CS
-  SNAP --> CS
-  BENCH --> CS
+  CATALOGSNAPS --> CS
   CHAL --> CS
-  RES --> CS
-  CS --> SNAP
-  CS --> CATALOG
-  CS --> CATPROMO
-  CS --> MAP
-  CS --> CHACT
-  CS --> SERVACT
-  CS --> RETIRE
-  CS --> SERVCONV
-  CS --> SERVSUN
-  CATPROMO --> CS
-  MAP --> CS
-  CHACT --> CS
-  RETIRE --> CS
-  SERVACT --> CS
-  SERVCONV --> CS
-  SERVSUN --> CS
-  BENCHDEC --> CS
-  CAP --> CS
-
-  FT --> LEDGER
-  FT --> LEDGERLOG
-  LEDGER --> FT
   CHAL --> FT
-  RES --> FT
-  FT --> PRICEDEC
-  FT --> ASSUMP
-  FT --> RUNWAY
-  FT --> ATTRIB
-  FT --> STRAP
-  FT --> FUNNEL
-  FT --> RETENTION
-  PRICEDEC --> FT
-  ASSUMP --> FT
-  RUNWAY --> FT
-  ATTRIB --> FT
-  STRAP --> FT
-  FUNNEL --> FT
-  RETENTION --> FT
-  BENCHDEC --> FT
-  CAP --> FT
-
-  VAIN --> MV
-  ADJ --> MV
-  MSCAN --> MV
   CHAL --> MV
+  CHAL --> OS
+  CHALLENGEREP --> MC
+  RES --> CS
+  RES --> FT
   RES --> MV
-  MV --> BENCH
-  MV --> MSCAN
-  MV --> BENCHDEC
-  MV --> PRICEDEC
-  MV --> ASSUMP
-  PRICEDEC --> MV
-  ASSUMP --> MV
-  BENCHDEC --> MV
-  CAP --> MV
-
-  CATPROMO --> OS
-  CHACT --> OS
-  SERVACT --> OS
-  CAP --> OS
-
-  CATPROMO --> MC
-  MAP --> MC
-  CHACT --> MC
-  SERVACT --> MC
-  PRICEDEC --> MC
-  ASSUMP --> MC
-  RUNWAY --> MC
-  BENCHDEC --> MC
-  RETIRE --> MC
-  SERVCONV --> MC
-  SERVSUN --> MC
-  ATTRIB --> MC
-  STRAP --> MC
-  FUNNEL --> MC
-  RETENTION --> MC
-  CHAL --> MC
-  RES --> MC
-  MC --> CHAL
-  MC --> RES
-  MC --> REJECT
-  MC --> FRAME
-
-  OS --> CAP
-  MV --> CAP
-  CAP --> OS
-  CAP --> CS
-  CAP --> FT
-  CAP --> MV
-
+  RES --> OS
+  CHALLENGERES --> MC
+  LEDGERSNAPSH --> FT
+  ADJ --> MV
+  BENCH --> CS
+  MONETIZATION --> MV
+  OIN --> OS
+  SCOUTSCANYYY --> OS
+  VAIN --> MV
 ```
 
 ## Topic Catalog
 
 | Topic family | Status | Owner / primary writer | Primary readers | Purpose |
 |---|---|---|---|---|
-| `topic:opportunity-inbox/*` | live | `external:operator` | `member:opportunity-scout` | Intake for monetization opportunity signals classified by `monetization-opportunity`. |
-| `topic:candidate-sku-record/*` | live | `member:opportunity-scout` | `member:catalog-strategist` | Candidate SKU, add-on, services-line, or channel records. |
-| `topic:scout-scan/*` | live | `member:opportunity-scout` | `member:opportunity-scout` | Scout heartbeat summaries and pool snapshots. |
-| `topic:monetization/opportunity/*` | live | `member:opportunity-scout` |  | Additional opportunity observations that are not yet promoted. |
-| `topic:catalog-snapshot/*` | live | `member:catalog-strategist` | `member:catalog-strategist` | Snapshot of SKU, tier, channel, and services-line trigger state. |
-| `topic:ledger-snapshot/*` | live | `member:financial-tracker` | `member:financial-tracker` | Financial posture snapshot. |
-| `topic:monetization-ledger-log/*` | live | `member:financial-tracker` |  | Append-only monetization ledger events used to produce current financial posture snapshots. |
-| `topic:validation-inbox/*` | live | `external:operator` | `member:market-validator` | Validation requests classified by `monetization-validation`. |
-| `topic:monetization-benchmark-adjacent-record/*` | live |  | `member:market-validator` | Cross-team benchmark-adjacent evidence from marketing. |
-| `topic:monetization-benchmark-record/*` | live | `member:market-validator` | `member:catalog-strategist` | Validated benchmark records. |
-| `topic:monetization/market-scan/*` | live | `member:market-validator` | `member:market-validator` | Market-scan evidence. |
-| `topic:challenge-report/*` | live | `member:monetization-contrarian` | `member:opportunity-scout`, `member:catalog-strategist`, `member:financial-tracker`, `member:market-validator`, `member:monetization-contrarian` | Append-only challenge evidence. |
-| `topic:challenge-resolution-record/*` | live | `member:monetization-contrarian` | `member:opportunity-scout`, `member:catalog-strategist`, `member:financial-tracker`, `member:market-validator`, `member:monetization-contrarian` | Latest-state challenge resolution records. |
+| `topic:candidate-sku-record/*` | live | member:opportunity-scout | member:catalog-strategist | Candidate SKU, add-on, services-line, or channel records. |
+| `topic:catalog-snapshot/*` | live | member:catalog-strategist | member:catalog-strategist | Snapshot of SKU, tier, channel, and services-line trigger state. |
+| `topic:catalog-snapshot/YYYY-MM-DD` | live | member:catalog-strategist | member:catalog-strategist | Snapshot of SKU, tier, channel, and services-line trigger state. |
+| `topic:challenge-report/*` | live | member:monetization-contrarian | member:catalog-strategist, member:financial-tracker, member:market-validator, member:monetization-contrarian, member:opportunity-scout | Append-only challenge evidence. |
+| `topic:challenge-report/<decision-id>` | live | member:monetization-contrarian | member:catalog-strategist, member:financial-tracker, member:market-validator, member:monetization-contrarian, member:opportunity-scout | Append-only challenge evidence. |
+| `topic:challenge-resolution-record/*` | live | member:monetization-contrarian | member:catalog-strategist, member:financial-tracker, member:market-validator, member:monetization-contrarian, member:opportunity-scout | Latest-state challenge resolution records. |
+| `topic:challenge-resolution-record/<decision-id>` | live | member:monetization-contrarian | member:catalog-strategist, member:financial-tracker, member:market-validator, member:monetization-contrarian, member:opportunity-scout | Latest-state challenge resolution records. |
+| `topic:ledger-snapshot/*` | live | member:financial-tracker | member:financial-tracker | Financial posture snapshot. |
+| `topic:ledger-snapshot/YYYY-MM-DD` | live | member:financial-tracker | member:financial-tracker | Financial posture snapshot. |
+| `topic:monetization-benchmark-adjacent-record/*` | live |  | member:market-validator | Cross-team benchmark-adjacent evidence from marketing. |
+| `topic:monetization-benchmark-record/*` | live | member:market-validator | member:catalog-strategist | Validated benchmark records. |
+| `topic:monetization-ledger-log/*` | live | member:financial-tracker |  | Append-only monetization ledger events used to produce current financial posture snapshots. |
+| `topic:monetization/market-scan/*` | live | member:market-validator | member:market-validator | Market-scan evidence. |
+| `topic:monetization/market-scan/<slug>` | live | member:market-validator | member:market-validator | Market-scan evidence. |
+| `topic:monetization/opportunity/*` | live | member:opportunity-scout |  | Additional opportunity observations that are not yet promoted. |
+| `topic:opportunity-inbox/*` | live |  | member:opportunity-scout | Intake for monetization opportunity signals classified by `monetization-opportunity`. |
+| `topic:scout-scan/*` | live | member:opportunity-scout | member:opportunity-scout | Scout heartbeat summaries and pool snapshots. |
+| `topic:scout-scan/YYYY-MM-DD` | live | member:opportunity-scout | member:opportunity-scout | Scout heartbeat summaries and pool snapshots. |
+| `topic:validation-inbox/*` | live |  | member:market-validator | Validation requests classified by `monetization-validation`. |
 
 ## Decisions
 

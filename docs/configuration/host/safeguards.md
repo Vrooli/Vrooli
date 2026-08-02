@@ -24,6 +24,21 @@ Same drift-protected pattern as tools (see [`tools.md`](tools.md)):
 
 Onboarding consumes the filesystem registry directly.
 
+## Deployment classification
+
+Safeguards declare the same deployment axes as tools; their canonical meanings
+live in [`deployment-contract.md`](../../resources/deployment-contract.md#deployment-eligibility-axes).
+Every safeguard declares `privilege` and `bundling`, plus an explicit desktop
+deployment profile. A safeguard normally has `privilege: elevated` and
+`bundling: prohibited`: it exists to change host state and therefore cannot be
+shipped inside a Tier 2 desktop application. Its desktop profile explains that
+unsupported status to the operator.
+
+This is intentionally separate from `risk`. `privilege` is the machine gate
+that tells Vrooli whether elevated setup is needed. `risk` is the human-facing
+impact label that helps an operator decide whether to opt into a host-state
+change. Neither field substitutes for the other.
+
 ## The `risk` field
 
 New as of the configuration substrate work. Operator-facing risk indicator that informs the wizard's display.
@@ -31,7 +46,7 @@ New as of the configuration substrate work. Operator-facing risk indicator that 
 | Value | Meaning | Examples |
 |---|---|---|
 | `low` | No system state changes outside Vrooli's tree. Probes, reads, soft validations | `clock` (clock probe and sync) |
-| `medium` | Writes config files outside Vrooli's tree, or modifies networking rules | `dns_resolution` (writes `/etc/systemd/resolved.conf.d/`), `docker_host_firewall` (iptables rules), `nat_protection` (iptables) |
+| `medium` | Writes config files outside Vrooli's tree, modifies networking rules, or grants the operator account a host privilege | `dns_resolution` (writes `/etc/systemd/resolved.conf.d/`), `docker_host_firewall` (iptables rules), `nat_protection` (iptables), `tpm_credential_access` (adds the operator account to the TPM device group) |
 | `high` | Modifies kernel parameters or requires root in ways that broadly affect host behavior | `kernel_config` (writes `/etc/sysctl.d/99-vrooli.conf`) |
 
 The wizard's host step renders this as a column next to each safeguard so operators can decide informed. Required safeguards (per the consuming manifest's `required: true`) bypass the opt-in but still display risk.

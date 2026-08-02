@@ -52,6 +52,15 @@ Both directions are required, and both are mechanically checkable. This is what 
 
 A violation in either direction is a finding, not a style note. Downward violations mean stated intent nobody is serving. Upward violations mean effort nobody asked for. The sensor and its deadband are registered in `path:docs/agent-system/FRAMEWORK_HEALTH.md`; the audit that reads them is `prompt-manager skill read agent-system-audit`.
 
+**The team half of both directions is declared and validated.** Each team names the objectives it serves in `team.json::objectivesServed`, and `prompt-manager graph objectives` checks that every id resolves to a row here, that every team this table names declares the objective back, and that no team traces to nothing. Changing the `Served by` column below therefore moves a sensor rather than waiting for someone to notice.
+
+Two constraints on that mechanism, both load-bearing:
+
+- **This file stays prose.** It is the only operator-specific layer in the agent system and must remain readable as a statement of intent. What is declared elsewhere is the *edge*, never the objective; there is no `objectives.json`, and adding one would put the operator's intent behind a schema.
+- **Role qualifiers are optional on purpose.** The `Served by` column qualifies some contributions (`primary`, `supporting`, `partial`) and leaves others open. A team may not declare a role that contradicts a qualifier stated here, and the validator does not require one where this table states none — inventing a role to satisfy a schema would assert something the operator did not write.
+
+The outcome-category half of the upward direction is not mechanical: categories are Command Center dashboard ids in the charter, not a store surface, so `agent-system-audit` §"Phase 4" still scores that one by reading.
+
 ## Evidence routing
 
 An objective without an evidence source cannot be scored, and an unscoreable objective decays into a slogan. Where the evidence comes from depends on the class:

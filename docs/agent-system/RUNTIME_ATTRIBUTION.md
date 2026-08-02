@@ -265,7 +265,7 @@ A post-cutoff entry that supersedes a pre-cutoff entry is **a new entry on the l
 
 ### Example 1: Heartbeat-spawned agent writes a knowledge entry
 
-1. Prompt-manager's heartbeat executor schedules a run for `literal:marketing-crew/researcher`. The helper `buildHeartbeatAttributionEnv` constructs the attribution payload:
+1. Prompt-manager's heartbeat executor schedules a run for `literal:marketing-crew/producer`. The helper `buildHeartbeatAttributionEnv` constructs the attribution payload:
    ```json
    {"kind":"agent-member","member_id":"researcher","team_id":"marketing-crew","run_id":null,"spawn_origin":"heartbeat","source_skill_id":null}
    ```
@@ -273,8 +273,8 @@ A post-cutoff entry that supersedes a pre-cutoff entry is **a new entry on the l
 2. Agent-manager spawns the agent process with `VROOLI_PROMPT_MANAGER_ATTRIBUTION=<base64>` in its env.
 3. The agent runs, decides to write an audience-scan, invokes `prompt-manager team knowledge-add marketing-crew --topic=audience-scan/2026-05-04/q2-creators --content="..."`.
 4. The CLI reads `VROOLI_PROMPT_MANAGER_ATTRIBUTION`, sets `X-Vrooli-Attribution` to its value, posts to `/teams/marketing-crew/knowledge`.
-5. The handler validates the header, confirms `team_id` matches the URL path, sees `kind=agent-member` with `spawn_origin=heartbeat` and accepts the null `run_id`, derives `caller="marketing-crew/researcher"`, persists the entry.
-6. The runtime-attribution scanner sees the entry, joins it against `marketing-crew/researcher/topics.json::output[]`, sees `audience-scan/*` is declared, no finding fires. ✅
+5. The handler validates the header, confirms `team_id` matches the URL path, sees `kind=agent-member` with `spawn_origin=heartbeat` and accepts the null `run_id`, derives `caller="marketing-crew/producer"`, persists the entry.
+6. The runtime-attribution scanner sees the entry, joins it against `marketing-crew/producer/topics.json::output[]`, sees `audience-scan/*` is declared, no finding fires. ✅
 
 ### Example 2: Writer-skill `report-bug` invoked by an agent
 
@@ -359,7 +359,7 @@ The full `KnowledgeEntry` shape, with attribution, is defined in `path:scenarios
   "content": "...",
   "source": "<optional source-link>",
   "supersedes": "<optional superseded-id>",
-  "caller": "marketing-crew/researcher",
+  "caller": "marketing-crew/producer",
   "caller_note": null,
   "attribution": {
     "kind": "agent-member",

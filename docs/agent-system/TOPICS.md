@@ -164,16 +164,13 @@ Per team: the topics that team currently produces and drains, with first-princip
 
 | Member | Drains (intake) | Writes (output) | Cross-team |
 |---|---|---|---|
-| `researcher` | `research-inbox/*` (taxonomy: marketing-research, classifier: signal-classifier) | `audience-scan/*`, `competitor-record/*`, `hook-record/*`, `monetization-benchmark-adjacent-record/*` | writes `monetization-benchmark-adjacent-record/*` → monetization |
-| `brand-manager` | _(none — reads evidence and decisions)_ | `marketing-canon/*` (por_file → `path:docs/marketing/strategy/STRATEGY.md`, `path:docs/marketing/strategy/AUDIENCES.md`), `brand-snapshot/*`, `artifact-request/oss/*`, `artifact-request/subscription/*` | — |
-| `publisher` | _(none — proactive)_ | `publish-log/*` | — |
-| `oss-advertiser` | _(none — proactive)_ | `campaign-draft/*` | — |
-| `subscription-advertiser` | _(none — proactive)_ | `campaign-draft/*` | — |
-| `marketing-contrarian` | _(none — proactive; reads peer decisions)_ | `challenge-report/*`, `challenge-resolution-record/*` | — |
+| `producer` | _(none — draws open work from `content-desk` campaigns)_ | `audience-scan/*`, `competitor-record/*`, `hook-record/*`, `workflow-scan/*`, `skill-scan/*`, `channel-scan/*`, `format-scan/*`, `monetization-benchmark-adjacent-record/*` | writes `monetization-benchmark-adjacent-record/*` → monetization |
+| `brand-manager` | `marketing-craft-observation/*` | `marketing-canon/*` (por_file → `path:docs/marketing/strategy/STRATEGY.md`, `path:docs/marketing/strategy/AUDIENCES.md`), `brand-snapshot/*` | — |
+| `marketing-contrarian` | _(none — proactive; reads peer decisions)_ | _(none declared; challenge reports are the contrarian-review sidecar per `CONTRARIAN_REVIEW.md`)_ | — |
 
 **Observations (draft):**
-- `campaign-draft/*` is written by both `oss-advertiser` and `subscription-advertiser` but has no declared drainer. `publisher` *should* be the drainer (it owns content publishing) but its `topics.json` doesn't declare `intake: [{ prefix: "campaign-draft/*", ... }]`. **Likely gap:** `publisher` should drain `campaign-draft/*`, picking from drafts and producing publish-log entries. Workshop.
-- The two advertisers (`oss-advertiser`, `subscription-advertiser`) are proactive but have no input shape — they generate from operator/vision-walk only. **Possible gap:** a `topic[future]:marketing-brief-inbox/*` (or similar) for cross-team handoff (e.g., monetization → marketing for SKU-launch coverage). Workshop.
+- Drafts, claims, campaigns, coverage and publish history are no longer topics on this team. They are records in the `content-desk` scenario, and account state is in `channel-manager` (`team-capability-consolidation`, applied 2026-07-28). The former `campaign-draft/*` and `publish-log/*` prefixes retired with the `oss-advertiser`, `subscription-advertiser` and `publisher` members; do not reintroduce them as topics.
+- `producer` declares no intake. That is the correct end state for a member whose work queue lives in a scenario rather than in a topic — the campaign slot is the queue. Read it as an intentional empty, not a missing declaration.
 - `marketing-canon/*` is unusual: two `output[]` entries on the same prefix with different `destination_path` values (one to STRATEGY.md, one to AUDIENCES.md). This is a known pattern for por_file topics — the prefix names the *category*, the destination_path names the file. Document the pattern explicitly in § Stable conventions if it's the intended design.
 
 ### meta-optimization

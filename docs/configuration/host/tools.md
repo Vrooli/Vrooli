@@ -21,6 +21,26 @@ There is one canonical registry, drift-protected by `internal/runtime/manifests_
 - The Go map `customToolHandlers` in `internal/runtime/registry.go` lists tools that need custom install logic (e.g. `cloudflared`, `stripe`, `vault`).
 - The invariant test `TestToolManifestsReferenceRegisteredHandlers` ensures every manifest with a custom `handler` field has a corresponding registered Go handler. No drift between code and config.
 
+## Deployment classification
+
+Every tool manifest has a `bundling` classification. The deployment contract is
+the single definition of the vocabulary: see
+[`deployment-contract.md`](../../resources/deployment-contract.md#deployment-eligibility-axes).
+
+- `vendorable` tools have a checksummed, per-platform artifact that a desktop
+  bundle can stage.
+- `host-required` tools must be present on the target host and are never
+  silently assumed to be bundled. Display infrastructure and `secret-tool` are
+  examples.
+- `prohibited` tools must not enter a desktop bundle.
+
+`privilege` is a separate axis. It describes the maximum permission needed to
+install or operate the tool on a Vrooli-owned host; it does **not** say whether
+the tool may ship in a desktop application. For ordinary tools it is derived
+from the install mechanism per platform. A manifest only declares it explicitly
+when that derivation would be wrong, and then supplies `privilegeReason`.
+`elevated` work remains confined to Vrooli's explicit project setup boundary.
+
 ## Linux credential storage
 
 `secret-tool` is the Linux-only `libsecret` command client used by the
@@ -93,7 +113,7 @@ A tool absent from `host_tools.*` falls back to its manifest `required` field �
 
 ## Risk indicators
 
-Tools do not currently have a `risk` field on their manifest (unlike safeguards — see [`safeguards.md`](safeguards.md)). Most tools are package installs with low risk. If a tool's installation has meaningful side effects (root privilege escalation, modifying system services, etc.), document it in `notes` and consider whether it should be a safeguard rather than a tool.
+Tools do not currently have a `risk` field on their manifest (unlike safeguards — see [`safeguards.md`](safeguards.md)). Most tools are package installs with low risk. `privilege` is not a replacement for risk: it is a machine-readable deployment and setup gate, while risk is an operator-facing assessment of host-state impact. If a tool's installation has meaningful side effects (root privilege escalation, modifying system services, etc.), document it in `notes` and consider whether it should be a safeguard rather than a tool.
 
 ## Adding a new tool
 

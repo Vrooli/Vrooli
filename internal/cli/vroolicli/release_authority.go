@@ -64,7 +64,7 @@ func releaseAuthorityAddEvidence(ctx *CommandContext, authority *releaseauthorit
 }
 
 func (app *App) releaseAuthority() (*releaseauthority.Authority, error) {
-	credentials, err := nativeCredentialAuthority()
+	credentials, err := credentialAuthority()
 	if err != nil {
 		return nil, err
 	}

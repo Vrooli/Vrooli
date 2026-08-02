@@ -9,7 +9,7 @@ lease. When either storage leg is unavailable, workflow validation refuses the
 mutating case rather than falling back to primary storage. The lease teardown
 reports test-write and primary-leak counters as durable run evidence.
 
-Use `storage-health validate scenario <name>` before enabling mutating E2E for
+Use `storage-manager validate scenario <name>` before enabling mutating E2E for
 a scenario. It verifies the routed database/file seams and namespaced external
 stores. Use `vrooli scenario test <name>` for the server-owned suite; Test
 Genie records whether the scenario source remained stable.

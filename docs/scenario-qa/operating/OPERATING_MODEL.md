@@ -57,115 +57,115 @@ actor_alias.decision owners: none
 -->
 ```mermaid
 flowchart LR
-  subgraph INFLOWS["Inflows / Producers"]
-    %% @node OP external:operator
-    OP([Operator])
-    %% @node RB external:report-bug
-    RB([report-bug skill])
-    %% @node DIR team:director-swarm
-    DIR[[Director Swarm]]
-    %% @node INFRA team:infra-health
-    INFRA[[Infra Health]]
-    %% @node MKT team:marketing-crew
-    MKT[[Marketing Crew]]
-    %% @node META_IN team:meta-optimization
-    META_IN[[Meta Optimization]]
-    %% @node MON team:monetization
-    MON[[Monetization]]
-  end
-
-  %% Members
-  %% @node QA member:quality-auditor
-  QA[Quality Auditor]
+  %% @node BACKLOG process:swarm-manager-backlog-routing
+  BACKLOG([Swarm Manager backlog routing])
   %% @node BI member:bug-investigator
   BI[Bug Investigator]
-  %% @node QC member:qa-contrarian
-  QC[QA Contrarian]
-
-  %% Topics
-  %% @node QUAUD topic:quality-audit/<scenario-id>/<skill-id>
-  QUAUD[(quality-audit/<scenario-id>/<skill-id>)]
-  %% @node BUGIN topic:bug-inbox/<signal-type>/<slug>
-  BUGIN[(bug-inbox/<signal-type>/<slug>)]
-  %% @node BUGREP topic:bug-investigation-report/<slug>
-  BUGREP[(bug-investigation-report/<slug>)]
-  %% @node CHAL topic:challenge-report/<slug>
-  CHAL[(challenge-report/<slug>)]
-  %% @node RES topic:challenge-resolution-record/<slug>
-  RES[(challenge-resolution-record/<slug>)]
-
-  %% Decisions
-  %% @node QBACK decision:quality-audit-backlog
-  QBACK{quality-audit-backlog}
   %% @node BUGDEC decision:bug-resolution-proposal
   BUGDEC{bug-resolution-proposal}
+  %% @node BUGREP topic:bug-investigation-report/<slug>
+  BUGREP[(bug-investigation-report/<slug>)]
   %% @node CAP decision:capability-gap
   CAP{capability-gap}
+  %% @node CHAL topic:challenge-report/<slug>
+  CHAL[(challenge-report/<slug>)]
+  %% @node DIR team:director-swarm
+  DIR[[Director Swarm]]
+  %% @node GAPROUTE process:capability-gap-routing
+  GAPROUTE([Capability-gap routing])
+  %% @node INFRA team:infra-health
+  INFRA[[Infra Health]]
+  %% @node META_IN team:meta-optimization
+  META_IN[[Meta Optimization]]
+  %% @node MKT team:marketing-crew
+  MKT[[Marketing Crew]]
+  %% @node MON team:monetization
+  MON[[Monetization]]
+  %% @node OP external:operator
+  OP([Operator])
+  %% @node QA member:quality-auditor
+  QA[Quality Auditor]
+  %% @node QBACK decision:quality-audit-backlog
+  QBACK{quality-audit-backlog}
+  %% @node QC member:qa-contrarian
+  QC[QA Contrarian]
+  %% @node QUAUD topic:quality-audit/<scenario-id>/<skill-id>
+  QUAUD[(quality-audit/<scenario-id>/<skill-id>)]
+  %% @node RB external:report-bug
+  RB([report-bug skill])
+  %% @node RES topic:challenge-resolution-record/<slug>
+  RES[(challenge-resolution-record/<slug>)]
+  %% @node SWARM external:swarm-manager
+  SWARM([Swarm Manager])
+  %% @node DOCSSCENARIO por:docs/scenario-qa/README.md
+  DOCSSCENARIO[/docs/scenario-qa/README.md/]
+  %% @node DOCSSCENARIO2 por:docs/scenario-qa/governance/adoption-validation.md
+  DOCSSCENARIO2[/docs/scenario-qa/governance/adoption-validation.md/]
+  %% @node DOCSSCENARIO3 por:docs/scenario-qa/governance/changelog.md
+  DOCSSCENARIO3[/docs/scenario-qa/governance/changelog.md/]
+  %% @node DOCSSCENARIO4 por:docs/scenario-qa/governance/editing.md
+  DOCSSCENARIO4[/docs/scenario-qa/governance/editing.md/]
+  %% @node DOCSSCENARIO5 por:docs/scenario-qa/operating/OPERATING_MODEL.md
+  DOCSSCENARIO5[/docs/scenario-qa/operating/OPERATING_MODEL.md/]
+  %% @node BUGINBOX topic:bug-inbox/*
+  BUGINBOX[(bug-inbox/*)]
+  %% @node BUGINVESTIGA topic:bug-investigation-report/*
+  BUGINVESTIGA[(bug-investigation-report/*)]
+  %% @node CHALLENGEREP topic:challenge-report/*
+  CHALLENGEREP[(challenge-report/*)]
+  %% @node CHALLENGERES topic:challenge-resolution-record/*
+  CHALLENGERES[(challenge-resolution-record/*)]
+  %% @node QUALITYAUDIT topic:quality-audit/*
+  QUALITYAUDIT[(quality-audit/*)]
 
-  subgraph OUTFLOWS["Downstream outflows"]
-    %% @node BACKLOG process:swarm-manager-backlog-routing
-    BACKLOG([Swarm Manager backlog routing])
-    %% @node SWARM external:swarm-manager
-    SWARM([Swarm Manager])
-    %% @node GAPROUTE process:capability-gap-routing
-    GAPROUTE([Capability-gap routing])
-    %% @node META team:meta-optimization
-    META[[Meta Optimization]]
-  end
-
-  %% Structural audit
-  OP --> QA
-  QUAUD --> QA
-  CHAL --> QA
-  RES --> QA
-  QBACK --> QA
-  QA --> QUAUD
-  QA --> QBACK
-
-  %% Bug investigation
-  RB --> BUGIN
-  DIR --> BUGIN
-  INFRA --> BUGIN
-  MKT --> BUGIN
-  META_IN --> BUGIN
-  MON --> BUGIN
-  RB --> BI
-  BUGIN --> BI
-  BUGREP --> BI
-  CHAL --> BI
-  RES --> BI
-  BUGDEC --> BI
+  BUGDEC --> QC
+  BUGDEC --> BACKLOG
   CAP --> BI
-  BI --> BUGREP
+  CAP --> QC
+  CAP --> GAPROUTE
+  QBACK --> QC
+  QBACK --> BACKLOG
+  OP --> QA
+  RB --> BI
+  RB --> BUGINBOX
   BI --> BUGDEC
   BI --> CAP
-
-  %% Contrarian review
-  CHAL --> QC
-  RES --> QC
-  QBACK --> QC
-  BUGDEC --> QC
-  CAP --> QC
-  QC --> CHAL
-  QC --> RES
-
-  %% Downstream effects
-  QBACK --> BACKLOG
-  BUGDEC --> BACKLOG
+  BI --> BUGINVESTIGA
+  QC --> CHALLENGEREP
+  QC --> CHALLENGERES
+  QA --> QBACK
+  QA --> QUALITYAUDIT
+  GAPROUTE --> META_IN
   BACKLOG --> SWARM
-  CAP --> GAPROUTE
-  GAPROUTE --> META
+  DIR --> BUGINBOX
+  INFRA --> BUGINBOX
+  MKT --> BUGINBOX
+  META_IN --> BUGINBOX
+  MON --> BUGINBOX
+  BUGINBOX --> BI
+  BUGREP --> BI
+  CHALLENGEREP --> BI
+  CHALLENGEREP --> QA
+  CHAL --> QC
+  CHALLENGERES --> BI
+  CHALLENGERES --> QA
+  RES --> QC
+  QUAUD --> QA
 ```
 
 ## Topic Catalog
 
 | Topic family | Status | Owner / primary writer | Primary readers | Purpose |
 |---|---|---|---|---|
-| `topic:quality-audit/<scenario-id>/<skill-id>` | live | quality-auditor | quality-auditor | Judgment-based structural audit finding produced with a registered audit technique. |
-| `topic:bug-inbox/<signal-type>/<slug>` | live | report-bug | bug-investigator | Universal-source bug intake written by any team through the report-bug skill and drained by bug-investigator. |
-| `topic:bug-investigation-report/<slug>` | live | bug-investigator | bug-investigator | Closed bug-investigation audit log with root cause, evidence, action taken, and remaining gaps. |
-| `topic:challenge-report/<slug>` | live | qa-contrarian | quality-auditor, bug-investigator, qa-contrarian | Append-only contrarian challenge evidence for scenario-qa findings, investigations, and backlog decisions. |
-| `topic:challenge-resolution-record/<slug>` | live | qa-contrarian | quality-auditor, bug-investigator, qa-contrarian | Latest-state record for a scenario-qa challenge: open, author-responded, resolved, escalated, overridden, or stale. |
+| `topic:bug-inbox/*` | live |  | member:bug-investigator | Universal-source bug intake written by any team through the report-bug skill and drained by bug-investigator. |
+| `topic:bug-investigation-report/*` | live | member:bug-investigator | member:bug-investigator | Closed bug-investigation audit log with root cause, evidence, action taken, and remaining gaps. |
+| `topic:bug-investigation-report/<slug>` | live | member:bug-investigator | member:bug-investigator | Closed bug-investigation audit log with root cause, evidence, action taken, and remaining gaps. |
+| `topic:challenge-report/*` | live | member:qa-contrarian | member:bug-investigator, member:qa-contrarian, member:quality-auditor | Append-only contrarian challenge evidence for scenario-qa findings, investigations, and backlog decisions. |
+| `topic:challenge-report/<slug>` | live | member:qa-contrarian | member:bug-investigator, member:qa-contrarian, member:quality-auditor | Append-only contrarian challenge evidence for scenario-qa findings, investigations, and backlog decisions. |
+| `topic:challenge-resolution-record/*` | live | member:qa-contrarian | member:bug-investigator, member:qa-contrarian, member:quality-auditor | Latest-state record for a scenario-qa challenge: open, author-responded, resolved, escalated, overridden, or stale. |
+| `topic:challenge-resolution-record/<slug>` | live | member:qa-contrarian | member:bug-investigator, member:qa-contrarian, member:quality-auditor | Latest-state record for a scenario-qa challenge: open, author-responded, resolved, escalated, overridden, or stale. |
+| `topic:quality-audit/*` | live | member:quality-auditor | member:quality-auditor | Judgment-based structural audit finding produced with a registered audit technique. |
+| `topic:quality-audit/<scenario-id>/<skill-id>` | live | member:quality-auditor | member:quality-auditor | Judgment-based structural audit finding produced with a registered audit technique. |
 
 ## Decisions
 

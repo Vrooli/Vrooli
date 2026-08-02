@@ -87,322 +87,357 @@ actor_alias.decision owners: none
 -->
 ```mermaid
 flowchart LR
-  subgraph INFLOWS["Inflows / Producers"]
-    %% @node OP external:operator
-    OP([Operator])
-    %% @node RF external:report-friction
-    RF([report-friction skill])
-    %% @node DIR team:director-swarm
-    DIR[[Director Swarm]]
-    %% @node INFRA team:infra-health
-    INFRA[[Infra Health]]
-    %% @node MKT team:marketing-crew
-    MKT[[Marketing Crew]]
-    %% @node MON team:monetization
-    MON[[Monetization]]
-    %% @node QA_IN team:scenario-qa
-    QA_IN[[Scenario QA]]
-  end
-
-  %% Members
-  %% @node FC member:friction-curator
-  FC[Friction Curator]
-  %% @node TV member:toolchain-validator
-  TV[Toolchain Validator]
-  %% @node RI member:run-introspector
-  RI[Run Introspector]
-  %% @node TAO member:team-agent-optimizer
-  TAO[Team Agent Optimizer]
-  %% @node SO member:skill-optimizer
-  SO[Skill Optimizer]
-  %% @node DC member:debt-curator
-  DC[Debt Curator]
-  %% @node MC member:meta-contrarian
-  MC[Meta Contrarian]
-
-  %% Topics
-  %% @node FIN topic:friction-inbox/<scope>/<slug>
-  FIN[(friction-inbox/<scope>/<slug>)]
-  %% @node FTRI topic:friction-triage-record/<YYYY-MM-DD>
-  FTRI[(friction-triage-record/<YYYY-MM-DD>)]
-  %% @node FTOOL topic:friction-report/toolchain/<YYYY-MM-DD>/<slug>
-  FTOOL[(friction-report/toolchain/<YYYY-MM-DD>/<slug>)]
-  %% @node FRUN topic:friction-report/run-execution/<YYYY-MM-DD>/<slug>
-  FRUN[(friction-report/run-execution/<YYYY-MM-DD>/<slug>)]
-  %% @node FPTA topic:friction-report/prompt-team-agent-storage/<YYYY-MM-DD>/<slug>
-  FPTA[(friction-report/prompt-team-agent-storage/<YYYY-MM-DD>/<slug>)]
-  %% @node FREC topic:friction-report/recurring-workaround/<YYYY-MM-DD>/<slug>
-  FREC[(friction-report/recurring-workaround/<YYYY-MM-DD>/<slug>)]
-  %% @node TOOL topic:toolchain-audit/YYYY-MM-DD
-  TOOL[(toolchain-audit/YYYY-MM-DD)]
-  %% @node SELFHEALTH topic:self-health/test-genie/YYYY-MM-DD
-  SELFHEALTH[(self-health/test-genie/YYYY-MM-DD)]
-  %% @node RUNLESS topic:run-lesson-report/YYYY-MM-DD
-  RUNLESS[(run-lesson-report/YYYY-MM-DD)]
-  %% @node TEAMAUD topic:team-audit/YYYY-MM-DD
-  TEAMAUD[(team-audit/YYYY-MM-DD)]
-  %% @node AGENTAUD topic:agent-audit/YYYY-MM-DD
-  AGENTAUD[(agent-audit/YYYY-MM-DD)]
-  %% @node FHAUD topic:framework-health-audit/YYYY-MM-DD
-  FHAUD[(framework-health-audit/YYYY-MM-DD)]
-  %% @node TEAMVIS topic:team-visited/<team-id>
-  TEAMVIS[(team-visited/<team-id>)]
-  %% @node AGENTVIS topic:agent-visited/<agent-id>
-  AGENTVIS[(agent-visited/<agent-id>)]
-  %% @node SKILLAUD topic:skill-audit/YYYY-MM-DD
-  SKILLAUD[(skill-audit/YYYY-MM-DD)]
-  %% @node SKILLVIS topic:skill-visited/<skill-id>
-  SKILLVIS[(skill-visited/<skill-id>)]
+  %% @node ACCEPT external:operator-approved-implementation
+  ACCEPT([Operator-approved implementation])
+  %% @node ACTC decision:action-candidate
+  ACTC{action-candidate}
+  %% @node ACTDEP decision:action-deprecation
+  ACTDEP{action-deprecation}
+  %% @node ACTIMP decision:action-improvement
+  ACTIMP{action-improvement}
   %% @node ACTIONAUD topic:action-audit/YYYY-MM-DD
   ACTIONAUD[(action-audit/YYYY-MM-DD)]
   %% @node ACTIONVIS topic:action-visited/<action-id>
   ACTIONVIS[(action-visited/<action-id>)]
-  %% @node SKEXP topic:skill-experiment/<skill-id>/<experiment-id>
-  SKEXP[(skill-experiment/<skill-id>/<experiment-id>)]
-  %% @node DEBT topic:debt-scan/YYYY-MM-DD
-  DEBT[(debt-scan/YYYY-MM-DD)]
-  %% @node CHAL topic:challenge-report/<decision-id>
-  CHAL[(challenge-report/<decision-id>)]
-  %% @node RES topic:challenge-resolution-record/<decision-id>
-  RES[(challenge-resolution-record/<decision-id>)]
-
-  %% Decisions
-  %% @node SKCONV decision:skill-conversion-candidate
-  SKCONV{skill-conversion-candidate}
-  %% @node SKIMP decision:skill-improvement
-  SKIMP{skill-improvement}
-  %% @node SKDEP decision:skill-deprecation
-  SKDEP{skill-deprecation}
-  %% @node SKGRAD decision:skill-graduation
-  SKGRAD{skill-graduation}
-  %% @node SKEXPPROMO decision:skill-experiment-promotion
-  SKEXPPROMO{skill-experiment-promotion}
-  %% @node ACTC decision:action-candidate
-  ACTC{action-candidate}
-  %% @node ACTIMP decision:action-improvement
-  ACTIMP{action-improvement}
-  %% @node ACTDEP decision:action-deprecation
-  ACTDEP{action-deprecation}
-  %% @node AGIMP decision:agent-improvement
-  AGIMP{agent-improvement}
   %% @node AGDEP decision:agent-deprecation
   AGDEP{agent-deprecation}
-  %% @node TSTRUCT decision:team-structure-change
-  TSTRUCT{team-structure-change}
-  %% @node TDEP decision:team-deprecation
-  TDEP{team-deprecation}
-  %% @node TCV decision:toolchain-violation
-  TCV{toolchain-violation}
-  %% @node RLESSD decision:run-lesson
-  RLESSD{run-lesson}
+  %% @node AGENTAUD topic:agent-audit/YYYY-MM-DD
+  AGENTAUD[(agent-audit/YYYY-MM-DD)]
+  %% @node AGENTVIS topic:agent-visited/<agent-id>
+  AGENTVIS[(agent-visited/<agent-id>)]
+  %% @node AGIMP decision:agent-improvement
+  AGIMP{agent-improvement}
   %% @node CAP decision:capability-gap
   CAP{capability-gap}
-  %% @node MSIM decision:meta-self-improvement
-  MSIM{meta-self-improvement}
+  %% @node CHAL topic:challenge-report/<decision-id>
+  CHAL[(challenge-report/<decision-id>)]
+  %% @node DC member:debt-curator
+  DC[Debt Curator]
+  %% @node DEBT topic:debt-scan/YYYY-MM-DD
+  DEBT[(debt-scan/YYYY-MM-DD)]
+  %% @node DIR team:director-swarm
+  DIR[[Director Swarm]]
   %% @node DREJ decision:decision-rejection-proposed
   DREJ{decision-rejection-proposed}
+  %% @node FC member:friction-curator
+  FC[Friction Curator]
+  %% @node FHAUD topic:framework-health-audit/YYYY-MM-DD
+  FHAUD[(framework-health-audit/YYYY-MM-DD)]
+  %% @node FIN topic:friction-inbox/<scope>/<slug>
+  FIN[(friction-inbox/<scope>/<slug>)]
+  %% @node FPTA topic:friction-report/prompt-team-agent-storage/<YYYY-MM-DD>/<slug>
+  FPTA[(friction-report/prompt-team-agent-storage/<YYYY-MM-DD>/<slug>)]
+  %% @node FREC topic:friction-report/recurring-workaround/<YYYY-MM-DD>/<slug>
+  FREC[(friction-report/recurring-workaround/<YYYY-MM-DD>/<slug>)]
+  %% @node FRUN topic:friction-report/run-execution/<YYYY-MM-DD>/<slug>
+  FRUN[(friction-report/run-execution/<YYYY-MM-DD>/<slug>)]
+  %% @node FTOOL topic:friction-report/toolchain/<YYYY-MM-DD>/<slug>
+  FTOOL[(friction-report/toolchain/<YYYY-MM-DD>/<slug>)]
+  %% @node FTRI topic:friction-triage-record/<YYYY-MM-DD>
+  FTRI[(friction-triage-record/<YYYY-MM-DD>)]
   %% @node FUP decision:framework-update
   FUP{framework-update}
+  %% @node GAPROUTE process:capability-gap-routing
+  GAPROUTE([Capability-gap routing])
+  %% @node INFRA team:infra-health
+  INFRA[[Infra Health]]
+  %% @node MC member:meta-contrarian
+  MC[Meta Contrarian]
+  %% @node MKT team:marketing-crew
+  MKT[[Marketing Crew]]
+  %% @node MON team:monetization
+  MON[[Monetization]]
+  %% @node MSIM decision:meta-self-improvement
+  MSIM{meta-self-improvement}
+  %% @node OP external:operator
+  OP([Operator])
+  %% @node OWN process:owner-routing
+  OWN([Owning surface routing])
+  %% @node QA_IN team:scenario-qa
+  QA_IN[[Scenario QA]]
+  %% @node RES topic:challenge-resolution-record/<decision-id>
+  RES[(challenge-resolution-record/<decision-id>)]
+  %% @node RF external:report-friction
+  RF([report-friction skill])
+  %% @node RI member:run-introspector
+  RI[Run Introspector]
+  %% @node RLESSD decision:run-lesson
+  RLESSD{run-lesson}
+  %% @node RUNLESS topic:run-lesson-report/YYYY-MM-DD
+  RUNLESS[(run-lesson-report/YYYY-MM-DD)]
+  %% @node SELFHEALTH topic:self-health/test-genie/YYYY-MM-DD
+  SELFHEALTH[(self-health/test-genie/YYYY-MM-DD)]
+  %% @node SKCONV decision:skill-conversion-candidate
+  SKCONV{skill-conversion-candidate}
+  %% @node SKDEP decision:skill-deprecation
+  SKDEP{skill-deprecation}
+  %% @node SKEXP topic:skill-experiment/<skill-id>/<experiment-id>
+  SKEXP[(skill-experiment/<skill-id>/<experiment-id>)]
+  %% @node SKEXPPROMO decision:skill-experiment-promotion
+  SKEXPPROMO{skill-experiment-promotion}
+  %% @node SKGRAD decision:skill-graduation
+  SKGRAD{skill-graduation}
+  %% @node SKILLAUD topic:skill-audit/YYYY-MM-DD
+  SKILLAUD[(skill-audit/YYYY-MM-DD)]
+  %% @node SKILLVIS topic:skill-visited/<skill-id>
+  SKILLVIS[(skill-visited/<skill-id>)]
+  %% @node SKIMP decision:skill-improvement
+  SKIMP{skill-improvement}
+  %% @node SO member:skill-optimizer
+  SO[Skill Optimizer]
+  %% @node TAO member:team-agent-optimizer
+  TAO[Team Agent Optimizer]
+  %% @node TCV decision:toolchain-violation
+  TCV{toolchain-violation}
+  %% @node TDEP decision:team-deprecation
+  TDEP{team-deprecation}
+  %% @node TEAMAUD topic:team-audit/YYYY-MM-DD
+  TEAMAUD[(team-audit/YYYY-MM-DD)]
+  %% @node TEAMVIS topic:team-visited/<team-id>
+  TEAMVIS[(team-visited/<team-id>)]
+  %% @node TOOL topic:toolchain-audit/YYYY-MM-DD
+  TOOL[(toolchain-audit/YYYY-MM-DD)]
+  %% @node TSTRUCT decision:team-structure-change
+  TSTRUCT{team-structure-change}
+  %% @node TV member:toolchain-validator
+  TV[Toolchain Validator]
+  %% @node DOCSMETAOPTI por:docs/meta-optimization/README.md
+  DOCSMETAOPTI[/docs/meta-optimization/README.md/]
+  %% @node DOCSMETAOPTI2 por:docs/meta-optimization/governance/adoption-validation.md
+  DOCSMETAOPTI2[/docs/meta-optimization/governance/adoption-validation.md/]
+  %% @node DOCSMETAOPTI3 por:docs/meta-optimization/governance/changelog.md
+  DOCSMETAOPTI3[/docs/meta-optimization/governance/changelog.md/]
+  %% @node DOCSMETAOPTI4 por:docs/meta-optimization/governance/editing.md
+  DOCSMETAOPTI4[/docs/meta-optimization/governance/editing.md/]
+  %% @node DOCSMETAOPTI5 por:docs/meta-optimization/operating/OPERATING_MODEL.md
+  DOCSMETAOPTI5[/docs/meta-optimization/operating/OPERATING_MODEL.md/]
+  %% @node DOCSMETAOPTI6 por:docs/meta-optimization/operating/README.md
+  DOCSMETAOPTI6[/docs/meta-optimization/operating/README.md/]
+  %% @node ACTIONAUDIT topic:action-audit/*
+  ACTIONAUDIT[(action-audit/*)]
+  %% @node ACTIONVISITE topic:action-visited/*
+  ACTIONVISITE[(action-visited/*)]
+  %% @node AGENTAUDIT topic:agent-audit/*
+  AGENTAUDIT[(agent-audit/*)]
+  %% @node AGENTVISITED topic:agent-visited/*
+  AGENTVISITED[(agent-visited/*)]
+  %% @node CHALLENGEREP topic:challenge-report/*
+  CHALLENGEREP[(challenge-report/*)]
+  %% @node CHALLENGERES topic:challenge-resolution-record/*
+  CHALLENGERES[(challenge-resolution-record/*)]
+  %% @node DEBTSCAN topic:debt-scan/*
+  DEBTSCAN[(debt-scan/*)]
+  %% @node FRAMEWORKHEA topic:framework-health-audit/*
+  FRAMEWORKHEA[(framework-health-audit/*)]
+  %% @node FRICTIONINBO topic:friction-inbox/*
+  FRICTIONINBO[(friction-inbox/*)]
+  %% @node FRICTIONREPO topic:friction-report/prompt-team-agent-storage/*
+  FRICTIONREPO[(friction-report/prompt-team-agent-storage/*)]
+  %% @node FRICTIONREPO2 topic:friction-report/recurring-workaround/*
+  FRICTIONREPO2[(friction-report/recurring-workaround/*)]
+  %% @node FRICTIONREPO3 topic:friction-report/run-execution/*
+  FRICTIONREPO3[(friction-report/run-execution/*)]
+  %% @node FRICTIONREPO4 topic:friction-report/toolchain/*
+  FRICTIONREPO4[(friction-report/toolchain/*)]
+  %% @node FRICTIONTRIA topic:friction-triage-record/*
+  FRICTIONTRIA[(friction-triage-record/*)]
+  %% @node RUNLESSONREP topic:run-lesson-report/*
+  RUNLESSONREP[(run-lesson-report/*)]
+  %% @node SELFHEALTHTE topic:self-health/test-genie/*
+  SELFHEALTHTE[(self-health/test-genie/*)]
+  %% @node SKILLAUDIT topic:skill-audit/*
+  SKILLAUDIT[(skill-audit/*)]
+  %% @node SKILLEXPERIM topic:skill-experiment/*
+  SKILLEXPERIM[(skill-experiment/*)]
+  %% @node SKILLVISITED topic:skill-visited/*
+  SKILLVISITED[(skill-visited/*)]
+  %% @node TEAMAUDIT topic:team-audit/*
+  TEAMAUDIT[(team-audit/*)]
+  %% @node TEAMVISITED topic:team-visited/*
+  TEAMVISITED[(team-visited/*)]
+  %% @node TOOLCHAINAUD topic:toolchain-audit/*
+  TOOLCHAINAUD[(toolchain-audit/*)]
 
-  subgraph OUTFLOWS["Downstream outflows"]
-    %% @node OWN process:owner-routing
-    OWN([Owning surface routing])
-    %% @node ACCEPT external:operator-approved-implementation
-    ACCEPT([Operator-approved implementation])
-    %% @node GAPROUTE process:capability-gap-routing
-    GAPROUTE([Capability-gap routing])
-  end
-
-  %% Friction intake
-  RF --> FIN
-  DIR --> FIN
-  INFRA --> FIN
-  MKT --> FIN
-  MON --> FIN
-  QA_IN --> FIN
-  RF --> FC
-  FIN --> FC
-  FTRI --> FC
-  FC --> FTRI
-  FC --> FTOOL
-  FC --> FRUN
-  FC --> FPTA
-  FC --> FREC
-
-  %% Toolchain loop
-  OP --> TV
-  FTOOL --> TV
-  TOOL --> TV
-  SELFHEALTH --> TV
-  CHAL --> TV
-  RES --> TV
-  TCV --> TV
-  CAP --> TV
-  TV --> TOOL
-  TV --> SELFHEALTH
-  TV --> TCV
-  TV --> CAP
-
-  %% Run lesson loop
-  OP --> RI
-  FRUN --> RI
-  RUNLESS --> RI
-  CHAL --> RI
-  RES --> RI
-  RLESSD --> RI
-  CAP --> RI
-  RI --> RUNLESS
-  RI --> RLESSD
-  RI --> CAP
-
-  %% Team and agent loop
-  OP --> TAO
-  FPTA --> TAO
-  TEAMAUD --> TAO
-  AGENTAUD --> TAO
-  FHAUD --> TAO
-  TEAMVIS --> TAO
-  AGENTVIS --> TAO
-  CHAL --> TAO
-  RES --> TAO
-  AGIMP --> TAO
-  AGDEP --> TAO
-  TSTRUCT --> TAO
-  TDEP --> TAO
-  CAP --> TAO
-  TAO --> TEAMAUD
-  TAO --> AGENTAUD
-  TAO --> FHAUD
-  TAO --> TEAMVIS
-  TAO --> AGENTVIS
-  TAO --> AGIMP
-  TAO --> AGDEP
-  TAO --> TSTRUCT
-  TAO --> TDEP
-  TAO --> CAP
-
-  %% Skill and Action loop
-  OP --> SO
-  SKILLAUD --> SO
-  SKILLVIS --> SO
-  SKEXP --> SO
-  SKEXP --> MC
-  ACTIONAUD --> SO
-  ACTIONVIS --> SO
-  CHAL --> SO
-  RES --> SO
-  SKCONV --> SO
-  SKIMP --> SO
-  SKDEP --> SO
-  SKGRAD --> SO
-  SKEXPPROMO --> SO
-  ACTC --> SO
-  ACTIMP --> SO
-  ACTDEP --> SO
-  CAP --> SO
-  SO --> SKILLAUD
-  SO --> SKILLVIS
-  SO --> SKEXP
-  SO --> ACTIONAUD
-  SO --> ACTIONVIS
-  SO --> SKCONV
-  SO --> SKIMP
-  SO --> SKDEP
-  SO --> SKGRAD
-  SO --> SKEXPPROMO
-  SO --> ACTC
-  SO --> ACTIMP
-  SO --> ACTDEP
-
-  %% Debt loop
-  OP --> DC
-  FREC --> DC
-  FTRI --> DC
-  RUNLESS --> DC
-  TOOL --> DC
-  SKILLAUD --> DC
-  ACTIONAUD --> DC
-  TEAMAUD --> DC
-  AGENTAUD --> DC
-  DEBT --> DC
-  CHAL --> DC
-  RES --> DC
-  MSIM --> DC
-  DC --> DEBT
-  DC --> MSIM
-
-  %% Contrarian review
-  CHAL --> MC
-  RES --> MC
-  SKCONV --> MC
-  SKIMP --> MC
-  SKDEP --> MC
-  SKGRAD --> MC
-  SKEXPPROMO --> MC
   ACTC --> MC
-  ACTIMP --> MC
-  ACTDEP --> MC
-  AGIMP --> MC
-  AGDEP --> MC
-  TSTRUCT --> MC
-  TDEP --> MC
-  TCV --> MC
-  RLESSD --> MC
-  CAP --> MC
-  MSIM --> MC
-  MC --> CHAL
-  MC --> RES
-  MC --> DREJ
-  MC --> FUP
-
-  %% Downstream effects
-  SKCONV --> OWN
-  SKIMP --> OWN
-  SKDEP --> OWN
-  SKGRAD --> OWN
-  SKEXPPROMO --> OWN
   ACTC --> OWN
-  ACTIMP --> OWN
+  ACTDEP --> MC
   ACTDEP --> OWN
-  AGIMP --> OWN
+  ACTIMP --> MC
+  ACTIMP --> OWN
+  AGDEP --> MC
   AGDEP --> OWN
-  TSTRUCT --> OWN
-  TDEP --> OWN
-  TCV --> OWN
-  RLESSD --> OWN
-  MSIM --> OWN
+  AGIMP --> MC
+  AGIMP --> OWN
+  CAP --> MC
+  CAP --> SO
+  CAP --> GAPROUTE
   DREJ --> OWN
   FUP --> OWN
+  MSIM --> MC
+  MSIM --> OWN
+  RLESSD --> MC
+  RLESSD --> OWN
+  SKCONV --> MC
+  SKCONV --> OWN
+  SKDEP --> MC
+  SKDEP --> OWN
+  SKEXPPROMO --> MC
+  SKEXPPROMO --> OWN
+  SKGRAD --> MC
+  SKGRAD --> OWN
+  SKIMP --> MC
+  SKIMP --> OWN
+  TDEP --> MC
+  TDEP --> OWN
+  TSTRUCT --> MC
+  TSTRUCT --> OWN
+  TCV --> MC
+  TCV --> OWN
+  OP --> DC
+  OP --> RI
+  OP --> SO
+  OP --> TAO
+  OP --> TV
+  RF --> FC
+  RF --> FRICTIONINBO
+  DC --> MSIM
+  DC --> DEBTSCAN
+  FC --> FRICTIONREPO
+  FC --> FRICTIONREPO2
+  FC --> FRICTIONREPO3
+  FC --> FRICTIONREPO4
+  FC --> FRICTIONTRIA
+  MC --> DREJ
+  MC --> FUP
+  MC --> CHALLENGEREP
+  MC --> CHALLENGERES
+  RI --> CAP
+  RI --> RLESSD
+  RI --> RUNLESSONREP
+  SO --> ACTC
+  SO --> ACTDEP
+  SO --> ACTIMP
+  SO --> SKCONV
+  SO --> SKDEP
+  SO --> SKEXPPROMO
+  SO --> SKGRAD
+  SO --> SKIMP
+  SO --> ACTIONAUDIT
+  SO --> ACTIONVISITE
+  SO --> SKILLAUDIT
+  SO --> SKILLEXPERIM
+  SO --> SKILLVISITED
+  TAO --> AGDEP
+  TAO --> AGIMP
+  TAO --> CAP
+  TAO --> TDEP
+  TAO --> TSTRUCT
+  TAO --> AGENTAUDIT
+  TAO --> AGENTVISITED
+  TAO --> FRAMEWORKHEA
+  TAO --> TEAMAUDIT
+  TAO --> TEAMVISITED
+  TV --> CAP
+  TV --> TCV
+  TV --> SELFHEALTHTE
+  TV --> TOOLCHAINAUD
   OWN --> ACCEPT
-  CAP --> GAPROUTE
+  DIR --> FRICTIONINBO
+  INFRA --> FRICTIONINBO
+  MKT --> FRICTIONINBO
+  MON --> FRICTIONINBO
+  QA_IN --> FRICTIONINBO
+  ACTIONAUD --> DC
+  ACTIONAUD --> SO
+  ACTIONVIS --> SO
+  AGENTAUD --> DC
+  AGENTAUD --> TAO
+  AGENTVIS --> TAO
+  CHALLENGEREP --> DC
+  CHALLENGEREP --> RI
+  CHALLENGEREP --> SO
+  CHALLENGEREP --> TAO
+  CHALLENGEREP --> TV
+  CHAL --> MC
+  CHALLENGERES --> DC
+  CHALLENGERES --> RI
+  CHALLENGERES --> SO
+  CHALLENGERES --> TAO
+  CHALLENGERES --> TV
+  RES --> MC
+  DEBT --> DC
+  FHAUD --> TAO
+  FRICTIONINBO --> FC
+  FIN --> FC
+  FPTA --> TAO
+  FREC --> DC
+  FRUN --> RI
+  FTOOL --> TV
+  FTRI --> DC
+  FTRI --> FC
+  RUNLESS --> DC
+  RUNLESS --> RI
+  SELFHEALTH --> TV
+  SKILLAUD --> DC
+  SKILLAUD --> SO
+  SKEXP --> MC
+  SKEXP --> SO
+  SKILLVIS --> SO
+  TEAMAUD --> DC
+  TEAMAUD --> TAO
+  TEAMVIS --> TAO
+  TOOL --> DC
+  TOOL --> TV
 ```
 
 ## Topic Catalog
 
 | Topic family | Status | Owner / primary writer | Primary readers | Purpose |
 |---|---|---|---|---|
-| `topic:friction-inbox/<scope>/<slug>` | live | external:report-friction | `friction-curator` | Universal-source friction intake written by any team through the report-friction skill and drained by friction-curator. |
-| `topic:friction-triage-record/<YYYY-MM-DD>` | live | `friction-curator` | `friction-curator`, `debt-curator` | Daily snapshot of friction-inbox throughput, routing, dropped/reclassified entries, overflow, and by-scope counts. |
-| `topic:friction-report/toolchain/<YYYY-MM-DD>/<slug>` | live | `friction-curator` | `toolchain-validator` | Routed friction showing toolchain, CLI, Action, or manual-fallback pain that should feed toolchain validation. |
-| `topic:friction-report/run-execution/<YYYY-MM-DD>/<slug>` | live | `friction-curator` | `run-introspector` | Routed friction from agent run execution: retries, slowness, brittle sequences, missing observability, or repeated run failures. |
-| `topic:friction-report/prompt-team-agent-storage/<YYYY-MM-DD>/<slug>` | live | `friction-curator` | `team-agent-optimizer` | Routed friction about prompt-manager team, member, topic, storage, prompt, or coordination structure. |
-| `topic:friction-report/recurring-workaround/<YYYY-MM-DD>/<slug>` | live | `friction-curator` | `debt-curator` | Routed recurring workaround evidence that may become canon, a skill, an Action, CLI backlog, team-structure change, capability gap, or retirement. |
-| `topic:toolchain-audit/YYYY-MM-DD` | live | `toolchain-validator` | `toolchain-validator` | Snapshot of toolchain usage, manual fallback violations, and programmatic conversion opportunities. |
-| `topic:self-health/test-genie/YYYY-MM-DD` | live | `toolchain-validator` | `toolchain-validator` | Periodic snapshot of Test Genie's own reliability ledger, provider conformance, and catalog health from `test-genie health --json`. |
-| `topic:run-lesson-report/YYYY-MM-DD` | live | `run-introspector` | `run-introspector` | Snapshot of durable lessons from recent agent runs, including repeated deterministic work that should use or become Actions. |
-| `topic:team-audit/YYYY-MM-DD` | live | `team-agent-optimizer` | `team-agent-optimizer` | Snapshot audit of team structure, role boundaries, coordination surfaces, and capability architecture. |
-| `topic:agent-audit/YYYY-MM-DD` | live | `team-agent-optimizer` | `team-agent-optimizer` | Snapshot audit of member and agent file structure, responsibilities, prompts, and role drift. |
-| `topic:framework-health-audit/YYYY-MM-DD` | live | `team-agent-optimizer` | `team-agent-optimizer` | Dated reading of every sensor in `path:docs/agent-system/FRAMEWORK_HEALTH.md` plus the findings that cycle produced, so framework health has a trend rather than a single current value. |
-| `topic:team-visited/<team-id>` | live | `team-agent-optimizer` | `team-agent-optimizer` | Visited tracker used to avoid repeatedly auditing the same team before the rotation completes. |
-| `topic:agent-visited/<agent-id>` | live | `team-agent-optimizer` | `team-agent-optimizer` | Visited tracker used to avoid repeatedly auditing the same agent before the rotation completes. |
-| `topic:skill-audit/YYYY-MM-DD` | live | `skill-optimizer` | `skill-optimizer` | Snapshot audit of skill drift, usage, promotion-ladder readiness, and improvement/deprecation candidates. |
-| `topic:skill-visited/<skill-id>` | live | `skill-optimizer` | `skill-optimizer` | Visited tracker used to avoid repeatedly auditing the same skill before the rotation completes. |
-| `topic:action-audit/YYYY-MM-DD` | live | `skill-optimizer` | `skill-optimizer` | Snapshot audit of Action candidates, Action contracts, Action improvements, and deprecation opportunities. |
-| `topic:action-visited/<action-id>` | live | `skill-optimizer` | `skill-optimizer` | Visited tracker used to avoid repeatedly auditing the same Action before the rotation completes. |
-| `topic:skill-experiment/<skill-id>/<experiment-id>` | live | `skill-optimizer` | `skill-optimizer`, `meta-contrarian` | Experiment ledger for a skill A/B experiment: hypothesis, arm rationale, report snapshots, contrarian challenge, and conclusion evidence. |
-| `topic:debt-scan/YYYY-MM-DD` | live | `debt-curator` | `debt-curator` | Snapshot scan of stable typed evidence and recurring workaround evidence selected for promotion, routing, or retirement. |
-| `topic:challenge-report/<decision-id>` | live | `meta-contrarian` | `toolchain-validator`, `run-introspector`, `team-agent-optimizer`, `skill-optimizer`, `debt-curator`, `meta-contrarian` | Append-only contrarian challenge evidence for meta-optimization decisions. |
-| `topic:challenge-resolution-record/<decision-id>` | live | `meta-contrarian` | `toolchain-validator`, `run-introspector`, `team-agent-optimizer`, `skill-optimizer`, `debt-curator`, `meta-contrarian` | Latest-state record for a meta-optimization challenge: open, author-responded, resolved, escalated, overridden, or stale. |
+| `topic:action-audit/*` | live | member:skill-optimizer | member:debt-curator, member:skill-optimizer | Snapshot audit of Action candidates, Action contracts, Action improvements, and deprecation opportunities. |
+| `topic:action-audit/YYYY-MM-DD` | live | member:skill-optimizer | member:debt-curator, member:skill-optimizer | Snapshot audit of Action candidates, Action contracts, Action improvements, and deprecation opportunities. |
+| `topic:action-visited/*` | live | member:skill-optimizer | member:skill-optimizer | Visited tracker used to avoid repeatedly auditing the same Action before the rotation completes. |
+| `topic:action-visited/<action-id>` | live | member:skill-optimizer | member:skill-optimizer | Visited tracker used to avoid repeatedly auditing the same Action before the rotation completes. |
+| `topic:agent-audit/*` | live | member:team-agent-optimizer | member:debt-curator, member:team-agent-optimizer | Snapshot audit of member and agent file structure, responsibilities, prompts, and role drift. |
+| `topic:agent-audit/YYYY-MM-DD` | live | member:team-agent-optimizer | member:debt-curator, member:team-agent-optimizer | Snapshot audit of member and agent file structure, responsibilities, prompts, and role drift. |
+| `topic:agent-visited/*` | live | member:team-agent-optimizer | member:team-agent-optimizer | Visited tracker used to avoid repeatedly auditing the same agent before the rotation completes. |
+| `topic:agent-visited/<agent-id>` | live | member:team-agent-optimizer | member:team-agent-optimizer | Visited tracker used to avoid repeatedly auditing the same agent before the rotation completes. |
+| `topic:challenge-report/*` | live | member:meta-contrarian | member:debt-curator, member:meta-contrarian, member:run-introspector, member:skill-optimizer, member:team-agent-optimizer, member:toolchain-validator | Append-only contrarian challenge evidence for meta-optimization decisions. |
+| `topic:challenge-report/<decision-id>` | live | member:meta-contrarian | member:debt-curator, member:meta-contrarian, member:run-introspector, member:skill-optimizer, member:team-agent-optimizer, member:toolchain-validator | Append-only contrarian challenge evidence for meta-optimization decisions. |
+| `topic:challenge-resolution-record/*` | live | member:meta-contrarian | member:debt-curator, member:meta-contrarian, member:run-introspector, member:skill-optimizer, member:team-agent-optimizer, member:toolchain-validator | Latest-state record for a meta-optimization challenge: open, author-responded, resolved, escalated, overridden, or stale. |
+| `topic:challenge-resolution-record/<decision-id>` | live | member:meta-contrarian | member:debt-curator, member:meta-contrarian, member:run-introspector, member:skill-optimizer, member:team-agent-optimizer, member:toolchain-validator | Latest-state record for a meta-optimization challenge: open, author-responded, resolved, escalated, overridden, or stale. |
+| `topic:debt-scan/*` | live | member:debt-curator | member:debt-curator | Snapshot scan of stable typed evidence and recurring workaround evidence selected for promotion, routing, or retirement. |
+| `topic:debt-scan/YYYY-MM-DD` | live | member:debt-curator | member:debt-curator | Snapshot scan of stable typed evidence and recurring workaround evidence selected for promotion, routing, or retirement. |
+| `topic:framework-health-audit/*` | live | member:team-agent-optimizer | member:team-agent-optimizer | Dated reading of every sensor in `path:docs/agent-system/FRAMEWORK_HEALTH.md` plus the findings that cycle produced, so framework health has a trend rather than a single current value. |
+| `topic:framework-health-audit/YYYY-MM-DD` | live | member:team-agent-optimizer | member:team-agent-optimizer | Dated reading of every sensor in `path:docs/agent-system/FRAMEWORK_HEALTH.md` plus the findings that cycle produced, so framework health has a trend rather than a single current value. |
+| `topic:friction-inbox/*` | live |  | member:friction-curator | Universal-source friction intake written by any team through the report-friction skill and drained by friction-curator. |
+| `topic:friction-inbox/<scope>/<slug>` | live |  | member:friction-curator | Universal-source friction intake written by any team through the report-friction skill and drained by friction-curator. |
+| `topic:friction-report/prompt-team-agent-storage/*` | live | member:friction-curator | member:team-agent-optimizer | Routed friction about prompt-manager team, member, topic, storage, prompt, or coordination structure. |
+| `topic:friction-report/prompt-team-agent-storage/<YYYY-MM-DD>/<slug>` | live | member:friction-curator | member:team-agent-optimizer | Routed friction about prompt-manager team, member, topic, storage, prompt, or coordination structure. |
+| `topic:friction-report/recurring-workaround/*` | live | member:friction-curator | member:debt-curator | Routed recurring workaround evidence that may become canon, a skill, an Action, CLI backlog, team-structure change, capability gap, or retirement. |
+| `topic:friction-report/recurring-workaround/<YYYY-MM-DD>/<slug>` | live | member:friction-curator | member:debt-curator | Routed recurring workaround evidence that may become canon, a skill, an Action, CLI backlog, team-structure change, capability gap, or retirement. |
+| `topic:friction-report/run-execution/*` | live | member:friction-curator | member:run-introspector | Routed friction from agent run execution: retries, slowness, brittle sequences, missing observability, or repeated run failures. |
+| `topic:friction-report/run-execution/<YYYY-MM-DD>/<slug>` | live | member:friction-curator | member:run-introspector | Routed friction from agent run execution: retries, slowness, brittle sequences, missing observability, or repeated run failures. |
+| `topic:friction-report/toolchain/*` | live | member:friction-curator | member:toolchain-validator | Routed friction showing toolchain, CLI, Action, or manual-fallback pain that should feed toolchain validation. |
+| `topic:friction-report/toolchain/<YYYY-MM-DD>/<slug>` | live | member:friction-curator | member:toolchain-validator | Routed friction showing toolchain, CLI, Action, or manual-fallback pain that should feed toolchain validation. |
+| `topic:friction-triage-record/*` | live | member:friction-curator | member:debt-curator, member:friction-curator | Daily snapshot of friction-inbox throughput, routing, dropped/reclassified entries, overflow, and by-scope counts. |
+| `topic:friction-triage-record/<YYYY-MM-DD>` | live | member:friction-curator | member:debt-curator, member:friction-curator | Daily snapshot of friction-inbox throughput, routing, dropped/reclassified entries, overflow, and by-scope counts. |
+| `topic:run-lesson-report/*` | live | member:run-introspector | member:debt-curator, member:run-introspector | Snapshot of durable lessons from recent agent runs, including repeated deterministic work that should use or become Actions. |
+| `topic:run-lesson-report/YYYY-MM-DD` | live | member:run-introspector | member:debt-curator, member:run-introspector | Snapshot of durable lessons from recent agent runs, including repeated deterministic work that should use or become Actions. |
+| `topic:self-health/test-genie/*` | live | member:toolchain-validator | member:toolchain-validator | Periodic snapshot of Test Genie's own reliability ledger, provider conformance, and catalog health from `test-genie health --json`. |
+| `topic:self-health/test-genie/YYYY-MM-DD` | live | member:toolchain-validator | member:toolchain-validator | Periodic snapshot of Test Genie's own reliability ledger, provider conformance, and catalog health from `test-genie health --json`. |
+| `topic:skill-audit/*` | live | member:skill-optimizer | member:debt-curator, member:skill-optimizer | Snapshot audit of skill drift, usage, promotion-ladder readiness, and improvement/deprecation candidates. |
+| `topic:skill-audit/YYYY-MM-DD` | live | member:skill-optimizer | member:debt-curator, member:skill-optimizer | Snapshot audit of skill drift, usage, promotion-ladder readiness, and improvement/deprecation candidates. |
+| `topic:skill-experiment/*` | live | member:skill-optimizer | member:meta-contrarian, member:skill-optimizer | Experiment ledger for a skill A/B experiment: hypothesis, arm rationale, report snapshots, contrarian challenge, and conclusion evidence. |
+| `topic:skill-experiment/<skill-id>/<experiment-id>` | live | member:skill-optimizer | member:meta-contrarian, member:skill-optimizer | Experiment ledger for a skill A/B experiment: hypothesis, arm rationale, report snapshots, contrarian challenge, and conclusion evidence. |
+| `topic:skill-visited/*` | live | member:skill-optimizer | member:skill-optimizer | Visited tracker used to avoid repeatedly auditing the same skill before the rotation completes. |
+| `topic:skill-visited/<skill-id>` | live | member:skill-optimizer | member:skill-optimizer | Visited tracker used to avoid repeatedly auditing the same skill before the rotation completes. |
+| `topic:team-audit/*` | live | member:team-agent-optimizer | member:debt-curator, member:team-agent-optimizer | Snapshot audit of team structure, role boundaries, coordination surfaces, and capability architecture. |
+| `topic:team-audit/YYYY-MM-DD` | live | member:team-agent-optimizer | member:debt-curator, member:team-agent-optimizer | Snapshot audit of team structure, role boundaries, coordination surfaces, and capability architecture. |
+| `topic:team-visited/*` | live | member:team-agent-optimizer | member:team-agent-optimizer | Visited tracker used to avoid repeatedly auditing the same team before the rotation completes. |
+| `topic:team-visited/<team-id>` | live | member:team-agent-optimizer | member:team-agent-optimizer | Visited tracker used to avoid repeatedly auditing the same team before the rotation completes. |
+| `topic:toolchain-audit/*` | live | member:toolchain-validator | member:debt-curator, member:toolchain-validator | Snapshot of toolchain usage, manual fallback violations, and programmatic conversion opportunities. |
+| `topic:toolchain-audit/YYYY-MM-DD` | live | member:toolchain-validator | member:debt-curator, member:toolchain-validator | Snapshot of toolchain usage, manual fallback violations, and programmatic conversion opportunities. |
 
 ## Decisions
 

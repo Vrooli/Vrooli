@@ -14,6 +14,37 @@ Teams that own durable strategic truth keep a full plan-of-record at `path:docs/
 
 ## Mental Model
 
+Two chains run through this system, and you need both to read it. The **intent chain** answers *what is any of this for* — it runs downward from the operator's objectives to a member's declared surfaces. The **signal loop** answers *how does work actually get done* — it runs around, from a signal arriving to a change landing to an audit noticing. The intent chain says what the loop is pointed at; the loop is what moves it.
+
+### The intent chain
+
+| Level | Artifact | Author | Joined to the level above by |
+|---|---|---|---|
+| Vision | `path:VISION.md` | operator | narrative |
+| Objective | `path:docs/director-swarm/strategy/OBJECTIVES.md` — `T1`–`T3` terminal, `I1`–`I3` instrumental | operator only | — |
+| Outcome category | `path:docs/director-swarm/evidence/OUTCOMES_CHARTER.md` §"Team contribution map" | `director-swarm` | the `Serves objective` column |
+| Team purpose | `team.json::objectivesServed`, restated with reasoning in `OPERATING_MODEL.md` §Mission | owning team | **objective id — declared and validated** |
+| Team responsibility | `OPERATING_MODEL.md` §Scope (owns / does not own) and §Operating Loops | owning team | prose, scored by audit judgment |
+| Member surface | `RESPONSIBILITIES.md`, `HEARTBEAT.md`, `topics.json` | owning team | the nine layers in `TEAM_MEMBER_ARCHITECTURE.md` |
+| Missing capability | `OPERATING_MODEL.md` §Current Implementation Gaps; `capability-gap` decisions; the capability ladder | owning team | the objective the gap blocks |
+
+Two properties make the chain checkable rather than decorative:
+
+- **The objective join is a declaration, not prose.** `team.json::objectivesServed` names the ids a team serves, and `prompt-manager graph objectives` reads it against the objective table in both directions. Editing an objective therefore moves a sensor. Before this was declared, the top of the hierarchy was the one relationship in the system with no machine-readable edge, and changing it fired nothing.
+- **Ownership of the join is split across a measure/actuate seam.** `meta-optimization/team-agent-optimizer` *measures* coverage and is forbidden from acting on what it measures; the actuator is `outcome-direction` or `capability-gap` in `director-swarm`, which owns the objective set. Measuring and restructuring on the strength of your own measurement are different authorities on purpose.
+
+Read the objective set itself in `OBJECTIVES.md`; it is not restated here. What this table adds is the *shape* — which artifact holds which level, and what breaks when one is skipped. A level skipped downward is stated intent nobody serves; a level skipped upward is effort nobody asked for. Both are findings, and `OBJECTIVES.md` §"The coverage rule" is where they are defined.
+
+### The ratchet
+
+Every capability added to the system is supposed to make the system **smaller**. A scenario absorbs work that previously lived as instructions, so the team that gained the scenario should end the cycle cheaper to orient in — fewer members, less canon, fewer topic families, fewer decision contexts — not more expensive. A capability that only adds instructions for using it has not paid for itself.
+
+This is measured, not asserted: `prompt-manager graph orientation-cost` reads the composite per team, and `FRAMEWORK_HEALTH.md` §"Team orientation cost" bands it as a **trend** rather than a level. A team that owns more is allowed to carry more; what is never allowed is for orientation cost to rise in the same cycle that scenario coverage grew. The actuator is the `team-capability-consolidation` skill, which turns the missing capability into a scenario and re-derives the roster from it.
+
+The ratchet applies to this folder too. Canon that grows to explain a capability is the same defect one layer up — which is why the intent chain landed here as a section rather than as a twenty-fifth file.
+
+### The signal loop
+
 The agent system is one self-improving loop. Signals enter through team inboxes; router skills drain them into one of a small set of outcomes; pending decisions pass through team-local contrarian review before acceptance; accepted decisions either land directly or route through swarm-manager for execution; every change feeds back into the meta-optimization audit, which keeps the loop honest.
 
 ```mermaid
@@ -71,6 +102,7 @@ The same layering rule applies everywhere; its single canonical statement (truth
 
 For a first read, use this order:
 
+0. `path:docs/director-swarm/strategy/OBJECTIVES.md` — what the system is for. Everything below is machinery in service of it, and reading the machinery first is how a reader ends up able to describe the loop without being able to say what it is pointed at.
 1. `PRIMITIVES.md` — the nouns: Skill, Agent, Team, PoR, Action, CLI, Decision, Knowledge entry, Inbox/synthesis.
 2. `LAYERS.md` — the rule for where each kind of guidance belongs.
 3. `TEAM_DOCS_PATTERNS.md` — where durable truth, typed observations, decisions, and implementation work belong.
@@ -111,11 +143,13 @@ A taxonomy is the per-domain signal vocabulary, dispatch table, evidence rules, 
 
 | Taxonomy id | Owner team | Sidecar | PoR | Drainers |
 |---|---|---|---|---|
-| `marketing-research` | `marketing-crew` | `path:docs/marketing/taxonomies/marketing-research/taxonomy.json` | `path:docs/marketing/taxonomies/marketing-research/README.md` | `team:marketing-crew/researcher` |
+| `marketing-research` | `marketing-crew` | `path:docs/marketing/taxonomies/marketing-research/taxonomy.json` | `path:docs/marketing/taxonomies/marketing-research/README.md` | **none declared** — see the gap note below |
 | `monetization-opportunity` | `monetization` | `path:docs/monetization/taxonomies/monetization-opportunity/taxonomy.json` | `path:docs/monetization/taxonomies/monetization-opportunity/README.md` | `team:monetization/opportunity-scout` |
 | `monetization-validation` | `monetization` | `path:docs/monetization/taxonomies/monetization-validation/taxonomy.json` | `path:docs/monetization/taxonomies/monetization-validation/README.md` | `team:monetization/market-validator` |
 | `bug-report` | `scenario-qa` | `path:docs/scenario-qa/taxonomies/bug-report/taxonomy.json` | `path:docs/scenario-qa/taxonomies/bug-report/README.md` | `team:scenario-qa/bug-investigator` (universal-source intake — any team's members may write via the `report-bug` skill) |
 | `friction-report` | `meta-optimization` | `path:docs/meta-optimization/taxonomies/friction-report/taxonomy.json` | `path:docs/meta-optimization/taxonomies/friction-report/README.md` | `team:meta-optimization/friction-curator` (universal-source intake — any team's members may write via the `report-friction` skill; curator routes to scoped friction sub-topics) |
+
+**Gap — `marketing-research` has no drainer (dated 2026-07-31).** The taxonomy's former drainer, `marketing-crew/researcher`, was removed by the roster collapse on 2026-07-28. `marketing-crew/producer` inherited the taxonomy's destination schemas — it writes `audience-scan/*`, `competitor-record/*`, `hook-record/*` and `monetization-benchmark-adjacent-record/*` — but declares no `intake[]`, so nothing drains `research-inbox/*`. That prefix now reports as an orphan output from `director-swarm/vision-walk-prep`. Resolve it one of two ways and record which: declare the intake on `producer`, or retire the taxonomy because campaign-driven evidence gathering replaced inbox-driven research. Do not close it by naming a drainer that declares no intake — the registry must not assert an edge the declarations do not carry.
 
 Discover programmatically: `prompt-manager graph topics` resolves every `intake[].taxonomy` against the registry and fails on `unknown_taxonomy`. Add a taxonomy under `path:docs/<domain>/taxonomies/<taxonomy-id>/taxonomy.json` with a unique `id` field. Every `defaultMethod` referenced by a `signalType` must either resolve to a registered skill or be listed under the taxonomy's `pendingMethodSkills`.
 

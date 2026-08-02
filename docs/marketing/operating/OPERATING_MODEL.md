@@ -122,141 +122,130 @@ actor_alias.director-swarm: external:director-swarm
 -->
 ```mermaid
 flowchart LR
-  subgraph INFLOWS["Inflows / Producers"]
-    %% @node OP external:operator
-    OP([Operator])
-    %% @node VW external:vision-walk
-    VW([Vision walk])
-  end
-
-  %% Members
-  %% @node P member:producer
-  P[Producer]
-  %% @node BM member:brand-manager
-  BM[Brand Manager]
-  %% @node CONTRA member:marketing-contrarian
-  CONTRA[Marketing Contrarian]
-
-  %% Knowledge topics that remain team-owned
   %% @node AS topic:audience-scan/*
   AS[(audience-scan/*)]
-  %% @node COMP topic:competitor-record/*
-  COMP[(competitor-record/*)]
-  %% @node HOOK topic:hook-record/*
-  HOOK[(hook-record/*)]
-  %% @node WF topic:workflow-scan/*
-  WF[(workflow-scan/*)]
-  %% @node SKILL topic:skill-scan/*
-  SKILL[(skill-scan/*)]
-  %% @node CHAN topic:channel-scan/*
-  CHAN[(channel-scan/*)]
-  %% @node FORMAT topic:format-scan/*
-  FORMAT[(format-scan/*)]
-  %% @node MB topic:monetization-benchmark-adjacent-record/*
-  MB[(monetization-benchmark-adjacent-record/*)]
-  %% @node MCO topic:marketing-craft-observation/*
-  MCO[(marketing-craft-observation/*)]
-  %% @node BRANDSNAP topic:brand-snapshot/*
-  BRANDSNAP[(brand-snapshot/*)]
-
-  %% Decisions and durable canon
   %% @node AUD decision:audience-update
   AUD{audience-update}
-  %% @node CHSTR decision:channel-strategy-update
-  CHSTR{channel-strategy-update}
-  %% @node POST decision:post-type-proposal
-  POST{post-type-proposal}
-  %% @node HCP decision:hook-candidate-promotion
-  HCP{hook-candidate-promotion}
-  %% @node CAMP decision:campaign-launch-proposal
-  CAMP{campaign-launch-proposal}
+  %% @node BACKLOG process:skill-scenario-action-backlog
+  BACKLOG([Skill / scenario / action backlog])
   %% @node BGUIDE decision:brand-guideline-update
   BGUIDE{brand-guideline-update}
-  %% @node CHUP decision:channel-update
-  CHUP{channel-update}
-  %% @node COVGAP decision:coverage-gap
-  COVGAP{coverage-gap}
-  %% @node CAP decision:capability-gap
-  CAP{capability-gap}
-  %% @node DREJ decision:decision-rejection-proposed
-  DREJ{decision-rejection-proposed}
-  %% @node FRAME decision:framework-update
-  FRAME{framework-update}
+  %% @node BM member:brand-manager
+  BM[Brand Manager]
+  %% @node BRANDSNAP topic:brand-snapshot/*
+  BRANDSNAP[(brand-snapshot/*)]
+  %% @node CAMP decision:campaign-launch-proposal
+  CAMP{campaign-launch-proposal}
   %% @node CANON1 por:docs/marketing/strategy/STRATEGY.md
   CANON1[/docs/marketing/strategy/STRATEGY.md/]
   %% @node CANON2 por:docs/marketing/strategy/AUDIENCES.md
   CANON2[/docs/marketing/strategy/AUDIENCES.md/]
+  %% @node CAP decision:capability-gap
+  CAP{capability-gap}
+  %% @node CHAN topic:channel-scan/*
+  CHAN[(channel-scan/*)]
+  %% @node CHSTR decision:channel-strategy-update
+  CHSTR{channel-strategy-update}
+  %% @node CHUP decision:channel-update
+  CHUP{channel-update}
+  %% @node COMP topic:competitor-record/*
+  COMP[(competitor-record/*)]
+  %% @node CONTRA member:marketing-contrarian
+  CONTRA[Marketing Contrarian]
+  %% @node COVGAP decision:coverage-gap
+  COVGAP{coverage-gap}
+  %% @node DREJ decision:decision-rejection-proposed
+  DREJ{decision-rejection-proposed}
+  %% @node FORMAT topic:format-scan/*
+  FORMAT[(format-scan/*)]
+  %% @node FRAME decision:framework-update
+  FRAME{framework-update}
+  %% @node HCP decision:hook-candidate-promotion
+  HCP{hook-candidate-promotion}
+  %% @node HOOK topic:hook-record/*
+  HOOK[(hook-record/*)]
   %% @node LEARN process:learning-synthesis
   LEARN([Learning synthesis])
-  %% @node BACKLOG process:skill-scenario-action-backlog
-  BACKLOG([Skill / scenario / action backlog])
+  %% @node MB topic:monetization-benchmark-adjacent-record/*
+  MB[(monetization-benchmark-adjacent-record/*)]
+  %% @node MCO topic:marketing-craft-observation/*
+  MCO[(marketing-craft-observation/*)]
+  %% @node OP external:operator
+  OP([Operator])
+  %% @node P member:producer
+  P[Producer]
+  %% @node POST decision:post-type-proposal
+  POST{post-type-proposal}
+  %% @node SKILL topic:skill-scan/*
+  SKILL[(skill-scan/*)]
+  %% @node VW external:vision-walk
+  VW([Vision walk])
+  %% @node WF topic:workflow-scan/*
+  WF[(workflow-scan/*)]
+  %% @node BRANDSNAPSHO topic:brand-snapshot/YYYY-MM-DD
+  BRANDSNAPSHO[(brand-snapshot/YYYY-MM-DD)]
 
-  %% Intake and research
-  OP --> P
-  VW --> P
-  P --> AS
-  P --> COMP
-  P --> HOOK
-  P --> WF
-  P --> SKILL
-  P --> CHAN
-  P --> FORMAT
-  P --> MB
-  AS --> P
-  COMP --> P
-  HOOK --> P
-  WF --> P
-  SKILL --> P
-  CHAN --> P
-  FORMAT --> P
-  P --> AUD
-  P --> CHSTR
-  P --> POST
-  P --> HCP
-  P --> COVGAP
-  P --> CAP
-  CAP --> P
-  CAMP --> P
-
-  %% Brand management and canon
-  OP --> BM
-  VW --> BM
-  MCO --> BM
-  AS --> BM
-  COMP --> BM
-  HOOK --> BM
-  CHAN --> BM
-  FORMAT --> BM
-  BRANDSNAP --> BM
-  CAP --> BM
-  BM --> CANON1
-  BM --> CANON2
-  BM --> BRANDSNAP
-  BM --> CAMP
-  BM --> BGUIDE
-  BM --> CHUP
-
-  %% Review
-  CAMP --> CONTRA
-  BGUIDE --> CONTRA
   AUD --> CONTRA
-  CHSTR --> CONTRA
-  POST --> CONTRA
-  HCP --> CONTRA
-  CHUP --> CONTRA
-  COVGAP --> CONTRA
+  BGUIDE --> CONTRA
+  BGUIDE --> BACKLOG
+  CAMP --> CONTRA
+  CAMP --> P
+  CAP --> BM
   CAP --> CONTRA
+  CAP --> P
+  CAP --> BACKLOG
+  CHSTR --> CONTRA
+  CHUP --> CONTRA
+  CHUP --> BACKLOG
+  COVGAP --> CONTRA
+  HCP --> CONTRA
+  HCP --> BACKLOG
+  POST --> CONTRA
+  POST --> BACKLOG
+  OP --> BM
+  OP --> P
+  OP --> MCO
+  VW --> BM
+  VW --> P
+  VW --> MCO
+  BM --> BGUIDE
+  BM --> CAMP
+  BM --> CHUP
+  BM --> CANON2
+  BM --> CANON1
+  BM --> BRANDSNAP
   CONTRA --> DREJ
   CONTRA --> FRAME
-
-  %% Learning
-  MCO --> LEARN
+  P --> AUD
+  P --> CAP
+  P --> CHSTR
+  P --> COVGAP
+  P --> HCP
+  P --> POST
+  P --> AS
+  P --> CHAN
+  P --> COMP
+  P --> FORMAT
+  P --> HOOK
+  P --> MB
+  P --> SKILL
+  P --> WF
   LEARN --> MCO
-  BGUIDE --> BACKLOG
-  POST --> BACKLOG
-  HCP --> BACKLOG
-  CHUP --> BACKLOG
-  CAP --> BACKLOG
+  AS --> BM
+  AS --> P
+  BRANDSNAPSHO --> BM
+  CHAN --> BM
+  CHAN --> P
+  COMP --> BM
+  COMP --> P
+  FORMAT --> BM
+  FORMAT --> P
+  HOOK --> BM
+  HOOK --> P
+  MCO --> BM
+  MCO --> LEARN
+  SKILL --> P
+  WF --> P
 ```
 
 ## Topic Catalog
@@ -265,16 +254,17 @@ These are the knowledge-topic families the team still owns. Everything absent fr
 
 | Topic family | Status | Owner / primary writer | Primary readers | Purpose |
 |---|---|---|---|---|
-| `topic:audience-scan/*` | live | producer | producer, brand-manager | Audience pain, vocabulary, buyer triggers, objections, and persona evidence. |
-| `topic:competitor-record/*` | live | producer | producer, brand-manager | Competitor pricing, packaging, positioning, changelog, or claim evidence. |
-| `topic:hook-record/*` | live | producer | producer, brand-manager | Reusable hook and framing observations; the promotion source for the hook library. |
-| `topic:workflow-scan/*` | live | producer | producer | External workflows, playbooks, agent setups, or business processes worth deconstructing. |
-| `topic:skill-scan/*` | live | producer | producer | External skills, prompts, reusable processes, or capability ideas. |
-| `topic:channel-scan/*` | live | producer | producer, brand-manager | Evidence that a channel is worth activating, deprioritizing, or handling differently. |
-| `topic:format-scan/*` | live | producer | producer, brand-manager | Evidence that a post format or channel-native format is worth using or codifying. |
-| `topic:monetization-benchmark-adjacent-record/*` | live | producer | monetization team | Pricing, packaging, or market facts found by marketing but owned strategically by monetization. |
-| `topic:marketing-craft-observation/*` | live | learning synthesis | brand-manager | Typed production observations that may feed canon, skill, scenario, capability-gap, or retirement decisions. |
-| `topic:brand-snapshot/*` | live | brand-manager | brand-manager | Snapshot of canon drift, typed learning state, campaign signals, and promotion/retirement candidates. |
+| `topic:audience-scan/*` | live | member:producer | member:brand-manager, member:producer | Audience pain, vocabulary, buyer triggers, objections, and persona evidence. |
+| `topic:brand-snapshot/*` | live | member:brand-manager | member:brand-manager | Snapshot of canon drift, typed learning state, campaign signals, and promotion/retirement candidates. |
+| `topic:brand-snapshot/YYYY-MM-DD` | live | member:brand-manager | member:brand-manager | Snapshot of canon drift, typed learning state, campaign signals, and promotion/retirement candidates. |
+| `topic:channel-scan/*` | live | member:producer | member:brand-manager, member:producer | Evidence that a channel is worth activating, deprioritizing, or handling differently. |
+| `topic:competitor-record/*` | live | member:producer | member:brand-manager, member:producer | Competitor pricing, packaging, positioning, changelog, or claim evidence. |
+| `topic:format-scan/*` | live | member:producer | member:brand-manager, member:producer | Evidence that a post format or channel-native format is worth using or codifying. |
+| `topic:hook-record/*` | live | member:producer | member:brand-manager, member:producer | Reusable hook and framing observations; the promotion source for the hook library. |
+| `topic:marketing-craft-observation/*` | live |  | member:brand-manager | Typed production observations that may feed canon, skill, scenario, capability-gap, or retirement decisions. |
+| `topic:monetization-benchmark-adjacent-record/*` | live | member:producer |  | Pricing, packaging, or market facts found by marketing but owned strategically by monetization. |
+| `topic:skill-scan/*` | live | member:producer | member:producer | External skills, prompts, reusable processes, or capability ideas. |
+| `topic:workflow-scan/*` | live | member:producer | member:producer | External workflows, playbooks, agent setups, or business processes worth deconstructing. |
 
 Evidence topics are append-only and carry no lifecycle. If a proposed topic family needs a status, a gate, or a query, it is scenario state and belongs in `content-desk` — that test is the boundary, and it is the one this revision applied.
 

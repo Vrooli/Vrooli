@@ -78,121 +78,137 @@ actor_alias.decision owners: none
 -->
 ```mermaid
 flowchart LR
-  subgraph INFLOWS["Inflows / Producers"]
-    %% @node OP external:operator
-    OP([Operator])
-  end
-
-  %% Members
-  %% @node RHS member:runtime-health-scanner
-  RHS[Runtime Health Scanner]
-  %% @node PCA member:platform-code-auditor
-  PCA[Platform Code Auditor]
-  %% @node IC member:infra-contrarian
-  IC[Infra Contrarian]
-
-  %% Topics
-  %% @node RHA topic:runtime-health-audit/YYYY-MM-DD
-  RHA[(runtime-health-audit/YYYY-MM-DD)]
-  %% @node PCAUD topic:platform-code-audit/YYYY-MM-DD
-  PCAUD[(platform-code-audit/YYYY-MM-DD)]
-  %% @node CS topic:contrarian-scan/YYYY-MM-DD
-  CS[(contrarian-scan/YYYY-MM-DD)]
+  %% @node APPROVAL process:operator-approval
+  APPROVAL([Operator approval])
+  %% @node CANON process:operator-curated-canon
+  CANON([Operator-curated canon])
+  %% @node CG decision:capability-gap
+  CG{capability-gap}
+  %% @node CPD decision:cross-platform-debt
+  CPD{cross-platform-debt}
   %% @node CR topic:challenge-report/<decision-id>
   CR[(challenge-report/<decision-id>)]
   %% @node CRR topic:challenge-resolution-record/<decision-id>
   CRR[(challenge-resolution-record/<decision-id>)]
-  %% Decisions
-  %% @node RHF decision:runtime-health-finding
-  RHF{runtime-health-finding}
-  %% @node PCF decision:platform-code-finding
-  PCF{platform-code-finding}
-  %% @node CPD decision:cross-platform-debt
-  CPD{cross-platform-debt}
-  %% @node IG decision:instrumentation-gap
-  IG{instrumentation-gap}
-  %% @node CG decision:capability-gap
-  CG{capability-gap}
-  %% @node RTU decision:reliability-target-update
-  RTU{reliability-target-update}
+  %% @node CS topic:contrarian-scan/YYYY-MM-DD
+  CS[(contrarian-scan/YYYY-MM-DD)]
   %% @node DRP decision:decision-rejection-proposed
   DRP{decision-rejection-proposed}
   %% @node FM decision:framework-meta
   FM{framework-meta}
+  %% @node IC member:infra-contrarian
+  IC[Infra Contrarian]
+  %% @node IG decision:instrumentation-gap
+  IG{instrumentation-gap}
+  %% @node OP external:operator
+  OP([Operator])
+  %% @node PCA member:platform-code-auditor
+  PCA[Platform Code Auditor]
+  %% @node PCAUD topic:platform-code-audit/YYYY-MM-DD
+  PCAUD[(platform-code-audit/YYYY-MM-DD)]
+  %% @node PCF decision:platform-code-finding
+  PCF{platform-code-finding}
+  %% @node RHA topic:runtime-health-audit/YYYY-MM-DD
+  RHA[(runtime-health-audit/YYYY-MM-DD)]
+  %% @node RHF decision:runtime-health-finding
+  RHF{runtime-health-finding}
+  %% @node RHS member:runtime-health-scanner
+  RHS[Runtime Health Scanner]
+  %% @node RTU decision:reliability-target-update
+  RTU{reliability-target-update}
+  %% @node SWARM external:swarm-manager-work
+  SWARM([Swarm Manager work])
+  %% @node DOCSINFRAHEA por:docs/infra-health/README.md
+  DOCSINFRAHEA[/docs/infra-health/README.md/]
+  %% @node DOCSINFRAHEA2 por:docs/infra-health/evidence/CROSS_PLATFORM_LEDGER.md
+  DOCSINFRAHEA2[/docs/infra-health/evidence/CROSS_PLATFORM_LEDGER.md/]
+  %% @node DOCSINFRAHEA3 por:docs/infra-health/evidence/INSTRUMENTATION_ROADMAP.md
+  DOCSINFRAHEA3[/docs/infra-health/evidence/INSTRUMENTATION_ROADMAP.md/]
+  %% @node DOCSINFRAHEA4 por:docs/infra-health/evidence/README.md
+  DOCSINFRAHEA4[/docs/infra-health/evidence/README.md/]
+  %% @node DOCSINFRAHEA5 por:docs/infra-health/governance/adoption-validation.md
+  DOCSINFRAHEA5[/docs/infra-health/governance/adoption-validation.md/]
+  %% @node DOCSINFRAHEA6 por:docs/infra-health/governance/changelog.md
+  DOCSINFRAHEA6[/docs/infra-health/governance/changelog.md/]
+  %% @node DOCSINFRAHEA7 por:docs/infra-health/governance/editing.md
+  DOCSINFRAHEA7[/docs/infra-health/governance/editing.md/]
+  %% @node DOCSINFRAHEA8 por:docs/infra-health/operating/OPERATING_MODEL.md
+  DOCSINFRAHEA8[/docs/infra-health/operating/OPERATING_MODEL.md/]
+  %% @node DOCSINFRAHEA9 por:docs/infra-health/operating/README.md
+  DOCSINFRAHEA9[/docs/infra-health/operating/README.md/]
+  %% @node DOCSINFRAHEA10 por:docs/infra-health/strategy/README.md
+  DOCSINFRAHEA10[/docs/infra-health/strategy/README.md/]
+  %% @node DOCSINFRAHEA11 por:docs/infra-health/strategy/RELIABILITY_TARGETS.md
+  DOCSINFRAHEA11[/docs/infra-health/strategy/RELIABILITY_TARGETS.md/]
+  %% @node CHALLENGEREP topic:challenge-report/*
+  CHALLENGEREP[(challenge-report/*)]
+  %% @node CHALLENGERES topic:challenge-resolution-record/*
+  CHALLENGERES[(challenge-resolution-record/*)]
+  %% @node CONTRARIANSC topic:contrarian-scan/*
+  CONTRARIANSC[(contrarian-scan/*)]
+  %% @node PLATFORMCODE topic:platform-code-audit/*
+  PLATFORMCODE[(platform-code-audit/*)]
+  %% @node RUNTIMEHEALT topic:runtime-health-audit/*
+  RUNTIMEHEALT[(runtime-health-audit/*)]
 
-  subgraph OUTFLOWS["Downstream outflows"]
-    %% @node APPROVAL process:operator-approval
-    APPROVAL([Operator approval])
-    %% @node CANON process:operator-curated-canon
-    CANON([Operator-curated canon])
-    %% @node SWARM external:swarm-manager-work
-    SWARM([Swarm Manager work])
-  end
-
-  OP --> RHS
-  OP --> PCA
-  RHA --> RHS
-  CR --> RHS
-  CRR --> RHS
-  RHF --> RHS
-  IG --> RHS
-  CG --> RHS
-  RTU --> RHS
-  RHS --> RHA
-  RHS --> RHF
-  RHS --> IG
-  RHS --> CG
-  RHS --> RTU
-
-  PCAUD --> PCA
-  CR --> PCA
-  CRR --> PCA
-  PCF --> PCA
-  CPD --> PCA
-  IG --> PCA
-  CG --> PCA
-  PCA --> PCAUD
-  PCA --> PCF
-  PCA --> CPD
-  PCA --> IG
-  PCA --> CG
-
-  CS --> IC
-  CR --> IC
-  CRR --> IC
-  RHF --> IC
-  PCF --> IC
-  CPD --> IC
-  IG --> IC
   CG --> IC
-  RTU --> IC
-  IC --> CS
-  IC --> CR
-  IC --> CRR
-  IC --> DRP
-  IC --> FM
-
-  RHF --> APPROVAL
-  PCF --> APPROVAL
-  CPD --> APPROVAL
-  IG --> APPROVAL
   CG --> APPROVAL
-  RTU --> APPROVAL
+  CPD --> IC
+  CPD --> APPROVAL
   DRP --> APPROVAL
   FM --> APPROVAL
-  APPROVAL --> CANON
+  IG --> IC
+  IG --> APPROVAL
+  PCF --> IC
+  PCF --> APPROVAL
+  RTU --> IC
+  RTU --> APPROVAL
+  RHF --> IC
+  RHF --> APPROVAL
+  OP --> PCA
+  OP --> RHS
+  IC --> DRP
+  IC --> FM
+  IC --> CHALLENGEREP
+  IC --> CHALLENGERES
+  IC --> CONTRARIANSC
+  PCA --> CG
+  PCA --> CPD
+  PCA --> IG
+  PCA --> PCF
+  PCA --> PLATFORMCODE
+  RHS --> CG
+  RHS --> IG
+  RHS --> RTU
+  RHS --> RHF
+  RHS --> RUNTIMEHEALT
   APPROVAL --> SWARM
+  APPROVAL --> CANON
+  CHALLENGEREP --> PCA
+  CHALLENGEREP --> RHS
+  CR --> IC
+  CHALLENGERES --> PCA
+  CHALLENGERES --> RHS
+  CRR --> IC
+  CS --> IC
+  PCAUD --> PCA
+  RHA --> RHS
 ```
 
 ## Topic Catalog
 
 | Topic family | Status | Owner / primary writer | Primary readers | Purpose |
 |---|---|---|---|---|
-| `topic:runtime-health-audit/YYYY-MM-DD` | live | runtime-health-scanner | runtime-health-scanner | Snapshot one runtime-health signal or quiet-day review. |
-| `topic:platform-code-audit/YYYY-MM-DD` | live | platform-code-auditor | platform-code-auditor | Snapshot one internal platform-code audit slice. |
-| `topic:contrarian-scan/YYYY-MM-DD` | live | infra-contrarian | infra-contrarian | Stale decision and failure-mode review snapshot. |
-| `topic:challenge-report/<decision-id>` | live | infra-contrarian | runtime-health-scanner, platform-code-auditor, infra-contrarian | Append-only challenge against a pending infra-health decision. |
-| `topic:challenge-resolution-record/<decision-id>` | live | infra-contrarian | runtime-health-scanner, platform-code-auditor, infra-contrarian | Latest-state record for an infra-health challenge. |
+| `topic:challenge-report/*` | live | member:infra-contrarian | member:infra-contrarian, member:platform-code-auditor, member:runtime-health-scanner | Append-only challenge against a pending infra-health decision. |
+| `topic:challenge-report/<decision-id>` | live | member:infra-contrarian | member:infra-contrarian, member:platform-code-auditor, member:runtime-health-scanner | Append-only challenge against a pending infra-health decision. |
+| `topic:challenge-resolution-record/*` | live | member:infra-contrarian | member:infra-contrarian, member:platform-code-auditor, member:runtime-health-scanner | Latest-state record for an infra-health challenge. |
+| `topic:challenge-resolution-record/<decision-id>` | live | member:infra-contrarian | member:infra-contrarian, member:platform-code-auditor, member:runtime-health-scanner | Latest-state record for an infra-health challenge. |
+| `topic:contrarian-scan/*` | live | member:infra-contrarian | member:infra-contrarian | Stale decision and failure-mode review snapshot. |
+| `topic:contrarian-scan/YYYY-MM-DD` | live | member:infra-contrarian | member:infra-contrarian | Stale decision and failure-mode review snapshot. |
+| `topic:platform-code-audit/*` | live | member:platform-code-auditor | member:platform-code-auditor | Snapshot one internal platform-code audit slice. |
+| `topic:platform-code-audit/YYYY-MM-DD` | live | member:platform-code-auditor | member:platform-code-auditor | Snapshot one internal platform-code audit slice. |
+| `topic:runtime-health-audit/*` | live | member:runtime-health-scanner | member:runtime-health-scanner | Snapshot one runtime-health signal or quiet-day review. |
+| `topic:runtime-health-audit/YYYY-MM-DD` | live | member:runtime-health-scanner | member:runtime-health-scanner | Snapshot one runtime-health signal or quiet-day review. |
 
 ## Decisions
 
