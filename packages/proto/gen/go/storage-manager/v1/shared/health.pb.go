@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        (unknown)
-// source: cleanup-manager/v1/shared/health.proto
+// source: storage-manager/v1/shared/health.proto
 
 package shared_v1
 
@@ -41,7 +41,7 @@ type DependencyStatus struct {
 
 func (x *DependencyStatus) Reset() {
 	*x = DependencyStatus{}
-	mi := &file_cleanup_manager_v1_shared_health_proto_msgTypes[0]
+	mi := &file_storage_manager_v1_shared_health_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -53,7 +53,7 @@ func (x *DependencyStatus) String() string {
 func (*DependencyStatus) ProtoMessage() {}
 
 func (x *DependencyStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_cleanup_manager_v1_shared_health_proto_msgTypes[0]
+	mi := &file_storage_manager_v1_shared_health_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -66,7 +66,7 @@ func (x *DependencyStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DependencyStatus.ProtoReflect.Descriptor instead.
 func (*DependencyStatus) Descriptor() ([]byte, []int) {
-	return file_cleanup_manager_v1_shared_health_proto_rawDescGZIP(), []int{0}
+	return file_storage_manager_v1_shared_health_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *DependencyStatus) GetConnected() bool {
@@ -126,7 +126,7 @@ type Response struct {
 
 func (x *Response) Reset() {
 	*x = Response{}
-	mi := &file_cleanup_manager_v1_shared_health_proto_msgTypes[1]
+	mi := &file_storage_manager_v1_shared_health_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -138,7 +138,7 @@ func (x *Response) String() string {
 func (*Response) ProtoMessage() {}
 
 func (x *Response) ProtoReflect() protoreflect.Message {
-	mi := &file_cleanup_manager_v1_shared_health_proto_msgTypes[1]
+	mi := &file_storage_manager_v1_shared_health_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -151,7 +151,7 @@ func (x *Response) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Response.ProtoReflect.Descriptor instead.
 func (*Response) Descriptor() ([]byte, []int) {
-	return file_cleanup_manager_v1_shared_health_proto_rawDescGZIP(), []int{1}
+	return file_storage_manager_v1_shared_health_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Response) GetStatus() string {
@@ -203,11 +203,11 @@ func (x *Response) GetDependencies() map[string]*DependencyStatus {
 	return nil
 }
 
-var File_cleanup_manager_v1_shared_health_proto protoreflect.FileDescriptor
+var File_storage_manager_v1_shared_health_proto protoreflect.FileDescriptor
 
-const file_cleanup_manager_v1_shared_health_proto_rawDesc = "" +
+const file_storage_manager_v1_shared_health_proto_rawDesc = "" +
 	"\n" +
-	"&cleanup-manager/v1/shared/health.proto\x12 vrooli.cleanup_manager.v1.shared\"\x81\x01\n" +
+	"&storage-manager/v1/shared/health.proto\x12 vrooli.cleanup_manager.v1.shared\"\x81\x01\n" +
 	"\x10DependencyStatus\x12\x1c\n" +
 	"\tconnected\x18\x01 \x01(\bR\tconnected\x12\x1d\n" +
 	"\n" +
@@ -224,27 +224,27 @@ const file_cleanup_manager_v1_shared_health_proto_rawDesc = "" +
 	"\fdependencies\x18\a \x03(\v2<.vrooli.cleanup_manager.v1.shared.Response.DependenciesEntryR\fdependencies\x1as\n" +
 	"\x11DependenciesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12H\n" +
-	"\x05value\x18\x02 \x01(\v22.vrooli.cleanup_manager.v1.shared.DependencyStatusR\x05value:\x028\x01BTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/cleanup-manager/v1/shared;shared_v1b\x06proto3"
+	"\x05value\x18\x02 \x01(\v22.vrooli.cleanup_manager.v1.shared.DependencyStatusR\x05value:\x028\x01BTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/storage-manager/v1/shared;shared_v1b\x06proto3"
 
 var (
-	file_cleanup_manager_v1_shared_health_proto_rawDescOnce sync.Once
-	file_cleanup_manager_v1_shared_health_proto_rawDescData []byte
+	file_storage_manager_v1_shared_health_proto_rawDescOnce sync.Once
+	file_storage_manager_v1_shared_health_proto_rawDescData []byte
 )
 
-func file_cleanup_manager_v1_shared_health_proto_rawDescGZIP() []byte {
-	file_cleanup_manager_v1_shared_health_proto_rawDescOnce.Do(func() {
-		file_cleanup_manager_v1_shared_health_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_cleanup_manager_v1_shared_health_proto_rawDesc), len(file_cleanup_manager_v1_shared_health_proto_rawDesc)))
+func file_storage_manager_v1_shared_health_proto_rawDescGZIP() []byte {
+	file_storage_manager_v1_shared_health_proto_rawDescOnce.Do(func() {
+		file_storage_manager_v1_shared_health_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_storage_manager_v1_shared_health_proto_rawDesc), len(file_storage_manager_v1_shared_health_proto_rawDesc)))
 	})
-	return file_cleanup_manager_v1_shared_health_proto_rawDescData
+	return file_storage_manager_v1_shared_health_proto_rawDescData
 }
 
-var file_cleanup_manager_v1_shared_health_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
-var file_cleanup_manager_v1_shared_health_proto_goTypes = []any{
+var file_storage_manager_v1_shared_health_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_storage_manager_v1_shared_health_proto_goTypes = []any{
 	(*DependencyStatus)(nil), // 0: vrooli.cleanup_manager.v1.shared.DependencyStatus
 	(*Response)(nil),         // 1: vrooli.cleanup_manager.v1.shared.Response
 	nil,                      // 2: vrooli.cleanup_manager.v1.shared.Response.DependenciesEntry
 }
-var file_cleanup_manager_v1_shared_health_proto_depIdxs = []int32{
+var file_storage_manager_v1_shared_health_proto_depIdxs = []int32{
 	2, // 0: vrooli.cleanup_manager.v1.shared.Response.dependencies:type_name -> vrooli.cleanup_manager.v1.shared.Response.DependenciesEntry
 	0, // 1: vrooli.cleanup_manager.v1.shared.Response.DependenciesEntry.value:type_name -> vrooli.cleanup_manager.v1.shared.DependencyStatus
 	2, // [2:2] is the sub-list for method output_type
@@ -254,26 +254,26 @@ var file_cleanup_manager_v1_shared_health_proto_depIdxs = []int32{
 	0, // [0:2] is the sub-list for field type_name
 }
 
-func init() { file_cleanup_manager_v1_shared_health_proto_init() }
-func file_cleanup_manager_v1_shared_health_proto_init() {
-	if File_cleanup_manager_v1_shared_health_proto != nil {
+func init() { file_storage_manager_v1_shared_health_proto_init() }
+func file_storage_manager_v1_shared_health_proto_init() {
+	if File_storage_manager_v1_shared_health_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cleanup_manager_v1_shared_health_proto_rawDesc), len(file_cleanup_manager_v1_shared_health_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_storage_manager_v1_shared_health_proto_rawDesc), len(file_storage_manager_v1_shared_health_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_cleanup_manager_v1_shared_health_proto_goTypes,
-		DependencyIndexes: file_cleanup_manager_v1_shared_health_proto_depIdxs,
-		MessageInfos:      file_cleanup_manager_v1_shared_health_proto_msgTypes,
+		GoTypes:           file_storage_manager_v1_shared_health_proto_goTypes,
+		DependencyIndexes: file_storage_manager_v1_shared_health_proto_depIdxs,
+		MessageInfos:      file_storage_manager_v1_shared_health_proto_msgTypes,
 	}.Build()
-	File_cleanup_manager_v1_shared_health_proto = out.File
-	file_cleanup_manager_v1_shared_health_proto_goTypes = nil
-	file_cleanup_manager_v1_shared_health_proto_depIdxs = nil
+	File_storage_manager_v1_shared_health_proto = out.File
+	file_storage_manager_v1_shared_health_proto_goTypes = nil
+	file_storage_manager_v1_shared_health_proto_depIdxs = nil
 }

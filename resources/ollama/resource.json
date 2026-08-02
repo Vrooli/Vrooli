@@ -3,6 +3,22 @@
   "name": "ollama",
   "display_name": "Ollama",
   "description": "Managed Ollama model-serving runtime for local inference workloads.",
+  "storage": {
+    "entries": {
+      "models": {
+        "rung": "pinned",
+        "path": {
+          "linux": "$USER_HOME/.local/share/vrooli/resources/ollama/models",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/ollama/models",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/ollama/models"
+        },
+        "kind": "dir",
+        "regenerable": false,
+        "relocation": { "key": "OLLAMA_MODELS", "scope": "process-tree" },
+        "rationale": "Model weights are large, durable host state; the resource mounts this directory into the managed Ollama service."
+      }
+    }
+  },
   "cli": {
     "enabled": true,
     "command": "resource-ollama",

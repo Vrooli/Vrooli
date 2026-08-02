@@ -1,6 +1,6 @@
 # Cleanup Manager Proto Sources
 
-This folder is the canonical wire-contract source for cleanup-manager.
+This folder is the canonical wire-contract source for storage-manager.
 After editing these schemas, run `make generate` in `packages/proto/`
 and commit the regenerated Go, Python, and TypeScript artifacts.
 
@@ -19,7 +19,7 @@ and commit the regenerated Go, Python, and TypeScript artifacts.
 
 ## Adding a new schema
 
-Add new `.proto` files under `packages/proto/schemas/cleanup-manager/v1/`
+Add new `.proto` files under `packages/proto/schemas/storage-manager/v1/`
 or a `v1/<domain>/` subdirectory if the domain warrants its own folder.
 Then run `cd packages/proto && make generate && make lint` and commit the
 regenerated artifacts in `packages/proto/gen/`.

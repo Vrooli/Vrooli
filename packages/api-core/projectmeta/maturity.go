@@ -29,7 +29,7 @@ var (
 // Maturity returns the project's declared maturity stage. If service.json is
 // missing, unreadable, carries an unrecognized value, or omits the field,
 // Maturity returns MaturityGreenfield — the safe default ("not yet deployed,
-// so migration debt is informational"). storage-health consumes this to derive
+// so migration debt is informational"). storage-manager consumes this to derive
 // storage_stage and to decide whether migration findings are advisory or
 // enforced.
 func Maturity() string {

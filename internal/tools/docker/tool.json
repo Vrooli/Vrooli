@@ -2,6 +2,9 @@
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "docker",
   "description": "Container runtime for running resources and services",
+  "storage": { "entries": {
+    "graph_root": { "rung": "relocatable", "path": { "linux": "/var/lib/docker", "macos": "$USER_HOME/Library/Containers/com.docker.docker/Data/vms/0/data", "windows": "$USER_HOME/AppData/Local/Docker/wsl/data" }, "kind": "dir", "relocation": { "config": "daemon.json:data-root", "scope": "daemon" }, "rationale": "Docker owns this graph; migration must use daemon configuration and a stopped engine." }
+  } },
   "handler": "docker",
   "commands": [
     "docker"

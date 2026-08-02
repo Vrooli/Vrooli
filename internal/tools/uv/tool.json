@@ -2,6 +2,9 @@
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "uv",
   "description": "uv — Astral's fast Python package/venv manager. Builds and syncs the per-scenario isolated Python virtualenvs that model-managing scenarios (image-tools, future video-tools) provision from a committed requirements.lock.",
+  "storage": { "entries": {
+    "cache": { "rung": "relocatable", "path": "$USER_CACHE_DIR/uv", "kind": "dir", "regenerable": true, "relocation": { "key": "UV_CACHE_DIR", "scope": "process-tree" }, "rationale": "Re-downloadable Python package cache." }
+  } },
   "commands": [
     "uv"
   ],

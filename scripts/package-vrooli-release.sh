@@ -6,8 +6,11 @@ OUT="${VROOLI_RELEASE_OUT:-${ROOT}/dist/vrooli-release}"
 VERSION="${VROOLI_VERSION:-}"
 SIGNING_KEY="${VROOLI_RELEASE_SIGNING_KEY_FILE:-}"
 
+PREBUILT="${VROOLI_RELEASE_PREBUILT_DIR:-}"
+
 usage() {
-    printf '%s\n' 'Usage: package-vrooli-release.sh --version <vX.Y.Z> --signing-key <private.pem> [--out <directory>]'
+    printf '%s\n' 'Usage: package-vrooli-release.sh --version <vX.Y.Z> --signing-key <private.pem> [--out <directory>] [--prebuilt <directory>]'
+    printf '%s\n' '  --prebuilt  stage CLI binaries built on another runner (darwin must be built on macOS for a working Keychain)'
 }
 
 while [[ $# -gt 0 ]]; do
@@ -15,6 +18,7 @@ while [[ $# -gt 0 ]]; do
         --version) VERSION=${2:?missing version}; shift 2 ;;
         --signing-key) SIGNING_KEY=${2:?missing signing key}; shift 2 ;;
         --out) OUT=${2:?missing output directory}; shift 2 ;;
+        --prebuilt) PREBUILT=${2:?missing prebuilt directory}; shift 2 ;;
         --help|-h) usage; exit 0 ;;
         *) printf 'unknown argument: %s\n' "$1" >&2; usage >&2; exit 2 ;;
     esac
@@ -39,7 +43,40 @@ fi
 
 rm -rf "${OUT}"
 mkdir -p "${OUT}"
-go run "${ROOT}/cmd/vrooli-dist" --root "${ROOT}" --all --out-dir "${OUT}" --version "${VERSION}"
+
+# Darwin binaries must be produced on a macOS host: the Keychain adapter needs
+# cgo and the macOS SDK, and a cgo-free darwin build ships with no credential
+# backend at all. The release workflow builds them in a macos job and hands them
+# over here; --skip-existing then builds only the targets still missing.
+if [[ -n "${PREBUILT}" ]]; then
+    if [[ ! -d "${PREBUILT}" ]]; then
+        printf 'prebuilt directory does not exist: %s\n' "${PREBUILT}" >&2
+        exit 1
+    fi
+    staged=0
+    for path in "${PREBUILT}"/vrooli_*; do
+        [[ -e "${path}" ]] || continue
+        cp "${path}" "${OUT}/"
+        staged=$((staged + 1))
+    done
+    if [[ "${staged}" -eq 0 ]]; then
+        printf 'prebuilt directory %s contains no vrooli_* binaries\n' "${PREBUILT}" >&2
+        exit 1
+    fi
+    printf 'Adopted %s prebuilt release files from %s\n' "${staged}" "${PREBUILT}"
+fi
+go run "${ROOT}/cmd/vrooli-dist" --root "${ROOT}" --all --skip-existing --out-dir "${OUT}" --version "${VERSION}"
+
+# Prebuilt binaries bypass the build-time check inside BuildDistribution, so the
+# guarantee is re-asserted here against whatever actually landed in the release.
+for path in "${OUT}"/vrooli_darwin_*; do
+    [[ -f "${path}" ]] || continue
+    case "${path}" in *.fp) continue ;; esac
+    if ! go version -m "${path}" | grep -q 'CGO_ENABLED=1'; then
+        printf '%s was built without cgo, so it has no macOS Keychain adapter; build darwin targets on a macOS runner\n' "$(basename "${path}")" >&2
+        exit 1
+    fi
+done
 # Resource artifacts are built by the native release tool, once, for every
 # manifest that declares a prebuilt distribution. They are included in
 # SHA256SUMS and the release signature below; deployed desktops never run a

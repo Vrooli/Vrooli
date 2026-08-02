@@ -32,11 +32,15 @@ func TestDistributionTargetsAreTheCompleteSupportedMatrix(t *testing.T) {
 	}
 }
 
+// The target here is linux on purpose. darwin is the one platform that must
+// build WITH cgo — its Keychain adapter needs it — so darwin's build policy is
+// covered separately in distribution_cgo_test.go and this test stays focused on
+// fingerprint, ldflags, and env plumbing.
 func TestBuildDistributionUsesCanonicalFingerprintAndCGODisabled(t *testing.T) {
 	root := t.TempDir()
 	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
 	writeTestFile(t, root, "internal/buildinfo/buildinfo.go", "package buildinfo\n")
-	output := filepath.Join(t.TempDir(), "vrooli_darwin_arm64")
+	output := filepath.Join(t.TempDir(), "vrooli_linux_arm64")
 
 	originalRun := distributionRun
 	t.Cleanup(func() { distributionRun = originalRun })
@@ -55,7 +59,7 @@ func TestBuildDistributionUsesCanonicalFingerprintAndCGODisabled(t *testing.T) {
 	artifact, err := BuildDistribution(context.Background(), DistributionBuildOptions{
 		Root:      root,
 		Output:    output,
-		Target:    DistributionTarget{OS: "darwin", Arch: "arm64"},
+		Target:    DistributionTarget{OS: "linux", Arch: "arm64"},
 		Version:   "v9.8.7",
 		GitCommit: "abc123",
 		BuildTime: time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC),
@@ -74,7 +78,7 @@ func TestBuildDistributionUsesCanonicalFingerprintAndCGODisabled(t *testing.T) {
 		t.Fatal("built sidecar does not match the canonical source fingerprint")
 	}
 	joinedEnv := strings.Join(observed.Env, "\n")
-	for _, want := range []string{"CGO_ENABLED=0", "GOOS=darwin", "GOARCH=arm64"} {
+	for _, want := range []string{"CGO_ENABLED=0", "GOOS=linux", "GOARCH=arm64"} {
 		if !strings.Contains(joinedEnv, want) {
 			t.Fatalf("build environment missing %q", want)
 		}

@@ -174,7 +174,7 @@ func TestDescriberAnswersFromLoadedFacts(t *testing.T) {
 // The response must be immutable across calls: it is resolved once and shared,
 // so a consumer mutating what it receives must not corrupt later responses.
 func TestDescribeProviderReturnsIndependentCopies(t *testing.T) {
-	dir := writeDescriptor(t, "storage-health", "storage", nil)
+	dir := writeDescriptor(t, "storage-manager", "storage", nil)
 	d, err := LoadDescriber(dir)
 	if err != nil {
 		t.Fatalf("LoadDescriber: %v", err)
@@ -190,7 +190,7 @@ func TestDescribeProviderReturnsIndependentCopies(t *testing.T) {
 	if err != nil {
 		t.Fatalf("second call: %v", err)
 	}
-	if second.Msg.GetProvider() != "storage-health" {
+	if second.Msg.GetProvider() != "storage-manager" {
 		t.Errorf("Provider = %q after caller mutated an earlier response", second.Msg.GetProvider())
 	}
 }

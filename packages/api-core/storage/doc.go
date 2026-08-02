@@ -19,8 +19,22 @@
 //   - Namespace helpers: variant-aware Redis/Qdrant namespace composition
 //   - Error model: structured errors for caller-facing classification
 //
-// This package does not perform migration/copy logic and does not manage retention policies.
-// Those concerns remain in scenario/application orchestration layers.
+// This package does not perform migration/copy logic.
+//
+// # Retention
+//
+// Retention is owned by api-core/retention, not by scenario orchestration code
+// and not by this package. A scenario declares storage ceilings in its manifest
+// and the framework enforces them; declaring "pruner": "builtin" needs no Go
+// code at all. Budget target paths resolve through the class roots above, so a
+// shadow variant prunes its own data and never live's.
+//
+// The reason this is framework-owned rather than per-scenario: a correctly
+// configured 30-day retention policy freed nothing while its database grew to
+// 453 GB, because every row was 17 days old. An age bound alone is a promise
+// proportional to an ingest rate the scenario usually does not control. See
+// docs/reference/storage-retention.md and the api-core/retention package
+// documentation.
 //
 // # Variant-aware storage namespaces (shadow isolation)
 //

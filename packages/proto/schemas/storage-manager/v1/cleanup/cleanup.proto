@@ -4,7 +4,7 @@ package vrooli.cleanup_manager.v1.cleanup;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cleanup-manager/v1/cleanup;cleanup_v1";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/storage-manager/v1/cleanup;cleanup_v1";
 
 // CleanupService exposes preview-first cleanup orchestration.
 service CleanupService {
@@ -17,7 +17,7 @@ service CleanupService {
 
   // ReportPressure is the inbound disk-pressure signal.
   //
-  // It is what turns cleanup-manager from purely request-driven into
+  // It is what turns storage-manager from purely request-driven into
   // something a safeguard can reach. Two independent callers use it by
   // design — system-monitor's threshold loop and vrooli-autoheal's
   // system-disk check — so that no single mediator is a shared point of
@@ -178,7 +178,7 @@ message ReportPressureRequest {
   int64 available_bytes = 5;
 }
 
-// PressureAction is what cleanup-manager actually did about the report.
+// PressureAction is what storage-manager actually did about the report.
 enum PressureAction {
   PRESSURE_ACTION_UNSPECIFIED = 0;
   // Recorded only; the band did not call for remediation.

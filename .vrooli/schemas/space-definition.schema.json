@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "space-definition/v1",
+  "title": "Coverage Space Definition",
+  "description": "The cross-scenario read contract for a coverage-space *denominator*. Each projection owner (search-hub=Answer, test-genie=Validate, prompt-manager=Guide) emits its curated space doc as schema-valid JSON via the `space --projection <p> --json` verb. This is the DENOMINATOR only — the curated intended space; the numerator (live actual coverage) is NEVER carried here, it is joined live by meta-optimization-manager. The canonical model lives in scenarios/meta-optimization-manager/docs/concepts/COVERAGE-MODEL.md.",
+  "type": "object",
+  "required": ["schema_version", "projection", "owner", "denominator_confidence", "cells"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "v1",
+      "description": "Schema contract version. Bump on a breaking change to this shape."
+    },
+    "projection": {
+      "enum": ["answer", "validate", "guide"],
+      "description": "Which of the three readiness projections this denominator covers."
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The scenario that owns this denominator (holds its ground truth)."
+    },
+    "denominator_confidence": {
+      "enum": ["authoritative", "partial", "sketch"],
+      "description": "How complete we believe the denominator itself is. Recursive honesty: coverage is always 'X% against a Y-confidence denominator'."
+    },
+    "confidence_rationale": {
+      "type": "string",
+      "description": "Prose justification for the denominator_confidence verdict (verbatim from the space doc)."
+    },
+    "source": {
+      "type": "string",
+      "description": "Provenance: the space-doc path this JSON was parsed from."
+    },
+    "cells": {
+      "type": "array",
+      "description": "The denominator grid rows. Sparse: nonsensical entity x archetype combinations are omitted.",
+      "items": { "$ref": "#/$defs/Cell" }
+    }
+  },
+  "$defs": {
+    "Cell": {
+      "type": "object",
+      "required": ["id", "question", "status"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable cell identifier, unique within the projection (e.g. '23', 'V1', 'G1')."
+        },
+        "group": {
+          "type": "string",
+          "description": "The grid section the cell came from (granularity tier or category, e.g. 'G0 - Project', 'Understand')."
+        },
+        "question": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The question / concern / SWE-task the cell denotes."
+        },
+        "owner": {
+          "type": "string",
+          "description": "The provider / phase / skill that should answer it (the per-cell owner)."
+        },
+        "status": {
+          "enum": ["now", "in_reach", "missing"],
+          "description": "Live status, normalized across projections: NOW/COVERED -> now, IN-REACH/PARTIAL -> in_reach, MISSING -> missing."
+        },
+        "basis": {
+          "enum": ["derived", "validated", "declared_unverified", "contradicted", "absent"],
+          "description": "Best attainable epistemic basis (Answer projection only; omitted elsewhere)."
+        },
+        "sufficiency": {
+          "enum": ["full", "partial", "insufficient"],
+          "description": "Whether the source is shaped to answer the question (optional)."
+        },
+        "notes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Qualitative context / gap-registry notes / explored approaches for this cell."
+        }
+      }
+    }
+  }
+}

@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        (unknown)
-// source: storage-health/v1/fleet/fleet.proto
+// source: storage-manager/v1/fleet/fleet.proto
 
 package fleet_v1
 
@@ -32,7 +32,7 @@ type ScanFleetRequest struct {
 
 func (x *ScanFleetRequest) Reset() {
 	*x = ScanFleetRequest{}
-	mi := &file_storage_health_v1_fleet_fleet_proto_msgTypes[0]
+	mi := &file_storage_manager_v1_fleet_fleet_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44,7 +44,7 @@ func (x *ScanFleetRequest) String() string {
 func (*ScanFleetRequest) ProtoMessage() {}
 
 func (x *ScanFleetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_health_v1_fleet_fleet_proto_msgTypes[0]
+	mi := &file_storage_manager_v1_fleet_fleet_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -57,7 +57,7 @@ func (x *ScanFleetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScanFleetRequest.ProtoReflect.Descriptor instead.
 func (*ScanFleetRequest) Descriptor() ([]byte, []int) {
-	return file_storage_health_v1_fleet_fleet_proto_rawDescGZIP(), []int{0}
+	return file_storage_manager_v1_fleet_fleet_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *ScanFleetRequest) GetScenarios() []string {
@@ -75,7 +75,7 @@ type GetInventoryRequest struct {
 
 func (x *GetInventoryRequest) Reset() {
 	*x = GetInventoryRequest{}
-	mi := &file_storage_health_v1_fleet_fleet_proto_msgTypes[1]
+	mi := &file_storage_manager_v1_fleet_fleet_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -87,7 +87,7 @@ func (x *GetInventoryRequest) String() string {
 func (*GetInventoryRequest) ProtoMessage() {}
 
 func (x *GetInventoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_health_v1_fleet_fleet_proto_msgTypes[1]
+	mi := &file_storage_manager_v1_fleet_fleet_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -100,7 +100,7 @@ func (x *GetInventoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInventoryRequest.ProtoReflect.Descriptor instead.
 func (*GetInventoryRequest) Descriptor() ([]byte, []int) {
-	return file_storage_health_v1_fleet_fleet_proto_rawDescGZIP(), []int{1}
+	return file_storage_manager_v1_fleet_fleet_proto_rawDescGZIP(), []int{1}
 }
 
 type ScanFleetResponse struct {
@@ -133,7 +133,7 @@ type ScanFleetResponse struct {
 
 func (x *ScanFleetResponse) Reset() {
 	*x = ScanFleetResponse{}
-	mi := &file_storage_health_v1_fleet_fleet_proto_msgTypes[2]
+	mi := &file_storage_manager_v1_fleet_fleet_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -145,7 +145,7 @@ func (x *ScanFleetResponse) String() string {
 func (*ScanFleetResponse) ProtoMessage() {}
 
 func (x *ScanFleetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_health_v1_fleet_fleet_proto_msgTypes[2]
+	mi := &file_storage_manager_v1_fleet_fleet_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -158,7 +158,7 @@ func (x *ScanFleetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScanFleetResponse.ProtoReflect.Descriptor instead.
 func (*ScanFleetResponse) Descriptor() ([]byte, []int) {
-	return file_storage_health_v1_fleet_fleet_proto_rawDescGZIP(), []int{2}
+	return file_storage_manager_v1_fleet_fleet_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ScanFleetResponse) GetEntries() []*FleetScenarioEntry {
@@ -259,7 +259,7 @@ type FleetScenarioEntry struct {
 	FindingCount int32 `protobuf:"varint,10,opt,name=finding_count,json=findingCount,proto3" json:"finding_count,omitempty"`
 	// Error-severity storage findings for this scenario.
 	ErrorCount int32 `protobuf:"varint,11,opt,name=error_count,json=errorCount,proto3" json:"error_count,omitempty"`
-	// Findings a registered storage-health autofix can remediate.
+	// Findings a registered storage-manager autofix can remediate.
 	AutofixableCount int32 `protobuf:"varint,12,opt,name=autofixable_count,json=autofixableCount,proto3" json:"autofixable_count,omitempty"`
 	// Bytes measured under scenario-local and runtime data directories.
 	DataDirBytes int64 `protobuf:"varint,13,opt,name=data_dir_bytes,json=dataDirBytes,proto3" json:"data_dir_bytes,omitempty"`
@@ -280,7 +280,7 @@ type FleetScenarioEntry struct {
 
 func (x *FleetScenarioEntry) Reset() {
 	*x = FleetScenarioEntry{}
-	mi := &file_storage_health_v1_fleet_fleet_proto_msgTypes[3]
+	mi := &file_storage_manager_v1_fleet_fleet_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -292,7 +292,7 @@ func (x *FleetScenarioEntry) String() string {
 func (*FleetScenarioEntry) ProtoMessage() {}
 
 func (x *FleetScenarioEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_health_v1_fleet_fleet_proto_msgTypes[3]
+	mi := &file_storage_manager_v1_fleet_fleet_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -305,7 +305,7 @@ func (x *FleetScenarioEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FleetScenarioEntry.ProtoReflect.Descriptor instead.
 func (*FleetScenarioEntry) Descriptor() ([]byte, []int) {
-	return file_storage_health_v1_fleet_fleet_proto_rawDescGZIP(), []int{3}
+	return file_storage_manager_v1_fleet_fleet_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *FleetScenarioEntry) GetScenario() string {
@@ -445,7 +445,7 @@ type EngineCount struct {
 
 func (x *EngineCount) Reset() {
 	*x = EngineCount{}
-	mi := &file_storage_health_v1_fleet_fleet_proto_msgTypes[4]
+	mi := &file_storage_manager_v1_fleet_fleet_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -457,7 +457,7 @@ func (x *EngineCount) String() string {
 func (*EngineCount) ProtoMessage() {}
 
 func (x *EngineCount) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_health_v1_fleet_fleet_proto_msgTypes[4]
+	mi := &file_storage_manager_v1_fleet_fleet_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -470,7 +470,7 @@ func (x *EngineCount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EngineCount.ProtoReflect.Descriptor instead.
 func (*EngineCount) Descriptor() ([]byte, []int) {
-	return file_storage_health_v1_fleet_fleet_proto_rawDescGZIP(), []int{4}
+	return file_storage_manager_v1_fleet_fleet_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *EngineCount) GetEngine() string {
@@ -498,7 +498,7 @@ type StageCount struct {
 
 func (x *StageCount) Reset() {
 	*x = StageCount{}
-	mi := &file_storage_health_v1_fleet_fleet_proto_msgTypes[5]
+	mi := &file_storage_manager_v1_fleet_fleet_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -510,7 +510,7 @@ func (x *StageCount) String() string {
 func (*StageCount) ProtoMessage() {}
 
 func (x *StageCount) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_health_v1_fleet_fleet_proto_msgTypes[5]
+	mi := &file_storage_manager_v1_fleet_fleet_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -523,7 +523,7 @@ func (x *StageCount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StageCount.ProtoReflect.Descriptor instead.
 func (*StageCount) Descriptor() ([]byte, []int) {
-	return file_storage_health_v1_fleet_fleet_proto_rawDescGZIP(), []int{5}
+	return file_storage_manager_v1_fleet_fleet_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *StageCount) GetStage() string {
@@ -551,7 +551,7 @@ type FleetScanError struct {
 
 func (x *FleetScanError) Reset() {
 	*x = FleetScanError{}
-	mi := &file_storage_health_v1_fleet_fleet_proto_msgTypes[6]
+	mi := &file_storage_manager_v1_fleet_fleet_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -563,7 +563,7 @@ func (x *FleetScanError) String() string {
 func (*FleetScanError) ProtoMessage() {}
 
 func (x *FleetScanError) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_health_v1_fleet_fleet_proto_msgTypes[6]
+	mi := &file_storage_manager_v1_fleet_fleet_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -576,7 +576,7 @@ func (x *FleetScanError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FleetScanError.ProtoReflect.Descriptor instead.
 func (*FleetScanError) Descriptor() ([]byte, []int) {
-	return file_storage_health_v1_fleet_fleet_proto_rawDescGZIP(), []int{6}
+	return file_storage_manager_v1_fleet_fleet_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *FleetScanError) GetScenario() string {
@@ -593,11 +593,11 @@ func (x *FleetScanError) GetReason() string {
 	return ""
 }
 
-var File_storage_health_v1_fleet_fleet_proto protoreflect.FileDescriptor
+var File_storage_manager_v1_fleet_fleet_proto protoreflect.FileDescriptor
 
-const file_storage_health_v1_fleet_fleet_proto_rawDesc = "" +
+const file_storage_manager_v1_fleet_fleet_proto_rawDesc = "" +
 	"\n" +
-	"#storage-health/v1/fleet/fleet.proto\x12\x1evrooli.storage_health.v1.fleet\"0\n" +
+	"$storage-manager/v1/fleet/fleet.proto\x12\x1evrooli.storage_health.v1.fleet\"0\n" +
 	"\x10ScanFleetRequest\x12\x1c\n" +
 	"\tscenarios\x18\x01 \x03(\tR\tscenarios\"\x15\n" +
 	"\x13GetInventoryRequest\"\xe9\x04\n" +
@@ -647,22 +647,22 @@ const file_storage_health_v1_fleet_fleet_proto_rawDesc = "" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason2\xf8\x01\n" +
 	"\fFleetService\x12p\n" +
 	"\tScanFleet\x120.vrooli.storage_health.v1.fleet.ScanFleetRequest\x1a1.vrooli.storage_health.v1.fleet.ScanFleetResponse\x12v\n" +
-	"\fGetInventory\x123.vrooli.storage_health.v1.fleet.GetInventoryRequest\x1a1.vrooli.storage_health.v1.fleet.ScanFleetResponseBQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/storage-health/v1/fleet;fleet_v1b\x06proto3"
+	"\fGetInventory\x123.vrooli.storage_health.v1.fleet.GetInventoryRequest\x1a1.vrooli.storage_health.v1.fleet.ScanFleetResponseBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/storage-manager/v1/fleet;fleet_v1b\x06proto3"
 
 var (
-	file_storage_health_v1_fleet_fleet_proto_rawDescOnce sync.Once
-	file_storage_health_v1_fleet_fleet_proto_rawDescData []byte
+	file_storage_manager_v1_fleet_fleet_proto_rawDescOnce sync.Once
+	file_storage_manager_v1_fleet_fleet_proto_rawDescData []byte
 )
 
-func file_storage_health_v1_fleet_fleet_proto_rawDescGZIP() []byte {
-	file_storage_health_v1_fleet_fleet_proto_rawDescOnce.Do(func() {
-		file_storage_health_v1_fleet_fleet_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_storage_health_v1_fleet_fleet_proto_rawDesc), len(file_storage_health_v1_fleet_fleet_proto_rawDesc)))
+func file_storage_manager_v1_fleet_fleet_proto_rawDescGZIP() []byte {
+	file_storage_manager_v1_fleet_fleet_proto_rawDescOnce.Do(func() {
+		file_storage_manager_v1_fleet_fleet_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_storage_manager_v1_fleet_fleet_proto_rawDesc), len(file_storage_manager_v1_fleet_fleet_proto_rawDesc)))
 	})
-	return file_storage_health_v1_fleet_fleet_proto_rawDescData
+	return file_storage_manager_v1_fleet_fleet_proto_rawDescData
 }
 
-var file_storage_health_v1_fleet_fleet_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
-var file_storage_health_v1_fleet_fleet_proto_goTypes = []any{
+var file_storage_manager_v1_fleet_fleet_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_storage_manager_v1_fleet_fleet_proto_goTypes = []any{
 	(*ScanFleetRequest)(nil),    // 0: vrooli.storage_health.v1.fleet.ScanFleetRequest
 	(*GetInventoryRequest)(nil), // 1: vrooli.storage_health.v1.fleet.GetInventoryRequest
 	(*ScanFleetResponse)(nil),   // 2: vrooli.storage_health.v1.fleet.ScanFleetResponse
@@ -671,7 +671,7 @@ var file_storage_health_v1_fleet_fleet_proto_goTypes = []any{
 	(*StageCount)(nil),          // 5: vrooli.storage_health.v1.fleet.StageCount
 	(*FleetScanError)(nil),      // 6: vrooli.storage_health.v1.fleet.FleetScanError
 }
-var file_storage_health_v1_fleet_fleet_proto_depIdxs = []int32{
+var file_storage_manager_v1_fleet_fleet_proto_depIdxs = []int32{
 	3, // 0: vrooli.storage_health.v1.fleet.ScanFleetResponse.entries:type_name -> vrooli.storage_health.v1.fleet.FleetScenarioEntry
 	4, // 1: vrooli.storage_health.v1.fleet.ScanFleetResponse.engine_distribution:type_name -> vrooli.storage_health.v1.fleet.EngineCount
 	5, // 2: vrooli.storage_health.v1.fleet.ScanFleetResponse.stage_distribution:type_name -> vrooli.storage_health.v1.fleet.StageCount
@@ -687,26 +687,26 @@ var file_storage_health_v1_fleet_fleet_proto_depIdxs = []int32{
 	0, // [0:4] is the sub-list for field type_name
 }
 
-func init() { file_storage_health_v1_fleet_fleet_proto_init() }
-func file_storage_health_v1_fleet_fleet_proto_init() {
-	if File_storage_health_v1_fleet_fleet_proto != nil {
+func init() { file_storage_manager_v1_fleet_fleet_proto_init() }
+func file_storage_manager_v1_fleet_fleet_proto_init() {
+	if File_storage_manager_v1_fleet_fleet_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_storage_health_v1_fleet_fleet_proto_rawDesc), len(file_storage_health_v1_fleet_fleet_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_storage_manager_v1_fleet_fleet_proto_rawDesc), len(file_storage_manager_v1_fleet_fleet_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_storage_health_v1_fleet_fleet_proto_goTypes,
-		DependencyIndexes: file_storage_health_v1_fleet_fleet_proto_depIdxs,
-		MessageInfos:      file_storage_health_v1_fleet_fleet_proto_msgTypes,
+		GoTypes:           file_storage_manager_v1_fleet_fleet_proto_goTypes,
+		DependencyIndexes: file_storage_manager_v1_fleet_fleet_proto_depIdxs,
+		MessageInfos:      file_storage_manager_v1_fleet_fleet_proto_msgTypes,
 	}.Build()
-	File_storage_health_v1_fleet_fleet_proto = out.File
-	file_storage_health_v1_fleet_fleet_proto_goTypes = nil
-	file_storage_health_v1_fleet_fleet_proto_depIdxs = nil
+	File_storage_manager_v1_fleet_fleet_proto = out.File
+	file_storage_manager_v1_fleet_fleet_proto_goTypes = nil
+	file_storage_manager_v1_fleet_fleet_proto_depIdxs = nil
 }

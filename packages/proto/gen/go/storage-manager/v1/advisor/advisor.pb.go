@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        (unknown)
-// source: storage-health/v1/advisor/advisor.proto
+// source: storage-manager/v1/advisor/advisor.proto
 
 package advisor_v1
 
@@ -31,7 +31,7 @@ type AnalyzeMigrationsRequest struct {
 
 func (x *AnalyzeMigrationsRequest) Reset() {
 	*x = AnalyzeMigrationsRequest{}
-	mi := &file_storage_health_v1_advisor_advisor_proto_msgTypes[0]
+	mi := &file_storage_manager_v1_advisor_advisor_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43,7 +43,7 @@ func (x *AnalyzeMigrationsRequest) String() string {
 func (*AnalyzeMigrationsRequest) ProtoMessage() {}
 
 func (x *AnalyzeMigrationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_health_v1_advisor_advisor_proto_msgTypes[0]
+	mi := &file_storage_manager_v1_advisor_advisor_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -56,7 +56,7 @@ func (x *AnalyzeMigrationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnalyzeMigrationsRequest.ProtoReflect.Descriptor instead.
 func (*AnalyzeMigrationsRequest) Descriptor() ([]byte, []int) {
-	return file_storage_health_v1_advisor_advisor_proto_rawDescGZIP(), []int{0}
+	return file_storage_manager_v1_advisor_advisor_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *AnalyzeMigrationsRequest) GetScenarios() []string {
@@ -84,7 +84,7 @@ type AnalyzeMigrationsResponse struct {
 
 func (x *AnalyzeMigrationsResponse) Reset() {
 	*x = AnalyzeMigrationsResponse{}
-	mi := &file_storage_health_v1_advisor_advisor_proto_msgTypes[1]
+	mi := &file_storage_manager_v1_advisor_advisor_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -96,7 +96,7 @@ func (x *AnalyzeMigrationsResponse) String() string {
 func (*AnalyzeMigrationsResponse) ProtoMessage() {}
 
 func (x *AnalyzeMigrationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_health_v1_advisor_advisor_proto_msgTypes[1]
+	mi := &file_storage_manager_v1_advisor_advisor_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -109,7 +109,7 @@ func (x *AnalyzeMigrationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnalyzeMigrationsResponse.ProtoReflect.Descriptor instead.
 func (*AnalyzeMigrationsResponse) Descriptor() ([]byte, []int) {
-	return file_storage_health_v1_advisor_advisor_proto_rawDescGZIP(), []int{1}
+	return file_storage_manager_v1_advisor_advisor_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *AnalyzeMigrationsResponse) GetEntries() []*MigrationHygiene {
@@ -170,7 +170,7 @@ type MigrationHygiene struct {
 
 func (x *MigrationHygiene) Reset() {
 	*x = MigrationHygiene{}
-	mi := &file_storage_health_v1_advisor_advisor_proto_msgTypes[2]
+	mi := &file_storage_manager_v1_advisor_advisor_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -182,7 +182,7 @@ func (x *MigrationHygiene) String() string {
 func (*MigrationHygiene) ProtoMessage() {}
 
 func (x *MigrationHygiene) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_health_v1_advisor_advisor_proto_msgTypes[2]
+	mi := &file_storage_manager_v1_advisor_advisor_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -195,7 +195,7 @@ func (x *MigrationHygiene) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MigrationHygiene.ProtoReflect.Descriptor instead.
 func (*MigrationHygiene) Descriptor() ([]byte, []int) {
-	return file_storage_health_v1_advisor_advisor_proto_rawDescGZIP(), []int{2}
+	return file_storage_manager_v1_advisor_advisor_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *MigrationHygiene) GetScenario() string {
@@ -257,7 +257,7 @@ type AdviseEnginesRequest struct {
 
 func (x *AdviseEnginesRequest) Reset() {
 	*x = AdviseEnginesRequest{}
-	mi := &file_storage_health_v1_advisor_advisor_proto_msgTypes[3]
+	mi := &file_storage_manager_v1_advisor_advisor_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -269,7 +269,7 @@ func (x *AdviseEnginesRequest) String() string {
 func (*AdviseEnginesRequest) ProtoMessage() {}
 
 func (x *AdviseEnginesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_health_v1_advisor_advisor_proto_msgTypes[3]
+	mi := &file_storage_manager_v1_advisor_advisor_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -282,7 +282,7 @@ func (x *AdviseEnginesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdviseEnginesRequest.ProtoReflect.Descriptor instead.
 func (*AdviseEnginesRequest) Descriptor() ([]byte, []int) {
-	return file_storage_health_v1_advisor_advisor_proto_rawDescGZIP(), []int{3}
+	return file_storage_manager_v1_advisor_advisor_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *AdviseEnginesRequest) GetScenarios() []string {
@@ -307,7 +307,7 @@ type AdviseEnginesResponse struct {
 
 func (x *AdviseEnginesResponse) Reset() {
 	*x = AdviseEnginesResponse{}
-	mi := &file_storage_health_v1_advisor_advisor_proto_msgTypes[4]
+	mi := &file_storage_manager_v1_advisor_advisor_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -319,7 +319,7 @@ func (x *AdviseEnginesResponse) String() string {
 func (*AdviseEnginesResponse) ProtoMessage() {}
 
 func (x *AdviseEnginesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_health_v1_advisor_advisor_proto_msgTypes[4]
+	mi := &file_storage_manager_v1_advisor_advisor_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -332,7 +332,7 @@ func (x *AdviseEnginesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdviseEnginesResponse.ProtoReflect.Descriptor instead.
 func (*AdviseEnginesResponse) Descriptor() ([]byte, []int) {
-	return file_storage_health_v1_advisor_advisor_proto_rawDescGZIP(), []int{4}
+	return file_storage_manager_v1_advisor_advisor_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *AdviseEnginesResponse) GetCandidates() []*EngineCandidate {
@@ -362,13 +362,13 @@ type EngineCandidate struct {
 	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
 	// The engine the scenario currently uses.
 	CurrentEngine string `protobuf:"bytes,2,opt,name=current_engine,json=currentEngine,proto3" json:"current_engine,omitempty"`
-	// The engine storage-health recommends.
+	// The engine storage-manager recommends.
 	RecommendedEngine string `protobuf:"bytes,3,opt,name=recommended_engine,json=recommendedEngine,proto3" json:"recommended_engine,omitempty"`
 	// Fitness of the recommendation in [0,1]; higher = stronger candidate.
 	FitnessScore float64 `protobuf:"fixed64,4,opt,name=fitness_score,json=fitnessScore,proto3" json:"fitness_score,omitempty"`
 	// Why this recommendation was made.
 	Rationale string `protobuf:"bytes,5,opt,name=rationale,proto3" json:"rationale,omitempty"`
-	// True when storage-health can scaffold the migration.
+	// True when storage-manager can scaffold the migration.
 	Autofixable bool `protobuf:"varint,6,opt,name=autofixable,proto3" json:"autofixable,omitempty"`
 	// Reasons the migration is not trivially safe (e.g. multi-writer, cross-host
 	// sharing) — empty means no known blockers.
@@ -379,7 +379,7 @@ type EngineCandidate struct {
 
 func (x *EngineCandidate) Reset() {
 	*x = EngineCandidate{}
-	mi := &file_storage_health_v1_advisor_advisor_proto_msgTypes[5]
+	mi := &file_storage_manager_v1_advisor_advisor_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -391,7 +391,7 @@ func (x *EngineCandidate) String() string {
 func (*EngineCandidate) ProtoMessage() {}
 
 func (x *EngineCandidate) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_health_v1_advisor_advisor_proto_msgTypes[5]
+	mi := &file_storage_manager_v1_advisor_advisor_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -404,7 +404,7 @@ func (x *EngineCandidate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EngineCandidate.ProtoReflect.Descriptor instead.
 func (*EngineCandidate) Descriptor() ([]byte, []int) {
-	return file_storage_health_v1_advisor_advisor_proto_rawDescGZIP(), []int{5}
+	return file_storage_manager_v1_advisor_advisor_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *EngineCandidate) GetScenario() string {
@@ -467,7 +467,7 @@ type AdvisorScanError struct {
 
 func (x *AdvisorScanError) Reset() {
 	*x = AdvisorScanError{}
-	mi := &file_storage_health_v1_advisor_advisor_proto_msgTypes[6]
+	mi := &file_storage_manager_v1_advisor_advisor_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -479,7 +479,7 @@ func (x *AdvisorScanError) String() string {
 func (*AdvisorScanError) ProtoMessage() {}
 
 func (x *AdvisorScanError) ProtoReflect() protoreflect.Message {
-	mi := &file_storage_health_v1_advisor_advisor_proto_msgTypes[6]
+	mi := &file_storage_manager_v1_advisor_advisor_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -492,7 +492,7 @@ func (x *AdvisorScanError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdvisorScanError.ProtoReflect.Descriptor instead.
 func (*AdvisorScanError) Descriptor() ([]byte, []int) {
-	return file_storage_health_v1_advisor_advisor_proto_rawDescGZIP(), []int{6}
+	return file_storage_manager_v1_advisor_advisor_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *AdvisorScanError) GetScenario() string {
@@ -509,11 +509,11 @@ func (x *AdvisorScanError) GetReason() string {
 	return ""
 }
 
-var File_storage_health_v1_advisor_advisor_proto protoreflect.FileDescriptor
+var File_storage_manager_v1_advisor_advisor_proto protoreflect.FileDescriptor
 
-const file_storage_health_v1_advisor_advisor_proto_rawDesc = "" +
+const file_storage_manager_v1_advisor_advisor_proto_rawDesc = "" +
 	"\n" +
-	"'storage-health/v1/advisor/advisor.proto\x12 vrooli.storage_health.v1.advisor\"8\n" +
+	"(storage-manager/v1/advisor/advisor.proto\x12 vrooli.storage_health.v1.advisor\"8\n" +
 	"\x18AnalyzeMigrationsRequest\x12\x1c\n" +
 	"\tscenarios\x18\x01 \x03(\tR\tscenarios\"\xaf\x02\n" +
 	"\x19AnalyzeMigrationsResponse\x12L\n" +
@@ -552,22 +552,22 @@ const file_storage_health_v1_advisor_advisor_proto_rawDesc = "" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason2\xa2\x02\n" +
 	"\x0eAdvisorService\x12\x8c\x01\n" +
 	"\x11AnalyzeMigrations\x12:.vrooli.storage_health.v1.advisor.AnalyzeMigrationsRequest\x1a;.vrooli.storage_health.v1.advisor.AnalyzeMigrationsResponse\x12\x80\x01\n" +
-	"\rAdviseEngines\x126.vrooli.storage_health.v1.advisor.AdviseEnginesRequest\x1a7.vrooli.storage_health.v1.advisor.AdviseEnginesResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/storage-health/v1/advisor;advisor_v1b\x06proto3"
+	"\rAdviseEngines\x126.vrooli.storage_health.v1.advisor.AdviseEnginesRequest\x1a7.vrooli.storage_health.v1.advisor.AdviseEnginesResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/storage-manager/v1/advisor;advisor_v1b\x06proto3"
 
 var (
-	file_storage_health_v1_advisor_advisor_proto_rawDescOnce sync.Once
-	file_storage_health_v1_advisor_advisor_proto_rawDescData []byte
+	file_storage_manager_v1_advisor_advisor_proto_rawDescOnce sync.Once
+	file_storage_manager_v1_advisor_advisor_proto_rawDescData []byte
 )
 
-func file_storage_health_v1_advisor_advisor_proto_rawDescGZIP() []byte {
-	file_storage_health_v1_advisor_advisor_proto_rawDescOnce.Do(func() {
-		file_storage_health_v1_advisor_advisor_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_storage_health_v1_advisor_advisor_proto_rawDesc), len(file_storage_health_v1_advisor_advisor_proto_rawDesc)))
+func file_storage_manager_v1_advisor_advisor_proto_rawDescGZIP() []byte {
+	file_storage_manager_v1_advisor_advisor_proto_rawDescOnce.Do(func() {
+		file_storage_manager_v1_advisor_advisor_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_storage_manager_v1_advisor_advisor_proto_rawDesc), len(file_storage_manager_v1_advisor_advisor_proto_rawDesc)))
 	})
-	return file_storage_health_v1_advisor_advisor_proto_rawDescData
+	return file_storage_manager_v1_advisor_advisor_proto_rawDescData
 }
 
-var file_storage_health_v1_advisor_advisor_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
-var file_storage_health_v1_advisor_advisor_proto_goTypes = []any{
+var file_storage_manager_v1_advisor_advisor_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_storage_manager_v1_advisor_advisor_proto_goTypes = []any{
 	(*AnalyzeMigrationsRequest)(nil),  // 0: vrooli.storage_health.v1.advisor.AnalyzeMigrationsRequest
 	(*AnalyzeMigrationsResponse)(nil), // 1: vrooli.storage_health.v1.advisor.AnalyzeMigrationsResponse
 	(*MigrationHygiene)(nil),          // 2: vrooli.storage_health.v1.advisor.MigrationHygiene
@@ -576,7 +576,7 @@ var file_storage_health_v1_advisor_advisor_proto_goTypes = []any{
 	(*EngineCandidate)(nil),           // 5: vrooli.storage_health.v1.advisor.EngineCandidate
 	(*AdvisorScanError)(nil),          // 6: vrooli.storage_health.v1.advisor.AdvisorScanError
 }
-var file_storage_health_v1_advisor_advisor_proto_depIdxs = []int32{
+var file_storage_manager_v1_advisor_advisor_proto_depIdxs = []int32{
 	2, // 0: vrooli.storage_health.v1.advisor.AnalyzeMigrationsResponse.entries:type_name -> vrooli.storage_health.v1.advisor.MigrationHygiene
 	6, // 1: vrooli.storage_health.v1.advisor.AnalyzeMigrationsResponse.errors:type_name -> vrooli.storage_health.v1.advisor.AdvisorScanError
 	5, // 2: vrooli.storage_health.v1.advisor.AdviseEnginesResponse.candidates:type_name -> vrooli.storage_health.v1.advisor.EngineCandidate
@@ -592,26 +592,26 @@ var file_storage_health_v1_advisor_advisor_proto_depIdxs = []int32{
 	0, // [0:4] is the sub-list for field type_name
 }
 
-func init() { file_storage_health_v1_advisor_advisor_proto_init() }
-func file_storage_health_v1_advisor_advisor_proto_init() {
-	if File_storage_health_v1_advisor_advisor_proto != nil {
+func init() { file_storage_manager_v1_advisor_advisor_proto_init() }
+func file_storage_manager_v1_advisor_advisor_proto_init() {
+	if File_storage_manager_v1_advisor_advisor_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_storage_health_v1_advisor_advisor_proto_rawDesc), len(file_storage_health_v1_advisor_advisor_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_storage_manager_v1_advisor_advisor_proto_rawDesc), len(file_storage_manager_v1_advisor_advisor_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_storage_health_v1_advisor_advisor_proto_goTypes,
-		DependencyIndexes: file_storage_health_v1_advisor_advisor_proto_depIdxs,
-		MessageInfos:      file_storage_health_v1_advisor_advisor_proto_msgTypes,
+		GoTypes:           file_storage_manager_v1_advisor_advisor_proto_goTypes,
+		DependencyIndexes: file_storage_manager_v1_advisor_advisor_proto_depIdxs,
+		MessageInfos:      file_storage_manager_v1_advisor_advisor_proto_msgTypes,
 	}.Build()
-	File_storage_health_v1_advisor_advisor_proto = out.File
-	file_storage_health_v1_advisor_advisor_proto_goTypes = nil
-	file_storage_health_v1_advisor_advisor_proto_depIdxs = nil
+	File_storage_manager_v1_advisor_advisor_proto = out.File
+	file_storage_manager_v1_advisor_advisor_proto_goTypes = nil
+	file_storage_manager_v1_advisor_advisor_proto_depIdxs = nil
 }

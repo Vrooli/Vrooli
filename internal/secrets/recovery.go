@@ -45,6 +45,12 @@ func (a *Authority) ExportRecovery(entries []RecoveryEntry, passphrase string) (
 	if strings.TrimSpace(passphrase) == "" {
 		return nil, fmt.Errorf("recovery passphrase is required")
 	}
+	// Recovery stays fail-closed while the rest of the seam degrades. Writing a
+	// bundle from a store we cannot read would hand the operator an artifact
+	// that looks like a backup and is not one.
+	if err := a.Availability(); err != nil {
+		return nil, fmt.Errorf("export recovery bundle: %w", err)
+	}
 	payload := recoveryPayload{Version: 1, Values: make([]recoveryValue, 0, len(entries))}
 	for _, entry := range entries {
 		identity, err := ParseIdentity(string(entry.Identity))
@@ -73,6 +79,9 @@ func (a *Authority) RestoreRecovery(bundle []byte, passphrase string) error {
 	if strings.TrimSpace(passphrase) == "" {
 		return fmt.Errorf("recovery passphrase is required")
 	}
+	if err := a.Availability(); err != nil {
+		return fmt.Errorf("restore recovery bundle: %w", err)
+	}
 	plain, err := decryptRecovery(bundle, passphrase)
 	if err != nil {
 		return err
@@ -92,14 +101,18 @@ func (a *Authority) RestoreRecovery(bundle []byte, passphrase string) error {
 	return nil
 }
 
+// read is the recovery-side value read. Unlike the injection path it has no
+// degraded mode: a bundle that silently omitted a value the operator believed
+// was captured would be worse than no bundle at all.
 func (a *Authority) read(identity Identity, field string) (string, error) {
 	if a == nil || a.store == nil {
-		return "", ErrUnsupportedProvider
+		return "", fmt.Errorf("%w: no credential store on this host", ErrProviderAbsent)
 	}
-	a.mu.Lock()
-	value, err := a.store.Get(credentialService, string(identity)+":"+field)
-	a.mu.Unlock()
-	if err != nil || strings.TrimSpace(value) == "" {
+	value, err := a.get(identity, field)
+	if err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(value) == "" {
 		return "", ErrUnconfigured
 	}
 	return value, nil

@@ -1459,8 +1459,8 @@ export const GraphService: GenService<{
    * PreviewSnapshotRetention reports how much snapshot storage is
    * reclaimable beyond the retention floor, without deleting anything.
    *
-   * It is also the estimate/preview half of the cleanup-manager owner
-   * provider contract: cleanup-manager never duplicates owner-private
+   * It is also the estimate/preview half of the storage-manager owner
+   * provider contract: storage-manager never duplicates owner-private
    * deletion logic, so it asks this scenario what is safe to drop.
    *
    * @generated from rpc vrooli.architecture_cartographer.v1.graph.GraphService.PreviewSnapshotRetention

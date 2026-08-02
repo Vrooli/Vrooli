@@ -140,11 +140,18 @@ func verifyDeclaredColumns(ctx context.Context, q SchemaQuerier, providers []Sch
 }
 
 // sqliteTableColumns returns the set of column names on table via PRAGMA
-// table_info. A query error (e.g. PRAGMA unsupported on a non-SQLite engine)
+// table_xinfo. A query error (e.g. PRAGMA unsupported on a non-SQLite engine)
 // is propagated so the caller can skip verification; a missing table yields an
 // empty set with no error.
+//
+// table_xinfo rather than table_info: table_info omits generated columns
+// (VIRTUAL and STORED alike), so a schema declaring one would be reported as
+// permanently drifted, and the error text would send the operator off to write
+// an ADD COLUMN migration that SQLite rejects for generated columns. table_xinfo
+// returns the same rows plus the hidden ones, so it is a strict superset and can
+// only remove false positives.
 func sqliteTableColumns(ctx context.Context, q SchemaQuerier, table string) (map[string]bool, error) {
-	rows, err := q.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%q)", table))
+	rows, err := q.QueryContext(ctx, fmt.Sprintf("PRAGMA table_xinfo(%q)", table))
 	if err != nil {
 		return nil, err
 	}
@@ -159,8 +166,11 @@ func sqliteTableColumns(ctx context.Context, q SchemaQuerier, table string) (map
 			notnull int
 			dflt    sql.NullString
 			pk      int
+			// hidden: 0 ordinary, 1 virtual table hidden, 2 VIRTUAL generated,
+			// 3 STORED generated. All of them are columns the schema declared.
+			hidden int
 		)
-		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dflt, &pk); err != nil {
+		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dflt, &pk, &hidden); err != nil {
 			return nil, err
 		}
 		cols[name] = true

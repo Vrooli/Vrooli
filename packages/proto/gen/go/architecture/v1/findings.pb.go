@@ -77,7 +77,7 @@ const (
 	// declared-vs-actual scenario dependency findings. Feeds the
 	// swarm-manager soft `dependency-accuracy` R2 ladder dimension.
 	FindingSource_FINDING_SOURCE_DEPENDENCY FindingSource = 13
-	// STORAGE: test-genie `storage` phase — delegates to the storage-health
+	// STORAGE: test-genie `storage` phase — delegates to the storage-manager
 	// scenario (schema layout, migration hygiene, persistence-seam adoption,
 	// and test-isolation safety) and emits normalized findings. Its L2
 	// isolation verdict is a fail-closed precondition for the destructive

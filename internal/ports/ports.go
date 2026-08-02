@@ -21,6 +21,7 @@ import (
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
+	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
 )
 
 func defaultHostBootID(ctx context.Context) (string, error) {
@@ -69,6 +70,14 @@ type Environment struct {
 	RuntimeClaims  map[string]scenarioruntime.PortClaim
 	IsRunning      bool
 	Message        string
+	// CredentialGaps names every declared credential that did not resolve for
+	// this scenario. It is reported, never returned as an error: a scenario
+	// starts whenever its processes and ports can start, and credential state
+	// only changes what a resource can do.
+	CredentialGaps []resourceenv.MissingCredential
+	// CredentialProvider is the worst secure-store condition seen while
+	// resolving this scenario's resources.
+	CredentialProvider credentialauthority.ProviderState
 }
 
 type RuntimeClaimStore interface {
@@ -155,11 +164,14 @@ func (m *Manager) BuildEnvironmentWithRuntimeClaims(item scenario.Scenario, _ []
 		return Environment{}, err
 	}
 
-	resourceEnv, err := m.loadResourceEnvironment(instanceKey, item.Manifest)
+	// Only a manifest defect can fail here. A missing credential, an
+	// unreachable keyring, or a host with no secure store all come back as
+	// gaps in the resolution rather than as an error.
+	resolution, err := m.loadResourceEnvironment(instanceKey, item.Manifest)
 	if err != nil {
 		return Environment{}, err
 	}
-	for key, value := range resourceEnv {
+	for key, value := range resolution.Values {
 		envVars[key] = value
 	}
 
@@ -191,10 +203,12 @@ func (m *Manager) BuildEnvironmentWithRuntimeClaims(item scenario.Scenario, _ []
 	}
 
 	return Environment{
-		AllocatedPorts: allocated,
-		EnvVars:        envVars,
-		RuntimeClaims:  runtimeClaims,
-		Message:        "allocated ports for scenario",
+		AllocatedPorts:     allocated,
+		EnvVars:            envVars,
+		RuntimeClaims:      runtimeClaims,
+		Message:            "allocated ports for scenario",
+		CredentialGaps:     resolution.MissingCredentials,
+		CredentialProvider: resolution.CredentialProvider,
 	}, nil
 }
 
@@ -219,11 +233,11 @@ func (m *Manager) BuildProjectEnvironment(item scenario.Scenario) (Environment, 
 		envVars[portSummary.EnvVar] = strconv.Itoa(port)
 	}
 
-	resourceEnv, err := m.loadResourceEnvironment(scenarioruntime.InstanceKey{Scenario: item.Slug, Variant: item.Variant}.Normalize(), item.Manifest)
+	resolution, err := m.loadResourceEnvironment(scenarioruntime.InstanceKey{Scenario: item.Slug, Variant: item.Variant}.Normalize(), item.Manifest)
 	if err != nil {
 		return Environment{}, err
 	}
-	for key, value := range resourceEnv {
+	for key, value := range resolution.Values {
 		envVars[key] = value
 	}
 
@@ -236,9 +250,11 @@ func (m *Manager) BuildProjectEnvironment(item scenario.Scenario) (Environment, 
 	}
 
 	return Environment{
-		AllocatedPorts: allocated,
-		EnvVars:        envVars,
-		Message:        "resolved fixed ports for project lifecycle",
+		AllocatedPorts:     allocated,
+		EnvVars:            envVars,
+		Message:            "resolved fixed ports for project lifecycle",
+		CredentialGaps:     resolution.MissingCredentials,
+		CredentialProvider: resolution.CredentialProvider,
 	}, nil
 }
 
@@ -860,12 +876,8 @@ func isTCPPortInUse(port int) (bool, error) {
 	return false, nil
 }
 
-func (m *Manager) loadResourceEnvironment(key scenarioruntime.InstanceKey, manifest scenario.ServiceManifest) (map[string]string, error) {
-	resolution, err := resourceenv.ResolveScenario(m.Root, m.Home, key.Scenario, key.Variant, manifest)
-	if err != nil {
-		return nil, err
-	}
-	return resolution.Values, nil
+func (m *Manager) loadResourceEnvironment(key scenarioruntime.InstanceKey, manifest scenario.ServiceManifest) (resourceenv.ScenarioResolution, error) {
+	return resourceenv.ResolveScenario(m.Root, m.Home, key.Scenario, key.Variant, manifest)
 }
 
 func expandTemplate(value string, env map[string]string) string {

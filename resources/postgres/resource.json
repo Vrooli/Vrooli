@@ -3,6 +3,22 @@
   "name": "postgres",
   "display_name": "PostgreSQL Database",
   "description": "Managed PostgreSQL service for project and scenario storage.",
+  "storage": {
+    "entries": {
+      "main_data": {
+        "rung": "pinned",
+        "path": {
+          "linux": "$USER_HOME/.local/share/vrooli/resources/postgres/instances/main/data",
+          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/postgres/instances/main/data",
+          "windows": "$USER_HOME/AppData/Local/vrooli/resources/postgres/instances/main/data"
+        },
+        "kind": "dir",
+        "regenerable": false,
+        "relocation": { "key": "RESOURCE_DATA_DIR", "scope": "process-tree" },
+        "rationale": "The PostgreSQL container's bind-mounted data directory; relocation requires the resource to be stopped."
+      }
+    }
+  },
   "cli": {
     "enabled": true,
     "command": "resource-postgres",

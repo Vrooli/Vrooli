@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package vrooli.cleanup_manager.v1.shared;
 
-option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cleanup-manager/v1/shared;shared_v1";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/storage-manager/v1/shared;shared_v1";
 
 // =============================================================================
 // ERROR ENVELOPE — canonical REST-exception non-2xx body

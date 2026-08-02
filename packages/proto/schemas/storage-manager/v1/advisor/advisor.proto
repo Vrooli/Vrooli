@@ -2,14 +2,14 @@ syntax = "proto3";
 
 package vrooli.storage_health.v1.advisor;
 
-option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/storage-health/v1/advisor;advisor_v1";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/storage-manager/v1/advisor;advisor_v1";
 
 // =============================================================================
 // STORAGE ADVISOR SERVICE
 // =============================================================================
 //
 // @layer 0
-// @domain storage-health
+// @domain storage-manager
 // @stability beta
 //
 // AdvisorService turns the fleet's storage facts into actionable guidance:
@@ -90,13 +90,13 @@ message EngineCandidate {
   string scenario = 1;
   // The engine the scenario currently uses.
   string current_engine = 2;
-  // The engine storage-health recommends.
+  // The engine storage-manager recommends.
   string recommended_engine = 3;
   // Fitness of the recommendation in [0,1]; higher = stronger candidate.
   double fitness_score = 4;
   // Why this recommendation was made.
   string rationale = 5;
-  // True when storage-health can scaffold the migration.
+  // True when storage-manager can scaffold the migration.
   bool autofixable = 6;
   // Reasons the migration is not trivially safe (e.g. multi-writer, cross-host
   // sharing) — empty means no known blockers.

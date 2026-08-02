@@ -80,7 +80,7 @@
     },
     {
       "id": "storage",
-      "description": "Storage judgment: schema layout, migration hygiene, persistence-seam adoption, and test-isolation safety. Produced by the test-genie `storage` phase, which delegates to the storage-health scenario; its L2 isolation verdict is a fail-closed precondition for the destructive `playbooks` phase."
+      "description": "Storage judgment: schema layout, migration hygiene, persistence-seam adoption, and test-isolation safety. Produced by the test-genie `storage` phase, which delegates to the storage-manager scenario; its L2 isolation verdict is a fail-closed precondition for the destructive `playbooks` phase."
     },
     {
       "id": "branding",

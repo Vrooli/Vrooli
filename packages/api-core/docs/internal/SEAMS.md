@@ -13,5 +13,5 @@ the source files; if you add a new tag, add a row here.
 
 ## Related docs
 
-- [`scenarios/storage-health/docs/concepts/test-isolation-contract.md`](../../../../scenarios/storage-health/docs/concepts/test-isolation-contract.md)
+- [`scenarios/storage-manager/docs/concepts/test-isolation-contract.md`](../../../../scenarios/storage-manager/docs/concepts/test-isolation-contract.md)
   — The canonical test-isolation contract: how test-genie's playbooks phase uses these seams end-to-end.

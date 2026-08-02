@@ -2,14 +2,14 @@ syntax = "proto3";
 
 package vrooli.storage_health.v1.fleet;
 
-option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/storage-health/v1/fleet;fleet_v1";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/storage-manager/v1/fleet;fleet_v1";
 
 // =============================================================================
 // STORAGE FLEET SERVICE
 // =============================================================================
 //
 // @layer 0
-// @domain storage-health
+// @domain storage-manager
 // @stability beta
 //
 // FleetService answers deterministic, structured storage-inventory queries
@@ -17,12 +17,12 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/storage-heal
 // adopted the variant-aware namespace helpers, whether its test-isolation seams
 // are statically proven (the safety throughline), its deploy/greenfield stage,
 // and whether a data-persisting scenario has a declared backup target. These
-// are exact/structured queries (not semantic), so storage-health is NOT a
+// are exact/structured queries (not semantic), so storage-manager is NOT a
 // search-hub data provider; the CLI verbs are discoverable through cli-health's
 // command index instead.
 //
-// Each ScanFleet persists the per-scenario rollup to storage-health's own
-// SQLite store (a per-domain schema — storage-health dogfoods the very
+// Each ScanFleet persists the per-scenario rollup to storage-manager's own
+// SQLite store (a per-domain schema — storage-manager dogfoods the very
 // conventions it enforces); GetInventory returns the latest persisted snapshot
 // without re-scanning, so the dashboard loads fast.
 // =============================================================================
@@ -98,7 +98,7 @@ message FleetScenarioEntry {
   int32 finding_count = 10;
   // Error-severity storage findings for this scenario.
   int32 error_count = 11;
-  // Findings a registered storage-health autofix can remediate.
+  // Findings a registered storage-manager autofix can remediate.
   int32 autofixable_count = 12;
   // Bytes measured under scenario-local and runtime data directories.
   int64 data_dir_bytes = 13;

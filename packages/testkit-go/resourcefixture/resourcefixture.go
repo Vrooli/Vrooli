@@ -188,7 +188,13 @@ func WithResourceEndpoint(endpoint string) ResourceManifestOption {
 
 func WithResourceCredentialsEnv(env ...string) ResourceManifestOption {
 	return func(manifest *manifestpkg.ResourceManifest) {
-		manifest.Credentials.Env = append([]string(nil), env...)
+		descriptors := make([]manifestpkg.CredentialDescriptor, 0, len(env))
+		for _, name := range env {
+			descriptors = append(descriptors, manifestpkg.CredentialDescriptor{
+				LogicalID: "vrooli/fixture", Field: strings.ToLower(strings.ReplaceAll(name, "_", "-")), Env: name, Required: true,
+			})
+		}
+		manifest.Credentials.Descriptors = descriptors
 	}
 }
 

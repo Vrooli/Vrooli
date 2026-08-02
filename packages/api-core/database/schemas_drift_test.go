@@ -220,3 +220,31 @@ func TestEnsureSchemas_NonQuerierSkipsCheck(t *testing.T) {
 		t.Fatalf("non-querier execer must skip the drift check: %v", err)
 	}
 }
+
+// TestGeneratedColumnIsNotReportedAsDrift locks in the table_xinfo fix.
+//
+// PRAGMA table_info omits generated columns, so verifying against it reported a
+// freshly created table as missing its own generated column on every boot — and
+// the remediation text pointed at an ADD COLUMN migration that SQLite rejects
+// for generated columns.
+func TestGeneratedColumnIsNotReportedAsDrift(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	defer db.Close()
+
+	schema := `CREATE TABLE IF NOT EXISTS metrics (
+    id TEXT PRIMARY KEY,
+    a REAL,
+    b REAL,
+    avg_ab REAL GENERATED ALWAYS AS ((a + b) / 2) STORED,
+    virt REAL GENERATED ALWAYS AS (a * 2) VIRTUAL
+);`
+
+	for i := range 2 {
+		if err := EnsureSchemas(context.Background(), db, SchemaProviderFunc(func() string { return schema })); err != nil {
+			t.Fatalf("apply %d: generated columns must not read as drift: %v", i+1, err)
+		}
+	}
+}

@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        (unknown)
-// source: cleanup-manager/v1/cleanup/cleanup.proto
+// source: storage-manager/v1/cleanup/cleanup.proto
 
 package cleanup_v1
 
@@ -66,11 +66,11 @@ func (x PressureBand) String() string {
 }
 
 func (PressureBand) Descriptor() protoreflect.EnumDescriptor {
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_enumTypes[0].Descriptor()
+	return file_storage_manager_v1_cleanup_cleanup_proto_enumTypes[0].Descriptor()
 }
 
 func (PressureBand) Type() protoreflect.EnumType {
-	return &file_cleanup_manager_v1_cleanup_cleanup_proto_enumTypes[0]
+	return &file_storage_manager_v1_cleanup_cleanup_proto_enumTypes[0]
 }
 
 func (x PressureBand) Number() protoreflect.EnumNumber {
@@ -79,10 +79,10 @@ func (x PressureBand) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PressureBand.Descriptor instead.
 func (PressureBand) EnumDescriptor() ([]byte, []int) {
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{0}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{0}
 }
 
-// PressureAction is what cleanup-manager actually did about the report.
+// PressureAction is what storage-manager actually did about the report.
 type PressureAction int32
 
 const (
@@ -130,11 +130,11 @@ func (x PressureAction) String() string {
 }
 
 func (PressureAction) Descriptor() protoreflect.EnumDescriptor {
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_enumTypes[1].Descriptor()
+	return file_storage_manager_v1_cleanup_cleanup_proto_enumTypes[1].Descriptor()
 }
 
 func (PressureAction) Type() protoreflect.EnumType {
-	return &file_cleanup_manager_v1_cleanup_cleanup_proto_enumTypes[1]
+	return &file_storage_manager_v1_cleanup_cleanup_proto_enumTypes[1]
 }
 
 func (x PressureAction) Number() protoreflect.EnumNumber {
@@ -143,7 +143,7 @@ func (x PressureAction) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PressureAction.Descriptor instead.
 func (PressureAction) EnumDescriptor() ([]byte, []int) {
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{1}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{1}
 }
 
 type ListProvidersRequest struct {
@@ -154,7 +154,7 @@ type ListProvidersRequest struct {
 
 func (x *ListProvidersRequest) Reset() {
 	*x = ListProvidersRequest{}
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[0]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -166,7 +166,7 @@ func (x *ListProvidersRequest) String() string {
 func (*ListProvidersRequest) ProtoMessage() {}
 
 func (x *ListProvidersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[0]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -179,7 +179,7 @@ func (x *ListProvidersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListProvidersRequest.ProtoReflect.Descriptor instead.
 func (*ListProvidersRequest) Descriptor() ([]byte, []int) {
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{0}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{0}
 }
 
 type ListProvidersResponse struct {
@@ -191,7 +191,7 @@ type ListProvidersResponse struct {
 
 func (x *ListProvidersResponse) Reset() {
 	*x = ListProvidersResponse{}
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[1]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -203,7 +203,7 @@ func (x *ListProvidersResponse) String() string {
 func (*ListProvidersResponse) ProtoMessage() {}
 
 func (x *ListProvidersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[1]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -216,7 +216,7 @@ func (x *ListProvidersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListProvidersResponse.ProtoReflect.Descriptor instead.
 func (*ListProvidersResponse) Descriptor() ([]byte, []int) {
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{1}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *ListProvidersResponse) GetProviders() []*Provider {
@@ -244,7 +244,7 @@ type Provider struct {
 
 func (x *Provider) Reset() {
 	*x = Provider{}
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[2]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -256,7 +256,7 @@ func (x *Provider) String() string {
 func (*Provider) ProtoMessage() {}
 
 func (x *Provider) ProtoReflect() protoreflect.Message {
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[2]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -269,7 +269,7 @@ func (x *Provider) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Provider.ProtoReflect.Descriptor instead.
 func (*Provider) Descriptor() ([]byte, []int) {
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{2}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Provider) GetId() string {
@@ -350,7 +350,7 @@ type GetPolicyRequest struct {
 
 func (x *GetPolicyRequest) Reset() {
 	*x = GetPolicyRequest{}
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[3]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -362,7 +362,7 @@ func (x *GetPolicyRequest) String() string {
 func (*GetPolicyRequest) ProtoMessage() {}
 
 func (x *GetPolicyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[3]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -375,7 +375,7 @@ func (x *GetPolicyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPolicyRequest.ProtoReflect.Descriptor instead.
 func (*GetPolicyRequest) Descriptor() ([]byte, []int) {
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{3}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{3}
 }
 
 type GetPolicyResponse struct {
@@ -387,7 +387,7 @@ type GetPolicyResponse struct {
 
 func (x *GetPolicyResponse) Reset() {
 	*x = GetPolicyResponse{}
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[4]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -399,7 +399,7 @@ func (x *GetPolicyResponse) String() string {
 func (*GetPolicyResponse) ProtoMessage() {}
 
 func (x *GetPolicyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[4]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -412,7 +412,7 @@ func (x *GetPolicyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPolicyResponse.ProtoReflect.Descriptor instead.
 func (*GetPolicyResponse) Descriptor() ([]byte, []int) {
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{4}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetPolicyResponse) GetPolicy() *Policy {
@@ -431,7 +431,7 @@ type SetPolicyProfileRequest struct {
 
 func (x *SetPolicyProfileRequest) Reset() {
 	*x = SetPolicyProfileRequest{}
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[5]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -443,7 +443,7 @@ func (x *SetPolicyProfileRequest) String() string {
 func (*SetPolicyProfileRequest) ProtoMessage() {}
 
 func (x *SetPolicyProfileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[5]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -456,7 +456,7 @@ func (x *SetPolicyProfileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetPolicyProfileRequest.ProtoReflect.Descriptor instead.
 func (*SetPolicyProfileRequest) Descriptor() ([]byte, []int) {
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{5}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SetPolicyProfileRequest) GetProfile() string {
@@ -475,7 +475,7 @@ type SetPolicyProfileResponse struct {
 
 func (x *SetPolicyProfileResponse) Reset() {
 	*x = SetPolicyProfileResponse{}
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[6]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -487,7 +487,7 @@ func (x *SetPolicyProfileResponse) String() string {
 func (*SetPolicyProfileResponse) ProtoMessage() {}
 
 func (x *SetPolicyProfileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[6]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -500,7 +500,7 @@ func (x *SetPolicyProfileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetPolicyProfileResponse.ProtoReflect.Descriptor instead.
 func (*SetPolicyProfileResponse) Descriptor() ([]byte, []int) {
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{6}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *SetPolicyProfileResponse) GetPolicy() *Policy {
@@ -522,7 +522,7 @@ type Policy struct {
 
 func (x *Policy) Reset() {
 	*x = Policy{}
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[7]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -534,7 +534,7 @@ func (x *Policy) String() string {
 func (*Policy) ProtoMessage() {}
 
 func (x *Policy) ProtoReflect() protoreflect.Message {
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[7]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -547,7 +547,7 @@ func (x *Policy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Policy.ProtoReflect.Descriptor instead.
 func (*Policy) Descriptor() ([]byte, []int) {
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{7}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Policy) GetVersion() string {
@@ -591,7 +591,7 @@ type ProviderPolicy struct {
 
 func (x *ProviderPolicy) Reset() {
 	*x = ProviderPolicy{}
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[8]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -603,7 +603,7 @@ func (x *ProviderPolicy) String() string {
 func (*ProviderPolicy) ProtoMessage() {}
 
 func (x *ProviderPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[8]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -616,7 +616,7 @@ func (x *ProviderPolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProviderPolicy.ProtoReflect.Descriptor instead.
 func (*ProviderPolicy) Descriptor() ([]byte, []int) {
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{8}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ProviderPolicy) GetProviderId() string {
@@ -662,7 +662,7 @@ type CreatePlanRequest struct {
 
 func (x *CreatePlanRequest) Reset() {
 	*x = CreatePlanRequest{}
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[9]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -674,7 +674,7 @@ func (x *CreatePlanRequest) String() string {
 func (*CreatePlanRequest) ProtoMessage() {}
 
 func (x *CreatePlanRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[9]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -687,7 +687,7 @@ func (x *CreatePlanRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePlanRequest.ProtoReflect.Descriptor instead.
 func (*CreatePlanRequest) Descriptor() ([]byte, []int) {
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{9}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{9}
 }
 
 type CreatePlanResponse struct {
@@ -699,7 +699,7 @@ type CreatePlanResponse struct {
 
 func (x *CreatePlanResponse) Reset() {
 	*x = CreatePlanResponse{}
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[10]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -711,7 +711,7 @@ func (x *CreatePlanResponse) String() string {
 func (*CreatePlanResponse) ProtoMessage() {}
 
 func (x *CreatePlanResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[10]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -724,7 +724,7 @@ func (x *CreatePlanResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePlanResponse.ProtoReflect.Descriptor instead.
 func (*CreatePlanResponse) Descriptor() ([]byte, []int) {
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{10}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CreatePlanResponse) GetPlan() *Plan {
@@ -748,7 +748,7 @@ type Plan struct {
 
 func (x *Plan) Reset() {
 	*x = Plan{}
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[11]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -760,7 +760,7 @@ func (x *Plan) String() string {
 func (*Plan) ProtoMessage() {}
 
 func (x *Plan) ProtoReflect() protoreflect.Message {
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[11]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -773,7 +773,7 @@ func (x *Plan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Plan.ProtoReflect.Descriptor instead.
 func (*Plan) Descriptor() ([]byte, []int) {
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{11}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Plan) GetId() string {
@@ -834,7 +834,7 @@ type ProviderPlan struct {
 
 func (x *ProviderPlan) Reset() {
 	*x = ProviderPlan{}
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[12]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -846,7 +846,7 @@ func (x *ProviderPlan) String() string {
 func (*ProviderPlan) ProtoMessage() {}
 
 func (x *ProviderPlan) ProtoReflect() protoreflect.Message {
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[12]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -859,7 +859,7 @@ func (x *ProviderPlan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProviderPlan.ProtoReflect.Descriptor instead.
 func (*ProviderPlan) Descriptor() ([]byte, []int) {
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{12}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ProviderPlan) GetProviderId() string {
@@ -932,7 +932,7 @@ type PreviewItem struct {
 
 func (x *PreviewItem) Reset() {
 	*x = PreviewItem{}
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[13]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -944,7 +944,7 @@ func (x *PreviewItem) String() string {
 func (*PreviewItem) ProtoMessage() {}
 
 func (x *PreviewItem) ProtoReflect() protoreflect.Message {
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[13]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -957,7 +957,7 @@ func (x *PreviewItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreviewItem.ProtoReflect.Descriptor instead.
 func (*PreviewItem) Descriptor() ([]byte, []int) {
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{13}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *PreviewItem) GetId() string {
@@ -1015,7 +1015,7 @@ type ApplyPlanRequest struct {
 
 func (x *ApplyPlanRequest) Reset() {
 	*x = ApplyPlanRequest{}
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[14]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1027,7 +1027,7 @@ func (x *ApplyPlanRequest) String() string {
 func (*ApplyPlanRequest) ProtoMessage() {}
 
 func (x *ApplyPlanRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[14]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1040,7 +1040,7 @@ func (x *ApplyPlanRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyPlanRequest.ProtoReflect.Descriptor instead.
 func (*ApplyPlanRequest) Descriptor() ([]byte, []int) {
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{14}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ApplyPlanRequest) GetPlanId() string {
@@ -1091,7 +1091,7 @@ type ApplyPlanResponse struct {
 
 func (x *ApplyPlanResponse) Reset() {
 	*x = ApplyPlanResponse{}
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[15]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1103,7 +1103,7 @@ func (x *ApplyPlanResponse) String() string {
 func (*ApplyPlanResponse) ProtoMessage() {}
 
 func (x *ApplyPlanResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[15]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1116,7 +1116,7 @@ func (x *ApplyPlanResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyPlanResponse.ProtoReflect.Descriptor instead.
 func (*ApplyPlanResponse) Descriptor() ([]byte, []int) {
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{15}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ApplyPlanResponse) GetPlanId() string {
@@ -1168,7 +1168,7 @@ type ApplyResult struct {
 
 func (x *ApplyResult) Reset() {
 	*x = ApplyResult{}
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[16]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1180,7 +1180,7 @@ func (x *ApplyResult) String() string {
 func (*ApplyResult) ProtoMessage() {}
 
 func (x *ApplyResult) ProtoReflect() protoreflect.Message {
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[16]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1193,7 +1193,7 @@ func (x *ApplyResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApplyResult.ProtoReflect.Descriptor instead.
 func (*ApplyResult) Descriptor() ([]byte, []int) {
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{16}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ApplyResult) GetProviderId() string {
@@ -1246,7 +1246,7 @@ type ListAuditRequest struct {
 
 func (x *ListAuditRequest) Reset() {
 	*x = ListAuditRequest{}
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[17]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1258,7 +1258,7 @@ func (x *ListAuditRequest) String() string {
 func (*ListAuditRequest) ProtoMessage() {}
 
 func (x *ListAuditRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[17]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1271,7 +1271,7 @@ func (x *ListAuditRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAuditRequest.ProtoReflect.Descriptor instead.
 func (*ListAuditRequest) Descriptor() ([]byte, []int) {
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{17}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{17}
 }
 
 type ListAuditResponse struct {
@@ -1283,7 +1283,7 @@ type ListAuditResponse struct {
 
 func (x *ListAuditResponse) Reset() {
 	*x = ListAuditResponse{}
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[18]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1295,7 +1295,7 @@ func (x *ListAuditResponse) String() string {
 func (*ListAuditResponse) ProtoMessage() {}
 
 func (x *ListAuditResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[18]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1308,7 +1308,7 @@ func (x *ListAuditResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAuditResponse.ProtoReflect.Descriptor instead.
 func (*ListAuditResponse) Descriptor() ([]byte, []int) {
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{18}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ListAuditResponse) GetEvents() []*AuditEvent {
@@ -1334,7 +1334,7 @@ type AuditEvent struct {
 
 func (x *AuditEvent) Reset() {
 	*x = AuditEvent{}
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[19]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1346,7 +1346,7 @@ func (x *AuditEvent) String() string {
 func (*AuditEvent) ProtoMessage() {}
 
 func (x *AuditEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[19]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1359,7 +1359,7 @@ func (x *AuditEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuditEvent.ProtoReflect.Descriptor instead.
 func (*AuditEvent) Descriptor() ([]byte, []int) {
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{19}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *AuditEvent) GetId() string {
@@ -1435,7 +1435,7 @@ type ReportPressureRequest struct {
 
 func (x *ReportPressureRequest) Reset() {
 	*x = ReportPressureRequest{}
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[20]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1447,7 +1447,7 @@ func (x *ReportPressureRequest) String() string {
 func (*ReportPressureRequest) ProtoMessage() {}
 
 func (x *ReportPressureRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[20]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1460,7 +1460,7 @@ func (x *ReportPressureRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportPressureRequest.ProtoReflect.Descriptor instead.
 func (*ReportPressureRequest) Descriptor() ([]byte, []int) {
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{20}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ReportPressureRequest) GetSourceScenario() string {
@@ -1522,7 +1522,7 @@ type ReportPressureResponse struct {
 
 func (x *ReportPressureResponse) Reset() {
 	*x = ReportPressureResponse{}
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[21]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1534,7 +1534,7 @@ func (x *ReportPressureResponse) String() string {
 func (*ReportPressureResponse) ProtoMessage() {}
 
 func (x *ReportPressureResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes[21]
+	mi := &file_storage_manager_v1_cleanup_cleanup_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1547,7 +1547,7 @@ func (x *ReportPressureResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReportPressureResponse.ProtoReflect.Descriptor instead.
 func (*ReportPressureResponse) Descriptor() ([]byte, []int) {
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{21}
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ReportPressureResponse) GetBand() PressureBand {
@@ -1613,11 +1613,11 @@ func (x *ReportPressureResponse) GetAutonomousApplyEnabled() bool {
 	return false
 }
 
-var File_cleanup_manager_v1_cleanup_cleanup_proto protoreflect.FileDescriptor
+var File_storage_manager_v1_cleanup_cleanup_proto protoreflect.FileDescriptor
 
-const file_cleanup_manager_v1_cleanup_cleanup_proto_rawDesc = "" +
+const file_storage_manager_v1_cleanup_cleanup_proto_rawDesc = "" +
 	"\n" +
-	"(cleanup-manager/v1/cleanup/cleanup.proto\x12!vrooli.cleanup_manager.v1.cleanup\x1a\x1fgoogle/protobuf/timestamp.proto\"\x16\n" +
+	"(storage-manager/v1/cleanup/cleanup.proto\x12!vrooli.cleanup_manager.v1.cleanup\x1a\x1fgoogle/protobuf/timestamp.proto\"\x16\n" +
 	"\x14ListProvidersRequest\"b\n" +
 	"\x15ListProvidersResponse\x12I\n" +
 	"\tproviders\x18\x01 \x03(\v2+.vrooli.cleanup_manager.v1.cleanup.ProviderR\tproviders\"\xf3\x02\n" +
@@ -1756,23 +1756,23 @@ const file_cleanup_manager_v1_cleanup_cleanup_proto_rawDesc = "" +
 	"CreatePlan\x124.vrooli.cleanup_manager.v1.cleanup.CreatePlanRequest\x1a5.vrooli.cleanup_manager.v1.cleanup.CreatePlanResponse\x12v\n" +
 	"\tApplyPlan\x123.vrooli.cleanup_manager.v1.cleanup.ApplyPlanRequest\x1a4.vrooli.cleanup_manager.v1.cleanup.ApplyPlanResponse\x12v\n" +
 	"\tListAudit\x123.vrooli.cleanup_manager.v1.cleanup.ListAuditRequest\x1a4.vrooli.cleanup_manager.v1.cleanup.ListAuditResponse\x12\x85\x01\n" +
-	"\x0eReportPressure\x128.vrooli.cleanup_manager.v1.cleanup.ReportPressureRequest\x1a9.vrooli.cleanup_manager.v1.cleanup.ReportPressureResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/cleanup-manager/v1/cleanup;cleanup_v1b\x06proto3"
+	"\x0eReportPressure\x128.vrooli.cleanup_manager.v1.cleanup.ReportPressureRequest\x1a9.vrooli.cleanup_manager.v1.cleanup.ReportPressureResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/storage-manager/v1/cleanup;cleanup_v1b\x06proto3"
 
 var (
-	file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescOnce sync.Once
-	file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescData []byte
+	file_storage_manager_v1_cleanup_cleanup_proto_rawDescOnce sync.Once
+	file_storage_manager_v1_cleanup_cleanup_proto_rawDescData []byte
 )
 
-func file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescGZIP() []byte {
-	file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescOnce.Do(func() {
-		file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_cleanup_manager_v1_cleanup_cleanup_proto_rawDesc), len(file_cleanup_manager_v1_cleanup_cleanup_proto_rawDesc)))
+func file_storage_manager_v1_cleanup_cleanup_proto_rawDescGZIP() []byte {
+	file_storage_manager_v1_cleanup_cleanup_proto_rawDescOnce.Do(func() {
+		file_storage_manager_v1_cleanup_cleanup_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_storage_manager_v1_cleanup_cleanup_proto_rawDesc), len(file_storage_manager_v1_cleanup_cleanup_proto_rawDesc)))
 	})
-	return file_cleanup_manager_v1_cleanup_cleanup_proto_rawDescData
+	return file_storage_manager_v1_cleanup_cleanup_proto_rawDescData
 }
 
-var file_cleanup_manager_v1_cleanup_cleanup_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
-var file_cleanup_manager_v1_cleanup_cleanup_proto_goTypes = []any{
+var file_storage_manager_v1_cleanup_cleanup_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_storage_manager_v1_cleanup_cleanup_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_storage_manager_v1_cleanup_cleanup_proto_goTypes = []any{
 	(PressureBand)(0),                // 0: vrooli.cleanup_manager.v1.cleanup.PressureBand
 	(PressureAction)(0),              // 1: vrooli.cleanup_manager.v1.cleanup.PressureAction
 	(*ListProvidersRequest)(nil),     // 2: vrooli.cleanup_manager.v1.cleanup.ListProvidersRequest
@@ -1799,7 +1799,7 @@ var file_cleanup_manager_v1_cleanup_cleanup_proto_goTypes = []any{
 	(*ReportPressureResponse)(nil),   // 23: vrooli.cleanup_manager.v1.cleanup.ReportPressureResponse
 	(*timestamppb.Timestamp)(nil),    // 24: google.protobuf.Timestamp
 }
-var file_cleanup_manager_v1_cleanup_cleanup_proto_depIdxs = []int32{
+var file_storage_manager_v1_cleanup_cleanup_proto_depIdxs = []int32{
 	4,  // 0: vrooli.cleanup_manager.v1.cleanup.ListProvidersResponse.providers:type_name -> vrooli.cleanup_manager.v1.cleanup.Provider
 	9,  // 1: vrooli.cleanup_manager.v1.cleanup.GetPolicyResponse.policy:type_name -> vrooli.cleanup_manager.v1.cleanup.Policy
 	9,  // 2: vrooli.cleanup_manager.v1.cleanup.SetPolicyProfileResponse.policy:type_name -> vrooli.cleanup_manager.v1.cleanup.Policy
@@ -1836,27 +1836,27 @@ var file_cleanup_manager_v1_cleanup_cleanup_proto_depIdxs = []int32{
 	0,  // [0:15] is the sub-list for field type_name
 }
 
-func init() { file_cleanup_manager_v1_cleanup_cleanup_proto_init() }
-func file_cleanup_manager_v1_cleanup_cleanup_proto_init() {
-	if File_cleanup_manager_v1_cleanup_cleanup_proto != nil {
+func init() { file_storage_manager_v1_cleanup_cleanup_proto_init() }
+func file_storage_manager_v1_cleanup_cleanup_proto_init() {
+	if File_storage_manager_v1_cleanup_cleanup_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cleanup_manager_v1_cleanup_cleanup_proto_rawDesc), len(file_cleanup_manager_v1_cleanup_cleanup_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_storage_manager_v1_cleanup_cleanup_proto_rawDesc), len(file_storage_manager_v1_cleanup_cleanup_proto_rawDesc)),
 			NumEnums:      2,
 			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_cleanup_manager_v1_cleanup_cleanup_proto_goTypes,
-		DependencyIndexes: file_cleanup_manager_v1_cleanup_cleanup_proto_depIdxs,
-		EnumInfos:         file_cleanup_manager_v1_cleanup_cleanup_proto_enumTypes,
-		MessageInfos:      file_cleanup_manager_v1_cleanup_cleanup_proto_msgTypes,
+		GoTypes:           file_storage_manager_v1_cleanup_cleanup_proto_goTypes,
+		DependencyIndexes: file_storage_manager_v1_cleanup_cleanup_proto_depIdxs,
+		EnumInfos:         file_storage_manager_v1_cleanup_cleanup_proto_enumTypes,
+		MessageInfos:      file_storage_manager_v1_cleanup_cleanup_proto_msgTypes,
 	}.Build()
-	File_cleanup_manager_v1_cleanup_cleanup_proto = out.File
-	file_cleanup_manager_v1_cleanup_cleanup_proto_goTypes = nil
-	file_cleanup_manager_v1_cleanup_cleanup_proto_depIdxs = nil
+	File_storage_manager_v1_cleanup_cleanup_proto = out.File
+	file_storage_manager_v1_cleanup_cleanup_proto_goTypes = nil
+	file_storage_manager_v1_cleanup_cleanup_proto_depIdxs = nil
 }

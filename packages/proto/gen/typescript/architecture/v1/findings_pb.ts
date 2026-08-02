@@ -361,7 +361,7 @@ export enum FindingSource {
   DEPENDENCY = 13,
 
   /**
-   * STORAGE: test-genie `storage` phase — delegates to the storage-health
+   * STORAGE: test-genie `storage` phase — delegates to the storage-manager
    * scenario (schema layout, migration hygiene, persistence-seam adoption,
    * and test-isolation safety) and emits normalized findings. Its L2
    * isolation verdict is a fail-closed precondition for the destructive
