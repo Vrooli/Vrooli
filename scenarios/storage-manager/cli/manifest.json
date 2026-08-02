@@ -1,0 +1,234 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "storage-manager",
+  "description": "Storage Manager CLI surface for preview-first cleanup policy, planning, apply, and audit operations.",
+  "groups": [
+    {
+      "name": "cleanup",
+      "description": "Preview, plan, apply, and audit cleanup policy",
+      "commands": [
+        {
+          "name": "providers",
+          "description": "List cleanup providers and safety metadata",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CleanupService",
+            "method": "ListProviders"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "policy",
+          "description": "Show active cleanup policy",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CleanupService",
+            "method": "GetPolicy"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "set-profile",
+          "description": "Set cleanup policy profile",
+          "flags": [
+            {
+              "name": "profile",
+              "required": true,
+              "description": "Policy profile: conservative, balanced, or aggressive"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CleanupService",
+            "method": "SetPolicyProfile"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "plan",
+          "description": "Create a cleanup preview plan without mutating host state",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CleanupService",
+            "method": "CreatePlan"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        },
+        {
+          "name": "apply",
+          "description": "Apply an approved cleanup plan with replay protection",
+          "flags": [
+            {
+              "name": "plan-id",
+              "required": true,
+              "description": "Cleanup plan id"
+            },
+            {
+              "name": "policy-version",
+              "required": true,
+              "description": "Policy version captured by the plan"
+            },
+            {
+              "name": "approval-mode",
+              "description": "Approval mode supplied for this apply request"
+            },
+            {
+              "name": "approval-token",
+              "description": "Approval token when owner/operator approval is required"
+            },
+            {
+              "name": "idempotency-key",
+              "required": true,
+              "description": "Replay-safe idempotency key"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CleanupService",
+            "method": "ApplyPlan"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal",
+              "admin"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "report-pressure",
+          "description": "Report disk pressure so storage-manager can observe, preview, or reclaim safe-tier space",
+          "flags": [
+            {
+              "name": "partition",
+              "required": true,
+              "description": "Filesystem under pressure, for example /"
+            },
+            {
+              "name": "band",
+              "required": true,
+              "description": "Escalation band: warning (observe), high (preview), or critical (apply safe-tier)"
+            },
+            {
+              "name": "used-percent",
+              "required": false,
+              "description": "Usage percentage as df reports it"
+            },
+            {
+              "name": "available-bytes",
+              "required": false,
+              "description": "Bytes still available to an unprivileged writer"
+            },
+            {
+              "name": "source",
+              "required": false,
+              "description": "Reporting scenario, recorded in the audit trail"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CleanupService",
+            "method": "ReportPressure"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "audit",
+          "description": "List cleanup audit events",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CleanupService",
+            "method": "ListAudit"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "storage",
+      "description": "Read-only storage census operations",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Run a read-only storage census for the repository root",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "census",
+          "description": "Run a read-only storage census",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "omitted": [
+    { "service": "AdvisorService", "method": "AnalyzeMigrations", "reason": "Fleet migration analysis is exposed through the storage validation provider and dashboard; the CLI cleanup group does not duplicate it." },
+    { "service": "AdvisorService", "method": "AdviseEngines", "reason": "Engine fitness advice is exposed through the storage validation provider and dashboard; the CLI cleanup group does not duplicate it." },
+    { "service": "FleetService", "method": "ScanFleet", "reason": "Fleet scans are scheduled and persisted by storage-manager; operators use the dashboard and census surface." },
+    { "service": "FleetService", "method": "GetInventory", "reason": "Fleet inventory is scheduled and persisted by storage-manager; operators use the dashboard and census surface." }
+  ]
+}
