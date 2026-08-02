@@ -132,31 +132,42 @@ Complete reference of all available health checks.
 
 ### infra-rdp
 
-**Purpose:** Verify remote desktop access is available.
+**Purpose:** Verify a remote client can connect **and authenticate** — serviceability, not liveness.
 
 | Property | Value |
 |----------|-------|
 | ID | `infra-rdp` |
 | Category | Infrastructure |
-| Interval | 300 seconds |
-| Platforms | Linux (xrdp), Windows (TermService) |
+| Interval | 60 seconds |
+| Platforms | Linux (GNOME Remote Desktop, xrdp), Windows (TermService) |
 | Importance | Medium |
 
 **What it checks:**
-- Linux: xrdp service status
-- Windows: TermService status
+- Daemon liveness: GNOME Remote Desktop, xrdp, or TermService is running
+- Credential state, as three distinct states: `present`, `empty`, `unreadable` —
+  absence of credential output is never read as presence of credentials
+- Client denials in the daemon journal over a 15-minute window
+  (`recentDenials`, `recentCredentialDenials`, `journalReadable`)
+- Host posture: `autoLoginUser`, `loginKeyringCollectionPresent`, `isUserSession`,
+  `lockedKeyringPosture`, `sessionAvailable`
+- Credential model (`system` or `user-session`), which decides whether automated
+  repair is safe
 
 **Status mapping:**
 | Status | Condition |
 |--------|-----------|
-| OK | RDP service running |
-| Warning | RDP not installed/configured |
-| Critical | RDP installed but not running |
+| OK | No RDP service installed, or running with credentials `present` and no denials |
+| Warning | Configured but not running, or credential state `unreadable` |
+| Critical | Credentials `empty`, clients actively denied, or no graphical session |
+
+**Boundary:** `infra-rdp` owns the RDP service layer. `infra-display` owns the
+graphical-session layer and makes no statement about RDP.
 
 **Troubleshooting:**
-- Linux: `systemctl status xrdp`
+- `vrooli-autoheal check get infra-rdp --json`
+- GNOME: run `grdctl status` with `XDG_RUNTIME_DIR` and `DBUS_SESSION_BUS_ADDRESS` set
+- Linux xrdp: `systemctl status xrdp`
 - Windows: `Get-Service TermService`
-- Check port 3389 is open
 
 [Detailed documentation](checks/infra-rdp.md)
 
@@ -583,7 +594,7 @@ Complete reference of all available health checks.
 | 30s | Network | Critical connectivity, fast detection |
 | 60s | DNS, Vrooli API, Resources | Core services |
 | 120s | Docker, Cloudflared | Services that recover slowly |
-| 300s | Disk, Inode, Swap, Zombies, Ports, RDP | Slow-changing metrics |
+| 300s | Disk, Inode, Swap, Zombies, Ports, Display | Slow-changing metrics |
 
 ## Check Categories Summary
 

@@ -118,6 +118,21 @@ func classifyResult(result checks.Result) (incidentRule, bool) {
 		}, true
 	}
 	switch result.CheckID {
+	case "infra-rdp":
+		// Only credential and session faults become incidents. A daemon that is
+		// merely stopped is already covered by the restart action and does not
+		// need an operator-facing record.
+		state := stringDetail(result.Details, "credentialState")
+		if state != "empty" && state != "unreadable" && boolDetail(result.Details, "sessionAvailable") {
+			return incidentRule{}, false
+		}
+		return incidentRule{
+			incidentType: TypeHostIntegrity,
+			severity:     severity,
+			title:        "Remote desktop is not serviceable",
+			fingerprint: Fingerprint(string(TypeHostIntegrity), result.CheckID, state,
+				stringDetail(result.Details, "credentialModel")),
+		}, true
 	case "system-boot-history":
 		return incidentRule{
 			incidentType: TypeUncleanBoot,
@@ -276,6 +291,14 @@ func enrichInputFromResult(input *UpsertInput, result checks.Result) {
 
 func diagnosisForResult(result checks.Result) string {
 	switch result.CheckID {
+	case "infra-rdp":
+		if !boolDetail(result.Details, "sessionAvailable") {
+			return "Remote desktop has no graphical session to share"
+		}
+		if boolDetail(result.Details, "lockedKeyringPosture") {
+			return "Remote desktop credentials are unreadable because GDM autologin never unlocked the login keyring"
+		}
+		return "Remote desktop is running but cannot authenticate any client"
 	case "host-runtime-integrity":
 		return "Host runtime exists but cannot communicate with its backing driver or daemon"
 	case "host-device-driver-binding":

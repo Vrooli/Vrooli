@@ -13,7 +13,7 @@ Core connectivity and services required for the system to function:
 - **Cloudflared** - Tunnel connectivity to Cloudflare
 - **Certificate** - TLS certificate expiry monitoring
 - **Display** - Display manager health (if applicable)
-- **RDP** - Remote desktop access (if enabled)
+- **RDP** - Remote desktop serviceability: can a client connect and authenticate (if enabled)
 - **systemd-resolved** - DNS resolver service
 
 ### System Checks

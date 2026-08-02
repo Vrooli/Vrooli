@@ -140,8 +140,6 @@ func TestDisplayManagerCheckRunGDMActive(t *testing.T) {
 	}
 	// X11 not available (no DISPLAY)
 	setMockResponse(mockExec, "printenv DISPLAY", []byte(""), errors.New("not set"))
-	// No GNOME RDP configured (simple server without RDP)
-	setMockResponse(mockExec, "grdctl status", []byte(""), errors.New("not found"))
 	// gnome-shell check - both generic and user-specific (if auto-login is configured on test machine)
 	setMockResponse(mockExec, "pgrep gnome-shell", []byte("12345\n"), nil)
 	// Also mock for potential auto-login user on test machine
@@ -204,8 +202,6 @@ func TestDisplayManagerCheckRunWithX11(t *testing.T) {
 	// X11 available and responsive
 	setMockResponse(mockExec, "printenv DISPLAY", []byte(":0\n"), nil)
 	setMockResponse(mockExec, "xdpyinfo", []byte("name of display: :0\n"), nil)
-	// No GNOME RDP configured
-	setMockResponse(mockExec, "grdctl status", []byte(""), errors.New("not found"))
 	// gnome-shell running (for auto-login user on test machine)
 	setMockResponse(mockExec, "pgrep gnome-shell", []byte("12345\n"), nil)
 	setMockResponse(mockExec, "pgrep -u alice gnome-shell", []byte("12345\n"), nil)
@@ -243,8 +239,6 @@ func TestDisplayManagerCheckRunWithX11Unresponsive(t *testing.T) {
 	// X11 available but unresponsive
 	setMockResponse(mockExec, "printenv DISPLAY", []byte(":0\n"), nil)
 	setMockResponse(mockExec, "xdpyinfo", []byte(""), errors.New("Can't open display"))
-	// No GNOME RDP configured
-	setMockResponse(mockExec, "grdctl status", []byte(""), errors.New("not found"))
 	// gnome-shell running (for auto-login user on test machine)
 	setMockResponse(mockExec, "pgrep gnome-shell", []byte("12345\n"), nil)
 	setMockResponse(mockExec, "pgrep -u alice gnome-shell", []byte("12345\n"), nil)
@@ -373,8 +367,6 @@ func TestDisplayManagerCheckExecuteActionRestart(t *testing.T) {
 	}
 	// Restart command
 	setMockResponse(mockExec, "sudo systemctl restart gdm", []byte(""), nil)
-	// No GNOME RDP configured - skips RDP wait loop
-	setMockResponse(mockExec, "grdctl status", []byte(""), errors.New("not found"))
 	// gnome-shell is running after restart (for verification)
 	// The test machine has auto-login for alice, so mock the user-specific check
 	setMockResponse(mockExec, "pgrep gnome-shell", []byte("12345\n"), nil)
@@ -469,8 +461,6 @@ func TestDisplayManagerCheckWithLightDM(t *testing.T) {
 	}
 	// No X11
 	setMockResponse(mockExec, "printenv DISPLAY", []byte(""), errors.New("not set"))
-	// No GNOME RDP configured
-	setMockResponse(mockExec, "grdctl status", []byte(""), errors.New("not found"))
 
 	check := newDisplayManagerCheckForTest(mockExec)
 	result := check.Run(context.Background())
@@ -480,9 +470,13 @@ func TestDisplayManagerCheckWithLightDM(t *testing.T) {
 	}
 }
 
-// TestDisplayManagerCheckGnomeRDPConfiguredNoSession verifies critical status when RDP configured but no session
+// TestDisplayManagerCheckMakesNoRDPClaims verifies that the display check owns the
+// graphical-session dependency layer only. Even on a host where GNOME Remote Desktop
+// is enabled and port 3389 is listening, infra-display must not report on RDP: that
+// is infra-rdp's boundary, and the old "RDP available on port 3389" message was the
+// direct source of a false green during a total RDP outage.
 // [REQ:INFRA-DISPLAY-001] [REQ:TEST-SEAM-001]
-func TestDisplayManagerCheckGnomeRDPConfiguredNoSession(t *testing.T) {
+func TestDisplayManagerCheckMakesNoRDPClaims(t *testing.T) {
 	mockExec := checks.NewMockExecutor()
 	// GDM is active
 	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
@@ -494,99 +488,73 @@ func TestDisplayManagerCheckGnomeRDPConfiguredNoSession(t *testing.T) {
 	}
 	// No X11
 	setMockResponse(mockExec, "printenv DISPLAY", []byte(""), errors.New("not set"))
-	// GNOME RDP is configured
-	setMockResponse(mockExec, "grdctl status", []byte("RDP:\n\tStatus: enabled\n\tPort: 3389\n"), nil)
-	// But gnome-shell is NOT running
-	setMockResponse(mockExec, "pgrep gnome-shell", []byte(""), errors.New("no process"))
-	// Port 3389 is NOT listening
-	setMockResponse(mockExec, "ss -tln", []byte("State    Recv-Q   Send-Q     Local Address:Port      Peer Address:Port  Process\nLISTEN   0        128              0.0.0.0:22             0.0.0.0:*\n"), nil)
+	// gnome-shell IS running
+	setMockResponse(mockExec, "loginctl show-seat seat0 -p ActiveSession --value", []byte("2\n"), nil)
+	setMockResponse(mockExec, "loginctl show-session 2 -p Name --value", []byte("alice\n"), nil)
+	setMockResponse(mockExec, "pgrep gnome-shell", []byte("12345\n"), nil)
+	setMockResponse(mockExec, "pgrep -u alice gnome-shell", []byte("12345\n"), nil)
 
 	check := newDisplayManagerCheckForTest(mockExec)
 	result := check.Run(context.Background())
 
-	// Should be critical because RDP is configured but no session is available
-	if result.Status != checks.StatusCritical {
-		t.Errorf("Status = %v, want Critical when GNOME RDP configured but no gnome-shell", result.Status)
+	if result.Status != checks.StatusOK {
+		t.Errorf("Status = %v, want OK for healthy graphical session. Message: %s", result.Status, result.Message)
 	}
-	if result.Details["gnomeRDPConfigured"] != true {
-		t.Error("gnomeRDPConfigured should be true")
+	for _, field := range []string{"gnomeRDPConfigured", "rdpPortListening"} {
+		if _, present := result.Details[field]; present {
+			t.Errorf("Details must not contain RDP field %q; infra-rdp owns the RDP service layer", field)
+		}
+	}
+	if strings.Contains(strings.ToLower(result.Message), "rdp") {
+		t.Errorf("Message must make no statement about RDP, got: %s", result.Message)
+	}
+	if result.Metrics != nil {
+		for _, sc := range result.Metrics.SubChecks {
+			if strings.Contains(strings.ToLower(sc.Name), "rdp") {
+				t.Errorf("SubCheck %q must not exist on infra-display", sc.Name)
+			}
+		}
+	}
+	// The check never shells out to grdctl any more.
+	for _, call := range mockExec.Calls {
+		if call.Name == "grdctl" {
+			t.Errorf("infra-display must not call grdctl, got call: %s %v", call.Name, call.Args)
+		}
+	}
+}
+
+// TestDisplayManagerCheckNoSessionForAutoLoginUser verifies the check reports a
+// missing desktop session for a configured auto-login user, without reference to
+// any consumer of that session.
+// [REQ:INFRA-DISPLAY-001] [REQ:TEST-SEAM-001]
+func TestDisplayManagerCheckNoSessionForAutoLoginUser(t *testing.T) {
+	mockExec := checks.NewMockExecutor()
+	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
+	setMockResponse(mockExec, "systemctl is-active gdm", []byte("active\n"), nil)
+	for _, dm := range supportedDisplayManagers {
+		if dm != "gdm" {
+			setMockResponse(mockExec, "systemctl is-active "+dm, []byte("inactive\n"), errors.New("inactive"))
+		}
+	}
+	setMockResponse(mockExec, "printenv DISPLAY", []byte(""), errors.New("not set"))
+	// gnome-shell is NOT running for the auto-login user
+	setMockResponse(mockExec, "pgrep -u alice gnome-shell", []byte(""), errors.New("no process"))
+
+	check := NewDisplayManagerCheck(
+		displayTestCaps(),
+		WithDisplayExecutor(mockExec),
+		WithDisplayAutoLoginUserProvider(func() string { return "alice" }),
+	)
+	result := check.Run(context.Background())
+
+	if result.Status != checks.StatusWarning {
+		t.Errorf("Status = %v, want Warning when auto-login user has no session", result.Status)
 	}
 	if result.Details["gnomeShellRunning"] != false {
-		t.Error("gnomeShellRunning should be false")
+		t.Errorf("gnomeShellRunning should be false, got %v", result.Details["gnomeShellRunning"])
 	}
-}
-
-// TestDisplayManagerCheckGnomeRDPHealthy verifies OK status when RDP is fully available
-// [REQ:INFRA-DISPLAY-001] [REQ:TEST-SEAM-001]
-func TestDisplayManagerCheckGnomeRDPHealthy(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
-	// GDM is active
-	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
-	setMockResponse(mockExec, "systemctl is-active gdm", []byte("active\n"), nil)
-	for _, dm := range supportedDisplayManagers {
-		if dm != "gdm" {
-			setMockResponse(mockExec, "systemctl is-active "+dm, []byte("inactive\n"), errors.New("inactive"))
-		}
-	}
-	// No X11
-	setMockResponse(mockExec, "printenv DISPLAY", []byte(""), errors.New("not set"))
-	// GNOME RDP is configured
-	setMockResponse(mockExec, "grdctl status", []byte("RDP:\n\tStatus: enabled\n\tPort: 3389\n"), nil)
-	// gnome-shell IS running (test machine has auto-login, so mock both generic and user-specific)
-	setMockResponse(mockExec, "pgrep gnome-shell", []byte("12345\n"), nil)
-	setMockResponse(mockExec, "pgrep -u alice gnome-shell", []byte("12345\n"), nil)
-	// Port 3389 IS listening
-	setMockResponse(mockExec, "ss -tln", []byte("State    Recv-Q   Send-Q     Local Address:Port      Peer Address:Port  Process\nLISTEN   0        128              0.0.0.0:3389           0.0.0.0:*\n"), nil)
-
-	check := newDisplayManagerCheckForTest(mockExec)
-	result := check.Run(context.Background())
-
-	// Should be OK with RDP available message
-	if result.Status != checks.StatusOK {
-		t.Errorf("Status = %v, want OK when GNOME RDP is fully healthy. Message: %s", result.Status, result.Message)
-	}
-	if result.Details["gnomeRDPConfigured"] != true {
-		t.Error("gnomeRDPConfigured should be true")
-	}
-	if result.Details["gnomeShellRunning"] != true {
-		t.Errorf("gnomeShellRunning should be true, got %v", result.Details["gnomeShellRunning"])
-	}
-	if result.Details["rdpPortListening"] != true {
-		t.Error("rdpPortListening should be true")
-	}
-	if !strings.Contains(result.Message, "RDP available") {
-		t.Errorf("Message should mention RDP available, got: %s", result.Message)
-	}
-}
-
-// TestDisplayManagerCheckRDPPortNotListening verifies warning when RDP configured but port not listening
-// [REQ:INFRA-DISPLAY-001] [REQ:TEST-SEAM-001]
-func TestDisplayManagerCheckRDPPortNotListening(t *testing.T) {
-	mockExec := checks.NewMockExecutor()
-	// GDM is active
-	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
-	setMockResponse(mockExec, "systemctl is-active gdm", []byte("active\n"), nil)
-	for _, dm := range supportedDisplayManagers {
-		if dm != "gdm" {
-			setMockResponse(mockExec, "systemctl is-active "+dm, []byte("inactive\n"), errors.New("inactive"))
-		}
-	}
-	// No X11
-	setMockResponse(mockExec, "printenv DISPLAY", []byte(""), errors.New("not set"))
-	// GNOME RDP is configured
-	setMockResponse(mockExec, "grdctl status", []byte("RDP:\n\tStatus: enabled\n\tPort: 3389\n"), nil)
-	// gnome-shell IS running (test machine has auto-login, so mock both)
-	setMockResponse(mockExec, "pgrep gnome-shell", []byte("12345\n"), nil)
-	setMockResponse(mockExec, "pgrep -u alice gnome-shell", []byte("12345\n"), nil)
-	// But port 3389 is NOT listening (yet)
-	setMockResponse(mockExec, "ss -tln", []byte("State    Recv-Q   Send-Q     Local Address:Port      Peer Address:Port  Process\nLISTEN   0        128              0.0.0.0:22             0.0.0.0:*\n"), nil)
-
-	check := newDisplayManagerCheckForTest(mockExec)
-	result := check.Run(context.Background())
-
-	// Should be warning because gnome-shell is running but port not listening
-	if result.Status != checks.StatusWarning {
-		t.Errorf("Status = %v, want Warning when gnome-shell running but port not listening. Message: %s", result.Status, result.Message)
+	if strings.Contains(strings.ToLower(result.Message), "rdp") {
+		t.Errorf("Message must make no statement about RDP, got: %s", result.Message)
 	}
 }
 
@@ -605,8 +573,8 @@ func TestDisplayManagerCheckDiagnoseAction(t *testing.T) {
 	// Diagnose commands
 	setMockResponse(mockExec, "pgrep -a gnome-shell", []byte("12345 /usr/bin/gnome-shell\n"), nil)
 	setMockResponse(mockExec, "loginctl list-sessions --no-legend", []byte("2 1000 alice seat0\n"), nil)
-	setMockResponse(mockExec, "grdctl status", []byte("RDP:\n\tStatus: enabled\n"), nil)
-	setMockResponse(mockExec, "ss -tln", []byte("LISTEN 0 128 0.0.0.0:3389 0.0.0.0:*\n"), nil)
+	setMockResponse(mockExec, "loginctl show-seat seat0 -p ActiveSession --value", []byte("2\n"), nil)
+	setMockResponse(mockExec, "loginctl show-session 2 -p Name --value", []byte("alice\n"), nil)
 
 	check := newDisplayManagerCheckForTest(mockExec)
 	result := check.ExecuteAction(context.Background(), "diagnose")
@@ -624,8 +592,11 @@ func TestDisplayManagerCheckDiagnoseAction(t *testing.T) {
 	if !strings.Contains(result.Output, "GNOME Shell Status") {
 		t.Error("Output should contain GNOME Shell Status section")
 	}
-	if !strings.Contains(result.Output, "GNOME RDP Status") {
-		t.Error("Output should contain GNOME RDP Status section")
+	if !strings.Contains(result.Output, "Seat Assignment") {
+		t.Error("Output should contain Seat Assignment section")
+	}
+	if strings.Contains(result.Output, "RDP") {
+		t.Errorf("Diagnose output must make no statement about RDP, got: %s", result.Output)
 	}
 }
 
@@ -637,9 +608,8 @@ func TestDisplayManagerCheckRecoverSessionAction(t *testing.T) {
 	// When gnome-shell IS running, recover-session should not be available
 	runningResult := &checks.Result{
 		Details: map[string]interface{}{
-			"displayManager":     "gdm",
-			"gnomeShellRunning":  true,
-			"gnomeRDPConfigured": true,
+			"displayManager":    "gdm",
+			"gnomeShellRunning": true,
 		},
 	}
 	actions := check.RecoveryActions(runningResult)
@@ -659,9 +629,8 @@ func TestDisplayManagerCheckRecoverSessionAction(t *testing.T) {
 	// When gnome-shell is NOT running, recover-session should be available
 	notRunningResult := &checks.Result{
 		Details: map[string]interface{}{
-			"displayManager":     "gdm",
-			"gnomeShellRunning":  false,
-			"gnomeRDPConfigured": true,
+			"displayManager":    "gdm",
+			"gnomeShellRunning": false,
 		},
 	}
 	actions = check.RecoveryActions(notRunningResult)
