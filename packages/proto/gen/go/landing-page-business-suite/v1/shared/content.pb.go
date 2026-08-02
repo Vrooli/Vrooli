@@ -26,15 +26,18 @@ const (
 // ContentSection is the reusable authored section representation used by the
 // content service and portable variant snapshots.
 type ContentSection struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	VariantId     int64                  `protobuf:"varint,2,opt,name=variant_id,json=variantId,proto3" json:"variant_id,omitempty"`
-	SectionType   string                 `protobuf:"bytes,3,opt,name=section_type,json=sectionType,proto3" json:"section_type,omitempty"`
-	Content       *structpb.Struct       `protobuf:"bytes,4,opt,name=content,proto3" json:"content,omitempty"`
-	Order         int32                  `protobuf:"varint,5,opt,name=order,proto3" json:"order,omitempty"`
-	Enabled       bool                   `protobuf:"varint,6,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	VariantId   int64                  `protobuf:"varint,2,opt,name=variant_id,json=variantId,proto3" json:"variant_id,omitempty"`
+	SectionType string                 `protobuf:"bytes,3,opt,name=section_type,json=sectionType,proto3" json:"section_type,omitempty"`
+	Content     *structpb.Struct       `protobuf:"bytes,4,opt,name=content,proto3" json:"content,omitempty"`
+	Order       int32                  `protobuf:"varint,5,opt,name=order,proto3" json:"order,omitempty"`
+	Enabled     bool                   `protobuf:"varint,6,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	CreatedAt   *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt   *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// key is the stable, variant-scoped identifier for JSON-backed sections.
+	// id remains for legacy database-backed payload compatibility.
+	Key           string `protobuf:"bytes,9,opt,name=key,proto3" json:"key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -125,11 +128,18 @@ func (x *ContentSection) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *ContentSection) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
 var File_landing_page_business_suite_v1_shared_content_proto protoreflect.FileDescriptor
 
 const file_landing_page_business_suite_v1_shared_content_proto_rawDesc = "" +
 	"\n" +
-	"3landing-page-business-suite/v1/shared/content.proto\x12,vrooli.landing_page_business_suite.v1.shared\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xbb\x02\n" +
+	"3landing-page-business-suite/v1/shared/content.proto\x12,vrooli.landing_page_business_suite.v1.shared\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcd\x02\n" +
 	"\x0eContentSection\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1d\n" +
 	"\n" +
@@ -141,7 +151,8 @@ const file_landing_page_business_suite_v1_shared_content_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB`Z^github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared;shared_v1b\x06proto3"
+	"updated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x10\n" +
+	"\x03key\x18\t \x01(\tR\x03keyB`Z^github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared;shared_v1b\x06proto3"
 
 var (
 	file_landing_page_business_suite_v1_shared_content_proto_rawDescOnce sync.Once

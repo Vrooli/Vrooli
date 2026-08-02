@@ -45,6 +45,9 @@ const (
 	// DownloadServiceSaveDownloadAppProcedure is the fully-qualified name of the DownloadService's
 	// SaveDownloadApp RPC.
 	DownloadServiceSaveDownloadAppProcedure = "/landing_page_business_suite.v1.DownloadService/SaveDownloadApp"
+	// DownloadServiceDeleteDownloadAppProcedure is the fully-qualified name of the DownloadService's
+	// DeleteDownloadApp RPC.
+	DownloadServiceDeleteDownloadAppProcedure = "/landing_page_business_suite.v1.DownloadService/DeleteDownloadApp"
 )
 
 // DownloadServiceClient is a client for the landing_page_business_suite.v1.DownloadService service.
@@ -53,6 +56,7 @@ type DownloadServiceClient interface {
 	ListDownloadApps(context.Context, *connect.Request[v1.ListDownloadAppsRequest]) (*connect.Response[v1.ListDownloadAppsResponse], error)
 	CreateDownloadApp(context.Context, *connect.Request[v1.CreateDownloadAppRequest]) (*connect.Response[v1.DownloadAppResponse], error)
 	SaveDownloadApp(context.Context, *connect.Request[v1.SaveDownloadAppRequest]) (*connect.Response[v1.DownloadAppResponse], error)
+	DeleteDownloadApp(context.Context, *connect.Request[v1.DeleteDownloadAppRequest]) (*connect.Response[v1.DeleteDownloadAppResponse], error)
 }
 
 // NewDownloadServiceClient constructs a client for the
@@ -91,6 +95,12 @@ func NewDownloadServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(downloadServiceMethods.ByName("SaveDownloadApp")),
 			connect.WithClientOptions(opts...),
 		),
+		deleteDownloadApp: connect.NewClient[v1.DeleteDownloadAppRequest, v1.DeleteDownloadAppResponse](
+			httpClient,
+			baseURL+DownloadServiceDeleteDownloadAppProcedure,
+			connect.WithSchema(downloadServiceMethods.ByName("DeleteDownloadApp")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -100,6 +110,7 @@ type downloadServiceClient struct {
 	listDownloadApps  *connect.Client[v1.ListDownloadAppsRequest, v1.ListDownloadAppsResponse]
 	createDownloadApp *connect.Client[v1.CreateDownloadAppRequest, v1.DownloadAppResponse]
 	saveDownloadApp   *connect.Client[v1.SaveDownloadAppRequest, v1.DownloadAppResponse]
+	deleteDownloadApp *connect.Client[v1.DeleteDownloadAppRequest, v1.DeleteDownloadAppResponse]
 }
 
 // AuthorizeDownload calls landing_page_business_suite.v1.DownloadService.AuthorizeDownload.
@@ -122,6 +133,11 @@ func (c *downloadServiceClient) SaveDownloadApp(ctx context.Context, req *connec
 	return c.saveDownloadApp.CallUnary(ctx, req)
 }
 
+// DeleteDownloadApp calls landing_page_business_suite.v1.DownloadService.DeleteDownloadApp.
+func (c *downloadServiceClient) DeleteDownloadApp(ctx context.Context, req *connect.Request[v1.DeleteDownloadAppRequest]) (*connect.Response[v1.DeleteDownloadAppResponse], error) {
+	return c.deleteDownloadApp.CallUnary(ctx, req)
+}
+
 // DownloadServiceHandler is an implementation of the landing_page_business_suite.v1.DownloadService
 // service.
 type DownloadServiceHandler interface {
@@ -129,6 +145,7 @@ type DownloadServiceHandler interface {
 	ListDownloadApps(context.Context, *connect.Request[v1.ListDownloadAppsRequest]) (*connect.Response[v1.ListDownloadAppsResponse], error)
 	CreateDownloadApp(context.Context, *connect.Request[v1.CreateDownloadAppRequest]) (*connect.Response[v1.DownloadAppResponse], error)
 	SaveDownloadApp(context.Context, *connect.Request[v1.SaveDownloadAppRequest]) (*connect.Response[v1.DownloadAppResponse], error)
+	DeleteDownloadApp(context.Context, *connect.Request[v1.DeleteDownloadAppRequest]) (*connect.Response[v1.DeleteDownloadAppResponse], error)
 }
 
 // NewDownloadServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -162,6 +179,12 @@ func NewDownloadServiceHandler(svc DownloadServiceHandler, opts ...connect.Handl
 		connect.WithSchema(downloadServiceMethods.ByName("SaveDownloadApp")),
 		connect.WithHandlerOptions(opts...),
 	)
+	downloadServiceDeleteDownloadAppHandler := connect.NewUnaryHandler(
+		DownloadServiceDeleteDownloadAppProcedure,
+		svc.DeleteDownloadApp,
+		connect.WithSchema(downloadServiceMethods.ByName("DeleteDownloadApp")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/landing_page_business_suite.v1.DownloadService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case DownloadServiceAuthorizeDownloadProcedure:
@@ -172,6 +195,8 @@ func NewDownloadServiceHandler(svc DownloadServiceHandler, opts ...connect.Handl
 			downloadServiceCreateDownloadAppHandler.ServeHTTP(w, r)
 		case DownloadServiceSaveDownloadAppProcedure:
 			downloadServiceSaveDownloadAppHandler.ServeHTTP(w, r)
+		case DownloadServiceDeleteDownloadAppProcedure:
+			downloadServiceDeleteDownloadAppHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -195,4 +220,8 @@ func (UnimplementedDownloadServiceHandler) CreateDownloadApp(context.Context, *c
 
 func (UnimplementedDownloadServiceHandler) SaveDownloadApp(context.Context, *connect.Request[v1.SaveDownloadAppRequest]) (*connect.Response[v1.DownloadAppResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.DownloadService.SaveDownloadApp is not implemented"))
+}
+
+func (UnimplementedDownloadServiceHandler) DeleteDownloadApp(context.Context, *connect.Request[v1.DeleteDownloadAppRequest]) (*connect.Response[v1.DeleteDownloadAppResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.DownloadService.DeleteDownloadApp is not implemented"))
 }

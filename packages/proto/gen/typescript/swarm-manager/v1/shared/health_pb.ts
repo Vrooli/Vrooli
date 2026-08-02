@@ -4,13 +4,14 @@
 
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file swarm-manager/v1/shared/health.proto.
  */
 export const file_swarm_manager_v1_shared_health: GenFile = /*@__PURE__*/
-  fileDesc("CiRzd2FybS1tYW5hZ2VyL3YxL3NoYXJlZC9oZWFsdGgucHJvdG8SHnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLnNoYXJlZCJaChBEZXBlbmRlbmN5U3RhdHVzEhEKCWNvbm5lY3RlZBgBIAEoCBISCgpsYXRlbmN5X21zGAIgASgBEg0KBWVycm9yGAMgASgJEhAKCGRhdGFiYXNlGAQgASgJIr8CCg5IZWFsdGhSZXNwb25zZRIOCgZzdGF0dXMYASABKAkSDwoHc2VydmljZRgCIAEoCRIRCgl0aW1lc3RhbXAYAyABKAkSEQoJcmVhZGluZXNzGAQgASgIEg8KB3ZlcnNpb24YBSABKAkSFgoOdXB0aW1lX3NlY29uZHMYBiABKAESVgoMZGVwZW5kZW5jaWVzGAcgAygLMkAudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuc2hhcmVkLkhlYWx0aFJlc3BvbnNlLkRlcGVuZGVuY2llc0VudHJ5GmUKEURlcGVuZGVuY2llc0VudHJ5EgsKA2tleRgBIAEoCRI/CgV2YWx1ZRgCIAEoCzIwLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLnNoYXJlZC5EZXBlbmRlbmN5U3RhdHVzOgI4AUJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvc2hhcmVkO3NoYXJlZGIGcHJvdG8z");
+  fileDesc("CiRzd2FybS1tYW5hZ2VyL3YxL3NoYXJlZC9oZWFsdGgucHJvdG8SHnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLnNoYXJlZCJaChBEZXBlbmRlbmN5U3RhdHVzEhEKCWNvbm5lY3RlZBgBIAEoCBISCgpsYXRlbmN5X21zGAIgASgBEg0KBWVycm9yGAMgASgJEhAKCGRhdGFiYXNlGAQgASgJIr8CCg5IZWFsdGhSZXNwb25zZRIOCgZzdGF0dXMYASABKAkSDwoHc2VydmljZRgCIAEoCRIRCgl0aW1lc3RhbXAYAyABKAkSEQoJcmVhZGluZXNzGAQgASgIEg8KB3ZlcnNpb24YBSABKAkSFgoOdXB0aW1lX3NlY29uZHMYBiABKAESVgoMZGVwZW5kZW5jaWVzGAcgAygLMkAudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuc2hhcmVkLkhlYWx0aFJlc3BvbnNlLkRlcGVuZGVuY2llc0VudHJ5GmUKEURlcGVuZGVuY2llc0VudHJ5EgsKA2tleRgBIAEoCRI/CgV2YWx1ZRgCIAEoCzIwLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLnNoYXJlZC5EZXBlbmRlbmN5U3RhdHVzOgI4ASLCAQoaU2NlbmFyaW9SZW1lZGlhdGlvblN1bW1hcnkSHAoLZmluZ2VycHJpbnQYASABKAlCB7pIBHICEAESOgoFc3RhdGUYAiABKAlCK7pIKHImUglzdWdnZXN0ZWRSCGFjY2VwdGVkUglkaXNtaXNzZWRSBG5vbmUSFQoId29ya19yZWYYAyABKAlIAIgBARIXCgp1cGRhdGVkX2F0GAQgASgJSAGIAQFCCwoJX3dvcmtfcmVmQg0KC191cGRhdGVkX2F0Qk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9zaGFyZWQ7c2hhcmVkYgZwcm90bzM", [file_buf_validate_validate]);
 
 /**
  * DependencyStatus is one dependency observation from Swarm Manager's
@@ -97,4 +98,43 @@ export type HealthResponse = Message<"vrooli.swarm_manager.v1.shared.HealthRespo
  */
 export const HealthResponseSchema: GenMessage<HealthResponse> = /*@__PURE__*/
   messageDesc(file_swarm_manager_v1_shared_health, 1);
+
+/**
+ * ScenarioRemediationSummary is Swarm-owned reconciliation state keyed by a
+ * canonical remediation fingerprint. It links governed work without copying
+ * provider findings into local storage. It is shared by the scenario domain
+ * health projection and remediation API responses.
+ *
+ * @generated from message vrooli.swarm_manager.v1.shared.ScenarioRemediationSummary
+ */
+export type ScenarioRemediationSummary = Message<"vrooli.swarm_manager.v1.shared.ScenarioRemediationSummary"> & {
+  /**
+   * @generated from field: string fingerprint = 1;
+   */
+  fingerprint: string;
+
+  /**
+   * suggested, accepted, dismissed, or none.
+   *
+   * @generated from field: string state = 2;
+   */
+  state: string;
+
+  /**
+   * @generated from field: optional string work_ref = 3;
+   */
+  workRef?: string | undefined;
+
+  /**
+   * @generated from field: optional string updated_at = 4;
+   */
+  updatedAt?: string | undefined;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.shared.ScenarioRemediationSummary.
+ * Use `create(ScenarioRemediationSummarySchema)` to create a new message.
+ */
+export const ScenarioRemediationSummarySchema: GenMessage<ScenarioRemediationSummary> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_shared_health, 2);
 

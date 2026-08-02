@@ -1208,6 +1208,31 @@ message RunReport {
   int32 repeated_tool_calls = 22;
   int64 longest_event_gap_ms = 23;
   int32 files_read_more_than_once = 24;
+	RunTimeAccounting time_accounting = 25;
+  RunGoalOutcome goal_outcome = 26;
+}
+
+// RunGoalOutcome is copied from Codex's rolling external goal store when a
+// transcript is imported, so this report remains historically stable.
+message RunGoalOutcome {
+  string goal_id = 1;
+  string status = 2;
+  optional int64 token_budget = 3;
+  int64 tokens_used = 4;
+  int64 time_used_seconds = 5;
+}
+
+message RunTimeAccounting {
+  int64 model_generating_ms = 1;
+  int64 tool_executing_ms = 2;
+  int64 idle_waiting_ms = 3;
+  int64 awaiting_human_ms = 4;
+  int64 unattributable_ms = 5;
+  int64 model_tokens = 6;
+  int64 tool_tokens = 7;
+  int64 idle_tokens = 8;
+  int64 human_tokens = 9;
+  int64 unattributable_tokens = 10;
 }
 
 message RunReportResult {
@@ -1235,7 +1260,7 @@ message RunReportDiff {
 
 message RunReportAvailability {
   string state = 1;
-  string detail = 2;
+  string reason = 2;
 }
 
 // GetRunByTagRequest identifies a run by tag.

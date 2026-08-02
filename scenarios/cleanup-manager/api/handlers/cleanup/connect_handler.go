@@ -2,6 +2,7 @@ package cleanup
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	cleanupcore "cleanup-manager/internal/cleanup"
@@ -19,6 +20,7 @@ type Service interface {
 	Plan(context.Context, cleanupcore.ObservationScope) (orchestrator.Plan, error)
 	Apply(context.Context, orchestrator.ApplyInput) (orchestrator.ApplyReport, error)
 	Audit(context.Context) ([]orchestrator.AuditEvent, error)
+	ReportPressure(context.Context, orchestrator.PressureSignal) (orchestrator.PressureOutcome, error)
 }
 
 type connectHandler struct {
@@ -86,6 +88,95 @@ func (h *connectHandler) ListAudit(ctx context.Context, _ *connect.Request[clean
 		resp.Events = append(resp.Events, auditToProto(event))
 	}
 	return connect.NewResponse(resp), nil
+}
+
+// ReportPressure is the inbound disk-pressure entry point.
+//
+// An unrecognised band is rejected rather than defaulted. Critical is the band
+// that authorises deletion with no operator present, so a value cleanup-manager
+// does not understand must never be interpreted as one.
+func (h *connectHandler) ReportPressure(ctx context.Context, req *connect.Request[cleanupv1.ReportPressureRequest]) (*connect.Response[cleanupv1.ReportPressureResponse], error) {
+	band, err := bandFromProto(req.Msg.GetBand())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	outcome, err := h.service.ReportPressure(ctx, orchestrator.PressureSignal{
+		SourceScenario: req.Msg.GetSourceScenario(),
+		Partition:      req.Msg.GetPartition(),
+		UsedPercent:    req.Msg.GetUsedPercent(),
+		Band:           band,
+		AvailableBytes: req.Msg.GetAvailableBytes(),
+	})
+	if err != nil {
+		// Only a malformed signal is the caller's fault. Everything reachable
+		// past validation — a failed plan, an unreachable owner scenario — is
+		// cleanup-manager's own problem, and reporting it as InvalidArgument
+		// tells a reporting safeguard to stop retrying a request that was
+		// perfectly valid. This masked a real failure: a plan that exceeded the
+		// write timeout came back to the caller as a 400.
+		if errors.Is(err, orchestrator.ErrInvalidPressureSignal) {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	return connect.NewResponse(&cleanupv1.ReportPressureResponse{
+		Band:                   bandToProto(outcome.Band),
+		Action:                 actionToProto(outcome.Action),
+		PlanId:                 outcome.PlanID,
+		EstimatedBytes:         outcome.EstimatedBytes,
+		ReclaimedBytes:         outcome.ReclaimedBytes,
+		ProvidersApplied:       append([]string(nil), outcome.ProvidersApplied...),
+		ProvidersWithheld:      append([]string(nil), outcome.ProvidersWithheld...),
+		Reason:                 outcome.Reason,
+		AutonomousApplyEnabled: outcome.AutonomousApplyEnabled,
+	}), nil
+}
+
+// bandFromProto maps the wire enum onto the domain band, refusing UNSPECIFIED
+// and any value this build does not know.
+func bandFromProto(band cleanupv1.PressureBand) (orchestrator.PressureBand, error) {
+	switch band {
+	case cleanupv1.PressureBand_PRESSURE_BAND_WARNING:
+		return orchestrator.BandWarning, nil
+	case cleanupv1.PressureBand_PRESSURE_BAND_HIGH:
+		return orchestrator.BandHigh, nil
+	case cleanupv1.PressureBand_PRESSURE_BAND_CRITICAL:
+		return orchestrator.BandCritical, nil
+	default:
+		return "", fmt.Errorf("unknown pressure band %q", band.String())
+	}
+}
+
+func bandToProto(band orchestrator.PressureBand) cleanupv1.PressureBand {
+	switch band {
+	case orchestrator.BandWarning:
+		return cleanupv1.PressureBand_PRESSURE_BAND_WARNING
+	case orchestrator.BandHigh:
+		return cleanupv1.PressureBand_PRESSURE_BAND_HIGH
+	case orchestrator.BandCritical:
+		return cleanupv1.PressureBand_PRESSURE_BAND_CRITICAL
+	default:
+		return cleanupv1.PressureBand_PRESSURE_BAND_UNSPECIFIED
+	}
+}
+
+func actionToProto(action orchestrator.PressureAction) cleanupv1.PressureAction {
+	switch action {
+	case orchestrator.ActionObserved:
+		return cleanupv1.PressureAction_PRESSURE_ACTION_OBSERVED
+	case orchestrator.ActionPreviewed:
+		return cleanupv1.PressureAction_PRESSURE_ACTION_PREVIEWED
+	case orchestrator.ActionApplied:
+		return cleanupv1.PressureAction_PRESSURE_ACTION_APPLIED
+	case orchestrator.ActionDeduplicated:
+		return cleanupv1.PressureAction_PRESSURE_ACTION_DEDUPLICATED
+	case orchestrator.ActionSuppressed:
+		return cleanupv1.PressureAction_PRESSURE_ACTION_SUPPRESSED
+	default:
+		return cleanupv1.PressureAction_PRESSURE_ACTION_UNSPECIFIED
+	}
 }
 
 func providerToProto(meta cleanupcore.ProviderMetadata) *cleanupv1.Provider {

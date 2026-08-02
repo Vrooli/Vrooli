@@ -41,6 +41,8 @@ type FrictionEpisode struct {
 	SuspectedOwnerCommand  string                 `protobuf:"bytes,15,opt,name=suspected_owner_command,json=suspectedOwnerCommand,proto3" json:"suspected_owner_command,omitempty"`
 	OwnerConfidence        string                 `protobuf:"bytes,16,opt,name=owner_confidence,json=ownerConfidence,proto3" json:"owner_confidence,omitempty"`
 	Fingerprint            string                 `protobuf:"bytes,17,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
+	CycleCount             int64                  `protobuf:"varint,18,opt,name=cycle_count,json=cycleCount,proto3" json:"cycle_count,omitempty"`
+	RepeatedElement        string                 `protobuf:"bytes,19,opt,name=repeated_element,json=repeatedElement,proto3" json:"repeated_element,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -190,6 +192,20 @@ func (x *FrictionEpisode) GetOwnerConfidence() string {
 func (x *FrictionEpisode) GetFingerprint() string {
 	if x != nil {
 		return x.Fingerprint
+	}
+	return ""
+}
+
+func (x *FrictionEpisode) GetCycleCount() int64 {
+	if x != nil {
+		return x.CycleCount
+	}
+	return 0
+}
+
+func (x *FrictionEpisode) GetRepeatedElement() string {
+	if x != nil {
+		return x.RepeatedElement
 	}
 	return ""
 }
@@ -533,7 +549,7 @@ func (x *GetCrossScenarioLedgerRequest) GetWithProjections() bool {
 type Availability struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	State         string                 `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty"`
-	Detail        string                 `protobuf:"bytes,2,opt,name=detail,proto3" json:"detail,omitempty"`
+	Reason        string                 `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -575,9 +591,9 @@ func (x *Availability) GetState() string {
 	return ""
 }
 
-func (x *Availability) GetDetail() string {
+func (x *Availability) GetReason() string {
 	if x != nil {
-		return x.Detail
+		return x.Reason
 	}
 	return ""
 }
@@ -974,7 +990,7 @@ var File_agent_manager_v1_domain_episode_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_episode_proto_rawDesc = "" +
 	"\n" +
-	"%agent-manager/v1/domain/episode.proto\x12\x10agent_manager.v1\x1a\x1cgoogle/protobuf/struct.proto\"\xf9\x04\n" +
+	"%agent-manager/v1/domain/episode.proto\x12\x10agent_manager.v1\x1a\x1cgoogle/protobuf/struct.proto\"\xc5\x05\n" +
 	"\x0fFrictionEpisode\x12\x1d\n" +
 	"\n" +
 	"episode_id\x18\x01 \x01(\tR\tepisodeId\x12\x15\n" +
@@ -996,7 +1012,10 @@ const file_agent_manager_v1_domain_episode_proto_rawDesc = "" +
 	"\x18suspected_owner_scenario\x18\x0e \x01(\tR\x16suspectedOwnerScenario\x126\n" +
 	"\x17suspected_owner_command\x18\x0f \x01(\tR\x15suspectedOwnerCommand\x12)\n" +
 	"\x10owner_confidence\x18\x10 \x01(\tR\x0fownerConfidence\x12 \n" +
-	"\vfingerprint\x18\x11 \x01(\tR\vfingerprint\"+\n" +
+	"\vfingerprint\x18\x11 \x01(\tR\vfingerprint\x12\x1f\n" +
+	"\vcycle_count\x18\x12 \x01(\x03R\n" +
+	"cycleCount\x12)\n" +
+	"\x10repeated_element\x18\x13 \x01(\tR\x0frepeatedElement\"+\n" +
 	"\x12GetEpisodesRequest\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\"\x83\x01\n" +
 	"\x13GetEpisodesResponse\x12-\n" +
@@ -1022,7 +1041,7 @@ const file_agent_manager_v1_domain_episode_proto_rawDesc = "" +
 	"\x10with_projections\x18\x02 \x01(\bR\x0fwithProjections\"<\n" +
 	"\fAvailability\x12\x14\n" +
 	"\x05state\x18\x01 \x01(\tR\x05state\x12\x16\n" +
-	"\x06detail\x18\x02 \x01(\tR\x06detail\"\xb1\x03\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\"\xb1\x03\n" +
 	"\x11CrossScenarioCall\x12\x1f\n" +
 	"\voccurred_at\x18\x01 \x01(\tR\n" +
 	"occurredAt\x12'\n" +

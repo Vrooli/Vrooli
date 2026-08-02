@@ -10,6 +10,7 @@ import (
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	structpb "google.golang.org/protobuf/types/known/structpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -649,6 +650,7 @@ type UpdateVariantRequest struct {
 	Weight        *int32                      `protobuf:"varint,4,opt,name=weight,proto3,oneof" json:"weight,omitempty"`
 	Axes          *AxesSelection              `protobuf:"bytes,5,opt,name=axes,proto3" json:"axes,omitempty"`
 	HeaderConfig  *shared.LandingHeaderConfig `protobuf:"bytes,6,opt,name=header_config,json=headerConfig,proto3" json:"header_config,omitempty"`
+	SeoConfig     *shared.VariantSEOConfig    `protobuf:"bytes,7,opt,name=seo_config,json=seoConfig,proto3,oneof" json:"seo_config,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -721,6 +723,13 @@ func (x *UpdateVariantRequest) GetAxes() *AxesSelection {
 func (x *UpdateVariantRequest) GetHeaderConfig() *shared.LandingHeaderConfig {
 	if x != nil {
 		return x.HeaderConfig
+	}
+	return nil
+}
+
+func (x *UpdateVariantRequest) GetSeoConfig() *shared.VariantSEOConfig {
+	if x != nil {
+		return x.SeoConfig
 	}
 	return nil
 }
@@ -1041,11 +1050,511 @@ func (x *ImportVariantSnapshotResponse) GetSnapshot() *VariantSnapshot {
 	return nil
 }
 
+// SyncVariantSnapshotsRequest reloads the persisted variant snapshot files.
+// It is administrative because it changes the in-memory serving configuration.
+type SyncVariantSnapshotsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncVariantSnapshotsRequest) Reset() {
+	*x = SyncVariantSnapshotsRequest{}
+	mi := &file_landing_page_business_suite_v1_variant_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncVariantSnapshotsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncVariantSnapshotsRequest) ProtoMessage() {}
+
+func (x *SyncVariantSnapshotsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_variant_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncVariantSnapshotsRequest.ProtoReflect.Descriptor instead.
+func (*SyncVariantSnapshotsRequest) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_variant_proto_rawDescGZIP(), []int{18}
+}
+
+type SyncVariantSnapshotsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Count         int32                  `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncVariantSnapshotsResponse) Reset() {
+	*x = SyncVariantSnapshotsResponse{}
+	mi := &file_landing_page_business_suite_v1_variant_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncVariantSnapshotsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncVariantSnapshotsResponse) ProtoMessage() {}
+
+func (x *SyncVariantSnapshotsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_variant_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncVariantSnapshotsResponse.ProtoReflect.Descriptor instead.
+func (*SyncVariantSnapshotsResponse) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_variant_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *SyncVariantSnapshotsResponse) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+// GetVariantSectionsRequest addresses JSON-backed content by its owning
+// variant slug; section IDs are not globally meaningful in this domain.
+type GetVariantSectionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Slug          string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetVariantSectionsRequest) Reset() {
+	*x = GetVariantSectionsRequest{}
+	mi := &file_landing_page_business_suite_v1_variant_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetVariantSectionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetVariantSectionsRequest) ProtoMessage() {}
+
+func (x *GetVariantSectionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_variant_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetVariantSectionsRequest.ProtoReflect.Descriptor instead.
+func (*GetVariantSectionsRequest) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_variant_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *GetVariantSectionsRequest) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+type VariantSectionsResponse struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	Sections      []*shared.ContentSection `protobuf:"bytes,1,rep,name=sections,proto3" json:"sections,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VariantSectionsResponse) Reset() {
+	*x = VariantSectionsResponse{}
+	mi := &file_landing_page_business_suite_v1_variant_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VariantSectionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VariantSectionsResponse) ProtoMessage() {}
+
+func (x *VariantSectionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_variant_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VariantSectionsResponse.ProtoReflect.Descriptor instead.
+func (*VariantSectionsResponse) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_variant_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *VariantSectionsResponse) GetSections() []*shared.ContentSection {
+	if x != nil {
+		return x.Sections
+	}
+	return nil
+}
+
+type GetVariantSectionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Slug          string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
+	SectionKey    string                 `protobuf:"bytes,2,opt,name=section_key,json=sectionKey,proto3" json:"section_key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetVariantSectionRequest) Reset() {
+	*x = GetVariantSectionRequest{}
+	mi := &file_landing_page_business_suite_v1_variant_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetVariantSectionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetVariantSectionRequest) ProtoMessage() {}
+
+func (x *GetVariantSectionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_variant_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetVariantSectionRequest.ProtoReflect.Descriptor instead.
+func (*GetVariantSectionRequest) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_variant_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *GetVariantSectionRequest) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+func (x *GetVariantSectionRequest) GetSectionKey() string {
+	if x != nil {
+		return x.SectionKey
+	}
+	return ""
+}
+
+type VariantSectionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Section       *shared.ContentSection `protobuf:"bytes,1,opt,name=section,proto3" json:"section,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VariantSectionResponse) Reset() {
+	*x = VariantSectionResponse{}
+	mi := &file_landing_page_business_suite_v1_variant_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VariantSectionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VariantSectionResponse) ProtoMessage() {}
+
+func (x *VariantSectionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_variant_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VariantSectionResponse.ProtoReflect.Descriptor instead.
+func (*VariantSectionResponse) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_variant_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *VariantSectionResponse) GetSection() *shared.ContentSection {
+	if x != nil {
+		return x.Section
+	}
+	return nil
+}
+
+type CreateVariantSectionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Slug          string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
+	Section       *shared.ContentSection `protobuf:"bytes,2,opt,name=section,proto3" json:"section,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateVariantSectionRequest) Reset() {
+	*x = CreateVariantSectionRequest{}
+	mi := &file_landing_page_business_suite_v1_variant_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateVariantSectionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateVariantSectionRequest) ProtoMessage() {}
+
+func (x *CreateVariantSectionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_variant_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateVariantSectionRequest.ProtoReflect.Descriptor instead.
+func (*CreateVariantSectionRequest) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_variant_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *CreateVariantSectionRequest) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+func (x *CreateVariantSectionRequest) GetSection() *shared.ContentSection {
+	if x != nil {
+		return x.Section
+	}
+	return nil
+}
+
+type UpdateVariantSectionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Slug          string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
+	SectionKey    string                 `protobuf:"bytes,2,opt,name=section_key,json=sectionKey,proto3" json:"section_key,omitempty"`
+	SectionType   *string                `protobuf:"bytes,3,opt,name=section_type,json=sectionType,proto3,oneof" json:"section_type,omitempty"`
+	Content       *structpb.Struct       `protobuf:"bytes,4,opt,name=content,proto3" json:"content,omitempty"`
+	Order         *int32                 `protobuf:"varint,5,opt,name=order,proto3,oneof" json:"order,omitempty"`
+	Enabled       *bool                  `protobuf:"varint,6,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateVariantSectionRequest) Reset() {
+	*x = UpdateVariantSectionRequest{}
+	mi := &file_landing_page_business_suite_v1_variant_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateVariantSectionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateVariantSectionRequest) ProtoMessage() {}
+
+func (x *UpdateVariantSectionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_variant_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateVariantSectionRequest.ProtoReflect.Descriptor instead.
+func (*UpdateVariantSectionRequest) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_variant_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *UpdateVariantSectionRequest) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+func (x *UpdateVariantSectionRequest) GetSectionKey() string {
+	if x != nil {
+		return x.SectionKey
+	}
+	return ""
+}
+
+func (x *UpdateVariantSectionRequest) GetSectionType() string {
+	if x != nil && x.SectionType != nil {
+		return *x.SectionType
+	}
+	return ""
+}
+
+func (x *UpdateVariantSectionRequest) GetContent() *structpb.Struct {
+	if x != nil {
+		return x.Content
+	}
+	return nil
+}
+
+func (x *UpdateVariantSectionRequest) GetOrder() int32 {
+	if x != nil && x.Order != nil {
+		return *x.Order
+	}
+	return 0
+}
+
+func (x *UpdateVariantSectionRequest) GetEnabled() bool {
+	if x != nil && x.Enabled != nil {
+		return *x.Enabled
+	}
+	return false
+}
+
+type DeleteVariantSectionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Slug          string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
+	SectionKey    string                 `protobuf:"bytes,2,opt,name=section_key,json=sectionKey,proto3" json:"section_key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteVariantSectionRequest) Reset() {
+	*x = DeleteVariantSectionRequest{}
+	mi := &file_landing_page_business_suite_v1_variant_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteVariantSectionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteVariantSectionRequest) ProtoMessage() {}
+
+func (x *DeleteVariantSectionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_variant_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteVariantSectionRequest.ProtoReflect.Descriptor instead.
+func (*DeleteVariantSectionRequest) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_variant_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *DeleteVariantSectionRequest) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+func (x *DeleteVariantSectionRequest) GetSectionKey() string {
+	if x != nil {
+		return x.SectionKey
+	}
+	return ""
+}
+
+type DeleteVariantSectionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Deleted       bool                   `protobuf:"varint,1,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteVariantSectionResponse) Reset() {
+	*x = DeleteVariantSectionResponse{}
+	mi := &file_landing_page_business_suite_v1_variant_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteVariantSectionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteVariantSectionResponse) ProtoMessage() {}
+
+func (x *DeleteVariantSectionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_variant_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteVariantSectionResponse.ProtoReflect.Descriptor instead.
+func (*DeleteVariantSectionResponse) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_variant_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *DeleteVariantSectionResponse) GetDeleted() bool {
+	if x != nil {
+		return x.Deleted
+	}
+	return false
+}
+
 var File_landing_page_business_suite_v1_variant_proto protoreflect.FileDescriptor
 
 const file_landing_page_business_suite_v1_variant_proto_rawDesc = "" +
 	"\n" +
-	",landing-page-business-suite/v1/variant.proto\x12\x1elanding_page_business_suite.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a3landing-page-business-suite/v1/shared/content.proto\x1a8landing-page-business-suite/v1/shared/presentation.proto\"\xa1\x05\n" +
+	",landing-page-business-suite/v1/variant.proto\x12\x1elanding_page_business_suite.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a3landing-page-business-suite/v1/shared/content.proto\x1a8landing-page-business-suite/v1/shared/presentation.proto\"\xa1\x05\n" +
 	"\aVariant\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x12\n" +
 	"\x04slug\x18\x02 \x01(\tR\x04slug\x12\x12\n" +
@@ -1107,17 +1616,20 @@ const file_landing_page_business_suite_v1_variant_proto_rawDesc = "" +
 	"\x04axes\x18\x05 \x03(\v2>.landing_page_business_suite.v1.CreateVariantRequest.AxesEntryR\x04axes\x1a7\n" +
 	"\tAxesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xd6\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc9\x03\n" +
 	"\x14UpdateVariantRequest\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x17\n" +
 	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
 	"\vdescription\x18\x03 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x1b\n" +
 	"\x06weight\x18\x04 \x01(\x05H\x02R\x06weight\x88\x01\x01\x12A\n" +
 	"\x04axes\x18\x05 \x01(\v2-.landing_page_business_suite.v1.AxesSelectionR\x04axes\x12f\n" +
-	"\rheader_config\x18\x06 \x01(\v2A.vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfigR\fheaderConfigB\a\n" +
+	"\rheader_config\x18\x06 \x01(\v2A.vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfigR\fheaderConfig\x12b\n" +
+	"\n" +
+	"seo_config\x18\a \x01(\v2>.vrooli.landing_page_business_suite.v1.shared.VariantSEOConfigH\x03R\tseoConfig\x88\x01\x01B\a\n" +
 	"\x05_nameB\x0e\n" +
 	"\f_descriptionB\t\n" +
-	"\a_weight\"+\n" +
+	"\a_weightB\r\n" +
+	"\v_seo_config\"+\n" +
 	"\x15ArchiveVariantRequest\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\"*\n" +
 	"\x14DeleteVariantRequest\x12\x12\n" +
@@ -1132,8 +1644,41 @@ const file_landing_page_business_suite_v1_variant_proto_rawDesc = "" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x12K\n" +
 	"\bsnapshot\x18\x02 \x01(\v2/.landing_page_business_suite.v1.VariantSnapshotR\bsnapshot\"l\n" +
 	"\x1dImportVariantSnapshotResponse\x12K\n" +
-	"\bsnapshot\x18\x01 \x01(\v2/.landing_page_business_suite.v1.VariantSnapshotR\bsnapshot2\x89\n" +
+	"\bsnapshot\x18\x01 \x01(\v2/.landing_page_business_suite.v1.VariantSnapshotR\bsnapshot\"\x1d\n" +
+	"\x1bSyncVariantSnapshotsRequest\"4\n" +
+	"\x1cSyncVariantSnapshotsResponse\x12\x14\n" +
+	"\x05count\x18\x01 \x01(\x05R\x05count\"/\n" +
+	"\x19GetVariantSectionsRequest\x12\x12\n" +
+	"\x04slug\x18\x01 \x01(\tR\x04slug\"s\n" +
+	"\x17VariantSectionsResponse\x12X\n" +
+	"\bsections\x18\x01 \x03(\v2<.vrooli.landing_page_business_suite.v1.shared.ContentSectionR\bsections\"O\n" +
+	"\x18GetVariantSectionRequest\x12\x12\n" +
+	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x1f\n" +
+	"\vsection_key\x18\x02 \x01(\tR\n" +
+	"sectionKey\"p\n" +
+	"\x16VariantSectionResponse\x12V\n" +
+	"\asection\x18\x01 \x01(\v2<.vrooli.landing_page_business_suite.v1.shared.ContentSectionR\asection\"\x89\x01\n" +
+	"\x1bCreateVariantSectionRequest\x12\x12\n" +
+	"\x04slug\x18\x01 \x01(\tR\x04slug\x12V\n" +
+	"\asection\x18\x02 \x01(\v2<.vrooli.landing_page_business_suite.v1.shared.ContentSectionR\asection\"\x8e\x02\n" +
+	"\x1bUpdateVariantSectionRequest\x12\x12\n" +
+	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x1f\n" +
+	"\vsection_key\x18\x02 \x01(\tR\n" +
+	"sectionKey\x12&\n" +
+	"\fsection_type\x18\x03 \x01(\tH\x00R\vsectionType\x88\x01\x01\x121\n" +
+	"\acontent\x18\x04 \x01(\v2\x17.google.protobuf.StructR\acontent\x12\x19\n" +
+	"\x05order\x18\x05 \x01(\x05H\x01R\x05order\x88\x01\x01\x12\x1d\n" +
+	"\aenabled\x18\x06 \x01(\bH\x02R\aenabled\x88\x01\x01B\x0f\n" +
+	"\r_section_typeB\b\n" +
+	"\x06_orderB\n" +
 	"\n" +
+	"\b_enabled\"R\n" +
+	"\x1bDeleteVariantSectionRequest\x12\x12\n" +
+	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x1f\n" +
+	"\vsection_key\x18\x02 \x01(\tR\n" +
+	"sectionKey\"8\n" +
+	"\x1cDeleteVariantSectionResponse\x12\x18\n" +
+	"\adeleted\x18\x01 \x01(\bR\adeleted2\x9d\v\n" +
 	"\x0eVariantService\x12v\n" +
 	"\rSelectVariant\x124.landing_page_business_suite.v1.SelectVariantRequest\x1a/.landing_page_business_suite.v1.VariantResponse\x12|\n" +
 	"\x10GetPublicVariant\x127.landing_page_business_suite.v1.GetPublicVariantRequest\x1a/.landing_page_business_suite.v1.VariantResponse\x12p\n" +
@@ -1145,7 +1690,8 @@ const file_landing_page_business_suite_v1_variant_proto_rawDesc = "" +
 	"\x0eArchiveVariant\x125.landing_page_business_suite.v1.ArchiveVariantRequest\x1a/.landing_page_business_suite.v1.VariantResponse\x12|\n" +
 	"\rDeleteVariant\x124.landing_page_business_suite.v1.DeleteVariantRequest\x1a5.landing_page_business_suite.v1.DeleteVariantResponse\x12\x94\x01\n" +
 	"\x15ExportVariantSnapshot\x12<.landing_page_business_suite.v1.ExportVariantSnapshotRequest\x1a=.landing_page_business_suite.v1.ExportVariantSnapshotResponse\x12\x94\x01\n" +
-	"\x15ImportVariantSnapshot\x12<.landing_page_business_suite.v1.ImportVariantSnapshotRequest\x1a=.landing_page_business_suite.v1.ImportVariantSnapshotResponseBnZlgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1b\x06proto3"
+	"\x15ImportVariantSnapshot\x12<.landing_page_business_suite.v1.ImportVariantSnapshotRequest\x1a=.landing_page_business_suite.v1.ImportVariantSnapshotResponse\x12\x91\x01\n" +
+	"\x14SyncVariantSnapshots\x12;.landing_page_business_suite.v1.SyncVariantSnapshotsRequest\x1a<.landing_page_business_suite.v1.SyncVariantSnapshotsResponseBnZlgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1b\x06proto3"
 
 var (
 	file_landing_page_business_suite_v1_variant_proto_rawDescOnce sync.Once
@@ -1159,7 +1705,7 @@ func file_landing_page_business_suite_v1_variant_proto_rawDescGZIP() []byte {
 	return file_landing_page_business_suite_v1_variant_proto_rawDescData
 }
 
-var file_landing_page_business_suite_v1_variant_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_landing_page_business_suite_v1_variant_proto_msgTypes = make([]protoimpl.MessageInfo, 32)
 var file_landing_page_business_suite_v1_variant_proto_goTypes = []any{
 	(*Variant)(nil),                       // 0: landing_page_business_suite.v1.Variant
 	(*AxesSelection)(nil),                 // 1: landing_page_business_suite.v1.AxesSelection
@@ -1179,60 +1725,78 @@ var file_landing_page_business_suite_v1_variant_proto_goTypes = []any{
 	(*ExportVariantSnapshotResponse)(nil), // 15: landing_page_business_suite.v1.ExportVariantSnapshotResponse
 	(*ImportVariantSnapshotRequest)(nil),  // 16: landing_page_business_suite.v1.ImportVariantSnapshotRequest
 	(*ImportVariantSnapshotResponse)(nil), // 17: landing_page_business_suite.v1.ImportVariantSnapshotResponse
-	nil,                                   // 18: landing_page_business_suite.v1.Variant.AxesEntry
-	nil,                                   // 19: landing_page_business_suite.v1.AxesSelection.ValuesEntry
-	nil,                                   // 20: landing_page_business_suite.v1.VariantSnapshot.AxesEntry
-	nil,                                   // 21: landing_page_business_suite.v1.CreateVariantRequest.AxesEntry
-	(*timestamppb.Timestamp)(nil),         // 22: google.protobuf.Timestamp
-	(*shared.LandingHeaderConfig)(nil),    // 23: vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig
-	(*shared.VariantSEOConfig)(nil),       // 24: vrooli.landing_page_business_suite.v1.shared.VariantSEOConfig
-	(*shared.ContentSection)(nil),         // 25: vrooli.landing_page_business_suite.v1.shared.ContentSection
+	(*SyncVariantSnapshotsRequest)(nil),   // 18: landing_page_business_suite.v1.SyncVariantSnapshotsRequest
+	(*SyncVariantSnapshotsResponse)(nil),  // 19: landing_page_business_suite.v1.SyncVariantSnapshotsResponse
+	(*GetVariantSectionsRequest)(nil),     // 20: landing_page_business_suite.v1.GetVariantSectionsRequest
+	(*VariantSectionsResponse)(nil),       // 21: landing_page_business_suite.v1.VariantSectionsResponse
+	(*GetVariantSectionRequest)(nil),      // 22: landing_page_business_suite.v1.GetVariantSectionRequest
+	(*VariantSectionResponse)(nil),        // 23: landing_page_business_suite.v1.VariantSectionResponse
+	(*CreateVariantSectionRequest)(nil),   // 24: landing_page_business_suite.v1.CreateVariantSectionRequest
+	(*UpdateVariantSectionRequest)(nil),   // 25: landing_page_business_suite.v1.UpdateVariantSectionRequest
+	(*DeleteVariantSectionRequest)(nil),   // 26: landing_page_business_suite.v1.DeleteVariantSectionRequest
+	(*DeleteVariantSectionResponse)(nil),  // 27: landing_page_business_suite.v1.DeleteVariantSectionResponse
+	nil,                                   // 28: landing_page_business_suite.v1.Variant.AxesEntry
+	nil,                                   // 29: landing_page_business_suite.v1.AxesSelection.ValuesEntry
+	nil,                                   // 30: landing_page_business_suite.v1.VariantSnapshot.AxesEntry
+	nil,                                   // 31: landing_page_business_suite.v1.CreateVariantRequest.AxesEntry
+	(*timestamppb.Timestamp)(nil),         // 32: google.protobuf.Timestamp
+	(*shared.LandingHeaderConfig)(nil),    // 33: vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig
+	(*shared.VariantSEOConfig)(nil),       // 34: vrooli.landing_page_business_suite.v1.shared.VariantSEOConfig
+	(*shared.ContentSection)(nil),         // 35: vrooli.landing_page_business_suite.v1.shared.ContentSection
+	(*structpb.Struct)(nil),               // 36: google.protobuf.Struct
 }
 var file_landing_page_business_suite_v1_variant_proto_depIdxs = []int32{
-	22, // 0: landing_page_business_suite.v1.Variant.created_at:type_name -> google.protobuf.Timestamp
-	22, // 1: landing_page_business_suite.v1.Variant.updated_at:type_name -> google.protobuf.Timestamp
-	22, // 2: landing_page_business_suite.v1.Variant.archived_at:type_name -> google.protobuf.Timestamp
-	18, // 3: landing_page_business_suite.v1.Variant.axes:type_name -> landing_page_business_suite.v1.Variant.AxesEntry
-	23, // 4: landing_page_business_suite.v1.Variant.header_config:type_name -> vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig
-	24, // 5: landing_page_business_suite.v1.Variant.seo_config:type_name -> vrooli.landing_page_business_suite.v1.shared.VariantSEOConfig
-	19, // 6: landing_page_business_suite.v1.AxesSelection.values:type_name -> landing_page_business_suite.v1.AxesSelection.ValuesEntry
-	20, // 7: landing_page_business_suite.v1.VariantSnapshot.axes:type_name -> landing_page_business_suite.v1.VariantSnapshot.AxesEntry
-	23, // 8: landing_page_business_suite.v1.VariantSnapshot.header_config:type_name -> vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig
-	24, // 9: landing_page_business_suite.v1.VariantSnapshot.seo_config:type_name -> vrooli.landing_page_business_suite.v1.shared.VariantSEOConfig
-	25, // 10: landing_page_business_suite.v1.VariantSnapshot.sections:type_name -> vrooli.landing_page_business_suite.v1.shared.ContentSection
+	32, // 0: landing_page_business_suite.v1.Variant.created_at:type_name -> google.protobuf.Timestamp
+	32, // 1: landing_page_business_suite.v1.Variant.updated_at:type_name -> google.protobuf.Timestamp
+	32, // 2: landing_page_business_suite.v1.Variant.archived_at:type_name -> google.protobuf.Timestamp
+	28, // 3: landing_page_business_suite.v1.Variant.axes:type_name -> landing_page_business_suite.v1.Variant.AxesEntry
+	33, // 4: landing_page_business_suite.v1.Variant.header_config:type_name -> vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig
+	34, // 5: landing_page_business_suite.v1.Variant.seo_config:type_name -> vrooli.landing_page_business_suite.v1.shared.VariantSEOConfig
+	29, // 6: landing_page_business_suite.v1.AxesSelection.values:type_name -> landing_page_business_suite.v1.AxesSelection.ValuesEntry
+	30, // 7: landing_page_business_suite.v1.VariantSnapshot.axes:type_name -> landing_page_business_suite.v1.VariantSnapshot.AxesEntry
+	33, // 8: landing_page_business_suite.v1.VariantSnapshot.header_config:type_name -> vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig
+	34, // 9: landing_page_business_suite.v1.VariantSnapshot.seo_config:type_name -> vrooli.landing_page_business_suite.v1.shared.VariantSEOConfig
+	35, // 10: landing_page_business_suite.v1.VariantSnapshot.sections:type_name -> vrooli.landing_page_business_suite.v1.shared.ContentSection
 	0,  // 11: landing_page_business_suite.v1.VariantResponse.variant:type_name -> landing_page_business_suite.v1.Variant
 	0,  // 12: landing_page_business_suite.v1.ListVariantsResponse.variants:type_name -> landing_page_business_suite.v1.Variant
-	21, // 13: landing_page_business_suite.v1.CreateVariantRequest.axes:type_name -> landing_page_business_suite.v1.CreateVariantRequest.AxesEntry
+	31, // 13: landing_page_business_suite.v1.CreateVariantRequest.axes:type_name -> landing_page_business_suite.v1.CreateVariantRequest.AxesEntry
 	1,  // 14: landing_page_business_suite.v1.UpdateVariantRequest.axes:type_name -> landing_page_business_suite.v1.AxesSelection
-	23, // 15: landing_page_business_suite.v1.UpdateVariantRequest.header_config:type_name -> vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig
-	2,  // 16: landing_page_business_suite.v1.ExportVariantSnapshotResponse.snapshot:type_name -> landing_page_business_suite.v1.VariantSnapshot
-	2,  // 17: landing_page_business_suite.v1.ImportVariantSnapshotRequest.snapshot:type_name -> landing_page_business_suite.v1.VariantSnapshot
-	2,  // 18: landing_page_business_suite.v1.ImportVariantSnapshotResponse.snapshot:type_name -> landing_page_business_suite.v1.VariantSnapshot
-	3,  // 19: landing_page_business_suite.v1.VariantService.SelectVariant:input_type -> landing_page_business_suite.v1.SelectVariantRequest
-	4,  // 20: landing_page_business_suite.v1.VariantService.GetPublicVariant:input_type -> landing_page_business_suite.v1.GetPublicVariantRequest
-	5,  // 21: landing_page_business_suite.v1.VariantService.GetVariant:input_type -> landing_page_business_suite.v1.GetVariantRequest
-	7,  // 22: landing_page_business_suite.v1.VariantService.ListVariants:input_type -> landing_page_business_suite.v1.ListVariantsRequest
-	9,  // 23: landing_page_business_suite.v1.VariantService.CreateVariant:input_type -> landing_page_business_suite.v1.CreateVariantRequest
-	10, // 24: landing_page_business_suite.v1.VariantService.UpdateVariant:input_type -> landing_page_business_suite.v1.UpdateVariantRequest
-	11, // 25: landing_page_business_suite.v1.VariantService.ArchiveVariant:input_type -> landing_page_business_suite.v1.ArchiveVariantRequest
-	12, // 26: landing_page_business_suite.v1.VariantService.DeleteVariant:input_type -> landing_page_business_suite.v1.DeleteVariantRequest
-	14, // 27: landing_page_business_suite.v1.VariantService.ExportVariantSnapshot:input_type -> landing_page_business_suite.v1.ExportVariantSnapshotRequest
-	16, // 28: landing_page_business_suite.v1.VariantService.ImportVariantSnapshot:input_type -> landing_page_business_suite.v1.ImportVariantSnapshotRequest
-	6,  // 29: landing_page_business_suite.v1.VariantService.SelectVariant:output_type -> landing_page_business_suite.v1.VariantResponse
-	6,  // 30: landing_page_business_suite.v1.VariantService.GetPublicVariant:output_type -> landing_page_business_suite.v1.VariantResponse
-	6,  // 31: landing_page_business_suite.v1.VariantService.GetVariant:output_type -> landing_page_business_suite.v1.VariantResponse
-	8,  // 32: landing_page_business_suite.v1.VariantService.ListVariants:output_type -> landing_page_business_suite.v1.ListVariantsResponse
-	6,  // 33: landing_page_business_suite.v1.VariantService.CreateVariant:output_type -> landing_page_business_suite.v1.VariantResponse
-	6,  // 34: landing_page_business_suite.v1.VariantService.UpdateVariant:output_type -> landing_page_business_suite.v1.VariantResponse
-	6,  // 35: landing_page_business_suite.v1.VariantService.ArchiveVariant:output_type -> landing_page_business_suite.v1.VariantResponse
-	13, // 36: landing_page_business_suite.v1.VariantService.DeleteVariant:output_type -> landing_page_business_suite.v1.DeleteVariantResponse
-	15, // 37: landing_page_business_suite.v1.VariantService.ExportVariantSnapshot:output_type -> landing_page_business_suite.v1.ExportVariantSnapshotResponse
-	17, // 38: landing_page_business_suite.v1.VariantService.ImportVariantSnapshot:output_type -> landing_page_business_suite.v1.ImportVariantSnapshotResponse
-	29, // [29:39] is the sub-list for method output_type
-	19, // [19:29] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	33, // 15: landing_page_business_suite.v1.UpdateVariantRequest.header_config:type_name -> vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig
+	34, // 16: landing_page_business_suite.v1.UpdateVariantRequest.seo_config:type_name -> vrooli.landing_page_business_suite.v1.shared.VariantSEOConfig
+	2,  // 17: landing_page_business_suite.v1.ExportVariantSnapshotResponse.snapshot:type_name -> landing_page_business_suite.v1.VariantSnapshot
+	2,  // 18: landing_page_business_suite.v1.ImportVariantSnapshotRequest.snapshot:type_name -> landing_page_business_suite.v1.VariantSnapshot
+	2,  // 19: landing_page_business_suite.v1.ImportVariantSnapshotResponse.snapshot:type_name -> landing_page_business_suite.v1.VariantSnapshot
+	35, // 20: landing_page_business_suite.v1.VariantSectionsResponse.sections:type_name -> vrooli.landing_page_business_suite.v1.shared.ContentSection
+	35, // 21: landing_page_business_suite.v1.VariantSectionResponse.section:type_name -> vrooli.landing_page_business_suite.v1.shared.ContentSection
+	35, // 22: landing_page_business_suite.v1.CreateVariantSectionRequest.section:type_name -> vrooli.landing_page_business_suite.v1.shared.ContentSection
+	36, // 23: landing_page_business_suite.v1.UpdateVariantSectionRequest.content:type_name -> google.protobuf.Struct
+	3,  // 24: landing_page_business_suite.v1.VariantService.SelectVariant:input_type -> landing_page_business_suite.v1.SelectVariantRequest
+	4,  // 25: landing_page_business_suite.v1.VariantService.GetPublicVariant:input_type -> landing_page_business_suite.v1.GetPublicVariantRequest
+	5,  // 26: landing_page_business_suite.v1.VariantService.GetVariant:input_type -> landing_page_business_suite.v1.GetVariantRequest
+	7,  // 27: landing_page_business_suite.v1.VariantService.ListVariants:input_type -> landing_page_business_suite.v1.ListVariantsRequest
+	9,  // 28: landing_page_business_suite.v1.VariantService.CreateVariant:input_type -> landing_page_business_suite.v1.CreateVariantRequest
+	10, // 29: landing_page_business_suite.v1.VariantService.UpdateVariant:input_type -> landing_page_business_suite.v1.UpdateVariantRequest
+	11, // 30: landing_page_business_suite.v1.VariantService.ArchiveVariant:input_type -> landing_page_business_suite.v1.ArchiveVariantRequest
+	12, // 31: landing_page_business_suite.v1.VariantService.DeleteVariant:input_type -> landing_page_business_suite.v1.DeleteVariantRequest
+	14, // 32: landing_page_business_suite.v1.VariantService.ExportVariantSnapshot:input_type -> landing_page_business_suite.v1.ExportVariantSnapshotRequest
+	16, // 33: landing_page_business_suite.v1.VariantService.ImportVariantSnapshot:input_type -> landing_page_business_suite.v1.ImportVariantSnapshotRequest
+	18, // 34: landing_page_business_suite.v1.VariantService.SyncVariantSnapshots:input_type -> landing_page_business_suite.v1.SyncVariantSnapshotsRequest
+	6,  // 35: landing_page_business_suite.v1.VariantService.SelectVariant:output_type -> landing_page_business_suite.v1.VariantResponse
+	6,  // 36: landing_page_business_suite.v1.VariantService.GetPublicVariant:output_type -> landing_page_business_suite.v1.VariantResponse
+	6,  // 37: landing_page_business_suite.v1.VariantService.GetVariant:output_type -> landing_page_business_suite.v1.VariantResponse
+	8,  // 38: landing_page_business_suite.v1.VariantService.ListVariants:output_type -> landing_page_business_suite.v1.ListVariantsResponse
+	6,  // 39: landing_page_business_suite.v1.VariantService.CreateVariant:output_type -> landing_page_business_suite.v1.VariantResponse
+	6,  // 40: landing_page_business_suite.v1.VariantService.UpdateVariant:output_type -> landing_page_business_suite.v1.VariantResponse
+	6,  // 41: landing_page_business_suite.v1.VariantService.ArchiveVariant:output_type -> landing_page_business_suite.v1.VariantResponse
+	13, // 42: landing_page_business_suite.v1.VariantService.DeleteVariant:output_type -> landing_page_business_suite.v1.DeleteVariantResponse
+	15, // 43: landing_page_business_suite.v1.VariantService.ExportVariantSnapshot:output_type -> landing_page_business_suite.v1.ExportVariantSnapshotResponse
+	17, // 44: landing_page_business_suite.v1.VariantService.ImportVariantSnapshot:output_type -> landing_page_business_suite.v1.ImportVariantSnapshotResponse
+	19, // 45: landing_page_business_suite.v1.VariantService.SyncVariantSnapshots:output_type -> landing_page_business_suite.v1.SyncVariantSnapshotsResponse
+	35, // [35:46] is the sub-list for method output_type
+	24, // [24:35] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_landing_page_business_suite_v1_variant_proto_init() }
@@ -1243,13 +1807,14 @@ func file_landing_page_business_suite_v1_variant_proto_init() {
 	file_landing_page_business_suite_v1_variant_proto_msgTypes[0].OneofWrappers = []any{}
 	file_landing_page_business_suite_v1_variant_proto_msgTypes[2].OneofWrappers = []any{}
 	file_landing_page_business_suite_v1_variant_proto_msgTypes[10].OneofWrappers = []any{}
+	file_landing_page_business_suite_v1_variant_proto_msgTypes[25].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_landing_page_business_suite_v1_variant_proto_rawDesc), len(file_landing_page_business_suite_v1_variant_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   22,
+			NumMessages:   32,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

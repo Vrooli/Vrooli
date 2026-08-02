@@ -9,7 +9,7 @@ import { file_buf_validate_validate } from "../../../buf/validate/validate_pb.js
  * Describes the file swarm-manager/v1/shared/backlog.proto.
  */
 export const file_swarm_manager_v1_shared_backlog = /*@__PURE__*/
-  fileDesc("CiVzd2FybS1tYW5hZ2VyL3YxL3NoYXJlZC9iYWNrbG9nLnByb3RvEh52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5zaGFyZWQixQEKC0JhY2tsb2dGaWxlEhUKBG5hbWUYASABKAlCB7pIBHICEAESFQoEcGF0aBgCIAEoCUIHukgEcgIQARIkCgR0eXBlGAMgASgJQha6SBNyEVIEZmlsZVIJZGlyZWN0b3J5EhoKBHNpemUYBCABKANCB7pIBCICKABIAIgBARI9CghjaGlsZHJlbhgFIAMoCzIrLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLnNoYXJlZC5CYWNrbG9nRmlsZUIHCgVfc2l6ZUJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvc2hhcmVkO3NoYXJlZGIGcHJvdG8z", [file_buf_validate_validate]);
+  fileDesc("CiVzd2FybS1tYW5hZ2VyL3YxL3NoYXJlZC9iYWNrbG9nLnByb3RvEh52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5zaGFyZWQixQEKC0JhY2tsb2dGaWxlEhUKBG5hbWUYASABKAlCB7pIBHICEAESFQoEcGF0aBgCIAEoCUIHukgEcgIQARIkCgR0eXBlGAMgASgJQha6SBNyEVIEZmlsZVIJZGlyZWN0b3J5EhoKBHNpemUYBCABKANCB7pIBCICKABIAIgBARI9CghjaGlsZHJlbhgFIAMoCzIrLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLnNoYXJlZC5CYWNrbG9nRmlsZUIHCgVfc2l6ZSKGAQoQQmFja2xvZ0NyaXRlcmlvbhIKCgJpZBgBIAEoCRIYCgdnaGVya2luGAIgASgJQge6SARyAhABEkIKBWNoZWNrGAMgASgLMi4udnJvb2xpLnN3YXJtX21hbmFnZXIudjEuc2hhcmVkLkNyaXRlcmlvbkNoZWNrSACIAQFCCAoGX2NoZWNrIoQBCg5Dcml0ZXJpb25DaGVjaxIuCgRraW5kGAEgASgJQiC6SB1yG1IQdGVzdF9nZW5pZV9waGFzZVIHY29tbWFuZBIQCghzY2VuYXJpbxgCIAEoCRINCgVwaGFzZRgDIAEoCRIMCgRhcmd2GAQgAygJEhMKC2V4cGVjdF9leGl0GAUgASgFQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9zaGFyZWQ7c2hhcmVkYgZwcm90bzM", [file_buf_validate_validate]);
 
 /**
  * Describes the message vrooli.swarm_manager.v1.shared.BacklogFile.
@@ -17,4 +17,18 @@ export const file_swarm_manager_v1_shared_backlog = /*@__PURE__*/
  */
 export const BacklogFileSchema = /*@__PURE__*/
   messageDesc(file_swarm_manager_v1_shared_backlog, 0);
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.shared.BacklogCriterion.
+ * Use `create(BacklogCriterionSchema)` to create a new message.
+ */
+export const BacklogCriterionSchema = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_shared_backlog, 1);
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.shared.CriterionCheck.
+ * Use `create(CriterionCheckSchema)` to create a new message.
+ */
+export const CriterionCheckSchema = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_shared_backlog, 2);
 

@@ -102,11 +102,14 @@ func (x *LandingVariantSummary) GetAxes() map[string]string {
 
 // LandingSection is a rendered section (flattened content) for the payload.
 type LandingSection struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SectionType   string                 `protobuf:"bytes,1,opt,name=section_type,json=sectionType,proto3" json:"section_type,omitempty"`
-	Content       *structpb.Struct       `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
-	Order         int32                  `protobuf:"varint,3,opt,name=order,proto3" json:"order,omitempty"`
-	Enabled       bool                   `protobuf:"varint,4,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	SectionType string                 `protobuf:"bytes,1,opt,name=section_type,json=sectionType,proto3" json:"section_type,omitempty"`
+	Content     *structpb.Struct       `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
+	Order       int32                  `protobuf:"varint,3,opt,name=order,proto3" json:"order,omitempty"`
+	Enabled     bool                   `protobuf:"varint,4,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	// Stable, variant-scoped identity used by the administrative section editor.
+	// Unlike the legacy numeric database ID, this remains valid for JSON snapshots.
+	SectionKey    string `protobuf:"bytes,5,opt,name=section_key,json=sectionKey,proto3" json:"section_key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -167,6 +170,13 @@ func (x *LandingSection) GetEnabled() bool {
 		return x.Enabled
 	}
 	return false
+}
+
+func (x *LandingSection) GetSectionKey() string {
+	if x != nil {
+		return x.SectionKey
+	}
+	return ""
 }
 
 // LandingBranding is the branding subset embedded in the landing payload.
@@ -617,12 +627,14 @@ const file_landing_page_business_suite_v1_config_proto_rawDesc = "" +
 	"\x04axes\x18\x05 \x03(\v2?.landing_page_business_suite.v1.LandingVariantSummary.AxesEntryR\x04axes\x1a7\n" +
 	"\tAxesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x96\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb7\x01\n" +
 	"\x0eLandingSection\x12!\n" +
 	"\fsection_type\x18\x01 \x01(\tR\vsectionType\x121\n" +
 	"\acontent\x18\x02 \x01(\v2\x17.google.protobuf.StructR\acontent\x12\x14\n" +
 	"\x05order\x18\x03 \x01(\x05R\x05order\x12\x18\n" +
-	"\aenabled\x18\x04 \x01(\bR\aenabled\"\xb4\x05\n" +
+	"\aenabled\x18\x04 \x01(\bR\aenabled\x12\x1f\n" +
+	"\vsection_key\x18\x05 \x01(\tR\n" +
+	"sectionKey\"\xb4\x05\n" +
 	"\x0fLandingBranding\x12\x1b\n" +
 	"\tsite_name\x18\x01 \x01(\tR\bsiteName\x12\x1d\n" +
 	"\atagline\x18\x02 \x01(\tH\x00R\atagline\x88\x01\x01\x12\x1e\n" +

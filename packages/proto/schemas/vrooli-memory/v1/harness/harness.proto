@@ -47,10 +47,14 @@ message ImportRun {
 }
 message RefreshProjectionRequest {
   string runtime = 1;
+  bool dry_run = 2;
 }
 message RefreshProjectionResponse {
   string path = 1;
   int64 size_bytes = 2;
+  bool overflow = 3;
+  bool dry_run = 4;
+  string rendered_content = 5;
 }
 message InstallPromptBlockRequest {
   string runtime = 1;
@@ -61,6 +65,7 @@ message InstallPromptBlockResponse {
 message CaptureWriteRequest {
   string runtime = 1;
   string content = 2;
+  string source_path = 3;
 }
 message CaptureWriteResponse {
   string entry_id = 1;

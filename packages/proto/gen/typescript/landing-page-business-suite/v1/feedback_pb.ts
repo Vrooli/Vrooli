@@ -2,15 +2,17 @@
 // @generated from file landing-page-business-suite/v1/feedback.proto (package landing_page_business_suite.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file landing-page-business-suite/v1/feedback.proto.
  */
 export const file_landing_page_business_suite_v1_feedback: GenFile = /*@__PURE__*/
-  fileDesc("Ci1sYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjEvZmVlZGJhY2sucHJvdG8SHmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MSJ6ChVGZWVkYmFja0NyZWF0ZVJlcXVlc3QSDAoEdHlwZRgBIAEoCRINCgVlbWFpbBgCIAEoCRIPCgdzdWJqZWN0GAMgASgJEg8KB21lc3NhZ2UYBCABKAkSFQoIb3JkZXJfaWQYBSABKAlIAIgBAUILCglfb3JkZXJfaWQiNQoWRmVlZGJhY2tDcmVhdGVSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEgoKAmlkGAIgASgDIiwKDUZlZWRiYWNrRXJyb3ISDQoFZXJyb3IYASABKAkSDAoEdHlwZRgCIAEoCUJuWmxnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2xhbmRpbmctcGFnZS1idXNpbmVzcy1zdWl0ZS92MTtsYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGVfdjFiBnByb3RvMw");
+  fileDesc("Ci1sYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjEvZmVlZGJhY2sucHJvdG8SHmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MSJ6ChVGZWVkYmFja0NyZWF0ZVJlcXVlc3QSDAoEdHlwZRgBIAEoCRINCgVlbWFpbBgCIAEoCRIPCgdzdWJqZWN0GAMgASgJEg8KB21lc3NhZ2UYBCABKAkSFQoIb3JkZXJfaWQYBSABKAlIAIgBAUILCglfb3JkZXJfaWQiNQoWRmVlZGJhY2tDcmVhdGVSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEgoKAmlkGAIgASgDIiwKDUZlZWRiYWNrRXJyb3ISDQoFZXJyb3IYASABKAkSDAoEdHlwZRgCIAEoCSLNAgoORmVlZGJhY2tSZWNvcmQSCgoCaWQYASABKAMSOgoEdHlwZRgCIAEoDjIsLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5GZWVkYmFja1R5cGUSDQoFZW1haWwYAyABKAkSDwoHc3ViamVjdBgEIAEoCRIPCgdtZXNzYWdlGAUgASgJEhUKCG9yZGVyX2lkGAYgASgJSACIAQESPgoGc3RhdHVzGAcgASgOMi4ubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkZlZWRiYWNrU3RhdHVzEi4KCmNyZWF0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQgsKCV9vcmRlcl9pZCJlChNMaXN0RmVlZGJhY2tSZXF1ZXN0EkMKBnN0YXR1cxgBIAEoDjIuLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5GZWVkYmFja1N0YXR1c0gAiAEBQgkKB19zdGF0dXMiWAoUTGlzdEZlZWRiYWNrUmVzcG9uc2USQAoIZmVlZGJhY2sYASADKAsyLi5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuRmVlZGJhY2tSZWNvcmQiIAoSR2V0RmVlZGJhY2tSZXF1ZXN0EgoKAmlkGAEgASgDIlcKE0dldEZlZWRiYWNrUmVzcG9uc2USQAoIZmVlZGJhY2sYASABKAsyLi5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuRmVlZGJhY2tSZWNvcmQiaQobVXBkYXRlRmVlZGJhY2tTdGF0dXNSZXF1ZXN0EgoKAmlkGAEgASgDEj4KBnN0YXR1cxgCIAEoDjIuLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5GZWVkYmFja1N0YXR1cyJgChxVcGRhdGVGZWVkYmFja1N0YXR1c1Jlc3BvbnNlEkAKCGZlZWRiYWNrGAEgASgLMi4ubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkZlZWRiYWNrUmVjb3JkIiMKFURlbGV0ZUZlZWRiYWNrUmVxdWVzdBIKCgJpZBgBIAEoAyI1ChZEZWxldGVGZWVkYmFja1Jlc3BvbnNlEg8KB2RlbGV0ZWQYASABKAgSCgoCaWQYAiABKAMiKAoZRGVsZXRlRmVlZGJhY2tCdWxrUmVxdWVzdBILCgNpZHMYASADKAMiLQoaRGVsZXRlRmVlZGJhY2tCdWxrUmVzcG9uc2USDwoHZGVsZXRlZBgBIAEoAyqUAQoMRmVlZGJhY2tUeXBlEh0KGUZFRURCQUNLX1RZUEVfVU5TUEVDSUZJRUQQABIYChRGRUVEQkFDS19UWVBFX1JFRlVORBABEhUKEUZFRURCQUNLX1RZUEVfQlVHEAISGQoVRkVFREJBQ0tfVFlQRV9GRUFUVVJFEAMSGQoVRkVFREJBQ0tfVFlQRV9HRU5FUkFMEAQqqwEKDkZlZWRiYWNrU3RhdHVzEh8KG0ZFRURCQUNLX1NUQVRVU19VTlNQRUNJRklFRBAAEhsKF0ZFRURCQUNLX1NUQVRVU19QRU5ESU5HEAESHwobRkVFREJBQ0tfU1RBVFVTX0lOX1BST0dSRVNTEAISHAoYRkVFREJBQ0tfU1RBVFVTX1JFU09MVkVEEAMSHAoYRkVFREJBQ0tfU1RBVFVTX1JFSkVDVEVEEAQyqAYKD0ZlZWRiYWNrU2VydmljZRJ/Cg5DcmVhdGVGZWVkYmFjaxI1LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5GZWVkYmFja0NyZWF0ZVJlcXVlc3QaNi5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuRmVlZGJhY2tDcmVhdGVSZXNwb25zZRJ5CgxMaXN0RmVlZGJhY2sSMy5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuTGlzdEZlZWRiYWNrUmVxdWVzdBo0LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5MaXN0RmVlZGJhY2tSZXNwb25zZRJ2CgtHZXRGZWVkYmFjaxIyLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5HZXRGZWVkYmFja1JlcXVlc3QaMy5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuR2V0RmVlZGJhY2tSZXNwb25zZRKRAQoUVXBkYXRlRmVlZGJhY2tTdGF0dXMSOy5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuVXBkYXRlRmVlZGJhY2tTdGF0dXNSZXF1ZXN0GjwubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlVwZGF0ZUZlZWRiYWNrU3RhdHVzUmVzcG9uc2USfwoORGVsZXRlRmVlZGJhY2sSNS5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuRGVsZXRlRmVlZGJhY2tSZXF1ZXN0GjYubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkRlbGV0ZUZlZWRiYWNrUmVzcG9uc2USiwEKEkRlbGV0ZUZlZWRiYWNrQnVsaxI5LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5EZWxldGVGZWVkYmFja0J1bGtSZXF1ZXN0GjoubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkRlbGV0ZUZlZWRiYWNrQnVsa1Jlc3BvbnNlQm5abGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vbGFuZGluZy1wYWdlLWJ1c2luZXNzLXN1aXRlL3YxO2xhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZV92MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * FeedbackCreateRequest is the JSON contract for the public feedback form and
@@ -100,4 +102,368 @@ export type FeedbackError = Message<"landing_page_business_suite.v1.FeedbackErro
  */
 export const FeedbackErrorSchema: GenMessage<FeedbackError> = /*@__PURE__*/
   messageDesc(file_landing_page_business_suite_v1_feedback, 2);
+
+/**
+ * @generated from message landing_page_business_suite.v1.FeedbackRecord
+ */
+export type FeedbackRecord = Message<"landing_page_business_suite.v1.FeedbackRecord"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: landing_page_business_suite.v1.FeedbackType type = 2;
+   */
+  type: FeedbackType;
+
+  /**
+   * @generated from field: string email = 3;
+   */
+  email: string;
+
+  /**
+   * @generated from field: string subject = 4;
+   */
+  subject: string;
+
+  /**
+   * @generated from field: string message = 5;
+   */
+  message: string;
+
+  /**
+   * @generated from field: optional string order_id = 6;
+   */
+  orderId?: string | undefined;
+
+  /**
+   * @generated from field: landing_page_business_suite.v1.FeedbackStatus status = 7;
+   */
+  status: FeedbackStatus;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 8;
+   */
+  createdAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp updated_at = 9;
+   */
+  updatedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.FeedbackRecord.
+ * Use `create(FeedbackRecordSchema)` to create a new message.
+ */
+export const FeedbackRecordSchema: GenMessage<FeedbackRecord> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_feedback, 3);
+
+/**
+ * @generated from message landing_page_business_suite.v1.ListFeedbackRequest
+ */
+export type ListFeedbackRequest = Message<"landing_page_business_suite.v1.ListFeedbackRequest"> & {
+  /**
+   * @generated from field: optional landing_page_business_suite.v1.FeedbackStatus status = 1;
+   */
+  status?: FeedbackStatus | undefined;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.ListFeedbackRequest.
+ * Use `create(ListFeedbackRequestSchema)` to create a new message.
+ */
+export const ListFeedbackRequestSchema: GenMessage<ListFeedbackRequest> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_feedback, 4);
+
+/**
+ * @generated from message landing_page_business_suite.v1.ListFeedbackResponse
+ */
+export type ListFeedbackResponse = Message<"landing_page_business_suite.v1.ListFeedbackResponse"> & {
+  /**
+   * @generated from field: repeated landing_page_business_suite.v1.FeedbackRecord feedback = 1;
+   */
+  feedback: FeedbackRecord[];
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.ListFeedbackResponse.
+ * Use `create(ListFeedbackResponseSchema)` to create a new message.
+ */
+export const ListFeedbackResponseSchema: GenMessage<ListFeedbackResponse> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_feedback, 5);
+
+/**
+ * @generated from message landing_page_business_suite.v1.GetFeedbackRequest
+ */
+export type GetFeedbackRequest = Message<"landing_page_business_suite.v1.GetFeedbackRequest"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.GetFeedbackRequest.
+ * Use `create(GetFeedbackRequestSchema)` to create a new message.
+ */
+export const GetFeedbackRequestSchema: GenMessage<GetFeedbackRequest> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_feedback, 6);
+
+/**
+ * @generated from message landing_page_business_suite.v1.GetFeedbackResponse
+ */
+export type GetFeedbackResponse = Message<"landing_page_business_suite.v1.GetFeedbackResponse"> & {
+  /**
+   * @generated from field: landing_page_business_suite.v1.FeedbackRecord feedback = 1;
+   */
+  feedback?: FeedbackRecord | undefined;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.GetFeedbackResponse.
+ * Use `create(GetFeedbackResponseSchema)` to create a new message.
+ */
+export const GetFeedbackResponseSchema: GenMessage<GetFeedbackResponse> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_feedback, 7);
+
+/**
+ * @generated from message landing_page_business_suite.v1.UpdateFeedbackStatusRequest
+ */
+export type UpdateFeedbackStatusRequest = Message<"landing_page_business_suite.v1.UpdateFeedbackStatusRequest"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: landing_page_business_suite.v1.FeedbackStatus status = 2;
+   */
+  status: FeedbackStatus;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.UpdateFeedbackStatusRequest.
+ * Use `create(UpdateFeedbackStatusRequestSchema)` to create a new message.
+ */
+export const UpdateFeedbackStatusRequestSchema: GenMessage<UpdateFeedbackStatusRequest> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_feedback, 8);
+
+/**
+ * @generated from message landing_page_business_suite.v1.UpdateFeedbackStatusResponse
+ */
+export type UpdateFeedbackStatusResponse = Message<"landing_page_business_suite.v1.UpdateFeedbackStatusResponse"> & {
+  /**
+   * @generated from field: landing_page_business_suite.v1.FeedbackRecord feedback = 1;
+   */
+  feedback?: FeedbackRecord | undefined;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.UpdateFeedbackStatusResponse.
+ * Use `create(UpdateFeedbackStatusResponseSchema)` to create a new message.
+ */
+export const UpdateFeedbackStatusResponseSchema: GenMessage<UpdateFeedbackStatusResponse> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_feedback, 9);
+
+/**
+ * @generated from message landing_page_business_suite.v1.DeleteFeedbackRequest
+ */
+export type DeleteFeedbackRequest = Message<"landing_page_business_suite.v1.DeleteFeedbackRequest"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.DeleteFeedbackRequest.
+ * Use `create(DeleteFeedbackRequestSchema)` to create a new message.
+ */
+export const DeleteFeedbackRequestSchema: GenMessage<DeleteFeedbackRequest> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_feedback, 10);
+
+/**
+ * @generated from message landing_page_business_suite.v1.DeleteFeedbackResponse
+ */
+export type DeleteFeedbackResponse = Message<"landing_page_business_suite.v1.DeleteFeedbackResponse"> & {
+  /**
+   * @generated from field: bool deleted = 1;
+   */
+  deleted: boolean;
+
+  /**
+   * @generated from field: int64 id = 2;
+   */
+  id: bigint;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.DeleteFeedbackResponse.
+ * Use `create(DeleteFeedbackResponseSchema)` to create a new message.
+ */
+export const DeleteFeedbackResponseSchema: GenMessage<DeleteFeedbackResponse> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_feedback, 11);
+
+/**
+ * @generated from message landing_page_business_suite.v1.DeleteFeedbackBulkRequest
+ */
+export type DeleteFeedbackBulkRequest = Message<"landing_page_business_suite.v1.DeleteFeedbackBulkRequest"> & {
+  /**
+   * @generated from field: repeated int64 ids = 1;
+   */
+  ids: bigint[];
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.DeleteFeedbackBulkRequest.
+ * Use `create(DeleteFeedbackBulkRequestSchema)` to create a new message.
+ */
+export const DeleteFeedbackBulkRequestSchema: GenMessage<DeleteFeedbackBulkRequest> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_feedback, 12);
+
+/**
+ * @generated from message landing_page_business_suite.v1.DeleteFeedbackBulkResponse
+ */
+export type DeleteFeedbackBulkResponse = Message<"landing_page_business_suite.v1.DeleteFeedbackBulkResponse"> & {
+  /**
+   * @generated from field: int64 deleted = 1;
+   */
+  deleted: bigint;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.DeleteFeedbackBulkResponse.
+ * Use `create(DeleteFeedbackBulkResponseSchema)` to create a new message.
+ */
+export const DeleteFeedbackBulkResponseSchema: GenMessage<DeleteFeedbackBulkResponse> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_feedback, 13);
+
+/**
+ * @generated from enum landing_page_business_suite.v1.FeedbackType
+ */
+export enum FeedbackType {
+  /**
+   * @generated from enum value: FEEDBACK_TYPE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: FEEDBACK_TYPE_REFUND = 1;
+   */
+  REFUND = 1,
+
+  /**
+   * @generated from enum value: FEEDBACK_TYPE_BUG = 2;
+   */
+  BUG = 2,
+
+  /**
+   * @generated from enum value: FEEDBACK_TYPE_FEATURE = 3;
+   */
+  FEATURE = 3,
+
+  /**
+   * @generated from enum value: FEEDBACK_TYPE_GENERAL = 4;
+   */
+  GENERAL = 4,
+}
+
+/**
+ * Describes the enum landing_page_business_suite.v1.FeedbackType.
+ */
+export const FeedbackTypeSchema: GenEnum<FeedbackType> = /*@__PURE__*/
+  enumDesc(file_landing_page_business_suite_v1_feedback, 0);
+
+/**
+ * @generated from enum landing_page_business_suite.v1.FeedbackStatus
+ */
+export enum FeedbackStatus {
+  /**
+   * @generated from enum value: FEEDBACK_STATUS_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: FEEDBACK_STATUS_PENDING = 1;
+   */
+  PENDING = 1,
+
+  /**
+   * @generated from enum value: FEEDBACK_STATUS_IN_PROGRESS = 2;
+   */
+  IN_PROGRESS = 2,
+
+  /**
+   * @generated from enum value: FEEDBACK_STATUS_RESOLVED = 3;
+   */
+  RESOLVED = 3,
+
+  /**
+   * @generated from enum value: FEEDBACK_STATUS_REJECTED = 4;
+   */
+  REJECTED = 4,
+}
+
+/**
+ * Describes the enum landing_page_business_suite.v1.FeedbackStatus.
+ */
+export const FeedbackStatusSchema: GenEnum<FeedbackStatus> = /*@__PURE__*/
+  enumDesc(file_landing_page_business_suite_v1_feedback, 1);
+
+/**
+ * @generated from service landing_page_business_suite.v1.FeedbackService
+ */
+export const FeedbackService: GenService<{
+  /**
+   * @generated from rpc landing_page_business_suite.v1.FeedbackService.CreateFeedback
+   */
+  createFeedback: {
+    methodKind: "unary";
+    input: typeof FeedbackCreateRequestSchema;
+    output: typeof FeedbackCreateResponseSchema;
+  },
+  /**
+   * @generated from rpc landing_page_business_suite.v1.FeedbackService.ListFeedback
+   */
+  listFeedback: {
+    methodKind: "unary";
+    input: typeof ListFeedbackRequestSchema;
+    output: typeof ListFeedbackResponseSchema;
+  },
+  /**
+   * @generated from rpc landing_page_business_suite.v1.FeedbackService.GetFeedback
+   */
+  getFeedback: {
+    methodKind: "unary";
+    input: typeof GetFeedbackRequestSchema;
+    output: typeof GetFeedbackResponseSchema;
+  },
+  /**
+   * @generated from rpc landing_page_business_suite.v1.FeedbackService.UpdateFeedbackStatus
+   */
+  updateFeedbackStatus: {
+    methodKind: "unary";
+    input: typeof UpdateFeedbackStatusRequestSchema;
+    output: typeof UpdateFeedbackStatusResponseSchema;
+  },
+  /**
+   * @generated from rpc landing_page_business_suite.v1.FeedbackService.DeleteFeedback
+   */
+  deleteFeedback: {
+    methodKind: "unary";
+    input: typeof DeleteFeedbackRequestSchema;
+    output: typeof DeleteFeedbackResponseSchema;
+  },
+  /**
+   * @generated from rpc landing_page_business_suite.v1.FeedbackService.DeleteFeedbackBulk
+   */
+  deleteFeedbackBulk: {
+    methodKind: "unary";
+    input: typeof DeleteFeedbackBulkRequestSchema;
+    output: typeof DeleteFeedbackBulkResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_landing_page_business_suite_v1_feedback, 0);
 

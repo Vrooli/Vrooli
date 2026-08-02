@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "cleanup-manager",
-  "input_digest": "sha256:a71059f8def8f23c93c03db1965f63e34130d6957e92e973fa64a45177cc1cf9",
+  "input_digest": "sha256:45fc3361a1b782ff50996da62818b6cc94a13e59d83dd6a8ff5fbc93c1eed1af",
   "input_files": [
     "schemas/cleanup-manager/v1/cleanup/cleanup.proto",
     "schemas/cleanup-manager/v1/shared/errors.proto",
@@ -18,13 +18,13 @@
     }
   },
   "outputs": {
-    "gen/go/cleanup-manager/v1/cleanup/cleanup.pb.go": "sha256:947fd9943c8a8e84d357d9e6483a3052e4f25dff7e4561b9628ef5bde21c339b",
-    "gen/go/cleanup-manager/v1/cleanup/cleanup_v1connect/cleanup.connect.go": "sha256:ccb7522471a665a57a37854f51dd53b88ebfb0f20ad68fce718c7c9b0f5e0d35",
+    "gen/go/cleanup-manager/v1/cleanup/cleanup.pb.go": "sha256:2752720f9e065aa17939df72c1bc8aa254d575a55a2f4fb5eb112955305ef601",
+    "gen/go/cleanup-manager/v1/cleanup/cleanup_v1connect/cleanup.connect.go": "sha256:4340630c30aac70802375b69550a3e8ebc457a97cb520d268fb6321520452cf5",
     "gen/go/cleanup-manager/v1/shared/errors.pb.go": "sha256:e37b69918affec101edcba0fd0033c7607d05df3c8b5ef7493474c62a1742633",
     "gen/go/cleanup-manager/v1/shared/health.pb.go": "sha256:5a1ed10626d6458c7829e81cc79a438f8a063dfa845e243ba1bca6a380df3d65",
     "gen/python/cleanup_manager/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/cleanup_manager/v1/cleanup/cleanup_pb2.py": "sha256:6e08fdd5a12abaf7202780bc5a45d55c87850a44d7c0346da836019df4b1af43",
-    "gen/python/cleanup_manager/v1/cleanup/cleanup_pb2.pyi": "sha256:fe9d57a473cf6c95446a41c6d4fc5bf81bcd86323cfe3fbf2fe5a1e4fa02dd7d",
+    "gen/python/cleanup_manager/v1/cleanup/cleanup_pb2.py": "sha256:7f97e8e310095e1984916f97107b96951cc3e3a4eaa3f3596638d809bab4c0df",
+    "gen/python/cleanup_manager/v1/cleanup/cleanup_pb2.pyi": "sha256:7c6f92b9c29da54bfd8bef4f98e59aa7db4c347455d058362d8f20649af69cc8",
     "gen/python/cleanup_manager/v1/cleanup/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/cleanup_manager/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/cleanup_manager/v1/shared/errors_pb2.py": "sha256:69ea520980e19ebaec1caffd45b686b225cd4dd7efbdd2e5f97019278ba70cb0",
@@ -32,10 +32,10 @@
     "gen/python/cleanup_manager/v1/shared/health_pb2.py": "sha256:038173b31296f7fa51202b59ccea05e944e1f0f36cdfae83e8a57de407a5c881",
     "gen/python/cleanup_manager/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
     "gen/python/cleanup_manager/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/typescript/cleanup-manager/v1/cleanup/cleanup_pb.ts": "sha256:95c1a16d4369fead827d00dcca2ad8e93bc19deaaeb3e672b54cb92bf8b3502c",
+    "gen/typescript/cleanup-manager/v1/cleanup/cleanup_pb.ts": "sha256:2f1ab7b4592bf18fcc32d3a8c797f5756adf05004125fb40b91b96218539902f",
     "gen/typescript/cleanup-manager/v1/shared/errors_pb.ts": "sha256:dcb3468abc4dfb48ae746318ffd298a56f0d866a1c0e1564e0f6cb24f20c3438",
     "gen/typescript/cleanup-manager/v1/shared/health_pb.ts": "sha256:bd84b6062a0f6f27743ccf2e828be13f3135029d5f5146fe0c1d40e68e5ef285",
-    "gen/typescript/js/cleanup-manager/v1/cleanup/cleanup_pb.js": "sha256:08ad7d376eb94d6add45f0cf99ae150bdc1c26f1123572d8c997d8db4c9bd951",
+    "gen/typescript/js/cleanup-manager/v1/cleanup/cleanup_pb.js": "sha256:5bfbc01ff5076c9c8d640258e4ef406ac7bd45c25042eafdfdc9190ad89288d7",
     "gen/typescript/js/cleanup-manager/v1/shared/errors_pb.js": "sha256:9684a2d8392199c5d778e3f08ba5fe4cadea913dc6b16554342437f805a02d0d",
     "gen/typescript/js/cleanup-manager/v1/shared/health_pb.js": "sha256:6aa750a73e831c3df2071d412b17ea7fb78f53269d2c1e3fa94543f364c50bdc"
   }

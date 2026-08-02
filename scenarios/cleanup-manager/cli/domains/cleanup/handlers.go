@@ -3,6 +3,8 @@ package cleanup
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
@@ -132,4 +134,119 @@ func (h *handlers) listAuditReport(_ cliapp.OperationContext, msg *cleanupv1.Lis
 		results = append(results, fmt.Sprintf("%s %s plan=%s provider=%s redacted=%t %s", event.GetId(), event.GetType(), event.GetPlanId(), event.GetProviderId(), event.GetRedacted(), event.GetMessage()))
 	}
 	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d audit event(s).", len(results))}, ResultsHeading: "Audit events", Results: results}
+}
+
+// reportPressureCall reports disk pressure.
+//
+// The band is parsed here rather than passed through as a string so an
+// operator typo fails locally with the valid options listed, instead of
+// becoming a request the server has to interpret. Critical is the band that
+// authorises deletion with no operator present, so it must never be reached by
+// accident.
+func (h *handlers) reportPressureCall(ctx cliapp.OperationContext) (*cleanupv1.ReportPressureResponse, error) {
+	band, err := parsePressureBandFlag(ctx.Flag("band"))
+	if err != nil {
+		return nil, err
+	}
+
+	usedPercent, err := parseOptionalFloat(ctx.Flag("used-percent"), "used-percent")
+	if err != nil {
+		return nil, err
+	}
+	availableBytes, err := parseOptionalInt(ctx.Flag("available-bytes"), "available-bytes")
+	if err != nil {
+		return nil, err
+	}
+
+	source := ctx.Flag("source")
+	if source == "" {
+		source = "cli"
+	}
+
+	resp, err := h.client.ReportPressure(context.Background(), connect.NewRequest(&cleanupv1.ReportPressureRequest{
+		SourceScenario: source,
+		Partition:      ctx.Flag("partition"),
+		UsedPercent:    usedPercent,
+		Band:           band,
+		AvailableBytes: availableBytes,
+	}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("report disk pressure", err, nil)
+	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) reportPressureReport(_ cliapp.OperationContext, msg *cleanupv1.ReportPressureResponse) cliapp.MutationReport {
+	changes := make([]string, 0, 2)
+	if applied := msg.GetProvidersApplied(); len(applied) > 0 {
+		changes = append(changes, fmt.Sprintf("ran %s, reclaiming %d bytes", strings.Join(applied, ", "), msg.GetReclaimedBytes()))
+	}
+	// Withheld providers are reported, never silently dropped: an operator
+	// needs to know what the safety tier refused to touch.
+	if withheld := msg.GetProvidersWithheld(); len(withheld) > 0 {
+		changes = append(changes, fmt.Sprintf("withheld above safe tier: %s", strings.Join(withheld, ", ")))
+	}
+
+	result := []string{fmt.Sprintf("Band %s: %s.", shortBandName(msg.GetBand()), shortActionName(msg.GetAction()))}
+	if msg.GetPlanId() != "" {
+		result = append(result, fmt.Sprintf("Plan %s estimated %d bytes reclaimable.", msg.GetPlanId(), msg.GetEstimatedBytes()))
+	}
+	if msg.GetReason() != "" {
+		result = append(result, msg.GetReason())
+	}
+	if !msg.GetAutonomousApplyEnabled() {
+		result = append(result, "Autonomous apply is disabled by the kill switch.")
+	}
+
+	return cliapp.MutationReport{
+		Result:      result,
+		Changes:     changes,
+		NextCommand: []string{"`cleanup audit` — inspect what the pressure signal caused"},
+	}
+}
+
+// parsePressureBandFlag maps the operator-facing band name onto the proto enum.
+func parsePressureBandFlag(raw string) (cleanupv1.PressureBand, error) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "warning":
+		return cleanupv1.PressureBand_PRESSURE_BAND_WARNING, nil
+	case "high":
+		return cleanupv1.PressureBand_PRESSURE_BAND_HIGH, nil
+	case "critical":
+		return cleanupv1.PressureBand_PRESSURE_BAND_CRITICAL, nil
+	default:
+		return cleanupv1.PressureBand_PRESSURE_BAND_UNSPECIFIED,
+			fmt.Errorf("unknown band %q: expected warning, high, or critical", raw)
+	}
+}
+
+func parseOptionalFloat(raw, flag string) (float64, error) {
+	if strings.TrimSpace(raw) == "" {
+		return 0, nil
+	}
+	value, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return 0, fmt.Errorf("--%s must be a number: %w", flag, err)
+	}
+	return value, nil
+}
+
+func parseOptionalInt(raw, flag string) (int64, error) {
+	if strings.TrimSpace(raw) == "" {
+		return 0, nil
+	}
+	value, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("--%s must be an integer: %w", flag, err)
+	}
+	return value, nil
+}
+
+// shortBandName trims the proto enum prefix for human output.
+func shortBandName(band cleanupv1.PressureBand) string {
+	return strings.ToLower(strings.TrimPrefix(band.String(), "PRESSURE_BAND_"))
+}
+
+func shortActionName(action cleanupv1.PressureAction) string {
+	return strings.ToLower(strings.TrimPrefix(action.String(), "PRESSURE_ACTION_"))
 }

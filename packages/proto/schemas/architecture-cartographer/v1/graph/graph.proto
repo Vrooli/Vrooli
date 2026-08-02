@@ -164,6 +164,18 @@ service GraphService {
   // Honors X-Dry-Run.
   rpc ClearGraphSnapshots(ClearGraphSnapshotsRequest) returns (ClearGraphSnapshotsResponse);
 
+  // PreviewSnapshotRetention reports how much snapshot storage is
+  // reclaimable beyond the retention floor, without deleting anything.
+  //
+  // It is also the estimate/preview half of the cleanup-manager owner
+  // provider contract: cleanup-manager never duplicates owner-private
+  // deletion logic, so it asks this scenario what is safe to drop.
+  rpc PreviewSnapshotRetention(PreviewSnapshotRetentionRequest) returns (PreviewSnapshotRetentionResponse);
+
+  // ApplySnapshotRetention prunes snapshots beyond the retention floor and
+  // returns freed pages to the filesystem. Requires explicit confirmation.
+  rpc ApplySnapshotRetention(ApplySnapshotRetentionRequest) returns (ApplySnapshotRetentionResponse);
+
   // ExportGraph returns the snapshot in a serializable shape (e.g.,
   // JSON) for offline analysis or fixture authoring.
   rpc ExportGraph(ExportGraphRequest) returns (ExportGraphResponse);
@@ -399,4 +411,48 @@ message ArchetypeReport {
   // True when the declared primary archetype disagrees with the inferred one.
   bool convergence_drift = 3;
   common.v1.AttestedAnswer attestation = 4;
+}
+
+// ScenarioSnapshotCount is one scenario's snapshot inventory.
+message ScenarioSnapshotCount {
+  string scenario = 1;
+  int32 snapshot_count = 2;
+  // Rows beyond the retention floor for this scenario.
+  int32 reclaimable_count = 3;
+}
+
+message PreviewSnapshotRetentionRequest {
+  // keep_per_scenario overrides the configured retention floor for this
+  // preview only. Zero uses the configured value.
+  int32 keep_per_scenario = 1;
+}
+
+message PreviewSnapshotRetentionResponse {
+  // Payload bytes held by snapshots beyond the retention floor. This is
+  // payload length, not database file size: graph_snapshots shares its file
+  // with other tables, and reporting the whole file would claim reclaimable
+  // space that is not.
+  int64 reclaimable_bytes = 1;
+  // Rows that a prune would remove.
+  int32 reclaimable_rows = 2;
+  // The retention floor this preview was computed against.
+  int32 keep_per_scenario = 3;
+  int32 total_snapshots = 4;
+  repeated ScenarioSnapshotCount scenarios = 5;
+}
+
+message ApplySnapshotRetentionRequest {
+  int32 keep_per_scenario = 1;
+  // confirm must be true. Deletion is irreversible, so the caller states
+  // intent explicitly rather than having an empty request mean "delete".
+  bool confirm = 2;
+}
+
+message ApplySnapshotRetentionResponse {
+  int32 rows_removed = 1;
+  int64 bytes_reclaimed = 2;
+  // Database pages returned to the filesystem by incremental vacuum.
+  int64 pages_freed = 3;
+  int32 scenarios_scanned = 4;
+  int32 keep_per_scenario = 5;
 }

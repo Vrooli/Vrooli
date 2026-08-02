@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/shared/backlog.proto.
  */
 export const file_swarm_manager_v1_shared_backlog: GenFile = /*@__PURE__*/
-  fileDesc("CiVzd2FybS1tYW5hZ2VyL3YxL3NoYXJlZC9iYWNrbG9nLnByb3RvEh52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5zaGFyZWQixQEKC0JhY2tsb2dGaWxlEhUKBG5hbWUYASABKAlCB7pIBHICEAESFQoEcGF0aBgCIAEoCUIHukgEcgIQARIkCgR0eXBlGAMgASgJQha6SBNyEVIEZmlsZVIJZGlyZWN0b3J5EhoKBHNpemUYBCABKANCB7pIBCICKABIAIgBARI9CghjaGlsZHJlbhgFIAMoCzIrLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLnNoYXJlZC5CYWNrbG9nRmlsZUIHCgVfc2l6ZUJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvc2hhcmVkO3NoYXJlZGIGcHJvdG8z", [file_buf_validate_validate]);
+  fileDesc("CiVzd2FybS1tYW5hZ2VyL3YxL3NoYXJlZC9iYWNrbG9nLnByb3RvEh52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5zaGFyZWQixQEKC0JhY2tsb2dGaWxlEhUKBG5hbWUYASABKAlCB7pIBHICEAESFQoEcGF0aBgCIAEoCUIHukgEcgIQARIkCgR0eXBlGAMgASgJQha6SBNyEVIEZmlsZVIJZGlyZWN0b3J5EhoKBHNpemUYBCABKANCB7pIBCICKABIAIgBARI9CghjaGlsZHJlbhgFIAMoCzIrLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLnNoYXJlZC5CYWNrbG9nRmlsZUIHCgVfc2l6ZSKGAQoQQmFja2xvZ0NyaXRlcmlvbhIKCgJpZBgBIAEoCRIYCgdnaGVya2luGAIgASgJQge6SARyAhABEkIKBWNoZWNrGAMgASgLMi4udnJvb2xpLnN3YXJtX21hbmFnZXIudjEuc2hhcmVkLkNyaXRlcmlvbkNoZWNrSACIAQFCCAoGX2NoZWNrIoQBCg5Dcml0ZXJpb25DaGVjaxIuCgRraW5kGAEgASgJQiC6SB1yG1IQdGVzdF9nZW5pZV9waGFzZVIHY29tbWFuZBIQCghzY2VuYXJpbxgCIAEoCRINCgVwaGFzZRgDIAEoCRIMCgRhcmd2GAQgAygJEhMKC2V4cGVjdF9leGl0GAUgASgFQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9zaGFyZWQ7c2hhcmVkYgZwcm90bzM", [file_buf_validate_validate]);
 
 /**
  * BacklogFile represents a file or directory within a backlog item folder.
@@ -62,4 +62,78 @@ export type BacklogFile = Message<"vrooli.swarm_manager.v1.shared.BacklogFile"> 
  */
 export const BacklogFileSchema: GenMessage<BacklogFile> = /*@__PURE__*/
   messageDesc(file_swarm_manager_v1_shared_backlog, 0);
+
+/**
+ * BacklogCriterion is an independently settleable definition of done. It is
+ * shared because both the backlog domain projection and its API commands carry
+ * the same stable criterion identity.
+ *
+ * @generated from message vrooli.swarm_manager.v1.shared.BacklogCriterion
+ */
+export type BacklogCriterion = Message<"vrooli.swarm_manager.v1.shared.BacklogCriterion"> & {
+  /**
+   * Assigned by the server when criteria are first persisted. Clients omit it
+   * when creating or replacing criteria; retained IDs support review evidence
+   * and historical correlation.
+   *
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string gherkin = 2;
+   */
+  gherkin: string;
+
+  /**
+   * @generated from field: optional vrooli.swarm_manager.v1.shared.CriterionCheck check = 3;
+   */
+  check?: CriterionCheck | undefined;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.shared.BacklogCriterion.
+ * Use `create(BacklogCriterionSchema)` to create a new message.
+ */
+export const BacklogCriterionSchema: GenMessage<BacklogCriterion> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_shared_backlog, 1);
+
+/**
+ * CriterionCheck is the machine-verifiable check bound to a criterion.
+ *
+ * @generated from message vrooli.swarm_manager.v1.shared.CriterionCheck
+ */
+export type CriterionCheck = Message<"vrooli.swarm_manager.v1.shared.CriterionCheck"> & {
+  /**
+   * @generated from field: string kind = 1;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string scenario = 2;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string phase = 3;
+   */
+  phase: string;
+
+  /**
+   * @generated from field: repeated string argv = 4;
+   */
+  argv: string[];
+
+  /**
+   * @generated from field: int32 expect_exit = 5;
+   */
+  expectExit: number;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.shared.CriterionCheck.
+ * Use `create(CriterionCheckSchema)` to create a new message.
+ */
+export const CriterionCheckSchema: GenMessage<CriterionCheck> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_shared_backlog, 2);
 

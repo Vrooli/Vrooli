@@ -6,6 +6,10 @@
   "required": ["name", "description", "handler", "privilege", "bundling", "deployment"],
   "additionalProperties": false,
   "properties": {
+    "retention": {
+      "$ref": "common.schema.json#/definitions/retention",
+      "description": "Declared storage ceilings for the runtime data this safeguard accumulates. Enforced by packages/api-core/retention. Distinct from durable_data, which declares what to back up."
+    },
     "$schema": {
       "type": "string"
     },

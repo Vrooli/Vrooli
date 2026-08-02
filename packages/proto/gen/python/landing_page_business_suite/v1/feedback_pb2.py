@@ -22,9 +22,10 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
+from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n-landing-page-business-suite/v1/feedback.proto\x12\x1elanding_page_business_suite.v1\"\xa2\x01\n\x15\x46\x65\x65\x64\x62\x61\x63kCreateRequest\x12\x12\n\x04type\x18\x01 \x01(\tR\x04type\x12\x14\n\x05\x65mail\x18\x02 \x01(\tR\x05\x65mail\x12\x18\n\x07subject\x18\x03 \x01(\tR\x07subject\x12\x18\n\x07message\x18\x04 \x01(\tR\x07message\x12\x1e\n\x08order_id\x18\x05 \x01(\tH\x00R\x07orderId\x88\x01\x01\x42\x0b\n\t_order_id\"B\n\x16\x46\x65\x65\x64\x62\x61\x63kCreateResponse\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12\x0e\n\x02id\x18\x02 \x01(\x03R\x02id\"9\n\rFeedbackError\x12\x14\n\x05\x65rror\x18\x01 \x01(\tR\x05\x65rror\x12\x12\n\x04type\x18\x02 \x01(\tR\x04typeBnZlgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n-landing-page-business-suite/v1/feedback.proto\x12\x1elanding_page_business_suite.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa2\x01\n\x15\x46\x65\x65\x64\x62\x61\x63kCreateRequest\x12\x12\n\x04type\x18\x01 \x01(\tR\x04type\x12\x14\n\x05\x65mail\x18\x02 \x01(\tR\x05\x65mail\x12\x18\n\x07subject\x18\x03 \x01(\tR\x07subject\x12\x18\n\x07message\x18\x04 \x01(\tR\x07message\x12\x1e\n\x08order_id\x18\x05 \x01(\tH\x00R\x07orderId\x88\x01\x01\x42\x0b\n\t_order_id\"B\n\x16\x46\x65\x65\x64\x62\x61\x63kCreateResponse\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12\x0e\n\x02id\x18\x02 \x01(\x03R\x02id\"9\n\rFeedbackError\x12\x14\n\x05\x65rror\x18\x01 \x01(\tR\x05\x65rror\x12\x12\n\x04type\x18\x02 \x01(\tR\x04type\"\x97\x03\n\x0e\x46\x65\x65\x64\x62\x61\x63kRecord\x12\x0e\n\x02id\x18\x01 \x01(\x03R\x02id\x12@\n\x04type\x18\x02 \x01(\x0e\x32,.landing_page_business_suite.v1.FeedbackTypeR\x04type\x12\x14\n\x05\x65mail\x18\x03 \x01(\tR\x05\x65mail\x12\x18\n\x07subject\x18\x04 \x01(\tR\x07subject\x12\x18\n\x07message\x18\x05 \x01(\tR\x07message\x12\x1e\n\x08order_id\x18\x06 \x01(\tH\x00R\x07orderId\x88\x01\x01\x12\x46\n\x06status\x18\x07 \x01(\x0e\x32..landing_page_business_suite.v1.FeedbackStatusR\x06status\x12\x39\n\ncreated_at\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x39\n\nupdated_at\x18\t \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tupdatedAtB\x0b\n\t_order_id\"m\n\x13ListFeedbackRequest\x12K\n\x06status\x18\x01 \x01(\x0e\x32..landing_page_business_suite.v1.FeedbackStatusH\x00R\x06status\x88\x01\x01\x42\t\n\x07_status\"b\n\x14ListFeedbackResponse\x12J\n\x08\x66\x65\x65\x64\x62\x61\x63k\x18\x01 \x03(\x0b\x32..landing_page_business_suite.v1.FeedbackRecordR\x08\x66\x65\x65\x64\x62\x61\x63k\"$\n\x12GetFeedbackRequest\x12\x0e\n\x02id\x18\x01 \x01(\x03R\x02id\"a\n\x13GetFeedbackResponse\x12J\n\x08\x66\x65\x65\x64\x62\x61\x63k\x18\x01 \x01(\x0b\x32..landing_page_business_suite.v1.FeedbackRecordR\x08\x66\x65\x65\x64\x62\x61\x63k\"u\n\x1bUpdateFeedbackStatusRequest\x12\x0e\n\x02id\x18\x01 \x01(\x03R\x02id\x12\x46\n\x06status\x18\x02 \x01(\x0e\x32..landing_page_business_suite.v1.FeedbackStatusR\x06status\"j\n\x1cUpdateFeedbackStatusResponse\x12J\n\x08\x66\x65\x65\x64\x62\x61\x63k\x18\x01 \x01(\x0b\x32..landing_page_business_suite.v1.FeedbackRecordR\x08\x66\x65\x65\x64\x62\x61\x63k\"\'\n\x15\x44\x65leteFeedbackRequest\x12\x0e\n\x02id\x18\x01 \x01(\x03R\x02id\"B\n\x16\x44\x65leteFeedbackResponse\x12\x18\n\x07\x64\x65leted\x18\x01 \x01(\x08R\x07\x64\x65leted\x12\x0e\n\x02id\x18\x02 \x01(\x03R\x02id\"-\n\x19\x44\x65leteFeedbackBulkRequest\x12\x10\n\x03ids\x18\x01 \x03(\x03R\x03ids\"6\n\x1a\x44\x65leteFeedbackBulkResponse\x12\x18\n\x07\x64\x65leted\x18\x01 \x01(\x03R\x07\x64\x65leted*\x94\x01\n\x0c\x46\x65\x65\x64\x62\x61\x63kType\x12\x1d\n\x19\x46\x45\x45\x44\x42\x41\x43K_TYPE_UNSPECIFIED\x10\x00\x12\x18\n\x14\x46\x45\x45\x44\x42\x41\x43K_TYPE_REFUND\x10\x01\x12\x15\n\x11\x46\x45\x45\x44\x42\x41\x43K_TYPE_BUG\x10\x02\x12\x19\n\x15\x46\x45\x45\x44\x42\x41\x43K_TYPE_FEATURE\x10\x03\x12\x19\n\x15\x46\x45\x45\x44\x42\x41\x43K_TYPE_GENERAL\x10\x04*\xab\x01\n\x0e\x46\x65\x65\x64\x62\x61\x63kStatus\x12\x1f\n\x1b\x46\x45\x45\x44\x42\x41\x43K_STATUS_UNSPECIFIED\x10\x00\x12\x1b\n\x17\x46\x45\x45\x44\x42\x41\x43K_STATUS_PENDING\x10\x01\x12\x1f\n\x1b\x46\x45\x45\x44\x42\x41\x43K_STATUS_IN_PROGRESS\x10\x02\x12\x1c\n\x18\x46\x45\x45\x44\x42\x41\x43K_STATUS_RESOLVED\x10\x03\x12\x1c\n\x18\x46\x45\x45\x44\x42\x41\x43K_STATUS_REJECTED\x10\x04\x32\xa8\x06\n\x0f\x46\x65\x65\x64\x62\x61\x63kService\x12\x7f\n\x0e\x43reateFeedback\x12\x35.landing_page_business_suite.v1.FeedbackCreateRequest\x1a\x36.landing_page_business_suite.v1.FeedbackCreateResponse\x12y\n\x0cListFeedback\x12\x33.landing_page_business_suite.v1.ListFeedbackRequest\x1a\x34.landing_page_business_suite.v1.ListFeedbackResponse\x12v\n\x0bGetFeedback\x12\x32.landing_page_business_suite.v1.GetFeedbackRequest\x1a\x33.landing_page_business_suite.v1.GetFeedbackResponse\x12\x91\x01\n\x14UpdateFeedbackStatus\x12;.landing_page_business_suite.v1.UpdateFeedbackStatusRequest\x1a<.landing_page_business_suite.v1.UpdateFeedbackStatusResponse\x12\x7f\n\x0e\x44\x65leteFeedback\x12\x35.landing_page_business_suite.v1.DeleteFeedbackRequest\x1a\x36.landing_page_business_suite.v1.DeleteFeedbackResponse\x12\x8b\x01\n\x12\x44\x65leteFeedbackBulk\x12\x39.landing_page_business_suite.v1.DeleteFeedbackBulkRequest\x1a:.landing_page_business_suite.v1.DeleteFeedbackBulkResponseBnZlgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,10 +33,38 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'landing_page_business_suite
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Zlgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1'
-  _globals['_FEEDBACKCREATEREQUEST']._serialized_start=82
-  _globals['_FEEDBACKCREATEREQUEST']._serialized_end=244
-  _globals['_FEEDBACKCREATERESPONSE']._serialized_start=246
-  _globals['_FEEDBACKCREATERESPONSE']._serialized_end=312
-  _globals['_FEEDBACKERROR']._serialized_start=314
-  _globals['_FEEDBACKERROR']._serialized_end=371
+  _globals['_FEEDBACKTYPE']._serialized_start=1604
+  _globals['_FEEDBACKTYPE']._serialized_end=1752
+  _globals['_FEEDBACKSTATUS']._serialized_start=1755
+  _globals['_FEEDBACKSTATUS']._serialized_end=1926
+  _globals['_FEEDBACKCREATEREQUEST']._serialized_start=115
+  _globals['_FEEDBACKCREATEREQUEST']._serialized_end=277
+  _globals['_FEEDBACKCREATERESPONSE']._serialized_start=279
+  _globals['_FEEDBACKCREATERESPONSE']._serialized_end=345
+  _globals['_FEEDBACKERROR']._serialized_start=347
+  _globals['_FEEDBACKERROR']._serialized_end=404
+  _globals['_FEEDBACKRECORD']._serialized_start=407
+  _globals['_FEEDBACKRECORD']._serialized_end=814
+  _globals['_LISTFEEDBACKREQUEST']._serialized_start=816
+  _globals['_LISTFEEDBACKREQUEST']._serialized_end=925
+  _globals['_LISTFEEDBACKRESPONSE']._serialized_start=927
+  _globals['_LISTFEEDBACKRESPONSE']._serialized_end=1025
+  _globals['_GETFEEDBACKREQUEST']._serialized_start=1027
+  _globals['_GETFEEDBACKREQUEST']._serialized_end=1063
+  _globals['_GETFEEDBACKRESPONSE']._serialized_start=1065
+  _globals['_GETFEEDBACKRESPONSE']._serialized_end=1162
+  _globals['_UPDATEFEEDBACKSTATUSREQUEST']._serialized_start=1164
+  _globals['_UPDATEFEEDBACKSTATUSREQUEST']._serialized_end=1281
+  _globals['_UPDATEFEEDBACKSTATUSRESPONSE']._serialized_start=1283
+  _globals['_UPDATEFEEDBACKSTATUSRESPONSE']._serialized_end=1389
+  _globals['_DELETEFEEDBACKREQUEST']._serialized_start=1391
+  _globals['_DELETEFEEDBACKREQUEST']._serialized_end=1430
+  _globals['_DELETEFEEDBACKRESPONSE']._serialized_start=1432
+  _globals['_DELETEFEEDBACKRESPONSE']._serialized_end=1498
+  _globals['_DELETEFEEDBACKBULKREQUEST']._serialized_start=1500
+  _globals['_DELETEFEEDBACKBULKREQUEST']._serialized_end=1545
+  _globals['_DELETEFEEDBACKBULKRESPONSE']._serialized_start=1547
+  _globals['_DELETEFEEDBACKBULKRESPONSE']._serialized_end=1601
+  _globals['_FEEDBACKSERVICE']._serialized_start=1929
+  _globals['_FEEDBACKSERVICE']._serialized_end=2737
 # @@protoc_insertion_point(module_scope)

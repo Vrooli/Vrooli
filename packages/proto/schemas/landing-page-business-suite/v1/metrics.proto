@@ -35,6 +35,9 @@ message TrackEventRequest {
   string visitor_id = 5;
   // Optional client-supplied idempotency id; server derives one when empty.
   string event_id = 6;
+  // Variant slug used by the existing analytics store and public UI. Clients
+  // should supply this when they do not have the internal numeric variant id.
+  string variant_slug = 7;
 }
 
 // TrackEventResponse acknowledges ingestion.

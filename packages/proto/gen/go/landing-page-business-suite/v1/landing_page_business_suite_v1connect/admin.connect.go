@@ -25,6 +25,10 @@ const (
 	AdminAuthServiceName = "landing_page_business_suite.v1.AdminAuthService"
 	// AdminResetServiceName is the fully-qualified name of the AdminResetService service.
 	AdminResetServiceName = "landing_page_business_suite.v1.AdminResetService"
+	// AdminProfileServiceName is the fully-qualified name of the AdminProfileService service.
+	AdminProfileServiceName = "landing_page_business_suite.v1.AdminProfileService"
+	// AdministrationServiceName is the fully-qualified name of the AdministrationService service.
+	AdministrationServiceName = "landing_page_business_suite.v1.AdministrationService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -45,6 +49,27 @@ const (
 	// AdminResetServiceResetDemoDataProcedure is the fully-qualified name of the AdminResetService's
 	// ResetDemoData RPC.
 	AdminResetServiceResetDemoDataProcedure = "/landing_page_business_suite.v1.AdminResetService/ResetDemoData"
+	// AdminProfileServiceGetAdminProfileProcedure is the fully-qualified name of the
+	// AdminProfileService's GetAdminProfile RPC.
+	AdminProfileServiceGetAdminProfileProcedure = "/landing_page_business_suite.v1.AdminProfileService/GetAdminProfile"
+	// AdminProfileServiceUpdateAdminProfileProcedure is the fully-qualified name of the
+	// AdminProfileService's UpdateAdminProfile RPC.
+	AdminProfileServiceUpdateAdminProfileProcedure = "/landing_page_business_suite.v1.AdminProfileService/UpdateAdminProfile"
+	// AdministrationServiceListAPIKeysProcedure is the fully-qualified name of the
+	// AdministrationService's ListAPIKeys RPC.
+	AdministrationServiceListAPIKeysProcedure = "/landing_page_business_suite.v1.AdministrationService/ListAPIKeys"
+	// AdministrationServiceCreateAPIKeyProcedure is the fully-qualified name of the
+	// AdministrationService's CreateAPIKey RPC.
+	AdministrationServiceCreateAPIKeyProcedure = "/landing_page_business_suite.v1.AdministrationService/CreateAPIKey"
+	// AdministrationServiceDeleteAPIKeyProcedure is the fully-qualified name of the
+	// AdministrationService's DeleteAPIKey RPC.
+	AdministrationServiceDeleteAPIKeyProcedure = "/landing_page_business_suite.v1.AdministrationService/DeleteAPIKey"
+	// AdministrationServiceTestAPIKeyProcedure is the fully-qualified name of the
+	// AdministrationService's TestAPIKey RPC.
+	AdministrationServiceTestAPIKeyProcedure = "/landing_page_business_suite.v1.AdministrationService/TestAPIKey"
+	// AdministrationServiceSetAPIKeyActiveProcedure is the fully-qualified name of the
+	// AdministrationService's SetAPIKeyActive RPC.
+	AdministrationServiceSetAPIKeyActiveProcedure = "/landing_page_business_suite.v1.AdministrationService/SetAPIKeyActive"
 )
 
 // AdminAuthServiceClient is a client for the landing_page_business_suite.v1.AdminAuthService
@@ -251,4 +276,280 @@ type UnimplementedAdminResetServiceHandler struct{}
 
 func (UnimplementedAdminResetServiceHandler) ResetDemoData(context.Context, *connect.Request[v1.ResetDemoDataRequest]) (*connect.Response[v1.ResetDemoDataResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.AdminResetService.ResetDemoData is not implemented"))
+}
+
+// AdminProfileServiceClient is a client for the landing_page_business_suite.v1.AdminProfileService
+// service.
+type AdminProfileServiceClient interface {
+	GetAdminProfile(context.Context, *connect.Request[v1.GetAdminProfileRequest]) (*connect.Response[v1.GetAdminProfileResponse], error)
+	UpdateAdminProfile(context.Context, *connect.Request[v1.UpdateAdminProfileRequest]) (*connect.Response[v1.UpdateAdminProfileResponse], error)
+}
+
+// NewAdminProfileServiceClient constructs a client for the
+// landing_page_business_suite.v1.AdminProfileService service. By default, it uses the Connect
+// protocol with the binary Protobuf Codec, asks for gzipped responses, and sends uncompressed
+// requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
+// connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewAdminProfileServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) AdminProfileServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	adminProfileServiceMethods := v1.File_landing_page_business_suite_v1_admin_proto.Services().ByName("AdminProfileService").Methods()
+	return &adminProfileServiceClient{
+		getAdminProfile: connect.NewClient[v1.GetAdminProfileRequest, v1.GetAdminProfileResponse](
+			httpClient,
+			baseURL+AdminProfileServiceGetAdminProfileProcedure,
+			connect.WithSchema(adminProfileServiceMethods.ByName("GetAdminProfile")),
+			connect.WithClientOptions(opts...),
+		),
+		updateAdminProfile: connect.NewClient[v1.UpdateAdminProfileRequest, v1.UpdateAdminProfileResponse](
+			httpClient,
+			baseURL+AdminProfileServiceUpdateAdminProfileProcedure,
+			connect.WithSchema(adminProfileServiceMethods.ByName("UpdateAdminProfile")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// adminProfileServiceClient implements AdminProfileServiceClient.
+type adminProfileServiceClient struct {
+	getAdminProfile    *connect.Client[v1.GetAdminProfileRequest, v1.GetAdminProfileResponse]
+	updateAdminProfile *connect.Client[v1.UpdateAdminProfileRequest, v1.UpdateAdminProfileResponse]
+}
+
+// GetAdminProfile calls landing_page_business_suite.v1.AdminProfileService.GetAdminProfile.
+func (c *adminProfileServiceClient) GetAdminProfile(ctx context.Context, req *connect.Request[v1.GetAdminProfileRequest]) (*connect.Response[v1.GetAdminProfileResponse], error) {
+	return c.getAdminProfile.CallUnary(ctx, req)
+}
+
+// UpdateAdminProfile calls landing_page_business_suite.v1.AdminProfileService.UpdateAdminProfile.
+func (c *adminProfileServiceClient) UpdateAdminProfile(ctx context.Context, req *connect.Request[v1.UpdateAdminProfileRequest]) (*connect.Response[v1.UpdateAdminProfileResponse], error) {
+	return c.updateAdminProfile.CallUnary(ctx, req)
+}
+
+// AdminProfileServiceHandler is an implementation of the
+// landing_page_business_suite.v1.AdminProfileService service.
+type AdminProfileServiceHandler interface {
+	GetAdminProfile(context.Context, *connect.Request[v1.GetAdminProfileRequest]) (*connect.Response[v1.GetAdminProfileResponse], error)
+	UpdateAdminProfile(context.Context, *connect.Request[v1.UpdateAdminProfileRequest]) (*connect.Response[v1.UpdateAdminProfileResponse], error)
+}
+
+// NewAdminProfileServiceHandler builds an HTTP handler from the service implementation. It returns
+// the path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewAdminProfileServiceHandler(svc AdminProfileServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	adminProfileServiceMethods := v1.File_landing_page_business_suite_v1_admin_proto.Services().ByName("AdminProfileService").Methods()
+	adminProfileServiceGetAdminProfileHandler := connect.NewUnaryHandler(
+		AdminProfileServiceGetAdminProfileProcedure,
+		svc.GetAdminProfile,
+		connect.WithSchema(adminProfileServiceMethods.ByName("GetAdminProfile")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminProfileServiceUpdateAdminProfileHandler := connect.NewUnaryHandler(
+		AdminProfileServiceUpdateAdminProfileProcedure,
+		svc.UpdateAdminProfile,
+		connect.WithSchema(adminProfileServiceMethods.ByName("UpdateAdminProfile")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/landing_page_business_suite.v1.AdminProfileService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case AdminProfileServiceGetAdminProfileProcedure:
+			adminProfileServiceGetAdminProfileHandler.ServeHTTP(w, r)
+		case AdminProfileServiceUpdateAdminProfileProcedure:
+			adminProfileServiceUpdateAdminProfileHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedAdminProfileServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedAdminProfileServiceHandler struct{}
+
+func (UnimplementedAdminProfileServiceHandler) GetAdminProfile(context.Context, *connect.Request[v1.GetAdminProfileRequest]) (*connect.Response[v1.GetAdminProfileResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.AdminProfileService.GetAdminProfile is not implemented"))
+}
+
+func (UnimplementedAdminProfileServiceHandler) UpdateAdminProfile(context.Context, *connect.Request[v1.UpdateAdminProfileRequest]) (*connect.Response[v1.UpdateAdminProfileResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.AdminProfileService.UpdateAdminProfile is not implemented"))
+}
+
+// AdministrationServiceClient is a client for the
+// landing_page_business_suite.v1.AdministrationService service.
+type AdministrationServiceClient interface {
+	ListAPIKeys(context.Context, *connect.Request[v1.ListAPIKeysRequest]) (*connect.Response[v1.ListAPIKeysResponse], error)
+	CreateAPIKey(context.Context, *connect.Request[v1.CreateAPIKeyRequest]) (*connect.Response[v1.CreateAPIKeyResponse], error)
+	DeleteAPIKey(context.Context, *connect.Request[v1.DeleteAPIKeyRequest]) (*connect.Response[v1.DeleteAPIKeyResponse], error)
+	TestAPIKey(context.Context, *connect.Request[v1.TestAPIKeyRequest]) (*connect.Response[v1.TestAPIKeyResponse], error)
+	SetAPIKeyActive(context.Context, *connect.Request[v1.SetAPIKeyActiveRequest]) (*connect.Response[v1.SetAPIKeyActiveResponse], error)
+}
+
+// NewAdministrationServiceClient constructs a client for the
+// landing_page_business_suite.v1.AdministrationService service. By default, it uses the Connect
+// protocol with the binary Protobuf Codec, asks for gzipped responses, and sends uncompressed
+// requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
+// connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewAdministrationServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) AdministrationServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	administrationServiceMethods := v1.File_landing_page_business_suite_v1_admin_proto.Services().ByName("AdministrationService").Methods()
+	return &administrationServiceClient{
+		listAPIKeys: connect.NewClient[v1.ListAPIKeysRequest, v1.ListAPIKeysResponse](
+			httpClient,
+			baseURL+AdministrationServiceListAPIKeysProcedure,
+			connect.WithSchema(administrationServiceMethods.ByName("ListAPIKeys")),
+			connect.WithClientOptions(opts...),
+		),
+		createAPIKey: connect.NewClient[v1.CreateAPIKeyRequest, v1.CreateAPIKeyResponse](
+			httpClient,
+			baseURL+AdministrationServiceCreateAPIKeyProcedure,
+			connect.WithSchema(administrationServiceMethods.ByName("CreateAPIKey")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteAPIKey: connect.NewClient[v1.DeleteAPIKeyRequest, v1.DeleteAPIKeyResponse](
+			httpClient,
+			baseURL+AdministrationServiceDeleteAPIKeyProcedure,
+			connect.WithSchema(administrationServiceMethods.ByName("DeleteAPIKey")),
+			connect.WithClientOptions(opts...),
+		),
+		testAPIKey: connect.NewClient[v1.TestAPIKeyRequest, v1.TestAPIKeyResponse](
+			httpClient,
+			baseURL+AdministrationServiceTestAPIKeyProcedure,
+			connect.WithSchema(administrationServiceMethods.ByName("TestAPIKey")),
+			connect.WithClientOptions(opts...),
+		),
+		setAPIKeyActive: connect.NewClient[v1.SetAPIKeyActiveRequest, v1.SetAPIKeyActiveResponse](
+			httpClient,
+			baseURL+AdministrationServiceSetAPIKeyActiveProcedure,
+			connect.WithSchema(administrationServiceMethods.ByName("SetAPIKeyActive")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// administrationServiceClient implements AdministrationServiceClient.
+type administrationServiceClient struct {
+	listAPIKeys     *connect.Client[v1.ListAPIKeysRequest, v1.ListAPIKeysResponse]
+	createAPIKey    *connect.Client[v1.CreateAPIKeyRequest, v1.CreateAPIKeyResponse]
+	deleteAPIKey    *connect.Client[v1.DeleteAPIKeyRequest, v1.DeleteAPIKeyResponse]
+	testAPIKey      *connect.Client[v1.TestAPIKeyRequest, v1.TestAPIKeyResponse]
+	setAPIKeyActive *connect.Client[v1.SetAPIKeyActiveRequest, v1.SetAPIKeyActiveResponse]
+}
+
+// ListAPIKeys calls landing_page_business_suite.v1.AdministrationService.ListAPIKeys.
+func (c *administrationServiceClient) ListAPIKeys(ctx context.Context, req *connect.Request[v1.ListAPIKeysRequest]) (*connect.Response[v1.ListAPIKeysResponse], error) {
+	return c.listAPIKeys.CallUnary(ctx, req)
+}
+
+// CreateAPIKey calls landing_page_business_suite.v1.AdministrationService.CreateAPIKey.
+func (c *administrationServiceClient) CreateAPIKey(ctx context.Context, req *connect.Request[v1.CreateAPIKeyRequest]) (*connect.Response[v1.CreateAPIKeyResponse], error) {
+	return c.createAPIKey.CallUnary(ctx, req)
+}
+
+// DeleteAPIKey calls landing_page_business_suite.v1.AdministrationService.DeleteAPIKey.
+func (c *administrationServiceClient) DeleteAPIKey(ctx context.Context, req *connect.Request[v1.DeleteAPIKeyRequest]) (*connect.Response[v1.DeleteAPIKeyResponse], error) {
+	return c.deleteAPIKey.CallUnary(ctx, req)
+}
+
+// TestAPIKey calls landing_page_business_suite.v1.AdministrationService.TestAPIKey.
+func (c *administrationServiceClient) TestAPIKey(ctx context.Context, req *connect.Request[v1.TestAPIKeyRequest]) (*connect.Response[v1.TestAPIKeyResponse], error) {
+	return c.testAPIKey.CallUnary(ctx, req)
+}
+
+// SetAPIKeyActive calls landing_page_business_suite.v1.AdministrationService.SetAPIKeyActive.
+func (c *administrationServiceClient) SetAPIKeyActive(ctx context.Context, req *connect.Request[v1.SetAPIKeyActiveRequest]) (*connect.Response[v1.SetAPIKeyActiveResponse], error) {
+	return c.setAPIKeyActive.CallUnary(ctx, req)
+}
+
+// AdministrationServiceHandler is an implementation of the
+// landing_page_business_suite.v1.AdministrationService service.
+type AdministrationServiceHandler interface {
+	ListAPIKeys(context.Context, *connect.Request[v1.ListAPIKeysRequest]) (*connect.Response[v1.ListAPIKeysResponse], error)
+	CreateAPIKey(context.Context, *connect.Request[v1.CreateAPIKeyRequest]) (*connect.Response[v1.CreateAPIKeyResponse], error)
+	DeleteAPIKey(context.Context, *connect.Request[v1.DeleteAPIKeyRequest]) (*connect.Response[v1.DeleteAPIKeyResponse], error)
+	TestAPIKey(context.Context, *connect.Request[v1.TestAPIKeyRequest]) (*connect.Response[v1.TestAPIKeyResponse], error)
+	SetAPIKeyActive(context.Context, *connect.Request[v1.SetAPIKeyActiveRequest]) (*connect.Response[v1.SetAPIKeyActiveResponse], error)
+}
+
+// NewAdministrationServiceHandler builds an HTTP handler from the service implementation. It
+// returns the path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewAdministrationServiceHandler(svc AdministrationServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	administrationServiceMethods := v1.File_landing_page_business_suite_v1_admin_proto.Services().ByName("AdministrationService").Methods()
+	administrationServiceListAPIKeysHandler := connect.NewUnaryHandler(
+		AdministrationServiceListAPIKeysProcedure,
+		svc.ListAPIKeys,
+		connect.WithSchema(administrationServiceMethods.ByName("ListAPIKeys")),
+		connect.WithHandlerOptions(opts...),
+	)
+	administrationServiceCreateAPIKeyHandler := connect.NewUnaryHandler(
+		AdministrationServiceCreateAPIKeyProcedure,
+		svc.CreateAPIKey,
+		connect.WithSchema(administrationServiceMethods.ByName("CreateAPIKey")),
+		connect.WithHandlerOptions(opts...),
+	)
+	administrationServiceDeleteAPIKeyHandler := connect.NewUnaryHandler(
+		AdministrationServiceDeleteAPIKeyProcedure,
+		svc.DeleteAPIKey,
+		connect.WithSchema(administrationServiceMethods.ByName("DeleteAPIKey")),
+		connect.WithHandlerOptions(opts...),
+	)
+	administrationServiceTestAPIKeyHandler := connect.NewUnaryHandler(
+		AdministrationServiceTestAPIKeyProcedure,
+		svc.TestAPIKey,
+		connect.WithSchema(administrationServiceMethods.ByName("TestAPIKey")),
+		connect.WithHandlerOptions(opts...),
+	)
+	administrationServiceSetAPIKeyActiveHandler := connect.NewUnaryHandler(
+		AdministrationServiceSetAPIKeyActiveProcedure,
+		svc.SetAPIKeyActive,
+		connect.WithSchema(administrationServiceMethods.ByName("SetAPIKeyActive")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/landing_page_business_suite.v1.AdministrationService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case AdministrationServiceListAPIKeysProcedure:
+			administrationServiceListAPIKeysHandler.ServeHTTP(w, r)
+		case AdministrationServiceCreateAPIKeyProcedure:
+			administrationServiceCreateAPIKeyHandler.ServeHTTP(w, r)
+		case AdministrationServiceDeleteAPIKeyProcedure:
+			administrationServiceDeleteAPIKeyHandler.ServeHTTP(w, r)
+		case AdministrationServiceTestAPIKeyProcedure:
+			administrationServiceTestAPIKeyHandler.ServeHTTP(w, r)
+		case AdministrationServiceSetAPIKeyActiveProcedure:
+			administrationServiceSetAPIKeyActiveHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedAdministrationServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedAdministrationServiceHandler struct{}
+
+func (UnimplementedAdministrationServiceHandler) ListAPIKeys(context.Context, *connect.Request[v1.ListAPIKeysRequest]) (*connect.Response[v1.ListAPIKeysResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.AdministrationService.ListAPIKeys is not implemented"))
+}
+
+func (UnimplementedAdministrationServiceHandler) CreateAPIKey(context.Context, *connect.Request[v1.CreateAPIKeyRequest]) (*connect.Response[v1.CreateAPIKeyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.AdministrationService.CreateAPIKey is not implemented"))
+}
+
+func (UnimplementedAdministrationServiceHandler) DeleteAPIKey(context.Context, *connect.Request[v1.DeleteAPIKeyRequest]) (*connect.Response[v1.DeleteAPIKeyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.AdministrationService.DeleteAPIKey is not implemented"))
+}
+
+func (UnimplementedAdministrationServiceHandler) TestAPIKey(context.Context, *connect.Request[v1.TestAPIKeyRequest]) (*connect.Response[v1.TestAPIKeyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.AdministrationService.TestAPIKey is not implemented"))
+}
+
+func (UnimplementedAdministrationServiceHandler) SetAPIKeyActive(context.Context, *connect.Request[v1.SetAPIKeyActiveRequest]) (*connect.Response[v1.SetAPIKeyActiveResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.AdministrationService.SetAPIKeyActive is not implemented"))
 }

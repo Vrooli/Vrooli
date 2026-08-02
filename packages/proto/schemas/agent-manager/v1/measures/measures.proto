@@ -28,6 +28,7 @@ service MeasuresService {
   rpc ErrorPatterns(ErrorPatternsRequest) returns (ErrorPatternsResponse);
   rpc FileRereadRate(FileRereadRateRequest) returns (FileRereadRateResponse);
   rpc FindingRecurrenceRate(FindingRecurrenceRateRequest) returns (FindingRecurrenceRateResponse);
+  rpc EpisodeCohort(EpisodeCohortRequest) returns (EpisodeCohortResponse);
   // SelectCohort is the non-aggregate companion to the measures: it exposes
   // the run ids behind the exact same durable filter used by an aggregate.
   rpc SelectCohort(SelectCohortRequest) returns (SelectCohortResponse);
@@ -48,6 +49,19 @@ message InvocationFilter {
   string tag_prefix = 9;
   string run_status = 10;
   string tool_name = 11;
+  string episode_pattern = 12;
+  string episode_cause_scope = 13;
+  string episode_fingerprint = 14;
+  string self_report_rule_id = 15;
+  string self_report_cause_scope = 16;
+}
+
+message MeasureValidity {
+  string state = 1;
+  string reason = 2;
+  int64 sample_size = 3;
+  int64 largest_fingerprint_bucket = 4;
+  double largest_fingerprint_share = 5;
 }
 
 message ExternalToolShareRequest {
@@ -60,6 +74,7 @@ message ExternalToolShareResponse {
   int64 resolved_calls = 3;
   int64 unknown_calls = 4;
   string executed_query = 5;
+  MeasureValidity validity = 100;
 }
 
 message RetryRateRequest {
@@ -71,6 +86,7 @@ message RetryRateResponse {
   int64 retry_calls = 2;
   int64 total_calls = 3;
   string executed_query = 4;
+  MeasureValidity validity = 100;
 }
 
 message HelpRecoveryRateRequest {
@@ -82,6 +98,7 @@ message HelpRecoveryRateResponse {
   int64 help_recoveries = 2;
   int64 total_calls = 3;
   string executed_query = 4;
+  MeasureValidity validity = 100;
 }
 
 message RepeatedWorkRateRequest {
@@ -93,6 +110,7 @@ message RepeatedWorkRateResponse {
   int64 repeated_calls = 2;
   int64 total_calls = 3;
   string executed_query = 4;
+  MeasureValidity validity = 100;
 }
 
 message ToolFailureRateRequest {
@@ -104,6 +122,7 @@ message ToolFailureRateResponse {
   int64 failed_calls = 2;
   int64 total_calls = 3;
   string executed_query = 4;
+  MeasureValidity validity = 100;
 }
 
 message RunSuccessRateRequest {
@@ -115,6 +134,7 @@ message RunSuccessRateResponse {
   int64 successful_runs = 2;
   int64 terminal_runs = 3;
   string executed_query = 4;
+  MeasureValidity validity = 100;
 }
 
 message RunCycleTimeRequest {
@@ -125,6 +145,7 @@ message RunCycleTimeResponse {
   double average_duration_ms = 1;
   int64 completed_duration_runs = 2;
   string executed_query = 3;
+  MeasureValidity validity = 100;
 }
 
 // RunDurationStatistics preserves the complete duration summary that the
@@ -144,6 +165,7 @@ message RunDurationStatisticsResponse {
   int64 max_duration_ms = 6;
   int64 count = 7;
   string executed_query = 8;
+  MeasureValidity validity = 100;
 }
 
 message RunCostRequest {
@@ -156,6 +178,7 @@ message RunCostResponse {
   int64 total_tokens = 3;
   int64 total_runs = 4;
   string executed_query = 5;
+  MeasureValidity validity = 100;
   int64 input_tokens = 6;
   int64 output_tokens = 7;
   int64 cache_read_tokens = 8;
@@ -177,6 +200,7 @@ message RunVolumeResponse {
   int64 total_runs = 1;
   int64 terminal_runs = 2;
   string executed_query = 3;
+  MeasureValidity validity = 100;
 }
 
 // RunStatusDistribution preserves the existing status-count question as a
@@ -193,6 +217,7 @@ message RunStatusCount {
 message RunStatusDistributionResponse {
   repeated RunStatusCount rows = 1;
   string executed_query = 2;
+  MeasureValidity validity = 100;
 }
 
 // RunBreakdownRow is a compact, durable terminal-run aggregate. Individual
@@ -216,6 +241,7 @@ message RunnerBreakdownRequest {
 message RunnerBreakdownResponse {
   repeated RunBreakdownRow rows = 1;
   string executed_query = 2;
+  MeasureValidity validity = 100;
 }
 message ModelBreakdownRequest {
   vrooli.measures.v1.TimeWindow window = 1;
@@ -224,6 +250,7 @@ message ModelBreakdownRequest {
 message ModelBreakdownResponse {
   repeated RunBreakdownRow rows = 1;
   string executed_query = 2;
+  MeasureValidity validity = 100;
 }
 message ProfileBreakdownRequest {
   vrooli.measures.v1.TimeWindow window = 1;
@@ -232,6 +259,7 @@ message ProfileBreakdownRequest {
 message ProfileBreakdownResponse {
   repeated RunBreakdownRow rows = 1;
   string executed_query = 2;
+  MeasureValidity validity = 100;
 }
 
 // TerminalRunTrend is an hourly terminal-time series. It intentionally does
@@ -253,6 +281,7 @@ message TerminalRunTrendRow {
 message TerminalRunTrendResponse {
   repeated TerminalRunTrendRow rows = 1;
   string executed_query = 2;
+  MeasureValidity validity = 100;
 }
 
 message ToolUsageRequest {
@@ -268,6 +297,7 @@ message ToolUsageRow {
 message ToolUsageResponse {
   repeated ToolUsageRow rows = 1;
   string executed_query = 2;
+  MeasureValidity validity = 100;
 }
 
 message ErrorPatternsRequest {
@@ -283,6 +313,7 @@ message ErrorPatternRow {
 message ErrorPatternsResponse {
   repeated ErrorPatternRow rows = 1;
   string executed_query = 2;
+  MeasureValidity validity = 100;
 }
 
 message FileRereadRateRequest {
@@ -294,6 +325,7 @@ message FileRereadRateResponse {
   int64 files_read_more_than_once = 2;
   int64 read_calls = 3;
   string executed_query = 4;
+  MeasureValidity validity = 100;
 }
 
 message FindingRecurrenceRateRequest {
@@ -306,6 +338,7 @@ message FindingRecurrenceRateResponse {
   int64 total_findings = 3;
   int64 recurring_fingerprints = 4;
   string executed_query = 5;
+  MeasureValidity validity = 100;
 }
 
 message SelectCohortRequest {
@@ -317,4 +350,29 @@ message SelectCohortResponse {
   repeated string run_ids = 1;
   bool truncated = 2;
   string executed_query = 3;
+  MeasureValidity validity = 100;
+}
+
+// EpisodeCohort folds deterministic friction episodes over the same bounded
+// durable run predicate used by SelectCohort. It is an episode investigation
+// surface, not a generic invocation aggregate.
+message EpisodeCohortRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+  int32 limit = 3;
+}
+message EpisodeCohortSignal {
+  string fingerprint = 1;
+  int64 occurrences = 2;
+  int64 distinct_runs = 3;
+  int64 summed_cost_ms = 4;
+  string confidence = 5;
+  repeated string representative_run_ids = 6;
+}
+message EpisodeCohortResponse {
+  string availability_state = 1;
+  string availability_reason = 2;
+  repeated EpisodeCohortSignal signals = 3;
+  string executed_query = 4;
+  MeasureValidity validity = 100;
 }

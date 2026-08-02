@@ -94,6 +94,15 @@ func TestApplyRequiresPolicyVersionApprovalAndIdempotency(t *testing.T) {
 	}
 }
 
+// TestAuditRedactsPathsFromFailureMessages asserts that when individual items
+// cannot be removed, the failure is recorded in the audit log with the path
+// stripped out.
+//
+// The run itself must SUCCEED. A single unremovable entry — another user's file
+// in a shared /tmp, or one that vanished mid-run — is routine, and aborting
+// would abandon every remaining entry at exactly the moment the host needs
+// space. The failure is therefore surfaced as an apply.partial audit event
+// rather than as an error, and it still must not leak the path.
 func TestAuditRedactsPathsFromFailureMessages(t *testing.T) {
 	t.Parallel()
 
@@ -104,32 +113,31 @@ func TestAuditRedactsPathsFromFailureMessages(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Plan() error = %v", err)
 	}
-	_, err = svc.Apply(ctx, ApplyInput{
+	if _, err = svc.Apply(ctx, ApplyInput{
 		PlanID:         plan.ID,
 		PolicyVersion:  plan.PolicyVersion,
 		ApprovalMode:   cleanup.ApprovalModeOperator,
 		ApprovalToken:  "operator-ok",
 		IdempotencyKey: "apply-2",
-	})
-	if err == nil {
-		t.Fatal("Apply() expected fake filesystem failure")
+	}); err != nil {
+		t.Fatalf("Apply() should tolerate unremovable items, got error = %v", err)
 	}
 	events, err := svc.Audit(ctx)
 	if err != nil {
 		t.Fatalf("Audit() error = %v", err)
 	}
-	var failed AuditEvent
+	var partial AuditEvent
 	for _, event := range events {
-		if event.Type == "apply.failed" {
-			failed = event
+		if event.Type == "apply.partial" {
+			partial = event
 			break
 		}
 	}
-	if failed.Type == "" {
-		t.Fatalf("audit events missing apply.failed: %#v", events)
+	if partial.Type == "" {
+		t.Fatalf("audit events missing apply.partial: %#v", events)
 	}
-	if strings.Contains(failed.Message, "/fake/tmp") || !failed.Redacted {
-		t.Fatalf("failure audit not redacted: %#v", failed)
+	if strings.Contains(partial.Message, "/fake/tmp") || !partial.Redacted {
+		t.Fatalf("partial-failure audit not redacted: %#v", partial)
 	}
 }
 

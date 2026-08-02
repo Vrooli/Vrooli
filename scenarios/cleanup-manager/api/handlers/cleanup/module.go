@@ -4,16 +4,26 @@ import (
 	"io"
 	"log"
 
+	"cleanup-manager/hostfs"
+	"cleanup-manager/hostpaths"
+	"cleanup-manager/internal/clock"
 	"cleanup-manager/internal/module"
 	"cleanup-manager/internal/orchestrator"
 	"cleanup-manager/internal/providers"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
+	"github.com/vrooli/api-core/database"
 	cleanupconnect "github.com/vrooli/vrooli/packages/proto/gen/go/cleanup-manager/v1/cleanup/cleanup_v1connect"
 )
 
-func Module(logger *log.Logger) module.Module {
+// Module builds the cleanup domain.
+//
+// The database handle backs the durable half of the store: the active policy
+// and the audit trail. Passing nil falls back to fully in-memory state, which
+// is what the endpoint-codegen binary and unit tests want — neither has a live
+// database, and neither needs the operator's policy to survive anything.
+func Module(logger *log.Logger, db *database.RoutedDB) module.Module {
 	registry, err := defaultRegistry()
 	if err != nil {
 		if logger == nil {
@@ -21,7 +31,12 @@ func Module(logger *log.Logger) module.Module {
 		}
 		logger.Fatalf("cleanup registry: %v", err)
 	}
-	return ModuleWithService(orchestrator.NewService(registry, orchestrator.NewMemoryStore(), nil))
+
+	var store orchestrator.Store = orchestrator.NewMemoryStore()
+	if db != nil {
+		store = orchestrator.NewSQLiteStore(db)
+	}
+	return ModuleWithService(orchestrator.NewService(registry, store, nil))
 }
 
 func ModuleWithService(service Service) module.Module {
@@ -35,12 +50,27 @@ func ModuleWithService(service Service) module.Module {
 	}
 }
 
+// defaultRegistry builds the production provider registry.
+//
+// Every file provider needs two things to do anything at all: a filesystem seam
+// to walk, and roots to walk within. Until this wiring existed it had neither —
+// BuiltInDeps.FileSystem was left nil and all four root lists were empty
+// literals — so each provider reported "filesystem seam unavailable" and
+// estimated zero bytes on a host with 70 GB of reclaimable temp files. The
+// planning and policy layers were correct throughout; nothing was ever
+// connected to the disk.
 func defaultRegistry() (*providers.Registry, error) {
+	roots := hostpaths.Resolve()
+	files := hostfs.New(hostfs.Options{})
+
 	builtIns, err := providers.ConservativeBuiltIns(providers.BuiltInDeps{
-		TrashRoots:           []string{},
-		TmpRoots:             []string{},
-		GoBuildCacheRoots:    []string{},
-		PlaywrightCacheRoots: []string{},
+		FileSystem: files,
+		Clock:      clock.System{},
+
+		TrashRoots:           roots.Trash,
+		TmpRoots:             roots.Tmp,
+		GoBuildCacheRoots:    roots.GoBuildCache,
+		PlaywrightCacheRoots: roots.PlaywrightCache,
 	})
 	if err != nil {
 		return nil, err
@@ -101,6 +131,30 @@ var Endpoints = []module.EndpointDescriptor{
 			"idempotency_key": "string (required)",
 		}},
 		Response: &module.Schema{Type: "object", Properties: map[string]string{"reclaimed_bytes": "int64", "already_applied": "bool"}},
+	},
+	{
+		ID:          "cleanup_pressure_report",
+		Path:        cleanupconnect.CleanupServiceReportPressureProcedure,
+		Method:      "POST",
+		Summary:     "Report disk pressure",
+		Description: "Inbound disk-pressure signal from a safeguard. Warning records the observation; high runs estimate and preview without deleting; critical applies safe-tier providers with no operator present. Duplicate concurrent reports of the same partition and band collapse into one execution.",
+		Category:    "cleanup",
+		Request: &module.Schema{Type: "object", Properties: map[string]string{
+			"source_scenario": "string",
+			"partition":       "string (required)",
+			"used_percent":    "double",
+			"band":            "enum (PRESSURE_BAND_WARNING|PRESSURE_BAND_HIGH|PRESSURE_BAND_CRITICAL, required)",
+			"available_bytes": "int64",
+		}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{
+			"action":                   "enum (observed|previewed|applied|deduplicated|suppressed)",
+			"plan_id":                  "string",
+			"estimated_bytes":          "int64",
+			"reclaimed_bytes":          "int64",
+			"providers_applied":        "array<string>",
+			"providers_withheld":       "array<string>",
+			"autonomous_apply_enabled": "bool",
+		}},
 	},
 	{
 		ID:          "cleanup_audit_list",

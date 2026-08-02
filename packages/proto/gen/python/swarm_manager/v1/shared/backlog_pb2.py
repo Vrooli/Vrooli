@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from buf.validate import validate_pb2 as buf_dot_validate_dot_validate__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n%swarm-manager/v1/shared/backlog.proto\x12\x1evrooli.swarm_manager.v1.shared\x1a\x1b\x62uf/validate/validate.proto\"\xe7\x01\n\x0b\x42\x61\x63klogFile\x12\x1b\n\x04name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\x12\x1b\n\x04path\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04path\x12*\n\x04type\x18\x03 \x01(\tB\x16\xbaH\x13r\x11R\x04\x66ileR\tdirectoryR\x04type\x12 \n\x04size\x18\x04 \x01(\x03\x42\x07\xbaH\x04\"\x02(\x00H\x00R\x04size\x88\x01\x01\x12G\n\x08\x63hildren\x18\x05 \x03(\x0b\x32+.vrooli.swarm_manager.v1.shared.BacklogFileR\x08\x63hildrenB\x07\n\x05_sizeBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared;sharedb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n%swarm-manager/v1/shared/backlog.proto\x12\x1evrooli.swarm_manager.v1.shared\x1a\x1b\x62uf/validate/validate.proto\"\xe7\x01\n\x0b\x42\x61\x63klogFile\x12\x1b\n\x04name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\x12\x1b\n\x04path\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04path\x12*\n\x04type\x18\x03 \x01(\tB\x16\xbaH\x13r\x11R\x04\x66ileR\tdirectoryR\x04type\x12 \n\x04size\x18\x04 \x01(\x03\x42\x07\xbaH\x04\"\x02(\x00H\x00R\x04size\x88\x01\x01\x12G\n\x08\x63hildren\x18\x05 \x03(\x0b\x32+.vrooli.swarm_manager.v1.shared.BacklogFileR\x08\x63hildrenB\x07\n\x05_size\"\x9a\x01\n\x10\x42\x61\x63klogCriterion\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12!\n\x07gherkin\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x07gherkin\x12I\n\x05\x63heck\x18\x03 \x01(\x0b\x32..vrooli.swarm_manager.v1.shared.CriterionCheckH\x00R\x05\x63heck\x88\x01\x01\x42\x08\n\x06_check\"\xad\x01\n\x0e\x43riterionCheck\x12\x34\n\x04kind\x18\x01 \x01(\tB \xbaH\x1dr\x1bR\x10test_genie_phaseR\x07\x63ommandR\x04kind\x12\x1a\n\x08scenario\x18\x02 \x01(\tR\x08scenario\x12\x14\n\x05phase\x18\x03 \x01(\tR\x05phase\x12\x12\n\x04\x61rgv\x18\x04 \x03(\tR\x04\x61rgv\x12\x1f\n\x0b\x65xpect_exit\x18\x05 \x01(\x05R\nexpectExitBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/shared;sharedb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -41,6 +41,14 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_BACKLOGFILE'].fields_by_name['type']._serialized_options = b'\272H\023r\021R\004fileR\tdirectory'
   _globals['_BACKLOGFILE'].fields_by_name['size']._loaded_options = None
   _globals['_BACKLOGFILE'].fields_by_name['size']._serialized_options = b'\272H\004\"\002(\000'
+  _globals['_BACKLOGCRITERION'].fields_by_name['gherkin']._loaded_options = None
+  _globals['_BACKLOGCRITERION'].fields_by_name['gherkin']._serialized_options = b'\272H\004r\002\020\001'
+  _globals['_CRITERIONCHECK'].fields_by_name['kind']._loaded_options = None
+  _globals['_CRITERIONCHECK'].fields_by_name['kind']._serialized_options = b'\272H\035r\033R\020test_genie_phaseR\007command'
   _globals['_BACKLOGFILE']._serialized_start=103
   _globals['_BACKLOGFILE']._serialized_end=334
+  _globals['_BACKLOGCRITERION']._serialized_start=337
+  _globals['_BACKLOGCRITERION']._serialized_end=491
+  _globals['_CRITERIONCHECK']._serialized_start=494
+  _globals['_CRITERIONCHECK']._serialized_end=667
 # @@protoc_insertion_point(module_scope)

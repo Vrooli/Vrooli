@@ -27,6 +27,10 @@ func run(args []string) int {
 	root := flags.String("root", "", "repository root")
 	version := flags.String("version", "", "release version (normally the git tag)")
 	all := flags.Bool("all", false, "build every supported target")
+	targets := flags.String("targets", "", "comma-separated os/arch subset to build (for example darwin/amd64,darwin/arm64)")
+	skipExisting := flags.Bool("skip-existing", false, "skip targets whose output binary is already staged, so a release can adopt binaries built on another runner")
+	allowMissingDarwinKeychain := flags.Bool("allow-missing-darwin-keychain", false,
+		"permit building darwin from a non-darwin host, producing a CLI with no macOS credential backend; never use for a release")
 	matrixJSON := flags.Bool("matrix-json", false, "print the supported target matrix as JSON")
 	vaultServer := flags.Bool("vault-server", false, "stage a checksum-verified Vault server from the checked-in catalog")
 	vaultTarget := flags.String("vault-target", "", "managed Vault target (for example linux-amd64)")
@@ -103,26 +107,76 @@ func run(args []string) int {
 	if stagedReleaseArtifacts {
 		return 0
 	}
-	if *all {
-		for _, target := range buildinfo.DistributionTargets() {
+	if *all || strings.TrimSpace(*targets) != "" {
+		selected, err := selectTargets(*targets)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 2
+		}
+		for _, target := range selected {
 			path := filepath.Join(*outDir, buildinfo.DistributionAssetName(target))
-			if code := buildOne(*root, path, *version, target); code != 0 {
+			if *skipExisting {
+				if _, err := os.Stat(path); err == nil {
+					fmt.Printf("%s/%s: adopting already-staged %s\n", target.OS, target.Arch, path)
+					continue
+				}
+			}
+			if code := buildOne(*root, path, *version, target, *allowMissingDarwinKeychain); code != 0 {
 				return code
 			}
 		}
 		return 0
 	}
 	if strings.TrimSpace(*goos) == "" || strings.TrimSpace(*goarch) == "" || strings.TrimSpace(*output) == "" {
-		fmt.Fprintln(os.Stderr, "--goos, --goarch, and --output are required (or use --all/--matrix-json)")
+		fmt.Fprintln(os.Stderr, "--goos, --goarch, and --output are required (or use --all/--targets/--matrix-json)")
 		return 2
 	}
-	return buildOne(*root, *output, *version, buildinfo.DistributionTarget{OS: *goos, Arch: *goarch})
+	return buildOne(*root, *output, *version, buildinfo.DistributionTarget{OS: *goos, Arch: *goarch}, *allowMissingDarwinKeychain)
 }
 
-func buildOne(root, output, version string, target buildinfo.DistributionTarget) int {
+// selectTargets resolves an explicit os/arch subset, or the full matrix when the
+// subset is empty. Splitting the matrix is what lets darwin build on a macOS
+// runner while the rest cross-compile anywhere.
+func selectTargets(spec string) ([]buildinfo.DistributionTarget, error) {
+	spec = strings.TrimSpace(spec)
+	if spec == "" {
+		return buildinfo.DistributionTargets(), nil
+	}
+	supported := buildinfo.DistributionTargets()
+	var selected []buildinfo.DistributionTarget
+	for _, raw := range strings.Split(spec, ",") {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			continue
+		}
+		goos, goarch, ok := strings.Cut(raw, "/")
+		if !ok {
+			return nil, fmt.Errorf("target %q must use os/arch form", raw)
+		}
+		target := buildinfo.DistributionTarget{OS: strings.TrimSpace(goos), Arch: strings.TrimSpace(goarch)}
+		found := false
+		for _, candidate := range supported {
+			if candidate == target {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf("target %q is not in the supported release matrix", raw)
+		}
+		selected = append(selected, target)
+	}
+	if len(selected) == 0 {
+		return nil, fmt.Errorf("--targets requires at least one os/arch")
+	}
+	return selected, nil
+}
+
+func buildOne(root, output, version string, target buildinfo.DistributionTarget, allowMissingDarwinKeychain bool) int {
 	artifact, err := buildinfo.BuildDistribution(context.Background(), buildinfo.DistributionBuildOptions{
 		Root: root, Output: output, Version: version, Target: target,
 		Stdout: os.Stdout, Stderr: os.Stderr,
+		AllowMissingDarwinKeychain: allowMissingDarwinKeychain,
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

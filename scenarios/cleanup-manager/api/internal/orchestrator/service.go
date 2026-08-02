@@ -82,10 +82,31 @@ type Service struct {
 	registry *providers.Registry
 	store    Store
 	clock    cleanup.Clock
+
+	// Disk-pressure intake state. pressure collapses duplicate reports of the
+	// same event; autonomousApply is the kill switch for unattended deletion.
+	pressure        *pressureGuard
+	autonomousMu    sync.RWMutex
+	autonomousApply bool
 }
 
+// defaultPressureDedupWindow is how long a completed autonomous execution
+// suppresses another for the same partition and band. It is long enough to
+// cover both safeguards reporting the same event and short enough that
+// genuinely renewed pressure is acted on.
+const defaultPressureDedupWindow = 5 * time.Minute
+
 func NewService(registry *providers.Registry, store Store, clock cleanup.Clock) *Service {
-	return &Service{registry: registry, store: store, clock: clock}
+	return &Service{
+		registry: registry,
+		store:    store,
+		clock:    clock,
+		pressure: newPressureGuard(defaultPressureDedupWindow),
+		// Autonomous apply is on by default: the incident happened because
+		// nothing acted overnight. The kill switch exists to turn remediation
+		// off deliberately, not to require a deliberate act to turn it on.
+		autonomousApply: true,
+	}
 }
 
 func (s *Service) Catalog() []cleanup.ProviderMetadata {
@@ -121,7 +142,7 @@ func (s *Service) CurrentPolicy(ctx context.Context) (Policy, error) {
 	} else if ok {
 		return existing, nil
 	}
-	return s.SetPolicyProfile(ctx, policy.ProfileConservative)
+	return s.SetPolicyProfile(ctx, policy.ProfileBalanced)
 }
 
 func (s *Service) Plan(ctx context.Context, scope cleanup.ObservationScope) (Plan, error) {
@@ -234,8 +255,25 @@ func (s *Service) applyProvider(ctx context.Context, plan Plan, pp ProviderPlan,
 		Preview:         pp.Preview,
 	})
 	if err != nil {
-		_ = s.audit(ctx, AuditEvent{Type: "apply.failed", PlanID: plan.ID, ProviderID: pp.ProviderID, IdempotencyKey: input.IdempotencyKey, Message: Redact(err.Error()), Redacted: true})
+		_ = s.audit(ctx, AuditEvent{Type: "apply.failed", PlanID: plan.ID, ProviderID: pp.ProviderID, IdempotencyKey: input.IdempotencyKey, Message: cleanup.Redact(err.Error()), Redacted: true})
 		return cleanup.ApplyResult{}, false, err
+	}
+	// Individual items that could not be removed are reported as warnings
+	// rather than as a failed Apply, because one unremovable entry must not
+	// abandon the thousands behind it. They still have to reach the audit log:
+	// a run that silently reclaimed less than it planned is exactly the kind of
+	// degradation that goes unnoticed until the disk is full again. The
+	// provider has already redacted these messages.
+	if len(result.Warnings) > 0 {
+		_ = s.audit(ctx, AuditEvent{
+			Type:           "apply.partial",
+			PlanID:         plan.ID,
+			ProviderID:     pp.ProviderID,
+			IdempotencyKey: input.IdempotencyKey,
+			Message: fmt.Sprintf("%d of %d items could not be removed: %s",
+				len(result.SkippedItems), len(pp.Preview.Items), strings.Join(result.Warnings, "; ")),
+			Redacted: true,
+		})
 	}
 	_ = s.audit(ctx, AuditEvent{Type: "provider.applied", PlanID: plan.ID, ProviderID: pp.ProviderID, IdempotencyKey: input.IdempotencyKey, Message: fmt.Sprintf("%d bytes", result.ReclaimedBytes)})
 	return result, true, nil
@@ -280,7 +318,7 @@ func (s *Service) Audit(ctx context.Context) ([]AuditEvent, error) {
 func (s *Service) audit(ctx context.Context, event AuditEvent) error {
 	event.ID = stableAuditID(event, s.now())
 	event.Time = s.now()
-	event.Message = Redact(event.Message)
+	event.Message = cleanup.Redact(event.Message)
 	return s.store.AddAudit(ctx, event)
 }
 
@@ -333,25 +371,6 @@ func hashJSON(v any) string {
 	raw, _ := json.Marshal(v)
 	sum := sha256.Sum256(raw)
 	return hex.EncodeToString(sum[:])
-}
-
-func Redact(s string) string {
-	parts := strings.Fields(s)
-	for i, part := range parts {
-		if strings.Contains(part, "/") || strings.Contains(part, "\\") {
-			parts[i] = "[path]"
-		}
-	}
-	return strings.Join(parts, " ")
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if value != "" {
-			return value
-		}
-	}
-	return ""
 }
 
 type MemoryStore struct {

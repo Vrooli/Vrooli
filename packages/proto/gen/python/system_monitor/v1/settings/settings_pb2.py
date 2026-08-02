@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from google.api import annotations_pb2 as google_dot_api_dot_annotations__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n)system-monitor/v1/settings/settings.proto\x12!vrooli.system_monitor.v1.settings\x1a\x1cgoogle/api/annotations.proto\"\xfd\x04\n\x0eSystemSettings\x12\x16\n\x06\x61\x63tive\x18\x01 \x01(\x08R\x06\x61\x63tive\x12<\n\x1ametric_collection_interval\x18\x02 \x01(\x05R\x18metricCollectionInterval\x12<\n\x1a\x61nomaly_detection_interval\x18\x03 \x01(\x05R\x18\x61nomalyDetectionInterval\x12\x38\n\x18threshold_check_interval\x18\x04 \x01(\x05R\x16thresholdCheckInterval\x12\x36\n\x17\x63ooldown_period_seconds\x18\x05 \x01(\x05R\x15\x63ooldownPeriodSeconds\x12#\n\rcpu_threshold\x18\x06 \x01(\x01R\x0c\x63puThreshold\x12)\n\x10memory_threshold\x18\x07 \x01(\x01R\x0fmemoryThreshold\x12%\n\x0e\x64isk_threshold\x18\x08 \x01(\x01R\rdiskThreshold\x12\x34\n\x16metrics_retention_days\x18\t \x01(\x05R\x14metricsRetentionDays\x12G\n retention_check_interval_seconds\x18\n \x01(\x05R\x1dretentionCheckIntervalSeconds\x12\x37\n\x18retention_run_on_startup\x18\x0b \x01(\x08R\x15retentionRunOnStartup\x12\x36\n\x17\x63ompact_after_retention\x18\x0c \x01(\x08R\x15\x63ompactAfterRetention\"\x14\n\x12GetSettingsRequest\"\x94\x01\n\x13GetSettingsResponse\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12M\n\x08settings\x18\x02 \x01(\x0b\x32\x31.vrooli.system_monitor.v1.settings.SystemSettingsR\x08settings\x12\x14\n\x05\x65rror\x18\x03 \x01(\tR\x05\x65rror\"f\n\x15UpdateSettingsRequest\x12M\n\x08settings\x18\x01 \x01(\x0b\x32\x31.vrooli.system_monitor.v1.settings.SystemSettingsR\x08settings\"\x97\x01\n\x16UpdateSettingsResponse\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12M\n\x08settings\x18\x02 \x01(\x0b\x32\x31.vrooli.system_monitor.v1.settings.SystemSettingsR\x08settings\x12\x14\n\x05\x65rror\x18\x03 \x01(\tR\x05\x65rror\"\x16\n\x14ResetSettingsRequest\"\x96\x01\n\x15ResetSettingsResponse\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12M\n\x08settings\x18\x02 \x01(\x0b\x32\x31.vrooli.system_monitor.v1.settings.SystemSettingsR\x08settings\x12\x14\n\x05\x65rror\x18\x03 \x01(\tR\x05\x65rror\"\x1c\n\x1aGetMaintenanceStateRequest\"z\n\x1bGetMaintenanceStateResponse\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12+\n\x11maintenance_state\x18\x02 \x01(\tR\x10maintenanceState\x12\x14\n\x05\x65rror\x18\x03 \x01(\tR\x05\x65rror\"I\n\x1aSetMaintenanceStateRequest\x12+\n\x11maintenance_state\x18\x01 \x01(\tR\x10maintenanceState\"z\n\x1bSetMaintenanceStateResponse\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12+\n\x11maintenance_state\x18\x02 \x01(\tR\x10maintenanceState\x12\x14\n\x05\x65rror\x18\x03 \x01(\tR\x05\x65rror2\xee\x06\n\x0fSettingsService\x12\x96\x01\n\x0bGetSettings\x12\x35.vrooli.system_monitor.v1.settings.GetSettingsRequest\x1a\x36.vrooli.system_monitor.v1.settings.GetSettingsResponse\"\x18\x82\xd3\xe4\x93\x02\x12\x12\x10/api/v1/settings\x12\xa2\x01\n\x0eUpdateSettings\x12\x38.vrooli.system_monitor.v1.settings.UpdateSettingsRequest\x1a\x39.vrooli.system_monitor.v1.settings.UpdateSettingsResponse\"\x1b\x82\xd3\xe4\x93\x02\x15\x1a\x10/api/v1/settings:\x01*\x12\xa5\x01\n\rResetSettings\x12\x37.vrooli.system_monitor.v1.settings.ResetSettingsRequest\x1a\x38.vrooli.system_monitor.v1.settings.ResetSettingsResponse\"!\x82\xd3\xe4\x93\x02\x1b\"\x16/api/v1/settings/reset:\x01*\x12\xb7\x01\n\x13GetMaintenanceState\x12=.vrooli.system_monitor.v1.settings.GetMaintenanceStateRequest\x1a>.vrooli.system_monitor.v1.settings.GetMaintenanceStateResponse\"!\x82\xd3\xe4\x93\x02\x1b\x12\x19/api/v1/maintenance/state\x12\xba\x01\n\x13SetMaintenanceState\x12=.vrooli.system_monitor.v1.settings.SetMaintenanceStateRequest\x1a>.vrooli.system_monitor.v1.settings.SetMaintenanceStateResponse\"$\x82\xd3\xe4\x93\x02\x1e\"\x19/api/v1/maintenance/state:\x01*BTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/settings;settingsb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n)system-monitor/v1/settings/settings.proto\x12!vrooli.system_monitor.v1.settings\x1a\x1cgoogle/api/annotations.proto\"\xa9\x07\n\x0eSystemSettings\x12\x16\n\x06\x61\x63tive\x18\x01 \x01(\x08R\x06\x61\x63tive\x12<\n\x1ametric_collection_interval\x18\x02 \x01(\x05R\x18metricCollectionInterval\x12<\n\x1a\x61nomaly_detection_interval\x18\x03 \x01(\x05R\x18\x61nomalyDetectionInterval\x12\x38\n\x18threshold_check_interval\x18\x04 \x01(\x05R\x16thresholdCheckInterval\x12\x36\n\x17\x63ooldown_period_seconds\x18\x05 \x01(\x05R\x15\x63ooldownPeriodSeconds\x12#\n\rcpu_threshold\x18\x06 \x01(\x01R\x0c\x63puThreshold\x12)\n\x10memory_threshold\x18\x07 \x01(\x01R\x0fmemoryThreshold\x12%\n\x0e\x64isk_threshold\x18\x08 \x01(\x01R\rdiskThreshold\x12\x34\n\x16metrics_retention_days\x18\t \x01(\x05R\x14metricsRetentionDays\x12G\n retention_check_interval_seconds\x18\n \x01(\x05R\x1dretentionCheckIntervalSeconds\x12\x37\n\x18retention_run_on_startup\x18\x0b \x01(\x08R\x15retentionRunOnStartup\x12\x36\n\x17\x63ompact_after_retention\x18\x0c \x01(\x08R\x15\x63ompactAfterRetention\x12*\n\x11\x64isk_high_percent\x18\r \x01(\x01R\x0f\x64iskHighPercent\x12\x32\n\x15\x64isk_critical_percent\x18\x0e \x01(\x01R\x13\x64iskCriticalPercent\x12G\n disk_escalation_cooldown_seconds\x18\x0f \x01(\x05R\x1d\x64iskEscalationCooldownSeconds\x12\x43\n\x1e\x64isk_escalation_debounce_ticks\x18\x10 \x01(\x05R\x1b\x64iskEscalationDebounceTicks\x12<\n\x1b\x64isk_fast_fill_jump_percent\x18\x11 \x01(\x01R\x17\x64iskFastFillJumpPercent\"\x14\n\x12GetSettingsRequest\"\x94\x01\n\x13GetSettingsResponse\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12M\n\x08settings\x18\x02 \x01(\x0b\x32\x31.vrooli.system_monitor.v1.settings.SystemSettingsR\x08settings\x12\x14\n\x05\x65rror\x18\x03 \x01(\tR\x05\x65rror\"f\n\x15UpdateSettingsRequest\x12M\n\x08settings\x18\x01 \x01(\x0b\x32\x31.vrooli.system_monitor.v1.settings.SystemSettingsR\x08settings\"\x97\x01\n\x16UpdateSettingsResponse\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12M\n\x08settings\x18\x02 \x01(\x0b\x32\x31.vrooli.system_monitor.v1.settings.SystemSettingsR\x08settings\x12\x14\n\x05\x65rror\x18\x03 \x01(\tR\x05\x65rror\"\x16\n\x14ResetSettingsRequest\"\x96\x01\n\x15ResetSettingsResponse\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12M\n\x08settings\x18\x02 \x01(\x0b\x32\x31.vrooli.system_monitor.v1.settings.SystemSettingsR\x08settings\x12\x14\n\x05\x65rror\x18\x03 \x01(\tR\x05\x65rror\"\x1c\n\x1aGetMaintenanceStateRequest\"z\n\x1bGetMaintenanceStateResponse\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12+\n\x11maintenance_state\x18\x02 \x01(\tR\x10maintenanceState\x12\x14\n\x05\x65rror\x18\x03 \x01(\tR\x05\x65rror\"I\n\x1aSetMaintenanceStateRequest\x12+\n\x11maintenance_state\x18\x01 \x01(\tR\x10maintenanceState\"z\n\x1bSetMaintenanceStateResponse\x12\x18\n\x07success\x18\x01 \x01(\x08R\x07success\x12+\n\x11maintenance_state\x18\x02 \x01(\tR\x10maintenanceState\x12\x14\n\x05\x65rror\x18\x03 \x01(\tR\x05\x65rror2\xee\x06\n\x0fSettingsService\x12\x96\x01\n\x0bGetSettings\x12\x35.vrooli.system_monitor.v1.settings.GetSettingsRequest\x1a\x36.vrooli.system_monitor.v1.settings.GetSettingsResponse\"\x18\x82\xd3\xe4\x93\x02\x12\x12\x10/api/v1/settings\x12\xa2\x01\n\x0eUpdateSettings\x12\x38.vrooli.system_monitor.v1.settings.UpdateSettingsRequest\x1a\x39.vrooli.system_monitor.v1.settings.UpdateSettingsResponse\"\x1b\x82\xd3\xe4\x93\x02\x15\x1a\x10/api/v1/settings:\x01*\x12\xa5\x01\n\rResetSettings\x12\x37.vrooli.system_monitor.v1.settings.ResetSettingsRequest\x1a\x38.vrooli.system_monitor.v1.settings.ResetSettingsResponse\"!\x82\xd3\xe4\x93\x02\x1b\"\x16/api/v1/settings/reset:\x01*\x12\xb7\x01\n\x13GetMaintenanceState\x12=.vrooli.system_monitor.v1.settings.GetMaintenanceStateRequest\x1a>.vrooli.system_monitor.v1.settings.GetMaintenanceStateResponse\"!\x82\xd3\xe4\x93\x02\x1b\x12\x19/api/v1/maintenance/state\x12\xba\x01\n\x13SetMaintenanceState\x12=.vrooli.system_monitor.v1.settings.SetMaintenanceStateRequest\x1a>.vrooli.system_monitor.v1.settings.SetMaintenanceStateResponse\"$\x82\xd3\xe4\x93\x02\x1e\"\x19/api/v1/maintenance/state:\x01*BTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/settings;settingsb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -44,27 +44,27 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_SETTINGSSERVICE'].methods_by_name['SetMaintenanceState']._loaded_options = None
   _globals['_SETTINGSSERVICE'].methods_by_name['SetMaintenanceState']._serialized_options = b'\202\323\344\223\002\036\"\031/api/v1/maintenance/state:\001*'
   _globals['_SYSTEMSETTINGS']._serialized_start=111
-  _globals['_SYSTEMSETTINGS']._serialized_end=748
-  _globals['_GETSETTINGSREQUEST']._serialized_start=750
-  _globals['_GETSETTINGSREQUEST']._serialized_end=770
-  _globals['_GETSETTINGSRESPONSE']._serialized_start=773
-  _globals['_GETSETTINGSRESPONSE']._serialized_end=921
-  _globals['_UPDATESETTINGSREQUEST']._serialized_start=923
-  _globals['_UPDATESETTINGSREQUEST']._serialized_end=1025
-  _globals['_UPDATESETTINGSRESPONSE']._serialized_start=1028
-  _globals['_UPDATESETTINGSRESPONSE']._serialized_end=1179
-  _globals['_RESETSETTINGSREQUEST']._serialized_start=1181
-  _globals['_RESETSETTINGSREQUEST']._serialized_end=1203
-  _globals['_RESETSETTINGSRESPONSE']._serialized_start=1206
-  _globals['_RESETSETTINGSRESPONSE']._serialized_end=1356
-  _globals['_GETMAINTENANCESTATEREQUEST']._serialized_start=1358
-  _globals['_GETMAINTENANCESTATEREQUEST']._serialized_end=1386
-  _globals['_GETMAINTENANCESTATERESPONSE']._serialized_start=1388
-  _globals['_GETMAINTENANCESTATERESPONSE']._serialized_end=1510
-  _globals['_SETMAINTENANCESTATEREQUEST']._serialized_start=1512
-  _globals['_SETMAINTENANCESTATEREQUEST']._serialized_end=1585
-  _globals['_SETMAINTENANCESTATERESPONSE']._serialized_start=1587
-  _globals['_SETMAINTENANCESTATERESPONSE']._serialized_end=1709
-  _globals['_SETTINGSSERVICE']._serialized_start=1712
-  _globals['_SETTINGSSERVICE']._serialized_end=2590
+  _globals['_SYSTEMSETTINGS']._serialized_end=1048
+  _globals['_GETSETTINGSREQUEST']._serialized_start=1050
+  _globals['_GETSETTINGSREQUEST']._serialized_end=1070
+  _globals['_GETSETTINGSRESPONSE']._serialized_start=1073
+  _globals['_GETSETTINGSRESPONSE']._serialized_end=1221
+  _globals['_UPDATESETTINGSREQUEST']._serialized_start=1223
+  _globals['_UPDATESETTINGSREQUEST']._serialized_end=1325
+  _globals['_UPDATESETTINGSRESPONSE']._serialized_start=1328
+  _globals['_UPDATESETTINGSRESPONSE']._serialized_end=1479
+  _globals['_RESETSETTINGSREQUEST']._serialized_start=1481
+  _globals['_RESETSETTINGSREQUEST']._serialized_end=1503
+  _globals['_RESETSETTINGSRESPONSE']._serialized_start=1506
+  _globals['_RESETSETTINGSRESPONSE']._serialized_end=1656
+  _globals['_GETMAINTENANCESTATEREQUEST']._serialized_start=1658
+  _globals['_GETMAINTENANCESTATEREQUEST']._serialized_end=1686
+  _globals['_GETMAINTENANCESTATERESPONSE']._serialized_start=1688
+  _globals['_GETMAINTENANCESTATERESPONSE']._serialized_end=1810
+  _globals['_SETMAINTENANCESTATEREQUEST']._serialized_start=1812
+  _globals['_SETMAINTENANCESTATEREQUEST']._serialized_end=1885
+  _globals['_SETMAINTENANCESTATERESPONSE']._serialized_start=1887
+  _globals['_SETMAINTENANCESTATERESPONSE']._serialized_end=2009
+  _globals['_SETTINGSSERVICE']._serialized_start=2012
+  _globals['_SETTINGSSERVICE']._serialized_end=2890
 # @@protoc_insertion_point(module_scope)

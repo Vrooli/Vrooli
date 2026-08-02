@@ -5,6 +5,10 @@
   "description": "Enhanced service configuration with resource auto-completion support",
   "type": "object",
   "properties": {
+    "retention": {
+      "$ref": "common.schema.json#/definitions/retention",
+      "description": "Declared storage ceilings for the runtime data this scenario accumulates. Enforced by packages/api-core/retention. Distinct from durable_data, which declares what to back up."
+    },
     "$schema": {
       "type": "string",
       "description": "Schema reference"

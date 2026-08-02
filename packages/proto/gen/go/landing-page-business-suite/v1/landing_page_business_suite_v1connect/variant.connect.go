@@ -63,6 +63,9 @@ const (
 	// VariantServiceImportVariantSnapshotProcedure is the fully-qualified name of the VariantService's
 	// ImportVariantSnapshot RPC.
 	VariantServiceImportVariantSnapshotProcedure = "/landing_page_business_suite.v1.VariantService/ImportVariantSnapshot"
+	// VariantServiceSyncVariantSnapshotsProcedure is the fully-qualified name of the VariantService's
+	// SyncVariantSnapshots RPC.
+	VariantServiceSyncVariantSnapshotsProcedure = "/landing_page_business_suite.v1.VariantService/SyncVariantSnapshots"
 )
 
 // VariantServiceClient is a client for the landing_page_business_suite.v1.VariantService service.
@@ -77,6 +80,7 @@ type VariantServiceClient interface {
 	DeleteVariant(context.Context, *connect.Request[v1.DeleteVariantRequest]) (*connect.Response[v1.DeleteVariantResponse], error)
 	ExportVariantSnapshot(context.Context, *connect.Request[v1.ExportVariantSnapshotRequest]) (*connect.Response[v1.ExportVariantSnapshotResponse], error)
 	ImportVariantSnapshot(context.Context, *connect.Request[v1.ImportVariantSnapshotRequest]) (*connect.Response[v1.ImportVariantSnapshotResponse], error)
+	SyncVariantSnapshots(context.Context, *connect.Request[v1.SyncVariantSnapshotsRequest]) (*connect.Response[v1.SyncVariantSnapshotsResponse], error)
 }
 
 // NewVariantServiceClient constructs a client for the landing_page_business_suite.v1.VariantService
@@ -150,6 +154,12 @@ func NewVariantServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(variantServiceMethods.ByName("ImportVariantSnapshot")),
 			connect.WithClientOptions(opts...),
 		),
+		syncVariantSnapshots: connect.NewClient[v1.SyncVariantSnapshotsRequest, v1.SyncVariantSnapshotsResponse](
+			httpClient,
+			baseURL+VariantServiceSyncVariantSnapshotsProcedure,
+			connect.WithSchema(variantServiceMethods.ByName("SyncVariantSnapshots")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -165,6 +175,7 @@ type variantServiceClient struct {
 	deleteVariant         *connect.Client[v1.DeleteVariantRequest, v1.DeleteVariantResponse]
 	exportVariantSnapshot *connect.Client[v1.ExportVariantSnapshotRequest, v1.ExportVariantSnapshotResponse]
 	importVariantSnapshot *connect.Client[v1.ImportVariantSnapshotRequest, v1.ImportVariantSnapshotResponse]
+	syncVariantSnapshots  *connect.Client[v1.SyncVariantSnapshotsRequest, v1.SyncVariantSnapshotsResponse]
 }
 
 // SelectVariant calls landing_page_business_suite.v1.VariantService.SelectVariant.
@@ -217,6 +228,11 @@ func (c *variantServiceClient) ImportVariantSnapshot(ctx context.Context, req *c
 	return c.importVariantSnapshot.CallUnary(ctx, req)
 }
 
+// SyncVariantSnapshots calls landing_page_business_suite.v1.VariantService.SyncVariantSnapshots.
+func (c *variantServiceClient) SyncVariantSnapshots(ctx context.Context, req *connect.Request[v1.SyncVariantSnapshotsRequest]) (*connect.Response[v1.SyncVariantSnapshotsResponse], error) {
+	return c.syncVariantSnapshots.CallUnary(ctx, req)
+}
+
 // VariantServiceHandler is an implementation of the landing_page_business_suite.v1.VariantService
 // service.
 type VariantServiceHandler interface {
@@ -230,6 +246,7 @@ type VariantServiceHandler interface {
 	DeleteVariant(context.Context, *connect.Request[v1.DeleteVariantRequest]) (*connect.Response[v1.DeleteVariantResponse], error)
 	ExportVariantSnapshot(context.Context, *connect.Request[v1.ExportVariantSnapshotRequest]) (*connect.Response[v1.ExportVariantSnapshotResponse], error)
 	ImportVariantSnapshot(context.Context, *connect.Request[v1.ImportVariantSnapshotRequest]) (*connect.Response[v1.ImportVariantSnapshotResponse], error)
+	SyncVariantSnapshots(context.Context, *connect.Request[v1.SyncVariantSnapshotsRequest]) (*connect.Response[v1.SyncVariantSnapshotsResponse], error)
 }
 
 // NewVariantServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -299,6 +316,12 @@ func NewVariantServiceHandler(svc VariantServiceHandler, opts ...connect.Handler
 		connect.WithSchema(variantServiceMethods.ByName("ImportVariantSnapshot")),
 		connect.WithHandlerOptions(opts...),
 	)
+	variantServiceSyncVariantSnapshotsHandler := connect.NewUnaryHandler(
+		VariantServiceSyncVariantSnapshotsProcedure,
+		svc.SyncVariantSnapshots,
+		connect.WithSchema(variantServiceMethods.ByName("SyncVariantSnapshots")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/landing_page_business_suite.v1.VariantService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case VariantServiceSelectVariantProcedure:
@@ -321,6 +344,8 @@ func NewVariantServiceHandler(svc VariantServiceHandler, opts ...connect.Handler
 			variantServiceExportVariantSnapshotHandler.ServeHTTP(w, r)
 		case VariantServiceImportVariantSnapshotProcedure:
 			variantServiceImportVariantSnapshotHandler.ServeHTTP(w, r)
+		case VariantServiceSyncVariantSnapshotsProcedure:
+			variantServiceSyncVariantSnapshotsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -368,4 +393,8 @@ func (UnimplementedVariantServiceHandler) ExportVariantSnapshot(context.Context,
 
 func (UnimplementedVariantServiceHandler) ImportVariantSnapshot(context.Context, *connect.Request[v1.ImportVariantSnapshotRequest]) (*connect.Response[v1.ImportVariantSnapshotResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.VariantService.ImportVariantSnapshot is not implemented"))
+}
+
+func (UnimplementedVariantServiceHandler) SyncVariantSnapshots(context.Context, *connect.Request[v1.SyncVariantSnapshotsRequest]) (*connect.Response[v1.SyncVariantSnapshotsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("landing_page_business_suite.v1.VariantService.SyncVariantSnapshots is not implemented"))
 }

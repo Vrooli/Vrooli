@@ -50,3 +50,13 @@ class DownloadAppResponse(_message.Message):
     APP_FIELD_NUMBER: _ClassVar[int]
     app: _downloads_pb2.DownloadApp
     def __init__(self, app: _Optional[_Union[_downloads_pb2.DownloadApp, _Mapping]] = ...) -> None: ...
+
+class DeleteDownloadAppRequest(_message.Message):
+    __slots__ = ("app_key",)
+    APP_KEY_FIELD_NUMBER: _ClassVar[int]
+    app_key: str
+    def __init__(self, app_key: _Optional[str] = ...) -> None: ...
+
+class DeleteDownloadAppResponse(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...

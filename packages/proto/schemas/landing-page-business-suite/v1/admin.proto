@@ -30,6 +30,9 @@ message AdminSessionResponse {
   bool authenticated = 2;
   // Whether the demo-reset capability is enabled on this deployment.
   bool reset_enabled = 3;
+  // Opaque server-side session identifier for trusted federation clients.
+  // Browser clients continue to use the HttpOnly cookie and must not persist it.
+  optional string session_id = 4;
 }
 
 // LogoutRequest ends the current admin session.
@@ -68,4 +71,98 @@ message ResetDemoDataResponse {
 service AdminResetService {
   // TRUNCATEs and reseeds demo tables (admin, env-gated).
   rpc ResetDemoData(ResetDemoDataRequest) returns (ResetDemoDataResponse);
+}
+
+// AdminProfile contains the display-safe administrator account state. Password
+// hashes and other credentials are intentionally never transported.
+message AdminProfile {
+  string email = 1;
+  bool is_default_email = 2;
+  bool is_default_password = 3;
+}
+
+message GetAdminProfileRequest {}
+
+message GetAdminProfileResponse {
+  AdminProfile profile = 1;
+}
+
+// UpdateAdminProfileRequest changes one or both administrator credentials.
+// current_password is always required to make the sensitive change explicit.
+message UpdateAdminProfileRequest {
+  string current_password = 1;
+  string new_email = 2;
+  string new_password = 3;
+}
+
+message UpdateAdminProfileResponse {
+  AdminProfile profile = 1;
+}
+
+// AdminProfileService owns the authenticated administrator identity settings.
+service AdminProfileService {
+  rpc GetAdminProfile(GetAdminProfileRequest) returns (GetAdminProfileResponse);
+  rpc UpdateAdminProfile(UpdateAdminProfileRequest) returns (UpdateAdminProfileResponse);
+}
+
+// APIKey records encrypted provider-credential metadata. It never contains the
+// credential value; callers receive only the display-safe key hint.
+message APIKey {
+  string id = 1;
+  string provider = 2;
+  string key_hint = 3;
+  bool is_active = 4;
+  string last_verified_at = 5;
+  string created_at = 6;
+  string updated_at = 7;
+}
+
+message ListAPIKeysRequest {}
+
+message ListAPIKeysResponse {
+  repeated APIKey keys = 1;
+}
+
+message CreateAPIKeyRequest {
+  string provider = 1;
+  // The raw value is accepted only to encrypt and persist it. It is never
+  // returned, logged, or included in another message.
+  string key = 2;
+}
+
+message CreateAPIKeyResponse {
+  APIKey key = 1;
+}
+
+message DeleteAPIKeyRequest {
+  string provider = 1;
+}
+
+message DeleteAPIKeyResponse {}
+
+message TestAPIKeyRequest {
+  string provider = 1;
+}
+
+message TestAPIKeyResponse {
+  bool success = 1;
+  string message = 2;
+  string provider = 3;
+}
+
+message SetAPIKeyActiveRequest {
+  string provider = 1;
+  bool active = 2;
+}
+
+message SetAPIKeyActiveResponse {}
+
+// AdministrationService owns privileged administration operations that do not
+// belong to a more specific commerce, delivery, or content domain.
+service AdministrationService {
+  rpc ListAPIKeys(ListAPIKeysRequest) returns (ListAPIKeysResponse);
+  rpc CreateAPIKey(CreateAPIKeyRequest) returns (CreateAPIKeyResponse);
+  rpc DeleteAPIKey(DeleteAPIKeyRequest) returns (DeleteAPIKeyResponse);
+  rpc TestAPIKey(TestAPIKeyRequest) returns (TestAPIKeyResponse);
+  rpc SetAPIKeyActive(SetAPIKeyActiveRequest) returns (SetAPIKeyActiveResponse);
 }

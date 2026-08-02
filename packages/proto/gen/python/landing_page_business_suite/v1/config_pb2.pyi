@@ -32,16 +32,18 @@ class LandingVariantSummary(_message.Message):
     def __init__(self, id: _Optional[int] = ..., slug: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., axes: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class LandingSection(_message.Message):
-    __slots__ = ("section_type", "content", "order", "enabled")
+    __slots__ = ("section_type", "content", "order", "enabled", "section_key")
     SECTION_TYPE_FIELD_NUMBER: _ClassVar[int]
     CONTENT_FIELD_NUMBER: _ClassVar[int]
     ORDER_FIELD_NUMBER: _ClassVar[int]
     ENABLED_FIELD_NUMBER: _ClassVar[int]
+    SECTION_KEY_FIELD_NUMBER: _ClassVar[int]
     section_type: str
     content: _struct_pb2.Struct
     order: int
     enabled: bool
-    def __init__(self, section_type: _Optional[str] = ..., content: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., order: _Optional[int] = ..., enabled: _Optional[bool] = ...) -> None: ...
+    section_key: str
+    def __init__(self, section_type: _Optional[str] = ..., content: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., order: _Optional[int] = ..., enabled: _Optional[bool] = ..., section_key: _Optional[str] = ...) -> None: ...
 
 class LandingBranding(_message.Message):
     __slots__ = ("site_name", "tagline", "logo_url", "logo_icon_url", "favicon_url", "theme_primary_color", "theme_background_color", "support_chat_url", "support_email", "coming_soon_enabled", "coming_soon_message")

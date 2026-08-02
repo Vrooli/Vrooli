@@ -2,12 +2,39 @@ import datetime
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
+
+class PressureBand(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    PRESSURE_BAND_UNSPECIFIED: _ClassVar[PressureBand]
+    PRESSURE_BAND_WARNING: _ClassVar[PressureBand]
+    PRESSURE_BAND_HIGH: _ClassVar[PressureBand]
+    PRESSURE_BAND_CRITICAL: _ClassVar[PressureBand]
+
+class PressureAction(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    PRESSURE_ACTION_UNSPECIFIED: _ClassVar[PressureAction]
+    PRESSURE_ACTION_OBSERVED: _ClassVar[PressureAction]
+    PRESSURE_ACTION_PREVIEWED: _ClassVar[PressureAction]
+    PRESSURE_ACTION_APPLIED: _ClassVar[PressureAction]
+    PRESSURE_ACTION_DEDUPLICATED: _ClassVar[PressureAction]
+    PRESSURE_ACTION_SUPPRESSED: _ClassVar[PressureAction]
+PRESSURE_BAND_UNSPECIFIED: PressureBand
+PRESSURE_BAND_WARNING: PressureBand
+PRESSURE_BAND_HIGH: PressureBand
+PRESSURE_BAND_CRITICAL: PressureBand
+PRESSURE_ACTION_UNSPECIFIED: PressureAction
+PRESSURE_ACTION_OBSERVED: PressureAction
+PRESSURE_ACTION_PREVIEWED: PressureAction
+PRESSURE_ACTION_APPLIED: PressureAction
+PRESSURE_ACTION_DEDUPLICATED: PressureAction
+PRESSURE_ACTION_SUPPRESSED: PressureAction
 
 class ListProvidersRequest(_message.Message):
     __slots__ = ()
@@ -226,3 +253,39 @@ class AuditEvent(_message.Message):
     message: str
     redacted: bool
     def __init__(self, id: _Optional[str] = ..., time: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., type: _Optional[str] = ..., plan_id: _Optional[str] = ..., provider_id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., message: _Optional[str] = ..., redacted: _Optional[bool] = ...) -> None: ...
+
+class ReportPressureRequest(_message.Message):
+    __slots__ = ("source_scenario", "partition", "used_percent", "band", "available_bytes")
+    SOURCE_SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    PARTITION_FIELD_NUMBER: _ClassVar[int]
+    USED_PERCENT_FIELD_NUMBER: _ClassVar[int]
+    BAND_FIELD_NUMBER: _ClassVar[int]
+    AVAILABLE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    source_scenario: str
+    partition: str
+    used_percent: float
+    band: PressureBand
+    available_bytes: int
+    def __init__(self, source_scenario: _Optional[str] = ..., partition: _Optional[str] = ..., used_percent: _Optional[float] = ..., band: _Optional[_Union[PressureBand, str]] = ..., available_bytes: _Optional[int] = ...) -> None: ...
+
+class ReportPressureResponse(_message.Message):
+    __slots__ = ("band", "action", "plan_id", "estimated_bytes", "reclaimed_bytes", "providers_applied", "providers_withheld", "reason", "autonomous_apply_enabled")
+    BAND_FIELD_NUMBER: _ClassVar[int]
+    ACTION_FIELD_NUMBER: _ClassVar[int]
+    PLAN_ID_FIELD_NUMBER: _ClassVar[int]
+    ESTIMATED_BYTES_FIELD_NUMBER: _ClassVar[int]
+    RECLAIMED_BYTES_FIELD_NUMBER: _ClassVar[int]
+    PROVIDERS_APPLIED_FIELD_NUMBER: _ClassVar[int]
+    PROVIDERS_WITHHELD_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    AUTONOMOUS_APPLY_ENABLED_FIELD_NUMBER: _ClassVar[int]
+    band: PressureBand
+    action: PressureAction
+    plan_id: str
+    estimated_bytes: int
+    reclaimed_bytes: int
+    providers_applied: _containers.RepeatedScalarFieldContainer[str]
+    providers_withheld: _containers.RepeatedScalarFieldContainer[str]
+    reason: str
+    autonomous_apply_enabled: bool
+    def __init__(self, band: _Optional[_Union[PressureBand, str]] = ..., action: _Optional[_Union[PressureAction, str]] = ..., plan_id: _Optional[str] = ..., estimated_bytes: _Optional[int] = ..., reclaimed_bytes: _Optional[int] = ..., providers_applied: _Optional[_Iterable[str]] = ..., providers_withheld: _Optional[_Iterable[str]] = ..., reason: _Optional[str] = ..., autonomous_apply_enabled: _Optional[bool] = ...) -> None: ...

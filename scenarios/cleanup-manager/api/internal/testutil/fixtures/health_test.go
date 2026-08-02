@@ -118,11 +118,14 @@ func TestNewHealthResponse_OptOrderIndependent(t *testing.T) {
 // the generated proto type, not a hand-rolled mirror. Compile-time
 // guarantee that we never silently drift back to a parallel struct.
 func TestHealthResponse_TypeAlias(t *testing.T) {
-	var _ HealthResponse = healthv1.Response{}
-	var _ DependencyStatus = healthv1.DependencyStatus{}
+	// Compile-time alias assertions. These use pointers because the generated
+	// proto types embed a mutex, so copying a value would trip go vet's
+	// copylocks check for no benefit — identity is what is being asserted.
+	var _ *HealthResponse = (*healthv1.Response)(nil)
+	var _ *DependencyStatus = (*healthv1.DependencyStatus)(nil)
 
 	r := NewHealthResponse()
-	if _, ok := any(*r).(HealthResponse); !ok {
+	if _, ok := any(r).(*HealthResponse); !ok {
 		t.Fatalf("NewHealthResponse() returned %T, want fixtures.HealthResponse alias", r)
 	}
 	if proto.MessageName(r) != proto.MessageName(&healthv1.Response{}) {

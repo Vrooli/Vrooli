@@ -401,3 +401,55 @@ class ArchetypeReport(_message.Message):
     convergence_drift: bool
     attestation: _attestation_pb2.AttestedAnswer
     def __init__(self, domain: _Optional[str] = ..., archetypes: _Optional[_Iterable[_Union[_domains_pb2.DomainArchetype, _Mapping]]] = ..., convergence_drift: _Optional[bool] = ..., attestation: _Optional[_Union[_attestation_pb2.AttestedAnswer, _Mapping]] = ...) -> None: ...
+
+class ScenarioSnapshotCount(_message.Message):
+    __slots__ = ("scenario", "snapshot_count", "reclaimable_count")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_COUNT_FIELD_NUMBER: _ClassVar[int]
+    RECLAIMABLE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    snapshot_count: int
+    reclaimable_count: int
+    def __init__(self, scenario: _Optional[str] = ..., snapshot_count: _Optional[int] = ..., reclaimable_count: _Optional[int] = ...) -> None: ...
+
+class PreviewSnapshotRetentionRequest(_message.Message):
+    __slots__ = ("keep_per_scenario",)
+    KEEP_PER_SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    keep_per_scenario: int
+    def __init__(self, keep_per_scenario: _Optional[int] = ...) -> None: ...
+
+class PreviewSnapshotRetentionResponse(_message.Message):
+    __slots__ = ("reclaimable_bytes", "reclaimable_rows", "keep_per_scenario", "total_snapshots", "scenarios")
+    RECLAIMABLE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    RECLAIMABLE_ROWS_FIELD_NUMBER: _ClassVar[int]
+    KEEP_PER_SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_SNAPSHOTS_FIELD_NUMBER: _ClassVar[int]
+    SCENARIOS_FIELD_NUMBER: _ClassVar[int]
+    reclaimable_bytes: int
+    reclaimable_rows: int
+    keep_per_scenario: int
+    total_snapshots: int
+    scenarios: _containers.RepeatedCompositeFieldContainer[ScenarioSnapshotCount]
+    def __init__(self, reclaimable_bytes: _Optional[int] = ..., reclaimable_rows: _Optional[int] = ..., keep_per_scenario: _Optional[int] = ..., total_snapshots: _Optional[int] = ..., scenarios: _Optional[_Iterable[_Union[ScenarioSnapshotCount, _Mapping]]] = ...) -> None: ...
+
+class ApplySnapshotRetentionRequest(_message.Message):
+    __slots__ = ("keep_per_scenario", "confirm")
+    KEEP_PER_SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    CONFIRM_FIELD_NUMBER: _ClassVar[int]
+    keep_per_scenario: int
+    confirm: bool
+    def __init__(self, keep_per_scenario: _Optional[int] = ..., confirm: _Optional[bool] = ...) -> None: ...
+
+class ApplySnapshotRetentionResponse(_message.Message):
+    __slots__ = ("rows_removed", "bytes_reclaimed", "pages_freed", "scenarios_scanned", "keep_per_scenario")
+    ROWS_REMOVED_FIELD_NUMBER: _ClassVar[int]
+    BYTES_RECLAIMED_FIELD_NUMBER: _ClassVar[int]
+    PAGES_FREED_FIELD_NUMBER: _ClassVar[int]
+    SCENARIOS_SCANNED_FIELD_NUMBER: _ClassVar[int]
+    KEEP_PER_SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    rows_removed: int
+    bytes_reclaimed: int
+    pages_freed: int
+    scenarios_scanned: int
+    keep_per_scenario: int
+    def __init__(self, rows_removed: _Optional[int] = ..., bytes_reclaimed: _Optional[int] = ..., pages_freed: _Optional[int] = ..., scenarios_scanned: _Optional[int] = ..., keep_per_scenario: _Optional[int] = ...) -> None: ...

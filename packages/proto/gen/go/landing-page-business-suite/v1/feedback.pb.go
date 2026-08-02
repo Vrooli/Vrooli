@@ -9,6 +9,7 @@ package landing_page_business_suite_v1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -20,6 +21,116 @@ const (
 	// Verify that runtime/protoimpl is sufficiently up-to-date.
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
+
+type FeedbackType int32
+
+const (
+	FeedbackType_FEEDBACK_TYPE_UNSPECIFIED FeedbackType = 0
+	FeedbackType_FEEDBACK_TYPE_REFUND      FeedbackType = 1
+	FeedbackType_FEEDBACK_TYPE_BUG         FeedbackType = 2
+	FeedbackType_FEEDBACK_TYPE_FEATURE     FeedbackType = 3
+	FeedbackType_FEEDBACK_TYPE_GENERAL     FeedbackType = 4
+)
+
+// Enum value maps for FeedbackType.
+var (
+	FeedbackType_name = map[int32]string{
+		0: "FEEDBACK_TYPE_UNSPECIFIED",
+		1: "FEEDBACK_TYPE_REFUND",
+		2: "FEEDBACK_TYPE_BUG",
+		3: "FEEDBACK_TYPE_FEATURE",
+		4: "FEEDBACK_TYPE_GENERAL",
+	}
+	FeedbackType_value = map[string]int32{
+		"FEEDBACK_TYPE_UNSPECIFIED": 0,
+		"FEEDBACK_TYPE_REFUND":      1,
+		"FEEDBACK_TYPE_BUG":         2,
+		"FEEDBACK_TYPE_FEATURE":     3,
+		"FEEDBACK_TYPE_GENERAL":     4,
+	}
+)
+
+func (x FeedbackType) Enum() *FeedbackType {
+	p := new(FeedbackType)
+	*p = x
+	return p
+}
+
+func (x FeedbackType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (FeedbackType) Descriptor() protoreflect.EnumDescriptor {
+	return file_landing_page_business_suite_v1_feedback_proto_enumTypes[0].Descriptor()
+}
+
+func (FeedbackType) Type() protoreflect.EnumType {
+	return &file_landing_page_business_suite_v1_feedback_proto_enumTypes[0]
+}
+
+func (x FeedbackType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use FeedbackType.Descriptor instead.
+func (FeedbackType) EnumDescriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_feedback_proto_rawDescGZIP(), []int{0}
+}
+
+type FeedbackStatus int32
+
+const (
+	FeedbackStatus_FEEDBACK_STATUS_UNSPECIFIED FeedbackStatus = 0
+	FeedbackStatus_FEEDBACK_STATUS_PENDING     FeedbackStatus = 1
+	FeedbackStatus_FEEDBACK_STATUS_IN_PROGRESS FeedbackStatus = 2
+	FeedbackStatus_FEEDBACK_STATUS_RESOLVED    FeedbackStatus = 3
+	FeedbackStatus_FEEDBACK_STATUS_REJECTED    FeedbackStatus = 4
+)
+
+// Enum value maps for FeedbackStatus.
+var (
+	FeedbackStatus_name = map[int32]string{
+		0: "FEEDBACK_STATUS_UNSPECIFIED",
+		1: "FEEDBACK_STATUS_PENDING",
+		2: "FEEDBACK_STATUS_IN_PROGRESS",
+		3: "FEEDBACK_STATUS_RESOLVED",
+		4: "FEEDBACK_STATUS_REJECTED",
+	}
+	FeedbackStatus_value = map[string]int32{
+		"FEEDBACK_STATUS_UNSPECIFIED": 0,
+		"FEEDBACK_STATUS_PENDING":     1,
+		"FEEDBACK_STATUS_IN_PROGRESS": 2,
+		"FEEDBACK_STATUS_RESOLVED":    3,
+		"FEEDBACK_STATUS_REJECTED":    4,
+	}
+)
+
+func (x FeedbackStatus) Enum() *FeedbackStatus {
+	p := new(FeedbackStatus)
+	*p = x
+	return p
+}
+
+func (x FeedbackStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (FeedbackStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_landing_page_business_suite_v1_feedback_proto_enumTypes[1].Descriptor()
+}
+
+func (FeedbackStatus) Type() protoreflect.EnumType {
+	return &file_landing_page_business_suite_v1_feedback_proto_enumTypes[1]
+}
+
+func (x FeedbackStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use FeedbackStatus.Descriptor instead.
+func (FeedbackStatus) EnumDescriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_feedback_proto_rawDescGZIP(), []int{1}
+}
 
 // FeedbackCreateRequest is the JSON contract for the public feedback form and
 // its legacy embedded-client alias. The handler owns validation and assigns a
@@ -206,11 +317,575 @@ func (x *FeedbackError) GetType() string {
 	return ""
 }
 
+type FeedbackRecord struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Type          FeedbackType           `protobuf:"varint,2,opt,name=type,proto3,enum=landing_page_business_suite.v1.FeedbackType" json:"type,omitempty"`
+	Email         string                 `protobuf:"bytes,3,opt,name=email,proto3" json:"email,omitempty"`
+	Subject       string                 `protobuf:"bytes,4,opt,name=subject,proto3" json:"subject,omitempty"`
+	Message       string                 `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
+	OrderId       *string                `protobuf:"bytes,6,opt,name=order_id,json=orderId,proto3,oneof" json:"order_id,omitempty"`
+	Status        FeedbackStatus         `protobuf:"varint,7,opt,name=status,proto3,enum=landing_page_business_suite.v1.FeedbackStatus" json:"status,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FeedbackRecord) Reset() {
+	*x = FeedbackRecord{}
+	mi := &file_landing_page_business_suite_v1_feedback_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FeedbackRecord) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FeedbackRecord) ProtoMessage() {}
+
+func (x *FeedbackRecord) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_feedback_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FeedbackRecord.ProtoReflect.Descriptor instead.
+func (*FeedbackRecord) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_feedback_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *FeedbackRecord) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *FeedbackRecord) GetType() FeedbackType {
+	if x != nil {
+		return x.Type
+	}
+	return FeedbackType_FEEDBACK_TYPE_UNSPECIFIED
+}
+
+func (x *FeedbackRecord) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *FeedbackRecord) GetSubject() string {
+	if x != nil {
+		return x.Subject
+	}
+	return ""
+}
+
+func (x *FeedbackRecord) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *FeedbackRecord) GetOrderId() string {
+	if x != nil && x.OrderId != nil {
+		return *x.OrderId
+	}
+	return ""
+}
+
+func (x *FeedbackRecord) GetStatus() FeedbackStatus {
+	if x != nil {
+		return x.Status
+	}
+	return FeedbackStatus_FEEDBACK_STATUS_UNSPECIFIED
+}
+
+func (x *FeedbackRecord) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *FeedbackRecord) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+type ListFeedbackRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Status        *FeedbackStatus        `protobuf:"varint,1,opt,name=status,proto3,enum=landing_page_business_suite.v1.FeedbackStatus,oneof" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListFeedbackRequest) Reset() {
+	*x = ListFeedbackRequest{}
+	mi := &file_landing_page_business_suite_v1_feedback_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListFeedbackRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListFeedbackRequest) ProtoMessage() {}
+
+func (x *ListFeedbackRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_feedback_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListFeedbackRequest.ProtoReflect.Descriptor instead.
+func (*ListFeedbackRequest) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_feedback_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ListFeedbackRequest) GetStatus() FeedbackStatus {
+	if x != nil && x.Status != nil {
+		return *x.Status
+	}
+	return FeedbackStatus_FEEDBACK_STATUS_UNSPECIFIED
+}
+
+type ListFeedbackResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Feedback      []*FeedbackRecord      `protobuf:"bytes,1,rep,name=feedback,proto3" json:"feedback,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListFeedbackResponse) Reset() {
+	*x = ListFeedbackResponse{}
+	mi := &file_landing_page_business_suite_v1_feedback_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListFeedbackResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListFeedbackResponse) ProtoMessage() {}
+
+func (x *ListFeedbackResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_feedback_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListFeedbackResponse.ProtoReflect.Descriptor instead.
+func (*ListFeedbackResponse) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_feedback_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ListFeedbackResponse) GetFeedback() []*FeedbackRecord {
+	if x != nil {
+		return x.Feedback
+	}
+	return nil
+}
+
+type GetFeedbackRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetFeedbackRequest) Reset() {
+	*x = GetFeedbackRequest{}
+	mi := &file_landing_page_business_suite_v1_feedback_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetFeedbackRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetFeedbackRequest) ProtoMessage() {}
+
+func (x *GetFeedbackRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_feedback_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetFeedbackRequest.ProtoReflect.Descriptor instead.
+func (*GetFeedbackRequest) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_feedback_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *GetFeedbackRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type GetFeedbackResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Feedback      *FeedbackRecord        `protobuf:"bytes,1,opt,name=feedback,proto3" json:"feedback,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetFeedbackResponse) Reset() {
+	*x = GetFeedbackResponse{}
+	mi := &file_landing_page_business_suite_v1_feedback_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetFeedbackResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetFeedbackResponse) ProtoMessage() {}
+
+func (x *GetFeedbackResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_feedback_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetFeedbackResponse.ProtoReflect.Descriptor instead.
+func (*GetFeedbackResponse) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_feedback_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GetFeedbackResponse) GetFeedback() *FeedbackRecord {
+	if x != nil {
+		return x.Feedback
+	}
+	return nil
+}
+
+type UpdateFeedbackStatusRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Status        FeedbackStatus         `protobuf:"varint,2,opt,name=status,proto3,enum=landing_page_business_suite.v1.FeedbackStatus" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateFeedbackStatusRequest) Reset() {
+	*x = UpdateFeedbackStatusRequest{}
+	mi := &file_landing_page_business_suite_v1_feedback_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateFeedbackStatusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateFeedbackStatusRequest) ProtoMessage() {}
+
+func (x *UpdateFeedbackStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_feedback_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateFeedbackStatusRequest.ProtoReflect.Descriptor instead.
+func (*UpdateFeedbackStatusRequest) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_feedback_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *UpdateFeedbackStatusRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *UpdateFeedbackStatusRequest) GetStatus() FeedbackStatus {
+	if x != nil {
+		return x.Status
+	}
+	return FeedbackStatus_FEEDBACK_STATUS_UNSPECIFIED
+}
+
+type UpdateFeedbackStatusResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Feedback      *FeedbackRecord        `protobuf:"bytes,1,opt,name=feedback,proto3" json:"feedback,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateFeedbackStatusResponse) Reset() {
+	*x = UpdateFeedbackStatusResponse{}
+	mi := &file_landing_page_business_suite_v1_feedback_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateFeedbackStatusResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateFeedbackStatusResponse) ProtoMessage() {}
+
+func (x *UpdateFeedbackStatusResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_feedback_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateFeedbackStatusResponse.ProtoReflect.Descriptor instead.
+func (*UpdateFeedbackStatusResponse) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_feedback_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *UpdateFeedbackStatusResponse) GetFeedback() *FeedbackRecord {
+	if x != nil {
+		return x.Feedback
+	}
+	return nil
+}
+
+type DeleteFeedbackRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteFeedbackRequest) Reset() {
+	*x = DeleteFeedbackRequest{}
+	mi := &file_landing_page_business_suite_v1_feedback_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteFeedbackRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteFeedbackRequest) ProtoMessage() {}
+
+func (x *DeleteFeedbackRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_feedback_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteFeedbackRequest.ProtoReflect.Descriptor instead.
+func (*DeleteFeedbackRequest) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_feedback_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *DeleteFeedbackRequest) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type DeleteFeedbackResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Deleted       bool                   `protobuf:"varint,1,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	Id            int64                  `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteFeedbackResponse) Reset() {
+	*x = DeleteFeedbackResponse{}
+	mi := &file_landing_page_business_suite_v1_feedback_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteFeedbackResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteFeedbackResponse) ProtoMessage() {}
+
+func (x *DeleteFeedbackResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_feedback_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteFeedbackResponse.ProtoReflect.Descriptor instead.
+func (*DeleteFeedbackResponse) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_feedback_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *DeleteFeedbackResponse) GetDeleted() bool {
+	if x != nil {
+		return x.Deleted
+	}
+	return false
+}
+
+func (x *DeleteFeedbackResponse) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type DeleteFeedbackBulkRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ids           []int64                `protobuf:"varint,1,rep,packed,name=ids,proto3" json:"ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteFeedbackBulkRequest) Reset() {
+	*x = DeleteFeedbackBulkRequest{}
+	mi := &file_landing_page_business_suite_v1_feedback_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteFeedbackBulkRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteFeedbackBulkRequest) ProtoMessage() {}
+
+func (x *DeleteFeedbackBulkRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_feedback_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteFeedbackBulkRequest.ProtoReflect.Descriptor instead.
+func (*DeleteFeedbackBulkRequest) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_feedback_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *DeleteFeedbackBulkRequest) GetIds() []int64 {
+	if x != nil {
+		return x.Ids
+	}
+	return nil
+}
+
+type DeleteFeedbackBulkResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Deleted       int64                  `protobuf:"varint,1,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteFeedbackBulkResponse) Reset() {
+	*x = DeleteFeedbackBulkResponse{}
+	mi := &file_landing_page_business_suite_v1_feedback_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteFeedbackBulkResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteFeedbackBulkResponse) ProtoMessage() {}
+
+func (x *DeleteFeedbackBulkResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_feedback_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteFeedbackBulkResponse.ProtoReflect.Descriptor instead.
+func (*DeleteFeedbackBulkResponse) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_feedback_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *DeleteFeedbackBulkResponse) GetDeleted() int64 {
+	if x != nil {
+		return x.Deleted
+	}
+	return 0
+}
+
 var File_landing_page_business_suite_v1_feedback_proto protoreflect.FileDescriptor
 
 const file_landing_page_business_suite_v1_feedback_proto_rawDesc = "" +
 	"\n" +
-	"-landing-page-business-suite/v1/feedback.proto\x12\x1elanding_page_business_suite.v1\"\xa2\x01\n" +
+	"-landing-page-business-suite/v1/feedback.proto\x12\x1elanding_page_business_suite.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa2\x01\n" +
 	"\x15FeedbackCreateRequest\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x14\n" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\x18\n" +
@@ -223,7 +898,62 @@ const file_landing_page_business_suite_v1_feedback_proto_rawDesc = "" +
 	"\x02id\x18\x02 \x01(\x03R\x02id\"9\n" +
 	"\rFeedbackError\x12\x14\n" +
 	"\x05error\x18\x01 \x01(\tR\x05error\x12\x12\n" +
-	"\x04type\x18\x02 \x01(\tR\x04typeBnZlgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1b\x06proto3"
+	"\x04type\x18\x02 \x01(\tR\x04type\"\x97\x03\n" +
+	"\x0eFeedbackRecord\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12@\n" +
+	"\x04type\x18\x02 \x01(\x0e2,.landing_page_business_suite.v1.FeedbackTypeR\x04type\x12\x14\n" +
+	"\x05email\x18\x03 \x01(\tR\x05email\x12\x18\n" +
+	"\asubject\x18\x04 \x01(\tR\asubject\x12\x18\n" +
+	"\amessage\x18\x05 \x01(\tR\amessage\x12\x1e\n" +
+	"\border_id\x18\x06 \x01(\tH\x00R\aorderId\x88\x01\x01\x12F\n" +
+	"\x06status\x18\a \x01(\x0e2..landing_page_business_suite.v1.FeedbackStatusR\x06status\x129\n" +
+	"\n" +
+	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\v\n" +
+	"\t_order_id\"m\n" +
+	"\x13ListFeedbackRequest\x12K\n" +
+	"\x06status\x18\x01 \x01(\x0e2..landing_page_business_suite.v1.FeedbackStatusH\x00R\x06status\x88\x01\x01B\t\n" +
+	"\a_status\"b\n" +
+	"\x14ListFeedbackResponse\x12J\n" +
+	"\bfeedback\x18\x01 \x03(\v2..landing_page_business_suite.v1.FeedbackRecordR\bfeedback\"$\n" +
+	"\x12GetFeedbackRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"a\n" +
+	"\x13GetFeedbackResponse\x12J\n" +
+	"\bfeedback\x18\x01 \x01(\v2..landing_page_business_suite.v1.FeedbackRecordR\bfeedback\"u\n" +
+	"\x1bUpdateFeedbackStatusRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12F\n" +
+	"\x06status\x18\x02 \x01(\x0e2..landing_page_business_suite.v1.FeedbackStatusR\x06status\"j\n" +
+	"\x1cUpdateFeedbackStatusResponse\x12J\n" +
+	"\bfeedback\x18\x01 \x01(\v2..landing_page_business_suite.v1.FeedbackRecordR\bfeedback\"'\n" +
+	"\x15DeleteFeedbackRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"B\n" +
+	"\x16DeleteFeedbackResponse\x12\x18\n" +
+	"\adeleted\x18\x01 \x01(\bR\adeleted\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\x03R\x02id\"-\n" +
+	"\x19DeleteFeedbackBulkRequest\x12\x10\n" +
+	"\x03ids\x18\x01 \x03(\x03R\x03ids\"6\n" +
+	"\x1aDeleteFeedbackBulkResponse\x12\x18\n" +
+	"\adeleted\x18\x01 \x01(\x03R\adeleted*\x94\x01\n" +
+	"\fFeedbackType\x12\x1d\n" +
+	"\x19FEEDBACK_TYPE_UNSPECIFIED\x10\x00\x12\x18\n" +
+	"\x14FEEDBACK_TYPE_REFUND\x10\x01\x12\x15\n" +
+	"\x11FEEDBACK_TYPE_BUG\x10\x02\x12\x19\n" +
+	"\x15FEEDBACK_TYPE_FEATURE\x10\x03\x12\x19\n" +
+	"\x15FEEDBACK_TYPE_GENERAL\x10\x04*\xab\x01\n" +
+	"\x0eFeedbackStatus\x12\x1f\n" +
+	"\x1bFEEDBACK_STATUS_UNSPECIFIED\x10\x00\x12\x1b\n" +
+	"\x17FEEDBACK_STATUS_PENDING\x10\x01\x12\x1f\n" +
+	"\x1bFEEDBACK_STATUS_IN_PROGRESS\x10\x02\x12\x1c\n" +
+	"\x18FEEDBACK_STATUS_RESOLVED\x10\x03\x12\x1c\n" +
+	"\x18FEEDBACK_STATUS_REJECTED\x10\x042\xa8\x06\n" +
+	"\x0fFeedbackService\x12\x7f\n" +
+	"\x0eCreateFeedback\x125.landing_page_business_suite.v1.FeedbackCreateRequest\x1a6.landing_page_business_suite.v1.FeedbackCreateResponse\x12y\n" +
+	"\fListFeedback\x123.landing_page_business_suite.v1.ListFeedbackRequest\x1a4.landing_page_business_suite.v1.ListFeedbackResponse\x12v\n" +
+	"\vGetFeedback\x122.landing_page_business_suite.v1.GetFeedbackRequest\x1a3.landing_page_business_suite.v1.GetFeedbackResponse\x12\x91\x01\n" +
+	"\x14UpdateFeedbackStatus\x12;.landing_page_business_suite.v1.UpdateFeedbackStatusRequest\x1a<.landing_page_business_suite.v1.UpdateFeedbackStatusResponse\x12\x7f\n" +
+	"\x0eDeleteFeedback\x125.landing_page_business_suite.v1.DeleteFeedbackRequest\x1a6.landing_page_business_suite.v1.DeleteFeedbackResponse\x12\x8b\x01\n" +
+	"\x12DeleteFeedbackBulk\x129.landing_page_business_suite.v1.DeleteFeedbackBulkRequest\x1a:.landing_page_business_suite.v1.DeleteFeedbackBulkResponseBnZlgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1b\x06proto3"
 
 var (
 	file_landing_page_business_suite_v1_feedback_proto_rawDescOnce sync.Once
@@ -237,18 +967,54 @@ func file_landing_page_business_suite_v1_feedback_proto_rawDescGZIP() []byte {
 	return file_landing_page_business_suite_v1_feedback_proto_rawDescData
 }
 
-var file_landing_page_business_suite_v1_feedback_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_landing_page_business_suite_v1_feedback_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_landing_page_business_suite_v1_feedback_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_landing_page_business_suite_v1_feedback_proto_goTypes = []any{
-	(*FeedbackCreateRequest)(nil),  // 0: landing_page_business_suite.v1.FeedbackCreateRequest
-	(*FeedbackCreateResponse)(nil), // 1: landing_page_business_suite.v1.FeedbackCreateResponse
-	(*FeedbackError)(nil),          // 2: landing_page_business_suite.v1.FeedbackError
+	(FeedbackType)(0),                    // 0: landing_page_business_suite.v1.FeedbackType
+	(FeedbackStatus)(0),                  // 1: landing_page_business_suite.v1.FeedbackStatus
+	(*FeedbackCreateRequest)(nil),        // 2: landing_page_business_suite.v1.FeedbackCreateRequest
+	(*FeedbackCreateResponse)(nil),       // 3: landing_page_business_suite.v1.FeedbackCreateResponse
+	(*FeedbackError)(nil),                // 4: landing_page_business_suite.v1.FeedbackError
+	(*FeedbackRecord)(nil),               // 5: landing_page_business_suite.v1.FeedbackRecord
+	(*ListFeedbackRequest)(nil),          // 6: landing_page_business_suite.v1.ListFeedbackRequest
+	(*ListFeedbackResponse)(nil),         // 7: landing_page_business_suite.v1.ListFeedbackResponse
+	(*GetFeedbackRequest)(nil),           // 8: landing_page_business_suite.v1.GetFeedbackRequest
+	(*GetFeedbackResponse)(nil),          // 9: landing_page_business_suite.v1.GetFeedbackResponse
+	(*UpdateFeedbackStatusRequest)(nil),  // 10: landing_page_business_suite.v1.UpdateFeedbackStatusRequest
+	(*UpdateFeedbackStatusResponse)(nil), // 11: landing_page_business_suite.v1.UpdateFeedbackStatusResponse
+	(*DeleteFeedbackRequest)(nil),        // 12: landing_page_business_suite.v1.DeleteFeedbackRequest
+	(*DeleteFeedbackResponse)(nil),       // 13: landing_page_business_suite.v1.DeleteFeedbackResponse
+	(*DeleteFeedbackBulkRequest)(nil),    // 14: landing_page_business_suite.v1.DeleteFeedbackBulkRequest
+	(*DeleteFeedbackBulkResponse)(nil),   // 15: landing_page_business_suite.v1.DeleteFeedbackBulkResponse
+	(*timestamppb.Timestamp)(nil),        // 16: google.protobuf.Timestamp
 }
 var file_landing_page_business_suite_v1_feedback_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0,  // 0: landing_page_business_suite.v1.FeedbackRecord.type:type_name -> landing_page_business_suite.v1.FeedbackType
+	1,  // 1: landing_page_business_suite.v1.FeedbackRecord.status:type_name -> landing_page_business_suite.v1.FeedbackStatus
+	16, // 2: landing_page_business_suite.v1.FeedbackRecord.created_at:type_name -> google.protobuf.Timestamp
+	16, // 3: landing_page_business_suite.v1.FeedbackRecord.updated_at:type_name -> google.protobuf.Timestamp
+	1,  // 4: landing_page_business_suite.v1.ListFeedbackRequest.status:type_name -> landing_page_business_suite.v1.FeedbackStatus
+	5,  // 5: landing_page_business_suite.v1.ListFeedbackResponse.feedback:type_name -> landing_page_business_suite.v1.FeedbackRecord
+	5,  // 6: landing_page_business_suite.v1.GetFeedbackResponse.feedback:type_name -> landing_page_business_suite.v1.FeedbackRecord
+	1,  // 7: landing_page_business_suite.v1.UpdateFeedbackStatusRequest.status:type_name -> landing_page_business_suite.v1.FeedbackStatus
+	5,  // 8: landing_page_business_suite.v1.UpdateFeedbackStatusResponse.feedback:type_name -> landing_page_business_suite.v1.FeedbackRecord
+	2,  // 9: landing_page_business_suite.v1.FeedbackService.CreateFeedback:input_type -> landing_page_business_suite.v1.FeedbackCreateRequest
+	6,  // 10: landing_page_business_suite.v1.FeedbackService.ListFeedback:input_type -> landing_page_business_suite.v1.ListFeedbackRequest
+	8,  // 11: landing_page_business_suite.v1.FeedbackService.GetFeedback:input_type -> landing_page_business_suite.v1.GetFeedbackRequest
+	10, // 12: landing_page_business_suite.v1.FeedbackService.UpdateFeedbackStatus:input_type -> landing_page_business_suite.v1.UpdateFeedbackStatusRequest
+	12, // 13: landing_page_business_suite.v1.FeedbackService.DeleteFeedback:input_type -> landing_page_business_suite.v1.DeleteFeedbackRequest
+	14, // 14: landing_page_business_suite.v1.FeedbackService.DeleteFeedbackBulk:input_type -> landing_page_business_suite.v1.DeleteFeedbackBulkRequest
+	3,  // 15: landing_page_business_suite.v1.FeedbackService.CreateFeedback:output_type -> landing_page_business_suite.v1.FeedbackCreateResponse
+	7,  // 16: landing_page_business_suite.v1.FeedbackService.ListFeedback:output_type -> landing_page_business_suite.v1.ListFeedbackResponse
+	9,  // 17: landing_page_business_suite.v1.FeedbackService.GetFeedback:output_type -> landing_page_business_suite.v1.GetFeedbackResponse
+	11, // 18: landing_page_business_suite.v1.FeedbackService.UpdateFeedbackStatus:output_type -> landing_page_business_suite.v1.UpdateFeedbackStatusResponse
+	13, // 19: landing_page_business_suite.v1.FeedbackService.DeleteFeedback:output_type -> landing_page_business_suite.v1.DeleteFeedbackResponse
+	15, // 20: landing_page_business_suite.v1.FeedbackService.DeleteFeedbackBulk:output_type -> landing_page_business_suite.v1.DeleteFeedbackBulkResponse
+	15, // [15:21] is the sub-list for method output_type
+	9,  // [9:15] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_landing_page_business_suite_v1_feedback_proto_init() }
@@ -257,18 +1023,21 @@ func file_landing_page_business_suite_v1_feedback_proto_init() {
 		return
 	}
 	file_landing_page_business_suite_v1_feedback_proto_msgTypes[0].OneofWrappers = []any{}
+	file_landing_page_business_suite_v1_feedback_proto_msgTypes[3].OneofWrappers = []any{}
+	file_landing_page_business_suite_v1_feedback_proto_msgTypes[4].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_landing_page_business_suite_v1_feedback_proto_rawDesc), len(file_landing_page_business_suite_v1_feedback_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   3,
+			NumEnums:      2,
+			NumMessages:   14,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_landing_page_business_suite_v1_feedback_proto_goTypes,
 		DependencyIndexes: file_landing_page_business_suite_v1_feedback_proto_depIdxs,
+		EnumInfos:         file_landing_page_business_suite_v1_feedback_proto_enumTypes,
 		MessageInfos:      file_landing_page_business_suite_v1_feedback_proto_msgTypes,
 	}.Build()
 	File_landing_page_business_suite_v1_feedback_proto = out.File

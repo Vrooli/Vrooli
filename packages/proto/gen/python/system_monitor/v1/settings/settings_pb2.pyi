@@ -7,7 +7,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class SystemSettings(_message.Message):
-    __slots__ = ("active", "metric_collection_interval", "anomaly_detection_interval", "threshold_check_interval", "cooldown_period_seconds", "cpu_threshold", "memory_threshold", "disk_threshold", "metrics_retention_days", "retention_check_interval_seconds", "retention_run_on_startup", "compact_after_retention")
+    __slots__ = ("active", "metric_collection_interval", "anomaly_detection_interval", "threshold_check_interval", "cooldown_period_seconds", "cpu_threshold", "memory_threshold", "disk_threshold", "metrics_retention_days", "retention_check_interval_seconds", "retention_run_on_startup", "compact_after_retention", "disk_high_percent", "disk_critical_percent", "disk_escalation_cooldown_seconds", "disk_escalation_debounce_ticks", "disk_fast_fill_jump_percent")
     ACTIVE_FIELD_NUMBER: _ClassVar[int]
     METRIC_COLLECTION_INTERVAL_FIELD_NUMBER: _ClassVar[int]
     ANOMALY_DETECTION_INTERVAL_FIELD_NUMBER: _ClassVar[int]
@@ -20,6 +20,11 @@ class SystemSettings(_message.Message):
     RETENTION_CHECK_INTERVAL_SECONDS_FIELD_NUMBER: _ClassVar[int]
     RETENTION_RUN_ON_STARTUP_FIELD_NUMBER: _ClassVar[int]
     COMPACT_AFTER_RETENTION_FIELD_NUMBER: _ClassVar[int]
+    DISK_HIGH_PERCENT_FIELD_NUMBER: _ClassVar[int]
+    DISK_CRITICAL_PERCENT_FIELD_NUMBER: _ClassVar[int]
+    DISK_ESCALATION_COOLDOWN_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    DISK_ESCALATION_DEBOUNCE_TICKS_FIELD_NUMBER: _ClassVar[int]
+    DISK_FAST_FILL_JUMP_PERCENT_FIELD_NUMBER: _ClassVar[int]
     active: bool
     metric_collection_interval: int
     anomaly_detection_interval: int
@@ -32,7 +37,12 @@ class SystemSettings(_message.Message):
     retention_check_interval_seconds: int
     retention_run_on_startup: bool
     compact_after_retention: bool
-    def __init__(self, active: _Optional[bool] = ..., metric_collection_interval: _Optional[int] = ..., anomaly_detection_interval: _Optional[int] = ..., threshold_check_interval: _Optional[int] = ..., cooldown_period_seconds: _Optional[int] = ..., cpu_threshold: _Optional[float] = ..., memory_threshold: _Optional[float] = ..., disk_threshold: _Optional[float] = ..., metrics_retention_days: _Optional[int] = ..., retention_check_interval_seconds: _Optional[int] = ..., retention_run_on_startup: _Optional[bool] = ..., compact_after_retention: _Optional[bool] = ...) -> None: ...
+    disk_high_percent: float
+    disk_critical_percent: float
+    disk_escalation_cooldown_seconds: int
+    disk_escalation_debounce_ticks: int
+    disk_fast_fill_jump_percent: float
+    def __init__(self, active: _Optional[bool] = ..., metric_collection_interval: _Optional[int] = ..., anomaly_detection_interval: _Optional[int] = ..., threshold_check_interval: _Optional[int] = ..., cooldown_period_seconds: _Optional[int] = ..., cpu_threshold: _Optional[float] = ..., memory_threshold: _Optional[float] = ..., disk_threshold: _Optional[float] = ..., metrics_retention_days: _Optional[int] = ..., retention_check_interval_seconds: _Optional[int] = ..., retention_run_on_startup: _Optional[bool] = ..., compact_after_retention: _Optional[bool] = ..., disk_high_percent: _Optional[float] = ..., disk_critical_percent: _Optional[float] = ..., disk_escalation_cooldown_seconds: _Optional[int] = ..., disk_escalation_debounce_ticks: _Optional[int] = ..., disk_fast_fill_jump_percent: _Optional[float] = ...) -> None: ...
 
 class GetSettingsRequest(_message.Message):
     __slots__ = ()

@@ -137,6 +137,52 @@
           }
         },
         {
+          "name": "report-pressure",
+          "description": "Report disk pressure so cleanup-manager can observe, preview, or reclaim safe-tier space",
+          "flags": [
+            {
+              "name": "partition",
+              "required": true,
+              "description": "Filesystem under pressure, for example /"
+            },
+            {
+              "name": "band",
+              "required": true,
+              "description": "Escalation band: warning (observe), high (preview), or critical (apply safe-tier)"
+            },
+            {
+              "name": "used-percent",
+              "required": false,
+              "description": "Usage percentage as df reports it"
+            },
+            {
+              "name": "available-bytes",
+              "required": false,
+              "description": "Bytes still available to an unprivileged writer"
+            },
+            {
+              "name": "source",
+              "required": false,
+              "description": "Reporting scenario, recorded in the audit trail"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CleanupService",
+            "method": "ReportPressure"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
           "name": "audit",
           "description": "List cleanup audit events",
           "binding": {

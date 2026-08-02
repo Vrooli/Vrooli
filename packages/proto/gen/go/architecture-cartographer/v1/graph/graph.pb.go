@@ -2367,6 +2367,327 @@ func (x *ArchetypeReport) GetAttestation() *v1.AttestedAnswer {
 	return nil
 }
 
+// ScenarioSnapshotCount is one scenario's snapshot inventory.
+type ScenarioSnapshotCount struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	SnapshotCount int32                  `protobuf:"varint,2,opt,name=snapshot_count,json=snapshotCount,proto3" json:"snapshot_count,omitempty"`
+	// Rows beyond the retention floor for this scenario.
+	ReclaimableCount int32 `protobuf:"varint,3,opt,name=reclaimable_count,json=reclaimableCount,proto3" json:"reclaimable_count,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ScenarioSnapshotCount) Reset() {
+	*x = ScenarioSnapshotCount{}
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioSnapshotCount) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioSnapshotCount) ProtoMessage() {}
+
+func (x *ScenarioSnapshotCount) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioSnapshotCount.ProtoReflect.Descriptor instead.
+func (*ScenarioSnapshotCount) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_graph_graph_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *ScenarioSnapshotCount) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *ScenarioSnapshotCount) GetSnapshotCount() int32 {
+	if x != nil {
+		return x.SnapshotCount
+	}
+	return 0
+}
+
+func (x *ScenarioSnapshotCount) GetReclaimableCount() int32 {
+	if x != nil {
+		return x.ReclaimableCount
+	}
+	return 0
+}
+
+type PreviewSnapshotRetentionRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// keep_per_scenario overrides the configured retention floor for this
+	// preview only. Zero uses the configured value.
+	KeepPerScenario int32 `protobuf:"varint,1,opt,name=keep_per_scenario,json=keepPerScenario,proto3" json:"keep_per_scenario,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *PreviewSnapshotRetentionRequest) Reset() {
+	*x = PreviewSnapshotRetentionRequest{}
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PreviewSnapshotRetentionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PreviewSnapshotRetentionRequest) ProtoMessage() {}
+
+func (x *PreviewSnapshotRetentionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PreviewSnapshotRetentionRequest.ProtoReflect.Descriptor instead.
+func (*PreviewSnapshotRetentionRequest) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_graph_graph_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *PreviewSnapshotRetentionRequest) GetKeepPerScenario() int32 {
+	if x != nil {
+		return x.KeepPerScenario
+	}
+	return 0
+}
+
+type PreviewSnapshotRetentionResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Payload bytes held by snapshots beyond the retention floor. This is
+	// payload length, not database file size: graph_snapshots shares its file
+	// with other tables, and reporting the whole file would claim reclaimable
+	// space that is not.
+	ReclaimableBytes int64 `protobuf:"varint,1,opt,name=reclaimable_bytes,json=reclaimableBytes,proto3" json:"reclaimable_bytes,omitempty"`
+	// Rows that a prune would remove.
+	ReclaimableRows int32 `protobuf:"varint,2,opt,name=reclaimable_rows,json=reclaimableRows,proto3" json:"reclaimable_rows,omitempty"`
+	// The retention floor this preview was computed against.
+	KeepPerScenario int32                    `protobuf:"varint,3,opt,name=keep_per_scenario,json=keepPerScenario,proto3" json:"keep_per_scenario,omitempty"`
+	TotalSnapshots  int32                    `protobuf:"varint,4,opt,name=total_snapshots,json=totalSnapshots,proto3" json:"total_snapshots,omitempty"`
+	Scenarios       []*ScenarioSnapshotCount `protobuf:"bytes,5,rep,name=scenarios,proto3" json:"scenarios,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *PreviewSnapshotRetentionResponse) Reset() {
+	*x = PreviewSnapshotRetentionResponse{}
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PreviewSnapshotRetentionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PreviewSnapshotRetentionResponse) ProtoMessage() {}
+
+func (x *PreviewSnapshotRetentionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PreviewSnapshotRetentionResponse.ProtoReflect.Descriptor instead.
+func (*PreviewSnapshotRetentionResponse) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_graph_graph_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *PreviewSnapshotRetentionResponse) GetReclaimableBytes() int64 {
+	if x != nil {
+		return x.ReclaimableBytes
+	}
+	return 0
+}
+
+func (x *PreviewSnapshotRetentionResponse) GetReclaimableRows() int32 {
+	if x != nil {
+		return x.ReclaimableRows
+	}
+	return 0
+}
+
+func (x *PreviewSnapshotRetentionResponse) GetKeepPerScenario() int32 {
+	if x != nil {
+		return x.KeepPerScenario
+	}
+	return 0
+}
+
+func (x *PreviewSnapshotRetentionResponse) GetTotalSnapshots() int32 {
+	if x != nil {
+		return x.TotalSnapshots
+	}
+	return 0
+}
+
+func (x *PreviewSnapshotRetentionResponse) GetScenarios() []*ScenarioSnapshotCount {
+	if x != nil {
+		return x.Scenarios
+	}
+	return nil
+}
+
+type ApplySnapshotRetentionRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	KeepPerScenario int32                  `protobuf:"varint,1,opt,name=keep_per_scenario,json=keepPerScenario,proto3" json:"keep_per_scenario,omitempty"`
+	// confirm must be true. Deletion is irreversible, so the caller states
+	// intent explicitly rather than having an empty request mean "delete".
+	Confirm       bool `protobuf:"varint,2,opt,name=confirm,proto3" json:"confirm,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ApplySnapshotRetentionRequest) Reset() {
+	*x = ApplySnapshotRetentionRequest{}
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApplySnapshotRetentionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApplySnapshotRetentionRequest) ProtoMessage() {}
+
+func (x *ApplySnapshotRetentionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApplySnapshotRetentionRequest.ProtoReflect.Descriptor instead.
+func (*ApplySnapshotRetentionRequest) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_graph_graph_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *ApplySnapshotRetentionRequest) GetKeepPerScenario() int32 {
+	if x != nil {
+		return x.KeepPerScenario
+	}
+	return 0
+}
+
+func (x *ApplySnapshotRetentionRequest) GetConfirm() bool {
+	if x != nil {
+		return x.Confirm
+	}
+	return false
+}
+
+type ApplySnapshotRetentionResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	RowsRemoved    int32                  `protobuf:"varint,1,opt,name=rows_removed,json=rowsRemoved,proto3" json:"rows_removed,omitempty"`
+	BytesReclaimed int64                  `protobuf:"varint,2,opt,name=bytes_reclaimed,json=bytesReclaimed,proto3" json:"bytes_reclaimed,omitempty"`
+	// Database pages returned to the filesystem by incremental vacuum.
+	PagesFreed       int64 `protobuf:"varint,3,opt,name=pages_freed,json=pagesFreed,proto3" json:"pages_freed,omitempty"`
+	ScenariosScanned int32 `protobuf:"varint,4,opt,name=scenarios_scanned,json=scenariosScanned,proto3" json:"scenarios_scanned,omitempty"`
+	KeepPerScenario  int32 `protobuf:"varint,5,opt,name=keep_per_scenario,json=keepPerScenario,proto3" json:"keep_per_scenario,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ApplySnapshotRetentionResponse) Reset() {
+	*x = ApplySnapshotRetentionResponse{}
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApplySnapshotRetentionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApplySnapshotRetentionResponse) ProtoMessage() {}
+
+func (x *ApplySnapshotRetentionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_graph_graph_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApplySnapshotRetentionResponse.ProtoReflect.Descriptor instead.
+func (*ApplySnapshotRetentionResponse) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_graph_graph_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *ApplySnapshotRetentionResponse) GetRowsRemoved() int32 {
+	if x != nil {
+		return x.RowsRemoved
+	}
+	return 0
+}
+
+func (x *ApplySnapshotRetentionResponse) GetBytesReclaimed() int64 {
+	if x != nil {
+		return x.BytesReclaimed
+	}
+	return 0
+}
+
+func (x *ApplySnapshotRetentionResponse) GetPagesFreed() int64 {
+	if x != nil {
+		return x.PagesFreed
+	}
+	return 0
+}
+
+func (x *ApplySnapshotRetentionResponse) GetScenariosScanned() int32 {
+	if x != nil {
+		return x.ScenariosScanned
+	}
+	return 0
+}
+
+func (x *ApplySnapshotRetentionResponse) GetKeepPerScenario() int32 {
+	if x != nil {
+		return x.KeepPerScenario
+	}
+	return 0
+}
+
 var File_architecture_cartographer_v1_graph_graph_proto protoreflect.FileDescriptor
 
 const file_architecture_cartographer_v1_graph_graph_proto_rawDesc = "" +
@@ -2549,7 +2870,29 @@ const file_architecture_cartographer_v1_graph_graph_proto_rawDesc = "" +
 	"archetypes\x18\x02 \x03(\v2<.vrooli.architecture_cartographer.v1.domains.DomainArchetypeR\n" +
 	"archetypes\x12+\n" +
 	"\x11convergence_drift\x18\x03 \x01(\bR\x10convergenceDrift\x12;\n" +
-	"\vattestation\x18\x04 \x01(\v2\x19.common.v1.AttestedAnswerR\vattestation*N\n" +
+	"\vattestation\x18\x04 \x01(\v2\x19.common.v1.AttestedAnswerR\vattestation\"\x87\x01\n" +
+	"\x15ScenarioSnapshotCount\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12%\n" +
+	"\x0esnapshot_count\x18\x02 \x01(\x05R\rsnapshotCount\x12+\n" +
+	"\x11reclaimable_count\x18\x03 \x01(\x05R\x10reclaimableCount\"M\n" +
+	"\x1fPreviewSnapshotRetentionRequest\x12*\n" +
+	"\x11keep_per_scenario\x18\x01 \x01(\x05R\x0fkeepPerScenario\"\xaf\x02\n" +
+	" PreviewSnapshotRetentionResponse\x12+\n" +
+	"\x11reclaimable_bytes\x18\x01 \x01(\x03R\x10reclaimableBytes\x12)\n" +
+	"\x10reclaimable_rows\x18\x02 \x01(\x05R\x0freclaimableRows\x12*\n" +
+	"\x11keep_per_scenario\x18\x03 \x01(\x05R\x0fkeepPerScenario\x12'\n" +
+	"\x0ftotal_snapshots\x18\x04 \x01(\x05R\x0etotalSnapshots\x12^\n" +
+	"\tscenarios\x18\x05 \x03(\v2@.vrooli.architecture_cartographer.v1.graph.ScenarioSnapshotCountR\tscenarios\"e\n" +
+	"\x1dApplySnapshotRetentionRequest\x12*\n" +
+	"\x11keep_per_scenario\x18\x01 \x01(\x05R\x0fkeepPerScenario\x12\x18\n" +
+	"\aconfirm\x18\x02 \x01(\bR\aconfirm\"\xe6\x01\n" +
+	"\x1eApplySnapshotRetentionResponse\x12!\n" +
+	"\frows_removed\x18\x01 \x01(\x05R\vrowsRemoved\x12'\n" +
+	"\x0fbytes_reclaimed\x18\x02 \x01(\x03R\x0ebytesReclaimed\x12\x1f\n" +
+	"\vpages_freed\x18\x03 \x01(\x03R\n" +
+	"pagesFreed\x12+\n" +
+	"\x11scenarios_scanned\x18\x04 \x01(\x05R\x10scenariosScanned\x12*\n" +
+	"\x11keep_per_scenario\x18\x05 \x01(\x05R\x0fkeepPerScenario*N\n" +
 	"\bLanguage\x12\x18\n" +
 	"\x14LANGUAGE_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vLANGUAGE_GO\x10\x01\x12\x17\n" +
@@ -2557,12 +2900,14 @@ const file_architecture_cartographer_v1_graph_graph_proto_rawDesc = "" +
 	"\x13AuthorityConfidence\x12$\n" +
 	" AUTHORITY_CONFIDENCE_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19AUTHORITY_CONFIDENCE_HIGH\x10\x01\x12\x1c\n" +
-	"\x18AUTHORITY_CONFIDENCE_LOW\x10\x022\xc2\t\n" +
+	"\x18AUTHORITY_CONFIDENCE_LOW\x10\x022\xa8\f\n" +
 	"\fGraphService\x12\x8f\x01\n" +
 	"\fExtractGraph\x12>.vrooli.architecture_cartographer.v1.graph.ExtractGraphRequest\x1a?.vrooli.architecture_cartographer.v1.graph.ExtractGraphResponse\x12\x9b\x01\n" +
 	"\x10GetGraphSnapshot\x12B.vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotRequest\x1aC.vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotResponse\x12\xa1\x01\n" +
 	"\x12ListGraphSnapshots\x12D.vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsRequest\x1aE.vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsResponse\x12\xa4\x01\n" +
-	"\x13ClearGraphSnapshots\x12E.vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsRequest\x1aF.vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsResponse\x12\x8c\x01\n" +
+	"\x13ClearGraphSnapshots\x12E.vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsRequest\x1aF.vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsResponse\x12\xb3\x01\n" +
+	"\x18PreviewSnapshotRetention\x12J.vrooli.architecture_cartographer.v1.graph.PreviewSnapshotRetentionRequest\x1aK.vrooli.architecture_cartographer.v1.graph.PreviewSnapshotRetentionResponse\x12\xad\x01\n" +
+	"\x16ApplySnapshotRetention\x12H.vrooli.architecture_cartographer.v1.graph.ApplySnapshotRetentionRequest\x1aI.vrooli.architecture_cartographer.v1.graph.ApplySnapshotRetentionResponse\x12\x8c\x01\n" +
 	"\vExportGraph\x12=.vrooli.architecture_cartographer.v1.graph.ExportGraphRequest\x1a>.vrooli.architecture_cartographer.v1.graph.ExportGraphResponse\x12\x89\x01\n" +
 	"\n" +
 	"GetZoneMap\x12<.vrooli.architecture_cartographer.v1.graph.GetZoneMapRequest\x1a=.vrooli.architecture_cartographer.v1.graph.GetZoneMapResponse\x12\x83\x01\n" +
@@ -2582,53 +2927,58 @@ func file_architecture_cartographer_v1_graph_graph_proto_rawDescGZIP() []byte {
 }
 
 var file_architecture_cartographer_v1_graph_graph_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_architecture_cartographer_v1_graph_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
+var file_architecture_cartographer_v1_graph_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 38)
 var file_architecture_cartographer_v1_graph_graph_proto_goTypes = []any{
-	(Language)(0),                       // 0: vrooli.architecture_cartographer.v1.graph.Language
-	(AuthorityConfidence)(0),            // 1: vrooli.architecture_cartographer.v1.graph.AuthorityConfidence
-	(*FileNode)(nil),                    // 2: vrooli.architecture_cartographer.v1.graph.FileNode
-	(*PackageNode)(nil),                 // 3: vrooli.architecture_cartographer.v1.graph.PackageNode
-	(*SymbolNode)(nil),                  // 4: vrooli.architecture_cartographer.v1.graph.SymbolNode
-	(*ImportEdge)(nil),                  // 5: vrooli.architecture_cartographer.v1.graph.ImportEdge
-	(*Chunk)(nil),                       // 6: vrooli.architecture_cartographer.v1.graph.Chunk
-	(*GraphSnapshot)(nil),               // 7: vrooli.architecture_cartographer.v1.graph.GraphSnapshot
-	(*ExtractGraphRequest)(nil),         // 8: vrooli.architecture_cartographer.v1.graph.ExtractGraphRequest
-	(*ExtractGraphResponse)(nil),        // 9: vrooli.architecture_cartographer.v1.graph.ExtractGraphResponse
-	(*GetGraphSnapshotRequest)(nil),     // 10: vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotRequest
-	(*GetGraphSnapshotResponse)(nil),    // 11: vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotResponse
-	(*ListGraphSnapshotsRequest)(nil),   // 12: vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsRequest
-	(*ListGraphSnapshotsResponse)(nil),  // 13: vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsResponse
-	(*ClearGraphSnapshotsRequest)(nil),  // 14: vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsRequest
-	(*ClearGraphSnapshotsResponse)(nil), // 15: vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsResponse
-	(*ExportGraphRequest)(nil),          // 16: vrooli.architecture_cartographer.v1.graph.ExportGraphRequest
-	(*ExportGraphResponse)(nil),         // 17: vrooli.architecture_cartographer.v1.graph.ExportGraphResponse
-	(*GetZoneMapRequest)(nil),           // 18: vrooli.architecture_cartographer.v1.graph.GetZoneMapRequest
-	(*GetZoneMapResponse)(nil),          // 19: vrooli.architecture_cartographer.v1.graph.GetZoneMapResponse
-	(*ZoneMap)(nil),                     // 20: vrooli.architecture_cartographer.v1.graph.ZoneMap
-	(*ZonePackage)(nil),                 // 21: vrooli.architecture_cartographer.v1.graph.ZonePackage
-	(*ZoneEvidence)(nil),                // 22: vrooli.architecture_cartographer.v1.graph.ZoneEvidence
-	(*ZoneViolation)(nil),               // 23: vrooli.architecture_cartographer.v1.graph.ZoneViolation
-	(*GetSliceRequest)(nil),             // 24: vrooli.architecture_cartographer.v1.graph.GetSliceRequest
-	(*GetSliceResponse)(nil),            // 25: vrooli.architecture_cartographer.v1.graph.GetSliceResponse
-	(*DomainSlice)(nil),                 // 26: vrooli.architecture_cartographer.v1.graph.DomainSlice
-	(*SliceRung)(nil),                   // 27: vrooli.architecture_cartographer.v1.graph.SliceRung
-	(*SliceEvidence)(nil),               // 28: vrooli.architecture_cartographer.v1.graph.SliceEvidence
-	(*SliceFile)(nil),                   // 29: vrooli.architecture_cartographer.v1.graph.SliceFile
-	(*SliceSymbol)(nil),                 // 30: vrooli.architecture_cartographer.v1.graph.SliceSymbol
-	(*SliceEdge)(nil),                   // 31: vrooli.architecture_cartographer.v1.graph.SliceEdge
-	(*InferArchetypeRequest)(nil),       // 32: vrooli.architecture_cartographer.v1.graph.InferArchetypeRequest
-	(*InferArchetypeResponse)(nil),      // 33: vrooli.architecture_cartographer.v1.graph.InferArchetypeResponse
-	(*ArchetypeReport)(nil),             // 34: vrooli.architecture_cartographer.v1.graph.ArchetypeReport
-	(*timestamppb.Timestamp)(nil),       // 35: google.protobuf.Timestamp
-	(*v1.AttestedAnswer)(nil),           // 36: common.v1.AttestedAnswer
-	(shared.Severity)(0),                // 37: vrooli.architecture_cartographer.v1.shared.Severity
-	(*domains.DomainArchetype)(nil),     // 38: vrooli.architecture_cartographer.v1.domains.DomainArchetype
+	(Language)(0),                            // 0: vrooli.architecture_cartographer.v1.graph.Language
+	(AuthorityConfidence)(0),                 // 1: vrooli.architecture_cartographer.v1.graph.AuthorityConfidence
+	(*FileNode)(nil),                         // 2: vrooli.architecture_cartographer.v1.graph.FileNode
+	(*PackageNode)(nil),                      // 3: vrooli.architecture_cartographer.v1.graph.PackageNode
+	(*SymbolNode)(nil),                       // 4: vrooli.architecture_cartographer.v1.graph.SymbolNode
+	(*ImportEdge)(nil),                       // 5: vrooli.architecture_cartographer.v1.graph.ImportEdge
+	(*Chunk)(nil),                            // 6: vrooli.architecture_cartographer.v1.graph.Chunk
+	(*GraphSnapshot)(nil),                    // 7: vrooli.architecture_cartographer.v1.graph.GraphSnapshot
+	(*ExtractGraphRequest)(nil),              // 8: vrooli.architecture_cartographer.v1.graph.ExtractGraphRequest
+	(*ExtractGraphResponse)(nil),             // 9: vrooli.architecture_cartographer.v1.graph.ExtractGraphResponse
+	(*GetGraphSnapshotRequest)(nil),          // 10: vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotRequest
+	(*GetGraphSnapshotResponse)(nil),         // 11: vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotResponse
+	(*ListGraphSnapshotsRequest)(nil),        // 12: vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsRequest
+	(*ListGraphSnapshotsResponse)(nil),       // 13: vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsResponse
+	(*ClearGraphSnapshotsRequest)(nil),       // 14: vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsRequest
+	(*ClearGraphSnapshotsResponse)(nil),      // 15: vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsResponse
+	(*ExportGraphRequest)(nil),               // 16: vrooli.architecture_cartographer.v1.graph.ExportGraphRequest
+	(*ExportGraphResponse)(nil),              // 17: vrooli.architecture_cartographer.v1.graph.ExportGraphResponse
+	(*GetZoneMapRequest)(nil),                // 18: vrooli.architecture_cartographer.v1.graph.GetZoneMapRequest
+	(*GetZoneMapResponse)(nil),               // 19: vrooli.architecture_cartographer.v1.graph.GetZoneMapResponse
+	(*ZoneMap)(nil),                          // 20: vrooli.architecture_cartographer.v1.graph.ZoneMap
+	(*ZonePackage)(nil),                      // 21: vrooli.architecture_cartographer.v1.graph.ZonePackage
+	(*ZoneEvidence)(nil),                     // 22: vrooli.architecture_cartographer.v1.graph.ZoneEvidence
+	(*ZoneViolation)(nil),                    // 23: vrooli.architecture_cartographer.v1.graph.ZoneViolation
+	(*GetSliceRequest)(nil),                  // 24: vrooli.architecture_cartographer.v1.graph.GetSliceRequest
+	(*GetSliceResponse)(nil),                 // 25: vrooli.architecture_cartographer.v1.graph.GetSliceResponse
+	(*DomainSlice)(nil),                      // 26: vrooli.architecture_cartographer.v1.graph.DomainSlice
+	(*SliceRung)(nil),                        // 27: vrooli.architecture_cartographer.v1.graph.SliceRung
+	(*SliceEvidence)(nil),                    // 28: vrooli.architecture_cartographer.v1.graph.SliceEvidence
+	(*SliceFile)(nil),                        // 29: vrooli.architecture_cartographer.v1.graph.SliceFile
+	(*SliceSymbol)(nil),                      // 30: vrooli.architecture_cartographer.v1.graph.SliceSymbol
+	(*SliceEdge)(nil),                        // 31: vrooli.architecture_cartographer.v1.graph.SliceEdge
+	(*InferArchetypeRequest)(nil),            // 32: vrooli.architecture_cartographer.v1.graph.InferArchetypeRequest
+	(*InferArchetypeResponse)(nil),           // 33: vrooli.architecture_cartographer.v1.graph.InferArchetypeResponse
+	(*ArchetypeReport)(nil),                  // 34: vrooli.architecture_cartographer.v1.graph.ArchetypeReport
+	(*ScenarioSnapshotCount)(nil),            // 35: vrooli.architecture_cartographer.v1.graph.ScenarioSnapshotCount
+	(*PreviewSnapshotRetentionRequest)(nil),  // 36: vrooli.architecture_cartographer.v1.graph.PreviewSnapshotRetentionRequest
+	(*PreviewSnapshotRetentionResponse)(nil), // 37: vrooli.architecture_cartographer.v1.graph.PreviewSnapshotRetentionResponse
+	(*ApplySnapshotRetentionRequest)(nil),    // 38: vrooli.architecture_cartographer.v1.graph.ApplySnapshotRetentionRequest
+	(*ApplySnapshotRetentionResponse)(nil),   // 39: vrooli.architecture_cartographer.v1.graph.ApplySnapshotRetentionResponse
+	(*timestamppb.Timestamp)(nil),            // 40: google.protobuf.Timestamp
+	(*v1.AttestedAnswer)(nil),                // 41: common.v1.AttestedAnswer
+	(shared.Severity)(0),                     // 42: vrooli.architecture_cartographer.v1.shared.Severity
+	(*domains.DomainArchetype)(nil),          // 43: vrooli.architecture_cartographer.v1.domains.DomainArchetype
 }
 var file_architecture_cartographer_v1_graph_graph_proto_depIdxs = []int32{
 	0,  // 0: vrooli.architecture_cartographer.v1.graph.FileNode.language:type_name -> vrooli.architecture_cartographer.v1.graph.Language
 	0,  // 1: vrooli.architecture_cartographer.v1.graph.PackageNode.language:type_name -> vrooli.architecture_cartographer.v1.graph.Language
 	0,  // 2: vrooli.architecture_cartographer.v1.graph.GraphSnapshot.languages:type_name -> vrooli.architecture_cartographer.v1.graph.Language
-	35, // 3: vrooli.architecture_cartographer.v1.graph.GraphSnapshot.extracted_at:type_name -> google.protobuf.Timestamp
+	40, // 3: vrooli.architecture_cartographer.v1.graph.GraphSnapshot.extracted_at:type_name -> google.protobuf.Timestamp
 	2,  // 4: vrooli.architecture_cartographer.v1.graph.GraphSnapshot.files:type_name -> vrooli.architecture_cartographer.v1.graph.FileNode
 	3,  // 5: vrooli.architecture_cartographer.v1.graph.GraphSnapshot.packages:type_name -> vrooli.architecture_cartographer.v1.graph.PackageNode
 	4,  // 6: vrooli.architecture_cartographer.v1.graph.GraphSnapshot.symbols:type_name -> vrooli.architecture_cartographer.v1.graph.SymbolNode
@@ -2641,40 +2991,45 @@ var file_architecture_cartographer_v1_graph_graph_proto_depIdxs = []int32{
 	21, // 13: vrooli.architecture_cartographer.v1.graph.ZoneMap.packages:type_name -> vrooli.architecture_cartographer.v1.graph.ZonePackage
 	23, // 14: vrooli.architecture_cartographer.v1.graph.ZoneMap.violations:type_name -> vrooli.architecture_cartographer.v1.graph.ZoneViolation
 	1,  // 15: vrooli.architecture_cartographer.v1.graph.ZoneMap.authority_confidence:type_name -> vrooli.architecture_cartographer.v1.graph.AuthorityConfidence
-	36, // 16: vrooli.architecture_cartographer.v1.graph.ZoneMap.attestation:type_name -> common.v1.AttestedAnswer
+	41, // 16: vrooli.architecture_cartographer.v1.graph.ZoneMap.attestation:type_name -> common.v1.AttestedAnswer
 	22, // 17: vrooli.architecture_cartographer.v1.graph.ZonePackage.evidence:type_name -> vrooli.architecture_cartographer.v1.graph.ZoneEvidence
-	37, // 18: vrooli.architecture_cartographer.v1.graph.ZoneViolation.severity:type_name -> vrooli.architecture_cartographer.v1.shared.Severity
+	42, // 18: vrooli.architecture_cartographer.v1.graph.ZoneViolation.severity:type_name -> vrooli.architecture_cartographer.v1.shared.Severity
 	26, // 19: vrooli.architecture_cartographer.v1.graph.GetSliceResponse.slice:type_name -> vrooli.architecture_cartographer.v1.graph.DomainSlice
 	27, // 20: vrooli.architecture_cartographer.v1.graph.DomainSlice.rungs:type_name -> vrooli.architecture_cartographer.v1.graph.SliceRung
 	31, // 21: vrooli.architecture_cartographer.v1.graph.DomainSlice.layer_edges:type_name -> vrooli.architecture_cartographer.v1.graph.SliceEdge
-	36, // 22: vrooli.architecture_cartographer.v1.graph.DomainSlice.attestation:type_name -> common.v1.AttestedAnswer
+	41, // 22: vrooli.architecture_cartographer.v1.graph.DomainSlice.attestation:type_name -> common.v1.AttestedAnswer
 	28, // 23: vrooli.architecture_cartographer.v1.graph.SliceRung.evidence:type_name -> vrooli.architecture_cartographer.v1.graph.SliceEvidence
 	29, // 24: vrooli.architecture_cartographer.v1.graph.SliceRung.files:type_name -> vrooli.architecture_cartographer.v1.graph.SliceFile
 	30, // 25: vrooli.architecture_cartographer.v1.graph.SliceRung.symbols:type_name -> vrooli.architecture_cartographer.v1.graph.SliceSymbol
 	34, // 26: vrooli.architecture_cartographer.v1.graph.InferArchetypeResponse.reports:type_name -> vrooli.architecture_cartographer.v1.graph.ArchetypeReport
-	38, // 27: vrooli.architecture_cartographer.v1.graph.ArchetypeReport.archetypes:type_name -> vrooli.architecture_cartographer.v1.domains.DomainArchetype
-	36, // 28: vrooli.architecture_cartographer.v1.graph.ArchetypeReport.attestation:type_name -> common.v1.AttestedAnswer
-	8,  // 29: vrooli.architecture_cartographer.v1.graph.GraphService.ExtractGraph:input_type -> vrooli.architecture_cartographer.v1.graph.ExtractGraphRequest
-	10, // 30: vrooli.architecture_cartographer.v1.graph.GraphService.GetGraphSnapshot:input_type -> vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotRequest
-	12, // 31: vrooli.architecture_cartographer.v1.graph.GraphService.ListGraphSnapshots:input_type -> vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsRequest
-	14, // 32: vrooli.architecture_cartographer.v1.graph.GraphService.ClearGraphSnapshots:input_type -> vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsRequest
-	16, // 33: vrooli.architecture_cartographer.v1.graph.GraphService.ExportGraph:input_type -> vrooli.architecture_cartographer.v1.graph.ExportGraphRequest
-	18, // 34: vrooli.architecture_cartographer.v1.graph.GraphService.GetZoneMap:input_type -> vrooli.architecture_cartographer.v1.graph.GetZoneMapRequest
-	24, // 35: vrooli.architecture_cartographer.v1.graph.GraphService.GetSlice:input_type -> vrooli.architecture_cartographer.v1.graph.GetSliceRequest
-	32, // 36: vrooli.architecture_cartographer.v1.graph.GraphService.InferArchetype:input_type -> vrooli.architecture_cartographer.v1.graph.InferArchetypeRequest
-	9,  // 37: vrooli.architecture_cartographer.v1.graph.GraphService.ExtractGraph:output_type -> vrooli.architecture_cartographer.v1.graph.ExtractGraphResponse
-	11, // 38: vrooli.architecture_cartographer.v1.graph.GraphService.GetGraphSnapshot:output_type -> vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotResponse
-	13, // 39: vrooli.architecture_cartographer.v1.graph.GraphService.ListGraphSnapshots:output_type -> vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsResponse
-	15, // 40: vrooli.architecture_cartographer.v1.graph.GraphService.ClearGraphSnapshots:output_type -> vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsResponse
-	17, // 41: vrooli.architecture_cartographer.v1.graph.GraphService.ExportGraph:output_type -> vrooli.architecture_cartographer.v1.graph.ExportGraphResponse
-	19, // 42: vrooli.architecture_cartographer.v1.graph.GraphService.GetZoneMap:output_type -> vrooli.architecture_cartographer.v1.graph.GetZoneMapResponse
-	25, // 43: vrooli.architecture_cartographer.v1.graph.GraphService.GetSlice:output_type -> vrooli.architecture_cartographer.v1.graph.GetSliceResponse
-	33, // 44: vrooli.architecture_cartographer.v1.graph.GraphService.InferArchetype:output_type -> vrooli.architecture_cartographer.v1.graph.InferArchetypeResponse
-	37, // [37:45] is the sub-list for method output_type
-	29, // [29:37] is the sub-list for method input_type
-	29, // [29:29] is the sub-list for extension type_name
-	29, // [29:29] is the sub-list for extension extendee
-	0,  // [0:29] is the sub-list for field type_name
+	43, // 27: vrooli.architecture_cartographer.v1.graph.ArchetypeReport.archetypes:type_name -> vrooli.architecture_cartographer.v1.domains.DomainArchetype
+	41, // 28: vrooli.architecture_cartographer.v1.graph.ArchetypeReport.attestation:type_name -> common.v1.AttestedAnswer
+	35, // 29: vrooli.architecture_cartographer.v1.graph.PreviewSnapshotRetentionResponse.scenarios:type_name -> vrooli.architecture_cartographer.v1.graph.ScenarioSnapshotCount
+	8,  // 30: vrooli.architecture_cartographer.v1.graph.GraphService.ExtractGraph:input_type -> vrooli.architecture_cartographer.v1.graph.ExtractGraphRequest
+	10, // 31: vrooli.architecture_cartographer.v1.graph.GraphService.GetGraphSnapshot:input_type -> vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotRequest
+	12, // 32: vrooli.architecture_cartographer.v1.graph.GraphService.ListGraphSnapshots:input_type -> vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsRequest
+	14, // 33: vrooli.architecture_cartographer.v1.graph.GraphService.ClearGraphSnapshots:input_type -> vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsRequest
+	36, // 34: vrooli.architecture_cartographer.v1.graph.GraphService.PreviewSnapshotRetention:input_type -> vrooli.architecture_cartographer.v1.graph.PreviewSnapshotRetentionRequest
+	38, // 35: vrooli.architecture_cartographer.v1.graph.GraphService.ApplySnapshotRetention:input_type -> vrooli.architecture_cartographer.v1.graph.ApplySnapshotRetentionRequest
+	16, // 36: vrooli.architecture_cartographer.v1.graph.GraphService.ExportGraph:input_type -> vrooli.architecture_cartographer.v1.graph.ExportGraphRequest
+	18, // 37: vrooli.architecture_cartographer.v1.graph.GraphService.GetZoneMap:input_type -> vrooli.architecture_cartographer.v1.graph.GetZoneMapRequest
+	24, // 38: vrooli.architecture_cartographer.v1.graph.GraphService.GetSlice:input_type -> vrooli.architecture_cartographer.v1.graph.GetSliceRequest
+	32, // 39: vrooli.architecture_cartographer.v1.graph.GraphService.InferArchetype:input_type -> vrooli.architecture_cartographer.v1.graph.InferArchetypeRequest
+	9,  // 40: vrooli.architecture_cartographer.v1.graph.GraphService.ExtractGraph:output_type -> vrooli.architecture_cartographer.v1.graph.ExtractGraphResponse
+	11, // 41: vrooli.architecture_cartographer.v1.graph.GraphService.GetGraphSnapshot:output_type -> vrooli.architecture_cartographer.v1.graph.GetGraphSnapshotResponse
+	13, // 42: vrooli.architecture_cartographer.v1.graph.GraphService.ListGraphSnapshots:output_type -> vrooli.architecture_cartographer.v1.graph.ListGraphSnapshotsResponse
+	15, // 43: vrooli.architecture_cartographer.v1.graph.GraphService.ClearGraphSnapshots:output_type -> vrooli.architecture_cartographer.v1.graph.ClearGraphSnapshotsResponse
+	37, // 44: vrooli.architecture_cartographer.v1.graph.GraphService.PreviewSnapshotRetention:output_type -> vrooli.architecture_cartographer.v1.graph.PreviewSnapshotRetentionResponse
+	39, // 45: vrooli.architecture_cartographer.v1.graph.GraphService.ApplySnapshotRetention:output_type -> vrooli.architecture_cartographer.v1.graph.ApplySnapshotRetentionResponse
+	17, // 46: vrooli.architecture_cartographer.v1.graph.GraphService.ExportGraph:output_type -> vrooli.architecture_cartographer.v1.graph.ExportGraphResponse
+	19, // 47: vrooli.architecture_cartographer.v1.graph.GraphService.GetZoneMap:output_type -> vrooli.architecture_cartographer.v1.graph.GetZoneMapResponse
+	25, // 48: vrooli.architecture_cartographer.v1.graph.GraphService.GetSlice:output_type -> vrooli.architecture_cartographer.v1.graph.GetSliceResponse
+	33, // 49: vrooli.architecture_cartographer.v1.graph.GraphService.InferArchetype:output_type -> vrooli.architecture_cartographer.v1.graph.InferArchetypeResponse
+	40, // [40:50] is the sub-list for method output_type
+	30, // [30:40] is the sub-list for method input_type
+	30, // [30:30] is the sub-list for extension type_name
+	30, // [30:30] is the sub-list for extension extendee
+	0,  // [0:30] is the sub-list for field type_name
 }
 
 func init() { file_architecture_cartographer_v1_graph_graph_proto_init() }
@@ -2688,7 +3043,7 @@ func file_architecture_cartographer_v1_graph_graph_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_architecture_cartographer_v1_graph_graph_proto_rawDesc), len(file_architecture_cartographer_v1_graph_graph_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   33,
+			NumMessages:   38,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

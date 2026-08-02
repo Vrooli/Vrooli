@@ -1196,7 +1196,7 @@ type ReceiptObservations struct {
 	state         protoimpl.MessageState  `protogen:"open.v1"`
 	State         ReceiptObservationState `protobuf:"varint,1,opt,name=state,proto3,enum=agent_manager.v1.ReceiptObservationState" json:"state,omitempty"`
 	Receipts      []*ObservedReceipt      `protobuf:"bytes,2,rep,name=receipts,proto3" json:"receipts,omitempty"`
-	Detail        string                  `protobuf:"bytes,3,opt,name=detail,proto3" json:"detail,omitempty"`
+	Reason        string                  `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1245,9 +1245,9 @@ func (x *ReceiptObservations) GetReceipts() []*ObservedReceipt {
 	return nil
 }
 
-func (x *ReceiptObservations) GetDetail() string {
+func (x *ReceiptObservations) GetReason() string {
 	if x != nil {
-		return x.Detail
+		return x.Reason
 	}
 	return ""
 }
@@ -3656,7 +3656,7 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\x13ReceiptObservations\x12?\n" +
 	"\x05state\x18\x01 \x01(\x0e2).agent_manager.v1.ReceiptObservationStateR\x05state\x12=\n" +
 	"\breceipts\x18\x02 \x03(\v2!.agent_manager.v1.ObservedReceiptR\breceipts\x12\x16\n" +
-	"\x06detail\x18\x03 \x01(\tR\x06detail\"\xb4\x03\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"\xb4\x03\n" +
 	"\x0fObservedReceipt\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12'\n" +
 	"\x0ftarget_scenario\x18\x02 \x01(\tR\x0etargetScenario\x12\x1c\n" +

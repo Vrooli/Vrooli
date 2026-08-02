@@ -290,7 +290,7 @@ enum ReceiptObservationState {
 message ReceiptObservations {
   ReceiptObservationState state = 1;
   repeated ObservedReceipt receipts = 2;
-  string detail = 3;
+  string reason = 3;
 }
 
 message ObservedReceipt {

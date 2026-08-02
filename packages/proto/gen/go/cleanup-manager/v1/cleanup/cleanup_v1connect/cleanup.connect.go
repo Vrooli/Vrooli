@@ -51,6 +51,9 @@ const (
 	// CleanupServiceListAuditProcedure is the fully-qualified name of the CleanupService's ListAudit
 	// RPC.
 	CleanupServiceListAuditProcedure = "/vrooli.cleanup_manager.v1.cleanup.CleanupService/ListAudit"
+	// CleanupServiceReportPressureProcedure is the fully-qualified name of the CleanupService's
+	// ReportPressure RPC.
+	CleanupServiceReportPressureProcedure = "/vrooli.cleanup_manager.v1.cleanup.CleanupService/ReportPressure"
 )
 
 // CleanupServiceClient is a client for the vrooli.cleanup_manager.v1.cleanup.CleanupService
@@ -62,6 +65,15 @@ type CleanupServiceClient interface {
 	CreatePlan(context.Context, *connect.Request[cleanup.CreatePlanRequest]) (*connect.Response[cleanup.CreatePlanResponse], error)
 	ApplyPlan(context.Context, *connect.Request[cleanup.ApplyPlanRequest]) (*connect.Response[cleanup.ApplyPlanResponse], error)
 	ListAudit(context.Context, *connect.Request[cleanup.ListAuditRequest]) (*connect.Response[cleanup.ListAuditResponse], error)
+	// ReportPressure is the inbound disk-pressure signal.
+	//
+	// It is what turns cleanup-manager from purely request-driven into
+	// something a safeguard can reach. Two independent callers use it by
+	// design — system-monitor's threshold loop and vrooli-autoheal's
+	// system-disk check — so that no single mediator is a shared point of
+	// failure. Duplicate concurrent reports of the same event are expected and
+	// are collapsed into one execution.
+	ReportPressure(context.Context, *connect.Request[cleanup.ReportPressureRequest]) (*connect.Response[cleanup.ReportPressureResponse], error)
 }
 
 // NewCleanupServiceClient constructs a client for the
@@ -112,6 +124,12 @@ func NewCleanupServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(cleanupServiceMethods.ByName("ListAudit")),
 			connect.WithClientOptions(opts...),
 		),
+		reportPressure: connect.NewClient[cleanup.ReportPressureRequest, cleanup.ReportPressureResponse](
+			httpClient,
+			baseURL+CleanupServiceReportPressureProcedure,
+			connect.WithSchema(cleanupServiceMethods.ByName("ReportPressure")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -123,6 +141,7 @@ type cleanupServiceClient struct {
 	createPlan       *connect.Client[cleanup.CreatePlanRequest, cleanup.CreatePlanResponse]
 	applyPlan        *connect.Client[cleanup.ApplyPlanRequest, cleanup.ApplyPlanResponse]
 	listAudit        *connect.Client[cleanup.ListAuditRequest, cleanup.ListAuditResponse]
+	reportPressure   *connect.Client[cleanup.ReportPressureRequest, cleanup.ReportPressureResponse]
 }
 
 // ListProviders calls vrooli.cleanup_manager.v1.cleanup.CleanupService.ListProviders.
@@ -155,6 +174,11 @@ func (c *cleanupServiceClient) ListAudit(ctx context.Context, req *connect.Reque
 	return c.listAudit.CallUnary(ctx, req)
 }
 
+// ReportPressure calls vrooli.cleanup_manager.v1.cleanup.CleanupService.ReportPressure.
+func (c *cleanupServiceClient) ReportPressure(ctx context.Context, req *connect.Request[cleanup.ReportPressureRequest]) (*connect.Response[cleanup.ReportPressureResponse], error) {
+	return c.reportPressure.CallUnary(ctx, req)
+}
+
 // CleanupServiceHandler is an implementation of the
 // vrooli.cleanup_manager.v1.cleanup.CleanupService service.
 type CleanupServiceHandler interface {
@@ -164,6 +188,15 @@ type CleanupServiceHandler interface {
 	CreatePlan(context.Context, *connect.Request[cleanup.CreatePlanRequest]) (*connect.Response[cleanup.CreatePlanResponse], error)
 	ApplyPlan(context.Context, *connect.Request[cleanup.ApplyPlanRequest]) (*connect.Response[cleanup.ApplyPlanResponse], error)
 	ListAudit(context.Context, *connect.Request[cleanup.ListAuditRequest]) (*connect.Response[cleanup.ListAuditResponse], error)
+	// ReportPressure is the inbound disk-pressure signal.
+	//
+	// It is what turns cleanup-manager from purely request-driven into
+	// something a safeguard can reach. Two independent callers use it by
+	// design — system-monitor's threshold loop and vrooli-autoheal's
+	// system-disk check — so that no single mediator is a shared point of
+	// failure. Duplicate concurrent reports of the same event are expected and
+	// are collapsed into one execution.
+	ReportPressure(context.Context, *connect.Request[cleanup.ReportPressureRequest]) (*connect.Response[cleanup.ReportPressureResponse], error)
 }
 
 // NewCleanupServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -209,6 +242,12 @@ func NewCleanupServiceHandler(svc CleanupServiceHandler, opts ...connect.Handler
 		connect.WithSchema(cleanupServiceMethods.ByName("ListAudit")),
 		connect.WithHandlerOptions(opts...),
 	)
+	cleanupServiceReportPressureHandler := connect.NewUnaryHandler(
+		CleanupServiceReportPressureProcedure,
+		svc.ReportPressure,
+		connect.WithSchema(cleanupServiceMethods.ByName("ReportPressure")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.cleanup_manager.v1.cleanup.CleanupService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case CleanupServiceListProvidersProcedure:
@@ -223,6 +262,8 @@ func NewCleanupServiceHandler(svc CleanupServiceHandler, opts ...connect.Handler
 			cleanupServiceApplyPlanHandler.ServeHTTP(w, r)
 		case CleanupServiceListAuditProcedure:
 			cleanupServiceListAuditHandler.ServeHTTP(w, r)
+		case CleanupServiceReportPressureProcedure:
+			cleanupServiceReportPressureHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -254,4 +295,8 @@ func (UnimplementedCleanupServiceHandler) ApplyPlan(context.Context, *connect.Re
 
 func (UnimplementedCleanupServiceHandler) ListAudit(context.Context, *connect.Request[cleanup.ListAuditRequest]) (*connect.Response[cleanup.ListAuditResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.cleanup_manager.v1.cleanup.CleanupService.ListAudit is not implemented"))
+}
+
+func (UnimplementedCleanupServiceHandler) ReportPressure(context.Context, *connect.Request[cleanup.ReportPressureRequest]) (*connect.Response[cleanup.ReportPressureResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.cleanup_manager.v1.cleanup.CleanupService.ReportPressure is not implemented"))
 }

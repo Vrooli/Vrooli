@@ -1,3 +1,4 @@
+from buf.validate import validate_pb2 as _validate_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -42,3 +43,15 @@ class HealthResponse(_message.Message):
     uptime_seconds: float
     dependencies: _containers.MessageMap[str, DependencyStatus]
     def __init__(self, status: _Optional[str] = ..., service: _Optional[str] = ..., timestamp: _Optional[str] = ..., readiness: _Optional[bool] = ..., version: _Optional[str] = ..., uptime_seconds: _Optional[float] = ..., dependencies: _Optional[_Mapping[str, DependencyStatus]] = ...) -> None: ...
+
+class ScenarioRemediationSummary(_message.Message):
+    __slots__ = ("fingerprint", "state", "work_ref", "updated_at")
+    FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    WORK_REF_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    fingerprint: str
+    state: str
+    work_ref: str
+    updated_at: str
+    def __init__(self, fingerprint: _Optional[str] = ..., state: _Optional[str] = ..., work_ref: _Optional[str] = ..., updated_at: _Optional[str] = ...) -> None: ...

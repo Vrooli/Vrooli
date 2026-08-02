@@ -38,6 +38,9 @@ message LandingSection {
   google.protobuf.Struct content = 2;
   int32 order = 3;
   bool enabled = 4;
+  // Stable, variant-scoped identity used by the administrative section editor.
+  // Unlike the legacy numeric database ID, this remains valid for JSON snapshots.
+  string section_key = 5;
 }
 
 // LandingBranding is the branding subset embedded in the landing payload.

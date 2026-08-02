@@ -193,6 +193,103 @@
           "description": "Human-facing reason this is worth preserving. Optional presentation copy."
         }
       }
+    },
+    "retentionBudget": {
+      "type": "object",
+      "description": "One declared storage ceiling the framework enforces. Consumed by packages/api-core/retention, which prunes the target down to whichever bound binds first and reports which one it was. NOT a backup declaration: durable_data answers 'preserve this' and its `regenerable: false` means never delete, while a retention budget answers 'this may never exceed this much'. A budget must declare at least one bound; an age bound alone is a promise proportional to an ingest rate the scenario usually does not control, so it is accepted but reported as unbounded in size.",
+      "required": ["target"],
+      "additionalProperties": false,
+      "anyOf": [
+        { "required": ["max_age"] },
+        { "required": ["max_bytes"] }
+      ],
+      "properties": {
+        "target": {
+          "type": "object",
+          "description": "What this budget bounds. Paths are relative to the scenario's own storage-class root and resolve through api-core/storage, so a shadow variant prunes its own data and never live's.",
+          "required": ["kind"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": ["sqlite_table", "directory"],
+              "description": "sqlite_table bounds rows in one table of one SQLite database; directory bounds the top-level entries of one directory."
+            },
+            "class": {
+              "type": "string",
+              "enum": ["config", "data", "cache", "logs", "state"],
+              "default": "data",
+              "description": "Storage class root the target path is relative to (api-core/storage Class). Defaults to data."
+            },
+            "database": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[^\\\\]+$",
+              "description": "sqlite_table only. Slash-normalized path of the SQLite database, relative to the class root (e.g. autoheal.sqlite)."
+            },
+            "table": {
+              "type": "string",
+              "minLength": 1,
+              "description": "sqlite_table only. Table the budget bounds."
+            },
+            "time_column": {
+              "type": "string",
+              "minLength": 1,
+              "description": "sqlite_table only. Column carrying the row's age, used to order deletes oldest-first and to evaluate max_age."
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[^\\\\]+$",
+              "description": "directory only. Slash-normalized directory path relative to the class root."
+            }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "kind": { "const": "sqlite_table" } }, "required": ["kind"] },
+              "then": { "required": ["database", "table", "time_column"] }
+            },
+            {
+              "if": { "properties": { "kind": { "const": "directory" } }, "required": ["kind"] },
+              "then": { "required": ["path"] }
+            }
+          ]
+        },
+        "max_age": {
+          "type": "string",
+          "pattern": "^[0-9]+(h|d)$",
+          "description": "Age bound with an explicit unit, hours or days (e.g. 30d, 72h). An age bound alone is not a size bound."
+        },
+        "max_bytes": {
+          "type": "string",
+          "pattern": "^[0-9]+(B|KiB|MiB|GiB|TiB)$",
+          "description": "Size bound with an explicit unit (e.g. 2GiB). A unit is mandatory: a bare integer invites a 1000x mistake that is invisible in review and is a disk outage."
+        },
+        "pruner": {
+          "type": "string",
+          "enum": ["builtin", "custom"],
+          "default": "builtin",
+          "description": "builtin uses the framework pruner for the target kind and needs no scenario Go code. custom requires the scenario to register a retention.Pruner under this budget's key; the framework still owns whether the target is within budget, the scenario owns which rows die."
+        },
+        "rationale": {
+          "type": "string",
+          "description": "Why this ceiling, and what drives the volume. Read by whoever next has to decide whether the number is still right."
+        }
+      }
+    },
+    "retention": {
+      "type": "object",
+      "description": "Declared storage ceilings for the data this component accumulates, enforced by packages/api-core/retention without per-component code. Distinct from durable_data, which declares what to back up.",
+      "required": ["budgets"],
+      "additionalProperties": false,
+      "properties": {
+        "budgets": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "$ref": "#/definitions/retentionBudget" },
+          "description": "Budgets keyed by stable logical name. The key names the budget in findings and logs, and is the registry name a custom pruner registers under."
+        }
+      }
     }
   }
 }

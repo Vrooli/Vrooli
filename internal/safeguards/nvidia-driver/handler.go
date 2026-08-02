@@ -222,6 +222,7 @@ func repairPackages() ([]string, error) {
 func splitPackages(value string) []string {
 	return unique(strings.FieldsFunc(value, func(r rune) bool { return r == ',' || r == ' ' }))
 }
+
 func unique(values []string) []string {
 	seen := map[string]bool{}
 	out := make([]string, 0, len(values))

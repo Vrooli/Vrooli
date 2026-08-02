@@ -339,6 +339,86 @@ func (x *DownloadAppResponse) GetApp() *shared.DownloadApp {
 	return nil
 }
 
+type DeleteDownloadAppRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AppKey        string                 `protobuf:"bytes,1,opt,name=app_key,json=appKey,proto3" json:"app_key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteDownloadAppRequest) Reset() {
+	*x = DeleteDownloadAppRequest{}
+	mi := &file_landing_page_business_suite_v1_download_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteDownloadAppRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteDownloadAppRequest) ProtoMessage() {}
+
+func (x *DeleteDownloadAppRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_download_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteDownloadAppRequest.ProtoReflect.Descriptor instead.
+func (*DeleteDownloadAppRequest) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_download_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *DeleteDownloadAppRequest) GetAppKey() string {
+	if x != nil {
+		return x.AppKey
+	}
+	return ""
+}
+
+type DeleteDownloadAppResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteDownloadAppResponse) Reset() {
+	*x = DeleteDownloadAppResponse{}
+	mi := &file_landing_page_business_suite_v1_download_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteDownloadAppResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteDownloadAppResponse) ProtoMessage() {}
+
+func (x *DeleteDownloadAppResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_landing_page_business_suite_v1_download_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteDownloadAppResponse.ProtoReflect.Descriptor instead.
+func (*DeleteDownloadAppResponse) Descriptor() ([]byte, []int) {
+	return file_landing_page_business_suite_v1_download_proto_rawDescGZIP(), []int{8}
+}
+
 var File_landing_page_business_suite_v1_download_proto protoreflect.FileDescriptor
 
 const file_landing_page_business_suite_v1_download_proto_rawDesc = "" +
@@ -358,12 +438,16 @@ const file_landing_page_business_suite_v1_download_proto_rawDesc = "" +
 	"\x18CreateDownloadAppRequest\x12K\n" +
 	"\x03app\x18\x01 \x01(\v29.vrooli.landing_page_business_suite.v1.shared.DownloadAppR\x03app\"b\n" +
 	"\x13DownloadAppResponse\x12K\n" +
-	"\x03app\x18\x01 \x01(\v29.vrooli.landing_page_business_suite.v1.shared.DownloadAppR\x03app2\xa9\x04\n" +
+	"\x03app\x18\x01 \x01(\v29.vrooli.landing_page_business_suite.v1.shared.DownloadAppR\x03app\"3\n" +
+	"\x18DeleteDownloadAppRequest\x12\x17\n" +
+	"\aapp_key\x18\x01 \x01(\tR\x06appKey\"\x1b\n" +
+	"\x19DeleteDownloadAppResponse2\xb4\x05\n" +
 	"\x0fDownloadService\x12\x88\x01\n" +
 	"\x11AuthorizeDownload\x128.landing_page_business_suite.v1.AuthorizeDownloadRequest\x1a9.landing_page_business_suite.v1.AuthorizeDownloadResponse\x12\x85\x01\n" +
 	"\x10ListDownloadApps\x127.landing_page_business_suite.v1.ListDownloadAppsRequest\x1a8.landing_page_business_suite.v1.ListDownloadAppsResponse\x12\x82\x01\n" +
 	"\x11CreateDownloadApp\x128.landing_page_business_suite.v1.CreateDownloadAppRequest\x1a3.landing_page_business_suite.v1.DownloadAppResponse\x12~\n" +
-	"\x0fSaveDownloadApp\x126.landing_page_business_suite.v1.SaveDownloadAppRequest\x1a3.landing_page_business_suite.v1.DownloadAppResponseBnZlgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1b\x06proto3"
+	"\x0fSaveDownloadApp\x126.landing_page_business_suite.v1.SaveDownloadAppRequest\x1a3.landing_page_business_suite.v1.DownloadAppResponse\x12\x88\x01\n" +
+	"\x11DeleteDownloadApp\x128.landing_page_business_suite.v1.DeleteDownloadAppRequest\x1a9.landing_page_business_suite.v1.DeleteDownloadAppResponseBnZlgithub.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1b\x06proto3"
 
 var (
 	file_landing_page_business_suite_v1_download_proto_rawDescOnce sync.Once
@@ -377,7 +461,7 @@ func file_landing_page_business_suite_v1_download_proto_rawDescGZIP() []byte {
 	return file_landing_page_business_suite_v1_download_proto_rawDescData
 }
 
-var file_landing_page_business_suite_v1_download_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_landing_page_business_suite_v1_download_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_landing_page_business_suite_v1_download_proto_goTypes = []any{
 	(*AuthorizeDownloadRequest)(nil),  // 0: landing_page_business_suite.v1.AuthorizeDownloadRequest
 	(*AuthorizeDownloadResponse)(nil), // 1: landing_page_business_suite.v1.AuthorizeDownloadResponse
@@ -386,28 +470,32 @@ var file_landing_page_business_suite_v1_download_proto_goTypes = []any{
 	(*SaveDownloadAppRequest)(nil),    // 4: landing_page_business_suite.v1.SaveDownloadAppRequest
 	(*CreateDownloadAppRequest)(nil),  // 5: landing_page_business_suite.v1.CreateDownloadAppRequest
 	(*DownloadAppResponse)(nil),       // 6: landing_page_business_suite.v1.DownloadAppResponse
-	(*shared.DownloadAsset)(nil),      // 7: vrooli.landing_page_business_suite.v1.shared.DownloadAsset
-	(*shared.DownloadApp)(nil),        // 8: vrooli.landing_page_business_suite.v1.shared.DownloadApp
+	(*DeleteDownloadAppRequest)(nil),  // 7: landing_page_business_suite.v1.DeleteDownloadAppRequest
+	(*DeleteDownloadAppResponse)(nil), // 8: landing_page_business_suite.v1.DeleteDownloadAppResponse
+	(*shared.DownloadAsset)(nil),      // 9: vrooli.landing_page_business_suite.v1.shared.DownloadAsset
+	(*shared.DownloadApp)(nil),        // 10: vrooli.landing_page_business_suite.v1.shared.DownloadApp
 }
 var file_landing_page_business_suite_v1_download_proto_depIdxs = []int32{
-	7, // 0: landing_page_business_suite.v1.AuthorizeDownloadResponse.asset:type_name -> vrooli.landing_page_business_suite.v1.shared.DownloadAsset
-	8, // 1: landing_page_business_suite.v1.ListDownloadAppsResponse.apps:type_name -> vrooli.landing_page_business_suite.v1.shared.DownloadApp
-	8, // 2: landing_page_business_suite.v1.SaveDownloadAppRequest.app:type_name -> vrooli.landing_page_business_suite.v1.shared.DownloadApp
-	8, // 3: landing_page_business_suite.v1.CreateDownloadAppRequest.app:type_name -> vrooli.landing_page_business_suite.v1.shared.DownloadApp
-	8, // 4: landing_page_business_suite.v1.DownloadAppResponse.app:type_name -> vrooli.landing_page_business_suite.v1.shared.DownloadApp
-	0, // 5: landing_page_business_suite.v1.DownloadService.AuthorizeDownload:input_type -> landing_page_business_suite.v1.AuthorizeDownloadRequest
-	2, // 6: landing_page_business_suite.v1.DownloadService.ListDownloadApps:input_type -> landing_page_business_suite.v1.ListDownloadAppsRequest
-	5, // 7: landing_page_business_suite.v1.DownloadService.CreateDownloadApp:input_type -> landing_page_business_suite.v1.CreateDownloadAppRequest
-	4, // 8: landing_page_business_suite.v1.DownloadService.SaveDownloadApp:input_type -> landing_page_business_suite.v1.SaveDownloadAppRequest
-	1, // 9: landing_page_business_suite.v1.DownloadService.AuthorizeDownload:output_type -> landing_page_business_suite.v1.AuthorizeDownloadResponse
-	3, // 10: landing_page_business_suite.v1.DownloadService.ListDownloadApps:output_type -> landing_page_business_suite.v1.ListDownloadAppsResponse
-	6, // 11: landing_page_business_suite.v1.DownloadService.CreateDownloadApp:output_type -> landing_page_business_suite.v1.DownloadAppResponse
-	6, // 12: landing_page_business_suite.v1.DownloadService.SaveDownloadApp:output_type -> landing_page_business_suite.v1.DownloadAppResponse
-	9, // [9:13] is the sub-list for method output_type
-	5, // [5:9] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	9,  // 0: landing_page_business_suite.v1.AuthorizeDownloadResponse.asset:type_name -> vrooli.landing_page_business_suite.v1.shared.DownloadAsset
+	10, // 1: landing_page_business_suite.v1.ListDownloadAppsResponse.apps:type_name -> vrooli.landing_page_business_suite.v1.shared.DownloadApp
+	10, // 2: landing_page_business_suite.v1.SaveDownloadAppRequest.app:type_name -> vrooli.landing_page_business_suite.v1.shared.DownloadApp
+	10, // 3: landing_page_business_suite.v1.CreateDownloadAppRequest.app:type_name -> vrooli.landing_page_business_suite.v1.shared.DownloadApp
+	10, // 4: landing_page_business_suite.v1.DownloadAppResponse.app:type_name -> vrooli.landing_page_business_suite.v1.shared.DownloadApp
+	0,  // 5: landing_page_business_suite.v1.DownloadService.AuthorizeDownload:input_type -> landing_page_business_suite.v1.AuthorizeDownloadRequest
+	2,  // 6: landing_page_business_suite.v1.DownloadService.ListDownloadApps:input_type -> landing_page_business_suite.v1.ListDownloadAppsRequest
+	5,  // 7: landing_page_business_suite.v1.DownloadService.CreateDownloadApp:input_type -> landing_page_business_suite.v1.CreateDownloadAppRequest
+	4,  // 8: landing_page_business_suite.v1.DownloadService.SaveDownloadApp:input_type -> landing_page_business_suite.v1.SaveDownloadAppRequest
+	7,  // 9: landing_page_business_suite.v1.DownloadService.DeleteDownloadApp:input_type -> landing_page_business_suite.v1.DeleteDownloadAppRequest
+	1,  // 10: landing_page_business_suite.v1.DownloadService.AuthorizeDownload:output_type -> landing_page_business_suite.v1.AuthorizeDownloadResponse
+	3,  // 11: landing_page_business_suite.v1.DownloadService.ListDownloadApps:output_type -> landing_page_business_suite.v1.ListDownloadAppsResponse
+	6,  // 12: landing_page_business_suite.v1.DownloadService.CreateDownloadApp:output_type -> landing_page_business_suite.v1.DownloadAppResponse
+	6,  // 13: landing_page_business_suite.v1.DownloadService.SaveDownloadApp:output_type -> landing_page_business_suite.v1.DownloadAppResponse
+	8,  // 14: landing_page_business_suite.v1.DownloadService.DeleteDownloadApp:output_type -> landing_page_business_suite.v1.DeleteDownloadAppResponse
+	10, // [10:15] is the sub-list for method output_type
+	5,  // [5:10] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_landing_page_business_suite_v1_download_proto_init() }
@@ -421,7 +509,7 @@ func file_landing_page_business_suite_v1_download_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_landing_page_business_suite_v1_download_proto_rawDesc), len(file_landing_page_business_suite_v1_download_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

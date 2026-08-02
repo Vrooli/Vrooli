@@ -4,6 +4,7 @@ package vrooli.swarm_manager.v1.api;
 
 import "buf/validate/validate.proto";
 import "swarm-manager/v1/domain/scenario.proto";
+import "swarm-manager/v1/shared/health.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api";
 
@@ -207,7 +208,7 @@ message PreviewScenarioRemediationResponse {
   ScenarioRemediationProposal proposal = 1 [(buf.validate.field).required = true];
   // Existing reconciliation state is returned rather than silently creating
   // a duplicate proposal or work item.
-  optional domain.ScenarioRemediationSummary existing = 2;
+  optional shared.ScenarioRemediationSummary existing = 2;
 }
 
 message ApplyScenarioRemediationRequest {

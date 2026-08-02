@@ -67,13 +67,21 @@ func ConservativeBuiltIns(deps BuiltInDeps) ([]cleanup.Provider, error) {
 			ID:          "trash",
 			Name:        "Trash",
 			Roots:       deps.TrashRoots,
-			Description: "Remove aged XDG trash entries",
+			Description: "Remove aged trash entries",
+			// A trashed item is a unit: its payload and its metadata record
+			// are deleted together or not at all.
+			TopLevelEntries: true,
 		}),
 		NewTmpProvider(deps.FileSystem, deps.Clock, FileProviderConfig{
 			ID:          "tmp",
 			Name:        "Temporary files",
 			Roots:       deps.TmpRoots,
-			Description: "Remove aged temporary files below configured roots",
+			Description: "Remove aged temporary entries below configured roots",
+			// A temp staging directory is a unit. Deleting the files inside it
+			// individually would reclaim the bytes but leave the directory
+			// behind, and would age each file separately — which can strand a
+			// half-deleted fragment of an otherwise coherent directory.
+			TopLevelEntries: true,
 		}),
 		NewCacheProvider(deps.FileSystem, deps.Clock, FileProviderConfig{
 			ID:          "go-build-cache",
@@ -125,6 +133,21 @@ func OwnerScenarioBuiltIns(client cleanup.ScenarioProviderClient) []cleanup.Prov
 			ID:              "test-genie-run-retention",
 			Name:            "Test Genie retained runs",
 			OwnerScenario:   "test-genie",
+			SafetyTier:      cleanup.SafetyTierSafeWithOwner,
+			DefaultMode:     cleanup.ProviderModeDisabled,
+			DefaultApproval: cleanup.ApprovalModeOwner,
+		},
+		{
+			// The 2026-07-31 incident's largest consumer. graph_snapshots held
+			// 77.2 GB across 2,469 rows and cleanup-manager could not see any
+			// of it, because architecture-cartographer was never registered as
+			// an owner. Registering it is the fix; letting cleanup-manager
+			// crawl another scenario's database would have violated the
+			// ownership boundary and risked the twelve other tables in that
+			// file.
+			ID:              "architecture-cartographer-snapshots",
+			Name:            "Architecture Cartographer graph snapshots",
+			OwnerScenario:   "architecture-cartographer",
 			SafetyTier:      cleanup.SafetyTierSafeWithOwner,
 			DefaultMode:     cleanup.ProviderModeDisabled,
 			DefaultApproval: cleanup.ApprovalModeOwner,

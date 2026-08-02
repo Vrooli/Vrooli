@@ -8,7 +8,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class FrictionEpisode(_message.Message):
-    __slots__ = ("episode_id", "run_id", "classifier_version", "pattern", "cause_scope", "severity", "honesty_flags", "start_event_id", "end_event_id", "evidence_event_ids", "turns", "tokens", "wall_clock_ms", "suspected_owner_scenario", "suspected_owner_command", "owner_confidence", "fingerprint")
+    __slots__ = ("episode_id", "run_id", "classifier_version", "pattern", "cause_scope", "severity", "honesty_flags", "start_event_id", "end_event_id", "evidence_event_ids", "turns", "tokens", "wall_clock_ms", "suspected_owner_scenario", "suspected_owner_command", "owner_confidence", "fingerprint", "cycle_count", "repeated_element")
     EPISODE_ID_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     CLASSIFIER_VERSION_FIELD_NUMBER: _ClassVar[int]
@@ -26,6 +26,8 @@ class FrictionEpisode(_message.Message):
     SUSPECTED_OWNER_COMMAND_FIELD_NUMBER: _ClassVar[int]
     OWNER_CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
     FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
+    CYCLE_COUNT_FIELD_NUMBER: _ClassVar[int]
+    REPEATED_ELEMENT_FIELD_NUMBER: _ClassVar[int]
     episode_id: str
     run_id: str
     classifier_version: str
@@ -43,7 +45,9 @@ class FrictionEpisode(_message.Message):
     suspected_owner_command: str
     owner_confidence: str
     fingerprint: str
-    def __init__(self, episode_id: _Optional[str] = ..., run_id: _Optional[str] = ..., classifier_version: _Optional[str] = ..., pattern: _Optional[str] = ..., cause_scope: _Optional[str] = ..., severity: _Optional[str] = ..., honesty_flags: _Optional[_Iterable[str]] = ..., start_event_id: _Optional[str] = ..., end_event_id: _Optional[str] = ..., evidence_event_ids: _Optional[_Iterable[str]] = ..., turns: _Optional[int] = ..., tokens: _Optional[int] = ..., wall_clock_ms: _Optional[int] = ..., suspected_owner_scenario: _Optional[str] = ..., suspected_owner_command: _Optional[str] = ..., owner_confidence: _Optional[str] = ..., fingerprint: _Optional[str] = ...) -> None: ...
+    cycle_count: int
+    repeated_element: str
+    def __init__(self, episode_id: _Optional[str] = ..., run_id: _Optional[str] = ..., classifier_version: _Optional[str] = ..., pattern: _Optional[str] = ..., cause_scope: _Optional[str] = ..., severity: _Optional[str] = ..., honesty_flags: _Optional[_Iterable[str]] = ..., start_event_id: _Optional[str] = ..., end_event_id: _Optional[str] = ..., evidence_event_ids: _Optional[_Iterable[str]] = ..., turns: _Optional[int] = ..., tokens: _Optional[int] = ..., wall_clock_ms: _Optional[int] = ..., suspected_owner_scenario: _Optional[str] = ..., suspected_owner_command: _Optional[str] = ..., owner_confidence: _Optional[str] = ..., fingerprint: _Optional[str] = ..., cycle_count: _Optional[int] = ..., repeated_element: _Optional[str] = ...) -> None: ...
 
 class GetEpisodesRequest(_message.Message):
     __slots__ = ("run_id",)
@@ -100,12 +104,12 @@ class GetCrossScenarioLedgerRequest(_message.Message):
     def __init__(self, run_id: _Optional[str] = ..., with_projections: _Optional[bool] = ...) -> None: ...
 
 class Availability(_message.Message):
-    __slots__ = ("state", "detail")
+    __slots__ = ("state", "reason")
     STATE_FIELD_NUMBER: _ClassVar[int]
-    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
     state: str
-    detail: str
-    def __init__(self, state: _Optional[str] = ..., detail: _Optional[str] = ...) -> None: ...
+    reason: str
+    def __init__(self, state: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class CrossScenarioCall(_message.Message):
     __slots__ = ("occurred_at", "target_scenario", "operation", "outcome", "status_code", "duration_ms", "receipt_event_id", "verified", "projection", "projection_drop_count", "policy_version")

@@ -235,3 +235,22 @@ func ValidateProvider(p Provider) error {
 	}
 	return p.Metadata().Validate()
 }
+
+// Clone returns a deep-enough copy of a Preview that the caller may append to
+// or modify its slices without affecting the original.
+//
+// This exists because a cached measurement is handed to more than one caller
+// (a plan asks for an estimate and a preview from the same result). Returning
+// the same backing arrays would let one caller's append corrupt what the other
+// sees — the classic aliasing bug, and a particularly bad one here because the
+// slice in question is a list of files about to be deleted.
+func (p Preview) Clone() Preview {
+	out := p
+	if p.Items != nil {
+		out.Items = append([]PreviewItem(nil), p.Items...)
+	}
+	if p.Warnings != nil {
+		out.Warnings = append([]string(nil), p.Warnings...)
+	}
+	return out
+}

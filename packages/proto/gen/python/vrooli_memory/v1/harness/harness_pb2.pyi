@@ -78,18 +78,26 @@ class ImportRun(_message.Message):
     def __init__(self, id: _Optional[str] = ..., runtime: _Optional[str] = ..., source_root: _Optional[str] = ..., status: _Optional[str] = ..., total_sources: _Optional[int] = ..., processed_sources: _Optional[int] = ..., imported_count: _Optional[int] = ..., existing_count: _Optional[int] = ..., failed_count: _Optional[int] = ..., current_path: _Optional[str] = ..., error_message: _Optional[str] = ..., started_at: _Optional[str] = ..., completed_at: _Optional[str] = ..., updated_at: _Optional[str] = ...) -> None: ...
 
 class RefreshProjectionRequest(_message.Message):
-    __slots__ = ("runtime",)
+    __slots__ = ("runtime", "dry_run")
     RUNTIME_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
     runtime: str
-    def __init__(self, runtime: _Optional[str] = ...) -> None: ...
+    dry_run: bool
+    def __init__(self, runtime: _Optional[str] = ..., dry_run: _Optional[bool] = ...) -> None: ...
 
 class RefreshProjectionResponse(_message.Message):
-    __slots__ = ("path", "size_bytes")
+    __slots__ = ("path", "size_bytes", "overflow", "dry_run", "rendered_content")
     PATH_FIELD_NUMBER: _ClassVar[int]
     SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    OVERFLOW_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    RENDERED_CONTENT_FIELD_NUMBER: _ClassVar[int]
     path: str
     size_bytes: int
-    def __init__(self, path: _Optional[str] = ..., size_bytes: _Optional[int] = ...) -> None: ...
+    overflow: bool
+    dry_run: bool
+    rendered_content: str
+    def __init__(self, path: _Optional[str] = ..., size_bytes: _Optional[int] = ..., overflow: _Optional[bool] = ..., dry_run: _Optional[bool] = ..., rendered_content: _Optional[str] = ...) -> None: ...
 
 class InstallPromptBlockRequest(_message.Message):
     __slots__ = ("runtime",)
@@ -104,12 +112,14 @@ class InstallPromptBlockResponse(_message.Message):
     def __init__(self, installed: _Optional[bool] = ...) -> None: ...
 
 class CaptureWriteRequest(_message.Message):
-    __slots__ = ("runtime", "content")
+    __slots__ = ("runtime", "content", "source_path")
     RUNTIME_FIELD_NUMBER: _ClassVar[int]
     CONTENT_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_PATH_FIELD_NUMBER: _ClassVar[int]
     runtime: str
     content: str
-    def __init__(self, runtime: _Optional[str] = ..., content: _Optional[str] = ...) -> None: ...
+    source_path: str
+    def __init__(self, runtime: _Optional[str] = ..., content: _Optional[str] = ..., source_path: _Optional[str] = ...) -> None: ...
 
 class CaptureWriteResponse(_message.Message):
     __slots__ = ("entry_id",)

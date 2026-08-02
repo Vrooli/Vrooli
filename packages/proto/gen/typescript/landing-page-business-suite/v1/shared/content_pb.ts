@@ -12,7 +12,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file landing-page-business-suite/v1/shared/content.proto.
  */
 export const file_landing_page_business_suite_v1_shared_content: GenFile = /*@__PURE__*/
-  fileDesc("CjNsYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjEvc2hhcmVkL2NvbnRlbnQucHJvdG8SLHZyb29saS5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuc2hhcmVkIvABCg5Db250ZW50U2VjdGlvbhIKCgJpZBgBIAEoAxISCgp2YXJpYW50X2lkGAIgASgDEhQKDHNlY3Rpb25fdHlwZRgDIAEoCRIoCgdjb250ZW50GAQgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBINCgVvcmRlchgFIAEoBRIPCgdlbmFibGVkGAYgASgIEi4KCmNyZWF0ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQmBaXmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vbGFuZGluZy1wYWdlLWJ1c2luZXNzLXN1aXRlL3YxL3NoYXJlZDtzaGFyZWRfdjFiBnByb3RvMw", [file_google_protobuf_struct, file_google_protobuf_timestamp]);
+  fileDesc("CjNsYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjEvc2hhcmVkL2NvbnRlbnQucHJvdG8SLHZyb29saS5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuc2hhcmVkIv0BCg5Db250ZW50U2VjdGlvbhIKCgJpZBgBIAEoAxISCgp2YXJpYW50X2lkGAIgASgDEhQKDHNlY3Rpb25fdHlwZRgDIAEoCRIoCgdjb250ZW50GAQgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBINCgVvcmRlchgFIAEoBRIPCgdlbmFibGVkGAYgASgIEi4KCmNyZWF0ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgsKA2tleRgJIAEoCUJgWl5naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2xhbmRpbmctcGFnZS1idXNpbmVzcy1zdWl0ZS92MS9zaGFyZWQ7c2hhcmVkX3YxYgZwcm90bzM", [file_google_protobuf_struct, file_google_protobuf_timestamp]);
 
 /**
  * ContentSection is the reusable authored section representation used by the
@@ -60,6 +60,14 @@ export type ContentSection = Message<"vrooli.landing_page_business_suite.v1.shar
    * @generated from field: google.protobuf.Timestamp updated_at = 8;
    */
   updatedAt?: Timestamp | undefined;
+
+  /**
+   * key is the stable, variant-scoped identifier for JSON-backed sections.
+   * id remains for legacy database-backed payload compatibility.
+   *
+   * @generated from field: string key = 9;
+   */
+  key: string;
 };
 
 /**

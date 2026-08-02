@@ -74,20 +74,28 @@ class Entry(_message.Message):
     def __init__(self, id: _Optional[str] = ..., body: _Optional[str] = ..., facet_id: _Optional[str] = ..., attribution: _Optional[_Union[Attribution, _Mapping]] = ..., correlation: _Optional[_Union[Correlation, _Mapping]] = ..., import_provenance: _Optional[_Union[ImportProvenance, _Mapping]] = ..., facet_texts: _Optional[_Iterable[_Union[FacetText, _Mapping]]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., superseded_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., kind: _Optional[str] = ...) -> None: ...
 
 class AppendEntryRequest(_message.Message):
-    __slots__ = ("body", "facet_id", "kind", "attribution", "correlation", "import_provenance")
+    __slots__ = ("body", "facet_id", "kind", "attribution", "correlation", "import_provenance", "trigger", "approach", "evidence", "outcome")
     BODY_FIELD_NUMBER: _ClassVar[int]
     FACET_ID_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     ATTRIBUTION_FIELD_NUMBER: _ClassVar[int]
     CORRELATION_FIELD_NUMBER: _ClassVar[int]
     IMPORT_PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    TRIGGER_FIELD_NUMBER: _ClassVar[int]
+    APPROACH_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    OUTCOME_FIELD_NUMBER: _ClassVar[int]
     body: str
     facet_id: str
     kind: str
     attribution: Attribution
     correlation: Correlation
     import_provenance: ImportProvenance
-    def __init__(self, body: _Optional[str] = ..., facet_id: _Optional[str] = ..., kind: _Optional[str] = ..., attribution: _Optional[_Union[Attribution, _Mapping]] = ..., correlation: _Optional[_Union[Correlation, _Mapping]] = ..., import_provenance: _Optional[_Union[ImportProvenance, _Mapping]] = ...) -> None: ...
+    trigger: str
+    approach: str
+    evidence: str
+    outcome: str
+    def __init__(self, body: _Optional[str] = ..., facet_id: _Optional[str] = ..., kind: _Optional[str] = ..., attribution: _Optional[_Union[Attribution, _Mapping]] = ..., correlation: _Optional[_Union[Correlation, _Mapping]] = ..., import_provenance: _Optional[_Union[ImportProvenance, _Mapping]] = ..., trigger: _Optional[str] = ..., approach: _Optional[str] = ..., evidence: _Optional[str] = ..., outcome: _Optional[str] = ...) -> None: ...
 
 class AppendEntryResponse(_message.Message):
     __slots__ = ("entry",)

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "system-monitor",
-  "input_digest": "sha256:16f22812dc8218c5c85ec6a40a33d28061532535f5d8301a6c6d41196518f2d2",
+  "input_digest": "sha256:1302130bc121040f4a25d2f8744d9e29221634800096b1ce82a488e621da9044",
   "input_files": [
     "schemas/common/v1/types.proto",
     "schemas/system-monitor/v1/capacity/capacity.proto",
@@ -40,7 +40,7 @@
     "gen/go/system-monitor/v1/reports/reportsconnect/reports.connect.go": "sha256:646d51e55470ee39f832bd0ed65768413c71572cc837603168208e35a6da302b",
     "gen/go/system-monitor/v1/scripts/scripts.pb.go": "sha256:1f65ab127f30388cfcc233bea4f10cfcb47470e4f2aebbd9e5582961b82e9397",
     "gen/go/system-monitor/v1/scripts/scriptsconnect/scripts.connect.go": "sha256:bd71eff582fd83aacfe525fcee4ea552cb051f9175fdae6fc56c6af688fe81cb",
-    "gen/go/system-monitor/v1/settings/settings.pb.go": "sha256:9bf12ca25831eae6f67e412f5a3d9b6734084f40159fb03e60ad52496400cbb1",
+    "gen/go/system-monitor/v1/settings/settings.pb.go": "sha256:62454d918a777ff325cebb6704a937fbf86069d34aa39a66ab678add29c1739a",
     "gen/go/system-monitor/v1/settings/settingsconnect/settings.connect.go": "sha256:9f97ca3970ae92cba4562106fcb028bf22eccf31b6c47b74bd7df5e780788825",
     "gen/python/system_monitor/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/system_monitor/v1/capacity/capacity_pb2.py": "sha256:a5f5571c2e73b1dfbc067897403858534d1890ba8edf6f903e6ac4dbeda3b249",
@@ -66,8 +66,8 @@
     "gen/python/system_monitor/v1/scripts/scripts_pb2.py": "sha256:ef502645dfb5dd500c11be7a1a61e2f9c672055a93a93281b144144da09a0cf0",
     "gen/python/system_monitor/v1/scripts/scripts_pb2.pyi": "sha256:5d88e5ed1cf019a15c10b6011ec0a44e782cc8c5f184dc6c4e5ca0561c9a0097",
     "gen/python/system_monitor/v1/settings/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/system_monitor/v1/settings/settings_pb2.py": "sha256:bc122148e970b750f6ce816076f8268f4a3342b01d97c14229dbdc78db72e547",
-    "gen/python/system_monitor/v1/settings/settings_pb2.pyi": "sha256:09ee15cb45af0494e5944f1a8b548732767a85350f9854ec873db36a37301b96",
+    "gen/python/system_monitor/v1/settings/settings_pb2.py": "sha256:55275672d52947640dd9030a058cb78b9861fe350b13bfe5a79863ffe90db96a",
+    "gen/python/system_monitor/v1/settings/settings_pb2.pyi": "sha256:275beab7f4b4f9979156e6ccbb9c19ca4161988ac8b3ddf9885ecb4ce311af92",
     "gen/typescript/js/system-monitor/v1/capacity/capacity_pb.js": "sha256:b23fbeef7841b27f372db609be5045c5c84233dea8baeb83934d16c96bdd4c33",
     "gen/typescript/js/system-monitor/v1/health/health_pb.js": "sha256:da1ebca370a75759b93caf930a006bed1e1101c6a64ee25b310a88d88d59a248",
     "gen/typescript/js/system-monitor/v1/investigations/investigations_pb.js": "sha256:50146242ae80e4af8fcee636f96b4e0bc4870ba35c508aaa4cb34b11b572a072",
@@ -75,7 +75,7 @@
     "gen/typescript/js/system-monitor/v1/metrics/metrics_pb.js": "sha256:4175aeabac2c8437e7b4e75d18161dd69d97f8bdc1363e18847e0a962d492e50",
     "gen/typescript/js/system-monitor/v1/reports/reports_pb.js": "sha256:3c0262c0ecae83a7873c5809e109ccb48e38f85638d5348016c039d2f43d1696",
     "gen/typescript/js/system-monitor/v1/scripts/scripts_pb.js": "sha256:6e1f475589b8d7d603befc325a76a87977e0455cde7f2b7035fd9a48591eddf6",
-    "gen/typescript/js/system-monitor/v1/settings/settings_pb.js": "sha256:725ad689510453d52bf9b94e73f19b92a305222d855174cfa92304c1d4d5cccf",
+    "gen/typescript/js/system-monitor/v1/settings/settings_pb.js": "sha256:144a7fefc0d77ece67f574e163ed76d4d8df35424ab7f6f589835126dfea30eb",
     "gen/typescript/system-monitor/v1/capacity/capacity_pb.ts": "sha256:cb8b9f3c81b6356db912656edd225cd66e3197dbc2ca44cf40c58012e3b47b65",
     "gen/typescript/system-monitor/v1/health/health_pb.ts": "sha256:6593d40c77d805139efcb0324d1a5af5a34b72dc1b5f18fc2f7c5e3e0a1d2ab6",
     "gen/typescript/system-monitor/v1/investigations/investigations_pb.ts": "sha256:d545bd676945eca310beeda7270435779824533a0cebffe8d46b69c7d059599e",
@@ -83,6 +83,6 @@
     "gen/typescript/system-monitor/v1/metrics/metrics_pb.ts": "sha256:66d35a409ed947d13dba432967e8f1a96281122812c6ea34d1d6110ba69eb0ab",
     "gen/typescript/system-monitor/v1/reports/reports_pb.ts": "sha256:39bd944d037c1c77550307659dbd64c04b33b8a0b451c20f11b4fc1edf5564c6",
     "gen/typescript/system-monitor/v1/scripts/scripts_pb.ts": "sha256:c1ada713db5c5414ac8522b27ef9475fe0c59f52eed220fc7dad4cb706f85b96",
-    "gen/typescript/system-monitor/v1/settings/settings_pb.ts": "sha256:5ff60c51ef2fa14be63e0c2ea7882f02496af21473b1a251f2d0906516ce600c"
+    "gen/typescript/system-monitor/v1/settings/settings_pb.ts": "sha256:1c7317524a8134dfd86bc30d9175138876183d7b0fa6f865a039c3c186acb1fe"
   }
 }

@@ -51,6 +51,10 @@ message AppendEntryRequest {
   Attribution attribution = 4;
   Correlation correlation = 5;
   ImportProvenance import_provenance = 6;
+  string trigger = 7;
+  string approach = 8;
+  string evidence = 9;
+  string outcome = 10;
 }
 message AppendEntryResponse {
   Entry entry = 1;

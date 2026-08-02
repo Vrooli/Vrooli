@@ -17,6 +17,18 @@ type FileInfo struct {
 // FileSystem is the only seam allowed to mutate filesystem cleanup targets.
 type FileSystem interface {
 	Stat(ctx context.Context, path string) (FileInfo, error)
+
+	// ReadDir lists the immediate children of a directory, without descending.
+	//
+	// This exists so a provider can measure each top-level entry as an
+	// independent unit of work. That independence is what makes a time budget
+	// safe: an entry whose subtree was fully traversed can be judged stale,
+	// while one that ran out of budget mid-traversal is simply dropped. Under a
+	// single whole-root walk there is no way to tell those apart, and an entry
+	// judged on a half-read subtree could be deleted while holding a file the
+	// walk never reached.
+	ReadDir(ctx context.Context, path string) ([]FileInfo, error)
+
 	Walk(ctx context.Context, root string, visit func(FileInfo) error) error
 	RemoveAll(ctx context.Context, path string) error
 }

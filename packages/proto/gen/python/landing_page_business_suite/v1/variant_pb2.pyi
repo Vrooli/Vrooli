@@ -1,6 +1,7 @@
 import datetime
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from google.protobuf import struct_pb2 as _struct_pb2
 from landing_page_business_suite.v1.shared import content_pb2 as _content_pb2
 from landing_page_business_suite.v1.shared import presentation_pb2 as _presentation_pb2
 from google.protobuf.internal import containers as _containers
@@ -144,20 +145,22 @@ class CreateVariantRequest(_message.Message):
     def __init__(self, slug: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., weight: _Optional[int] = ..., axes: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class UpdateVariantRequest(_message.Message):
-    __slots__ = ("slug", "name", "description", "weight", "axes", "header_config")
+    __slots__ = ("slug", "name", "description", "weight", "axes", "header_config", "seo_config")
     SLUG_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     WEIGHT_FIELD_NUMBER: _ClassVar[int]
     AXES_FIELD_NUMBER: _ClassVar[int]
     HEADER_CONFIG_FIELD_NUMBER: _ClassVar[int]
+    SEO_CONFIG_FIELD_NUMBER: _ClassVar[int]
     slug: str
     name: str
     description: str
     weight: int
     axes: AxesSelection
     header_config: _presentation_pb2.LandingHeaderConfig
-    def __init__(self, slug: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., weight: _Optional[int] = ..., axes: _Optional[_Union[AxesSelection, _Mapping]] = ..., header_config: _Optional[_Union[_presentation_pb2.LandingHeaderConfig, _Mapping]] = ...) -> None: ...
+    seo_config: _presentation_pb2.VariantSEOConfig
+    def __init__(self, slug: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., weight: _Optional[int] = ..., axes: _Optional[_Union[AxesSelection, _Mapping]] = ..., header_config: _Optional[_Union[_presentation_pb2.LandingHeaderConfig, _Mapping]] = ..., seo_config: _Optional[_Union[_presentation_pb2.VariantSEOConfig, _Mapping]] = ...) -> None: ...
 
 class ArchiveVariantRequest(_message.Message):
     __slots__ = ("slug",)
@@ -202,3 +205,77 @@ class ImportVariantSnapshotResponse(_message.Message):
     SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
     snapshot: VariantSnapshot
     def __init__(self, snapshot: _Optional[_Union[VariantSnapshot, _Mapping]] = ...) -> None: ...
+
+class SyncVariantSnapshotsRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class SyncVariantSnapshotsResponse(_message.Message):
+    __slots__ = ("count",)
+    COUNT_FIELD_NUMBER: _ClassVar[int]
+    count: int
+    def __init__(self, count: _Optional[int] = ...) -> None: ...
+
+class GetVariantSectionsRequest(_message.Message):
+    __slots__ = ("slug",)
+    SLUG_FIELD_NUMBER: _ClassVar[int]
+    slug: str
+    def __init__(self, slug: _Optional[str] = ...) -> None: ...
+
+class VariantSectionsResponse(_message.Message):
+    __slots__ = ("sections",)
+    SECTIONS_FIELD_NUMBER: _ClassVar[int]
+    sections: _containers.RepeatedCompositeFieldContainer[_content_pb2.ContentSection]
+    def __init__(self, sections: _Optional[_Iterable[_Union[_content_pb2.ContentSection, _Mapping]]] = ...) -> None: ...
+
+class GetVariantSectionRequest(_message.Message):
+    __slots__ = ("slug", "section_key")
+    SLUG_FIELD_NUMBER: _ClassVar[int]
+    SECTION_KEY_FIELD_NUMBER: _ClassVar[int]
+    slug: str
+    section_key: str
+    def __init__(self, slug: _Optional[str] = ..., section_key: _Optional[str] = ...) -> None: ...
+
+class VariantSectionResponse(_message.Message):
+    __slots__ = ("section",)
+    SECTION_FIELD_NUMBER: _ClassVar[int]
+    section: _content_pb2.ContentSection
+    def __init__(self, section: _Optional[_Union[_content_pb2.ContentSection, _Mapping]] = ...) -> None: ...
+
+class CreateVariantSectionRequest(_message.Message):
+    __slots__ = ("slug", "section")
+    SLUG_FIELD_NUMBER: _ClassVar[int]
+    SECTION_FIELD_NUMBER: _ClassVar[int]
+    slug: str
+    section: _content_pb2.ContentSection
+    def __init__(self, slug: _Optional[str] = ..., section: _Optional[_Union[_content_pb2.ContentSection, _Mapping]] = ...) -> None: ...
+
+class UpdateVariantSectionRequest(_message.Message):
+    __slots__ = ("slug", "section_key", "section_type", "content", "order", "enabled")
+    SLUG_FIELD_NUMBER: _ClassVar[int]
+    SECTION_KEY_FIELD_NUMBER: _ClassVar[int]
+    SECTION_TYPE_FIELD_NUMBER: _ClassVar[int]
+    CONTENT_FIELD_NUMBER: _ClassVar[int]
+    ORDER_FIELD_NUMBER: _ClassVar[int]
+    ENABLED_FIELD_NUMBER: _ClassVar[int]
+    slug: str
+    section_key: str
+    section_type: str
+    content: _struct_pb2.Struct
+    order: int
+    enabled: bool
+    def __init__(self, slug: _Optional[str] = ..., section_key: _Optional[str] = ..., section_type: _Optional[str] = ..., content: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., order: _Optional[int] = ..., enabled: _Optional[bool] = ...) -> None: ...
+
+class DeleteVariantSectionRequest(_message.Message):
+    __slots__ = ("slug", "section_key")
+    SLUG_FIELD_NUMBER: _ClassVar[int]
+    SECTION_KEY_FIELD_NUMBER: _ClassVar[int]
+    slug: str
+    section_key: str
+    def __init__(self, slug: _Optional[str] = ..., section_key: _Optional[str] = ...) -> None: ...
+
+class DeleteVariantSectionResponse(_message.Message):
+    __slots__ = ("deleted",)
+    DELETED_FIELD_NUMBER: _ClassVar[int]
+    deleted: bool
+    def __init__(self, deleted: _Optional[bool] = ...) -> None: ...

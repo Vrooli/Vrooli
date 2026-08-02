@@ -43,7 +43,8 @@ message SystemSettings {
   // Memory alert threshold percentage.
   double memory_threshold = 7;
 
-  // Disk alert threshold percentage.
+  // Disk alert threshold percentage. This is also the warning band boundary:
+  // the usage percentage at which disk pressure starts being recorded.
   double disk_threshold = 8;
 
   // Number of days of metrics history to retain before scheduled pruning.
@@ -57,6 +58,25 @@ message SystemSettings {
 
   // Whether a scheduled retention prune is followed by database compaction.
   bool compact_after_retention = 12;
+
+  // Disk-pressure escalation band boundaries, in percent used. These must
+  // ascend: disk_threshold (warning) < disk_high_percent < disk_critical_percent.
+  //
+  // high     — request a cleanup preview; nothing is deleted.
+  // critical — safe-tier reclamation may run with no operator present.
+  double disk_high_percent = 13;
+  double disk_critical_percent = 14;
+
+  // Minimum seconds between two records for the same band, so a disk parked
+  // above a boundary does not alert on every evaluation.
+  int32 disk_escalation_cooldown_seconds = 15;
+
+  // How many consecutive observations a new band needs before it takes effect.
+  int32 disk_escalation_debounce_ticks = 16;
+
+  // A rise of at least this many percentage points in a single evaluation
+  // escalates immediately, bounding the delay debounce introduces.
+  double disk_fast_fill_jump_percent = 17;
 }
 
 // =============================================================================

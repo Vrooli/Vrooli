@@ -8,7 +8,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class InvocationFilter(_message.Message):
-    __slots__ = ("window", "ownership", "outcome", "executable", "fingerprint", "profile_id", "runner_type", "model", "tag_prefix", "run_status", "tool_name")
+    __slots__ = ("window", "ownership", "outcome", "executable", "fingerprint", "profile_id", "runner_type", "model", "tag_prefix", "run_status", "tool_name", "episode_pattern", "episode_cause_scope", "episode_fingerprint", "self_report_rule_id", "self_report_cause_scope")
     WINDOW_FIELD_NUMBER: _ClassVar[int]
     OWNERSHIP_FIELD_NUMBER: _ClassVar[int]
     OUTCOME_FIELD_NUMBER: _ClassVar[int]
@@ -20,6 +20,11 @@ class InvocationFilter(_message.Message):
     TAG_PREFIX_FIELD_NUMBER: _ClassVar[int]
     RUN_STATUS_FIELD_NUMBER: _ClassVar[int]
     TOOL_NAME_FIELD_NUMBER: _ClassVar[int]
+    EPISODE_PATTERN_FIELD_NUMBER: _ClassVar[int]
+    EPISODE_CAUSE_SCOPE_FIELD_NUMBER: _ClassVar[int]
+    EPISODE_FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
+    SELF_REPORT_RULE_ID_FIELD_NUMBER: _ClassVar[int]
+    SELF_REPORT_CAUSE_SCOPE_FIELD_NUMBER: _ClassVar[int]
     window: _measures_pb2.TimeWindow
     ownership: str
     outcome: str
@@ -31,7 +36,26 @@ class InvocationFilter(_message.Message):
     tag_prefix: str
     run_status: str
     tool_name: str
-    def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., ownership: _Optional[str] = ..., outcome: _Optional[str] = ..., executable: _Optional[str] = ..., fingerprint: _Optional[str] = ..., profile_id: _Optional[str] = ..., runner_type: _Optional[str] = ..., model: _Optional[str] = ..., tag_prefix: _Optional[str] = ..., run_status: _Optional[str] = ..., tool_name: _Optional[str] = ...) -> None: ...
+    episode_pattern: str
+    episode_cause_scope: str
+    episode_fingerprint: str
+    self_report_rule_id: str
+    self_report_cause_scope: str
+    def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., ownership: _Optional[str] = ..., outcome: _Optional[str] = ..., executable: _Optional[str] = ..., fingerprint: _Optional[str] = ..., profile_id: _Optional[str] = ..., runner_type: _Optional[str] = ..., model: _Optional[str] = ..., tag_prefix: _Optional[str] = ..., run_status: _Optional[str] = ..., tool_name: _Optional[str] = ..., episode_pattern: _Optional[str] = ..., episode_cause_scope: _Optional[str] = ..., episode_fingerprint: _Optional[str] = ..., self_report_rule_id: _Optional[str] = ..., self_report_cause_scope: _Optional[str] = ...) -> None: ...
+
+class MeasureValidity(_message.Message):
+    __slots__ = ("state", "reason", "sample_size", "largest_fingerprint_bucket", "largest_fingerprint_share")
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    SAMPLE_SIZE_FIELD_NUMBER: _ClassVar[int]
+    LARGEST_FINGERPRINT_BUCKET_FIELD_NUMBER: _ClassVar[int]
+    LARGEST_FINGERPRINT_SHARE_FIELD_NUMBER: _ClassVar[int]
+    state: str
+    reason: str
+    sample_size: int
+    largest_fingerprint_bucket: int
+    largest_fingerprint_share: float
+    def __init__(self, state: _Optional[str] = ..., reason: _Optional[str] = ..., sample_size: _Optional[int] = ..., largest_fingerprint_bucket: _Optional[int] = ..., largest_fingerprint_share: _Optional[float] = ...) -> None: ...
 
 class ExternalToolShareRequest(_message.Message):
     __slots__ = ("window", "filter")
@@ -42,18 +66,20 @@ class ExternalToolShareRequest(_message.Message):
     def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ...) -> None: ...
 
 class ExternalToolShareResponse(_message.Message):
-    __slots__ = ("share", "external_calls", "resolved_calls", "unknown_calls", "executed_query")
+    __slots__ = ("share", "external_calls", "resolved_calls", "unknown_calls", "executed_query", "validity")
     SHARE_FIELD_NUMBER: _ClassVar[int]
     EXTERNAL_CALLS_FIELD_NUMBER: _ClassVar[int]
     RESOLVED_CALLS_FIELD_NUMBER: _ClassVar[int]
     UNKNOWN_CALLS_FIELD_NUMBER: _ClassVar[int]
     EXECUTED_QUERY_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
     share: float
     external_calls: int
     resolved_calls: int
     unknown_calls: int
     executed_query: str
-    def __init__(self, share: _Optional[float] = ..., external_calls: _Optional[int] = ..., resolved_calls: _Optional[int] = ..., unknown_calls: _Optional[int] = ..., executed_query: _Optional[str] = ...) -> None: ...
+    validity: MeasureValidity
+    def __init__(self, share: _Optional[float] = ..., external_calls: _Optional[int] = ..., resolved_calls: _Optional[int] = ..., unknown_calls: _Optional[int] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ...) -> None: ...
 
 class RetryRateRequest(_message.Message):
     __slots__ = ("window", "filter")
@@ -64,16 +90,18 @@ class RetryRateRequest(_message.Message):
     def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ...) -> None: ...
 
 class RetryRateResponse(_message.Message):
-    __slots__ = ("rate", "retry_calls", "total_calls", "executed_query")
+    __slots__ = ("rate", "retry_calls", "total_calls", "executed_query", "validity")
     RATE_FIELD_NUMBER: _ClassVar[int]
     RETRY_CALLS_FIELD_NUMBER: _ClassVar[int]
     TOTAL_CALLS_FIELD_NUMBER: _ClassVar[int]
     EXECUTED_QUERY_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
     rate: float
     retry_calls: int
     total_calls: int
     executed_query: str
-    def __init__(self, rate: _Optional[float] = ..., retry_calls: _Optional[int] = ..., total_calls: _Optional[int] = ..., executed_query: _Optional[str] = ...) -> None: ...
+    validity: MeasureValidity
+    def __init__(self, rate: _Optional[float] = ..., retry_calls: _Optional[int] = ..., total_calls: _Optional[int] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ...) -> None: ...
 
 class HelpRecoveryRateRequest(_message.Message):
     __slots__ = ("window", "filter")
@@ -84,16 +112,18 @@ class HelpRecoveryRateRequest(_message.Message):
     def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ...) -> None: ...
 
 class HelpRecoveryRateResponse(_message.Message):
-    __slots__ = ("rate", "help_recoveries", "total_calls", "executed_query")
+    __slots__ = ("rate", "help_recoveries", "total_calls", "executed_query", "validity")
     RATE_FIELD_NUMBER: _ClassVar[int]
     HELP_RECOVERIES_FIELD_NUMBER: _ClassVar[int]
     TOTAL_CALLS_FIELD_NUMBER: _ClassVar[int]
     EXECUTED_QUERY_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
     rate: float
     help_recoveries: int
     total_calls: int
     executed_query: str
-    def __init__(self, rate: _Optional[float] = ..., help_recoveries: _Optional[int] = ..., total_calls: _Optional[int] = ..., executed_query: _Optional[str] = ...) -> None: ...
+    validity: MeasureValidity
+    def __init__(self, rate: _Optional[float] = ..., help_recoveries: _Optional[int] = ..., total_calls: _Optional[int] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ...) -> None: ...
 
 class RepeatedWorkRateRequest(_message.Message):
     __slots__ = ("window", "filter")
@@ -104,16 +134,18 @@ class RepeatedWorkRateRequest(_message.Message):
     def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ...) -> None: ...
 
 class RepeatedWorkRateResponse(_message.Message):
-    __slots__ = ("rate", "repeated_calls", "total_calls", "executed_query")
+    __slots__ = ("rate", "repeated_calls", "total_calls", "executed_query", "validity")
     RATE_FIELD_NUMBER: _ClassVar[int]
     REPEATED_CALLS_FIELD_NUMBER: _ClassVar[int]
     TOTAL_CALLS_FIELD_NUMBER: _ClassVar[int]
     EXECUTED_QUERY_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
     rate: float
     repeated_calls: int
     total_calls: int
     executed_query: str
-    def __init__(self, rate: _Optional[float] = ..., repeated_calls: _Optional[int] = ..., total_calls: _Optional[int] = ..., executed_query: _Optional[str] = ...) -> None: ...
+    validity: MeasureValidity
+    def __init__(self, rate: _Optional[float] = ..., repeated_calls: _Optional[int] = ..., total_calls: _Optional[int] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ...) -> None: ...
 
 class ToolFailureRateRequest(_message.Message):
     __slots__ = ("window", "filter")
@@ -124,16 +156,18 @@ class ToolFailureRateRequest(_message.Message):
     def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ...) -> None: ...
 
 class ToolFailureRateResponse(_message.Message):
-    __slots__ = ("rate", "failed_calls", "total_calls", "executed_query")
+    __slots__ = ("rate", "failed_calls", "total_calls", "executed_query", "validity")
     RATE_FIELD_NUMBER: _ClassVar[int]
     FAILED_CALLS_FIELD_NUMBER: _ClassVar[int]
     TOTAL_CALLS_FIELD_NUMBER: _ClassVar[int]
     EXECUTED_QUERY_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
     rate: float
     failed_calls: int
     total_calls: int
     executed_query: str
-    def __init__(self, rate: _Optional[float] = ..., failed_calls: _Optional[int] = ..., total_calls: _Optional[int] = ..., executed_query: _Optional[str] = ...) -> None: ...
+    validity: MeasureValidity
+    def __init__(self, rate: _Optional[float] = ..., failed_calls: _Optional[int] = ..., total_calls: _Optional[int] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ...) -> None: ...
 
 class RunSuccessRateRequest(_message.Message):
     __slots__ = ("window", "filter")
@@ -144,16 +178,18 @@ class RunSuccessRateRequest(_message.Message):
     def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ...) -> None: ...
 
 class RunSuccessRateResponse(_message.Message):
-    __slots__ = ("rate", "successful_runs", "terminal_runs", "executed_query")
+    __slots__ = ("rate", "successful_runs", "terminal_runs", "executed_query", "validity")
     RATE_FIELD_NUMBER: _ClassVar[int]
     SUCCESSFUL_RUNS_FIELD_NUMBER: _ClassVar[int]
     TERMINAL_RUNS_FIELD_NUMBER: _ClassVar[int]
     EXECUTED_QUERY_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
     rate: float
     successful_runs: int
     terminal_runs: int
     executed_query: str
-    def __init__(self, rate: _Optional[float] = ..., successful_runs: _Optional[int] = ..., terminal_runs: _Optional[int] = ..., executed_query: _Optional[str] = ...) -> None: ...
+    validity: MeasureValidity
+    def __init__(self, rate: _Optional[float] = ..., successful_runs: _Optional[int] = ..., terminal_runs: _Optional[int] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ...) -> None: ...
 
 class RunCycleTimeRequest(_message.Message):
     __slots__ = ("window", "filter")
@@ -164,14 +200,16 @@ class RunCycleTimeRequest(_message.Message):
     def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ...) -> None: ...
 
 class RunCycleTimeResponse(_message.Message):
-    __slots__ = ("average_duration_ms", "completed_duration_runs", "executed_query")
+    __slots__ = ("average_duration_ms", "completed_duration_runs", "executed_query", "validity")
     AVERAGE_DURATION_MS_FIELD_NUMBER: _ClassVar[int]
     COMPLETED_DURATION_RUNS_FIELD_NUMBER: _ClassVar[int]
     EXECUTED_QUERY_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
     average_duration_ms: float
     completed_duration_runs: int
     executed_query: str
-    def __init__(self, average_duration_ms: _Optional[float] = ..., completed_duration_runs: _Optional[int] = ..., executed_query: _Optional[str] = ...) -> None: ...
+    validity: MeasureValidity
+    def __init__(self, average_duration_ms: _Optional[float] = ..., completed_duration_runs: _Optional[int] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ...) -> None: ...
 
 class RunDurationStatisticsRequest(_message.Message):
     __slots__ = ("window", "filter")
@@ -182,7 +220,7 @@ class RunDurationStatisticsRequest(_message.Message):
     def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ...) -> None: ...
 
 class RunDurationStatisticsResponse(_message.Message):
-    __slots__ = ("average_duration_ms", "p50_duration_ms", "p95_duration_ms", "p99_duration_ms", "min_duration_ms", "max_duration_ms", "count", "executed_query")
+    __slots__ = ("average_duration_ms", "p50_duration_ms", "p95_duration_ms", "p99_duration_ms", "min_duration_ms", "max_duration_ms", "count", "executed_query", "validity")
     AVERAGE_DURATION_MS_FIELD_NUMBER: _ClassVar[int]
     P50_DURATION_MS_FIELD_NUMBER: _ClassVar[int]
     P95_DURATION_MS_FIELD_NUMBER: _ClassVar[int]
@@ -191,6 +229,7 @@ class RunDurationStatisticsResponse(_message.Message):
     MAX_DURATION_MS_FIELD_NUMBER: _ClassVar[int]
     COUNT_FIELD_NUMBER: _ClassVar[int]
     EXECUTED_QUERY_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
     average_duration_ms: float
     p50_duration_ms: float
     p95_duration_ms: float
@@ -199,7 +238,8 @@ class RunDurationStatisticsResponse(_message.Message):
     max_duration_ms: int
     count: int
     executed_query: str
-    def __init__(self, average_duration_ms: _Optional[float] = ..., p50_duration_ms: _Optional[float] = ..., p95_duration_ms: _Optional[float] = ..., p99_duration_ms: _Optional[float] = ..., min_duration_ms: _Optional[int] = ..., max_duration_ms: _Optional[int] = ..., count: _Optional[int] = ..., executed_query: _Optional[str] = ...) -> None: ...
+    validity: MeasureValidity
+    def __init__(self, average_duration_ms: _Optional[float] = ..., p50_duration_ms: _Optional[float] = ..., p95_duration_ms: _Optional[float] = ..., p99_duration_ms: _Optional[float] = ..., min_duration_ms: _Optional[int] = ..., max_duration_ms: _Optional[int] = ..., count: _Optional[int] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ...) -> None: ...
 
 class RunCostRequest(_message.Message):
     __slots__ = ("window", "filter")
@@ -210,12 +250,13 @@ class RunCostRequest(_message.Message):
     def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ...) -> None: ...
 
 class RunCostResponse(_message.Message):
-    __slots__ = ("total_cost_usd", "average_cost_usd", "total_tokens", "total_runs", "executed_query", "input_tokens", "output_tokens", "cache_read_tokens", "cache_creation_tokens", "input_cost_usd", "output_cost_usd", "cache_read_cost_usd", "cache_creation_cost_usd", "authoritative_cost_usd", "estimated_cost_usd", "unknown_cost_usd")
+    __slots__ = ("total_cost_usd", "average_cost_usd", "total_tokens", "total_runs", "executed_query", "validity", "input_tokens", "output_tokens", "cache_read_tokens", "cache_creation_tokens", "input_cost_usd", "output_cost_usd", "cache_read_cost_usd", "cache_creation_cost_usd", "authoritative_cost_usd", "estimated_cost_usd", "unknown_cost_usd")
     TOTAL_COST_USD_FIELD_NUMBER: _ClassVar[int]
     AVERAGE_COST_USD_FIELD_NUMBER: _ClassVar[int]
     TOTAL_TOKENS_FIELD_NUMBER: _ClassVar[int]
     TOTAL_RUNS_FIELD_NUMBER: _ClassVar[int]
     EXECUTED_QUERY_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
     INPUT_TOKENS_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_TOKENS_FIELD_NUMBER: _ClassVar[int]
     CACHE_READ_TOKENS_FIELD_NUMBER: _ClassVar[int]
@@ -232,6 +273,7 @@ class RunCostResponse(_message.Message):
     total_tokens: int
     total_runs: int
     executed_query: str
+    validity: MeasureValidity
     input_tokens: int
     output_tokens: int
     cache_read_tokens: int
@@ -243,7 +285,7 @@ class RunCostResponse(_message.Message):
     authoritative_cost_usd: float
     estimated_cost_usd: float
     unknown_cost_usd: float
-    def __init__(self, total_cost_usd: _Optional[float] = ..., average_cost_usd: _Optional[float] = ..., total_tokens: _Optional[int] = ..., total_runs: _Optional[int] = ..., executed_query: _Optional[str] = ..., input_tokens: _Optional[int] = ..., output_tokens: _Optional[int] = ..., cache_read_tokens: _Optional[int] = ..., cache_creation_tokens: _Optional[int] = ..., input_cost_usd: _Optional[float] = ..., output_cost_usd: _Optional[float] = ..., cache_read_cost_usd: _Optional[float] = ..., cache_creation_cost_usd: _Optional[float] = ..., authoritative_cost_usd: _Optional[float] = ..., estimated_cost_usd: _Optional[float] = ..., unknown_cost_usd: _Optional[float] = ...) -> None: ...
+    def __init__(self, total_cost_usd: _Optional[float] = ..., average_cost_usd: _Optional[float] = ..., total_tokens: _Optional[int] = ..., total_runs: _Optional[int] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ..., input_tokens: _Optional[int] = ..., output_tokens: _Optional[int] = ..., cache_read_tokens: _Optional[int] = ..., cache_creation_tokens: _Optional[int] = ..., input_cost_usd: _Optional[float] = ..., output_cost_usd: _Optional[float] = ..., cache_read_cost_usd: _Optional[float] = ..., cache_creation_cost_usd: _Optional[float] = ..., authoritative_cost_usd: _Optional[float] = ..., estimated_cost_usd: _Optional[float] = ..., unknown_cost_usd: _Optional[float] = ...) -> None: ...
 
 class RunVolumeRequest(_message.Message):
     __slots__ = ("window", "filter")
@@ -254,14 +296,16 @@ class RunVolumeRequest(_message.Message):
     def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ...) -> None: ...
 
 class RunVolumeResponse(_message.Message):
-    __slots__ = ("total_runs", "terminal_runs", "executed_query")
+    __slots__ = ("total_runs", "terminal_runs", "executed_query", "validity")
     TOTAL_RUNS_FIELD_NUMBER: _ClassVar[int]
     TERMINAL_RUNS_FIELD_NUMBER: _ClassVar[int]
     EXECUTED_QUERY_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
     total_runs: int
     terminal_runs: int
     executed_query: str
-    def __init__(self, total_runs: _Optional[int] = ..., terminal_runs: _Optional[int] = ..., executed_query: _Optional[str] = ...) -> None: ...
+    validity: MeasureValidity
+    def __init__(self, total_runs: _Optional[int] = ..., terminal_runs: _Optional[int] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ...) -> None: ...
 
 class RunStatusDistributionRequest(_message.Message):
     __slots__ = ("window", "filter")
@@ -280,12 +324,14 @@ class RunStatusCount(_message.Message):
     def __init__(self, status: _Optional[str] = ..., count: _Optional[int] = ...) -> None: ...
 
 class RunStatusDistributionResponse(_message.Message):
-    __slots__ = ("rows", "executed_query")
+    __slots__ = ("rows", "executed_query", "validity")
     ROWS_FIELD_NUMBER: _ClassVar[int]
     EXECUTED_QUERY_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
     rows: _containers.RepeatedCompositeFieldContainer[RunStatusCount]
     executed_query: str
-    def __init__(self, rows: _Optional[_Iterable[_Union[RunStatusCount, _Mapping]]] = ..., executed_query: _Optional[str] = ...) -> None: ...
+    validity: MeasureValidity
+    def __init__(self, rows: _Optional[_Iterable[_Union[RunStatusCount, _Mapping]]] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ...) -> None: ...
 
 class RunBreakdownRow(_message.Message):
     __slots__ = ("value", "run_count", "success_count", "failed_count", "total_cost_usd", "average_duration_ms", "total_tokens", "key")
@@ -316,12 +362,14 @@ class RunnerBreakdownRequest(_message.Message):
     def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ...) -> None: ...
 
 class RunnerBreakdownResponse(_message.Message):
-    __slots__ = ("rows", "executed_query")
+    __slots__ = ("rows", "executed_query", "validity")
     ROWS_FIELD_NUMBER: _ClassVar[int]
     EXECUTED_QUERY_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
     rows: _containers.RepeatedCompositeFieldContainer[RunBreakdownRow]
     executed_query: str
-    def __init__(self, rows: _Optional[_Iterable[_Union[RunBreakdownRow, _Mapping]]] = ..., executed_query: _Optional[str] = ...) -> None: ...
+    validity: MeasureValidity
+    def __init__(self, rows: _Optional[_Iterable[_Union[RunBreakdownRow, _Mapping]]] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ...) -> None: ...
 
 class ModelBreakdownRequest(_message.Message):
     __slots__ = ("window", "filter")
@@ -332,12 +380,14 @@ class ModelBreakdownRequest(_message.Message):
     def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ...) -> None: ...
 
 class ModelBreakdownResponse(_message.Message):
-    __slots__ = ("rows", "executed_query")
+    __slots__ = ("rows", "executed_query", "validity")
     ROWS_FIELD_NUMBER: _ClassVar[int]
     EXECUTED_QUERY_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
     rows: _containers.RepeatedCompositeFieldContainer[RunBreakdownRow]
     executed_query: str
-    def __init__(self, rows: _Optional[_Iterable[_Union[RunBreakdownRow, _Mapping]]] = ..., executed_query: _Optional[str] = ...) -> None: ...
+    validity: MeasureValidity
+    def __init__(self, rows: _Optional[_Iterable[_Union[RunBreakdownRow, _Mapping]]] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ...) -> None: ...
 
 class ProfileBreakdownRequest(_message.Message):
     __slots__ = ("window", "filter")
@@ -348,12 +398,14 @@ class ProfileBreakdownRequest(_message.Message):
     def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ...) -> None: ...
 
 class ProfileBreakdownResponse(_message.Message):
-    __slots__ = ("rows", "executed_query")
+    __slots__ = ("rows", "executed_query", "validity")
     ROWS_FIELD_NUMBER: _ClassVar[int]
     EXECUTED_QUERY_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
     rows: _containers.RepeatedCompositeFieldContainer[RunBreakdownRow]
     executed_query: str
-    def __init__(self, rows: _Optional[_Iterable[_Union[RunBreakdownRow, _Mapping]]] = ..., executed_query: _Optional[str] = ...) -> None: ...
+    validity: MeasureValidity
+    def __init__(self, rows: _Optional[_Iterable[_Union[RunBreakdownRow, _Mapping]]] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ...) -> None: ...
 
 class TerminalRunTrendRequest(_message.Message):
     __slots__ = ("window", "filter")
@@ -382,12 +434,14 @@ class TerminalRunTrendRow(_message.Message):
     def __init__(self, bucket: _Optional[str] = ..., terminal_runs: _Optional[int] = ..., completed_runs: _Optional[int] = ..., failed_runs: _Optional[int] = ..., cancelled_runs: _Optional[int] = ..., total_cost_usd: _Optional[float] = ..., average_duration_ms: _Optional[float] = ...) -> None: ...
 
 class TerminalRunTrendResponse(_message.Message):
-    __slots__ = ("rows", "executed_query")
+    __slots__ = ("rows", "executed_query", "validity")
     ROWS_FIELD_NUMBER: _ClassVar[int]
     EXECUTED_QUERY_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
     rows: _containers.RepeatedCompositeFieldContainer[TerminalRunTrendRow]
     executed_query: str
-    def __init__(self, rows: _Optional[_Iterable[_Union[TerminalRunTrendRow, _Mapping]]] = ..., executed_query: _Optional[str] = ...) -> None: ...
+    validity: MeasureValidity
+    def __init__(self, rows: _Optional[_Iterable[_Union[TerminalRunTrendRow, _Mapping]]] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ...) -> None: ...
 
 class ToolUsageRequest(_message.Message):
     __slots__ = ("window", "filter")
@@ -410,12 +464,14 @@ class ToolUsageRow(_message.Message):
     def __init__(self, tool_name: _Optional[str] = ..., call_count: _Optional[int] = ..., success_count: _Optional[int] = ..., failed_count: _Optional[int] = ...) -> None: ...
 
 class ToolUsageResponse(_message.Message):
-    __slots__ = ("rows", "executed_query")
+    __slots__ = ("rows", "executed_query", "validity")
     ROWS_FIELD_NUMBER: _ClassVar[int]
     EXECUTED_QUERY_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
     rows: _containers.RepeatedCompositeFieldContainer[ToolUsageRow]
     executed_query: str
-    def __init__(self, rows: _Optional[_Iterable[_Union[ToolUsageRow, _Mapping]]] = ..., executed_query: _Optional[str] = ...) -> None: ...
+    validity: MeasureValidity
+    def __init__(self, rows: _Optional[_Iterable[_Union[ToolUsageRow, _Mapping]]] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ...) -> None: ...
 
 class ErrorPatternsRequest(_message.Message):
     __slots__ = ("window", "filter")
@@ -438,12 +494,14 @@ class ErrorPatternRow(_message.Message):
     def __init__(self, error_code: _Optional[str] = ..., count: _Optional[int] = ..., last_seen: _Optional[str] = ..., sample_run_id: _Optional[str] = ...) -> None: ...
 
 class ErrorPatternsResponse(_message.Message):
-    __slots__ = ("rows", "executed_query")
+    __slots__ = ("rows", "executed_query", "validity")
     ROWS_FIELD_NUMBER: _ClassVar[int]
     EXECUTED_QUERY_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
     rows: _containers.RepeatedCompositeFieldContainer[ErrorPatternRow]
     executed_query: str
-    def __init__(self, rows: _Optional[_Iterable[_Union[ErrorPatternRow, _Mapping]]] = ..., executed_query: _Optional[str] = ...) -> None: ...
+    validity: MeasureValidity
+    def __init__(self, rows: _Optional[_Iterable[_Union[ErrorPatternRow, _Mapping]]] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ...) -> None: ...
 
 class FileRereadRateRequest(_message.Message):
     __slots__ = ("window", "filter")
@@ -454,16 +512,18 @@ class FileRereadRateRequest(_message.Message):
     def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ...) -> None: ...
 
 class FileRereadRateResponse(_message.Message):
-    __slots__ = ("rate", "files_read_more_than_once", "read_calls", "executed_query")
+    __slots__ = ("rate", "files_read_more_than_once", "read_calls", "executed_query", "validity")
     RATE_FIELD_NUMBER: _ClassVar[int]
     FILES_READ_MORE_THAN_ONCE_FIELD_NUMBER: _ClassVar[int]
     READ_CALLS_FIELD_NUMBER: _ClassVar[int]
     EXECUTED_QUERY_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
     rate: float
     files_read_more_than_once: int
     read_calls: int
     executed_query: str
-    def __init__(self, rate: _Optional[float] = ..., files_read_more_than_once: _Optional[int] = ..., read_calls: _Optional[int] = ..., executed_query: _Optional[str] = ...) -> None: ...
+    validity: MeasureValidity
+    def __init__(self, rate: _Optional[float] = ..., files_read_more_than_once: _Optional[int] = ..., read_calls: _Optional[int] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ...) -> None: ...
 
 class FindingRecurrenceRateRequest(_message.Message):
     __slots__ = ("window", "filter")
@@ -474,18 +534,20 @@ class FindingRecurrenceRateRequest(_message.Message):
     def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ...) -> None: ...
 
 class FindingRecurrenceRateResponse(_message.Message):
-    __slots__ = ("rate", "recurring_findings", "total_findings", "recurring_fingerprints", "executed_query")
+    __slots__ = ("rate", "recurring_findings", "total_findings", "recurring_fingerprints", "executed_query", "validity")
     RATE_FIELD_NUMBER: _ClassVar[int]
     RECURRING_FINDINGS_FIELD_NUMBER: _ClassVar[int]
     TOTAL_FINDINGS_FIELD_NUMBER: _ClassVar[int]
     RECURRING_FINGERPRINTS_FIELD_NUMBER: _ClassVar[int]
     EXECUTED_QUERY_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
     rate: float
     recurring_findings: int
     total_findings: int
     recurring_fingerprints: int
     executed_query: str
-    def __init__(self, rate: _Optional[float] = ..., recurring_findings: _Optional[int] = ..., total_findings: _Optional[int] = ..., recurring_fingerprints: _Optional[int] = ..., executed_query: _Optional[str] = ...) -> None: ...
+    validity: MeasureValidity
+    def __init__(self, rate: _Optional[float] = ..., recurring_findings: _Optional[int] = ..., total_findings: _Optional[int] = ..., recurring_fingerprints: _Optional[int] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ...) -> None: ...
 
 class SelectCohortRequest(_message.Message):
     __slots__ = ("window", "filter", "limit")
@@ -498,11 +560,53 @@ class SelectCohortRequest(_message.Message):
     def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ..., limit: _Optional[int] = ...) -> None: ...
 
 class SelectCohortResponse(_message.Message):
-    __slots__ = ("run_ids", "truncated", "executed_query")
+    __slots__ = ("run_ids", "truncated", "executed_query", "validity")
     RUN_IDS_FIELD_NUMBER: _ClassVar[int]
     TRUNCATED_FIELD_NUMBER: _ClassVar[int]
     EXECUTED_QUERY_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
     run_ids: _containers.RepeatedScalarFieldContainer[str]
     truncated: bool
     executed_query: str
-    def __init__(self, run_ids: _Optional[_Iterable[str]] = ..., truncated: _Optional[bool] = ..., executed_query: _Optional[str] = ...) -> None: ...
+    validity: MeasureValidity
+    def __init__(self, run_ids: _Optional[_Iterable[str]] = ..., truncated: _Optional[bool] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ...) -> None: ...
+
+class EpisodeCohortRequest(_message.Message):
+    __slots__ = ("window", "filter", "limit")
+    WINDOW_FIELD_NUMBER: _ClassVar[int]
+    FILTER_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    window: _measures_pb2.TimeWindow
+    filter: InvocationFilter
+    limit: int
+    def __init__(self, window: _Optional[_Union[_measures_pb2.TimeWindow, _Mapping]] = ..., filter: _Optional[_Union[InvocationFilter, _Mapping]] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class EpisodeCohortSignal(_message.Message):
+    __slots__ = ("fingerprint", "occurrences", "distinct_runs", "summed_cost_ms", "confidence", "representative_run_ids")
+    FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
+    OCCURRENCES_FIELD_NUMBER: _ClassVar[int]
+    DISTINCT_RUNS_FIELD_NUMBER: _ClassVar[int]
+    SUMMED_COST_MS_FIELD_NUMBER: _ClassVar[int]
+    CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
+    REPRESENTATIVE_RUN_IDS_FIELD_NUMBER: _ClassVar[int]
+    fingerprint: str
+    occurrences: int
+    distinct_runs: int
+    summed_cost_ms: int
+    confidence: str
+    representative_run_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, fingerprint: _Optional[str] = ..., occurrences: _Optional[int] = ..., distinct_runs: _Optional[int] = ..., summed_cost_ms: _Optional[int] = ..., confidence: _Optional[str] = ..., representative_run_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class EpisodeCohortResponse(_message.Message):
+    __slots__ = ("availability_state", "availability_reason", "signals", "executed_query", "validity")
+    AVAILABILITY_STATE_FIELD_NUMBER: _ClassVar[int]
+    AVAILABILITY_REASON_FIELD_NUMBER: _ClassVar[int]
+    SIGNALS_FIELD_NUMBER: _ClassVar[int]
+    EXECUTED_QUERY_FIELD_NUMBER: _ClassVar[int]
+    VALIDITY_FIELD_NUMBER: _ClassVar[int]
+    availability_state: str
+    availability_reason: str
+    signals: _containers.RepeatedCompositeFieldContainer[EpisodeCohortSignal]
+    executed_query: str
+    validity: MeasureValidity
+    def __init__(self, availability_state: _Optional[str] = ..., availability_reason: _Optional[str] = ..., signals: _Optional[_Iterable[_Union[EpisodeCohortSignal, _Mapping]]] = ..., executed_query: _Optional[str] = ..., validity: _Optional[_Union[MeasureValidity, _Mapping]] = ...) -> None: ...

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -29,6 +30,49 @@ func (fsys *FileSystem) Stat(_ context.Context, path string) (cleanup.FileInfo, 
 		return cleanup.FileInfo{}, fmt.Errorf("stat %s: not found", path)
 	}
 	return info, nil
+}
+
+// ReadDir lists the immediate children of path from the in-memory file map.
+//
+// Children are derived rather than stored so a test only has to declare the
+// files it cares about; intermediate directories that were never declared are
+// still reported, which mirrors a real filesystem where a nested file implies
+// the directories above it.
+func (fsys *FileSystem) ReadDir(_ context.Context, path string) ([]cleanup.FileInfo, error) {
+	prefix := strings.TrimRight(filepath.Clean(path), string(filepath.Separator)) + string(filepath.Separator)
+
+	seen := make(map[string]cleanup.FileInfo)
+	for candidate, info := range fsys.Files {
+		if !strings.HasPrefix(candidate, prefix) {
+			continue
+		}
+		rest := strings.TrimPrefix(candidate, prefix)
+		name, _, nested := strings.Cut(rest, string(filepath.Separator))
+		if name == "" {
+			continue
+		}
+		child := filepath.Join(path, name)
+		if nested {
+			// An implied intermediate directory.
+			if _, ok := seen[child]; !ok {
+				if declared, found := fsys.Files[child]; found {
+					seen[child] = declared
+				} else {
+					seen[child] = cleanup.FileInfo{Path: child, IsDir: true}
+				}
+			}
+			continue
+		}
+		seen[child] = info
+	}
+
+	out := make([]cleanup.FileInfo, 0, len(seen))
+	for _, info := range seen {
+		out = append(out, info)
+	}
+	// Deterministic order; a real ReadDir on the platforms we target is sorted.
+	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
+	return out, nil
 }
 
 func (fsys *FileSystem) Walk(_ context.Context, root string, visit func(cleanup.FileInfo) error) error {

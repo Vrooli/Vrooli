@@ -383,6 +383,18 @@
         "setup",
         "develop"
       ]
+    },
+    {
+      "name": "tpm_credential_access",
+      "notes": "Adds the invoking operator account to the group owning /dev/tpmrm0 (usually tss). Auto-skips on hosts with no TPM, or where the device grants its group nothing. The grant takes effect at the next login; `vrooli credentials store rewrap` then adds the unattended wrap.",
+      "platforms": [
+        "linux"
+      ],
+      "reason": "Let the encrypted credential store open itself from the TPM after a reboot, instead of requiring an operator to type a passphrase at every boot",
+      "required": false,
+      "when": [
+        "setup"
+      ]
     }
   ],
   "hostTools": [

@@ -127,6 +127,9 @@ type fakeCleanupService struct {
 	audit      []orchestrator.AuditEvent
 	err        error
 	applyInput orchestrator.ApplyInput
+
+	pressureSignal  orchestrator.PressureSignal
+	pressureOutcome orchestrator.PressureOutcome
 }
 
 func (s *fakeCleanupService) Catalog() []cleanupcore.ProviderMetadata { return s.catalog }
@@ -157,6 +160,14 @@ func (s *fakeCleanupService) Apply(_ context.Context, input orchestrator.ApplyIn
 		return orchestrator.ApplyReport{}, s.err
 	}
 	return s.apply, nil
+}
+
+func (s *fakeCleanupService) ReportPressure(_ context.Context, signal orchestrator.PressureSignal) (orchestrator.PressureOutcome, error) {
+	s.pressureSignal = signal
+	if s.err != nil {
+		return orchestrator.PressureOutcome{}, s.err
+	}
+	return s.pressureOutcome, nil
 }
 
 func (s *fakeCleanupService) Audit(context.Context) ([]orchestrator.AuditEvent, error) {

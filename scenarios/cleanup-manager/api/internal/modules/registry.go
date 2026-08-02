@@ -25,6 +25,7 @@ import (
 	cleanupH "cleanup-manager/handlers/cleanup"
 	healthH "cleanup-manager/handlers/health"
 	localdb "cleanup-manager/internal/database"
+	"cleanup-manager/internal/orchestrator"
 
 	cleanupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cleanup-manager/v1/cleanup"
 )
@@ -78,5 +79,6 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(orchestrator.Schema),
 	}
 }

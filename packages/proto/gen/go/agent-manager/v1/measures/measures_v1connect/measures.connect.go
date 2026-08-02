@@ -89,6 +89,9 @@ const (
 	// MeasuresServiceFindingRecurrenceRateProcedure is the fully-qualified name of the
 	// MeasuresService's FindingRecurrenceRate RPC.
 	MeasuresServiceFindingRecurrenceRateProcedure = "/agent_manager.v1.measures.MeasuresService/FindingRecurrenceRate"
+	// MeasuresServiceEpisodeCohortProcedure is the fully-qualified name of the MeasuresService's
+	// EpisodeCohort RPC.
+	MeasuresServiceEpisodeCohortProcedure = "/agent_manager.v1.measures.MeasuresService/EpisodeCohort"
 	// MeasuresServiceSelectCohortProcedure is the fully-qualified name of the MeasuresService's
 	// SelectCohort RPC.
 	MeasuresServiceSelectCohortProcedure = "/agent_manager.v1.measures.MeasuresService/SelectCohort"
@@ -115,6 +118,7 @@ type MeasuresServiceClient interface {
 	ErrorPatterns(context.Context, *connect.Request[measures.ErrorPatternsRequest]) (*connect.Response[measures.ErrorPatternsResponse], error)
 	FileRereadRate(context.Context, *connect.Request[measures.FileRereadRateRequest]) (*connect.Response[measures.FileRereadRateResponse], error)
 	FindingRecurrenceRate(context.Context, *connect.Request[measures.FindingRecurrenceRateRequest]) (*connect.Response[measures.FindingRecurrenceRateResponse], error)
+	EpisodeCohort(context.Context, *connect.Request[measures.EpisodeCohortRequest]) (*connect.Response[measures.EpisodeCohortResponse], error)
 	// SelectCohort is the non-aggregate companion to the measures: it exposes
 	// the run ids behind the exact same durable filter used by an aggregate.
 	SelectCohort(context.Context, *connect.Request[measures.SelectCohortRequest]) (*connect.Response[measures.SelectCohortResponse], error)
@@ -245,6 +249,12 @@ func NewMeasuresServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(measuresServiceMethods.ByName("FindingRecurrenceRate")),
 			connect.WithClientOptions(opts...),
 		),
+		episodeCohort: connect.NewClient[measures.EpisodeCohortRequest, measures.EpisodeCohortResponse](
+			httpClient,
+			baseURL+MeasuresServiceEpisodeCohortProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("EpisodeCohort")),
+			connect.WithClientOptions(opts...),
+		),
 		selectCohort: connect.NewClient[measures.SelectCohortRequest, measures.SelectCohortResponse](
 			httpClient,
 			baseURL+MeasuresServiceSelectCohortProcedure,
@@ -275,6 +285,7 @@ type measuresServiceClient struct {
 	errorPatterns         *connect.Client[measures.ErrorPatternsRequest, measures.ErrorPatternsResponse]
 	fileRereadRate        *connect.Client[measures.FileRereadRateRequest, measures.FileRereadRateResponse]
 	findingRecurrenceRate *connect.Client[measures.FindingRecurrenceRateRequest, measures.FindingRecurrenceRateResponse]
+	episodeCohort         *connect.Client[measures.EpisodeCohortRequest, measures.EpisodeCohortResponse]
 	selectCohort          *connect.Client[measures.SelectCohortRequest, measures.SelectCohortResponse]
 }
 
@@ -373,6 +384,11 @@ func (c *measuresServiceClient) FindingRecurrenceRate(ctx context.Context, req *
 	return c.findingRecurrenceRate.CallUnary(ctx, req)
 }
 
+// EpisodeCohort calls agent_manager.v1.measures.MeasuresService.EpisodeCohort.
+func (c *measuresServiceClient) EpisodeCohort(ctx context.Context, req *connect.Request[measures.EpisodeCohortRequest]) (*connect.Response[measures.EpisodeCohortResponse], error) {
+	return c.episodeCohort.CallUnary(ctx, req)
+}
+
 // SelectCohort calls agent_manager.v1.measures.MeasuresService.SelectCohort.
 func (c *measuresServiceClient) SelectCohort(ctx context.Context, req *connect.Request[measures.SelectCohortRequest]) (*connect.Response[measures.SelectCohortResponse], error) {
 	return c.selectCohort.CallUnary(ctx, req)
@@ -400,6 +416,7 @@ type MeasuresServiceHandler interface {
 	ErrorPatterns(context.Context, *connect.Request[measures.ErrorPatternsRequest]) (*connect.Response[measures.ErrorPatternsResponse], error)
 	FileRereadRate(context.Context, *connect.Request[measures.FileRereadRateRequest]) (*connect.Response[measures.FileRereadRateResponse], error)
 	FindingRecurrenceRate(context.Context, *connect.Request[measures.FindingRecurrenceRateRequest]) (*connect.Response[measures.FindingRecurrenceRateResponse], error)
+	EpisodeCohort(context.Context, *connect.Request[measures.EpisodeCohortRequest]) (*connect.Response[measures.EpisodeCohortResponse], error)
 	// SelectCohort is the non-aggregate companion to the measures: it exposes
 	// the run ids behind the exact same durable filter used by an aggregate.
 	SelectCohort(context.Context, *connect.Request[measures.SelectCohortRequest]) (*connect.Response[measures.SelectCohortResponse], error)
@@ -526,6 +543,12 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 		connect.WithSchema(measuresServiceMethods.ByName("FindingRecurrenceRate")),
 		connect.WithHandlerOptions(opts...),
 	)
+	measuresServiceEpisodeCohortHandler := connect.NewUnaryHandler(
+		MeasuresServiceEpisodeCohortProcedure,
+		svc.EpisodeCohort,
+		connect.WithSchema(measuresServiceMethods.ByName("EpisodeCohort")),
+		connect.WithHandlerOptions(opts...),
+	)
 	measuresServiceSelectCohortHandler := connect.NewUnaryHandler(
 		MeasuresServiceSelectCohortProcedure,
 		svc.SelectCohort,
@@ -572,6 +595,8 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 			measuresServiceFileRereadRateHandler.ServeHTTP(w, r)
 		case MeasuresServiceFindingRecurrenceRateProcedure:
 			measuresServiceFindingRecurrenceRateHandler.ServeHTTP(w, r)
+		case MeasuresServiceEpisodeCohortProcedure:
+			measuresServiceEpisodeCohortHandler.ServeHTTP(w, r)
 		case MeasuresServiceSelectCohortProcedure:
 			measuresServiceSelectCohortHandler.ServeHTTP(w, r)
 		default:
@@ -657,6 +682,10 @@ func (UnimplementedMeasuresServiceHandler) FileRereadRate(context.Context, *conn
 
 func (UnimplementedMeasuresServiceHandler) FindingRecurrenceRate(context.Context, *connect.Request[measures.FindingRecurrenceRateRequest]) (*connect.Response[measures.FindingRecurrenceRateResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.FindingRecurrenceRate is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) EpisodeCohort(context.Context, *connect.Request[measures.EpisodeCohortRequest]) (*connect.Response[measures.EpisodeCohortResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.EpisodeCohort is not implemented"))
 }
 
 func (UnimplementedMeasuresServiceHandler) SelectCohort(context.Context, *connect.Request[measures.SelectCohortRequest]) (*connect.Response[measures.SelectCohortResponse], error) {

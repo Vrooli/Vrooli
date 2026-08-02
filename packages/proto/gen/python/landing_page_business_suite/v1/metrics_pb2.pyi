@@ -8,20 +8,22 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class TrackEventRequest(_message.Message):
-    __slots__ = ("event_type", "variant_id", "event_data", "session_id", "visitor_id", "event_id")
+    __slots__ = ("event_type", "variant_id", "event_data", "session_id", "visitor_id", "event_id", "variant_slug")
     EVENT_TYPE_FIELD_NUMBER: _ClassVar[int]
     VARIANT_ID_FIELD_NUMBER: _ClassVar[int]
     EVENT_DATA_FIELD_NUMBER: _ClassVar[int]
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     VISITOR_ID_FIELD_NUMBER: _ClassVar[int]
     EVENT_ID_FIELD_NUMBER: _ClassVar[int]
+    VARIANT_SLUG_FIELD_NUMBER: _ClassVar[int]
     event_type: str
     variant_id: int
     event_data: _struct_pb2.Struct
     session_id: str
     visitor_id: str
     event_id: str
-    def __init__(self, event_type: _Optional[str] = ..., variant_id: _Optional[int] = ..., event_data: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., session_id: _Optional[str] = ..., visitor_id: _Optional[str] = ..., event_id: _Optional[str] = ...) -> None: ...
+    variant_slug: str
+    def __init__(self, event_type: _Optional[str] = ..., variant_id: _Optional[int] = ..., event_data: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., session_id: _Optional[str] = ..., visitor_id: _Optional[str] = ..., event_id: _Optional[str] = ..., variant_slug: _Optional[str] = ...) -> None: ...
 
 class TrackEventResponse(_message.Message):
     __slots__ = ("success", "message")

@@ -120,7 +120,7 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, "cleanup-manager-api", "1.0.0"),
-		cleanupH.Module(logger),
+		cleanupH.Module(logger, db),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

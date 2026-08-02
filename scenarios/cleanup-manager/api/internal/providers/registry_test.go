@@ -49,8 +49,8 @@ func TestConservativeBuiltInsValidateAndSortCatalog(t *testing.T) {
 		t.Fatalf("NewRegistry() error = %v", err)
 	}
 	got := registry.List()
-	if len(got) != 10 {
-		t.Fatalf("List() len = %d, want 10", len(got))
+	if len(got) != 11 {
+		t.Fatalf("List() len = %d, want 11", len(got))
 	}
 	for i := 1; i < len(got); i++ {
 		if got[i-1].ID > got[i].ID {
@@ -60,7 +60,7 @@ func TestConservativeBuiltInsValidateAndSortCatalog(t *testing.T) {
 	if _, ok := registry.Get("docker"); !ok {
 		t.Fatal("Get(\"docker\") missing built-in provider")
 	}
-	for _, id := range []string{"workspace-sandbox-retention", "test-genie-run-retention", "web-console-sessions"} {
+	for _, id := range []string{"workspace-sandbox-retention", "test-genie-run-retention", "web-console-sessions", "architecture-cartographer-snapshots"} {
 		provider, ok := registry.Get(id)
 		if !ok {
 			t.Fatalf("Get(%q) missing owner-scenario provider", id)

@@ -4,6 +4,7 @@ package vrooli.scenario_to_desktop.v1.pipeline;
 
 import "buf/validate/validate.proto";
 import "google/protobuf/timestamp.proto";
+import "scenario-to-desktop/v1/domain/config.proto";
 import "scenario-to-desktop/v1/shared/common.proto";
 import "scenario-to-desktop/v1/shared/metadata.proto";
 import "scenario-to-desktop/v1/shared/operation_results.proto";
@@ -133,6 +134,15 @@ message PipelineConfig {
 
   // Explicit stage selection. Empty means run the complete pipeline.
   repeated vrooli.scenario_to_desktop.v1.shared.StageName stages = 26;
+
+  // Required for bundled resource artifacts: development-local verifies staged
+  // bytes without release promotion; production requires the release authority.
+  optional string artifact_trust_mode = 27;
+
+  // Auto-update configuration embedded in the generated desktop application.
+  // Generic update URLs may use HTTP only for development-local evidence; a
+  // production pipeline requires an HTTPS endpoint.
+  optional vrooli.scenario_to_desktop.v1.domain.UpdateConfig update_config = 28;
 }
 
 // =============================================================================
@@ -186,6 +196,21 @@ message StageDetails {
 message ResourceDeploymentPlan {
   string schema_version = 1;
   repeated ResourceDeploymentPlanItem resources = 2;
+  string artifact_trust_mode = 3;
+  bool promotable = 4;
+  repeated HostRequirementPlanItem host_requirements = 5;
+}
+
+message HostRequirementPlanItem {
+  string name = 1;
+  string kind = 2;
+  string os = 3;
+  string privilege = 4;
+  string bundling = 5;
+  bool required = 6;
+  string verdict = 7;
+  string reason = 8;
+  repeated string provenance = 9;
 }
 
 message ResourceDeploymentPlanItem {
@@ -202,6 +227,10 @@ message ResourceDeploymentPlanItem {
   optional string artifact = 11;
   repeated ResourceDeploymentArtifact files = 12;
   optional ResourceDeploymentService service = 13;
+  string privilege = 14;
+  string bundling = 15;
+  string eligibility = 16;
+  string eligibility_reason = 17;
 }
 
 message ResourceDeploymentFallback {

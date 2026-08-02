@@ -32,6 +32,8 @@ message FrictionEpisode {
   string suspected_owner_command = 15;
   string owner_confidence = 16;
   string fingerprint = 17;
+  int64 cycle_count = 18;
+  string repeated_element = 19;
 }
 
 message GetEpisodesRequest { string run_id = 1; }
@@ -61,7 +63,7 @@ message GetCrossScenarioLedgerRequest {
 }
 message Availability {
   string state = 1;
-  string detail = 2;
+  string reason = 2;
 }
 message CrossScenarioCall {
   string occurred_at = 1;

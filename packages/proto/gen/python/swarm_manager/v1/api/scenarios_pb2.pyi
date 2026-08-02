@@ -1,5 +1,6 @@
 from buf.validate import validate_pb2 as _validate_pb2
 from swarm_manager.v1.domain import scenario_pb2 as _scenario_pb2
+from swarm_manager.v1.shared import health_pb2 as _health_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -169,8 +170,8 @@ class PreviewScenarioRemediationResponse(_message.Message):
     PROPOSAL_FIELD_NUMBER: _ClassVar[int]
     EXISTING_FIELD_NUMBER: _ClassVar[int]
     proposal: ScenarioRemediationProposal
-    existing: _scenario_pb2.ScenarioRemediationSummary
-    def __init__(self, proposal: _Optional[_Union[ScenarioRemediationProposal, _Mapping]] = ..., existing: _Optional[_Union[_scenario_pb2.ScenarioRemediationSummary, _Mapping]] = ...) -> None: ...
+    existing: _health_pb2.ScenarioRemediationSummary
+    def __init__(self, proposal: _Optional[_Union[ScenarioRemediationProposal, _Mapping]] = ..., existing: _Optional[_Union[_health_pb2.ScenarioRemediationSummary, _Mapping]] = ...) -> None: ...
 
 class ApplyScenarioRemediationRequest(_message.Message):
     __slots__ = ("target", "fingerprint")

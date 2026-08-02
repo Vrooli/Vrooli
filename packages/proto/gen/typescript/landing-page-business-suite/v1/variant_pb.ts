@@ -5,18 +5,18 @@
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_struct, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { ContentSection } from "./shared/content_pb";
 import { file_landing_page_business_suite_v1_shared_content } from "./shared/content_pb";
 import type { LandingHeaderConfig, VariantSEOConfig } from "./shared/presentation_pb";
 import { file_landing_page_business_suite_v1_shared_presentation } from "./shared/presentation_pb";
-import type { Message } from "@bufbuild/protobuf";
+import type { JsonObject, Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file landing-page-business-suite/v1/variant.proto.
  */
 export const file_landing_page_business_suite_v1_variant: GenFile = /*@__PURE__*/
-  fileDesc("CixsYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjEvdmFyaWFudC5wcm90bxIebGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxIqcECgdWYXJpYW50EgoKAmlkGAEgASgDEgwKBHNsdWcYAiABKAkSDAoEbmFtZRgDIAEoCRITCgtkZXNjcmlwdGlvbhgEIAEoCRIOCgZ3ZWlnaHQYBSABKAUSDgoGc3RhdHVzGAYgASgJEi4KCmNyZWF0ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KC2FyY2hpdmVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI/CgRheGVzGAogAygLMjEubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlZhcmlhbnQuQXhlc0VudHJ5ElgKDWhlYWRlcl9jb25maWcYCyABKAsyQS52cm9vbGkubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLnNoYXJlZC5MYW5kaW5nSGVhZGVyQ29uZmlnElcKCnNlb19jb25maWcYDCABKAsyPi52cm9vbGkubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLnNoYXJlZC5WYXJpYW50U0VPQ29uZmlnSACIAQEaKwoJQXhlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCDQoLX3Nlb19jb25maWciiQEKDUF4ZXNTZWxlY3Rpb24SSQoGdmFsdWVzGAEgAygLMjkubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkF4ZXNTZWxlY3Rpb24uVmFsdWVzRW50cnkaLQoLVmFsdWVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASLqAwoPVmFyaWFudFNuYXBzaG90EgwKBHNsdWcYASABKAkSDAoEbmFtZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIOCgZ3ZWlnaHQYBCABKAUSDgoGc3RhdHVzGAUgASgJEkcKBGF4ZXMYBiADKAsyOS5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuVmFyaWFudFNuYXBzaG90LkF4ZXNFbnRyeRJYCg1oZWFkZXJfY29uZmlnGAcgASgLMkEudnJvb2xpLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5zaGFyZWQuTGFuZGluZ0hlYWRlckNvbmZpZxJXCgpzZW9fY29uZmlnGAggASgLMj4udnJvb2xpLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5zaGFyZWQuVmFyaWFudFNFT0NvbmZpZ0gAiAEBEk4KCHNlY3Rpb25zGAkgAygLMjwudnJvb2xpLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5zaGFyZWQuQ29udGVudFNlY3Rpb24aKwoJQXhlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCDQoLX3Nlb19jb25maWciFgoUU2VsZWN0VmFyaWFudFJlcXVlc3QiJwoXR2V0UHVibGljVmFyaWFudFJlcXVlc3QSDAoEc2x1ZxgBIAEoCSIhChFHZXRWYXJpYW50UmVxdWVzdBIMCgRzbHVnGAEgASgJIksKD1ZhcmlhbnRSZXNwb25zZRI4Cgd2YXJpYW50GAEgASgLMicubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlZhcmlhbnQiLAoTTGlzdFZhcmlhbnRzUmVxdWVzdBIVCg1zdGF0dXNfZmlsdGVyGAEgASgJIlEKFExpc3RWYXJpYW50c1Jlc3BvbnNlEjkKCHZhcmlhbnRzGAEgAygLMicubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlZhcmlhbnQi0gEKFENyZWF0ZVZhcmlhbnRSZXF1ZXN0EgwKBHNsdWcYASABKAkSDAoEbmFtZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIOCgZ3ZWlnaHQYBCABKAUSTAoEYXhlcxgFIAMoCzI+LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5DcmVhdGVWYXJpYW50UmVxdWVzdC5BeGVzRW50cnkaKwoJQXhlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEioQIKFFVwZGF0ZVZhcmlhbnRSZXF1ZXN0EgwKBHNsdWcYASABKAkSEQoEbmFtZRgCIAEoCUgAiAEBEhgKC2Rlc2NyaXB0aW9uGAMgASgJSAGIAQESEwoGd2VpZ2h0GAQgASgFSAKIAQESOwoEYXhlcxgFIAEoCzItLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5BeGVzU2VsZWN0aW9uElgKDWhlYWRlcl9jb25maWcYBiABKAsyQS52cm9vbGkubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLnNoYXJlZC5MYW5kaW5nSGVhZGVyQ29uZmlnQgcKBV9uYW1lQg4KDF9kZXNjcmlwdGlvbkIJCgdfd2VpZ2h0IiUKFUFyY2hpdmVWYXJpYW50UmVxdWVzdBIMCgRzbHVnGAEgASgJIiQKFERlbGV0ZVZhcmlhbnRSZXF1ZXN0EgwKBHNsdWcYASABKAkiKAoVRGVsZXRlVmFyaWFudFJlc3BvbnNlEg8KB2RlbGV0ZWQYASABKAgiLAocRXhwb3J0VmFyaWFudFNuYXBzaG90UmVxdWVzdBIMCgRzbHVnGAEgASgJImIKHUV4cG9ydFZhcmlhbnRTbmFwc2hvdFJlc3BvbnNlEkEKCHNuYXBzaG90GAEgASgLMi8ubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlZhcmlhbnRTbmFwc2hvdCJvChxJbXBvcnRWYXJpYW50U25hcHNob3RSZXF1ZXN0EgwKBHNsdWcYASABKAkSQQoIc25hcHNob3QYAiABKAsyLy5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuVmFyaWFudFNuYXBzaG90ImIKHUltcG9ydFZhcmlhbnRTbmFwc2hvdFJlc3BvbnNlEkEKCHNuYXBzaG90GAEgASgLMi8ubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlZhcmlhbnRTbmFwc2hvdDKJCgoOVmFyaWFudFNlcnZpY2USdgoNU2VsZWN0VmFyaWFudBI0LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5TZWxlY3RWYXJpYW50UmVxdWVzdBovLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5WYXJpYW50UmVzcG9uc2USfAoQR2V0UHVibGljVmFyaWFudBI3LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5HZXRQdWJsaWNWYXJpYW50UmVxdWVzdBovLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5WYXJpYW50UmVzcG9uc2UScAoKR2V0VmFyaWFudBIxLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5HZXRWYXJpYW50UmVxdWVzdBovLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5WYXJpYW50UmVzcG9uc2USeQoMTGlzdFZhcmlhbnRzEjMubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkxpc3RWYXJpYW50c1JlcXVlc3QaNC5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuTGlzdFZhcmlhbnRzUmVzcG9uc2USdgoNQ3JlYXRlVmFyaWFudBI0LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5DcmVhdGVWYXJpYW50UmVxdWVzdBovLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5WYXJpYW50UmVzcG9uc2USdgoNVXBkYXRlVmFyaWFudBI0LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5VcGRhdGVWYXJpYW50UmVxdWVzdBovLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5WYXJpYW50UmVzcG9uc2USeAoOQXJjaGl2ZVZhcmlhbnQSNS5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuQXJjaGl2ZVZhcmlhbnRSZXF1ZXN0Gi8ubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlZhcmlhbnRSZXNwb25zZRJ8Cg1EZWxldGVWYXJpYW50EjQubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkRlbGV0ZVZhcmlhbnRSZXF1ZXN0GjUubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkRlbGV0ZVZhcmlhbnRSZXNwb25zZRKUAQoVRXhwb3J0VmFyaWFudFNuYXBzaG90EjwubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkV4cG9ydFZhcmlhbnRTbmFwc2hvdFJlcXVlc3QaPS5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuRXhwb3J0VmFyaWFudFNuYXBzaG90UmVzcG9uc2USlAEKFUltcG9ydFZhcmlhbnRTbmFwc2hvdBI8LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5JbXBvcnRWYXJpYW50U25hcHNob3RSZXF1ZXN0Gj0ubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkltcG9ydFZhcmlhbnRTbmFwc2hvdFJlc3BvbnNlQm5abGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vbGFuZGluZy1wYWdlLWJ1c2luZXNzLXN1aXRlL3YxO2xhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZV92MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_landing_page_business_suite_v1_shared_content, file_landing_page_business_suite_v1_shared_presentation]);
+  fileDesc("CixsYW5kaW5nLXBhZ2UtYnVzaW5lc3Mtc3VpdGUvdjEvdmFyaWFudC5wcm90bxIebGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxIqcECgdWYXJpYW50EgoKAmlkGAEgASgDEgwKBHNsdWcYAiABKAkSDAoEbmFtZRgDIAEoCRITCgtkZXNjcmlwdGlvbhgEIAEoCRIOCgZ3ZWlnaHQYBSABKAUSDgoGc3RhdHVzGAYgASgJEi4KCmNyZWF0ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KC2FyY2hpdmVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI/CgRheGVzGAogAygLMjEubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlZhcmlhbnQuQXhlc0VudHJ5ElgKDWhlYWRlcl9jb25maWcYCyABKAsyQS52cm9vbGkubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLnNoYXJlZC5MYW5kaW5nSGVhZGVyQ29uZmlnElcKCnNlb19jb25maWcYDCABKAsyPi52cm9vbGkubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLnNoYXJlZC5WYXJpYW50U0VPQ29uZmlnSACIAQEaKwoJQXhlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCDQoLX3Nlb19jb25maWciiQEKDUF4ZXNTZWxlY3Rpb24SSQoGdmFsdWVzGAEgAygLMjkubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkF4ZXNTZWxlY3Rpb24uVmFsdWVzRW50cnkaLQoLVmFsdWVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASLqAwoPVmFyaWFudFNuYXBzaG90EgwKBHNsdWcYASABKAkSDAoEbmFtZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIOCgZ3ZWlnaHQYBCABKAUSDgoGc3RhdHVzGAUgASgJEkcKBGF4ZXMYBiADKAsyOS5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuVmFyaWFudFNuYXBzaG90LkF4ZXNFbnRyeRJYCg1oZWFkZXJfY29uZmlnGAcgASgLMkEudnJvb2xpLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5zaGFyZWQuTGFuZGluZ0hlYWRlckNvbmZpZxJXCgpzZW9fY29uZmlnGAggASgLMj4udnJvb2xpLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5zaGFyZWQuVmFyaWFudFNFT0NvbmZpZ0gAiAEBEk4KCHNlY3Rpb25zGAkgAygLMjwudnJvb2xpLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5zaGFyZWQuQ29udGVudFNlY3Rpb24aKwoJQXhlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAFCDQoLX3Nlb19jb25maWciFgoUU2VsZWN0VmFyaWFudFJlcXVlc3QiJwoXR2V0UHVibGljVmFyaWFudFJlcXVlc3QSDAoEc2x1ZxgBIAEoCSIhChFHZXRWYXJpYW50UmVxdWVzdBIMCgRzbHVnGAEgASgJIksKD1ZhcmlhbnRSZXNwb25zZRI4Cgd2YXJpYW50GAEgASgLMicubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlZhcmlhbnQiLAoTTGlzdFZhcmlhbnRzUmVxdWVzdBIVCg1zdGF0dXNfZmlsdGVyGAEgASgJIlEKFExpc3RWYXJpYW50c1Jlc3BvbnNlEjkKCHZhcmlhbnRzGAEgAygLMicubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlZhcmlhbnQi0gEKFENyZWF0ZVZhcmlhbnRSZXF1ZXN0EgwKBHNsdWcYASABKAkSDAoEbmFtZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIOCgZ3ZWlnaHQYBCABKAUSTAoEYXhlcxgFIAMoCzI+LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5DcmVhdGVWYXJpYW50UmVxdWVzdC5BeGVzRW50cnkaKwoJQXhlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiiQMKFFVwZGF0ZVZhcmlhbnRSZXF1ZXN0EgwKBHNsdWcYASABKAkSEQoEbmFtZRgCIAEoCUgAiAEBEhgKC2Rlc2NyaXB0aW9uGAMgASgJSAGIAQESEwoGd2VpZ2h0GAQgASgFSAKIAQESOwoEYXhlcxgFIAEoCzItLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5BeGVzU2VsZWN0aW9uElgKDWhlYWRlcl9jb25maWcYBiABKAsyQS52cm9vbGkubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLnNoYXJlZC5MYW5kaW5nSGVhZGVyQ29uZmlnElcKCnNlb19jb25maWcYByABKAsyPi52cm9vbGkubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLnNoYXJlZC5WYXJpYW50U0VPQ29uZmlnSAOIAQFCBwoFX25hbWVCDgoMX2Rlc2NyaXB0aW9uQgkKB193ZWlnaHRCDQoLX3Nlb19jb25maWciJQoVQXJjaGl2ZVZhcmlhbnRSZXF1ZXN0EgwKBHNsdWcYASABKAkiJAoURGVsZXRlVmFyaWFudFJlcXVlc3QSDAoEc2x1ZxgBIAEoCSIoChVEZWxldGVWYXJpYW50UmVzcG9uc2USDwoHZGVsZXRlZBgBIAEoCCIsChxFeHBvcnRWYXJpYW50U25hcHNob3RSZXF1ZXN0EgwKBHNsdWcYASABKAkiYgodRXhwb3J0VmFyaWFudFNuYXBzaG90UmVzcG9uc2USQQoIc25hcHNob3QYASABKAsyLy5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuVmFyaWFudFNuYXBzaG90Im8KHEltcG9ydFZhcmlhbnRTbmFwc2hvdFJlcXVlc3QSDAoEc2x1ZxgBIAEoCRJBCghzbmFwc2hvdBgCIAEoCzIvLmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5WYXJpYW50U25hcHNob3QiYgodSW1wb3J0VmFyaWFudFNuYXBzaG90UmVzcG9uc2USQQoIc25hcHNob3QYASABKAsyLy5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuVmFyaWFudFNuYXBzaG90Ih0KG1N5bmNWYXJpYW50U25hcHNob3RzUmVxdWVzdCItChxTeW5jVmFyaWFudFNuYXBzaG90c1Jlc3BvbnNlEg0KBWNvdW50GAEgASgFIikKGUdldFZhcmlhbnRTZWN0aW9uc1JlcXVlc3QSDAoEc2x1ZxgBIAEoCSJpChdWYXJpYW50U2VjdGlvbnNSZXNwb25zZRJOCghzZWN0aW9ucxgBIAMoCzI8LnZyb29saS5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuc2hhcmVkLkNvbnRlbnRTZWN0aW9uIj0KGEdldFZhcmlhbnRTZWN0aW9uUmVxdWVzdBIMCgRzbHVnGAEgASgJEhMKC3NlY3Rpb25fa2V5GAIgASgJImcKFlZhcmlhbnRTZWN0aW9uUmVzcG9uc2USTQoHc2VjdGlvbhgBIAEoCzI8LnZyb29saS5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuc2hhcmVkLkNvbnRlbnRTZWN0aW9uInoKG0NyZWF0ZVZhcmlhbnRTZWN0aW9uUmVxdWVzdBIMCgRzbHVnGAEgASgJEk0KB3NlY3Rpb24YAiABKAsyPC52cm9vbGkubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLnNoYXJlZC5Db250ZW50U2VjdGlvbiLWAQobVXBkYXRlVmFyaWFudFNlY3Rpb25SZXF1ZXN0EgwKBHNsdWcYASABKAkSEwoLc2VjdGlvbl9rZXkYAiABKAkSGQoMc2VjdGlvbl90eXBlGAMgASgJSACIAQESKAoHY29udGVudBgEIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSEgoFb3JkZXIYBSABKAVIAYgBARIUCgdlbmFibGVkGAYgASgISAKIAQFCDwoNX3NlY3Rpb25fdHlwZUIICgZfb3JkZXJCCgoIX2VuYWJsZWQiQAobRGVsZXRlVmFyaWFudFNlY3Rpb25SZXF1ZXN0EgwKBHNsdWcYASABKAkSEwoLc2VjdGlvbl9rZXkYAiABKAkiLwocRGVsZXRlVmFyaWFudFNlY3Rpb25SZXNwb25zZRIPCgdkZWxldGVkGAEgASgIMp0LCg5WYXJpYW50U2VydmljZRJ2Cg1TZWxlY3RWYXJpYW50EjQubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlNlbGVjdFZhcmlhbnRSZXF1ZXN0Gi8ubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlZhcmlhbnRSZXNwb25zZRJ8ChBHZXRQdWJsaWNWYXJpYW50EjcubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkdldFB1YmxpY1ZhcmlhbnRSZXF1ZXN0Gi8ubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlZhcmlhbnRSZXNwb25zZRJwCgpHZXRWYXJpYW50EjEubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkdldFZhcmlhbnRSZXF1ZXN0Gi8ubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlZhcmlhbnRSZXNwb25zZRJ5CgxMaXN0VmFyaWFudHMSMy5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuTGlzdFZhcmlhbnRzUmVxdWVzdBo0LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5MaXN0VmFyaWFudHNSZXNwb25zZRJ2Cg1DcmVhdGVWYXJpYW50EjQubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkNyZWF0ZVZhcmlhbnRSZXF1ZXN0Gi8ubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlZhcmlhbnRSZXNwb25zZRJ2Cg1VcGRhdGVWYXJpYW50EjQubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlVwZGF0ZVZhcmlhbnRSZXF1ZXN0Gi8ubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlZhcmlhbnRSZXNwb25zZRJ4Cg5BcmNoaXZlVmFyaWFudBI1LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5BcmNoaXZlVmFyaWFudFJlcXVlc3QaLy5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuVmFyaWFudFJlc3BvbnNlEnwKDURlbGV0ZVZhcmlhbnQSNC5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuRGVsZXRlVmFyaWFudFJlcXVlc3QaNS5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuRGVsZXRlVmFyaWFudFJlc3BvbnNlEpQBChVFeHBvcnRWYXJpYW50U25hcHNob3QSPC5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuRXhwb3J0VmFyaWFudFNuYXBzaG90UmVxdWVzdBo9LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5FeHBvcnRWYXJpYW50U25hcHNob3RSZXNwb25zZRKUAQoVSW1wb3J0VmFyaWFudFNuYXBzaG90EjwubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLkltcG9ydFZhcmlhbnRTbmFwc2hvdFJlcXVlc3QaPS5sYW5kaW5nX3BhZ2VfYnVzaW5lc3Nfc3VpdGUudjEuSW1wb3J0VmFyaWFudFNuYXBzaG90UmVzcG9uc2USkQEKFFN5bmNWYXJpYW50U25hcHNob3RzEjsubGFuZGluZ19wYWdlX2J1c2luZXNzX3N1aXRlLnYxLlN5bmNWYXJpYW50U25hcHNob3RzUmVxdWVzdBo8LmxhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZS52MS5TeW5jVmFyaWFudFNuYXBzaG90c1Jlc3BvbnNlQm5abGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vbGFuZGluZy1wYWdlLWJ1c2luZXNzLXN1aXRlL3YxO2xhbmRpbmdfcGFnZV9idXNpbmVzc19zdWl0ZV92MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_google_protobuf_struct, file_landing_page_business_suite_v1_shared_content, file_landing_page_business_suite_v1_shared_presentation]);
 
 /**
  * Variant owns experiments and selection. Reusable presentation and authored
@@ -335,6 +335,11 @@ export type UpdateVariantRequest = Message<"landing_page_business_suite.v1.Updat
    * @generated from field: vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig header_config = 6;
    */
   headerConfig?: LandingHeaderConfig | undefined;
+
+  /**
+   * @generated from field: optional vrooli.landing_page_business_suite.v1.shared.VariantSEOConfig seo_config = 7;
+   */
+  seoConfig?: VariantSEOConfig | undefined;
 };
 
 /**
@@ -469,6 +474,218 @@ export const ImportVariantSnapshotResponseSchema: GenMessage<ImportVariantSnapsh
   messageDesc(file_landing_page_business_suite_v1_variant, 17);
 
 /**
+ * SyncVariantSnapshotsRequest reloads the persisted variant snapshot files.
+ * It is administrative because it changes the in-memory serving configuration.
+ *
+ * @generated from message landing_page_business_suite.v1.SyncVariantSnapshotsRequest
+ */
+export type SyncVariantSnapshotsRequest = Message<"landing_page_business_suite.v1.SyncVariantSnapshotsRequest"> & {
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.SyncVariantSnapshotsRequest.
+ * Use `create(SyncVariantSnapshotsRequestSchema)` to create a new message.
+ */
+export const SyncVariantSnapshotsRequestSchema: GenMessage<SyncVariantSnapshotsRequest> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_variant, 18);
+
+/**
+ * @generated from message landing_page_business_suite.v1.SyncVariantSnapshotsResponse
+ */
+export type SyncVariantSnapshotsResponse = Message<"landing_page_business_suite.v1.SyncVariantSnapshotsResponse"> & {
+  /**
+   * @generated from field: int32 count = 1;
+   */
+  count: number;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.SyncVariantSnapshotsResponse.
+ * Use `create(SyncVariantSnapshotsResponseSchema)` to create a new message.
+ */
+export const SyncVariantSnapshotsResponseSchema: GenMessage<SyncVariantSnapshotsResponse> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_variant, 19);
+
+/**
+ * GetVariantSectionsRequest addresses JSON-backed content by its owning
+ * variant slug; section IDs are not globally meaningful in this domain.
+ *
+ * @generated from message landing_page_business_suite.v1.GetVariantSectionsRequest
+ */
+export type GetVariantSectionsRequest = Message<"landing_page_business_suite.v1.GetVariantSectionsRequest"> & {
+  /**
+   * @generated from field: string slug = 1;
+   */
+  slug: string;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.GetVariantSectionsRequest.
+ * Use `create(GetVariantSectionsRequestSchema)` to create a new message.
+ */
+export const GetVariantSectionsRequestSchema: GenMessage<GetVariantSectionsRequest> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_variant, 20);
+
+/**
+ * @generated from message landing_page_business_suite.v1.VariantSectionsResponse
+ */
+export type VariantSectionsResponse = Message<"landing_page_business_suite.v1.VariantSectionsResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.landing_page_business_suite.v1.shared.ContentSection sections = 1;
+   */
+  sections: ContentSection[];
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.VariantSectionsResponse.
+ * Use `create(VariantSectionsResponseSchema)` to create a new message.
+ */
+export const VariantSectionsResponseSchema: GenMessage<VariantSectionsResponse> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_variant, 21);
+
+/**
+ * @generated from message landing_page_business_suite.v1.GetVariantSectionRequest
+ */
+export type GetVariantSectionRequest = Message<"landing_page_business_suite.v1.GetVariantSectionRequest"> & {
+  /**
+   * @generated from field: string slug = 1;
+   */
+  slug: string;
+
+  /**
+   * @generated from field: string section_key = 2;
+   */
+  sectionKey: string;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.GetVariantSectionRequest.
+ * Use `create(GetVariantSectionRequestSchema)` to create a new message.
+ */
+export const GetVariantSectionRequestSchema: GenMessage<GetVariantSectionRequest> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_variant, 22);
+
+/**
+ * @generated from message landing_page_business_suite.v1.VariantSectionResponse
+ */
+export type VariantSectionResponse = Message<"landing_page_business_suite.v1.VariantSectionResponse"> & {
+  /**
+   * @generated from field: vrooli.landing_page_business_suite.v1.shared.ContentSection section = 1;
+   */
+  section?: ContentSection | undefined;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.VariantSectionResponse.
+ * Use `create(VariantSectionResponseSchema)` to create a new message.
+ */
+export const VariantSectionResponseSchema: GenMessage<VariantSectionResponse> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_variant, 23);
+
+/**
+ * @generated from message landing_page_business_suite.v1.CreateVariantSectionRequest
+ */
+export type CreateVariantSectionRequest = Message<"landing_page_business_suite.v1.CreateVariantSectionRequest"> & {
+  /**
+   * @generated from field: string slug = 1;
+   */
+  slug: string;
+
+  /**
+   * @generated from field: vrooli.landing_page_business_suite.v1.shared.ContentSection section = 2;
+   */
+  section?: ContentSection | undefined;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.CreateVariantSectionRequest.
+ * Use `create(CreateVariantSectionRequestSchema)` to create a new message.
+ */
+export const CreateVariantSectionRequestSchema: GenMessage<CreateVariantSectionRequest> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_variant, 24);
+
+/**
+ * @generated from message landing_page_business_suite.v1.UpdateVariantSectionRequest
+ */
+export type UpdateVariantSectionRequest = Message<"landing_page_business_suite.v1.UpdateVariantSectionRequest"> & {
+  /**
+   * @generated from field: string slug = 1;
+   */
+  slug: string;
+
+  /**
+   * @generated from field: string section_key = 2;
+   */
+  sectionKey: string;
+
+  /**
+   * @generated from field: optional string section_type = 3;
+   */
+  sectionType?: string | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Struct content = 4;
+   */
+  content?: JsonObject | undefined;
+
+  /**
+   * @generated from field: optional int32 order = 5;
+   */
+  order?: number | undefined;
+
+  /**
+   * @generated from field: optional bool enabled = 6;
+   */
+  enabled?: boolean | undefined;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.UpdateVariantSectionRequest.
+ * Use `create(UpdateVariantSectionRequestSchema)` to create a new message.
+ */
+export const UpdateVariantSectionRequestSchema: GenMessage<UpdateVariantSectionRequest> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_variant, 25);
+
+/**
+ * @generated from message landing_page_business_suite.v1.DeleteVariantSectionRequest
+ */
+export type DeleteVariantSectionRequest = Message<"landing_page_business_suite.v1.DeleteVariantSectionRequest"> & {
+  /**
+   * @generated from field: string slug = 1;
+   */
+  slug: string;
+
+  /**
+   * @generated from field: string section_key = 2;
+   */
+  sectionKey: string;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.DeleteVariantSectionRequest.
+ * Use `create(DeleteVariantSectionRequestSchema)` to create a new message.
+ */
+export const DeleteVariantSectionRequestSchema: GenMessage<DeleteVariantSectionRequest> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_variant, 26);
+
+/**
+ * @generated from message landing_page_business_suite.v1.DeleteVariantSectionResponse
+ */
+export type DeleteVariantSectionResponse = Message<"landing_page_business_suite.v1.DeleteVariantSectionResponse"> & {
+  /**
+   * @generated from field: bool deleted = 1;
+   */
+  deleted: boolean;
+};
+
+/**
+ * Describes the message landing_page_business_suite.v1.DeleteVariantSectionResponse.
+ * Use `create(DeleteVariantSectionResponseSchema)` to create a new message.
+ */
+export const DeleteVariantSectionResponseSchema: GenMessage<DeleteVariantSectionResponse> = /*@__PURE__*/
+  messageDesc(file_landing_page_business_suite_v1_variant, 27);
+
+/**
  * @generated from service landing_page_business_suite.v1.VariantService
  */
 export const VariantService: GenService<{
@@ -551,6 +768,14 @@ export const VariantService: GenService<{
     methodKind: "unary";
     input: typeof ImportVariantSnapshotRequestSchema;
     output: typeof ImportVariantSnapshotResponseSchema;
+  },
+  /**
+   * @generated from rpc landing_page_business_suite.v1.VariantService.SyncVariantSnapshots
+   */
+  syncVariantSnapshots: {
+    methodKind: "unary";
+    input: typeof SyncVariantSnapshotsRequestSchema;
+    output: typeof SyncVariantSnapshotsResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_landing_page_business_suite_v1_variant, 0);

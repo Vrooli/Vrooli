@@ -99,6 +99,9 @@ message CreateBacklogItemRequest {
 
   // Canonical plan-manager plan backing this work item.
   optional shared.PlanRef plan_ref = 18;
+
+  // Typed, stable acceptance criteria present at item creation.
+  repeated shared.BacklogCriterion acceptance_criteria = 19;
 }
 
 // UpdateBacklogItemRequest defines the payload for updating a backlog item.
@@ -172,6 +175,20 @@ message UpdateBacklogItemRequest {
 
   // Canonical plan-manager plan backing this work item. Set empty strings to clear.
   optional shared.PlanRef plan_ref = 16;
+
+  // Typed, stable acceptance criteria. Supplying this field replaces the
+  // complete criterion list; an empty list explicitly clears it.
+  repeated shared.BacklogCriterion acceptance_criteria = 17;
+}
+
+// UpdateItemRequest identifies an item and preserves PATCH presence through
+// fields. Each entry is a snake_case field name from UpdateBacklogItemRequest;
+// repeated fields may be intentionally empty when named here.
+message UpdateItemRequest {
+  string kind = 1 [(buf.validate.field).string.min_len = 1];
+  string name = 2 [(buf.validate.field).string.min_len = 1];
+  UpdateBacklogItemRequest patch = 3 [(buf.validate.field).required = true];
+  repeated string fields = 4 [(buf.validate.field).repeated.min_items = 1];
 }
 
 // A single blocking reason with forceability metadata.
@@ -234,6 +251,61 @@ message DeleteBacklogItemResponse {
   bool deleted = 1;
 }
 
+// ReviewFollowUp is the typed recovery instruction required by a followup
+// decision. It mirrors the durable backlog follow-up record without exposing a
+// free-form JSON envelope.
+message ReviewFollowUp {
+  string steering = 1 [(buf.validate.field).string.min_len = 1];
+  string disposition = 2 [(buf.validate.field).string = {in: ["follow_up_run", "replan", "new_items"]}];
+  repeated ReviewFollowUpItem items = 3;
+}
+
+message ReviewFollowUpItem {
+  string kind = 1 [(buf.validate.field).string.min_len = 1];
+  string name = 2 [(buf.validate.field).string.min_len = 1];
+  string title = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+// DecideAttemptRequest is the common operator decision envelope for a durable
+// transition attempt. subject_kind and subject_ref identify the owning domain;
+// round_num identifies the immutable attempt projection being decided.
+message DecideAttemptRequest {
+  string subject_kind = 1 [(buf.validate.field).string.min_len = 1];
+  string subject_ref = 2 [(buf.validate.field).string.min_len = 1];
+  uint32 round_num = 3 [(buf.validate.field).uint32.gt = 0];
+  string decision = 4 [(buf.validate.field).string = {in: ["accept", "fail", "followup", "drop"]}];
+  string actor = 5 [(buf.validate.field).string.min_len = 1];
+  string rationale = 6;
+  repeated string accepted_proposal_ids = 7;
+  optional ReviewFollowUp follow_up = 8;
+}
+
+message DecideAttemptResponse {
+  domain.BacklogItem item = 1;
+  string decision = 2;
+  string status = 3;
+  string rationale = 4;
+  string decided_at = 5;
+  optional string record_id = 6;
+}
+
+// VerifyAttemptEvidenceRequest records an operator's evidence verification or
+// revocation against one durable attempt. Both changes require a real actor
+// and reason so the canonical evidence ledger remains auditable.
+message VerifyAttemptEvidenceRequest {
+  string subject_kind = 1 [(buf.validate.field).string.min_len = 1];
+  string subject_ref = 2 [(buf.validate.field).string.min_len = 1];
+  uint32 round_num = 3 [(buf.validate.field).uint32.gt = 0];
+  string evidence_id = 4 [(buf.validate.field).string.min_len = 1];
+  bool verified = 5;
+  string actor = 6 [(buf.validate.field).string.min_len = 1];
+  string reason = 7 [(buf.validate.field).string.min_len = 1];
+}
+
+message VerifyAttemptEvidenceResponse {
+  bool verified = 1;
+}
+
 // BacklogItemResponse returns a single backlog item.
 message BacklogItemResponse {
   domain.BacklogItem item = 1;
@@ -280,8 +352,19 @@ service BacklogService {
   // queue_position (items-ahead in the ranked pending set).
   rpc GetItem(GetBacklogItemRequest) returns (BacklogItemResponse);
 
+  // UpdateItem applies an explicit field-preserving patch.
+  rpc UpdateItem(UpdateItemRequest) returns (BacklogItemResponse);
+
   // DeleteItem removes an item and cleans dependent references. It is idempotent.
   rpc DeleteItem(DeleteBacklogItemRequest) returns (DeleteBacklogItemResponse);
+
+  // DecideAttempt applies an auditable decision to a durable attempt. The
+  // subject-specific domain validates allowed decisions and proposals.
+  rpc DecideAttempt(DecideAttemptRequest) returns (DecideAttemptResponse);
+
+  // VerifyAttemptEvidence records an auditable operator verification change
+  // for evidence attached to the addressed attempt.
+  rpc VerifyAttemptEvidence(VerifyAttemptEvidenceRequest) returns (VerifyAttemptEvidenceResponse);
 }
 
 // AutoFilerService exposes the governed backlog auto-filer operator surface.

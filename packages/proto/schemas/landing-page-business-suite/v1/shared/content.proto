@@ -18,4 +18,7 @@ message ContentSection {
   bool enabled = 6;
   google.protobuf.Timestamp created_at = 7;
   google.protobuf.Timestamp updated_at = 8;
+  // key is the stable, variant-scoped identifier for JSON-backed sections.
+  // id remains for legacy database-backed payload compatibility.
+  string key = 9;
 }

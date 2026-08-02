@@ -4,6 +4,7 @@ package vrooli.swarm_manager.v1.domain;
 
 import "buf/validate/validate.proto";
 import "swarm-manager/v1/shared/agent_session.proto";
+import "swarm-manager/v1/shared/backlog.proto";
 import "swarm-manager/v1/shared/plan_ref.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
@@ -155,6 +156,9 @@ message BacklogItem {
   // Explicit operator authorization for the current canonical plan frontier.
   // A changed content hash or work-contract version makes this record stale.
   optional PlanAcceptance plan_acceptance = 29;
+
+  // Independently settleable definitions of done for this item.
+  repeated shared.BacklogCriterion acceptance_criteria = 30;
 }
 
 message PlanAcceptance {

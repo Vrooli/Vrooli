@@ -249,14 +249,14 @@ class RunResult(_message.Message):
     def __init__(self, final_output: _Optional[str] = ..., selection: _Optional[_Union[FinalOutputSelection, _Mapping]] = ..., candidates: _Optional[_Iterable[_Union[FinalOutputCandidate, _Mapping]]] = ..., success: _Optional[bool] = ..., exit_code: _Optional[int] = ..., terminal_reason: _Optional[str] = ..., structured: _Optional[_Union[StructuredResult, _Mapping]] = ..., observations: _Optional[_Union[ReceiptObservations, _Mapping]] = ...) -> None: ...
 
 class ReceiptObservations(_message.Message):
-    __slots__ = ("state", "receipts", "detail")
+    __slots__ = ("state", "receipts", "reason")
     STATE_FIELD_NUMBER: _ClassVar[int]
     RECEIPTS_FIELD_NUMBER: _ClassVar[int]
-    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
     state: ReceiptObservationState
     receipts: _containers.RepeatedCompositeFieldContainer[ObservedReceipt]
-    detail: str
-    def __init__(self, state: _Optional[_Union[ReceiptObservationState, str]] = ..., receipts: _Optional[_Iterable[_Union[ObservedReceipt, _Mapping]]] = ..., detail: _Optional[str] = ...) -> None: ...
+    reason: str
+    def __init__(self, state: _Optional[_Union[ReceiptObservationState, str]] = ..., receipts: _Optional[_Iterable[_Union[ObservedReceipt, _Mapping]]] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class ObservedReceipt(_message.Message):
     __slots__ = ("event_id", "target_scenario", "operation", "agent_run_id", "workflow_execution_id", "workflow_node_id", "attempt", "attribution_verified", "outcome", "status_code", "projection")

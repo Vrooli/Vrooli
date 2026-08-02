@@ -3,6 +3,7 @@ syntax = "proto3";
 package vrooli.swarm_manager.v1.domain;
 
 import "buf/validate/validate.proto";
+import "swarm-manager/v1/shared/health.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/domain;domain";
 
@@ -100,7 +101,7 @@ message ScenarioHealthSnapshot {
   // Provider-presented phases in provider order.
   repeated ScenarioHealthPhase phases = 7;
   // Swarm-owned reconciliation summary for previously proposed work.
-  repeated ScenarioRemediationSummary remediation = 8;
+  repeated shared.ScenarioRemediationSummary remediation = 8;
 }
 
 // ScenarioHealthPhase carries only the provider's presentation and stable
@@ -116,24 +117,6 @@ message ScenarioHealthPhase {
   optional string priority_capability_label = 7;
   repeated string blocking_codes = 8;
   repeated string remediation_topics = 9;
-}
-
-// ScenarioRemediationSummary is Swarm-owned reconciliation state keyed by a
-// canonical remediation fingerprint. It links governed work without copying
-// provider findings into local storage.
-message ScenarioRemediationSummary {
-  string fingerprint = 1 [(buf.validate.field).string.min_len = 1];
-  // suggested, accepted, dismissed, or none.
-  string state = 2 [(buf.validate.field).string = {
-    in: [
-      "suggested",
-      "accepted",
-      "dismissed",
-      "none"
-    ]
-  }];
-  optional string work_ref = 3;
-  optional string updated_at = 4;
 }
 
 // ScenarioMetadata stores editable metadata for a scenario.

@@ -1,5 +1,6 @@
 from buf.validate import validate_pb2 as _validate_pb2
 from swarm_manager.v1.shared import agent_session_pb2 as _agent_session_pb2
+from swarm_manager.v1.shared import backlog_pb2 as _backlog_pb2
 from swarm_manager.v1.shared import plan_ref_pb2 as _plan_ref_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
@@ -10,7 +11,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class BacklogItem(_message.Message):
-    __slots__ = ("name", "title", "description", "status", "priority", "tags", "created", "updated", "kind", "depends_on", "milestone", "effort", "acceptance_allow", "acceptance_deny", "spawned_from", "note", "archived_at", "suggested_skills", "creates", "created_by", "queue_position", "plan_ref", "finding_ref", "stale", "last_review", "plan_acceptance")
+    __slots__ = ("name", "title", "description", "status", "priority", "tags", "created", "updated", "kind", "depends_on", "milestone", "effort", "acceptance_allow", "acceptance_deny", "spawned_from", "note", "archived_at", "suggested_skills", "creates", "created_by", "queue_position", "plan_ref", "finding_ref", "stale", "last_review", "plan_acceptance", "acceptance_criteria")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -37,6 +38,7 @@ class BacklogItem(_message.Message):
     STALE_FIELD_NUMBER: _ClassVar[int]
     LAST_REVIEW_FIELD_NUMBER: _ClassVar[int]
     PLAN_ACCEPTANCE_FIELD_NUMBER: _ClassVar[int]
+    ACCEPTANCE_CRITERIA_FIELD_NUMBER: _ClassVar[int]
     name: str
     title: str
     description: str
@@ -63,7 +65,8 @@ class BacklogItem(_message.Message):
     stale: bool
     last_review: BacklogReviewRecord
     plan_acceptance: PlanAcceptance
-    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., created: _Optional[str] = ..., updated: _Optional[str] = ..., kind: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., milestone: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ..., note: _Optional[str] = ..., archived_at: _Optional[str] = ..., suggested_skills: _Optional[_Iterable[str]] = ..., creates: _Optional[_Iterable[str]] = ..., created_by: _Optional[_Union[_agent_session_pb2.AgentSessionAttribution, _Mapping]] = ..., queue_position: _Optional[int] = ..., plan_ref: _Optional[_Union[_plan_ref_pb2.PlanRef, _Mapping]] = ..., finding_ref: _Optional[str] = ..., stale: _Optional[bool] = ..., last_review: _Optional[_Union[BacklogReviewRecord, _Mapping]] = ..., plan_acceptance: _Optional[_Union[PlanAcceptance, _Mapping]] = ...) -> None: ...
+    acceptance_criteria: _containers.RepeatedCompositeFieldContainer[_backlog_pb2.BacklogCriterion]
+    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., created: _Optional[str] = ..., updated: _Optional[str] = ..., kind: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., milestone: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ..., note: _Optional[str] = ..., archived_at: _Optional[str] = ..., suggested_skills: _Optional[_Iterable[str]] = ..., creates: _Optional[_Iterable[str]] = ..., created_by: _Optional[_Union[_agent_session_pb2.AgentSessionAttribution, _Mapping]] = ..., queue_position: _Optional[int] = ..., plan_ref: _Optional[_Union[_plan_ref_pb2.PlanRef, _Mapping]] = ..., finding_ref: _Optional[str] = ..., stale: _Optional[bool] = ..., last_review: _Optional[_Union[BacklogReviewRecord, _Mapping]] = ..., plan_acceptance: _Optional[_Union[PlanAcceptance, _Mapping]] = ..., acceptance_criteria: _Optional[_Iterable[_Union[_backlog_pb2.BacklogCriterion, _Mapping]]] = ...) -> None: ...
 
 class PlanAcceptance(_message.Message):
     __slots__ = ("actor", "accepted_at", "plan_content_hash", "subject_version")

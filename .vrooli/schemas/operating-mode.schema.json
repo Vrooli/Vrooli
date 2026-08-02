@@ -101,7 +101,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["kind", "id", "label", "description", "target", "run_strategy", "best_for", "not_for", "tradeoffs"],
-      "description": "A single operating mode expressed as data. Identity + decision metadata, target (unit of work), run strategy, the phase graph, and per-concern policy blocks. item-level (run strategy existing_item_flow, owned by the backlog execution pipeline) omits `phase_graph`; every mode that runs mode rounds requires it.",
+      "description": "A single operating mode expressed as data. Identity + decision metadata, target (unit of work), run strategy, the phase graph, and per-concern policy blocks. Every mode runs mode rounds through a required `phase_graph`.",
       "properties": {
         "kind": { "const": "operating-mode" },
         "schema_version": {
@@ -111,7 +111,7 @@
         },
         "id": {
           "$ref": "#/$defs/Identifier",
-          "description": "Stable mode id and the folder name under `modes/`. `item-level`, `holistic-loop`, `phased-plan-drain` today."
+          "description": "Stable mode id and the folder name under `modes/`. `item-level` is reserved (the member-item workflow strategy sentinel, not a mode)."
         },
         "label": { "type": "string", "minLength": 1, "description": "Human-facing mode name shown in the picker and detail page." },
         "description": { "type": "string", "minLength": 1, "description": "One-paragraph description of the methodology and when to use it." },
@@ -145,18 +145,13 @@
       },
       "allOf": [
         {
-          "if": { "type": "object", "properties": { "run_strategy": { "type": "object", "properties": { "kind": { "const": "existing_item_flow" } } } } },
-          "then": {},
-          "else": {
-            "required": ["input_contract", "phase_graph", "prompt", "artifact"],
-            "description": "Every mode that runs mode rounds (any run strategy other than existing_item_flow) declares one input contract, runs a phase graph, routes prompts through a catalog prefix, and owns an artifact root."
-          }
+          "required": ["input_contract", "phase_graph", "prompt", "artifact"],
+          "description": "Every mode declares one input contract, runs a phase graph, routes prompts through a catalog prefix, and owns an artifact root."
         },
         {
           "if": {
             "type": "object",
             "properties": {
-              "run_strategy": { "type": "object", "properties": { "kind": { "not": { "const": "existing_item_flow" } } } },
               "target": { "type": "object", "properties": { "kind": { "const": "initiative" } } }
             }
           },
@@ -176,8 +171,8 @@
       "properties": {
         "kind": {
           "type": "string",
-          "enum": ["backlog-item", "initiative", "plan-execution"],
-          "description": "backlog-item = a single swarm-manager backlog item (vocabulary is pinned; its runtime adapter arrives in a later phase). initiative = a swarm-manager initiative and its member items. plan-execution = a canonical, provider-neutral plan execution (the resolved instance carries plan id + execution id). NOTE: the domain plan_ref FIELD on items/initiatives is an associated Plan Manager reference, never a target kind; the pre-cutover unmanaged plan-ref target kind is removed."
+          "enum": ["backlog-item", "initiative", "plan-execution", "scenario"],
+          "description": "backlog-item = a single swarm-manager backlog item (vocabulary is pinned; its runtime adapter arrives in a later phase). initiative = a swarm-manager initiative and its member items. plan-execution = a canonical, provider-neutral plan execution (the resolved instance carries plan id + execution id). scenario = a plain scenario repository workspace (a scenario directory) identified by scenario name, with no owning item/initiative/plan (used by spec-sync). NOTE: the domain plan_ref FIELD on items/initiatives is an associated Plan Manager reference, never a target kind; the pre-cutover unmanaged plan-ref target kind is removed."
         },
         "plan_ref": { "$ref": "#/$defs/PlanRefPolicy" }
       },
@@ -201,8 +196,8 @@
       "properties": {
         "kind": {
           "type": "string",
-          "enum": ["existing_item_flow", "single_phase_run", "sequential_handoff", "operator_gated_loop"],
-          "description": "existing_item_flow = item-level, owned by the backlog execution flow (no mode rounds). single_phase_run = one phase at a time with no cross-round handoff requirement. sequential_handoff = each non-start phase requires durable handoff/progress context from the prior completed round. operator_gated_loop = the operator advances the loop between rounds."
+          "enum": ["single_phase_run", "sequential_handoff", "operator_gated_loop"],
+          "description": "single_phase_run = one phase at a time with no cross-round handoff requirement. sequential_handoff = each non-start phase requires durable handoff/progress context from the prior completed round. operator_gated_loop = the operator advances the loop between rounds."
         }
       }
     },
@@ -654,7 +649,7 @@
             "enum": ["read_only", "propose_mutations", "mark_complete", "create_followups", "update_scope"]
           },
           "uniqueItems": true,
-          "description": "What the mode may do to the backlog. item-level is `[read_only]`; initiative modes get the full set."
+          "description": "What the mode may do to the backlog. Initiative modes get the full set."
         },
         "requires_run_id": { "type": "boolean", "description": "Reconcile/complete actions require a run id." },
         "requires_membership": { "type": "boolean", "description": "Backlog-sync targets must be initiative members." },

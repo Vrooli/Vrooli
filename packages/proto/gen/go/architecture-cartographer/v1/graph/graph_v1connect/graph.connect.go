@@ -45,6 +45,12 @@ const (
 	// GraphServiceClearGraphSnapshotsProcedure is the fully-qualified name of the GraphService's
 	// ClearGraphSnapshots RPC.
 	GraphServiceClearGraphSnapshotsProcedure = "/vrooli.architecture_cartographer.v1.graph.GraphService/ClearGraphSnapshots"
+	// GraphServicePreviewSnapshotRetentionProcedure is the fully-qualified name of the GraphService's
+	// PreviewSnapshotRetention RPC.
+	GraphServicePreviewSnapshotRetentionProcedure = "/vrooli.architecture_cartographer.v1.graph.GraphService/PreviewSnapshotRetention"
+	// GraphServiceApplySnapshotRetentionProcedure is the fully-qualified name of the GraphService's
+	// ApplySnapshotRetention RPC.
+	GraphServiceApplySnapshotRetentionProcedure = "/vrooli.architecture_cartographer.v1.graph.GraphService/ApplySnapshotRetention"
 	// GraphServiceExportGraphProcedure is the fully-qualified name of the GraphService's ExportGraph
 	// RPC.
 	GraphServiceExportGraphProcedure = "/vrooli.architecture_cartographer.v1.graph.GraphService/ExportGraph"
@@ -71,6 +77,16 @@ type GraphServiceClient interface {
 	// ClearGraphSnapshots removes cached snapshots for a scenario.
 	// Honors X-Dry-Run.
 	ClearGraphSnapshots(context.Context, *connect.Request[graph.ClearGraphSnapshotsRequest]) (*connect.Response[graph.ClearGraphSnapshotsResponse], error)
+	// PreviewSnapshotRetention reports how much snapshot storage is
+	// reclaimable beyond the retention floor, without deleting anything.
+	//
+	// It is also the estimate/preview half of the cleanup-manager owner
+	// provider contract: cleanup-manager never duplicates owner-private
+	// deletion logic, so it asks this scenario what is safe to drop.
+	PreviewSnapshotRetention(context.Context, *connect.Request[graph.PreviewSnapshotRetentionRequest]) (*connect.Response[graph.PreviewSnapshotRetentionResponse], error)
+	// ApplySnapshotRetention prunes snapshots beyond the retention floor and
+	// returns freed pages to the filesystem. Requires explicit confirmation.
+	ApplySnapshotRetention(context.Context, *connect.Request[graph.ApplySnapshotRetentionRequest]) (*connect.Response[graph.ApplySnapshotRetentionResponse], error)
 	// ExportGraph returns the snapshot in a serializable shape (e.g.,
 	// JSON) for offline analysis or fixture authoring.
 	ExportGraph(context.Context, *connect.Request[graph.ExportGraphRequest]) (*connect.Response[graph.ExportGraphResponse], error)
@@ -122,6 +138,18 @@ func NewGraphServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(graphServiceMethods.ByName("ClearGraphSnapshots")),
 			connect.WithClientOptions(opts...),
 		),
+		previewSnapshotRetention: connect.NewClient[graph.PreviewSnapshotRetentionRequest, graph.PreviewSnapshotRetentionResponse](
+			httpClient,
+			baseURL+GraphServicePreviewSnapshotRetentionProcedure,
+			connect.WithSchema(graphServiceMethods.ByName("PreviewSnapshotRetention")),
+			connect.WithClientOptions(opts...),
+		),
+		applySnapshotRetention: connect.NewClient[graph.ApplySnapshotRetentionRequest, graph.ApplySnapshotRetentionResponse](
+			httpClient,
+			baseURL+GraphServiceApplySnapshotRetentionProcedure,
+			connect.WithSchema(graphServiceMethods.ByName("ApplySnapshotRetention")),
+			connect.WithClientOptions(opts...),
+		),
 		exportGraph: connect.NewClient[graph.ExportGraphRequest, graph.ExportGraphResponse](
 			httpClient,
 			baseURL+GraphServiceExportGraphProcedure,
@@ -151,14 +179,16 @@ func NewGraphServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 
 // graphServiceClient implements GraphServiceClient.
 type graphServiceClient struct {
-	extractGraph        *connect.Client[graph.ExtractGraphRequest, graph.ExtractGraphResponse]
-	getGraphSnapshot    *connect.Client[graph.GetGraphSnapshotRequest, graph.GetGraphSnapshotResponse]
-	listGraphSnapshots  *connect.Client[graph.ListGraphSnapshotsRequest, graph.ListGraphSnapshotsResponse]
-	clearGraphSnapshots *connect.Client[graph.ClearGraphSnapshotsRequest, graph.ClearGraphSnapshotsResponse]
-	exportGraph         *connect.Client[graph.ExportGraphRequest, graph.ExportGraphResponse]
-	getZoneMap          *connect.Client[graph.GetZoneMapRequest, graph.GetZoneMapResponse]
-	getSlice            *connect.Client[graph.GetSliceRequest, graph.GetSliceResponse]
-	inferArchetype      *connect.Client[graph.InferArchetypeRequest, graph.InferArchetypeResponse]
+	extractGraph             *connect.Client[graph.ExtractGraphRequest, graph.ExtractGraphResponse]
+	getGraphSnapshot         *connect.Client[graph.GetGraphSnapshotRequest, graph.GetGraphSnapshotResponse]
+	listGraphSnapshots       *connect.Client[graph.ListGraphSnapshotsRequest, graph.ListGraphSnapshotsResponse]
+	clearGraphSnapshots      *connect.Client[graph.ClearGraphSnapshotsRequest, graph.ClearGraphSnapshotsResponse]
+	previewSnapshotRetention *connect.Client[graph.PreviewSnapshotRetentionRequest, graph.PreviewSnapshotRetentionResponse]
+	applySnapshotRetention   *connect.Client[graph.ApplySnapshotRetentionRequest, graph.ApplySnapshotRetentionResponse]
+	exportGraph              *connect.Client[graph.ExportGraphRequest, graph.ExportGraphResponse]
+	getZoneMap               *connect.Client[graph.GetZoneMapRequest, graph.GetZoneMapResponse]
+	getSlice                 *connect.Client[graph.GetSliceRequest, graph.GetSliceResponse]
+	inferArchetype           *connect.Client[graph.InferArchetypeRequest, graph.InferArchetypeResponse]
 }
 
 // ExtractGraph calls vrooli.architecture_cartographer.v1.graph.GraphService.ExtractGraph.
@@ -181,6 +211,18 @@ func (c *graphServiceClient) ListGraphSnapshots(ctx context.Context, req *connec
 // vrooli.architecture_cartographer.v1.graph.GraphService.ClearGraphSnapshots.
 func (c *graphServiceClient) ClearGraphSnapshots(ctx context.Context, req *connect.Request[graph.ClearGraphSnapshotsRequest]) (*connect.Response[graph.ClearGraphSnapshotsResponse], error) {
 	return c.clearGraphSnapshots.CallUnary(ctx, req)
+}
+
+// PreviewSnapshotRetention calls
+// vrooli.architecture_cartographer.v1.graph.GraphService.PreviewSnapshotRetention.
+func (c *graphServiceClient) PreviewSnapshotRetention(ctx context.Context, req *connect.Request[graph.PreviewSnapshotRetentionRequest]) (*connect.Response[graph.PreviewSnapshotRetentionResponse], error) {
+	return c.previewSnapshotRetention.CallUnary(ctx, req)
+}
+
+// ApplySnapshotRetention calls
+// vrooli.architecture_cartographer.v1.graph.GraphService.ApplySnapshotRetention.
+func (c *graphServiceClient) ApplySnapshotRetention(ctx context.Context, req *connect.Request[graph.ApplySnapshotRetentionRequest]) (*connect.Response[graph.ApplySnapshotRetentionResponse], error) {
+	return c.applySnapshotRetention.CallUnary(ctx, req)
 }
 
 // ExportGraph calls vrooli.architecture_cartographer.v1.graph.GraphService.ExportGraph.
@@ -217,6 +259,16 @@ type GraphServiceHandler interface {
 	// ClearGraphSnapshots removes cached snapshots for a scenario.
 	// Honors X-Dry-Run.
 	ClearGraphSnapshots(context.Context, *connect.Request[graph.ClearGraphSnapshotsRequest]) (*connect.Response[graph.ClearGraphSnapshotsResponse], error)
+	// PreviewSnapshotRetention reports how much snapshot storage is
+	// reclaimable beyond the retention floor, without deleting anything.
+	//
+	// It is also the estimate/preview half of the cleanup-manager owner
+	// provider contract: cleanup-manager never duplicates owner-private
+	// deletion logic, so it asks this scenario what is safe to drop.
+	PreviewSnapshotRetention(context.Context, *connect.Request[graph.PreviewSnapshotRetentionRequest]) (*connect.Response[graph.PreviewSnapshotRetentionResponse], error)
+	// ApplySnapshotRetention prunes snapshots beyond the retention floor and
+	// returns freed pages to the filesystem. Requires explicit confirmation.
+	ApplySnapshotRetention(context.Context, *connect.Request[graph.ApplySnapshotRetentionRequest]) (*connect.Response[graph.ApplySnapshotRetentionResponse], error)
 	// ExportGraph returns the snapshot in a serializable shape (e.g.,
 	// JSON) for offline analysis or fixture authoring.
 	ExportGraph(context.Context, *connect.Request[graph.ExportGraphRequest]) (*connect.Response[graph.ExportGraphResponse], error)
@@ -263,6 +315,18 @@ func NewGraphServiceHandler(svc GraphServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(graphServiceMethods.ByName("ClearGraphSnapshots")),
 		connect.WithHandlerOptions(opts...),
 	)
+	graphServicePreviewSnapshotRetentionHandler := connect.NewUnaryHandler(
+		GraphServicePreviewSnapshotRetentionProcedure,
+		svc.PreviewSnapshotRetention,
+		connect.WithSchema(graphServiceMethods.ByName("PreviewSnapshotRetention")),
+		connect.WithHandlerOptions(opts...),
+	)
+	graphServiceApplySnapshotRetentionHandler := connect.NewUnaryHandler(
+		GraphServiceApplySnapshotRetentionProcedure,
+		svc.ApplySnapshotRetention,
+		connect.WithSchema(graphServiceMethods.ByName("ApplySnapshotRetention")),
+		connect.WithHandlerOptions(opts...),
+	)
 	graphServiceExportGraphHandler := connect.NewUnaryHandler(
 		GraphServiceExportGraphProcedure,
 		svc.ExportGraph,
@@ -297,6 +361,10 @@ func NewGraphServiceHandler(svc GraphServiceHandler, opts ...connect.HandlerOpti
 			graphServiceListGraphSnapshotsHandler.ServeHTTP(w, r)
 		case GraphServiceClearGraphSnapshotsProcedure:
 			graphServiceClearGraphSnapshotsHandler.ServeHTTP(w, r)
+		case GraphServicePreviewSnapshotRetentionProcedure:
+			graphServicePreviewSnapshotRetentionHandler.ServeHTTP(w, r)
+		case GraphServiceApplySnapshotRetentionProcedure:
+			graphServiceApplySnapshotRetentionHandler.ServeHTTP(w, r)
 		case GraphServiceExportGraphProcedure:
 			graphServiceExportGraphHandler.ServeHTTP(w, r)
 		case GraphServiceGetZoneMapProcedure:
@@ -328,6 +396,14 @@ func (UnimplementedGraphServiceHandler) ListGraphSnapshots(context.Context, *con
 
 func (UnimplementedGraphServiceHandler) ClearGraphSnapshots(context.Context, *connect.Request[graph.ClearGraphSnapshotsRequest]) (*connect.Response[graph.ClearGraphSnapshotsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.architecture_cartographer.v1.graph.GraphService.ClearGraphSnapshots is not implemented"))
+}
+
+func (UnimplementedGraphServiceHandler) PreviewSnapshotRetention(context.Context, *connect.Request[graph.PreviewSnapshotRetentionRequest]) (*connect.Response[graph.PreviewSnapshotRetentionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.architecture_cartographer.v1.graph.GraphService.PreviewSnapshotRetention is not implemented"))
+}
+
+func (UnimplementedGraphServiceHandler) ApplySnapshotRetention(context.Context, *connect.Request[graph.ApplySnapshotRetentionRequest]) (*connect.Response[graph.ApplySnapshotRetentionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.architecture_cartographer.v1.graph.GraphService.ApplySnapshotRetention is not implemented"))
 }
 
 func (UnimplementedGraphServiceHandler) ExportGraph(context.Context, *connect.Request[graph.ExportGraphRequest]) (*connect.Response[graph.ExportGraphResponse], error) {

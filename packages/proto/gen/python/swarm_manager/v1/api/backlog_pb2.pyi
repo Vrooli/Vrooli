@@ -24,7 +24,7 @@ ARCHIVED_FILTER_ONLY: ArchivedFilter
 ARCHIVED_FILTER_ALL: ArchivedFilter
 
 class CreateBacklogItemRequest(_message.Message):
-    __slots__ = ("name", "title", "description", "priority", "tags", "kind", "depends_on", "milestone", "effort", "acceptance_allow", "acceptance_deny", "spawned_from", "note", "creates", "plan_ref")
+    __slots__ = ("name", "title", "description", "priority", "tags", "kind", "depends_on", "milestone", "effort", "acceptance_allow", "acceptance_deny", "spawned_from", "note", "creates", "plan_ref", "acceptance_criteria")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -40,6 +40,7 @@ class CreateBacklogItemRequest(_message.Message):
     NOTE_FIELD_NUMBER: _ClassVar[int]
     CREATES_FIELD_NUMBER: _ClassVar[int]
     PLAN_REF_FIELD_NUMBER: _ClassVar[int]
+    ACCEPTANCE_CRITERIA_FIELD_NUMBER: _ClassVar[int]
     name: str
     title: str
     description: str
@@ -55,10 +56,11 @@ class CreateBacklogItemRequest(_message.Message):
     note: str
     creates: _containers.RepeatedScalarFieldContainer[str]
     plan_ref: _plan_ref_pb2.PlanRef
-    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., kind: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., milestone: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ..., note: _Optional[str] = ..., creates: _Optional[_Iterable[str]] = ..., plan_ref: _Optional[_Union[_plan_ref_pb2.PlanRef, _Mapping]] = ...) -> None: ...
+    acceptance_criteria: _containers.RepeatedCompositeFieldContainer[_backlog_pb2_1.BacklogCriterion]
+    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., kind: _Optional[str] = ..., depends_on: _Optional[_Iterable[str]] = ..., milestone: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ..., note: _Optional[str] = ..., creates: _Optional[_Iterable[str]] = ..., plan_ref: _Optional[_Union[_plan_ref_pb2.PlanRef, _Mapping]] = ..., acceptance_criteria: _Optional[_Iterable[_Union[_backlog_pb2_1.BacklogCriterion, _Mapping]]] = ...) -> None: ...
 
 class UpdateBacklogItemRequest(_message.Message):
-    __slots__ = ("title", "description", "status", "priority", "tags", "depends_on", "milestone", "effort", "acceptance_allow", "acceptance_deny", "spawned_from", "note", "creates", "plan_ref")
+    __slots__ = ("title", "description", "status", "priority", "tags", "depends_on", "milestone", "effort", "acceptance_allow", "acceptance_deny", "spawned_from", "note", "creates", "plan_ref", "acceptance_criteria")
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -73,6 +75,7 @@ class UpdateBacklogItemRequest(_message.Message):
     NOTE_FIELD_NUMBER: _ClassVar[int]
     CREATES_FIELD_NUMBER: _ClassVar[int]
     PLAN_REF_FIELD_NUMBER: _ClassVar[int]
+    ACCEPTANCE_CRITERIA_FIELD_NUMBER: _ClassVar[int]
     title: str
     description: str
     status: str
@@ -87,7 +90,20 @@ class UpdateBacklogItemRequest(_message.Message):
     note: str
     creates: _containers.RepeatedScalarFieldContainer[str]
     plan_ref: _plan_ref_pb2.PlanRef
-    def __init__(self, title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., depends_on: _Optional[_Iterable[str]] = ..., milestone: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ..., note: _Optional[str] = ..., creates: _Optional[_Iterable[str]] = ..., plan_ref: _Optional[_Union[_plan_ref_pb2.PlanRef, _Mapping]] = ...) -> None: ...
+    acceptance_criteria: _containers.RepeatedCompositeFieldContainer[_backlog_pb2_1.BacklogCriterion]
+    def __init__(self, title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., depends_on: _Optional[_Iterable[str]] = ..., milestone: _Optional[str] = ..., effort: _Optional[str] = ..., acceptance_allow: _Optional[_Iterable[str]] = ..., acceptance_deny: _Optional[_Iterable[str]] = ..., spawned_from: _Optional[str] = ..., note: _Optional[str] = ..., creates: _Optional[_Iterable[str]] = ..., plan_ref: _Optional[_Union[_plan_ref_pb2.PlanRef, _Mapping]] = ..., acceptance_criteria: _Optional[_Iterable[_Union[_backlog_pb2_1.BacklogCriterion, _Mapping]]] = ...) -> None: ...
+
+class UpdateItemRequest(_message.Message):
+    __slots__ = ("kind", "name", "patch", "fields")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    PATCH_FIELD_NUMBER: _ClassVar[int]
+    FIELDS_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    name: str
+    patch: UpdateBacklogItemRequest
+    fields: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, kind: _Optional[str] = ..., name: _Optional[str] = ..., patch: _Optional[_Union[UpdateBacklogItemRequest, _Mapping]] = ..., fields: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class BlockingReason(_message.Message):
     __slots__ = ("message", "forceable")
@@ -155,6 +171,86 @@ class DeleteBacklogItemResponse(_message.Message):
     DELETED_FIELD_NUMBER: _ClassVar[int]
     deleted: bool
     def __init__(self, deleted: _Optional[bool] = ...) -> None: ...
+
+class ReviewFollowUp(_message.Message):
+    __slots__ = ("steering", "disposition", "items")
+    STEERING_FIELD_NUMBER: _ClassVar[int]
+    DISPOSITION_FIELD_NUMBER: _ClassVar[int]
+    ITEMS_FIELD_NUMBER: _ClassVar[int]
+    steering: str
+    disposition: str
+    items: _containers.RepeatedCompositeFieldContainer[ReviewFollowUpItem]
+    def __init__(self, steering: _Optional[str] = ..., disposition: _Optional[str] = ..., items: _Optional[_Iterable[_Union[ReviewFollowUpItem, _Mapping]]] = ...) -> None: ...
+
+class ReviewFollowUpItem(_message.Message):
+    __slots__ = ("kind", "name", "title")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    name: str
+    title: str
+    def __init__(self, kind: _Optional[str] = ..., name: _Optional[str] = ..., title: _Optional[str] = ...) -> None: ...
+
+class DecideAttemptRequest(_message.Message):
+    __slots__ = ("subject_kind", "subject_ref", "round_num", "decision", "actor", "rationale", "accepted_proposal_ids", "follow_up")
+    SUBJECT_KIND_FIELD_NUMBER: _ClassVar[int]
+    SUBJECT_REF_FIELD_NUMBER: _ClassVar[int]
+    ROUND_NUM_FIELD_NUMBER: _ClassVar[int]
+    DECISION_FIELD_NUMBER: _ClassVar[int]
+    ACTOR_FIELD_NUMBER: _ClassVar[int]
+    RATIONALE_FIELD_NUMBER: _ClassVar[int]
+    ACCEPTED_PROPOSAL_IDS_FIELD_NUMBER: _ClassVar[int]
+    FOLLOW_UP_FIELD_NUMBER: _ClassVar[int]
+    subject_kind: str
+    subject_ref: str
+    round_num: int
+    decision: str
+    actor: str
+    rationale: str
+    accepted_proposal_ids: _containers.RepeatedScalarFieldContainer[str]
+    follow_up: ReviewFollowUp
+    def __init__(self, subject_kind: _Optional[str] = ..., subject_ref: _Optional[str] = ..., round_num: _Optional[int] = ..., decision: _Optional[str] = ..., actor: _Optional[str] = ..., rationale: _Optional[str] = ..., accepted_proposal_ids: _Optional[_Iterable[str]] = ..., follow_up: _Optional[_Union[ReviewFollowUp, _Mapping]] = ...) -> None: ...
+
+class DecideAttemptResponse(_message.Message):
+    __slots__ = ("item", "decision", "status", "rationale", "decided_at", "record_id")
+    ITEM_FIELD_NUMBER: _ClassVar[int]
+    DECISION_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    RATIONALE_FIELD_NUMBER: _ClassVar[int]
+    DECIDED_AT_FIELD_NUMBER: _ClassVar[int]
+    RECORD_ID_FIELD_NUMBER: _ClassVar[int]
+    item: _backlog_pb2.BacklogItem
+    decision: str
+    status: str
+    rationale: str
+    decided_at: str
+    record_id: str
+    def __init__(self, item: _Optional[_Union[_backlog_pb2.BacklogItem, _Mapping]] = ..., decision: _Optional[str] = ..., status: _Optional[str] = ..., rationale: _Optional[str] = ..., decided_at: _Optional[str] = ..., record_id: _Optional[str] = ...) -> None: ...
+
+class VerifyAttemptEvidenceRequest(_message.Message):
+    __slots__ = ("subject_kind", "subject_ref", "round_num", "evidence_id", "verified", "actor", "reason")
+    SUBJECT_KIND_FIELD_NUMBER: _ClassVar[int]
+    SUBJECT_REF_FIELD_NUMBER: _ClassVar[int]
+    ROUND_NUM_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_ID_FIELD_NUMBER: _ClassVar[int]
+    VERIFIED_FIELD_NUMBER: _ClassVar[int]
+    ACTOR_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    subject_kind: str
+    subject_ref: str
+    round_num: int
+    evidence_id: str
+    verified: bool
+    actor: str
+    reason: str
+    def __init__(self, subject_kind: _Optional[str] = ..., subject_ref: _Optional[str] = ..., round_num: _Optional[int] = ..., evidence_id: _Optional[str] = ..., verified: _Optional[bool] = ..., actor: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class VerifyAttemptEvidenceResponse(_message.Message):
+    __slots__ = ("verified",)
+    VERIFIED_FIELD_NUMBER: _ClassVar[int]
+    verified: bool
+    def __init__(self, verified: _Optional[bool] = ...) -> None: ...
 
 class BacklogItemResponse(_message.Message):
     __slots__ = ("item", "deduped")

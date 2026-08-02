@@ -1,4 +1,5 @@
 from buf.validate import validate_pb2 as _validate_pb2
+from swarm_manager.v1.shared import health_pb2 as _health_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -50,8 +51,8 @@ class ScenarioHealthSnapshot(_message.Message):
     freshness: str
     verdict: str
     phases: _containers.RepeatedCompositeFieldContainer[ScenarioHealthPhase]
-    remediation: _containers.RepeatedCompositeFieldContainer[ScenarioRemediationSummary]
-    def __init__(self, evidence_state: _Optional[str] = ..., reason: _Optional[str] = ..., source_run_id: _Optional[str] = ..., observed_at: _Optional[str] = ..., freshness: _Optional[str] = ..., verdict: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[ScenarioHealthPhase, _Mapping]]] = ..., remediation: _Optional[_Iterable[_Union[ScenarioRemediationSummary, _Mapping]]] = ...) -> None: ...
+    remediation: _containers.RepeatedCompositeFieldContainer[_health_pb2.ScenarioRemediationSummary]
+    def __init__(self, evidence_state: _Optional[str] = ..., reason: _Optional[str] = ..., source_run_id: _Optional[str] = ..., observed_at: _Optional[str] = ..., freshness: _Optional[str] = ..., verdict: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[ScenarioHealthPhase, _Mapping]]] = ..., remediation: _Optional[_Iterable[_Union[_health_pb2.ScenarioRemediationSummary, _Mapping]]] = ...) -> None: ...
 
 class ScenarioHealthPhase(_message.Message):
     __slots__ = ("phase", "label", "verdict", "current_rung", "next_rung", "priority_capability_id", "priority_capability_label", "blocking_codes", "remediation_topics")
@@ -74,18 +75,6 @@ class ScenarioHealthPhase(_message.Message):
     blocking_codes: _containers.RepeatedScalarFieldContainer[str]
     remediation_topics: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, phase: _Optional[str] = ..., label: _Optional[str] = ..., verdict: _Optional[str] = ..., current_rung: _Optional[str] = ..., next_rung: _Optional[str] = ..., priority_capability_id: _Optional[str] = ..., priority_capability_label: _Optional[str] = ..., blocking_codes: _Optional[_Iterable[str]] = ..., remediation_topics: _Optional[_Iterable[str]] = ...) -> None: ...
-
-class ScenarioRemediationSummary(_message.Message):
-    __slots__ = ("fingerprint", "state", "work_ref", "updated_at")
-    FINGERPRINT_FIELD_NUMBER: _ClassVar[int]
-    STATE_FIELD_NUMBER: _ClassVar[int]
-    WORK_REF_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
-    fingerprint: str
-    state: str
-    work_ref: str
-    updated_at: str
-    def __init__(self, fingerprint: _Optional[str] = ..., state: _Optional[str] = ..., work_ref: _Optional[str] = ..., updated_at: _Optional[str] = ...) -> None: ...
 
 class ScenarioMetadata(_message.Message):
     __slots__ = ("is_greenfield",)

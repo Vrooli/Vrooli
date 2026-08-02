@@ -16,6 +16,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"CleanupService.SetPolicyProfile": cliapp.ProtoMutation(h.setPolicyProfileCall, h.setPolicyProfileReport),
 		"CleanupService.CreatePlan":       cliapp.ProtoOperational(h.createPlanCall, h.createPlanReport),
 		"CleanupService.ApplyPlan":        cliapp.ProtoMutation(h.applyPlanCall, h.applyPlanReport),
+		"CleanupService.ReportPressure":   cliapp.ProtoMutation(h.reportPressureCall, h.reportPressureReport),
 		"CleanupService.ListAudit":        cliapp.ProtoList(h.listAuditCall, h.listAuditReport),
 	}
 	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)

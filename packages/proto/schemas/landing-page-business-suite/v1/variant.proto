@@ -2,6 +2,7 @@ syntax = "proto3";
 package landing_page_business_suite.v1;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
 import "landing-page-business-suite/v1/shared/content.proto";
 import "landing-page-business-suite/v1/shared/presentation.proto";
 
@@ -67,6 +68,7 @@ message UpdateVariantRequest {
   optional int32 weight = 4;
   AxesSelection axes = 5;
   vrooli.landing_page_business_suite.v1.shared.LandingHeaderConfig header_config = 6;
+  optional vrooli.landing_page_business_suite.v1.shared.VariantSEOConfig seo_config = 7;
 }
 message ArchiveVariantRequest {
   string slug = 1;
@@ -90,6 +92,46 @@ message ImportVariantSnapshotRequest {
 message ImportVariantSnapshotResponse {
   VariantSnapshot snapshot = 1;
 }
+// SyncVariantSnapshotsRequest reloads the persisted variant snapshot files.
+// It is administrative because it changes the in-memory serving configuration.
+message SyncVariantSnapshotsRequest {}
+message SyncVariantSnapshotsResponse {
+  int32 count = 1;
+}
+// GetVariantSectionsRequest addresses JSON-backed content by its owning
+// variant slug; section IDs are not globally meaningful in this domain.
+message GetVariantSectionsRequest {
+  string slug = 1;
+}
+message VariantSectionsResponse {
+  repeated vrooli.landing_page_business_suite.v1.shared.ContentSection sections = 1;
+}
+message GetVariantSectionRequest {
+  string slug = 1;
+  string section_key = 2;
+}
+message VariantSectionResponse {
+  vrooli.landing_page_business_suite.v1.shared.ContentSection section = 1;
+}
+message CreateVariantSectionRequest {
+  string slug = 1;
+  vrooli.landing_page_business_suite.v1.shared.ContentSection section = 2;
+}
+message UpdateVariantSectionRequest {
+  string slug = 1;
+  string section_key = 2;
+  optional string section_type = 3;
+  google.protobuf.Struct content = 4;
+  optional int32 order = 5;
+  optional bool enabled = 6;
+}
+message DeleteVariantSectionRequest {
+  string slug = 1;
+  string section_key = 2;
+}
+message DeleteVariantSectionResponse {
+  bool deleted = 1;
+}
 service VariantService {
   rpc SelectVariant(SelectVariantRequest) returns (VariantResponse);
   rpc GetPublicVariant(GetPublicVariantRequest) returns (VariantResponse);
@@ -101,4 +143,5 @@ service VariantService {
   rpc DeleteVariant(DeleteVariantRequest) returns (DeleteVariantResponse);
   rpc ExportVariantSnapshot(ExportVariantSnapshotRequest) returns (ExportVariantSnapshotResponse);
   rpc ImportVariantSnapshot(ImportVariantSnapshotRequest) returns (ImportVariantSnapshotResponse);
+  rpc SyncVariantSnapshots(SyncVariantSnapshotsRequest) returns (SyncVariantSnapshotsResponse);
 }

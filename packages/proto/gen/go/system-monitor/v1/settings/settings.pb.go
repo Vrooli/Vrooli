@@ -39,7 +39,8 @@ type SystemSettings struct {
 	CpuThreshold float64 `protobuf:"fixed64,6,opt,name=cpu_threshold,json=cpuThreshold,proto3" json:"cpu_threshold,omitempty"`
 	// Memory alert threshold percentage.
 	MemoryThreshold float64 `protobuf:"fixed64,7,opt,name=memory_threshold,json=memoryThreshold,proto3" json:"memory_threshold,omitempty"`
-	// Disk alert threshold percentage.
+	// Disk alert threshold percentage. This is also the warning band boundary:
+	// the usage percentage at which disk pressure starts being recorded.
 	DiskThreshold float64 `protobuf:"fixed64,8,opt,name=disk_threshold,json=diskThreshold,proto3" json:"disk_threshold,omitempty"`
 	// Number of days of metrics history to retain before scheduled pruning.
 	MetricsRetentionDays int32 `protobuf:"varint,9,opt,name=metrics_retention_days,json=metricsRetentionDays,proto3" json:"metrics_retention_days,omitempty"`
@@ -49,8 +50,23 @@ type SystemSettings struct {
 	RetentionRunOnStartup bool `protobuf:"varint,11,opt,name=retention_run_on_startup,json=retentionRunOnStartup,proto3" json:"retention_run_on_startup,omitempty"`
 	// Whether a scheduled retention prune is followed by database compaction.
 	CompactAfterRetention bool `protobuf:"varint,12,opt,name=compact_after_retention,json=compactAfterRetention,proto3" json:"compact_after_retention,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Disk-pressure escalation band boundaries, in percent used. These must
+	// ascend: disk_threshold (warning) < disk_high_percent < disk_critical_percent.
+	//
+	// high     — request a cleanup preview; nothing is deleted.
+	// critical — safe-tier reclamation may run with no operator present.
+	DiskHighPercent     float64 `protobuf:"fixed64,13,opt,name=disk_high_percent,json=diskHighPercent,proto3" json:"disk_high_percent,omitempty"`
+	DiskCriticalPercent float64 `protobuf:"fixed64,14,opt,name=disk_critical_percent,json=diskCriticalPercent,proto3" json:"disk_critical_percent,omitempty"`
+	// Minimum seconds between two records for the same band, so a disk parked
+	// above a boundary does not alert on every evaluation.
+	DiskEscalationCooldownSeconds int32 `protobuf:"varint,15,opt,name=disk_escalation_cooldown_seconds,json=diskEscalationCooldownSeconds,proto3" json:"disk_escalation_cooldown_seconds,omitempty"`
+	// How many consecutive observations a new band needs before it takes effect.
+	DiskEscalationDebounceTicks int32 `protobuf:"varint,16,opt,name=disk_escalation_debounce_ticks,json=diskEscalationDebounceTicks,proto3" json:"disk_escalation_debounce_ticks,omitempty"`
+	// A rise of at least this many percentage points in a single evaluation
+	// escalates immediately, bounding the delay debounce introduces.
+	DiskFastFillJumpPercent float64 `protobuf:"fixed64,17,opt,name=disk_fast_fill_jump_percent,json=diskFastFillJumpPercent,proto3" json:"disk_fast_fill_jump_percent,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *SystemSettings) Reset() {
@@ -165,6 +181,41 @@ func (x *SystemSettings) GetCompactAfterRetention() bool {
 		return x.CompactAfterRetention
 	}
 	return false
+}
+
+func (x *SystemSettings) GetDiskHighPercent() float64 {
+	if x != nil {
+		return x.DiskHighPercent
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetDiskCriticalPercent() float64 {
+	if x != nil {
+		return x.DiskCriticalPercent
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetDiskEscalationCooldownSeconds() int32 {
+	if x != nil {
+		return x.DiskEscalationCooldownSeconds
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetDiskEscalationDebounceTicks() int32 {
+	if x != nil {
+		return x.DiskEscalationDebounceTicks
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetDiskFastFillJumpPercent() float64 {
+	if x != nil {
+		return x.DiskFastFillJumpPercent
+	}
+	return 0
 }
 
 // GetSettingsRequest is empty - no parameters needed.
@@ -694,7 +745,7 @@ var File_system_monitor_v1_settings_settings_proto protoreflect.FileDescriptor
 
 const file_system_monitor_v1_settings_settings_proto_rawDesc = "" +
 	"\n" +
-	")system-monitor/v1/settings/settings.proto\x12!vrooli.system_monitor.v1.settings\x1a\x1cgoogle/api/annotations.proto\"\xfd\x04\n" +
+	")system-monitor/v1/settings/settings.proto\x12!vrooli.system_monitor.v1.settings\x1a\x1cgoogle/api/annotations.proto\"\xa9\a\n" +
 	"\x0eSystemSettings\x12\x16\n" +
 	"\x06active\x18\x01 \x01(\bR\x06active\x12<\n" +
 	"\x1ametric_collection_interval\x18\x02 \x01(\x05R\x18metricCollectionInterval\x12<\n" +
@@ -708,7 +759,12 @@ const file_system_monitor_v1_settings_settings_proto_rawDesc = "" +
 	" retention_check_interval_seconds\x18\n" +
 	" \x01(\x05R\x1dretentionCheckIntervalSeconds\x127\n" +
 	"\x18retention_run_on_startup\x18\v \x01(\bR\x15retentionRunOnStartup\x126\n" +
-	"\x17compact_after_retention\x18\f \x01(\bR\x15compactAfterRetention\"\x14\n" +
+	"\x17compact_after_retention\x18\f \x01(\bR\x15compactAfterRetention\x12*\n" +
+	"\x11disk_high_percent\x18\r \x01(\x01R\x0fdiskHighPercent\x122\n" +
+	"\x15disk_critical_percent\x18\x0e \x01(\x01R\x13diskCriticalPercent\x12G\n" +
+	" disk_escalation_cooldown_seconds\x18\x0f \x01(\x05R\x1ddiskEscalationCooldownSeconds\x12C\n" +
+	"\x1edisk_escalation_debounce_ticks\x18\x10 \x01(\x05R\x1bdiskEscalationDebounceTicks\x12<\n" +
+	"\x1bdisk_fast_fill_jump_percent\x18\x11 \x01(\x01R\x17diskFastFillJumpPercent\"\x14\n" +
 	"\x12GetSettingsRequest\"\x94\x01\n" +
 	"\x13GetSettingsResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12M\n" +

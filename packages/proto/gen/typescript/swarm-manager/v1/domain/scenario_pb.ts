@@ -5,13 +5,15 @@
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
+import type { ScenarioRemediationSummary } from "../shared/health_pb";
+import { file_swarm_manager_v1_shared_health } from "../shared/health_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file swarm-manager/v1/domain/scenario.proto.
  */
 export const file_swarm_manager_v1_domain_scenario: GenFile = /*@__PURE__*/
-  fileDesc("CiZzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9zY2VuYXJpby5wcm90bxIednJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluIu0DCghTY2VuYXJpbxIVCgRuYW1lGAEgASgJQge6SARyAhABEh0KDGRpc3BsYXlfbmFtZRgCIAEoCUIHukgEcgIQARITCgtkZXNjcmlwdGlvbhgDIAEoCRI3CgZzdGF0dXMYBCABKAlCJ7pIJHIiUgdydW5uaW5nUgdzdG9wcGVkUgVlcnJvclIHdW5rbm93bhIbCghwcmlvcml0eRgFIAEoBUIJukgGGgQYCigBEioKEmNvbXBsZXRlbmVzc19zY29yZRgGIAEoBUIJukgGGgQYZCgASACIAQESFQoNaXNfZ3JlZW5maWVsZBgHIAEoCBIWCgR0YWdzGAggAygJQgi6SAWSAQIYARInChpsYXN0X3Jldmlld19jbGFzc2lmaWNhdGlvbhgJIAEoCUgBiAEBEhsKDmxhc3RfcmV2aWV3X2F0GAogASgJSAKIAQESSwoGaGVhbHRoGAsgASgLMjYudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluLlNjZW5hcmlvSGVhbHRoU25hcHNob3RIA4gBAUIVChNfY29tcGxldGVuZXNzX3Njb3JlQh0KG19sYXN0X3Jldmlld19jbGFzc2lmaWNhdGlvbkIRCg9fbGFzdF9yZXZpZXdfYXRCCQoHX2hlYWx0aCK/AwoWU2NlbmFyaW9IZWFsdGhTbmFwc2hvdBJPCg5ldmlkZW5jZV9zdGF0ZRgBIAEoCUI3ukg0cjJSBWZyZXNoUgVzdGFsZVIIZGVncmFkZWRSC3VuYXZhaWxhYmxlUgtub19ldmlkZW5jZRITCgZyZWFzb24YAiABKAlIAIgBARIaCg1zb3VyY2VfcnVuX2lkGAMgASgJSAGIAQESGAoLb2JzZXJ2ZWRfYXQYBCABKAlIAogBARIWCglmcmVzaG5lc3MYBSABKAlIA4gBARIUCgd2ZXJkaWN0GAYgASgJSASIAQESQwoGcGhhc2VzGAcgAygLMjMudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluLlNjZW5hcmlvSGVhbHRoUGhhc2USTwoLcmVtZWRpYXRpb24YCCADKAsyOi52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uU2NlbmFyaW9SZW1lZGlhdGlvblN1bW1hcnlCCQoHX3JlYXNvbkIQCg5fc291cmNlX3J1bl9pZEIOCgxfb2JzZXJ2ZWRfYXRCDAoKX2ZyZXNobmVzc0IKCghfdmVyZGljdCL5AgoTU2NlbmFyaW9IZWFsdGhQaGFzZRIWCgVwaGFzZRgBIAEoCUIHukgEcgIQARISCgVsYWJlbBgCIAEoCUgAiAEBEhQKB3ZlcmRpY3QYAyABKAlIAYgBARIZCgxjdXJyZW50X3J1bmcYBCABKAlIAogBARIWCgluZXh0X3J1bmcYBSABKAlIA4gBARIjChZwcmlvcml0eV9jYXBhYmlsaXR5X2lkGAYgASgJSASIAQESJgoZcHJpb3JpdHlfY2FwYWJpbGl0eV9sYWJlbBgHIAEoCUgFiAEBEhYKDmJsb2NraW5nX2NvZGVzGAggAygJEhoKEnJlbWVkaWF0aW9uX3RvcGljcxgJIAMoCUIICgZfbGFiZWxCCgoIX3ZlcmRpY3RCDwoNX2N1cnJlbnRfcnVuZ0IMCgpfbmV4dF9ydW5nQhkKF19wcmlvcml0eV9jYXBhYmlsaXR5X2lkQhwKGl9wcmlvcml0eV9jYXBhYmlsaXR5X2xhYmVsIsIBChpTY2VuYXJpb1JlbWVkaWF0aW9uU3VtbWFyeRIcCgtmaW5nZXJwcmludBgBIAEoCUIHukgEcgIQARI6CgVzdGF0ZRgCIAEoCUIrukgociZSCXN1Z2dlc3RlZFIIYWNjZXB0ZWRSCWRpc21pc3NlZFIEbm9uZRIVCgh3b3JrX3JlZhgDIAEoCUgAiAEBEhcKCnVwZGF0ZWRfYXQYBCABKAlIAYgBAUILCglfd29ya19yZWZCDQoLX3VwZGF0ZWRfYXQiKQoQU2NlbmFyaW9NZXRhZGF0YRIVCg1pc19ncmVlbmZpZWxkGAEgASgIQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc3dhcm0tbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM", [file_buf_validate_validate]);
+  fileDesc("CiZzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi9zY2VuYXJpby5wcm90bxIednJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluIu0DCghTY2VuYXJpbxIVCgRuYW1lGAEgASgJQge6SARyAhABEh0KDGRpc3BsYXlfbmFtZRgCIAEoCUIHukgEcgIQARITCgtkZXNjcmlwdGlvbhgDIAEoCRI3CgZzdGF0dXMYBCABKAlCJ7pIJHIiUgdydW5uaW5nUgdzdG9wcGVkUgVlcnJvclIHdW5rbm93bhIbCghwcmlvcml0eRgFIAEoBUIJukgGGgQYCigBEioKEmNvbXBsZXRlbmVzc19zY29yZRgGIAEoBUIJukgGGgQYZCgASACIAQESFQoNaXNfZ3JlZW5maWVsZBgHIAEoCBIWCgR0YWdzGAggAygJQgi6SAWSAQIYARInChpsYXN0X3Jldmlld19jbGFzc2lmaWNhdGlvbhgJIAEoCUgBiAEBEhsKDmxhc3RfcmV2aWV3X2F0GAogASgJSAKIAQESSwoGaGVhbHRoGAsgASgLMjYudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluLlNjZW5hcmlvSGVhbHRoU25hcHNob3RIA4gBAUIVChNfY29tcGxldGVuZXNzX3Njb3JlQh0KG19sYXN0X3Jldmlld19jbGFzc2lmaWNhdGlvbkIRCg9fbGFzdF9yZXZpZXdfYXRCCQoHX2hlYWx0aCK/AwoWU2NlbmFyaW9IZWFsdGhTbmFwc2hvdBJPCg5ldmlkZW5jZV9zdGF0ZRgBIAEoCUI3ukg0cjJSBWZyZXNoUgVzdGFsZVIIZGVncmFkZWRSC3VuYXZhaWxhYmxlUgtub19ldmlkZW5jZRITCgZyZWFzb24YAiABKAlIAIgBARIaCg1zb3VyY2VfcnVuX2lkGAMgASgJSAGIAQESGAoLb2JzZXJ2ZWRfYXQYBCABKAlIAogBARIWCglmcmVzaG5lc3MYBSABKAlIA4gBARIUCgd2ZXJkaWN0GAYgASgJSASIAQESQwoGcGhhc2VzGAcgAygLMjMudnJvb2xpLnN3YXJtX21hbmFnZXIudjEuZG9tYWluLlNjZW5hcmlvSGVhbHRoUGhhc2USTwoLcmVtZWRpYXRpb24YCCADKAsyOi52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5zaGFyZWQuU2NlbmFyaW9SZW1lZGlhdGlvblN1bW1hcnlCCQoHX3JlYXNvbkIQCg5fc291cmNlX3J1bl9pZEIOCgxfb2JzZXJ2ZWRfYXRCDAoKX2ZyZXNobmVzc0IKCghfdmVyZGljdCL5AgoTU2NlbmFyaW9IZWFsdGhQaGFzZRIWCgVwaGFzZRgBIAEoCUIHukgEcgIQARISCgVsYWJlbBgCIAEoCUgAiAEBEhQKB3ZlcmRpY3QYAyABKAlIAYgBARIZCgxjdXJyZW50X3J1bmcYBCABKAlIAogBARIWCgluZXh0X3J1bmcYBSABKAlIA4gBARIjChZwcmlvcml0eV9jYXBhYmlsaXR5X2lkGAYgASgJSASIAQESJgoZcHJpb3JpdHlfY2FwYWJpbGl0eV9sYWJlbBgHIAEoCUgFiAEBEhYKDmJsb2NraW5nX2NvZGVzGAggAygJEhoKEnJlbWVkaWF0aW9uX3RvcGljcxgJIAMoCUIICgZfbGFiZWxCCgoIX3ZlcmRpY3RCDwoNX2N1cnJlbnRfcnVuZ0IMCgpfbmV4dF9ydW5nQhkKF19wcmlvcml0eV9jYXBhYmlsaXR5X2lkQhwKGl9wcmlvcml0eV9jYXBhYmlsaXR5X2xhYmVsIikKEFNjZW5hcmlvTWV0YWRhdGESFQoNaXNfZ3JlZW5maWVsZBgBIAEoCEJPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvZG9tYWluO2RvbWFpbmIGcHJvdG8z", [file_buf_validate_validate, file_swarm_manager_v1_shared_health]);
 
 /**
  * Scenario represents a deployed application in the Vrooli ecosystem.
@@ -167,7 +169,7 @@ export type ScenarioHealthSnapshot = Message<"vrooli.swarm_manager.v1.domain.Sce
   /**
    * Swarm-owned reconciliation summary for previously proposed work.
    *
-   * @generated from field: repeated vrooli.swarm_manager.v1.domain.ScenarioRemediationSummary remediation = 8;
+   * @generated from field: repeated vrooli.swarm_manager.v1.shared.ScenarioRemediationSummary remediation = 8;
    */
   remediation: ScenarioRemediationSummary[];
 };
@@ -241,44 +243,6 @@ export const ScenarioHealthPhaseSchema: GenMessage<ScenarioHealthPhase> = /*@__P
   messageDesc(file_swarm_manager_v1_domain_scenario, 2);
 
 /**
- * ScenarioRemediationSummary is Swarm-owned reconciliation state keyed by a
- * canonical remediation fingerprint. It links governed work without copying
- * provider findings into local storage.
- *
- * @generated from message vrooli.swarm_manager.v1.domain.ScenarioRemediationSummary
- */
-export type ScenarioRemediationSummary = Message<"vrooli.swarm_manager.v1.domain.ScenarioRemediationSummary"> & {
-  /**
-   * @generated from field: string fingerprint = 1;
-   */
-  fingerprint: string;
-
-  /**
-   * suggested, accepted, dismissed, or none.
-   *
-   * @generated from field: string state = 2;
-   */
-  state: string;
-
-  /**
-   * @generated from field: optional string work_ref = 3;
-   */
-  workRef?: string | undefined;
-
-  /**
-   * @generated from field: optional string updated_at = 4;
-   */
-  updatedAt?: string | undefined;
-};
-
-/**
- * Describes the message vrooli.swarm_manager.v1.domain.ScenarioRemediationSummary.
- * Use `create(ScenarioRemediationSummarySchema)` to create a new message.
- */
-export const ScenarioRemediationSummarySchema: GenMessage<ScenarioRemediationSummary> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_scenario, 3);
-
-/**
  * ScenarioMetadata stores editable metadata for a scenario.
  *
  * @generated from message vrooli.swarm_manager.v1.domain.ScenarioMetadata
@@ -297,5 +261,5 @@ export type ScenarioMetadata = Message<"vrooli.swarm_manager.v1.domain.ScenarioM
  * Use `create(ScenarioMetadataSchema)` to create a new message.
  */
 export const ScenarioMetadataSchema: GenMessage<ScenarioMetadata> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_scenario, 4);
+  messageDesc(file_swarm_manager_v1_domain_scenario, 3);
 

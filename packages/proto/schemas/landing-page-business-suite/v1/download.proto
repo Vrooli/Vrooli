@@ -27,9 +27,14 @@ message CreateDownloadAppRequest {
 message DownloadAppResponse {
   vrooli.landing_page_business_suite.v1.shared.DownloadApp app = 1;
 }
+message DeleteDownloadAppRequest {
+  string app_key = 1;
+}
+message DeleteDownloadAppResponse {}
 service DownloadService {
   rpc AuthorizeDownload(AuthorizeDownloadRequest) returns (AuthorizeDownloadResponse);
   rpc ListDownloadApps(ListDownloadAppsRequest) returns (ListDownloadAppsResponse);
   rpc CreateDownloadApp(CreateDownloadAppRequest) returns (DownloadAppResponse);
   rpc SaveDownloadApp(SaveDownloadAppRequest) returns (DownloadAppResponse);
+  rpc DeleteDownloadApp(DeleteDownloadAppRequest) returns (DeleteDownloadAppResponse);
 }
