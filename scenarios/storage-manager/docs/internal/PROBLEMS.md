@@ -80,3 +80,10 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+## Work ladder
+
+- Rung: W3
+- Evidence: the current storage-manager comprehensive suite passed 21/21 phases and the dedicated storage phase passed 1/1; the implementation layer was still incomplete because Test Genie reported `functional_incomplete`, 0/11 requirements passing, and 0 API endpoints beyond `/health` in its completeness summary.
+- Blocker: owner-neutral inventory and the follow-up census/operator surfaces are being implemented under the hardening plan.
+- Measured: 2026-08-02

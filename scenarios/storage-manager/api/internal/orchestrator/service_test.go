@@ -34,6 +34,7 @@ func TestPlanIDStableForSamePolicyProviderVersionsAndPreview(t *testing.T) {
 	}
 }
 
+// [REQ:CLN-P0-004]
 func TestApplyRequiresPolicyVersionApprovalAndIdempotency(t *testing.T) {
 	t.Parallel()
 

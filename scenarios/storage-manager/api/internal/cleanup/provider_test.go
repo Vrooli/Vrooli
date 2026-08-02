@@ -26,6 +26,7 @@ func (p stubProvider) Verify(context.Context, VerifyRequest) (VerifyResult, erro
 	return VerifyResult{Verified: true}, nil
 }
 
+// [REQ:CLN-P0-001]
 func TestValidateProviderRequiresPreviewFirstMetadata(t *testing.T) {
 	t.Parallel()
 

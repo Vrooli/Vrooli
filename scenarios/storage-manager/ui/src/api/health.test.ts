@@ -31,4 +31,10 @@ describe("api/health.fetchHealth", () => {
       cache: "no-store",
     });
   });
+
+  it("surfaces a structured error for an unhealthy response", async () => {
+    fetchSpy.mockResolvedValueOnce(new Response('{"code":"unavailable","message":"down"}', { status: 503 }));
+
+    await expect(fetchHealth()).rejects.toMatchObject({ code: "unavailable", status: 503 });
+  });
 });

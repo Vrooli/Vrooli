@@ -37,6 +37,7 @@ func TestConnectHandlerListsProviderMetadataAndPolicy(t *testing.T) {
 	}
 }
 
+// [REQ:CLN-P0-005]
 func TestConnectHandlerPlanApplyAndAuditUseServiceContracts(t *testing.T) {
 	t.Parallel()
 

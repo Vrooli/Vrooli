@@ -6,6 +6,7 @@ import (
 	"storage-manager/internal/cleanup"
 )
 
+// [REQ:CLN-P0-003]
 func TestBuildProfileKeepsConservativeConditionalProvidersDisabled(t *testing.T) {
 	t.Parallel()
 

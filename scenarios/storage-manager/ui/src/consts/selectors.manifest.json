@@ -68,6 +68,46 @@
       "testId": "cleanup-audit",
       "selector": "[data-testid=\"cleanup-audit\"]"
     },
+    "console.summary": {
+      "testId": "storage-console-summary",
+      "selector": "[data-testid=\"storage-console-summary\"]"
+    },
+    "console.confidence": {
+      "testId": "storage-console-confidence",
+      "selector": "[data-testid=\"storage-console-confidence\"]"
+    },
+    "console.refresh": {
+      "testId": "storage-console-refresh",
+      "selector": "[data-testid=\"storage-console-refresh\"]"
+    },
+    "console.ownerLedger": {
+      "testId": "storage-console-owner-ledger",
+      "selector": "[data-testid=\"storage-console-owner-ledger\"]"
+    },
+    "console.findings": {
+      "testId": "storage-console-findings",
+      "selector": "[data-testid=\"storage-console-findings\"]"
+    },
+    "console.adoption": {
+      "testId": "storage-console-adoption",
+      "selector": "[data-testid=\"storage-console-adoption\"]"
+    },
+    "console.placement": {
+      "testId": "storage-console-placement",
+      "selector": "[data-testid=\"storage-console-placement\"]"
+    },
+    "console.audit": {
+      "testId": "storage-console-audit",
+      "selector": "[data-testid=\"storage-console-audit\"]"
+    },
+    "console.empty": {
+      "testId": "storage-console-empty",
+      "selector": "[data-testid=\"storage-console-empty\"]"
+    },
+    "console.error": {
+      "testId": "storage-console-error",
+      "selector": "[data-testid=\"storage-console-error\"]"
+    },
     "layout.shell": {
       "testId": "layout-shell",
       "selector": "[data-testid=\"layout-shell\"]"

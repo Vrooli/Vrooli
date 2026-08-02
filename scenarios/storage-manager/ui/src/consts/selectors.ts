@@ -315,6 +315,18 @@ const literalSelectors = {
     plan: "cleanup-plan",
     audit: "cleanup-audit",
   },
+  console: {
+    summary: "storage-console-summary",
+    confidence: "storage-console-confidence",
+    refresh: "storage-console-refresh",
+    ownerLedger: "storage-console-owner-ledger",
+    findings: "storage-console-findings",
+    adoption: "storage-console-adoption",
+    placement: "storage-console-placement",
+    audit: "storage-console-audit",
+    empty: "storage-console-empty",
+    error: "storage-console-error",
+  },
   layout: {
     shell: "layout-shell",
     topBar: "layout-top-bar",

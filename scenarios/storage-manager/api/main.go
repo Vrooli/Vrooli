@@ -7,8 +7,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"time"
 
+	"storage-manager/internal/census"
 	"storage-manager/internal/clock"
 	"storage-manager/internal/httpx"
 	"storage-manager/internal/modules"
@@ -124,12 +127,33 @@ func main() {
 		logger.Printf("repo root resolution failed; validation will report unresolved targets: %v", repoErr)
 	}
 
+	// Scheduled census is intentionally delayed until the first interval. The
+	// API remains fast to ready, while long-lived processes persist immutable
+	// observations for infra-health and the operator console.
+	schedulerContext, stopScheduler := context.WithCancel(context.Background())
+	if repoRoot != "" {
+		snapshotStore := census.NewSnapshotStore(db)
+		storageScheduler := census.NewScheduler(censusInterval(), func(ctx context.Context) error {
+			inventory, err := storage.LoadOwnerInventory(storage.InventoryOptions{RepoRoot: repoRoot, Platform: storage.Platform(runtime.GOOS)})
+			if err != nil {
+				return err
+			}
+			report, err := census.ScanInventory(repoRoot, inventory)
+			if err != nil {
+				return err
+			}
+			_, err = snapshotStore.Save(ctx, report)
+			return err
+		})
+		storageScheduler.Start(schedulerContext)
+	}
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, "storage-manager-api", "1.0.0"),
 		cleanupH.Module(logger, db),
 		validationH.Module(logger, repoRoot),
-		storageH.Module(storageH.ModuleDeps{RepoRoot: repoRoot}),
+		storageH.Module(storageH.ModuleDeps{RepoRoot: repoRoot, DB: db}),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -148,8 +172,24 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		Cleanup: func(ctx context.Context) error {
+			stopScheduler()
+			return db.Close()
+		},
 	}); err != nil {
 		logger.Fatalf("Server error: %v", err)
 	}
+}
+
+func censusInterval() time.Duration {
+	const defaultInterval = 30 * time.Minute
+	raw := strings.TrimSpace(os.Getenv("STORAGE_CENSUS_INTERVAL"))
+	if raw == "" {
+		return defaultInterval
+	}
+	interval, err := time.ParseDuration(raw)
+	if err != nil || interval < time.Minute {
+		return defaultInterval
+	}
+	return interval
 }

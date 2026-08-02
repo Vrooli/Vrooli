@@ -18,13 +18,54 @@
     "entries": {
       "database": {
         "rung": "owned",
-        "path": "storage-manager.db",
+        "path": "data/storage-manager.db",
         "kind": "file",
         "class": "data",
         "format": "sqlite",
         "sensitive": false,
         "budget": { "max_bytes": "2GiB", "max_age": "30d", "rationale": "Durable storage-manager audit and census history." },
         "rationale": "The manager's own control-plane database."
+      },
+      "database_wal": {
+        "rung": "owned",
+        "path": "data/storage-manager.db-wal",
+        "kind": "file",
+        "class": "state",
+        "regenerable": true,
+        "rationale": "SQLite WAL sidecar for the manager database; it is recreated by SQLite and must be counted while live."
+      },
+      "database_shm": {
+        "rung": "owned",
+        "path": "data/storage-manager.db-shm",
+        "kind": "file",
+        "class": "state",
+        "regenerable": true,
+        "rationale": "SQLite shared-memory sidecar for the manager database; it is recreated by SQLite and must be counted while live."
+      },
+      "cleanup_database": {
+        "rung": "owned",
+        "path": "data/cleanup-manager.db",
+        "kind": "file",
+        "class": "data",
+        "format": "sqlite",
+        "regenerable": false,
+        "rationale": "The cleanup coordinator's durable database is stored in the manager's scenario data directory."
+      },
+      "cleanup_database_wal": {
+        "rung": "owned",
+        "path": "data/cleanup-manager.db-wal",
+        "kind": "file",
+        "class": "state",
+        "regenerable": true,
+        "rationale": "SQLite WAL sidecar for the cleanup coordinator database."
+      },
+      "cleanup_database_shm": {
+        "rung": "owned",
+        "path": "data/cleanup-manager.db-shm",
+        "kind": "file",
+        "class": "state",
+        "regenerable": true,
+        "rationale": "SQLite shared-memory sidecar for the cleanup coordinator database."
       },
       "logs": {
         "rung": "owned",
@@ -237,6 +278,7 @@
     }
   },
   "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/storage-manager.db"
+    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/storage-manager.db",
+    "STORAGE_CENSUS_INTERVAL": "30m"
   }
 }

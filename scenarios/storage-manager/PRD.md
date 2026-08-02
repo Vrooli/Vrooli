@@ -18,11 +18,11 @@
 
 ### 🔴 P0 – Must ship for viability
 
-- [ ] OT-P0-001 | Provider safety contract | Define cleanup providers with Estimate, Preview, Apply, Verify, safety tier, owner metadata, supported platforms, privilege requirements, irreversible effects, and test substitutes.
-- [ ] OT-P0-002 | No-real-cleanup test seams | Route every host effect through injected filesystem, process, Docker, journal, clock, and scenario-provider seams, with fakes and drift tests proving tests cannot delete files or run cleanup commands against the real host.
-- [ ] OT-P0-003 | Policy-gated scan and plan | Produce deterministic scans and cleanup plans from provider estimates plus operator policy, including conservative defaults, provider versions, policy versions, approval requirements, and blocked Conditional or Forbidden actions.
-- [ ] OT-P0-004 | Replay-safe apply and audit | Apply only an approved exact plan with matching policy and provider versions plus idempotency key, return no-op on safe replay, and persist immutable redacted audit events.
-- [ ] OT-P0-005 | CLI and API control surface | Expose scan, plan, provider catalog, policy get/set/list, apply, and audit list/show through stable CLI and API contracts with mutating commands marked confirmation-required.
+- [x] OT-P0-001 | Provider safety contract | Define cleanup providers with Estimate, Preview, Apply, Verify, safety tier, owner metadata, supported platforms, privilege requirements, irreversible effects, and test substitutes.
+- [x] OT-P0-002 | No-real-cleanup test seams | Route every host effect through injected filesystem, process, Docker, journal, clock, and scenario-provider seams, with fakes and drift tests proving tests cannot delete files or run cleanup commands against the real host.
+- [x] OT-P0-003 | Policy-gated scan and plan | Produce deterministic scans and cleanup plans from provider estimates plus operator policy, including conservative defaults, provider versions, policy versions, approval requirements, and blocked Conditional or Forbidden actions.
+- [x] OT-P0-004 | Replay-safe apply and audit | Apply only an approved exact plan with matching policy and provider versions plus idempotency key, return no-op on safe replay, and persist immutable redacted audit events.
+- [x] OT-P0-005 | CLI and API control surface | Expose scan, plan, provider catalog, policy get/set/list, apply, and audit list/show through stable CLI and API contracts with mutating commands marked confirmation-required.
 
 ### 🟠 P1 – Should have post-launch
 

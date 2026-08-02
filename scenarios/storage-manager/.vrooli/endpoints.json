@@ -132,6 +132,36 @@
       }
     },
     {
+      "id": "cleanup_pressure_report",
+      "path": "/vrooli.cleanup_manager.v1.cleanup.CleanupService/ReportPressure",
+      "method": "POST",
+      "summary": "Report disk pressure",
+      "description": "Inbound disk-pressure signal from a safeguard. Warning records the observation; high runs estimate and preview without deleting; critical applies safe-tier providers with no operator present. Duplicate concurrent reports of the same partition and band collapse into one execution.",
+      "category": "cleanup",
+      "request": {
+        "type": "object",
+        "properties": {
+          "available_bytes": "int64",
+          "band": "enum (PRESSURE_BAND_WARNING|PRESSURE_BAND_HIGH|PRESSURE_BAND_CRITICAL, required)",
+          "partition": "string (required)",
+          "source_scenario": "string",
+          "used_percent": "double"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "action": "enum (observed|previewed|applied|deduplicated|suppressed)",
+          "autonomous_apply_enabled": "bool",
+          "estimated_bytes": "int64",
+          "plan_id": "string",
+          "providers_applied": "array<string>",
+          "providers_withheld": "array<string>",
+          "reclaimed_bytes": "int64"
+        }
+      }
+    },
+    {
       "id": "cleanup_audit_list",
       "path": "/vrooli.cleanup_manager.v1.cleanup.CleanupService/ListAudit",
       "method": "POST",
@@ -143,6 +173,256 @@
         "properties": {
           "events": "array<AuditEvent>"
         }
+      }
+    },
+    {
+      "id": "validation_validate_scenario",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Validate a scenario's storage judgment",
+      "description": "Detects the target scenario's storage surface (engines + API language) and runs the applicable static storage analyzers, returning the shared scenario-validation response with findings in the maturity assessment.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario": "string (required, scenario id)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assessment": "common.v1.MaturityAssessment",
+          "native_detail": "google.protobuf.Any",
+          "scenario": "string",
+          "status": "scenario_validation.v1.ValidationStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario id or scenario not found under scenarios/"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Validate scenario",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"storage-manager\"}'"
+        }
+      ]
+    },
+    {
+      "id": "validation_describe_provider",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/DescribeProvider",
+      "method": "POST",
+      "summary": "Describe this provider's identity and contract",
+      "description": "Reports provider identity, backed phase, maturity spec version, contract, build provenance, and capabilities. Inspects no target, so readiness consumers can confirm this provider is live and current without paying for a full validation run.",
+      "category": "validation",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "build": "scenario_validation.v1.ProviderBuild",
+          "capabilities": "scenario_validation.v1.ProviderCapabilities",
+          "contract": "string",
+          "phase": "string",
+          "provider": "string",
+          "spec_version": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Describe provider",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/DescribeProvider -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "validation_preview_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix",
+      "method": "POST",
+      "summary": "Preview the deterministic storage autofixes for a scenario",
+      "description": "Shared ScenarioValidationService Fix RPC. Returns the candidate edits the storage-manager autofix registry would apply (DB_ROWS_NOT_CLOSED, ENSURE_SCHEMAS_NOT_WIRED) without writing anything. Optional rule_ids restricts the preview to specific finding codes.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "rule_ids": "[]string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool",
+          "candidates": "[]scenario_validation.v1.FixCandidate",
+          "messages": "[]string",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario id/path or scenario directory not resolvable"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Preview storage fixes",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/PreviewFix -H 'Content-Type: application/json' -d '{\"scenario\":\"storage-manager\"}'"
+        }
+      ]
+    },
+    {
+      "id": "validation_apply_fix",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix",
+      "method": "POST",
+      "summary": "Apply the deterministic storage autofixes for a scenario",
+      "description": "Shared ScenarioValidationService Fix RPC. Applies the storage-manager autofix registry's deterministic edits (DB_ROWS_NOT_CLOSED, ENSURE_SCHEMAS_NOT_WIRED) and reports what changed. Idempotent: a second apply over an already-fixed tree is a no-op.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "rule_ids": "[]string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool",
+          "candidates": "[]scenario_validation.v1.FixCandidate",
+          "messages": "[]string",
+          "scenario": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario id/path or scenario directory not resolvable"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Apply storage fixes",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ApplyFix -H 'Content-Type: application/json' -d '{\"scenario\":\"storage-manager\"}'"
+        }
+      ]
+    },
+    {
+      "id": "storage_inventory",
+      "path": "/api/v1/storage/inventory",
+      "method": "GET",
+      "summary": "List storage owners and declarations",
+      "description": "Deterministic owner-neutral inventory across scenarios, resources, tools, and safeguards.",
+      "category": "",
+      "rest_exception": {
+        "reason": "ops_probe"
+      }
+    },
+    {
+      "id": "storage_census",
+      "path": "/api/v1/census",
+      "method": "GET",
+      "summary": "Measure declared and unattributed storage",
+      "description": "Read-only closed accounting over the selected root.",
+      "category": "",
+      "rest_exception": {
+        "reason": "ops_probe"
+      }
+    },
+    {
+      "id": "storage_census_history",
+      "path": "/api/v1/census/history",
+      "method": "GET",
+      "summary": "Read persisted census history",
+      "description": "Returns immutable census snapshots and growth observations for the selected root.",
+      "category": "",
+      "rest_exception": {
+        "reason": "ops_probe"
+      }
+    },
+    {
+      "id": "storage_retention_owners",
+      "path": "/api/v1/retention/owners",
+      "method": "GET",
+      "summary": "List owner retention budgets",
+      "description": "Loads retention declarations across scenarios, resources, tools, and safeguards with typed parse errors.",
+      "category": "",
+      "rest_exception": {
+        "reason": "ops_probe"
+      }
+    },
+    {
+      "id": "storage_placement_show",
+      "path": "/api/v1/placement",
+      "method": "GET",
+      "summary": "Show resolved storage placement",
+      "description": "Resolves portable owner declarations for a requested platform without changing host state.",
+      "category": "",
+      "rest_exception": {
+        "reason": "ops_probe"
+      }
+    },
+    {
+      "id": "storage_placement_plan",
+      "path": "/api/v1/placement/plan",
+      "method": "POST",
+      "summary": "Preview a placement migration",
+      "description": "Creates a deterministic migration plan after checking source and destination safety.",
+      "category": "",
+      "rest_exception": {
+        "reason": "ops_probe"
+      }
+    },
+    {
+      "id": "storage_placement_migrate",
+      "path": "/api/v1/placement/migrate",
+      "method": "POST",
+      "summary": "Apply an approved placement migration",
+      "description": "Copy-verifies and removes a declared source only after explicit plan approval.",
+      "category": "",
+      "rest_exception": {
+        "reason": "ops_probe"
+      }
+    },
+    {
+      "id": "storage_placement_audit",
+      "path": "/api/v1/placement/audit",
+      "method": "GET",
+      "summary": "Read placement migration audit",
+      "description": "Returns immutable placement migration outcomes and source-preservation state.",
+      "category": "",
+      "rest_exception": {
+        "reason": "ops_probe"
+      }
+    },
+    {
+      "id": "storage_adoption",
+      "path": "/api/v1/adoption",
+      "method": "GET",
+      "summary": "Show declaration adoption coverage",
+      "description": "Returns owner-kind coverage and deterministic declaration suggestions.",
+      "category": "",
+      "rest_exception": {
+        "reason": "ops_probe"
+      }
+    },
+    {
+      "id": "storage_infra_health",
+      "path": "/api/v1/infra-health/storage",
+      "method": "GET",
+      "summary": "Read storage infra-health signal",
+      "description": "Publishes declared-ceiling coverage and the latest persisted census growth signal without rescanning.",
+      "category": "",
+      "rest_exception": {
+        "reason": "ops_probe"
       }
     }
   ]

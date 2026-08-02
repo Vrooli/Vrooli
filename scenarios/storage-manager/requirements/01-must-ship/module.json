@@ -1,83 +1,101 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P0 operational targets.",
+    "last_validated_at": "2026-08-02T14:44:48-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
   },
   "requirements": [
     {
+      "id": "CLN-P0-001",
+      "title": "Provider safety contract",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
       "criticality": "P0",
       "description": "Define cleanup providers with Estimate, Preview, Apply, Verify, safety tier, owner metadata, supported platforms, privilege requirements, irreversible effects, and test substitutes.",
-      "id": "CLN-P0-001",
-      "prd_ref": "OT-P0-001",
-      "status": "planned",
-      "title": "Provider safety contract",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:CLN-P0-001] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/cleanup/provider_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Provider metadata validation is covered by [REQ:CLN-P0-001]."
         }
       ]
     },
     {
+      "id": "CLN-P0-002",
+      "title": "No-real-cleanup test seams",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
       "criticality": "P0",
       "description": "Route every host effect through injected filesystem, process, Docker, journal, clock, and scenario-provider seams, with fakes and drift tests proving tests cannot delete files or run cleanup commands against the real host.",
-      "id": "CLN-P0-002",
-      "prd_ref": "OT-P0-002",
-      "status": "planned",
-      "title": "No-real-cleanup test seams",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:CLN-P0-002] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/cleanup/no_real_cleanup_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Production side-effect scanning is covered by [REQ:CLN-P0-002]."
         }
       ]
     },
     {
+      "id": "CLN-P0-003",
+      "title": "Policy-gated scan and plan",
+      "status": "complete",
+      "prd_ref": "OT-P0-003",
       "criticality": "P0",
       "description": "Produce deterministic scans and cleanup plans from provider estimates plus operator policy, including conservative defaults, provider versions, policy versions, approval requirements, and blocked Conditional or Forbidden actions.",
-      "id": "CLN-P0-003",
-      "prd_ref": "OT-P0-003",
-      "status": "planned",
-      "title": "Policy-gated scan and plan",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:CLN-P0-003] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/policy/profiles_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Conservative policy gating is covered by [REQ:CLN-P0-003]."
         }
       ]
     },
     {
+      "id": "CLN-P0-004",
+      "title": "Replay-safe apply and audit",
+      "status": "complete",
+      "prd_ref": "OT-P0-004",
       "criticality": "P0",
       "description": "Apply only an approved exact plan with matching policy and provider versions plus idempotency key, return no-op on safe replay, and persist immutable redacted audit events.",
-      "id": "CLN-P0-004",
-      "prd_ref": "OT-P0-004",
-      "status": "planned",
-      "title": "Replay-safe apply and audit",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:CLN-P0-004] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/internal/orchestrator/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Approval, policy-version, idempotency, replay, and audit behavior is covered by [REQ:CLN-P0-004]."
         }
       ]
     },
     {
+      "id": "CLN-P0-005",
+      "title": "CLI and API control surface",
+      "status": "complete",
+      "prd_ref": "OT-P0-005",
       "criticality": "P0",
       "description": "Expose scan, plan, provider catalog, policy get/set/list, apply, and audit list/show through stable CLI and API contracts with mutating commands marked confirmation-required.",
-      "id": "CLN-P0-005",
-      "prd_ref": "OT-P0-005",
-      "status": "planned",
-      "title": "CLI and API control surface",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:CLN-P0-005] tag) once the behavior exists.",
-          "status": "planned",
-          "type": "manual"
+          "type": "test",
+          "ref": "api/handlers/cleanup/connect_handler_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Connect API plan, apply, audit, and error mappings are covered by [REQ:CLN-P0-005]."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/cleanup/register_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "CLI cleanup command registration is covered by [REQ:CLN-P0-005]."
         }
       ]
     }

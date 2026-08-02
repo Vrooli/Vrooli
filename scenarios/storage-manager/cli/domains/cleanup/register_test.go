@@ -8,6 +8,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 )
 
+// [REQ:CLN-P0-005]
 func TestRegisterBuildsCleanupCommandsFromManifest(t *testing.T) {
 	t.Parallel()
 

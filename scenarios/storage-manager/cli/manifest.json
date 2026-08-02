@@ -218,6 +218,48 @@
           "description": "Run a read-only storage census",
           "binding": { "kind": "local" },
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "history",
+          "description": "Show persisted census snapshots and growth observations",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "retention",
+          "description": "Show retention budgets across every owner kind",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "placement",
+          "description": "Show resolved cross-platform storage placement",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "placement-audit",
+          "description": "Show placement migration audit events",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "adoption",
+          "description": "Show declaration adoption coverage and suggestions",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "infra-health",
+          "description": "Show persisted storage infra-health signal",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "inventory",
+          "description": "List every storage owner and declaration",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         }
       ]
     }
@@ -229,6 +271,10 @@
     { "service": "AdvisorService", "method": "AnalyzeMigrations", "reason": "Fleet migration analysis is exposed through the storage validation provider and dashboard; the CLI cleanup group does not duplicate it." },
     { "service": "AdvisorService", "method": "AdviseEngines", "reason": "Engine fitness advice is exposed through the storage validation provider and dashboard; the CLI cleanup group does not duplicate it." },
     { "service": "FleetService", "method": "ScanFleet", "reason": "Fleet scans are scheduled and persisted by storage-manager; operators use the dashboard and census surface." },
-    { "service": "FleetService", "method": "GetInventory", "reason": "Fleet inventory is scheduled and persisted by storage-manager; operators use the dashboard and census surface." }
+    { "service": "FleetService", "method": "GetInventory", "reason": "Fleet inventory is scheduled and persisted by storage-manager; operators use the dashboard and census surface." },
+    { "service": "ScenarioValidationService", "method": "ApplyFix", "reason": "Validation fixes remain an API/UI workflow because they require scenario-specific preview and operator confirmation." },
+    { "service": "ScenarioValidationService", "method": "DescribeProvider", "reason": "Provider descriptors are consumed by the dashboard and Test Genie integration; the CLI does not duplicate them." },
+    { "service": "ScenarioValidationService", "method": "PreviewFix", "reason": "Validation fix previews remain an API/UI workflow because they require scenario-specific context." },
+    { "service": "ScenarioValidationService", "method": "ValidateScenario", "reason": "Scenario validation is exposed through the provider and dashboard; the cleanup CLI does not duplicate it." }
   ]
 }

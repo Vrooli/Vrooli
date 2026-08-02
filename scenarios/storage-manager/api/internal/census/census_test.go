@@ -1,9 +1,15 @@
 package census
 
 import (
+	"context"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
+
+	apidb "github.com/vrooli/api-core/database"
+	corestorage "github.com/vrooli/api-core/storage"
+	"storage-manager/internal/testutil/db"
 )
 
 func TestScanClosedIdentityAndAttribution(t *testing.T) {
@@ -23,7 +29,126 @@ func TestScanClosedIdentityAndAttribution(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !report.Closed || report.MeasuredBytes != 10 || report.AttributedBytes != 4 || report.UnattributedBytes != 6 {
+	if report.Closed || !report.AccountingIdentity || report.MeasuredBytes != 10 || report.AttributedBytes != 4 || report.UnattributedBytes != 6 {
 		t.Fatalf("unexpected report: %+v", report)
+	}
+}
+
+func TestScanInventoryUsesAllOwnerKindsAndPreservesAccountingIdentity(t *testing.T) {
+	root := t.TempDir()
+	owned := filepath.Join(root, "owned")
+	write := func(path, value string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(value), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(filepath.Join(owned, "a"), "1234")
+	write(filepath.Join(root, "unowned", "b"), "123456")
+	inventory := corestorage.OwnerInventory{RepoRoot: root, Owners: []corestorage.OwnerManifest{
+		{Kind: corestorage.OwnerResource, ID: "demo", ManifestPath: filepath.Join(root, "resources", "demo", "resource.json"), StorageEntries: []corestorage.StorageEntry{
+			{Name: "owned", Path: corestorage.PortablePath{Value: owned}},
+			{Name: "overlap", Path: corestorage.PortablePath{Value: root}},
+		}},
+		{Kind: corestorage.OwnerTool, ID: "compiler", ManifestPath: filepath.Join(root, "internal", "tools", "go", "tool.json")},
+	}}
+	report, err := ScanInventory(root, inventory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !report.AccountingIdentity || report.MeasuredBytes != report.AttributedBytes+report.UnattributedBytes {
+		t.Fatalf("accounting identity broken: %+v", report)
+	}
+	if report.OwnerCounts["resource"] != 1 || report.OwnerCounts["tool"] != 1 {
+		t.Fatalf("owner counts = %#v", report.OwnerCounts)
+	}
+	if report.Confidence != "degraded" {
+		t.Fatalf("confidence = %q", report.Confidence)
+	}
+	foundOverlap := false
+	for _, finding := range report.Findings {
+		if finding.Code == "overlap" {
+			foundOverlap = true
+		}
+	}
+	if !foundOverlap {
+		t.Fatalf("expected overlap finding: %+v", report.Findings)
+	}
+}
+
+func TestScanInventoryMeasuresBoundedUnclassifiedScenarioRoots(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "scenarios", "demo", ".vrooli", "service.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(`{"service":{"name":"demo"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	data := filepath.Join(root, "scenarios", "demo", "data", "unclassified.db")
+	if err := os.MkdirAll(filepath.Dir(data), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(data, []byte("123456"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	inventory, err := corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: root, Platform: corestorage.PlatformLinux})
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := ScanInventory(root, inventory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.MeasuredBytes < 6 || report.AttributedBytes != 0 || report.UnattributedBytes != report.MeasuredBytes {
+		t.Fatalf("bounded unclassified accounting = %+v", report)
+	}
+	if report.Closed || report.Confidence != "degraded" {
+		t.Fatalf("unclassified storage should degrade confidence: %+v", report)
+	}
+	if !hasFinding(report.Findings, "unattributed_storage") {
+		t.Fatalf("unattributed finding missing: %+v", report.Findings)
+	}
+}
+
+func hasFinding(findings []Finding, code string) bool {
+	for _, finding := range findings {
+		if finding.Code == code {
+			return true
+		}
+	}
+	return false
+}
+
+func TestSnapshotStorePersistsHistoryAndGrowthSlope(t *testing.T) {
+	database := apidb.NewFromPrimary(db.NewSQLite(t))
+	store := NewSnapshotStore(database)
+	if _, err := database.ExecContext(context.Background(), censusSchemaSQL); err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	first, err := store.Save(context.Background(), Report{Root: root, MeasuredBytes: 10, AttributedBytes: 10, AccountingIdentity: true, Confidence: "high"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := store.Save(context.Background(), Report{Root: root, MeasuredBytes: 20, AttributedBytes: 20, AccountingIdentity: true, Confidence: "high"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.SnapshotID == "" || second.SnapshotID == "" || first.SnapshotID == second.SnapshotID {
+		t.Fatalf("snapshot ids = %q, %q", first.SnapshotID, second.SnapshotID)
+	}
+	history, err := store.History(context.Background(), root, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(history) != 2 {
+		t.Fatalf("history length = %d", len(history))
+	}
+	if second.GrowthSlopeBytesPerHour == nil || math.IsNaN(*second.GrowthSlopeBytesPerHour) {
+		t.Fatalf("growth slope = %v", second.GrowthSlopeBytesPerHour)
 	}
 }

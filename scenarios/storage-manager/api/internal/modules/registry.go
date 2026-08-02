@@ -26,8 +26,10 @@ import (
 	healthH "storage-manager/handlers/health"
 	storageH "storage-manager/handlers/storage"
 	validationH "storage-manager/handlers/validation"
+	"storage-manager/internal/census"
 	localdb "storage-manager/internal/database"
 	"storage-manager/internal/orchestrator"
+	"storage-manager/internal/placement"
 
 	cleanupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/storage-manager/v1/cleanup"
 )
@@ -86,5 +88,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(orchestrator.Schema),
+		apidb.SchemaProviderFunc(census.Schema),
+		apidb.SchemaProviderFunc(placement.Schema),
 	}
 }

@@ -56,6 +56,25 @@ define backup and restore procedures before production deployment.
 | Regenerate endpoints | after API endpoint changes | `make endpoints` |
 | Regenerate UI strings | after i18n changes | `cd ui && pnpm strings:gen` |
 
+## Storage accounting workflow
+
+The operator console reads the same API-backed ledger as the CLI. Start with
+`storage-manager inventory` and `storage-manager census`; inspect
+`storage-manager history` and `storage-manager infra-health` before making a
+policy decision. A census is read-only and persists an immutable snapshot. A
+snapshot is only `closed` when measured bytes equal attributed bytes plus the
+explicitly unattributed remainder and no unreadable paths remain.
+
+Long-lived API processes can record scheduled observations by setting
+`STORAGE_CENSUS_INTERVAL` to a duration of at least one minute (the default is
+30 minutes). The first scheduled observation waits one full interval so
+readiness never triggers a surprise host scan. Scheduled observations never
+apply cleanup or placement migrations.
+
+The static Test Genie `storage` phase remains a fast isolation/persistence
+gate. It does not run this host census; use the storage-manager comprehensive
+run for product acceptance and live API truthfulness.
+
 ## Escalation
 
 Record known operational issues in

@@ -28,6 +28,79 @@ REST-exception failure mode appears.
 
 ## System
 
+### `GET /api/v1/storage/inventory`
+
+Returns the deterministic owner-neutral storage inventory. It enumerates
+scenario, resource, tool, and safeguard manifests, normalizes `storage`,
+legacy `retention`, and `durable_data` declarations, and returns typed findings
+for malformed, missing, duplicate, or unresolvable declarations. The response
+is read-only and is the input to the census and adoption views.
+
+| | |
+|---|---|
+| **Auth** | Operator-local API access |
+| **Response** | `OwnerInventory { repo_root, owners[], findings[] }` |
+| **CLI** | `storage-manager storage inventory` |
+
+The loader lives in `packages/api-core/storage/owners.go`; native manifest
+locations remain authoritative and are not copied into a second manifest tree.
+
+### `GET /api/v1/census`
+
+Runs a read-only census over the selected `root` (the repository root by
+default). The response includes all owner kinds, measured/attributed/
+unattributed bytes, an accounting identity, confidence, typed findings,
+persisted snapshot identity, and the latest growth slope. Unreadable paths and
+overlaps are findings; they are never silently treated as closed accounting.
+
+### `GET /api/v1/census/history`
+
+Returns immutable persisted census reports for the selected `root` (newest
+first). `limit` defaults to 20 and is capped at 100. History is empty until a
+census has been run.
+
+### `GET /api/v1/retention/owners`
+
+Loads retention declarations from every scenario, resource, tool, and
+safeguard manifest. It returns normalized budget names/targets and typed parse
+errors while allowing owners without budgets to remain visible.
+
+### `GET /api/v1/placement`
+
+Resolves declared owner paths for the requested `platform` (`linux`, `macos`,
+or `windows`) without touching the filesystem. Platform-absent declarations
+are returned as not applicable.
+
+### `POST /api/v1/placement/plan`
+
+Preview-only migration planning. The request contains `entry`, `source`, and
+`destination` absolute paths. It rejects missing sources and existing
+destinations and returns a deterministic plan id.
+
+### `POST /api/v1/placement/migrate`
+
+Applies a plan only when `approved: true`. The implementation copies,
+digest-verifies, then removes the source; failures preserve the source and are
+written to the placement audit.
+
+### `GET /api/v1/placement/audit`
+
+Returns persisted migration outcomes, including verification and source
+preservation state.
+
+### `GET /api/v1/adoption`
+
+Returns owner-kind adoption coverage and deterministic suggestions for owners
+with no storage declaration. Add `measure=true` to rank suggestions by bounded
+observations under conventional `data`, `runtime`, cache, state, and manifest
+roots; `limit` defaults to 25. Suggestions are review prompts, not automatic
+manifest edits.
+
+### `GET /api/v1/infra-health/storage`
+
+Returns declared-ceiling coverage and the latest persisted census confidence and
+growth slope. This endpoint never triggers a host scan.
+
 ### `GET /health`
 
 Service health check. Returns API readiness plus dependency status.

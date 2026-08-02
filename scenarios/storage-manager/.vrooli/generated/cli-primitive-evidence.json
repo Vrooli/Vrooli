@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "storage-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "256c691f8ada6403a2203a2529cebdf248d910b1056d0c5b671d35521fd0be08",
+  "manifest_hash": "037928f3675b49655d3fbeb258ed7157545fda17ba085ecd917e8fe5ab2726cc",
   "commands": [
     {
       "path": "cleanup apply",
@@ -63,9 +63,51 @@
       "observed_primitive": "proto_mutation"
     },
     {
+      "path": "storage adoption",
+      "group": "storage",
+      "command": "adoption",
+      "binding": "."
+    },
+    {
       "path": "storage census",
       "group": "storage",
       "command": "census",
+      "binding": "."
+    },
+    {
+      "path": "storage history",
+      "group": "storage",
+      "command": "history",
+      "binding": "."
+    },
+    {
+      "path": "storage infra-health",
+      "group": "storage",
+      "command": "infra-health",
+      "binding": "."
+    },
+    {
+      "path": "storage inventory",
+      "group": "storage",
+      "command": "inventory",
+      "binding": "."
+    },
+    {
+      "path": "storage placement",
+      "group": "storage",
+      "command": "placement",
+      "binding": "."
+    },
+    {
+      "path": "storage placement-audit",
+      "group": "storage",
+      "command": "placement-audit",
+      "binding": "."
+    },
+    {
+      "path": "storage retention",
+      "group": "storage",
+      "command": "retention",
       "binding": "."
     },
     {

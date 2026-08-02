@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// [REQ:CLN-P0-002]
 func TestProductionCodeDoesNotInstantiateCleanupSideEffectsDirectly(t *testing.T) {
 	t.Parallel()
 
