@@ -13,7 +13,6 @@ import (
 	"agent-manager/internal/adapters/sandbox"
 	sharedavailability "agent-manager/internal/availability"
 	"agent-manager/internal/domain"
-	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/runsignal"
 
 	"github.com/google/uuid"
@@ -46,10 +45,6 @@ type DurableSelfReportSpanSource interface {
 
 type DurableTimeAccountingSource interface {
 	DurableTimeAccounting(context.Context, uuid.UUID) (runsignal.TimeAccounting, bool, error)
-}
-
-type DurableGoalOutcomeSource interface {
-	DurableGoalOutcome(context.Context, uuid.UUID) (*invocationreadmodel.GoalOutcome, error)
 }
 
 // ReceiptSummary is deliberately bounded: the report needs availability and
@@ -161,42 +156,41 @@ type DiffSummary struct {
 	Available Availability `json:"available"`
 }
 type RunReport struct {
-	RunID                  uuid.UUID                        `json:"runId"`
-	Status                 domain.RunStatus                 `json:"status"`
-	ExitCode               *int                             `json:"exitCode,omitempty"`
-	Error                  string                           `json:"error,omitempty"`
-	Duration               time.Duration                    `json:"duration,omitempty"`
-	HeartbeatGap           time.Duration                    `json:"heartbeatGap,omitempty"`
-	Turns                  int                              `json:"turns"`
-	Tokens                 int                              `json:"tokens"`
-	CostUSD                float64                          `json:"costUsd"`
-	Result                 ResultSummary                    `json:"result"`
-	Events                 map[string]int                   `json:"events"`
-	Tools                  []ToolSummary                    `json:"tools"`
-	ProjectOwnedToolCalls  int                              `json:"projectOwnedToolCalls"`
-	ExternalToolCalls      int                              `json:"externalToolCalls"`
-	RequestedModel         string                           `json:"requestedModel,omitempty"`
-	ActualModel            string                           `json:"actualModel,omitempty"`
-	FallbackCount          int                              `json:"fallbackCount"`
-	Diff                   DiffSummary                      `json:"diff"`
-	EventsAvailability     Availability                     `json:"eventsAvailability"`
-	ReceiptsAvailability   Availability                     `json:"receiptsAvailability"`
-	LedgerAvailability     Availability                     `json:"ledgerAvailability"`
-	ProjectionAvailability Availability                     `json:"projectionAvailability"`
-	ReceiptCount           int                              `json:"receiptCount"`
-	ReceiptEvidenceIDs     []string                         `json:"receiptEvidenceIds,omitempty"`
-	CrossScenarioCalls     []CrossScenarioCall              `json:"crossScenarioCalls,omitempty"`
-	LedgerTargetRollups    []LedgerTargetRollup             `json:"ledgerTargetRollups,omitempty"`
-	RepeatedToolCalls      int                              `json:"repeatedToolCalls"`
-	FilesReadMoreThanOnce  int                              `json:"filesReadMoreThanOnce"`
-	LongestEventGap        time.Duration                    `json:"longestEventGap"`
-	InvocationFacts        []runsignal.InvocationFact       `json:"-"`
-	Episodes               []runsignal.FrictionEpisode      `json:"episodes,omitempty"`
-	SelfReportSpans        []runsignal.SelfReportSpan       `json:"selfReportSpans,omitempty"`
-	HelpRecoveries         int                              `json:"helpRecoveries"`
-	UnknownInvocations     int                              `json:"unknownInvocations"`
-	TimeAccounting         runsignal.TimeAccounting         `json:"timeAccounting"`
-	GoalOutcome            *invocationreadmodel.GoalOutcome `json:"goalOutcome,omitempty"`
+	RunID                  uuid.UUID                   `json:"runId"`
+	Status                 domain.RunStatus            `json:"status"`
+	ExitCode               *int                        `json:"exitCode,omitempty"`
+	Error                  string                      `json:"error,omitempty"`
+	Duration               time.Duration               `json:"duration,omitempty"`
+	HeartbeatGap           time.Duration               `json:"heartbeatGap,omitempty"`
+	Turns                  int                         `json:"turns"`
+	Tokens                 int                         `json:"tokens"`
+	CostUSD                float64                     `json:"costUsd"`
+	Result                 ResultSummary               `json:"result"`
+	Events                 map[string]int              `json:"events"`
+	Tools                  []ToolSummary               `json:"tools"`
+	ProjectOwnedToolCalls  int                         `json:"projectOwnedToolCalls"`
+	ExternalToolCalls      int                         `json:"externalToolCalls"`
+	RequestedModel         string                      `json:"requestedModel,omitempty"`
+	ActualModel            string                      `json:"actualModel,omitempty"`
+	FallbackCount          int                         `json:"fallbackCount"`
+	Diff                   DiffSummary                 `json:"diff"`
+	EventsAvailability     Availability                `json:"eventsAvailability"`
+	ReceiptsAvailability   Availability                `json:"receiptsAvailability"`
+	LedgerAvailability     Availability                `json:"ledgerAvailability"`
+	ProjectionAvailability Availability                `json:"projectionAvailability"`
+	ReceiptCount           int                         `json:"receiptCount"`
+	ReceiptEvidenceIDs     []string                    `json:"receiptEvidenceIds,omitempty"`
+	CrossScenarioCalls     []CrossScenarioCall         `json:"crossScenarioCalls,omitempty"`
+	LedgerTargetRollups    []LedgerTargetRollup        `json:"ledgerTargetRollups,omitempty"`
+	RepeatedToolCalls      int                         `json:"repeatedToolCalls"`
+	FilesReadMoreThanOnce  int                         `json:"filesReadMoreThanOnce"`
+	LongestEventGap        time.Duration               `json:"longestEventGap"`
+	InvocationFacts        []runsignal.InvocationFact  `json:"-"`
+	Episodes               []runsignal.FrictionEpisode `json:"episodes,omitempty"`
+	SelfReportSpans        []runsignal.SelfReportSpan  `json:"selfReportSpans,omitempty"`
+	HelpRecoveries         int                         `json:"helpRecoveries"`
+	UnknownInvocations     int                         `json:"unknownInvocations"`
+	TimeAccounting         runsignal.TimeAccounting    `json:"timeAccounting"`
 }
 
 func Build(ctx context.Context, source Source, runID uuid.UUID) (*RunReport, error) {
@@ -208,13 +202,6 @@ func Build(ctx context.Context, source Source, runID uuid.UUID) (*RunReport, err
 		return nil, err
 	}
 	r := &RunReport{RunID: run.ID, Status: run.Status, ExitCode: run.ExitCode, Error: run.ErrorMsg, Events: map[string]int{}, EventsAvailability: Availability{State: AvailabilityAvailable}, ReceiptsAvailability: Availability{State: AvailabilityUnavailable, Reason: "receipt reader is not configured"}, LedgerAvailability: Availability{State: AvailabilityUnavailable, Reason: "receipt reader is not configured"}, ProjectionAvailability: Availability{State: AvailabilityUnavailable, Reason: "receipt reader is not configured"}, RequestedModel: run.RequestedModel, ActualModel: run.ActualModel, Diff: DiffSummary{Files: run.ChangedFiles, Bytes: run.TotalSizeBytes, Available: Availability{State: AvailabilityUnavailable}}}
-	if durable, ok := source.(DurableGoalOutcomeSource); ok {
-		outcome, outcomeErr := durable.DurableGoalOutcome(ctx, runID)
-		if outcomeErr != nil {
-			return nil, fmt.Errorf("read durable goal outcome: %w", outcomeErr)
-		}
-		r.GoalOutcome = outcome
-	}
 	imported := run.ExecutionMode.Normalized() == domain.ExecutionModeImported
 	if imported {
 		r.Diff.Available = Availability{State: AvailabilityUnavailable, Reason: "imported run has no sandbox"}
@@ -464,13 +451,16 @@ func (r *RunReport) foldEvent(event *domain.RunEvent, tools map[string]*ToolSumm
 		r.FallbackCount++
 	}
 	switch data := event.Data.(type) {
-	case *domain.CostEventData:
+	case *domain.UsageEventData:
 		if !costSeen {
 			r.CostUSD, r.Tokens = 0, 0
 			costSeen = true
 		}
-		r.CostUSD += data.TotalCostUSD
-		r.Tokens += data.InputTokens + data.OutputTokens
+		r.Tokens += data.InputTokens + data.OutputTokens + data.CacheReadTokens + data.CacheCreationTokens
+	case *domain.ChargeEventData:
+		if data.AmountMicroUSD != nil {
+			r.CostUSD += float64(*data.AmountMicroUSD) / 1_000_000
+		}
 	case *domain.ToolCallEventData:
 		r.foldToolCall(data, toolSummary(tools, data.ToolName))
 	case *domain.ToolResultEventData:

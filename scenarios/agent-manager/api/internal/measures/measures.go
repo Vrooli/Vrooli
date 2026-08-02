@@ -33,6 +33,8 @@ const (
 	RunnerBreakdown       = "throughput.runner_breakdown"
 	ModelBreakdown        = "throughput.model_breakdown"
 	ProfileBreakdown      = "throughput.profile_breakdown"
+	WorkloadBreakdown     = "throughput.workload_breakdown"
+	WorkloadEfficiency    = "throughput.workload_efficiency"
 	TerminalRunTrend      = "throughput.terminal_run_trend"
 	ToolUsage             = "friction.tool_usage"
 	ErrorPatterns         = "friction.error_patterns"
@@ -325,7 +327,7 @@ func (h *Handler) RunCost(ctx context.Context, req *connect.Request[measurepb.Ru
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	query := fmt.Sprintf("SELECT durable cost aggregate FROM invocation_read_model_runs WHERE occurred_at >= %q AND occurred_at < %q", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano))
-	return connect.NewResponse(&measurepb.RunCostResponse{TotalCostUsd: runs.TotalCostUSD, AverageCostUsd: runs.AverageCostUSD, TotalRuns: runs.TotalRuns, TotalTokens: runs.TotalTokens, InputTokens: runs.InputTokens, OutputTokens: runs.OutputTokens, CacheReadTokens: runs.CacheReadTokens, CacheCreationTokens: runs.CacheCreationTokens, InputCostUsd: runs.InputCostUSD, OutputCostUsd: runs.OutputCostUSD, CacheReadCostUsd: runs.CacheReadCostUSD, CacheCreationCostUsd: runs.CacheCreationCostUSD, AuthoritativeCostUsd: runs.AuthoritativeCostUSD, EstimatedCostUsd: runs.EstimatedCostUSD, UnknownCostUsd: runs.UnknownCostUSD, ExecutedQuery: query, Validity: h.validityForSample(runs.TotalRuns)}), nil
+	return connect.NewResponse(&measurepb.RunCostResponse{TotalCostUsd: runs.TotalCostUSD, AverageCostUsd: runs.AverageCostUSD, TotalRuns: runs.TotalRuns, TotalTokens: runs.TotalTokens, InputTokens: runs.InputTokens, OutputTokens: runs.OutputTokens, CacheReadTokens: runs.CacheReadTokens, CacheCreationTokens: runs.CacheCreationTokens, InputCostUsd: runs.InputCostUSD, OutputCostUsd: runs.OutputCostUSD, CacheReadCostUsd: runs.CacheReadCostUSD, CacheCreationCostUsd: runs.CacheCreationCostUSD, ExecutedQuery: query, Validity: h.validityForSample(runs.TotalRuns)}), nil
 }
 
 func (h *Handler) RunVolume(ctx context.Context, req *connect.Request[measurepb.RunVolumeRequest]) (*connect.Response[measurepb.RunVolumeResponse], error) {
@@ -608,6 +610,7 @@ func (h *Handler) Registry() (*measurelib.Registry, error) {
 		{RunnerBreakdown, "RunnerBreakdown", "runner", "Durable terminal-run performance grouped by runner."},
 		{ModelBreakdown, "ModelBreakdown", "model", "Durable terminal-run performance grouped by model."},
 		{ProfileBreakdown, "ProfileBreakdown", "profile", "Durable terminal-run performance grouped by profile."},
+		{WorkloadBreakdown, "WorkloadBreakdown", "workload", "Durable terminal-run performance grouped by declared workload key."},
 	} {
 		spec := spec
 		if err := registry.Register(measurelib.MeasureDeclaration{
@@ -625,13 +628,48 @@ func (h *Handler) Registry() (*measurelib.Registry, error) {
 			}
 			fields := make([]map[string]string, 0, len(rows))
 			for _, row := range rows {
-				fields = append(fields, map[string]string{"value": row.Value, "run_count": strconv.FormatInt(row.RunCount, 10), "success_count": strconv.FormatInt(row.SuccessCount, 10), "failed_count": strconv.FormatInt(row.FailedCount, 10), "total_cost_usd": strconv.FormatFloat(row.TotalCostUSD, 'f', -1, 64), "average_duration_ms": strconv.FormatFloat(row.AvgDurationMS, 'f', -1, 64)})
+				fields = append(fields, map[string]string{"value": row.Value, "run_count": strconv.FormatInt(row.RunCount, 10), "success_count": strconv.FormatInt(row.SuccessCount, 10), "failed_count": strconv.FormatInt(row.FailedCount, 10), "total_cost_usd": strconv.FormatFloat(row.TotalCostUSD, 'f', -1, 64), "average_duration_ms": strconv.FormatFloat(row.AvgDurationMS, 'f', -1, 64), "consumption_per_successful_completion": strconv.FormatFloat(row.ConsumptionPerSuccessfulCompletion, 'f', -1, 64), "completion_rate": strconv.FormatFloat(row.CompletionRate, 'f', -1, 64), "observational_limitation": "model assignment was not randomised"})
 			}
 			query := fmt.Sprintf("SELECT %s, terminal run aggregates FROM invocation_read_model_runs WHERE occurred_at >= %q AND occurred_at < %q GROUP BY %s LIMIT 20", spec.dimension, rangeValue.From.UTC().Format(time.RFC3339Nano), rangeValue.To.UTC().Format(time.RFC3339Nano), spec.dimension)
 			return measurelib.MeasureResult{Fields: fields, Provenance: measurelib.Provenance{ExecutedQuery: query}}, nil
 		}); err != nil {
 			return nil, err
 		}
+	}
+	if err := registry.Register(measurelib.MeasureDeclaration{
+		Name: WorkloadEfficiency, Scenario: "agent-manager", Domain: "run",
+		Intent:    "Consumption per successful completion, including failed attempts in the numerator.",
+		Questions: []string{"which workload consumes the fewest tokens per successful completion", "show workload efficiency"},
+		Params: map[string]measurelib.Param{
+			"window":       {Name: "window", Type: measurelib.ParamTypeTimeWindow, Default: string(measurelib.TokenThisWeek)},
+			"workload_key": {Name: "workload_key", Type: "string"},
+			"runner_type":  {Name: "runner_type", Type: "string"},
+			"model":        {Name: "model", Type: "string"},
+		},
+		Result: measurelib.Result{Kind: measurelib.ResultScalar, ValueField: "value", Unit: "tokens_per_success", SummaryTemplate: "workload efficiency ({window})"},
+		Effect: measurelib.EffectRead, RunEligible: true, Service: "MeasuresService", Method: "WorkloadEfficiency",
+	}, func(ctx context.Context, request measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
+		rangeValue, err := measurelib.ResolveToken(measurelib.TimeWindowToken(request.Params["window"]), h.now(), time.UTC)
+		if err != nil {
+			return measurelib.MeasureResult{}, err
+		}
+		filter := invocationreadmodel.Filter{From: &rangeValue.From, To: &rangeValue.To, WorkloadKey: request.Params["workload_key"], RunnerType: request.Params["runner_type"], Model: request.Params["model"]}
+		runs, err := h.store.RunMetrics(ctx, filter)
+		if err != nil {
+			return measurelib.MeasureResult{}, err
+		}
+		validity := "reliable"
+		if runs.TerminalRuns < 5 {
+			validity = "unreliable"
+		}
+		query := fmt.Sprintf("SELECT SUM(total_tokens) / successful completions FROM invocation_read_model_runs WHERE workload_key = %q AND occurred_at >= %q AND occurred_at < %q", filter.WorkloadKey, rangeValue.From.UTC().Format(time.RFC3339Nano), rangeValue.To.UTC().Format(time.RFC3339Nano))
+		return measurelib.MeasureResult{
+			Value:      strconv.FormatFloat(runs.ConsumptionPerSuccessfulCompletion, 'f', -1, 64),
+			Fields:     []map[string]string{{"validity": validity, "terminal_runs": strconv.FormatInt(runs.TerminalRuns, 10), "successful_runs": strconv.FormatInt(runs.SuccessfulRuns, 10), "observational_limitation": "model assignment was not randomised"}},
+			Provenance: measurelib.Provenance{ExecutedQuery: query},
+		}, nil
+	}); err != nil {
+		return nil, err
 	}
 	if err := registry.Register(measurelib.MeasureDeclaration{Name: TerminalRunTrend, Scenario: "agent-manager", Domain: "run", Intent: "Hourly durable terminal-run outcomes, cost, and duration trends.", Questions: []string{"show the agent terminal run trend this week", "how are agent run completions and failures trending"}, Params: map[string]measurelib.Param{"window": {Name: "window", Type: measurelib.ParamTypeTimeWindow, Default: string(measurelib.TokenThisWeek)}}, Result: measurelib.Result{Kind: measurelib.ResultTable, ValueField: "bucket", Unit: "runs", SummaryTemplate: "terminal run trend ({window})"}, Effect: measurelib.EffectRead, RunEligible: true, Service: "MeasuresService", Method: "TerminalRunTrend"}, func(ctx context.Context, request measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
 		rangeValue, err := measurelib.ResolveToken(measurelib.TimeWindowToken(request.Params["window"]), h.now(), time.UTC)

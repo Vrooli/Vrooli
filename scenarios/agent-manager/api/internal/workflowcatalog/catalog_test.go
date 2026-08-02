@@ -22,7 +22,7 @@ func validDefinition() domain.WorkflowDefinition {
 }
 
 func validBudgets() domain.WorkflowBudgets {
-	return domain.WorkflowBudgets{WallTimeSeconds: 60, MaxTurns: 4, MaxTokens: 1000, MaxCostUSD: 1, MaxNodeAttempts: 3, MaxChildren: 2, MaxConcurrency: 2, MaxRecursion: 2, MaxRetries: 2, MaxWaitSeconds: 30}
+	return domain.WorkflowBudgets{WallTimeSeconds: 60, MaxTurns: 4, MaxTokens: 1000, MaxChargeMicroUSD: 1, MaxNodeAttempts: 3, MaxChildren: 2, MaxConcurrency: 2, MaxRecursion: 2, MaxRetries: 2, MaxWaitSeconds: 30}
 }
 
 // singleRunSugar is the shorthand form: one run node, no entryNode, no edges,

@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/protoconv"
 	"agent-manager/internal/runreport"
 
@@ -23,7 +22,6 @@ func TestRunReportProtoProjectionUsesCanonicalProtoFields(t *testing.T) {
 		RunID: id, Status: "failed", ExitCode: &exitCode, Duration: 1500 * time.Millisecond,
 		Events: map[string]int{"heartbeat.miss": 2}, ReceiptCount: 1,
 		ReceiptsAvailability: runreport.Availability{State: "available"},
-		GoalOutcome:          &invocationreadmodel.GoalOutcome{GoalID: "goal-1", Status: "blocked", TokensUsed: 400, TimeUsedSeconds: 12},
 	})
 	body, err := protoconv.MarshalJSON(message)
 	if err != nil {
@@ -35,10 +33,6 @@ func TestRunReportProtoProjectionUsesCanonicalProtoFields(t *testing.T) {
 	}
 	if decoded["run_id"] != id.String() || decoded["duration_ms"] != "1500" || decoded["receipt_count"] != float64(1) {
 		t.Fatalf("canonical summary fields = %#v", decoded)
-	}
-	goal, ok := decoded["goal_outcome"].(map[string]any)
-	if !ok || goal["goal_id"] != "goal-1" || goal["status"] != "blocked" || goal["tokens_used"] != "400" || goal["time_used_seconds"] != "12" {
-		t.Fatalf("canonical goal outcome = %#v", decoded["goal_outcome"])
 	}
 }
 

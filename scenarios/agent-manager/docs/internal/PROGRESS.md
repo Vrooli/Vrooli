@@ -133,7 +133,7 @@
 - Detailed token tracking: input, output, cache creation, cache read ✅
 - Server tool usage tracking (web search requests) ✅
 - Cost populated in RunSummary.CostEstimate ✅
-- Domain types: CostEventData, NewCostEvent() ✅
+- Domain types: UsageEventData and ChargeEventData replace the retired fused cost payload ✅
 - Metrics tracked: ExecutionMetrics.CostEstimateUSD ✅
 
 **Real-Time Progress Streaming (100%)**

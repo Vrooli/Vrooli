@@ -1,10 +1,39 @@
 -- ============================================================================
 -- Model Pricing - Cached pricing data from providers
 -- ============================================================================
+CREATE TABLE IF NOT EXISTS price_book_revisions (
+    id TEXT PRIMARY KEY,
+    provider TEXT NOT NULL,
+    fetched_at TEXT NOT NULL,
+    source_digest TEXT NOT NULL,
+    model_count INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_price_book_revisions_provider_fetched
+    ON price_book_revisions(provider, fetched_at);
+
+-- Subscription periods are immutable billing facts used when a resource is
+-- covered by a plan rather than metered per token.
+CREATE TABLE IF NOT EXISTS subscription_periods (
+    id TEXT PRIMARY KEY,
+    provider TEXT NOT NULL,
+    plan_ref TEXT NOT NULL,
+    starts_at TEXT NOT NULL,
+    ends_at TEXT NOT NULL,
+    amount_micro_usd INTEGER NOT NULL DEFAULT 0,
+    quota_tokens INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_subscription_periods_provider_window
+    ON subscription_periods(provider, starts_at, ends_at);
+
 CREATE TABLE IF NOT EXISTS model_pricing (
     id TEXT PRIMARY KEY,
     canonical_model_name TEXT NOT NULL,
     provider TEXT NOT NULL,
+    price_book_revision_id TEXT,
 
     -- Per-component pricing (USD per token)
     input_token_price REAL,
@@ -36,6 +65,7 @@ CREATE TABLE IF NOT EXISTS model_pricing (
 CREATE INDEX IF NOT EXISTS idx_model_pricing_model ON model_pricing(canonical_model_name);
 CREATE INDEX IF NOT EXISTS idx_model_pricing_provider ON model_pricing(provider);
 CREATE INDEX IF NOT EXISTS idx_model_pricing_expires ON model_pricing(expires_at);
+CREATE INDEX IF NOT EXISTS idx_model_pricing_revision ON model_pricing(price_book_revision_id);
 
 -- ============================================================================
 -- Model Aliases - Maps runner model names to canonical names

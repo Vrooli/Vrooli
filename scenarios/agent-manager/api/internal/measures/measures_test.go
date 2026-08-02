@@ -116,6 +116,31 @@ func TestTypedMeasuresDefaultWindowAndMapFilterDimensions(t *testing.T) {
 	}
 }
 
+func TestWorkloadEfficiencyIncludesFailedAttemptsInNumerator(t *testing.T) {
+	now := time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC)
+	store := &fakeStore{runMetrics: invocationreadmodel.RunMetrics{
+		TotalTokens: 150, TerminalRuns: 5, SuccessfulRuns: 1, ConsumptionPerSuccessfulCompletion: 150,
+	}}
+	handler := NewHandler(store, func() time.Time { return now })
+	registry, err := handler.Registry()
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := registry.Execute(context.Background(), measurelib.MeasureRequest{
+		Measure: WorkloadEfficiency,
+		Params:  map[string]string{"window": "last_7d", "workload_key": "wf:classify", "model": "gpt-test"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Value != "150" || result.Provenance.ExecutedQuery == "" || result.Fields[0]["observational_limitation"] == "" {
+		t.Fatalf("result=%+v", result)
+	}
+	if store.filter.WorkloadKey != "wf:classify" || store.filter.Model != "gpt-test" {
+		t.Fatalf("filter=%+v", store.filter)
+	}
+}
+
 func TestRepeatedWorkRateMarksDegenerateFingerprintCorpusUnreliable(t *testing.T) {
 	store := &fakeStore{metrics: invocationreadmodel.Metrics{RepeatedWorkRate: 0.991, RepeatedCalls: 109, TotalCalls: 110, LargestFingerprintBucket: 100}}
 	handler := NewHandler(store, func() time.Time { return time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC) })
@@ -154,7 +179,7 @@ func TestRateMarksSmallSampleUnreliable(t *testing.T) {
 
 func TestRegistryAndTypedRPCShareRunThroughputComputation(t *testing.T) {
 	now := time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC)
-	store := &fakeStore{runMetrics: invocationreadmodel.RunMetrics{TotalRuns: 8, TerminalRuns: 6, SuccessfulRuns: 3, SuccessRate: 0.5, CompletedDurationRuns: 5, AverageDurationMS: 1234, TotalCostUSD: 4.5, AuthoritativeCostUSD: 3, EstimatedCostUSD: 1, UnknownCostUSD: 0.5, TotalTokens: 99, ReadCalls: 6, FileRereads: 2, FileRereadRate: 1.0 / 3.0}}
+	store := &fakeStore{runMetrics: invocationreadmodel.RunMetrics{TotalRuns: 8, TerminalRuns: 6, SuccessfulRuns: 3, SuccessRate: 0.5, CompletedDurationRuns: 5, AverageDurationMS: 1234, TotalCostUSD: 4.5, TotalTokens: 99, ReadCalls: 6, FileRereads: 2, FileRereadRate: 1.0 / 3.0}}
 	handler := NewHandler(store, func() time.Time { return now })
 	rpc, err := handler.RunSuccessRate(context.Background(), connect.NewRequest(&measurepb.RunSuccessRateRequest{Window: token(sharedmeasurepb.TimeWindowToken_TIME_WINDOW_TOKEN_LAST_7D)}))
 	if err != nil || rpc.Msg.GetRate() != 0.5 || rpc.Msg.GetSuccessfulRuns() != 3 || rpc.Msg.GetTerminalRuns() != 6 || rpc.Msg.GetExecutedQuery() == "" {
@@ -165,7 +190,7 @@ func TestRegistryAndTypedRPCShareRunThroughputComputation(t *testing.T) {
 		t.Fatalf("cycle rpc=%+v err=%v", cycle.Msg, err)
 	}
 	cost, err := handler.RunCost(context.Background(), connect.NewRequest(&measurepb.RunCostRequest{}))
-	if err != nil || cost.Msg.GetTotalCostUsd() != 4.5 || cost.Msg.GetAuthoritativeCostUsd() != 3 || cost.Msg.GetEstimatedCostUsd() != 1 || cost.Msg.GetUnknownCostUsd() != 0.5 || cost.Msg.GetTotalTokens() != 99 || cost.Msg.GetTotalRuns() != 8 {
+	if err != nil || cost.Msg.GetTotalCostUsd() != 4.5 || cost.Msg.GetTotalTokens() != 99 || cost.Msg.GetTotalRuns() != 8 {
 		t.Fatalf("cost rpc=%+v err=%v", cost.Msg, err)
 	}
 	registry, err := handler.Registry()

@@ -66,15 +66,17 @@ func NewResourceRoleResolver(executor CommandExecutor) *ResourceRoleResolver {
 // ResolvedRole is the validated resource response. It intentionally carries
 // concrete models only as resolved evidence, never as Agent Manager input.
 type ResolvedRole struct {
-	Runner       domain.RunnerType
-	Role         string
-	Model        string
-	Fallbacks    []string
-	Capabilities []string
-	Provenance   ResourceProvenance
-	Enforcement  EnforcementPosture
-	PolicyPath   string
-	PolicyDigest string
+	Runner         domain.RunnerType
+	Role           string
+	Model          string
+	CanonicalModel string
+	Fallbacks      []string
+	Capabilities   []string
+	Provenance     ResourceProvenance
+	Enforcement    EnforcementPosture
+	PolicyPath     string
+	PolicyDigest   string
+	Billing        domain.BillingSnapshot
 }
 
 type ResourceProvenance struct {
@@ -88,14 +90,15 @@ type EnforcementPosture struct {
 }
 
 type resourceRoleResponse struct {
-	SchemaVersion string   `json:"schema_version"`
-	Runner        string   `json:"runner"`
-	Role          string   `json:"role"`
-	Model         string   `json:"model"`
-	Fallbacks     []string `json:"fallbacks"`
-	Description   string   `json:"description"`
-	Capabilities  []string `json:"capabilities"`
-	Provenance    struct {
+	SchemaVersion  string   `json:"schema_version"`
+	Runner         string   `json:"runner"`
+	Role           string   `json:"role"`
+	Model          string   `json:"model"`
+	CanonicalModel string   `json:"canonical_model,omitempty"`
+	Fallbacks      []string `json:"fallbacks"`
+	Description    string   `json:"description"`
+	Capabilities   []string `json:"capabilities"`
+	Provenance     struct {
 		Source     string `json:"source"`
 		ObservedAt string `json:"observed_at"`
 	} `json:"provenance"`
@@ -103,8 +106,9 @@ type resourceRoleResponse struct {
 		Permissions string   `json:"permissions"`
 		Caveats     []string `json:"caveats"`
 	} `json:"enforcement"`
-	PolicyPath   string `json:"policy_path"`
-	PolicyDigest string `json:"policy_digest"`
+	PolicyPath   string                 `json:"policy_path"`
+	PolicyDigest string                 `json:"policy_digest"`
+	Billing      domain.BillingSnapshot `json:"billing,omitempty"`
 }
 
 // Resolve executes `<resource> policy resolve --role <role> --json` and
@@ -186,6 +190,13 @@ func (r resourceRoleResponse) validate() error {
 	if len(r.Capabilities) == 0 {
 		return errors.New("capabilities must not be empty")
 	}
+	if r.Billing.Mode != "" {
+		switch r.Billing.Mode {
+		case domain.BillingModeMetered, domain.BillingModeSubscription, domain.BillingModeLocal, domain.BillingModeUnknown:
+		default:
+			return fmt.Errorf("billing.mode %q is unsupported", r.Billing.Mode)
+		}
+	}
 	for _, capability := range r.Capabilities {
 		if strings.TrimSpace(capability) == "" || strings.TrimSpace(capability) != capability {
 			return errors.New("capabilities must contain trimmed values")
@@ -206,14 +217,16 @@ func (r resourceRoleResponse) validate() error {
 
 func (r resourceRoleResponse) toResolvedRole() ResolvedRole {
 	return ResolvedRole{
-		Runner:       domain.RunnerType(r.Runner),
-		Role:         r.Role,
-		Model:        r.Model,
-		Fallbacks:    append([]string(nil), r.Fallbacks...),
-		Capabilities: append([]string(nil), r.Capabilities...),
-		Provenance:   ResourceProvenance{Source: r.Provenance.Source, ObservedAt: r.Provenance.ObservedAt},
-		Enforcement:  EnforcementPosture{Permissions: r.Enforcement.Permissions, Caveats: append([]string(nil), r.Enforcement.Caveats...)},
-		PolicyPath:   r.PolicyPath,
-		PolicyDigest: r.PolicyDigest,
+		Runner:         domain.RunnerType(r.Runner),
+		Role:           r.Role,
+		Model:          r.Model,
+		CanonicalModel: r.CanonicalModel,
+		Fallbacks:      append([]string(nil), r.Fallbacks...),
+		Capabilities:   append([]string(nil), r.Capabilities...),
+		Provenance:     ResourceProvenance{Source: r.Provenance.Source, ObservedAt: r.Provenance.ObservedAt},
+		Enforcement:    EnforcementPosture{Permissions: r.Enforcement.Permissions, Caveats: append([]string(nil), r.Enforcement.Caveats...)},
+		PolicyPath:     r.PolicyPath,
+		PolicyDigest:   r.PolicyDigest,
+		Billing:        r.Billing,
 	}
 }

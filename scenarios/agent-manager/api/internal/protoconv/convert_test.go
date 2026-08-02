@@ -883,25 +883,23 @@ func TestRunEventToProtoPayloads(t *testing.T) {
 			EventType: domain.EventTypeMetric,
 			Timestamp: now,
 			Sequence:  7,
-			Data: &domain.CostEventData{
+			Data: &domain.UsageEventData{
 				InputTokens:           10,
 				OutputTokens:          20,
 				CacheCreationTokens:   1,
 				CacheReadTokens:       2,
-				TotalCostUSD:          0.12,
-				ServiceTier:           "standard",
 				Model:                 "o4-mini",
 				WebSearchRequests:     3,
 				ServerToolUseRequests: 4,
 			},
 		}
 		proto := RunEventToProto(event)
-		payload := proto.GetCost()
+		payload := proto.GetMetric()
 		if payload == nil {
 			t.Fatalf("expected cost payload, got nil")
 		}
-		if payload.ServiceTier != "standard" || payload.Model != "o4-mini" {
-			t.Errorf("Cost: expected standard/o4-mini, got %s/%s", payload.ServiceTier, payload.Model)
+		if payload == nil || payload.Tags["model"] != "o4-mini" {
+			t.Errorf("usage: expected o4-mini tag, got %#v", payload)
 		}
 	})
 

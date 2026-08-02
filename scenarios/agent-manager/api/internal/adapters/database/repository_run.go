@@ -33,6 +33,10 @@ type runRow struct {
 	TaskID              uuid.UUID          `db:"task_id"`
 	AgentProfileID      NullableUUID       `db:"agent_profile_id"`
 	Tag                 string             `db:"tag"`
+	WorkloadKind        string             `db:"workload_kind"`
+	WorkloadKey         string             `db:"workload_key"`
+	WorkloadInstance    string             `db:"workload_instance"`
+	BillingSnapshot     sql.NullString     `db:"billing_snapshot"`
 	SandboxID           NullableUUID       `db:"sandbox_id"`
 	RunMode             string             `db:"run_mode"`
 	ExecutionMode       sql.NullString     `db:"execution_mode"`
@@ -105,6 +109,8 @@ func (row *runRow) toDomain() *domain.Run {
 		TaskID:                   row.TaskID,
 		AgentProfileID:           row.AgentProfileID.ToPtr(),
 		Tag:                      row.Tag,
+		Workload:                 domain.WorkloadRef{Kind: domain.WorkloadKind(row.WorkloadKind), Key: row.WorkloadKey, Instance: row.WorkloadInstance},
+		Billing:                  decodeBillingSnapshot(row.BillingSnapshot),
 		SandboxID:                row.SandboxID.ToPtr(),
 		RunMode:                  domain.RunMode(row.RunMode),
 		ExecutionMode:            domain.ExecutionMode(row.ExecutionMode.String).Normalized(),
@@ -180,6 +186,10 @@ func runFromDomain(r *domain.Run) *runRow {
 		TaskID:                   r.TaskID,
 		AgentProfileID:           NewNullableUUID(r.AgentProfileID),
 		Tag:                      r.Tag,
+		WorkloadKind:             string(r.Workload.Kind),
+		WorkloadKey:              r.Workload.Key,
+		WorkloadInstance:         r.Workload.Instance,
+		BillingSnapshot:          sql.NullString{String: marshalBillingSnapshot(r.Billing), Valid: true},
 		SandboxID:                NewNullableUUID(r.SandboxID),
 		RunMode:                  string(r.RunMode),
 		ExecutionMode:            sql.NullString{String: string(r.ExecutionMode.Normalized()), Valid: true},
@@ -262,6 +272,25 @@ func parseUUIDSliceJSON(raw sql.NullString) []uuid.UUID {
 	return out
 }
 
+func marshalBillingSnapshot(value domain.BillingSnapshot) string {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return "{}"
+	}
+	return string(data)
+}
+
+func decodeBillingSnapshot(raw sql.NullString) domain.BillingSnapshot {
+	if !raw.Valid || strings.TrimSpace(raw.String) == "" {
+		return domain.BillingSnapshot{Mode: domain.BillingModeUnknown}
+	}
+	var value domain.BillingSnapshot
+	if err := json.Unmarshal([]byte(raw.String), &value); err != nil || value.Mode == "" {
+		value.Mode = domain.BillingModeUnknown
+	}
+	return value
+}
+
 // parseStringMapJSON decodes a JSON object column into a string map, returning
 // nil for NULL / empty / malformed values so callers can merge unconditionally.
 func parseStringMapJSON(raw sql.NullString) map[string]string {
@@ -334,7 +363,7 @@ func marshalUUIDSliceJSON(ids []uuid.UUID) string {
 	return string(data)
 }
 
-const runColumns = `id, task_id, agent_profile_id, tag, sandbox_id, run_mode,
+const runColumns = `id, task_id, agent_profile_id, tag, workload_kind, workload_key, workload_instance, billing_snapshot, sandbox_id, run_mode,
 	execution_mode, web_console_session_id, status,
 	started_at, ended_at, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 	idempotency_key, summary, run_result, error_msg, exit_code, approval_state, approved_by, approved_at,
@@ -353,7 +382,7 @@ const runColumns = `id, task_id, agent_profile_id, tag, sandbox_id, run_mode,
 // approved_by, approved_at.
 // NOTE: last_heartbeat MUST be included — the reconciler depends on it
 // to detect stale runs. Without it, every run appears stale after creation.
-const listRunColumns = `id, task_id, agent_profile_id, tag, run_mode,
+const listRunColumns = `id, task_id, agent_profile_id, tag, workload_kind, workload_key, workload_instance, billing_snapshot, run_mode,
 	execution_mode, web_console_session_id, status,
 	started_at, ended_at, phase, last_heartbeat, progress_percent,
 	error_msg, exit_code, approval_state, finalization_status, finalization_error, finalized_at,
@@ -369,6 +398,10 @@ type listRunLiteRow struct {
 	TaskID              uuid.UUID      `db:"task_id"`
 	AgentProfileID      NullableUUID   `db:"agent_profile_id"`
 	Tag                 string         `db:"tag"`
+	WorkloadKind        string         `db:"workload_kind"`
+	WorkloadKey         string         `db:"workload_key"`
+	WorkloadInstance    string         `db:"workload_instance"`
+	BillingSnapshot     sql.NullString `db:"billing_snapshot"`
 	RunMode             string         `db:"run_mode"`
 	ExecutionMode       sql.NullString `db:"execution_mode"`
 	WebConsoleSessionID sql.NullString `db:"web_console_session_id"`
@@ -418,6 +451,8 @@ func (row *listRunLiteRow) toDomain() *domain.Run {
 		TaskID:                   row.TaskID,
 		AgentProfileID:           row.AgentProfileID.ToPtr(),
 		Tag:                      row.Tag,
+		Workload:                 domain.WorkloadRef{Kind: domain.WorkloadKind(row.WorkloadKind), Key: row.WorkloadKey, Instance: row.WorkloadInstance},
+		Billing:                  decodeBillingSnapshot(row.BillingSnapshot),
 		RunMode:                  domain.RunMode(row.RunMode),
 		ExecutionMode:            domain.ExecutionMode(row.ExecutionMode.String).Normalized(),
 		WebConsoleSessionID:      row.WebConsoleSessionID.String,
@@ -470,7 +505,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 	run.UpdatedAt = now
 
 	row := runFromDomain(run)
-	query := `INSERT INTO runs (id, task_id, agent_profile_id, tag, sandbox_id, run_mode,
+	query := `INSERT INTO runs (id, task_id, agent_profile_id, tag, workload_kind, workload_key, workload_instance, billing_snapshot, sandbox_id, run_mode,
 			execution_mode, web_console_session_id, status,
 			started_at, ended_at, phase, last_checkpoint_id, last_heartbeat, progress_percent,
 			idempotency_key, summary, run_result, error_msg, exit_code, approval_state, approved_by, approved_at,
@@ -482,7 +517,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			last_await_key, last_await_result, last_await_resolved_at, last_wake_seq, same_key_park_streak,
 			requested_model, actual_model,
 			created_at, updated_at)
-			VALUES (:id, :task_id, :agent_profile_id, :tag, :sandbox_id, :run_mode,
+			VALUES (:id, :task_id, :agent_profile_id, :tag, :workload_kind, :workload_key, :workload_instance, :billing_snapshot, :sandbox_id, :run_mode,
 			:execution_mode, :web_console_session_id, :status,
 			:started_at, :ended_at, :phase, :last_checkpoint_id, :last_heartbeat, :progress_percent,
 			:idempotency_key, :summary, :run_result, :error_msg, :exit_code, :approval_state, :approved_by, :approved_at,
@@ -530,6 +565,14 @@ func (r *runRepository) List(ctx context.Context, filter repository.RunListFilte
 	if filter.Status != nil {
 		conditions = append(conditions, "runs.status = ?")
 		args = append(args, string(*filter.Status))
+	}
+	if filter.EndedFrom != nil {
+		conditions = append(conditions, "runs.ended_at >= ?")
+		args = append(args, SQLiteTime(*filter.EndedFrom))
+	}
+	if filter.EndedTo != nil {
+		conditions = append(conditions, "runs.ended_at < ?")
+		args = append(args, SQLiteTime(*filter.EndedTo))
 	}
 	if filter.TagPrefix != "" {
 		conditions = append(conditions, "runs.tag LIKE ?")

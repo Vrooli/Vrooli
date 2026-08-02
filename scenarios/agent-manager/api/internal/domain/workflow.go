@@ -263,16 +263,16 @@ type WorkflowEdge struct {
 }
 
 type WorkflowBudgets struct {
-	WallTimeSeconds int     `json:"wallTimeSeconds"`
-	MaxTurns        int     `json:"maxTurns"`
-	MaxTokens       int     `json:"maxTokens"`
-	MaxCostUSD      float64 `json:"maxCostUsd"`
-	MaxNodeAttempts int     `json:"maxNodeAttempts"`
-	MaxChildren     int     `json:"maxChildren"`
-	MaxConcurrency  int     `json:"maxConcurrency"`
-	MaxRecursion    int     `json:"maxRecursion"`
-	MaxRetries      int     `json:"maxRetries"`
-	MaxWaitSeconds  int     `json:"maxWaitSeconds"`
+	WallTimeSeconds   int   `json:"wallTimeSeconds"`
+	MaxTurns          int   `json:"maxTurns"`
+	MaxTokens         int   `json:"maxTokens"`
+	MaxChargeMicroUSD int64 `json:"maxChargeMicroUsd"`
+	MaxNodeAttempts   int   `json:"maxNodeAttempts"`
+	MaxChildren       int   `json:"maxChildren"`
+	MaxConcurrency    int   `json:"maxConcurrency"`
+	MaxRecursion      int   `json:"maxRecursion"`
+	MaxRetries        int   `json:"maxRetries"`
+	MaxWaitSeconds    int   `json:"maxWaitSeconds"`
 }
 
 // WorkflowRevision is Agent Manager's immutable runtime projection of one

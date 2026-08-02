@@ -19,16 +19,6 @@ type Cohort struct {
 	Availability      Availability             `json:"availability"`
 	Signals           []CohortSignal           `json:"signals"`
 	TimeAccounting    runsignal.TimeAccounting `json:"timeAccounting"`
-	GoalOutcomes      []GoalOutcomeCohort      `json:"goalOutcomes,omitempty"`
-}
-
-// GoalOutcomeCohort compares imported harness outcomes using the accounting
-// captured at import, not a mutable current snapshot.
-type GoalOutcomeCohort struct {
-	Status          string `json:"status"`
-	Runs            int    `json:"runs"`
-	TokensUsed      int64  `json:"tokensUsed"`
-	TimeUsedSeconds int64  `json:"timeUsedSeconds"`
 }
 
 type CohortSignal struct {
@@ -109,7 +99,6 @@ func BuildCohort(reports []*RunReport) Cohort {
 		ids           []string
 	}
 	buckets := map[string]*bucket{}
-	goalBuckets := map[string]*GoalOutcomeCohort{}
 	add := func(kind string, impact int, id string) {
 		b := buckets[kind]
 		if b == nil {
@@ -139,16 +128,6 @@ func BuildCohort(reports []*RunReport) Cohort {
 		out.TimeAccounting.HumanTokens += report.TimeAccounting.HumanTokens
 		out.TimeAccounting.UnattributableTokens += report.TimeAccounting.UnattributableTokens
 		out.RunIDs = append(out.RunIDs, id)
-		if goal := report.GoalOutcome; goal != nil && goal.Status != "" {
-			b := goalBuckets[goal.Status]
-			if b == nil {
-				b = &GoalOutcomeCohort{Status: goal.Status}
-				goalBuckets[goal.Status] = b
-			}
-			b.Runs++
-			b.TokensUsed += goal.TokensUsed
-			b.TimeUsedSeconds += goal.TimeUsedSeconds
-		}
 		if report.EventsAvailability.State != AvailabilityAvailable {
 			out.Availability = Availability{State: AvailabilityDegraded, Reason: "event evidence is unavailable for part of the cohort"}
 		}
@@ -179,10 +158,6 @@ func BuildCohort(reports []*RunReport) Cohort {
 			add("receipt_availability", 1, id)
 		}
 	}
-	for _, bucket := range goalBuckets {
-		out.GoalOutcomes = append(out.GoalOutcomes, *bucket)
-	}
-	sort.Slice(out.GoalOutcomes, func(i, j int) bool { return out.GoalOutcomes[i].Status < out.GoalOutcomes[j].Status })
 	for kind, b := range buckets {
 		confidence := "medium"
 		if b.count >= 2 {

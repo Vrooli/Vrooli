@@ -1,5 +1,9 @@
 # Agent Manager Data Map
 
+This is the durable vocabulary for consumption analytics. The implementation
+links are [CODE: scenarios/agent-manager/api/internal/domain/run_configuration.go]
+and [CODE: scenarios/agent-manager/api/internal/invocationreadmodel/project.go].
+
 ## Durable invocation analytics
 
 `run_events` is the append-only operational source for an agent run. It is
@@ -19,13 +23,41 @@ with the corresponding replacement facts. A missing watermark means the run
 has not yet been projected.
 
 `invocation_read_model_runs` is the durable terminal summary for throughput and
-all retained cross-run statistics:
-terminal time (with an explicit fallback basis), lifecycle status, profile,
-runner, model, tag, duration, cost, and token totals. Its companion
+all retained cross-run statistics: terminal time (with an explicit fallback
+basis), lifecycle status, profile, runner, model, tag, duration, charge, and
+token totals. Its companion
 `invocation_read_model_run_signals` retains read-call and reread counts using
 the same conservative path classifier as `run report`. The run summary,
 signals, invocation facts, and watermark are advanced in one SQLite
 transaction by the production projection adapter.
+
+### Consumption, charge, yield, billing basis, and workload identity
+
+These are separate facts:
+
+- Consumption is input, output, cache token classes, turns, duration, and tool
+  calls. It is emitted even when pricing is unavailable.
+- Charge is a nullable micro-USD amount plus an explicit basis (`metered`,
+  `subscription`, `local`, `unpriced`, or `unknown`). A nil amount means the
+  charge is unpriced; zero is reserved for a known free basis.
+- Yield is terminal outcome and successful-completion evidence. Consumption per
+  successful completion includes failed attempts in its numerator.
+- Billing basis is the run's immutable snapshot of metering, subscription, or
+  local execution context.
+- Workload identity is the typed kind, key, and instance used to group runs
+  without parsing display tags.
+
+A billing snapshot and structured workload reference are stamped on the run at
+creation, so later resource-policy or subscription changes cannot silently
+reprice or regroup historical runs.
+
+`ProjectRun` decodes metric payloads by shape: usage is folded independently
+from charge, and retained duplicate cumulative usage snapshots are ignored.
+Historical fused metric JSON is normalized at the event boundary into these
+same shapes; no retired domain payload is needed to read it. The architecture
+guard `costTrackingRunnerHasChargeSource` fails when a cost-tracking runner is
+wired without a charge source. The typed measure registry owns workload
+breakdown and efficiency queries.
 
 `run_findings` is already durable investigation evidence. Finding-recurrence
 measures window it by `created_at` (not run terminal time), group fingerprints
@@ -50,9 +82,9 @@ historical rebuild.
 
 The invocation analytics filter is shared by aggregate, cohort, and metrics
 queries. It supports `[from,to)`, ownership, outcome, executable, fingerprint,
-profile, runner, model, tag prefix, and run status. Cohorts are bounded and
-return an explicit truncation flag; callers must never treat a truncated list
-as complete.
+profile, runner, model, workload kind/key, tag prefix, and run status. Cohorts
+are bounded and return an explicit truncation flag; callers must never treat a
+truncated list as complete.
 
 ## Statistics consumer inventory and durable parity boundary
 

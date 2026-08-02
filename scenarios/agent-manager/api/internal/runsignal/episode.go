@@ -106,8 +106,8 @@ func episodeTokens(startID, endID string, byID map[string]*domain.RunEvent, orde
 		if event == nil || event.Timestamp.Before(from) || event.Timestamp.After(to) {
 			continue
 		}
-		if cost, ok := event.Data.(*domain.CostEventData); ok {
-			tokens += cost.InputTokens + cost.OutputTokens + cost.CacheCreationTokens + cost.CacheReadTokens
+		if usage, ok := event.Data.(*domain.UsageEventData); ok {
+			tokens += usage.InputTokens + usage.OutputTokens + usage.CacheCreationTokens + usage.CacheReadTokens
 		}
 	}
 	return tokens

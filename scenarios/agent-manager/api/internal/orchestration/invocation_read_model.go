@@ -200,7 +200,7 @@ func (o *Orchestrator) ReplayInvocationCorpus(ctx context.Context, filter Replay
 	if limit <= 0 {
 		limit = 1000
 	}
-	runs, err := o.runs.List(ctx, repository.RunListFilter{ListFilter: repository.ListFilter{Limit: limit + 1}, AgentProfileID: filter.ProfileID, Status: filter.Status, TagPrefix: filter.TagPrefix})
+	runs, err := o.runs.List(ctx, repository.RunListFilter{ListFilter: repository.ListFilter{Limit: limit + 1}, AgentProfileID: filter.ProfileID, Status: filter.Status, TagPrefix: filter.TagPrefix, EndedFrom: filter.From, EndedTo: filter.To})
 	if err != nil {
 		return nil, err
 	}
@@ -212,6 +212,13 @@ func (o *Orchestrator) ReplayInvocationCorpus(ctx context.Context, filter Replay
 	for _, run := range runs {
 		if run == nil || (filter.From != nil && (run.EndedAt == nil || run.EndedAt.Before(*filter.From))) || (filter.To != nil && (run.EndedAt == nil || !run.EndedAt.Before(*filter.To))) {
 			continue
+		}
+		if workload, ok := domain.WorkloadFromHistoricalTag(run.Tag); ok {
+			if backfill, supportsBackfill := o.invocationReadModel.(invocationreadmodel.WorkloadStore); supportsBackfill {
+				if err := backfill.BackfillWorkload(ctx, run.ID.String(), string(workload.Kind), workload.Key, workload.Instance); err != nil {
+					return nil, err
+				}
+			}
 		}
 		var result *ReplayResult
 		if refresh {

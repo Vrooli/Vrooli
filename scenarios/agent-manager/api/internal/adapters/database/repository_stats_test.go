@@ -55,8 +55,8 @@ func TestStatsRepositoryAggregatesDurableRunEvidence(t *testing.T) {
 	insertEvent(failedID, 4, "error", `{"code":"runner_failed"}`)
 	readModel := NewRepositories(db, logrus.New()).InvocationReadModel.(invocationreadmodel.RunStore)
 	for _, fact := range []invocationreadmodel.RunFact{
-		{RunID: completeID.String(), OccurredAt: now, CreatedAt: now, DurationMS: 2000, Status: "complete", ProfileID: profile.ID.String(), RunnerType: "codex", Model: "gpt-test", Tag: "analytics-complete", TotalCostUSD: 1.5, AuthoritativeCostUSD: 1.5, InputCostUSD: .5, OutputCostUSD: 1, TotalTokens: 30, InputTokens: 10, OutputTokens: 20, ProjectedAt: now},
-		{RunID: failedID.String(), OccurredAt: now.Add(time.Minute), CreatedAt: now, DurationMS: 4000, Status: "failed", RunnerType: "claude-code", Model: "claude-test", Tag: "analytics-failed", TotalCostUSD: 2, EstimatedCostUSD: 2, TotalTokens: 10, InputTokens: 5, OutputTokens: 5, ProjectedAt: now},
+		{RunID: completeID.String(), OccurredAt: now, CreatedAt: now, DurationMS: 2000, Status: "complete", ProfileID: profile.ID.String(), RunnerType: "codex", Model: "gpt-test", Tag: "analytics-complete", TotalCostUSD: 1.5, InputCostUSD: .5, OutputCostUSD: 1, TotalTokens: 30, InputTokens: 10, OutputTokens: 20, ProjectedAt: now},
+		{RunID: failedID.String(), OccurredAt: now.Add(time.Minute), CreatedAt: now, DurationMS: 4000, Status: "failed", RunnerType: "claude-code", Model: "claude-test", Tag: "analytics-failed", TotalCostUSD: 2, TotalTokens: 10, InputTokens: 5, OutputTokens: 5, ProjectedAt: now},
 	} {
 		if err := readModel.ReplaceRun(ctx, fact); err != nil {
 			t.Fatalf("project run fact: %v", err)
@@ -84,7 +84,7 @@ func TestStatsRepositoryAggregatesDurableRunEvidence(t *testing.T) {
 		t.Fatalf("duration stats=%+v err=%v", duration, err)
 	}
 	cost, err := stats.GetCostStats(ctx, filter)
-	if err != nil || cost.TotalCostUSD != 3.5 || cost.TotalCostUSDAuthoritative != 1.5 || cost.TotalCostUSDEstimated != 2 || cost.TotalTokens != 40 {
+	if err != nil || cost.TotalCostUSD != 3.5 || cost.TotalTokens != 40 {
 		t.Fatalf("cost stats=%+v err=%v", cost, err)
 	}
 	if runners, err := stats.GetRunnerBreakdown(ctx, filter); err != nil || len(runners) != 2 {

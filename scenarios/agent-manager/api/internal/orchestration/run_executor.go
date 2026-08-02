@@ -653,7 +653,6 @@ func (e *RunExecutor) finalize() {
 		return
 	}
 	e.finalized = true
-	EmitCodexGoalUsage(context.Background(), e.runStateRoot, e.deps(), e.run)
 	if e.run != nil && e.run.ResolvedConfig != nil {
 		if err := CleanupCodecSessionHomeCredentials(e.runStateRoot, e.run.ID, e.run.ResolvedConfig.RunnerType); err != nil {
 			e.emitSystem(context.Background(), "warn", "failed to clean run-scoped session credentials: "+err.Error())

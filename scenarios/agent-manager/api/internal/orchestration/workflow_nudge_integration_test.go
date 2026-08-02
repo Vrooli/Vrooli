@@ -97,7 +97,7 @@ func relayDefinition() *domain.WorkflowRevision {
 		},
 		Edges: []domain.WorkflowEdge{{From: "a", To: "b"}, {From: "b", To: "end"}},
 		Budgets: domain.WorkflowBudgets{
-			WallTimeSeconds: 600, MaxTurns: 10, MaxTokens: 10000, MaxCostUSD: 10,
+			WallTimeSeconds: 600, MaxTurns: 10, MaxTokens: 10000, MaxChargeMicroUSD: 10,
 			MaxNodeAttempts: 10, MaxChildren: 10, MaxConcurrency: 2, MaxRecursion: 2, MaxRetries: 2, MaxWaitSeconds: 60,
 		},
 	}

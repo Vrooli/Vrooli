@@ -580,13 +580,11 @@ func TestNewRateLimitEvent(t *testing.T) {
 	}
 }
 
-func TestNewCostEvent(t *testing.T) {
-	runID := uuid.New()
-	event := NewCostEvent(runID, 5000, 1000, 0.15)
-
-	data, ok := event.Data.(*CostEventData)
+func TestUsageAndChargeEvents(t *testing.T) {
+	event := &RunEvent{EventType: EventTypeMetric, Data: &UsageEventData{InputTokens: 5000, OutputTokens: 1000}}
+	data, ok := event.Data.(*UsageEventData)
 	if !ok {
-		t.Fatalf("Data type = %T, want *CostEventData", event.Data)
+		t.Fatalf("Data type = %T, want *UsageEventData", event.Data)
 	}
 	if data.InputTokens != 5000 {
 		t.Errorf("InputTokens = %d, want 5000", data.InputTokens)
@@ -594,8 +592,9 @@ func TestNewCostEvent(t *testing.T) {
 	if data.OutputTokens != 1000 {
 		t.Errorf("OutputTokens = %d, want 1000", data.OutputTokens)
 	}
-	if data.TotalCostUSD != 0.15 {
-		t.Errorf("TotalCostUSD = %f, want 0.15", data.TotalCostUSD)
+	charge := &ChargeEventData{Basis: ChargeBasisMetered}
+	if charge.Basis != ChargeBasisMetered {
+		t.Errorf("Basis = %s, want metered", charge.Basis)
 	}
 }
 
@@ -976,6 +975,54 @@ func TestDecodeEventPayloadMigratesLegacyJSON(t *testing.T) {
 	}
 }
 
+func TestChargeBasisExhaustive(t *testing.T) {
+	for _, basis := range AllChargeBases() {
+		func() {
+			defer func() {
+				if recovered := recover(); recovered != nil {
+					t.Fatalf("charge basis %q is not handled: %v", basis, recovered)
+				}
+			}()
+			_ = ChargeBasisIsBillable(basis)
+		}()
+	}
+}
+
+func TestDecodeUsagePayloadWithZeroChargeKeepsTokens(t *testing.T) {
+	payload, err := DecodeEventPayload(EventTypeMetric, []byte(`{"payloadKind":"usage","inputTokens":5000,"outputTokens":0}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	usage, ok := payload.(*UsageEventData)
+	if !ok || usage.InputTokens != 5000 {
+		t.Fatalf("payload = %#v (%T), want usage with 5000 input tokens", payload, payload)
+	}
+}
+
+func TestDecodeHistoricalFusedMetricPreservesUsageAndCharge(t *testing.T) {
+	payload, err := DecodeEventPayload(EventTypeMetric, []byte(`{"inputTokens":102709,"outputTokens":1686,"cacheReadTokens":71168,"totalCostUsd":0,"costSource":"unknown"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	usage, ok := payload.(*UsageEventData)
+	if !ok || usage.InputTokens != 102709 || usage.OutputTokens != 1686 || usage.CacheReadTokens != 71168 {
+		t.Fatalf("payload = %#v (%T), want historical usage", payload, payload)
+	}
+	if usage.Charge == nil || usage.Charge.Basis != ChargeBasisUnknown || usage.Charge.AmountMicroUSD != nil {
+		t.Fatalf("historical charge = %#v, want unknown with nil amount", usage.Charge)
+	}
+}
+
+func TestWorkloadFromHistoricalTagOnlyParsesExactWorkflowShape(t *testing.T) {
+	workload, ok := WorkloadFromHistoricalTag("workflow-123e4567-e89b-12d3-a456-426614174000-classify")
+	if !ok || workload.Kind != WorkloadKindWorkflowNode || workload.Key != "classify" || workload.Instance != "123e4567-e89b-12d3-a456-426614174000" {
+		t.Fatalf("workload=%+v ok=%v", workload, ok)
+	}
+	if _, ok := WorkloadFromHistoricalTag("workflow-not-a-uuid-classify"); ok {
+		t.Fatal("malformed workflow tag was parsed")
+	}
+}
+
 // =============================================================================
 // EVENT PAYLOAD INTERFACE TESTS
 // =============================================================================
@@ -991,7 +1038,7 @@ func TestEventPayload_Interface(t *testing.T) {
 		&ArtifactEventData{Type: "diff", Path: "/tmp/diff"},
 		&ErrorEventData{Code: "ERROR", Message: "test"},
 		&RateLimitEventData{LimitType: "5_hour"},
-		&CostEventData{InputTokens: 100, OutputTokens: 50},
+		&UsageEventData{InputTokens: 100, OutputTokens: 50},
 		&ProgressEventData{Phase: RunPhaseExecuting},
 		&CompactionEventData{Summary: "test", Trigger: "manual"},
 	}
@@ -1006,7 +1053,7 @@ func TestEventPayload_Interface(t *testing.T) {
 		EventTypeArtifact,
 		EventTypeError,
 		EventTypeError,      // RateLimitEventData returns EventTypeError
-		EventTypeMetric,     // CostEventData returns EventTypeMetric
+		EventTypeMetric,     // UsageEventData returns EventTypeMetric
 		EventTypeStatus,     // ProgressEventData returns EventTypeStatus
 		EventTypeCompaction, // CompactionEventData
 	}

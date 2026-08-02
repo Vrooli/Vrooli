@@ -134,7 +134,7 @@ func lifecycleRevision() *domain.WorkflowRevision {
 				{ID: "end", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded", Bindings: []domain.WorkflowInputBinding{{Name: "summary", Source: domain.WorkflowBindingHandoff, Selector: "node=review;$.text", Limit: 1, MaxBytes: 256, RenderAs: "text", MissingPolicy: "error"}}}},
 			},
 			Edges:   []domain.WorkflowEdge{{From: "review", To: "approval"}, {From: "approval", To: "end"}},
-			Budgets: domain.WorkflowBudgets{WallTimeSeconds: 600, MaxTurns: 4, MaxTokens: 1000, MaxCostUSD: 1, MaxNodeAttempts: 4, MaxChildren: 4, MaxConcurrency: 1, MaxRecursion: 1, MaxRetries: 1, MaxWaitSeconds: 60},
+			Budgets: domain.WorkflowBudgets{WallTimeSeconds: 600, MaxTurns: 4, MaxTokens: 1000, MaxChargeMicroUSD: 1, MaxNodeAttempts: 4, MaxChildren: 4, MaxConcurrency: 1, MaxRecursion: 1, MaxRetries: 1, MaxWaitSeconds: 60},
 		},
 	}
 }

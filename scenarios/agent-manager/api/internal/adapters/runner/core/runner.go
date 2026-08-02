@@ -91,6 +91,13 @@ type Runner struct {
 	launched map[uuid.UUID]runner.LaunchedProcess
 }
 
+// HasChargeSource exposes the construction invariant to architecture tests
+// without leaking the concrete codec through the runner registry interface.
+func (r *Runner) HasChargeSource() bool {
+	aware, ok := r.codec.(interface{ HasChargeSource() bool })
+	return ok && aware.HasChargeSource()
+}
+
 // launcherSelector is the host-vs-sandbox launcher picker. It mirrors
 // the shape of [runner.launcherSelector] (which lives in the parent
 // package and is internal to it) so core can hold a swappable selector

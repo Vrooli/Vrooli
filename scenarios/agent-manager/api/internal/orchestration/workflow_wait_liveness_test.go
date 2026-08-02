@@ -44,7 +44,7 @@ func TestReconcileUnarmedWorkflowWaitsWarnsThenReapsWithInjectedClock(t *testing
 		Definition: domain.WorkflowDefinition{
 			SchemaVersion: domain.WorkflowSchemaVersionV1, Owner: "test", Key: "test/unarmed", Version: "1.0.0", EntryNode: "end", InputSchema: json.RawMessage(`{}`), OutputSchema: json.RawMessage(`{}`),
 			Nodes:   []domain.WorkflowNode{{ID: "end", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}}},
-			Budgets: domain.WorkflowBudgets{WallTimeSeconds: 600, MaxTurns: 1, MaxTokens: 1, MaxCostUSD: 1, MaxNodeAttempts: 1, MaxChildren: 1, MaxConcurrency: 1, MaxRecursion: 1, MaxRetries: 1, MaxWaitSeconds: 60},
+			Budgets: domain.WorkflowBudgets{WallTimeSeconds: 600, MaxTurns: 1, MaxTokens: 1, MaxChargeMicroUSD: 1, MaxNodeAttempts: 1, MaxChildren: 1, MaxConcurrency: 1, MaxRecursion: 1, MaxRetries: 1, MaxWaitSeconds: 60},
 		},
 	}
 	if err := repos.Workflows.ActivateBatch(ctx, []*domain.WorkflowRevision{revision}); err != nil {

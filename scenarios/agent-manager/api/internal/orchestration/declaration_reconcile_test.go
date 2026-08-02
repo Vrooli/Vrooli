@@ -41,7 +41,7 @@ const fixtureWorkflow = `{
     {"id": "done", "kind": "end", "end": {"status": "succeeded"}}
   ],
   "edges": [{"from": "work", "to": "done"}],
-  "budgets": {"wallTimeSeconds": 1200, "maxTurns": 12, "maxTokens": 30000, "maxCostUsd": 5, "maxNodeAttempts": 2, "maxChildren": 1, "maxConcurrency": 1, "maxRecursion": 1, "maxRetries": 1, "maxWaitSeconds": 60}
+  "budgets": {"wallTimeSeconds": 1200, "maxTurns": 12, "maxTokens": 30000, "maxChargeMicroUsd": 5, "maxNodeAttempts": 2, "maxChildren": 1, "maxConcurrency": 1, "maxRecursion": 1, "maxRetries": 1, "maxWaitSeconds": 60}
 }`
 
 func newDeclarationOrchestrator(t *testing.T) *Orchestrator {

@@ -2,6 +2,18 @@
 
 ## Open Issues
 
+### P-006: Consumption and charge model rollout
+**Severity**: Medium
+**Description**: Consumption, charge, yield, billing basis, and workload identity are now separate durable facts. Historical rows with retained events can be rebuilt with `agent-manager run replay-invocation-corpus`; rows whose source events were pruned are explicitly reported as unreplayable.
+**Mitigation**: Run bounded replay windows and compare `invocation_read_model_runs.total_tokens` with the joined `runs.summary.tokensUsed` oracle. Agent Manager currently starts in documented best-effort mode while the `workspace-sandbox` dependency is unhealthy.
+**Status**: Resolved in implementation; final suite and live oracle evidence remain release-validation records.
+
+### P-009: Legacy analytical columns and external goal snapshots retired
+**Severity**: Low (migration)
+**Description**: The read model no longer stores separate authoritative/estimated/unknown cost columns or Codex goal-token snapshots. Historical event JSON remains readable through normalization, while canonical consumption is projected from usage payloads and run summaries provide the independent reconciliation oracle.
+**Mitigation**: Startup rebuilds only the affected SQLite read-model table, copying retained analytical columns before dropping retired fields. Final validation inspects the live schema and checks the token oracle.
+**Status**: Resolved in implementation; retain this entry as the migration record.
+
 ### P-002: Runner Process Stability
 **Severity**: Medium
 **Description**: Agent runners (claude-code, codex, opencode) may hang, crash, or produce unexpected output. Need robust timeout and cleanup handling.

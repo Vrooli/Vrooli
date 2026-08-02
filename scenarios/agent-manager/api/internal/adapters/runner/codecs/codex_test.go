@@ -327,7 +327,7 @@ func TestCodex_DecodeStreamLine_TurnCompleted_BuildsCostEvent(t *testing.T) {
 	c, _ := NewCodex(WithPricingService(&mockPricingService{
 		pricing: map[string]*PricingCostCalculation{
 			"gpt-5.1-codex-mini": {
-				CostSource:       domain.CostSourcePricingTableEstimate,
+				CostSource:       "pricing_table_estimate",
 				Provider:         "openrouter",
 				CanonicalModel:   "openai/gpt-5.1-codex-mini",
 				PricingFetchedAt: time.Now().UTC(),
@@ -335,39 +335,34 @@ func TestCodex_DecodeStreamLine_TurnCompleted_BuildsCostEvent(t *testing.T) {
 		},
 	}))
 	events := codexDecodeOne(t, c, codexSamples["turn.completed"], "gpt-5.1-codex-mini")
-	if len(events) != 1 {
+	if len(events) != 2 {
 		t.Fatalf("got %d events", len(events))
 	}
-	cost := events[0].Data.(*domain.CostEventData)
-	if cost.InputTokens != 12810 || cost.OutputTokens != 83 {
-		t.Errorf("tokens in/out=%d/%d", cost.InputTokens, cost.OutputTokens)
+	usage := events[0].Data.(*domain.UsageEventData)
+	if usage.InputTokens != 12810 || usage.OutputTokens != 83 {
+		t.Errorf("tokens in/out=%d/%d", usage.InputTokens, usage.OutputTokens)
 	}
-	if cost.TotalCostUSD <= 0 {
-		t.Errorf("expected non-zero cost, got %v", cost.TotalCostUSD)
+	charge := events[1].Data.(*domain.ChargeEventData)
+	if charge.AmountMicroUSD == nil || *charge.AmountMicroUSD <= 0 {
+		t.Errorf("expected non-zero charge, got %#v", charge.AmountMicroUSD)
 	}
-	if cost.Model != "gpt-5.1-codex-mini" {
-		t.Errorf("model=%s", cost.Model)
+	if usage.Model != "gpt-5.1-codex-mini" {
+		t.Errorf("model=%s", usage.Model)
 	}
-	if cost.CostSource != domain.CostSourcePricingTableEstimate {
-		t.Errorf("costSource=%s", cost.CostSource)
-	}
-	if cost.PricingProvider != "openrouter" {
-		t.Errorf("provider=%s", cost.PricingProvider)
+	if charge.Basis != domain.ChargeBasisMetered {
+		t.Errorf("basis=%s", charge.Basis)
 	}
 }
 
 func TestCodex_DecodeStreamLine_TurnCompleted_NoPricingSvcGivesZeroCost(t *testing.T) {
 	c := NewCodexForTest()
 	events := codexDecodeOne(t, c, codexSamples["turn.completed"], "gpt-5.1-codex-mini")
-	cost := events[0].Data.(*domain.CostEventData)
-	if cost.InputTokens != 12810 {
-		t.Errorf("tokens=%d", cost.InputTokens)
+	usage := events[0].Data.(*domain.UsageEventData)
+	if usage.InputTokens != 12810 {
+		t.Errorf("tokens=%d", usage.InputTokens)
 	}
-	if cost.TotalCostUSD != 0 {
-		t.Errorf("expected zero cost without pricing service, got %v", cost.TotalCostUSD)
-	}
-	if cost.CostSource != domain.CostSourceUnknown {
-		t.Errorf("costSource=%s want unknown", cost.CostSource)
+	if len(events) != 1 {
+		t.Fatalf("expected usage-only event without pricing, got %d events", len(events))
 	}
 }
 
@@ -528,11 +523,12 @@ func TestCodex_UpdateMetrics(t *testing.T) {
 	t.Run("CostEvent", func(t *testing.T) {
 		c2, _ := NewCodex(WithPricingService(&mockPricingService{
 			pricing: map[string]*PricingCostCalculation{
-				"gpt-5.1-codex-mini": {CostSource: "test", Provider: "test"},
+				"gpt-5.1-codex-mini": {CostSource: "metered", Provider: "test"},
 			},
 		}))
 		events := codexDecodeOne(t, c2, codexSamples["turn.completed"], "gpt-5.1-codex-mini")
 		c2.UpdateMetrics(events[0], &metrics, &last)
+		c2.UpdateMetrics(events[1], &metrics, &last)
 		if metrics.TokensInput != 12810 {
 			t.Errorf("TokensInput=%d", metrics.TokensInput)
 		}
@@ -695,7 +691,7 @@ func TestCodexStreamEvent_UnmarshalUsage(t *testing.T) {
 func TestCodex_FullStream(t *testing.T) {
 	c, _ := NewCodex(WithPricingService(&mockPricingService{
 		pricing: map[string]*PricingCostCalculation{
-			"gpt-5.1-codex-mini": {CostSource: domain.CostSourcePricingTableEstimate},
+			"gpt-5.1-codex-mini": {CostSource: "pricing_table_estimate"},
 		},
 	}))
 	state := c.NewState().(*codexState)
@@ -722,8 +718,8 @@ func TestCodex_FullStream(t *testing.T) {
 		}
 	}
 
-	if len(allEvents) != 7 {
-		t.Errorf("expected 7 events, got %d", len(allEvents))
+	if len(allEvents) != 8 {
+		t.Errorf("expected 8 events, got %d", len(allEvents))
 	}
 	expected := []domain.RunEventType{
 		domain.EventTypeLog,
@@ -732,6 +728,7 @@ func TestCodex_FullStream(t *testing.T) {
 		domain.EventTypeToolCall,
 		domain.EventTypeMessage,
 		domain.EventTypeMessage,
+		domain.EventTypeMetric,
 		domain.EventTypeMetric,
 	}
 	for i, et := range expected {

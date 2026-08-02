@@ -108,7 +108,10 @@ type CreateRunRequest struct {
 	// Custom tag for identification (defaults to run ID if not set)
 	// Used for agent tracking, log filtering, and external process identification
 	// Example: "ecosystem-task-123", "test-genie-abc"
-	Tag string `json:"tag,omitempty"`
+	Tag              string              `json:"tag,omitempty"`
+	WorkloadKind     domain.WorkloadKind `json:"workloadKind,omitempty"`
+	WorkloadKey      string              `json:"workloadKey,omitempty"`
+	WorkloadInstance string              `json:"workloadInstance,omitempty"`
 
 	// Investigation lineage metadata.
 	SourceRunIDs             []uuid.UUID `json:"sourceRunIds,omitempty"`

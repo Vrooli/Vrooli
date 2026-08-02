@@ -70,6 +70,10 @@ func WithPricingService(svc PricingService) CodexOption {
 	return func(c *Codex) { c.pricingService = svc }
 }
 
+// HasChargeSource reports whether production composition supplied the pricing
+// dependency required by Codex's token-only stream.
+func (c *Codex) HasChargeSource() bool { return c.pricingService != nil }
+
 // codexBase is the identity shared by NewCodex and NewCodexForTest.
 func codexBase() baseCodec {
 	return baseCodec{
@@ -171,6 +175,7 @@ func (c *Codex) BuildArgs(state State, req runner.ExecuteRequest) []string {
 	model := strings.TrimSpace(cfg.Model)
 	if s, ok := state.(*codexState); ok {
 		s.runModel = model
+		s.billing = cfg.Billing
 	}
 
 	args := []string{
@@ -215,6 +220,7 @@ func (c *Codex) BuildContinueArgs(state State, req runner.ContinueRequest) []str
 	model := strings.TrimSpace(req.GetConfig().Model)
 	if s, ok := state.(*codexState); ok {
 		s.runModel = model
+		s.billing = req.GetConfig().Billing
 	}
 	args := []string{
 		"exec", "resume",
@@ -241,6 +247,7 @@ func (c *Codex) BuildContinueArgs(state State, req runner.ContinueRequest) []str
 type codexState struct {
 	threadID         string // captured from stream events; used as SessionID
 	runModel         string // captured at BuildArgs time for cost event labelling
+	billing          domain.BillingSnapshot
 	turn             int
 	lastMessageID    string
 	lastMessage      string
@@ -402,14 +409,16 @@ func (c *Codex) UpdateMetrics(event *domain.RunEvent, metrics *runner.ExecutionM
 		}
 	case *domain.ToolCallEventData:
 		metrics.ToolCallCount++
-	case *domain.CostEventData:
-		// Token breakdown + cost from CostEventData. Codex emits one
-		// cost event per turn, so we accumulate.
+	case *domain.UsageEventData:
+		// Codex emits one usage event per turn, so we accumulate it.
 		metrics.TokensInput += data.InputTokens
 		metrics.TokensOutput += data.OutputTokens
 		metrics.CacheReadTokens += data.CacheReadTokens
 		metrics.CacheCreationTokens += data.CacheCreationTokens
-		metrics.CostEstimateUSD += data.TotalCostUSD
+	case *domain.ChargeEventData:
+		if data.AmountMicroUSD != nil {
+			metrics.CostEstimateUSD += float64(*data.AmountMicroUSD) / 1_000_000
+		}
 	case *domain.MetricEventData:
 		// Legacy fallback for any MetricEventData that might still come.
 		if data.Name == "tokens" {
@@ -422,6 +431,13 @@ func (c *Codex) UpdateMetrics(event *domain.RunEvent, metrics *runner.ExecutionM
 // the embedded [baseCodec.ParseTranscriptLine], which delegates here.
 func (c *Codex) NewTranscriptParser() runner.TranscriptParser {
 	return &codexTranscriptParser{codec: c, state: &codexState{}}
+}
+
+func (p *codexTranscriptParser) SetTranscriptModel(model string) {
+	p.state.runModel = strings.TrimSpace(model)
+	if p.state.runModel == "" {
+		p.state.runModel = "unknown"
+	}
 }
 
 type codexTranscriptParser struct {
@@ -684,11 +700,11 @@ func (c *Codex) parseCodexEvents(state *codexState, runID uuid.UUID, streamEvent
 			events = append(events, newProviderTerminalEvidence(runID, state.lastMessageEvent, "turn_completed", "turn.completed", "codex:turn.completed"))
 		}
 		if streamEvent.Usage != nil {
-			events = append(events, buildCostEvent(runID, domain.RunnerTypeCodex, c.pricingService, state.runModel, usageTokens{
+			events = append(events, buildCostEvents(runID, domain.RunnerTypeCodex, c.pricingService, state.runModel, usageTokens{
 				InputTokens:     streamEvent.Usage.InputTokens,
 				OutputTokens:    streamEvent.Usage.OutputTokens,
 				CacheReadTokens: streamEvent.Usage.CachedInputTokens,
-			}))
+			}, state.billing)...)
 		}
 		return events
 

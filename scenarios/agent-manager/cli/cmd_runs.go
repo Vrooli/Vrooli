@@ -169,8 +169,7 @@ Examples:
   agent-manager run list
   agent-manager run create --task-id abc123 --profile-id def456
   agent-manager run investigate --run-ids id1,id2 --depth standard
-  agent-manager run investigate --filter-json '{"runnerType":"codex","goalStatus":"blocked"}'
-  agent-manager run investigate --goal-id <goal-id>
+  agent-manager run investigate --filter-json '{"runnerType":"codex","runStatus":"failed"}'
   agent-manager run cohort-report --run-ids id1,id2`)
 	return nil
 }
@@ -384,6 +383,8 @@ func (a *App) runCreate(args []string) error {
 	structuredExtraction := fs.Bool("structured-extraction", false, "Allow portable extract.structured fallback after deterministic parsing")
 	effort := fs.String("effort", "", "Reasoning effort (low, medium, high, xhigh, max)")
 	model := fs.String("model", "", "Per-run model override")
+	workloadKey := fs.String("workload-key", "", "Stable workload key for grouping repeated work")
+	workloadKind := fs.String("workload-kind", "", "Workload kind (workflow_node, scheduled, interactive, adhoc, imported)")
 
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -446,6 +447,17 @@ func (a *App) runCreate(args []string) error {
 			req.InlineConfig = &domainpb.RunConfigOverrides{}
 		}
 		req.InlineConfig.Model = protoString(*model)
+	}
+	if *workloadKey != "" || *workloadKind != "" {
+		if req.Environment == nil {
+			req.Environment = map[string]string{}
+		}
+		if *workloadKey != "" {
+			req.Environment["VROOLI_WORKLOAD_KEY"] = *workloadKey
+		}
+		if *workloadKind != "" {
+			req.Environment["VROOLI_WORKLOAD_KIND"] = *workloadKind
+		}
 	}
 	if cfg, err := parseSandboxConfig(*sandboxConfig, *sandboxConfigFile); err != nil {
 		return err
@@ -1448,14 +1460,12 @@ func (a *App) runApplyInvestigation(args []string) error {
 	fs := flag.NewFlagSet("run apply-investigation", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
 	customContext := fs.String("context", "", "Custom context for apply run")
-
 	// Parse with positional ID first
 	var id string
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
 		id = args[0]
 		args = args[1:]
 	}
-
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
@@ -1463,7 +1473,6 @@ func (a *App) runApplyInvestigation(args []string) error {
 	if id == "" {
 		return fmt.Errorf("usage: agent-manager run apply-investigation <investigation-run-id>")
 	}
-
 	req := map[string]interface{}{
 		"investigationRunId": id,
 	}

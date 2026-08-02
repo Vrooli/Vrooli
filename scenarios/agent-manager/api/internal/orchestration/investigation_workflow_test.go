@@ -129,7 +129,7 @@ func investigateTestDefinition() *domain.WorkflowRevision {
 			{From: "apply", To: "end-completed"},
 		},
 		Budgets: domain.WorkflowBudgets{
-			WallTimeSeconds: 600, MaxTurns: 200, MaxTokens: 100000, MaxCostUSD: 20,
+			WallTimeSeconds: 600, MaxTurns: 200, MaxTokens: 100000, MaxChargeMicroUSD: 20,
 			MaxNodeAttempts: 2, MaxChildren: 2, MaxConcurrency: 1, MaxRecursion: 1, MaxRetries: 1, MaxWaitSeconds: 60,
 		},
 	}

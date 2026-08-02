@@ -29,7 +29,7 @@ func validWorkflowJSON(owner, key string) string {
 		`{"id":"start","kind":"run","run":{"roleRef":"code.default","promptRef":{"skillId":"fixture-skill"}}},` +
 		`{"id":"done","kind":"end","end":{"status":"succeeded"}}],` +
 		`"edges":[{"from":"start","to":"done"}],` +
-		`"budgets":{"wallTimeSeconds":60,"maxTurns":4,"maxTokens":1000,"maxCostUsd":1,"maxNodeAttempts":3,"maxChildren":2,"maxConcurrency":2,"maxRecursion":2,"maxRetries":2,"maxWaitSeconds":30}}`
+		`"budgets":{"wallTimeSeconds":60,"maxTurns":4,"maxTokens":1000,"maxChargeMicroUsd":1,"maxNodeAttempts":3,"maxChildren":2,"maxConcurrency":2,"maxRecursion":2,"maxRetries":2,"maxWaitSeconds":30}}`
 }
 
 func writeFile(t *testing.T, path, content string) {
@@ -138,7 +138,7 @@ func TestValidateReportsAllWorkflowDiagnostics(t *testing.T) {
 		`{"id":"start","kind":"run","run":{"roleRef":"code.default","promptTemplate":"Do {{.missing}}"}},` +
 		`{"id":"done","kind":"end","end":{"status":"succeeded"}}],` +
 		`"edges":[{"from":"gate","to":"start","condition":"iteration <"},{"from":"gate","to":"done","condition":"true"},{"from":"start","to":"done"}],` +
-		`"budgets":{"wallTimeSeconds":60,"maxTurns":4,"maxTokens":1000,"maxCostUsd":1,"maxNodeAttempts":3,"maxChildren":2,"maxConcurrency":2,"maxRecursion":2,"maxRetries":2,"maxWaitSeconds":30}}`
+		`"budgets":{"wallTimeSeconds":60,"maxTurns":4,"maxTokens":1000,"maxChargeMicroUsd":1,"maxNodeAttempts":3,"maxChildren":2,"maxConcurrency":2,"maxRecursion":2,"maxRetries":2,"maxWaitSeconds":30}}`
 	writeFile(t, filepath.Join(root, ".vrooli", "service.json"),
 		`{"dependencies":{"scenarios":{"agent-manager":{"enabled":true,"config":{"declarations":{"reconcile":true,"sources":[".vrooli/agent-manager/flow.json"]}}}}}}`)
 	writeFile(t, filepath.Join(root, ".vrooli", "agent-manager", "flow.json"), bad)

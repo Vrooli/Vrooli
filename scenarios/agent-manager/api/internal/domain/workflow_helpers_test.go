@@ -62,7 +62,7 @@ func TestValidateEventsCountsTypedWarningsWithoutRejectingEvents(t *testing.T) {
 		{EventType: EventTypeToolCall, Data: &ToolCallEventData{ToolName: "unknown_tool"}},
 		{EventType: EventTypeToolResult, Data: &ToolResultEventData{}},
 		{EventType: EventTypeMessage, Data: &MessageEventData{Content: ""}},
-		{EventType: EventTypeMetric, Data: &CostEventData{}},
+		{EventType: EventTypeMetric, Data: &UsageEventData{}},
 		{EventType: EventTypeError},
 		{EventType: EventTypeLog},
 		{EventType: EventTypeMessageDeleted, Data: &MessageDeletedEventData{}},

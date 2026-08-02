@@ -43,7 +43,7 @@ func TestPollLoopDetectorRejectsRetriesAndSlowCalls(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			facts, events := makeEvents(time.Duration(tc.GapSeconds)*time.Second, tc.StateChange)
 			if tc.ExpectedTokens > 0 {
-				events = append(events, &domain.RunEvent{ID: uuid.New(), Timestamp: start.Add(15 * time.Second), EventType: domain.EventTypeMetric, Data: &domain.CostEventData{InputTokens: tc.ExpectedTokens}})
+				events = append(events, &domain.RunEvent{ID: uuid.New(), Timestamp: start.Add(15 * time.Second), EventType: domain.EventTypeMetric, Data: &domain.UsageEventData{InputTokens: tc.ExpectedTokens}})
 			}
 			got := detectPollLoops(EpisodeDetectorContext{Facts: facts, Events: events, EventsByID: eventMap(events)})
 			if len(got) != tc.ExpectedCount {

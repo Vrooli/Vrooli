@@ -13,9 +13,7 @@ import (
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
-	"agent-manager/internal/codexgoals"
 	"agent-manager/internal/domain"
-	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/runsignal"
 	"agent-manager/internal/runstate"
 
@@ -30,9 +28,6 @@ type ImportTranscriptRequest struct {
 	Label           string
 	SourceHarness   string
 	SourceSessionID string
-	// GoalSessionHome optionally locates the source Codex accounting store.
-	// It is an import-only, read-only provenance hint; empty uses ~/.codex.
-	GoalSessionHome string
 }
 
 var importedTranscriptTaskID = uuid.NewSHA1(uuid.NameSpaceURL, []byte("agent-manager/imported-transcripts"))
@@ -102,6 +97,12 @@ func (o *Orchestrator) ImportTranscript(ctx context.Context, req ImportTranscrip
 	if err := o.runs.Create(ctx, run); err != nil {
 		return nil, err
 	}
+	if factory, ok := parser.(runner.TranscriptParserFactory); ok {
+		parser = factory.NewTranscriptParser()
+	}
+	if setter, ok := parser.(runner.TranscriptModelSetter); ok {
+		setter.SetTranscriptModel(runTranscriptModel(run))
+	}
 	var terminal *runner.TranscriptTerminal
 	_, terminal, err = runner.Consume(ctx, runner.ConsumeArgs{RunID: run.ID, Transcript: snapshot.TranscriptPath, ParseFn: func(id uuid.UUID, line string) runner.TranscriptParseResult {
 		return parser.ParseTranscriptLine(id, line)
@@ -130,36 +131,10 @@ func (o *Orchestrator) ImportTranscript(ctx context.Context, req ImportTranscrip
 	if err := o.runs.Update(ctx, run); err != nil {
 		return nil, err
 	}
-	// The external goal store is a rolling snapshot. Project first to create
-	// the durable run summary, then retain its current accounting beside it.
-	// Missing and unreadable optional stores must never reject an import.
 	if err := o.projectInvocationReadModel(ctx, run); err != nil {
 		return nil, fmt.Errorf("project imported transcript: %w", err)
 	}
-	if runnerType == domain.RunnerTypeCodex && run.SessionID != "" {
-		home := req.GoalSessionHome
-		if home == "" {
-			home, _ = defaultCodexSessionHome()
-		}
-		if home != "" {
-			if goal, goalErr := codexgoals.Read(ctx, home, run.SessionID); goalErr == nil && goal != nil {
-				if store, ok := o.invocationReadModel.(invocationreadmodel.GoalOutcomeStore); ok {
-					if err := store.ReplaceGoalOutcome(ctx, invocationreadmodel.GoalOutcome{RunID: run.ID.String(), GoalID: goal.GoalID, Status: goal.Status, TokenBudget: goal.TokenBudget, TokensUsed: goal.TokensUsed, TimeUsedSeconds: goal.TimeUsedSeconds}); err != nil {
-						return nil, err
-					}
-				}
-			}
-		}
-	}
 	return o.attachRunActions(ctx, run), nil
-}
-
-func defaultCodexSessionHome() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(home, ".codex"), nil
 }
 
 func eventWindow(events []*domain.RunEvent) (time.Time, time.Time, bool) {

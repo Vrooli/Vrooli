@@ -27,10 +27,13 @@ func resolvePersistedRunResult(ctx context.Context, store event.Store, runID uui
 			if data.Role == "assistant" && data.Content != "" {
 				turns++
 			}
-		case *domain.CostEventData:
-			tokens = data.InputTokens + data.OutputTokens + data.CacheReadTokens + data.CacheCreationTokens
-			contextTokens = data.InputTokens
-			cost = data.TotalCostUSD
+		case *domain.UsageEventData:
+			tokens += data.InputTokens + data.OutputTokens + data.CacheReadTokens + data.CacheCreationTokens
+			contextTokens += data.InputTokens
+		case *domain.ChargeEventData:
+			if data.AmountMicroUSD != nil {
+				cost += float64(*data.AmountMicroUSD) / 1_000_000
+			}
 		}
 	}
 	result := domain.ResolveRunResult(latestTurnResultEvents(events), success, exitCode, terminalReason)

@@ -185,18 +185,118 @@ const (
 
 // ExecutionCandidate is one immutable runner/model attempt in resolved order.
 type ExecutionCandidate struct {
-	RunnerType    RunnerType            `json:"runnerType"`
-	SelectionType ModelSelectionType    `json:"selectionType"`
-	Model         string                `json:"model,omitempty"`
-	ResourceRole  string                `json:"resourceRole,omitempty"`
-	Fallbacks     []string              `json:"fallbacks,omitempty"`
-	Available     bool                  `json:"available"`
-	FailureCode   string                `json:"failureCode,omitempty"`
-	Failure       string                `json:"failure,omitempty"`
-	Provenance    ResourceProvenance    `json:"provenance,omitempty"`
-	Enforcement   PermissionEnforcement `json:"enforcement,omitempty"`
-	PolicyPath    string                `json:"policyPath,omitempty"`
-	PolicyDigest  string                `json:"policyDigest,omitempty"`
+	RunnerType     RunnerType            `json:"runnerType"`
+	SelectionType  ModelSelectionType    `json:"selectionType"`
+	Model          string                `json:"model,omitempty"`
+	CanonicalModel string                `json:"canonicalModel,omitempty"`
+	ResourceRole   string                `json:"resourceRole,omitempty"`
+	Fallbacks      []string              `json:"fallbacks,omitempty"`
+	Available      bool                  `json:"available"`
+	FailureCode    string                `json:"failureCode,omitempty"`
+	Failure        string                `json:"failure,omitempty"`
+	Provenance     ResourceProvenance    `json:"provenance,omitempty"`
+	Enforcement    PermissionEnforcement `json:"enforcement,omitempty"`
+	PolicyPath     string                `json:"policyPath,omitempty"`
+	PolicyDigest   string                `json:"policyDigest,omitempty"`
+	Billing        BillingSnapshot       `json:"billing,omitempty"`
+}
+
+type BillingMode string
+
+const (
+	BillingModeMetered      BillingMode = "metered"
+	BillingModeSubscription BillingMode = "subscription"
+	BillingModeLocal        BillingMode = "local"
+	BillingModeUnknown      BillingMode = "unknown"
+)
+
+// BillingSnapshot is stamped at run creation and never re-read from mutable
+// resource policy. It preserves the accounting context used by a run.
+type BillingSnapshot struct {
+	Basis              ChargeBasis `json:"basis,omitempty"`
+	Mode               BillingMode `json:"mode"`
+	Provider           string      `json:"provider,omitempty"`
+	AccountRef         string      `json:"accountRef,omitempty"`
+	PlanRef            string      `json:"planRef,omitempty"`
+	PlanID             string      `json:"planId,omitempty"`
+	PlanLabel          string      `json:"planLabel,omitempty"`
+	QuotaWindow        string      `json:"quotaWindow,omitempty"`
+	SubscriptionPeriod string      `json:"subscriptionPeriod,omitempty"`
+	ObservedAt         time.Time   `json:"observedAt,omitempty"`
+	Source             string      `json:"source,omitempty"`
+	PolicyDigest       string      `json:"policyDigest,omitempty"`
+}
+
+func (b BillingSnapshot) EffectiveBasis() ChargeBasis {
+	if b.Basis != "" {
+		return b.Basis
+	}
+	switch b.Mode {
+	case BillingModeMetered:
+		return ChargeBasisMetered
+	case BillingModeSubscription:
+		return ChargeBasisSubscription
+	case BillingModeLocal:
+		return ChargeBasisLocal
+	default:
+		return ChargeBasisUnknown
+	}
+}
+
+type SubscriptionPeriod struct {
+	ID             string    `json:"id"`
+	Provider       string    `json:"provider"`
+	PlanRef        string    `json:"planRef"`
+	StartsAt       time.Time `json:"startsAt"`
+	EndsAt         time.Time `json:"endsAt"`
+	AmountMicroUSD int64     `json:"amountMicroUsd"`
+	QuotaTokens    int64     `json:"quotaTokens,omitempty"`
+}
+
+type WorkloadRef struct {
+	Kind     WorkloadKind `json:"kind"`
+	Key      string       `json:"key"`
+	Instance string       `json:"instance,omitempty"`
+}
+
+type WorkloadKind string
+
+const (
+	WorkloadKindWorkflowNode WorkloadKind = "workflow_node"
+	WorkloadKindScheduled    WorkloadKind = "scheduled"
+	WorkloadKindInteractive  WorkloadKind = "interactive"
+	WorkloadKindAdhoc        WorkloadKind = "adhoc"
+	WorkloadKindImported     WorkloadKind = "imported"
+)
+
+func (k WorkloadKind) IsValid() bool {
+	switch k {
+	case WorkloadKindWorkflowNode, WorkloadKindScheduled, WorkloadKindInteractive, WorkloadKindAdhoc, WorkloadKindImported:
+		return true
+	default:
+		return false
+	}
+}
+
+// WorkloadFromHistoricalTag recovers only the unambiguous workflow tag shape
+// used before workload identity was persisted separately.
+func WorkloadFromHistoricalTag(tag string) (WorkloadRef, bool) {
+	const prefix = "workflow-"
+	if strings.HasPrefix(tag, "agent-manager-imported-") {
+		return WorkloadRef{Kind: WorkloadKindImported, Key: strings.TrimPrefix(tag, "agent-manager-imported-")}, true
+	}
+	if !strings.HasPrefix(tag, prefix) {
+		return WorkloadRef{}, false
+	}
+	remainder := strings.TrimPrefix(tag, prefix)
+	if len(remainder) < 36 || remainder[36] != '-' {
+		return WorkloadRef{}, false
+	}
+	instance, err := uuid.Parse(remainder[:36])
+	if err != nil || remainder[37:] == "" {
+		return WorkloadRef{}, false
+	}
+	return WorkloadRef{Kind: WorkloadKindWorkflowNode, Key: remainder[37:], Instance: instance.String()}, true
 }
 
 // ResourceProvenance pins where a resource-owned role decision came from.
@@ -650,7 +750,9 @@ type Run struct {
 
 	// Custom tag for identification (defaults to ID if not set)
 	// Used for agent tracking, log filtering, and external process identification
-	Tag string `json:"tag,omitempty" db:"tag"`
+	Tag      string          `json:"tag,omitempty" db:"tag"`
+	Workload WorkloadRef     `json:"workload,omitempty" db:"workload"`
+	Billing  BillingSnapshot `json:"billing,omitempty" db:"billing"`
 
 	// Sandbox integration
 	SandboxID     *uuid.UUID     `json:"sandboxId,omitempty" db:"sandbox_id"`
@@ -1163,6 +1265,7 @@ type RunConfig struct {
 	// PolicySnapshot pins the exact active catalog revision and ordered
 	// candidate sequence selected before this run was persisted.
 	PolicySnapshot *ExecutionPolicySnapshot `json:"policySnapshot,omitempty"`
+	Billing        BillingSnapshot          `json:"billing,omitempty"`
 
 	// ResultSpec is normalized before the run is persisted. Nil/none preserves
 	// the historical unstructured behavior.

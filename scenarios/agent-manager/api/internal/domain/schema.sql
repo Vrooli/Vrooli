@@ -111,10 +111,10 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_runs (
     runner_type TEXT NOT NULL DEFAULT 'unknown',
     model TEXT NOT NULL DEFAULT 'unknown',
     tag TEXT NOT NULL DEFAULT 'unknown',
+    workload_kind TEXT NOT NULL DEFAULT 'adhoc',
+    workload_key TEXT NOT NULL DEFAULT '',
+    workload_instance TEXT NOT NULL DEFAULT '',
     total_cost_usd REAL NOT NULL DEFAULT 0,
-    authoritative_cost_usd REAL NOT NULL DEFAULT 0,
-    estimated_cost_usd REAL NOT NULL DEFAULT 0,
-    unknown_cost_usd REAL NOT NULL DEFAULT 0,
     input_cost_usd REAL NOT NULL DEFAULT 0,
     output_cost_usd REAL NOT NULL DEFAULT 0,
     cache_read_cost_usd REAL NOT NULL DEFAULT 0,
@@ -124,12 +124,12 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_runs (
     output_tokens INTEGER NOT NULL DEFAULT 0,
     cache_read_tokens INTEGER NOT NULL DEFAULT 0,
     cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
+    turns INTEGER NOT NULL DEFAULT 0,
+    tool_calls INTEGER NOT NULL DEFAULT 0,
+    total_charge_micro_usd INTEGER NOT NULL DEFAULT 0,
+    metered_charge_micro_usd INTEGER NOT NULL DEFAULT 0,
+    unpriced_token_count INTEGER NOT NULL DEFAULT 0,
     cost_time_basis TEXT NOT NULL DEFAULT 'terminal_projection',
-    goal_id TEXT NOT NULL DEFAULT '',
-    goal_status TEXT NOT NULL DEFAULT '',
-    goal_token_budget INTEGER,
-    goal_tokens_used INTEGER NOT NULL DEFAULT 0,
-    goal_time_used_seconds INTEGER NOT NULL DEFAULT 0,
     projected_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_runs_occurred_at ON invocation_read_model_runs(occurred_at);
@@ -137,7 +137,6 @@ CREATE INDEX IF NOT EXISTS idx_invocation_read_model_runs_status ON invocation_r
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_runs_profile ON invocation_read_model_runs(profile_id, occurred_at);
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_runs_runner ON invocation_read_model_runs(runner_type, occurred_at);
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_runs_model ON invocation_read_model_runs(model, occurred_at);
-CREATE INDEX IF NOT EXISTS idx_invocation_read_model_runs_goal_status ON invocation_read_model_runs(goal_status, occurred_at);
 
 -- Per-run efficiency signals use the same terminal lifecycle as the run
 -- summary, while staying separate so this additive schema remains compatible

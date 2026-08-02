@@ -705,9 +705,6 @@ func (o *Orchestrator) executeContinuation(ctx context.Context, run *domain.Run,
 		phases.EmitSystemEvent(ctx, phases.Deps{Events: o.events, Broadcaster: o.broadcaster}, run.ID, "info",
 			fmt.Sprintf("continuation failed on turn %d; preserved structured result from successful turn %d", preservedTurn+1, preservedTurn))
 	}
-	if runStateRoot, rootErr := o.resolveRunStateRoot(ctx); rootErr == nil {
-		EmitCodexGoalUsage(ctx, runStateRoot, phases.Deps{Events: o.events, Broadcaster: o.broadcaster}, run)
-	}
 	o.checkpointContinuationTurn(ctx, run, result, execCtx.Err() == context.DeadlineExceeded)
 	if run.ResolvedConfig != nil {
 		runStateRoot, rootErr := o.resolveRunStateRoot(ctx)

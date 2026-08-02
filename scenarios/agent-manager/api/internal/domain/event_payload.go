@@ -32,15 +32,34 @@ func DecodeEventPayload(eventType RunEventType, raw []byte) (EventPayload, error
 		return decodePayload[StatusEventData](data)
 	case EventTypeMetric:
 		var probe struct {
-			TotalCostUSD float64 `json:"totalCostUsd"`
+			PayloadKind string `json:"payloadKind"`
 		}
 		if err := json.Unmarshal(data, &probe); err != nil {
 			return nil, err
 		}
-		if probe.TotalCostUSD != 0 {
-			return decodePayload[CostEventData](data)
+		switch probe.PayloadKind {
+		case PayloadKindUsage:
+			return decodePayload[UsageEventData](data)
+		case PayloadKindCharge:
+			return decodePayload[ChargeEventData](data)
+		default:
+			// Historical metric rows without a discriminator are normalized
+			// to UsageEventData when they contain token fields. Rows that
+			// only have the generic metric shape remain MetricEventData.
+			var shape struct {
+				InputTokens         int `json:"inputTokens"`
+				OutputTokens        int `json:"outputTokens"`
+				CacheReadTokens     int `json:"cacheReadTokens"`
+				CacheCreationTokens int `json:"cacheCreationTokens"`
+			}
+			if err := json.Unmarshal(data, &shape); err != nil {
+				return nil, err
+			}
+			if shape.InputTokens != 0 || shape.OutputTokens != 0 || shape.CacheReadTokens != 0 || shape.CacheCreationTokens != 0 {
+				return decodePayload[UsageEventData](data)
+			}
+			return decodePayload[MetricEventData](data)
 		}
-		return decodePayload[MetricEventData](data)
 	case EventTypeArtifact:
 		return decodePayload[ArtifactEventData](data)
 	case EventTypeError:
@@ -100,6 +119,36 @@ func NormalizeEventPayloadJSON(eventType RunEventType, raw []byte) ([]byte, erro
 	case EventTypeMetric:
 		rename("metricName", "name")
 		rename("metricValue", "value")
+		if _, hasKind := fields["payloadKind"]; !hasKind {
+			var input, output, cacheRead, cacheCreate int
+			_ = json.Unmarshal(fields["inputTokens"], &input)
+			_ = json.Unmarshal(fields["outputTokens"], &output)
+			_ = json.Unmarshal(fields["cacheReadTokens"], &cacheRead)
+			_ = json.Unmarshal(fields["cacheCreationTokens"], &cacheCreate)
+			if input != 0 || output != 0 || cacheRead != 0 || cacheCreate != 0 {
+				fields["payloadKind"] = json.RawMessage(`"usage"`)
+				changed = true
+				if source, ok := fields["costSource"]; ok {
+					var sourceValue string
+					_ = json.Unmarshal(source, &sourceValue)
+					basis := LegacyChargeBasis(sourceValue)
+					charge := map[string]any{
+						"payloadKind":    PayloadKindCharge,
+						"basis":          basis,
+						"amountMicroUsd": nil,
+						"currency":       "USD",
+					}
+					var total float64
+					_ = json.Unmarshal(fields["totalCostUsd"], &total)
+					if total != 0 {
+						amount := int64(total*1_000_000 + 0.5)
+						charge["amountMicroUsd"] = amount
+					}
+					encoded, _ := json.Marshal(charge)
+					fields["charge"] = json.RawMessage(encoded)
+				}
+			}
+		}
 	case EventTypeArtifact:
 		rename("artifactType", "type")
 		rename("artifactPath", "path")

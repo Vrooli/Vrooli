@@ -48,6 +48,7 @@ type ModelPricing struct {
 	ID                 uuid.UUID `json:"id"`
 	CanonicalModelName string    `json:"canonicalModelName"` // e.g., "anthropic/claude-opus-4-5"
 	Provider           string    `json:"provider"`           // e.g., "openrouter"
+	PriceBookRevision  string    `json:"priceBookRevision,omitempty"`
 
 	// Per-component pricing (USD per token, nil means not available)
 	InputTokenPrice    *float64 `json:"inputTokenPrice,omitempty"`
@@ -299,9 +300,12 @@ type CostCalculation struct {
 	ComponentSources map[PricingComponent]PricingSource `json:"componentSources"`
 
 	// Metadata
-	PricingFetchedAt time.Time `json:"pricingFetchedAt"`
-	PricingVersion   string    `json:"pricingVersion,omitempty"`
-	Provider         string    `json:"provider"`
+	PricingFetchedAt  time.Time `json:"pricingFetchedAt"`
+	PricingVersion    string    `json:"pricingVersion,omitempty"`
+	Provider          string    `json:"provider"`
+	CostSource        string    `json:"costSource,omitempty"`
+	ChargeReason      string    `json:"chargeReason,omitempty"`
+	PriceBookRevision string    `json:"priceBookRevision,omitempty"`
 }
 
 // CacheStatus provides visibility into the pricing cache state.

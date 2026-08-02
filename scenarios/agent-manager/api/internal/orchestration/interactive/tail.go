@@ -91,6 +91,7 @@ func NewTailer(resolveParser ParserResolver, opts ...TailerOption) *Tailer {
 type TailParams struct {
 	RunID      uuid.UUID
 	RunnerType domain.RunnerType
+	Model      string
 	// TranscriptPath is the agent-owned path the substrate resolved
 	// (LaunchResult.TranscriptPath). For codex it is the seed for
 	// rotation-aware re-discovery; for claude/grok it is pinned.
@@ -129,6 +130,9 @@ func (t *Tailer) Tail(ctx context.Context, p TailParams) (*runner.TranscriptTerm
 	parser, err := t.resolveParser(p.RunnerType)
 	if err != nil {
 		return nil, fmt.Errorf("resolve transcript parser for %s: %w", p.RunnerType, err)
+	}
+	if setter, ok := parser.(runner.TranscriptModelSetter); ok {
+		setter.SetTranscriptModel(p.Model)
 	}
 
 	path := p.TranscriptPath

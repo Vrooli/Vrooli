@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
@@ -101,7 +102,9 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	}
 	permissionPolicy := permissionpolicy.NewService(permissionState, permissionpolicy.NewResourcePermissionProjector(nil), permissionpolicy.NewSQLiteAuditStore(db))
 
-	runners := NewRunners()
+	pricingService := pricing.NewService(database.NewPricingRepository(db, logger), []pricing.Provider{providers.NewOpenRouterProvider()}, logger)
+	startPricingLifecycle(pricingService, bootLog)
+	runners := NewRunners(pricingCodecAdapter{service: pricingService})
 	registry := runners.Registry
 	flagValidator := runner.NewRegistryFlagValidator(registry)
 	sandboxURL := resolveWorkspaceSandboxURL()
@@ -225,7 +228,6 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	})
 	orch.SetWorkflowNudger(workflowNudger)
 
-	pricingService := pricing.NewService(database.NewPricingRepository(db, logger), []pricing.Provider{providers.NewOpenRouterProvider()}, logger)
 	modelResolver := func(runnerType string) healthstore.ModelProber {
 		if registry == nil {
 			return nil
@@ -249,6 +251,30 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	statsEngine := stats.NewEngine(eventRepo, stats.NewSQLiteCheckpointStore(db), "operational")
 	bootLog.Info("orchestrator initialized", "storage", "sqlite", "sandbox", sandboxURL)
 	return OrchestratorDependencies{Orchestrator: orch, StatsService: orchestration.NewStatsOrchestrator(repos.Stats), StatsRepository: repos.Stats, PricingService: pricingService, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, StatsEngine: statsEngine, HealthStore: healthStore, EventRepository: eventRepo, InvocationReadModel: repos.InvocationReadModel}, nil
+}
+
+func startPricingLifecycle(service pricing.Service, log *slog.Logger) {
+	if service == nil {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		if err := service.RefreshPricing(ctx); err != nil {
+			log.Warn("pricing warm refresh failed", obs.KeyError, err.Error())
+		}
+	}()
+	go func() {
+		ticker := time.NewTicker(6 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			if err := service.RefreshPricing(ctx); err != nil {
+				log.Warn("scheduled pricing refresh failed", obs.KeyError, err.Error())
+			}
+			cancel()
+		}
+	}()
 }
 
 func resolveWorkspaceSandboxURL() string {

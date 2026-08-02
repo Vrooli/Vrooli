@@ -283,6 +283,9 @@
           "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
           "architecture": {"primitive":"operational"}
         },
+        {"name":"invocation-aggregate","description":"Aggregate durable invocation evidence by dimension","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"invocation-cohort","description":"Select a durable invocation cohort","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"invocation-metrics","description":"Calculate durable invocation metrics","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
         {
           "name": "messages-friction",
           "description": "Show deterministic self-reported friction spans",
@@ -412,6 +415,8 @@
         {"name":"file-reread-rate","description":"Share of file-read calls that revisit a path.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"FileRereadRate"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"friction","intent":"Share of file-read calls that revisit a path already read in the same run.","questions":["what is the agent file reread rate","how often do agents reread files"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"rate","unit":"share","summary_template":"{rate} file reread rate ({window})"}}},
         {"name":"finding-recurrence-rate","description":"Share of investigation findings whose fingerprint recurs.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"FindingRecurrenceRate"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]},"measure":{"domain":"friction","intent":"Share of persisted investigation findings whose fingerprint recurs in the same filtered finding corpus.","questions":["what is the recurring finding rate","which agent findings recur"],"params":{"window":{"type":"time_window","default":"this_week"}},"result":{"kind":"scalar","value_field":"rate","unit":"share","summary_template":"{rate} finding recurrence rate ({window})"}}},
         {"name":"select-cohort","description":"Select the durable runs behind a typed measure.","binding":{"kind":"connect-rpc","service":"MeasuresService","method":"SelectCohort"},"architecture":{"primitive":"proto_list"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
+        ,{"name":"workload-efficiency","description":"Consumption per successful workload completion.","binding":{"kind":"local"},"architecture":{"primitive":"action"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
+        ,{"name":"workload-breakdown","description":"Terminal run performance grouped by workload key.","binding":{"kind":"local"},"architecture":{"primitive":"action"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
       ]
     }
   ],
@@ -490,6 +495,9 @@
       {"domain":"workflow_journal","reason":"Workflow journals are append-only runtime diagnostics, not independently meaningful historical outcomes."},
       {"domain":"workflow_node_attempts","reason":"Workflow node attempts are implementation detail for workflow orchestration, outside the run analytical corpus."},
       {"domain":"workflow_revisions","reason":"Workflow revisions are versioned definitions, not execution outcomes."
+      },
+      {"domain":"price_book_revisions","reason":"Price-book revisions are immutable pricing provenance used by charge projection; their row inventory is not an operator outcome measure."},
+      {"domain":"subscription_periods","reason":"Subscription periods are billing allocation facts consumed by charge queries; their row inventory is not an operator outcome measure."
       }
     ]
   }

@@ -127,9 +127,10 @@ Emitted for conversation messages.
 
 ### metric
 
-Emitted for usage and cost data.
+Emitted as separate usage and charge payloads. Usage is always emitted;
+charge evidence is optional and may have a nil amount when pricing is unknown.
 
-**Payload: CostEventData**
+**Usage payload: `payloadKind: "usage"`**
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -137,12 +138,17 @@ Emitted for usage and cost data.
 | outputTokens | int | Yes | Output tokens generated |
 | cacheReadTokens | int | No | Tokens read from cache |
 | cacheCreationTokens | int | No | Tokens written to cache |
-| inputCostUsd | float | No | Cost attributed to input tokens |
-| outputCostUsd | float | No | Cost attributed to output tokens |
-| cacheReadCostUsd | float | No | Cost attributed to cache read tokens |
-| cacheCreationCostUsd | float | No | Cost attributed to cache write tokens |
-| totalCostUsd | float | Yes | Estimated cost in USD |
 | model | string | No | Model used (if available) |
+| runnerType | string | No | Runner that produced the usage |
+
+**Charge payload: `payloadKind: "charge"`**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| basis | string | `metered`, `subscription`, `local`, `unpriced`, or `unknown` |
+| amountMicroUsd | int64/null | Billable amount in micro-USD, or null when unavailable |
+| currency | string | Currency code, currently USD |
+| model | string | Model associated with the charge |
 | costSource | string | No | Cost provenance (runner_reported, provider_usage_api, pricing_table_estimate, unknown) |
 | pricingProvider | string | No | Pricing source for estimates (e.g., openrouter) |
 | pricingModel | string | No | Model ID used for pricing lookup |

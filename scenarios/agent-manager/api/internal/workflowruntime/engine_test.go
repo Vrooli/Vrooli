@@ -221,6 +221,28 @@ func TestExecutionBudgetExhaustionPersistsCompletedAttempt(t *testing.T) {
 	}
 }
 
+func TestExecutionCostBudgetUsesAuthoritativeChargeOnly(t *testing.T) {
+	definition := baseDefinition()
+	definition.Budgets.MaxChargeMicroUSD = 1
+	definition.Nodes = []domain.WorkflowNode{{ID: "run", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "work"}}, {ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}}}
+	definition.EntryNode = "run"
+	definition.Edges = []domain.WorkflowEdge{{From: "run", To: "done"}}
+	engine, _, children := testEngine(t, definition)
+	execution, _ := engine.Start(context.Background(), revision(definition), json.RawMessage(`{}`), "charge-budget-1")
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	runID := children.requests[0].runID
+	state := children.states[runID]
+	state.Terminal = true
+	state.CostUSD = 100 // historical estimate must not exhaust a charge budget
+	state.ChargeMicroUSD = 2
+	children.states[runID] = state
+	final := mustAdvance(t, engine, execution.ID)
+	if final.Status != domain.WorkflowExecutionBudgetExhausted || final.TerminalReason.BudgetName != "charge" || final.BudgetUsage.ChargeMicroUSD != 2 {
+		t.Fatalf("execution=%+v", final)
+	}
+}
+
 func TestInvalidStructuredResultPreservesRawAttemptEvidence(t *testing.T) {
 	definition := baseDefinition()
 	definition.Nodes = []domain.WorkflowNode{{ID: "run", Kind: domain.WorkflowNodeRun, Run: &domain.WorkflowRunNode{RoleRef: "code.default", PromptTemplate: "work", ResultSpec: &domain.ResultSpec{Version: "result-spec/v1", Kind: domain.ResultSpecKindJSONSchema, ExtractionMode: domain.StructuredExtractionDeterministic, Schema: json.RawMessage(`{"type":"object","required":["answer"]}`)}}}, {ID: "done", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}}}

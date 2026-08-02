@@ -29,7 +29,7 @@ the role-only profile schema with a transactional script under
 ## Issues Found
 
 1. `api/internal/database/schema.sql` centrally defines domain tables; the
-   storage-health validator recommends splitting these into domain-owned schema
+   storage-manager validator recommends splitting these into domain-owned schema
    providers.
 2. `api/main.go` has outstanding routed-database/test-isolation seams and a
    captured raw database handle.
@@ -44,6 +44,6 @@ this pass.
 
 ## Cross-References
 
-- `storage-health validate scenario agent-manager`
+- `storage-manager validate scenario agent-manager`
 - `packages/api-core/database/schemas.go`
-- `scenarios/storage-health/docs/concepts/test-isolation-contract.md`
+- `scenarios/storage-manager/docs/concepts/test-isolation-contract.md`

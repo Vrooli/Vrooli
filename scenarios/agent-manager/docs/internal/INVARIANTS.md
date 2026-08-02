@@ -438,6 +438,14 @@ accumulates overlays, state rows, and repository-local database growth.
 **Tests:** `internal/contracts/run_control_test.go::TestDefaultLifecycleVocabularyIsEmittable`
 and `internal/orchestration/sandbox_config_test.go::TestNormalizeSandboxConfig_ManualReviewSkipsDefaultLifecycle`.
 
+## Consumption and charge invariants
+
+`UsageEventData` is emitted independently of pricing, and a
+`ChargeEventData` amount is nil when the basis is unpriced rather than being
+silently coerced to zero. `ProjectRun` must preserve consumption when charge
+resolution fails. `TestCostTrackingCodecsHaveChargeSource` is the executable
+architecture guard for the wiring side of this contract.
+
 ## How to add an invariant here
 
 Additional `OT-P2-001` constraints stay in the architecture decision table

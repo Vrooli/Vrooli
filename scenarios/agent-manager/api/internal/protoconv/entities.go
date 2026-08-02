@@ -899,20 +899,24 @@ func RunEventToProto(e *domain.RunEvent) *pb.RunEvent {
 				MimeType: data.MimeType,
 			},
 		}
-	case *domain.CostEventData:
-		event.Data = &pb.RunEvent_Cost{
-			Cost: &pb.CostEventData{
-				InputTokens:           int32(data.InputTokens),
-				OutputTokens:          int32(data.OutputTokens),
-				CacheCreationTokens:   int32(data.CacheCreationTokens),
-				CacheReadTokens:       int32(data.CacheReadTokens),
-				TotalCostUsd:          data.TotalCostUSD,
-				ServiceTier:           data.ServiceTier,
-				Model:                 data.Model,
-				WebSearchRequests:     int32(data.WebSearchRequests),
-				ServerToolUseRequests: int32(data.ServerToolUseRequests),
-			},
+	case *domain.UsageEventData:
+		event.Data = &pb.RunEvent_Metric{Metric: &pb.MetricEventData{
+			Name:  "usage_tokens",
+			Value: float64(data.InputTokens + data.OutputTokens + data.CacheReadTokens + data.CacheCreationTokens),
+			Unit:  "tokens",
+			Tags:  map[string]string{"model": data.Model, "runnerType": data.RunnerType},
+		}}
+	case *domain.ChargeEventData:
+		value := float64(0)
+		if data.AmountMicroUSD != nil {
+			value = float64(*data.AmountMicroUSD) / 1_000_000
 		}
+		event.Data = &pb.RunEvent_Metric{Metric: &pb.MetricEventData{
+			Name:  "usage_charge",
+			Value: value,
+			Unit:  "USD",
+			Tags:  map[string]string{"basis": string(data.Basis), "model": data.Model, "runnerType": data.RunnerType},
+		}}
 	case *domain.ProgressEventData:
 		event.Data = &pb.RunEvent_Progress{
 			Progress: &pb.ProgressEventData{

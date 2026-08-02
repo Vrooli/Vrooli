@@ -17,7 +17,7 @@ func TestDeriveTimeAccountingConservesDurationAndAttributesTokens(t *testing.T) 
 	accounting := DeriveTimeAccounting([]*domain.RunEvent{
 		event(time.Minute, &domain.MessageEventData{Role: "user"}),
 		event(3*time.Minute, &domain.ToolCallEventData{}),
-		event(5*time.Minute, &domain.CostEventData{InputTokens: 4, OutputTokens: 6}),
+		event(5*time.Minute, &domain.UsageEventData{InputTokens: 4, OutputTokens: 6}),
 		event(6*time.Minute, &domain.ToolResultEventData{}),
 		event(8*time.Minute, &domain.MessageEventData{Role: "assistant"}),
 	}, &start, &end)

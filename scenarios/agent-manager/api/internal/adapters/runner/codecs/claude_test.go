@@ -457,16 +457,17 @@ func TestClaude_DecodeStreamLine_UserToolResultError(t *testing.T) {
 func TestClaude_DecodeStreamLine_ResultSuccess(t *testing.T) {
 	c := NewClaudeForTest()
 	events := decodeOne(t, c, claudeCodeSamples["result_success"])
-	// Should produce at least a cost event; success result with non-empty
+	// Should produce usage and charge events; success result with non-empty
 	// result text + lastAssistant=="" emits a synthetic assistant message.
-	hasCost := false
+	hasUsage, hasCharge := false, false
 	for _, e := range events {
-		if _, ok := e.Data.(*domain.CostEventData); ok {
-			hasCost = true
-		}
+		_, usage := e.Data.(*domain.UsageEventData)
+		_, charge := e.Data.(*domain.ChargeEventData)
+		hasUsage = hasUsage || usage
+		hasCharge = hasCharge || charge
 	}
-	if !hasCost {
-		t.Errorf("expected CostEventData in %d events", len(events))
+	if !hasUsage || !hasCharge {
+		t.Errorf("expected UsageEventData and ChargeEventData in %d events", len(events))
 	}
 }
 
@@ -689,16 +690,19 @@ func TestClaude_UpdateMetrics_CostEvent(t *testing.T) {
 	costEvent := &domain.RunEvent{
 		ID:        uuid.New(),
 		EventType: domain.EventTypeMetric,
-		Data: &domain.CostEventData{
+		Data: &domain.UsageEventData{
+			PayloadKind: domain.PayloadKindUsage,
 			InputTokens: 100, OutputTokens: 50,
 			CacheCreationTokens: 10, CacheReadTokens: 20,
-			TotalCostUSD: 0.05,
 		},
 	}
 	c.UpdateMetrics(costEvent, &metrics, &last)
 	if metrics.TokensInput != 100 || metrics.TokensOutput != 50 {
 		t.Errorf("tokens in/out = %d/%d", metrics.TokensInput, metrics.TokensOutput)
 	}
+	amount := int64(50_000)
+	charge := &domain.RunEvent{ID: uuid.New(), EventType: domain.EventTypeMetric, Data: &domain.ChargeEventData{AmountMicroUSD: &amount}}
+	c.UpdateMetrics(charge, &metrics, &last)
 	if metrics.CostEstimateUSD != 0.05 {
 		t.Errorf("cost=%v", metrics.CostEstimateUSD)
 	}

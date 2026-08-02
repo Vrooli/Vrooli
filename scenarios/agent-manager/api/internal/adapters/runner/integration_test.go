@@ -402,8 +402,8 @@ func assertHasMetricEvent(t *testing.T, events []*domain.RunEvent) {
 	t.Helper()
 	for _, evt := range events {
 		if evt.EventType == domain.EventTypeMetric {
-			if costData, ok := evt.Data.(*domain.CostEventData); ok {
-				if costData.InputTokens == 0 && costData.OutputTokens == 0 {
+			if usageData, ok := evt.Data.(*domain.UsageEventData); ok {
+				if usageData.InputTokens == 0 && usageData.OutputTokens == 0 {
 					t.Error("metric event has zero tokens")
 				}
 				return

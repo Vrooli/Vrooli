@@ -112,6 +112,10 @@ func NewOpenCodeForTestWithBinary(path string) *OpenCode {
 	return c
 }
 
+// HasChargeSource reports that OpenCode's native step_finish payload is the
+// charge source; it does not require the shared pricing lookup.
+func (c *OpenCode) HasChargeSource() bool { return true }
+
 // Capabilities satisfies [Codec]. It reports only locally-pulled Ollama models
 // discovered through OpenCode's first-class provider block; resource role
 // resolution owns concrete coding-agent model selection.
@@ -257,6 +261,12 @@ func (c *OpenCode) BuildArgs(state State, req runner.ExecuteRequest) []string {
 		}
 	}
 	cfg := req.GetConfig()
+	if s, ok := state.(*opencodeState); ok {
+		s.model = strings.TrimSpace(cfg.Model)
+		if s.model == "" {
+			s.model = "unknown"
+		}
+	}
 	// Centralize portable control translation with interactive launches.
 	controlArgs, _ := c.ControlArgs(cfg)
 	args = append(args, controlArgs...)
@@ -286,6 +296,9 @@ func (c *OpenCode) BuildContinueArgs(state State, req runner.ContinueRequest) []
 		}
 	}
 	controlArgs, _ := c.ControlArgs(req.GetConfig())
+	if s, ok := state.(*opencodeState); ok {
+		s.model = strings.TrimSpace(req.GetConfig().Model)
+	}
 	args = append(args, controlArgs...)
 	args = appendAttachmentFlags(args, "-f", req.Attachments)
 	return args
@@ -299,6 +312,7 @@ func (c *OpenCode) BuildContinueArgs(state State, req runner.ContinueRequest) []
 type opencodeState struct {
 	sessionID   string
 	stepTermina bool // set by step_finish parsing when reason is terminal
+	model       string
 	// workingDir is the run's pinned --dir (absolute). Stashed by
 	// BuildArgs/BuildContinueArgs so the stream decoder can reject tool
 	// results whose target path resolves outside it (defense-in-depth
@@ -632,12 +646,15 @@ func (c *OpenCode) UpdateMetrics(event *domain.RunEvent, metrics *runner.Executi
 		} else if data.Name == "cost" {
 			metrics.CostEstimateUSD = data.Value
 		}
-	case *domain.CostEventData:
+	case *domain.UsageEventData:
 		metrics.TokensInput = data.InputTokens
 		metrics.TokensOutput = data.OutputTokens
 		metrics.CacheReadTokens = data.CacheReadTokens
 		metrics.CacheCreationTokens = data.CacheCreationTokens
-		metrics.CostEstimateUSD = data.TotalCostUSD
+	case *domain.ChargeEventData:
+		if data.AmountMicroUSD != nil {
+			metrics.CostEstimateUSD = float64(*data.AmountMicroUSD) / 1_000_000
+		}
 	}
 }
 
@@ -645,6 +662,13 @@ func (c *OpenCode) UpdateMetrics(event *domain.RunEvent, metrics *runner.Executi
 // the embedded [baseCodec.ParseTranscriptLine], which delegates here.
 func (c *OpenCode) NewTranscriptParser() runner.TranscriptParser {
 	return &opencodeTranscriptParser{codec: c, state: &opencodeState{}}
+}
+
+func (p *opencodeTranscriptParser) SetTranscriptModel(model string) {
+	p.state.model = strings.TrimSpace(model)
+	if p.state.model == "" {
+		p.state.model = "unknown"
+	}
 }
 
 type opencodeTranscriptParser struct {
@@ -918,8 +942,8 @@ func parseOpenCodeToolResult(runID uuid.UUID, part *OpenCodePart, workingDir str
 func (c *OpenCode) handleStepFinish(state *opencodeState, runID uuid.UUID, part *OpenCodePart) []*domain.RunEvent {
 	events := []*domain.RunEvent{}
 
-	if costEvent := buildOpenCodeCostEvent(runID, part); costEvent != nil {
-		events = append(events, costEvent)
+	if costEvents := buildOpenCodeCostEvent(runID, part, state.model); len(costEvents) > 0 {
+		events = append(events, costEvents...)
 	}
 	terminal := isTerminalStepFinish(part)
 	if msgEvent := extractOpenCodeAssistantMessage(runID, part, terminal); msgEvent != nil {
@@ -932,7 +956,7 @@ func (c *OpenCode) handleStepFinish(state *opencodeState, runID uuid.UUID, part 
 	return events
 }
 
-func buildOpenCodeCostEvent(runID uuid.UUID, part *OpenCodePart) *domain.RunEvent {
+func buildOpenCodeCostEvent(runID uuid.UUID, part *OpenCodePart, model string) []*domain.RunEvent {
 	var inputTokens, outputTokens, cacheRead, cacheWrite int
 	if part.Tokens != nil {
 		inputTokens = part.Tokens.Input
@@ -942,21 +966,31 @@ func buildOpenCodeCostEvent(runID uuid.UUID, part *OpenCodePart) *domain.RunEven
 			cacheWrite = part.Tokens.Cache.Write
 		}
 	}
-	return &domain.RunEvent{
+	usage := &domain.RunEvent{
 		ID:        uuid.New(),
 		RunID:     runID,
 		EventType: domain.EventTypeMetric,
 		Timestamp: time.Now(),
-		Data: &domain.CostEventData{
+		Data: &domain.UsageEventData{
+			PayloadKind:         domain.PayloadKindUsage,
 			InputTokens:         inputTokens,
 			OutputTokens:        outputTokens,
 			CacheCreationTokens: cacheWrite,
 			CacheReadTokens:     cacheRead,
-			TotalCostUSD:        part.Cost,
-			CostSource:          domain.CostSourceRunnerReported,
-			PricingProvider:     "opencode",
+			RunnerType:          string(domain.RunnerTypeOpenCode),
+			Model:               model,
 		},
 	}
+	amount := int64(part.Cost*1_000_000 + 0.5)
+	charge := &domain.RunEvent{ID: uuid.New(), RunID: runID, EventType: domain.EventTypeMetric, Timestamp: time.Now(), Data: &domain.ChargeEventData{
+		PayloadKind:    domain.PayloadKindCharge,
+		Basis:          domain.ChargeBasisMetered,
+		AmountMicroUSD: &amount,
+		Currency:       "USD",
+		RunnerType:     string(domain.RunnerTypeOpenCode),
+		Model:          model,
+	}}
+	return []*domain.RunEvent{usage, charge}
 }
 
 // extractOpenCodeAssistantMessage tries Text → Output → Snapshot (when

@@ -205,9 +205,6 @@ func (r *statsRepository) GetCostStats(ctx context.Context, filter repository.St
 	query := `
 		SELECT
 			COALESCE(SUM(total_cost_usd), 0) as total_cost_usd,
-			COALESCE(SUM(authoritative_cost_usd), 0) as total_cost_usd_authoritative,
-			COALESCE(SUM(estimated_cost_usd), 0) as total_cost_usd_estimated,
-			COALESCE(SUM(unknown_cost_usd), 0) as total_cost_usd_unknown,
 			COALESCE(SUM(input_cost_usd), 0) as input_cost_usd,
 			COALESCE(SUM(output_cost_usd), 0) as output_cost_usd,
 			COALESCE(SUM(cache_read_cost_usd), 0) as cache_read_cost_usd,
@@ -317,9 +314,6 @@ func (r *statsRepository) GetModelBreakdown(ctx context.Context, filter reposito
 			COUNT(*) as run_count,
 			SUM(CASE WHEN status = 'complete' THEN 1 ELSE 0 END) as success_count,
 			COALESCE(SUM(total_cost_usd), 0) as total_cost_usd,
-			COALESCE(SUM(authoritative_cost_usd), 0) as total_cost_usd_authoritative,
-			COALESCE(SUM(estimated_cost_usd), 0) as total_cost_usd_estimated,
-			COALESCE(SUM(unknown_cost_usd), 0) as total_cost_usd_unknown,
 			COALESCE(SUM(input_cost_usd), 0) as input_cost_usd,
 			COALESCE(SUM(output_cost_usd), 0) as output_cost_usd,
 			COALESCE(SUM(cache_read_cost_usd), 0) as cache_read_cost_usd,

@@ -142,14 +142,14 @@ func TestInvocationReadModelRunMetricsUseDurableTerminalFactsAndSharedFilters(t 
 		if id == "run-b" {
 			errors = append(errors, invocationreadmodel.ErrorFact{RunID: id, EventID: id + "-error", OccurredAt: ended, TimeBasis: "error_event", ErrorCode: "runner_failed", ProfileID: profile, RunnerType: "codex", Model: "gpt-test", Tag: "analytics"})
 		}
-		if err := repo.ReplaceProjection(ctx, []invocationreadmodel.Fact{{InvocationFact: runsignal.InvocationFact{Version: "v1", CallEventID: id + "-call", ToolName: "shell", Ownership: map[string]string{"run-a": "external", "run-b": "project"}[id], Outcome: "success", Fingerprint: id, Availability: "available"}, RunID: id, OccurredAt: started, TimeBasis: "call_event", ProfileID: profile, RunnerType: "codex", Model: "gpt-test", Tag: "analytics", RunStatus: status}}, errors, nil, nil, invocationreadmodel.Watermark{RunID: id, LastEventID: id + "-call", LastEventAt: started, ClassifierVersion: "v1", ProjectedAt: now}, invocationreadmodel.RunFact{RunID: id, OccurredAt: ended, CreatedAt: started.Add(-time.Minute), StartedAt: &started, EndedAt: &ended, DurationMS: 120000, Status: status, ProfileID: profile, RunnerType: "codex", Model: "gpt-test", Tag: "analytics", TotalCostUSD: cost, UnknownCostUSD: cost, InputCostUSD: cost / 2, OutputCostUSD: cost / 4, CacheReadCostUSD: cost / 8, CacheCreationCostUSD: cost / 8, TotalTokens: tokens, InputTokens: tokens / 2, OutputTokens: tokens / 4, CacheReadTokens: tokens / 8, CacheCreationTokens: tokens / 8, ReadCalls: map[string]int64{"run-a": 2, "run-b": 1}[id], FileRereads: map[string]int64{"run-a": 1, "run-b": 0}[id], CostTimeBasis: "ended_at", ProjectedAt: now}); err != nil {
+		if err := repo.ReplaceProjection(ctx, []invocationreadmodel.Fact{{InvocationFact: runsignal.InvocationFact{Version: "v1", CallEventID: id + "-call", ToolName: "shell", Ownership: map[string]string{"run-a": "external", "run-b": "project"}[id], Outcome: "success", Fingerprint: id, Availability: "available"}, RunID: id, OccurredAt: started, TimeBasis: "call_event", ProfileID: profile, RunnerType: "codex", Model: "gpt-test", Tag: "analytics", RunStatus: status}}, errors, nil, nil, invocationreadmodel.Watermark{RunID: id, LastEventID: id + "-call", LastEventAt: started, ClassifierVersion: "v1", ProjectedAt: now}, invocationreadmodel.RunFact{RunID: id, OccurredAt: ended, CreatedAt: started.Add(-time.Minute), StartedAt: &started, EndedAt: &ended, DurationMS: 120000, Status: status, ProfileID: profile, RunnerType: "codex", Model: "gpt-test", Tag: "analytics", TotalCostUSD: cost, InputCostUSD: cost / 2, OutputCostUSD: cost / 4, CacheReadCostUSD: cost / 8, CacheCreationCostUSD: cost / 8, TotalTokens: tokens, InputTokens: tokens / 2, OutputTokens: tokens / 4, CacheReadTokens: tokens / 8, CacheCreationTokens: tokens / 8, ReadCalls: map[string]int64{"run-a": 2, "run-b": 1}[id], FileRereads: map[string]int64{"run-a": 1, "run-b": 0}[id], CostTimeBasis: "ended_at", ProjectedAt: now}); err != nil {
 			t.Fatal(err)
 		}
 	}
 	seed("run-a", "complete", "profile-a", 0, 1.5, 10)
 	seed("run-b", "failed", "profile-b", time.Minute, 0.5, 20)
 	metrics, err := repo.RunMetrics(ctx, invocationreadmodel.Filter{From: &now, To: ptrTime(now.Add(time.Hour))})
-	if err != nil || metrics.TotalRuns != 2 || metrics.TerminalRuns != 2 || metrics.SuccessfulRuns != 1 || metrics.SuccessRate != 0.5 || metrics.AverageDurationMS != 120000 || metrics.TotalCostUSD != 2 || metrics.UnknownCostUSD != 2 || metrics.AuthoritativeCostUSD != 0 || metrics.EstimatedCostUSD != 0 || metrics.TotalTokens != 30 || metrics.InputTokens != 15 || metrics.OutputTokens != 7 || metrics.CacheReadTokens != 3 || metrics.CacheCreationTokens != 3 || metrics.InputCostUSD != 1 || metrics.OutputCostUSD != 0.5 || metrics.CacheReadCostUSD != 0.25 || metrics.CacheCreationCostUSD != 0.25 || metrics.ReadCalls != 3 || metrics.FileRereads != 1 || metrics.FileRereadRate != 1.0/3.0 {
+	if err != nil || metrics.TotalRuns != 2 || metrics.TerminalRuns != 2 || metrics.SuccessfulRuns != 1 || metrics.SuccessRate != 0.5 || metrics.AverageDurationMS != 120000 || metrics.TotalCostUSD != 2 || metrics.TotalTokens != 30 || metrics.InputTokens != 15 || metrics.OutputTokens != 7 || metrics.CacheReadTokens != 3 || metrics.CacheCreationTokens != 3 || metrics.InputCostUSD != 1 || metrics.OutputCostUSD != 0.5 || metrics.CacheReadCostUSD != 0.25 || metrics.CacheCreationCostUSD != 0.25 || metrics.ReadCalls != 3 || metrics.FileRereads != 1 || metrics.FileRereadRate != 1.0/3.0 {
 		t.Fatalf("metrics=%+v err=%v", metrics, err)
 	}
 	durationStats, err := repo.RunDurationStatistics(ctx, invocationreadmodel.Filter{From: &now, To: ptrTime(now.Add(time.Hour))})
@@ -196,45 +196,6 @@ func TestInvocationReadModelRunMetricsUseDurableTerminalFactsAndSharedFilters(t 
 	filteredFindings, err := repo.FindingMetrics(ctx, invocationreadmodel.Filter{From: &now, To: ptrTime(now.Add(time.Hour)), Ownership: "external"})
 	if err != nil || filteredFindings.TotalFindings != 1 || filteredFindings.RecurringFindings != 0 {
 		t.Fatalf("filtered finding metrics=%+v err=%v", filteredFindings, err)
-	}
-}
-
-func TestInvocationReadModelPersistsGoalOutcomeAndFiltersCohort(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-	repo := &invocationReadModelRepository{db: db}
-	ctx := context.Background()
-	now := time.Now().UTC()
-	for _, id := range []string{"blocked-run", "blocked-run-2", "complete-run"} {
-		if err := repo.ReplaceProjection(ctx, []invocationreadmodel.Fact{{InvocationFact: runsignal.InvocationFact{Version: "v1", CallEventID: id + "-call", ToolName: "shell", Ownership: "external", Outcome: "success", Fingerprint: id, Availability: "available"}, RunID: id, OccurredAt: now, TimeBasis: "event", ProfileID: "unknown", RunnerType: "codex", Model: "unknown", Tag: "imported", RunStatus: "complete"}}, nil, nil, nil, invocationreadmodel.Watermark{RunID: id, LastEventID: id + "-call", LastEventAt: now, ClassifierVersion: "v1", ProjectedAt: now}, invocationreadmodel.RunFact{RunID: id, OccurredAt: now, CreatedAt: now, Status: "complete", ProfileID: "unknown", RunnerType: "codex", Model: "unknown", Tag: "imported", CostTimeBasis: "ended_at", ProjectedAt: now}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	budget := int64(1000)
-	if err := repo.ReplaceGoalOutcome(ctx, invocationreadmodel.GoalOutcome{RunID: "blocked-run", GoalID: "goal-blocked", Status: "blocked", TokenBudget: &budget, TokensUsed: 900, TimeUsedSeconds: 60}); err != nil {
-		t.Fatal(err)
-	}
-	if err := repo.ReplaceGoalOutcome(ctx, invocationreadmodel.GoalOutcome{RunID: "blocked-run-2", GoalID: "goal-blocked", Status: "blocked", TokensUsed: 800, TimeUsedSeconds: 50}); err != nil {
-		t.Fatal(err)
-	}
-	if err := repo.ReplaceGoalOutcome(ctx, invocationreadmodel.GoalOutcome{RunID: "complete-run", GoalID: "goal-complete", Status: "complete", TokensUsed: 500, TimeUsedSeconds: 30}); err != nil {
-		t.Fatal(err)
-	}
-	goal, err := repo.GoalOutcome(ctx, "blocked-run")
-	if err != nil || goal == nil || goal.Status != "blocked" || goal.TokenBudget == nil || *goal.TokenBudget != budget {
-		t.Fatalf("goal = %#v, %v", goal, err)
-	}
-	cohort, err := repo.Cohort(ctx, invocationreadmodel.Filter{GoalStatus: "blocked"}, 10)
-	if err != nil || len(cohort.RunIDs) != 2 || cohort.MatchedRuns != 2 || cohort.DroppedRuns != 0 {
-		t.Fatalf("cohort = %#v, %v", cohort, err)
-	}
-	goalCohort, err := repo.Cohort(ctx, invocationreadmodel.Filter{GoalID: "goal-blocked"}, 10)
-	if err != nil || len(goalCohort.RunIDs) != 2 || goalCohort.MatchedRuns != 2 {
-		t.Fatalf("goal cohort = %#v, %v", goalCohort, err)
-	}
-	bounded, err := repo.Cohort(ctx, invocationreadmodel.Filter{GoalID: "goal-blocked"}, 1)
-	if err != nil || !bounded.Truncated || bounded.MatchedRuns != 2 || bounded.DroppedRuns != 1 || len(bounded.RunIDs) != 1 {
-		t.Fatalf("bounded goal cohort = %#v, %v", bounded, err)
 	}
 }
 

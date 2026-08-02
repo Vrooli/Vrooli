@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"agent-manager/internal/domain"
 )
@@ -12,17 +13,19 @@ import (
 // ResolvedCandidate is immutable resource-owned evidence captured for one
 // portable catalog candidate. Model and fallbacks are output evidence only.
 type ResolvedCandidate struct {
-	Runner       domain.RunnerType  `json:"runner"`
-	ResourceRole string             `json:"resourceRole"`
-	Model        string             `json:"model,omitempty"`
-	Fallbacks    []string           `json:"fallbacks,omitempty"`
-	Available    bool               `json:"available"`
-	FailureCode  string             `json:"failureCode,omitempty"`
-	Failure      string             `json:"failure,omitempty"`
-	Provenance   ResourceProvenance `json:"provenance,omitempty"`
-	Enforcement  EnforcementPosture `json:"enforcement,omitempty"`
-	PolicyPath   string             `json:"policyPath,omitempty"`
-	PolicyDigest string             `json:"policyDigest,omitempty"`
+	Runner         domain.RunnerType      `json:"runner"`
+	ResourceRole   string                 `json:"resourceRole"`
+	Model          string                 `json:"model,omitempty"`
+	CanonicalModel string                 `json:"canonicalModel,omitempty"`
+	Fallbacks      []string               `json:"fallbacks,omitempty"`
+	Available      bool                   `json:"available"`
+	FailureCode    string                 `json:"failureCode,omitempty"`
+	Failure        string                 `json:"failure,omitempty"`
+	Provenance     ResourceProvenance     `json:"provenance,omitempty"`
+	Enforcement    EnforcementPosture     `json:"enforcement,omitempty"`
+	PolicyPath     string                 `json:"policyPath,omitempty"`
+	PolicyDigest   string                 `json:"policyDigest,omitempty"`
+	Billing        domain.BillingSnapshot `json:"billing,omitempty"`
 }
 
 // Resolution is a run-creation-time immutable result. It is intentionally
@@ -49,11 +52,13 @@ func (r *Resolution) Snapshot() *domain.ExecutionPolicySnapshot {
 		}
 		candidates = append(candidates, domain.ExecutionCandidate{
 			RunnerType: candidate.Runner, SelectionType: selection, Model: candidate.Model,
-			ResourceRole: candidate.ResourceRole, Fallbacks: append([]string(nil), candidate.Fallbacks...),
+			CanonicalModel: candidate.CanonicalModel,
+			ResourceRole:   candidate.ResourceRole, Fallbacks: append([]string(nil), candidate.Fallbacks...),
 			Available: candidate.Available, FailureCode: candidate.FailureCode, Failure: candidate.Failure,
 			Provenance:  domain.ResourceProvenance{Source: candidate.Provenance.Source, ObservedAt: candidate.Provenance.ObservedAt},
 			Enforcement: domain.PermissionEnforcement{Permissions: candidate.Enforcement.Permissions, Caveats: append([]string(nil), candidate.Enforcement.Caveats...)},
 			PolicyPath:  candidate.PolicyPath, PolicyDigest: candidate.PolicyDigest,
+			Billing: candidate.Billing,
 		})
 	}
 	return &domain.ExecutionPolicySnapshot{
@@ -100,12 +105,20 @@ func (s *State) Resolve(ctx context.Context, resolver Resolver, roleRef string) 
 			continue
 		}
 		resolved.Model = evidence.Model
+		resolved.CanonicalModel = evidence.CanonicalModel
 		resolved.Fallbacks = append([]string(nil), evidence.Fallbacks...)
 		resolved.Available = true
 		resolved.Provenance = evidence.Provenance
 		resolved.Enforcement = EnforcementPosture{Permissions: evidence.Enforcement.Permissions, Caveats: append([]string(nil), evidence.Enforcement.Caveats...)}
 		resolved.PolicyPath = evidence.PolicyPath
 		resolved.PolicyDigest = evidence.PolicyDigest
+		resolved.Billing = evidence.Billing
+		if resolved.Billing.Basis == "" {
+			resolved.Billing.Basis = resolved.Billing.EffectiveBasis()
+		}
+		if resolved.Billing.ObservedAt.IsZero() {
+			resolved.Billing.ObservedAt = time.Now().UTC()
+		}
 		result.Candidates = append(result.Candidates, resolved)
 	}
 	return result, nil

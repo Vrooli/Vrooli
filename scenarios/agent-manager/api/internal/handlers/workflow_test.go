@@ -397,7 +397,7 @@ func TestWorkflowHTTPStartSignalAndSimulationUseDurableExecutionState(t *testing
 		Definition: domain.WorkflowDefinition{
 			SchemaVersion: domain.WorkflowSchemaVersionV1, Owner: "owner", Key: "owner/wait", Version: "1.0.0", InputSchema: json.RawMessage(`{}`), OutputSchema: json.RawMessage(`{}`), EntryNode: "wait",
 			Nodes: []domain.WorkflowNode{{ID: "wait", Kind: domain.WorkflowNodeWait, Wait: &domain.WorkflowWaitNode{Signal: "continue", TimeoutSeconds: 60}}, {ID: "end", Kind: domain.WorkflowNodeEnd, End: &domain.WorkflowEndNode{Status: "succeeded"}}},
-			Edges: []domain.WorkflowEdge{{From: "wait", To: "end"}}, Budgets: domain.WorkflowBudgets{WallTimeSeconds: 600, MaxTurns: 10, MaxTokens: 10000, MaxCostUSD: 10, MaxNodeAttempts: 10, MaxChildren: 10, MaxConcurrency: 2, MaxRecursion: 2, MaxRetries: 2, MaxWaitSeconds: 60},
+			Edges: []domain.WorkflowEdge{{From: "wait", To: "end"}}, Budgets: domain.WorkflowBudgets{WallTimeSeconds: 600, MaxTurns: 10, MaxTokens: 10000, MaxChargeMicroUSD: 10, MaxNodeAttempts: 10, MaxChildren: 10, MaxConcurrency: 2, MaxRecursion: 2, MaxRetries: 2, MaxWaitSeconds: 60},
 		},
 		SourcePath: "workflow.json", SourceHash: "sha256:source", SourceUpdatedAt: now, CreatedAt: now,
 	}

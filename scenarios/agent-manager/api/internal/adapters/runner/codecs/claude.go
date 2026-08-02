@@ -102,6 +102,10 @@ func NewClaudeForTestWithBinary(path string) *Claude {
 	return c
 }
 
+// HasChargeSource reports that Claude's native result payload is the charge
+// source; it does not require the shared pricing lookup.
+func (c *Claude) HasChargeSource() bool { return true }
+
 // Capabilities satisfies [Codec].
 func (c *Claude) Capabilities() runner.Capabilities {
 	return runner.Capabilities{
@@ -151,7 +155,7 @@ func (c *Claude) ControlArgs(cfg *domain.RunConfig) ([]string, error) { return c
 
 // BuildArgs satisfies [Codec]. Claude has no per-run state to stash
 // from the request; the state argument is unused.
-func (c *Claude) BuildArgs(_ State, req runner.ExecuteRequest) []string {
+func (c *Claude) BuildArgs(state State, req runner.ExecuteRequest) []string {
 	args := []string{
 		"--print",
 		"--output-format", "stream-json",
@@ -159,6 +163,12 @@ func (c *Claude) BuildArgs(_ State, req runner.ExecuteRequest) []string {
 	}
 
 	cfg := req.GetConfig()
+	if s, ok := state.(*claudeState); ok {
+		s.model = strings.TrimSpace(cfg.Model)
+		if s.model == "" {
+			s.model = "unknown"
+		}
+	}
 	if cfg.MaxTurns > 0 {
 		args = append(args, "--max-turns", strconv.Itoa(cfg.MaxTurns))
 	} else {
@@ -234,6 +244,7 @@ type claudeState struct {
 	sessionID        string
 	gotResult        bool
 	resultIsError    bool
+	model            string
 
 	// /compact command tracking
 	pendingCompact bool
@@ -552,12 +563,15 @@ func (c *Claude) UpdateMetrics(event *domain.RunEvent, metrics *runner.Execution
 				metrics.TokensOutput = totalTokens - metrics.TokensInput
 			}
 		}
-	case *domain.CostEventData:
+	case *domain.UsageEventData:
 		metrics.TokensInput = data.InputTokens
 		metrics.TokensOutput = data.OutputTokens
 		metrics.CacheReadTokens = data.CacheReadTokens
 		metrics.CacheCreationTokens = data.CacheCreationTokens
-		metrics.CostEstimateUSD = data.TotalCostUSD
+	case *domain.ChargeEventData:
+		if data.AmountMicroUSD != nil {
+			metrics.CostEstimateUSD = float64(*data.AmountMicroUSD) / 1_000_000
+		}
 	}
 }
 
@@ -565,6 +579,13 @@ func (c *Claude) UpdateMetrics(event *domain.RunEvent, metrics *runner.Execution
 // the embedded [baseCodec.ParseTranscriptLine], which delegates here.
 func (c *Claude) NewTranscriptParser() runner.TranscriptParser {
 	return &claudeTranscriptParser{state: &claudeState{}}
+}
+
+func (p *claudeTranscriptParser) SetTranscriptModel(model string) {
+	p.state.model = strings.TrimSpace(model)
+	if p.state.model == "" {
+		p.state.model = "unknown"
+	}
 }
 
 type claudeTranscriptParser struct {
@@ -757,11 +778,11 @@ func parseClaudeStreamEvents(state *claudeState, runID uuid.UUID, line string) (
 				}
 			}
 		}
-		event, err := parseClaudeResultEvent(runID, &streamEvent)
-		if err != nil || event == nil {
+		resultEvents, err := parseClaudeResultEvent(runID, &streamEvent, state.model)
+		if err != nil || len(resultEvents) == 0 {
 			return nil, err
 		}
-		events = append(events, event)
+		events = append(events, resultEvents...)
 		return events, nil
 
 	case "system":
@@ -1085,7 +1106,7 @@ func resetToolUseState(state *claudeState) {
 // parseClaudeResultEvent handles the terminal `result` event. Errors are
 // classified via detectClaudeRateLimit; successful results emit a cost
 // event when usage data is present.
-func parseClaudeResultEvent(runID uuid.UUID, event *ClaudeStreamEvent) (*domain.RunEvent, error) {
+func parseClaudeResultEvent(runID uuid.UUID, event *ClaudeStreamEvent, model string) ([]*domain.RunEvent, error) {
 	resultStr := decodeClaudeResultString(event.Result)
 
 	// Rate-limit classification only fires when the CLI itself flagged
@@ -1095,48 +1116,58 @@ func parseClaudeResultEvent(runID uuid.UUID, event *ClaudeStreamEvent) (*domain.
 	// positives. See https://code.claude.com/docs/en/errors.
 	if event.IsError {
 		if rl := detectClaudeRateLimit(resultStr); rl.Detected {
-			return domain.NewRateLimitEvent(
+			return []*domain.RunEvent{domain.NewRateLimitEvent(
 				runID, rl.LimitType, rl.Message, rl.ResetTime, rl.RetryAfter,
-			), nil
+			)}, nil
 		}
 		msg := formatErrorMessage(event.Subtype, event.NumTurns, event.DurationMs, resultStr)
 		errEvent := domain.NewErrorEvent(runID, "execution_error", msg, false)
 		if data, ok := errEvent.Data.(*domain.ErrorEventData); ok {
 			data.Details = buildErrorDetails(event.Subtype, event.NumTurns, event.DurationMs, event.SessionID, resultStr, "")
 		}
-		return errEvent, nil
+		return []*domain.RunEvent{errEvent}, nil
 	}
 
 	// Successful result with usage — emit a cost event.
 	if event.Usage != nil || event.TotalCostUSD > 0 {
-		costEvent := &domain.RunEvent{
+		usageEvent := &domain.RunEvent{
 			ID:        uuid.New(),
 			RunID:     runID,
 			EventType: domain.EventTypeMetric,
 			Timestamp: time.Now(),
-			Data: &domain.CostEventData{
+			Data: &domain.UsageEventData{
+				PayloadKind:         domain.PayloadKindUsage,
 				InputTokens:         usageInputTokens(event.Usage),
 				OutputTokens:        usageOutputTokens(event.Usage),
 				CacheCreationTokens: usageCacheCreation(event.Usage),
 				CacheReadTokens:     usageCacheRead(event.Usage),
-				TotalCostUSD:        event.TotalCostUSD,
 				ServiceTier:         event.ServiceTier,
-				CostSource:          domain.CostSourceRunnerReported,
-				PricingProvider:     "claude-code",
+				RunnerType:          string(domain.RunnerTypeClaudeCode),
+				Model:               model,
 			},
 		}
+		amount := int64(event.TotalCostUSD*1_000_000 + 0.5)
+		chargeEvent := &domain.RunEvent{ID: uuid.New(), RunID: runID, EventType: domain.EventTypeMetric, Timestamp: time.Now(), Data: &domain.ChargeEventData{
+			PayloadKind:    domain.PayloadKindCharge,
+			Basis:          domain.ChargeBasisMetered,
+			AmountMicroUSD: &amount,
+			Currency:       "USD",
+			RunnerType:     string(domain.RunnerTypeClaudeCode),
+			Model:          model,
+		}}
+		events := []*domain.RunEvent{usageEvent, chargeEvent}
 		if event.Usage != nil && event.Usage.ServerToolUse != nil {
-			if data, ok := costEvent.Data.(*domain.CostEventData); ok {
+			if data, ok := usageEvent.Data.(*domain.UsageEventData); ok {
 				data.WebSearchRequests = event.Usage.ServerToolUse.WebSearchRequests
 			}
 		}
-		return costEvent, nil
+		return events, nil
 	}
 
-	return domain.NewLogEvent(
+	return []*domain.RunEvent{domain.NewLogEvent(
 		runID, "info",
 		fmt.Sprintf("Execution completed in %d turns", event.NumTurns),
-	), nil
+	)}, nil
 }
 
 func usageInputTokens(u *ClaudeUsage) int {

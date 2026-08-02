@@ -7,6 +7,9 @@ var DefaultModelAliases = map[string]struct {
 	Canonical string
 	Provider  string
 }{
+	"opus":   {"anthropic/claude-opus-4-7", "openrouter"},
+	"sonnet": {"anthropic/claude-sonnet-4-6", "openrouter"},
+	"haiku":  {"anthropic/claude-haiku-4-5", "openrouter"},
 	// OpenAI models (current generation)
 	"gpt-5.5":             {"openai/gpt-5.5", "openrouter"},
 	"gpt-5.4":             {"openai/gpt-5.4", "openrouter"},
@@ -56,6 +59,9 @@ func ResolveModelAlias(model string) (canonical, provider string, found bool) {
 	model = strings.TrimSpace(model)
 	if model == "" {
 		return "", "", false
+	}
+	if strings.HasPrefix(strings.ToLower(model), "ollama/") {
+		return model, "ollama", true
 	}
 
 	// If already canonical (has provider prefix), return as-is

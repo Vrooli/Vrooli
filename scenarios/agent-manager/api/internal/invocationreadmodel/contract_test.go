@@ -79,12 +79,34 @@ func TestProjectRun_UsesTerminalTimingAndAggregatesUsage(t *testing.T) {
 	started := created.Add(time.Minute)
 	ended := started.Add(2500 * time.Millisecond)
 	run := &domain.Run{ID: uuid.New(), CreatedAt: created, StartedAt: &started, EndedAt: &ended, Status: domain.RunStatusComplete, Tag: "throughput", ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeCodex, Model: "configured"}, ActualModel: "actual"}
-	fact := ProjectRun(run, []*domain.RunEvent{{Data: &domain.CostEventData{InputTokens: 10, OutputTokens: 20, CacheCreationTokens: 3, CacheReadTokens: 4, TotalCostUSD: 0.25, CostSource: domain.CostSourceRunnerReported}}, {Data: &domain.CostEventData{InputTokens: 5, TotalCostUSD: 0.75, CostSource: domain.CostSourcePricingTableEstimate}}, {Data: &domain.ToolCallEventData{ToolName: "read_file", Input: map[string]any{"path": "docs/a.md"}}}, {Data: &domain.ToolCallEventData{ToolName: "read_file", Input: map[string]any{"path": "docs/a.md"}}}}, ended.Add(time.Minute))
+	amountA, amountB := int64(250000), int64(750000)
+	fact := ProjectRun(run, []*domain.RunEvent{{Data: &domain.UsageEventData{InputTokens: 10, OutputTokens: 20, CacheCreationTokens: 3, CacheReadTokens: 4}}, {Data: &domain.UsageEventData{InputTokens: 5}}, {Data: &domain.ChargeEventData{Basis: domain.ChargeBasisMetered, AmountMicroUSD: &amountA}}, {Data: &domain.ChargeEventData{Basis: domain.ChargeBasisMetered, AmountMicroUSD: &amountB}}, {Data: &domain.ToolCallEventData{ToolName: "read_file", Input: map[string]any{"path": "docs/a.md"}}}, {Data: &domain.ToolCallEventData{ToolName: "read_file", Input: map[string]any{"path": "docs/a.md"}}}}, ended.Add(time.Minute))
 	if !fact.OccurredAt.Equal(ended) || fact.CostTimeBasis != "ended_at" || fact.DurationMS != 2500 {
 		t.Fatalf("terminal timing=%+v", fact)
 	}
-	if fact.TotalTokens != 42 || fact.TotalCostUSD != 1 || fact.AuthoritativeCostUSD != 0.25 || fact.EstimatedCostUSD != 0.75 || fact.UnknownCostUSD != 0 || fact.ReadCalls != 2 || fact.FileRereads != 1 || fact.Model != "actual" || fact.RunnerType != "codex" {
+	if fact.TotalTokens != 42 || fact.TotalCostUSD != 1 || fact.MeteredChargeMicroUSD != 1000000 || fact.ReadCalls != 2 || fact.FileRereads != 1 || fact.Model != "actual" || fact.RunnerType != "codex" {
 		t.Fatalf("usage dimensions=%+v", fact)
+	}
+}
+
+func TestProjectRun_SumsUsageWhenChargeIsUnpriced(t *testing.T) {
+	run := &domain.Run{ID: uuid.New(), CreatedAt: time.Now().Add(-time.Minute), Summary: &domain.RunSummary{TurnsUsed: 3}}
+	fact := ProjectRun(run, []*domain.RunEvent{
+		{Data: &domain.UsageEventData{InputTokens: 10, OutputTokens: 5}},
+		{Data: &domain.ChargeEventData{Basis: domain.ChargeBasisUnpriced}},
+	}, time.Now())
+	if fact.TotalTokens != 15 || fact.UnpricedTokenCount != 15 {
+		t.Fatalf("usage=%d unpriced=%d", fact.TotalTokens, fact.UnpricedTokenCount)
+	}
+	if fact.Turns != 3 {
+		t.Fatalf("turns=%d", fact.Turns)
+	}
+}
+
+func TestConsumptionPerSuccessfulCompletionCountsFailedAttempts(t *testing.T) {
+	got := ConsumptionPerSuccessfulCompletion([]RunFact{{Status: "failed", TotalTokens: 90}, {Status: "complete", TotalTokens: 10}})
+	if got.Consumption != 100 || got.SuccessfulRuns != 1 || got.PerSuccessfulRun != 100 {
+		t.Fatalf("efficiency=%+v", got)
 	}
 }
 

@@ -35,7 +35,7 @@ const (
 	MaxWallTimeSeconds = 86_400
 	MaxTurns           = 1_000
 	MaxTokens          = 10_000_000
-	MaxCostUSD         = 10_000
+	MaxChargeMicroUSD  = int64(10_000_000_000) // $10,000 in micro-USD
 	MaxNodeAttempts    = 10_000
 	MaxChildren        = 1_000
 	MaxConcurrency     = 64
@@ -65,6 +65,9 @@ func Parse(data []byte, lookup Lookup) (*Result, error) {
 	if len(data) == 0 || len(data) > MaxDefinitionBytes {
 		return nil, fmt.Errorf("workflow definition must be between 1 and %d bytes", MaxDefinitionBytes)
 	}
+	// Keep already-authored scenario declarations readable across the budget
+	// unit migration. Canonical output always uses integer micro-USD.
+	data = bytes.ReplaceAll(data, []byte(`"maxCostUsd"`), []byte(`"maxChargeMicroUsd"`))
 	var definition domain.WorkflowDefinition
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
@@ -727,11 +730,11 @@ func templateFieldRefs(tree *parse.Tree) map[string]bool {
 }
 
 func positiveBudgets(b domain.WorkflowBudgets) bool {
-	return b.WallTimeSeconds > 0 && b.MaxTurns > 0 && b.MaxTokens > 0 && b.MaxCostUSD > 0 && b.MaxNodeAttempts > 0 && b.MaxChildren > 0 && b.MaxConcurrency > 0 && b.MaxRecursion > 0 && b.MaxRetries > 0 && b.MaxWaitSeconds > 0
+	return b.WallTimeSeconds > 0 && b.MaxTurns > 0 && b.MaxTokens > 0 && b.MaxChargeMicroUSD > 0 && b.MaxNodeAttempts > 0 && b.MaxChildren > 0 && b.MaxConcurrency > 0 && b.MaxRecursion > 0 && b.MaxRetries > 0 && b.MaxWaitSeconds > 0
 }
 
 func withinSafetyLimits(b domain.WorkflowBudgets) bool {
-	return b.WallTimeSeconds <= MaxWallTimeSeconds && b.MaxTurns <= MaxTurns && b.MaxTokens <= MaxTokens && b.MaxCostUSD <= MaxCostUSD && b.MaxNodeAttempts <= MaxNodeAttempts && b.MaxChildren <= MaxChildren && b.MaxConcurrency <= MaxConcurrency && b.MaxRecursion <= MaxRecursion && b.MaxRetries <= MaxRetries && b.MaxWaitSeconds <= MaxWaitSeconds
+	return b.WallTimeSeconds <= MaxWallTimeSeconds && b.MaxTurns <= MaxTurns && b.MaxTokens <= MaxTokens && b.MaxChargeMicroUSD <= MaxChargeMicroUSD && b.MaxNodeAttempts <= MaxNodeAttempts && b.MaxChildren <= MaxChildren && b.MaxConcurrency <= MaxConcurrency && b.MaxRecursion <= MaxRecursion && b.MaxRetries <= MaxRetries && b.MaxWaitSeconds <= MaxWaitSeconds
 }
 
 func validateReachability(entry string, nodes map[string]*domain.WorkflowNode, adj map[string][]domain.WorkflowEdge, add func(string, string, string)) {

@@ -2,6 +2,7 @@ package measures
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -222,7 +223,55 @@ func Register() cliapp.SubcommandGroup {
 		}, func(r *measurepb.SelectCohortResponse) string {
 			return fmt.Sprintf("Selected run cohort: %s", strings.Join(r.GetRunIds(), ", "))
 		}),
+		genericMeasure("workload-efficiency", "Show consumption per successful workload completion", "throughput.workload_efficiency", []cliapp.Flag{
+			{Name: "window", Description: "Analytical time window", Values: windowValues},
+			{Name: "workload-key", Description: "Declared workload key"},
+			{Name: "runner-type", Description: "Runner type"},
+			{Name: "model", Description: "Model"},
+		}),
+		genericMeasure("workload-breakdown", "Show terminal run performance grouped by workload", "throughput.workload_breakdown", []cliapp.Flag{
+			{Name: "window", Description: "Analytical time window", Values: windowValues},
+		}),
 	}}
+}
+
+func genericMeasure(name, description, measure string, flags []cliapp.Flag) cliapp.Command {
+	return cliapp.Command{
+		Name: name, Description: description + " [--window TOKEN] [--json]", NeedsAPI: true,
+		Args: cliapp.ArgSchema{Flags: flags},
+		RunCtx: func(ctx cliapp.RunContext) error {
+			params := map[string]string{"window": ctx.Flag("window")}
+			for _, flag := range flags {
+				if flag.Name == "window" {
+					continue
+				}
+				if value := ctx.Flag(flag.Name); value != "" {
+					params[strings.ReplaceAll(flag.Name, "-", "_")] = value
+				}
+			}
+			body, err := ctx.Core().Request("POST", "measures/execute", nil, map[string]any{"measure": measure, "params": params})
+			if err != nil {
+				return err
+			}
+			if ctx.JSON() {
+				_, err = ctx.Stdout().Write(append(body, '\n'))
+				return err
+			}
+			var result struct {
+				Value  string              `json:"value"`
+				Fields []map[string]string `json:"fields"`
+			}
+			if err := json.Unmarshal(body, &result); err != nil {
+				return err
+			}
+			fmt.Fprintf(ctx.Stdout(), "%s: %s\n", name, result.Value)
+			for _, field := range result.Fields {
+				encoded, _ := json.Marshal(field)
+				fmt.Fprintln(ctx.Stdout(), string(encoded))
+			}
+			return nil
+		},
+	}
 }
 
 func renderBreakdown(label string, rows []*measurepb.RunBreakdownRow) string {

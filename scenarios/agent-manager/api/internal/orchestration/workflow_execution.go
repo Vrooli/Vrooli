@@ -63,6 +63,7 @@ func (l workflowChildLauncher) StartFresh(ctx context.Context, req workflowrunti
 	}
 	create := CreateRunRequest{
 		TaskID: taskID, Prompt: req.Prompt, ResultSpec: req.ResultSpec, IdempotencyKey: req.IdempotencyKey, Tag: tag, Force: req.Force,
+		WorkloadKind: domain.WorkloadKindWorkflowNode, WorkloadKey: req.NodeID, WorkloadInstance: req.ExecutionID.String(),
 		Environment: map[string]string{
 			workflowExecutionEnv:  req.ExecutionID.String(),
 			workflowNodeEnv:       req.NodeID,
@@ -132,8 +133,14 @@ func childStateFromRun(run *domain.Run) workflowruntime.ChildState {
 	state := workflowruntime.ChildState{RunID: run.ID, ConversationID: run.ConversationID, Result: run.Result}
 	if run.Summary != nil {
 		state.Turns = run.Summary.TurnsUsed
-		state.Tokens = run.Summary.TokensUsed
-		state.CostUSD = run.Summary.CostEstimate
+		state.Tokens = run.Summary.TokensUsed - run.Summary.ContextTokens
+		if state.Tokens < 0 {
+			state.Tokens = 0
+		}
+		state.CostUSD = run.Summary.CostEstimate // historical compatibility field
+		if run.Billing.EffectiveBasis() == domain.ChargeBasisMetered {
+			state.ChargeMicroUSD = int64(run.Summary.CostEstimate*1_000_000 + 0.5)
+		}
 	}
 	switch run.Status {
 	case domain.RunStatusComplete:

@@ -265,7 +265,7 @@ bounded after restart and on every deployment.
 | `wallTimeSeconds` | none (required) | 1–86,400 | Scenario workflow author |
 | `maxTurns` | none (required) | 1–1,000 | Scenario workflow author |
 | `maxTokens` | none (required) | 1–10,000,000 | Scenario workflow author |
-| `maxCostUsd` | none (required) | >0–10,000 | Scenario workflow author |
+| `maxChargeMicroUsd` | none (required) | >0–10,000,000,000 (micro-USD) | Scenario workflow author |
 | `maxNodeAttempts` | none (required) | 1–10,000 | Scenario workflow author |
 | `maxChildren` | none (required) | 1–1,000 | Scenario workflow author |
 | `maxConcurrency` | none (required) | 1–64 | Scenario workflow author |

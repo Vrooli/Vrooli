@@ -123,7 +123,7 @@ See also [EVENT_TAXONOMY.md](EVENT_TAXONOMY.md), [SEAMS.md](SEAMS.md), and
 ## Investigation-quality baseline inventory — 2026-07-28
 
 Baseline: Test Genie run `20260728-211850-c48832d6` (FAIL; inherited) and
-`storage-health validate scenario agent-manager` (0 findings).
+`storage-manager validate scenario agent-manager` (0 findings).
 
 The baseline suite has inherited failures in `structure`, `contracts`, `api`,
 `dependencies`, `quality`, `docs`, `unit`, `security`, `measures`, and `proto`.

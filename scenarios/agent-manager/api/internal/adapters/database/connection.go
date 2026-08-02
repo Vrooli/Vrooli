@@ -415,6 +415,13 @@ func (db *DB) initSchema() error {
 			return err
 		}
 	}
+	if columns, err := db.tableColumns(ctx, "model_pricing"); err != nil {
+		return err
+	} else if len(columns) > 0 {
+		if err := db.migrateColumns(ctx, "model_pricing", []columnMigration{{column: "price_book_revision_id", ddl: "ALTER TABLE model_pricing ADD COLUMN price_book_revision_id TEXT"}}); err != nil {
+			return err
+		}
+	}
 	if columns, err := db.tableColumns(ctx, "invocation_read_model_facts"); err != nil {
 		return err
 	} else if len(columns) > 0 {
@@ -496,6 +503,9 @@ func (db *DB) initSchema() error {
 	if err := db.migrateInvocationReadModelRunColumns(ctx); err != nil {
 		return err
 	}
+	if err := db.removeRetiredInvocationReadModelColumns(ctx); err != nil {
+		return err
+	}
 	if err := db.migrateRunFindingColumns(ctx); err != nil {
 		return err
 	}
@@ -526,9 +536,6 @@ type columnMigration struct {
 }
 
 var invocationReadModelRunColumnMigrations = []columnMigration{
-	{column: "authoritative_cost_usd", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN authoritative_cost_usd REAL NOT NULL DEFAULT 0"},
-	{column: "estimated_cost_usd", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN estimated_cost_usd REAL NOT NULL DEFAULT 0"},
-	{column: "unknown_cost_usd", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN unknown_cost_usd REAL NOT NULL DEFAULT 0"},
 	{column: "input_cost_usd", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN input_cost_usd REAL NOT NULL DEFAULT 0"},
 	{column: "output_cost_usd", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN output_cost_usd REAL NOT NULL DEFAULT 0"},
 	{column: "cache_read_cost_usd", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN cache_read_cost_usd REAL NOT NULL DEFAULT 0"},
@@ -537,11 +544,14 @@ var invocationReadModelRunColumnMigrations = []columnMigration{
 	{column: "output_tokens", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN output_tokens INTEGER NOT NULL DEFAULT 0"},
 	{column: "cache_read_tokens", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN cache_read_tokens INTEGER NOT NULL DEFAULT 0"},
 	{column: "cache_creation_tokens", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN cache_creation_tokens INTEGER NOT NULL DEFAULT 0"},
-	{column: "goal_id", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN goal_id TEXT NOT NULL DEFAULT ''"},
-	{column: "goal_status", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN goal_status TEXT NOT NULL DEFAULT ''"},
-	{column: "goal_token_budget", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN goal_token_budget INTEGER"},
-	{column: "goal_tokens_used", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN goal_tokens_used INTEGER NOT NULL DEFAULT 0"},
-	{column: "goal_time_used_seconds", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN goal_time_used_seconds INTEGER NOT NULL DEFAULT 0"},
+	{column: "turns", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN turns INTEGER NOT NULL DEFAULT 0"},
+	{column: "tool_calls", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN tool_calls INTEGER NOT NULL DEFAULT 0"},
+	{column: "total_charge_micro_usd", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN total_charge_micro_usd INTEGER NOT NULL DEFAULT 0"},
+	{column: "metered_charge_micro_usd", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN metered_charge_micro_usd INTEGER NOT NULL DEFAULT 0"},
+	{column: "unpriced_token_count", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN unpriced_token_count INTEGER NOT NULL DEFAULT 0"},
+	{column: "workload_kind", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN workload_kind TEXT NOT NULL DEFAULT 'adhoc'"},
+	{column: "workload_key", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN workload_key TEXT NOT NULL DEFAULT ''"},
+	{column: "workload_instance", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN workload_instance TEXT NOT NULL DEFAULT ''"},
 }
 
 var runFindingColumnMigrations = []columnMigration{
@@ -558,6 +568,88 @@ func (db *DB) migrateRunFindingColumns(ctx context.Context) error {
 
 func (db *DB) migrateInvocationReadModelRunColumns(ctx context.Context) error {
 	return db.migrateColumns(ctx, "invocation_read_model_runs", invocationReadModelRunColumnMigrations)
+}
+
+// removeRetiredInvocationReadModelColumns performs the one destructive part
+// of the usage/charge cutover. SQLite cannot drop columns directly on all
+// supported versions, so rebuild the narrow read-model table while copying
+// every retained analytical fact. The operation is idempotent and only runs
+// when one of the retired columns is still present.
+func (db *DB) removeRetiredInvocationReadModelColumns(ctx context.Context) error {
+	columns, err := db.tableColumns(ctx, "invocation_read_model_runs")
+	if err != nil {
+		return err
+	}
+	retired := []string{"authoritative_cost_usd", "estimated_cost_usd", "unknown_cost_usd", "goal_id", "goal_status", "goal_token_budget", "goal_tokens_used", "goal_time_used_seconds"}
+	needsRebuild := false
+	for _, column := range retired {
+		if _, ok := columns[column]; ok {
+			needsRebuild = true
+			break
+		}
+	}
+	if !needsRebuild {
+		return nil
+	}
+	statements := []string{
+		"DROP INDEX IF EXISTS idx_invocation_read_model_runs_occurred_at",
+		"DROP INDEX IF EXISTS idx_invocation_read_model_runs_status",
+		"DROP INDEX IF EXISTS idx_invocation_read_model_runs_profile",
+		"DROP INDEX IF EXISTS idx_invocation_read_model_runs_runner",
+		"DROP INDEX IF EXISTS idx_invocation_read_model_runs_model",
+		"ALTER TABLE invocation_read_model_runs RENAME TO invocation_read_model_runs_retired",
+		`CREATE TABLE invocation_read_model_runs (
+            run_id TEXT PRIMARY KEY,
+            occurred_at TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            started_at TEXT,
+            ended_at TEXT,
+            duration_ms INTEGER NOT NULL DEFAULT 0,
+            status TEXT NOT NULL,
+            profile_id TEXT NOT NULL DEFAULT 'unknown',
+            runner_type TEXT NOT NULL DEFAULT 'unknown',
+            model TEXT NOT NULL DEFAULT 'unknown',
+            tag TEXT NOT NULL DEFAULT 'unknown',
+            workload_kind TEXT NOT NULL DEFAULT 'adhoc',
+            workload_key TEXT NOT NULL DEFAULT '',
+            workload_instance TEXT NOT NULL DEFAULT '',
+            total_cost_usd REAL NOT NULL DEFAULT 0,
+            input_cost_usd REAL NOT NULL DEFAULT 0,
+            output_cost_usd REAL NOT NULL DEFAULT 0,
+            cache_read_cost_usd REAL NOT NULL DEFAULT 0,
+            cache_creation_cost_usd REAL NOT NULL DEFAULT 0,
+            total_tokens INTEGER NOT NULL DEFAULT 0,
+            input_tokens INTEGER NOT NULL DEFAULT 0,
+            output_tokens INTEGER NOT NULL DEFAULT 0,
+            cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+            cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
+            turns INTEGER NOT NULL DEFAULT 0,
+            tool_calls INTEGER NOT NULL DEFAULT 0,
+            total_charge_micro_usd INTEGER NOT NULL DEFAULT 0,
+            metered_charge_micro_usd INTEGER NOT NULL DEFAULT 0,
+            unpriced_token_count INTEGER NOT NULL DEFAULT 0,
+            cost_time_basis TEXT NOT NULL DEFAULT 'terminal_projection',
+            projected_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )`,
+		`INSERT INTO invocation_read_model_runs (run_id,occurred_at,created_at,started_at,ended_at,duration_ms,status,profile_id,runner_type,model,tag,workload_kind,workload_key,workload_instance,total_cost_usd,input_cost_usd,output_cost_usd,cache_read_cost_usd,cache_creation_cost_usd,total_tokens,input_tokens,output_tokens,cache_read_tokens,cache_creation_tokens,turns,tool_calls,total_charge_micro_usd,metered_charge_micro_usd,unpriced_token_count,cost_time_basis,projected_at)
+         SELECT run_id,occurred_at,created_at,started_at,ended_at,duration_ms,status,profile_id,runner_type,model,tag,workload_kind,workload_key,workload_instance,total_cost_usd,input_cost_usd,output_cost_usd,cache_read_cost_usd,cache_creation_cost_usd,total_tokens,input_tokens,output_tokens,cache_read_tokens,cache_creation_tokens,turns,tool_calls,total_charge_micro_usd,metered_charge_micro_usd,unpriced_token_count,cost_time_basis,projected_at
+         FROM invocation_read_model_runs_retired`,
+		"DROP TABLE invocation_read_model_runs_retired",
+		"CREATE INDEX IF NOT EXISTS idx_invocation_read_model_runs_occurred_at ON invocation_read_model_runs(occurred_at)",
+		"CREATE INDEX IF NOT EXISTS idx_invocation_read_model_runs_status ON invocation_read_model_runs(status, occurred_at)",
+		"CREATE INDEX IF NOT EXISTS idx_invocation_read_model_runs_profile ON invocation_read_model_runs(profile_id, occurred_at)",
+		"CREATE INDEX IF NOT EXISTS idx_invocation_read_model_runs_runner ON invocation_read_model_runs(runner_type, occurred_at)",
+		"CREATE INDEX IF NOT EXISTS idx_invocation_read_model_runs_model ON invocation_read_model_runs(model, occurred_at)",
+	}
+	for _, statement := range statements {
+		if _, err := db.ExecContext(ctx, statement); err != nil {
+			return &domain.DatabaseError{Operation: "schema_drop_retired_columns", EntityType: "Schema", Cause: err}
+		}
+	}
+	if db.log != nil {
+		db.log.Info("Removed retired invocation read-model cost and goal columns")
+	}
+	return nil
 }
 
 var invocationReadModelFactColumnMigrations = []columnMigration{
@@ -690,6 +782,10 @@ var runColumnMigrations = []columnMigration{
 	{column: "import_source_harness", ddl: "ALTER TABLE runs ADD COLUMN import_source_harness TEXT DEFAULT ''"},
 	{column: "import_source_session_id", ddl: "ALTER TABLE runs ADD COLUMN import_source_session_id TEXT DEFAULT ''"},
 	{column: "imported_at", ddl: "ALTER TABLE runs ADD COLUMN imported_at TEXT"},
+	{column: "workload_key", ddl: "ALTER TABLE runs ADD COLUMN workload_key TEXT NOT NULL DEFAULT ''"},
+	{column: "workload_kind", ddl: "ALTER TABLE runs ADD COLUMN workload_kind TEXT NOT NULL DEFAULT 'adhoc'"},
+	{column: "workload_instance", ddl: "ALTER TABLE runs ADD COLUMN workload_instance TEXT NOT NULL DEFAULT ''"},
+	{column: "billing_snapshot", ddl: "ALTER TABLE runs ADD COLUMN billing_snapshot TEXT NOT NULL DEFAULT '{}'"},
 }
 
 // migrateRunColumns adds any missing additive columns to the runs table.

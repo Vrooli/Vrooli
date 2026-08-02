@@ -2,7 +2,6 @@ package orchestration_test
 
 import (
 	"context"
-	"database/sql"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,7 +11,6 @@ import (
 	"agent-manager/internal/adapters/runner/codecs"
 	runnercore "agent-manager/internal/adapters/runner/core"
 	"agent-manager/internal/domain"
-	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/testutil"
 )
@@ -64,37 +62,5 @@ func TestImportTranscriptPersistsAgainstSQLite(t *testing.T) {
 	}
 	if again.ID != run.ID {
 		t.Fatalf("repeat import created %s, want existing %s", again.ID, run.ID)
-	}
-}
-
-func TestImportTranscriptCapturesOptionalGoalOutcome(t *testing.T) {
-	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
-	t.Cleanup(cleanup)
-	registry := runner.NewRegistry()
-	if err := registry.Register(runnercore.NewRunner(codecs.NewCodexForTest(), nil, nil)); err != nil {
-		t.Fatal(err)
-	}
-	goalHome := t.TempDir()
-	db, err := sql.Open("sqlite", filepath.Join(goalHome, "goals_1.sqlite"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
-	if _, err = db.Exec(`CREATE TABLE thread_goals (thread_id TEXT PRIMARY KEY, goal_id TEXT NOT NULL, objective TEXT NOT NULL, status TEXT NOT NULL, token_budget INTEGER, tokens_used INTEGER NOT NULL, time_used_seconds INTEGER NOT NULL); INSERT INTO thread_goals VALUES ('goal-thread','goal-1','ship','blocked',1000,900,60)`); err != nil {
-		t.Fatal(err)
-	}
-	svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithEvents(eventStore), orchestration.WithRunners(registry), orchestration.WithRunStateRoot(t.TempDir()), orchestration.WithInvocationReadModel(repos.InvocationReadModel))
-	path := filepath.Join(t.TempDir(), "goal.jsonl")
-	if err := os.WriteFile(path, []byte("{\"type\":\"thread.started\",\"thread_id\":\"goal-thread\"}\n{\"type\":\"turn.completed\"}\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	run, err := svc.ImportTranscript(context.Background(), orchestration.ImportTranscriptRequest{Path: path, RunnerType: domain.RunnerTypeCodex, GoalSessionHome: goalHome})
-	if err != nil {
-		t.Fatal(err)
-	}
-	store := repos.InvocationReadModel.(invocationreadmodel.GoalOutcomeStore)
-	goal, err := store.GoalOutcome(context.Background(), run.ID.String())
-	if err != nil || goal == nil || goal.Status != "blocked" || goal.TokensUsed != 900 {
-		t.Fatalf("goal=%#v err=%v", goal, err)
 	}
 }

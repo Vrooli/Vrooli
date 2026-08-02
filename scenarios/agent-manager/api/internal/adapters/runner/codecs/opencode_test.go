@@ -379,7 +379,7 @@ func TestOpenCode_DecodeStreamLine_StepFinish_NonTerminal(t *testing.T) {
 	}
 	hasCost := false
 	for _, e := range events {
-		if _, ok := e.Data.(*domain.CostEventData); ok {
+		if _, ok := e.Data.(*domain.UsageEventData); ok {
 			hasCost = true
 		}
 	}
@@ -397,7 +397,7 @@ func TestOpenCode_DecodeStreamLine_StepFinish_Terminal_FlagsState(t *testing.T) 
 	// Should produce both cost and message events.
 	hasCost, hasMsg := false, false
 	for _, e := range events {
-		if _, ok := e.Data.(*domain.CostEventData); ok {
+		if _, ok := e.Data.(*domain.UsageEventData); ok {
 			hasCost = true
 		}
 		if md, ok := e.Data.(*domain.MessageEventData); ok && md.Content == "All done." {
@@ -767,7 +767,7 @@ func TestOpenCode_UpdateMetrics(t *testing.T) {
 	})
 
 	t.Run("CostEvent", func(t *testing.T) {
-		ev := &domain.RunEvent{Data: &domain.CostEventData{InputTokens: 100, OutputTokens: 50, TotalCostUSD: 0.01}}
+		ev := &domain.RunEvent{Data: &domain.UsageEventData{PayloadKind: domain.PayloadKindUsage, InputTokens: 100, OutputTokens: 50}}
 		c.UpdateMetrics(ev, &metrics, &last)
 		if metrics.TokensInput != 100 || metrics.TokensOutput != 50 {
 			t.Errorf("tokens=%d/%d", metrics.TokensInput, metrics.TokensOutput)

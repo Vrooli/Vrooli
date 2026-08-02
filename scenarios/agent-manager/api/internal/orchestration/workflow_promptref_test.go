@@ -65,7 +65,7 @@ const promptRefWorkflow = `{
   "nodes": [
     {"id": "work", "kind": "run", "run": {"profileKey": "fixture-scn/default", "promptRef": {"skillId": "fixture-skill"}, "maxTurns": 5, "timeoutSeconds": 300}}
   ],
-  "budgets": {"wallTimeSeconds": 1200, "maxTurns": 12, "maxTokens": 30000, "maxCostUsd": 5, "maxNodeAttempts": 2, "maxChildren": 1, "maxConcurrency": 1, "maxRecursion": 1, "maxRetries": 1, "maxWaitSeconds": 60}
+  "budgets": {"wallTimeSeconds": 1200, "maxTurns": 12, "maxTokens": 30000, "maxChargeMicroUsd": 5, "maxNodeAttempts": 2, "maxChildren": 1, "maxConcurrency": 1, "maxRecursion": 1, "maxRetries": 1, "maxWaitSeconds": 60}
 }`
 
 func TestPromptRefResolvesAndPinsProvenance(t *testing.T) {

@@ -177,7 +177,6 @@ func TestRunEventDataStringSupportsEveryDisplayablePayload(t *testing.T) {
 		{"artifact", &domainpb.RunEvent{Data: &domainpb.RunEvent_Artifact{Artifact: &domainpb.ArtifactEventData{}}}},
 		{"error", &domainpb.RunEvent{Data: &domainpb.RunEvent_Error{Error: &domainpb.ErrorEventData{}}}},
 		{"progress", &domainpb.RunEvent{Data: &domainpb.RunEvent_Progress{Progress: &domainpb.ProgressEventData{}}}},
-		{"cost", &domainpb.RunEvent{Data: &domainpb.RunEvent_Cost{Cost: &domainpb.CostEventData{}}}},
 		{"rate limit", &domainpb.RunEvent{Data: &domainpb.RunEvent_RateLimit{RateLimit: &domainpb.RateLimitEventData{}}}},
 		{"compaction", &domainpb.RunEvent{Data: &domainpb.RunEvent_Compaction{Compaction: &domainpb.CompactionEventData{}}}},
 	}

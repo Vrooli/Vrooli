@@ -62,13 +62,6 @@ func runReportToProto(report *runreport.RunReport) *apipb.RunReport {
 		code := int32(*report.ExitCode)
 		out.ExitCode = &code
 	}
-	if goal := report.GoalOutcome; goal != nil {
-		out.GoalOutcome = &apipb.RunGoalOutcome{GoalId: goal.GoalID, Status: goal.Status, TokensUsed: goal.TokensUsed, TimeUsedSeconds: goal.TimeUsedSeconds}
-		if goal.TokenBudget != nil {
-			value := *goal.TokenBudget
-			out.GoalOutcome.TokenBudget = &value
-		}
-	}
 	for eventType, count := range report.Events {
 		out.EventCounts[eventType] = int32(count)
 	}

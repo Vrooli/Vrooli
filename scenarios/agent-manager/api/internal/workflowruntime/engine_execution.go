@@ -168,7 +168,7 @@ func (e *Engine) advanceParallelBranch(ctx context.Context, x *domain.WorkflowEx
 				return x, inspectErr
 			}
 			terminal, failed, result = state.Terminal, state.Failed, state.Result
-			usage = domain.WorkflowBudgetUsage{Turns: state.Turns, Tokens: state.Tokens, CostUSD: state.CostUSD}
+			usage = domain.WorkflowBudgetUsage{Turns: state.Turns, Tokens: state.Tokens, ChargeMicroUSD: state.ChargeMicroUSD}
 		}
 		if !terminal {
 			continue
@@ -182,7 +182,7 @@ func (e *Engine) advanceParallelBranch(ctx context.Context, x *domain.WorkflowEx
 		attempt.UpdatedAt, attempt.CompletedAt = now, &now
 		x.BudgetUsage.Turns += usage.Turns
 		x.BudgetUsage.Tokens += usage.Tokens
-		x.BudgetUsage.CostUSD += usage.CostUSD
+		x.BudgetUsage.ChargeMicroUSD += usage.ChargeMicroUSD
 		x.BudgetUsage.NodeAttempts += usage.NodeAttempts
 		x.BudgetUsage.Children += usage.Children
 		x.BudgetUsage.Retries += usage.Retries
@@ -345,8 +345,8 @@ func exceededBudgetName(usage domain.WorkflowBudgetUsage, budgets domain.Workflo
 		return "turns"
 	case usage.Tokens > budgets.MaxTokens:
 		return "tokens"
-	case usage.CostUSD > budgets.MaxCostUSD:
-		return "cost"
+	case usage.ChargeMicroUSD > budgets.MaxChargeMicroUSD:
+		return "charge"
 	case usage.NodeAttempts > budgets.MaxNodeAttempts:
 		return "node_attempts"
 	case usage.Children > budgets.MaxChildren:
@@ -454,7 +454,7 @@ func (e *Engine) advanceBranch(ctx context.Context, x *domain.WorkflowExecution,
 			fallback = edge
 			continue
 		}
-		matches, evalErr := e.Expressions.Evaluate(edge.Condition, ExpressionContext{Input: input, Journal: journalValues, Status: string(x.Status), Iteration: int64(x.BudgetUsage.NodeAttempts), EdgeTraversals: x.EdgeTraversals, Budget: map[string]any{"turns": x.BudgetUsage.Turns, "tokens": x.BudgetUsage.Tokens, "costUsd": x.BudgetUsage.CostUSD}})
+		matches, evalErr := e.Expressions.Evaluate(edge.Condition, ExpressionContext{Input: input, Journal: journalValues, Status: string(x.Status), Iteration: int64(x.BudgetUsage.NodeAttempts), EdgeTraversals: x.EdgeTraversals, Budget: map[string]any{"turns": x.BudgetUsage.Turns, "tokens": x.BudgetUsage.Tokens, "chargeMicroUsd": x.BudgetUsage.ChargeMicroUSD}})
 		err = evalErr
 		if edge.Condition != "" {
 			if err != nil {

@@ -10,6 +10,19 @@ The four big seams added by the Phase 6 refactor:
 
 For the architectural overview and design invariants, see [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md).
 
+## Consumption and charge projection seam
+
+Runner codecs emit `UsageEventData` for consumption on every observed usage
+shape, then emit an independent `ChargeEventData` when billing evidence exists.
+`invocationreadmodel.ProjectRun` folds those payloads separately; pricing is
+never allowed to gate token or turn telemetry. Historical fused JSON is
+normalized in `domain.NormalizeEventPayloadJSON` before decoding. The pricing
+service reads a lifecycle-refreshed price book and never performs provider I/O
+in a request path. The architecture test
+`internal/archtest/pricing_wiring_test.go::TestCostTrackingCodecsHaveChargeSource`
+guards production wiring. Billing mode and workload identity are stamped into
+the run snapshot at creation and are not reconstructed from mutable policy.
+
 ## Architectural Principles
 
 The codebase follows three key architectural principles:
@@ -1803,7 +1816,7 @@ signals or logs.
 - The handshake is idempotent command in, typed result out; neither side
   mirrors the other's lifecycle.
 
-## Codec-pipe session-home and Codex-goal seams
+## Codec-pipe session-home seam
 
 `orchestration.PrepareCodecSessionHome` gives codec-pipe Codex and Grok runs a
 durable per-run home under `runstate.RunDir`. The runtime directory is beneath
@@ -1816,13 +1829,9 @@ private filesystem layout. Codex credential/config seed files are copied into
 that home and removed at terminal cleanup; rollout and transcript data remain
 for recovery and replay.
 
-`codexgoals.Read` is a separate, read-only observability seam. At terminal
-status, Agent Manager looks for the run's Codex `goals_1.sqlite` and emits the
-matching thread's budget and usage only when it exists. It never writes Codex's
-private store, and missing stores or thread rows are normal no-op outcomes.
-
 The session-home regression proves turn two reads the rollout turn one wrote.
-The goal reader is independently tested against a temporary SQLite store.
+Codex's private goal database is intentionally outside Agent Manager's
+analytical contract; canonical consumption comes from the run usage projection.
 
 ## Related Documentation
 

@@ -162,6 +162,8 @@ func (h *Handler) CreateRun(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		req.Environment = protoReq.Environment
+		req.WorkloadKey = protoReq.Environment["VROOLI_WORKLOAD_KEY"]
+		req.WorkloadKind = domain.WorkloadKind(protoReq.Environment["VROOLI_WORKLOAD_KIND"])
 	}
 	if protoReq.ConversationId != nil {
 		req.ConversationID = protoReq.GetConversationId()
@@ -240,7 +242,8 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 		selectionCount++
 	}
 	if strings.TrimSpace(req.GoalID) != "" {
-		selectionCount++
+		writeSimpleError(w, r, "goalId", "goal accounting is not a durable selection surface")
+		return
 	}
 	if selectionCount > 1 {
 		writeSimpleError(w, r, "selection", "provide exactly one of runIds, selector, or goalId")
@@ -256,16 +259,9 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 		runIDs = append(runIDs, id)
 	}
 	var selection *orchestration.InvestigationSelection
-	if req.Selector != nil || strings.TrimSpace(req.GoalID) != "" {
-		filter := invocationreadmodel.Filter{}
-		kind := "goal"
-		if req.Selector != nil {
-			filter = req.Selector.Filter
-			kind = "cohort"
-		}
-		if goalID := strings.TrimSpace(req.GoalID); goalID != "" {
-			filter.GoalID = goalID
-		}
+	if req.Selector != nil {
+		filter := req.Selector.Filter
+		kind := "cohort"
 		limit := 50
 		if req.Selector != nil {
 			limit = req.Selector.Limit

@@ -39,8 +39,12 @@ type WorkflowTerminalReason struct {
 }
 
 type WorkflowBudgetUsage struct {
-	Turns        int     `json:"turns"`
-	Tokens       int     `json:"tokens"`
+	Turns  int `json:"turns"`
+	Tokens int `json:"tokens"`
+	// ChargeMicroUSD is authoritative metered charge only. Unpriced usage and
+	// historical estimates cannot exhaust a monetary budget.
+	ChargeMicroUSD int64 `json:"chargeMicroUsd"`
+	// CostUSD is retained for readable historical workflow records.
 	CostUSD      float64 `json:"costUsd"`
 	NodeAttempts int     `json:"nodeAttempts"`
 	Children     int     `json:"children"`

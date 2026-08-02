@@ -101,7 +101,7 @@ func inputBinding(name, path string) domain.WorkflowInputBinding {
 
 func baseDefinition() domain.WorkflowDefinition {
 	schema := json.RawMessage(`{"type":"object","additionalProperties":true}`)
-	return domain.WorkflowDefinition{SchemaVersion: domain.WorkflowSchemaVersionV1, Owner: "example", Key: "example/flow", Version: "1.0.0", InputSchema: schema, OutputSchema: schema, Budgets: domain.WorkflowBudgets{WallTimeSeconds: 600, MaxTurns: 10, MaxTokens: 10000, MaxCostUSD: 10, MaxNodeAttempts: 10, MaxChildren: 10, MaxConcurrency: 2, MaxRecursion: 2, MaxRetries: 2, MaxWaitSeconds: 60}}
+	return domain.WorkflowDefinition{SchemaVersion: domain.WorkflowSchemaVersionV1, Owner: "example", Key: "example/flow", Version: "1.0.0", InputSchema: schema, OutputSchema: schema, Budgets: domain.WorkflowBudgets{WallTimeSeconds: 600, MaxTurns: 10, MaxTokens: 10000, MaxChargeMicroUSD: 10, MaxNodeAttempts: 10, MaxChildren: 10, MaxConcurrency: 2, MaxRecursion: 2, MaxRetries: 2, MaxWaitSeconds: 60}}
 }
 
 func revision(d domain.WorkflowDefinition) *domain.WorkflowRevision {

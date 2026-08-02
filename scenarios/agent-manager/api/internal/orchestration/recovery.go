@@ -212,6 +212,9 @@ func (r *Reconciler) drainTranscript(ctx context.Context, run *domain.Run, trans
 	if factory, ok := parser.(runner.TranscriptParserFactory); ok {
 		transcriptParser = factory.NewTranscriptParser()
 	}
+	if setter, ok := transcriptParser.(runner.TranscriptModelSetter); ok {
+		setter.SetTranscriptModel(runTranscriptModel(run))
+	}
 	_, terminal, err := runner.Consume(ctx, runner.ConsumeArgs{
 		RunID:      run.ID,
 		Transcript: transcriptPath,
@@ -255,6 +258,19 @@ func (r *Reconciler) drainTranscript(ctx context.Context, run *domain.Run, trans
 		},
 	})
 	return terminal, err
+}
+
+func runTranscriptModel(run *domain.Run) string {
+	if run == nil {
+		return ""
+	}
+	if run.ResolvedConfig != nil && run.ResolvedConfig.Model != "" {
+		return run.ResolvedConfig.Model
+	}
+	if run.ActualModel != "" {
+		return run.ActualModel
+	}
+	return run.RequestedModel
 }
 
 func (r *Reconciler) recoveryParser(ctx context.Context, run *domain.Run) (runner.TranscriptParser, string, *runstate.Snapshot, error) {

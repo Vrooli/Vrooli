@@ -160,7 +160,7 @@ digest.
       }
     }
   ],
-  "budgets": { "wallTimeSeconds": 600, "maxTurns": 8, "maxTokens": 40000, "maxCostUsd": 5, "maxNodeAttempts": 2, "maxChildren": 1, "maxConcurrency": 1, "maxRecursion": 1, "maxRetries": 1, "maxWaitSeconds": 60 }
+  "budgets": { "wallTimeSeconds": 600, "maxTurns": 8, "maxTokens": 40000, "maxChargeMicroUsd": 5000000, "maxNodeAttempts": 2, "maxChildren": 1, "maxConcurrency": 1, "maxRecursion": 1, "maxRetries": 1, "maxWaitSeconds": 60 }
 }
 ```
 

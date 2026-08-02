@@ -412,52 +412,88 @@ func NewRateLimitEvent(runID uuid.UUID, limitType, message string, resetTime *ti
 // COST EVENT
 // =============================================================================
 
-// CostEventData contains data for cost/usage tracking events.
-type CostEventData struct {
-	InputTokens           int        `json:"inputTokens"`
-	OutputTokens          int        `json:"outputTokens"`
-	CacheCreationTokens   int        `json:"cacheCreationTokens,omitempty"`
-	CacheReadTokens       int        `json:"cacheReadTokens,omitempty"`
-	InputCostUSD          float64    `json:"inputCostUsd,omitempty"`
-	OutputCostUSD         float64    `json:"outputCostUsd,omitempty"`
-	CacheCreationCostUSD  float64    `json:"cacheCreationCostUsd,omitempty"`
-	CacheReadCostUSD      float64    `json:"cacheReadCostUsd,omitempty"`
-	TotalCostUSD          float64    `json:"totalCostUsd"`
-	ServiceTier           string     `json:"serviceTier,omitempty"` // e.g., "standard", "priority"
-	Model                 string     `json:"model,omitempty"`
-	CostSource            string     `json:"costSource,omitempty"`
-	PricingProvider       string     `json:"pricingProvider,omitempty"`
-	PricingModel          string     `json:"pricingModel,omitempty"`
-	PricingFetchedAt      *time.Time `json:"pricingFetchedAt,omitempty"`
-	PricingVersion        string     `json:"pricingVersion,omitempty"`
-	WebSearchRequests     int        `json:"webSearchRequests,omitempty"`
-	ServerToolUseRequests int        `json:"serverToolUseRequests,omitempty"`
-}
-
-func (d *CostEventData) EventType() RunEventType { return EventTypeMetric }
-func (d *CostEventData) isEventPayload()         {}
-
-// Cost source identifiers for cost provenance tracking.
+// PayloadKind identifies the independent facts carried by metric events.
 const (
-	CostSourceRunnerReported       = "runner_reported"
-	CostSourceProviderUsageAPI     = "provider_usage_api"
-	CostSourcePricingTableEstimate = "pricing_table_estimate"
-	CostSourceUnknown              = "unknown"
+	PayloadKindUsage  = "usage"
+	PayloadKindCharge = "charge"
 )
 
-// NewCostEvent creates a new cost tracking event.
-func NewCostEvent(runID uuid.UUID, inputTokens, outputTokens int, costUSD float64) *RunEvent {
-	return &RunEvent{
-		ID:        uuid.New(),
-		RunID:     runID,
-		EventType: EventTypeMetric,
-		Timestamp: time.Now(),
-		Data: &CostEventData{
-			InputTokens:  inputTokens,
-			OutputTokens: outputTokens,
-			TotalCostUSD: costUSD,
-			CostSource:   CostSourceUnknown,
-		},
+// UsageEventData contains provider-independent consumption. It is emitted
+// even when pricing is unavailable or the run is free under its billing mode.
+type UsageEventData struct {
+	PayloadKind           string           `json:"payloadKind"`
+	InputTokens           int              `json:"inputTokens"`
+	OutputTokens          int              `json:"outputTokens"`
+	CacheCreationTokens   int              `json:"cacheCreationTokens,omitempty"`
+	CacheReadTokens       int              `json:"cacheReadTokens,omitempty"`
+	Turns                 int              `json:"turns,omitempty"`
+	ServiceTier           string           `json:"serviceTier,omitempty"`
+	Model                 string           `json:"model,omitempty"`
+	RunnerType            string           `json:"runnerType,omitempty"`
+	WebSearchRequests     int              `json:"webSearchRequests,omitempty"`
+	ServerToolUseRequests int              `json:"serverToolUseRequests,omitempty"`
+	Charge                *ChargeEventData `json:"charge,omitempty"`
+}
+
+func (d *UsageEventData) EventType() RunEventType { return EventTypeMetric }
+func (d *UsageEventData) isEventPayload()         {}
+
+// ChargeBasis explains why a charge is present, zero, or unavailable.
+type ChargeBasis string
+
+const (
+	ChargeBasisMetered      ChargeBasis = "metered"
+	ChargeBasisSubscription ChargeBasis = "subscription"
+	ChargeBasisLocal        ChargeBasis = "local"
+	ChargeBasisUnpriced     ChargeBasis = "unpriced"
+	ChargeBasisUnknown      ChargeBasis = "unknown"
+)
+
+func AllChargeBases() []ChargeBasis {
+	return []ChargeBasis{ChargeBasisMetered, ChargeBasisSubscription, ChargeBasisLocal, ChargeBasisUnpriced, ChargeBasisUnknown}
+}
+
+// ChargeBasisIsBillable is exhaustive by design.
+func ChargeBasisIsBillable(basis ChargeBasis) bool {
+	switch basis {
+	case ChargeBasisMetered:
+		return true
+	case ChargeBasisSubscription, ChargeBasisLocal, ChargeBasisUnpriced, ChargeBasisUnknown:
+		return false
+	default:
+		panic("unhandled charge basis: " + string(basis))
+	}
+}
+
+// ChargeEventData contains billing-context-dependent charge. A nil amount
+// means the run was not priced; zero is reserved for legitimate free modes.
+type ChargeEventData struct {
+	PayloadKind         string      `json:"payloadKind"`
+	Basis               ChargeBasis `json:"basis"`
+	AmountMicroUSD      *int64      `json:"amountMicroUsd"`
+	InputMicroUSD       *int64      `json:"inputMicroUsd,omitempty"`
+	OutputMicroUSD      *int64      `json:"outputMicroUsd,omitempty"`
+	CacheReadMicroUSD   *int64      `json:"cacheReadMicroUsd,omitempty"`
+	CacheCreateMicroUSD *int64      `json:"cacheCreateMicroUsd,omitempty"`
+	Currency            string      `json:"currency"`
+	Model               string      `json:"model,omitempty"`
+	RunnerType          string      `json:"runnerType,omitempty"`
+	ChargeReason        string      `json:"chargeReason,omitempty"`
+}
+
+func (d *ChargeEventData) EventType() RunEventType { return EventTypeMetric }
+func (d *ChargeEventData) isEventPayload()         {}
+
+// LegacyChargeBasis maps historical billing-source strings into the new basis
+// while old event rows are normalized on read.
+func LegacyChargeBasis(source string) ChargeBasis {
+	switch source {
+	case "runner_reported", "provider_usage_api", "pricing_table_estimate":
+		return ChargeBasisMetered
+	case "unknown":
+		return ChargeBasisUnknown
+	default:
+		return ChargeBasisUnknown
 	}
 }
 

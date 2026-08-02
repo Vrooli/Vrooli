@@ -73,6 +73,9 @@ func TestReplayCorpusParsesWithoutSecrets(t *testing.T) {
 						tools++
 					}
 					if event != nil && event.EventType == domain.EventTypeMetric {
+						if _, usage := event.Data.(*domain.UsageEventData); !usage {
+							continue
+						}
 						costs++
 					}
 				}

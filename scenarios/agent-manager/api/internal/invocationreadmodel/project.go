@@ -138,6 +138,15 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 	if tag == "" {
 		tag = "unknown"
 	}
+	workloadKind, workloadKey, workloadInstance := string(run.Workload.Kind), run.Workload.Key, run.Workload.Instance
+	if (workloadKind == "" || (workloadKind == string(domain.WorkloadKindAdhoc) && workloadKey == "")) && run.Tag != "" {
+		if recovered, ok := domain.WorkloadFromHistoricalTag(run.Tag); ok {
+			workloadKind, workloadKey, workloadInstance = string(recovered.Kind), recovered.Key, recovered.Instance
+		}
+	}
+	if workloadKind == "" {
+		workloadKind = string(domain.WorkloadKindAdhoc)
+	}
 	occurredAt, timeBasis := run.CreatedAt, "created_at"
 	if run.EndedAt != nil {
 		occurredAt, timeBasis = *run.EndedAt, "ended_at"
@@ -145,35 +154,75 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 	if occurredAt.IsZero() {
 		occurredAt, timeBasis = projectedAt, "projection_time"
 	}
-	var cost, authoritativeCost, estimatedCost, unknownCost, inputCost, outputCost, cacheReadCost, cacheCreationCost float64
+	var cost, inputCost, outputCost, cacheReadCost, cacheCreationCost float64
 	var tokens, inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens int64
+	var turns, toolCalls, totalChargeMicroUSD, meteredChargeMicroUSD, unpricedTokenCount int64
+	unpriced := false
 	var readCalls, rereads int64
 	fileReads := map[string]int{}
+	// Retained streams can contain the same cumulative usage snapshot twice
+	// (live capture plus terminal recovery). Deduplicate identical snapshots so
+	// replay remains idempotent while distinct usage facts are still additive.
+	type usageIdentity struct {
+		input, output, cacheCreate, cacheRead, turns int
+		model, runner, tier                          string
+		webSearch, serverTool                        int
+	}
+	seenUsage := map[usageIdentity]struct{}{}
+	addCharge := func(charge *domain.ChargeEventData) {
+		if charge == nil {
+			return
+		}
+		if charge.Basis == domain.ChargeBasisUnpriced {
+			unpriced = true
+		}
+		if charge.AmountMicroUSD == nil {
+			return
+		}
+		amount := float64(*charge.AmountMicroUSD) / 1_000_000
+		totalChargeMicroUSD += *charge.AmountMicroUSD
+		cost += amount
+		if charge.Basis == domain.ChargeBasisMetered {
+			meteredChargeMicroUSD += *charge.AmountMicroUSD
+		}
+		if charge.InputMicroUSD != nil {
+			inputCost += float64(*charge.InputMicroUSD) / 1_000_000
+		}
+		if charge.OutputMicroUSD != nil {
+			outputCost += float64(*charge.OutputMicroUSD) / 1_000_000
+		}
+		if charge.CacheReadMicroUSD != nil {
+			cacheReadCost += float64(*charge.CacheReadMicroUSD) / 1_000_000
+		}
+		if charge.CacheCreateMicroUSD != nil {
+			cacheCreationCost += float64(*charge.CacheCreateMicroUSD) / 1_000_000
+		}
+	}
 	for _, event := range events {
 		if event == nil {
 			continue
 		}
-		if usage, ok := event.Data.(*domain.CostEventData); ok {
-			cost += usage.TotalCostUSD
-			switch usage.CostSource {
-			case domain.CostSourceRunnerReported, domain.CostSourceProviderUsageAPI:
-				authoritativeCost += usage.TotalCostUSD
-			case domain.CostSourcePricingTableEstimate:
-				estimatedCost += usage.TotalCostUSD
-			default:
-				unknownCost += usage.TotalCostUSD
+		if usage, ok := event.Data.(*domain.UsageEventData); ok {
+			identity := usageIdentity{input: usage.InputTokens, output: usage.OutputTokens, cacheCreate: usage.CacheCreationTokens, cacheRead: usage.CacheReadTokens, turns: usage.Turns, model: usage.Model, runner: usage.RunnerType, tier: usage.ServiceTier, webSearch: usage.WebSearchRequests, serverTool: usage.ServerToolUseRequests}
+			if _, duplicate := seenUsage[identity]; duplicate {
+				continue
 			}
-			inputCost += usage.InputCostUSD
-			outputCost += usage.OutputCostUSD
-			cacheReadCost += usage.CacheReadCostUSD
-			cacheCreationCost += usage.CacheCreationCostUSD
+			seenUsage[identity] = struct{}{}
+			if int64(usage.Turns) > turns {
+				turns = int64(usage.Turns)
+			}
 			tokens += int64(usage.InputTokens + usage.OutputTokens + usage.CacheCreationTokens + usage.CacheReadTokens)
 			inputTokens += int64(usage.InputTokens)
 			outputTokens += int64(usage.OutputTokens)
 			cacheReadTokens += int64(usage.CacheReadTokens)
 			cacheCreationTokens += int64(usage.CacheCreationTokens)
+			addCharge(usage.Charge)
+		}
+		if charge, ok := event.Data.(*domain.ChargeEventData); ok {
+			addCharge(charge)
 		}
 		if call, ok := event.Data.(*domain.ToolCallEventData); ok {
+			toolCalls++
 			if path := runsignal.ReadPath(call); path != "" {
 				readCalls++
 				fileReads[path]++
@@ -183,6 +232,12 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 			}
 		}
 	}
+	if run.Summary != nil {
+		turns = int64(run.Summary.TurnsUsed)
+	}
+	if unpriced {
+		unpricedTokenCount = tokens
+	}
 	duration := int64(0)
 	if run.StartedAt != nil && run.EndedAt != nil {
 		duration = run.EndedAt.Sub(*run.StartedAt).Milliseconds()
@@ -190,7 +245,7 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 			duration = 0
 		}
 	}
-	return RunFact{RunID: run.ID.String(), OccurredAt: occurredAt, CreatedAt: run.CreatedAt, StartedAt: run.StartedAt, EndedAt: run.EndedAt, DurationMS: duration, Status: string(run.Status), ProfileID: profileID, RunnerType: runnerType, Model: model, Tag: tag, TotalCostUSD: cost, AuthoritativeCostUSD: authoritativeCost, EstimatedCostUSD: estimatedCost, UnknownCostUSD: unknownCost, InputCostUSD: inputCost, OutputCostUSD: outputCost, CacheReadCostUSD: cacheReadCost, CacheCreationCostUSD: cacheCreationCost, TotalTokens: tokens, InputTokens: inputTokens, OutputTokens: outputTokens, CacheReadTokens: cacheReadTokens, CacheCreationTokens: cacheCreationTokens, ReadCalls: readCalls, FileRereads: rereads, TimeAccounting: runsignal.DeriveTimeAccounting(events, run.StartedAt, run.EndedAt), CostTimeBasis: timeBasis, ProjectedAt: projectedAt}
+	return RunFact{RunID: run.ID.String(), OccurredAt: occurredAt, CreatedAt: run.CreatedAt, StartedAt: run.StartedAt, EndedAt: run.EndedAt, DurationMS: duration, Status: string(run.Status), ProfileID: profileID, RunnerType: runnerType, Model: model, Tag: tag, WorkloadKind: workloadKind, WorkloadKey: workloadKey, WorkloadInstance: workloadInstance, TotalCostUSD: cost, InputCostUSD: inputCost, OutputCostUSD: outputCost, CacheReadCostUSD: cacheReadCost, CacheCreationCostUSD: cacheCreationCost, TotalTokens: tokens, InputTokens: inputTokens, OutputTokens: outputTokens, CacheReadTokens: cacheReadTokens, CacheCreationTokens: cacheCreationTokens, Turns: turns, ToolCalls: toolCalls, TotalChargeMicroUSD: totalChargeMicroUSD, MeteredChargeMicroUSD: meteredChargeMicroUSD, UnpricedTokenCount: unpricedTokenCount, ReadCalls: readCalls, FileRereads: rereads, TimeAccounting: runsignal.DeriveTimeAccounting(events, run.StartedAt, run.EndedAt), CostTimeBasis: timeBasis, ProjectedAt: projectedAt}
 }
 
 func runDimensions(run *domain.Run) (profileID, runnerType, model string) {

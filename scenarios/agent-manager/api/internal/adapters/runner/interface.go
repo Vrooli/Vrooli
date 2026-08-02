@@ -430,6 +430,13 @@ type TranscriptParserFactory interface {
 	NewTranscriptParser() TranscriptParser
 }
 
+// TranscriptModelSetter supplies the resolved model to transcript-derived
+// parsers. Recovery/import paths do not replay BuildArgs, so they must carry
+// this attribution explicitly instead of silently emitting an unlabeled use.
+type TranscriptModelSetter interface {
+	SetTranscriptModel(string)
+}
+
 // AgentLaunchInfo exposes the per-agent facts the interactive execution
 // substrate needs to build a launch command for the real interactive CLI: the
 // per-run tag env key (so the reconciler can attribute the process from

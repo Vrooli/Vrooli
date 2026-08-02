@@ -258,11 +258,46 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 	if profile != nil {
 		profileID = &profile.ID
 	}
+	workload := domain.WorkloadRef{Kind: req.WorkloadKind, Key: strings.TrimSpace(req.WorkloadKey), Instance: strings.TrimSpace(req.WorkloadInstance)}
+	if workload.Kind == "" {
+		workload.Kind = domain.WorkloadKindAdhoc
+	}
+	if workload.Key != "" {
+		if req.WorkloadKind == "" {
+			workload.Kind = domain.WorkloadKindInteractive
+		}
+	}
+	if !workload.Kind.IsValid() {
+		return nil, fmt.Errorf("invalid workload kind %q", workload.Kind)
+	}
+	tag := strings.TrimSpace(req.Tag)
+	if tag == "" && workload.Key != "" {
+		tag = workload.Key
+		if workload.Instance != "" {
+			tag += "#" + workload.Instance
+		}
+	}
+	billing := domain.BillingSnapshot{Mode: domain.BillingModeUnknown}
+	if resolvedConfig.PolicySnapshot != nil {
+		billing = resolvedConfig.PolicySnapshot.SelectedCandidate.Billing
+		if billing.Mode == "" {
+			billing.Mode = domain.BillingModeUnknown
+		}
+	}
+	if billing.Basis == "" {
+		billing.Basis = billing.EffectiveBasis()
+	}
+	if billing.ObservedAt.IsZero() {
+		billing.ObservedAt = time.Now().UTC()
+	}
+	resolvedConfig.Billing = billing
 	run := &domain.Run{
 		ID:                       uuid.New(),
 		TaskID:                   task.ID,
 		AgentProfileID:           profileID, // May be nil if inline config used
-		Tag:                      req.Tag,   // Custom tag for identification
+		Tag:                      tag,       // Custom tag for identification
+		Workload:                 workload,
+		Billing:                  billing,
 		SourceRunIDs:             req.SourceRunIDs,
 		SourceInvestigationRunID: req.SourceInvestigationRunID,
 		RunMode:                  runMode,

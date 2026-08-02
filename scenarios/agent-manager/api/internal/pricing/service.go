@@ -97,17 +97,8 @@ func NewService(repo Repository, providerList []Provider, log *logrus.Logger) Se
 
 // CalculateCost computes cost for token usage with full provenance tracking.
 func (s *pricingService) CalculateCost(ctx context.Context, req CostRequest) (*CostCalculation, error) {
-	pricing, err := s.GetModelPricing(ctx, req.Model, req.RunnerType)
-	if err != nil {
-		return nil, fmt.Errorf("get pricing: %w", err)
-	}
-
-	// Resolve canonical model for the result
-	canonical, provider, _ := s.ResolveCanonicalModel(ctx, req.Model, req.RunnerType)
-
 	calc := &CostCalculation{
 		Model:               req.Model,
-		CanonicalModel:      canonical,
 		InputTokens:         req.InputTokens,
 		OutputTokens:        req.OutputTokens,
 		CacheReadTokens:     req.CacheReadTokens,
@@ -115,16 +106,35 @@ func (s *pricingService) CalculateCost(ctx context.Context, req CostRequest) (*C
 		WebSearchRequests:   req.WebSearchRequests,
 		ServerToolUseCount:  req.ServerToolUseCount,
 		ComponentSources:    make(map[PricingComponent]PricingSource),
-		Provider:            provider,
+	}
+	canonical, provider, resolveErr := s.ResolveCanonicalModel(ctx, req.Model, req.RunnerType)
+	calc.CanonicalModel, calc.Provider = canonical, provider
+	if resolveErr != nil {
+		calc.CostSource = "unpriced"
+		if strings.TrimSpace(req.Model) == "" {
+			calc.ChargeReason = "model_unlabelled"
+		} else {
+			calc.ChargeReason = "model_unresolved"
+		}
+		return calc, nil
+	}
+
+	pricing, err := s.GetModelPricing(ctx, req.Model, req.RunnerType)
+	if err != nil {
+		calc.CostSource = "unpriced"
+		calc.ChargeReason = "model_unpriced"
+		return calc, nil
 	}
 
 	if pricing == nil {
-		// No pricing available
+		calc.CostSource = "unpriced"
+		calc.ChargeReason = "model_unpriced"
 		return calc, nil
 	}
 
 	calc.PricingFetchedAt = pricing.FetchedAt
 	calc.PricingVersion = pricing.PricingVersion
+	calc.PriceBookRevision = pricing.PriceBookRevision
 
 	// Calculate each component
 	if pricing.InputTokenPrice != nil && req.InputTokens > 0 {
@@ -160,6 +170,12 @@ func (s *pricingService) CalculateCost(ctx context.Context, req CostRequest) (*C
 	calc.TotalCostUSD = calc.InputCostUSD + calc.OutputCostUSD +
 		calc.CacheReadCostUSD + calc.CacheCreationCostUSD +
 		calc.WebSearchCostUSD + calc.ServerToolUseCostUSD
+	if len(calc.ComponentSources) > 0 {
+		calc.CostSource = string(SourceProviderAPI)
+	} else {
+		calc.CostSource = "unpriced"
+		calc.ChargeReason = "model_unpriced"
+	}
 
 	return calc, nil
 }
@@ -167,7 +183,10 @@ func (s *pricingService) CalculateCost(ctx context.Context, req CostRequest) (*C
 // GetModelPricing retrieves effective pricing for a model with fallback chain applied.
 func (s *pricingService) GetModelPricing(ctx context.Context, model string, runnerType string) (*ModelPricing, error) {
 	// Resolve to canonical model name
-	canonicalModel, provider, _ := s.ResolveCanonicalModel(ctx, model, runnerType)
+	canonicalModel, provider, err := s.ResolveCanonicalModel(ctx, model, runnerType)
+	if err != nil {
+		return nil, err
+	}
 
 	// Check in-memory cache first
 	cacheKey := canonicalModel + ":" + provider
@@ -184,20 +203,11 @@ func (s *pricingService) GetModelPricing(ctx context.Context, model string, runn
 		return nil, fmt.Errorf("get pricing from repo: %w", err)
 	}
 
-	// If not found or expired, try to fetch from provider
-	if pricing == nil || pricing.IsExpired() {
-		if p, ok := s.providers[provider]; ok {
-			fetched, fetchErr := p.FetchModelPricing(ctx, canonicalModel)
-			if fetchErr == nil && fetched != nil {
-				// Persist to database
-				if upsertErr := s.repo.UpsertPricing(ctx, fetched); upsertErr != nil {
-					s.log.WithError(upsertErr).Warn("Failed to persist pricing to database")
-				}
-				pricing = fetched
-			} else if fetchErr != nil {
-				s.log.WithError(fetchErr).WithField("model", canonicalModel).Debug("Failed to fetch pricing from provider")
-			}
-		}
+	// Pricing is a lifecycle-owned price book. Request paths never perform
+	// provider I/O; startup and the scheduled refresh loop populate the durable
+	// book, while an absent or expired entry remains truthfully unpriced.
+	if pricing != nil && pricing.IsExpired() {
+		pricing = nil
 	}
 
 	// Update in-memory cache
@@ -321,6 +331,18 @@ func (s *pricingService) RefreshPricing(ctx context.Context) error {
 			continue
 		}
 
+		revision := NewPriceBookRevision(name, pricingList, time.Now().UTC())
+		if revisions, ok := s.repo.(RevisionRepository); ok {
+			id, revisionErr := revisions.CreatePriceBookRevision(ctx, revision.Provider, revision.FetchedAt, revision.SourceDigest, revision.ModelCount)
+			if revisionErr != nil {
+				s.log.WithError(revisionErr).WithField("provider", name).Warn("Failed to persist price-book revision")
+			} else {
+				revision.ID = id
+			}
+		}
+		for _, model := range pricingList {
+			model.PriceBookRevision = revision.ID
+		}
 		if err := s.repo.BulkUpsertPricing(ctx, pricingList); err != nil {
 			s.log.WithError(err).WithField("provider", name).Error("Failed to persist pricing to database")
 			continue
@@ -467,7 +489,10 @@ func (s *pricingService) ResolveCanonicalModel(ctx context.Context, model string
 	}
 
 	// Use default alias resolution
-	canonical, provider, _ := ResolveModelAlias(model)
+	canonical, provider, found := ResolveModelAlias(model)
+	if !found {
+		return "", "", fmt.Errorf("unresolvable model alias %q for runner %q", model, runnerType)
+	}
 	return canonical, provider, nil
 }
 

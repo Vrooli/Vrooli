@@ -76,7 +76,8 @@ func TestBuildIncludesInvestigationDiscriminators(t *testing.T) {
 		domain.NewToolCallEvent(id, "shell", "2", map[string]interface{}{"command": "agent-manager"}),
 		domain.NewToolResultEvent(id, "shell", "1", "", assertErr{}),
 		{ID: uuid.New(), RunID: id, EventType: domain.EventTypeModelFallbackAttempted, Timestamp: end},
-		{ID: uuid.New(), RunID: id, EventType: domain.EventTypeMetric, Timestamp: end, Data: &domain.CostEventData{InputTokens: 10, OutputTokens: 5, TotalCostUSD: 1.25}},
+		{ID: uuid.New(), RunID: id, EventType: domain.EventTypeMetric, Timestamp: end, Data: &domain.UsageEventData{InputTokens: 10, OutputTokens: 5}},
+		{ID: uuid.New(), RunID: id, EventType: domain.EventTypeMetric, Timestamp: end, Data: &domain.ChargeEventData{Basis: domain.ChargeBasisMetered, AmountMicroUSD: func() *int64 { v := int64(1250000); return &v }()}},
 	}
 	report, err := Build(context.Background(), reportSource{run: run, events: events, diff: &sandbox.DiffResult{}}, id)
 	if err != nil {
@@ -102,7 +103,8 @@ func TestBuildIncludesInvestigationDiscriminators(t *testing.T) {
 func TestBuildPrefersDetailedCostEventsOverSummary(t *testing.T) {
 	id := uuid.New()
 	run := &domain.Run{ID: id, Summary: &domain.RunSummary{TokensUsed: 999, CostEstimate: 9.99}}
-	events := []*domain.RunEvent{{ID: uuid.New(), RunID: id, EventType: domain.EventTypeMetric, Data: &domain.CostEventData{InputTokens: 4, OutputTokens: 6, TotalCostUSD: 0.12}}}
+	amount := int64(120000)
+	events := []*domain.RunEvent{{ID: uuid.New(), RunID: id, EventType: domain.EventTypeMetric, Data: &domain.UsageEventData{InputTokens: 4, OutputTokens: 6}}, {ID: uuid.New(), RunID: id, EventType: domain.EventTypeMetric, Data: &domain.ChargeEventData{Basis: domain.ChargeBasisMetered, AmountMicroUSD: &amount}}}
 	report, err := Build(context.Background(), reportSource{run: run, events: events}, id)
 	if err != nil {
 		t.Fatal(err)

@@ -66,8 +66,8 @@ func DeriveTimeAccounting(events []*domain.RunEvent, startedAt, endedAt *time.Ti
 			continue
 		}
 		addDuration(&out, state, event.Timestamp.Sub(previousAt))
-		if cost, ok := event.Data.(*domain.CostEventData); ok {
-			addTokens(&out, state, int64(cost.InputTokens+cost.OutputTokens+cost.CacheCreationTokens+cost.CacheReadTokens))
+		if usage, ok := event.Data.(*domain.UsageEventData); ok {
+			addTokens(&out, state, int64(usage.InputTokens+usage.OutputTokens+usage.CacheCreationTokens+usage.CacheReadTokens))
 		} else {
 			state = timeStateAfter(event)
 		}

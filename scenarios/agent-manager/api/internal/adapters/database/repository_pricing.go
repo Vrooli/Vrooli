@@ -34,6 +34,7 @@ type modelPricingRow struct {
 	ID                  string          `db:"id"`
 	CanonicalModelName  string          `db:"canonical_model_name"`
 	Provider            string          `db:"provider"`
+	PriceBookRevisionID sql.NullString  `db:"price_book_revision_id"`
 	InputTokenPrice     sql.NullFloat64 `db:"input_token_price"`
 	OutputTokenPrice    sql.NullFloat64 `db:"output_token_price"`
 	CacheReadPrice      sql.NullFloat64 `db:"cache_read_price"`
@@ -62,6 +63,9 @@ func (row *modelPricingRow) toDomain() *pricing.ModelPricing {
 		ExpiresAt:          row.ExpiresAt.Time(),
 		CreatedAt:          row.CreatedAt.Time(),
 		UpdatedAt:          row.UpdatedAt.Time(),
+	}
+	if row.PriceBookRevisionID.Valid {
+		m.PriceBookRevision = row.PriceBookRevisionID.String
 	}
 
 	if row.InputTokenPrice.Valid {
@@ -117,6 +121,9 @@ func modelPricingFromDomain(m *pricing.ModelPricing) *modelPricingRow {
 		ExpiresAt:          SQLiteTime(m.ExpiresAt),
 		CreatedAt:          SQLiteTime(m.CreatedAt),
 		UpdatedAt:          SQLiteTime(m.UpdatedAt),
+	}
+	if m.PriceBookRevision != "" {
+		row.PriceBookRevisionID = sql.NullString{String: m.PriceBookRevision, Valid: true}
 	}
 
 	if m.InputTokenPrice != nil {
@@ -246,7 +253,7 @@ func manualOverrideFromDomain(o *pricing.ManualPriceOverride) *manualOverrideRow
 
 // --- Model Pricing Methods ---
 
-const modelPricingColumns = `id, canonical_model_name, provider,
+const modelPricingColumns = `id, canonical_model_name, provider, price_book_revision_id,
 	input_token_price, output_token_price, cache_read_price, cache_creation_price,
 	web_search_price, server_tool_use_price,
 	input_token_source, output_token_source, cache_read_source, cache_creation_source,
@@ -300,13 +307,13 @@ func (r *pricingRepository) UpsertPricing(ctx context.Context, p *pricing.ModelP
 	p.UpdatedAt = now
 
 	row := modelPricingFromDomain(p)
-	query := `INSERT INTO model_pricing (id, canonical_model_name, provider,
+	query := `INSERT INTO model_pricing (id, canonical_model_name, provider, price_book_revision_id,
 		input_token_price, output_token_price, cache_read_price, cache_creation_price,
 		web_search_price, server_tool_use_price,
 		input_token_source, output_token_source, cache_read_source, cache_creation_source,
 		web_search_source, server_tool_use_source,
 		fetched_at, expires_at, pricing_version, created_at, updated_at)
-		VALUES (:id, :canonical_model_name, :provider,
+		VALUES (:id, :canonical_model_name, :provider, :price_book_revision_id,
 		:input_token_price, :output_token_price, :cache_read_price, :cache_creation_price,
 		:web_search_price, :server_tool_use_price,
 		:input_token_source, :output_token_source, :cache_read_source, :cache_creation_source,
@@ -328,6 +335,7 @@ func (r *pricingRepository) UpsertPricing(ctx context.Context, p *pricing.ModelP
 		fetched_at = EXCLUDED.fetched_at,
 		expires_at = EXCLUDED.expires_at,
 		pricing_version = EXCLUDED.pricing_version,
+		price_book_revision_id = EXCLUDED.price_book_revision_id,
 		updated_at = EXCLUDED.updated_at`
 
 	_, err := r.db.NamedExecContext(ctx, query, row)
@@ -358,13 +366,13 @@ func (r *pricingRepository) BulkUpsertPricing(ctx context.Context, pricingList [
 		p.UpdatedAt = now
 
 		row := modelPricingFromDomain(p)
-		query := `INSERT INTO model_pricing (id, canonical_model_name, provider,
+		query := `INSERT INTO model_pricing (id, canonical_model_name, provider, price_book_revision_id,
 			input_token_price, output_token_price, cache_read_price, cache_creation_price,
 			web_search_price, server_tool_use_price,
 			input_token_source, output_token_source, cache_read_source, cache_creation_source,
 			web_search_source, server_tool_use_source,
 			fetched_at, expires_at, pricing_version, created_at, updated_at)
-			VALUES (:id, :canonical_model_name, :provider,
+			VALUES (:id, :canonical_model_name, :provider, :price_book_revision_id,
 			:input_token_price, :output_token_price, :cache_read_price, :cache_creation_price,
 			:web_search_price, :server_tool_use_price,
 			:input_token_source, :output_token_source, :cache_read_source, :cache_creation_source,
@@ -385,7 +393,8 @@ func (r *pricingRepository) BulkUpsertPricing(ctx context.Context, pricingList [
 			server_tool_use_source = EXCLUDED.server_tool_use_source,
 			fetched_at = EXCLUDED.fetched_at,
 			expires_at = EXCLUDED.expires_at,
-			pricing_version = EXCLUDED.pricing_version,
+				pricing_version = EXCLUDED.pricing_version,
+				price_book_revision_id = EXCLUDED.price_book_revision_id,
 			updated_at = EXCLUDED.updated_at`
 
 		if _, err = tx.NamedExecContext(ctx, query, row); err != nil {
@@ -419,6 +428,15 @@ func (r *pricingRepository) DeletePricing(ctx context.Context, canonicalModel, p
 		return wrapDBError("delete_pricing", "ModelPricing", canonicalModel, err)
 	}
 	return nil
+}
+
+func (r *pricingRepository) CreatePriceBookRevision(ctx context.Context, provider string, fetchedAt time.Time, sourceDigest string, modelCount int) (string, error) {
+	id := uuid.NewString()
+	_, err := r.db.ExecContext(ctx, `INSERT INTO price_book_revisions (id, provider, fetched_at, source_digest, model_count) VALUES (?, ?, ?, ?, ?)`, id, provider, SQLiteTime(fetchedAt), sourceDigest, modelCount)
+	if err != nil {
+		return "", wrapDBError("create_price_book_revision", "PriceBookRevision", id, err)
+	}
+	return id, nil
 }
 
 // --- Model Aliases Methods ---

@@ -35,11 +35,11 @@ type RunStore interface {
 	ReplaceRun(context.Context, RunFact) error
 }
 
-// GoalOutcomeStore snapshots external-harness accounting at import time,
-// before the harness's rolling goal store can overwrite that evidence.
-type GoalOutcomeStore interface {
-	ReplaceGoalOutcome(context.Context, GoalOutcome) error
-	GoalOutcome(context.Context, string) (*GoalOutcome, error)
+// WorkloadStore updates only the identity columns during historical
+// backfills, preserving consumption already projected for runs without
+// retained source events.
+type WorkloadStore interface {
+	BackfillWorkload(context.Context, string, string, string, string) error
 }
 
 // ProjectionStore atomically advances both analytical projections for a run.
@@ -57,37 +57,25 @@ type ProjectionStore interface {
 // Filter is the single analytical predicate shared by aggregates and cohort
 // selection. A zero filter is the complete retained corpus.
 type Filter struct {
-	From        *time.Time `json:"from,omitempty"`
-	To          *time.Time `json:"to,omitempty"`
-	Ownership   string     `json:"ownership,omitempty"`
-	Outcome     string     `json:"outcome,omitempty"`
-	Executable  string     `json:"executable,omitempty"`
-	Fingerprint string     `json:"fingerprint,omitempty"`
-	ProfileID   string     `json:"profileId,omitempty"`
-	RunnerType  string     `json:"runnerType,omitempty"`
-	Model       string     `json:"model,omitempty"`
-	TagPrefix   string     `json:"tagPrefix,omitempty"`
-	RunStatus   string     `json:"runStatus,omitempty"`
-	GoalStatus  string     `json:"goalStatus,omitempty"`
-	// GoalID narrows the durable imported-session corpus to one goal. It is
-	// intentionally part of the shared filter so a goal-scoped investigation
-	// has the same reproducible predicate as every other cohort surface.
-	GoalID               string `json:"goalId,omitempty"`
-	ToolName             string `json:"toolName,omitempty"`
-	EpisodePattern       string `json:"episodePattern,omitempty"`
-	EpisodeCauseScope    string `json:"episodeCauseScope,omitempty"`
-	EpisodeFingerprint   string `json:"episodeFingerprint,omitempty"`
-	SelfReportRuleID     string `json:"selfReportRuleId,omitempty"`
-	SelfReportCauseScope string `json:"selfReportCauseScope,omitempty"`
-}
-
-type GoalOutcome struct {
-	RunID           string `json:"runId"`
-	GoalID          string `json:"goalId"`
-	Status          string `json:"status"`
-	TokenBudget     *int64 `json:"tokenBudget,omitempty"`
-	TokensUsed      int64  `json:"tokensUsed"`
-	TimeUsedSeconds int64  `json:"timeUsedSeconds"`
+	From                 *time.Time `json:"from,omitempty"`
+	To                   *time.Time `json:"to,omitempty"`
+	Ownership            string     `json:"ownership,omitempty"`
+	Outcome              string     `json:"outcome,omitempty"`
+	Executable           string     `json:"executable,omitempty"`
+	Fingerprint          string     `json:"fingerprint,omitempty"`
+	ProfileID            string     `json:"profileId,omitempty"`
+	RunnerType           string     `json:"runnerType,omitempty"`
+	Model                string     `json:"model,omitempty"`
+	WorkloadKind         string     `json:"workloadKind,omitempty"`
+	WorkloadKey          string     `json:"workloadKey,omitempty"`
+	TagPrefix            string     `json:"tagPrefix,omitempty"`
+	RunStatus            string     `json:"runStatus,omitempty"`
+	ToolName             string     `json:"toolName,omitempty"`
+	EpisodePattern       string     `json:"episodePattern,omitempty"`
+	EpisodeCauseScope    string     `json:"episodeCauseScope,omitempty"`
+	EpisodeFingerprint   string     `json:"episodeFingerprint,omitempty"`
+	SelfReportRuleID     string     `json:"selfReportRuleId,omitempty"`
+	SelfReportCauseScope string     `json:"selfReportCauseScope,omitempty"`
 }
 
 type AggregateRow struct {
@@ -127,29 +115,30 @@ type Metrics struct {
 // cycle-time populations, so a partial lifecycle is never presented as a
 // precise rate or duration.
 type RunMetrics struct {
-	TotalRuns             int64   `json:"totalRuns"`
-	TerminalRuns          int64   `json:"terminalRuns"`
-	SuccessfulRuns        int64   `json:"successfulRuns"`
-	SuccessRate           float64 `json:"successRate"`
-	CompletedDurationRuns int64   `json:"completedDurationRuns"`
-	AverageDurationMS     float64 `json:"averageDurationMs"`
-	TotalCostUSD          float64 `json:"totalCostUsd"`
-	AuthoritativeCostUSD  float64 `json:"authoritativeCostUsd"`
-	EstimatedCostUSD      float64 `json:"estimatedCostUsd"`
-	UnknownCostUSD        float64 `json:"unknownCostUsd"`
-	AverageCostUSD        float64 `json:"averageCostUsd"`
-	TotalTokens           int64   `json:"totalTokens"`
-	InputTokens           int64   `json:"inputTokens"`
-	OutputTokens          int64   `json:"outputTokens"`
-	CacheReadTokens       int64   `json:"cacheReadTokens"`
-	CacheCreationTokens   int64   `json:"cacheCreationTokens"`
-	InputCostUSD          float64 `json:"inputCostUsd"`
-	OutputCostUSD         float64 `json:"outputCostUsd"`
-	CacheReadCostUSD      float64 `json:"cacheReadCostUsd"`
-	CacheCreationCostUSD  float64 `json:"cacheCreationCostUsd"`
-	ReadCalls             int64   `json:"readCalls"`
-	FileRereads           int64   `json:"fileRereads"`
-	FileRereadRate        float64 `json:"fileRereadRate"`
+	TotalRuns                          int64   `json:"totalRuns"`
+	TerminalRuns                       int64   `json:"terminalRuns"`
+	SuccessfulRuns                     int64   `json:"successfulRuns"`
+	SuccessRate                        float64 `json:"successRate"`
+	CompletedDurationRuns              int64   `json:"completedDurationRuns"`
+	AverageDurationMS                  float64 `json:"averageDurationMs"`
+	TotalCostUSD                       float64 `json:"totalCostUsd"`
+	AverageCostUSD                     float64 `json:"averageCostUsd"`
+	TotalTokens                        int64   `json:"totalTokens"`
+	InputTokens                        int64   `json:"inputTokens"`
+	OutputTokens                       int64   `json:"outputTokens"`
+	CacheReadTokens                    int64   `json:"cacheReadTokens"`
+	CacheCreationTokens                int64   `json:"cacheCreationTokens"`
+	InputCostUSD                       float64 `json:"inputCostUsd"`
+	OutputCostUSD                      float64 `json:"outputCostUsd"`
+	CacheReadCostUSD                   float64 `json:"cacheReadCostUsd"`
+	CacheCreationCostUSD               float64 `json:"cacheCreationCostUsd"`
+	TotalChargeMicroUSD                int64   `json:"totalChargeMicroUsd"`
+	MeteredChargeMicroUSD              int64   `json:"meteredChargeMicroUsd"`
+	UnpricedTokenCount                 int64   `json:"unpricedTokenCount"`
+	ConsumptionPerSuccessfulCompletion float64 `json:"consumptionPerSuccessfulCompletion"`
+	ReadCalls                          int64   `json:"readCalls"`
+	FileRereads                        int64   `json:"fileRereads"`
+	FileRereadRate                     float64 `json:"fileRereadRate"`
 }
 
 // RunDurationStatistics retains the complete duration summary used by the
@@ -177,18 +166,20 @@ type RunStatusCount struct {
 // dimension is selected by the owning typed measure (runner, model, or
 // profile), never by an untyped transport switch.
 type RunBreakdownRow struct {
-	Key                 string
-	Value               string
-	RunCount            int64
-	SuccessCount        int64
-	FailedCount         int64
-	TotalCostUSD        float64
-	TotalTokens         int64
-	InputTokens         int64
-	OutputTokens        int64
-	CacheReadTokens     int64
-	CacheCreationTokens int64
-	AvgDurationMS       float64
+	Key                                string
+	Value                              string
+	RunCount                           int64
+	SuccessCount                       int64
+	FailedCount                        int64
+	TotalCostUSD                       float64
+	TotalTokens                        int64
+	InputTokens                        int64
+	OutputTokens                       int64
+	CacheReadTokens                    int64
+	CacheCreationTokens                int64
+	AvgDurationMS                      float64
+	ConsumptionPerSuccessfulCompletion float64
+	CompletionRate                     float64
 }
 
 // RunTimeSeriesBucket is a terminal-time bucket. It records completed,
@@ -201,9 +192,6 @@ type RunTimeSeriesBucket struct {
 	FailedRuns           int64
 	CancelledRuns        int64
 	TotalCostUSD         float64
-	AuthoritativeCostUSD float64
-	EstimatedCostUSD     float64
-	UnknownCostUSD       float64
 	InputCostUSD         float64
 	OutputCostUSD        float64
 	CacheReadCostUSD     float64
@@ -299,35 +287,63 @@ type Fact struct {
 // cost measurements. occurred_at is terminal time when available, otherwise
 // creation time, with TimeBasis making that fallback visible to consumers.
 type RunFact struct {
-	RunID                string
-	OccurredAt           time.Time
-	CreatedAt            time.Time
-	StartedAt            *time.Time
-	EndedAt              *time.Time
-	DurationMS           int64
-	Status               string
-	ProfileID            string
-	RunnerType           string
-	Model                string
-	Tag                  string
-	TotalCostUSD         float64
-	AuthoritativeCostUSD float64
-	EstimatedCostUSD     float64
-	UnknownCostUSD       float64
-	InputCostUSD         float64
-	OutputCostUSD        float64
-	CacheReadCostUSD     float64
-	CacheCreationCostUSD float64
-	TotalTokens          int64
-	InputTokens          int64
-	OutputTokens         int64
-	CacheReadTokens      int64
-	CacheCreationTokens  int64
-	ReadCalls            int64
-	FileRereads          int64
-	TimeAccounting       runsignal.TimeAccounting
-	CostTimeBasis        string
-	ProjectedAt          time.Time
+	RunID                 string
+	OccurredAt            time.Time
+	CreatedAt             time.Time
+	StartedAt             *time.Time
+	EndedAt               *time.Time
+	DurationMS            int64
+	Status                string
+	ProfileID             string
+	RunnerType            string
+	Model                 string
+	Tag                   string
+	WorkloadKind          string
+	WorkloadKey           string
+	WorkloadInstance      string
+	TotalCostUSD          float64
+	InputCostUSD          float64
+	OutputCostUSD         float64
+	CacheReadCostUSD      float64
+	CacheCreationCostUSD  float64
+	TotalTokens           int64
+	InputTokens           int64
+	OutputTokens          int64
+	CacheReadTokens       int64
+	CacheCreationTokens   int64
+	Turns                 int64
+	ToolCalls             int64
+	TotalChargeMicroUSD   int64
+	MeteredChargeMicroUSD int64
+	UnpricedTokenCount    int64
+	ReadCalls             int64
+	FileRereads           int64
+	TimeAccounting        runsignal.TimeAccounting
+	CostTimeBasis         string
+	ProjectedAt           time.Time
+}
+
+type Efficiency struct {
+	Consumption      int64
+	SuccessfulRuns   int64
+	PerSuccessfulRun float64
+}
+
+// ConsumptionPerSuccessfulCompletion deliberately includes failed attempts
+// in the numerator; excluding them would make unreliable cheap models look
+// efficient after retries.
+func ConsumptionPerSuccessfulCompletion(facts []RunFact) Efficiency {
+	var result Efficiency
+	for _, fact := range facts {
+		result.Consumption += fact.TotalTokens
+		if fact.Status == "complete" || fact.Status == "completed" || fact.Status == "success" {
+			result.SuccessfulRuns++
+		}
+	}
+	if result.SuccessfulRuns > 0 {
+		result.PerSuccessfulRun = float64(result.Consumption) / float64(result.SuccessfulRuns)
+	}
+	return result
 }
 
 // Watermark states the newest source event incorporated for a run.

@@ -16,10 +16,10 @@ import (
 type invocationReadModelRepository struct{ db *DB }
 
 var (
-	_ invocationreadmodel.Store            = (*invocationReadModelRepository)(nil)
-	_ invocationreadmodel.RunStore         = (*invocationReadModelRepository)(nil)
-	_ invocationreadmodel.GoalOutcomeStore = (*invocationReadModelRepository)(nil)
-	_ invocationreadmodel.ProjectionStore  = (*invocationReadModelRepository)(nil)
+	_ invocationreadmodel.Store           = (*invocationReadModelRepository)(nil)
+	_ invocationreadmodel.RunStore        = (*invocationReadModelRepository)(nil)
+	_ invocationreadmodel.WorkloadStore   = (*invocationReadModelRepository)(nil)
+	_ invocationreadmodel.ProjectionStore = (*invocationReadModelRepository)(nil)
 )
 
 func nullableSQLiteTime(value *time.Time) any {
@@ -33,36 +33,9 @@ func (r *invocationReadModelRepository) ReplaceRun(ctx context.Context, fact inv
 	return replaceRunTx(ctx, r.db, fact)
 }
 
-func (r *invocationReadModelRepository) ReplaceGoalOutcome(ctx context.Context, goal invocationreadmodel.GoalOutcome) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE invocation_read_model_runs SET goal_id=?,goal_status=?,goal_token_budget=?,goal_tokens_used=?,goal_time_used_seconds=? WHERE run_id=?`, goal.GoalID, goal.Status, goal.TokenBudget, goal.TokensUsed, goal.TimeUsedSeconds, goal.RunID)
-	if err != nil {
-		return fmt.Errorf("persist goal outcome: %w", err)
-	}
-	return nil
-}
-
-func (r *invocationReadModelRepository) GoalOutcome(ctx context.Context, runID string) (*invocationreadmodel.GoalOutcome, error) {
-	var row struct {
-		RunID           string        `db:"run_id"`
-		GoalID          string        `db:"goal_id"`
-		Status          string        `db:"goal_status"`
-		TokenBudget     sql.NullInt64 `db:"goal_token_budget"`
-		TokensUsed      int64         `db:"goal_tokens_used"`
-		TimeUsedSeconds int64         `db:"goal_time_used_seconds"`
-	}
-	err := r.db.GetContext(ctx, &row, `SELECT run_id,goal_id,goal_status,goal_token_budget,goal_tokens_used,goal_time_used_seconds FROM invocation_read_model_runs WHERE run_id=? AND goal_id<>''`, runID)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	out := &invocationreadmodel.GoalOutcome{RunID: row.RunID, GoalID: row.GoalID, Status: row.Status, TokensUsed: row.TokensUsed, TimeUsedSeconds: row.TimeUsedSeconds}
-	if row.TokenBudget.Valid {
-		value := row.TokenBudget.Int64
-		out.TokenBudget = &value
-	}
-	return out, nil
+func (r *invocationReadModelRepository) BackfillWorkload(ctx context.Context, runID, kind, key, instance string) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE invocation_read_model_runs SET workload_kind=?,workload_key=?,workload_instance=? WHERE run_id=?`, kind, key, instance, runID)
+	return err
 }
 
 type sqlExecutor interface {
@@ -70,7 +43,24 @@ type sqlExecutor interface {
 }
 
 func replaceRunTx(ctx context.Context, executor sqlExecutor, fact invocationreadmodel.RunFact) error {
-	if _, err := executor.ExecContext(ctx, `INSERT INTO invocation_read_model_runs (run_id,occurred_at,created_at,started_at,ended_at,duration_ms,status,profile_id,runner_type,model,tag,total_cost_usd,authoritative_cost_usd,estimated_cost_usd,unknown_cost_usd,input_cost_usd,output_cost_usd,cache_read_cost_usd,cache_creation_cost_usd,total_tokens,input_tokens,output_tokens,cache_read_tokens,cache_creation_tokens,cost_time_basis,projected_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(run_id) DO UPDATE SET occurred_at=excluded.occurred_at,created_at=excluded.created_at,started_at=excluded.started_at,ended_at=excluded.ended_at,duration_ms=excluded.duration_ms,status=excluded.status,profile_id=excluded.profile_id,runner_type=excluded.runner_type,model=excluded.model,tag=excluded.tag,total_cost_usd=excluded.total_cost_usd,authoritative_cost_usd=excluded.authoritative_cost_usd,estimated_cost_usd=excluded.estimated_cost_usd,unknown_cost_usd=excluded.unknown_cost_usd,input_cost_usd=excluded.input_cost_usd,output_cost_usd=excluded.output_cost_usd,cache_read_cost_usd=excluded.cache_read_cost_usd,cache_creation_cost_usd=excluded.cache_creation_cost_usd,total_tokens=excluded.total_tokens,input_tokens=excluded.input_tokens,output_tokens=excluded.output_tokens,cache_read_tokens=excluded.cache_read_tokens,cache_creation_tokens=excluded.cache_creation_tokens,cost_time_basis=excluded.cost_time_basis,projected_at=excluded.projected_at`, fact.RunID, SQLiteTime(fact.OccurredAt), SQLiteTime(fact.CreatedAt), nullableSQLiteTime(fact.StartedAt), nullableSQLiteTime(fact.EndedAt), fact.DurationMS, fact.Status, fact.ProfileID, fact.RunnerType, fact.Model, fact.Tag, fact.TotalCostUSD, fact.AuthoritativeCostUSD, fact.EstimatedCostUSD, fact.UnknownCostUSD, fact.InputCostUSD, fact.OutputCostUSD, fact.CacheReadCostUSD, fact.CacheCreationCostUSD, fact.TotalTokens, fact.InputTokens, fact.OutputTokens, fact.CacheReadTokens, fact.CacheCreationTokens, fact.CostTimeBasis, SQLiteTime(fact.ProjectedAt)); err != nil {
+	query := `INSERT INTO invocation_read_model_runs (
+		run_id,occurred_at,created_at,started_at,ended_at,duration_ms,status,profile_id,runner_type,model,tag,
+		workload_kind,workload_key,workload_instance,total_cost_usd,input_cost_usd,output_cost_usd,cache_read_cost_usd,
+		cache_creation_cost_usd,total_tokens,input_tokens,output_tokens,cache_read_tokens,cache_creation_tokens,turns,
+		tool_calls,total_charge_micro_usd,metered_charge_micro_usd,unpriced_token_count,cost_time_basis,projected_at
+	) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+	ON CONFLICT(run_id) DO UPDATE SET
+		occurred_at=excluded.occurred_at,created_at=excluded.created_at,started_at=excluded.started_at,ended_at=excluded.ended_at,
+		duration_ms=excluded.duration_ms,status=excluded.status,profile_id=excluded.profile_id,runner_type=excluded.runner_type,
+		model=excluded.model,tag=excluded.tag,workload_kind=excluded.workload_kind,workload_key=excluded.workload_key,
+		workload_instance=excluded.workload_instance,total_cost_usd=excluded.total_cost_usd,input_cost_usd=excluded.input_cost_usd,
+		output_cost_usd=excluded.output_cost_usd,cache_read_cost_usd=excluded.cache_read_cost_usd,
+		cache_creation_cost_usd=excluded.cache_creation_cost_usd,total_tokens=excluded.total_tokens,input_tokens=excluded.input_tokens,
+		output_tokens=excluded.output_tokens,cache_read_tokens=excluded.cache_read_tokens,cache_creation_tokens=excluded.cache_creation_tokens,
+		turns=excluded.turns,tool_calls=excluded.tool_calls,total_charge_micro_usd=excluded.total_charge_micro_usd,
+		metered_charge_micro_usd=excluded.metered_charge_micro_usd,unpriced_token_count=excluded.unpriced_token_count,
+		cost_time_basis=excluded.cost_time_basis,projected_at=excluded.projected_at`
+	if _, err := executor.ExecContext(ctx, query, fact.RunID, SQLiteTime(fact.OccurredAt), SQLiteTime(fact.CreatedAt), nullableSQLiteTime(fact.StartedAt), nullableSQLiteTime(fact.EndedAt), fact.DurationMS, fact.Status, fact.ProfileID, fact.RunnerType, fact.Model, fact.Tag, fact.WorkloadKind, fact.WorkloadKey, fact.WorkloadInstance, fact.TotalCostUSD, fact.InputCostUSD, fact.OutputCostUSD, fact.CacheReadCostUSD, fact.CacheCreationCostUSD, fact.TotalTokens, fact.InputTokens, fact.OutputTokens, fact.CacheReadTokens, fact.CacheCreationTokens, fact.Turns, fact.ToolCalls, fact.TotalChargeMicroUSD, fact.MeteredChargeMicroUSD, fact.UnpricedTokenCount, fact.CostTimeBasis, SQLiteTime(fact.ProjectedAt)); err != nil {
 		return fmt.Errorf("upsert run read-model fact: %w", err)
 	}
 	if _, err := executor.ExecContext(ctx, `INSERT INTO invocation_read_model_run_signals (run_id,read_calls,files_read_more_than_once) VALUES (?,?,?) ON CONFLICT(run_id) DO UPDATE SET read_calls=excluded.read_calls,files_read_more_than_once=excluded.files_read_more_than_once`, fact.RunID, fact.ReadCalls, fact.FileRereads); err != nil {
@@ -369,22 +359,25 @@ func (r *invocationReadModelRepository) RunMetrics(ctx context.Context, filter i
 		SUM(CASE WHEN started_at IS NOT NULL AND ended_at IS NOT NULL THEN 1 ELSE 0 END),
 		COALESCE(AVG(CASE WHEN started_at IS NOT NULL AND ended_at IS NOT NULL THEN duration_ms END), 0),
 		COALESCE(SUM(total_cost_usd), 0),
-		COALESCE(SUM(authoritative_cost_usd), 0), COALESCE(SUM(estimated_cost_usd), 0), COALESCE(SUM(unknown_cost_usd), 0),
 		COALESCE(AVG(total_cost_usd), 0),
 		COALESCE(SUM(total_tokens), 0),
 		COALESCE(SUM(input_tokens), 0), COALESCE(SUM(output_tokens), 0), COALESCE(SUM(cache_read_tokens), 0), COALESCE(SUM(cache_creation_tokens), 0),
 		COALESCE(SUM(input_cost_usd), 0), COALESCE(SUM(output_cost_usd), 0), COALESCE(SUM(cache_read_cost_usd), 0), COALESCE(SUM(cache_creation_cost_usd), 0),
+		COALESCE(SUM(total_charge_micro_usd), 0), COALESCE(SUM(metered_charge_micro_usd), 0), COALESCE(SUM(unpriced_token_count), 0),
 		COALESCE(SUM(signals.read_calls), 0),
 		COALESCE(SUM(signals.files_read_more_than_once), 0)
 		FROM invocation_read_model_runs LEFT JOIN invocation_read_model_run_signals signals ON signals.run_id = invocation_read_model_runs.run_id` + where
-	var total, terminal, successful, durationCount, tokens, inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens, readCalls, rereads sql.NullInt64
-	var avgDuration, totalCost, authoritativeCost, estimatedCost, unknownCost, avgCost, inputCost, outputCost, cacheReadCost, cacheCreationCost sql.NullFloat64
-	if err := r.db.QueryRowContext(ctx, query, args...).Scan(&total, &terminal, &successful, &durationCount, &avgDuration, &totalCost, &authoritativeCost, &estimatedCost, &unknownCost, &avgCost, &tokens, &inputTokens, &outputTokens, &cacheReadTokens, &cacheCreationTokens, &inputCost, &outputCost, &cacheReadCost, &cacheCreationCost, &readCalls, &rereads); err != nil {
+	var total, terminal, successful, durationCount, tokens, inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens, totalCharge, meteredCharge, unpricedTokens, readCalls, rereads sql.NullInt64
+	var avgDuration, totalCost, avgCost, inputCost, outputCost, cacheReadCost, cacheCreationCost sql.NullFloat64
+	if err := r.db.QueryRowContext(ctx, query, args...).Scan(&total, &terminal, &successful, &durationCount, &avgDuration, &totalCost, &avgCost, &tokens, &inputTokens, &outputTokens, &cacheReadTokens, &cacheCreationTokens, &inputCost, &outputCost, &cacheReadCost, &cacheCreationCost, &totalCharge, &meteredCharge, &unpricedTokens, &readCalls, &rereads); err != nil {
 		return invocationreadmodel.RunMetrics{}, err
 	}
-	m := invocationreadmodel.RunMetrics{TotalRuns: total.Int64, TerminalRuns: terminal.Int64, SuccessfulRuns: successful.Int64, CompletedDurationRuns: durationCount.Int64, AverageDurationMS: avgDuration.Float64, TotalCostUSD: totalCost.Float64, AuthoritativeCostUSD: authoritativeCost.Float64, EstimatedCostUSD: estimatedCost.Float64, UnknownCostUSD: unknownCost.Float64, AverageCostUSD: avgCost.Float64, TotalTokens: tokens.Int64, InputTokens: inputTokens.Int64, OutputTokens: outputTokens.Int64, CacheReadTokens: cacheReadTokens.Int64, CacheCreationTokens: cacheCreationTokens.Int64, InputCostUSD: inputCost.Float64, OutputCostUSD: outputCost.Float64, CacheReadCostUSD: cacheReadCost.Float64, CacheCreationCostUSD: cacheCreationCost.Float64, ReadCalls: readCalls.Int64, FileRereads: rereads.Int64}
+	m := invocationreadmodel.RunMetrics{TotalRuns: total.Int64, TerminalRuns: terminal.Int64, SuccessfulRuns: successful.Int64, CompletedDurationRuns: durationCount.Int64, AverageDurationMS: avgDuration.Float64, TotalCostUSD: totalCost.Float64, AverageCostUSD: avgCost.Float64, TotalTokens: tokens.Int64, InputTokens: inputTokens.Int64, OutputTokens: outputTokens.Int64, CacheReadTokens: cacheReadTokens.Int64, CacheCreationTokens: cacheCreationTokens.Int64, InputCostUSD: inputCost.Float64, OutputCostUSD: outputCost.Float64, CacheReadCostUSD: cacheReadCost.Float64, CacheCreationCostUSD: cacheCreationCost.Float64, TotalChargeMicroUSD: totalCharge.Int64, MeteredChargeMicroUSD: meteredCharge.Int64, UnpricedTokenCount: unpricedTokens.Int64, ReadCalls: readCalls.Int64, FileRereads: rereads.Int64}
 	if m.TerminalRuns > 0 {
 		m.SuccessRate = float64(m.SuccessfulRuns) / float64(m.TerminalRuns)
+	}
+	if m.SuccessfulRuns > 0 {
+		m.ConsumptionPerSuccessfulCompletion = float64(m.TotalTokens) / float64(m.SuccessfulRuns)
 	}
 	if m.ReadCalls > 0 {
 		m.FileRereadRate = float64(m.FileRereads) / float64(m.ReadCalls)
@@ -429,7 +422,7 @@ func (r *invocationReadModelRepository) RunStatusCounts(ctx context.Context, fil
 }
 
 func (r *invocationReadModelRepository) RunBreakdown(ctx context.Context, filter invocationreadmodel.Filter, dimension string, limit int) ([]invocationreadmodel.RunBreakdownRow, error) {
-	columns := map[string]string{"runner": "runner_type", "model": "model", "profile": "profile_id"}
+	columns := map[string]string{"runner": "runner_type", "model": "model", "profile": "profile_id", "workload": "workload_key"}
 	column, ok := columns[dimension]
 	if !ok {
 		return nil, fmt.Errorf("unsupported durable run breakdown dimension %q", dimension)
@@ -441,6 +434,10 @@ func (r *invocationReadModelRepository) RunBreakdown(ctx context.Context, filter
 	args = append(args, limit)
 	value := column
 	from := "invocation_read_model_runs"
+	if dimension == "workload" {
+		value = "COALESCE(workload_key, '')"
+		column = value
+	}
 	if dimension == "profile" {
 		// Profile display names are a retained product label, resolved from the
 		// profile catalogue after selecting the durable run population. This is
@@ -452,7 +449,9 @@ func (r *invocationReadModelRepository) RunBreakdown(ctx context.Context, filter
 		SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed_count,
 		COALESCE(SUM(total_cost_usd), 0) AS total_cost_usd,
 		COALESCE(SUM(total_tokens), 0) AS total_tokens,
-		COALESCE(AVG(CASE WHEN started_at IS NOT NULL AND ended_at IS NOT NULL THEN duration_ms END), 0) AS avg_duration_ms
+		COALESCE(AVG(CASE WHEN started_at IS NOT NULL AND ended_at IS NOT NULL THEN duration_ms END), 0) AS avg_duration_ms,
+		COALESCE(SUM(total_tokens) / NULLIF(SUM(CASE WHEN status = 'complete' THEN 1 ELSE 0 END), 0), 0) AS consumption_per_successful_completion,
+		COALESCE(SUM(CASE WHEN status = 'complete' THEN 1 ELSE 0 END) * 1.0 / NULLIF(COUNT(*), 0), 0) AS completion_rate
 		FROM %s%s GROUP BY %s ORDER BY run_count DESC, value ASC LIMIT ?`, value, column, from, where, value)
 	rows, err := r.db.QueryxContext(ctx, query, args...)
 	if err != nil {
@@ -462,7 +461,7 @@ func (r *invocationReadModelRepository) RunBreakdown(ctx context.Context, filter
 	out := []invocationreadmodel.RunBreakdownRow{}
 	for rows.Next() {
 		var row invocationreadmodel.RunBreakdownRow
-		if err := rows.Scan(&row.Value, &row.Key, &row.RunCount, &row.SuccessCount, &row.FailedCount, &row.TotalCostUSD, &row.TotalTokens, &row.AvgDurationMS); err != nil {
+		if err := rows.Scan(&row.Value, &row.Key, &row.RunCount, &row.SuccessCount, &row.FailedCount, &row.TotalCostUSD, &row.TotalTokens, &row.AvgDurationMS, &row.ConsumptionPerSuccessfulCompletion, &row.CompletionRate); err != nil {
 			return nil, err
 		}
 		out = append(out, row)
@@ -609,16 +608,10 @@ func invocationReadModelWhere(filter invocationreadmodel.Filter) (string, []any)
 	add("profile_id", filter.ProfileID)
 	add("runner_type", filter.RunnerType)
 	add("model", filter.Model)
+	add("workload_kind", filter.WorkloadKind)
+	add("workload_key", filter.WorkloadKey)
 	add("run_status", filter.RunStatus)
 	add("tool_name", filter.ToolName)
-	if filter.GoalID != "" {
-		clauses = append(clauses, "EXISTS (SELECT 1 FROM invocation_read_model_runs irm WHERE irm.run_id=invocation_read_model_facts.run_id AND irm.goal_id=?)")
-		args = append(args, filter.GoalID)
-	}
-	if filter.GoalStatus != "" {
-		clauses = append(clauses, "EXISTS (SELECT 1 FROM invocation_read_model_runs irm WHERE irm.run_id=invocation_read_model_facts.run_id AND irm.goal_status=?)")
-		args = append(args, filter.GoalStatus)
-	}
 	if filter.TagPrefix != "" {
 		clauses = append(clauses, "tag LIKE ?")
 		args = append(args, filter.TagPrefix+"%")
@@ -650,8 +643,6 @@ func invocationReadModelRunWhere(filter invocationreadmodel.Filter) (string, []a
 	add("runner_type", filter.RunnerType)
 	add("model", filter.Model)
 	add("status", filter.RunStatus)
-	add("goal_status", filter.GoalStatus)
-	add("goal_id", filter.GoalID)
 	if filter.TagPrefix != "" {
 		clauses, args = append(clauses, "tag LIKE ?"), append(args, filter.TagPrefix+"%")
 	}
@@ -686,12 +677,6 @@ func invocationReadModelEpisodeWhere(filter invocationreadmodel.Filter) (string,
 		if predicate.value != "" {
 			clauses, args = append(clauses, predicate.column+" = ?"), append(args, predicate.value)
 		}
-	}
-	if filter.GoalID != "" {
-		clauses, args = append(clauses, "EXISTS (SELECT 1 FROM invocation_read_model_runs irm WHERE irm.run_id=invocation_read_model_episodes.run_id AND irm.goal_id=?)"), append(args, filter.GoalID)
-	}
-	if filter.GoalStatus != "" {
-		clauses, args = append(clauses, "EXISTS (SELECT 1 FROM invocation_read_model_runs irm WHERE irm.run_id=invocation_read_model_episodes.run_id AND irm.goal_status=?)"), append(args, filter.GoalStatus)
 	}
 	if filter.TagPrefix != "" {
 		clauses, args = append(clauses, "tag LIKE ?"), append(args, filter.TagPrefix+"%")

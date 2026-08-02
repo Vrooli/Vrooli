@@ -31,7 +31,7 @@ func TestDeriveEpisodesEmitsBoundedPatterns(t *testing.T) {
 	}
 	a, b, c := call(0, "a"), call(1, "b"), call(8, "c")
 	facts := []runsignal.InvocationFact{{CallEventID: a.ID.String(), ToolCallID: "a", Executable: "agent-manager", CommandPath: "agent-manager run report", Ownership: "resolved", Outcome: "failure", Fingerprint: "same"}, {CallEventID: b.ID.String(), ToolCallID: "b", Executable: "agent-manager", CommandPath: "agent-manager run report", Ownership: "resolved", Outcome: "failure", HelpRecovery: true, Fingerprint: "same"}}
-	usage := &domain.RunEvent{ID: uuid.New(), RunID: run, Timestamp: now.Add(30 * time.Second), Data: &domain.CostEventData{InputTokens: 3, OutputTokens: 2}}
+	usage := &domain.RunEvent{ID: uuid.New(), RunID: run, Timestamp: now.Add(30 * time.Second), Data: &domain.UsageEventData{InputTokens: 3, OutputTokens: 2}}
 	episodes := runsignal.DeriveEpisodes(facts, []*domain.RunEvent{a, usage, b, c})
 	seen := map[string]bool{}
 	for _, e := range episodes {

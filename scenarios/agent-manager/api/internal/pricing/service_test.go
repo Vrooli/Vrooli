@@ -64,6 +64,7 @@ func testService(t *testing.T, providers ...Provider) (Service, *MemoryRepositor
 	log.SetLevel(logrus.WarnLevel)
 
 	svc := NewService(repo, providers, log)
+	require.NoError(t, svc.RefreshPricing(context.Background()))
 	return svc, repo
 }
 
@@ -352,6 +353,26 @@ func TestResolveCanonicalModel_DefaultResolution(t *testing.T) {
 	// Default resolution should handle common patterns
 	assert.NotEmpty(t, canonical)
 	assert.NotEmpty(t, provider)
+}
+
+func TestResolveCanonicalModel_ReportsUnresolvedBareAlias(t *testing.T) {
+	svc, _ := testService(t)
+	_, _, err := svc.ResolveCanonicalModel(context.Background(), "opus", "codex")
+	// opus is a resource-observed alias and must resolve through the explicit
+	// default table rather than being silently treated as an OpenRouter model.
+	require.NoError(t, err)
+	canonical, _, err := svc.ResolveCanonicalModel(context.Background(), "not-a-model", "codex")
+	require.Error(t, err)
+	assert.Empty(t, canonical)
+}
+
+func TestCalculateCost_UnlabelledModelIsUnpriced(t *testing.T) {
+	svc, _ := testService(t)
+	calc, err := svc.CalculateCost(context.Background(), CostRequest{RunnerType: "codex", InputTokens: 100})
+	require.NoError(t, err)
+	assert.Equal(t, "unpriced", calc.CostSource)
+	assert.Equal(t, "model_unlabelled", calc.ChargeReason)
+	assert.Zero(t, calc.TotalCostUSD)
 }
 
 func TestSetOverride_ClearsCache(t *testing.T) {

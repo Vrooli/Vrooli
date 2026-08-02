@@ -52,6 +52,7 @@ type (
 		Turns          int
 		Tokens         int
 		CostUSD        float64
+		ChargeMicroUSD int64
 	}
 	ChildLauncher interface {
 		StartFresh(context.Context, ChildRequest) (ChildState, error)
@@ -737,7 +738,7 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 	active.CompletedAt = &now
 	x.BudgetUsage.Turns += state.Turns
 	x.BudgetUsage.Tokens += state.Tokens
-	x.BudgetUsage.CostUSD += state.CostUSD
+	x.BudgetUsage.ChargeMicroUSD += state.ChargeMicroUSD
 	entries := []*domain.WorkflowJournalEntry{}
 	if state.Result != nil {
 		active.RawOutput = state.Result.FinalOutput
@@ -786,8 +787,8 @@ func (e *Engine) advanceAgent(ctx context.Context, x *domain.WorkflowExecution, 
 	if x.BudgetUsage.Tokens > r.Definition.Budgets.MaxTokens {
 		return e.commitExhaust(ctx, x, active, entries, "tokens")
 	}
-	if x.BudgetUsage.CostUSD > r.Definition.Budgets.MaxCostUSD {
-		return e.commitExhaust(ctx, x, active, entries, "cost")
+	if x.BudgetUsage.ChargeMicroUSD > r.Definition.Budgets.MaxChargeMicroUSD {
+		return e.commitExhaust(ctx, x, active, entries, "charge")
 	}
 	next, err := selectUnconditionalEdge(r.Definition.Edges, node.ID)
 	if err != nil {
@@ -983,7 +984,7 @@ func (e *Engine) advanceChild(ctx context.Context, x *domain.WorkflowExecution, 
 	active.UpdatedAt, active.CompletedAt = now, &now
 	x.BudgetUsage.Turns += state.BudgetUsage.Turns
 	x.BudgetUsage.Tokens += state.BudgetUsage.Tokens
-	x.BudgetUsage.CostUSD += state.BudgetUsage.CostUSD
+	x.BudgetUsage.ChargeMicroUSD += state.BudgetUsage.ChargeMicroUSD
 	x.BudgetUsage.NodeAttempts += state.BudgetUsage.NodeAttempts
 	x.BudgetUsage.Children += state.BudgetUsage.Children
 	x.BudgetUsage.Retries += state.BudgetUsage.Retries

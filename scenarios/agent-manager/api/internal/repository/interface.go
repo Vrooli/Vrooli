@@ -31,6 +31,8 @@ type RunListFilter struct {
 	TaskID                    *uuid.UUID
 	AgentProfileID            *uuid.UUID
 	Status                    *domain.RunStatus
+	EndedFrom                 *time.Time
+	EndedTo                   *time.Time
 	TagPrefix                 string // Filter runs by tag prefix (e.g., "ecosystem-" to get all ecosystem-manager runs)
 	ScopePrefix               string // Filter runs by the joined task's scope_path prefix (e.g., "scenarios/agent-manager" to drain runs targeting a scenario)
 	InvestigatesRunID         *uuid.UUID
@@ -372,19 +374,16 @@ type DurationStats struct {
 
 // CostStats contains cost aggregation data.
 type CostStats struct {
-	TotalCostUSD              float64 `json:"totalCostUsd" db:"total_cost_usd"`
-	TotalCostUSDAuthoritative float64 `json:"totalCostUsdAuthoritative" db:"total_cost_usd_authoritative"`
-	TotalCostUSDEstimated     float64 `json:"totalCostUsdEstimated" db:"total_cost_usd_estimated"`
-	TotalCostUSDUnknown       float64 `json:"totalCostUsdUnknown" db:"total_cost_usd_unknown"`
-	InputCostUSD              float64 `json:"inputCostUsd" db:"input_cost_usd"`
-	OutputCostUSD             float64 `json:"outputCostUsd" db:"output_cost_usd"`
-	CacheReadCostUSD          float64 `json:"cacheReadCostUsd" db:"cache_read_cost_usd"`
-	CacheCreationCostUSD      float64 `json:"cacheCreationCostUsd" db:"cache_creation_cost_usd"`
-	AvgCostUSD                float64 `json:"avgCostUsd" db:"avg_cost_usd"`
-	InputTokens               int64   `json:"inputTokens" db:"input_tokens"`
-	OutputTokens              int64   `json:"outputTokens" db:"output_tokens"`
-	CacheReadTokens           int64   `json:"cacheReadTokens" db:"cache_read_tokens"`
-	TotalTokens               int64   `json:"totalTokens" db:"total_tokens"`
+	TotalCostUSD         float64 `json:"totalCostUsd" db:"total_cost_usd"`
+	InputCostUSD         float64 `json:"inputCostUsd" db:"input_cost_usd"`
+	OutputCostUSD        float64 `json:"outputCostUsd" db:"output_cost_usd"`
+	CacheReadCostUSD     float64 `json:"cacheReadCostUsd" db:"cache_read_cost_usd"`
+	CacheCreationCostUSD float64 `json:"cacheCreationCostUsd" db:"cache_creation_cost_usd"`
+	AvgCostUSD           float64 `json:"avgCostUsd" db:"avg_cost_usd"`
+	InputTokens          int64   `json:"inputTokens" db:"input_tokens"`
+	OutputTokens         int64   `json:"outputTokens" db:"output_tokens"`
+	CacheReadTokens      int64   `json:"cacheReadTokens" db:"cache_read_tokens"`
+	TotalTokens          int64   `json:"totalTokens" db:"total_tokens"`
 }
 
 // RunnerBreakdown contains stats grouped by runner type.
@@ -409,18 +408,15 @@ type ProfileBreakdown struct {
 
 // ModelBreakdown contains stats grouped by model.
 type ModelBreakdown struct {
-	Model                     string  `json:"model" db:"model"`
-	RunCount                  int     `json:"runCount" db:"run_count"`
-	SuccessCount              int     `json:"successCount" db:"success_count"`
-	TotalCostUSD              float64 `json:"totalCostUsd" db:"total_cost_usd"`
-	TotalCostUSDAuthoritative float64 `json:"totalCostUsdAuthoritative" db:"total_cost_usd_authoritative"`
-	TotalCostUSDEstimated     float64 `json:"totalCostUsdEstimated" db:"total_cost_usd_estimated"`
-	TotalCostUSDUnknown       float64 `json:"totalCostUsdUnknown" db:"total_cost_usd_unknown"`
-	InputCostUSD              float64 `json:"inputCostUsd" db:"input_cost_usd"`
-	OutputCostUSD             float64 `json:"outputCostUsd" db:"output_cost_usd"`
-	CacheReadCostUSD          float64 `json:"cacheReadCostUsd" db:"cache_read_cost_usd"`
-	CacheCreationCostUSD      float64 `json:"cacheCreationCostUsd" db:"cache_creation_cost_usd"`
-	TotalTokens               int64   `json:"totalTokens" db:"total_tokens"`
+	Model                string  `json:"model" db:"model"`
+	RunCount             int     `json:"runCount" db:"run_count"`
+	SuccessCount         int     `json:"successCount" db:"success_count"`
+	TotalCostUSD         float64 `json:"totalCostUsd" db:"total_cost_usd"`
+	InputCostUSD         float64 `json:"inputCostUsd" db:"input_cost_usd"`
+	OutputCostUSD        float64 `json:"outputCostUsd" db:"output_cost_usd"`
+	CacheReadCostUSD     float64 `json:"cacheReadCostUsd" db:"cache_read_cost_usd"`
+	CacheCreationCostUSD float64 `json:"cacheCreationCostUsd" db:"cache_creation_cost_usd"`
+	TotalTokens          int64   `json:"totalTokens" db:"total_tokens"`
 }
 
 // ToolUsageStats contains tool call frequency data.

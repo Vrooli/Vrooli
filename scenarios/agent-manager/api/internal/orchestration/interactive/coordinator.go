@@ -34,6 +34,19 @@ const (
 	defaultCoordinatorHeartbeat = 30 * time.Second
 )
 
+func transcriptModel(run *domain.Run) string {
+	if run == nil {
+		return ""
+	}
+	if run.ResolvedConfig != nil && run.ResolvedConfig.Model != "" {
+		return run.ResolvedConfig.Model
+	}
+	if run.ActualModel != "" {
+		return run.ActualModel
+	}
+	return run.RequestedModel
+}
+
 // ErrSessionGone is returned by [Coordinator.TailToCompletion] when the
 // web-console session hosting the interactive CLI disappeared mid-tail. It is a
 // distinct sentinel (not context.Canceled) so [Coordinator.Finalize] can
@@ -271,6 +284,7 @@ func (c *Coordinator) tailToCompletion(ctx context.Context, run *domain.Run, tc 
 		term, err := c.deps.Tailer.Tail(tctx, TailParams{
 			RunID:          run.ID,
 			RunnerType:     run.ResolvedConfig.RunnerType,
+			Model:          transcriptModel(run),
 			TranscriptPath: run.TranscriptPath,
 			RunDir:         tc.RunDir,
 			WorkingDir:     tc.WorkingDir,

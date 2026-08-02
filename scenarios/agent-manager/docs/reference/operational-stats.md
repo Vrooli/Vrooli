@@ -145,24 +145,20 @@ bucket share of `0.90`. Operators may set
 at startup. These are global analytical-honesty settings, never per-measure
 tuning knobs.
 
-## Cohort and goal-scoped investigations
+## Cohort investigations
 
 `agent-manager run investigate` can select durable evidence without manually
-listing run IDs. Supply exactly one scope:
+listing run IDs. Supply a shared read-model filter or explicit run IDs:
 
 ```bash
 # Any shared invocation-read-model predicate.
-agent-manager run investigate --filter-json '{"runnerType":"codex","goalStatus":"blocked"}' --depth quick
-
-# Every retained run associated with one imported Codex goal.
-agent-manager run investigate --goal-id <goal-id> --depth quick
+agent-manager run investigate --filter-json '{"runnerType":"codex","runStatus":"failed"}' --depth quick
 ```
 
 The selection is evaluated against the same `invocationreadmodel.Filter` used
 by aggregates and cohorts. Investigations are capped at 50 runs. Their context
 records the predicate, matched-run count, and omitted-run count, so a bounded
-selection is never presented as a complete cohort. A goal with no retained
-projected runs is an empty cohort, not an inferred zero-friction result.
+selection is never presented as a complete cohort.
 
 ## See also
 

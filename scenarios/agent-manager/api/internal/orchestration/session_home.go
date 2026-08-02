@@ -2,14 +2,11 @@
 package orchestration
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 
-	"agent-manager/internal/codexgoals"
 	"agent-manager/internal/domain"
-	"agent-manager/internal/orchestration/phases"
 	"agent-manager/internal/runstate"
 
 	"github.com/google/uuid"
@@ -52,36 +49,6 @@ func PrepareCodecSessionHome(root string, runID uuid.UUID, runnerType domain.Run
 		}
 	}
 	return map[string]string{envKey: home}, nil
-}
-
-// EmitCodexGoalUsage records Codex's independently-maintained goal budget
-// after a terminal run. Missing stores/rows are intentionally silent: goals
-// are authored only inside Codex and may not exist for a thread.
-func EmitCodexGoalUsage(ctx context.Context, root string, deps phases.Deps, run *domain.Run) {
-	if run == nil || run.ResolvedConfig == nil || run.ResolvedConfig.RunnerType != domain.RunnerTypeCodex || run.SessionID == "" {
-		return
-	}
-	runDir, err := runstate.RunDir(root, run.ID)
-	if err != nil {
-		return
-	}
-	home := filepath.Join(runDir, "codex")
-	goal, err := codexgoals.Read(ctx, home, run.SessionID)
-	if err != nil {
-		phases.EmitSystemEvent(ctx, deps, run.ID, "warn", "failed to read Codex goal accounting: "+err.Error())
-		return
-	}
-	if goal == nil {
-		return
-	}
-	budget := "unset"
-	if goal.TokenBudget != nil {
-		budget = fmt.Sprintf("%d", *goal.TokenBudget)
-	}
-	phases.EmitSystemEvent(ctx, deps, run.ID, "info", fmt.Sprintf(
-		"codex goal accounting: goal_id=%s status=%s token_budget=%s tokens_used=%d time_used_seconds=%d",
-		goal.GoalID, goal.Status, budget, goal.TokensUsed, goal.TimeUsedSeconds,
-	))
 }
 
 // CleanupCodecSessionHomeCredentials removes only copied credential/config

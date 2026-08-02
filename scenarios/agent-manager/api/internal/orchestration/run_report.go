@@ -94,7 +94,6 @@ var (
 	_ runreport.DurableEpisodeSource        = orchestratorReportSource{}
 	_ runreport.DurableSelfReportSpanSource = orchestratorReportSource{}
 	_ runreport.DurableTimeAccountingSource = orchestratorReportSource{}
-	_ runreport.DurableGoalOutcomeSource    = orchestratorReportSource{}
 	_ runreport.LedgerStore                 = orchestratorReportSource{}
 	_ runreport.ReceiptJoinStore            = orchestratorReportSource{}
 )
@@ -108,13 +107,6 @@ func (s orchestratorReportSource) DurableTimeAccounting(ctx context.Context, id 
 		return projection.TimeAccountingForRun(ctx, id.String())
 	}
 	return runsignal.TimeAccounting{}, false, nil
-}
-
-func (s orchestratorReportSource) DurableGoalOutcome(ctx context.Context, id uuid.UUID) (*invocationreadmodel.GoalOutcome, error) {
-	if store, ok := s.o.invocationReadModel.(invocationreadmodel.GoalOutcomeStore); ok {
-		return store.GoalOutcome(ctx, id.String())
-	}
-	return nil, nil
 }
 
 func (s orchestratorReportSource) Events(ctx context.Context, id uuid.UUID) ([]*domain.RunEvent, error) {
