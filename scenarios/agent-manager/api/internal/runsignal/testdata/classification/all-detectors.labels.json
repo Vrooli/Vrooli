@@ -1,0 +1,88 @@
+{
+  "fixture": "all-detectors",
+  "source": "redaction-safe hand-labelled excerpt shape derived from imported runner sessions",
+  "sourceRuns": [
+    "49d4c50a-a499-4db4-a311-4c9c0d0c8026",
+    "5f34450e-fcbb-49aa-b1ff-6ff55f5cb674",
+    "6188692f-8579-4ea4-b08c-e59c1004c0d7"
+  ],
+  "labellingRule": "Label an episode only when its two adjacent invocation facts meet the production pattern definition. Label a self-report only when the exact case-insensitive rule phrase appears in an assistant message; tool and user text never qualify.",
+  "thresholds": {
+    "episode/repeated-work": 1.0,
+    "episode/command-failure": 1.0,
+    "episode/help-recovery": 1.0,
+    "episode/stall": 1.0,
+    "episode/poll-loop": 1.0,
+    "episode/oscillation": 1.0,
+    "episode/edit-revert": 1.0,
+    "span/cannot-find": 1.0,
+    "span/repeated-failure": 1.0,
+    "span/strategy-change": 1.0,
+    "span/blocked": 1.0,
+    "span/permission-request": 1.0
+  },
+  "expected": [
+    "episode/repeated-work",
+    "episode/command-failure",
+    "episode/help-recovery",
+    "episode/stall",
+    "episode/poll-loop",
+    "episode/oscillation",
+    "episode/edit-revert",
+    "span/cannot-find",
+    "span/repeated-failure",
+    "span/strategy-change",
+    "span/blocked",
+    "span/permission-request"
+  ],
+  "cases": [
+    {
+      "name": "redacted-positive-window",
+      "expected": ["episode/repeated-work", "episode/command-failure", "episode/help-recovery", "episode/stall", "episode/poll-loop", "episode/oscillation", "episode/edit-revert", "span/cannot-find", "span/repeated-failure", "span/strategy-change", "span/blocked", "span/permission-request"],
+      "facts": [
+        {"callEventId":"f1","resultEventId":"r1","outcome":"failure","executable":"shell","fingerprint":"same"},
+        {"callEventId":"f2","resultEventId":"r2","outcome":"failure","executable":"shell","fingerprint":"same"},
+        {"callEventId":"f3","resultEventId":"r3","outcome":"success","executable":"help","fingerprint":"help","helpRecovery":true},
+        {"callEventId":"p1","resultEventId":"pr1","outcome":"success","fingerprint":"poll"},
+        {"callEventId":"p2","resultEventId":"pr2","outcome":"success","fingerprint":"poll"},
+        {"callEventId":"p3","resultEventId":"pr3","outcome":"success","fingerprint":"poll"},
+        {"callEventId":"a1","resultEventId":"ar1","outcome":"success","fingerprint":"osc-a"},
+        {"callEventId":"b1","resultEventId":"br1","outcome":"success","fingerprint":"osc-b"},
+        {"callEventId":"a2","resultEventId":"ar2","outcome":"success","fingerprint":"osc-a"},
+        {"callEventId":"b2","resultEventId":"br2","outcome":"success","fingerprint":"osc-b"}
+      ],
+      "events": [
+        {"id":"start","atMilliseconds":0,"kind":"assistant_message","content":"starting"},
+        {"id":"f1","atMilliseconds":1000,"kind":"tool_call","toolName":"shell","input":{"status":true}}, {"id":"r1","atMilliseconds":2000,"kind":"tool_result"},
+        {"id":"f2","atMilliseconds":3000,"kind":"tool_call","toolName":"shell","input":{"status":true}}, {"id":"r2","atMilliseconds":4000,"kind":"tool_result"},
+        {"id":"f3","atMilliseconds":5000,"kind":"tool_call","toolName":"shell","input":{"help":true}}, {"id":"r3","atMilliseconds":6000,"kind":"tool_result"},
+        {"id":"p1","atMilliseconds":10000,"kind":"tool_call","toolName":"shell","input":{"status":true}}, {"id":"pr1","atMilliseconds":11000,"kind":"tool_result"},
+        {"id":"p2","atMilliseconds":12000,"kind":"tool_call","toolName":"shell","input":{"status":true}}, {"id":"pr2","atMilliseconds":13000,"kind":"tool_result"},
+        {"id":"p3","atMilliseconds":14000,"kind":"tool_call","toolName":"shell","input":{"status":true}}, {"id":"pr3","atMilliseconds":15000,"kind":"tool_result"},
+        {"id":"a1","atMilliseconds":20000,"kind":"tool_call","toolName":"shell","input":{"read":true}}, {"id":"ar1","atMilliseconds":21000,"kind":"tool_result"},
+        {"id":"b1","atMilliseconds":22000,"kind":"tool_call","toolName":"shell","input":{"read":true}}, {"id":"br1","atMilliseconds":23000,"kind":"tool_result"},
+        {"id":"a2","atMilliseconds":24000,"kind":"tool_call","toolName":"shell","input":{"read":true}}, {"id":"ar2","atMilliseconds":25000,"kind":"tool_result"},
+        {"id":"b2","atMilliseconds":26000,"kind":"tool_call","toolName":"shell","input":{"read":true}}, {"id":"br2","atMilliseconds":27000,"kind":"tool_result"},
+        {"id":"edit-a","atMilliseconds":30000,"kind":"tool_call","toolName":"file_change","files":[{"path":"fixture.txt","kind":"add"}]},
+        {"id":"edit-b","atMilliseconds":31000,"kind":"tool_call","toolName":"file_change","files":[{"path":"fixture.txt","kind":"delete"}]},
+        {"id":"report","atMilliseconds":400000,"kind":"assistant_message","content":"I cannot find it; this keeps failing; instead I will retry. I am blocked and need permission."}
+      ]
+    },
+    {
+      "name": "redacted-near-miss-window",
+      "expected": [],
+      "facts": [
+        {"callEventId":"n1","resultEventId":"nr1","outcome":"success","fingerprint":"read-a"},
+        {"callEventId":"n2","resultEventId":"nr2","outcome":"success","fingerprint":"read-b"}
+      ],
+      "events": [
+        {"id":"n1","atMilliseconds":0,"kind":"tool_call","toolName":"shell","input":{"status":true}}, {"id":"nr1","atMilliseconds":1000,"kind":"tool_result"},
+        {"id":"message","atMilliseconds":10000,"kind":"assistant_message","content":"progress made"},
+        {"id":"n2","atMilliseconds":60000,"kind":"tool_call","toolName":"shell","input":{"status":true}}, {"id":"nr2","atMilliseconds":61000,"kind":"tool_result"},
+        {"id":"edit-c","atMilliseconds":70000,"kind":"tool_call","toolName":"file_change","files":[{"path":"one.txt","kind":"add"}]},
+        {"id":"edit-d","atMilliseconds":71000,"kind":"tool_call","toolName":"file_change","files":[{"path":"two.txt","kind":"delete"}]},
+        {"id":"user","atMilliseconds":72000,"kind":"user_message","content":"I am blocked and need permission"}
+      ]
+    }
+  ]
+}

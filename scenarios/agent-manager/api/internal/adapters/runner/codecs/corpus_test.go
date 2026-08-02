@@ -8,6 +8,7 @@ import (
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/transcriptredact"
 
 	"github.com/google/uuid"
 )
@@ -26,6 +27,7 @@ func TestReplayCorpusParsesWithoutSecrets(t *testing.T) {
 		{"codex-live-identity-guard.jsonl", func(t *testing.T) Codec { t.Helper(); return NewCodexForTest() }, "019fa64c-e19a-72b1-bf39-bf6ec9a028ab", 2, 0, 1},
 		{"codex-live-investigation-both-1.jsonl", func(t *testing.T) Codec { t.Helper(); return NewCodexForTest() }, "019fac3d-becf-7212-9a87-bd05c57f4b1f", 2, 0, 1},
 		{"codex-live-investigation-both-2.jsonl", func(t *testing.T) Codec { t.Helper(); return NewCodexForTest() }, "019fac41-00fb-7210-b264-0d19dfc1dbdf", 2, 0, 1},
+		{"poll-loop.jsonl", func(t *testing.T) Codec { t.Helper(); return NewCodexForTest() }, "poll-loop-fixture", 0, 6, 1},
 		{"grok-stdout.jsonl", func(t *testing.T) Codec { t.Helper(); return NewGrokForTest() }, "019f10db-c647-7d93-9278-8bd0ab1e7528", 1, 0, 0},
 		{"grok-updates.jsonl", func(t *testing.T) Codec { t.Helper(); return NewGrokForTest() }, "019f1023-e563-7513-a64e-96165fba4be6", 1, 2, 0},
 		{"opencode-stdout.jsonl", func(t *testing.T) Codec { t.Helper(); return NewOpenCodeForTest() }, "sess-1", 2, 3, 1},
@@ -83,6 +85,70 @@ func TestReplayCorpusParsesWithoutSecrets(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCommittedTranscriptFixturesContainNoSecretsOrAbsoluteHomePaths(t *testing.T) {
+	violations, err := transcriptredact.ScanDir("testdata")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(violations) != 0 {
+		t.Fatalf("committed transcript fixture gate failed:\n%s", strings.Join(violations, "\n"))
+	}
+}
+
+func TestTranscriptRedactionPreservesCodecClassification(t *testing.T) {
+	path := filepath.Join("testdata", "claude_ondisk_trace.jsonl")
+	redacted, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unsafe := strings.Replace(string(redacted), "<HOME>", "/home/alice", 1)
+	if unsafe == string(redacted) {
+		t.Fatal("fixture did not contain a redacted home path")
+	}
+	if got := transcriptredact.Redact(unsafe); got != string(redacted) {
+		t.Fatalf("redaction did not restore canonical fixture:\n%s", got)
+	}
+	before := replayClassification(t, unsafe)
+	after := replayClassification(t, string(redacted))
+	if before != after {
+		t.Fatalf("classification changed after transcript redaction: before=%+v after=%+v", before, after)
+	}
+}
+
+type replayOutcome struct {
+	messages, tools, metrics int
+	terminalSuccess          bool
+}
+
+func replayClassification(t *testing.T, transcript string) replayOutcome {
+	t.Helper()
+	parser := NewClaudeForTest().NewTranscriptParser()
+	outcome := replayOutcome{}
+	for lineNumber, line := range strings.Split(transcript, "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		result := parser.ParseTranscriptLine(uuid.New(), line)
+		if result.Err != nil {
+			t.Fatalf("line %d: %v", lineNumber+1, result.Err)
+		}
+		if result.Terminal != nil {
+			outcome.terminalSuccess = result.Terminal.Success
+		}
+		for _, event := range result.Events {
+			switch event.EventType {
+			case domain.EventTypeMessage:
+				outcome.messages++
+			case domain.EventTypeToolCall, domain.EventTypeToolResult:
+				outcome.tools++
+			case domain.EventTypeMetric:
+				outcome.metrics++
+			}
+		}
+	}
+	return outcome
 }
 
 func TestReplayCorpusResumesWithItsRecordedSession(t *testing.T) {

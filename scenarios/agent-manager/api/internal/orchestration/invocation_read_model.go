@@ -13,6 +13,7 @@ import (
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/runreport"
+	"agent-manager/internal/runsignal"
 	"github.com/google/uuid"
 )
 
@@ -20,21 +21,36 @@ func (o *Orchestrator) EpisodeCohort(ctx context.Context, filter invocationreadm
 	if o.invocationReadModel == nil {
 		return runreport.EpisodeCohort{}, fmt.Errorf("invocation read model is not configured")
 	}
-	cohort, err := o.invocationReadModel.Cohort(ctx, filter, limit)
-	if err != nil {
-		return runreport.EpisodeCohort{}, err
-	}
-	selected := map[string][]runreport.FrictionEpisode{}
-	for _, rawID := range cohort.RunIDs {
-		id, err := uuid.Parse(rawID)
+	selected := map[string][]runsignal.FrictionEpisode{}
+	if projection, ok := o.invocationReadModel.(invocationreadmodel.ProjectionStore); ok {
+		episodes, err := projection.Episodes(ctx, filter, 10000)
 		if err != nil {
 			return runreport.EpisodeCohort{}, err
 		}
-		episodes, err := o.Episodes(ctx, id)
+		for _, episode := range episodes {
+			if limit > 0 && len(selected) >= limit {
+				if _, exists := selected[episode.RunID]; !exists {
+					continue
+				}
+			}
+			selected[episode.RunID] = append(selected[episode.RunID], episode.FrictionEpisode)
+		}
+	} else {
+		cohort, err := o.invocationReadModel.Cohort(ctx, filter, limit)
 		if err != nil {
 			return runreport.EpisodeCohort{}, err
 		}
-		selected[rawID] = episodes
+		for _, rawID := range cohort.RunIDs {
+			id, err := uuid.Parse(rawID)
+			if err != nil {
+				return runreport.EpisodeCohort{}, err
+			}
+			episodes, err := o.Episodes(ctx, id)
+			if err != nil {
+				return runreport.EpisodeCohort{}, err
+			}
+			selected[rawID] = episodes
+		}
 	}
 	return runreport.BuildEpisodeCohort(selected), nil
 }
@@ -59,13 +75,24 @@ type ReplayFilter struct {
 }
 
 type ReplaySummary struct {
-	Replayed          int  `json:"replayed"`
-	Refreshed         int  `json:"refreshed"`
-	Skipped           int  `json:"skipped"`
-	Unreplayable      int  `json:"unreplayable"`
-	EpisodesReDerived int  `json:"episodesReDerived"`
-	Truncated         bool `json:"truncated"`
+	Replayed          int             `json:"replayed"`
+	Refreshed         int             `json:"refreshed"`
+	Skipped           int             `json:"skipped"`
+	Unreplayable      int             `json:"unreplayable"`
+	EpisodesReDerived int             `json:"episodesReDerived"`
+	Truncated         bool            `json:"truncated"`
+	Failures          []ReplayFailure `json:"failures,omitempty"`
 }
+
+// ReplayFailure makes a per-run maintenance failure inspectable without
+// turning an otherwise useful corpus rebuild into an all-or-nothing request.
+// It deliberately holds only the run identity and bounded error class.
+type ReplayFailure struct {
+	RunID string `json:"runId"`
+	Error string `json:"error"`
+}
+
+const replayFailureLimit = 20
 
 func (o *Orchestrator) AggregateInvocationFacts(ctx context.Context, filter invocationreadmodel.Filter, dimension string, limit int) ([]invocationreadmodel.AggregateRow, error) {
 	if o.invocationReadModel == nil {
@@ -107,15 +134,26 @@ func (o *Orchestrator) ReplayInvocationFacts(ctx context.Context, runID uuid.UUI
 	if err != nil {
 		return nil, fmt.Errorf("load retained run events: %w", err)
 	}
-	if len(events) == 0 && watermark != nil {
-		return &ReplayResult{RunID: runID.String(), Status: "unreplayable", ClassifierVersion: watermark.ClassifierVersion}, nil
+	if len(events) == 0 {
+		// A projection watermark requires a retained source event timestamp. A
+		// transcript can legitimately carry only session metadata, so represent
+		// that evidence as unreplayable rather than attempting an invalid empty
+		// watermark write. Existing facts remain untouched when one exists.
+		version := "unprojected"
+		if watermark != nil {
+			version = watermark.ClassifierVersion
+		}
+		return &ReplayResult{RunID: runID.String(), Status: "unreplayable", ClassifierVersion: version}, nil
 	}
 	projectedAt := o.now()
 	facts, next := invocationreadmodel.Project(run, events, projectedAt)
 	if projection, ok := o.invocationReadModel.(invocationreadmodel.ProjectionStore); ok {
-		if err := projection.ReplaceProjection(ctx, facts, invocationreadmodel.ProjectErrors(run, events, projectedAt), next, invocationreadmodel.ProjectRun(run, events, projectedAt)); err != nil {
+		episodes := invocationreadmodel.ProjectEpisodes(run, facts, events, projectedAt)
+		spans := invocationreadmodel.ProjectSelfReportSpans(run, events, projectedAt)
+		if err := projection.ReplaceProjection(ctx, facts, invocationreadmodel.ProjectErrors(run, events, projectedAt), episodes, spans, next, invocationreadmodel.ProjectRun(run, events, projectedAt)); err != nil {
 			return nil, err
 		}
+		return &ReplayResult{RunID: runID.String(), Status: "replayed", FactCount: len(facts), EpisodeCount: len(episodes), ClassifierVersion: next.ClassifierVersion}, nil
 	} else if err := o.invocationReadModel.Replace(ctx, facts, next); err != nil {
 		return nil, err
 	}
@@ -182,18 +220,11 @@ func (o *Orchestrator) ReplayInvocationCorpus(ctx context.Context, filter Replay
 			result, err = o.ReplayInvocationFacts(ctx, run.ID)
 		}
 		if err != nil {
-			return nil, fmt.Errorf("%s run %s: %w", map[bool]string{true: "refresh", false: "replay"}[refresh], run.ID, err)
-		}
-		// Refresh deliberately preserves the no-new-events skip invariant for the
-		// invocation-fact projection. Episodes are a separately versioned derived
-		// projection, though, so refresh must still re-derive them from the durable
-		// corpus even when that fact projection is already current.
-		if refresh && result.Status == "skipped" {
-			report, reportErr := o.BuildRunReport(ctx, run.ID)
-			if reportErr != nil {
-				return nil, fmt.Errorf("refresh episodes for run %s: %w", run.ID, reportErr)
+			summary.Unreplayable++
+			if len(summary.Failures) < replayFailureLimit {
+				summary.Failures = append(summary.Failures, ReplayFailure{RunID: run.ID.String(), Error: "projection_failed"})
 			}
-			result.EpisodeCount = len(report.Episodes)
+			continue
 		}
 		switch result.Status {
 		case "replayed":
@@ -224,7 +255,7 @@ func (o *Orchestrator) projectInvocationReadModel(ctx context.Context, run *doma
 	projectedAt := o.now()
 	facts, watermark := invocationreadmodel.Project(run, events, projectedAt)
 	if projection, ok := o.invocationReadModel.(invocationreadmodel.ProjectionStore); ok {
-		return projection.ReplaceProjection(ctx, facts, invocationreadmodel.ProjectErrors(run, events, projectedAt), watermark, invocationreadmodel.ProjectRun(run, events, projectedAt))
+		return projection.ReplaceProjection(ctx, facts, invocationreadmodel.ProjectErrors(run, events, projectedAt), invocationreadmodel.ProjectEpisodes(run, facts, events, projectedAt), invocationreadmodel.ProjectSelfReportSpans(run, events, projectedAt), watermark, invocationreadmodel.ProjectRun(run, events, projectedAt))
 	}
 	return o.invocationReadModel.Replace(ctx, facts, watermark)
 }

@@ -8,7 +8,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/repository"
-	"agent-manager/internal/runreport"
+	"agent-manager/internal/runsignal"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -63,9 +63,9 @@ func TestStatsRepositoryAggregatesDurableRunEvidence(t *testing.T) {
 		}
 	}
 	if err := NewRepositories(db, logrus.New()).InvocationReadModel.Replace(ctx, []invocationreadmodel.Fact{
-		{InvocationFact: runreport.InvocationFact{ToolName: "read_file", Outcome: "success"}, RunID: completeID.String(), OccurredAt: now, TimeBasis: "event", RunnerType: "codex", Model: "gpt-test", Tag: "analytics-complete", RunStatus: "complete"},
-		{InvocationFact: runreport.InvocationFact{ToolName: "", Outcome: "failure"}, RunID: failedID.String(), OccurredAt: now.Add(time.Minute), TimeBasis: "event", RunnerType: "claude-code", Model: "claude-test", Tag: "analytics-failed", RunStatus: "failed"},
-	}, invocationreadmodel.Watermark{RunID: completeID.String(), LastEventID: "tool-1", LastEventAt: now, ClassifierVersion: runreport.InvocationFactVersion, ProjectedAt: now}); err != nil {
+		{InvocationFact: runsignal.InvocationFact{ToolName: "read_file", Outcome: "success"}, RunID: completeID.String(), OccurredAt: now, TimeBasis: "event", RunnerType: "codex", Model: "gpt-test", Tag: "analytics-complete", RunStatus: "complete"},
+		{InvocationFact: runsignal.InvocationFact{ToolName: "", Outcome: "failure"}, RunID: failedID.String(), OccurredAt: now.Add(time.Minute), TimeBasis: "event", RunnerType: "claude-code", Model: "claude-test", Tag: "analytics-failed", RunStatus: "failed"},
+	}, invocationreadmodel.Watermark{RunID: completeID.String(), LastEventID: "tool-1", LastEventAt: now, ClassifierVersion: runsignal.InvocationFactVersion, ProjectedAt: now}); err != nil {
 		t.Fatalf("project invocation facts: %v", err)
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO invocation_read_model_errors (run_id,event_id,occurred_at,time_basis,error_code,profile_id,runner_type,model,tag) VALUES (?,?,?,?,?,?,?,?,?)`, failedID.String(), "error-1", SQLiteTime(now.Add(time.Minute)), "event", "runner_failed", "", "claude-code", "claude-test", "analytics-failed"); err != nil {

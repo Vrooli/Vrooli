@@ -16,6 +16,19 @@ func TestFingerprintNormalizesRecommendationAndTargetPath(t *testing.T) {
 	}
 }
 
+func TestEffectiveness(t *testing.T) {
+	before, lower, same := 3.0, 2.0, 3.0
+	if got := Effectiveness(&before, &lower); got != "effective" {
+		t.Fatalf("lower=%s", got)
+	}
+	if got := Effectiveness(&before, &same); got != "ineffective" {
+		t.Fatalf("same=%s", got)
+	}
+	if got := Effectiveness(&before, nil); got != "not_yet_measurable" {
+		t.Fatalf("missing=%s", got)
+	}
+}
+
 func TestSQLiteRepositoryGroupsRecurringFindings(t *testing.T) {
 	db, err := sqlx.Connect("sqlite", "file:"+filepath.Join(t.TempDir(), "findings.db"))
 	if err != nil {

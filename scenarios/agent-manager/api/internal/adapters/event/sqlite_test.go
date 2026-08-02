@@ -576,6 +576,7 @@ func TestSQLiteStore_ConcurrentAppendSequences(t *testing.T) {
 func TestSQLiteStore_DeleteBeforeIsBounded(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
+	ensureProjectionWatermarksTable(t, db)
 	store := event.NewSQLiteStore(db, newTestLogger())
 	ctx := context.Background()
 	runID := uuid.New()
@@ -586,6 +587,9 @@ func TestSQLiteStore_DeleteBeforeIsBounded(t *testing.T) {
 		if err := store.Append(ctx, runID, evt); err != nil {
 			t.Fatalf("append expired: %v", err)
 		}
+	}
+	if _, err := db.Exec(`INSERT INTO invocation_read_model_watermarks (run_id,last_event_id,last_event_at,classifier_version,projection_complete,projected_at) VALUES (?, 'event-3', ?, 'test', 1, ?)`, runID.String(), old, old); err != nil {
+		t.Fatalf("mark projection complete: %v", err)
 	}
 	fresh := domain.NewLogEvent(runID, "info", "fresh")
 	fresh.Timestamp = time.Now()
@@ -604,5 +608,55 @@ func TestSQLiteStore_DeleteBeforeIsBounded(t *testing.T) {
 	count, err := store.Count(ctx, runID)
 	if err != nil || count != 1 {
 		t.Fatalf("retained events = %d, %v", count, err)
+	}
+}
+
+func TestSQLiteStore_DeleteBeforePreservesEventsWithoutCompletedProjection(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ensureProjectionWatermarksTable(t, db)
+	if _, err := db.Exec(`CREATE TABLE invocation_read_model_facts (run_id TEXT NOT NULL, call_event_id TEXT NOT NULL, PRIMARY KEY (run_id, call_event_id))`); err != nil {
+		t.Fatal(err)
+	}
+	store := event.NewSQLiteStore(db, newTestLogger())
+	ctx := context.Background()
+	old := time.Now().Add(-48 * time.Hour)
+	completeRun, incompleteRun := uuid.New(), uuid.New()
+	for _, runID := range []uuid.UUID{completeRun, incompleteRun} {
+		evt := domain.NewLogEvent(runID, "info", "expired")
+		evt.Timestamp = old
+		if err := store.Append(ctx, runID, evt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := db.Exec(`INSERT INTO invocation_read_model_watermarks (run_id,last_event_id,last_event_at,classifier_version,projection_complete,projected_at) VALUES (?, 'event', ?, 'test', 1, ?)`, completeRun.String(), old, old); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO invocation_read_model_facts (run_id, call_event_id) VALUES (?, 'event')`, completeRun.String()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO invocation_read_model_watermarks (run_id,last_event_id,last_event_at,classifier_version,projection_complete,projected_at) VALUES (?, 'event', ?, 'test', 0, ?)`, incompleteRun.String(), old, old); err != nil {
+		t.Fatal(err)
+	}
+	deleted, err := store.DeleteBefore(ctx, time.Now().Add(-24*time.Hour), 10)
+	if err != nil || deleted != 1 {
+		t.Fatalf("deleted = %d, %v", deleted, err)
+	}
+	if count, _ := store.Count(ctx, completeRun); count != 0 {
+		t.Fatalf("completed run events = %d, want 0", count)
+	}
+	if count, _ := store.Count(ctx, incompleteRun); count != 1 {
+		t.Fatalf("incomplete run events = %d, want 1", count)
+	}
+	var derivedFacts int
+	if err := db.Get(&derivedFacts, `SELECT COUNT(*) FROM invocation_read_model_facts WHERE run_id = ?`, completeRun.String()); err != nil || derivedFacts != 1 {
+		t.Fatalf("derived facts after completed-run sweep = %d, %v; want the projection to remain queryable", derivedFacts, err)
+	}
+}
+
+func ensureProjectionWatermarksTable(t *testing.T, db *sqlx.DB) {
+	t.Helper()
+	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS invocation_read_model_watermarks (run_id TEXT PRIMARY KEY, last_event_id TEXT NOT NULL, last_event_at TEXT NOT NULL, classifier_version TEXT NOT NULL, projection_complete INTEGER NOT NULL DEFAULT 0, projected_at TEXT NOT NULL)`); err != nil {
+		t.Fatalf("create projection watermark fixture: %v", err)
 	}
 }

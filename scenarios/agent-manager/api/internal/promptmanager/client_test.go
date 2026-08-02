@@ -2,6 +2,7 @@ package promptmanager
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -87,6 +88,49 @@ func TestHTTPClient_ReadSkill_ServerError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "status 500") {
 		t.Errorf("expected status 500 in error, got %v", err)
+	}
+}
+
+func TestHTTPClient_PublishFrictionUsesCanonicalIntakeAndAttribution(t *testing.T) {
+	client := NewHTTPClientWithResolver(
+		func(_ context.Context) (string, error) { return "http://localhost:12345", nil },
+		httpx.DoerFunc(func(req *http.Request) (*http.Response, error) {
+			if req.Method != http.MethodPost || req.URL.Path != "/api/v1/teams/meta-optimization/knowledge" {
+				t.Fatalf("request = %s %s", req.Method, req.URL.Path)
+			}
+			var body struct {
+				Topic   string `json:"topic"`
+				Content string `json:"content"`
+			}
+			if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+				t.Fatal(err)
+			}
+			if want := "friction-inbox/toolchain/agent-manager-finding-abcdef012345"; body.Topic != want {
+				t.Fatalf("topic = %q, want %q", body.Topic, want)
+			}
+			if !strings.Contains(body.Content, "honesty_flags: [auto-generated]") {
+				t.Fatalf("content lacks required honesty flag: %q", body.Content)
+			}
+			raw, err := base64.StdEncoding.DecodeString(req.Header.Get("X-Vrooli-Attribution"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var attribution map[string]string
+			if err := json.Unmarshal(raw, &attribution); err != nil {
+				t.Fatal(err)
+			}
+			if attribution["kind"] != "investigation" || attribution["run_id"] != "run-123" || attribution["spawn_origin"] != "investigation" {
+				t.Fatalf("attribution = %#v", attribution)
+			}
+			return httpx.Response(http.StatusCreated, `{}`), nil
+		}),
+	)
+	topic, err := client.PublishFriction(context.Background(), FrictionReport{InvestigationRunID: "run-123", Fingerprint: "abcdef0123456789", Category: "Tooling", Recommendation: "Fix the command", Evidence: "The command rejected valid input."})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if topic != "friction-inbox/toolchain/agent-manager-finding-abcdef012345" {
+		t.Fatalf("topic = %q", topic)
 	}
 }
 

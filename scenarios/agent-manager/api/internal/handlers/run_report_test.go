@@ -1,12 +1,14 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
+	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/protoconv"
 	"agent-manager/internal/runreport"
 
@@ -21,15 +23,22 @@ func TestRunReportProtoProjectionUsesCanonicalProtoFields(t *testing.T) {
 		RunID: id, Status: "failed", ExitCode: &exitCode, Duration: 1500 * time.Millisecond,
 		Events: map[string]int{"heartbeat.miss": 2}, ReceiptCount: 1,
 		ReceiptsAvailability: runreport.Availability{State: "available"},
+		GoalOutcome:          &invocationreadmodel.GoalOutcome{GoalID: "goal-1", Status: "blocked", TokensUsed: 400, TimeUsedSeconds: 12},
 	})
 	body, err := protoconv.MarshalJSON(message)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, field := range []string{`"run_id"`, `"duration_ms":"1500"`, `"event_counts"`, `"receipts_availability"`, `"receipt_count":1`} {
-		if !strings.Contains(string(body), field) {
-			t.Fatalf("report JSON missing %s: %s", field, body)
-		}
+	var decoded map[string]any
+	if err := json.Unmarshal(body, &decoded); err != nil {
+		t.Fatalf("decode report JSON: %v", err)
+	}
+	if decoded["run_id"] != id.String() || decoded["duration_ms"] != "1500" || decoded["receipt_count"] != float64(1) {
+		t.Fatalf("canonical summary fields = %#v", decoded)
+	}
+	goal, ok := decoded["goal_outcome"].(map[string]any)
+	if !ok || goal["goal_id"] != "goal-1" || goal["status"] != "blocked" || goal["tokens_used"] != "400" || goal["time_used_seconds"] != "12" {
+		t.Fatalf("canonical goal outcome = %#v", decoded["goal_outcome"])
 	}
 }
 

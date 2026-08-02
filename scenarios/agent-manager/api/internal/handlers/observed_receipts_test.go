@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"agent-manager/internal/runreport"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/eventbus"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
@@ -42,7 +43,7 @@ func TestGetObservedReceiptsRejectsInvalidRunIDBeforeServiceAccess(t *testing.T)
 func TestWorkflowObservedReceiptsMarksUnavailableWithoutEventsClient(t *testing.T) {
 	h := &Handler{receipts: eventbus.Client{}}
 	observations := h.workflowObservedReceipts(context.Background(), []string{"run-1", "run-2"})
-	if observations.State != domainpb.ReceiptObservationState_RECEIPT_OBSERVATION_STATE_UNAVAILABLE || observations.Detail == "" {
+	if observations.State != domainpb.ReceiptObservationState_RECEIPT_OBSERVATION_STATE_UNAVAILABLE || observations.Reason == "" {
 		t.Fatalf("observations = %+v", observations)
 	}
 }
@@ -134,6 +135,42 @@ func TestGetObservedReceiptsReturnsConfiguredObservationState(t *testing.T) {
 	router.ServeHTTP(invalid, httptest.NewRequest(http.MethodGet, "/api/v1/runs/"+run.Run.GetId()+"/observed-receipts?limit=101", nil))
 	if invalid.Code != http.StatusBadRequest {
 		t.Fatalf("invalid limit status=%d body=%s", invalid.Code, invalid.Body.String())
+	}
+}
+
+func TestGetObservedReceiptsExplainsEmptyRuntimeState(t *testing.T) {
+	h, router := setupTestHandler(t)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode([]json.RawMessage{})
+	}))
+	t.Cleanup(server.Close)
+	h.receipts = eventbus.Client{BaseURL: server.URL, HTTPClient: server.Client()}
+	h.receiptAvailability = func(context.Context) runreport.Availability {
+		return runreport.Availability{State: runreport.AvailabilityPolicyAbsent, Reason: "receipt runtime for test-genie is connected but has no capture policies"}
+	}
+	// A malformed identifier must still be rejected before either reader runs.
+	// Use a directly registered run through the existing handler fixture.
+	profileBody := encodeProtoJSON(t, &apipb.CreateProfileRequest{Profile: &domainpb.AgentProfile{Name: "runtime-state-profile", ProfileKey: "runtime-state-profile", RoleRef: "code.default"}})
+	profileRR := httptest.NewRecorder()
+	router.ServeHTTP(profileRR, httptest.NewRequest(http.MethodPost, "/api/v1/profiles", bytes.NewReader(profileBody)))
+	var profile apipb.CreateProfileResponse
+	decodeProtoJSON(t, profileRR.Body.Bytes(), &profile)
+	taskBody := encodeProtoJSON(t, &apipb.CreateTaskRequest{Task: &domainpb.Task{Title: "runtime state task", ScopePath: "src/runtime"}})
+	taskRR := httptest.NewRecorder()
+	router.ServeHTTP(taskRR, httptest.NewRequest(http.MethodPost, "/api/v1/tasks", bytes.NewReader(taskBody)))
+	var task apipb.CreateTaskResponse
+	decodeProtoJSON(t, taskRR.Body.Bytes(), &task)
+	profileID := profile.Profile.GetId()
+	runBody := encodeProtoJSON(t, &apipb.CreateRunRequest{TaskId: task.Task.GetId(), AgentProfileId: &profileID})
+	runRR := httptest.NewRecorder()
+	router.ServeHTTP(runRR, httptest.NewRequest(http.MethodPost, "/api/v1/runs", bytes.NewReader(runBody)))
+	var run apipb.CreateRunResponse
+	decodeProtoJSON(t, runRR.Body.Bytes(), &run)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/v1/runs/"+run.Run.GetId()+"/observed-receipts", nil))
+	var response map[string]any
+	if rr.Code != http.StatusOK || json.Unmarshal(rr.Body.Bytes(), &response) != nil || response["status"] != "policy_absent" || response["reason"] == "" {
+		t.Fatalf("status=%d response=%v", rr.Code, response)
 	}
 }
 

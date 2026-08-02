@@ -112,6 +112,36 @@ func TestInitSchemaMigratesExistingInvocationReadModelRunColumnsBeforeValidation
 	}
 }
 
+func TestInitSchemaMigratesExistingFindingColumnsBeforeValidation(t *testing.T) {
+	tmpDir := t.TempDir()
+	sqlDB, err := sqlx.Connect("sqlite", fmt.Sprintf("file:%s?_pragma=foreign_keys(ON)", filepath.Join(tmpDir, "legacy-findings.db")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sqlDB.Close()
+	if _, err := sqlDB.Exec(`CREATE TABLE run_findings (
+		id TEXT PRIMARY KEY, run_id TEXT NOT NULL, investigation_run_id TEXT NOT NULL,
+		category TEXT NOT NULL, severity TEXT NOT NULL, recommendation_text TEXT NOT NULL,
+		evidence TEXT NOT NULL DEFAULT '', target_path TEXT NOT NULL DEFAULT '',
+		fingerprint TEXT NOT NULL, operator_decision TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL
+	)`); err != nil {
+		t.Fatal(err)
+	}
+	wrapped := NewDB(sqlDB, logrus.New())
+	if err := wrapped.InitializeSchema(); err != nil {
+		t.Fatalf("InitializeSchema: %v", err)
+	}
+	columns, err := wrapped.tableColumns(context.Background(), "run_findings")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, column := range []string{"target_measure", "before_value", "after_value", "effectiveness", "friction_topic"} {
+		if _, ok := columns[column]; !ok {
+			t.Fatalf("migration did not add %s; columns=%v", column, columns)
+		}
+	}
+}
+
 func TestInitSchemaMigratesExistingInvestigationReceiptTimingColumn(t *testing.T) {
 	tmpDir := t.TempDir()
 	sqlDB, err := sqlx.Connect("sqlite", fmt.Sprintf("file:%s?_pragma=foreign_keys(ON)", filepath.Join(tmpDir, "legacy-investigation.db")))

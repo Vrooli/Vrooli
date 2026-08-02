@@ -194,6 +194,10 @@ type RunRepository interface {
 	// GetByTokenHash retrieves a run by its identity token hash.
 	// Returns nil, nil if no matching run is found.
 	GetByTokenHash(ctx context.Context, tokenHash string) (*domain.Run, error)
+
+	// GetByImportProvenance returns the run that adopted an external source
+	// session, or nil when that session has not been imported.
+	GetByImportProvenance(ctx context.Context, sourceHarness, sourceSessionID string) (*domain.Run, error)
 }
 
 // -----------------------------------------------------------------------------

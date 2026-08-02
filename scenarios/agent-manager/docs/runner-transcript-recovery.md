@@ -85,6 +85,28 @@ agent-manager run recover <run-id>
 
 That uses the same drain-and-finalize path as startup recovery and is idempotent.
 
+## Imported session corpus
+
+`agent-manager run import-session-corpus` adopts a bounded research corpus
+from the runner session stores declared by the relevant resource manifests. It
+does not expose a host path to callers and defaults to Codex and Claude Code.
+
+```bash
+agent-manager run import-session-corpus --per-month 1 --limit 24 --json
+agent-manager run replay-invocation-corpus --tag-prefix agent-manager-imported --limit 100 --json
+agent-manager measures select-cohort --window this_week --json
+agent-manager run episode-cohort --tag-prefix agent-manager-imported --limit 100 --json
+```
+
+Selection is reproducible: within each runner/month it takes pathname-sorted
+sessions, then round-robins runners with each runner's months ascending. Every
+imported row records `import_source_harness`, `import_source_session_id`, and
+`imported_at`; the first two form a unique identity, so repeating the command
+reports `alreadyImported` instead of duplicating evidence. The response reports
+selected, imported, already-imported, replayed, unreplayable, failed, and every
+skip reason. A metadata-only transcript has no retained event timestamp and is
+explicitly reported as `unreplayable`, never silently treated as a projection.
+
 ## Claude native fallback
 
 For older Claude runs created before `transcript.ndjson` existed, manual recovery can fall back to the runner-native transcript under `~/.claude/projects/.../<session-id>.jsonl` when the run still has a stored `session_id`.

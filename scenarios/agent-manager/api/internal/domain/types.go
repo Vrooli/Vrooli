@@ -733,6 +733,13 @@ type Run struct {
 	TranscriptCursor  int64  `json:"transcriptCursor,omitempty" db:"transcript_cursor"`
 	TranscriptLastSeq int64  `json:"transcriptLastSeq,omitempty" db:"transcript_last_seq"`
 
+	// Import provenance is populated for read-only transcripts adopted from an
+	// external runner store. Source harness plus source session is a stable,
+	// runner-qualified identity used to make corpus imports idempotent.
+	ImportSourceHarness   string     `json:"importSourceHarness,omitempty" db:"import_source_harness"`
+	ImportSourceSessionID string     `json:"importSourceSessionId,omitempty" db:"import_source_session_id"`
+	ImportedAt            *time.Time `json:"importedAt,omitempty" db:"imported_at"`
+
 	// Model provenance — requested is the first concrete entry the preset chain expanded to
 	// when the run was created; actual is the model the CLI actually executed with once
 	// model-fallback (if any) converged. When they differ the run degraded through the chain.

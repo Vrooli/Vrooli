@@ -6,38 +6,17 @@ import (
 	"time"
 
 	"agent-manager/internal/invocationreadmodel"
-	"agent-manager/internal/runreport"
+	"agent-manager/internal/runsignal"
 	"github.com/google/uuid"
 )
-
-func TestInvocationFactRepositoryRebuildIsIdempotent(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-	repo := &invocationFactRepository{db: db}
-	runID := uuid.New()
-	facts := []runreport.InvocationFact{{Version: "invocation-fact.v1", CallEventID: "call-a", ToolName: "shell", Ownership: "unknown", Outcome: "failure", Fingerprint: "fp", Availability: "available"}}
-	if err := repo.ReplaceInvocationFacts(context.Background(), runID, facts); err != nil {
-		t.Fatal(err)
-	}
-	if err := repo.ReplaceInvocationFacts(context.Background(), runID, facts); err != nil {
-		t.Fatal(err)
-	}
-	got, err := repo.InvocationFacts(context.Background(), runID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 1 || got[0].CallEventID != "call-a" || got[0].Version != facts[0].Version {
-		t.Fatalf("facts=%+v", got)
-	}
-}
 
 func TestInvocationReadModelReplaceIsAtomicAndIdempotent(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 	repo := &invocationReadModelRepository{db: db}
 	now := time.Now().UTC()
-	watermark := invocationreadmodel.Watermark{RunID: "run-1", LastEventID: "event-1", LastEventAt: now, ClassifierVersion: runreport.InvocationFactVersion, ProjectedAt: now}
-	facts := []invocationreadmodel.Fact{{InvocationFact: runreport.InvocationFact{Version: runreport.InvocationFactVersion, CallEventID: "call-1", ToolName: "shell", Ownership: "unknown", Outcome: "success", Fingerprint: "fp", Availability: "available"}, RunID: "run-1", OccurredAt: now, TimeBasis: "call_event", ProfileID: "unknown", RunnerType: "unknown", Model: "unknown", Tag: "unknown", RunStatus: "complete"}}
+	watermark := invocationreadmodel.Watermark{RunID: "run-1", LastEventID: "event-1", LastEventAt: now, ClassifierVersion: runsignal.InvocationFactVersion, ProjectedAt: now}
+	facts := []invocationreadmodel.Fact{{InvocationFact: runsignal.InvocationFact{Version: runsignal.InvocationFactVersion, CallEventID: "call-1", ToolName: "shell", Ownership: "unknown", Outcome: "success", PairingBasis: "ordinal", Fingerprint: "fp", Availability: "available"}, RunID: "run-1", OccurredAt: now, TimeBasis: "call_event", ProfileID: "unknown", RunnerType: "unknown", Model: "unknown", Tag: "unknown", RunStatus: "complete"}}
 	if err := repo.Replace(context.Background(), facts, watermark); err != nil {
 		t.Fatal(err)
 	}
@@ -45,12 +24,71 @@ func TestInvocationReadModelReplaceIsAtomicAndIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err := repo.Facts(context.Background(), "run-1")
-	if err != nil || len(got) != 1 || got[0].CallEventID != "call-1" {
+	if err != nil || len(got) != 1 || got[0].CallEventID != "call-1" || got[0].PairingBasis != "ordinal" {
 		t.Fatalf("facts=%+v err=%v", got, err)
 	}
 	gotWatermark, err := repo.Watermark(context.Background(), "run-1")
 	if err != nil || gotWatermark == nil || gotWatermark.LastEventID != "event-1" {
 		t.Fatalf("watermark=%+v err=%v", gotWatermark, err)
+	}
+}
+
+func TestInvocationReadModelProjectionRollsBackEveryArtifactWhenSpanWriteFails(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+	repo := &invocationReadModelRepository{db: db}
+	now := time.Date(2026, 7, 30, 12, 0, 0, 0, time.UTC)
+	project := func(eventID string) error {
+		fact := invocationreadmodel.Fact{InvocationFact: runsignal.InvocationFact{Version: "facts.v1", CallEventID: eventID, ToolName: "shell", Ownership: "project", Outcome: "failure", Fingerprint: eventID, Availability: "available"}, RunID: "atomic-run", OccurredAt: now, TimeBasis: "call_event", ProfileID: "profile-a", RunnerType: "codex", Model: "test", Tag: "atomic", RunStatus: "complete"}
+		episode := invocationreadmodel.Episode{FrictionEpisode: runsignal.FrictionEpisode{EpisodeID: "episode-" + eventID, ClassifierVersion: "episodes.v1", Pattern: "command-failure", CauseScope: "toolchain", Severity: "high", HonestyFlags: []string{}, StartEventID: eventID, EndEventID: eventID, EvidenceEventIDs: []string{eventID}, OwnerConfidence: "heuristic", Fingerprint: eventID}, RunID: "atomic-run", OccurredAt: now, TimeBasis: "start_event", ProfileID: "profile-a", RunnerType: "codex", Model: "test", Tag: "atomic", RunStatus: "complete"}
+		span := invocationreadmodel.SelfReportSpan{SelfReportSpan: runsignal.SelfReportSpan{ClassifierVersion: "spans.v1", EventID: eventID, RuleID: "blocked", CauseScope: "run-execution", StartOffset: 0, EndOffset: 7, Text: "blocked"}, RunID: "atomic-run", OccurredAt: now, TimeBasis: "message_event", ProfileID: "profile-a", RunnerType: "codex", Model: "test", Tag: "atomic", RunStatus: "complete"}
+		watermark := invocationreadmodel.Watermark{RunID: "atomic-run", LastEventID: eventID, LastEventAt: now, ClassifierVersion: "facts.v1", EpisodeClassifierVersion: "episodes.v1", SelfReportClassifierVersion: "spans.v1", ProjectedAt: now}
+		return repo.ReplaceProjection(ctx, []invocationreadmodel.Fact{fact}, nil, []invocationreadmodel.Episode{episode}, []invocationreadmodel.SelfReportSpan{span}, watermark, invocationreadmodel.RunFact{RunID: "atomic-run", OccurredAt: now, CreatedAt: now, Status: "complete", ProfileID: "profile-a", RunnerType: "codex", Model: "test", Tag: "atomic", CostTimeBasis: "ended_at", ProjectedAt: now})
+	}
+	if err := project("before"); err != nil {
+		t.Fatal(err)
+	}
+	var projectionComplete int
+	if err := db.Get(&projectionComplete, `SELECT projection_complete FROM invocation_read_model_watermarks WHERE run_id='atomic-run'`); err != nil || projectionComplete != 1 {
+		t.Fatalf("projection completion marker = %d, %v", projectionComplete, err)
+	}
+	if _, err := db.Exec(`CREATE TRIGGER fail_projection_span BEFORE INSERT ON invocation_read_model_self_report_spans WHEN NEW.event_id = 'after' BEGIN SELECT RAISE(ABORT, 'span failure'); END`); err != nil {
+		t.Fatal(err)
+	}
+	if err := project("after"); err == nil {
+		t.Fatal("expected span write failure")
+	}
+	facts, err := repo.Facts(ctx, "atomic-run")
+	if err != nil || len(facts) != 1 || facts[0].CallEventID != "before" {
+		t.Fatalf("facts=%+v err=%v", facts, err)
+	}
+	episodes, err := repo.EpisodesForRun(ctx, "atomic-run")
+	if err != nil || len(episodes) != 1 || episodes[0].EpisodeID != "episode-before" {
+		t.Fatalf("episodes=%+v err=%v", episodes, err)
+	}
+	spans, err := repo.SelfReportSpansForRun(ctx, "atomic-run")
+	if err != nil || len(spans) != 1 || spans[0].EventID != "before" {
+		t.Fatalf("spans=%+v err=%v", spans, err)
+	}
+	watermark, err := repo.Watermark(ctx, "atomic-run")
+	if err != nil || watermark == nil || watermark.LastEventID != "before" {
+		t.Fatalf("watermark=%+v err=%v", watermark, err)
+	}
+}
+
+func TestInvocationReadModelEpisodesUseSharedDimensionsAndEpisodeFilter(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repo := &invocationReadModelRepository{db: db}
+	now := time.Date(2026, 7, 30, 13, 0, 0, 0, time.UTC)
+	episode := invocationreadmodel.Episode{FrictionEpisode: runsignal.FrictionEpisode{EpisodeID: "episode-1", ClassifierVersion: "episodes.v1", Pattern: "stall", CauseScope: "run-execution", Severity: "medium", HonestyFlags: []string{}, StartEventID: "event-1", EndEventID: "event-1", EvidenceEventIDs: []string{"event-1"}, CycleCount: 2, RepeatedElement: "redacted-element", OwnerConfidence: "heuristic", Fingerprint: "episode-fp"}, RunID: "episode-run", OccurredAt: now, TimeBasis: "start_event", ProfileID: "profile-1", RunnerType: "codex", Model: "gpt-test", Tag: "cohort-a", RunStatus: "complete"}
+	if err := repo.ReplaceProjection(context.Background(), nil, nil, []invocationreadmodel.Episode{episode}, nil, invocationreadmodel.Watermark{RunID: "episode-run", LastEventID: "event-1", LastEventAt: now, ClassifierVersion: "facts.v1", EpisodeClassifierVersion: "episodes.v1", ProjectedAt: now}, invocationreadmodel.RunFact{RunID: "episode-run", OccurredAt: now, CreatedAt: now, Status: "complete", ProfileID: "profile-1", RunnerType: "codex", Model: "gpt-test", Tag: "cohort-a", CostTimeBasis: "ended_at", ProjectedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := repo.Episodes(context.Background(), invocationreadmodel.Filter{From: &now, To: ptrTime(now.Add(time.Hour)), ProfileID: "profile-1", RunnerType: "codex", Model: "gpt-test", TagPrefix: "cohort", EpisodePattern: "stall", EpisodeCauseScope: "run-execution", EpisodeFingerprint: "episode-fp"}, 10)
+	if err != nil || len(got) != 1 || got[0].EpisodeID != "episode-1" || got[0].CycleCount != 2 || got[0].RepeatedElement != "redacted-element" {
+		t.Fatalf("episodes=%+v err=%v", got, err)
 	}
 }
 
@@ -60,7 +98,7 @@ func TestInvocationReadModelReplaceRunUpsertsTerminalSummary(t *testing.T) {
 	repo := &invocationReadModelRepository{db: db}
 	created := time.Date(2026, 7, 29, 18, 0, 0, 0, time.UTC)
 	started, ended := created.Add(time.Minute), created.Add(3*time.Minute)
-	fact := invocationreadmodel.RunFact{RunID: "run-throughput", OccurredAt: ended, CreatedAt: created, StartedAt: &started, EndedAt: &ended, DurationMS: 120000, Status: "complete", ProfileID: "profile-1", RunnerType: "codex", Model: "gpt-test", Tag: "analytics", TotalCostUSD: 1.25, TotalTokens: 42, ReadCalls: 4, FileRereads: 1, CostTimeBasis: "ended_at", ProjectedAt: ended.Add(time.Minute)}
+	fact := invocationreadmodel.RunFact{RunID: "run-throughput", OccurredAt: ended, CreatedAt: created, StartedAt: &started, EndedAt: &ended, DurationMS: 120000, Status: "complete", ProfileID: "profile-1", RunnerType: "codex", Model: "gpt-test", Tag: "analytics", TotalCostUSD: 1.25, TotalTokens: 42, ReadCalls: 4, FileRereads: 1, TimeAccounting: runsignal.TimeAccounting{ModelGeneratingMS: 60000, ToolExecutingMS: 30000, IdleWaitingMS: 20000, AwaitingHumanMS: 10000, ModelTokens: 42}, CostTimeBasis: "ended_at", ProjectedAt: ended.Add(time.Minute)}
 	if err := repo.ReplaceRun(context.Background(), fact); err != nil {
 		t.Fatal(err)
 	}
@@ -86,6 +124,10 @@ func TestInvocationReadModelReplaceRunUpsertsTerminalSummary(t *testing.T) {
 	if signals.Reads != 4 || signals.Rereads != 1 {
 		t.Fatalf("stored terminal signals=%+v", signals)
 	}
+	accounting, present, err := repo.TimeAccountingForRun(context.Background(), "run-throughput")
+	if err != nil || !present || accounting.DurationMS() != 120000 || accounting.ModelTokens != 42 {
+		t.Fatalf("stored time accounting=%+v present=%v err=%v", accounting, present, err)
+	}
 }
 
 func TestInvocationReadModelRunMetricsUseDurableTerminalFactsAndSharedFilters(t *testing.T) {
@@ -100,7 +142,7 @@ func TestInvocationReadModelRunMetricsUseDurableTerminalFactsAndSharedFilters(t 
 		if id == "run-b" {
 			errors = append(errors, invocationreadmodel.ErrorFact{RunID: id, EventID: id + "-error", OccurredAt: ended, TimeBasis: "error_event", ErrorCode: "runner_failed", ProfileID: profile, RunnerType: "codex", Model: "gpt-test", Tag: "analytics"})
 		}
-		if err := repo.ReplaceProjection(ctx, []invocationreadmodel.Fact{{InvocationFact: runreport.InvocationFact{Version: "v1", CallEventID: id + "-call", ToolName: "shell", Ownership: map[string]string{"run-a": "external", "run-b": "project"}[id], Outcome: "success", Fingerprint: id, Availability: "available"}, RunID: id, OccurredAt: started, TimeBasis: "call_event", ProfileID: profile, RunnerType: "codex", Model: "gpt-test", Tag: "analytics", RunStatus: status}}, errors, invocationreadmodel.Watermark{RunID: id, LastEventID: id + "-call", LastEventAt: started, ClassifierVersion: "v1", ProjectedAt: now}, invocationreadmodel.RunFact{RunID: id, OccurredAt: ended, CreatedAt: started.Add(-time.Minute), StartedAt: &started, EndedAt: &ended, DurationMS: 120000, Status: status, ProfileID: profile, RunnerType: "codex", Model: "gpt-test", Tag: "analytics", TotalCostUSD: cost, UnknownCostUSD: cost, InputCostUSD: cost / 2, OutputCostUSD: cost / 4, CacheReadCostUSD: cost / 8, CacheCreationCostUSD: cost / 8, TotalTokens: tokens, InputTokens: tokens / 2, OutputTokens: tokens / 4, CacheReadTokens: tokens / 8, CacheCreationTokens: tokens / 8, ReadCalls: map[string]int64{"run-a": 2, "run-b": 1}[id], FileRereads: map[string]int64{"run-a": 1, "run-b": 0}[id], CostTimeBasis: "ended_at", ProjectedAt: now}); err != nil {
+		if err := repo.ReplaceProjection(ctx, []invocationreadmodel.Fact{{InvocationFact: runsignal.InvocationFact{Version: "v1", CallEventID: id + "-call", ToolName: "shell", Ownership: map[string]string{"run-a": "external", "run-b": "project"}[id], Outcome: "success", Fingerprint: id, Availability: "available"}, RunID: id, OccurredAt: started, TimeBasis: "call_event", ProfileID: profile, RunnerType: "codex", Model: "gpt-test", Tag: "analytics", RunStatus: status}}, errors, nil, nil, invocationreadmodel.Watermark{RunID: id, LastEventID: id + "-call", LastEventAt: started, ClassifierVersion: "v1", ProjectedAt: now}, invocationreadmodel.RunFact{RunID: id, OccurredAt: ended, CreatedAt: started.Add(-time.Minute), StartedAt: &started, EndedAt: &ended, DurationMS: 120000, Status: status, ProfileID: profile, RunnerType: "codex", Model: "gpt-test", Tag: "analytics", TotalCostUSD: cost, UnknownCostUSD: cost, InputCostUSD: cost / 2, OutputCostUSD: cost / 4, CacheReadCostUSD: cost / 8, CacheCreationCostUSD: cost / 8, TotalTokens: tokens, InputTokens: tokens / 2, OutputTokens: tokens / 4, CacheReadTokens: tokens / 8, CacheCreationTokens: tokens / 8, ReadCalls: map[string]int64{"run-a": 2, "run-b": 1}[id], FileRereads: map[string]int64{"run-a": 1, "run-b": 0}[id], CostTimeBasis: "ended_at", ProjectedAt: now}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -157,13 +199,61 @@ func TestInvocationReadModelRunMetricsUseDurableTerminalFactsAndSharedFilters(t 
 	}
 }
 
+func TestInvocationReadModelPersistsGoalOutcomeAndFiltersCohort(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repo := &invocationReadModelRepository{db: db}
+	ctx := context.Background()
+	now := time.Now().UTC()
+	for _, id := range []string{"blocked-run", "blocked-run-2", "complete-run"} {
+		if err := repo.ReplaceProjection(ctx, []invocationreadmodel.Fact{{InvocationFact: runsignal.InvocationFact{Version: "v1", CallEventID: id + "-call", ToolName: "shell", Ownership: "external", Outcome: "success", Fingerprint: id, Availability: "available"}, RunID: id, OccurredAt: now, TimeBasis: "event", ProfileID: "unknown", RunnerType: "codex", Model: "unknown", Tag: "imported", RunStatus: "complete"}}, nil, nil, nil, invocationreadmodel.Watermark{RunID: id, LastEventID: id + "-call", LastEventAt: now, ClassifierVersion: "v1", ProjectedAt: now}, invocationreadmodel.RunFact{RunID: id, OccurredAt: now, CreatedAt: now, Status: "complete", ProfileID: "unknown", RunnerType: "codex", Model: "unknown", Tag: "imported", CostTimeBasis: "ended_at", ProjectedAt: now}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	budget := int64(1000)
+	if err := repo.ReplaceGoalOutcome(ctx, invocationreadmodel.GoalOutcome{RunID: "blocked-run", GoalID: "goal-blocked", Status: "blocked", TokenBudget: &budget, TokensUsed: 900, TimeUsedSeconds: 60}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.ReplaceGoalOutcome(ctx, invocationreadmodel.GoalOutcome{RunID: "blocked-run-2", GoalID: "goal-blocked", Status: "blocked", TokensUsed: 800, TimeUsedSeconds: 50}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.ReplaceGoalOutcome(ctx, invocationreadmodel.GoalOutcome{RunID: "complete-run", GoalID: "goal-complete", Status: "complete", TokensUsed: 500, TimeUsedSeconds: 30}); err != nil {
+		t.Fatal(err)
+	}
+	goal, err := repo.GoalOutcome(ctx, "blocked-run")
+	if err != nil || goal == nil || goal.Status != "blocked" || goal.TokenBudget == nil || *goal.TokenBudget != budget {
+		t.Fatalf("goal = %#v, %v", goal, err)
+	}
+	cohort, err := repo.Cohort(ctx, invocationreadmodel.Filter{GoalStatus: "blocked"}, 10)
+	if err != nil || len(cohort.RunIDs) != 2 || cohort.MatchedRuns != 2 || cohort.DroppedRuns != 0 {
+		t.Fatalf("cohort = %#v, %v", cohort, err)
+	}
+	goalCohort, err := repo.Cohort(ctx, invocationreadmodel.Filter{GoalID: "goal-blocked"}, 10)
+	if err != nil || len(goalCohort.RunIDs) != 2 || goalCohort.MatchedRuns != 2 {
+		t.Fatalf("goal cohort = %#v, %v", goalCohort, err)
+	}
+	bounded, err := repo.Cohort(ctx, invocationreadmodel.Filter{GoalID: "goal-blocked"}, 1)
+	if err != nil || !bounded.Truncated || bounded.MatchedRuns != 2 || bounded.DroppedRuns != 1 || len(bounded.RunIDs) != 1 {
+		t.Fatalf("bounded goal cohort = %#v, %v", bounded, err)
+	}
+}
+
 func ptrTime(value time.Time) *time.Time { return &value }
 
-func TestInvocationReadModelMigratesLegacyFactsWithoutReinterpretation(t *testing.T) {
+func TestLegacyInvestigationProjectionMigrationCopiesThenDropsRetiredTables(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 	ctx := context.Background()
 	now := time.Now().UTC()
+	if _, err := db.ExecContext(ctx, `CREATE TABLE investigation_invocation_facts (run_id TEXT NOT NULL, call_event_id TEXT NOT NULL, result_event_id TEXT, tool_call_id TEXT, tool_name TEXT NOT NULL, executable TEXT, command_path TEXT, ownership TEXT NOT NULL, catalog_snapshot TEXT, outcome TEXT NOT NULL, retry_of_call_event_id TEXT, help_recovery INTEGER NOT NULL DEFAULT 0, fingerprint TEXT NOT NULL, availability TEXT NOT NULL, classifier_version TEXT NOT NULL, PRIMARY KEY (run_id,call_event_id))`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `CREATE TABLE investigation_friction_episodes (run_id TEXT NOT NULL, episode_id TEXT NOT NULL, classifier_version TEXT NOT NULL, pattern TEXT NOT NULL, cause_scope TEXT NOT NULL, severity TEXT NOT NULL, honesty_flags TEXT NOT NULL DEFAULT '[]', start_event_id TEXT NOT NULL, end_event_id TEXT NOT NULL, evidence_event_ids TEXT NOT NULL DEFAULT '[]', turns INTEGER NOT NULL, tokens INTEGER NOT NULL, wall_clock_ms INTEGER NOT NULL, suspected_owner_scenario TEXT NOT NULL DEFAULT '', suspected_owner_command TEXT NOT NULL DEFAULT '', owner_confidence TEXT NOT NULL, failed_joined_calls INTEGER NOT NULL DEFAULT 0, fingerprint TEXT NOT NULL, PRIMARY KEY(run_id,episode_id))`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `CREATE TABLE investigation_self_report_spans (run_id TEXT NOT NULL, event_id TEXT NOT NULL, rule_id TEXT NOT NULL, classifier_version TEXT NOT NULL, cause_scope TEXT NOT NULL, start_offset INTEGER NOT NULL, end_offset INTEGER NOT NULL, text TEXT NOT NULL, PRIMARY KEY(run_id,event_id,rule_id,start_offset))`); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO tasks (id,title,scope_path) VALUES ('task-1','task','scope')`); err != nil {
 		t.Fatal(err)
 	}
@@ -171,6 +261,12 @@ func TestInvocationReadModelMigratesLegacyFactsWithoutReinterpretation(t *testin
 		t.Fatal(err)
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO investigation_invocation_facts (run_id,call_event_id,tool_name,ownership,outcome,fingerprint,availability,classifier_version) VALUES ('run-legacy','pruned-call','shell','external','success','fp','available','invocation-fact.legacy')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO investigation_friction_episodes (run_id,episode_id,classifier_version,pattern,cause_scope,severity,honesty_flags,start_event_id,end_event_id,evidence_event_ids,turns,tokens,wall_clock_ms,owner_confidence,fingerprint) VALUES ('run-legacy','episode-1','friction-episode.v2','stall','run-execution','medium','[]','pruned-call','pruned-call','["pruned-call"]',1,0,0,'heuristic','episode-fp')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO investigation_self_report_spans (run_id,event_id,rule_id,classifier_version,cause_scope,start_offset,end_offset,text) VALUES ('run-legacy','pruned-call','blocked','self-report.v1','run-execution',0,7,'blocked')`); err != nil {
 		t.Fatal(err)
 	}
 	retainedAt := now.Add(-time.Minute)
@@ -183,23 +279,38 @@ func TestInvocationReadModelMigratesLegacyFactsWithoutReinterpretation(t *testin
 	if _, err := db.ExecContext(ctx, `INSERT INTO investigation_invocation_facts (run_id,call_event_id,tool_name,ownership,outcome,fingerprint,availability,classifier_version) VALUES ('run-retained','retained-call','shell','project','success','retained-fp','available','invocation-fact.retained')`); err != nil {
 		t.Fatal(err)
 	}
+	if err := db.consolidateLegacyInvestigationProjections(ctx); err != nil {
+		t.Fatal(err)
+	}
 	repo := &invocationReadModelRepository{db: db}
-	if count, err := repo.MigrateLegacyInvocationFacts(ctx); err != nil || count != 2 {
-		t.Fatalf("first migration count=%d err=%v", count, err)
-	}
-	if count, err := repo.MigrateLegacyInvocationFacts(ctx); err != nil || count != 0 {
-		t.Fatalf("second migration count=%d err=%v", count, err)
-	}
 	facts, err := repo.Facts(ctx, "run-legacy")
 	if err != nil || len(facts) != 1 {
 		t.Fatalf("facts=%+v err=%v", facts, err)
 	}
-	if facts[0].Version != "invocation-fact.legacy" || facts[0].TimeBasis != "run_end_derived" || facts[0].Model != "legacy-model" || facts[0].RunnerType != "codex" {
+	if facts[0].Version != "invocation-fact.legacy" || facts[0].TimeBasis != "legacy_run_time" || facts[0].Model != "legacy-model" || facts[0].RunnerType != "codex" {
 		t.Fatalf("migrated fact=%+v", facts[0])
+	}
+	episodes, err := repo.EpisodesForRun(ctx, "run-legacy")
+	if err != nil || len(episodes) != 1 || episodes[0].EpisodeID != "episode-1" {
+		t.Fatalf("migrated episodes=%+v err=%v", episodes, err)
+	}
+	spans, err := repo.SelfReportSpansForRun(ctx, "run-legacy")
+	if err != nil || len(spans) != 1 || spans[0].RuleID != "blocked" {
+		t.Fatalf("migrated spans=%+v err=%v", spans, err)
+	}
+	watermark, err := repo.Watermark(ctx, "run-legacy")
+	if err != nil || watermark == nil || watermark.EpisodeClassifierVersion != "friction-episode.v2" || watermark.SelfReportClassifierVersion != "self-report.v1" {
+		t.Fatalf("migrated watermark=%+v err=%v", watermark, err)
 	}
 	retained, err := repo.Facts(ctx, "run-retained")
 	if err != nil || len(retained) != 1 || retained[0].TimeBasis != "call_event" || !retained[0].OccurredAt.Equal(retainedAt) || retained[0].Version != "invocation-fact.retained" {
 		t.Fatalf("retained migrated fact=%+v err=%v", retained, err)
+	}
+	for _, table := range []string{"investigation_invocation_facts", "investigation_friction_episodes", "investigation_self_report_spans"} {
+		var count int
+		if err := db.Get(&count, `SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?`, table); err != nil || count != 0 {
+			t.Fatalf("retired table %s remains: count=%d err=%v", table, count, err)
+		}
 	}
 }
 
@@ -210,8 +321,8 @@ func TestInvocationReadModelAggregateAndCohortShareFilter(t *testing.T) {
 	repo := &invocationReadModelRepository{db: db}
 	now := time.Now().UTC()
 	facts := []invocationreadmodel.Fact{
-		{InvocationFact: runreport.InvocationFact{Version: "v1", CallEventID: "a", ToolName: "shell", Ownership: "external", Outcome: "failure", Fingerprint: "fp-a", Availability: "available"}, RunID: "run-a", OccurredAt: now, TimeBasis: "call_event", ProfileID: "p", RunnerType: "codex", Model: "m", Tag: "keep", RunStatus: "complete"},
-		{InvocationFact: runreport.InvocationFact{Version: "v1", CallEventID: "b", ToolName: "shell", Ownership: "project", Outcome: "success", Fingerprint: "fp-b", Availability: "available"}, RunID: "run-b", OccurredAt: now, TimeBasis: "call_event", ProfileID: "p", RunnerType: "codex", Model: "m", Tag: "skip", RunStatus: "complete"},
+		{InvocationFact: runsignal.InvocationFact{Version: "v1", CallEventID: "a", ToolName: "shell", Ownership: "external", Outcome: "failure", Fingerprint: "fp-a", Availability: "available"}, RunID: "run-a", OccurredAt: now, TimeBasis: "call_event", ProfileID: "p", RunnerType: "codex", Model: "m", Tag: "keep", RunStatus: "complete"},
+		{InvocationFact: runsignal.InvocationFact{Version: "v1", CallEventID: "b", ToolName: "shell", Ownership: "project", Outcome: "success", Fingerprint: "fp-b", Availability: "available"}, RunID: "run-b", OccurredAt: now, TimeBasis: "call_event", ProfileID: "p", RunnerType: "codex", Model: "m", Tag: "skip", RunStatus: "complete"},
 	}
 	for _, fact := range facts {
 		if err := repo.Replace(ctx, []invocationreadmodel.Fact{fact}, invocationreadmodel.Watermark{RunID: fact.RunID, LastEventID: fact.CallEventID, LastEventAt: now, ClassifierVersion: "v1", ProjectedAt: now}); err != nil {
@@ -240,7 +351,7 @@ func TestInvocationReadModelExternalShareDoesNotTreatUnknownAsExternal(t *testin
 	repo := &invocationReadModelRepository{db: db}
 	now := time.Now().UTC()
 	fact := invocationreadmodel.Fact{
-		InvocationFact: runreport.InvocationFact{Version: "v1", CallEventID: "unknown-call", ToolName: "unknown", Ownership: "unknown", Outcome: "unknown", Fingerprint: "unknown", Availability: "unknown"},
+		InvocationFact: runsignal.InvocationFact{Version: "v1", CallEventID: "unknown-call", ToolName: "unknown", Ownership: "unknown", Outcome: "unknown", Fingerprint: "unknown", Availability: "unknown"},
 		RunID:          "unknown-run",
 		OccurredAt:     now,
 		TimeBasis:      "call_event",
@@ -265,7 +376,7 @@ func TestInvocationReadModelExternalShareDoesNotTreatUnknownAsExternal(t *testin
 func TestReceiptEvidenceRepositoryRebuildKeepsOnlyVerifiedIDs(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
-	repo := &invocationFactRepository{db: db}
+	repo := &receiptEvidenceRepository{db: db}
 	runID := uuid.New()
 
 	if err := repo.ReplaceReceiptEvidence(context.Background(), runID, "available", []string{"event-b", "event-a"}); err != nil {

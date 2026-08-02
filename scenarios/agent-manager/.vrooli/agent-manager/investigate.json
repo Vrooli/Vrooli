@@ -10,7 +10,8 @@
       "context": {"type": "string", "minLength": 1, "maxLength": 262144},
       "depth": {"type": "string", "enum": ["quick", "standard", "deep"]},
       "runIds": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 64}, "maxItems": 50},
-      "projectRoot": {"type": "string", "maxLength": 4096}
+      "projectRoot": {"type": "string", "maxLength": 4096},
+      "selection": {"type": "object", "additionalProperties": true}
     },
     "required": ["context"],
     "additionalProperties": false
@@ -164,7 +165,7 @@
   "budgets": {
     "wallTimeSeconds": 1200,
     "maxTurns": 12,
-    "maxTokens": 30000,
+    "maxTokens": 500000,
     "maxCostUsd": 5,
     "maxNodeAttempts": 2,
     "maxChildren": 2,

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"agent-manager/internal/runreport"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/eventbus"
@@ -39,20 +40,37 @@ func (h *Handler) GetObservedReceipts(w http.ResponseWriter, r *http.Request) {
 		limit = parsed
 	}
 	if !h.receipts.Enabled() {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"status": "unavailable", "observations": []any{}, "message": "vrooli-events observations are not configured"})
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"status": runreport.AvailabilityUnavailable, "observations": []any{}, "reason": "vrooli-events observations are not configured"})
 		return
 	}
 	observations, err := h.receipts.ReceiptQuery(r.Context(), id.String(), limit)
 	if err != nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"status": "degraded", "observations": []any{}, "message": "vrooli-events observations unavailable"})
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"status": runreport.AvailabilityDegraded, "observations": []any{}, "reason": "vrooli-events observations unavailable"})
 		return
 	}
 	observations = verifiedReceiptObservations(observations, id.String())
-	status := "available"
+	availability := runreport.Availability{State: runreport.AvailabilityAvailable}
+	message := ""
 	if len(observations) == 0 {
-		status = "unobserved"
+		availability = h.emptyReceiptAvailability(r.Context())
+		message = availability.Reason
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"status": status, "observations": observations})
+	payload := map[string]any{"status": availability.State, "observations": observations}
+	if message != "" {
+		payload["reason"] = message
+	}
+	writeJSON(w, http.StatusOK, payload)
+}
+
+func (h *Handler) emptyReceiptAvailability(ctx context.Context) runreport.Availability {
+	if h.receiptAvailability == nil {
+		return runreport.Availability{State: runreport.AvailabilityUnobserved}
+	}
+	availability := h.receiptAvailability(ctx)
+	if availability.State == "" {
+		return runreport.Availability{State: runreport.AvailabilityUnobserved}
+	}
+	return availability
 }
 
 // verifiedReceiptObservations keeps the raw receipt payload behind the explicit
@@ -79,14 +97,14 @@ func (h *Handler) attachObservedReceipts(ctx context.Context, runID string, resu
 	observations := &domainpb.ReceiptObservations{}
 	if !h.receipts.Enabled() {
 		observations.State = domainpb.ReceiptObservationState_RECEIPT_OBSERVATION_STATE_UNAVAILABLE
-		observations.Detail = "vrooli-events is not configured"
+		observations.Reason = "vrooli-events is not configured"
 		result.Observations = observations
 		return
 	}
 	raw, err := h.receipts.ReceiptQuery(ctx, runID, 100)
 	if err != nil {
 		observations.State = domainpb.ReceiptObservationState_RECEIPT_OBSERVATION_STATE_DEGRADED
-		observations.Detail = "vrooli-events query unavailable"
+		observations.Reason = "vrooli-events query unavailable"
 		result.Observations = observations
 		return
 	}
@@ -129,7 +147,7 @@ func (h *Handler) workflowObservedReceipts(ctx context.Context, runIDs []string)
 	observations := &domainpb.ReceiptObservations{}
 	if !h.receipts.Enabled() {
 		observations.State = domainpb.ReceiptObservationState_RECEIPT_OBSERVATION_STATE_UNAVAILABLE
-		observations.Detail = "vrooli-events is not configured"
+		observations.Reason = "vrooli-events is not configured"
 		return observations
 	}
 	wanted := make(map[string]bool, len(runIDs))
@@ -140,7 +158,7 @@ func (h *Handler) workflowObservedReceipts(ctx context.Context, runIDs []string)
 		raw, err := h.receipts.ReceiptQuery(ctx, runID, 100)
 		if err != nil {
 			observations.State = domainpb.ReceiptObservationState_RECEIPT_OBSERVATION_STATE_DEGRADED
-			observations.Detail = "vrooli-events query unavailable"
+			observations.Reason = "vrooli-events query unavailable"
 			return observations
 		}
 		for _, item := range raw {

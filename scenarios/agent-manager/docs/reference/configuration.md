@@ -326,6 +326,20 @@ the complete valid source set; a failed reload preserves the prior revision.
 `workflow list`, `get`, and `explain` expose provenance and definitions by
 owner/key or digest.
 
+## Retention split
+
+`Storage.EventRetentionDays` controls only the raw `run_events` log (30 days
+in production, 7 in development). Those rows can contain full tool output and
+are reclaimed in bounded batches by the reconciler. Durable invocation facts,
+run summaries, errors, friction episodes, self-report spans, and watermarks
+are not retention targets and remain queryable after their source events are
+removed.
+
+An event is eligible only after the same atomic projection transaction marks
+its run `projection_complete`. If that marker is absent or incomplete, the
+reconciler keeps the event regardless of age; retention can therefore lag but
+cannot erase evidence before its derived projection commits.
+
 ## Adding a new lever
 
 1. Pick the section that owns the behavior. If none fits, add a new section type.

@@ -13,6 +13,7 @@ import (
 	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/orchestration/spawn"
 	"agent-manager/internal/runreport"
+	"agent-manager/internal/runsignal"
 
 	agentconfig "agent-manager/internal/config"
 
@@ -27,6 +28,7 @@ type RunService interface {
 	CreateInvestigationApplyRun(context.Context, CreateInvestigationApplyRequest) (*domain.Run, error)
 	ResumeFromFailedRun(context.Context, ResumeFromFailedRunRequest) (*domain.Run, error)
 	GetRun(context.Context, uuid.UUID) (*domain.Run, error)
+	GetRunByImportProvenance(context.Context, string, string) (*domain.Run, error)
 	GetRunByTag(context.Context, string) (*domain.Run, error)
 	ListRuns(context.Context, RunListOptions) ([]*domain.Run, error)
 	DeleteRun(context.Context, uuid.UUID) error
@@ -101,9 +103,9 @@ type RunReportService interface {
 }
 
 type InvocationFactService interface {
-	InvocationFacts(context.Context, uuid.UUID) ([]runreport.InvocationFact, error)
-	Episodes(context.Context, uuid.UUID) ([]runreport.FrictionEpisode, error)
-	SelfReportSpans(context.Context, uuid.UUID) ([]runreport.SelfReportSpan, error)
+	InvocationFacts(context.Context, uuid.UUID) ([]runsignal.InvocationFact, error)
+	Episodes(context.Context, uuid.UUID) ([]runsignal.FrictionEpisode, error)
+	SelfReportSpans(context.Context, uuid.UUID) ([]runsignal.SelfReportSpan, error)
 	EpisodeCohort(context.Context, invocationreadmodel.Filter, int) (runreport.EpisodeCohort, error)
 	ReplayInvocationFacts(context.Context, uuid.UUID) (*ReplayResult, error)
 	RefreshInvocationFacts(context.Context, uuid.UUID) (*ReplayResult, error)

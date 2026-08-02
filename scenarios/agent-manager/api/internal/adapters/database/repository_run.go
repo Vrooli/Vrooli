@@ -71,6 +71,9 @@ type runRow struct {
 	TranscriptPath           sql.NullString        `db:"transcript_path"`
 	TranscriptCursor         int64                 `db:"transcript_cursor"`
 	TranscriptLastSeq        int64                 `db:"transcript_last_seq"`
+	ImportSourceHarness      sql.NullString        `db:"import_source_harness"`
+	ImportSourceSessionID    sql.NullString        `db:"import_source_session_id"`
+	ImportedAt               NullableTime          `db:"imported_at"`
 	SourceRunIDs             sql.NullString        `db:"source_run_ids"`
 	SourceInvestigationRunID NullableUUID          `db:"source_investigation_run_id"`
 	ParentRunID              NullableUUID          `db:"parent_run_id"`
@@ -136,6 +139,9 @@ func (row *runRow) toDomain() *domain.Run {
 		TranscriptPath:           row.TranscriptPath.String,
 		TranscriptCursor:         row.TranscriptCursor,
 		TranscriptLastSeq:        row.TranscriptLastSeq,
+		ImportSourceHarness:      row.ImportSourceHarness.String,
+		ImportSourceSessionID:    row.ImportSourceSessionID.String,
+		ImportedAt:               row.ImportedAt.ToPtr(),
 		SourceRunIDs:             sourceRunIDs,
 		SourceInvestigationRunID: row.SourceInvestigationRunID.ToPtr(),
 		ParentRunID:              row.ParentRunID.ToPtr(),
@@ -208,6 +214,9 @@ func runFromDomain(r *domain.Run) *runRow {
 		TranscriptPath:           sql.NullString{String: r.TranscriptPath, Valid: r.TranscriptPath != ""},
 		TranscriptCursor:         r.TranscriptCursor,
 		TranscriptLastSeq:        r.TranscriptLastSeq,
+		ImportSourceHarness:      sql.NullString{String: r.ImportSourceHarness, Valid: r.ImportSourceHarness != ""},
+		ImportSourceSessionID:    sql.NullString{String: r.ImportSourceSessionID, Valid: r.ImportSourceSessionID != ""},
+		ImportedAt:               NewNullableTime(r.ImportedAt),
 		SourceRunIDs:             sql.NullString{String: sourceRunIDs, Valid: sourceRunIDs != ""},
 		SourceInvestigationRunID: NewNullableUUID(r.SourceInvestigationRunID),
 		ParentRunID:              NewNullableUUID(r.ParentRunID),
@@ -331,7 +340,7 @@ const runColumns = `id, task_id, agent_profile_id, tag, sandbox_id, run_mode,
 	idempotency_key, summary, run_result, error_msg, exit_code, approval_state, approved_by, approved_at,
 	finalization_status, finalization_error, finalized_at,
 	resolved_config, diff_path, log_path, changed_files, total_size_bytes, commit_hash, sandbox_config, session_id,
-	runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq,
+	runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq, import_source_harness, import_source_session_id, imported_at,
 	source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
 	identity_token_hash, identity_token_revoked_at, custom_env, await_handle,
 	last_await_key, last_await_result, last_await_resolved_at, last_wake_seq, same_key_park_streak,
@@ -349,7 +358,7 @@ const listRunColumns = `id, task_id, agent_profile_id, tag, run_mode,
 	started_at, ended_at, phase, last_heartbeat, progress_percent,
 	error_msg, exit_code, approval_state, finalization_status, finalization_error, finalized_at,
 	changed_files, total_size_bytes, commit_hash, session_id,
-	runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq,
+	runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq, import_source_harness, import_source_session_id, imported_at,
 	source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
 	requested_model, actual_model,
 	created_at, updated_at`
@@ -387,6 +396,9 @@ type listRunLiteRow struct {
 	TranscriptPath           sql.NullString `db:"transcript_path"`
 	TranscriptCursor         int64          `db:"transcript_cursor"`
 	TranscriptLastSeq        int64          `db:"transcript_last_seq"`
+	ImportSourceHarness      sql.NullString `db:"import_source_harness"`
+	ImportSourceSessionID    sql.NullString `db:"import_source_session_id"`
+	ImportedAt               NullableTime   `db:"imported_at"`
 	SourceRunIDs             sql.NullString `db:"source_run_ids"`
 	SourceInvestigationRunID NullableUUID   `db:"source_investigation_run_id"`
 	ParentRunID              NullableUUID   `db:"parent_run_id"`
@@ -429,6 +441,9 @@ func (row *listRunLiteRow) toDomain() *domain.Run {
 		TranscriptPath:           row.TranscriptPath.String,
 		TranscriptCursor:         row.TranscriptCursor,
 		TranscriptLastSeq:        row.TranscriptLastSeq,
+		ImportSourceHarness:      row.ImportSourceHarness.String,
+		ImportSourceSessionID:    row.ImportSourceSessionID.String,
+		ImportedAt:               row.ImportedAt.ToPtr(),
 		SourceRunIDs:             sourceRunIDs,
 		SourceInvestigationRunID: row.SourceInvestigationRunID.ToPtr(),
 		ParentRunID:              row.ParentRunID.ToPtr(),
@@ -461,7 +476,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			idempotency_key, summary, run_result, error_msg, exit_code, approval_state, approved_by, approved_at,
 			finalization_status, finalization_error, finalized_at,
 			resolved_config, diff_path, log_path, changed_files, total_size_bytes, commit_hash, sandbox_config, session_id,
-			runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq,
+			runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq, import_source_harness, import_source_session_id, imported_at,
 			source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
 			identity_token_hash, identity_token_revoked_at, custom_env, await_handle,
 			last_await_key, last_await_result, last_await_resolved_at, last_wake_seq, same_key_park_streak,
@@ -473,7 +488,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			:idempotency_key, :summary, :run_result, :error_msg, :exit_code, :approval_state, :approved_by, :approved_at,
 			:finalization_status, :finalization_error, :finalized_at,
 			:resolved_config, :diff_path, :log_path, :changed_files, :total_size_bytes, :commit_hash, :sandbox_config, :session_id,
-			:runner_pid, :runner_pgid, :transcript_path, :transcript_cursor, :transcript_last_seq,
+			:runner_pid, :runner_pgid, :transcript_path, :transcript_cursor, :transcript_last_seq, :import_source_harness, :import_source_session_id, :imported_at,
 			:source_run_ids, :source_investigation_run_id, :parent_run_id, :conversation_id,
 			:identity_token_hash, :identity_token_revoked_at, :custom_env, :await_handle,
 			:last_await_key, :last_await_result, :last_await_resolved_at, :last_wake_seq, :same_key_park_streak,
@@ -600,6 +615,7 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 			changed_files = :changed_files, total_size_bytes = :total_size_bytes, commit_hash = :commit_hash, sandbox_config = :sandbox_config,
 			session_id = :session_id, runner_pid = :runner_pid, runner_pgid = :runner_pgid,
 			transcript_path = :transcript_path, transcript_cursor = :transcript_cursor, transcript_last_seq = :transcript_last_seq,
+			import_source_harness = :import_source_harness, import_source_session_id = :import_source_session_id, imported_at = :imported_at,
 			source_run_ids = :source_run_ids,
 			source_investigation_run_id = :source_investigation_run_id,
 			parent_run_id = :parent_run_id, conversation_id = :conversation_id,
@@ -684,6 +700,18 @@ func (r *runRepository) GetByTokenHash(ctx context.Context, tokenHash string) (*
 			return nil, nil
 		}
 		return nil, wrapDBError("get_by_token_hash", "Run", tokenHash, err)
+	}
+	return row.toDomain(), nil
+}
+
+func (r *runRepository) GetByImportProvenance(ctx context.Context, sourceHarness, sourceSessionID string) (*domain.Run, error) {
+	query := fmt.Sprintf("SELECT %s FROM runs WHERE import_source_harness = ? AND import_source_session_id = ?", runColumns)
+	var row runRow
+	if err := r.db.GetContext(ctx, &row, query, sourceHarness, sourceSessionID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, wrapDBError("get_by_import_provenance", "Run", sourceHarness+":"+sourceSessionID, err)
 	}
 	return row.toDomain(), nil
 }

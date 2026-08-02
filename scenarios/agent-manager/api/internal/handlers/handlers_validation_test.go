@@ -221,7 +221,7 @@ func TestCreateInvestigationRunRejectsAmbiguousCohortSelection(t *testing.T) {
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("expected ambiguous selector to return 400, got %d: %s", rr.Code, rr.Body.String())
 	}
-	if !strings.Contains(rr.Body.String(), "either runIds or selector") {
+	if !strings.Contains(rr.Body.String(), "runIds, selector, or goalId") {
 		t.Fatalf("expected actionable selector error, got %s", rr.Body.String())
 	}
 }

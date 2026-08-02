@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"agent-manager/internal/adapters/database"
+	"agent-manager/internal/config"
 	"agent-manager/internal/conformance"
 	"agent-manager/internal/eventlog"
 	"agent-manager/internal/handlers"
@@ -23,6 +24,7 @@ import (
 	"agent-manager/internal/pricing"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/rolepolicy"
+	"agent-manager/internal/runreport"
 	"agent-manager/internal/stats"
 	"agent-manager/internal/storage"
 
@@ -81,12 +83,24 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 			eventsBaseURL = resolved
 		}
 	}
+	receiptTargets, receiptTargetsErr := declaredReceiptTargets(receiptCaptureDeclarationPath())
+	if receiptTargetsErr != nil {
+		routesLog := obs.Component("routes")
+		routesLog.Warn("receipt capture declaration unavailable", obs.KeyError, receiptTargetsErr.Error())
+	}
+	receiptAvailability := func(ctx context.Context) runreport.Availability {
+		if summary, decisive := receiptRuntimeAvailability(ctx, receiptTargets, productionReceiptRuntimeReader); decisive {
+			return summary.Availability
+		}
+		return runreport.Availability{State: runreport.AvailabilityUnobserved}
+	}
 	handler := handlers.New(
 		orchestration.NewHandlerServices(deps.Orchestrator),
 		handlers.WithStorage(deps.Storage),
 		handlers.WithRolePolicyState(deps.RolePolicyState),
 		handlers.WithPermissionPolicy(deps.PermissionPolicyState, deps.PermissionPolicy),
 		handlers.WithObservedReceipts(eventbus.Client{BaseURL: eventsBaseURL}),
+		handlers.WithReceiptAvailabilityReader(receiptAvailability),
 	)
 	handler.SetWebSocketHub(deps.WebSocketHub)
 	episodesPath, episodesHandler := domainconnect.NewEpisodesServiceHandler(handler)
@@ -120,6 +134,9 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	}
 	if deps.InvocationReadModel != nil {
 		measureHandler := analyticsmeasures.NewHandler(deps.InvocationReadModel, nil)
+		if validityConfig, err := config.LoadMeasureValidityConfig(); err == nil {
+			measureHandler.SetValidityConfig(analyticsmeasures.ValidityConfig{MinSampleMeaningful: validityConfig.MinSampleMeaningful, MaxFingerprintBucketShare: validityConfig.MaxFingerprintBucketShare})
+		}
 		measureHandler.SetEpisodeCohort(deps.Orchestrator.EpisodeCohort)
 		if registryHandler, err := measureHandler.MeasuresHandler(); err != nil {
 			routesLog.Error("measures registry unavailable", obs.KeyError, err.Error())

@@ -903,6 +903,7 @@ func (s *RunService) Episodes(id string) ([]byte, error) {
 func (s *RunService) MessageFriction(id string) ([]byte, error) {
 	return s.api.Request("GET", "/api/v1/runs/"+id+"/messages-friction", nil, nil)
 }
+
 func (s *RunService) Ledger(id string, withProjections bool) ([]byte, error) {
 	values := url.Values{}
 	if withProjections {
@@ -917,6 +918,10 @@ func (s *RunService) EpisodeCohort(values url.Values) ([]byte, error) {
 
 func (s *RunService) ImportTranscript(payload []byte) ([]byte, error) {
 	return s.api.Request("POST", "/api/v1/runs/import-transcript", nil, payload)
+}
+
+func (s *RunService) ImportSessionCorpus(payload []byte) ([]byte, error) {
+	return s.api.Request("POST", "/api/v1/runs/import-session-corpus", nil, payload)
 }
 
 func (s *RunService) ReplayInvocationFacts(id string) ([]byte, error) {
@@ -934,9 +939,11 @@ func (s *RunService) ReplayInvocationCorpus(values url.Values) ([]byte, error) {
 func (s *RunService) AggregateInvocationFacts(values url.Values) ([]byte, error) {
 	return s.api.Request("GET", "/api/v1/runs/invocation-facts/aggregate", values, nil)
 }
+
 func (s *RunService) SelectInvocationCohort(values url.Values) ([]byte, error) {
 	return s.api.Request("GET", "/api/v1/runs/invocation-facts/cohort", values, nil)
 }
+
 func (s *RunService) InvocationMetrics(values url.Values) ([]byte, error) {
 	return s.api.Request("GET", "/api/v1/runs/invocation-facts/metrics", values, nil)
 }

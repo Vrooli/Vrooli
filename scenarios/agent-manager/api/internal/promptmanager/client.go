@@ -6,6 +6,7 @@ package promptmanager
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,6 +25,26 @@ import (
 // (deleted or gutted skill). Callers can distinguish this from transport
 // failures, where no comparison was possible at all.
 var ErrSkillSourceMissing = errors.New("skill source missing")
+
+// FrictionReport is the bounded, already-classified observation that Agent
+// Manager publishes to meta-optimization's friction intake.
+type FrictionReport struct {
+	InvestigationRunID string
+	Fingerprint        string
+	Category           string
+	Severity           string
+	Occurrences        int
+	Recommendation     string
+	Evidence           string
+	TargetPath         string
+}
+
+// FrictionIntakeClient is an optional prompt-manager capability. Keeping it
+// separate from Client preserves prompt reading as the required dependency for
+// workflow execution.
+type FrictionIntakeClient interface {
+	PublishFriction(context.Context, FrictionReport) (string, error)
+}
 
 // Client reads skill prompts from prompt-manager.
 type Client interface {
@@ -387,6 +408,91 @@ func (c *HTTPClient) RecordExperimentOutcome(ctx context.Context, experimentID s
 		return fmt.Errorf("promptmanager: outcome status %d: %s", resp.StatusCode, string(respBody))
 	}
 	return nil
+}
+
+// PublishFriction writes one investigation observation to the existing
+// meta-optimization friction inbox endpoint. The stored topic is used by the
+// caller as its durable idempotency marker.
+func (c *HTTPClient) PublishFriction(ctx context.Context, report FrictionReport) (string, error) {
+	if strings.TrimSpace(report.InvestigationRunID) == "" || strings.TrimSpace(report.Fingerprint) == "" {
+		return "", fmt.Errorf("promptmanager: investigation run ID and finding fingerprint are required")
+	}
+	baseURL, err := c.baseURLResolver(ctx)
+	if err != nil {
+		return "", fmt.Errorf("promptmanager: resolve URL: %w", err)
+	}
+	scope := frictionScope(report.Category)
+	topic := "friction-inbox/" + scope + "/agent-manager-finding-" + shortFingerprint(report.Fingerprint)
+	severity := "one-off"
+	if report.Occurrences > 1 || strings.EqualFold(strings.TrimSpace(report.Severity), "recurring") {
+		severity = "recurring"
+	}
+	body, err := json.Marshal(struct {
+		Topic      string `json:"topic"`
+		Content    string `json:"content"`
+		CallerNote string `json:"caller_note"`
+		Source     string `json:"source"`
+	}{Topic: topic, Content: frictionContent(report, scope, severity), CallerNote: "Agent Manager investigation finding", Source: "agent-manager"})
+	if err != nil {
+		return "", fmt.Errorf("promptmanager: marshal friction report: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/teams/meta-optimization/knowledge", bytes.NewReader(body))
+	if err != nil {
+		return "", fmt.Errorf("promptmanager: create friction request: %w", err)
+	}
+	attribution, err := json.Marshal(map[string]any{"kind": "investigation", "run_id": report.InvestigationRunID, "spawn_origin": "investigation"})
+	if err != nil {
+		return "", fmt.Errorf("promptmanager: marshal friction attribution: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Vrooli-Attribution", base64.StdEncoding.EncodeToString(attribution))
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("promptmanager: friction request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		payload, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("promptmanager: friction status %d: %s", resp.StatusCode, string(payload))
+	}
+	return topic, nil
+}
+
+func shortFingerprint(fingerprint string) string {
+	fingerprint = strings.ToLower(strings.TrimSpace(fingerprint))
+	if len(fingerprint) > 12 {
+		return fingerprint[:12]
+	}
+	return fingerprint
+}
+
+func frictionScope(category string) string {
+	category = strings.ToLower(category)
+	switch {
+	case strings.Contains(category, "tool"):
+		return "toolchain"
+	case strings.Contains(category, "run"), strings.Contains(category, "process"), strings.Contains(category, "coordination"):
+		return "run-execution"
+	case strings.Contains(category, "prompt"), strings.Contains(category, "storage"), strings.Contains(category, "team"):
+		return "prompt-team-agent-storage"
+	default:
+		return "unknown"
+	}
+}
+
+func frictionContent(report FrictionReport, scope, severity string) string {
+	recommendation := strings.TrimSpace(report.Recommendation)
+	evidence := strings.TrimSpace(report.Evidence)
+	if evidence == "" {
+		evidence = "The structured investigation produced this recommendation."
+	}
+	return fmt.Sprintf("---\nseverity: %s\nscope: %s\nreporter: agent-manager\nreporter_team: meta-optimization\nobserved_at: %s\ncontext:\n  scenario: agent-manager\n  skill: null\n  member: null\n  command: null\n  doc: null\n  task: %s\nexpected: %s\nactual: %s\ndescription: |\n  An Agent Manager investigation produced this durable finding.\n  Fingerprint: %s.\n  Evidence: %s\nhonesty_flags: [auto-generated]\n---\n\nWhat happened\n\n%s\n", severity, scope, time.Now().UTC().Format("2006-01-02"), report.InvestigationRunID, yamlLine(recommendation), yamlLine(evidence), report.Fingerprint, indentLine(evidence), recommendation)
+}
+
+func yamlLine(value string) string { return strconv.Quote(strings.Join(strings.Fields(value), " ")) }
+
+func indentLine(value string) string {
+	return strings.ReplaceAll(strings.TrimSpace(value), "\n", "\n  ")
 }
 
 // ListSkills fetches prompt-manager skill metadata with optional tag filtering.

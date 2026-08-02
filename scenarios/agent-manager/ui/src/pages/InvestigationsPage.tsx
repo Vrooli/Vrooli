@@ -3,14 +3,14 @@ import { getEpisodeCohort, getEpisodes, getLedger, type Availability, type Episo
 import { Dialog, DialogContent, DialogHeader } from "../components/ui/dialog";
 
 function AvailabilityBadge({ value }: { value: Availability }) {
-  return <span className="rounded bg-muted px-2 py-1 text-xs" data-testid={`availability-${value.state}`}>{value.state}{value.detail ? `: ${value.detail}` : ""}</span>;
+  return <span className="rounded bg-muted px-2 py-1 text-xs" data-testid={`availability-${value.state}`}>{value.state}{value.reason ? `: ${value.reason}` : ""}</span>;
 }
 
 export function InvestigationsPage() {
   const [signals, setSignals] = useState<EpisodeSignal[]>([]);
-  const [availability, setAvailability] = useState<Availability>({ state: "unavailable", detail: "loading" });
+  const [availability, setAvailability] = useState<Availability>({ state: "unavailable", reason: "loading" });
   const [selected, setSelected] = useState<{ runId: string; episodes: Episode[]; ledger: Ledger } | null>(null);
-  useEffect(() => { void getEpisodeCohort().then((data) => { setSignals(data.signals); setAvailability(data.availability); }).catch((error: unknown) => setAvailability({ state: "unavailable", detail: error instanceof Error ? error.message : "request failed" })); }, []);
+  useEffect(() => { void getEpisodeCohort().then((data) => { setSignals(data.signals); setAvailability(data.availability); }).catch((error: unknown) => setAvailability({ state: "unavailable", reason: error instanceof Error ? error.message : "request failed" })); }, []);
   const openSignal = async (signal: EpisodeSignal) => { const runId = signal.representativeRunIds[0]; if (!runId) return; const [episodeData, ledger] = await Promise.all([getEpisodes(runId), getLedger(runId)]); setSelected({ runId, episodes: episodeData.episodes, ledger }); };
   return (
     <section className="p-6 space-y-3" data-testid="investigations-page">

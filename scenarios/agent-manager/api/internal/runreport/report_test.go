@@ -7,6 +7,7 @@ import (
 
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/runsignal"
 
 	"github.com/google/uuid"
 )
@@ -22,8 +23,35 @@ type receiptReportSource struct {
 	receipts ReceiptSummary
 }
 
+type durableReportSource struct {
+	reportSource
+	facts      []runsignal.InvocationFact
+	accounting runsignal.TimeAccounting
+}
+
+func (s durableReportSource) DurableInvocationFacts(context.Context, uuid.UUID) ([]runsignal.InvocationFact, bool, error) {
+	return s.facts, true, nil
+}
+
+func (s durableReportSource) DurableTimeAccounting(context.Context, uuid.UUID) (runsignal.TimeAccounting, bool, error) {
+	return s.accounting, true, nil
+}
+
 func (s receiptReportSource) Receipts(context.Context, uuid.UUID) (ReceiptSummary, error) {
 	return s.receipts, nil
+}
+
+func TestBuildPrefersDurableTimeAccountingAfterEventRetention(t *testing.T) {
+	id := uuid.New()
+	start, end := time.Now().Add(-10*time.Minute), time.Now()
+	want := runsignal.TimeAccounting{ToolExecutingMS: 2 * time.Minute.Milliseconds(), UnattributableMS: 8 * time.Minute.Milliseconds(), ToolTokens: 12}
+	report, err := Build(context.Background(), durableReportSource{reportSource: reportSource{run: &domain.Run{ID: id, StartedAt: &start, EndedAt: &end}}, accounting: want}, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.TimeAccounting != want {
+		t.Fatalf("accounting=%+v want %+v", report.TimeAccounting, want)
+	}
 }
 
 func (s reportSource) Run(context.Context, uuid.UUID) (*domain.Run, error) { return s.run, nil }
@@ -90,14 +118,14 @@ func TestBoundProjectionReportsOversizedAvailability(t *testing.T) {
 		t.Fatalf("bounded projection = %#v, dropped = %d", bounded, dropped)
 	}
 	availability := projectionAvailability([]CrossScenarioCall{{Projection: bounded, ProjectionDropCount: dropped, PolicyVersion: "v1"}})
-	if availability.State != "oversized" {
+	if availability.State != AvailabilityOversized {
 		t.Fatalf("projection availability = %#v, want oversized", availability)
 	}
 }
 
 func TestProjectionAvailabilityDistinguishesUnobservedPolicy(t *testing.T) {
 	availability := projectionAvailability(nil)
-	if availability.State != "policy_absent" {
+	if availability.State != AvailabilityPolicyAbsent {
 		t.Fatalf("empty receipts availability = %#v, want policy_absent", availability)
 	}
 }
@@ -106,13 +134,31 @@ func TestBuildKeepsUnverifiedReceiptWhenLedgerIsUnobserved(t *testing.T) {
 	id := uuid.New()
 	report, err := Build(context.Background(), receiptReportSource{
 		reportSource: reportSource{run: &domain.Run{ID: id}, events: []*domain.RunEvent{}},
-		receipts:     ReceiptSummary{State: "unobserved", Detail: "no verified receipts", Calls: []CrossScenarioCall{{ReceiptEventID: "receipt-unverified", TargetScenario: "search-hub", Verified: false, DurationMS: 42}}},
+		receipts:     ReceiptSummary{Availability: Availability{State: AvailabilityUnobserved, Reason: "no verified receipts"}, Calls: []CrossScenarioCall{{ReceiptEventID: "receipt-unverified", TargetScenario: "search-hub", Verified: false, DurationMS: 42}}},
 	}, id)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.LedgerAvailability.State != "unobserved" || report.LedgerAvailability.Detail == "" || len(report.CrossScenarioCalls) != 1 || report.CrossScenarioCalls[0].Verified {
+	if report.LedgerAvailability.State != "unobserved" || report.LedgerAvailability.Reason == "" || len(report.CrossScenarioCalls) != 1 || report.CrossScenarioCalls[0].Verified {
 		t.Fatalf("unverified receipt evidence was not retained honestly: %+v", report)
+	}
+}
+
+func TestBuildRendersDurableEvidenceAfterRawEventsAreSwept(t *testing.T) {
+	id := uuid.New()
+	fact := runsignal.InvocationFact{CallEventID: "swept-call", ToolName: "shell", Ownership: "project", Outcome: "failure", Availability: "available"}
+	report, err := Build(context.Background(), durableReportSource{
+		reportSource: reportSource{run: &domain.Run{ID: id, Status: domain.RunStatusFailed}, events: nil},
+		facts:        []runsignal.InvocationFact{fact},
+	}, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.InvocationFacts) != 1 || report.InvocationFacts[0].CallEventID != fact.CallEventID {
+		t.Fatalf("report durable evidence = %+v, want swept run's projected fact", report.InvocationFacts)
+	}
+	if len(report.Events) != 0 {
+		t.Fatalf("report raw events = %+v, want none after the retention sweep", report.Events)
 	}
 }
 

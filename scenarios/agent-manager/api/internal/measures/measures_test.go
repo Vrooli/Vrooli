@@ -116,6 +116,42 @@ func TestTypedMeasuresDefaultWindowAndMapFilterDimensions(t *testing.T) {
 	}
 }
 
+func TestRepeatedWorkRateMarksDegenerateFingerprintCorpusUnreliable(t *testing.T) {
+	store := &fakeStore{metrics: invocationreadmodel.Metrics{RepeatedWorkRate: 0.991, RepeatedCalls: 109, TotalCalls: 110, LargestFingerprintBucket: 100}}
+	handler := NewHandler(store, func() time.Time { return time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC) })
+	response, err := handler.RepeatedWorkRate(context.Background(), connect.NewRequest(&measurepb.RepeatedWorkRateRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := response.Msg.GetValidity(); got.GetState() != "unreliable" || got.GetLargestFingerprintBucket() != 100 || got.GetReason() == "" {
+		t.Fatalf("validity=%+v, want unreliable concentration result", got)
+	}
+}
+
+func TestRepeatedWorkRateMarksHealthyFingerprintCorpusAvailable(t *testing.T) {
+	store := &fakeStore{metrics: invocationreadmodel.Metrics{RepeatedWorkRate: 0.2, RepeatedCalls: 2, TotalCalls: 10, LargestFingerprintBucket: 3}}
+	handler := NewHandler(store, func() time.Time { return time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC) })
+	response, err := handler.RepeatedWorkRate(context.Background(), connect.NewRequest(&measurepb.RepeatedWorkRateRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := response.Msg.GetValidity(); got.GetState() != "available" || got.GetReason() != "" {
+		t.Fatalf("validity=%+v, want available healthy result", got)
+	}
+}
+
+func TestRateMarksSmallSampleUnreliable(t *testing.T) {
+	store := &fakeStore{metrics: invocationreadmodel.Metrics{RetryRate: 1, RetryCalls: 2, TotalCalls: 2, LargestFingerprintBucket: 1}}
+	handler := NewHandler(store, func() time.Time { return time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC) })
+	response, err := handler.RetryRate(context.Background(), connect.NewRequest(&measurepb.RetryRateRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := response.Msg.GetValidity(); got.GetState() != "unreliable" || got.GetSampleSize() != 2 {
+		t.Fatalf("validity=%+v, want unreliable small sample", got)
+	}
+}
+
 func TestRegistryAndTypedRPCShareRunThroughputComputation(t *testing.T) {
 	now := time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC)
 	store := &fakeStore{runMetrics: invocationreadmodel.RunMetrics{TotalRuns: 8, TerminalRuns: 6, SuccessfulRuns: 3, SuccessRate: 0.5, CompletedDurationRuns: 5, AverageDurationMS: 1234, TotalCostUSD: 4.5, AuthoritativeCostUSD: 3, EstimatedCostUSD: 1, UnknownCostUSD: 0.5, TotalTokens: 99, ReadCalls: 6, FileRereads: 2, FileRereadRate: 1.0 / 3.0}}

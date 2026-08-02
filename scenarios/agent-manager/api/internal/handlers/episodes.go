@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	"agent-manager/internal/runreport"
+	"agent-manager/internal/runsignal"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
@@ -25,6 +25,6 @@ func (h *Handler) GetEpisodesHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, struct {
 		ClassifierVersion string                      `json:"classifierVersion"`
-		Episodes          []runreport.FrictionEpisode `json:"episodes"`
-	}{runreport.EpisodeClassifierVersion, episodes})
+		Episodes          []runsignal.FrictionEpisode `json:"episodes"`
+	}{runsignal.EpisodeClassifierVersion, episodes})
 }

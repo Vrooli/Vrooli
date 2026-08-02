@@ -10,17 +10,19 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/orchestration/testutil"
-	"agent-manager/internal/runreport"
+	"agent-manager/internal/runsignal"
 
 	"github.com/google/uuid"
 )
 
 type recordingInvocationReadModel struct {
-	mu        sync.Mutex
-	facts     []invocationreadmodel.Fact
-	watermark *invocationreadmodel.Watermark
-	err       error
-	calls     chan struct{}
+	mu             sync.Mutex
+	facts          []invocationreadmodel.Fact
+	watermark      *invocationreadmodel.Watermark
+	err            error
+	findingMetrics invocationreadmodel.FindingMetrics
+	findingErr     error
+	calls          chan struct{}
 }
 
 func (s *recordingInvocationReadModel) Replace(_ context.Context, facts []invocationreadmodel.Fact, watermark invocationreadmodel.Watermark) error {
@@ -87,7 +89,21 @@ func (s *recordingInvocationReadModel) ErrorPatterns(context.Context, invocation
 }
 
 func (s *recordingInvocationReadModel) FindingMetrics(context.Context, invocationreadmodel.Filter) (invocationreadmodel.FindingMetrics, error) {
-	return invocationreadmodel.FindingMetrics{}, nil
+	return s.findingMetrics, s.findingErr
+}
+
+func TestFindingRecurrenceRateUsesDurableMeasureAndPreservesUnavailable(t *testing.T) {
+	store := &recordingInvocationReadModel{findingMetrics: invocationreadmodel.FindingMetrics{TotalFindings: 4, RecurrenceRate: 0.5}}
+	o := New(nil, nil, nil, WithInvocationReadModel(store))
+	value, err := o.findingRecurrenceRate(context.Background())
+	if err != nil || value == nil || *value != 0.5 {
+		t.Fatalf("value=%v err=%v", value, err)
+	}
+	empty := New(nil, nil, nil, WithInvocationReadModel(&recordingInvocationReadModel{}))
+	value, err = empty.findingRecurrenceRate(context.Background())
+	if err != nil || value != nil {
+		t.Fatalf("empty value=%v err=%v", value, err)
+	}
 }
 
 func TestProjectTerminalInvocationReadModel_WritesFactsAndWatermarkIdempotently(t *testing.T) {
@@ -115,7 +131,7 @@ func TestProjectTerminalInvocationReadModel_WritesFactsAndWatermarkIdempotently(
 	if len(store.facts) != 1 || store.facts[0].CallEventID != call.ID.String() {
 		t.Fatalf("facts=%+v", store.facts)
 	}
-	if store.watermark == nil || store.watermark.LastEventID != call.ID.String() || store.watermark.ClassifierVersion != runreport.InvocationFactVersion {
+	if store.watermark == nil || store.watermark.LastEventID != call.ID.String() || store.watermark.ClassifierVersion != runsignal.InvocationFactVersion {
 		t.Fatalf("watermark=%+v", store.watermark)
 	}
 }
@@ -149,11 +165,14 @@ func TestReplayInvocationFacts_RebuildsRetainedAndPreservesPruned(t *testing.T) 
 	makeRun := func() *domain.Run {
 		return &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted, StartedAt: &now, EndedAt: &now, Tag: "fixture", ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeCodex}}
 	}
-	retained, pruned := makeRun(), makeRun()
+	retained, pruned, empty := makeRun(), makeRun(), makeRun()
 	if err := repos.Runs.Create(ctx, retained); err != nil {
 		t.Fatal(err)
 	}
 	if err := repos.Runs.Create(ctx, pruned); err != nil {
+		t.Fatal(err)
+	}
+	if err := repos.Runs.Create(ctx, empty); err != nil {
 		t.Fatal(err)
 	}
 	call := domain.NewToolCallEvent(retained.ID, "shell", "call-1", map[string]any{"command": "vrooli help"})
@@ -166,7 +185,11 @@ func TestReplayInvocationFacts_RebuildsRetainedAndPreservesPruned(t *testing.T) 
 	if err != nil || replayed.Status != "replayed" || replayed.FactCount != 1 {
 		t.Fatalf("retained replay=%+v err=%v", replayed, err)
 	}
-	legacy := invocationreadmodel.Fact{InvocationFact: runreport.InvocationFact{Version: "legacy.v1", CallEventID: "gone", ToolName: "shell", Ownership: "external", Outcome: "success", Fingerprint: "fp", Availability: "available"}, RunID: pruned.ID.String(), OccurredAt: now, TimeBasis: "run_end_derived", ProfileID: "unknown", RunnerType: "unknown", Model: "unknown", Tag: "fixture", RunStatus: "complete"}
+	emptyResult, err := o.ReplayInvocationFacts(ctx, empty.ID)
+	if err != nil || emptyResult.Status != "unreplayable" || emptyResult.ClassifierVersion != "unprojected" {
+		t.Fatalf("empty replay=%+v err=%v", emptyResult, err)
+	}
+	legacy := invocationreadmodel.Fact{InvocationFact: runsignal.InvocationFact{Version: "legacy.v1", CallEventID: "gone", ToolName: "shell", Ownership: "external", Outcome: "success", Fingerprint: "fp", Availability: "available"}, RunID: pruned.ID.String(), OccurredAt: now, TimeBasis: "run_end_derived", ProfileID: "unknown", RunnerType: "unknown", Model: "unknown", Tag: "fixture", RunStatus: "complete"}
 	if err := repos.InvocationReadModel.Replace(ctx, []invocationreadmodel.Fact{legacy}, invocationreadmodel.Watermark{RunID: pruned.ID.String(), LastEventID: "gone", LastEventAt: now, ClassifierVersion: "legacy.v1", ProjectedAt: now}); err != nil {
 		t.Fatal(err)
 	}

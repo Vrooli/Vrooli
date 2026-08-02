@@ -4,15 +4,19 @@ package archtest
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
+
+	"agent-manager/internal/runsignal"
 )
 
 const maxScenarioSourceLines = 1500
@@ -82,18 +86,132 @@ func TestProductionOrchestrationDoesNotImportDatabase(t *testing.T) {
 	}
 }
 
-// Self-report extraction is a deterministic replayable projection. A model or
-// HTTP client here would make corpus output depend on live services.
-func TestSelfReportClassifierDoesNotImportModelOrHTTPClients(t *testing.T) {
-	path := filepath.Join(scenarioRoot(t), "api/internal/runreport/selfreport.go")
-	imports, err := importsFromFile(path)
+// Run-signal extraction is a deterministic replayable projection. Its entire
+// package must stay independent of database, model, and HTTP clients.
+func TestRunSignalDoesNotImportDatabaseModelOrHTTPClients(t *testing.T) {
+	for _, path := range goFiles(t, filepath.Join(scenarioRoot(t), "api/internal/runsignal")) {
+		imports, err := importsFromFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, imported := range imports {
+			if imported == "net/http" || strings.Contains(imported, "database") || strings.Contains(imported, "model") || strings.Contains(imported, "openai") {
+				rel, _ := filepath.Rel(scenarioRoot(t), path)
+				t.Fatalf("runsignal must remain deterministic and local; %s imports %q", filepath.ToSlash(rel), imported)
+			}
+		}
+	}
+}
+
+// Every detector is both deterministic (the import boundary above) and
+// represented in the checked-in labelled corpus. This makes an unlabelled
+// registry addition an architecture failure rather than a best-effort test.
+func TestRunSignalDetectorRegistryHasLabelledCoverage(t *testing.T) {
+	type labels struct {
+		Expected []string `json:"expected"`
+	}
+	body, err := os.ReadFile(filepath.Join(scenarioRoot(t), "api/internal/runsignal/testdata/classification/all-detectors.labels.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, imported := range imports {
-		if imported == "net/http" || strings.Contains(imported, "model") || strings.Contains(imported, "openai") {
-			t.Fatalf("selfreport.go must remain deterministic and local, found forbidden import %q", imported)
+	var corpus labels
+	if err := json.Unmarshal(body, &corpus); err != nil {
+		t.Fatal(err)
+	}
+	covered := make(map[string]bool, len(corpus.Expected))
+	for _, id := range corpus.Expected {
+		covered[id] = true
+	}
+	registered := make(map[string]bool, len(runsignal.EpisodeDetectors())+len(runsignal.SelfReportDetectors()))
+	for _, detector := range runsignal.EpisodeDetectors() {
+		assertRegisteredDetector(t, registered, covered, "episode/"+detector.Identifier(), detector.ClassifierVersion(), detector.CauseScope())
+	}
+	for _, detector := range runsignal.SelfReportDetectors() {
+		assertRegisteredDetector(t, registered, covered, "span/"+detector.Identifier(), detector.ClassifierVersion(), detector.CauseScope())
+	}
+	if len(registered) != len(covered) {
+		t.Fatalf("labelled detector corpus has extras or duplicate names: registered=%v labels=%v", registered, corpus.Expected)
+	}
+}
+
+func assertRegisteredDetector(t *testing.T, registered, covered map[string]bool, id, version, scope string) {
+	t.Helper()
+	if id == "episode/" || id == "span/" || version == "" || scope == "" {
+		t.Fatalf("detector declares incomplete metadata: id=%q version=%q scope=%q", id, version, scope)
+	}
+	if registered[id] {
+		t.Fatalf("duplicate registered detector %q", id)
+	}
+	if !covered[id] {
+		t.Fatalf("registered detector %q lacks labelled corpus coverage", id)
+	}
+	registered[id] = true
+}
+
+func TestAvailabilityVocabularyRejectsAdHocStateLiterals(t *testing.T) {
+	states := "available|unavailable|degraded|unobserved|unknown|resolved|policy_absent|oversized|not_captured|external|empty|complete"
+	literal := regexp.MustCompile(`(?:State:\s*|\.State\s*(?:==|!=)\s*)"(?:` + states + `)"`)
+	paths := append(
+		goFiles(t, filepath.Join(scenarioRoot(t), "api/internal/runreport")),
+		goFiles(t, filepath.Join(scenarioRoot(t), "api/internal/runsignal"))...,
+	)
+	paths = append(paths,
+		filepath.Join(scenarioRoot(t), "api/internal/wiring/receipt_runtime.go"),
+		filepath.Join(scenarioRoot(t), "api/internal/handlers/invocation_facts.go"),
+		filepath.Join(scenarioRoot(t), "api/internal/handlers/observed_receipts.go"),
+	)
+	for _, path := range paths {
+		source, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
 		}
+		if match := literal.FindString(string(source)); match != "" {
+			rel, _ := filepath.Rel(scenarioRoot(t), path)
+			t.Fatalf("%s introduces ad-hoc availability state %q; use internal/availability constants", filepath.ToSlash(rel), match)
+		}
+	}
+}
+
+func TestDurableProjectionHasOneRuntimeWriterAndNoRetiredSchema(t *testing.T) {
+	root := scenarioRoot(t)
+	writer := filepath.Join(root, "api/internal/adapters/database/repository_invocation_read_model.go")
+	writerSource, err := os.ReadFile(writer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, table := range []string{"invocation_read_model_facts", "invocation_read_model_episodes", "invocation_read_model_self_report_spans"} {
+		for _, verb := range []string{"INSERT INTO " + table, "DELETE FROM " + table} {
+			if !strings.Contains(string(writerSource), verb) {
+				t.Fatalf("durable projection writer is missing %q", verb)
+			}
+		}
+	}
+	for _, path := range goFiles(t, filepath.Join(root, "api/internal/adapters/database")) {
+		if path == writer || strings.HasSuffix(path, "_test.go") || filepath.Base(path) == "connection.go" {
+			continue
+		}
+		source, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, table := range []string{"invocation_read_model_facts", "invocation_read_model_episodes", "invocation_read_model_self_report_spans"} {
+			if strings.Contains(string(source), "INSERT INTO "+table) || strings.Contains(string(source), "DELETE FROM "+table) {
+				rel, _ := filepath.Rel(root, path)
+				t.Fatalf("%s is a second runtime writer for %s", filepath.ToSlash(rel), table)
+			}
+		}
+	}
+	schema, err := os.ReadFile(filepath.Join(root, "api/internal/domain/schema.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, retired := range []string{"investigation_invocation_facts", "investigation_friction_episodes", "investigation_self_report_spans"} {
+		if strings.Contains(string(schema), retired) {
+			t.Fatalf("retired projection table %q remains in declarative schema", retired)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(root, "api/internal/adapters/database/repository_investigation_projection.go")); !os.IsNotExist(err) {
+		t.Fatalf("legacy investigation projection repository must be deleted, stat err=%v", err)
 	}
 }
 

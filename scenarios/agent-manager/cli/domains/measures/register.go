@@ -17,7 +17,10 @@ import (
 var windowValues = []string{"this_week", "last_7d", "last_30d", "this_month", "last_month", "this_quarter"}
 
 type (
-	rateResponse                interface{ proto.Message }
+	rateResponse interface {
+		proto.Message
+		GetValidity() *measurepb.MeasureValidity
+	}
 	rateCall[Resp rateResponse] func(measureconnect.MeasuresServiceClient, context.Context, *sharedmeasurepb.TimeWindow) (Resp, error)
 	renderer[Resp rateResponse] func(Resp) string
 )
@@ -60,6 +63,9 @@ func Register() cliapp.SubcommandGroup {
 			}
 			return response.Msg, nil
 		}, func(r *measurepb.RepeatedWorkRateResponse) string {
+			if validity := r.GetValidity(); validity != nil && validity.GetState() == "unreliable" {
+				return fmt.Sprintf("Repeated-work rate unavailable: %s (%d / %d calls)", validity.GetReason(), r.GetRepeatedCalls(), r.GetTotalCalls())
+			}
 			return fmt.Sprintf("Repeated-work rate: %.1f%% (%d / %d calls)", r.GetRate()*100, r.GetRepeatedCalls(), r.GetTotalCalls())
 		}),
 		windowMeasure("tool-failure-rate", "Show tool failure rate", func(c measureconnect.MeasuresServiceClient, ctx context.Context, window *sharedmeasurepb.TimeWindow) (*measurepb.ToolFailureRateResponse, error) {
@@ -240,6 +246,9 @@ func windowMeasure[Resp rateResponse](name, description string, call rateCall[Re
 			return call(measureconnect.NewMeasuresServiceClient(h, base), context.Background(), window)
 		},
 		func(_ cliapp.OperationContext, response Resp) cliapp.ListReport {
+			if validity := response.GetValidity(); validity != nil && validity.GetState() == "unreliable" {
+				return cliapp.ListReport{Summary: []string{"Measure unavailable: " + validity.GetReason()}}
+			}
 			return cliapp.ListReport{Summary: []string{render(response)}}
 		},
 	))

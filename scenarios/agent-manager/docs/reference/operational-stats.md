@@ -129,6 +129,41 @@ The UI:
 The same constants are used across endpoints — the threshold is a
 product judgment, not a per-card setting.
 
+## Measure classifier-validity gate
+
+Every typed measure response includes `validity`. A response is `unreliable`
+instead of a trustworthy analytical result when its sample is smaller than the
+configured meaningful minimum, or when one classifier fingerprint accounts for
+more than the configured share of the measured population. The response keeps
+its counts for diagnosis and states the reason; CLI human output does not print
+a bare repeated-work percentage in that state.
+
+The product defaults are a minimum sample of `5` and a maximum fingerprint
+bucket share of `0.90`. Operators may set
+`AGENT_MANAGER_MEASURE_MIN_SAMPLE_MEANINGFUL` and
+`AGENT_MANAGER_MEASURE_MAX_FINGERPRINT_BUCKET_SHARE` (a fraction in `(0,1]`)
+at startup. These are global analytical-honesty settings, never per-measure
+tuning knobs.
+
+## Cohort and goal-scoped investigations
+
+`agent-manager run investigate` can select durable evidence without manually
+listing run IDs. Supply exactly one scope:
+
+```bash
+# Any shared invocation-read-model predicate.
+agent-manager run investigate --filter-json '{"runnerType":"codex","goalStatus":"blocked"}' --depth quick
+
+# Every retained run associated with one imported Codex goal.
+agent-manager run investigate --goal-id <goal-id> --depth quick
+```
+
+The selection is evaluated against the same `invocationreadmodel.Filter` used
+by aggregates and cohorts. Investigations are capped at 50 runs. Their context
+records the predicate, matched-run count, and omitted-run count, so a bounded
+selection is never presented as a complete cohort. A goal with no retained
+projected runs is an empty cohort, not an inferred zero-friction result.
+
 ## See also
 
 ## Cross-scenario receipt ledger
@@ -138,9 +173,15 @@ one agent run. The ledger preserves the generic receipt envelope target,
 operation, outcome, status, duration, verifier state, and policy-governed
 projection only; it does not interpret target-specific projection keys.
 
-Projection values are bounded to sixteen keys and two KiB per receipt. The
-availability state is `available`, `empty`, `oversized`, `policy_absent`, or
-`unavailable`, so missing receipt policy is never presented as a zero result.
+Projection values are bounded to sixteen keys and two KiB per receipt. Every
+evidence surface uses the closed availability vocabulary: `available`,
+`unavailable`, `degraded`, `unobserved`, `unknown`, `resolved`,
+`policy_absent`, `oversized`, `not_captured`, `external`, `empty`, and
+`complete`. The accompanying `reason` explains non-self-evident states, so a
+missing receipt policy is never presented as a zero result. In particular,
+`unobserved` means collection was armed but found no verified receipt; `empty`
+means a policy returned no projection fields; and `policy_absent` means no
+applicable capture or projection policy exists.
 
 - [Event Taxonomy](../internal/EVENT_TAXONOMY.md) — every typed event_type, its payload, and the schema_version contract.
 

@@ -466,6 +466,19 @@ type CreateInvestigationRequest struct {
 	// triggered for a run under a shadow engagement would route its lifecycle
 	// ops to the live variant.
 	Environment map[string]string `json:"environment,omitempty"`
+	// Selection records a reproducible cohort or goal predicate resolved by the
+	// API. It is carried into the workflow context so truncation is visible to
+	// the investigator instead of silently turning into a partial cohort.
+	Selection *InvestigationSelection `json:"selection,omitempty"`
+}
+
+// InvestigationSelection describes a non-manual investigation scope after it
+// has been resolved to run IDs. Explicit run IDs leave it nil.
+type InvestigationSelection struct {
+	Kind        string                     `json:"kind"`
+	Filter      invocationreadmodel.Filter `json:"filter"`
+	MatchedRuns int                        `json:"matchedRuns"`
+	DroppedRuns int                        `json:"droppedRuns"`
 }
 
 // CreateInvestigationApplyRequest contains parameters for creating an apply run.
@@ -648,7 +661,8 @@ type Orchestrator struct {
 	// influence run execution or terminal state; reports surface its status.
 	receipts            ReceiptSummaryReader
 	findings            findings.Repository
-	invocationFacts     runreport.InvocationFactStore
+	receiptEvidence     runreport.ReceiptJoinStore
+	investigationLedger runreport.LedgerStore
 	invocationReadModel invocationreadmodel.Store
 
 	// Orchestration settings store (file-backed, hot-reloadable).
@@ -810,8 +824,12 @@ func WithFindings(repo findings.Repository) Option {
 	return func(o *Orchestrator) { o.findings = repo }
 }
 
-func WithInvocationFactStore(store runreport.InvocationFactStore) Option {
-	return func(o *Orchestrator) { o.invocationFacts = store }
+func WithReceiptEvidenceStore(store runreport.ReceiptJoinStore) Option {
+	return func(o *Orchestrator) { o.receiptEvidence = store }
+}
+
+func WithInvestigationLedgerStore(store runreport.LedgerStore) Option {
+	return func(o *Orchestrator) { o.investigationLedger = store }
 }
 
 // WithInvocationReadModel wires the independent durable analytics projection.

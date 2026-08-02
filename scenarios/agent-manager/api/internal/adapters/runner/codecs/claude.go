@@ -702,7 +702,7 @@ func parseClaudeStreamEvents(state *claudeState, runID uuid.UUID, line string) (
 		}
 		resultStr = runner.StripANSI(resultStr)
 		return []*domain.RunEvent{domain.NewToolResultEvent(
-			runID, "", "", resultStr, nil,
+			runID, "", streamEvent.ParentToolUseID, resultStr, nil,
 		)}, nil
 
 	case "error":

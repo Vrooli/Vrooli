@@ -8,6 +8,7 @@ package handlers
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -23,6 +24,7 @@ type runnerSessionSource struct {
 	RunnerType domain.RunnerType
 	Label      string
 	Root       string
+	Harness    string
 }
 
 type discoveredSession struct {
@@ -80,7 +82,7 @@ func governedRunnerSessionSources() []runnerSessionSource {
 			continue
 		}
 		base := strings.Replace(manifest.DurableData.Base, "$HOME", home, 1)
-		sources = append(sources, runnerSessionSource{definition.runner, definition.label, filepath.Join(base, entry.Path)})
+		sources = append(sources, runnerSessionSource{RunnerType: definition.runner, Label: definition.label, Root: filepath.Join(base, entry.Path), Harness: "resource:" + definition.resource + "/" + definition.entry})
 	}
 	return sources
 }
@@ -174,7 +176,11 @@ func (h *Handler) ImportRunnerSession(w http.ResponseWriter, r *http.Request) {
 		writeSimpleError(w, r, "sessionKey", "runner session is no longer available")
 		return
 	}
-	run, err := h.svc.ImportTranscript(r.Context(), orchestration.ImportTranscriptRequest{Path: path, RunnerType: source.RunnerType, Label: filepath.Base(path)})
+	sessionID, _ := readSessionIdentity(path)
+	if sessionID == "" {
+		sessionID = strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+	}
+	run, err := h.svc.ImportTranscript(r.Context(), orchestration.ImportTranscriptRequest{Path: path, RunnerType: source.RunnerType, Label: filepath.Base(path), SourceHarness: source.Harness, SourceSessionID: sessionID})
 	if err != nil {
 		writeError(w, r, err)
 		return
@@ -183,6 +189,13 @@ func (h *Handler) ImportRunnerSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func scanRunnerSessions(source runnerSessionSource, associated map[string]string) ([]discoveredSession, error) {
+	return scanRunnerSessionsLimit(source, associated, 250)
+}
+
+// scanRunnerSessionsLimit is the server-side discovery primitive. Browser
+// listing remains deliberately capped, while corpus import uses the uncapped
+// form so pagination cannot silently bias the selected evidence set.
+func scanRunnerSessionsLimit(source runnerSessionSource, associated map[string]string, limit int) ([]discoveredSession, error) {
 	if _, err := os.Stat(source.Root); err != nil {
 		return nil, err
 	}
@@ -211,10 +224,218 @@ func scanRunnerSessions(source runnerSessionSource, associated map[string]string
 		return nil
 	})
 	sort.Slice(sessions, func(i, j int) bool { return sessions[i].UpdatedAt > sessions[j].UpdatedAt })
-	if len(sessions) > 250 {
-		sessions = sessions[:250]
+	if limit > 0 && len(sessions) > limit {
+		sessions = sessions[:limit]
 	}
 	return sessions, err
+}
+
+type corpusImportRequest struct {
+	RunnerTypes []string `json:"runnerTypes"`
+	From        string   `json:"from,omitempty"`
+	To          string   `json:"to,omitempty"`
+	PerMonth    int      `json:"perMonth,omitempty"`
+	Limit       int      `json:"limit,omitempty"`
+}
+
+type corpusImportCoverage struct {
+	SelectionRule   string         `json:"selectionRule"`
+	Selected        int            `json:"selected"`
+	Imported        int            `json:"imported"`
+	AlreadyImported int            `json:"alreadyImported"`
+	Replayed        int            `json:"replayed"`
+	Unreplayable    int            `json:"unreplayable"`
+	Failed          int            `json:"failed"`
+	Skipped         map[string]int `json:"skipped"`
+}
+
+// ImportSessionCorpus adopts a bounded, reproducible sample of governed local
+// sessions. Every selected item has either an imported/existing run or a named
+// failure reason in the response: no source file is silently skipped.
+func (h *Handler) ImportSessionCorpus(w http.ResponseWriter, r *http.Request) {
+	var request corpusImportRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		writeSimpleError(w, r, "body", "invalid corpus import request")
+		return
+	}
+	from, to, err := corpusWindow(request.From, request.To)
+	if err != nil {
+		writeSimpleError(w, r, "time_window", err.Error())
+		return
+	}
+	perMonth, limit := request.PerMonth, request.Limit
+	if perMonth <= 0 {
+		perMonth = 1
+	}
+	if perMonth > 10 || limit > 100 || limit < 0 {
+		writeSimpleError(w, r, "selection", "perMonth must be 1..10 and limit must be 1..100")
+		return
+	}
+	if limit == 0 {
+		limit = 24
+	}
+	sources, invalid := corpusSources(request.RunnerTypes)
+	coverage := corpusImportCoverage{SelectionRule: fmt.Sprintf("one deterministic pathname-sorted session per runner-month (up to %d per month, %d total), round-robin by runner with each runner's months ascending", perMonth, limit), Skipped: map[string]int{}}
+	for _, runnerType := range invalid {
+		coverage.Skipped["unknown_runner:"+runnerType]++
+	}
+	candidates := make([]corpusCandidate, 0)
+	for _, source := range sources {
+		sessions, scanErr := scanRunnerSessionsLimit(source, nil, 0)
+		if scanErr != nil {
+			coverage.Skipped["source_unavailable:"+string(source.RunnerType)]++
+			continue
+		}
+		for _, session := range sessions {
+			updated, parseErr := time.Parse(time.RFC3339, session.UpdatedAt)
+			if parseErr != nil || (from != nil && updated.Before(*from)) || (to != nil && !updated.Before(*to)) {
+				continue
+			}
+			candidates = append(candidates, corpusCandidate{source: source, session: session, month: updated.UTC().Format("2006-01")})
+		}
+	}
+	selected := selectCorpusCandidates(candidates, perMonth, limit)
+	coverage.Selected = len(selected)
+	for _, candidate := range selected {
+		path, ok := safeSessionPath(candidate.source, candidate.session.Key)
+		if !ok {
+			coverage.Skipped["invalid_session_path"]++
+			continue
+		}
+		existing, lookupErr := h.svc.GetRunByImportProvenance(r.Context(), candidate.source.Harness, candidate.session.SessionID)
+		if lookupErr != nil {
+			coverage.Failed++
+			coverage.Skipped["provenance_lookup_failed"]++
+			continue
+		}
+		if existing != nil {
+			coverage.AlreadyImported++
+			continue
+		}
+		run, importErr := h.svc.ImportTranscript(r.Context(), orchestration.ImportTranscriptRequest{Path: path, RunnerType: candidate.source.RunnerType, Label: candidate.source.Label + "-corpus-" + candidate.month, SourceHarness: candidate.source.Harness, SourceSessionID: candidate.session.SessionID})
+		if importErr != nil {
+			coverage.Failed++
+			coverage.Skipped["import_failed"]++
+			continue
+		}
+		coverage.Imported++
+		replay, replayErr := h.svc.ReplayInvocationFacts(r.Context(), run.ID)
+		if replayErr != nil {
+			coverage.Failed++
+			coverage.Skipped["projection_failed"]++
+			continue
+		}
+		if replay.Status == "unreplayable" {
+			coverage.Unreplayable++
+		} else {
+			coverage.Replayed++
+		}
+	}
+	writeJSON(w, http.StatusOK, coverage)
+}
+
+type corpusCandidate struct {
+	source  runnerSessionSource
+	session discoveredSession
+	month   string
+}
+
+func corpusWindow(rawFrom, rawTo string) (*time.Time, *time.Time, error) {
+	parse := func(raw string) (*time.Time, error) {
+		if raw == "" {
+			return nil, nil
+		}
+		value, err := time.Parse(time.RFC3339, raw)
+		if err != nil {
+			return nil, fmt.Errorf("from and to must be RFC3339 timestamps")
+		}
+		return &value, nil
+	}
+	from, err := parse(rawFrom)
+	if err != nil {
+		return nil, nil, err
+	}
+	to, err := parse(rawTo)
+	if err != nil {
+		return nil, nil, err
+	}
+	if from != nil && to != nil && !from.Before(*to) {
+		return nil, nil, fmt.Errorf("from must precede to")
+	}
+	return from, to, nil
+}
+
+func corpusSources(requested []string) ([]runnerSessionSource, []string) {
+	all := governedRunnerSessionSources()
+	if len(requested) == 0 {
+		requested = []string{string(domain.RunnerTypeCodex), string(domain.RunnerTypeClaudeCode)}
+	}
+	allowed := make(map[string]bool, len(requested))
+	for _, item := range requested {
+		allowed[item] = true
+	}
+	seen := make(map[string]bool, len(requested))
+	sources := make([]runnerSessionSource, 0, len(requested))
+	for _, source := range all {
+		if allowed[string(source.RunnerType)] {
+			sources = append(sources, source)
+			seen[string(source.RunnerType)] = true
+		}
+	}
+	invalid := make([]string, 0)
+	for _, item := range requested {
+		if !seen[item] {
+			invalid = append(invalid, item)
+		}
+	}
+	return sources, invalid
+}
+
+func selectCorpusCandidates(candidates []corpusCandidate, perMonth, limit int) []corpusCandidate {
+	sort.Slice(candidates, func(i, j int) bool {
+		if candidates[i].source.RunnerType != candidates[j].source.RunnerType {
+			return candidates[i].source.RunnerType < candidates[j].source.RunnerType
+		}
+		if candidates[i].month != candidates[j].month {
+			return candidates[i].month < candidates[j].month
+		}
+		return candidates[i].session.Key < candidates[j].session.Key
+	})
+	byRunner := make(map[domain.RunnerType][]corpusCandidate)
+	runners := make([]domain.RunnerType, 0)
+	counts := map[string]int{}
+	for _, candidate := range candidates {
+		key := candidate.month + "\x00" + string(candidate.source.RunnerType)
+		if counts[key] >= perMonth {
+			continue
+		}
+		if _, exists := byRunner[candidate.source.RunnerType]; !exists {
+			runners = append(runners, candidate.source.RunnerType)
+		}
+		counts[key]++
+		byRunner[candidate.source.RunnerType] = append(byRunner[candidate.source.RunnerType], candidate)
+	}
+	// Round-robin runners rather than globally sorting all months. This keeps a
+	// long-lived store from crowding out another requested runner at the limit.
+	selected := make([]corpusCandidate, 0, limit)
+	for index := 0; len(selected) < limit; index++ {
+		added := false
+		for _, runnerType := range runners {
+			items := byRunner[runnerType]
+			if index >= len(items) {
+				continue
+			}
+			selected = append(selected, items[index])
+			added = true
+			if len(selected) == limit {
+				break
+			}
+		}
+		if !added {
+			break
+		}
+	}
+	return selected
 }
 
 func safeSessionPath(source runnerSessionSource, key string) (string, bool) {

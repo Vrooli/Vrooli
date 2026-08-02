@@ -217,6 +217,7 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 		AttachmentIDs []string          `json:"attachmentIds,omitempty"`
 		RoleRef       string            `json:"roleRef,omitempty"`
 		Environment   map[string]string `json:"environment,omitempty"`
+		GoalID        string            `json:"goalId,omitempty"`
 		Selector      *struct {
 			Filter invocationreadmodel.Filter `json:"filter"`
 			Limit  int                        `json:"limit,omitempty"`
@@ -231,8 +232,18 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if len(req.RunIDs) > 0 && req.Selector != nil {
-		writeSimpleError(w, r, "selector", "provide either runIds or selector, not both")
+	selectionCount := 0
+	if len(req.RunIDs) > 0 {
+		selectionCount++
+	}
+	if req.Selector != nil {
+		selectionCount++
+	}
+	if strings.TrimSpace(req.GoalID) != "" {
+		selectionCount++
+	}
+	if selectionCount > 1 {
+		writeSimpleError(w, r, "selection", "provide exactly one of runIds, selector, or goalId")
 		return
 	}
 	runIDs := make([]uuid.UUID, 0, len(req.RunIDs))
@@ -244,20 +255,34 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 		}
 		runIDs = append(runIDs, id)
 	}
-	if req.Selector != nil {
-		limit := req.Selector.Limit
-		if limit <= 0 {
-			limit = 100
+	var selection *orchestration.InvestigationSelection
+	if req.Selector != nil || strings.TrimSpace(req.GoalID) != "" {
+		filter := invocationreadmodel.Filter{}
+		kind := "goal"
+		if req.Selector != nil {
+			filter = req.Selector.Filter
+			kind = "cohort"
 		}
-		cohort, err := h.svc.SelectInvocationCohort(r.Context(), req.Selector.Filter, limit)
+		if goalID := strings.TrimSpace(req.GoalID); goalID != "" {
+			filter.GoalID = goalID
+		}
+		limit := 50
+		if req.Selector != nil {
+			limit = req.Selector.Limit
+		}
+		if limit <= 0 {
+			limit = 50
+		}
+		if limit > 50 {
+			writeSimpleError(w, r, "selector.limit", "investigations are capped at 50 runs")
+			return
+		}
+		cohort, err := h.svc.SelectInvocationCohort(r.Context(), filter, limit)
 		if err != nil {
 			writeError(w, r, err)
 			return
 		}
-		if cohort.Truncated {
-			writeSimpleError(w, r, "selector.limit", "selector matched more runs than its limit; refine the selector or raise the limit")
-			return
-		}
+		selection = &orchestration.InvestigationSelection{Kind: kind, Filter: filter, MatchedRuns: cohort.MatchedRuns, DroppedRuns: cohort.DroppedRuns}
 		for _, idStr := range cohort.RunIDs {
 			id, err := uuid.Parse(idStr)
 			if err != nil {
@@ -284,6 +309,7 @@ func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request)
 		AttachmentIDs: req.AttachmentIDs,
 		RoleRef:       optionalTrimmedString(req.RoleRef),
 		Environment:   req.Environment,
+		Selection:     selection,
 	})
 	if err != nil {
 		writeError(w, r, err)

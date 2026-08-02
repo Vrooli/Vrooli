@@ -431,6 +431,9 @@ func TestClaude_DecodeStreamLine_UserToolResult(t *testing.T) {
 		t.Errorf("type=%s want tool_result", events[0].EventType)
 	}
 	r := events[0].Data.(*domain.ToolResultEventData)
+	if r.ToolCallID != "toolu_01KKEKfCADiJJApRkJF86t8R" {
+		t.Errorf("toolCallID=%q", r.ToolCallID)
+	}
 	if r.Output != "File created successfully at: /tmp/test-sample.txt" {
 		t.Errorf("output=%q", r.Output)
 	}

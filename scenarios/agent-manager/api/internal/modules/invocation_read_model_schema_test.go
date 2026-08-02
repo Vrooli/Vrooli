@@ -10,7 +10,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func TestInvocationReadModelSchemaPreservesLegacyFactsAndUsesAggregateIndexes(t *testing.T) {
+func TestInvocationReadModelSchemaOmitsRetiredProjectionTablesAndUsesAggregateIndexes(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	db, err := sqlx.Connect("sqlite", "file:invocation-read-model-schema?mode=memory&cache=shared")
@@ -19,29 +19,14 @@ func TestInvocationReadModelSchemaPreservesLegacyFactsAndUsesAggregateIndexes(t 
 	}
 	defer db.Close()
 
-	if _, err := db.Exec(`CREATE TABLE investigation_invocation_facts (
-		run_id TEXT NOT NULL, call_event_id TEXT NOT NULL, result_event_id TEXT,
-		tool_call_id TEXT, tool_name TEXT NOT NULL, executable TEXT, command_path TEXT,
-		ownership TEXT NOT NULL, catalog_snapshot TEXT, outcome TEXT NOT NULL,
-		retry_of_call_event_id TEXT, help_recovery INTEGER NOT NULL DEFAULT 0,
-		fingerprint TEXT NOT NULL, availability TEXT NOT NULL, classifier_version TEXT NOT NULL,
-		PRIMARY KEY (run_id, call_event_id)
-	)`); err != nil {
-		t.Fatalf("create legacy facts: %v", err)
-	}
-	if _, err := db.Exec(`INSERT INTO investigation_invocation_facts (run_id, call_event_id, tool_name, ownership, outcome, fingerprint, availability, classifier_version) VALUES ('run-1', 'event-1', 'shell', 'external', 'success', 'fingerprint', 'available', 'invocation-fact.v1')`); err != nil {
-		t.Fatalf("seed legacy facts: %v", err)
-	}
 	if err := coredb.EnsureSchemas(ctx, db, AllSchemas()...); err != nil {
-		t.Fatalf("apply schemas over legacy facts: %v", err)
+		t.Fatalf("apply schemas: %v", err)
 	}
-
-	var legacyCount int
-	if err := db.Get(&legacyCount, `SELECT COUNT(*) FROM investigation_invocation_facts`); err != nil {
-		t.Fatalf("read legacy facts: %v", err)
-	}
-	if legacyCount != 1 {
-		t.Fatalf("legacy facts changed during schema application: got %d, want 1", legacyCount)
+	for _, table := range []string{"investigation_invocation_facts", "investigation_friction_episodes", "investigation_self_report_spans"} {
+		var count int
+		if err := db.Get(&count, `SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?`, table); err != nil || count != 0 {
+			t.Fatalf("retired projection table %s present: count=%d err=%v", table, count, err)
+		}
 	}
 
 	for _, tc := range []struct {

@@ -32,3 +32,8 @@ Fixture maintenance rules:
    support merely to make a resolver decisive.
 4. Every new resolver rule needs at least one selecting case and one
    ambiguity/abstention case.
+5. Run `go test ./internal/adapters/runner/codecs/...` before committing a
+   transcript fixture. The committed-fixture gate rejects credentials,
+   passwords, tokens, API keys, and absolute home paths. Use
+   `go run ./cmd/harvest-replay` for sourced corpus candidates, then inspect
+   the redacted result before commit.

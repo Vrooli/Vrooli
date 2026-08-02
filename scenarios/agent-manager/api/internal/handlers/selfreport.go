@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	"agent-manager/internal/runreport"
+	"agent-manager/internal/runsignal"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
@@ -21,6 +21,6 @@ func (h *Handler) GetMessageFriction(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, struct {
 		ClassifierVersion string                     `json:"classifierVersion"`
-		Spans             []runreport.SelfReportSpan `json:"spans"`
-	}{runreport.SelfReportClassifierVersion, spans})
+		Spans             []runsignal.SelfReportSpan `json:"spans"`
+	}{runsignal.SelfReportClassifierVersion, spans})
 }

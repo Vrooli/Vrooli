@@ -9,10 +9,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/codexgoals"
 	"agent-manager/internal/domain"
-	"agent-manager/internal/runreport"
+	"agent-manager/internal/invocationreadmodel"
+	"agent-manager/internal/runsignal"
 	"agent-manager/internal/runstate"
 
 	"github.com/google/uuid"
@@ -21,10 +25,17 @@ import (
 // ImportTranscriptRequest adopts a newline-delimited harness transcript as a
 // terminal read-only run. The caller's file is never parsed in place.
 type ImportTranscriptRequest struct {
-	Path       string
-	RunnerType domain.RunnerType
-	Label      string
+	Path            string
+	RunnerType      domain.RunnerType
+	Label           string
+	SourceHarness   string
+	SourceSessionID string
+	// GoalSessionHome optionally locates the source Codex accounting store.
+	// It is an import-only, read-only provenance hint; empty uses ~/.codex.
+	GoalSessionHome string
 }
+
+var importedTranscriptTaskID = uuid.NewSHA1(uuid.NameSpaceURL, []byte("agent-manager/imported-transcripts"))
 
 // ImportTranscript copies, parses, and persists an external transcript using
 // the same parser and event store as restart recovery.
@@ -32,6 +43,15 @@ func (o *Orchestrator) ImportTranscript(ctx context.Context, req ImportTranscrip
 	path := strings.TrimSpace(req.Path)
 	if path == "" {
 		return nil, fmt.Errorf("transcript path is required")
+	}
+	if req.SourceHarness != "" && req.SourceSessionID != "" {
+		existing, err := o.runs.GetByImportProvenance(ctx, req.SourceHarness, req.SourceSessionID)
+		if err != nil {
+			return nil, fmt.Errorf("lookup imported transcript: %w", err)
+		}
+		if existing != nil {
+			return existing, nil
+		}
 	}
 	source, err := os.Open(path)
 	if err != nil {
@@ -58,7 +78,11 @@ func (o *Orchestrator) ImportTranscript(ctx context.Context, req ImportTranscrip
 		return nil, err
 	}
 	now := o.now()
-	run := &domain.Run{ID: uuid.New(), Tag: "agent-manager-imported", RunMode: domain.RunModeInPlace, ExecutionMode: domain.ExecutionModeImported, Status: domain.RunStatusFailed, ResolvedConfig: &domain.RunConfig{RunnerType: runnerType, ManifestIndexSnapshot: runreport.CurrentCatalogSnapshot()}}
+	task, err := o.ensureImportedTranscriptTask(ctx)
+	if err != nil {
+		return nil, err
+	}
+	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Tag: "agent-manager-imported", RunMode: domain.RunModeInPlace, ExecutionMode: domain.ExecutionModeImported, Status: domain.RunStatusFailed, ResolvedConfig: &domain.RunConfig{RunnerType: runnerType, ManifestIndexSnapshot: runsignal.CurrentCatalogSnapshot()}, ImportSourceHarness: req.SourceHarness, ImportSourceSessionID: req.SourceSessionID, ImportedAt: &now}
 	if strings.TrimSpace(req.Label) != "" {
 		run.Tag = "agent-manager-imported-" + strings.TrimSpace(req.Label)
 	}
@@ -85,7 +109,16 @@ func (o *Orchestrator) ImportTranscript(ctx context.Context, req ImportTranscrip
 	if err != nil {
 		return nil, fmt.Errorf("parse imported transcript: %w", err)
 	}
-	run.EndedAt, run.StartedAt = &now, &now
+	// Imported transcripts are historical evidence. Preserve their event window
+	// as the run lifecycle so duration and time accounting describe the original
+	// session rather than the instant it happened to be imported.
+	if events, getErr := o.events.Get(ctx, run.ID, event.GetOptions{AfterSequence: -1, Limit: 100000}); getErr != nil {
+		return nil, fmt.Errorf("read imported event window: %w", getErr)
+	} else if started, ended, ok := eventWindow(events); ok {
+		run.StartedAt, run.EndedAt = &started, &ended
+	} else {
+		run.EndedAt, run.StartedAt = &now, &now
+	}
 	if terminal != nil && terminal.Success {
 		run.Status = domain.RunStatusComplete
 		run.ExitCode = intPtr(terminal.ExitCode)
@@ -97,7 +130,83 @@ func (o *Orchestrator) ImportTranscript(ctx context.Context, req ImportTranscrip
 	if err := o.runs.Update(ctx, run); err != nil {
 		return nil, err
 	}
+	// The external goal store is a rolling snapshot. Project first to create
+	// the durable run summary, then retain its current accounting beside it.
+	// Missing and unreadable optional stores must never reject an import.
+	if err := o.projectInvocationReadModel(ctx, run); err != nil {
+		return nil, fmt.Errorf("project imported transcript: %w", err)
+	}
+	if runnerType == domain.RunnerTypeCodex && run.SessionID != "" {
+		home := req.GoalSessionHome
+		if home == "" {
+			home, _ = defaultCodexSessionHome()
+		}
+		if home != "" {
+			if goal, goalErr := codexgoals.Read(ctx, home, run.SessionID); goalErr == nil && goal != nil {
+				if store, ok := o.invocationReadModel.(invocationreadmodel.GoalOutcomeStore); ok {
+					if err := store.ReplaceGoalOutcome(ctx, invocationreadmodel.GoalOutcome{RunID: run.ID.String(), GoalID: goal.GoalID, Status: goal.Status, TokenBudget: goal.TokenBudget, TokensUsed: goal.TokensUsed, TimeUsedSeconds: goal.TimeUsedSeconds}); err != nil {
+						return nil, err
+					}
+				}
+			}
+		}
+	}
 	return o.attachRunActions(ctx, run), nil
+}
+
+func defaultCodexSessionHome() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, ".codex"), nil
+}
+
+func eventWindow(events []*domain.RunEvent) (time.Time, time.Time, bool) {
+	var started, ended time.Time
+	for _, item := range events {
+		if item == nil || item.Timestamp.IsZero() {
+			continue
+		}
+		if started.IsZero() || item.Timestamp.Before(started) {
+			started = item.Timestamp
+		}
+		if ended.IsZero() || item.Timestamp.After(ended) {
+			ended = item.Timestamp
+		}
+	}
+	return started, ended, !started.IsZero() && !ended.IsZero()
+}
+
+// ensureImportedTranscriptTask creates one durable, clearly labelled task for
+// external evidence. Runs still retain ExecutionModeImported and their import
+// tag, so consumers can distinguish them from Agent Manager executions without
+// inventing an invalid task-less run shape.
+func (o *Orchestrator) ensureImportedTranscriptTask(ctx context.Context) (*domain.Task, error) {
+	task, err := o.tasks.Get(ctx, importedTranscriptTaskID)
+	if err != nil {
+		return nil, fmt.Errorf("get imported transcript task: %w", err)
+	}
+	if task != nil {
+		return task, nil
+	}
+	task = &domain.Task{
+		ID:          importedTranscriptTaskID,
+		Title:       "Imported external transcripts",
+		Description: "Durable synthetic task that owns read-only imported coding-agent transcript runs.",
+		ScopePath:   ".",
+		CreatedBy:   "agent-manager-import",
+	}
+	if _, err := o.CreateTask(ctx, task); err != nil {
+		// A concurrent importer may have won creation. Read once to preserve a
+		// stable task rather than exposing an avoidable uniqueness error.
+		existing, getErr := o.tasks.Get(ctx, importedTranscriptTaskID)
+		if getErr == nil && existing != nil {
+			return existing, nil
+		}
+		return nil, fmt.Errorf("create imported transcript task: %w", err)
+	}
+	return task, nil
 }
 
 func (o *Orchestrator) detectTranscriptRunner(source *os.File, requested domain.RunnerType) (domain.RunnerType, error) {

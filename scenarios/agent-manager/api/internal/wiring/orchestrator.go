@@ -30,7 +30,6 @@ import (
 	"agent-manager/internal/promptmanager"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/rolepolicy"
-	"agent-manager/internal/runreport"
 	"agent-manager/internal/runstate"
 	"agent-manager/internal/stats"
 	"agent-manager/internal/storage"
@@ -41,8 +40,6 @@ import (
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/filerouting"
-	eventspb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // OrchestratorDependencies is the runtime service graph assembled by the
@@ -86,11 +83,6 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	}
 	bootLog.Info("using SQLite persistence")
 	repos := database.NewRepositories(db, logger)
-	if migrated, migrationErr := repos.MigrateInvocationReadModel(context.Background()); migrationErr != nil {
-		bootLog.Warn("legacy invocation-fact migration deferred", obs.KeyError, migrationErr.Error())
-	} else if migrated > 0 {
-		bootLog.Info("migrated legacy invocation facts", "count", migrated)
-	}
 	eventStore := event.NewSQLiteStore(db, logger)
 
 	rolePolicyPath := rolepolicy.ResolvePath()
@@ -193,45 +185,11 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		receiptsBaseURL, _ = discovery.ResolveScenarioURLDefault(context.Background(), "vrooli-events")
 	}
 	receiptsClient := eventbus.Client{BaseURL: receiptsBaseURL}
-	receiptReader := orchestration.ReceiptSummaryReaderFunc(func(ctx context.Context, id uuid.UUID) (runreport.ReceiptSummary, error) {
-		if !receiptsClient.Enabled() {
-			return runreport.ReceiptSummary{State: "unavailable", Detail: "vrooli-events observations are not configured"}, nil
-		}
-		observations, err := receiptsClient.ReceiptQuery(ctx, id.String(), 100)
-		if err != nil {
-			return runreport.ReceiptSummary{}, err
-		}
-		verified := 0
-		eventIDs := []string{}
-		calls := []runreport.CrossScenarioCall{}
-		for _, raw := range observations {
-			envelope := &eventspb.EventEnvelope{}
-			if protojson.Unmarshal(raw, envelope) != nil || envelope.EventType != eventbus.ReceiptEventType || envelope.Correlation == nil || envelope.Correlation.AgentRunId != id.String() {
-				continue
-			}
-			call := runreport.CrossScenarioCall{TargetScenario: envelope.GetTarget().GetScenario(), Operation: envelope.GetTarget().GetOperation(), ReceiptEventID: envelope.EventId, Verified: envelope.GetAttribution() != nil && envelope.GetAttribution().GetVerified()}
-			if occurredAt := envelope.GetOccurredAt(); occurredAt != nil {
-				call.OccurredAt = occurredAt.AsTime()
-			}
-			receipt := &eventspb.ReceiptData{}
-			if envelope.GetData() != nil && envelope.GetData().UnmarshalTo(receipt) == nil {
-				call.Outcome, call.StatusCode, call.DurationMS = receipt.GetOutcome(), receipt.GetStatusCode(), receipt.GetDurationMs()
-				call.PolicyVersion = receipt.GetPolicyVersion()
-				if receipt.GetProjection() != nil {
-					call.Projection, call.ProjectionDropCount = runreport.BoundProjection(receipt.GetProjection().AsMap())
-				}
-			}
-			calls = append(calls, call)
-			if call.Verified {
-				verified++
-				eventIDs = append(eventIDs, envelope.EventId)
-			}
-		}
-		if verified == 0 {
-			return runreport.ReceiptSummary{State: "unobserved", Detail: "no verified receipts correlated to this run", Calls: calls}, nil
-		}
-		return runreport.ReceiptSummary{State: "available", Count: verified, EventIDs: eventIDs, Calls: calls}, nil
-	})
+	receiptTargets, receiptTargetsErr := declaredReceiptTargets(receiptCaptureDeclarationPath())
+	if receiptTargetsErr != nil {
+		bootLog.Warn("receipt capture declaration unavailable", obs.KeyError, receiptTargetsErr.Error())
+	}
+	receiptReader := newReceiptSummaryReader(receiptsClient, receiptTargets, productionReceiptRuntimeReader)
 	opts := []orchestration.Option{
 		orchestration.WithConfig(orchConfig), orchestration.WithEvents(eventStore), orchestration.WithRunners(registry), orchestration.WithSandbox(sandboxProvider),
 		orchestration.WithWorkspaceSandboxEnsurer(workspaceEnsurer), orchestration.WithCheckpoints(repos.Checkpoints), orchestration.WithIdempotency(repos.Idempotency),
@@ -240,7 +198,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		orchestration.WithStructuredExtractor(extractor), orchestration.WithHealthStore(healthStore), orchestration.WithInvestigationSettings(repos.InvestigationSettings),
 		orchestration.WithPromptClient(promptmanager.NewHTTPClient()), orchestration.WithFlagValidator(flagValidator), orchestration.WithAttachmentStorage(uploads),
 		orchestration.WithOrchestrationSettings(settingsStore), orchestration.WithIdentitySecret(identitySecret), orchestration.WithSpawnDispatcher(spawnDispatcher),
-		orchestration.WithRunStateRootResolver(runStateResolver), orchestration.WithArtifacts(artifactCollector), orchestration.WithReceiptSummaryReader(receiptReader), orchestration.WithFindings(repos.Findings), orchestration.WithInvocationFactStore(repos.InvocationFacts), orchestration.WithInvocationReadModel(repos.InvocationReadModel),
+		orchestration.WithRunStateRootResolver(runStateResolver), orchestration.WithArtifacts(artifactCollector), orchestration.WithReceiptSummaryReader(receiptReader), orchestration.WithFindings(repos.Findings), orchestration.WithReceiptEvidenceStore(repos.ReceiptEvidence), orchestration.WithInvestigationLedgerStore(repos.InvestigationLedger), orchestration.WithInvocationReadModel(repos.InvocationReadModel),
 	}
 	if interactiveSessions != nil {
 		opts = append(opts, orchestration.WithInteractiveSessions(interactiveSessions), orchestration.WithWebConsoleUIBase(webconsole.ResolveUIBaseURL()))

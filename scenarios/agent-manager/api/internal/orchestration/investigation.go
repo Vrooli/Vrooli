@@ -13,6 +13,7 @@ import (
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/findings"
+	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/runreport"
 
 	"github.com/google/uuid"
@@ -102,6 +103,33 @@ func buildInvestigationMetadataAttachment(runIDs []uuid.UUID, depth domain.Inves
 	}
 }
 
+// buildInvestigationSelectionAttachment makes a selected cohort auditable in
+// the agent's input. An over-large cohort must never look complete merely
+// because only its bounded prefix was attached.
+func buildInvestigationSelectionAttachment(selection *InvestigationSelection) *domain.ContextAttachment {
+	if selection == nil {
+		return nil
+	}
+	content := fmt.Sprintf("**Selection kind**: %s\n**Matched runs**: %d\n**Investigated runs**: %d\n",
+		selection.Kind, selection.MatchedRuns, selection.MatchedRuns-selection.DroppedRuns)
+	if selection.DroppedRuns > 0 {
+		content += fmt.Sprintf("**Truncated**: yes — %d matching run(s) were not attached due to the 50-run investigation bound. Refine the filter before treating this as a complete cohort.\n", selection.DroppedRuns)
+	} else {
+		content += "**Truncated**: no\n"
+	}
+	filter, err := json.Marshal(selection.Filter)
+	if err == nil {
+		content += "**Reproducible filter**: " + string(filter) + "\n"
+	}
+	attachment := domain.ContextAttachment{
+		Type: "note", Key: "investigation-selection", Label: "Investigation Selection",
+		Content: content, Format: "markdown", Priority: "high",
+		Summary: "Resolved cohort or goal selection, including any bounded omissions",
+		Tags:    []string{"cohort", "selection", "investigation"},
+	}
+	return &attachment
+}
+
 // CreateInvestigationRun creates a new investigation run for the given run IDs.
 func (o *Orchestrator) CreateInvestigationRun(
 	ctx context.Context,
@@ -145,6 +173,9 @@ func (o *Orchestrator) CreateInvestigationRun(
 	// Add investigation metadata attachment (depth, run IDs, etc.)
 	metadataAttachment := buildInvestigationMetadataAttachment(req.RunIDs, depth, o.now())
 	attachments = append([]domain.ContextAttachment{metadataAttachment}, attachments...)
+	if selectionAttachment := buildInvestigationSelectionAttachment(req.Selection); selectionAttachment != nil {
+		attachments = append([]domain.ContextAttachment{*selectionAttachment}, attachments...)
+	}
 
 	// Add investigation context attachment (explicit project root and scope paths)
 	investigationCtx := buildInvestigationContextAttachment(projectRoot, req.ScopePaths, req.RunIDs)
@@ -160,12 +191,16 @@ func (o *Orchestrator) CreateInvestigationRun(
 	for i, id := range req.RunIDs {
 		runIDs[i] = id.String()
 	}
-	input, err := json.Marshal(map[string]any{
+	workflowInput := map[string]any{
 		"context":     renderedContext,
 		"depth":       string(depth),
 		"runIds":      runIDs,
 		"projectRoot": projectRoot,
-	})
+	}
+	if req.Selection != nil {
+		workflowInput["selection"] = req.Selection
+	}
+	input, err := json.Marshal(workflowInput)
 	if err != nil {
 		return nil, err
 	}
@@ -215,6 +250,15 @@ func (o *Orchestrator) CreateInvestigationApplyRun(
 	if executionID == uuid.Nil {
 		return nil, domain.NewValidationError("investigationRunId", "run is not part of an investigation workflow")
 	}
+	execution, err := o.workflowExecutions.Get(ctx, executionID)
+	if err != nil {
+		return nil, err
+	}
+	// A normal terminal nudge persists findings before the workflow reaches the
+	// approval wait. Reconcile it here as well so a restart between terminal
+	// result capture and that nudge cannot make an otherwise valid apply operate
+	// on an empty finding set.
+	o.persistInvestigationFindings(ctx, execution)
 
 	decision := strings.TrimSpace(req.Decision)
 	if decision == "" {
@@ -223,6 +267,24 @@ func (o *Orchestrator) CreateInvestigationApplyRun(
 	if o.findings != nil {
 		if err := o.findings.SetDecision(ctx, investigationRunID, decision); err != nil {
 			return nil, err
+		}
+		if decision == "completed" {
+			items, listErr := o.findings.List(ctx, findings.Filter{RunID: nil, Limit: 1000})
+			if listErr != nil {
+				return nil, listErr
+			}
+			for _, item := range items {
+				if item.InvestigationRunID != investigationRunID {
+					continue
+				}
+				before, measureErr := o.findingRecurrenceRate(ctx)
+				if measureErr != nil {
+					return nil, measureErr
+				}
+				if err := o.findings.SetEffectiveness(ctx, item.ID, before, nil, "not_yet_measurable", item.FrictionTopic); err != nil {
+					return nil, err
+				}
+			}
 		}
 	}
 
@@ -244,14 +306,19 @@ func (o *Orchestrator) CreateInvestigationApplyRun(
 		return nil, err
 	}
 
-	if _, err = o.SignalWorkflowExecution(ctx, WorkflowExecutionSignalRequest{
+	operation, err := o.SignalWorkflowExecution(ctx, WorkflowExecutionSignalRequest{
 		ExecutionID:    executionID,
 		Signal:         investigationApprovalSignal,
 		Payload:        payload,
 		IdempotencyKey: "investigation-approval/" + executionID.String(),
-	}); err != nil {
+	})
+	if err != nil {
 		return nil, err
 	}
+	// An idempotent retry may observe an apply node that already settled before
+	// the asynchronous terminal nudge ran. Measure from the returned durable
+	// execution as well, so recovery is deterministic rather than timing-based.
+	o.measureAppliedFindings(ctx, operation.Execution, investigationRunID)
 
 	// Only the "completed" decision launches an apply run; rejection/abstention
 	// terminate the workflow, so we hand the investigation run back unchanged.
@@ -264,6 +331,24 @@ func (o *Orchestrator) CreateInvestigationApplyRun(
 		return nil, err
 	}
 	return o.attachRunActions(ctx, applyRun), nil
+}
+
+// findingRecurrenceRate reads the exact durable measure named on each
+// investigation finding. An empty or unavailable projection remains honestly
+// not-yet-measurable rather than substituting a finding-count proxy.
+func (o *Orchestrator) findingRecurrenceRate(ctx context.Context) (*float64, error) {
+	if o.invocationReadModel == nil {
+		return nil, nil
+	}
+	metrics, err := o.invocationReadModel.FindingMetrics(ctx, invocationreadmodel.Filter{})
+	if err != nil {
+		return nil, err
+	}
+	if metrics.TotalFindings == 0 {
+		return nil, nil
+	}
+	value := metrics.RecurrenceRate
+	return &value, nil
 }
 
 // workflowNodeRun resolves the run dispatched for the newest attempt of the

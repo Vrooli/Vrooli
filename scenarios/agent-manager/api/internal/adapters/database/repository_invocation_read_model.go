@@ -3,20 +3,23 @@ package database
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"agent-manager/internal/invocationreadmodel"
+	"agent-manager/internal/runsignal"
 )
 
 type invocationReadModelRepository struct{ db *DB }
 
 var (
-	_ invocationreadmodel.Store           = (*invocationReadModelRepository)(nil)
-	_ invocationreadmodel.RunStore        = (*invocationReadModelRepository)(nil)
-	_ invocationreadmodel.ProjectionStore = (*invocationReadModelRepository)(nil)
+	_ invocationreadmodel.Store            = (*invocationReadModelRepository)(nil)
+	_ invocationreadmodel.RunStore         = (*invocationReadModelRepository)(nil)
+	_ invocationreadmodel.GoalOutcomeStore = (*invocationReadModelRepository)(nil)
+	_ invocationreadmodel.ProjectionStore  = (*invocationReadModelRepository)(nil)
 )
 
 func nullableSQLiteTime(value *time.Time) any {
@@ -30,6 +33,38 @@ func (r *invocationReadModelRepository) ReplaceRun(ctx context.Context, fact inv
 	return replaceRunTx(ctx, r.db, fact)
 }
 
+func (r *invocationReadModelRepository) ReplaceGoalOutcome(ctx context.Context, goal invocationreadmodel.GoalOutcome) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE invocation_read_model_runs SET goal_id=?,goal_status=?,goal_token_budget=?,goal_tokens_used=?,goal_time_used_seconds=? WHERE run_id=?`, goal.GoalID, goal.Status, goal.TokenBudget, goal.TokensUsed, goal.TimeUsedSeconds, goal.RunID)
+	if err != nil {
+		return fmt.Errorf("persist goal outcome: %w", err)
+	}
+	return nil
+}
+
+func (r *invocationReadModelRepository) GoalOutcome(ctx context.Context, runID string) (*invocationreadmodel.GoalOutcome, error) {
+	var row struct {
+		RunID           string        `db:"run_id"`
+		GoalID          string        `db:"goal_id"`
+		Status          string        `db:"goal_status"`
+		TokenBudget     sql.NullInt64 `db:"goal_token_budget"`
+		TokensUsed      int64         `db:"goal_tokens_used"`
+		TimeUsedSeconds int64         `db:"goal_time_used_seconds"`
+	}
+	err := r.db.GetContext(ctx, &row, `SELECT run_id,goal_id,goal_status,goal_token_budget,goal_tokens_used,goal_time_used_seconds FROM invocation_read_model_runs WHERE run_id=? AND goal_id<>''`, runID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	out := &invocationreadmodel.GoalOutcome{RunID: row.RunID, GoalID: row.GoalID, Status: row.Status, TokensUsed: row.TokensUsed, TimeUsedSeconds: row.TimeUsedSeconds}
+	if row.TokenBudget.Valid {
+		value := row.TokenBudget.Int64
+		out.TokenBudget = &value
+	}
+	return out, nil
+}
+
 type sqlExecutor interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
 }
@@ -41,7 +76,19 @@ func replaceRunTx(ctx context.Context, executor sqlExecutor, fact invocationread
 	if _, err := executor.ExecContext(ctx, `INSERT INTO invocation_read_model_run_signals (run_id,read_calls,files_read_more_than_once) VALUES (?,?,?) ON CONFLICT(run_id) DO UPDATE SET read_calls=excluded.read_calls,files_read_more_than_once=excluded.files_read_more_than_once`, fact.RunID, fact.ReadCalls, fact.FileRereads); err != nil {
 		return fmt.Errorf("upsert run read-model signals: %w", err)
 	}
+	if _, err := executor.ExecContext(ctx, `INSERT INTO invocation_read_model_time_accounting (run_id,model_generating_ms,tool_executing_ms,idle_waiting_ms,awaiting_human_ms,unattributable_ms,model_tokens,tool_tokens,idle_tokens,human_tokens,unattributable_tokens) VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(run_id) DO UPDATE SET model_generating_ms=excluded.model_generating_ms,tool_executing_ms=excluded.tool_executing_ms,idle_waiting_ms=excluded.idle_waiting_ms,awaiting_human_ms=excluded.awaiting_human_ms,unattributable_ms=excluded.unattributable_ms,model_tokens=excluded.model_tokens,tool_tokens=excluded.tool_tokens,idle_tokens=excluded.idle_tokens,human_tokens=excluded.human_tokens,unattributable_tokens=excluded.unattributable_tokens`, fact.RunID, fact.TimeAccounting.ModelGeneratingMS, fact.TimeAccounting.ToolExecutingMS, fact.TimeAccounting.IdleWaitingMS, fact.TimeAccounting.AwaitingHumanMS, fact.TimeAccounting.UnattributableMS, fact.TimeAccounting.ModelTokens, fact.TimeAccounting.ToolTokens, fact.TimeAccounting.IdleTokens, fact.TimeAccounting.HumanTokens, fact.TimeAccounting.UnattributableTokens); err != nil {
+		return fmt.Errorf("upsert run time accounting: %w", err)
+	}
 	return nil
+}
+
+func (r *invocationReadModelRepository) TimeAccountingForRun(ctx context.Context, runID string) (runsignal.TimeAccounting, bool, error) {
+	var value runsignal.TimeAccounting
+	err := r.db.GetContext(ctx, &value, `SELECT model_generating_ms,tool_executing_ms,idle_waiting_ms,awaiting_human_ms,unattributable_ms,model_tokens,tool_tokens,idle_tokens,human_tokens,unattributable_tokens FROM invocation_read_model_time_accounting WHERE run_id=?`, runID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return value, false, nil
+	}
+	return value, err == nil, err
 }
 
 func (r *invocationReadModelRepository) Replace(ctx context.Context, facts []invocationreadmodel.Fact, watermark invocationreadmodel.Watermark) error {
@@ -65,7 +112,7 @@ func (r *invocationReadModelRepository) Replace(ctx context.Context, facts []inv
 	return nil
 }
 
-func (r *invocationReadModelRepository) ReplaceProjection(ctx context.Context, facts []invocationreadmodel.Fact, errors []invocationreadmodel.ErrorFact, watermark invocationreadmodel.Watermark, run invocationreadmodel.RunFact) error {
+func (r *invocationReadModelRepository) ReplaceProjection(ctx context.Context, facts []invocationreadmodel.Fact, errors []invocationreadmodel.ErrorFact, episodes []invocationreadmodel.Episode, spans []invocationreadmodel.SelfReportSpan, watermark invocationreadmodel.Watermark, run invocationreadmodel.RunFact) error {
 	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return err
@@ -85,10 +132,48 @@ func (r *invocationReadModelRepository) ReplaceProjection(ctx context.Context, f
 	if err = replaceErrorsTx(ctx, tx, errors, watermark.RunID); err != nil {
 		return err
 	}
+	if err = replaceEpisodesTx(ctx, tx, episodes, watermark.RunID); err != nil {
+		return err
+	}
+	if err = replaceSelfReportSpansTx(ctx, tx, spans, watermark.RunID); err != nil {
+		return err
+	}
 	if err = tx.Commit(); err != nil {
 		return err
 	}
 	committed = true
+	return nil
+}
+
+func replaceEpisodesTx(ctx context.Context, executor sqlExecutor, episodes []invocationreadmodel.Episode, runID string) error {
+	if _, err := executor.ExecContext(ctx, `DELETE FROM invocation_read_model_episodes WHERE run_id = ?`, runID); err != nil {
+		return fmt.Errorf("clear read-model episodes: %w", err)
+	}
+	for _, episode := range episodes {
+		honesty, err := json.Marshal(episode.HonestyFlags)
+		if err != nil {
+			return fmt.Errorf("encode episode honesty flags: %w", err)
+		}
+		evidence, err := json.Marshal(episode.EvidenceEventIDs)
+		if err != nil {
+			return fmt.Errorf("encode episode evidence ids: %w", err)
+		}
+		if _, err := executor.ExecContext(ctx, `INSERT INTO invocation_read_model_episodes (run_id,episode_id,occurred_at,time_basis,classifier_version,pattern,cause_scope,severity,honesty_flags_json,start_event_id,end_event_id,evidence_event_ids_json,turns,cycle_count,repeated_element,tokens,wall_clock_ms,suspected_owner_scenario,suspected_owner_command,owner_confidence,failed_joined_calls,fingerprint,profile_id,runner_type,model,tag,run_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, episode.RunID, episode.EpisodeID, SQLiteTime(episode.OccurredAt), episode.TimeBasis, episode.ClassifierVersion, episode.Pattern, episode.CauseScope, episode.Severity, string(honesty), episode.StartEventID, episode.EndEventID, string(evidence), episode.Turns, episode.CycleCount, episode.RepeatedElement, episode.Tokens, episode.WallClockMS, episode.SuspectedOwnerScenario, episode.SuspectedOwnerCommand, episode.OwnerConfidence, episode.FailedJoinedCalls, episode.Fingerprint, episode.ProfileID, episode.RunnerType, episode.Model, episode.Tag, episode.RunStatus); err != nil {
+			return fmt.Errorf("insert read-model episode: %w", err)
+		}
+	}
+	return nil
+}
+
+func replaceSelfReportSpansTx(ctx context.Context, executor sqlExecutor, spans []invocationreadmodel.SelfReportSpan, runID string) error {
+	if _, err := executor.ExecContext(ctx, `DELETE FROM invocation_read_model_self_report_spans WHERE run_id = ?`, runID); err != nil {
+		return fmt.Errorf("clear read-model self-report spans: %w", err)
+	}
+	for _, span := range spans {
+		if _, err := executor.ExecContext(ctx, `INSERT INTO invocation_read_model_self_report_spans (run_id,event_id,rule_id,start_offset,end_offset,occurred_at,time_basis,classifier_version,cause_scope,text,profile_id,runner_type,model,tag,run_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, span.RunID, span.EventID, span.RuleID, span.StartOffset, span.EndOffset, SQLiteTime(span.OccurredAt), span.TimeBasis, span.ClassifierVersion, span.CauseScope, span.Text, span.ProfileID, span.RunnerType, span.Model, span.Tag, span.RunStatus); err != nil {
+			return fmt.Errorf("insert read-model self-report span: %w", err)
+		}
+	}
 	return nil
 }
 
@@ -109,11 +194,11 @@ func (r *invocationReadModelRepository) replaceFactsTx(ctx context.Context, tx s
 		return fmt.Errorf("clear read-model facts: %w", err)
 	}
 	for _, fact := range facts {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO invocation_read_model_facts (run_id,call_event_id,result_event_id,tool_call_id,occurred_at,time_basis,tool_name,executable,command_path,ownership,catalog_snapshot,outcome,retry_of_call_event_id,help_recovery,fingerprint,availability,classifier_version,profile_id,runner_type,model,tag,run_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, fact.RunID, fact.CallEventID, fact.ResultEventID, fact.ToolCallID, SQLiteTime(fact.OccurredAt), fact.TimeBasis, fact.ToolName, fact.Executable, fact.CommandPath, fact.Ownership, fact.CatalogSnapshot, fact.Outcome, fact.RetryOfCallEventID, fact.HelpRecovery, fact.Fingerprint, fact.Availability, fact.Version, fact.ProfileID, fact.RunnerType, fact.Model, fact.Tag, fact.RunStatus); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO invocation_read_model_facts (run_id,call_event_id,result_event_id,tool_call_id,occurred_at,time_basis,tool_name,executable,command_path,ownership,catalog_snapshot,outcome,pairing_basis,failure_signature,signature_truncated,retry_of_call_event_id,help_recovery,fingerprint,availability,classifier_version,profile_id,runner_type,model,tag,run_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, fact.RunID, fact.CallEventID, fact.ResultEventID, fact.ToolCallID, SQLiteTime(fact.OccurredAt), fact.TimeBasis, fact.ToolName, fact.Executable, fact.CommandPath, fact.Ownership, fact.CatalogSnapshot, fact.Outcome, fact.PairingBasis, fact.FailureSignature, fact.SignatureTruncated, fact.RetryOfCallEventID, fact.HelpRecovery, fact.Fingerprint, fact.Availability, fact.Version, fact.ProfileID, fact.RunnerType, fact.Model, fact.Tag, fact.RunStatus); err != nil {
 			return fmt.Errorf("insert read-model fact: %w", err)
 		}
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO invocation_read_model_watermarks (run_id,last_event_id,last_event_at,classifier_version,projected_at) VALUES (?,?,?,?,?) ON CONFLICT(run_id) DO UPDATE SET last_event_id=excluded.last_event_id,last_event_at=excluded.last_event_at,classifier_version=excluded.classifier_version,projected_at=excluded.projected_at`, watermark.RunID, watermark.LastEventID, SQLiteTime(watermark.LastEventAt), watermark.ClassifierVersion, SQLiteTime(watermark.ProjectedAt)); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO invocation_read_model_watermarks (run_id,last_event_id,last_event_at,classifier_version,episode_classifier_version,self_report_classifier_version,projection_complete,projected_at) VALUES (?,?,?,?,?,?,1,?) ON CONFLICT(run_id) DO UPDATE SET last_event_id=excluded.last_event_id,last_event_at=excluded.last_event_at,classifier_version=excluded.classifier_version,episode_classifier_version=excluded.episode_classifier_version,self_report_classifier_version=excluded.self_report_classifier_version,projection_complete=1,projected_at=excluded.projected_at`, watermark.RunID, watermark.LastEventID, SQLiteTime(watermark.LastEventAt), watermark.ClassifierVersion, watermark.EpisodeClassifierVersion, watermark.SelfReportClassifierVersion, SQLiteTime(watermark.ProjectedAt)); err != nil {
 		return fmt.Errorf("upsert read-model watermark: %w", err)
 	}
 	return nil
@@ -153,13 +238,22 @@ func (r *invocationReadModelRepository) Cohort(ctx context.Context, filter invoc
 		limit = 100
 	}
 	where, args := invocationReadModelWhere(filter)
+	table := "invocation_read_model_facts"
+	if filter.EpisodePattern != "" || filter.EpisodeCauseScope != "" || filter.EpisodeFingerprint != "" || filter.SelfReportRuleID != "" || filter.SelfReportCauseScope != "" {
+		where, args = invocationReadModelEpisodeWhere(filter)
+		table = "invocation_read_model_episodes"
+	}
+	var matched int
+	if err := r.db.GetContext(ctx, &matched, "SELECT COUNT(DISTINCT run_id) FROM "+table+where, args...); err != nil {
+		return invocationreadmodel.Cohort{}, err
+	}
 	args = append(args, limit+1)
-	rows, err := r.db.QueryxContext(ctx, "SELECT DISTINCT run_id FROM invocation_read_model_facts"+where+" ORDER BY run_id LIMIT ?", args...)
+	rows, err := r.db.QueryxContext(ctx, "SELECT DISTINCT run_id FROM "+table+where+" ORDER BY run_id LIMIT ?", args...)
 	if err != nil {
 		return invocationreadmodel.Cohort{}, err
 	}
 	defer rows.Close()
-	out := invocationreadmodel.Cohort{RunIDs: []string{}}
+	out := invocationreadmodel.Cohort{RunIDs: []string{}, MatchedRuns: matched}
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {
@@ -169,6 +263,68 @@ func (r *invocationReadModelRepository) Cohort(ctx context.Context, filter invoc
 	}
 	if len(out.RunIDs) > limit {
 		out.RunIDs, out.Truncated = out.RunIDs[:limit], true
+	}
+	if matched > len(out.RunIDs) {
+		out.Truncated = true
+		out.DroppedRuns = matched - len(out.RunIDs)
+	}
+	return out, rows.Err()
+}
+
+func (r *invocationReadModelRepository) Episodes(ctx context.Context, filter invocationreadmodel.Filter, limit int) ([]invocationreadmodel.Episode, error) {
+	if limit <= 0 {
+		limit = 1000
+	}
+	where, args := invocationReadModelEpisodeWhere(filter)
+	args = append(args, limit)
+	return r.queryEpisodes(ctx, `SELECT run_id,episode_id,occurred_at,time_basis,classifier_version,pattern,cause_scope,severity,honesty_flags_json,start_event_id,end_event_id,evidence_event_ids_json,turns,cycle_count,repeated_element,tokens,wall_clock_ms,suspected_owner_scenario,suspected_owner_command,owner_confidence,failed_joined_calls,fingerprint,profile_id,runner_type,model,tag,run_status FROM invocation_read_model_episodes`+where+` ORDER BY occurred_at, episode_id LIMIT ?`, args...)
+}
+
+func (r *invocationReadModelRepository) EpisodesForRun(ctx context.Context, runID string) ([]invocationreadmodel.Episode, error) {
+	return r.queryEpisodes(ctx, `SELECT run_id,episode_id,occurred_at,time_basis,classifier_version,pattern,cause_scope,severity,honesty_flags_json,start_event_id,end_event_id,evidence_event_ids_json,turns,cycle_count,repeated_element,tokens,wall_clock_ms,suspected_owner_scenario,suspected_owner_command,owner_confidence,failed_joined_calls,fingerprint,profile_id,runner_type,model,tag,run_status FROM invocation_read_model_episodes WHERE run_id=? ORDER BY occurred_at, episode_id`, runID)
+}
+
+func (r *invocationReadModelRepository) queryEpisodes(ctx context.Context, query string, args ...any) ([]invocationreadmodel.Episode, error) {
+	rows, err := r.db.QueryxContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []invocationreadmodel.Episode{}
+	for rows.Next() {
+		var e invocationreadmodel.Episode
+		var occurredAt SQLiteTime
+		var honesty, evidence string
+		if err := rows.Scan(&e.RunID, &e.EpisodeID, &occurredAt, &e.TimeBasis, &e.ClassifierVersion, &e.Pattern, &e.CauseScope, &e.Severity, &honesty, &e.StartEventID, &e.EndEventID, &evidence, &e.Turns, &e.CycleCount, &e.RepeatedElement, &e.Tokens, &e.WallClockMS, &e.SuspectedOwnerScenario, &e.SuspectedOwnerCommand, &e.OwnerConfidence, &e.FailedJoinedCalls, &e.Fingerprint, &e.ProfileID, &e.RunnerType, &e.Model, &e.Tag, &e.RunStatus); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal([]byte(honesty), &e.HonestyFlags); err != nil {
+			return nil, fmt.Errorf("decode episode honesty flags: %w", err)
+		}
+		if err := json.Unmarshal([]byte(evidence), &e.EvidenceEventIDs); err != nil {
+			return nil, fmt.Errorf("decode episode evidence ids: %w", err)
+		}
+		e.OccurredAt = occurredAt.Time()
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
+func (r *invocationReadModelRepository) SelfReportSpansForRun(ctx context.Context, runID string) ([]invocationreadmodel.SelfReportSpan, error) {
+	rows, err := r.db.QueryxContext(ctx, `SELECT run_id,event_id,rule_id,start_offset,end_offset,occurred_at,time_basis,classifier_version,cause_scope,text,profile_id,runner_type,model,tag,run_status FROM invocation_read_model_self_report_spans WHERE run_id=? ORDER BY occurred_at,event_id,start_offset`, runID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []invocationreadmodel.SelfReportSpan{}
+	for rows.Next() {
+		var s invocationreadmodel.SelfReportSpan
+		var occurredAt SQLiteTime
+		if err := rows.Scan(&s.RunID, &s.EventID, &s.RuleID, &s.StartOffset, &s.EndOffset, &occurredAt, &s.TimeBasis, &s.ClassifierVersion, &s.CauseScope, &s.Text, &s.ProfileID, &s.RunnerType, &s.Model, &s.Tag, &s.RunStatus); err != nil {
+			return nil, err
+		}
+		s.OccurredAt = occurredAt.Time()
+		out = append(out, s)
 	}
 	return out, rows.Err()
 }
@@ -182,16 +338,17 @@ func (r *invocationReadModelRepository) Metrics(ctx context.Context, filter invo
 		SUM(CASE WHEN outcome = 'failure' THEN 1 ELSE 0 END),
 		SUM(CASE WHEN retry_of_call_event_id <> '' THEN 1 ELSE 0 END),
 		SUM(CASE WHEN help_recovery = 1 THEN 1 ELSE 0 END),
-		SUM(CASE WHEN fingerprint IN (SELECT fingerprint FROM invocation_read_model_facts` + where + ` GROUP BY fingerprint HAVING COUNT(*) > 1) THEN 1 ELSE 0 END)
+		SUM(CASE WHEN fingerprint IN (SELECT fingerprint FROM invocation_read_model_facts` + where + ` GROUP BY fingerprint HAVING COUNT(*) > 1) THEN 1 ELSE 0 END),
+		COALESCE((SELECT MAX(bucket_count) FROM (SELECT COUNT(*) AS bucket_count FROM invocation_read_model_facts` + where + ` GROUP BY fingerprint)), 0)
 		FROM invocation_read_model_facts` + where
 	// The repeated-fingerprint subquery has the same predicate, so bind it
 	// twice; it cannot accidentally measure a wider population than the rates.
-	allArgs := append(append([]any{}, args...), args...)
-	var values [8]sql.NullInt64
-	if err := r.db.QueryRowContext(ctx, query, allArgs...).Scan(&values[0], &values[1], &values[2], &values[3], &values[4], &values[5], &values[6], &values[7]); err != nil {
+	allArgs := append(append(append([]any{}, args...), args...), args...)
+	var values [9]sql.NullInt64
+	if err := r.db.QueryRowContext(ctx, query, allArgs...).Scan(&values[0], &values[1], &values[2], &values[3], &values[4], &values[5], &values[6], &values[7], &values[8]); err != nil {
 		return invocationreadmodel.Metrics{}, err
 	}
-	m := invocationreadmodel.Metrics{TotalCalls: values[0].Int64, ResolvedCalls: values[1].Int64, ExternalCalls: values[2].Int64, UnknownCalls: values[3].Int64, FailedCalls: values[4].Int64, RetryCalls: values[5].Int64, HelpRecoveries: values[6].Int64, RepeatedCalls: values[7].Int64}
+	m := invocationreadmodel.Metrics{TotalCalls: values[0].Int64, ResolvedCalls: values[1].Int64, ExternalCalls: values[2].Int64, UnknownCalls: values[3].Int64, FailedCalls: values[4].Int64, RetryCalls: values[5].Int64, HelpRecoveries: values[6].Int64, RepeatedCalls: values[7].Int64, LargestFingerprintBucket: values[8].Int64}
 	if m.ResolvedCalls > 0 {
 		m.ExternalToolShare = float64(m.ExternalCalls) / float64(m.ResolvedCalls)
 	}
@@ -454,6 +611,14 @@ func invocationReadModelWhere(filter invocationreadmodel.Filter) (string, []any)
 	add("model", filter.Model)
 	add("run_status", filter.RunStatus)
 	add("tool_name", filter.ToolName)
+	if filter.GoalID != "" {
+		clauses = append(clauses, "EXISTS (SELECT 1 FROM invocation_read_model_runs irm WHERE irm.run_id=invocation_read_model_facts.run_id AND irm.goal_id=?)")
+		args = append(args, filter.GoalID)
+	}
+	if filter.GoalStatus != "" {
+		clauses = append(clauses, "EXISTS (SELECT 1 FROM invocation_read_model_runs irm WHERE irm.run_id=invocation_read_model_facts.run_id AND irm.goal_status=?)")
+		args = append(args, filter.GoalStatus)
+	}
 	if filter.TagPrefix != "" {
 		clauses = append(clauses, "tag LIKE ?")
 		args = append(args, filter.TagPrefix+"%")
@@ -485,6 +650,8 @@ func invocationReadModelRunWhere(filter invocationreadmodel.Filter) (string, []a
 	add("runner_type", filter.RunnerType)
 	add("model", filter.Model)
 	add("status", filter.RunStatus)
+	add("goal_status", filter.GoalStatus)
+	add("goal_id", filter.GoalID)
 	if filter.TagPrefix != "" {
 		clauses, args = append(clauses, "tag LIKE ?"), append(args, filter.TagPrefix+"%")
 	}
@@ -497,6 +664,55 @@ func invocationReadModelRunWhere(filter invocationreadmodel.Filter) (string, []a
 	if len(invocationClauses) > 1 {
 		clauses = append(clauses, "EXISTS (SELECT 1 FROM invocation_read_model_facts f WHERE "+strings.Join(invocationClauses, " AND ")+")")
 		args = append(args, invocationArgs...)
+	}
+	if len(clauses) == 0 {
+		return "", args
+	}
+	return " WHERE " + strings.Join(clauses, " AND "), args
+}
+
+// invocationReadModelEpisodeWhere applies the shared cohort predicate to the
+// durable episode rows themselves. Invocation predicates remain explicit
+// EXISTS clauses, so a cohort never needs to reopen raw events.
+func invocationReadModelEpisodeWhere(filter invocationreadmodel.Filter) (string, []any) {
+	clauses, args := []string{}, []any{}
+	if filter.From != nil {
+		clauses, args = append(clauses, "occurred_at >= ?"), append(args, SQLiteTime(*filter.From))
+	}
+	if filter.To != nil {
+		clauses, args = append(clauses, "occurred_at < ?"), append(args, SQLiteTime(*filter.To))
+	}
+	for _, predicate := range []struct{ column, value string }{{"profile_id", filter.ProfileID}, {"runner_type", filter.RunnerType}, {"model", filter.Model}, {"run_status", filter.RunStatus}, {"pattern", filter.EpisodePattern}, {"cause_scope", filter.EpisodeCauseScope}, {"fingerprint", filter.EpisodeFingerprint}} {
+		if predicate.value != "" {
+			clauses, args = append(clauses, predicate.column+" = ?"), append(args, predicate.value)
+		}
+	}
+	if filter.GoalID != "" {
+		clauses, args = append(clauses, "EXISTS (SELECT 1 FROM invocation_read_model_runs irm WHERE irm.run_id=invocation_read_model_episodes.run_id AND irm.goal_id=?)"), append(args, filter.GoalID)
+	}
+	if filter.GoalStatus != "" {
+		clauses, args = append(clauses, "EXISTS (SELECT 1 FROM invocation_read_model_runs irm WHERE irm.run_id=invocation_read_model_episodes.run_id AND irm.goal_status=?)"), append(args, filter.GoalStatus)
+	}
+	if filter.TagPrefix != "" {
+		clauses, args = append(clauses, "tag LIKE ?"), append(args, filter.TagPrefix+"%")
+	}
+	invocationClauses, invocationArgs := []string{"f.run_id = invocation_read_model_episodes.run_id"}, []any{}
+	for _, predicate := range []struct{ column, value string }{{"ownership", filter.Ownership}, {"outcome", filter.Outcome}, {"executable", filter.Executable}, {"fingerprint", filter.Fingerprint}, {"tool_name", filter.ToolName}} {
+		if predicate.value != "" {
+			invocationClauses, invocationArgs = append(invocationClauses, "f."+predicate.column+" = ?"), append(invocationArgs, predicate.value)
+		}
+	}
+	if len(invocationClauses) > 1 {
+		clauses, args = append(clauses, "EXISTS (SELECT 1 FROM invocation_read_model_facts f WHERE "+strings.Join(invocationClauses, " AND ")+")"), append(args, invocationArgs...)
+	}
+	if filter.SelfReportRuleID != "" || filter.SelfReportCauseScope != "" {
+		spanClauses, spanArgs := []string{"s.run_id = invocation_read_model_episodes.run_id"}, []any{}
+		for _, predicate := range []struct{ column, value string }{{"rule_id", filter.SelfReportRuleID}, {"cause_scope", filter.SelfReportCauseScope}} {
+			if predicate.value != "" {
+				spanClauses, spanArgs = append(spanClauses, "s."+predicate.column+" = ?"), append(spanArgs, predicate.value)
+			}
+		}
+		clauses, args = append(clauses, "EXISTS (SELECT 1 FROM invocation_read_model_self_report_spans s WHERE "+strings.Join(spanClauses, " AND ")+")"), append(args, spanArgs...)
 	}
 	if len(clauses) == 0 {
 		return "", args
@@ -566,7 +782,7 @@ func invocationReadModelFindingWhere(filter invocationreadmodel.Filter) (string,
 }
 
 func (r *invocationReadModelRepository) Facts(ctx context.Context, runID string) ([]invocationreadmodel.Fact, error) {
-	rows, err := r.db.QueryxContext(ctx, `SELECT run_id,classifier_version,call_event_id,COALESCE(result_event_id,''),COALESCE(tool_call_id,''),occurred_at,time_basis,tool_name,COALESCE(executable,''),COALESCE(command_path,''),ownership,COALESCE(catalog_snapshot,''),outcome,COALESCE(retry_of_call_event_id,''),help_recovery,fingerprint,availability,profile_id,runner_type,model,tag,run_status FROM invocation_read_model_facts WHERE run_id=? ORDER BY occurred_at, call_event_id`, runID)
+	rows, err := r.db.QueryxContext(ctx, `SELECT run_id,classifier_version,call_event_id,COALESCE(result_event_id,''),COALESCE(tool_call_id,''),occurred_at,time_basis,tool_name,COALESCE(executable,''),COALESCE(command_path,''),ownership,COALESCE(catalog_snapshot,''),outcome,COALESCE(pairing_basis,'unpaired'),COALESCE(failure_signature,''),COALESCE(signature_truncated,0),COALESCE(retry_of_call_event_id,''),help_recovery,fingerprint,availability,profile_id,runner_type,model,tag,run_status FROM invocation_read_model_facts WHERE run_id=? ORDER BY occurred_at, call_event_id`, runID)
 	if err != nil {
 		return nil, err
 	}
@@ -575,7 +791,7 @@ func (r *invocationReadModelRepository) Facts(ctx context.Context, runID string)
 	for rows.Next() {
 		var f invocationreadmodel.Fact
 		var occurredAt SQLiteTime
-		if err := rows.Scan(&f.RunID, &f.Version, &f.CallEventID, &f.ResultEventID, &f.ToolCallID, &occurredAt, &f.TimeBasis, &f.ToolName, &f.Executable, &f.CommandPath, &f.Ownership, &f.CatalogSnapshot, &f.Outcome, &f.RetryOfCallEventID, &f.HelpRecovery, &f.Fingerprint, &f.Availability, &f.ProfileID, &f.RunnerType, &f.Model, &f.Tag, &f.RunStatus); err != nil {
+		if err := rows.Scan(&f.RunID, &f.Version, &f.CallEventID, &f.ResultEventID, &f.ToolCallID, &occurredAt, &f.TimeBasis, &f.ToolName, &f.Executable, &f.CommandPath, &f.Ownership, &f.CatalogSnapshot, &f.Outcome, &f.PairingBasis, &f.FailureSignature, &f.SignatureTruncated, &f.RetryOfCallEventID, &f.HelpRecovery, &f.Fingerprint, &f.Availability, &f.ProfileID, &f.RunnerType, &f.Model, &f.Tag, &f.RunStatus); err != nil {
 			return nil, err
 		}
 		f.OccurredAt = occurredAt.Time()
@@ -586,36 +802,20 @@ func (r *invocationReadModelRepository) Facts(ctx context.Context, runID string)
 
 func (r *invocationReadModelRepository) Watermark(ctx context.Context, runID string) (*invocationreadmodel.Watermark, error) {
 	var row struct {
-		RunID             string     `db:"run_id"`
-		LastEventID       string     `db:"last_event_id"`
-		LastEventAt       SQLiteTime `db:"last_event_at"`
-		ClassifierVersion string     `db:"classifier_version"`
-		ProjectedAt       SQLiteTime `db:"projected_at"`
+		RunID                       string     `db:"run_id"`
+		LastEventID                 string     `db:"last_event_id"`
+		LastEventAt                 SQLiteTime `db:"last_event_at"`
+		ClassifierVersion           string     `db:"classifier_version"`
+		EpisodeClassifierVersion    string     `db:"episode_classifier_version"`
+		SelfReportClassifierVersion string     `db:"self_report_classifier_version"`
+		ProjectedAt                 SQLiteTime `db:"projected_at"`
 	}
-	err := r.db.GetContext(ctx, &row, `SELECT run_id,last_event_id,last_event_at,classifier_version,projected_at FROM invocation_read_model_watermarks WHERE run_id=?`, runID)
+	err := r.db.GetContext(ctx, &row, `SELECT run_id,last_event_id,last_event_at,classifier_version,episode_classifier_version,self_report_classifier_version,projected_at FROM invocation_read_model_watermarks WHERE run_id=?`, runID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	return &invocationreadmodel.Watermark{RunID: row.RunID, LastEventID: row.LastEventID, LastEventAt: row.LastEventAt.Time(), ClassifierVersion: row.ClassifierVersion, ProjectedAt: row.ProjectedAt.Time()}, nil
-}
-
-// MigrateLegacyInvocationFacts copies the legacy investigation cache forward
-// without re-folding it. Missing source events use the run terminal time and
-// state that provenance explicitly in time_basis.
-func (r *invocationReadModelRepository) MigrateLegacyInvocationFacts(ctx context.Context) (int64, error) {
-	result, err := r.db.ExecContext(ctx, `INSERT INTO invocation_read_model_facts (run_id,call_event_id,result_event_id,tool_call_id,occurred_at,time_basis,tool_name,executable,command_path,ownership,catalog_snapshot,outcome,retry_of_call_event_id,help_recovery,fingerprint,availability,classifier_version,profile_id,runner_type,model,tag,run_status)
-		SELECT legacy.run_id, legacy.call_event_id, legacy.result_event_id, legacy.tool_call_id,
-		COALESCE((SELECT e.timestamp FROM run_events e WHERE e.run_id = legacy.run_id AND e.id = legacy.call_event_id LIMIT 1), runs.ended_at, runs.created_at),
-		CASE WHEN EXISTS (SELECT 1 FROM run_events e WHERE e.run_id = legacy.run_id AND e.id = legacy.call_event_id) THEN 'call_event' ELSE 'run_end_derived' END,
-		legacy.tool_name, legacy.executable, legacy.command_path, legacy.ownership, legacy.catalog_snapshot, legacy.outcome, legacy.retry_of_call_event_id, legacy.help_recovery, legacy.fingerprint, legacy.availability, legacy.classifier_version,
-		COALESCE(runs.agent_profile_id, 'unknown'), COALESCE(json_extract(runs.resolved_config, '$.runnerType'), 'unknown'), COALESCE(NULLIF(runs.actual_model, ''), NULLIF(runs.requested_model, ''), json_extract(runs.resolved_config, '$.model'), 'unknown'), COALESCE(NULLIF(runs.tag, ''), 'unknown'), COALESCE(runs.status, 'unknown')
-		FROM investigation_invocation_facts legacy JOIN runs ON runs.id = legacy.run_id
-		ON CONFLICT(run_id, call_event_id) DO NOTHING`)
-	if err != nil {
-		return 0, fmt.Errorf("migrate legacy invocation facts: %w", err)
-	}
-	return result.RowsAffected()
+	return &invocationreadmodel.Watermark{RunID: row.RunID, LastEventID: row.LastEventID, LastEventAt: row.LastEventAt.Time(), ClassifierVersion: row.ClassifierVersion, EpisodeClassifierVersion: row.EpisodeClassifierVersion, SelfReportClassifierVersion: row.SelfReportClassifierVersion, ProjectedAt: row.ProjectedAt.Time()}, nil
 }

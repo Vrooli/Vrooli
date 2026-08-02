@@ -153,9 +153,9 @@ export interface RunReportView {
   repeated_tool_calls: number;
   files_read_more_than_once: number;
   longest_event_gap_ms: string;
-  diff: { files: number; bytes: number; available: { state: string; detail?: string } };
-  events_availability: { state: string; detail?: string };
-  receipts_availability: { state: string; detail?: string };
+  diff: { files: number; bytes: number; available: { state: string; reason?: string } };
+  events_availability: { state: string; reason?: string };
+  receipts_availability: { state: string; reason?: string };
   receipt_count: number;
 }
 

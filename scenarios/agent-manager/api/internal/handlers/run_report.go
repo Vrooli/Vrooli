@@ -56,10 +56,18 @@ func runReportToProto(report *runreport.RunReport) *apipb.RunReport {
 		EventsAvailability: availabilityToProto(report.EventsAvailability), ReceiptsAvailability: availabilityToProto(report.ReceiptsAvailability), ReceiptCount: int32(report.ReceiptCount),
 		RepeatedToolCalls: int32(report.RepeatedToolCalls), LongestEventGapMs: report.LongestEventGap.Milliseconds(),
 		FilesReadMoreThanOnce: int32(report.FilesReadMoreThanOnce),
+		TimeAccounting:        &apipb.RunTimeAccounting{ModelGeneratingMs: report.TimeAccounting.ModelGeneratingMS, ToolExecutingMs: report.TimeAccounting.ToolExecutingMS, IdleWaitingMs: report.TimeAccounting.IdleWaitingMS, AwaitingHumanMs: report.TimeAccounting.AwaitingHumanMS, UnattributableMs: report.TimeAccounting.UnattributableMS, ModelTokens: report.TimeAccounting.ModelTokens, ToolTokens: report.TimeAccounting.ToolTokens, IdleTokens: report.TimeAccounting.IdleTokens, HumanTokens: report.TimeAccounting.HumanTokens, UnattributableTokens: report.TimeAccounting.UnattributableTokens},
 	}
 	if report.ExitCode != nil {
 		code := int32(*report.ExitCode)
 		out.ExitCode = &code
+	}
+	if goal := report.GoalOutcome; goal != nil {
+		out.GoalOutcome = &apipb.RunGoalOutcome{GoalId: goal.GoalID, Status: goal.Status, TokensUsed: goal.TokensUsed, TimeUsedSeconds: goal.TimeUsedSeconds}
+		if goal.TokenBudget != nil {
+			value := *goal.TokenBudget
+			out.GoalOutcome.TokenBudget = &value
+		}
 	}
 	for eventType, count := range report.Events {
 		out.EventCounts[eventType] = int32(count)
@@ -71,5 +79,5 @@ func runReportToProto(report *runreport.RunReport) *apipb.RunReport {
 }
 
 func availabilityToProto(value runreport.Availability) *apipb.RunReportAvailability {
-	return &apipb.RunReportAvailability{State: value.State, Detail: value.Detail}
+	return &apipb.RunReportAvailability{State: string(value.State), Reason: value.Reason}
 }

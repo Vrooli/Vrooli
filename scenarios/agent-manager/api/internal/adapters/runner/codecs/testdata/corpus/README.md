@@ -28,7 +28,9 @@ go run ./cmd/harvest-replay --root ~/.vrooli/data/vrooli/agent-manager/runs \
 
 The committed corpus intentionally retains only representative traces from each
 available provider dialect. The harvester redacts credential values and absolute
-home paths before writing replacements.
+home paths before writing replacements. The committed-fixture gate runs the
+same redaction implementation over every file and fails when any file would
+change.
 
 After harvesting, inspect every candidate before committing it, retain at least
 one representative success/resume dialect per supported runner, and update the

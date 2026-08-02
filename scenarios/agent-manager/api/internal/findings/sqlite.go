@@ -33,12 +33,18 @@ func (r *SQLiteRepository) Create(ctx context.Context, finding *Finding) error {
 	if finding.Fingerprint == "" {
 		finding.Fingerprint = Fingerprint(finding.Recommendation, finding.TargetPath)
 	}
-	_, err := r.db.ExecContext(ctx, `INSERT OR IGNORE INTO run_findings (id, run_id, investigation_run_id, category, severity, recommendation_text, evidence, target_path, fingerprint, operator_decision, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, finding.ID.String(), finding.RunID.String(), finding.InvestigationRunID.String(), finding.Category, finding.Severity, finding.Recommendation, finding.Evidence, finding.TargetPath, finding.Fingerprint, finding.Decision, finding.CreatedAt.UTC().Format(time.RFC3339Nano))
+	if finding.TargetMeasure == "" {
+		finding.TargetMeasure = "finding-recurrence-rate"
+	}
+	if finding.Effectiveness == "" {
+		finding.Effectiveness = "not_yet_measurable"
+	}
+	_, err := r.db.ExecContext(ctx, `INSERT OR IGNORE INTO run_findings (id, run_id, investigation_run_id, category, severity, recommendation_text, evidence, target_path, fingerprint, operator_decision, target_measure, before_value, after_value, effectiveness, friction_topic, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, finding.ID.String(), finding.RunID.String(), finding.InvestigationRunID.String(), finding.Category, finding.Severity, finding.Recommendation, finding.Evidence, finding.TargetPath, finding.Fingerprint, finding.Decision, finding.TargetMeasure, finding.BeforeValue, finding.AfterValue, finding.Effectiveness, finding.FrictionTopic, finding.CreatedAt.UTC().Format(time.RFC3339Nano))
 	return err
 }
 
 func (r *SQLiteRepository) List(ctx context.Context, filter Filter) ([]Finding, error) {
-	query, args := `SELECT id, run_id, investigation_run_id, category, severity, recommendation_text, evidence, target_path, fingerprint, operator_decision, created_at, COUNT(*) OVER (PARTITION BY fingerprint) AS occurrences FROM run_findings`, []any{}
+	query, args := `SELECT id, run_id, investigation_run_id, category, severity, recommendation_text, evidence, target_path, fingerprint, operator_decision, target_measure, before_value, after_value, effectiveness, friction_topic, created_at, COUNT(*) OVER (PARTITION BY fingerprint) AS occurrences FROM run_findings`, []any{}
 	var where []string
 	if filter.RunID != nil {
 		where, args = append(where, "run_id = ?"), append(args, filter.RunID.String())
@@ -89,4 +95,9 @@ func (r *SQLiteRepository) RecurrenceCount(ctx context.Context, fingerprint stri
 	var count int
 	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM run_findings WHERE fingerprint = ?`, fingerprint).Scan(&count)
 	return count, err
+}
+
+func (r *SQLiteRepository) SetEffectiveness(ctx context.Context, id uuid.UUID, before, after *float64, effectiveness, topic string) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE run_findings SET before_value=?, after_value=?, effectiveness=?, friction_topic=? WHERE id=?`, before, after, strings.TrimSpace(effectiveness), strings.TrimSpace(topic), id.String())
+	return err
 }

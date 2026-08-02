@@ -397,10 +397,42 @@ func (db *DB) initSchema() error {
 	// happen before that validation step. A fresh database has no columns yet;
 	// the declarative schema creates it and the normal post-schema migration is
 	// then a harmless no-op.
+	// Runs gained import-provenance columns after the declarative table shipped.
+	// They must land before EnsureSchemas validates the existing table; otherwise
+	// SQLite's CREATE TABLE IF NOT EXISTS would make startup fail before the
+	// normal post-schema migration gets a chance to repair it.
+	if columns, err := db.tableColumns(ctx, "runs"); err != nil {
+		return err
+	} else if len(columns) > 0 {
+		if err := db.migrateRunColumns(ctx); err != nil {
+			return err
+		}
+	}
 	if columns, err := db.tableColumns(ctx, "invocation_read_model_runs"); err != nil {
 		return err
 	} else if len(columns) > 0 {
 		if err := db.migrateInvocationReadModelRunColumns(ctx); err != nil {
+			return err
+		}
+	}
+	if columns, err := db.tableColumns(ctx, "invocation_read_model_facts"); err != nil {
+		return err
+	} else if len(columns) > 0 {
+		if err := db.migrateInvocationReadModelFactColumns(ctx); err != nil {
+			return err
+		}
+	}
+	if columns, err := db.tableColumns(ctx, "invocation_read_model_watermarks"); err != nil {
+		return err
+	} else if len(columns) > 0 {
+		if err := db.migrateInvocationReadModelWatermarkColumns(ctx); err != nil {
+			return err
+		}
+	}
+	if columns, err := db.tableColumns(ctx, "invocation_read_model_episodes"); err != nil {
+		return err
+	} else if len(columns) > 0 {
+		if err := db.migrateInvocationReadModelEpisodeColumns(ctx); err != nil {
 			return err
 		}
 	}
@@ -421,11 +453,24 @@ func (db *DB) initSchema() error {
 			return err
 		}
 	}
+	// Findings gained effectiveness-loop columns after the initial table
+	// declaration shipped. As with runs, existing SQLite tables must receive
+	// these additive columns before EnsureSchemas performs its drift check.
+	if columns, err := db.tableColumns(ctx, "run_findings"); err != nil {
+		return err
+	} else if len(columns) > 0 {
+		if err := db.migrateRunFindingColumns(ctx); err != nil {
+			return err
+		}
+	}
 	if err := coredb.EnsureSchemas(ctx, db, modules.AllSchemas()...); err != nil {
 		if db.log != nil {
 			db.log.WithError(err).Error("Failed to apply domain schemas")
 		}
 		return &domain.DatabaseError{Operation: "schema_init", EntityType: "Schema", Cause: err}
+	}
+	if err := db.consolidateLegacyInvestigationProjections(ctx); err != nil {
+		return err
 	}
 	if err := db.migrateRunColumns(ctx); err != nil {
 		if db.log != nil {
@@ -451,10 +496,16 @@ func (db *DB) initSchema() error {
 	if err := db.migrateInvocationReadModelRunColumns(ctx); err != nil {
 		return err
 	}
-	if err := db.migrateInvestigationProjectionColumns(ctx); err != nil {
+	if err := db.migrateRunFindingColumns(ctx); err != nil {
 		return err
 	}
-	if err := db.migrateFrictionEpisodeColumns(ctx); err != nil {
+	if err := db.migrateInvocationReadModelFactColumns(ctx); err != nil {
+		return err
+	}
+	if err := db.migrateInvocationReadModelEpisodeColumns(ctx); err != nil {
+		return err
+	}
+	if err := db.migrateInvestigationProjectionColumns(ctx); err != nil {
 		return err
 	}
 	if db.log != nil {
@@ -486,10 +537,58 @@ var invocationReadModelRunColumnMigrations = []columnMigration{
 	{column: "output_tokens", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN output_tokens INTEGER NOT NULL DEFAULT 0"},
 	{column: "cache_read_tokens", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN cache_read_tokens INTEGER NOT NULL DEFAULT 0"},
 	{column: "cache_creation_tokens", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN cache_creation_tokens INTEGER NOT NULL DEFAULT 0"},
+	{column: "goal_id", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN goal_id TEXT NOT NULL DEFAULT ''"},
+	{column: "goal_status", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN goal_status TEXT NOT NULL DEFAULT ''"},
+	{column: "goal_token_budget", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN goal_token_budget INTEGER"},
+	{column: "goal_tokens_used", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN goal_tokens_used INTEGER NOT NULL DEFAULT 0"},
+	{column: "goal_time_used_seconds", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN goal_time_used_seconds INTEGER NOT NULL DEFAULT 0"},
+}
+
+var runFindingColumnMigrations = []columnMigration{
+	{column: "target_measure", ddl: "ALTER TABLE run_findings ADD COLUMN target_measure TEXT NOT NULL DEFAULT 'finding-recurrence-rate'"},
+	{column: "before_value", ddl: "ALTER TABLE run_findings ADD COLUMN before_value REAL"},
+	{column: "after_value", ddl: "ALTER TABLE run_findings ADD COLUMN after_value REAL"},
+	{column: "effectiveness", ddl: "ALTER TABLE run_findings ADD COLUMN effectiveness TEXT NOT NULL DEFAULT 'not_yet_measurable'"},
+	{column: "friction_topic", ddl: "ALTER TABLE run_findings ADD COLUMN friction_topic TEXT NOT NULL DEFAULT ''"},
+}
+
+func (db *DB) migrateRunFindingColumns(ctx context.Context) error {
+	return db.migrateColumns(ctx, "run_findings", runFindingColumnMigrations)
 }
 
 func (db *DB) migrateInvocationReadModelRunColumns(ctx context.Context) error {
 	return db.migrateColumns(ctx, "invocation_read_model_runs", invocationReadModelRunColumnMigrations)
+}
+
+var invocationReadModelFactColumnMigrations = []columnMigration{
+	{column: "pairing_basis", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN pairing_basis TEXT NOT NULL DEFAULT 'unpaired'"},
+	{column: "failure_signature", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN failure_signature TEXT NOT NULL DEFAULT ''"},
+	{column: "signature_truncated", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN signature_truncated INTEGER NOT NULL DEFAULT 0"},
+}
+
+func (db *DB) migrateInvocationReadModelFactColumns(ctx context.Context) error {
+	return db.migrateColumns(ctx, "invocation_read_model_facts", invocationReadModelFactColumnMigrations)
+}
+
+var invocationReadModelWatermarkColumnMigrations = []columnMigration{
+	{column: "episode_classifier_version", ddl: "ALTER TABLE invocation_read_model_watermarks ADD COLUMN episode_classifier_version TEXT NOT NULL DEFAULT ''"},
+	{column: "self_report_classifier_version", ddl: "ALTER TABLE invocation_read_model_watermarks ADD COLUMN self_report_classifier_version TEXT NOT NULL DEFAULT ''"},
+	// Existing watermarks were committed atomically with their derived facts
+	// before this marker existed, so they are safe to retain as complete.
+	{column: "projection_complete", ddl: "ALTER TABLE invocation_read_model_watermarks ADD COLUMN projection_complete INTEGER NOT NULL DEFAULT 1"},
+}
+
+func (db *DB) migrateInvocationReadModelWatermarkColumns(ctx context.Context) error {
+	return db.migrateColumns(ctx, "invocation_read_model_watermarks", invocationReadModelWatermarkColumnMigrations)
+}
+
+var invocationReadModelEpisodeColumnMigrations = []columnMigration{
+	{column: "cycle_count", ddl: "ALTER TABLE invocation_read_model_episodes ADD COLUMN cycle_count INTEGER NOT NULL DEFAULT 0"},
+	{column: "repeated_element", ddl: "ALTER TABLE invocation_read_model_episodes ADD COLUMN repeated_element TEXT NOT NULL DEFAULT ''"},
+}
+
+func (db *DB) migrateInvocationReadModelEpisodeColumns(ctx context.Context) error {
+	return db.migrateColumns(ctx, "invocation_read_model_episodes", invocationReadModelEpisodeColumnMigrations)
 }
 
 var investigationProjectionColumnMigrations = []columnMigration{
@@ -508,6 +607,78 @@ func (db *DB) migrateFrictionEpisodeColumns(ctx context.Context) error {
 	return db.migrateColumns(ctx, "investigation_friction_episodes", frictionEpisodeColumnMigrations)
 }
 
+// consolidateLegacyInvestigationProjections performs the one-way cutover from
+// the superseded investigation cache. It copies every bounded row into the
+// durable read model before dropping the old tables; SQLite never recreates
+// them because they are absent from the declarative schema.
+func (db *DB) consolidateLegacyInvestigationProjections(ctx context.Context) error {
+	legacyFacts, err := db.tableColumns(ctx, "investigation_invocation_facts")
+	if err != nil {
+		return err
+	}
+	legacyEpisodes, err := db.tableColumns(ctx, "investigation_friction_episodes")
+	if err != nil {
+		return err
+	}
+	legacySpans, err := db.tableColumns(ctx, "investigation_self_report_spans")
+	if err != nil {
+		return err
+	}
+	if len(legacyFacts) == 0 && len(legacyEpisodes) == 0 && len(legacySpans) == 0 {
+		return nil
+	}
+	tx, err := db.BeginTxx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+	if len(legacyFacts) > 0 {
+		if _, err = tx.ExecContext(ctx, `INSERT OR IGNORE INTO invocation_read_model_facts (run_id,call_event_id,result_event_id,tool_call_id,occurred_at,time_basis,tool_name,executable,command_path,ownership,catalog_snapshot,outcome,pairing_basis,failure_signature,signature_truncated,retry_of_call_event_id,help_recovery,fingerprint,availability,classifier_version,profile_id,runner_type,model,tag,run_status)
+			SELECT legacy.run_id, legacy.call_event_id, legacy.result_event_id, legacy.tool_call_id, COALESCE((SELECT e.timestamp FROM run_events e WHERE e.run_id=legacy.run_id AND e.id=legacy.call_event_id LIMIT 1), runs.ended_at, runs.created_at), CASE WHEN EXISTS (SELECT 1 FROM run_events e WHERE e.run_id=legacy.run_id AND e.id=legacy.call_event_id) THEN 'call_event' ELSE 'legacy_run_time' END, legacy.tool_name, legacy.executable, legacy.command_path, legacy.ownership, legacy.catalog_snapshot, legacy.outcome, 'legacy', '', 0, legacy.retry_of_call_event_id, legacy.help_recovery, legacy.fingerprint, legacy.availability, legacy.classifier_version, COALESCE(runs.agent_profile_id,'unknown'), COALESCE(json_extract(runs.resolved_config,'$.runnerType'),'unknown'), COALESCE(NULLIF(runs.actual_model,''),NULLIF(runs.requested_model,''),json_extract(runs.resolved_config,'$.model'),'unknown'), COALESCE(NULLIF(runs.tag,''),'unknown'), COALESCE(runs.status,'unknown') FROM investigation_invocation_facts legacy JOIN runs ON runs.id=legacy.run_id`); err != nil {
+			return fmt.Errorf("migrate legacy invocation facts: %w", err)
+		}
+	}
+	if len(legacyEpisodes) > 0 {
+		if _, err = tx.ExecContext(ctx, `INSERT OR IGNORE INTO invocation_read_model_episodes (run_id,episode_id,occurred_at,time_basis,classifier_version,pattern,cause_scope,severity,honesty_flags_json,start_event_id,end_event_id,evidence_event_ids_json,turns,tokens,wall_clock_ms,suspected_owner_scenario,suspected_owner_command,owner_confidence,failed_joined_calls,fingerprint,profile_id,runner_type,model,tag,run_status)
+			SELECT legacy.run_id, legacy.episode_id, COALESCE((SELECT e.timestamp FROM run_events e WHERE e.run_id=legacy.run_id AND e.id=legacy.start_event_id LIMIT 1), runs.ended_at, runs.created_at), 'legacy_run_time', legacy.classifier_version, legacy.pattern, legacy.cause_scope, legacy.severity, legacy.honesty_flags, legacy.start_event_id, legacy.end_event_id, legacy.evidence_event_ids, legacy.turns, legacy.tokens, legacy.wall_clock_ms, legacy.suspected_owner_scenario, legacy.suspected_owner_command, legacy.owner_confidence, legacy.failed_joined_calls, legacy.fingerprint, COALESCE(runs.agent_profile_id,'unknown'), COALESCE(json_extract(runs.resolved_config,'$.runnerType'),'unknown'), COALESCE(NULLIF(runs.actual_model,''),NULLIF(runs.requested_model,''),json_extract(runs.resolved_config,'$.model'),'unknown'), COALESCE(NULLIF(runs.tag,''),'unknown'), COALESCE(runs.status,'unknown') FROM investigation_friction_episodes legacy JOIN runs ON runs.id=legacy.run_id`); err != nil {
+			return fmt.Errorf("migrate legacy episodes: %w", err)
+		}
+	}
+	if len(legacySpans) > 0 {
+		if _, err = tx.ExecContext(ctx, `INSERT OR IGNORE INTO invocation_read_model_self_report_spans (run_id,event_id,rule_id,start_offset,end_offset,occurred_at,time_basis,classifier_version,cause_scope,text,profile_id,runner_type,model,tag,run_status)
+			SELECT legacy.run_id, legacy.event_id, legacy.rule_id, legacy.start_offset, legacy.end_offset, COALESCE((SELECT e.timestamp FROM run_events e WHERE e.run_id=legacy.run_id AND e.id=legacy.event_id LIMIT 1), runs.ended_at, runs.created_at), 'legacy_run_time', legacy.classifier_version, legacy.cause_scope, legacy.text, COALESCE(runs.agent_profile_id,'unknown'), COALESCE(json_extract(runs.resolved_config,'$.runnerType'),'unknown'), COALESCE(NULLIF(runs.actual_model,''),NULLIF(runs.requested_model,''),json_extract(runs.resolved_config,'$.model'),'unknown'), COALESCE(NULLIF(runs.tag,''),'unknown'), COALESCE(runs.status,'unknown') FROM investigation_self_report_spans legacy JOIN runs ON runs.id=legacy.run_id`); err != nil {
+			return fmt.Errorf("migrate legacy self-report spans: %w", err)
+		}
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT OR IGNORE INTO invocation_read_model_watermarks (run_id,last_event_id,last_event_at,classifier_version,episode_classifier_version,self_report_classifier_version,projection_complete,projected_at)
+		SELECT legacy.run_id,
+		COALESCE((SELECT f.call_event_id FROM invocation_read_model_facts f WHERE f.run_id=legacy.run_id ORDER BY f.occurred_at DESC, f.call_event_id DESC LIMIT 1), ''),
+		COALESCE((SELECT MAX(f.occurred_at) FROM invocation_read_model_facts f WHERE f.run_id=legacy.run_id), runs.ended_at, runs.created_at, datetime('now')),
+		COALESCE((SELECT f.classifier_version FROM invocation_read_model_facts f WHERE f.run_id=legacy.run_id ORDER BY f.occurred_at DESC, f.call_event_id DESC LIMIT 1), 'legacy'),
+		COALESCE((SELECT e.classifier_version FROM invocation_read_model_episodes e WHERE e.run_id=legacy.run_id ORDER BY e.occurred_at DESC, e.episode_id DESC LIMIT 1), 'legacy'),
+		COALESCE((SELECT s.classifier_version FROM invocation_read_model_self_report_spans s WHERE s.run_id=legacy.run_id ORDER BY s.occurred_at DESC, s.event_id DESC LIMIT 1), 'legacy'), 1,
+		COALESCE((SELECT MAX(f.occurred_at) FROM invocation_read_model_facts f WHERE f.run_id=legacy.run_id), runs.ended_at, runs.created_at, datetime('now'))
+		FROM (SELECT run_id FROM investigation_invocation_facts UNION SELECT run_id FROM investigation_friction_episodes UNION SELECT run_id FROM investigation_self_report_spans) legacy
+		JOIN runs ON runs.id=legacy.run_id`); err != nil {
+		return fmt.Errorf("migrate legacy projection watermarks: %w", err)
+	}
+	for _, table := range []string{"investigation_invocation_facts", "investigation_friction_episodes", "investigation_self_report_spans"} {
+		if _, err = tx.ExecContext(ctx, "DROP TABLE IF EXISTS "+table); err != nil {
+			return fmt.Errorf("drop legacy projection %s: %w", table, err)
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	committed = true
+	return nil
+}
+
 // runColumnMigrations lists columns added to the runs table after its original
 // CREATE TABLE shipped. Each is applied only when missing, so re-running is
 // safe and existing rows are untouched (the new columns take their DEFAULT).
@@ -516,11 +687,18 @@ var runColumnMigrations = []columnMigration{
 	{column: "web_console_session_id", ddl: "ALTER TABLE runs ADD COLUMN web_console_session_id TEXT DEFAULT ''"},
 	{column: "run_result", ddl: "ALTER TABLE runs ADD COLUMN run_result TEXT"},
 	{column: "commit_hash", ddl: "ALTER TABLE runs ADD COLUMN commit_hash TEXT DEFAULT ''"},
+	{column: "import_source_harness", ddl: "ALTER TABLE runs ADD COLUMN import_source_harness TEXT DEFAULT ''"},
+	{column: "import_source_session_id", ddl: "ALTER TABLE runs ADD COLUMN import_source_session_id TEXT DEFAULT ''"},
+	{column: "imported_at", ddl: "ALTER TABLE runs ADD COLUMN imported_at TEXT"},
 }
 
 // migrateRunColumns adds any missing additive columns to the runs table.
 func (db *DB) migrateRunColumns(ctx context.Context) error {
-	return db.migrateColumns(ctx, "runs", runColumnMigrations)
+	if err := db.migrateColumns(ctx, "runs", runColumnMigrations); err != nil {
+		return err
+	}
+	_, err := db.ExecContext(ctx, `CREATE UNIQUE INDEX IF NOT EXISTS idx_runs_import_provenance ON runs(import_source_harness, import_source_session_id) WHERE import_source_harness <> '' AND import_source_session_id <> ''`)
+	return err
 }
 
 // migrateRunEventPayloads advances rows written by the retired tagged-union

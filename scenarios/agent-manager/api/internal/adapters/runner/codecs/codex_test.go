@@ -391,11 +391,17 @@ func TestCodex_DecodeStreamLine_CommandExecution(t *testing.T) {
 		if tc.ToolName != "bash" {
 			t.Errorf("name=%s", tc.ToolName)
 		}
+		if tc.ToolCallID != "item_4" {
+			t.Errorf("toolCallID=%q", tc.ToolCallID)
+		}
 	})
 	t.Run("completed emits tool_result only", func(t *testing.T) {
 		events := codexDecodeOne(t, NewCodexForTest(), codexSamples["command_execution_completed"], "")
 		if len(events) != 1 || events[0].EventType != domain.EventTypeToolResult {
 			t.Fatalf("got %v", events)
+		}
+		if result := events[0].Data.(*domain.ToolResultEventData); result.ToolCallID != "item_4" {
+			t.Errorf("toolCallID=%q", result.ToolCallID)
 		}
 	})
 	t.Run("failed emits tool_call + tool_result with error", func(t *testing.T) {
@@ -408,6 +414,9 @@ func TestCodex_DecodeStreamLine_CommandExecution(t *testing.T) {
 			t.Errorf("status=%v", callData.Input["status"])
 		}
 		resultData := events[1].Data.(*domain.ToolResultEventData)
+		if callData.ToolCallID != "item_5" || resultData.ToolCallID != "item_5" {
+			t.Fatalf("callID=%q resultID=%q", callData.ToolCallID, resultData.ToolCallID)
+		}
 		if resultData.Error == "" {
 			t.Error("expected error on failed command result")
 		}

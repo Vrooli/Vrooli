@@ -9,6 +9,11 @@ CREATE TABLE IF NOT EXISTS run_findings (
     target_path TEXT NOT NULL DEFAULT '',
     fingerprint TEXT NOT NULL,
     operator_decision TEXT NOT NULL DEFAULT '',
+    target_measure TEXT NOT NULL DEFAULT 'finding-recurrence-rate',
+    before_value REAL,
+    after_value REAL,
+    effectiveness TEXT NOT NULL DEFAULT 'not_yet_measurable',
+    friction_topic TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_run_findings_fingerprint ON run_findings(fingerprint, created_at DESC);

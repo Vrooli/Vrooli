@@ -33,18 +33,9 @@ type Repositories struct {
 	Stats                 repository.StatsRepository
 	InvestigationSettings repository.InvestigationSettingsRepository
 	Findings              findings.Repository
-	InvocationFacts       runreport.InvocationFactStore
+	ReceiptEvidence       runreport.ReceiptJoinStore
+	InvestigationLedger   runreport.LedgerStore
 	InvocationReadModel   invocationreadmodel.Store
-}
-
-// MigrateInvocationReadModel carries the old investigation cache into the
-// durable analytical table. It is safe to call at every startup.
-func (r *Repositories) MigrateInvocationReadModel(ctx context.Context) (int64, error) {
-	store, ok := r.InvocationReadModel.(*invocationReadModelRepository)
-	if !ok {
-		return 0, fmt.Errorf("invocation read model does not support migration")
-	}
-	return store.MigrateLegacyInvocationFacts(ctx)
 }
 
 // NewRepositories creates all repository implementations using the given database connection.
@@ -63,7 +54,8 @@ func NewRepositories(db *DB, log *logrus.Logger) *Repositories {
 		Stats:                 &statsRepository{db: db, log: log},
 		InvestigationSettings: &investigationSettingsRepository{db: db, log: log},
 		Findings:              findings.NewSQLiteRepository(db),
-		InvocationFacts:       &invocationFactRepository{db: db},
+		ReceiptEvidence:       &receiptEvidenceRepository{db: db},
+		InvestigationLedger:   &receiptEvidenceRepository{db: db},
 		InvocationReadModel:   &invocationReadModelRepository{db: db},
 	}
 }

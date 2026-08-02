@@ -1,4 +1,4 @@
-package runreport
+package runsignal
 
 import (
 	"encoding/json"
@@ -11,7 +11,7 @@ import (
 )
 
 func TestSelfReportFrozenCorpus(t *testing.T) {
-	body, err := os.ReadFile("testdata/self-report-corpus.json")
+	body, err := os.ReadFile("../runreport/testdata/self-report-corpus.json")
 	if err != nil {
 		t.Fatal(err)
 	}

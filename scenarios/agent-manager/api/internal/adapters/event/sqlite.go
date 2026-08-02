@@ -206,7 +206,10 @@ func (s *SQLiteStore) DeleteBefore(ctx context.Context, cutoff time.Time, limit 
 		return 0, fmt.Errorf("event retention batch limit must be positive")
 	}
 	result, err := s.db.ExecContext(ctx, `DELETE FROM run_events WHERE rowid IN (
-		SELECT rowid FROM run_events WHERE timestamp < ? ORDER BY timestamp ASC LIMIT ?
+		SELECT events.rowid FROM run_events events
+		JOIN invocation_read_model_watermarks watermark ON watermark.run_id = events.run_id
+		WHERE events.timestamp < ? AND watermark.projection_complete = 1
+		ORDER BY events.timestamp ASC LIMIT ?
 	)`, sqliteTime(cutoff), limit)
 	if err != nil {
 		return 0, dbError("delete_expired_events", err)

@@ -302,6 +302,8 @@ type CodexError struct {
 
 // CodexToolEvent represents a tool-related event emitted at the top level.
 type CodexToolEvent struct {
+	ID     string          `json:"id,omitempty"`
+	CallID string          `json:"call_id,omitempty"`
 	Name   string          `json:"name"`
 	Input  json.RawMessage `json:"input,omitempty"`
 	Output string          `json:"output,omitempty"`
@@ -645,15 +647,19 @@ func (c *Codex) parseCodexEvents(state *codexState, runID uuid.UUID, streamEvent
 	// Top-level tool payloads (some Codex builds emit these outside item.completed).
 	if streamEvent.Tool != nil && streamEvent.Item == nil {
 		toolName := streamEvent.Tool.Name
+		toolCallID := streamEvent.Tool.CallID
+		if toolCallID == "" {
+			toolCallID = streamEvent.Tool.ID
+		}
 		var input map[string]interface{}
 		if streamEvent.Tool.Input != nil {
 			_ = json.Unmarshal(streamEvent.Tool.Input, &input)
 		}
 		if len(input) > 0 {
-			events = append(events, domain.NewToolCallEvent(runID, toolName, "", input))
+			events = append(events, domain.NewToolCallEvent(runID, toolName, toolCallID, input))
 		}
 		if streamEvent.Tool.Output != "" {
-			events = append(events, domain.NewToolResultEvent(runID, toolName, "", runner.StripANSI(streamEvent.Tool.Output), nil))
+			events = append(events, domain.NewToolResultEvent(runID, toolName, toolCallID, runner.StripANSI(streamEvent.Tool.Output), nil))
 		}
 		if len(events) > 0 {
 			return events
@@ -736,7 +742,7 @@ func parseCodexItemEvents(state *codexState, runID uuid.UUID, item *CodexItem) [
 		if item.Input != nil {
 			_ = json.Unmarshal(item.Input, &input)
 		}
-		return []*domain.RunEvent{domain.NewToolCallEvent(runID, item.Name, "", input)}
+		return []*domain.RunEvent{domain.NewToolCallEvent(runID, item.Name, item.ID, input)}
 	case "tool_result":
 		var input map[string]interface{}
 		if item.Input != nil {
@@ -744,10 +750,10 @@ func parseCodexItemEvents(state *codexState, runID uuid.UUID, item *CodexItem) [
 		}
 		events := []*domain.RunEvent{}
 		if len(input) > 0 {
-			events = append(events, domain.NewToolCallEvent(runID, item.Name, "", input))
+			events = append(events, domain.NewToolCallEvent(runID, item.Name, item.ID, input))
 		}
 		events = append(events, domain.NewToolResultEvent(
-			runID, item.Name, "",
+			runID, item.Name, item.ID,
 			runner.StripANSI(item.Output), nil,
 		))
 		return events
@@ -798,7 +804,7 @@ func parseCodexCommandExecution(runID uuid.UUID, item *CodexItem) []*domain.RunE
 				"status":      item.Status,
 				"runner_tool": "command_execution",
 			}
-			events = append(events, domain.NewToolCallEvent(runID, toolName, "", input))
+			events = append(events, domain.NewToolCallEvent(runID, toolName, item.ID, input))
 		}
 
 		var errMsg error
@@ -813,7 +819,7 @@ func parseCodexCommandExecution(runID uuid.UUID, item *CodexItem) []*domain.RunE
 			output = item.Output
 		}
 		events = append(events, domain.NewToolResultEvent(
-			runID, toolName, "",
+			runID, toolName, item.ID,
 			runner.StripANSI(output), errMsg,
 		))
 		return events
@@ -825,7 +831,7 @@ func parseCodexCommandExecution(runID uuid.UUID, item *CodexItem) []*domain.RunE
 			"status":      item.Status,
 			"runner_tool": "command_execution",
 		}
-		return []*domain.RunEvent{domain.NewToolCallEvent(runID, toolName, "", input)}
+		return []*domain.RunEvent{domain.NewToolCallEvent(runID, toolName, item.ID, input)}
 	}
 	return nil
 }

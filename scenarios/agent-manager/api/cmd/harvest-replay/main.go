@@ -8,19 +8,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
+
+	"agent-manager/internal/transcriptredact"
 )
 
 type meta struct {
 	RunnerType string `json:"runner_type"`
-}
-
-var sensitive = []*regexp.Regexp{
-	regexp.MustCompile(`(?i)("(?:api[_-]?key|token|secret|authorization|access_token|refresh_token)"\s*:\s*)"[^"]*"`),
-	regexp.MustCompile(`(?i)((?:api[_-]?key|token|secret|authorization|access_token|refresh_token)\s*=\s*)[^\s]+`),
-	regexp.MustCompile(`/home/[^/"\\s]+`),
 }
 
 func main() {
@@ -55,7 +50,7 @@ func main() {
 		if err != nil || len(strings.TrimSpace(string(transcript))) == 0 {
 			continue
 		}
-		redacted := redact(string(transcript))
+		redacted := transcriptredact.Redact(string(transcript))
 		if err := os.MkdirAll(*out, 0o755); err != nil {
 			fail(err)
 		}
@@ -68,12 +63,6 @@ func main() {
 	for runner, count := range counts {
 		fmt.Printf("%s: %d\n", runner, count)
 	}
-}
-
-func redact(value string) string {
-	value = sensitive[0].ReplaceAllString(value, `${1}"<REDACTED>"`)
-	value = sensitive[1].ReplaceAllString(value, `${1}<REDACTED>`)
-	return sensitive[2].ReplaceAllString(value, "<HOME>")
 }
 
 func fail(err error) { fmt.Fprintln(os.Stderr, err); os.Exit(1) }

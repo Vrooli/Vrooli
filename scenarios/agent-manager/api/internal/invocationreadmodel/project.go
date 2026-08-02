@@ -4,11 +4,11 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
-	"agent-manager/internal/runreport"
+	"agent-manager/internal/runsignal"
 )
 
 // Project is the one adapter from durable run events to the analytical row
-// shape. Classification itself remains owned by runreport.
+// shape. Classification itself remains owned by runsignal.
 func Project(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time) ([]Fact, Watermark) {
 	timestamps := make(map[string]time.Time, len(events))
 	var last *domain.RunEvent
@@ -27,7 +27,7 @@ func Project(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time) 
 		tag = "unknown"
 	}
 	facts := make([]Fact, 0)
-	for _, fact := range runreport.DeriveInvocationFacts(events) {
+	for _, fact := range runsignal.DeriveInvocationFacts(events) {
 		occurredAt, ok := timestamps[fact.CallEventID]
 		timeBasis := "call_event"
 		if !ok {
@@ -35,11 +35,68 @@ func Project(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time) 
 		}
 		facts = append(facts, Fact{InvocationFact: fact, RunID: run.ID.String(), OccurredAt: occurredAt, TimeBasis: timeBasis, ProfileID: profileID, RunnerType: runnerType, Model: model, Tag: tag, RunStatus: string(run.Status)})
 	}
-	watermark := Watermark{RunID: run.ID.String(), ClassifierVersion: runreport.InvocationFactVersion, ProjectedAt: projectedAt}
+	watermark := Watermark{RunID: run.ID.String(), ClassifierVersion: runsignal.InvocationFactVersion, EpisodeClassifierVersion: runsignal.EpisodeClassifierVersion, SelfReportClassifierVersion: runsignal.SelfReportClassifierVersion, ProjectedAt: projectedAt}
 	if last != nil {
 		watermark.LastEventID, watermark.LastEventAt = last.ID.String(), last.Timestamp
 	}
 	return facts, watermark
+}
+
+// ProjectEpisodes folds the same retained event set as invocation facts and
+// attaches the shared run dimensions used by every durable cohort query.
+func ProjectEpisodes(run *domain.Run, facts []Fact, events []*domain.RunEvent, projectedAt time.Time) []Episode {
+	profileID, runnerType, model := runDimensions(run)
+	tag := run.Tag
+	if tag == "" {
+		tag = "unknown"
+	}
+	invocations := make([]runsignal.InvocationFact, 0, len(facts))
+	for _, fact := range facts {
+		invocations = append(invocations, fact.InvocationFact)
+	}
+	timestamps := eventTimestamps(events)
+	episodes := runsignal.DeriveEpisodes(invocations, events)
+	out := make([]Episode, 0, len(episodes))
+	for _, episode := range episodes {
+		occurredAt, basis := timestamps[episode.StartEventID], "start_event"
+		if occurredAt.IsZero() {
+			occurredAt, basis = projectedAt, "projection_time"
+		}
+		episode.RunID = run.ID.String()
+		out = append(out, Episode{FrictionEpisode: episode, RunID: run.ID.String(), OccurredAt: occurredAt, TimeBasis: basis, ProfileID: profileID, RunnerType: runnerType, Model: model, Tag: tag, RunStatus: string(run.Status)})
+	}
+	return out
+}
+
+// ProjectSelfReportSpans folds assistant messages from the same retained
+// event set and records their event-time basis explicitly.
+func ProjectSelfReportSpans(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time) []SelfReportSpan {
+	profileID, runnerType, model := runDimensions(run)
+	tag := run.Tag
+	if tag == "" {
+		tag = "unknown"
+	}
+	timestamps := eventTimestamps(events)
+	spans := runsignal.DeriveSelfReportSpans(events)
+	out := make([]SelfReportSpan, 0, len(spans))
+	for _, span := range spans {
+		occurredAt, basis := timestamps[span.EventID], "message_event"
+		if occurredAt.IsZero() {
+			occurredAt, basis = projectedAt, "projection_time"
+		}
+		out = append(out, SelfReportSpan{SelfReportSpan: span, RunID: run.ID.String(), OccurredAt: occurredAt, TimeBasis: basis, ProfileID: profileID, RunnerType: runnerType, Model: model, Tag: tag, RunStatus: string(run.Status)})
+	}
+	return out
+}
+
+func eventTimestamps(events []*domain.RunEvent) map[string]time.Time {
+	timestamps := make(map[string]time.Time, len(events))
+	for _, event := range events {
+		if event != nil {
+			timestamps[event.ID.String()] = event.Timestamp
+		}
+	}
+	return timestamps
 }
 
 // ProjectErrors folds typed error events into compact, durable analytical
@@ -117,7 +174,7 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 			cacheCreationTokens += int64(usage.CacheCreationTokens)
 		}
 		if call, ok := event.Data.(*domain.ToolCallEventData); ok {
-			if path := runreport.ReadPath(call); path != "" {
+			if path := runsignal.ReadPath(call); path != "" {
 				readCalls++
 				fileReads[path]++
 				if fileReads[path] == 2 {
@@ -133,7 +190,7 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 			duration = 0
 		}
 	}
-	return RunFact{RunID: run.ID.String(), OccurredAt: occurredAt, CreatedAt: run.CreatedAt, StartedAt: run.StartedAt, EndedAt: run.EndedAt, DurationMS: duration, Status: string(run.Status), ProfileID: profileID, RunnerType: runnerType, Model: model, Tag: tag, TotalCostUSD: cost, AuthoritativeCostUSD: authoritativeCost, EstimatedCostUSD: estimatedCost, UnknownCostUSD: unknownCost, InputCostUSD: inputCost, OutputCostUSD: outputCost, CacheReadCostUSD: cacheReadCost, CacheCreationCostUSD: cacheCreationCost, TotalTokens: tokens, InputTokens: inputTokens, OutputTokens: outputTokens, CacheReadTokens: cacheReadTokens, CacheCreationTokens: cacheCreationTokens, ReadCalls: readCalls, FileRereads: rereads, CostTimeBasis: timeBasis, ProjectedAt: projectedAt}
+	return RunFact{RunID: run.ID.String(), OccurredAt: occurredAt, CreatedAt: run.CreatedAt, StartedAt: run.StartedAt, EndedAt: run.EndedAt, DurationMS: duration, Status: string(run.Status), ProfileID: profileID, RunnerType: runnerType, Model: model, Tag: tag, TotalCostUSD: cost, AuthoritativeCostUSD: authoritativeCost, EstimatedCostUSD: estimatedCost, UnknownCostUSD: unknownCost, InputCostUSD: inputCost, OutputCostUSD: outputCost, CacheReadCostUSD: cacheReadCost, CacheCreationCostUSD: cacheCreationCost, TotalTokens: tokens, InputTokens: inputTokens, OutputTokens: outputTokens, CacheReadTokens: cacheReadTokens, CacheCreationTokens: cacheCreationTokens, ReadCalls: readCalls, FileRereads: rereads, TimeAccounting: runsignal.DeriveTimeAccounting(events, run.StartedAt, run.EndedAt), CostTimeBasis: timeBasis, ProjectedAt: projectedAt}
 }
 
 func runDimensions(run *domain.Run) (profileID, runnerType, model string) {

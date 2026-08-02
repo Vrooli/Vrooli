@@ -7,6 +7,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/runreport"
+	"agent-manager/internal/runsignal"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -32,7 +33,7 @@ func (h *Handler) GetEpisodes(ctx context.Context, req *connect.Request[domainpb
 		out = append(out, episodeProto(episode))
 	}
 	return connect.NewResponse(&domainpb.GetEpisodesResponse{
-		ClassifierVersion: runreport.EpisodeClassifierVersion,
+		ClassifierVersion: runsignal.EpisodeClassifierVersion,
 		Episodes:          out,
 	}), nil
 }
@@ -52,7 +53,7 @@ func (h *Handler) GetSelfReportSpans(ctx context.Context, req *connect.Request[d
 	for _, span := range spans {
 		out = append(out, &domainpb.SelfReportSpan{ClassifierVersion: span.ClassifierVersion, EventId: span.EventID, RuleId: span.RuleID, CauseScope: span.CauseScope, StartOffset: int64(span.StartOffset), EndOffset: int64(span.EndOffset), Text: span.Text})
 	}
-	return connect.NewResponse(&domainpb.GetSelfReportSpansResponse{ClassifierVersion: runreport.SelfReportClassifierVersion, Spans: out}), nil
+	return connect.NewResponse(&domainpb.GetSelfReportSpansResponse{ClassifierVersion: runsignal.SelfReportClassifierVersion, Spans: out}), nil
 }
 
 // GetCrossScenarioLedger returns bounded receipt evidence and availability
@@ -96,10 +97,10 @@ func (h *Handler) ImportTranscript(ctx context.Context, req *connect.Request[dom
 }
 
 func availabilityProto(value runreport.Availability) *domainpb.Availability {
-	return &domainpb.Availability{State: value.State, Detail: value.Detail}
+	return &domainpb.Availability{State: string(value.State), Reason: value.Reason}
 }
 
-func episodeProto(episode runreport.FrictionEpisode) *domainpb.FrictionEpisode {
+func episodeProto(episode runsignal.FrictionEpisode) *domainpb.FrictionEpisode {
 	return &domainpb.FrictionEpisode{
 		EpisodeId:              episode.EpisodeID,
 		RunId:                  episode.RunID,
@@ -118,5 +119,7 @@ func episodeProto(episode runreport.FrictionEpisode) *domainpb.FrictionEpisode {
 		SuspectedOwnerCommand:  episode.SuspectedOwnerCommand,
 		OwnerConfidence:        episode.OwnerConfidence,
 		Fingerprint:            episode.Fingerprint,
+		CycleCount:             int64(episode.CycleCount),
+		RepeatedElement:        episode.RepeatedElement,
 	}
 }

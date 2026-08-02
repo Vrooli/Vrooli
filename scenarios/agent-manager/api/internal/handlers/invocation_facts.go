@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"agent-manager/internal/runreport"
+	"agent-manager/internal/runsignal"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
@@ -25,5 +26,5 @@ func (h *Handler) GetInvocationFacts(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, runreport.InvocationFactsResponse{ClassifierVersion: runreport.InvocationFactVersion, Availability: runreport.Availability{State: "available"}, Facts: facts})
+	writeJSON(w, http.StatusOK, runreport.InvocationFactsResponse{ClassifierVersion: runsignal.InvocationFactVersion, Availability: runreport.Availability{State: runreport.AvailabilityAvailable}, Facts: facts})
 }

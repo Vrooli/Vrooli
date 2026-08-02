@@ -33,6 +33,7 @@
       "title": "Reference",
       "documents": [
         {"path": "reference/configuration.md", "docType": "configuration", "title": "Configuration", "description": "Role catalogs, permission catalogs, profiles, reconciliation, and operator workflows", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "reference/classifier-accuracy.md", "docType": "classifier-accuracy", "title": "Classifier Accuracy", "description": "Shared corpus scorer and Test Genie classifier-accuracy publication", "maturity": "active", "requiredBy": ["validated"], "completion": "required"},
         {"path": "reference/operational-stats.md", "docType": "operational-stats", "title": "Operational Stats", "description": "API and CLI operational stats reference", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
         {"path": "reference/scenario-declarations.md", "docType": "scenario-declarations", "title": "Scenario Declarations", "description": "Profile and workflow declaration format, canonical tool restrictions, and reconciliation", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"}
       ]
@@ -42,6 +43,7 @@
       "title": "Guides",
       "documents": [
         {"path": "guides/workflow-adoption.md", "docType": "workflow-adoption", "title": "Workflow Adoption", "description": "Run-versus-Workflow decision rule, ownership boundary, and migration checklist", "maturity": "active", "requiredBy": ["implemented"], "completion": "required"},
+        {"path": "guides/acceptance-walkthrough.sh", "docType": "acceptance-walkthrough", "title": "Evidence Spine Acceptance Walkthrough", "description": "CLI-only eight-question investigation evidence walkthrough against the imported corpus", "maturity": "active", "requiredBy": ["validated"], "completion": "required"},
         {"path": "PROTECTED_MODE_RUNNERS.md", "docType": "protected-mode-runners", "title": "Protected Mode Runners", "description": "Sandboxed runner launch and environment behavior", "maturity": "active", "requiredBy": ["validated"], "completion": "required"},
         {"path": "runner-transcript-recovery.md", "docType": "runner-transcript-recovery", "title": "Runner Transcript Recovery", "description": "Restart recovery and detached runner transcript replay", "maturity": "active", "requiredBy": ["validated"], "completion": "required"},
         {"path": "FAILURE_TOPOGRAPHY.md", "docType": "failure-topography", "title": "Failure Topography", "description": "Failure modes and operator recovery paths", "maturity": "active", "requiredBy": ["validated"], "completion": "required"},

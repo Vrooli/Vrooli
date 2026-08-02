@@ -2,6 +2,8 @@ package runreport
 
 import (
 	"sort"
+
+	"agent-manager/internal/runsignal"
 )
 
 // ClassifierVersion names the deterministic rules used for a report. It is
@@ -12,10 +14,21 @@ const ClassifierVersion = "passive-evidence.v1"
 // Cohort is a bounded multi-run projection. Reports remain the source of truth
 // for drill-down; this type only contains ranked, reproducible signals.
 type Cohort struct {
-	ClassifierVersion string         `json:"classifierVersion"`
-	RunIDs            []string       `json:"runIds"`
-	Availability      Availability   `json:"availability"`
-	Signals           []CohortSignal `json:"signals"`
+	ClassifierVersion string                   `json:"classifierVersion"`
+	RunIDs            []string                 `json:"runIds"`
+	Availability      Availability             `json:"availability"`
+	Signals           []CohortSignal           `json:"signals"`
+	TimeAccounting    runsignal.TimeAccounting `json:"timeAccounting"`
+	GoalOutcomes      []GoalOutcomeCohort      `json:"goalOutcomes,omitempty"`
+}
+
+// GoalOutcomeCohort compares imported harness outcomes using the accounting
+// captured at import, not a mutable current snapshot.
+type GoalOutcomeCohort struct {
+	Status          string `json:"status"`
+	Runs            int    `json:"runs"`
+	TokensUsed      int64  `json:"tokensUsed"`
+	TimeUsedSeconds int64  `json:"timeUsedSeconds"`
 }
 
 type CohortSignal struct {
@@ -39,8 +52,8 @@ type EpisodeSignal struct {
 	RepresentativeRunIDs []string `json:"representativeRunIds"`
 }
 
-func BuildEpisodeCohort(episodesByRun map[string][]FrictionEpisode) EpisodeCohort {
-	out := EpisodeCohort{Availability: Availability{State: "available"}}
+func BuildEpisodeCohort(episodesByRun map[string][]runsignal.FrictionEpisode) EpisodeCohort {
+	out := EpisodeCohort{Availability: Availability{State: AvailabilityAvailable}}
 	type bucket struct {
 		occurrences int
 		cost        int64
@@ -49,7 +62,7 @@ func BuildEpisodeCohort(episodesByRun map[string][]FrictionEpisode) EpisodeCohor
 	buckets := map[string]*bucket{}
 	for runID, episodes := range episodesByRun {
 		if len(episodes) == 0 {
-			out.Availability = Availability{State: "degraded", Detail: "one or more selected runs have no derived episodes"}
+			out.Availability = Availability{State: AvailabilityDegraded, Reason: "one or more selected runs have no derived episodes"}
 			continue
 		}
 		for _, episode := range episodes {
@@ -90,12 +103,13 @@ func BuildEpisodeCohort(episodesByRun map[string][]FrictionEpisode) EpisodeCohor
 // BuildCohort folds a caller-selected, comparable set of reports. It never
 // reads raw transcript data and caps both signals and representatives.
 func BuildCohort(reports []*RunReport) Cohort {
-	out := Cohort{ClassifierVersion: ClassifierVersion, Availability: Availability{State: "available"}}
+	out := Cohort{ClassifierVersion: ClassifierVersion, Availability: Availability{State: AvailabilityAvailable}}
 	type bucket struct {
 		count, impact int
 		ids           []string
 	}
 	buckets := map[string]*bucket{}
+	goalBuckets := map[string]*GoalOutcomeCohort{}
 	add := func(kind string, impact int, id string) {
 		b := buckets[kind]
 		if b == nil {
@@ -110,13 +124,33 @@ func BuildCohort(reports []*RunReport) Cohort {
 	}
 	for _, report := range reports {
 		if report == nil {
-			out.Availability = Availability{State: "degraded", Detail: "one or more reports were unavailable"}
+			out.Availability = Availability{State: AvailabilityDegraded, Reason: "one or more reports were unavailable"}
 			continue
 		}
 		id := report.RunID.String()
+		out.TimeAccounting.ModelGeneratingMS += report.TimeAccounting.ModelGeneratingMS
+		out.TimeAccounting.ToolExecutingMS += report.TimeAccounting.ToolExecutingMS
+		out.TimeAccounting.IdleWaitingMS += report.TimeAccounting.IdleWaitingMS
+		out.TimeAccounting.AwaitingHumanMS += report.TimeAccounting.AwaitingHumanMS
+		out.TimeAccounting.UnattributableMS += report.TimeAccounting.UnattributableMS
+		out.TimeAccounting.ModelTokens += report.TimeAccounting.ModelTokens
+		out.TimeAccounting.ToolTokens += report.TimeAccounting.ToolTokens
+		out.TimeAccounting.IdleTokens += report.TimeAccounting.IdleTokens
+		out.TimeAccounting.HumanTokens += report.TimeAccounting.HumanTokens
+		out.TimeAccounting.UnattributableTokens += report.TimeAccounting.UnattributableTokens
 		out.RunIDs = append(out.RunIDs, id)
-		if report.EventsAvailability.State != "available" {
-			out.Availability = Availability{State: "degraded", Detail: "event evidence is unavailable for part of the cohort"}
+		if goal := report.GoalOutcome; goal != nil && goal.Status != "" {
+			b := goalBuckets[goal.Status]
+			if b == nil {
+				b = &GoalOutcomeCohort{Status: goal.Status}
+				goalBuckets[goal.Status] = b
+			}
+			b.Runs++
+			b.TokensUsed += goal.TokensUsed
+			b.TimeUsedSeconds += goal.TimeUsedSeconds
+		}
+		if report.EventsAvailability.State != AvailabilityAvailable {
+			out.Availability = Availability{State: AvailabilityDegraded, Reason: "event evidence is unavailable for part of the cohort"}
 		}
 		for _, tool := range report.Tools {
 			if tool.Failures > 0 {
@@ -141,10 +175,14 @@ func BuildCohort(reports []*RunReport) Cohort {
 		if report.FallbackCount > 0 {
 			add("model_fallback", report.FallbackCount, id)
 		}
-		if report.ReceiptsAvailability.State == "degraded" || report.ReceiptsAvailability.State == "unavailable" {
+		if report.ReceiptsAvailability.State == AvailabilityDegraded || report.ReceiptsAvailability.State == AvailabilityUnavailable {
 			add("receipt_availability", 1, id)
 		}
 	}
+	for _, bucket := range goalBuckets {
+		out.GoalOutcomes = append(out.GoalOutcomes, *bucket)
+	}
+	sort.Slice(out.GoalOutcomes, func(i, j int) bool { return out.GoalOutcomes[i].Status < out.GoalOutcomes[j].Status })
 	for kind, b := range buckets {
 		confidence := "medium"
 		if b.count >= 2 {

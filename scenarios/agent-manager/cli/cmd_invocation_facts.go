@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/url"
@@ -43,6 +44,39 @@ func (a *App) runImportTranscript(args []string) error {
 		return nil
 	}
 	fmt.Println(string(body))
+	return nil
+}
+
+func (a *App) runImportSessionCorpus(args []string) error {
+	fs := flag.NewFlagSet("run import-session-corpus", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	runners := fs.String("runners", "codex,claude-code", "comma-separated governed runner types")
+	from := fs.String("from", "", "RFC3339 inclusive session-update time")
+	to := fs.String("to", "", "RFC3339 exclusive session-update time")
+	perMonth := fs.Int("per-month", 1, "deterministic sessions per runner-month")
+	limit := fs.Int("limit", 24, "maximum selected sessions")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	runnerTypes := make([]string, 0)
+	for _, value := range strings.Split(*runners, ",") {
+		if value = strings.TrimSpace(value); value != "" {
+			runnerTypes = append(runnerTypes, value)
+		}
+	}
+	payload, err := json.Marshal(map[string]any{"runnerTypes": runnerTypes, "from": *from, "to": *to, "perMonth": *perMonth, "limit": *limit})
+	if err != nil {
+		return err
+	}
+	body, err := a.services.Runs.ImportSessionCorpus(payload)
+	if err != nil {
+		return err
+	}
+	if *jsonOutput {
+		cliutil.PrintJSON(body)
+	} else {
+		fmt.Println(string(body))
+	}
 	return nil
 }
 
@@ -229,7 +263,7 @@ func (a *App) runReplayInvocationCorpus(args []string) error {
 	return nil
 }
 
-func invocationQueryFlags(fs *flag.FlagSet) (dimension, ownership, outcome, executable, fingerprint, from, to, profileID, runnerType, model, tagPrefix, runStatus *string, limit *int) {
+func invocationQueryFlags(fs *flag.FlagSet) (dimension, ownership, outcome, executable, fingerprint, from, to, profileID, runnerType, model, tagPrefix, runStatus, goalStatus *string, limit *int) {
 	dimension = fs.String("dimension", "", "aggregate dimension")
 	ownership = fs.String("ownership", "", "ownership filter")
 	outcome = fs.String("outcome", "", "outcome filter")
@@ -242,13 +276,14 @@ func invocationQueryFlags(fs *flag.FlagSet) (dimension, ownership, outcome, exec
 	model = fs.String("model", "", "model filter")
 	tagPrefix = fs.String("tag-prefix", "", "tag prefix")
 	runStatus = fs.String("run-status", "", "status filter")
+	goalStatus = fs.String("goal-status", "", "external goal outcome filter")
 	limit = fs.Int("limit", 100, "maximum results")
 	return
 }
 
-func invocationQueryValues(dimension, ownership, outcome, executable, fingerprint, from, to, profileID, runnerType, model, tagPrefix, runStatus string, limit int) url.Values {
+func invocationQueryValues(dimension, ownership, outcome, executable, fingerprint, from, to, profileID, runnerType, model, tagPrefix, runStatus, goalStatus string, limit int) url.Values {
 	values := url.Values{"limit": []string{fmt.Sprint(limit)}}
-	for key, value := range map[string]string{"dimension": dimension, "ownership": ownership, "outcome": outcome, "executable": executable, "fingerprint": fingerprint, "from": from, "to": to, "profile_id": profileID, "runner_type": runnerType, "model": model, "tag_prefix": tagPrefix, "run_status": runStatus} {
+	for key, value := range map[string]string{"dimension": dimension, "ownership": ownership, "outcome": outcome, "executable": executable, "fingerprint": fingerprint, "from": from, "to": to, "profile_id": profileID, "runner_type": runnerType, "model": model, "tag_prefix": tagPrefix, "run_status": runStatus, "goal_status": goalStatus} {
 		if value != "" {
 			values.Set(key, value)
 		}
@@ -259,14 +294,14 @@ func invocationQueryValues(dimension, ownership, outcome, executable, fingerprin
 func (a *App) runAggregateInvocationFacts(args []string) error {
 	fs := flag.NewFlagSet("run invocation-aggregate", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	d, o, u, e, f, from, to, p, r, m, t, s, l := invocationQueryFlags(fs)
+	d, o, u, e, f, from, to, p, r, m, t, s, g, l := invocationQueryFlags(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if *d == "" {
 		return fmt.Errorf("--dimension is required")
 	}
-	body, err := a.services.Runs.AggregateInvocationFacts(invocationQueryValues(*d, *o, *u, *e, *f, *from, *to, *p, *r, *m, *t, *s, *l))
+	body, err := a.services.Runs.AggregateInvocationFacts(invocationQueryValues(*d, *o, *u, *e, *f, *from, *to, *p, *r, *m, *t, *s, *g, *l))
 	if err != nil {
 		return err
 	}
@@ -281,11 +316,11 @@ func (a *App) runAggregateInvocationFacts(args []string) error {
 func (a *App) runSelectInvocationCohort(args []string) error {
 	fs := flag.NewFlagSet("run invocation-cohort", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	d, o, u, e, f, from, to, p, r, m, t, s, l := invocationQueryFlags(fs)
+	d, o, u, e, f, from, to, p, r, m, t, s, g, l := invocationQueryFlags(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	body, err := a.services.Runs.SelectInvocationCohort(invocationQueryValues(*d, *o, *u, *e, *f, *from, *to, *p, *r, *m, *t, *s, *l))
+	body, err := a.services.Runs.SelectInvocationCohort(invocationQueryValues(*d, *o, *u, *e, *f, *from, *to, *p, *r, *m, *t, *s, *g, *l))
 	if err != nil {
 		return err
 	}
@@ -300,11 +335,11 @@ func (a *App) runSelectInvocationCohort(args []string) error {
 func (a *App) runInvocationMetrics(args []string) error {
 	fs := flag.NewFlagSet("run invocation-metrics", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	d, o, u, e, f, from, to, p, r, m, t, s, l := invocationQueryFlags(fs)
+	d, o, u, e, f, from, to, p, r, m, t, s, g, l := invocationQueryFlags(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	body, err := a.services.Runs.InvocationMetrics(invocationQueryValues(*d, *o, *u, *e, *f, *from, *to, *p, *r, *m, *t, *s, *l))
+	body, err := a.services.Runs.InvocationMetrics(invocationQueryValues(*d, *o, *u, *e, *f, *from, *to, *p, *r, *m, *t, *s, *g, *l))
 	if err != nil {
 		return err
 	}

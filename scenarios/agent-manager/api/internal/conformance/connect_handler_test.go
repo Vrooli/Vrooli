@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func TestBuildAssessmentRepresentsFullLadderAndBlockingFindings(t *testing.T) {
@@ -43,6 +44,22 @@ func TestBuildAssessmentRepresentsFullLadderAndBlockingFindings(t *testing.T) {
 	}
 }
 
+func TestClassifierAccuracyFindingsUseRequiredMaturityRungs(t *testing.T) {
+	for _, tc := range []struct {
+		code string
+		want string
+	}{
+		{code: "classifier_accuracy.unmeasured", want: "L0"},
+		{code: "classifier_accuracy.coverage_missing", want: "L1"},
+		{code: "classifier_accuracy.below_threshold", want: "L2"},
+	} {
+		got, requirement := maturityFor(Finding{Code: tc.code})
+		if got != tc.want || requirement != commonv1.CleanRequirement_CLEAN_REQUIREMENT_REQUIRED {
+			t.Fatalf("maturityFor(%q) = (%q, %s), want (%q, required)", tc.code, got, requirement, tc.want)
+		}
+	}
+}
+
 func TestValidateScenarioIncludesExecutionMetrics(t *testing.T) {
 	repoRoot, err := filepath.Abs(filepath.Join("..", "..", "..", "..", ".."))
 	if err != nil {
@@ -55,4 +72,41 @@ func TestValidateScenarioIncludesExecutionMetrics(t *testing.T) {
 	if response.Msg.GetMetrics() == nil || response.Msg.GetMetrics().GetCompletedAt() == nil || response.Msg.GetMetrics().GetStartedAt() == nil {
 		t.Fatalf("metrics = %#v, want measured validation timing", response.Msg.GetMetrics())
 	}
+}
+
+func TestValidateSelfPublishesClassifierAccuracy(t *testing.T) {
+	repoRoot, err := filepath.Abs(filepath.Join("..", "..", "..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := NewHandler(repoRoot).ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: agentManagerSelfScenario}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := response.Msg.GetStatus(); got != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED {
+		t.Fatalf("status = %s, want passed", got)
+	}
+	detail := &structpb.Struct{}
+	if err := response.Msg.GetNativeDetail().UnmarshalTo(detail); err != nil {
+		t.Fatal(err)
+	}
+	values := detail.GetFields()["classifier_accuracy"].GetListValue().GetValues()
+	if len(values) == 0 {
+		t.Fatal("classifier accuracy detail is empty")
+	}
+	for _, value := range values {
+		fields := value.GetStructValue().GetFields()
+		if fields["id"].GetStringValue() == "" || fields["precision"].GetNumberValue() < fields["threshold"].GetNumberValue() || fields["recall"].GetNumberValue() < fields["threshold"].GetNumberValue() {
+			t.Fatalf("invalid classifier accuracy result: %#v", fields)
+		}
+	}
+	for _, capability := range response.Msg.GetAssessment().GetPresentation().GetCapabilities() {
+		if capability.GetId() == "classifier_accuracy" {
+			if capability.GetCurrentLevel() != "L2" || !capability.GetClean() || capability.GetCurrentSummary() == "" {
+				t.Fatalf("classifier fleet presentation = %#v", capability)
+			}
+			return
+		}
+	}
+	t.Fatal("classifier accuracy capability missing from fleet presentation")
 }

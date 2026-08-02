@@ -30,7 +30,7 @@ func (a *App) runCohortReport(args []string) error {
 	var report struct {
 		ClassifierVersion string                         `json:"classifierVersion"`
 		RunIDs            []string                       `json:"runIds"`
-		Availability      struct{ State, Detail string } `json:"availability"`
+		Availability      struct{ State, Reason string } `json:"availability"`
 		Signals           []struct {
 			Kind                 string
 			Count, Impact        int
@@ -42,8 +42,8 @@ func (a *App) runCohortReport(args []string) error {
 		return fmt.Errorf("decode cohort report: %w", err)
 	}
 	fmt.Printf("Cohort: %d runs | classifier: %s | evidence: %s\n", len(report.RunIDs), report.ClassifierVersion, report.Availability.State)
-	if report.Availability.Detail != "" {
-		fmt.Printf("Evidence detail: %s\n", report.Availability.Detail)
+	if report.Availability.Reason != "" {
+		fmt.Printf("Evidence reason: %s\n", report.Availability.Reason)
 	}
 	for _, signal := range report.Signals {
 		fmt.Printf("- %s: count=%d impact=%d confidence=%s evidence=%s\n", signal.Kind, signal.Count, signal.Impact, signal.Confidence, strings.Join(signal.RepresentativeRunIDs, ","))

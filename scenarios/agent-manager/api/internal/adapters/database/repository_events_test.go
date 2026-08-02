@@ -10,7 +10,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/repository"
-	"agent-manager/internal/runreport"
+	"agent-manager/internal/runsignal"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -830,7 +830,7 @@ func TestStatsUsageQueries_ParseCreatedAtTimestamps(t *testing.T) {
 
 	now := time.Now()
 	projectStatsRun(t, repos, ctx, run, now)
-	if err := repos.InvocationReadModel.Replace(ctx, []invocationreadmodel.Fact{{InvocationFact: runreport.InvocationFact{Version: runreport.InvocationFactVersion, CallEventID: "call-1", ToolName: "read", Ownership: "project", Outcome: "success", Fingerprint: "read", Availability: "available"}, RunID: run.ID.String(), OccurredAt: now, TimeBasis: "call_event", RunnerType: string(run.ResolvedConfig.RunnerType), Model: run.ResolvedConfig.Model, RunStatus: string(run.Status)}}, invocationreadmodel.Watermark{RunID: run.ID.String(), LastEventID: "call-1", LastEventAt: now, ClassifierVersion: runreport.InvocationFactVersion, ProjectedAt: now}); err != nil {
+	if err := repos.InvocationReadModel.Replace(ctx, []invocationreadmodel.Fact{{InvocationFact: runsignal.InvocationFact{Version: runsignal.InvocationFactVersion, CallEventID: "call-1", ToolName: "read", Ownership: "project", Outcome: "success", Fingerprint: "read", Availability: "available"}, RunID: run.ID.String(), OccurredAt: now, TimeBasis: "call_event", RunnerType: string(run.ResolvedConfig.RunnerType), Model: run.ResolvedConfig.Model, RunStatus: string(run.Status)}}, invocationreadmodel.Watermark{RunID: run.ID.String(), LastEventID: "call-1", LastEventAt: now, ClassifierVersion: runsignal.InvocationFactVersion, ProjectedAt: now}); err != nil {
 		t.Fatalf("project invocation fact: %v", err)
 	}
 	filter := repository.StatsFilter{

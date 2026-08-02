@@ -46,6 +46,8 @@ func (a *App) cmdRun(args []string) error {
 		return a.runLedger(args[1:])
 	case "import-transcript":
 		return a.runImportTranscript(args[1:])
+	case "import-session-corpus":
+		return a.runImportSessionCorpus(args[1:])
 	case "replay-invocation-facts":
 		return a.runReplayInvocationFacts(args[1:])
 	case "refresh-invocation-facts":
@@ -125,6 +127,7 @@ Subcommands:
 	  replay-invocation-facts <id> Rebuild durable invocation evidence from retained events
 	  refresh-invocation-facts <id> Refresh evidence only when events advanced
 	  replay-invocation-corpus    Rebuild or refresh a filtered run corpus
+	  import-session-corpus       Import a bounded, reproducible runner-session corpus
 	  invocation-aggregate        Aggregate durable invocation facts
 	  invocation-cohort           Select run IDs from durable invocation facts
 	  invocation-metrics          Calculate durable friction metric counts
@@ -166,6 +169,8 @@ Examples:
   agent-manager run list
   agent-manager run create --task-id abc123 --profile-id def456
   agent-manager run investigate --run-ids id1,id2 --depth standard
+  agent-manager run investigate --filter-json '{"runnerType":"codex","goalStatus":"blocked"}'
+  agent-manager run investigate --goal-id <goal-id>
   agent-manager run cohort-report --run-ids id1,id2`)
 	return nil
 }
@@ -1040,6 +1045,7 @@ func (a *App) runEvents(args []string) error {
 
 	return nil
 }
+
 func runEventDataString(event *domainpb.RunEvent) string {
 	if event == nil {
 		return ""
@@ -1355,6 +1361,8 @@ func (a *App) runInvestigate(args []string) error {
 	fs := flag.NewFlagSet("run investigate", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
 	runIDs := fs.String("run-ids", "", "Comma-separated run IDs to investigate (required)")
+	filterJSON := fs.String("filter-json", "", "Cohort filter JSON; selects runs without manually listing IDs")
+	goalID := fs.String("goal-id", "", "Durable imported-session goal ID; selects all of its projected runs")
 	customContext := fs.String("context", "", "Custom context for investigation")
 	depth := fs.String("depth", "standard", "Investigation depth: quick, standard, deep")
 	projectRoot := fs.String("project-root", "", "Project root directory")
@@ -1364,17 +1372,37 @@ func (a *App) runInvestigate(args []string) error {
 		return err
 	}
 
-	if *runIDs == "" {
-		return fmt.Errorf("--run-ids is required")
+	selected := 0
+	if strings.TrimSpace(*runIDs) != "" {
+		selected++
+	}
+	if strings.TrimSpace(*filterJSON) != "" {
+		selected++
+	}
+	if strings.TrimSpace(*goalID) != "" {
+		selected++
+	}
+	if selected != 1 {
+		return fmt.Errorf("provide exactly one of --run-ids, --filter-json, or --goal-id")
 	}
 
-	ids := strings.Split(*runIDs, ",")
-	for i, id := range ids {
-		ids[i] = strings.TrimSpace(id)
+	req := map[string]interface{}{}
+	if strings.TrimSpace(*runIDs) != "" {
+		ids := strings.Split(*runIDs, ",")
+		for i, id := range ids {
+			ids[i] = strings.TrimSpace(id)
+		}
+		req["runIds"] = ids
 	}
-
-	req := map[string]interface{}{
-		"runIds": ids,
+	if strings.TrimSpace(*filterJSON) != "" {
+		var filter map[string]interface{}
+		if err := json.Unmarshal([]byte(*filterJSON), &filter); err != nil {
+			return fmt.Errorf("--filter-json must be a JSON cohort filter: %w", err)
+		}
+		req["selector"] = map[string]interface{}{"filter": filter}
+	}
+	if strings.TrimSpace(*goalID) != "" {
+		req["goalId"] = strings.TrimSpace(*goalID)
 	}
 	if *customContext != "" {
 		req["customContext"] = *customContext

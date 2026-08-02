@@ -828,6 +828,14 @@ func (o *Orchestrator) nudgeWorkflowForRun(runID uuid.UUID) {
 	if executionID == uuid.Nil {
 		return
 	}
+	// Investigation findings must become durable as soon as the investigate
+	// node has a validated result. The workflow then waits for an operator
+	// decision, and that decision needs the exact finding rows (and their
+	// before-measurement) already present; waiting until the whole workflow
+	// settles would make the apply path measure an empty set.
+	if execution, getErr := o.workflowExecutions.Get(context.Background(), executionID); getErr == nil {
+		o.persistInvestigationFindings(context.Background(), execution)
+	}
 	o.workflowNudger.Enqueue(executionID)
 }
 

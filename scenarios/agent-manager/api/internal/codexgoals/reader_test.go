@@ -3,6 +3,7 @@ package codexgoals
 import (
 	"context"
 	"database/sql"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -39,5 +40,16 @@ func TestReadMissingStoreIsNotAnError(t *testing.T) {
 	goal, err := Read(context.Background(), t.TempDir(), "thread")
 	if err != nil || goal != nil {
 		t.Fatalf("Read missing store = %#v, %v", goal, err)
+	}
+}
+
+func TestReadUnreadableStoreReturnsError(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "goals_1.sqlite"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	goal, err := Read(context.Background(), dir, "thread")
+	if err == nil || goal != nil {
+		t.Fatalf("Read unreadable store = %#v, %v", goal, err)
 	}
 }

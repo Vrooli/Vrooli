@@ -36,65 +36,6 @@ CREATE TABLE IF NOT EXISTS agent_profiles (
 
 CREATE INDEX IF NOT EXISTS idx_agent_profiles_name ON agent_profiles(name);
 
--- Passive investigation projections are derived only from durable run events.
--- They contain no raw tool input/output and can be deterministically rebuilt.
-CREATE TABLE IF NOT EXISTS investigation_invocation_facts (
-    run_id TEXT NOT NULL,
-    call_event_id TEXT NOT NULL,
-    result_event_id TEXT,
-    tool_call_id TEXT,
-    tool_name TEXT NOT NULL,
-    executable TEXT,
-    command_path TEXT,
-    ownership TEXT NOT NULL,
-    catalog_snapshot TEXT,
-    outcome TEXT NOT NULL,
-    retry_of_call_event_id TEXT,
-    help_recovery INTEGER NOT NULL DEFAULT 0,
-    fingerprint TEXT NOT NULL,
-    availability TEXT NOT NULL,
-    classifier_version TEXT NOT NULL,
-    PRIMARY KEY (run_id, call_event_id)
-);
-CREATE INDEX IF NOT EXISTS idx_investigation_invocation_facts_fingerprint ON investigation_invocation_facts(run_id, fingerprint);
-
-CREATE TABLE IF NOT EXISTS investigation_friction_episodes (
-    run_id TEXT NOT NULL,
-    episode_id TEXT NOT NULL,
-    classifier_version TEXT NOT NULL,
-    pattern TEXT NOT NULL,
-    cause_scope TEXT NOT NULL,
-    severity TEXT NOT NULL,
-    honesty_flags TEXT NOT NULL DEFAULT '[]',
-    start_event_id TEXT NOT NULL,
-    end_event_id TEXT NOT NULL,
-    evidence_event_ids TEXT NOT NULL DEFAULT '[]',
-    turns INTEGER NOT NULL,
-    tokens INTEGER NOT NULL,
-    wall_clock_ms INTEGER NOT NULL,
-    suspected_owner_scenario TEXT NOT NULL DEFAULT '',
-    suspected_owner_command TEXT NOT NULL DEFAULT '',
-    owner_confidence TEXT NOT NULL,
-    failed_joined_calls INTEGER NOT NULL DEFAULT 0,
-    fingerprint TEXT NOT NULL,
-    PRIMARY KEY (run_id, episode_id)
-);
-CREATE INDEX IF NOT EXISTS idx_investigation_friction_episodes_run ON investigation_friction_episodes(run_id);
-CREATE INDEX IF NOT EXISTS idx_investigation_friction_episodes_fingerprint ON investigation_friction_episodes(fingerprint);
-
-CREATE TABLE IF NOT EXISTS investigation_self_report_spans (
-    run_id TEXT NOT NULL,
-    event_id TEXT NOT NULL,
-    rule_id TEXT NOT NULL,
-    classifier_version TEXT NOT NULL,
-    cause_scope TEXT NOT NULL,
-    start_offset INTEGER NOT NULL,
-    end_offset INTEGER NOT NULL,
-    text TEXT NOT NULL,
-    PRIMARY KEY (run_id, event_id, rule_id, start_offset)
-);
-CREATE INDEX IF NOT EXISTS idx_investigation_self_report_spans_run ON investigation_self_report_spans(run_id, event_id);
-
 CREATE TABLE IF NOT EXISTS investigation_cross_scenario_calls (
     run_id TEXT NOT NULL,
     receipt_event_id TEXT NOT NULL,
@@ -134,6 +75,9 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_facts (
     ownership TEXT NOT NULL,
     catalog_snapshot TEXT,
     outcome TEXT NOT NULL,
+    pairing_basis TEXT NOT NULL DEFAULT 'unpaired',
+    failure_signature TEXT NOT NULL DEFAULT '',
+    signature_truncated INTEGER NOT NULL DEFAULT 0,
     retry_of_call_event_id TEXT,
     help_recovery INTEGER NOT NULL DEFAULT 0,
     fingerprint TEXT NOT NULL,
@@ -181,6 +125,11 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_runs (
     cache_read_tokens INTEGER NOT NULL DEFAULT 0,
     cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
     cost_time_basis TEXT NOT NULL DEFAULT 'terminal_projection',
+    goal_id TEXT NOT NULL DEFAULT '',
+    goal_status TEXT NOT NULL DEFAULT '',
+    goal_token_budget INTEGER,
+    goal_tokens_used INTEGER NOT NULL DEFAULT 0,
+    goal_time_used_seconds INTEGER NOT NULL DEFAULT 0,
     projected_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_runs_occurred_at ON invocation_read_model_runs(occurred_at);
@@ -188,6 +137,7 @@ CREATE INDEX IF NOT EXISTS idx_invocation_read_model_runs_status ON invocation_r
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_runs_profile ON invocation_read_model_runs(profile_id, occurred_at);
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_runs_runner ON invocation_read_model_runs(runner_type, occurred_at);
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_runs_model ON invocation_read_model_runs(model, occurred_at);
+CREATE INDEX IF NOT EXISTS idx_invocation_read_model_runs_goal_status ON invocation_read_model_runs(goal_status, occurred_at);
 
 -- Per-run efficiency signals use the same terminal lifecycle as the run
 -- summary, while staying separate so this additive schema remains compatible
@@ -196,6 +146,22 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_run_signals (
     run_id TEXT PRIMARY KEY,
     read_calls INTEGER NOT NULL DEFAULT 0,
     files_read_more_than_once INTEGER NOT NULL DEFAULT 0
+);
+
+-- Time attribution is retained independently of raw events so completed runs
+-- remain explainable after the event retention sweep.
+CREATE TABLE IF NOT EXISTS invocation_read_model_time_accounting (
+    run_id TEXT PRIMARY KEY,
+    model_generating_ms INTEGER NOT NULL DEFAULT 0,
+    tool_executing_ms INTEGER NOT NULL DEFAULT 0,
+    idle_waiting_ms INTEGER NOT NULL DEFAULT 0,
+    awaiting_human_ms INTEGER NOT NULL DEFAULT 0,
+    unattributable_ms INTEGER NOT NULL DEFAULT 0,
+    model_tokens INTEGER NOT NULL DEFAULT 0,
+    tool_tokens INTEGER NOT NULL DEFAULT 0,
+    idle_tokens INTEGER NOT NULL DEFAULT 0,
+    human_tokens INTEGER NOT NULL DEFAULT 0,
+    unattributable_tokens INTEGER NOT NULL DEFAULT 0
 );
 
 -- Error-code facts retain the analytical pattern after source run_events are
@@ -215,6 +181,64 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_errors (
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_errors_occurred_at ON invocation_read_model_errors(occurred_at);
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_errors_code ON invocation_read_model_errors(error_code, occurred_at);
 
+-- Episodes and redacted self-report spans share the invocation projection
+-- lifecycle, so they remain queryable after raw run_events are pruned.
+CREATE TABLE IF NOT EXISTS invocation_read_model_episodes (
+    run_id TEXT NOT NULL,
+    episode_id TEXT NOT NULL,
+    occurred_at TEXT NOT NULL,
+    time_basis TEXT NOT NULL,
+    classifier_version TEXT NOT NULL,
+    pattern TEXT NOT NULL,
+    cause_scope TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    honesty_flags_json TEXT NOT NULL,
+    start_event_id TEXT NOT NULL,
+    end_event_id TEXT NOT NULL,
+    evidence_event_ids_json TEXT NOT NULL,
+    turns INTEGER NOT NULL,
+    cycle_count INTEGER NOT NULL DEFAULT 0,
+    repeated_element TEXT NOT NULL DEFAULT '',
+    tokens INTEGER NOT NULL,
+    wall_clock_ms INTEGER NOT NULL,
+    suspected_owner_scenario TEXT NOT NULL DEFAULT '',
+    suspected_owner_command TEXT NOT NULL DEFAULT '',
+    owner_confidence TEXT NOT NULL,
+    failed_joined_calls INTEGER NOT NULL,
+    fingerprint TEXT NOT NULL,
+    profile_id TEXT NOT NULL DEFAULT 'unknown',
+    runner_type TEXT NOT NULL DEFAULT 'unknown',
+    model TEXT NOT NULL DEFAULT 'unknown',
+    tag TEXT NOT NULL DEFAULT 'unknown',
+    run_status TEXT NOT NULL DEFAULT 'unknown',
+    PRIMARY KEY (run_id, episode_id)
+);
+CREATE INDEX IF NOT EXISTS idx_invocation_read_model_episodes_occurred_at ON invocation_read_model_episodes(occurred_at);
+CREATE INDEX IF NOT EXISTS idx_invocation_read_model_episodes_pattern ON invocation_read_model_episodes(pattern, occurred_at);
+CREATE INDEX IF NOT EXISTS idx_invocation_read_model_episodes_dimensions ON invocation_read_model_episodes(profile_id, runner_type, model, tag, occurred_at);
+
+CREATE TABLE IF NOT EXISTS invocation_read_model_self_report_spans (
+    run_id TEXT NOT NULL,
+    event_id TEXT NOT NULL,
+    rule_id TEXT NOT NULL,
+    start_offset INTEGER NOT NULL,
+    end_offset INTEGER NOT NULL,
+    occurred_at TEXT NOT NULL,
+    time_basis TEXT NOT NULL,
+    classifier_version TEXT NOT NULL,
+    cause_scope TEXT NOT NULL,
+    text TEXT NOT NULL,
+    profile_id TEXT NOT NULL DEFAULT 'unknown',
+    runner_type TEXT NOT NULL DEFAULT 'unknown',
+    model TEXT NOT NULL DEFAULT 'unknown',
+    tag TEXT NOT NULL DEFAULT 'unknown',
+    run_status TEXT NOT NULL DEFAULT 'unknown',
+    PRIMARY KEY (run_id, event_id, rule_id, start_offset)
+);
+CREATE INDEX IF NOT EXISTS idx_invocation_read_model_self_report_spans_occurred_at ON invocation_read_model_self_report_spans(occurred_at);
+CREATE INDEX IF NOT EXISTS idx_invocation_read_model_self_report_spans_rule ON invocation_read_model_self_report_spans(rule_id, occurred_at);
+CREATE INDEX IF NOT EXISTS idx_invocation_read_model_self_report_spans_dimensions ON invocation_read_model_self_report_spans(profile_id, runner_type, model, tag, occurred_at);
+
 -- One watermark per source run. Fact replacement and watermark advancement
 -- must share a transaction so incremental refresh never reports an event as
 -- consumed without its corresponding durable facts.
@@ -223,6 +247,9 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_watermarks (
     last_event_id TEXT NOT NULL,
     last_event_at TEXT NOT NULL,
     classifier_version TEXT NOT NULL,
+    episode_classifier_version TEXT NOT NULL DEFAULT '',
+    self_report_classifier_version TEXT NOT NULL DEFAULT '',
+    projection_complete INTEGER NOT NULL DEFAULT 0,
     projected_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS investigation_receipt_evidence (

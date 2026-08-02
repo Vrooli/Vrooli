@@ -1,13 +1,11 @@
 // Package invocationreadmodel owns the durable analytical projection contract.
-// It deliberately keeps classification in runreport: DeriveInvocationFacts is
-// the sole fold from raw run events into analytical vocabulary.
 package invocationreadmodel
 
 import (
 	"context"
 	"time"
 
-	"agent-manager/internal/runreport"
+	"agent-manager/internal/runsignal"
 )
 
 // Store persists the durable analytical projection. Replace is atomic: facts
@@ -37,12 +35,23 @@ type RunStore interface {
 	ReplaceRun(context.Context, RunFact) error
 }
 
+// GoalOutcomeStore snapshots external-harness accounting at import time,
+// before the harness's rolling goal store can overwrite that evidence.
+type GoalOutcomeStore interface {
+	ReplaceGoalOutcome(context.Context, GoalOutcome) error
+	GoalOutcome(context.Context, string) (*GoalOutcome, error)
+}
+
 // ProjectionStore atomically advances both analytical projections for a run.
 // Consumers may fall back to Store during rollout, but the production adapter
 // implements this contract so a crash cannot leave terminal throughput facts
 // ahead of, or behind, invocation facts and their watermark.
 type ProjectionStore interface {
-	ReplaceProjection(context.Context, []Fact, []ErrorFact, Watermark, RunFact) error
+	ReplaceProjection(context.Context, []Fact, []ErrorFact, []Episode, []SelfReportSpan, Watermark, RunFact) error
+	Episodes(context.Context, Filter, int) ([]Episode, error)
+	EpisodesForRun(context.Context, string) ([]Episode, error)
+	SelfReportSpansForRun(context.Context, string) ([]SelfReportSpan, error)
+	TimeAccountingForRun(context.Context, string) (runsignal.TimeAccounting, bool, error)
 }
 
 // Filter is the single analytical predicate shared by aggregates and cohort
@@ -59,7 +68,26 @@ type Filter struct {
 	Model       string     `json:"model,omitempty"`
 	TagPrefix   string     `json:"tagPrefix,omitempty"`
 	RunStatus   string     `json:"runStatus,omitempty"`
-	ToolName    string     `json:"toolName,omitempty"`
+	GoalStatus  string     `json:"goalStatus,omitempty"`
+	// GoalID narrows the durable imported-session corpus to one goal. It is
+	// intentionally part of the shared filter so a goal-scoped investigation
+	// has the same reproducible predicate as every other cohort surface.
+	GoalID               string `json:"goalId,omitempty"`
+	ToolName             string `json:"toolName,omitempty"`
+	EpisodePattern       string `json:"episodePattern,omitempty"`
+	EpisodeCauseScope    string `json:"episodeCauseScope,omitempty"`
+	EpisodeFingerprint   string `json:"episodeFingerprint,omitempty"`
+	SelfReportRuleID     string `json:"selfReportRuleId,omitempty"`
+	SelfReportCauseScope string `json:"selfReportCauseScope,omitempty"`
+}
+
+type GoalOutcome struct {
+	RunID           string `json:"runId"`
+	GoalID          string `json:"goalId"`
+	Status          string `json:"status"`
+	TokenBudget     *int64 `json:"tokenBudget,omitempty"`
+	TokensUsed      int64  `json:"tokensUsed"`
+	TimeUsedSeconds int64  `json:"timeUsedSeconds"`
 }
 
 type AggregateRow struct {
@@ -68,27 +96,30 @@ type AggregateRow struct {
 	Count     int64  `json:"count"`
 }
 type Cohort struct {
-	RunIDs    []string `json:"runIds"`
-	Truncated bool     `json:"truncated"`
+	RunIDs      []string `json:"runIds"`
+	Truncated   bool     `json:"truncated"`
+	MatchedRuns int      `json:"matchedRuns"`
+	DroppedRuns int      `json:"droppedRuns"`
 }
 
 // Metrics is the shared SQL result used by friction measure consumers. Counts
 // are retained separately so callers never hide an unknown population behind a
 // percentage.
 type Metrics struct {
-	TotalCalls        int64   `json:"totalCalls"`
-	ResolvedCalls     int64   `json:"resolvedCalls"`
-	ExternalCalls     int64   `json:"externalCalls"`
-	UnknownCalls      int64   `json:"unknownCalls"`
-	FailedCalls       int64   `json:"failedCalls"`
-	RetryCalls        int64   `json:"retryCalls"`
-	HelpRecoveries    int64   `json:"helpRecoveries"`
-	RepeatedCalls     int64   `json:"repeatedCalls"`
-	ExternalToolShare float64 `json:"externalToolShare"`
-	FailureRate       float64 `json:"failureRate"`
-	RetryRate         float64 `json:"retryRate"`
-	HelpRecoveryRate  float64 `json:"helpRecoveryRate"`
-	RepeatedWorkRate  float64 `json:"repeatedWorkRate"`
+	TotalCalls               int64   `json:"totalCalls"`
+	ResolvedCalls            int64   `json:"resolvedCalls"`
+	ExternalCalls            int64   `json:"externalCalls"`
+	UnknownCalls             int64   `json:"unknownCalls"`
+	FailedCalls              int64   `json:"failedCalls"`
+	RetryCalls               int64   `json:"retryCalls"`
+	HelpRecoveries           int64   `json:"helpRecoveries"`
+	RepeatedCalls            int64   `json:"repeatedCalls"`
+	LargestFingerprintBucket int64   `json:"largestFingerprintBucket"`
+	ExternalToolShare        float64 `json:"externalToolShare"`
+	FailureRate              float64 `json:"failureRate"`
+	RetryRate                float64 `json:"retryRate"`
+	HelpRecoveryRate         float64 `json:"helpRecoveryRate"`
+	RepeatedWorkRate         float64 `json:"repeatedWorkRate"`
 }
 
 // RunMetrics is the shared SQL result for run-level throughput measures. It
@@ -203,6 +234,36 @@ type ErrorFact struct {
 	Tag        string
 }
 
+// Episode is a durable friction signal plus the run dimensions required for
+// the shared analytical filter. It retains identifiers and bounded classifier
+// output only; raw event bodies stay in the prunable event log.
+type Episode struct {
+	runsignal.FrictionEpisode
+	RunID      string
+	OccurredAt time.Time
+	TimeBasis  string
+	ProfileID  string
+	RunnerType string
+	Model      string
+	Tag        string
+	RunStatus  string
+}
+
+// SelfReportSpan is a durable, redacted self-reported-friction signal. The
+// classifier's Text field is already bounded/redacted before it reaches this
+// projection.
+type SelfReportSpan struct {
+	runsignal.SelfReportSpan
+	RunID      string
+	OccurredAt time.Time
+	TimeBasis  string
+	ProfileID  string
+	RunnerType string
+	Model      string
+	Tag        string
+	RunStatus  string
+}
+
 type ErrorPattern struct {
 	ErrorCode   string
 	Count       int64
@@ -223,7 +284,7 @@ type FindingMetrics struct {
 // Fact is one persisted analytical observation plus the dimensions required by
 // corpus filters. Unknown is represented as an explicit value, never NULL.
 type Fact struct {
-	runreport.InvocationFact
+	runsignal.InvocationFact
 	RunID      string
 	OccurredAt time.Time
 	TimeBasis  string
@@ -264,15 +325,18 @@ type RunFact struct {
 	CacheCreationTokens  int64
 	ReadCalls            int64
 	FileRereads          int64
+	TimeAccounting       runsignal.TimeAccounting
 	CostTimeBasis        string
 	ProjectedAt          time.Time
 }
 
 // Watermark states the newest source event incorporated for a run.
 type Watermark struct {
-	RunID             string
-	LastEventID       string
-	LastEventAt       time.Time
-	ClassifierVersion string
-	ProjectedAt       time.Time
+	RunID                       string
+	LastEventID                 string
+	LastEventAt                 time.Time
+	ClassifierVersion           string
+	EpisodeClassifierVersion    string
+	SelfReportClassifierVersion string
+	ProjectedAt                 time.Time
 }

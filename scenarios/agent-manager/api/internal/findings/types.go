@@ -22,6 +22,11 @@ type Finding struct {
 	Decision           string    `db:"operator_decision" json:"decision,omitempty"`
 	CreatedAt          time.Time `db:"created_at" json:"createdAt"`
 	Occurrences        int       `db:"occurrences" json:"occurrences,omitempty"`
+	TargetMeasure      string    `db:"target_measure" json:"targetMeasure,omitempty"`
+	BeforeValue        *float64  `db:"before_value" json:"beforeValue,omitempty"`
+	AfterValue         *float64  `db:"after_value" json:"afterValue,omitempty"`
+	Effectiveness      string    `db:"effectiveness" json:"effectiveness,omitempty"`
+	FrictionTopic      string    `db:"friction_topic" json:"frictionTopic,omitempty"`
 }
 
 func Fingerprint(recommendation, targetPath string) string {
@@ -30,4 +35,14 @@ func Fingerprint(recommendation, targetPath string) string {
 	}
 	digest := sha256.Sum256([]byte(normalize(targetPath) + "\x00" + normalize(recommendation)))
 	return hex.EncodeToString(digest[:])
+}
+
+func Effectiveness(before, after *float64) string {
+	if before == nil || after == nil {
+		return "not_yet_measurable"
+	}
+	if *after < *before {
+		return "effective"
+	}
+	return "ineffective"
 }

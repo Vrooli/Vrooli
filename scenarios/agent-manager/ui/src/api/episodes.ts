@@ -1,6 +1,6 @@
 import { getApiBaseUrl } from "../lib/utils";
 
-export type Availability = { state: string; detail?: string };
+export type Availability = { state: string; reason?: string };
 export type Episode = { episodeId: string; runId: string; pattern: string; causeScope: string; severity: string; turns: number; tokens: number; wallClockMs: number; suspectedOwnerScenario?: string; suspectedOwnerCommand?: string; ownerConfidence: string; evidenceEventIds: string[] };
 export type EpisodeSignal = { fingerprint: string; occurrences: number; distinctRuns: number; summedCostMs: number; confidence: string; representativeRunIds: string[] };
 export type EpisodeCohort = { availability: Availability; signals: EpisodeSignal[] };

@@ -22,6 +22,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -34,6 +35,7 @@ import (
 	"agent-manager/internal/permissionpolicy"
 	"agent-manager/internal/protoconv"
 	"agent-manager/internal/rolepolicy"
+	"agent-manager/internal/runreport"
 	"agent-manager/internal/storage"
 
 	agentconfig "agent-manager/internal/config"
@@ -60,7 +62,13 @@ type Handler struct {
 	permissionPolicyState *permissionpolicy.State
 	permissionPolicy      *permissionpolicy.Service
 	receipts              eventbus.Client
+	receiptAvailability   ReceiptAvailabilityReader
 }
+
+// ReceiptAvailabilityReader explains an otherwise empty receipt ledger.
+// It is deliberately a bounded availability seam: receipt payload disclosure
+// remains owned by the observed-receipts endpoint.
+type ReceiptAvailabilityReader func(context.Context) runreport.Availability
 
 // HandlerOption configures the Handler.
 type HandlerOption func(*Handler)
@@ -95,6 +103,12 @@ func WithPermissionPolicy(state *permissionpolicy.State, service *permissionpoli
 // never depend on receipt availability.
 func WithObservedReceipts(client eventbus.Client) HandlerOption {
 	return func(h *Handler) { h.receipts = client }
+}
+
+// WithReceiptAvailabilityReader installs the shared runtime-state reader used
+// when Vrooli Events returns no correlated receipts.
+func WithReceiptAvailabilityReader(reader ReceiptAvailabilityReader) HandlerOption {
+	return func(h *Handler) { h.receiptAvailability = reader }
 }
 
 // New creates a new Handler with the given orchestration service.
@@ -192,6 +206,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/invocation-facts/cohort", h.SelectInvocationCohort).Methods("GET")
 	r.HandleFunc("/api/v1/runs/episode-cohort", h.EpisodeCohort).Methods("GET")
 	r.HandleFunc("/api/v1/runs/import-transcript", h.ImportTranscriptHTTP).Methods("POST")
+	r.HandleFunc("/api/v1/runs/import-session-corpus", h.ImportSessionCorpus).Methods("POST")
 	r.HandleFunc("/api/v1/import/sources", h.ListImportSources).Methods("GET")
 	r.HandleFunc("/api/v1/import/sessions", h.ListRunnerSessions).Methods("GET")
 	r.HandleFunc("/api/v1/import/sessions", h.ImportRunnerSession).Methods("POST")

@@ -5,15 +5,15 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
-	"agent-manager/internal/runreport"
+	"agent-manager/internal/runsignal"
 	"github.com/google/uuid"
 )
 
 func TestFactPreservesExplicitUnknownDimensionsAndProjectionProvenance(t *testing.T) {
 	occurredAt := time.Date(2026, time.July, 29, 17, 0, 0, 0, time.UTC)
 	fact := Fact{
-		InvocationFact: runreport.InvocationFact{
-			Version:      runreport.InvocationFactVersion,
+		InvocationFact: runsignal.InvocationFact{
+			Version:      runsignal.InvocationFactVersion,
 			Ownership:    "unknown",
 			Availability: "unknown",
 		},
@@ -27,7 +27,7 @@ func TestFactPreservesExplicitUnknownDimensionsAndProjectionProvenance(t *testin
 	if fact.Ownership != "unknown" || fact.Availability != "unknown" || fact.RunnerType != "unknown" {
 		t.Fatalf("unknown analytical values must remain explicit: %+v", fact)
 	}
-	if fact.OccurredAt != occurredAt || fact.TimeBasis != "run_end" || fact.Version != runreport.InvocationFactVersion {
+	if fact.OccurredAt != occurredAt || fact.TimeBasis != "run_end" || fact.Version != runsignal.InvocationFactVersion {
 		t.Fatalf("projection provenance changed: %+v", fact)
 	}
 }
@@ -46,6 +46,30 @@ func TestProjectUsesCallTimestampAndRunDimensions(t *testing.T) {
 		t.Fatalf("dimensions=%+v", facts[0])
 	}
 	if watermark.LastEventID != event.ID.String() || watermark.LastEventAt != event.Timestamp {
+		t.Fatalf("watermark=%+v", watermark)
+	}
+}
+
+func TestProjectDerivesDurableEpisodesAndSelfReportSpansFromSameEvents(t *testing.T) {
+	now := time.Date(2026, time.July, 30, 18, 0, 0, 0, time.UTC)
+	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusComplete, Tag: "evidence", ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeCodex, Model: "gpt-test"}}
+	first := domain.NewToolCallEvent(run.ID, "shell", "call-1", map[string]any{"command": "missing-command"})
+	second := domain.NewToolCallEvent(run.ID, "shell", "call-2", map[string]any{"command": "missing-command"})
+	message := domain.NewMessageEvent(run.ID, "assistant", "I am blocked until the toolchain is repaired")
+	first.Timestamp, first.Sequence = now, 1
+	second.Timestamp, second.Sequence = now.Add(time.Minute), 2
+	message.Timestamp, message.Sequence = now.Add(2*time.Minute), 3
+	events := []*domain.RunEvent{first, second, message}
+	facts, watermark := Project(run, events, now.Add(3*time.Minute))
+	episodes := ProjectEpisodes(run, facts, events, now.Add(3*time.Minute))
+	spans := ProjectSelfReportSpans(run, events, now.Add(3*time.Minute))
+	if len(episodes) == 0 || episodes[0].RunID != run.ID.String() || episodes[0].OccurredAt.IsZero() || episodes[0].ClassifierVersion != runsignal.EpisodeClassifierVersion {
+		t.Fatalf("episodes=%+v", episodes)
+	}
+	if len(spans) != 1 || spans[0].EventID != message.ID.String() || spans[0].Text != "I am blocked" || spans[0].ClassifierVersion != runsignal.SelfReportClassifierVersion {
+		t.Fatalf("spans=%+v", spans)
+	}
+	if watermark.EpisodeClassifierVersion != runsignal.EpisodeClassifierVersion || watermark.SelfReportClassifierVersion != runsignal.SelfReportClassifierVersion {
 		t.Fatalf("watermark=%+v", watermark)
 	}
 }

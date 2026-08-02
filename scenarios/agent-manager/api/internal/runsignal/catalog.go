@@ -1,4 +1,4 @@
-package runreport
+package runsignal
 
 import (
 	"crypto/sha256"
@@ -9,13 +9,14 @@ import (
 	"sort"
 	"strings"
 	"sync"
+
+	"agent-manager/internal/availability"
 )
 
-// CatalogResolution is the conservative result of resolving an executable
-// against the read-only CLI Health-compatible manifest index. Unknown is a
-// first-class outcome: no shell text is promoted to project ownership.
+// CatalogResolution conservatively resolves an executable against the read-only manifest index.
 type CatalogResolution struct {
-	Owner, Command, Snapshot, State string
+	Owner, Command, Snapshot string
+	State                    availability.State
 }
 
 type manifest struct {
@@ -38,43 +39,42 @@ var catalogCache struct {
 	snapshot string
 }
 
-func resolveCatalog(command string) CatalogResolution {
+// ResolveCatalog returns the conservative, manifest-backed classification for a command.
+func ResolveCatalog(command string) CatalogResolution {
 	command = unwrapShellCommand(command)
 	tokens, ok := safeTokens(command)
 	if !ok || len(tokens) == 0 {
-		return CatalogResolution{State: "unknown"}
+		return CatalogResolution{State: availability.Unknown}
 	}
-	root, owners, snapshot := loadCatalog()
-	_ = root
+	_, owners, snapshot := loadCatalog()
 	paths, known := owners[tokens[0]]
 	if !known {
-		return CatalogResolution{State: "external", Snapshot: snapshot}
+		// A safely tokenized command has a factual executable even when it is
+		// not catalog-owned. Compound or unparseable shell remains unknown.
+		executable := filepath.Base(tokens[0])
+		return CatalogResolution{Owner: executable, Command: executable, State: availability.External, Snapshot: snapshot}
 	}
 	// A root invocation is still catalog-backed; subcommand precision is only
 	// claimed where the manifest has a matching path.
 	if len(tokens) == 1 {
-		return CatalogResolution{Owner: tokens[0], Command: tokens[0], Snapshot: snapshot, State: "resolved"}
+		return CatalogResolution{Owner: tokens[0], Command: tokens[0], Snapshot: snapshot, State: availability.Resolved}
 	}
 	for n := len(tokens); n > 1; n-- {
 		candidate := strings.Join(tokens[:n], " ")
 		if paths[candidate] {
-			return CatalogResolution{Owner: tokens[0], Command: candidate, Snapshot: snapshot, State: "resolved"}
+			return CatalogResolution{Owner: tokens[0], Command: candidate, Snapshot: snapshot, State: availability.Resolved}
 		}
 	}
-	return CatalogResolution{Owner: tokens[0], Snapshot: snapshot, State: "unknown"}
+	return CatalogResolution{Owner: tokens[0], Snapshot: snapshot, State: availability.Unknown}
 }
 
-// CurrentCatalogSnapshot returns the deterministic digest of the manifest
-// index used for ownership resolution. Import stores it on the run so callers
-// can distinguish historical ownership from a later live-index derivation.
+// CurrentCatalogSnapshot returns the manifest-index digest used at import time.
 func CurrentCatalogSnapshot() string {
 	_, _, snapshot := loadCatalog()
 	return snapshot
 }
 
-// unwrapShellCommand recognizes only the literal non-interpolated wrapper
-// emitted by supported runners. It never evaluates shell syntax: anything
-// compound, unquoted, or containing a second quote remains unresolved.
+// unwrapShellCommand accepts only literal runner wrappers and never evaluates shell syntax.
 func unwrapShellCommand(command string) string {
 	command = strings.TrimSpace(command)
 	for _, prefix := range []string{"/bin/bash -lc ", "bash -lc ", "/bin/sh -c ", "sh -c "} {
@@ -82,11 +82,12 @@ func unwrapShellCommand(command string) string {
 			continue
 		}
 		inner := strings.TrimSpace(strings.TrimPrefix(command, prefix))
-		if len(inner) < 2 || inner[0] != '\'' || inner[len(inner)-1] != '\'' {
+		if len(inner) < 2 || (inner[0] != '\'' && inner[0] != '"') || inner[len(inner)-1] != inner[0] {
 			return command
 		}
+		quote := inner[0]
 		inner = inner[1 : len(inner)-1]
-		if strings.Contains(inner, "'") {
+		if strings.ContainsRune(inner, rune(quote)) {
 			return command
 		}
 		if _, ok := safeTokens(inner); ok {

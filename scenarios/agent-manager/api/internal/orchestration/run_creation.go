@@ -1133,6 +1133,13 @@ func (o *Orchestrator) GetRun(ctx context.Context, id uuid.UUID) (*domain.Run, e
 	return o.attachRunActions(ctx, run), nil
 }
 
+// GetRunByImportProvenance resolves an imported external session without
+// exposing its filesystem path. Corpus import uses this before parsing so a
+// repeated command is read-only for already adopted evidence.
+func (o *Orchestrator) GetRunByImportProvenance(ctx context.Context, sourceHarness, sourceSessionID string) (*domain.Run, error) {
+	return o.runs.GetByImportProvenance(ctx, sourceHarness, sourceSessionID)
+}
+
 func (o *Orchestrator) ListRuns(ctx context.Context, opts RunListOptions) ([]*domain.Run, error) {
 	runs, err := o.runs.List(ctx, repository.RunListFilter{
 		ListFilter: repository.ListFilter{

@@ -77,6 +77,7 @@ type metricResult struct {
 	Unknown   int64
 	Secondary int64
 	Query     string
+	Validity  Validity
 }
 
 func declarations() []struct {
@@ -176,7 +177,7 @@ func filterFromProto(input *measurepb.InvocationFilter, now time.Time) (invocati
 	if input == nil {
 		input = &measurepb.InvocationFilter{}
 	}
-	filter := invocationreadmodel.Filter{Ownership: input.GetOwnership(), Outcome: input.GetOutcome(), Executable: input.GetExecutable(), Fingerprint: input.GetFingerprint(), ProfileID: input.GetProfileId(), RunnerType: input.GetRunnerType(), Model: input.GetModel(), TagPrefix: input.GetTagPrefix(), RunStatus: input.GetRunStatus(), ToolName: input.GetToolName()}
+	filter := invocationreadmodel.Filter{Ownership: input.GetOwnership(), Outcome: input.GetOutcome(), Executable: input.GetExecutable(), Fingerprint: input.GetFingerprint(), ProfileID: input.GetProfileId(), RunnerType: input.GetRunnerType(), Model: input.GetModel(), TagPrefix: input.GetTagPrefix(), RunStatus: input.GetRunStatus(), ToolName: input.GetToolName(), EpisodePattern: input.GetEpisodePattern(), EpisodeCauseScope: input.GetEpisodeCauseScope(), EpisodeFingerprint: input.GetEpisodeFingerprint(), SelfReportRuleID: input.GetSelfReportRuleId(), SelfReportCauseScope: input.GetSelfReportCauseScope()}
 	window := input.GetWindow()
 	if window == nil {
 		window = &sharedmeasurepb.TimeWindow{Window: &sharedmeasurepb.TimeWindow_Token{Token: sharedmeasurepb.TimeWindowToken_TIME_WINDOW_TOKEN_THIS_WEEK}}
@@ -205,9 +206,10 @@ func filterWithWindow(input *measurepb.InvocationFilter, window *sharedmeasurepb
 // Handler is both the typed Connect surface and the owner of the shared
 // compute functions used by the measures-go registry.
 type Handler struct {
-	store         Store
-	now           func() time.Time
-	episodeCohort func(context.Context, invocationreadmodel.Filter, int) (runreport.EpisodeCohort, error)
+	store          Store
+	now            func() time.Time
+	episodeCohort  func(context.Context, invocationreadmodel.Filter, int) (runreport.EpisodeCohort, error)
+	validityConfig ValidityConfig
 }
 
 // SetEpisodeCohort connects the episode-specific durable projection without
@@ -221,8 +223,12 @@ func NewHandler(store Store, now func() time.Time) *Handler {
 	if now == nil {
 		now = time.Now
 	}
-	return &Handler{store: store, now: now}
+	return &Handler{store: store, now: now, validityConfig: DefaultValidityConfig()}
 }
+
+// SetValidityConfig lets composition select the product threshold while tests
+// can exercise both healthy and degenerate corpora deterministically.
+func (h *Handler) SetValidityConfig(config ValidityConfig) { h.validityConfig = config.normalized() }
 
 func (h *Handler) metric(ctx context.Context, kind metricKind, input *measurepb.InvocationFilter, window *sharedmeasurepb.TimeWindow) (metricResult, error) {
 	filter, err := filterWithWindow(input, window, h.now())
@@ -233,7 +239,24 @@ func (h *Handler) metric(ctx context.Context, kind metricKind, input *measurepb.
 	if err != nil {
 		return metricResult{}, connect.NewError(connect.CodeInternal, err)
 	}
+	if kind == externalToolShare || kind == retryRate || kind == helpRecoveryRate || kind == repeatedWorkRate || kind == toolFailureRate {
+		metrics, metricErr := h.store.Metrics(ctx, filter)
+		if metricErr != nil {
+			return metricResult{}, connect.NewError(connect.CodeInternal, metricErr)
+		}
+		result.Validity = assessValidity(result.Denom, metrics.LargestFingerprintBucket, h.validityConfig)
+	} else {
+		result.Validity = assessValidity(result.Denom, 0, h.validityConfig)
+	}
 	return result, nil
+}
+
+func protoValidity(validity Validity) *measurepb.MeasureValidity {
+	return &measurepb.MeasureValidity{State: string(validity.State), Reason: validity.Reason, SampleSize: validity.SampleSize, LargestFingerprintBucket: validity.LargestFingerprintBucket, LargestFingerprintShare: validity.LargestFingerprintShare}
+}
+
+func (h *Handler) validityForSample(sample int64) *measurepb.MeasureValidity {
+	return protoValidity(assessValidity(sample, 0, h.validityConfig))
 }
 
 func (h *Handler) ExternalToolShare(ctx context.Context, req *connect.Request[measurepb.ExternalToolShareRequest]) (*connect.Response[measurepb.ExternalToolShareResponse], error) {
@@ -241,7 +264,7 @@ func (h *Handler) ExternalToolShare(ctx context.Context, req *connect.Request[me
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.ExternalToolShareResponse{Share: r.Rate, ExternalCalls: r.Numerator, ResolvedCalls: r.Denom, UnknownCalls: r.Unknown, ExecutedQuery: r.Query}), nil
+	return connect.NewResponse(&measurepb.ExternalToolShareResponse{Share: r.Rate, ExternalCalls: r.Numerator, ResolvedCalls: r.Denom, UnknownCalls: r.Unknown, ExecutedQuery: r.Query, Validity: protoValidity(r.Validity)}), nil
 }
 
 func (h *Handler) RetryRate(ctx context.Context, req *connect.Request[measurepb.RetryRateRequest]) (*connect.Response[measurepb.RetryRateResponse], error) {
@@ -249,7 +272,7 @@ func (h *Handler) RetryRate(ctx context.Context, req *connect.Request[measurepb.
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.RetryRateResponse{Rate: r.Rate, RetryCalls: r.Numerator, TotalCalls: r.Denom, ExecutedQuery: r.Query}), nil
+	return connect.NewResponse(&measurepb.RetryRateResponse{Rate: r.Rate, RetryCalls: r.Numerator, TotalCalls: r.Denom, ExecutedQuery: r.Query, Validity: protoValidity(r.Validity)}), nil
 }
 
 func (h *Handler) HelpRecoveryRate(ctx context.Context, req *connect.Request[measurepb.HelpRecoveryRateRequest]) (*connect.Response[measurepb.HelpRecoveryRateResponse], error) {
@@ -257,7 +280,7 @@ func (h *Handler) HelpRecoveryRate(ctx context.Context, req *connect.Request[mea
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.HelpRecoveryRateResponse{Rate: r.Rate, HelpRecoveries: r.Numerator, TotalCalls: r.Denom, ExecutedQuery: r.Query}), nil
+	return connect.NewResponse(&measurepb.HelpRecoveryRateResponse{Rate: r.Rate, HelpRecoveries: r.Numerator, TotalCalls: r.Denom, ExecutedQuery: r.Query, Validity: protoValidity(r.Validity)}), nil
 }
 
 func (h *Handler) RepeatedWorkRate(ctx context.Context, req *connect.Request[measurepb.RepeatedWorkRateRequest]) (*connect.Response[measurepb.RepeatedWorkRateResponse], error) {
@@ -265,7 +288,7 @@ func (h *Handler) RepeatedWorkRate(ctx context.Context, req *connect.Request[mea
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.RepeatedWorkRateResponse{Rate: r.Rate, RepeatedCalls: r.Numerator, TotalCalls: r.Denom, ExecutedQuery: r.Query}), nil
+	return connect.NewResponse(&measurepb.RepeatedWorkRateResponse{Rate: r.Rate, RepeatedCalls: r.Numerator, TotalCalls: r.Denom, ExecutedQuery: r.Query, Validity: protoValidity(r.Validity)}), nil
 }
 
 func (h *Handler) ToolFailureRate(ctx context.Context, req *connect.Request[measurepb.ToolFailureRateRequest]) (*connect.Response[measurepb.ToolFailureRateResponse], error) {
@@ -273,7 +296,7 @@ func (h *Handler) ToolFailureRate(ctx context.Context, req *connect.Request[meas
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.ToolFailureRateResponse{Rate: r.Rate, FailedCalls: r.Numerator, TotalCalls: r.Denom, ExecutedQuery: r.Query}), nil
+	return connect.NewResponse(&measurepb.ToolFailureRateResponse{Rate: r.Rate, FailedCalls: r.Numerator, TotalCalls: r.Denom, ExecutedQuery: r.Query, Validity: protoValidity(r.Validity)}), nil
 }
 
 func (h *Handler) RunSuccessRate(ctx context.Context, req *connect.Request[measurepb.RunSuccessRateRequest]) (*connect.Response[measurepb.RunSuccessRateResponse], error) {
@@ -281,7 +304,7 @@ func (h *Handler) RunSuccessRate(ctx context.Context, req *connect.Request[measu
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.RunSuccessRateResponse{Rate: r.Rate, SuccessfulRuns: r.Numerator, TerminalRuns: r.Denom, ExecutedQuery: r.Query}), nil
+	return connect.NewResponse(&measurepb.RunSuccessRateResponse{Rate: r.Rate, SuccessfulRuns: r.Numerator, TerminalRuns: r.Denom, ExecutedQuery: r.Query, Validity: protoValidity(r.Validity)}), nil
 }
 
 func (h *Handler) RunCycleTime(ctx context.Context, req *connect.Request[measurepb.RunCycleTimeRequest]) (*connect.Response[measurepb.RunCycleTimeResponse], error) {
@@ -289,7 +312,7 @@ func (h *Handler) RunCycleTime(ctx context.Context, req *connect.Request[measure
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.RunCycleTimeResponse{AverageDurationMs: r.Rate, CompletedDurationRuns: r.Numerator, ExecutedQuery: r.Query}), nil
+	return connect.NewResponse(&measurepb.RunCycleTimeResponse{AverageDurationMs: r.Rate, CompletedDurationRuns: r.Numerator, ExecutedQuery: r.Query, Validity: protoValidity(r.Validity)}), nil
 }
 
 func (h *Handler) RunCost(ctx context.Context, req *connect.Request[measurepb.RunCostRequest]) (*connect.Response[measurepb.RunCostResponse], error) {
@@ -302,7 +325,7 @@ func (h *Handler) RunCost(ctx context.Context, req *connect.Request[measurepb.Ru
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	query := fmt.Sprintf("SELECT durable cost aggregate FROM invocation_read_model_runs WHERE occurred_at >= %q AND occurred_at < %q", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano))
-	return connect.NewResponse(&measurepb.RunCostResponse{TotalCostUsd: runs.TotalCostUSD, AverageCostUsd: runs.AverageCostUSD, TotalRuns: runs.TotalRuns, TotalTokens: runs.TotalTokens, InputTokens: runs.InputTokens, OutputTokens: runs.OutputTokens, CacheReadTokens: runs.CacheReadTokens, CacheCreationTokens: runs.CacheCreationTokens, InputCostUsd: runs.InputCostUSD, OutputCostUsd: runs.OutputCostUSD, CacheReadCostUsd: runs.CacheReadCostUSD, CacheCreationCostUsd: runs.CacheCreationCostUSD, AuthoritativeCostUsd: runs.AuthoritativeCostUSD, EstimatedCostUsd: runs.EstimatedCostUSD, UnknownCostUsd: runs.UnknownCostUSD, ExecutedQuery: query}), nil
+	return connect.NewResponse(&measurepb.RunCostResponse{TotalCostUsd: runs.TotalCostUSD, AverageCostUsd: runs.AverageCostUSD, TotalRuns: runs.TotalRuns, TotalTokens: runs.TotalTokens, InputTokens: runs.InputTokens, OutputTokens: runs.OutputTokens, CacheReadTokens: runs.CacheReadTokens, CacheCreationTokens: runs.CacheCreationTokens, InputCostUsd: runs.InputCostUSD, OutputCostUsd: runs.OutputCostUSD, CacheReadCostUsd: runs.CacheReadCostUSD, CacheCreationCostUsd: runs.CacheCreationCostUSD, AuthoritativeCostUsd: runs.AuthoritativeCostUSD, EstimatedCostUsd: runs.EstimatedCostUSD, UnknownCostUsd: runs.UnknownCostUSD, ExecutedQuery: query, Validity: h.validityForSample(runs.TotalRuns)}), nil
 }
 
 func (h *Handler) RunVolume(ctx context.Context, req *connect.Request[measurepb.RunVolumeRequest]) (*connect.Response[measurepb.RunVolumeResponse], error) {
@@ -310,7 +333,7 @@ func (h *Handler) RunVolume(ctx context.Context, req *connect.Request[measurepb.
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.RunVolumeResponse{TotalRuns: r.Numerator, TerminalRuns: r.Denom, ExecutedQuery: r.Query}), nil
+	return connect.NewResponse(&measurepb.RunVolumeResponse{TotalRuns: r.Numerator, TerminalRuns: r.Denom, ExecutedQuery: r.Query, Validity: protoValidity(r.Validity)}), nil
 }
 
 // SelectCohort preserves the aggregate-to-run drill-down without reopening
@@ -336,7 +359,7 @@ func (h *Handler) SelectCohort(ctx context.Context, req *connect.Request[measure
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	query := fmt.Sprintf("SELECT DISTINCT run_id FROM invocation_read_model_facts WHERE occurred_at >= %q AND occurred_at < %q ORDER BY run_id LIMIT %d", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano), limit)
-	return connect.NewResponse(&measurepb.SelectCohortResponse{RunIds: cohort.RunIDs, Truncated: cohort.Truncated, ExecutedQuery: query}), nil
+	return connect.NewResponse(&measurepb.SelectCohortResponse{RunIds: cohort.RunIDs, Truncated: cohort.Truncated, ExecutedQuery: query, Validity: h.validityForSample(int64(len(cohort.RunIDs)))}), nil
 }
 
 // EpisodeCohort exposes the ranked friction-episode investigation projection
@@ -358,10 +381,11 @@ func (h *Handler) EpisodeCohort(ctx context.Context, req *connect.Request[measur
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	response := &measurepb.EpisodeCohortResponse{AvailabilityState: cohort.Availability.State, AvailabilityDetail: cohort.Availability.Detail, ExecutedQuery: fmt.Sprintf("SELECT persisted friction episodes FROM selected durable run cohort LIMIT %d", limit)}
+	response := &measurepb.EpisodeCohortResponse{AvailabilityState: string(cohort.Availability.State), AvailabilityReason: cohort.Availability.Reason, ExecutedQuery: fmt.Sprintf("SELECT persisted friction episodes FROM selected durable run cohort LIMIT %d", limit)}
 	for _, signal := range cohort.Signals {
 		response.Signals = append(response.Signals, &measurepb.EpisodeCohortSignal{Fingerprint: signal.Fingerprint, Occurrences: int64(signal.Occurrences), DistinctRuns: int64(signal.DistinctRuns), SummedCostMs: signal.SummedCostMS, Confidence: signal.Confidence, RepresentativeRunIds: append([]string(nil), signal.RepresentativeRunIDs...)})
 	}
+	response.Validity = h.validityForSample(int64(len(cohort.Signals)))
 	return connect.NewResponse(response), nil
 }
 
@@ -386,6 +410,11 @@ func (h *Handler) RunStatusDistribution(ctx context.Context, req *connect.Reques
 	for _, row := range rows {
 		response.Rows = append(response.Rows, &measurepb.RunStatusCount{Status: row.Status, Count: row.Count})
 	}
+	var sample int64
+	for _, row := range rows {
+		sample += row.Count
+	}
+	response.Validity = h.validityForSample(sample)
 	return connect.NewResponse(response), nil
 }
 
@@ -399,7 +428,7 @@ func (h *Handler) RunDurationStatistics(ctx context.Context, req *connect.Reques
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	query := fmt.Sprintf("SELECT durable duration summary FROM invocation_read_model_runs WHERE occurred_at >= %q AND occurred_at < %q", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano))
-	return connect.NewResponse(&measurepb.RunDurationStatisticsResponse{AverageDurationMs: stats.AverageDurationMS, P50DurationMs: stats.P50DurationMS, P95DurationMs: stats.P95DurationMS, P99DurationMs: stats.P99DurationMS, MinDurationMs: stats.MinDurationMS, MaxDurationMs: stats.MaxDurationMS, Count: stats.Count, ExecutedQuery: query}), nil
+	return connect.NewResponse(&measurepb.RunDurationStatisticsResponse{AverageDurationMs: stats.AverageDurationMS, P50DurationMs: stats.P50DurationMS, P95DurationMs: stats.P95DurationMS, P99DurationMs: stats.P99DurationMS, MinDurationMs: stats.MinDurationMS, MaxDurationMs: stats.MaxDurationMS, Count: stats.Count, ExecutedQuery: query, Validity: h.validityForSample(stats.Count)}), nil
 }
 
 func (h *Handler) runBreakdownRows(ctx context.Context, input *measurepb.InvocationFilter, window *sharedmeasurepb.TimeWindow, dimension string) ([]invocationreadmodel.RunBreakdownRow, string, error) {
@@ -422,12 +451,19 @@ func protoBreakdownRows(rows []invocationreadmodel.RunBreakdownRow) []*measurepb
 	return out
 }
 
+func sumBreakdownRuns(rows []invocationreadmodel.RunBreakdownRow) (total int64) {
+	for _, row := range rows {
+		total += row.RunCount
+	}
+	return total
+}
+
 func (h *Handler) RunnerBreakdown(ctx context.Context, req *connect.Request[measurepb.RunnerBreakdownRequest]) (*connect.Response[measurepb.RunnerBreakdownResponse], error) {
 	rows, query, err := h.runBreakdownRows(ctx, req.Msg.GetFilter(), req.Msg.GetWindow(), "runner")
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.RunnerBreakdownResponse{Rows: protoBreakdownRows(rows), ExecutedQuery: query}), nil
+	return connect.NewResponse(&measurepb.RunnerBreakdownResponse{Rows: protoBreakdownRows(rows), ExecutedQuery: query, Validity: h.validityForSample(sumBreakdownRuns(rows))}), nil
 }
 
 func (h *Handler) ModelBreakdown(ctx context.Context, req *connect.Request[measurepb.ModelBreakdownRequest]) (*connect.Response[measurepb.ModelBreakdownResponse], error) {
@@ -435,7 +471,7 @@ func (h *Handler) ModelBreakdown(ctx context.Context, req *connect.Request[measu
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.ModelBreakdownResponse{Rows: protoBreakdownRows(rows), ExecutedQuery: query}), nil
+	return connect.NewResponse(&measurepb.ModelBreakdownResponse{Rows: protoBreakdownRows(rows), ExecutedQuery: query, Validity: h.validityForSample(sumBreakdownRuns(rows))}), nil
 }
 
 func (h *Handler) ProfileBreakdown(ctx context.Context, req *connect.Request[measurepb.ProfileBreakdownRequest]) (*connect.Response[measurepb.ProfileBreakdownResponse], error) {
@@ -443,7 +479,7 @@ func (h *Handler) ProfileBreakdown(ctx context.Context, req *connect.Request[mea
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.ProfileBreakdownResponse{Rows: protoBreakdownRows(rows), ExecutedQuery: query}), nil
+	return connect.NewResponse(&measurepb.ProfileBreakdownResponse{Rows: protoBreakdownRows(rows), ExecutedQuery: query, Validity: h.validityForSample(sumBreakdownRuns(rows))}), nil
 }
 
 func (h *Handler) TerminalRunTrend(ctx context.Context, req *connect.Request[measurepb.TerminalRunTrendRequest]) (*connect.Response[measurepb.TerminalRunTrendResponse], error) {
@@ -459,6 +495,11 @@ func (h *Handler) TerminalRunTrend(ctx context.Context, req *connect.Request[mea
 	for _, row := range rows {
 		response.Rows = append(response.Rows, &measurepb.TerminalRunTrendRow{Bucket: row.Bucket.UTC().Format(time.RFC3339), TerminalRuns: row.TerminalRuns, CompletedRuns: row.CompletedRuns, FailedRuns: row.FailedRuns, CancelledRuns: row.CancelledRuns, TotalCostUsd: row.TotalCostUSD, AverageDurationMs: row.AvgDurationMS})
 	}
+	var sample int64
+	for _, row := range rows {
+		sample += row.TerminalRuns
+	}
+	response.Validity = h.validityForSample(sample)
 	return connect.NewResponse(response), nil
 }
 
@@ -475,6 +516,11 @@ func (h *Handler) ToolUsage(ctx context.Context, req *connect.Request[measurepb.
 	for _, row := range rows {
 		response.Rows = append(response.Rows, &measurepb.ToolUsageRow{ToolName: row.ToolName, CallCount: row.CallCount, SuccessCount: row.SuccessCount, FailedCount: row.FailedCount})
 	}
+	var sample int64
+	for _, row := range rows {
+		sample += row.CallCount
+	}
+	response.Validity = h.validityForSample(sample)
 	return connect.NewResponse(response), nil
 }
 
@@ -491,6 +537,11 @@ func (h *Handler) ErrorPatterns(ctx context.Context, req *connect.Request[measur
 	for _, row := range rows {
 		response.Rows = append(response.Rows, &measurepb.ErrorPatternRow{ErrorCode: row.ErrorCode, Count: row.Count, LastSeen: row.LastSeen.UTC().Format(time.RFC3339), SampleRunId: row.SampleRunID})
 	}
+	var sample int64
+	for _, row := range rows {
+		sample += row.Count
+	}
+	response.Validity = h.validityForSample(sample)
 	return connect.NewResponse(response), nil
 }
 
@@ -499,7 +550,7 @@ func (h *Handler) FileRereadRate(ctx context.Context, req *connect.Request[measu
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.FileRereadRateResponse{Rate: r.Rate, FilesReadMoreThanOnce: r.Numerator, ReadCalls: r.Denom, ExecutedQuery: r.Query}), nil
+	return connect.NewResponse(&measurepb.FileRereadRateResponse{Rate: r.Rate, FilesReadMoreThanOnce: r.Numerator, ReadCalls: r.Denom, ExecutedQuery: r.Query, Validity: protoValidity(r.Validity)}), nil
 }
 
 func (h *Handler) FindingRecurrenceRate(ctx context.Context, req *connect.Request[measurepb.FindingRecurrenceRateRequest]) (*connect.Response[measurepb.FindingRecurrenceRateResponse], error) {
@@ -507,7 +558,7 @@ func (h *Handler) FindingRecurrenceRate(ctx context.Context, req *connect.Reques
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.FindingRecurrenceRateResponse{Rate: r.Rate, RecurringFindings: r.Numerator, TotalFindings: r.Denom, RecurringFingerprints: r.Secondary, ExecutedQuery: r.Query}), nil
+	return connect.NewResponse(&measurepb.FindingRecurrenceRateResponse{Rate: r.Rate, RecurringFindings: r.Numerator, TotalFindings: r.Denom, RecurringFingerprints: r.Secondary, ExecutedQuery: r.Query, Validity: protoValidity(r.Validity)}), nil
 }
 
 func (h *Handler) Registry() (*measurelib.Registry, error) {
