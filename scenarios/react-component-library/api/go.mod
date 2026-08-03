@@ -11,6 +11,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
+	github.com/vrooli/vrooli/packages/capability-registry-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1
@@ -47,3 +48,5 @@ replace github.com/vrooli/vrooli => ../../..
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
 replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
+
+replace github.com/vrooli/vrooli/packages/capability-registry-go => ../../../packages/capability-registry-go

@@ -88,7 +88,7 @@ cuts during phase 6:
   These are i18n/a11y affordances surfaced when experience-manager's `FleetPage.tsx`
   was reconverged.
 
-The scenario adopters (template-manager, cleanup-manager, react-component-library's
+The scenario adopters (template-manager, storage-manager, react-component-library's
 own copy, and experience-manager) were reconverged to `1.1.2` and are green. The
 react-vite copy remains `behind 1.1.2 / modified` only because `templates/**` is
 out of the write boundary; once templates writes are in scope, reconverging it to
@@ -113,7 +113,7 @@ Both follow-ups above are done:
 1. **Template reconverged.** DataTable's four EM mobile-floor affordances
    (44px `min-h-11` tap targets on filter chips and sort buttons, `table-fixed`
    layout, `break-words` cells) were absorbed upstream as **DataTable 1.2.0**,
-   and all five adopters (template-manager, cleanup-manager, experience-manager,
+   and all five adopters (template-manager, storage-manager, experience-manager,
    react-component-library, and the react-vite template copy) now sit at
    `1.2.0 current/clean`. The five header-artifact react-vite copies
    (StatusBadge, Select, Input, EmptyState, Card) were re-stamped clean at their

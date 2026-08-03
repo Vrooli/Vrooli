@@ -332,6 +332,10 @@ func (s *service) CreateComponentVersion(ctx context.Context, in CreateComponent
 		intent = VersionIntentRelease
 	}
 	if intent == VersionIntentRelease {
+		coverageVersion := firstNonEmpty(in.FromVersion, in.Version)
+		if err := releaseStoryCoverage(s.source.Root(), c, coverageVersion); err != nil {
+			return CreateComponentVersionResult{}, err
+		}
 		from := firstNonEmpty(in.FromVersion, c.DraftVersion)
 		if from != "" && in.ParityReport == nil {
 			if draft, err := s.repo.GetVersion(ctx, c.ID, from); err == nil && draft.ParityReport != nil {

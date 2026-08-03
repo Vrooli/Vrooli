@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "title": "Button 1.3",
+  "args": {
+    "fields": [
+      { "path": "children", "label": "Children", "kind": "structured", "required": true, "default": { "$text": "Save changes" }, "format": "renderable-text" },
+      { "path": "variant", "label": "Variant", "kind": "enum", "required": true, "default": "primary", "options": ["primary", "secondary", "ghost", "danger"] },
+      { "path": "size", "label": "Size", "kind": "enum", "required": true, "default": "md", "options": ["xs", "sm", "md", "icon"] },
+      { "path": "icon", "label": "Icon", "kind": "structured", "default": { "$icon": "Save" } },
+      { "path": "disabled", "label": "Disabled", "kind": "boolean", "default": false }
+    ]
+  },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "primary-xs", "name": "Primary extra small", "args": { "children": { "$text": "Save" }, "variant": "primary", "size": "xs" }, "expect": [{ "kind": "role", "role": "button", "name": "Save" }] },
+    { "id": "secondary-sm", "name": "Secondary small", "args": { "children": { "$text": "Cancel" }, "variant": "secondary", "size": "sm" }, "expect": [{ "kind": "role", "role": "button", "name": "Cancel" }] },
+    { "id": "ghost-md", "name": "Ghost medium", "args": { "children": { "$text": "More" }, "variant": "ghost", "size": "md" }, "expect": [{ "kind": "role", "role": "button", "name": "More" }] },
+    { "id": "danger-icon", "name": "Danger icon", "args": { "children": { "$text": "Delete" }, "variant": "danger", "size": "icon", "icon": { "$icon": "Trash2" } }, "expect": [{ "kind": "role", "role": "button", "name": "Delete" }] }
+  ]
+}

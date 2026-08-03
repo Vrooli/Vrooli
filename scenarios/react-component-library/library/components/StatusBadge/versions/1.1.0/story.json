@@ -40,6 +40,12 @@
       "name": "Long Label",
       "args": {"tone": "info", "children": {"$text": "Requires manual review"}},
       "expect": [{"kind": "text", "value": "Requires manual review"}]
+    },
+    {
+      "id": "danger",
+      "name": "Danger",
+      "args": {"tone": "danger", "children": {"$text": "Blocked"}},
+      "expect": [{"kind": "text", "value": "Blocked"}]
     }
   ]
 }

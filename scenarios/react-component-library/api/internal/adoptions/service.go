@@ -122,6 +122,13 @@ type ScenarioImportSiteFinder interface {
 	FindImportSites(ctx context.Context, scenario, adoptedPath string) ([]string, error)
 }
 
+// ScenarioTokenNamespaceReader resolves the semantic Tailwind vocabulary of a
+// target scenario. Adoption owns the translation because the copied file must
+// be valid before it reaches the consumer's content glob.
+type ScenarioTokenNamespaceReader interface {
+	TokenNamespace(ctx context.Context, scenario string) (string, error)
+}
+
 // DependencyValidator and StyleFitValidator keep adoption enforcement at the
 // service boundary. Transport callers cannot skip these checks, while tests
 // can supply narrow fakes without constructing sibling services.
@@ -154,6 +161,7 @@ type service struct {
 	logger   *log.Logger
 	deps     DependencyValidator
 	styles   StyleFitValidator
+	tokens   ScenarioTokenNamespaceReader
 }
 
 // NewService constructs the production Service. reporter may be nil
@@ -185,6 +193,12 @@ func SetValidationGates(svc Service, dependency DependencyValidator, style Style
 	if s, ok := svc.(*service); ok {
 		s.deps = dependency
 		s.styles = style
+	}
+}
+
+func SetTokenNamespaceReader(svc Service, reader ScenarioTokenNamespaceReader) {
+	if s, ok := svc.(*service); ok {
+		s.tokens = reader
 	}
 }
 
@@ -343,11 +357,20 @@ func (s *service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 	adoptionFiles := make([]AdoptionFile, 0)
 	written := ""
 	entrySnapshot := ""
+	tokenNamespace, err := s.resolveTokenNamespace(ctx, in.Scenario)
+	if err != nil {
+		return ApplyResult{}, err
+	}
 	for _, plan := range plans {
 		for _, file := range plan.Files {
 			fv := plan.Version
 			fv.Content, fv.ContentSHA256 = file.Content, file.ContentSHA256
-			body := formatProvenance(fv, adoptionID, now) + stripSourceHeader(file.Content)
+			translated, translations, err := TranslateDesignTokens(stripSourceHeader(file.Content), tokenNamespace)
+			if err != nil {
+				return ApplyResult{}, err
+			}
+			translationNote := formatTokenTranslations(translations)
+			body := formatProvenance(fv, adoptionID, now, hashBytes([]byte(translated)), translationNote) + translated
 			path, err := s.files.Write(ctx, in.Scenario, file.AdoptedPath, []byte(body))
 			if err != nil {
 				return ApplyResult{}, err
@@ -547,27 +570,45 @@ func (s *service) Reapply(ctx context.Context, in ReapplyInput) (Adoption, strin
 	if _, err := s.validateAdoption(ctx, row.ComponentID, version, row.Scenario, in.OverrideValidation); err != nil {
 		return Adoption{}, "", err
 	}
+	root, err := s.library.Get(ctx, row.ComponentID)
+	if err != nil {
+		return Adoption{}, "", err
+	}
 	v, err := s.library.GetVersion(ctx, row.ComponentID, version)
 	if err != nil {
 		return Adoption{}, "", err
 	}
 	now := s.clock.Now().UTC()
-	unit := adoptionUnitFiles(v, row.AdoptedPath)
-	adoptionFiles := make([]AdoptionFile, 0, len(unit))
+	closure, err := s.resolveAdoptionClosure(ctx, root, v)
+	if err != nil {
+		return Adoption{}, "", err
+	}
+	plans := adoptionPlansForClosure(closure, row.AdoptedPath)
+	adoptionFiles := make([]AdoptionFile, 0)
 	written, entrySnapshot := "", ""
-	for _, file := range unit {
-		fv := v
-		fv.Content, fv.ContentSHA256 = file.Content, file.ContentSHA256
-		body := formatProvenance(fv, row.ID, now) + stripSourceHeader(file.Content)
-		path, err := s.files.Write(ctx, row.Scenario, file.AdoptedPath, []byte(body))
-		if err != nil {
-			return Adoption{}, "", err
+	tokenNamespace, err := s.resolveTokenNamespace(ctx, row.Scenario)
+	if err != nil {
+		return Adoption{}, "", err
+	}
+	for _, plan := range plans {
+		for _, file := range plan.Files {
+			fv := plan.Version
+			fv.Content, fv.ContentSHA256 = file.Content, file.ContentSHA256
+			translated, translations, err := TranslateDesignTokens(stripSourceHeader(file.Content), tokenNamespace)
+			if err != nil {
+				return Adoption{}, "", err
+			}
+			body := formatProvenance(fv, row.ID, now, hashBytes([]byte(translated)), formatTokenTranslations(translations)) + translated
+			path, err := s.files.Write(ctx, row.Scenario, file.AdoptedPath, []byte(body))
+			if err != nil {
+				return Adoption{}, "", err
+			}
+			snapshot := hashBytes([]byte(body))
+			if file.IsEntry && plan.Asset.ID == row.ComponentID {
+				written, entrySnapshot = path, snapshot
+			}
+			adoptionFiles = append(adoptionFiles, AdoptionFile{LibraryPath: file.Path, AdoptedPath: file.AdoptedPath, SourceSHA256: file.ContentSHA256, AdoptedSnapshotSHA256: snapshot, SourceAssetID: plan.Asset.ID, SourceLibraryID: plan.Asset.LibraryID, SourceVersion: plan.Version.Version})
 		}
-		snapshot := hashBytes([]byte(body))
-		if file.IsEntry {
-			written, entrySnapshot = path, snapshot
-		}
-		adoptionFiles = append(adoptionFiles, AdoptionFile{LibraryPath: file.Path, AdoptedPath: file.AdoptedPath, SourceSHA256: file.ContentSHA256, AdoptedSnapshotSHA256: snapshot, SourceAssetID: row.ComponentID, SourceLibraryID: row.LibraryID, SourceVersion: version})
 	}
 	updated, err := s.repo.UpdateAppliedUnit(ctx, AppliedUnitUpdate{AppliedSnapshotUpdate: AppliedSnapshotUpdate{
 		ID:                    row.ID,
@@ -580,6 +621,20 @@ func (s *service) Reapply(ctx context.Context, in ReapplyInput) (Adoption, strin
 		return Adoption{}, "", err
 	}
 	return updated, written, nil
+}
+
+func (s *service) resolveTokenNamespace(ctx context.Context, scenario string) (string, error) {
+	if s.tokens == nil {
+		return "app", nil
+	}
+	namespace, err := s.tokens.TokenNamespace(ctx, scenario)
+	if err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(namespace) == "" {
+		return "app", nil
+	}
+	return strings.TrimSpace(namespace), nil
 }
 
 // validateAdoption deliberately executes both checks before deciding whether
@@ -804,10 +859,34 @@ func NewFSScenarioFileReader(root string) *FSScenarioFileReader {
 }
 
 var (
-	_ ScenarioFileReader        = (*FSScenarioFileReader)(nil)
-	_ ScenarioProvenanceScanner = (*FSScenarioFileReader)(nil)
-	_ ScenarioCandidateScanner  = (*FSScenarioFileReader)(nil)
+	_ ScenarioFileReader           = (*FSScenarioFileReader)(nil)
+	_ ScenarioProvenanceScanner    = (*FSScenarioFileReader)(nil)
+	_ ScenarioCandidateScanner     = (*FSScenarioFileReader)(nil)
+	_ ScenarioTokenNamespaceReader = (*FSScenarioFileReader)(nil)
 )
+
+// TokenNamespace reads the consumer's declared semantic namespace. The
+// scenarios intentionally keep isolated Tailwind configs, so this is a
+// filesystem fact rather than a library-global default.
+func (r *FSScenarioFileReader) TokenNamespace(_ context.Context, scenario string) (string, error) {
+	base := filepath.Join(r.root, scenario, "ui")
+	raw, err := os.ReadFile(filepath.Join(base, "tailwind.config.ts"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "app", nil
+		}
+		return "", err
+	}
+	text := string(raw)
+	switch {
+	case strings.Contains(text, "wc:"):
+		return "wc", nil
+	case strings.Contains(text, "slate:"):
+		return "slate", nil
+	default:
+		return "app", nil
+	}
+}
 
 // scannedSource is one .ts/.tsx file yielded by walkScenarioSources: its
 // scenario-relative path plus raw bytes. Both ScanProvenance and ScanUntagged
@@ -1137,7 +1216,7 @@ func compareVersionStrings(a, b string) (int, bool) {
 	}
 }
 
-func formatProvenance(v components.ComponentVersion, adoptionID string, appliedAt time.Time) string {
+func formatProvenance(v components.ComponentVersion, adoptionID string, appliedAt time.Time, driftHash, translationNote string) string {
 	// JSDoc tag names align 1:1 with ui-health's ComponentProvenance proto:
 	//   @vrooliComponentSource       -> library
 	//   @vrooliComponentVersion      -> library_version
@@ -1146,6 +1225,9 @@ func formatProvenance(v components.ComponentVersion, adoptionID string, appliedA
 	//   @vrooliComponentSourceSha256 -> source_sha256
 	//   @vrooliComponentDriftHash    -> drift_hash (equal to source_sha256 at
 	//                                   adoption time; recomputed at scan time)
+	if driftHash == "" {
+		driftHash = v.ContentSHA256
+	}
 	return fmt.Sprintf(`/**
  * @vrooliComponentSource %s
  * @vrooliComponentVersion %s
@@ -1153,11 +1235,23 @@ func formatProvenance(v components.ComponentVersion, adoptionID string, appliedA
  * @vrooliComponentAppliedAt %s
  * @vrooliComponentSourceSha256 %s
  * @vrooliComponentDriftHash %s
+ * @vrooliComponentTokenTranslation %s
  *
  * This file was copied from React Component Library. Local edits are allowed;
  * run "react-component-library adoptions refresh" to inspect drift.
  */
-`, v.LibraryID, v.Version, adoptionID, appliedAt.UTC().Format(time.RFC3339), v.ContentSHA256, v.ContentSHA256)
+`, v.LibraryID, v.Version, adoptionID, appliedAt.UTC().Format(time.RFC3339), v.ContentSHA256, driftHash, translationNote)
+}
+
+func formatTokenTranslations(translations []TokenTranslation) string {
+	if len(translations) == 0 {
+		return "none"
+	}
+	parts := make([]string, 0, len(translations))
+	for _, translation := range translations {
+		parts = append(parts, translation.From+"->"+translation.To)
+	}
+	return strings.Join(parts, ",")
 }
 
 func stripSourceHeader(src string) string {

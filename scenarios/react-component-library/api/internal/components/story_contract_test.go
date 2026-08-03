@@ -98,3 +98,23 @@ func TestParseStoryContractRequiresSafeComponentInteractionLocator(t *testing.T)
 		t.Fatal("expected interaction target diagnostic")
 	}
 }
+
+func TestStoryCoverageGapsNamesEveryUnstoriedEnumValue(t *testing.T) {
+	contract, diagnostics := ParseStoryContract([]byte(`{
+  "schemaVersion": 1,
+  "kind": "component",
+  "args": {"fields": [{"path":"state","kind":"enum","options":["idle","recording","error"]}]},
+  "environment": {"fixtures": []},
+  "stories": [
+    {"id":"idle","name":"Idle","args":{"state":"idle"}},
+    {"id":"recording","name":"Recording","args":{"state":"recording"}}
+  ]
+}`))
+	if len(diagnostics) != 0 {
+		t.Fatalf("unexpected diagnostics: %v", diagnostics)
+	}
+	gaps := StoryCoverageGaps(contract)
+	if len(gaps) != 1 || gaps[0].Path != "state" || gaps[0].Value != `"error"` {
+		t.Fatalf("coverage gaps = %#v", gaps)
+	}
+}

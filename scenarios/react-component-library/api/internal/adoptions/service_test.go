@@ -516,6 +516,27 @@ func TestService_ReapplyRefreshesEveryFileInAUnit(t *testing.T) {
 	require.Contains(t, string(files.bytes["target::ui/src/focus.ts"]), "focus = 2")
 }
 
+func TestService_ReapplyRefreshesPinnedClosureAndRewritesImports(t *testing.T) {
+	repo := adoptmocks.NewFakeRepository()
+	lib := &fakeLibrary{byID: map[string]components.Component{
+		"panel":  {ID: "panel", LibraryID: "rcl:VoiceInputButton", DisplayName: "VoiceInputButton", AssetKind: components.AssetKindComponent, LatestVersion: "1.0.0", Dependencies: []components.AssetDependency{{LibraryID: "rcl:Button", Version: "1.0.0"}}},
+		"button": {ID: "button", LibraryID: "rcl:Button", DisplayName: "Button", AssetKind: components.AssetKindComponent, LatestVersion: "1.0.0"},
+	}, versions: map[string]components.ComponentVersion{
+		"panel@1.0.0":  {ComponentID: "panel", LibraryID: "rcl:VoiceInputButton", Version: "1.0.0", SourcePath: "components/VoiceInputButton/versions/1.0.0/VoiceInputButton.tsx", ContentSHA256: sha("panel"), Files: []components.ComponentVersionFile{{Path: "VoiceInputButton.tsx", Content: `import { Button } from "../../../Button/versions/1.0.0/Button"; export const VoiceInputButton = () => <Button />;`, ContentSHA256: sha("panel"), IsEntry: true}}},
+		"button@1.0.0": {ComponentID: "button", LibraryID: "rcl:Button", Version: "1.0.0", SourcePath: "components/Button/versions/1.0.0/Button.tsx", ContentSHA256: sha("button"), Files: []components.ComponentVersionFile{{Path: "Button.tsx", Content: "export const Button = () => null;", ContentSHA256: sha("button"), IsEntry: true}}},
+	}}
+	files := &fakeFiles{bytes: map[string][]byte{}}
+	svc := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Now()))
+	created, err := svc.Apply(context.Background(), adoptions.ApplyInput{ComponentID: "panel", Scenario: "target", AdoptedPath: "ui/src/components/VoiceInputButton.tsx"})
+	require.NoError(t, err)
+
+	updated, _, err := svc.Reapply(context.Background(), adoptions.ReapplyInput{ID: created.Adoption.ID, Version: "1.0.0"})
+	require.NoError(t, err)
+	require.Len(t, updated.Files, 2)
+	require.Contains(t, string(files.bytes["target::ui/src/components/VoiceInputButton.tsx"]), `from "./Button"`)
+	require.Contains(t, files.bytes, "target::ui/src/components/Button.tsx")
+}
+
 func TestService_ApplyReplaceExisting_RequiresConfirmationAndReportsImportSites(t *testing.T) {
 	repo := adoptmocks.NewFakeRepository()
 	lib := &fakeLibrary{

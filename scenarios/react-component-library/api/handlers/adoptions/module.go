@@ -128,6 +128,10 @@ func (l *componentsLibrary) Get(ctx context.Context, id string) (components.Comp
 	return l.svc.Get(ctx, id)
 }
 
+func (l *componentsLibrary) GetByLibraryID(ctx context.Context, libraryID string) (components.Component, error) {
+	return l.svc.GetByLibraryID(ctx, libraryID)
+}
+
 func (l *componentsLibrary) List(ctx context.Context, q components.SearchQuery) ([]components.Component, error) {
 	return l.svc.List(ctx, q)
 }

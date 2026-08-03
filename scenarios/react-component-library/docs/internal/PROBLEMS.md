@@ -100,3 +100,10 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+## Work ladder
+
+- Rung: W0 (goal/problem contract comparison)
+- Evidence: The indexed goal `design-language-foundation` is adjacent context, not the user-supplied audio-tools reliability plan. RCL scope is limited to the VoiceInputButton/useVoiceInput adoption and focused component-library validation.
+- Constraint: No goal-side requirement was invented from the adjacent design-system goal.
+- Measured: 2026-08-03.

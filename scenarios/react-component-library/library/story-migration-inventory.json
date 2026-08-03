@@ -20,11 +20,11 @@
     {"kind":"component","id":"SidebarShell","versions":["1.0.0","1.1.0","1.2.0"],"classification":"structured-layout"},
     {"kind":"component","id":"StatusBadge","versions":["1.0.0","1.1.0"],"classification":"public-args"},
     {"kind":"component","id":"Textarea","versions":["1.0.0"],"classification":"controlled-state"},
-    {"kind":"component","id":"VoiceInputButton","versions":["1.0.0"],"classification":"provider-backed"},
+    {"kind":"component","id":"VoiceInputButton","versions":["1.0.0","1.1.0"],"classification":"provider-backed"},
     {"kind":"component","id":"WorkspaceHeader","versions":["1.0.0"],"classification":"structured-layout"},
     {"kind":"hook","id":"useEscapeKey","versions":["1.0.0"],"classification":"hook-actions"},
     {"kind":"hook","id":"useFocusTrap","versions":["1.0.0"],"classification":"hook-actions"},
-    {"kind":"hook","id":"useVoiceInput","versions":["1.0.0"],"classification":"provider-backed-hook"}
+    {"kind":"hook","id":"useVoiceInput","versions":["1.0.0","2.0.0"],"classification":"provider-backed-hook"}
   ],
   "legacyArtifacts": ["examples.json", "controls", "setup"],
   "completionRule": "Every listed version has exactly one valid story.json, no listed legacy artifact, and an assigned classification-specific migration test."

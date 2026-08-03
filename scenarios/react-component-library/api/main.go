@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"react-component-library/internal/clock"
 	"react-component-library/internal/modules"
@@ -28,6 +29,7 @@ import (
 	themesH "react-component-library/handlers/themes"
 	versionsH "react-component-library/handlers/versions"
 	workflowsH "react-component-library/handlers/workflows"
+	capabilitiesH "react-component-library/internal/capabilities"
 
 	"react-component-library/internal/uimanifest"
 
@@ -167,6 +169,11 @@ func main() {
 	}
 	componentsInternal.SetServiceJSONReader(componentsSvc, componentsInternal.NewFSServiceJSONReader(scenariosRoot))
 	adoptionsSvc, scenariosReader := adoptionsH.BuildService(db, clock.System{}, adoptionsH.LibraryFromComponents(componentsSvc), scenariosRoot)
+	if tokenReader, ok := scenariosReader.(adoptionsInternal.ScenarioTokenNamespaceReader); ok {
+		adoptionsInternal.SetTokenNamespaceReader(adoptionsSvc, tokenReader)
+	} else {
+		log.Fatalf("adoptions scenarios reader does not expose token namespace resolution")
+	}
 	componentsInternal.SetScenarioSourceReader(componentsSvc, scenariosReader)
 
 	// Install the swarm-manager drift reporter so Refresh files a
@@ -219,6 +226,7 @@ func main() {
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		capabilitiesH.Module(),
 		adoptionsH.ModuleFromService(
 			adoptionsSvc,
 			log.Default(),
@@ -242,7 +250,12 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: srv.Handler(),
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		// The catalog provider executes one browser-backed report per latest
+		// asset. Keep the response open long enough for the descriptor's 300s
+		// phase envelope to receive the real aggregate result instead of an EOF
+		// at api-core's 30s default.
+		WriteTimeout: 2 * time.Minute,
+		Cleanup:      func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

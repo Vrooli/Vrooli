@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "title": "VoiceInputButton 1.1",
+  "args": { "fields": [{ "path": "state", "label": "State", "kind": "enum", "options": ["idle", "preparing", "recording", "recovering", "transcribing", "unavailable", "error"], "default": "idle" }, { "path": "level", "label": "Level", "kind": "number", "default": 0.5 }, { "path": "partialTranscript", "label": "Partial transcript", "kind": "text", "default": "Listening..." }] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "idle", "name": "Idle", "args": { "state": "idle" }, "expect": [{ "kind": "role", "role": "button", "name": "Start voice input" }] },
+    { "id": "recovering", "name": "Recovering microphone", "args": { "state": "recovering", "partialTranscript": "Listening..." }, "expect": [{ "kind": "role", "role": "button", "name": "Listening for voice input" }] },
+    { "id": "rejected", "name": "Speaker rejection retry", "args": { "state": "recording", "rejectionReason": "Speaker could not be verified", "onTranscribeAnyway": { "$handler": "continue" } }, "expect": [{ "kind": "text", "value": "Transcribe anyway" }] }
+  ]
+}

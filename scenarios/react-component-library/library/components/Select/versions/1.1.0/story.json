@@ -63,10 +63,6 @@
         {
           "kind": "role",
           "role": "combobox"
-        },
-        {
-          "kind": "text",
-          "value": "Choose status"
         }
       ]
     },
@@ -88,12 +84,9 @@
       },
       "expect": [
         {
-          "kind": "text",
-          "value": "Native"
-        },
-        {
           "kind": "role",
-          "role": "combobox"
+          "role": "combobox",
+          "name": "native"
         }
       ]
     },
@@ -122,8 +115,9 @@
           "value": ""
         },
         {
-          "kind": "text",
-          "value": "Locked"
+          "kind": "role",
+          "role": "combobox",
+          "name": "locked"
         }
       ]
     }

@@ -105,6 +105,7 @@ func toProto(report domain.Report) *componenttestsv1.ComponentTestReport {
 }
 
 var Endpoints = []module.EndpointDescriptor{
+	{ID: "validation_validate_target", Path: scenariovalidationconnect.ScenarioValidationServiceValidateTargetProcedure, Method: "POST", Summary: "Validate a first-class repository target", Category: "validation"},
 	{ID: "component_tests_run", Path: componenttestsconnect.ComponentTestsServiceRunComponentTestProcedure, Method: "POST", Summary: "Run a version-pinned component or hook contract", Category: "component-tests"},
 	{ID: "component_tests_rerun", Path: componenttestsconnect.ComponentTestsServiceRerunComponentTestProcedure, Method: "POST", Summary: "Rerun a durable component test report", Category: "component-tests"},
 	{ID: "component_tests_get", Path: componenttestsconnect.ComponentTestsServiceGetComponentTestReportProcedure, Method: "POST", Summary: "Get a durable component test report", Category: "component-tests"},

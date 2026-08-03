@@ -453,6 +453,7 @@ const implicitRole = (el) => {
     if (["search", "text", "email", "password", "url", "tel"].includes(type)) return "textbox";
   }
   if (tag === "a" && el.hasAttribute("href")) return "link";
+  if (tag === "main") return "main";
   if (tag === "table") return "table";
   if (/^h[1-6]$/.test(tag)) return "heading";
   return "";
@@ -675,11 +676,11 @@ try {
       if (!target || typeof target !== "object") return null;
       if (typeof target.selector === "string") return document.querySelector(target.selector);
       if (typeof target.role !== "string") return null;
-      const candidates = document.querySelectorAll('[role="' + CSS.escape(target.role) + '"], ' + target.role);
+      const candidates = Array.from(document.querySelectorAll("body *")).filter((candidate) => (candidate.getAttribute("role") || implicitRole(candidate)) === target.role);
       const accessibleName = (candidate) => {
         const labelledBy = candidate.getAttribute("aria-labelledby");
         if (labelledBy) return labelledBy.split(/\s+/).map((id) => document.getElementById(id)?.textContent || "").join(" ").trim();
-        return (candidate.getAttribute("aria-label") || candidate.textContent || "").trim();
+        return (candidate.getAttribute("aria-label") || candidate.getAttribute("title") || candidate.value || candidate.textContent || "").trim();
       };
       return Array.from(candidates).find((candidate) => typeof target.name !== "string" || accessibleName(candidate) === target.name) || null;
     };

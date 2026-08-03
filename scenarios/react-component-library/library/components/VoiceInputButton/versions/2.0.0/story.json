@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "title": "VoiceInputButton 2.0",
+  "args": {
+    "fields": [
+      { "path": "state", "label": "State", "kind": "enum", "required": true, "default": "idle", "options": ["idle", "preparing", "recording", "recovering", "transcribing", "unavailable", "error"] },
+      { "path": "mode", "label": "Mode", "kind": "enum", "required": true, "default": "always-on", "options": ["always-on", "timeout"] },
+      { "path": "size", "label": "Size", "kind": "enum", "required": true, "default": "sm", "options": ["xs", "sm", "md", "icon"] },
+      { "path": "level", "label": "Input level", "kind": "number", "minimum": 0, "maximum": 1, "default": 0.65 },
+      { "path": "timeoutProgress", "label": "Timeout progress", "kind": "number", "minimum": 0, "maximum": 1, "default": 0.5 },
+      { "path": "error", "label": "Error", "kind": "text", "default": "Microphone permission was denied." },
+      { "path": "rejectionReason", "label": "Rejection reason", "kind": "text", "default": "Speaker could not be verified." },
+      { "path": "partialTranscript", "label": "Partial transcript", "kind": "text", "default": "Listening..." },
+      { "path": "disabled", "label": "Disabled", "kind": "boolean", "default": false }
+    ]
+  },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "idle", "name": "Idle", "args": { "state": "idle", "size": "sm", "level": 0 }, "expect": [{ "kind": "role", "role": "button", "name": "Start voice input" }] },
+    { "id": "preparing", "name": "Preparing", "args": { "state": "preparing", "size": "sm" }, "expect": [{ "kind": "role", "role": "button", "name": "Preparing microphone" }] },
+    { "id": "recording", "name": "Recording with level meter", "args": { "state": "recording", "mode": "always-on", "size": "sm", "level": 0.65, "partialTranscript": "Listening..." }, "expect": [{ "kind": "role", "role": "button", "name": "Stop voice input" }, { "kind": "text", "value": "Listening..." }] },
+    { "id": "recovering", "name": "Recovering", "args": { "state": "recovering", "size": "sm", "level": 0.35, "partialTranscript": "Reconnecting..." }, "expect": [{ "kind": "role", "role": "button", "name": "Listening for voice input" }] },
+    { "id": "transcribing", "name": "Transcribing", "args": { "state": "transcribing", "size": "sm" }, "expect": [{ "kind": "role", "role": "button", "name": "Transcribing voice input" }] },
+    { "id": "unavailable", "name": "Unavailable", "args": { "state": "unavailable", "size": "sm" }, "expect": [{ "kind": "role", "role": "button", "name": "Voice input unavailable" }] },
+    { "id": "error", "name": "Error with dismiss action", "args": { "state": "error", "size": "sm", "error": "Microphone permission was denied." }, "expect": [{ "kind": "role", "role": "button", "name": "Voice input error" }, { "kind": "role", "role": "status" }] },
+    { "id": "timeout", "name": "Timeout recording", "args": { "state": "recording", "mode": "timeout", "size": "sm", "level": 0.65, "timeoutProgress": 0.7 }, "expect": [{ "kind": "role", "role": "button", "name": "Stop voice input" }] },
+    { "id": "rejection", "name": "Speaker rejection", "args": { "state": "recording", "rejectionReason": "Speaker could not be verified.", "onTranscribeAnyway": { "$handler": "continue" } }, "expect": [{ "kind": "text", "value": "Transcribe anyway" }] },
+    { "id": "disabled", "name": "Disabled", "args": { "state": "idle", "size": "sm", "disabled": true }, "expect": [{ "kind": "attribute", "selector": "button", "name": "disabled", "value": "" }] },
+    { "id": "size-xs", "name": "Extra-small size", "args": { "state": "idle", "size": "xs" }, "expect": [{ "kind": "role", "role": "button", "name": "Start voice input" }] },
+    { "id": "size-md", "name": "Medium size", "args": { "state": "idle", "size": "md" }, "expect": [{ "kind": "role", "role": "button", "name": "Start voice input" }] },
+    { "id": "size-icon", "name": "Icon size", "args": { "state": "idle", "size": "icon" }, "expect": [{ "kind": "role", "role": "button", "name": "Start voice input" }] }
+  ]
+}

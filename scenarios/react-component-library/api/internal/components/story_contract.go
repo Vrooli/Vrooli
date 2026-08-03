@@ -116,6 +116,70 @@ type StoryDiagnostic struct {
 	Detail  string
 }
 
+// StoryCoverageGap is a release-readiness finding. Enum options are part of
+// the public preview surface, so every declared option must be represented by
+// at least one named story. Keeping this beside the story contract prevents
+// the component-test provider and promotion paths from inventing different
+// interpretations of coverage.
+type StoryCoverageGap struct {
+	Path  string
+	Value string
+}
+
+func (g StoryCoverageGap) Error() string {
+	return fmt.Sprintf("story coverage missing enum value %q for prop %q", g.Value, g.Path)
+}
+
+// StoryCoverageGaps returns one deterministic finding for every enum option
+// absent from every story args object. Drafts may report these gaps; release
+// callers must reject them.
+func StoryCoverageGaps(contract *StoryContract) []StoryCoverageGap {
+	if contract == nil {
+		return nil
+	}
+	var gaps []StoryCoverageGap
+	for _, field := range contract.Args.Fields {
+		if field.Kind != StoryFieldEnum {
+			continue
+		}
+		seen := map[string]struct{}{}
+		for _, story := range contract.Stories {
+			var args map[string]any
+			if json.Unmarshal(story.Args, &args) != nil {
+				continue
+			}
+			value, ok := valueAtStoryPath(args, field.Path)
+			if !ok {
+				continue
+			}
+			raw, err := json.Marshal(value)
+			if err == nil {
+				seen[string(raw)] = struct{}{}
+			}
+		}
+		for _, option := range field.Options {
+			var value any
+			if json.Unmarshal(option, &value) != nil {
+				continue
+			}
+			raw, err := json.Marshal(value)
+			if err != nil {
+				continue
+			}
+			if _, ok := seen[string(raw)]; !ok {
+				gaps = append(gaps, StoryCoverageGap{Path: field.Path, Value: string(raw)})
+			}
+		}
+	}
+	sort.Slice(gaps, func(i, j int) bool {
+		if gaps[i].Path == gaps[j].Path {
+			return gaps[i].Value < gaps[j].Value
+		}
+		return gaps[i].Path < gaps[j].Path
+	})
+	return gaps
+}
+
 func (d StoryDiagnostic) Error() string {
 	return fmt.Sprintf("%s: %s (%s)", d.Pointer, d.Detail, d.Rule)
 }

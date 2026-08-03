@@ -135,7 +135,7 @@ func TestService_Reconverge_ScopesByScenarioAndSkipsCurrent(t *testing.T) {
 	repo := adoptmocks.NewFakeRepository()
 	bodyV10, bodyV11 := "BODY-V10", "BODY-V11"
 	lib := reconvergeLibrary(bodyV10, bodyV11)
-	cleanupKey := "cleanup-manager::" + tmButtonPath
+	cleanupKey := "storage-manager::" + tmButtonPath
 	files := &fakeFiles{bytes: map[string][]byte{
 		tmButtonKey(): []byte(bodyV10),
 		cleanupKey:    []byte(bodyV11), // current copy in a different scenario
@@ -151,7 +151,7 @@ func TestService_Reconverge_ScopesByScenarioAndSkipsCurrent(t *testing.T) {
 	})
 	repo.Seed(adoptions.Adoption{
 		ID: "row-cm-current", ComponentID: "cmp-btn", LibraryID: "rcl:Button",
-		Scenario: "cleanup-manager", AdoptedPath: tmButtonPath,
+		Scenario: "storage-manager", AdoptedPath: tmButtonPath,
 		AdoptedVersion: "1.1.0", AdoptedSnapshotSHA256: sha(bodyV11), // already current
 		Files: []adoptions.AdoptionFile{{LibraryPath: "Button.tsx", AdoptedPath: tmButtonPath, AdoptedSnapshotSHA256: sha(bodyV11)}},
 	})
@@ -163,7 +163,7 @@ func TestService_Reconverge_ScopesByScenarioAndSkipsCurrent(t *testing.T) {
 	require.Equal(t, 1, scoped.Behind)
 	require.Equal(t, "template-manager", scoped.Outcomes[0].Scenario)
 
-	// Unfiltered: the current cleanup-manager row is scanned but not a candidate.
+	// Unfiltered: the current storage-manager row is scanned but not a candidate.
 	all, err := svc.Reconverge(ctx, adoptions.ReconvergeInput{})
 	require.NoError(t, err)
 	require.Equal(t, 2, all.Scanned)

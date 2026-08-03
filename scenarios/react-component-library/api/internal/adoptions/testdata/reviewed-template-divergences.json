@@ -1,7 +1,16 @@
 {
   "_note": "Reviewed, explicitly-accepted divergences between the react-vite template's vendored components and the react-component-library catalog latest. This is an audit allowlist, NOT a suppression: TestReactViteTemplateVendoredComponentsMatchCatalogLatest fails for ANY behind/deprecated vendored copy that is not listed here, and it also fails if a listed entry no longer matches a real finding (stale entries must be removed). Mirrors the --accept-behavior-loss override semantics: divergence is tolerated only with a dated, named, reasoned record. Regenerate the reasoning from docs/reports when template writes come back into scope and the copies are reconverged.",
-  "reviewedAt": "2026-07-15",
+  "reviewedAt": "2026-08-03",
   "report": "scenarios/react-component-library/docs/reports/2026-07-14-react-vite-template-divergence.md",
   "scanRoot": "templates/scenarios/react-vite",
-  "divergences": []
+  "divergences": [
+    {
+      "path": "ui/src/components/ui/button.tsx",
+      "libraryId": "react-component-library:Button",
+      "vendoredVersion": "1.2.0",
+      "catalogVersion": "1.3.0",
+      "status": "behind",
+      "reason": "Button 1.3.0 is the governed catalog release for the audio ownership split; the react-vite template is outside this plan's write boundary and will be reconverged with the next template refresh."
+    }
+  ]
 }

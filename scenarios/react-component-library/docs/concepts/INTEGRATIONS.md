@@ -19,6 +19,7 @@ Use this document to answer:
 |---|---|---|---|---|---|
 | SQLite | embedded storage | yes | API, notes reference | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario should be started through lifecycle commands. |
+| Agent Manager | scenario | no | Assisted extraction and adoption workflows | `.vrooli/service.json`, `/api/v1/capabilities/describe` | Assisted workflows remain unavailable; direct catalog and adoption APIs remain available. |
 
 ## Vrooli Resources
 
@@ -34,19 +35,20 @@ requires them.
 
 | Scenario | Status | Reason | Contract |
 |---|---|---|---|
-| None yet. | not-applicable | Generated scenario is standalone. | Add when this scenario calls or composes another scenario. |
+| Agent Manager | optional | Provides server-side execution for attributable assisted extraction and adoption workflows. | `/api/v1/capabilities/describe`; `vrooli scenario start agent-manager --json` |
 
 ## Third-Party Services
 
 | Service | Status | Reason | Contract |
 |---|---|---|---|
-| Agent Manager | optional scenario dependency | RCL resolves it server-to-server through lifecycle discovery to dispatch and observe scoped assisted workflows. | If unavailable, RCL stores `unavailable` workflow state; direct catalog APIs remain authoritative and the browser never dispatches Agent Manager. |
+| None yet. | not-applicable | No external third-party service is required; Agent Manager is a Vrooli scenario dependency. | Add when a non-Vrooli service is introduced. |
 
 ## Failure Modes
 
 | Dependency | Failure Signal | Expected Behavior | Tests |
 |---|---|---|---|
 | SQLite | `PingContext` error | `/health` returns unhealthy dependency status. | health handler tests |
+| Agent Manager | lifecycle status unavailable or dispatch error | Assisted workflow is stored as unavailable; direct catalog and adoption APIs remain available. | workflow service tests |
 
 ## Cross-References
 

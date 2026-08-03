@@ -186,7 +186,7 @@ func (s *service) ConfirmDiscovery(ctx context.Context, in ConfirmDiscoveryInput
 	fv.LibraryID = component.LibraryID
 	fv.Version = version
 	fv.ContentSHA256 = libFile.ContentSHA256
-	body := formatProvenance(fv, adoptionID, now) + stripSourceHeader(string(current))
+	body := formatProvenance(fv, adoptionID, now, hashBytes([]byte(stripSourceHeader(string(current)))), "none") + stripSourceHeader(string(current))
 	writtenPath, err := s.files.Write(ctx, scenario, adoptedPath, []byte(body))
 	if err != nil {
 		return ConfirmDiscoveryResult{}, err
