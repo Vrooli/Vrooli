@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 )
 
@@ -39,7 +38,7 @@ func (l *HostLauncher) Launch(ctx context.Context, req LaunchRequest) (LaunchedP
 	cmd := exec.CommandContext(ctx, req.Command, req.Args...)
 	cmd.Dir = req.WorkingDir
 	cmd.Env = req.Env
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = newProcessAttributes()
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -95,15 +94,6 @@ func (h *hostLaunchedProcess) Signal(grace time.Duration) {
 			return
 		}
 		h.signalActive.Store(true)
-		pgid := -h.cmd.Process.Pid
-		if err := syscall.Kill(pgid, syscall.SIGTERM); err != nil {
-			// Process may already be gone; try SIGKILL once and stop.
-			_ = syscall.Kill(pgid, syscall.SIGKILL)
-			return
-		}
-		go func() {
-			time.Sleep(grace)
-			_ = syscall.Kill(pgid, syscall.SIGKILL)
-		}()
+		signalProcessTree(h.cmd, grace)
 	})
 }

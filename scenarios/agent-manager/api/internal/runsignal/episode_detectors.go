@@ -49,6 +49,11 @@ func EpisodeDetectors() []EpisodeDetector {
 		episodeDetector{"handoff-continuation", EpisodeClassifierVersion, "run-execution", detectHandoffContinuation},
 		episodeDetector{"fallback-after-capability", EpisodeClassifierVersion, "toolchain", detectFallbackAfterCapability},
 		episodeDetector{"capability-abandoned", EpisodeClassifierVersion, "toolchain", detectCapabilityAbandoned},
+		episodeDetector{"retry-after-failure", EpisodeClassifierVersion, "run-execution", detectRetryAfterFailure},
+		episodeDetector{"flag-hunting", EpisodeClassifierVersion, "toolchain", detectFlagHunting},
+		episodeDetector{"abandoned-command-family", EpisodeClassifierVersion, "toolchain", detectAbandonedCommandFamily},
+		episodeDetector{"read-then-reread", EpisodeClassifierVersion, "recurring-workaround", detectReadThenReread},
+		episodeDetector{"time-to-first-success", EpisodeClassifierVersion, "run-execution", detectTimeToFirstSuccess},
 	}
 }
 

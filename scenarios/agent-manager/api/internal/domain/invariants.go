@@ -495,7 +495,7 @@ func (r *Run) GetLifecycleState() LifecycleState {
 		// result). They can receive events (the resume message) but emit no
 		// heartbeat, which is exactly LifecycleStateReviewable's contract.
 		return LifecycleStateReviewable
-	case RunStatusComplete, RunStatusFailed, RunStatusCancelled:
+	case RunStatusComplete, RunStatusFailed, RunStatusCancelled, RunStatusUnknown:
 		return LifecycleStateFinished
 	default:
 		return LifecycleStateNew

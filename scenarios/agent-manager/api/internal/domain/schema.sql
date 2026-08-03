@@ -93,6 +93,8 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_facts (
     model TEXT NOT NULL DEFAULT '',
     tag TEXT NOT NULL DEFAULT '',
     run_status TEXT NOT NULL,
+    semantics_kind TEXT NOT NULL DEFAULT '',
+    semantics_verdict TEXT NOT NULL DEFAULT '',
     PRIMARY KEY (run_id, call_event_id, segment_index)
 );
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_occurred_at ON invocation_read_model_facts(occurred_at);
@@ -100,6 +102,14 @@ CREATE INDEX IF NOT EXISTS idx_invocation_read_model_ownership ON invocation_rea
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_outcome ON invocation_read_model_facts(outcome, occurred_at);
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_executable ON invocation_read_model_facts(executable, occurred_at);
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_fingerprint ON invocation_read_model_facts(fingerprint, occurred_at);
+
+CREATE TABLE IF NOT EXISTS invocation_cohort_definitions (
+    name TEXT PRIMARY KEY,
+    filter_json TEXT NOT NULL,
+    classifier_version TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    change_binding TEXT NOT NULL DEFAULT ''
+);
 
 -- One durable terminal summary per run. This is intentionally separate from
 -- invocation facts: throughput questions count runs, not tool calls, and must

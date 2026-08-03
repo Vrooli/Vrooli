@@ -10,16 +10,17 @@ import (
 // ClassifierVersion names the deterministic rules used for a report. It is
 // deliberately returned to callers: a projection is evidence, not an opaque
 // interpretation whose rules can silently change underneath an investigation.
-const ClassifierVersion = "passive-evidence.v1"
+const ClassifierVersion = "passive-evidence.v2"
 
 // Cohort is a bounded multi-run projection. Reports remain the source of truth
 // for drill-down; this type only contains ranked, reproducible signals.
 type Cohort struct {
-	ClassifierVersion string                   `json:"classifierVersion"`
-	RunIDs            []string                 `json:"runIds"`
-	Availability      Availability             `json:"availability"`
-	Signals           []CohortSignal           `json:"signals"`
-	TimeAccounting    runsignal.TimeAccounting `json:"timeAccounting"`
+	ClassifierVersion  string                   `json:"classifierVersion"`
+	RunIDs             []string                 `json:"runIds"`
+	Availability       Availability             `json:"availability"`
+	Signals            []CohortSignal           `json:"signals"`
+	TimeAccounting     runsignal.TimeAccounting `json:"timeAccounting"`
+	InvocationValidity EvidenceValidity         `json:"invocationValidity"`
 }
 
 type CohortSignal struct {
@@ -34,6 +35,20 @@ type EpisodeCohort struct {
 	Availability Availability    `json:"availability"`
 	Signals      []EpisodeSignal `json:"signals"`
 }
+
+type GoalCohort struct {
+	ClassifierVersion       string       `json:"classifierVersion"`
+	Availability            Availability `json:"availability"`
+	Population              int          `json:"population"`
+	GoalRuns                int          `json:"goalRuns"`
+	MetRuns                 int          `json:"metRuns"`
+	AverageTimeToFirstMetMS float64      `json:"averageTimeToFirstMetMs"`
+	AverageTokensToFirstMet float64      `json:"averageTokensToFirstMet"`
+	InterventionsBeforeMet  int          `json:"interventionsBeforeMet"`
+	HandoffsBeforeMet       int          `json:"handoffsBeforeMet"`
+	Regressions             int          `json:"regressions"`
+	Restatements            int          `json:"restatements"`
+}
 type EpisodeSignal struct {
 	Fingerprint          string   `json:"fingerprint"`
 	Occurrences          int      `json:"occurrences"`
@@ -45,6 +60,7 @@ type EpisodeSignal struct {
 
 type CohortComparison struct {
 	ClassifierVersion string             `json:"classifierVersion"`
+	ChangeBinding     string             `json:"changeBinding,omitempty"`
 	LeftPopulation    int                `json:"leftPopulation"`
 	RightPopulation   int                `json:"rightPopulation"`
 	Availability      Availability       `json:"availability"`
@@ -123,6 +139,38 @@ func BuildEpisodeCohort(episodesByRun map[string][]runsignal.FrictionEpisode) Ep
 	return out
 }
 
+func BuildGoalCohort(reports []*RunReport) GoalCohort {
+	out := GoalCohort{ClassifierVersion: ClassifierVersion, Availability: Availability{State: AvailabilityAvailable}, Population: len(reports)}
+	var timeTotal, tokenTotal float64
+	for _, report := range reports {
+		if report == nil || report.Goal.Availability.State == AvailabilityUnavailable {
+			out.Availability = Availability{State: AvailabilityDegraded, Reason: "one or more selected runs carry no goal"}
+			continue
+		}
+		out.GoalRuns++
+		if report.Goal.FirstMetEventIndex >= 0 {
+			out.MetRuns++
+			timeTotal += float64(report.Goal.TimeToFirstMet.Milliseconds())
+			tokenTotal += float64(report.Goal.TokenCostBeforeFirstMet)
+			out.InterventionsBeforeMet += report.Goal.InterventionsBeforeMet
+			out.HandoffsBeforeMet += report.Goal.HandoffsBeforeMet
+		}
+		if report.Goal.Regression {
+			out.Regressions++
+		}
+		if report.Goal.Restatement {
+			out.Restatements++
+		}
+	}
+	if out.MetRuns > 0 {
+		out.AverageTimeToFirstMetMS = timeTotal / float64(out.MetRuns)
+		out.AverageTokensToFirstMet = tokenTotal / float64(out.MetRuns)
+	} else {
+		out.Availability = Availability{State: AvailabilityUnavailable, Reason: "no goal-carrying run reached a first-met marker"}
+	}
+	return out
+}
+
 func BuildCohortComparison(left, right []runsignal.FrictionEpisode, leftPopulation, rightPopulation, limit int) CohortComparison {
 	type bucket struct {
 		occurrences int
@@ -182,9 +230,9 @@ func BuildEpisodeTrend(episodes []TimedEpisode, bucket time.Duration) []EpisodeT
 		bucket = 24 * time.Hour
 	}
 	type aggregate struct {
-		occurrences, runs int
-		cost              int64
-		ids               map[string]bool
+		occurrences int
+		cost        int64
+		ids         map[string]bool
 	}
 	aggregates := map[time.Time]*aggregate{}
 	for _, timed := range episodes {
@@ -254,6 +302,9 @@ func BuildCohort(reports []*RunReport) Cohort {
 		out.TimeAccounting.HumanTokens += report.TimeAccounting.HumanTokens
 		out.TimeAccounting.UnattributableTokens += report.TimeAccounting.UnattributableTokens
 		out.RunIDs = append(out.RunIDs, id)
+		out.InvocationValidity.TotalCalls += report.InvocationValidity.TotalCalls
+		out.InvocationValidity.ClassifiedBase += report.InvocationValidity.ClassifiedBase
+		out.InvocationValidity.UnclassifiedCount += report.InvocationValidity.UnclassifiedCount
 		if report.EventsAvailability.State != AvailabilityAvailable {
 			out.Availability = Availability{State: AvailabilityDegraded, Reason: "event evidence is unavailable for part of the cohort"}
 		}
@@ -282,6 +333,15 @@ func BuildCohort(reports []*RunReport) Cohort {
 		}
 		if report.ReceiptsAvailability.State == AvailabilityDegraded || report.ReceiptsAvailability.State == AvailabilityUnavailable {
 			add("receipt_availability", 1, id)
+		}
+	}
+	if out.InvocationValidity.TotalCalls == 0 {
+		out.InvocationValidity.Availability = Availability{State: AvailabilityUnavailable, Reason: "no invocation facts are available for the cohort"}
+	} else {
+		out.InvocationValidity.UnclassifiedShare = float64(out.InvocationValidity.UnclassifiedCount) / float64(out.InvocationValidity.TotalCalls)
+		out.InvocationValidity.Availability = Availability{State: AvailabilityAvailable}
+		if float64(out.InvocationValidity.ClassifiedBase)/float64(out.InvocationValidity.TotalCalls) < 0.90 {
+			out.InvocationValidity.Availability = Availability{State: AvailabilityUnreliable, Reason: "classified invocation share is below the minimum 90%"}
 		}
 	}
 	for kind, b := range buckets {

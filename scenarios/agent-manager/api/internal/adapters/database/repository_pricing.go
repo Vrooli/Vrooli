@@ -6,6 +6,7 @@ import (
 	"errors"
 	"time"
 
+	"agent-manager/internal/domain"
 	"agent-manager/internal/pricing"
 
 	"github.com/google/uuid"
@@ -26,7 +27,67 @@ func NewPricingRepository(db *DB, log *logrus.Logger) pricing.Repository {
 	return &pricingRepository{db: db, log: log}
 }
 
-var _ pricing.Repository = (*pricingRepository)(nil)
+var (
+	_ pricing.Repository             = (*pricingRepository)(nil)
+	_ pricing.SubscriptionRepository = (*pricingRepository)(nil)
+)
+
+func (r *pricingRepository) CreateSubscriptionPeriod(ctx context.Context, period *domain.SubscriptionPeriod) error {
+	if period == nil {
+		return errors.New("subscription period is required")
+	}
+	if period.Provider == "" || period.PlanRef == "" {
+		return errors.New("subscription provider and plan_ref are required")
+	}
+	if !period.StartsAt.Before(period.EndsAt) {
+		return errors.New("subscription period must end after it starts")
+	}
+	var overlap int
+	err := r.db.GetContext(ctx, &overlap, `SELECT COUNT(*) FROM subscription_periods WHERE provider=? AND plan_ref=? AND starts_at < ? AND ends_at > ?`, period.Provider, period.PlanRef, SQLiteTime(period.EndsAt), SQLiteTime(period.StartsAt))
+	if err != nil {
+		return err
+	}
+	if overlap > 0 {
+		return errors.New("subscription_period.overlap: period overlaps an existing provider and plan period")
+	}
+	if period.ID == "" {
+		period.ID = uuid.NewString()
+	}
+	_, err = r.db.ExecContext(ctx, `INSERT INTO subscription_periods (id,provider,plan_ref,starts_at,ends_at,amount_micro_usd,quota_tokens) VALUES (?,?,?,?,?,?,?)`, period.ID, period.Provider, period.PlanRef, SQLiteTime(period.StartsAt), SQLiteTime(period.EndsAt), period.AmountMicroUSD, period.QuotaTokens)
+	return err
+}
+
+func (r *pricingRepository) ListSubscriptionPeriods(ctx context.Context, provider, planRef string) ([]domain.SubscriptionPeriod, error) {
+	query := `SELECT id,provider,plan_ref,starts_at,ends_at,amount_micro_usd,quota_tokens FROM subscription_periods WHERE (?='' OR provider=?) AND (?='' OR plan_ref=?) ORDER BY starts_at DESC`
+	rows, err := r.db.QueryxContext(ctx, query, provider, provider, planRef, planRef)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	periods := []domain.SubscriptionPeriod{}
+	for rows.Next() {
+		var p domain.SubscriptionPeriod
+		var starts, ends SQLiteTime
+		if err := rows.Scan(&p.ID, &p.Provider, &p.PlanRef, &starts, &ends, &p.AmountMicroUSD, &p.QuotaTokens); err != nil {
+			return nil, err
+		}
+		p.StartsAt, p.EndsAt = starts.Time(), ends.Time()
+		periods = append(periods, p)
+	}
+	return periods, rows.Err()
+}
+
+func (r *pricingRepository) DeleteSubscriptionPeriod(ctx context.Context, id string) error {
+	result, err := r.db.ExecContext(ctx, `DELETE FROM subscription_periods WHERE id=?`, id)
+	if err != nil {
+		return err
+	}
+	count, err := result.RowsAffected()
+	if err == nil && count == 0 {
+		return errors.New("subscription_period.not_found: period does not exist")
+	}
+	return err
+}
 
 // --- Row Types ---
 

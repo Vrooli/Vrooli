@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"agent-manager/internal/availability"
@@ -82,6 +83,96 @@ type metricResult struct {
 	Secondary  int64
 	Query      string
 	Validity   Validity
+	Filter     invocationreadmodel.Filter
+}
+
+// Definition is the backend-owned explanation of a measure. Keeping this
+// beside the calculation prevents the UI, CLI, and registry from drifting
+// apart about what a number means.
+type Definition struct {
+	ID          string
+	Counts      string
+	Numerator   string
+	Denominator string
+	SourceTable string
+	Limitation  string
+}
+
+func definitionFor(name string) Definition {
+	definitions := map[string]Definition{
+		ExternalToolShare:                    {ID: ExternalToolShare, Counts: "classified command invocations", Numerator: "external tool calls", Denominator: "classified command calls", SourceTable: "invocation_read_model_facts", Limitation: "unclassified ownership and unparseable evidence are excluded from the denominator"},
+		RetryRate:                            {ID: RetryRate, Counts: "durable tool invocations", Numerator: "retry-linked calls", Denominator: "all classified tool calls", SourceTable: "invocation_read_model_facts"},
+		HelpRecoveryRate:                     {ID: HelpRecoveryRate, Counts: "durable tool invocations", Numerator: "help-recovery calls", Denominator: "all classified tool calls", SourceTable: "invocation_read_model_facts"},
+		RepeatedWorkRate:                     {ID: RepeatedWorkRate, Counts: "durable tool invocations", Numerator: "repeated-work calls", Denominator: "all classified tool calls", SourceTable: "invocation_read_model_facts", Limitation: "fingerprint concentration can make this measure unreliable"},
+		ToolFailureRate:                      {ID: ToolFailureRate, Counts: "durable tool invocations", Numerator: "failed calls", Denominator: "all classified tool calls", SourceTable: "invocation_read_model_facts"},
+		RunSuccessRate:                       {ID: RunSuccessRate, Counts: "terminal runs", Numerator: "successful terminal runs", Denominator: "all terminal runs", SourceTable: "invocation_read_model_runs"},
+		RunCycleTime:                         {ID: RunCycleTime, Counts: "completed terminal runs", Numerator: "duration milliseconds", Denominator: "completed terminal runs", SourceTable: "invocation_read_model_runs"},
+		"throughput.run_duration_statistics": {ID: "throughput.run_duration_statistics", Counts: "completed terminal runs", Numerator: "duration percentiles and range", Denominator: "completed terminal runs", SourceTable: "invocation_read_model_runs"},
+		RunCost:                              {ID: RunCost, Counts: "terminal runs", Numerator: "charge and token totals", Denominator: "terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "unpriced and imported runs are excluded from metered consumption"},
+		RunVolume:                            {ID: RunVolume, Counts: "terminal run summaries", Numerator: "terminal runs", Denominator: "none", SourceTable: "invocation_read_model_runs"},
+		RunStatusDistribution:                {ID: RunStatusDistribution, Counts: "terminal runs", Numerator: "runs in each status", Denominator: "all terminal runs", SourceTable: "invocation_read_model_runs"},
+		RunnerBreakdown:                      {ID: RunnerBreakdown, Counts: "terminal runs", Numerator: "runs grouped by runner", Denominator: "all terminal runs", SourceTable: "invocation_read_model_runs"},
+		ModelBreakdown:                       {ID: ModelBreakdown, Counts: "terminal runs", Numerator: "runs grouped by model", Denominator: "all terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "model assignment is observational, not randomized"},
+		ProfileBreakdown:                     {ID: ProfileBreakdown, Counts: "terminal runs", Numerator: "runs grouped by profile", Denominator: "all terminal runs", SourceTable: "invocation_read_model_runs"},
+		WorkloadBreakdown:                    {ID: WorkloadBreakdown, Counts: "terminal runs", Numerator: "workload totals and completion outcomes", Denominator: "all terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "model assignment is observational, not randomized"},
+		WorkloadEfficiency:                   {ID: WorkloadEfficiency, Counts: "terminal runs for a workload", Numerator: "total tokens", Denominator: "successful completions", SourceTable: "invocation_read_model_runs", Limitation: "model assignment is observational, not randomized"},
+		TerminalRunTrend:                     {ID: TerminalRunTrend, Counts: "terminal runs", Numerator: "hourly terminal outcomes", Denominator: "none", SourceTable: "invocation_read_model_runs"},
+		ToolUsage:                            {ID: ToolUsage, Counts: "tool invocation facts", Numerator: "calls grouped by tool", Denominator: "none", SourceTable: "invocation_read_model_facts"},
+		"friction.tool_command_breakdown":    {ID: "friction.tool_command_breakdown", Counts: "tool invocation facts", Numerator: "calls grouped by executable and command path", Denominator: "none", SourceTable: "invocation_read_model_facts", Limitation: "command detail is unavailable when the source fact did not record it"},
+		ErrorPatterns:                        {ID: ErrorPatterns, Counts: "durable error facts", Numerator: "errors grouped by code", Denominator: "none", SourceTable: "invocation_read_model_errors"},
+		FileRereadRate:                       {ID: FileRereadRate, Counts: "file-read calls", Numerator: "files read more than once", Denominator: "file-read calls", SourceTable: "invocation_read_model_runs"},
+		FindingRecurrenceRate:                {ID: FindingRecurrenceRate, Counts: "persisted investigation findings", Numerator: "recurring findings", Denominator: "all findings", SourceTable: "run_findings"},
+		"friction.capability_usage":          {ID: "friction.capability_usage", Counts: "verified capability receipts", Numerator: "calls grouped by capability", Denominator: "none", SourceTable: "investigation_cross_scenario_calls", Limitation: "only verified receipts are included"},
+		"friction.capability_efficacy":       {ID: "friction.capability_efficacy", Counts: "verified capability receipts", Numerator: "successful, fallback, and abandoned calls", Denominator: "verified capability calls", SourceTable: "investigation_cross_scenario_calls", Limitation: "only verified receipts are included"},
+		"select_cohort":                      {ID: "select_cohort", Counts: "terminal runs matching the selected filter", Numerator: "matching runs", Denominator: "none", SourceTable: "invocation_read_model_runs"},
+		"episode_cohort":                     {ID: "episode_cohort", Counts: "persisted friction episodes", Numerator: "episodes grouped by fingerprint", Denominator: "none", SourceTable: "invocation_read_model_episodes"},
+	}
+	return definitions[name]
+}
+
+func allDefinitions() []Definition {
+	seen := make(map[string]struct{})
+	definitions := make([]Definition, 0, 24)
+	for _, name := range []string{ExternalToolShare, RetryRate, HelpRecoveryRate, RepeatedWorkRate, ToolFailureRate, RunSuccessRate, RunCycleTime, "throughput.run_duration_statistics", RunCost, RunVolume, RunStatusDistribution, RunnerBreakdown, ModelBreakdown, ProfileBreakdown, WorkloadBreakdown, WorkloadEfficiency, TerminalRunTrend, ToolUsage, "friction.tool_command_breakdown", ErrorPatterns, FileRereadRate, FindingRecurrenceRate, "friction.capability_usage", "friction.capability_efficacy", "select_cohort", "episode_cohort"} {
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		definitions = append(definitions, definitionFor(name))
+	}
+	return definitions
+}
+
+func provenanceFor(filter invocationreadmodel.Filter, source string, rows int64) *measurepb.MeasureProvenance {
+	provenance := &measurepb.MeasureProvenance{SourceTable: source, RowCount: rows}
+	if filter.From != nil {
+		provenance.WindowStart = filter.From.UTC().Format(time.RFC3339Nano)
+	}
+	if filter.To != nil {
+		provenance.WindowEnd = filter.To.UTC().Format(time.RFC3339Nano)
+	}
+	for _, item := range []struct{ field, value string }{
+		{"ownership", filter.Ownership}, {"outcome", filter.Outcome}, {"executable", filter.Executable}, {"fingerprint", filter.Fingerprint}, {"profile_id", filter.ProfileID}, {"runner_type", filter.RunnerType}, {"model", filter.Model}, {"workload_kind", filter.WorkloadKind}, {"workload_key", filter.WorkloadKey}, {"tag_prefix", filter.TagPrefix}, {"run_status", filter.RunStatus}, {"tool_name", filter.ToolName}, {"episode_pattern", filter.EpisodePattern}, {"episode_cause_scope", filter.EpisodeCauseScope}, {"episode_fingerprint", filter.EpisodeFingerprint}, {"self_report_rule_id", filter.SelfReportRuleID}, {"self_report_cause_scope", filter.SelfReportCauseScope}, {"target_scenario", filter.TargetScenario}, {"operation", filter.Operation},
+	} {
+		if item.value != "" {
+			provenance.AppliedFilters = append(provenance.AppliedFilters, &measurepb.MeasureFilter{Field: item.field, Value: item.value})
+		}
+	}
+	return provenance
+}
+
+func provenanceWithQuery(filter invocationreadmodel.Filter, source string, rows int64, query string) *measurepb.MeasureProvenance {
+	provenance := provenanceFor(filter, source, rows)
+	provenance.ExecutedQuery = query
+	return provenance
+}
+
+func definitionID(name string) string {
+	definition := definitionFor(name)
+	if definition.ID == "" {
+		return name
+	}
+	return definition.ID
 }
 
 func declarations() []struct {
@@ -170,17 +261,27 @@ func execute(ctx context.Context, store Store, kind metricKind, filter invocatio
 		// population field; production repositories always populate it.
 		population = metrics.ResolvedCalls + metrics.UnknownCalls
 	}
+	classifiedBase := metrics.ClassifiedBase
+	if classifiedBase == 0 {
+		classifiedBase = metrics.ResolvedCalls
+	}
+	if classifiedBase == 0 {
+		classifiedBase = metrics.TotalCalls - unclassified
+		if classifiedBase < 0 {
+			classifiedBase = 0
+		}
+	}
 	switch kind {
 	case externalToolShare:
-		result.Rate, result.Numerator, result.Denom, result.Population = metrics.ExternalToolShare, metrics.ExternalCalls, metrics.ResolvedCalls, population
+		result.Rate, result.Numerator, result.Denom, result.Population = metrics.ExternalToolShare, metrics.ExternalCalls, classifiedBase, population
 	case retryRate:
-		result.Rate, result.Numerator, result.Denom = metrics.RetryRate, metrics.RetryCalls, metrics.TotalCalls
+		result.Rate, result.Numerator, result.Denom = metrics.RetryRate, metrics.RetryCalls, classifiedBase
 	case helpRecoveryRate:
-		result.Rate, result.Numerator, result.Denom = metrics.HelpRecoveryRate, metrics.HelpRecoveries, metrics.TotalCalls
+		result.Rate, result.Numerator, result.Denom = metrics.HelpRecoveryRate, metrics.HelpRecoveries, classifiedBase
 	case repeatedWorkRate:
-		result.Rate, result.Numerator, result.Denom = metrics.RepeatedWorkRate, metrics.RepeatedCalls, metrics.TotalCalls
+		result.Rate, result.Numerator, result.Denom = metrics.RepeatedWorkRate, metrics.RepeatedCalls, classifiedBase
 	case toolFailureRate:
-		result.Rate, result.Numerator, result.Denom = metrics.FailureRate, metrics.FailedCalls, metrics.TotalCalls
+		result.Rate, result.Numerator, result.Denom = metrics.FailureRate, metrics.FailedCalls, classifiedBase
 	default:
 		return metricResult{}, fmt.Errorf("unknown friction measure %q", kind)
 	}
@@ -191,7 +292,7 @@ func filterFromProto(input *measurepb.InvocationFilter, now time.Time) (invocati
 	if input == nil {
 		input = &measurepb.InvocationFilter{}
 	}
-	filter := invocationreadmodel.Filter{Ownership: input.GetOwnership(), Outcome: input.GetOutcome(), Executable: input.GetExecutable(), Fingerprint: input.GetFingerprint(), ProfileID: input.GetProfileId(), RunnerType: input.GetRunnerType(), Model: input.GetModel(), TagPrefix: input.GetTagPrefix(), RunStatus: input.GetRunStatus(), ToolName: input.GetToolName(), EpisodePattern: input.GetEpisodePattern(), EpisodeCauseScope: input.GetEpisodeCauseScope(), EpisodeFingerprint: input.GetEpisodeFingerprint(), SelfReportRuleID: input.GetSelfReportRuleId(), SelfReportCauseScope: input.GetSelfReportCauseScope(), TargetScenario: input.GetTargetScenario(), Operation: input.GetOperation()}
+	filter := invocationreadmodel.Filter{Ownership: input.GetOwnership(), Outcome: input.GetOutcome(), Executable: input.GetExecutable(), Fingerprint: input.GetFingerprint(), ProfileID: input.GetProfileId(), RunnerType: input.GetRunnerType(), Model: input.GetModel(), TagPrefix: input.GetTagPrefix(), RunStatus: input.GetRunStatus(), ToolName: input.GetToolName(), WorkloadKey: input.GetWorkloadKey(), ErrorCode: input.GetErrorCode(), EpisodePattern: input.GetEpisodePattern(), EpisodeCauseScope: input.GetEpisodeCauseScope(), EpisodeFingerprint: input.GetEpisodeFingerprint(), SelfReportRuleID: input.GetSelfReportRuleId(), SelfReportCauseScope: input.GetSelfReportCauseScope(), TargetScenario: input.GetTargetScenario(), Operation: input.GetOperation()}
 	window := input.GetWindow()
 	if window == nil {
 		window = &sharedmeasurepb.TimeWindow{Window: &sharedmeasurepb.TimeWindow_Token{Token: sharedmeasurepb.TimeWindowToken_TIME_WINDOW_TOKEN_THIS_WEEK}}
@@ -244,6 +345,15 @@ func NewHandler(store Store, now func() time.Time) *Handler {
 // can exercise both healthy and degenerate corpora deterministically.
 func (h *Handler) SetValidityConfig(config ValidityConfig) { h.validityConfig = config.normalized() }
 
+func (h *Handler) AllMeasureDefinitions(_ context.Context, _ *connect.Request[measurepb.AllMeasureDefinitionsRequest]) (*connect.Response[measurepb.AllMeasureDefinitionsResponse], error) {
+	definitions := allDefinitions()
+	response := &measurepb.AllMeasureDefinitionsResponse{Definitions: make([]*measurepb.MeasureDefinition, 0, len(definitions))}
+	for _, definition := range definitions {
+		response.Definitions = append(response.Definitions, &measurepb.MeasureDefinition{Id: definition.ID, Counts: definition.Counts, Numerator: definition.Numerator, Denominator: definition.Denominator, SourceTable: definition.SourceTable, Limitation: definition.Limitation})
+	}
+	return connect.NewResponse(response), nil
+}
+
 func (h *Handler) metric(ctx context.Context, kind metricKind, input *measurepb.InvocationFilter, window *sharedmeasurepb.TimeWindow) (metricResult, error) {
 	filter, err := filterWithWindow(input, window, h.now())
 	if err != nil {
@@ -266,22 +376,32 @@ func (h *Handler) metric(ctx context.Context, kind metricKind, input *measurepb.
 		if unclassified == 0 {
 			unclassified = metrics.UnknownCalls
 		}
+		classifiedBase := metrics.ClassifiedBase
+		if classifiedBase == 0 {
+			classifiedBase = metrics.ResolvedCalls
+		}
+		if classifiedBase == 0 {
+			classifiedBase = population - unclassified
+			if classifiedBase < 0 {
+				classifiedBase = 0
+			}
+		}
 		sample := result.Denom
-		if result.Population > 0 {
-			sample = result.Population
-		}
 		result.Validity = assessValidity(sample, metrics.LargestFingerprintBucket, h.validityConfig)
-		if kind == externalToolShare && population > 0 && float64(unclassified)/float64(population) > 1.0/3.0 {
-			result.Validity = Validity{Availability: availability.New(availability.Unreliable, "unclassified ownership exceeds one third of all invocation facts"), SampleSize: population, LargestFingerprintBucket: metrics.LargestFingerprintBucket, LargestFingerprintShare: float64(metrics.LargestFingerprintBucket) / float64(population)}
-		}
+		result.Validity = withDenominatorValidity(result.Validity, population, classifiedBase, unclassified, h.validityConfig)
 	} else {
 		result.Validity = assessValidity(result.Denom, 0, h.validityConfig)
 	}
+	result.Filter = filter
 	return result, nil
 }
 
 func protoValidity(validity Validity) *measurepb.MeasureValidity {
-	return &measurepb.MeasureValidity{State: string(validity.State), Reason: validity.Reason, SampleSize: validity.SampleSize, LargestFingerprintBucket: validity.LargestFingerprintBucket, LargestFingerprintShare: validity.LargestFingerprintShare}
+	return &measurepb.MeasureValidity{State: string(validity.State), Reason: validity.Reason, SampleSize: validity.SampleSize, LargestFingerprintBucket: validity.LargestFingerprintBucket, LargestFingerprintShare: validity.LargestFingerprintShare, ClassifiedBase: validity.ClassifiedBase, UnclassifiedCount: validity.UnclassifiedCount, UnclassifiedShare: validity.UnclassifiedShare, MinimumClassifiedShare: validity.MinimumClassifiedShare}
+}
+
+func metricProvenance(name string, result metricResult) *measurepb.MeasureProvenance {
+	return provenanceWithQuery(result.Filter, definitionFor(name).SourceTable, result.Validity.SampleSize, result.Query)
 }
 
 func (h *Handler) validityForSample(sample int64) *measurepb.MeasureValidity {
@@ -293,7 +413,7 @@ func (h *Handler) ExternalToolShare(ctx context.Context, req *connect.Request[me
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.ExternalToolShareResponse{Share: r.Rate, ExternalCalls: r.Numerator, ResolvedCalls: r.Denom, UnknownCalls: r.Unknown, ExecutedQuery: r.Query, Validity: protoValidity(r.Validity)}), nil
+	return connect.NewResponse(&measurepb.ExternalToolShareResponse{Share: r.Rate, ExternalCalls: r.Numerator, ResolvedCalls: r.Denom, UnknownCalls: r.Unknown, Validity: protoValidity(r.Validity), Provenance: metricProvenance(ExternalToolShare, r), DefinitionId: definitionID(ExternalToolShare)}), nil
 }
 
 func (h *Handler) RetryRate(ctx context.Context, req *connect.Request[measurepb.RetryRateRequest]) (*connect.Response[measurepb.RetryRateResponse], error) {
@@ -301,7 +421,7 @@ func (h *Handler) RetryRate(ctx context.Context, req *connect.Request[measurepb.
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.RetryRateResponse{Rate: r.Rate, RetryCalls: r.Numerator, TotalCalls: r.Denom, ExecutedQuery: r.Query, Validity: protoValidity(r.Validity)}), nil
+	return connect.NewResponse(&measurepb.RetryRateResponse{Rate: r.Rate, RetryCalls: r.Numerator, TotalCalls: r.Denom, Validity: protoValidity(r.Validity), Provenance: metricProvenance(RetryRate, r), DefinitionId: definitionID(RetryRate)}), nil
 }
 
 func (h *Handler) HelpRecoveryRate(ctx context.Context, req *connect.Request[measurepb.HelpRecoveryRateRequest]) (*connect.Response[measurepb.HelpRecoveryRateResponse], error) {
@@ -309,7 +429,7 @@ func (h *Handler) HelpRecoveryRate(ctx context.Context, req *connect.Request[mea
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.HelpRecoveryRateResponse{Rate: r.Rate, HelpRecoveries: r.Numerator, TotalCalls: r.Denom, ExecutedQuery: r.Query, Validity: protoValidity(r.Validity)}), nil
+	return connect.NewResponse(&measurepb.HelpRecoveryRateResponse{Rate: r.Rate, HelpRecoveries: r.Numerator, TotalCalls: r.Denom, Validity: protoValidity(r.Validity), Provenance: metricProvenance(HelpRecoveryRate, r), DefinitionId: definitionID(HelpRecoveryRate)}), nil
 }
 
 func (h *Handler) RepeatedWorkRate(ctx context.Context, req *connect.Request[measurepb.RepeatedWorkRateRequest]) (*connect.Response[measurepb.RepeatedWorkRateResponse], error) {
@@ -317,7 +437,7 @@ func (h *Handler) RepeatedWorkRate(ctx context.Context, req *connect.Request[mea
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.RepeatedWorkRateResponse{Rate: r.Rate, RepeatedCalls: r.Numerator, TotalCalls: r.Denom, ExecutedQuery: r.Query, Validity: protoValidity(r.Validity)}), nil
+	return connect.NewResponse(&measurepb.RepeatedWorkRateResponse{Rate: r.Rate, RepeatedCalls: r.Numerator, TotalCalls: r.Denom, Validity: protoValidity(r.Validity), Provenance: metricProvenance(RepeatedWorkRate, r), DefinitionId: definitionID(RepeatedWorkRate)}), nil
 }
 
 func (h *Handler) ToolFailureRate(ctx context.Context, req *connect.Request[measurepb.ToolFailureRateRequest]) (*connect.Response[measurepb.ToolFailureRateResponse], error) {
@@ -325,7 +445,7 @@ func (h *Handler) ToolFailureRate(ctx context.Context, req *connect.Request[meas
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.ToolFailureRateResponse{Rate: r.Rate, FailedCalls: r.Numerator, TotalCalls: r.Denom, ExecutedQuery: r.Query, Validity: protoValidity(r.Validity)}), nil
+	return connect.NewResponse(&measurepb.ToolFailureRateResponse{Rate: r.Rate, FailedCalls: r.Numerator, TotalCalls: r.Denom, Validity: protoValidity(r.Validity), Provenance: metricProvenance(ToolFailureRate, r), DefinitionId: definitionID(ToolFailureRate)}), nil
 }
 
 func (h *Handler) RunSuccessRate(ctx context.Context, req *connect.Request[measurepb.RunSuccessRateRequest]) (*connect.Response[measurepb.RunSuccessRateResponse], error) {
@@ -333,7 +453,7 @@ func (h *Handler) RunSuccessRate(ctx context.Context, req *connect.Request[measu
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.RunSuccessRateResponse{Rate: r.Rate, SuccessfulRuns: r.Numerator, TerminalRuns: r.Denom, ExecutedQuery: r.Query, Validity: protoValidity(r.Validity)}), nil
+	return connect.NewResponse(&measurepb.RunSuccessRateResponse{Rate: r.Rate, SuccessfulRuns: r.Numerator, TerminalRuns: r.Denom, Validity: protoValidity(r.Validity), Provenance: metricProvenance(RunSuccessRate, r), DefinitionId: definitionID(RunSuccessRate)}), nil
 }
 
 func (h *Handler) RunCycleTime(ctx context.Context, req *connect.Request[measurepb.RunCycleTimeRequest]) (*connect.Response[measurepb.RunCycleTimeResponse], error) {
@@ -341,10 +461,13 @@ func (h *Handler) RunCycleTime(ctx context.Context, req *connect.Request[measure
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.RunCycleTimeResponse{AverageDurationMs: r.Rate, CompletedDurationRuns: r.Numerator, ExecutedQuery: r.Query, Validity: protoValidity(r.Validity)}), nil
+	return connect.NewResponse(&measurepb.RunCycleTimeResponse{AverageDurationMs: r.Rate, CompletedDurationRuns: r.Numerator, Validity: protoValidity(r.Validity), Provenance: metricProvenance(RunCycleTime, r), DefinitionId: definitionID(RunCycleTime)}), nil
 }
 
 func (h *Handler) RunCost(ctx context.Context, req *connect.Request[measurepb.RunCostRequest]) (*connect.Response[measurepb.RunCostResponse], error) {
+	if err := validateSubscriptionAllocation(req.Msg.GetAllocateSubscription(), req.Msg.GetAllocationBasis()); err != nil {
+		return nil, err
+	}
 	filter, err := filterWithWindow(req.Msg.GetFilter(), req.Msg.GetWindow(), h.now())
 	if err != nil {
 		return nil, err
@@ -354,7 +477,30 @@ func (h *Handler) RunCost(ctx context.Context, req *connect.Request[measurepb.Ru
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	query := fmt.Sprintf("SELECT durable cost aggregate FROM invocation_read_model_runs WHERE occurred_at >= %q AND occurred_at < %q", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano))
-	return connect.NewResponse(&measurepb.RunCostResponse{TotalCostUsd: runs.TotalCostUSD, AverageCostUsd: runs.AverageCostUSD, TotalRuns: runs.TotalRuns, TotalTokens: runs.TotalTokens, InputTokens: runs.InputTokens, OutputTokens: runs.OutputTokens, CacheReadTokens: runs.CacheReadTokens, CacheCreationTokens: runs.CacheCreationTokens, InputCostUsd: runs.InputCostUSD, OutputCostUsd: runs.OutputCostUSD, CacheReadCostUsd: runs.CacheReadCostUSD, CacheCreationCostUsd: runs.CacheCreationCostUSD, ExecutedQuery: query, Validity: h.validityForSample(runs.TotalRuns)}), nil
+	validity := h.validityForSample(runs.TotalRuns)
+	response := &measurepb.RunCostResponse{TotalCostUsd: runs.TotalCostUSD, AverageCostUsd: runs.AverageCostUSD, TotalRuns: runs.TotalRuns, TotalTokens: runs.TotalTokens, InputTokens: runs.InputTokens, OutputTokens: runs.OutputTokens, CacheReadTokens: runs.CacheReadTokens, CacheCreationTokens: runs.CacheCreationTokens, InputCostUsd: runs.InputCostUSD, OutputCostUsd: runs.OutputCostUSD, CacheReadCostUsd: runs.CacheReadCostUSD, CacheCreationCostUsd: runs.CacheCreationCostUSD, TotalChargeMicroUsd: runs.TotalChargeMicroUSD, UnpricedTokenCount: runs.UnpricedTokenCount, Validity: validity, Provenance: provenanceWithQuery(filter, definitionFor(RunCost).SourceTable, runs.TotalRuns, query), DefinitionId: definitionID(RunCost)}
+	if chargeStore, ok := h.store.(interface {
+		ChargeByBasis(context.Context, invocationreadmodel.Filter) ([]invocationreadmodel.ChargeByBasis, error)
+	}); ok {
+		charges, chargeErr := chargeStore.ChargeByBasis(ctx, filter)
+		if chargeErr != nil {
+			return nil, connect.NewError(connect.CodeInternal, chargeErr)
+		}
+		for _, charge := range charges {
+			response.ChargeByBasis = append(response.ChargeByBasis, &measurepb.ChargeByBasis{Basis: charge.Basis, RunCount: charge.RunCount, ChargeMicroUsd: charge.ChargeMicroUSD, TokenCount: charge.TokenCount, ChargeReason: charge.ChargeReason})
+		}
+	}
+	return connect.NewResponse(response), nil
+}
+
+func validateSubscriptionAllocation(allocate bool, basis string) error {
+	if !allocate {
+		return nil
+	}
+	if strings.TrimSpace(basis) == "" {
+		return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("subscription allocation basis is required when allocation is enabled"))
+	}
+	return nil
 }
 
 func (h *Handler) RunVolume(ctx context.Context, req *connect.Request[measurepb.RunVolumeRequest]) (*connect.Response[measurepb.RunVolumeResponse], error) {
@@ -362,7 +508,20 @@ func (h *Handler) RunVolume(ctx context.Context, req *connect.Request[measurepb.
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.RunVolumeResponse{TotalRuns: r.Numerator, TerminalRuns: r.Denom, ExecutedQuery: r.Query, Validity: protoValidity(r.Validity)}), nil
+	response := &measurepb.RunVolumeResponse{TotalRuns: r.Numerator, TerminalRuns: r.Denom, Validity: protoValidity(r.Validity), Provenance: metricProvenance(RunVolume, r), DefinitionId: definitionID(RunVolume)}
+	if coverageStore, ok := h.store.(interface {
+		HistoryCoverage(context.Context) (time.Time, int64, error)
+	}); ok {
+		floor, outside, coverageErr := coverageStore.HistoryCoverage(ctx)
+		if coverageErr != nil {
+			return nil, connect.NewError(connect.CodeInternal, coverageErr)
+		}
+		if !floor.IsZero() {
+			response.HistoryFloor = floor.UTC().Format(time.RFC3339)
+		}
+		response.OutsideHistoryRunCount = outside
+	}
+	return connect.NewResponse(response), nil
 }
 
 func (h *Handler) CapabilityUsage(ctx context.Context, req *connect.Request[measurepb.CapabilityUsageRequest]) (*connect.Response[measurepb.CapabilityUsageResponse], error) {
@@ -394,7 +553,7 @@ func (h *Handler) CapabilityUsage(ctx context.Context, req *connect.Request[meas
 		validity.Availability = availability.New(availability.Unavailable, "no verified receipt exists for the filtered population")
 	}
 	query := "SELECT target_scenario, operation, outcome, duration_ms FROM investigation_cross_scenario_calls WHERE verified = 1 AND target_scenario <> ''"
-	return connect.NewResponse(&measurepb.CapabilityUsageResponse{Rows: protoRows, ExecutedQuery: query, Validity: protoValidity(validity)}), nil
+	return connect.NewResponse(&measurepb.CapabilityUsageResponse{Rows: protoRows, Validity: protoValidity(validity), Provenance: provenanceWithQuery(filter, definitionFor("friction.capability_usage").SourceTable, sample, query), DefinitionId: definitionID("friction.capability_usage")}), nil
 }
 
 func (h *Handler) CapabilityEfficacy(ctx context.Context, req *connect.Request[measurepb.CapabilityEfficacyRequest]) (*connect.Response[measurepb.CapabilityEfficacyResponse], error) {
@@ -422,7 +581,8 @@ func (h *Handler) CapabilityEfficacy(ctx context.Context, req *connect.Request[m
 	if sample == 0 {
 		validity.Availability = availability.New(availability.Unavailable, "no verified receipt exists for the filtered population")
 	}
-	return connect.NewResponse(&measurepb.CapabilityEfficacyResponse{Rows: protoRows, ExecutedQuery: "SELECT receipt calls joined to fallback and abandoned episode projections", Validity: protoValidity(validity)}), nil
+	query := "SELECT receipt calls joined to fallback and abandoned episode projections"
+	return connect.NewResponse(&measurepb.CapabilityEfficacyResponse{Rows: protoRows, Validity: protoValidity(validity), Provenance: provenanceWithQuery(filter, definitionFor("friction.capability_efficacy").SourceTable, sample, query), DefinitionId: definitionID("friction.capability_efficacy")}), nil
 }
 
 // SelectCohort preserves the aggregate-to-run drill-down without reopening
@@ -447,8 +607,30 @@ func (h *Handler) SelectCohort(ctx context.Context, req *connect.Request[measure
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	rows := make([]*measurepb.CohortRun, 0, len(cohort.RunIDs))
+	if rowStore, ok := h.store.(interface {
+		CohortRows(context.Context, []string, string) ([]invocationreadmodel.CohortRun, error)
+	}); ok {
+		cohortRows, rowErr := rowStore.CohortRows(ctx, cohort.RunIDs, filter.ToolName)
+		if rowErr != nil {
+			return nil, connect.NewError(connect.CodeInternal, rowErr)
+		}
+		for _, row := range cohortRows {
+			protoRow := &measurepb.CohortRun{RunId: row.RunID, TaskTitle: row.TaskTitle, ProfileId: row.ProfileID, ProfileName: row.ProfileName, Status: row.Status, CreatedAt: row.CreatedAt.UTC().Format(time.RFC3339), Model: row.Model, RunnerType: row.RunnerType, WorkloadKey: row.WorkloadKey, TotalTokens: row.TotalTokens}
+			if row.TotalChargeMicroUSD != nil {
+				protoRow.TotalChargeMicroUsd = row.TotalChargeMicroUSD
+			}
+			if row.ChargeBasis != nil {
+				protoRow.ChargeBasis = row.ChargeBasis
+			}
+			if row.ToolCallCount != nil {
+				protoRow.ToolCallCount = row.ToolCallCount
+			}
+			rows = append(rows, protoRow)
+		}
+	}
 	query := fmt.Sprintf("SELECT DISTINCT run_id FROM invocation_read_model_facts WHERE occurred_at >= %q AND occurred_at < %q ORDER BY run_id LIMIT %d", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano), limit)
-	return connect.NewResponse(&measurepb.SelectCohortResponse{RunIds: cohort.RunIDs, Truncated: cohort.Truncated, ExecutedQuery: query, Validity: h.validityForSample(int64(len(cohort.RunIDs)))}), nil
+	return connect.NewResponse(&measurepb.SelectCohortResponse{RunIds: cohort.RunIDs, Rows: rows, Truncated: cohort.Truncated, Validity: h.validityForSample(int64(len(cohort.RunIDs))), Provenance: provenanceWithQuery(filter, definitionFor("select_cohort").SourceTable, int64(len(cohort.RunIDs)), query), DefinitionId: definitionID("select_cohort")}), nil
 }
 
 // EpisodeCohort exposes the ranked friction-episode investigation projection
@@ -470,32 +652,35 @@ func (h *Handler) EpisodeCohort(ctx context.Context, req *connect.Request[measur
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	response := &measurepb.EpisodeCohortResponse{AvailabilityState: string(cohort.Availability.State), AvailabilityReason: cohort.Availability.Reason, ExecutedQuery: fmt.Sprintf("SELECT persisted friction episodes FROM selected durable run cohort LIMIT %d", limit)}
+	query := fmt.Sprintf("SELECT persisted friction episodes FROM selected durable run cohort LIMIT %d", limit)
+	response := &measurepb.EpisodeCohortResponse{AvailabilityState: string(cohort.Availability.State), AvailabilityReason: cohort.Availability.Reason}
 	for _, signal := range cohort.Signals {
 		response.Signals = append(response.Signals, &measurepb.EpisodeCohortSignal{Fingerprint: signal.Fingerprint, Occurrences: int64(signal.Occurrences), DistinctRuns: int64(signal.DistinctRuns), SummedCostMs: signal.SummedCostMS, Confidence: signal.Confidence, RepresentativeRunIds: append([]string(nil), signal.RepresentativeRunIDs...)})
 	}
 	response.Validity = h.validityForSample(int64(len(cohort.Signals)))
+	response.Provenance = provenanceWithQuery(filter, definitionFor("episode_cohort").SourceTable, int64(len(cohort.Signals)), query)
+	response.DefinitionId = definitionID("episode_cohort")
 	return connect.NewResponse(response), nil
 }
 
-func (h *Handler) runStatusRows(ctx context.Context, input *measurepb.InvocationFilter, window *sharedmeasurepb.TimeWindow) ([]invocationreadmodel.RunStatusCount, string, error) {
+func (h *Handler) runStatusRows(ctx context.Context, input *measurepb.InvocationFilter, window *sharedmeasurepb.TimeWindow) ([]invocationreadmodel.RunStatusCount, string, invocationreadmodel.Filter, error) {
 	filter, err := filterWithWindow(input, window, h.now())
 	if err != nil {
-		return nil, "", connect.NewError(connect.CodeInvalidArgument, err)
+		return nil, "", invocationreadmodel.Filter{}, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	rows, err := h.store.RunStatusCounts(ctx, filter)
 	if err != nil {
-		return nil, "", connect.NewError(connect.CodeInternal, err)
+		return nil, "", invocationreadmodel.Filter{}, connect.NewError(connect.CodeInternal, err)
 	}
-	return rows, fmt.Sprintf("SELECT status, COUNT(*) FROM invocation_read_model_runs WHERE occurred_at >= %q AND occurred_at < %q GROUP BY status", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano)), nil
+	return rows, fmt.Sprintf("SELECT status, COUNT(*) FROM invocation_read_model_runs WHERE occurred_at >= %q AND occurred_at < %q GROUP BY status", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano)), filter, nil
 }
 
 func (h *Handler) RunStatusDistribution(ctx context.Context, req *connect.Request[measurepb.RunStatusDistributionRequest]) (*connect.Response[measurepb.RunStatusDistributionResponse], error) {
-	rows, query, err := h.runStatusRows(ctx, req.Msg.GetFilter(), req.Msg.GetWindow())
+	rows, query, filter, err := h.runStatusRows(ctx, req.Msg.GetFilter(), req.Msg.GetWindow())
 	if err != nil {
 		return nil, err
 	}
-	response := &measurepb.RunStatusDistributionResponse{ExecutedQuery: query, Rows: make([]*measurepb.RunStatusCount, 0, len(rows))}
+	response := &measurepb.RunStatusDistributionResponse{Rows: make([]*measurepb.RunStatusCount, 0, len(rows))}
 	for _, row := range rows {
 		response.Rows = append(response.Rows, &measurepb.RunStatusCount{Status: row.Status, Count: row.Count})
 	}
@@ -504,6 +689,8 @@ func (h *Handler) RunStatusDistribution(ctx context.Context, req *connect.Reques
 		sample += row.Count
 	}
 	response.Validity = h.validityForSample(sample)
+	response.Provenance = provenanceWithQuery(filter, definitionFor(RunStatusDistribution).SourceTable, sample, query)
+	response.DefinitionId = definitionID(RunStatusDistribution)
 	return connect.NewResponse(response), nil
 }
 
@@ -517,25 +704,25 @@ func (h *Handler) RunDurationStatistics(ctx context.Context, req *connect.Reques
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	query := fmt.Sprintf("SELECT durable duration summary FROM invocation_read_model_runs WHERE occurred_at >= %q AND occurred_at < %q", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano))
-	return connect.NewResponse(&measurepb.RunDurationStatisticsResponse{AverageDurationMs: stats.AverageDurationMS, P50DurationMs: stats.P50DurationMS, P95DurationMs: stats.P95DurationMS, P99DurationMs: stats.P99DurationMS, MinDurationMs: stats.MinDurationMS, MaxDurationMs: stats.MaxDurationMS, Count: stats.Count, ExecutedQuery: query, Validity: h.validityForSample(stats.Count)}), nil
+	return connect.NewResponse(&measurepb.RunDurationStatisticsResponse{AverageDurationMs: stats.AverageDurationMS, P50DurationMs: stats.P50DurationMS, P95DurationMs: stats.P95DurationMS, P99DurationMs: stats.P99DurationMS, MinDurationMs: stats.MinDurationMS, MaxDurationMs: stats.MaxDurationMS, Count: stats.Count, Validity: h.validityForSample(stats.Count), Provenance: provenanceWithQuery(filter, definitionFor("throughput.run_duration_statistics").SourceTable, stats.Count, query), DefinitionId: definitionID("throughput.run_duration_statistics")}), nil
 }
 
-func (h *Handler) runBreakdownRows(ctx context.Context, input *measurepb.InvocationFilter, window *sharedmeasurepb.TimeWindow, dimension string) ([]invocationreadmodel.RunBreakdownRow, string, error) {
+func (h *Handler) runBreakdownRows(ctx context.Context, input *measurepb.InvocationFilter, window *sharedmeasurepb.TimeWindow, dimension string) ([]invocationreadmodel.RunBreakdownRow, string, invocationreadmodel.Filter, error) {
 	filter, err := filterWithWindow(input, window, h.now())
 	if err != nil {
-		return nil, "", connect.NewError(connect.CodeInvalidArgument, err)
+		return nil, "", invocationreadmodel.Filter{}, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	rows, err := h.store.RunBreakdown(ctx, filter, dimension, 20)
 	if err != nil {
-		return nil, "", connect.NewError(connect.CodeInternal, err)
+		return nil, "", invocationreadmodel.Filter{}, connect.NewError(connect.CodeInternal, err)
 	}
-	return rows, fmt.Sprintf("SELECT %s, terminal run aggregates FROM invocation_read_model_runs WHERE occurred_at >= %q AND occurred_at < %q GROUP BY %s LIMIT 20", dimension, filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano), dimension), nil
+	return rows, fmt.Sprintf("SELECT %s, terminal run aggregates FROM invocation_read_model_runs WHERE occurred_at >= %q AND occurred_at < %q GROUP BY %s LIMIT 20", dimension, filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano), dimension), filter, nil
 }
 
 func protoBreakdownRows(rows []invocationreadmodel.RunBreakdownRow) []*measurepb.RunBreakdownRow {
 	out := make([]*measurepb.RunBreakdownRow, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, &measurepb.RunBreakdownRow{Key: row.Key, Value: row.Value, RunCount: row.RunCount, SuccessCount: row.SuccessCount, FailedCount: row.FailedCount, TotalCostUsd: row.TotalCostUSD, TotalTokens: row.TotalTokens, AverageDurationMs: row.AvgDurationMS})
+		out = append(out, &measurepb.RunBreakdownRow{Key: row.Key, Value: row.Value, RunCount: row.RunCount, SuccessCount: row.SuccessCount, FailedCount: row.FailedCount, TotalCostUsd: row.TotalCostUSD, TotalTokens: row.TotalTokens, AverageDurationMs: row.AvgDurationMS, TotalChargeMicroUsd: row.TotalChargeMicroUSD, ConsumptionPerSuccessfulCompletion: row.ConsumptionPerSuccessfulCompletion, CompletionRate: row.CompletionRate})
 	}
 	return out
 }
@@ -548,27 +735,67 @@ func sumBreakdownRuns(rows []invocationreadmodel.RunBreakdownRow) (total int64) 
 }
 
 func (h *Handler) RunnerBreakdown(ctx context.Context, req *connect.Request[measurepb.RunnerBreakdownRequest]) (*connect.Response[measurepb.RunnerBreakdownResponse], error) {
-	rows, query, err := h.runBreakdownRows(ctx, req.Msg.GetFilter(), req.Msg.GetWindow(), "runner")
+	rows, query, filter, err := h.runBreakdownRows(ctx, req.Msg.GetFilter(), req.Msg.GetWindow(), "runner")
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.RunnerBreakdownResponse{Rows: protoBreakdownRows(rows), ExecutedQuery: query, Validity: h.validityForSample(sumBreakdownRuns(rows))}), nil
+	return connect.NewResponse(&measurepb.RunnerBreakdownResponse{Rows: protoBreakdownRows(rows), Validity: h.validityForSample(sumBreakdownRuns(rows)), Provenance: provenanceWithQuery(filter, definitionFor(RunnerBreakdown).SourceTable, sumBreakdownRuns(rows), query), DefinitionId: definitionID(RunnerBreakdown)}), nil
 }
 
 func (h *Handler) ModelBreakdown(ctx context.Context, req *connect.Request[measurepb.ModelBreakdownRequest]) (*connect.Response[measurepb.ModelBreakdownResponse], error) {
-	rows, query, err := h.runBreakdownRows(ctx, req.Msg.GetFilter(), req.Msg.GetWindow(), "model")
+	rows, query, filter, err := h.runBreakdownRows(ctx, req.Msg.GetFilter(), req.Msg.GetWindow(), "model")
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.ModelBreakdownResponse{Rows: protoBreakdownRows(rows), ExecutedQuery: query, Validity: h.validityForSample(sumBreakdownRuns(rows))}), nil
+	return connect.NewResponse(&measurepb.ModelBreakdownResponse{Rows: protoBreakdownRows(rows), Validity: h.validityForSample(sumBreakdownRuns(rows)), Provenance: provenanceWithQuery(filter, definitionFor(ModelBreakdown).SourceTable, sumBreakdownRuns(rows), query), DefinitionId: definitionID(ModelBreakdown)}), nil
 }
 
 func (h *Handler) ProfileBreakdown(ctx context.Context, req *connect.Request[measurepb.ProfileBreakdownRequest]) (*connect.Response[measurepb.ProfileBreakdownResponse], error) {
-	rows, query, err := h.runBreakdownRows(ctx, req.Msg.GetFilter(), req.Msg.GetWindow(), "profile")
+	rows, query, filter, err := h.runBreakdownRows(ctx, req.Msg.GetFilter(), req.Msg.GetWindow(), "profile")
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.ProfileBreakdownResponse{Rows: protoBreakdownRows(rows), ExecutedQuery: query, Validity: h.validityForSample(sumBreakdownRuns(rows))}), nil
+	return connect.NewResponse(&measurepb.ProfileBreakdownResponse{Rows: protoBreakdownRows(rows), Validity: h.validityForSample(sumBreakdownRuns(rows)), Provenance: provenanceWithQuery(filter, definitionFor(ProfileBreakdown).SourceTable, sumBreakdownRuns(rows), query), DefinitionId: definitionID(ProfileBreakdown)}), nil
+}
+
+func (h *Handler) WorkloadBreakdown(ctx context.Context, req *connect.Request[measurepb.WorkloadBreakdownRequest]) (*connect.Response[measurepb.WorkloadBreakdownResponse], error) {
+	if err := validateSubscriptionAllocation(req.Msg.GetAllocateSubscription(), req.Msg.GetAllocationBasis()); err != nil {
+		return nil, err
+	}
+	rows, query, filter, err := h.runBreakdownRows(ctx, req.Msg.GetFilter(), req.Msg.GetWindow(), "workload")
+	if err != nil {
+		return nil, err
+	}
+	sample := sumBreakdownRuns(rows)
+	return connect.NewResponse(&measurepb.WorkloadBreakdownResponse{Rows: protoBreakdownRows(rows), Validity: h.validityForSample(sample), Provenance: provenanceWithQuery(filter, definitionFor(WorkloadBreakdown).SourceTable, sample, query), DefinitionId: definitionID(WorkloadBreakdown)}), nil
+}
+
+func (h *Handler) WorkloadEfficiency(ctx context.Context, req *connect.Request[measurepb.WorkloadEfficiencyRequest]) (*connect.Response[measurepb.WorkloadEfficiencyResponse], error) {
+	if err := validateSubscriptionAllocation(req.Msg.GetAllocateSubscription(), req.Msg.GetAllocationBasis()); err != nil {
+		return nil, err
+	}
+	filter, err := filterWithWindow(req.Msg.GetFilter(), req.Msg.GetWindow(), h.now())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	runs, err := h.store.RunMetrics(ctx, filter)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	validity := assessValidity(runs.TerminalRuns, 0, h.validityConfig)
+	query := fmt.Sprintf("SELECT workload efficiency from invocation_read_model_runs WHERE occurred_at >= %q AND occurred_at < %q", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano))
+	response := &measurepb.WorkloadEfficiencyResponse{
+		ConsumptionPerSuccessfulCompletion: runs.ConsumptionPerSuccessfulCompletion,
+		CompletionRate:                     runs.SuccessRate,
+		TotalTokens:                        runs.TotalTokens,
+		TerminalRuns:                       runs.TerminalRuns,
+		SuccessfulRuns:                     runs.SuccessfulRuns,
+		ObservationalLimitation:            "model assignment was observational, not randomized",
+		Validity:                           protoValidity(validity),
+		Provenance:                         provenanceWithQuery(filter, definitionFor(WorkloadEfficiency).SourceTable, runs.TerminalRuns, query),
+		DefinitionId:                       definitionID(WorkloadEfficiency),
+	}
+	return connect.NewResponse(response), nil
 }
 
 func (h *Handler) TerminalRunTrend(ctx context.Context, req *connect.Request[measurepb.TerminalRunTrendRequest]) (*connect.Response[measurepb.TerminalRunTrendResponse], error) {
@@ -580,7 +807,8 @@ func (h *Handler) TerminalRunTrend(ctx context.Context, req *connect.Request[mea
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	response := &measurepb.TerminalRunTrendResponse{ExecutedQuery: fmt.Sprintf("SELECT terminal outcome aggregates FROM invocation_read_model_runs WHERE occurred_at >= %q AND occurred_at < %q GROUP BY hourly terminal bucket", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano)), Rows: make([]*measurepb.TerminalRunTrendRow, 0, len(rows))}
+	query := fmt.Sprintf("SELECT terminal outcome aggregates FROM invocation_read_model_runs WHERE occurred_at >= %q AND occurred_at < %q GROUP BY hourly terminal bucket", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano))
+	response := &measurepb.TerminalRunTrendResponse{Rows: make([]*measurepb.TerminalRunTrendRow, 0, len(rows))}
 	for _, row := range rows {
 		response.Rows = append(response.Rows, &measurepb.TerminalRunTrendRow{Bucket: row.Bucket.UTC().Format(time.RFC3339), TerminalRuns: row.TerminalRuns, CompletedRuns: row.CompletedRuns, FailedRuns: row.FailedRuns, CancelledRuns: row.CancelledRuns, TotalCostUsd: row.TotalCostUSD, AverageDurationMs: row.AvgDurationMS})
 	}
@@ -589,6 +817,8 @@ func (h *Handler) TerminalRunTrend(ctx context.Context, req *connect.Request[mea
 		sample += row.TerminalRuns
 	}
 	response.Validity = h.validityForSample(sample)
+	response.Provenance = provenanceWithQuery(filter, definitionFor(TerminalRunTrend).SourceTable, sample, query)
+	response.DefinitionId = definitionID(TerminalRunTrend)
 	return connect.NewResponse(response), nil
 }
 
@@ -601,7 +831,8 @@ func (h *Handler) ToolUsage(ctx context.Context, req *connect.Request[measurepb.
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	response := &measurepb.ToolUsageResponse{ExecutedQuery: fmt.Sprintf("SELECT tool_name, classified outcomes FROM invocation_read_model_facts WHERE occurred_at >= %q AND occurred_at < %q GROUP BY tool_name LIMIT 20", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano)), Rows: make([]*measurepb.ToolUsageRow, 0, len(rows))}
+	query := fmt.Sprintf("SELECT tool_name, classified outcomes FROM invocation_read_model_facts WHERE occurred_at >= %q AND occurred_at < %q GROUP BY tool_name LIMIT 20", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano))
+	response := &measurepb.ToolUsageResponse{Rows: make([]*measurepb.ToolUsageRow, 0, len(rows))}
 	for _, row := range rows {
 		response.Rows = append(response.Rows, &measurepb.ToolUsageRow{ToolName: row.ToolName, CallCount: row.CallCount, SuccessCount: row.SuccessCount, FailedCount: row.FailedCount})
 	}
@@ -610,6 +841,40 @@ func (h *Handler) ToolUsage(ctx context.Context, req *connect.Request[measurepb.
 		sample += row.CallCount
 	}
 	response.Validity = h.validityForSample(sample)
+	response.Provenance = provenanceWithQuery(filter, definitionFor(ToolUsage).SourceTable, sample, query)
+	response.DefinitionId = definitionID(ToolUsage)
+	return connect.NewResponse(response), nil
+}
+
+func (h *Handler) ToolCommandBreakdown(ctx context.Context, req *connect.Request[measurepb.ToolCommandBreakdownRequest]) (*connect.Response[measurepb.ToolCommandBreakdownResponse], error) {
+	filter, err := filterWithWindow(req.Msg.GetFilter(), req.Msg.GetWindow(), h.now())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	limit := int(req.Msg.GetLimit())
+	if limit <= 0 {
+		limit = 20
+	}
+	commandStore, ok := h.store.(interface {
+		ToolCommandBreakdown(context.Context, invocationreadmodel.Filter, int) ([]invocationreadmodel.ToolCommandRow, error)
+	})
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("tool command detail is unavailable"))
+	}
+	rows, err := commandStore.ToolCommandBreakdown(ctx, filter, limit)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	response := &measurepb.ToolCommandBreakdownResponse{Rows: make([]*measurepb.ToolCommandBreakdownRow, 0, len(rows))}
+	var sample int64
+	for _, row := range rows {
+		sample += row.CallCount
+		response.Rows = append(response.Rows, &measurepb.ToolCommandBreakdownRow{Executable: row.Executable, CommandPath: row.CommandPath, CallCount: row.CallCount, SuccessCount: row.SuccessCount, FailedCount: row.FailedCount, RunCount: row.RunCount, Truncated: row.Truncated})
+	}
+	query := fmt.Sprintf("SELECT executable, command_path, COUNT(*) FROM invocation_read_model_facts WHERE tool_name = %q GROUP BY executable, command_path LIMIT %d", filter.ToolName, limit)
+	response.Validity = h.validityForSample(sample)
+	response.Provenance = provenanceWithQuery(filter, definitionFor("friction.tool_command_breakdown").SourceTable, sample, query)
+	response.DefinitionId = definitionID("friction.tool_command_breakdown")
 	return connect.NewResponse(response), nil
 }
 
@@ -622,7 +887,8 @@ func (h *Handler) ErrorPatterns(ctx context.Context, req *connect.Request[measur
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	response := &measurepb.ErrorPatternsResponse{ExecutedQuery: fmt.Sprintf("SELECT error_code aggregate FROM invocation_read_model_errors WHERE occurred_at >= %q AND occurred_at < %q GROUP BY error_code LIMIT 20", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano)), Rows: make([]*measurepb.ErrorPatternRow, 0, len(rows))}
+	query := fmt.Sprintf("SELECT error_code aggregate FROM invocation_read_model_errors WHERE occurred_at >= %q AND occurred_at < %q GROUP BY error_code LIMIT 20", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano))
+	response := &measurepb.ErrorPatternsResponse{Rows: make([]*measurepb.ErrorPatternRow, 0, len(rows))}
 	for _, row := range rows {
 		response.Rows = append(response.Rows, &measurepb.ErrorPatternRow{ErrorCode: row.ErrorCode, Count: row.Count, LastSeen: row.LastSeen.UTC().Format(time.RFC3339), SampleRunId: row.SampleRunID})
 	}
@@ -631,6 +897,8 @@ func (h *Handler) ErrorPatterns(ctx context.Context, req *connect.Request[measur
 		sample += row.Count
 	}
 	response.Validity = h.validityForSample(sample)
+	response.Provenance = provenanceWithQuery(filter, definitionFor(ErrorPatterns).SourceTable, sample, query)
+	response.DefinitionId = definitionID(ErrorPatterns)
 	return connect.NewResponse(response), nil
 }
 
@@ -639,7 +907,7 @@ func (h *Handler) FileRereadRate(ctx context.Context, req *connect.Request[measu
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.FileRereadRateResponse{Rate: r.Rate, FilesReadMoreThanOnce: r.Numerator, ReadCalls: r.Denom, ExecutedQuery: r.Query, Validity: protoValidity(r.Validity)}), nil
+	return connect.NewResponse(&measurepb.FileRereadRateResponse{Rate: r.Rate, FilesReadMoreThanOnce: r.Numerator, ReadCalls: r.Denom, Validity: protoValidity(r.Validity), Provenance: metricProvenance(FileRereadRate, r), DefinitionId: definitionID(FileRereadRate)}), nil
 }
 
 func (h *Handler) FindingRecurrenceRate(ctx context.Context, req *connect.Request[measurepb.FindingRecurrenceRateRequest]) (*connect.Response[measurepb.FindingRecurrenceRateResponse], error) {
@@ -647,7 +915,7 @@ func (h *Handler) FindingRecurrenceRate(ctx context.Context, req *connect.Reques
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.FindingRecurrenceRateResponse{Rate: r.Rate, RecurringFindings: r.Numerator, TotalFindings: r.Denom, RecurringFingerprints: r.Secondary, ExecutedQuery: r.Query, Validity: protoValidity(r.Validity)}), nil
+	return connect.NewResponse(&measurepb.FindingRecurrenceRateResponse{Rate: r.Rate, RecurringFindings: r.Numerator, TotalFindings: r.Denom, RecurringFingerprints: r.Secondary, Validity: protoValidity(r.Validity), Provenance: metricProvenance(FindingRecurrenceRate, r), DefinitionId: definitionID(FindingRecurrenceRate)}), nil
 }
 
 func (h *Handler) Registry() (*measurelib.Registry, error) {

@@ -20,6 +20,7 @@ type Dependencies struct {
 	Health           CommandFunc
 	Events           CommandFunc
 	Findings         CommandFunc
+	Subscription     CommandFunc
 	ScenarioSmoke    CommandFunc
 }
 

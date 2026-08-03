@@ -48,6 +48,10 @@ func setupTestDB(t *testing.T) (*sqlx.DB, func()) {
 		);
 		CREATE INDEX IF NOT EXISTS idx_run_events_run_id ON run_events(run_id);
 		CREATE INDEX IF NOT EXISTS idx_run_events_sequence ON run_events(run_id, sequence);
+		CREATE TABLE IF NOT EXISTS runs (
+			id TEXT PRIMARY KEY,
+			execution_mode TEXT NOT NULL DEFAULT 'codec_pipe'
+		);
 	`
 	if _, err := db.Exec(schema); err != nil {
 		_ = db.Close()
@@ -651,6 +655,44 @@ func TestSQLiteStore_DeleteBeforePreservesEventsWithoutCompletedProjection(t *te
 	var derivedFacts int
 	if err := db.Get(&derivedFacts, `SELECT COUNT(*) FROM invocation_read_model_facts WHERE run_id = ?`, completeRun.String()); err != nil || derivedFacts != 1 {
 		t.Fatalf("derived facts after completed-run sweep = %d, %v; want the projection to remain queryable", derivedFacts, err)
+	}
+}
+
+func TestSQLiteStore_DeleteBeforePreservesImportedEvents(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ensureProjectionWatermarksTable(t, db)
+	store := event.NewSQLiteStore(db, newTestLogger())
+	ctx := context.Background()
+	old := time.Now().Add(-48 * time.Hour)
+	importedRun, nativeRun := uuid.New(), uuid.New()
+
+	for _, runID := range []uuid.UUID{importedRun, nativeRun} {
+		if _, err := db.Exec(`INSERT INTO runs (id) VALUES (?)`, runID.String()); err != nil {
+			t.Fatal(err)
+		}
+		evt := domain.NewLogEvent(runID, "info", "expired")
+		evt.Timestamp = old
+		if err := store.Append(ctx, runID, evt); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := db.Exec(`INSERT INTO invocation_read_model_watermarks (run_id,last_event_id,last_event_at,classifier_version,projection_complete,projected_at) VALUES (?, 'event', ?, 'test', 1, ?)`, runID.String(), old, old); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := db.Exec(`UPDATE runs SET execution_mode = 'imported' WHERE id = ?`, importedRun.String()); err != nil {
+		t.Fatal(err)
+	}
+
+	deleted, err := store.DeleteBefore(ctx, time.Now().Add(-24*time.Hour), 10)
+	if err != nil || deleted != 1 {
+		t.Fatalf("deleted = %d, %v; want only native event deleted", deleted, err)
+	}
+	if count, _ := store.Count(ctx, importedRun); count != 1 {
+		t.Fatalf("imported run events = %d, want 1", count)
+	}
+	if count, _ := store.Count(ctx, nativeRun); count != 0 {
+		t.Fatalf("native run events = %d, want 0", count)
 	}
 }
 

@@ -145,7 +145,7 @@ test("ModelUsageBreakdown renders empty and error states", () => {
 
   renderWithProviders(createElement(ModelUsageBreakdown));
 
-  assert.ok(screen.getByText("Failed to load: model stats unavailable"));
+  assert.ok(screen.getByText("Model usage: model stats unavailable"));
 });
 
 test("ModelUsageBreakdown keeps the selected-model state honest while its run detail is loading, unavailable, or empty", async () => {
@@ -226,7 +226,7 @@ test("ModelUsageBreakdown handles missing run labels and returns to the chart", 
 
   renderWithProviders(createElement(ModelUsageBreakdown));
   await user.click(screen.getByRole("button", { name: "minimal-model" }));
-  assert.ok(screen.getByRole("link", { name: "Untitled Task" }));
+  assert.ok(screen.getByRole("link", { name: "Run run-mini" }));
   assert.ok(screen.getByText("cancelled", { exact: false }));
   await user.click(screen.getByRole("button", { name: "Back to model usage chart" }));
   assert.ok(screen.getByText("Click a bar to view runs"));

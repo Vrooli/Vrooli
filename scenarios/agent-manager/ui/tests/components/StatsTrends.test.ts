@@ -137,7 +137,7 @@ test("stats trend components render empty, loading, and error states", () => {
   }));
 
   const loading = renderWithProviders(createElement(CostDurationTrends));
-  assert.equal(document.querySelectorAll(".animate-pulse").length, 2);
+  assert.equal(document.querySelectorAll(".animate-pulse").length, 1);
 
   loading.unmount();
   vi.mocked(useRunTrends).mockReturnValue(queryResult({
@@ -145,5 +145,5 @@ test("stats trend components render empty, loading, and error states", () => {
   }));
 
   renderWithProviders(createElement(RunStatusTrends));
-  assert.ok(screen.getByText("Failed to load: trend stats unavailable"));
+  assert.ok(screen.getByText("Run trends: trend stats unavailable"));
 });

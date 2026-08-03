@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-02T16:34:30-04:00"
+    "last_validated_at": "2026-08-03T15:15:05-04:00"
   },
   "requirements": [
     {
@@ -31,6 +31,13 @@
           "phase": "integration",
           "status": "implemented",
           "notes": "Test orchestrator health status"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/wiring/routes_test.go::TestWorkspaceSandboxHealthCheckerPreservesUnavailableReason",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "An unconfigured workspace-sandbox endpoint is reported as a degraded dependency with its actionable reason."
         }
       ]
     }

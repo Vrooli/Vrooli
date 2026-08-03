@@ -139,9 +139,9 @@ test("ExportButton writes a CSV download with summary and breakdown sections", a
   assert.match(csv, /=== Summary ===/);
   assert.match(csv, /Success Rate,87\.5%/);
   assert.match(csv, /=== Runner Breakdown ===/);
-  assert.match(csv, /codex,18,16,2,88\.9%,8\.25,90000/);
+  assert.match(csv, /codex,18,16,2,88\.9%,,,8\.25,90000,available/);
   assert.match(csv, /=== Profile Breakdown ===/);
-  assert.match(csv, /"Maintenance Agent",profile-maintenance,14,12,2,85\.7%,7\.50/);
+  assert.match(csv, /"Maintenance Agent",profile-maintenance,14,12,2,85\.7%,,,7\.50,available/);
   assert.match(csv, /=== Model Breakdown ===/);
   assert.match(csv, /claude-3-opus,12,9,75\.0%,3\.25,42000/);
   assert.match(csv, /=== Tool Usage ===/);

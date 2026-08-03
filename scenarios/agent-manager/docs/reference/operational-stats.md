@@ -106,6 +106,24 @@ script or skill can also fetch from the API.
 
 ## Honesty contract
 
+### Invocation denominators
+
+Invocation rates never divide by all retained rows. Each response exposes a
+`classifiedBase`, `unclassifiedCount`, and `unclassifiedShare`; the base is
+the set of command facts the classifier could safely interpret. Paired-call
+counts are the outcome evidence for failure rates, while unpaired and
+unclassifiable facts remain visible. A zero classified base is `unavailable`;
+coverage below the declared 90% minimum is `unreliable` with a reason.
+
+For the Meta Optimization sweep, the reproducible command sequence is:
+
+```bash
+agent-manager run cohort show imported-baseline-2026-08 --json
+agent-manager run invocation-metrics --cohort imported-baseline-2026-08 --json
+agent-manager run episode-cohort --cohort imported-baseline-2026-08 --json
+agent-manager run goal-cohort --cohort imported-baseline-2026-08 --json
+```
+
 Every response that an operator could mistake for a stable trend
 includes a `history_window`:
 

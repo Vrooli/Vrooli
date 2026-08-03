@@ -10,8 +10,10 @@ import (
 )
 
 // SelfReportClassifierVersion pins deterministic message-pattern extraction.
-const SelfReportClassifierVersion = "self-report.v3"
-const selfReportSpanLimit = 8
+const (
+	SelfReportClassifierVersion = "self-report.v3"
+	selfReportSpanLimit         = 8
+)
 
 //go:embed testdata/classification/self-report-rule-pack.json
 var embeddedSelfReportRulePack []byte
@@ -73,7 +75,7 @@ func (d selfReportDetector) Detect(event *domain.RunEvent) []SelfReportSpan {
 			end := at + len(phrase)
 			spans = append(spans, SelfReportSpan{ClassifierVersion: d.ClassifierVersion(), EventID: event.ID.String(), RuleID: d.Identifier(), CauseScope: d.CauseScope(), StartOffset: at, EndOffset: end, Text: redact(message.Content[at:end]), Role: strings.ToLower(message.Role), OperatorCorrection: d.rule.ID == "operator-correction"})
 			if len(spans) >= selfReportSpanLimit {
-				spans[len(spans)-1].SpanCapped = strings.Index(lower[end:], needle) >= 0
+				spans[len(spans)-1].SpanCapped = strings.Contains(lower[end:], needle)
 				return spans
 			}
 			start = end

@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"agent-manager/internal/domain"
@@ -30,7 +32,7 @@ func (h *Handler) ReplayInvocationFacts(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, result)
 }
 
-func invocationReadModelFilter(r *http.Request) (invocationreadmodel.Filter, error) {
+func (h *Handler) invocationReadModelFilter(r *http.Request) (invocationreadmodel.Filter, error) {
 	q := r.URL.Query()
 	filter := invocationreadmodel.Filter{Ownership: q.Get("ownership"), Outcome: q.Get("outcome"), Executable: q.Get("executable"), Fingerprint: q.Get("fingerprint"), ProfileID: q.Get("profile_id"), RunnerType: q.Get("runner_type"), Model: q.Get("model"), TagPrefix: q.Get("tag_prefix"), RunStatus: q.Get("run_status"), ToolName: q.Get("tool_name"), EpisodePattern: q.Get("episode_pattern"), EpisodeCauseScope: q.Get("episode_cause_scope"), EpisodeFingerprint: q.Get("episode_fingerprint"), SelfReportRuleID: q.Get("self_report_rule_id"), SelfReportCauseScope: q.Get("self_report_cause_scope"), TargetScenario: q.Get("target_scenario"), Operation: q.Get("operation")}
 	for _, target := range []struct {
@@ -45,11 +47,20 @@ func invocationReadModelFilter(r *http.Request) (invocationreadmodel.Filter, err
 			*target.into = &value
 		}
 	}
+	if name := strings.TrimSpace(q.Get("cohort")); name != "" {
+		definition, _, err := h.svc.ShowCohort(r.Context(), name, 1)
+		if err != nil {
+			return filter, err
+		}
+		if err := json.Unmarshal([]byte(definition.FilterJSON), &filter); err != nil {
+			return filter, fmt.Errorf("decode cohort %q: %w", name, err)
+		}
+	}
 	return filter, nil
 }
 
 func (h *Handler) AggregateInvocationFacts(w http.ResponseWriter, r *http.Request) {
-	filter, err := invocationReadModelFilter(r)
+	filter, err := h.invocationReadModelFilter(r)
 	if err != nil {
 		writeSimpleError(w, r, "time_window", "from and to must be RFC3339 timestamps")
 		return
@@ -76,7 +87,7 @@ func (h *Handler) AggregateInvocationFacts(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *Handler) SelectInvocationCohort(w http.ResponseWriter, r *http.Request) {
-	filter, err := invocationReadModelFilter(r)
+	filter, err := h.invocationReadModelFilter(r)
 	if err != nil {
 		writeSimpleError(w, r, "time_window", "from and to must be RFC3339 timestamps")
 		return
@@ -98,7 +109,7 @@ func (h *Handler) SelectInvocationCohort(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) EpisodeCohort(w http.ResponseWriter, r *http.Request) {
-	filter, err := invocationReadModelFilter(r)
+	filter, err := h.invocationReadModelFilter(r)
 	if err != nil {
 		writeSimpleError(w, r, "time_window", "from and to must be RFC3339 timestamps")
 		return
@@ -121,8 +132,9 @@ func (h *Handler) EpisodeCohort(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) CompareEpisodeCohorts(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		Left  invocationreadmodel.Filter `json:"left"`
-		Right invocationreadmodel.Filter `json:"right"`
+		Left          invocationreadmodel.Filter `json:"left"`
+		Right         invocationreadmodel.Filter `json:"right"`
+		ChangeBinding string                     `json:"changeBinding,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		writeSimpleError(w, r, "body", "left and right filters are required")
@@ -142,11 +154,14 @@ func (h *Handler) CompareEpisodeCohorts(w http.ResponseWriter, r *http.Request) 
 		writeError(w, r, err)
 		return
 	}
+	if request.ChangeBinding != "" {
+		comparison.ChangeBinding = request.ChangeBinding
+	}
 	writeJSON(w, http.StatusOK, comparison)
 }
 
 func (h *Handler) EpisodeTrend(w http.ResponseWriter, r *http.Request) {
-	filter, err := invocationReadModelFilter(r)
+	filter, err := h.invocationReadModelFilter(r)
 	if err != nil {
 		writeSimpleError(w, r, "time_window", "from and to must be RFC3339 timestamps")
 		return
@@ -177,7 +192,7 @@ func (h *Handler) EpisodeTrend(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) PublishRecurringFriction(w http.ResponseWriter, r *http.Request) {
-	filter, err := invocationReadModelFilter(r)
+	filter, err := h.invocationReadModelFilter(r)
 	if err != nil {
 		writeSimpleError(w, r, "time_window", "from and to must be RFC3339 timestamps")
 		return
@@ -199,7 +214,7 @@ func (h *Handler) PublishRecurringFriction(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *Handler) InvocationMetrics(w http.ResponseWriter, r *http.Request) {
-	filter, err := invocationReadModelFilter(r)
+	filter, err := h.invocationReadModelFilter(r)
 	if err != nil {
 		writeSimpleError(w, r, "time_window", "from and to must be RFC3339 timestamps")
 		return
@@ -210,6 +225,59 @@ func (h *Handler) InvocationMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, metrics)
+}
+
+func (h *Handler) DefineInvocationCohort(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		Name          string          `json:"name"`
+		Filter        json.RawMessage `json:"filter"`
+		ChangeBinding string          `json:"changeBinding,omitempty"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil || request.Name == "" || len(request.Filter) == 0 {
+		writeSimpleError(w, r, "body", "name and filter are required")
+		return
+	}
+	definition, err := h.svc.DefineCohort(r.Context(), request.Name, string(request.Filter), request.ChangeBinding)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, definition)
+}
+
+func (h *Handler) ListInvocationCohorts(w http.ResponseWriter, r *http.Request) {
+	definitions, err := h.svc.ListCohorts(r.Context())
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, definitions)
+}
+
+func (h *Handler) ShowInvocationCohort(w http.ResponseWriter, r *http.Request) {
+	limit := 100
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed < 1 {
+			writeSimpleError(w, r, "limit", "limit must be a positive integer")
+			return
+		}
+		limit = parsed
+	}
+	definition, cohort, err := h.svc.ShowCohort(r.Context(), mux.Vars(r)["name"], limit)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"definition": definition, "cohort": cohort})
+}
+
+func (h *Handler) DeleteInvocationCohort(w http.ResponseWriter, r *http.Request) {
+	if err := h.svc.DeleteCohort(r.Context(), mux.Vars(r)["name"]); err != nil {
+		writeError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) RefreshInvocationFacts(w http.ResponseWriter, r *http.Request) {

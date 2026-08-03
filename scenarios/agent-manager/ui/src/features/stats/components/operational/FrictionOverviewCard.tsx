@@ -13,6 +13,8 @@ import {
   type MeasureWindow,
   type RateMeasure,
 } from "../../api/statsClient";
+import { MeasureFrame } from "../measure/MeasureFrame";
+import { useMeasureDefinitions } from "../../hooks/useMeasureDefinitions";
 
 type FrictionMetrics = {
   external: ExternalToolShareMeasure;
@@ -27,6 +29,7 @@ const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
 
 export function FrictionOverviewCard() {
   const { preset } = useTimeWindow();
+  const definitions = useMeasureDefinitions();
   const query = useQuery<FrictionMetrics, Error>({
     queryKey: ["typed-friction-measures", preset],
     queryFn: async () => {
@@ -48,20 +51,15 @@ export function FrictionOverviewCard() {
       {query.data && (
         <>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3" data-testid="friction-overview-values">
-            <Metric label="External tools" value={percent(query.data.external.share)} />
-            <Metric label="Retries" value={percent(query.data.retry.rate)} />
-            <Metric label="Help recovery" value={percent(query.data.helpRecovery.rate)} />
-            <Metric label="Repeated work" value={percent(query.data.repeatedWork.rate)} />
-            <Metric label="File rereads" value={percent(query.data.rereads.rate)} />
-            <Metric label="Finding recurrence" value={percent(query.data.findings.rate)} />
+            <MeasureFrame label="External tools" result={query.data.external} definition={definitions.data?.find((item) => item.id === "friction.external_tool_share")}><Metric label="External tools" value={percent(query.data.external.share)} /></MeasureFrame>
+            <MeasureFrame label="Retries" result={query.data.retry} definition={definitions.data?.find((item) => item.id === "friction.retry_rate")}><Metric label="Retries" value={percent(query.data.retry.rate)} /></MeasureFrame>
+            <MeasureFrame label="Help recovery" result={query.data.helpRecovery} definition={definitions.data?.find((item) => item.id === "friction.help_recovery_rate")}><Metric label="Help recovery" value={percent(query.data.helpRecovery.rate)} /></MeasureFrame>
+            <MeasureFrame label="Repeated work" result={query.data.repeatedWork} definition={definitions.data?.find((item) => item.id === "friction.repeated_work_rate")}><Metric label="Repeated work" value={percent(query.data.repeatedWork.rate)} /></MeasureFrame>
+            <MeasureFrame label="File rereads" result={query.data.rereads} definition={definitions.data?.find((item) => item.id === "friction.file_reread_rate")}><Metric label="File rereads" value={percent(query.data.rereads.rate)} /></MeasureFrame>
+            <MeasureFrame label="Finding recurrence" result={query.data.findings} definition={definitions.data?.find((item) => item.id === "friction.finding_recurrence_rate")}><Metric label="Finding recurrence" value={percent(query.data.findings.rate)} /></MeasureFrame>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">{query.data.external.resolvedCalls} resolved calls · {query.data.external.unknownCalls} unknown ownership · {query.data.rereads.readCalls} file reads</p>
-          <details className="mt-2 text-xs text-muted-foreground" data-testid="friction-overview-provenance">
-            <summary className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Measure provenance</summary>
-            <ul className="mt-1 break-all space-y-1" aria-label="Friction measure provenance">
-              {Object.entries(query.data).map(([name, measure]) => <li key={name}><span className="font-medium">{name}:</span> {measure.executedQuery}</li>)}
-            </ul>
-          </details>
+          {query.data.retry.validity.largestFingerprintShare > 0 && <p className="mt-1 text-xs text-muted-foreground">Largest retry fingerprint: {(query.data.retry.validity.largestFingerprintShare * 100).toFixed(1)}% of the usable sample.</p>}
         </>
       )}
     </section>

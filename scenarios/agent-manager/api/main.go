@@ -48,6 +48,7 @@ type Server struct {
 	statsService          orchestration.StatsService
 	statsRepo             repository.StatsRepository
 	pricingService        pricing.Service
+	pricingRepository     pricing.Repository
 	wsHub                 *handlers.WebSocketHub
 	reconciler            *orchestration.Reconciler
 	awaitRegistry         *orchestration.AwaitRegistry
@@ -61,6 +62,9 @@ type Server struct {
 	healthStore           *healthstore.Store
 	eventRepo             eventlog.Repository
 	invocationReadModel   invocationreadmodel.Store
+	workspaceSandbox      interface {
+		IsAvailable(context.Context) (bool, string)
+	}
 }
 
 // NewServer builds the graph, then starts durable recovery in dependency order.
@@ -127,11 +131,12 @@ func NewServer() (*Server, error) {
 	}
 	srv := &Server{
 		db: db, fileRoots: fileRoots, router: mux.NewRouter().UseEncodedPath(), orchestrator: deps.Orchestrator,
-		statsService: deps.StatsService, statsRepo: deps.StatsRepository, pricingService: deps.PricingService,
+		statsService: deps.StatsService, statsRepo: deps.StatsRepository, pricingService: deps.PricingService, pricingRepository: deps.PricingRepository,
 		wsHub: wsHub, reconciler: deps.Reconciler, awaitRegistry: deps.AwaitRegistry, workflowNudger: deps.WorkflowNudger,
 		modelHealthProbe: deps.ModelHealthProbe, rolePolicyState: deps.RolePolicyState, permissionPolicyState: deps.PermissionPolicyState,
 		permissionPolicy: deps.PermissionPolicy, storage: uploadStorage, statsEngine: deps.StatsEngine,
 		healthStore: deps.HealthStore, eventRepo: deps.EventRepository, invocationReadModel: deps.InvocationReadModel,
+		workspaceSandbox: deps.WorkspaceSandbox,
 	}
 	srv.startRecovery()
 	srv.setupRoutes()
@@ -188,9 +193,10 @@ func (s *Server) startRecovery() {
 func (s *Server) setupRoutes() {
 	wiring.SetupRoutes(s.router, wiring.RouteDependencies{
 		DB: s.db, Orchestrator: s.orchestrator, StatsService: s.statsService, StatsRepository: s.statsRepo,
-		PricingService: s.pricingService, WebSocketHub: s.wsHub, RolePolicyState: s.rolePolicyState,
+		PricingService: s.pricingService, PricingRepository: s.pricingRepository, WebSocketHub: s.wsHub, RolePolicyState: s.rolePolicyState,
 		PermissionPolicyState: s.permissionPolicyState, PermissionPolicy: s.permissionPolicy, Storage: s.storage,
 		StatsEngine: s.statsEngine, HealthStore: s.healthStore, EventRepository: s.eventRepo, InvocationReadModel: s.invocationReadModel,
+		WorkspaceSandbox: s.workspaceSandbox,
 	})
 }
 

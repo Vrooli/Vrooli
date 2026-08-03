@@ -4,10 +4,13 @@ package orchestration
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/orchestration/obs"
@@ -175,6 +178,85 @@ func (o *Orchestrator) InvocationMetrics(ctx context.Context, filter invocationr
 	return o.invocationReadModel.Metrics(ctx, filter)
 }
 
+func (o *Orchestrator) cohortDefinitions() (invocationreadmodel.CohortDefinitionStore, error) {
+	store, ok := o.invocationReadModel.(invocationreadmodel.CohortDefinitionStore)
+	if !ok {
+		return nil, fmt.Errorf("cohort definitions are not configured")
+	}
+	return store, nil
+}
+
+func (o *Orchestrator) DefineCohort(ctx context.Context, name, filterJSON, changeBinding string) (invocationreadmodel.CohortDefinition, error) {
+	store, err := o.cohortDefinitions()
+	if err != nil {
+		return invocationreadmodel.CohortDefinition{}, err
+	}
+	var filter invocationreadmodel.Filter
+	if err := json.Unmarshal([]byte(filterJSON), &filter); err != nil {
+		return invocationreadmodel.CohortDefinition{}, fmt.Errorf("invalid cohort filter: %w", err)
+	}
+	_ = filter
+	definition := invocationreadmodel.CohortDefinition{Name: name, FilterJSON: filterJSON, ClassifierVersion: runsignal.InvocationFactVersion, CreatedAt: o.now(), ChangeBinding: changeBinding}
+	if err := store.DefineCohort(ctx, definition); err != nil {
+		return invocationreadmodel.CohortDefinition{}, err
+	}
+	return definition, nil
+}
+
+func (o *Orchestrator) ListCohorts(ctx context.Context) ([]invocationreadmodel.CohortDefinition, error) {
+	store, err := o.cohortDefinitions()
+	if err != nil {
+		return nil, err
+	}
+	return store.ListCohorts(ctx)
+}
+
+func (o *Orchestrator) ShowCohort(ctx context.Context, name string, limit int) (invocationreadmodel.CohortDefinition, invocationreadmodel.Cohort, error) {
+	store, err := o.cohortDefinitions()
+	if err != nil {
+		return invocationreadmodel.CohortDefinition{}, invocationreadmodel.Cohort{}, err
+	}
+	definition, err := store.GetCohortDefinition(ctx, name)
+	if err != nil {
+		return invocationreadmodel.CohortDefinition{}, invocationreadmodel.Cohort{}, err
+	}
+	if definition == nil {
+		return invocationreadmodel.CohortDefinition{}, invocationreadmodel.Cohort{}, fmt.Errorf("cohort %q not found", name)
+	}
+	var filter invocationreadmodel.Filter
+	if err := json.Unmarshal([]byte(definition.FilterJSON), &filter); err != nil {
+		return *definition, invocationreadmodel.Cohort{}, err
+	}
+	cohort, err := o.invocationReadModel.Cohort(ctx, filter, limit)
+	if err != nil {
+		return *definition, invocationreadmodel.Cohort{}, err
+	}
+	versions := map[string]bool{}
+	for _, id := range cohort.RunIDs {
+		facts, factErr := o.invocationReadModel.Facts(ctx, id)
+		if factErr != nil {
+			return *definition, invocationreadmodel.Cohort{}, factErr
+		}
+		for _, fact := range facts {
+			if fact.Version != "" {
+				versions[fact.Version] = true
+			}
+		}
+	}
+	if len(versions) > 1 || (len(versions) == 1 && !versions[definition.ClassifierVersion]) {
+		return *definition, invocationreadmodel.Cohort{}, fmt.Errorf("cohort %q spans classifier versions %v; expected %s", name, versions, definition.ClassifierVersion)
+	}
+	return *definition, cohort, nil
+}
+
+func (o *Orchestrator) DeleteCohort(ctx context.Context, name string) error {
+	store, err := o.cohortDefinitions()
+	if err != nil {
+		return err
+	}
+	return store.DeleteCohort(ctx, name)
+}
+
 // ReplayInvocationFacts rebuilds one run from retained source events. A run
 // with an existing watermark but no retained events is explicitly
 // unreplayable: its existing facts and classifier version are left untouched.
@@ -195,6 +277,16 @@ func (o *Orchestrator) ReplayInvocationFacts(ctx context.Context, runID uuid.UUI
 		return nil, fmt.Errorf("load retained run events: %w", err)
 	}
 	if len(events) == 0 {
+		if run != nil && run.ExecutionMode.Normalized() == domain.ExecutionModeImported && strings.TrimSpace(run.TranscriptPath) != "" {
+			if err := o.rehydrateImportedTranscript(ctx, run); err == nil {
+				events, err = o.GetRunEvents(ctx, runID, event.GetOptions{AfterSequence: -1, Limit: 10000})
+				if err != nil {
+					return nil, fmt.Errorf("load rehydrated run events: %w", err)
+				}
+			}
+		}
+	}
+	if len(events) == 0 {
 		// A projection watermark requires a retained source event timestamp. A
 		// transcript can legitimately carry only session metadata, so represent
 		// that evidence as unreplayable rather than attempting an invalid empty
@@ -206,7 +298,7 @@ func (o *Orchestrator) ReplayInvocationFacts(ctx context.Context, runID uuid.UUI
 		return &ReplayResult{RunID: runID.String(), Status: "unreplayable", ClassifierVersion: version}, nil
 	}
 	projectedAt := o.now()
-	facts, next := invocationreadmodel.Project(run, events, projectedAt)
+	facts, next := invocationreadmodel.ProjectWithResolvers(run, events, projectedAt, o.capabilityResolver(run), o.commandResolver(run))
 	if projection, ok := o.invocationReadModel.(invocationreadmodel.ProjectionStore); ok {
 		episodes := invocationreadmodel.ProjectEpisodes(run, facts, events, projectedAt)
 		spans := invocationreadmodel.ProjectSelfReportSpans(run, events, projectedAt)
@@ -236,6 +328,15 @@ func (o *Orchestrator) RefreshInvocationFacts(ctx context.Context, runID uuid.UU
 		return nil, err
 	}
 	if watermark == nil {
+		return o.ReplayInvocationFacts(ctx, runID)
+	}
+	// A refresh also owns classifier-version migration. A run with no newer
+	// source event still needs a full projection when its durable watermark is
+	// older than the current classifier; otherwise mixed-version cohorts can
+	// never converge without an ad hoc database operation.
+	if watermark.ClassifierVersion != runsignal.InvocationFactVersion ||
+		watermark.EpisodeClassifierVersion != runsignal.EpisodeClassifierVersion ||
+		watermark.SelfReportClassifierVersion != runsignal.SelfReportClassifierVersion {
 		return o.ReplayInvocationFacts(ctx, runID)
 	}
 	since := watermark.LastEventAt
@@ -321,7 +422,7 @@ func (o *Orchestrator) projectInvocationReadModel(ctx context.Context, run *doma
 	}
 	projectedAt := o.now()
 	capabilityResolver := o.capabilityResolver(run)
-	facts, watermark := invocationreadmodel.Project(run, events, projectedAt, capabilityResolver)
+	facts, watermark := invocationreadmodel.ProjectWithResolvers(run, events, projectedAt, capabilityResolver, o.commandResolver(run))
 	if projection, ok := o.invocationReadModel.(invocationreadmodel.ProjectionStore); ok {
 		return projection.ReplaceProjection(ctx, facts, invocationreadmodel.ProjectErrors(run, events, projectedAt), invocationreadmodel.ProjectEpisodes(run, facts, events, projectedAt), invocationreadmodel.ProjectSelfReportSpans(run, events, projectedAt), watermark, invocationreadmodel.ProjectRun(run, events, projectedAt, capabilityResolver))
 	}
@@ -346,6 +447,23 @@ func (o *Orchestrator) capabilityResolver(run *domain.Run) runsignal.CapabilityR
 			return value
 		}
 		return "other"
+	}
+}
+
+func (o *Orchestrator) commandResolver(run *domain.Run) runsignal.CommandResolver {
+	if o == nil || o.runners == nil || run == nil || run.ResolvedConfig == nil {
+		return nil
+	}
+	owned, err := o.runners.Get(run.ResolvedConfig.RunnerType)
+	if err != nil {
+		return nil
+	}
+	provider, ok := owned.(runner.CommandExtractor)
+	if !ok {
+		return nil
+	}
+	return func(_ string, input map[string]any) runner.CommandExtraction {
+		return provider.ExtractCommand(input)
 	}
 }
 

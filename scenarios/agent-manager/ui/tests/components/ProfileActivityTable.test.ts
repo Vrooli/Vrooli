@@ -83,7 +83,7 @@ test("ProfileActivityTable renders empty, loading, and error states", () => {
   }));
 
   const loading = renderWithProviders(createElement(ProfileActivityTable));
-  assert.equal(document.querySelectorAll(".animate-pulse").length, 4);
+  assert.equal(document.querySelectorAll(".animate-pulse").length, 1);
 
   loading.unmount();
   vi.mocked(useProfileBreakdown).mockReturnValue(queryResult({
@@ -91,5 +91,5 @@ test("ProfileActivityTable renders empty, loading, and error states", () => {
   }));
 
   renderWithProviders(createElement(ProfileActivityTable));
-  assert.ok(screen.getByText("Failed to load: profile stats unavailable"));
+  assert.ok(screen.getByText("Profile activity: profile stats unavailable"));
 });

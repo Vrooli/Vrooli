@@ -16,7 +16,7 @@ export function useRunTrends(options: UseRunTrendsOptions = {}) {
   const { filter: defaultFilter } = useTimeWindow();
   const filter = options.filter ?? defaultFilter;
 
-  return useQuery<DurableTerminalTrend, Error, TimeSeriesResponse>({
+  return useQuery<DurableTerminalTrend, Error, TimeSeriesResponse & { measure: DurableTerminalTrend }>({
     queryKey: [...statsQueryKeys.timeSeries(filter, options.bucket), "durable"] as const,
     queryFn: () => fetchDurableTerminalTrend(filter),
     select: (result) => ({
@@ -32,6 +32,7 @@ export function useRunTrends(options: UseRunTrendsOptions = {}) {
         avgDurationMs: row.averageDurationMs,
       })),
       bucketDuration: "1h",
+      measure: result,
     }),
     enabled: options.enabled ?? true,
     staleTime: options.staleTime ?? 30_000,

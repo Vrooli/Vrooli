@@ -673,6 +673,8 @@ var invocationReadModelFactColumnMigrations = []columnMigration{
 	{column: "pairing_basis", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN pairing_basis TEXT NOT NULL DEFAULT 'unpaired'"},
 	{column: "failure_signature", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN failure_signature TEXT NOT NULL DEFAULT ''"},
 	{column: "signature_truncated", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN signature_truncated INTEGER NOT NULL DEFAULT 0"},
+	{column: "semantics_kind", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN semantics_kind TEXT NOT NULL DEFAULT ''"},
+	{column: "semantics_verdict", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN semantics_verdict TEXT NOT NULL DEFAULT ''"},
 }
 
 func (db *DB) migrateInvocationReadModelFactColumns(ctx context.Context) error {

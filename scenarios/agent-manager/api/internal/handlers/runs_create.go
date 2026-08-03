@@ -548,6 +548,10 @@ func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 		writeSimpleError(w, r, "limit", "must be a number")
 		return
 	} else if limitProvided {
+		if limit > 5000 {
+			writeSimpleError(w, r, "limit", "maximum accepted limit is 5000")
+			return
+		}
 		value := int32(limit)
 		req.Limit = &value
 	}

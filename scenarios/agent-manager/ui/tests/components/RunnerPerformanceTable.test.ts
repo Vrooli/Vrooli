@@ -77,7 +77,7 @@ test("RunnerPerformanceTable renders empty, loading, and error states", () => {
   }));
 
   const loading = renderWithProviders(createElement(RunnerPerformanceTable));
-  assert.equal(document.querySelectorAll(".animate-pulse").length, 4);
+  assert.equal(document.querySelectorAll(".animate-pulse").length, 1);
 
   loading.unmount();
   vi.mocked(useRunnerPerformance).mockReturnValue(queryResult({
@@ -85,5 +85,5 @@ test("RunnerPerformanceTable renders empty, loading, and error states", () => {
   }));
 
   renderWithProviders(createElement(RunnerPerformanceTable));
-  assert.ok(screen.getByText("Failed to load: runner stats unavailable"));
+  assert.ok(screen.getByText("Runner performance: runner stats unavailable"));
 });

@@ -1,15 +1,24 @@
 import { Info } from "lucide-react";
-import type { HistoryWindow } from "./HistoryWindow";
+import type { HistoryCoverage, HistoryWindow } from "./HistoryWindow";
 
 const LARGEST_WINDOW_DAYS = 30;
 
 interface HistoryBannerProps {
-  history: HistoryWindow;
+  history?: HistoryWindow;
+  coverage?: HistoryCoverage;
   testId?: string;
 }
 
-export function HistoryBanner({ history, testId }: HistoryBannerProps) {
-  if (!history.has_history) {
+export function HistoryBanner({ history, coverage, testId }: HistoryBannerProps) {
+  if (coverage?.historyFloor) {
+    return (
+      <div className="mb-3 flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground" data-testid={testId}>
+        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+        <span>Durable statistics cover history from {new Date(coverage.historyFloor).toLocaleDateString()}. {coverage.outsideHistoryRunCount.toLocaleString()} older run{coverage.outsideHistoryRunCount === 1 ? " is" : "s are"} outside the retained analytical read model.</span>
+      </div>
+    );
+  }
+  if (!history || !history.has_history) {
     return null;
   }
   if (history.history_days >= LARGEST_WINDOW_DAYS) {

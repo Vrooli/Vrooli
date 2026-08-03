@@ -1,6 +1,7 @@
 // Stats Page - main page component for the Stats tab
 
 import { Profiler, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { TimeWindowProvider } from "./hooks/useTimeWindow";
 import { TimeWindowSelector } from "./components/controls/TimeWindowSelector";
 import { ExportButton } from "./components/controls/ExportButton";
@@ -12,10 +13,14 @@ import { ProfileActivityTable } from "./components/tables/ProfileActivityTable";
 import { ModelUsageBreakdown } from "./components/breakdown/ModelUsageBreakdown";
 import { ToolUsageAnalytics } from "./components/breakdown/ToolUsageAnalytics";
 import { ErrorAnalysisSection } from "./components/errors/ErrorAnalysisSection";
+import { RecurringWorkloadPanel } from "./components/workload/RecurringWorkloadPanel";
 import { FallbackInsightsCard } from "./components/operational/FallbackInsightsCard";
 import { ModelFailureAlertBanner } from "./components/operational/ModelFailureAlertBanner";
 import { FrictionOverviewCard } from "./components/operational/FrictionOverviewCard";
 import { onProfilerRender } from "../../lib/profiler";
+import { HistoryBanner } from "../../components/stats/HistoryBanner";
+import { fetchDurableRunVolume, statsQueryKeys } from "./api/statsClient";
+import { useTimeWindow } from "./hooks/useTimeWindow";
 
 function ProfiledStatsSection({ id, children }: { id: string; children: ReactNode }) {
   return (
@@ -26,9 +31,14 @@ function ProfiledStatsSection({ id, children }: { id: string; children: ReactNod
 }
 
 export function StatsPage() {
+  return <TimeWindowProvider defaultPreset="7d"><StatsPageContent /></TimeWindowProvider>;
+}
+
+function StatsPageContent() {
+  const { filter } = useTimeWindow();
+  const volume = useQuery({ queryKey: [...statsQueryKeys.summary(filter), "history"], queryFn: () => fetchDurableRunVolume(filter) });
   return (
-    <TimeWindowProvider defaultPreset="24h">
-      <div className="h-full overflow-y-auto overflow-x-hidden px-3 py-3 sm:px-6 lg:px-10 space-y-3 sm:space-y-4">
+    <div className="h-full overflow-y-auto overflow-x-hidden px-3 py-3 sm:px-6 lg:px-10 space-y-3 sm:space-y-4">
         {/* Header with controls */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-lg font-semibold">Statistics & Analytics</h2>
@@ -37,6 +47,8 @@ export function StatsPage() {
             <ExportButton />
           </div>
         </div>
+
+        {volume.data?.historyFloor && <HistoryBanner coverage={{ historyFloor: volume.data.historyFloor, outsideHistoryRunCount: volume.data.outsideHistoryRunCount }} testId="stats-history-banner" />}
 
         <ModelFailureAlertBanner />
 
@@ -87,7 +99,9 @@ export function StatsPage() {
         <ProfiledStatsSection id="Stats:ErrorAnalysisSection">
           <ErrorAnalysisSection />
         </ProfiledStatsSection>
-      </div>
-    </TimeWindowProvider>
+        <ProfiledStatsSection id="Stats:RecurringWorkloadPanel">
+          <RecurringWorkloadPanel />
+        </ProfiledStatsSection>
+    </div>
   );
 }

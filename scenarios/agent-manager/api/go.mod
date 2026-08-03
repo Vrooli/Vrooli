@@ -43,6 +43,7 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/stoewer/go-strcase v1.3.1 // indirect
 	github.com/vrooli/ai-go v0.0.0 // indirect
+	github.com/vrooli/maturity-go v0.0.0
 	golang.org/x/exp v0.0.0-20250813145105-42675adae3e6 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
@@ -70,3 +71,5 @@ replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 replace github.com/vrooli/vrooli => ../../..
 
 replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
+
+replace github.com/vrooli/maturity-go => ../../../packages/maturity-go

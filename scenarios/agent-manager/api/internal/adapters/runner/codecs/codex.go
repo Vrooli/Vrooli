@@ -88,6 +88,7 @@ func codexBase() baseCodec {
 		installHint:    "Run: vrooli resource install codex",
 		tagEnvKey:      codexTagEnvKey,
 		continuePrefix: "codex",
+		goalStatus:     func(line string) (string, bool, bool) { return declaredGoalStatus(line, "goal_status") },
 		labels: Labels{
 			StartMessage:         "Codex execution started",
 			EndMessage:           "Codex execution completed",
@@ -258,6 +259,8 @@ type codexState struct {
 	lastMessageID    string
 	lastMessage      string
 	lastMessageEvent *domain.RunEvent
+	lastRolloutUsage *CodexUsage
+	retainUser       bool
 }
 
 func (s *codexState) SessionID() string { return s.threadID }
@@ -433,6 +436,45 @@ func (c *Codex) UpdateMetrics(event *domain.RunEvent, metrics *runner.ExecutionM
 	}
 }
 
+// ExtractCommand extends the shared explicit-field extraction for Codex's
+// interactive wrapper tool. Imported Codex sessions can record the command
+// as JavaScript source passed to tools.exec_command rather than as a native
+// command field. The wrapper and its named cmd/command property are both
+// required; arbitrary prose is never interpreted as a command.
+func (c *Codex) ExtractCommand(input map[string]any) runner.CommandExtraction {
+	extracted := c.baseCodec.ExtractCommand(input)
+	if extracted.Command != "" || len(extracted.Args) > 0 || extracted.Reason == "" {
+		return extracted
+	}
+	raw, ok := input["input"].(string)
+	if !ok {
+		return runner.CommandExtraction{Reason: "codex tool input has no command-bearing wrapper"}
+	}
+	if !strings.Contains(raw, "exec_command") {
+		return runner.CommandExtraction{Reason: "codex tool input has no command-bearing wrapper"}
+	}
+	for _, key := range []string{`"cmd"`, `"command"`, "cmd", "command"} {
+		for at := strings.Index(raw, key); at >= 0; {
+			rest := raw[at+len(key):]
+			colon := strings.IndexByte(rest, ':')
+			if colon < 0 {
+				break
+			}
+			value := strings.TrimSpace(rest[colon+1:])
+			var command string
+			if err := json.NewDecoder(strings.NewReader(value)).Decode(&command); err == nil && strings.TrimSpace(command) != "" {
+				return runner.CommandExtraction{Command: strings.TrimSpace(command), Reason: "codex exec_command wrapper"}
+			}
+			next := strings.Index(rest[len(key):], key)
+			if next < 0 {
+				break
+			}
+			at += len(key) + next
+		}
+	}
+	return runner.CommandExtraction{Reason: "codex exec_command wrapper has no command argument"}
+}
+
 // NewTranscriptParser satisfies [Codec]. Single-line parsing is provided by
 // the embedded [baseCodec.ParseTranscriptLine], which delegates here.
 func (c *Codex) NewTranscriptParser() runner.TranscriptParser {
@@ -445,6 +487,8 @@ func (p *codexTranscriptParser) SetTranscriptModel(model string) {
 		p.state.runModel = "unknown"
 	}
 }
+
+func (p *codexTranscriptParser) SetTranscriptRetention(retain bool) { p.state.retainUser = retain }
 
 type codexTranscriptParser struct {
 	codec *Codex
@@ -525,7 +569,8 @@ type codexRolloutPayload struct {
 }
 
 type codexTokenCountInfo struct {
-	LastTokenUsage *CodexUsage `json:"last_token_usage"`
+	LastTokenUsage  *CodexUsage `json:"last_token_usage"`
+	TotalTokenUsage *CodexUsage `json:"total_token_usage"`
 }
 
 // rolloutWrapperTypes are the outer `type` values that mark a line as the
@@ -585,13 +630,16 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 	case "event_msg":
 		switch pl.Type {
 		case "token_count":
-			if pl.Info != nil && pl.Info.LastTokenUsage != nil {
+			if pl.Info != nil && (pl.Info.TotalTokenUsage != nil || pl.Info.LastTokenUsage != nil) {
 				usage := pl.Info.LastTokenUsage
-				result.Events = buildCostEvents(runID, domain.RunnerTypeCodex, p.codec.pricingService, p.state.runModel, usageTokens{
-					InputTokens:     usage.InputTokens,
-					OutputTokens:    usage.OutputTokens,
-					CacheReadTokens: usage.CachedInputTokens,
-				})
+				cumulative := pl.Info.TotalTokenUsage != nil
+				if cumulative {
+					usage = pl.Info.TotalTokenUsage
+				}
+				delta := rolloutUsageDelta(p.state, usage, cumulative)
+				if delta.InputTokens > 0 || delta.OutputTokens > 0 || delta.CacheReadTokens > 0 {
+					result.Events = buildCostEvents(runID, domain.RunnerTypeCodex, p.codec.pricingService, p.state.runModel, delta)
+				}
 			}
 		case "agent_message":
 			if text := runner.StripANSI(strings.TrimSpace(pl.Message)); text != "" {
@@ -602,8 +650,9 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 				result.Events = []*domain.RunEvent{messageEvent}
 			}
 		case "user_message":
-			// Suppressed: the orchestrator already records the user prompt,
-			// mirroring the claude/codex handling of echoed user turns.
+			if p.state.retainUser && strings.TrimSpace(pl.Message) != "" {
+				result.Events = []*domain.RunEvent{domain.NewProviderMessageEvent(runID, "user", runner.StripANSI(pl.Message), domain.MessageEventData{ProviderOrigin: "codex", ProviderEventType: "event_msg.user_message", RawEvidenceRef: "codex:event_msg.user_message"})}
+			}
 		case "task_complete", "turn_completed":
 			if p.state.lastMessageEvent != nil {
 				markProviderMessageTerminal(p.state.lastMessageEvent, pl.Type, "event_msg."+pl.Type, "codex:event_msg."+pl.Type)
@@ -625,6 +674,29 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 		return result, true
 	}
 	return result, true
+}
+
+// rolloutUsageDelta converts Codex's cumulative usage snapshots to increments
+// before they become durable usage events. total_token_usage is authoritative
+// for archived rollouts; its input count includes cached input, so that subset
+// is split out before persistence. A reset starts a new cumulative series.
+func rolloutUsageDelta(state *codexState, current *CodexUsage, cumulative bool) usageTokens {
+	if state == nil || current == nil {
+		return usageTokens{}
+	}
+	previous := state.lastRolloutUsage
+	state.lastRolloutUsage = &CodexUsage{InputTokens: current.InputTokens, CachedInputTokens: current.CachedInputTokens, OutputTokens: current.OutputTokens}
+	if previous == nil || current.InputTokens < previous.InputTokens || current.CachedInputTokens < previous.CachedInputTokens || current.OutputTokens < previous.OutputTokens {
+		return codexUsageDelta(current.InputTokens, current.OutputTokens, current.CachedInputTokens, cumulative)
+	}
+	return codexUsageDelta(current.InputTokens-previous.InputTokens, current.OutputTokens-previous.OutputTokens, current.CachedInputTokens-previous.CachedInputTokens, cumulative)
+}
+
+func codexUsageDelta(input, output, cached int, cumulative bool) usageTokens {
+	if cumulative && input >= cached {
+		input -= cached
+	}
+	return usageTokens{InputTokens: input, OutputTokens: output, CacheReadTokens: cached}
 }
 
 // parseCodexRolloutItem maps a response_item payload to tool events. Both the

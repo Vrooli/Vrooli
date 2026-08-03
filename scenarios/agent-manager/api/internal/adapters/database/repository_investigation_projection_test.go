@@ -334,6 +334,51 @@ func TestInvocationReadModelExternalShareDoesNotTreatUnknownAsExternal(t *testin
 	}
 }
 
+func TestInvocationReadModelDoesNotCallGenuineNonCommandUnclassified(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+	repo := &invocationReadModelRepository{db: db}
+	now := time.Now().UTC()
+	fact := invocationreadmodel.Fact{
+		InvocationFact: runsignal.InvocationFact{Version: "v1", CallEventID: "non-command", ToolName: "Read", Ownership: runsignal.OwnershipNotACommand, Outcome: "unknown", Availability: "available"},
+		RunID:          "non-command-run", OccurredAt: now, TimeBasis: "call_event", ProfileID: "unknown", RunnerType: "codex", Model: "unknown", Tag: "tag", RunStatus: "complete",
+	}
+	if err := repo.Replace(ctx, []invocationreadmodel.Fact{fact}, invocationreadmodel.Watermark{RunID: fact.RunID, LastEventID: fact.CallEventID, LastEventAt: now, ClassifierVersion: "v1", ProjectedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	metrics, err := repo.Metrics(ctx, invocationreadmodel.Filter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if metrics.NotACommandCalls != 1 || metrics.UnclassifiedCalls != 0 || metrics.UnknownCalls != 0 || metrics.UnclassifiedShare != 0 {
+		t.Fatalf("metrics=%+v", metrics)
+	}
+}
+
+func TestInvocationReadModelFrictionRatesExcludeUnclassifiedFacts(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	ctx := context.Background()
+	repo := &invocationReadModelRepository{db: db}
+	now := time.Now().UTC()
+	facts := []invocationreadmodel.Fact{
+		{InvocationFact: runsignal.InvocationFact{Version: "v1", CallEventID: "classified", ToolName: "shell", Ownership: "project", Outcome: "success", Fingerprint: "same", Availability: "available"}, RunID: "run", OccurredAt: now, TimeBasis: "call_event", ProfileID: "p", RunnerType: "codex", Model: "m", Tag: "tag", RunStatus: "complete"},
+		{InvocationFact: runsignal.InvocationFact{Version: "v1", CallEventID: "classified-retry", ToolName: "shell", Ownership: "project", Outcome: "success", RetryOfCallEventID: "classified", Fingerprint: "retry", Availability: "available"}, RunID: "run", OccurredAt: now.Add(time.Second), TimeBasis: "call_event", ProfileID: "p", RunnerType: "codex", Model: "m", Tag: "tag", RunStatus: "complete"},
+		{InvocationFact: runsignal.InvocationFact{Version: "v1", CallEventID: "unknown", ToolName: "unknown", Ownership: "unknown", Outcome: "unknown", RetryOfCallEventID: "classified", Fingerprint: "same", Availability: "unknown"}, RunID: "run", OccurredAt: now.Add(2 * time.Second), TimeBasis: "call_event", ProfileID: "p", RunnerType: "codex", Model: "m", Tag: "tag", RunStatus: "complete"},
+	}
+	if err := repo.Replace(ctx, facts, invocationreadmodel.Watermark{RunID: "run", LastEventID: "unknown", LastEventAt: now.Add(2 * time.Second), ClassifierVersion: "v1", ProjectedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	metrics, err := repo.Metrics(ctx, invocationreadmodel.Filter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if metrics.ClassifiedBase != 2 || metrics.RetryCalls != 1 || metrics.RepeatedCalls != 1 || metrics.RetryRate != 0.5 || metrics.RepeatedWorkRate != 0.5 {
+		t.Fatalf("friction rates included unclassified evidence: %+v", metrics)
+	}
+}
+
 func TestReceiptEvidenceRepositoryRebuildKeepsOnlyVerifiedIDs(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()

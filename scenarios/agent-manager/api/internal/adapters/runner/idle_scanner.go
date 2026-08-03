@@ -4,7 +4,6 @@ import (
 	"os"
 	"os/exec"
 	"sync/atomic"
-	"syscall"
 	"time"
 )
 
@@ -161,7 +160,5 @@ func (mp *managedProcess) kill() {
 // killProcessGroup sends SIGKILL to the process group of cmd.
 // Safe to call if the process already exited (returns ESRCH, ignored).
 func killProcessGroup(cmd *exec.Cmd) {
-	if cmd != nil && cmd.Process != nil {
-		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-	}
+	killProcessTree(cmd)
 }

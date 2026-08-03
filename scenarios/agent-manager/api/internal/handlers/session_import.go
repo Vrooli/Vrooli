@@ -281,12 +281,12 @@ func (h *Handler) ImportSessionCorpus(w http.ResponseWriter, r *http.Request) {
 		writeSimpleError(w, r, "strategy", "strategy must be deterministic-per-month, stratified, recent, or all")
 		return
 	}
-	if perMonth > 500 || limit > 500 || limit < 0 {
-		writeSimpleError(w, r, "selection", "perMonth must be 1..500 and limit must be 1..500")
+	if perMonth > 5000 || limit > 5000 || limit < 0 {
+		writeSimpleError(w, r, "selection", "perMonth must be 1..5000 and limit must be 1..5000")
 		return
 	}
 	if limit == 0 {
-		limit = 24
+		limit = 1000
 	}
 	sources, invalid := corpusSources(request.RunnerTypes)
 	coverage := corpusImportCoverage{SelectionRule: fmt.Sprintf("%s selection over governed runner sessions (up to %d per month, %d total)", strategy, perMonth, limit), Strategy: strategy, Bounded: true, Skipped: map[string]int{}}

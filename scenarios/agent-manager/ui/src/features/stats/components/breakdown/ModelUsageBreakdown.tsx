@@ -21,6 +21,10 @@ import { formatUsdFixed } from "../../../../lib/currency";
 import { useModelBreakdown, useModelUsageRuns } from "../../hooks/useModelBreakdown";
 import { formatNumber, formatPercent, formatTokens } from "../../utils/formatters";
 import { CHART_COLORS, TOOLTIP_STYLE, getSeriesColor } from "../../utils/chartConfig";
+import { MeasureFrame } from "../measure/MeasureFrame";
+import { useMeasureDefinitions } from "../../hooks/useMeasureDefinitions";
+import { useTimeWindow } from "../../hooks/useTimeWindow";
+import { runsLink } from "../../utils/navigation";
 
 interface ModelChartDatum {
   name: string;
@@ -32,6 +36,8 @@ interface ModelChartDatum {
 
 export function ModelUsageBreakdown() {
   const { data, isLoading, error } = useModelBreakdown();
+  const definitions = useMeasureDefinitions();
+  const { filter } = useTimeWindow();
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
 
   const models = data?.models;
@@ -65,25 +71,8 @@ export function ModelUsageBreakdown() {
     limit: 25,
   });
 
-  if (isLoading) {
-    return (
-      <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
-        <div className="mb-2 sm:mb-4 h-5 w-32 animate-pulse rounded bg-muted/30" />
-        <div className="h-[200px] sm:h-[250px] animate-pulse rounded bg-muted/20" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4 sm:p-6">
-        <h3 className="text-sm font-semibold">Model Usage</h3>
-        <p className="mt-2 text-sm text-red-500">Failed to load: {error.message}</p>
-      </div>
-    );
-  }
-
   return (
+    <MeasureFrame label="Model usage" result={data?.measure} definition={definitions.data?.find((item) => item.id === "throughput.model_breakdown")} loading={isLoading} error={error?.message}>
     <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
       {selectedModel && selectedStats ? (
         <>
@@ -141,16 +130,16 @@ export function ModelUsageBreakdown() {
                       to={`/runs/${run.runId}`}
                       className="text-sm font-medium text-foreground hover:underline"
                     >
-                      {run.taskTitle || "Untitled Task"}
+                      {run.taskTitle || `Run ${run.runId.slice(0, 8)}`}
                     </Link>
                     <div className="text-xs text-muted-foreground">
-                      {run.profileName} • {formatStandardRelativeTime(run.createdAt)} • {run.runId.slice(0, 8)}
+                      {run.profileName || "Profile unavailable"} • {run.createdAt ? formatStandardRelativeTime(run.createdAt) : "Time unavailable"} • {run.runId.slice(0, 8)}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Badge variant={statusBadgeVariant(run.status)}>{formatStatusLabel(run.status)}</Badge>
+                    {run.status ? <Badge variant={statusBadgeVariant(run.status)}>{formatStatusLabel(run.status)}</Badge> : <span className="text-xs text-muted-foreground">Status unavailable</span>}
                     <div className="text-right text-xs text-muted-foreground">
-                      <div>{formatUsdFixed(run.totalCostUsd, 2)}</div>
+                      <div>{run.totalChargeMicroUsd !== undefined ? formatUsdFixed(run.totalChargeMicroUsd / 1_000_000, 2) : (run.chargeBasis ? run.chargeBasis : "Charge unavailable")}</div>
                       <div>{formatTokens(run.totalTokens)}</div>
                     </div>
                   </div>
@@ -283,8 +272,10 @@ export function ModelUsageBreakdown() {
               </ResponsiveContainer>
             </div>
           )}
+          {chartData.length > 0 && <div className="mt-3 flex flex-wrap gap-2" aria-label="Model run links">{chartData.map((item) => <Link key={item.name} to={runsLink({ ...filter, model: item.name })} className="rounded border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">View {formatUnknownLabel(item.name)} runs</Link>)}</div>}
         </>
       )}
     </div>
+    </MeasureFrame>
   );
 }

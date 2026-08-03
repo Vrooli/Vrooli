@@ -58,7 +58,7 @@ func (s TaskStatus) IsTerminal() bool {
 func (s RunStatus) IsValid() bool {
 	switch s {
 	case RunStatusPending, RunStatusStarting, RunStatusRunning,
-		RunStatusNeedsReview, RunStatusParked, RunStatusComplete, RunStatusFailed, RunStatusCancelled:
+		RunStatusNeedsReview, RunStatusParked, RunStatusComplete, RunStatusFailed, RunStatusCancelled, RunStatusUnknown:
 		return true
 	default:
 		return false
@@ -70,7 +70,7 @@ func (s RunStatus) IsValid() bool {
 // cancelled; it is a resting-but-resumable state like needs_review.
 func (s RunStatus) IsTerminal() bool {
 	switch s {
-	case RunStatusComplete, RunStatusFailed, RunStatusCancelled:
+	case RunStatusComplete, RunStatusFailed, RunStatusCancelled, RunStatusUnknown:
 		return true
 	default:
 		return false

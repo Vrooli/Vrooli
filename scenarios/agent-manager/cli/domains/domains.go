@@ -13,6 +13,7 @@ import (
 	"agent-manager/cli/domains/runners"
 	"agent-manager/cli/domains/runs"
 	"agent-manager/cli/domains/settings"
+	"agent-manager/cli/domains/subscription"
 	"agent-manager/cli/domains/tasks"
 	"agent-manager/cli/domains/workflows"
 	"agent-manager/cli/internal/support"
@@ -35,6 +36,7 @@ func CommandGroups(deps support.Dependencies) []cliapp.CommandGroup {
 		health.Register(deps),
 		events.Register(deps),
 		findings.Register(deps),
+		subscription.Register(deps),
 	}
 }
 

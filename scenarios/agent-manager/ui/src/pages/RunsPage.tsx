@@ -536,6 +536,14 @@ export function RunsPage({
 
   const filteredAndSortedRuns = useMemo(() => {
     let result = [...resolvedRuns];
+    const modelFilter = searchParams.get("model") ?? "";
+    const runnerFilter = searchParams.get("runnerType") ?? "";
+    const profileFilter = searchParams.get("profileId") ?? "";
+    const tagFilter = searchParams.get("tagPrefix") ?? "";
+    const workloadFilter = searchParams.get("workloadKey") ?? "";
+    const errorFilter = searchParams.get("errorCode") ?? "";
+    const fromFilter = searchParams.get("from");
+    const toFilter = searchParams.get("to");
 
     if (statusFilter !== "all") {
       const statusValue = Number(statusFilter) as RunStatus;
@@ -551,6 +559,21 @@ export function RunsPage({
       });
     }
 
+    result = result.filter((run) => {
+      const created = run.createdAt ? timestampMs(run.createdAt) : 0;
+      const runner = run.resolvedConfig?.runnerType ?? "";
+      const model = run.actualModel || run.requestedModel || "";
+      const workload = (run as Run & { workloadKey?: string }).workloadKey ?? "";
+      return (!modelFilter || model === modelFilter) &&
+        (!runnerFilter || runner === runnerFilter) &&
+        (!profileFilter || run.agentProfileId === profileFilter) &&
+        (!tagFilter || run.tag.startsWith(tagFilter)) &&
+        (!workloadFilter || workload === workloadFilter) &&
+        (!errorFilter || run.errorMsg.toLowerCase().includes(errorFilter.toLowerCase())) &&
+        (!fromFilter || created >= Date.parse(fromFilter)) &&
+        (!toFilter || created <= Date.parse(toFilter));
+    });
+
     result.sort((a, b) => {
       const aTime = a.createdAt ? timestampMs(a.createdAt) : 0;
       const bTime = b.createdAt ? timestampMs(b.createdAt) : 0;
@@ -558,7 +581,7 @@ export function RunsPage({
     });
 
     return result;
-  }, [resolvedRuns, statusFilter, searchQuery, sortBy, getTaskTitle, getProfileName]);
+  }, [resolvedRuns, statusFilter, searchQuery, sortBy, searchParams, getTaskTitle, getProfileName]);
 
   const getRunKey = useCallback((run: Run) => run.id, []);
   const handleSelectRun = useCallback(
@@ -633,6 +656,14 @@ export function RunsPage({
       allLabel: "All Status",
     },
   ];
+  const activeUrlFilters = ["from", "to", "model", "runnerType", "profileId", "tagPrefix", "workloadKey", "toolName", "errorCode"]
+    .map((key) => [key, searchParams.get(key)] as const)
+    .filter((entry): entry is readonly [string, string] => Boolean(entry[1]));
+  const clearUrlFilter = (key: string) => {
+    const params = new URLSearchParams(searchParams);
+    params.delete(key);
+    navigate(`/runs?${params.toString()}`, { replace: true });
+  };
 
   const listPanel = (
     <ListPanel
@@ -673,15 +704,18 @@ export function RunsPage({
         </div>
       }
       toolbar={
-        <SearchToolbar
-          searchValue={searchQuery}
-          onSearchChange={setSearchQuery}
-          searchPlaceholder="Search runs..."
-          filters={filters}
-          sortOptions={SORT_OPTIONS}
-          currentSort={sortBy}
-          onSortChange={setSortBy}
-        />
+        <div className="space-y-2">
+          <SearchToolbar
+            searchValue={searchQuery}
+            onSearchChange={setSearchQuery}
+            searchPlaceholder="Search runs..."
+            filters={filters}
+            sortOptions={SORT_OPTIONS}
+            currentSort={sortBy}
+            onSortChange={setSortBy}
+          />
+          {activeUrlFilters.length > 0 && <div className="flex flex-wrap gap-1.5" aria-label="Active URL filters">{activeUrlFilters.map(([key, value]) => <button key={key} type="button" onClick={() => clearUrlFilter(key)} className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{key}: {value} ×</button>)}</div>}
+        </div>
       }
       empty={
         <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">

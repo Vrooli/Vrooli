@@ -3,14 +3,19 @@
 import { useErrorAnalysis } from "../../hooks/useErrorAnalysis";
 import { formatNumber } from "../../utils/formatters";
 import { AlertTriangle, ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
 import type { ErrorPatternMeasureRow } from "../../api/statsClient";
 import { formatStatsRelativeTime } from "../../../../lib/dateTime";
+import { MeasureFrame } from "../measure/MeasureFrame";
+import { useMeasureDefinitions } from "../../hooks/useMeasureDefinitions";
+import { runsLink } from "../../utils/navigation";
+import { useTimeWindow } from "../../hooks/useTimeWindow";
 
 interface ErrorItemProps {
   error: ErrorPatternMeasureRow;
 }
 
-function ErrorItem({ error }: ErrorItemProps) {
+function ErrorItem({ error, filter }: ErrorItemProps & { filter: { preset?: "6h" | "12h" | "24h" | "7d" | "30d" } }) {
   // Display the error code (which may be an error message or code)
   const errorDisplay = error.errorCode || "Unknown error";
   const truncatedMessage =
@@ -36,13 +41,13 @@ function ErrorItem({ error }: ErrorItemProps) {
           </p>
           {error.sampleRunId && (
             <div className="mt-2">
-              <a
-                href={`#/runs/${error.sampleRunId}`}
+              <Link
+                to={runsLink({ ...filter, errorCode: error.errorCode })}
                 className="inline-flex items-center gap-1 rounded bg-muted/30 px-2 py-0.5 text-xs font-mono text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
               >
                 View sample run: {error.sampleRunId.slice(0, 8)}
                 <ExternalLink className="h-3 w-3" />
-              </a>
+              </Link>
             </div>
           )}
         </div>
@@ -53,32 +58,13 @@ function ErrorItem({ error }: ErrorItemProps) {
 
 export function ErrorAnalysisSection() {
   const { data, isLoading, error } = useErrorAnalysis();
-
-  if (isLoading) {
-    return (
-      <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
-        <div className="mb-2 sm:mb-4 h-5 w-36 animate-pulse rounded bg-muted/30" />
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-20 animate-pulse rounded bg-muted/20" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4 sm:p-6">
-        <h3 className="text-sm font-semibold">Error Analysis</h3>
-        <p className="mt-2 text-sm text-red-500">Failed to load: {error.message}</p>
-      </div>
-    );
-  }
-
+  const definitions = useMeasureDefinitions();
+  const { filter } = useTimeWindow();
   const errors = data?.rows ?? [];
+  const definition = definitions.data?.find((item) => item.id === "friction.error_patterns");
 
   return (
+    <MeasureFrame label="Error analysis" result={data} definition={definition} loading={isLoading} error={error?.message} testId="error-analysis-measure">
     <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
       <div className="mb-2 sm:mb-4 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-muted-foreground">
@@ -108,18 +94,19 @@ export function ErrorAnalysisSection() {
               />
             </svg>
           </div>
-          <p className="text-sm font-medium text-foreground">No errors detected</p>
+          <p className="text-sm font-medium text-foreground">No errors recorded in this window</p>
           <p className="text-xs text-muted-foreground mt-1">
-            All runs completed successfully in this time period
+            The usable error sample contains no recorded error codes.
           </p>
         </div>
       ) : (
         <div className="space-y-2">
           {errors.map((errorPattern, index) => (
-            <ErrorItem key={`${errorPattern.errorCode}-${index}`} error={errorPattern} />
+            <ErrorItem key={`${errorPattern.errorCode}-${index}`} error={errorPattern} filter={filter} />
           ))}
         </div>
       )}
     </div>
+    </MeasureFrame>
   );
 }

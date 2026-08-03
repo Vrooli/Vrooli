@@ -116,6 +116,10 @@ type InvocationFactService interface {
 	AggregateInvocationFacts(context.Context, invocationreadmodel.Filter, string, int) ([]invocationreadmodel.AggregateRow, error)
 	SelectInvocationCohort(context.Context, invocationreadmodel.Filter, int) (invocationreadmodel.Cohort, error)
 	InvocationMetrics(context.Context, invocationreadmodel.Filter) (invocationreadmodel.Metrics, error)
+	DefineCohort(context.Context, string, string, string) (invocationreadmodel.CohortDefinition, error)
+	ListCohorts(context.Context) ([]invocationreadmodel.CohortDefinition, error)
+	ShowCohort(context.Context, string, int) (invocationreadmodel.CohortDefinition, invocationreadmodel.Cohort, error)
+	DeleteCohort(context.Context, string) error
 }
 
 type FindingsService interface {

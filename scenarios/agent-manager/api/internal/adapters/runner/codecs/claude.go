@@ -71,6 +71,7 @@ func claudeBase() baseCodec {
 		installHint:    "Install: npm install -g @anthropic-ai/claude-code",
 		tagEnvKey:      claudeTagEnvKey,
 		continuePrefix: "claude",
+		goalStatus:     func(line string) (string, bool, bool) { return declaredGoalStatus(line, "goal_status", "goalStatus") },
 		labels: Labels{
 			StartMessage:         "Claude Code execution started",
 			EndMessage:           "Claude Code execution completed",
@@ -249,6 +250,7 @@ type claudeState struct {
 	gotResult        bool
 	resultIsError    bool
 	model            string
+	retainUser       bool
 
 	// /compact command tracking
 	pendingCompact bool
@@ -261,6 +263,8 @@ type claudeState struct {
 }
 
 func (s *claudeState) SessionID() string { return s.sessionID }
+
+func (p *claudeTranscriptParser) SetTranscriptRetention(retain bool) { p.state.retainUser = retain }
 
 // NewState satisfies [Codec].
 func (c *Claude) NewState() State { return &claudeState{} }
@@ -1050,7 +1054,9 @@ func parseUserEvent(state *claudeState, runID uuid.UUID, ev *ClaudeStreamEvent) 
 			state.compactCommand = textContent
 			state.compactFocus = focus
 		}
-		// User text suppressed — same reasoning as parseMessageEvent.
+		if state.retainUser {
+			events = append(events, domain.NewProviderMessageEvent(runID, "user", runner.StripANSI(textContent), domain.MessageEventData{ProviderOrigin: "claude", ProviderEventType: ev.Type, RawEvidenceRef: "claude:" + ev.Type}))
+		}
 	}
 	if len(events) > 0 {
 		return events

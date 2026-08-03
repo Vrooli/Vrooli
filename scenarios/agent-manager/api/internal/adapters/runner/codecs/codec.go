@@ -215,6 +215,15 @@ type Codec interface {
 	Labels() Labels
 }
 
+// CommandExtraction is the codec-owned command contract consumed by the
+// invocation projection. Args are literal argv values; callers must never
+// evaluate them as shell syntax. Reason is populated when the payload carries
+// no command rather than guessed text.
+type (
+	CommandExtraction = runner.CommandExtraction
+	CommandExtractor  = runner.CommandExtractor
+)
+
 // appendAttachmentFlags appends one `flag <path>` pair per attachment with a
 // non-empty file path. Codex passes images via `-i`, OpenCode via `-f`; the
 // loop is otherwise identical, so the codecs share it here.

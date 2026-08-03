@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"agent-manager/internal/domain"
 	"github.com/google/uuid"
 )
 
@@ -22,6 +23,12 @@ type PriceBookRevision struct {
 // production repository records every refresh as an immutable price-book fact.
 type RevisionRepository interface {
 	CreatePriceBookRevision(ctx context.Context, provider string, fetchedAt time.Time, sourceDigest string, modelCount int) (string, error)
+}
+
+type SubscriptionRepository interface {
+	CreateSubscriptionPeriod(context.Context, *domain.SubscriptionPeriod) error
+	ListSubscriptionPeriods(context.Context, string, string) ([]domain.SubscriptionPeriod, error)
+	DeleteSubscriptionPeriod(context.Context, string) error
 }
 
 func RevisionDigest(models []*ModelPricing) string {

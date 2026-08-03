@@ -631,6 +631,7 @@ var runLivenessPolicies = map[RunStatus]LivenessPolicy{
 	RunStatusComplete:  {Scanned: false, StaleAction: StaleRunActionNone},
 	RunStatusFailed:    {Scanned: false, StaleAction: StaleRunActionNone},
 	RunStatusCancelled: {Scanned: false, StaleAction: StaleRunActionNone},
+	RunStatusUnknown:   {Scanned: false, StaleAction: StaleRunActionNone},
 }
 
 // LivenessPolicy returns the reconciler liveness contract for this status.
@@ -649,6 +650,7 @@ var orderedRunStatuses = []RunStatus{
 	RunStatusComplete,
 	RunStatusFailed,
 	RunStatusCancelled,
+	RunStatusUnknown,
 }
 
 // LivenessScannedStatuses returns, in deterministic order, the statuses whose

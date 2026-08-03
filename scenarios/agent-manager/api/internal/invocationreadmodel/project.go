@@ -10,6 +10,21 @@ import (
 // Project is the one adapter from durable run events to the analytical row
 // shape. Classification itself remains owned by runsignal.
 func Project(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time, resolver ...runsignal.CapabilityResolver) ([]Fact, Watermark) {
+	var capability runsignal.CapabilityResolver
+	if len(resolver) > 0 {
+		capability = resolver[0]
+	}
+	return project(run, events, projectedAt, capability, nil)
+}
+
+// ProjectWithResolvers is the production projection entry point. It wires
+// both runner-owned capability and command extraction contracts while keeping
+// Project available to focused callers that only need capability labels.
+func ProjectWithResolvers(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time, capability runsignal.CapabilityResolver, command runsignal.CommandResolver) ([]Fact, Watermark) {
+	return project(run, events, projectedAt, capability, command)
+}
+
+func project(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time, capability runsignal.CapabilityResolver, command runsignal.CommandResolver) ([]Fact, Watermark) {
 	timestamps := make(map[string]time.Time, len(events))
 	var last *domain.RunEvent
 	for _, event := range events {
@@ -27,11 +42,7 @@ func Project(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time, 
 		tag = "unknown"
 	}
 	facts := make([]Fact, 0)
-	var capabilityResolver runsignal.CapabilityResolver
-	if len(resolver) > 0 {
-		capabilityResolver = resolver[0]
-	}
-	for _, fact := range runsignal.DeriveInvocationFactsWithResolver(events, capabilityResolver) {
+	for _, fact := range runsignal.DeriveInvocationFactsWithResolver(events, capability, command) {
 		occurredAt, ok := timestamps[fact.CallEventID]
 		timeBasis := "call_event"
 		if !ok {

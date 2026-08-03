@@ -27,6 +27,24 @@ type Store interface {
 	FindingMetrics(context.Context, Filter) (FindingMetrics, error)
 }
 
+// CohortDefinitionStore persists named, classifier-bound filters. Members are
+// resolved at read time so a definition remains reproducible without freezing
+// a moving run population at creation.
+type CohortDefinitionStore interface {
+	DefineCohort(context.Context, CohortDefinition) error
+	ListCohorts(context.Context) ([]CohortDefinition, error)
+	GetCohortDefinition(context.Context, string) (*CohortDefinition, error)
+	DeleteCohort(context.Context, string) error
+}
+
+type CohortDefinition struct {
+	Name              string    `json:"name"`
+	FilterJSON        string    `json:"filterJson"`
+	ClassifierVersion string    `json:"classifierVersion"`
+	CreatedAt         time.Time `json:"createdAt"`
+	ChangeBinding     string    `json:"changeBinding,omitempty"`
+}
+
 // RunStore is implemented by projections that also retain one terminal
 // throughput summary per run. It is deliberately additive to Store so the
 // invocation-fact contract remains usable by focused test doubles and older
@@ -68,9 +86,11 @@ type Filter struct {
 	Model                string     `json:"model,omitempty"`
 	WorkloadKind         string     `json:"workloadKind,omitempty"`
 	WorkloadKey          string     `json:"workloadKey,omitempty"`
+	ErrorCode            string     `json:"errorCode,omitempty"`
 	TagPrefix            string     `json:"tagPrefix,omitempty"`
 	RunStatus            string     `json:"runStatus,omitempty"`
 	ToolName             string     `json:"toolName,omitempty"`
+	ClassifierVersion    string     `json:"classifierVersion,omitempty"`
 	EpisodePattern       string     `json:"episodePattern,omitempty"`
 	EpisodeCauseScope    string     `json:"episodeCauseScope,omitempty"`
 	EpisodeFingerprint   string     `json:"episodeFingerprint,omitempty"`
@@ -106,10 +126,27 @@ type CapabilityEfficacyRow struct {
 	AbandonedCount     int64  `json:"abandonedCount"`
 }
 type Cohort struct {
-	RunIDs      []string `json:"runIds"`
-	Truncated   bool     `json:"truncated"`
-	MatchedRuns int      `json:"matchedRuns"`
-	DroppedRuns int      `json:"droppedRuns"`
+	RunIDs      []string    `json:"runIds"`
+	Rows        []CohortRun `json:"rows,omitempty"`
+	Truncated   bool        `json:"truncated"`
+	MatchedRuns int         `json:"matchedRuns"`
+	DroppedRuns int         `json:"droppedRuns"`
+}
+
+type CohortRun struct {
+	RunID               string
+	TaskTitle           string
+	ProfileID           string
+	ProfileName         string
+	Status              string
+	CreatedAt           time.Time
+	Model               string
+	RunnerType          string
+	WorkloadKey         string
+	TotalTokens         int64
+	TotalChargeMicroUSD *int64
+	ChargeBasis         *string
+	ToolCallCount       *int64
 }
 
 // Metrics is the shared SQL result used by friction measure consumers. Counts
@@ -129,6 +166,11 @@ type Metrics struct {
 	HelpRecoveries           int64   `json:"helpRecoveries"`
 	RepeatedCalls            int64   `json:"repeatedCalls"`
 	LargestFingerprintBucket int64   `json:"largestFingerprintBucket"`
+	ClassifiedBase           int64   `json:"classifiedBase"`
+	PairedCalls              int64   `json:"pairedCalls"`
+	UnpairedCalls            int64   `json:"unpairedCalls"`
+	UnclassifiedCount        int64   `json:"unclassifiedCount"`
+	UnclassifiedShare        float64 `json:"unclassifiedShare"`
 	ExternalToolShare        float64 `json:"externalToolShare"`
 	FailureRate              float64 `json:"failureRate"`
 	RetryRate                float64 `json:"retryRate"`
@@ -167,6 +209,14 @@ type RunMetrics struct {
 	FileRereadRate                     float64 `json:"fileRereadRate"`
 }
 
+type ChargeByBasis struct {
+	Basis          string
+	RunCount       int64
+	ChargeMicroUSD int64
+	TokenCount     int64
+	ChargeReason   string
+}
+
 // RunDurationStatistics retains the complete duration summary used by the
 // dashboard and CSV export. Percentile values follow the underlying durable
 // store's documented semantics rather than reopening the event stream.
@@ -199,6 +249,7 @@ type RunBreakdownRow struct {
 	FailedCount                        int64
 	TotalCostUSD                       float64
 	TotalTokens                        int64
+	TotalChargeMicroUSD                int64
 	InputTokens                        int64
 	OutputTokens                       int64
 	CacheReadTokens                    int64
@@ -232,6 +283,16 @@ type ToolUsageRow struct {
 	CallCount    int64
 	SuccessCount int64
 	FailedCount  int64
+}
+
+type ToolCommandRow struct {
+	Executable   string
+	CommandPath  string
+	CallCount    int64
+	SuccessCount int64
+	FailedCount  int64
+	RunCount     int64
+	Truncated    bool
 }
 
 // ErrorFact retains only safe analytical error vocabulary. Human messages,

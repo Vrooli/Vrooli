@@ -24,7 +24,6 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"agent-manager/internal/adapters/runner"
@@ -422,7 +421,7 @@ func (t *Terminator) trySIGTERM(pid int) bool {
 	if err != nil {
 		return false
 	}
-	return process.Signal(syscall.SIGTERM) == nil
+	return gracefulTerminateProcess(process)
 }
 
 // trySIGKILL sends SIGKILL to a process.
@@ -436,30 +435,12 @@ func (t *Terminator) trySIGKILL(pid int) bool {
 
 // getProcessGroupID gets the process group ID for a PID.
 func (t *Terminator) getProcessGroupID(pid int) int {
-	// Read from /proc/[pid]/stat
-	statPath := fmt.Sprintf("/proc/%d/stat", pid)
-	data, err := os.ReadFile(statPath)
-	if err != nil {
-		return 0
-	}
-
-	// PGID is field 5 (0-indexed: 4)
-	fields := strings.Fields(string(data))
-	if len(fields) < 5 {
-		return 0
-	}
-
-	pgid, err := strconv.Atoi(fields[4])
-	if err != nil {
-		return 0
-	}
-	return pgid
+	return processGroupID(pid)
 }
 
 // tryKillProcessGroup kills all processes in a process group.
 func (t *Terminator) tryKillProcessGroup(pgid int) bool {
-	// Use negative PID to signal the entire process group
-	return syscall.Kill(-pgid, syscall.SIGKILL) == nil
+	return killProcessGroupID(pgid)
 }
 
 // verifyTerminated checks if a process is truly dead.

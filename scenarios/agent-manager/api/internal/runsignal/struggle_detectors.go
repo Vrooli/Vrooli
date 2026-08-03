@@ -9,27 +9,55 @@ import (
 func detectWaitMisuse(ctx EpisodeDetectorContext) []FrictionEpisode {
 	var out []FrictionEpisode
 	for start := 0; start < len(ctx.Facts); {
-		if ctx.Facts[start].Capability != "wait" || ctx.Facts[start].Fingerprint == "" {
+		startKey := waitIdentity(ctx.Facts[start])
+		if startKey == "" {
 			start++
 			continue
 		}
 		end := start + 1
-		for end < len(ctx.Facts) && ctx.Facts[end].Capability == "wait" && ctx.Facts[end].Fingerprint == ctx.Facts[start].Fingerprint {
+		waitCount := 1
+		lastWait := start
+		for end < len(ctx.Facts) {
+			fact := ctx.Facts[end]
+			if fact.Capability == "wait" {
+				if waitIdentity(fact) != startKey {
+					break
+				}
+				waitCount++
+				lastWait = end
+			}
 			end++
 		}
-		if end-start >= 3 {
-			e := newEpisode("wait-misuse", ctx.Facts[start], ctx.Facts[end-1], ctx.EventsByID, ctx.Events)
-			e.Turns = end - start
-			e.CycleCount = end - start
-			e.RepeatedElement = ctx.Facts[start].Fingerprint
+		if waitCount >= 3 {
+			e := newEpisode("wait-misuse", ctx.Facts[start], ctx.Facts[lastWait], ctx.EventsByID, ctx.Events)
+			e.Turns = waitCount
+			e.CycleCount = waitCount
+			e.RepeatedElement = startKey
 			e.Severity = "repeated"
 			out = append(out, e)
-			start = end
+			start = lastWait + 1
 			continue
 		}
 		start++
 	}
 	return out
+}
+
+// waitIdentity deliberately does not use InvocationFact.Fingerprint. A wait
+// call is a tool capability, not a command invocation, so its command
+// fingerprint is correctly empty. The capability and redacted intent shape
+// still provide a stable identity for detecting repeated polling.
+func waitIdentity(fact InvocationFact) string {
+	if fact.Capability != "wait" {
+		return ""
+	}
+	if fact.IntentClass != "" {
+		return fact.IntentClass
+	}
+	if fact.ToolName != "" {
+		return "wait:" + fact.ToolName
+	}
+	return "wait"
 }
 
 func detectBlockedThenAbandoned(ctx EpisodeDetectorContext) []FrictionEpisode {
@@ -42,14 +70,18 @@ func detectBlockedThenAbandoned(ctx EpisodeDetectorContext) []FrictionEpisode {
 		if blockedAt == nil {
 			continue
 		}
+		structuralFailure := false
 		successAfter := false
 		for _, fact := range ctx.Facts {
 			if event := ctx.EventsByID[fact.CallEventID]; event != nil && event.Timestamp.After(blockedAt.Timestamp) && fact.Outcome == "success" {
 				successAfter = true
 				break
 			}
+			if event := ctx.EventsByID[fact.CallEventID]; event != nil && event.Timestamp.Before(blockedAt.Timestamp) && fact.Outcome == "failure" {
+				structuralFailure = true
+			}
 		}
-		if successAfter {
+		if successAfter || !structuralFailure {
 			continue
 		}
 		fact := InvocationFact{CallEventID: span.EventID, ResultEventID: span.EventID}

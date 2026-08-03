@@ -16,10 +16,13 @@ import { useTimeWindow } from "../../hooks/useTimeWindow";
 import { formatNumber } from "../../utils/formatters";
 import { formatChartAxisByPreset, formatStatsDateTime } from "../../../../lib/dateTime";
 import { CHART_COLORS, CHART_MARGINS, TOOLTIP_STYLE } from "../../utils/chartConfig";
+import { MeasureFrame } from "../measure/MeasureFrame";
+import { useMeasureDefinitions } from "../../hooks/useMeasureDefinitions";
 
 export function RunStatusTrends() {
   const { data, isLoading, error } = useRunTrends();
   const { preset } = useTimeWindow();
+  const definitions = useMeasureDefinitions();
   const buckets = data?.buckets;
   const chartData = useMemo(
     () =>
@@ -32,26 +35,9 @@ export function RunStatusTrends() {
     [buckets]
   );
 
-  if (isLoading) {
-    return (
-      <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
-        <div className="mb-2 sm:mb-4 h-5 w-32 animate-pulse rounded bg-muted/30" />
-        <div className="h-[200px] sm:h-[300px] animate-pulse rounded bg-muted/20" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4 sm:p-6">
-        <h3 className="text-sm font-semibold">Run Trends</h3>
-        <p className="mt-2 text-sm text-red-500">Failed to load: {error.message}</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
+    <MeasureFrame label="Run trends" result={data?.measure} definition={definitions.data?.find((item) => item.id === "throughput.terminal_run_trend")} loading={isLoading} error={error?.message}>
+    <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6 min-w-0">
       <h3 className="mb-2 sm:mb-4 text-sm font-semibold text-muted-foreground">
         Run Trends
       </h3>
@@ -120,5 +106,6 @@ export function RunStatusTrends() {
         </div>
       )}
     </div>
+    </MeasureFrame>
   );
 }

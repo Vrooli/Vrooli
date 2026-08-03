@@ -17,7 +17,7 @@ export function useProfileBreakdown(options: UseProfileBreakdownOptions = {}) {
   const filter = options.filter ?? defaultFilter;
   const limit = options.limit ?? 10;
 
-  return useQuery<DurableRunBreakdown, Error, ProfileBreakdownResponse>({
+  return useQuery<DurableRunBreakdown, Error, ProfileBreakdownResponse & { measure: DurableRunBreakdown }>({
     queryKey: [...statsQueryKeys.profiles(filter, limit), "durable"] as const,
     queryFn: () => fetchDurableProfileBreakdown(filter),
     select: (result) => ({
@@ -28,7 +28,10 @@ export function useProfileBreakdown(options: UseProfileBreakdownOptions = {}) {
         successCount: row.successCount,
         failedCount: row.failedCount,
         totalCostUsd: row.totalCostUsd,
+        totalTokens: row.totalTokens,
+        totalChargeMicroUsd: row.totalChargeMicroUsd,
       })),
+      measure: result,
     }),
     enabled: options.enabled ?? true,
     staleTime: options.staleTime ?? 30_000,

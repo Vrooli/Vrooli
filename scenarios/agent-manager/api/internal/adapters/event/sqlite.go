@@ -208,7 +208,10 @@ func (s *SQLiteStore) DeleteBefore(ctx context.Context, cutoff time.Time, limit 
 	result, err := s.db.ExecContext(ctx, `DELETE FROM run_events WHERE rowid IN (
 		SELECT events.rowid FROM run_events events
 		JOIN invocation_read_model_watermarks watermark ON watermark.run_id = events.run_id
-		WHERE events.timestamp < ? AND watermark.projection_complete = 1
+		LEFT JOIN runs run ON run.id = events.run_id
+		WHERE events.timestamp < ?
+		  AND watermark.projection_complete = 1
+		  AND COALESCE(run.execution_mode, '') <> 'imported'
 		ORDER BY events.timestamp ASC LIMIT ?
 	)`, sqliteTime(cutoff), limit)
 	if err != nil {

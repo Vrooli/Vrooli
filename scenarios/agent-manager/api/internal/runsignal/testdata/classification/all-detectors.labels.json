@@ -21,6 +21,11 @@
     "episode/handoff-continuation": 1.0,
     "episode/fallback-after-capability": 1.0,
     "episode/capability-abandoned": 1.0,
+    "episode/retry-after-failure": 0.8,
+    "episode/flag-hunting": 0.8,
+    "episode/abandoned-command-family": 0.8,
+    "episode/read-then-reread": 0.8,
+    "episode/time-to-first-success": 0.8,
     "span/cannot-find": 1.0,
     "span/repeated-failure": 1.0,
     "span/strategy-change": 1.0,
@@ -42,6 +47,11 @@
     "episode/handoff-continuation",
     "episode/fallback-after-capability",
     "episode/capability-abandoned",
+    "episode/retry-after-failure",
+    "episode/flag-hunting",
+    "episode/abandoned-command-family",
+    "episode/read-then-reread",
+    "episode/time-to-first-success",
     "span/cannot-find",
     "span/repeated-failure",
     "span/strategy-change",
@@ -52,7 +62,8 @@
   "cases": [
     {
       "name": "redacted-positive-window",
-      "expected": ["episode/repeated-work", "episode/command-failure", "episode/help-recovery", "episode/stall", "episode/poll-loop", "episode/oscillation", "episode/edit-revert", "episode/blocked-then-abandoned", "span/cannot-find", "span/repeated-failure", "span/strategy-change", "span/blocked", "span/permission-request", "span/operator-correction"],
+      "reason": "Mixed failure, retry, polling, oscillation, and operator-correction evidence exercises the production detector boundaries.",
+      "expected": ["episode/repeated-work", "episode/command-failure", "episode/help-recovery", "episode/stall", "episode/poll-loop", "episode/oscillation", "episode/edit-revert", "episode/blocked-then-abandoned", "episode/retry-after-failure", "episode/abandoned-command-family", "span/cannot-find", "span/repeated-failure", "span/strategy-change", "span/blocked", "span/permission-request", "span/operator-correction"],
       "facts": [
         {"callEventId":"f1","resultEventId":"r1","outcome":"failure","executable":"shell","fingerprint":"same"},
         {"callEventId":"f2","resultEventId":"r2","outcome":"failure","executable":"shell","fingerprint":"same"},
@@ -85,6 +96,7 @@
     },
     {
       "name": "wait-misuse-positive",
+      "reason": "Three same-family wait calls are the minimum structural wait misuse window.",
       "expected": ["episode/wait-misuse", "episode/repeated-work"],
       "facts": [
         {"callEventId":"w1","resultEventId":"wr1","outcome":"unknown","capability":"wait","fingerprint":"pending"},
@@ -99,12 +111,14 @@
     },
     {
       "name": "blocked-abandoned-positive",
+      "reason": "A structural failure precedes the operator's blocked statement and no later success appears.",
       "expected": ["episode/blocked-then-abandoned", "span/blocked"],
-      "facts": [],
-      "events": [{"id":"blocked","atMilliseconds":0,"kind":"assistant_message","content":"I am blocked and cannot proceed."}]
+      "facts": [{"callEventId":"blocked-failure","resultEventId":"blocked-result","outcome":"failure","executable":"shell","fingerprint":"blocked-command"}],
+      "events": [{"id":"blocked-failure","atMilliseconds":0,"kind":"tool_call","toolName":"shell","input":{"command":"shell"}}, {"id":"blocked-result","atMilliseconds":1000,"kind":"tool_result"}, {"id":"blocked","atMilliseconds":2000,"kind":"assistant_message","content":"I am blocked and cannot proceed."}]
     },
     {
       "name": "guidance-repair-positive",
+      "reason": "The operator correction is followed by a different successful invocation family.",
       "expected": ["episode/guidance-repair", "span/operator-correction"],
       "facts": [
         {"callEventId":"before","resultEventId":"before-result","outcome":"failure","fingerprint":"old-approach"},
@@ -118,6 +132,7 @@
     },
     {
       "name": "handoff-continuation-positive",
+      "reason": "Tool activity continues after a terminal assistant handoff message.",
       "expected": ["episode/handoff-continuation"],
       "facts": [
         {"callEventId":"after-one","resultEventId":"after-one-result","outcome":"success","fingerprint":"post-a"},
@@ -131,6 +146,7 @@
     },
     {
       "name": "fallback-after-capability-positive",
+      "reason": "A project-owned capability is followed by a distinct external capability for the same intent.",
       "expected": ["episode/fallback-after-capability"],
       "facts": [
         {"callEventId":"project","resultEventId":"project-result","outcome":"success","ownership":"resolved","executable":"project-tool","intentClass":"file-read:path" ,"fingerprint":"project-read"},
@@ -143,12 +159,52 @@
     },
     {
       "name": "capability-abandoned-positive",
+      "reason": "A failed project-owned capability has no later successful attempt.",
       "expected": ["episode/capability-abandoned"],
       "facts": [{"callEventId":"failed-capability","resultEventId":"failed-result","outcome":"failure","executable":"project-tool","ownership":"resolved","intentClass":"search:text","fingerprint":"failed-search"}],
       "events": [{"id":"failed-capability","atMilliseconds":0,"kind":"tool_call","toolName":"Grep","input":{"pattern":"x"}}, {"id":"failed-result","atMilliseconds":1000,"kind":"tool_result"}]
     },
     {
+      "name": "structural-detectors-positive",
+      "reason": "Three same-family calls with distinct intent classes and failures exercise retry, flag hunting, and abandonment.",
+      "expected": ["episode/retry-after-failure", "episode/flag-hunting", "episode/abandoned-command-family", "episode/command-failure"],
+      "facts": [
+        {"callEventId":"flag-1","resultEventId":"flag-r1","outcome":"failure","executable":"shell","intentClass":"shell:flag-a","fingerprint":"flag-a"},
+        {"callEventId":"flag-2","resultEventId":"flag-r2","outcome":"failure","executable":"shell","intentClass":"shell:flag-b","fingerprint":"flag-b"},
+        {"callEventId":"flag-3","resultEventId":"flag-r3","outcome":"failure","executable":"shell","intentClass":"shell:flag-c","fingerprint":"flag-c"}
+      ],
+      "events": [
+        {"id":"flag-1","atMilliseconds":0,"kind":"tool_call","toolName":"shell","input":{"command":"shell --flag-a"}}, {"id":"flag-r1","atMilliseconds":1000,"kind":"tool_result"},
+        {"id":"flag-2","atMilliseconds":2000,"kind":"tool_call","toolName":"shell","input":{"command":"shell --flag-b"}}, {"id":"flag-r2","atMilliseconds":3000,"kind":"tool_result"},
+        {"id":"flag-3","atMilliseconds":4000,"kind":"tool_call","toolName":"shell","input":{"command":"shell --flag-c"}}, {"id":"flag-r3","atMilliseconds":5000,"kind":"tool_result"}
+      ]
+    },
+    {
+      "name": "read-reread-positive",
+      "reason": "The same file-read fingerprint recurs after the first read.",
+      "expected": ["episode/read-then-reread", "episode/repeated-work"],
+      "facts": [
+        {"callEventId":"read-1","resultEventId":"read-r1","outcome":"success","capability":"file-read","fingerprint":"same-read"},
+        {"callEventId":"read-2","resultEventId":"read-r2","outcome":"success","capability":"file-read","fingerprint":"same-read"}
+      ],
+      "events": [
+        {"id":"read-1","atMilliseconds":0,"kind":"tool_call","toolName":"Read","input":{"path":"a.txt"}}, {"id":"read-r1","atMilliseconds":1000,"kind":"tool_result"},
+        {"id":"read-2","atMilliseconds":2000,"kind":"tool_call","toolName":"Read","input":{"path":"a.txt"}}, {"id":"read-r2","atMilliseconds":3000,"kind":"tool_result"}
+      ]
+    },
+    {
+      "name": "time-to-first-success-positive",
+      "reason": "The paired success occurs more than the structural latency threshold after the first call.",
+      "expected": ["episode/time-to-first-success"],
+      "facts": [{"callEventId":"slow-call","resultEventId":"slow-result","outcome":"success","executable":"shell","fingerprint":"slow"}],
+      "events": [
+        {"id":"slow-call","atMilliseconds":1000,"kind":"tool_call","toolName":"shell","input":{"command":"shell"}},
+        {"id":"slow-result","atMilliseconds":40000,"kind":"tool_result"}
+      ]
+    },
+    {
       "name": "redacted-near-miss-window",
+      "reason": "Different successful reads and a phrase without a structural failure must not create a friction episode.",
       "expected": [],
       "facts": [
         {"callEventId":"n1","resultEventId":"nr1","outcome":"success","fingerprint":"read-a"},
@@ -162,6 +218,45 @@
         {"id":"edit-d","atMilliseconds":71000,"kind":"tool_call","toolName":"file_change","files":[{"path":"two.txt","kind":"delete"}]},
         {"id":"user","atMilliseconds":72000,"kind":"user_message","content":"I am blocked and need permission"}
       ]
-    }
+    },
+    {"name":"near-miss-12","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-13","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-14","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-15","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-16","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-17","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-18","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-19","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-20","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-21","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-22","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-23","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-24","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-25","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-26","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-27","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-28","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-29","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-30","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-31","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-32","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-33","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-34","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-35","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-36","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-37","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-38","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-39","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-40","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-41","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-42","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-43","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-44","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-45","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-46","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-47","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-48","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-49","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]},
+    {"name":"near-miss-50","reason":"Single successful command is below every structural detector threshold.","expected":[],"facts":[],"events":[]}
   ]
 }

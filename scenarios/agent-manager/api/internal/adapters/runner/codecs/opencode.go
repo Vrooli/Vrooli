@@ -75,6 +75,7 @@ func opencodeBase() baseCodec {
 		installHint:    "Run: vrooli resource install opencode",
 		tagEnvKey:      opencodeTagEnvKey,
 		continuePrefix: "opencode",
+		goalStatus:     func(line string) (string, bool, bool) { return declaredGoalStatus(line, "goal_status", "goal") },
 		labels: Labels{
 			StartMessage:         "OpenCode execution started",
 			EndMessage:           "OpenCode execution completed",
@@ -323,12 +324,13 @@ type opencodeState struct {
 	// against a model fabricating an absolute path — see toolTargetOutsideDir).
 	// Empty (e.g. transcript replay, no resolved dir) disables the guard.
 	workingDir string
+	retainUser bool
 }
 
 func (s *opencodeState) SessionID() string { return s.sessionID }
 
 // NewState satisfies [Codec].
-func (c *OpenCode) NewState() State { return &opencodeState{} }
+func (c *OpenCode) NewState() State { return &opencodeState{retainUser: true} }
 
 // =============================================================================
 // Stream-event types
@@ -675,6 +677,8 @@ func (p *opencodeTranscriptParser) SetTranscriptModel(model string) {
 	}
 }
 
+func (p *opencodeTranscriptParser) SetTranscriptRetention(retain bool) { p.state.retainUser = retain }
+
 type opencodeTranscriptParser struct {
 	codec *OpenCode
 	state *opencodeState
@@ -762,7 +766,7 @@ func (c *OpenCode) parseOpenCodeStreamEvent(state *opencodeState, runID uuid.UUI
 		}
 
 	case "user_message":
-		if streamEvent.Part != nil && streamEvent.Part.Text != "" {
+		if state.retainUser && streamEvent.Part != nil && streamEvent.Part.Text != "" {
 			return []*domain.RunEvent{domain.NewMessageEvent(runID, "user", runner.StripANSI(streamEvent.Part.Text))}, nil
 		}
 

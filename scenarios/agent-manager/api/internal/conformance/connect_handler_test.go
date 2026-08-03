@@ -105,6 +105,15 @@ func TestValidateSelfPublishesClassifierAccuracy(t *testing.T) {
 			if capability.GetCurrentLevel() != "L2" || !capability.GetClean() || capability.GetCurrentSummary() == "" {
 				t.Fatalf("classifier fleet presentation = %#v", capability)
 			}
+			for _, level := range response.Msg.GetAssessment().GetCapabilities()[0].GetLevels() {
+				if level.GetId() == "L0" || level.GetId() == "L1" || level.GetId() == "L2" {
+					continue
+				}
+				t.Fatalf("classifier capability contains undeclared level %q", level.GetId())
+			}
+			if len(response.Msg.GetAssessment().GetCapabilities()[0].GetLevels()) != 3 {
+				t.Fatalf("classifier capability levels = %d, want 3", len(response.Msg.GetAssessment().GetCapabilities()[0].GetLevels()))
+			}
 			return
 		}
 	}

@@ -15,7 +15,7 @@ export function useRunnerPerformance(options: UseRunnerPerformanceOptions = {}) 
   const { filter: defaultFilter } = useTimeWindow();
   const filter = options.filter ?? defaultFilter;
 
-  return useQuery<DurableRunBreakdown, Error, RunnerBreakdownResponse>({
+  return useQuery<DurableRunBreakdown, Error, RunnerBreakdownResponse & { measure: DurableRunBreakdown }>({
     queryKey: [...statsQueryKeys.runners(filter), "durable"] as const,
     queryFn: () => fetchDurableRunnerBreakdown(filter),
     select: (result) => ({
@@ -25,8 +25,11 @@ export function useRunnerPerformance(options: UseRunnerPerformanceOptions = {}) 
         successCount: row.successCount,
         failedCount: row.failedCount,
         totalCostUsd: row.totalCostUsd,
+        totalTokens: row.totalTokens,
+        totalChargeMicroUsd: row.totalChargeMicroUsd,
         avgDurationMs: row.averageDurationMs,
       })),
+      measure: result,
     }),
     enabled: options.enabled ?? true,
     staleTime: options.staleTime ?? 30_000,

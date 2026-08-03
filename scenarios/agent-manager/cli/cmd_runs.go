@@ -34,6 +34,8 @@ func (a *App) cmdRun(args []string) error {
 		return a.runReport(args[1:])
 	case "cohort-report":
 		return a.runCohortReport(args[1:])
+	case "goal-cohort":
+		return a.runGoalCohort(args[1:])
 	case "cohort-compare":
 		return a.runCohortCompare(args[1:])
 	case "invocation-facts":
@@ -122,6 +124,7 @@ func (a *App) cmdRun(args []string) error {
 		return fmt.Errorf("unknown run subcommand: %s\n\nRun 'agent-manager run help' for usage", args[0])
 	}
 }
+
 func (a *App) runHelp() error {
 	fmt.Println(`Usage: agent-manager run <subcommand> [options]
 
@@ -222,8 +225,8 @@ func (a *App) runList(args []string) error {
 		return nil
 	}
 
-	fmt.Printf("%-36s  %-12s  %-18s  %-11s  %-4s  %-20s\n", "ID", "STATUS", "PHASE", "EXEC", "PROG", "UPDATED")
-	fmt.Printf("%-36s  %-12s  %-18s  %-11s  %-4s  %-20s\n", strings.Repeat("-", 36), strings.Repeat("-", 12), strings.Repeat("-", 18), strings.Repeat("-", 11), strings.Repeat("-", 4), strings.Repeat("-", 20))
+	fmt.Printf("%-36s  %-12s  %-18s  %-11s  %-4s  %-10s  %-18s  %-20s\n", "ID", "STATUS", "PHASE", "EXEC", "PROG", "SOURCE", "SESSION", "UPDATED")
+	fmt.Printf("%-36s  %-12s  %-18s  %-11s  %-4s  %-10s  %-18s  %-20s\n", strings.Repeat("-", 36), strings.Repeat("-", 12), strings.Repeat("-", 18), strings.Repeat("-", 11), strings.Repeat("-", 4), strings.Repeat("-", 10), strings.Repeat("-", 18), strings.Repeat("-", 20))
 	for _, r := range runs {
 		phase := formatEnumValue(r.Phase, "RUN_PHASE_", "_")
 		if len(phase) > 18 {
@@ -239,7 +242,25 @@ func (a *App) runList(args []string) error {
 		if exec == "" || exec == "unspecified" {
 			exec = "codec_pipe"
 		}
-		fmt.Printf("%-36s  %-12s  %-18s  %-11s  %-4s  %-20s\n", r.Id, status, phase, exec, progress, updated)
+		source := "native"
+		session := "-"
+		if exec == "imported" {
+			source = r.ImportSourceHarness
+			if source == "" {
+				source = "imported"
+			}
+			session = r.ImportSourceSessionId
+			if session == "" {
+				session = "-"
+			}
+		}
+		if len(source) > 10 {
+			source = source[:10]
+		}
+		if len(session) > 18 {
+			session = session[:18]
+		}
+		fmt.Printf("%-36s  %-12s  %-18s  %-11s  %-4s  %-10s  %-18s  %-20s\n", r.Id, status, phase, exec, progress, source, session, updated)
 	}
 
 	return nil
@@ -1451,50 +1472,5 @@ func (a *App) runInvestigate(args []string) error {
 	}
 
 	fmt.Printf("Created investigation run: %s\n", run.Id)
-	return nil
-}
-
-// =============================================================================
-// Run Apply Investigation
-// =============================================================================
-
-func (a *App) runApplyInvestigation(args []string) error {
-	fs := flag.NewFlagSet("run apply-investigation", flag.ContinueOnError)
-	jsonOutput := cliutil.JSONFlag(fs)
-	customContext := fs.String("context", "", "Custom context for apply run")
-	// Parse with positional ID first
-	var id string
-	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-		id = args[0]
-		args = args[1:]
-	}
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-
-	if id == "" {
-		return fmt.Errorf("usage: agent-manager run apply-investigation <investigation-run-id>")
-	}
-	req := map[string]interface{}{
-		"investigationRunId": id,
-	}
-	if *customContext != "" {
-		req["customContext"] = *customContext
-	}
-
-	payload, err := json.Marshal(req)
-	if err != nil {
-		return err
-	}
-	body, run, err := a.services.Runs.InvestigationApply(payload)
-	if err != nil {
-		return err
-	}
-	if *jsonOutput || run == nil {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	fmt.Printf("Created apply run: %s\n", run.Id)
 	return nil
 }

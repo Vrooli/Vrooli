@@ -12,6 +12,7 @@ import type {
 } from "../../src/features/stats/api/types.js";
 import {
   useToolUsage,
+  useToolCommandBreakdown,
   useToolUsageModels,
   useToolUsageRuns,
 } from "../../src/features/stats/hooks/useToolUsage.js";
@@ -107,6 +108,7 @@ vi.mock("recharts", async () => {
 
 vi.mock("../../src/features/stats/hooks/useToolUsage.js", () => ({
   useToolUsage: vi.fn(),
+  useToolCommandBreakdown: vi.fn(() => ({ data: undefined, isLoading: false, error: null })),
   useToolUsageRuns: vi.fn(),
   useToolUsageModels: vi.fn(),
 }));
@@ -204,7 +206,7 @@ test("ToolUsageAnalytics renders empty and error states", () => {
 
   renderWithProviders(createElement(ToolUsageAnalytics));
 
-  assert.ok(screen.getByText("Failed to load: tool stats unavailable"));
+  assert.ok(screen.getByText("Tool usage: tool stats unavailable"));
 });
 
 test("ToolUsageAnalytics exposes selected tool loading, failure, empty, and reset states", async () => {
@@ -265,6 +267,33 @@ test("ToolUsageAnalytics reports model-detail loading, errors, and no-model evid
   assert.ok(screen.getByText("No model usage found for this tool in the selected window"));
 });
 
+test("ToolUsageAnalytics exposes recorded command paths and command-data fallbacks", async () => {
+  const user = userEvent.setup();
+  vi.mocked(useToolUsage).mockReturnValue(queryResult<ToolUsageResponse>({ data: makeToolUsageResponse() }) as ToolUsageQuery);
+  vi.mocked(useToolUsageRuns).mockReturnValue(queryResult<ToolUsageRunsResponse>({}) as ToolRunsQuery);
+  vi.mocked(useToolUsageModels).mockReturnValue(queryResult<ToolUsageModelsResponse>({}) as ToolModelsQuery);
+  vi.mocked(useToolCommandBreakdown).mockReturnValue(queryResult({ data: { rows: [{ executable: "bash", commandPath: "/work/build", callCount: 3, successCount: 2, failedCount: 1, runCount: 2, truncated: true }] } }) as never);
+  const populated = renderWithProviders(createElement(ToolUsageAnalytics));
+  await user.click(screen.getByRole("button", { name: "Edit" }));
+  await user.click(screen.getByRole("button", { name: "Commands" }));
+  assert.ok(screen.getByText("/work/build…"));
+  assert.ok(screen.getByText("66.7% success"));
+  populated.unmount();
+
+  vi.mocked(useToolCommandBreakdown).mockReturnValue(queryResult({ isLoading: true }) as never);
+  const loading = renderWithProviders(createElement(ToolUsageAnalytics));
+  await user.click(screen.getByRole("button", { name: "Edit" }));
+  await user.click(screen.getByRole("button", { name: "Commands" }));
+  assert.equal(document.querySelectorAll(".animate-pulse").length, 1);
+  loading.unmount();
+
+  vi.mocked(useToolCommandBreakdown).mockReturnValue(queryResult({ error: new Error("command detail unavailable") }) as never);
+  renderWithProviders(createElement(ToolUsageAnalytics));
+  await user.click(screen.getByRole("button", { name: "Edit" }));
+  await user.click(screen.getByRole("button", { name: "Commands" }));
+  assert.ok(screen.getByText("Failed to load commands: command detail unavailable"));
+});
+
 test("ToolUsageAnalytics makes unknown zero-call telemetry and incomplete run metadata inspectable", async () => {
   const user = userEvent.setup();
   vi.mocked(useToolUsage).mockReturnValue(queryResult<ToolUsageResponse>({
@@ -294,10 +323,10 @@ test("ToolUsageAnalytics makes unknown zero-call telemetry and incomplete run me
   renderWithProviders(createElement(ToolUsageAnalytics));
   await user.click(screen.getByRole("button", { name: "unknown" }));
 
-  assert.ok(screen.getAllByText("Unknown").length >= 2);
+  assert.ok(screen.getAllByText("Unknown").length >= 1);
   assert.ok(screen.getByText("0.0%"));
-  assert.ok(screen.getByRole("link", { name: "Untitled Task" }));
-  assert.ok(screen.getAllByText("Unknown").length >= 2);
+  assert.ok(screen.getByRole("link", { name: "Run run-unkn" }));
+  assert.ok(screen.getAllByText("Unknown").length >= 1);
 });
 
 test("ToolUsageAnalytics renders a chart skeleton while aggregate telemetry is loading", () => {
@@ -307,7 +336,7 @@ test("ToolUsageAnalytics renders a chart skeleton while aggregate telemetry is l
 
   renderWithProviders(createElement(ToolUsageAnalytics));
 
-  assert.equal(document.querySelectorAll(".animate-pulse").length, 2);
+  assert.equal(document.querySelectorAll(".animate-pulse").length, 1);
 });
 
 test("ToolUsageAnalytics explains aggregate chart values and success-rate severity in its tooltip", async () => {

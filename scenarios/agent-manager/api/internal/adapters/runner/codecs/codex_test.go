@@ -590,6 +590,20 @@ func TestCodex_ParseTranscriptLine_RolloutTokenCountProjectsUsage(t *testing.T) 
 	}
 }
 
+func TestCodex_ParseTranscriptLine_RolloutTokenCountUsesCumulativeTotal(t *testing.T) {
+	parser := NewCodexForTest().NewTranscriptParser()
+	runID := uuid.New()
+	first := parser.ParseTranscriptLine(runID, `{"type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":120,"cached_input_tokens":80,"output_tokens":30},"total_token_usage":{"input_tokens":120,"cached_input_tokens":80,"output_tokens":30}}}}`)
+	second := parser.ParseTranscriptLine(runID, `{"type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":150,"cached_input_tokens":100,"output_tokens":40},"total_token_usage":{"input_tokens":270,"cached_input_tokens":180,"output_tokens":70}}}}`)
+	if len(first.Events) != 1 || len(second.Events) != 1 {
+		t.Fatalf("events=%d/%d, want one usage event each", len(first.Events), len(second.Events))
+	}
+	usage, ok := second.Events[0].Data.(*domain.UsageEventData)
+	if !ok || usage.InputTokens != 50 || usage.OutputTokens != 40 || usage.CacheReadTokens != 100 {
+		t.Fatalf("usage=%+v, want cumulative delta split from cache", second.Events[0].Data)
+	}
+}
+
 // =============================================================================
 // Continue rejects empty session
 // =============================================================================
@@ -759,5 +773,28 @@ func TestCodex_FullStream(t *testing.T) {
 	}
 	if metrics.TokensInput != 12810 || metrics.TokensOutput != 83 {
 		t.Errorf("tokens in/out=%d/%d", metrics.TokensInput, metrics.TokensOutput)
+	}
+}
+
+func TestCodexExtractCommandFromExecCommandWrapper(t *testing.T) {
+	codec := NewCodexForTest()
+	got := codec.ExtractCommand(map[string]any{
+		"input": `const r = await tools.exec_command({"cmd":"rg -n \"InvocationFactVersion\" scenarios/agent-manager/api"}); text(r.output);`,
+	})
+	if got.Command != `rg -n "InvocationFactVersion" scenarios/agent-manager/api` {
+		t.Fatalf("command=%q reason=%q", got.Command, got.Reason)
+	}
+	if got.LiteralArgs {
+		t.Fatal("wrapped shell command must remain shell text")
+	}
+}
+
+func TestCodexExtractCommandFromJavaScriptExecCommandWrapper(t *testing.T) {
+	codec := NewCodexForTest()
+	got := codec.ExtractCommand(map[string]any{
+		"input": `const r = await tools.exec_command({cmd:"sed -n '1,20p' README.md",workdir:"/tmp"}); text(r.output);`,
+	})
+	if got.Command != `sed -n '1,20p' README.md` {
+		t.Fatalf("command=%q reason=%q", got.Command, got.Reason)
 	}
 }

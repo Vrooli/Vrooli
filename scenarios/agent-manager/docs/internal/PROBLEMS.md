@@ -2,6 +2,39 @@
 
 ## Open Issues
 
+### P-010: Historical analytics are bounded by read-model coverage (2026-08-02)
+**Severity**: Medium
+**Description**: Stats measures are projection-backed and report validity,
+source window, filters, and history floor. Runs older than the available
+read-model window cannot be presented as complete history.
+**Mitigation**: The Stats page defaults to a seven-day window, displays the
+earliest available read-model timestamp and outside-history run count, and
+keeps legacy operational health endpoints separate from analytical measures.
+Rebuild retained invocation evidence before making historical comparisons.
+**Status**: Deliberate durability boundary; full-history reconstruction remains
+dependent on retained source events.
+
+### P-011: Subscription charge allocation is not automatic (2026-08-02)
+**Severity**: Medium
+**Description**: Runner billing declarations and subscription periods are
+available, but a subscription fee is not silently allocated across workloads
+or runs. Allocation requests without an explicit basis are rejected.
+**Mitigation**: Inspect `charge_by_basis`, configure non-overlapping operator
+subscription periods, and use an explicit allocation basis once a pricing
+allocator is available. Unknown and unpriced consumption remain visible.
+**Status**: Deliberate safety boundary; do not infer accounting treatment from
+provider labels or token volume.
+
+### P-012: Legacy stats transport remains for operational compatibility (2026-08-02)
+**Severity**: Low
+**Description**: The Stats page's analytical panels use typed Connect measures,
+while the older REST stats handler and operational fallback endpoints remain
+in the server for existing clients and health surfaces.
+**Mitigation**: New analytics must use the measure registry and evidence
+metadata. Legacy endpoints are not authoritative for the Stats page and are
+tracked for a later compatibility retirement.
+**Status**: Intentional migration seam.
+
 ### P-006: Consumption and charge model rollout
 **Severity**: Medium
 **Description**: Consumption, charge, yield, billing basis, and workload identity are now separate durable facts. Historical rows with retained events can be rebuilt with `agent-manager run replay-invocation-corpus`; rows whose source events were pruned are explicitly reported as unreplayable.

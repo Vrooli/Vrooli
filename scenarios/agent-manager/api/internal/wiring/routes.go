@@ -46,6 +46,7 @@ type RouteDependencies struct {
 	StatsService          orchestration.StatsService
 	StatsRepository       repository.StatsRepository
 	PricingService        pricing.Service
+	PricingRepository     pricing.Repository
 	WebSocketHub          *handlers.WebSocketHub
 	RolePolicyState       *rolepolicy.State
 	PermissionPolicyState *permissionpolicy.State
@@ -55,6 +56,9 @@ type RouteDependencies struct {
 	HealthStore           *healthstore.Store
 	EventRepository       eventlog.Repository
 	InvocationReadModel   invocationreadmodel.Store
+	WorkspaceSandbox      interface {
+		IsAvailable(context.Context) (bool, string)
+	}
 }
 
 // SetupRoutes registers the complete HTTP surface. It intentionally owns only
@@ -74,6 +78,7 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		}), health.Critical).
 		Check(RolePolicyHealthChecker(deps.RolePolicyState), health.Critical).
 		Check(PermissionPolicyHealthChecker(deps.PermissionPolicyState, deps.PermissionPolicy), health.Critical).
+		Check(workspaceSandboxHealthChecker(deps.WorkspaceSandbox), health.Optional).
 		Handler()
 	router.HandleFunc("/health", healthHandler).Methods("GET")
 
@@ -148,10 +153,30 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		}
 	}
 	if deps.PricingService != nil && deps.StatsRepository != nil {
-		handlers.NewPricingHandler(deps.PricingService, deps.StatsRepository).RegisterRoutes(router)
+		var subscriptions pricing.SubscriptionRepository
+		if deps.PricingRepository != nil {
+			subscriptions, _ = deps.PricingRepository.(pricing.SubscriptionRepository)
+		}
+		handlers.NewPricingHandler(deps.PricingService, deps.StatsRepository, subscriptions).RegisterRoutes(router)
 		routesLog.Info("pricing endpoints registered", "path", "/api/v1/pricing/*")
 	}
 	router.Handle("/metrics", metrics.Handler()).Methods("GET")
 	routesLog.Info("websocket endpoint registered", "path", "/api/v1/ws")
 	routesLog.Info("metrics endpoint registered", "path", "/metrics")
+}
+
+func workspaceSandboxHealthChecker(provider interface {
+	IsAvailable(context.Context) (bool, string)
+},
+) health.Checker {
+	if provider == nil {
+		return nil
+	}
+	return health.Func("workspace_sandbox", func(ctx context.Context) error {
+		available, reason := provider.IsAvailable(ctx)
+		if !available {
+			return fmt.Errorf("%s", reason)
+		}
+		return nil
+	})
 }

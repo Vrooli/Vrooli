@@ -18,6 +18,8 @@ type CatalogResolution struct {
 	Owner, Command, Snapshot string
 	State                    availability.State
 	Reason                   string
+	SemanticsKind            string
+	SemanticsVerdict         string
 }
 
 const (
@@ -125,18 +127,30 @@ type manifest struct {
 }
 type manifestGroup struct {
 	Name     string            `json:"name"`
+	Flat     bool              `json:"flat,omitempty"`
 	Commands []manifestCommand `json:"commands"`
 	Groups   []manifestGroup   `json:"groups"`
 }
 type manifestCommand struct {
-	Name string `json:"name"`
+	Name      string             `json:"name"`
+	Semantics *manifestSemantics `json:"semantics,omitempty"`
+}
+type manifestSemantics struct {
+	Kind    string           `json:"kind"`
+	Verdict *manifestVerdict `json:"verdict,omitempty"`
+}
+type manifestVerdict struct {
+	Path string `json:"path,omitempty"`
+	Pass string `json:"pass,omitempty"`
+	Fail string `json:"fail,omitempty"`
 }
 
 var catalogCache struct {
 	sync.Mutex
-	root     string
-	owners   map[string]map[string]bool
-	snapshot string
+	root      string
+	owners    map[string]map[string]bool
+	semantics map[string]manifestSemantics
+	snapshot  string
 }
 
 // ResolveCatalog returns the conservative, manifest-backed classification for a command.
@@ -146,6 +160,28 @@ func ResolveCatalog(command string) CatalogResolution {
 	if !ok || len(tokens) == 0 {
 		return CatalogResolution{State: availability.Unknown, Reason: "command cannot be safely tokenized"}
 	}
+	return resolveCatalogTokens(tokens)
+}
+
+// ResolveCatalogArgs resolves literal argv without treating argument values
+// as shell operators. This is essential for argv such as
+// ["bash", "-lc", "awk '$4==...'"] where the dollar sign is data inside
+// an argument, not syntax that Agent Manager must evaluate.
+func ResolveCatalogArgs(args []string) CatalogResolution {
+	tokens := make([]string, 0, len(args))
+	for _, arg := range args {
+		if strings.TrimSpace(arg) == "" {
+			continue
+		}
+		tokens = append(tokens, strings.TrimSpace(arg))
+	}
+	if len(tokens) == 0 {
+		return CatalogResolution{State: availability.Unknown, Reason: "command has no executable argv"}
+	}
+	return resolveCatalogTokens(tokens)
+}
+
+func resolveCatalogTokens(tokens []string) CatalogResolution {
 	_, owners, snapshot := loadCatalog()
 	paths, known := owners[tokens[0]]
 	if !known {
@@ -155,17 +191,49 @@ func ResolveCatalog(command string) CatalogResolution {
 		return CatalogResolution{Owner: executable, Command: executable, State: availability.External, Snapshot: snapshot}
 	}
 	// A root invocation is still catalog-backed; subcommand precision is only
-	// claimed where the manifest has a matching path.
-	if len(tokens) == 1 {
-		return CatalogResolution{Owner: tokens[0], Command: tokens[0], Snapshot: snapshot, State: availability.Resolved}
+	// claimed where the manifest has a matching path. Harnesses may place
+	// boolean control flags before the command path, so compare both the
+	// literal argv prefix and a flag-free path view. Flags after the path are
+	// naturally ignored as the longest declared prefix wins.
+	pathTokens := tokens
+	if filtered := stripLeadingCommandFlags(tokens); len(filtered) > 0 {
+		pathTokens = filtered
 	}
-	for n := len(tokens); n > 1; n-- {
-		candidate := strings.Join(tokens[:n], " ")
+	for n := len(pathTokens); n > 1; n-- {
+		candidate := strings.Join(pathTokens[:n], " ")
 		if paths[candidate] {
-			return CatalogResolution{Owner: tokens[0], Command: candidate, Snapshot: snapshot, State: availability.Resolved}
+			return catalogResolution(tokens[0], candidate, snapshot, availability.Resolved)
 		}
 	}
+	if paths[tokens[0]] {
+		return catalogResolution(tokens[0], tokens[0], snapshot, availability.Resolved)
+	}
 	return CatalogResolution{Owner: tokens[0], Snapshot: snapshot, State: availability.Unknown, Reason: "catalog executable has no matching command path"}
+}
+
+func stripLeadingCommandFlags(tokens []string) []string {
+	if len(tokens) < 2 {
+		return tokens
+	}
+	filtered := []string{tokens[0]}
+	for _, token := range tokens[1:] {
+		if strings.HasPrefix(token, "-") {
+			continue
+		}
+		filtered = append(filtered, token)
+	}
+	return filtered
+}
+
+func catalogResolution(owner, command, snapshot string, state availability.State) CatalogResolution {
+	catalogCache.Lock()
+	semantics := catalogCache.semantics[owner+" "+command]
+	catalogCache.Unlock()
+	result := CatalogResolution{Owner: owner, Command: command, Snapshot: snapshot, State: state, SemanticsKind: semantics.Kind}
+	if semantics.Verdict != nil {
+		result.SemanticsVerdict = semantics.Verdict.Path + "|" + semantics.Verdict.Pass + "|" + semantics.Verdict.Fail
+	}
+	return result
 }
 
 // CurrentCatalogSnapshot returns the manifest-index digest used at import time.
@@ -197,7 +265,36 @@ func unwrapShellCommand(command string) string {
 
 func safeTokens(command string) ([]string, bool) {
 	command = strings.TrimSpace(command)
-	if command == "" || strings.ContainsAny(command, "|;&`$\n\r") {
+	if command == "" {
+		return nil, false
+	}
+	var quote rune
+	escaped := false
+	for _, r := range command {
+		if escaped {
+			escaped = false
+			continue
+		}
+		if r == '\\' && quote != '\'' {
+			escaped = true
+			continue
+		}
+		if quote != 0 {
+			if r == quote {
+				quote = 0
+			} else if quote == '"' && (r == '`' || r == '$') {
+				return nil, false
+			}
+			continue
+		}
+		switch r {
+		case '\'', '"':
+			quote = r
+		case '|', ';', '&', '`', '$', '\n', '\r':
+			return nil, false
+		}
+	}
+	if quote != 0 || escaped {
 		return nil, false
 	}
 	return strings.Fields(command), true
@@ -211,6 +308,7 @@ func loadCatalog() (string, map[string]map[string]bool, string) {
 		return root, catalogCache.owners, catalogCache.snapshot
 	}
 	owners := map[string]map[string]bool{}
+	semantics := map[string]manifestSemantics{}
 	hash := sha256.New()
 	entries, _ := filepath.Glob(filepath.Join(root, "scenarios", "*", "cli", "manifest.json"))
 	sort.Strings(entries)
@@ -226,24 +324,34 @@ func loadCatalog() (string, map[string]map[string]bool, string) {
 		}
 		paths := map[string]bool{value.Name: true}
 		for _, group := range value.Groups {
-			collectCommands(value.Name, nil, group, paths)
+			collectCommands(value.Name, nil, group, paths, semantics)
 		}
 		owners[value.Name] = paths
 	}
-	catalogCache.root, catalogCache.owners = root, owners
+	catalogCache.root, catalogCache.owners, catalogCache.semantics = root, owners, semantics
 	catalogCache.snapshot = "manifest-index:" + hex.EncodeToString(hash.Sum(nil))[:16]
 	return root, owners, catalogCache.snapshot
 }
 
-func collectCommands(owner string, prefix []string, group manifestGroup, paths map[string]bool) {
-	next := append(append([]string{}, prefix...), group.Name)
+func collectCommands(owner string, prefix []string, group manifestGroup, paths map[string]bool, semantics map[string]manifestSemantics) {
+	next := append([]string{}, prefix...)
+	if !group.Flat {
+		next = append(next, group.Name)
+		if group.Name != "" {
+			paths[strings.Join(append([]string{owner}, next...), " ")] = true
+		}
+	}
 	for _, command := range group.Commands {
 		if command.Name != "" {
-			paths[strings.Join(append(append([]string{owner}, next...), command.Name), " ")] = true
+			path := strings.Join(append(append([]string{owner}, next...), command.Name), " ")
+			paths[path] = true
+			if command.Semantics != nil {
+				semantics[path] = *command.Semantics
+			}
 		}
 	}
 	for _, child := range group.Groups {
-		collectCommands(owner, next, child, paths)
+		collectCommands(owner, next, child, paths, semantics)
 	}
 }
 

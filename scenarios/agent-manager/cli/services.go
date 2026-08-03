@@ -34,6 +34,7 @@ type Services struct {
 	HealthAudit      *HealthAuditService
 	Events           *EventsService
 	Findings         *FindingsService
+	Subscriptions    *SubscriptionService
 }
 
 // NewServices creates a new Services instance with all domain services.
@@ -53,7 +54,29 @@ func NewServices(api *cliutil.APIClient) *Services {
 		HealthAudit:      &HealthAuditService{api: api},
 		Events:           &EventsService{api: api},
 		Findings:         &FindingsService{api: api},
+		Subscriptions:    &SubscriptionService{api: api},
 	}
+}
+
+type SubscriptionService struct{ api *cliutil.APIClient }
+
+func (s *SubscriptionService) List(provider, planRef string) ([]byte, error) {
+	query := url.Values{}
+	if provider != "" {
+		query.Set("provider", provider)
+	}
+	if planRef != "" {
+		query.Set("plan_ref", planRef)
+	}
+	return s.api.Get("/api/v1/pricing/subscription-periods", query)
+}
+
+func (s *SubscriptionService) Create(payload []byte) ([]byte, error) {
+	return s.api.Request("POST", "/api/v1/pricing/subscription-periods", nil, payload)
+}
+
+func (s *SubscriptionService) Remove(id string) ([]byte, error) {
+	return s.api.Request("DELETE", "/api/v1/pricing/subscription-periods/"+url.PathEscape(id), nil, nil)
 }
 
 type FindingsService struct{ api *cliutil.APIClient }
@@ -892,6 +915,18 @@ func (s *RunService) CohortReport(runIDs string) ([]byte, error) {
 	return s.api.Request("GET", "/api/v1/runs/cohort-report", url.Values{"run_ids": []string{runIDs}}, nil)
 }
 
+func (s *RunService) CohortReportByName(name string) ([]byte, error) {
+	return s.api.Request("GET", "/api/v1/runs/cohort-report", url.Values{"cohort": []string{name}}, nil)
+}
+
+func (s *RunService) GoalCohort(name string, limit int) ([]byte, error) {
+	values := url.Values{"cohort": []string{name}}
+	if limit > 0 {
+		values.Set("limit", strconv.Itoa(limit))
+	}
+	return s.api.Request("GET", "/api/v1/runs/goal-cohort", values, nil)
+}
+
 func (s *RunService) InvocationFacts(id string) ([]byte, error) {
 	return s.api.Request("GET", "/api/v1/runs/"+id+"/invocation-facts", nil, nil)
 }
@@ -962,6 +997,26 @@ func (s *RunService) SelectInvocationCohort(values url.Values) ([]byte, error) {
 
 func (s *RunService) InvocationMetrics(values url.Values) ([]byte, error) {
 	return s.api.Request("GET", "/api/v1/runs/invocation-facts/metrics", values, nil)
+}
+
+func (s *RunService) DefineCohort(payload []byte) ([]byte, error) {
+	return s.api.Request("POST", "/api/v1/runs/cohorts", nil, payload)
+}
+
+func (s *RunService) ListCohorts() ([]byte, error) {
+	return s.api.Request("GET", "/api/v1/runs/cohorts", nil, nil)
+}
+
+func (s *RunService) ShowCohort(name string, limit int) ([]byte, error) {
+	values := url.Values{}
+	if limit > 0 {
+		values.Set("limit", strconv.Itoa(limit))
+	}
+	return s.api.Request("GET", "/api/v1/runs/cohorts/"+url.PathEscape(name), values, nil)
+}
+
+func (s *RunService) DeleteCohort(name string) ([]byte, error) {
+	return s.api.Request("DELETE", "/api/v1/runs/cohorts/"+url.PathEscape(name), nil, nil)
 }
 
 // InvestigationApply creates a run that applies investigation recommendations.

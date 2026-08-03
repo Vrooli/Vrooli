@@ -452,6 +452,8 @@ func RunStatusToProto(s domain.RunStatus) pb.RunStatus {
 		return pb.RunStatus_RUN_STATUS_CANCELLED
 	case domain.RunStatusParked:
 		return pb.RunStatus_RUN_STATUS_PARKED
+	case domain.RunStatusUnknown:
+		return pb.RunStatus_RUN_STATUS_UNKNOWN
 	default:
 		return pb.RunStatus_RUN_STATUS_UNSPECIFIED
 	}
@@ -476,6 +478,8 @@ func RunStatusFromProto(s pb.RunStatus) domain.RunStatus {
 		return domain.RunStatusCancelled
 	case pb.RunStatus_RUN_STATUS_PARKED:
 		return domain.RunStatusParked
+	case pb.RunStatus_RUN_STATUS_UNKNOWN:
+		return domain.RunStatusUnknown
 	default:
 		return domain.RunStatus("")
 	}
@@ -615,6 +619,8 @@ func ExecutionModeToProto(m domain.ExecutionMode) pb.ExecutionMode {
 	switch m.Normalized() {
 	case domain.ExecutionModeInteractive:
 		return pb.ExecutionMode_EXECUTION_MODE_INTERACTIVE
+	case domain.ExecutionModeImported:
+		return pb.ExecutionMode_EXECUTION_MODE_IMPORTED
 	default:
 		return pb.ExecutionMode_EXECUTION_MODE_CODEC_PIPE
 	}
@@ -628,6 +634,8 @@ func ExecutionModeFromProto(m pb.ExecutionMode) domain.ExecutionMode {
 		return domain.ExecutionModeCodecPipe
 	case pb.ExecutionMode_EXECUTION_MODE_INTERACTIVE:
 		return domain.ExecutionModeInteractive
+	case pb.ExecutionMode_EXECUTION_MODE_IMPORTED:
+		return domain.ExecutionModeImported
 	default:
 		return ""
 	}

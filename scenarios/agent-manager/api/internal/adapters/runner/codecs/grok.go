@@ -77,6 +77,7 @@ func grokBase() baseCodec {
 		installHint:    "Run: vrooli resource install grok",
 		tagEnvKey:      grokTagEnvKey,
 		continuePrefix: "grok",
+		goalStatus:     func(line string) (string, bool, bool) { return declaredGoalStatus(line, "goal_status", "goal") },
 		labels: Labels{
 			StartMessage:         "Grok execution started",
 			EndMessage:           "Grok execution completed",
@@ -228,6 +229,7 @@ type grokState struct {
 	lastAssistant string
 	sessionID     string
 	gotEnd        bool
+	retainUser    bool
 }
 
 func (s *grokState) SessionID() string { return s.sessionID }
@@ -360,6 +362,8 @@ func (c *Grok) NewTranscriptParser() runner.TranscriptParser {
 	return &grokTranscriptParser{codec: c, state: &grokState{}}
 }
 
+func (p *grokTranscriptParser) SetTranscriptRetention(retain bool) { p.state.retainUser = retain }
+
 type grokTranscriptParser struct {
 	codec *Grok
 	state *grokState
@@ -464,8 +468,14 @@ func (p *grokTranscriptParser) parseACPLine(runID uuid.UUID, line string) (runne
 		if text := grokACPContentText(u.Content); text != "" {
 			p.state.textBuffer.WriteString(text)
 		}
-	case "agent_thought_chunk", "user_message_chunk":
-		// reasoning / echoed user prompt — intentionally not emitted.
+	case "agent_thought_chunk":
+		// reasoning is intentionally not emitted.
+	case "user_message_chunk":
+		if p.state.retainUser {
+			if text := grokACPContentText(u.Content); text != "" {
+				result.Events = []*domain.RunEvent{domain.NewMessageEvent(runID, "user", runner.StripANSI(text))}
+			}
+		}
 	case "tool_call":
 		var input map[string]interface{}
 		if len(u.RawInput) > 0 {

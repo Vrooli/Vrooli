@@ -17,9 +17,13 @@ import { Badge } from "../../../../components/ui/badge";
 import { Button } from "../../../../components/ui/button";
 import { formatStatusLabel, formatUnknownLabel, statusBadgeVariant } from "../../../../lib/display";
 import { formatStandardRelativeTime } from "../../../../lib/dateTime";
-import { useToolUsage, useToolUsageModels, useToolUsageRuns } from "../../hooks/useToolUsage";
+import { useToolCommandBreakdown, useToolUsage, useToolUsageModels, useToolUsageRuns } from "../../hooks/useToolUsage";
 import { formatNumber, formatPercent } from "../../utils/formatters";
 import { CHART_COLORS, TOOLTIP_STYLE, getSeriesColor } from "../../utils/chartConfig";
+import { MeasureFrame } from "../measure/MeasureFrame";
+import { useMeasureDefinitions } from "../../hooks/useMeasureDefinitions";
+import { useTimeWindow } from "../../hooks/useTimeWindow";
+import { runsLink } from "../../utils/navigation";
 
 interface ToolChartDatum {
   name: string;
@@ -31,7 +35,9 @@ interface ToolChartDatum {
 export function ToolUsageAnalytics() {
   const { data, isLoading, error } = useToolUsage({ limit: 10 });
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"runs" | "models">("runs");
+  const [activeTab, setActiveTab] = useState<"runs" | "models" | "commands">("runs");
+  const definitions = useMeasureDefinitions();
+  const { filter } = useTimeWindow();
 
   const tools = data?.tools;
   const { chartData, totalCalls } = useMemo(() => {
@@ -69,26 +75,10 @@ export function ToolUsageAnalytics() {
     enabled: !!selectedTool && activeTab === "models",
     limit: 25,
   });
-
-  if (isLoading) {
-    return (
-      <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
-        <div className="mb-2 sm:mb-4 h-5 w-32 animate-pulse rounded bg-muted/30" />
-        <div className="h-[200px] sm:h-[250px] animate-pulse rounded bg-muted/20" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-4 sm:p-6">
-        <h3 className="text-sm font-semibold">Tool Usage</h3>
-        <p className="mt-2 text-sm text-red-500">Failed to load: {error.message}</p>
-      </div>
-    );
-  }
+  const { data: commandData, isLoading: commandsLoading, error: commandsError } = useToolCommandBreakdown({ toolName: selectedTool ?? undefined, enabled: !!selectedTool && activeTab === "commands", limit: 25 });
 
   return (
+    <MeasureFrame label="Tool usage" result={data?.measure} definition={definitions.data?.find((item) => item.id === "friction.tool_usage")} loading={isLoading} error={error?.message}>
     <div className="rounded-lg border border-border bg-card/50 p-4 sm:p-6">
       {selectedTool && selectedStats ? (
         <>
@@ -147,6 +137,13 @@ export function ToolUsageAnalytics() {
             >
               Models
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("commands")}
+              className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${activeTab === "commands" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+            >
+              Commands
+            </button>
           </div>
           {activeTab === "runs" ? (
             runsLoading ? (
@@ -168,18 +165,18 @@ export function ToolUsageAnalytics() {
                         to={`/runs/${run.runId}`}
                         className="text-sm font-medium text-foreground hover:underline"
                       >
-                        {run.taskTitle || "Untitled Task"}
+                        {run.taskTitle || `Run ${run.runId.slice(0, 8)}`}
                       </Link>
                       <div className="text-xs text-muted-foreground">
-                        {run.profileName} • {formatStandardRelativeTime(run.createdAt)} • {run.runId.slice(0, 8)}
+                        {run.profileName || "Profile unavailable"} • {run.createdAt ? formatStandardRelativeTime(run.createdAt) : "Time unavailable"} • {run.runId.slice(0, 8)}
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <Badge variant={statusBadgeVariant(run.status)}>{formatStatusLabel(run.status)}</Badge>
+                      {run.status ? <Badge variant={statusBadgeVariant(run.status)}>{formatStatusLabel(run.status)}</Badge> : <span className="text-xs text-muted-foreground">Status unavailable</span>}
                       <div className="text-right text-xs text-muted-foreground">
-                        <div>{formatNumber(run.callCount)} calls</div>
+                        <div>{run.callCount === undefined ? "Call count unavailable" : `${formatNumber(run.callCount)} calls`}</div>
                         <div className="text-muted-foreground">
-                          {run.model && run.model !== "unknown" ? run.model : "Unknown"}
+                          {run.model || "Model unavailable"}
                         </div>
                       </div>
                     </div>
@@ -187,6 +184,21 @@ export function ToolUsageAnalytics() {
                 ))}
               </div>
             )
+          ) : activeTab === "commands" ? commandsLoading ? (
+            <div className="h-[200px] sm:h-[250px] animate-pulse rounded bg-muted/20" />
+          ) : commandsError ? (
+            <div className="rounded border border-red-500/30 bg-red-500/5 p-4 text-sm text-red-500">Failed to load commands: {commandsError.message}</div>
+          ) : (commandData?.rows.length ?? 0) === 0 ? (
+            <div className="flex h-[200px] sm:h-[250px] items-center justify-center text-sm text-muted-foreground">Command detail is not recorded for this window.</div>
+          ) : (
+            <div className="max-h-[200px] sm:max-h-[260px] overflow-y-auto pr-2 divide-y divide-border/60">
+              {commandData?.rows.map((command) => (
+                <Link key={`${command.executable}:${command.commandPath}`} to={runsLink({ ...filter, toolName: selectedTool ?? undefined })} className="flex flex-wrap items-center justify-between gap-4 py-3 hover:bg-muted/20">
+                  <div className="min-w-0"><div className="text-sm font-medium">{command.executable || "Executable unavailable"}</div><div className="truncate text-xs text-muted-foreground" title={command.commandPath}>{command.commandPath || "Command path unavailable"}{command.truncated ? "…" : ""}</div></div>
+                  <div className="text-right text-xs text-muted-foreground"><div>{formatNumber(command.callCount)} calls · {formatNumber(command.runCount)} runs</div><div>{formatPercent(command.callCount > 0 ? command.successCount / command.callCount : 0)} success</div></div>
+                </Link>
+              ))}
+            </div>
           ) : modelsLoading ? (
             <div className="h-[200px] sm:h-[250px] animate-pulse rounded bg-muted/20" />
           ) : modelsError ? (
@@ -206,11 +218,11 @@ export function ToolUsageAnalytics() {
                       {formatUnknownLabel(model.model)}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {formatNumber(model.runCount)} runs • {formatNumber(model.callCount)} calls
+                      {formatNumber(model.runCount)} runs • {model.callCount === undefined ? "Call count unavailable" : `${formatNumber(model.callCount)} calls`}
                     </div>
                   </div>
                   <div className="text-right text-xs text-muted-foreground">
-                    <div>{formatPercent(model.callCount > 0 ? model.successCount / model.callCount : 0)} success</div>
+                    <div>{model.callCount === undefined ? "Success rate unavailable" : `${formatPercent(model.callCount > 0 ? model.successCount / model.callCount : 0)} success`}</div>
                     <div>{formatNumber(model.failedCount)} failed</div>
                   </div>
                 </div>
@@ -325,8 +337,10 @@ export function ToolUsageAnalytics() {
               </ResponsiveContainer>
             </div>
           )}
+          {chartData.length > 0 && <div className="mt-3 flex flex-wrap gap-2" aria-label="Tool run links">{chartData.map((item) => <Link key={item.name} to={runsLink({ ...filter, toolName: item.name })} className="rounded border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">View {formatUnknownLabel(item.name)} runs</Link>)}</div>}
         </>
       )}
     </div>
+    </MeasureFrame>
   );
 }

@@ -15,9 +15,11 @@ package codecs
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
@@ -45,15 +47,66 @@ type baseCodec struct {
 	// constructor wires this to its own NewTranscriptParser so the shared
 	// [baseCodec.ParseTranscriptLine] can delegate without the base ever
 	// referencing the embedding type.
-	newParser func() runner.TranscriptParser
+	newParser  func() runner.TranscriptParser
+	goalStatus func(string) (string, bool, bool)
 }
 
 // Type satisfies [Codec].
 func (b *baseCodec) Type() domain.RunnerType { return b.runnerType }
 
+// GoalStatusFromTranscriptLine satisfies the optional runner marker seam.
+func (b *baseCodec) GoalStatusFromTranscriptLine(line string) (string, bool, bool) {
+	if b.goalStatus == nil {
+		return "", false, false
+	}
+	return b.goalStatus(line)
+}
+
 // ToolCapabilityMap satisfies [Codec] for codecs that have no native tool
 // declarations. Concrete harness codecs override it with their vocabulary.
 func (b *baseCodec) ToolCapabilityMap() map[string]string { return map[string]string{} }
+
+func (b *baseCodec) ExtractCommand(input map[string]any) CommandExtraction {
+	for _, key := range []string{"command", "cmd", "argv", "args"} {
+		value, ok := input[key]
+		if !ok {
+			continue
+		}
+		if encoded, ok := value.(string); ok {
+			var argv []string
+			if json.Unmarshal([]byte(encoded), &argv) == nil && len(argv) > 0 {
+				return CommandExtraction{Command: strings.Join(argv, " "), Args: argv, LiteralArgs: true}
+			}
+			var nested map[string]any
+			if json.Unmarshal([]byte(encoded), &nested) == nil && len(nested) > 0 {
+				if extracted := b.ExtractCommand(nested); extracted.Command != "" || len(extracted.Args) > 0 {
+					return extracted
+				}
+			}
+			if strings.TrimSpace(encoded) != "" {
+				return CommandExtraction{Command: encoded, Args: strings.Fields(encoded)}
+			}
+		}
+		if values, ok := value.([]any); ok {
+			args := make([]string, 0, len(values))
+			for _, item := range values {
+				arg, ok := item.(string)
+				if !ok {
+					args = nil
+					break
+				}
+				args = append(args, arg)
+			}
+			if len(args) > 0 {
+				return CommandExtraction{Command: strings.Join(args, " "), Args: args, LiteralArgs: true}
+			}
+		}
+		if values, ok := value.([]string); ok && len(values) > 0 {
+			return CommandExtraction{Command: strings.Join(values, " "), Args: values, LiteralArgs: true}
+		}
+	}
+	return CommandExtraction{Reason: "no declared command field"}
+}
 
 // BinaryPath satisfies [Codec].
 func (b *baseCodec) BinaryPath() string { return b.binaryPath }

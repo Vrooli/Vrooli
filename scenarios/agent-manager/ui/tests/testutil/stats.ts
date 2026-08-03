@@ -1,5 +1,6 @@
 import type {
   ErrorPatternsResponse,
+  MeasureMetadata,
   ModelBreakdownResponse,
   ModelUsageRunsResponse,
   ProfileBreakdownResponse,
@@ -10,6 +11,12 @@ import type {
   ToolUsageResponse,
   ToolUsageRunsResponse,
 } from "../../src/features/stats/api/types.js";
+
+export const makeMeasureMetadata = (definitionId = "test.measure"): MeasureMetadata => ({
+  executedQuery: "SELECT durable measure fixture",
+  validity: { state: "available", reason: "fixture has sufficient evidence", sampleSize: 25, largestFingerprintShare: 0 },
+  definitionId,
+});
 
 export function makeSummaryResponse(overrides: Partial<SummaryResponse["summary"]> = {}): SummaryResponse {
   return {
@@ -76,6 +83,7 @@ export function makeModelBreakdownResponse(
         totalTokens: 9_500,
       },
     ],
+    measure: makeMeasureMetadata("throughput.model_breakdown"),
     ...overrides,
   };
 }
@@ -110,6 +118,7 @@ export function makeRunnerBreakdownResponse(
         avgDurationMs: 15_000,
       },
     ],
+    measure: makeMeasureMetadata("throughput.runner_breakdown"),
     ...overrides,
   };
 }
@@ -144,6 +153,7 @@ export function makeProfileBreakdownResponse(
         totalCostUsd: 0.5,
       },
     ],
+    measure: makeMeasureMetadata("throughput.profile_breakdown"),
     ...overrides,
   };
 }
@@ -171,6 +181,7 @@ export function makeTimeSeriesResponse(
         avgDurationMs: 90_000,
       },
     ],
+    measure: makeMeasureMetadata("throughput.terminal_run_trend"),
     ...overrides,
   };
 }
@@ -193,6 +204,7 @@ export function makeErrorPatternsResponse(
         sampleRunId: "run-error-87654321",
       },
     ],
+    measure: makeMeasureMetadata("friction.error_patterns"),
     ...overrides,
   };
 }
@@ -214,6 +226,7 @@ export function makeModelUsageRunsResponse(
         totalTokens: 18_500,
       },
     ],
+    measure: makeMeasureMetadata("throughput.model_breakdown"),
     ...overrides,
   };
 }
@@ -234,6 +247,7 @@ export function makeToolUsageResponse(overrides: Partial<ToolUsageResponse> = {}
         failedCount: 0,
       },
     ],
+    measure: makeMeasureMetadata("friction.tool_usage"),
     ...overrides,
   };
 }
@@ -257,6 +271,7 @@ export function makeToolUsageRunsResponse(
         failedCount: 2,
       },
     ],
+    measure: makeMeasureMetadata("friction.tool_usage"),
     ...overrides,
   };
 }
@@ -281,6 +296,7 @@ export function makeToolUsageModelsResponse(
         failedCount: 0,
       },
     ],
+    measure: makeMeasureMetadata("friction.tool_usage"),
     ...overrides,
   };
 }

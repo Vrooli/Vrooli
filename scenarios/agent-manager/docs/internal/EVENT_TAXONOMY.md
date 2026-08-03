@@ -53,6 +53,12 @@ emission used before — those `EmitSystemEvent` calls have been deleted.
 | `checkpoint.failure`           | `CheckpointFailurePayload`           | `checkpoint.go` "failed to persist phase update", "failed to save checkpoint" |
 | `retry.attempt`                | `RetryAttemptPayload`                | (reserved — Phase 2 emits)                                     |
 
+Imported conversation messages with `role: "user"` are retained as the
+typed `operator_turn` evidence kind. Live runs keep prompt suppression; the
+operator-turn kind is reserved for historical user/operator input so
+intervention and awaiting-human measures can distinguish it from assistant
+messages.
+
 ## Payload schemas (v1)
 
 ### `runner.fallback.attempted`

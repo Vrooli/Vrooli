@@ -69,7 +69,7 @@ func (a *App) runReport(args []string) error {
 			State string `json:"state"`
 		} `json:"receipts_availability"`
 		Diff struct {
-			Files     int   `json:"files"`
+			Files int `json:"files"`
 			// Proto JSON encodes int64 fields as decimal strings. Keep this
 			// decoder aligned with the report endpoint rather than relying on
 			// the historical numeric-only test fixture.
@@ -142,6 +142,7 @@ func (a *App) runStats(args []string) error {
 	support.NextSteps("agent-manager run report <run-id>", "agent-manager findings list")
 	return nil
 }
+
 func (a *App) runResult(args []string) error {
 	if len(args) != 1 {
 		return fmt.Errorf("usage: agent-manager run result <id>")
@@ -184,6 +185,7 @@ func (a *App) runResult(args []string) error {
 	support.NextSteps(fmt.Sprintf("agent-manager run messages %s", args[0]), fmt.Sprintf("agent-manager run report %s", args[0]))
 	return nil
 }
+
 func (a *App) runTools(args []string) error {
 	fs := flag.NewFlagSet("run tools", flag.ContinueOnError)
 	failed := fs.Bool("failed", false, "Show failed tool events only")
@@ -242,6 +244,7 @@ func (a *App) runTools(args []string) error {
 	support.NextSteps(fmt.Sprintf("agent-manager run events %s", id), fmt.Sprintf("agent-manager run report %s", id))
 	return nil
 }
+
 func (a *App) runMessages(args []string) error {
 	fs := flag.NewFlagSet("run messages", flag.ContinueOnError)
 	all := fs.Bool("all", false, "Include evidence-only messages")

@@ -208,33 +208,37 @@ func RunToProto(r *domain.Run) *pb.Run {
 	}
 
 	run := &pb.Run{
-		Id:                   UUIDToString(r.ID),
-		TaskId:               UUIDToString(r.TaskID),
-		Tag:                  r.Tag,
-		SessionId:            r.SessionID,
-		RunMode:              RunModeToProto(r.RunMode),
-		ExecutionMode:        ExecutionModeToProto(r.ExecutionMode),
-		WebConsoleSessionId:  r.WebConsoleSessionID,
-		WebConsoleSessionUrl: r.WebConsoleSessionURL,
-		Status:               RunStatusToProto(r.Status),
-		Phase:                RunPhaseToProto(r.Phase),
-		ProgressPercent:      int32(r.ProgressPercent),
-		IdempotencyKey:       r.IdempotencyKey,
-		ErrorMsg:             r.ErrorMsg,
-		ApprovalState:        ApprovalStateToProto(r.ApprovalState),
-		ApprovedBy:           r.ApprovedBy,
-		DiffPath:             r.DiffPath,
-		LogPath:              r.LogPath,
-		ChangedFiles:         int32(r.ChangedFiles),
-		TotalSizeBytes:       r.TotalSizeBytes,
-		CommitHash:           r.CommitHash,
-		PromptPreview:        r.PromptPreview,
-		RequestedModel:       r.RequestedModel,
-		ActualModel:          r.ActualModel,
-		FinalizationStatus:   RunFinalizationStatusToProto(r.FinalizationStatus),
-		FinalizationError:    r.FinalizationError,
-		CreatedAt:            TimestampToProto(r.CreatedAt),
-		UpdatedAt:            TimestampToProto(r.UpdatedAt),
+		Id:                    UUIDToString(r.ID),
+		TaskId:                UUIDToString(r.TaskID),
+		Tag:                   r.Tag,
+		SessionId:             r.SessionID,
+		RunMode:               RunModeToProto(r.RunMode),
+		ExecutionMode:         ExecutionModeToProto(r.ExecutionMode),
+		WebConsoleSessionId:   r.WebConsoleSessionID,
+		WebConsoleSessionUrl:  r.WebConsoleSessionURL,
+		Status:                RunStatusToProto(r.Status),
+		Phase:                 RunPhaseToProto(r.Phase),
+		ProgressPercent:       int32(r.ProgressPercent),
+		IdempotencyKey:        r.IdempotencyKey,
+		ErrorMsg:              r.ErrorMsg,
+		ApprovalState:         ApprovalStateToProto(r.ApprovalState),
+		ApprovedBy:            r.ApprovedBy,
+		DiffPath:              r.DiffPath,
+		LogPath:               r.LogPath,
+		ChangedFiles:          int32(r.ChangedFiles),
+		TotalSizeBytes:        r.TotalSizeBytes,
+		CommitHash:            r.CommitHash,
+		PromptPreview:         r.PromptPreview,
+		RequestedModel:        r.RequestedModel,
+		ActualModel:           r.ActualModel,
+		FinalizationStatus:    RunFinalizationStatusToProto(r.FinalizationStatus),
+		FinalizationError:     r.FinalizationError,
+		CreatedAt:             TimestampToProto(r.CreatedAt),
+		UpdatedAt:             TimestampToProto(r.UpdatedAt),
+		ImportSourceHarness:   r.ImportSourceHarness,
+		ImportSourceSessionId: r.ImportSourceSessionID,
+		GoalId:                r.GoalID,
+		GoalStatus:            r.GoalStatus,
 	}
 
 	if r.AgentProfileID != nil {
@@ -268,6 +272,10 @@ func RunToProto(r *domain.Run) *pb.Run {
 	}
 	if r.FinalizedAt != nil {
 		run.FinalizedAt = TimestampToProto(*r.FinalizedAt)
+	}
+	if r.ImportedAt != nil {
+		t := TimestampToProto(*r.ImportedAt)
+		run.ImportedAt = t
 	}
 
 	if r.AwaitHandle != nil {
@@ -357,30 +365,34 @@ func RunFromProto(r *pb.Run) *domain.Run {
 	}
 
 	run := &domain.Run{
-		ID:                   UUIDFromString(r.Id),
-		TaskID:               UUIDFromString(r.TaskId),
-		Tag:                  r.Tag,
-		SessionID:            r.SessionId,
-		RunMode:              RunModeFromProto(r.RunMode),
-		ExecutionMode:        ExecutionModeFromProto(r.ExecutionMode),
-		WebConsoleSessionID:  r.WebConsoleSessionId,
-		WebConsoleSessionURL: r.WebConsoleSessionUrl,
-		Status:               RunStatusFromProto(r.Status),
-		Phase:                RunPhaseFromProto(r.Phase),
-		ProgressPercent:      int(r.ProgressPercent),
-		IdempotencyKey:       r.IdempotencyKey,
-		ErrorMsg:             r.ErrorMsg,
-		ApprovalState:        ApprovalStateFromProto(r.ApprovalState),
-		ApprovedBy:           r.ApprovedBy,
-		FinalizationStatus:   RunFinalizationStatusFromProto(r.FinalizationStatus),
-		FinalizationError:    r.FinalizationError,
-		DiffPath:             r.DiffPath,
-		LogPath:              r.LogPath,
-		ChangedFiles:         int(r.ChangedFiles),
-		TotalSizeBytes:       r.TotalSizeBytes,
-		CommitHash:           r.CommitHash,
-		CreatedAt:            TimestampFromProto(r.CreatedAt),
-		UpdatedAt:            TimestampFromProto(r.UpdatedAt),
+		ID:                    UUIDFromString(r.Id),
+		TaskID:                UUIDFromString(r.TaskId),
+		Tag:                   r.Tag,
+		SessionID:             r.SessionId,
+		RunMode:               RunModeFromProto(r.RunMode),
+		ExecutionMode:         ExecutionModeFromProto(r.ExecutionMode),
+		WebConsoleSessionID:   r.WebConsoleSessionId,
+		WebConsoleSessionURL:  r.WebConsoleSessionUrl,
+		Status:                RunStatusFromProto(r.Status),
+		Phase:                 RunPhaseFromProto(r.Phase),
+		ProgressPercent:       int(r.ProgressPercent),
+		IdempotencyKey:        r.IdempotencyKey,
+		ErrorMsg:              r.ErrorMsg,
+		ApprovalState:         ApprovalStateFromProto(r.ApprovalState),
+		ApprovedBy:            r.ApprovedBy,
+		FinalizationStatus:    RunFinalizationStatusFromProto(r.FinalizationStatus),
+		FinalizationError:     r.FinalizationError,
+		DiffPath:              r.DiffPath,
+		LogPath:               r.LogPath,
+		ChangedFiles:          int(r.ChangedFiles),
+		TotalSizeBytes:        r.TotalSizeBytes,
+		CommitHash:            r.CommitHash,
+		CreatedAt:             TimestampFromProto(r.CreatedAt),
+		UpdatedAt:             TimestampFromProto(r.UpdatedAt),
+		ImportSourceHarness:   r.ImportSourceHarness,
+		ImportSourceSessionID: r.ImportSourceSessionId,
+		GoalID:                r.GoalId,
+		GoalStatus:            r.GoalStatus,
 	}
 
 	// Handle optional timestamps (pointer fields)
@@ -403,6 +415,10 @@ func RunFromProto(r *pb.Run) *domain.Run {
 	if r.FinalizedAt != nil {
 		t := TimestampFromProto(r.FinalizedAt)
 		run.FinalizedAt = &t
+	}
+	if r.ImportedAt != nil {
+		t := TimestampFromProto(r.ImportedAt)
+		run.ImportedAt = &t
 	}
 
 	if r.AwaitHandle != nil {
@@ -496,6 +512,9 @@ func RunConfigToProto(c *domain.RunConfig) *pb.RunConfig {
 		SandboxConfig:         SandboxConfigToProto(c.SandboxConfig),
 		AllowedPaths:          c.AllowedPaths,
 		DeniedPaths:           c.DeniedPaths,
+		ManifestIndexSnapshot: c.ManifestIndexSnapshot,
+		TranscriptCodec:       c.TranscriptCodec,
+		TranscriptCodecScore:  c.TranscriptCodecScore,
 	}
 }
 
@@ -523,6 +542,9 @@ func RunConfigFromProto(c *pb.RunConfig) *domain.RunConfig {
 		SandboxConfig:         SandboxConfigFromProto(c.SandboxConfig),
 		AllowedPaths:          c.AllowedPaths,
 		DeniedPaths:           c.DeniedPaths,
+		ManifestIndexSnapshot: c.ManifestIndexSnapshot,
+		TranscriptCodec:       c.TranscriptCodec,
+		TranscriptCodecScore:  c.TranscriptCodecScore,
 	}
 }
 

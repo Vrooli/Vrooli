@@ -27,6 +27,14 @@ definition and is unchanged.
 
 ## Service manifest block
 
+### Cross-scenario command semantics
+
+A CLI manifest may opt into generic cross-scenario investigation by adding a
+`semantics` object to a command. Its required `kind` is one of `query`,
+`verify`, `guidance`, or `mutate`; an optional `verdict` identifies pass/fail
+fields in command output. The block is optional, so undeclared commands remain
+available but their semantic measures are unavailable rather than guessed.
+
 ## Canonical tool restrictions
 
 Profiles use the runner-neutral canonical tools `read`, `write`, `edit`,

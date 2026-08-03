@@ -17,7 +17,7 @@ export function useModelBreakdown(options: UseModelBreakdownOptions = {}) {
   const filter = options.filter ?? defaultFilter;
   const limit = options.limit ?? 10;
 
-  return useQuery<DurableRunBreakdown, Error, ModelBreakdownResponse>({
+  return useQuery<DurableRunBreakdown, Error, ModelBreakdownResponse & { measure: DurableRunBreakdown }>({
     queryKey: [...statsQueryKeys.models(filter, limit), "durable"] as const,
     queryFn: () => fetchDurableModelBreakdown(filter),
     select: (result) => ({
@@ -29,6 +29,7 @@ export function useModelBreakdown(options: UseModelBreakdownOptions = {}) {
         totalCostUsd: row.totalCostUsd,
         totalTokens: row.totalTokens,
       })),
+      measure: result,
     }),
     enabled: options.enabled ?? true,
     staleTime: options.staleTime ?? 30_000,
@@ -54,7 +55,7 @@ export function useModelUsageRuns(options: UseModelUsageRunsOptions = {}) {
   return useQuery<DurableCohort, Error, ModelUsageRunsResponse>({
     queryKey: [...statsQueryKeys.modelRuns(filter, limit), "durable"] as const,
     queryFn: () => fetchDurableModelCohort(baseFilter, model, limit),
-    select: (result) => ({ runs: result.runIds.map((runId) => ({ runId, taskId: "", taskTitle: "Run", profileName: "Durable cohort", createdAt: "", status: "unknown", totalCostUsd: 0, totalTokens: 0 })) }),
+    select: (result) => ({ runs: result.rows.map((run) => ({ runId: run.runId, taskTitle: run.taskTitle, profileName: run.profileName, createdAt: run.createdAt, status: run.status, model: run.model, totalTokens: run.totalTokens, totalChargeMicroUsd: run.totalChargeMicroUsd, chargeBasis: run.chargeBasis })) }),
     enabled: options.enabled ?? !!model,
     staleTime: options.staleTime ?? 30_000,
     refetchInterval: 60_000,

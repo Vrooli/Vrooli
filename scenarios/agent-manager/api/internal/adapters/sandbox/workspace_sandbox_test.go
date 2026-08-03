@@ -639,6 +639,18 @@ func TestWorkspaceSandboxProvider_IsAvailable(t *testing.T) {
 	}
 }
 
+func TestWorkspaceSandboxProvider_IsAvailableReportsMissingEndpoint(t *testing.T) {
+	provider := sandbox.NewWorkspaceSandboxProvider("")
+
+	available, reason := provider.IsAvailable(context.Background())
+	if available {
+		t.Fatal("provider with no endpoint reported available")
+	}
+	if reason != "workspace-sandbox provider unavailable: endpoint is not configured" {
+		t.Fatalf("reason = %q", reason)
+	}
+}
+
 // TestWorkspaceSandboxProvider_ApplyAtRunEnd is a shape-parity contract test
 // for the workspace-sandbox /apply-at-run-end endpoint. The fake server
 // asserts the exact wire shape locked by

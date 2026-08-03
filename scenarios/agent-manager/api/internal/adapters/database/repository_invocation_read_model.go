@@ -16,11 +16,57 @@ import (
 type invocationReadModelRepository struct{ db *DB }
 
 var (
-	_ invocationreadmodel.Store           = (*invocationReadModelRepository)(nil)
-	_ invocationreadmodel.RunStore        = (*invocationReadModelRepository)(nil)
-	_ invocationreadmodel.WorkloadStore   = (*invocationReadModelRepository)(nil)
-	_ invocationreadmodel.ProjectionStore = (*invocationReadModelRepository)(nil)
+	_ invocationreadmodel.Store                 = (*invocationReadModelRepository)(nil)
+	_ invocationreadmodel.RunStore              = (*invocationReadModelRepository)(nil)
+	_ invocationreadmodel.WorkloadStore         = (*invocationReadModelRepository)(nil)
+	_ invocationreadmodel.ProjectionStore       = (*invocationReadModelRepository)(nil)
+	_ invocationreadmodel.CohortDefinitionStore = (*invocationReadModelRepository)(nil)
 )
+
+func (r *invocationReadModelRepository) DefineCohort(ctx context.Context, definition invocationreadmodel.CohortDefinition) error {
+	if strings.TrimSpace(definition.Name) == "" || strings.TrimSpace(definition.FilterJSON) == "" || strings.TrimSpace(definition.ClassifierVersion) == "" {
+		return errors.New("cohort name, filter, and classifier version are required")
+	}
+	_, err := r.db.ExecContext(ctx, `INSERT INTO invocation_cohort_definitions (name,filter_json,classifier_version,created_at,change_binding) VALUES (?,?,?,?,?) ON CONFLICT(name) DO UPDATE SET filter_json=excluded.filter_json,classifier_version=excluded.classifier_version,change_binding=excluded.change_binding`, definition.Name, definition.FilterJSON, definition.ClassifierVersion, SQLiteTime(definition.CreatedAt), definition.ChangeBinding)
+	return err
+}
+
+func (r *invocationReadModelRepository) ListCohorts(ctx context.Context) ([]invocationreadmodel.CohortDefinition, error) {
+	rows, err := r.db.QueryxContext(ctx, `SELECT name,filter_json,classifier_version,created_at,change_binding FROM invocation_cohort_definitions ORDER BY name`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := []invocationreadmodel.CohortDefinition{}
+	for rows.Next() {
+		var item invocationreadmodel.CohortDefinition
+		var created SQLiteTime
+		if err := rows.Scan(&item.Name, &item.FilterJSON, &item.ClassifierVersion, &created, &item.ChangeBinding); err != nil {
+			return nil, err
+		}
+		item.CreatedAt = created.Time()
+		result = append(result, item)
+	}
+	return result, rows.Err()
+}
+
+func (r *invocationReadModelRepository) GetCohortDefinition(ctx context.Context, name string) (*invocationreadmodel.CohortDefinition, error) {
+	var item invocationreadmodel.CohortDefinition
+	var created SQLiteTime
+	if err := r.db.QueryRowContext(ctx, `SELECT name,filter_json,classifier_version,created_at,change_binding FROM invocation_cohort_definitions WHERE name=?`, name).Scan(&item.Name, &item.FilterJSON, &item.ClassifierVersion, &created, &item.ChangeBinding); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	item.CreatedAt = created.Time()
+	return &item, nil
+}
+
+func (r *invocationReadModelRepository) DeleteCohort(ctx context.Context, name string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM invocation_cohort_definitions WHERE name=?`, name)
+	return err
+}
 
 func nullableSQLiteTime(value *time.Time) any {
 	if value == nil {
@@ -184,7 +230,7 @@ func (r *invocationReadModelRepository) replaceFactsTx(ctx context.Context, tx s
 		return fmt.Errorf("clear read-model facts: %w", err)
 	}
 	for _, fact := range facts {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO invocation_read_model_facts (run_id,call_event_id,result_event_id,tool_call_id,occurred_at,time_basis,tool_name,capability,intent_class,executable,command_path,ownership,ownership_reason,segment_index,segment_count,catalog_snapshot,outcome,pairing_basis,failure_signature,signature_truncated,retry_of_call_event_id,help_recovery,fingerprint,availability,classifier_version,profile_id,runner_type,model,tag,run_status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, fact.RunID, fact.CallEventID, fact.ResultEventID, fact.ToolCallID, SQLiteTime(fact.OccurredAt), fact.TimeBasis, fact.ToolName, fact.Capability, fact.IntentClass, fact.Executable, fact.CommandPath, fact.Ownership, fact.OwnershipReason, fact.SegmentIndex, fact.SegmentCount, fact.CatalogSnapshot, fact.Outcome, fact.PairingBasis, fact.FailureSignature, fact.SignatureTruncated, fact.RetryOfCallEventID, fact.HelpRecovery, fact.Fingerprint, fact.Availability, fact.Version, fact.ProfileID, fact.RunnerType, fact.Model, fact.Tag, fact.RunStatus); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO invocation_read_model_facts (run_id,call_event_id,result_event_id,tool_call_id,occurred_at,time_basis,tool_name,capability,intent_class,executable,command_path,ownership,ownership_reason,segment_index,segment_count,catalog_snapshot,outcome,pairing_basis,failure_signature,signature_truncated,retry_of_call_event_id,help_recovery,fingerprint,availability,classifier_version,profile_id,runner_type,model,tag,run_status,semantics_kind,semantics_verdict) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, fact.RunID, fact.CallEventID, fact.ResultEventID, fact.ToolCallID, SQLiteTime(fact.OccurredAt), fact.TimeBasis, fact.ToolName, fact.Capability, fact.IntentClass, fact.Executable, fact.CommandPath, fact.Ownership, fact.OwnershipReason, fact.SegmentIndex, fact.SegmentCount, fact.CatalogSnapshot, fact.Outcome, fact.PairingBasis, fact.FailureSignature, fact.SignatureTruncated, fact.RetryOfCallEventID, fact.HelpRecovery, fact.Fingerprint, fact.Availability, fact.Version, fact.ProfileID, fact.RunnerType, fact.Model, fact.Tag, fact.RunStatus, fact.SemanticsKind, fact.SemanticsVerdict); err != nil {
 			return fmt.Errorf("insert read-model fact: %w", err)
 		}
 	}
@@ -261,6 +307,73 @@ func (r *invocationReadModelRepository) Cohort(ctx context.Context, filter invoc
 	return out, rows.Err()
 }
 
+// CohortRows hydrates the selected durable run ids in one bounded query. The
+// optional fields remain nil when their source did not provide a value; the
+// transport can therefore distinguish unavailable billing from a zero charge.
+func (r *invocationReadModelRepository) CohortRows(ctx context.Context, runIDs []string, toolName string) ([]invocationreadmodel.CohortRun, error) {
+	if len(runIDs) == 0 {
+		return []invocationreadmodel.CohortRun{}, nil
+	}
+	placeholders := make([]string, len(runIDs))
+	args := make([]any, 0, len(runIDs)+1)
+	for i, runID := range runIDs {
+		placeholders[i] = "?"
+		args = append(args, runID)
+	}
+	toolSelect := "NULL"
+	if toolName != "" {
+		toolSelect = "(SELECT COUNT(*) FROM invocation_read_model_facts tf WHERE tf.run_id = irm.run_id AND tf.tool_name = ?)"
+		args = append(args, toolName)
+	}
+	query := `SELECT irm.run_id, COALESCE(t.title, ''), irm.profile_id, COALESCE(p.name, ''), irm.status,
+		irm.created_at, irm.model, irm.runner_type, irm.workload_key, irm.total_tokens,
+		CASE WHEN COALESCE(json_extract(r.billing_snapshot, '$.mode'), '') <> '' THEN irm.total_charge_micro_usd ELSE NULL END,
+		NULLIF(json_extract(r.billing_snapshot, '$.basis'), ''), ` + toolSelect + `
+		FROM invocation_read_model_runs irm
+		LEFT JOIN runs r ON r.id = irm.run_id
+		LEFT JOIN tasks t ON t.id = r.task_id
+		LEFT JOIN agent_profiles p ON p.id = irm.profile_id
+		WHERE irm.run_id IN (` + strings.Join(placeholders, ",") + `)
+		ORDER BY irm.created_at DESC`
+	// SQLite binds positional parameters in textual order. The tool-count
+	// parameter occurs before the run-id predicates in the SELECT, so rebuild
+	// the argument list accordingly when that optional expression is present.
+	if toolName != "" {
+		args = append([]any{toolName}, args[:len(args)-1]...)
+	}
+	rows, err := r.db.QueryxContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make([]invocationreadmodel.CohortRun, 0, len(runIDs))
+	for rows.Next() {
+		var row invocationreadmodel.CohortRun
+		var createdAt SQLiteTime
+		var charge sql.NullInt64
+		var basis sql.NullString
+		var toolCalls sql.NullInt64
+		if err := rows.Scan(&row.RunID, &row.TaskTitle, &row.ProfileID, &row.ProfileName, &row.Status, &createdAt, &row.Model, &row.RunnerType, &row.WorkloadKey, &row.TotalTokens, &charge, &basis, &toolCalls); err != nil {
+			return nil, err
+		}
+		row.CreatedAt = createdAt.Time()
+		if charge.Valid {
+			value := charge.Int64
+			row.TotalChargeMicroUSD = &value
+		}
+		if basis.Valid {
+			value := basis.String
+			row.ChargeBasis = &value
+		}
+		if toolCalls.Valid {
+			value := toolCalls.Int64
+			row.ToolCallCount = &value
+		}
+		out = append(out, row)
+	}
+	return out, rows.Err()
+}
+
 func (r *invocationReadModelRepository) Episodes(ctx context.Context, filter invocationreadmodel.Filter, limit int) ([]invocationreadmodel.Episode, error) {
 	if limit <= 0 {
 		limit = 1000
@@ -321,26 +434,32 @@ func (r *invocationReadModelRepository) SelfReportSpansForRun(ctx context.Contex
 
 func (r *invocationReadModelRepository) Metrics(ctx context.Context, filter invocationreadmodel.Filter) (invocationreadmodel.Metrics, error) {
 	where, args := invocationReadModelWhere(filter)
+	fingerprintWhere := where + " AND fingerprint <> ''"
+	if where == "" {
+		fingerprintWhere = " WHERE fingerprint <> ''"
+	}
 	query := `SELECT COUNT(*),
 		SUM(CASE WHEN ownership IN ('resolved', 'project', 'external') THEN 1 ELSE 0 END),
 		SUM(CASE WHEN ownership = 'external' THEN 1 ELSE 0 END),
 		SUM(CASE WHEN ownership = 'not-a-command' THEN 1 ELSE 0 END),
 		SUM(CASE WHEN ownership = 'compound-unresolved' THEN 1 ELSE 0 END),
 		SUM(CASE WHEN ownership = 'unparseable' THEN 1 ELSE 0 END),
-		SUM(CASE WHEN outcome = 'failure' THEN 1 ELSE 0 END),
-		SUM(CASE WHEN retry_of_call_event_id <> '' THEN 1 ELSE 0 END),
-		SUM(CASE WHEN help_recovery = 1 THEN 1 ELSE 0 END),
-		SUM(CASE WHEN fingerprint IN (SELECT fingerprint FROM invocation_read_model_facts` + where + ` GROUP BY fingerprint HAVING COUNT(*) > 1) THEN 1 ELSE 0 END),
-		COALESCE((SELECT MAX(bucket_count) FROM (SELECT COUNT(*) AS bucket_count FROM invocation_read_model_facts` + where + ` GROUP BY fingerprint)), 0)
+		SUM(CASE WHEN ownership IN ('resolved', 'project', 'external') AND outcome IN ('success', 'failure') THEN 1 ELSE 0 END),
+		SUM(CASE WHEN ownership IN ('resolved', 'project', 'external') AND outcome NOT IN ('success', 'failure') THEN 1 ELSE 0 END),
+		SUM(CASE WHEN ownership IN ('resolved', 'project', 'external') AND outcome = 'failure' THEN 1 ELSE 0 END),
+		SUM(CASE WHEN ownership IN ('resolved', 'project', 'external') AND retry_of_call_event_id <> '' THEN 1 ELSE 0 END),
+		SUM(CASE WHEN ownership IN ('resolved', 'project', 'external') AND help_recovery = 1 THEN 1 ELSE 0 END),
+		SUM(CASE WHEN ownership IN ('resolved', 'project', 'external') AND fingerprint <> '' AND fingerprint IN (SELECT fingerprint FROM invocation_read_model_facts` + where + ` GROUP BY fingerprint HAVING COUNT(*) > 1) THEN 1 ELSE 0 END),
+		COALESCE((SELECT MAX(bucket_count) FROM (SELECT COUNT(*) AS bucket_count FROM invocation_read_model_facts` + fingerprintWhere + ` GROUP BY fingerprint)), 0)
 		FROM invocation_read_model_facts` + where
 	// The repeated-fingerprint subquery has the same predicate, so bind it
 	// twice; it cannot accidentally measure a wider population than the rates.
 	allArgs := append(append(append([]any{}, args...), args...), args...)
-	var values [11]sql.NullInt64
-	if err := r.db.QueryRowContext(ctx, query, allArgs...).Scan(&values[0], &values[1], &values[2], &values[3], &values[4], &values[5], &values[6], &values[7], &values[8], &values[9], &values[10]); err != nil {
+	var values [13]sql.NullInt64
+	if err := r.db.QueryRowContext(ctx, query, allArgs...).Scan(&values[0], &values[1], &values[2], &values[3], &values[4], &values[5], &values[6], &values[7], &values[8], &values[9], &values[10], &values[11], &values[12]); err != nil {
 		return invocationreadmodel.Metrics{}, err
 	}
-	m := invocationreadmodel.Metrics{TotalCalls: values[0].Int64, ResolvedCalls: values[1].Int64, ExternalCalls: values[2].Int64, NotACommandCalls: values[3].Int64, CompoundUnresolvedCalls: values[4].Int64, UnparseableCalls: values[5].Int64, FailedCalls: values[6].Int64, RetryCalls: values[7].Int64, HelpRecoveries: values[8].Int64, RepeatedCalls: values[9].Int64, LargestFingerprintBucket: values[10].Int64}
+	m := invocationreadmodel.Metrics{TotalCalls: values[0].Int64, ResolvedCalls: values[1].Int64, ExternalCalls: values[2].Int64, NotACommandCalls: values[3].Int64, CompoundUnresolvedCalls: values[4].Int64, UnparseableCalls: values[5].Int64, PairedCalls: values[6].Int64, UnpairedCalls: values[7].Int64, FailedCalls: values[8].Int64, RetryCalls: values[9].Int64, HelpRecoveries: values[10].Int64, RepeatedCalls: values[11].Int64, LargestFingerprintBucket: values[12].Int64, ClassifiedBase: values[1].Int64}
 	// `unknown` is retained only for pre-v5 rows; count it as explicitly
 	// unclassified while replay removes it from current projections.
 	var legacyUnknown int64
@@ -349,19 +468,26 @@ func (r *invocationReadModelRepository) Metrics(ctx context.Context, filter invo
 		legacyWhere = where + " AND ownership = 'unknown'"
 	}
 	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM invocation_read_model_facts`+legacyWhere, args...).Scan(&legacyUnknown); err == nil {
-		m.UnclassifiedCalls = m.NotACommandCalls + m.CompoundUnresolvedCalls + m.UnparseableCalls + legacyUnknown
+		m.UnclassifiedCalls = m.CompoundUnresolvedCalls + m.UnparseableCalls + legacyUnknown
 	} else {
-		m.UnclassifiedCalls = m.NotACommandCalls + m.CompoundUnresolvedCalls + m.UnparseableCalls
+		m.UnclassifiedCalls = m.CompoundUnresolvedCalls + m.UnparseableCalls
 	}
+	// not-a-command is an intentional terminal state for tools whose payload
+	// contains no command (Read, Edit, planning, and similar tools). It is
+	// published separately and must not be reported as extractor failure.
 	m.UnknownCalls = m.UnclassifiedCalls
+	m.UnclassifiedCount = m.UnclassifiedCalls
 	if m.TotalCalls > 0 {
-		m.ExternalToolShare = float64(m.ExternalCalls) / float64(m.TotalCalls)
+		m.UnclassifiedShare = float64(m.UnclassifiedCalls) / float64(m.TotalCalls)
 	}
-	if m.TotalCalls > 0 {
-		m.FailureRate = float64(m.FailedCalls) / float64(m.TotalCalls)
-		m.RetryRate = float64(m.RetryCalls) / float64(m.TotalCalls)
-		m.HelpRecoveryRate = float64(m.HelpRecoveries) / float64(m.TotalCalls)
-		m.RepeatedWorkRate = float64(m.RepeatedCalls) / float64(m.TotalCalls)
+	if m.ClassifiedBase > 0 {
+		m.ExternalToolShare = float64(m.ExternalCalls) / float64(m.ClassifiedBase)
+	}
+	if m.ClassifiedBase > 0 {
+		m.FailureRate = float64(m.FailedCalls) / float64(m.ClassifiedBase)
+		m.RetryRate = float64(m.RetryCalls) / float64(m.ClassifiedBase)
+		m.HelpRecoveryRate = float64(m.HelpRecoveries) / float64(m.ClassifiedBase)
+		m.RepeatedWorkRate = float64(m.RepeatedCalls) / float64(m.ClassifiedBase)
 	}
 	return m, nil
 }
@@ -398,6 +524,45 @@ func (r *invocationReadModelRepository) RunMetrics(ctx context.Context, filter i
 		m.FileRereadRate = float64(m.FileRereads) / float64(m.ReadCalls)
 	}
 	return m, nil
+}
+
+func (r *invocationReadModelRepository) HistoryCoverage(ctx context.Context) (time.Time, int64, error) {
+	var floor SQLiteTime
+	if err := r.db.GetContext(ctx, &floor, `SELECT MIN(created_at) FROM invocation_read_model_runs`); err != nil {
+		return time.Time{}, 0, err
+	}
+	if floor.Time().IsZero() {
+		return time.Time{}, 0, nil
+	}
+	var outside int64
+	if err := r.db.GetContext(ctx, &outside, `SELECT COUNT(*) FROM runs WHERE created_at < ? AND NOT EXISTS (SELECT 1 FROM invocation_read_model_runs rm WHERE rm.run_id = runs.id)`, floor); err != nil {
+		return time.Time{}, 0, err
+	}
+	return floor.Time(), outside, nil
+}
+
+func (r *invocationReadModelRepository) ChargeByBasis(ctx context.Context, filter invocationreadmodel.Filter) ([]invocationreadmodel.ChargeByBasis, error) {
+	where, args := invocationReadModelRunWhere(filter)
+	query := `WITH filtered AS (SELECT invocation_read_model_runs.* FROM invocation_read_model_runs` + where + `)
+		SELECT COALESCE(NULLIF(json_extract(r.billing_snapshot, '$.basis'), ''), 'unknown'),
+		COUNT(*), COALESCE(SUM(filtered.total_charge_micro_usd), 0), COALESCE(SUM(filtered.total_tokens), 0),
+		COALESCE(NULLIF(json_extract(r.billing_snapshot, '$.reason'), ''), '')
+		FROM filtered LEFT JOIN runs r ON r.id = filtered.run_id
+		GROUP BY 1, 5 ORDER BY 2 DESC, 1 ASC`
+	rows, err := r.db.QueryxContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := []invocationreadmodel.ChargeByBasis{}
+	for rows.Next() {
+		var row invocationreadmodel.ChargeByBasis
+		if err := rows.Scan(&row.Basis, &row.RunCount, &row.ChargeMicroUSD, &row.TokenCount, &row.ChargeReason); err != nil {
+			return nil, err
+		}
+		result = append(result, row)
+	}
+	return result, rows.Err()
 }
 
 func (r *invocationReadModelRepository) RunDurationStatistics(ctx context.Context, filter invocationreadmodel.Filter) (invocationreadmodel.RunDurationStatistics, error) {
@@ -464,6 +629,7 @@ func (r *invocationReadModelRepository) RunBreakdown(ctx context.Context, filter
 		SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed_count,
 		COALESCE(SUM(total_cost_usd), 0) AS total_cost_usd,
 		COALESCE(SUM(total_tokens), 0) AS total_tokens,
+		COALESCE(SUM(total_charge_micro_usd), 0) AS total_charge_micro_usd,
 		COALESCE(AVG(CASE WHEN started_at IS NOT NULL AND ended_at IS NOT NULL THEN duration_ms END), 0) AS avg_duration_ms,
 		COALESCE(SUM(total_tokens) / NULLIF(SUM(CASE WHEN status = 'complete' THEN 1 ELSE 0 END), 0), 0) AS consumption_per_successful_completion,
 		COALESCE(SUM(CASE WHEN status = 'complete' THEN 1 ELSE 0 END) * 1.0 / NULLIF(COUNT(*), 0), 0) AS completion_rate
@@ -476,7 +642,7 @@ func (r *invocationReadModelRepository) RunBreakdown(ctx context.Context, filter
 	out := []invocationreadmodel.RunBreakdownRow{}
 	for rows.Next() {
 		var row invocationreadmodel.RunBreakdownRow
-		if err := rows.Scan(&row.Value, &row.Key, &row.RunCount, &row.SuccessCount, &row.FailedCount, &row.TotalCostUSD, &row.TotalTokens, &row.AvgDurationMS, &row.ConsumptionPerSuccessfulCompletion, &row.CompletionRate); err != nil {
+		if err := rows.Scan(&row.Value, &row.Key, &row.RunCount, &row.SuccessCount, &row.FailedCount, &row.TotalCostUSD, &row.TotalTokens, &row.TotalChargeMicroUSD, &row.AvgDurationMS, &row.ConsumptionPerSuccessfulCompletion, &row.CompletionRate); err != nil {
 			return nil, err
 		}
 		out = append(out, row)
@@ -552,6 +718,45 @@ func (r *invocationReadModelRepository) ToolUsage(ctx context.Context, filter in
 		out = append(out, row)
 	}
 	return out, rows.Err()
+}
+
+func (r *invocationReadModelRepository) ToolCommandBreakdown(ctx context.Context, filter invocationreadmodel.Filter, limit int) ([]invocationreadmodel.ToolCommandRow, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	where, args := invocationReadModelWhere(filter)
+	args = append(args, limit)
+	query := `SELECT COALESCE(executable, ''), COALESCE(command_path, ''), COUNT(*),
+		SUM(CASE WHEN outcome = 'success' THEN 1 ELSE 0 END),
+		SUM(CASE WHEN outcome = 'failure' THEN 1 ELSE 0 END),
+		COUNT(DISTINCT run_id)
+		FROM invocation_read_model_facts` + where + `
+		GROUP BY executable, command_path ORDER BY COUNT(*) DESC, executable ASC, command_path ASC LIMIT ?`
+	rows, err := r.db.QueryxContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make([]invocationreadmodel.ToolCommandRow, 0, limit)
+	for rows.Next() {
+		var row invocationreadmodel.ToolCommandRow
+		var executable, commandPath string
+		if err := rows.Scan(&executable, &commandPath, &row.CallCount, &row.SuccessCount, &row.FailedCount, &row.RunCount); err != nil {
+			return nil, err
+		}
+		row.Executable, row.CommandPath = truncateCommandField(executable), truncateCommandField(commandPath)
+		row.Truncated = row.Executable != executable || row.CommandPath != commandPath
+		out = append(out, row)
+	}
+	return out, rows.Err()
+}
+
+func truncateCommandField(value string) string {
+	const maxBytes = 256
+	if len(value) <= maxBytes {
+		return value
+	}
+	return value[:maxBytes]
 }
 
 func (r *invocationReadModelRepository) CapabilityUsage(ctx context.Context, filter invocationreadmodel.Filter, limit int) ([]invocationreadmodel.CapabilityUsageRow, error) {
@@ -715,6 +920,7 @@ func invocationReadModelWhere(filter invocationreadmodel.Filter) (string, []any)
 	add("workload_key", filter.WorkloadKey)
 	add("run_status", filter.RunStatus)
 	add("tool_name", filter.ToolName)
+	add("classifier_version", filter.ClassifierVersion)
 	if filter.TagPrefix != "" {
 		clauses = append(clauses, "tag LIKE ?")
 		args = append(args, filter.TagPrefix+"%")
@@ -748,6 +954,10 @@ func invocationReadModelRunWhere(filter invocationreadmodel.Filter) (string, []a
 	add("status", filter.RunStatus)
 	if filter.TagPrefix != "" {
 		clauses, args = append(clauses, "tag LIKE ?"), append(args, filter.TagPrefix+"%")
+	}
+	if filter.ErrorCode != "" {
+		clauses = append(clauses, "EXISTS (SELECT 1 FROM invocation_read_model_errors e WHERE e.run_id = invocation_read_model_runs.run_id AND e.error_code = ?)")
+		args = append(args, filter.ErrorCode)
 	}
 	invocationClauses, invocationArgs := []string{"f.run_id = invocation_read_model_runs.run_id"}, []any{}
 	for _, predicate := range []struct{ column, value string }{{"ownership", filter.Ownership}, {"outcome", filter.Outcome}, {"executable", filter.Executable}, {"fingerprint", filter.Fingerprint}, {"tool_name", filter.ToolName}} {
@@ -824,6 +1034,9 @@ func invocationReadModelErrorWhere(filter invocationreadmodel.Filter) (string, [
 			clauses, args = append(clauses, predicate.column+" = ?"), append(args, predicate.value)
 		}
 	}
+	if filter.ErrorCode != "" {
+		clauses, args = append(clauses, "error_code = ?"), append(args, filter.ErrorCode)
+	}
 	if filter.TagPrefix != "" {
 		clauses, args = append(clauses, "tag LIKE ?"), append(args, filter.TagPrefix+"%")
 	}
@@ -870,7 +1083,7 @@ func invocationReadModelFindingWhere(filter invocationreadmodel.Filter) (string,
 }
 
 func (r *invocationReadModelRepository) Facts(ctx context.Context, runID string) ([]invocationreadmodel.Fact, error) {
-	rows, err := r.db.QueryxContext(ctx, `SELECT run_id,classifier_version,call_event_id,COALESCE(result_event_id,''),COALESCE(tool_call_id,''),occurred_at,time_basis,tool_name,COALESCE(capability,'other'),COALESCE(intent_class,''),COALESCE(executable,''),COALESCE(command_path,''),ownership,COALESCE(ownership_reason,''),COALESCE(segment_index,0),COALESCE(segment_count,1),COALESCE(catalog_snapshot,''),outcome,COALESCE(pairing_basis,'unpaired'),COALESCE(failure_signature,''),COALESCE(signature_truncated,0),COALESCE(retry_of_call_event_id,''),help_recovery,fingerprint,availability,profile_id,runner_type,model,tag,run_status FROM invocation_read_model_facts WHERE run_id=? ORDER BY occurred_at, call_event_id, segment_index`, runID)
+	rows, err := r.db.QueryxContext(ctx, `SELECT run_id,classifier_version,call_event_id,COALESCE(result_event_id,''),COALESCE(tool_call_id,''),occurred_at,time_basis,tool_name,COALESCE(capability,'other'),COALESCE(intent_class,''),COALESCE(executable,''),COALESCE(command_path,''),ownership,COALESCE(ownership_reason,''),COALESCE(segment_index,0),COALESCE(segment_count,1),COALESCE(catalog_snapshot,''),outcome,COALESCE(pairing_basis,'unpaired'),COALESCE(failure_signature,''),COALESCE(signature_truncated,0),COALESCE(retry_of_call_event_id,''),help_recovery,fingerprint,availability,profile_id,runner_type,model,tag,run_status,COALESCE(semantics_kind,''),COALESCE(semantics_verdict,'') FROM invocation_read_model_facts WHERE run_id=? ORDER BY occurred_at, call_event_id, segment_index`, runID)
 	if err != nil {
 		return nil, err
 	}
@@ -879,7 +1092,7 @@ func (r *invocationReadModelRepository) Facts(ctx context.Context, runID string)
 	for rows.Next() {
 		var f invocationreadmodel.Fact
 		var occurredAt SQLiteTime
-		if err := rows.Scan(&f.RunID, &f.Version, &f.CallEventID, &f.ResultEventID, &f.ToolCallID, &occurredAt, &f.TimeBasis, &f.ToolName, &f.Capability, &f.IntentClass, &f.Executable, &f.CommandPath, &f.Ownership, &f.OwnershipReason, &f.SegmentIndex, &f.SegmentCount, &f.CatalogSnapshot, &f.Outcome, &f.PairingBasis, &f.FailureSignature, &f.SignatureTruncated, &f.RetryOfCallEventID, &f.HelpRecovery, &f.Fingerprint, &f.Availability, &f.ProfileID, &f.RunnerType, &f.Model, &f.Tag, &f.RunStatus); err != nil {
+		if err := rows.Scan(&f.RunID, &f.Version, &f.CallEventID, &f.ResultEventID, &f.ToolCallID, &occurredAt, &f.TimeBasis, &f.ToolName, &f.Capability, &f.IntentClass, &f.Executable, &f.CommandPath, &f.Ownership, &f.OwnershipReason, &f.SegmentIndex, &f.SegmentCount, &f.CatalogSnapshot, &f.Outcome, &f.PairingBasis, &f.FailureSignature, &f.SignatureTruncated, &f.RetryOfCallEventID, &f.HelpRecovery, &f.Fingerprint, &f.Availability, &f.ProfileID, &f.RunnerType, &f.Model, &f.Tag, &f.RunStatus, &f.SemanticsKind, &f.SemanticsVerdict); err != nil {
 			return nil, err
 		}
 		f.OccurredAt = occurredAt.Time()

@@ -96,6 +96,7 @@ func (a *App) dependencies() support.Dependencies {
 		Health:           a.cmdHealth,
 		Events:           a.cmdEvents,
 		Findings:         a.cmdFindings,
+		Subscription:     a.cmdSubscription,
 		ScenarioSmoke:    a.cmdScenarioSmoke,
 	}
 }
@@ -112,6 +113,7 @@ func (a *App) runCommands() []cliapp.Command {
 		{"stats", "Show filtered aggregate run statistics", "agent-manager run stats [--profile UUID] [--since RFC3339] [--tag-prefix prefix]", a.runStats},
 		{"result", "Show final-output and structured-result provenance", "agent-manager run result <id>", a.runResult},
 		{"cohort-report", "Show ranked bounded cohort evidence", "agent-manager run cohort-report --run-ids id1,id2 [--json]", a.runCohortReport},
+		{"goal-cohort", "Fold goal progression across a durable cohort", "agent-manager run goal-cohort --cohort name [--json]", a.runGoalCohort},
 		{"cohort-compare", "Compare episode fingerprints across two durable populations", "agent-manager run cohort-compare --left-filter-json '{}' --right-filter-json '{}' [--limit n] [--json]", a.runCohortCompare},
 		{"invocation-facts", "Show redacted normalized invocation evidence", "agent-manager run invocation-facts <id> [--json]", a.runInvocationFacts},
 		{"episodes", "Show bounded friction episodes", "agent-manager run episodes <id> [--json]", a.runEpisodes},
@@ -129,6 +131,8 @@ func (a *App) runCommands() []cliapp.Command {
 		{"invocation-aggregate", "Aggregate durable invocation evidence", "agent-manager run invocation-aggregate --dimension value [--json]", a.runAggregateInvocationFacts},
 		{"invocation-cohort", "Select a durable invocation cohort", "agent-manager run invocation-cohort [--json]", a.runSelectInvocationCohort},
 		{"invocation-metrics", "Calculate durable invocation metrics", "agent-manager run invocation-metrics [--json]", a.runInvocationMetrics},
+		{"cohort", "Define and inspect durable named cohorts", "agent-manager run cohort <define|list|show|delete> ...", a.runCohort},
+		{"cross-scenario", "Calculate declared cross-scenario command semantics", "agent-manager run cross-scenario <run-id> [--json]", a.runCrossScenario},
 		{"tools", "Show tool calls and failures", "agent-manager run tools <id> [--failed]", a.runTools},
 		{"messages", "Show recorded agent messages", "agent-manager run messages <id> [--all] [--range start:end] [--grep text]", a.runMessages},
 		{"receipts", "Show observed receipt state and evidence", "agent-manager run receipts <id> [--json]", a.runReceipts},

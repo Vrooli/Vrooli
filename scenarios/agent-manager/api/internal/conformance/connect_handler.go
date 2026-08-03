@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 
 	"agent-manager/internal/runsignal"
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/metrics"
+	assessmentpkg "github.com/vrooli/maturity-go/assessment"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
@@ -141,7 +141,7 @@ func buildAssessment(report Report, publishedAccuracy ...[]runsignal.DetectorAcc
 		}
 		assessment.Capabilities = []*commonv1.CapabilityMaturityAssessment{classifierAccuracyCapability(report, accuracy)}
 	}
-	assessment.Presentation = buildCanonicalPresentation(assessment)
+	assessment.Presentation = assessmentpkg.BuildPhasePresentation(assessment)
 	return assessment
 }
 
@@ -161,7 +161,21 @@ func classifierAccuracyCapability(report Report, accuracy []runsignal.DetectorAc
 			}
 		}
 	}
-	return &commonv1.CapabilityMaturityAssessment{Id: "classifier_accuracy", Label: "Classifier Accuracy", CurrentLevel: level, NextLevel: next, CurrentSummary: accuracySummary(accuracy), NextUnlock: "Meet every committed detector precision and recall threshold.", Clean: clean, PriorityRank: 1}
+	return &commonv1.CapabilityMaturityAssessment{
+		Id:             "classifier_accuracy",
+		Label:          "Classifier Accuracy",
+		CurrentLevel:   level,
+		NextLevel:      next,
+		CurrentSummary: accuracySummary(accuracy),
+		NextUnlock:     "Meet every committed detector precision and recall threshold.",
+		Clean:          clean,
+		PriorityRank:   1,
+		Levels: []*commonv1.LocalMaturityLevel{
+			{Id: "L0", Name: "Unmeasured", Description: "The labelled corpus or scorer cannot produce a complete result."},
+			{Id: "L1", Name: "Measured", Description: "All shipped detectors have published precision and recall."},
+			{Id: "L2", Name: "Threshold met", Description: "Every detector meets its committed precision and recall threshold."},
+		},
+	}
 }
 
 func accuracySummary(accuracy []runsignal.DetectorAccuracy) string {
@@ -173,60 +187,6 @@ func accuracySummary(accuracy []runsignal.DetectorAccuracy) string {
 		items = append(items, fmt.Sprintf("%s precision=%.2f recall=%.2f threshold=%.2f", result.ID, result.Precision, result.Recall, result.Threshold))
 	}
 	return strings.Join(items, "; ")
-}
-
-// buildCanonicalPresentation is the local, dependency-free projection of this
-// provider's deliberately local maturity assessment. It mirrors
-// maturity-go/assessment.BuildPhasePresentation for an assessment without
-// provider capability levels: the one synthetic "local" capability is part of
-// that canonical fallback contract.
-func buildCanonicalPresentation(a *commonv1.MaturityAssessment) *commonv1.PhasePresentation {
-	if a == nil || a.GetLocal() == nil {
-		return nil
-	}
-	local := a.GetLocal()
-	p := &commonv1.PhasePresentation{
-		ContractVersion:      "v1",
-		Provider:             a.GetProvider(),
-		Phase:                a.GetPhase(),
-		CurrentLevel:         local.GetCurrentLevel(),
-		NextLevel:            local.GetNextLevel(),
-		Clean:                local.GetClean(),
-		UnknownCount:         local.GetUnknownCount(),
-		BlockingFindingCodes: sortedNonBlank(local.GetBlockingFindingCodes()),
-		AtMaximum:            local.GetClean() && strings.TrimSpace(local.GetNextLevel()) == "",
-	}
-	for _, capability := range a.GetCapabilities() {
-		p.Capabilities = append(p.Capabilities, &commonv1.PhaseCapabilityPresentation{Id: capability.GetId(), Label: capability.GetLabel(), CurrentLevel: capability.GetCurrentLevel(), NextLevel: capability.GetNextLevel(), CurrentSummary: capability.GetCurrentSummary(), NextUnlock: capability.GetNextUnlock(), Clean: capability.GetClean(), UnknownCount: capability.GetUnknownCount(), BlockingFindingCodes: sortedNonBlank(capability.GetBlockingFindingCodes()), PriorityRank: capability.GetPriorityRank(), PriorityReason: capability.GetPriorityReason()})
-	}
-	if len(p.Capabilities) == 0 {
-		p.Capabilities = []*commonv1.PhaseCapabilityPresentation{{Id: "local", Label: "Local Maturity", CurrentLevel: local.GetCurrentLevel(), NextLevel: local.GetNextLevel(), Clean: local.GetClean(), UnknownCount: local.GetUnknownCount(), BlockingFindingCodes: sortedNonBlank(local.GetBlockingFindingCodes()), PriorityRank: 1}}
-	}
-	if !p.GetAtMaximum() && strings.TrimSpace(p.GetPhase()) != "" {
-		p.DocumentationTopics = []string{p.GetPhase() + " maturity next move"}
-		for _, code := range p.GetBlockingFindingCodes() {
-			p.DocumentationTopics = append(p.DocumentationTopics, p.GetPhase()+" "+code+" canonical fix")
-			if len(p.DocumentationTopics) == 3 {
-				break
-			}
-		}
-	}
-	return p
-}
-
-func sortedNonBlank(in []string) []string {
-	seen := make(map[string]struct{}, len(in))
-	for _, value := range in {
-		if value = strings.TrimSpace(value); value != "" {
-			seen[value] = struct{}{}
-		}
-	}
-	out := make([]string, 0, len(seen))
-	for value := range seen {
-		out = append(out, value)
-	}
-	sort.Strings(out)
-	return out
 }
 
 func maturityFor(finding Finding) (string, commonv1.CleanRequirement) {

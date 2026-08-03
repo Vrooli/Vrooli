@@ -21,6 +21,9 @@ const measures = vi.hoisted(() => ({
   runVolume: vi.fn(async () => ({ totalRuns: 1n, terminalRuns: 1n, executedQuery: "SELECT durable" })),
   runStatusDistribution: vi.fn(async () => ({ rows: [], executedQuery: "SELECT durable" })),
   selectCohort: vi.fn(async () => ({ runIds: [], truncated: false, executedQuery: "SELECT durable" })),
+  workloadBreakdown: vi.fn(async () => ({ rows: [], executedQuery: "SELECT durable" })),
+  toolCommandBreakdown: vi.fn(async () => ({ rows: [], executedQuery: "SELECT durable" })),
+  allMeasureDefinitions: vi.fn(async () => ({ definitions: [] })),
 }));
 vi.mock("../../src/features/stats/api/measuresClient.js", () => ({ measuresClient: measures }));
 import {
@@ -38,6 +41,9 @@ import {
   fetchDurableToolCohort,
   fetchDurableToolModels,
   fetchDurableToolUsage,
+  fetchDurableToolCommands,
+  fetchDurableWorkloadBreakdown,
+  fetchMeasureDefinitions,
   fetchExternalToolShare,
   fetchFileRereadRate,
   fetchFindingRecurrenceRate,
@@ -66,6 +72,7 @@ test("durable stats adapters send the same typed filter to each analytics questi
     fetchDurableTerminalTrend(filter), fetchDurableToolUsage(filter), fetchDurableRunCost(filter), fetchDurableRunSuccess(filter),
     fetchDurableRunCycleTime(filter), fetchDurableRunDurationStatistics(filter), fetchDurableRunVolume(filter), fetchDurableRunStatusDistribution(filter),
     fetchDurableToolCohort(filter, "workspace-sandbox", 11), fetchDurableModelCohort(filter, "gpt-5", 12), fetchDurableToolModels(filter, "workspace-sandbox"),
+    fetchDurableWorkloadBreakdown(filter), fetchDurableToolCommands(filter, "workspace-sandbox", 9), fetchMeasureDefinitions(),
   ]);
   for (const method of [measures.runnerBreakdown, measures.profileBreakdown, measures.modelBreakdown, measures.terminalRunTrend, measures.toolUsage, measures.runCost, measures.runSuccessRate, measures.runCycleTime, measures.runDurationStatistics, measures.runVolume, measures.runStatusDistribution]) {
     const request = method.mock.calls[0]?.[0];
@@ -79,6 +86,10 @@ test("durable stats adapters send the same typed filter to each analytics questi
   assert.equal(measures.selectCohort.mock.calls[0]?.[0]?.filter.toolName, "workspace-sandbox");
   assert.equal(measures.selectCohort.mock.calls[1]?.[0]?.limit, 12);
   assert.equal(measures.selectCohort.mock.calls[1]?.[0]?.filter.model, "gpt-5");
+  assert.equal(measures.workloadBreakdown.mock.calls[0]?.[0]?.filter.workloadKey, "");
+  assert.equal(measures.toolCommandBreakdown.mock.calls[0]?.[0]?.limit, 9);
+  assert.equal(measures.toolCommandBreakdown.mock.calls[0]?.[0]?.filter.toolName, "workspace-sandbox");
+  assert.equal(measures.allMeasureDefinitions.mock.calls.length, 1);
 });
 
 test("durable measure requests support every preset and leave omitted dimensions unfiltered", async () => {
@@ -164,4 +175,31 @@ test("typed friction measures reject malformed custom-window timestamps before i
     /Invalid measure timestamp: not-a-timestamp/,
   );
   assert.equal(measures.externalToolShare.mock.calls.length, 0);
+});
+
+test("durable adapters preserve validity, provenance, optional cohort fields, and charge bases", async () => {
+  const provenance = { sourceTable: "agent_runs", windowStart: "from", windowEnd: "to", rowCount: 2n, appliedFilters: [{ field: "model", value: "gpt-5" }] };
+  for (const state of ["available", "unreliable", "unavailable", "unexpected"]) {
+    measures.runnerBreakdown.mockResolvedValueOnce({ rows: [], validity: { state, reason: "fixture", sampleSize: 2n, largestFingerprintShare: 0.1 }, provenance, definitionId: "throughput.runner_breakdown", executedQuery: "SELECT" });
+    const result = await fetchDurableRunnerBreakdown(filter);
+    assert.equal(result.validity.state, state === "unexpected" ? "unavailable" : state);
+    assert.equal(result.provenance?.appliedFilters[0]?.field, "model");
+  }
+
+  measures.selectCohort.mockResolvedValueOnce({
+    runIds: ["run-1", "run-2"], truncated: false, executedQuery: "SELECT", definitionId: "throughput.cohort",
+    rows: [
+      { runId: "run-1", taskTitle: "", profileId: "p", profileName: "Profile", status: "complete", createdAt: "", model: "gpt-5", runnerType: "codex", workloadKey: "build", totalTokens: 5n, totalChargeMicroUsd: 7n, chargeBasis: "metered", toolCallCount: 2n },
+      { runId: "run-2", totalTokens: 0n },
+    ],
+    validity: { state: "available", reason: "fixture", sampleSize: 2n, largestFingerprintShare: 0 }, provenance,
+  });
+  const cohort = await fetchDurableToolCohort(filter, "shell", 2);
+  assert.equal(cohort.rows[0]?.taskTitle, undefined);
+  assert.equal(cohort.rows[0]?.totalChargeMicroUsd, 7);
+  assert.equal(cohort.rows[1]?.totalChargeMicroUsd, undefined);
+
+  measures.runCost.mockResolvedValueOnce({ totalCostUsd: 1, averageCostUsd: 1, totalRuns: 2n, totalTokens: 5n, inputTokens: 2n, outputTokens: 3n, cacheReadTokens: 0n, cacheCreationTokens: 0n, inputCostUsd: 0, outputCostUsd: 0, cacheReadCostUsd: 0, cacheCreationCostUsd: 0, totalChargeMicroUsd: 7n, unpricedTokenCount: 0n, chargeByBasis: [{ basis: "metered", runCount: 2n, chargeMicroUsd: 7n, tokenCount: 5n, chargeReason: "priced" }], validity: { state: "available", reason: "fixture", sampleSize: 2n, largestFingerprintShare: 0 }, provenance, definitionId: "throughput.run_cost", executedQuery: "SELECT" });
+  const cost = await fetchDurableRunCost(filter);
+  assert.deepEqual(cost.chargeByBasis, [{ basis: "metered", runCount: 2, chargeMicroUsd: 7, tokenCount: 5, chargeReason: "priced" }]);
 });

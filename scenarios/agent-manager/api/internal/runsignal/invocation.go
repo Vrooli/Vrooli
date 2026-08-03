@@ -10,6 +10,7 @@ import (
 	"strings"
 	"unicode"
 
+	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/availability"
 
 	"agent-manager/internal/domain"
@@ -20,7 +21,7 @@ import (
 // v4 backfills bounded failure signatures into durable facts produced before
 // that field was projected, so historical failed invocations remain actionable
 // after a replay without retaining raw tool output.
-const InvocationFactVersion = "invocation-fact.v5"
+const InvocationFactVersion = "invocation-fact.v13"
 
 // FailureSignatureMaxLength bounds retained failure vocabulary. Signatures are
 // controlled class labels, never copied error text.
@@ -51,6 +52,8 @@ type InvocationFact struct {
 	HelpRecovery       bool               `json:"helpRecovery"`
 	Fingerprint        string             `json:"fingerprint"`
 	Availability       availability.State `json:"availability"`
+	SemanticsKind      string             `json:"semanticsKind,omitempty"`
+	SemanticsVerdict   string             `json:"semanticsVerdict,omitempty"`
 }
 
 // DeriveInvocationFacts pairs durable tool calls/results by their provider
@@ -63,11 +66,16 @@ type InvocationFact struct {
 // by standalone callers and historical fixtures.
 type CapabilityResolver func(string) string
 
+// CommandResolver delegates command interpretation to the selected runner
+// codec. Literal argv stays separate from shell text so safe tokenization can
+// never turn an argument's data into syntax.
+type CommandResolver func(string, map[string]any) runner.CommandExtraction
+
 func DeriveInvocationFacts(events []*domain.RunEvent) []InvocationFact {
 	return DeriveInvocationFactsWithResolver(events, nil)
 }
 
-func DeriveInvocationFactsWithResolver(events []*domain.RunEvent, resolver CapabilityResolver) []InvocationFact {
+func DeriveInvocationFactsWithResolver(events []*domain.RunEvent, resolver CapabilityResolver, commandResolvers ...CommandResolver) []InvocationFact {
 	results := map[string]*domain.RunEvent{}
 	ordinalResults := make([]*domain.RunEvent, 0)
 	for _, event := range events {
@@ -102,9 +110,16 @@ func DeriveInvocationFactsWithResolver(events []*domain.RunEvent, resolver Capab
 				capability = "other"
 			}
 		}
-		factBase := InvocationFact{Version: InvocationFactVersion, CallEventID: event.ID.String(), ToolCallID: call.ToolCallID, ToolName: call.ToolName, Capability: capability, IntentClass: intentClass(call), Ownership: OwnershipNotACommand, OwnershipReason: "tool input has no command or cmd field", Outcome: "unknown", PairingBasis: "unpaired", Availability: availability.Available}
-		command := commandInput(call)
+		factBase := InvocationFact{Version: InvocationFactVersion, CallEventID: event.ID.String(), ToolCallID: call.ToolCallID, ToolName: call.ToolName, Capability: capability, IntentClass: intentClass(call), Ownership: OwnershipNotACommand, OwnershipReason: "no declared command field", Outcome: "unknown", PairingBasis: "unpaired", Availability: availability.Available}
+		extraction := commandInput(call, commandResolvers...)
+		if extraction.Reason != "" {
+			factBase.OwnershipReason = extraction.Reason
+		}
+		command := extraction.Command
 		segments, compound, segmentError := SegmentShell(command)
+		if extraction.LiteralArgs {
+			segments, compound, segmentError = []string{command}, false, ""
+		}
 		if command == "" {
 			segments = []string{""}
 		}
@@ -118,7 +133,7 @@ func DeriveInvocationFactsWithResolver(events []*domain.RunEvent, resolver Capab
 		if call.ToolCallID != "" {
 			result = results[call.ToolCallID]
 			if result != nil {
-				factBase.PairingBasis = "tool_call_id"
+				factBase.PairingBasis = "call-id"
 			}
 		} else if ordinalResultIndex < len(ordinalResults) {
 			result = ordinalResults[ordinalResultIndex]
@@ -132,7 +147,11 @@ func DeriveInvocationFactsWithResolver(events []*domain.RunEvent, resolver Capab
 				fact.Ownership, fact.OwnershipReason = OwnershipUnparseable, segmentError
 			} else if command != "" {
 				resolution := ResolveCatalog(segment)
+				if extraction.LiteralArgs {
+					resolution = ResolveCatalogArgs(extraction.Args)
+				}
 				fact.Executable, fact.CommandPath, fact.CatalogSnapshot = resolution.Owner, resolution.Command, resolution.Snapshot
+				fact.SemanticsKind, fact.SemanticsVerdict = resolution.SemanticsKind, resolution.SemanticsVerdict
 				fact.Ownership, fact.OwnershipReason = string(resolution.State), resolution.Reason
 				if fact.Ownership == string(availability.Unknown) {
 					fact.Ownership = OwnershipCompoundUnresolved
@@ -153,11 +172,22 @@ func DeriveInvocationFactsWithResolver(events []*domain.RunEvent, resolver Capab
 					}
 				}
 			}
-			fact.Fingerprint = fingerprint(fact.ToolName, fact.CommandPath, fact.Ownership, normalizedArgumentShape(call.Input), strconv.Itoa(segmentIndex))
-			if prior := previousByFingerprint[fact.Fingerprint]; prior != "" {
-				fact.RetryOfCallEventID = prior
-				if helpAfterFailure[fact.Executable] {
-					fact.HelpRecovery = true
+			// A missing command is a real absence of a command signature. Do not
+			// hash the empty string: otherwise every non-command tool collapses
+			// into one retry/thrash bucket and inflates repeated-work rates.
+			if command != "" && segmentError == "" && fact.CommandPath != "" && fact.Ownership != OwnershipNotACommand {
+				// The command text is hashed into the fingerprint rather than
+				// retained as raw evidence. Shape-only material is intentionally
+				// useful for grouping, but cannot distinguish two opaque shell
+				// commands that both have the same argument shape.
+				fact.Fingerprint = fingerprint(fact.ToolName, fact.CommandPath, fact.Ownership, strings.TrimSpace(command), normalizedArgumentShape(call.Input), strconv.Itoa(segmentIndex))
+			}
+			if fact.Fingerprint != "" {
+				if prior := previousByFingerprint[fact.Fingerprint]; prior != "" {
+					fact.RetryOfCallEventID = prior
+					if helpAfterFailure[fact.Executable] {
+						fact.HelpRecovery = true
+					}
 				}
 			}
 			if fact.Outcome == "failure" && fact.Executable != "" {
@@ -166,7 +196,9 @@ func DeriveInvocationFactsWithResolver(events []*domain.RunEvent, resolver Capab
 			if isHelpCommand(segment) && fact.Executable != "" && lastFailureByExecutable[fact.Executable] != "" {
 				helpAfterFailure[fact.Executable] = true
 			}
-			previousByFingerprint[fact.Fingerprint] = fact.CallEventID
+			if fact.Fingerprint != "" {
+				previousByFingerprint[fact.Fingerprint] = fact.CallEventID
+			}
 			facts = append(facts, fact)
 		}
 	}
@@ -326,16 +358,50 @@ func failureSignature(data *domain.ToolResultEventData) (string, bool) {
 	return signature[:FailureSignatureMaxLength], true
 }
 
-func commandInput(call *domain.ToolCallEventData) string {
+func commandInput(call *domain.ToolCallEventData, commandResolvers ...CommandResolver) runner.CommandExtraction {
 	if call == nil {
-		return ""
+		return runner.CommandExtraction{Reason: "tool call is unavailable"}
 	}
-	for _, key := range []string{"command", "cmd"} {
-		if value, ok := call.Input[key].(string); ok {
-			return strings.TrimSpace(redact(value))
+	if len(commandResolvers) > 0 && commandResolvers[0] != nil {
+		extraction := commandResolvers[0](call.ToolName, call.Input)
+		if extraction.Command != "" || len(extraction.Args) > 0 || extraction.Reason != "" {
+			return extraction
 		}
 	}
-	return ""
+	return genericCommandInput(call)
+}
+
+func genericCommandInput(call *domain.ToolCallEventData) runner.CommandExtraction {
+	for _, key := range []string{"command", "cmd", "argv", "args"} {
+		value, ok := call.Input[key]
+		if !ok {
+			continue
+		}
+		switch value := value.(type) {
+		case []any:
+			args := make([]string, 0, len(value))
+			for _, item := range value {
+				arg, ok := item.(string)
+				if !ok || strings.TrimSpace(arg) == "" {
+					args = nil
+					break
+				}
+				args = append(args, arg)
+			}
+			if len(args) > 0 {
+				return runner.CommandExtraction{Command: strings.Join(args, " "), Args: args, LiteralArgs: true}
+			}
+		case []string:
+			if len(value) > 0 {
+				return runner.CommandExtraction{Command: strings.Join(value, " "), Args: value, LiteralArgs: true}
+			}
+		case string:
+			if strings.TrimSpace(value) != "" {
+				return runner.CommandExtraction{Command: strings.TrimSpace(redact(value))}
+			}
+		}
+	}
+	return runner.CommandExtraction{Reason: "no declared command field"}
 }
 
 func isShellTool(name string) bool {

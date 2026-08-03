@@ -545,6 +545,9 @@ func (p *WorkspaceSandboxProvider) Resume(ctx context.Context, id uuid.UUID) (*S
 
 // IsAvailable checks if the sandbox provider is operational.
 func (p *WorkspaceSandboxProvider) IsAvailable(ctx context.Context) (bool, string) {
+	if p == nil || strings.TrimSpace(p.baseURL) == "" {
+		return false, "workspace-sandbox provider unavailable: endpoint is not configured"
+	}
 	resp, err := p.doRequest(ctx, "GET", "/health", nil)
 	if err != nil {
 		return false, fmt.Sprintf("workspace-sandbox unreachable: %v", err)

@@ -14,14 +14,21 @@ import (
 func (a *App) runCohortReport(args []string) error {
 	fs := flag.NewFlagSet("run cohort-report", flag.ContinueOnError)
 	runIDs := fs.String("run-ids", "", "comma-separated run UUIDs (1-100)")
+	cohort := fs.String("cohort", "", "durable cohort name")
 	jsonOutput := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if strings.TrimSpace(*runIDs) == "" {
-		return fmt.Errorf("usage: agent-manager run cohort-report --run-ids <id1,id2> [--json]")
+	if strings.TrimSpace(*runIDs) == "" && strings.TrimSpace(*cohort) == "" {
+		return fmt.Errorf("usage: agent-manager run cohort-report (--run-ids <id1,id2> | --cohort name) [--json]")
 	}
-	body, err := a.services.Runs.CohortReport(*runIDs)
+	var body []byte
+	var err error
+	if *cohort != "" {
+		body, err = a.services.Runs.CohortReportByName(*cohort)
+	} else {
+		body, err = a.services.Runs.CohortReport(*runIDs)
+	}
 	if err != nil {
 		return err
 	}
@@ -57,6 +64,7 @@ func (a *App) runCohortCompare(args []string) error {
 	fs := flag.NewFlagSet("run cohort-compare", flag.ContinueOnError)
 	left := fs.String("left-filter-json", "{}", "JSON invocation filter for the left population")
 	right := fs.String("right-filter-json", "{}", "JSON invocation filter for the right population")
+	changeBinding := fs.String("change-binding", "", "change label, plan slug, or commit range")
 	limit := fs.Int("limit", 100, "maximum fingerprint signals")
 	jsonOutput := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
@@ -69,7 +77,7 @@ func (a *App) runCohortCompare(args []string) error {
 	if err := json.Unmarshal([]byte(*right), &rightFilter); err != nil {
 		return fmt.Errorf("decode right filter: %w", err)
 	}
-	payload, err := json.Marshal(map[string]any{"left": leftFilter, "right": rightFilter})
+	payload, err := json.Marshal(map[string]any{"left": leftFilter, "right": rightFilter, "changeBinding": *changeBinding})
 	if err != nil {
 		return err
 	}
@@ -85,12 +93,39 @@ func (a *App) runCohortCompare(args []string) error {
 	return nil
 }
 
+func (a *App) runGoalCohort(args []string) error {
+	fs := flag.NewFlagSet("run goal-cohort", flag.ContinueOnError)
+	cohort := fs.String("cohort", "", "durable cohort name")
+	limit := fs.Int("limit", 100, "maximum runs to score")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*cohort) == "" {
+		return fmt.Errorf("usage: agent-manager run goal-cohort --cohort name [--json]")
+	}
+	if *limit < 1 || *limit > 5000 {
+		return fmt.Errorf("--limit must be between 1 and 5000")
+	}
+	body, err := a.services.Runs.GoalCohort(*cohort, *limit)
+	if err != nil {
+		return err
+	}
+	if *jsonOutput {
+		cliutil.PrintJSON(body)
+	} else {
+		fmt.Println(string(body))
+	}
+	return nil
+}
+
 func (a *App) runEpisodeTrend(args []string) error {
 	fs := flag.NewFlagSet("measures episode-trend", flag.ContinueOnError)
 	from := fs.String("from", "", "RFC3339 inclusive time")
 	to := fs.String("to", "", "RFC3339 exclusive time")
 	bucket := fs.String("bucket", "24h", "positive Go duration bucket")
 	limit := fs.Int("limit", 100, "maximum buckets")
+	cohort := fs.String("cohort", "", "durable cohort name")
 	jsonOutput := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
@@ -101,6 +136,9 @@ func (a *App) runEpisodeTrend(args []string) error {
 	}
 	if *to != "" {
 		values.Set("to", *to)
+	}
+	if *cohort != "" {
+		values.Set("cohort", *cohort)
 	}
 	body, err := a.services.Runs.EpisodeTrend(values)
 	if err != nil {

@@ -1,9 +1,7 @@
 // Surfaces typed-event runner+model fallback patterns.
 //
 // Honesty contract: when sample size < MinSampleMeaningful (5), the card
-// renders InsufficientDataCard rather than fabricated percentages. The
-// HistoryBanner above the page already informs users when the event log is
-// younger than the 30-day window.
+// renders InsufficientDataCard rather than fabricated percentages.
 
 import { Link } from "react-router-dom";
 import { InsufficientDataCard } from "../../../../components/stats/InsufficientDataCard";

@@ -216,15 +216,15 @@ type BillingSnapshot struct {
 	Basis              ChargeBasis `json:"basis,omitempty"`
 	Mode               BillingMode `json:"mode"`
 	Provider           string      `json:"provider,omitempty"`
-	AccountRef         string      `json:"accountRef,omitempty"`
-	PlanRef            string      `json:"planRef,omitempty"`
-	PlanID             string      `json:"planId,omitempty"`
-	PlanLabel          string      `json:"planLabel,omitempty"`
-	QuotaWindow        string      `json:"quotaWindow,omitempty"`
-	SubscriptionPeriod string      `json:"subscriptionPeriod,omitempty"`
-	ObservedAt         time.Time   `json:"observedAt,omitempty"`
+	AccountRef         string      `json:"account_ref,omitempty"`
+	PlanRef            string      `json:"plan_ref,omitempty"`
+	PlanID             string      `json:"plan_id,omitempty"`
+	PlanLabel          string      `json:"plan_label,omitempty"`
+	QuotaWindow        string      `json:"quota_window,omitempty"`
+	SubscriptionPeriod string      `json:"subscription_period,omitempty"`
+	ObservedAt         time.Time   `json:"observed_at,omitempty"`
 	Source             string      `json:"source,omitempty"`
-	PolicyDigest       string      `json:"policyDigest,omitempty"`
+	PolicyDigest       string      `json:"policy_digest,omitempty"`
 }
 
 func (b BillingSnapshot) EffectiveBasis() ChargeBasis {
@@ -953,7 +953,7 @@ func (r *Run) GetTag() string {
 func (r *Run) IsResumable() bool {
 	// Can only resume runs that are in a non-terminal state
 	switch r.Status {
-	case RunStatusComplete, RunStatusFailed, RunStatusCancelled:
+	case RunStatusComplete, RunStatusFailed, RunStatusCancelled, RunStatusUnknown:
 		return false
 	}
 	// Check if the phase supports resumption
@@ -1059,6 +1059,9 @@ const (
 	// LivenessPolicy table in decisions.go (parked is scanned but never
 	// heartbeat-reaped).
 	RunStatusParked RunStatus = "parked"
+	// RunStatusUnknown means historical evidence did not contain a trustworthy
+	// terminal signal. It is distinct from a provider failure.
+	RunStatusUnknown RunStatus = "unknown"
 )
 
 // AwaitHandle identifies the externally-owned async work a parked run is
@@ -1262,6 +1265,8 @@ type RunConfig struct {
 	// ManifestIndexSnapshot pins the CLI catalog index used by an imported
 	// transcript. Imported episode attribution remains historical evidence.
 	ManifestIndexSnapshot string        `json:"manifestIndexSnapshot,omitempty"`
+	TranscriptCodec       string        `json:"transcriptCodec,omitempty"`
+	TranscriptCodecScore  float64       `json:"transcriptCodecScore,omitempty"`
 	Model                 string        `json:"model,omitempty"`
 	RoleRef               string        `json:"roleRef,omitempty"`
 	MaxTurns              int           `json:"maxTurns,omitempty"`

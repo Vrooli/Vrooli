@@ -167,6 +167,30 @@ func (r *Runner) ParseTranscriptLine(runID uuid.UUID, line string) runner.Transc
 	return r.codec.ParseTranscriptLine(runID, line)
 }
 
+// GoalStatusFromTranscriptLine delegates imported goal markers to the codec
+// that owns the transcript wire format.
+func (r *Runner) GoalStatusFromTranscriptLine(line string) (string, bool, bool) {
+	provider, ok := r.codec.(runner.GoalMarkerProvider)
+	if !ok {
+		return "", false, false
+	}
+	return provider.GoalStatusFromTranscriptLine(line)
+}
+
+// ExtractCommand delegates command interpretation to the selected codec so
+// historical projection preserves literal argv boundaries and harness-
+// specific encoded argument shapes.
+func (r *Runner) ExtractCommand(input map[string]any) runner.CommandExtraction {
+	if r == nil || r.codec == nil {
+		return runner.CommandExtraction{Reason: "runner codec is unavailable"}
+	}
+	provider, ok := r.codec.(runner.CommandExtractor)
+	if !ok {
+		return runner.CommandExtraction{Reason: "runner codec has no command extractor"}
+	}
+	return provider.ExtractCommand(input)
+}
+
 // NewTranscriptParser satisfies [runner.TranscriptParserFactory].
 func (r *Runner) NewTranscriptParser() runner.TranscriptParser {
 	return r.codec.NewTranscriptParser()

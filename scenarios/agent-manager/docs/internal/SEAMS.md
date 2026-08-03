@@ -1843,6 +1843,34 @@ import. It translates Connect requests into `runreport` and `orchestration`
 calls; `runreport` remains transport-free and receipt projections remain
 opaque `Struct` values at the boundary.
 
+## Stats measure and billing seam
+
+The Connect measure service is the single transport boundary for Stats
+analytics. It computes from `invocation_read_model` projections, returns a
+validity assessment plus time-window/filter provenance, and exposes the
+definition registry used by the UI. The UI renders a measure only when its
+validity is usable; otherwise it shows an evidence-state card and does not
+substitute legacy REST aggregates.
+
+Breakdowns and cohort links are observational read-model queries. Their
+`/runs` links carry the selected window and dimensions so an operator can
+inspect the underlying durable runs. Tool-command grouping is an optional
+read-model capability: unavailable command telemetry is reported as
+unavailable rather than inferred from tool names.
+
+Run cost keeps metered, subscription, unknown, and unpriced charge bases
+separate. Subscription periods are operator-owned records with micro-USD
+amounts, quota metadata, and overlap rejection. Runner policies declare
+billing mode/provider/plan metadata; the default is explicitly `unknown`.
+Allocation requests require an explicit allocation basis and remain
+observational until a pricing allocator is configured.
+
+[CODE: api/internal/measures/measures.go#Handler] •
+[CODE: api/internal/invocationreadmodel/contract.go#Filter] •
+[CODE: api/internal/adapters/database/repository_invocation_read_model.go#RunBreakdown] •
+[CODE: api/internal/adapters/database/repository_pricing.go#CreateSubscriptionPeriod] •
+[UI: ui/src/features/stats/components/measure/MeasureFrame.tsx]
+
 - [PRD.md](../../PRD.md) - Product requirements and operational targets
 - [README.md](../../README.md) - Overview and quick start
 - [requirements/README.md](../../requirements/README.md) - Detailed requirements by module

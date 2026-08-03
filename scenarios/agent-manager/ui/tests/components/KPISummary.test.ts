@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { screen, waitFor } from "@testing-library/react";
 import { createElement } from "react";
 import { beforeEach, test, vi } from "vitest";
-import type { useQuery } from "@tanstack/react-query";
 import { KPISummary } from "../../src/features/stats/components/kpi/KPISummary.js";
 import { KPICard } from "../../src/features/stats/components/kpi/KPICard.js";
 import type { TimePreset } from "../../src/features/stats/api/types.js";
@@ -11,6 +10,7 @@ import { renderWithProviders } from "../../src/test-utils/index.js";
 const measures = vi.hoisted(() => ({ success: vi.fn(), cost: vi.fn(), duration: vi.fn(), volume: vi.fn(), statuses: vi.fn() }));
 vi.mock("../../src/features/stats/api/statsClient.js", () => ({
   fetchDurableRunSuccess: measures.success, fetchDurableRunCost: measures.cost, fetchDurableRunCycleTime: measures.duration, fetchDurableRunVolume: measures.volume, fetchDurableRunStatusDistribution: measures.statuses,
+  fetchMeasureDefinitions: vi.fn(async () => []),
   statsQueryKeys: { successRate: (f: unknown) => ["success", f], cost: (f: unknown) => ["cost", f], duration: (f: unknown) => ["duration", f], summary: (f: unknown) => ["summary", f], statusDistribution: (f: unknown) => ["statuses", f] },
 }));
 
@@ -18,21 +18,11 @@ vi.mock("../../src/features/stats/hooks/useTimeWindow.js", () => ({
   useTimeWindow: vi.fn(),
 }));
 
-type QueryResult = ReturnType<typeof useQuery<unknown, Error>>;
-
 const presetOptions: readonly TimePreset[] = ["6h", "12h", "24h", "7d", "30d"];
-
-function queryResult(overrides: Partial<QueryResult>): QueryResult {
-  return {
-    data: undefined,
-    isLoading: false,
-    error: null,
-    ...overrides,
-  } as QueryResult;
-}
+const validMeasure = { validity: { state: "available", reason: "fixture", sampleSize: 25, largestFingerprintShare: 0 }, executedQuery: "SELECT", definitionId: "test.measure" } as const;
 
 beforeEach(() => {
-	measures.success.mockResolvedValue({ rate: 0.875, executedQuery: "SELECT" }); measures.cost.mockResolvedValue({ totalCostUsd: 12.35, executedQuery: "SELECT" }); measures.duration.mockResolvedValue({ rate: 90_000, executedQuery: "SELECT" }); measures.volume.mockResolvedValue({ totalRuns: 24, executedQuery: "SELECT" }); measures.statuses.mockResolvedValue({ rows: [{ status: "pending", count: 2 }, { status: "starting", count: 1 }], executedQuery: "SELECT" });
+	measures.success.mockResolvedValue({ rate: 0.875, ...validMeasure }); measures.cost.mockResolvedValue({ totalCostUsd: 12.35, totalTokens: 100, inputTokens: 60, outputTokens: 40, cacheReadTokens: 0, chargeByBasis: [{ basis: "metered", runCount: 1, chargeMicroUsd: 12_350_000, tokenCount: 100, chargeReason: "fixture" }], ...validMeasure }); measures.duration.mockResolvedValue({ rate: 90_000, ...validMeasure }); measures.volume.mockResolvedValue({ totalRuns: 24, ...validMeasure }); measures.statuses.mockResolvedValue({ rows: [{ status: "pending", count: 2 }, { status: "starting", count: 1 }], ...validMeasure });
   vi.mocked(useTimeWindow).mockReturnValue({
     preset: "24h",
     setPreset: vi.fn(),
@@ -47,7 +37,7 @@ test("KPISummary renders formatted stats and queue totals", async () => {
   await waitFor(() => assert.ok(screen.getByText("Success Rate")));
   assert.ok(screen.getByText("87.5%"));
   assert.ok(screen.getByText("Total Cost"));
-  assert.ok(screen.getByText("$12.35"));
+  assert.ok(screen.getByText("$12.35 (metered)"));
   assert.ok(screen.getByText("Avg Duration"));
   assert.ok(screen.getByText("1.5m"));
   assert.ok(screen.getByText("Throughput"));
@@ -63,7 +53,7 @@ test("KPISummary uses the selected stats window when calculating throughput", as
     filter: { preset: "6h" },
     presetOptions,
   });
-  measures.volume.mockResolvedValue({ totalRuns: 12, executedQuery: "SELECT" });
+  measures.volume.mockResolvedValue({ totalRuns: 12, ...validMeasure });
 
   renderWithProviders(createElement(KPISummary));
 
@@ -76,14 +66,31 @@ test("KPISummary renders loading and error states through metric cards", async (
   const { unmount } = renderWithProviders(createElement(KPISummary));
 
   assert.equal(screen.queryByText("Success Rate"), null);
-  assert.equal(document.querySelectorAll(".animate-pulse").length, 5);
+  assert.equal(document.querySelectorAll(".animate-pulse").length, 6);
 
   unmount();
   measures.success.mockRejectedValue(new Error("stats unavailable"));
 
   renderWithProviders(createElement(KPISummary));
 
-  await waitFor(() => assert.equal(screen.getAllByText("Error loading").length, 5));
+  await waitFor(() => assert.ok(screen.getByText("Success rate: stats unavailable")));
+});
+
+test("KPISummary labels every charge basis without inventing prices", async () => {
+  const cases = [
+    { rows: [], expected: "Billing mode not declared" },
+    { rows: [{ basis: "metered", chargeMicroUsd: 1_000_000, chargeReason: "priced" }, { basis: "subscription", chargeMicroUsd: 2_000_000, chargeReason: "covered" }], expected: "metered 1.00 + subscription 2.00" },
+    { rows: [{ basis: "unknown", chargeMicroUsd: 0, chargeReason: "" }], expected: "Billing mode not declared" },
+    { rows: [{ basis: "unpriced", chargeMicroUsd: 0, chargeReason: "" }], expected: "Not priced" },
+    { rows: [{ basis: "unpriced", chargeMicroUsd: 0, chargeReason: "missing catalog" }], expected: "Not priced (missing catalog)" },
+    { rows: [{ basis: "subscription", chargeMicroUsd: 0, chargeReason: "plan coverage" }], expected: "Covered by subscription (plan coverage)" },
+  ];
+  for (const item of cases) {
+    measures.cost.mockResolvedValue({ totalTokens: 0, inputTokens: 0, outputTokens: 0, chargeByBasis: item.rows, ...validMeasure });
+    const rendered = renderWithProviders(createElement(KPISummary));
+    await waitFor(() => assert.ok(screen.getByText(item.expected)));
+    rendered.unmount();
+  }
 });
 
 test("KPICard communicates directional and neutral trends, visual variants, and its loading/error fallbacks", () => {

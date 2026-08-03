@@ -86,7 +86,7 @@ func TestRegistryAndTypedRPCShareExternalToolComputation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if rpc.Msg.GetShare() != 0.4 || rpc.Msg.GetUnknownCalls() != 3 || rpc.Msg.GetExecutedQuery() == "" {
+	if rpc.Msg.GetShare() != 0.4 || rpc.Msg.GetUnknownCalls() != 3 || rpc.Msg.GetProvenance().GetExecutedQuery() == "" {
 		t.Fatalf("rpc response=%+v", rpc.Msg)
 	}
 
@@ -98,7 +98,7 @@ func TestRegistryAndTypedRPCShareExternalToolComputation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if served.Value != strconv.FormatFloat(rpc.Msg.GetShare(), 'f', -1, 64) || served.Provenance.ExecutedQuery != rpc.Msg.GetExecutedQuery() {
+	if served.Value != strconv.FormatFloat(rpc.Msg.GetShare(), 'f', -1, 64) || served.Provenance.ExecutedQuery != rpc.Msg.GetProvenance().GetExecutedQuery() {
 		t.Fatalf("registry=%+v rpc=%+v", served, rpc.Msg)
 	}
 	if store.filter.From == nil || store.filter.To == nil || !store.filter.To.After(*store.filter.From) {
@@ -188,7 +188,7 @@ func TestRegistryAndTypedRPCShareRunThroughputComputation(t *testing.T) {
 	store := &fakeStore{runMetrics: invocationreadmodel.RunMetrics{TotalRuns: 8, TerminalRuns: 6, SuccessfulRuns: 3, SuccessRate: 0.5, CompletedDurationRuns: 5, AverageDurationMS: 1234, TotalCostUSD: 4.5, TotalTokens: 99, ReadCalls: 6, FileRereads: 2, FileRereadRate: 1.0 / 3.0}}
 	handler := NewHandler(store, func() time.Time { return now })
 	rpc, err := handler.RunSuccessRate(context.Background(), connect.NewRequest(&measurepb.RunSuccessRateRequest{Window: token(sharedmeasurepb.TimeWindowToken_TIME_WINDOW_TOKEN_LAST_7D)}))
-	if err != nil || rpc.Msg.GetRate() != 0.5 || rpc.Msg.GetSuccessfulRuns() != 3 || rpc.Msg.GetTerminalRuns() != 6 || rpc.Msg.GetExecutedQuery() == "" {
+	if err != nil || rpc.Msg.GetRate() != 0.5 || rpc.Msg.GetSuccessfulRuns() != 3 || rpc.Msg.GetTerminalRuns() != 6 || rpc.Msg.GetProvenance().GetExecutedQuery() == "" {
 		t.Fatalf("success rpc=%+v err=%v", rpc.Msg, err)
 	}
 	cycle, err := handler.RunCycleTime(context.Background(), connect.NewRequest(&measurepb.RunCycleTimeRequest{}))
@@ -218,7 +218,7 @@ func TestRunDurationStatisticsUsesDurableStore(t *testing.T) {
 	store := &fakeStore{durationStats: invocationreadmodel.RunDurationStatistics{AverageDurationMS: 100, P50DurationMS: 100, P95DurationMS: 100, P99DurationMS: 100, MinDurationMS: 25, MaxDurationMS: 200, Count: 3}}
 	handler := NewHandler(store, func() time.Time { return now })
 	response, err := handler.RunDurationStatistics(context.Background(), connect.NewRequest(&measurepb.RunDurationStatisticsRequest{Window: token(sharedmeasurepb.TimeWindowToken_TIME_WINDOW_TOKEN_LAST_7D)}))
-	if err != nil || response.Msg.GetAverageDurationMs() != 100 || response.Msg.GetMinDurationMs() != 25 || response.Msg.GetMaxDurationMs() != 200 || response.Msg.GetCount() != 3 || response.Msg.GetExecutedQuery() == "" {
+	if err != nil || response.Msg.GetAverageDurationMs() != 100 || response.Msg.GetMinDurationMs() != 25 || response.Msg.GetMaxDurationMs() != 200 || response.Msg.GetCount() != 3 || response.Msg.GetProvenance().GetExecutedQuery() == "" {
 		t.Fatalf("duration response=%+v err=%v", response.Msg, err)
 	}
 }
@@ -228,7 +228,7 @@ func TestTypedFindingRecurrenceUsesSharedComputation(t *testing.T) {
 	store := &fakeStore{findingMetrics: invocationreadmodel.FindingMetrics{TotalFindings: 3, RecurringFindings: 2, RecurringFingerprints: 1, RecurrenceRate: 2.0 / 3.0}}
 	handler := NewHandler(store, func() time.Time { return now })
 	response, err := handler.FindingRecurrenceRate(context.Background(), connect.NewRequest(&measurepb.FindingRecurrenceRateRequest{}))
-	if err != nil || response.Msg.GetRate() != 2.0/3.0 || response.Msg.GetRecurringFindings() != 2 || response.Msg.GetTotalFindings() != 3 || response.Msg.GetRecurringFingerprints() != 1 || response.Msg.GetExecutedQuery() == "" {
+	if err != nil || response.Msg.GetRate() != 2.0/3.0 || response.Msg.GetRecurringFindings() != 2 || response.Msg.GetTotalFindings() != 3 || response.Msg.GetRecurringFingerprints() != 1 || response.Msg.GetProvenance().GetExecutedQuery() == "" {
 		t.Fatalf("recurrence response=%+v err=%v", response.Msg, err)
 	}
 }
@@ -238,7 +238,7 @@ func TestRegistryAndTypedRPCShareRunStatusDistribution(t *testing.T) {
 	store := &fakeStore{statusCounts: []invocationreadmodel.RunStatusCount{{Status: "complete", Count: 5}, {Status: "failed", Count: 2}}}
 	handler := NewHandler(store, func() time.Time { return now })
 	rpc, err := handler.RunStatusDistribution(context.Background(), connect.NewRequest(&measurepb.RunStatusDistributionRequest{Window: token(sharedmeasurepb.TimeWindowToken_TIME_WINDOW_TOKEN_LAST_7D)}))
-	if err != nil || len(rpc.Msg.GetRows()) != 2 || rpc.Msg.GetRows()[0].GetStatus() != "complete" || rpc.Msg.GetRows()[0].GetCount() != 5 || rpc.Msg.GetExecutedQuery() == "" {
+	if err != nil || len(rpc.Msg.GetRows()) != 2 || rpc.Msg.GetRows()[0].GetStatus() != "complete" || rpc.Msg.GetRows()[0].GetCount() != 5 || rpc.Msg.GetProvenance().GetExecutedQuery() == "" {
 		t.Fatalf("status rpc=%+v err=%v", rpc.Msg, err)
 	}
 	registry, err := handler.Registry()
@@ -246,7 +246,7 @@ func TestRegistryAndTypedRPCShareRunStatusDistribution(t *testing.T) {
 		t.Fatal(err)
 	}
 	served, err := registry.Execute(context.Background(), measureRequest(RunStatusDistribution, "last_7d"))
-	if err != nil || len(served.Fields) != 2 || served.Fields[1]["status"] != "failed" || served.Fields[1]["count"] != "2" || served.Provenance.ExecutedQuery != rpc.Msg.GetExecutedQuery() {
+	if err != nil || len(served.Fields) != 2 || served.Fields[1]["status"] != "failed" || served.Fields[1]["count"] != "2" || served.Provenance.ExecutedQuery != rpc.Msg.GetProvenance().GetExecutedQuery() {
 		t.Fatalf("status registry=%+v rpc=%+v err=%v", served, rpc.Msg, err)
 	}
 }
@@ -257,7 +257,7 @@ func TestRegistryAndTypedRPCShareTerminalRunTrend(t *testing.T) {
 	store := &fakeStore{runTimeSeries: []invocationreadmodel.RunTimeSeriesBucket{{Bucket: bucket, TerminalRuns: 3, CompletedRuns: 2, FailedRuns: 1, TotalCostUSD: 1.25, AvgDurationMS: 900}}}
 	handler := NewHandler(store, func() time.Time { return now })
 	rpc, err := handler.TerminalRunTrend(context.Background(), connect.NewRequest(&measurepb.TerminalRunTrendRequest{Window: token(sharedmeasurepb.TimeWindowToken_TIME_WINDOW_TOKEN_LAST_7D)}))
-	if err != nil || len(rpc.Msg.GetRows()) != 1 || rpc.Msg.GetRows()[0].GetBucket() != bucket.Format(time.RFC3339) || rpc.Msg.GetRows()[0].GetCompletedRuns() != 2 || rpc.Msg.GetRows()[0].GetFailedRuns() != 1 || rpc.Msg.GetExecutedQuery() == "" {
+	if err != nil || len(rpc.Msg.GetRows()) != 1 || rpc.Msg.GetRows()[0].GetBucket() != bucket.Format(time.RFC3339) || rpc.Msg.GetRows()[0].GetCompletedRuns() != 2 || rpc.Msg.GetRows()[0].GetFailedRuns() != 1 || rpc.Msg.GetProvenance().GetExecutedQuery() == "" {
 		t.Fatalf("trend rpc=%+v err=%v", rpc.Msg, err)
 	}
 	registry, err := handler.Registry()
@@ -265,7 +265,7 @@ func TestRegistryAndTypedRPCShareTerminalRunTrend(t *testing.T) {
 		t.Fatal(err)
 	}
 	served, err := registry.Execute(context.Background(), measureRequest(TerminalRunTrend, "last_7d"))
-	if err != nil || len(served.Fields) != 1 || served.Fields[0]["bucket"] != bucket.Format(time.RFC3339) || served.Fields[0]["terminal_runs"] != "3" || served.Provenance.ExecutedQuery != rpc.Msg.GetExecutedQuery() {
+	if err != nil || len(served.Fields) != 1 || served.Fields[0]["bucket"] != bucket.Format(time.RFC3339) || served.Fields[0]["terminal_runs"] != "3" || served.Provenance.ExecutedQuery != rpc.Msg.GetProvenance().GetExecutedQuery() {
 		t.Fatalf("trend registry=%+v rpc=%+v err=%v", served, rpc.Msg, err)
 	}
 }
@@ -275,7 +275,7 @@ func TestRegistryAndTypedRPCShareErrorPatterns(t *testing.T) {
 	store := &fakeStore{errorPatterns: []invocationreadmodel.ErrorPattern{{ErrorCode: "runner_failed", Count: 2, LastSeen: now.Add(-time.Hour), SampleRunID: "run-2"}}}
 	handler := NewHandler(store, func() time.Time { return now })
 	rpc, err := handler.ErrorPatterns(context.Background(), connect.NewRequest(&measurepb.ErrorPatternsRequest{Window: token(sharedmeasurepb.TimeWindowToken_TIME_WINDOW_TOKEN_LAST_7D)}))
-	if err != nil || len(rpc.Msg.GetRows()) != 1 || rpc.Msg.GetRows()[0].GetErrorCode() != "runner_failed" || rpc.Msg.GetRows()[0].GetCount() != 2 || rpc.Msg.GetRows()[0].GetSampleRunId() != "run-2" || rpc.Msg.GetExecutedQuery() == "" {
+	if err != nil || len(rpc.Msg.GetRows()) != 1 || rpc.Msg.GetRows()[0].GetErrorCode() != "runner_failed" || rpc.Msg.GetRows()[0].GetCount() != 2 || rpc.Msg.GetRows()[0].GetSampleRunId() != "run-2" || rpc.Msg.GetProvenance().GetExecutedQuery() == "" {
 		t.Fatalf("errors rpc=%+v err=%v", rpc.Msg, err)
 	}
 	registry, err := handler.Registry()
@@ -283,7 +283,7 @@ func TestRegistryAndTypedRPCShareErrorPatterns(t *testing.T) {
 		t.Fatal(err)
 	}
 	served, err := registry.Execute(context.Background(), measureRequest(ErrorPatterns, "last_7d"))
-	if err != nil || len(served.Fields) != 1 || served.Fields[0]["error_code"] != "runner_failed" || served.Fields[0]["count"] != "2" || served.Provenance.ExecutedQuery != rpc.Msg.GetExecutedQuery() {
+	if err != nil || len(served.Fields) != 1 || served.Fields[0]["error_code"] != "runner_failed" || served.Fields[0]["count"] != "2" || served.Provenance.ExecutedQuery != rpc.Msg.GetProvenance().GetExecutedQuery() {
 		t.Fatalf("errors registry=%+v rpc=%+v err=%v", served, rpc.Msg, err)
 	}
 }

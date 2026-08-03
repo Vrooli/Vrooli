@@ -23,9 +23,11 @@ function queryResult(overrides: Partial<QueryResult>): QueryResult {
   } as QueryResult;
 }
 
+const validMeasure = { validity: { state: "available", reason: "fixture", sampleSize: 25, largestFingerprintShare: 0 }, executedQuery: "SELECT", definitionId: "friction.error_patterns" } as const;
+
 test("ErrorAnalysisSection renders error totals, messages, and sample run links", () => {
   vi.mocked(useErrorAnalysis).mockReturnValue(queryResult({
-    data: { executedQuery: "durable", rows: [
+    data: { ...validMeasure, rows: [
       { errorCode: "workspace-sandbox unavailable while applying patch", count: 12, lastSeen: "2026-05-01T12:00:00.000Z", sampleRunId: "run-error-12345678" },
       { errorCode: "model exhausted fallback chain", count: 1, lastSeen: "2026-05-01T11:00:00.000Z", sampleRunId: "run-error-87654321" },
     ] },
@@ -41,17 +43,18 @@ test("ErrorAnalysisSection renders error totals, messages, and sample run links"
   assert.ok(screen.getByText("model exhausted fallback chain"));
 
   const sampleLinks = screen.getAllByRole("link", { name: /view sample run: run-erro/i });
-  assert.deepEqual(
-    sampleLinks.map((link) => link.getAttribute("href")),
-    ["#/runs/run-error-12345678", "#/runs/run-error-87654321"],
-  );
+  ["workspace-sandbox unavailable while applying patch", "model exhausted fallback chain"].forEach((errorCode, index) => {
+    const href = sampleLinks[index]?.getAttribute("href") ?? "";
+    assert.match(href, /^\/runs\?from=.*&to=.*&errorCode=/);
+    assert.ok(href.includes(encodeURIComponent(errorCode).replace(/%20/g, "+")));
+  });
 });
 
 test("ErrorAnalysisSection truncates long error codes but keeps the full title", () => {
   const longError = "model ".repeat(25).trim();
   vi.mocked(useErrorAnalysis).mockReturnValue(queryResult({
     data: {
-      executedQuery: "durable",
+      ...validMeasure,
       rows: [
         {
           errorCode: longError,
@@ -72,12 +75,12 @@ test("ErrorAnalysisSection truncates long error codes but keeps the full title",
 
 test("ErrorAnalysisSection renders empty, loading, and error states", () => {
   vi.mocked(useErrorAnalysis).mockReturnValue(queryResult({
-    data: { executedQuery: "durable", rows: [] },
+    data: { ...validMeasure, rows: [] },
   }));
 
   const empty = renderWithProviders(createElement(ErrorAnalysisSection));
-  assert.ok(screen.getByText("No errors detected"));
-  assert.ok(screen.getByText("All runs completed successfully in this time period"));
+  assert.ok(screen.getByText("No errors recorded in this window"));
+  assert.ok(screen.getByText("The usable error sample contains no recorded error codes."));
 
   empty.unmount();
   vi.mocked(useErrorAnalysis).mockReturnValue(queryResult({
@@ -85,7 +88,7 @@ test("ErrorAnalysisSection renders empty, loading, and error states", () => {
   }));
 
   const loading = renderWithProviders(createElement(ErrorAnalysisSection));
-  assert.equal(document.querySelectorAll(".animate-pulse").length, 4);
+  assert.equal(document.querySelectorAll(".animate-pulse").length, 1);
 
   loading.unmount();
   vi.mocked(useErrorAnalysis).mockReturnValue(queryResult({
@@ -93,7 +96,5 @@ test("ErrorAnalysisSection renders empty, loading, and error states", () => {
   }));
 
   renderWithProviders(createElement(ErrorAnalysisSection));
-  const panel = screen.getByText("Error Analysis").closest("div");
-  assert.ok(panel);
-  assert.ok(within(panel).getByText("Failed to load: error stats unavailable"));
+  assert.ok(screen.getByText("Error analysis: error stats unavailable"));
 });

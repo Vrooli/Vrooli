@@ -33,6 +33,7 @@ type accuracyLabels struct {
 
 type accuracyCase struct {
 	Name     string          `json:"name"`
+	Reason   string          `json:"reason"`
 	Expected []string        `json:"expected"`
 	Facts    []accuracyFact  `json:"facts"`
 	Events   []accuracyEvent `json:"events"`
@@ -115,6 +116,11 @@ func readAccuracyLabels(path string) (accuracyLabels, error) {
 	}
 	if len(labels.Expected) == 0 || len(labels.Expected) != len(labels.Thresholds) || len(labels.SourceRuns) == 0 || len(labels.Cases) == 0 {
 		return accuracyLabels{}, fmt.Errorf("invalid labels: %+v", labels)
+	}
+	for _, fixture := range labels.Cases {
+		if fixture.Name == "" || fixture.Reason == "" {
+			return accuracyLabels{}, fmt.Errorf("classification fixture %q has no labeller reason", fixture.Name)
+		}
 	}
 	return labels, nil
 }

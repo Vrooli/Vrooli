@@ -9,7 +9,7 @@ import (
 
 // EpisodeClassifierVersion pins the deterministic episode rules so retained
 // evidence is never silently compared across classifier changes.
-const EpisodeClassifierVersion = "friction-episode.v6"
+const EpisodeClassifierVersion = "friction-episode.v8"
 
 const idleEpisodeThreshold = 5 * time.Minute
 

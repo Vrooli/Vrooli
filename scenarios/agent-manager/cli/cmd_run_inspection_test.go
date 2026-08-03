@@ -72,13 +72,13 @@ func TestRunInspectionCommandsEmitNextSteps(t *testing.T) {
 	}
 	for _, command := range commands {
 		t.Run(command.name, func(t *testing.T) {
-		output := captureStdout(t, command.run)
-		if !strings.Contains(output, "Next: ") {
-			t.Fatalf("%s did not emit progressive-disclosure footer:\n%s", command.name, output)
-		}
-		if command.name == "report" && !strings.Contains(output, "Diff: files=0 bytes=0 (available)") {
-			t.Fatalf("report did not decode proto JSON int64 fields:\n%s", output)
-		}
+			output := captureStdout(t, command.run)
+			if !strings.Contains(output, "Next: ") {
+				t.Fatalf("%s did not emit progressive-disclosure footer:\n%s", command.name, output)
+			}
+			if command.name == "report" && !strings.Contains(output, "Diff: files=0 bytes=0 (available)") {
+				t.Fatalf("report did not decode proto JSON int64 fields:\n%s", output)
+			}
 		})
 	}
 }

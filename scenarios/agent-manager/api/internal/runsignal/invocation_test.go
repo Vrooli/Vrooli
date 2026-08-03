@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"github.com/google/uuid"
 )
@@ -21,7 +22,7 @@ func TestDeriveInvocationFactsPairsAndRedacts(t *testing.T) {
 	if len(facts) != 1 || facts[0].Outcome != "failure" || facts[0].ResultEventID != result.ID.String() {
 		t.Fatalf("facts=%+v", facts)
 	}
-	if facts[0].PairingBasis != "tool_call_id" {
+	if facts[0].PairingBasis != "call-id" {
 		t.Fatalf("pairing basis=%q", facts[0].PairingBasis)
 	}
 	if facts[0].Ownership != "external" || facts[0].Fingerprint == "" {
@@ -63,6 +64,24 @@ func TestDeriveInvocationFactsLabelsCompoundShell(t *testing.T) {
 	}
 }
 
+func TestDeriveInvocationFactsPreservesLiteralArgvArguments(t *testing.T) {
+	runID := uuid.New()
+	call := domain.NewToolCallEvent(runID, "exec_command", "call-argv", map[string]any{
+		"argv": []any{"bash", "-lc", "awk '$4==\"1w\" {print}' input | head"},
+	})
+	resolver := func(_ string, _ map[string]any) runner.CommandExtraction {
+		return runner.CommandExtraction{
+			Command:     "bash -lc awk '$4==\"1w\" {print}' input | head",
+			Args:        []string{"bash", "-lc", "awk '$4==\"1w\" {print}' input | head"},
+			LiteralArgs: true,
+		}
+	}
+	facts := DeriveInvocationFactsWithResolver([]*domain.RunEvent{call}, nil, resolver)
+	if len(facts) != 1 || facts[0].Ownership != OwnershipExternal || facts[0].Executable != "bash" || facts[0].Fingerprint == "" {
+		t.Fatalf("literal argv was parsed as shell syntax: %+v", facts)
+	}
+}
+
 func TestDeriveInvocationFactsDetectsHelpRecovery(t *testing.T) {
 	runID := uuid.New()
 	failed := domain.NewToolCallEvent(runID, "shell", "one", map[string]any{"command": "agent-manager"})
@@ -89,6 +108,23 @@ func TestDeriveInvocationFactsFingerprintsArgumentShapeWithoutValues(t *testing.
 	}
 	if facts[0].Executable != "sed" || facts[0].Ownership != "external" {
 		t.Fatalf("external executable was not recorded: %+v", facts[0])
+	}
+}
+
+func TestDeriveInvocationFactsFingerprintsOpaqueShellCommandsByHashedCommand(t *testing.T) {
+	runID := uuid.New()
+	first := domain.NewToolCallEvent(runID, "shell", "one", map[string]any{"command": "printf alpha"})
+	second := domain.NewToolCallEvent(runID, "shell", "two", map[string]any{"command": "printf beta"})
+	repeat := domain.NewToolCallEvent(runID, "shell", "three", map[string]any{"command": "printf alpha"})
+	facts := DeriveInvocationFacts([]*domain.RunEvent{first, second, repeat})
+	if len(facts) != 3 {
+		t.Fatalf("facts=%+v", facts)
+	}
+	if facts[0].Fingerprint == "" || facts[0].Fingerprint == facts[1].Fingerprint {
+		t.Fatalf("opaque shell commands collapsed: %+v", facts)
+	}
+	if facts[0].Fingerprint != facts[2].Fingerprint {
+		t.Fatalf("identical opaque shell commands diverged: %+v", facts)
 	}
 }
 

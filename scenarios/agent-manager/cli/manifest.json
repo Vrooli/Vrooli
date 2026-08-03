@@ -193,6 +193,7 @@
         {"name":"runner","description":"Runner operations","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
         {"name":"scenario-smoke","description":"Live scenario smoke validation","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
         {"name":"settings","description":"Settings operations","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"subscription","description":"Subscription billing period operations","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":false,"permissions":["network:internal"]}},
         {"name":"task","description":"Task operations","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
         {"name":"workflow","description":"Workflow operations","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}
       ]
@@ -271,6 +272,28 @@
           "name": "cohort-compare",
           "description": "Compare episode fingerprints across two durable filter populations",
           "flags": [{"name":"left-filter-json","required":true,"description":"Left invocation filter JSON"},{"name":"right-filter-json","required":true,"description":"Right invocation filter JSON"},{"name":"limit","description":"Maximum fingerprint signals"}],
+          "binding": {"kind":"local"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"operational"}
+        },
+        {
+          "name": "cohort",
+          "description": "Define, list, inspect, and delete durable invocation cohorts",
+          "binding": {"kind":"local"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"operational"}
+        },
+        {
+          "name": "cross-scenario",
+          "description": "Report generic cross-scenario receipt and semantics evidence",
+          "binding": {"kind":"local"},
+          "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
+          "architecture": {"primitive":"operational"}
+        },
+        {
+          "name": "goal-cohort",
+          "description": "Aggregate goal progression evidence across a durable cohort",
+          "flags": [{"name":"cohort","required":true,"description":"Durable cohort name"},{"name":"limit","description":"Maximum runs to score"}],
           "binding": {"kind":"local"},
           "governance": {"effect":"read","run_eligible":true,"permissions":["network:internal"]},
           "architecture": {"primitive":"operational"}
@@ -448,6 +471,10 @@
     }
   ],
   "omitted": [
+    {"service":"MeasuresService","method":"AllMeasureDefinitions","reason":"UI/runtime registry discovery endpoint; not exposed as a standalone CLI command."},
+    {"service":"MeasuresService","method":"ToolCommandBreakdown","reason":"UI drill-down endpoint; command telemetry is consumed through the Stats page rather than a standalone CLI command."},
+    {"service":"MeasuresService","method":"WorkloadBreakdown","reason":"CLI workload reporting is currently kept behind the local workload command while the UI consumes the typed Connect measure."},
+    {"service":"MeasuresService","method":"WorkloadEfficiency","reason":"CLI workload reporting is currently kept behind the local workload command while the UI consumes the typed Connect measure."},
     {"service":"AgentManagerService","method":"ApproveRun","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
     {"service":"AgentManagerService","method":"CancelTask","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},
     {"service":"AgentManagerService","method":"CreateProfile","reason":"Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."},

@@ -8,3 +8,8 @@ export interface HistoryWindow {
   has_history: boolean;
   min_sample_meaningful: number;
 }
+
+export interface HistoryCoverage {
+  historyFloor: string;
+  outsideHistoryRunCount: number;
+}

@@ -51,6 +51,7 @@ type OrchestratorDependencies struct {
 	StatsService          orchestration.StatsService
 	StatsRepository       repository.StatsRepository
 	PricingService        pricing.Service
+	PricingRepository     pricing.Repository
 	Reconciler            *orchestration.Reconciler
 	AwaitRegistry         *orchestration.AwaitRegistry
 	WorkflowNudger        *orchestration.WorkflowNudger
@@ -62,6 +63,9 @@ type OrchestratorDependencies struct {
 	HealthStore           *healthstore.Store
 	EventRepository       eventlog.Repository
 	InvocationReadModel   invocationreadmodel.Store
+	WorkspaceSandbox      interface {
+		IsAvailable(context.Context) (bool, string)
+	}
 }
 
 // NewOrchestrator builds the production orchestration graph. No background
@@ -102,7 +106,8 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	}
 	permissionPolicy := permissionpolicy.NewService(permissionState, permissionpolicy.NewResourcePermissionProjector(nil), permissionpolicy.NewSQLiteAuditStore(db))
 
-	pricingService := pricing.NewService(database.NewPricingRepository(db, logger), []pricing.Provider{providers.NewOpenRouterProvider()}, logger)
+	pricingRepository := database.NewPricingRepository(db, logger)
+	pricingService := pricing.NewService(pricingRepository, []pricing.Provider{providers.NewOpenRouterProvider()}, logger)
 	startPricingLifecycle(pricingService, bootLog)
 	runners := NewRunners(pricingCodecAdapter{service: pricingService})
 	registry := runners.Registry
@@ -250,7 +255,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	eventRepo := eventlog.NewSQLiteRepository(db)
 	statsEngine := stats.NewEngine(eventRepo, stats.NewSQLiteCheckpointStore(db), "operational")
 	bootLog.Info("orchestrator initialized", "storage", "sqlite", "sandbox", sandboxURL)
-	return OrchestratorDependencies{Orchestrator: orch, StatsService: orchestration.NewStatsOrchestrator(repos.Stats), StatsRepository: repos.Stats, PricingService: pricingService, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, StatsEngine: statsEngine, HealthStore: healthStore, EventRepository: eventRepo, InvocationReadModel: repos.InvocationReadModel}, nil
+	return OrchestratorDependencies{Orchestrator: orch, StatsService: orchestration.NewStatsOrchestrator(repos.Stats), StatsRepository: repos.Stats, PricingService: pricingService, PricingRepository: pricingRepository, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, StatsEngine: statsEngine, HealthStore: healthStore, EventRepository: eventRepo, InvocationReadModel: repos.InvocationReadModel, WorkspaceSandbox: sandboxProvider}, nil
 }
 
 func startPricingLifecycle(service pricing.Service, log *slog.Logger) {

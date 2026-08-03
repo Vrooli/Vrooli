@@ -86,6 +86,30 @@ type Runner interface {
 	Classify(stderr string, exitCode int) *fallback.ClassifiedError
 }
 
+// GoalMarkerProvider declares the runner-owned transcript markers that can
+// establish imported goal metadata. The orchestration layer consumes this
+// optional seam without knowing a harness's wire format.
+type GoalMarkerProvider interface {
+	GoalStatusFromTranscriptLine(string) (condition string, met bool, ok bool)
+}
+
+// CommandExtraction is the runner-owned interpretation of a tool-call input.
+// Args preserve literal argv boundaries; callers must never evaluate them as
+// shell syntax. Reason is populated when the payload has no declared command.
+type CommandExtraction struct {
+	Command     string
+	Args        []string
+	Reason      string
+	LiteralArgs bool
+}
+
+// CommandExtractor declares the codec-owned command extraction seam used by
+// durable invocation projection. A generic key search is only the fallback
+// for standalone callers that have no selected runner.
+type CommandExtractor interface {
+	ExtractCommand(input map[string]any) CommandExtraction
+}
+
 // Capabilities describes what features a runner supports.
 type Capabilities struct {
 	// SupportsMessages indicates the runner can capture structured messages.
@@ -437,6 +461,14 @@ type TranscriptParserFactory interface {
 // this attribution explicitly instead of silently emitting an unlabeled use.
 type TranscriptModelSetter interface {
 	SetTranscriptModel(string)
+}
+
+// TranscriptRetentionSetter selects whether echoed user/operator turns are
+// retained during a durable transcript import. Live execution keeps the
+// historical suppression behavior; imported evidence opts into redacted,
+// typed user turns for intervention and progression analysis.
+type TranscriptRetentionSetter interface {
+	SetTranscriptRetention(bool)
 }
 
 // AgentLaunchInfo exposes the per-agent facts the interactive execution

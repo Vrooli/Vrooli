@@ -96,6 +96,9 @@ func TestCapabilitiesConformance(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			if _, ok := tc.codec.(CommandExtractor); !ok {
+				t.Fatal("codec does not implement CommandExtractor")
+			}
 			caps := tc.codec.Capabilities()
 			checkBool(t, "SupportsMessages", caps.SupportsMessages, tc.want.messages)
 			checkBool(t, "SupportsToolEvents", caps.SupportsToolEvents, tc.want.toolEvents)
