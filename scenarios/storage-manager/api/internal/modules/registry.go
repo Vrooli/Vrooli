@@ -22,12 +22,15 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	advisorH "storage-manager/handlers/advisor"
 	cleanupH "storage-manager/handlers/cleanup"
+	fleetH "storage-manager/handlers/fleet"
 	healthH "storage-manager/handlers/health"
 	storageH "storage-manager/handlers/storage"
 	validationH "storage-manager/handlers/validation"
 	"storage-manager/internal/census"
 	localdb "storage-manager/internal/database"
+	"storage-manager/internal/fleet"
 	"storage-manager/internal/orchestrator"
 	"storage-manager/internal/placement"
 
@@ -42,6 +45,8 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, cleanupH.Endpoints...)
+	out = append(out, fleetH.Endpoints...)
+	out = append(out, advisorH.Endpoints...)
 	out = append(out, validationH.Endpoints...)
 	out = append(out, storageH.Endpoints...)
 	return out
@@ -72,6 +77,8 @@ type ProtoFileEntry struct {
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "cleanup", File: cleanupv1.File_storage_manager_v1_cleanup_cleanup_proto},
+		{Module: "fleet", File: fleetH.ProtoFile, Services: []protoreflect.FullName{"vrooli.storage_health.v1.fleet.FleetService"}},
+		{Module: "advisor", File: advisorH.ProtoFile, Services: []protoreflect.FullName{"vrooli.storage_health.v1.advisor.AdvisorService"}},
 		{Module: "validation", File: validationH.ProtoFile, Services: []protoreflect.FullName{"vrooli.scenario_validation.v1.ScenarioValidationService"}},
 	}
 }
@@ -90,5 +97,6 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(orchestrator.Schema),
 		apidb.SchemaProviderFunc(census.Schema),
 		apidb.SchemaProviderFunc(placement.Schema),
+		apidb.SchemaProviderFunc(fleet.Schema),
 	}
 }

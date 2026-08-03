@@ -3,12 +3,17 @@ package validation
 import (
 	"context"
 	"sort"
+
+	corestorage "github.com/vrooli/api-core/storage"
 )
 
 // AnalyzerContext is the read-only input every analyzer receives. It is built
 // once per ValidateScenario call from code-facts + service.json + on-disk
 // inspection, so analyzers never re-resolve the scenario themselves.
 type AnalyzerContext struct {
+	// RepoRoot is the repository root used to resolve owner manifests and
+	// relative storage declarations.
+	RepoRoot string
 	// Scenario is the validated scenario id.
 	Scenario string
 	// ScenarioDir is the absolute path to scenarios/<scenario>.
@@ -28,6 +33,8 @@ type AnalyzerContext struct {
 	StorageStage string
 	// HasMigrations reports whether a committed migrations/ directory exists.
 	HasMigrations bool
+	// Owner is the normalized native manifest for the validated scenario.
+	Owner *corestorage.OwnerManifest
 }
 
 // IsGo reports whether the API surface is Go.

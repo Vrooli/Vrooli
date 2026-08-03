@@ -4,6 +4,124 @@
   "description": "Storage Manager CLI surface for preview-first cleanup policy, planning, apply, and audit operations.",
   "groups": [
     {
+      "name": "validate",
+      "description": "Validate a scenario's storage judgment",
+      "commands": [
+        {
+          "name": "scenario",
+          "description": "Run storage analyzers against a scenario",
+          "positionals": [{ "name": "name", "required": true, "description": "Scenario id" }],
+          "binding": { "kind": "connect-rpc", "service": "ScenarioValidationService", "method": "ValidateScenario" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "fix",
+      "description": "Preview or apply deterministic storage fixes",
+      "commands": [
+        {
+          "name": "preview",
+          "description": "Preview storage fixes without writing",
+          "positionals": [{ "name": "name", "required": true, "description": "Scenario id" }],
+          "flags": [{ "name": "rule", "description": "Finding code filter" }],
+          "binding": { "kind": "connect-rpc", "service": "ScenarioValidationService", "method": "PreviewFix" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "apply",
+          "description": "Apply deterministic storage fixes",
+          "positionals": [{ "name": "name", "required": true, "description": "Scenario id" }],
+          "flags": [{ "name": "rule", "description": "Finding code filter" }],
+          "binding": { "kind": "connect-rpc", "service": "ScenarioValidationService", "method": "ApplyFix" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["filesystem:write", "network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "fleet",
+      "description": "Fleet-wide storage inventory",
+      "commands": [
+        {
+          "name": "scan",
+          "description": "Scan storage posture across scenarios",
+          "flags": [
+            { "name": "scenario", "description": "Scenario filter" },
+            { "name": "view", "description": "all, isolation, no-backup, engines, or stages" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "FleetService", "method": "ScanFleet" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "inventory",
+          "description": "Read the latest fleet snapshot",
+          "flags": [{ "name": "view", "description": "all, isolation, no-backup, engines, or stages" }],
+          "binding": { "kind": "connect-rpc", "service": "FleetService", "method": "GetInventory" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "advisor",
+      "description": "Storage migration intelligence",
+      "commands": [
+        {
+          "name": "migrations",
+          "description": "Analyze migration hygiene",
+          "flags": [{ "name": "scenario", "description": "Scenario filter" }],
+          "binding": { "kind": "connect-rpc", "service": "AdvisorService", "method": "AnalyzeMigrations" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "engines",
+          "description": "Rank engine migration candidates",
+          "flags": [{ "name": "scenario", "description": "Scenario filter" }],
+          "binding": { "kind": "connect-rpc", "service": "AdvisorService", "method": "AdviseEngines" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "placement",
+      "description": "Verify storage placement without moving bytes",
+      "commands": [
+        {
+          "name": "verify",
+          "description": "Verify declarations for a target platform",
+          "flags": [{ "name": "platform", "required": true, "description": "linux, macos, or windows" }],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "declare",
+      "description": "Inspect and generate storage declarations",
+      "commands": [
+        {
+          "name": "inspect",
+          "description": "Compare declared and observed storage",
+          "positionals": [{ "name": "owner", "required": true, "description": "Owner id" }],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "suggest",
+          "description": "Emit a measured storage.entries block",
+          "positionals": [{ "name": "owner", "required": true, "description": "Owner id" }],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "check",
+          "description": "Report declaration coverage",
+          "flags": [{ "name": "kind", "description": "scenario, resource, tool, or safeguard" }],
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
       "name": "cleanup",
       "description": "Preview, plan, apply, and audit cleanup policy",
       "commands": [
@@ -267,14 +385,10 @@
   "measures": {
     "domains": []
   },
+  "exceptions": [
+    { "command": "validate prove-isolation", "class": "external_delegation", "reason": "API-free static source proof is intentionally outside Connect-RPC dispatch." }
+  ],
   "omitted": [
-    { "service": "AdvisorService", "method": "AnalyzeMigrations", "reason": "Fleet migration analysis is exposed through the storage validation provider and dashboard; the CLI cleanup group does not duplicate it." },
-    { "service": "AdvisorService", "method": "AdviseEngines", "reason": "Engine fitness advice is exposed through the storage validation provider and dashboard; the CLI cleanup group does not duplicate it." },
-    { "service": "FleetService", "method": "ScanFleet", "reason": "Fleet scans are scheduled and persisted by storage-manager; operators use the dashboard and census surface." },
-    { "service": "FleetService", "method": "GetInventory", "reason": "Fleet inventory is scheduled and persisted by storage-manager; operators use the dashboard and census surface." },
-    { "service": "ScenarioValidationService", "method": "ApplyFix", "reason": "Validation fixes remain an API/UI workflow because they require scenario-specific preview and operator confirmation." },
-    { "service": "ScenarioValidationService", "method": "DescribeProvider", "reason": "Provider descriptors are consumed by the dashboard and Test Genie integration; the CLI does not duplicate them." },
-    { "service": "ScenarioValidationService", "method": "PreviewFix", "reason": "Validation fix previews remain an API/UI workflow because they require scenario-specific context." },
-    { "service": "ScenarioValidationService", "method": "ValidateScenario", "reason": "Scenario validation is exposed through the provider and dashboard; the cleanup CLI does not duplicate it." }
+    { "service": "ScenarioValidationService", "method": "DescribeProvider", "reason": "Provider descriptors are consumed by the dashboard and Test Genie integration; the CLI does not duplicate them." }
   ]
 }

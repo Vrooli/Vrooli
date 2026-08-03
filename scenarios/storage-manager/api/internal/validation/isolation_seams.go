@@ -146,6 +146,14 @@ func isoCollectSeams(absPath string, present map[string]bool) {
 				present[seam.key] = true
 			}
 		}
+		// Some Go services deliberately own a richer startup schema authority
+		// (migrations and optional seed handling) instead of calling the
+		// api-core helper directly. A qualified persistence.ApplySchema call
+		// still proves the active RoutedDB is used for schema setup; recognize
+		// that equivalent without treating an arbitrary function name as proof.
+		if sel.Sel.Name == "ApplySchema" && strings.HasSuffix(path, "/persistence") {
+			present["database.EnsureSchemas"] = true
+		}
 		// The combined registration is the stricter successor to the
 		// database-only seam: it mounts the same RoutingService plus leased
 		// file roots, so it satisfies the DB registration proof as well.
@@ -193,12 +201,24 @@ func (isoFileRoutedSeams) Applies(ac AnalyzerContext) bool {
 	if !ac.IsGo() || ac.APIDir == "" {
 		return false
 	}
+	// Observer-mode suites never install or execute destructive playbooks. The
+	// scenario may still write its own durable evidence and therefore remains
+	// subject to storage census/schema checks, but file test-isolation seams are
+	// not an applicable safety gate when no mutating E2E path exists.
+	if isoObserverOnly(ac) {
+		return false
+	}
 	for _, engine := range ac.Engines {
 		if engine == EngineFile {
 			return true
 		}
 	}
 	return isoUsesFilePersistence(ac)
+}
+
+func isoObserverOnly(ac AnalyzerContext) bool {
+	registry := ReadFile(filepath.Join(ac.ScenarioDir, "bas", "registry.json"))
+	return strings.Contains(registry, `"execution_mode": "observer"`)
 }
 
 // isoUsesFilePersistence catches Go APIs whose storage declaration is absent

@@ -6,8 +6,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
+
+	corestorage "github.com/vrooli/api-core/storage"
 )
 
 // Service validates one scenario's storage judgment at a time. It owns the
@@ -90,6 +93,7 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	}
 
 	ac := AnalyzerContext{
+		RepoRoot:      s.repoRoot,
 		Scenario:      scenario,
 		ScenarioDir:   scenarioDir,
 		APIDir:        apiDir,
@@ -98,6 +102,15 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 		Domains:       detection.Domains,
 		StorageStage:  stage,
 		HasMigrations: hasMigrations,
+	}
+	if inventory, inventoryErr := corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: s.repoRoot, Platform: corestorage.Platform(runtime.GOOS)}); inventoryErr == nil {
+		for i := range inventory.Owners {
+			owner := &inventory.Owners[i]
+			if owner.Kind == corestorage.OwnerScenario && owner.ID == scenario {
+				ac.Owner = owner
+				break
+			}
+		}
 	}
 
 	var findings []Finding

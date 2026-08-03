@@ -26,7 +26,9 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 	_ "modernc.org/sqlite"
 
+	advisorH "storage-manager/handlers/advisor"
 	cleanupH "storage-manager/handlers/cleanup"
+	fleetH "storage-manager/handlers/fleet"
 	healthH "storage-manager/handlers/health"
 	storageH "storage-manager/handlers/storage"
 	validationH "storage-manager/handlers/validation"
@@ -152,6 +154,8 @@ func main() {
 		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, "storage-manager-api", "1.0.0"),
 		cleanupH.Module(logger, db),
+		fleetH.Module(logger, repoRoot, db, clock.System{}),
+		advisorH.Module(logger, repoRoot),
 		validationH.Module(logger, repoRoot),
 		storageH.Module(storageH.ModuleDeps{RepoRoot: repoRoot, DB: db}),
 	)
@@ -172,6 +176,12 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
+		// Fleet scans classify every owner and can legitimately take several
+		// minutes on a large workspace. The default api-core write timeout is
+		// 30 seconds, which closes the socket after the server has completed
+		// the scan and leaves clients with an opaque unexpected-EOF error.
+		// Keep the long-running RPC within the same bounded window as the CLI.
+		WriteTimeout: 20 * time.Minute,
 		Cleanup: func(ctx context.Context) error {
 			stopScheduler()
 			return db.Close()

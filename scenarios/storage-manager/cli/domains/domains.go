@@ -1,7 +1,11 @@
 package domains
 
 import (
+	"storage-manager/cli/domains/advisor"
 	"storage-manager/cli/domains/cleanup"
+	"storage-manager/cli/domains/fix"
+	"storage-manager/cli/domains/fleet"
+	"storage-manager/cli/domains/validate"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -42,6 +46,28 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	groups = append(groups, cleanupGroup)
+	validateGroup, err := validate.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, validateGroup)
+	fixGroup, err := fix.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, fixGroup)
+	fleetGroup, err := fleet.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, fleetGroup)
+	advisorGroup, err := advisor.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, advisorGroup)
+	groups = append(groups, placementGroup(core))
+	groups = append(groups, declareGroup(core))
 	groups = append(groups, storageGroup(core))
 	return groups, nil
 }

@@ -57,10 +57,12 @@ export type CensusReport = {
   root: string;
   measured_bytes: number;
   attributed_bytes: number;
-  unattributed_bytes: number;
+  unattributed_bytes: number | null;
+  unreadable_bytes?: number;
   closed: boolean;
   accounting_identity: boolean;
   confidence: string;
+  scan_coverage?: { measured_bytes: number; device_used_bytes?: number; device_total_bytes?: number; complete: boolean };
   growth_slope_bytes_per_hour?: number;
   owner_counts?: Record<string, number>;
   unreadable_paths?: string[];
@@ -90,6 +92,8 @@ export type InfraHealthReport = {
   owner_count: number;
   owners_with_declared_ceiling: number;
   declared_ceiling_coverage: number;
+  measured_bytes_under_enforced_ceiling: number;
+  enforced_ceiling_coverage: number;
   snapshot_count: number;
   confidence: string;
   growth_slope_bytes_per_hour?: number;
@@ -116,7 +120,10 @@ export type RetentionOwner = {
   kind: string;
   id: string;
   manifest_path: string;
-  budgets?: Array<{ name: string; target_kind: string; max_age?: string; max_bytes?: number }>;
+  budgets?: Array<{ name: string; target_kind: string; max_age?: string; max_bytes?: number; rationale?: string }>;
+  enforcement_state?: string;
+  last_enforcement_time?: string | null;
+  findings?: Array<{ code: string; budget: string; observed_bytes: number; max_bytes: number; message: string }>;
   error?: string;
 };
 export type RetentionInventory = { owners: RetentionOwner[]; findings?: InventoryFinding[] };

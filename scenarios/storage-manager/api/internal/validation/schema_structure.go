@@ -375,7 +375,7 @@ func (a schemaEnsureNotWired) Analyze(_ context.Context, ac AnalyzerContext) ([]
 	embedded := map[string]bool{} // dir(relPath) → some .go in that dir has //go:embed *.sql
 	for _, g := range goFiles {
 		src := ReadFile(g.AbsPath)
-		if strings.Contains(src, "EnsureSchemas(") {
+		if schemaApplicationCallPresent(src) {
 			ensureCalled = true
 		}
 		if schemaGoEmbedsSQL(src) {
@@ -416,6 +416,19 @@ func (a schemaEnsureNotWired) Analyze(_ context.Context, ac AnalyzerContext) ([]
 		})
 	}
 	return findings, nil
+}
+
+// schemaApplicationCallPresent accepts the api-core EnsureSchemas seam and a
+// deliberately narrow equivalent used by applications that own a richer
+// schema bootstrap (for example, one that applies migrations and optional
+// seed data in the same startup transaction). The equivalent must be an
+// actual qualified ApplySchema call; merely defining a helper with that name
+// is not evidence that startup invokes it.
+func schemaApplicationCallPresent(src string) bool {
+	if strings.Contains(src, "EnsureSchemas(") {
+		return true
+	}
+	return strings.Contains(src, ".ApplySchema(")
 }
 
 // schemaGoEmbedsSQL reports whether a Go source contains a //go:embed directive

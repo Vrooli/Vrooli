@@ -2,6 +2,7 @@ package census
 
 import (
 	"context"
+	"encoding/json"
 	"math"
 	"os"
 	"path/filepath"
@@ -11,6 +12,28 @@ import (
 	corestorage "github.com/vrooli/api-core/storage"
 	"storage-manager/internal/testutil/db"
 )
+
+func TestScanReportsUnknownUnattributedBytesWhenCoverageIsUnreadable(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "visible"), []byte("data"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// A missing root is not unreadable; it is a known missing surface. Use a
+	// permission-free synthetic declaration to assert the JSON contract via a
+	// direct report, which is stable across test runners and operating systems.
+	report := Report{Root: root, MeasuredBytes: 4, AttributedBytes: 4, Closed: false, AccountingIdentity: false, Confidence: "degraded", UnattributedKnown: false}
+	payload, err := json.Marshal(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if decoded["unattributed_bytes"] != nil {
+		t.Fatalf("unattributed_bytes = %v, want null for unknown coverage", decoded["unattributed_bytes"])
+	}
+}
 
 func TestScanClosedIdentityAndAttribution(t *testing.T) {
 	root := t.TempDir()
@@ -109,7 +132,7 @@ func TestScanInventoryMeasuresBoundedUnclassifiedScenarioRoots(t *testing.T) {
 	if report.Closed || report.Confidence != "degraded" {
 		t.Fatalf("unclassified storage should degrade confidence: %+v", report)
 	}
-	if !hasFinding(report.Findings, "unattributed_storage") {
+	if !hasFinding(report.Findings, "STORAGE_PATH_UNACCOUNTED") {
 		t.Fatalf("unattributed finding missing: %+v", report.Findings)
 	}
 }

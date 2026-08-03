@@ -202,6 +202,17 @@
             "capability_summary": "Storage operational readiness is clean."
           }
         ]
+      },
+      {
+        "id": "declaration_accountability",
+        "label": "Declaration Accountability",
+        "description": "Whether declared storage matches observed writers, paths, sidecars, budgets, and enforcement.",
+        "levels": [
+          { "id": "L0", "name": "Declaration unknown", "status_label": "Unavailable", "description": "Storage declarations cannot be evaluated.", "capability_summary": "Declaration accountability is unknown.", "next_unlock": "A readable owner manifest and storage surface." },
+          { "id": "L1", "name": "Declared", "status_label": "Foundation", "description": "The owner has a readable declaration, but reconciliation is incomplete.", "capability_summary": "Storage intent is declared.", "next_unlock": "Reconcile declared paths with writers and observed bytes." },
+          { "id": "L2", "name": "Reconciled", "status_label": "Ready", "description": "Declared paths, writers, sidecars, and observed storage agree.", "capability_summary": "Storage declarations match reality.", "next_unlock": "Bound and enforce every durable surface." },
+          { "id": "L3", "name": "Governed", "status_label": "Complete", "description": "Reconciled storage is bounded and enforcement is visible.", "capability_summary": "Storage declarations are governed end to end." }
+        ]
       }
     ],
     "findings": {
@@ -464,6 +475,124 @@
         ],
         "fix_class": "manual",
         "reason": "Migration debt is informational; authoring a migration is a deliberate, stage-dependent act."
+      },
+      "STORAGE_ENTRY_NO_WRITER": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "A writer may be missing, generated, or intentionally suppressed; remediation needs owner judgment."
+      },
+      "STORAGE_ENTRY_CLASS_CONFLICT": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "The owner must choose the correct class for durable versus regenerable data."
+      },
+      "STORAGE_ENTRY_UNRECLAIMABLE": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "The owner must provide a reclaim command or measured budget."
+      },
+      "STORAGE_SQLITE_SIDECAR_UNDECLARED": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "The owner must declare live SQLite sidecars alongside the database."
+      },
+      "STORAGE_BUDGET_BELOW_OBSERVED": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "The owner must reconcile observed bytes with its declared ceiling."
+      },
+      "STORAGE_RETENTION_CONFLICT": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "The owner must make retention and durable-data declarations agree."
+      },
+      "STORAGE_PATH_UNACCOUNTED": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "The owner must adopt observed bytes into an accountable declaration."
+      },
+      "STORAGE_PATH_ORPHANED": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L0",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "The stale scenario directory must be removed or given a canonical owner manifest."
+      },
+      "STORAGE_ACCOUNTABILITY_DECLARED": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_INFO",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A readable storage declaration establishes the foundation rung."
+      },
+      "STORAGE_ACCOUNTABILITY_RECONCILED": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_INFO",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "A reconciled declaration is the prerequisite for governance."
+      },
+      "STORAGE_ACCOUNTABILITY_GOVERNED": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L3",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_INFO",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Visible enforcement completes the accountability ladder."
       }
     },
     "fallback": {

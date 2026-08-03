@@ -48,9 +48,12 @@ type Report struct {
 	MeasuredBytes           int64          `json:"measured_bytes"`
 	AttributedBytes         int64          `json:"attributed_bytes"`
 	UnattributedBytes       int64          `json:"unattributed_bytes"`
+	UnattributedKnown       bool           `json:"-"`
+	UnreadableBytes         int64          `json:"unreadable_bytes,omitempty"`
 	Closed                  bool           `json:"closed"`
 	AccountingIdentity      bool           `json:"accounting_identity"`
 	Confidence              string         `json:"confidence"`
+	ScanCoverage            ScanCoverage   `json:"scan_coverage"`
 	GrowthSlopeBytesPerHour *float64       `json:"growth_slope_bytes_per_hour,omitempty"`
 	OwnerCounts             map[string]int `json:"owner_counts,omitempty"`
 	UnreadablePaths         []string       `json:"unreadable_paths,omitempty"`
@@ -59,7 +62,28 @@ type Report struct {
 	FrameworkRoots          []string       `json:"framework_roots,omitempty"`
 }
 
-func (r Report) MarshalJSON() ([]byte, error) { type alias Report; return json.Marshal(alias(r)) }
+type ScanCoverage struct {
+	MeasuredBytes    int64 `json:"measured_bytes"`
+	DeviceUsedBytes  int64 `json:"device_used_bytes,omitempty"`
+	DeviceTotalBytes int64 `json:"device_total_bytes,omitempty"`
+	Complete         bool  `json:"complete"`
+}
+
+func (r Report) MarshalJSON() ([]byte, error) {
+	type alias Report
+	data, err := json.Marshal(alias(r))
+	if err != nil {
+		return nil, err
+	}
+	var object map[string]any
+	if err := json.Unmarshal(data, &object); err != nil {
+		return nil, err
+	}
+	if !r.UnattributedKnown {
+		object["unattributed_bytes"] = nil
+	}
+	return json.Marshal(object)
+}
 
 type Declaration struct {
 	Name     string
@@ -117,6 +141,10 @@ func ScanInventory(root string, inventory corestorage.OwnerInventory) (Report, e
 			boundedRoots = append(boundedRoots, scenarioCandidateRoots(root, owner)...)
 		}
 	}
+	for _, orphan := range orphanScenarioRoots(root, inventory) {
+		boundedRoots = append(boundedRoots, orphan.Path)
+		findings = append(findings, Finding{Code: "STORAGE_PATH_ORPHANED", Severity: "warning", Kind: string(corestorage.OwnerScenario), Path: orphan.Path, Message: fmt.Sprintf("scenario directory has no canonical .vrooli/service.json; %d bytes are outside the owner inventory", orphan.Bytes)})
+	}
 	report, err := scanRoots(root, boundedRoots, declarations, findings)
 	if err != nil {
 		return Report{}, err
@@ -124,6 +152,55 @@ func ScanInventory(root string, inventory corestorage.OwnerInventory) (Report, e
 	report.OwnerCounts = counts
 	report.FrameworkRoots = existingRoots(boundedRoots)
 	return report, nil
+}
+
+type orphanRoot struct {
+	Path  string
+	Bytes int64
+}
+
+func orphanScenarioRoots(repoRoot string, inventory corestorage.OwnerInventory) []orphanRoot {
+	base := filepath.Join(repoRoot, "scenarios")
+	entries, err := os.ReadDir(base)
+	if err != nil {
+		return nil
+	}
+	owned := make(map[string]bool, len(inventory.Owners))
+	for _, owner := range inventory.Owners {
+		if owner.Kind == corestorage.OwnerScenario {
+			owned[owner.ID] = true
+		}
+	}
+	var out []orphanRoot
+	for _, entry := range entries {
+		if !entry.IsDir() || owned[entry.Name()] {
+			continue
+		}
+		path := filepath.Join(base, entry.Name())
+		if _, err := os.Stat(filepath.Join(path, ".vrooli", "service.json")); err == nil {
+			continue
+		}
+		bytes := directoryBytes(path)
+		if bytes > 0 {
+			out = append(out, orphanRoot{Path: path, Bytes: bytes})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
+	return out
+}
+
+func directoryBytes(root string) int64 {
+	var total int64
+	_ = filepath.WalkDir(root, func(_ string, entry fs.DirEntry, err error) error {
+		if err != nil || entry.IsDir() {
+			return nil
+		}
+		if info, statErr := entry.Info(); statErr == nil {
+			total += info.Size()
+		}
+		return nil
+	})
+	return total
 }
 
 type resolvedDeclaration struct {
@@ -151,6 +228,7 @@ func scanRoots(displayRoot string, roots []string, declarations []resolvedDeclar
 	seenRoots := make(map[string]struct{}, len(roots))
 	seenFiles := make(map[string]struct{})
 	findings := append([]Finding(nil), initialFindings...)
+	var unreadableBytes int64
 	for _, rawRoot := range roots {
 		root, absErr := filepath.Abs(rawRoot)
 		if absErr != nil {
@@ -173,6 +251,11 @@ func scanRoots(displayRoot string, roots []string, declarations []resolvedDeclar
 		walkErr := filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
 			if walkErr != nil {
 				unreadable = append(unreadable, path)
+				if d != nil && !d.IsDir() {
+					if info, infoErr := d.Info(); infoErr == nil {
+						unreadableBytes += info.Size()
+					}
+				}
 				if d != nil && d.IsDir() {
 					return fs.SkipDir
 				}
@@ -236,7 +319,7 @@ func scanRoots(displayRoot string, roots []string, declarations []resolvedDeclar
 	}
 	unattributed := measured - attributed
 	if unattributed > 0 {
-		findings = append(findings, Finding{Code: "unattributed_storage", Severity: "warning", Path: displayRoot, Message: fmt.Sprintf("%d measured bytes have no declaration", unattributed)})
+		findings = append(findings, Finding{Code: "STORAGE_PATH_UNACCOUNTED", Severity: "warning", Path: displayRoot, Message: fmt.Sprintf("%d measured bytes have no declaration", unattributed)})
 	}
 	for _, path := range unreadable {
 		findings = append(findings, Finding{Code: "unreadable_path", Severity: "error", Path: path, Message: "census could not read this path"})
@@ -256,11 +339,14 @@ func scanRoots(displayRoot string, roots []string, declarations []resolvedDeclar
 		}
 		return findings[i].Path < findings[j].Path
 	})
+	coverage := deviceCoverage(displayRoot, measured, len(unreadable) == 0)
+	coverage.Complete = coverage.Complete && len(unreadable) == 0
 	confidence := "high"
 	if len(unreadable) > 0 || len(findings) > 0 {
 		confidence = "degraded"
 	}
-	return Report{Root: displayRoot, MeasuredBytes: measured, AttributedBytes: attributed, UnattributedBytes: unattributed, Closed: len(unreadable) == 0 && unattributed == 0, AccountingIdentity: measured == attributed+unattributed, Confidence: confidence, UnreadablePaths: sortedStrings(unreadable), Findings: findings, Entries: entries}, nil
+	known := len(unreadable) == 0
+	return Report{Root: displayRoot, MeasuredBytes: measured, AttributedBytes: attributed, UnattributedBytes: unattributed, UnattributedKnown: known, UnreadableBytes: unreadableBytes, Closed: known && unattributed == 0, AccountingIdentity: known && measured == attributed+unattributed, Confidence: confidence, ScanCoverage: coverage, UnreadablePaths: sortedStrings(unreadable), Findings: findings, Entries: entries}, nil
 }
 
 type fileObservation struct {

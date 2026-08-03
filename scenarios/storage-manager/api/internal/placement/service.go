@@ -6,9 +6,11 @@ import (
 	"database/sql"
 	_ "embed"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"github.com/vrooli/api-core/database"
@@ -40,6 +42,17 @@ type Audit struct {
 	Message         string    `json:"message,omitempty"`
 }
 
+type Verification struct {
+	Kind           string `json:"kind"`
+	Owner          string `json:"owner"`
+	Entry          string `json:"entry"`
+	Platform       string `json:"platform"`
+	Applicable     bool   `json:"applicable"`
+	DeclaredAbsent bool   `json:"declared_absent"`
+	Path           string `json:"path,omitempty"`
+	Error          string `json:"error,omitempty"`
+}
+
 type Service struct{ store Store }
 
 type Store interface {
@@ -57,6 +70,41 @@ func New(db *database.RoutedDB) *Service {
 }
 
 func Schema() string { return schemaSQL }
+
+// Verify resolves every declaration for a target platform without touching
+// the filesystem. A typed NotApplicable result is a correct declared absence,
+// while every other resolution error remains visible as unresolvable.
+func (s *Service) Verify(_ context.Context, repoRoot string, owners []corestorage.OwnerManifest, platform corestorage.Platform) []Verification {
+	result := make([]Verification, 0)
+	for _, owner := range owners {
+		for _, entry := range owner.StorageEntries {
+			row := Verification{Kind: string(owner.Kind), Owner: owner.ID, Entry: entry.Name, Platform: string(platform)}
+			path, err := corestorage.ResolveOwnerStoragePath(repoRoot, owner, entry, platform, corestorage.PlatformSeams{})
+			if err == nil {
+				row.Applicable = true
+				row.Path = path
+			} else {
+				var absent *corestorage.NotApplicable
+				if errors.As(err, &absent) {
+					row.DeclaredAbsent = true
+				} else {
+					row.Error = err.Error()
+				}
+			}
+			result = append(result, row)
+		}
+	}
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].Kind != result[j].Kind {
+			return result[i].Kind < result[j].Kind
+		}
+		if result[i].Owner != result[j].Owner {
+			return result[i].Owner < result[j].Owner
+		}
+		return result[i].Entry < result[j].Entry
+	})
+	return result
+}
 
 func (s *Service) Preview(ctx context.Context, entry, source, destination string) (Plan, error) {
 	if entry == "" || !filepath.IsAbs(source) || !filepath.IsAbs(destination) {
@@ -123,10 +171,12 @@ func (m *memoryStore) GetPlan(_ context.Context, id string) (Plan, bool, error) 
 	p, ok := m.plans[id]
 	return p, ok, nil
 }
+
 func (m *memoryStore) SaveAudit(_ context.Context, a Audit) error {
 	m.audits = append(m.audits, a)
 	return nil
 }
+
 func (m *memoryStore) ListAudit(_ context.Context, limit int) ([]Audit, error) {
 	if limit < 1 || limit > 100 {
 		limit = 20
@@ -148,6 +198,7 @@ func (s *sqlStore) SavePlan(ctx context.Context, p Plan) error {
 	_, err := s.db.ExecContext(ctx, `INSERT INTO placement_plans (id,entry,source,destination,created_at,status) VALUES (?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status`, p.ID, p.Entry, p.Source, p.Destination, p.CreatedAt.Format(time.RFC3339Nano), p.Status)
 	return err
 }
+
 func (s *sqlStore) GetPlan(ctx context.Context, id string) (Plan, bool, error) {
 	var p Plan
 	var created string
@@ -161,10 +212,12 @@ func (s *sqlStore) GetPlan(ctx context.Context, id string) (Plan, bool, error) {
 	p.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
 	return p, true, nil
 }
+
 func (s *sqlStore) SaveAudit(ctx context.Context, a Audit) error {
 	_, err := s.db.ExecContext(ctx, `INSERT INTO placement_audit (id,plan_id,occurred_at,event,source,destination,bytes,verified,source_preserved,message) VALUES (?,?,?,?,?,?,?,?,?,?)`, a.ID, a.PlanID, a.OccurredAt.Format(time.RFC3339Nano), a.Event, a.Source, a.Destination, a.Bytes, boolInt(a.Verified), boolInt(a.SourcePreserved), a.Message)
 	return err
 }
+
 func (s *sqlStore) ListAudit(ctx context.Context, limit int) ([]Audit, error) {
 	if limit < 1 || limit > 100 {
 		limit = 20
@@ -189,6 +242,7 @@ func (s *sqlStore) ListAudit(ctx context.Context, limit int) ([]Audit, error) {
 	}
 	return out, rows.Err()
 }
+
 func boolInt(v bool) int {
 	if v {
 		return 1
