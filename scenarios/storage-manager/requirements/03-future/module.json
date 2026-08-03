@@ -1,53 +1,71 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "last_validated_at": "2026-08-03T12:50:48-04:00",
     "module": "P2-targets",
     "priority": "P2",
     "schema_version": "1.0.0"
   },
   "requirements": [
     {
+      "id": "CLN-P2-001",
+      "title": "Scheduled policy execution",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
       "criticality": "P2",
       "description": "Add opt-in scheduled cleanup runs for eligible Safe and SafeWithOwner providers with explicit dry-run and audit retention controls.",
-      "id": "CLN-P2-001",
-      "prd_ref": "OT-P2-001",
-      "status": "planned",
-      "title": "Scheduled policy execution",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:CLN-P2-001] tag) once the behavior exists.",
+          "type": "manual",
           "status": "planned",
-          "type": "manual"
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:CLN-P2-001] tag) once the behavior exists."
         }
       ]
     },
     {
+      "id": "CLN-P2-002",
+      "title": "Fleet cleanup intelligence",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
       "criticality": "P2",
       "description": "Aggregate cleanup estimates, provider health, and reclaim outcomes across scenarios to guide capacity planning and future storage governance.",
-      "id": "CLN-P2-002",
-      "prd_ref": "OT-P2-002",
-      "status": "planned",
-      "title": "Fleet cleanup intelligence",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:CLN-P2-002] tag) once the behavior exists.",
+          "type": "manual",
           "status": "planned",
-          "type": "manual"
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:CLN-P2-002] tag) once the behavior exists."
         }
       ]
     },
     {
+      "id": "CLN-P2-003",
+      "title": "Extended provider marketplace",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
       "criticality": "P2",
       "description": "Support registered scenario-owned providers with declarative metadata, contract validation, and reusable action discovery for future cleanup capabilities.",
-      "id": "CLN-P2-003",
-      "prd_ref": "OT-P2-003",
-      "status": "planned",
-      "title": "Extended provider marketplace",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:CLN-P2-003] tag) once the behavior exists.",
+          "type": "manual",
           "status": "planned",
-          "type": "manual"
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:CLN-P2-003] tag) once the behavior exists."
+        }
+      ]
+    },
+    {
+      "id": "CLN-P2-004",
+      "title": "Advisory cross-platform declaration lint",
+      "status": "complete",
+      "prd_ref": "OT-P2-004",
+      "criticality": "P2",
+      "description": "Identify non-portable paths, platform mismatches, missing branches, and supersedable platform maps as warning-level declaration accountability findings.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/validation/crossplatform_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Each warning-level cross-platform finding has positive and negative coverage in [REQ:CLN-P2-004]."
         }
       ]
     }

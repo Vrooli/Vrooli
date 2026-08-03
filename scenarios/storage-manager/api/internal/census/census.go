@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/vrooli/api-core/database"
@@ -42,31 +43,65 @@ type Finding struct {
 }
 
 type Report struct {
-	SnapshotID              string         `json:"snapshot_id,omitempty"`
-	ObservedAt              time.Time      `json:"observed_at,omitempty"`
-	Root                    string         `json:"root"`
-	MeasuredBytes           int64          `json:"measured_bytes"`
-	AttributedBytes         int64          `json:"attributed_bytes"`
-	UnattributedBytes       int64          `json:"unattributed_bytes"`
-	UnattributedKnown       bool           `json:"-"`
-	UnreadableBytes         int64          `json:"unreadable_bytes,omitempty"`
-	Closed                  bool           `json:"closed"`
-	AccountingIdentity      bool           `json:"accounting_identity"`
-	Confidence              string         `json:"confidence"`
-	ScanCoverage            ScanCoverage   `json:"scan_coverage"`
-	GrowthSlopeBytesPerHour *float64       `json:"growth_slope_bytes_per_hour,omitempty"`
-	OwnerCounts             map[string]int `json:"owner_counts,omitempty"`
-	UnreadablePaths         []string       `json:"unreadable_paths,omitempty"`
-	Findings                []Finding      `json:"findings,omitempty"`
-	Entries                 []Entry        `json:"entries"`
-	FrameworkRoots          []string       `json:"framework_roots,omitempty"`
+	SnapshotID               string         `json:"snapshot_id,omitempty"`
+	ObservedAt               time.Time      `json:"observed_at,omitempty"`
+	Root                     string         `json:"root"`
+	MeasuredBytes            int64          `json:"measured_bytes"`
+	AttributedBytes          int64          `json:"attributed_bytes"`
+	DriftBytes               int64          `json:"drift_bytes"`
+	UnattributedBytes        int64          `json:"unattributed_bytes"`
+	UnattributedKnown        bool           `json:"-"`
+	UnattributedRoots        []RootTotal    `json:"unattributed_roots,omitempty"`
+	AccountingResidualBytes  int64          `json:"accounting_residual_bytes,omitempty"`
+	AccountingToleranceBytes int64          `json:"accounting_tolerance_bytes"`
+	UnreadableBytes          int64          `json:"unreadable_bytes,omitempty"`
+	Closed                   bool           `json:"closed"`
+	AccountingIdentity       bool           `json:"accounting_identity"`
+	Confidence               string         `json:"confidence"`
+	ScanCoverage             ScanCoverage   `json:"scan_coverage"`
+	GrowthSlopeBytesPerHour  *float64       `json:"growth_slope_bytes_per_hour,omitempty"`
+	OwnerCounts              map[string]int `json:"owner_counts,omitempty"`
+	UnreadablePaths          []string       `json:"unreadable_paths,omitempty"`
+	Findings                 []Finding      `json:"findings,omitempty"`
+	Entries                  []Entry        `json:"entries"`
+	FrameworkRoots           []string       `json:"framework_roots,omitempty"`
+	ScanPolicy               ScanPolicy     `json:"scan_policy"`
 }
+
+// RootTotal is one independently actionable part of the unattributed
+// remainder. The roots are a partition: their totals never overlap.
+type RootTotal struct {
+	Path  string `json:"path"`
+	Bytes int64  `json:"bytes"`
+}
+
+// ScanPolicy is deliberately data-backed. Operators can change the scope,
+// reporting floor, or exclusion rationale without rebuilding storage-manager.
+type ScanPolicy struct {
+	Roots      []PolicyRoot      `json:"roots,omitempty"`
+	FloorBytes int64             `json:"floor_bytes"`
+	Exclusions []PolicyExclusion `json:"exclusions"`
+}
+
+type PolicyRoot struct {
+	Path   string `json:"path"`
+	Reason string `json:"reason,omitempty"`
+}
+
+type PolicyExclusion struct {
+	Path   string `json:"path"`
+	Reason string `json:"reason"`
+}
+
+const defaultCensusFloorBytes = 1 << 20
 
 type ScanCoverage struct {
 	MeasuredBytes    int64 `json:"measured_bytes"`
+	ScannedBytes     int64 `json:"scanned_bytes,omitempty"`
 	DeviceUsedBytes  int64 `json:"device_used_bytes,omitempty"`
 	DeviceTotalBytes int64 `json:"device_total_bytes,omitempty"`
 	Complete         bool  `json:"complete"`
+	MeasuredByDevice bool  `json:"measured_by_device"`
 }
 
 func (r Report) MarshalJSON() ([]byte, error) {
@@ -117,7 +152,7 @@ func ScanInventory(root string, inventory corestorage.OwnerInventory) (Report, e
 		return Report{}, fmt.Errorf("census: resolve root: %w", err)
 	}
 	declarations := make([]resolvedDeclaration, 0)
-	boundedRoots := make([]string, 0)
+	ownerRoots := make([]string, 0)
 	counts := map[string]int{}
 	findings := make([]Finding, 0, len(inventory.Findings))
 	for _, finding := range inventory.Findings {
@@ -133,24 +168,53 @@ func ScanInventory(root string, inventory corestorage.OwnerInventory) (Report, e
 				continue
 			}
 			declarations = append(declarations, resolvedDeclaration{owner: owner.ID, kind: kind, name: declaration.Name, path: path})
-			boundedRoots = append(boundedRoots, path)
 		}
-		if owner.Kind == corestorage.OwnerScenario {
-			// Candidate roots make missing and explicit-empty scenario declarations
-			// observable without walking source, dependency, or VCS trees.
-			boundedRoots = append(boundedRoots, scenarioCandidateRoots(root, owner)...)
-		}
+		ownerRoots = append(ownerRoots, ownerStorageRoot(owner))
 	}
 	for _, orphan := range orphanScenarioRoots(root, inventory) {
-		boundedRoots = append(boundedRoots, orphan.Path)
 		findings = append(findings, Finding{Code: "STORAGE_PATH_ORPHANED", Severity: "warning", Kind: string(corestorage.OwnerScenario), Path: orphan.Path, Message: fmt.Sprintf("scenario directory has no canonical .vrooli/service.json; %d bytes are outside the owner inventory", orphan.Bytes)})
 	}
-	report, err := scanRoots(root, boundedRoots, declarations, findings)
+	policy, err := LoadPolicy(root)
+	if err != nil {
+		return Report{}, err
+	}
+	report, err := scanWithPolicy(root, policy, declarations, ownerRoots, findings, true)
 	if err != nil {
 		return Report{}, err
 	}
 	report.OwnerCounts = counts
-	report.FrameworkRoots = existingRoots(boundedRoots)
+	report.FrameworkRoots = existingRoots(ownerRoots)
+	return report, nil
+}
+
+// ScanInventoryWithPolicy is the deterministic seam used by acceptance tests
+// and by operators who need a one-off policy. Production callers should use
+// ScanInventory so the checked-in policy and device root are authoritative.
+func ScanInventoryWithPolicy(root string, inventory corestorage.OwnerInventory, policy ScanPolicy) (Report, error) {
+	declarations := make([]resolvedDeclaration, 0)
+	ownerRoots := make([]string, 0)
+	counts := map[string]int{}
+	findings := make([]Finding, 0, len(inventory.Findings))
+	for _, finding := range inventory.Findings {
+		findings = append(findings, Finding{Code: finding.Code, Severity: finding.Severity, Owner: finding.OwnerID, Kind: string(finding.OwnerKind), Path: finding.ManifestPath, Message: finding.Message})
+	}
+	for _, owner := range inventory.Owners {
+		counts[string(owner.Kind)]++
+		ownerRoots = append(ownerRoots, ownerStorageRoot(owner))
+		for _, declaration := range owner.StorageEntries {
+			path, err := corestorage.ResolveOwnerStoragePath(root, owner, declaration, corestorage.Platform(runtime.GOOS), corestorage.PlatformSeams{})
+			if err != nil {
+				continue
+			}
+			declarations = append(declarations, resolvedDeclaration{owner: owner.ID, kind: string(owner.Kind), name: declaration.Name, path: path})
+		}
+	}
+	report, err := scanWithPolicy(root, policy, declarations, ownerRoots, findings, false)
+	if err != nil {
+		return Report{}, err
+	}
+	report.OwnerCounts = counts
+	report.FrameworkRoots = existingRoots(ownerRoots)
 	return report, nil
 }
 
@@ -215,21 +279,49 @@ func scan(root string, declarations []resolvedDeclaration, initialFindings []Fin
 	if err != nil {
 		return Report{}, err
 	}
-	return scanRoots(root, []string{root}, declarations, initialFindings)
+	return scanWithPolicy(root, ScanPolicy{Roots: []PolicyRoot{{Path: root}}, FloorBytes: defaultCensusFloorBytes}, declarations, nil, initialFindings, false)
 }
 
-func scanRoots(displayRoot string, roots []string, declarations []resolvedDeclaration, initialFindings []Finding) (Report, error) {
+func scanWithPolicy(displayRoot string, policy ScanPolicy, declarations []resolvedDeclaration, ownerRoots []string, initialFindings []Finding, deviceScoped bool) (Report, error) {
 	displayRoot, err := filepath.Abs(displayRoot)
 	if err != nil {
 		return Report{}, err
 	}
-	files := make([]fileObservation, 0)
 	unreadable := make([]string, 0)
-	seenRoots := make(map[string]struct{}, len(roots))
-	seenFiles := make(map[string]struct{})
+	policy, scanRoots, exclusions, err := resolvePolicy(displayRoot, policy, deviceScoped)
+	if err != nil {
+		return Report{}, err
+	}
+	accountingRoot := displayRoot
+	if deviceScoped && len(scanRoots) == 1 {
+		accountingRoot = scanRoots[0]
+	}
+	seenRoots := make(map[string]struct{}, len(scanRoots))
+	// Partitioning by device keeps the hot inode key to one uint64 while still
+	// representing the required (device,inode) pair exactly.
+	seenInodes := make(map[uint64]map[uint64]struct{})
 	findings := append([]Finding(nil), initialFindings...)
 	var unreadableBytes int64
-	for _, rawRoot := range roots {
+	sort.Slice(declarations, func(i, j int) bool {
+		if declarations[i].path != declarations[j].path {
+			return declarations[i].path < declarations[j].path
+		}
+		if declarations[i].owner != declarations[j].owner {
+			return declarations[i].owner < declarations[j].owner
+		}
+		return declarations[i].name < declarations[j].name
+	})
+	declarationByPath := make(map[string][]int, len(declarations))
+	for index, declaration := range declarations {
+		declarationByPath[filepath.Clean(declaration.path)] = append(declarationByPath[filepath.Clean(declaration.path)], index)
+	}
+	entries := make([]Entry, len(declarations))
+	for i, declaration := range declarations {
+		entries[i] = Entry{Owner: declaration.owner, Kind: declaration.kind, Name: declaration.name, Path: declaration.path, Declared: true}
+	}
+	var scanned, attributed, drift int64
+	unattributedTree := &unattributedNode{path: accountingRoot, buckets: map[string]int64{}}
+	for _, rawRoot := range scanRoots {
 		root, absErr := filepath.Abs(rawRoot)
 		if absErr != nil {
 			return Report{}, absErr
@@ -248,6 +340,12 @@ func scanRoots(displayRoot string, roots []string, declarations []resolvedDeclar
 			unreadable = append(unreadable, root)
 			continue
 		}
+		rootMetadata, rootMetaErr := inspectPath(root)
+		if rootMetaErr != nil {
+			findings = append(findings, Finding{Code: "unreadable_path", Severity: "error", Path: root, Message: rootMetaErr.Error()})
+			unreadable = append(unreadable, root)
+			continue
+		}
 		walkErr := filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
 			if walkErr != nil {
 				unreadable = append(unreadable, path)
@@ -261,65 +359,73 @@ func scanRoots(displayRoot string, roots []string, declarations []resolvedDeclar
 				}
 				return nil
 			}
+			if excluded(path, exclusions) {
+				if d.IsDir() {
+					return fs.SkipDir
+				}
+				return nil
+			}
+			if d.Type()&fs.ModeSymlink != 0 {
+				if d.IsDir() {
+					return fs.SkipDir
+				}
+				return nil
+			}
+			metadata, metaErr := inspectPath(path)
+			if metaErr != nil {
+				unreadable = append(unreadable, path)
+				if d.IsDir() {
+					return fs.SkipDir
+				}
+				return nil
+			}
+			if rootMetadata.device != 0 && metadata.device != 0 && rootMetadata.device != metadata.device {
+				if d.IsDir() {
+					return fs.SkipDir
+				}
+				return nil
+			}
 			if d.IsDir() {
 				return nil
 			}
-			info, statErr := d.Info()
-			if statErr != nil {
-				unreadable = append(unreadable, path)
+			if metadata.identity.valid {
+				inodes := seenInodes[metadata.identity.device]
+				if inodes == nil {
+					inodes = make(map[uint64]struct{})
+					seenInodes[metadata.identity.device] = inodes
+				}
+				if _, exists := inodes[metadata.identity.inode]; exists {
+					return nil
+				}
+				inodes[metadata.identity.inode] = struct{}{}
+			}
+			bytes := metadata.bytes
+			if deviceScoped {
+				bytes = metadata.allocated
+			}
+			matches := declarationMatches(path, declarationByPath)
+			scanned += bytes
+			if len(matches) > 0 {
+				chosen := matches[0]
+				entries[chosen].Bytes += bytes
+				attributed += bytes
+				if len(matches) > 1 {
+					for _, index := range matches[1:] {
+						findings = append(findings, Finding{Code: "overlap", Severity: "warning", Owner: entries[index].Owner, Kind: entries[index].Kind, Path: path, Message: fmt.Sprintf("file also matched declaration %s/%s", entries[chosen].Owner, entries[chosen].Name)})
+					}
+				}
 				return nil
 			}
-			if _, exists := seenFiles[path]; exists {
+			if underAny(path, ownerRoots) {
+				drift += bytes
 				return nil
 			}
-			seenFiles[path] = struct{}{}
-			files = append(files, fileObservation{path: path, bytes: info.Size()})
+			recordUnattributed(unattributedTree, accountingRoot, filepath.Dir(path), bytes)
 			return nil
 		})
 		if walkErr != nil {
 			return Report{}, fmt.Errorf("scan %s: %w", root, walkErr)
 		}
-	}
-	sort.Slice(files, func(i, j int) bool { return files[i].path < files[j].path })
-	sort.Slice(declarations, func(i, j int) bool {
-		if declarations[i].path != declarations[j].path {
-			return declarations[i].path < declarations[j].path
-		}
-		if declarations[i].owner != declarations[j].owner {
-			return declarations[i].owner < declarations[j].owner
-		}
-		return declarations[i].name < declarations[j].name
-	})
-	declarationByPath := make(map[string][]int, len(declarations))
-	for index, declaration := range declarations {
-		declarationByPath[filepath.Clean(declaration.path)] = append(declarationByPath[filepath.Clean(declaration.path)], index)
-	}
-
-	entries := make([]Entry, len(declarations))
-	for i, declaration := range declarations {
-		entries[i] = Entry{Owner: declaration.owner, Kind: declaration.kind, Name: declaration.name, Path: declaration.path, Declared: true}
-	}
-	var measured, attributed int64
-	for _, file := range files {
-		measured += file.bytes
-		matches := declarationMatches(file.path, declarationByPath)
-		if len(matches) == 0 {
-			continue
-		}
-		// Assign a file once to keep the accounting identity exact. The overlap
-		// finding preserves the fact that more than one declaration matched.
-		chosen := matches[0]
-		entries[chosen].Bytes += file.bytes
-		attributed += file.bytes
-		if len(matches) > 1 {
-			for _, index := range matches[1:] {
-				findings = append(findings, Finding{Code: "overlap", Severity: "warning", Owner: entries[index].Owner, Kind: entries[index].Kind, Path: file.path, Message: fmt.Sprintf("file also matched declaration %s/%s", entries[chosen].Owner, entries[chosen].Name)})
-			}
-		}
-	}
-	unattributed := measured - attributed
-	if unattributed > 0 {
-		findings = append(findings, Finding{Code: "STORAGE_PATH_UNACCOUNTED", Severity: "warning", Path: displayRoot, Message: fmt.Sprintf("%d measured bytes have no declaration", unattributed)})
 	}
 	for _, path := range unreadable {
 		findings = append(findings, Finding{Code: "unreadable_path", Severity: "error", Path: path, Message: "census could not read this path"})
@@ -339,19 +445,139 @@ func scanRoots(displayRoot string, roots []string, declarations []resolvedDeclar
 		}
 		return findings[i].Path < findings[j].Path
 	})
-	coverage := deviceCoverage(displayRoot, measured, len(unreadable) == 0)
+	coverage := deviceCoverage(displayRoot, scanned, len(unreadable) == 0)
 	coverage.Complete = coverage.Complete && len(unreadable) == 0
-	confidence := "high"
-	if len(unreadable) > 0 || len(findings) > 0 {
-		confidence = "degraded"
+	measured := scanned
+	if deviceScoped && coverage.MeasuredByDevice {
+		measured = coverage.DeviceUsedBytes
 	}
-	known := len(unreadable) == 0
-	return Report{Root: displayRoot, MeasuredBytes: measured, AttributedBytes: attributed, UnattributedBytes: unattributed, UnattributedKnown: known, UnreadableBytes: unreadableBytes, Closed: known && unattributed == 0, AccountingIdentity: known && measured == attributed+unattributed, Confidence: confidence, ScanCoverage: coverage, UnreadablePaths: sortedStrings(unreadable), Findings: findings, Entries: entries}, nil
+	coverage.ScannedBytes = scanned
+	coverage.MeasuredBytes = measured
+	unattributed := measured - attributed - drift
+	deviceResidual := measured - scanned
+	// statfs gives a device-wide denominator even when an individual subtree is
+	// unreadable. The unreadable paths remain visible, while their bytes stay in
+	// the device residual instead of making the accounting answer disappear.
+	known := !deviceScoped || coverage.MeasuredByDevice
+	tolerance := int64(0)
+	if deviceScoped {
+		tolerance = 4 << 20
+	}
+	rootTotals := unattributedRoots(unattributedTree, policy.FloorBytes)
+	if deviceResidual > 0 {
+		rootTotals = append(rootTotals, RootTotal{Path: accountingRoot, Bytes: deviceResidual})
+	}
+	rootTotals = mergeRootTotals(rootTotals)
+	var reportedRoots int64
+	for _, rootTotal := range rootTotals {
+		reportedRoots += rootTotal.Bytes
+	}
+	identityResidual := measured - attributed - drift - reportedRoots
+	if identityResidual != 0 {
+		findings = append(findings, Finding{Code: "STORAGE_PATH_UNACCOUNTED", Severity: "warning", Path: accountingRoot, Message: fmt.Sprintf("%d measured bytes remain outside the reported accounting roots", identityResidual)})
+	}
+	identity := known && absInt64(identityResidual) <= tolerance
+	confidence := "degraded"
+	if identity {
+		confidence = "full"
+	}
+	return Report{Root: accountingRoot, MeasuredBytes: measured, AttributedBytes: attributed, DriftBytes: drift, UnattributedBytes: unattributed, UnattributedKnown: known, UnattributedRoots: rootTotals, AccountingResidualBytes: identityResidual, AccountingToleranceBytes: tolerance, UnreadableBytes: unreadableBytes, Closed: identity, AccountingIdentity: identity, Confidence: confidence, ScanCoverage: coverage, UnreadablePaths: sortedStrings(unreadable), Findings: findings, Entries: entries, ScanPolicy: policy}, nil
 }
 
-type fileObservation struct {
-	path  string
-	bytes int64
+func mergeRootTotals(input []RootTotal) []RootTotal {
+	byPath := make(map[string]int64, len(input))
+	for _, root := range input {
+		byPath[root.Path] += root.Bytes
+	}
+	result := make([]RootTotal, 0, len(byPath))
+	for path, bytes := range byPath {
+		if bytes > 0 {
+			result = append(result, RootTotal{Path: path, Bytes: bytes})
+		}
+	}
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].Bytes != result[j].Bytes {
+			return result[i].Bytes > result[j].Bytes
+		}
+		return result[i].Path < result[j].Path
+	})
+	return result
+}
+
+type unattributedNode struct {
+	path    string
+	buckets map[string]int64
+}
+
+const unattributedReportingDepth = 4
+
+// recordUnattributed keeps a bounded reporting partition while the walk is in
+// progress. Retaining every directory in a multi-million-file device tree
+// would make the reporting floor an allocation trap; a fixed path depth keeps
+// the operator-facing roots useful while making memory independent of file
+// count below that depth.
+func recordUnattributed(tree *unattributedNode, root, parent string, amount int64) {
+	if tree == nil || amount <= 0 {
+		return
+	}
+	bucket := filepath.Clean(parent)
+	relative, err := filepath.Rel(filepath.Clean(root), bucket)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		bucket = filepath.Clean(root)
+	} else if relative != "." {
+		parts := strings.Split(relative, string(filepath.Separator))
+		if len(parts) > unattributedReportingDepth {
+			parts = parts[:unattributedReportingDepth]
+		}
+		bucket = filepath.Join(append([]string{filepath.Clean(root)}, parts...)...)
+	}
+	tree.buckets[bucket] += amount
+}
+
+func unattributedRoots(tree *unattributedNode, floor int64) []RootTotal {
+	if floor <= 0 {
+		floor = defaultCensusFloorBytes
+	}
+	if tree == nil {
+		return nil
+	}
+	// Fold small buckets upward, deepest first, so every emitted root is at
+	// least the reporting floor unless it is the device root itself.
+	buckets := make(map[string]int64, len(tree.buckets))
+	paths := make([]string, 0, len(tree.buckets))
+	for path, bytes := range tree.buckets {
+		buckets[path] += bytes
+		paths = append(paths, path)
+	}
+	sort.Slice(paths, func(i, j int) bool {
+		depth := func(path string) int { return len(strings.Split(filepath.Clean(path), string(filepath.Separator))) }
+		left, right := depth(paths[i]), depth(paths[j])
+		if left != right {
+			return left > right
+		}
+		return paths[i] > paths[j]
+	})
+	for _, path := range paths {
+		if buckets[path] >= floor || filepath.Clean(path) == filepath.Clean(tree.path) {
+			continue
+		}
+		parent := filepath.Dir(path)
+		buckets[parent] += buckets[path]
+		delete(buckets, path)
+	}
+	result := make([]RootTotal, 0, len(buckets))
+	for path, bytes := range buckets {
+		if bytes > 0 {
+			result = append(result, RootTotal{Path: path, Bytes: bytes})
+		}
+	}
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].Bytes != result[j].Bytes {
+			return result[i].Bytes > result[j].Bytes
+		}
+		return result[i].Path < result[j].Path
+	})
+	return result
 }
 
 func existingRoots(roots []string) []string {
@@ -396,6 +622,35 @@ func scenarioCandidateRoots(repoRoot string, owner corestorage.OwnerManifest) []
 }
 
 func sortedStrings(values []string) []string { sort.Strings(values); return values }
+
+func ownerStorageRoot(owner corestorage.OwnerManifest) string {
+	path := filepath.Dir(owner.ManifestPath)
+	if owner.Kind == corestorage.OwnerScenario {
+		path = filepath.Dir(path)
+	}
+	return filepath.Clean(path)
+}
+
+func underAny(path string, roots []string) bool {
+	for _, root := range roots {
+		if isWithin(path, root) {
+			return true
+		}
+	}
+	return false
+}
+
+func isWithin(path, root string) bool {
+	rel, err := filepath.Rel(filepath.Clean(root), filepath.Clean(path))
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && rel != ""
+}
+
+func absInt64(value int64) int64 {
+	if value < 0 {
+		return -value
+	}
+	return value
+}
 
 // declarationMatches finds declarations that contain a file by walking the
 // file's ancestor chain. The old implementation compared every file with

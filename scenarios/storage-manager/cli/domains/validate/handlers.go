@@ -1,50 +1,152 @@
 package validate
 
 import (
-	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
-	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
-	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 )
 
 type handlers struct {
-	client scenariovalidationconnect.ScenarioValidationServiceClient
+	httpClient httpDoer
+	baseURL    string
+}
+
+type httpDoer interface {
+	Do(*http.Request) (*http.Response, error)
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, 60*time.Second)
-	return &handlers{client: scenariovalidationconnect.NewScenarioValidationServiceClient(httpClient, baseURL)}
+	return &handlers{httpClient: httpClient, baseURL: baseURL}
 }
 
 func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
-	name := ctx.Positional("name")
-	resp, err := h.client.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: name}))
+	return h.validateOwner(ctx, "scenario", ctx.Positional("name"))
+}
+
+type validationFinding struct {
+	Code     string `json:"code"`
+	Severity int    `json:"severity"`
+	Message  string `json:"message"`
+}
+
+type validationReport struct {
+	Scenario  string              `json:"scenario"`
+	OwnerKind string              `json:"owner_kind"`
+	OwnerID   string              `json:"owner_id"`
+	Platform  string              `json:"platform"`
+	Status    string              `json:"status"`
+	Findings  []validationFinding `json:"findings"`
+}
+
+func (h *handlers) validateOwner(ctx cliapp.RunContext, kind, id string) error {
+	report, raw, err := h.getReport(kind, id, ctx.Flag("platform"))
 	if err != nil {
-		return cliapp.WrapAPIError(fmt.Sprintf("validate scenario %q", name), err, nil)
-	}
-	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no validation response")
-	}
-	msg := resp.Msg
-	assessment := msg.GetAssessment()
-	results := make([]string, 0, len(assessment.GetFindings()))
-	for _, finding := range assessment.GetFindings() {
-		results = append(results, fmt.Sprintf("[%s] %s: %s", finding.GetSeverity(), finding.GetCode(), finding.GetMessage()))
-	}
-	summary := []string{fmt.Sprintf("Validated %s — status=%s findings=%d", msg.GetScenario(), msg.GetStatus(), len(results))}
-	if err := cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{Summary: summary, ResultsHeading: "Findings", Results: results}); err != nil {
 		return err
 	}
-	if msg.GetStatus() == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED || msg.GetStatus() == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR {
-		return fmt.Errorf("scenario %q failed storage validation", name)
+	if ctx.JSON() {
+		_, err = ctx.Stdout().Write(raw)
+		return err
+	}
+	results := make([]string, 0, len(report.Findings))
+	for _, finding := range report.Findings {
+		results = append(results, fmt.Sprintf("[%d] %s: %s", finding.Severity, finding.Code, finding.Message))
+	}
+	if err := ctx.RenderList(cliapp.ListReport{Summary: []string{fmt.Sprintf("Validated %s/%s on %s — status=%s findings=%d", report.OwnerKind, report.OwnerID, report.Platform, report.Status, len(results))}, ResultsHeading: "Findings", Results: results}); err != nil {
+		return err
+	}
+	if report.Status == "failed" {
+		return fmt.Errorf("%s %q failed storage validation", kind, id)
+	}
+	return nil
+}
+
+func (h *handlers) getReport(kind, id, platform string) (validationReport, []byte, error) {
+	endpoint := fmt.Sprintf("%s/api/v1/validation/validate/%s/%s", h.baseURL, url.PathEscape(kind), url.PathEscape(id))
+	if strings.TrimSpace(platform) != "" {
+		endpoint += "?platform=" + url.QueryEscape(platform)
+	}
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return validationReport{}, nil, err
+	}
+	resp, err := h.httpClient.Do(req)
+	if err != nil {
+		return validationReport{}, nil, cliapp.WrapAPIError(fmt.Sprintf("validate %s %q", kind, id), err, nil)
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return validationReport{}, nil, err
+	}
+	if resp.StatusCode >= http.StatusBadRequest {
+		return validationReport{}, nil, fmt.Errorf("validate %s: %s", kind, strings.TrimSpace(string(raw)))
+	}
+	var report validationReport
+	if err := json.Unmarshal(raw, &report); err != nil {
+		return validationReport{}, nil, fmt.Errorf("decode validation report: %w", err)
+	}
+	return report, raw, nil
+}
+
+func (h *handlers) validateFleet(ctx cliapp.RunContext) error {
+	endpoint := h.baseURL + "/api/v1/validation/validate/fleet"
+	query := url.Values{}
+	if platform := strings.TrimSpace(ctx.Flag("platform")); platform != "" {
+		query.Set("platform", platform)
+	}
+	for _, kind := range ctx.FlagValues("kind") {
+		if strings.TrimSpace(kind) != "" {
+			query.Add("kind", kind)
+		}
+	}
+	if encoded := query.Encode(); encoded != "" {
+		endpoint += "?" + encoded
+	}
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := h.httpClient.Do(req)
+	if err != nil {
+		return cliapp.WrapAPIError("validate fleet", err, nil)
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode >= http.StatusBadRequest {
+		return fmt.Errorf("validate fleet: %s", strings.TrimSpace(string(raw)))
+	}
+	var report struct {
+		Reports    []validationReport `json:"reports"`
+		ErrorCount int                `json:"error_count"`
+	}
+	if err := json.Unmarshal(raw, &report); err != nil {
+		return fmt.Errorf("decode fleet validation report: %w", err)
+	}
+	if ctx.JSON() {
+		if _, err = ctx.Stdout().Write(raw); err != nil {
+			return err
+		}
+	} else {
+		results := []string{fmt.Sprintf("Validated %d owner(s); errors=%d", len(report.Reports), report.ErrorCount)}
+		if err := ctx.RenderList(cliapp.ListReport{Summary: results, ResultsHeading: "Fleet validation", Results: results}); err != nil {
+			return err
+		}
+	}
+	if report.ErrorCount > 0 {
+		return fmt.Errorf("fleet validation found %d error or blocker finding(s)", report.ErrorCount)
 	}
 	return nil
 }

@@ -2,14 +2,18 @@ package validation
 
 import (
 	"context"
+	"encoding/json"
 	"log"
+	"net/http"
 	"path/filepath"
+	"strings"
 
 	"storage-manager/internal/module"
 	"storage-manager/internal/validation"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
+	corestorage "github.com/vrooli/api-core/storage"
 	"github.com/vrooli/maturity-go/assessment"
 	vroolicli "github.com/vrooli/vrooli-cli-go"
 
@@ -57,9 +61,92 @@ func Module(logger *log.Logger, repoRoot string) module.Module {
 		Name: "validation",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
+			r.HandleFunc("/api/v1/validation/validate/{kind}/{id}", func(w http.ResponseWriter, req *http.Request) {
+				kind, ok := parseOwnerKind(mux.Vars(req)["kind"])
+				if !ok {
+					http.Error(w, "kind must be scenario, resource, tool, or safeguard", http.StatusBadRequest)
+					return
+				}
+				platform := corestorage.NormalizePlatform(req.URL.Query().Get("platform"))
+				if platform == "" {
+					platform = corestorage.HostPlatform()
+				}
+				report, validateErr := validator.ValidateOwner(req.Context(), kind, mux.Vars(req)["id"], platform)
+				if validateErr != nil {
+					http.Error(w, validateErr.Error(), http.StatusBadRequest)
+					return
+				}
+				writeJSON(w, report)
+			}).Methods(http.MethodGet)
+			r.HandleFunc("/api/v1/validation/validate/fleet", func(w http.ResponseWriter, req *http.Request) {
+				platform := corestorage.NormalizePlatform(req.URL.Query().Get("platform"))
+				if platform == "" {
+					platform = corestorage.HostPlatform()
+				}
+				inventory, inventoryErr := corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: repoRoot, Platform: platform})
+				if inventoryErr != nil {
+					http.Error(w, inventoryErr.Error(), http.StatusInternalServerError)
+					return
+				}
+				allowed := make(map[corestorage.OwnerKind]bool)
+				for _, rawKind := range req.URL.Query()["kind"] {
+					if kind, ok := parseOwnerKind(rawKind); ok {
+						allowed[kind] = true
+					}
+				}
+				reports := make([]validation.Report, 0, len(inventory.Owners))
+				counts := make(map[string]int)
+				errorsFound, blockersFound := 0, 0
+				for _, owner := range inventory.Owners {
+					if len(allowed) > 0 && !allowed[owner.Kind] {
+						continue
+					}
+					report, validateErr := validator.ValidateOwnerFromInventoryFast(req.Context(), owner.Kind, owner.ID, platform, inventory)
+					if validateErr != nil {
+						http.Error(w, validateErr.Error(), http.StatusInternalServerError)
+						return
+					}
+					reports = append(reports, report)
+					for _, finding := range report.Findings {
+						counts[finding.Code]++
+						if finding.Severity >= validation.SeverityError {
+							errorsFound++
+						}
+					}
+				}
+				writeJSON(w, fleetReport{Platform: platform, Reports: reports, CountsByCode: counts, ErrorCount: errorsFound, BlockerCount: blockersFound})
+			}).Methods(http.MethodGet)
 		},
 		Endpoints: Endpoints,
 	}
+}
+
+type fleetReport struct {
+	Platform     corestorage.Platform `json:"platform"`
+	Reports      []validation.Report  `json:"reports"`
+	CountsByCode map[string]int       `json:"counts_by_code"`
+	ErrorCount   int                  `json:"error_count"`
+	BlockerCount int                  `json:"blocker_count"`
+}
+
+func parseOwnerKind(value string) (corestorage.OwnerKind, bool) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case string(corestorage.OwnerScenario):
+		return corestorage.OwnerScenario, true
+	case string(corestorage.OwnerResource):
+		return corestorage.OwnerResource, true
+	case string(corestorage.OwnerTool):
+		return corestorage.OwnerTool, true
+	case string(corestorage.OwnerSafeguard):
+		return corestorage.OwnerSafeguard, true
+	default:
+		return "", false
+	}
+}
+
+func writeJSON(w http.ResponseWriter, value any) {
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(value)
 }
 
 // Schema returns "" — validation is stateless (no tables). The registry
@@ -70,6 +157,28 @@ func Schema() string { return "" }
 // public surface. References the generated *Procedure constant so renaming the
 // RPC in validation.proto breaks this file at compile time.
 var Endpoints = []module.EndpointDescriptor{
+	{
+		ID:          "validation_validate_owner",
+		Path:        "/api/v1/validation/validate/{kind}/{id}",
+		Method:      "GET",
+		Summary:     "Validate one storage owner",
+		Description: "Runs the shared storage validation report for a scenario, resource, tool, or safeguard on the requested platform.",
+		Category:    "validation",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"kind": "scenario|resource|tool|safeguard", "id": "string", "platform": "linux|macos|windows"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"owner_kind": "string", "owner_id": "string", "platform": "string", "status": "string", "findings": "[]storage finding"}},
+		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Unknown owner kind, invalid platform, or unresolved owner"}},
+	},
+	{
+		ID:          "validation_validate_fleet",
+		Path:        "/api/v1/validation/validate/fleet",
+		Method:      "GET",
+		Summary:     "Validate every storage owner",
+		Description: "Runs the shared validation report for every selected scenario, resource, tool, and safeguard and returns per-code roll-up counts.",
+		Category:    "validation",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"kind": "repeatable owner-kind filter", "platform": "linux|macos|windows"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"platform": "string", "reports": "[]storage validation report", "counts_by_code": "map[string]int", "error_count": "int", "blocker_count": "int"}},
+		Errors:      []module.ErrorDesc{{Status: 500, Code: "internal", Description: "Owner inventory cannot be loaded or validated"}},
+	},
 	{
 		ID:          "validation_validate_scenario",
 		Path:        scenariovalidationconnect.ScenarioValidationServiceValidateScenarioProcedure,

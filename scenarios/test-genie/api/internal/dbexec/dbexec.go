@@ -8,7 +8,7 @@
 //   - tests keep passing a plain *sql.DB fixture from internal/testsqlite.
 //
 // Capturing this interface (rather than *sql.DB) is what keeps test-genie
-// clear of storage-health's SQL_DB_HANDLE_CAPTURE finding and thus eligible
+// clear of storage-manager's SQL_DB_HANDLE_CAPTURE finding and thus eligible
 // for the in-place routed e2e path.
 package dbexec
 
@@ -28,4 +28,20 @@ type Executor interface {
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
+}
+
+// HealthProbe is the narrow lifecycle-health surface. Both *sql.DB and
+// *database.RoutedDB implement it, so health checks can use a dedicated pool
+// without capturing a concrete non-routable database handle in production
+// services.
+type HealthProbe interface {
+	QueryRow(query string, args ...any) *sql.Row
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+	Close() error
+	Stats() sql.DBStats
+}
+
+// PoolStats is the read-only pool telemetry surface used by self-health.
+type PoolStats interface {
+	Stats() sql.DBStats
 }

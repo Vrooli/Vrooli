@@ -3,6 +3,7 @@
 package providerreadiness
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -532,11 +533,24 @@ func run(ctx context.Context, logWriter io.Writer, args ...string) error {
 	}
 	cmd := exec.CommandContext(ctx, "vrooli", args...)
 	cmd.Env = os.Environ()
+	var output bytes.Buffer
+	var writer io.Writer = &output
 	if logWriter != nil {
-		cmd.Stdout = logWriter
-		cmd.Stderr = logWriter
+		writer = io.MultiWriter(&output, logWriter)
 	}
-	return cmd.Run()
+	cmd.Stdout = writer
+	cmd.Stderr = writer
+	if err := cmd.Run(); err != nil {
+		detail := strings.TrimSpace(output.String())
+		if len(detail) > 2000 {
+			detail = detail[:2000] + "...(truncated)"
+		}
+		if detail == "" {
+			return fmt.Errorf("vrooli %s failed: %w (no command output captured)", strings.Join(args, " "), err)
+		}
+		return fmt.Errorf("vrooli %s failed: %w; command output: %s", strings.Join(args, " "), err, detail)
+	}
+	return nil
 }
 
 func ResultObservation(out Outcome) phases.Observation {

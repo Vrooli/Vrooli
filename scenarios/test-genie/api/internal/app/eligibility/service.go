@@ -82,7 +82,7 @@ func toCheckResponse(elig internalelig.Eligibility) *eligpb.CheckResponse {
 }
 
 // buildReasons composes the human-readable explanations consumers display in
-// CLI output and UI tooltips. One reason per distinct storage-health isolation
+// CLI output and UI tooltips. One reason per distinct storage-manager isolation
 // finding code (deduped).
 func buildReasons(elig internalelig.Eligibility) []string {
 	seen := map[string]struct{}{}
@@ -103,9 +103,9 @@ func buildReasons(elig internalelig.Eligibility) []string {
 func findingReason(f internalelig.IsolationFinding) string {
 	switch f.Code {
 	case internalelig.CodeRoutedSeamsUnwired:
-		return "Scenario has not wired the routed test-DB seams (storage-health: ROUTED_SEAMS_UNWIRED); destructive E2E cannot be isolated."
+		return "Scenario has not wired the routed test-DB seams (storage-manager: ROUTED_SEAMS_UNWIRED); destructive E2E cannot be isolated."
 	case internalelig.CodeStorageIsolationUnverified:
-		return "Scenario's API isolation cannot be statically verified (storage-health: STORAGE_ISOLATION_UNVERIFIED, non-Go API); destructive E2E is refused fail-closed."
+		return "Scenario's API isolation cannot be statically verified (storage-manager: STORAGE_ISOLATION_UNVERIFIED, non-Go API); destructive E2E is refused fail-closed."
 	default:
 		if msg := strings.TrimSpace(f.Message); msg != "" {
 			return fmt.Sprintf("Scenario failed storage isolation (%s): %s", f.Code, msg)

@@ -3,7 +3,7 @@
 **ID**: `storage`
 **Timeout**: 120 seconds
 **Optional**: No
-**Source**: validation-provider (`storage-health`)
+**Source**: validation-provider (`storage-manager`)
 
 The storage phase owns Test Genie's storage judgment and — most importantly —
 its **test-isolation safety gate**. It runs immediately before the `workflow`
@@ -11,10 +11,10 @@ phase so that its verdict can decide whether destructive end-to-end flows are
 allowed to run at all.
 
 Test Genie does not analyze storage natively. The phase is **delegated to the
-[`storage-health`](../../../../storage-health/) scenario** through the shared
+[`storage-manager`](../../../../storage-manager/) scenario** through the shared
 `ScenarioValidationService` contract (the same delegation model used by
 structure-health, unit-health, security-health, and the other provider-backed
-phases). Test Genie calls `storage-health validate scenario <scenario>`, maps
+phases). Test Genie calls `storage-manager validate scenario <scenario>`, maps
 the returned `MaturityAssessment` findings into the `FINDING_SOURCE_STORAGE`
 channel, and gates the phase on finding severity.
 
@@ -36,9 +36,34 @@ run mutating flows safely.
 
 ## The rungs and their gates
 
-The phase aggregates five per-capability ladders; the safety-critical one is
+The phase aggregates six per-capability ladders; the safety-critical one is
 `isolation_safety` (its L2 verdict gates whether destructive workflow flows may
 run). The rungs are monotone.
+
+`declaration_accountability` is deliberately advisory: adoption does not fail
+the storage phase. It still moves the rung, because the phase gate (ERROR or
+BLOCKER severity) and the ladder gate (ERROR/BLOCKER **or**
+`clean_requirement: required`) are separate mechanisms. Its rungs are:
+
+| Rung | Meaning | Blocked by |
+|---|---|---|
+| L0 Unknown | The owner declares no `storage.entries`, so its durable surface cannot be evaluated. | `STORAGE_ACCOUNTABILITY_NOT_DECLARED` (INFO) |
+| L1 Declared | Storage intent is present, but reconciliation is incomplete. | `STORAGE_ACCOUNTABILITY_NOT_RECONCILED` (WARNING) |
+| L2 Reconciled | Writers, observed paths, sidecars, and ceilings agree. | `STORAGE_ACCOUNTABILITY_NOT_GOVERNED` (WARNING) |
+| L3 Governed | Every non-sidecar entry carries a budget or a reclaim command. | — |
+
+These three markers are emitted by the `storage.accountability` post-pass, which
+runs after every analyzer because the rung is a function of their combined
+output. It always runs: the maturity engine starts each capability at its top
+level and lowers it only on a blocking finding, so an owner that declares
+nothing produces no findings and would otherwise score "governed end to end".
+Only the lowest blocked rung is reported, so an owner is never told to fix
+governance while reconciliation is still open.
+
+The per-entry findings below explain *why* a rung is blocked; they are advisory
+and do not move the ladder themselves. `STORAGE_TOKEN_SUPERSEDABLE` is
+deliberately excluded from the reconciliation set: a repeated `byOS` map is
+verbose, not wrong.
 
 | Rung (isolation_safety) | Gate | Next unlock |
 |---|---|---|
@@ -70,10 +95,38 @@ non-failing debt.
 | `SQLITE_POOL_DEADLOCK` | persistence_hygiene | L2 | ERROR | Yes |
 | `BACKUP_TARGET_MISSING` | operational_readiness | L1 | INFO | No |
 | `MIGRATION_DEBT` | operational_readiness | L1 | INFO | No |
+| `STORAGE_ACCOUNTABILITY_NOT_DECLARED` | declaration_accountability | L1 | INFO | No |
+| `STORAGE_ACCOUNTABILITY_NOT_RECONCILED` | declaration_accountability | L2 | WARNING | No |
+| `STORAGE_ACCOUNTABILITY_NOT_GOVERNED` | declaration_accountability | L3 | WARNING | No |
+| `STORAGE_BUDGET_BELOW_OBSERVED` | declaration_accountability | L2 | ERROR | Yes |
+
+The remaining accountability codes are advisory detail: they explain which rung
+marker fired but do not move the ladder on their own. All are WARNING and none
+fail the phase. Those in the **reconciliation set** hold the ladder at L1 via
+`STORAGE_ACCOUNTABILITY_NOT_RECONCILED`:
+
+| Code | In reconciliation set? |
+|---|---|
+| `STORAGE_ENTRY_NO_WRITER` | Yes |
+| `STORAGE_ENTRY_CLASS_CONFLICT` | Yes |
+| `STORAGE_SQLITE_SIDECAR_UNDECLARED` | Yes |
+| `STORAGE_RETENTION_CONFLICT` | Yes |
+| `STORAGE_PATH_NOT_PORTABLE` | Yes |
+| `STORAGE_PATH_PLATFORM_MISMATCH` | Yes |
+| `STORAGE_PATH_BRANCH_MISSING` | Yes |
+| `STORAGE_PATH_UNACCOUNTED` | Yes (census-only; not reachable from this phase) |
+| `STORAGE_PATH_ORPHANED` | Yes (census-only; not reachable from this phase) |
+| `STORAGE_ENTRY_UNRECLAIMABLE` | No — it is a governance gap, reported at L3 |
+| `STORAGE_TOKEN_SUPERSEDABLE` | No — verbose, not wrong |
 
 The full finding inventory (schema layout, cross-domain FKs, per-domain
 ownership, handle capture, namespace hardcoding, direct SQL in handlers) is
 declared in the descriptor's `maturity.findings` block.
+
+Fleet-wide validation of resources, tools, safeguards, and scenarios is a
+storage-manager product gate (`storage-manager validate fleet`). Test Genie
+continues to validate one scenario through `ScenarioValidationService`; it does
+not widen its scenario-shaped target contract for non-scenario owners.
 
 ## The canonical fix
 
@@ -82,14 +135,14 @@ declared in the descriptor's `maturity.findings` block.
 - **Persistence** (`RAW_SQL_OPEN`, `ROUTED_DRIVER_IMPORT`, `SQL_DB_HANDLE_CAPTURE`, `DB_ROWS_NOT_CLOSED`, `DIRECT_SQL_IN_HANDLERS`, `SQLITE_POOL_DEADLOCK`) → route access through the `api-core/database` repository seam, close rows, and restructure `MaxOpenConns:1` nested-query flows. `DB_ROWS_NOT_CLOSED` is auto-fixable.
 - **Operational** (`BACKUP_TARGET_MISSING`, `MIGRATION_DEBT`) → advisory: register a data-backup-manager target or author a stage-appropriate migration; these never fail the phase.
 
-Many findings are auto-fixable — `storage-health fix preview|apply <scenario>`
+Many findings are auto-fixable — `storage-manager fix preview|apply <scenario>`
 previews/applies format-preserving repairs (dry-run by default).
 
 ## How to verify
 
 ```bash
 # See the current rung, gaps, and next move for every capability:
-storage-health validate scenario <scenario>
+storage-manager validate scenario <scenario>
 
 # Or drive it through Test Genie and read the per-phase scorecard:
 test-genie execute <scenario> --phases storage
@@ -98,7 +151,7 @@ test-genie runs findings --scenario <scenario>
 
 ## What Gets Validated
 
-storage-health runs static, Go-first analyzers across four concerns:
+storage-manager runs static, Go-first analyzers across four concerns:
 
 - **Schema structure & layout** — per-domain `schema.sql`, embedded +
   idempotent schemas, no `ALTER` in schema files, no centralized schema, no
@@ -115,7 +168,7 @@ storage-health runs static, Go-first analyzers across four concerns:
 - **Operational readiness** — backup/restore-target registration for
   data-persisting scenarios (advisory).
 
-Many findings are **auto-fixable** — `storage-health fix preview|apply
+Many findings are **auto-fixable** — `storage-manager fix preview|apply
 <scenario>` previews/applies format-preserving repairs (dry-run by default).
 
 ## Severity, Gating & the Isolation Precondition
@@ -133,14 +186,26 @@ deleted in favour of this static, fail-closed gate.
 
 ## Resilience
 
-Storage runs before workflow, so it depends on the `storage-health` provider
+Storage runs before workflow, so it depends on the `storage-manager` provider
 being reachable. Test Genie's delegated-phase path treats an unreachable
-provider as an environmental failure (`storage-health` is a non-optional safety
-provider; start it via `vrooli scenario start storage-health`).
+provider as an environmental failure (`storage-manager` is a non-optional safety
+provider; start it via `vrooli scenario start storage-manager`).
+
+## Boundary with storage-manager product acceptance
+
+The static phase is intentionally not a host census. It checks isolation,
+schema, persistence, and migration hygiene quickly for the target scenario.
+The storage-manager product surface owns the slower, host-state-dependent
+checks: owner inventory across scenarios/resources/tools/safeguards, census
+accounting, retention parsing, placement resolution, adoption suggestions, and
+degraded-confidence API behavior. Those checks are exercised by the focused Go
+and UI suites and by the comprehensive `vrooli scenario test storage-manager`
+run. Keeping the boundary explicit prevents a green static phase from being
+misread as proof of fleet-wide byte accounting.
 
 ## Related Documentation
 
-- [storage-health scenario](../../../../storage-health/) — the provider that
+- [storage-manager scenario](../../../../storage-manager/) — the provider that
   backs this phase (analyzers, maturity ladder, auto-fix, fleet intelligence)
 - [Workflow Phase](../workflow/README.md) — the destructive E2E phase this
   gate protects

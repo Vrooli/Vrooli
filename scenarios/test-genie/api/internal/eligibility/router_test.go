@@ -139,6 +139,6 @@ func TestChecker_RPCError_ReturnsError(t *testing.T) {
 
 	c := NewChecker()
 	if _, err := c.Check(context.Background(), "demo", workspace.Mapping{}); err == nil {
-		t.Fatalf("expected error when storage-health RPC fails")
+		t.Fatalf("expected error when storage-manager RPC fails")
 	}
 }

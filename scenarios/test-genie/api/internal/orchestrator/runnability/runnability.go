@@ -36,7 +36,7 @@ const (
 	// process via RoutingService (no scenario restart) when the target is
 	// statically proven routed-eligible. When isolation cannot be proven the
 	// phase is refused (there is no restart-based fallback — it was deleted in
-	// favour of the storage-health fail-closed gate). The playbooks phase is
+	// favour of the storage-manager fail-closed gate). The playbooks phase is
 	// the canonical (currently only) holder of this capability.
 	DBIsolationRouted
 )

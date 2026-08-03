@@ -63,6 +63,7 @@ func backfillImmutableHashes(ctx context.Context, db dbexec.Executor) error {
 	if err != nil {
 		return err
 	}
+	defer rows.Close()
 	type row struct {
 		id, sourceJSON, findingJSON, requirementJSON, sourceHash, selectionHash string
 	}
@@ -78,9 +79,6 @@ func backfillImmutableHashes(ctx context.Context, db dbexec.Executor) error {
 		pending = append(pending, row{id: id, sourceJSON: sourceJSON, findingJSON: findingJSON, requirementJSON: requirementJSON, sourceHash: storedSourceHash, selectionHash: storedSelectionHash})
 	}
 	if err := rows.Err(); err != nil {
-		return err
-	}
-	if err := rows.Close(); err != nil {
 		return err
 	}
 	for _, stored := range pending {

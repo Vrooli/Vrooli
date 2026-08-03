@@ -39,6 +39,10 @@
           },
           "architecture": {
             "primitive": "proto_list"
+          },
+          "semantics": {
+            "kind": "query",
+            "verdict": {"path": "runs", "pass": "nonempty", "fail": "empty"}
           }
         },
         {
@@ -72,6 +76,10 @@
           },
           "architecture": {
             "primitive": "proto_list"
+          },
+          "semantics": {
+            "kind": "verify",
+            "verdict": {"path": "status", "pass": "passed", "fail": "failed"}
           }
         },
         {

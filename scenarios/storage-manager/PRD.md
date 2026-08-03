@@ -23,18 +23,21 @@
 - [x] OT-P0-003 | Policy-gated scan and plan | Produce deterministic scans and cleanup plans from provider estimates plus operator policy, including conservative defaults, provider versions, policy versions, approval requirements, and blocked Conditional or Forbidden actions.
 - [x] OT-P0-004 | Replay-safe apply and audit | Apply only an approved exact plan with matching policy and provider versions plus idempotency key, return no-op on safe replay, and persist immutable redacted audit events.
 - [x] OT-P0-005 | CLI and API control surface | Expose scan, plan, provider catalog, policy get/set/list, apply, and audit list/show through stable CLI and API contracts with mutating commands marked confirmation-required.
+- [x] OT-P0-006 | Cross-platform verification honesty | Expose deterministic placement verification for linux, macos, and windows with synthetic foreign-platform identities and explicit declared absence.
 
 ### 🟠 P1 – Should have post-launch
 
 - [ ] OT-P1-001 | Conservative built-in providers | Implement preview-first providers for Trash, tmp, language/build caches, journald and apt metadata, Docker pruneable data, and Vrooli-owned retention hooks with dangerous cleanup disabled by default.
 - [ ] OT-P1-002 | Operator cleanup console | Deliver a dense React UI for disk pressure overview, provider estimates, policy editing, plan review, approval state, apply results, and audit history with loading, empty, and error states.
 - [ ] OT-P1-003 | Adjacent scenario handoff | Document or wire system-monitor and vrooli-autoheal remediation paths through storage-manager while owner scenarios retain private deletion logic through provider hooks.
+- [x] OT-P1-004 | All-owner-kind validation reach | Validate scenarios, resources, tools, and safeguards through one report-shaped API and CLI surface, with fleet acceptance gated only by ERROR or BLOCKER findings.
 
 ### 🟢 P2 – Future / expansion
 
 - [ ] OT-P2-001 | Scheduled policy execution | Add opt-in scheduled cleanup runs for eligible Safe and SafeWithOwner providers with explicit dry-run and audit retention controls.
 - [ ] OT-P2-002 | Fleet cleanup intelligence | Aggregate cleanup estimates, provider health, and reclaim outcomes across scenarios to guide capacity planning and future storage governance.
 - [ ] OT-P2-003 | Extended provider marketplace | Support registered scenario-owned providers with declarative metadata, contract validation, and reusable action discovery for future cleanup capabilities.
+- [x] OT-P2-004 | Advisory cross-platform declaration lint | Identify non-portable paths, platform mismatches, missing branches, and supersedable platform maps as warning-level declaration accountability findings.
 
 ## 🧱 Tech Direction Snapshot
 

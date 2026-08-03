@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"syscall"
 
 	sharedartifacts "test-genie/internal/shared/artifacts"
 
@@ -104,10 +103,11 @@ func (i *Index) withLock(fn func() error) error {
 	}
 	defer lf.Close()
 
-	if err := syscall.Flock(int(lf.Fd()), syscall.LOCK_EX); err != nil {
+	unlock, err := lockFile(lf)
+	if err != nil {
 		return fmt.Errorf("acquire index lock: %w", err)
 	}
-	defer func() { _ = syscall.Flock(int(lf.Fd()), syscall.LOCK_UN) }()
+	defer unlock()
 
 	return fn()
 }

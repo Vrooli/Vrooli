@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P0 operational targets.",
-    "last_validated_at": "2026-08-02T17:52:21-04:00",
+    "last_validated_at": "2026-08-03T12:50:48-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -96,6 +96,23 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "CLI cleanup command registration is covered by [REQ:CLN-P0-005]."
+        }
+      ]
+    },
+    {
+      "id": "CLN-P0-006",
+      "title": "Cross-platform verification honesty",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "description": "Expose deterministic placement verification for linux, macos, and windows with synthetic foreign-platform identities and explicit declared absence.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/placement/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Target-platform identity, path conventions, declared absence, and synthetic identity are covered by [REQ:CLN-P0-006]."
         }
       ]
     }

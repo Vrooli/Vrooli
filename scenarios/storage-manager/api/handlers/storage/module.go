@@ -21,6 +21,7 @@ import (
 	"storage-manager/internal/census"
 	"storage-manager/internal/module"
 	"storage-manager/internal/placement"
+	managerRetention "storage-manager/internal/retention"
 )
 
 type ModuleDeps struct {
@@ -93,6 +94,8 @@ func Module(d ModuleDeps) module.Module {
 				http.Error(w, inventoryErr.Error(), http.StatusInternalServerError)
 				return
 			}
+			enforcement := managerRetention.Enforcer{RepoRoot: d.RepoRoot, Platform: corestorage.Platform(runtime.GOOS)}
+			storageEnforcement, _ := enforcement.Enforce(req.Context(), inventory)
 			out := retentionInventory{Findings: discovery.Findings}
 			for _, owner := range discovery.Configs {
 				record := retentionOwner{Kind: string(owner.Kind), ID: owner.ID, ManifestPath: owner.ManifestPath, EnforcementState: "unenforced"}
@@ -118,16 +121,24 @@ func Module(d ModuleDeps) module.Module {
 						record.Budgets = append(record.Budgets, retentionBudget{Name: spec.Budget.Name, TargetKind: string(spec.Target.Kind), MaxAge: spec.Budget.MaxAge.String(), MaxBytes: spec.Budget.MaxBytes})
 					}
 				}
+				storageBudget := false
 				if normalized, found := findOwner(inventory.Owners, owner.ID); found {
 					for _, entry := range normalized.StorageEntries {
 						if entry.Budget == nil || entry.Budget.MaxBytes == "" {
 							continue
 						}
+						storageBudget = true
 						max, parseErr := retention.ParseBytes(entry.Budget.MaxBytes)
 						if parseErr != nil {
 							continue
 						}
-						record.Budgets = append(record.Budgets, retentionBudget{Name: entry.Name, TargetKind: "storage_entry", MaxBytes: max, Rationale: entry.Budget.Rationale})
+						seen := false
+						for _, budget := range record.Budgets {
+							seen = seen || budget.Name == entry.Name
+						}
+						if !seen {
+							record.Budgets = append(record.Budgets, retentionBudget{Name: entry.Name, TargetKind: "storage_entry", MaxBytes: max, Rationale: entry.Budget.Rationale})
+						}
 						observed, _ := entryBytes(d.RepoRoot, normalized, entry)
 						if observed > max {
 							record.EnforcementState = "over_budget"
@@ -135,7 +146,9 @@ func Module(d ModuleDeps) module.Module {
 						}
 					}
 				}
-				if len(record.Budgets) > 0 && ownerIsRunning(req.Context(), owner.ID) && len(record.Findings) == 0 {
+				if result, enforced := storageEnforcement[owner.ID]; storageBudget && enforced && result.Error == "" && len(record.Findings) == 0 {
+					record.EnforcementState = "governed"
+				} else if len(record.Budgets) > 0 && !storageBudget && ownerIsRunning(req.Context(), owner.Kind, owner.ID) && len(record.Findings) == 0 {
 					record.EnforcementState = "governed"
 				}
 				if record.LastEnforcementError != "" && record.EnforcementState == "governed" {
@@ -143,18 +156,32 @@ func Module(d ModuleDeps) module.Module {
 				}
 				out.Owners = append(out.Owners, record)
 			}
+			for _, owner := range out.Owners {
+				switch owner.EnforcementState {
+				case "governed":
+					out.Summary.Governed++
+				case "unenforced":
+					out.Summary.Unenforced++
+				case "unbounded":
+					out.Summary.Unbounded++
+				}
+			}
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(out)
 		}).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/placement", func(w http.ResponseWriter, req *http.Request) {
-			inventory, err := corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: d.RepoRoot, Platform: corestorage.Platform(runtime.GOOS)})
+			platform := corestorage.NormalizePlatform(req.URL.Query().Get("platform"))
+			if platform == "" {
+				platform = corestorage.HostPlatform()
+			}
+			if platform == "" {
+				http.Error(w, "platform must be linux, macos, or windows", http.StatusBadRequest)
+				return
+			}
+			inventory, err := corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: d.RepoRoot, Platform: platform})
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
-			}
-			platform := corestorage.Platform(strings.TrimSpace(req.URL.Query().Get("platform")))
-			if platform == "" {
-				platform = corestorage.Platform(runtime.GOOS)
 			}
 			out := placementView{Platform: platform, Owners: []placementOwner{}}
 			levers := []corestorage.Lever{}
@@ -182,17 +209,17 @@ func Module(d ModuleDeps) module.Module {
 			_ = json.NewEncoder(w).Encode(out)
 		}).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/placement/verify", func(w http.ResponseWriter, req *http.Request) {
-			inventory, err := corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: d.RepoRoot, Platform: corestorage.Platform(runtime.GOOS)})
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+			platform := corestorage.NormalizePlatform(req.URL.Query().Get("platform"))
+			if platform == "" {
+				platform = corestorage.HostPlatform()
+			}
+			if platform == "" {
+				http.Error(w, "platform must be linux, macos, or windows", http.StatusBadRequest)
 				return
 			}
-			platform := corestorage.Platform(strings.TrimSpace(req.URL.Query().Get("platform")))
-			if platform == "" {
-				platform = corestorage.Platform(runtime.GOOS)
-			}
-			if platform != corestorage.PlatformLinux && platform != corestorage.PlatformMacOS && platform != corestorage.PlatformWindows {
-				http.Error(w, "platform must be linux, macos, or windows", http.StatusBadRequest)
+			inventory, err := corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: d.RepoRoot, Platform: platform})
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 			out := placementService.Verify(req.Context(), d.RepoRoot, inventory.Owners, platform)
@@ -352,16 +379,51 @@ func Module(d ModuleDeps) module.Module {
 						budgeted++
 					}
 				}
-				out.Owners = append(out.Owners, declarationCheckRow{Kind: string(owner.Kind), Owner: owner.ID, Declared: owner.StorageDeclared, Entries: len(owner.StorageEntries), Budgeted: budgeted})
+				entries := len(owner.StorageEntries)
+				out.Owners = append(out.Owners, declarationCheckRow{
+					Kind:            string(owner.Kind),
+					Owner:           owner.ID,
+					Declared:        entries > 0,
+					HasStorageBlock: owner.StorageDeclared,
+					Entries:         entries,
+					Budgeted:        budgeted,
+				})
 			}
 			out.Total = len(out.Owners)
+			byKind := map[string]*declarationKindRow{}
+			kindOrder := []string{}
 			for _, row := range out.Owners {
 				if row.Declared {
 					out.Declared++
+				} else if row.HasStorageBlock {
+					out.EmptyBlocks++
 				}
 				if row.Budgeted > 0 {
 					out.Bounded++
 				}
+				out.Entries += row.Entries
+				out.BudgetedEntries += row.Budgeted
+
+				agg, ok := byKind[row.Kind]
+				if !ok {
+					agg = &declarationKindRow{Kind: row.Kind}
+					byKind[row.Kind] = agg
+					kindOrder = append(kindOrder, row.Kind)
+				}
+				agg.Total++
+				if row.Declared {
+					agg.Declared++
+				}
+				if row.Budgeted > 0 {
+					agg.Bounded++
+				}
+				agg.Entries += row.Entries
+				agg.BudgetedEntries += row.Budgeted
+			}
+			sort.Strings(kindOrder)
+			out.ByKind = make([]declarationKindRow, 0, len(kindOrder))
+			for _, kind := range kindOrder {
+				out.ByKind = append(out.ByKind, *byKind[kind])
 			}
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(out)
@@ -396,10 +458,17 @@ func Module(d ModuleDeps) module.Module {
 				out.LatestSnapshot = &history[0]
 				out.GrowthSlopeBytesPerHour = history[0].GrowthSlopeBytesPerHour
 				budgetedOwners := map[string]bool{}
+				enforced, _ := (managerRetention.Enforcer{RepoRoot: d.RepoRoot, Platform: corestorage.Platform(runtime.GOOS)}).Enforce(req.Context(), inventory)
+				for ownerID, result := range enforced {
+					if result.Error == "" {
+						budgetedOwners[ownerID] = true
+					}
+				}
+				declaredOwners := map[string]bool{}
 				for _, owner := range inventory.Owners {
 					for _, entry := range owner.StorageEntries {
 						if entry.Budget != nil {
-							budgetedOwners[owner.ID] = ownerIsRunning(req.Context(), owner.ID)
+							declaredOwners[owner.ID] = true
 							break
 						}
 					}
@@ -408,8 +477,14 @@ func Module(d ModuleDeps) module.Module {
 					if budgetedOwners[entry.Owner] {
 						out.MeasuredBytesUnderEnforcedCeiling += entry.Bytes
 					}
+					if declaredOwners[entry.Owner] {
+						out.MeasuredBytesUnderDeclaredCeiling += entry.Bytes
+					}
 				}
 				out.EnforcedCeilingCoverage = ratio64(out.MeasuredBytesUnderEnforcedCeiling, history[0].MeasuredBytes)
+				if history[0].Closed {
+					out.DeclaredCeilingMeasuredCoverage = ratio64(out.MeasuredBytesUnderDeclaredCeiling, history[0].MeasuredBytes)
+				}
 			}
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(out)
@@ -417,14 +492,20 @@ func Module(d ModuleDeps) module.Module {
 	}, Endpoints: Endpoints}
 }
 
-func ownerIsRunning(ctx context.Context, owner string) bool {
+func ownerIsRunning(ctx context.Context, kind retention.OwnerKind, owner string) bool {
 	owner = strings.TrimSpace(owner)
 	if owner == "" || !safeOwnerID(owner) {
 		return false
 	}
-	// owner is restricted to a scenario identifier above; exec.CommandContext
-	// does not invoke a shell, so this is not shell interpolation.
-	command := exec.CommandContext(ctx, "vrooli", "scenario", "status", owner, "--json") // #nosec G204,G702 -- validated scenario id and fixed executable/arguments
+	commandName := "scenario"
+	commandArgs := []string{"status", owner, "--json"}
+	if kind == retention.OwnerResource {
+		commandName = "resource"
+		commandArgs = []string{"status", owner, "--json"}
+	}
+	// owner is restricted to a manifest identifier; exec.CommandContext does
+	// not invoke a shell, so this is not shell interpolation.
+	command := exec.CommandContext(ctx, "vrooli", append([]string{commandName}, commandArgs...)...) // #nosec G204,G702 -- validated owner id and fixed executable/arguments
 	output, err := command.Output()
 	if err != nil {
 		return false
@@ -510,20 +591,53 @@ func resourceEnvironmentExports(repoRoot string) map[string]string {
 type retentionInventory struct {
 	Owners   []retentionOwner               `json:"owners"`
 	Findings []corestorage.InventoryFinding `json:"findings,omitempty"`
+	Summary  retentionSummary               `json:"summary"`
 }
 
+type retentionSummary struct {
+	Governed   int `json:"governed"`
+	Unenforced int `json:"unenforced"`
+	Unbounded  int `json:"unbounded"`
+}
+
+// declarationCheck reports adoption, not manifest readability. "Declared"
+// counts owners with at least one storage entry; an owner carrying an empty
+// storage block is counted in EmptyBlocks, never as declared. Conflating the
+// two reported 208/208 coverage on a fleet where 132 owners had an entry and
+// 6 had a ceiling.
 type declarationCheck struct {
-	Total    int                   `json:"total"`
-	Declared int                   `json:"declared"`
-	Bounded  int                   `json:"bounded"`
-	Owners   []declarationCheckRow `json:"owners"`
+	Total int `json:"total"`
+	// Declared counts owners with >= 1 storage entry.
+	Declared int `json:"declared"`
+	// Bounded counts owners with >= 1 entry carrying a budget.
+	Bounded int `json:"bounded"`
+	// EmptyBlocks counts owners whose manifest has a storage block but no
+	// entries — the population `declare suggest` is aimed at.
+	EmptyBlocks int `json:"empty_blocks"`
+	// Entries and BudgetedEntries are entry-level totals across all owners.
+	Entries         int                   `json:"entries"`
+	BudgetedEntries int                   `json:"budgeted_entries"`
+	ByKind          []declarationKindRow  `json:"by_kind"`
+	Owners          []declarationCheckRow `json:"owners"`
+}
+type declarationKindRow struct {
+	Kind            string `json:"kind"`
+	Total           int    `json:"total"`
+	Declared        int    `json:"declared"`
+	Bounded         int    `json:"bounded"`
+	Entries         int    `json:"entries"`
+	BudgetedEntries int    `json:"budgeted_entries"`
 }
 type declarationCheckRow struct {
-	Kind     string `json:"kind"`
-	Owner    string `json:"owner"`
-	Declared bool   `json:"declared"`
-	Entries  int    `json:"entries"`
-	Budgeted int    `json:"budgeted"`
+	Kind  string `json:"kind"`
+	Owner string `json:"owner"`
+	// Declared is entry-backed: true only when Entries > 0.
+	Declared bool `json:"declared"`
+	// HasStorageBlock preserves the manifest-level fact Declared used to carry,
+	// so an empty block stays distinguishable from a missing one.
+	HasStorageBlock bool `json:"has_storage_block"`
+	Entries         int  `json:"entries"`
+	Budgeted        int  `json:"budgeted"`
 }
 type declarationInspect struct {
 	Kind          string                 `json:"kind"`
@@ -728,6 +842,8 @@ type infraHealthReport struct {
 	GrowthSlopeBytesPerHour           *float64       `json:"growth_slope_bytes_per_hour,omitempty"`
 	MeasuredBytesUnderEnforcedCeiling int64          `json:"measured_bytes_under_enforced_ceiling"`
 	EnforcedCeilingCoverage           float64        `json:"enforced_ceiling_coverage"`
+	MeasuredBytesUnderDeclaredCeiling int64          `json:"measured_bytes_under_declared_ceiling"`
+	DeclaredCeilingMeasuredCoverage   float64        `json:"declared_ceiling_measured_coverage"`
 	LatestSnapshot                    *census.Report `json:"latest_snapshot,omitempty"`
 }
 

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -95,7 +97,7 @@ func (s *Service) prepareAdmission(ctx context.Context, req *orchestrator.SuiteE
 	if req == nil {
 		return 0, false, errors.New("run request is required")
 	}
-	dir, err := s.scenarioDir(req.ScenarioName)
+	dir, err := s.admissionScenarioDir(req)
 	if err != nil {
 		return 0, false, err
 	}
@@ -124,6 +126,28 @@ func (s *Service) prepareAdmission(ctx context.Context, req *orchestrator.SuiteE
 	req.AdmissionConfigurationDigest = preview.ConfigurationFingerprint
 	total := preview.Summary.EstimatedDurationSeconds
 	return total, total > 0, nil
+}
+
+// admissionScenarioDir must use the same physical source selected by the
+// orchestrator. Custom scenario paths are used for isolated scratch runs and
+// baseline fixtures; hashing the canonical scenario directory here makes the
+// admission digest disagree with the execution digest before any phase runs.
+func (s *Service) admissionScenarioDir(req *orchestrator.SuiteExecutionRequest) (string, error) {
+	if path := strings.TrimSpace(req.ScenarioPath); path != "" {
+		absolute, err := filepath.Abs(path)
+		if err != nil {
+			return "", connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("resolve scenario path: %w", err))
+		}
+		info, err := os.Stat(absolute)
+		if err != nil {
+			return "", connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("inspect scenario path: %w", err))
+		}
+		if !info.IsDir() {
+			return "", connect.NewError(connect.CodeInvalidArgument, errors.New("scenario path must be a directory"))
+		}
+		return absolute, nil
+	}
+	return s.scenarioDir(req.ScenarioName)
 }
 
 func saturationError(err error) *connect.Error {

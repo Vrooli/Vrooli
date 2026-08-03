@@ -131,7 +131,9 @@ func storageGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		return err
 	}
 	infraHealth := func() error {
-		req, err := http.NewRequest(http.MethodGet, base+"/api/v1/infra-health/storage", nil)
+		// Infra-health is the host-wide signal; select the device-root census
+		// explicitly rather than falling back to the repository-root history.
+		req, err := http.NewRequest(http.MethodGet, base+"/api/v1/infra-health/storage?root=/", nil)
 		if err != nil {
 			return err
 		}

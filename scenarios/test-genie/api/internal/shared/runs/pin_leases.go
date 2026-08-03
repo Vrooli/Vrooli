@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"syscall"
 	"time"
 
 	sharedartifacts "test-genie/internal/shared/artifacts"
@@ -121,10 +120,11 @@ func (s *PinLeaseStore) withLock(fn func() error) error {
 		return err
 	}
 	defer file.Close()
-	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX); err != nil {
+	unlock, err := lockFile(file)
+	if err != nil {
 		return err
 	}
-	defer syscall.Flock(int(file.Fd()), syscall.LOCK_UN)
+	defer unlock()
 	return fn()
 }
 

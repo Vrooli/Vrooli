@@ -36,6 +36,7 @@ below is provider-delegated and declares a maturity ladder; every phase's
 | `contracts` | cli-health | 7 | provider-delegated (lighthouse) | `scenarios/test-genie/docs/phases/contracts/README.md` |
 | `dependencies` | scenario-dependency-analyzer | 6 | provider-delegated | `scenarios/test-genie/docs/phases/dependencies/README.md` |
 | `docs` | knowledge-observatory | 7 | provider-delegated | `scenarios/test-genie/docs/phases/docs/README.md` |
+| `event-capture-conformance` | vrooli-events | 1 | provider-delegated | `scenarios/test-genie/docs/phases/event-capture-conformance/README.md` |
 | `experience` | experience-manager | 4 | provider-delegated | `scenarios/test-genie/docs/phases/experience/README.md` |
 | `measures` | measures-health | 5 | provider-delegated | `scenarios/test-genie/docs/phases/measures/README.md` |
 | `performance` | performance-health | 5 | provider-delegated | `scenarios/test-genie/docs/phases/performance/README.md` |
@@ -44,7 +45,7 @@ below is provider-delegated and declares a maturity ladder; every phase's
 | `quality` | quality-health | 5 | provider-delegated | `scenarios/test-genie/docs/phases/quality/README.md` |
 | `search` | search-hub | 4 | provider-delegated | `scenarios/test-genie/docs/phases/search/README.md` |
 | `security` | security-health | 5 | provider-delegated | `scenarios/test-genie/docs/phases/security/README.md` |
-| `storage` | storage-health | 5 | provider-delegated | `scenarios/test-genie/docs/phases/storage/README.md` |
+| `storage` | storage-manager | 5 | provider-delegated | `scenarios/test-genie/docs/phases/storage/README.md` |
 | `structure` | structure-health | 5 | provider-delegated | `scenarios/test-genie/docs/phases/structure/README.md` |
 | `tidiness` | tidiness-manager | 4 | provider-delegated | `scenarios/test-genie/docs/phases/tidiness/README.md` |
 | `templates` | template-manager | 4 | provider-delegated | `scenarios/test-genie/docs/phases/templates/README.md` |

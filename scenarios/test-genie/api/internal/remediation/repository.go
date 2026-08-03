@@ -82,6 +82,7 @@ func (r *SQLiteRepository) ListByScenario(ctx context.Context, scenario string, 
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	var jobs []Job
 	for rows.Next() {
 		job, err := scanJob(rows)
@@ -91,10 +92,6 @@ func (r *SQLiteRepository) ListByScenario(ctx context.Context, scenario string, 
 		jobs = append(jobs, job)
 	}
 	if err := rows.Err(); err != nil {
-		rows.Close()
-		return nil, err
-	}
-	if err := rows.Close(); err != nil {
 		return nil, err
 	}
 	for i := range jobs {

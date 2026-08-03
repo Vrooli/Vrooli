@@ -35,7 +35,7 @@ from `test-genie health` + `test-genie fleet status`, not stored here.
 | V6 | Quality | `quality-health` | NOW | mechanical | Lint/type policy, strict config. |
 | V7 | DOCS | `knowledge-observatory` | NOW | mechanical | Markdown, mermaid, links, references, manifest. |
 | V8 | Unit | `unit-health` | NOW | manual | Execution, coverage, test architecture/quality, flake. |
-| V9 | Storage | `storage-health` | NOW | partial | Schema, migrations, persistence/isolation seams. |
+| V9 | Storage | `storage-manager` | NOW | partial | Schema, migrations, persistence/isolation seams. |
 | V10 | Business | _(native — test-genie)_ | NOW | manual | The business-logic ladder: operational targets (`PRD.md`) → requirements (`requirements/`) → linked tests. |
 | V11 | Tidiness | `tidiness-manager` | NOW | mechanical | File/function quality. |
 | V12 | Security | `security-health` | NOW | partial | Secrets, Go SAST, vuln-DB, JS deps. |

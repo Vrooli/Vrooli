@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/freshness-go/treedigest"
 
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
@@ -275,6 +276,29 @@ func TestPrepareAdmissionHonorsCancellation(t *testing.T) {
 	}
 	if elapsed := time.Since(started); elapsed > time.Second {
 		t.Fatalf("admission ignored cancellation for %s", elapsed)
+	}
+}
+
+func TestPrepareAdmissionUsesCustomScenarioPathForTreeDigest(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(root+"/demo", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	scratch := t.TempDir()
+	if err := os.WriteFile(scratch+"/marker.txt", []byte("scratch source"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	svc := NewService(root, nil, nil, nil)
+	req := &orchestrator.SuiteExecutionRequest{ScenarioName: "demo", ScenarioPath: scratch}
+	if _, _, err := svc.prepareAdmission(context.Background(), req); err != nil {
+		t.Fatalf("prepareAdmission: %v", err)
+	}
+	want, err := treedigest.Compute(scratch)
+	if err != nil {
+		t.Fatalf("compute scratch digest: %v", err)
+	}
+	if req.AdmissionTreeDigest != want {
+		t.Fatalf("admission digest = %q, want custom scenario digest %q", req.AdmissionTreeDigest, want)
 	}
 }
 

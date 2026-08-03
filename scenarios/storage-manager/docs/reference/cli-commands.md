@@ -183,6 +183,44 @@ messages are path-redacted before they are stored.
 storage-manager cleanup audit
 ```
 
+## Scenario commands — `placement` and `validate`
+
+### `storage-manager placement verify`
+
+Resolve declared storage paths for a platform without touching the filesystem.
+The default is the host platform. Foreign-platform rows use a synthetic user
+identity and set `synthetic_identity=true`; platform-absent entries are shown
+as `applicable=false` and `declared_absent=true`.
+
+```bash
+storage-manager placement verify
+storage-manager placement verify --platform linux --json
+storage-manager placement verify --platform macos --json
+storage-manager placement verify --platform windows --json
+storage-manager placement verify --all-platforms --json
+```
+
+The JSON matrix is sorted by owner kind, owner, and entry. Accepted aliases
+are `darwin` for macOS and `win32` for Windows.
+
+### `storage-manager validate`
+
+Run the shared storage validation report for one owner or for the fleet.
+Every owner command accepts `--platform` and `--json`.
+
+```bash
+storage-manager validate scenario notes --json
+storage-manager validate resource ollama --platform windows --json
+storage-manager validate tool go --json
+storage-manager validate safeguard pstore_ramoops --json
+storage-manager validate fleet --kind tool --kind resource --json
+storage-manager validate fleet --platform linux --json
+```
+
+`validate fleet` returns per-owner reports and counts by finding code. It exits
+non-zero only when an `ERROR` or `BLOCKER` finding is present; advisory
+warnings remain visible without failing the command.
+
 ## Output contracts
 
 Every scenario command should render through one of three human

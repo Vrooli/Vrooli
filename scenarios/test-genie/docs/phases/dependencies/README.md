@@ -31,6 +31,7 @@ SDA reports a ladder per capability. The rungs are monotone — each implies the
 | Release Age Policy | L0–L4 | Release-age policy and exceptions are governed. | Policy readable → minimum configured → meets cooldown → exclusions governed. |
 | Dependency Governance | L0–L3 | Dependency governance is clean for the target scenario. | Registry readable → observed deps governed → no blocking findings. |
 | Graph Accuracy | L0–L2 | Declared dependency graph matches observed evidence. | Graph comparable → no undeclared usage or stale declarations. |
+| Integration Conformance | L0–L3 | Declared scenario dependencies have a shared registry entry, checker, operator action, and degraded behavior. | Dependency resolves → registry describes it → recovery is actionable. |
 
 ## What each finding means
 
@@ -48,6 +49,11 @@ Each finding caps the capability it names at a rung; only ERROR/BLOCKER severiti
 | `dependency.governance.registry_readable` | dependency_governance | L0 | ERROR | Yes |
 | `dependency.governance.approved_dependency` | dependency_governance | L2 | WARNING | No |
 | `dependency.graph.undeclared` | graph_accuracy | L2 | WARNING | No |
+| `INTEGRATION_DEPENDENCY_UNRESOLVED` | integration_conformance | L1 | ERROR | Yes |
+| `INTEGRATION_REGISTRY_ENTRY_MISSING` | integration_conformance | L2 | ERROR | Yes |
+| `INTEGRATION_REGISTRY_INCOMPLETE` | integration_conformance | L2 | ERROR | Yes |
+| `INTEGRATION_NO_OPERATOR_ACTION` | integration_conformance | L3 | WARNING | No |
+| `INTEGRATION_DEGRADED_BEHAVIOR_UNDECLARED` | integration_conformance | L3 | WARNING | No |
 
 ## The canonical fix
 
@@ -57,6 +63,7 @@ Each finding caps the capability it names at a rung; only ERROR/BLOCKER severiti
 - **Release-age findings** (`dependency.release_age.*`) → make the pnpm policy readable, configure a `minimumReleaseAge` that meets Vrooli's default cooldown, and record approved governance for any exclusions.
 - **Governance findings** (`dependency.governance.*`) → never hand-edit the approved-dependency JSON; use `scenario-dependency-analyzer deps approved explain <ecosystem>/<pkg>` then `approve-observed --apply` / `widen-range` / `deny-vulnerable` as appropriate.
 - **Graph-accuracy findings** (`dependency.graph.*`, `dependency.undeclared-but-used`, `dependency.declared-without-import-evidence`) → reconcile `.vrooli/service.json` declarations with observed import/interface evidence: declare undeclared usage or remove stale declarations.
+- **Integration-conformance findings** (`INTEGRATION_*`) → ensure every declared scenario dependency has a shared capability-registry definition with a description, matching slug, reachability checker, operator recovery action, and non-empty `degraded_behavior` declaration.
 
 ## How to verify
 
@@ -82,6 +89,7 @@ SDA health currently reports these machine-readable sections:
 | `release-age` | SDA | Validates pnpm `minimumReleaseAge` policy and governed exclusions |
 | `security-index` | Security Health via SDA | Reports dependency-index availability without running vulnerability scanners or emitting vulnerability findings |
 | `graph` | SDA | Reports declared-vs-actual scenario dependency graph drift |
+| `integration-conformance` | SDA | Verifies every declared scenario dependency has a shared registry definition, checker, operator action, and degraded behavior |
 
 ## Failure Semantics
 

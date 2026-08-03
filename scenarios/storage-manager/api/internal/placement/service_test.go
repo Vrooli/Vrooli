@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	corestorage "github.com/vrooli/api-core/storage"
 )
 
 func TestPreviewRequiresApprovalAtApplyAndAuditsVerifiedMigration(t *testing.T) {
@@ -38,5 +40,27 @@ func TestPreviewRequiresApprovalAtApplyAndAuditsVerifiedMigration(t *testing.T) 
 	history, err := service.Audit(context.Background(), 10)
 	if err != nil || len(history) != 1 {
 		t.Fatalf("history = %+v, err=%v", history, err)
+	}
+}
+
+func TestVerifyUsesTargetPlatformIdentityAndDeclaredAbsence(t *testing.T) {
+	service := New(nil)
+	linuxOnly := corestorage.OwnerManifest{Kind: corestorage.OwnerTool, ID: "kdump-tools", Platforms: []corestorage.Platform{corestorage.PlatformLinux}, StorageEntries: []corestorage.StorageEntry{{Name: "crash_dumps", Path: corestorage.PortablePath{Value: "/var/crash"}}}}
+	portable := corestorage.OwnerManifest{Kind: corestorage.OwnerTool, ID: "uv", StorageEntries: []corestorage.StorageEntry{{Name: "cache", Path: corestorage.PortablePath{Value: "$USER_CACHE_DIR/uv"}}}}
+	rows := service.Verify(context.Background(), "/repo", []corestorage.OwnerManifest{linuxOnly, portable}, corestorage.PlatformWindows)
+	if len(rows) != 2 {
+		t.Fatalf("rows = %#v", rows)
+	}
+	for _, row := range rows {
+		if row.Owner == "kdump-tools" {
+			if row.Applicable || !row.DeclaredAbsent || row.Error != "" || !row.SyntheticIdentity {
+				t.Fatalf("linux-only row = %#v", row)
+			}
+		}
+		if row.Owner == "uv" {
+			if !row.Applicable || row.Error != "" || row.Path != `C:\Users\vrooli\AppData\Local\uv` || !row.SyntheticIdentity {
+				t.Fatalf("windows cache row = %#v", row)
+			}
+		}
 	}
 }

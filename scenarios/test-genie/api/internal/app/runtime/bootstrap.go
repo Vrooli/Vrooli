@@ -13,6 +13,7 @@ import (
 	appelig "test-genie/internal/app/eligibility"
 	apprun "test-genie/internal/app/runs"
 	appvalidation "test-genie/internal/app/validation"
+	"test-genie/internal/dbexec"
 	"test-genie/internal/eligibility"
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
@@ -37,7 +38,7 @@ type Bootstrapped struct {
 	// HealthDB is a dedicated, read-only lifecycle probe connection. It is
 	// intentionally separate from the single runtime SQLite pool so background
 	// analytics cannot make lifecycle health queue behind ordinary work.
-	HealthDB            *sql.DB
+	HealthDB            dbexec.HealthProbe
 	ExecutionRepo       *execution.SuiteExecutionRepository
 	ExecutionHistory    execution.ExecutionHistory
 	ExecutionService    *execution.SuiteExecutionService
@@ -245,7 +246,7 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	}, nil
 }
 
-func openHealthDatabase(dsn string) (*sql.DB, error) {
+func openHealthDatabase(dsn string) (dbexec.HealthProbe, error) {
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, err

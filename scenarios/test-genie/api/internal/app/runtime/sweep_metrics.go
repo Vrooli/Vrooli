@@ -1,9 +1,9 @@
 package runtime
 
 import (
-	"database/sql"
 	"log"
 
+	"test-genie/internal/dbexec"
 	"test-genie/internal/selfhealthsnapshots"
 )
 
@@ -11,7 +11,7 @@ import (
 // the only SQLite-pool contention signals that matter to operators. Logging is
 // intentionally used here because Test Genie has no metrics exporter; the
 // cached status remains the health-path projection and never queries the pool.
-func poolSweepObserver(db *sql.DB, status *selfhealthsnapshots.StatusStore) func(selfhealthsnapshots.SweepStatus) {
+func poolSweepObserver(db dbexec.PoolStats, status *selfhealthsnapshots.StatusStore) func(selfhealthsnapshots.SweepStatus) {
 	return func(sweep selfhealthsnapshots.SweepStatus) {
 		if db != nil {
 			stats := db.Stats()

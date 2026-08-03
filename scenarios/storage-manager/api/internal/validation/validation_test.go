@@ -146,8 +146,19 @@ func TestValidateScenario_CleanWithZeroAnalyzers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ValidateScenario error = %v", err)
 	}
-	if len(rep.Findings) != 0 {
-		t.Fatalf("findings = %+v, want clean (zero analyzers registered)", rep.Findings)
+	// The accountability rung marker is not an analyzer tier: it is the
+	// structural guard that stops an owner declaring nothing from inheriting
+	// L3 "governed end to end" by producing no findings. It must survive an
+	// empty analyzer set, so the fixture (which declares no storage entries)
+	// reports exactly the undeclared rung and nothing else.
+	if len(rep.Findings) != 1 || rep.Findings[0].Code != "STORAGE_ACCOUNTABILITY_NOT_DECLARED" {
+		t.Fatalf("findings = %+v, want only STORAGE_ACCOUNTABILITY_NOT_DECLARED", rep.Findings)
+	}
+	if rep.Findings[0].Severity != SeverityInfo {
+		t.Fatalf("rung severity = %v, want INFO so adoption never fails the phase", rep.Findings[0].Severity)
+	}
+	if rep.Status != "passed" {
+		t.Fatalf("status = %q, want passed", rep.Status)
 	}
 	if !rep.IsGo() {
 		t.Fatalf("language = %q, want go", rep.Language)

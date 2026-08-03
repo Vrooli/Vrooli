@@ -3,7 +3,6 @@ package persistence
 import (
 	"context"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -16,6 +15,7 @@ import (
 
 	"test-genie/internal/storage/sqlitedb"
 
+	"github.com/vrooli/api-core/database"
 	_ "modernc.org/sqlite"
 )
 
@@ -129,7 +129,12 @@ func RestoreDatabaseCutover(plan DatabaseCutoverPlan) error {
 }
 
 func createEmptyStore(path string) error {
-	db, err := sql.Open("sqlite", sqlitedb.BuildDSN(path))
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          sqlitedb.BuildDSN(path),
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
 	if err != nil {
 		return err
 	}
@@ -138,7 +143,12 @@ func createEmptyStore(path string) error {
 }
 
 func verifySQLite(path string) error {
-	db, err := sql.Open("sqlite", sqlitedb.BuildDSN(path))
+	db, err := database.Connect(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          sqlitedb.BuildDSN(path),
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
 	if err != nil {
 		return err
 	}

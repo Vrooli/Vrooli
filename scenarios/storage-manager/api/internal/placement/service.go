@@ -43,14 +43,15 @@ type Audit struct {
 }
 
 type Verification struct {
-	Kind           string `json:"kind"`
-	Owner          string `json:"owner"`
-	Entry          string `json:"entry"`
-	Platform       string `json:"platform"`
-	Applicable     bool   `json:"applicable"`
-	DeclaredAbsent bool   `json:"declared_absent"`
-	Path           string `json:"path,omitempty"`
-	Error          string `json:"error,omitempty"`
+	Kind              string `json:"kind"`
+	Owner             string `json:"owner"`
+	Entry             string `json:"entry"`
+	Platform          string `json:"platform"`
+	Applicable        bool   `json:"applicable"`
+	DeclaredAbsent    bool   `json:"declared_absent"`
+	SyntheticIdentity bool   `json:"synthetic_identity"`
+	Path              string `json:"path,omitempty"`
+	Error             string `json:"error,omitempty"`
 }
 
 type Service struct{ store Store }
@@ -76,10 +77,28 @@ func Schema() string { return schemaSQL }
 // while every other resolution error remains visible as unresolvable.
 func (s *Service) Verify(_ context.Context, repoRoot string, owners []corestorage.OwnerManifest, platform corestorage.Platform) []Verification {
 	result := make([]Verification, 0)
+	platform = corestorage.NormalizePlatform(string(platform))
+	identity := corestorage.SyntheticIdentity(platform)
+	synthetic := platform != corestorage.HostPlatform()
+	if !synthetic {
+		if host, err := corestorage.HostIdentity(); err == nil {
+			identity = host
+		}
+	}
+	seams := corestorage.DefaultSeams(platform, identity)
 	for _, owner := range owners {
+		resolveRoot := repoRoot
+		resolveOwner := owner
+		if synthetic {
+			// Relative declarations are shape-checked against a synthetic
+			// repository root. This keeps foreign-platform matrices free of
+			// the host checkout path without changing host placement behavior.
+			resolveRoot = filepath.Join(identity.HomeDir, "Vrooli")
+			resolveOwner.ManifestPath = ""
+		}
 		for _, entry := range owner.StorageEntries {
-			row := Verification{Kind: string(owner.Kind), Owner: owner.ID, Entry: entry.Name, Platform: string(platform)}
-			path, err := corestorage.ResolveOwnerStoragePath(repoRoot, owner, entry, platform, corestorage.PlatformSeams{})
+			row := Verification{Kind: string(owner.Kind), Owner: owner.ID, Entry: entry.Name, Platform: string(platform), SyntheticIdentity: synthetic}
+			path, err := corestorage.ResolveOwnerStoragePath(resolveRoot, resolveOwner, entry, platform, seams)
 			if err == nil {
 				row.Applicable = true
 				row.Path = path

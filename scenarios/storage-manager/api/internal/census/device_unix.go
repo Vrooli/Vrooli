@@ -19,5 +19,6 @@ func deviceCoverage(root string, measured int64, complete bool) ScanCoverage {
 	coverage.DeviceTotalBytes = int64(stat.Blocks) * blockSize
 	available := int64(stat.Bavail) * blockSize
 	coverage.DeviceUsedBytes = coverage.DeviceTotalBytes - available
+	coverage.MeasuredByDevice = true
 	return coverage
 }

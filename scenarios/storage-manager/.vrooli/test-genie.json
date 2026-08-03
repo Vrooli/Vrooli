@@ -27,7 +27,7 @@
     "path": "scenarios/test-genie/docs/phases/storage/README.md"
   },
   "maturity": {
-    "version": "2.0.0",
+    "version": "2.1.0",
     "capabilities": [
       {
         "id": "target_classification",
@@ -487,6 +487,28 @@
         "fix_class": "manual",
         "reason": "A writer may be missing, generated, or intentionally suppressed; remediation needs owner judgment."
       },
+      "STORAGE_OWNER_GATE_FAILED": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L2",
+        "global_impact": "safety_blocker",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "The storage-manager suite gates resource, tool, and safeguard declaration errors and blockers."
+      },
+      "STORAGE_OWNER_GATE_ADVISORY_TREND": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_INFO",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "Advisory drift is reported by the suite without blocking adoption."
+      },
       "STORAGE_ENTRY_CLASS_CONFLICT": {
         "capability_id": "declaration_accountability",
         "local_level_impact": "L1",
@@ -564,35 +586,82 @@
         "fix_class": "manual",
         "reason": "The stale scenario directory must be removed or given a canonical owner manifest."
       },
-      "STORAGE_ACCOUNTABILITY_DECLARED": {
+      "STORAGE_PATH_NOT_PORTABLE": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "Choosing a portable token or an explicit per-platform map requires owner knowledge of the upstream layout."
+      },
+      "STORAGE_PATH_PLATFORM_MISMATCH": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "Correcting a platform mismatch requires deciding whether the declaration or its applicability is wrong."
+      },
+      "STORAGE_PATH_BRANCH_MISSING": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "The owner must add a branch or explicitly declare absence with null."
+      },
+      "STORAGE_TOKEN_SUPERSEDABLE": {
+        "capability_id": "declaration_accountability",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "storage",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": ["storage-steer"],
+        "fix_class": "manual",
+        "reason": "Replacing repeated platform branches with one token requires confirming the logical location."
+      },
+      "STORAGE_ACCOUNTABILITY_NOT_DECLARED": {
         "capability_id": "declaration_accountability",
         "local_level_impact": "L1",
         "global_impact": "advisory",
         "dimension": "storage",
         "severity_default": "SEVERITY_INFO",
         "clean_requirement": "required",
+        "recommended_skill_ids": ["storage-steer"],
         "fix_class": "manual",
-        "reason": "A readable storage declaration establishes the foundation rung."
+        "reason": "Without a storage.entries declaration the durable surface cannot be evaluated, so no higher rung can be claimed. Blocks L1; the owner sits at L0."
       },
-      "STORAGE_ACCOUNTABILITY_RECONCILED": {
+      "STORAGE_ACCOUNTABILITY_NOT_RECONCILED": {
         "capability_id": "declaration_accountability",
         "local_level_impact": "L2",
         "global_impact": "advisory",
         "dimension": "storage",
-        "severity_default": "SEVERITY_INFO",
+        "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
+        "recommended_skill_ids": ["storage-steer"],
         "fix_class": "manual",
-        "reason": "A reconciled declaration is the prerequisite for governance."
+        "reason": "A declaration that disagrees with observed writers, paths, sidecars, or ceilings is declared but not reconciled. Blocks L2; the owner sits at L1."
       },
-      "STORAGE_ACCOUNTABILITY_GOVERNED": {
+      "STORAGE_ACCOUNTABILITY_NOT_GOVERNED": {
         "capability_id": "declaration_accountability",
         "local_level_impact": "L3",
         "global_impact": "advisory",
         "dimension": "storage",
-        "severity_default": "SEVERITY_INFO",
+        "severity_default": "SEVERITY_WARNING",
         "clean_requirement": "required",
+        "recommended_skill_ids": ["storage-steer"],
         "fix_class": "manual",
-        "reason": "Visible enforcement completes the accountability ladder."
+        "reason": "Reconciled storage with no budget and no reclaim command has no visible enforcement. Blocks L3; the owner sits at L2."
       }
     },
     "fallback": {

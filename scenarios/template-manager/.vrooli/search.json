@@ -242,10 +242,10 @@
             "expect_within_top_k": 10
           },
           {
-            "id": "drift-cleanup-manager",
+            "id": "drift-storage-manager",
             "query": "cleanup manager template drift debt",
             "tags": ["weak-real", "debt-ledger"],
-            "expect_ids": ["drift.react-vite.cleanup-manager"],
+            "expect_ids": ["drift.react-vite.storage-manager"],
             "expect_within_top_k": 10
           },
           {

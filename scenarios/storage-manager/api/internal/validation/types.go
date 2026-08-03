@@ -10,7 +10,11 @@
 // phases by registering into DefaultAnalyzers.
 package validation
 
-import "strings"
+import (
+	"strings"
+
+	corestorage "github.com/vrooli/api-core/storage"
+)
 
 // Severity is storage-manager's internal severity ladder. It is mapped to the
 // shared FindingSeverity vocabulary (SEVERITY_ERROR/WARNING/INFO) by the
@@ -48,26 +52,26 @@ type Finding struct {
 	// Code is the stable finding code (e.g. ROUTED_SEAMS_UNWIRED). It MUST
 	// exist in the scenario's maturity.json findings catalog, otherwise the
 	// maturity engine resolves it via the fallback policy.
-	Code string
+	Code string `json:"code"`
 	// Severity is the analyzer-assigned severity. When zero-valued the maturity
 	// engine falls back to the catalog's severity_default for the code.
-	Severity Severity
+	Severity Severity `json:"severity"`
 	// Title is a short human headline.
-	Title string
+	Title string `json:"title"`
 	// Message is the detailed, instructive explanation — for isolation/safety
 	// findings this MUST be loud: why it was flagged, why it matters (real-data
 	// risk), and the exact remediation (which seam to wire / which autofix).
-	Message string
+	Message string `json:"message"`
 	// Location is a repo-relative file (optionally :line) the finding points at.
-	Location string
+	Location string `json:"location,omitempty"`
 	// Remediation is the concrete fix instruction.
-	Remediation string
+	Remediation string `json:"remediation,omitempty"`
 	// AutofixAvailable marks that a registered storage-manager autofix can
 	// remediate this instance. Wired in the autofix phase.
-	AutofixAvailable bool
+	AutofixAvailable bool `json:"autofix_available,omitempty"`
 	// Analyzer is the name of the analyzer that produced the finding (for
 	// deterministic ordering + provenance).
-	Analyzer string
+	Analyzer string `json:"analyzer,omitempty"`
 }
 
 // Engine enumerates the storage engines storage-manager classifies.
@@ -84,22 +88,38 @@ const (
 // Report is the result of validating one scenario.
 type Report struct {
 	// Scenario is the validated scenario id.
-	Scenario string
+	Scenario string `json:"scenario"`
+	// OwnerKind and OwnerID identify the native manifest validated. Scenario is
+	// retained as the shared response field for compatibility with Test Genie.
+	OwnerKind corestorage.OwnerKind `json:"owner_kind"`
+	OwnerID   string                `json:"owner_id"`
+	Platform  corestorage.Platform  `json:"platform"`
+	Status    string                `json:"status"`
+	// Analyzers records both executed and kind-gated analyzers so consumers can
+	// distinguish not-applicable from an analyzer that silently disappeared.
+	Analyzers []AnalyzerResult `json:"analyzers,omitempty"`
 	// ScenarioDir is the absolute path to the scenario directory on disk.
-	ScenarioDir string
+	ScenarioDir string `json:"scenario_dir,omitempty"`
 	// Language is the detected API-surface language ("go", "typescript",
 	// "python", or "" when undetermined). Drives Go-only analyzer gating.
-	Language string
+	Language string `json:"language,omitempty"`
 	// Engines is the set of storage engines the scenario declares/uses, in a
 	// stable order.
-	Engines []Engine
+	Engines []Engine `json:"engines,omitempty"`
 	// StorageStage is the derived deploy/greenfield stage (greenfield, pilot,
 	// production, sunset) — informational; migration findings reference it.
-	StorageStage string
+	StorageStage string `json:"storage_stage,omitempty"`
 	// HasMigrations reports whether a committed migrations/ directory exists.
-	HasMigrations bool
+	HasMigrations bool `json:"has_migrations"`
 	// Findings are the aggregated, deterministically-sorted findings.
-	Findings []Finding
+	Findings []Finding `json:"findings,omitempty"`
+}
+
+type AnalyzerResult struct {
+	Name        string   `json:"name"`
+	Applicable  bool     `json:"applicable"`
+	Reason      string   `json:"reason,omitempty"`
+	FindingCode []string `json:"finding_codes,omitempty"`
 }
 
 // HasEngine reports whether the report classified the given engine.

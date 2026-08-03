@@ -50,6 +50,23 @@
           "type": "manual"
         }
       ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Validate scenarios, resources, tools, and safeguards through one report-shaped API and CLI surface, with fleet acceptance gated only by ERROR or BLOCKER findings.",
+      "id": "CLN-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "complete",
+      "title": "All-owner-kind validation reach",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/validation/validation_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Owner-kind validation and shared report behavior are covered by [REQ:CLN-P1-004]."
+        }
+      ]
     }
   ]
 }

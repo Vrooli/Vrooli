@@ -72,7 +72,7 @@ test-genie execute my-scenario --preset comprehensive
 | Documentation | Validates documentation Markdown, Mermaid, links, references, and manifests through knowledge-observatory. | 1m |
 | Performance | Validates API/UI build performance and Lighthouse budgets through performance-health. | 5m |
 | Unit | Validates test execution, coverage, architecture, quality, and runtime diagnostics through unit-health. | 15m |
-| Storage | Validates storage conventions, migration hygiene, persistence seams, and test isolation through storage-health. | 2m |
+| Storage | Validates storage conventions, migration hygiene, persistence seams, and test isolation through storage-manager. | 2m |
 | Workflow | Validates BAS workflow assets and safe execution through workflow-health. | 15m |
 | Business | Validates PRD, requirements registry, OT linkage, and evidence traceability through business-health. | 2m |
 | Experience | Validates scenario-experience-spec/v1 contracts and experience maturity through experience-manager. | 2m |
@@ -87,6 +87,7 @@ test-genie execute my-scenario --preset comprehensive
 | Component Tests | Runs version-pinned React component and hook contracts through the React Component Library provider. | 5m |
 | Agent Conformance | Validates that coding-agent consumers use Agent Manager through declared, portable role-based profiles. | 45s |
 | Templates | Validates scenario template provenance, orientation standing, drift, migration lag, and inherited template debt through template-manager. | 90s |
+| Event Capture Conformance | Validates opt-in receipt-capture declarations against published protobuf contracts and the reconciled global policy snapshot. | 45s |
 
 ## Preset Comparison
 
@@ -117,6 +118,7 @@ test-genie execute my-scenario --preset comprehensive
 | Component Tests | Adaptive | Adaptive | No | Yes |
 | Agent Conformance | Adaptive | Adaptive | No | Yes |
 | Templates | Adaptive | Adaptive | No | Yes |
+| Event Capture Conformance | Adaptive | Adaptive | No | Yes |
 
 ## Custom Presets
 

@@ -16,6 +16,11 @@ type AnalyzerContext struct {
 	RepoRoot string
 	// Scenario is the validated scenario id.
 	Scenario string
+	// OwnerKind identifies the native manifest kind being validated. The
+	// scenario-shaped fields below are empty for other owner kinds.
+	OwnerKind corestorage.OwnerKind
+	// Platform is the target platform used for declaration resolution.
+	Platform corestorage.Platform
 	// ScenarioDir is the absolute path to scenarios/<scenario>.
 	ScenarioDir string
 	// APIDir is the absolute path to the scenario's API surface directory
@@ -65,6 +70,8 @@ func (c AnalyzerContext) HasRelationalStore() bool {
 type Analyzer interface {
 	// Name is a short, stable identifier (used for ordering + provenance).
 	Name() string
+	// Kinds scopes the analyzer to owner kinds. An empty slice means every kind.
+	Kinds() []corestorage.OwnerKind
 	// Applies reports whether this analyzer should run for the given context.
 	Applies(ctx AnalyzerContext) bool
 	// Analyze inspects the context and returns any findings.

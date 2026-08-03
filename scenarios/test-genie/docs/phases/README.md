@@ -22,7 +22,7 @@ Every phase declares a **[Phase Capability Contract](../concepts/phase-capabilit
 | 8 | [Documentation](docs/README.md) | 1m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates documentation Markdown, Mermaid, links, references, and manifests through knowledge-observatory. |
 | 9 | [Performance](performance/README.md) | 5m | `default_when_applicable` | `best_effort` | `gating` | Yes | validation-provider | Validates API/UI build performance and Lighthouse budgets through performance-health. |
 | 10 | [Unit](unit/README.md) | 15m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates test execution, coverage, architecture, quality, and runtime diagnostics through unit-health. |
-| 11 | [Storage](storage/README.md) | 2m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates storage conventions, migration hygiene, persistence seams, and test isolation through storage-health. |
+| 11 | [Storage](storage/README.md) | 2m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates storage conventions, migration hygiene, persistence seams, and test isolation through storage-manager. |
 | 12 | [Workflow](workflow/README.md) | 15m | `default_when_applicable` | `required_when_applicable` | `gating` | Yes | validation-provider | Validates BAS workflow assets and safe execution through workflow-health. |
 | 13 | [Business](business/README.md) | 2m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates PRD, requirements registry, OT linkage, and evidence traceability through business-health. |
 | 14 | [Experience](experience/README.md) | 2m | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates scenario-experience-spec/v1 contracts and experience maturity through experience-manager. |
@@ -37,6 +37,7 @@ Every phase declares a **[Phase Capability Contract](../concepts/phase-capabilit
 | 23 | [Component Tests](component-tests/README.md) | 5m | `default_when_applicable` | `required_when_applicable` | `gating` | Yes | validation-provider | Runs version-pinned React component and hook contracts through the React Component Library provider. |
 | 24 | [Agent Conformance](agent-conformance/README.md) | 45s | `default_when_applicable` | `required_when_applicable` | `gating` | No | validation-provider | Validates that coding-agent consumers use Agent Manager through declared, portable role-based profiles. |
 | 25 | [Templates](templates/README.md) | 90s | `comprehensive_when_applicable` | `required_when_applicable` | `advisory` | Yes | validation-provider | Validates scenario template provenance, orientation standing, drift, migration lag, and inherited template debt through template-manager. |
+| 26 | [Event Capture Conformance](event-capture-conformance/README.md) | 45s | `default_when_applicable` | `required_when_applicable` | `gating` | Yes | validation-provider | Validates opt-in receipt-capture declarations against published protobuf contracts and the reconciled global policy snapshot. |
 
 ## Static Phases
 
@@ -48,7 +49,7 @@ Every phase declares a **[Phase Capability Contract](../concepts/phase-capabilit
 - [Quality](quality/README.md) - Validates static quality contracts, lint and type policy, and strict config through quality-health.
 - [Documentation](docs/README.md) - Validates documentation Markdown, Mermaid, links, references, and manifests through knowledge-observatory.
 - [Unit](unit/README.md) - Validates test execution, coverage, architecture, quality, and runtime diagnostics through unit-health.
-- [Storage](storage/README.md) - Validates storage conventions, migration hygiene, persistence seams, and test isolation through storage-health.
+- [Storage](storage/README.md) - Validates storage conventions, migration hygiene, persistence seams, and test isolation through storage-manager.
 - [Business](business/README.md) - Validates PRD, requirements registry, OT linkage, and evidence traceability through business-health.
 - [Experience](experience/README.md) - Validates scenario-experience-spec/v1 contracts and experience maturity through experience-manager.
 - [Tidiness](tidiness/README.md) - Validates file and function quality checks through tidiness-manager.
@@ -68,6 +69,7 @@ Every phase declares a **[Phase Capability Contract](../concepts/phase-capabilit
 - [Workflow](workflow/README.md) - Validates BAS workflow assets and safe execution through workflow-health.
 - [Component Tests](component-tests/README.md) - Runs version-pinned React component and hook contracts through the React Component Library provider.
 - [Templates](templates/README.md) - Validates scenario template provenance, orientation standing, drift, migration lag, and inherited template debt through template-manager.
+- [Event Capture Conformance](event-capture-conformance/README.md) - Validates opt-in receipt-capture declarations against published protobuf contracts and the reconciled global policy snapshot.
 
 ## Running Phases
 

@@ -96,6 +96,18 @@ observations under conventional `data`, `runtime`, cache, state, and manifest
 roots; `limit` defaults to 25. Suggestions are review prompts, not automatic
 manifest edits.
 
+### `GET /api/v1/validation/validate/{kind}/{id}`
+
+Runs the shared validation report for one `scenario`, `resource`, `tool`, or
+`safeguard`. Pass `platform=linux|macos|windows` to validate a foreign target
+shape without using the host identity.
+
+### `GET /api/v1/validation/validate/fleet`
+
+Runs the same report for every owner. Repeat `kind` to filter owner kinds and
+pass `platform` to select the target platform. The response includes
+`reports`, `counts_by_code`, `error_count`, and `blocker_count`.
+
 ### `GET /api/v1/infra-health/storage`
 
 Returns declared-ceiling coverage and the latest persisted census confidence and

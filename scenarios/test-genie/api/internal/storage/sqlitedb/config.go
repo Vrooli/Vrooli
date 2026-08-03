@@ -42,6 +42,9 @@ func Resolve() (Config, error) {
 }
 
 func defaultDataRoot() string {
+	// storage-manager:allow-no-writer data — the lifecycle supplies this class
+	// root through environment variables; the owner does not hard-code a host
+	// directory to create.
 	if dir := strings.TrimSpace(os.Getenv("SCENARIO_DATA_DIR")); dir != "" {
 		return dir
 	}

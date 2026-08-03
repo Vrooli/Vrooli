@@ -2,7 +2,6 @@ package httpserver
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"net/http"
 	"os"
@@ -12,6 +11,8 @@ import (
 
 	apihealth "github.com/vrooli/api-core/health"
 	repocontract "github.com/vrooli/repo-contract-go"
+
+	"test-genie/internal/dbexec"
 )
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -47,7 +48,7 @@ func (s *Server) checkSweepStatus(context.Context) error {
 // it uses the dedicated lifecycle connection and performs no history lookup or
 // payload hydration. A schema read proves the connection can execute a query,
 // not merely allocate a pool slot.
-func checkSQLiteSchema(ctx context.Context, db *sql.DB) error {
+func checkSQLiteSchema(ctx context.Context, db dbexec.HealthProbe) error {
 	var version int
 	if err := db.QueryRowContext(ctx, "PRAGMA schema_version").Scan(&version); err != nil {
 		return fmt.Errorf("query sqlite schema version: %w", err)

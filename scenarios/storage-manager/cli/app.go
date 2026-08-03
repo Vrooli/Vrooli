@@ -2,6 +2,7 @@ package main
 
 import (
 	"storage-manager/cli/domains"
+	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -36,17 +37,18 @@ func NewApp() (*App, error) {
 		return groups
 	}
 	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
-		Name:             appName,
-		Version:          appVersion,
-		Description:      "Storage Manager CLI",
-		DefaultAPIBase:   defaultAPIBase,
-		ExtraAPIEnvVars:  []string{"API_BASE_URL", "VITE_API_BASE_URL"},
-		BuildFingerprint: buildFingerprint,
-		BuildTimestamp:   buildTimestamp,
-		BuildSourceRoot:  buildSourceRoot,
-		AllowAnonymous:   true,
-		CommandGroups:    domains.CommandGroups,
-		SubcommandGroups: subcommandGroups,
+		Name:               appName,
+		Version:            appVersion,
+		Description:        "Storage Manager CLI",
+		DefaultAPIBase:     defaultAPIBase,
+		ExtraAPIEnvVars:    []string{"API_BASE_URL", "VITE_API_BASE_URL"},
+		BuildFingerprint:   buildFingerprint,
+		BuildTimestamp:     buildTimestamp,
+		BuildSourceRoot:    buildSourceRoot,
+		AllowAnonymous:     true,
+		DefaultHTTPTimeout: 30 * time.Minute,
+		CommandGroups:      domains.CommandGroups,
+		SubcommandGroups:   subcommandGroups,
 	})
 	if err != nil {
 		return nil, err

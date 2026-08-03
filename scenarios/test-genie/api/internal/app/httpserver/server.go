@@ -2,7 +2,6 @@ package httpserver
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -19,6 +18,7 @@ import (
 	appelig "test-genie/internal/app/eligibility"
 	apprun "test-genie/internal/app/runs"
 	appvalidation "test-genie/internal/app/validation"
+	"test-genie/internal/dbexec"
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
@@ -51,7 +51,7 @@ type Logger interface {
 // Dependencies encapsulates the services the HTTP layer needs to operate.
 type Dependencies struct {
 	DB                  *database.RoutedDB
-	HealthDB            *sql.DB
+	HealthDB            dbexec.HealthProbe
 	Executions          execution.ExecutionHistory
 	ExecutionPlanner    executionPlanner
 	RunManager          *runmanager.Manager
@@ -117,7 +117,7 @@ type remediationService interface {
 type Server struct {
 	config                 Config
 	db                     *database.RoutedDB
-	healthDB               *sql.DB
+	healthDB               dbexec.HealthProbe
 	router                 *mux.Router
 	executionHistory       execution.ExecutionHistory
 	executionPlanner       executionPlanner

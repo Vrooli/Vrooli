@@ -216,6 +216,7 @@ func TestFindingSourceCoversEveryProducingPhase(t *testing.T) {
 		Workflow:           architecturev1.FindingSource_FINDING_SOURCE_WORKFLOW,
 		Branding:           architecturev1.FindingSource_FINDING_SOURCE_BRANDING,
 		Name("experience"): architecturev1.FindingSource_FINDING_SOURCE_UI,
+		Name("event-capture-conformance"): architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
 		// Component Tests executes the React Component Library provider and
 		// emits contract-test findings into the coverage channel.
 		Name("component-tests"): architecturev1.FindingSource_FINDING_SOURCE_COVERAGE,

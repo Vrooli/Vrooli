@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 
@@ -57,7 +56,7 @@ func (storageEntryConformance) Analyze(_ context.Context, ac AnalyzerContext) ([
 		if hasWriterSuppression(ac, entry.Name) {
 			continue
 		}
-		if !hasReachableWriter(ac, entry) {
+		if !hasFrameworkWriter(entry) && !hasReachableWriter(ac, entry) {
 			findings = append(findings, storageFinding("STORAGE_ENTRY_NO_WRITER", SeverityWarning, ac, entry, "no Vrooli-owned code path can create or route this entry", "Add a writer, or add a suppression comment explaining a reflective, generated, or shell writer."))
 		}
 		if entry.Budget != nil && entry.Budget.MaxBytes != "" {
@@ -70,6 +69,16 @@ func (storageEntryConformance) Analyze(_ context.Context, ac AnalyzerContext) ([
 	}
 	findings = append(findings, retentionConflicts(ac, data)...)
 	return findings, nil
+}
+
+// hasFrameworkWriter recognizes the canonical framework-owned seam. A
+// relative owned path is resolved beneath the owner's class root by
+// api-core/storage; the owner does not need to repeat that path literal or
+// mkdir call in application code. Absolute and tokenized paths remain on the
+// source-evidence path because they may be host-managed or externally owned.
+func hasFrameworkWriter(entry corestorage.StorageEntry) bool {
+	path := strings.TrimSpace(entry.Path.Value)
+	return entry.Rung == corestorage.RungOwned && path != "" && !filepath.IsAbs(path) && !strings.ContainsAny(path, "$%")
 }
 
 func isSQLiteSidecar(entry corestorage.StorageEntry, entries []corestorage.StorageEntry) bool {
@@ -199,7 +208,11 @@ func observedBytes(ac AnalyzerContext, entry corestorage.StorageEntry) int64 {
 	if ac.Owner == nil || ac.RepoRoot == "" {
 		return 0
 	}
-	path, err := corestorage.ResolveOwnerStoragePath(ac.RepoRoot, *ac.Owner, entry, corestorage.Platform(runtime.GOOS), corestorage.PlatformSeams{})
+	platform := ac.Platform
+	if platform == "" {
+		platform = corestorage.HostPlatform()
+	}
+	path, err := corestorage.ResolveOwnerStoragePath(ac.RepoRoot, *ac.Owner, entry, platform, corestorage.PlatformSeams{})
 	if err != nil {
 		return 0
 	}

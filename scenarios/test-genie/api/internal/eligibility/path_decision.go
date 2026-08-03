@@ -11,12 +11,12 @@ const (
 	// PathRouted: the scenario qualified and the routed e2e path ran.
 	PathRouted Path = "routed"
 
-	// PathRefusedIsolation: storage-health could not statically prove test-DB
+	// PathRefusedIsolation: storage-manager could not statically prove test-DB
 	// isolation (ROUTED_SEAMS_UNWIRED, or STORAGE_ISOLATION_UNVERIFIED for a
 	// non-Go API). BlockingFindings is populated.
 	PathRefusedIsolation Path = "refused_isolation"
 
-	// PathRefusedProviderUnreachable: the storage-health validation could not be
+	// PathRefusedProviderUnreachable: the storage-manager validation could not be
 	// completed (provider down, network error). "Isolation cannot be verified"
 	// is treated as "not certifiably isolated" — fail closed.
 	PathRefusedProviderUnreachable Path = "refused_provider_unreachable"

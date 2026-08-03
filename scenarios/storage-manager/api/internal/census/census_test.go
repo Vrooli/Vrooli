@@ -52,7 +52,7 @@ func TestScanClosedIdentityAndAttribution(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.Closed || !report.AccountingIdentity || report.MeasuredBytes != 10 || report.AttributedBytes != 4 || report.UnattributedBytes != 6 {
+	if !report.Closed || !report.AccountingIdentity || report.MeasuredBytes != 10 || report.AttributedBytes != 4 || report.UnattributedBytes != 6 {
 		t.Fatalf("unexpected report: %+v", report)
 	}
 }
@@ -78,7 +78,7 @@ func TestScanInventoryUsesAllOwnerKindsAndPreservesAccountingIdentity(t *testing
 		}},
 		{Kind: corestorage.OwnerTool, ID: "compiler", ManifestPath: filepath.Join(root, "internal", "tools", "go", "tool.json")},
 	}}
-	report, err := ScanInventory(root, inventory)
+	report, err := ScanInventoryWithPolicy(root, inventory, ScanPolicy{Roots: []PolicyRoot{{Path: root}}, FloorBytes: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +88,7 @@ func TestScanInventoryUsesAllOwnerKindsAndPreservesAccountingIdentity(t *testing
 	if report.OwnerCounts["resource"] != 1 || report.OwnerCounts["tool"] != 1 {
 		t.Fatalf("owner counts = %#v", report.OwnerCounts)
 	}
-	if report.Confidence != "degraded" {
+	if report.Confidence != "full" {
 		t.Fatalf("confidence = %q", report.Confidence)
 	}
 	foundOverlap := false
@@ -122,18 +122,43 @@ func TestScanInventoryMeasuresBoundedUnclassifiedScenarioRoots(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	report, err := ScanInventory(root, inventory)
+	report, err := ScanInventoryWithPolicy(root, inventory, ScanPolicy{Roots: []PolicyRoot{{Path: root}}, FloorBytes: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.MeasuredBytes < 6 || report.AttributedBytes != 0 || report.UnattributedBytes != report.MeasuredBytes {
+	if report.MeasuredBytes < 6 || report.AttributedBytes != 0 || report.DriftBytes != report.MeasuredBytes || report.UnattributedBytes != 0 {
 		t.Fatalf("bounded unclassified accounting = %+v", report)
 	}
-	if report.Closed || report.Confidence != "degraded" {
-		t.Fatalf("unclassified storage should degrade confidence: %+v", report)
+	if !report.Closed || report.Confidence != "full" {
+		t.Fatalf("unclassified storage should still have full accounting: %+v", report)
 	}
-	if !hasFinding(report.Findings, "STORAGE_PATH_UNACCOUNTED") {
-		t.Fatalf("unattributed finding missing: %+v", report.Findings)
+	if report.AccountingResidualBytes != 0 {
+		t.Fatalf("accounting residual = %d, want zero", report.AccountingResidualBytes)
+	}
+}
+
+func TestScanCountsHardLinkedInodeOnce(t *testing.T) {
+	root := t.TempDir()
+	original := filepath.Join(root, "owned", "original")
+	if err := os.MkdirAll(filepath.Dir(original), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(original, []byte("123456"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "unowned", "link")
+	if err := os.MkdirAll(filepath.Dir(link), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Link(original, link); err != nil {
+		t.Skipf("hard links unavailable: %v", err)
+	}
+	report, err := Scan(root, map[string][]Declaration{"fixture": {{Name: "owned", Path: filepath.Join(root, "owned")}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.MeasuredBytes != 6 || report.AttributedBytes != 6 || report.UnattributedBytes != 0 {
+		t.Fatalf("hard-linked accounting = %+v, want one six-byte inode", report)
 	}
 }
 

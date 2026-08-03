@@ -11,6 +11,7 @@
           "name": "scenario",
           "description": "Run storage analyzers against a scenario",
           "positionals": [{ "name": "name", "required": true, "description": "Scenario id" }],
+          "flags": [{ "name": "platform", "description": "linux, macos, or windows" }],
           "binding": { "kind": "connect-rpc", "service": "ScenarioValidationService", "method": "ValidateScenario" },
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         }
@@ -88,7 +89,7 @@
         {
           "name": "verify",
           "description": "Verify declarations for a target platform",
-          "flags": [{ "name": "platform", "required": true, "description": "linux, macos, or windows" }],
+          "flags": [{ "name": "platform", "description": "linux, macos, or windows (defaults to the host)" }],
           "binding": { "kind": "local" },
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         }
@@ -386,7 +387,11 @@
     "domains": []
   },
   "exceptions": [
-    { "command": "validate prove-isolation", "class": "external_delegation", "reason": "API-free static source proof is intentionally outside Connect-RPC dispatch." }
+    { "command": "validate prove-isolation", "class": "external_delegation", "reason": "API-free static source proof is intentionally outside Connect-RPC dispatch." },
+    { "command": "validate resource", "class": "passthrough", "reason": "REST owner validation is appended outside the Connect-RPC manifest binding path until the shared validation proto supports owner kinds." },
+    { "command": "validate tool", "class": "passthrough", "reason": "REST owner validation is appended outside the Connect-RPC manifest binding path until the shared validation proto supports owner kinds." },
+    { "command": "validate safeguard", "class": "passthrough", "reason": "REST owner validation is appended outside the Connect-RPC manifest binding path until the shared validation proto supports owner kinds." },
+    { "command": "validate fleet", "class": "passthrough", "reason": "Fleet validation aggregates REST owner reports and is appended outside the Connect-RPC manifest binding path." }
   ],
   "omitted": [
     { "service": "ScenarioValidationService", "method": "DescribeProvider", "reason": "Provider descriptors are consumed by the dashboard and Test Genie integration; the CLI does not duplicate them." }

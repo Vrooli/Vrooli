@@ -19,7 +19,7 @@ import (
 )
 
 // Storage-health isolation finding codes the routing decision keys off of.
-// Both belong to storage-health's L2 (isolation-safe) rung: their presence
+// Both belong to storage-manager's L2 (isolation-safe) rung: their presence
 // means test-DB isolation cannot be statically proven, so the routed e2e path
 // is not eligible and the playbooks phase must refuse destructive flows
 // fail-closed.
@@ -38,14 +38,14 @@ const (
 
 // storageHealthProviderScenario is the scenario whose ScenarioValidationService
 // owns the storage-isolation verdict.
-const storageHealthProviderScenario = "storage-health"
+const storageHealthProviderScenario = "storage-manager"
 
-// defaultStorageCheckTimeout bounds the storage-health validation RPC. storage
+// defaultStorageCheckTimeout bounds the storage-manager validation RPC. storage
 // validation is a fast static analysis (no execution), so a tight bound keeps
 // the playbooks eligibility check responsive.
 const defaultStorageCheckTimeout = 30 * time.Second
 
-// IsolationFinding is one storage-health L2 finding that disqualified a scenario
+// IsolationFinding is one storage-manager L2 finding that disqualified a scenario
 // from the routed path. It carries enough to render a loud, instructive refusal.
 type IsolationFinding struct {
 	Code        string
@@ -56,15 +56,15 @@ type IsolationFinding struct {
 }
 
 // Eligibility is the outcome of a routing-eligibility check, now sourced from
-// storage-health's L2 (isolation-safe) verdict.
+// storage-manager's L2 (isolation-safe) verdict.
 type Eligibility struct {
-	// Routed is true when storage-health statically proved test-DB isolation
+	// Routed is true when storage-manager statically proved test-DB isolation
 	// (no ROUTED_SEAMS_UNWIRED, no STORAGE_ISOLATION_UNVERIFIED). The playbooks
 	// phase installs a test pool on the live process (no restart). False means
 	// isolation is unproven and destructive playbooks must be refused.
 	Routed bool
 
-	// BlockingFindings are the storage-health L2 isolation findings that
+	// BlockingFindings are the storage-manager L2 isolation findings that
 	// disqualified the scenario. Empty when Routed is true.
 	BlockingFindings []IsolationFinding
 
@@ -81,12 +81,12 @@ type StorageValidationClient interface {
 	ValidateScenario(context.Context, *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error)
 }
 
-// ResolveStorageHealthURL resolves storage-health's base URL. Tests override it.
+// ResolveStorageHealthURL resolves storage-manager's base URL. Tests override it.
 var ResolveStorageHealthURL = func(ctx context.Context) (string, error) {
 	return discovery.ResolveScenarioURLDefault(ctx, storageHealthProviderScenario)
 }
 
-// NewStorageValidationClient builds the storage-health validation client. Tests
+// NewStorageValidationClient builds the storage-manager validation client. Tests
 // override it to return a stub.
 var NewStorageValidationClient = func(timeout time.Duration, baseURL string) StorageValidationClient {
 	return scenariovalidationconnect.NewScenarioValidationServiceClient(&http.Client{Timeout: timeout}, baseURL)
@@ -101,7 +101,7 @@ type Checker struct {
 	cache map[string]Eligibility
 }
 
-// NewChecker returns a Checker that queries storage-health for the isolation
+// NewChecker returns a Checker that queries storage-manager for the isolation
 // verdict.
 func NewChecker() *Checker {
 	return &Checker{
@@ -111,8 +111,8 @@ func NewChecker() *Checker {
 }
 
 // Check returns the eligibility of `scenario` for the routed path by querying
-// storage-health's ScenarioValidationService and inspecting its L2 isolation
-// findings. A storage-health failure (unreachable, RPC error) is returned as an
+// storage-manager's ScenarioValidationService and inspecting its L2 isolation
+// findings. A storage-manager failure (unreachable, RPC error) is returned as an
 // error — the caller treats "isolation cannot be verified" as "not eligible".
 func (c *Checker) Check(ctx context.Context, scenario string, mapping workspace.Mapping) (Eligibility, error) {
 	c.mu.Lock()
@@ -158,7 +158,7 @@ func (c *Checker) Invalidate(scenario string) {
 	c.mu.Unlock()
 }
 
-// decideFromAssessment projects a storage-health MaturityAssessment onto a
+// decideFromAssessment projects a storage-manager MaturityAssessment onto a
 // routing-eligibility decision: routed-eligible IFF the L2 isolation rung is
 // clean (no ROUTED_SEAMS_UNWIRED and no STORAGE_ISOLATION_UNVERIFIED).
 func decideFromAssessment(a *commonv1.MaturityAssessment) Eligibility {
