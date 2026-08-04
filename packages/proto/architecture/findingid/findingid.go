@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // Prefix marks an architecture-finding stable ID.
@@ -39,6 +40,9 @@ type Inputs struct {
 	Source    architecturev1.FindingSource
 	Code      string
 	Locations []string
+	// Subject is empty for the run's own target. Non-empty subjects are part of
+	// identity so findings for two owners cannot collapse into one work item.
+	Subject string
 }
 
 // SourceToken maps a FindingSource to a short, stable lower-case token.
@@ -128,7 +132,8 @@ func normalizeLocations(in []string) []string {
 
 // Compute returns the deterministic stable ID for the given inputs:
 // "afid:" + first 8 bytes (16 hex chars) of
-// sha256(scenario \x1f sourceToken \x1f code \x1f sorted(locations)).
+// sha256(scenario \x1f sourceToken \x1f code \x1f sorted(locations)
+// [\x1f subject-kind \x1e subject-id \x1e subject-root when non-empty]).
 func Compute(in Inputs) string {
 	locs := normalizeLocations(in.Locations)
 	var b strings.Builder
@@ -139,6 +144,10 @@ func Compute(in Inputs) string {
 	b.WriteString(in.Code)
 	b.WriteByte('\x1f')
 	b.WriteString(strings.Join(locs, ","))
+	if subject := strings.TrimSpace(in.Subject); subject != "" {
+		b.WriteByte('\x1f')
+		b.WriteString(subject)
+	}
 	sum := sha256.Sum256([]byte(b.String()))
 	return Prefix + hex.EncodeToString(sum[:8])
 }
@@ -154,7 +163,19 @@ func For(f *architecturev1.ArchitectureFinding) string {
 		Source:    f.GetSource(),
 		Code:      f.GetCode(),
 		Locations: f.GetLocations(),
+		Subject:   subjectKey(f.GetSubject()),
 	})
+}
+
+func subjectKey(subject *commonv1.ValidationTarget) string {
+	if subject == nil {
+		return ""
+	}
+	if subject.GetKind() == commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_UNSPECIFIED &&
+		strings.TrimSpace(subject.GetId()) == "" && strings.TrimSpace(subject.GetRoot()) == "" {
+		return ""
+	}
+	return strings.Join([]string{subject.GetKind().String(), subject.GetId(), subject.GetRoot()}, "\x1e")
 }
 
 // Stamp computes the stable ID for the finding and writes it into the

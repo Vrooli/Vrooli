@@ -309,6 +309,10 @@ enum RunStatus {
   // and agent-manager wakes it (resumes the conversation with the awaited
   // result injected) once the work resolves. Non-terminal, non-active.
   RUN_STATUS_PARKED = 8;
+
+  // Historical evidence was imported without a trustworthy terminal signal.
+  // This is distinct from FAILED because no provider failure was observed.
+  RUN_STATUS_UNKNOWN = 9;
 }
 
 // RunFinalizationStatus represents post-run sandbox apply/checkpoint state.
@@ -425,6 +429,9 @@ enum ExecutionMode {
   // (persistent/tmux) session and reads events by tailing the agent-owned
   // on-disk transcript. Allowed only for non-protected (in-place) runs.
   EXECUTION_MODE_INTERACTIVE = 2;
+
+  // Read-only historical evidence adopted from an external harness.
+  EXECUTION_MODE_IMPORTED = 3;
 }
 
 // =============================================================================

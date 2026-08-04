@@ -40,6 +40,9 @@ const (
 	// ScenarioValidationServiceValidateScenarioProcedure is the fully-qualified name of the
 	// ScenarioValidationService's ValidateScenario RPC.
 	ScenarioValidationServiceValidateScenarioProcedure = "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario"
+	// ScenarioValidationServiceValidateTargetProcedure is the fully-qualified name of the
+	// ScenarioValidationService's ValidateTarget RPC.
+	ScenarioValidationServiceValidateTargetProcedure = "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateTarget"
 	// ScenarioValidationServiceDescribeProviderProcedure is the fully-qualified name of the
 	// ScenarioValidationService's DescribeProvider RPC.
 	ScenarioValidationServiceDescribeProviderProcedure = "/vrooli.scenario_validation.v1.ScenarioValidationService/DescribeProvider"
@@ -67,6 +70,10 @@ const (
 // vrooli.scenario_validation.v1.ScenarioValidationService service.
 type ScenarioValidationServiceClient interface {
 	ValidateScenario(context.Context, *connect.Request[v1.ValidateScenarioRequest]) (*connect.Response[v1.ValidateScenarioResponse], error)
+	// ValidateTarget is the generalized target contract. ValidateScenario is
+	// retained as a wire-compatible alias for scenario callers while providers
+	// migrate to the first-class target vocabulary.
+	ValidateTarget(context.Context, *connect.Request[v1.ValidateTargetRequest]) (*connect.Response[v1.ValidateTargetResponse], error)
 	// DescribeProvider reports the provider's own identity and contract facts
 	// without inspecting any target. Readiness consumers ask three questions —
 	// is this provider live, does it speak the current contract, and is it who
@@ -111,6 +118,12 @@ func NewScenarioValidationServiceClient(httpClient connect.HTTPClient, baseURL s
 			connect.WithSchema(scenarioValidationServiceMethods.ByName("ValidateScenario")),
 			connect.WithClientOptions(opts...),
 		),
+		validateTarget: connect.NewClient[v1.ValidateTargetRequest, v1.ValidateTargetResponse](
+			httpClient,
+			baseURL+ScenarioValidationServiceValidateTargetProcedure,
+			connect.WithSchema(scenarioValidationServiceMethods.ByName("ValidateTarget")),
+			connect.WithClientOptions(opts...),
+		),
 		describeProvider: connect.NewClient[v1.DescribeProviderRequest, v1.DescribeProviderResponse](
 			httpClient,
 			baseURL+ScenarioValidationServiceDescribeProviderProcedure,
@@ -135,6 +148,7 @@ func NewScenarioValidationServiceClient(httpClient connect.HTTPClient, baseURL s
 // scenarioValidationServiceClient implements ScenarioValidationServiceClient.
 type scenarioValidationServiceClient struct {
 	validateScenario *connect.Client[v1.ValidateScenarioRequest, v1.ValidateScenarioResponse]
+	validateTarget   *connect.Client[v1.ValidateTargetRequest, v1.ValidateTargetResponse]
 	describeProvider *connect.Client[v1.DescribeProviderRequest, v1.DescribeProviderResponse]
 	previewFix       *connect.Client[v1.FixRequest, v1.FixResponse]
 	applyFix         *connect.Client[v1.FixRequest, v1.FixResponse]
@@ -143,6 +157,11 @@ type scenarioValidationServiceClient struct {
 // ValidateScenario calls vrooli.scenario_validation.v1.ScenarioValidationService.ValidateScenario.
 func (c *scenarioValidationServiceClient) ValidateScenario(ctx context.Context, req *connect.Request[v1.ValidateScenarioRequest]) (*connect.Response[v1.ValidateScenarioResponse], error) {
 	return c.validateScenario.CallUnary(ctx, req)
+}
+
+// ValidateTarget calls vrooli.scenario_validation.v1.ScenarioValidationService.ValidateTarget.
+func (c *scenarioValidationServiceClient) ValidateTarget(ctx context.Context, req *connect.Request[v1.ValidateTargetRequest]) (*connect.Response[v1.ValidateTargetResponse], error) {
+	return c.validateTarget.CallUnary(ctx, req)
 }
 
 // DescribeProvider calls vrooli.scenario_validation.v1.ScenarioValidationService.DescribeProvider.
@@ -164,6 +183,10 @@ func (c *scenarioValidationServiceClient) ApplyFix(ctx context.Context, req *con
 // vrooli.scenario_validation.v1.ScenarioValidationService service.
 type ScenarioValidationServiceHandler interface {
 	ValidateScenario(context.Context, *connect.Request[v1.ValidateScenarioRequest]) (*connect.Response[v1.ValidateScenarioResponse], error)
+	// ValidateTarget is the generalized target contract. ValidateScenario is
+	// retained as a wire-compatible alias for scenario callers while providers
+	// migrate to the first-class target vocabulary.
+	ValidateTarget(context.Context, *connect.Request[v1.ValidateTargetRequest]) (*connect.Response[v1.ValidateTargetResponse], error)
 	// DescribeProvider reports the provider's own identity and contract facts
 	// without inspecting any target. Readiness consumers ask three questions —
 	// is this provider live, does it speak the current contract, and is it who
@@ -203,6 +226,12 @@ func NewScenarioValidationServiceHandler(svc ScenarioValidationServiceHandler, o
 		connect.WithSchema(scenarioValidationServiceMethods.ByName("ValidateScenario")),
 		connect.WithHandlerOptions(opts...),
 	)
+	scenarioValidationServiceValidateTargetHandler := connect.NewUnaryHandler(
+		ScenarioValidationServiceValidateTargetProcedure,
+		svc.ValidateTarget,
+		connect.WithSchema(scenarioValidationServiceMethods.ByName("ValidateTarget")),
+		connect.WithHandlerOptions(opts...),
+	)
 	scenarioValidationServiceDescribeProviderHandler := connect.NewUnaryHandler(
 		ScenarioValidationServiceDescribeProviderProcedure,
 		svc.DescribeProvider,
@@ -225,6 +254,8 @@ func NewScenarioValidationServiceHandler(svc ScenarioValidationServiceHandler, o
 		switch r.URL.Path {
 		case ScenarioValidationServiceValidateScenarioProcedure:
 			scenarioValidationServiceValidateScenarioHandler.ServeHTTP(w, r)
+		case ScenarioValidationServiceValidateTargetProcedure:
+			scenarioValidationServiceValidateTargetHandler.ServeHTTP(w, r)
 		case ScenarioValidationServiceDescribeProviderProcedure:
 			scenarioValidationServiceDescribeProviderHandler.ServeHTTP(w, r)
 		case ScenarioValidationServicePreviewFixProcedure:
@@ -242,6 +273,10 @@ type UnimplementedScenarioValidationServiceHandler struct{}
 
 func (UnimplementedScenarioValidationServiceHandler) ValidateScenario(context.Context, *connect.Request[v1.ValidateScenarioRequest]) (*connect.Response[v1.ValidateScenarioResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_validation.v1.ScenarioValidationService.ValidateScenario is not implemented"))
+}
+
+func (UnimplementedScenarioValidationServiceHandler) ValidateTarget(context.Context, *connect.Request[v1.ValidateTargetRequest]) (*connect.Response[v1.ValidateTargetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_validation.v1.ScenarioValidationService.ValidateTarget is not implemented"))
 }
 
 func (UnimplementedScenarioValidationServiceHandler) DescribeProvider(context.Context, *connect.Request[v1.DescribeProviderRequest]) (*connect.Response[v1.DescribeProviderResponse], error) {

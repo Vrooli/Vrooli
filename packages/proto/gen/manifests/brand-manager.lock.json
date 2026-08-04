@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "brand-manager",
-  "input_digest": "sha256:cc42d9a5be407e1890b45da99c588bb47f10d476353187610c5a81f59b3f2b75",
+  "input_digest": "sha256:9fea269f69dd6382aa94e82670a0fe60be8ef994ccff061927515e1807698f90",
   "input_files": [
     "schemas/brand-manager/v1/apply/apply.proto",
     "schemas/brand-manager/v1/assets/assets.proto",
@@ -13,7 +13,8 @@
     "schemas/brand-manager/v1/shared/errors.proto",
     "schemas/brand-manager/v1/shared/health.proto",
     "schemas/brand-manager/v1/validation/validation.proto",
-    "schemas/common/v1/maturity.proto"
+    "schemas/common/v1/maturity.proto",
+    "schemas/common/v1/validation_target.proto"
   ],
   "toolchain": {
     "buf": "1.37.0",

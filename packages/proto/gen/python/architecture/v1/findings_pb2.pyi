@@ -1,3 +1,4 @@
+from common.v1 import validation_target_pb2 as _validation_target_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -108,7 +109,7 @@ class SuggestedFix(_message.Message):
     def __init__(self, id: _Optional[str] = ..., kind: _Optional[str] = ..., resolver: _Optional[str] = ..., summary: _Optional[str] = ..., payload: _Optional[bytes] = ..., confidence: _Optional[float] = ...) -> None: ...
 
 class ArchitectureFinding(_message.Message):
-    __slots__ = ("scenario", "source", "code", "severity", "locations", "domains", "message", "suggestion", "stable_id", "evidence", "suggested_fixes", "effort", "finding_class")
+    __slots__ = ("scenario", "source", "code", "severity", "locations", "domains", "message", "suggestion", "stable_id", "evidence", "suggested_fixes", "effort", "finding_class", "subject")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     SOURCE_FIELD_NUMBER: _ClassVar[int]
     CODE_FIELD_NUMBER: _ClassVar[int]
@@ -122,6 +123,7 @@ class ArchitectureFinding(_message.Message):
     SUGGESTED_FIXES_FIELD_NUMBER: _ClassVar[int]
     EFFORT_FIELD_NUMBER: _ClassVar[int]
     FINDING_CLASS_FIELD_NUMBER: _ClassVar[int]
+    SUBJECT_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     source: FindingSource
     code: str
@@ -135,4 +137,5 @@ class ArchitectureFinding(_message.Message):
     suggested_fixes: _containers.RepeatedCompositeFieldContainer[SuggestedFix]
     effort: EffortHint
     finding_class: FindingClass
-    def __init__(self, scenario: _Optional[str] = ..., source: _Optional[_Union[FindingSource, str]] = ..., code: _Optional[str] = ..., severity: _Optional[_Union[FindingSeverity, str]] = ..., locations: _Optional[_Iterable[str]] = ..., domains: _Optional[_Iterable[str]] = ..., message: _Optional[str] = ..., suggestion: _Optional[str] = ..., stable_id: _Optional[str] = ..., evidence: _Optional[_Iterable[_Union[Evidence, _Mapping]]] = ..., suggested_fixes: _Optional[_Iterable[_Union[SuggestedFix, _Mapping]]] = ..., effort: _Optional[_Union[EffortHint, str]] = ..., finding_class: _Optional[_Union[FindingClass, str]] = ...) -> None: ...
+    subject: _validation_target_pb2.ValidationTarget
+    def __init__(self, scenario: _Optional[str] = ..., source: _Optional[_Union[FindingSource, str]] = ..., code: _Optional[str] = ..., severity: _Optional[_Union[FindingSeverity, str]] = ..., locations: _Optional[_Iterable[str]] = ..., domains: _Optional[_Iterable[str]] = ..., message: _Optional[str] = ..., suggestion: _Optional[str] = ..., stable_id: _Optional[str] = ..., evidence: _Optional[_Iterable[_Union[Evidence, _Mapping]]] = ..., suggested_fixes: _Optional[_Iterable[_Union[SuggestedFix, _Mapping]]] = ..., effort: _Optional[_Union[EffortHint, str]] = ..., finding_class: _Optional[_Union[FindingClass, str]] = ..., subject: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ...) -> None: ...

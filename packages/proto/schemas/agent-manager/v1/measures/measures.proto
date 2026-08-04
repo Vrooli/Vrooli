@@ -23,14 +23,18 @@ service MeasuresService {
   rpc RunnerBreakdown(RunnerBreakdownRequest) returns (RunnerBreakdownResponse);
   rpc ModelBreakdown(ModelBreakdownRequest) returns (ModelBreakdownResponse);
   rpc ProfileBreakdown(ProfileBreakdownRequest) returns (ProfileBreakdownResponse);
+  rpc WorkloadBreakdown(WorkloadBreakdownRequest) returns (WorkloadBreakdownResponse);
+  rpc WorkloadEfficiency(WorkloadEfficiencyRequest) returns (WorkloadEfficiencyResponse);
   rpc TerminalRunTrend(TerminalRunTrendRequest) returns (TerminalRunTrendResponse);
   rpc ToolUsage(ToolUsageRequest) returns (ToolUsageResponse);
+  rpc ToolCommandBreakdown(ToolCommandBreakdownRequest) returns (ToolCommandBreakdownResponse);
   rpc ErrorPatterns(ErrorPatternsRequest) returns (ErrorPatternsResponse);
   rpc FileRereadRate(FileRereadRateRequest) returns (FileRereadRateResponse);
   rpc FindingRecurrenceRate(FindingRecurrenceRateRequest) returns (FindingRecurrenceRateResponse);
   rpc EpisodeCohort(EpisodeCohortRequest) returns (EpisodeCohortResponse);
   rpc CapabilityUsage(CapabilityUsageRequest) returns (CapabilityUsageResponse);
   rpc CapabilityEfficacy(CapabilityEfficacyRequest) returns (CapabilityEfficacyResponse);
+  rpc AllMeasureDefinitions(AllMeasureDefinitionsRequest) returns (AllMeasureDefinitionsResponse);
   // SelectCohort is the non-aggregate companion to the measures: it exposes
   // the run ids behind the exact same durable filter used by an aggregate.
   rpc SelectCohort(SelectCohortRequest) returns (SelectCohortResponse);
@@ -58,6 +62,8 @@ message InvocationFilter {
   string self_report_cause_scope = 16;
   string target_scenario = 17;
   string operation = 18;
+  string workload_key = 19;
+  string error_code = 20;
 }
 
 message MeasureValidity {
@@ -66,6 +72,41 @@ message MeasureValidity {
   int64 sample_size = 3;
   int64 largest_fingerprint_bucket = 4;
   double largest_fingerprint_share = 5;
+  // The denominator used by the associated rate after excluding facts the
+  // classifier could not safely classify.
+  int64 classified_base = 6;
+  int64 unclassified_count = 7;
+  double unclassified_share = 8;
+  double minimum_classified_share = 9;
+}
+
+message MeasureFilter {
+  string field = 1;
+  string value = 2;
+}
+
+message MeasureProvenance {
+  string source_table = 1;
+  string window_start = 2;
+  string window_end = 3;
+  int64 row_count = 4;
+  repeated MeasureFilter applied_filters = 5;
+  string executed_query = 6;
+}
+
+message MeasureDefinition {
+  string id = 1;
+  string counts = 2;
+  string numerator = 3;
+  string denominator = 4;
+  string source_table = 5;
+  string limitation = 6;
+}
+
+message AllMeasureDefinitionsRequest {}
+
+message AllMeasureDefinitionsResponse {
+  repeated MeasureDefinition definitions = 1;
 }
 
 message ExternalToolShareRequest {
@@ -77,8 +118,10 @@ message ExternalToolShareResponse {
   int64 external_calls = 2;
   int64 resolved_calls = 3;
   int64 unknown_calls = 4;
-  string executed_query = 5;
+  string executed_query = 5 [deprecated = true];
   MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
 }
 
 message RetryRateRequest {
@@ -89,8 +132,10 @@ message RetryRateResponse {
   double rate = 1;
   int64 retry_calls = 2;
   int64 total_calls = 3;
-  string executed_query = 4;
+  string executed_query = 4 [deprecated = true];
   MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
 }
 
 message HelpRecoveryRateRequest {
@@ -101,8 +146,10 @@ message HelpRecoveryRateResponse {
   double rate = 1;
   int64 help_recoveries = 2;
   int64 total_calls = 3;
-  string executed_query = 4;
+  string executed_query = 4 [deprecated = true];
   MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
 }
 
 message RepeatedWorkRateRequest {
@@ -113,8 +160,10 @@ message RepeatedWorkRateResponse {
   double rate = 1;
   int64 repeated_calls = 2;
   int64 total_calls = 3;
-  string executed_query = 4;
+  string executed_query = 4 [deprecated = true];
   MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
 }
 
 message ToolFailureRateRequest {
@@ -125,8 +174,10 @@ message ToolFailureRateResponse {
   double rate = 1;
   int64 failed_calls = 2;
   int64 total_calls = 3;
-  string executed_query = 4;
+  string executed_query = 4 [deprecated = true];
   MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
 }
 
 message RunSuccessRateRequest {
@@ -137,8 +188,10 @@ message RunSuccessRateResponse {
   double rate = 1;
   int64 successful_runs = 2;
   int64 terminal_runs = 3;
-  string executed_query = 4;
+  string executed_query = 4 [deprecated = true];
   MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
 }
 
 message RunCycleTimeRequest {
@@ -148,8 +201,10 @@ message RunCycleTimeRequest {
 message RunCycleTimeResponse {
   double average_duration_ms = 1;
   int64 completed_duration_runs = 2;
-  string executed_query = 3;
+  string executed_query = 3 [deprecated = true];
   MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
 }
 
 // RunDurationStatistics preserves the complete duration summary that the
@@ -168,20 +223,31 @@ message RunDurationStatisticsResponse {
   int64 min_duration_ms = 5;
   int64 max_duration_ms = 6;
   int64 count = 7;
-  string executed_query = 8;
+  string executed_query = 8 [deprecated = true];
   MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
 }
 
 message RunCostRequest {
   vrooli.measures.v1.TimeWindow window = 1;
   InvocationFilter filter = 2;
+  bool allocate_subscription = 3;
+  string allocation_basis = 4;
+}
+message ChargeByBasis {
+  string basis = 1;
+  int64 run_count = 2;
+  int64 charge_micro_usd = 3;
+  int64 token_count = 4;
+  string charge_reason = 5;
 }
 message RunCostResponse {
   double total_cost_usd = 1;
   double average_cost_usd = 2;
   int64 total_tokens = 3;
   int64 total_runs = 4;
-  string executed_query = 5;
+  string executed_query = 5 [deprecated = true];
   MeasureValidity validity = 100;
   int64 input_tokens = 6;
   int64 output_tokens = 7;
@@ -191,9 +257,12 @@ message RunCostResponse {
   double output_cost_usd = 11;
   double cache_read_cost_usd = 12;
   double cache_creation_cost_usd = 13;
-  double authoritative_cost_usd = 14;
-  double estimated_cost_usd = 15;
-  double unknown_cost_usd = 16;
+  repeated ChargeByBasis charge_by_basis = 17;
+  int64 total_charge_micro_usd = 18;
+  int64 unpriced_token_count = 19;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
+  reserved 14 to 16;
 }
 
 message RunVolumeRequest {
@@ -203,8 +272,12 @@ message RunVolumeRequest {
 message RunVolumeResponse {
   int64 total_runs = 1;
   int64 terminal_runs = 2;
-  string executed_query = 3;
+  string executed_query = 3 [deprecated = true];
   MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
+  string history_floor = 4;
+  int64 outside_history_run_count = 5;
 }
 
 // RunStatusDistribution preserves the existing status-count question as a
@@ -220,8 +293,10 @@ message RunStatusCount {
 }
 message RunStatusDistributionResponse {
   repeated RunStatusCount rows = 1;
-  string executed_query = 2;
+  string executed_query = 2 [deprecated = true];
   MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
 }
 
 // RunBreakdownRow is a compact, durable terminal-run aggregate. Individual
@@ -237,6 +312,9 @@ message RunBreakdownRow {
   // key is the stable dimension identifier. It differs from value for
   // profiles, where value is the current product display label.
   string key = 8;
+  int64 total_charge_micro_usd = 9;
+  double consumption_per_successful_completion = 10;
+  double completion_rate = 11;
 }
 message RunnerBreakdownRequest {
   vrooli.measures.v1.TimeWindow window = 1;
@@ -244,8 +322,10 @@ message RunnerBreakdownRequest {
 }
 message RunnerBreakdownResponse {
   repeated RunBreakdownRow rows = 1;
-  string executed_query = 2;
+  string executed_query = 2 [deprecated = true];
   MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
 }
 message ModelBreakdownRequest {
   vrooli.measures.v1.TimeWindow window = 1;
@@ -253,8 +333,10 @@ message ModelBreakdownRequest {
 }
 message ModelBreakdownResponse {
   repeated RunBreakdownRow rows = 1;
-  string executed_query = 2;
+  string executed_query = 2 [deprecated = true];
   MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
 }
 message ProfileBreakdownRequest {
   vrooli.measures.v1.TimeWindow window = 1;
@@ -262,8 +344,43 @@ message ProfileBreakdownRequest {
 }
 message ProfileBreakdownResponse {
   repeated RunBreakdownRow rows = 1;
-  string executed_query = 2;
+  string executed_query = 2 [deprecated = true];
   MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
+}
+
+message WorkloadBreakdownRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+  bool allocate_subscription = 3;
+  string allocation_basis = 4;
+}
+message WorkloadBreakdownResponse {
+  repeated RunBreakdownRow rows = 1;
+  string executed_query = 2 [deprecated = true];
+  MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
+}
+
+message WorkloadEfficiencyRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+  bool allocate_subscription = 3;
+  string allocation_basis = 4;
+}
+message WorkloadEfficiencyResponse {
+  double consumption_per_successful_completion = 1;
+  double completion_rate = 2;
+  int64 total_tokens = 3;
+  int64 terminal_runs = 4;
+  int64 successful_runs = 5;
+  string observational_limitation = 6;
+  string executed_query = 7 [deprecated = true];
+  MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
 }
 
 // TerminalRunTrend is an hourly terminal-time series. It intentionally does
@@ -284,8 +401,10 @@ message TerminalRunTrendRow {
 }
 message TerminalRunTrendResponse {
   repeated TerminalRunTrendRow rows = 1;
-  string executed_query = 2;
+  string executed_query = 2 [deprecated = true];
   MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
 }
 
 message ToolUsageRequest {
@@ -300,8 +419,32 @@ message ToolUsageRow {
 }
 message ToolUsageResponse {
   repeated ToolUsageRow rows = 1;
-  string executed_query = 2;
+  string executed_query = 2 [deprecated = true];
   MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
+}
+
+message ToolCommandBreakdownRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+  InvocationFilter filter = 2;
+  int32 limit = 3;
+}
+message ToolCommandBreakdownRow {
+  string executable = 1;
+  string command_path = 2;
+  int64 call_count = 3;
+  int64 success_count = 4;
+  int64 failed_count = 5;
+  int64 run_count = 6;
+  bool truncated = 7;
+}
+message ToolCommandBreakdownResponse {
+  repeated ToolCommandBreakdownRow rows = 1;
+  string executed_query = 2 [deprecated = true];
+  MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
 }
 
 message CapabilityUsageRequest {
@@ -320,8 +463,10 @@ message CapabilityUsageRow {
 
 message CapabilityUsageResponse {
   repeated CapabilityUsageRow rows = 1;
-  string executed_query = 2;
+  string executed_query = 2 [deprecated = true];
   MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
 }
 
 message CapabilityEfficacyRequest {
@@ -340,8 +485,10 @@ message CapabilityEfficacyRow {
 
 message CapabilityEfficacyResponse {
   repeated CapabilityEfficacyRow rows = 1;
-  string executed_query = 2;
+  string executed_query = 2 [deprecated = true];
   MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
 }
 
 message ErrorPatternsRequest {
@@ -356,8 +503,10 @@ message ErrorPatternRow {
 }
 message ErrorPatternsResponse {
   repeated ErrorPatternRow rows = 1;
-  string executed_query = 2;
+  string executed_query = 2 [deprecated = true];
   MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
 }
 
 message FileRereadRateRequest {
@@ -368,8 +517,10 @@ message FileRereadRateResponse {
   double rate = 1;
   int64 files_read_more_than_once = 2;
   int64 read_calls = 3;
-  string executed_query = 4;
+  string executed_query = 4 [deprecated = true];
   MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
 }
 
 message FindingRecurrenceRateRequest {
@@ -381,8 +532,10 @@ message FindingRecurrenceRateResponse {
   int64 recurring_findings = 2;
   int64 total_findings = 3;
   int64 recurring_fingerprints = 4;
-  string executed_query = 5;
+  string executed_query = 5 [deprecated = true];
   MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
 }
 
 message SelectCohortRequest {
@@ -390,11 +543,29 @@ message SelectCohortRequest {
   InvocationFilter filter = 2;
   int32 limit = 3;
 }
+message CohortRun {
+  string run_id = 1;
+  string task_title = 2;
+  string profile_id = 3;
+  string profile_name = 4;
+  string status = 5;
+  string created_at = 6;
+  string model = 7;
+  string runner_type = 8;
+  string workload_key = 9;
+  int64 total_tokens = 10;
+  optional int64 total_charge_micro_usd = 11;
+  optional string charge_basis = 12;
+  optional int64 tool_call_count = 13;
+}
 message SelectCohortResponse {
   repeated string run_ids = 1;
   bool truncated = 2;
-  string executed_query = 3;
+  string executed_query = 3 [deprecated = true];
   MeasureValidity validity = 100;
+  repeated CohortRun rows = 4;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
 }
 
 // EpisodeCohort folds deterministic friction episodes over the same bounded
@@ -417,6 +588,8 @@ message EpisodeCohortResponse {
   string availability_state = 1;
   string availability_reason = 2;
   repeated EpisodeCohortSignal signals = 3;
-  string executed_query = 4;
+  string executed_query = 4 [deprecated = true];
   MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
 }

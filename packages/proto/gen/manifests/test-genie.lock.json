@@ -1,10 +1,11 @@
 {
   "schema_version": 1,
   "scenario": "test-genie",
-  "input_digest": "sha256:bf335d8e487003b889716726bb725c3dd68775b1c99c60d39fb763df83785f09",
+  "input_digest": "sha256:f4fd29e00b46cccb04385482660610f5227918d6005dd4d27b68c3179d604222",
   "input_files": [
     "schemas/common/v1/maturity.proto",
     "schemas/common/v1/operations.proto",
+    "schemas/common/v1/validation_target.proto",
     "schemas/test-genie/v1/eligibility/eligibility.proto",
     "schemas/test-genie/v1/runs/runs.proto"
   ],
@@ -21,7 +22,7 @@
   "outputs": {
     "gen/go/test-genie/v1/eligibility/eligibility.pb.go": "sha256:a26fcc0ad4b5358c348374fabeb321f4709591f565335c30c512950c8a1c71d5",
     "gen/go/test-genie/v1/eligibility/eligibility_v1connect/eligibility.connect.go": "sha256:d4625c359a2476102d7a917f21e72ee08f05cf2f75c32437e3d40fa5f3686115",
-    "gen/go/test-genie/v1/runs/runs.pb.go": "sha256:89b06d4f1677c4842eb8fec8b49318a4aa639159667e8b4a11e427566aac5bb0",
+    "gen/go/test-genie/v1/runs/runs.pb.go": "sha256:fb46a56f3487df35dcd9fe8aa5d532a4a6f8c926368289530b12f3e1698f84a6",
     "gen/go/test-genie/v1/runs/runs_v1connect/runs.connect.go": "sha256:43b57836b07140280e2d622b07da36843ac9126429d7f98cc5605a53da591623",
     "gen/python/test_genie/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/test_genie/v1/eligibility/eligibility_pb2.py": "sha256:b673fc4cd9db97ccdf685dfab46588539598c7006acaefa89c2f6877ce677e7b",
@@ -29,11 +30,11 @@
     "gen/python/test_genie/v1/eligibility/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/test_genie/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/test_genie/v1/runs/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/test_genie/v1/runs/runs_pb2.py": "sha256:f273749d07ea52f02040d2cb814f4a36bedaab0a8f1c299f177aa19af65781b6",
-    "gen/python/test_genie/v1/runs/runs_pb2.pyi": "sha256:075f39678d030574d80b10fe9baed1268fe70f4cf33e5ca3758275dcff04a689",
+    "gen/python/test_genie/v1/runs/runs_pb2.py": "sha256:9a96fdeb60ae7ca8361b3826ab0b3caad01db4c2962887c6b6b1ffb412a679e0",
+    "gen/python/test_genie/v1/runs/runs_pb2.pyi": "sha256:54838a5b6c0aec548b095d0f32470acc4b393ec1079fb013586e5f88979befae",
     "gen/typescript/js/test-genie/v1/eligibility/eligibility_pb.js": "sha256:c0d7096fd5440cb73557e233127de39b9c3b4941ffa1ba51ed8b4ed1176a616a",
-    "gen/typescript/js/test-genie/v1/runs/runs_pb.js": "sha256:4c8bd15b475097b849d66df7f2056064dfe780fbc95a700fff661a5dbe78b8c2",
+    "gen/typescript/js/test-genie/v1/runs/runs_pb.js": "sha256:42a6ab617ee5f85f5129260717cd8cd2eedd978ec4894169c23758797cc9ea85",
     "gen/typescript/test-genie/v1/eligibility/eligibility_pb.ts": "sha256:5b2aefa75504a035a11cca71dc467dab42f82105ff8c78abaeb4304d94d9891a",
-    "gen/typescript/test-genie/v1/runs/runs_pb.ts": "sha256:c0e8b05293d4108d578890c4f25bdab727086beea319d379f0eff62990f5c4cb"
+    "gen/typescript/test-genie/v1/runs/runs_pb.ts": "sha256:cea7068461e25daba97fb77ad69c418d15aff7fac87c9f35c09a2d8a8ad23d92"
   }
 }

@@ -1,9 +1,10 @@
 {
   "schema_version": 1,
   "scenario": "experience-manager",
-  "input_digest": "sha256:98d88b19ee105b6c8c14869a8d8e4cb5863d01e162ba7581ad65a8054d915c1d",
+  "input_digest": "sha256:f1114052d4fe4b53492e8d736ad7f5fb27e5faf69f56d26181939e8bd231c7c0",
   "input_files": [
     "schemas/common/v1/maturity.proto",
+    "schemas/common/v1/validation_target.proto",
     "schemas/experience-manager/v1/contract/contract.proto",
     "schemas/experience-manager/v1/shared/errors.proto",
     "schemas/experience-manager/v1/shared/health.proto"

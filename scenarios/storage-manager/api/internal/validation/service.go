@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	corestorage "github.com/vrooli/api-core/storage"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // Service validates one scenario's storage judgment at a time. It owns the
@@ -61,6 +62,9 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 		return report, err
 	}
 	gate := s.validateNonScenarioGate(ctx, corestorage.HostPlatform())
+	// Keep the single aggregate verdict for gating, but retain every owner
+	// finding with typed attribution so consumers can act on the actual owner.
+	report.Findings = append(report.Findings, gate.Findings...)
 	if gate.ErrorCount > 0 {
 		report.Findings = append(report.Findings, Finding{
 			Code:        "STORAGE_OWNER_GATE_FAILED",
@@ -90,6 +94,7 @@ type nonScenarioGateResult struct {
 	OwnerCount    int
 	ErrorCount    int
 	AdvisoryCount int
+	Findings      []Finding
 }
 
 func (s *Service) validateNonScenarioGate(ctx context.Context, platform corestorage.Platform) nonScenarioGateResult {
@@ -109,6 +114,8 @@ func (s *Service) validateNonScenarioGate(ctx context.Context, platform corestor
 			continue
 		}
 		for _, finding := range report.Findings {
+			finding.Subject = storageTargetSubject(owner.Kind, owner.ID, s.repoRoot, owner.ManifestPath)
+			result.Findings = append(result.Findings, finding)
 			if finding.Severity >= SeverityError {
 				result.ErrorCount++
 			} else {
@@ -117,6 +124,31 @@ func (s *Service) validateNonScenarioGate(ctx context.Context, platform corestor
 		}
 	}
 	return result
+}
+
+func storageTargetSubject(kind corestorage.OwnerKind, id, repoRoot, manifestPath string) *commonv1.ValidationTarget {
+	root := ""
+	if repoRoot != "" && manifestPath != "" {
+		if rel, err := filepath.Rel(repoRoot, filepath.Dir(manifestPath)); err == nil {
+			root = filepath.ToSlash(rel)
+		}
+	}
+	return &commonv1.ValidationTarget{Kind: storageTargetKind(kind), Id: id, Root: root}
+}
+
+func storageTargetKind(kind corestorage.OwnerKind) commonv1.ValidationTargetKind {
+	switch kind {
+	case corestorage.OwnerScenario:
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO
+	case corestorage.OwnerResource:
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_RESOURCE
+	case corestorage.OwnerTool:
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_TOOL
+	case corestorage.OwnerSafeguard:
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SAFEGUARD
+	default:
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_UNSPECIFIED
+	}
 }
 
 // ValidateOwner validates any native storage owner. Scenario-shaped analysis

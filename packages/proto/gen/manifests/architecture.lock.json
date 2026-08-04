@@ -1,9 +1,10 @@
 {
   "schema_version": 1,
   "scenario": "architecture",
-  "input_digest": "sha256:d01317cee6fa1f73973ff4cccf326fcda6d926a3ec9cee917fdff7b51a286ab9",
+  "input_digest": "sha256:737a7674897ddd9ddcb66e56331ca741edc4bfbb458811e428b5a1c96cdc22cf",
   "input_files": [
-    "schemas/architecture/v1/findings.proto"
+    "schemas/architecture/v1/findings.proto",
+    "schemas/common/v1/validation_target.proto"
   ],
   "toolchain": {
     "buf": "1.37.0",
@@ -16,12 +17,12 @@
     }
   },
   "outputs": {
-    "gen/go/architecture/v1/findings.pb.go": "sha256:2bcbc5f92ebc4bbd980b7008591c070920fdbbdf295c25e716a37855c54a2e94",
+    "gen/go/architecture/v1/findings.pb.go": "sha256:13c07abac74d9c619e6d13409df83c8afb7f500ef4d96802b1cf602a9304ba4f",
     "gen/python/architecture/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/architecture/v1/findings_pb2.py": "sha256:37ac64b74c94572c9e9a35ddb91352f45abce3fe1f1375c99927925b0a3df50a",
-    "gen/python/architecture/v1/findings_pb2.pyi": "sha256:400b6259617a831a7c0c659e4c964cca951170e884a0524d6c2e971b67328d5e",
+    "gen/python/architecture/v1/findings_pb2.py": "sha256:186ae34c02af9ebe5167083a25924442c6303adebf3d7a135708963f461d2b51",
+    "gen/python/architecture/v1/findings_pb2.pyi": "sha256:d95e80fb6f5fe2be07f45da4a2e9c5d99d94ba72fd11c5616b1585df42ba5b5d",
     "gen/python/architecture/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/typescript/architecture/v1/findings_pb.ts": "sha256:b43c089dcff492cad3523c7861064b064f835273d704cca98392ec2e23ce48f2",
-    "gen/typescript/js/architecture/v1/findings_pb.js": "sha256:93d2f223d070bcab094f4c7f7b55ddb50f383bcfe9cdc76bb6a9dd21ae1cab69"
+    "gen/typescript/architecture/v1/findings_pb.ts": "sha256:8d63f1e1776c5601582533c866e883e84f7baf11ce2fc2dc9f3b1cd6e3da6bdd",
+    "gen/typescript/js/architecture/v1/findings_pb.js": "sha256:4acfa804e24d3e66942dce78b09ee36906ea2e2ac3acd9b2e6316f016015723d"
   }
 }

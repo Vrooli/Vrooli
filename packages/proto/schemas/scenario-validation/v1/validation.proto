@@ -4,6 +4,7 @@ package vrooli.scenario_validation.v1;
 
 import "common/v1/maturity.proto";
 import "common/v1/metrics.proto";
+import "common/v1/validation_target.proto";
 import "google/protobuf/any.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
@@ -26,6 +27,11 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-val
 
 service ScenarioValidationService {
   rpc ValidateScenario(ValidateScenarioRequest) returns (ValidateScenarioResponse);
+
+  // ValidateTarget is the generalized target contract. ValidateScenario is
+  // retained as a wire-compatible alias for scenario callers while providers
+  // migrate to the first-class target vocabulary.
+  rpc ValidateTarget(ValidateTargetRequest) returns (ValidateTargetResponse);
 
   // DescribeProvider reports the provider's own identity and contract facts
   // without inspecting any target. Readiness consumers ask three questions —
@@ -119,6 +125,9 @@ message ProviderCapabilities {
   string delivery_mode = 2;
   // True when the provider implements PreviewFix/ApplyFix.
   bool supports_fixes = 3;
+  // Target kinds this provider declares and implements. An absent field is
+  // interpreted as [SCENARIO] by older providers.
+  repeated common.v1.ValidationTargetKind target_kinds = 4;
 }
 
 message ValidateScenarioRequest {
@@ -133,6 +142,22 @@ message ValidateScenarioRequest {
   // runs Lighthouse-if-UI, persisting a sample), then gates on the result.
   // Providers that only inspect ignore this flag.
   bool include_execution = 3;
+}
+
+message ValidateTargetRequest {
+  common.v1.ValidationTarget target = 1;
+  bool include_execution = 2;
+  // Physical path resolved by Test Genie for providers that need filesystem
+  // access. The target.root remains the stable repo-relative identity.
+  string path = 3;
+}
+
+message ValidateTargetResponse {
+  common.v1.ValidationTarget target = 1;
+  ValidationStatus status = 2;
+  common.v1.MaturityAssessment assessment = 3;
+  google.protobuf.Any native_detail = 4;
+  common.v1.ExecutionMetrics metrics = 5;
 }
 
 enum ValidationStatus {

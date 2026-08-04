@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	corestorage "github.com/vrooli/api-core/storage"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // Severity is storage-manager's internal severity ladder. It is mapped to the
@@ -72,6 +73,9 @@ type Finding struct {
 	// Analyzer is the name of the analyzer that produced the finding (for
 	// deterministic ordering + provenance).
 	Analyzer string `json:"analyzer,omitempty"`
+	// Subject identifies the owner this finding is about when a fleet-level
+	// scenario validation reports on another manifest-backed target.
+	Subject *commonv1.ValidationTarget `json:"subject,omitempty"`
 }
 
 // Engine enumerates the storage engines storage-manager classifies.

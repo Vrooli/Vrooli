@@ -51,7 +51,7 @@ func accountabilityFindings(ac AnalyzerContext, prior []Finding) []Finding {
 	if len(entries) == 0 {
 		return []Finding{accountabilityFinding(
 			ac,
-			"STORAGE_ACCOUNTABILITY_NOT_DECLARED",
+			"STORAGE_ACCOUNTABILITY_UNDECLARED",
 			SeverityInfo,
 			"the owner declares no storage.entries, so its durable surface cannot be evaluated",
 			"Run 'storage-manager declare suggest' for a measured starting block, or declare an empty surface deliberately.",
@@ -60,7 +60,7 @@ func accountabilityFindings(ac AnalyzerContext, prior []Finding) []Finding {
 	if blocked := matchingCodes(prior, reconciliationCodes); len(blocked) > 0 {
 		return []Finding{accountabilityFinding(
 			ac,
-			"STORAGE_ACCOUNTABILITY_NOT_RECONCILED",
+			"STORAGE_ACCOUNTABILITY_UNRECONCILED",
 			SeverityWarning,
 			fmt.Sprintf("the declaration does not yet agree with observed storage (%s)", strings.Join(blocked, ", ")),
 			"Resolve the reconciliation findings above; each names the entry and the exact disagreement.",
@@ -69,7 +69,7 @@ func accountabilityFindings(ac AnalyzerContext, prior []Finding) []Finding {
 	if unbounded := unboundedEntries(entries); len(unbounded) > 0 {
 		return []Finding{accountabilityFinding(
 			ac,
-			"STORAGE_ACCOUNTABILITY_NOT_GOVERNED",
+			"STORAGE_ACCOUNTABILITY_UNGOVERNED",
 			SeverityWarning,
 			fmt.Sprintf("storage is reconciled but has no visible enforcement: %s %s no budget and no reclaim command", strings.Join(unbounded, ", "), plural(len(unbounded), "has", "have")),
 			"Declare a budget (max_bytes and/or max_age) or a reclaim command for each entry, with the measured number and date in its rationale.",

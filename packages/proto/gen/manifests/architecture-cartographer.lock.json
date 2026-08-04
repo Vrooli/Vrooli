@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "architecture-cartographer",
-  "input_digest": "sha256:7411b485af4513a4fb7b906e641095f3192e52613ec3d072eb6f7613d579dd07",
+  "input_digest": "sha256:f88b94254c422dad69f9443902b8facb88f94d6ec854fceeac0e3aff862e2bd8",
   "input_files": [
     "schemas/architecture-cartographer/v1/analytics/analytics.proto",
     "schemas/architecture-cartographer/v1/apply/apply.proto",
@@ -18,7 +18,8 @@
     "schemas/architecture/v1/findings.proto",
     "schemas/common/v1/attestation.proto",
     "schemas/common/v1/confidence.proto",
-    "schemas/common/v1/maturity.proto"
+    "schemas/common/v1/maturity.proto",
+    "schemas/common/v1/validation_target.proto"
   ],
   "toolchain": {
     "buf": "1.37.0",

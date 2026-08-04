@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 func finding(scenario string, src architecturev1.FindingSource, code string, locs ...string) *architecturev1.ArchitectureFinding {
@@ -96,6 +97,29 @@ func TestNoCollisions(t *testing.T) {
 func TestSourceTokenIncludesBranding(t *testing.T) {
 	if got := SourceToken(architecturev1.FindingSource_FINDING_SOURCE_BRANDING); got != "branding" {
 		t.Fatalf("branding source token = %q, want branding", got)
+	}
+}
+
+func TestEmptySubjectPreservesLegacyStableID(t *testing.T) {
+	f := finding("s", architecturev1.FindingSource_FINDING_SOURCE_DOCS, "missing_doc", "docs/x.md")
+	legacy := Compute(Inputs{Scenario: f.GetScenario(), Source: f.GetSource(), Code: f.GetCode(), Locations: f.GetLocations()})
+	if got := For(f); got != legacy {
+		t.Fatalf("empty subject changed legacy ID: got %s want %s", got, legacy)
+	}
+	if got := For(&architecturev1.ArchitectureFinding{Scenario: f.GetScenario(), Source: f.GetSource(), Code: f.GetCode(), Locations: f.GetLocations(), Subject: &commonv1.ValidationTarget{}}); got != legacy {
+		t.Fatalf("empty subject message changed legacy ID: got %s want %s", got, legacy)
+	}
+}
+
+func TestSubjectMakesStableIDsDistinct(t *testing.T) {
+	base := finding("s", architecturev1.FindingSource_FINDING_SOURCE_STORAGE, "owner", "service.json")
+	a := For(base)
+	b := For(&architecturev1.ArchitectureFinding{
+		Scenario: base.GetScenario(), Source: base.GetSource(), Code: base.GetCode(), Locations: base.GetLocations(),
+		Subject: &commonv1.ValidationTarget{Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_RESOURCE, Id: "ollama", Root: "resources/ollama"},
+	})
+	if a == b {
+		t.Fatalf("subject did not change stable ID: %s", a)
 	}
 }
 

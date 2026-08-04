@@ -65,8 +65,8 @@ func onlyCode(t *testing.T, got []Finding) string {
 // starts each capability at its maximum and lowers it only on a finding.
 func TestAccountabilityUndeclaredOwnerBlocksL1(t *testing.T) {
 	got := accountabilityFindings(accountabilityContext(t), nil)
-	if code := onlyCode(t, got); code != "STORAGE_ACCOUNTABILITY_NOT_DECLARED" {
-		t.Fatalf("code = %q, want STORAGE_ACCOUNTABILITY_NOT_DECLARED", code)
+	if code := onlyCode(t, got); code != "STORAGE_ACCOUNTABILITY_UNDECLARED" {
+		t.Fatalf("code = %q, want STORAGE_ACCOUNTABILITY_UNDECLARED", code)
 	}
 	if got[0].Severity != SeverityInfo {
 		t.Fatalf("severity = %v, want SeverityInfo so coverage gaps never fail the phase", got[0].Severity)
@@ -81,8 +81,8 @@ func TestAccountabilityReconciliationDefectBlocksL2(t *testing.T) {
 	})
 	prior := []Finding{{Code: "STORAGE_ENTRY_NO_WRITER"}}
 	got := accountabilityFindings(ac, prior)
-	if code := onlyCode(t, got); code != "STORAGE_ACCOUNTABILITY_NOT_RECONCILED" {
-		t.Fatalf("code = %q, want STORAGE_ACCOUNTABILITY_NOT_RECONCILED", code)
+	if code := onlyCode(t, got); code != "STORAGE_ACCOUNTABILITY_UNRECONCILED" {
+		t.Fatalf("code = %q, want STORAGE_ACCOUNTABILITY_UNRECONCILED", code)
 	}
 	if got[0].Severity != SeverityWarning {
 		t.Fatalf("severity = %v, want SeverityWarning", got[0].Severity)
@@ -98,8 +98,8 @@ func TestAccountabilityUnboundedEntryBlocksL3(t *testing.T) {
 		Path: corestorage.PortablePath{Value: "recordings"},
 	})
 	got := accountabilityFindings(ac, nil)
-	if code := onlyCode(t, got); code != "STORAGE_ACCOUNTABILITY_NOT_GOVERNED" {
-		t.Fatalf("code = %q, want STORAGE_ACCOUNTABILITY_NOT_GOVERNED", code)
+	if code := onlyCode(t, got); code != "STORAGE_ACCOUNTABILITY_UNGOVERNED" {
+		t.Fatalf("code = %q, want STORAGE_ACCOUNTABILITY_UNGOVERNED", code)
 	}
 }
 
@@ -159,7 +159,7 @@ func TestAccountabilityReportsLowestBlockedRungOnly(t *testing.T) {
 		Path: corestorage.PortablePath{Value: "data"},
 	})
 	prior := []Finding{{Code: "STORAGE_ENTRY_CLASS_CONFLICT"}}
-	if code := onlyCode(t, accountabilityFindings(ac, prior)); code != "STORAGE_ACCOUNTABILITY_NOT_RECONCILED" {
+	if code := onlyCode(t, accountabilityFindings(ac, prior)); code != "STORAGE_ACCOUNTABILITY_UNRECONCILED" {
 		t.Fatalf("code = %q, want the reconciliation rung to win over governance", code)
 	}
 }
@@ -170,9 +170,9 @@ func TestAccountabilityReportsLowestBlockedRungOnly(t *testing.T) {
 func TestAccountabilityCodesAreDeclaredInDescriptor(t *testing.T) {
 	declared := descriptorFindingCodes(t)
 	for _, code := range []string{
-		"STORAGE_ACCOUNTABILITY_NOT_DECLARED",
-		"STORAGE_ACCOUNTABILITY_NOT_RECONCILED",
-		"STORAGE_ACCOUNTABILITY_NOT_GOVERNED",
+		"STORAGE_ACCOUNTABILITY_UNDECLARED",
+		"STORAGE_ACCOUNTABILITY_UNRECONCILED",
+		"STORAGE_ACCOUNTABILITY_UNGOVERNED",
 	} {
 		if _, ok := declared[code]; !ok {
 			t.Errorf("%s is emitted but not declared in .vrooli/test-genie.json", code)

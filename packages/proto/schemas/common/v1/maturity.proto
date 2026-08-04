@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package common.v1;
 
+import "common/v1/validation_target.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1";
 
 // =============================================================================
@@ -83,6 +85,9 @@ message AssessmentFinding {
   bool autofix_available = 8;
   // Provider fix classification, e.g. "autofix" or "detection_only".
   string fix_class = 9;
+  // Target-specific attribution for findings emitted while a provider run
+  // examines more than its own target. Empty means the run's own target.
+  ValidationTarget subject = 10;
 }
 
 // LocalMaturityAssessment explains the provider-local current and next rung.

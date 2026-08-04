@@ -1,3 +1,4 @@
+from common.v1 import validation_target_pb2 as _validation_target_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -85,7 +86,7 @@ class FindingMaturity(_message.Message):
     def __init__(self, local_level: _Optional[str] = ..., global_impact: _Optional[_Union[GlobalImpact, str]] = ..., dimension: _Optional[str] = ..., recommended_skill_ids: _Optional[_Iterable[str]] = ..., clean_requirement: _Optional[_Union[CleanRequirement, str]] = ..., capability_id: _Optional[str] = ...) -> None: ...
 
 class AssessmentFinding(_message.Message):
-    __slots__ = ("code", "severity", "title", "message", "location", "remediation", "maturity", "autofix_available", "fix_class")
+    __slots__ = ("code", "severity", "title", "message", "location", "remediation", "maturity", "autofix_available", "fix_class", "subject")
     CODE_FIELD_NUMBER: _ClassVar[int]
     SEVERITY_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
@@ -95,6 +96,7 @@ class AssessmentFinding(_message.Message):
     MATURITY_FIELD_NUMBER: _ClassVar[int]
     AUTOFIX_AVAILABLE_FIELD_NUMBER: _ClassVar[int]
     FIX_CLASS_FIELD_NUMBER: _ClassVar[int]
+    SUBJECT_FIELD_NUMBER: _ClassVar[int]
     code: str
     severity: str
     title: str
@@ -104,7 +106,8 @@ class AssessmentFinding(_message.Message):
     maturity: FindingMaturity
     autofix_available: bool
     fix_class: str
-    def __init__(self, code: _Optional[str] = ..., severity: _Optional[str] = ..., title: _Optional[str] = ..., message: _Optional[str] = ..., location: _Optional[str] = ..., remediation: _Optional[str] = ..., maturity: _Optional[_Union[FindingMaturity, _Mapping]] = ..., autofix_available: _Optional[bool] = ..., fix_class: _Optional[str] = ...) -> None: ...
+    subject: _validation_target_pb2.ValidationTarget
+    def __init__(self, code: _Optional[str] = ..., severity: _Optional[str] = ..., title: _Optional[str] = ..., message: _Optional[str] = ..., location: _Optional[str] = ..., remediation: _Optional[str] = ..., maturity: _Optional[_Union[FindingMaturity, _Mapping]] = ..., autofix_available: _Optional[bool] = ..., fix_class: _Optional[str] = ..., subject: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ...) -> None: ...
 
 class LocalMaturityAssessment(_message.Message):
     __slots__ = ("current_level", "next_level", "levels", "blocking_finding_codes", "clean", "unknown_count")

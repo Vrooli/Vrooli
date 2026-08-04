@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package vrooli.architecture.v1;
 
+import "common/v1/validation_target.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1;architecturev1";
 
 // =============================================================================
@@ -10,7 +12,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture
 //
 // @layer 0  (neutral shared contract)
 // @domain architecture
-// @imports none (external only: none)
+// @imports common.v1.ValidationTarget
 // @stability beta
 //
 // ArchitectureFinding is the ONE normalized finding envelope that flows
@@ -32,8 +34,11 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture
 //
 // STABLE-ID CONTRACT (mirrors the cartographer's `csid:` design):
 //   stable_id = "afid:" + first 8 bytes hex of
-//     sha256(scenario \x1f source \x1f code \x1f sorted(locations))
+//     sha256(scenario \x1f source \x1f code \x1f sorted(locations)
+//             [\x1f subject-kind \x1e subject-id \x1e subject-root])
 //   Severity, message, suggestion, and domains are EXCLUDED from the hash
+//   Subject is included only when non-empty, preserving legacy IDs for
+//   scenario findings without explicit attribution.
 //   so the same defect collapses to one ID across runs (cosmetic changes
 //   never manufacture a false regression). The reference Go implementation
 //   lives in gen-adjacent helper code; this comment is the wire-level
@@ -216,8 +221,8 @@ message ArchitectureFinding {
   string message = 7;
   // Optional remediation hint.
   string suggestion = 8;
-  // Deterministic content-hash key: "afid:" + 8 hex bytes of
-  // sha256(scenario \x1f source \x1f code \x1f sorted(locations)).
+  // Deterministic content-hash key: "afid:" + 8 hex bytes of the hash
+  // inputs above, followed by the non-empty subject tuple when present.
   string stable_id = 9;
   // Producer-supplied evidence.
   repeated Evidence evidence = 10;
@@ -228,4 +233,7 @@ message ArchitectureFinding {
   EffortHint effort = 12;
   // Deterministic vs heuristic class. EXCLUDED from the stable-ID hash.
   FindingClass finding_class = 13;
+  // Target-specific attribution when a provider reports on an object other
+  // than the run's own target. Empty means the run's own target.
+  common.v1.ValidationTarget subject = 14;
 }

@@ -2,6 +2,7 @@ import datetime
 
 from common.v1 import maturity_pb2 as _maturity_pb2
 from common.v1 import metrics_pb2 as _metrics_pb2
+from common.v1 import validation_target_pb2 as _validation_target_pb2
 from google.protobuf import any_pb2 as _any_pb2
 from google.protobuf import duration_pb2 as _duration_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
@@ -98,14 +99,16 @@ class ProviderBuild(_message.Message):
     def __init__(self, revision: _Optional[str] = ..., built_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., binary_modified_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., freshness_digest: _Optional[str] = ...) -> None: ...
 
 class ProviderCapabilities(_message.Message):
-    __slots__ = ("supports_execution", "delivery_mode", "supports_fixes")
+    __slots__ = ("supports_execution", "delivery_mode", "supports_fixes", "target_kinds")
     SUPPORTS_EXECUTION_FIELD_NUMBER: _ClassVar[int]
     DELIVERY_MODE_FIELD_NUMBER: _ClassVar[int]
     SUPPORTS_FIXES_FIELD_NUMBER: _ClassVar[int]
+    TARGET_KINDS_FIELD_NUMBER: _ClassVar[int]
     supports_execution: bool
     delivery_mode: str
     supports_fixes: bool
-    def __init__(self, supports_execution: _Optional[bool] = ..., delivery_mode: _Optional[str] = ..., supports_fixes: _Optional[bool] = ...) -> None: ...
+    target_kinds: _containers.RepeatedScalarFieldContainer[_validation_target_pb2.ValidationTargetKind]
+    def __init__(self, supports_execution: _Optional[bool] = ..., delivery_mode: _Optional[str] = ..., supports_fixes: _Optional[bool] = ..., target_kinds: _Optional[_Iterable[_Union[_validation_target_pb2.ValidationTargetKind, str]]] = ...) -> None: ...
 
 class ValidateScenarioRequest(_message.Message):
     __slots__ = ("scenario", "path", "include_execution")
@@ -116,6 +119,30 @@ class ValidateScenarioRequest(_message.Message):
     path: str
     include_execution: bool
     def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., include_execution: _Optional[bool] = ...) -> None: ...
+
+class ValidateTargetRequest(_message.Message):
+    __slots__ = ("target", "include_execution", "path")
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_EXECUTION_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    target: _validation_target_pb2.ValidationTarget
+    include_execution: bool
+    path: str
+    def __init__(self, target: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ..., include_execution: _Optional[bool] = ..., path: _Optional[str] = ...) -> None: ...
+
+class ValidateTargetResponse(_message.Message):
+    __slots__ = ("target", "status", "assessment", "native_detail", "metrics")
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    ASSESSMENT_FIELD_NUMBER: _ClassVar[int]
+    NATIVE_DETAIL_FIELD_NUMBER: _ClassVar[int]
+    METRICS_FIELD_NUMBER: _ClassVar[int]
+    target: _validation_target_pb2.ValidationTarget
+    status: ValidationStatus
+    assessment: _maturity_pb2.MaturityAssessment
+    native_detail: _any_pb2.Any
+    metrics: _metrics_pb2.ExecutionMetrics
+    def __init__(self, target: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ..., status: _Optional[_Union[ValidationStatus, str]] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ..., native_detail: _Optional[_Union[_any_pb2.Any, _Mapping]] = ..., metrics: _Optional[_Union[_metrics_pb2.ExecutionMetrics, _Mapping]] = ...) -> None: ...
 
 class ValidateScenarioResponse(_message.Message):
     __slots__ = ("scenario", "status", "assessment", "native_detail", "metrics")

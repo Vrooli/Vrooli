@@ -74,12 +74,21 @@ const (
 	// MeasuresServiceProfileBreakdownProcedure is the fully-qualified name of the MeasuresService's
 	// ProfileBreakdown RPC.
 	MeasuresServiceProfileBreakdownProcedure = "/agent_manager.v1.measures.MeasuresService/ProfileBreakdown"
+	// MeasuresServiceWorkloadBreakdownProcedure is the fully-qualified name of the MeasuresService's
+	// WorkloadBreakdown RPC.
+	MeasuresServiceWorkloadBreakdownProcedure = "/agent_manager.v1.measures.MeasuresService/WorkloadBreakdown"
+	// MeasuresServiceWorkloadEfficiencyProcedure is the fully-qualified name of the MeasuresService's
+	// WorkloadEfficiency RPC.
+	MeasuresServiceWorkloadEfficiencyProcedure = "/agent_manager.v1.measures.MeasuresService/WorkloadEfficiency"
 	// MeasuresServiceTerminalRunTrendProcedure is the fully-qualified name of the MeasuresService's
 	// TerminalRunTrend RPC.
 	MeasuresServiceTerminalRunTrendProcedure = "/agent_manager.v1.measures.MeasuresService/TerminalRunTrend"
 	// MeasuresServiceToolUsageProcedure is the fully-qualified name of the MeasuresService's ToolUsage
 	// RPC.
 	MeasuresServiceToolUsageProcedure = "/agent_manager.v1.measures.MeasuresService/ToolUsage"
+	// MeasuresServiceToolCommandBreakdownProcedure is the fully-qualified name of the MeasuresService's
+	// ToolCommandBreakdown RPC.
+	MeasuresServiceToolCommandBreakdownProcedure = "/agent_manager.v1.measures.MeasuresService/ToolCommandBreakdown"
 	// MeasuresServiceErrorPatternsProcedure is the fully-qualified name of the MeasuresService's
 	// ErrorPatterns RPC.
 	MeasuresServiceErrorPatternsProcedure = "/agent_manager.v1.measures.MeasuresService/ErrorPatterns"
@@ -98,6 +107,9 @@ const (
 	// MeasuresServiceCapabilityEfficacyProcedure is the fully-qualified name of the MeasuresService's
 	// CapabilityEfficacy RPC.
 	MeasuresServiceCapabilityEfficacyProcedure = "/agent_manager.v1.measures.MeasuresService/CapabilityEfficacy"
+	// MeasuresServiceAllMeasureDefinitionsProcedure is the fully-qualified name of the
+	// MeasuresService's AllMeasureDefinitions RPC.
+	MeasuresServiceAllMeasureDefinitionsProcedure = "/agent_manager.v1.measures.MeasuresService/AllMeasureDefinitions"
 	// MeasuresServiceSelectCohortProcedure is the fully-qualified name of the MeasuresService's
 	// SelectCohort RPC.
 	MeasuresServiceSelectCohortProcedure = "/agent_manager.v1.measures.MeasuresService/SelectCohort"
@@ -119,14 +131,18 @@ type MeasuresServiceClient interface {
 	RunnerBreakdown(context.Context, *connect.Request[measures.RunnerBreakdownRequest]) (*connect.Response[measures.RunnerBreakdownResponse], error)
 	ModelBreakdown(context.Context, *connect.Request[measures.ModelBreakdownRequest]) (*connect.Response[measures.ModelBreakdownResponse], error)
 	ProfileBreakdown(context.Context, *connect.Request[measures.ProfileBreakdownRequest]) (*connect.Response[measures.ProfileBreakdownResponse], error)
+	WorkloadBreakdown(context.Context, *connect.Request[measures.WorkloadBreakdownRequest]) (*connect.Response[measures.WorkloadBreakdownResponse], error)
+	WorkloadEfficiency(context.Context, *connect.Request[measures.WorkloadEfficiencyRequest]) (*connect.Response[measures.WorkloadEfficiencyResponse], error)
 	TerminalRunTrend(context.Context, *connect.Request[measures.TerminalRunTrendRequest]) (*connect.Response[measures.TerminalRunTrendResponse], error)
 	ToolUsage(context.Context, *connect.Request[measures.ToolUsageRequest]) (*connect.Response[measures.ToolUsageResponse], error)
+	ToolCommandBreakdown(context.Context, *connect.Request[measures.ToolCommandBreakdownRequest]) (*connect.Response[measures.ToolCommandBreakdownResponse], error)
 	ErrorPatterns(context.Context, *connect.Request[measures.ErrorPatternsRequest]) (*connect.Response[measures.ErrorPatternsResponse], error)
 	FileRereadRate(context.Context, *connect.Request[measures.FileRereadRateRequest]) (*connect.Response[measures.FileRereadRateResponse], error)
 	FindingRecurrenceRate(context.Context, *connect.Request[measures.FindingRecurrenceRateRequest]) (*connect.Response[measures.FindingRecurrenceRateResponse], error)
 	EpisodeCohort(context.Context, *connect.Request[measures.EpisodeCohortRequest]) (*connect.Response[measures.EpisodeCohortResponse], error)
 	CapabilityUsage(context.Context, *connect.Request[measures.CapabilityUsageRequest]) (*connect.Response[measures.CapabilityUsageResponse], error)
 	CapabilityEfficacy(context.Context, *connect.Request[measures.CapabilityEfficacyRequest]) (*connect.Response[measures.CapabilityEfficacyResponse], error)
+	AllMeasureDefinitions(context.Context, *connect.Request[measures.AllMeasureDefinitionsRequest]) (*connect.Response[measures.AllMeasureDefinitionsResponse], error)
 	// SelectCohort is the non-aggregate companion to the measures: it exposes
 	// the run ids behind the exact same durable filter used by an aggregate.
 	SelectCohort(context.Context, *connect.Request[measures.SelectCohortRequest]) (*connect.Response[measures.SelectCohortResponse], error)
@@ -227,6 +243,18 @@ func NewMeasuresServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(measuresServiceMethods.ByName("ProfileBreakdown")),
 			connect.WithClientOptions(opts...),
 		),
+		workloadBreakdown: connect.NewClient[measures.WorkloadBreakdownRequest, measures.WorkloadBreakdownResponse](
+			httpClient,
+			baseURL+MeasuresServiceWorkloadBreakdownProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("WorkloadBreakdown")),
+			connect.WithClientOptions(opts...),
+		),
+		workloadEfficiency: connect.NewClient[measures.WorkloadEfficiencyRequest, measures.WorkloadEfficiencyResponse](
+			httpClient,
+			baseURL+MeasuresServiceWorkloadEfficiencyProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("WorkloadEfficiency")),
+			connect.WithClientOptions(opts...),
+		),
 		terminalRunTrend: connect.NewClient[measures.TerminalRunTrendRequest, measures.TerminalRunTrendResponse](
 			httpClient,
 			baseURL+MeasuresServiceTerminalRunTrendProcedure,
@@ -237,6 +265,12 @@ func NewMeasuresServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			httpClient,
 			baseURL+MeasuresServiceToolUsageProcedure,
 			connect.WithSchema(measuresServiceMethods.ByName("ToolUsage")),
+			connect.WithClientOptions(opts...),
+		),
+		toolCommandBreakdown: connect.NewClient[measures.ToolCommandBreakdownRequest, measures.ToolCommandBreakdownResponse](
+			httpClient,
+			baseURL+MeasuresServiceToolCommandBreakdownProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("ToolCommandBreakdown")),
 			connect.WithClientOptions(opts...),
 		),
 		errorPatterns: connect.NewClient[measures.ErrorPatternsRequest, measures.ErrorPatternsResponse](
@@ -275,6 +309,12 @@ func NewMeasuresServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(measuresServiceMethods.ByName("CapabilityEfficacy")),
 			connect.WithClientOptions(opts...),
 		),
+		allMeasureDefinitions: connect.NewClient[measures.AllMeasureDefinitionsRequest, measures.AllMeasureDefinitionsResponse](
+			httpClient,
+			baseURL+MeasuresServiceAllMeasureDefinitionsProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("AllMeasureDefinitions")),
+			connect.WithClientOptions(opts...),
+		),
 		selectCohort: connect.NewClient[measures.SelectCohortRequest, measures.SelectCohortResponse](
 			httpClient,
 			baseURL+MeasuresServiceSelectCohortProcedure,
@@ -300,14 +340,18 @@ type measuresServiceClient struct {
 	runnerBreakdown       *connect.Client[measures.RunnerBreakdownRequest, measures.RunnerBreakdownResponse]
 	modelBreakdown        *connect.Client[measures.ModelBreakdownRequest, measures.ModelBreakdownResponse]
 	profileBreakdown      *connect.Client[measures.ProfileBreakdownRequest, measures.ProfileBreakdownResponse]
+	workloadBreakdown     *connect.Client[measures.WorkloadBreakdownRequest, measures.WorkloadBreakdownResponse]
+	workloadEfficiency    *connect.Client[measures.WorkloadEfficiencyRequest, measures.WorkloadEfficiencyResponse]
 	terminalRunTrend      *connect.Client[measures.TerminalRunTrendRequest, measures.TerminalRunTrendResponse]
 	toolUsage             *connect.Client[measures.ToolUsageRequest, measures.ToolUsageResponse]
+	toolCommandBreakdown  *connect.Client[measures.ToolCommandBreakdownRequest, measures.ToolCommandBreakdownResponse]
 	errorPatterns         *connect.Client[measures.ErrorPatternsRequest, measures.ErrorPatternsResponse]
 	fileRereadRate        *connect.Client[measures.FileRereadRateRequest, measures.FileRereadRateResponse]
 	findingRecurrenceRate *connect.Client[measures.FindingRecurrenceRateRequest, measures.FindingRecurrenceRateResponse]
 	episodeCohort         *connect.Client[measures.EpisodeCohortRequest, measures.EpisodeCohortResponse]
 	capabilityUsage       *connect.Client[measures.CapabilityUsageRequest, measures.CapabilityUsageResponse]
 	capabilityEfficacy    *connect.Client[measures.CapabilityEfficacyRequest, measures.CapabilityEfficacyResponse]
+	allMeasureDefinitions *connect.Client[measures.AllMeasureDefinitionsRequest, measures.AllMeasureDefinitionsResponse]
 	selectCohort          *connect.Client[measures.SelectCohortRequest, measures.SelectCohortResponse]
 }
 
@@ -381,6 +425,16 @@ func (c *measuresServiceClient) ProfileBreakdown(ctx context.Context, req *conne
 	return c.profileBreakdown.CallUnary(ctx, req)
 }
 
+// WorkloadBreakdown calls agent_manager.v1.measures.MeasuresService.WorkloadBreakdown.
+func (c *measuresServiceClient) WorkloadBreakdown(ctx context.Context, req *connect.Request[measures.WorkloadBreakdownRequest]) (*connect.Response[measures.WorkloadBreakdownResponse], error) {
+	return c.workloadBreakdown.CallUnary(ctx, req)
+}
+
+// WorkloadEfficiency calls agent_manager.v1.measures.MeasuresService.WorkloadEfficiency.
+func (c *measuresServiceClient) WorkloadEfficiency(ctx context.Context, req *connect.Request[measures.WorkloadEfficiencyRequest]) (*connect.Response[measures.WorkloadEfficiencyResponse], error) {
+	return c.workloadEfficiency.CallUnary(ctx, req)
+}
+
 // TerminalRunTrend calls agent_manager.v1.measures.MeasuresService.TerminalRunTrend.
 func (c *measuresServiceClient) TerminalRunTrend(ctx context.Context, req *connect.Request[measures.TerminalRunTrendRequest]) (*connect.Response[measures.TerminalRunTrendResponse], error) {
 	return c.terminalRunTrend.CallUnary(ctx, req)
@@ -389,6 +443,11 @@ func (c *measuresServiceClient) TerminalRunTrend(ctx context.Context, req *conne
 // ToolUsage calls agent_manager.v1.measures.MeasuresService.ToolUsage.
 func (c *measuresServiceClient) ToolUsage(ctx context.Context, req *connect.Request[measures.ToolUsageRequest]) (*connect.Response[measures.ToolUsageResponse], error) {
 	return c.toolUsage.CallUnary(ctx, req)
+}
+
+// ToolCommandBreakdown calls agent_manager.v1.measures.MeasuresService.ToolCommandBreakdown.
+func (c *measuresServiceClient) ToolCommandBreakdown(ctx context.Context, req *connect.Request[measures.ToolCommandBreakdownRequest]) (*connect.Response[measures.ToolCommandBreakdownResponse], error) {
+	return c.toolCommandBreakdown.CallUnary(ctx, req)
 }
 
 // ErrorPatterns calls agent_manager.v1.measures.MeasuresService.ErrorPatterns.
@@ -421,6 +480,11 @@ func (c *measuresServiceClient) CapabilityEfficacy(ctx context.Context, req *con
 	return c.capabilityEfficacy.CallUnary(ctx, req)
 }
 
+// AllMeasureDefinitions calls agent_manager.v1.measures.MeasuresService.AllMeasureDefinitions.
+func (c *measuresServiceClient) AllMeasureDefinitions(ctx context.Context, req *connect.Request[measures.AllMeasureDefinitionsRequest]) (*connect.Response[measures.AllMeasureDefinitionsResponse], error) {
+	return c.allMeasureDefinitions.CallUnary(ctx, req)
+}
+
 // SelectCohort calls agent_manager.v1.measures.MeasuresService.SelectCohort.
 func (c *measuresServiceClient) SelectCohort(ctx context.Context, req *connect.Request[measures.SelectCohortRequest]) (*connect.Response[measures.SelectCohortResponse], error) {
 	return c.selectCohort.CallUnary(ctx, req)
@@ -443,14 +507,18 @@ type MeasuresServiceHandler interface {
 	RunnerBreakdown(context.Context, *connect.Request[measures.RunnerBreakdownRequest]) (*connect.Response[measures.RunnerBreakdownResponse], error)
 	ModelBreakdown(context.Context, *connect.Request[measures.ModelBreakdownRequest]) (*connect.Response[measures.ModelBreakdownResponse], error)
 	ProfileBreakdown(context.Context, *connect.Request[measures.ProfileBreakdownRequest]) (*connect.Response[measures.ProfileBreakdownResponse], error)
+	WorkloadBreakdown(context.Context, *connect.Request[measures.WorkloadBreakdownRequest]) (*connect.Response[measures.WorkloadBreakdownResponse], error)
+	WorkloadEfficiency(context.Context, *connect.Request[measures.WorkloadEfficiencyRequest]) (*connect.Response[measures.WorkloadEfficiencyResponse], error)
 	TerminalRunTrend(context.Context, *connect.Request[measures.TerminalRunTrendRequest]) (*connect.Response[measures.TerminalRunTrendResponse], error)
 	ToolUsage(context.Context, *connect.Request[measures.ToolUsageRequest]) (*connect.Response[measures.ToolUsageResponse], error)
+	ToolCommandBreakdown(context.Context, *connect.Request[measures.ToolCommandBreakdownRequest]) (*connect.Response[measures.ToolCommandBreakdownResponse], error)
 	ErrorPatterns(context.Context, *connect.Request[measures.ErrorPatternsRequest]) (*connect.Response[measures.ErrorPatternsResponse], error)
 	FileRereadRate(context.Context, *connect.Request[measures.FileRereadRateRequest]) (*connect.Response[measures.FileRereadRateResponse], error)
 	FindingRecurrenceRate(context.Context, *connect.Request[measures.FindingRecurrenceRateRequest]) (*connect.Response[measures.FindingRecurrenceRateResponse], error)
 	EpisodeCohort(context.Context, *connect.Request[measures.EpisodeCohortRequest]) (*connect.Response[measures.EpisodeCohortResponse], error)
 	CapabilityUsage(context.Context, *connect.Request[measures.CapabilityUsageRequest]) (*connect.Response[measures.CapabilityUsageResponse], error)
 	CapabilityEfficacy(context.Context, *connect.Request[measures.CapabilityEfficacyRequest]) (*connect.Response[measures.CapabilityEfficacyResponse], error)
+	AllMeasureDefinitions(context.Context, *connect.Request[measures.AllMeasureDefinitionsRequest]) (*connect.Response[measures.AllMeasureDefinitionsResponse], error)
 	// SelectCohort is the non-aggregate companion to the measures: it exposes
 	// the run ids behind the exact same durable filter used by an aggregate.
 	SelectCohort(context.Context, *connect.Request[measures.SelectCohortRequest]) (*connect.Response[measures.SelectCohortResponse], error)
@@ -547,6 +615,18 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 		connect.WithSchema(measuresServiceMethods.ByName("ProfileBreakdown")),
 		connect.WithHandlerOptions(opts...),
 	)
+	measuresServiceWorkloadBreakdownHandler := connect.NewUnaryHandler(
+		MeasuresServiceWorkloadBreakdownProcedure,
+		svc.WorkloadBreakdown,
+		connect.WithSchema(measuresServiceMethods.ByName("WorkloadBreakdown")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceWorkloadEfficiencyHandler := connect.NewUnaryHandler(
+		MeasuresServiceWorkloadEfficiencyProcedure,
+		svc.WorkloadEfficiency,
+		connect.WithSchema(measuresServiceMethods.ByName("WorkloadEfficiency")),
+		connect.WithHandlerOptions(opts...),
+	)
 	measuresServiceTerminalRunTrendHandler := connect.NewUnaryHandler(
 		MeasuresServiceTerminalRunTrendProcedure,
 		svc.TerminalRunTrend,
@@ -557,6 +637,12 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 		MeasuresServiceToolUsageProcedure,
 		svc.ToolUsage,
 		connect.WithSchema(measuresServiceMethods.ByName("ToolUsage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceToolCommandBreakdownHandler := connect.NewUnaryHandler(
+		MeasuresServiceToolCommandBreakdownProcedure,
+		svc.ToolCommandBreakdown,
+		connect.WithSchema(measuresServiceMethods.ByName("ToolCommandBreakdown")),
 		connect.WithHandlerOptions(opts...),
 	)
 	measuresServiceErrorPatternsHandler := connect.NewUnaryHandler(
@@ -595,6 +681,12 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 		connect.WithSchema(measuresServiceMethods.ByName("CapabilityEfficacy")),
 		connect.WithHandlerOptions(opts...),
 	)
+	measuresServiceAllMeasureDefinitionsHandler := connect.NewUnaryHandler(
+		MeasuresServiceAllMeasureDefinitionsProcedure,
+		svc.AllMeasureDefinitions,
+		connect.WithSchema(measuresServiceMethods.ByName("AllMeasureDefinitions")),
+		connect.WithHandlerOptions(opts...),
+	)
 	measuresServiceSelectCohortHandler := connect.NewUnaryHandler(
 		MeasuresServiceSelectCohortProcedure,
 		svc.SelectCohort,
@@ -631,10 +723,16 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 			measuresServiceModelBreakdownHandler.ServeHTTP(w, r)
 		case MeasuresServiceProfileBreakdownProcedure:
 			measuresServiceProfileBreakdownHandler.ServeHTTP(w, r)
+		case MeasuresServiceWorkloadBreakdownProcedure:
+			measuresServiceWorkloadBreakdownHandler.ServeHTTP(w, r)
+		case MeasuresServiceWorkloadEfficiencyProcedure:
+			measuresServiceWorkloadEfficiencyHandler.ServeHTTP(w, r)
 		case MeasuresServiceTerminalRunTrendProcedure:
 			measuresServiceTerminalRunTrendHandler.ServeHTTP(w, r)
 		case MeasuresServiceToolUsageProcedure:
 			measuresServiceToolUsageHandler.ServeHTTP(w, r)
+		case MeasuresServiceToolCommandBreakdownProcedure:
+			measuresServiceToolCommandBreakdownHandler.ServeHTTP(w, r)
 		case MeasuresServiceErrorPatternsProcedure:
 			measuresServiceErrorPatternsHandler.ServeHTTP(w, r)
 		case MeasuresServiceFileRereadRateProcedure:
@@ -647,6 +745,8 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 			measuresServiceCapabilityUsageHandler.ServeHTTP(w, r)
 		case MeasuresServiceCapabilityEfficacyProcedure:
 			measuresServiceCapabilityEfficacyHandler.ServeHTTP(w, r)
+		case MeasuresServiceAllMeasureDefinitionsProcedure:
+			measuresServiceAllMeasureDefinitionsHandler.ServeHTTP(w, r)
 		case MeasuresServiceSelectCohortProcedure:
 			measuresServiceSelectCohortHandler.ServeHTTP(w, r)
 		default:
@@ -714,12 +814,24 @@ func (UnimplementedMeasuresServiceHandler) ProfileBreakdown(context.Context, *co
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.ProfileBreakdown is not implemented"))
 }
 
+func (UnimplementedMeasuresServiceHandler) WorkloadBreakdown(context.Context, *connect.Request[measures.WorkloadBreakdownRequest]) (*connect.Response[measures.WorkloadBreakdownResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.WorkloadBreakdown is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) WorkloadEfficiency(context.Context, *connect.Request[measures.WorkloadEfficiencyRequest]) (*connect.Response[measures.WorkloadEfficiencyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.WorkloadEfficiency is not implemented"))
+}
+
 func (UnimplementedMeasuresServiceHandler) TerminalRunTrend(context.Context, *connect.Request[measures.TerminalRunTrendRequest]) (*connect.Response[measures.TerminalRunTrendResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.TerminalRunTrend is not implemented"))
 }
 
 func (UnimplementedMeasuresServiceHandler) ToolUsage(context.Context, *connect.Request[measures.ToolUsageRequest]) (*connect.Response[measures.ToolUsageResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.ToolUsage is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) ToolCommandBreakdown(context.Context, *connect.Request[measures.ToolCommandBreakdownRequest]) (*connect.Response[measures.ToolCommandBreakdownResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.ToolCommandBreakdown is not implemented"))
 }
 
 func (UnimplementedMeasuresServiceHandler) ErrorPatterns(context.Context, *connect.Request[measures.ErrorPatternsRequest]) (*connect.Response[measures.ErrorPatternsResponse], error) {
@@ -744,6 +856,10 @@ func (UnimplementedMeasuresServiceHandler) CapabilityUsage(context.Context, *con
 
 func (UnimplementedMeasuresServiceHandler) CapabilityEfficacy(context.Context, *connect.Request[measures.CapabilityEfficacyRequest]) (*connect.Response[measures.CapabilityEfficacyResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.CapabilityEfficacy is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) AllMeasureDefinitions(context.Context, *connect.Request[measures.AllMeasureDefinitionsRequest]) (*connect.Response[measures.AllMeasureDefinitionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.AllMeasureDefinitions is not implemented"))
 }
 
 func (UnimplementedMeasuresServiceHandler) SelectCohort(context.Context, *connect.Request[measures.SelectCohortRequest]) (*connect.Response[measures.SelectCohortResponse], error) {

@@ -1,6 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
   "generation": {
     "design": {
       "id": "vrooli-default",
@@ -198,6 +199,7 @@
         "required": true,
         "startup_policy": "must_start",
         "description": "Spawning agents for automated work",
+        "degraded_behavior": "Without agent-manager, swarm-manager refuses to dispatch new agent runs while existing records remain viewable.",
         "config": {
           "declarations": {
             "reconcile": true,
@@ -230,43 +232,50 @@
         "enabled": true,
         "required": true,
         "startup_policy": "must_start",
-        "description": "Canonical plan authoring, rendering, and execution-plan validation"
+        "description": "Canonical plan authoring, rendering, and execution-plan validation",
+        "degraded_behavior": "Without plan-manager, swarm-manager preserves existing plans but disables plan creation and reconciliation."
       },
       "knowledge-observatory": {
         "enabled": false,
         "required": false,
         "startup_policy": "try_start",
-        "description": "PROBLEMS.md management (P1)"
+        "description": "PROBLEMS.md management (P1)",
+        "degraded_behavior": "Without knowledge-observatory, durable problem observations remain local and are not synchronized."
       },
       "visited-tracker": {
         "enabled": false,
         "required": false,
         "startup_policy": "try_start",
-        "description": "Context cleanup campaigns (P1)"
+        "description": "Context cleanup campaigns (P1)",
+        "degraded_behavior": "Without visited-tracker, navigation continues without cross-session visited-state cleanup."
       },
       "scenario-completeness-scoring": {
         "enabled": false,
         "required": false,
         "startup_policy": "try_start",
-        "description": "Completeness metrics (P1)"
+        "description": "Completeness metrics (P1)",
+        "degraded_behavior": "Without scenario-completeness-scoring, swarm-manager omits completeness scoring while retaining core work management."
       },
       "test-genie": {
         "enabled": true,
         "required": true,
         "startup_policy": "must_start",
-        "description": "Validation runs, baseline evidence, and completion gates"
+        "description": "Validation runs, baseline evidence, and completion gates",
+        "degraded_behavior": "Without test-genie, swarm-manager can edit and inspect work but cannot execute server-owned validation runs."
       },
       "prompt-manager": {
         "enabled": true,
         "required": true,
         "startup_policy": "must_start",
-        "description": "Skill prompt templates for backlog research and processing"
+        "description": "Skill prompt templates for backlog research and processing",
+        "degraded_behavior": "Without prompt-manager, swarm-manager keeps direct work flows available but loses skill discovery and reusable prompt guidance."
       },
       "git-control-tower": {
         "enabled": false,
         "required": false,
         "startup_policy": "try_start",
-        "description": "Post-execution code review and readiness validation"
+        "description": "Post-execution code review and readiness validation",
+        "degraded_behavior": "Without git-control-tower, swarm-manager does not run post-execution review or readiness validation automatically."
       },
       "audio-tools": {
         "enabled": true,

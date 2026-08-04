@@ -2863,7 +2863,7 @@ func (x *GetProfileResponse) GetProfile() *domain.AgentProfile {
 // ListProfilesRequest filters and paginates profile listings.
 type ListProfilesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Pagination limit (default: 50, max: 100).
+	// Pagination limit (default: 50, max: 5000).
 	Limit *int32 `protobuf:"varint,2,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
 	// Pagination offset.
 	Offset        *int32 `protobuf:"varint,3,opt,name=offset,proto3,oneof" json:"offset,omitempty"`
@@ -5166,7 +5166,7 @@ type ListRunsRequest struct {
 	AgentProfileId *string `protobuf:"bytes,3,opt,name=agent_profile_id,json=agentProfileId,proto3,oneof" json:"agent_profile_id,omitempty"`
 	// Filter by tag prefix.
 	TagPrefix *string `protobuf:"bytes,4,opt,name=tag_prefix,json=tagPrefix,proto3,oneof" json:"tag_prefix,omitempty"`
-	// Pagination limit (default: 50, max: 100).
+	// Pagination limit (default: 50, max: 5000).
 	Limit *int32 `protobuf:"varint,5,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
 	// Pagination offset.
 	Offset        *int32 `protobuf:"varint,6,opt,name=offset,proto3,oneof" json:"offset,omitempty"`
@@ -9797,9 +9797,10 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\n" +
 	"profile_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\tprofileId\"{\n" +
 	"\x12GetProfileResponse\x128\n" +
-	"\aprofile\x18\x01 \x01(\v2\x1e.agent_manager.v1.AgentProfileR\aprofileJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x10available_modelsR\rpolicy_models\"\x89\x01\n" +
-	"\x13ListProfilesRequest\x12$\n" +
-	"\x05limit\x18\x02 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x01H\x00R\x05limit\x88\x01\x01\x12$\n" +
+	"\aprofile\x18\x01 \x01(\v2\x1e.agent_manager.v1.AgentProfileR\aprofileJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x10available_modelsR\rpolicy_models\"\x8a\x01\n" +
+	"\x13ListProfilesRequest\x12%\n" +
+	"\x05limit\x18\x02 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\x88'(\x01H\x00R\x05limit\x88\x01\x01\x12$\n" +
 	"\x06offset\x18\x03 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00H\x01R\x06offset\x88\x01\x01B\b\n" +
 	"\x06_limitB\t\n" +
 	"\a_offsetJ\x04\b\x01\x10\x02R\vrunner_type\"\x83\x01\n" +
@@ -9991,14 +9992,15 @@ const file_agent_manager_v1_api_service_proto_rawDesc = "" +
 	"\x12GetRunByTagRequest\x12\x19\n" +
 	"\x03tag\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03tag\">\n" +
 	"\x13GetRunByTagResponse\x12'\n" +
-	"\x03run\x18\x01 \x01(\v2\x15.agent_manager.v1.RunR\x03run\"\xd8\x02\n" +
+	"\x03run\x18\x01 \x01(\v2\x15.agent_manager.v1.RunR\x03run\"\xd9\x02\n" +
 	"\x0fListRunsRequest\x128\n" +
 	"\x06status\x18\x01 \x01(\x0e2\x1b.agent_manager.v1.RunStatusH\x00R\x06status\x88\x01\x01\x12\x1c\n" +
 	"\atask_id\x18\x02 \x01(\tH\x01R\x06taskId\x88\x01\x01\x12-\n" +
 	"\x10agent_profile_id\x18\x03 \x01(\tH\x02R\x0eagentProfileId\x88\x01\x01\x12\"\n" +
 	"\n" +
-	"tag_prefix\x18\x04 \x01(\tH\x03R\ttagPrefix\x88\x01\x01\x12$\n" +
-	"\x05limit\x18\x05 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x01H\x04R\x05limit\x88\x01\x01\x12$\n" +
+	"tag_prefix\x18\x04 \x01(\tH\x03R\ttagPrefix\x88\x01\x01\x12%\n" +
+	"\x05limit\x18\x05 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\x88'(\x01H\x04R\x05limit\x88\x01\x01\x12$\n" +
 	"\x06offset\x18\x06 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00H\x05R\x06offset\x88\x01\x01B\t\n" +
 	"\a_statusB\n" +
 	"\n" +

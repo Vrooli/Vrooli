@@ -193,6 +193,15 @@ message Run {
   // before RunResult adoption leave this absent; clients must not synthesize
   // provenance from summary or transcript tail position.
   optional RunResult result = 40;
+
+  // Historical transcript provenance. These fields are present on every
+  // imported-run read so operators can distinguish source evidence from a
+  // native Agent Manager execution.
+  string import_source_harness = 41;
+  string import_source_session_id = 42;
+  optional google.protobuf.Timestamp imported_at = 43;
+  string goal_id = 44;
+  string goal_status = 45;
 }
 
 // FinalOutputSelectionStatus describes whether provider evidence identifies a

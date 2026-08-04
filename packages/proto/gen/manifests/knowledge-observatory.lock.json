@@ -1,9 +1,10 @@
 {
   "schema_version": 1,
   "scenario": "knowledge-observatory",
-  "input_digest": "sha256:1d3fc2f3af1db516be997d349b4c8bb238eeee669fc46a8e6618cda434e0170c",
+  "input_digest": "sha256:07476996dcae153f42c8af8b849c76c31ceecfcace0b030aaa13deefe98e822b",
   "input_files": [
     "schemas/common/v1/maturity.proto",
+    "schemas/common/v1/validation_target.proto",
     "schemas/knowledge-observatory/v1/api.proto",
     "vendor/protovalidate/buf/validate/validate.proto"
   ],

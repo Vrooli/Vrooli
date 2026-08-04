@@ -512,6 +512,9 @@ const (
 	// and agent-manager wakes it (resumes the conversation with the awaited
 	// result injected) once the work resolves. Non-terminal, non-active.
 	RunStatus_RUN_STATUS_PARKED RunStatus = 8
+	// Historical evidence was imported without a trustworthy terminal signal.
+	// This is distinct from FAILED because no provider failure was observed.
+	RunStatus_RUN_STATUS_UNKNOWN RunStatus = 9
 )
 
 // Enum value maps for RunStatus.
@@ -526,6 +529,7 @@ var (
 		6: "RUN_STATUS_FAILED",
 		7: "RUN_STATUS_CANCELLED",
 		8: "RUN_STATUS_PARKED",
+		9: "RUN_STATUS_UNKNOWN",
 	}
 	RunStatus_value = map[string]int32{
 		"RUN_STATUS_UNSPECIFIED":  0,
@@ -537,6 +541,7 @@ var (
 		"RUN_STATUS_FAILED":       6,
 		"RUN_STATUS_CANCELLED":    7,
 		"RUN_STATUS_PARKED":       8,
+		"RUN_STATUS_UNKNOWN":      9,
 	}
 )
 
@@ -804,6 +809,8 @@ const (
 	// (persistent/tmux) session and reads events by tailing the agent-owned
 	// on-disk transcript. Allowed only for non-protected (in-place) runs.
 	ExecutionMode_EXECUTION_MODE_INTERACTIVE ExecutionMode = 2
+	// Read-only historical evidence adopted from an external harness.
+	ExecutionMode_EXECUTION_MODE_IMPORTED ExecutionMode = 3
 )
 
 // Enum value maps for ExecutionMode.
@@ -812,11 +819,13 @@ var (
 		0: "EXECUTION_MODE_UNSPECIFIED",
 		1: "EXECUTION_MODE_CODEC_PIPE",
 		2: "EXECUTION_MODE_INTERACTIVE",
+		3: "EXECUTION_MODE_IMPORTED",
 	}
 	ExecutionMode_value = map[string]int32{
 		"EXECUTION_MODE_UNSPECIFIED": 0,
 		"EXECUTION_MODE_CODEC_PIPE":  1,
 		"EXECUTION_MODE_INTERACTIVE": 2,
+		"EXECUTION_MODE_IMPORTED":    3,
 	}
 )
 
@@ -1795,7 +1804,7 @@ const file_agent_manager_v1_domain_types_proto_rawDesc = "" +
 	"\x14TASK_STATUS_APPROVED\x10\x04\x12\x18\n" +
 	"\x14TASK_STATUS_REJECTED\x10\x05\x12\x16\n" +
 	"\x12TASK_STATUS_FAILED\x10\x06\x12\x19\n" +
-	"\x15TASK_STATUS_CANCELLED\x10\a*\xee\x01\n" +
+	"\x15TASK_STATUS_CANCELLED\x10\a*\x86\x02\n" +
 	"\tRunStatus\x12\x1a\n" +
 	"\x16RUN_STATUS_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12RUN_STATUS_PENDING\x10\x01\x12\x17\n" +
@@ -1805,7 +1814,8 @@ const file_agent_manager_v1_domain_types_proto_rawDesc = "" +
 	"\x13RUN_STATUS_COMPLETE\x10\x05\x12\x15\n" +
 	"\x11RUN_STATUS_FAILED\x10\x06\x12\x18\n" +
 	"\x14RUN_STATUS_CANCELLED\x10\a\x12\x15\n" +
-	"\x11RUN_STATUS_PARKED\x10\b*\x9c\x02\n" +
+	"\x11RUN_STATUS_PARKED\x10\b\x12\x16\n" +
+	"\x12RUN_STATUS_UNKNOWN\x10\t*\x9c\x02\n" +
 	"\x15RunFinalizationStatus\x12'\n" +
 	"#RUN_FINALIZATION_STATUS_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cRUN_FINALIZATION_STATUS_NONE\x10\x01\x12#\n" +
@@ -1830,11 +1840,12 @@ const file_agent_manager_v1_domain_types_proto_rawDesc = "" +
 	"\aRunMode\x12\x18\n" +
 	"\x14RUN_MODE_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12RUN_MODE_SANDBOXED\x10\x01\x12\x15\n" +
-	"\x11RUN_MODE_IN_PLACE\x10\x02*n\n" +
+	"\x11RUN_MODE_IN_PLACE\x10\x02*\x8b\x01\n" +
 	"\rExecutionMode\x12\x1e\n" +
 	"\x1aEXECUTION_MODE_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19EXECUTION_MODE_CODEC_PIPE\x10\x01\x12\x1e\n" +
-	"\x1aEXECUTION_MODE_INTERACTIVE\x10\x02*\xc5\x01\n" +
+	"\x1aEXECUTION_MODE_INTERACTIVE\x10\x02\x12\x1b\n" +
+	"\x17EXECUTION_MODE_IMPORTED\x10\x03*\xc5\x01\n" +
 	"\rApprovalState\x12\x1e\n" +
 	"\x1aAPPROVAL_STATE_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13APPROVAL_STATE_NONE\x10\x01\x12\x1a\n" +

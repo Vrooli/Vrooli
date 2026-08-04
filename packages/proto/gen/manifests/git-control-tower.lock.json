@@ -1,10 +1,11 @@
 {
   "schema_version": 1,
   "scenario": "git-control-tower",
-  "input_digest": "sha256:6b2a8ccba51cbf15758e808aa1aa45d0030cd48130978343e6b84a475d34287f",
+  "input_digest": "sha256:f6f00a1b4cc033065f2f58a4e0dc5ffbfd28985f16e4bf34658f3434f6071893",
   "input_files": [
     "schemas/common/v1/maturity.proto",
     "schemas/common/v1/operations.proto",
+    "schemas/common/v1/validation_target.proto",
     "schemas/git-control-tower/v1/baselines/baselines.proto",
     "schemas/git-control-tower/v1/evidence/evidence.proto",
     "schemas/git-control-tower/v1/repo/repo.proto",

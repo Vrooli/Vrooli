@@ -4,6 +4,7 @@ package vrooli.test_genie.v1.runs;
 
 import "common/v1/maturity.proto";
 import "common/v1/operations.proto";
+import "common/v1/validation_target.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs;runs_v1";
 
@@ -168,6 +169,7 @@ message RunEvent {
   // Monotonic per-run cursor. Followers resume with this value in
   // FollowRunRequest.after_sequence; it is intentionally not evidence.
   uint64 sequence = 20;
+  common.v1.ValidationTarget target = 21;
 }
 
 // RunLiveStatus is a point-in-time snapshot of a run.
@@ -213,6 +215,7 @@ message RunLiveStatus {
   // evidence/presentation details; clients deciding whether to wait must use
   // this standing rather than infer state from them.
   common.v1.OperationStanding standing = 21;
+  common.v1.ValidationTarget target = 22;
 }
 
 message StartRunRequest {
@@ -241,6 +244,7 @@ message StartRunRequest {
   // callers leave this false and receive shared-scoped provenance when their
   // declared inputs remain stable.
   bool require_gate_quality = 15;
+  common.v1.ValidationTarget target = 16;
 }
 
 message StartRunResponse {
@@ -255,6 +259,7 @@ message StartRunResponse {
   // starting a second suite. run_id is then the in-flight run's id. The
   // one-run-per-scenario invariant means identical re-requests are idempotent.
   bool coalesced = 5;
+  common.v1.ValidationTarget target = 6;
 }
 
 // RunBusyInfo describes the in-progress run that caused a divergent StartRun to
@@ -498,6 +503,7 @@ message RunInfo {
   // False means relevant inputs changed while this attempt was executing; the
   // result is retained for diagnosis but is ineligible for cache reuse.
   bool source_stable = 25;
+  common.v1.ValidationTarget target = 26;
 }
 
 message ListRunsRequest {

@@ -262,6 +262,11 @@ message RunConfig {
 
   // Paths explicitly denied.
   repeated string denied_paths = 11;
+
+  // Immutable transcript attribution captured during import/replay.
+  string manifest_index_snapshot = 25;
+  string transcript_codec = 26;
+  double transcript_codec_score = 27;
 }
 
 // ExecutionCandidate is one immutable runner/model attempt in resolved order.

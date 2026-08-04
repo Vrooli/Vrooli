@@ -78,6 +78,7 @@ class RunStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RUN_STATUS_FAILED: _ClassVar[RunStatus]
     RUN_STATUS_CANCELLED: _ClassVar[RunStatus]
     RUN_STATUS_PARKED: _ClassVar[RunStatus]
+    RUN_STATUS_UNKNOWN: _ClassVar[RunStatus]
 
 class RunFinalizationStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -114,6 +115,7 @@ class ExecutionMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     EXECUTION_MODE_UNSPECIFIED: _ClassVar[ExecutionMode]
     EXECUTION_MODE_CODEC_PIPE: _ClassVar[ExecutionMode]
     EXECUTION_MODE_INTERACTIVE: _ClassVar[ExecutionMode]
+    EXECUTION_MODE_IMPORTED: _ClassVar[ExecutionMode]
 
 class ApprovalState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -219,6 +221,7 @@ RUN_STATUS_COMPLETE: RunStatus
 RUN_STATUS_FAILED: RunStatus
 RUN_STATUS_CANCELLED: RunStatus
 RUN_STATUS_PARKED: RunStatus
+RUN_STATUS_UNKNOWN: RunStatus
 RUN_FINALIZATION_STATUS_UNSPECIFIED: RunFinalizationStatus
 RUN_FINALIZATION_STATUS_NONE: RunFinalizationStatus
 RUN_FINALIZATION_STATUS_PENDING: RunFinalizationStatus
@@ -243,6 +246,7 @@ RUN_MODE_IN_PLACE: RunMode
 EXECUTION_MODE_UNSPECIFIED: ExecutionMode
 EXECUTION_MODE_CODEC_PIPE: ExecutionMode
 EXECUTION_MODE_INTERACTIVE: ExecutionMode
+EXECUTION_MODE_IMPORTED: ExecutionMode
 APPROVAL_STATE_UNSPECIFIED: ApprovalState
 APPROVAL_STATE_NONE: ApprovalState
 APPROVAL_STATE_PENDING: ApprovalState

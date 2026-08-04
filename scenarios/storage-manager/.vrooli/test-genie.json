@@ -11,6 +11,10 @@
   "validation": {
     "contract": "scenario-validation/v1"
   },
+  "targets": {
+    "kinds": ["scenario", "resource", "tool", "safeguard"],
+    "selection": "enumerate"
+  },
   "applicability": {
     "default": "applies"
   },
@@ -207,6 +211,7 @@
         "id": "declaration_accountability",
         "label": "Declaration Accountability",
         "description": "Whether declared storage matches observed writers, paths, sidecars, budgets, and enforcement.",
+        "appliesTo": ["scenario", "resource", "tool", "safeguard"],
         "levels": [
           { "id": "L0", "name": "Declaration unknown", "status_label": "Unavailable", "description": "Storage declarations cannot be evaluated.", "capability_summary": "Declaration accountability is unknown.", "next_unlock": "A readable owner manifest and storage surface." },
           { "id": "L1", "name": "Declared", "status_label": "Foundation", "description": "The owner has a readable declaration, but reconciliation is incomplete.", "capability_summary": "Storage intent is declared.", "next_unlock": "Reconcile declared paths with writers and observed bytes." },
@@ -630,7 +635,7 @@
         "fix_class": "manual",
         "reason": "Replacing repeated platform branches with one token requires confirming the logical location."
       },
-      "STORAGE_ACCOUNTABILITY_NOT_DECLARED": {
+      "STORAGE_ACCOUNTABILITY_UNDECLARED": {
         "capability_id": "declaration_accountability",
         "local_level_impact": "L1",
         "global_impact": "advisory",
@@ -641,7 +646,7 @@
         "fix_class": "manual",
         "reason": "Without a storage.entries declaration the durable surface cannot be evaluated, so no higher rung can be claimed. Blocks L1; the owner sits at L0."
       },
-      "STORAGE_ACCOUNTABILITY_NOT_RECONCILED": {
+      "STORAGE_ACCOUNTABILITY_UNRECONCILED": {
         "capability_id": "declaration_accountability",
         "local_level_impact": "L2",
         "global_impact": "advisory",
@@ -652,7 +657,7 @@
         "fix_class": "manual",
         "reason": "A declaration that disagrees with observed writers, paths, sidecars, or ceilings is declared but not reconciled. Blocks L2; the owner sits at L1."
       },
-      "STORAGE_ACCOUNTABILITY_NOT_GOVERNED": {
+      "STORAGE_ACCOUNTABILITY_UNGOVERNED": {
         "capability_id": "declaration_accountability",
         "local_level_impact": "L3",
         "global_impact": "advisory",

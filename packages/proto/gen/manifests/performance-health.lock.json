@@ -1,10 +1,11 @@
 {
   "schema_version": 1,
   "scenario": "performance-health",
-  "input_digest": "sha256:c30c47c2762d56fe151551c2a754497034b87e2a0264db92efbcc179a50256b2",
+  "input_digest": "sha256:819076d281db31b07cd996b2ce2a12e2593452ccf1415b1ccc262111bd49de56",
   "input_files": [
     "schemas/common/v1/maturity.proto",
     "schemas/common/v1/metrics.proto",
+    "schemas/common/v1/validation_target.proto",
     "schemas/performance-health/v1/analysis/analysis.proto",
     "schemas/performance-health/v1/audit/audit.proto",
     "schemas/performance-health/v1/benchmark/benchmark.proto",

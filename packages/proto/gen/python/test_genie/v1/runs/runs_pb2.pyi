@@ -1,5 +1,6 @@
 from common.v1 import maturity_pb2 as _maturity_pb2
 from common.v1 import operations_pb2 as _operations_pb2
+from common.v1 import validation_target_pb2 as _validation_target_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -47,7 +48,7 @@ ARTIFACT_PROVENANCE_CATALOG: ArtifactProvenance
 ARTIFACT_PROVENANCE_LEGACY_DISCOVERY: ArtifactProvenance
 
 class RunEvent(_message.Message):
-    __slots__ = ("event", "elapsed_seconds", "run_id", "scenario", "artifact_dir", "preset", "phase", "phase_index", "phase_total", "status", "duration_seconds", "quiet_seconds", "message", "success", "verdict", "error", "maturity_standing", "findings_summary", "phase_presentation", "sequence")
+    __slots__ = ("event", "elapsed_seconds", "run_id", "scenario", "artifact_dir", "preset", "phase", "phase_index", "phase_total", "status", "duration_seconds", "quiet_seconds", "message", "success", "verdict", "error", "maturity_standing", "findings_summary", "phase_presentation", "sequence", "target")
     EVENT_FIELD_NUMBER: _ClassVar[int]
     ELAPSED_SECONDS_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
@@ -68,6 +69,7 @@ class RunEvent(_message.Message):
     FINDINGS_SUMMARY_FIELD_NUMBER: _ClassVar[int]
     PHASE_PRESENTATION_FIELD_NUMBER: _ClassVar[int]
     SEQUENCE_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FIELD_NUMBER: _ClassVar[int]
     event: str
     elapsed_seconds: float
     run_id: str
@@ -88,10 +90,11 @@ class RunEvent(_message.Message):
     findings_summary: PhaseFindingsSummary
     phase_presentation: _maturity_pb2.PhasePresentation
     sequence: int
-    def __init__(self, event: _Optional[str] = ..., elapsed_seconds: _Optional[float] = ..., run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., artifact_dir: _Optional[str] = ..., preset: _Optional[str] = ..., phase: _Optional[str] = ..., phase_index: _Optional[int] = ..., phase_total: _Optional[int] = ..., status: _Optional[str] = ..., duration_seconds: _Optional[int] = ..., quiet_seconds: _Optional[float] = ..., message: _Optional[str] = ..., success: _Optional[bool] = ..., verdict: _Optional[str] = ..., error: _Optional[str] = ..., maturity_standing: _Optional[_Union[PhaseMaturityStanding, _Mapping]] = ..., findings_summary: _Optional[_Union[PhaseFindingsSummary, _Mapping]] = ..., phase_presentation: _Optional[_Union[_maturity_pb2.PhasePresentation, _Mapping]] = ..., sequence: _Optional[int] = ...) -> None: ...
+    target: _validation_target_pb2.ValidationTarget
+    def __init__(self, event: _Optional[str] = ..., elapsed_seconds: _Optional[float] = ..., run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., artifact_dir: _Optional[str] = ..., preset: _Optional[str] = ..., phase: _Optional[str] = ..., phase_index: _Optional[int] = ..., phase_total: _Optional[int] = ..., status: _Optional[str] = ..., duration_seconds: _Optional[int] = ..., quiet_seconds: _Optional[float] = ..., message: _Optional[str] = ..., success: _Optional[bool] = ..., verdict: _Optional[str] = ..., error: _Optional[str] = ..., maturity_standing: _Optional[_Union[PhaseMaturityStanding, _Mapping]] = ..., findings_summary: _Optional[_Union[PhaseFindingsSummary, _Mapping]] = ..., phase_presentation: _Optional[_Union[_maturity_pb2.PhasePresentation, _Mapping]] = ..., sequence: _Optional[int] = ..., target: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ...) -> None: ...
 
 class RunLiveStatus(_message.Message):
-    __slots__ = ("run_id", "scenario", "status", "active_phase", "phase_index", "phase_total", "started_at", "elapsed_seconds", "estimated_total_seconds", "estimated_remaining_seconds", "eta_known", "recommended_next_check_seconds", "verdict", "success", "error", "active", "terminal_standings", "terminal_findings_summaries", "degraded_reasons", "terminal_presentations", "standing")
+    __slots__ = ("run_id", "scenario", "status", "active_phase", "phase_index", "phase_total", "started_at", "elapsed_seconds", "estimated_total_seconds", "estimated_remaining_seconds", "eta_known", "recommended_next_check_seconds", "verdict", "success", "error", "active", "terminal_standings", "terminal_findings_summaries", "degraded_reasons", "terminal_presentations", "standing", "target")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -113,6 +116,7 @@ class RunLiveStatus(_message.Message):
     DEGRADED_REASONS_FIELD_NUMBER: _ClassVar[int]
     TERMINAL_PRESENTATIONS_FIELD_NUMBER: _ClassVar[int]
     STANDING_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     scenario: str
     status: str
@@ -134,10 +138,11 @@ class RunLiveStatus(_message.Message):
     degraded_reasons: _containers.RepeatedScalarFieldContainer[str]
     terminal_presentations: _containers.RepeatedCompositeFieldContainer[_maturity_pb2.PhasePresentation]
     standing: _operations_pb2.OperationStanding
-    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., status: _Optional[str] = ..., active_phase: _Optional[str] = ..., phase_index: _Optional[int] = ..., phase_total: _Optional[int] = ..., started_at: _Optional[str] = ..., elapsed_seconds: _Optional[float] = ..., estimated_total_seconds: _Optional[int] = ..., estimated_remaining_seconds: _Optional[int] = ..., eta_known: _Optional[bool] = ..., recommended_next_check_seconds: _Optional[int] = ..., verdict: _Optional[str] = ..., success: _Optional[bool] = ..., error: _Optional[str] = ..., active: _Optional[bool] = ..., terminal_standings: _Optional[_Iterable[_Union[PhaseMaturityStanding, _Mapping]]] = ..., terminal_findings_summaries: _Optional[_Iterable[_Union[PhaseFindingsSummary, _Mapping]]] = ..., degraded_reasons: _Optional[_Iterable[str]] = ..., terminal_presentations: _Optional[_Iterable[_Union[_maturity_pb2.PhasePresentation, _Mapping]]] = ..., standing: _Optional[_Union[_operations_pb2.OperationStanding, _Mapping]] = ...) -> None: ...
+    target: _validation_target_pb2.ValidationTarget
+    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., status: _Optional[str] = ..., active_phase: _Optional[str] = ..., phase_index: _Optional[int] = ..., phase_total: _Optional[int] = ..., started_at: _Optional[str] = ..., elapsed_seconds: _Optional[float] = ..., estimated_total_seconds: _Optional[int] = ..., estimated_remaining_seconds: _Optional[int] = ..., eta_known: _Optional[bool] = ..., recommended_next_check_seconds: _Optional[int] = ..., verdict: _Optional[str] = ..., success: _Optional[bool] = ..., error: _Optional[str] = ..., active: _Optional[bool] = ..., terminal_standings: _Optional[_Iterable[_Union[PhaseMaturityStanding, _Mapping]]] = ..., terminal_findings_summaries: _Optional[_Iterable[_Union[PhaseFindingsSummary, _Mapping]]] = ..., degraded_reasons: _Optional[_Iterable[str]] = ..., terminal_presentations: _Optional[_Iterable[_Union[_maturity_pb2.PhasePresentation, _Mapping]]] = ..., standing: _Optional[_Union[_operations_pb2.OperationStanding, _Mapping]] = ..., target: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ...) -> None: ...
 
 class StartRunRequest(_message.Message):
-    __slots__ = ("scenario", "preset", "phases", "skip", "fail_fast", "diagnostics_preset", "ui_url", "api_url", "scenario_path", "logical_repo_root", "logical_scenario_rel_path", "suite_request_id", "capture_profile", "require_gate_quality")
+    __slots__ = ("scenario", "preset", "phases", "skip", "fail_fast", "diagnostics_preset", "ui_url", "api_url", "scenario_path", "logical_repo_root", "logical_scenario_rel_path", "suite_request_id", "capture_profile", "require_gate_quality", "target")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     PRESET_FIELD_NUMBER: _ClassVar[int]
     PHASES_FIELD_NUMBER: _ClassVar[int]
@@ -152,6 +157,7 @@ class StartRunRequest(_message.Message):
     SUITE_REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     CAPTURE_PROFILE_FIELD_NUMBER: _ClassVar[int]
     REQUIRE_GATE_QUALITY_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     preset: str
     phases: _containers.RepeatedScalarFieldContainer[str]
@@ -166,21 +172,24 @@ class StartRunRequest(_message.Message):
     suite_request_id: str
     capture_profile: str
     require_gate_quality: bool
-    def __init__(self, scenario: _Optional[str] = ..., preset: _Optional[str] = ..., phases: _Optional[_Iterable[str]] = ..., skip: _Optional[_Iterable[str]] = ..., fail_fast: _Optional[bool] = ..., diagnostics_preset: _Optional[str] = ..., ui_url: _Optional[str] = ..., api_url: _Optional[str] = ..., scenario_path: _Optional[str] = ..., logical_repo_root: _Optional[str] = ..., logical_scenario_rel_path: _Optional[str] = ..., suite_request_id: _Optional[str] = ..., capture_profile: _Optional[str] = ..., require_gate_quality: _Optional[bool] = ...) -> None: ...
+    target: _validation_target_pb2.ValidationTarget
+    def __init__(self, scenario: _Optional[str] = ..., preset: _Optional[str] = ..., phases: _Optional[_Iterable[str]] = ..., skip: _Optional[_Iterable[str]] = ..., fail_fast: _Optional[bool] = ..., diagnostics_preset: _Optional[str] = ..., ui_url: _Optional[str] = ..., api_url: _Optional[str] = ..., scenario_path: _Optional[str] = ..., logical_repo_root: _Optional[str] = ..., logical_scenario_rel_path: _Optional[str] = ..., suite_request_id: _Optional[str] = ..., capture_profile: _Optional[str] = ..., require_gate_quality: _Optional[bool] = ..., target: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ...) -> None: ...
 
 class StartRunResponse(_message.Message):
-    __slots__ = ("run_id", "scenario", "estimated_total_seconds", "eta_known", "coalesced")
+    __slots__ = ("run_id", "scenario", "estimated_total_seconds", "eta_known", "coalesced", "target")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     ESTIMATED_TOTAL_SECONDS_FIELD_NUMBER: _ClassVar[int]
     ETA_KNOWN_FIELD_NUMBER: _ClassVar[int]
     COALESCED_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     scenario: str
     estimated_total_seconds: int
     eta_known: bool
     coalesced: bool
-    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., estimated_total_seconds: _Optional[int] = ..., eta_known: _Optional[bool] = ..., coalesced: _Optional[bool] = ...) -> None: ...
+    target: _validation_target_pb2.ValidationTarget
+    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., estimated_total_seconds: _Optional[int] = ..., eta_known: _Optional[bool] = ..., coalesced: _Optional[bool] = ..., target: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ...) -> None: ...
 
 class RunBusyInfo(_message.Message):
     __slots__ = ("scenario", "run_id", "preset")
@@ -459,7 +468,7 @@ class RunDescriptorSnapshot(_message.Message):
     def __init__(self, schema_version: _Optional[int] = ..., digest: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[RunPhaseDescriptor, _Mapping]]] = ...) -> None: ...
 
 class RunInfo(_message.Message):
-    __slots__ = ("run_id", "scenario", "started_at", "completed_at", "status", "phases", "git_sha", "git_branch", "git_dirty", "git_dirty_summary", "diagnostics", "pins", "tree_digest", "preset", "capture_profile", "planned_phases", "phase_set_digest", "descriptor_snapshot_schema_version", "descriptor_snapshot_digest", "descriptor_snapshot", "execution_configuration_fingerprint", "gate_quality", "evidence_tier", "source_scope", "source_stable")
+    __slots__ = ("run_id", "scenario", "started_at", "completed_at", "status", "phases", "git_sha", "git_branch", "git_dirty", "git_dirty_summary", "diagnostics", "pins", "tree_digest", "preset", "capture_profile", "planned_phases", "phase_set_digest", "descriptor_snapshot_schema_version", "descriptor_snapshot_digest", "descriptor_snapshot", "execution_configuration_fingerprint", "gate_quality", "evidence_tier", "source_scope", "source_stable", "target")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     STARTED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -485,6 +494,7 @@ class RunInfo(_message.Message):
     EVIDENCE_TIER_FIELD_NUMBER: _ClassVar[int]
     SOURCE_SCOPE_FIELD_NUMBER: _ClassVar[int]
     SOURCE_STABLE_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     scenario: str
     started_at: str
@@ -510,7 +520,8 @@ class RunInfo(_message.Message):
     evidence_tier: str
     source_scope: str
     source_stable: bool
-    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., started_at: _Optional[str] = ..., completed_at: _Optional[str] = ..., status: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[PhaseInfo, _Mapping]]] = ..., git_sha: _Optional[str] = ..., git_branch: _Optional[str] = ..., git_dirty: _Optional[bool] = ..., git_dirty_summary: _Optional[str] = ..., diagnostics: _Optional[_Union[DiagnosticsInfo, _Mapping]] = ..., pins: _Optional[_Iterable[_Union[PinInfo, _Mapping]]] = ..., tree_digest: _Optional[str] = ..., preset: _Optional[str] = ..., capture_profile: _Optional[str] = ..., planned_phases: _Optional[_Iterable[str]] = ..., phase_set_digest: _Optional[str] = ..., descriptor_snapshot_schema_version: _Optional[int] = ..., descriptor_snapshot_digest: _Optional[str] = ..., descriptor_snapshot: _Optional[_Union[RunDescriptorSnapshot, _Mapping]] = ..., execution_configuration_fingerprint: _Optional[str] = ..., gate_quality: _Optional[bool] = ..., evidence_tier: _Optional[str] = ..., source_scope: _Optional[str] = ..., source_stable: _Optional[bool] = ...) -> None: ...
+    target: _validation_target_pb2.ValidationTarget
+    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., started_at: _Optional[str] = ..., completed_at: _Optional[str] = ..., status: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[PhaseInfo, _Mapping]]] = ..., git_sha: _Optional[str] = ..., git_branch: _Optional[str] = ..., git_dirty: _Optional[bool] = ..., git_dirty_summary: _Optional[str] = ..., diagnostics: _Optional[_Union[DiagnosticsInfo, _Mapping]] = ..., pins: _Optional[_Iterable[_Union[PinInfo, _Mapping]]] = ..., tree_digest: _Optional[str] = ..., preset: _Optional[str] = ..., capture_profile: _Optional[str] = ..., planned_phases: _Optional[_Iterable[str]] = ..., phase_set_digest: _Optional[str] = ..., descriptor_snapshot_schema_version: _Optional[int] = ..., descriptor_snapshot_digest: _Optional[str] = ..., descriptor_snapshot: _Optional[_Union[RunDescriptorSnapshot, _Mapping]] = ..., execution_configuration_fingerprint: _Optional[str] = ..., gate_quality: _Optional[bool] = ..., evidence_tier: _Optional[str] = ..., source_scope: _Optional[str] = ..., source_stable: _Optional[bool] = ..., target: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ...) -> None: ...
 
 class ListRunsRequest(_message.Message):
     __slots__ = ("scenario", "status", "limit")

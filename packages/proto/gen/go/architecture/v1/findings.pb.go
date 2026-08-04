@@ -7,6 +7,7 @@
 package architecturev1
 
 import (
+	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -542,8 +543,8 @@ type ArchitectureFinding struct {
 	Message string `protobuf:"bytes,7,opt,name=message,proto3" json:"message,omitempty"`
 	// Optional remediation hint.
 	Suggestion string `protobuf:"bytes,8,opt,name=suggestion,proto3" json:"suggestion,omitempty"`
-	// Deterministic content-hash key: "afid:" + 8 hex bytes of
-	// sha256(scenario \x1f source \x1f code \x1f sorted(locations)).
+	// Deterministic content-hash key: "afid:" + 8 hex bytes of the hash
+	// inputs above, followed by the non-empty subject tuple when present.
 	StableId string `protobuf:"bytes,9,opt,name=stable_id,json=stableId,proto3" json:"stable_id,omitempty"`
 	// Producer-supplied evidence.
 	Evidence []*Evidence `protobuf:"bytes,10,rep,name=evidence,proto3" json:"evidence,omitempty"`
@@ -553,7 +554,10 @@ type ArchitectureFinding struct {
 	// EXCLUDED from the stable-ID hash.
 	Effort EffortHint `protobuf:"varint,12,opt,name=effort,proto3,enum=vrooli.architecture.v1.EffortHint" json:"effort,omitempty"`
 	// Deterministic vs heuristic class. EXCLUDED from the stable-ID hash.
-	FindingClass  FindingClass `protobuf:"varint,13,opt,name=finding_class,json=findingClass,proto3,enum=vrooli.architecture.v1.FindingClass" json:"finding_class,omitempty"`
+	FindingClass FindingClass `protobuf:"varint,13,opt,name=finding_class,json=findingClass,proto3,enum=vrooli.architecture.v1.FindingClass" json:"finding_class,omitempty"`
+	// Target-specific attribution when a provider reports on an object other
+	// than the run's own target. Empty means the run's own target.
+	Subject       *v1.ValidationTarget `protobuf:"bytes,14,opt,name=subject,proto3" json:"subject,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -679,11 +683,18 @@ func (x *ArchitectureFinding) GetFindingClass() FindingClass {
 	return FindingClass_FINDING_CLASS_UNSPECIFIED
 }
 
+func (x *ArchitectureFinding) GetSubject() *v1.ValidationTarget {
+	if x != nil {
+		return x.Subject
+	}
+	return nil
+}
+
 var File_architecture_v1_findings_proto protoreflect.FileDescriptor
 
 const file_architecture_v1_findings_proto_rawDesc = "" +
 	"\n" +
-	"\x1earchitecture/v1/findings.proto\x12\x16vrooli.architecture.v1\"l\n" +
+	"\x1earchitecture/v1/findings.proto\x12\x16vrooli.architecture.v1\x1a!common/v1/validation_target.proto\"l\n" +
 	"\bEvidence\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x18\n" +
 	"\asummary\x18\x02 \x01(\tR\asummary\x12\x18\n" +
@@ -697,7 +708,7 @@ const file_architecture_v1_findings_proto_rawDesc = "" +
 	"\apayload\x18\x05 \x01(\fR\apayload\x12\x1e\n" +
 	"\n" +
 	"confidence\x18\x06 \x01(\x01R\n" +
-	"confidence\"\xec\x04\n" +
+	"confidence\"\xa3\x05\n" +
 	"\x13ArchitectureFinding\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12=\n" +
 	"\x06source\x18\x02 \x01(\x0e2%.vrooli.architecture.v1.FindingSourceR\x06source\x12\x12\n" +
@@ -714,7 +725,8 @@ const file_architecture_v1_findings_proto_rawDesc = "" +
 	" \x03(\v2 .vrooli.architecture.v1.EvidenceR\bevidence\x12M\n" +
 	"\x0fsuggested_fixes\x18\v \x03(\v2$.vrooli.architecture.v1.SuggestedFixR\x0esuggestedFixes\x12:\n" +
 	"\x06effort\x18\f \x01(\x0e2\".vrooli.architecture.v1.EffortHintR\x06effort\x12I\n" +
-	"\rfinding_class\x18\r \x01(\x0e2$.vrooli.architecture.v1.FindingClassR\ffindingClass*\xf4\x03\n" +
+	"\rfinding_class\x18\r \x01(\x0e2$.vrooli.architecture.v1.FindingClassR\ffindingClass\x125\n" +
+	"\asubject\x18\x0e \x01(\v2\x1b.common.v1.ValidationTargetR\asubject*\xf4\x03\n" +
 	"\rFindingSource\x12\x1e\n" +
 	"\x1aFINDING_SOURCE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18FINDING_SOURCE_STRUCTURE\x10\x01\x12\x16\n" +
@@ -774,6 +786,7 @@ var file_architecture_v1_findings_proto_goTypes = []any{
 	(*Evidence)(nil),            // 4: vrooli.architecture.v1.Evidence
 	(*SuggestedFix)(nil),        // 5: vrooli.architecture.v1.SuggestedFix
 	(*ArchitectureFinding)(nil), // 6: vrooli.architecture.v1.ArchitectureFinding
+	(*v1.ValidationTarget)(nil), // 7: common.v1.ValidationTarget
 }
 var file_architecture_v1_findings_proto_depIdxs = []int32{
 	0, // 0: vrooli.architecture.v1.ArchitectureFinding.source:type_name -> vrooli.architecture.v1.FindingSource
@@ -782,11 +795,12 @@ var file_architecture_v1_findings_proto_depIdxs = []int32{
 	5, // 3: vrooli.architecture.v1.ArchitectureFinding.suggested_fixes:type_name -> vrooli.architecture.v1.SuggestedFix
 	3, // 4: vrooli.architecture.v1.ArchitectureFinding.effort:type_name -> vrooli.architecture.v1.EffortHint
 	2, // 5: vrooli.architecture.v1.ArchitectureFinding.finding_class:type_name -> vrooli.architecture.v1.FindingClass
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	7, // 6: vrooli.architecture.v1.ArchitectureFinding.subject:type_name -> common.v1.ValidationTarget
+	7, // [7:7] is the sub-list for method output_type
+	7, // [7:7] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_architecture_v1_findings_proto_init() }

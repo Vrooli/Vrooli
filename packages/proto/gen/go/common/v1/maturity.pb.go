@@ -402,7 +402,10 @@ type AssessmentFinding struct {
 	// True when a provider auto-fix can deterministically remediate this finding.
 	AutofixAvailable bool `protobuf:"varint,8,opt,name=autofix_available,json=autofixAvailable,proto3" json:"autofix_available,omitempty"`
 	// Provider fix classification, e.g. "autofix" or "detection_only".
-	FixClass      string `protobuf:"bytes,9,opt,name=fix_class,json=fixClass,proto3" json:"fix_class,omitempty"`
+	FixClass string `protobuf:"bytes,9,opt,name=fix_class,json=fixClass,proto3" json:"fix_class,omitempty"`
+	// Target-specific attribution for findings emitted while a provider run
+	// examines more than its own target. Empty means the run's own target.
+	Subject       *ValidationTarget `protobuf:"bytes,10,opt,name=subject,proto3" json:"subject,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -498,6 +501,13 @@ func (x *AssessmentFinding) GetFixClass() string {
 		return x.FixClass
 	}
 	return ""
+}
+
+func (x *AssessmentFinding) GetSubject() *ValidationTarget {
+	if x != nil {
+		return x.Subject
+	}
+	return nil
 }
 
 // LocalMaturityAssessment explains the provider-local current and next rung.
@@ -1418,7 +1428,7 @@ var File_common_v1_maturity_proto protoreflect.FileDescriptor
 
 const file_common_v1_maturity_proto_rawDesc = "" +
 	"\n" +
-	"\x18common/v1/maturity.proto\x12\tcommon.v1\"\x99\x02\n" +
+	"\x18common/v1/maturity.proto\x12\tcommon.v1\x1a!common/v1/validation_target.proto\"\x99\x02\n" +
 	"\x12LocalMaturityLevel\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -1436,7 +1446,7 @@ const file_common_v1_maturity_proto_rawDesc = "" +
 	"\tdimension\x18\x03 \x01(\tR\tdimension\x122\n" +
 	"\x15recommended_skill_ids\x18\x04 \x03(\tR\x13recommendedSkillIds\x12H\n" +
 	"\x11clean_requirement\x18\x05 \x01(\x0e2\x1b.common.v1.CleanRequirementR\x10cleanRequirement\x12#\n" +
-	"\rcapability_id\x18\x06 \x01(\tR\fcapabilityId\"\xb3\x02\n" +
+	"\rcapability_id\x18\x06 \x01(\tR\fcapabilityId\"\xea\x02\n" +
 	"\x11AssessmentFinding\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x1a\n" +
 	"\bseverity\x18\x02 \x01(\tR\bseverity\x12\x14\n" +
@@ -1446,7 +1456,9 @@ const file_common_v1_maturity_proto_rawDesc = "" +
 	"\vremediation\x18\x06 \x01(\tR\vremediation\x126\n" +
 	"\bmaturity\x18\a \x01(\v2\x1a.common.v1.FindingMaturityR\bmaturity\x12+\n" +
 	"\x11autofix_available\x18\b \x01(\bR\x10autofixAvailable\x12\x1b\n" +
-	"\tfix_class\x18\t \x01(\tR\bfixClass\"\x85\x02\n" +
+	"\tfix_class\x18\t \x01(\tR\bfixClass\x125\n" +
+	"\asubject\x18\n" +
+	" \x01(\v2\x1b.common.v1.ValidationTargetR\asubject\"\x85\x02\n" +
 	"\x17LocalMaturityAssessment\x12#\n" +
 	"\rcurrent_level\x18\x01 \x01(\tR\fcurrentLevel\x12\x1d\n" +
 	"\n" +
@@ -1621,32 +1633,34 @@ var file_common_v1_maturity_proto_goTypes = []any{
 	nil,                                  // 16: common.v1.MaturityAssessment.FindingsByGlobalImpactEntry
 	nil,                                  // 17: common.v1.MaturityAssessment.FindingsBySeverityEntry
 	nil,                                  // 18: common.v1.MaturityAssessment.FindingsByCleanRequirementEntry
+	(*ValidationTarget)(nil),             // 19: common.v1.ValidationTarget
 }
 var file_common_v1_maturity_proto_depIdxs = []int32{
 	0,  // 0: common.v1.FindingMaturity.global_impact:type_name -> common.v1.GlobalImpact
 	1,  // 1: common.v1.FindingMaturity.clean_requirement:type_name -> common.v1.CleanRequirement
 	4,  // 2: common.v1.AssessmentFinding.maturity:type_name -> common.v1.FindingMaturity
-	3,  // 3: common.v1.LocalMaturityAssessment.levels:type_name -> common.v1.LocalMaturityLevel
-	3,  // 4: common.v1.CapabilityMaturityAssessment.levels:type_name -> common.v1.LocalMaturityLevel
-	13, // 5: common.v1.CapabilityMaturityAssessment.findings_by_global_impact:type_name -> common.v1.CapabilityMaturityAssessment.FindingsByGlobalImpactEntry
-	14, // 6: common.v1.CapabilityMaturityAssessment.findings_by_severity:type_name -> common.v1.CapabilityMaturityAssessment.FindingsBySeverityEntry
-	15, // 7: common.v1.CapabilityMaturityAssessment.findings_by_clean_requirement:type_name -> common.v1.CapabilityMaturityAssessment.FindingsByCleanRequirementEntry
-	2,  // 8: common.v1.PhasePresentationFinding.fix_affordance:type_name -> common.v1.FixAffordance
-	9,  // 9: common.v1.PhaseCapabilityPresentation.findings:type_name -> common.v1.PhasePresentationFinding
-	10, // 10: common.v1.PhasePresentation.capabilities:type_name -> common.v1.PhaseCapabilityPresentation
-	6,  // 11: common.v1.MaturityAssessment.local:type_name -> common.v1.LocalMaturityAssessment
-	5,  // 12: common.v1.MaturityAssessment.findings:type_name -> common.v1.AssessmentFinding
-	16, // 13: common.v1.MaturityAssessment.findings_by_global_impact:type_name -> common.v1.MaturityAssessment.FindingsByGlobalImpactEntry
-	17, // 14: common.v1.MaturityAssessment.findings_by_severity:type_name -> common.v1.MaturityAssessment.FindingsBySeverityEntry
-	18, // 15: common.v1.MaturityAssessment.findings_by_clean_requirement:type_name -> common.v1.MaturityAssessment.FindingsByCleanRequirementEntry
-	7,  // 16: common.v1.MaturityAssessment.capabilities:type_name -> common.v1.CapabilityMaturityAssessment
-	8,  // 17: common.v1.MaturityAssessment.highest_priority_capability:type_name -> common.v1.PriorityFocus
-	11, // 18: common.v1.MaturityAssessment.presentation:type_name -> common.v1.PhasePresentation
-	19, // [19:19] is the sub-list for method output_type
-	19, // [19:19] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	19, // 3: common.v1.AssessmentFinding.subject:type_name -> common.v1.ValidationTarget
+	3,  // 4: common.v1.LocalMaturityAssessment.levels:type_name -> common.v1.LocalMaturityLevel
+	3,  // 5: common.v1.CapabilityMaturityAssessment.levels:type_name -> common.v1.LocalMaturityLevel
+	13, // 6: common.v1.CapabilityMaturityAssessment.findings_by_global_impact:type_name -> common.v1.CapabilityMaturityAssessment.FindingsByGlobalImpactEntry
+	14, // 7: common.v1.CapabilityMaturityAssessment.findings_by_severity:type_name -> common.v1.CapabilityMaturityAssessment.FindingsBySeverityEntry
+	15, // 8: common.v1.CapabilityMaturityAssessment.findings_by_clean_requirement:type_name -> common.v1.CapabilityMaturityAssessment.FindingsByCleanRequirementEntry
+	2,  // 9: common.v1.PhasePresentationFinding.fix_affordance:type_name -> common.v1.FixAffordance
+	9,  // 10: common.v1.PhaseCapabilityPresentation.findings:type_name -> common.v1.PhasePresentationFinding
+	10, // 11: common.v1.PhasePresentation.capabilities:type_name -> common.v1.PhaseCapabilityPresentation
+	6,  // 12: common.v1.MaturityAssessment.local:type_name -> common.v1.LocalMaturityAssessment
+	5,  // 13: common.v1.MaturityAssessment.findings:type_name -> common.v1.AssessmentFinding
+	16, // 14: common.v1.MaturityAssessment.findings_by_global_impact:type_name -> common.v1.MaturityAssessment.FindingsByGlobalImpactEntry
+	17, // 15: common.v1.MaturityAssessment.findings_by_severity:type_name -> common.v1.MaturityAssessment.FindingsBySeverityEntry
+	18, // 16: common.v1.MaturityAssessment.findings_by_clean_requirement:type_name -> common.v1.MaturityAssessment.FindingsByCleanRequirementEntry
+	7,  // 17: common.v1.MaturityAssessment.capabilities:type_name -> common.v1.CapabilityMaturityAssessment
+	8,  // 18: common.v1.MaturityAssessment.highest_priority_capability:type_name -> common.v1.PriorityFocus
+	11, // 19: common.v1.MaturityAssessment.presentation:type_name -> common.v1.PhasePresentation
+	20, // [20:20] is the sub-list for method output_type
+	20, // [20:20] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_common_v1_maturity_proto_init() }
@@ -1654,6 +1668,7 @@ func file_common_v1_maturity_proto_init() {
 	if File_common_v1_maturity_proto != nil {
 		return
 	}
+	file_common_v1_validation_target_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -1,9 +1,10 @@
 {
   "schema_version": 1,
   "scenario": "scenario-dependency-analyzer",
-  "input_digest": "sha256:57c8a2bd097f67f81f95b9505a1c3976e5bda4bcb8e1f17a06c812ec782ea1d0",
+  "input_digest": "sha256:62bfa6eae0a66a0fa968b4856c7c1dc124cd99582c35dbbb374135719b7547f3",
   "input_files": [
     "schemas/common/v1/maturity.proto",
+    "schemas/common/v1/validation_target.proto",
     "schemas/scenario-dependency-analyzer/v1/dependency_governance/dependency_governance.proto",
     "schemas/scenario-dependency-analyzer/v1/dependency_health/dependency_health.proto",
     "schemas/scenario-dependency-analyzer/v1/graph/graph.proto",
