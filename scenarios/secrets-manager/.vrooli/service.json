@@ -50,6 +50,42 @@
     "kind": "long_running",
     "auto_restart_default": true
   },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/legacy/mailinabox",
+        "field": "admin-password",
+        "env": "MAILINABOX_ADMIN_PASSWORD",
+        "label": "Mail-in-a-Box administrator password",
+        "description": "Migrated operator credential retained for the Mail-in-a-Box integration.",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/legacy/n8n",
+        "field": "api-key",
+        "env": "N8N_API_KEY",
+        "label": "n8n API key",
+        "description": "Migrated operator credential retained for n8n automation integrations.",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/legacy/n8n",
+        "field": "password",
+        "env": "N8N_PASSWORD",
+        "label": "n8n password",
+        "description": "Migrated operator credential retained for n8n automation integrations.",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/legacy/test",
+        "field": "api-key",
+        "env": "TEST_API_KEY",
+        "label": "Legacy test API key",
+        "description": "Migrated operator credential retained for test and validation tooling.",
+        "required": false
+      }
+    ]
+  },
   "ports": {
     "api": {
       "env_var": "API_PORT",

@@ -2,59 +2,78 @@ package preflight
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/internal/shellutil"
 	"scenario-to-cloud/ssh"
+
+	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 )
 
 // CredentialValidator validates credentials for a specific resource type.
 // Implement this interface to add support for new database/service types.
 type CredentialValidator interface {
-	// ResourceName returns the name of the resource (e.g., "postgres", "redis")
 	ResourceName() string
-
-	// CheckID returns the preflight check ID (e.g., "postgres_credentials")
 	CheckID() string
-
-	// Title returns human-readable title for the check
 	Title() string
-
-	// Validate checks credentials and returns a domain.PreflightCheck result
 	Validate(ctx context.Context, cfg ssh.Config, sshRunner ssh.Runner,
-		manifest domain.CloudManifest, secrets map[string]string) domain.PreflightCheck
+		manifest domain.CloudManifest, client credentialclient.Client) domain.PreflightCheck
 }
 
-// credentialValidators is the registry of all credential validators.
-// Add new validators here to enable credential checking for additional resource types.
 var credentialValidators = []CredentialValidator{
 	&PostgresCredentialValidator{},
-	// Add new validators here:
-	// &RedisCredentialValidator{},
-	// &MySQLCredentialValidator{},
 }
 
-// RunCredentialValidation runs all applicable credential validators.
-// Skips validators for resources not in the manifest's dependencies.
+// credentialSSHRunner adapts the cloud SSH seam to the typed credential
+// client. Arguments are kept separate until this adapter must hand a command
+// to the existing SSH runner; values, when provisioned elsewhere, travel only
+// through stdin and never through this command string.
+type credentialSSHRunner struct {
+	runner ssh.Runner
+	cfg    ssh.Config
+}
+
+func (r credentialSSHRunner) Run(ctx context.Context, _ string, args []string, stdin io.Reader) ([]byte, error) {
+	quoted := make([]string, 0, len(args))
+	for _, arg := range args {
+		quoted = append(quoted, shellutil.QuoteSingle(arg))
+	}
+	opts := ssh.DefaultRunOptions()
+	if stdin != nil {
+		data, err := io.ReadAll(stdin)
+		if err != nil {
+			return nil, err
+		}
+		opts.Stdin = data
+	}
+	result, err := r.runner.Run(ctx, r.cfg, strings.Join(quoted, " "), opts)
+	if err != nil {
+		return nil, err
+	}
+	if result.ExitCode != 0 {
+		return []byte(result.Stdout), fmt.Errorf("remote command exited %d: %s", result.ExitCode, result.Stderr)
+	}
+	return []byte(result.Stdout), nil
+}
+
+// RunCredentialValidation checks credential authority state without reading a
+// plaintext secrets file. The remote authority is the only source of truth;
+// preflight may inspect presence and provider health, but never materializes a
+// credential into the cloud API process or an SSH command.
 func RunCredentialValidation(
 	ctx context.Context,
 	cfg ssh.Config,
 	sshRunner ssh.Runner,
 	manifest domain.CloudManifest,
-	workdir string,
+	_ string,
 ) []domain.PreflightCheck {
-	var checks []domain.PreflightCheck
-
-	// Build set of required resources from manifest
-	requiredResources := make(map[string]bool)
-	for _, res := range manifest.Dependencies.Resources {
-		requiredResources[res] = true
+	requiredResources := make(map[string]bool, len(manifest.Dependencies.Resources))
+	for _, resource := range manifest.Dependencies.Resources {
+		requiredResources[resource] = true
 	}
-
-	// If no resources require credential validation, skip entirely
 	hasValidatable := false
 	for _, validator := range credentialValidators {
 		if requiredResources[validator.ResourceName()] {
@@ -63,67 +82,52 @@ func RunCredentialValidation(
 		}
 	}
 	if !hasValidatable {
-		return checks // No credential checks needed
+		return nil
 	}
 
-	// Read secrets.json once for all validators
-	secrets, secretsErr := readSecretsForValidation(ctx, cfg, sshRunner, workdir)
-	if secretsErr != nil {
-		// If we can't read secrets, warn but don't fail - secrets may be created during deploy
-		checks = append(checks, domain.PreflightCheck{
-			ID:      "secrets_read",
-			Title:   "Secrets file",
-			Status:  domain.PreflightWarn,
-			Details: "secrets.json not found or unreadable - will be created during deployment",
-		})
-		return checks
+	target := strings.TrimSpace(cfg.User) + "@" + strings.TrimSpace(cfg.Host)
+	client, err := credentialclient.NewClient(credentialclient.ClientOptions{
+		RemoteTarget: target,
+		RemoteRunner: credentialSSHRunner{runner: sshRunner, cfg: cfg},
+	})
+	if err != nil {
+		return []domain.PreflightCheck{credentialStoreWarning("Unable to create credential client", err.Error())}
 	}
-
-	// Run each validator for required resources
-	for _, validator := range credentialValidators {
-		if !requiredResources[validator.ResourceName()] {
-			continue // Skip validators for resources not in manifest
+	diagnosis, err := client.Doctor(ctx)
+	if err != nil {
+		return []domain.PreflightCheck{credentialStoreWarning("Credential authority unavailable", err.Error())}
+	}
+	if diagnosis.Provider.Condition != "available" {
+		detail := diagnosis.Provider.Explanation
+		if detail == "" {
+			detail = diagnosis.Provider.Condition
 		}
-
-		check := validator.Validate(ctx, cfg, sshRunner, manifest, secrets)
-		checks = append(checks, check)
+		return []domain.PreflightCheck{credentialStoreWarning("Credential authority unavailable", detail)}
 	}
 
+	checks := make([]domain.PreflightCheck, 0, len(credentialValidators))
+	for _, validator := range credentialValidators {
+		if requiredResources[validator.ResourceName()] {
+			checks = append(checks, validator.Validate(ctx, cfg, sshRunner, manifest, client))
+		}
+	}
 	return checks
 }
 
-func readSecretsForValidation(ctx context.Context, cfg ssh.Config, sshRunner ssh.Runner, workdir string) (map[string]string, error) {
-	secretsPath := shellutil.SafeRemoteJoin(workdir, ".vrooli", "secrets.json")
-	readCmd := fmt.Sprintf("cat %s 2>/dev/null", shellutil.QuoteSingle(secretsPath))
-	result, err := sshRunner.Run(ctx, cfg, readCmd, ssh.DefaultRunOptions())
-	if err != nil || result.ExitCode != 0 {
-		return nil, fmt.Errorf("secrets.json not found")
+func credentialStoreWarning(title, details string) domain.PreflightCheck {
+	return domain.PreflightCheck{
+		ID:      "credentials_authority",
+		Title:   title,
+		Status:  domain.PreflightWarn,
+		Details: details,
+		Hint:    "Initialize the target host credential authority before deployment",
 	}
-
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(result.Stdout), &raw); err != nil {
-		return nil, fmt.Errorf("invalid JSON: %w", err)
-	}
-	secrets := make(map[string]string, len(raw))
-	for key, value := range raw {
-		if key == "_metadata" {
-			continue
-		}
-		var parsed string
-		if err := json.Unmarshal(value, &parsed); err != nil {
-			return nil, fmt.Errorf("secret %q must be a JSON string", key)
-		}
-		secrets[key] = parsed
-	}
-	return secrets, nil
 }
 
 // ============================================
 // PostgreSQL Credential Validator
 // ============================================
 
-// PostgresCredentialValidator validates PostgreSQL credentials by testing
-// the connection with the password from secrets.json.
 type PostgresCredentialValidator struct{}
 
 func (v *PostgresCredentialValidator) ResourceName() string { return "postgres" }
@@ -135,101 +139,29 @@ func (v *PostgresCredentialValidator) Validate(
 	cfg ssh.Config,
 	sshRunner ssh.Runner,
 	manifest domain.CloudManifest,
-	secrets map[string]string,
+	client credentialclient.Client,
 ) domain.PreflightCheck {
-	password, ok := secrets["POSTGRES_PASSWORD"]
-	if !ok || password == "" {
-		return domain.PreflightCheck{
-			ID:      v.CheckID(),
-			Title:   v.Title(),
-			Status:  domain.PreflightWarn,
-			Details: "POSTGRES_PASSWORD not found in secrets.json",
-			Hint:    "Password will be generated during deployment",
-		}
+	identity := "vrooli/" + strings.TrimSpace(manifest.Scenario.ID)
+	status, err := client.Status(ctx, identity, "postgres-password")
+	if err != nil {
+		return domain.PreflightCheck{ID: v.CheckID(), Title: v.Title(), Status: domain.PreflightWarn, Details: "Could not inspect PostgreSQL credential status", Hint: err.Error()}
+	}
+	if status.ProviderState != "available" {
+		return domain.PreflightCheck{ID: v.CheckID(), Title: v.Title(), Status: domain.PreflightWarn, Details: "Credential authority did not confirm PostgreSQL credential state", Hint: status.ProviderState}
+	}
+	if !status.Configured {
+		return domain.PreflightCheck{ID: v.CheckID(), Title: v.Title(), Status: domain.PreflightWarn, Details: "POSTGRES_PASSWORD is not configured in the credential authority", Hint: "Password will be provisioned during deployment"}
 	}
 
-	// Build database name from scenario (matches ports.sh convention)
-	scenarioID := manifest.Scenario.ID
-	dbName := "vrooli_" + strings.ReplaceAll(scenarioID, "-", "_")
-
-	// Test connection using psql with the password from secrets.json
-	// Using port 5433 which is the standard Vrooli postgres port mapping
-	testCmd := fmt.Sprintf(
-		`PGPASSWORD=%s psql -h localhost -p 5433 -U vrooli -d %s -c "SELECT 1" 2>&1 || true`,
-		shellutil.QuoteSingle(password),
-		shellutil.QuoteSingle(dbName),
-	)
-	testResult, _ := sshRunner.Run(ctx, cfg, testCmd, ssh.DefaultRunOptions())
-	output := testResult.Stdout
-
-	// Check for password mismatch - this is a FAIL (blocks deployment)
-	if strings.Contains(output, "password authentication failed") {
-		return domain.PreflightCheck{
-			ID:      v.CheckID(),
-			Title:   v.Title(),
-			Status:  domain.PreflightFail,
-			Details: "PostgreSQL password in secrets.json doesn't match database",
-			Hint:    "Delete the stale PostgreSQL container (docker rm -f vrooli-postgres-main) or update secrets.json to match",
-			Data:    map[string]string{"error": "password_mismatch"},
-		}
+	dbName := "vrooli_" + strings.ReplaceAll(manifest.Scenario.ID, "-", "_")
+	probe := fmt.Sprintf("pg_isready -h localhost -p 5433 -U vrooli -d %s 2>&1 || true", shellutil.QuoteSingle(dbName))
+	result, _ := sshRunner.Run(ctx, cfg, probe, ssh.DefaultRunOptions())
+	output := result.Stdout + "\n" + result.Stderr
+	if strings.Contains(output, "accepting connections") {
+		return domain.PreflightCheck{ID: v.CheckID(), Title: v.Title(), Status: domain.PreflightPass, Details: "PostgreSQL credential is configured and database is accepting connections", Data: map[string]string{"database": dbName}}
 	}
-
-	// Check for successful connection (SELECT 1 returns "1" in a row)
-	if strings.Contains(output, "1") && !strings.Contains(output, "error") && !strings.Contains(output, "FATAL") {
-		return domain.PreflightCheck{
-			ID:      v.CheckID(),
-			Title:   v.Title(),
-			Status:  domain.PreflightPass,
-			Details: "PostgreSQL credentials verified",
-			Data:    map[string]string{"database": dbName},
-		}
+	if strings.Contains(output, "no response") || strings.Contains(output, "Connection refused") || strings.Contains(output, "not found") {
+		return domain.PreflightCheck{ID: v.CheckID(), Title: v.Title(), Status: domain.PreflightWarn, Details: "PostgreSQL credential is configured but database is not ready", Hint: "Deployment will start PostgreSQL before connecting"}
 	}
-
-	// Database might not exist yet - that's OK for first deployment
-	if strings.Contains(output, "does not exist") {
-		return domain.PreflightCheck{
-			ID:      v.CheckID(),
-			Title:   v.Title(),
-			Status:  domain.PreflightPass,
-			Details: fmt.Sprintf("Database %s will be created during deployment", dbName),
-		}
-	}
-
-	// PostgreSQL might not be running - warn but don't fail
-	if strings.Contains(output, "could not connect") || strings.Contains(output, "Connection refused") {
-		return domain.PreflightCheck{
-			ID:      v.CheckID(),
-			Title:   v.Title(),
-			Status:  domain.PreflightWarn,
-			Details: "PostgreSQL not running - will be started during deployment",
-		}
-	}
-
-	// psql command not found - warn (will be installed during bootstrap)
-	if strings.Contains(output, "command not found") || strings.Contains(output, "not found") {
-		return domain.PreflightCheck{
-			ID:      v.CheckID(),
-			Title:   v.Title(),
-			Status:  domain.PreflightWarn,
-			Details: "psql not installed - cannot verify credentials",
-			Hint:    "Credential validation will be skipped; deployment will attempt connection",
-		}
-	}
-
-	// Unknown state - warn but don't block
-	return domain.PreflightCheck{
-		ID:      v.CheckID(),
-		Title:   v.Title(),
-		Status:  domain.PreflightWarn,
-		Details: "Could not verify database connection",
-		Hint:    "Connection will be attempted during deployment",
-		Data:    map[string]string{"output": truncateString(output, 200)},
-	}
-}
-
-func truncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen] + "..."
+	return domain.PreflightCheck{ID: v.CheckID(), Title: v.Title(), Status: domain.PreflightWarn, Details: "PostgreSQL credential is configured; database readiness could not be confirmed", Data: map[string]string{"database": dbName}}
 }

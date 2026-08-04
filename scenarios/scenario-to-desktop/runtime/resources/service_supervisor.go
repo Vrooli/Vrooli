@@ -15,6 +15,7 @@ import (
 	"time"
 
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
 )
 
 // ServiceStatus is the credential-free runtime state shown by the desktop
@@ -108,9 +109,13 @@ func (s *ServiceSupervisor) tryShared(ctx context.Context, item Item) bool {
 		s.mu.Unlock()
 		return false
 	}
+	provider := strings.TrimSpace(binding.Provider)
+	if provider == "" {
+		provider = "managed-shared"
+	}
 	s.mu.Lock()
-	s.bindings[item.Resource] = SharedServiceBinding{Endpoint: binding.Endpoint, Environment: cloneEnvironment(binding.Environment), ExpiresAt: binding.ExpiresAt}
-	s.statuses[item.Resource] = ServiceStatus{Resource: item.Resource, Running: true, Message: "using consented shared service", Provider: "managed-shared"}
+	s.bindings[item.Resource] = SharedServiceBinding{Endpoint: binding.Endpoint, Environment: cloneEnvironment(binding.Environment), ExpiresAt: binding.ExpiresAt, Provider: provider}
+	s.statuses[item.Resource] = ServiceStatus{Resource: item.Resource, Running: true, Message: "using consented shared service", Provider: provider}
 	s.mu.Unlock()
 	return true
 }
@@ -150,6 +155,7 @@ func (s *ServiceSupervisor) startOne(ctx context.Context, item Item) error {
 		return fmt.Errorf("write bundled service config: %w", err)
 	}
 	cmd := exec.CommandContext(ctx, artifactPath, arguments...)
+	infra.ConfigureProcessCommand(cmd)
 	cmd.Env = environmentList(environmentMap)
 	cmd.Dir = filepath.Dir(artifactPath)
 	cmd.Stdout = logFile
@@ -239,7 +245,7 @@ func (s *ServiceSupervisor) Stop(ctx context.Context) error {
 		if service.cmd.Process == nil {
 			continue
 		}
-		_ = service.cmd.Process.Signal(os.Interrupt)
+		_ = infra.GracefulStopProcess(service.cmd.Process)
 	}
 	done := make(chan struct{})
 	go func() {

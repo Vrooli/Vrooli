@@ -10,6 +10,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
+	github.com/vrooli/vrooli v0.0.0
 	github.com/vrooli/vrooli-cli-go v0.0.0
 	modernc.org/sqlite v1.54.0
 )

@@ -1282,6 +1282,31 @@ func TestDeriveBundleSecretPlans(t *testing.T) {
 	}
 }
 
+func TestBundlePlanUsesDeclarationIdentityAndWarnsOnFallback(t *testing.T) {
+	previous := bundlePlanWarning
+	var warnings []string
+	bundlePlanWarning = func(format string, args ...interface{}) { warnings = append(warnings, fmt.Sprintf(format, args...)) }
+	t.Cleanup(func() { bundlePlanWarning = previous })
+
+	builder := NewBundlePlanBuilder()
+	declared := findBundleSecret(t, builder.DeriveBundlePlans([]DeploymentSecretEntry{{
+		ID: "declared", ResourceName: "wrong-owner", SecretKey: "WRONG_KEY", LogicalID: "vrooli/declared-owner", Field: "api-key", HandlingStrategy: "prompt",
+	}}), "declared")
+	if declared.LogicalID != "vrooli/declared-owner" || declared.Field != "api-key" {
+		t.Fatalf("declaration identity was not preserved: %+v", declared)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("declaration-backed secret emitted fallback warning: %v", warnings)
+	}
+
+	_ = findBundleSecret(t, builder.DeriveBundlePlans([]DeploymentSecretEntry{{
+		ID: "fallback", ResourceName: "resource", SecretKey: "API_KEY", HandlingStrategy: "prompt",
+	}}), "fallback")
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "fallback") {
+		t.Fatalf("fallback warning = %v, want one named warning", warnings)
+	}
+}
+
 func findBundleSecret(t *testing.T, plans []BundleSecretPlan, id string) BundleSecretPlan {
 	t.Helper()
 	for _, plan := range plans {

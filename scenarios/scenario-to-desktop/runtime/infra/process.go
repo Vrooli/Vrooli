@@ -41,6 +41,7 @@ type RealProcessRunner struct{}
 // Start starts a process with the given command and arguments.
 func (RealProcessRunner) Start(ctx context.Context, cmd string, args []string, env []string, dir string, stdout, stderr io.Writer) (Process, error) {
 	c := exec.CommandContext(ctx, cmd, args...)
+	configureProcessCommand(c)
 	c.Env = env
 	c.Dir = dir
 	c.Stdout = stdout
@@ -48,16 +49,28 @@ func (RealProcessRunner) Start(ctx context.Context, cmd string, args []string, e
 	if err := c.Start(); err != nil {
 		return nil, err
 	}
-	return &realProcess{cmd: c}, nil
+	cleanup, err := assignProcessContainment(c.Process)
+	if err != nil {
+		_ = c.Process.Kill()
+		_ = c.Wait()
+		return nil, err
+	}
+	return &realProcess{cmd: c, cleanup: cleanup}, nil
 }
 
 // realProcess wraps exec.Cmd to implement Process interface.
 type realProcess struct {
-	cmd *exec.Cmd
+	cmd     *exec.Cmd
+	cleanup func()
 }
 
 func (p *realProcess) Wait() error {
-	return p.cmd.Wait()
+	err := p.cmd.Wait()
+	if p.cleanup != nil {
+		p.cleanup()
+		p.cleanup = nil
+	}
+	return err
 }
 
 func (p *realProcess) Signal(sig os.Signal) error {
@@ -65,6 +78,13 @@ func (p *realProcess) Signal(sig os.Signal) error {
 		return os.ErrProcessDone
 	}
 	return p.cmd.Process.Signal(sig)
+}
+
+func (p *realProcess) GracefulStop() error {
+	if p.cmd.Process == nil {
+		return os.ErrProcessDone
+	}
+	return gracefulStopProcess(p.cmd.Process)
 }
 
 func (p *realProcess) Kill() error {
@@ -83,6 +103,23 @@ func (p *realProcess) Pid() int {
 
 // Ensure RealProcessRunner implements ProcessRunner.
 var _ ProcessRunner = RealProcessRunner{}
+
+// StopProcess requests a platform-correct graceful stop. Test doubles that do
+// not implement the optional method retain the small Process contract.
+func StopProcess(p Process) error {
+	if graceful, ok := p.(interface{ GracefulStop() error }); ok {
+		return graceful.GracefulStop()
+	}
+	return p.Signal(Interrupt)
+}
+
+// ConfigureProcessCommand applies platform process-group/job semantics to a
+// command before it starts. Resource and scenario launchers share this seam.
+func ConfigureProcessCommand(cmd *exec.Cmd) { configureProcessCommand(cmd) }
+
+// GracefulStopProcess sends the platform-correct group or console shutdown
+// request to an already-started process.
+func GracefulStopProcess(process *os.Process) error { return gracefulStopProcess(process) }
 
 // RealCommandRunner implements CommandRunner using os/exec.
 type RealCommandRunner struct{}

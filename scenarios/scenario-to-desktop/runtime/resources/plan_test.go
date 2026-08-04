@@ -55,6 +55,20 @@ func TestLoadValidatesBundledClientArtifacts(t *testing.T) {
 	}
 }
 
+func TestLoadAcceptsCurrentPipelinePlanVersion(t *testing.T) {
+	root := t.TempDir()
+	data, err := json.Marshal(Plan{SchemaVersion: "v6", Resources: []Item{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "resource-deployment-plan.json"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(root); err != nil {
+		t.Fatalf("Load current pipeline plan: %v", err)
+	}
+}
+
 func TestLoadRejectsMismatchedBuildMetadata(t *testing.T) {
 	root := t.TempDir()
 	resourceDir := filepath.Join(root, "resources", "demo")

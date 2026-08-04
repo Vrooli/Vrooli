@@ -11,8 +11,8 @@ This document captures references, patterns, and learnings discovered during sec
 **Key Learnings**:
 - Manifests declare the logical identity, field, environment name, and required status.
 - `vrooli credentials status --format json` reports metadata only; it never returns a value, and it carries the provider state so `configured: false` cannot be misread while the store is down.
-- `vrooli credentials provision --identity <logical-id> --field <field>` accepts a value on stdin only; `vrooli credentials delete --identity <id> --field <field> --yes` is the deprovision half.
-- `vrooli credentials doctor` diagnoses the host backend and lists every declared credential with its remediation; `vrooli credentials list` prints declarations and state without printing a value.
+- `vrooli credentials provision --identity <logical-id> --field <field>` accepts a value on stdin only; secrets-manager owns inventory, keyring, and backup operations.
+- `vrooli credentials doctor` diagnoses the host backend; `secrets-manager backup status` reports recovery coverage without printing a value.
 - Availability is probed lazily and read-shaped, on first use rather than at construction, and cached for the process lifetime. Read paths degrade: a missing or unreachable credential never blocks a scenario start, and the declaring resource reports unhealthy instead. Write paths (recovery export/restore, Vault bootstrap) still fail closed.
 - Three conditions stay distinct end to end and each has its own operator action: value unconfigured, provider unreachable, provider absent on this host.
 - Vault may be a capability-specific service or explicit mirror, never an ordinary credential fallback.

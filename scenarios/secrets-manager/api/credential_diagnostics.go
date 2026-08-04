@@ -4,17 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"os/exec"
 	"strings"
 	"time"
 )
 
 var credentialDoctorRelay = func(ctx context.Context) ([]byte, error) {
-	return exec.CommandContext(ctx, "vrooli", "credentials", "doctor", "--format", "json").Output()
+	return secretsDoctorJSON(ctx)
 }
 
 var credentialKeyringRelay = func(ctx context.Context, action string) ([]byte, error) {
-	return exec.CommandContext(ctx, "vrooli", "credentials", "keyring", action, "--format", "json").Output()
+	return secretsKeyringJSON(ctx, action)
 }
 
 func (h *VaultHandlers) Doctor(w http.ResponseWriter, r *http.Request) {

@@ -16,6 +16,7 @@ import (
 
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/assets"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/deps"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 	resourceplan "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/resources"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/strutil"
@@ -513,7 +514,7 @@ func (s *Supervisor) stopServices(ctx context.Context) {
 
 // gracefulStop attempts graceful shutdown, then forceful kill.
 func (s *Supervisor) gracefulStop(ctx context.Context, proc *serviceProcess) {
-	_ = proc.proc.Signal(Interrupt)
+	_ = infra.StopProcess(proc.proc)
 
 	waitCh := make(chan error, 1)
 	go func() { waitCh <- proc.proc.Wait() }()

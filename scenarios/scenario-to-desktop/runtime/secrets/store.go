@@ -9,7 +9,16 @@ import (
 
 	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/strutil"
 )
+
+// RecoveryStore is the optional recovery surface exposed by the desktop
+// runtime. It is kept separate from Store so test-only in-memory stores do not
+// need to pretend they can create durable recovery bundles.
+type RecoveryStore interface {
+	ExportRecovery(passphrase string) ([]byte, int, error)
+	RestoreRecovery(bundle []byte, passphrase string) error
+}
 
 // Store abstracts secret storage for testing.
 type Store interface {
@@ -47,6 +56,46 @@ type Manager struct {
 
 	mu      sync.RWMutex
 	secrets map[string]string
+}
+
+func (sm *Manager) ExportRecovery(passphrase string) ([]byte, int, error) {
+	if sm.authority == nil {
+		return nil, 0, fmt.Errorf("desktop recovery unavailable: native credential authority is not configured")
+	}
+	entries := make([]credentialauthority.RecoveryEntry, 0, len(sm.manifest.Secrets))
+	seen := make(map[string]bool)
+	for _, definition := range sm.manifest.Secrets {
+		identity, field, err := sm.addressOf(definition)
+		if err != nil {
+			return nil, 0, err
+		}
+		key := string(identity) + "\x00" + field
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		entries = append(entries, credentialauthority.RecoveryEntry{Identity: identity, Field: field})
+	}
+	bundle, err := sm.authority.ExportRecovery(entries, passphrase)
+	if err != nil {
+		return nil, 0, err
+	}
+	return bundle, len(entries), nil
+}
+
+func (sm *Manager) RestoreRecovery(bundle []byte, passphrase string) error {
+	if sm.authority == nil {
+		return fmt.Errorf("desktop recovery unavailable: native credential authority is not configured")
+	}
+	if err := sm.authority.RestoreRecovery(bundle, passphrase); err != nil {
+		return err
+	}
+	loaded, err := sm.Load()
+	if err != nil {
+		return err
+	}
+	sm.Set(loaded)
+	return nil
 }
 
 // NewNativeManager creates the production desktop credential store. Values are
@@ -90,9 +139,9 @@ func NewUnavailableManager(m *manifest.Manifest, err error) *Manager {
 }
 
 // NewManager creates an in-memory manager for explicitly injected test or
-// embedding flows. It deliberately ignores the historical filesystem
-// parameters: desktop credentials must be supplied through NewNativeManager.
-func NewManager(m *manifest.Manifest, _ any, _ string) *Manager {
+// embedding flows. Desktop credentials must be supplied through
+// NewNativeManager.
+func NewManager(m *manifest.Manifest) *Manager {
 	return newManager(m)
 }
 
@@ -124,6 +173,9 @@ func (sm *Manager) Load() (map[string]string, error) {
 			if err := sm.authority.Inject(identity, field, definition.ID, out); err != nil {
 				if errors.Is(err, credentialauthority.ErrUnconfigured) {
 					continue
+				}
+				if errors.Is(err, credentialauthority.ErrProviderAbsent) {
+					return nil, fmt.Errorf("native credential authority unavailable: %w; configure a credential backend or restore a recovery bundle before starting the desktop app", err)
 				}
 				return nil, fmt.Errorf("read desktop credential %s: %w", definition.ID, err)
 			}
@@ -270,18 +322,8 @@ var _ Store = (*Manager)(nil)
 func desktopIdentity(m *manifest.Manifest) (credentialauthority.Identity, error) {
 	name := "desktop-app"
 	if m != nil {
-		name = strings.ToLower(strings.TrimSpace(m.App.Name))
+		name = m.App.Name
 	}
-	name = strings.ReplaceAll(name, " ", "-")
-	name = strings.Map(func(r rune) rune {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
-			return r
-		}
-		return '-'
-	}, name)
-	name = strings.Trim(name, "-.")
-	if name == "" {
-		name = "desktop-app"
-	}
+	name = strutil.SanitizeAppName(name)
 	return credentialauthority.ParseIdentity("vrooli/desktop/" + name)
 }

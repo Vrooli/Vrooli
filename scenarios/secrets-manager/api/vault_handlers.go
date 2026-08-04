@@ -1,14 +1,12 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/user"
 	"path/filepath"
 	"strings"
@@ -302,13 +300,7 @@ func credentialDescriptorsForResource(resourceName string) ([]credentialDescript
 var provisionCredential = provisionNativeCredential
 
 func provisionNativeCredential(ctx context.Context, descriptor credentialDescriptor, value string) error {
-	// #nosec G702 -- descriptor identity and field are validated manifest metadata;
-	// the secret stays on stdin and never enters the command arguments.
-	cmd := exec.CommandContext(ctx, "vrooli", "credentials", "provision", "--identity", descriptor.LogicalID, "--field", descriptor.Field)
-	cmd.Stdin = strings.NewReader(value)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
+	if err := secretsProvision(ctx, descriptor.LogicalID, descriptor.Field, value); err != nil {
 		return fmt.Errorf("provision native credential: %w", err)
 	}
 	return nil

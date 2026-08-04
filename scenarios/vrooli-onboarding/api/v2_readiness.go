@@ -23,6 +23,13 @@ type credentialReadiness struct {
 	Detail    string `json:"detail,omitempty"`
 }
 
+type readinessCredentialDescriptor struct {
+	LogicalID string `json:"logical_id"`
+	Field     string `json:"field"`
+	Label     string `json:"label"`
+	Required  bool   `json:"required"`
+}
+
 type readinessResponse struct {
 	Status              string                `json:"status"`
 	Scenarios           []string              `json:"scenarios"`
@@ -32,6 +39,18 @@ type readinessResponse struct {
 	Integrations        []readinessItem       `json:"integrations"`
 	CheckedAt           string                `json:"checked_at"`
 	CredentialDiagnosis json.RawMessage       `json:"credential_diagnosis,omitempty"`
+	Recovery            recoveryReadiness     `json:"recovery"`
+}
+
+type recoveryReadiness struct {
+	ReceiptExists bool     `json:"receipt_exists"`
+	ExportedAt    string   `json:"exported_at,omitempty"`
+	EntryCount    int      `json:"entry_count"`
+	Uncovered     []string `json:"uncovered"`
+}
+
+type credentialDiagnosisResponse struct {
+	Recovery recoveryReadiness `json:"recovery"`
 }
 
 // readinessItem is a metadata-safe, actionable validation result. Its status
@@ -50,7 +69,7 @@ type hostReadiness struct {
 }
 
 var credentialStatusCommand = func(ctx context.Context, logicalID, field string) ([]byte, error) {
-	return exec.CommandContext(ctx, "vrooli", "credentials", "status", "--format", "json", "--identity", logicalID, "--field", field).Output()
+	return onboardingStatusJSON(ctx, logicalID, field)
 }
 
 func selectedScenarioModels() ([]ScenarioReadModel, error) {
@@ -81,24 +100,46 @@ func loadCredentialReadiness(resource string) ([]credentialReadiness, error) {
 	}
 	var manifest struct {
 		Credentials struct {
-			Descriptors []struct {
-				LogicalID string `json:"logical_id"`
-				Field     string `json:"field"`
-				Label     string `json:"label"`
-				Required  bool   `json:"required"`
-			} `json:"descriptors"`
+			Descriptors []readinessCredentialDescriptor `json:"descriptors"`
 		} `json:"credentials"`
 	}
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		return nil, fmt.Errorf("decode %s credential descriptors: %w", resource, err)
 	}
-	items := make([]credentialReadiness, 0, len(manifest.Credentials.Descriptors))
-	for _, descriptor := range manifest.Credentials.Descriptors {
+	return credentialReadinessForDescriptors(resource, manifest.Credentials.Descriptors), nil
+}
+
+func loadScenarioCredentialReadiness(scenario string) ([]credentialReadiness, error) {
+	root, err := manifestRoot()
+	if err != nil {
+		return nil, err
+	}
+	data, err := os.ReadFile(filepath.Join(root, "scenarios", scenario, ".vrooli", "service.json"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var manifest struct {
+		Credentials struct {
+			Descriptors []readinessCredentialDescriptor `json:"descriptors"`
+		} `json:"credentials"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return nil, fmt.Errorf("decode %s scenario credential descriptors: %w", scenario, err)
+	}
+	return credentialReadinessForDescriptors(scenario, manifest.Credentials.Descriptors), nil
+}
+
+func credentialReadinessForDescriptors(owner string, descriptors []readinessCredentialDescriptor) []credentialReadiness {
+	items := make([]credentialReadiness, 0, len(descriptors))
+	for _, descriptor := range descriptors {
 		field := strings.TrimSpace(descriptor.Field)
 		if field == "" {
 			field = "value"
 		}
-		item := credentialReadiness{Resource: resource, LogicalID: descriptor.LogicalID, Field: field, Label: descriptor.Label, Required: descriptor.Required, Status: "unconfigured"}
+		item := credentialReadiness{Resource: owner, LogicalID: descriptor.LogicalID, Field: field, Label: descriptor.Label, Required: descriptor.Required, Status: "unconfigured"}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		output, statusErr := credentialStatusCommand(ctx, descriptor.LogicalID, field)
 		cancel()
@@ -118,7 +159,7 @@ func loadCredentialReadiness(resource string) ([]credentialReadiness, error) {
 		}
 		items = append(items, item)
 	}
-	return items, nil
+	return items
 }
 
 func (s *Server) handleV2Readiness(w http.ResponseWriter, _ *http.Request) {
@@ -128,9 +169,15 @@ func (s *Server) handleV2Readiness(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	resourceSet := map[string]struct{}{}
-	response := readinessResponse{Status: "ready", Scenarios: make([]string, 0, len(models)), Credentials: []credentialReadiness{}, Hosts: []hostReadiness{}, Integrations: []readinessItem{{Name: "integration-hub", Status: "deferred", Detail: "Integration Hub is not yet available; no bindings were created.", Remediation: "Configure integrations after Integration Hub is installed."}}, CheckedAt: operatorStateNow().UTC().Format(time.RFC3339)}
+	response := readinessResponse{Status: "ready", Scenarios: make([]string, 0, len(models)), Credentials: []credentialReadiness{}, Hosts: []hostReadiness{}, Integrations: []readinessItem{{Name: "integration-hub", Status: "deferred", Detail: "Integration Hub is not yet available; no bindings were created.", Remediation: "Configure integrations after Integration Hub is installed."}}, Recovery: recoveryReadiness{Uncovered: []string{}}, CheckedAt: operatorStateNow().UTC().Format(time.RFC3339)}
 	for _, model := range models {
 		response.Scenarios = append(response.Scenarios, model.Name)
+		scenarioCredentials, err := loadScenarioCredentialReadiness(model.Name)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		response.Credentials = append(response.Credentials, scenarioCredentials...)
 		for _, resource := range model.Resources {
 			resourceSet[resource] = struct{}{}
 		}
@@ -183,17 +230,18 @@ func (s *Server) handleV2Readiness(w http.ResponseWriter, _ *http.Request) {
 			response.Status = lessReady(response.Status, "degraded")
 		}
 	}
-	for _, credential := range response.Credentials {
-		if credential.Status != "unsupported" {
-			continue
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	if output, err := credentialDoctorCommand(ctx); err == nil && json.Valid(output) {
+		response.CredentialDiagnosis = append(response.CredentialDiagnosis[:0], output...)
+		var diagnosis credentialDiagnosisResponse
+		if json.Unmarshal(output, &diagnosis) == nil {
+			response.Recovery = diagnosis.Recovery
+			if response.Recovery.Uncovered == nil {
+				response.Recovery.Uncovered = []string{}
+			}
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-		if output, err := credentialDoctorCommand(ctx); err == nil && json.Valid(output) {
-			response.CredentialDiagnosis = append(response.CredentialDiagnosis[:0], output...)
-		}
-		cancel()
-		break
 	}
+	cancel()
 	for _, host := range response.Hosts {
 		response.Status = lessReady(response.Status, host.Status)
 	}

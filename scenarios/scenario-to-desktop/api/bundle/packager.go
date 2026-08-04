@@ -86,10 +86,13 @@ func NewPackager(opts ...PackagerOption) *DefaultPackager {
 
 	// Service compiler needs access to the platform resolver
 	p.serviceCompiler = &defaultServiceCompiler{platform: p.platform, fileOps: p.fileOps}
-	p.cliStager = &defaultCLIStager{fileOps: p.fileOps}
+	p.cliStager = &defaultCLIStager{fileOps: p.fileOps, runtimeResolver: p.runtimeResolver}
 
 	for _, opt := range opts {
 		opt(p)
+	}
+	if stager, ok := p.cliStager.(*defaultCLIStager); ok {
+		stager.runtimeResolver = p.runtimeResolver
 	}
 
 	return p

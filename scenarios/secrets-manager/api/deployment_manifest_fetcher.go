@@ -141,6 +141,7 @@ func (s *PostgresSecretStore) FetchSecrets(ctx context.Context, scenario, tier s
 		if err != nil {
 			return nil, fmt.Errorf("scan secret row: %w", err)
 		}
+		enrichDeclarationIdentity(getVrooliRoot(), &entry, scenario)
 		entries = append(entries, entry)
 	}
 
@@ -149,6 +150,45 @@ func (s *PostgresSecretStore) FetchSecrets(ctx context.Context, scenario, tier s
 	}
 
 	return entries, nil
+}
+
+// enrichDeclarationIdentity carries the canonical scenario/resource identity
+// into deployment entries. Database rows retain the historical resource/env
+// names, while the bundle runtime needs the declaration-backed logical_id and
+// field to resolve the same authority entry in every tier.
+func enrichDeclarationIdentity(root string, entry *DeploymentSecretEntry, scenario string) {
+	if entry == nil || strings.TrimSpace(root) == "" {
+		return
+	}
+	candidates := []string{
+		filepath.Join(root, "resources", strings.TrimSpace(entry.ResourceName), "resource.json"),
+		filepath.Join(root, "scenarios", strings.TrimSpace(scenario), ".vrooli", "service.json"),
+	}
+	for _, path := range candidates {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var manifest struct {
+			Credentials struct {
+				Descriptors []credentialDescriptor `json:"descriptors"`
+			} `json:"credentials"`
+		}
+		if json.Unmarshal(data, &manifest) != nil {
+			continue
+		}
+		for _, descriptor := range manifest.Credentials.Descriptors {
+			if !strings.EqualFold(strings.TrimSpace(descriptor.Env), strings.TrimSpace(entry.SecretKey)) || strings.TrimSpace(descriptor.LogicalID) == "" {
+				continue
+			}
+			entry.LogicalID = strings.TrimSpace(descriptor.LogicalID)
+			entry.Field = strings.TrimSpace(descriptor.Field)
+			if entry.Field == "" {
+				entry.Field = "value"
+			}
+			return
+		}
+	}
 }
 
 // scanSecretRow extracts a DeploymentSecretEntry from a database row.

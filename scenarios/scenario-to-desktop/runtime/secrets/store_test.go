@@ -4,12 +4,10 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
-	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/testutil"
 )
 
 func TestManagerLoad_MissingFile(t *testing.T) {
-	mockFS := testutil.NewMockFileSystem()
-	sm := NewManager(&manifest.Manifest{}, mockFS, "/app/data/secrets.json")
+	sm := NewManager(&manifest.Manifest{})
 
 	secrets, err := sm.Load()
 	if err != nil {
@@ -21,10 +19,7 @@ func TestManagerLoad_MissingFile(t *testing.T) {
 }
 
 func TestManagerLoad_IgnoresRetiredWrappedFile(t *testing.T) {
-	mockFS := testutil.NewMockFileSystem()
-	mockFS.Files["/app/data/secrets.json"] = []byte(`{"secrets": {"API_KEY": "secret123", "DB_PASS": "password"}}`)
-
-	sm := NewManager(&manifest.Manifest{}, mockFS, "/app/data/secrets.json")
+	sm := NewManager(&manifest.Manifest{})
 
 	secrets, err := sm.Load()
 	if err != nil {
@@ -36,10 +31,7 @@ func TestManagerLoad_IgnoresRetiredWrappedFile(t *testing.T) {
 }
 
 func TestManagerLoad_IgnoresRetiredFlatFile(t *testing.T) {
-	mockFS := testutil.NewMockFileSystem()
-	mockFS.Files["/app/data/secrets.json"] = []byte(`{"API_KEY": "legacy_key"}`)
-
-	sm := NewManager(&manifest.Manifest{}, mockFS, "/app/data/secrets.json")
+	sm := NewManager(&manifest.Manifest{})
 
 	secrets, err := sm.Load()
 	if err != nil {
@@ -51,7 +43,7 @@ func TestManagerLoad_IgnoresRetiredFlatFile(t *testing.T) {
 }
 
 func TestManagerPersistKeepsExplicitInMemoryState(t *testing.T) {
-	sm := NewManager(&manifest.Manifest{}, testutil.NewMockFileSystem(), "/retired/secrets.json")
+	sm := NewManager(&manifest.Manifest{})
 
 	secrets := map[string]string{
 		"API_KEY": "test_key",
@@ -73,7 +65,7 @@ func TestManagerPersistKeepsExplicitInMemoryState(t *testing.T) {
 }
 
 func TestManagerGet(t *testing.T) {
-	sm := NewManager(&manifest.Manifest{}, testutil.NewMockFileSystem(), "/tmp/secrets.json")
+	sm := NewManager(&manifest.Manifest{})
 	sm.Set(map[string]string{"KEY": "value"})
 
 	copy := sm.Get()
@@ -143,7 +135,7 @@ func TestManagerMissingRequired(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sm := NewManager(&manifest.Manifest{Secrets: tt.manifestSecs}, testutil.NewMockFileSystem(), "/tmp/secrets.json")
+			sm := NewManager(&manifest.Manifest{Secrets: tt.manifestSecs})
 			sm.Set(tt.secrets)
 
 			got := sm.MissingRequired()
@@ -167,7 +159,7 @@ func TestManagerFindSecret(t *testing.T) {
 			{ID: "DB_PASS", Description: "Database Password"},
 		},
 	}
-	sm := NewManager(m, testutil.NewMockFileSystem(), "/tmp/secrets.json")
+	sm := NewManager(m)
 
 	// Found
 	sec := sm.FindSecret("API_KEY")
@@ -186,7 +178,7 @@ func TestManagerFindSecret(t *testing.T) {
 }
 
 func TestManagerMerge(t *testing.T) {
-	sm := NewManager(&manifest.Manifest{}, testutil.NewMockFileSystem(), "/tmp/secrets.json")
+	sm := NewManager(&manifest.Manifest{})
 	sm.Set(map[string]string{"EXISTING": "value1", "OVERWRITE": "old"})
 
 	merged := sm.Merge(map[string]string{"NEW": "value2", "OVERWRITE": "new"})

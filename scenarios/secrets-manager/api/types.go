@@ -192,6 +192,8 @@ type DeploymentSecretEntry struct {
 	ID                string                 `json:"id,omitempty"`
 	ResourceName      string                 `json:"resource_name"`
 	SecretKey         string                 `json:"secret_key"`
+	LogicalID         string                 `json:"logical_id,omitempty"`
+	Field             string                 `json:"field,omitempty"`
 	SecretType        string                 `json:"secret_type"`
 	Required          bool                   `json:"required"`
 	Classification    string                 `json:"classification"`
@@ -210,6 +212,8 @@ type DeploymentSecretEntry struct {
 
 type BundleSecretPlan struct {
 	ID          string                 `json:"id"`
+	LogicalID   string                 `json:"logical_id"`
+	Field       string                 `json:"field"`
 	Class       string                 `json:"class"`
 	Required    bool                   `json:"required"`
 	Description string                 `json:"description,omitempty"`

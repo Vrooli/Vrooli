@@ -104,7 +104,7 @@ sequenceDiagram
 
     activate S
     S->>S: Create app data directory
-    S->>S: Load persisted secrets
+    S->>S: Resolve declared credentials from the native authority
     S->>S: Load migration state
     S->>S: Generate/load auth token
     S->>S: Allocate ports
@@ -133,6 +133,37 @@ sequenceDiagram
     E->>C: GET /readyz
     C-->>E: {"ready": true/false, "details": {...}}
 ```
+
+## Provider and footprint invariants
+
+The runtime is a Tier-2 application, but it must cooperate with other Vrooli
+tiers on the same host. For a resource that can be shared, the embedding shell
+may provide a `PrioritySharedServiceResolver`. Its candidates are attempted in
+this fixed order:
+
+1. the locally running Tier-1 Vrooli control plane;
+2. another running desktop application's authenticated broker;
+3. the verified private resource artifact inside this bundle.
+
+The first two candidates must provide their own loopback endpoint, scoped
+credential, expiry, and user-consent decision. The desktop runtime never scans
+arbitrary ports, accepts a caller-supplied resource endpoint, or grants a
+shared provider lifecycle authority. If an external candidate is unavailable
+or expired, the private bundle remains usable and receives no stale external
+credential. `ServiceStatus.Provider` records the winning provider tier without
+exposing endpoint or credential material.
+
+Bundle packaging is similarly explicit: UI payloads are staged only for UI
+services explicitly listed in the selected bundle manifest. Supporting
+scenarios/resources that are merely cataloged are represented by declarative
+manifests and API/CLI artifacts only; their UI directories are not copied into
+the bundle. This keeps the artifact small while preserving the runtime's
+ability to communicate with those supporting components.
+
+These are security and portability invariants, not optimizations. Changes to
+provider selection or catalog staging require tests covering Tier-1 preference,
+desktop-peer fallback, private fallback, and the absence of auxiliary UI
+payloads.
 
 ## File Structure
 

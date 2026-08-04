@@ -109,10 +109,11 @@ the system temp dir) and removed once the services that needed it have started.
 Where the host has no ephemeral location the bundle refuses rather than writing
 a durable plaintext credential an operator cannot see.
 
-`MigrateLegacyFile` is the sole compatibility path for an older JSON file. It
-requires an explicit source path, imports only secret IDs declared in the
-desktop manifest, verifies the native write, and leaves the source intact
-unless the caller explicitly requests deletion after a successful import.
+Legacy plaintext migration is not a desktop-runtime operation. The one-shot
+migration owned by `packages/credentialclient-go` and exposed by
+secrets-manager requires an explicit source path, maps only declared
+credentials, verifies a recovery export, and controls source deletion only
+after that verification. The runtime itself never opens a legacy JSON file.
 
 ## Security Considerations
 

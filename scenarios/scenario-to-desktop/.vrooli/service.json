@@ -49,6 +49,7 @@
             ]
           }
         },
+        "degraded_behavior": "Desktop generation and smoke testing remain available; only agent-assisted pipeline investigations and remediation suggestions are unavailable until Agent Manager is healthy.",
         "description": "Agent orchestration layer for pipeline investigations",
         "enabled": true,
         "required": true,
@@ -56,6 +57,7 @@
         "type": "scenario"
       },
       "deployment-manager": {
+        "degraded_behavior": "Proxy-mode desktop generation remains available; bundled-runtime manifest generation is unavailable until Deployment Manager is healthy.",
         "purpose": "Bundle manifest generation for bundled runtime mode",
         "required": true,
         "runtime_only": true,

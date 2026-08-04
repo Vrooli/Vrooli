@@ -1,12 +1,10 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os/exec"
 	"strings"
 	"time"
 )
@@ -16,11 +14,11 @@ var credentialDoctorCommand = func(ctx context.Context) ([]byte, error) {
 	// provisioning write, so "can this host store a credential" is the actual
 	// question. Routine health reads must not pass it — the probe writes to the
 	// operator's real store.
-	return exec.CommandContext(ctx, "vrooli", "credentials", "doctor", "--check-writes", "--format", "json").Output()
+	return onboardingDoctorJSON(ctx)
 }
 
 var credentialKeyringCommand = func(ctx context.Context, action string) ([]byte, error) {
-	return exec.CommandContext(ctx, "vrooli", "credentials", "keyring", action, "--format", "json").Output()
+	return onboardingKeyringJSON(ctx, action)
 }
 
 type credentialProvisionRequest struct {
@@ -30,11 +28,7 @@ type credentialProvisionRequest struct {
 }
 
 var credentialProvisionCommand = func(ctx context.Context, logicalID, field, value string) error {
-	command := exec.CommandContext(ctx, "vrooli", "credentials", "provision", "--identity", logicalID, "--field", field)
-	command.Stdin = strings.NewReader(value)
-	var stderr bytes.Buffer
-	command.Stderr = &stderr
-	if err := command.Run(); err != nil {
+	if err := onboardingProvision(ctx, logicalID, field, value); err != nil {
 		return fmt.Errorf("credential authority rejected provisioning: %w", err)
 	}
 	return nil

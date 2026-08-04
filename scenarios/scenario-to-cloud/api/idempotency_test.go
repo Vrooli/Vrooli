@@ -9,8 +9,6 @@ import (
 	"scenario-to-cloud/secrets"
 	"scenario-to-cloud/ssh"
 	"scenario-to-cloud/vps"
-
-	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // TestCaddyConfigIdempotency verifies that Caddy configuration is only written
@@ -120,74 +118,42 @@ func TestBuildCaddyfileDeterministic(t *testing.T) {
 	}
 }
 
-// TestSecretsWriterPreservesExisting verifies that WriteSecretsToVPS preserves
-// existing secrets rather than regenerating them.
+// TestSecretsWriterPreservesExisting verifies that WriteToVPS consults the
+// remote authority before provisioning generated credentials.
 // [REQ:STC-IDEM-003] Secrets are preserved across redeployments
 func TestSecretsWriterPreservesExisting(t *testing.T) {
 	ctx := context.Background()
-
-	// Fake SSH runner that returns existing secrets
-	remoteSecretsPath, err := repocontract.UserPlaintextSecretsPath("$HOME")
-	if err != nil {
-		t.Fatalf("UserPlaintextSecretsPath: %v", err)
-	}
 	fakeSSH := &FakeSSHRunner{
-		Responses: map[string]ssh.Result{
-			// Return existing secrets.json with a password
-			"cat '" + remoteSecretsPath + "' 2>/dev/null || echo '{}'": {
-				Stdout: `{
-					"_metadata": {"generated_by": "scenario-to-cloud"},
-					"POSTGRES_PASSWORD": "existing-password-keep-me"
-				}`,
-				ExitCode: 0,
-			},
+		Handler: func(command string) (ssh.Result, error, bool) {
+			switch {
+			case strings.Contains(command, "credentials' 'doctor"):
+				return ssh.Result{Stdout: `{"provider":{"condition":"available"}}`, ExitCode: 0}, nil, true
+			case strings.Contains(command, "credentials' 'status") && strings.Contains(command, "postgres-password"):
+				return ssh.Result{Stdout: `{"configured":true,"provider_state":"available"}`, ExitCode: 0}, nil, true
+			case strings.Contains(command, "credentials' 'status"):
+				return ssh.Result{Stdout: `{"configured":false,"provider_state":"available"}`, ExitCode: 0}, nil, true
+			default:
+				return ssh.Result{ExitCode: 0}, nil, true
+			}
 		},
 	}
 
-	// Default success for other commands
-	fakeSSH.DefaultErr = nil
-
 	cfg := ssh.Config{Host: "test", Port: 22, User: "root"}
-	workdir := "/root/Vrooli"
-
-	// Read existing secrets
-	existing, err := secrets.ReadFromVPS(ctx, fakeSSH, cfg, workdir)
-	if err != nil {
-		t.Fatalf("ReadSecretsFromVPS failed: %v", err)
-	}
-
-	// Verify existing password was read
-	if existing["POSTGRES_PASSWORD"] != "existing-password-keep-me" {
-		t.Errorf("Existing POSTGRES_PASSWORD not preserved: got %q", existing["POSTGRES_PASSWORD"])
-	}
-
-	// Now simulate the preservation logic from WriteSecretsToVPS
-	newSecrets := []secrets.GeneratedSecret{
+	if err := secrets.WriteToVPS(ctx, fakeSSH, cfg, "/root/Vrooli", []secrets.GeneratedSecret{
 		{ID: "pg_pass", Key: "POSTGRES_PASSWORD", Value: "new-generated-password"},
 		{ID: "api_key", Key: "API_KEY", Value: "new-api-key"},
+	}, nil, "demo"); err != nil {
+		t.Fatalf("WriteToVPS: %v", err)
 	}
-
-	// Build secrets map, preserving existing values (this is the idempotent behavior)
-	secretsMap := make(map[string]string)
-	for _, s := range newSecrets {
-		if existingVal, ok := existing[s.Key]; ok && existingVal != "" {
-			// PRESERVE existing secret
-			secretsMap[s.Key] = existingVal
-		} else {
-			// New secret - use generated value
-			secretsMap[s.Key] = s.Value
+	for _, command := range fakeSSH.Calls {
+		if strings.Contains(command, "new-generated-password") {
+			t.Fatalf("existing credential value appeared in command: %q", command)
+		}
+		if strings.Contains(command, "credentials' 'provision") && strings.Contains(command, "api-key") {
+			return
 		}
 	}
-
-	// Verify preservation
-	if secretsMap["POSTGRES_PASSWORD"] != "existing-password-keep-me" {
-		t.Errorf("POSTGRES_PASSWORD should be preserved: got %q, want %q",
-			secretsMap["POSTGRES_PASSWORD"], "existing-password-keep-me")
-	}
-	if secretsMap["API_KEY"] != "new-api-key" {
-		t.Errorf("API_KEY should be new: got %q, want %q",
-			secretsMap["API_KEY"], "new-api-key")
-	}
+	t.Fatal("new API key was not provisioned")
 }
 
 // TestStopExistingScenarioIdempotent verifies that StopExistingScenario

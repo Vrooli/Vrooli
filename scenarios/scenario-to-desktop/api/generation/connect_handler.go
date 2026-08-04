@@ -152,12 +152,12 @@ func desktopConfigToProto(value *DesktopConfig) *domainv1.DesktopConfig {
 		result.Bundle = bundle
 	}
 	if value.UpdateConfig != nil {
-		update := &domainv1.UpdateConfig{Channel: optionalString(value.UpdateConfig.Channel), Provider: optionalString(value.UpdateConfig.Provider), AutoCheck: optionalBool(value.UpdateConfig.AutoCheck)}
+		update := &sharedv1.UpdateConfig{Channel: optionalString(value.UpdateConfig.Channel), Provider: optionalString(value.UpdateConfig.Provider), AutoCheck: optionalBool(value.UpdateConfig.AutoCheck)}
 		if value.UpdateConfig.GitHub != nil {
-			update.Github = &domainv1.GitHubUpdateConfig{Owner: value.UpdateConfig.GitHub.Owner, Repo: value.UpdateConfig.GitHub.Repo, Private: optionalBool(value.UpdateConfig.GitHub.Private)}
+			update.Github = &sharedv1.GitHubUpdateConfig{Owner: value.UpdateConfig.GitHub.Owner, Repo: value.UpdateConfig.GitHub.Repo, Private: optionalBool(value.UpdateConfig.GitHub.Private)}
 		}
 		if value.UpdateConfig.Generic != nil {
-			update.Generic = &domainv1.GenericUpdateConfig{Url: value.UpdateConfig.Generic.URL, ChannelPath: optionalString(value.UpdateConfig.Generic.ChannelPath)}
+			update.Generic = &sharedv1.GenericUpdateConfig{Url: value.UpdateConfig.Generic.URL, ChannelPath: optionalString(value.UpdateConfig.Generic.ChannelPath)}
 		}
 		result.Update = update
 	}

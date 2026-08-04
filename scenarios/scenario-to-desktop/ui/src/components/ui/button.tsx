@@ -1,78 +1,35 @@
 /**
  * @vrooliComponentSource react-component-library:Button
- * @vrooliComponentVersion 1.2.0
+ * @vrooliComponentVersion 2.0.0
  * @vrooliComponentAdoption 64208a21-ec2c-453b-ad93-e68ba0dd3388
- * @vrooliComponentAppliedAt 2026-07-27T22:32:21Z
- * @vrooliComponentSourceSha256 85fefc69951c8ed5b871b3f371e4483de6677cb1f2098dd1d341ad372340275e
- * @vrooliComponentDriftHash 85fefc69951c8ed5b871b3f371e4483de6677cb1f2098dd1d341ad372340275e
+ * @vrooliComponentAppliedAt 2026-08-04T15:21:01Z
+ * @vrooliComponentSourceSha256 15c63d90a49a5c51ce9e0777509245711592c5cd1931894df3bca346cd8cb05c
+ * @vrooliComponentDriftHash 5a216bb568bab0a5828b17f6ea152527c279337c679bb5917809b9d9d3ae30ee
+ * @vrooliComponentTokenTranslation none
  *
  * This file was copied from React Component Library. Local edits are allowed;
  * run "react-component-library adoptions refresh" to inspect drift.
  */
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { ControlBase, type ControlDensity, type ControlShape, type ControlSize, type ControlVariant } from "./ControlBase";
 
-// Keep the catalogue vocabulary while accepting the scenario's established
-// public API. This allows a governed primitive to be introduced without a
-// behaviour-changing migration across every desktop workflow.
-type ButtonVariant =
-  | "primary"
-  | "secondary"
-  | "ghost"
-  | "danger"
-  | "default"
-  | "outline"
-  | "destructive";
-type ButtonSize = "sm" | "md" | "icon" | "default";
+export type ButtonVariant = ControlVariant;
+export type ButtonSize = ControlSize;
 
-export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "color"> {
   children: ReactNode;
   variant?: ButtonVariant;
   size?: ButtonSize;
+  density?: ControlDensity;
+  shape?: ControlShape;
+  icon?: ReactNode;
 }
 
-const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
-
-const variantClasses: Record<ButtonVariant, string> = {
-  primary: "bg-app-primary text-app-primary-foreground hover:brightness-95",
-  secondary:
-    "border border-app-border bg-app-surface text-app-foreground hover:bg-app-surface-muted",
-  ghost: "text-app-foreground hover:bg-app-surface-muted",
-  danger: "bg-app-danger text-app-primary-foreground hover:brightness-95",
-  default: "bg-app-primary text-app-primary-foreground hover:brightness-95",
-  outline:
-    "border border-app-border bg-app-surface text-app-foreground hover:bg-app-surface-muted",
-  destructive: "bg-app-danger text-app-primary-foreground hover:brightness-95",
-};
-
-const sizeClasses: Record<ButtonSize, string> = {
-  sm: "min-h-9 px-3 text-sm",
-  md: "min-h-11 px-4 text-sm",
-  icon: "min-h-11 min-w-11 p-0",
-  default: "min-h-11 px-4 text-sm",
-};
-
-export function Button({
-  children,
-  className,
-  size = "md",
-  type = "button",
-  variant = "primary",
-  ...props
-}: ButtonProps) {
+export function Button({ children, icon, ...props }: ButtonProps) {
   return (
-    <button
-      type={type}
-      className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-control font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50 disabled:pointer-events-none disabled:opacity-60",
-        variantClasses[variant],
-        sizeClasses[size],
-        className,
-      )}
-      {...props}
-    >
-      {children}
-    </button>
+    <ControlBase {...props}>
+      {icon && <span data-control-slot="icon" className="shrink-0">{icon}</span>}
+      <span data-control-slot="label" className="min-w-0">{children}</span>
+    </ControlBase>
   );
 }

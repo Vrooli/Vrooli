@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -78,7 +77,7 @@ func (v *DefaultVaultCLI) PutSecret(ctx context.Context, path, vaultKey, value s
 var defaultVaultCLI VaultCLI = NewDefaultVaultCLI()
 
 var credentialStatusCommand = func(ctx context.Context, logicalID, field string) ([]byte, error) {
-	return exec.CommandContext(ctx, "vrooli", "credentials", "status", "--format", "json", "--identity", logicalID, "--field", field).Output()
+	return secretsStatusJSON(ctx, logicalID, field)
 }
 
 // SetVaultCLI replaces the default vault CLI implementation.

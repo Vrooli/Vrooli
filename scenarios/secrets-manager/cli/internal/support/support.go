@@ -18,11 +18,72 @@ import (
 func NewFlagSet(name string) *flag.FlagSet {
 	fs := flag.NewFlagSet(name, flag.ContinueOnError)
 	fs.SetOutput(new(bytes.Buffer))
+	format := ""
+	fs.Var(&formatValue{value: &format}, "format", "Output format (json)")
 	return fs
 }
 
+type formatValue struct {
+	value *string
+}
+
+func (v *formatValue) String() string {
+	if v == nil || v.value == nil {
+		return ""
+	}
+	return *v.value
+}
+
+func (v *formatValue) Set(raw string) error {
+	if v.value != nil {
+		*v.value = raw
+	}
+	return nil
+}
+
 func ParseFlags(fs *flag.FlagSet, args []string) error {
-	return cliutil.ParseInterspersed(fs, args)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	format := ""
+	if value := fs.Lookup("format"); value != nil {
+		format = value.Value.String()
+	}
+	jsonOutput, err := ResolveJSONOutput(false, format)
+	if err != nil {
+		return err
+	}
+	if jsonOutput {
+		if jsonFlag := fs.Lookup("json"); jsonFlag != nil {
+			if err := jsonFlag.Value.Set("true"); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// JSONFlags accepts both the common cli-core --json switch and the documented
+// --format json spelling used by the recovery and keyring commands.
+func JSONFlags(fs *flag.FlagSet) (*bool, *string) {
+	if value := fs.Lookup("format"); value != nil {
+		if format, ok := value.Value.(*formatValue); ok {
+			return cliutil.JSONFlag(fs), format.value
+		}
+	}
+	format := ""
+	fs.Var(&formatValue{value: &format}, "format", "Output format (json)")
+	return cliutil.JSONFlag(fs), &format
+}
+
+func ResolveJSONOutput(jsonOutput bool, format string) (bool, error) {
+	switch strings.ToLower(strings.TrimSpace(format)) {
+	case "", "json":
+		return jsonOutput || format != "", nil
+	default:
+		return false, fmt.Errorf("unsupported output format %q; use json", format)
+	}
 }
 
 func GetJSON[T any](core *cliapp.ScenarioApp, path string, query url.Values, out *T) error {

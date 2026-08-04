@@ -10,39 +10,28 @@ import (
 )
 
 type fakeCredentialRunner struct {
-	result ssh.Result
-	err    error
+	commands []string
 }
 
-func (f fakeCredentialRunner) Run(_ context.Context, _ ssh.Config, _ string, _ ssh.RunOptions) (ssh.Result, error) {
-	return f.result, f.err
-}
-
-func TestReadSecretsForValidationRejectsNonStringSecrets(t *testing.T) {
-	runner := fakeCredentialRunner{
-		result: ssh.Result{
-			Stdout:   `{"_metadata":{"generated_by":"scenario-to-cloud"},"POSTGRES_PASSWORD":42}`,
-			ExitCode: 0,
-		},
-	}
-
-	_, err := readSecretsForValidation(context.Background(), ssh.Config{}, runner, "/root/Vrooli")
-	if err == nil || !strings.Contains(err.Error(), "must be a JSON string") {
-		t.Fatalf("readSecretsForValidation error = %v, want string validation error", err)
+func (f *fakeCredentialRunner) Run(_ context.Context, _ ssh.Config, command string, _ ssh.RunOptions) (ssh.Result, error) {
+	f.commands = append(f.commands, command)
+	switch {
+	case strings.Contains(command, "credentials' 'doctor"):
+		return ssh.Result{Stdout: `{"provider":{"condition":"available","available":true}}`, ExitCode: 0}, nil
+	case strings.Contains(command, "credentials' 'status"):
+		return ssh.Result{Stdout: `{"identity":"vrooli/landing-page-business-suite","field":"postgres-password","configured":true,"provider":"ssh","provider_state":"available"}`, ExitCode: 0}, nil
+	case strings.HasPrefix(command, "pg_isready"):
+		return ssh.Result{Stdout: "localhost:5433 - accepting connections", ExitCode: 0}, nil
+	default:
+		return ssh.Result{ExitCode: 0}, nil
 	}
 }
 
-func TestRunCredentialValidationWarnsWhenSecretsInvalid(t *testing.T) {
-	runner := fakeCredentialRunner{
-		result: ssh.Result{
-			Stdout:   `{"POSTGRES_PASSWORD":42}`,
-			ExitCode: 0,
-		},
-	}
-
+func TestRunCredentialValidationUsesAuthorityAndNeverReadsPlaintextSecrets(t *testing.T) {
+	runner := &fakeCredentialRunner{}
 	checks := RunCredentialValidation(
 		context.Background(),
-		ssh.Config{},
+		ssh.Config{User: "root", Host: "target"},
 		runner,
 		domain.CloudManifest{
 			Scenario: domain.ManifestScenario{ID: "landing-page-business-suite"},
@@ -53,10 +42,12 @@ func TestRunCredentialValidationWarnsWhenSecretsInvalid(t *testing.T) {
 		"/root/Vrooli",
 	)
 
-	if len(checks) != 1 {
-		t.Fatalf("len(checks) = %d, want 1", len(checks))
+	if len(checks) != 1 || checks[0].ID != "postgres_credentials" || checks[0].Status != domain.PreflightPass {
+		t.Fatalf("checks = %#v, want passing postgres credential check", checks)
 	}
-	if checks[0].ID != "secrets_read" || checks[0].Status != domain.PreflightWarn {
-		t.Fatalf("checks[0] = %#v, want secrets_read warning", checks[0])
+	for _, command := range runner.commands {
+		if strings.Contains(command, "secrets.json") || strings.Contains(command, "PGPASSWORD") {
+			t.Fatalf("credential validation used plaintext secret path/value: %s", command)
+		}
 	}
 }

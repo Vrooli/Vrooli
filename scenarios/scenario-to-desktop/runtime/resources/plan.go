@@ -97,7 +97,7 @@ func Load(bundleRoot string) (*Plan, error) {
 	if err := json.Unmarshal(data, &plan); err != nil {
 		return nil, fmt.Errorf("parse resource deployment plan: %w", err)
 	}
-	if plan.SchemaVersion != "v3" && plan.SchemaVersion != "v4" {
+	if plan.SchemaVersion != "v3" && plan.SchemaVersion != "v4" && plan.SchemaVersion != "v6" {
 		return nil, fmt.Errorf("unsupported resource deployment plan version %q", plan.SchemaVersion)
 	}
 	for _, item := range plan.Resources {

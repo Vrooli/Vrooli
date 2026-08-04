@@ -8,7 +8,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
-	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	pipelinev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared"
 )
@@ -203,7 +202,7 @@ func pipelineConfigFromContext(ctx cliapp.OperationContext) (*pipelinev1.Pipelin
 		if provider == "" {
 			provider = "generic"
 		}
-		update := &domainv1.UpdateConfig{Provider: &provider}
+		update := &sharedv1.UpdateConfig{Provider: &provider}
 		if channel != "" {
 			update.Channel = &channel
 		}
@@ -212,7 +211,7 @@ func pipelineConfigFromContext(ctx cliapp.OperationContext) (*pipelinev1.Pipelin
 			update.AutoCheck = &autoCheck
 		}
 		if updateURL != "" {
-			update.Generic = &domainv1.GenericUpdateConfig{Url: updateURL}
+			update.Generic = &sharedv1.GenericUpdateConfig{Url: updateURL}
 		}
 		config.UpdateConfig = update
 	}

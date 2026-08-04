@@ -3,6 +3,7 @@ package secrets
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/resources/securestore"
@@ -74,6 +75,25 @@ func TestNativeManagerSurfacesProviderOutageInsteadOfSkippingSecrets(t *testing.
 	}
 	if errors.Is(err, credentialauthority.ErrUnconfigured) {
 		t.Fatalf("Load() error = %v must not read as an unset credential", err)
+	}
+}
+
+func TestNativeManagerSurfacesAbsentProviderWithActionableError(t *testing.T) {
+	authority, err := credentialauthority.NewAuthority(securestore.Absent("test host has no native credential service"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	bundle := &manifest.Manifest{App: manifest.App{Name: "Demo Desktop"}, Secrets: []manifest.Secret{{ID: "API_KEY"}}}
+	manager, err := NewNativeManagerWithAuthority(bundle, authority)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = manager.Load()
+	if !errors.Is(err, credentialauthority.ErrProviderAbsent) {
+		t.Fatalf("Load() error = %v, want ErrProviderAbsent", err)
+	}
+	if !strings.Contains(err.Error(), "configure a credential backend") {
+		t.Fatalf("Load() error = %v, want an actionable backend instruction", err)
 	}
 }
 

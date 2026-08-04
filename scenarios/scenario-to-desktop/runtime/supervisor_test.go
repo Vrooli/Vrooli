@@ -134,7 +134,7 @@ func TestHandleSecretsGetReturnsStatus(t *testing.T) {
 			{ID: "OPTIONAL_HINT", Class: "per_install_generated", Required: ptrBool(false)},
 		},
 	}
-	sm := secrets.NewManager(manifestData, testutil.NewMockFileSystem(), "/tmp/secrets.json")
+	sm := secrets.NewManager(manifestData)
 	sm.Set(map[string]string{"OPTIONAL_HINT": "seed"})
 
 	rt := &mockSupervisorRuntime{
@@ -339,7 +339,7 @@ func TestNewSupervisor_SanitizesAppName(t *testing.T) {
 		want string
 	}{
 		{"My App", "my-app"},
-		{"Test_App", "test_app"},
+		{"Test_App", "test-app"},
 		{"App-Name", "app-name"},
 	}
 

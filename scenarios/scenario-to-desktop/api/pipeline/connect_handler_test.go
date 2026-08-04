@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
-	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	pipelinev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared"
 )
@@ -351,7 +350,7 @@ func TestConfigFromProtoRejectsInsecureProductionUpdateFeed(t *testing.T) {
 	provider, feedURL, trustMode := "generic", "http://127.0.0.1:8765/updates", "production"
 	_, err := configFromProto(&pipelinev1.PipelineConfig{
 		ScenarioName: "example", ArtifactTrustMode: &trustMode,
-		UpdateConfig: &domainv1.UpdateConfig{Provider: &provider, Generic: &domainv1.GenericUpdateConfig{Url: feedURL}},
+		UpdateConfig: &sharedv1.UpdateConfig{Provider: &provider, Generic: &sharedv1.GenericUpdateConfig{Url: feedURL}},
 	})
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("configFromProto() code = %v, want invalid argument (err=%v)", connect.CodeOf(err), err)

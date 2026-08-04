@@ -17,34 +17,6 @@ func (f fakeWriterRunner) Run(_ context.Context, _ ssh.Config, _ string, _ ssh.R
 	return f.result, f.err
 }
 
-func TestReadFromVPSRejectsNonStringSecrets(t *testing.T) {
-	runner := fakeWriterRunner{
-		result: ssh.Result{
-			Stdout:   `{"_metadata":{"generated_by":"scenario-to-cloud"},"POSTGRES_PASSWORD":42}`,
-			ExitCode: 0,
-		},
-	}
-
-	_, err := ReadFromVPS(context.Background(), runner, ssh.Config{}, "/root/Vrooli")
-	if err == nil || !strings.Contains(err.Error(), "must be a JSON string") {
-		t.Fatalf("ReadFromVPS error = %v, want string validation error", err)
-	}
-}
-
-func TestReadAllFromVPSRejectsInvalidMetadata(t *testing.T) {
-	runner := fakeWriterRunner{
-		result: ssh.Result{
-			Stdout:   `{"_metadata":"bad","API_KEY":"secret"}`,
-			ExitCode: 0,
-		},
-	}
-
-	_, err := ReadAllFromVPS(context.Background(), runner, ssh.Config{}, "/root/Vrooli")
-	if err == nil || !strings.Contains(err.Error(), "invalid secrets metadata") {
-		t.Fatalf("ReadAllFromVPS error = %v, want metadata validation error", err)
-	}
-}
-
 // A deploy must refuse rather than guess when it cannot tell whether the target
 // already holds a credential. Treating an unreachable store as "nothing stored"
 // would regenerate a database password that is still in use, which is exactly

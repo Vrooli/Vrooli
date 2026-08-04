@@ -344,7 +344,7 @@ func BuildDeployPlan(manifest domain.CloudManifest) ([]domain.VPSPlanStep, error
 		steps = append(steps, domain.VPSPlanStep{
 			ID:          "secrets_provision",
 			Title:       "Provision secrets",
-			Description: "Generate per-install secrets and write to ~/.vrooli/secrets.json before resource startup.",
+			Description: "Generate per-install secrets and provision them to the target credential authority before resource startup.",
 			Command:     "(custom step - secrets generated and written via API)",
 		})
 	}
@@ -589,7 +589,7 @@ func RunDeployWithProgress(
 			return failStep("secrets_provision", "Provisioning secrets", fmt.Errorf("generate secrets: %w", err))
 		}
 
-		// Write secrets.json to VPS (generated + user-provided)
+		// Provision generated and user-provided values to the target authority.
 		userSecrets := buildUserSecretMap(manifest, providedSecrets)
 		if err := secrets.WriteToVPS(ctx, sshRunner, cfg, workdir, generated, userSecrets, manifest.Scenario.ID); err != nil {
 			return failStep("secrets_provision", "Provisioning secrets", fmt.Errorf("write secrets: %w", err))

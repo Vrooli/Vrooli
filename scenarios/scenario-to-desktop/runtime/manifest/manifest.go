@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -21,6 +22,14 @@ type Manifest struct {
 	Swaps         []Swap     `json:"swaps,omitempty"`
 	Secrets       []Secret   `json:"secrets,omitempty"`
 	Services      []Service  `json:"services"`
+}
+
+// InvalidIPCHostError identifies a manifest that would expose the authenticated
+// control API beyond the local machine.
+type InvalidIPCHostError struct{ Host string }
+
+func (e InvalidIPCHostError) Error() string {
+	return fmt.Sprintf("ipc.host %q is not a loopback address", e.Host)
 }
 
 type App struct {
@@ -256,7 +265,18 @@ func (m *Manifest) validateHeader() error {
 	if m.IPC.Host == "" || m.IPC.Port == 0 {
 		return errors.New("ipc.host and ipc.port are required")
 	}
+	if !isLoopbackHost(m.IPC.Host) {
+		return InvalidIPCHostError{Host: m.IPC.Host}
+	}
 	return nil
+}
+
+func isLoopbackHost(host string) bool {
+	host = strings.TrimSpace(host)
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	return net.ParseIP(host) != nil && net.ParseIP(host).IsLoopback()
 }
 
 // validateService checks a single service definition.

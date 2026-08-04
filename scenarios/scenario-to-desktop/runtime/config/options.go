@@ -2,8 +2,6 @@
 package config
 
 import (
-	"strings"
-
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/gpu"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/health"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
@@ -11,6 +9,7 @@ import (
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/ports"
 	resourceplan "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/resources"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/secrets"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/strutil"
 )
 
 // Options configures the Supervisor.
@@ -38,11 +37,5 @@ type Options struct {
 
 // SanitizeAppName normalizes an application name for filesystem use.
 func SanitizeAppName(name string) string {
-	out := strings.TrimSpace(name)
-	if out == "" {
-		return "desktop-app"
-	}
-	out = strings.ReplaceAll(out, " ", "-")
-	out = strings.ToLower(out)
-	return out
+	return strutil.SanitizeAppName(name)
 }

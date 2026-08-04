@@ -119,7 +119,8 @@ func restartScenarioOnVPS(
 	return nil
 }
 
-// HandleListVPSSecrets returns an HTTP handler that lists all secrets on a deployed VPS.
+// HandleListVPSSecrets returns an HTTP handler that lists declared credential
+// metadata on a deployed VPS. Values are never returned.
 //
 // GET /api/v1/deployments/{id}/secrets
 //
@@ -144,7 +145,7 @@ func HandleListVPSSecrets(deps ManagementDeps) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 		defer cancel()
 
-		_, _, cfg, workdir, err := getDeploymentContext(ctx, deps.Repo, deploymentID)
+		_, m, cfg, _, err := getDeploymentContext(ctx, deps.Repo, deploymentID)
 		if err != nil {
 			status := http.StatusInternalServerError
 			if strings.Contains(err.Error(), "not found") {
@@ -157,7 +158,7 @@ func HandleListVPSSecrets(deps ManagementDeps) http.HandlerFunc {
 			return
 		}
 
-		data, err := ReadAllFromVPS(ctx, deps.SSHRunner, cfg, workdir)
+		client, err := newRemoteCredentialClient(deps.SSHRunner, cfg)
 		if err != nil {
 			httputil.WriteAPIError(w, http.StatusBadGateway, httputil.APIError{
 				Code:    "read_secrets_failed",
@@ -167,13 +168,17 @@ func HandleListVPSSecrets(deps ManagementDeps) http.HandlerFunc {
 			return
 		}
 
-		// Convert to response format (masked by default)
-		secrets := make([]domain.VPSSecretEntry, 0, len(data.Secrets))
-		for key := range data.Secrets {
+		refs, err := listRemoteCredentials(ctx, client, m.Scenario.ID)
+		if err != nil {
+			httputil.WriteAPIError(w, http.StatusBadGateway, httputil.APIError{Code: "read_credentials_failed", Message: "Failed to read credentials from VPS", Hint: err.Error()})
+			return
+		}
+		secrets := make([]domain.VPSSecretEntry, 0, len(refs))
+		for _, ref := range refs {
 			secrets = append(secrets, domain.VPSSecretEntry{
-				Key:    key,
+				Key:    ref.Field,
 				Masked: true,
-				Source: "unknown", // We don't track source in secrets.json yet
+				Source: "credential-authority",
 			})
 		}
 
@@ -183,14 +188,8 @@ func HandleListVPSSecrets(deps ManagementDeps) http.HandlerFunc {
 		})
 
 		response := domain.ListVPSSecretsResponse{
-			Secrets: secrets,
-			Metadata: domain.VPSSecretsMetadata{
-				Environment: data.Metadata.Environment,
-				LastUpdated: data.Metadata.LastUpdated.Format(time.RFC3339),
-				ScenarioID:  data.Metadata.ScenarioID,
-				GeneratedBy: data.Metadata.GeneratedBy,
-				Notes:       data.Metadata.Notes,
-			},
+			Secrets:   secrets,
+			Metadata:  domain.VPSSecretsMetadata{Environment: "credential-authority", LastUpdated: time.Now().UTC().Format(time.RFC3339), ScenarioID: m.Scenario.ID, GeneratedBy: "scenario-to-cloud"},
 			Timestamp: time.Now().UTC().Format(time.RFC3339),
 		}
 
@@ -198,12 +197,14 @@ func HandleListVPSSecrets(deps ManagementDeps) http.HandlerFunc {
 	}
 }
 
-// HandleGetVPSSecret returns an HTTP handler that gets a single secret from the VPS.
+// HandleGetVPSSecret returns an HTTP handler that gets metadata for a single
+// credential on the VPS. Values are never returned, including when reveal is
+// requested.
 //
 // GET /api/v1/deployments/{id}/secrets/{key}?reveal=true
 //
 // Query params:
-//   - reveal: if "true", include the actual secret value (default: masked)
+//   - reveal: rejected; credential values are not a management API surface
 func HandleGetVPSSecret(deps ManagementDeps) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -221,7 +222,7 @@ func HandleGetVPSSecret(deps ManagementDeps) http.HandlerFunc {
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 		defer cancel()
 
-		_, _, cfg, workdir, err := getDeploymentContext(ctx, deps.Repo, deploymentID)
+		_, m, cfg, _, err := getDeploymentContext(ctx, deps.Repo, deploymentID)
 		if err != nil {
 			status := http.StatusInternalServerError
 			if strings.Contains(err.Error(), "not found") {
@@ -234,7 +235,7 @@ func HandleGetVPSSecret(deps ManagementDeps) http.HandlerFunc {
 			return
 		}
 
-		data, err := ReadAllFromVPS(ctx, deps.SSHRunner, cfg, workdir)
+		client, err := newRemoteCredentialClient(deps.SSHRunner, cfg)
 		if err != nil {
 			httputil.WriteAPIError(w, http.StatusBadGateway, httputil.APIError{
 				Code:    "read_secrets_failed",
@@ -244,8 +245,12 @@ func HandleGetVPSSecret(deps ManagementDeps) http.HandlerFunc {
 			return
 		}
 
-		value, exists := data.Secrets[secretKey]
-		if !exists {
+		status, err := client.Status(ctx, "vrooli/"+m.Scenario.ID, CredentialField(secretKey))
+		if err != nil {
+			httputil.WriteAPIError(w, http.StatusBadGateway, httputil.APIError{Code: "read_credential_failed", Message: "Failed to read credential status from VPS", Hint: err.Error()})
+			return
+		}
+		if !status.Configured {
 			httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{
 				Code:    "secret_not_found",
 				Message: fmt.Sprintf("Secret %q not found", secretKey),
@@ -253,14 +258,14 @@ func HandleGetVPSSecret(deps ManagementDeps) http.HandlerFunc {
 			return
 		}
 
-		reveal := r.URL.Query().Get("reveal") == "true"
+		if r.URL.Query().Get("reveal") == "true" {
+			httputil.WriteAPIError(w, http.StatusForbidden, httputil.APIError{Code: "credential_reveal_forbidden", Message: "Credential values cannot be revealed through the management API"})
+			return
+		}
 		entry := domain.VPSSecretEntry{
 			Key:    secretKey,
-			Masked: !reveal,
-			Source: "unknown",
-		}
-		if reveal {
-			entry.Value = value
+			Masked: true,
+			Source: "credential-authority",
 		}
 
 		httputil.WriteJSON(w, http.StatusOK, domain.GetVPSSecretResponse{

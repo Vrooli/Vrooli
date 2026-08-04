@@ -24,7 +24,7 @@ func TestInjector_Apply_EnvTarget(t *testing.T) {
 	}
 
 	mockFS := testutil.NewMockFileSystem()
-	store := NewManager(m, mockFS, "/tmp/secrets.json")
+	store := NewManager(m)
 	store.Set(map[string]string{"API_KEY": "secret_value"})
 
 	inj := NewInjector(store, mockFS, "/app/data")
@@ -57,7 +57,7 @@ func TestInjector_Apply_EnvTargetDefaultName(t *testing.T) {
 	}
 
 	mockFS := testutil.NewMockFileSystem()
-	store := NewManager(m, mockFS, "/tmp/secrets.json")
+	store := NewManager(m)
 	store.Set(map[string]string{"api_key": "secret_value"})
 
 	inj := NewInjector(store, mockFS, "/app/data")
@@ -96,7 +96,7 @@ func TestInjectorFileTargetStaysOffDurableStorageAndIsRemovable(t *testing.T) {
 	}
 
 	mockFS := testutil.NewMockFileSystem()
-	store := NewManager(m, mockFS, "")
+	store := NewManager(m)
 	store.Set(map[string]string{"CERT": value})
 
 	const appData = "/app/data"
@@ -150,7 +150,7 @@ func TestInjectorRefusesAFileTargetWithNoEphemeralLocation(t *testing.T) {
 			Target:   manifest.SecretTarget{Type: "file", Name: "certs/cert.pem"},
 		}},
 	}
-	store := NewManager(m, testutil.NewMockFileSystem(), "")
+	store := NewManager(m)
 	store.Set(map[string]string{"CERT": "value"})
 
 	inj := NewInjector(store, refusingMkdirFS{testutil.NewMockFileSystem()}, "/app/data")
@@ -180,7 +180,7 @@ func TestInjector_Apply_MissingRequired(t *testing.T) {
 	}
 
 	mockFS := testutil.NewMockFileSystem()
-	store := NewManager(m, mockFS, "/tmp/secrets.json")
+	store := NewManager(m)
 	store.Set(map[string]string{}) // No secrets set
 
 	inj := NewInjector(store, mockFS, "/app/data")
@@ -206,7 +206,7 @@ func TestInjector_Apply_MissingOptional(t *testing.T) {
 	}
 
 	mockFS := testutil.NewMockFileSystem()
-	store := NewManager(m, mockFS, "/tmp/secrets.json")
+	store := NewManager(m)
 	store.Set(map[string]string{}) // No secrets set
 
 	inj := NewInjector(store, mockFS, "/app/data")
@@ -229,7 +229,7 @@ func TestInjector_Apply_UnknownSecret(t *testing.T) {
 	}
 
 	mockFS := testutil.NewMockFileSystem()
-	store := NewManager(m, mockFS, "/tmp/secrets.json")
+	store := NewManager(m)
 
 	inj := NewInjector(store, mockFS, "/app/data")
 
@@ -254,7 +254,7 @@ func TestInjector_Apply_UnsupportedTargetType(t *testing.T) {
 	}
 
 	mockFS := testutil.NewMockFileSystem()
-	store := NewManager(m, mockFS, "/tmp/secrets.json")
+	store := NewManager(m)
 	store.Set(map[string]string{"KEY": "value"})
 
 	inj := NewInjector(store, mockFS, "/app/data")

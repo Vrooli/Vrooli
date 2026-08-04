@@ -96,7 +96,7 @@ func loadOrBootstrapDesktopVault(
 	store securestore.Store,
 	instanceID string,
 ) (vaultbootstrap.Material, error) {
-	material, found, err := vaultbootstrap.Load(store, instanceID)
+	material, found, err := vaultbootstrap.Load(store, desktopUnsealKeyStore(), instanceID)
 	if err != nil {
 		return vaultbootstrap.Material{}, err
 	}

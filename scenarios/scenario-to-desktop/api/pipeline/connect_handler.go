@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	pipelinev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline/pipelineconnect"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared"
@@ -394,7 +393,7 @@ func applyOptionalConfigExecutionFromProto(config *Config, value *pipelinev1.Pip
 	}
 }
 
-func updateConfigFromProto(value *domainv1.UpdateConfig, trustMode resourcedeployment.ArtifactTrustMode) (*generation.UpdateConfig, error) {
+func updateConfigFromProto(value *sharedv1.UpdateConfig, trustMode resourcedeployment.ArtifactTrustMode) (*generation.UpdateConfig, error) {
 	if value == nil {
 		return nil, nil
 	}
@@ -736,11 +735,11 @@ func applyOptionalProtoExecutionConfig(result *pipelinev1.PipelineConfig, config
 	}
 }
 
-func updateConfigToProto(value *generation.UpdateConfig) *domainv1.UpdateConfig {
+func updateConfigToProto(value *generation.UpdateConfig) *sharedv1.UpdateConfig {
 	if value == nil {
 		return nil
 	}
-	result := &domainv1.UpdateConfig{}
+	result := &sharedv1.UpdateConfig{}
 	if value.Channel != "" {
 		result.Channel = stringPtr(value.Channel)
 	}
@@ -751,13 +750,13 @@ func updateConfigToProto(value *generation.UpdateConfig) *domainv1.UpdateConfig 
 		result.AutoCheck = boolPtr(true)
 	}
 	if value.Generic != nil {
-		result.Generic = &domainv1.GenericUpdateConfig{Url: value.Generic.URL}
+		result.Generic = &sharedv1.GenericUpdateConfig{Url: value.Generic.URL}
 		if value.Generic.ChannelPath != "" {
 			result.Generic.ChannelPath = stringPtr(value.Generic.ChannelPath)
 		}
 	}
 	if value.GitHub != nil {
-		result.Github = &domainv1.GitHubUpdateConfig{Owner: value.GitHub.Owner, Repo: value.GitHub.Repo}
+		result.Github = &sharedv1.GitHubUpdateConfig{Owner: value.GitHub.Owner, Repo: value.GitHub.Repo}
 		if value.GitHub.Private {
 			result.Github.Private = boolPtr(true)
 		}

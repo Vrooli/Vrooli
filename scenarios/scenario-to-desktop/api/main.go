@@ -21,6 +21,7 @@ import (
 	"scenario-to-desktop-api/captures"
 	"scenario-to-desktop-api/deploy"
 	"scenario-to-desktop-api/generation"
+	"scenario-to-desktop-api/internal/capabilities"
 	"scenario-to-desktop-api/livedesktop"
 	"scenario-to-desktop-api/persistence"
 	"scenario-to-desktop-api/pipeline"
@@ -557,6 +558,7 @@ func (s *Server) registerDomainHandlers() {
 		Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
+	capabilities.NewHandler(capabilities.NewRegistry()).RegisterRoutes(s.router)
 	s.registerConnectHandlers()
 
 	// ===== Domain Handlers (Screaming Architecture) =====

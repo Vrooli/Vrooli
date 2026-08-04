@@ -65,6 +65,7 @@ export interface V2ReadinessResponse {
   integrations: ReadinessItem[];
   checked_at: string;
   credential_diagnosis?: CredentialDiagnosis;
+  recovery?: { receipt_exists: boolean; exported_at?: string; entry_count: number; uncovered: string[] };
 }
 export interface CredentialDiagnosis {
   provider?: { backend?: string; condition?: string; explanation?: string; fix?: string; write_condition?: string; write_fix?: string; native_storage_caveat?: string };

@@ -1,10 +1,28 @@
 package manifest
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 )
+
+func TestManifestValidateRejectsNonLoopbackIPCHost(t *testing.T) {
+	m := Manifest{
+		SchemaVersion: "desktop.v0.1",
+		Target:        "desktop",
+		App:           App{Name: "demo", Version: "1.0.0"},
+		IPC:           IPC{Host: "0.0.0.0", Port: 47710},
+		Services: []Service{{
+			ID: "api", Binaries: map[string]Binary{"linux-x64": {Path: "bin/api"}},
+			Health: HealthCheck{Type: "tcp"}, Readiness: ReadinessCheck{Type: "tcp"},
+		}},
+	}
+	var hostErr InvalidIPCHostError
+	if err := m.Validate("linux", "amd64"); !errors.As(err, &hostErr) || hostErr.Host != "0.0.0.0" {
+		t.Fatalf("Validate() error = %v, want InvalidIPCHostError for 0.0.0.0", err)
+	}
+}
 
 // =============================================================================
 // LoadManifest Tests

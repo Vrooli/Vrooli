@@ -16,8 +16,9 @@ material:
 
 - `.build-fingerprint.json` is a generated, gitignored map of source hashes.
 - Historical `.vrooli/secrets.json` files are migration inputs only. The
-  desktop runtime does not read them during normal startup; operators may use
-  the explicit native-store migration flag with separately confirmed deletion.
+  desktop runtime does not read them during normal startup; the explicit
+  credentialclient/secrets-manager migration owns import and separately
+  confirmed deletion after recovery verification.
 - `coverage/logs/` contains generated test output, not source or deployable
   configuration.
 - `api/signing/validation/prerequisites_test.go` uses the public fake GPG key
