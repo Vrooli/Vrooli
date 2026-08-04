@@ -139,6 +139,9 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	}
 
 	claimsRepo := playbooksclaims.NewSqliteRepository(db)
+	if err := playbooksclaims.Migrate(context.Background(), db); err != nil {
+		return nil, fmt.Errorf("migrate playbooks claims storage: %w", err)
+	}
 	claimsService := playbooksclaims.NewService(playbooksclaims.Config{Repo: claimsRepo})
 	runner.SetClaims(claimsService)
 
@@ -216,6 +219,9 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	background := NewBackgroundCoordinator(selfHealthJob, fleetSchedulerJob, agentInitializationJob)
 
 	remediationService := remediation.NewService(remediation.NewSQLiteRepository(db), nil)
+	if err := remediation.Migrate(context.Background(), db); err != nil {
+		return nil, fmt.Errorf("migrate remediation storage: %w", err)
+	}
 	remediationLauncher := remediation.NewAgentManagerAdapter(agentService)
 
 	// Create requirements syncer

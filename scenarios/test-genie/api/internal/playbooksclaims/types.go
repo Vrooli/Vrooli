@@ -2,6 +2,7 @@ package playbooksclaims
 
 import (
 	"errors"
+	"strings"
 	"time"
 )
 
@@ -24,6 +25,8 @@ const HeartbeatInterval = 30 * time.Second
 // Claim is one row of the playbooks_claims table.
 type Claim struct {
 	ScenarioName string
+	TargetKind   string
+	TargetID     string
 	RunID        string
 	Mode         Mode
 	StartedBy    string
@@ -40,12 +43,26 @@ func (c Claim) Alive(now time.Time) bool {
 // AcquireInput captures the caller identity for a new claim.
 type AcquireInput struct {
 	ScenarioName string
+	TargetKind   string
+	TargetID     string
 	RunID        string
 	Mode         Mode
 	StartedBy    string
 }
 
-// ErrBusy means another live claim already owns the scenario.
+func targetIdentity(kind, id, legacy string) (string, string) {
+	kind = strings.TrimSpace(strings.ToLower(kind))
+	if kind == "" {
+		kind = "scenario"
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		id = strings.TrimSpace(legacy)
+	}
+	return kind, id
+}
+
+// ErrBusy means another live claim already owns the target.
 // Holder carries the active claim for caller-side messaging.
 type ErrBusy struct {
 	Holder Claim

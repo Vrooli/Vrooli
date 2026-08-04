@@ -27,6 +27,7 @@ import (
 	"test-genie/internal/selfhealthsnapshots"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
+	"test-genie/internal/targetmodel"
 
 	"github.com/vrooli/api-core/discovery"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
@@ -148,8 +149,19 @@ func (s *Service) scenarioDir(scenario string) (string, error) {
 	if scenario == "" {
 		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("scenario is required"))
 	}
+	if strings.Contains(scenario, ":") {
+		target, err := targetmodel.Resolve(filepath.Dir(s.scenariosRoot), scenario)
+		if err != nil {
+			return "", connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		artifactRoot, err := targetmodel.ArtifactRoot(filepath.Dir(s.scenariosRoot), target)
+		if err != nil {
+			return "", connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+		return artifactRoot, nil
+	}
 	if scenario == "." || scenario == ".." || strings.ContainsAny(scenario, `/\`) || filepath.Clean(scenario) != scenario {
-		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("scenario must be a scenario slug"))
+		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("scenario must be a scenario slug or kind:id target"))
 	}
 	return filepath.Join(s.scenariosRoot, scenario), nil
 }
@@ -316,15 +328,27 @@ func (s *Service) FindRun(ctx context.Context, req *connect.Request[runspb.FindR
 	matchCurrentSource := req.Msg.GetMatchCurrentSource()
 	currentConfiguration := ""
 	if matchCurrentSource {
-		if treeDigest, err = treedigest.Compute(dir); err != nil {
+		sourceDir := dir
+		if targetExpression := strings.TrimSpace(req.Msg.GetScenario()); strings.Contains(targetExpression, ":") {
+			target, resolveErr := targetmodel.Resolve(filepath.Dir(s.scenariosRoot), targetExpression)
+			if resolveErr != nil {
+				return nil, connect.NewError(connect.CodeInvalidArgument, resolveErr)
+			}
+			sourceDir = target.Path
+		}
+		if treeDigest, err = treedigest.Compute(sourceDir); err != nil {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("compute current source fingerprint: %w", err))
 		}
 		if s.planner == nil {
 			return connect.NewResponse(&runspb.FindRunResponse{Found: false}), nil
 		}
-		preview, err := s.planner.Preview(ctx, orchestrator.SuiteExecutionRequest{
+		previewRequest := orchestrator.SuiteExecutionRequest{
 			ScenarioName: req.Msg.GetScenario(), Preset: preset, CaptureProfile: captureProfile,
-		})
+		}
+		if strings.Contains(strings.TrimSpace(req.Msg.GetScenario()), ":") {
+			previewRequest.Target = req.Msg.GetScenario()
+		}
+		preview, err := s.planner.Preview(ctx, previewRequest)
 		if err != nil || preview == nil {
 			return connect.NewResponse(&runspb.FindRunResponse{Found: false}), nil
 		}

@@ -141,11 +141,14 @@ func (o *SuiteOrchestrator) SetClaims(svc *playbooksclaims.Service) {
 
 // SuiteExecutionRequest configures a single test execution run.
 type SuiteExecutionRequest struct {
-	ScenarioName string   `json:"scenarioName"`
-	Preset       string   `json:"preset,omitempty"`
-	Phases       []string `json:"phases,omitempty"`
-	Skip         []string `json:"skip,omitempty"`
-	FailFast     bool     `json:"failFast"`
+	ScenarioName string `json:"scenarioName"`
+	// Target accepts the generalized kind:id notation. ScenarioName remains
+	// required by legacy callers and is the display alias for scenario targets.
+	Target   string   `json:"target,omitempty"`
+	Preset   string   `json:"preset,omitempty"`
+	Phases   []string `json:"phases,omitempty"`
+	Skip     []string `json:"skip,omitempty"`
+	FailFast bool     `json:"failFast"`
 
 	// RunID, when set, is the durable run identifier the run manager mints up
 	// front so it can register and return the id synchronously (before the
@@ -199,6 +202,8 @@ type SuiteExecutionResult struct {
 	StartedAt    time.Time `json:"startedAt"`
 	CompletedAt  time.Time `json:"completedAt"`
 	Success      bool      `json:"success"`
+	TargetKind   string    `json:"targetKind,omitempty"`
+	TargetID     string    `json:"targetId,omitempty"`
 	// Verdict is the tri-state outcome (PASS/PARTIAL/FAIL). Success is kept for
 	// backward compatibility and is true for both PASS and PARTIAL (only FAIL is
 	// a non-zero exit), so a self-test that skips an unrunnable phase is honestly
@@ -527,6 +532,14 @@ func (o *SuiteOrchestrator) prepareTargetRuntime(
 	req SuiteExecutionRequest,
 	logWriter io.Writer,
 ) (workspacepkg.Environment, runnability.RunContext, targetruntime.Lease, *targetruntime.Manager, error) {
+	if strings.TrimSpace(env.TargetKind) != "" && strings.TrimSpace(env.TargetKind) != "scenario" {
+		// Non-scenario targets are source trees, not deployable services. Their
+		// phases can inspect and validate files, but Test Genie must never try to
+		// start a scenario named after a package/resource/tool.
+		rc := resolveRunContext(env, targetruntime.URLs{}, resolveResources(ctx, defs))
+		env.TargetRuntime = targetruntime.NewNoOp(fmt.Sprintf("target kind %q is source-only; lifecycle operations are not applicable", env.TargetKind))
+		return env, rc, targetruntime.Lease{}, nil, nil
+	}
 	needs := runtimeNeeds(defs)
 	newRuntime := o.newRuntime
 	if newRuntime == nil {
@@ -695,11 +708,11 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 	planCtx.env.RunID = runID
 	planCtx.env.CaptureProfile = strings.TrimSpace(req.CaptureProfile)
 	planCtx.env.DiagnosticsPreset = resolveDiagnosticsPreset(req)
-	if err := sharedartifacts.EnsureCoverageStructure(planCtx.env.ScenarioDir); err != nil {
+	if err := sharedartifacts.EnsureCoverageStructure(planCtx.env.ArtifactRoot); err != nil {
 		return nil, err
 	}
 
-	runLogDir := sharedartifacts.RunLogsDir(planCtx.env.ScenarioDir, runID)
+	runLogDir := sharedartifacts.RunLogsDir(planCtx.env.ArtifactRoot, runID)
 	if err := os.MkdirAll(runLogDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create run log directory: %w", err)
 	}
@@ -736,12 +749,14 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 	if req.RequireGateQuality && (digest == "" || digestErr != nil || gitCtx.Dirty || !isLinkedWorktree(planCtx.env.ScenarioDir)) {
 		return nil, fmt.Errorf("gate-quality execution requires an isolated linked Git worktree with a clean, digest-stamped source tree")
 	}
-	if err := sharedruns.WriteDescriptorSnapshot(planCtx.env.ScenarioDir, runID, descriptorSnapshot); err != nil {
+	if err := sharedruns.WriteDescriptorSnapshot(planCtx.env.ArtifactRoot, runID, descriptorSnapshot); err != nil {
 		return nil, fmt.Errorf("persist run descriptor snapshot: %w", err)
 	}
-	if err := sharedruns.NewIndex(planCtx.env.ScenarioDir).Append(sharedruns.RunRecord{
+	if err := sharedruns.NewIndex(planCtx.env.ArtifactRoot).Append(sharedruns.RunRecord{
 		RunID:                           runID,
 		Scenario:                        scenario,
+		TargetKind:                      planCtx.env.TargetKind,
+		TargetID:                        planCtx.env.TargetID,
 		StartedAt:                       time.Now().UTC(),
 		Status:                          sharedruns.StatusInProgress,
 		Diagnostics:                     resolveRunDiagnostics(planCtx.env.DiagnosticsPreset),
@@ -768,8 +783,10 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 		runLogDir: runLogDir,
 		result: &SuiteExecutionResult{
 			RunID:                    runID,
-			ArtifactDir:              sharedartifacts.RunDir(planCtx.env.ScenarioDir, runID),
+			ArtifactDir:              sharedartifacts.RunDir(planCtx.env.ArtifactRoot, runID),
 			ScenarioName:             scenario,
+			TargetKind:               planCtx.env.TargetKind,
+			TargetID:                 planCtx.env.TargetID,
 			StartedAt:                time.Now().UTC(),
 			PresetUsed:               planCtx.plan.PresetUsed,
 			RequestedPreset:          phases.NormalizeKey(req.Preset),
@@ -780,7 +797,7 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 			DescriptorSnapshotDigest: descriptorSnapshot.Digest,
 			ConfigurationFingerprint: configurationDigest,
 			SourceFingerprint:        digest,
-			SourceScope:              "scenario:" + scenario,
+			SourceScope:              planCtx.env.TargetKind + ":" + planCtx.env.TargetID,
 			SourceStable:             true,
 			GateQuality:              req.RequireGateQuality,
 			FailFast:                 req.FailFast,
@@ -861,7 +878,7 @@ func (o *SuiteOrchestrator) finalizeExecution(
 	// point at a file that already exists on disk (the on-ramp the assessment
 	// found broken). The path is run-deterministic regardless of write order.
 	if err := o.writeFindingsArtifact(
-		prepared.env.ScenarioDir,
+		prepared.env.ArtifactRoot,
 		result.ScenarioName,
 		prepared.runID,
 		result.Verdict,
@@ -869,14 +886,14 @@ func (o *SuiteOrchestrator) finalizeExecution(
 		resultViews,
 	); err != nil {
 		log.Printf("failed to write findings artifact: %v", err)
-	} else if err := writeEvidenceManifest(prepared.env.ScenarioDir, prepared.runID, result.ScenarioName, result.Verdict, result.CompletedAt, resultViews); err != nil {
+	} else if err := writeEvidenceManifest(prepared.env.ArtifactRoot, prepared.runID, result.ScenarioName, result.Verdict, result.CompletedAt, resultViews); err != nil {
 		log.Printf("failed to write evidence manifest: %v", err)
 	}
 	// Inventory the bytes already owned by this run before publishing terminal
 	// state. The catalog is metadata only: no provider artifact is copied into a
 	// second store, and descriptor declarations assign producer metadata without
 	// a phase-name registry.
-	if err := writeArtifactCatalog(prepared.env.ScenarioDir, prepared.runID, result.CompletedAt); err != nil {
+	if err := writeArtifactCatalog(prepared.env.ArtifactRoot, prepared.runID, result.CompletedAt); err != nil {
 		warning := "artifact catalog unavailable: " + err.Error()
 		result.Warnings = append(result.Warnings, warning)
 		log.Printf("failed to write artifact catalog: %v", err)
@@ -898,7 +915,7 @@ func (o *SuiteOrchestrator) finalizeExecution(
 	}
 
 	if err := o.writeLatestManifest(
-		prepared.env.ScenarioDir,
+		prepared.env.ArtifactRoot,
 		prepared.runID,
 		result.StartedAt,
 		result.CompletedAt,
@@ -908,7 +925,7 @@ func (o *SuiteOrchestrator) finalizeExecution(
 	}
 
 	result.Requirements = o.syncRequirementsIfNeeded(ctx, prepared.env, prepared.config, req, prepared.plan, phaseResults)
-	o.finalizeRunRecord(prepared.env.ScenarioDir, prepared.runID, result, resultViews)
+	o.finalizeRunRecord(prepared.env.ArtifactRoot, prepared.runID, result, resultViews)
 
 	return result
 }

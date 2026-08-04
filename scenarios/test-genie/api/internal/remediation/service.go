@@ -39,10 +39,17 @@ func (s *Service) Create(ctx context.Context, plan Plan, selected, requirements 
 	if len(selected) == 0 && len(requirements) == 0 {
 		return Job{}, fmt.Errorf("%w: select at least one finding or requirement", ErrInvalidSelector)
 	}
-	if active, err := s.repo.ActiveForScenario(ctx, plan.Scenario); err == nil && active.ID != "" {
+	var active Job
+	var activeErr error
+	if targetRepo, ok := s.repo.(targetActiveRepository); ok {
+		active, activeErr = targetRepo.ActiveForTarget(ctx, plan.TargetKind, plan.TargetID)
+	} else {
+		active, activeErr = s.repo.ActiveForScenario(ctx, plan.Scenario)
+	}
+	if activeErr == nil && active.ID != "" {
 		return Job{}, ErrActiveJob
-	} else if err != nil && err != ErrNotFound {
-		return Job{}, err
+	} else if activeErr != nil && activeErr != ErrNotFound {
+		return Job{}, activeErr
 	}
 	job := NewJob(plan, selected, requirements, additionalContext, s.clock.Now())
 	if err := s.repo.Create(ctx, job); err != nil {

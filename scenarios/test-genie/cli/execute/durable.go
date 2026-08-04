@@ -14,6 +14,7 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/vrooli/cli-core/cliapp"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 
 	"test-genie/cli/execute/report"
 
@@ -536,6 +537,7 @@ func runBusyGuidance(err error) (string, bool) {
 func toStartRunRequest(req Request) *runspb.StartRunRequest {
 	return &runspb.StartRunRequest{
 		Scenario:               req.ScenarioName,
+		Target:                 targetProto(req.Target),
 		Preset:                 req.Preset,
 		Phases:                 req.Phases,
 		Skip:                   req.Skip,
@@ -547,4 +549,26 @@ func toStartRunRequest(req Request) *runspb.StartRunRequest {
 		LogicalRepoRoot:        req.LogicalRepoRoot,
 		LogicalScenarioRelPath: req.LogicalScenarioRelPath,
 	}
+}
+
+func targetProto(expression string) *commonv1.ValidationTarget {
+	parts := strings.SplitN(strings.TrimSpace(expression), ":", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return nil
+	}
+	names := map[string]commonv1.ValidationTargetKind{
+		"scenario":      commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO,
+		"resource":      commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_RESOURCE,
+		"tool":          commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_TOOL,
+		"safeguard":     commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SAFEGUARD,
+		"team":          commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_TEAM,
+		"package":       commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PACKAGE,
+		"control-plane": commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE,
+		"docs":          commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_DOCS,
+	}
+	kind, ok := names[strings.ToLower(strings.TrimSpace(parts[0]))]
+	if !ok {
+		return nil
+	}
+	return &commonv1.ValidationTarget{Kind: kind, Id: strings.TrimSpace(parts[1])}
 }

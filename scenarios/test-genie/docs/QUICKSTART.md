@@ -30,6 +30,8 @@ vrooli scenario start test-genie
 **Via CLI:**
 ```bash
 test-genie execute my-scenario --preset comprehensive
+# Non-scenario repository targets use kind:id.
+test-genie execute package:api-core --preset quick
 ```
 
 **Via API:**
@@ -37,7 +39,7 @@ test-genie execute my-scenario --preset comprehensive
 API_PORT=$(vrooli scenario port test-genie API_PORT)
 curl -X POST "http://localhost:${API_PORT}/api/v1/executions" \
   -H "Content-Type: application/json" \
-  -d '{"scenarioName": "my-scenario", "preset": "comprehensive"}'
+  -d '{"target": "package:api-core", "preset": "quick"}'
 ```
 
 **Via Dashboard:**

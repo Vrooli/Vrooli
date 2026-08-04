@@ -30,8 +30,12 @@ func writeDurableChildReference(env workspace.Environment, phaseName, provider s
 		"provider_eta_secs": ref.ETASeconds,
 		"updated_at":        time.Now().UTC().Format(time.RFC3339),
 	}
-	writer := sharedartifacts.NewBaseWriter(env.ScenarioDir, env.ScenarioName, env.RunID)
-	targetDir := sharedartifacts.RunPhaseResultsDir(env.ScenarioDir, env.RunID)
+	artifactRoot := env.ArtifactRoot
+	if artifactRoot == "" {
+		artifactRoot = env.ScenarioDir
+	}
+	writer := sharedartifacts.NewBaseWriter(artifactRoot, env.ScenarioName, env.RunID)
+	targetDir := sharedartifacts.RunPhaseResultsDir(artifactRoot, env.RunID)
 	if err := writer.EnsureDir(targetDir); err != nil {
 		shared.LogWarn(logWriter, "failed to create phase results dir for durable child: %v", err)
 		return
@@ -74,8 +78,12 @@ func writePhasePointer(env workspace.Environment, phaseName string, report RunRe
 		}
 	}
 
-	writer := sharedartifacts.NewBaseWriter(env.ScenarioDir, env.ScenarioName, env.RunID)
-	targetDir := sharedartifacts.RunPhaseResultsDir(env.ScenarioDir, env.RunID)
+	artifactRoot := env.ArtifactRoot
+	if artifactRoot == "" {
+		artifactRoot = env.ScenarioDir
+	}
+	writer := sharedartifacts.NewBaseWriter(artifactRoot, env.ScenarioName, env.RunID)
+	targetDir := sharedartifacts.RunPhaseResultsDir(artifactRoot, env.RunID)
 	if err := writer.EnsureDir(targetDir); err != nil {
 		shared.LogWarn(logWriter, "failed to create phase results dir: %v", err)
 		return

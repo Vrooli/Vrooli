@@ -29,6 +29,12 @@ const (
 	CodeContractIdentityMismatch     = "PROVIDER_CONTRACT_IDENTITY_MISMATCH"
 	CodeMetricsMissing               = "PROVIDER_METRICS_MISSING"
 	CodeDurableContractInvalid       = "PROVIDER_DURABLE_CONTRACT_INVALID"
+	CodeDeclaredKindsUnsupported     = "PROVIDER_DECLARED_KINDS_UNSUPPORTED"
+	CodeSubjectOutsideDeclaredKinds  = "PROVIDER_SUBJECT_OUTSIDE_DECLARED_KINDS"
+	CodeCapabilityCoverageGap        = "PROVIDER_CAPABILITY_TARGET_COVERAGE_GAP"
+	CodeTargetGlobUnresolvable       = "PROVIDER_TARGET_GLOB_UNRESOLVABLE"
+	CodeExecutionRunnerMissing       = "PROVIDER_EXECUTION_RUNNER_MISSING"
+	CodeRunningSpecVersionStale      = "PROVIDER_RUNNING_SPEC_VERSION_STALE"
 )
 
 type Severity string

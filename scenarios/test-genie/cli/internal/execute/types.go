@@ -10,6 +10,7 @@ import (
 // Request represents an execution request.
 type Request struct {
 	ScenarioName string   `json:"scenarioName"`
+	Target       string   `json:"target,omitempty"`
 	Preset       string   `json:"preset,omitempty"`
 	Phases       []string `json:"phases,omitempty"`
 	Skip         []string `json:"skip,omitempty"`

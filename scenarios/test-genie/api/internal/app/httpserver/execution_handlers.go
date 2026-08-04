@@ -20,6 +20,7 @@ import (
 
 type suiteExecutionPayload struct {
 	ScenarioName      string   `json:"scenarioName"`
+	Target            string   `json:"target"`
 	SuiteRequestID    string   `json:"suiteRequestId"`
 	Preset            string   `json:"preset"`
 	Phases            []string `json:"phases"`
@@ -66,8 +67,12 @@ func decodeSuiteExecutionInput(r *http.Request) (execution.SuiteExecutionInput, 
 
 func buildSuiteExecutionInput(payload suiteExecutionPayload) (execution.SuiteExecutionInput, error) {
 	scenario := strings.TrimSpace(payload.ScenarioName)
-	if scenario == "" {
-		return execution.SuiteExecutionInput{}, shared.NewValidationError("scenarioName is required")
+	target := strings.TrimSpace(payload.Target)
+	if scenario == "" && target == "" {
+		return execution.SuiteExecutionInput{}, shared.NewValidationError("target or scenarioName is required")
+	}
+	if target != "" {
+		scenario = target
 	}
 	if strings.TrimSpace(payload.SuiteRequestID) != "" {
 		return execution.SuiteExecutionInput{}, shared.NewValidationError("suiteRequestId has been removed; execute the scenario, then create a remediation job from its execution evidence")
@@ -75,6 +80,7 @@ func buildSuiteExecutionInput(payload suiteExecutionPayload) (execution.SuiteExe
 
 	request := orchestrator.SuiteExecutionRequest{
 		ScenarioName:           scenario,
+		Target:                 target,
 		Preset:                 strings.TrimSpace(payload.Preset),
 		Phases:                 payload.Phases,
 		Skip:                   payload.Skip,

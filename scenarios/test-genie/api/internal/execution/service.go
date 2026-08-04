@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"test-genie/internal/orchestrator"
@@ -82,6 +83,8 @@ func (s *SuiteExecutionService) run(ctx context.Context, input SuiteExecutionInp
 		ID:                       uuid.New(),
 		RunID:                    result.RunID,
 		ScenarioName:             result.ScenarioName,
+		TargetKind:               result.TargetKind,
+		TargetID:                 result.TargetID,
 		PresetUsed:               result.PresetUsed,
 		RequestedPreset:          result.RequestedPreset,
 		RequestedPhases:          append([]string(nil), result.RequestedPhases...),
@@ -176,6 +179,8 @@ func (s *SuiteExecutionService) recordTerminalOutcome(ctx context.Context, input
 		ID:              uuid.New(),
 		RunID:           input.Request.RunID,
 		ScenarioName:    input.Request.ScenarioName,
+		TargetKind:      requestTargetKind(input.Request),
+		TargetID:        requestTargetID(input.Request),
 		Success:         false,
 		TerminalOutcome: outcome,
 		// Empty (non-nil) so it marshals to a valid JSON "[]" for the
@@ -185,4 +190,21 @@ func (s *SuiteExecutionService) recordTerminalOutcome(ctx context.Context, input
 		CompletedAt: time.Now().UTC(),
 	}
 	_ = s.executions.Create(writeCtx, record)
+}
+
+func requestTargetKind(req orchestrator.SuiteExecutionRequest) string {
+	if strings.TrimSpace(req.Target) == "" {
+		return "scenario"
+	}
+	if kind, _, ok := strings.Cut(req.Target, ":"); ok && strings.TrimSpace(kind) != "" {
+		return strings.TrimSpace(kind)
+	}
+	return "scenario"
+}
+
+func requestTargetID(req orchestrator.SuiteExecutionRequest) string {
+	if kind, id, ok := strings.Cut(strings.TrimSpace(req.Target), ":"); ok && strings.TrimSpace(kind) != "" && strings.TrimSpace(id) != "" {
+		return strings.TrimSpace(id)
+	}
+	return strings.TrimSpace(req.ScenarioName)
 }

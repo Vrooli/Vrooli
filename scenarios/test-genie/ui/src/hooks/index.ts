@@ -1,5 +1,6 @@
 export { useScenarios, useFilteredScenarios } from "./useScenarios";
 export type { ScenarioDirectoryEntry } from "./useScenarios";
+export { useTargets } from "./useTargets";
 export { useExecutions, useScenarioHistory, useFilteredExecutions } from "./useExecutions";
 export { useExecutionPlan } from "./useExecutionPlan";
 export { useDocsManifest, useDocContent } from "./useDocs";

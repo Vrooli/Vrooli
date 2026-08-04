@@ -1,6 +1,7 @@
 package app
 
 import (
+	"path/filepath"
 	"test-genie/internal/app/httpserver"
 	"test-genie/internal/app/runtime"
 )
@@ -31,6 +32,7 @@ func NewServer() (*httpserver.Server, error) {
 		ServiceName: "Test Genie API",
 	}
 	httpDeps := httpserver.Dependencies{
+		RepoRoot:            filepath.Dir(cfg.ScenariosRoot),
 		DB:                  deps.DB,
 		HealthDB:            deps.HealthDB,
 		Executions:          deps.ExecutionHistory,

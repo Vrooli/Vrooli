@@ -14,7 +14,7 @@ import {
 export function useRemediation(scenarioName: string, executionId?: string) {
   const client = useQueryClient();
   const key = ["remediation", scenarioName];
-  const plan = useQuery({ queryKey: [...key, "plan", executionId], queryFn: () => fetchRemediationPlan(scenarioName, executionId!), enabled: Boolean(scenarioName && executionId) });
+  const plan = useQuery({ queryKey: [...key, "plan", executionId], queryFn: () => executionId ? fetchRemediationPlan(scenarioName, executionId) : Promise.reject(new Error("execution id is required")), enabled: Boolean(scenarioName && executionId) });
   const jobs = useQuery({
     queryKey: [...key, "jobs"],
     queryFn: () => fetchRemediationJobs(scenarioName),
@@ -28,7 +28,7 @@ export function useRemediation(scenarioName: string, executionId?: string) {
   });
   const roles = useQuery({ queryKey: ["agent-roles"], queryFn: fetchAgentRoles });
   const invalidate = () => client.invalidateQueries({ queryKey: key });
-  const create = useMutation({ mutationFn: (input: { findingIds: string[]; requirementIds?: string[]; roleRef: string; additionalContext?: string }) => createRemediationJob(scenarioName, { sourceExecutionId: executionId!, ...input }), onSuccess: invalidate });
+  const create = useMutation({ mutationFn: (input: { findingIds: string[]; requirementIds?: string[]; roleRef: string; additionalContext?: string }) => executionId ? createRemediationJob(scenarioName, { sourceExecutionId: executionId, ...input }) : Promise.reject(new Error("execution id is required")), onSuccess: invalidate });
   const cancel = useMutation({ mutationFn: (id: string) => cancelRemediationJob(scenarioName, id), onSuccess: invalidate });
   const refresh = useMutation({ mutationFn: (id: string) => refreshRemediationAgent(scenarioName, id), onSuccess: invalidate });
   const recover = useMutation({ mutationFn: (id: string) => recoverRemediationJob(scenarioName, id), onSuccess: invalidate });

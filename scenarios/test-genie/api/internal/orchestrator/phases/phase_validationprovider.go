@@ -185,7 +185,20 @@ func defaultDelegatedClient(ctx context.Context, env workspace.Environment, _ io
 	if provider.DeliveryMode == "durable-run" {
 		return validationprovider.RunDurable(ctx, provider, env.ScenarioName, env.ScenarioDir, env.RunID)
 	}
+	if env.TargetKind != "" && env.TargetKind != "scenario" {
+		return validationprovider.RunTarget(ctx, provider, &commonv1.ValidationTarget{
+			Kind: targetKindProto(env.TargetKind), Id: env.TargetID, Root: env.TargetRoot,
+		}, env.ScenarioDir)
+	}
 	return validationprovider.Run(ctx, provider, env.ScenarioName, env.ScenarioDir)
+}
+
+func targetKindProto(kind string) commonv1.ValidationTargetKind {
+	key := "VALIDATION_TARGET_KIND_" + strings.ToUpper(strings.ReplaceAll(kind, "-", "_"))
+	if value, ok := commonv1.ValidationTargetKind_value[key]; ok {
+		return commonv1.ValidationTargetKind(value)
+	}
+	return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_UNSPECIFIED
 }
 
 func runValidationProviderPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer, provider validationprovider.Provider, client DelegatedClient) RunReport {

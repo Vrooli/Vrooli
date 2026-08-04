@@ -33,6 +33,8 @@ func Migrate(ctx context.Context, db dbexec.Executor) error {
 		return err
 	}
 	for name, statement := range map[string]string{
+		"target_kind":                   "ALTER TABLE remediation_jobs ADD COLUMN target_kind TEXT NOT NULL DEFAULT 'scenario'",
+		"target_id":                     "ALTER TABLE remediation_jobs ADD COLUMN target_id TEXT NOT NULL DEFAULT ''",
 		"selected_requirement_ids_json": "ALTER TABLE remediation_jobs ADD COLUMN selected_requirement_ids_json TEXT NOT NULL DEFAULT '[]'",
 		"source_hash":                   "ALTER TABLE remediation_jobs ADD COLUMN source_hash TEXT NOT NULL DEFAULT ''",
 		"selection_hash":                "ALTER TABLE remediation_jobs ADD COLUMN selection_hash TEXT NOT NULL DEFAULT ''",
@@ -48,10 +50,19 @@ func Migrate(ctx context.Context, db dbexec.Executor) error {
 	// CREATE INDEX IF NOT EXISTS cannot change the partial predicate on an
 	// existing database. Rebuild it so a pending launch retains the one-active
 	//-job invariant after an upgrade.
+	if _, err := db.ExecContext(ctx, `UPDATE remediation_jobs SET target_kind = 'scenario' WHERE TRIM(target_kind) = ''`); err != nil {
+		return fmt.Errorf("backfill remediation target kinds: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE remediation_jobs SET target_id = scenario_name WHERE TRIM(target_id) = ''`); err != nil {
+		return fmt.Errorf("backfill remediation target ids: %w", err)
+	}
 	if _, err := db.ExecContext(ctx, `DROP INDEX IF EXISTS remediation_jobs_one_active_per_scenario`); err != nil {
 		return fmt.Errorf("replace active-job index: %w", err)
 	}
-	if _, err := db.ExecContext(ctx, `CREATE UNIQUE INDEX remediation_jobs_one_active_per_scenario ON remediation_jobs(scenario_name) WHERE status IN ('created', 'launch_pending', 'running', 'agent_completed', 'verification_running')`); err != nil {
+	if _, err := db.ExecContext(ctx, `DROP INDEX IF EXISTS remediation_jobs_one_active_per_target`); err != nil {
+		return fmt.Errorf("replace target active-job index: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, `CREATE UNIQUE INDEX remediation_jobs_one_active_per_target ON remediation_jobs(target_kind, target_id) WHERE status IN ('created', 'launch_pending', 'running', 'agent_completed', 'verification_running')`); err != nil {
 		return fmt.Errorf("create active-job index: %w", err)
 	}
 

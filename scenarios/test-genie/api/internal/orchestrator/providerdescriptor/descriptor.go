@@ -45,6 +45,7 @@ type Descriptor struct {
 	Supersedes           []string         `json:"supersedes,omitempty"`
 	Comparison           Comparison       `json:"comparison,omitempty"`
 	Validation           Validation       `json:"validation"`
+	Targets              Targets          `json:"targets,omitempty"`
 	Applicability        Applicability    `json:"applicability"`
 	Policy               Policy           `json:"policy"`
 	Runnability          Runnability      `json:"runnability"`
@@ -53,6 +54,23 @@ type Descriptor struct {
 	Path                 string           `json:"-"`
 	TimeoutValue         time.Duration    `json:"-"`
 	MaturitySpec         *assessment.Spec `json:"-"`
+}
+
+type Targets struct {
+	Kinds     []string `json:"kinds,omitempty"`
+	Selection string   `json:"selection,omitempty"`
+}
+
+var validTargetKinds = map[string]struct{}{
+	"scenario": {}, "resource": {}, "tool": {}, "safeguard": {},
+	"team": {}, "package": {}, "control-plane": {}, "docs": {},
+}
+
+func (t Targets) EffectiveKinds() []string {
+	if len(t.Kinds) == 0 {
+		return []string{"scenario"}
+	}
+	return append([]string(nil), t.Kinds...)
 }
 
 func (d *Descriptor) UnmarshalJSON(raw []byte) error {
@@ -94,6 +112,7 @@ type Applicability struct {
 }
 
 type Predicate struct {
+	TargetKind           string `json:"targetKind,omitempty"`
 	FileExists           string `json:"fileExists,omitempty"`
 	PathGlob             string `json:"pathGlob,omitempty"`
 	ScenarioDependency   string `json:"scenarioDependency,omitempty"`
@@ -117,7 +136,7 @@ func (p *Predicate) UnmarshalJSON(raw []byte) error {
 	}
 	for key := range fields {
 		switch key {
-		case "fileExists", "pathGlob", "scenarioDependency", "serviceCapability", "serviceTag", "hasUI", "hasAPI", "testingConfigSection":
+		case "targetKind", "fileExists", "pathGlob", "scenarioDependency", "serviceCapability", "serviceTag", "hasUI", "hasAPI", "testingConfigSection":
 		default:
 			decoded.unknownFields = append(decoded.unknownFields, key)
 		}
@@ -427,6 +446,23 @@ func validateDescriptor(d *Descriptor) []Diagnostic {
 	if d.Validation.Contract != "scenario-validation/v1" {
 		add("invalid_validation_contract", "validation.contract must be scenario-validation/v1")
 	}
+	if len(d.Targets.Kinds) == 0 {
+		d.Targets.Kinds = []string{"scenario"}
+	}
+	if d.Targets.Selection != "" && d.Targets.Selection != "enumerate" {
+		add("invalid_target_selection", "targets.selection must be enumerate when present")
+	}
+	seenTargetKinds := map[string]struct{}{}
+	for _, kind := range d.Targets.Kinds {
+		kind = strings.TrimSpace(kind)
+		if _, ok := validTargetKinds[kind]; !ok {
+			add("invalid_target_kind", fmt.Sprintf("targets.kinds contains unsupported kind %q", kind))
+		}
+		if _, ok := seenTargetKinds[kind]; ok {
+			add("duplicate_target_kind", fmt.Sprintf("targets.kinds contains duplicate %q", kind))
+		}
+		seenTargetKinds[kind] = struct{}{}
+	}
 	normalizeValidationDefaults(&d.Validation)
 	if !oneOf(d.Validation.DeliveryMode, "inline", "durable-run") {
 		add("invalid_validation_delivery_mode", "validation.deliveryMode must be inline or durable-run")
@@ -615,12 +651,20 @@ func validateApplicability(d *Descriptor) []Diagnostic {
 		if countPredicateFields(predicate) != 1 {
 			add("invalid_predicate", fmt.Sprintf("predicate %d must set exactly one supported field", i))
 		}
+		if predicate.TargetKind != "" {
+			if _, ok := validTargetKinds[predicate.TargetKind]; !ok {
+				add("invalid_predicate_target_kind", fmt.Sprintf("predicate %d uses unsupported target kind %q", i, predicate.TargetKind))
+			}
+		}
 	}
 	return out
 }
 
 func countPredicateFields(p Predicate) int {
 	count := 0
+	if strings.TrimSpace(p.TargetKind) != "" {
+		count++
+	}
 	if strings.TrimSpace(p.FileExists) != "" {
 		count++
 	}

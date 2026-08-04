@@ -14,6 +14,8 @@ type SuiteExecutionRecord struct {
 	ID                       uuid.UUID
 	RunID                    string
 	ScenarioName             string
+	TargetKind               string
+	TargetID                 string
 	PresetUsed               string
 	RequestedPreset          string
 	RequestedPhases          []string
@@ -42,6 +44,8 @@ func (r SuiteExecutionRecord) ToExecutionResult() *orchestrator.SuiteExecutionRe
 		ExecutionID:         r.ID,
 		RunID:               r.RunID,
 		ScenarioName:        r.ScenarioName,
+		TargetKind:          r.TargetKind,
+		TargetID:            r.TargetID,
 		StartedAt:           r.StartedAt,
 		CompletedAt:         r.CompletedAt,
 		Success:             r.Success,

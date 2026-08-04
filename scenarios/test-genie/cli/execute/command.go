@@ -16,7 +16,7 @@ import (
 	execTypes "test-genie/cli/internal/execute"
 )
 
-const UsageLine = "test-genie execute <scenario> [phases...] [--preset quick] [--skip performance] [--scenario-path PATH] [--logical-repo-root PATH] [--logical-scenario-relpath PATH] [--ui-url URL] [--api-url URL] [--fail-fast] [--wait] [--json] [--jsonl]"
+const UsageLine = "test-genie execute <target> [phases...] [--preset quick] [--skip performance] [--scenario-path PATH] [--logical-repo-root PATH] [--logical-scenario-relpath PATH] [--ui-url URL] [--api-url URL] [--fail-fast] [--wait] [--json] [--jsonl]"
 
 // HelpText returns the framework-rendered help body for the execute command.
 func HelpText() string {
@@ -61,7 +61,7 @@ func Run(client *Client, args []string) error {
 	}
 
 	scenarioPath := parsed.ScenarioPath
-	if scenarioPath == "" {
+	if scenarioPath == "" && !strings.Contains(parsed.Scenario, ":") {
 		// Resolve the physical scenario directory from the scenario name.
 		// cliutil owns local environment details; the execute request only
 		// carries the resulting path as workspace identity.
@@ -70,6 +70,7 @@ func Run(client *Client, args []string) error {
 
 	req := Request{
 		ScenarioName:           parsed.Scenario,
+		Target:                 targetExpression(parsed.Scenario),
 		Preset:                 parsed.Preset,
 		Phases:                 parsed.Phases,
 		Skip:                   parsed.Skip,
@@ -143,6 +144,13 @@ func Run(client *Client, args []string) error {
 	// id + re-attach command up front, auto-backgrounds known-long runs (unless
 	// --wait), and follows inline otherwise.
 	return RunDurable(baseURL, req, DurableOptions{Wait: parsed.Wait, Printer: pr})
+}
+
+func targetExpression(value string) string {
+	if strings.Contains(value, ":") {
+		return value
+	}
+	return ""
 }
 
 func executionResultError(resp Response) error {

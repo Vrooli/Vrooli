@@ -43,6 +43,8 @@ INSERT INTO suite_executions (
 	id,
 	run_id,
 	scenario_name,
+	target_kind,
+	target_id,
 	preset_used,
 	requested_preset,
 	requested_phases,
@@ -57,7 +59,7 @@ INSERT INTO suite_executions (
 		started_at,
 		completed_at
 ) VALUES (
-	?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+	?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )`
 
 	// terminal_outcome is the run-level classification. A caller that did not
@@ -79,6 +81,8 @@ INSERT INTO suite_executions (
 		record.ID.String(),
 		nullIfEmpty(record.RunID),
 		record.ScenarioName,
+		orDefault(record.TargetKind, "scenario"),
+		orDefault(record.TargetID, record.ScenarioName),
 		nullIfEmpty(record.PresetUsed),
 		nullIfEmpty(record.RequestedPreset),
 		requestedPhases,
@@ -118,6 +122,8 @@ SELECT
 	id,
 	run_id,
 	scenario_name,
+	target_kind,
+	target_id,
 	preset_used,
 	requested_preset,
 	requested_phases,
@@ -169,6 +175,8 @@ SELECT
 	id,
 	run_id,
 	scenario_name,
+	target_kind,
+	target_id,
 	preset_used,
 	requested_preset,
 	requested_phases,
@@ -375,6 +383,8 @@ func scanSuiteExecutionRecord(scanner rowScanner) (SuiteExecutionRecord, error) 
 	var record SuiteExecutionRecord
 	var rawID string
 	var rawRun sql.NullString
+	var targetKind sql.NullString
+	var targetID sql.NullString
 	var preset sql.NullString
 	var requestedPreset sql.NullString
 	var requestedPhases any
@@ -393,6 +403,8 @@ func scanSuiteExecutionRecord(scanner rowScanner) (SuiteExecutionRecord, error) 
 		&rawID,
 		&rawRun,
 		&record.ScenarioName,
+		&targetKind,
+		&targetID,
 		&preset,
 		&requestedPreset,
 		&requestedPhases,
@@ -417,6 +429,18 @@ func scanSuiteExecutionRecord(scanner rowScanner) (SuiteExecutionRecord, error) 
 	record.ID = parsedID
 	if rawRun.Valid {
 		record.RunID = rawRun.String
+	}
+	if targetKind.Valid {
+		record.TargetKind = targetKind.String
+	}
+	if targetID.Valid {
+		record.TargetID = targetID.String
+	}
+	if record.TargetKind == "" {
+		record.TargetKind = "scenario"
+	}
+	if record.TargetID == "" {
+		record.TargetID = record.ScenarioName
 	}
 
 	if preset.Valid {
@@ -466,6 +490,13 @@ func scanSuiteExecutionRecord(scanner rowScanner) (SuiteExecutionRecord, error) 
 func nullIfEmpty(value string) any {
 	if strings.TrimSpace(value) == "" {
 		return nil
+	}
+	return value
+}
+
+func orDefault(value, fallback string) string {
+	if strings.TrimSpace(value) == "" {
+		return fallback
 	}
 	return value
 }

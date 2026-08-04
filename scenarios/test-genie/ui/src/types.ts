@@ -2,8 +2,6 @@
  * Shared type definitions for the Test Genie UI.
  */
 
-import type { SuiteExecutionResult } from "./lib/api";
-
 // Navigation types
 export type DashboardTabKey = "dashboard" | "runs" | "docs" | "health";
 export type RunsSubtabKey = "scenarios" | "history";

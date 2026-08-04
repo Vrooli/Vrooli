@@ -107,6 +107,8 @@ type Plan struct {
 	SourceExecutionID string                `json:"sourceExecutionId"`
 	SourceRunID       string                `json:"sourceRunId"`
 	Scenario          string                `json:"scenario"`
+	TargetKind        string                `json:"targetKind,omitempty"`
+	TargetID          string                `json:"targetId,omitempty"`
 	CreatedAt         time.Time             `json:"createdAt"`
 	Phases            []Phase               `json:"phases"`
 	Findings          []Finding             `json:"findings"`
@@ -170,6 +172,8 @@ type Attempt struct {
 type Job struct {
 	ID                     string       `json:"id"`
 	Scenario               string       `json:"scenario"`
+	TargetKind             string       `json:"targetKind,omitempty"`
+	TargetID               string       `json:"targetId,omitempty"`
 	Status                 string       `json:"status"`
 	Source                 Plan         `json:"source"`
 	SourceHash             string       `json:"sourceHash"`
@@ -196,13 +200,26 @@ func newAttempt(kind, state, key, roleRef, detail string, now time.Time) Attempt
 }
 
 func NewJob(plan Plan, selected, requirements []string, context string, now time.Time) Job {
+	targetKind, targetID := targetIdentity(plan.TargetKind, plan.TargetID, plan.Scenario)
 	job := Job{
-		ID: uuid.NewString(), Scenario: plan.Scenario, Status: JobStatusCreated, Source: plan,
+		ID: uuid.NewString(), Scenario: plan.Scenario, TargetKind: targetKind, TargetID: targetID, Status: JobStatusCreated, Source: plan,
 		SelectedFindingIDs: normalizedIDs(selected), SelectedRequirementIDs: normalizedIDs(requirements), AdditionalContext: strings.TrimSpace(context), CreatedAt: now.UTC(), UpdatedAt: now.UTC(),
 	}
 	job.SourceHash = sourceHash(job.Source)
 	job.SelectionHash = selectionHash(job.SelectedFindingIDs, job.SelectedRequirementIDs)
 	return job
+}
+
+func targetIdentity(kind, id, legacy string) (string, string) {
+	kind = strings.TrimSpace(strings.ToLower(kind))
+	if kind == "" {
+		kind = "scenario"
+	}
+	id = strings.TrimSpace(id)
+	if id == "" {
+		id = strings.TrimSpace(legacy)
+	}
+	return kind, id
 }
 
 func sourceHash(source Plan) string { return stableHash(source) }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
 
 	"test-genie/internal/shared"
 
@@ -162,6 +163,13 @@ type Client interface {
 	ValidateScenario(context.Context, *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error)
 }
 
+// TargetClient is the additive target-aware contract. Keeping it separate
+// from Client preserves the test seam and the permanent legacy alias for
+// providers that have not adopted ValidateTarget yet.
+type TargetClient interface {
+	ValidateTarget(context.Context, *connect.Request[scenariovalidationv1.ValidateTargetRequest]) (*connect.Response[scenariovalidationv1.ValidateTargetResponse], error)
+}
+
 type DurableClient interface {
 	StartValidationRun(context.Context, *connect.Request[scenariovalidationv1.StartValidationRunRequest]) (*connect.Response[scenariovalidationv1.StartValidationRunResponse], error)
 	WaitValidationRun(context.Context, *connect.Request[scenariovalidationv1.WaitValidationRunRequest]) (*connect.Response[scenariovalidationv1.WaitValidationRunResponse], error)
@@ -173,6 +181,9 @@ var (
 		return discovery.ResolveScenarioURLDefault(ctx, scenario)
 	}
 	NewClient = func(timeout time.Duration, baseURL string) Client {
+		return scenariovalidationconnect.NewScenarioValidationServiceClient(&http.Client{Timeout: timeout}, baseURL)
+	}
+	NewTargetClient = func(timeout time.Duration, baseURL string) TargetClient {
 		return scenariovalidationconnect.NewScenarioValidationServiceClient(&http.Client{Timeout: timeout}, baseURL)
 	}
 	NewDurableClient = func(timeout time.Duration, baseURL string) DurableClient {
@@ -216,6 +227,49 @@ func Run(ctx context.Context, provider Provider, targetScenario, scenarioPath st
 		return failure(provider, targetScenario, shared.FailureClassSystem, errors.New("provider returned an empty validation response"), "")
 	}
 	return translate(provider, targetScenario, resp.Msg)
+}
+
+// RunTarget invokes the typed validation RPC for a non-legacy target. The
+// provider descriptor/applicability gate decides whether this phase applies;
+// this function only transports the resolved tuple and never encodes a
+// resource, package, or team as a fake scenario name.
+func RunTarget(ctx context.Context, provider Provider, target *commonv1.ValidationTarget, targetPath string) *Result {
+	if target == nil || strings.TrimSpace(target.GetId()) == "" {
+		return failure(provider, "", shared.FailureClassMisconfiguration, errors.New("validation target is required"), "")
+	}
+	if strings.TrimSpace(provider.ProviderScenario) == "" {
+		return failure(provider, target.GetId(), shared.FailureClassMisconfiguration, errors.New("provider scenario is required"), "")
+	}
+	baseURL, err := ResolveBaseURL(ctx, provider.ProviderScenario)
+	if err != nil {
+		return unavailable(provider, target.GetId(), fmt.Errorf("resolve %s URL: %w", provider.ProviderScenario, err))
+	}
+	if strings.TrimSpace(baseURL) == "" {
+		return unavailable(provider, target.GetId(), fmt.Errorf("%s base URL is empty", provider.ProviderScenario))
+	}
+	requestTarget := proto.Clone(target).(*commonv1.ValidationTarget)
+	if strings.TrimSpace(requestTarget.GetRoot()) == "" {
+		requestTarget.Root = strings.TrimSpace(targetPath)
+	}
+	resp, err := NewTargetClient(provider.Timeout, baseURL).ValidateTarget(ctx, connect.NewRequest(&scenariovalidationv1.ValidateTargetRequest{
+		Target:           requestTarget,
+		IncludeExecution: provider.IncludeExecution,
+		Path:             strings.TrimSpace(targetPath),
+	}))
+	if err != nil {
+		return unavailable(provider, target.GetId(), fmt.Errorf("%s target validation RPC failed: %w", provider.ProviderScenario, err))
+	}
+	if resp == nil || resp.Msg == nil {
+		return failure(provider, target.GetId(), shared.FailureClassSystem, errors.New("provider returned an empty target validation response"), "")
+	}
+	legacy := &scenariovalidationv1.ValidateScenarioResponse{
+		Status:       resp.Msg.GetStatus(),
+		Assessment:   resp.Msg.GetAssessment(),
+		NativeDetail: resp.Msg.GetNativeDetail(),
+		Metrics:      resp.Msg.GetMetrics(),
+		Scenario:     target.GetId(),
+	}
+	return translate(provider, target.GetId(), legacy)
 }
 
 // RunDurable performs one Start and one server-owned Wait. The parent run and

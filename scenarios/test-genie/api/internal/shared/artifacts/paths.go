@@ -144,6 +144,16 @@ func RunDir(scenarioDir, runID string) string {
 	return filepath.Join(scenarioDir, RunsDir, runID)
 }
 
+// TargetRunDir keeps artifacts for non-scenario targets out of shipped source
+// trees. Scenario paths preserve the historical layout; all other targets use
+// the runtime home state area.
+func TargetRunDir(runtimeHome, targetKind, targetID, scenarioDir, runID string) string {
+	if targetKind == "" || targetKind == "scenario" {
+		return RunDir(scenarioDir, runID)
+	}
+	return filepath.Join(runtimeHome, "state", "test-genie", "targets", targetKind, targetID, RunsDir, runID)
+}
+
 // RunPhaseResultsDir returns the absolute per-run phase-results directory.
 func RunPhaseResultsDir(scenarioDir, runID string) string {
 	return filepath.Join(RunDir(scenarioDir, runID), PhaseResultsSubdir)

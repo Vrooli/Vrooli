@@ -17,6 +17,7 @@ import (
 	"test-genie/internal/runmanager"
 	"test-genie/internal/shared"
 	sharedruns "test-genie/internal/shared/runs"
+	"test-genie/internal/targetmodel"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
@@ -30,8 +31,16 @@ func (s *Service) StartRun(ctx context.Context, req *connect.Request[runspb.Star
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("run manager is not configured"))
 	}
 	scenario := strings.TrimSpace(req.Msg.GetScenario())
+	target := req.Msg.GetTarget()
+	if target != nil {
+		// The admission key is the canonical target expression. The typed target
+		// remains on the request and response for consumers that do not use text.
+		if expression := targetExpression(target); expression != "" {
+			scenario = expression
+		}
+	}
 	if scenario == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario is required"))
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario or target is required"))
 	}
 	if strings.TrimSpace(req.Msg.GetSuiteRequestId()) != "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("suite_request_id has been removed; create a remediation job from a completed execution instead"))
@@ -40,6 +49,7 @@ func (s *Service) StartRun(ctx context.Context, req *connect.Request[runspb.Star
 	input := execution.SuiteExecutionInput{
 		Request: orchestrator.SuiteExecutionRequest{
 			ScenarioName:           scenario,
+			Target:                 targetExpression(target),
 			Preset:                 strings.TrimSpace(req.Msg.GetPreset()),
 			Phases:                 req.Msg.GetPhases(),
 			Skip:                   req.Msg.GetSkip(),
@@ -65,7 +75,7 @@ func (s *Service) StartRun(ctx context.Context, req *connect.Request[runspb.Star
 		return nil, err
 	}
 	if runID := s.runManager.CoalescedRunID(input.Request); runID != "" {
-		return connect.NewResponse(&runspb.StartRunResponse{RunId: runID, Scenario: scenario, Coalesced: true}), nil
+		return connect.NewResponse(&runspb.StartRunResponse{RunId: runID, Scenario: scenario, Target: target, Coalesced: true}), nil
 	}
 
 	res, err := s.runManager.Start(runmanager.StartOptions{Input: input, Caller: caller, EstimatedTotalSeconds: etaTotal})
@@ -86,7 +96,29 @@ func (s *Service) StartRun(ctx context.Context, req *connect.Request[runspb.Star
 		EstimatedTotalSeconds: int32(etaTotal),
 		EtaKnown:              etaKnown,
 		Coalesced:             res.Coalesced,
+		Target:                target,
 	}), nil
+}
+
+func targetExpression(target *commonv1.ValidationTarget) string {
+	if target == nil || target.GetKind() == commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_UNSPECIFIED {
+		return ""
+	}
+	names := map[commonv1.ValidationTargetKind]string{
+		commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO:      "scenario",
+		commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_RESOURCE:      "resource",
+		commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_TOOL:          "tool",
+		commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SAFEGUARD:     "safeguard",
+		commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_TEAM:          "team",
+		commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PACKAGE:       "package",
+		commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE: "control-plane",
+		commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_DOCS:          "docs",
+	}
+	name := names[target.GetKind()]
+	if name == "" {
+		return ""
+	}
+	return name + ":" + target.GetId()
 }
 
 // prepareAdmission computes the complete admission identity and ETA in one
@@ -146,6 +178,13 @@ func (s *Service) admissionScenarioDir(req *orchestrator.SuiteExecutionRequest) 
 			return "", connect.NewError(connect.CodeInvalidArgument, errors.New("scenario path must be a directory"))
 		}
 		return absolute, nil
+	}
+	if strings.Contains(strings.TrimSpace(req.Target), ":") {
+		target, err := targetmodel.Resolve(filepath.Dir(s.scenariosRoot), req.Target)
+		if err != nil {
+			return "", connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		return target.Path, nil
 	}
 	return s.scenarioDir(req.ScenarioName)
 }

@@ -10,6 +10,7 @@ import (
 	"test-genie/internal/orchestrator/providerreadiness"
 	sharedruns "test-genie/internal/shared/runs"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
@@ -124,6 +125,30 @@ func toTerminalRunInfo(r sharedruns.RunRecord, result *orchestrator.SuiteExecuti
 		EvidenceTier:                      evidenceTier(r, result),
 		SourceScope:                       sourceScope(r, result),
 		SourceStable:                      sourceStable(result),
+		Target:                            &commonv1.ValidationTarget{Kind: targetKind(r.TargetKind), Id: r.TargetID},
+	}
+}
+
+func targetKind(kind string) commonv1.ValidationTargetKind {
+	switch strings.TrimSpace(kind) {
+	case "scenario":
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO
+	case "resource":
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_RESOURCE
+	case "tool":
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_TOOL
+	case "safeguard":
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SAFEGUARD
+	case "team":
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_TEAM
+	case "package":
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PACKAGE
+	case "control-plane":
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE
+	case "docs":
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_DOCS
+	default:
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_UNSPECIFIED
 	}
 }
 

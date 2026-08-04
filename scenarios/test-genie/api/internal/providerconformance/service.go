@@ -6,19 +6,24 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/maturity-go/assessment"
+	repocontract "github.com/vrooli/repo-contract-go"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
+	factsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts/facts_v1connect"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 
 	"test-genie/internal/orchestrator/providerdescriptor"
 	"test-genie/internal/selfhealth"
+	"test-genie/internal/targetexecution"
 )
 
 // selfScenario is the orchestrator's own scenario name. Validating it must
@@ -90,6 +95,7 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario, path string) (
 	}
 	descriptor := load.Descriptors[0]
 	report.Phase = descriptor.Phase
+	s.validateTargetDeclaration(ctx, &report, descriptor)
 
 	s.validateDocs(&report, descriptor)
 	validateMaturityContract(&report, descriptor)
@@ -190,7 +196,7 @@ func (s *Service) probeContract(ctx context.Context, report *Report, descriptor 
 		timeout = defaultProbeTimeout
 	}
 	report.Probed = true
-	conformance := selfhealth.ScanProvider(ctx, s.Probe, s.RepoRoot, target, descriptor.Phase, report.Scenario, timeout)
+	conformance, response := selfhealth.CheckProvider(ctx, s.Probe, nil, s.RepoRoot, target, descriptor.Phase, report.Scenario, timeout)
 	if !conformance.Reachable {
 		report.add(Finding{
 			Code:        CodeProviderUnreachable,
@@ -232,6 +238,36 @@ func (s *Service) probeContract(ctx context.Context, report *Report, descriptor 
 			Remediation: "Attach ExecutionMetrics to every validation response, including degraded and error paths.",
 		})
 	}
+	if describe, err := selfhealth.DefaultDescribeProvider(ctx, report.Scenario, timeout); err == nil {
+		declared := map[commonv1.ValidationTargetKind]struct{}{}
+		for _, kind := range descriptor.Targets.EffectiveKinds() {
+			declared[targetKindEnum(kind)] = struct{}{}
+		}
+		runningKinds := describe.GetCapabilities().GetTargetKinds()
+		for _, kind := range runningKinds {
+			if _, ok := declared[kind]; !ok {
+				report.add(Finding{Code: CodeDeclaredKindsUnsupported, Severity: SeverityError, Title: "Running provider declares a different target coverage", Message: fmt.Sprintf("DescribeProvider reports target kind %s that the descriptor does not declare.", kind.String()), Location: "scenario-validation/v1.DescribeProvider.capabilities.target_kinds", Remediation: "Keep the running provider's target declaration and descriptor in sync."})
+			}
+		}
+		// An older provider may omit the additive target_kinds field entirely;
+		// preserve the descriptor-default scenario contract in that case. Once a
+		// provider publishes target coverage, enforce the comparison in both
+		// directions so a descriptor cannot promise a kind the binary rejects.
+		if len(runningKinds) > 0 {
+			for kind := range declared {
+				if kind == commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_UNSPECIFIED {
+					continue
+				}
+				if !slices.Contains(runningKinds, kind) {
+					report.add(Finding{Code: CodeDeclaredKindsUnsupported, Severity: SeverityError, Title: "Descriptor target coverage is not supported by the running provider", Message: fmt.Sprintf("descriptor declares target kind %s, but DescribeProvider does not advertise it.", kind.String()), Location: providerdescriptor.RelPath + ":targets.kinds", Remediation: "Keep the running provider's target declaration and descriptor in sync."})
+				}
+			}
+		}
+		s.validateRunningSpecVersion(report, descriptor, describe.GetSpecVersion())
+	}
+	for _, finding := range conformanceFindings(response, descriptor) {
+		report.add(finding)
+	}
 	if descriptor.Validation.DeliveryMode == "durable-run" {
 		if s.DurableProbe == nil {
 			report.add(Finding{
@@ -251,6 +287,214 @@ func (s *Service) probeContract(ctx context.Context, report *Report, descriptor 
 				Remediation: "Implement prompt idempotent Start, Get, explicit Abort, and server-owned Wait with a valid terminal lifecycle response.",
 			})
 		}
+	}
+}
+
+func (s *Service) validateTargetDeclaration(ctx context.Context, report *Report, descriptor providerdescriptor.Descriptor) {
+	declared := descriptor.Targets.EffectiveKinds()
+	for _, kind := range declared {
+		if _, ok := validTargetKinds[kind]; !ok {
+			report.add(Finding{Code: CodeDeclaredKindsUnsupported, Severity: SeverityError, Title: "Provider declares an unsupported target kind", Message: fmt.Sprintf("targets.kinds contains %q, which this Test Genie target model does not support.", kind), Location: providerdescriptor.RelPath + ":targets.kinds", Remediation: "Declare only one of the eight repository target kinds."})
+		}
+	}
+	if descriptor.MaturitySpec != nil {
+		for _, capability := range descriptor.MaturitySpec.Capabilities {
+			if len(capability.AppliesTo) == 0 {
+				continue
+			}
+			for _, kind := range capability.AppliesTo {
+				covered := false
+				for _, mapping := range descriptor.MaturitySpec.Findings {
+					if mapping.CapabilityID == capability.ID {
+						covered = true
+						break
+					}
+				}
+				if !covered {
+					report.add(Finding{Code: CodeCapabilityCoverageGap, Severity: SeverityError, Title: "Capability has no finding coverage for a target kind", Message: fmt.Sprintf("capability %q declares appliesTo=%q but no finding maps to that capability.", capability.ID, kind), Location: providerdescriptor.RelPath + ":maturity.capabilities", Remediation: "Map at least one emitted finding to every declared capability target kind, or remove the appliesTo entry."})
+				}
+			}
+		}
+	}
+	if s.RepoRoot != "" {
+		if contract, err := repocontract.LoadDefault(s.RepoRoot); err == nil {
+			targets, err := contract.EnumerateTargets(s.RepoRoot)
+			counts := map[string]int{}
+			if err == nil {
+				for _, target := range targets {
+					counts[string(target.Kind)]++
+				}
+			}
+			for _, kind := range declared {
+				if counts[kind] == 0 {
+					report.add(Finding{Code: CodeTargetGlobUnresolvable, Severity: SeverityError, Title: "Provider target kind resolves to no repository targets", Message: fmt.Sprintf("targets.kinds includes %q, but repo-contract enumeration found no targets of that kind.", kind), Location: ".vrooli/repo-contract.json:targets", Remediation: "Fix the target roots/marker or stop declaring an empty target kind."})
+				}
+			}
+			s.validateExecutionRunners(ctx, report, targets, declared)
+		}
+	}
+}
+
+// validateRunningSpecVersion compares the maturity spec version the running
+// provider reports against the version in its on-disk descriptor.
+//
+// This closes the one drift the descriptor-only checks cannot see. A provider
+// binary that predates its descriptor keeps answering, keeps passing readiness,
+// and emits finding codes the descriptor never declared. Those codes then
+// resolve through the descriptor's `fallback` mapping, so a stale binary does
+// not fail loudly — it silently scores a *different* capability than the one
+// the finding belongs to. Observed live on 2026-08-03: a storage-manager build
+// emitting STORAGE_ACCOUNTABILITY_NOT_GOVERNED, a code absent from the entire
+// repository, while the descriptor declared STORAGE_ACCOUNTABILITY_UNGOVERNED.
+//
+// An empty version on either side means the provider or descriptor predates
+// versioned specs, which is not drift.
+func (s *Service) validateRunningSpecVersion(report *Report, descriptor providerdescriptor.Descriptor, runningVersion string) {
+	if descriptor.MaturitySpec == nil {
+		return
+	}
+	declaredVersion := strings.TrimSpace(descriptor.MaturitySpec.Version)
+	runningVersion = strings.TrimSpace(runningVersion)
+	if declaredVersion == "" || runningVersion == "" || declaredVersion == runningVersion {
+		return
+	}
+	report.add(Finding{
+		Code:     CodeRunningSpecVersionStale,
+		Severity: SeverityError,
+		Title:    "Running provider serves a different maturity spec than its descriptor",
+		Message: fmt.Sprintf(
+			"DescribeProvider reports maturity spec version %q but %s declares %q. The running binary predates its descriptor, so it can emit finding codes the descriptor does not declare — those resolve through the fallback mapping and silently score the wrong capability.",
+			runningVersion, providerdescriptor.RelPath, declaredVersion),
+		Location:    "scenario-validation/v1.DescribeProvider.spec_version",
+		Remediation: "Rebuild and restart the provider so the running binary matches its descriptor.",
+	})
+}
+
+// validateExecutionRunners is deliberately limited to executable repository
+// kinds. Documentation, teams, resources, and safeguards can be validated by
+// provider-specific static checks; package/control-plane targets must have a
+// registered language runner or conformance reports a typed gap.
+func (s *Service) validateExecutionRunners(ctx context.Context, report *Report, targets []repocontract.Target, declared []string) {
+	for _, kind := range declared {
+		if kind != "package" && kind != "control-plane" {
+			continue
+		}
+		for _, target := range targets {
+			if string(target.Kind) != kind {
+				continue
+			}
+			language, proven := s.codeFactsLanguage(ctx, filepath.Join(s.RepoRoot, filepath.FromSlash(target.Root)))
+			if !proven {
+				// A provider outage is not evidence that a repository target has no
+				// runner. Unit/quality providers report the degraded code-facts
+				// condition during the actual target run.
+				continue
+			}
+			if _, err := targetexecution.ForLanguage(language); err != nil {
+				report.add(Finding{
+					Code:        CodeExecutionRunnerMissing,
+					Severity:    SeverityError,
+					Title:       "Executable target has no registered runner",
+					Message:     fmt.Sprintf("%s:%s was classified as %s, but Test Genie has no runner for that language: %v", kind, target.ID, language, err),
+					Location:    target.Root,
+					Remediation: "Add a deterministic Go or TypeScript runner, or classify the target as unsupported instead of silently skipping it.",
+				})
+			}
+		}
+	}
+}
+
+func (s *Service) codeFactsLanguage(ctx context.Context, root string) (string, bool) {
+	baseURL, err := discovery.NewResolver(discovery.ResolverConfig{}).ResolveScenarioURLDefault(ctx, "code-facts")
+	if err != nil || strings.TrimSpace(baseURL) == "" {
+		return "", false
+	}
+	client := factsconnect.NewCodeFactsServiceClient(http.DefaultClient, baseURL)
+	resp, err := client.DescribeCodeFacts(ctx, connect.NewRequest(&factsv1.DescribeCodeFactsRequest{
+		Target:  &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PATH, Path: root},
+		Include: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_PARSE_UNITS}, UseCache: true,
+	}))
+	if err != nil || resp == nil || resp.Msg == nil {
+		return "", false
+	}
+	for _, unit := range resp.Msg.GetParseUnits() {
+		if unit.GetStatus() == factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN && strings.TrimSpace(unit.GetLanguage()) != "" {
+			return strings.ToLower(strings.TrimSpace(unit.GetLanguage())), true
+		}
+	}
+	return "", false
+}
+
+var validTargetKinds = map[string]struct{}{
+	"scenario": {}, "resource": {}, "tool": {}, "safeguard": {}, "team": {}, "package": {}, "control-plane": {}, "docs": {},
+}
+
+func conformanceFindings(response *scenariovalidationv1.ValidateScenarioResponse, descriptor providerdescriptor.Descriptor) []Finding {
+	if response == nil || response.GetAssessment() == nil {
+		return nil
+	}
+	declared := map[string]struct{}{}
+	for _, kind := range descriptor.Targets.EffectiveKinds() {
+		declared[kind] = struct{}{}
+	}
+	var findings []Finding
+	for _, item := range response.GetAssessment().GetFindings() {
+		subject := item.GetSubject()
+		if subject == nil || subject.GetKind() == commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_UNSPECIFIED {
+			continue
+		}
+		kind := validationTargetKindName(subject.GetKind())
+		if _, ok := declared[kind]; ok {
+			continue
+		}
+		findings = append(findings, Finding{Code: CodeSubjectOutsideDeclaredKinds, Severity: SeverityError, Title: "Finding subject is outside provider coverage", Message: fmt.Sprintf("finding %q attributes its result to target kind %q, but the provider declares %v.", item.GetCode(), kind, descriptor.Targets.EffectiveKinds()), Location: "common.v1.AssessmentFinding.subject", Remediation: "Declare the subject kind in targets.kinds or emit the finding only for a declared target."})
+	}
+	return findings
+}
+
+func validationTargetKindName(kind commonv1.ValidationTargetKind) string {
+	switch kind {
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO:
+		return "scenario"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_RESOURCE:
+		return "resource"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_TOOL:
+		return "tool"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SAFEGUARD:
+		return "safeguard"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_TEAM:
+		return "team"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PACKAGE:
+		return "package"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE:
+		return "control-plane"
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_DOCS:
+		return "docs"
+	default:
+		return "unspecified"
+	}
+}
+
+func targetKindEnum(kind string) commonv1.ValidationTargetKind {
+	switch kind {
+	case "scenario":
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO
+	case "resource":
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_RESOURCE
+	case "tool":
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_TOOL
+	case "safeguard":
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SAFEGUARD
+	case "team":
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_TEAM
+	case "package":
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PACKAGE
+	case "control-plane":
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE
+	case "docs":
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_DOCS
+	default:
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_UNSPECIFIED
 	}
 }
 

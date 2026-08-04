@@ -163,10 +163,10 @@ cat coverage/phase-results/unit.json | jq '.requirements[] | select(.id == "MY-R
 ### Via API
 
 ```bash
-# Start execution
+# Start execution (scenarioName is the legacy alias; target accepts kind:id)
 curl -X POST "http://localhost:${API_PORT}/api/v1/executions" \
   -H "Content-Type: application/json" \
-  -d '{"scenarioName": "my-scenario", "preset": "comprehensive"}'
+  -d '{"target": "package:api-core", "preset": "quick"}'
 
 # Check execution status
 curl "http://localhost:${API_PORT}/api/v1/executions/{id}"

@@ -23,7 +23,7 @@ func Migrate(ctx context.Context, db dbexec.Executor) error {
 	if _, err := db.ExecContext(ctx, Schema()); err != nil {
 		return fmt.Errorf("ensure execution phase schema: %w", err)
 	}
-	for _, column := range []string{"terminal_outcome", "run_id", "phase_set_digest", "descriptor_snapshot_digest", "configuration_fingerprint"} {
+	for _, column := range []string{"terminal_outcome", "run_id", "phase_set_digest", "descriptor_snapshot_digest", "configuration_fingerprint", "target_kind", "target_id"} {
 		hasColumn, err := columnExists(ctx, db, "suite_executions", column)
 		if err != nil {
 			return fmt.Errorf("introspect suite_executions: %w", err)
@@ -33,6 +33,15 @@ func Migrate(ctx context.Context, db dbexec.Executor) error {
 				return fmt.Errorf("add suite_executions.%s: %w", column, err)
 			}
 		}
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE suite_executions SET target_kind = 'scenario' WHERE target_kind IS NULL OR target_kind = ''`); err != nil {
+		return fmt.Errorf("backfill suite_executions.target_kind: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE suite_executions SET target_id = scenario_name WHERE target_id IS NULL OR target_id = ''`); err != nil {
+		return fmt.Errorf("backfill suite_executions.target_id: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_suite_executions_target ON suite_executions (target_kind, target_id)`); err != nil {
+		return fmt.Errorf("index suite_executions target identity: %w", err)
 	}
 	// Backfill rows that predate the column (or were written before it was
 	// populated): derive the run-level outcome from the success flag. The

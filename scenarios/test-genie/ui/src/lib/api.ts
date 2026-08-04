@@ -161,6 +161,8 @@ export interface ExecutionPlanSummary {
 
 export interface ExecutionPlanPreview {
   scenarioName: string;
+  targetKind?: string;
+  targetId?: string;
   presetUsed?: string;
   phases: ExecutionPlanPhase[];
   summary: ExecutionPlanSummary;
@@ -198,6 +200,8 @@ export interface ApiHealthResponse {
 
 export interface ExecuteSuiteInput {
   scenarioName: string;
+  /** Optional kind:id identity; scenarioName remains the legacy display alias. */
+  target?: string;
   preset?: string;
   phases?: string[];
   skip?: string[];
@@ -218,6 +222,22 @@ export interface ScenarioSummary {
   lastExecutionPhases?: PhaseExecutionResult[];
   lastExecutionPhaseSummary?: PhaseSummary;
   lastFailureAt?: string;
+}
+
+export interface ValidationTarget {
+  kind: string;
+  id: string;
+  root: string;
+  target: string;
+}
+
+export async function fetchValidationTargets(): Promise<ValidationTarget[]> {
+  const res = await fetch(buildApiUrl("/targets", { baseUrl: API_BASE }), {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store"
+  });
+  const payload = await parseResponse<{ items: ValidationTarget[]; count: number }>(res);
+  return payload.items ?? [];
 }
 
 export async function fetchHealth(): Promise<ApiHealthResponse> {

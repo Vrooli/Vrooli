@@ -87,6 +87,7 @@ export function ExecutionForm({ scenarioOptions: _scenarioOptions, datalistId, s
     setFeedbackStatus(null);
     startStream({
       scenarioName: executionForm.scenarioName.trim(),
+      target: executionForm.scenarioName.includes(":") ? executionForm.scenarioName.trim() : undefined,
       preset: executionForm.preset,
       failFast: executionForm.failFast
     }).catch((err: Error) => {
@@ -98,6 +99,7 @@ export function ExecutionForm({ scenarioOptions: _scenarioOptions, datalistId, s
   const presetEntries = EXECUTION_PRESETS;
   const planRequest = useMemo(() => ({
     scenarioName: executionForm.scenarioName.trim(),
+    target: executionForm.scenarioName.includes(":") ? executionForm.scenarioName.trim() : undefined,
     preset: executionForm.preset,
     failFast: executionForm.failFast
   }), [executionForm.failFast, executionForm.preset, executionForm.scenarioName]);
@@ -172,12 +174,12 @@ export function ExecutionForm({ scenarioOptions: _scenarioOptions, datalistId, s
       <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
         {!scenarioName && (
           <label className="block text-sm">
-            <span className="text-slate-300">Scenario name</span>
+            <span className="text-slate-300">Target</span>
             <input
               className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-base text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
               value={executionForm.scenarioName}
               onChange={(evt) => setExecutionForm({ scenarioName: evt.target.value })}
-              placeholder="scenario-under-test"
+              placeholder="scenario-under-test or package:api-core"
               list={datalistId}
             />
           </label>

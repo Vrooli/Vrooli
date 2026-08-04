@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS suite_executions (
 	-- Durable run artifact identity; required to reload immutable findings and descriptor snapshots.
     run_id TEXT,
     scenario_name TEXT NOT NULL,
+    target_kind TEXT NOT NULL DEFAULT 'scenario',
+    target_id TEXT NOT NULL DEFAULT '',
     preset_used TEXT,
     requested_preset TEXT,
     requested_phases TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(requested_phases)),

@@ -50,6 +50,7 @@ type Logger interface {
 
 // Dependencies encapsulates the services the HTTP layer needs to operate.
 type Dependencies struct {
+	RepoRoot            string
 	DB                  *database.RoutedDB
 	HealthDB            dbexec.HealthProbe
 	Executions          execution.ExecutionHistory
@@ -135,6 +136,7 @@ type Server struct {
 	validationService      *appvalidation.Service
 	startBackground        func(context.Context)
 	sweepStatus            *selfhealthsnapshots.StatusStore
+	repoRoot               string
 	seedSessions           map[string]*seedSession
 	seedSessionsByScenario map[string]string
 	seedSessionsMu         sync.Mutex
@@ -193,6 +195,7 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		validationService:      deps.ValidationService,
 		startBackground:        deps.StartBackground,
 		sweepStatus:            deps.SweepStatus,
+		repoRoot:               deps.RepoRoot,
 		seedSessions:           make(map[string]*seedSession),
 		seedSessionsByScenario: make(map[string]string),
 	}
@@ -223,6 +226,7 @@ func (s *Server) setupRoutes() {
 	apiRouter.HandleFunc("/executions", s.handleListExecutions).Methods("GET")
 	apiRouter.HandleFunc("/executions/{id}", s.handleGetExecution).Methods("GET")
 	apiRouter.HandleFunc("/scenarios", s.handleListScenarios).Methods("GET")
+	apiRouter.HandleFunc("/targets", s.handleListTargets).Methods("GET")
 	apiRouter.HandleFunc("/scenarios/{name}", s.handleGetScenario).Methods("GET")
 	apiRouter.HandleFunc("/scenarios/{name}/run-tests", s.handleRunScenarioTests).Methods("POST")
 	apiRouter.HandleFunc("/scenarios/{name}/playbooks/seed/apply", s.handlePlaybooksSeedApply).Methods("POST")

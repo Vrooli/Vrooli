@@ -166,12 +166,17 @@
         },
         "last_validated_at": {
           "type": "string",
-          "description": "ISO 8601 timestamp this validation was last confirmed. Primarily for type:manual validations (e.g. attended GPU end-to-end runs) where there is no automated phase to re-prove freshness on every test run; paired with valid_for_days a consumer can flag the evidence as stale."
+          "description": "ISO 8601 timestamp this validation was last confirmed. Use with valid_for_days for an expensive or attended validation that is intentionally kept out of ordinary suites and re-proved by its scenario-owned command."
         },
         "valid_for_days": {
           "type": "integer",
           "minimum": 1,
-          "description": "Freshness window in days for a manual validation: the evidence is considered stale once (last_validated_at + valid_for_days) is in the past. Optional; absent means the validation never goes stale. A scenario-owned freshness check (e.g. image-tools' conditioning-freshness make target) reads these to warn/fail on stale manual evidence."
+          "description": "Freshness window in days for an expensive or attended validation: evidence is stale once (last_validated_at + valid_for_days) is in the past. Optional; absent means the validation never goes stale."
+        },
+        "out_of_band": {
+          "type": "boolean",
+          "default": false,
+          "description": "Marks an expensive or attended validation that ordinary scenario suites must not execute. The owning scenario must provide an explicit command that runs all out-of-band validations and a freshness check that the business phase can invoke."
         },
         "scenario": {
           "type": "string",

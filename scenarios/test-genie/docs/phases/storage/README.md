@@ -40,16 +40,15 @@ The phase aggregates six per-capability ladders; the safety-critical one is
 `isolation_safety` (its L2 verdict gates whether destructive workflow flows may
 run). The rungs are monotone.
 
-`declaration_accountability` is deliberately advisory: adoption does not fail
-the storage phase. It still moves the rung, because the phase gate (ERROR or
-BLOCKER severity) and the ladder gate (ERROR/BLOCKER **or**
-`clean_requirement: required`) are separate mechanisms. Its rungs are:
+`declaration_accountability` is target-accountability evidence. The per-owner
+markers move the ladder, while `STORAGE_OWNER_GATE_FAILED` is the aggregate
+gating finding when an owner is unsafe. Its rungs are:
 
 | Rung | Meaning | Blocked by |
 |---|---|---|
-| L0 Unknown | The owner declares no `storage.entries`, so its durable surface cannot be evaluated. | `STORAGE_ACCOUNTABILITY_NOT_DECLARED` (INFO) |
-| L1 Declared | Storage intent is present, but reconciliation is incomplete. | `STORAGE_ACCOUNTABILITY_NOT_RECONCILED` (WARNING) |
-| L2 Reconciled | Writers, observed paths, sidecars, and ceilings agree. | `STORAGE_ACCOUNTABILITY_NOT_GOVERNED` (WARNING) |
+| L0 Unknown | The owner declares no `storage.entries`, so its durable surface cannot be evaluated. | `STORAGE_ACCOUNTABILITY_UNDECLARED` (INFO) |
+| L1 Declared | Storage intent is present, but reconciliation is incomplete. | `STORAGE_ACCOUNTABILITY_UNRECONCILED` (WARNING) |
+| L2 Reconciled | Writers, observed paths, sidecars, and ceilings agree. | `STORAGE_ACCOUNTABILITY_UNGOVERNED` (WARNING) |
 | L3 Governed | Every non-sidecar entry carries a budget or a reclaim command. | — |
 
 These three markers are emitted by the `storage.accountability` post-pass, which
@@ -95,15 +94,15 @@ non-failing debt.
 | `SQLITE_POOL_DEADLOCK` | persistence_hygiene | L2 | ERROR | Yes |
 | `BACKUP_TARGET_MISSING` | operational_readiness | L1 | INFO | No |
 | `MIGRATION_DEBT` | operational_readiness | L1 | INFO | No |
-| `STORAGE_ACCOUNTABILITY_NOT_DECLARED` | declaration_accountability | L1 | INFO | No |
-| `STORAGE_ACCOUNTABILITY_NOT_RECONCILED` | declaration_accountability | L2 | WARNING | No |
-| `STORAGE_ACCOUNTABILITY_NOT_GOVERNED` | declaration_accountability | L3 | WARNING | No |
+| `STORAGE_ACCOUNTABILITY_UNDECLARED` | declaration_accountability | L1 | INFO | No |
+| `STORAGE_ACCOUNTABILITY_UNRECONCILED` | declaration_accountability | L2 | WARNING | No |
+| `STORAGE_ACCOUNTABILITY_UNGOVERNED` | declaration_accountability | L3 | WARNING | No |
 | `STORAGE_BUDGET_BELOW_OBSERVED` | declaration_accountability | L2 | ERROR | Yes |
 
 The remaining accountability codes are advisory detail: they explain which rung
 marker fired but do not move the ladder on their own. All are WARNING and none
 fail the phase. Those in the **reconciliation set** hold the ladder at L1 via
-`STORAGE_ACCOUNTABILITY_NOT_RECONCILED`:
+`STORAGE_ACCOUNTABILITY_UNRECONCILED`:
 
 | Code | In reconciliation set? |
 |---|---|
@@ -124,9 +123,19 @@ ownership, handle capture, namespace hardcoding, direct SQL in handlers) is
 declared in the descriptor's `maturity.findings` block.
 
 Fleet-wide validation of resources, tools, safeguards, and scenarios is a
-storage-manager product gate (`storage-manager validate fleet`). Test Genie
-continues to validate one scenario through `ScenarioValidationService`; it does
-not widen its scenario-shaped target contract for non-scenario owners.
+storage-manager product gate (`storage-manager validate fleet`). This phase
+additionally reports on non-scenario owners inside the `storage-manager`
+scenario run: `storage` declares `targets.kinds` of `scenario`, `resource`,
+`tool`, and `safeguard`, and every finding about an owner other than the run's
+own target carries a `subject` naming it.
+
+**A foreign subject never moves this run's ladder.** The maturity engine scores
+a capability only from findings whose subject is the run's own target, so an
+undeclared safeguard cannot pull a scenario's `declaration_accountability` down.
+The aggregate `STORAGE_OWNER_GATE_FAILED` finding is what carries fleet state
+into the run's verdict. Before that scoping existed, one safeguard with no
+`storage.entries` reported `storage-manager` itself at L0 while its own storage
+was fully governed.
 
 ## The canonical fix
 

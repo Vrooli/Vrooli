@@ -35,6 +35,7 @@ func (r *SqliteRepository) TryAcquire(ctx context.Context, in AcquireInput, now 
 	if in.RunID == "" {
 		return Claim{}, errors.New("playbooksclaims: run_id required")
 	}
+	targetKind, targetID := targetIdentity(in.TargetKind, in.TargetID, in.ScenarioName)
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -48,9 +49,9 @@ func (r *SqliteRepository) TryAcquire(ctx context.Context, in AcquireInput, now 
 
 	// INSERT or steal-if-expired in one statement.
 	_, err = tx.ExecContext(ctx, `
-INSERT INTO playbooks_claims (scenario_name, run_id, mode, started_by, acquired_at, heartbeat_at, expires_at)
-VALUES (?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(scenario_name) DO UPDATE SET
+INSERT INTO playbooks_claims (scenario_name, target_kind, target_id, run_id, mode, started_by, acquired_at, heartbeat_at, expires_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(target_kind, target_id) DO UPDATE SET
     run_id = excluded.run_id,
     mode = excluded.mode,
     started_by = excluded.started_by,
@@ -59,14 +60,14 @@ ON CONFLICT(scenario_name) DO UPDATE SET
     expires_at = excluded.expires_at
 WHERE playbooks_claims.expires_at <= excluded.heartbeat_at
 `,
-		in.ScenarioName, in.RunID, string(in.Mode), in.StartedBy, nowU, nowU, expU,
+		in.ScenarioName, targetKind, targetID, in.RunID, string(in.Mode), in.StartedBy, nowU, nowU, expU,
 	)
 	if err != nil {
 		return Claim{}, fmt.Errorf("playbooksclaims: insert/steal: %w", err)
 	}
 
 	// Read back current row to determine outcome.
-	current, err := getInTx(ctx, tx, in.ScenarioName)
+	current, err := getInTx(ctx, tx, targetKind, targetID)
 	if err != nil {
 		return Claim{}, err
 	}
@@ -82,12 +83,13 @@ WHERE playbooks_claims.expires_at <= excluded.heartbeat_at
 
 // Heartbeat extends expires_at if the caller still owns the row.
 func (r *SqliteRepository) Heartbeat(ctx context.Context, scenarioName, runID string, now time.Time, ttl time.Duration) (Claim, error) {
+	targetKind, targetID := targetIdentity("scenario", scenarioName, scenarioName)
 	expires := now.Add(ttl)
 	res, err := r.db.ExecContext(ctx, `
 UPDATE playbooks_claims
 SET heartbeat_at = ?, expires_at = ?
-WHERE scenario_name = ? AND run_id = ?
-`, now.Unix(), expires.Unix(), scenarioName, runID)
+WHERE target_kind = ? AND target_id = ? AND run_id = ?
+`, now.Unix(), expires.Unix(), targetKind, targetID, runID)
 	if err != nil {
 		return Claim{}, fmt.Errorf("playbooksclaims: heartbeat: %w", err)
 	}
@@ -111,10 +113,11 @@ WHERE scenario_name = ? AND run_id = ?
 
 // Release deletes the claim iff the runID matches.
 func (r *SqliteRepository) Release(ctx context.Context, scenarioName, runID string) error {
+	targetKind, targetID := targetIdentity("scenario", scenarioName, scenarioName)
 	res, err := r.db.ExecContext(ctx, `
 DELETE FROM playbooks_claims
-WHERE scenario_name = ? AND run_id = ?
-`, scenarioName, runID)
+WHERE target_kind = ? AND target_id = ? AND run_id = ?
+`, targetKind, targetID, runID)
 	if err != nil {
 		return fmt.Errorf("playbooksclaims: release: %w", err)
 	}
@@ -135,9 +138,9 @@ WHERE scenario_name = ? AND run_id = ?
 // Get returns the current claim for a scenario.
 func (r *SqliteRepository) Get(ctx context.Context, scenarioName string) (Claim, error) {
 	row := r.db.QueryRowContext(ctx, `
-SELECT scenario_name, run_id, mode, started_by, acquired_at, heartbeat_at, expires_at
+SELECT scenario_name, target_kind, target_id, run_id, mode, started_by, acquired_at, heartbeat_at, expires_at
 FROM playbooks_claims
-WHERE scenario_name = ?
+WHERE target_kind = 'scenario' AND target_id = ?
 `, scenarioName)
 	return scanClaim(row)
 }
@@ -145,7 +148,7 @@ WHERE scenario_name = ?
 // List returns all current claims.
 func (r *SqliteRepository) List(ctx context.Context) ([]Claim, error) {
 	rows, err := r.db.QueryContext(ctx, `
-SELECT scenario_name, run_id, mode, started_by, acquired_at, heartbeat_at, expires_at
+SELECT scenario_name, target_kind, target_id, run_id, mode, started_by, acquired_at, heartbeat_at, expires_at
 FROM playbooks_claims
 ORDER BY acquired_at ASC
 `)
@@ -176,11 +179,12 @@ func (r *SqliteRepository) ForceBreak(ctx context.Context, scenarioName string) 
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	current, err := getInTx(ctx, tx, scenarioName)
+	targetKind, targetID := targetIdentity("scenario", scenarioName, scenarioName)
+	current, err := getInTx(ctx, tx, targetKind, targetID)
 	if err != nil {
 		return Claim{}, err
 	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM playbooks_claims WHERE scenario_name = ?`, scenarioName); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM playbooks_claims WHERE target_kind = 'scenario' AND target_id = ?`, scenarioName); err != nil {
 		return Claim{}, fmt.Errorf("playbooksclaims: force-break delete: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -202,7 +206,7 @@ func scanClaim(s rowScanner) (Claim, error) {
 		heartbeatAt int64
 		expiresAt   int64
 	)
-	err := s.Scan(&c.ScenarioName, &c.RunID, &modeStr, &c.StartedBy, &acquiredAt, &heartbeatAt, &expiresAt)
+	err := s.Scan(&c.ScenarioName, &c.TargetKind, &c.TargetID, &c.RunID, &modeStr, &c.StartedBy, &acquiredAt, &heartbeatAt, &expiresAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Claim{}, ErrNotFound
@@ -216,11 +220,11 @@ func scanClaim(s rowScanner) (Claim, error) {
 	return c, nil
 }
 
-func getInTx(ctx context.Context, tx *sql.Tx, scenarioName string) (Claim, error) {
+func getInTx(ctx context.Context, tx *sql.Tx, targetKind, targetID string) (Claim, error) {
 	row := tx.QueryRowContext(ctx, `
-SELECT scenario_name, run_id, mode, started_by, acquired_at, heartbeat_at, expires_at
+SELECT scenario_name, target_kind, target_id, run_id, mode, started_by, acquired_at, heartbeat_at, expires_at
 FROM playbooks_claims
-WHERE scenario_name = ?
-`, scenarioName)
+WHERE target_kind = ? AND target_id = ?
+`, targetKind, targetID)
 	return scanClaim(row)
 }

@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "test-genie",
   "generator": "v1.0.0",
-  "manifest_hash": "d111c9f8ce534969d95b617f790db0dbc4d8e25c56eca57008677c6d61f7685e",
+  "manifest_hash": "dc721f25c692d2974e097a5a2b770878392b171c2a50888d08841e1e4259024d",
   "commands": [
     {
       "path": "eligibility check",

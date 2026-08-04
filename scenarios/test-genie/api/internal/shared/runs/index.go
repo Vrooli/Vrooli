@@ -128,6 +128,9 @@ func (i *Index) readUnlocked() ([]RunRecord, error) {
 	if err := json.Unmarshal(data, &records); err != nil {
 		return nil, fmt.Errorf("parse index: %w", err)
 	}
+	for i := range records {
+		records[i].NormalizeTargetIdentity()
+	}
 	return records, nil
 }
 
@@ -194,6 +197,7 @@ func (i *Index) Find(runID string) (RunRecord, error) {
 // Append adds a new record. If a record with the same RunID already exists it
 // is replaced (idempotent upsert for the start-then-finalize lifecycle).
 func (i *Index) Append(rec RunRecord) error {
+	rec.NormalizeTargetIdentity()
 	return i.withLock(func() error {
 		records, err := i.readUnlocked()
 		if err != nil {

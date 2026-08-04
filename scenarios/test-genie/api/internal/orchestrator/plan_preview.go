@@ -7,6 +7,7 @@ import (
 	"test-genie/internal/orchestrator/phasepolicy"
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/shared"
+	"test-genie/internal/targetmodel"
 
 	workspacepkg "test-genie/internal/orchestrator/workspace"
 
@@ -41,6 +42,8 @@ type PlannedPhase struct {
 // ExecutionPlanPreview captures the actual selected phase plan for a request.
 type ExecutionPlanPreview struct {
 	ScenarioName string `json:"scenarioName"`
+	TargetKind   string `json:"targetKind,omitempty"`
+	TargetID     string `json:"targetId,omitempty"`
 	PresetUsed   string `json:"presetUsed,omitempty"`
 	// PhaseSetDigest and DescriptorSnapshotDigest identify the exact selected
 	// phase shape and provider/descriptor contract used for this preview. They
@@ -61,16 +64,38 @@ type executionPlanContext struct {
 }
 
 func (o *SuiteOrchestrator) loadExecutionPlanContext(req SuiteExecutionRequest) (*executionPlanContext, error) {
-	scenario := strings.TrimSpace(req.ScenarioName)
-	if scenario == "" {
-		return nil, shared.NewValidationError("scenarioName is required")
+	expression := strings.TrimSpace(req.Target)
+	legacyScenario := strings.TrimSpace(req.ScenarioName)
+	if expression == "" && legacyScenario == "" {
+		return nil, shared.NewValidationError("target or scenarioName is required")
 	}
 
-	ws, err := workspacepkg.NewWithOptions(o.scenariosRoot, scenario, workspacepkg.Options{
-		ScenarioPath:           req.ScenarioPath,
-		LogicalRepoRoot:        req.LogicalRepoRoot,
-		LogicalScenarioRelPath: req.LogicalScenarioRelPath,
-	})
+	var ws *workspacepkg.ScenarioWorkspace
+	var err error
+	if expression == "" {
+		// Keep the fixture/test and legacy API path independent of the repository
+		// contract. A bare ScenarioName is already a validated scenario request;
+		// generalized callers use Target and take the contract-backed path below.
+		ws, err = workspacepkg.NewWithOptions(o.scenariosRoot, legacyScenario, workspacepkg.Options{
+			ScenarioPath:           req.ScenarioPath,
+			LogicalRepoRoot:        req.LogicalRepoRoot,
+			LogicalScenarioRelPath: req.LogicalScenarioRelPath,
+		})
+	} else {
+		target, resolveErr := targetmodel.Resolve(o.projectRoot, expression)
+		if resolveErr != nil {
+			return nil, shared.NewValidationError(resolveErr.Error())
+		}
+		if target.HasRuntime() {
+			ws, err = workspacepkg.NewWithOptions(o.scenariosRoot, target.ID, workspacepkg.Options{
+				ScenarioPath:           req.ScenarioPath,
+				LogicalRepoRoot:        req.LogicalRepoRoot,
+				LogicalScenarioRelPath: req.LogicalScenarioRelPath,
+			})
+		} else {
+			ws, err = workspacepkg.NewTarget(o.projectRoot, target)
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -105,6 +130,8 @@ func (o *SuiteOrchestrator) PreviewExecution(req SuiteExecutionRequest) (*Execut
 
 	preview := &ExecutionPlanPreview{
 		ScenarioName: ctx.env.ScenarioName,
+		TargetKind:   ctx.env.TargetKind,
+		TargetID:     ctx.env.TargetID,
 		PresetUsed:   ctx.plan.PresetUsed,
 		Warnings:     buildPlanWarnings(ctx.plan),
 		Phases:       make([]PlannedPhase, 0, len(ctx.plan.Selected)),

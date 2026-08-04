@@ -11,6 +11,21 @@ check, each mapped to its test-genie phase and owning health scenario. The numer
 phases are red, the autofix `implemented`-vs-`pending` split, and reliability — is computed live
 from `test-genie health` + `test-genie fleet status`, not stored here.
 
+## Target model
+
+The Validate space is evaluated over the repository target inventory, not only
+scenarios. Targets use the stable tuple `{kind, id, root}` and are enumerated
+from `.vrooli/repo-contract.json`; the current inventory covers scenarios,
+resources, tools, safeguards, teams, packages, control-plane code, and docs.
+Providers declare the kinds they cover in `.vrooli/test-genie.json`. A missing
+declaration, unresolvable target glob, unsupported execution language, or
+finding attributed outside declared coverage is a conformance failure.
+
+The two axes are intentionally separate: target coverage answers *what* is
+validated, while phase applicability answers *which concern* applies to that
+target. Rebase/compare and freshness decisions preserve the target tuple so a
+result for `package:api-core` can never satisfy a scenario run by accident.
+
 ## This Space
 
 | | |

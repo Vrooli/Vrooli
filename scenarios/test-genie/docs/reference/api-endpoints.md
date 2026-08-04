@@ -153,6 +153,7 @@ Resolve the actual phase plan and timing guidance for a request without running 
 ```json
 {
   "scenarioName": "my-scenario",
+  "target": "package:api-core",
   "preset": "comprehensive",
   "phases": ["structure", "unit", "integration"],
   "skip": ["performance"],
@@ -164,7 +165,8 @@ Resolve the actual phase plan and timing guidance for a request without running 
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `scenarioName` | string | Yes | - | Target scenario |
+| `scenarioName` | string | Yes* | - | Legacy bare scenario slug or display alias |
+| `target` | string | Yes* | - | First-class target expression (`kind:id`); takes precedence when present |
 | `preset` | string | No | `""` | Preset to expand before skip filters |
 | `phases` | string[] | No | all enabled phases | Explicit phase list; overrides `preset` |
 | `skip` | string[] | No | `[]` | Requested phase exclusions |
@@ -253,12 +255,13 @@ location.
 
 ### POST /api/v1/executions
 
-Execute a test suite for a scenario. This is the primary endpoint for running tests.
+Execute a test suite for a validation target. This is the primary endpoint for running tests.
 
 **Request Body:**
 ```json
 {
   "scenarioName": "my-scenario",
+  "target": "package:api-core",
   "preset": "comprehensive",
   "phases": ["structure", "dependencies", "unit"],
   "skip": ["performance"],
@@ -270,7 +273,8 @@ Execute a test suite for a scenario. This is the primary endpoint for running te
 
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
-| `scenarioName` | string | Yes | - | Target scenario |
+| `scenarioName` | string | Yes* | - | Legacy bare scenario slug or display alias |
+| `target` | string | Yes* | - | First-class target expression (`kind:id`); takes precedence when present |
 | `preset` | string | No | `""` | Preset configuration |
 | `phases` | string[] | No | all | Phases to run |
 | `skip` | string[] | No | `[]` | Phases to skip |
@@ -342,7 +346,7 @@ Use `POST /api/v1/executions/plan` to see the actual selected phases, runtime es
 **Errors:**
 | Code | Cause |
 |------|-------|
-| 400 | Missing scenarioName, invalid preset/phase |
+| 400 | Missing target/scenarioName, invalid preset/phase |
 | 500 | Execution service unavailable |
 
 ---

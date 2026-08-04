@@ -525,21 +525,32 @@ var DescribeProbe DescribeConformanceProbe = DefaultDescribeProbe
 // for a provider with no cheap inspection mode that re-runs its entire analysis
 // on every suite run.
 func DefaultDescribeProbe(ctx context.Context, provider string, timeout time.Duration) error {
+	_, err := DefaultDescribeProvider(ctx, provider, timeout)
+	return err
+}
+
+// DefaultDescribeProvider returns the typed provider declaration used by
+// target conformance checks. Keeping this beside the legacy error-only probe
+// prevents the two transports from resolving providers differently.
+func DefaultDescribeProvider(ctx context.Context, provider string, timeout time.Duration) (*scenariovalidationv1.DescribeProviderResponse, error) {
 	if timeout <= 0 {
 		timeout = defaultConformanceTimeout
 	}
 	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, provider)
 	if err != nil {
-		return fmt.Errorf("resolve %s URL: %w", provider, err)
+		return nil, fmt.Errorf("resolve %s URL: %w", provider, err)
 	}
 	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	if baseURL == "" {
-		return fmt.Errorf("%s base URL is empty", provider)
+		return nil, fmt.Errorf("%s base URL is empty", provider)
 	}
-	_, err = scenariovalidationconnect.NewScenarioValidationServiceClient(
+	response, err := scenariovalidationconnect.NewScenarioValidationServiceClient(
 		&http.Client{Timeout: timeout}, baseURL,
 	).DescribeProvider(ctx, connect.NewRequest(&scenariovalidationv1.DescribeProviderRequest{}))
-	return err
+	if err != nil {
+		return nil, err
+	}
+	return response.Msg, nil
 }
 
 func adoptionScore(r ProviderConformance) float64 {

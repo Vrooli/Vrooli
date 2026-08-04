@@ -1,8 +1,9 @@
 # Test Genie CLI Reference
 
-Test Genie is an execution and remediation control surface. It does not accept
-coverage targets, test-type generation requests, arbitrary source-file lists,
-or generic agent prompts.
+Test Genie is an execution and remediation control surface. Validation targets
+are either a legacy bare scenario slug or an explicit repository target in
+`kind:id` form. It does not accept arbitrary source-file lists or generic agent
+prompts.
 
 ## Global options
 
@@ -19,7 +20,7 @@ by the Test Genie lifecycle; start it with `make start` when needed.
 
 | Command | Purpose |
 |---|---|
-| `execute <scenario>` | Start a descriptor-planned, server-owned test execution. |
+| `execute <target>` | Start a descriptor-planned, server-owned execution for a scenario or repository target. |
 | `runs` | Wait for, follow, inspect, abort, compare, or browse durable executions. |
 | `remediate <scenario>` | Create one evidence-bound remediation job from a completed execution. |
 | `phases` | Inspect the live descriptor-backed phase catalog and execution plan. |
@@ -33,6 +34,8 @@ by the Test Genie lifecycle; start it with `make start` when needed.
 
 ```bash
 test-genie execute my-scenario --preset comprehensive
+# The same command accepts first-class non-scenario targets.
+test-genie execute package:api-core --preset quick
 ```
 
 Executions are server-owned. If the initiating terminal disconnects, the run
@@ -122,9 +125,9 @@ generate tests or enforce Agent Manager security policy.
 ## Automation example
 
 ```bash
-test-genie execute my-scenario --preset comprehensive
+test-genie execute package:api-core --preset comprehensive
 # Copy the printed run ID, then block once until its terminal verdict.
-test-genie runs wait --json --timeout=840 my-scenario <run-id>
+test-genie runs wait --json --timeout=840 package:api-core <run-id>
 ```
 
 For the HTTP contract and remediation endpoints, see

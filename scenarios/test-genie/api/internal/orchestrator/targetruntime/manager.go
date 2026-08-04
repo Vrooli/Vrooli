@@ -35,6 +35,21 @@ type Lease struct {
 	Started bool
 }
 
+// NoOp is the typed runtime implementation for repository targets that are
+// source trees rather than deployable scenarios. It deliberately succeeds for
+// lifecycle calls while retaining an operator-visible reason for the no-op.
+type NoOp struct{ reason string }
+
+func NewNoOp(reason string) *NoOp { return &NoOp{reason: strings.TrimSpace(reason)} }
+func (n *NoOp) Reason() string {
+	if n == nil || n.reason == "" {
+		return "target has no deployable runtime"
+	}
+	return n.reason
+}
+func (n *NoOp) RestartWithEnv(context.Context, map[string]string, io.Writer) error { return nil }
+func (n *NoOp) Restore(context.Context, io.Writer) error                           { return nil }
+
 type (
 	CommandRunner func(ctx context.Context, dir string, env map[string]string, logWriter io.Writer, name string, args ...string) error
 	PortProbe     func(ctx context.Context, port int) bool

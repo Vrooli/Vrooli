@@ -11,7 +11,9 @@ import (
 
 	"test-genie/internal/playbooksclaims"
 	"test-genie/internal/shared"
+	"test-genie/internal/targetmodel"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 )
 
@@ -36,7 +38,13 @@ type Environment struct {
 	CaptureProfile string
 
 	ScenarioName string
+	TargetKind   string
+	TargetID     string
+	TargetRoot   string
 	ScenarioDir  string
+	// ArtifactRoot is the durable evidence owner. It is the source directory
+	// for scenarios and a runtime-home target directory otherwise.
+	ArtifactRoot string
 	// TestDir is the legacy "testing workspace" root. Vrooli no longer requires
 	// scenarios to include a top-level test/ directory; this now defaults to
 	// coverage/ to keep all test-related artifacts and optional configs together.
@@ -67,6 +75,9 @@ type TargetRuntime interface {
 // doesn't have to re-derive them on every call.
 type ScenarioWorkspace struct {
 	Name        string
+	TargetKind  string
+	TargetID    string
+	TargetRoot  string
 	ScenarioDir string
 	// TestDir is the legacy "testing workspace" root (now coverage/ by default).
 	TestDir         string
@@ -75,7 +86,8 @@ type ScenarioWorkspace struct {
 	PhysicalAppRoot string
 	Mapping         Mapping
 
-	artifactDir string
+	artifactDir  string
+	artifactRoot string
 
 	// Runtime URLs (set via SetRuntimeURLs)
 	uiURL         string
@@ -114,6 +126,60 @@ type ResolvedLink struct {
 // New loads and validates the file-system layout for a scenario.
 func New(scenariosRoot, scenario string) (*ScenarioWorkspace, error) {
 	return NewWithOptions(scenariosRoot, scenario, Options{})
+}
+
+// NewTarget creates a workspace for a non-scenario repository target. The
+// source directory remains the target itself, while all run artifacts are
+// owned by the runtime-home target store rather than being written into the
+// source tree. Such targets intentionally have no lifecycle runtime.
+func NewTarget(repoRoot string, target targetmodel.Target) (*ScenarioWorkspace, error) {
+	if target.HasRuntime() {
+		return nil, fmt.Errorf("NewTarget is only for non-scenario targets")
+	}
+	if strings.TrimSpace(repoRoot) == "" || !filepath.IsAbs(repoRoot) {
+		return nil, shared.NewValidationError("repository root must be absolute")
+	}
+	info, err := os.Stat(target.Path)
+	if err != nil {
+		return nil, fmt.Errorf("target path is not accessible: %w", err)
+	}
+	if !info.IsDir() {
+		return nil, fmt.Errorf("target path is not a directory: %s", target.Path)
+	}
+	mapping, err := NewMapping(target.Path, repoRoot, "", "", target.ID)
+	if err != nil {
+		return nil, err
+	}
+	artifactRoot, err := targetmodel.ArtifactRoot(repoRoot, target)
+	if err != nil {
+		return nil, fmt.Errorf("resolve target artifacts: %w", err)
+	}
+	return &ScenarioWorkspace{
+		Name:            target.ID,
+		TargetKind:      targetKindName(target.Kind),
+		TargetID:        target.ID,
+		TargetRoot:      target.Root,
+		ScenarioDir:     target.Path,
+		artifactRoot:    artifactRoot,
+		TestDir:         target.Path,
+		PhaseDir:        filepath.Join(target.Path, "coverage", "phases"),
+		AppRoot:         repoRoot,
+		PhysicalAppRoot: repoRoot,
+		Mapping:         mapping,
+	}, nil
+}
+
+func targetKindName(kind commonv1.ValidationTargetKind) string {
+	return strings.TrimPrefix(strings.ToLower(kind.String()), "validation_target_kind_")
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 // NewWithOptions loads and validates the file-system layout for a scenario.
@@ -167,7 +233,11 @@ func NewWithOptions(scenariosRoot, scenario string, opts Options) (*ScenarioWork
 
 	return &ScenarioWorkspace{
 		Name:            name,
+		TargetKind:      "scenario",
+		TargetID:        name,
+		TargetRoot:      filepath.ToSlash(filepath.Join("scenarios", name)),
 		ScenarioDir:     scenarioDir,
+		artifactRoot:    scenarioDir,
 		TestDir:         testDir,
 		PhaseDir:        phaseDir,
 		AppRoot:         physicalAppRoot,
@@ -183,7 +253,11 @@ func (w *ScenarioWorkspace) Environment() Environment {
 	}
 	return Environment{
 		ScenarioName:    w.Name,
+		TargetKind:      w.TargetKind,
+		TargetID:        w.TargetID,
+		TargetRoot:      w.TargetRoot,
 		ScenarioDir:     w.ScenarioDir,
+		ArtifactRoot:    firstNonEmpty(w.artifactRoot, w.ScenarioDir),
 		TestDir:         w.TestDir,
 		AppRoot:         w.AppRoot,
 		PhysicalAppRoot: w.PhysicalAppRoot,

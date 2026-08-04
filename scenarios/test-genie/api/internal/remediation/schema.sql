@@ -1,6 +1,8 @@
 CREATE TABLE IF NOT EXISTS remediation_jobs (
     id TEXT PRIMARY KEY,
     scenario_name TEXT NOT NULL,
+    target_kind TEXT NOT NULL DEFAULT 'scenario',
+    target_id TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL,
     source_json TEXT NOT NULL,
 	 source_hash TEXT NOT NULL DEFAULT '',
@@ -17,10 +19,6 @@ CREATE TABLE IF NOT EXISTS remediation_jobs (
     cancelled_at TEXT
 );
 CREATE INDEX IF NOT EXISTS remediation_jobs_scenario_created_idx ON remediation_jobs(scenario_name, created_at DESC);
-CREATE UNIQUE INDEX IF NOT EXISTS remediation_jobs_one_active_per_scenario
-    ON remediation_jobs(scenario_name)
-    WHERE status IN ('created', 'launch_pending', 'running', 'agent_completed', 'verification_running');
-
 CREATE TABLE IF NOT EXISTS remediation_attempts (
     id TEXT PRIMARY KEY,
     job_id TEXT NOT NULL,

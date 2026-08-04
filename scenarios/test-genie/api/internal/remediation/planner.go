@@ -15,6 +15,8 @@ type Evidence struct {
 	SourceExecutionID string
 	SourceRunID       string
 	Scenario          string
+	TargetKind        string
+	TargetID          string
 	CompletedAt       time.Time
 	Phases            []Phase
 	Findings          []Finding
@@ -26,9 +28,10 @@ type Evidence struct {
 func BuildPlan(e Evidence) Plan {
 	plan := Plan{
 		SourceExecutionID: strings.TrimSpace(e.SourceExecutionID), SourceRunID: strings.TrimSpace(e.SourceRunID),
-		Scenario: strings.TrimSpace(e.Scenario), CreatedAt: e.CompletedAt.UTC(), Phases: append([]Phase(nil), e.Phases...),
+		Scenario: strings.TrimSpace(e.Scenario), TargetKind: strings.TrimSpace(e.TargetKind), TargetID: strings.TrimSpace(e.TargetID), CreatedAt: e.CompletedAt.UTC(), Phases: append([]Phase(nil), e.Phases...),
 		DegradedReasons: normalizedIDs(e.DegradedReasons),
 	}
+	plan.TargetKind, plan.TargetID = targetIdentity(plan.TargetKind, plan.TargetID, plan.Scenario)
 	if plan.CreatedAt.IsZero() {
 		plan.CreatedAt = time.Now().UTC()
 	}

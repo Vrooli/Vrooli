@@ -19,6 +19,7 @@ import (
 	"test-genie/internal/orchestrator"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
+	"test-genie/internal/targetmodel"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
@@ -1295,7 +1296,16 @@ func compactPhaseRecords(results []orchestrator.PhaseExecutionResult) []sharedru
 }
 
 func (m *Manager) scenarioDir(scenario string) string {
-	return filepath.Join(m.scenariosRoot, strings.TrimSpace(scenario))
+	value := strings.TrimSpace(scenario)
+	if strings.Contains(value, ":") {
+		repoRoot := filepath.Dir(m.scenariosRoot)
+		if target, err := targetmodel.Resolve(repoRoot, value); err == nil && !target.HasRuntime() {
+			if artifactRoot, artifactErr := targetmodel.ArtifactRoot(repoRoot, target); artifactErr == nil {
+				return artifactRoot
+			}
+		}
+	}
+	return filepath.Join(m.scenariosRoot, value)
 }
 
 func (m *Manager) snapshot(ar *activeRun) LiveStatus {

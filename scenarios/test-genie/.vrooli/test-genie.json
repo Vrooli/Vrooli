@@ -215,6 +215,97 @@
         "fix_class": "manual",
         "reason": "Deleting the retired maturity.json requires confirming the descriptor block is the migrated source of truth."
       },
+      "PROVIDER_DURABLE_CONTRACT_INVALID": {
+        "capability_id": "provider_contract",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "fix_class": "manual",
+        "reason": "A declared durable-run lifecycle that does not behave is a provider implementation defect its owner must resolve."
+      },
+      "PROVIDER_DECLARED_KINDS_UNSUPPORTED": {
+        "capability_id": "provider_descriptor",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "fix_class": "manual",
+        "reason": "Reconciling a descriptor's target kinds with the running binary's is an owner decision about which one is correct."
+      },
+      "PROVIDER_SUBJECT_OUTSIDE_DECLARED_KINDS": {
+        "capability_id": "provider_contract",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "fix_class": "manual",
+        "reason": "A finding attributed to an undeclared target kind means either the subject or the declaration is wrong; only the provider owner knows which."
+      },
+      "PROVIDER_CAPABILITY_TARGET_COVERAGE_GAP": {
+        "capability_id": "provider_descriptor",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "fix_class": "manual",
+        "reason": "A capability that claims a target kind no finding can reach is unfalsifiable; removing the claim or adding the finding is a design choice."
+      },
+      "PROVIDER_TARGET_GLOB_UNRESOLVABLE": {
+        "capability_id": "provider_descriptor",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "fix_class": "manual",
+        "reason": "A kind that enumerates zero targets reads identically to a kind nobody adopted; fixing the roots or dropping the kind needs owner judgment."
+      },
+      "PROVIDER_EXECUTION_RUNNER_MISSING": {
+        "capability_id": "provider_contract",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "fix_class": "manual",
+        "reason": "Registering a language runner for an executable target kind is an implementation decision, not a mechanical edit."
+      },
+      "PROVIDER_RUNNING_SPEC_VERSION_STALE": {
+        "capability_id": "provider_contract",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "ecosystem-fit"
+        ],
+        "fix_class": "manual",
+        "reason": "A stale provider binary must be rebuilt and restarted by its operator; the validator can only report the drift."
+      },
       "PROVIDER_POLICY_UNSAFE": {
         "capability_id": "provider_descriptor",
         "local_level_impact": "L1",

@@ -21,6 +21,8 @@ func EvidenceFromExecution(executionID string, result *orchestrator.SuiteExecuti
 	}
 	evidence.SourceRunID = strings.TrimSpace(result.RunID)
 	evidence.Scenario = strings.TrimSpace(result.ScenarioName)
+	evidence.TargetKind = strings.TrimSpace(result.TargetKind)
+	evidence.TargetID = strings.TrimSpace(result.TargetID)
 	evidence.CompletedAt = result.CompletedAt
 	if snapshotErr != nil {
 		evidence.DegradedReasons = append(evidence.DegradedReasons, "descriptor snapshot unavailable: "+snapshotErr.Error())

@@ -24,6 +24,10 @@ type Repository interface {
 	ListAttempts(context.Context, string) ([]Attempt, error)
 }
 
+type targetActiveRepository interface {
+	ActiveForTarget(context.Context, string, string) (Job, error)
+}
+
 type SQLiteRepository struct{ db dbexec.Executor }
 
 func NewSQLiteRepository(db dbexec.Executor) *SQLiteRepository { return &SQLiteRepository{db: db} }
@@ -59,7 +63,14 @@ func (r *SQLiteRepository) Create(ctx context.Context, job Job) error {
 	if err != nil {
 		return err
 	}
-	_, err = r.db.ExecContext(ctx, `INSERT INTO remediation_jobs (id, scenario_name, status, source_json, source_hash, selected_finding_ids_json, selected_requirement_ids_json, selection_hash, launch_attempt, additional_context, attribution_json, verification_json, failure, created_at, updated_at, cancelled_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, job.ID, job.Scenario, job.Status, string(source), job.SourceHash, string(selected), string(requirements), job.SelectionHash, job.LaunchAttempt, job.AdditionalContext, string(attribution), string(verification), job.Failure, sqliteutil.FormatTimestamp(job.CreatedAt), sqliteutil.FormatTimestamp(job.UpdatedAt), nullableTime(job.CancelledAt))
+	kind, targetID := targetIdentity(job.TargetKind, job.TargetID, job.Scenario)
+	var active int
+	if err := r.db.QueryRowContext(ctx, `SELECT 1 FROM remediation_jobs WHERE target_kind = ? AND target_id = ? AND status IN ('created', 'launch_pending', 'running', 'agent_completed', 'verification_running') LIMIT 1`, kind, targetID).Scan(&active); err == nil {
+		return ErrActiveJob
+	} else if err != sql.ErrNoRows {
+		return err
+	}
+	_, err = r.db.ExecContext(ctx, `INSERT INTO remediation_jobs (id, scenario_name, target_kind, target_id, status, source_json, source_hash, selected_finding_ids_json, selected_requirement_ids_json, selection_hash, launch_attempt, additional_context, attribution_json, verification_json, failure, created_at, updated_at, cancelled_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, job.ID, job.Scenario, kind, targetID, job.Status, string(source), job.SourceHash, string(selected), string(requirements), job.SelectionHash, job.LaunchAttempt, job.AdditionalContext, string(attribution), string(verification), job.Failure, sqliteutil.FormatTimestamp(job.CreatedAt), sqliteutil.FormatTimestamp(job.UpdatedAt), nullableTime(job.CancelledAt))
 	if err != nil && strings.Contains(strings.ToLower(err.Error()), "unique") {
 		return ErrActiveJob
 	}
@@ -67,7 +78,7 @@ func (r *SQLiteRepository) Create(ctx context.Context, job Job) error {
 }
 
 func (r *SQLiteRepository) Get(ctx context.Context, id string) (Job, error) {
-	job, err := scanJob(r.db.QueryRowContext(ctx, `SELECT id, scenario_name, status, source_json, source_hash, selected_finding_ids_json, selected_requirement_ids_json, selection_hash, launch_attempt, additional_context, attribution_json, verification_json, failure, created_at, updated_at, cancelled_at FROM remediation_jobs WHERE id = ?`, id))
+	job, err := scanJob(r.db.QueryRowContext(ctx, `SELECT id, scenario_name, target_kind, target_id, status, source_json, source_hash, selected_finding_ids_json, selected_requirement_ids_json, selection_hash, launch_attempt, additional_context, attribution_json, verification_json, failure, created_at, updated_at, cancelled_at FROM remediation_jobs WHERE id = ?`, id))
 	if err != nil {
 		return Job{}, err
 	}
@@ -78,7 +89,7 @@ func (r *SQLiteRepository) ListByScenario(ctx context.Context, scenario string, 
 	if limit <= 0 {
 		limit = 50
 	}
-	rows, err := r.db.QueryContext(ctx, `SELECT id, scenario_name, status, source_json, source_hash, selected_finding_ids_json, selected_requirement_ids_json, selection_hash, launch_attempt, additional_context, attribution_json, verification_json, failure, created_at, updated_at, cancelled_at FROM remediation_jobs WHERE scenario_name = ? ORDER BY created_at DESC LIMIT ?`, scenario, limit)
+	rows, err := r.db.QueryContext(ctx, `SELECT id, scenario_name, target_kind, target_id, status, source_json, source_hash, selected_finding_ids_json, selected_requirement_ids_json, selection_hash, launch_attempt, additional_context, attribution_json, verification_json, failure, created_at, updated_at, cancelled_at FROM remediation_jobs WHERE scenario_name = ? ORDER BY created_at DESC LIMIT ?`, scenario, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +116,19 @@ func (r *SQLiteRepository) ListByScenario(ctx context.Context, scenario string, 
 }
 
 func (r *SQLiteRepository) ActiveForScenario(ctx context.Context, scenario string) (Job, error) {
-	job, err := scanJob(r.db.QueryRowContext(ctx, `SELECT id, scenario_name, status, source_json, source_hash, selected_finding_ids_json, selected_requirement_ids_json, selection_hash, launch_attempt, additional_context, attribution_json, verification_json, failure, created_at, updated_at, cancelled_at FROM remediation_jobs WHERE scenario_name = ? AND status IN ('created', 'launch_pending', 'running', 'agent_completed', 'verification_running') ORDER BY created_at DESC LIMIT 1`, scenario))
+	job, err := scanJob(r.db.QueryRowContext(ctx, `SELECT id, scenario_name, target_kind, target_id, status, source_json, source_hash, selected_finding_ids_json, selected_requirement_ids_json, selection_hash, launch_attempt, additional_context, attribution_json, verification_json, failure, created_at, updated_at, cancelled_at FROM remediation_jobs WHERE scenario_name = ? AND status IN ('created', 'launch_pending', 'running', 'agent_completed', 'verification_running') ORDER BY created_at DESC LIMIT 1`, scenario))
+	if err != nil {
+		return Job{}, err
+	}
+	return r.hydrateAttempts(ctx, job)
+}
+
+// ActiveForTarget enforces the one-active-remediation invariant on the typed
+// target identity. The legacy scenario query remains for old callers and UI
+// routes, but creation uses this method when the repository supports it.
+func (r *SQLiteRepository) ActiveForTarget(ctx context.Context, kind, targetID string) (Job, error) {
+	kind, targetID = targetIdentity(kind, targetID, targetID)
+	job, err := scanJob(r.db.QueryRowContext(ctx, `SELECT id, scenario_name, target_kind, target_id, status, source_json, source_hash, selected_finding_ids_json, selected_requirement_ids_json, selection_hash, launch_attempt, additional_context, attribution_json, verification_json, failure, created_at, updated_at, cancelled_at FROM remediation_jobs WHERE target_kind = ? AND target_id = ? AND status IN ('created', 'launch_pending', 'running', 'agent_completed', 'verification_running') ORDER BY created_at DESC LIMIT 1`, kind, targetID))
 	if err != nil {
 		return Job{}, err
 	}
@@ -193,13 +216,14 @@ func scanJob(s scanner) (Job, error) {
 	var job Job
 	var source, sourceHashValue, selected, requirements, selectionHashValue, attribution, verification string
 	var created, updated, cancelled any
-	err := s.Scan(&job.ID, &job.Scenario, &job.Status, &source, &sourceHashValue, &selected, &requirements, &selectionHashValue, &job.LaunchAttempt, &job.AdditionalContext, &attribution, &verification, &job.Failure, &created, &updated, &cancelled)
+	err := s.Scan(&job.ID, &job.Scenario, &job.TargetKind, &job.TargetID, &job.Status, &source, &sourceHashValue, &selected, &requirements, &selectionHashValue, &job.LaunchAttempt, &job.AdditionalContext, &attribution, &verification, &job.Failure, &created, &updated, &cancelled)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Job{}, ErrNotFound
 	}
 	if err != nil {
 		return Job{}, err
 	}
+	job.TargetKind, job.TargetID = targetIdentity(job.TargetKind, job.TargetID, job.Scenario)
 	if err := json.Unmarshal([]byte(source), &job.Source); err != nil {
 		return Job{}, fmt.Errorf("decode remediation source: %w", err)
 	}

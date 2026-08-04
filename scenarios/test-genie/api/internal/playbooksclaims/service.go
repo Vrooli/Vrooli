@@ -69,7 +69,8 @@ func NewService(cfg Config) *Service {
 // TTL returns the configured TTL (helpful for callers building reports).
 func (s *Service) TTL() time.Duration { return s.ttl }
 
-// TryAcquire takes a claim. Returns *ErrBusy on conflict.
+// TryAcquire takes a typed target claim. Legacy callers may omit target fields
+// and are treated as scenario claims keyed by ScenarioName.
 func (s *Service) TryAcquire(ctx context.Context, in AcquireInput) (Claim, error) {
 	return s.repo.TryAcquire(ctx, in, s.clock.Now(), s.ttl)
 }
