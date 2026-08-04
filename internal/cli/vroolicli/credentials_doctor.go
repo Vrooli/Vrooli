@@ -5,13 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"sort"
 	"strings"
 
-	"github.com/vrooli/vrooli/internal/resources/catalog"
-	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
-	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
+	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
 )
 
 // credentialEntry is one declared credential and what the host currently knows
@@ -29,77 +26,122 @@ type credentialEntry struct {
 	Remediation string `json:"remediation,omitempty"`
 }
 
-// collectCredentialEntries reads every resource manifest and reports the state
-// of every credential it declares. A resource whose manifest cannot be loaded
-// is skipped rather than fatal: a diagnostic that refuses to run because one
-// manifest is broken is a diagnostic that fails when it is needed most.
-func collectCredentialEntries(root string) ([]credentialEntry, error) {
-	// Outside a repository there are no manifests to read. That is not an
-	// error for a diagnostic — the provider half of the answer is still the
-	// half the operator came for.
-	if strings.TrimSpace(root) == "" {
-		return nil, nil
-	}
-	names, err := catalog.New(root).ManifestNames()
+// writeRecoveryStatus reports whether this host's credentials exist anywhere
+// other than this host.
+//
+// It is here because the absence of a backup is silent by nature: a host that
+// has never exported a bundle looks exactly like one that has, right up to the
+// moment the difference is permanent and unfixable. `doctor` is the command an
+// operator already runs when something is wrong, which makes it the one place
+// the gap will actually be seen.
+//
+// It reports staleness as well as absence. A bundle taken before half these
+// credentials existed is arguably worse than none, because it invites an
+// operator to believe they are covered.
+func writeRecoveryStatus(ctx *CommandContext, entries []credentialEntry) {
+	stateDir, err := recoveryStateDir()
 	if err != nil {
-		return nil, fmt.Errorf("discover resource manifests: %w", err)
+		return
 	}
-	sort.Strings(names)
+	receipt, found, err := credentialauthority.ReadRecoveryReceipt(stateDir)
+	if err != nil || !found {
+		fmt.Fprintf(ctx.Stdout, "\nRecovery\n  No bundle has ever been exported on this host. Every configured credential\n"+
+			"  exists in exactly one place. Create one with:\n"+
+			"    printf '%%s' \"$PASSPHRASE\" | vrooli credentials recovery export --all --output <path>\n")
+		return
+	}
 
-	entries := []credentialEntry{}
-	for _, name := range names {
-		resourceManifest, err := manifestpkg.Load(manifestpkg.DefaultPath(root, name))
-		if err != nil {
+	uncovered := []string{}
+	for _, entry := range entries {
+		if !entry.Configured {
 			continue
 		}
-		descriptors := resourceManifest.Credentials.All()
-		if len(descriptors) == 0 {
+		identity, parseErr := credentialauthority.ParseIdentity(entry.LogicalID)
+		if parseErr != nil {
 			continue
 		}
-		gaps, err := resourceenv.ResolveCredentialGaps(resourceManifest)
-		if err != nil {
-			continue
-		}
-		gapByEnv := make(map[string]resourceenv.MissingCredential, len(gaps.Missing))
-		for _, gap := range gaps.Missing {
-			gapByEnv[gap.Env] = gap
-		}
-		for _, descriptor := range descriptors {
-			envName := strings.TrimSpace(descriptor.Env)
-			field := strings.TrimSpace(descriptor.Field)
-			if field == "" {
-				field = "value"
-			}
-			entry := credentialEntry{
-				Resource:   resourceManifest.Name,
-				Env:        envName,
-				LogicalID:  strings.TrimSpace(descriptor.LogicalID),
-				Field:      field,
-				Label:      strings.TrimSpace(descriptor.Label),
-				Required:   descriptor.Required,
-				Configured: true,
-				State:      "configured",
-			}
-			if gap, missing := gapByEnv[envName]; missing {
-				entry.Configured = false
-				entry.State = string(gap.Reason)
-				entry.Remediation = gap.Remediation
-			}
-			entries = append(entries, entry)
+		if !receipt.Covers(identity, entry.Field) {
+			uncovered = append(uncovered, entry.LogicalID+":"+entry.Field)
 		}
 	}
-	return entries, nil
+
+	// Deduplicate before counting, not just before printing: several resources
+	// share one credential, so a raw count describes declarations rather than
+	// credentials and disagrees with the list right beneath it.
+	uncovered = dedupeStrings(uncovered)
+
+	fmt.Fprintf(ctx.Stdout, "\nRecovery\n  Last bundle: %s (%d credential(s))\n    %s\n",
+		receipt.ExportedAt.Local().Format("2006-01-02 15:04"), len(receipt.Entries), receipt.Path)
+	if len(uncovered) == 0 {
+		fmt.Fprintf(ctx.Stdout, "  Every configured credential on this host is in that bundle.\n")
+		return
+	}
+	fmt.Fprintf(ctx.Stdout, "  STALE — %d configured credential(s) are not in it:\n", len(uncovered))
+	for _, missing := range uncovered {
+		fmt.Fprintf(ctx.Stdout, "    %s\n", missing)
+	}
+	fmt.Fprintf(ctx.Stdout, "  Re-export to cover them.\n")
+}
+
+// dedupeStrings keeps a shared credential from being listed once per resource
+// that declares it.
+func dedupeStrings(values []string) []string {
+	seen := map[string]bool{}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if seen[value] {
+			continue
+		}
+		seen[value] = true
+		out = append(out, value)
+	}
+	return out
+}
+
+// credentialLabelFor names a credential in operator-facing output.
+//
+// A descriptor bound to a process environment is best known by its variable,
+// which is what an operator sees in a config file. One resolved directly by
+// Vrooli-authored code has no variable, and printing an empty string there left
+// rows reading "tunnel-manager → " with nothing after the arrow — the credential
+// was named nowhere at all.
+func credentialLabelFor(entry credentialEntry) string {
+	if env := strings.TrimSpace(entry.Env); env != "" {
+		return env
+	}
+	return entry.LogicalID + ":" + entry.Field
 }
 
 // credentialsDoctor explains this host's credential backend and then every
 // declared credential on it. It is the one command an operator runs when a
 // resource says its credential could not be read.
 func credentialsDoctor(ctx *CommandContext, args []string) error {
-	format, err := outputFormatFlag("credentials doctor", args)
-	if err != nil {
+	fs := flag.NewFlagSet("credentials doctor", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	format := "text"
+	checkWrites := false
+	fs.StringVar(&format, "format", "text", "output format: text or json")
+	// Opt-in because the probe writes to the operator's real credential store.
+	// A diagnostic that mutates what it is diagnosing is the wrong default, and
+	// on a keyring already in trouble the write is what raises an unlock prompt
+	// nobody can answer — making `doctor` hang for the full Secret Service
+	// timeout while explaining that something is hanging.
+	fs.BoolVar(&checkWrites, "check-writes", false, "additionally prove a credential can be stored, by writing and removing a throwaway value")
+	if err := fs.Parse(args); err != nil {
 		return err
 	}
+	if len(fs.Args()) != 0 {
+		return fmt.Errorf("credentials doctor accepts no positional arguments")
+	}
+	format = strings.TrimSpace(format)
+	if format != "text" && format != "json" {
+		return fmt.Errorf("credentials doctor format must be text or json")
+	}
+
 	diagnosis := securestore.Diagnose()
+	if checkWrites {
+		diagnosis = securestore.DiagnoseWritable()
+	}
 	entries, err := collectCredentialEntries(ctx.Root)
 	if err != nil {
 		return err
@@ -115,6 +157,13 @@ func credentialsDoctor(ctx *CommandContext, args []string) error {
 	fmt.Fprintf(ctx.Stdout, "Credential provider\n")
 	fmt.Fprintf(ctx.Stdout, "  Platform:  %s\n", diagnosis.Platform)
 	fmt.Fprintf(ctx.Stdout, "  Backend:   %s\n", diagnosis.Backend)
+	if diagnosis.NativeStorageStrength != "" {
+		caveat := diagnosis.NativeStorageCaveat
+		if caveat != "" {
+			caveat = " — " + caveat
+		}
+		fmt.Fprintf(ctx.Stdout, "  Storage:   %s%s\n", diagnosis.NativeStorageStrength, caveat)
+	}
 	fmt.Fprintf(ctx.Stdout, "  Adapter:   %s\n", diagnosis.Adapter)
 	// The key wrap is reported on every host that has one, because the wraps
 	// are not equally strong and an operator who does not know which is active
@@ -125,6 +174,7 @@ func credentialsDoctor(ctx *CommandContext, args []string) error {
 		fmt.Fprintf(ctx.Stdout, "  Key wrap:  none open — the store is locked or not initialized\n")
 	}
 	fmt.Fprintf(ctx.Stdout, "  Condition: %s\n", diagnosis.Condition)
+	fmt.Fprintf(ctx.Stdout, "  Writable:  %s\n", diagnosis.WriteCondition)
 	if diagnosis.Explanation != "" {
 		fmt.Fprintf(ctx.Stdout, "  Why:       %s\n", diagnosis.Explanation)
 	}
@@ -133,6 +183,12 @@ func credentialsDoctor(ctx *CommandContext, args []string) error {
 	}
 	if diagnosis.Fix != "" {
 		fmt.Fprintf(ctx.Stdout, "  Fix:       %s\n", diagnosis.Fix)
+	}
+	if diagnosis.WriteExplanation != "" {
+		fmt.Fprintf(ctx.Stdout, "  Write why: %s\n", diagnosis.WriteExplanation)
+	}
+	if diagnosis.WriteFix != "" && diagnosis.WriteCondition != "available" {
+		fmt.Fprintf(ctx.Stdout, "  Write fix: %s\n", diagnosis.WriteFix)
 	}
 
 	if len(entries) == 0 {
@@ -157,12 +213,14 @@ func credentialsDoctor(ctx *CommandContext, args []string) error {
 		fmt.Fprintf(ctx.Stdout, "\nEvery declared credential resolves on this host.\n")
 		return nil
 	}
+	writeRecoveryStatus(ctx, entries)
+
 	fmt.Fprintf(ctx.Stdout, "\nUnresolved (%d) — a scenario still starts; these resources stay degraded until fixed:\n", unresolved)
 	for _, entry := range entries {
 		if entry.Configured {
 			continue
 		}
-		fmt.Fprintf(ctx.Stdout, "  %s → %s\n      %s\n", entry.Resource, entry.Env, entry.Remediation)
+		fmt.Fprintf(ctx.Stdout, "  %s → %s\n      %s\n", entry.Resource, credentialLabelFor(entry), entry.Remediation)
 	}
 	return nil
 }

@@ -152,6 +152,9 @@ type CapabilitySpec struct {
 	Label       string  `json:"label"`
 	Description string  `json:"description,omitempty"`
 	Levels      []Level `json:"levels"`
+	// AppliesTo identifies the target kinds for which this capability is
+	// meaningful. Empty preserves the legacy scenario-only behavior.
+	AppliesTo []string `json:"appliesTo,omitempty"`
 }
 
 type FindingMapping struct {
@@ -224,6 +227,9 @@ type Finding struct {
 	// FixClass is the provider fix classification, e.g. "autofix" or
 	// "detection_only".
 	FixClass string
+	// Subject attributes this finding to a target other than the run's target.
+	// A nil subject means the run's own target.
+	Subject *commonv1.ValidationTarget
 }
 
 type FindingAssessment struct {
@@ -258,6 +264,11 @@ type BuildInput struct {
 	Scenario string
 	Spec     Spec
 	Findings []Finding
+	// Target is what this run is about. Leave it nil for a scenario run:
+	// the scenario field then supplies the implicit target. Set it when the
+	// run targets a package, control-plane tree, team, or docs tree, so
+	// capability scoping can drop the ladders that do not apply there.
+	Target *commonv1.ValidationTarget
 }
 
 type validationResponseOptions struct {
@@ -475,8 +486,16 @@ func BuildProtoAssessment(input BuildInput) (*commonv1.MaturityAssessment, error
 	if err := ValidateSpec(input.Spec); err != nil {
 		return nil, err
 	}
-	local := LocalMaturity(input.Spec, input.Findings)
-	capabilities := CapabilityMaturity(input.Spec, input.Findings)
+	// A caller that names no target is validating a scenario: that was the
+	// only possibility before target kinds existed. Deriving it here rather
+	// than requiring every provider to pass one means subject scoping is
+	// correct by default, including for providers that never opt in.
+	target := input.Target
+	if target == nil {
+		target = ScenarioTarget(input.Scenario)
+	}
+	local := LocalMaturityForTarget(input.Spec, input.Findings, target)
+	capabilities := CapabilityMaturityForTarget(input.Spec, input.Findings, target)
 	out := &commonv1.MaturityAssessment{
 		Scenario:               strings.TrimSpace(input.Scenario),
 		Provider:               input.Spec.Provider,
@@ -524,6 +543,7 @@ func BuildProtoAssessment(input BuildInput) (*commonv1.MaturityAssessment, error
 			Remediation:      finding.Remediation,
 			AutofixAvailable: finding.AutofixAvailable,
 			FixClass:         fixClass,
+			Subject:          finding.Subject,
 			Maturity: &commonv1.FindingMaturity{
 				LocalLevel:          assessed.Mapping.LocalLevelImpact,
 				GlobalImpact:        GlobalImpactToProto(assessed.Mapping.GlobalImpact),
@@ -931,6 +951,7 @@ func AssessmentToArchitectureFindings(
 			Suggestion:   strings.TrimSpace(finding.GetRemediation()),
 			Effort:       defaultEffortForSource(source),
 			FindingClass: architecturev1.FindingClass_FINDING_CLASS_DETERMINISTIC,
+			Subject:      finding.GetSubject(),
 		}
 		findingid.Stamp(archFinding)
 		out = append(out, archFinding)
@@ -1082,8 +1103,21 @@ func normalizeFinding(spec Spec, finding Finding, defaultID string) FindingAsses
 	}
 }
 
+// LocalMaturity reduces every capability to the single focus rung, with no
+// target scoping. Prefer LocalMaturityForTarget.
 func LocalMaturity(spec Spec, findings []Finding) LocalResult {
-	capabilities := CapabilityMaturity(spec, findings)
+	return LocalMaturityForTarget(spec, findings, nil)
+}
+
+// LocalMaturityForTarget reduces the capabilities that apply to target to the
+// single focus rung.
+//
+// The returned Findings slice deliberately carries *every* input finding, in
+// input order, including the ones excluded from scoring: callers index it
+// alongside their own finding slice, and an out-of-scope finding is still
+// reported, still counted, and still visible to the operator.
+func LocalMaturityForTarget(spec Spec, findings []Finding, target *commonv1.ValidationTarget) LocalResult {
+	capabilities := CapabilityMaturityForTarget(spec, findings, target)
 	if len(capabilities) == 0 {
 		return LocalResult{}
 	}
@@ -1127,11 +1161,25 @@ func LocalMaturity(spec Spec, findings []Finding) LocalResult {
 	}
 }
 
+// CapabilityMaturity scores every capability in spec against findings, with no
+// target scoping. It is the pre-target entry point; prefer
+// CapabilityMaturityForTarget so findings about other targets cannot move this
+// run's ladder.
 func CapabilityMaturity(spec Spec, findings []Finding) []LocalResult {
-	capabilities := mustCapabilities(spec)
-	defaultID := defaultCapabilityFor(capabilities)
+	return CapabilityMaturityForTarget(spec, findings, nil)
+}
+
+// CapabilityMaturityForTarget scores the capabilities that apply to target,
+// using only the findings that are about target. See scope.go for why both
+// filters exist.
+func CapabilityMaturityForTarget(spec Spec, findings []Finding, target *commonv1.ValidationTarget) []LocalResult {
+	capabilities := ScopedCapabilities(spec, target)
+	defaultID := defaultCapabilityFor(mustCapabilities(spec))
 	byCapability := make(map[string][]FindingAssessment, len(capabilities))
 	for _, finding := range findings {
+		if !findingScoresTarget(finding.Subject, target) {
+			continue
+		}
 		item := normalizeFinding(spec, finding, defaultID)
 		byCapability[item.Mapping.CapabilityID] = append(byCapability[item.Mapping.CapabilityID], item)
 	}

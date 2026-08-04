@@ -113,7 +113,13 @@ Forbidden in project `.vrooli/`:
 
 Checked-in scenario behavior or policy files should live in explicit scenario directories such as `config/`, `policy/`, `initiatives/`, `requirements/`, or `docs/`, not in `.vrooli/`, unless they are part of the canonical metadata surface.
 
-Secrets are intentionally outside the repo surface. The canonical shared plaintext store is `~/.vrooli/secrets.json`, scenario-scoped plaintext stores live under `~/.vrooli/scenarios/<scenario>/secrets.json`, and encrypted user secrets live under `~/.vrooli/secrets.enc.json`.
+Secrets are intentionally outside the repo surface. The canonical credential
+authority is the platform secure-store seam described in
+[Configuring credentials](configuration/secrets.md): native secure storage when
+available, and `~/.vrooli/secrets.enc.json` on a host with no native adapter.
+`~/.vrooli/secrets.json` and scenario-scoped plaintext stores remain legacy
+package surfaces for non-credential callers only; they are not credential
+authority storage.
 
 Generated runtime and lifecycle state is also intentionally outside the repo surface. Project-scoped setup/resource markers live under `~/.vrooli/state/projects/<project-key>/`, where `<project-key>` is derived from the cleaned absolute project root. This lets one operator keep separate state for multiple local checkouts without allowing `.vrooli/state/` to drift into the repository.
 

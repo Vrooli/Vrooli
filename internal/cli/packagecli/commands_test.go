@@ -29,6 +29,16 @@ func TestParseValidateRequestDefaultsToAll(t *testing.T) {
 	}
 }
 
+func TestParseRunRequestAllowsAllForTestLifecycle(t *testing.T) {
+	req, err := ParseRunRequest("test", nil)
+	if err != nil {
+		t.Fatalf("ParseRunRequest: %v", err)
+	}
+	if req.Name != "" || req.Action != "test" {
+		t.Fatalf("req = %+v", req)
+	}
+}
+
 func TestParseAuditRequestRejectsUnknownFlag(t *testing.T) {
 	if _, err := ParseAuditRequest([]string{"--bogus"}); err == nil || !strings.Contains(err.Error(), "unknown option for package audit") {
 		t.Fatalf("ParseAuditRequest error = %v", err)

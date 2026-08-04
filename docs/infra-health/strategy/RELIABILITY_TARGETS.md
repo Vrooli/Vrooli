@@ -34,7 +34,7 @@ Every target kind names its **sensor** (the exact command that observes it), its
 | Supervised-set coverage | — (roadmap Gap 10 extension: `vrooli-autoheal check reconcile` both directions; interim estimate = manual diff of `check list` vs derived should-be-supervised set) | zero unsupervised members of the derived set | `runtime-health-finding` |
 | Capability availability | — (roadmap Gap 11: per-owner derived aggregates — availability/coverage history queryable from each capability owner) | per-owner, once baselined | `instrumentation-gap` until Gap 11 ships; then `runtime-health-finding`, with repeated unabsorbed degradation escalating per operating-model rule 1 |
 | Burst attribution | — (roadmap Gap 12: sustained host CPU/RAM saturation → owning scenario/run) | — | `instrumentation-gap` until shipped |
-| Storage growth-slope | — (roadmap Gap 12: per-scenario disk/DB growth trend) | — | `instrumentation-gap` until shipped |
+| Storage growth-slope | `storage-manager infra-health --json` — closed device census, growth slope, and `declared_ceiling_measured_coverage` | measured bytes under a declared ceiling; investigate sustained positive slope or falling coverage | `runtime-health-finding` |
 
 ## Sensor integrity
 
@@ -140,6 +140,8 @@ The tighten/loosen asymmetry is deliberate hysteresis: slow to tighten, evidence
 - A capability that ships without its [instrumentation roadmap](../evidence/INSTRUMENTATION_ROADMAP.md) gap entry and sensor-map cell being updated in the same cycle is an automatic `framework-meta` finding.
 
 ## Change log
+
+- `2026-08-03` — Storage growth-slope shipped via storage-manager's closed device census and declared-ceiling coverage metric; Gap 12's storage half is now measured.
 
 - `2026-07-24` (round 4) — Resume-readiness fixes (operator session, teams paused): de-enumerated the supervised-set coverage current-state cell — the unsupervised set is now named by derivation (running set minus the seeded supervised-config list) and counts, never a member roster, per the § Supervised-set coverage no-enumeration rule; changed the capability-availability sensor-map actuator to `instrumentation-gap` until Gap 11 ships (mirroring the burst-attribution / storage growth-slope rows), reverting to `runtime-health-finding` with escalation once the aggregate persists.
 - `2026-07-24` (round 3) — Cascade completion (operator session, teams paused): added the supervised-set coverage target (symmetric twin of the ghost rule; should-be-supervised set defined by derivation — core-set closure ∪ load-bearing declared capability members — never enumeration) and capability availability targets (per-owner derived aggregates for search-hub / test-genie / meta-optimization-manager, all `pending-telemetry` pending Gap 11), with the contract-not-roster scope boundary. Alarm-flood current state updated to 1,058/24h (2026-07-24 re-read, tail-dominated). New sensor-map rows: supervised-set coverage, capability availability, burst attribution, storage growth-slope.

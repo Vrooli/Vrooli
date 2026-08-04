@@ -11,15 +11,16 @@ const (
 )
 
 type contractDoc struct {
-	Schema      string       `json:"$schema"`
-	Version     string       `json:"version"`
+	Schema      string          `json:"$schema"`
+	Version     string          `json:"version"`
 	Platform    Platform        `json:"platform"`
 	Root        Root            `json:"root"`
 	Layout      Layout          `json:"layout"`
 	RuntimeHome RuntimeHomeSpec `json:"runtime_home"`
 	Scenario    ScenarioSpec    `json:"scenario"`
-	Resource    ResourceSpec `json:"resource"`
-	Globs       GlobSpec     `json:"globs"`
+	Resource    ResourceSpec    `json:"resource"`
+	Globs       GlobSpec        `json:"globs"`
+	Targets     TargetSpecSet   `json:"targets"`
 	Environment struct {
 		Variables map[string]string `json:"variables"`
 	} `json:"environment"`
@@ -76,6 +77,41 @@ type GlobSpec struct {
 	CaseSensitive bool   `json:"case_sensitive"`
 	AllowAbsolute bool   `json:"allow_absolute"`
 	PathFormat    string `json:"path_format"`
+}
+
+// TargetKind is the repository-level governance axis used by Test Genie.
+type TargetKind string
+
+const (
+	TargetKindScenario     TargetKind = "scenario"
+	TargetKindResource     TargetKind = "resource"
+	TargetKindTool         TargetKind = "tool"
+	TargetKindSafeguard    TargetKind = "safeguard"
+	TargetKindTeam         TargetKind = "team"
+	TargetKindPackage      TargetKind = "package"
+	TargetKindControlPlane TargetKind = "control-plane"
+	TargetKindDocs         TargetKind = "docs"
+)
+
+// TargetSpec describes how one target kind is discovered. Roots are always
+// repository-relative globs; Marker is reused only for kinds whose directories
+// already have a manifest for another purpose.
+type TargetSpec struct {
+	Roots   []string `json:"roots"`
+	Marker  string   `json:"marker,omitempty"`
+	Exclude []string `json:"exclude,omitempty"`
+}
+
+// Target is a concrete repository target. Root is slash-normalized and
+// repository-relative; ID is the manifest owner slug or positional root.
+type Target struct {
+	Kind TargetKind `json:"kind"`
+	ID   string     `json:"id"`
+	Root string     `json:"root"`
+}
+
+type TargetSpecSet struct {
+	Kinds map[string]TargetSpec `json:"kinds"`
 }
 
 type Profile struct {
@@ -145,6 +181,19 @@ func (c *Contract) Resource() ResourceSpec {
 
 func (c *Contract) Globs() GlobSpec {
 	return c.doc.Globs
+}
+
+// Targets returns a defensive copy of the repository target discovery rules.
+func (c *Contract) Targets() TargetSpecSet {
+	out := TargetSpecSet{Kinds: make(map[string]TargetSpec, len(c.doc.Targets.Kinds))}
+	for kind, spec := range c.doc.Targets.Kinds {
+		out.Kinds[kind] = TargetSpec{
+			Roots:   slices.Clone(spec.Roots),
+			Marker:  spec.Marker,
+			Exclude: slices.Clone(spec.Exclude),
+		}
+	}
+	return out
 }
 
 func (c *Contract) EnvironmentVariables() map[string]string {

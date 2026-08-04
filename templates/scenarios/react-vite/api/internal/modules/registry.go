@@ -19,6 +19,8 @@ package modules
 import (
 	"{{SCENARIO_ID}}/internal/module"
 
+	capsH "{{SCENARIO_ID}}/handlers/capabilities"
+
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
@@ -36,6 +38,7 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
+	out = append(out, capsH.Endpoints...)
 	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
 	return out
 }

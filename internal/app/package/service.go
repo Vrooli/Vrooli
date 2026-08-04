@@ -99,6 +99,10 @@ func (s Service) Generate(name string) (RunResponse, error) {
 	return s.runLifecycle(name, "generate")
 }
 
+func (s Service) Test(name string) (RunResponse, error) {
+	return s.runLifecycle(name, "test")
+}
+
 func (s Service) Refresh(req RefreshRequest) (RefreshResponse, error) {
 	item, err := s.Info(req.PackageName)
 	if err != nil {
@@ -247,23 +251,47 @@ func (s Service) Refresh(req RefreshRequest) (RefreshResponse, error) {
 }
 
 func (s Service) runLifecycle(name, action string) (RunResponse, error) {
-	item, err := s.Info(name)
+	if name != "" {
+		item, err := s.Info(name)
+		if err != nil {
+			return RunResponse{}, err
+		}
+		if err := runPackageLifecycle(item, action, s.Stdout, s.Stderr); err != nil {
+			return RunResponse{}, err
+		}
+		return RunResponse{PackageName: item.Name, Action: action}, nil
+	}
+	if action != "test" {
+		return RunResponse{}, fmt.Errorf("package name is required for %s", action)
+	}
+	items, _, err := packagegov.LoadAll(s.Root)
 	if err != nil {
 		return RunResponse{}, err
 	}
+	for _, item := range items {
+		if len(item.Manifest.Package.Lifecycle.Test) == 0 {
+			continue
+		}
+		if err := runPackageLifecycle(item, action, s.Stdout, s.Stderr); err != nil {
+			return RunResponse{}, err
+		}
+	}
+	return RunResponse{PackageName: "all", Action: action}, nil
+}
+
+func runPackageLifecycle(item packagegov.Package, action string, stdout, stderr io.Writer) error {
 	var commands []packagegov.CommandSpec
 	switch action {
 	case "build":
 		commands = item.Manifest.Package.Lifecycle.Build
 	case "generate":
 		commands = item.Manifest.Package.Lifecycle.Generate
+	case "test":
+		commands = item.Manifest.Package.Lifecycle.Test
 	default:
-		return RunResponse{}, fmt.Errorf("unsupported lifecycle action: %s", action)
+		return fmt.Errorf("unsupported lifecycle action: %s", action)
 	}
-	if err := packagegov.RunCommands(item.RootPath, commands, s.Stdout, s.Stderr); err != nil {
-		return RunResponse{}, err
-	}
-	return RunResponse{PackageName: item.Name, Action: action}, nil
+	return packagegov.RunCommands(item.RootPath, commands, stdout, stderr)
 }
 
 func rebuildGoConsumerTargets(dependents []packagegov.Dependent, stdout, stderr io.Writer) (bool, error) {

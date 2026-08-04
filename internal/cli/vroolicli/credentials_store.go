@@ -26,6 +26,7 @@ func credentialsStore(ctx *CommandContext, args []string, input io.Reader) error
 			"  vrooli credentials store init [--format json] < passphrase\n"+
 			"  vrooli credentials store unlock < passphrase\n"+
 			"  vrooli credentials store lock\n"+
+			"  vrooli credentials store change-passphrase < current-passphrase\\nnew-passphrase\n"+
 			"  vrooli credentials store rewrap < passphrase\n\n"+
 			"The encrypted store is the credential backend on a host with no native one.\n"+
 			"A host whose TPM is reachable needs no passphrase and no unlock; supply one on\n"+
@@ -41,6 +42,8 @@ func credentialsStore(ctx *CommandContext, args []string, input io.Reader) error
 		return credentialsStoreUnlock(ctx, args[1:], input)
 	case "lock":
 		return credentialsStoreLock(ctx, args[1:])
+	case "change-passphrase":
+		return credentialsStoreChangePassphrase(ctx, args[1:], input)
 	case "rewrap":
 		return credentialsStoreRewrap(ctx, args[1:], input)
 	default:
@@ -55,6 +58,10 @@ func credentialsStore(ctx *CommandContext, args []string, input io.Reader) error
 func storePassphrase(input io.Reader) (string, error) {
 	if input == nil {
 		return "", nil
+	}
+	if err := refuseInteractiveStdin(input,
+		`printf '%s' "$PASSPHRASE" | vrooli credentials store <init|unlock|rewrap>`); err != nil {
+		return "", err
 	}
 	value, err := io.ReadAll(io.LimitReader(input, 64*1024))
 	if err != nil {
@@ -159,6 +166,10 @@ func keyStoreCaveat(keyStore string) string {
 		return " — bound to a root-owned key on this same disk; possession of the disk opens it"
 	case "operator-passphrase":
 		return " — opens only with the passphrase you supply"
+	case "unencrypted-keyring":
+		return " — values are readable with a text editor; file mode is the only protection"
+	case "encrypted-keyring":
+		return " — the keyring file is not readable as a plaintext GKeyFile"
 	default:
 		return ""
 	}
@@ -233,5 +244,28 @@ func credentialsStoreRewrap(ctx *CommandContext, args []string, input io.Reader)
 	_, err = fmt.Fprintf(ctx.Stdout,
 		"Added a %s wrap protected by %s%s.\nNo stored value was re-encrypted: only the wrap changed.\n",
 		wrap.Provider, wrap.KeyStore, keyStoreCaveat(wrap.KeyStore))
+	return err
+}
+
+func credentialsStoreChangePassphrase(ctx *CommandContext, args []string, input io.Reader) error {
+	if len(args) != 0 {
+		return fmt.Errorf("credentials store change-passphrase accepts no arguments")
+	}
+	if err := refuseInteractiveStdin(input,
+		`printf '%s\n%s\n' "$CURRENT" "$NEW" | vrooli credentials store change-passphrase`); err != nil {
+		return err
+	}
+	contents, err := io.ReadAll(io.LimitReader(input, 128*1024))
+	if err != nil {
+		return fmt.Errorf("read credential store passphrases: %w", err)
+	}
+	current, next, found := strings.Cut(string(contents), "\n")
+	if !found || strings.TrimSpace(current) == "" || strings.TrimSpace(next) == "" {
+		return fmt.Errorf("credentials store change-passphrase reads current and new passphrases from stdin on separate lines")
+	}
+	if err := securestore.ChangePassphraseStore(current, next); err != nil {
+		return err
+	}
+	_, err = fmt.Fprintln(ctx.Stdout, "Credential store passphrase changed. No stored value was re-encrypted.")
 	return err
 }

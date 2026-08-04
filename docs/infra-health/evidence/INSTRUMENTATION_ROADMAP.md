@@ -137,7 +137,7 @@ Each gap lists: stats unblocked, most likely host scenario, shape proposed, down
 - **Most likely host:** system-monitor for burst attribution (it already samples per-process metrics and runs investigations); storage-manager and/or storage-manager for growth trends. The capacity broker is explicitly **not** the host today — it enforces VRAM only, with CPU/RAM named as its V2 vision (`internal/capacity/types.go`); this gap supervises toward that V2 rather than duplicating the broker.
 - **Shape required:** (a) a query mapping a sustained-saturation window to top owning scenarios/runs with evidence; (b) a per-scenario storage trend query (data dir + DB sizes over time, slope flagged against history). Findings route to the **owning scenario** — growth is the owner's optimization opportunity; storage-manager and storage-manager are remediation surfaces, not the responsible parties.
 - **Downstream effect:** Burst-attribution and growth-slope sensor cells fill; capacity-broker V2 (CPU/RAM claims) gains the observed-usage evidence it needs for honest admission.
-- **Priority signal:** activates on the first sustained-saturation or disk-growth incident the scanner cannot attribute within one heartbeat using existing surfaces.
+- **Priority signal:** burst attribution remains pending; the storage half shipped on 2026-08-03 via storage-manager's closed device census, growth slope, and declared-ceiling coverage metric. The row now emits a measured signal; the remaining gap is process/run attribution for sustained CPU/RAM saturation.
 
 ## Update protocol
 

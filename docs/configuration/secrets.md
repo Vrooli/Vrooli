@@ -15,22 +15,59 @@ descriptor identifies a credential without selecting a storage backend:
 ```
 
 `logical_id` and `field` are stable backend-neutral names. `env` is only the
-process-scoped injection name; it is not durable storage. The local and desktop
+process-scoped injection name; it is not durable storage.
+
+Resources and scenarios use the same block and the same descriptor shape, so a
+scenario-owned credential is the same thing to the store, to `doctor`, and to a
+recovery bundle as a resource-owned one. A credential nothing declares is a
+credential no backup captures.
+
+### `env` is optional, and declaring it is a decision
+
+Declare `env` **only when the consumer is a process Vrooli does not author** — a
+database container, a third-party CLI — which can receive a value no other way.
+That is what the field exists for.
+
+Code Vrooli writes resolves the value itself instead, through the
+credential-authority binding for its language (`packages/credential-authority-go`
+for Go). Omitting `env` keeps the value out of the process environment, where it
+would be readable at `/proc/<pid>/environ` and inherited by every subprocess the
+consumer spawns — and scenarios shell out constantly.
+
+A descriptor with no `env` is injected nowhere but is otherwise fully declared:
+it is diagnosed, listed, and captured by `recovery export --all`.
+`scenarios/tunnel-manager` is the reference: it declares three Cloudflare
+credentials with no `env` and re-resolves them per operation, so a rotated token
+takes effect without restarting the scenario. The local and desktop
 authority is a native OS secure store; on a host that has none — headless
 servers, CI runners, a Raspberry Pi — it is the encrypted file store described
 under [Platform backends](#platform-backends). Vault may be a scoped mirror or a
 capability-specific service, but it is not the ordinary credential authority.
+See also the [repository contract](../repo-contract.md); it names the same
+credential authority and storage boundary.
 
 ## The degradation contract
 
-**A missing or unreadable credential never blocks a scenario start.** A scenario
-starts whenever its processes and ports can start. Credential state changes what
-a resource can *do*, never whether the control plane runs.
+**A missing or unreadable manifest-declared credential never blocks a scenario
+process from starting.** A scenario starts whenever its processes and ports can
+start. Credential state changes what a resource can *do*, never whether the
+control plane runs.
+
+This rule covers application credentials declared by a resource or scenario
+manifest. Resource-native bootstrap material has a separate fail-closed
+requirement: for example, Vault root and unseal material must be persisted in
+secure storage before a managed Vault instance is published as usable. If that
+storage is unavailable, the Vault resource remains unavailable rather than
+starting with recovery material that cannot be safely recovered. That is a
+resource bootstrap failure, not a fallback to plaintext or a failure to resolve
+an application credential.
 
 Concretely:
 
-- `vrooli scenario start <name>` succeeds when a credential is unset, when the
-  OS secure store is unreachable, and when the host has no secure store at all.
+- `vrooli scenario start <name>` succeeds when a manifest-declared credential is
+  unset, when the OS secure store is unreachable, and when the host has no
+  secure store at all, provided the scenario's own required processes and
+  resource bootstraps can start.
 - The affected resource reports `unhealthy` with a named remediation. Check it
   with `vrooli resource status <name>`.
 - The credential's variable is **omitted** from the process environment rather
@@ -39,8 +76,9 @@ Concretely:
   the same variable — a bootstrap default in `runtime.env`, for example — that
   value stands in and the resolver emits a warning naming the stand-in.
 - `required: true` keeps its meaning: the resource cannot do its job without the
-  value. It now has a precise consequence — an unhealthy resource, not a failed
-  start.
+  value. For an application credential, the precise consequence is an
+  unhealthy resource, not a failed start. Resource-native bootstrap material
+  follows the fail-closed rule described above.
 
 Write paths are the deliberate exception and stay fail-closed. Recovery export
 and restore refuse to run when the provider is unavailable, because a bundle
@@ -84,8 +122,10 @@ $ vrooli credentials doctor
 Credential provider
   Platform:  linux
   Adapter:   libsecret
+  Storage:   unencrypted-keyring — values are readable with a text editor; file mode is the only protection
   Condition: unavailable
-  Why:       operating-system secure storage is unavailable: read secure resource material: exit status 1: secret-tool: Could not connect: Permission denied (XDG_RUNTIME_DIR=/run/user/0 is owned by uid 0 but this process runs as uid 1000; export XDG_RUNTIME_DIR=/run/user/1000)
+  Writable:  not-checked
+  Why:       operating-system secure storage is unavailable: read secure resource material: exit status 1: secret-tool: Could not connect: Permission denied
   Fix:       XDG_RUNTIME_DIR=/run/user/0 is owned by uid 0 but this process runs as uid 1000; export XDG_RUNTIME_DIR=/run/user/1000
 
 Declared credentials (27)
@@ -93,7 +133,8 @@ Declared credentials (27)
   openrouter  OPENROUTER_API_KEY  vrooli/openrouter  api-key  yes       provider_unavailable
   ...
 
-Unresolved (27) — a scenario still starts; these resources stay degraded until fixed:
+Unresolved (27) — the scenario still starts; these application resources stay
+degraded until fixed:
   openrouter → OPENROUTER_API_KEY
       the credential store is unreachable; run `vrooli credentials doctor` for the host diagnosis
 ```
@@ -101,6 +142,29 @@ Unresolved (27) — a scenario still starts; these resources stay degraded until
 On Linux the diagnosis names a uid/session mismatch or a headless host with no
 Secret Service, rather than surfacing a bare `Permission denied`. Both commands
 accept `--format json`.
+
+`Fix` always names the condition that is blocking **now**. The remedy travels
+with the error from the layer that detected it, so a half-loaded Secret Service
+collection reports "log out and back in so the keyring daemon reloads the
+keyring file" rather than something inferred from a different layer's symptoms.
+`Repaired` is a separate field precisely because a correction Vrooli already
+made is not an action the operator still owes.
+
+### `doctor` is read-only by default
+
+`Writable: not-checked` is the normal answer. Proving a store can be written
+means storing, reading back, and deleting a throwaway value in the operator's
+real credential store — and `doctor` is the command someone runs when that store
+is already misbehaving, where a write is exactly what raises the unlock prompt
+nobody is there to answer.
+
+Pass `--check-writes` when the question really is "can I provision right now":
+
+```bash
+vrooli credentials doctor --check-writes
+```
+
+Onboarding's readiness step passes it, because its next action is a write.
 
 ### Automatic session repair
 
@@ -210,18 +274,34 @@ inspect` and `vrooli credentials keyring repair`, which need no elevated
 privileges. See the [infra-rdp check](../../scenarios/vrooli-autoheal/docs/reference/checks/infra-rdp.md)
 for how autoheal detects it.
 
-The storage rule every adapter obeys: no adapter puts a credential value in a
-process argument, and **no adapter writes a credential value that is
-recoverable from the file alone.** A sealed entry passes that test because the
-key that opens it is not in the file. A mode-0600 plaintext file fails it,
-because the file mode is the only thing standing between the value and any root
-process, backup, or disk image. Owner-only permissions stay required and stop
-being the protection relied on.
+The credential seam does not put values in process arguments and does not use a
+plaintext fallback. The encrypted file store satisfies the stronger rule that
+the stored value is not recoverable from its file alone: the data key is held by
+a TPM, host key, or operator passphrase. The native GNOME Secret Service
+adapter is different. A passwordless `[keyring]` file is readable with a text
+editor, so its confidentiality rests on file permissions. `credentials doctor`
+reports `unencrypted-keyring` and this caveat; this changes the description,
+not the Linux default or the existing data.
 
-There is still no plaintext fallback and no environment-variable fallback, on
-any platform, in any condition. This is the same prohibition the Secrets Manager
-Tier-1 decision (`rec-72cedb904accee1c`) established when it removed plaintext
-local-store provisioning; that decision is preserved, not reversed.
+`vrooli credentials keyring inspect` also reports whether the stale-daemon
+comparison ran. If the daemon start time is unavailable, it says that the
+check did not run and makes no stale-daemon claim.
+
+An environment variable is an injection target, not durable credential storage.
+The authority resolves declared values before a process starts.
+
+The legacy `packages/api-core/secrets` package has been **deleted**, along with
+scenario-to-cloud's `/local-secrets` API — the read/write surface that
+maintained `~/.vrooli/secrets.json` and recreated it on every deploy. There is
+no plaintext credential reader left to bound, and no compatibility shim: a new
+reference to that package would not compile, which is a stronger guarantee than
+a documented reference count.
+
+Cloud deployment provisions into the **target host's own** credential authority
+rather than shipping a file. Each value crosses the SSH connection on standard
+input, one call per credential, so no secret enters a command string — a command
+string is argv for the local `ssh` process and the argument to the remote shell,
+which made every value readable in both process listings.
 
 Selection is a chain, and the rule that makes it safe is narrow:
 
@@ -302,6 +382,14 @@ only permissions; neither command prints a value or passphrase:
 printf '%s' "$RECOVERY_PASSPHRASE" | vrooli credentials recovery export \
   --entry vrooli/openrouter:api-key --output ./vrooli-recovery.bundle
 
+# Back up every configured credential declared by a resource manifest.
+printf '%s' "$RECOVERY_PASSPHRASE" | vrooli credentials recovery export \
+  --all --output ./vrooli-recovery-all.bundle
+
 printf '%s' "$RECOVERY_PASSPHRASE" | vrooli credentials recovery restore \
   --input ./vrooli-recovery.bundle
+
+# Replace only the passphrase wrap. Read current and new passphrases on
+# separate stdin lines; stored values are not re-encrypted.
+printf 'CURRENT_PASSPHRASE\nNEW_PASSPHRASE\n' | vrooli credentials store change-passphrase
 ```

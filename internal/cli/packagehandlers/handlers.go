@@ -145,6 +145,23 @@ func buildCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.Ha
 			},
 			packagecli.RenderRun,
 		),
+		packagecli.CommandTest: rootcli.BindGlobalCommand(deps.Stdout,
+			func(ctx C, args []string) (packagecli.RunRequest, error) {
+				return packagecli.ParseRunRequest("test", args)
+			},
+			func(ctx C, req packagecli.RunRequest) (cliout.Format, packagecli.RunResponse, error) {
+				format, err := deps.OutputFormat(ctx)
+				if err != nil {
+					return "", packagecli.RunResponse{}, err
+				}
+				resp, err := newService(deps, ctx, format).Test(req.Name)
+				if err != nil {
+					return "", packagecli.RunResponse{}, err
+				}
+				return format, packagecli.RunResponse(resp), nil
+			},
+			packagecli.RenderRun,
+		),
 		packagecli.CommandRefresh: rootcli.BindGlobalCommand(deps.Stdout,
 			func(ctx C, args []string) (packagecli.RefreshRequest, error) {
 				return packagecli.ParseRefreshRequest(args)

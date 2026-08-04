@@ -13,6 +13,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliutil"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	"google.golang.org/protobuf/proto"
@@ -38,6 +39,7 @@ type ProviderDescription struct {
 	DeliveryMode      string
 	SupportsExecution bool
 	SupportsFixes     bool
+	TargetKinds       []commonv1.ValidationTargetKind
 	Build             ProviderBuild
 }
 
@@ -61,6 +63,9 @@ type ProviderBuild struct {
 // Provider and phase identity are deliberately absent here: they come from the
 // validated Spec so the two RPCs cannot disagree about who this provider is.
 type describeDescriptor struct {
+	Targets struct {
+		Kinds []string `json:"kinds"`
+	} `json:"targets"`
 	Validation struct {
 		Contract     string `json:"contract"`
 		DeliveryMode string `json:"deliveryMode"`
@@ -117,8 +122,44 @@ func LoadProviderDescription(scenarioDir string) (*ProviderDescription, error) {
 		// only when it declares one of the execution flags.
 		DeliveryMode:      deliveryMode,
 		SupportsExecution: descriptor.Validation.Execution || descriptor.Validation.IncludeExecution || deliveryMode == "durable-run",
+		TargetKinds:       descriptorTargetKinds(descriptor.Targets.Kinds),
 		Build:             CurrentBuild(),
 	}, nil
+}
+
+func descriptorTargetKinds(names []string) []commonv1.ValidationTargetKind {
+	if len(names) == 0 {
+		return []commonv1.ValidationTargetKind{commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO}
+	}
+	result := make([]commonv1.ValidationTargetKind, 0, len(names))
+	for _, name := range names {
+		var kind commonv1.ValidationTargetKind
+		switch strings.TrimSpace(name) {
+		case "scenario":
+			kind = commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO
+		case "resource":
+			kind = commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_RESOURCE
+		case "tool":
+			kind = commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_TOOL
+		case "safeguard":
+			kind = commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SAFEGUARD
+		case "team":
+			kind = commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_TEAM
+		case "package":
+			kind = commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PACKAGE
+		case "control-plane":
+			kind = commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE
+		case "docs":
+			kind = commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_DOCS
+		default:
+			continue
+		}
+		result = append(result, kind)
+	}
+	if len(result) == 0 {
+		return []commonv1.ValidationTargetKind{commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO}
+	}
+	return result
 }
 
 // CurrentBuild resolves this process's build provenance once. Every lookup is
@@ -167,6 +208,7 @@ func (d *ProviderDescription) ToProto() *scenariovalidationv1.DescribeProviderRe
 			SupportsExecution: d.SupportsExecution,
 			DeliveryMode:      d.DeliveryMode,
 			SupportsFixes:     d.SupportsFixes,
+			TargetKinds:       append([]commonv1.ValidationTargetKind(nil), d.TargetKinds...),
 		},
 	}
 	build := &scenariovalidationv1.ProviderBuild{
@@ -267,6 +309,36 @@ type ValidationServer interface {
 type describedServer struct {
 	ValidationServer
 	Describer
+}
+
+func (s describedServer) ValidateTarget(
+	ctx context.Context,
+	req *connect.Request[scenariovalidationv1.ValidateTargetRequest],
+) (*connect.Response[scenariovalidationv1.ValidateTargetResponse], error) {
+	if impl, ok := s.ValidationServer.(interface {
+		ValidateTarget(context.Context, *connect.Request[scenariovalidationv1.ValidateTargetRequest]) (*connect.Response[scenariovalidationv1.ValidateTargetResponse], error)
+	}); ok {
+		return impl.ValidateTarget(ctx, req)
+	}
+	target := req.Msg.GetTarget()
+	if target == nil || target.GetKind() != commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("provider does not support this validation target"))
+	}
+	legacy, err := s.ValidationServer.ValidateScenario(ctx, connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
+		Scenario:         target.GetId(),
+		Path:             target.GetRoot(),
+		IncludeExecution: req.Msg.GetIncludeExecution(),
+	}))
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&scenariovalidationv1.ValidateTargetResponse{
+		Target:       target,
+		Status:       legacy.Msg.GetStatus(),
+		Assessment:   legacy.Msg.GetAssessment(),
+		NativeDetail: legacy.Msg.GetNativeDetail(),
+		Metrics:      legacy.Msg.GetMetrics(),
+	}), nil
 }
 
 // Serve composes a provider's validation implementation with a Describer into

@@ -61,6 +61,23 @@ The shared report renderer preserves legacy single-ladder output when `assessmen
 
 Severity still owns phase pass/fail. ERROR and BLOCKER findings fail the provider phase; WARNING and INFO findings do not. `local.clean` reports whether zero REQUIRED findings remain, so agents can continue convergence after a phase has passed.
 
+### Target scoping
+
+A run is about exactly one target. Two rules keep a ladder a statement about *that* target rather than about whatever else the provider happened to inspect.
+
+**A finding scores only its own target.** `AssessmentFinding.subject` names the target a finding is about; an empty subject means the run's own target. The engine scores a capability only from findings whose subject matches the run target — kind *and* id, since `resource:ollama` is not `scenario:ollama`. Callers that pass no `BuildInput.Target` get the implicit scenario target derived from `BuildInput.Scenario`, so this is correct by default for every provider that never opts in.
+
+This exists because a provider may report on more than its own target. `storage-manager` validates every resource, tool, and safeguard inside its own scenario run; before scoping, one safeguard that declared no `storage.entries` pulled `storage-manager`'s `declaration_accountability` from L3 to L0 while its own storage was fully governed. Fleet state reaches the verdict through an explicit aggregate finding (`STORAGE_OWNER_GATE_FAILED`), not by leaking into the ladder.
+
+**A capability scores only where it is meaningful.** `capabilities[].appliesTo` lists the target kinds a capability is about. A capability that does not apply to the run's target kind is omitted from the standing entirely, rather than reported at a rung the target can neither satisfy nor fail. An empty `appliesTo` applies everywhere, and an unresolved target kind never narrows — an unknown kind keeps every capability, because losing coverage silently is worse than scoring something inapplicable.
+
+This is the declaration half of the same rule the provider enforces in its own analyzers (`quality-health`'s `Applies.MatchesTargetKind`, `storage-manager`'s `Kinds()`, `knowledge-observatory`'s `checkScope`). A `package` target has no Makefile and no `coverage/testing.json`, so a scenario-contract capability must not score it.
+
+Two deliberate non-behaviors:
+
+- **Excluded findings are still reported.** Scoping changes what is *scored*, never what is *visible*. An out-of-scope finding stays in `assessment.findings` and in the severity counts, so a provider bug shows up as a failing run rather than being silently neutralized into a false pass. `provider-conformance` reports the provider through `PROVIDER_SUBJECT_OUTSIDE_DECLARED_KINDS` and `PROVIDER_CAPABILITY_TARGET_COVERAGE_GAP`.
+- **Scoping never empties a standing.** If every capability excludes the run's kind, the full set is kept: that condition is a mis-declared spec for conformance to report, not a reason to emit an unfalsifiable empty ladder.
+
 ## Human Workflow
 
 Use the provider CLI without `--json` when investigating or fixing a scenario. The CLI should render the same shared `assessment` that the RPC returned, plus any provider-native detail it unpacks from `native_detail`.

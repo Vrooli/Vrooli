@@ -45,6 +45,13 @@
       }
     },
     {
+      "id": "capabilities_describe",
+      "path": "/api/v1/capabilities/describe",
+      "method": "GET",
+      "summary": "Describe declared scenario dependencies and their current recovery actions.",
+      "category": "capabilities"
+    },
+    {
       "id": "notes_list",
       "path": "/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/ListNotes",
       "method": "POST",

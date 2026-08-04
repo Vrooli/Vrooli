@@ -16,6 +16,7 @@ const (
 	CommandValidate   CommandID = "validate"
 	CommandBuild      CommandID = "build"
 	CommandGenerate   CommandID = "generate"
+	CommandTest       CommandID = "test"
 	CommandRefresh    CommandID = "refresh"
 	CommandAudit      CommandID = "audit"
 )
@@ -137,6 +138,16 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Handler: CommandGenerate,
 		},
 		{
+			Name:    string(CommandTest),
+			Summary: "Run the package test lifecycle",
+			Group:   "Package Governance",
+			Args: commandtree.ArgSchema{
+				Positionals: []commandtree.PositionalArg{{Name: "package"}},
+				Options:     []commandtree.OptionArg{commandtree.JSONOption()},
+			},
+			Handler: CommandTest,
+		},
+		{
 			Name:    string(CommandRefresh),
 			Summary: "Rebuild/regenerate a package and propagate to affected consumers",
 			Group:   "Package Governance",
@@ -224,13 +235,19 @@ func ParseRunRequest(action string, args []string) (RunRequest, error) {
 	commandID := CommandBuild
 	if action == string(CommandGenerate) {
 		commandID = CommandGenerate
+	} else if action == string(CommandTest) {
+		commandID = CommandTest
 	}
 	command := "package " + action
 	parsed, err := commandtree.ParseArgs(command, commandHelpText(commandID), commandSpec(commandID).Args, args)
 	if err != nil {
 		return RunRequest{}, err
 	}
-	return RunRequest{Name: parsed.Positionals[0], Action: action}, nil
+	name := ""
+	if len(parsed.Positionals) == 1 {
+		name = parsed.Positionals[0]
+	}
+	return RunRequest{Name: name, Action: action}, nil
 }
 
 func ParseRefreshRequest(args []string) (RefreshRequest, error) {

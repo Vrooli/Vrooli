@@ -180,7 +180,7 @@ func PackageValidateResponse(resp ValidateResponse) *cliv1.PackageValidateRespon
 }
 
 // PackageRunResponse maps a RunResponse onto the wire contract
-// (`vrooli package build|generate <name> --json`).
+// (`vrooli package build|generate|test [<name>] --json`).
 func PackageRunResponse(resp RunResponse) *cliv1.PackageRunResponse {
 	return &cliv1.PackageRunResponse{
 		Success: true,

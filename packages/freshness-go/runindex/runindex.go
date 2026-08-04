@@ -66,8 +66,12 @@ type PhaseRecord struct {
 
 // RunRecord is the index entry for a single test-genie execution.
 type RunRecord struct {
-	RunID           string        `json:"run_id"`
-	Scenario        string        `json:"scenario"`
+	RunID    string `json:"run_id"`
+	Scenario string `json:"scenario"`
+	// TargetKind and TargetID are the durable identity. Scenario is retained as
+	// the legacy display/compatibility field and is populated for scenario runs.
+	TargetKind      string        `json:"target_kind,omitempty"`
+	TargetID        string        `json:"target_id,omitempty"`
 	StartedAt       time.Time     `json:"started_at"`
 	CompletedAt     time.Time     `json:"completed_at,omitempty"`
 	Status          string        `json:"status"`
@@ -98,6 +102,23 @@ type RunRecord struct {
 	DescriptorSnapshotDigest        string            `json:"descriptor_snapshot_digest,omitempty"`
 	Diagnostics                     DiagnosticsConfig `json:"diagnostics"`
 	Pins                            []PinRecord       `json:"pins,omitempty"`
+}
+
+// NormalizeTargetIdentity backfills the generalized identity on records
+// written by older test-genie versions.
+func (r *RunRecord) NormalizeTargetIdentity() {
+	if r == nil {
+		return
+	}
+	if r.TargetKind == "" {
+		r.TargetKind = "scenario"
+	}
+	if r.TargetID == "" {
+		r.TargetID = r.Scenario
+	}
+	if r.Scenario == "" && r.TargetKind == "scenario" {
+		r.Scenario = r.TargetID
+	}
 }
 
 // IsPinned reports whether the run is protected from retention GC.
@@ -134,6 +155,9 @@ func Load(scenarioDir string) ([]RunRecord, error) {
 	var records []RunRecord
 	if err := json.Unmarshal(data, &records); err != nil {
 		return nil, fmt.Errorf("parse run index: %w", err)
+	}
+	for i := range records {
+		records[i].NormalizeTargetIdentity()
 	}
 	SortNewestFirst(records)
 	return records, nil

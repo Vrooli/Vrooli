@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"{{SCENARIO_ID}}/internal/capabilities"
 	"{{SCENARIO_ID}}/internal/clock"
 	"{{SCENARIO_ID}}/internal/modules"
 	"{{SCENARIO_ID}}/internal/server"
@@ -21,6 +22,7 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	capsH "{{SCENARIO_ID}}/handlers/capabilities"
 	healthH "{{SCENARIO_ID}}/handlers/health"
 	notesH "{{SCENARIO_ID}}/handlers/notes" // EXAMPLE-DOMAIN:notes
 )
@@ -150,6 +152,7 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "{{SCENARIO_ID}}-api", "1.0.0"),
+		capsH.Module(capabilities.NewRegistry()),
 		notesH.Module(db, clock.System{}, log.Default()), // EXAMPLE-DOMAIN:notes
 	)
 

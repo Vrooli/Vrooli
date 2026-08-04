@@ -31,6 +31,18 @@
     "internal_dir": "internal",
     "docs_dir": "docs"
   },
+  "targets": {
+    "kinds": {
+      "scenario": { "roots": ["scenarios/*"], "marker": ".vrooli/service.json" },
+      "resource": { "roots": ["resources/*"], "marker": "resource.json" },
+      "tool": { "roots": ["internal/tools/*"], "marker": "tool.json" },
+      "safeguard": { "roots": ["internal/safeguards/*"], "marker": "safeguard.json" },
+      "team": { "roots": ["docs/*"], "marker": "manifest.json" },
+      "package": { "roots": ["packages/*"] },
+      "control-plane": { "roots": ["cmd", "internal"], "exclude": ["internal/tools/*", "internal/safeguards/*"] },
+      "docs": { "roots": ["docs"], "exclude": ["docs/*/manifest.json"] }
+    }
+  },
   "runtime_home": {
     "dir_name": ".vrooli",
     "env_overrides": [],

@@ -102,6 +102,28 @@ func validateContractDoc(doc contractDoc) error {
 	if doc.Globs.Syntax != "doublestar" {
 		return &Error{Kind: ErrInvalidContract, Message: "unsupported glob syntax", Details: doc.Globs.Syntax}
 	}
+	if len(doc.Targets.Kinds) == 0 {
+		return &Error{Kind: ErrInvalidContract, Message: "targets.kinds must not be empty"}
+	}
+	for kind, spec := range doc.Targets.Kinds {
+		if _, ok := targetKindSet[TargetKind(kind)]; !ok {
+			return &Error{Kind: ErrInvalidContract, Message: "targets.kinds contains unsupported kind", Details: kind}
+		}
+		if len(spec.Roots) == 0 {
+			return &Error{Kind: ErrInvalidContract, Message: "targets kind has no roots", Details: kind}
+		}
+		if err := validateSlashPaths("targets.kinds."+kind+".roots", spec.Roots); err != nil {
+			return err
+		}
+		if strings.TrimSpace(spec.Marker) != "" {
+			if err := validateSlashPath("targets.kinds."+kind+".marker", spec.Marker); err != nil {
+				return err
+			}
+		}
+		if err := validateSlashPaths("targets.kinds."+kind+".exclude", spec.Exclude); err != nil {
+			return err
+		}
+	}
 	if !doc.Globs.RootRelative || !doc.Globs.CaseSensitive || doc.Globs.AllowAbsolute || doc.Globs.PathFormat != "slash_normalized" {
 		return &Error{Kind: ErrInvalidContract, Message: "unexpected glob policy"}
 	}
@@ -220,6 +242,10 @@ func deepCopyContractDoc(doc contractDoc) contractDoc {
 	out.Environment.Variables = cloneStringMap(doc.Environment.Variables)
 	out.Sandbox.FullRepoScopes = slicesClone(doc.Sandbox.FullRepoScopes)
 	out.Profiles = make(map[string]Profile, len(doc.Profiles))
+	out.Targets.Kinds = make(map[string]TargetSpec, len(doc.Targets.Kinds))
+	for kind, spec := range doc.Targets.Kinds {
+		out.Targets.Kinds[kind] = TargetSpec{Roots: slicesClone(spec.Roots), Marker: spec.Marker, Exclude: slicesClone(spec.Exclude)}
+	}
 	for name, profile := range doc.Profiles {
 		out.Profiles[name] = Profile{
 			Description:     profile.Description,

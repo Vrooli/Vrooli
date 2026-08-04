@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/resources"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
@@ -111,10 +112,33 @@ func runCredentials(t *testing.T, root string, args ...string) string {
 	return out.String()
 }
 
+// useNoLiveVaultInstances keeps a credential test off this host's broker state.
+// The inventory legitimately includes live managed instances, but a test that
+// reads them is a test whose result depends on the machine it runs on.
+func useNoLiveVaultInstances(t *testing.T) {
+	t.Helper()
+	previous := liveVaultUnsealKeyEntries
+	liveVaultUnsealKeyEntries = func() []resources.VaultUnsealKeyEntry { return nil }
+	t.Cleanup(func() { liveVaultUnsealKeyEntries = previous })
+}
+
+func useNoLiveKopiaRepositories(t *testing.T) {
+	t.Helper()
+	previous := liveKopiaRepositoryEntries
+	liveKopiaRepositoryEntries = func() []resources.KopiaRepositoryEntry { return nil }
+	t.Cleanup(func() { liveKopiaRepositoryEntries = previous })
+}
+
+func useNoLiveCredentialInstances(t *testing.T) {
+	useNoLiveVaultInstances(t)
+	useNoLiveKopiaRepositories(t)
+}
+
 // TestCredentialsDoctorDistinguishesEveryProviderCondition is the reason doctor
 // exists: an operator seeing "Could not connect: Permission denied" has no way
 // to know whether to repair a session, install a backend, or set a value.
 func TestCredentialsDoctorDistinguishesEveryProviderCondition(t *testing.T) {
+	useNoLiveCredentialInstances(t)
 	root := credentialFixtureRoot(t)
 
 	t.Run("unset value names the provision command", func(t *testing.T) {
@@ -166,17 +190,56 @@ func TestCredentialsDoctorReportsTheUidMismatchByName(t *testing.T) {
 	if diagnosis.Available {
 		t.Skip("this host reaches its secure store even with a foreign runtime dir")
 	}
-	if !strings.Contains(diagnosis.Fix, "XDG_RUNTIME_DIR") || !strings.Contains(diagnosis.Fix, "uid") {
-		t.Fatalf("diagnosis fix = %q, want a named uid/session mismatch", diagnosis.Fix)
-	}
 	if strings.TrimSpace(diagnosis.Fix) == "" {
 		t.Fatal("a bare Permission denied reached the operator with no explanation")
+	}
+
+	// Fix must name a condition that is blocking *now*. SessionRepair records a
+	// correction Vrooli already made successfully, so reusing it as the fix
+	// hands the operator work that is both already done and unrelated to what
+	// is currently broken.
+	if repair := strings.TrimSpace(diagnosis.SessionRepair); repair != "" && strings.TrimSpace(diagnosis.Fix) == repair {
+		t.Fatalf("diagnosis fix restates an already-applied session repair instead of the blocking condition: %q", diagnosis.Fix)
+	}
+
+	if diagnosis.SessionRepair != "" {
+		// Vrooli corrected the session itself, so the uid mismatch is no longer
+		// what stops the read. Whatever failed next owns the remedy, and naming
+		// the mismatch here would send the operator after a solved problem.
+		t.Logf("session was repaired; the blocking condition is downstream and owns the fix: %q", diagnosis.Fix)
+		return
+	}
+	if !strings.Contains(diagnosis.Fix, "XDG_RUNTIME_DIR") || !strings.Contains(diagnosis.Fix, "uid") {
+		t.Fatalf("diagnosis fix = %q, want a named uid/session mismatch when the session was not repaired", diagnosis.Fix)
+	}
+}
+
+// The remedy for a condition must come from the layer that detected it. A
+// half-loaded Secret Service collection is cleared by a fresh login and by
+// nothing else, so that is what an operator must be told — not the session
+// correction that already succeeded, and not a bare transport error.
+func TestDiagnosisFixNamesTheDetectedConditionRatherThanAnAppliedRepair(t *testing.T) {
+	diagnosis := securestore.Diagnose()
+	if diagnosis.Available {
+		t.Skip("this host's credential store is reachable, so there is no blocking condition to attribute")
+	}
+	if strings.TrimSpace(diagnosis.Fix) == "" {
+		t.Fatalf("condition %q reached the operator with no fix at all", diagnosis.Condition)
+	}
+	if repair := strings.TrimSpace(diagnosis.SessionRepair); repair != "" && strings.TrimSpace(diagnosis.Fix) == repair {
+		t.Fatalf("fix restates the already-applied session repair: %q", diagnosis.Fix)
+	}
+	// The write fix is assembled from two clauses; an empty second clause used
+	// to leave it ending in a dangling semicolon.
+	if strings.HasSuffix(strings.TrimSpace(diagnosis.WriteFix), ";") {
+		t.Fatalf("write fix ends mid-sentence: %q", diagnosis.WriteFix)
 	}
 }
 
 // Neither read-only command may ever print a stored value. They exist to be
 // pasted into bug reports and shared terminals.
 func TestCredentialsReadOnlyCommandsNeverPrintAValue(t *testing.T) {
+	useNoLiveCredentialInstances(t)
 	root := credentialFixtureRoot(t)
 	authority := withDoctorAuthority(t, &doctorTestStore{})
 	if err := authority.Put("vrooli/openrouter", "api-key", provisionedTestValue); err != nil {
@@ -200,6 +263,7 @@ func TestCredentialsReadOnlyCommandsNeverPrintAValue(t *testing.T) {
 }
 
 func TestCredentialsListNamesEveryDeclaredCredentialAndItsState(t *testing.T) {
+	useNoLiveCredentialInstances(t)
 	root := credentialFixtureRoot(t)
 	authority := withDoctorAuthority(t, &doctorTestStore{})
 	if err := authority.Put("vrooli/openrouter", "api-key", provisionedTestValue); err != nil {
@@ -235,6 +299,7 @@ func TestCredentialsListNamesEveryDeclaredCredentialAndItsState(t *testing.T) {
 
 // A provider outage must not read as "the operator never set this".
 func TestCredentialsListSeparatesOutageFromUnsetValue(t *testing.T) {
+	useNoLiveCredentialInstances(t)
 	root := credentialFixtureRoot(t)
 	withDoctorAuthority(t, securestore.Unavailable("keyring session unreachable"))
 

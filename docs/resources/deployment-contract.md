@@ -310,19 +310,25 @@ A native store that is merely unreachable (`ErrUnavailable`) never falls back,
 because splitting credentials across two backends according to transient
 session health is worse than an honest degraded state.
 
-No adapter places a credential value in a process argument, and **no adapter
-writes a credential value that is recoverable from the file alone.** An
-AES-256-GCM sealed entry whose data key is wrapped by the TPM or by an operator
-passphrase satisfies that rule: reading the file yields ciphertext, and the key
-that opens it is not in the file. A mode-0600 plaintext file does not, because
-any root process, backup, disk image, or wrong file mode recovers the value from
-the file by itself. Owner-only permissions stay required on every file the
-credential path writes; they are no longer what the protection rests on.
+No adapter places a credential value in a process argument. The encrypted file
+adapter never writes a credential value that is recoverable from the file alone.
+An AES-256-GCM sealed entry whose data key is wrapped by the TPM or by an
+operator passphrase satisfies that rule: reading the file yields ciphertext,
+and the key that opens it is not in the file. Native stores have
+platform-specific semantics: a GNOME passwordless `[keyring]` file can be
+readable as a GKeyFile even though Secret Service is the authority, and
+`vrooli credentials doctor` reports that caveat explicitly. A mode-0600
+plaintext Vrooli fallback does not qualify, because any root process, backup,
+disk image, or wrong file mode recovers the value from the file by itself.
+Owner-only permissions stay required on every file the credential path writes;
+they are no longer what the encrypted protection rests on.
 
 This amends, and does not reverse, the Tier-1 decision recorded in swarm record
 `rec-72cedb904accee1c`, which removed plaintext local-store provisioning from
-Secrets Manager. Plaintext credential storage stays prohibited on every
-platform, in every condition, and so does an environment-variable fallback.
+Secrets Manager. Vrooli-owned fallback storage remains encrypted; native
+platform semantics are reported rather than silently overstated. Environment
+variables are injection targets for explicit deployment/runtime configuration,
+not a durable credential authority or an implicit fallback.
 
 A darwin build without cgo reports an absent provider rather than failing to
 build, and therefore reaches the encrypted file store like any other host with
