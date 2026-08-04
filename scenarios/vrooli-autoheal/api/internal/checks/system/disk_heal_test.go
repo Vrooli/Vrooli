@@ -142,7 +142,7 @@ func TestDiskCheck_HealActionTargetsFullestPartition(t *testing.T) {
 	}
 }
 
-// TestDiskCheck_HealActionReportsFailure asserts an unreachable cleanup-manager
+// TestDiskCheck_HealActionReportsFailure asserts an unreachable storage-manager
 // surfaces as a failed action rather than a silent success.
 func TestDiskCheck_HealActionReportsFailure(t *testing.T) {
 	reporter := &fakeCleanupReporter{err: errors.New("connection refused")}
@@ -155,7 +155,7 @@ func TestDiskCheck_HealActionReportsFailure(t *testing.T) {
 
 	result := c.ExecuteAction(context.Background(), requestCleanupActionID)
 	if result.Success {
-		t.Error("an unreachable cleanup-manager reported success")
+		t.Error("an unreachable storage-manager reported success")
 	}
 	if result.Error == "" {
 		t.Error("no error recorded for a failed heal")

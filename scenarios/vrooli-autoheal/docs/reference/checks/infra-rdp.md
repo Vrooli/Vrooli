@@ -47,12 +47,13 @@ that trips over a missing password.
 | Windows | TermService | `sc query TermService` |
 | Other | none | Not checkable; reports OK |
 
-For GNOME Remote Desktop the check reads four independent signals:
+For GNOME Remote Desktop the check reads five independent signals:
 
 1. **Daemon liveness** — is `gnome-remote-desktop-daemon` running?
 2. **Credential state** — can the daemon authenticate anyone? (three states, below)
 3. **Client denials** — is the daemon actively turning clients away?
-4. **Host posture** — does this host match the configuration that predicts a
+4. **Keyring loadability** — did gnome-keyring accept its keyring files at all?
+5. **Host posture** — does this host match the configuration that predicts a
    credential fault?
 
 ## Credential state
@@ -132,6 +133,69 @@ Aug 01 14:27:11 host gnome-remote-de[3623]: [RDP] Credentials are not set, denyi
 tried. A positive count raises severity to critical; a zero count never lowers
 one. A failed journal read likewise never rescues a non-OK verdict.
 
+## Keyring loadability
+
+A locked keyring and an unloadable one produce the same symptom and need
+opposite remedies, so the check asks the keyring daemon directly rather than
+inferring from posture.
+
+| Detail | Meaning |
+|--------|---------|
+| `keyringFileRejected` | gnome-keyring parsed a keyring file and discarded it |
+| `keyringFilePath` | The file it named |
+| `keyringUnlockFailureLogged` | `gkr-pam` reported it could not unlock the login keyring |
+| `keyringJournalReadable` | Whether the evidence could be read at all |
+| `keyringCorrupt` | A credential fault **and** a rejected file — the root cause |
+| `keyringRepairPending` | The file was rejected at boot but parses now: repaired, awaiting a login |
+
+`keyringRepairPending` is what lets the check leave this state. The rejection is
+boot-scoped evidence that stays in the journal until reboot, so a check reading
+only that signal would keep reporting a malformed file after it had been fixed,
+and an operator following its advice would re-run the repair indefinitely. When
+it is set, the remedies drop the repair step and name only the re-login.
+
+The loadability answer comes from `vrooli credentials keyring inspect --format
+json` rather than from a second parser inside autoheal, because the file format
+and the encoding written back belong to `securestore`. Its JSON envelope is
+pinned by a test on the producing side; a bare-array parser here once survived a
+green suite because the test mocked the assumed shape rather than the emitted
+one.
+
+The window is the current boot, not the denial probe's 15 minutes, because the
+daemon reads its keyring files once at session start:
+
+```
+gnome-keyring-daemon[2953]: keyring was in an invalid or unrecognized format:
+    /home/user/.local/share/keyrings/login.keyring
+gdm-autologin][2912]: gkr-pam: couldn't unlock the login keyring.
+```
+
+**A rejected file outranks the autologin posture.** The posture is an inference
+from three booleans that are also true on hosts where RDP works; the rejection
+is the daemon's own statement about what it did. When a file was rejected,
+`lockedKeyringPosture` is reported as `false` — the posture may still match, but
+"locked" is the wrong diagnosis for a file that never loaded, and acting on it
+costs root and a desktop session for nothing.
+
+`keyringUnlockFailureLogged` is corroborating only. It is emitted for a genuinely
+locked keyring too, so it never identifies the fault alone.
+
+**A failed journal read never asserts a healthy keyring**, on the same principle
+that a zero denial count never lowers a verdict.
+
+### Why a keyring file becomes unloadable
+
+GNOME Keyring stores a passwordless keyring in GKeyFile's textual format, where
+a value occupies exactly one line. A value carrying a real newline — a PEM
+private key is the usual way — makes the file unparseable, and the daemon
+rejects the **entire keyring** rather than the one entry. Every secret in it
+goes dark at the next login, including ones written years earlier by unrelated
+applications.
+
+Vrooli's credential store now encodes any value that is not single-line safe
+before it reaches a backend, so it cannot create this state again. See
+`internal/resources/securestore/values.go`.
+
 ## Host posture
 
 These fields predict the failure class before any client attempts a connection.
@@ -173,8 +237,24 @@ after RDP detection succeeds, so headless hosts are never alarmed by it.
 | `start` | Daemon is not running | No |
 | `restart` | Daemon is not running | No |
 | `repair-credentials` | `credentialModel=system` **and** credential fault | No |
-| `raise-incident` | `credentialModel=user-session` **and** credential fault | No |
+| `repair-keyring` | `keyringCorrupt=true` | No |
+| `raise-incident` | `credentialModel=user-session`, credential fault, **and not** `keyringCorrupt` | No |
 | `status`, `diagnose`, `logs`, `open-settings` | Always | No |
+
+`repair-keyring` is the one automated repair autoheal performs on the
+`user-session` model. The standing refusal below exists so autoheal never mints
+remote-access credentials it would need to hold a secret to create; rewriting a
+malformed entry Vrooli itself wrote creates no credential, reads no value, and
+needs no elevated privilege, so it falls outside the reason for the refusal
+rather than being an exception to it.
+
+It delegates to `vrooli credentials keyring repair` rather than reimplementing
+the rewrite. A second implementation would be a copy that drifts — which is
+exactly how the file this check protects would get corrupted again, by the
+supervisor meant to prevent it.
+
+`raise-incident` is withdrawn when a repair is available, so the operator is not
+offered "report it" beside "fix it".
 
 `restart` is offered only when the daemon is down. A restart cannot repair a
 credential that is unreadable because a keyring is locked, so it is never
@@ -185,9 +265,36 @@ on demand; the durable incident record is raised from this check's non-OK result
 by the incident pipeline, which also resolves it automatically once the check
 returns OK again.
 
+## Operator remedies for an unloadable keyring
+
+All of these are user-scoped; none needs root.
+
+```bash
+# Which entries did gnome-keyring reject?
+vrooli credentials keyring inspect
+
+# Rewrite the malformed Vrooli-owned entries (backs up first, declines
+# entries other applications own, and sweeps abandoned *.keyring.temp-* files)
+vrooli credentials keyring repair
+```
+
+Then log out and back in, or reboot, so `gnome-keyring-daemon` reloads the file.
+A repair alone does not fix the running session: the daemon reads its keyring
+files at session start, and until it does, reads may succeed while writes hang
+on an unlock prompt nobody can answer.
+
+Finally, confirm the RDP password survived. Repair restores the *file*, not a
+value that was already empty inside it:
+
+```bash
+grdctl status                                          # Password: (empty)?
+grdctl rdp set-credentials <username> <password>       # then set it again
+```
+
 ## Operator remedies for a locked keyring
 
-Autoheal reports these rather than performing them:
+These apply only when `keyringCorrupt` is false. Autoheal reports them rather
+than performing them:
 
 1. Disable GDM autologin in `/etc/gdm3/custom.conf` and log in interactively
    once, so `pam_gnome_keyring` unlocks the login keyring with the account

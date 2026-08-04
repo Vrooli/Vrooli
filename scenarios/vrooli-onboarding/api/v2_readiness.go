@@ -24,13 +24,14 @@ type credentialReadiness struct {
 }
 
 type readinessResponse struct {
-	Status       string                `json:"status"`
-	Scenarios    []string              `json:"scenarios"`
-	Resources    []string              `json:"resources"`
-	Credentials  []credentialReadiness `json:"credentials"`
-	Hosts        []hostReadiness       `json:"hosts"`
-	Integrations []readinessItem       `json:"integrations"`
-	CheckedAt    string                `json:"checked_at"`
+	Status              string                `json:"status"`
+	Scenarios           []string              `json:"scenarios"`
+	Resources           []string              `json:"resources"`
+	Credentials         []credentialReadiness `json:"credentials"`
+	Hosts               []hostReadiness       `json:"hosts"`
+	Integrations        []readinessItem       `json:"integrations"`
+	CheckedAt           string                `json:"checked_at"`
+	CredentialDiagnosis json.RawMessage       `json:"credential_diagnosis,omitempty"`
 }
 
 // readinessItem is a metadata-safe, actionable validation result. Its status
@@ -181,6 +182,17 @@ func (s *Server) handleV2Readiness(w http.ResponseWriter, _ *http.Request) {
 		case !credential.Required && credential.Status != "configured":
 			response.Status = lessReady(response.Status, "degraded")
 		}
+	}
+	for _, credential := range response.Credentials {
+		if credential.Status != "unsupported" {
+			continue
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		if output, err := credentialDoctorCommand(ctx); err == nil && json.Valid(output) {
+			response.CredentialDiagnosis = append(response.CredentialDiagnosis[:0], output...)
+		}
+		cancel()
+		break
 	}
 	for _, host := range response.Hosts {
 		response.Status = lessReady(response.Status, host.Status)

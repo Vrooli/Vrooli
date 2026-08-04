@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -32,5 +33,38 @@ func TestV2CredentialProvisionRejectsMissingValue(t *testing.T) {
 	w := doPost(t, NewServer(), "/api/v2/credentials/provision", `{"logical_id":"vrooli/demo","field":"api-key"}`)
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestV2CredentialDoctorRelaysMetadataOnly(t *testing.T) {
+	prior := credentialDoctorCommand
+	credentialDoctorCommand = func(context.Context) ([]byte, error) {
+		return []byte(`{"backend":"libsecret","condition":"available"}`), nil
+	}
+	t.Cleanup(func() { credentialDoctorCommand = prior })
+
+	w := doGet(t, NewServer(), "/api/v2/credentials/doctor")
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"backend":"libsecret"`) {
+		t.Fatalf("status/body = %d/%s", w.Code, w.Body.String())
+	}
+}
+
+func TestV2CredentialKeyringRepairRequiresConfirmation(t *testing.T) {
+	w := doPost(t, NewServer(), "/api/v2/credentials/keyring/repair", `{}`)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestV2CredentialDoctorHidesRelayFailureDetails(t *testing.T) {
+	prior := credentialDoctorCommand
+	credentialDoctorCommand = func(context.Context) ([]byte, error) {
+		return nil, errors.New("private host detail")
+	}
+	t.Cleanup(func() { credentialDoctorCommand = prior })
+
+	w := doGet(t, NewServer(), "/api/v2/credentials/doctor")
+	if w.Code != http.StatusServiceUnavailable || strings.Contains(w.Body.String(), "private host detail") {
+		t.Fatalf("status/body = %d/%s", w.Code, w.Body.String())
 	}
 }

@@ -38,19 +38,21 @@ type OptInChoice struct {
 	OptedIn *bool `json:"opted_in,omitempty"`
 }
 
-var operatorStateNow = time.Now
-var operatorStateRoots *filerouting.RoutedRoots
-var operatorStatePath = func() (string, error) {
-	root := strings.TrimSpace(os.Getenv("VROOLI_ROOT"))
-	if root != "" {
-		return filepath.Join(root, ".vrooli", "operator-state.json"), nil
+var (
+	operatorStateNow   = time.Now
+	operatorStateRoots *filerouting.RoutedRoots
+	operatorStatePath  = func() (string, error) {
+		root := strings.TrimSpace(os.Getenv("VROOLI_ROOT"))
+		if root != "" {
+			return filepath.Join(root, ".vrooli", "operator-state.json"), nil
+		}
+		storageRoot := strings.TrimSpace(os.Getenv("VROOLI_STORAGE_ROOT"))
+		if storageRoot == "" {
+			return "", fmt.Errorf("VROOLI_ROOT or VROOLI_STORAGE_ROOT is required to locate operator state")
+		}
+		return filepath.Join(storageRoot, "operator-state.json"), nil
 	}
-	storageRoot := strings.TrimSpace(os.Getenv("VROOLI_STORAGE_ROOT"))
-	if storageRoot == "" {
-		return "", fmt.Errorf("VROOLI_ROOT or VROOLI_STORAGE_ROOT is required to locate operator state")
-	}
-	return filepath.Join(storageRoot, "operator-state.json"), nil
-}
+)
 
 func configureOperatorStateRoots() error {
 	path, err := operatorStatePath()
@@ -101,10 +103,6 @@ func loadOperatorStateFor(ctx context.Context) (OperatorState, error) {
 		return OperatorState{}, fmt.Errorf("operator state version is required")
 	}
 	return state, nil
-}
-
-func saveOperatorState(state OperatorState) error {
-	return saveOperatorStateFor(context.Background(), state)
 }
 
 func saveOperatorStateFor(ctx context.Context, state OperatorState) error {

@@ -148,6 +148,9 @@ Complete reference of all available health checks.
   absence of credential output is never read as presence of credentials
 - Client denials in the daemon journal over a 15-minute window
   (`recentDenials`, `recentCredentialDenials`, `journalReadable`)
+- Keyring loadability from gnome-keyring's own boot-scoped journal verdict
+  (`keyringFileRejected`, `keyringFilePath`, `keyringCorrupt`, `keyringRepairPending`) —
+  a rejected file outranks the autologin posture, which is withdrawn when it is set
 - Host posture: `autoLoginUser`, `loginKeyringCollectionPresent`, `isUserSession`,
   `lockedKeyringPosture`, `sessionAvailable`
 - Credential model (`system` or `user-session`), which decides whether automated
@@ -166,6 +169,8 @@ graphical-session layer and makes no statement about RDP.
 **Troubleshooting:**
 - `vrooli-autoheal check get infra-rdp --json`
 - GNOME: run `grdctl status` with `XDG_RUNTIME_DIR` and `DBUS_SESSION_BUS_ADDRESS` set
+- Keyring rejected as malformed (`keyringCorrupt=true`): `vrooli credentials keyring inspect`,
+  then `vrooli credentials keyring repair` — no root required, then log out and back in
 - Linux xrdp: `systemctl status xrdp`
 - Windows: `Get-Service TermService`
 
@@ -354,7 +359,7 @@ graphical-session layer and makes no statement about RDP.
 **Troubleshooting:**
 - Check usage: `df -h`
 - Find large files: `du -sh /* | sort -rh | head`
-- Preview reclaim candidates: `cleanup-manager cleanup plan`
+- Preview reclaim candidates: `storage-manager cleanup plan`
 
 [Detailed documentation](checks/system-disk.md)
 

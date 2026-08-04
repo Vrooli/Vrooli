@@ -3,12 +3,25 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os/exec"
 	"strings"
 	"time"
 )
+
+var credentialDoctorCommand = func(ctx context.Context) ([]byte, error) {
+	// --check-writes is deliberate here: the wizard's next action is a
+	// provisioning write, so "can this host store a credential" is the actual
+	// question. Routine health reads must not pass it — the probe writes to the
+	// operator's real store.
+	return exec.CommandContext(ctx, "vrooli", "credentials", "doctor", "--check-writes", "--format", "json").Output()
+}
+
+var credentialKeyringCommand = func(ctx context.Context, action string) ([]byte, error) {
+	return exec.CommandContext(ctx, "vrooli", "credentials", "keyring", action, "--format", "json").Output()
+}
 
 type credentialProvisionRequest struct {
 	LogicalID string `json:"logical_id"`
@@ -51,4 +64,54 @@ func (s *Server) handleV2CredentialProvision(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]string{"status": "provisioned", "logical_id": request.LogicalID, "field": request.Field})
+}
+
+func (s *Server) handleV2CredentialDoctor(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+	output, err := credentialDoctorCommand(ctx)
+	if err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "credential diagnosis is unavailable"})
+		return
+	}
+	var payload json.RawMessage
+	if err := json.Unmarshal(output, &payload); err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "credential diagnosis returned invalid data"})
+		return
+	}
+	writeJSON(w, http.StatusOK, payload)
+}
+
+func (s *Server) handleV2CredentialKeyringInspect(w http.ResponseWriter, r *http.Request) {
+	s.relayCredentialKeyring(w, r, "inspect", false)
+}
+
+func (s *Server) handleV2CredentialKeyringRepair(w http.ResponseWriter, r *http.Request) {
+	var request map[string]json.RawMessage
+	if !decodeJSONBody(w, r, &request) {
+		return
+	}
+	confirmed, ok := request["confirm"]
+	var confirm bool
+	if !ok || json.Unmarshal(confirmed, &confirm) != nil || !confirm {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "confirm=true is required to repair the keyring"})
+		return
+	}
+	s.relayCredentialKeyring(w, r, "repair", true)
+}
+
+func (s *Server) relayCredentialKeyring(w http.ResponseWriter, r *http.Request, action string, _ bool) {
+	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+	defer cancel()
+	output, err := credentialKeyringCommand(ctx, action)
+	if err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "keyring diagnostic is unavailable"})
+		return
+	}
+	var payload json.RawMessage
+	if err := json.Unmarshal(output, &payload); err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "keyring diagnostic returned invalid data"})
+		return
+	}
+	writeJSON(w, http.StatusOK, payload)
 }

@@ -551,7 +551,7 @@ func TestDockerCheckHealable(t *testing.T) {
 		t.Error("DockerCheck should have recovery actions")
 	}
 
-	// Should have restart, start, cleanup-manager prune handoff, logs, info actions.
+	// Should have restart, start, storage-manager prune handoff, logs, info actions.
 	actionIDs := make(map[string]bool)
 	for _, a := range actions {
 		actionIDs[a.ID] = true
@@ -749,7 +749,7 @@ func TestDockerCheckExecuteActionWithMock(t *testing.T) {
 		expectSuccess bool
 	}{
 		{
-			name:          "prune delegates to cleanup-manager",
+			name:          "prune delegates to storage-manager",
 			actionID:      "prune",
 			cmdKey:        "",
 			cmdOutput:     "",
@@ -807,8 +807,8 @@ func TestDockerCheckExecuteActionWithMock(t *testing.T) {
 				if len(mockExecutor.Calls) != 0 {
 					t.Fatalf("prune must not execute Docker cleanup directly, got calls: %+v", mockExecutor.Calls)
 				}
-				if !strings.Contains(result.Message, "cleanup-manager") {
-					t.Fatalf("prune message = %q, want cleanup-manager handoff", result.Message)
+				if !strings.Contains(result.Message, "storage-manager") {
+					t.Fatalf("prune message = %q, want storage-manager handoff", result.Message)
 				}
 			}
 		})

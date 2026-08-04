@@ -71,7 +71,7 @@ func WithDiskInterval(seconds int) DiskCheckOption {
 	}
 }
 
-// WithCleanupReporter sets the cleanup-manager client used by the
+// WithCleanupReporter sets the storage-manager client used by the
 // request-cleanup heal action.
 // [REQ:TEST-SEAM-001]
 func WithCleanupReporter(reporter cleanupmanager.Reporter) DiskCheckOption {
@@ -326,8 +326,8 @@ func (c *DiskCheck) RecoveryActions(lastResult *checks.Result) []checks.Recovery
 	return []checks.RecoveryAction{
 		{
 			ID:   requestCleanupActionID,
-			Name: "Request cleanup-manager reclamation",
-			Description: "Reports disk pressure to cleanup-manager, which reclaims safe-tier space " +
+			Name: "Request storage-manager reclamation",
+			Description: "Reports disk pressure to storage-manager, which reclaims safe-tier space " +
 				"without an operator present. This is the action that makes the disk check able to heal.",
 			Dangerous: false,
 			Available: true,
@@ -517,11 +517,11 @@ var _ checks.HealableCheck = (*DiskCheck)(nil)
 //
 // It replaces the old assumption, recorded in userconfig as
 // "Can't auto-heal disk space", that nothing could be done automatically.
-// cleanup-manager exists precisely to reclaim space, and it enforces its own
+// storage-manager exists precisely to reclaim space, and it enforces its own
 // safety boundary: only safe-tier providers run unattended.
 const requestCleanupActionID = "request-cleanup"
 
-// executeRequestCleanup reports current pressure to cleanup-manager and returns
+// executeRequestCleanup reports current pressure to storage-manager and returns
 // what it reclaimed.
 //
 // The band reported is derived from the same thresholds the check classifies
@@ -538,7 +538,7 @@ func (c *DiskCheck) executeRequestCleanup(ctx context.Context, start time.Time) 
 	if c.cleanup == nil {
 		result.Duration = time.Since(start)
 		result.Success = false
-		result.Error = "cleanup-manager client not configured"
+		result.Error = "storage-manager client not configured"
 		result.Message = "Cannot request cleanup"
 		return result
 	}
@@ -572,14 +572,14 @@ func (c *DiskCheck) executeRequestCleanup(ctx context.Context, start time.Time) 
 	if err != nil {
 		result.Success = false
 		result.Error = err.Error()
-		result.Message = "Failed to reach cleanup-manager"
+		result.Message = "Failed to reach storage-manager"
 		return result
 	}
 
 	result.Success = true
 	result.Output = fmt.Sprintf("partition=%s used=%d%% band=%s action=%s reclaimed=%s withheld=%v",
 		worstPartition, worst.UsedPercent, band, outcome.Action, formatBytes(uint64(outcome.ReclaimedBytes)), outcome.ProvidersWithheld)
-	result.Message = fmt.Sprintf("cleanup-manager %s; reclaimed %s", outcome.Action, formatBytes(uint64(outcome.ReclaimedBytes)))
+	result.Message = fmt.Sprintf("storage-manager %s; reclaimed %s", outcome.Action, formatBytes(uint64(outcome.ReclaimedBytes)))
 	return result
 }
 

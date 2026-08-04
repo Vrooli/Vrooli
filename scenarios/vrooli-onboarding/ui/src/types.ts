@@ -64,6 +64,10 @@ export interface V2ReadinessResponse {
   hosts: ReadinessItem[];
   integrations: ReadinessItem[];
   checked_at: string;
+  credential_diagnosis?: CredentialDiagnosis;
+}
+export interface CredentialDiagnosis {
+  provider?: { backend?: string; condition?: string; explanation?: string; fix?: string; write_condition?: string; write_fix?: string; native_storage_caveat?: string };
 }
 export interface ReadinessItem { name: string; status: "ready" | "degraded" | "missing" | "unsupported" | "deferred"; detail?: string; remediation?: string; kind?: "tool" | "safeguard"; required?: boolean; }
 export interface HostRequirement { name: string; required: boolean; reason: string; notes?: string; description?: string; risk?: "low" | "medium" | "high"; privilege?: "none" | "user" | "elevated"; bundling?: "vendorable" | "host-required" | "prohibited"; platforms?: string[]; commands?: string[]; status: "required" | "optional" | "opted_in"; }

@@ -48,8 +48,8 @@ Docker images, logs, and database files are common space consumers in Vrooli dep
 # Check Docker disk usage
 docker system df
 
-# Preview Docker cleanup through cleanup-manager policy/audit
-cleanup-manager cleanup plan
+# Preview Docker cleanup through storage-manager policy/audit
+storage-manager cleanup plan
 ```
 
 ### 2. Log Files
@@ -61,8 +61,8 @@ find /var/log -type f -size +100M -exec ls -lh {} \;
 # Check journal disk usage
 journalctl --disk-usage
 
-# Preview journal cleanup through cleanup-manager policy/audit
-cleanup-manager cleanup plan
+# Preview journal cleanup through storage-manager policy/audit
+storage-manager cleanup plan
 ```
 
 ### 3. Database Files
@@ -102,9 +102,9 @@ find ~ -name "node_modules" -type d -exec du -sh {} \; 2>/dev/null
    lsof +L1 | grep deleted
    ```
 
-4. **Preview cleanup-manager reclaim candidates**
+4. **Preview storage-manager reclaim candidates**
    ```bash
-   cleanup-manager cleanup plan
+   storage-manager cleanup plan
    ```
 
 5. **Review old log files before any owner-approved cleanup**
@@ -155,9 +155,9 @@ The health score is calculated as `100 - worstPartitionUsagePercent`. For exampl
 ## Auto-Heal Actions
 
 When this check fails, consider:
-1. Running `cleanup-manager cleanup plan` to produce previewed reclaim candidates
-2. Applying only an approved cleanup-manager plan with an idempotency key
-3. Alerting administrators when cleanup-manager reports missing privileges, forbidden providers, or owner-scenario approval requirements
+1. Running `storage-manager cleanup plan` to produce previewed reclaim candidates
+2. Applying only an approved storage-manager plan with an idempotency key
+3. Alerting administrators when storage-manager reports missing privileges, forbidden providers, or owner-scenario approval requirements
 
 ---
 

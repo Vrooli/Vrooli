@@ -30,8 +30,8 @@ Low disk space causes:
 ### Troubleshooting
 1. Check usage: `df -h`
 2. Find large files: `du -h --max-depth=1 / | sort -rh | head -20`
-3. Preview cleanup candidates: `cleanup-manager cleanup plan`
-4. Apply only an approved cleanup-manager plan with an idempotency key
+3. Preview cleanup candidates: `storage-manager cleanup plan`
+4. Apply only an approved storage-manager plan with an idempotency key
 5. Check /tmp: `du -sh /tmp/*`
 
 ---

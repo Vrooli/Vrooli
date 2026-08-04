@@ -4,6 +4,7 @@ package infra
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -1100,4 +1101,287 @@ func TestRDPCheckMockCallsVerified(t *testing.T) {
 	if len(firstCall.Args) < 1 || firstCall.Args[0] != "status" {
 		t.Errorf("Expected args [status], got %v", firstCall.Args)
 	}
+}
+
+// keyringJournalKey is the mock key for the boot-scoped keyring-load query.
+func keyringJournalKey() string {
+	return "journalctl --no-pager -o json -b 0 -g keyring"
+}
+
+// mockKeyringJournal wires the keyring-load journal read.
+func mockKeyringJournal(m *checks.MockExecutor, messages []string, err error) {
+	lines := make([]string, 0, len(messages))
+	for _, msg := range messages {
+		lines = append(lines, journalEntry(msg))
+	}
+	m.Responses[keyringJournalKey()] = checks.MockResponse{
+		Output: []byte(strings.Join(lines, "\n")),
+		Error:  err,
+	}
+}
+
+// rdpKeyringHarness builds a check whose every probe is mocked, so a test can
+// vary one signal at a time.
+func rdpKeyringHarness(t *testing.T, grdctl string, autoLogin string, keyringPresent bool, keyringJournal []string, journalErr error) checks.Result {
+	t.Helper()
+	caps := &platform.Capabilities{Platform: platform.Linux, SupportsSystemd: true}
+	mockExec := checks.NewMockExecutor()
+	mockExec.Responses["grdctl status"] = checks.MockResponse{
+		Output: []byte("RDP:\n\tStatus: enabled\n\tPort: 3389"),
+	}
+	mockExec.Responses["pgrep -f gnome-remote-desktop-daemon"] = checks.MockResponse{
+		Output: []byte("12345"),
+	}
+	mockSessionBus(mockExec, "alice", "1000")
+	mockSessionGrdctl(mockExec, "1000", grdctl)
+	mockLoginKeyring(mockExec, "1000", keyringPresent)
+	mockKeyringJournal(mockExec, keyringJournal, journalErr)
+
+	return NewRDPCheck(caps,
+		WithRDPExecutor(mockExec),
+		WithRDPAutoLoginUserProvider(func() string { return autoLogin }),
+	).Run(context.Background())
+}
+
+const emptyCredentialsOutput = "RDP:\n\tStatus: enabled\n\tUsername: (empty)\n\tPassword: (empty)\n"
+
+// TestRDPCheckDistinguishesCorruptKeyringFromLockedKeyring is the regression
+// test for a real misdiagnosis. The check reported "GDM autologin cannot unlock
+// the login keyring" on a host whose keyring daemon had already logged that it
+// threw the file away as malformed. Both remedies it offered required root, one
+// destroyed the operator's session, and neither would have fixed the fault.
+// [REQ:INFRA-RDP-001] [REQ:TEST-SEAM-001]
+func TestRDPCheckDistinguishesCorruptKeyringFromLockedKeyring(t *testing.T) {
+	const rejection = "keyring was in an invalid or unrecognized format: /home/alice/.local/share/keyrings/login.keyring"
+
+	t.Run("rejected keyring file is named as the cause", func(t *testing.T) {
+		result := rdpKeyringHarness(t, emptyCredentialsOutput, "alice", false,
+			[]string{rejection, "gkr-pam: couldn't unlock the login keyring."}, nil)
+
+		if result.Details["keyringCorrupt"] != true {
+			t.Fatalf("keyringCorrupt = %v, want true", result.Details["keyringCorrupt"])
+		}
+		if result.Details["keyringFileRejected"] != true {
+			t.Errorf("keyringFileRejected = %v, want true", result.Details["keyringFileRejected"])
+		}
+		if got := result.Details["keyringFilePath"]; got != "/home/alice/.local/share/keyrings/login.keyring" {
+			t.Errorf("keyringFilePath = %v, want the path the daemon named", got)
+		}
+		// The posture claim must be withdrawn: it is the wrong diagnosis for a
+		// file that never loaded, and acting on it costs root and a session.
+		if result.Details["lockedKeyringPosture"] != false {
+			t.Errorf("lockedKeyringPosture = %v, want false when the file was rejected", result.Details["lockedKeyringPosture"])
+		}
+		if !strings.Contains(result.Message, "malformed") {
+			t.Errorf("Message must name the file fault, got: %s", result.Message)
+		}
+		if strings.Contains(result.Message, "autologin cannot unlock") {
+			t.Errorf("Message must not blame autologin for a rejected file, got: %s", result.Message)
+		}
+
+		// The remedy must be the non-root repair, not the two root-requiring ones.
+		actions, ok := result.Details["operatorActions"].([]string)
+		if !ok || len(actions) == 0 {
+			t.Fatalf("operatorActions missing: %#v", result.Details["operatorActions"])
+		}
+		joined := strings.Join(actions, " ")
+		if !strings.Contains(joined, "vrooli credentials keyring repair") {
+			t.Errorf("remedies must name the repair command, got: %s", joined)
+		}
+		if strings.Contains(joined, "/etc/gdm3/custom.conf") {
+			t.Errorf("remedies must not tell the operator to disable autologin, got: %s", joined)
+		}
+	})
+
+	t.Run("locked-keyring posture survives when no rejection was logged", func(t *testing.T) {
+		result := rdpKeyringHarness(t, emptyCredentialsOutput, "alice", false,
+			[]string{"gnome-keyring-daemon: some unrelated keyring message"}, nil)
+
+		if result.Details["keyringCorrupt"] != false {
+			t.Errorf("keyringCorrupt = %v, want false", result.Details["keyringCorrupt"])
+		}
+		if result.Details["lockedKeyringPosture"] != true {
+			t.Errorf("lockedKeyringPosture = %v, want true when nothing was rejected", result.Details["lockedKeyringPosture"])
+		}
+		if !strings.Contains(result.Message, "autologin cannot unlock") {
+			t.Errorf("Message must keep the posture diagnosis, got: %s", result.Message)
+		}
+	})
+
+	// An unreadable journal must never be read as "the keyring loaded fine",
+	// which is the same false-green shape the denial probe already guards.
+	t.Run("unreadable journal never asserts corruption", func(t *testing.T) {
+		result := rdpKeyringHarness(t, emptyCredentialsOutput, "alice", false, nil, errors.New("journalctl unavailable"))
+
+		if result.Details["keyringJournalReadable"] != false {
+			t.Errorf("keyringJournalReadable = %v, want false", result.Details["keyringJournalReadable"])
+		}
+		if result.Details["keyringCorrupt"] != false {
+			t.Errorf("keyringCorrupt = %v, want false when the evidence could not be read", result.Details["keyringCorrupt"])
+		}
+		if result.Status == checks.StatusOK {
+			t.Errorf("a failed journal read must not produce OK, got %v", result.Status)
+		}
+	})
+
+	// Credentials present means no fault to explain, so no root cause is claimed
+	// even though the rejection line is in the journal from an earlier boot state.
+	t.Run("healthy credentials are not annotated with a keyring cause", func(t *testing.T) {
+		result := rdpKeyringHarness(t, "RDP:\n\tStatus: enabled\n\tUsername: alice\n\tPassword: hunter2\n",
+			"alice", false, []string{rejection}, nil)
+
+		if result.Details["keyringCorrupt"] != false {
+			t.Errorf("keyringCorrupt = %v, want false when credentials are present", result.Details["keyringCorrupt"])
+		}
+		if strings.Contains(result.Message, "malformed") {
+			t.Errorf("Message must not claim a fault when credentials are present, got: %s", result.Message)
+		}
+	})
+}
+
+// TestRDPRepairKeyringActionAvailability covers the one automated repair
+// autoheal will perform on the user-session credential model.
+// [REQ:INFRA-RDP-001] [REQ:HEAL-ACTION-001]
+func TestRDPRepairKeyringActionAvailability(t *testing.T) {
+	find := func(actions []checks.RecoveryAction, id string) (checks.RecoveryAction, bool) {
+		for _, action := range actions {
+			if action.ID == id {
+				return action, true
+			}
+		}
+		return checks.RecoveryAction{}, false
+	}
+
+	caps := &platform.Capabilities{Platform: platform.Linux, SupportsSystemd: true}
+	check := NewRDPCheck(caps, WithRDPExecutor(checks.NewMockExecutor()))
+	check.cachedServiceInfo = &RDPServiceInfo{Type: RDPTypeGnome, ServiceName: "gnome-remote-desktop", IsUserSession: true}
+
+	t.Run("offered when the keyring is corrupt", func(t *testing.T) {
+		result := &checks.Result{Details: map[string]interface{}{
+			"status":          "active",
+			"credentialState": string(CredentialStateEmpty),
+			"credentialModel": string(CredentialModelUserSession),
+			"keyringCorrupt":  true,
+		}}
+		actions := check.RecoveryActions(result)
+
+		repair, ok := find(actions, "repair-keyring")
+		if !ok || !repair.Available {
+			t.Fatalf("repair-keyring must be available for a corrupt keyring: %+v", repair)
+		}
+		if repair.Dangerous {
+			t.Error("repair-keyring must not be marked dangerous: it needs no root and destroys no session")
+		}
+		// Offering "report it" beside "fix it" invites the operator to pick the
+		// useless one.
+		if incident, ok := find(actions, "raise-incident"); ok && incident.Available {
+			t.Error("raise-incident must be withdrawn when a repair is available")
+		}
+	})
+
+	t.Run("withheld when the keyring is merely locked", func(t *testing.T) {
+		result := &checks.Result{Details: map[string]interface{}{
+			"status":          "active",
+			"credentialState": string(CredentialStateEmpty),
+			"credentialModel": string(CredentialModelUserSession),
+			"keyringCorrupt":  false,
+		}}
+		actions := check.RecoveryActions(result)
+
+		if repair, ok := find(actions, "repair-keyring"); ok && repair.Available {
+			t.Error("repair-keyring must not be offered for a locked keyring: there is nothing malformed to repair")
+		}
+		if incident, ok := find(actions, "raise-incident"); !ok || !incident.Available {
+			t.Error("raise-incident must remain available when no repair applies")
+		}
+	})
+}
+
+// TestKeyringPathFromMessage covers the path extraction an operator needs on a
+// host with more than one keyring file.
+func TestKeyringPathFromMessage(t *testing.T) {
+	cases := []struct {
+		message string
+		want    string
+	}{
+		{"keyring was in an invalid or unrecognized format: /home/a/.local/share/keyrings/login.keyring", "/home/a/.local/share/keyrings/login.keyring"},
+		{"gnome-keyring-daemon[1]: keyring was in an invalid or unrecognized format: /x/y.keyring", "/x/y.keyring"},
+		{"unrelated message", ""},
+	}
+	for _, testCase := range cases {
+		if got := keyringPathFromMessage(testCase.message); got != testCase.want {
+			t.Errorf("keyringPathFromMessage(%q) = %q, want %q", testCase.message, got, testCase.want)
+		}
+	}
+}
+
+// TestRDPCheckReportsRepairPending covers the state after a successful repair
+// but before the next login.
+//
+// Without it the check could never leave "malformed": the rejection is
+// boot-scoped evidence that stays in the journal until reboot, so an operator
+// following the check's advice would re-run a repair that is already done.
+// [REQ:INFRA-RDP-003] [REQ:TEST-SEAM-001]
+func TestRDPCheckReportsRepairPending(t *testing.T) {
+	const rejection = "keyring was in an invalid or unrecognized format: /home/alice/.local/share/keyrings/login.keyring"
+	const inspectKey = "vrooli credentials keyring inspect --path /home/alice/.local/share/keyrings/login.keyring --format json"
+
+	build := func(inspectOutput string, inspectErr error) checks.Result {
+		caps := &platform.Capabilities{Platform: platform.Linux, SupportsSystemd: true}
+		mockExec := checks.NewMockExecutor()
+		mockExec.Responses["grdctl status"] = checks.MockResponse{Output: []byte("RDP:\n\tStatus: enabled\n\tPort: 3389")}
+		mockExec.Responses["pgrep -f gnome-remote-desktop-daemon"] = checks.MockResponse{Output: []byte("12345")}
+		mockSessionBus(mockExec, "alice", "1000")
+		mockSessionGrdctl(mockExec, "1000", emptyCredentialsOutput)
+		mockLoginKeyring(mockExec, "1000", false)
+		mockKeyringJournal(mockExec, []string{rejection}, nil)
+		mockExec.Responses[inspectKey] = checks.MockResponse{Output: []byte(inspectOutput), Error: inspectErr}
+		return NewRDPCheck(caps, WithRDPExecutor(mockExec),
+			WithRDPAutoLoginUserProvider(func() string { return "alice" })).Run(context.Background())
+	}
+
+	t.Run("file parses again so the repair is pending a login", func(t *testing.T) {
+		result := build(`{"reports":[{"path":"/home/alice/.local/share/keyrings/login.keyring","loadable":true,"repaired":0}]}`, nil)
+
+		if result.Details["keyringRepairPending"] != true {
+			t.Fatalf("keyringRepairPending = %v, want true", result.Details["keyringRepairPending"])
+		}
+		if !strings.Contains(result.Message, "repaired") {
+			t.Errorf("Message must say the file is repaired, got: %s", result.Message)
+		}
+		actions, _ := result.Details["operatorActions"].([]string)
+		joined := strings.Join(actions, " ")
+		if strings.Contains(joined, "vrooli credentials keyring repair") {
+			t.Errorf("must not tell the operator to re-run a repair that is already done, got: %s", joined)
+		}
+		if !strings.Contains(joined, "Log out and back in") {
+			t.Errorf("remedies must name the re-login, got: %s", joined)
+		}
+	})
+
+	t.Run("file still malformed keeps the repair remedy", func(t *testing.T) {
+		result := build(`{"reports":[{"path":"/home/alice/.local/share/keyrings/login.keyring","loadable":false,"repaired":0}]}`, nil)
+
+		if result.Details["keyringRepairPending"] != false {
+			t.Fatalf("keyringRepairPending = %v, want false", result.Details["keyringRepairPending"])
+		}
+		actions, _ := result.Details["operatorActions"].([]string)
+		if !strings.Contains(strings.Join(actions, " "), "vrooli credentials keyring repair") {
+			t.Errorf("remedies must still offer the repair, got: %v", actions)
+		}
+	})
+
+	// An inspect that cannot run must not be read as "already repaired": that
+	// would drop the repair remedy on a host that still needs it.
+	t.Run("unreadable inspect never claims a pending repair", func(t *testing.T) {
+		result := build("", errors.New("vrooli not on PATH"))
+
+		if result.Details["keyringRepairPending"] != false {
+			t.Fatalf("keyringRepairPending = %v, want false when inspect failed", result.Details["keyringRepairPending"])
+		}
+		actions, _ := result.Details["operatorActions"].([]string)
+		if !strings.Contains(strings.Join(actions, " "), "vrooli credentials keyring repair") {
+			t.Errorf("remedies must still offer the repair, got: %v", actions)
+		}
+	})
 }

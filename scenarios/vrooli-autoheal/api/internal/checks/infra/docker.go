@@ -14,7 +14,7 @@ import (
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
-const dockerCleanupManagerPlanCommand = "cleanup-manager cleanup plan --json"
+const dockerCleanupManagerPlanCommand = "storage-manager cleanup plan --json"
 
 // DockerCheck verifies Docker daemon is responsive
 type DockerCheck struct {
@@ -130,7 +130,7 @@ func (c *DockerCheck) RecoveryActions(lastResult *checks.Result) []checks.Recove
 		{
 			ID:          "prune",
 			Name:        "Plan Docker Cleanup",
-			Description: "Create a cleanup-manager plan for Docker reclaim candidates; cleanup-manager owns apply policy and audit",
+			Description: "Create a storage-manager plan for Docker reclaim candidates; storage-manager owns apply policy and audit",
 			Dangerous:   true, // Cleanup Manager apply is destructive and confirmation-gated.
 			Available:   isResponsive,
 		},
@@ -208,8 +208,8 @@ func (c *DockerCheck) ExecuteAction(ctx context.Context, actionID string) checks
 	case "prune":
 		result.Duration = time.Since(start)
 		result.Success = false
-		result.Error = "cleanup requires cleanup-manager approval"
-		result.Message = "Docker cleanup is delegated to cleanup-manager; create and review a cleanup plan before applying"
+		result.Error = "cleanup requires storage-manager approval"
+		result.Message = "Docker cleanup is delegated to storage-manager; create and review a cleanup plan before applying"
 		result.Output = dockerCleanupManagerPlanCommand
 		return result
 

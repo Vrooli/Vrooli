@@ -195,6 +195,10 @@ rather than certifying the host healthy because a process exists.
 - Credential state: `present`, `empty`, or `unreadable` (absence of credential
   output is never read as presence of credentials)
 - Client denials in the daemon journal over a 15-minute window
+- Keyring loadability: whether gnome-keyring rejected a keyring file this boot.
+  A rejected file takes the whole keyring down, not just the bad entry, and it
+  outranks the autologin posture as the named root cause — the posture is an
+  inference, the rejection is the daemon's own statement
 - Host posture: autologin user, login keyring collection, user-session daemon,
   graphical session availability
 - Credential model (`system` or `user-session`), which decides whether autoheal
@@ -214,4 +218,6 @@ graphical-session layer and makes no statement about RDP.
 2. GNOME credentials: run `grdctl status` with `XDG_RUNTIME_DIR` and
    `DBUS_SESSION_BUS_ADDRESS` set for the session user
 3. Denials: `journalctl --user-unit gnome-remote-desktop --since "15 minutes ago"`
-4. xrdp hosts: `sudo systemctl status xrdp` and `ss -tlnp | grep 3389`
+4. Rejected keyring (`keyringCorrupt=true`): `vrooli credentials keyring inspect`,
+   then `vrooli credentials keyring repair`, then log out and back in. No root needed.
+5. xrdp hosts: `sudo systemctl status xrdp` and `ss -tlnp | grep 3389`

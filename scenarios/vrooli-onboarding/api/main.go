@@ -58,6 +58,9 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v2/host-requirements", s.handleV2HostRequirements).Methods("GET")
 	s.router.HandleFunc("/api/v2/readiness", s.handleV2Readiness).Methods("GET")
 	s.router.HandleFunc("/api/v2/credentials/provision", s.handleV2CredentialProvision).Methods("POST")
+	s.router.HandleFunc("/api/v2/credentials/doctor", s.handleV2CredentialDoctor).Methods("GET")
+	s.router.HandleFunc("/api/v2/credentials/keyring/inspect", s.handleV2CredentialKeyringInspect).Methods("GET")
+	s.router.HandleFunc("/api/v2/credentials/keyring/repair", s.handleV2CredentialKeyringRepair).Methods("POST")
 
 	// Glossary endpoint
 	s.router.HandleFunc("/api/v1/glossary", s.handleGlossary).Methods("GET")

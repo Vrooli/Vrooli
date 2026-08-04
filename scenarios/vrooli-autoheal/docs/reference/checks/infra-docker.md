@@ -76,8 +76,8 @@ sudo chmod 660 /var/run/docker.sock
 # Docker needs disk space for images/containers
 df -h /var/lib/docker
 
-# Preview reclaim candidates through cleanup-manager policy/audit
-cleanup-manager cleanup plan
+# Preview reclaim candidates through storage-manager policy/audit
+storage-manager cleanup plan
 ```
 
 ### 5. Resource Exhaustion
@@ -112,7 +112,7 @@ sudo systemctl restart docker
    ```bash
    docker system df
    df -h /var/lib/docker
-   cleanup-manager cleanup plan
+   storage-manager cleanup plan
    ```
 
 5. **Restart daemon**
@@ -137,7 +137,7 @@ No special configuration required. The check uses the default Docker socket loca
 |--------|-------------|------|----------|
 | **Start Docker** | Start the Docker daemon service | Safe | Linux |
 | **Restart Docker** | Restart the Docker daemon service | **HIGH** - stops all containers | Linux |
-| **Plan Docker Cleanup** | Hand off Docker reclaim candidates to cleanup-manager for preview, policy, approval, and audit | High until approved by cleanup-manager policy | All |
+| **Plan Docker Cleanup** | Hand off Docker reclaim candidates to storage-manager for preview, policy, approval, and audit | High until approved by storage-manager policy | All |
 | **View Logs** | View recent Docker daemon logs | Safe | Linux |
 | **Docker Info** | Get detailed Docker daemon information | Safe | All |
 | **Open Docker Desktop** | Open Docker Desktop application | Safe | macOS |
@@ -159,7 +159,7 @@ Docker Desktop manages the daemon on macOS. Use the "Open Docker Desktop" action
 When this check fails and auto-recovery is triggered, the system will:
 1. Attempt to start Docker if not running
 2. Log diagnostic information for manual review
-3. Refuse broad Docker prune execution directly; create/review cleanup through `cleanup-manager cleanup plan` and apply only through cleanup-manager approval gates
+3. Refuse broad Docker prune execution directly; create/review cleanup through `storage-manager cleanup plan` and apply only through storage-manager approval gates
 4. Restart is NOT automatic due to high risk (stops all containers)
 
 ## Docker Alternatives

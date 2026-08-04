@@ -60,6 +60,7 @@ func mergeHostRequirements(target map[string]hostRequirement, source []hostRequi
 		}
 	}
 }
+
 func hostManifest(root, kind, name string) ([]byte, error) {
 	entries, err := os.ReadDir(filepath.Join(root, "internal", kind))
 	if err != nil {

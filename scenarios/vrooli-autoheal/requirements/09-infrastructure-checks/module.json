@@ -157,6 +157,23 @@
       ]
     },
     {
+      "id": "INFRA-RDP-003",
+      "title": "Distinguish an unloadable keyring from a locked one",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-003",
+      "criticality": "P1",
+      "description": "infra-rdp must read gnome-keyring's own boot-scoped journal verdict and report a rejected keyring file as the root cause, withdrawing the autologin locked-keyring posture claim when the daemon discarded the file. A locked keyring and an unloadable one share a symptom but need opposite remedies, and the posture remedies require root and cost the operator their desktop session. A failed journal read must never assert a healthy keyring.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/checks/infra/rdp_test.go",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "TestRDPCheckDistinguishesCorruptKeyringFromLockedKeyring, TestRDPRepairKeyringActionAvailability, TestKeyringPathFromMessage"
+        }
+      ]
+    },
+    {
       "id": "INFRA-DOCKER-001",
       "title": "Docker daemon health",
       "status": "in_progress",

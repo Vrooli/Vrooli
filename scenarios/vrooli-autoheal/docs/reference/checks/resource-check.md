@@ -87,8 +87,8 @@ sudo ss -tlnp | grep 6379  # Redis
 # Check disk usage
 df -h /var/lib/docker
 
-# Preview reclaim candidates through cleanup-manager
-cleanup-manager cleanup plan
+# Preview reclaim candidates through storage-manager
+storage-manager cleanup plan
 ```
 
 ### 5. Out of Memory

@@ -221,15 +221,15 @@ This avoids environment-coupled tests and keeps watchdog status logic testable a
 
 ### Cleanup Manager Handoff Seam
 
-Broad disk reclaim is delegated to cleanup-manager. Autoheal may observe disk
+Broad disk reclaim is delegated to storage-manager. Autoheal may observe disk
 pressure, surface diagnostics, start stopped services, and gather logs, but it
 must not execute host cleanup such as `docker system prune`, journal vacuum,
 package-cache cleanup, or arbitrary file deletion as a recovery action.
 
 The Docker check keeps a `prune` recovery action only as a compatibility
-discovery surface. Executing it returns a cleanup-manager planning hint
-(`cleanup-manager cleanup plan --json`) and performs no command invocation. The
-actual cleanup flow is: cleanup-manager estimates candidates, records a plan,
+discovery surface. Executing it returns a storage-manager planning hint
+(`storage-manager cleanup plan --json`) and performs no command invocation. The
+actual cleanup flow is: storage-manager estimates candidates, records a plan,
 requires policy/provider-version/approval gates, and audits any apply attempt.
 
 Tests should protect this seam by asserting broad-cleanup handoff actions make
