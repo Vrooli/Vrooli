@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/vrooli/api-core/storage"
@@ -78,6 +79,10 @@ type IsolationProfile struct {
 	// SharePID bool `json:"sharePID,omitempty"`
 	// AllowDevices bool `json:"allowDevices,omitempty"`
 	// SeccompProfile string `json:"seccompProfile,omitempty"`
+}
+
+func platformPathList(entries ...string) string {
+	return strings.Join(entries, string(os.PathListSeparator))
 }
 
 // ProfileStore manages isolation profile storage and retrieval.
@@ -166,7 +171,7 @@ func DefaultProfiles() []IsolationProfile {
 			},
 			ReadWriteBinds: map[string]string{},
 			Environment: map[string]string{
-				"PATH": "/usr/local/bin:/usr/bin:/bin",
+				"PATH": platformPathList("/usr/local/bin", "/usr/bin", "/bin"),
 				"HOME": "/tmp",
 				// SSL_CERT_FILE / SSL_CERT_DIR pin the trust store path
 				// explicitly so TLS libraries that don't probe the
@@ -219,7 +224,7 @@ func DefaultProfiles() []IsolationProfile {
 				// system paths. This makes Vrooli agents independent of
 				// the caller's interactive shell while keeping every
 				// $HOME-relative write auditable through the sandbox.
-				"PATH": "$HOME/.vrooli/bin:$HOME/go/bin:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin",
+				"PATH": platformPathList("$HOME/.vrooli/bin", "$HOME/go/bin", "$HOME/.local/bin", "/usr/local/bin", "/usr/bin", "/bin"),
 				// HOME points to the host home so $HOME-relative
 				// lookups resolve to the overlay merged dir, not /tmp.
 				"HOME": "$HOME",

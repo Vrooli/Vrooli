@@ -38,7 +38,7 @@ Operational targets are measurable outcomes; checkboxes may auto-update based on
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Hunk-Level Approval | UI and API support for selecting individual hunks/sections to approve, not just full files
-- [ ] OT-P1-002 | Partial Approval Workflow | Apply only selected diffs while preserving remaining sandbox state for follow-up runs
+- [x] OT-P1-002 | Partial Approval Workflow | Apply only selected diffs while preserving remaining sandbox state for follow-up runs
 - [ ] OT-P1-003 | GC/Prune Operations | Garbage collection by age, max-total-size, inactive TTL policies
 - [ ] OT-P1-004 | Audit Trail Metadata | Immutable metadata per sandbox: id, scope, creator/owner, timestamps, driver, status, size, changed files
 - [ ] OT-P1-005 | Pre-commit Validation Hooks | Configurable hooks to run tests/lint before final commit of approved changes

@@ -34,7 +34,8 @@
     "levels": [
       {"id": "L0", "name": "Capture contract invalid", "description": "A declared capture source is invalid or unreconciled.", "entry_criteria": [], "exit_criteria": ["Every declaration validates and reconciles."]},
       {"id": "L1", "name": "Capture declaration validated", "description": "Declared policies match the global policy snapshot.", "entry_criteria": ["Declarations are valid."], "exit_criteria": ["No declared policy is unreconciled."]},
-      {"id": "L2", "name": "Capture conformance clean", "description": "The declared capture contract is continuously verified.", "entry_criteria": ["Policy reconciliation is clean."], "exit_criteria": ["Conformance reports no required finding."]}
+      {"id": "L2", "name": "Capture conformance clean", "description": "The declared capture contract is continuously verified.", "entry_criteria": ["Policy reconciliation is clean."], "exit_criteria": ["Every declared policy has emitted a durable receipt."]},
+      {"id": "L3", "name": "Capture proven", "description": "Every declared policy has durable emission evidence.", "entry_criteria": ["Every declared policy emitted a receipt."], "exit_criteria": ["Conformance reports no required finding."]}
     ],
     "capabilities": [{
       "id": "declared_capture",
@@ -43,12 +44,15 @@
       "levels": [
         {"id": "L0", "name": "Invalid", "description": "The capture declaration cannot be trusted.", "capability_summary": "Receipt capture is not safely configured.", "next_unlock": "Repair the declaration or reconcile the policies."},
         {"id": "L1", "name": "Validated", "description": "The declaration is valid and reconciled.", "capability_summary": "Capture contract is operational.", "next_unlock": "Keep the contract continuously verified."},
-        {"id": "L2", "name": "Conformant", "description": "The capture declaration remains clean under the provider phase.", "capability_summary": "Receipt capture is continuously verified."}
+        {"id": "L2", "name": "Conformant", "description": "The capture declaration remains clean under the provider phase.", "capability_summary": "Receipt capture is continuously verified.", "next_unlock": "Exercise every policy and retain its receipt evidence."},
+        {"id": "L3", "name": "Proven", "description": "Every declared policy has durable emission evidence.", "capability_summary": "Every declared receipt policy has durable emission evidence."}
       ]
     }],
     "findings": {
-      "event_capture.declaration_invalid": {"capability_id": "declared_capture", "local_level_impact": "L0", "global_impact": "foundation_blocker", "dimension": "contracts", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "A capture declaration must be schema and descriptor valid before it can observe a response."},
-      "event_capture.policy_unreconciled": {"capability_id": "declared_capture", "local_level_impact": "L1", "global_impact": "evolvability_gap", "dimension": "contracts", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "A valid declaration that is absent from the global snapshot observes nothing."}
+      "event_capture.declaration_invalid": {"capability_id": "declared_capture", "local_level_impact": "L1", "global_impact": "foundation_blocker", "dimension": "contracts", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "A capture declaration must be schema and descriptor valid before it can observe a response."},
+      "event_capture.literal_instance_identifier": {"capability_id": "declared_capture", "local_level_impact": "L1", "global_impact": "foundation_blocker", "dimension": "contracts", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "A literal instance identifier makes a reusable capture declaration non-scalable."},
+      "event_capture.policy_unreconciled": {"capability_id": "declared_capture", "local_level_impact": "L2", "global_impact": "evolvability_gap", "dimension": "contracts", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "A valid declaration that is absent from the global snapshot observes nothing."},
+      "event_capture.policy_unexercised": {"capability_id": "declared_capture", "local_level_impact": "L3", "global_impact": "evolvability_gap", "dimension": "contracts", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "A reconciled policy without a receipt cannot prove cross-scenario capture."}
     },
     "fallback": {"capability_id": "declared_capture", "local_level_impact": "L0", "global_impact": "foundation_blocker", "dimension": "contracts", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required"}
   }

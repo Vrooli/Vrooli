@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -79,12 +80,11 @@ func TestDefault(t *testing.T) {
 	})
 
 	t.Run("Driver defaults", func(t *testing.T) {
-		// BaseDir should use XDG data directory (~/.local/share/workspace-sandbox)
-		home, err := os.UserHomeDir()
+		paths, err := ResolveStoragePaths()
 		if err != nil {
-			t.Fatalf("failed to get home dir: %v", err)
+			t.Fatalf("failed to resolve storage paths: %v", err)
 		}
-		expectedBaseDir := filepath.Join(home, ".local", "share", "workspace-sandbox")
+		expectedBaseDir := paths.PersistentData
 		if cfg.Driver.BaseDir != expectedBaseDir {
 			t.Errorf("expected BaseDir %s, got %s", expectedBaseDir, cfg.Driver.BaseDir)
 		}
@@ -106,6 +106,8 @@ func TestLoadFromEnv(t *testing.T) {
 		"WORKSPACE_SANDBOX_DEFAULT_TTL",
 		"WORKSPACE_SANDBOX_COMMIT_TEMPLATE", "WORKSPACE_SANDBOX_COMMIT_AUTHOR_MODE",
 		"PROJECT_ROOT", "SANDBOX_BASE_DIR", "SQLITE_PATH",
+		"XDG_RUNTIME_DIR", "XDG_CACHE_HOME", "XDG_DATA_HOME", "XDG_CONFIG_HOME",
+		"WORKSPACE_SANDBOX_HOME_OVERLAY_BASE",
 	}
 	for _, key := range envVars {
 		originalEnv[key] = os.Getenv(key)
@@ -190,8 +192,12 @@ func TestLoadFromEnv(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if cfg.Driver.BaseDir != "/custom/path" {
-			t.Errorf("expected BaseDir /custom/path, got %s", cfg.Driver.BaseDir)
+		paths, pathErr := ResolveStoragePaths()
+		if pathErr != nil {
+			t.Fatalf("ResolveStoragePaths: %v", pathErr)
+		}
+		if cfg.Driver.BaseDir != paths.PersistentData {
+			t.Errorf("expected authoritative BaseDir %s, got %s", paths.PersistentData, cfg.Driver.BaseDir)
 		}
 		if cfg.Driver.ProjectRoot != "/my/project" {
 			t.Errorf("expected ProjectRoot /my/project, got %s", cfg.Driver.ProjectRoot)
@@ -223,8 +229,8 @@ func TestLoadFromEnv(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if cfg.Database.Path != "/tmp/workspace-sandbox-test.db" {
-			t.Errorf("expected SQLITE_PATH, got %q", cfg.Database.Path)
+		if cfg.Database.Path != "" {
+			t.Errorf("expected SQLITE_PATH to be ignored, got %q", cfg.Database.Path)
 		}
 	})
 }
@@ -838,38 +844,38 @@ func TestRequireEnv(t *testing.T) {
 	})
 }
 
-// TestResolveHomeOverlayBaseDir_RejectsHomeSubpath — fatal at boot when
-// the resolved base lives inside $HOME. Without this guard, the home
-// overlay's upperdir would be a subdir of its lowerdir, creating a
-// self-referential overlayfs mount whose behavior is undefined.
-//
-// DOC: home-overlay storage seam.
-func TestResolveHomeOverlayBaseDir_RejectsHomeSubpath(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("WORKSPACE_SANDBOX_HOME_OVERLAY_BASE", filepath.Join(home, "evil"))
-	t.Setenv("XDG_RUNTIME_DIR", "")
-	_, err := ResolveHomeOverlayBaseDir()
-	if err == nil {
-		t.Fatal("expected error when base lands inside $HOME, got nil")
+func TestStoragePathsIgnoreApplicationEnvironment(t *testing.T) {
+	base, err := ResolveStoragePaths()
+	if err != nil {
+		t.Fatal(err)
 	}
-	if !strings.Contains(err.Error(), "inside $HOME") {
-		t.Errorf("error should mention $HOME containment: %v", err)
+	for _, key := range []string{"XDG_RUNTIME_DIR", "XDG_CACHE_HOME", "XDG_DATA_HOME", "XDG_CONFIG_HOME", "WORKSPACE_SANDBOX_HOME_OVERLAY_BASE", "SANDBOX_BASE_DIR"} {
+		t.Setenv(key, filepath.Join(t.TempDir(), "must-not-be-used"))
+	}
+	got, err := ResolveStoragePaths()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != base {
+		t.Fatalf("storage paths changed after prohibited environment overrides: before=%+v after=%+v", base, got)
 	}
 }
 
-// TestResolveHomeOverlayBaseDir_AcceptsOutsideHome — the happy path:
-// an explicit base under /tmp is accepted and the directory is created.
-func TestResolveHomeOverlayBaseDir_AcceptsOutsideHome(t *testing.T) {
-	home := t.TempDir()
-	outside := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("WORKSPACE_SANDBOX_HOME_OVERLAY_BASE", outside)
-	resolved, err := ResolveHomeOverlayBaseDir()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+func TestPrepareStoragePathsRejectsFileAndUsesNoFallback(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(file, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
 	}
-	if resolved != outside {
-		t.Errorf("got %q, want %q", resolved, outside)
+	paths := StoragePaths{PersistentData: file, Transient: filepath.Join(t.TempDir(), "transient"), Runtime: filepath.Join(t.TempDir(), "runtime")}
+	err := PrepareStoragePaths(paths)
+	var failure *PathFailure
+	if !errors.As(err, &failure) {
+		t.Fatalf("expected PathFailure, got %T: %v", err, err)
+	}
+	if failure.Code != "PATH_CREATE_FAILED" || failure.Path != file {
+		t.Fatalf("failure=%+v, want create failure for authoritative file", failure)
+	}
+	if _, statErr := os.Stat(paths.Transient); !os.IsNotExist(statErr) {
+		t.Fatalf("fallback path was attempted: stat=%v", statErr)
 	}
 }

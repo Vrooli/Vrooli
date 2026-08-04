@@ -16,10 +16,9 @@ func testDeps(t *testing.T) deps {
 	return deps{
 		goos:           "linux",
 		geteuid:        func() int { return 1000 },
-		getenv:         func(string) string { return "" },
 		probePlain:     func() error { return errors.New("plain denied") },
 		probeAppArmor:  func() error { return nil },
-		defaultBaseDir: func() string { return t.TempDir() },
+		defaultBaseDir: func() (string, error) { return t.TempDir(), nil },
 		execProcess: func(string, []string, []string) error {
 			return nil
 		},
@@ -127,7 +126,7 @@ func TestRunReadsPreferenceAndExecsExpectedCommand(t *testing.T) {
 	var gotArgv0 string
 	var gotArgv []string
 	d := testDeps(t)
-	d.defaultBaseDir = func() string { return dir }
+	d.defaultBaseDir = func() (string, error) { return dir, nil }
 	d.execProcess = func(argv0 string, argv []string, env []string) error {
 		gotArgv0 = argv0
 		gotArgv = argv
@@ -156,7 +155,7 @@ func TestRunWindowsUsesRunAndWaitNotExec(t *testing.T) {
 	var gotArgv0 string
 	d := testDeps(t)
 	d.goos = "windows"
-	d.defaultBaseDir = func() string { return dir }
+	d.defaultBaseDir = func() (string, error) { return dir, nil }
 	d.execProcess = func(string, []string, []string) error {
 		t.Fatal("execProcess must not be called on windows; run() must runAndWait")
 		return nil
@@ -183,7 +182,7 @@ func TestRunRejectsMalformedPreference(t *testing.T) {
 		t.Fatal(err)
 	}
 	d := testDeps(t)
-	d.defaultBaseDir = func() string { return dir }
+	d.defaultBaseDir = func() (string, error) { return dir, nil }
 	if err := run(nil, d); err == nil {
 		t.Fatal("run succeeded with malformed preference")
 	}

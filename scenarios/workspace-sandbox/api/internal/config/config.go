@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -287,7 +286,7 @@ type TeardownHookConfig struct {
 // DriverConfig controls filesystem driver settings.
 type DriverConfig struct {
 	// BaseDir is the root directory for sandbox artifacts.
-	// Default: ~/.local/share/workspace-sandbox (XDG-compliant, user-writable)
+	// Selected by the platform storage resolver.
 	BaseDir string
 
 	// HomeOverlayBaseDir is the directory that holds per-sandbox
@@ -297,9 +296,8 @@ type DriverConfig struct {
 	// undefined per kernel docs and triggers intermittent EBUSY/EINVAL.
 	//
 	// DOC: home-overlay storage seam. See docs/internal/SEAMS.md.
-	// Default: ${XDG_RUNTIME_DIR}/workspace-sandbox or
-	// /var/tmp/workspace-sandbox-$UID. Validated fatally at startup if it
-	// resolves under $HOME.
+	// Selected outside the user's home by the platform storage resolver and
+	// validated fatally at startup.
 	HomeOverlayBaseDir string
 
 	// ProjectRoot is the default project root for sandboxes.
@@ -348,8 +346,8 @@ type ResourceLimitsConfig struct {
 // DatabaseConfig controls database connection settings for the embedded
 // SQLite store.
 type DatabaseConfig struct {
-	// Path is an explicit override for the SQLite file location. When empty,
-	// the API derives the path through api-core/storage. Honors SQLITE_PATH.
+	// Path is retained as an internal value for the api-core/storage contract;
+	// workspace-sandbox never populates it from operator environment.
 	Path string
 }
 
@@ -415,66 +413,19 @@ type IntegrationConfig struct {
 }
 
 // DefaultBaseDir returns the default sandbox base directory.
-// Uses XDG data directory (~/.local/share/workspace-sandbox) for unprivileged operation.
-// Falls back to /var/lib/workspace-sandbox if home directory cannot be determined.
-func DefaultBaseDir() string {
-	if home, err := os.UserHomeDir(); err == nil {
-		return filepath.Join(home, ".local", "share", "workspace-sandbox")
-	}
-	// Fallback for edge cases (e.g., running in containers without HOME set)
-	return "/var/lib/workspace-sandbox"
-}
-
-// ResolveHomeOverlayBaseDir returns the directory that holds per-sandbox
-// home-{upper,work,merged} dirs. The result MUST be outside $HOME to
-// avoid a self-referential overlayfs mount (lower=$HOME, upper=$HOME/...).
-//
-// Resolution order:
-//  1. WORKSPACE_SANDBOX_HOME_OVERLAY_BASE env var (operator override).
-//  2. ${XDG_RUNTIME_DIR}/workspace-sandbox.
-//  3. /var/tmp/workspace-sandbox-$UID (created mode 0700 if missing).
-//
-// Validated to be outside $HOME; returns an error otherwise. The directory
-// is created (mode 0700) if missing.
-//
-// DOC: home-overlay storage seam. See docs/internal/SEAMS.md.
-func ResolveHomeOverlayBaseDir() (string, error) {
-	chosen := strings.TrimSpace(os.Getenv("WORKSPACE_SANDBOX_HOME_OVERLAY_BASE"))
-	if chosen == "" {
-		if runtimeDir := strings.TrimSpace(os.Getenv("XDG_RUNTIME_DIR")); runtimeDir != "" {
-			chosen = filepath.Join(runtimeDir, "workspace-sandbox")
-		}
-	}
-	if chosen == "" {
-		uid := os.Getuid()
-		chosen = filepath.Join("/var/tmp", fmt.Sprintf("workspace-sandbox-%d", uid))
-	}
-
-	abs, err := filepath.Abs(chosen)
+// The platform resolver owns this location and has no fallback candidate.
+func DefaultBaseDir() (string, error) {
+	paths, err := ResolveStoragePaths()
 	if err != nil {
-		return "", fmt.Errorf("resolve home overlay base dir %q: %w", chosen, err)
+		return "", err
 	}
-	if home, err := os.UserHomeDir(); err == nil && home != "" {
-		homeAbs, err := filepath.Abs(home)
-		if err == nil {
-			rel, err := filepath.Rel(homeAbs, abs)
-			if err == nil && !strings.HasPrefix(rel, "..") && rel != "." {
-				return "", fmt.Errorf("home overlay base dir %q is inside $HOME (%q); pick a path outside $HOME via WORKSPACE_SANDBOX_HOME_OVERLAY_BASE to avoid a self-referential overlayfs mount", abs, homeAbs)
-			}
-			if rel == "." {
-				return "", fmt.Errorf("home overlay base dir %q equals $HOME; pick a path outside $HOME via WORKSPACE_SANDBOX_HOME_OVERLAY_BASE", abs)
-			}
-		}
-	}
-	if err := os.MkdirAll(abs, 0o700); err != nil {
-		return "", fmt.Errorf("create home overlay base dir %q: %w", abs, err)
-	}
-	return abs, nil
+	return paths.PersistentData, nil
 }
 
 // Default returns a Config with sensible defaults.
 // These defaults are safe for development and small deployments.
 func Default() Config {
+	paths, _ := ResolveStoragePaths()
 	return Config{
 		Server: ServerConfig{
 			ReadTimeout: 30 * time.Second,
@@ -540,12 +491,8 @@ func Default() Config {
 			TeardownTimeout: 90 * time.Second,
 		},
 		Driver: DriverConfig{
-			BaseDir: DefaultBaseDir(),
-			// HomeOverlayBaseDir is resolved at LoadFromEnv() time so the
-			// validation error surfaces during startup rather than as a
-			// silent default difference between Default() and the running
-			// service. Default() leaves it empty.
-			HomeOverlayBaseDir: "",
+			BaseDir:            paths.PersistentData,
+			HomeOverlayBaseDir: paths.Transient,
 		},
 		Execution: ExecutionConfig{
 			DefaultResourceLimits: ResourceLimitsConfig{
@@ -668,16 +615,9 @@ func LoadFromEnv() (Config, error) {
 	}
 	cfg.Policy.TeardownTimeout = envDuration("WORKSPACE_SANDBOX_TEARDOWN_TIMEOUT", cfg.Policy.TeardownTimeout)
 
-	// Driver config
+	// Driver config. These paths are selected exclusively by the platform
+	// resolver; application-level directory overrides are ignored.
 	cfg.Driver.ProjectRoot = ResolveDefaultProjectRoot()
-	if baseDir := os.Getenv("SANDBOX_BASE_DIR"); baseDir != "" {
-		cfg.Driver.BaseDir = baseDir
-	}
-	homeOverlayBase, err := ResolveHomeOverlayBaseDir()
-	if err != nil {
-		return cfg, err
-	}
-	cfg.Driver.HomeOverlayBaseDir = homeOverlayBase
 
 	// Integration config
 	cfg.Integration.AgentManagerURL = envString("WORKSPACE_SANDBOX_AGENT_MANAGER_URL", cfg.Integration.AgentManagerURL)
@@ -702,9 +642,9 @@ func LoadFromEnv() (Config, error) {
 		cfg.Execution.DefaultIsolationProfile = profile
 	}
 
-	// Database config (SQLite path; falls back to api-core/storage resolver
-	// when unset).
-	cfg.Database.Path = os.Getenv("SQLITE_PATH")
+	// Database location is owned by api-core/storage. No application-level
+	// SQLite path override is read here.
+	cfg.Database.Path = ""
 
 	// Retention config (diff-archive retention reconciler).
 	cfg.Retention.MaxArchiveAgeDays = envInt("WORKSPACE_SANDBOX_RETENTION_MAX_AGE_DAYS", cfg.Retention.MaxArchiveAgeDays)
@@ -714,6 +654,16 @@ func LoadFromEnv() (Config, error) {
 	if len(errs) > 0 {
 		return cfg, fmt.Errorf("missing required environment variables: %s", strings.Join(errs, ", "))
 	}
+
+	paths, err := ResolveStoragePaths()
+	if err != nil {
+		return cfg, err
+	}
+	if err := PrepareStoragePaths(paths); err != nil {
+		return cfg, err
+	}
+	cfg.Driver.BaseDir = paths.PersistentData
+	cfg.Driver.HomeOverlayBaseDir = paths.Transient
 
 	return cfg, cfg.Validate()
 }
@@ -842,11 +792,8 @@ func (c *Config) Validate() error {
 	if c.Driver.BaseDir == "" {
 		errs = append(errs, "driver.baseDir is required")
 	}
-	// HomeOverlayBaseDir is resolved at LoadFromEnv() time via
-	// ResolveHomeOverlayBaseDir, which fails fatally if the path lands
-	// inside $HOME. Default() leaves it empty so structural validation
-	// here doesn't require it; the operator-facing failure point is
-	// LoadFromEnv, not Validate.
+	// HomeOverlayBaseDir is prepared by LoadFromEnv through the platform
+	// resolver. Validate only checks the structural driver contract.
 
 	// --- Execution ---
 	// Per-resource: when both default and max are set, the default

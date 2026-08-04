@@ -175,8 +175,9 @@ func (p *HookTeardownPolicy) executeHook(ctx context.Context, hook TeardownHook,
 
 // buildTeardownHookEnv creates the environment variables for teardown hook execution.
 //
-// Inherits the parent process environment so hooks see HOME, PATH, USER,
-// XDG_* etc. The default vrooli-heal-from-sandbox hook (and any user-
+// Inherits the parent process environment so hooks see the host's standard
+// home, path, identity, and runtime inputs. The default vrooli-heal-from-
+// sandbox hook (and any user-
 // supplied hook command) needs these to resolve the user's home, locate
 // scenario state, and invoke shells/commands. Pre-2026-04-28 this returned
 // only SANDBOX_* variables, which made every teardown hook fail with

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 )
@@ -84,6 +85,8 @@ type BwrapConfig struct {
 	// HOME overlay at the same path inside the namespace. Set by
 	// CaptureEnv().ApplyTo. Empty disables the home bind.
 	HostHome string
+	HostUser string
+	HostVrooliRoot string
 
 	// MirrorProjectRoot, when true, also binds the merged dir at
 	// s.ProjectRoot inside the namespace so prompts using host-absolute
@@ -145,16 +148,23 @@ func CaptureEnv() EnvSnapshot {
 		"API_MANAGER_URL",
 		"SCENARIO_REGISTRY_URL",
 		"RESOURCE_REGISTRY_URL",
-		"XDG_CONFIG_HOME",
-		"XDG_DATA_HOME",
 	} {
 		if v := os.Getenv(k); v != "" {
 			extras[k] = v
 		}
 	}
+	current, _ := user.Current()
+	home, _ := os.UserHomeDir()
+	username := ""
+	if current != nil {
+		if home == "" {
+			home = current.HomeDir
+		}
+		username = current.Username
+	}
 	return EnvSnapshot{
-		Home:              os.Getenv("HOME"),
-		User:              os.Getenv("USER"),
+		Home:              home,
+		User:              username,
 		VrooliRoot:        os.Getenv("VROOLI_ROOT"),
 		MirrorProjectRoot: parseBoolEnv(os.Getenv("WORKSPACE_SANDBOX_MIRROR_PROJECT_ROOT")),
 		extras:            extras,
@@ -164,6 +174,8 @@ func CaptureEnv() EnvSnapshot {
 // ApplyTo populates env-derived fields on cfg. Idempotent.
 func (e EnvSnapshot) ApplyTo(cfg *BwrapConfig) {
 	cfg.HostHome = e.Home
+	cfg.HostUser = e.User
+	cfg.HostVrooliRoot = e.VrooliRoot
 	cfg.MirrorProjectRoot = e.MirrorProjectRoot
 }
 
@@ -226,9 +238,6 @@ func ApplyIsolationProfile(cfg *BwrapConfig, profile *IsolationProfile) error {
 	}
 
 	home := cfg.HostHome
-	if home == "" {
-		home = os.Getenv("HOME")
-	}
 	// A non-absolute $HOME would expand into a workspace-relative path
 	// (e.g. HOME=.home). Combined with `--chdir <workspace>`, every
 	// $HOME-relative write — Go build cache, vrooli CLI metrics, tool
@@ -241,8 +250,8 @@ func ApplyIsolationProfile(cfg *BwrapConfig, profile *IsolationProfile) error {
 	if home != "" && !filepath.IsAbs(home) {
 		home = ""
 	}
-	user := os.Getenv("USER")
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	user := cfg.HostUser
+	vrooliRoot := cfg.HostVrooliRoot
 
 	for src, dst := range profile.ReadOnlyBinds {
 		if expanded, ok := expandBindSource(src, home, user, vrooliRoot); ok {
@@ -310,7 +319,7 @@ func mergePathLists(primary, secondary string) string {
 	seen := map[string]bool{}
 	entries := make([]string, 0)
 	add := func(pathList string) {
-		for _, entry := range strings.Split(pathList, ":") {
+		for _, entry := range filepath.SplitList(pathList) {
 			entry = strings.TrimSpace(entry)
 			if entry == "" || seen[entry] {
 				continue
@@ -321,7 +330,7 @@ func mergePathLists(primary, secondary string) string {
 	}
 	add(primary)
 	add(secondary)
-	return strings.Join(entries, ":")
+	return strings.Join(entries, string(os.PathListSeparator))
 }
 
 // expandBindSource resolves $-placeholders in a profile bind source and

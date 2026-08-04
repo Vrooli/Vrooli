@@ -110,7 +110,7 @@ func chdirForTest(t *testing.T, dir string) {
 	})
 }
 
-func TestResolveSQLiteDSN_HonorsEnvOverride(t *testing.T) {
+func TestResolveSQLiteDSNUsesAuthoritativeStorage(t *testing.T) {
 	tmp := t.TempDir()
 	customPath := filepath.Join(tmp, "nested", "custom.db")
 	t.Setenv("SQLITE_PATH", customPath)
@@ -122,8 +122,8 @@ func TestResolveSQLiteDSN_HonorsEnvOverride(t *testing.T) {
 	if got := dsn; len(got) == 0 || got[0] != '/' && got[1] != ':' {
 		t.Fatalf("unexpected DSN prefix: %q", dsn)
 	}
-	if !pathHasSuffix(dsn, "custom.db") {
-		t.Fatalf("DSN does not start with override path: %q", dsn)
+	if pathHasSuffix(dsn, "custom.db") {
+		t.Fatalf("DSN used prohibited SQLite override: %q", dsn)
 	}
 	if !strContains(dsn, "_pragma=journal_mode(WAL)") {
 		t.Errorf("DSN missing WAL pragma: %q", dsn)
@@ -131,8 +131,8 @@ func TestResolveSQLiteDSN_HonorsEnvOverride(t *testing.T) {
 	if !strContains(dsn, "_txlock=immediate") {
 		t.Errorf("DSN missing _txlock=immediate: %q", dsn)
 	}
-	if _, err := os.Stat(filepath.Dir(customPath)); err != nil {
-		t.Errorf("parent dir was not created: %v", err)
+	if _, err := os.Stat(filepath.Dir(customPath)); err == nil {
+		t.Errorf("prohibited override parent was created")
 	}
 }
 

@@ -1,6 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {"entries":{"logs":{"rung":"owned","path":"logs","kind":"dir","class":"logs","regenerable":true,"rationale":"Scenario operational logs observed in the canonical logs directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
   "service": {
     "parent": "vrooli",
     "name": "workspace-sandbox",
@@ -178,26 +179,14 @@
       ]
     },
     "stop": {
-      "description": "Stop background processes",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f 'workspace-sandbox-api' || true",
-          "description": "Stop Go API"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        }
-      ]
+      "description": "Stop background processes through Vrooli's tracked process-group lifecycle"
     }
   },
   "dependencies": {
     "resources": {}
   },
   "notes": {
-    "storage_strategy": "Embedded SQLite via modernc.org/sqlite (pure Go, CGO-free); no shared database resource. The SQLite file is resolved through api-core/storage (ClassData) and overridable via SQLITE_PATH."
+    "storage_strategy": "Embedded SQLite via modernc.org/sqlite (pure Go, CGO-free); no shared database resource. The SQLite file is resolved through the service-owned api-core/storage contract; application-level database-path overrides are not supported."
   },
   "cli": {
     "enabled": true,

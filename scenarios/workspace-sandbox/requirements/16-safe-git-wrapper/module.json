@@ -5,25 +5,25 @@
   "requirements": [
     {
       "id": "REQ-P1-007",
-      "title": "Git Command Safety Wrapper",
+      "title": "Protected Git Command Allowlist",
       "status": "in_progress",
       "prd_ref": "OT-P1-007",
       "category": "security",
-      "description": "Implement a PATH-injected git wrapper that intercepts restricted commands during sandbox sessions and provides helpful workflow guidance messages.",
+      "description": "Enforce the configured protected-mode git verb allowlist at both exec and process ingress, with structured blocked-command responses and actionable guidance.",
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/driver/bwrap_test.go::TestCreateSafeGitWrapper",
+          "ref": "api/internal/handlers/process_git_allowlist_test.go::TestEvaluateProtectedGitAllowlist_BlocksMutatingVerbs",
           "phase": "unit",
           "status": "failing",
           "notes": "Test CreateSafeGitWrapper creates script that blocks restricted commands"
         },
         {
           "type": "manual",
-          "ref": "api/internal/driver/bwrap.go:CreateSafeGitWrapper",
-          "phase": "manual",
+          "ref": "api/internal/handlers/process_start_git_allowlist_test.go::TestStartProcess_BlocksDisallowedGitVerb",
+          "phase": "unit",
           "status": "implemented",
-          "notes": "Wrapper intercepts git commit/stash/checkout/clean/reset commands"
+          "notes": "Process ingress blocks disallowed mutating Git verbs with structured guidance"
         },
         {
           "type": "test",

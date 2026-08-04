@@ -30,7 +30,8 @@
     "22-structured-event-logging/module.json",
     "23-conflict-detection/module.json",
     "24-retry-rebase-workflow/module.json",
-    "25-cross-platform-driver/module.json"
+    "25-cross-platform-driver/module.json",
+    "26-agent-manager-integration/module.json"
   ],
   "modules": [
     {
@@ -182,6 +183,12 @@
       "path": "25-cross-platform-driver",
       "priority": "P2",
       "title": "Cross-Platform Driver Interface"
+    },
+    {
+      "id": "MOD-P2-026",
+      "path": "26-agent-manager-integration",
+      "priority": "P2",
+      "title": "Agent-Manager Integration"
     }
   ]
 }

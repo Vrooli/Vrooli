@@ -736,8 +736,9 @@ on Linux; a macOS Seatbelt backend plugs into the same seam):
 
 - `ContainmentNone` — no containment, run in `s.MergedDir` directly.
   (`copy` driver)
-- `ContainmentPreferred` — containment backend if available, direct
-  fallback otherwise. (`fuse-overlayfs` driver)
+- `ContainmentPreferred` — containment backend is required for protected
+  execution; if it is unavailable, protected execution fails and callers may
+  explicitly negotiate tracking mode. (`fuse-overlayfs` driver)
 - `ContainmentRequired` — containment backend, or hard error when none is
   available. (`overlayfs` driver — the mount lives inside the API's mount
   namespace, so a direct child can't see it.)
@@ -887,21 +888,17 @@ overlayfs mount whose behavior is undefined per kernel docs and
 manifests as intermittent EBUSY/EINVAL or a "every sandbox sees every
 other sandbox's upper layer" success path.
 
-`config.ResolveHomeOverlayBaseDir` resolves the base dir at startup:
-
-1. `WORKSPACE_SANDBOX_HOME_OVERLAY_BASE` env var (operator override).
-2. `${XDG_RUNTIME_DIR}/workspace-sandbox`.
-3. A per-user workspace-sandbox directory under the system temporary
-   area (created mode 0700).
-
-Validation rejects any path that resolves under `$HOME`. Config-load
-fails fatally rather than producing a broken sandbox. The driver layer
-threads `HomeOverlayBaseDir` from `Config` through to
+`config.ResolveStoragePaths` selects the persistent, transient, and runtime
+roots from the host platform contract at startup. `PrepareStoragePaths`
+creates each authoritative directory, enforces owner-only permissions where
+the platform exposes ownership, and performs a write probe. Config-load fails
+fatally rather than producing a broken sandbox. The driver layer threads
+`HomeOverlayBaseDir` from `Config` through to
 `mountHomeOverlay`/`unmountHomeOverlay`/`cleanupSandboxDirAll` so the
 project overlay (`baseDir/<id>/`) and home overlay
 (`homeOverlayBaseDir/<id>/`) are released together.
 
-[CODE: `internal/config/config.go::ResolveHomeOverlayBaseDir`] •
+[CODE: `internal/config/paths.go::ResolveStoragePaths`] •
 [CODE: `internal/driver/helpers.go::homeOverlayDir`]
 
 ## Daemon reaper seam (2026-04-29)
@@ -1711,7 +1708,7 @@ were "quiet at boot, confusing at runtime":
 - **`config_test.go::TestExposedKnobs_DocumentationParity`** —
   meta-test that scans `config.go` for env var literals matching the
   canonical prefixes (`WORKSPACE_SANDBOX_*`, `API_PORT`,
-  `SQLITE_PATH`, `SANDBOX_BASE_DIR`, `PROJECT_ROOT`) and asserts the
+  `PROJECT_ROOT`) and asserts the
   same set appears in the doc. Drift either direction fails the test.
 
 ### What Phase 8 explicitly did NOT do

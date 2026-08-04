@@ -24,6 +24,7 @@ type receiptCaptureDeclaration struct {
 		ResponseProjectionPaths []string `json:"responseProjectionPaths"`
 		RetentionDays           int      `json:"retentionDays"`
 		ReadPrincipals          []string `json:"readPrincipals"`
+		NeverExercised          bool     `json:"neverExercised,omitempty"`
 	} `json:"policies"`
 }
 
@@ -127,13 +128,24 @@ func loadCaptureDeclarationRulesAtRoot(repoRoot, scenario string) ([]policy.Rece
 			if message := validateCapturePolicy(candidate); message != "" {
 				return nil, fmt.Errorf("receipt declaration %q policy %q: %s", source, entry.PolicyID, message)
 			}
-			if err := validateDeclaredResponse(repoRoot, entry.Operation, entry.ResponseType, entry.ResponseProjectionPaths); err != nil {
-				return nil, fmt.Errorf("receipt declaration %q policy %q: %w", source, entry.PolicyID, err)
+			if entry.Protocol == "connect" {
+				if err := validateDeclaredResponse(repoRoot, entry.Operation, entry.ResponseType, entry.ResponseProjectionPaths); err != nil {
+					return nil, fmt.Errorf("receipt declaration %q policy %q: %w", source, entry.PolicyID, err)
+				}
+			} else if !validHTTPCaptureOperation(entry.Operation) {
+				return nil, fmt.Errorf("receipt declaration %q policy %q: HTTP operation must be a stable POST path", source, entry.PolicyID)
 			}
-			rules = append(rules, candidate.rule())
+			rule := candidate.rule()
+			rule.NeverExercised = entry.NeverExercised
+			rules = append(rules, rule)
 		}
 	}
 	return rules, nil
+}
+
+func validHTTPCaptureOperation(operation string) bool {
+	parts := strings.Fields(operation)
+	return len(parts) == 2 && parts[0] == http.MethodPost && strings.HasPrefix(parts[1], "/") && !strings.Contains(parts[1], "?")
 }
 
 // validateDeclaredResponse binds a capture declaration to the target's published

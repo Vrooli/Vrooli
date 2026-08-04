@@ -13,35 +13,35 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/driver/bwrap_test.go::TestBuildBwrapArgs",
+          "ref": "api/internal/driver/exec/args_test.go::TestBuildBwrapArgs",
           "phase": "unit",
           "status": "failing",
           "notes": "Verify bwrap configuration"
         },
         {
           "type": "test",
-          "ref": "api/internal/driver/bwrap_test.go::TestBwrapNetworkConfig",
+          "ref": "api/internal/driver/exec/args_test.go::TestBwrapNetworkConfig",
           "phase": "unit",
           "status": "failing",
           "notes": "Test filesystem restrictions"
         },
         {
           "type": "test",
-          "ref": "api/internal/driver/bwrap_test.go::TestBwrapPIDNamespaceConfig",
+          "ref": "api/internal/driver/exec/args_test.go::TestBwrapPIDNamespaceConfig",
           "phase": "unit",
           "status": "failing",
           "notes": "Validate process isolation"
         },
         {
           "type": "test",
-          "ref": "api/internal/driver/bwrap_test.go::TestIsBwrapAvailable",
+          "ref": "api/internal/driver/exec/run_test.go::TestIsBwrapAvailable",
           "phase": "unit",
           "status": "failing",
           "notes": "Check bwrap availability"
         },
         {
           "type": "test",
-          "ref": "api/internal/driver/bwrap_test.go::TestCreateSafeGitWrapper",
+          "ref": "api/internal/handlers/process_git_allowlist_test.go::TestEvaluateProtectedGitAllowlist_BlocksMutatingVerbs",
           "phase": "unit",
           "status": "failing",
           "notes": "Safe-git wrapper creation"

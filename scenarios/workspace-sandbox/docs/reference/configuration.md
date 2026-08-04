@@ -4,39 +4,27 @@ This document captures deployment-shape requirements that aren't
 expressed in environment variables — things the binary alone can't fix,
 that are wired into `.vrooli/service.json` instead.
 
-## Home overlay base directory (REQUIRED, validated at startup)
+## Storage paths (REQUIRED, validated at startup)
 
 The per-sandbox host-`$HOME` overlay's upper/work/merged dirs live
 **outside `$HOME`**. Putting them inside `$HOME` (the lower layer)
 creates a self-referential overlayfs mount whose behavior is undefined
 per kernel docs.
 
-`config.ResolveHomeOverlayBaseDir` resolves the base directory at
-startup; the resolved path is stored on `cfg.Driver.HomeOverlayBaseDir`
-and threaded through every driver `Mount`/`Unmount`/`CleanupOrphan`
-call.
+`config.ResolveStoragePaths` selects the authoritative paths at startup;
+the service does not read desktop-session directory variables or expose an
+application-level path override. The selected directories are created with
+owner-only access, checked for ownership and writability, and startup fails
+with a structured diagnostic if any check fails. No alternate location is
+attempted.
 
-Resolution order (first match wins):
+Persistent data is platform-native: Linux uses the fixed application-data
+directory under the user's home, macOS uses Application Support, and Windows
+uses the user's Local application-data directory. Transient home-overlay and
+runtime state use a deterministic per-user namespace under the operating
+system temporary directory, which is outside the home directory.
 
-1. **`WORKSPACE_SANDBOX_HOME_OVERLAY_BASE`** — explicit operator override.
-   Most common in tests and in containerized deployments where
-   `XDG_RUNTIME_DIR` isn't reliable.
-2. **`$XDG_RUNTIME_DIR/workspace-sandbox`** — the systemd-blessed
-   per-user runtime dir, e.g. `/run/user/1000/workspace-sandbox`. The
-   default on logind-managed Linux desktops.
-3. **Per-user workspace-sandbox directory under the system temporary
-   area** — the cron/SSH/non-logind fallback. Created with mode `0700`
-   if missing.
-
-The resolver validates that the chosen path is **NOT** a subpath of
-`$HOME` and fails fatally otherwise. There is no silent fallback. If
-you need to override the location for a one-off run:
-
-```bash
-WORKSPACE_SANDBOX_HOME_OVERLAY_BASE=/var/cache/wsbox-home make start
-```
-
-[CODE: `api/internal/config/config.go::ResolveHomeOverlayBaseDir`] •
+[CODE: `api/internal/config/paths.go::ResolveStoragePaths`] •
 [CODE: `api/internal/driver/helpers.go::mountHomeOverlay`]
 
 ## Cleanup-manager owner hook
@@ -48,10 +36,10 @@ private directories directly.
 
 Cleanup-manager registers the disabled-by-default
 `workspace-sandbox-retention` owner-scenario provider. When an owner client is
-wired and the provider is enabled with owner approval, cleanup-manager records
+wired and the provider is enabled with owner approval, storage-manager records
 policy, preview, approval, idempotency, and audit, then delegates
 Estimate/Preview/Apply to workspace-sandbox through a scenario-owned CLI/API.
-If cleanup-manager is unavailable, workspace-sandbox continues its internal
+If storage-manager is unavailable, workspace-sandbox continues its internal
 lifecycle cleanup and reports disk usage through its own metrics; there is no
 circular startup dependency.
 
@@ -390,32 +378,12 @@ changes and tears it down. `0` disables expiry.
 
 ## Driver
 
-### `SANDBOX_BASE_DIR` (path, default `~/.local/share/workspace-sandbox`)
-Root directory for sandbox upper/work/merged dirs. Must be writable
-by the API user.
-
-- Audience: operators
-
-### `WORKSPACE_SANDBOX_HOME_OVERLAY_BASE` (path, default `$XDG_RUNTIME_DIR/workspace-sandbox` or per-user system temporary directory)
-Where per-sandbox host-`$HOME` overlay dirs live. **Must be outside
-`$HOME`** — see "Home overlay base directory" above. Failures here
-are fatal at boot.
-
-- Audience: operators / containerized deployments
-- Related: `XDG_RUNTIME_DIR`, `HOME`
-
 ### `PROJECT_ROOT` (path, default discovered)
 Default project root for sandboxes that don't pass one explicitly.
 Discovered from `VROOLI_SOURCE_ROOT` / `VROOLI_ROOT` / `CWD` if
 unset.
 
 - Audience: operators / wrappers
-
-### `SQLITE_PATH` (path, default derived via api-core/storage)
-Explicit SQLite database file location. When unset, the API resolves
-the path under the cross-platform data directory.
-
-- Audience: operators / tests
 
 ## Policy
 

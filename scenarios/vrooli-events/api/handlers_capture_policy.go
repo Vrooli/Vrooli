@@ -87,6 +87,7 @@ func (p *receiptCapturePolicy) UnmarshalJSON(data []byte) error {
 func (p receiptCapturePolicy) rule() policy.ReceiptProjectionRule {
 	return policy.ReceiptProjectionRule{PolicyID: p.PolicyID, SourceScenario: "*", TargetScenario: p.Selector.TargetScenario, OperationPattern: p.Selector.Operation, Protocol: p.Selector.Protocol, EventType: p.Selector.EventType, ResponseType: p.ResponseType, ResponseFields: p.ResponseProjectionPaths, ReadPrincipals: p.Access.ReadPrincipals, MaxBytes: 64 * 1024, SamplePerTenK: 10000, RetentionDays: p.RetentionDays, Enabled: p.Enabled}
 }
+
 func capturePolicy(rule policy.ReceiptProjectionRule, version string) receiptCapturePolicy {
 	var result receiptCapturePolicy
 	result.PolicyID, result.Enabled, result.ResponseType, result.ResponseProjectionPaths, result.RetentionDays, result.Version = rule.PolicyID, rule.Enabled, rule.ResponseType, rule.ResponseFields, rule.RetentionDays, version
@@ -99,8 +100,8 @@ func validateCapturePolicy(p receiptCapturePolicy) string {
 	if strings.TrimSpace(p.PolicyID) == "" || strings.TrimSpace(p.Selector.TargetScenario) == "" || strings.TrimSpace(p.Selector.Operation) == "" || strings.TrimSpace(p.ResponseType) == "" {
 		return "policy_id, selector target_scenario/operation, and response_type are required"
 	}
-	if p.Selector.Protocol != "connect" || p.Selector.EventType != receiptEventType {
-		return "selector protocol must be connect and event_type must be vrooli.events.receipt.v1"
+	if (p.Selector.Protocol != "connect" && p.Selector.Protocol != "http") || p.Selector.EventType != receiptEventType {
+		return "selector protocol must be connect or http and event_type must be vrooli.events.receipt.v1"
 	}
 	if p.RetentionDays <= 0 {
 		return "retention_days must be > 0"
@@ -152,6 +153,7 @@ func (s *Server) handleCreateCapturePolicy(w http.ResponseWriter, r *http.Reques
 	s.broadcastPolicySnapshot(r.Context())
 	writeJSON(w, http.StatusCreated, map[string]any{"id": id, "policy_id": p.PolicyID})
 }
+
 func (s *Server) handleListCapturePolicies(w http.ResponseWriter, r *http.Request) {
 	enabled := true
 	rules, err := s.policyStore.ListReceiptProjections(r.Context(), policy.ReceiptProjectionFilters{Enabled: &enabled})
@@ -165,4 +167,18 @@ func (s *Server) handleListCapturePolicies(w http.ResponseWriter, r *http.Reques
 		result = append(result, capturePolicy(rule, version))
 	}
 	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *Server) handleDeleteCapturePolicy(w http.ResponseWriter, r *http.Request) {
+	policyID := strings.TrimSpace(r.PathValue("policyID"))
+	if policyID == "" {
+		writeError(w, http.StatusBadRequest, ErrCodeValidation, "policy ID is required")
+		return
+	}
+	if err := s.policyStore.DeleteReceiptProjectionByPolicyID(r.Context(), policyID); err != nil {
+		writeError(w, http.StatusInternalServerError, ErrCodePolicyWrite, "failed to delete receipt capture policy")
+		return
+	}
+	s.broadcastPolicySnapshot(r.Context())
+	w.WriteHeader(http.StatusNoContent)
 }

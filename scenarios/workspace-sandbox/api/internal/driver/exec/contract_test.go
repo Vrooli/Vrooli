@@ -203,31 +203,12 @@ func TestExecContract_BwrapRequired_NoBwrap(t *testing.T) {
 // when mode is driver.ContainmentPreferred and bwrap is missing, Exec falls
 // back to direct execution (used by fuse-overlayfs whose mount is
 // host-visible). The fallback must run the command in s.MergedDir.
-func TestExecContract_BwrapPreferred_NoBwrap_FallsBackDirect(t *testing.T) {
+func TestExecContract_BwrapPreferred_NoBwrapFails(t *testing.T) {
 	starter := procmocks.NewFakeStarter()
-	// Note: no bwrap in LookPath. Direct exec command must succeed.
-	starter.AddCommand("/bin/echo direct", procmocks.CommandBehavior{
-		Exit: process.ProcessExit{ExitCode: 0},
-	})
 	sb := newSandboxFor(t)
 	res, err := Exec(context.Background(), starter, sb, driver.ContainmentPreferred, DefaultBwrapConfig(), "/bin/echo", "direct")
-	if err != nil {
-		t.Fatalf("Exec: %v", err)
-	}
-	if res.ExitCode != 0 {
-		t.Errorf("ExitCode: got %d, want 0", res.ExitCode)
-	}
-	// Verify the start was the direct exec, not bwrap.
-	calls := starter.Calls
-	if len(calls) == 0 {
-		t.Fatal("expected at least one Start call")
-	}
-	last := calls[len(calls)-1]
-	if last.Path != "/bin/echo" {
-		t.Errorf("preferred fallback should call /bin/echo directly, got %q", last.Path)
-	}
-	if last.Dir != sb.MergedDir {
-		t.Errorf("Dir: got %q, want %q", last.Dir, sb.MergedDir)
+	if err == nil || !strings.Contains(err.Error(), "preferred containment backend") {
+		t.Fatalf("expected preferred containment failure, result=%+v err=%v", res, err)
 	}
 }
 

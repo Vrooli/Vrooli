@@ -17,7 +17,8 @@
 ## Connection Pattern Status
 - [x] Driver name is `database.DriverSQLite` (`modernc.org/sqlite`).
 - [x] No hard-coded connection strings; the SQLite file path is resolved
-  via `api-core/storage` and overridable through `SQLITE_PATH`.
+  through the service-owned `api-core/storage` contract. Application-level
+  database-path overrides are rejected.
 - [x] DSN appends pragmas every connection needs: `journal_mode=WAL`,
   `foreign_keys=1`, `busy_timeout=5000`, `synchronous=NORMAL`.
 - [x] DSN sets `_txlock=immediate` so `db.BeginTx` acquires the SQLite
@@ -66,8 +67,10 @@
 - [x] Sandbox metadata DB resolved through `api-core/storage` (`ClassData`
   + `EnsureClassDir`).
 - [x] No mutable runtime state under the scenario deploy directory.
-- [x] Driver overlay roots remain governed by `cfg.Driver.BaseDir`
-  (defaults to XDG data directory).
+- [x] Driver overlay roots remain governed by `cfg.Driver.BaseDir`, which is
+  selected by the platform path policy in `internal/config` and validated
+  before startup. No desktop-specific directory variable or alternate-path
+  fallback participates in selection.
 
 ## Diff-archive storage (hybrid DB + filesystem)
 The diff-archive subsystem (Phases 1–4 of the diff-archive plan) is the

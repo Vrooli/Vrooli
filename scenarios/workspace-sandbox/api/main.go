@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 
 	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -82,9 +81,9 @@ func NewServer() (*Server, error) {
 	// and SwitchDriver so downstream code never sees raw nils.
 	driverDeps := driver.Deps{Clock: clk, Mounter: mounter, Starter: starter}
 
-	// Resolve the embedded SQLite database path. Honors SQLITE_PATH for
-	// explicit overrides; otherwise places the file under the cross-platform
-	// data directory provided by api-core/storage.
+	// Resolve the embedded SQLite database path through the authoritative
+	// api-core/storage contract. Application-level path overrides are not
+	// accepted, so every process uses the same service-owned location.
 	dsn, err := resolveSQLiteDSN()
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve SQLite path: %w", err)
@@ -412,31 +411,27 @@ func (s *Server) Cleanup() error {
 }
 
 // resolveSQLiteDSN returns the modernc.org/sqlite DSN for the embedded
-// store. It honors SQLITE_PATH for explicit overrides and otherwise resolves
-// a cross-platform data path through api-core/storage. The DSN appends the
+// store. The location is resolved exclusively through api-core/storage. The DSN appends the
 // pragmas every connection needs (WAL, busy_timeout, foreign_keys) and sets
 // _txlock=immediate so BeginTx acquires the SQLite reserved lock up front
 // for write-ordered Create + CheckScopeOverlap flows.
 func resolveSQLiteDSN() (string, error) {
-	path := strings.TrimSpace(os.Getenv("SQLITE_PATH"))
-	if path == "" {
-		resolver, err := storage.NewResolver(storage.ResolverConfig{
-			AppID:   "vrooli",
-			Profile: storage.ProfileAuto,
-		})
-		if err != nil {
-			return "", fmt.Errorf("create storage resolver: %w", err)
-		}
-		dataDir, err := storage.EnsureClassDir(resolver,
-			storage.Options{ScenarioID: "workspace-sandbox"},
-			storage.ClassData,
-			0o755,
-		)
-		if err != nil {
-			return "", fmt.Errorf("ensure data dir: %w", err)
-		}
-		path = filepath.Join(dataDir, "workspace-sandbox.db")
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return "", fmt.Errorf("create storage resolver: %w", err)
 	}
+	dataDir, err := storage.EnsureClassDir(resolver,
+		storage.Options{ScenarioID: "workspace-sandbox"},
+		storage.ClassData,
+		0o755,
+	)
+	if err != nil {
+		return "", fmt.Errorf("ensure data dir: %w", err)
+	}
+	path := filepath.Join(dataDir, "workspace-sandbox.db")
 
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return "", fmt.Errorf("create db parent dir: %w", err)

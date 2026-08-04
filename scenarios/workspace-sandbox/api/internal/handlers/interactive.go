@@ -44,6 +44,7 @@ type InteractiveStartRequest struct {
 	Command        string            `json:"command"`
 	Args           []string          `json:"args,omitempty"`
 	IsolationLevel string            `json:"isolationLevel,omitempty"`
+	ExecutionMode  string            `json:"executionMode,omitempty"`
 	AllowNetwork   bool              `json:"allowNetwork,omitempty"`
 	Env            map[string]string `json:"env,omitempty"`
 	WorkingDir     string            `json:"workingDir,omitempty"`
@@ -113,6 +114,10 @@ func (h *Handlers) ExecInteractive(w http.ResponseWriter, r *http.Request) {
 
 	if startReq.Command == "" {
 		sendErrorMessage(conn, "command is required")
+		return
+	}
+	if err := h.validateExecutionMode(r.Context(), startReq.ExecutionMode); err != nil {
+		sendErrorMessage(conn, err.Error())
 		return
 	}
 

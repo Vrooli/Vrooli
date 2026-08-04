@@ -23,11 +23,10 @@ const docPath = "../../../docs/reference/configuration.md"
 //
 // Why these: the parity check is about *operator-tunable knobs* —
 // not about every transient env var the API ever reads (e.g.,
-// VROOLI_ROOT during root discovery, $HOME for path validation,
-// XDG_RUNTIME_DIR as a fallback). Those are documented elsewhere
-// (CLAUDE.md, deployment docs); duplicating them here would invite
-// drift without operator value.
-var envVarRe = regexp.MustCompile(`\b(WORKSPACE_SANDBOX_[A-Z0-9_]+|API_PORT|SQLITE_PATH|SANDBOX_BASE_DIR|PROJECT_ROOT)\b`)
+// VROOLI_ROOT during root discovery or $HOME for path validation). Those
+// are service-runtime inputs rather than workspace-sandbox storage knobs;
+// duplicating them here would invite drift without operator value.
+var envVarRe = regexp.MustCompile(`\b(WORKSPACE_SANDBOX_[A-Z0-9_]+|API_PORT|PROJECT_ROOT)\b`)
 
 // readFile is a convenience wrapper that fails the test on read
 // errors instead of forcing every caller to handle the error.

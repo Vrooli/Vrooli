@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -56,6 +57,40 @@ func (h *Handlers) applyIsolationProfile(sb *types.Sandbox, cfg *driverexec.Bwra
 	return h.profileResolver().ResolveAndApply(sb, cfg, requestedID)
 }
 
+// validateExecutionMode makes the protected/tracking boundary explicit. Auto
+// negotiates the selected driver's truthful capability; it never turns a
+// protected request into tracking execution.
+func (h *Handlers) validateExecutionMode(ctx context.Context, requested string) error {
+	mode := strings.ToLower(strings.TrimSpace(requested))
+	if mode == "" || mode == "auto" || mode == "tracking" {
+		return nil
+	}
+	if mode != "protected" {
+		return &types.ExecutionModeUnavailableError{Mode: mode, Driver: "unknown", Reason: "mode must be auto, tracking, or protected"}
+	}
+	d := h.Driver()
+	if d == nil {
+		return &types.ExecutionModeUnavailableError{Mode: mode, Reason: "no workspace driver is configured"}
+	}
+	if !d.Capabilities().Protected {
+		return &types.ExecutionModeUnavailableError{Mode: mode, Driver: string(d.ID()), Reason: "the selected driver provides tracking only and has no process containment contract"}
+	}
+	if h.Starter == nil {
+		return &types.ExecutionModeUnavailableError{Mode: mode, Driver: string(d.ID()), Reason: "containment preflight is unavailable"}
+	}
+	info, err := driver.GetContainmentInfo(ctx, h.Starter)
+	if err != nil || info == nil || !info.Available {
+		reason := "containment backend is unavailable"
+		if err != nil {
+			reason = err.Error()
+		} else if info != nil && info.Error != "" {
+			reason = info.Error
+		}
+		return &types.ExecutionModeUnavailableError{Mode: mode, Driver: string(d.ID()), Reason: reason}
+	}
+	return nil
+}
+
 // ExecRequest represents a request to execute a command in a sandbox.
 type ExecRequest struct {
 	Command        string            `json:"command"`
@@ -70,6 +105,7 @@ type ExecRequest struct {
 	// "full" (default): maximum isolation, only /workspace accessible.
 	// "vrooli-aware": can access Vrooli CLIs, configs, and localhost APIs.
 	IsolationLevel string `json:"isolationLevel,omitempty"`
+	ExecutionMode  string `json:"executionMode,omitempty"`
 
 	// Resource limits (0 = unlimited)
 	MemoryLimitMB int `json:"memoryLimitMB,omitempty"` // Max address space in MB
@@ -111,6 +147,10 @@ func (h *Handlers) Exec(w http.ResponseWriter, r *http.Request) {
 	var req ExecRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.JSONError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	if err := h.validateExecutionMode(r.Context(), req.ExecutionMode); err != nil {
+		h.HandleDomainError(w, err)
 		return
 	}
 

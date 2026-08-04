@@ -20,12 +20,11 @@ func main() {
 type deps struct {
 	goos            string
 	geteuid         func() int
-	getenv          func(string) string
 	probePlain      func() error
 	probeAppArmor   func() error
 	execProcess     func(string, []string, []string) error
 	runAndWait      func(string, []string, []string) error
-	defaultBaseDir  func() string
+	defaultBaseDir  func() (string, error)
 	writeDiagnostic func(string, ...any)
 }
 
@@ -33,7 +32,6 @@ func defaultDeps() deps {
 	return deps{
 		goos:            runtimeGOOS(),
 		geteuid:         currentEUID,
-		getenv:          os.Getenv,
 		probePlain:      probePlainUserns,
 		probeAppArmor:   probeAppArmorUserns,
 		execProcess:     execProcess,
@@ -52,7 +50,10 @@ func run(args []string, d deps) error {
 		apiPath = args[0]
 	}
 
-	baseDir := resolveBaseDir(d)
+	baseDir, err := resolveBaseDir(d)
+	if err != nil {
+		return err
+	}
 	pref, prefState, err := loadPreference(baseDir)
 	if err != nil {
 		return err
@@ -70,11 +71,12 @@ func run(args []string, d deps) error {
 	return d.execProcess(argv0, argv, os.Environ())
 }
 
-func resolveBaseDir(d deps) string {
-	if baseDir := d.getenv("SANDBOX_BASE_DIR"); baseDir != "" {
-		return baseDir
+func resolveBaseDir(d deps) (string, error) {
+	baseDir, err := d.defaultBaseDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve authoritative workspace-sandbox storage directory: %w", err)
 	}
-	return d.defaultBaseDir()
+	return baseDir, nil
 }
 
 func loadPreference(baseDir string) (driverid.ID, string, error) {

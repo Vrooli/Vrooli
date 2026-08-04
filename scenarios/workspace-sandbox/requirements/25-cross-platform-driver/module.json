@@ -9,7 +9,7 @@
       "status": "in_progress",
       "prd_ref": "OT-P2-004",
       "category": "feature",
-      "description": "Define a SandboxDriver interface with pluggable implementations. First-class Linux overlayfs driver, with clear fallback strategy for non-Linux environments without hardcoding Linux assumptions into APIs.",
+      "description": "Define a SandboxDriver interface with pluggable implementations. First-class Linux overlayfs driver, with an explicit tracking-only copy contract for non-Linux environments and no hardcoded Linux assumptions in APIs.",
       "validation": [
         {
           "type": "test",
@@ -24,6 +24,27 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "DriverType enum includes overlayfs, copy, and none types"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/config/config_test.go::TestStoragePathsIgnoreApplicationEnvironment",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Authoritative storage paths ignore desktop-session and application-level directory variables."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/config/config_test.go::TestPrepareStoragePathsRejectsFileAndUsesNoFallback",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "An unusable authoritative directory fails closed without selecting an alternate path."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/driver/exec/backend_test.go::TestBuildStartOpts_LevelDispatch",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Protected containment requests fail closed when the platform backend is unavailable."
         },
         {
           "type": "manual",

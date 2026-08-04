@@ -190,8 +190,9 @@ reported as absent, not silently downgraded.
   `pathIllusion == false`) and **no pid namespace**. Resource limits are applied
   by an in-binary `rlimit-exec` self-exec shim (`setrlimit`) that replaces
   Linux-only `prlimit`.
-- **Other platforms** have no native containment backend: execution falls
-  through to the direct path, which enforces nothing.
+- **Other platforms** have no native containment backend: tracking execution
+  uses the direct path and reports no containment guarantees; protected
+  execution is rejected as unavailable rather than silently downgraded.
 
 Because Seatbelt still enforces the two guarantees `agent-manager` protected
 mode depends on (`filesystem-write-containment` + `network-deny`), protected

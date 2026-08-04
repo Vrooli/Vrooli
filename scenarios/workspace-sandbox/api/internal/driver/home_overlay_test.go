@@ -153,12 +153,12 @@ func TestDriver_HomeOverlayCapability(t *testing.T) {
 	}
 }
 
-// TestResolveHomeOverlayBaseDir_RejectsHomeSubpath — the load-bearing
-// safety check that prevents Phase B's self-referential mount. If the
-// resolved path lands inside $HOME, the helper MUST return an error.
+// TestMountHomeOverlay_RejectsMissingAuthoritativePath — the load-bearing
+// safety check that prevents a home overlay from mounting without a prepared
+// service-owned transient root.
 //
 // DOC: home-overlay storage seam — fatal validation test.
-func TestResolveHomeOverlayBaseDir_RejectsHomeSubpath(t *testing.T) {
+func TestMountHomeOverlay_RejectsMissingAuthoritativePath(t *testing.T) {
 	cfg := Config{HomeOverlayBaseDir: ""}
 	m := fsmountmocks.NewFakeMounter()
 	_, _, _, _, err := mountHomeOverlay(

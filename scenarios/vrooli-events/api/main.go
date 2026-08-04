@@ -93,7 +93,7 @@ func main() {
 	// provenance and malformed-ingest requests. They are safe on localhost and
 	// prevent accidental weakening when Events is later exposed behind TLS.
 	routes := srv.routes()
-	validationPath, validationHandler := scenariovalidationv1connect.NewScenarioValidationServiceHandler(newCaptureValidationHandler(captureValidationRepoRoot(), polStore))
+	validationPath, validationHandler := scenariovalidationv1connect.NewScenarioValidationServiceHandler(newCaptureValidationHandler(captureValidationRepoRoot(), polStore, eventStore))
 	routes.Handle(validationPath, validationHandler)
 	mux := securityHeaders(provenance.Middleware(provenance.CLIUtilVerifier{})(routes))
 

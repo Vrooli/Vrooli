@@ -11,6 +11,10 @@ import (
 
 	"connectrpc.com/connect"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	domain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
+	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/policy"
+	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/store"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestReceiptCapturePolicySnapshotUsesTypedContract(t *testing.T) {
@@ -122,7 +126,7 @@ func TestCaptureValidationRequiresReconciledPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler := newCaptureValidationHandler(repoRoot, srv.policyStore)
+	handler := newCaptureValidationHandler(repoRoot, srv.policyStore, srv.store)
 	response, err := handler.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "agent-manager"}))
 	if err != nil {
 		t.Fatal(err)
@@ -144,7 +148,37 @@ func TestCaptureValidationRequiresReconciledPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if response.Msg.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED || !response.Msg.GetAssessment().GetLocal().GetClean() {
-		t.Fatalf("reconciled validation = %#v", response.Msg)
+	if response.Msg.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED {
+		t.Fatalf("unexercised validation status = %s, want failed", response.Msg.GetStatus())
+	}
+	findings := response.Msg.GetAssessment().GetFindings()
+	if len(findings) != 1 || findings[0].GetCode() != "event_capture.policy_unexercised" || !strings.Contains(findings[0].GetMessage(), "agent-manager-search-hub-query") {
+		t.Fatalf("unexercised validation findings = %#v", findings)
+	}
+	for _, rule := range rules {
+		body, marshalErr := proto.Marshal(&domain.EventEnvelope{EventId: "receipt-" + rule.PolicyID, EventType: receiptEventType, Target: &domain.EventTarget{Scenario: rule.TargetScenario, Operation: rule.OperationPattern, Protocol: rule.Protocol}})
+		if marshalErr != nil {
+			t.Fatal(marshalErr)
+		}
+		if _, insertErr := srv.store.Insert(context.Background(), store.Event{EventID: "receipt-" + rule.PolicyID, SourceScenario: "agent-manager", TargetScenario: rule.TargetScenario, EventType: receiptEventType, Payload: body}); insertErr != nil {
+			t.Fatal(insertErr)
+		}
+	}
+	response, err = handler.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "agent-manager"}))
+	if err != nil || response.Msg.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED || !response.Msg.GetAssessment().GetLocal().GetClean() {
+		t.Fatalf("emitted validation = %#v err=%v", response.Msg, err)
+	}
+}
+
+func TestCaptureValidationSupportsExplicitUnexercisedAndRejectsLiteralInstances(t *testing.T) {
+	rule := policy.ReceiptProjectionRule{PolicyID: "new-policy", TargetScenario: "test-genie", OperationPattern: "POST /service/Start", Protocol: "connect", NeverExercised: true}
+	if !rule.NeverExercised || literalInstanceIdentifier.MatchString(rule.OperationPattern) {
+		t.Fatalf("marker or generic operation invalid: %#v", rule)
+	}
+	if !literalInstanceIdentifier.MatchString("GET /api/v1/runs/99be776d-95ef-460c-a4aa-c06372d1f715/report") {
+		t.Fatal("literal UUID operation was accepted")
+	}
+	if receiptEmitted(context.Background(), nil, policy.ReceiptProjectionRule{TargetScenario: "test-genie", OperationPattern: "POST /service/Start"}) {
+		t.Fatal("missing emission evidence was accepted")
 	}
 }

@@ -264,6 +264,29 @@ func NewIsolationProfileNotFoundError(profileID string) *IsolationProfileNotFoun
 	return &IsolationProfileNotFoundError{ProfileID: profileID}
 }
 
+// ExecutionModeUnavailableError means the caller requested protected
+// execution but the selected driver/host cannot provide it. Copying a
+// workspace is intentionally not accepted as a protected-mode substitute.
+type ExecutionModeUnavailableError struct {
+	Mode   string
+	Driver string
+	Reason string
+}
+
+func (e *ExecutionModeUnavailableError) Error() string {
+	return fmt.Sprintf("execution mode %q is unavailable for driver %q: %s", e.Mode, e.Driver, e.Reason)
+}
+
+func (e *ExecutionModeUnavailableError) HTTPStatus() int   { return http.StatusConflict }
+func (e *ExecutionModeUnavailableError) IsRetryable() bool { return true }
+func (e *ExecutionModeUnavailableError) Code() string      { return "EXECUTION_MODE_UNAVAILABLE" }
+func (e *ExecutionModeUnavailableError) Hint() string {
+	return "Request tracking mode for copy-only execution, or select a driver and host that provide the requested protected containment."
+}
+func (e *ExecutionModeUnavailableError) Details() map[string]interface{} {
+	return map[string]interface{}{"mode": e.Mode, "driver": e.Driver, "reason": e.Reason}
+}
+
 // --- Idempotency and Concurrency Errors ---
 
 // ConcurrentModificationError indicates an update conflicted with a concurrent change.

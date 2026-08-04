@@ -31,8 +31,7 @@ type containmentBackend interface {
 }
 
 // noneBackend is the direct-execution path: no containment, command runs
-// in s.MergedDir. It backs ContainmentNone and the ContainmentPreferred
-// fallback when no platform backend is available.
+// in s.MergedDir. It backs tracking-only copy execution.
 type noneBackend struct{}
 
 func (noneBackend) id() string { return "none" }
@@ -63,12 +62,15 @@ func buildStartOpts(starter process.Starter, s *types.Sandbox, level driver.Cont
 		opts, err := direct.buildStartOpts(starter, s, cfg, cmd, args...)
 		return opts, direct.id(), err
 	case driver.ContainmentPreferred:
-		if backend := platformContainmentBackend(); backend != nil && backend.available(starter) == nil {
-			opts, err := backend.buildStartOpts(starter, s, cfg, cmd, args...)
-			return opts, backend.id(), err
+		backend := platformContainmentBackend()
+		if backend == nil {
+			return process.StartOpts{}, "", fmt.Errorf("preferred containment has no backend on %s; tracking mode must use the copy driver", runtime.GOOS)
 		}
-		opts, err := direct.buildStartOpts(starter, s, cfg, cmd, args...)
-		return opts, direct.id(), err
+		if err := backend.available(starter); err != nil {
+			return process.StartOpts{}, "", fmt.Errorf("preferred containment backend %s unavailable: %w", backend.id(), err)
+		}
+		opts, err := backend.buildStartOpts(starter, s, cfg, cmd, args...)
+		return opts, backend.id(), err
 	case driver.ContainmentRequired:
 		backend := platformContainmentBackend()
 		if backend == nil {

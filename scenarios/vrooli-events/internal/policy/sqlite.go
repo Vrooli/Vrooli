@@ -366,6 +366,14 @@ func (s *SQLiteStore) DeleteReceiptProjection(ctx context.Context, id int64) err
 	return nil
 }
 
+func (s *SQLiteStore) DeleteReceiptProjectionByPolicyID(ctx context.Context, policyID string) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM receipt_projection_rules WHERE policy_id = ?`, policyID)
+	if err != nil {
+		return fmt.Errorf("delete receipt projection rule by policy id: %w", err)
+	}
+	return nil
+}
+
 func (s *SQLiteStore) MatchReceiptProjection(ctx context.Context, source, target, operation string) (*ReceiptProjectionRule, error) {
 	enabled := true
 	rules, err := s.ListReceiptProjections(ctx, ReceiptProjectionFilters{Enabled: &enabled})

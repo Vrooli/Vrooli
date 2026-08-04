@@ -122,7 +122,9 @@ func (s *Service) inferMountPaths(sandbox *types.Sandbox) bool {
 				sandbox.HomeMergedDir = homeMerged
 				sandbox.HomeUpperDir = filepath.Join(root, "home-upper")
 				sandbox.HomeWorkDir = filepath.Join(root, "home-work")
-				sandbox.HomeLowerDir = os.Getenv("HOME")
+				if home, err := os.UserHomeDir(); err == nil {
+					sandbox.HomeLowerDir = home
+				}
 				updated = true
 			}
 		}

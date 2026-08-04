@@ -3,17 +3,21 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/maturity-go/assessment"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
+	domain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/policy"
+	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/store"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -26,11 +30,14 @@ type captureValidationHandler struct {
 	scenariovalidationv1connect.UnimplementedScenarioValidationServiceHandler
 	repoRoot string
 	policies policy.Store
+	events   store.Store
 }
 
-func newCaptureValidationHandler(repoRoot string, policies policy.Store) *captureValidationHandler {
-	return &captureValidationHandler{repoRoot: repoRoot, policies: policies}
+func newCaptureValidationHandler(repoRoot string, policies policy.Store, events store.Store) *captureValidationHandler {
+	return &captureValidationHandler{repoRoot: repoRoot, policies: policies, events: events}
 }
+
+var literalInstanceIdentifier = regexp.MustCompile(`(?i)(?:^|/)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:/|$)`)
 
 func (h *captureValidationHandler) DescribeProvider(_ context.Context, _ *connect.Request[scenariovalidationv1.DescribeProviderRequest]) (*connect.Response[scenariovalidationv1.DescribeProviderResponse], error) {
 	return connect.NewResponse(&scenariovalidationv1.DescribeProviderResponse{
@@ -59,129 +66,112 @@ func (h *captureValidationHandler) ValidateScenario(ctx context.Context, req *co
 			byID[rule.PolicyID] = rule
 		}
 		for _, rule := range rules {
+			if literalInstanceIdentifier.MatchString(rule.OperationPattern) {
+				findings = append(findings, captureValidationFinding{Code: "event_capture.literal_instance_identifier", Title: "Receipt policy names a literal instance", Message: fmt.Sprintf("policy %q operation %q contains a literal instance identifier", rule.PolicyID, rule.OperationPattern), Remediation: "Use a stable operation pattern, never an instance-specific URL."})
+			}
 			actual, ok := byID[rule.PolicyID]
 			if !ok || !sameCaptureRule(actual, rule) {
 				findings = append(findings, captureValidationFinding{Code: "event_capture.policy_unreconciled", Title: "Receipt policy is not reconciled", Message: fmt.Sprintf("policy %q is absent or differs from its declaration", rule.PolicyID), Remediation: fmt.Sprintf("Run vrooli-events capture-reconcile --scenario %s.", scenario)})
+			} else if !rule.NeverExercised && !receiptEmitted(ctx, h.events, rule) {
+				findings = append(findings, captureValidationFinding{Code: "event_capture.policy_unexercised", Title: "Receipt policy has not emitted", Message: fmt.Sprintf("policy %q has no durable receipt emission", rule.PolicyID), Remediation: "Exercise the declared operation or mark a genuinely new declaration neverExercised."})
 			}
 		}
 	}
 	return connect.NewResponse(captureValidationResponse(scenario, findings, time.Since(started))), nil
 }
 
+func receiptEmitted(ctx context.Context, events store.Store, rule policy.ReceiptProjectionRule) bool {
+	if events == nil {
+		return false
+	}
+	items, err := events.Query(ctx, store.QueryFilters{EventType: receiptEventType, Target: rule.TargetScenario, Limit: 1000})
+	if err != nil {
+		return false
+	}
+	for _, item := range items {
+		var envelope domain.EventEnvelope
+		if proto.Unmarshal(item.Payload, &envelope) == nil && envelope.GetTarget().GetScenario() == rule.TargetScenario && envelope.GetTarget().GetOperation() == rule.OperationPattern {
+			return true
+		}
+	}
+	return false
+}
+
 type captureValidationFinding struct{ Code, Title, Message, Remediation string }
 
 func captureValidationResponse(scenario string, findings []captureValidationFinding, elapsed time.Duration) *scenariovalidationv1.ValidateScenarioResponse {
 	clean := len(findings) == 0
-	level, next := "L2", ""
+	level, next := "L3", ""
 	blocking := make([]string, 0, len(findings))
 	assessmentFindings := make([]*commonv1.AssessmentFinding, 0, len(findings))
 	nativeFindings := make([]any, 0, len(findings))
 	for _, finding := range findings {
 		blocking = append(blocking, finding.Code)
 		maturity := captureFindingMaturity(finding.Code)
-		if maturity.GetLocalLevel() == "L0" {
+		switch currentCaptureLevel(maturity.GetLocalLevel()) {
+		case "L0":
 			level, next = "L0", "L1"
-		} else if level != "L0" {
+		case "L1":
+			if level == "L0" {
+				break
+			}
 			level, next = "L1", "L2"
+		case "L2":
+			if level == "L0" || level == "L1" {
+				break
+			}
+			level, next = "L2", "L3"
 		}
 		assessmentFindings = append(assessmentFindings, &commonv1.AssessmentFinding{Code: finding.Code, Severity: "SEVERITY_ERROR", Title: finding.Title, Message: finding.Message, Remediation: finding.Remediation, FixClass: "manual", Maturity: maturity})
 		nativeFindings = append(nativeFindings, map[string]any{"code": finding.Code, "message": finding.Message, "remediation": finding.Remediation})
 	}
 	sort.Strings(blocking)
-	assessment := &commonv1.MaturityAssessment{Scenario: scenario, Provider: "vrooli-events", Phase: captureConformancePhase, Version: "1.0.0", Local: &commonv1.LocalMaturityAssessment{CurrentLevel: level, NextLevel: next, Clean: clean, BlockingFindingCodes: blocking}, Findings: assessmentFindings, FindingsBySeverity: map[string]int32{"SEVERITY_ERROR": int32(len(findings))}}
+	report := &commonv1.MaturityAssessment{Scenario: scenario, Provider: "vrooli-events", Phase: captureConformancePhase, Version: "1.0.0", Local: &commonv1.LocalMaturityAssessment{CurrentLevel: level, NextLevel: next, Clean: clean, BlockingFindingCodes: blocking}, Findings: assessmentFindings, FindingsBySeverity: map[string]int32{"SEVERITY_ERROR": int32(len(findings))}}
 	levels := []*commonv1.LocalMaturityLevel{
 		{Id: "L0", Name: "Invalid", CapabilitySummary: "Receipt capture is not safely configured.", NextUnlock: "Repair the declaration or reconcile the policies."},
 		{Id: "L1", Name: "Validated", CapabilitySummary: "Capture contract is operational.", NextUnlock: "Keep the contract continuously verified."},
 		{Id: "L2", Name: "Conformant", CapabilitySummary: "Receipt capture is continuously verified."},
+		{Id: "L3", Name: "Proven", CapabilitySummary: "Every declared receipt policy has durable emission evidence."},
 	}
-	assessment.Local.Levels = levels
-	assessment.Capabilities = []*commonv1.CapabilityMaturityAssessment{{Id: "declared_capture", Label: "Declared Receipt Capture", CurrentLevel: level, NextLevel: next, Levels: levels, BlockingFindingCodes: blocking, Clean: clean, PriorityRank: 1}}
-	assessment.Presentation = capturePhasePresentation(assessment)
+	report.Local.Levels = levels
+	report.Capabilities = []*commonv1.CapabilityMaturityAssessment{{Id: "declared_capture", Label: "Declared Receipt Capture", CurrentLevel: level, NextLevel: next, Levels: levels, BlockingFindingCodes: blocking, Clean: clean, PriorityRank: 1}}
+	report.Presentation = assessment.BuildPhasePresentation(report)
 	detail, _ := structpb.NewStruct(map[string]any{"scenario": scenario, "findings": nativeFindings})
 	packed, _ := anypb.New(detail)
 	status := scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED
 	if !clean {
 		status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
 	}
-	return &scenariovalidationv1.ValidateScenarioResponse{Scenario: scenario, Status: status, Assessment: assessment, NativeDetail: packed, Metrics: &commonv1.ExecutionMetrics{WallClockMs: elapsed.Milliseconds()}}
-}
-
-func levelIndex(level string) int {
-	if level == "L0" {
-		return 0
-	}
-	if level == "L1" {
-		return 1
-	}
-	return 2
+	return &scenariovalidationv1.ValidateScenarioResponse{Scenario: scenario, Status: status, Assessment: report, NativeDetail: packed, Metrics: &commonv1.ExecutionMetrics{WallClockMs: elapsed.Milliseconds()}}
 }
 
 func captureFindingMaturity(code string) *commonv1.FindingMaturity {
 	maturity := &commonv1.FindingMaturity{Dimension: "contracts", CleanRequirement: commonv1.CleanRequirement_CLEAN_REQUIREMENT_REQUIRED, CapabilityId: "declared_capture"}
 	switch code {
 	case "event_capture.policy_unreconciled":
-		maturity.LocalLevel = "L1"
+		maturity.LocalLevel = "L2"
+		maturity.GlobalImpact = commonv1.GlobalImpact_GLOBAL_IMPACT_EVOLVABILITY_GAP
+	case "event_capture.policy_unexercised":
+		maturity.LocalLevel = "L3"
 		maturity.GlobalImpact = commonv1.GlobalImpact_GLOBAL_IMPACT_EVOLVABILITY_GAP
 	default:
-		maturity.LocalLevel = "L0"
+		maturity.LocalLevel = "L1"
 		maturity.GlobalImpact = commonv1.GlobalImpact_GLOBAL_IMPACT_FOUNDATION_BLOCKER
 	}
 	return maturity
 }
 
-// capturePhasePresentation mirrors the portable maturity v1 projection. This
-// provider deliberately avoids importing maturity-go because that library is
-// not part of the Events scenario's approved dependency surface.
-func capturePhasePresentation(assessment *commonv1.MaturityAssessment) *commonv1.PhasePresentation {
-	local := assessment.GetLocal()
-	levels := local.GetLevels()
-	current := levels[levelIndex(local.GetCurrentLevel())]
-	blocking := append([]string(nil), local.GetBlockingFindingCodes()...)
-	sort.Strings(blocking)
-	presentation := &commonv1.PhasePresentation{
-		ContractVersion: "v1", Provider: assessment.GetProvider(), Phase: assessment.GetPhase(),
-		CurrentLevel: local.GetCurrentLevel(), NextLevel: local.GetNextLevel(), Clean: local.GetClean(),
-		UnknownCount: local.GetUnknownCount(), BlockingFindingCodes: blocking,
-		AtMaximum: local.GetClean() && local.GetNextLevel() == "", CurrentLevelLabel: current.GetName(),
-		CeilingLevel: levels[len(levels)-1].GetId(), NorthStar: levels[len(levels)-1].GetCapabilitySummary(),
-		NextAction: current.GetNextUnlock(),
+// A finding's maturity impact names the destination rung it blocks. The
+// assessment reports the highest achieved rung, which is immediately below it.
+func currentCaptureLevel(impact string) string {
+	switch impact {
+	case "L3":
+		return "L2"
+	case "L2":
+		return "L1"
+	default:
+		return "L0"
 	}
-	capability := assessment.GetCapabilities()[0]
-	capabilityPresentation := &commonv1.PhaseCapabilityPresentation{
-		Id: capability.GetId(), Label: capability.GetLabel(), CurrentLevel: capability.GetCurrentLevel(), NextLevel: capability.GetNextLevel(),
-		Clean: capability.GetClean(), UnknownCount: capability.GetUnknownCount(), BlockingFindingCodes: append([]string(nil), blocking...),
-		PriorityRank: capability.GetPriorityRank(), PriorityReason: capability.GetPriorityReason(), CurrentLevelLabel: current.GetName(),
-	}
-	findingsByCode := make(map[string]*commonv1.PhasePresentationFinding)
-	for _, finding := range assessment.GetFindings() {
-		if finding.GetMaturity().GetCapabilityId() != capability.GetId() {
-			continue
-		}
-		entry := findingsByCode[finding.GetCode()]
-		if entry == nil {
-			entry = &commonv1.PhasePresentationFinding{
-				Code: finding.GetCode(), Severity: finding.GetSeverity(), Title: finding.GetTitle(), Message: finding.GetMessage(), Remediation: finding.GetRemediation(),
-				FixAffordance: commonv1.FixAffordance_FIX_AFFORDANCE_MANUAL,
-			}
-			findingsByCode[finding.GetCode()] = entry
-			capabilityPresentation.Findings = append(capabilityPresentation.Findings, entry)
-		}
-		entry.Count++
-	}
-	sort.Slice(capabilityPresentation.Findings, func(i, j int) bool {
-		return capabilityPresentation.Findings[i].GetCode() < capabilityPresentation.Findings[j].GetCode()
-	})
-	presentation.Capabilities = []*commonv1.PhaseCapabilityPresentation{capabilityPresentation}
-	if !presentation.GetAtMaximum() {
-		presentation.DocumentationTopics = []string{assessment.GetPhase() + " maturity next move"}
-		for _, code := range blocking {
-			presentation.DocumentationTopics = append(presentation.DocumentationTopics, assessment.GetPhase()+" "+code+" canonical fix")
-			if len(presentation.DocumentationTopics) == 3 {
-				break
-			}
-		}
-	}
-	return presentation
 }
 
 func sameCaptureRule(a, b policy.ReceiptProjectionRule) bool {
@@ -189,9 +179,6 @@ func sameCaptureRule(a, b policy.ReceiptProjectionRule) bool {
 }
 
 func captureValidationRepoRoot() string {
-	if root := os.Getenv("PROJECT_ROOT"); root != "" {
-		return root
-	}
 	root, _ := filepath.Abs(filepath.Join("..", "..", ".."))
 	return root
 }

@@ -41,6 +41,7 @@ type StartProcessRequest struct {
 	// "full" (default): maximum isolation, only /workspace accessible.
 	// "vrooli-aware": can access Vrooli CLIs, configs, and localhost APIs.
 	IsolationLevel string `json:"isolationLevel,omitempty"`
+	ExecutionMode  string `json:"executionMode,omitempty"`
 
 	// Resource limits (0 = unlimited)
 	// Note: TimeoutSec is not enforced for background processes; use manual kill.
@@ -78,6 +79,10 @@ func (h *Handlers) StartProcess(w http.ResponseWriter, r *http.Request) {
 
 	if !types.CanRunProcess(sb.Status) {
 		h.JSONError(w, "sandbox must be active to start processes", http.StatusConflict)
+		return
+	}
+	if err := h.validateExecutionMode(r.Context(), req.ExecutionMode); err != nil {
+		h.HandleDomainError(w, err)
 		return
 	}
 

@@ -8,12 +8,14 @@ func (s *Server) routes() *http.ServeMux {
 	// Event endpoints
 	mux.HandleFunc("POST /api/v1/events", s.handleIngest)
 	mux.HandleFunc("GET /api/v1/events", s.handleQuery)
+	mux.HandleFunc("DELETE /api/v1/events", s.handleDeleteEventsByType)
 	mux.HandleFunc("GET /api/v1/events/subscribe", s.handleSubscribe)
 
 	// Policy endpoints
 	mux.HandleFunc("GET /api/v1/policies/snapshot", s.handlePolicySnapshot)
 	mux.HandleFunc("POST /api/v1/receipt-capture-policies", s.handleCreateCapturePolicy)
 	mux.HandleFunc("GET /api/v1/receipt-capture-policies", s.handleListCapturePolicies)
+	mux.HandleFunc("DELETE /api/v1/receipt-capture-policies/{policyID}", s.handleDeleteCapturePolicy)
 	mux.HandleFunc("POST /api/v1/receipt-capture-policies/reconcile", s.handleReconcileCapturePolicies)
 	mux.HandleFunc("GET /api/v1/policies/subscribe", s.handlePolicySubscribe)
 

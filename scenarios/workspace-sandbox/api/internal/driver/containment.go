@@ -84,11 +84,20 @@ func EffectiveContainment(level ContainmentLevel, backendID string, info *Contai
 	if backendID != backendNone && info != nil && info.Backend == backendID {
 		enforcements = append(enforcements, info.Enforcements...)
 	}
-	return &types.SandboxContainment{
+	mode := "protected"
+	if level == ContainmentNone {
+		mode = "tracking"
+	}
+	result := &types.SandboxContainment{
 		Level:        level.String(),
 		Backend:      backendID,
 		Enforcements: enforcements,
+		Mode:         mode,
 	}
+	if mode == "tracking" {
+		result.Gaps = []string{"filesystem-containment", "process-isolation", "network-isolation", "path-illusion"}
+	}
+	return result
 }
 
 // AdjustForLaunch drops enforcements the launch configuration disables from

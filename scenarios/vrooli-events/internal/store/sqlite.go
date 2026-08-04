@@ -251,6 +251,18 @@ func (s *SQLiteStore) Query(ctx context.Context, f QueryFilters) ([]Event, error
 	return events, nil
 }
 
+func (s *SQLiteStore) DeleteByEventType(ctx context.Context, eventType string) (int64, error) {
+	result, err := s.db.ExecContext(ctx, `DELETE FROM events WHERE event_type = ?`, eventType)
+	if err != nil {
+		return 0, fmt.Errorf("delete events by type: %w", err)
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("event delete count: %w", err)
+	}
+	return count, nil
+}
+
 func (s *SQLiteStore) GetSince(ctx context.Context, lastID int64, limit int) ([]Event, error) {
 	if limit <= 0 {
 		limit = 100

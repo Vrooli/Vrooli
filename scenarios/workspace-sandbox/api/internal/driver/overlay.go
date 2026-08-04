@@ -179,6 +179,8 @@ func (d *OverlayDriver) Capabilities() DriverCapabilities {
 		HomeOverlay:        true,
 		CoW:                true,
 		NamespaceIsolation: d.isolation,
+		Tracking:           true,
+		Protected:          d.isolation != ContainmentNone,
 	}
 }
 
@@ -192,8 +194,8 @@ func (d *OverlayDriver) Mount(ctx context.Context, s *types.Sandbox) (*MountPath
 	if err != nil {
 		return nil, err
 	}
-	hostHome := os.Getenv("HOME")
-	if hostHome == "" {
+	hostHome, err := os.UserHomeDir()
+	if err != nil || hostHome == "" {
 		s.HomeOverlayState = types.HomeOverlayNotRequested
 		return paths, nil
 	}

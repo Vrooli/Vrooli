@@ -184,11 +184,12 @@ If `overlayfs-userns` fails to launch, check:
 3. unshare command available: `which unshare`
 4. setup safeguard status: `vrooli setup status --environment development --resources none --scenarios workspace-sandbox`
 
-**Environment variables for driver control:**
-
-| Variable | Purpose |
-|----------|---------|
-| `SANDBOX_BASE_DIR` | Override base directory for sandbox storage |
+Driver storage is resolved by the service-owned platform path policy. It is
+created and permission-checked before the API serves traffic; there is no
+application-level storage override or alternate-path fallback. The copy
+driver is the portable execution path on platforms without a supported mount
+backend. Protected execution is reported as unavailable when its selected
+backend cannot be provided.
 
 ### Environment Variables
 
@@ -196,7 +197,6 @@ If `overlayfs-userns` fails to launch, check:
 |----------|---------|
 | `API_PORT` | Port for the Go API server |
 | `UI_PORT` | Port for the Vite dev server |
-| `SQLITE_PATH` | Override SQLite database file location (default: `<api-core/storage>/data/workspace-sandbox/workspace-sandbox.db`) |
 | `PROJECT_ROOT` | Root path for sandboxable directories |
 
 ## Documentation

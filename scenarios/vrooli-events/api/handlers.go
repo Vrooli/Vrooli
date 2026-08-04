@@ -41,7 +41,10 @@ const (
 	ErrCodeInvalidParam   = "INVALID_PARAM"
 )
 
-const receiptEventType = "vrooli.events.receipt.v1"
+const (
+	receiptEventType                 = "vrooli.events.receipt.v1"
+	obsoleteReceiptObservedEventType = "vrooli.receipt.observed.v1"
+)
 
 // validateReceipt keeps the generic event store safe for the platform receipt
 // projection. Receipts are still ordinary durable events, but their bounded
@@ -58,6 +61,27 @@ func validateReceipt(env *domain.EventEnvelope) *envelopeValidationError {
 		return &envelopeValidationError{Field: "data", Message: "receipt data must pack ReceiptData"}
 	}
 	return nil
+}
+
+func (s *Server) handleDeleteEventsByType(w http.ResponseWriter, r *http.Request) {
+	eventType := strings.TrimSpace(r.URL.Query().Get("type"))
+	if eventType != obsoleteReceiptObservedEventType {
+		writeError(w, http.StatusBadRequest, ErrCodeInvalidParam, "only obsolete receipt observation events may be deleted by type")
+		return
+	}
+	cleaner, ok := s.store.(interface {
+		DeleteByEventType(context.Context, string) (int64, error)
+	})
+	if !ok {
+		writeError(w, http.StatusInternalServerError, ErrCodeStoreWrite, "event store does not support obsolete receipt cleanup")
+		return
+	}
+	deleted, err := cleaner.DeleteByEventType(r.Context(), eventType)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, ErrCodeStoreWrite, "failed to delete obsolete receipt observations")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"event_type": eventType, "deleted": deleted})
 }
 
 // applyReceiptProvenance makes Agent Manager run attribution optional but

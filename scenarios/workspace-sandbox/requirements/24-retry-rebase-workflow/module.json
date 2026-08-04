@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-07-13T22:51:14-04:00"
+    "last_validated_at": "2026-08-02T21:56:28-04:00"
   },
   "requirements": [
     {
@@ -41,42 +41,42 @@
     },
     {
       "id": "REQ-P2-003-002",
-      "title": "CLI Conflict and Rebase Commands",
+      "title": "Conflict and Rebase API Operations",
       "status": "complete",
       "prd_ref": "OT-P2-003",
       "category": "feature",
-      "description": "CLI commands for conflict checking (workspace-sandbox conflicts) and rebasing (workspace-sandbox rebase). Commands show conflict details, changed files, and actionable options.",
+      "description": "HTTP operations for conflict checking and rebasing show conflict details, changed files, and actionable options. A separate CLI surface remains future work.",
       "validation": [
         {
           "type": "manual",
-          "ref": "cli/app.go::cmdConflicts",
-          "phase": "cli",
-          "status": "not_implemented",
+          "ref": "api/internal/handlers/handlers_test.go::TestCheckConflictsSuccess",
+          "phase": "api",
+          "status": "implemented",
           "notes": "conflicts command shows conflict status"
         },
         {
           "type": "manual",
-          "ref": "cli/app.go::cmdRebase",
-          "phase": "cli",
-          "status": "not_implemented",
+          "ref": "api/internal/handlers/handlers_test.go::TestRebaseSuccess",
+          "phase": "api",
+          "status": "implemented",
           "notes": "rebase command updates sandbox baseline"
         }
       ]
     },
     {
       "id": "REQ-P2-003-003",
-      "title": "Force Approve Option",
-      "status": "complete",
+      "title": "Force Approve Conflict Bypass",
+      "status": "in_progress",
       "prd_ref": "OT-P2-003",
       "category": "feature",
-      "description": "approve command supports --force flag to bypass conflict detection and apply changes even when canonical repo has changed. This enables operators to force-apply when they know changes don't overlap.",
+      "description": "Approval requests support a force flag that bypasses conflict detection when operators explicitly accept the risk.",
       "validation": [
         {
           "type": "manual",
-          "ref": "cli/app.go::cmdApprove",
-          "phase": "cli",
-          "status": "not_implemented",
-          "notes": "approve --force bypasses conflict check"
+          "ref": "api/internal/sandbox/service_review.go::preflightConflicts",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Service preflight honors force=true and bypasses conflict rejection"
         }
       ]
     }

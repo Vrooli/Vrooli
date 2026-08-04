@@ -97,6 +97,8 @@ func (d *CopyDriver) Capabilities() DriverCapabilities {
 		HomeOverlay:        false,
 		CoW:                false,
 		NamespaceIsolation: ContainmentNone,
+		Tracking:           true,
+		Protected:          false,
 	}
 }
 

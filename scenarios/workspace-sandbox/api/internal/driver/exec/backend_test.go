@@ -14,8 +14,8 @@ import (
 // dispatch on Linux, where the platform containment backend is bwrap:
 //
 //   - ContainmentNone always runs direct in s.MergedDir.
-//   - ContainmentPreferred uses the backend when available, else falls
-//     back to direct.
+//   - ContainmentPreferred requires the backend and fails closed when it is
+//     unavailable.
 //   - ContainmentRequired uses the backend when available, else hard-errors.
 //
 // bwrap availability is simulated purely via the FakeStarter LookPath
@@ -34,7 +34,7 @@ func TestBuildStartOpts_LevelDispatch(t *testing.T) {
 	}{
 		{"none/no-bwrap", driver.ContainmentNone, false, false, true, "none"},
 		{"none/has-bwrap", driver.ContainmentNone, true, false, true, "none"},
-		{"preferred/no-bwrap-falls-back-direct", driver.ContainmentPreferred, false, false, true, "none"},
+		{"preferred/no-bwrap-errors", driver.ContainmentPreferred, false, true, false, ""},
 		{"preferred/has-bwrap-uses-backend", driver.ContainmentPreferred, true, false, false, "bwrap"},
 		{"required/no-backend-errors", driver.ContainmentRequired, false, true, false, ""},
 		{"required/has-bwrap-uses-backend", driver.ContainmentRequired, true, false, false, "bwrap"},

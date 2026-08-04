@@ -122,7 +122,7 @@ func homeOverlayDir(homeOverlayBaseDir string, sandboxID uuid.UUID) string {
 // DOC: home-overlay seam. See docs/internal/SEAMS.md.
 func mountHomeOverlay(ctx context.Context, m fsmount.Mounter, backend fsmount.Backend, homeOverlayBaseDir string, sandboxID uuid.UUID, hostHome string) (lower, upper, work, merged string, err error) {
 	if homeOverlayBaseDir == "" {
-		return "", "", "", "", types.NewHomeOverlayUnavailableError(fmt.Errorf("HomeOverlayBaseDir is empty; config.ResolveHomeOverlayBaseDir was not called"))
+		return "", "", "", "", types.NewHomeOverlayUnavailableError(fmt.Errorf("HomeOverlayBaseDir is empty; storage preflight was not completed"))
 	}
 	parent := homeOverlayDir(homeOverlayBaseDir, sandboxID)
 	upper = filepath.Join(parent, "home-upper")

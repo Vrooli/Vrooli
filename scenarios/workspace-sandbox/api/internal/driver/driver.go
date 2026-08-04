@@ -20,11 +20,10 @@ package driver
 
 import (
 	"context"
-	"os"
-	"path/filepath"
 
 	"github.com/google/uuid"
 
+	"workspace-sandbox/internal/config"
 	"workspace-sandbox/internal/driverid"
 	"workspace-sandbox/internal/types"
 )
@@ -61,10 +60,10 @@ const (
 	// mount.
 	ContainmentNone ContainmentLevel = iota
 
-	// ContainmentPreferred uses the containment backend when available;
-	// falls back to direct execution when no backend is present. Used by
-	// fuse-overlayfs whose mount is host-visible — direct execution still
-	// operates against the merged dir, just without process isolation.
+	// ContainmentPreferred requires the containment backend for protected
+	// execution. If the backend is unavailable, the request fails and callers
+	// may explicitly negotiate tracking mode instead. It never silently
+	// degrades a protected request to direct execution.
 	ContainmentPreferred
 
 	// ContainmentRequired hard-errors when no containment backend is
@@ -114,6 +113,12 @@ type DriverCapabilities struct {
 	// but is a struct field (one decision) rather than a method (one
 	// capability).
 	NamespaceIsolation ContainmentLevel
+	// Tracking is true when the driver preserves canonical-file safety and
+	// provenance without promising process or network containment.
+	Tracking bool
+	// Protected is true only when the driver requires a real containment
+	// backend for execution. It is never inferred from copying files.
+	Protected bool
 }
 
 // MountDriver is the base interface every driver implements: mount
@@ -207,7 +212,7 @@ type Config struct {
 
 	// HomeOverlayBaseDir is the directory that holds per-sandbox
 	// home-{upper,work,merged} dirs. MUST be outside $HOME. Resolved by
-	// config.ResolveHomeOverlayBaseDir at startup.
+	// config.ResolveStoragePaths and config.PrepareStoragePaths at startup.
 	HomeOverlayBaseDir string
 
 	// MaxSandboxes limits the total number of active sandboxes.
@@ -217,19 +222,11 @@ type Config struct {
 	MaxSizeMB int64
 }
 
-// defaultBaseDir returns the default sandbox base directory.
-// Uses XDG data directory (~/.local/share/workspace-sandbox).
-func defaultBaseDir() string {
-	if home, err := os.UserHomeDir(); err == nil {
-		return filepath.Join(home, ".local", "share", "workspace-sandbox")
-	}
-	return "/var/lib/workspace-sandbox"
-}
-
 // DefaultConfig returns a Config with sensible defaults.
 func DefaultConfig() Config {
+	baseDir, _ := config.DefaultBaseDir()
 	return Config{
-		BaseDir:      defaultBaseDir(),
+		BaseDir:      baseDir,
 		MaxSandboxes: 1000,
 		MaxSizeMB:    10240, // 10 GB
 	}

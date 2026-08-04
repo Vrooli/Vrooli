@@ -140,13 +140,17 @@ is reproduced here for the audit.
   depends on host-level filesystem mounts mobile sandboxes do not provide.
 
 ### Environment Variable Status
-| Variable | Usage | Fallback? | Desktop-Ready? |
-|----------|-------|-----------|----------------|
-| `SQLITE_PATH` | DB file override | Yes — derived from `api-core/storage` `ClassData` when unset. | Yes |
-| `SANDBOX_BASE_DIR` | Driver base dir (sandboxes + driver preference file) | Yes — defaulted | Yes |
-| `VROOLI_ROOT` | Source-tree resolution for some helpers | Yes — falls back to `VROOLI_SOURCE_ROOT` or cwd detection | Yes |
-| `API_PORT`, `UI_PORT` | Lifecycle-injected; defaulted in code | Yes | Yes |
-| `WORKSPACE_SANDBOX_*` | Local feature flags / driver knobs | Yes — defaulted | Yes |
+| Variable | Usage | Policy |
+|----------|-------|--------|
+| `API_PORT`, `UI_PORT` | Lifecycle-injected service ports | Accepted by the service lifecycle |
+| `PROJECT_ROOT` | Root path for sandboxable directories | Accepted as an execution-scope input |
+| `VROOLI_ROOT` | Source-tree discovery for integration seams | Consumed only where the shared runtime contract requires it |
+| `WORKSPACE_SANDBOX_*` | Explicit feature and policy controls | Each knob is documented and validated individually |
+
+Storage paths and the SQLite database path are service-owned. The API does
+not accept application-level directory or database-path overrides, does not
+read desktop-specific directory variables, and does not fall back to a
+second location when an authoritative path is unavailable.
 
 No `POSTGRES_*` or `DATABASE_URL` references remain.
 

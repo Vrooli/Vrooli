@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-07-13T22:51:14-04:00"
+    "last_validated_at": "2026-08-02T21:56:28-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P1-010",
       "title": "Partial Sandbox Change Approval",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "category": "core",
       "description": "Allow selective application of diff hunks while maintaining sandbox state for unapproved changes. Must track partial approval state and support incremental commits.",
@@ -41,7 +41,7 @@
         {
           "type": "test",
           "phase": "business",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Users can iteratively review and approve changes"
         }
       ]

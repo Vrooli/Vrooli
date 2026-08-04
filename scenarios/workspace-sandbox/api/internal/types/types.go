@@ -302,7 +302,7 @@ type Sandbox struct {
 	// persisted to the DB). The home overlay is a per-sandbox
 	// overlay mount whose lower layer is the host $HOME and whose upper
 	// layer lives under HomeOverlayBaseDir (outside $HOME — see
-	// config.ResolveHomeOverlayBaseDir). bwrap binds HomeMergedDir at
+	// config.ResolveStoragePaths().Transient). bwrap binds HomeMergedDir at
 	// /home/<user> inside the namespace so agent CLIs (claude, codex,
 	// etc.) find their host configuration while writes go to the per-run
 	// upper layer.
@@ -389,6 +389,8 @@ type SandboxContainment struct {
 	Level        string   `json:"level"`
 	Backend      string   `json:"backend"`
 	Enforcements []string `json:"enforcements"`
+	Mode         string   `json:"mode"`
+	Gaps         []string `json:"gaps,omitempty"`
 }
 
 // HostWorkspacePath returns the host-side path where sandbox operations

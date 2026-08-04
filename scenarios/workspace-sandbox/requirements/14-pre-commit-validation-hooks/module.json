@@ -27,7 +27,7 @@
         },
         {
           "type": "test",
-          "ref": "api/internal/policy/policy_test.go::TestNewHookValidationPolicy_EmptyHooks,TestNewHookValidationPolicy_WithHooks",
+          "ref": "api/internal/policy/policy_test.go::TestNewHookValidationPolicy_EmptyHooks",
           "phase": "unit",
           "status": "failing",
           "notes": "Test empty and configured hooks initialization"

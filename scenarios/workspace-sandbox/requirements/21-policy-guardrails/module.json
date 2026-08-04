@@ -13,21 +13,21 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/policy/policy_test.go::TestDefaultApprovalPolicy_CanAutoApprove",
+          "ref": "api/internal/config/config_test.go::TestValidate",
           "phase": "unit",
           "status": "failing",
           "notes": "Test approval policy auto-approve logic"
         },
         {
           "type": "test",
-          "ref": "api/internal/policy/policy_test.go::TestRequireHumanApprovalPolicy_CanAutoApprove",
+          "ref": "api/internal/config/config_test.go::TestValidate",
           "phase": "unit",
           "status": "failing",
           "notes": "Test require human approval policy"
         },
         {
           "type": "test",
-          "ref": "api/internal/config/config_test.go::TestConfigValidation",
+          "ref": "api/internal/config/config_test.go::TestValidate",
           "phase": "unit",
           "status": "failing",
           "notes": "Test config TTL validation"
