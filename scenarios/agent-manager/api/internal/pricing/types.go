@@ -46,7 +46,7 @@ const (
 // ModelPricing represents pricing data for a specific model from a provider.
 type ModelPricing struct {
 	ID                 uuid.UUID `json:"id"`
-	CanonicalModelName string    `json:"canonicalModelName"` // e.g., "anthropic/claude-opus-4-5"
+	CanonicalModelName string    `json:"canonicalModelName"` // provider/model identity
 	Provider           string    `json:"provider"`           // e.g., "openrouter"
 	PriceBookRevision  string    `json:"priceBookRevision,omitempty"`
 
@@ -192,9 +192,9 @@ func (m *ModelPricing) Clone() *ModelPricing {
 // ModelAlias maps runner-specific model names to canonical names used by pricing providers.
 type ModelAlias struct {
 	ID             uuid.UUID `json:"id"`
-	RunnerModel    string    `json:"runnerModel"`    // e.g., "claude-opus-4-5"
+	RunnerModel    string    `json:"runnerModel"`    // runner-native model identifier
 	RunnerType     string    `json:"runnerType"`     // e.g., "claude-code", "codex"
-	CanonicalModel string    `json:"canonicalModel"` // e.g., "anthropic/claude-opus-4-5"
+	CanonicalModel string    `json:"canonicalModel"` // provider/model identity
 	Provider       string    `json:"provider"`       // e.g., "openrouter"
 
 	CreatedAt time.Time `json:"createdAt"`

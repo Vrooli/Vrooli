@@ -57,6 +57,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 	app.SetCommandsWithSubgroups(
 		app.StandardLifecycleCommands(),
 		[]cliapp.SubcommandGroup{
+			agentpolicy.ModelDiscoveryCommands(agentpolicy.ModelDiscoveryConfig{Runner: appName, CatalogPath: agentpolicy.ResourceCatalogPath(appName)}),
 			agentpolicy.CodingPolicyCommands(agentpolicy.CodingPolicyConfig{Runner: appName, CatalogPath: agentpolicy.ResourceCatalogPath(appName), Posture: agentpolicy.EnforcementPosture{Permissions: "hook_backed", Caveats: []string{"Claude native permission denials are backed by a PreToolUse Bash hook."}}}),
 			permissionscli.Commands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
 			upstreamverb.Commands(upstreamcheck.Default(upstreamcheck.Config{

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/config"
@@ -18,6 +19,7 @@ import (
 	"agent-manager/internal/invocationreadmodel"
 	analyticsmeasures "agent-manager/internal/measures"
 	"agent-manager/internal/metrics"
+	"agent-manager/internal/modelpolicydrift"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/permissionpolicy"
@@ -32,6 +34,7 @@ import (
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/cli-core/agentpolicy"
 	domainconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain/domainconnect"
 	measureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures/measures_v1connect"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
@@ -56,6 +59,7 @@ type RouteDependencies struct {
 	HealthStore           *healthstore.Store
 	EventRepository       eventlog.Repository
 	InvocationReadModel   invocationreadmodel.Store
+	ModelPolicyDrift      *modelpolicydrift.Scheduler
 	WorkspaceSandbox      interface {
 		IsAvailable(context.Context) (bool, string)
 	}
@@ -130,14 +134,24 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		routesLog.Info("operational stats endpoints registered", "path", "/api/v1/stats/operational, /api/v1/stats/fallback")
 	}
 	if deps.HealthStore != nil {
-		handlers.NewHealthAuditHandler(deps.HealthStore).RegisterRoutes(router)
+		catalogReader := func(context.Context) []agentpolicy.CatalogFreshness {
+			freshness := make([]agentpolicy.CatalogFreshness, 0, 4)
+			for _, runner := range []string{"codex", "claude-code", "opencode", "grok"} {
+				path := filepath.Join(repoRoot, "resources", runner, "model-policy.json")
+				freshness = append(freshness, agentpolicy.ReadCatalogFreshness(runner, path, time.Now().UTC()))
+			}
+			return freshness
+		}
+		handlers.NewHealthAuditHandler(deps.HealthStore).WithCatalogFreshness(catalogReader).WithModelPolicyDrift(deps.ModelPolicyDrift).RegisterRoutes(router)
 		routesLog.Info("health audit endpoints registered", "path", "/api/v1/health/{models,runners,audit}")
 	}
+	handlers.NewCanaryHandler(deps.InvocationReadModel).RegisterRoutes(router)
 	if deps.EventRepository != nil {
 		handlers.NewEventsHandler(deps.EventRepository).RegisterRoutes(router)
 		routesLog.Info("events endpoint registered", "path", "/api/v1/events")
 	}
 	if deps.InvocationReadModel != nil {
+		handlers.NewRunClassHandler(deps.InvocationReadModel).RegisterRoutes(router)
 		measureHandler := analyticsmeasures.NewHandler(deps.InvocationReadModel, nil)
 		if validityConfig, err := config.LoadMeasureValidityConfig(); err == nil {
 			measureHandler.SetValidityConfig(analyticsmeasures.ValidityConfig{MinSampleMeaningful: validityConfig.MinSampleMeaningful, MaxFingerprintBucketShare: validityConfig.MaxFingerprintBucketShare})

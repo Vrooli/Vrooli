@@ -16,6 +16,7 @@ import (
 	"agent-manager/internal/handlers"
 	healthstore "agent-manager/internal/health"
 	"agent-manager/internal/invocationreadmodel"
+	"agent-manager/internal/modelpolicydrift"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/permissionpolicy"
@@ -54,6 +55,7 @@ type Server struct {
 	awaitRegistry         *orchestration.AwaitRegistry
 	workflowNudger        *orchestration.WorkflowNudger
 	modelHealthProbe      *healthstore.Probe
+	modelPolicyDrift      *modelpolicydrift.Scheduler
 	rolePolicyState       *rolepolicy.State
 	permissionPolicyState *permissionpolicy.State
 	permissionPolicy      *permissionpolicy.Service
@@ -133,7 +135,7 @@ func NewServer() (*Server, error) {
 		db: db, fileRoots: fileRoots, router: mux.NewRouter().UseEncodedPath(), orchestrator: deps.Orchestrator,
 		statsService: deps.StatsService, statsRepo: deps.StatsRepository, pricingService: deps.PricingService, pricingRepository: deps.PricingRepository,
 		wsHub: wsHub, reconciler: deps.Reconciler, awaitRegistry: deps.AwaitRegistry, workflowNudger: deps.WorkflowNudger,
-		modelHealthProbe: deps.ModelHealthProbe, rolePolicyState: deps.RolePolicyState, permissionPolicyState: deps.PermissionPolicyState,
+		modelHealthProbe: deps.ModelHealthProbe, modelPolicyDrift: deps.ModelPolicyDrift, rolePolicyState: deps.RolePolicyState, permissionPolicyState: deps.PermissionPolicyState,
 		permissionPolicy: deps.PermissionPolicy, storage: uploadStorage, statsEngine: deps.StatsEngine,
 		healthStore: deps.HealthStore, eventRepo: deps.EventRepository, invocationReadModel: deps.InvocationReadModel,
 		workspaceSandbox: deps.WorkspaceSandbox,
@@ -183,6 +185,9 @@ func (s *Server) startRecovery() {
 	if s.modelHealthProbe != nil {
 		s.modelHealthProbe.Start(ctx)
 	}
+	if s.modelPolicyDrift != nil {
+		s.modelPolicyDrift.Start(ctx)
+	}
 	if s.statsEngine != nil {
 		if err := s.statsEngine.Rebuild(ctx); err != nil {
 			obs.Logger().Warn("stats engine rebuild failed", obs.KeyError, err.Error())
@@ -196,6 +201,7 @@ func (s *Server) setupRoutes() {
 		PricingService: s.pricingService, PricingRepository: s.pricingRepository, WebSocketHub: s.wsHub, RolePolicyState: s.rolePolicyState,
 		PermissionPolicyState: s.permissionPolicyState, PermissionPolicy: s.permissionPolicy, Storage: s.storage,
 		StatsEngine: s.statsEngine, HealthStore: s.healthStore, EventRepository: s.eventRepo, InvocationReadModel: s.invocationReadModel,
+		ModelPolicyDrift: s.modelPolicyDrift,
 		WorkspaceSandbox: s.workspaceSandbox,
 	})
 }
@@ -208,7 +214,7 @@ func (s *Server) Router() http.Handler {
 }
 
 func (s *Server) Cleanup() error {
-	wiring.Shutdown(s.db, s.reconciler, s.awaitRegistry, s.workflowNudger)
+	wiring.Shutdown(s.db, s.reconciler, s.awaitRegistry, s.workflowNudger, s.modelPolicyDrift)
 	return nil
 }
 

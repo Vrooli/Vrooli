@@ -21,9 +21,10 @@ type Metadata struct {
 }
 
 type Role struct {
-	Description string      `json:"description"`
-	Intent      string      `json:"intent"`
-	Candidates  []Candidate `json:"candidates"`
+	Description    string      `json:"description"`
+	Intent         string      `json:"intent"`
+	OrderingReason string      `json:"orderingReason"`
+	Candidates     []Candidate `json:"candidates"`
 }
 
 // Candidate selects a resource-owned role on one runner. The resource CLI

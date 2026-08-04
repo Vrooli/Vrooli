@@ -13,19 +13,20 @@ import (
 // ResolvedCandidate is immutable resource-owned evidence captured for one
 // portable catalog candidate. Model and fallbacks are output evidence only.
 type ResolvedCandidate struct {
-	Runner         domain.RunnerType      `json:"runner"`
-	ResourceRole   string                 `json:"resourceRole"`
-	Model          string                 `json:"model,omitempty"`
-	CanonicalModel string                 `json:"canonicalModel,omitempty"`
-	Fallbacks      []string               `json:"fallbacks,omitempty"`
-	Available      bool                   `json:"available"`
-	FailureCode    string                 `json:"failureCode,omitempty"`
-	Failure        string                 `json:"failure,omitempty"`
-	Provenance     ResourceProvenance     `json:"provenance,omitempty"`
-	Enforcement    EnforcementPosture     `json:"enforcement,omitempty"`
-	PolicyPath     string                 `json:"policyPath,omitempty"`
-	PolicyDigest   string                 `json:"policyDigest,omitempty"`
-	Billing        domain.BillingSnapshot `json:"billing,omitempty"`
+	Runner         domain.RunnerType        `json:"runner"`
+	ResourceRole   string                   `json:"resourceRole"`
+	Model          string                   `json:"model,omitempty"`
+	CanonicalModel string                   `json:"canonicalModel,omitempty"`
+	Fallbacks      []string                 `json:"fallbacks,omitempty"`
+	Available      bool                     `json:"available"`
+	FailureCode    string                   `json:"failureCode,omitempty"`
+	Failure        string                   `json:"failure,omitempty"`
+	Provenance     ResourceProvenance       `json:"provenance,omitempty"`
+	Enforcement    EnforcementPosture       `json:"enforcement,omitempty"`
+	PolicyPath     string                   `json:"policyPath,omitempty"`
+	PolicyDigest   string                   `json:"policyDigest,omitempty"`
+	Billing        domain.BillingSnapshot   `json:"billing,omitempty"`
+	Challenger     *domain.ChallengerConfig `json:"challenger,omitempty"`
 }
 
 // Resolution is a run-creation-time immutable result. It is intentionally
@@ -58,13 +59,28 @@ func (r *Resolution) Snapshot() *domain.ExecutionPolicySnapshot {
 			Provenance:  domain.ResourceProvenance{Source: candidate.Provenance.Source, ObservedAt: candidate.Provenance.ObservedAt},
 			Enforcement: domain.PermissionEnforcement{Permissions: candidate.Enforcement.Permissions, Caveats: append([]string(nil), candidate.Enforcement.Caveats...)},
 			PolicyPath:  candidate.PolicyPath, PolicyDigest: candidate.PolicyDigest,
-			Billing: candidate.Billing,
+			Billing:         candidate.Billing,
+			ChallengerModel: challengerModel(candidate.Challenger), ChallengerSampleRate: challengerRate(candidate.Challenger),
 		})
 	}
 	return &domain.ExecutionPolicySnapshot{
 		CatalogDigest: r.CatalogDigest, RoleRef: r.RoleRef, Candidates: candidates,
 		Explanation: domain.PolicyResolutionExplanation{Source: "portable_role", Summary: fmt.Sprintf("portable role %q resolved through resource-owned policy catalogs", r.RoleRef), RequestedRoleRef: r.RoleRef},
 	}
+}
+
+func challengerModel(value *domain.ChallengerConfig) string {
+	if value == nil {
+		return ""
+	}
+	return value.Model
+}
+
+func challengerRate(value *domain.ChallengerConfig) float64 {
+	if value == nil {
+		return 0
+	}
+	return value.SampleRate
 }
 
 // Resolve resolves every configured candidate in deterministic catalog order.
@@ -113,6 +129,7 @@ func (s *State) Resolve(ctx context.Context, resolver Resolver, roleRef string) 
 		resolved.PolicyPath = evidence.PolicyPath
 		resolved.PolicyDigest = evidence.PolicyDigest
 		resolved.Billing = evidence.Billing
+		resolved.Challenger = evidence.Challenger
 		if resolved.Billing.Basis == "" {
 			resolved.Billing.Basis = resolved.Billing.EffectiveBasis()
 		}

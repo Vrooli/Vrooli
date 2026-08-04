@@ -173,6 +173,10 @@ read-only: web-console stores natural-language user/assistant text only (not
 thought chunks or tool arguments) and reads no auth material. See
 `scenarios/web-console/docs/guides/CONVERSATION_TRACKING.md`.
 
+## Model catalog operations
+
+`resource-grok models list --json` reports the authenticated runner inventory without invoking a model. `resource-grok models resolve --model <id> --json` returns the resource-owned canonical pricing identity. Run `resource-grok policy validate --against-live --json` after a retarget and refresh the provenance date within the 14-day staleness budget. The drift safeguard is reporting-only; catalog edits require explicit review.
+
 ## References
 
 - [Grok Build CLI](https://x.ai/cli)

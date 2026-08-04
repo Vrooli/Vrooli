@@ -146,6 +146,10 @@ attributed to it only when the match is unambiguous (directory + creation time +
 uniqueness); concurrent `opencode` panes in the same directory are skipped rather
 than misrouted. See `scenarios/web-console/docs/guides/CONVERSATION_TRACKING.md`.
 
+## Model catalog operations
+
+`resource-opencode models list --json` reads the runner's current model listing without a completion call. `resource-opencode models resolve --model <id> --json` returns the resource-owned canonical pricing identity. Run `resource-opencode policy validate --against-live --json` after a retarget. Record the provider slug and observation date, keep fallbacks no more expensive than their primary where evidence permits, and review catalog changes explicitly within the 14-day staleness budget.
+
 ## References
 
 - [OpenCode](https://opencode.ai)

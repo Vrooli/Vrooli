@@ -637,7 +637,7 @@ func (h *PricingHandler) CompareModels(w http.ResponseWriter, r *http.Request) {
 // Helpers
 // =============================================================================
 
-// decodePathParam URL-decodes a path parameter (for model names with slashes like "anthropic/claude-3-opus").
+// decodePathParam URL-decodes a path parameter, including provider/model IDs.
 func decodePathParam(param string) string {
 	decoded, err := url.PathUnescape(param)
 	if err != nil {

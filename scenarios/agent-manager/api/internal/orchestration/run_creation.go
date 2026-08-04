@@ -111,11 +111,13 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 	}
 
 	// Resolve configuration: profile (if provided) + inline overrides
+	runID := uuid.New()
 	resolvedConfig, profile, err := o.resolveRunConfig(ctx, req)
 	if err != nil {
 		o.markIdempotencyFailed(ctx, req.IdempotencyKey)
 		return nil, err
 	}
+	applyCanary(resolvedConfig.PolicySnapshot, runID.String(), resolvedConfig.Model)
 
 	sandboxConfig, err := o.resolveSandboxConfig(req, profile)
 	if err != nil {
@@ -292,7 +294,7 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 	}
 	resolvedConfig.Billing = billing
 	run := &domain.Run{
-		ID:                       uuid.New(),
+		ID:                       runID,
 		TaskID:                   task.ID,
 		AgentProfileID:           profileID, // May be nil if inline config used
 		Tag:                      tag,       // Custom tag for identification
@@ -317,6 +319,7 @@ func (o *Orchestrator) CreateRun(ctx context.Context, req CreateRunRequest) (*do
 		// Provenance: requested is the primary model the preset expanded to at creation.
 		// Actual is blank until the executor records the model that actually ran.
 		RequestedModel: resolvedConfig.Model,
+		CanaryArm:      resolvedConfig.PolicySnapshot.CanaryArm,
 		CreatedAt:      o.now(),
 		UpdatedAt:      o.now(),
 	}

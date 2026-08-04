@@ -150,14 +150,16 @@ const (
 // snapshot-driven execution. Events always carry immutable revision/index
 // provenance, including the terminal exhausted outcome.
 type PolicyCandidateAttemptPayload struct {
-	CatalogDigest string                 `json:"catalog_digest"`
-	SnapshotIndex int                    `json:"snapshot_index"`
-	Runner        string                 `json:"runner"`
-	SelectionType string                 `json:"selection_type"`
-	Model         string                 `json:"model,omitempty"`
-	Outcome       PolicyCandidateOutcome `json:"outcome"`
-	Reason        string                 `json:"reason,omitempty"`
-	FailureClass  string                 `json:"failure_class,omitempty"`
+	CatalogDigest   string                 `json:"catalog_digest"`
+	SnapshotIndex   int                    `json:"snapshot_index"`
+	Runner          string                 `json:"runner"`
+	SelectionType   string                 `json:"selection_type"`
+	Model           string                 `json:"model,omitempty"`
+	Outcome         PolicyCandidateOutcome `json:"outcome"`
+	Reason          string                 `json:"reason,omitempty"`
+	FailureClass    string                 `json:"failure_class,omitempty"`
+	ChallengerModel string                 `json:"challenger_model,omitempty"`
+	CanaryArm       string                 `json:"canary_arm,omitempty"`
 }
 
 // ModelHealthTransitionPayload records that a (runner, model) pair has

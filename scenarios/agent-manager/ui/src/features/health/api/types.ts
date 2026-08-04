@@ -25,10 +25,25 @@ export interface RunnerHealthRow {
   last_checked: string;
   reason?: string;
   message?: string;
+  catalog?: {
+    observed_at?: string;
+    age_days: number;
+    budget_days: number;
+    status: "fresh" | "stale" | "hard_stale" | "invalid" | "unknown";
+  };
 }
 
 export interface RunnerHealthListResponse {
   runners: RunnerHealthRow[];
+}
+
+export interface ModelPolicyDriftSnapshot {
+  last_run?: string;
+  status: "healthy" | "warning" | "critical" | "not_measured";
+  measured: number;
+  total: number;
+  findings?: Array<{ runner: string; type: string; severity: string; role?: string; model?: string; message: string; fingerprint: string }>;
+  interval_hours: number;
 }
 
 export interface HealthAuditRow {

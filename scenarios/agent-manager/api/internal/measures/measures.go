@@ -105,18 +105,18 @@ func definitionFor(name string) Definition {
 		HelpRecoveryRate:                     {ID: HelpRecoveryRate, Counts: "durable tool invocations", Numerator: "help-recovery calls", Denominator: "all classified tool calls", SourceTable: "invocation_read_model_facts"},
 		RepeatedWorkRate:                     {ID: RepeatedWorkRate, Counts: "durable tool invocations", Numerator: "repeated-work calls", Denominator: "all classified tool calls", SourceTable: "invocation_read_model_facts", Limitation: "fingerprint concentration can make this measure unreliable"},
 		ToolFailureRate:                      {ID: ToolFailureRate, Counts: "durable tool invocations", Numerator: "failed calls", Denominator: "all classified tool calls", SourceTable: "invocation_read_model_facts"},
-		RunSuccessRate:                       {ID: RunSuccessRate, Counts: "terminal runs", Numerator: "successful terminal runs", Denominator: "all terminal runs", SourceTable: "invocation_read_model_runs"},
-		RunCycleTime:                         {ID: RunCycleTime, Counts: "completed terminal runs", Numerator: "duration milliseconds", Denominator: "completed terminal runs", SourceTable: "invocation_read_model_runs"},
-		"throughput.run_duration_statistics": {ID: "throughput.run_duration_statistics", Counts: "completed terminal runs", Numerator: "duration percentiles and range", Denominator: "completed terminal runs", SourceTable: "invocation_read_model_runs"},
-		RunCost:                              {ID: RunCost, Counts: "terminal runs", Numerator: "charge and token totals", Denominator: "terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "unpriced and imported runs are excluded from metered consumption"},
-		RunVolume:                            {ID: RunVolume, Counts: "terminal run summaries", Numerator: "terminal runs", Denominator: "none", SourceTable: "invocation_read_model_runs"},
-		RunStatusDistribution:                {ID: RunStatusDistribution, Counts: "terminal runs", Numerator: "runs in each status", Denominator: "all terminal runs", SourceTable: "invocation_read_model_runs"},
-		RunnerBreakdown:                      {ID: RunnerBreakdown, Counts: "terminal runs", Numerator: "runs grouped by runner", Denominator: "all terminal runs", SourceTable: "invocation_read_model_runs"},
-		ModelBreakdown:                       {ID: ModelBreakdown, Counts: "terminal runs", Numerator: "runs grouped by model", Denominator: "all terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "model assignment is observational, not randomized"},
-		ProfileBreakdown:                     {ID: ProfileBreakdown, Counts: "terminal runs", Numerator: "runs grouped by profile", Denominator: "all terminal runs", SourceTable: "invocation_read_model_runs"},
-		WorkloadBreakdown:                    {ID: WorkloadBreakdown, Counts: "terminal runs", Numerator: "workload totals and completion outcomes", Denominator: "all terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "model assignment is observational, not randomized"},
-		WorkloadEfficiency:                   {ID: WorkloadEfficiency, Counts: "terminal runs for a workload", Numerator: "total tokens", Denominator: "successful completions", SourceTable: "invocation_read_model_runs", Limitation: "model assignment is observational, not randomized"},
-		TerminalRunTrend:                     {ID: TerminalRunTrend, Counts: "terminal runs", Numerator: "hourly terminal outcomes", Denominator: "none", SourceTable: "invocation_read_model_runs"},
+		RunSuccessRate:                       {ID: RunSuccessRate, Counts: "executed terminal runs", Numerator: "successful executed terminal runs", Denominator: "all executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "imported and interactive runs are reported separately and excluded"},
+		RunCycleTime:                         {ID: RunCycleTime, Counts: "completed executed terminal runs", Numerator: "duration milliseconds", Denominator: "completed executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "imported and interactive runs are reported separately and excluded"},
+		"throughput.run_duration_statistics": {ID: "throughput.run_duration_statistics", Counts: "completed executed terminal runs", Numerator: "duration percentiles and range", Denominator: "completed executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "imported and interactive runs are reported separately and excluded"},
+		RunCost:                              {ID: RunCost, Counts: "executed terminal runs", Numerator: "charge and token totals", Denominator: "executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "unpriced, imported, and interactive runs are excluded from metered consumption"},
+		RunVolume:                            {ID: RunVolume, Counts: "executed terminal run summaries", Numerator: "executed terminal runs", Denominator: "none", SourceTable: "invocation_read_model_runs", Limitation: "imported and interactive runs are reported separately and excluded"},
+		RunStatusDistribution:                {ID: RunStatusDistribution, Counts: "executed terminal runs", Numerator: "runs in each status", Denominator: "all executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "imported and interactive runs are reported separately and excluded"},
+		RunnerBreakdown:                      {ID: RunnerBreakdown, Counts: "executed terminal runs", Numerator: "runs grouped by runner", Denominator: "all executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "imported and interactive runs are reported separately and excluded"},
+		ModelBreakdown:                       {ID: ModelBreakdown, Counts: "executed terminal runs", Numerator: "runs grouped by model", Denominator: "all executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "imported and interactive runs are reported separately and excluded; model assignment is observational, not randomized"},
+		ProfileBreakdown:                     {ID: ProfileBreakdown, Counts: "executed terminal runs", Numerator: "runs grouped by profile", Denominator: "all executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "imported and interactive runs are reported separately and excluded"},
+		WorkloadBreakdown:                    {ID: WorkloadBreakdown, Counts: "executed terminal runs", Numerator: "workload totals and completion outcomes", Denominator: "all executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "imported and interactive runs are reported separately and excluded; model assignment is observational, not randomized"},
+		WorkloadEfficiency:                   {ID: WorkloadEfficiency, Counts: "executed terminal runs for a workload", Numerator: "total tokens", Denominator: "successful completions", SourceTable: "invocation_read_model_runs", Limitation: "imported and interactive runs are reported separately and excluded; model assignment is observational, not randomized"},
+		TerminalRunTrend:                     {ID: TerminalRunTrend, Counts: "executed terminal runs", Numerator: "hourly terminal outcomes", Denominator: "none", SourceTable: "invocation_read_model_runs", Limitation: "imported and interactive runs are reported separately and excluded"},
 		ToolUsage:                            {ID: ToolUsage, Counts: "tool invocation facts", Numerator: "calls grouped by tool", Denominator: "none", SourceTable: "invocation_read_model_facts"},
 		"friction.tool_command_breakdown":    {ID: "friction.tool_command_breakdown", Counts: "tool invocation facts", Numerator: "calls grouped by executable and command path", Denominator: "none", SourceTable: "invocation_read_model_facts", Limitation: "command detail is unavailable when the source fact did not record it"},
 		ErrorPatterns:                        {ID: ErrorPatterns, Counts: "durable error facts", Numerator: "errors grouped by code", Denominator: "none", SourceTable: "invocation_read_model_errors"},
@@ -190,10 +190,10 @@ func declarations() []struct {
 		{HelpRecoveryRate, "HelpRecoveryRate", "Share of tool invocations that follow a help-recovery signal.", "share", "{value} help-recovery rate ({window})", []string{"what is the help recovery rate", "how often do agents recover after asking for help", "show help recoveries this month"}, helpRecoveryRate},
 		{RepeatedWorkRate, "RepeatedWorkRate", "Share of tool invocations in repeated-work fingerprints.", "share", "{value} repeated-work rate ({window})", []string{"what is the repeated work rate", "how much tool work is repeated", "show agent reread and repeated invocation rate"}, repeatedWorkRate},
 		{ToolFailureRate, "ToolFailureRate", "Share of durable tool invocations whose classified outcome failed.", "share", "{value} tool failure rate ({window})", []string{"what is the tool failure rate", "how often do agent tool calls fail", "show failed tool invocation share"}, toolFailureRate},
-		{RunSuccessRate, "RunSuccessRate", "Share of terminal runs that completed successfully.", "share", "{value} run success rate ({window})", []string{"what is the agent run success rate this week", "how often do agent runs complete successfully"}, runSuccessRate},
-		{RunCycleTime, "RunCycleTime", "Average completed run cycle time in milliseconds.", "milliseconds", "{value} average run cycle time ({window})", []string{"what is the average agent run cycle time", "how long do completed agent runs take"}, runCycleTime},
-		{RunCost, "RunCost", "Total terminal run cost in USD with retained token usage.", "usd", "{value} agent run cost ({window})", []string{"what did agent runs cost this week", "show total agent run cost"}, runCost},
-		{RunVolume, "RunVolume", "Number of terminal run summaries in the window.", "runs", "{value} agent run volume ({window})", []string{"how many agent runs completed this week", "show agent run volume"}, runVolume},
+		{RunSuccessRate, "RunSuccessRate", "Share of executed terminal runs that completed successfully; imported and interactive runs are separate.", "share", "{value} run success rate ({window})", []string{"what is the agent run success rate this week", "how often do agent runs complete successfully"}, runSuccessRate},
+		{RunCycleTime, "RunCycleTime", "Average executed completed run cycle time in milliseconds.", "milliseconds", "{value} average run cycle time ({window})", []string{"what is the average agent run cycle time", "how long do completed agent runs take"}, runCycleTime},
+		{RunCost, "RunCost", "Total executed terminal run cost in USD with retained token usage.", "usd", "{value} agent run cost ({window})", []string{"what did agent runs cost this week", "show total agent run cost"}, runCost},
+		{RunVolume, "RunVolume", "Number of executed terminal run summaries in the window.", "runs", "{value} agent run volume ({window})", []string{"how many agent runs completed this week", "show agent run volume"}, runVolume},
 		{FileRereadRate, "FileRereadRate", "Share of file-read calls that revisit a path already read in the same run.", "share", "{value} file reread rate ({window})", []string{"what is the agent file reread rate", "how often do agents reread files"}, fileRereadRate},
 		{FindingRecurrenceRate, "FindingRecurrenceRate", "Share of persisted investigation findings whose fingerprint recurs in the same filtered finding corpus.", "share", "{value} finding recurrence rate ({window})", []string{"what is the recurring finding rate", "which agent findings recur"}, findingRecurrenceRate},
 	}
@@ -293,6 +293,7 @@ func filterFromProto(input *measurepb.InvocationFilter, now time.Time) (invocati
 		input = &measurepb.InvocationFilter{}
 	}
 	filter := invocationreadmodel.Filter{Ownership: input.GetOwnership(), Outcome: input.GetOutcome(), Executable: input.GetExecutable(), Fingerprint: input.GetFingerprint(), ProfileID: input.GetProfileId(), RunnerType: input.GetRunnerType(), Model: input.GetModel(), TagPrefix: input.GetTagPrefix(), RunStatus: input.GetRunStatus(), ToolName: input.GetToolName(), WorkloadKey: input.GetWorkloadKey(), ErrorCode: input.GetErrorCode(), EpisodePattern: input.GetEpisodePattern(), EpisodeCauseScope: input.GetEpisodeCauseScope(), EpisodeFingerprint: input.GetEpisodeFingerprint(), SelfReportRuleID: input.GetSelfReportRuleId(), SelfReportCauseScope: input.GetSelfReportCauseScope(), TargetScenario: input.GetTargetScenario(), Operation: input.GetOperation()}
+	filter.ExcludedWorkloadKinds = []string{"interactive", "imported"}
 	window := input.GetWindow()
 	if window == nil {
 		window = &sharedmeasurepb.TimeWindow{Window: &sharedmeasurepb.TimeWindow_Token{Token: sharedmeasurepb.TimeWindowToken_TIME_WINDOW_TOKEN_THIS_WEEK}}
@@ -711,6 +712,13 @@ func (h *Handler) runBreakdownRows(ctx context.Context, input *measurepb.Invocat
 	filter, err := filterWithWindow(input, window, h.now())
 	if err != nil {
 		return nil, "", invocationreadmodel.Filter{}, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if dimension == "model" && filter.WorkloadKind == "" {
+		// Interactive and imported runs are valid analytical populations, but
+		// their model assignment has different provenance. Keep the default
+		// model measure reproducible by excluding them; callers can request
+		// either class explicitly through workload_kind.
+		filter.ExcludedWorkloadKinds = []string{"interactive", "imported"}
 	}
 	rows, err := h.store.RunBreakdown(ctx, filter, dimension, 20)
 	if err != nil {

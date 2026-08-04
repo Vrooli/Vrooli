@@ -875,6 +875,7 @@ var runColumnMigrations = []columnMigration{
 	{column: "billing_snapshot", ddl: "ALTER TABLE runs ADD COLUMN billing_snapshot TEXT NOT NULL DEFAULT '{}'"},
 	{column: "goal_id", ddl: "ALTER TABLE runs ADD COLUMN goal_id TEXT NOT NULL DEFAULT ''"},
 	{column: "goal_status", ddl: "ALTER TABLE runs ADD COLUMN goal_status TEXT NOT NULL DEFAULT ''"},
+	{column: "canary_arm", ddl: "ALTER TABLE runs ADD COLUMN canary_arm TEXT NOT NULL DEFAULT ''"},
 }
 
 // migrateRunColumns adds any missing additive columns to the runs table.

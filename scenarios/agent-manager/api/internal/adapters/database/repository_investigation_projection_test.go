@@ -199,6 +199,42 @@ func TestInvocationReadModelRunMetricsUseDurableTerminalFactsAndSharedFilters(t 
 	}
 }
 
+func TestInvocationReadModelRunClassAndMissingModelBreakdownsUseDirectProjection(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repo := &invocationReadModelRepository{db: db}
+	now := time.Date(2026, 7, 29, 20, 0, 0, 0, time.UTC)
+	for _, item := range []struct{ id, class, model string }{{"executed", "", "gpt-test"}, {"imported", "imported", ""}, {"interactive", "interactive", ""}} {
+		if err := repo.ReplaceRun(context.Background(), invocationreadmodel.RunFact{RunID: item.id, OccurredAt: now, CreatedAt: now, Status: "complete", RunnerType: "codex", Model: item.model, WorkloadKind: item.class, TotalTokens: 1, ProjectedAt: now}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	classes, err := repo.RunBreakdown(context.Background(), invocationreadmodel.Filter{}, "workload_kind", 10)
+	if err != nil || len(classes) != 3 {
+		t.Fatalf("classes=%+v err=%v", classes, err)
+	}
+	seen := map[string]int64{}
+	for _, row := range classes {
+		seen[row.Value] = row.RunCount
+	}
+	if seen[""] != 1 || seen["imported"] != 1 || seen["interactive"] != 1 {
+		t.Fatalf("class counts=%v", seen)
+	}
+	executed, err := repo.RunBreakdown(context.Background(), invocationreadmodel.Filter{ExcludedWorkloadKinds: []string{"imported", "interactive"}}, "model", 10)
+	if err != nil || len(executed) != 1 {
+		t.Fatalf("executed model rows=%+v err=%v", executed, err)
+	}
+	var missing int64
+	for _, row := range executed {
+		if row.Value == "" {
+			missing += row.RunCount
+		}
+	}
+	if missing != 0 {
+		t.Fatalf("imported/interactive rows leaked into executed missing-model denominator: %d", missing)
+	}
+}
+
 func ptrTime(value time.Time) *time.Time { return &value }
 
 func TestLegacyInvestigationProjectionMigrationCopiesThenDropsRetiredTables(t *testing.T) {

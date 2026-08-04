@@ -57,6 +57,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 	app.SetCommandsWithSubgroups(
 		app.StandardLifecycleCommands(),
 		[]cliapp.SubcommandGroup{
+			agentpolicy.ModelDiscoveryCommands(agentpolicy.ModelDiscoveryConfig{Runner: appName, CatalogPath: agentpolicy.ResourceCatalogPath(appName)}),
 			agentpolicy.CodingPolicyCommands(agentpolicy.CodingPolicyConfig{Runner: appName, CatalogPath: agentpolicy.ResourceCatalogPath(appName), Posture: agentpolicy.EnforcementPosture{Permissions: "intent_only", Caveats: []string{"Codex does not natively enforce per-command allow, ask, or deny patterns."}}}),
 			permissionscli.Commands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
 			upstreamverb.Commands(upstreamcheck.Default(upstreamcheck.Config{

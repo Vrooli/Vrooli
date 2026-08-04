@@ -127,6 +127,12 @@ func (a *App) healthRunners(args []string) error {
 			LastChecked time.Time `json:"last_checked"`
 			Reason      string    `json:"reason,omitempty"`
 			Message     string    `json:"message,omitempty"`
+			Catalog     *struct {
+				ObservedAt string `json:"observed_at,omitempty"`
+				AgeDays    int    `json:"age_days"`
+				BudgetDays int    `json:"budget_days"`
+				Status     string `json:"status"`
+			} `json:"catalog,omitempty"`
 		} `json:"runners"`
 	}
 	if err := json.Unmarshal(body, &resp); err != nil {
@@ -137,13 +143,16 @@ func (a *App) healthRunners(args []string) error {
 		return nil
 	}
 	sort.Slice(resp.Runners, func(i, j int) bool { return resp.Runners[i].Runner < resp.Runners[j].Runner })
-	fmt.Printf("%-15s  %-9s  %-19s  %s\n", "RUNNER", "STATUS", "LAST CHECKED", "REASON")
+	fmt.Printf("%-15s  %-9s  %-19s  %-12s  %s\n", "RUNNER", "STATUS", "LAST CHECKED", "CATALOG", "REASON")
 	for _, r := range resp.Runners {
-		fmt.Printf("%-15s  %-9s  %-19s  %s\n",
+		catalog := "unknown"
+		if r.Catalog != nil {
+			catalog = fmt.Sprintf("%s(%dd/%dd)", r.Catalog.Status, r.Catalog.AgeDays, r.Catalog.BudgetDays)
+		}
+		fmt.Printf("%-15s  %-9s  %-19s  %-12s  %s\n",
 			trim(r.Runner, 15),
 			r.Status,
-			r.LastChecked.UTC().Format("2006-01-02 15:04:05"),
-			r.Reason,
+			r.LastChecked.UTC().Format("2006-01-02 15:04:05"), catalog, r.Reason,
 		)
 	}
 	return nil

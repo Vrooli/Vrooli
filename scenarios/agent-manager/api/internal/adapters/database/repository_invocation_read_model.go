@@ -602,7 +602,7 @@ func (r *invocationReadModelRepository) RunStatusCounts(ctx context.Context, fil
 }
 
 func (r *invocationReadModelRepository) RunBreakdown(ctx context.Context, filter invocationreadmodel.Filter, dimension string, limit int) ([]invocationreadmodel.RunBreakdownRow, error) {
-	columns := map[string]string{"runner": "runner_type", "model": "model", "profile": "profile_id", "workload": "workload_key"}
+	columns := map[string]string{"runner": "runner_type", "model": "model", "profile": "profile_id", "workload": "workload_key", "workload_kind": "workload_kind"}
 	column, ok := columns[dimension]
 	if !ok {
 		return nil, fmt.Errorf("unsupported durable run breakdown dimension %q", dimension)
@@ -646,6 +646,39 @@ func (r *invocationReadModelRepository) RunBreakdown(ctx context.Context, filter
 			return nil, err
 		}
 		out = append(out, row)
+	}
+	return out, rows.Err()
+}
+
+func (r *invocationReadModelRepository) CanaryRuns(ctx context.Context, filter invocationreadmodel.Filter) ([]invocationreadmodel.CanaryRun, error) {
+	clauses := []string{"irm.workload_kind NOT IN (?, ?)", "r.canary_arm IN (?, ?)"}
+	args := []any{"imported", "interactive", "incumbent", "challenger"}
+	if filter.From != nil {
+		clauses = append(clauses, "irm.created_at >= ?")
+		args = append(args, SQLiteTime(*filter.From))
+	}
+	if filter.To != nil {
+		clauses = append(clauses, "irm.created_at < ?")
+		args = append(args, SQLiteTime(*filter.To))
+	}
+	if filter.RunnerType != "" {
+		clauses = append(clauses, "irm.runner_type = ?")
+		args = append(args, filter.RunnerType)
+	}
+	query := `SELECT COALESCE(json_extract(r.resolved_config, '$.policySnapshot.roleRef'), ''), r.canary_arm, irm.status, COALESCE(irm.duration_ms, 0), COALESCE(irm.total_cost_usd, 0)
+		FROM invocation_read_model_runs irm JOIN runs r ON r.id = irm.run_id WHERE ` + strings.Join(clauses, " AND ") + ` ORDER BY irm.created_at`
+	rows, err := r.db.QueryxContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []invocationreadmodel.CanaryRun{}
+	for rows.Next() {
+		var item invocationreadmodel.CanaryRun
+		if err := rows.Scan(&item.Role, &item.Arm, &item.Status, &item.DurationMS, &item.CostUSD); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
 	}
 	return out, rows.Err()
 }
@@ -951,6 +984,12 @@ func invocationReadModelRunWhere(filter invocationreadmodel.Filter) (string, []a
 	add("profile_id", filter.ProfileID)
 	add("runner_type", filter.RunnerType)
 	add("model", filter.Model)
+	for _, excluded := range filter.ExcludedWorkloadKinds {
+		if strings.TrimSpace(excluded) != "" {
+			clauses = append(clauses, "workload_kind <> ?")
+			args = append(args, excluded)
+		}
+	}
 	add("status", filter.RunStatus)
 	if filter.TagPrefix != "" {
 		clauses, args = append(clauses, "tag LIKE ?"), append(args, filter.TagPrefix+"%")

@@ -11,6 +11,7 @@ import { CostDurationTrends } from "./components/trends/CostDurationTrends";
 import { RunnerPerformanceTable } from "./components/tables/RunnerPerformanceTable";
 import { ProfileActivityTable } from "./components/tables/ProfileActivityTable";
 import { ModelUsageBreakdown } from "./components/breakdown/ModelUsageBreakdown";
+import { RunClassBreakdown } from "./components/breakdown/RunClassBreakdown";
 import { ToolUsageAnalytics } from "./components/breakdown/ToolUsageAnalytics";
 import { ErrorAnalysisSection } from "./components/errors/ErrorAnalysisSection";
 import { RecurringWorkloadPanel } from "./components/workload/RecurringWorkloadPanel";
@@ -74,6 +75,10 @@ function StatsPageContent() {
             <CostDurationTrends />
           </ProfiledStatsSection>
         </div>
+
+        <ProfiledStatsSection id="Stats:RunClassBreakdown">
+          <RunClassBreakdown />
+        </ProfiledStatsSection>
 
         {/* Tables Row */}
         <div className="grid gap-3 sm:gap-4 lg:grid-cols-2">

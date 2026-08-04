@@ -28,10 +28,14 @@ type AgentProfile struct {
 
 	// RoleRef is portable desired intent. Concrete runner/model selections are
 	// captured only in a run's immutable PolicySnapshot.
-	RoleRef  string        `json:"roleRef,omitempty" db:"role_ref"`
-	MaxTurns int           `json:"maxTurns,omitempty" db:"max_turns"`
-	Timeout  time.Duration `json:"timeout,omitempty" db:"timeout_ms"`
-	Effort   Effort        `json:"effort,omitempty" db:"effort"`
+	RoleRef string `json:"roleRef,omitempty" db:"role_ref"`
+	// RoleReason is declaration-only context explaining why the flagship role
+	// is appropriate. It is intentionally not part of the persisted execution
+	// contract; policy snapshots remain the source of run provenance.
+	RoleReason string        `json:"roleReason,omitempty" db:"-"`
+	MaxTurns   int           `json:"maxTurns,omitempty" db:"max_turns"`
+	Timeout    time.Duration `json:"timeout,omitempty" db:"timeout_ms"`
+	Effort     Effort        `json:"effort,omitempty" db:"effort"`
 
 	// Tool permissions
 	AllowedTools          []string              `json:"allowedTools,omitempty" db:"allowed_tools"`
@@ -183,22 +187,33 @@ const (
 	ModelSelectionTypeRunnerDefault ModelSelectionType = "runner_default"
 )
 
+// ChallengerConfig describes an optional sampled model comparison. It is
+// copied into the immutable execution snapshot; mutable catalog state is
+// never consulted while a run executes or resumes.
+type ChallengerConfig struct {
+	Model      string  `json:"model"`
+	SampleRate float64 `json:"sample_rate"`
+}
+
 // ExecutionCandidate is one immutable runner/model attempt in resolved order.
 type ExecutionCandidate struct {
-	RunnerType     RunnerType            `json:"runnerType"`
-	SelectionType  ModelSelectionType    `json:"selectionType"`
-	Model          string                `json:"model,omitempty"`
-	CanonicalModel string                `json:"canonicalModel,omitempty"`
-	ResourceRole   string                `json:"resourceRole,omitempty"`
-	Fallbacks      []string              `json:"fallbacks,omitempty"`
-	Available      bool                  `json:"available"`
-	FailureCode    string                `json:"failureCode,omitempty"`
-	Failure        string                `json:"failure,omitempty"`
-	Provenance     ResourceProvenance    `json:"provenance,omitempty"`
-	Enforcement    PermissionEnforcement `json:"enforcement,omitempty"`
-	PolicyPath     string                `json:"policyPath,omitempty"`
-	PolicyDigest   string                `json:"policyDigest,omitempty"`
-	Billing        BillingSnapshot       `json:"billing,omitempty"`
+	RunnerType           RunnerType            `json:"runnerType"`
+	SelectionType        ModelSelectionType    `json:"selectionType"`
+	Model                string                `json:"model,omitempty"`
+	CanonicalModel       string                `json:"canonicalModel,omitempty"`
+	ResourceRole         string                `json:"resourceRole,omitempty"`
+	Fallbacks            []string              `json:"fallbacks,omitempty"`
+	Available            bool                  `json:"available"`
+	FailureCode          string                `json:"failureCode,omitempty"`
+	Failure              string                `json:"failure,omitempty"`
+	Provenance           ResourceProvenance    `json:"provenance,omitempty"`
+	Enforcement          PermissionEnforcement `json:"enforcement,omitempty"`
+	PolicyPath           string                `json:"policyPath,omitempty"`
+	PolicyDigest         string                `json:"policyDigest,omitempty"`
+	Billing              BillingSnapshot       `json:"billing,omitempty"`
+	ChallengerModel      string                `json:"challengerModel,omitempty"`
+	ChallengerSampleRate float64               `json:"challengerSampleRate,omitempty"`
+	CanaryArm            string                `json:"canaryArm,omitempty"`
 }
 
 type BillingMode string
@@ -340,6 +355,7 @@ type ExecutionPolicySnapshot struct {
 	SelectedIndex     int                         `json:"selectedIndex"`
 	SelectedCandidate ExecutionCandidate          `json:"selectedCandidate"`
 	Explanation       PolicyResolutionExplanation `json:"explanation"`
+	CanaryArm         string                      `json:"canaryArm,omitempty"`
 }
 
 // NetworkAccess controls the level of network access granted to an agent during execution.
@@ -853,6 +869,9 @@ type Run struct {
 	// model-fallback (if any) converged. When they differ the run degraded through the chain.
 	RequestedModel string `json:"requestedModel,omitempty" db:"requested_model"`
 	ActualModel    string `json:"actualModel,omitempty" db:"actual_model"`
+	// CanaryArm is duplicated for operator ergonomics; the immutable policy
+	// snapshot remains the authoritative replay record.
+	CanaryArm string `json:"canaryArm,omitempty" db:"canary_arm"`
 
 	// Investigation lineage fields
 	// SourceRunIDs links investigation runs back to the run(s) being investigated.

@@ -88,6 +88,10 @@ For declarative automation, use `permissions plan --document desired.json --json
 
 Pinned upstream docs: <https://code.claude.com/docs/en/permissions> (see `resource.json` → `upstream_cli`).
 
+## Model catalog operations
+
+`resource-claude-code models list --json` reports the quota-free `--model` alias surface and pinned evidence. `resource-claude-code models resolve --model <id> --json` returns the resource-owned canonical pricing identity. Run `resource-claude-code policy validate --against-live --json` after a retarget. Keep moving aliases as primaries and use pinned fallbacks for reproducible history; refresh provenance within the 14-day staleness budget. Policy edits remain explicitly reviewed.
+
 ## Notes
 
 - `claude-code` is an external CLI resource, not a local daemon owned by this resource.

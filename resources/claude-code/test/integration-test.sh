@@ -382,6 +382,12 @@ register_tests \
     "test_claude_print_mode" \
     "test_package_integrity"
 
+test_model_policy_phase() {
+    bash "${RESOURCE_DIR}/test/phases/test-model-policy.sh"
+}
+
+register_tests "test_model_policy_phase"
+
 # Custom main function for CLI tools (no service availability check needed)
 claude_code_integration_main() {
     # Set up cleanup trap for temp files

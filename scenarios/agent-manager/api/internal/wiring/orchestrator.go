@@ -6,6 +6,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -22,6 +23,7 @@ import (
 	healthstore "agent-manager/internal/health"
 	"agent-manager/internal/identity"
 	"agent-manager/internal/invocationreadmodel"
+	"agent-manager/internal/modelpolicydrift"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/orchestration/spawn"
@@ -56,6 +58,7 @@ type OrchestratorDependencies struct {
 	AwaitRegistry         *orchestration.AwaitRegistry
 	WorkflowNudger        *orchestration.WorkflowNudger
 	ModelHealthProbe      *healthstore.Probe
+	ModelPolicyDrift      *modelpolicydrift.Scheduler
 	RolePolicyState       *rolepolicy.State
 	PermissionPolicyState *permissionpolicy.State
 	PermissionPolicy      *permissionpolicy.Service
@@ -107,7 +110,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	permissionPolicy := permissionpolicy.NewService(permissionState, permissionpolicy.NewResourcePermissionProjector(nil), permissionpolicy.NewSQLiteAuditStore(db))
 
 	pricingRepository := database.NewPricingRepository(db, logger)
-	pricingService := pricing.NewService(pricingRepository, []pricing.Provider{providers.NewOpenRouterProvider()}, logger)
+	pricingService := pricing.NewServiceWithModelResolver(pricingRepository, []pricing.Provider{providers.NewOpenRouterProvider()}, logger, pricing.NewCLIModelResolver())
 	startPricingLifecycle(pricingService, bootLog)
 	runners := NewRunners(pricingCodecAdapter{service: pricingService})
 	registry := runners.Registry
@@ -254,8 +257,25 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	}
 	eventRepo := eventlog.NewSQLiteRepository(db)
 	statsEngine := stats.NewEngine(eventRepo, stats.NewSQLiteCheckpointStore(db), "operational")
+	modelPolicyRoot := strings.TrimSpace(os.Getenv("PROJECT_ROOT"))
+	if modelPolicyRoot == "" {
+		modelPolicyRoot, _ = filepath.Abs(filepath.Join("..", "..", ".."))
+	}
+	modelPolicyDrift := modelpolicydrift.New(modelPolicyRoot, "", modelPolicyDriftInterval(), modelPolicyReporter{client: promptmanager.NewHTTPClient()})
 	bootLog.Info("orchestrator initialized", "storage", "sqlite", "sandbox", sandboxURL)
-	return OrchestratorDependencies{Orchestrator: orch, StatsService: orchestration.NewStatsOrchestrator(repos.Stats), StatsRepository: repos.Stats, PricingService: pricingService, PricingRepository: pricingRepository, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, StatsEngine: statsEngine, HealthStore: healthStore, EventRepository: eventRepo, InvocationReadModel: repos.InvocationReadModel, WorkspaceSandbox: sandboxProvider}, nil
+	return OrchestratorDependencies{Orchestrator: orch, StatsService: orchestration.NewStatsOrchestrator(repos.Stats), StatsRepository: repos.Stats, PricingService: pricingService, PricingRepository: pricingRepository, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), ModelPolicyDrift: modelPolicyDrift, RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, StatsEngine: statsEngine, HealthStore: healthStore, EventRepository: eventRepo, InvocationReadModel: repos.InvocationReadModel, WorkspaceSandbox: sandboxProvider}, nil
+}
+
+func modelPolicyDriftInterval() time.Duration {
+	value := strings.TrimSpace(os.Getenv("AGENT_MANAGER_MODEL_POLICY_DRIFT_INTERVAL"))
+	if value == "" {
+		return 7 * 24 * time.Hour
+	}
+	parsed, err := time.ParseDuration(value)
+	if err != nil || parsed <= 0 || parsed > 14*24*time.Hour {
+		return 7 * 24 * time.Hour
+	}
+	return parsed
 }
 
 func startPricingLifecycle(service pricing.Service, log *slog.Logger) {

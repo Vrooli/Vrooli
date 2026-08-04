@@ -590,6 +590,11 @@ func TestOpenCode_PostClassify_NoOpMessageHintsModelOnTextToolCall(t *testing.T)
 	if !strings.Contains(result.ErrorMessage, "tool call as text") {
 		t.Errorf("expected model/template hint, got %q", result.ErrorMessage)
 	}
+	for _, model := range []string{"gemma4:12b", "llama3.1", "mistral"} {
+		if strings.Contains(result.ErrorMessage, model) {
+			t.Errorf("diagnostic contains hard-coded model %q: %q", model, result.ErrorMessage)
+		}
+	}
 }
 
 func TestLooksLikeUnexecutedToolCall(t *testing.T) {

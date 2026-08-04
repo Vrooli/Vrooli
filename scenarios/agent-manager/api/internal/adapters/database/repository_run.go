@@ -100,6 +100,7 @@ type runRow struct {
 	// Model provenance
 	RequestedModel sql.NullString `db:"requested_model"`
 	ActualModel    sql.NullString `db:"actual_model"`
+	CanaryArm      sql.NullString `db:"canary_arm"`
 	CreatedAt      SQLiteTime     `db:"created_at"`
 	UpdatedAt      SQLiteTime     `db:"updated_at"`
 }
@@ -169,6 +170,7 @@ func (row *runRow) toDomain() *domain.Run {
 		// Model provenance
 		RequestedModel: row.RequestedModel.String,
 		ActualModel:    row.ActualModel.String,
+		CanaryArm:      row.CanaryArm.String,
 		CreatedAt:      row.CreatedAt.Time(),
 		UpdatedAt:      row.UpdatedAt.Time(),
 	}
@@ -250,6 +252,7 @@ func runFromDomain(r *domain.Run) *runRow {
 		// Model provenance
 		RequestedModel: sql.NullString{String: r.RequestedModel, Valid: r.RequestedModel != ""},
 		ActualModel:    sql.NullString{String: r.ActualModel, Valid: r.ActualModel != ""},
+		CanaryArm:      sql.NullString{String: r.CanaryArm, Valid: r.CanaryArm != ""},
 		CreatedAt:      SQLiteTime(r.CreatedAt),
 		UpdatedAt:      SQLiteTime(r.UpdatedAt),
 	}
@@ -379,7 +382,7 @@ const runColumns = `id, task_id, agent_profile_id, tag, workload_kind, workload_
 	source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
 	identity_token_hash, identity_token_revoked_at, custom_env, await_handle,
 	last_await_key, last_await_result, last_await_resolved_at, last_wake_seq, same_key_park_streak,
-	requested_model, actual_model,
+	requested_model, actual_model, canary_arm,
 	created_at, updated_at`
 
 // listRunColumns contains the pruned column set for List() queries.
@@ -395,7 +398,7 @@ const listRunColumns = `id, task_id, agent_profile_id, tag, workload_kind, workl
 	changed_files, total_size_bytes, commit_hash, session_id,
 	runner_pid, runner_pgid, transcript_path, transcript_cursor, transcript_last_seq, import_source_harness, import_source_session_id, imported_at,
 	source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
-	requested_model, actual_model,
+	requested_model, actual_model, canary_arm,
 	created_at, updated_at`
 
 // listRunLiteRow is the database row representation for the pruned list query.
@@ -444,6 +447,7 @@ type listRunLiteRow struct {
 	ConversationID           sql.NullString `db:"conversation_id"`
 	RequestedModel           sql.NullString `db:"requested_model"`
 	ActualModel              sql.NullString `db:"actual_model"`
+	CanaryArm                sql.NullString `db:"canary_arm"`
 	CreatedAt                SQLiteTime     `db:"created_at"`
 	UpdatedAt                SQLiteTime     `db:"updated_at"`
 	// Computed field from JOIN
@@ -491,6 +495,7 @@ func (row *listRunLiteRow) toDomain() *domain.Run {
 		ConversationID:           row.ConversationID.String,
 		RequestedModel:           row.RequestedModel.String,
 		ActualModel:              row.ActualModel.String,
+		CanaryArm:                row.CanaryArm.String,
 		PromptPreview:            row.PromptPreview.String,
 		CreatedAt:                row.CreatedAt.Time(),
 		UpdatedAt:                row.UpdatedAt.Time(),
@@ -521,7 +526,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			source_run_ids, source_investigation_run_id, parent_run_id, conversation_id,
 			identity_token_hash, identity_token_revoked_at, custom_env, await_handle,
 			last_await_key, last_await_result, last_await_resolved_at, last_wake_seq, same_key_park_streak,
-			requested_model, actual_model,
+			requested_model, actual_model, canary_arm,
 			created_at, updated_at)
 			VALUES (:id, :task_id, :agent_profile_id, :tag, :workload_kind, :workload_key, :workload_instance, :billing_snapshot, :sandbox_id, :run_mode,
 			:execution_mode, :web_console_session_id, :status,
@@ -533,7 +538,7 @@ func (r *runRepository) Create(ctx context.Context, run *domain.Run) error {
 			:source_run_ids, :source_investigation_run_id, :parent_run_id, :conversation_id,
 			:identity_token_hash, :identity_token_revoked_at, :custom_env, :await_handle,
 			:last_await_key, :last_await_result, :last_await_resolved_at, :last_wake_seq, :same_key_park_streak,
-			:requested_model, :actual_model,
+			:requested_model, :actual_model, :canary_arm,
 			:created_at, :updated_at)`
 
 	_, err := r.db.NamedExecContext(ctx, query, row)
@@ -673,7 +678,7 @@ func (r *runRepository) Update(ctx context.Context, run *domain.Run) error {
 		last_await_key = :last_await_key, last_await_result = :last_await_result,
 		last_await_resolved_at = :last_await_resolved_at, last_wake_seq = :last_wake_seq,
 		same_key_park_streak = :same_key_park_streak,
-		requested_model = :requested_model, actual_model = :actual_model,
+		requested_model = :requested_model, actual_model = :actual_model, canary_arm = :canary_arm,
 		updated_at = :updated_at
 		WHERE id = :id`
 

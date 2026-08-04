@@ -27,6 +27,17 @@ type fakeStore struct {
 	filter          invocationreadmodel.Filter
 }
 
+func TestModelBreakdownKeepsImportedAndInteractiveRunsSeparate(t *testing.T) {
+	store := &fakeStore{breakdowns: map[string][]invocationreadmodel.RunBreakdownRow{"model": {}}}
+	handler := NewHandler(store, func() time.Time { return time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC) })
+	if _, err := handler.ModelBreakdown(context.Background(), connect.NewRequest(&measurepb.ModelBreakdownRequest{Window: token(sharedmeasurepb.TimeWindowToken_TIME_WINDOW_TOKEN_LAST_7D)})); err != nil {
+		t.Fatal(err)
+	}
+	if got := store.filter.ExcludedWorkloadKinds; len(got) != 2 || got[0] != "interactive" || got[1] != "imported" {
+		t.Fatalf("excluded workload kinds = %v, want interactive/imported", got)
+	}
+}
+
 func (s *fakeStore) RunMetrics(_ context.Context, filter invocationreadmodel.Filter) (invocationreadmodel.RunMetrics, error) {
 	s.filter = filter
 	return s.runMetrics, nil

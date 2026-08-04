@@ -4,14 +4,16 @@ import { useQuery } from "@tanstack/react-query";
 import {
   fetchHealthAudit,
   fetchModelHealth,
-  fetchRunnerHealth,
+	fetchRunnerHealth,
+	fetchModelPolicyDrift,
   healthQueryKeys,
 } from "../api/healthClient";
 import type {
   HealthAuditFilters,
   HealthAuditResponse,
   ModelHealthListResponse,
-  RunnerHealthListResponse,
+	RunnerHealthListResponse,
+	ModelPolicyDriftSnapshot,
 } from "../api/types";
 
 const SNAPSHOT_REFETCH_MS = 30_000;
@@ -33,6 +35,13 @@ export function useRunnerHealth(options: { enabled?: boolean } = {}) {
     enabled: options.enabled ?? true,
     refetchInterval: SNAPSHOT_REFETCH_MS,
     staleTime: 10_000,
+  });
+}
+
+export function useModelPolicyDrift() {
+  return useQuery<ModelPolicyDriftSnapshot, Error>({
+    queryKey: healthQueryKeys.modelPolicyDrift(), queryFn: fetchModelPolicyDrift,
+    refetchInterval: SNAPSHOT_REFETCH_MS, staleTime: 10_000,
   });
 }
 

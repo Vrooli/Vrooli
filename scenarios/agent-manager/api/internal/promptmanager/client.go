@@ -48,6 +48,26 @@ type FrictionIntakeClient interface {
 	PublishFriction(context.Context, FrictionReport) (string, error)
 }
 
+// ScenarioQABug is the typed, complete payload used by scheduled safeguards.
+// The deterministic idempotency key is also reflected in the title so the
+// prompt-manager bug inbox remains deduplicated if the local state is lost.
+type ScenarioQABug struct {
+	Title          string            `json:"title"`
+	SignalType     string            `json:"signal_type"`
+	Severity       string            `json:"severity"`
+	Repro          []string          `json:"repro"`
+	Expected       string            `json:"expected"`
+	Actual         string            `json:"actual"`
+	Description    string            `json:"description"`
+	Context        map[string]string `json:"context"`
+	HonestyFlags   []string          `json:"honesty_flags"`
+	IdempotencyKey string            `json:"idempotency_key"`
+}
+
+type ScenarioQAReporter interface {
+	PublishScenarioQABug(context.Context, ScenarioQABug) error
+}
+
 // Client reads skill prompts from prompt-manager.
 type Client interface {
 	ReadSkill(ctx context.Context, skillID string, variables map[string]string, withScope bool) (string, error)
@@ -458,6 +478,40 @@ func (c *HTTPClient) PublishFriction(ctx context.Context, report FrictionReport)
 		return "", fmt.Errorf("promptmanager: friction status %d: %s", resp.StatusCode, string(payload))
 	}
 	return topic, nil
+}
+
+// PublishScenarioQABug files a complete typed report in scenario-qa's
+// canonical bug inbox. It intentionally does not attempt to repair partial
+// reports: scheduled safeguard findings have enough evidence to publish.
+func (c *HTTPClient) PublishScenarioQABug(ctx context.Context, report ScenarioQABug) error {
+	baseURL, err := c.baseURLResolver(ctx)
+	if err != nil {
+		return fmt.Errorf("promptmanager: resolve URL: %w", err)
+	}
+	body, err := json.Marshal(report)
+	if err != nil {
+		return fmt.Errorf("promptmanager: marshal scenario-qa bug: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/teams/scenario-qa/bugs/capture", bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("promptmanager: create scenario-qa request: %w", err)
+	}
+	attribution, err := json.Marshal(map[string]any{"kind": "investigation", "run_id": report.IdempotencyKey, "spawn_origin": "investigation"})
+	if err != nil {
+		return fmt.Errorf("promptmanager: marshal scenario-qa attribution: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Vrooli-Attribution", base64.StdEncoding.EncodeToString(attribution))
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("promptmanager: scenario-qa request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		payload, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("promptmanager: scenario-qa status %d: %s", resp.StatusCode, string(payload))
+	}
+	return nil
 }
 
 func shortFingerprint(fingerprint string) string {

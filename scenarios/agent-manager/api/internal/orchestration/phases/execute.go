@@ -402,14 +402,16 @@ func emitPolicyCandidate(ctx context.Context, deps Deps, run *domain.Run, snapsh
 		return
 	}
 	EmitPolicyCandidateAttempt(ctx, deps, run.ID, eventlog.PolicyCandidateAttemptPayload{
-		CatalogDigest: snapshot.CatalogDigest,
-		SnapshotIndex: index,
-		Runner:        string(candidate.RunnerType),
-		SelectionType: string(candidate.SelectionType),
-		Model:         candidate.Model,
-		Outcome:       outcome,
-		Reason:        reason,
-		FailureClass:  failureClass,
+		CatalogDigest:   snapshot.CatalogDigest,
+		SnapshotIndex:   index,
+		Runner:          string(candidate.RunnerType),
+		SelectionType:   string(candidate.SelectionType),
+		Model:           candidate.Model,
+		ChallengerModel: candidate.ChallengerModel,
+		CanaryArm:       candidate.CanaryArm,
+		Outcome:         outcome,
+		Reason:          reason,
+		FailureClass:    failureClass,
 	})
 }
 

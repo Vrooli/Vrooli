@@ -31,6 +31,7 @@ export function RunnerHealthTable({ rows, onShowAudit }: RunnerHealthTableProps)
             <th className="px-3 py-2 text-left">Status</th>
             <th className="px-3 py-2 text-left">Runner</th>
             <th className="px-3 py-2 text-left">Reason</th>
+            <th className="px-3 py-2 text-left">Catalog</th>
             <th className="px-3 py-2 text-left">Last checked</th>
             <th className="px-3 py-2 text-right">Audit</th>
           </tr>
@@ -45,6 +46,9 @@ export function RunnerHealthTable({ rows, onShowAudit }: RunnerHealthTableProps)
               <td className="px-3 py-2"><HealthStatusBadge status={row.status} /></td>
               <td className="px-3 py-2 font-mono text-xs">{row.runner}</td>
               <td className="px-3 py-2 text-muted-foreground">{row.reason ?? "—"}</td>
+              <td className="px-3 py-2 text-xs text-muted-foreground">
+                {row.catalog ? `${row.catalog.status} (${row.catalog.age_days}d / ${row.catalog.budget_days}d)` : "—"}
+              </td>
               <td className="px-3 py-2 text-muted-foreground">
                 {formatStandardRelativeTime(row.last_checked)}
               </td>

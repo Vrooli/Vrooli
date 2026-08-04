@@ -159,7 +159,7 @@ digest.
       "id": "summarize",
       "kind": "run",
       "run": {
-        "roleRef": "code.smart",
+        "roleRef": "code.default",
         "promptTemplate": "Summarize the change below.\n\n{{.diff}}",
         "resultSpec": { "version": "result-spec/v1", "kind": "json_schema", "extractionMode": "deterministic_only", "schema": { "type": "object", "additionalProperties": true } },
         "bindings": [
@@ -189,12 +189,17 @@ instead of inlining it. Author **exactly one** of `promptTemplate` or `promptRef
 
 ```json
 "run": {
-  "roleRef": "code.smart",
+  "roleRef": "code.default",
   "promptRef": { "skillId": "my-scenario-process-thing", "variables": { "MODE": "strict" } },
   "resultSpec": { "...": "..." },
   "bindings": [ "..." ]
 }
 ```
+
+Use `code.smart` only for work that needs deep reasoning or substantial
+multi-file changes. Profile declarations that retain it should include a
+one-line `roleReason`; reconciliation reports a non-blocking warning when the
+reason is missing.
 
 Resolution happens at **reconcile time**, before the digest. The resolved content
 is embedded into `promptTemplate` and pinned into the revision alongside its

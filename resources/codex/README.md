@@ -88,6 +88,10 @@ For declarative automation, use `permissions plan --scope user|admin --document 
 
 Upstream docs: <https://developers.openai.com/codex/permissions>.
 
+## Model catalog operations
+
+`resource-codex models list --json` reads the Codex model cache without invoking a model. `resource-codex models resolve --model <id> --json` returns the resource-owned canonical pricing identity. Run `resource-codex policy validate --against-live --json` after a retarget. `observed_at` has a 14-day budget; aliases should remain runner-facing while pinned fallbacks must be refreshed from the same live evidence. Policy edits are reviewed explicitly and are never made by the drift safeguard.
+
 ## Notes
 
 - `codex` is an external CLI resource, not a local daemon owned by this resource.

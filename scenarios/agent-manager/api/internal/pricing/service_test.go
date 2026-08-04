@@ -2,6 +2,8 @@ package pricing
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,6 +25,15 @@ func newMockProvider(name string) *mockProvider {
 		pricing:        make(map[string]*ModelPricing),
 		supportsModels: make(map[string]bool),
 	}
+}
+
+type testModelResolver struct{}
+
+func (testModelResolver) Resolve(_ context.Context, _ string, model string) (string, string, error) {
+	if strings.Contains(model, "/") {
+		return model, "openrouter", nil
+	}
+	return "", "", fmt.Errorf("no fixture mapping for %q", model)
 }
 
 func (p *mockProvider) Name() string { return p.name }
@@ -63,7 +74,7 @@ func testService(t *testing.T, providers ...Provider) (Service, *MemoryRepositor
 	log := logrus.New()
 	log.SetLevel(logrus.WarnLevel)
 
-	svc := NewService(repo, providers, log)
+	svc := NewServiceWithModelResolver(repo, providers, log, testModelResolver{})
 	require.NoError(t, svc.RefreshPricing(context.Background()))
 	return svc, repo
 }
@@ -346,21 +357,17 @@ func TestResolveCanonicalModel_FromAlias(t *testing.T) {
 func TestResolveCanonicalModel_DefaultResolution(t *testing.T) {
 	svc, _ := testService(t)
 
-	// Test model that should use default alias resolution
-	canonical, provider, err := svc.ResolveCanonicalModel(context.Background(), "gpt-4", "codex")
-	require.NoError(t, err)
-
-	// Default resolution should handle common patterns
-	assert.NotEmpty(t, canonical)
-	assert.NotEmpty(t, provider)
+	// Bare names are not guessed from provider/model spelling.
+	_, _, err := svc.ResolveCanonicalModel(context.Background(), "future-model", "codex")
+	require.Error(t, err)
 }
 
 func TestResolveCanonicalModel_ReportsUnresolvedBareAlias(t *testing.T) {
 	svc, _ := testService(t)
 	_, _, err := svc.ResolveCanonicalModel(context.Background(), "opus", "codex")
-	// opus is a resource-observed alias and must resolve through the explicit
-	// default table rather than being silently treated as an OpenRouter model.
-	require.NoError(t, err)
+	// Resource-observed aliases must resolve through the resource resolver or
+	// an explicit database alias, never through a global default table.
+	require.Error(t, err)
 	canonical, _, err := svc.ResolveCanonicalModel(context.Background(), "not-a-model", "codex")
 	require.Error(t, err)
 	assert.Empty(t, canonical)

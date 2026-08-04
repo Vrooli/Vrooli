@@ -9,6 +9,7 @@
     "code.default": {
       "description": "Balanced implementation work with portable fallback.",
       "intent": "balanced coding",
+      "orderingReason": "Codex is the primary coding path for repository work; the remaining candidates provide independent runner fallbacks.",
       "candidates": [
         {"runner": "codex", "resourceRole": "code.default"},
         {"runner": "claude-code", "resourceRole": "code.default"},
@@ -19,6 +20,7 @@
     "code.fast": {
       "description": "Low-latency implementation and focused edits.",
       "intent": "fast coding",
+      "orderingReason": "Codex is preferred for low-latency edits, followed by the fastest available alternatives.",
       "candidates": [
         {"runner": "codex", "resourceRole": "code.fast"},
         {"runner": "claude-code", "resourceRole": "code.fast"},
@@ -29,6 +31,7 @@
     "code.smart": {
       "description": "Highest-capability coding and reasoning work.",
       "intent": "high capability coding",
+      "orderingReason": "Codex remains the first deep-reasoning candidate; the order preserves high-capability fallbacks across independent runners.",
       "candidates": [
         {"runner": "codex", "resourceRole": "code.smart"},
         {"runner": "claude-code", "resourceRole": "code.smart"},
@@ -39,6 +42,7 @@
     "code.cheap": {
       "description": "Cost-conscious coding work.",
       "intent": "cost-conscious coding",
+      "orderingReason": "Codex is preferred for the low-cost coding lane, with other runners retained as ordered fallbacks.",
       "candidates": [
         {"runner": "codex", "resourceRole": "code.cheap"},
         {"runner": "claude-code", "resourceRole": "code.cheap"},
@@ -46,9 +50,43 @@
         {"runner": "grok", "resourceRole": "code.cheap"}
       ]
     },
+    "code.ux": {
+      "description": "User-facing interaction and frontend work.",
+      "intent": "user experience coding",
+      "orderingReason": "Codex leads because UX work benefits from its strongest interaction quality, then Claude for a second high-quality path.",
+      "candidates": [
+        {"runner": "codex", "resourceRole": "code.ux"},
+        {"runner": "claude-code", "resourceRole": "code.ux"},
+        {"runner": "opencode", "resourceRole": "code.ux"},
+        {"runner": "grok", "resourceRole": "code.ux"}
+      ]
+    },
+    "code.longrun": {
+      "description": "Long-horizon autonomous coding work.",
+      "intent": "long-horizon coding",
+      "orderingReason": "Claude leads because Fable is selected for long-horizon autonomy, with Codex as the next high-capability fallback.",
+      "candidates": [
+        {"runner": "claude-code", "resourceRole": "code.longrun"},
+        {"runner": "codex", "resourceRole": "code.longrun"},
+        {"runner": "opencode", "resourceRole": "code.longrun"},
+        {"runner": "grok", "resourceRole": "code.longrun"}
+      ]
+    },
+    "write.default": {
+      "description": "Natural-prose writing and editorial work.",
+      "intent": "natural-prose writing",
+      "orderingReason": "Claude leads for writing quality, followed by OpenCode's Kimi option before coding-oriented fallbacks.",
+      "candidates": [
+        {"runner": "claude-code", "resourceRole": "write.default"},
+        {"runner": "opencode", "resourceRole": "write.default"},
+        {"runner": "codex", "resourceRole": "write.default"},
+        {"runner": "grok", "resourceRole": "write.default"}
+      ]
+    },
     "extract.structured": {
       "description": "Bounded constrained extraction of one schema-shaped value.",
       "intent": "structured data extraction",
+      "orderingReason": "Codex is preferred for bounded extraction, with the same fast-role fallback chain retained across runners.",
       "candidates": [
         {"runner": "codex", "resourceRole": "code.fast"},
         {"runner": "claude-code", "resourceRole": "code.fast"},

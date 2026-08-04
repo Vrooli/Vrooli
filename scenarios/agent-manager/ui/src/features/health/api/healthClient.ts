@@ -7,7 +7,8 @@ import type {
   HealthAuditFilters,
   HealthAuditResponse,
   ModelHealthListResponse,
-  RunnerHealthListResponse,
+	RunnerHealthListResponse,
+	ModelPolicyDriftSnapshot,
 } from "./types";
 
 const BASE = "/api/v1/health";
@@ -29,6 +30,10 @@ export async function fetchRunnerHealth(): Promise<RunnerHealthListResponse> {
   return fetchJson<RunnerHealthListResponse>(`${BASE}/runners`);
 }
 
+export async function fetchModelPolicyDrift(): Promise<ModelPolicyDriftSnapshot> {
+	return fetchJson<ModelPolicyDriftSnapshot>(`${BASE}/model-policy-drift`);
+}
+
 export async function fetchHealthAudit(filters: HealthAuditFilters): Promise<HealthAuditResponse> {
   const params = new URLSearchParams();
   params.set("scope", filters.scope);
@@ -45,5 +50,6 @@ export const healthQueryKeys = {
   all: ["health"] as const,
   models: () => [...healthQueryKeys.all, "models"] as const,
   runners: () => [...healthQueryKeys.all, "runners"] as const,
+  modelPolicyDrift: () => [...healthQueryKeys.all, "model-policy-drift"] as const,
   audit: (filters: HealthAuditFilters) => [...healthQueryKeys.all, "audit", filters] as const,
 };

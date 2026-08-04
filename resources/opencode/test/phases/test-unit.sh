@@ -93,3 +93,7 @@ if [[ ${fail_count} -gt 0 ]]; then
 fi
 
 log::success "OpenCode unit tests passed (${pass_count} checks)"
+
+# The runner-owned policy protocol is always part of the resource suite. Live
+# credentials may be unavailable in CI; the phase records that as a skip.
+bash "${OPENCODE_DIR}/test/phases/test-model-policy.sh"

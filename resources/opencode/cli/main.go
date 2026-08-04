@@ -57,6 +57,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 	app.SetCommandsWithSubgroups(
 		app.StandardLifecycleCommands(),
 		[]cliapp.SubcommandGroup{
+			agentpolicy.ModelDiscoveryCommands(agentpolicy.ModelDiscoveryConfig{Runner: appName, CatalogPath: agentpolicy.ResourceCatalogPath(appName)}),
 			agentpolicy.CodingPolicyCommands(agentpolicy.CodingPolicyConfig{Runner: appName, CatalogPath: agentpolicy.ResourceCatalogPath(appName), Posture: agentpolicy.EnforcementPosture{Permissions: "native"}}),
 			configcli.Commands(configcli.Default()),
 			permissionscli.Commands(permissionscli.Default(appVersion, upstreamPinnedVersion)),

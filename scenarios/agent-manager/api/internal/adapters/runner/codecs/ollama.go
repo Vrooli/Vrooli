@@ -120,7 +120,7 @@ func defaultOllamaFetch(ctx context.Context) ([]string, error) {
 }
 
 // parseOllamaListJSON decodes the `resource-ollama models list --json` payload
-// ({"models":["gemma4:12b",...]}) into sorted `ollama/<name>` ids. Unknown
+// ({"models":["<model>",...]}) into sorted `ollama/<name>` ids. Unknown
 // fields are tolerated (DiscardUnknown discipline).
 func parseOllamaListJSON(data []byte) ([]string, error) {
 	var payload struct {

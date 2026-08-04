@@ -30,6 +30,11 @@ run_integration_tests() {
     timeout 120 bash "${SCRIPT_DIR}/phases/test-integration.sh"
 }
 
+run_model_policy_tests() {
+    log::info "Running model-policy discovery/validation tests..."
+    timeout 60 bash "${SCRIPT_DIR}/phases/test-model-policy.sh"
+}
+
 run_unit_tests() {
     log::info "Running unit tests..."
     timeout 60 bash "${SCRIPT_DIR}/phases/test-unit.sh"
@@ -41,6 +46,7 @@ run_all_tests() {
     run_smoke_tests || ((failed++))
     run_unit_tests || ((failed++))
     run_integration_tests || ((failed++))
+    run_model_policy_tests || ((failed++))
     
     if [ $failed -gt 0 ]; then
         log::error "Tests failed: $failed phase(s) had errors"

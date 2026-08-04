@@ -53,6 +53,7 @@ describe("HealthPage", () => {
         ],
       },
       "/api/v1/health/runners": { runners: [] },
+	  "/api/v1/health/model-policy-drift": { status: "warning", measured: 4, total: 4, interval_hours: 168, findings: [{ runner: "codex", type: "catalog_stale", severity: "warning", message: "stale", fingerprint: "f" }] },
     });
 
     renderWithProviders(createElement(HealthPage));
@@ -63,6 +64,7 @@ describe("HealthPage", () => {
     expect(screen.getByText("claude-opus-4-7")).toBeTruthy();
     expect(screen.getByText("Failed")).toBeTruthy();
     expect(screen.getByText("OK")).toBeTruthy();
+	  expect(screen.getByTestId("model-policy-drift-status").textContent).toContain("warning");
 
     const rows = screen.getAllByTestId(/^model-health-row-/);
     // Failed row sorts to the top.
@@ -83,6 +85,7 @@ describe("HealthPage", () => {
         ],
       },
       "/api/v1/health/runners": { runners: [] },
+	  "/api/v1/health/model-policy-drift": { status: "healthy", measured: 4, total: 4, interval_hours: 168 },
       "/api/v1/health/audit": {
         rows: [
           {

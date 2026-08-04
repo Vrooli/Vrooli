@@ -83,8 +83,9 @@ CREATE TABLE IF NOT EXISTS runs (
     last_await_resolved_at TEXT,
     last_wake_seq INTEGER DEFAULT 0,
     same_key_park_streak INTEGER DEFAULT 0,
-    requested_model TEXT DEFAULT '',
-    actual_model TEXT DEFAULT '',
+	requested_model TEXT DEFAULT '',
+	actual_model TEXT DEFAULT '',
+	canary_arm TEXT DEFAULT '',
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
 );

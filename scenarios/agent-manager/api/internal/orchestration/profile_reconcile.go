@@ -77,6 +77,14 @@ func (o *Orchestrator) reconcileProfileSource(ctx context.Context, scenario, sce
 		return item
 	}
 	item.Diagnostics = profileRestrictionDiagnostics(profile)
+	if profile.RoleRef == "code.smart" && strings.TrimSpace(profile.RoleReason) == "" {
+		item.Diagnostics = append(item.Diagnostics, domain.WorkflowDiagnostic{
+			Code:     "smart_role_reason_missing",
+			Path:     source + ".roleReason",
+			Message:  "code.smart is reserved for deep reasoning or long multi-file work; add a one-line roleReason",
+			Severity: "warning",
+		})
+	}
 	item.ProfileKey = profile.ProfileKey
 
 	if err := enforceProfileOwnership(scenario, profile.ProfileKey); err != nil {
@@ -249,11 +257,24 @@ func parseSourceProfile(data []byte) (*domain.AgentProfile, error) {
 		}
 		data = stripped
 	}
+	var roleReason string
+	if rawReason, ok := raw["roleReason"]; ok {
+		if err := json.Unmarshal(rawReason, &roleReason); err != nil {
+			return nil, fmt.Errorf("parse profile roleReason: %w", err)
+		}
+		delete(raw, "roleReason")
+		stripped, err := json.Marshal(raw)
+		if err != nil {
+			return nil, fmt.Errorf("strip profile roleReason: %w", err)
+		}
+		data = stripped
+	}
 	var pb domainpb.AgentProfile
 	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(data, &pb); err != nil {
 		return nil, fmt.Errorf("parse profile source proto JSON: %w", err)
 	}
 	profile := protoconv.AgentProfileFromProto(&pb)
+	profile.RoleReason = strings.TrimSpace(roleReason)
 	if err := normalizeProfileInput(profile); err != nil {
 		return nil, err
 	}

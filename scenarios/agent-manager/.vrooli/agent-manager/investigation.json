@@ -4,6 +4,7 @@
   "profileKey": "agent-manager/investigation",
   "description": "Agent profile for behavioral analysis of failed agent runs (read-only)",
   "roleRef": "code.smart",
+  "roleReason": "Behavioral analysis of failed runs requires deep causal reasoning across multiple event and execution surfaces.",
   "maxTurns": 1000,
   "timeout": "7200s",
   "allowedTools": ["read", "glob", "grep", "shell", "web_search"],

@@ -121,9 +121,9 @@ mobile; desktop retains the persistent sidebar.
 ## Work ladder
 
 - Rung: W3
-- Evidence: `OT-P0-012` has the planned, truthfully pending `REQ-P0-014`; `business-health validate scenario agent-manager` and `vrooli scenario requirements validate agent-manager --json` pass, with only inherited orphaned P2 warnings.
-- Blocker: obtain a fresh implementation baseline before changing the durable analytics projection.
-- Measured: 2026-07-29
+- Evidence: the existing role-policy contract requires runner-neutral intent while resource-owned policy resolves concrete models; this repair changes implementation and evidence only. Focused resource-policy, pricing, and codec tests are green, with live model-resolution checks passing for all four resources.
+- Blocker: none for the model-resolution repair; the broad scenario gate remains the final validation step.
+- Measured: 2026-08-03
 
 ### P-007: Unit coverage policy gaps remain after reliability hardening (2026-07-23)
 **Severity**: Medium (verification)

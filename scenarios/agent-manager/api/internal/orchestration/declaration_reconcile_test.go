@@ -20,10 +20,47 @@ const fixtureProfile = `{
   "profileKey": "fixture-scn/default",
   "description": "fixture profile",
   "roleRef": "code.smart",
+  "roleReason": "Fixture exercises a deliberately high-capability profile.",
   "maxTurns": 10,
   "sandboxConfig": {"mode": "SANDBOX_MODE_OFF"},
   "createdBy": "fixture-scn"
 }`
+
+func TestSmartRoleReasonWarningIsNonBlocking(t *testing.T) {
+	o := newDeclarationOrchestrator(t)
+	for _, tc := range []struct {
+		name        string
+		reason      string
+		wantWarning bool
+	}{
+		{name: "missing", wantWarning: true},
+		{name: "present", reason: "Deep multi-file reasoning is required.", wantWarning: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			profile := `{"schemaVersion":"agent-profile/v1","name":"fixture-` + tc.name + `","profileKey":"fixture-scn/` + tc.name + `","roleRef":"code.smart"}`
+			if tc.reason != "" {
+				profile = strings.Replace(profile, `"roleRef":"code.smart"`, `"roleRef":"code.smart","roleReason":"`+tc.reason+`"`, 1)
+			}
+			root, servicePath := writeScenarioFixture(t, map[string]string{
+				".vrooli/service.json":                       declarationManifest(".vrooli/agent-manager/" + tc.name + ".json"),
+				".vrooli/agent-manager/" + tc.name + ".json": profile,
+			})
+			result, err := o.reconcileScenarioDeclarationsAt(context.Background(), "fixture-scn", root, servicePath, false, false)
+			if err != nil || result.ProfilesFailed != 0 {
+				t.Fatalf("reconcile result=%+v err=%v", result, err)
+			}
+			found := false
+			for _, diagnostic := range result.ProfileResults[0].Diagnostics {
+				if diagnostic.Code == "smart_role_reason_missing" {
+					found = true
+				}
+			}
+			if found != tc.wantWarning {
+				t.Fatalf("smart-role warning=%v, want %v; diagnostics=%+v", found, tc.wantWarning, result.ProfileResults[0].Diagnostics)
+			}
+		})
+	}
+}
 
 // fixtureWorkflow is a single-run workflow whose run node references the
 // profile the profile source reconciles in the same call.

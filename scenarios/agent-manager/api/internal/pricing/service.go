@@ -69,6 +69,7 @@ type pricingService struct {
 	repo      Repository
 	providers map[string]Provider
 	log       *logrus.Logger
+	resolver  ModelResolver
 
 	// In-memory cache for hot path
 	cacheMu sync.RWMutex
@@ -82,6 +83,13 @@ type cachedPricing struct {
 
 // NewService creates a new pricing service.
 func NewService(repo Repository, providerList []Provider, log *logrus.Logger) Service {
+	return NewServiceWithModelResolver(repo, providerList, log, nil)
+}
+
+// NewServiceWithModelResolver wires the resource-owned model translation seam.
+// Keeping it injectable makes pricing tests deterministic and lets a future
+// resolver use another transport without changing pricing semantics.
+func NewServiceWithModelResolver(repo Repository, providerList []Provider, log *logrus.Logger, resolver ModelResolver) Service {
 	providerMap := make(map[string]Provider, len(providerList))
 	for _, p := range providerList {
 		providerMap[p.Name()] = p
@@ -91,6 +99,7 @@ func NewService(repo Repository, providerList []Provider, log *logrus.Logger) Se
 		repo:      repo,
 		providers: providerMap,
 		log:       log,
+		resolver:  resolver,
 		cache:     make(map[string]*cachedPricing),
 	}
 }
@@ -488,7 +497,19 @@ func (s *pricingService) ResolveCanonicalModel(ctx context.Context, model string
 		return alias.CanonicalModel, alias.Provider, nil
 	}
 
-	// Use default alias resolution
+	// Ask the owning resource for bare runner model names. The resource owns
+	// aliases, canonical IDs, and provider identity; Agent Manager does not
+	// infer any of them from spelling.
+	if s.resolver != nil {
+		canonical, provider, resolveErr := s.resolver.Resolve(ctx, runnerType, model)
+		if resolveErr == nil {
+			return canonical, provider, nil
+		}
+	}
+
+	// There is deliberately no spelling-based fallback. Bare and qualified
+	// values alike must be declared by the resource or stored as an explicit
+	// database alias so the provider identity is never guessed.
 	canonical, provider, found := ResolveModelAlias(model)
 	if !found {
 		return "", "", fmt.Errorf("unresolvable model alias %q for runner %q", model, runnerType)

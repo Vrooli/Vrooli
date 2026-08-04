@@ -27,6 +27,19 @@ type Store interface {
 	FindingMetrics(context.Context, Filter) (FindingMetrics, error)
 }
 
+type CanaryRun struct {
+	Role       string
+	Arm        string
+	Status     string
+	DurationMS float64
+	CostUSD    float64
+}
+
+type CanaryStore interface {
+	// CanaryRuns returns terminal executed runs with their immutable arm and role snapshot.
+	CanaryRuns(context.Context, Filter) ([]CanaryRun, error)
+}
+
 // CohortDefinitionStore persists named, classifier-bound filters. Members are
 // resolved at read time so a definition remains reproducible without freezing
 // a moving run population at creation.
@@ -75,29 +88,32 @@ type ProjectionStore interface {
 // Filter is the single analytical predicate shared by aggregates and cohort
 // selection. A zero filter is the complete retained corpus.
 type Filter struct {
-	From                 *time.Time `json:"from,omitempty"`
-	To                   *time.Time `json:"to,omitempty"`
-	Ownership            string     `json:"ownership,omitempty"`
-	Outcome              string     `json:"outcome,omitempty"`
-	Executable           string     `json:"executable,omitempty"`
-	Fingerprint          string     `json:"fingerprint,omitempty"`
-	ProfileID            string     `json:"profileId,omitempty"`
-	RunnerType           string     `json:"runnerType,omitempty"`
-	Model                string     `json:"model,omitempty"`
-	WorkloadKind         string     `json:"workloadKind,omitempty"`
-	WorkloadKey          string     `json:"workloadKey,omitempty"`
-	ErrorCode            string     `json:"errorCode,omitempty"`
-	TagPrefix            string     `json:"tagPrefix,omitempty"`
-	RunStatus            string     `json:"runStatus,omitempty"`
-	ToolName             string     `json:"toolName,omitempty"`
-	ClassifierVersion    string     `json:"classifierVersion,omitempty"`
-	EpisodePattern       string     `json:"episodePattern,omitempty"`
-	EpisodeCauseScope    string     `json:"episodeCauseScope,omitempty"`
-	EpisodeFingerprint   string     `json:"episodeFingerprint,omitempty"`
-	SelfReportRuleID     string     `json:"selfReportRuleId,omitempty"`
-	SelfReportCauseScope string     `json:"selfReportCauseScope,omitempty"`
-	TargetScenario       string     `json:"targetScenario,omitempty"`
-	Operation            string     `json:"operation,omitempty"`
+	From         *time.Time `json:"from,omitempty"`
+	To           *time.Time `json:"to,omitempty"`
+	Ownership    string     `json:"ownership,omitempty"`
+	Outcome      string     `json:"outcome,omitempty"`
+	Executable   string     `json:"executable,omitempty"`
+	Fingerprint  string     `json:"fingerprint,omitempty"`
+	ProfileID    string     `json:"profileId,omitempty"`
+	RunnerType   string     `json:"runnerType,omitempty"`
+	Model        string     `json:"model,omitempty"`
+	WorkloadKind string     `json:"workloadKind,omitempty"`
+	// ExcludedWorkloadKinds is an internal cohort boundary used by measures
+	// that must not mix imported/interactive evidence with normal runs.
+	ExcludedWorkloadKinds []string `json:"-"`
+	WorkloadKey           string   `json:"workloadKey,omitempty"`
+	ErrorCode             string   `json:"errorCode,omitempty"`
+	TagPrefix             string   `json:"tagPrefix,omitempty"`
+	RunStatus             string   `json:"runStatus,omitempty"`
+	ToolName              string   `json:"toolName,omitempty"`
+	ClassifierVersion     string   `json:"classifierVersion,omitempty"`
+	EpisodePattern        string   `json:"episodePattern,omitempty"`
+	EpisodeCauseScope     string   `json:"episodeCauseScope,omitempty"`
+	EpisodeFingerprint    string   `json:"episodeFingerprint,omitempty"`
+	SelfReportRuleID      string   `json:"selfReportRuleId,omitempty"`
+	SelfReportCauseScope  string   `json:"selfReportCauseScope,omitempty"`
+	TargetScenario        string   `json:"targetScenario,omitempty"`
+	Operation             string   `json:"operation,omitempty"`
 }
 
 type AggregateRow struct {

@@ -77,6 +77,7 @@ type ResolvedRole struct {
 	PolicyPath     string
 	PolicyDigest   string
 	Billing        domain.BillingSnapshot
+	Challenger     *domain.ChallengerConfig
 }
 
 type ResourceProvenance struct {
@@ -106,9 +107,10 @@ type resourceRoleResponse struct {
 		Permissions string   `json:"permissions"`
 		Caveats     []string `json:"caveats"`
 	} `json:"enforcement"`
-	PolicyPath   string                 `json:"policy_path"`
-	PolicyDigest string                 `json:"policy_digest"`
-	Billing      domain.BillingSnapshot `json:"billing,omitempty"`
+	PolicyPath   string                   `json:"policy_path"`
+	PolicyDigest string                   `json:"policy_digest"`
+	Billing      domain.BillingSnapshot   `json:"billing,omitempty"`
+	Challenger   *domain.ChallengerConfig `json:"challenger,omitempty"`
 }
 
 // Resolve executes `<resource> policy resolve --role <role> --json` and
@@ -207,6 +209,9 @@ func (r resourceRoleResponse) validate() error {
 			return errors.New("fallbacks must contain trimmed values")
 		}
 	}
+	if r.Challenger != nil && (strings.TrimSpace(r.Challenger.Model) == "" || r.Challenger.SampleRate < 0 || r.Challenger.SampleRate > 1) {
+		return errors.New("challenger requires a model and sample_rate between 0 and 1")
+	}
 	switch r.Enforcement.Permissions {
 	case "native", "hook_backed", "intent_only":
 	default:
@@ -228,5 +233,6 @@ func (r resourceRoleResponse) toResolvedRole() ResolvedRole {
 		PolicyPath:     r.PolicyPath,
 		PolicyDigest:   r.PolicyDigest,
 		Billing:        r.Billing,
+		Challenger:     r.Challenger,
 	}
 }

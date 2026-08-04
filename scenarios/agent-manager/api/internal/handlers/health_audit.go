@@ -12,18 +12,23 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"time"
 
 	"agent-manager/internal/health"
+	"agent-manager/internal/modelpolicydrift"
+	"github.com/vrooli/cli-core/agentpolicy"
 
 	"github.com/gorilla/mux"
 )
 
 // HealthAuditHandler exposes the persisted audit endpoints.
 type HealthAuditHandler struct {
-	store *health.Store
+	store            *health.Store
+	catalogFreshness func(context.Context) []agentpolicy.CatalogFreshness
+	modelPolicyDrift *modelpolicydrift.Scheduler
 }
 
 // NewHealthAuditHandler wires a new handler over the persisted Store.
@@ -31,11 +36,32 @@ func NewHealthAuditHandler(store *health.Store) *HealthAuditHandler {
 	return &HealthAuditHandler{store: store}
 }
 
+// WithCatalogFreshness adds resource-owned catalog age to the runner health
+// surface. The callback keeps filesystem/source policy out of the audit store.
+func (h *HealthAuditHandler) WithCatalogFreshness(reader func(context.Context) []agentpolicy.CatalogFreshness) *HealthAuditHandler {
+	h.catalogFreshness = reader
+	return h
+}
+
+func (h *HealthAuditHandler) WithModelPolicyDrift(scheduler *modelpolicydrift.Scheduler) *HealthAuditHandler {
+	h.modelPolicyDrift = scheduler
+	return h
+}
+
 // RegisterRoutes registers the three health endpoints.
 func (h *HealthAuditHandler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/health/models", h.GetModels).Methods("GET")
 	r.HandleFunc("/api/v1/health/runners", h.GetRunners).Methods("GET")
 	r.HandleFunc("/api/v1/health/audit", h.GetAudit).Methods("GET")
+	r.HandleFunc("/api/v1/health/model-policy-drift", h.GetModelPolicyDrift).Methods("GET")
+}
+
+func (h *HealthAuditHandler) GetModelPolicyDrift(w http.ResponseWriter, r *http.Request) {
+	if h.modelPolicyDrift == nil {
+		writeJSON(w, http.StatusOK, modelpolicydrift.Snapshot{Status: "not_measured", Total: 4})
+		return
+	}
+	writeJSON(w, http.StatusOK, h.modelPolicyDrift.Snapshot())
 }
 
 // ModelHealthListResponse is the flat-list shape returned by /health/models.
@@ -60,11 +86,12 @@ type RunnerHealthListResponse struct {
 
 // RunnerHealthRow is one runner row in the snapshot.
 type RunnerHealthRow struct {
-	Runner      string    `json:"runner"`
-	Status      string    `json:"status"`
-	LastChecked time.Time `json:"last_checked"`
-	Reason      string    `json:"reason,omitempty"`
-	Message     string    `json:"message,omitempty"`
+	Runner      string                        `json:"runner"`
+	Status      string                        `json:"status"`
+	LastChecked time.Time                     `json:"last_checked"`
+	Reason      string                        `json:"reason,omitempty"`
+	Message     string                        `json:"message,omitempty"`
+	Catalog     *agentpolicy.CatalogFreshness `json:"catalog,omitempty"`
 }
 
 // HealthAuditResponse pages through one of the audit tables.
@@ -113,14 +140,24 @@ func (h *HealthAuditHandler) GetRunners(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	rows := make([]RunnerHealthRow, 0, len(snap.Runners))
+	catalogs := make(map[string]agentpolicy.CatalogFreshness)
+	if h.catalogFreshness != nil {
+		for _, catalog := range h.catalogFreshness(r.Context()) {
+			catalogs[catalog.Runner] = catalog
+		}
+	}
 	for runner, entry := range snap.Runners {
-		rows = append(rows, RunnerHealthRow{
+		row := RunnerHealthRow{
 			Runner:      runner,
 			Status:      string(entry.Status),
 			LastChecked: entry.LastChecked,
 			Reason:      entry.Reason,
 			Message:     entry.Message,
-		})
+		}
+		if catalog, ok := catalogs[runner]; ok {
+			row.Catalog = &catalog
+		}
+		rows = append(rows, row)
 	}
 	writeJSON(w, http.StatusOK, RunnerHealthListResponse{Runners: rows})
 }

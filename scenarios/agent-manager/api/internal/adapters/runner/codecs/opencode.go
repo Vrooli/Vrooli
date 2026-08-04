@@ -485,8 +485,8 @@ func openCodeNoOpErrorMessage(summary *domain.RunSummary) string {
 	base := "opencode run made no tool calls — the agent took no action (no files read or changed), so the run did no work"
 	if summary != nil && looksLikeUnexecutedToolCall(summary.Description) {
 		return base + "; the model emitted a tool call as text instead of executing it. " +
-			"This happens with Ollama models whose template does not return structured tool_calls; " +
-			"use a tool-calling-capable model such as gemma4:12b, llama3.1, llama3.2, or mistral, or an OpenRouter model"
+			"the selected model or provider may not expose structured tool_calls; " +
+			"select a model/provider combination that supports structured tool calls"
 	}
 	return base
 }

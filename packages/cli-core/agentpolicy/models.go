@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -34,7 +35,22 @@ type LiveModelCatalog struct {
 }
 
 type ModelDiscoveryConfig struct {
-	Runner string
+	Runner      string
+	CatalogPath string
+}
+
+// ModelResolution is the resource-owned answer for one runner model. The
+// control plane treats these strings as opaque and never derives one from the
+// other.
+type ModelResolution struct {
+	SchemaVersion  string `json:"schema_version"`
+	Runner         string `json:"runner"`
+	Model          string `json:"model"`
+	CanonicalModel string `json:"canonical_model"`
+	Provider       string `json:"provider,omitempty"`
+	Source         string `json:"source,omitempty"`
+	PolicyPath     string `json:"policy_path,omitempty"`
+	PolicyDigest   string `json:"policy_digest,omitempty"`
 }
 
 type ModelDiscoveryFunc func(context.Context) (LiveModelCatalog, error)
@@ -43,29 +59,107 @@ func ModelDiscoveryCommands(cfg ModelDiscoveryConfig) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{
 		Name:        "models",
 		Description: "Discover models offered by this runner",
-		Subcommands: []cliapp.Command{{
-			Name:        "list",
-			Description: "List the runner's live model catalog",
-			Run: func(args []string) error {
-				fs := policyFlagSet("models list", os.Stderr)
-				jsonOut := fs.Bool("json", false, "Emit JSON")
-				if err := fs.Parse(args); err != nil {
-					return err
-				}
-				catalog, err := DiscoverModels(context.Background(), cfg.Runner)
-				if err != nil {
-					return err
-				}
-				if *jsonOut {
-					return writeJSON(os.Stdout, catalog)
-				}
-				for _, model := range catalog.Models {
-					fmt.Fprintln(os.Stdout, model)
-				}
-				return nil
+		Subcommands: []cliapp.Command{
+			{
+				Name:        "list",
+				Description: "List the runner's live model catalog",
+				Run: func(args []string) error {
+					fs := policyFlagSet("models list", os.Stderr)
+					jsonOut := fs.Bool("json", false, "Emit JSON")
+					if err := fs.Parse(args); err != nil {
+						return err
+					}
+					catalog, err := DiscoverModels(context.Background(), cfg.Runner)
+					if err != nil {
+						return err
+					}
+					if *jsonOut {
+						return writeJSON(os.Stdout, catalog)
+					}
+					for _, model := range catalog.Models {
+						fmt.Fprintln(os.Stdout, model)
+					}
+					return nil
+				},
 			},
-		}},
+			{
+				Name:        "resolve",
+				Description: "Resolve one runner model through the resource-owned policy",
+				Run: func(args []string) error {
+					return resolveModel(cfg, args)
+				},
+			},
+		},
 	}
+}
+
+func resolveModel(cfg ModelDiscoveryConfig, args []string) error {
+	fs := policyFlagSet("models resolve", os.Stderr)
+	model := fs.String("model", "", "Runner model identifier")
+	jsonOut := fs.Bool("json", false, "Emit JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	modelValue := strings.TrimSpace(*model)
+	if modelValue == "" {
+		return errors.New("--model is required")
+	}
+	if strings.TrimSpace(cfg.CatalogPath) == "" {
+		return errors.New("model resolution requires a catalog path")
+	}
+	resolution, err := ResolveCatalogModel(cfg.Runner, cfg.CatalogPath, modelValue)
+	if err != nil {
+		return err
+	}
+	if *jsonOut {
+		return writeJSON(os.Stdout, resolution)
+	}
+	fmt.Fprintf(os.Stdout, "%s -> %s\n", resolution.Model, resolution.CanonicalModel)
+	return nil
+}
+
+// ResolveCatalogModel resolves one model without invoking a CLI. Resources
+// use it to implement their command surface; control-plane tests can exercise
+// the exact same contract deterministically.
+func ResolveCatalogModel(runner, catalogPath, modelValue string) (ModelResolution, error) {
+	runner = strings.TrimSpace(runner)
+	modelValue = strings.TrimSpace(modelValue)
+	if runner == "" {
+		return ModelResolution{}, errors.New("runner is required")
+	}
+	if modelValue == "" {
+		return ModelResolution{}, errors.New("model is required")
+	}
+	if strings.TrimSpace(catalogPath) == "" {
+		return ModelResolution{}, errors.New("model resolution requires a catalog path")
+	}
+	catalog, data, err := loadCodingRoleCatalog(CodingPolicyConfig{Runner: runner, CatalogPath: catalogPath})
+	if err != nil {
+		return ModelResolution{}, err
+	}
+	alias, ok := catalog.ModelAliases[modelValue]
+	if !ok {
+		for _, role := range catalog.Roles {
+			if role.Model == modelValue && strings.TrimSpace(role.CanonicalModel) != "" {
+				alias = ModelAlias{CanonicalModel: role.CanonicalModel}
+				ok = true
+				break
+			}
+		}
+	}
+	if !ok || strings.TrimSpace(alias.CanonicalModel) == "" {
+		return ModelResolution{}, fmt.Errorf("model %q has no resource-owned canonical mapping", modelValue)
+	}
+	return ModelResolution{
+		SchemaVersion:  ModelDiscoverySchemaVersion,
+		Runner:         runner,
+		Model:          modelValue,
+		CanonicalModel: alias.CanonicalModel,
+		Provider:       alias.Provider,
+		Source:         catalog.Provenance.Source,
+		PolicyPath:     catalogPath,
+		PolicyDigest:   digest(data),
+	}, nil
 }
 
 func DiscoverModels(ctx context.Context, runner string) (LiveModelCatalog, error) {
@@ -174,11 +268,34 @@ func discoverClaudeAliases(ctx context.Context) (LiveModelCatalog, error) {
 	if !strings.Contains(text, "--model") {
 		return LiveModelCatalog{}, fmt.Errorf("%w: claude help has no --model surface", ErrModelDiscoveryUnavailable)
 	}
-	// Claude exposes these as moving aliases. The help text currently documents
-	// fable, opus, and sonnet; haiku is retained because it is a supported
-	// low-cost alias used by the resource's policy and Claude accepts it in the
-	// same --model surface.
-	return normalizeLiveCatalog("claude-code", []string{"fable", "opus", "sonnet", "haiku", "claude-fable-5", "claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5-20251001"}, "claude --help --model alias surface", time.Now().UTC().Format(time.RFC3339), true), nil
+	// Read examples from the installed CLI's own help text. Claude's alias
+	// vocabulary changes independently of this package, so keeping a second
+	// list here would create false drift and stale policy health.
+	return normalizeLiveCatalog("claude-code", extractModelExamples(text), "claude --help --model alias surface", time.Now().UTC().Format(time.RFC3339), true), nil
+}
+
+var modelExamplePattern = regexp.MustCompile(`['"]([^'"]+)['"]`)
+
+func extractModelExamples(help string) []string {
+	lines := strings.Split(help, "\n")
+	models := make([]string, 0)
+	inModelOption := false
+	for _, line := range lines {
+		if strings.Contains(line, "--model <model>") {
+			inModelOption = true
+		} else if inModelOption && (strings.HasPrefix(line, "  --") || strings.HasPrefix(line, "  -")) {
+			break
+		}
+		if !inModelOption {
+			continue
+		}
+		for _, match := range modelExamplePattern.FindAllStringSubmatch(line, -1) {
+			if len(match) == 2 && strings.TrimSpace(match[1]) != "" {
+				models = append(models, match[1])
+			}
+		}
+	}
+	return models
 }
 
 func discoverCommandModels(ctx context.Context, runner, command string, args ...string) (LiveModelCatalog, error) {

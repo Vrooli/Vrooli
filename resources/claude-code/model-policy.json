@@ -1,11 +1,25 @@
 {
   "schema_version": "v1",
   "runner": "claude-code",
-  "provenance": {"source": "Claude Code aliases and pinned upstream catalog", "observed_at": "2026-07-09"},
+  "provenance": {"source": "Claude Code --model alias surface and pinned upstream catalog (claude 2.1.221)", "observed_at": "2026-08-04"},
+  "billing": {"mode": "unknown", "source": "policy-default"},
+  "model_aliases": {
+    "sonnet": {"canonical_model": "anthropic/claude-sonnet-5", "provider": "openrouter"},
+    "claude-sonnet-5": {"canonical_model": "anthropic/claude-sonnet-5", "provider": "openrouter"},
+    "opus": {"canonical_model": "anthropic/claude-opus-5", "provider": "openrouter"},
+    "claude-opus-5": {"canonical_model": "anthropic/claude-opus-5", "provider": "openrouter"},
+    "haiku": {"canonical_model": "anthropic/claude-haiku-4-5-20251001", "provider": "openrouter"},
+    "claude-haiku-4-5-20251001": {"canonical_model": "anthropic/claude-haiku-4-5-20251001", "provider": "openrouter"},
+    "fable": {"canonical_model": "anthropic/claude-fable-5", "provider": "openrouter"},
+    "claude-fable-5": {"canonical_model": "anthropic/claude-fable-5", "provider": "openrouter"}
+  },
   "roles": {
-    "code.default": {"model": "sonnet", "fallbacks": ["claude-sonnet-4-6"], "description": "Balanced Claude Code implementation work.", "capabilities": ["code", "tools"]},
-    "code.fast": {"model": "sonnet", "fallbacks": ["haiku"], "description": "Low-latency Claude Code edits.", "capabilities": ["code", "tools"]},
-    "code.smart": {"model": "opus", "fallbacks": ["claude-opus-4-8"], "description": "Highest-capability Claude Code reasoning.", "capabilities": ["code", "tools", "reasoning"]},
-    "code.cheap": {"model": "haiku", "fallbacks": ["claude-haiku-4-5-20251001"], "description": "Cost-conscious Claude Code tasks.", "capabilities": ["code", "tools"]}
+    "code.default": {"model": "sonnet", "canonical_model": "anthropic/claude-sonnet-5", "fallbacks": ["claude-sonnet-5"], "description": "Balanced Claude Code implementation work.", "capabilities": ["code", "tools"]},
+    "code.fast": {"model": "sonnet", "canonical_model": "anthropic/claude-sonnet-5", "fallbacks": ["haiku"], "description": "Low-latency Claude Code edits.", "capabilities": ["code", "tools"]},
+    "code.smart": {"model": "opus", "canonical_model": "anthropic/claude-opus-5", "fallbacks": ["claude-opus-5"], "description": "Highest-capability Claude Code reasoning.", "capabilities": ["code", "tools", "reasoning"]},
+    "code.cheap": {"model": "haiku", "canonical_model": "anthropic/claude-haiku-4-5-20251001", "fallbacks": ["claude-haiku-4-5-20251001"], "description": "Cost-conscious Claude Code tasks.", "capabilities": ["code", "tools"]},
+    "code.ux": {"model": "opus", "canonical_model": "anthropic/claude-opus-5", "fallbacks": ["claude-opus-5"], "description": "User-facing interaction and frontend work where quality matters most.", "capabilities": ["code", "tools", "ux"]},
+    "code.longrun": {"model": "fable", "canonical_model": "anthropic/claude-fable-5", "fallbacks": ["claude-fable-5"], "description": "Long-horizon autonomous coding work.", "capabilities": ["code", "tools", "reasoning"]},
+    "write.default": {"model": "opus", "canonical_model": "anthropic/claude-opus-5", "fallbacks": ["claude-opus-5"], "description": "Natural-prose writing and editorial work.", "capabilities": ["writing", "tools"]}
   }
 }

@@ -5,10 +5,13 @@ import { ModelHealthTable } from "./components/ModelHealthTable";
 import { RunnerHealthTable } from "./components/RunnerHealthTable";
 import { HealthAuditDrawer } from "./components/HealthAuditDrawer";
 import { useModelHealth, useRunnerHealth } from "./hooks/useHealth";
+import { useModelPolicyDrift } from "./hooks/useHealth";
+import { ModelPolicyDriftStatus } from "./components/ModelPolicyDriftStatus";
 
 export function HealthPage() {
   const models = useModelHealth();
   const runners = useRunnerHealth();
+  const drift = useModelPolicyDrift();
   const [auditFilters, setAuditFilters] = useState<HealthAuditFilters | null>(null);
 
   const onModelAudit = (runner: string, model: string) => {
@@ -26,6 +29,8 @@ export function HealthPage() {
           Persisted snapshot of every runner and model the system has observed. Failed entries surface first.
         </p>
       </header>
+
+      <ModelPolicyDriftStatus snapshot={drift.data} />
 
       <Tabs defaultValue="models" className="w-full">
         <TabsList>
