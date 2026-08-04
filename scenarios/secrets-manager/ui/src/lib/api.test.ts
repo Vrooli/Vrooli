@@ -15,6 +15,8 @@ import {
   deleteWatchlistEntry,
   fetchAllowlistRules,
   fetchCampaigns,
+  fetchCredentialDoctor,
+  fetchCredentialKeyringReport,
   fetchCompliance,
   fetchDeploymentReadiness,
   fetchEffectiveStrategies,
@@ -172,6 +174,12 @@ describe("Secrets Manager API contract client", () => {
 
     fetchMock.mockResolvedValueOnce(response({ error: "unavailable" }, 503, "Service Unavailable"));
     await expect(fetchHealth()).rejects.toThrow("Request failed (503): Service Unavailable");
+  });
+
+  it("exposes the credential doctor and keyring report routes", async () => {
+    await expectRequest(fetchCredentialDoctor, "/credentials/doctor");
+    await expectRequest(fetchCredentialKeyringReport, "/credentials/keyring/inspect");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
 

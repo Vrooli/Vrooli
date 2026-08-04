@@ -20,6 +20,13 @@ type RunOptions struct {
 	StrictHostKey       bool          // Default: true
 	IdentitiesOnly      bool          // Default: false
 
+	// Stdin is fed to the remote command's standard input. It exists so a
+	// secret value can reach a remote process without ever entering a command
+	// string: the command string becomes argv locally and the argument to the
+	// remote shell, so anything embedded in it is visible in both process
+	// listings. Values must travel here instead.
+	Stdin []byte
+
 	// Output limits
 	MaxOutputBytes    int // Default: 512 * 1024
 	ErrorContextLines int // Default: 50

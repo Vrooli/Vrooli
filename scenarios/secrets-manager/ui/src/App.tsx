@@ -21,9 +21,24 @@ import { ResourceTable } from "./sections/ResourceTable";
 import { CampaignsPanel } from "./sections/CampaignsPanel";
 import type { JourneyId } from "./features/journeys/journeySteps";
 import { TutorialOverlay } from "./components/ui/TutorialOverlay";
+import { fetchCredentialDoctor, fetchCredentialKeyringReport, type CredentialDoctorResponse, type CredentialKeyringReport } from "./lib/api";
 
 export default function App() {
   const { activeTab, resourceTab, setActiveTab, setResourceTab } = useTabRouting();
+  const [credentialDiagnosis, setCredentialDiagnosis] = useState<CredentialDoctorResponse | null>(null);
+  const [credentialKeyring, setCredentialKeyring] = useState<CredentialKeyringReport | null>(null);
+  useEffect(() => {
+    void fetchCredentialDoctor().then((diagnosis) => {
+      setCredentialDiagnosis(diagnosis);
+    }).catch(() => {
+      // The dashboard remains usable when the optional diagnostic relay is down.
+    });
+    void fetchCredentialKeyringReport().then((report) => {
+      setCredentialKeyring(report);
+    }).catch(() => {
+      // Keyring inspection is optional on hosts without a GNOME keyring.
+    });
+  }, []);
   const [showTutorialOverlay, setShowTutorialOverlay] = useState(false);
   const [tutorialAnchor, setTutorialAnchor] = useState<string | undefined>(undefined);
   const [selectedScenario, setSelectedScenario] = useState<string>("secrets-manager");
@@ -303,6 +318,26 @@ export default function App() {
             onAction={() => setActiveTab("resources")}
           />
         ) : null}
+        {credentialDiagnosis?.provider && (
+          <section className="rounded-3xl border border-amber-300/30 bg-amber-300/10 p-4" aria-label="Credential provider diagnosis">
+            <h2 className="font-semibold text-amber-200">Credential provider diagnosis</h2>
+            <p className="mt-1 text-sm text-slate-200">{credentialDiagnosis.provider.backend} · {credentialDiagnosis.provider.condition}</p>
+            {credentialDiagnosis.provider.explanation && <p className="mt-1 text-xs text-slate-300">{credentialDiagnosis.provider.explanation}</p>}
+            {credentialDiagnosis.provider.fix && <p className="mt-1 text-xs text-emerald-200">Next: {credentialDiagnosis.provider.fix}</p>}
+            {credentialDiagnosis.provider.write_condition && <p className="mt-1 text-xs text-slate-300">Write reachability: {credentialDiagnosis.provider.write_condition}. {credentialDiagnosis.provider.write_fix}</p>}
+          </section>
+        )}
+        {credentialKeyring && (
+          <section className="rounded-3xl border border-white/10 bg-white/5 p-4" aria-label="Credential keyring report">
+            <h2 className="font-semibold text-slate-100">Keyring report</h2>
+            <p className="mt-1 text-sm text-slate-300">
+              {credentialKeyring.loadable ? "The keyring file is loadable." : "The keyring file needs attention."}
+              {credentialKeyring.defects?.length ? ` ${credentialKeyring.defects.length} defect${credentialKeyring.defects.length === 1 ? "" : "s"} detected.` : ""}
+            </p>
+            {credentialKeyring.staleDaemon && <p className="mt-1 text-xs text-amber-200">{credentialKeyring.staleDaemonDetail || "The running keyring daemon may have older in-memory state; log out and back in."}</p>}
+            {credentialKeyring.repaired ? <p className="mt-1 text-xs text-emerald-200">Repaired entries: {credentialKeyring.repaired}.</p> : null}
+          </section>
+        )}
         {activeTab === "resources" && readinessCount > 0 ? (
           <TabTip
             title={`${readinessCount} tier${readinessCount === 1 ? "" : "s"} need strategies`}

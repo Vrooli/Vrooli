@@ -24,6 +24,8 @@ Desktop mode uses a private SQLite database. Shared mode uses routed Postgres me
 
 If preflight reports missing Secret Service tooling, use `vrooli host install secret-tool` with an authorized interactive session. If bundle staging rejects an artifact, obtain the required detached checksum signature.
 
+On a host with no desktop session there is no Secret Service to install, and installing one is not the fix. Every native credential store is a desktop-session facility, so a server, a CI runner, or a Raspberry Pi uses the **encrypted file store** instead: run `vrooli credentials store init` once (a reachable TPM needs no passphrase; otherwise pipe one in on stdin), then `vrooli credentials store status` to see which key wrap holds it and what protects that wrap. `vrooli credentials doctor` names the active backend on every host, so "which store holds my values" is never a guess. Plaintext credential storage stays prohibited on every platform — the encrypted store seals each value under a key that is not in the file.
+
 ## Cross-References
 
 - [Runbook](../operations/RUNBOOK.md)

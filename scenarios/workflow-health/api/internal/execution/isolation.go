@@ -86,7 +86,7 @@ func (r *RoutingIsolation) Acquire(ctx context.Context, scenario, leaseID string
 	if filePersisting && !installed.Msg.GetFileRootsInstalled() {
 		_, _ = client.ClearTestPool(context.Background(), connect.NewRequest(&routingv1.ClearTestPoolRequest{LeaseId: leaseID}))
 		cleanup()
-		return nil, fmt.Errorf("target scenario did not install leased file roots; run storage-health validation and wire RoutedRoots")
+		return nil, fmt.Errorf("target scenario did not install leased file roots; run storage-manager validation and wire RoutedRoots")
 	}
 	leaseCtx, cancel := context.WithCancel(context.Background())
 	lease := &routingLease{client: client, leaseID: leaseID, cleanup: cleanup, cancel: cancel, evidence: IsolationEvidence{Installed: true, LeaseID: leaseID}}
@@ -95,28 +95,28 @@ func (r *RoutingIsolation) Acquire(ctx context.Context, scenario, leaseID string
 }
 
 func storageHealthRequiresFileRoots(ctx context.Context, scenario string) (bool, error) {
-	base, err := discovery.ResolveScenarioURLDefault(ctx, "storage-health")
+	base, err := discovery.ResolveScenarioURLDefault(ctx, "storage-manager")
 	if err != nil {
-		return false, fmt.Errorf("resolve storage-health: %w", err)
+		return false, fmt.Errorf("resolve storage-manager: %w", err)
 	}
 	client := scenariovalidationv1connect.NewScenarioValidationServiceClient(http.DefaultClient, base)
 	resp, err := client.ValidateScenario(ctx, connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: scenario}))
 	if err != nil {
-		return false, fmt.Errorf("validate target through storage-health: %w", err)
+		return false, fmt.Errorf("validate target through storage-manager: %w", err)
 	}
 	if resp.Msg.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED {
-		return false, fmt.Errorf("storage-health did not prove target isolation (status %s)", resp.Msg.GetStatus())
+		return false, fmt.Errorf("storage-manager did not prove target isolation (status %s)", resp.Msg.GetStatus())
 	}
 	detail := &structpb.Struct{}
 	if native := resp.Msg.GetNativeDetail(); native == nil || native.UnmarshalTo(detail) != nil {
-		return false, fmt.Errorf("storage-health response omitted file-persistence classification")
+		return false, fmt.Errorf("storage-manager response omitted file-persistence classification")
 	}
 	field, ok := detail.Fields["file_persisting"]
 	if !ok {
-		return false, fmt.Errorf("storage-health response has invalid file-persistence classification")
+		return false, fmt.Errorf("storage-manager response has invalid file-persistence classification")
 	}
 	if _, ok := field.Kind.(*structpb.Value_BoolValue); !ok {
-		return false, fmt.Errorf("storage-health response has invalid file-persistence classification")
+		return false, fmt.Errorf("storage-manager response has invalid file-persistence classification")
 	}
 	return field.GetBoolValue(), nil
 }

@@ -149,7 +149,9 @@ func BenchmarkScanResourceDirectory(b *testing.B) {
 	defer os.RemoveAll(tempDir)
 
 	resourceDir := filepath.Join(tempDir, "test-resource")
-	os.MkdirAll(resourceDir, 0o755)
+	if err := os.MkdirAll(resourceDir, 0o755); err != nil {
+		b.Fatal(err)
+	}
 
 	// Create test files
 	files := map[string]string{
@@ -171,7 +173,9 @@ database:
 	}
 
 	for name, content := range files {
-		os.WriteFile(filepath.Join(resourceDir, name), []byte(content), 0o644)
+		if err := os.WriteFile(filepath.Join(resourceDir, name), []byte(content), 0o644); err != nil {
+			b.Fatal(err)
+		}
 	}
 
 	b.ResetTimer()
@@ -186,10 +190,14 @@ func BenchmarkIsTextFile(b *testing.B) {
 	defer os.RemoveAll(tempDir)
 
 	textFile := filepath.Join(tempDir, "text.txt")
-	os.WriteFile(textFile, []byte("This is a text file with some content"), 0o644)
+	if err := os.WriteFile(textFile, []byte("This is a text file with some content"), 0o644); err != nil {
+		b.Fatal(err)
+	}
 
 	binaryFile := filepath.Join(tempDir, "binary.bin")
-	os.WriteFile(binaryFile, []byte{0xFF, 0xFE, 0x00, 0x01, 0x02, 0x03}, 0o644)
+	if err := os.WriteFile(binaryFile, []byte{0xFF, 0xFE, 0x00, 0x01, 0x02, 0x03}, 0o644); err != nil {
+		b.Fatal(err)
+	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -263,16 +271,24 @@ func BenchmarkEstimateFileCount(b *testing.B) {
 
 	scenariosDir := filepath.Join(tempDir, "scenarios")
 	resourcesDir := filepath.Join(tempDir, "resources")
-	os.MkdirAll(scenariosDir, 0o755)
-	os.MkdirAll(resourcesDir, 0o755)
+	if err := os.MkdirAll(scenariosDir, 0o755); err != nil {
+		b.Fatal(err)
+	}
+	if err := os.MkdirAll(resourcesDir, 0o755); err != nil {
+		b.Fatal(err)
+	}
 
 	// Create some test structure
 	for i := 0; i < 10; i++ {
 		dir := filepath.Join(resourcesDir, "resource-"+string(rune('a'+i)))
-		os.MkdirAll(dir, 0o755)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			b.Fatal(err)
+		}
 		for j := 0; j < 5; j++ {
 			file := filepath.Join(dir, "file"+string(rune('0'+j))+".txt")
-			os.WriteFile(file, []byte("content"), 0o644)
+			if err := os.WriteFile(file, []byte("content"), 0o644); err != nil {
+				b.Fatal(err)
+			}
 		}
 	}
 

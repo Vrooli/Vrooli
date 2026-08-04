@@ -92,6 +92,36 @@ export interface VaultSecretsStatus {
   last_updated: string;
 }
 
+export interface CredentialDoctorResponse {
+  provider?: {
+    backend?: string;
+    condition?: string;
+    explanation?: string;
+    fix?: string;
+    write_condition?: string;
+    write_explanation?: string;
+    write_fix?: string;
+    native_storage_caveat?: string;
+  };
+}
+
+export function fetchCredentialDoctor() {
+  return jsonFetch<CredentialDoctorResponse>("/credentials/doctor");
+}
+
+export interface CredentialKeyringReport {
+  path?: string;
+  loadable?: boolean;
+  defects?: Array<{ label?: string; repairable?: boolean }>;
+  repaired?: number;
+  staleDaemon?: boolean;
+  staleDaemonDetail?: string;
+}
+
+export function fetchCredentialKeyringReport() {
+  return jsonFetch<CredentialKeyringReport>("/credentials/keyring/inspect");
+}
+
 export interface ComplianceResponse {
   overall_score: number;
   vault_secrets_health: number;

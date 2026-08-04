@@ -22,8 +22,7 @@ import (
 	"scenario-to-cloud/secrets"
 	"scenario-to-cloud/ssh"
 
-	apisecrets "github.com/vrooli/api-core/secrets"
-	repocontract "github.com/vrooli/repo-contract-go"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
 // DeployRequest is the request body for VPS deployment.
@@ -120,22 +119,40 @@ func BuildPortEnvVars(ports domain.ManifestPorts) string {
 	return fmt.Sprintf("export %s &&", strings.Join(parts, " "))
 }
 
+// credentialFieldFor derives the durable field name for a bundle secret.
+//
+// The normalization itself lives in secrets.CredentialField and is shared with
+// the remote provisioning path deliberately: a value written under one
+// normalization and read under another is a credential that silently is not
+// there. Only the choice of which part of the plan names it belongs here.
+func credentialFieldFor(secret domain.BundleSecretPlan) string {
+	raw := strings.TrimSpace(secret.ID)
+	if raw == "" {
+		raw = strings.TrimSpace(secret.Target.Name)
+	}
+	return secrets.CredentialField(raw)
+}
+
+// buildUserSecretMap resolves the operator-supplied secrets a bundle needs.
+//
+// Values come from the credential authority, never from a file. The two
+// plaintext stores this used to read — ~/.vrooli/secrets.json and
+// ~/.vrooli/scenarios/<id>/secrets.json — are gone along with the API that
+// maintained them, so a cloud deploy no longer depends on, or recreates, a
+// credential sitting unencrypted on the operator's disk.
+//
+// The identity namespace is the same one Tier 1 and Tier 2 use,
+// vrooli/<scenario>, so a credential provisioned once during onboarding is the
+// credential a cloud deploy ships. That is the whole point of a durable
+// backend-neutral name: the deployment tier must not change where a value
+// lives.
 func buildUserSecretMap(manifest domain.CloudManifest, providedSecrets map[string]string) map[string]string {
 	if manifest.Secrets == nil || len(manifest.Secrets.BundleSecrets) == 0 {
 		return nil
 	}
 
-	workspaceSecrets := map[string]string{}
-	userStore, err := apisecrets.NewUserStore(apisecrets.Config{})
-	if err == nil {
-		workspaceSecrets = readLocalSecretsMap(userStore.PlaintextPath())
-	}
-	scenarioSecrets := map[string]string{}
-	if err == nil {
-		if scenarioSecretsPath, pathErr := repocontract.UserScenarioPlaintextSecretsPath(userStore.HomeDir(), manifest.Scenario.ID); pathErr == nil {
-			scenarioSecrets = readLocalSecretsMap(scenarioSecretsPath)
-		}
-	}
+	authority, authErr := credentialauthority.Default()
+	identity, identityErr := credentialauthority.ParseIdentity("vrooli/" + strings.TrimSpace(manifest.Scenario.ID))
 
 	out := make(map[string]string)
 	for _, secret := range manifest.Secrets.BundleSecrets {
@@ -150,13 +167,17 @@ func buildUserSecretMap(manifest domain.CloudManifest, providedSecrets map[strin
 			continue
 		}
 
-		// Merge precedence (lowest -> highest):
-		// ~/.vrooli/secrets.json -> ~/.vrooli/scenarios/<id>/secrets.json -> explicit provided secrets
-		if v, ok := workspaceSecrets[key]; ok && strings.TrimSpace(v) != "" {
-			out[key] = v
-		}
-		if v, ok := scenarioSecrets[key]; ok && strings.TrimSpace(v) != "" {
-			out[key] = v
+		// Merge precedence (lowest -> highest): the stored credential, then a
+		// value the caller supplied explicitly for this deploy.
+		if authErr == nil && identityErr == nil {
+			if field := credentialFieldFor(secret); field != "" {
+				// A credential that is simply unset is a normal answer here and
+				// leaves the key absent, which is what the caller's own
+				// missing-secret reporting already handles.
+				if value, err := authority.Resolve(identity, field); err == nil && strings.TrimSpace(value) != "" {
+					out[key] = value
+				}
+			}
 		}
 		if v, ok := providedSecrets[key]; ok && strings.TrimSpace(v) != "" {
 			out[key] = v
@@ -167,14 +188,6 @@ func buildUserSecretMap(manifest domain.CloudManifest, providedSecrets map[strin
 		return nil
 	}
 	return out
-}
-
-func readLocalSecretsMap(path string) map[string]string {
-	values, err := apisecrets.LoadFile(path)
-	if err != nil {
-		return map[string]string{}
-	}
-	return values
 }
 
 // ServiceJSON represents the structure of .vrooli/service.json

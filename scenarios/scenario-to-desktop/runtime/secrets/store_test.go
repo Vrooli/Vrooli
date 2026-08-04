@@ -201,3 +201,87 @@ func TestManagerMerge(t *testing.T) {
 		t.Errorf("merged[OVERWRITE] = %q, want %q", merged["OVERWRITE"], "new")
 	}
 }
+
+// A bundle must read the credential the operator already provisioned. Before
+// this, a bundle invented its own namespace from the app's display name, so the
+// key entered during onboarding and the key a packaged bundle looked for were
+// two different stored values with no declared relationship — provision-once
+// was not true across tiers, and neither was a recovery bundle taken on either.
+func TestDeclaredLogicalIDResolvesToTheSharedIdentity(t *testing.T) {
+	m := &manifest.Manifest{
+		App: manifest.App{Name: "My Desktop App"},
+		Secrets: []manifest.Secret{
+			{
+				ID:        "OPENROUTER_API_KEY",
+				LogicalID: "vrooli/openrouter",
+				Field:     "api-key",
+				Target:    manifest.SecretTarget{Type: "env", Name: "OPENROUTER_API_KEY"},
+			},
+			{
+				// No declaration: falls back to the bundle's own namespace.
+				ID:     "BUNDLE_ONLY",
+				Target: manifest.SecretTarget{Type: "env", Name: "BUNDLE_ONLY"},
+			},
+		},
+	}
+	manager := newManager(m)
+	identity, err := desktopIdentity(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager.identity = identity
+
+	sharedIdentity, sharedField, err := manager.addressOf(m.Secrets[0])
+	if err != nil {
+		t.Fatalf("addressOf declared: %v", err)
+	}
+	if string(sharedIdentity) != "vrooli/openrouter" || sharedField != "api-key" {
+		t.Fatalf("declared secret resolved to %s:%s, want vrooli/openrouter:api-key — a Tier 1 install would not find it",
+			sharedIdentity, sharedField)
+	}
+
+	localIdentity, localField, err := manager.addressOf(m.Secrets[1])
+	if err != nil {
+		t.Fatalf("addressOf undeclared: %v", err)
+	}
+	if localIdentity != identity {
+		t.Fatalf("undeclared secret resolved to %s, want the bundle namespace %s", localIdentity, identity)
+	}
+	if localField != "bundle-only" {
+		t.Fatalf("undeclared field = %q, want the normalized form", localField)
+	}
+}
+
+// The field normalization must match every other tier's, or a value written by
+// one lands where the other does not look.
+func TestCredentialFieldNormalizationMatchesTheOtherTiers(t *testing.T) {
+	for _, testCase := range []struct {
+		secret manifest.Secret
+		want   string
+	}{
+		{secret: manifest.Secret{Field: "api-key", ID: "IGNORED"}, want: "api-key"},
+		{secret: manifest.Secret{ID: "SESSION_SECRET"}, want: "session-secret"},
+		{secret: manifest.Secret{ID: "cloudflare.api_token"}, want: "cloudflare-api-token"},
+		{secret: manifest.Secret{Target: manifest.SecretTarget{Name: "DB_PASSWORD"}}, want: "db-password"},
+		{secret: manifest.Secret{}, want: ""},
+	} {
+		if got := testCase.secret.CredentialField(); got != testCase.want {
+			t.Fatalf("CredentialField() = %q, want %q", got, testCase.want)
+		}
+	}
+}
+
+// An unusable logical_id must fail loudly. Silently falling back to the bundle
+// namespace would store the value somewhere the operator never looks.
+func TestUnusableLogicalIDIsRejectedRatherThanSilentlyFallingBack(t *testing.T) {
+	m := &manifest.Manifest{
+		App:     manifest.App{Name: "App"},
+		Secrets: []manifest.Secret{{ID: "KEY", LogicalID: "not-namespaced", Field: "api-key"}},
+	}
+	manager := newManager(m)
+	identity, _ := desktopIdentity(m)
+	manager.identity = identity
+	if _, _, err := manager.addressOf(m.Secrets[0]); err == nil {
+		t.Fatal("an unusable logical_id was silently accepted")
+	}
+}

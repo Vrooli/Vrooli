@@ -2,6 +2,7 @@ package secrets
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/resources/securestore"
@@ -22,7 +23,10 @@ func (s *nativeTestStore) Put(service, key, value string) error {
 func (s *nativeTestStore) Get(service, key string) (string, error) {
 	value, ok := s.values[service+"/"+key]
 	if !ok {
-		return "", errors.New("missing")
+		// A conforming Store distinguishes "no value" from "backend broken";
+		// the desktop manager relies on that to keep a provider outage from
+		// looking like an unset bundle secret.
+		return "", fmt.Errorf("%w: %s/%s", securestore.ErrNotFound, service, key)
 	}
 	return value, nil
 }
@@ -33,6 +37,45 @@ func (s *nativeTestStore) Delete(service, key string) error {
 }
 
 var _ securestore.Store = (*nativeTestStore)(nil)
+
+// unreachableTestStore stands in for a desktop host whose platform credential
+// service is running but unreachable.
+type unreachableTestStore struct{}
+
+func (unreachableTestStore) Put(string, string, string) error {
+	return fmt.Errorf("%w: session unreachable", securestore.ErrUnavailable)
+}
+
+func (unreachableTestStore) Get(string, string) (string, error) {
+	return "", fmt.Errorf("%w: session unreachable", securestore.ErrUnavailable)
+}
+
+func (unreachableTestStore) Delete(string, string) error {
+	return fmt.Errorf("%w: session unreachable", securestore.ErrUnavailable)
+}
+
+// TestNativeManagerSurfacesProviderOutageInsteadOfSkippingSecrets proves the
+// desktop manager no longer silently treats a broken platform store as a
+// bundle whose secrets were never set. Skipping would hand the app an empty
+// credential set and a confusing "please configure" prompt.
+func TestNativeManagerSurfacesProviderOutageInsteadOfSkippingSecrets(t *testing.T) {
+	authority, err := credentialauthority.NewAuthority(unreachableTestStore{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	bundle := &manifest.Manifest{App: manifest.App{Name: "Demo Desktop"}, Secrets: []manifest.Secret{{ID: "API_KEY"}}}
+	manager, err := NewNativeManagerWithAuthority(bundle, authority)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = manager.Load()
+	if !errors.Is(err, credentialauthority.ErrProviderUnavailable) {
+		t.Fatalf("Load() error = %v, want ErrProviderUnavailable", err)
+	}
+	if errors.Is(err, credentialauthority.ErrUnconfigured) {
+		t.Fatalf("Load() error = %v must not read as an unset credential", err)
+	}
+}
 
 func TestNativeManagerRoundTripNeverUsesAFile(t *testing.T) {
 	authority, err := credentialauthority.NewAuthority(&nativeTestStore{})

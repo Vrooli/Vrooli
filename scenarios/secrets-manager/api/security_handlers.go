@@ -1,3 +1,4 @@
+//nolint:gofumpt // golangci-lint's bundled formatter disagrees with the pinned formatter.
 package main
 
 import (
@@ -9,10 +10,11 @@ import (
 	"strings"
 	"time"
 
+	"secrets-manager-api/internal/envx"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/database"
-	"secrets-manager-api/internal/envx"
 )
 
 type SecurityHandlers struct {

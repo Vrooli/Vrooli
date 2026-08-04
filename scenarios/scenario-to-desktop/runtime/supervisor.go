@@ -121,8 +121,12 @@ type Supervisor struct {
 	envReader     EnvReader
 	portAllocator PortAllocator
 	secretStore   secrets.Store
-	healthChecker HealthChecker
-	telemetry     telemetry.Recorder
+	// secretInjector is retained so the paths of materialized file-target
+	// secrets survive long enough to be cleaned up.
+	secretInjector     *secrets.Injector
+	secretInjectorOnce sync.Once
+	healthChecker      HealthChecker
+	telemetry          telemetry.Recorder
 
 	// Cached domain objects (created once, reused).
 	envRenderer       *env.Renderer

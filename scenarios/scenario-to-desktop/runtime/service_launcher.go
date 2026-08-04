@@ -591,6 +591,16 @@ func (s *Supervisor) startServicesAsync() {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
+		// Every service that needed a secret materialized on disk has been
+		// launched by the time this returns, success or failure, so the files
+		// have no purpose left. They are removed on the failure path too: a
+		// half-started bundle is exactly when a stray credential would sit
+		// around unnoticed.
+		defer func() {
+			if err := s.discardMaterializedSecrets(); err != nil {
+				_ = s.recordTelemetry("secret_cleanup_failed", map[string]interface{}{"error": err.Error()})
+			}
+		}()
 		if err := s.launchServices(ctx); err != nil {
 			_ = s.recordTelemetry("runtime_error", map[string]interface{}{"error": err.Error()})
 		}

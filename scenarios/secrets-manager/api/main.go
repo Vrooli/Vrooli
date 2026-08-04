@@ -1,3 +1,4 @@
+//nolint:gofumpt // golangci-lint's bundled formatter disagrees with the pinned formatter.
 package main
 
 import (
@@ -12,34 +13,31 @@ import (
 	"os"
 	"path/filepath"
 
+	"secrets-manager-api/internal/envx"
+
+	"github.com/gorilla/handlers"
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
+
 	// Register the driver selected by database.DriverPostgres. Without this
 	// import the process builds successfully but exits before serving /health.
+
 	_ "github.com/lib/pq"
 	_ "modernc.org/sqlite"
-	"secrets-manager-api/internal/envx"
-
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
 )
 
 // Package-level logger
 var logger *Logger
 
 // Database connection
-var db *database.RoutedDB
-var campaignRoots *filerouting.RoutedRoots
-
-type routingMuxAdapter struct{ mux *mux.Router }
-
-func (m routingMuxAdapter) Handle(pattern string, handler http.Handler) {
-	m.mux.PathPrefix(pattern).Handler(handler)
-}
+var (
+	db            *database.RoutedDB
+	campaignRoots *filerouting.RoutedRoots
+)
 
 func initDB(desktopMode bool) *database.RoutedDB {
 	config := database.Config{Driver: database.DriverPostgres, TestDriver: database.DriverSQLite}

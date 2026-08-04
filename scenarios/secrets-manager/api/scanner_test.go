@@ -241,7 +241,7 @@ func TestScannerEdgeCases(t *testing.T) {
 		if err := os.Chmod(restrictedDir, 0o000); err != nil {
 			t.Skip("Cannot modify permissions on this system")
 		}
-		defer os.Chmod(restrictedDir, 0o755) // Restore for cleanup
+		defer func() { _ = os.Chmod(restrictedDir, 0o755) }() // Restore for cleanup
 
 		// Scan should handle permission errors gracefully
 		secrets, err := scanResourceDirectory("restricted", restrictedDir)

@@ -12,6 +12,10 @@
     "contract": "scenario-validation/v1",
     "includeExecution": true
   },
+  "targets": {
+    "kinds": ["scenario", "package", "control-plane"],
+    "selection": "enumerate"
+  },
   "applicability": {
     "default": "applies"
   },

@@ -332,5 +332,6 @@
     "type": "scenario",
     "version": "1.0.0"
   },
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "storage": {"entries":{"logs":{"rung":"owned","path":"logs","kind":"dir","class":"logs","regenerable":true,"rationale":"Scenario operational logs observed in the canonical logs directory."},"runtime":{"rung":"owned","path":"runtime","kind":"dir","class":"state","regenerable":true,"rationale":"Scenario runtime artifacts observed in the canonical runtime directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."}
 }

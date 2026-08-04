@@ -57,6 +57,9 @@ func runSSH(ctx context.Context, cfg Config, command string, opts RunOptions) (R
 
 	maxOut := opts.maxOutput()
 	cmd := exec.CommandContext(ctx, "ssh", args...)
+	if len(opts.Stdin) > 0 {
+		cmd.Stdin = bytes.NewReader(opts.Stdin)
+	}
 	stdout := newBoundedBuffer(maxOut)
 	stderr := newBoundedBuffer(maxOut)
 	cmd.Stdout = io.MultiWriter(stdout)

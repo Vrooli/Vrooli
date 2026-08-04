@@ -75,6 +75,7 @@ func Schema() string { return "" }
 
 // Endpoints is the static endpoint metadata for codegen and the parity test.
 var Endpoints = []module.EndpointDescriptor{
+	{ID: "validation_validate_target", Path: scenariovalidationconnect.ScenarioValidationServiceValidateTargetProcedure, Method: "POST", Summary: "Validate a first-class repository target", Category: "validation"},
 	{
 		ID:          "validation_validate_scenario",
 		Path:        validationconnect.ValidationServiceValidateScenarioProcedure,

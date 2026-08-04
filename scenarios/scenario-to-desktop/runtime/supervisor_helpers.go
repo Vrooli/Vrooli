@@ -219,9 +219,26 @@ func (s *Supervisor) recordTelemetry(event string, details map[string]interface{
 // =============================================================================
 
 // applySecrets injects secrets into the environment for a service.
+//
+// The injector is held on the supervisor rather than built per call. A
+// file-target secret is materialized on ephemeral storage, and the injector is
+// what remembers where — a fresh injector per service would drop that record
+// immediately, leaving the files with nothing able to remove them.
 func (s *Supervisor) applySecrets(env map[string]string, svc manifest.Service) error {
-	injector := secrets.NewInjector(s.secretStore, s.fs, s.appData)
-	return injector.Apply(env, svc)
+	s.secretInjectorOnce.Do(func() {
+		s.secretInjector = secrets.NewInjector(s.secretStore, s.fs, s.appData)
+	})
+	return s.secretInjector.Apply(env, svc)
+}
+
+// discardMaterializedSecrets removes any file a secret was materialized into.
+// Callers invoke it once the services that needed those files have started: a
+// credential still on disk past that point is exposure with no purpose left.
+func (s *Supervisor) discardMaterializedSecrets() error {
+	if s.secretInjector == nil {
+		return nil
+	}
+	return s.secretInjector.RemoveMaterializedSecrets()
 }
 
 // UpdateSecrets merges new secrets and persists them.

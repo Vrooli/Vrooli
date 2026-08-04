@@ -15,14 +15,17 @@ import (
 	"testing"
 	"time"
 
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 	"github.com/vrooli/vrooli/packages/resource-deployment/securestore"
+	vaultbootstrap "github.com/vrooli/vrooli/packages/vaultbootstrap-go"
 )
 
 // TestDesktopVaultArtifactIntegration exercises a signed, real Vault binary
 // through the exact bundle supervisor path. It is opt-in because release
 // artifacts are intentionally not checked into the runtime module.
 func TestDesktopVaultArtifactIntegration(t *testing.T) {
+	useFakeDesktopUnsealKeys(t)
 	source := os.Getenv("VROOLI_VAULT_INTEGRATION_BINARY")
 	if source == "" {
 		t.Skip("set VROOLI_VAULT_INTEGRATION_BINARY to run the signed Vault desktop integration")
@@ -74,7 +77,7 @@ func TestDesktopVaultArtifactIntegration(t *testing.T) {
 	}
 	first, environment := start(appData)
 	instanceID := desktopVaultInstanceID(appData)
-	if err := desktopVaultRequest(context.Background(), environment["VAULT_ADDR"], http.MethodPost, "/v1/secret/data/apps/"+instanceID+"/persistence", environment["VAULT_TOKEN"], map[string]any{"data": map[string]string{"value": "survives"}}, nil); err != nil {
+	if err := (vaultbootstrap.Client{Endpoint: environment["VAULT_ADDR"]}).Request(context.Background(), http.MethodPost, "/v1/secret/data/apps/"+instanceID+"/persistence", environment["VAULT_TOKEN"], map[string]any{"data": map[string]string{"value": "survives"}}, nil); err != nil {
 		t.Fatalf("write scoped desktop secret: %v", err)
 	}
 	secondAppData := t.TempDir()
@@ -83,7 +86,7 @@ func TestDesktopVaultArtifactIntegration(t *testing.T) {
 	if secondID == instanceID {
 		t.Fatal("separate desktop installs share a Vault identity")
 	}
-	if err := desktopVaultRequest(context.Background(), secondEnvironment["VAULT_ADDR"], http.MethodPost, "/v1/secret/data/apps/"+instanceID+"/denied", secondEnvironment["VAULT_TOKEN"], map[string]any{"data": map[string]string{"value": "no"}}, nil); err == nil || !strings.Contains(err.Error(), "403") {
+	if err := (vaultbootstrap.Client{Endpoint: secondEnvironment["VAULT_ADDR"]}).Request(context.Background(), http.MethodPost, "/v1/secret/data/apps/"+instanceID+"/denied", secondEnvironment["VAULT_TOKEN"], map[string]any{"data": map[string]string{"value": "no"}}, nil); err == nil || !strings.Contains(err.Error(), "403") {
 		t.Fatalf("second desktop app wrote first app path: %v", err)
 	}
 	if err := second.Stop(context.Background()); err != nil {
@@ -98,7 +101,7 @@ func TestDesktopVaultArtifactIntegration(t *testing.T) {
 			Data map[string]string `json:"data"`
 		} `json:"data"`
 	}
-	if err := desktopVaultRequest(context.Background(), recovered["VAULT_ADDR"], http.MethodGet, "/v1/secret/data/apps/"+instanceID+"/persistence", recovered["VAULT_TOKEN"], nil, &secret); err != nil || secret.Data.Data["value"] != "survives" {
+	if err := (vaultbootstrap.Client{Endpoint: recovered["VAULT_ADDR"]}).Request(context.Background(), http.MethodGet, "/v1/secret/data/apps/"+instanceID+"/persistence", recovered["VAULT_TOKEN"], nil, &secret); err != nil || secret.Data.Data["value"] != "survives" {
 		t.Fatalf("read persisted desktop secret = %#v, %v", secret, err)
 	}
 }
@@ -112,7 +115,7 @@ func TestDesktopVaultWaitReachable(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
-	if err := desktopVaultWaitReachable(context.Background(), server.URL); err != nil {
+	if err := (vaultbootstrap.Client{Endpoint: server.URL}).WaitReachable(context.Background(), 5*time.Second); err != nil {
 		t.Fatalf("wait for reachable Vault: %v", err)
 	}
 }
@@ -120,7 +123,7 @@ func TestDesktopVaultWaitReachable(t *testing.T) {
 func TestDesktopVaultWaitReachableHonorsContext(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
-	if err := desktopVaultWaitReachable(ctx, "http://127.0.0.1:1"); err == nil {
+	if err := (vaultbootstrap.Client{Endpoint: "http://127.0.0.1:1"}).WaitReachable(ctx, 5*time.Second); err == nil {
 		t.Fatal("unreachable Vault was accepted")
 	}
 }
@@ -148,7 +151,11 @@ func (s *memoryCredentialStore) Put(service, key, value string) error {
 func (s *memoryCredentialStore) Get(service, key string) (string, error) {
 	value, ok := s.values[service+":"+key]
 	if !ok {
-		return "", fmt.Errorf("missing")
+		// Every real adapter reports a clean "no value" as ErrNotFound, and the
+		// bootstrap relies on that distinction: a generic error must mean the
+		// store is broken, not that the instance is new. Collapsing the two
+		// would re-initialize a live Vault after one transient read failure.
+		return "", fmt.Errorf("%w: %s/%s", securestore.ErrNotFound, service, key)
 	}
 	return value, nil
 }
@@ -159,6 +166,7 @@ func (s *memoryCredentialStore) Delete(service, key string) error {
 }
 
 func TestBootstrapPrivateVaultPersistsRecoveryAndExportsOnlyScopedCredential(t *testing.T) {
+	useFakeDesktopUnsealKeys(t)
 	store := &memoryCredentialStore{}
 	previous := desktopVaultStore
 	desktopVaultStore = func() securestore.Store { return store }
@@ -209,4 +217,32 @@ func TestBootstrapPrivateVaultPersistsRecoveryAndExportsOnlyScopedCredential(t *
 	if len(store.values) == 0 {
 		t.Fatal("recovery material was not persisted in credential store")
 	}
+}
+
+// fakeDesktopUnsealKeys keeps a test off this host's real keyring.
+type fakeDesktopUnsealKeys struct{ values map[string]string }
+
+func (f *fakeDesktopUnsealKeys) Put(identity credentialauthority.Identity, field, value string) error {
+	if f.values == nil {
+		f.values = map[string]string{}
+	}
+	f.values[string(identity)+":"+field] = value
+	return nil
+}
+
+func (f *fakeDesktopUnsealKeys) Resolve(identity credentialauthority.Identity, field string) (string, error) {
+	value, ok := f.values[string(identity)+":"+field]
+	if !ok {
+		return "", credentialauthority.ErrUnconfigured
+	}
+	return value, nil
+}
+
+func useFakeDesktopUnsealKeys(t *testing.T) *fakeDesktopUnsealKeys {
+	t.Helper()
+	keys := &fakeDesktopUnsealKeys{}
+	previous := desktopUnsealKeyStore
+	desktopUnsealKeyStore = func() vaultbootstrap.UnsealKeyStore { return keys }
+	t.Cleanup(func() { desktopUnsealKeyStore = previous })
+	return keys
 }

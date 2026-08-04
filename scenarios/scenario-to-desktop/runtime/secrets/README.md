@@ -89,13 +89,25 @@ Secrets can be injected as:
 | Type | Description | Example |
 |------|-------------|---------|
 | `env` | Environment variable | `API_KEY=secret123` |
-| `file` | Written to file | `/app/data/.credentials` |
+| `file` | Materialized on ephemeral storage, removed once services start | `$XDG_RUNTIME_DIR/vrooli/bundle-secrets/cert.pem` |
 
 ## Storage
 
 Production secrets are stored only by the Vrooli credential authority, which
-uses the native OS credential store. The runtime never reads or writes a
-`secrets.json` file during normal operation.
+uses the native OS credential store, or the encrypted file store on a host with
+no native one. The runtime never reads or writes a `secrets.json` file during
+normal operation.
+
+A secret declaring `logical_id` and `field` resolves to the **same durable name
+every other deployment tier uses**, so a credential provisioned once during
+onboarding is the credential this bundle reads. A secret that declares neither
+falls back to a bundle-private namespace derived from the app name — it still
+works, but no Tier 1 install will find it and it is a separate value to back up.
+
+A `file` target is materialized on ephemeral storage (`XDG_RUNTIME_DIR`, else
+the system temp dir) and removed once the services that needed it have started.
+Where the host has no ephemeral location the bundle refuses rather than writing
+a durable plaintext credential an operator cannot see.
 
 `MigrateLegacyFile` is the sole compatibility path for an older JSON file. It
 requires an explicit source path, imports only secret IDs declared in the
@@ -104,7 +116,8 @@ unless the caller explicitly requests deletion after a successful import.
 
 ## Security Considerations
 
-- Production values are never persisted in the desktop app data directory
+- Production values are never persisted in the desktop app data directory, and
+  a `file` target never lands on durable storage
 - Native-store unavailability is a startup/configuration error; there is no
   plaintext fallback
 - Secrets are never logged or included in telemetry

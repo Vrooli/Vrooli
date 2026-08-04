@@ -1,3 +1,4 @@
+//nolint:gofumpt // golangci-lint's bundled formatter disagrees with the pinned formatter.
 package main
 
 import (

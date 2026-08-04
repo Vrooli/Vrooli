@@ -7,7 +7,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/vrooli/vrooli/internal/resources/securestore"
 	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
 )
@@ -57,7 +56,7 @@ func NewNativeManager(m *manifest.Manifest) (*Manager, error) {
 	if m == nil || len(m.Secrets) == 0 {
 		return newManager(m), nil
 	}
-	authority, err := credentialauthority.NewAuthority(securestore.Default())
+	authority, err := credentialauthority.DefaultAuthority()
 	if err != nil {
 		return nil, err
 	}
@@ -115,20 +114,45 @@ func (sm *Manager) Load() (map[string]string, error) {
 	}
 	if sm.authority != nil {
 		for _, definition := range sm.manifest.Secrets {
-			field := strings.TrimSpace(definition.ID)
-			if field == "" {
-				return nil, fmt.Errorf("bundle credential has an empty id")
+			identity, field, err := sm.addressOf(definition)
+			if err != nil {
+				return nil, err
 			}
-			if err := sm.authority.Inject(sm.identity, field, field, out); err != nil {
+			// The map key stays the secret's own ID: that is what the injector
+			// and the prompt UI address it by. Only where the value is *stored*
+			// has changed.
+			if err := sm.authority.Inject(identity, field, definition.ID, out); err != nil {
 				if errors.Is(err, credentialauthority.ErrUnconfigured) {
 					continue
 				}
-				return nil, fmt.Errorf("read desktop credential %s: %w", field, err)
+				return nil, fmt.Errorf("read desktop credential %s: %w", definition.ID, err)
 			}
 		}
 		return out, nil
 	}
 	return sm.Get(), nil
+}
+
+// addressOf resolves where one bundle secret lives in the credential store.
+//
+// A secret that declares a logical_id resolves to the identity every other tier
+// uses, so provisioning it once during onboarding is enough. One that does not
+// falls back to the bundle's own namespace, which keeps an existing manifest
+// working — but it is a bundle-local value that no Tier 1 install will find,
+// and the generator fills the declaration in precisely to avoid that.
+func (sm *Manager) addressOf(definition manifest.Secret) (credentialauthority.Identity, string, error) {
+	field := definition.CredentialField()
+	if field == "" {
+		return "", "", fmt.Errorf("bundle credential has no id, field, or target name")
+	}
+	if declared := strings.TrimSpace(definition.LogicalID); declared != "" {
+		identity, err := credentialauthority.ParseIdentity(declared)
+		if err != nil {
+			return "", "", fmt.Errorf("bundle credential %s declares an unusable logical_id: %w", definition.ID, err)
+		}
+		return identity, field, nil
+	}
+	return sm.identity, field, nil
 }
 
 // Persist writes native authority fields or updates injected in-memory values.
@@ -139,19 +163,19 @@ func (sm *Manager) Persist(secrets map[string]string) error {
 	}
 	if sm.authority != nil {
 		for _, definition := range sm.manifest.Secrets {
-			field := strings.TrimSpace(definition.ID)
-			if field == "" {
-				return fmt.Errorf("bundle credential has an empty id")
+			identity, field, err := sm.addressOf(definition)
+			if err != nil {
+				return err
 			}
-			value := strings.TrimSpace(secrets[field])
+			value := strings.TrimSpace(secrets[definition.ID])
 			if value == "" {
-				if err := sm.authority.Delete(sm.identity, field); err != nil {
-					return fmt.Errorf("delete desktop credential %s: %w", field, err)
+				if err := sm.authority.Delete(identity, field); err != nil {
+					return fmt.Errorf("delete desktop credential %s: %w", definition.ID, err)
 				}
 				continue
 			}
-			if err := sm.authority.Put(sm.identity, field, value); err != nil {
-				return fmt.Errorf("store desktop credential %s: %w", field, err)
+			if err := sm.authority.Put(identity, field, value); err != nil {
+				return fmt.Errorf("store desktop credential %s: %w", definition.ID, err)
 			}
 		}
 		sm.Set(secrets)

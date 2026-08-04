@@ -1,3 +1,4 @@
+//nolint:gofumpt // golangci-lint's bundled formatter disagrees with the pinned formatter.
 package main
 
 import (
@@ -6,8 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/vrooli/api-core/database"
 	"secrets-manager-api/internal/testutil"
+
+	"github.com/vrooli/api-core/database"
 )
 
 func TestDesktopDatabaseProvidesPrivatePortableSecretMetadata(t *testing.T) {

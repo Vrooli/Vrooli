@@ -41,7 +41,7 @@ The first implementation uses lifecycle-managed SQLite and scenario calls.
 | browser-automation-studio | required for execution | Executes workflow JSON and owns browser artifacts. | CLI/API workflow execution by file and artifact directory contract. |
 | test-genie | required for orchestration | Delegates the canonical workflow phase to workflow-health. | `ScenarioValidationService` provider contract. |
 | search-hub | required for federated discovery | Federates typed workflow leaves. | Provider leaf types and query routing; workflow-health owns the source search response. |
-| storage-health | required for mutation safety | Proves routed test isolation before destructive workflow execution. | Finding/maturity signal consumed by workflow-health safety policy. |
+| storage-manager | required for mutation safety | Proves routed test isolation before destructive workflow execution. | Finding/maturity signal consumed by workflow-health safety policy. |
 | business-health | required for contract validation | Validates PRD and requirements registry. | `vrooli scenario requirements validate workflow-health --json`. |
 
 ## Third-Party Services
@@ -56,7 +56,7 @@ The first implementation uses lifecycle-managed SQLite and scenario calls.
 |---|---|---|---|
 | SQLite | `PingContext` error | `/health` returns unhealthy dependency status. | health handler tests |
 | BAS unavailable | connection error or provider health failure | Static validation/search can continue; execution returns explicit skipped/failed evidence according to request options. | execution fake tests and live observer check |
-| Missing routed isolation | storage-health finding or absent safety proof | Mutating workflow execution fails before BAS call with blocker finding. | safety policy tests |
+| Missing routed isolation | storage-manager finding or absent safety proof | Mutating workflow execution fails before BAS call with blocker finding. | safety policy tests |
 | Search Hub unavailable | provider registration/query failure | `workflow-health workflows search` remains usable locally; federated `search-hub query --type workflow.flow` is unavailable until workflow-health re-registers. | search registration descriptor test and live query smoke |
 | Test Genie provider contract drift | provider-contract check failure | Workflow phase migration is blocked. | provider-contract check |
 

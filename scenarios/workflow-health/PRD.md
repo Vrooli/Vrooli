@@ -36,7 +36,7 @@
 
 ## 🤝 Dependencies & Launch Plan
 - Required resources: lifecycle-managed SQLite plus the normal Vrooli scenario runtime; routed test database evidence is required before destructive execution is enabled.
-- Scenario dependencies: browser-automation-studio for execution, test-genie for phase orchestration, search-hub for discovery, storage-health for routed isolation evidence, and business-health for PRD/requirements validation.
+- Scenario dependencies: browser-automation-studio for execution, test-genie for phase orchestration, search-hub for discovery, storage-manager for routed isolation evidence, and business-health for PRD/requirements validation.
 - Operational risks: BAS workflow JSON may have mixed legacy/current shapes; mutating workflows can damage state if routed isolation is bypassed; search ranking can misclassify tests as actions unless leaf types stay separate.
 - Launch sequencing: scaffold contract first, then build catalog scanning, validation/maturity/fixes, safe execution, provider CLI/API, search indexing, UI, Test Genie migration, native phase retirement, and final hardening.
 

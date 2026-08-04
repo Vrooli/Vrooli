@@ -1,3 +1,4 @@
+//nolint:gofumpt // golangci-lint's bundled formatter disagrees with the pinned formatter.
 package main
 
 import (
@@ -13,8 +14,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"secrets-manager-api/internal/envx"
+
+	"github.com/google/uuid"
 )
 
 const scanCacheTTL = 60 * time.Second

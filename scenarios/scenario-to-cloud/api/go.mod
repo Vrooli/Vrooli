@@ -30,7 +30,10 @@ require (
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
-require github.com/vrooli/cli-core v0.0.0 // indirect
+require (
+	github.com/vrooli/cli-core v0.0.0 // indirect
+	github.com/vrooli/vrooli v0.0.0
+)
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
 

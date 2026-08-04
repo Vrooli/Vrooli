@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -114,31 +115,34 @@ func WriteToVPS(
 	if len(secrets) == 0 && len(userSecrets) == 0 {
 		return nil // Nothing to write
 	}
-
-	// CRITICAL: Read existing secrets first to preserve them across redeployments
-	// This prevents "password authentication failed" errors when redeploying
-	existingSecrets, err := ReadFromVPS(ctx, sshRunner, cfg, workdir)
-	if err != nil {
-		return fmt.Errorf("read existing secrets.json: %w", err)
+	// Validated before any remote call. The identity is built from this, so an
+	// empty value would otherwise send a run of `vrooli//<field>` queries to the
+	// target before anything noticed.
+	if strings.TrimSpace(scenarioID) == "" {
+		return fmt.Errorf("provision remote credentials: scenario id is required to name the credential identity")
 	}
 
-	// Build secrets map, preserving existing values for per_install_generated secrets
+	// A generated secret is written only when the remote store does not already
+	// hold one. Regenerating a database password on redeploy is what produced
+	// "password authentication failed" against a database that still had the
+	// old one, so preservation is load-bearing rather than an optimization.
+	//
+	// Preservation now asks the remote authority whether a value exists instead
+	// of reading a remote plaintext file — and it never reads the value back.
+	// Knowing that something is stored is the whole question here.
 	secretsMap := make(map[string]string)
-	for k, v := range existingSecrets {
-		if v != "" {
-			secretsMap[k] = v
-		}
-	}
 	for _, s := range secrets {
-		if existing, ok := existingSecrets[s.Key]; ok && existing != "" {
-			// PRESERVE existing secret - don't regenerate!
-			// This is critical for database passwords, API keys, etc.
-			secretsMap[s.Key] = existing
-		} else {
-			// New secret or empty - use generated value
-			secretsMap[s.Key] = s.Value
+		configured, err := remoteCredentialConfigured(ctx, sshRunner, cfg, scenarioID, s.Key)
+		if err != nil {
+			return err
 		}
+		if configured {
+			continue
+		}
+		secretsMap[s.Key] = s.Value
 	}
+	// An operator-supplied value is an explicit instruction for this deploy and
+	// overrides what is stored.
 	for key, value := range userSecrets {
 		if strings.TrimSpace(value) == "" {
 			continue
@@ -146,45 +150,130 @@ func WriteToVPS(
 		secretsMap[key] = value
 	}
 
-	payload := JSONPayload{
-		Metadata: Metadata{
-			Environment: "production",
-			LastUpdated: time.Now().UTC(),
-			Notes:       "Generated during VPS deployment - managed by scenario-to-cloud",
-			GeneratedBy: "scenario-to-cloud",
-			ScenarioID:  scenarioID,
-		},
-		secrets: secretsMap,
+	// Each value is provisioned into the remote host's own credential
+	// authority, one SSH call per secret, with the value on standard input.
+	//
+	// It used to be one call that embedded the whole secrets.json in the
+	// command string. A command string becomes argv for the local ssh process
+	// and the argument to the remote shell, so every value was visible in both
+	// process listings for the duration of the deploy — the precise exposure
+	// every credential-store adapter in this platform is built to avoid. It
+	// also left a plaintext secrets.json on the VPS afterwards.
+	//
+	// The remote store is the same seam as the local one: on a headless VPS
+	// that is the encrypted file store, so the values land encrypted at rest
+	// under a key the file alone does not contain.
+	identity := "vrooli/" + strings.TrimSpace(scenarioID)
+	if err := ensureRemoteCredentialStore(ctx, sshRunner, cfg); err != nil {
+		return err
 	}
 
-	jsonBytes, err := payload.MarshalJSON()
-	if err != nil {
-		return fmt.Errorf("marshal secrets.json: %w", err)
+	keys := make([]string, 0, len(secretsMap))
+	for key := range secretsMap {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		value := secretsMap[key]
+		if strings.TrimSpace(value) == "" {
+			continue
+		}
+		field := CredentialField(key)
+		if field == "" {
+			continue
+		}
+		opts := ssh.DefaultRunOptions()
+		opts.Stdin = []byte(value)
+		command := fmt.Sprintf("vrooli credentials provision --identity %s --field %s",
+			shellutil.QuoteSingle(identity), shellutil.QuoteSingle(field))
+		result, err := sshRunner.Run(ctx, cfg, command, opts)
+		if err != nil {
+			// The value is never echoed back, so neither is it in this error.
+			return fmt.Errorf("provision remote credential %s/%s: %w (exit: %d, stderr: %s)",
+				identity, field, err, result.ExitCode, result.Stderr)
+		}
+		if result.ExitCode != 0 {
+			return fmt.Errorf("provision remote credential %s/%s failed: exit %d, stderr: %s",
+				identity, field, result.ExitCode, result.Stderr)
+		}
 	}
 
-	// Paths on VPS
-	secretsDir := remoteVrooliDir()
-	secretsPath := remoteUserSecretsPath()
+	return nil
+}
 
-	// Write secrets.json with proper permissions (600 = owner read/write only)
-	// Use printf with %s to avoid shell interpretation of special characters
-	// The JSON is passed through shellutil.QuoteSingle to escape it safely
-	cmd := fmt.Sprintf(
-		"mkdir -p %s && printf '%%s' %s > %s && chmod 600 %s",
-		shellutil.QuoteSingle(secretsDir),
-		shellutil.QuoteSingle(string(jsonBytes)),
-		shellutil.QuoteSingle(secretsPath),
-		shellutil.QuoteSingle(secretsPath),
-	)
-
-	result, err := sshRunner.Run(ctx, cfg, cmd, ssh.DefaultRunOptions())
-	if err != nil {
-		return fmt.Errorf("write secrets.json: %w (exit: %d, stderr: %s)", err, result.ExitCode, result.Stderr)
+// remoteCredentialConfigured reports whether the target host already holds a
+// value for this secret. It reads the status, never the value: a deploy has no
+// business materializing a credential it is only trying not to overwrite.
+func remoteCredentialConfigured(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Config, scenarioID, key string) (bool, error) {
+	field := CredentialField(key)
+	if field == "" {
+		return false, nil
 	}
-	if result.ExitCode != 0 {
-		return fmt.Errorf("write secrets.json failed: exit %d, stderr: %s", result.ExitCode, result.Stderr)
+	identity := "vrooli/" + strings.TrimSpace(scenarioID)
+	command := fmt.Sprintf("vrooli credentials status --identity %s --field %s --format json",
+		shellutil.QuoteSingle(identity), shellutil.QuoteSingle(field))
+	result, err := sshRunner.Run(ctx, cfg, command, ssh.DefaultRunOptions())
+	if err != nil || result.ExitCode != 0 {
+		return false, fmt.Errorf("read remote credential status for %s/%s: exit %d, stderr: %s",
+			identity, field, result.ExitCode, result.Stderr)
 	}
+	var status struct {
+		Configured    bool   `json:"configured"`
+		ProviderState string `json:"provider_state"`
+	}
+	if err := json.Unmarshal([]byte(result.Stdout), &status); err != nil {
+		return false, fmt.Errorf("remote credential status for %s/%s was unreadable: %w", identity, field, err)
+	}
+	// "not configured" is only meaningful when the provider answered. Treating
+	// an unreachable store as "absent" would regenerate a password that is in
+	// fact still in use.
+	if status.ProviderState != "available" {
+		return false, fmt.Errorf("remote credential store is %s; refusing to decide whether %s/%s already exists",
+			status.ProviderState, identity, field)
+	}
+	return status.Configured, nil
+}
 
+// CredentialField converts a bundle secret key into the durable field name the
+// credential authority addresses. It matches the normalization the deploy path
+// uses, so a value written here is a value the scenario can read back.
+func CredentialField(key string) string {
+	trimmed := strings.TrimSpace(key)
+	if trimmed == "" {
+		return ""
+	}
+	return strings.ToLower(strings.NewReplacer("_", "-", ".", "-").Replace(trimmed))
+}
+
+// ensureRemoteCredentialStore fails early, and by name, when the target host
+// cannot accept a credential.
+//
+// Without this the deploy would report a per-secret provisioning failure whose
+// real cause — no vrooli on the host, or a store nobody has initialized — is
+// two layers down. A deploy that half-provisions is worse than one that
+// refuses, because the operator cannot tell which values landed.
+func ensureRemoteCredentialStore(ctx context.Context, sshRunner ssh.Runner, cfg ssh.Config) error {
+	result, err := sshRunner.Run(ctx, cfg, "vrooli credentials doctor --format json", ssh.DefaultRunOptions())
+	if err != nil || result.ExitCode != 0 {
+		return fmt.Errorf(
+			"remote host cannot accept credentials: `vrooli credentials doctor` did not run there (exit %d, stderr: %s). "+
+				"The target must have the vrooli CLI installed; on a headless host also run `vrooli credentials store init`",
+			result.ExitCode, result.Stderr)
+	}
+	var diagnosis struct {
+		Provider struct {
+			Condition string `json:"condition"`
+			Fix       string `json:"fix"`
+		} `json:"provider"`
+	}
+	if err := json.Unmarshal([]byte(result.Stdout), &diagnosis); err != nil {
+		return fmt.Errorf("remote credential diagnosis was unreadable: %w", err)
+	}
+	if diagnosis.Provider.Condition != "available" {
+		return fmt.Errorf("remote credential store is %s: %s",
+			diagnosis.Provider.Condition, diagnosis.Provider.Fix)
+	}
 	return nil
 }
 

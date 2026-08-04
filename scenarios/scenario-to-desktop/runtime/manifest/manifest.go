@@ -67,6 +67,39 @@ type Secret struct {
 	Generator   map[string]any    `json:"generator,omitempty"`
 	Required    *bool             `json:"required,omitempty"`
 	Target      SecretTarget      `json:"target"`
+
+	// LogicalID and Field are the durable, backend-neutral name this secret
+	// resolves to, exactly as a resource or scenario manifest declares it.
+	//
+	// They exist so a bundle reads the credential the operator already
+	// provisioned. Without them a bundle invented its own namespace from the
+	// app's display name, so the OpenRouter key entered during onboarding and
+	// the OpenRouter key a packaged bundle looked for were two different stored
+	// values with no declared relationship — provision-once was not true across
+	// tiers, and neither was a recovery bundle taken on one of them.
+	//
+	// Both are optional in the file: LogicalIdentity falls back to the bundle's
+	// own namespace so an existing manifest still resolves somewhere, and the
+	// generator fills them in from the scenario's declaration.
+	LogicalID string `json:"logical_id,omitempty"`
+	Field     string `json:"field,omitempty"`
+}
+
+// CredentialField is the durable field this secret addresses. It matches the
+// normalization every other tier uses, so SESSION_SECRET, session_secret, and
+// session.secret name one stored value rather than three empty ones.
+func (s Secret) CredentialField() string {
+	raw := strings.TrimSpace(s.Field)
+	if raw == "" {
+		raw = strings.TrimSpace(s.ID)
+	}
+	if raw == "" {
+		raw = strings.TrimSpace(s.Target.Name)
+	}
+	if raw == "" {
+		return ""
+	}
+	return strings.ToLower(strings.NewReplacer("_", "-", ".", "-").Replace(raw))
 }
 
 type SecretTarget struct {

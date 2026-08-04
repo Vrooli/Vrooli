@@ -33,7 +33,7 @@ not overwritten.
 
 - `go test . -run '^TestDesktopDatabase' -count=1` validates metadata access,
   file permissions, and legacy-state migration.
-- `storage-health validate scenario secrets-manager` passes. The API now opens
+- `storage-manager validate scenario secrets-manager` passes. The API now opens
   a `*database.RoutedDB`, applies its PostgreSQL schema through
   `database.EnsureSchemas`, mounts `apihttp.TestModeMiddleware`, and registers
   `devrouting.Register`. Test Genie can install a per-run test pool without

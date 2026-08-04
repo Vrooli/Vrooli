@@ -36,6 +36,9 @@ func (h *VaultHandlers) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/secrets/status", h.Status).Methods("GET", "POST")
 	router.HandleFunc("/secrets/provision", h.Provision).Methods("POST")
 	router.HandleFunc("/secrets/validate", h.Validate).Methods("GET", "POST")
+	router.HandleFunc("/doctor", h.Doctor).Methods("GET")
+	router.HandleFunc("/keyring/inspect", h.KeyringInspect).Methods("GET")
+	router.HandleFunc("/keyring/repair", h.KeyringRepair).Methods("POST")
 }
 
 // Status returns credential-authority metadata only.

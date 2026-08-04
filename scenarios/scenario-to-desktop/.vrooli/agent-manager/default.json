@@ -3,7 +3,7 @@
   "name": "scenario-to-desktop",
   "profileKey": "scenario-to-desktop/default",
   "description": "Agent profile for scenario-to-desktop pipeline investigations",
-  "roleRef": "code.smart",
+  "roleRef": "code.default",
   "maxTurns": 75,
   "timeout": "600s",
   "allowedTools": ["read", "shell", "write"],

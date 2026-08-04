@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"scenario-to-cloud/domain"
@@ -12,48 +13,12 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
-func TestReadLocalSecretsMapIgnoresMetadataAndInvalidData(t *testing.T) {
-	t.Run("metadata preserved but excluded", func(t *testing.T) {
-		path, err := repocontract.UserPlaintextSecretsPath(t.TempDir())
-		if err != nil {
-			t.Fatalf("UserPlaintextSecretsPath: %v", err)
-		}
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			t.Fatalf("mkdir: %v", err)
-		}
-		if err := os.WriteFile(path, []byte(`{"_metadata":{"environment":"development"},"API_KEY":"secret"}`), 0o600); err != nil {
-			t.Fatalf("write: %v", err)
-		}
-
-		values := readLocalSecretsMap(path)
-		if got := values["API_KEY"]; got != "secret" {
-			t.Fatalf("API_KEY = %q, want secret", got)
-		}
-		if _, ok := values["_metadata"]; ok {
-			t.Fatalf("expected metadata key to be ignored, got %#v", values)
-		}
-	})
-
-	t.Run("invalid document returns empty map", func(t *testing.T) {
-		path, err := repocontract.UserPlaintextSecretsPath(t.TempDir())
-		if err != nil {
-			t.Fatalf("UserPlaintextSecretsPath: %v", err)
-		}
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			t.Fatalf("mkdir: %v", err)
-		}
-		if err := os.WriteFile(path, []byte(`{"API_KEY":42}`), 0o600); err != nil {
-			t.Fatalf("write: %v", err)
-		}
-
-		values := readLocalSecretsMap(path)
-		if len(values) != 0 {
-			t.Fatalf("values = %#v, want empty map", values)
-		}
-	})
-}
-
-func TestBuildUserSecretMapPrefersScenarioThenExplicitSecrets(t *testing.T) {
+// buildUserSecretMap must not read a plaintext file. Both stores it used to
+// consult are gone, and the point of removing them is that a cloud deploy can
+// no longer depend on — or silently recreate — a credential sitting
+// unencrypted on the operator's disk. A file placed where the old code looked
+// must therefore have no effect whatsoever.
+func TestBuildUserSecretMapNeverReadsAPlaintextFile(t *testing.T) {
 	root := t.TempDir()
 	writeRepoContractFixture(t, root)
 	t.Setenv("SCENARIO_TO_CLOUD_REPO_ROOT", root)
@@ -68,41 +33,48 @@ func TestBuildUserSecretMapPrefersScenarioThenExplicitSecrets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UserScenarioPlaintextSecretsPath: %v", err)
 	}
-
-	writeJSONFile(t, workspacePath, map[string]interface{}{
-		"_metadata": map[string]interface{}{"managed_by": "test"},
-		"API_KEY":   "workspace",
-	})
-	writeJSONFile(t, filepath.Join(root, "scenarios", "demo", ".vrooli", "service.json"), map[string]interface{}{
-		"service": map[string]interface{}{"name": "demo"},
-	})
-	writeJSONFile(t, scenarioPath, map[string]interface{}{
-		"_metadata": map[string]interface{}{"managed_by": "test"},
-		"API_KEY":   "scenario",
-	})
+	// Bait: values in exactly the two places the old implementation merged from.
+	writeJSONFile(t, workspacePath, map[string]interface{}{"API_KEY": "from-workspace-plaintext"})
+	writeJSONFile(t, scenarioPath, map[string]interface{}{"API_KEY": "from-scenario-plaintext"})
 
 	manifest := domain.CloudManifest{
 		Scenario: domain.ManifestScenario{ID: "demo"},
 		Secrets: &domain.ManifestSecrets{
-			BundleSecrets: []domain.BundleSecretPlan{
-				{
-					ID:       "api-key",
-					Class:    "user_prompt",
-					Required: true,
-					Target:   domain.BundleSecretTarget{Name: "API_KEY"},
-				},
-			},
+			BundleSecrets: []domain.BundleSecretPlan{{
+				ID:       "api-key",
+				Class:    "user_prompt",
+				Required: true,
+				Target:   domain.BundleSecretTarget{Name: "API_KEY"},
+			}},
 		},
 	}
 
-	got := buildUserSecretMap(manifest, map[string]string{"API_KEY": "provided"})
+	got := buildUserSecretMap(manifest, nil)
+	if value, ok := got["API_KEY"]; ok && strings.Contains(value, "plaintext") {
+		t.Fatalf("buildUserSecretMap read a plaintext file: API_KEY = %q", value)
+	}
+
+	// An explicitly supplied value is an instruction for this deploy and still
+	// takes precedence over anything the store holds.
+	got = buildUserSecretMap(manifest, map[string]string{"API_KEY": "provided"})
 	if got["API_KEY"] != "provided" {
 		t.Fatalf("buildUserSecretMap explicit = %q, want %q", got["API_KEY"], "provided")
 	}
+}
 
-	got = buildUserSecretMap(manifest, nil)
-	if got["API_KEY"] != "scenario" {
-		t.Fatalf("buildUserSecretMap scenario = %q, want %q", got["API_KEY"], "scenario")
+// The field name a bundle secret resolves to must match the one the remote
+// provisioning path writes, or a value lands under a key nothing reads back.
+func TestCredentialFieldForMatchesTheRemoteProvisioningNormalization(t *testing.T) {
+	for _, testCase := range []struct{ id, target, want string }{
+		{id: "api-key", target: "API_KEY", want: "api-key"},
+		{id: "", target: "SESSION_SECRET", want: "session-secret"},
+		{id: "cloudflare.api_token", target: "", want: "cloudflare-api-token"},
+		{id: "", target: "", want: ""},
+	} {
+		plan := domain.BundleSecretPlan{ID: testCase.id, Target: domain.BundleSecretTarget{Name: testCase.target}}
+		if got := credentialFieldFor(plan); got != testCase.want {
+			t.Fatalf("credentialFieldFor(%q,%q) = %q, want %q", testCase.id, testCase.target, got, testCase.want)
+		}
 	}
 }
 

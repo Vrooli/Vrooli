@@ -114,6 +114,22 @@ func (h *SharedHandler) ValidateScenario(ctx context.Context, req *connect.Reque
 	return connect.NewResponse(resp), nil
 }
 
+func (h *SharedHandler) ValidateTarget(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateTargetRequest]) (*connect.Response[scenariovalidationv1.ValidateTargetResponse], error) {
+	target := req.Msg.GetTarget()
+	if target == nil || target.GetId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("target is required"))
+	}
+	path := req.Msg.GetPath()
+	if path == "" {
+		path = target.GetRoot()
+	}
+	legacy, err := h.ValidateScenario(ctx, connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: target.GetId(), Path: path, IncludeExecution: req.Msg.GetIncludeExecution()}))
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&scenariovalidationv1.ValidateTargetResponse{Target: target, Status: legacy.Msg.GetStatus(), Assessment: legacy.Msg.GetAssessment(), NativeDetail: legacy.Msg.GetNativeDetail(), Metrics: legacy.Msg.GetMetrics()}), nil
+}
+
 func statusOverride(resp *validationv1.ValidateScenarioResponse) []assessment.ValidationResponseOption {
 	switch strings.ToLower(strings.TrimSpace(resp.GetStatus())) {
 	case "degraded":

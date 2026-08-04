@@ -1,3 +1,4 @@
+//nolint:gofumpt // golangci-lint's bundled formatter disagrees with the pinned formatter.
 package main
 
 import (
@@ -6,8 +7,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/vrooli/api-core/database"
 	"secrets-manager-api/internal/envx"
+
+	"github.com/vrooli/api-core/database"
 )
 
 // ensurePostgresSchema applies the scenario-owned PostgreSQL schema through
