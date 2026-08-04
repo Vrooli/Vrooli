@@ -39,6 +39,22 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "graph",
 	},
 	{
+		ID:          "graph.retention.preview",
+		Path:        graph_v1connect.GraphServicePreviewSnapshotRetentionProcedure,
+		Method:      "POST",
+		Summary:     "Preview reclaimable snapshot storage",
+		Description: "Reports snapshot payload bytes and rows beyond the retention floor, per scenario, without deleting anything.",
+		Category:    "graph",
+	},
+	{
+		ID:          "graph.retention.apply",
+		Path:        graph_v1connect.GraphServiceApplySnapshotRetentionProcedure,
+		Method:      "POST",
+		Summary:     "Prune snapshots beyond the retention floor",
+		Description: "Keeps the newest N snapshots per scenario and returns freed database pages to the filesystem. Requires explicit confirmation.",
+		Category:    "graph",
+	},
+	{
 		ID:          "graph.clear",
 		Path:        graph_v1connect.GraphServiceClearGraphSnapshotsProcedure,
 		Method:      "POST",

@@ -22,6 +22,11 @@ type FakeService struct {
 	MetaCalls    atomic.Int64
 	ListCalls    atomic.Int64
 	ClearCalls   atomic.Int64
+
+	RetentionPreview    graph.SnapshotRetentionPreview
+	RetentionResult     graph.RetentionResult
+	RetentionErr        error
+	RetentionApplyCalls int
 }
 
 func (f *FakeService) ExtractGraph(_ context.Context, in graph.ExtractGraphInput) (graph.GraphSnapshot, bool, error) {
@@ -99,6 +104,24 @@ func (f *FakeService) ClearSnapshots(_ context.Context, _ string, dryRun bool) (
 		f.Snapshots = nil
 	}
 	return n, dryRun, nil
+}
+
+// PreviewSnapshotRetention reports what retention would remove, computed from
+// the fake's in-memory snapshots so a handler test sees realistic numbers.
+func (f *FakeService) PreviewSnapshotRetention(_ context.Context, keepPerScenario int) (graph.SnapshotRetentionPreview, error) {
+	if f.RetentionErr != nil {
+		return graph.SnapshotRetentionPreview{}, f.RetentionErr
+	}
+	return f.RetentionPreview, nil
+}
+
+// ApplySnapshotRetention returns the canned retention result.
+func (f *FakeService) ApplySnapshotRetention(_ context.Context, keepPerScenario int) (graph.RetentionResult, error) {
+	f.RetentionApplyCalls++
+	if f.RetentionErr != nil {
+		return graph.RetentionResult{}, f.RetentionErr
+	}
+	return f.RetentionResult, nil
 }
 
 var _ graph.Service = (*FakeService)(nil)

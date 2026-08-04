@@ -3,6 +3,7 @@ package mocks
 
 import (
 	"context"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -31,6 +32,9 @@ type FakeRepository struct {
 	SourceFindCalls atomic.Int64
 	ListCalls       atomic.Int64
 	ClearCalls      atomic.Int64
+	PruneCalls      atomic.Int64
+
+	PruneErr error
 }
 
 func (f *FakeRepository) SaveSnapshot(_ context.Context, s graph.GraphSnapshot) (graph.GraphSnapshot, error) {
@@ -166,6 +170,109 @@ func (f *FakeRepository) ClearSnapshots(_ context.Context, scenario string) (int
 	}
 	f.Snapshots = kept
 	return deleted, nil
+}
+
+// PruneSnapshots enforces retention in memory, keeping the newest N per
+// scenario. The ordering mirrors the SQLite implementation (extracted_at
+// descending, then id descending) so a test written against the fake describes
+// the same behaviour production has.
+func (f *FakeRepository) PruneSnapshots(_ context.Context, policy graph.RetentionPolicy) (graph.RetentionResult, error) {
+	f.PruneCalls.Add(1)
+	if f.PruneErr != nil {
+		return graph.RetentionResult{}, f.PruneErr
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	kept, removed, bytes := applyRetention(f.Snapshots, policy)
+	scenarios := map[string]struct{}{}
+	for _, s := range f.Snapshots {
+		scenarios[s.Scenario] = struct{}{}
+	}
+	f.Snapshots = kept
+
+	return graph.RetentionResult{
+		ScenariosScanned: len(scenarios),
+		RowsRemoved:      removed,
+		BytesReclaimed:   bytes,
+	}, nil
+}
+
+// ReclaimableSnapshotBytes reports what PruneSnapshots would remove.
+func (f *FakeRepository) ReclaimableSnapshotBytes(_ context.Context, policy graph.RetentionPolicy) (int64, int, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	_, removed, bytes := applyRetention(f.Snapshots, policy)
+	return bytes, removed, nil
+}
+
+// SnapshotPayloadBytes reports the total live payload across all snapshots.
+func (f *FakeRepository) SnapshotPayloadBytes(context.Context) (int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var total int64
+	for _, s := range f.Snapshots {
+		total += approximatePayloadBytes(s)
+	}
+	return total, nil
+}
+
+// SnapshotCounts reports how many snapshots each scenario holds.
+func (f *FakeRepository) SnapshotCounts(context.Context) (map[string]int, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	counts := map[string]int{}
+	for _, s := range f.Snapshots {
+		counts[s.Scenario]++
+	}
+	return counts, nil
+}
+
+// applyRetention returns the surviving snapshots, the number removed, and the
+// approximate payload bytes those removals free.
+func applyRetention(snapshots []graph.GraphSnapshot, policy graph.RetentionPolicy) ([]graph.GraphSnapshot, int, int64) {
+	keep := policy.KeepPerScenario
+	if keep < 1 {
+		keep = graph.DefaultSnapshotRetentionKeep
+	}
+
+	byScenario := map[string][]graph.GraphSnapshot{}
+	order := make([]string, 0)
+	for _, s := range snapshots {
+		if _, seen := byScenario[s.Scenario]; !seen {
+			order = append(order, s.Scenario)
+		}
+		byScenario[s.Scenario] = append(byScenario[s.Scenario], s)
+	}
+
+	var (
+		kept    []graph.GraphSnapshot
+		removed int
+		bytes   int64
+	)
+	for _, scenario := range order {
+		group := byScenario[scenario]
+		sort.SliceStable(group, func(i, j int) bool {
+			if !group[i].ExtractedAt.Equal(group[j].ExtractedAt) {
+				return group[i].ExtractedAt.After(group[j].ExtractedAt)
+			}
+			return group[i].ID > group[j].ID
+		})
+		for i, s := range group {
+			if i < keep {
+				kept = append(kept, s)
+				continue
+			}
+			removed++
+			bytes += approximatePayloadBytes(s)
+		}
+	}
+	return kept, removed, bytes
+}
+
+// approximatePayloadBytes stands in for length(payload) in the fake.
+func approximatePayloadBytes(s graph.GraphSnapshot) int64 {
+	return int64(len(s.Files)+len(s.Symbols)+len(s.Imports)+len(s.Packages)) * 64
 }
 
 var _ graph.Repository = (*FakeRepository)(nil)

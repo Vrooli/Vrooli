@@ -23,7 +23,9 @@ const GroupName = "graph"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"GraphService.ExtractGraph": h.extract,
+		"GraphService.ExtractGraph":             h.extract,
+		"GraphService.PreviewSnapshotRetention": h.retentionPreview,
+		"GraphService.ApplySnapshotRetention":   h.retentionApply,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

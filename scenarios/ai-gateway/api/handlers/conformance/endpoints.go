@@ -8,6 +8,7 @@ import (
 )
 
 var Endpoints = []module.EndpointDescriptor{
+	{ID: "validation_validate_target", Path: scenariovalidationconnect.ScenarioValidationServiceValidateTargetProcedure, Method: "POST", Summary: "Validate a first-class repository target", Category: "validation"},
 	{
 		ID:          "conformance_scan_scenario",
 		Path:        conformanceconnect.ConformanceServiceScanScenarioProcedure,

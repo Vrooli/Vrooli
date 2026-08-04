@@ -1,6 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
   "service": {
     "parent": "vrooli",
     "name": "architecture-cartographer",
@@ -253,5 +254,21 @@
   },
   "environment": {
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/architecture-cartographer.db"
+  },
+  "retention": {
+    "budgets": {
+      "graph_snapshots": {
+        "target": {
+          "kind": "sqlite_table",
+          "class": "data",
+          "database": "architecture-cartographer.db",
+          "table": "graph_snapshots",
+          "time_column": "extracted_at"
+        },
+        "max_bytes": "5GiB",
+        "pruner": "custom",
+        "rationale": "graph_snapshots grows without bound by construction: a unique index on (scenario, content_hash) retains every distinct code state forever. Selection is keep-newest-N-per-scenario and cannot be an age rule - a generic age bound would delete the only snapshot of a stable scenario while keeping twenty of a noisy one. The scenario registers a custom Pruner under this budget key; the framework still owns whether the table is within budget. 5GiB is a starting figure, not a measured optimum: the 2026-07-31 incident cleanup took this table from 77.2 GB to 3.26 GB."
+      }
+    }
   }
 }

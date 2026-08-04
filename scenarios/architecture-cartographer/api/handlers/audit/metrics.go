@@ -22,9 +22,3 @@ func WithMetrics(ctx context.Context, collector *metrics.Collector) context.Cont
 	}
 	return context.WithValue(ctx, metricsCtxKey{}, collector)
 }
-
-// metricsFrom returns the collector attached to ctx, or nil.
-func metricsFrom(ctx context.Context) *metrics.Collector {
-	collector, _ := ctx.Value(metricsCtxKey{}).(*metrics.Collector)
-	return collector
-}

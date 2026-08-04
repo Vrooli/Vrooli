@@ -76,6 +76,16 @@ func newBlockingGraph() *blockingGraph {
 	}
 }
 
+// The retention methods are unused by the run limiter; they exist so
+// blockingGraph still satisfies graph.Service.
+func (g *blockingGraph) PreviewSnapshotRetention(context.Context, int) (graph.SnapshotRetentionPreview, error) {
+	return graph.SnapshotRetentionPreview{}, nil
+}
+
+func (g *blockingGraph) ApplySnapshotRetention(context.Context, int) (graph.RetentionResult, error) {
+	return graph.RetentionResult{}, nil
+}
+
 func (g *blockingGraph) ExtractGraph(ctx context.Context, in graph.ExtractGraphInput) (graph.GraphSnapshot, bool, error) {
 	close(g.extractStarted)
 	select {

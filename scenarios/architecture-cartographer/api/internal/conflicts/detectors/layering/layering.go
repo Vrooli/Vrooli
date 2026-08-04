@@ -234,30 +234,6 @@ func resolvePackage(id string, packages map[string]graph.PackageNode, files map[
 	return graph.PackageNode{}
 }
 
-func segmentAfter(path, prefix string) string {
-	rest := strings.TrimPrefix(path, prefix)
-	if rest == path {
-		return ""
-	}
-	rest = strings.Trim(rest, "/")
-	if rest == "" {
-		return ""
-	}
-	if i := strings.IndexByte(rest, '/'); i >= 0 {
-		return rest[:i]
-	}
-	return rest
-}
-
-func firstNonEmpty(parts ...string) string {
-	for _, p := range parts {
-		if p = strings.TrimSpace(p); p != "" {
-			return p
-		}
-	}
-	return ""
-}
-
 func domainList(parts ...string) []string {
 	seen := make(map[string]struct{}, len(parts))
 	out := make([]string, 0, len(parts))

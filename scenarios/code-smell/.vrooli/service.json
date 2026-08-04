@@ -1,6 +1,7 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "2.0.0",
+  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
   "service": {
     "name": "code-smell",
     "displayName": "Code Smell Detector",

@@ -42,7 +42,7 @@ embedded SQLite and local source trees.
 | cli-health | neighboring authority | Owns CLI manifest/runtime conformance. | Boundary reference. |
 | proto-health | neighboring authority | Owns proto and generated-code health. | Boundary reference. |
 | ui-health | neighboring authority | Owns UI validation and runtime rendering. | Boundary reference. |
-| storage-health | neighboring authority | Owns storage isolation and migration checks. | Boundary reference. |
+| storage-manager | neighboring authority | Owns storage isolation and migration checks. | Boundary reference. |
 | performance-health | neighboring authority | Owns benchmarking and budgets. | Boundary reference. |
 
 ## Third-Party Services

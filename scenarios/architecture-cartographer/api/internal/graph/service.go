@@ -16,6 +16,30 @@ type Service interface {
 	LatestSnapshotMeta(ctx context.Context, scenario string) (GraphSnapshotMeta, error)
 	ListSnapshots(ctx context.Context, f ListSnapshotsFilter) (SnapshotPage, error)
 	ClearSnapshots(ctx context.Context, scenario string, dryRun bool) (int, bool, error)
+
+	// PreviewSnapshotRetention reports reclaimable snapshot storage without
+	// deleting anything.
+	PreviewSnapshotRetention(ctx context.Context, keepPerScenario int) (SnapshotRetentionPreview, error)
+
+	// ApplySnapshotRetention prunes beyond the retention floor.
+	ApplySnapshotRetention(ctx context.Context, keepPerScenario int) (RetentionResult, error)
+}
+
+// SnapshotRetentionPreview is the non-destructive view of what retention
+// would remove.
+type SnapshotRetentionPreview struct {
+	ReclaimableBytes int64
+	ReclaimableRows  int
+	KeepPerScenario  int
+	TotalSnapshots   int
+	Scenarios        []ScenarioSnapshotCount
+}
+
+// ScenarioSnapshotCount is one scenario's snapshot inventory.
+type ScenarioSnapshotCount struct {
+	Scenario         string
+	SnapshotCount    int
+	ReclaimableCount int
 }
 
 // ExtractGraphInput is the explicit input DTO for Service.ExtractGraph.

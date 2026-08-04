@@ -39,24 +39,25 @@ const snapshotTimeFormat = time.RFC3339Nano
 
 const (
 	insertSnapshotSQL = `
-INSERT INTO graph_snapshots (id, scenario, content_hash, source_fingerprint, payload, extracted_at, extraction_ms)
-VALUES (?, ?, ?, ?, ?, ?, ?)
+INSERT INTO graph_snapshots (id, scenario, content_hash, source_fingerprint, payload, payload_codec, extracted_at, extraction_ms)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(scenario, content_hash) DO UPDATE SET
   source_fingerprint = excluded.source_fingerprint,
   payload = excluded.payload,
+  payload_codec = excluded.payload_codec,
   extracted_at = excluded.extracted_at,
   extraction_ms = excluded.extraction_ms`
 
 	selectSnapshotByIDSQL = `
-SELECT id, scenario, content_hash, source_fingerprint, payload, extracted_at, extraction_ms
+SELECT id, scenario, content_hash, source_fingerprint, payload, payload_codec, extracted_at, extraction_ms
 FROM graph_snapshots WHERE id = ?`
 
 	selectSnapshotByHashSQL = `
-SELECT id, scenario, content_hash, source_fingerprint, payload, extracted_at, extraction_ms
+SELECT id, scenario, content_hash, source_fingerprint, payload, payload_codec, extracted_at, extraction_ms
 FROM graph_snapshots WHERE scenario = ? AND content_hash = ?`
 
 	selectSnapshotBySourceFingerprintSQL = `
-SELECT id, scenario, content_hash, source_fingerprint, payload, extracted_at, extraction_ms
+SELECT id, scenario, content_hash, source_fingerprint, payload, payload_codec, extracted_at, extraction_ms
 FROM graph_snapshots
 WHERE scenario = ? AND source_fingerprint = ?
 ORDER BY extracted_at DESC, id DESC
@@ -70,7 +71,7 @@ ORDER BY extracted_at DESC, id DESC
 LIMIT 1`
 
 	listSnapshotsSQL = `
-SELECT id, scenario, content_hash, source_fingerprint, payload, extracted_at, extraction_ms
+SELECT id, scenario, content_hash, source_fingerprint, payload, payload_codec, extracted_at, extraction_ms
 FROM graph_snapshots
 WHERE (? = '' OR scenario = ?)
 ORDER BY extracted_at DESC, id DESC
@@ -80,6 +81,14 @@ LIMIT ?`
 
 	addSourceFingerprintColumnSQL = `
 ALTER TABLE graph_snapshots ADD COLUMN source_fingerprint TEXT NOT NULL DEFAULT ''`
+
+	// payload_codec records how each row's payload is encoded. An empty
+	// string means the legacy raw-JSON encoding, so existing rows stay
+	// readable without being rewritten: a blocking migration over
+	// multi-hundred-megabyte payloads is exactly the wrong thing to run on a
+	// database that just caused a disk-full incident.
+	addPayloadCodecColumnSQL = `
+ALTER TABLE graph_snapshots ADD COLUMN payload_codec TEXT NOT NULL DEFAULT ''`
 
 	createSourceFingerprintIndexSQL = `
 CREATE INDEX IF NOT EXISTS idx_graph_snapshots_source_fingerprint
@@ -108,8 +117,12 @@ func (r *sqliteRepository) SaveSnapshot(ctx context.Context, s GraphSnapshot) (G
 	if err != nil {
 		return GraphSnapshot{}, fmt.Errorf("encode snapshot %q: %w", s.ID, err)
 	}
+	stored, codec, err := encodePayload(payload)
+	if err != nil {
+		return GraphSnapshot{}, fmt.Errorf("compress snapshot %q: %w", s.ID, err)
+	}
 	_, err = r.db.ExecContext(ctx, insertSnapshotSQL,
-		s.ID, s.Scenario, s.ContentHash, s.SourceFingerprint, payload,
+		s.ID, s.Scenario, s.ContentHash, s.SourceFingerprint, stored, codec,
 		s.ExtractedAt.Format(snapshotTimeFormat), s.ExtractionMS,
 	)
 	if err != nil {
@@ -237,20 +250,25 @@ type snapshotPayload struct {
 func scanSnapshot(s rowScanner) (GraphSnapshot, error) {
 	var (
 		snap         GraphSnapshot
-		payload      []byte
+		stored       []byte
+		codec        string
 		extractedRaw string
 	)
 	if err := s.Scan(
 		&snap.ID, &snap.Scenario, &snap.ContentHash, &snap.SourceFingerprint,
-		&payload, &extractedRaw, &snap.ExtractionMS,
+		&stored, &codec, &extractedRaw, &snap.ExtractionMS,
 	); err != nil {
 		return GraphSnapshot{}, err
 	}
-	t, err := time.Parse(snapshotTimeFormat, extractedRaw)
+	payload, err := decodePayload(stored, codec)
+	if err != nil {
+		return GraphSnapshot{}, fmt.Errorf("decode payload for snapshot %q: %w", snap.ID, err)
+	}
+	extractedAt, err := time.Parse(snapshotTimeFormat, extractedRaw)
 	if err != nil {
 		return GraphSnapshot{}, fmt.Errorf("parse extracted_at: %w", err)
 	}
-	snap.ExtractedAt = t
+	snap.ExtractedAt = extractedAt
 
 	var p snapshotPayload
 	if len(payload) > 0 {
@@ -295,6 +313,11 @@ func (r *sqliteRepository) ensureSourceFingerprintColumn(ctx context.Context) er
 	}
 	if _, err := r.db.ExecContext(ctx, createSourceFingerprintIndexSQL); err != nil {
 		return fmt.Errorf("migrate graph_snapshots source_fingerprint index: %w", err)
+	}
+	// Existing rows get an empty codec from the column default, which the read
+	// path already understands as legacy raw JSON. Nothing is rewritten.
+	if _, err := r.db.ExecContext(ctx, addPayloadCodecColumnSQL); err != nil && !isDuplicateColumnError(err) {
+		return fmt.Errorf("migrate graph_snapshots.payload_codec: %w", err)
 	}
 	r.sourceFingerprintReady.Store(true)
 	return nil

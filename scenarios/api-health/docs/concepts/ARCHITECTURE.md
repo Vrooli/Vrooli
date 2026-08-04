@@ -70,7 +70,7 @@ API Health does not own:
 - CLI manifest/runtime conformance: `cli-health`,
 - proto breaking changes or generated-code freshness: `proto-health`,
 - UI rendering/interop: `ui-health`,
-- storage isolation/migrations: `storage-health`,
+- storage isolation/migrations: `storage-manager`,
 - performance/load budgets: `performance-health`,
 - generic file-handle hygiene outside API-runtime scope.
 

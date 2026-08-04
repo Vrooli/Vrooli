@@ -35,7 +35,7 @@
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: Go API and CLI generated from the react-vite template; Connect-RPC for provider APIs; React + Vite UI with the `vrooli-default` design kit; `packages/maturity-go` for assessments/autofix accounting; `packages/api-core/metrics` for execution metrics.
 - Data + storage expectations: SQLite for local provider state only if probe history or fix sessions need persistence; validation inputs are target scenario trees, lifecycle metadata, endpoint descriptors, and optional live HTTP probe responses.
-- Integration strategy: delegate through Test Genie's standard health-provider runner; use lifecycle discovery for live probes; reuse `api-core/health` as the health response schema reference; cross-reference quality-health, security-health, cli-health, proto-health, storage-health, and performance-health instead of duplicating their ownership.
+- Integration strategy: delegate through Test Genie's standard health-provider runner; use lifecycle discovery for live probes; reuse `api-core/health` as the health response schema reference; cross-reference quality-health, security-health, cli-health, proto-health, storage-manager, and performance-health instead of duplicating their ownership.
 - Non-goals / guardrails: no broad static-quality policy, no security-header/CORS ownership, no proto breaking-change validation, no load testing, no product-specific endpoint assertions, no auto-fixes that require API design judgment, and no direct binary execution outside Vrooli lifecycle.
 
 ## 🤝 Dependencies & Launch Plan
@@ -54,4 +54,4 @@
 - Source migration inventory: `scenarios/scenario-auditor/api/rules/api/`.
 - Provider contract doctrine: `docs/reference/health-maturity-assessments.md`.
 - API health schema reference: `packages/api-core/health/health.go`.
-- Adjacent provider boundaries: `scenarios/quality-health/`, `scenarios/security-health/`, `scenarios/cli-health/`, `scenarios/proto-health/`, `scenarios/performance-health/`, `scenarios/storage-health/`.
+- Adjacent provider boundaries: `scenarios/quality-health/`, `scenarios/security-health/`, `scenarios/cli-health/`, `scenarios/proto-health/`, `scenarios/performance-health/`, `scenarios/storage-manager/`.

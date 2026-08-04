@@ -88,6 +88,7 @@ func Schema() string { return "" }
 // an RPC in validation.proto breaks this file at compile time. The global
 // proto/Connect parity test enforces 1:1 coverage automatically.
 var Endpoints = []module.EndpointDescriptor{
+	{ID: "validation_validate_target", Path: scenariovalidationconnect.ScenarioValidationServiceValidateTargetProcedure, Method: "POST", Summary: "Validate a first-class repository target", Category: "validation"},
 	{
 		ID:          "validation_validate_scenario",
 		Path:        scenariovalidationconnect.ScenarioValidationServiceValidateScenarioProcedure,

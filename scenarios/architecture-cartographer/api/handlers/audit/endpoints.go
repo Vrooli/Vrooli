@@ -9,6 +9,7 @@ import (
 
 // Endpoints describes the audit domain's Connect-RPC routes.
 var Endpoints = []module.EndpointDescriptor{
+	{ID: "validation_validate_target", Path: scenariovalidationconnect.ScenarioValidationServiceValidateTargetProcedure, Method: "POST", Summary: "Validate a first-class repository target", Category: "validation"},
 	{
 		ID:          "audit.run",
 		Path:        audit_v1connect.AuditServiceRunProcedure,

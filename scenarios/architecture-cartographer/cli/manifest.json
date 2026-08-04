@@ -138,6 +138,54 @@
               "filesystem:read"
             ]
           }
+        },
+        {
+          "name": "retention-preview",
+          "description": "Preview reclaimable snapshot storage beyond the retention floor",
+          "flags": [
+            {
+              "name": "keep",
+              "description": "Override the retention floor for this preview only"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GraphService",
+            "method": "PreviewSnapshotRetention"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "retention-apply",
+          "description": "Prune snapshots beyond the retention floor and return freed pages to the filesystem",
+          "flags": [
+            {
+              "name": "keep",
+              "description": "Override the retention floor for this prune only"
+            },
+            {
+              "name": "confirm",
+              "description": "Required: applying retention permanently deletes snapshots"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GraphService",
+            "method": "ApplySnapshotRetention"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -260,11 +308,11 @@
     },
     {
       "name": "audit",
-      "description": "Run a CI-shaped drift audit — orchestrates graph extract (if needed), domains derivation, and conflicts detection, then maps the outcome to a process exit code",
+      "description": "Run a CI-shaped drift audit \u2014 orchestrates graph extract (if needed), domains derivation, and conflicts detection, then maps the outcome to a process exit code",
       "commands": [
         {
           "name": "run",
-          "description": "Audit a scenario for architectural drift and exit 0 (clean) / 1 (findings ≥ threshold) / 2 (tool error) / 3 (usage error)",
+          "description": "Audit a scenario for architectural drift and exit 0 (clean) / 1 (findings \u2265 threshold) / 2 (tool error) / 3 (usage error)",
           "positionals": [
             {
               "name": "scenario",
@@ -366,7 +414,7 @@
     },
     {
       "name": "conflicts",
-      "description": "Detect, triage, and resolve architecture-drift conflicts — the agent-facing conflict workbench",
+      "description": "Detect, triage, and resolve architecture-drift conflicts \u2014 the agent-facing conflict workbench",
       "commands": [
         {
           "name": "detect",
@@ -966,7 +1014,7 @@
     },
     {
       "name": "campaign",
-      "description": "Track a scenario-improvement effort — ingest a test-genie audit, work the profile-ranked worklist, reconcile re-audits by stable id",
+      "description": "Track a scenario-improvement effort \u2014 ingest a test-genie audit, work the profile-ranked worklist, reconcile re-audits by stable id",
       "commands": [
         {
           "name": "create",
@@ -1048,7 +1096,7 @@
         },
         {
           "name": "next",
-          "description": "Show the profile-ranked worklist of open items (fast = cheapest path to green; balanced = legacy regressions→cycles→severity; long-term = structural root-causes first)",
+          "description": "Show the profile-ranked worklist of open items (fast = cheapest path to green; balanced = legacy regressions\u2192cycles\u2192severity; long-term = structural root-causes first)",
           "positionals": [
             {
               "name": "campaign-id",
@@ -1139,7 +1187,7 @@
         },
         {
           "name": "reaudit",
-          "description": "Reconcile a fresh audit against the tracked items: absent→validated, present→stay, (re)appeared→regression",
+          "description": "Reconcile a fresh audit against the tracked items: absent\u2192validated, present\u2192stay, (re)appeared\u2192regression",
           "positionals": [
             {
               "name": "campaign-id",

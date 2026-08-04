@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS graph_snapshots (
   content_hash  TEXT NOT NULL,
   source_fingerprint TEXT NOT NULL DEFAULT '',
   payload       BLOB NOT NULL,
+  -- Encoding of payload: empty for legacy raw JSON, 'gzip' for compressed.
+  payload_codec TEXT NOT NULL DEFAULT '',
   extracted_at  TEXT NOT NULL,
   extraction_ms INTEGER NOT NULL DEFAULT 0
 );

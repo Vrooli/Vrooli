@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -25,6 +26,7 @@ import (
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/retention"
 	apiserver "github.com/vrooli/api-core/server"
 	repocontract "github.com/vrooli/repo-contract-go"
 	searchregister "github.com/vrooli/searchregister-go"
@@ -80,6 +82,25 @@ func main() {
 	cfg, cfgDiags := config.Load(os.Getenv)
 	for _, d := range cfgDiags {
 		log.Printf("cartographer config: %s: %s", d.Key, d.Message)
+	}
+
+	// Snapshot retention. graph_snapshots is the table that filled the host disk
+	// on 2026-07-31: a unique index on (scenario, content_hash) retains every
+	// distinct code state permanently, so without retention the table grows
+	// forever by construction.
+	//
+	// The budget is declared in .vrooli/service.json and enforced by the shared
+	// framework engine. Only the SELECTION rule lives here, registered as a
+	// custom pruner: keep the newest N snapshots per scenario, which no generic
+	// age rule can express without deleting the only snapshot of a stable
+	// scenario. Retention being unavailable is not fatal: a scenario that cannot
+	// reclaim space still serves graphs correctly.
+	retentionManager, retentionErr := startRetention(db, clk, slog.Default())
+	if retentionErr != nil {
+		log.Printf("cartographer: retention unavailable, graph_snapshots will grow unbounded: %v", retentionErr)
+	} else {
+		retentionManager.Start(context.Background())
+		defer retentionManager.Stop()
 	}
 
 	// Domain-map AI search wiring. The corpus is the DERIVED domain map of every
@@ -233,4 +254,32 @@ func loadSearchTuning(logger *log.Logger, path, providerID string) aisearchpkg.T
 		return aisearchpkg.TuningConfig{}.WithDefaults()
 	}
 	return provider.ResolvedTuning()
+}
+
+// startRetention registers the keep-newest-N-per-scenario pruner under the
+// budget declared in .vrooli/service.json and builds the framework engine over
+// it.
+//
+// The framework owns whether graph_snapshots is within its declared budget and
+// reports which bound bound it; the pruner registered here owns which rows die.
+// A budget naming a pruner nothing registered fails at construction rather than
+// silently falling back to a generic age rule.
+func startRetention(db *database.RoutedDB, clk clock.Clock, logger *slog.Logger) (*retention.Manager, error) {
+	registry := retention.NewRegistry()
+	pruner := graph.NewSnapshotPruner(
+		graph.NewSQLiteRepository(db.Primary(), clk),
+		graph.RetentionPolicy{},
+	)
+	if err := registry.Register(graph.SnapshotBudgetName, pruner); err != nil {
+		return nil, err
+	}
+	return retention.NewForScenario(retention.ScenarioConfig{
+		Scenario:   "architecture-cartographer",
+		Registry:   registry,
+		RunOnStart: true,
+		Logger:     logger,
+		OnFinding: func(f retention.Finding) {
+			logger.Warn("retention finding", "detail", f.String(), "budget", f.Budget, "keep_per_scenario", pruner.KeepPerScenario())
+		},
+	})
 }

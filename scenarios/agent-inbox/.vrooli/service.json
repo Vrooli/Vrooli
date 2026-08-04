@@ -1,6 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."},"api_data":{"rung":"owned","path":"api/data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned API data observed in the canonical API data directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
   "service": {
     "parent": "vrooli",
     "name": "agent-inbox",

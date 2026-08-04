@@ -30,7 +30,7 @@ The scenario was generated from `react-vite` with the `vrooli-default` design ki
 - Proto breaking-change validation: `proto-health`.
 - CLI manifest correctness: `cli-health`.
 - UI runtime/render/interop behavior: `ui-health`.
-- Storage isolation and migration safety: `storage-health`.
+- Storage isolation and migration safety: `storage-manager`.
 - Load/performance benchmarking: `performance-health`.
 
 ## Local Commands

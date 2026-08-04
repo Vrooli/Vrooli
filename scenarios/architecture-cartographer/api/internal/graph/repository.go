@@ -35,6 +35,21 @@ type Repository interface {
 	// ClearSnapshots removes cached snapshots for a scenario. Returns
 	// the count deleted.
 	ClearSnapshots(ctx context.Context, scenario string) (int, error)
+
+	// PruneSnapshots enforces a retention policy, keeping the newest N
+	// snapshots per scenario and returning freed pages to the filesystem.
+	PruneSnapshots(ctx context.Context, policy RetentionPolicy) (RetentionResult, error)
+
+	// SnapshotPayloadBytes reports the total live payload across all snapshots.
+	// This is the measurement a declared storage budget is judged against.
+	SnapshotPayloadBytes(ctx context.Context) (int64, error)
+
+	// ReclaimableSnapshotBytes reports the payload bytes and row count beyond
+	// the retention floor without deleting anything.
+	ReclaimableSnapshotBytes(ctx context.Context, policy RetentionPolicy) (int64, int, error)
+
+	// SnapshotCounts reports how many snapshots each scenario holds.
+	SnapshotCounts(ctx context.Context) (map[string]int, error)
 }
 
 // ListSnapshotsFilter scopes ListSnapshots.
