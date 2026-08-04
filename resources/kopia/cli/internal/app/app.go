@@ -11,6 +11,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+
+	"resource-kopia/cli/internal/credentials"
 	"resource-kopia/cli/internal/discovery"
 	"resource-kopia/cli/internal/env"
 	"resource-kopia/cli/internal/install"
@@ -53,10 +55,14 @@ func New(buildFingerprint, buildTimestamp, buildSourceRoot string) (*cliapp.Reso
 	runtime := env.Load()
 	runner := kexec.NewBinaryRunner("kopia")
 	vlt := vault.NewCLIVault()
+	credentialStore, err := credentials.Default()
+	if err != nil {
+		return nil, fmt.Errorf("initialize credential authority: %w", err)
+	}
 	reg := registry.New(runtime.RegistryFile)
-	resolver := repoctx.Resolver{Registry: reg, Vault: vlt}
+	resolver := repoctx.Resolver{Registry: reg, Credentials: credentialStore, Vault: vlt}
 
-	repoSvc := repo.Service{Runner: runner, Vault: vlt, Registry: reg, Resolver: resolver, Env: runtime, Out: os.Stdout}
+	repoSvc := repo.Service{Runner: runner, Credentials: credentialStore, Vault: vlt, Registry: reg, Resolver: resolver, Env: runtime, Out: os.Stdout}
 	snapSvc := snapshot.Service{Runner: runner, Resolver: resolver, Out: os.Stdout}
 	policySvc := policy.Service{Runner: runner, Resolver: resolver, Out: os.Stdout}
 	maintSvc := maintenance.Service{Runner: runner, Resolver: resolver, Out: os.Stdout}

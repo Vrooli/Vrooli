@@ -5,6 +5,10 @@
   "description": "Enhanced service configuration with resource auto-completion support",
   "type": "object",
   "properties": {
+    "storage": {
+      "$ref": "common.schema.json#/definitions/storageSurface",
+      "description": "Portable declaration of the component's on-disk storage surface."
+    },
     "retention": {
       "$ref": "common.schema.json#/definitions/retention",
       "description": "Declared storage ceilings for the runtime data this scenario accumulates. Enforced by packages/api-core/retention. Distinct from durable_data, which declares what to back up."
@@ -18,15 +22,23 @@
     },
     "mode": {
       "type": "string",
-      "enum": ["development", "production"],
+      "enum": [
+        "development",
+        "production"
+      ],
       "default": "development",
       "description": "Operational mode for this scenario. 'development' enables dev-only surfaces (test-mode HTTP middleware, RoutingService for test-DB installation). 'production' disables them. Absent or unrecognized values default to 'development'."
     },
     "maturity": {
       "type": "string",
-      "enum": ["greenfield", "pilot", "production", "sunset"],
+      "enum": [
+        "greenfield",
+        "pilot",
+        "production",
+        "sunset"
+      ],
       "default": "greenfield",
-      "description": "Lifecycle maturity / deploy stage of this scenario, independent of dev/prod 'mode'. 'greenfield' = not yet deployed, so no schema migrations are expected (migration debt is informational, not a failure); 'pilot' = limited live use; 'production' = serving real data (migration hygiene is enforced); 'sunset' = being retired. Consumed by storage-health to derive storage_stage and gate migration findings. Absent or unrecognized values default to 'greenfield'."
+      "description": "Lifecycle maturity / deploy stage of this scenario, independent of dev/prod 'mode'. 'greenfield' = not yet deployed, so no schema migrations are expected (migration debt is informational, not a failure); 'pilot' = limited live use; 'production' = serving real data (migration hygiene is enforced); 'sunset' = being retired. Consumed by storage-manager to derive storage_stage and gate migration findings. Absent or unrecognized values default to 'greenfield'."
     },
     "service": {
       "type": "object",
@@ -192,18 +204,49 @@
       "type": "object",
       "description": "Lifecycle-owned trust-signing dependency declaration. It contains only provider routing and credential-file metadata, never raw key material.",
       "properties": {
-        "provider": { "type": "string", "enum": ["development", "vault-transit"] },
-        "resource": { "type": "string" },
-        "address": { "type": "string", "format": "uri" },
-        "key_name": { "type": "string" },
-        "credential_file": { "type": "string" },
-        "operator_credential_file": { "type": "string" },
-        "operator_subjects": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
-        "operator_tls_cert_file": { "type": "string" },
-        "operator_tls_key_file": { "type": "string" },
-        "operator_tls_client_ca_file": { "type": "string" }
+        "provider": {
+          "type": "string",
+          "enum": [
+            "development",
+            "vault-transit"
+          ]
+        },
+        "resource": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string",
+          "format": "uri"
+        },
+        "key_name": {
+          "type": "string"
+        },
+        "credential_file": {
+          "type": "string"
+        },
+        "operator_credential_file": {
+          "type": "string"
+        },
+        "operator_subjects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "operator_tls_cert_file": {
+          "type": "string"
+        },
+        "operator_tls_key_file": {
+          "type": "string"
+        },
+        "operator_tls_client_ca_file": {
+          "type": "string"
+        }
       },
-      "required": ["provider"],
+      "required": [
+        "provider"
+      ],
       "additionalProperties": false
     },
     "hostTools": {
@@ -225,7 +268,11 @@
       "properties": {
         "kind": {
           "type": "string",
-          "enum": ["long_running", "on_demand", "one_shot"],
+          "enum": [
+            "long_running",
+            "on_demand",
+            "one_shot"
+          ],
           "default": "on_demand",
           "description": "'long_running' = process intended to stay up (e.g. an API server, a watcher); 'on_demand' = started when invoked and stopped when idle; 'one_shot' = runs to completion and exits (e.g. a migration tool)."
         },
@@ -331,6 +378,9 @@
         }
       },
       "additionalProperties": false
+    },
+    "credentials": {
+      "$ref": "common.schema.json#/definitions/credentials"
     }
   },
   "additionalProperties": false,
@@ -461,8 +511,7 @@
     "cliAdapter": {
       "type": "object",
       "required": [
-        "kind",
-        "module_dir"
+        "kind"
       ],
       "properties": {
         "kind": {
@@ -475,9 +524,6 @@
           "type": "string"
         }
       },
-      "required": [
-        "kind"
-      ],
       "additionalProperties": false
     },
     "cliArtifacts": {
@@ -509,9 +555,17 @@
     "cliDistribution": {
       "type": "object",
       "description": "A signed release artifact consumed by a deployment target; source installs are not target delivery.",
-      "required": ["kind", "artifact_name"],
+      "required": [
+        "kind",
+        "artifact_name"
+      ],
       "properties": {
-        "kind": { "type": "string", "enum": ["prebuilt_artifact"] },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "prebuilt_artifact"
+          ]
+        },
         "artifact_name": {
           "type": "string",
           "pattern": "\\$\\{os\\}.*\\$\\{arch\\}|\\$\\{arch\\}.*\\$\\{os\\}",
@@ -523,9 +577,16 @@
     "cliSourceBuild": {
       "type": "object",
       "description": "Developer/release build inputs. This is never a desktop delivery mechanism.",
-      "required": ["kind"],
+      "required": [
+        "kind"
+      ],
       "properties": {
-        "kind": { "type": "string", "enum": ["go_module"] }
+        "kind": {
+          "type": "string",
+          "enum": [
+            "go_module"
+          ]
+        }
       },
       "additionalProperties": false
     },
@@ -665,12 +726,20 @@
         },
         "startup_policy": {
           "type": "string",
-          "enum": ["must_start", "try_start", "ignore"],
+          "enum": [
+            "must_start",
+            "try_start",
+            "ignore"
+          ],
           "description": "How lifecycle orchestration should treat this dependency during startup. Defaults to `must_start` when `required=true`, otherwise `ignore`."
         },
         "freshness_policy": {
           "type": "string",
-          "enum": ["restart_when_stale", "reuse_running", "rebuild_only"],
+          "enum": [
+            "restart_when_stale",
+            "reuse_running",
+            "rebuild_only"
+          ],
           "description": "How lifecycle orchestration should treat this dependency when it is running and healthy but its sources have changed (stale). Orthogonal to `startup_policy`. Defaults to `restart_when_stale` (rebuild and restart, gated so a byte-identical rebuild does not restart). `reuse_running` keeps the running process untouched; `rebuild_only` rebuilds the artifact without restarting. Per-edge policy may only reduce disruption on a shared dependency, never increase it. Invalid on `ignore` edges."
         },
         "version": {
@@ -708,10 +777,20 @@
       "allOf": [
         {
           "if": {
-            "properties": {"runtime_only": {"const": true}},
-            "required": ["runtime_only"]
+            "properties": {
+              "runtime_only": {
+                "const": true
+              }
+            },
+            "required": [
+              "runtime_only"
+            ]
           },
-          "then": {"required": ["runtime_only_rationale"]}
+          "then": {
+            "required": [
+              "runtime_only_rationale"
+            ]
+          }
         }
       ],
       "additionalProperties": true
@@ -854,6 +933,23 @@
         "secret_id": {
           "type": "string",
           "description": "Unique identifier for the secret (e.g., 'ADMIN_DEFAULT_PASSWORD')"
+        },
+        "logical_id": {
+          "type": "string",
+          "description": "Credential-authority identity for this descriptor"
+        },
+        "field": {
+          "type": "string",
+          "description": "Credential-authority field for this descriptor"
+        },
+        "env": {
+          "type": "string",
+          "description": "Process injection name used by the lifecycle"
+        },
+        "obtain_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Operator surface for obtaining or provisioning the value"
         },
         "classification": {
           "type": "string",

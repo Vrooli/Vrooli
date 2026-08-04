@@ -10,7 +10,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
+	"time"
 )
 
 // RecoveryEntry identifies a value to include in an encrypted recovery
@@ -184,4 +187,112 @@ func decryptRecovery(bundle []byte, passphrase string) ([]byte, error) {
 
 func recoveryKey(passphrase string, salt []byte) ([]byte, error) {
 	return pbkdf2.Key(sha256.New, passphrase, salt, 600_000, 32)
+}
+
+// RecoveryManifest describes what a bundle contains, without exposing any
+// value it holds.
+type RecoveryManifest struct {
+	Version int             `json:"version"`
+	Entries []RecoveryEntry `json:"entries"`
+}
+
+// InspectRecovery proves a bundle opens with a passphrase and reports what it
+// would restore.
+//
+// An operator who cannot check a bundle has not made a backup, they have made
+// an artifact they hope is a backup — and the difference only surfaces on the
+// day the original is gone. Verifying it needs no credential store and touches
+// nothing: the bundle and the passphrase are the whole input, so this is safe
+// to run on a host that is not the one that wrote it.
+//
+// It deliberately returns identities and fields but never values. Confirming
+// that a bundle is intact must not require printing the secrets it protects.
+func InspectRecovery(bundle []byte, passphrase string) (RecoveryManifest, error) {
+	if strings.TrimSpace(passphrase) == "" {
+		return RecoveryManifest{}, fmt.Errorf("recovery passphrase is required")
+	}
+	plain, err := decryptRecovery(bundle, passphrase)
+	if err != nil {
+		return RecoveryManifest{}, err
+	}
+	var payload recoveryPayload
+	if err := json.Unmarshal(plain, &payload); err != nil {
+		return RecoveryManifest{}, fmt.Errorf("decode recovery bundle: %w", err)
+	}
+	if payload.Version != 1 || len(payload.Values) == 0 {
+		return RecoveryManifest{}, fmt.Errorf("unsupported or empty recovery bundle")
+	}
+	manifest := RecoveryManifest{Version: payload.Version, Entries: make([]RecoveryEntry, 0, len(payload.Values))}
+	for _, value := range payload.Values {
+		// A stored entry with no value would restore nothing, so a bundle
+		// carrying one is not intact even though it decrypted cleanly.
+		if strings.TrimSpace(value.Value) == "" {
+			return RecoveryManifest{}, fmt.Errorf("recovery bundle holds an empty value for %s/%s", value.Identity, value.Field)
+		}
+		manifest.Entries = append(manifest.Entries, RecoveryEntry{Identity: value.Identity, Field: value.Field})
+	}
+	return manifest, nil
+}
+
+// recoveryReceiptFile records the last successful export. It lives beside other
+// durable runtime state and holds no secret: a path, a time, and the identities
+// a bundle covers, all of which are already public in manifests.
+const recoveryReceiptFile = "recovery-receipt.json"
+
+// RecoveryReceipt is evidence that a bundle was made, so an operator can be
+// told when one has not been.
+//
+// It exists because the absence of a backup is silent by nature. Nothing about
+// a healthy host looks different from one whose credentials have never been
+// exported, so the gap is invisible right up to the moment it is permanent.
+type RecoveryReceipt struct {
+	Path       string    `json:"path"`
+	ExportedAt time.Time `json:"exported_at"`
+	// Entries names what the bundle covers, so a later reader can tell a
+	// current bundle from one taken before half these credentials existed.
+	Entries []RecoveryEntry `json:"entries"`
+}
+
+// Covers reports whether the receipt already includes an identity and field.
+func (r RecoveryReceipt) Covers(identity Identity, field string) bool {
+	for _, entry := range r.Entries {
+		if entry.Identity == identity && entry.Field == field {
+			return true
+		}
+	}
+	return false
+}
+
+// WriteRecoveryReceipt records a successful export. A failure to record is
+// deliberately not a failure to export: the bundle on disk is the thing that
+// matters, and refusing to acknowledge a good backup because a note could not
+// be written would be the wrong trade.
+func WriteRecoveryReceipt(stateDir, bundlePath string, entries []RecoveryEntry, now time.Time) error {
+	receipt := RecoveryReceipt{Path: bundlePath, ExportedAt: now.UTC(), Entries: entries}
+	encoded, err := json.MarshalIndent(receipt, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(stateDir, 0o700); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(stateDir, recoveryReceiptFile), encoded, 0o600)
+}
+
+// ReadRecoveryReceipt returns the last recorded export. found is false when no
+// bundle has ever been exported on this host, which is a normal answer for a
+// fresh install and the exact condition worth reporting.
+func ReadRecoveryReceipt(stateDir string) (RecoveryReceipt, bool, error) {
+	data, err := os.ReadFile(filepath.Join(stateDir, recoveryReceiptFile))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return RecoveryReceipt{}, false, nil
+		}
+		return RecoveryReceipt{}, false, err
+	}
+	var receipt RecoveryReceipt
+	if err := json.Unmarshal(data, &receipt); err != nil {
+		return RecoveryReceipt{}, false, fmt.Errorf("read recovery receipt: %w", err)
+	}
+	return receipt, true, nil
 }

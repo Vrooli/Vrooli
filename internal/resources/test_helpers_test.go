@@ -1,6 +1,8 @@
 package resources
 
 import (
+	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -58,4 +60,29 @@ func writeResourceManifest(t *testing.T, root, name string, manifest manifestpkg
 func writeEnvManifestFixture(t *testing.T, root, name string, manifest manifestpkg.ResourceManifest) {
 	t.Helper()
 	testresource.WriteResourceManifest(t, root, name, manifest)
+}
+
+// writePlaintextUserSecrets drops a legacy plaintext secrets document at the
+// retired location, so a test can prove the resolver ignores it.
+//
+// The path is written literally rather than resolved through a helper. These
+// tests assert that nothing reads this file, so they must keep naming it even
+// after every reader — and the contract entry that described it — is gone.
+func writePlaintextUserSecrets(t *testing.T, home string, values map[string]string) {
+	t.Helper()
+	dir := filepath.Join(home, ".vrooli")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatalf("create retired secrets dir: %v", err)
+	}
+	document := map[string]any{"_metadata": map[string]string{"managed_by": "test"}}
+	for key, value := range values {
+		document[key] = value
+	}
+	encoded, err := json.Marshal(document)
+	if err != nil {
+		t.Fatalf("encode retired secrets: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "secrets.json"), encoded, 0o600); err != nil {
+		t.Fatalf("write retired secrets: %v", err)
+	}
 }

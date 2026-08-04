@@ -1,8 +1,10 @@
 package securestore
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -242,5 +244,45 @@ func TestDescribeStoreListsWrapsWithoutUnlocking(t *testing.T) {
 	}
 	if !status.Active {
 		t.Fatalf("the overridden backend did not report itself as the authority")
+	}
+}
+
+func TestChangePassphraseReplacesOnlyTheWrap(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "credentials.enc.json")
+	useTestStorePath(t, path)
+	t.Setenv(BackendOverrideEnv, BackendEncryptedFile)
+	if _, err := InitializeStore("old-passphrase"); err != nil {
+		t.Fatal(err)
+	}
+	SetPassphrase("old-passphrase")
+	store := Default()
+	if err := store.Put("vrooli/test", "marker", "marker-value"); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ChangePassphraseStore("wrong-passphrase", "new-passphrase"); err == nil {
+		t.Fatal("wrong current passphrase unexpectedly changed the store")
+	}
+	afterWrong, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(before, afterWrong) {
+		t.Fatal("wrong current passphrase changed the store file")
+	}
+	if err := ChangePassphraseStore("old-passphrase", "new-passphrase"); err != nil {
+		t.Fatal(err)
+	}
+	SetPassphrase("old-passphrase")
+	if _, err := Default().Get("vrooli/test", "marker"); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("old passphrase read = %v, want unavailable", err)
+	}
+	SetPassphrase("new-passphrase")
+	value, err := Default().Get("vrooli/test", "marker")
+	if err != nil || value != "marker-value" {
+		t.Fatalf("new passphrase read = %q, %v", value, err)
 	}
 }

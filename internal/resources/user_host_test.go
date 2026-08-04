@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/resources/securestore"
+
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
@@ -31,7 +33,11 @@ func (s *memorySecureStore) Get(service, key string) (string, error) {
 	defer s.mu.Unlock()
 	value, ok := s.values[service+"/"+key]
 	if !ok {
-		return "", fmt.Errorf("not found")
+		// Every real adapter reports a clean "no value" as ErrNotFound. The
+		// bootstrap depends on that distinction: a generic error must mean the
+		// store is broken, not that the instance is new, or one transient read
+		// failure would re-initialize a live Vault over its own data.
+		return "", fmt.Errorf("%w: %s/%s", securestore.ErrNotFound, service, key)
 	}
 	return value, nil
 }
@@ -67,6 +73,7 @@ func (b *bootstrapStub) VerifyScopedOperation(context.Context, string, string) e
 }
 
 func TestUserResourceHostBootstrapsOnceAndScopesEachApplication(t *testing.T) {
+	useFakeUnsealKeys(t)
 	now := time.Now()
 	broker := NewBroker(func() time.Time { return now })
 	store := &memorySecureStore{values: map[string]string{}}
@@ -117,6 +124,7 @@ func TestUserResourceHostBootstrapsOnceAndScopesEachApplication(t *testing.T) {
 }
 
 func TestUserResourceHostDoesNotPublishVaultBeforeScopedReadiness(t *testing.T) {
+	useFakeUnsealKeys(t)
 	broker := NewBroker(nil)
 	host, err := newUserResourceHost(broker, &memorySecureStore{values: map[string]string{}}, "user:test")
 	if err != nil {

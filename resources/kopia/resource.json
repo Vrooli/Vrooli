@@ -4,7 +4,7 @@
   "storage": {"entries": {
     "config": {"rung": "owned", "path": "$USER_HOME/.config/vrooli/resources/kopia", "kind": "dir", "class": "config", "regenerable": false, "sensitive": true, "rationale": "Kopia repository configuration files are stored under the resource's XDG-derived config root."},
     "state": {"rung": "owned", "path": "$USER_HOME/.local/state/vrooli/resources/kopia", "kind": "dir", "class": "state", "regenerable": false, "sensitive": true, "rationale": "The registry and repository control state live in the resource's state root."},
-    "cache": {"rung": "relocatable", "path": "$USER_HOME/.cache/vrooli/resources/kopia", "kind": "dir", "class": "cache", "regenerable": true, "relocation": {"key": "KOPIA_CACHE_DIR", "scope": "process-tree"}, "rationale": "Kopia content caches are rebuildable and explicitly redirectable."}
+    "cache": {"rung": "relocatable", "path": "$USER_HOME/.cache/vrooli/resources/kopia", "kind": "dir", "class": "cache", "regenerable": true, "relocation": {"key": "KOPIA_CACHE_DIR", "scope": "process-tree"}, "budget": {"max_bytes": "12281MiB", "rationale": "Measured at 6438318897 bytes on 2026-08-03; ceiling is two times observed size."}, "rationale": "Kopia content caches are rebuildable and explicitly redirectable."}
   }},
   "display_name": "Kopia",
   "description": "Content-addressed, client-side-encrypted backup engine (kopia) wrapped behind the resource-kopia CLI. Provides deduplicated, compressed, encrypted snapshots to filesystem and S3/MinIO repositories for the data-backup-manager scenario.",
@@ -161,14 +161,6 @@
   },
   "credentials": {
     "descriptors": [
-      {
-        "logical_id": "vrooli/kopia",
-        "field": "repository-passphrase",
-        "env": "KOPIA_PASSWORD",
-        "label": "Kopia repository passphrase",
-        "description": "Per-repository client-side encryption passphrase. System-generated (32+ chars) on repo creation and stored in Vault; never user-typed and never written to a config file. Without it, an encrypted repository cannot be opened.",
-        "required": true
-      },
       {
         "logical_id": "vrooli/kopia",
         "field": "s3-access-key-id",

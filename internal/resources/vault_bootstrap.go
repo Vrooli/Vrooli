@@ -1,19 +1,17 @@
 package resources
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/resources/securestore"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
+	vaultbootstrap "github.com/vrooli/vrooli/packages/vaultbootstrap-go"
 )
 
 func init() {
@@ -29,68 +27,78 @@ func init() {
 // platform credential store and fails closed when it is unavailable.
 var privateVaultSecureStore = defaultManagedSharedSecureStore
 
-const legacyVaultBootstrapFilename = ".vrooli-bootstrap.json"
-
-type legacyVaultBootstrap struct {
-	UnsealKeys []string `json:"unseal_keys_b64"`
-	RootToken  string   `json:"root_token"`
+func storeVaultBootstrapMaterial(store securestore.Store, instanceID string, material VaultBootstrapMaterial) error {
+	return vaultbootstrap.Save(store, unsealKeyStore(), instanceID, material)
 }
 
-// loadLegacyVaultBootstrapMaterial is a one-way migration boundary for the
-// Docker-era Vault marker. That marker held plaintext recovery material in the
-// Vault data directory; the managed-service contract requires it in the OS
-// credential store. Callers must store and verify the material before removing
-// the marker. Nothing from this function is logged or returned to a CLI.
-func loadLegacyVaultBootstrapMaterial(dataDir string) (VaultBootstrapMaterial, bool, error) {
-	path := filepath.Join(dataDir, legacyVaultBootstrapFilename)
-	info, err := os.Lstat(path)
-	if os.IsNotExist(err) {
+// recoverVaultFromUnsealKey restores an instance whose stored material is gone
+// but whose unseal key survived a recovery bundle.
+//
+// This is the far end of the backup decision. A bundle carries the unseal key
+// and deliberately not the root token, so on a restored host the blob is absent
+// while the key is present — a state that used to be reported as unrecoverable
+// even though everything needed to recover was sitting in the credential store.
+func recoverVaultFromUnsealKey(
+	ctx context.Context,
+	bootstrap VaultBootstrapper,
+	store securestore.Store,
+	endpoint, instanceID string,
+) (VaultBootstrapMaterial, bool, error) {
+	keys := unsealKeyStore()
+	if keys == nil {
 		return VaultBootstrapMaterial{}, false, nil
 	}
+	unsealKey, found, err := vaultbootstrap.LoadUnsealKey(keys, instanceID)
+	if err != nil || !found {
+		// Not found here is not a failure: it simply means this is a fresh
+		// instance rather than a restore, and the caller bootstraps normally.
+		return VaultBootstrapMaterial{}, false, err
+	}
+
+	regenerator, ok := bootstrap.(VaultRootRegenerator)
+	if !ok {
+		return VaultBootstrapMaterial{}, false, fmt.Errorf(
+			"an unseal key is stored for %s but this Vault adapter cannot regenerate a root token", instanceID)
+	}
+	material := VaultBootstrapMaterial{UnsealKey: unsealKey}
+	if recovery, canUnseal := bootstrap.(VaultRecoveryBootstrapper); canUnseal {
+		if err := recovery.Unseal(ctx, endpoint, material); err != nil {
+			return VaultBootstrapMaterial{}, false, fmt.Errorf("unseal %s with its recovered key: %w", instanceID, err)
+		}
+	}
+	rootToken, err := regenerator.GenerateRootToken(ctx, endpoint, unsealKey)
 	if err != nil {
-		return VaultBootstrapMaterial{}, false, fmt.Errorf("inspect legacy Vault bootstrap marker: %w", err)
+		return VaultBootstrapMaterial{}, false, fmt.Errorf("regenerate root token for %s: %w", instanceID, err)
 	}
-	if !info.Mode().IsRegular() {
-		return VaultBootstrapMaterial{}, false, fmt.Errorf("legacy Vault bootstrap marker is not a regular file")
+	material.RootToken = rootToken
+
+	// Persist the re-minted pair so the next start is an ordinary recovery
+	// rather than another root generation.
+	if err := storeVaultBootstrapMaterial(store, instanceID, material); err != nil {
+		return VaultBootstrapMaterial{}, false, err
 	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return VaultBootstrapMaterial{}, false, fmt.Errorf("read legacy Vault bootstrap marker: %w", err)
-	}
-	var legacy legacyVaultBootstrap
-	if err := json.Unmarshal(data, &legacy); err != nil {
-		return VaultBootstrapMaterial{}, false, fmt.Errorf("parse legacy Vault bootstrap marker: %w", err)
-	}
-	if len(legacy.UnsealKeys) == 0 || strings.TrimSpace(legacy.UnsealKeys[0]) == "" || strings.TrimSpace(legacy.RootToken) == "" {
-		return VaultBootstrapMaterial{}, false, fmt.Errorf("legacy Vault bootstrap marker has incomplete management material")
-	}
-	return VaultBootstrapMaterial{RootToken: legacy.RootToken, UnsealKey: legacy.UnsealKeys[0]}, true, nil
+	return material, true, nil
 }
 
-func removeLegacyVaultBootstrapMarker(dataDir string) error {
-	path := filepath.Join(dataDir, legacyVaultBootstrapFilename)
-	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("remove migrated legacy Vault bootstrap marker: %w", err)
+// unsealKeyStore returns the credential authority, or nil when this host has
+// none. A nil sink means the unseal key is stored only beside the root token
+// and therefore is not in any recovery bundle — degraded, but strictly better
+// than refusing to bootstrap an instance that would otherwise work.
+//
+// It is a variable so tests can supply a sink without a real backend.
+var unsealKeyStore = func() vaultbootstrap.UnsealKeyStore {
+	authority, err := credentialauthority.Default()
+	if err != nil {
+		return nil
 	}
-	return nil
+	return authority
 }
 
-func storeVaultBootstrapMaterial(store securestore.Store, instanceID string, material VaultBootstrapMaterial) error {
-	encoded, err := json.Marshal(material)
-	if err != nil {
-		return err
-	}
-	if err := store.Put("vrooli.resource.vault", instanceID, string(encoded)); err != nil {
-		return fmt.Errorf("securely store Vault management material: %w", err)
-	}
-	stored, err := store.Get("vrooli.resource.vault", instanceID)
-	if err != nil {
-		return fmt.Errorf("verify stored Vault management material: %w", err)
-	}
-	if stored != string(encoded) {
-		return fmt.Errorf("verify stored Vault management material: secure-store readback did not match")
-	}
-	return nil
+// loadVaultBootstrapMaterial reads recovery material for an instance. A clean
+// "nothing stored" is reported as found=false and never as an error, so a first
+// run is not mistaken for a broken store.
+func loadVaultBootstrapMaterial(store securestore.Store, instanceID string) (VaultBootstrapMaterial, bool, error) {
+	return vaultbootstrap.Load(store, unsealKeyStore(), instanceID)
 }
 
 // bootstrapPrivateVault gives locally supervised Vault instances the same
@@ -111,30 +119,39 @@ func bootstrapPrivateVault(ctx context.Context, state ManagedServiceState, endpo
 	if err := waitForVaultBootstrapReachability(ctx, endpoint); err != nil {
 		return err
 	}
-	var material VaultBootstrapMaterial
-	if raw, err := store.Get("vrooli.resource.vault.private", state.InstanceID); err == nil {
-		if err := json.Unmarshal([]byte(raw), &material); err != nil {
-			return fmt.Errorf("parse private Vault recovery material: %w", err)
-		}
+	material, found, err := loadVaultBootstrapMaterial(store, state.InstanceID)
+	if err != nil {
+		// A store that cannot answer is not an empty store. Treating a read
+		// failure as "no material" would re-initialize a live instance.
+		return err
+	}
+	if found {
 		if err := bootstrap.Unseal(ctx, endpoint, material); err != nil {
 			return fmt.Errorf("recover private Vault: %w", err)
 		}
 	} else {
-		var err error
-		material, err = bootstrap.Bootstrap(ctx, endpoint)
-		if err != nil {
-			return fmt.Errorf("bootstrap private Vault: %w", err)
+		// A restored host has no blob but does have its unseal key, because a
+		// recovery bundle carries the irreplaceable half and nothing else.
+		// Trying this before Bootstrap is what turns that state from
+		// "unrecoverable" into an ordinary recovery.
+		recovered, didRecover, recoverErr := recoverVaultFromUnsealKey(ctx, bootstrap, store, endpoint, state.InstanceID)
+		if recoverErr != nil {
+			return recoverErr
+		}
+		if didRecover {
+			material = recovered
+		} else {
+			material, err = bootstrap.Bootstrap(ctx, endpoint)
+			if err != nil {
+				return fmt.Errorf("bootstrap private Vault: %w", err)
+			}
 		}
 	}
-	if strings.TrimSpace(material.RootToken) == "" || strings.TrimSpace(material.UnsealKey) == "" {
+	if !material.Valid() {
 		return fmt.Errorf("private Vault bootstrap returned incomplete management material")
 	}
-	encoded, err := json.Marshal(material)
-	if err != nil {
+	if err := storeVaultBootstrapMaterial(store, state.InstanceID, material); err != nil {
 		return err
-	}
-	if err := store.Put("vrooli.resource.vault.private", state.InstanceID, string(encoded)); err != nil {
-		return fmt.Errorf("securely store private Vault recovery material: %w", err)
 	}
 	if err := ensureVaultKVv2(ctx, endpoint, material.RootToken); err != nil {
 		return fmt.Errorf("configure private Vault KV v2: %w", err)
@@ -199,10 +216,24 @@ type VaultRecoveryBootstrapper interface {
 	Unseal(context.Context, string, VaultBootstrapMaterial) error
 }
 
-type VaultBootstrapMaterial struct {
-	RootToken string `json:"root_token"`
-	UnsealKey string `json:"unseal_key"`
+// VaultRootRegenerator mints a fresh root token from an unseal key.
+//
+// It is what makes "back up the unseal key, not the root token" a complete
+// story rather than half of one. A recovery bundle deliberately carries only
+// the irreplaceable half, so a restored host must be able to re-mint the rest;
+// without this it could unseal an instance and then administer nothing.
+//
+// Optional, like VaultRecoveryBootstrapper: an adapter that cannot regenerate
+// says so by not implementing it, rather than by failing at the moment an
+// operator is trying to recover.
+type VaultRootRegenerator interface {
+	GenerateRootToken(ctx context.Context, endpoint, unsealKey string) (string, error)
 }
+
+// VaultBootstrapMaterial is the shared type. It is an alias rather than a copy
+// so the control plane and a desktop bundle cannot disagree about the shape of
+// the one thing that makes a sealed instance recoverable.
+type VaultBootstrapMaterial = vaultbootstrap.Material
 
 // VaultLifecycleState distinguishes transport reachability from the state an
 // application may safely consume. In particular, Vault deliberately returns
@@ -262,13 +293,15 @@ func (h *UserResourceHost) EnsureVault(ctx context.Context, instance ManagedInst
 	if err := waitForVaultBootstrapReachability(ctx, instance.Endpoint); err != nil {
 		return ManagedInstance{}, err
 	}
-	var legacyDataDir string
-	legacyMarker := false
 	var material VaultBootstrapMaterial
-	if raw, err := h.Secrets.Get("vrooli.resource.vault", instance.ID); err == nil {
-		if err := json.Unmarshal([]byte(raw), &material); err != nil {
-			return ManagedInstance{}, fmt.Errorf("parse secure Vault management material: %w", err)
-		}
+	stored, storedFound, loadErr := loadVaultBootstrapMaterial(h.Secrets, instance.ID)
+	if loadErr != nil {
+		// A store that cannot answer is not an empty store. Continuing here
+		// would bootstrap a second time over a live instance.
+		return ManagedInstance{}, loadErr
+	}
+	if storedFound {
+		material = stored
 		recovery, ok := bootstrap.(VaultRecoveryBootstrapper)
 		if !ok {
 			return ManagedInstance{}, fmt.Errorf("Vault bootstrap adapter cannot recover an initialized instance")
@@ -276,30 +309,18 @@ func (h *UserResourceHost) EnsureVault(ctx context.Context, instance ManagedInst
 		if err := recovery.Unseal(ctx, instance.Endpoint, material); err != nil {
 			return ManagedInstance{}, fmt.Errorf("recover user-hosted Vault: %w", err)
 		}
+	} else if recovered, didRecover, recoverErr := recoverVaultFromUnsealKey(
+		ctx, bootstrap, h.Secrets, instance.Endpoint, instance.ID); recoverErr != nil {
+		return ManagedInstance{}, recoverErr
+	} else if didRecover {
+		// Restored from a bundle: the unseal key was in the credential store
+		// even though the material blob was not.
+		material = recovered
 	} else {
+		var err error
 		material, err = bootstrap.Bootstrap(ctx, instance.Endpoint)
 		if err != nil {
-			paths, pathsErr := resourceStoragePaths("vault")
-			if pathsErr != nil {
-				return ManagedInstance{}, fmt.Errorf("bootstrap user-hosted Vault: %w", err)
-			}
-			legacyMaterial, found, migrationErr := loadLegacyVaultBootstrapMaterial(paths.DataDir)
-			if migrationErr != nil {
-				return ManagedInstance{}, fmt.Errorf("migrate legacy Vault bootstrap material: %w", migrationErr)
-			}
-			if !found {
-				return ManagedInstance{}, fmt.Errorf("bootstrap user-hosted Vault: %w", err)
-			}
-			recovery, ok := bootstrap.(VaultRecoveryBootstrapper)
-			if !ok {
-				return ManagedInstance{}, fmt.Errorf("Vault bootstrap adapter cannot recover migrated legacy material")
-			}
-			material = legacyMaterial
-			if err := recovery.Unseal(ctx, instance.Endpoint, material); err != nil {
-				return ManagedInstance{}, fmt.Errorf("recover user-hosted Vault from migrated legacy material: %w", err)
-			}
-			legacyDataDir = paths.DataDir
-			legacyMarker = true
+			return ManagedInstance{}, fmt.Errorf("bootstrap user-hosted Vault: %w", err)
 		}
 	}
 	if strings.TrimSpace(material.RootToken) == "" || strings.TrimSpace(material.UnsealKey) == "" {
@@ -336,11 +357,6 @@ func (h *UserResourceHost) EnsureVault(ctx context.Context, instance ManagedInst
 	if err != nil {
 		return ManagedInstance{}, err
 	}
-	if legacyMarker {
-		if err := removeLegacyVaultBootstrapMarker(legacyDataDir); err != nil {
-			return ManagedInstance{}, err
-		}
-	}
 	return registered, nil
 }
 
@@ -352,44 +368,11 @@ func ensureVaultKVv2(ctx context.Context, endpoint, managementToken string) erro
 	if !isLoopbackManagedEndpoint(endpoint) || strings.TrimSpace(managementToken) == "" {
 		return fmt.Errorf("Vault KV bootstrap requires a loopback endpoint and management token")
 	}
-	data, err := json.Marshal(map[string]any{"type": "kv", "options": map[string]string{"version": "2"}})
-	if err != nil {
-		return err
-	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(endpoint, "/")+"/v1/sys/mounts/secret", bytes.NewReader(data))
-	if err != nil {
-		return err
-	}
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("X-Vault-Token", managementToken)
-	response, err := (&http.Client{Timeout: 10 * time.Second}).Do(request)
-	if err != nil {
-		return err
-	}
-	defer response.Body.Close()
-	if response.StatusCode >= http.StatusOK && response.StatusCode < http.StatusMultipleChoices || response.StatusCode == http.StatusBadRequest {
-		return nil
-	}
-	return fmt.Errorf("Vault KV mount request returned %s", response.Status)
+	return vaultbootstrap.Client{Endpoint: endpoint}.EnsureKVv2(ctx, managementToken)
 }
 
 func waitForVaultBootstrapReachability(parent context.Context, endpoint string) error {
-	ctx, cancel := context.WithTimeout(parent, 60*time.Second)
-	defer cancel()
-	client := &http.Client{Timeout: 5 * time.Second}
-	for {
-		var status struct {
-			Initialized bool `json:"initialized"`
-		}
-		if err := vaultBootstrapRequest(ctx, client, endpoint, http.MethodGet, "/v1/sys/seal-status", nil, &status); err == nil {
-			return nil
-		}
-		select {
-		case <-ctx.Done():
-			return fmt.Errorf("wait for Vault bootstrap reachability: %w", ctx.Err())
-		case <-time.After(100 * time.Millisecond):
-		}
-	}
+	return vaultbootstrap.Client{Endpoint: endpoint}.WaitReachable(parent, 60*time.Second)
 }
 
 // VaultManagementToken is the only bridge from secure storage to Vault's
@@ -399,13 +382,12 @@ func (h *UserResourceHost) VaultManagementToken(instance ManagedInstance) (strin
 	if h == nil || h.Secrets == nil || instance.Resource != "vault" {
 		return "", fmt.Errorf("Vault management token is unavailable")
 	}
-	raw, err := h.Secrets.Get("vrooli.resource.vault", instance.ID)
+	material, found, err := loadVaultBootstrapMaterial(h.Secrets, instance.ID)
 	if err != nil {
-		return "", fmt.Errorf("read Vault management material: %w", err)
+		return "", err
 	}
-	var material VaultBootstrapMaterial
-	if err := json.Unmarshal([]byte(raw), &material); err != nil {
-		return "", fmt.Errorf("parse secure Vault management material: %w", err)
+	if !found {
+		return "", fmt.Errorf("read Vault management material: nothing stored for instance %s", instance.ID)
 	}
 	if strings.TrimSpace(material.RootToken) == "" {
 		return "", fmt.Errorf("secure Vault management material has no root token")
@@ -415,24 +397,45 @@ func (h *UserResourceHost) VaultManagementToken(instance ManagedInstance) (strin
 
 // HTTPVaultBootstrapper implements Vault's documented local bootstrap API.
 // All requests are loopback-only and bounded by the caller's context.
+// HTTPVaultBootstrapper adapts the shared bootstrap sequence to the control
+// plane's interfaces. It is an adapter, not a second implementation: the only
+// behaviour it adds is the loopback requirement, which is a control-plane
+// safety property the shared package deliberately does not assume — a desktop
+// bundle addresses its own private instance the same way, but only the control
+// plane refuses to bootstrap something that is not provably local.
 type HTTPVaultBootstrapper struct{ Client *http.Client }
+
+func (b HTTPVaultBootstrapper) client(endpoint string) vaultbootstrap.Client {
+	return vaultbootstrap.Client{Endpoint: endpoint, HTTP: b.Client}
+}
 
 func (b HTTPVaultBootstrapper) LifecycleState(ctx context.Context, endpoint string) (VaultLifecycleState, error) {
 	if !isLoopbackManagedEndpoint(endpoint) {
 		return "", fmt.Errorf("Vault readiness endpoint must be loopback")
 	}
-	client := b.Client
-	if client == nil {
-		client = &http.Client{}
-	}
-	var status struct {
-		Initialized bool `json:"initialized"`
-		Sealed      bool `json:"sealed"`
-	}
-	if err := vaultBootstrapRequest(ctx, client, endpoint, http.MethodGet, "/v1/sys/seal-status", nil, &status); err != nil {
+	state, err := b.client(endpoint).LifecycleState(ctx)
+	if err != nil {
+		// A process that is up but not answering is process-started, not a
+		// lifecycle position we can name.
 		return VaultStateProcessStarted, err
 	}
-	return ClassifyVaultSealStatus(status.Initialized, status.Sealed), nil
+	return vaultLifecycleFor(state), nil
+}
+
+// vaultLifecycleFor maps the shared seal-status classification onto the control
+// plane's richer enum, which also carries transport-only positions the shared
+// package has no opinion about.
+func vaultLifecycleFor(state vaultbootstrap.State) VaultLifecycleState {
+	switch state {
+	case vaultbootstrap.StateUninitialized:
+		return VaultStateUninitialized
+	case vaultbootstrap.StateSealed:
+		return VaultStateSealed
+	case vaultbootstrap.StateUnsealed:
+		return VaultStateUnsealed
+	default:
+		return VaultStateProcessStarted
+	}
 }
 
 // VerifyScopedOperation requires the application credential selected by the
@@ -442,100 +445,59 @@ func (b HTTPVaultBootstrapper) VerifyScopedOperation(ctx context.Context, endpoi
 	if !isLoopbackManagedEndpoint(endpoint) || strings.TrimSpace(scopedToken) == "" {
 		return fmt.Errorf("Vault scoped readiness requires a loopback endpoint and scoped credential")
 	}
-	client := b.Client
-	if client == nil {
-		client = &http.Client{}
-	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(endpoint, "/")+"/v1/auth/token/lookup-self", nil)
-	if err != nil {
-		return err
-	}
-	request.Header.Set("X-Vault-Token", scopedToken)
-	response, err := client.Do(request)
-	if err != nil {
-		return err
-	}
-	defer response.Body.Close()
-	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
-		return fmt.Errorf("Vault scoped readiness request returned %s", response.Status)
-	}
-	return nil
+	return b.client(endpoint).VerifyScopedOperation(ctx, scopedToken)
 }
 
+// Bootstrap initializes a fresh instance and leaves it unsealed.
+//
+// It refuses an already-initialized instance outright. Reaching this path with
+// no stored material means the recovery material was lost, and initializing
+// again would not recover the instance — it would replace the key to data that
+// is still sealed under the old one.
 func (b HTTPVaultBootstrapper) Bootstrap(ctx context.Context, endpoint string) (VaultBootstrapMaterial, error) {
 	if !isLoopbackManagedEndpoint(endpoint) {
 		return VaultBootstrapMaterial{}, fmt.Errorf("Vault bootstrap endpoint must be loopback")
 	}
-	client := b.Client
-	if client == nil {
-		client = &http.Client{}
-	}
-	var status struct {
-		Initialized bool `json:"initialized"`
-		Sealed      bool `json:"sealed"`
-	}
-	if err := vaultBootstrapRequest(ctx, client, endpoint, http.MethodGet, "/v1/sys/seal-status", nil, &status); err != nil {
+	client := b.client(endpoint)
+	state, err := client.LifecycleState(ctx)
+	if err != nil {
 		return VaultBootstrapMaterial{}, err
 	}
-	if !status.Initialized {
-		var initialized struct {
-			Keys      []string `json:"keys"`
-			RootToken string   `json:"root_token"`
-		}
-		if err := vaultBootstrapRequest(ctx, client, endpoint, http.MethodPut, "/v1/sys/init", map[string]int{"secret_shares": 1, "secret_threshold": 1}, &initialized); err != nil {
-			return VaultBootstrapMaterial{}, err
-		}
-		if len(initialized.Keys) != 1 || strings.TrimSpace(initialized.RootToken) == "" {
-			return VaultBootstrapMaterial{}, fmt.Errorf("Vault initialization returned incomplete material")
-		}
-		if err := vaultBootstrapRequest(ctx, client, endpoint, http.MethodPut, "/v1/sys/unseal", map[string]string{"key": initialized.Keys[0]}, nil); err != nil {
-			return VaultBootstrapMaterial{}, err
-		}
-		return VaultBootstrapMaterial{RootToken: initialized.RootToken, UnsealKey: initialized.Keys[0]}, nil
+	if state != vaultbootstrap.StateUninitialized {
+		return VaultBootstrapMaterial{}, fmt.Errorf("initialized Vault recovery requires existing secure management material")
 	}
-	return VaultBootstrapMaterial{}, fmt.Errorf("initialized Vault recovery requires existing secure management material")
+	material, err := client.Initialize(ctx)
+	if err != nil {
+		return VaultBootstrapMaterial{}, err
+	}
+	if err := client.Unseal(ctx, material); err != nil {
+		return VaultBootstrapMaterial{}, err
+	}
+	return material, nil
 }
 
+// GenerateRootToken mints a root token from the unseal key, for a host whose
+// stored material is gone but whose key survived in a recovery bundle.
+func (b HTTPVaultBootstrapper) GenerateRootToken(ctx context.Context, endpoint, unsealKey string) (string, error) {
+	if !isLoopbackManagedEndpoint(endpoint) {
+		return "", fmt.Errorf("Vault root generation endpoint must be loopback")
+	}
+	return b.client(endpoint).GenerateRootToken(ctx, unsealKey)
+}
+
+// Unseal opens a sealed instance and treats an already-open one as success,
+// which is what makes a restart idempotent.
 func (b HTTPVaultBootstrapper) Unseal(ctx context.Context, endpoint string, material VaultBootstrapMaterial) error {
 	if !isLoopbackManagedEndpoint(endpoint) || strings.TrimSpace(material.UnsealKey) == "" {
 		return fmt.Errorf("Vault recovery requires a loopback endpoint and secure unseal material")
 	}
-	client := b.Client
-	if client == nil {
-		client = &http.Client{}
-	}
-	var status struct {
-		Sealed bool `json:"sealed"`
-	}
-	if err := vaultBootstrapRequest(ctx, client, endpoint, http.MethodGet, "/v1/sys/seal-status", nil, &status); err != nil {
+	client := b.client(endpoint)
+	state, err := client.LifecycleState(ctx)
+	if err != nil {
 		return err
 	}
-	if !status.Sealed {
+	if state != vaultbootstrap.StateSealed {
 		return nil
 	}
-	return vaultBootstrapRequest(ctx, client, endpoint, http.MethodPut, "/v1/sys/unseal", map[string]string{"key": material.UnsealKey}, nil)
-}
-
-func vaultBootstrapRequest(ctx context.Context, client *http.Client, endpoint, method, path string, input, output any) error {
-	data, err := json.Marshal(input)
-	if err != nil {
-		return err
-	}
-	request, err := http.NewRequestWithContext(ctx, method, strings.TrimRight(endpoint, "/")+path, bytes.NewReader(data))
-	if err != nil {
-		return err
-	}
-	request.Header.Set("Content-Type", "application/json")
-	response, err := client.Do(request)
-	if err != nil {
-		return err
-	}
-	defer response.Body.Close()
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return fmt.Errorf("Vault bootstrap API returned %s", response.Status)
-	}
-	if output == nil {
-		return nil
-	}
-	return json.NewDecoder(response.Body).Decode(output)
+	return client.Unseal(ctx, material)
 }

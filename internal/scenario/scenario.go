@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/credentialspec"
 	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
@@ -67,19 +68,20 @@ type Scenario struct {
 }
 
 type ServiceManifest struct {
-	Schema         string                    `json:"$schema,omitempty"`
-	Version        string                    `json:"version,omitempty"`
-	Service        ServiceMetadata           `json:"service"`
-	Generation     *GenerationMetadata       `json:"generation,omitempty"`
-	CLI            *CLIConfig                `json:"cli,omitempty"`
-	Ports          map[string]Port           `json:"ports,omitempty"`
-	Lifecycle      Lifecycle                 `json:"lifecycle,omitempty"`
-	Health         *HealthConfig             `json:"health,omitempty"`
-	Dependencies   Dependencies              `json:"dependencies,omitempty"`
-	TrustSigning   *TrustSigningConfig       `json:"trust_signing,omitempty"`
-	Environment    map[string]string         `json:"environment,omitempty"`
-	HostTools      []hostreqspec.Declaration `json:"hostTools,omitempty"`
-	HostSafeguards []hostreqspec.Declaration `json:"hostSafeguards,omitempty"`
+	Schema         string                     `json:"$schema,omitempty"`
+	Version        string                     `json:"version,omitempty"`
+	Service        ServiceMetadata            `json:"service"`
+	Generation     *GenerationMetadata        `json:"generation,omitempty"`
+	CLI            *CLIConfig                 `json:"cli,omitempty"`
+	Ports          map[string]Port            `json:"ports,omitempty"`
+	Lifecycle      Lifecycle                  `json:"lifecycle,omitempty"`
+	Health         *HealthConfig              `json:"health,omitempty"`
+	Dependencies   Dependencies               `json:"dependencies,omitempty"`
+	Credentials    credentialspec.Declaration `json:"credentials,omitempty"`
+	TrustSigning   *TrustSigningConfig        `json:"trust_signing,omitempty"`
+	Environment    map[string]string          `json:"environment,omitempty"`
+	HostTools      []hostreqspec.Declaration  `json:"hostTools,omitempty"`
+	HostSafeguards []hostreqspec.Declaration  `json:"hostSafeguards,omitempty"`
 }
 
 // TrustSigningConfig is a declarative lifecycle contract for a scenario that

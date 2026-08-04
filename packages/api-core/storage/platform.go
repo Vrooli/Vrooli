@@ -19,7 +19,7 @@ const (
 
 // runtimeHomeEntryPath resolves a well-known runtime-home entry path through the
 // repo-contract authority. It is a package var so tests can inject contract-load
-// failures (mirrors the seam style in api-core/secrets); production always uses
+// failures; production always uses
 // the real authority.
 var runtimeHomeEntryPath = repocontract.RuntimeHomeEntryPath
 

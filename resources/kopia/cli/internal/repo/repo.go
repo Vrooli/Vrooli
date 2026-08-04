@@ -19,24 +19,29 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
+
 	"resource-kopia/cli/internal/cmdutil"
+	"resource-kopia/cli/internal/credentials"
 	"resource-kopia/cli/internal/env"
 	"resource-kopia/cli/internal/kexec"
 	"resource-kopia/cli/internal/registry"
 	"resource-kopia/cli/internal/repoctx"
 	"resource-kopia/cli/internal/vault"
-	"strconv"
-	"strings"
+
+	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 )
 
 // Service wires the dependencies the repository commands need.
 type Service struct {
-	Runner   kexec.Runner
-	Vault    vault.Vault
-	Registry *registry.Registry
-	Resolver repoctx.Resolver
-	Env      env.Runtime
-	Out      io.Writer
+	Runner      kexec.Runner
+	Credentials credentials.Store
+	Vault       vault.Vault
+	Registry    *registry.Registry
+	Resolver    repoctx.Resolver
+	Env         env.Runtime
+	Out         io.Writer
 }
 
 func (s Service) out() io.Writer {
@@ -48,7 +53,7 @@ func (s Service) out() io.Writer {
 
 // Create provisions a new kopia repository (== Vrooli destination). Encryption
 // is left at kopia's secure default; the passphrase is generated-and-stored in
-// vault on first creation.
+// the credential authority on first creation.
 func (s Service) Create(ctx context.Context, args []string) error {
 	fs := cmdutil.NewFlagSet("repo create")
 	var (
@@ -79,13 +84,6 @@ func (s Service) Create(ctx context.Context, args []string) error {
 		return fmt.Errorf("create repo config dir: %w", err)
 	}
 
-	// Passphrase: generate-then-store on first creation; never empty/default.
-	passphrase, err := vault.EnsurePassphrase(ctx, s.Vault, *name)
-	if err != nil {
-		return err
-	}
-	secretEnv := map[string]string{repoctx.EnvPassword: passphrase}
-
 	entry := registry.Entry{
 		Name:       *name,
 		ConfigFile: cfg,
@@ -93,6 +91,7 @@ func (s Service) Create(ctx context.Context, args []string) error {
 	}
 
 	verbArgs := []string{"--config-file", cfg, "repository", "create"}
+	secretEnv := map[string]string{}
 	switch strings.ToLower(strings.TrimSpace(*backend)) {
 	case registry.BackendFilesystem:
 		if strings.TrimSpace(*path) == "" {
@@ -124,13 +123,34 @@ func (s Service) Create(ctx context.Context, args []string) error {
 	default:
 		return fmt.Errorf("unsupported --backend %q (use filesystem or s3)", *backend)
 	}
+	passphrase, err := credentials.GeneratePassphrase()
+	if err != nil {
+		return err
+	}
+	identity, err := kopiaregistry.PassphraseIdentity(entry.Name)
+	if err != nil {
+		return err
+	}
+	if s.Credentials == nil {
+		return fmt.Errorf("credential authority is unavailable")
+	}
+	if err := s.Credentials.Put(identity, kopiaregistry.PassphraseField, passphrase); err != nil {
+		return fmt.Errorf("store repository passphrase: %w", err)
+	}
+	if err := credentials.ValidateStoredPassphrase(s.Credentials, identity, passphrase); err != nil {
+		_ = s.Credentials.Delete(identity, kopiaregistry.PassphraseField)
+		return err
+	}
+	secretEnv[repoctx.EnvPassword] = passphrase
 	verbArgs = append(verbArgs, "--cache-directory", cache)
 
 	out, err := s.Runner.Run(ctx, kexec.Call{Args: verbArgs, Env: secretEnv})
 	if err != nil {
+		_ = s.Credentials.Delete(identity, kopiaregistry.PassphraseField)
 		return err
 	}
 	if err := s.Registry.Upsert(entry); err != nil {
+		_ = s.Credentials.Delete(identity, kopiaregistry.PassphraseField)
 		return err
 	}
 	return s.report(*jsonOut, out, fmt.Sprintf("created repository %q (%s, encryption on)", *name, entry.Backend))
@@ -284,7 +304,7 @@ func (s Service) Disconnect(ctx context.Context, args []string) error {
 }
 
 // Delete removes the local resource-kopia metadata for a repository and
-// deletes the Vault secret refs that belong to it. Backend object bytes are not
+// deletes the credential and backend secret refs that belong to it. Backend object bytes are not
 // removed; operators can reconnect later only if they re-provision the secret.
 func (s Service) Delete(ctx context.Context, args []string) error {
 	fs := cmdutil.NewFlagSet("repo delete")
@@ -303,8 +323,20 @@ func (s Service) Delete(ctx context.Context, args []string) error {
 		fmt.Fprintf(s.out(), "repository %q was not registered\n", *name)
 		return nil
 	}
-	if err := vault.DeleteRepositorySecrets(ctx, s.Vault, *name); err != nil {
+	identity, err := kopiaregistry.PassphraseIdentity(*name)
+	if err != nil {
 		return err
+	}
+	if s.Credentials == nil {
+		return fmt.Errorf("credential authority is unavailable")
+	}
+	if err := s.Credentials.Delete(identity, kopiaregistry.PassphraseField); err != nil {
+		return err
+	}
+	if entry.Backend == registry.BackendS3 {
+		if err := vault.DeleteS3Credentials(ctx, s.Vault, *name); err != nil {
+			return err
+		}
 	}
 	if err := s.Registry.Remove(*name); err != nil {
 		return err
@@ -411,8 +443,19 @@ func (s Service) resolveS3Creds(ctx context.Context, name, accessKey, secretKey 
 // registerForConnect upserts a registry entry from connect-time backend flags,
 // ensuring the passphrase exists and storing any provided S3 creds.
 func (s Service) registerForConnect(ctx context.Context, name, backend, path, bucket, endpoint, prefix, region string, disableTLS bool, accessKey, secretKey string) error {
-	if _, err := vault.RequirePassphrase(ctx, s.Vault, name); err != nil {
-		return fmt.Errorf("cannot connect %q: %w", name, err)
+	identity, err := kopiaregistry.PassphraseIdentity(name)
+	if err != nil {
+		return err
+	}
+	if s.Credentials == nil {
+		return fmt.Errorf("credential authority is unavailable")
+	}
+	value, err := s.Credentials.Resolve(identity, kopiaregistry.PassphraseField)
+	if err != nil {
+		return fmt.Errorf("cannot connect %q: read repository passphrase: %w", name, err)
+	}
+	if strings.TrimSpace(value) == "" {
+		return fmt.Errorf("cannot connect %q: repository passphrase is not configured", name)
 	}
 	entry := registry.Entry{
 		Name:       name,

@@ -9,8 +9,13 @@ package repoctx
 import (
 	"context"
 	"fmt"
+	"strings"
+
+	"resource-kopia/cli/internal/credentials"
 	"resource-kopia/cli/internal/registry"
 	"resource-kopia/cli/internal/vault"
+
+	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 )
 
 // Env var names kopia reads for the passphrase and S3 credentials. Secrets are
@@ -37,10 +42,12 @@ func (t Target) GlobalArgs() []string {
 	return []string{"--config-file", t.Entry.ConfigFile}
 }
 
-// Resolver loads registry entries and sources their secrets from vault.
+// Resolver loads registry entries and sources passphrases from the credential
+// authority and backend credentials from Vault.
 type Resolver struct {
-	Registry *registry.Registry
-	Vault    vault.Vault
+	Registry    *registry.Registry
+	Credentials credentials.Store
+	Vault       vault.Vault
 }
 
 // Resolve returns the Target for a registered repository, failing closed if the
@@ -58,9 +65,19 @@ func (r Resolver) Resolve(ctx context.Context, name string) (Target, error) {
 
 // targetFor builds the secret env overlay for an entry.
 func (r Resolver) targetFor(ctx context.Context, entry registry.Entry) (Target, error) {
-	passphrase, err := vault.RequirePassphrase(ctx, r.Vault, entry.Name)
+	identity, err := kopiaregistry.PassphraseIdentity(entry.Name)
 	if err != nil {
 		return Target{}, err
+	}
+	if r.Credentials == nil {
+		return Target{}, fmt.Errorf("credential authority is unavailable")
+	}
+	passphrase, err := r.Credentials.Resolve(identity, kopiaregistry.PassphraseField)
+	if err != nil {
+		return Target{}, fmt.Errorf("read repository passphrase for %q: %w", entry.Name, err)
+	}
+	if strings.TrimSpace(passphrase) == "" {
+		return Target{}, fmt.Errorf("repository passphrase for %q is not configured", entry.Name)
 	}
 	env := map[string]string{EnvPassword: passphrase}
 

@@ -9,3 +9,5 @@ func absentBackendFix() string {
 // hostBoundFix has nothing to add on macOS: the host-bound wrap is a
 // systemd-creds facility, so it is never the reason a store stays locked here.
 func hostBoundFix() string { return "" }
+
+func nativeStorageStrength() (string, string) { return "", "" }

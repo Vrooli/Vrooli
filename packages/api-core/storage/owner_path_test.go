@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"errors"
 	"path/filepath"
 	"testing"
 )
@@ -34,5 +35,30 @@ func TestResolveOwnerStoragePathUsesScenarioAndPortableBases(t *testing.T) {
 	}
 	if want := filepath.Join(root, "config", "vrooli", "demo"); path != want {
 		t.Fatalf("resource path = %q, want %q", path, want)
+	}
+}
+
+func TestResolveOwnerStoragePathHonorsDeclaredPlatforms(t *testing.T) {
+	owner := OwnerManifest{Kind: OwnerTool, ID: "kdump-tools", Platforms: []Platform{PlatformLinux}}
+	entry := StorageEntry{Name: "crash_dumps", Path: PortablePath{Value: "/var/crash"}}
+	for _, platform := range []Platform{PlatformMacOS, PlatformWindows} {
+		_, err := ResolveOwnerStoragePath("/repo", owner, entry, platform, PlatformSeams{})
+		var absent *NotApplicable
+		if !errors.As(err, &absent) {
+			t.Fatalf("%s error = %v, want NotApplicable", platform, err)
+		}
+	}
+	path, err := ResolveOwnerStoragePath("/repo", owner, entry, PlatformLinux, PlatformSeams{})
+	if err != nil || path != "/var/crash" {
+		t.Fatalf("linux path = %q, err=%v", path, err)
+	}
+}
+
+func TestEffectivePlatformsEntryNarrowsOwner(t *testing.T) {
+	owner := OwnerManifest{Platforms: []Platform{PlatformLinux, PlatformMacOS, PlatformWindows}}
+	entry := StorageEntry{Platforms: []Platform{PlatformLinux}}
+	got := EffectivePlatforms(owner, entry)
+	if len(got) != 1 || got[0] != PlatformLinux {
+		t.Fatalf("effective platforms = %#v", got)
 	}
 }

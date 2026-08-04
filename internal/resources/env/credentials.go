@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/credentialspec"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
 )
@@ -58,48 +59,56 @@ type CredentialResolution struct {
 
 // resolvedDescriptor is a manifest descriptor after the checks that can only
 // be fixed by editing the manifest have already passed.
+//
+// env is empty for a descriptor that names no environment variable. That is a
+// declaration Vrooli-authored code resolves for itself through
+// packages/credential-authority-go, so there is nothing to inject — but it is
+// still declared, and therefore still diagnosed and still captured by a
+// recovery bundle.
 type resolvedDescriptor struct {
-	descriptor manifestpkg.CredentialDescriptor
+	descriptor credentialspec.Descriptor
 	identity   credentialauthority.Identity
 	env        string
 	field      string
 }
 
-// validateCredentialDescriptors performs every check whose failure the
-// operator cannot fix at runtime. These are the only conditions under which
-// credential resolution is allowed to return an error.
-func validateCredentialDescriptors(resourceManifest manifestpkg.ResourceManifest) ([]resolvedDescriptor, error) {
-	descriptors := resourceManifest.Credentials.All()
+// validateDeclaration performs every check whose failure the operator cannot
+// fix at runtime. These are the only conditions under which credential
+// resolution is allowed to return an error. owner names the manifest for the
+// message and is a resource or scenario name.
+func validateDeclaration(owner string, declaration credentialspec.Declaration) ([]resolvedDescriptor, error) {
+	if err := declaration.Validate(owner); err != nil {
+		return nil, err
+	}
+	descriptors := declaration.All()
 	resolved := make([]resolvedDescriptor, 0, len(descriptors))
-	declared := map[string]string{}
 	for _, descriptor := range descriptors {
-		envName := strings.TrimSpace(descriptor.Env)
-		if envName == "" {
-			return nil, fmt.Errorf("resource %s declares a credential with an empty env name", resourceManifest.Name)
-		}
-		if prior, duplicate := declared[envName]; duplicate {
-			return nil, fmt.Errorf(
-				"resource %s declares credential env %s twice, for %s and %s",
-				resourceManifest.Name, envName, prior, strings.TrimSpace(descriptor.LogicalID))
-		}
 		identity, err := credentialauthority.ParseIdentity(descriptor.LogicalID)
 		if err != nil {
-			return nil, fmt.Errorf("resource %s credential %s: %w", resourceManifest.Name, envName, err)
-		}
-		declared[envName] = strings.TrimSpace(descriptor.LogicalID)
-
-		field := strings.TrimSpace(descriptor.Field)
-		if field == "" {
-			field = "value"
+			return nil, fmt.Errorf("%s credential %s: %w", owner, describeDescriptor(descriptor), err)
 		}
 		resolved = append(resolved, resolvedDescriptor{
 			descriptor: descriptor,
 			identity:   identity,
-			env:        envName,
-			field:      field,
+			env:        strings.TrimSpace(descriptor.Env),
+			field:      descriptor.ResolvedField(),
 		})
 	}
 	return resolved, nil
+}
+
+// describeDescriptor names a descriptor in an error. An injected one is best
+// known by its variable; one resolved directly has only its field.
+func describeDescriptor(descriptor credentialspec.Descriptor) string {
+	if env := strings.TrimSpace(descriptor.Env); env != "" {
+		return env
+	}
+	return descriptor.ResolvedField()
+}
+
+// validateCredentialDescriptors is the resource-manifest entry point.
+func validateCredentialDescriptors(resourceManifest manifestpkg.ResourceManifest) ([]resolvedDescriptor, error) {
+	return validateDeclaration("resource "+resourceManifest.Name, resourceManifest.Credentials)
 }
 
 // ResolveCredentialValues resolves a resource's declared credentials into a
@@ -128,6 +137,24 @@ func ResolveCredentialValues(resourceManifest manifestpkg.ResourceManifest) (Cre
 	}
 
 	for index, descriptor := range descriptors {
+		// A descriptor with no env names no injection target. Its consumer is
+		// Vrooli-authored code that resolves the value itself, so the value is
+		// never materialized here — but whether it is configured is still a
+		// gap worth reporting, and Status answers that without reading it.
+		if descriptor.env == "" {
+			status := authority.Status(descriptor.identity, descriptor.field)
+			if status.ProviderState != credentialauthority.ProviderAvailable {
+				resolution.Provider = status.ProviderState
+				reason := providerErrorFor(status)
+				resolution.Missing = append(resolution.Missing, allMissing(resourceManifest.Name, descriptors[index:], reason)...)
+				return resolution, nil
+			}
+			if !status.Configured {
+				resolution.Missing = append(resolution.Missing,
+					missingCredential(resourceManifest.Name, descriptor, credentialauthority.ErrUnconfigured))
+			}
+			continue
+		}
 		injectErr := authority.Inject(descriptor.identity, descriptor.field, descriptor.env, resolution.Values)
 		if injectErr == nil {
 			continue
@@ -150,20 +177,40 @@ func ResolveCredentialValues(resourceManifest manifestpkg.ResourceManifest) (Cre
 // without materializing any value. A presence check must not pay the cost — or
 // carry the exposure — of a full secret read.
 func ResolveCredentialGaps(resourceManifest manifestpkg.ResourceManifest) (CredentialResolution, error) {
-	resolution := CredentialResolution{Provider: credentialauthority.ProviderAvailable}
 	descriptors, err := validateCredentialDescriptors(resourceManifest)
 	if err != nil {
 		return CredentialResolution{}, err
 	}
+	return resolveGaps(resourceManifest.Name, descriptors), nil
+}
+
+// ResolveScenarioCredentialGaps reports the same for a scenario's own
+// declaration. A scenario declares a credential when its own code resolves the
+// value through packages/credential-authority-go rather than reading an
+// injected variable; without this entry point such a credential would be
+// undiagnosable and, more seriously, invisible to `recovery export --all`.
+func ResolveScenarioCredentialGaps(scenarioName string, declaration credentialspec.Declaration) (CredentialResolution, error) {
+	descriptors, err := validateDeclaration("scenario "+scenarioName, declaration)
+	if err != nil {
+		return CredentialResolution{}, err
+	}
+	return resolveGaps(scenarioName, descriptors), nil
+}
+
+// resolveGaps is the shared presence check. Keeping one body is what stops a
+// scenario-declared credential and a resource-declared one from developing
+// different ideas about what "configured" means.
+func resolveGaps(owner string, descriptors []resolvedDescriptor) CredentialResolution {
+	resolution := CredentialResolution{Provider: credentialauthority.ProviderAvailable}
 	if len(descriptors) == 0 {
-		return resolution, nil
+		return resolution
 	}
 
 	authority, authorityErr := credentialauthority.DefaultAuthority()
 	if authorityErr != nil {
 		resolution.Provider = credentialauthority.ProviderStateFor(authorityErr)
-		resolution.Missing = allMissing(resourceManifest.Name, descriptors, authorityErr)
-		return resolution, nil
+		resolution.Missing = allMissing(owner, descriptors, authorityErr)
+		return resolution
 	}
 
 	for index, descriptor := range descriptors {
@@ -171,16 +218,16 @@ func ResolveCredentialGaps(resourceManifest manifestpkg.ResourceManifest) (Crede
 		if status.ProviderState != credentialauthority.ProviderAvailable {
 			resolution.Provider = status.ProviderState
 			reason := providerErrorFor(status)
-			resolution.Missing = append(resolution.Missing, allMissing(resourceManifest.Name, descriptors[index:], reason)...)
-			return resolution, nil
+			resolution.Missing = append(resolution.Missing, allMissing(owner, descriptors[index:], reason)...)
+			return resolution
 		}
 		if status.Configured {
 			continue
 		}
 		resolution.Missing = append(resolution.Missing,
-			missingCredential(resourceManifest.Name, descriptor, credentialauthority.ErrUnconfigured))
+			missingCredential(owner, descriptor, credentialauthority.ErrUnconfigured))
 	}
-	return resolution, nil
+	return resolution
 }
 
 // providerErrorFor rebuilds the sentinel a Status implies so gap construction

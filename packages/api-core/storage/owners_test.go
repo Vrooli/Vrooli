@@ -95,6 +95,25 @@ func TestLoadOwnerInventoryFlagsInvalidRelocatableDeclaration(t *testing.T) {
 	}
 }
 
+func TestLoadOwnerInventoryLoadsPlatformsAndReportsContradictions(t *testing.T) {
+	root := t.TempDir()
+	writeOwnerFixture(t, filepath.Join(root, "internal", "tools", "example", "tool.json"), `{"name":"example","platforms":["linux"],"storage":{"entries":{"cache":{"platforms":["windows"],"rung":"owned","path":"C:/cache","kind":"dir","class":"cache"}}}}`)
+	inventory, err := LoadOwnerInventory(InventoryOptions{RepoRoot: root, Platform: PlatformLinux})
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner := ownerByKind(inventory.Owners, OwnerTool)
+	if owner == nil || len(owner.Platforms) != 1 || owner.Platforms[0] != PlatformLinux {
+		t.Fatalf("owner platforms = %#v", owner)
+	}
+	if len(owner.StorageEntries) != 1 || len(owner.StorageEntries[0].Platforms) != 1 || owner.StorageEntries[0].Platforms[0] != PlatformWindows {
+		t.Fatalf("entry platforms = %#v", owner.StorageEntries)
+	}
+	if !hasFinding(inventory.Findings, "contradictory_storage_platforms", OwnerTool, "example") {
+		t.Fatalf("contradiction finding absent: %#v", inventory.Findings)
+	}
+}
+
 func writeOwnerFixture(t *testing.T, path, contents string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

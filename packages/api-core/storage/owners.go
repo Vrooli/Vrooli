@@ -26,14 +26,15 @@ const (
 // The original manifest remains authoritative; this model exists so storage-
 // manager, retention, placement, and health consumers read the same shape.
 type OwnerManifest struct {
-	Kind            OwnerKind                `json:"kind"`
-	ID              string                   `json:"id"`
-	ManifestPath    string                   `json:"manifest_path"`
-	StorageDeclared bool                     `json:"storage_declared"`
-	StorageRationale string                  `json:"storage_rationale,omitempty"`
-	StorageEntries  []StorageEntry           `json:"storage_entries,omitempty"`
-	Retention       []RetentionDeclaration   `json:"retention,omitempty"`
-	DurableData     []DurableDataDeclaration `json:"durable_data,omitempty"`
+	Kind             OwnerKind                `json:"kind"`
+	ID               string                   `json:"id"`
+	Platforms        []Platform               `json:"platforms,omitempty"`
+	ManifestPath     string                   `json:"manifest_path"`
+	StorageDeclared  bool                     `json:"storage_declared"`
+	StorageRationale string                   `json:"storage_rationale,omitempty"`
+	StorageEntries   []StorageEntry           `json:"storage_entries,omitempty"`
+	Retention        []RetentionDeclaration   `json:"retention,omitempty"`
+	DurableData      []DurableDataDeclaration `json:"durable_data,omitempty"`
 }
 
 // StorageEntry is the common portable storage contract used by all owner
@@ -41,6 +42,7 @@ type OwnerManifest struct {
 // those declarations answer different questions and must not be conflated.
 type StorageEntry struct {
 	Name        string                 `json:"name"`
+	Platforms   []Platform             `json:"platforms,omitempty"`
 	Rung        Rung                   `json:"rung,omitempty"`
 	Path        PortablePath           `json:"path"`
 	Kind        string                 `json:"kind"`
@@ -49,14 +51,33 @@ type StorageEntry struct {
 	Regenerable bool                   `json:"regenerable,omitempty"`
 	Sensitive   bool                   `json:"sensitive,omitempty"`
 	Relocation  *RelocationDeclaration `json:"relocation,omitempty"`
+	Reclaim     *ReclaimDeclaration    `json:"reclaim,omitempty"`
 	Budget      *BudgetDeclaration     `json:"budget,omitempty"`
 	Rationale   string                 `json:"rationale,omitempty"`
+}
+
+// EffectivePlatforms returns the platforms where an entry has a declared
+// location. An entry-level declaration narrows its owner's scope; omitted
+// declarations mean all supported platforms.
+func EffectivePlatforms(owner OwnerManifest, entry StorageEntry) []Platform {
+	if len(entry.Platforms) > 0 {
+		return append([]Platform(nil), entry.Platforms...)
+	}
+	if len(owner.Platforms) > 0 {
+		return append([]Platform(nil), owner.Platforms...)
+	}
+	return []Platform{PlatformLinux, PlatformMacOS, PlatformWindows}
 }
 
 type RelocationDeclaration struct {
 	Key    string `json:"key,omitempty"`
 	Scope  string `json:"scope,omitempty"`
 	Config string `json:"config,omitempty"`
+}
+
+type ReclaimDeclaration struct {
+	Command string `json:"command,omitempty"`
+	Pruner  string `json:"pruner,omitempty"`
 }
 
 // BudgetDeclaration is the legacy/storage-surface budget shape. Retention's
@@ -267,9 +288,10 @@ func parseOwnerManifest(kind OwnerKind, path string, platform Platform, seams Pl
 		return owner, []InventoryFinding{{Code: "manifest_unreadable", Severity: "error", OwnerKind: kind, ManifestPath: path, Message: err.Error()}}
 	}
 	var raw struct {
-		ID      string `json:"id"`
-		Name    string `json:"name"`
-		Service struct {
+		ID        string          `json:"id"`
+		Name      string          `json:"name"`
+		Platforms json.RawMessage `json:"platforms"`
+		Service   struct {
 			Name string `json:"name"`
 		} `json:"service"`
 		Storage *struct {
@@ -290,6 +312,7 @@ func parseOwnerManifest(kind OwnerKind, path string, platform Platform, seams Pl
 	}
 	owner.ID = firstNonEmpty(raw.ID, raw.Name, raw.Service.Name)
 	var findings []InventoryFinding
+	owner.Platforms, findings = decodePlatforms(owner, raw.Platforms, "manifest")
 	if owner.ID == "" {
 		findings = append(findings, InventoryFinding{Code: "missing_owner_id", Severity: "error", OwnerKind: kind, ManifestPath: path, Message: "manifest has no id, name, or service.name"})
 	}
@@ -299,6 +322,7 @@ func parseOwnerManifest(kind OwnerKind, path string, platform Platform, seams Pl
 		names := sortedRawKeys(raw.Storage.Entries)
 		for _, name := range names {
 			var entry struct {
+				Platforms   []string               `json:"platforms"`
 				Rung        Rung                   `json:"rung"`
 				Path        json.RawMessage        `json:"path"`
 				Kind        string                 `json:"kind"`
@@ -307,12 +331,22 @@ func parseOwnerManifest(kind OwnerKind, path string, platform Platform, seams Pl
 				Regenerable bool                   `json:"regenerable"`
 				Sensitive   bool                   `json:"sensitive"`
 				Relocation  *RelocationDeclaration `json:"relocation"`
+				Reclaim     *ReclaimDeclaration    `json:"reclaim"`
 				Budget      *BudgetDeclaration     `json:"budget"`
 				Rationale   string                 `json:"rationale"`
 			}
 			if err := json.Unmarshal(raw.Storage.Entries[name], &entry); err != nil {
 				findings = append(findings, ownerFinding(owner, "malformed_storage_entry", "storage entry "+name+": "+err.Error()))
 				continue
+			}
+			entryPlatforms, platformFindings := normalizePlatforms(owner, entry.Platforms, "storage entry "+name)
+			findings = append(findings, platformFindings...)
+			if len(owner.Platforms) > 0 {
+				for _, declared := range entryPlatforms {
+					if !platformIncluded(owner.Platforms, declared) {
+						findings = append(findings, ownerFinding(owner, "contradictory_storage_platforms", fmt.Sprintf("storage entry %s declares platform %s outside the owner's platforms %v", name, declared, owner.Platforms)))
+					}
+				}
 			}
 			var portable PortablePath
 			if len(entry.Path) == 0 || string(entry.Path) == "null" {
@@ -335,14 +369,15 @@ func parseOwnerManifest(kind OwnerKind, path string, platform Platform, seams Pl
 			if entry.Rung == RungRelocatable && entry.Relocation == nil {
 				findings = append(findings, ownerFinding(owner, "missing_relocation", "relocatable storage entry "+name+" has no relocation lever"))
 			}
-			if platform != "" {
+			storageEntry := StorageEntry{Name: name, Platforms: entryPlatforms, Rung: entry.Rung, Path: portable, Kind: entry.Kind, Class: entry.Class, Format: entry.Format, Regenerable: entry.Regenerable, Sensitive: entry.Sensitive, Relocation: entry.Relocation, Reclaim: entry.Reclaim, Budget: entry.Budget, Rationale: entry.Rationale}
+			if platform != "" && platformIncluded(EffectivePlatforms(owner, storageEntry), platform) {
 				// Native scenario manifests intentionally use paths relative to
 				// the api-core storage class root. Portable host manifests use
 				// absolute paths or platform tokens. Defer relative resolution to
 				// the owner-aware storage resolver instead of misclassifying a
 				// valid scenario declaration as an invalid host path.
 				if owner.Kind == OwnerScenario && portable.ByOS == nil && !filepath.IsAbs(portable.Value) && !containsPortableToken(portable.Value) {
-					owner.StorageEntries = append(owner.StorageEntries, StorageEntry{Name: name, Rung: entry.Rung, Path: portable, Kind: entry.Kind, Class: entry.Class, Format: entry.Format, Regenerable: entry.Regenerable, Sensitive: entry.Sensitive, Relocation: entry.Relocation, Budget: entry.Budget, Rationale: entry.Rationale})
+					owner.StorageEntries = append(owner.StorageEntries, storageEntry)
 					continue
 				}
 				if _, resolveErr := ResolvePortablePath(name, portable, platform, seams); resolveErr != nil {
@@ -351,7 +386,7 @@ func parseOwnerManifest(kind OwnerKind, path string, platform Platform, seams Pl
 					}
 				}
 			}
-			owner.StorageEntries = append(owner.StorageEntries, StorageEntry{Name: name, Rung: entry.Rung, Path: portable, Kind: entry.Kind, Class: entry.Class, Format: entry.Format, Regenerable: entry.Regenerable, Sensitive: entry.Sensitive, Relocation: entry.Relocation, Budget: entry.Budget, Rationale: entry.Rationale})
+			owner.StorageEntries = append(owner.StorageEntries, storageEntry)
 		}
 	}
 	if raw.Retention != nil {
@@ -384,6 +419,35 @@ func parseOwnerManifest(kind OwnerKind, path string, platform Platform, seams Pl
 		}
 	}
 	return owner, findings
+}
+
+func decodePlatforms(owner OwnerManifest, raw json.RawMessage, scope string) ([]Platform, []InventoryFinding) {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil, nil
+	}
+	var values []string
+	if err := json.Unmarshal(raw, &values); err != nil {
+		// Resource manifests use a separate platform-status object. It is not an
+		// applicability declaration and must not narrow storage entries.
+		return nil, nil
+	}
+	return normalizePlatforms(owner, values, scope)
+}
+
+func normalizePlatforms(owner OwnerManifest, values []string, scope string) ([]Platform, []InventoryFinding) {
+	platforms := make([]Platform, 0, len(values))
+	var findings []InventoryFinding
+	for _, value := range values {
+		platform := NormalizePlatform(value)
+		if platform == "" {
+			findings = append(findings, ownerFinding(owner, "invalid_storage_platform", fmt.Sprintf("%s declares unsupported platform %q", scope, value)))
+			continue
+		}
+		if !platformIncluded(platforms, platform) {
+			platforms = append(platforms, platform)
+		}
+	}
+	return platforms, findings
 }
 
 func ownerFinding(owner OwnerManifest, code, message string) InventoryFinding {

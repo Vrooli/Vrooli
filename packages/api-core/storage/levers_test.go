@@ -30,3 +30,16 @@ func TestBuildLeverRegistryAllowsPerContainerReuse(t *testing.T) {
 		t.Fatalf("levers = %d, want 2", len(registry.Levers))
 	}
 }
+
+func TestBuildLeverRegistryRejectsEnvironmentExportCollision(t *testing.T) {
+	_, err := BuildLeverRegistryWithExports([]Lever{{Key: "OLLAMA_HOST", Owner: "scenario-a", Entry: "models", Target: "/shadow/ollama", Scope: ScopeProcessTree}}, func(string) string { return "" }, map[string]string{"OLLAMA_HOST": "http://ollama:11434"})
+	if err == nil || !strings.Contains(err.Error(), "environment_exports") {
+		t.Fatalf("expected cross-direction collision, got %v", err)
+	}
+}
+
+func TestBuildLeverRegistryAllowsSameEnvironmentExportTarget(t *testing.T) {
+	if _, err := BuildLeverRegistryWithExports([]Lever{{Key: "OLLAMA_HOST", Owner: "scenario-a", Entry: "models", Target: "http://ollama:11434", Scope: ScopeProcessTree}}, func(string) string { return "" }, map[string]string{"OLLAMA_HOST": "http://ollama:11434"}); err != nil {
+		t.Fatalf("same target should be allowed: %v", err)
+	}
+}

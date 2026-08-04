@@ -3,11 +3,11 @@ package maintenance_test
 import (
 	"context"
 	"path/filepath"
+	"testing"
+
 	"resource-kopia/cli/internal/maintenance"
 	"resource-kopia/cli/internal/registry"
 	"resource-kopia/cli/internal/repoctx"
-	"resource-kopia/cli/internal/vault"
-	"testing"
 
 	kexecmocks "resource-kopia/cli/internal/kexec/mocks"
 
@@ -20,12 +20,12 @@ func newSvc(t *testing.T) (maintenance.Service, *kexecmocks.FakeRunner) {
 	t.Helper()
 	run := &kexecmocks.FakeRunner{}
 	v := vaultmocks.NewFakeVault()
-	v.Seed(vault.PassphrasePath("offsite"), "passphrase", "passphrase-value-abcdefghijklmnop")
+	v.SeedPassphrase("offsite", "passphrase-value-abcdefghijklmnop")
 	reg := registry.New(filepath.Join(t.TempDir(), "registry.json"))
 	if err := reg.Upsert(registry.Entry{Name: "offsite", Backend: registry.BackendFilesystem, ConfigFile: cfg, Path: "/p"}); err != nil {
 		t.Fatal(err)
 	}
-	return maintenance.Service{Runner: run, Resolver: repoctx.Resolver{Registry: reg, Vault: v}}, run
+	return maintenance.Service{Runner: run, Resolver: repoctx.Resolver{Registry: reg, Credentials: v, Vault: v}}, run
 }
 
 func eq(a, b []string) bool {

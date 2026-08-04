@@ -6,13 +6,36 @@ import (
 	"fmt"
 	"os"
 	"os/user"
+	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 	"syscall"
 )
 
 func absentBackendFix() string {
 	return "install libsecret's command client (Debian/Ubuntu: `sudo apt install libsecret-tools`; Fedora: `sudo dnf install libsecret`) and run a Secret Service such as gnome-keyring-daemon --components=pkcs11,secrets"
+}
+
+func nativeStorageStrength() (string, string) {
+	dir, err := DefaultKeyringDir()
+	if err != nil {
+		return "", ""
+	}
+	paths, err := filepath.Glob(filepath.Join(dir, "*.keyring"))
+	if err != nil || len(paths) == 0 {
+		return "", ""
+	}
+	for _, path := range paths {
+		contents, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		if strings.HasPrefix(string(contents), "[keyring]") {
+			return "unencrypted-keyring", "values are readable with a text editor; file mode is the only protection"
+		}
+	}
+	return "encrypted-keyring", "the keyring file is not readable as a plaintext GKeyFile"
 }
 
 // tpmResourceManagers are the TPM device nodes systemd-creds uses, in the order

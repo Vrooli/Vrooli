@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 )
 
 const resourceSlug = "kopia"
@@ -40,7 +42,7 @@ func Load() Runtime {
 		CacheRoot:    cacheRoot,
 		LogsRoot:     logsRoot,
 		ReposDir:     filepath.Join(configRoot, "repos"),
-		RegistryFile: filepath.Join(stateRoot, "registry.json"),
+		RegistryFile: kopiaregistry.RegistryPathForStateRoot(stateRoot),
 	}
 }
 

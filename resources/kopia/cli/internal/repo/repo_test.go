@@ -4,14 +4,17 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
+	"testing"
+
 	"resource-kopia/cli/internal/env"
 	"resource-kopia/cli/internal/invariant"
 	"resource-kopia/cli/internal/registry"
 	"resource-kopia/cli/internal/repo"
 	"resource-kopia/cli/internal/repoctx"
 	"resource-kopia/cli/internal/vault"
-	"strings"
-	"testing"
+
+	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 
 	kexecmocks "resource-kopia/cli/internal/kexec/mocks"
 
@@ -41,12 +44,13 @@ func newHarness(t *testing.T) harness {
 	v := vaultmocks.NewFakeVault()
 	reg := registry.New(rt.RegistryFile)
 	svc := repo.Service{
-		Runner:   run,
-		Vault:    v,
-		Registry: reg,
-		Resolver: repoctx.Resolver{Registry: reg, Vault: v},
-		Env:      rt,
-		Out:      &strings.Builder{},
+		Runner:      run,
+		Credentials: v,
+		Vault:       v,
+		Registry:    reg,
+		Resolver:    repoctx.Resolver{Registry: reg, Credentials: v, Vault: v},
+		Env:         rt,
+		Out:         &strings.Builder{},
 	}
 	return harness{svc: svc, run: run, vault: v, reg: reg, rt: rt}
 }
@@ -80,12 +84,16 @@ func TestCreateFilesystemArgv(t *testing.T) {
 		t.Fatalf("argv =\n  %v\nwant\n  %v", call.Args, want)
 	}
 
-	// Passphrase injected via env, present in vault, never empty.
+	// Passphrase injected via env, present in the credential authority, never empty.
 	if p := call.Env[repoctx.EnvPassword]; len(p) < 32 {
 		t.Fatalf("KOPIA_PASSWORD not injected (len=%d)", len(p))
 	}
-	if _, ok := h.vault.Value(vault.PassphrasePath("nightly"), "passphrase"); !ok {
-		t.Fatal("passphrase not stored in vault")
+	identity, err := kopiaregistry.PassphraseIdentity("nightly")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.vault.Resolve(identity, kopiaregistry.PassphraseField); err != nil {
+		t.Fatalf("passphrase not stored in authority: %v", err)
 	}
 	if _, hasAWS := call.Env[repoctx.EnvAWSAccessKey]; hasAWS {
 		t.Fatal("filesystem repo must not inject AWS creds")
@@ -156,7 +164,7 @@ func TestCreateRequiresName(t *testing.T) {
 func TestStatusAndStatsArgv(t *testing.T) {
 	h := newHarness(t)
 	// Seed a connected repo.
-	h.vault.Seed(vault.PassphrasePath("nightly"), "passphrase", "passphrase-value-abcdefghijklmnop")
+	h.vault.SeedPassphrase("nightly", "passphrase-value-abcdefghijklmnop")
 	if err := h.reg.Upsert(registry.Entry{Name: "nightly", Backend: registry.BackendFilesystem, ConfigFile: h.rt.RepoConfigFile("nightly"), Path: "/p"}); err != nil {
 		t.Fatal(err)
 	}
@@ -222,8 +230,7 @@ func TestDeleteRemovesRegistryLocalFilesAndVaultSecrets(t *testing.T) {
 	if err := h.reg.Upsert(registry.Entry{Name: "nightly", Backend: registry.BackendFilesystem, ConfigFile: cfg, CacheDir: cache, Path: "/p"}); err != nil {
 		t.Fatal(err)
 	}
-	h.vault.Seed(vault.PassphrasePath("nightly"), "passphrase", "passphrase-value-abcdefghijklmnop")
-	h.vault.Seed(vault.S3Path("nightly"), "access_key", "ak")
+	h.vault.SeedPassphrase("nightly", "passphrase-value-abcdefghijklmnop")
 
 	if err := h.svc.Delete(ctx, []string{"--name", "nightly"}); err != nil {
 		t.Fatalf("Delete: %v", err)
@@ -237,11 +244,12 @@ func TestDeleteRemovesRegistryLocalFilesAndVaultSecrets(t *testing.T) {
 	if _, err := os.Stat(cache); !os.IsNotExist(err) {
 		t.Fatalf("cache dir still exists or unexpected stat error: %v", err)
 	}
-	if _, ok := h.vault.Value(vault.PassphrasePath("nightly"), "passphrase"); ok {
-		t.Fatal("passphrase secret still present")
+	identity, err := kopiaregistry.PassphraseIdentity("nightly")
+	if err != nil {
+		t.Fatal(err)
 	}
-	if _, ok := h.vault.Value(vault.S3Path("nightly"), "access_key"); ok {
-		t.Fatal("s3 secret still present")
+	if _, err := h.vault.Resolve(identity, kopiaregistry.PassphraseField); err == nil {
+		t.Fatal("passphrase credential still present")
 	}
 	if len(h.run.Calls) != 0 {
 		t.Fatalf("delete metadata should not shell out to kopia, got %v", h.run.Calls)

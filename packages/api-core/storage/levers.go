@@ -44,6 +44,14 @@ var broadLevers = map[string]string{"XDG_CACHE_HOME": "GOCACHE or a component-sp
 
 // BuildLeverRegistry validates relocation declarations before deployment planning.
 func BuildLeverRegistry(levers []Lever, environment func(string) string) (LeverRegistry, error) {
+	return BuildLeverRegistryWithExports(levers, environment, nil)
+}
+
+// BuildLeverRegistryWithExports performs the relocation checks and also
+// rejects a key claimed in the opposite direction by a resource
+// environment_exports declaration. A same-key/same-target declaration is
+// intentional sharing; a different target is an ambiguous namespace.
+func BuildLeverRegistryWithExports(levers []Lever, environment func(string) string, environmentExports map[string]string) (LeverRegistry, error) {
 	if environment == nil {
 		environment = os.Getenv
 	}
@@ -58,6 +66,9 @@ func BuildLeverRegistry(levers []Lever, environment func(string) string) (LeverR
 	result := LeverRegistry{Levers: copyLevers}
 	for _, lever := range copyLevers {
 		where := fmt.Sprintf("%s/%s", lever.Owner, lever.Entry)
+		if exported, exists := environmentExports[lever.Key]; exists && strings.TrimSpace(exported) != "" && strings.TrimSpace(exported) != strings.TrimSpace(lever.Target) {
+			return LeverRegistry{}, fmt.Errorf("%s: relocation lever %q targets %q but resource environment_exports targets %q", where, lever.Key, lever.Target, exported)
+		}
 		if strings.HasPrefix(lever.Key, "VROOLI_") {
 			return LeverRegistry{}, fmt.Errorf("%s: relocation lever %q uses reserved VROOLI_ prefix", where, lever.Key)
 		}

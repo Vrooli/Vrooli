@@ -40,10 +40,10 @@ func ResolvePlacement(req PlacementRequest, seams PlatformSeams) (Placement, err
 		return Placement{Entry: req.Entry, Platform: req.Platform, Profile: req.Profile}, err
 	}
 	if req.Root != "" {
-		if !filepath.IsAbs(req.Root) {
+		if !isAbsoluteFor(req.Platform, req.Root) {
 			return Placement{}, fmt.Errorf("placement root must be absolute")
 		}
-		if !filepath.IsAbs(path) {
+		if !isAbsoluteFor(req.Platform, path) {
 			path = filepath.Join(req.Root, path)
 		}
 	}

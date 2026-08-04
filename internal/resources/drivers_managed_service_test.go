@@ -19,6 +19,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
+	vaultbootstrap "github.com/vrooli/vrooli/packages/vaultbootstrap-go"
 )
 
 func TestManagedServiceDriverRunsVerifiedPrivateLifecycle(t *testing.T) {
@@ -164,7 +165,7 @@ func TestManagedVaultArtifactIntegration(t *testing.T) {
 	if err != nil || !running {
 		t.Fatalf("native Vault supervisor state = %#v running=%v err=%v", state, running, err)
 	}
-	rawMaterial, err := store.Get("vrooli.resource.vault.private", state.InstanceID)
+	rawMaterial, err := store.Get(vaultbootstrap.Service, state.InstanceID)
 	if err != nil || json.Unmarshal([]byte(rawMaterial), &material) != nil || material.RootToken == "" {
 		t.Fatalf("native bootstrap did not persist recovery material: %v", err)
 	}

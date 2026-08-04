@@ -132,9 +132,23 @@
           ]
         },
         "windows": {
-          "support": "unsupported",
+          "support": "conditional",
           "mode": "bundled-service",
-          "reason": "Windows credential storage is unavailable for managed Vault recovery material."
+          "architectures": [
+            "amd64"
+          ],
+          "requires": [],
+          "limitations": [
+            "The Vault API is deliberately bound to 127.0.0.1; initialization and unseal material must be supplied through the credential authority.",
+            "Windows recovery validation requires the configured credential authority provider to be available."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "artifact-checksum",
+            "windows-drive-type-classifier-test",
+            "fixture-runtime-test"
+          ],
+          "reason": "Managed Vault can run on Windows when the credential authority provider is available; recovery material is never stored in plaintext files."
         }
       }
     }

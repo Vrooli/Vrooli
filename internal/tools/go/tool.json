@@ -3,8 +3,8 @@
   "name": "go",
   "description": "Pinned Go programming language toolchain used to build and validate Vrooli",
   "storage": { "entries": {
-    "build_cache": { "rung": "relocatable", "path": "$USER_CACHE_DIR/go-build", "kind": "dir", "regenerable": true, "relocation": { "key": "GOCACHE", "scope": "process-tree" }, "rationale": "Rebuildable compiler cache." },
-    "module_cache": { "rung": "relocatable", "path": "$USER_HOME/go/pkg/mod", "kind": "dir", "regenerable": true, "relocation": { "key": "GOMODCACHE", "scope": "process-tree" }, "rationale": "Go's default module cache is GOPATH/pkg/mod; this declaration describes the default user GOPATH location and can be overridden with GOMODCACHE." }
+    "build_cache": { "rung": "relocatable", "path": "$USER_CACHE_DIR/go-build", "kind": "dir", "regenerable": true, "relocation": { "key": "GOCACHE", "scope": "process-tree" }, "budget": { "max_bytes": "182584MiB", "rationale": "Measured at 95726583590 bytes on 2026-08-03; ceiling is two times observed size." }, "rationale": "Rebuildable compiler cache." },
+    "module_cache": { "rung": "relocatable", "path": "$USER_HOME/go/pkg/mod", "kind": "dir", "regenerable": true, "relocation": { "key": "GOMODCACHE", "scope": "process-tree" }, "budget": { "max_bytes": "37562MiB", "rationale": "Measured at 19693299103 bytes on 2026-08-03; ceiling is two times observed size." }, "rationale": "Go's default module cache is GOPATH/pkg/mod; this declaration describes the default user GOPATH location and can be overridden with GOMODCACHE." }
   } },
   "commands": [
     "go"

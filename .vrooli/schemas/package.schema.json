@@ -103,6 +103,9 @@
             },
             "build": {
               "$ref": "#/definitions/commandList"
+            },
+            "test": {
+              "$ref": "#/definitions/commandList"
             }
           },
           "additionalProperties": false

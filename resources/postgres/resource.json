@@ -7,11 +7,7 @@
     "entries": {
       "main_data": {
         "rung": "pinned",
-        "path": {
-          "linux": "$USER_HOME/.local/share/vrooli/resources/postgres/instances/main/data",
-          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/postgres/instances/main/data",
-          "windows": "$USER_HOME/AppData/Local/vrooli/resources/postgres/instances/main/data"
-        },
+      "path": "$USER_DATA_DIR/vrooli/resources/postgres/instances/main/data",
         "kind": "dir",
         "regenerable": false,
         "relocation": { "key": "RESOURCE_DATA_DIR", "scope": "container" },
@@ -19,11 +15,7 @@
       }
       ,"config": {
         "rung": "owned",
-        "path": {
-          "linux": "$USER_HOME/.config/vrooli/resources/postgres",
-          "macos": "$USER_HOME/Library/Application Support/vrooli/resources/postgres",
-          "windows": "$USER_HOME/AppData/Local/vrooli/resources/postgres"
-        },
+      "path": "$USER_CONFIG_DIR/vrooli/resources/postgres",
         "kind": "dir",
         "class": "config",
         "regenerable": true,

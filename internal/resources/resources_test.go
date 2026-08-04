@@ -16,7 +16,6 @@ import (
 	"strings"
 	"testing"
 
-	apicoresecrets "github.com/vrooli/api-core/secrets"
 	hostreqspec "github.com/vrooli/vrooli/internal/hostreqspec"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
@@ -987,13 +986,7 @@ func TestStatusForManifestNativeCloudAPIRejectsPlaintextUserSecrets(t *testing.T
 		}),
 	))
 
-	store, err := apicoresecrets.NewUserStore(apicoresecrets.Config{HomeDir: home})
-	if err != nil {
-		t.Fatalf("NewUserStore: %v", err)
-	}
-	if err := store.Save(map[string]string{"FIXTURE_API_KEY": "secret"}); err != nil {
-		t.Fatalf("Save: %v", err)
-	}
+	writePlaintextUserSecrets(t, home, map[string]string{"FIXTURE_API_KEY": "secret"})
 
 	status, err := NewController(root, home).Status("fixture", true)
 	if err != nil {
@@ -1121,8 +1114,8 @@ func TestVaultManagedServiceDoesNotOverclaimTargetReadiness(t *testing.T) {
 			t.Errorf("Vault desktop target %s = support %q mode %q, want conditional bundled-service", platform, target.Support, target.Mode)
 		}
 	}
-	if desktop.Windows == nil || desktop.Windows.Support != "unsupported" || !strings.Contains(desktop.Windows.Reason, "credential storage") {
-		t.Fatalf("Vault Windows desktop target = %+v, want unsupported target naming unavailable credential storage", desktop.Windows)
+	if desktop.Windows == nil || desktop.Windows.Support != "conditional" || desktop.Windows.Mode != "bundled-service" || len(desktop.Windows.Evidence) == 0 {
+		t.Fatalf("Vault Windows desktop target = %+v, want conditional target with evidence", desktop.Windows)
 	}
 	if !slices.Contains(desktop.Linux.Requires, "secret-tool") {
 		t.Fatalf("Vault Linux desktop requirements = %v, want secret-tool", desktop.Linux.Requires)

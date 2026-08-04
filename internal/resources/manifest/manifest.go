@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/credentialspec"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/safeguards"
@@ -208,31 +209,15 @@ type ResourceInstall struct {
 	Platforms map[string][]string `json:"platforms,omitempty"`
 }
 
-type ResourceCredentials struct {
-	// Descriptors is the sole credential declaration. The control plane
-	// addresses values by LogicalID, never by a provider-shaped path.
-	Descriptors []CredentialDescriptor `json:"descriptors,omitempty"`
-}
-
-// CredentialDescriptor declares one credential without binding it to Vault,
-// an environment variable, or a local file. Values are always held by the
-// credential authority and injected into a process only for its lifetime.
-type CredentialDescriptor struct {
-	LogicalID   string `json:"logical_id"`
-	Field       string `json:"field,omitempty"`
-	Env         string `json:"env"`
-	Required    bool   `json:"required,omitempty"`
-	Label       string `json:"label,omitempty"`
-	Description string `json:"description,omitempty"`
-	ObtainURL   string `json:"obtain_url,omitempty"`
-}
-
-// All returns the canonical descriptors. It intentionally does not synthesize
-// descriptors from legacy fields: doing so would make legacy declarations a
-// permanent runtime contract.
-func (c ResourceCredentials) All() []CredentialDescriptor {
-	return append([]CredentialDescriptor(nil), c.Descriptors...)
-}
+// The credential declaration shape is shared with scenario service manifests
+// and therefore lives in credentialspec, which sits below both. These are
+// aliases rather than distinct types on purpose: a scenario-declared
+// credential and a resource-declared one must be the same thing to the store,
+// the diagnosis, and the recovery bundle.
+type (
+	ResourceCredentials  = credentialspec.Declaration
+	CredentialDescriptor = credentialspec.Descriptor
+)
 
 type ResourceRuntime struct {
 	Image         string            `json:"image,omitempty"`

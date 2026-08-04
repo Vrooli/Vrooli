@@ -63,7 +63,9 @@
     },
     "secretReference": {
       "type": "object",
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "properties": {
         "name": {
           "type": "string",
@@ -79,7 +81,15 @@
         },
         "source": {
           "type": "string",
-          "enum": ["environment", "file", "vault", "kubernetes", "aws-secrets", "azure-keyvault", "gcp-secrets"],
+          "enum": [
+            "environment",
+            "file",
+            "vault",
+            "kubernetes",
+            "aws-secrets",
+            "azure-keyvault",
+            "gcp-secrets"
+          ],
           "description": "Secret source type"
         }
       },
@@ -100,7 +110,9 @@
         },
         "args": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Arguments for the verification command."
         },
         "expectExitCode": {
@@ -109,59 +121,21 @@
         },
         "files": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Files that must exist for the verification to pass. Combined with `command`: file checks run first, then the command."
-        }
-      }
-    },
-    "secretDescriptor": {
-      "type": "object",
-      "description": "Operator-facing metadata for a secret value the user supplies. Distinct from secretReference (which describes where a secret is stored): a secretDescriptor describes what the secret is and how the operator obtains it, surfaced in onboarding and admin UIs. Replaces the older deploymentTierSecret type for new code paths.",
-      "required": ["env"],
-      "additionalProperties": false,
-      "properties": {
-        "env": {
-          "type": "string",
-          "description": "Environment variable name the secret is exposed as at runtime (e.g. GEMINI_API_KEY)."
-        },
-        "label": {
-          "type": "string",
-          "description": "Human-readable display name shown in onboarding and admin UIs (e.g. 'Gemini API Key')."
-        },
-        "description": {
-          "type": "string",
-          "description": "Why this secret is needed and what it unlocks. Shown to operators while they decide whether to provide it."
-        },
-        "classification": {
-          "type": "string",
-          "enum": ["infrastructure", "service", "user"],
-          "default": "user",
-          "description": "Origin of the secret. 'infrastructure' = system-generated (e.g. internal service-to-service tokens); 'service' = scenario-specific (e.g. a webhook signing secret); 'user' = operator-provided (e.g. a third-party API key)."
-        },
-        "required": {
-          "type": "boolean",
-          "default": true,
-          "description": "Whether the resource or scenario refuses to start without this value. Optional secrets gate specific features rather than the whole component."
-        },
-        "default_hint": {
-          "type": "string",
-          "description": "Hint shown next to the input field guiding the operator on shape or generation (e.g. 'Generate a 32-character random string', 'Starts with sk-...'). Not a default value — never auto-filled."
-        },
-        "obtain_url": {
-          "type": "string",
-          "format": "uri",
-          "description": "URL where the operator can sign up for or generate this credential. Onboarding surfaces this as a 'Get one' link."
-        },
-        "validation_pattern": {
-          "type": "string",
-          "description": "Regex the value must match. Lightweight client-side check to catch typos; not a security control."
         }
       }
     },
     "durableDataEntry": {
       "type": "object",
       "description": "One durable on-disk location worth preserving. The single shared shape for both the operator runtime home (repo-contract.schema.json#/properties/runtime_home/properties/entries) and a resource's declared host state (resource.schema.json#/properties/durable_data/properties/entries). `regenerable` is the include/exclude switch: false = irreplaceable state that must be backed up; true = reconstructable (caches, logs, build output) and skipped.",
-      "required": ["path", "kind", "regenerable"],
+      "required": [
+        "path",
+        "kind",
+        "regenerable"
+      ],
       "additionalProperties": false,
       "properties": {
         "path": {
@@ -172,7 +146,10 @@
         },
         "kind": {
           "type": "string",
-          "enum": ["dir", "file"],
+          "enum": [
+            "dir",
+            "file"
+          ],
           "description": "Whether this entry is a directory or a single file."
         },
         "regenerable": {
@@ -181,7 +158,10 @@
         },
         "format": {
           "type": "string",
-          "enum": ["sqlite", "json"],
+          "enum": [
+            "sqlite",
+            "json"
+          ],
           "description": "On-disk format hint for file entries (e.g. sqlite → capture a consistent database copy)."
         },
         "sensitive": {
@@ -194,30 +174,274 @@
         }
       }
     },
+    "storageEntry": {
+      "type": "object",
+      "description": "One declared storage surface. The rung describes ownership and relocation capability; budget describes what may be reclaimed.",
+      "additionalProperties": false,
+      "required": [
+        "rung",
+        "path",
+        "kind"
+      ],
+      "properties": {
+        "rung": {
+          "type": "string",
+          "enum": [
+            "owned",
+            "relocatable",
+            "pinned"
+          ]
+        },
+        "path": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[^\\\\]+$"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "linux": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 1
+                },
+                "macos": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 1
+                },
+                "windows": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 1
+                }
+              }
+            }
+          ]
+        },
+        "platforms": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "linux",
+              "macos",
+              "windows"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "dir",
+            "file"
+          ]
+        },
+        "class": {
+          "type": "string",
+          "enum": [
+            "config",
+            "data",
+            "cache",
+            "logs",
+            "state"
+          ]
+        },
+        "regenerable": {
+          "type": "boolean"
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "sqlite",
+            "json"
+          ]
+        },
+        "sensitive": {
+          "type": "boolean"
+        },
+        "relocation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "scope"
+          ],
+          "properties": {
+            "key": {
+              "type": "string",
+              "minLength": 1
+            },
+            "scope": {
+              "type": "string",
+              "enum": [
+                "process-tree",
+                "session",
+                "daemon",
+                "container"
+              ]
+            },
+            "config": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "reclaim": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "command": {
+              "type": "string",
+              "minLength": 1
+            },
+            "pruner": {
+              "type": "string",
+              "enum": [
+                "builtin",
+                "custom"
+              ]
+            }
+          }
+        },
+        "budget": {
+          "type": "object",
+          "additionalProperties": false,
+          "anyOf": [
+            {
+              "required": [
+                "max_age"
+              ]
+            },
+            {
+              "required": [
+                "max_bytes"
+              ]
+            }
+          ],
+          "properties": {
+            "max_age": {
+              "type": "string",
+              "pattern": "^[0-9]+(h|d)$"
+            },
+            "max_bytes": {
+              "type": "string",
+              "pattern": "^[0-9]+(B|KiB|MiB|GiB|TiB)$"
+            },
+            "rationale": {
+              "type": "string"
+            }
+          }
+        },
+        "rationale": {
+          "type": "string"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "rung": {
+                "const": "owned"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "class"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "rung": {
+                "const": "relocatable"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "relocation"
+            ]
+          }
+        }
+      ]
+    },
+    "storageSurface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entries"
+      ],
+      "properties": {
+        "entries": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/storageEntry"
+          }
+        },
+        "rationale": {
+          "type": "string",
+          "description": "Why the owner has these storage entries, or why an explicit empty declaration is accurate."
+        }
+      }
+    },
     "retentionBudget": {
       "type": "object",
       "description": "One declared storage ceiling the framework enforces. Consumed by packages/api-core/retention, which prunes the target down to whichever bound binds first and reports which one it was. NOT a backup declaration: durable_data answers 'preserve this' and its `regenerable: false` means never delete, while a retention budget answers 'this may never exceed this much'. A budget must declare at least one bound; an age bound alone is a promise proportional to an ingest rate the scenario usually does not control, so it is accepted but reported as unbounded in size.",
-      "required": ["target"],
+      "required": [
+        "target"
+      ],
       "additionalProperties": false,
       "anyOf": [
-        { "required": ["max_age"] },
-        { "required": ["max_bytes"] }
+        {
+          "required": [
+            "max_age"
+          ]
+        },
+        {
+          "required": [
+            "max_bytes"
+          ]
+        }
       ],
       "properties": {
         "target": {
           "type": "object",
           "description": "What this budget bounds. Paths are relative to the scenario's own storage-class root and resolve through api-core/storage, so a shadow variant prunes its own data and never live's.",
-          "required": ["kind"],
+          "required": [
+            "kind"
+          ],
           "additionalProperties": false,
           "properties": {
             "kind": {
               "type": "string",
-              "enum": ["sqlite_table", "directory"],
-              "description": "sqlite_table bounds rows in one table of one SQLite database; directory bounds the top-level entries of one directory."
+              "enum": [
+                "sqlite_table",
+                "directory",
+                "file"
+              ],
+              "description": "sqlite_table bounds rows in one table of one SQLite database; directory bounds the top-level entries of one directory; file bounds one regenerable file."
             },
             "class": {
               "type": "string",
-              "enum": ["config", "data", "cache", "logs", "state"],
+              "enum": [
+                "config",
+                "data",
+                "cache",
+                "logs",
+                "state"
+              ],
               "default": "data",
               "description": "Storage class root the target path is relative to (api-core/storage Class). Defaults to data."
             },
@@ -246,12 +470,57 @@
           },
           "allOf": [
             {
-              "if": { "properties": { "kind": { "const": "sqlite_table" } }, "required": ["kind"] },
-              "then": { "required": ["database", "table", "time_column"] }
+              "if": {
+                "properties": {
+                  "kind": {
+                    "const": "sqlite_table"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              "then": {
+                "required": [
+                  "database",
+                  "table",
+                  "time_column"
+                ]
+              }
             },
             {
-              "if": { "properties": { "kind": { "const": "directory" } }, "required": ["kind"] },
-              "then": { "required": ["path"] }
+              "if": {
+                "properties": {
+                  "kind": {
+                    "const": "directory"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              "then": {
+                "required": [
+                  "path"
+                ]
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "kind": {
+                    "const": "file"
+                  }
+                },
+                "required": [
+                  "kind"
+                ]
+              },
+              "then": {
+                "required": [
+                  "path"
+                ]
+              }
             }
           ]
         },
@@ -267,7 +536,10 @@
         },
         "pruner": {
           "type": "string",
-          "enum": ["builtin", "custom"],
+          "enum": [
+            "builtin",
+            "custom"
+          ],
           "default": "builtin",
           "description": "builtin uses the framework pruner for the target kind and needs no scenario Go code. custom requires the scenario to register a retention.Pruner under this budget's key; the framework still owns whether the target is within budget, the scenario owns which rows die."
         },
@@ -280,14 +552,73 @@
     "retention": {
       "type": "object",
       "description": "Declared storage ceilings for the data this component accumulates, enforced by packages/api-core/retention without per-component code. Distinct from durable_data, which declares what to back up.",
-      "required": ["budgets"],
+      "required": [
+        "budgets"
+      ],
       "additionalProperties": false,
       "properties": {
         "budgets": {
           "type": "object",
           "minProperties": 1,
-          "additionalProperties": { "$ref": "#/definitions/retentionBudget" },
+          "additionalProperties": {
+            "$ref": "#/definitions/retentionBudget"
+          },
           "description": "Budgets keyed by stable logical name. The key names the budget in findings and logs, and is the registry name a custom pruner registers under."
+        }
+      }
+    },
+    "credentialDescriptor": {
+      "type": "object",
+      "description": "Declares one credential by a durable, backend-neutral name. logical_id and field are the only identifiers the credential store ever sees; a descriptor never names Vault, a file, or any other provider-shaped path. Replaces the retired secretDescriptor.",
+      "required": [
+        "logical_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "logical_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]+/[a-z0-9][a-z0-9._/-]+$",
+          "description": "Stable namespaced identity, e.g. vrooli/openrouter. Durable across hosts, platforms, and deployment tiers."
+        },
+        "field": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9._-]+$",
+          "description": "Which value of that identity this descriptor addresses, e.g. api-key. Defaults to 'value'."
+        },
+        "env": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]*$",
+          "description": "Process environment variable to inject the value into. Optional, and declared ONLY when the consumer is a process Vrooli does not author — a database container, a third-party CLI — which can receive a value no other way. Vrooli-authored code omits this and resolves through the credential-authority binding for its language, which keeps the value out of the process environment where it would be readable at /proc/<pid>/environ and inherited by every subprocess."
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether the declaring component can do its job without this value. A missing application credential never blocks a start; it makes the component report unhealthy."
+        },
+        "label": {
+          "type": "string",
+          "description": "Human-readable display name shown in onboarding and admin surfaces."
+        },
+        "description": {
+          "type": "string",
+          "description": "Why this credential is needed and what it unlocks."
+        },
+        "obtain_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Where an operator signs up for or generates this credential."
+        }
+      }
+    },
+    "credentials": {
+      "type": "object",
+      "description": "The credentials block shared by resource manifests and scenario service manifests. Both use one shape on purpose: a scenario-declared credential and a resource-declared one must be the same thing to the store, the diagnosis, and the recovery bundle. A credential nothing declares is a credential no backup captures.",
+      "additionalProperties": false,
+      "properties": {
+        "descriptors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/credentialDescriptor"
+          }
         }
       }
     }

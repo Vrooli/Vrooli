@@ -61,6 +61,29 @@ type SpaceDefinition struct {
 	ConfidenceRationale   string                `json:"confidence_rationale,omitempty"`
 	Source                string                `json:"source,omitempty"`
 	Cells                 []Cell                `json:"cells"`
+	Axes                  *Axes                 `json:"axes,omitempty"`
+	Rebase                *Rebase               `json:"rebase,omitempty"`
+}
+
+// Axes makes a denominator's coverage dimensions explicit. Validate uses the
+// concern axis from Cells and the repository target-kind axis from the
+// contract; consumers must not infer that every concern applies to every kind.
+type Axes struct {
+	Concerns    []string         `json:"concerns"`
+	TargetKinds []TargetKindAxis `json:"target_kinds"`
+}
+
+type TargetKindAxis struct {
+	Kind  string `json:"kind"`
+	Count int    `json:"count"`
+}
+
+// Rebase records a denominator change so a score drop cannot be mistaken for
+// a regression in the numerator.
+type Rebase struct {
+	From   string `json:"from"`
+	To     string `json:"to"`
+	Reason string `json:"reason"`
 }
 
 // Cell is one denominator grid row, normalized across the three space-doc shapes.

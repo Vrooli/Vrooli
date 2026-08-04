@@ -9,3 +9,5 @@ func absentBackendFix() string {
 // hostBoundFix has nothing to add on Windows for the same reason it has nothing
 // to add on macOS: systemd-creds is a Linux facility.
 func hostBoundFix() string { return "" }
+
+func nativeStorageStrength() (string, string) { return "", "" }

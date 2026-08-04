@@ -3,7 +3,7 @@
   "name": "uv",
   "description": "uv — Astral's fast Python package/venv manager. Builds and syncs the per-scenario isolated Python virtualenvs that model-managing scenarios (image-tools, future video-tools) provision from a committed requirements.lock.",
   "storage": { "entries": {
-    "cache": { "rung": "relocatable", "path": "$USER_CACHE_DIR/uv", "kind": "dir", "regenerable": true, "relocation": { "key": "UV_CACHE_DIR", "scope": "process-tree" }, "rationale": "Re-downloadable Python package cache." }
+    "cache": { "rung": "relocatable", "path": "$USER_CACHE_DIR/uv", "kind": "dir", "regenerable": true, "relocation": { "key": "UV_CACHE_DIR", "scope": "process-tree" }, "budget": { "max_bytes": "9658MiB", "rationale": "Measured at 5063493335 bytes on 2026-08-03; ceiling is two times observed size." }, "rationale": "Re-downloadable Python package cache." }
   } },
   "commands": [
     "uv"

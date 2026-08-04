@@ -3,7 +3,7 @@
   "name": "pnpm",
   "description": "pnpm package manager — builds and installs scenario UI dependencies. Scenario lifecycle steps invoke `corepack pnpm … || pnpm …`; this tool guarantees the plain `pnpm` fallback exists on hosts where the system Node.js does not ship corepack shims (e.g. Homebrew node on macOS).",
   "storage": { "entries": {
-    "store": { "rung": "relocatable", "path": "$USER_HOME/.pnpm-store", "kind": "dir", "regenerable": true, "relocation": { "key": "store-dir", "config": "pnpm config set store-dir", "scope": "process-tree" }, "rationale": "The active pnpm store is discovered with `pnpm store path`; this declaration names the default user store root and uses pnpm's store-dir setting for relocation." }
+    "store": { "rung": "relocatable", "path": "$USER_HOME/.pnpm-store", "kind": "dir", "regenerable": true, "relocation": { "key": "store-dir", "config": "pnpm config set store-dir", "scope": "process-tree" }, "budget": { "max_bytes": "3173MiB", "rationale": "Measured at 1663257387 bytes on 2026-08-03; ceiling is two times observed size." }, "rationale": "The active pnpm store is discovered with `pnpm store path`; this declaration names the default user store root and uses pnpm's store-dir setting for relocation." }
   } },
   "commands": [
     "pnpm"

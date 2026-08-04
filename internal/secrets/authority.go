@@ -261,6 +261,13 @@ func (a *Authority) Inject(identity Identity, field, env string, target map[stri
 	return nil
 }
 
+// Resolve returns one credential value to a trusted runtime consumer. It is
+// the value-bearing counterpart to Status; callers must keep the value in
+// process memory and must not expose it in diagnostics or transport responses.
+func (a *Authority) Resolve(identity Identity, field string) (string, error) {
+	return a.get(identity, field)
+}
+
 func (a *Authority) Status(identity Identity, field string) Status {
 	status := Status{
 		Identity:      identity,

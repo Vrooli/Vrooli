@@ -36,6 +36,29 @@
       "type": "array",
       "description": "The denominator grid rows. Sparse: nonsensical entity x archetype combinations are omitted.",
       "items": { "$ref": "#/$defs/Cell" }
+    },
+    "axes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["concerns", "target_kinds"],
+      "properties": {
+        "concerns": { "type": "array", "items": { "type": "string" } },
+        "target_kinds": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "count"],
+            "properties": { "kind": { "type": "string" }, "count": { "type": "integer", "minimum": 0 } }
+          }
+        }
+      }
+    },
+    "rebase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to", "reason"],
+      "properties": { "from": { "type": "string" }, "to": { "type": "string" }, "reason": { "type": "string" } }
     }
   },
   "$defs": {

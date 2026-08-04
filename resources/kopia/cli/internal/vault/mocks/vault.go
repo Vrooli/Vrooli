@@ -3,16 +3,21 @@ package mocks
 
 import (
 	"context"
-	"resource-kopia/cli/internal/vault"
 	"strings"
 	"sync"
+
+	"resource-kopia/cli/internal/vault"
+
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
+	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 )
 
 // FakeVault is an in-memory Vault for unit tests. It records puts so tests can
 // assert that a generated passphrase was stored (and never an empty one).
 type FakeVault struct {
-	mu    sync.Mutex
-	store map[string]string
+	mu          sync.Mutex
+	store       map[string]string
+	credentials map[string]string
 	// GetErr / PutErr, when set, are returned to simulate vault being down.
 	GetErr    error
 	PutErr    error
@@ -27,7 +32,7 @@ var _ vault.Vault = (*FakeVault)(nil)
 
 // NewFakeVault returns an empty FakeVault.
 func NewFakeVault() *FakeVault {
-	return &FakeVault{store: map[string]string{}}
+	return &FakeVault{store: map[string]string{}, credentials: map[string]string{}}
 }
 
 func key(path, k string) string { return path + "::" + k }
@@ -40,6 +45,66 @@ func (f *FakeVault) Seed(path, k, value string) {
 		f.store = map[string]string{}
 	}
 	f.store[key(path, k)] = value
+}
+
+// SeedPassphrase pre-populates the authority side of the fake for a repository.
+func (f *FakeVault) SeedPassphrase(repo, value string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.credentials == nil {
+		f.credentials = map[string]string{}
+	}
+	identity, err := kopiaregistry.PassphraseIdentity(repo)
+	if err != nil {
+		return
+	}
+	f.credentials[credentialKey(identity, kopiaregistry.PassphraseField)] = value
+}
+
+var _ interface {
+	Put(credentialauthority.Identity, string, string) error
+	Resolve(credentialauthority.Identity, string) (string, error)
+	Delete(credentialauthority.Identity, string) error
+} = (*FakeVault)(nil)
+
+func credentialKey(identity credentialauthority.Identity, field string) string {
+	return string(identity) + ":" + field
+}
+
+func (f *FakeVault) Put(identity credentialauthority.Identity, field, value string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.PutErr != nil {
+		return f.PutErr
+	}
+	if f.credentials == nil {
+		f.credentials = map[string]string{}
+	}
+	f.credentials[credentialKey(identity, field)] = value
+	return nil
+}
+
+func (f *FakeVault) Resolve(identity credentialauthority.Identity, field string) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.GetErr != nil {
+		return "", f.GetErr
+	}
+	value, ok := f.credentials[credentialKey(identity, field)]
+	if !ok {
+		return "", credentialauthority.ErrUnconfigured
+	}
+	return value, nil
+}
+
+func (f *FakeVault) Delete(identity credentialauthority.Identity, field string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.DeleteErr != nil {
+		return f.DeleteErr
+	}
+	delete(f.credentials, credentialKey(identity, field))
+	return nil
 }
 
 // GetSecret implements vault.Vault.

@@ -2,6 +2,7 @@ package retention
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -108,6 +109,54 @@ type ScenarioConfig struct {
 	OnFinding func(Finding)
 }
 
+// EnforcementReceipt is the durable lifecycle evidence for one retention
+// owner. LastCycleTime records that the scheduler ran; LastEnforcementTime is
+// populated only when the cycle completed without an engine error. Keeping the
+// receipt in the owner-scoped state class lets independent tools report
+// enforcement without reaching into the owner's process or database.
+type EnforcementReceipt struct {
+	Owner               string     `json:"owner"`
+	LastCycleTime       time.Time  `json:"last_cycle_time"`
+	LastEnforcementTime *time.Time `json:"last_enforcement_time,omitempty"`
+	LastError           string     `json:"last_error,omitempty"`
+}
+
+const enforcementReceiptRelativePath = "retention/enforcement-receipt.json"
+
+// EnforcementReceiptPath resolves the owner-scoped receipt location without
+// consulting the caller's current scenario namespace. This is intentionally
+// usable by fleet observers such as storage-manager.
+func EnforcementReceiptPath(ownerID string) (string, error) {
+	ownerID = strings.TrimSpace(ownerID)
+	if ownerID == "" {
+		return "", fmt.Errorf("retention receipt: owner id is required")
+	}
+	resolver, err := storage.NewResolver(storage.ResolverConfig{})
+	if err != nil {
+		return "", fmt.Errorf("build storage resolver: %w", err)
+	}
+	return resolver.Path(storage.Options{ScenarioID: ownerID}, storage.ClassState, enforcementReceiptRelativePath)
+}
+
+// ReadEnforcementReceipt reads the last durable receipt for an owner. A
+// missing receipt is reported as an ordinary filesystem error so callers can
+// distinguish "never enforced" from a malformed receipt.
+func ReadEnforcementReceipt(ownerID string) (EnforcementReceipt, error) {
+	path, err := EnforcementReceiptPath(ownerID)
+	if err != nil {
+		return EnforcementReceipt{}, err
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return EnforcementReceipt{}, err
+	}
+	var receipt EnforcementReceipt
+	if err := json.Unmarshal(raw, &receipt); err != nil {
+		return EnforcementReceipt{}, fmt.Errorf("decode retention receipt %s: %w", path, err)
+	}
+	return receipt, nil
+}
+
 // OwnerKind identifies the manifest owner whose storage budgets are enforced.
 // The wire contract is shared by scenarios, resources, tools, and safeguards;
 // keeping the owner identity here prevents each owner type from inventing a
@@ -160,13 +209,15 @@ func DiscoverOwners(repoRoot string) (OwnerDiscovery, error) {
 
 // Manager owns a component's retention engine and its scheduler.
 type Manager struct {
-	engine    *Engine
-	scheduler *Scheduler
-	scenario  string
-	paths     map[string]string
-	log       *slog.Logger
-	ownerKind OwnerKind
-	ownerID   string
+	engine      *Engine
+	scheduler   *Scheduler
+	scenario    string
+	paths       map[string]string
+	log         *slog.Logger
+	ownerKind   OwnerKind
+	ownerID     string
+	receiptPath string
+	now         func() time.Time
 
 	// specs and openDatabase are retained for the unbudgeted-table audit, which
 	// asks what the manifest did NOT declare and so needs both the declaration
@@ -228,6 +279,14 @@ func NewForScenario(cfg ScenarioConfig) (*Manager, error) {
 		}
 		paths[spec.Budget.Name] = path
 	}
+	receiptPath, err := resolver.Path(opts, storage.ClassState, enforcementReceiptRelativePath)
+	if err != nil {
+		return nil, fmt.Errorf("resolve enforcement receipt: %w", err)
+	}
+	now := cfg.Now
+	if now == nil {
+		now = time.Now
+	}
 
 	m := &Manager{
 		scenario:     scenarioID,
@@ -235,6 +294,8 @@ func NewForScenario(cfg ScenarioConfig) (*Manager, error) {
 		log:          logger,
 		specs:        specs,
 		openDatabase: cfg.OpenDatabase,
+		receiptPath:  receiptPath,
+		now:          now,
 	}
 
 	// A scheduled cycle gets a wall-clock allowance. On a table with hundreds of
@@ -292,6 +353,7 @@ func NewForScenario(cfg ScenarioConfig) (*Manager, error) {
 		Clock:      cfg.Clock,
 		RunOnStart: cfg.RunOnStart,
 		OnCycle: func(results []Result, err error) {
+			m.recordEnforcementReceipt(err)
 			if err != nil {
 				logger.Error("retention cycle failed", "scenario", scenarioID, "error", err)
 			}
@@ -303,6 +365,57 @@ func NewForScenario(cfg ScenarioConfig) (*Manager, error) {
 	}
 	m.scheduler = scheduler
 	return m, nil
+}
+
+func (m *Manager) recordEnforcementReceipt(cycleErr error) {
+	if m == nil || strings.TrimSpace(m.receiptPath) == "" {
+		return
+	}
+	now := time.Now
+	if m.now != nil {
+		now = m.now
+	}
+	receipt := EnforcementReceipt{Owner: m.scenario, LastCycleTime: now()}
+	if previous, err := os.ReadFile(m.receiptPath); err == nil {
+		var prior EnforcementReceipt
+		if err := json.Unmarshal(previous, &prior); err == nil {
+			receipt.LastEnforcementTime = prior.LastEnforcementTime
+		}
+	}
+	if cycleErr == nil {
+		last := receipt.LastCycleTime
+		receipt.LastEnforcementTime = &last
+	} else {
+		receipt.LastError = cycleErr.Error()
+	}
+	data, err := json.MarshalIndent(receipt, "", "  ")
+	if err != nil {
+		m.log.Warn("retention receipt encode failed", "scenario", m.scenario, "error", err)
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(m.receiptPath), 0o755); err != nil {
+		m.log.Warn("retention receipt directory failed", "scenario", m.scenario, "error", err)
+		return
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(m.receiptPath), ".enforcement-receipt-*.tmp")
+	if err != nil {
+		m.log.Warn("retention receipt temp file failed", "scenario", m.scenario, "error", err)
+		return
+	}
+	tmpPath := tmp.Name()
+	defer func() { _ = os.Remove(tmpPath) }()
+	if _, err := tmp.Write(append(data, '\n')); err != nil {
+		_ = tmp.Close()
+		m.log.Warn("retention receipt write failed", "scenario", m.scenario, "error", err)
+		return
+	}
+	if err := tmp.Close(); err != nil {
+		m.log.Warn("retention receipt close failed", "scenario", m.scenario, "error", err)
+		return
+	}
+	if err := os.Rename(tmpPath, m.receiptPath); err != nil {
+		m.log.Warn("retention receipt publish failed", "scenario", m.scenario, "error", err)
+	}
 }
 
 // NewForOwner builds retention for any declared storage owner. The current

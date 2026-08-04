@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 )
 
 // The operator surface for the encrypted store. Every native adapter is managed
@@ -174,4 +175,42 @@ func RewrapStore(passphrase string) (WrapInfo, error) {
 		return WrapInfo{}, err
 	}
 	return WrapInfo{Provider: wrap.Provider, KeyStore: wrap.KeyStore}, nil
+}
+
+// ChangePassphraseStore replaces the passphrase wrap around the existing data
+// key. It first opens the store with the current passphrase, so a wrong
+// current value leaves the file untouched. Stored credential entries are not
+// read or re-encrypted.
+func ChangePassphraseStore(current, next string) error {
+	current = strings.TrimSpace(current)
+	next = strings.TrimSpace(next)
+	if current == "" || next == "" {
+		return fmt.Errorf("current and new credential store passphrases are required")
+	}
+	encrypted, _, err := encryptedStoreForAdmin()
+	if err != nil {
+		return err
+	}
+	// Validate the supplied current passphrase against its own wrap. The
+	// normal store chain may also have a host-bound wrap; using it here would
+	// let a typo pass and would violate the command's promise that the current
+	// passphrase is required before rotation.
+	currentStore := newEncryptedStore(encrypted.path, passphraseProvider{passphrase: current})
+	currentStore.cache = noUnlockCache{}
+	if _, _, err := currentStore.open(); err != nil {
+		currentStore.lock()
+		return err
+	}
+	currentStore.lock()
+	SetPassphrase(current)
+	if _, err := encrypted.addWrap(passphraseProvider{passphrase: next}); err != nil {
+		encrypted.lock()
+		SetPassphrase("")
+		return err
+	}
+	// The old cache fingerprint must not survive the wrap replacement. Locking
+	// also zeroes the in-process data key before the command returns.
+	encrypted.lock()
+	SetPassphrase("")
+	return nil
 }

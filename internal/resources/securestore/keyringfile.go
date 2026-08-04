@@ -121,6 +121,14 @@ type KeyringReport struct {
 	Repaired int `json:"repaired"`
 	// BackupPath is the copy taken before any write.
 	BackupPath string `json:"backupPath,omitempty"`
+	// StaleDaemon is true when the file on disk is newer than the running GNOME
+	// keyring daemon, which may still hold the pre-repair state.
+	StaleDaemon       bool   `json:"staleDaemon"`
+	StaleDaemonDetail string `json:"staleDaemonDetail,omitempty"`
+	// StaleDaemonCheck says whether the daemon comparison ran. It is "checked"
+	// when a daemon start time was readable and "not-run" when this host could
+	// not provide one. The stale fields stay empty in the latter case.
+	StaleDaemonCheck string `json:"staleDaemonCheck,omitempty"`
 }
 
 // keyringField is one parsed field and the exact line span it occupies, so a
@@ -286,7 +294,12 @@ func InspectKeyringFile(path string) (KeyringReport, error) {
 	if err != nil {
 		return KeyringReport{Path: path}, fmt.Errorf("read keyring file: %w", err)
 	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return KeyringReport{Path: path}, fmt.Errorf("stat keyring file: %w", err)
+	}
 	report := KeyringReport{Path: path, Loadable: true}
+	addStaleDaemonReport(&report, info)
 	if !strings.HasPrefix(string(contents), "[keyring]") {
 		// An encrypted keyring is binary and is not this file's problem. Saying
 		// so beats reporting a false defect on every password-protected host.
@@ -348,6 +361,7 @@ func RepairKeyringFile(path string) (KeyringReport, error) {
 	}
 
 	report := KeyringReport{Path: path, Loadable: true}
+	addStaleDaemonReport(&report, info)
 	if !strings.HasPrefix(string(contents), "[keyring]") {
 		return report, nil
 	}

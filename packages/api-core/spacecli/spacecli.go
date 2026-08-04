@@ -17,6 +17,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -85,6 +86,11 @@ func run(cfg Config, args []string) error {
 		return fmt.Errorf("space: parse %s: %w", docPath, err)
 	}
 	def.Source = relSource(docPath)
+	if cfg.Owner == "test-genie" && cfg.Projection == spacedoc.ProjectionValidate {
+		if err := enrichValidateAxes(def); err != nil {
+			return err
+		}
+	}
 
 	if *asJSON {
 		enc := json.NewEncoder(out)
@@ -92,6 +98,44 @@ func run(cfg Config, args []string) error {
 		return enc.Encode(def)
 	}
 	return renderText(out, def)
+}
+
+func enrichValidateAxes(def *spacedoc.SpaceDefinition) error {
+	root, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err != nil {
+		return fmt.Errorf("space: locate repo root for target denominator: %w", err)
+	}
+	contract, err := repocontract.LoadDefault(root)
+	if err != nil {
+		return fmt.Errorf("space: load repo contract for target denominator: %w", err)
+	}
+	targets, err := contract.EnumerateTargets(root)
+	if err != nil {
+		return fmt.Errorf("space: enumerate target denominator: %w", err)
+	}
+	counts := map[string]int{}
+	for _, target := range targets {
+		counts[string(target.Kind)]++
+	}
+	kinds := make([]string, 0, len(counts))
+	for kind := range counts {
+		kinds = append(kinds, kind)
+	}
+	sort.Strings(kinds)
+	axis := spacedoc.Axes{Concerns: make([]string, 0, len(def.Cells)), TargetKinds: make([]spacedoc.TargetKindAxis, 0, len(kinds))}
+	seen := map[string]bool{}
+	for _, cell := range def.Cells {
+		if !seen[cell.ID] {
+			axis.Concerns = append(axis.Concerns, cell.ID)
+			seen[cell.ID] = true
+		}
+	}
+	for _, kind := range kinds {
+		axis.TargetKinds = append(axis.TargetKinds, spacedoc.TargetKindAxis{Kind: kind, Count: counts[kind]})
+	}
+	def.Axes = &axis
+	def.Rebase = &spacedoc.Rebase{From: "scenario-only", To: "repository-target-kinds", Reason: "Validate coverage now reports concern coverage across the enumerated repository target kinds."}
+	return nil
 }
 
 func resolveDocPath(cfg Config) (string, error) {

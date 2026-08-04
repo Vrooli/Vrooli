@@ -5,15 +5,15 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
+	"testing"
+
 	"resource-kopia/cli/internal/invariant"
 	"resource-kopia/cli/internal/kexec"
 	"resource-kopia/cli/internal/registry"
 	"resource-kopia/cli/internal/repoctx"
 	"resource-kopia/cli/internal/snapshot"
-	"resource-kopia/cli/internal/vault"
-	"slices"
-	"strings"
-	"testing"
 
 	kexecmocks "resource-kopia/cli/internal/kexec/mocks"
 
@@ -26,12 +26,12 @@ func newSvc(t *testing.T) (snapshot.Service, *kexecmocks.FakeRunner) {
 	t.Helper()
 	run := &kexecmocks.FakeRunner{}
 	v := vaultmocks.NewFakeVault()
-	v.Seed(vault.PassphrasePath("nightly"), "passphrase", "passphrase-value-abcdefghijklmnop")
+	v.SeedPassphrase("nightly", "passphrase-value-abcdefghijklmnop")
 	reg := registry.New(filepath.Join(t.TempDir(), "registry.json"))
 	if err := reg.Upsert(registry.Entry{Name: "nightly", Backend: registry.BackendFilesystem, ConfigFile: cfg, Path: "/p"}); err != nil {
 		t.Fatal(err)
 	}
-	return snapshot.Service{Runner: run, Resolver: repoctx.Resolver{Registry: reg, Vault: v}}, run
+	return snapshot.Service{Runner: run, Resolver: repoctx.Resolver{Registry: reg, Credentials: v, Vault: v}}, run
 }
 
 func eq(a, b []string) bool {

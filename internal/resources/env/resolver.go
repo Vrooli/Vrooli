@@ -117,6 +117,38 @@ func ResolveScenario(root, home, scenarioName, variant string, manifest scenario
 		report.Warnings = append(report.Warnings, result.Warnings...)
 	}
 
+	// The scenario's own declaration is resolved after its resources so a
+	// scenario-declared credential is diagnosed on exactly the same footing as
+	// a resource-declared one. These are typically the descriptors the
+	// scenario's code resolves for itself, so most carry no env and inject
+	// nothing — but an unconfigured one is still a gap the operator has to see.
+	scenarioGaps, err := ResolveScenarioCredentialGaps(scenarioName, manifest.Credentials)
+	if err != nil {
+		return ScenarioResolution{}, err
+	}
+	report.MissingCredentials = append(report.MissingCredentials, scenarioGaps.Missing...)
+	if scenarioGaps.Provider != "" {
+		report.CredentialProvider = mergeProviderState(report.CredentialProvider, scenarioGaps.Provider)
+	}
+	// A scenario that does declare an injection target competes for the same
+	// process environment its resources export into, so it joins the same
+	// collision check rather than getting a private namespace.
+	for _, descriptor := range manifest.Credentials.Injectable() {
+		declaration := credentialEnvDeclaration{
+			Resource:  scenarioName,
+			Env:       strings.TrimSpace(descriptor.Env),
+			LogicalID: strings.TrimSpace(descriptor.LogicalID),
+			Field:     descriptor.ResolvedField(),
+		}
+		if owner, exists := credentialOwners[declaration.Env]; exists && !owner.sameCredential(declaration) {
+			return ScenarioResolution{}, fmt.Errorf(
+				"credential env collision for %s: %s (%s/%s) and scenario %s (%s/%s) declare different credentials",
+				declaration.Env, owner.Resource, owner.LogicalID, owner.Field,
+				scenarioName, declaration.LogicalID, declaration.Field)
+		}
+		credentialOwners[declaration.Env] = declaration
+	}
+
 	return report, nil
 }
 

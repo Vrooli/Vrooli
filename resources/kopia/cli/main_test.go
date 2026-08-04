@@ -3,9 +3,10 @@ package main
 import (
 	"encoding/json"
 	"os"
-	"resource-kopia/cli/internal/version"
 	"strings"
 	"testing"
+
+	"resource-kopia/cli/internal/version"
 
 	resourceapp "resource-kopia/cli/internal/app"
 )
@@ -80,8 +81,8 @@ func TestManifestContract(t *testing.T) {
 	for _, e := range m.Credentials.Descriptors {
 		envNames = append(envNames, e.Env)
 	}
-	if !contains(envNames, "KOPIA_PASSWORD") {
-		t.Errorf("credentials.descriptors must declare KOPIA_PASSWORD, got %v", envNames)
+	if contains(envNames, "KOPIA_PASSWORD") {
+		t.Errorf("credentials.descriptors must not declare the dynamic repository passphrase, got %v", envNames)
 	}
 }
 

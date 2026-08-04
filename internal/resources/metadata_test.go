@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	apicoresecrets "github.com/vrooli/api-core/secrets"
 	repocontract "github.com/vrooli/repo-contract-go"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
@@ -192,16 +191,10 @@ func TestLoadResourceEnvironmentDoesNotReadPlaintextUserSecrets(t *testing.T) {
 	})
 	writePostgresManifestFixture(t, root)
 
-	store, err := apicoresecrets.NewUserStore(apicoresecrets.Config{HomeDir: home})
-	if err != nil {
-		t.Fatalf("NewUserStore: %v", err)
-	}
-	if err := store.Save(map[string]string{
+	writePlaintextUserSecrets(t, home, map[string]string{
 		"POSTGRES_PASSWORD": "plaintext-secret",
 		"POSTGRES_USER":     "vrooli",
-	}); err != nil {
-		t.Fatalf("Save plaintext secrets: %v", err)
-	}
+	})
 
 	postgresEnv, err := LoadResourceEnvironment(root, home, "postgres")
 	if err != nil {
@@ -225,16 +218,10 @@ func TestLoadResourceEnvironmentDoesNotReadAnyRetiredUserStore(t *testing.T) {
 	})
 	writePostgresManifestFixture(t, root)
 
-	plaintextStore, err := apicoresecrets.NewUserStore(apicoresecrets.Config{HomeDir: home})
-	if err != nil {
-		t.Fatalf("NewUserStore: %v", err)
-	}
-	if err := plaintextStore.Save(map[string]string{
+	writePlaintextUserSecrets(t, home, map[string]string{
 		"POSTGRES_PASSWORD": "plaintext-secret",
 		"POSTGRES_USER":     "vrooli",
-	}); err != nil {
-		t.Fatalf("Save plaintext secrets: %v", err)
-	}
+	})
 
 	writeRetiredEncryptedFixture(t, home)
 

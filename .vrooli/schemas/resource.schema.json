@@ -15,6 +15,10 @@
     "deployment"
   ],
   "properties": {
+    "storage": {
+      "$ref": "common.schema.json#/definitions/storageSurface",
+      "description": "Portable declaration of the resource's on-disk storage surface."
+    },
     "retention": {
       "$ref": "common.schema.json#/definitions/retention",
       "description": "Declared storage ceilings for the runtime data this resource accumulates. Enforced by packages/api-core/retention. Distinct from durable_data, which declares what to back up."
@@ -44,7 +48,9 @@
       "type": "object",
       "description": "Durable host-filesystem state this resource accumulates that is worth backing up (e.g. an external-cli coding agent's conversation history). HOST-FILESYSTEM ONLY: container/compose resources store volume data captured separately by data-backup-manager's live connectors and MUST NOT declare it here. Consumed by data-backup-manager discovery to surface one-click backup target suggestions; entry contents are never read.",
       "additionalProperties": false,
-      "required": ["entries"],
+      "required": [
+        "entries"
+      ],
       "properties": {
         "base": {
           "type": "string",
@@ -59,7 +65,9 @@
         "entries": {
           "type": "object",
           "minProperties": 1,
-          "additionalProperties": { "$ref": "common.schema.json#/definitions/durableDataEntry" },
+          "additionalProperties": {
+            "$ref": "common.schema.json#/definitions/durableDataEntry"
+          },
           "description": "Durable entries under base, keyed by stable logical name (the key becomes the suggested target name)."
         }
       }
@@ -87,21 +95,41 @@
     "provider_policy": {
       "type": "object",
       "description": "Verified reuse policy for a non-service host tool. It never grants process lifecycle authority.",
-      "required": ["default_mode", "allowed_modes"],
+      "required": [
+        "default_mode",
+        "allowed_modes"
+      ],
       "properties": {
-        "default_mode": { "$ref": "#/definitions/managedServiceProviderMode" },
+        "default_mode": {
+          "$ref": "#/definitions/managedServiceProviderMode"
+        },
         "allowed_modes": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "$ref": "#/definitions/managedServiceProviderMode" }
+          "items": {
+            "$ref": "#/definitions/managedServiceProviderMode"
+          }
         },
-        "shared_reuse_requires_consent": { "type": "boolean" },
-        "external_management": { "type": "string", "enum": ["forbidden"] },
+        "shared_reuse_requires_consent": {
+          "type": "boolean"
+        },
+        "external_management": {
+          "type": "string",
+          "enum": [
+            "forbidden"
+          ]
+        },
         "external_access_capabilities": {
           "type": "array",
           "uniqueItems": true,
-          "items": { "type": "string", "enum": ["read-only", "read-write"] }
+          "items": {
+            "type": "string",
+            "enum": [
+              "read-only",
+              "read-write"
+            ]
+          }
         }
       },
       "additionalProperties": false
@@ -115,7 +143,9 @@
       "properties": {
         "probe": {
           "type": "string",
-          "enum": ["nvidia"]
+          "enum": [
+            "nvidia"
+          ]
         },
         "compose_overlay": {
           "type": "string",
@@ -128,7 +158,9 @@
           }
         }
       },
-      "required": ["probe"],
+      "required": [
+        "probe"
+      ],
       "additionalProperties": false
     },
     "binary": {
@@ -144,27 +176,7 @@
       "type": "string"
     },
     "credentials": {
-      "type": "object",
-      "description": "Declares credentials through backend-neutral descriptors. A logical_id is the only durable identifier; values are held by the selected credential authority and injected only into the target process.",
-      "properties": {
-        "descriptors": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["logical_id", "env"],
-            "additionalProperties": false,
-            "properties": {
-              "logical_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]+/[a-z0-9][a-z0-9._/-]+$" },
-              "field": { "type": "string", "pattern": "^[a-zA-Z0-9._-]+$" },
-              "env": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
-              "required": { "type": "boolean" },
-              "label": { "type": "string" },
-              "description": { "type": "string" },
-              "obtain_url": { "type": "string", "format": "uri" }
-            }
-          }
-        }
-      }
+      "$ref": "common.schema.json#/definitions/credentials"
     },
     "portability_tier": {
       "type": "string",
@@ -176,12 +188,20 @@
     },
     "privilege": {
       "type": "string",
-      "enum": ["none", "user", "elevated"],
+      "enum": [
+        "none",
+        "user",
+        "elevated"
+      ],
       "description": "Host privilege needed to operate this resource outside a desktop bundle."
     },
     "bundling": {
       "type": "string",
-      "enum": ["vendorable", "host-required", "prohibited"],
+      "enum": [
+        "vendorable",
+        "host-required",
+        "prohibited"
+      ],
       "description": "Whether the resource may be supplied by a desktop application bundle."
     },
     "category": {
@@ -468,12 +488,16 @@
     "deployment": {
       "type": "object",
       "description": "Resource-owned deployment profiles. A supported claim requires declared target evidence and, for bundled modes, a prebuilt CLI artifact contract.",
-      "required": ["profiles"],
+      "required": [
+        "profiles"
+      ],
       "properties": {
         "profiles": {
           "type": "object",
           "minProperties": 1,
-          "additionalProperties": { "$ref": "#/definitions/deploymentProfile" }
+          "additionalProperties": {
+            "$ref": "#/definitions/deploymentProfile"
+          }
         }
       },
       "additionalProperties": false
@@ -482,11 +506,19 @@
       "type": "object",
       "description": "External CLI (e.g. claude, codex, opencode) this resource wraps. Records the pinned version and docs source so config adapters can detect upstream schema drift via `permissions doctor` / equivalent surfaces.",
       "additionalProperties": false,
-      "required": ["version_command", "version_pinned", "docs_source", "docs_pinned_at", "schema_version"],
+      "required": [
+        "version_command",
+        "version_pinned",
+        "docs_source",
+        "docs_pinned_at",
+        "schema_version"
+      ],
       "properties": {
         "version_command": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "minItems": 1,
           "description": "argv used to report the upstream CLI's version (e.g. [\"claude\", \"--version\"])."
         },
@@ -516,54 +548,168 @@
   "definitions": {
     "deploymentProfile": {
       "type": "object",
-      "required": ["linux", "macos", "windows"],
+      "required": [
+        "linux",
+        "macos",
+        "windows"
+      ],
       "properties": {
-        "linux": { "$ref": "#/definitions/deploymentTarget" },
-        "macos": { "$ref": "#/definitions/deploymentTarget" },
-        "windows": { "$ref": "#/definitions/deploymentTarget" }
+        "linux": {
+          "$ref": "#/definitions/deploymentTarget"
+        },
+        "macos": {
+          "$ref": "#/definitions/deploymentTarget"
+        },
+        "windows": {
+          "$ref": "#/definitions/deploymentTarget"
+        }
       },
       "additionalProperties": false
     },
     "deploymentTarget": {
       "type": "object",
-      "required": ["support", "mode"],
+      "required": [
+        "support",
+        "mode"
+      ],
       "properties": {
-        "support": { "type": "string", "enum": ["supported", "conditional", "degraded", "unsupported"] },
-        "mode": { "type": "string", "enum": ["bundled-client", "bundled-service", "native-host-tool", "docker-desktop", "remote-service", "manual"] },
-        "architectures": { "type": "array", "minItems": 1, "items": { "type": "string", "enum": ["amd64", "arm64"] } },
-        "requires": { "type": "array", "items": { "type": "string", "minLength": 1 } },
-        "limitations": { "type": "array", "items": { "type": "string", "minLength": 1 } },
-        "fallbacks": { "type": "array", "items": { "type": "string", "minLength": 1 } },
-        "evidence": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
-        "reason": { "type": "string", "minLength": 1 }
+        "support": {
+          "type": "string",
+          "enum": [
+            "supported",
+            "conditional",
+            "degraded",
+            "unsupported"
+          ]
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "bundled-client",
+            "bundled-service",
+            "native-host-tool",
+            "docker-desktop",
+            "remote-service",
+            "manual"
+          ]
+        },
+        "architectures": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "amd64",
+              "arm64"
+            ]
+          }
+        },
+        "requires": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "fallbacks": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
       },
       "allOf": [
-        { "if": { "properties": { "support": { "const": "unsupported" } } }, "then": { "required": ["reason"] } },
-        { "if": { "not": { "properties": { "support": { "const": "unsupported" } } } }, "then": { "required": ["architectures", "limitations", "evidence"] } }
+        {
+          "if": {
+            "properties": {
+              "support": {
+                "const": "unsupported"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "reason"
+            ]
+          }
+        },
+        {
+          "if": {
+            "not": {
+              "properties": {
+                "support": {
+                  "const": "unsupported"
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "architectures",
+              "limitations",
+              "evidence"
+            ]
+          }
+        }
       ],
       "additionalProperties": false
     },
     "managedService": {
       "type": "object",
-      "required": ["provider_policy", "artifact"],
+      "required": [
+        "provider_policy",
+        "artifact"
+      ],
       "properties": {
         "provider_policy": {
           "type": "object",
-          "required": ["allowed_modes", "target_defaults"],
+          "required": [
+            "allowed_modes",
+            "target_defaults"
+          ],
           "properties": {
             "allowed_modes": {
               "type": "array",
               "minItems": 1,
               "uniqueItems": true,
-              "items": { "$ref": "#/definitions/managedServiceProviderMode" }
+              "items": {
+                "$ref": "#/definitions/managedServiceProviderMode"
+              }
             },
             "target_defaults": {
               "type": "object",
               "description": "Runtime-specific defaults. Control-plane hosting uses a Vrooli-owned shared service; desktop bundles start private unless shared reuse is explicitly selected and consented.",
-              "required": ["control-plane", "desktop-bundle"],
+              "required": [
+                "control-plane",
+                "desktop-bundle"
+              ],
               "properties": {
-                "control-plane": { "$ref": "#/definitions/managedServiceProviderMode" },
-                "desktop-bundle": { "$ref": "#/definitions/managedServiceProviderMode" }
+                "control-plane": {
+                  "$ref": "#/definitions/managedServiceProviderMode"
+                },
+                "desktop-bundle": {
+                  "$ref": "#/definitions/managedServiceProviderMode"
+                }
               },
               "additionalProperties": false
             },
@@ -574,15 +720,22 @@
             },
             "external_management": {
               "type": "string",
-              "enum": ["forbidden"],
+              "enum": [
+                "forbidden"
+              ],
               "default": "forbidden",
               "description": "External endpoints are attach-only: Vrooli may validate and use them but never initializes, unseals, stops, or rewrites them."
-            }
-			,
+            },
             "external_access_capabilities": {
               "type": "array",
               "uniqueItems": true,
-              "items": { "type": "string", "enum": ["read-only", "read-write"] },
+              "items": {
+                "type": "string",
+                "enum": [
+                  "read-only",
+                  "read-write"
+                ]
+              },
               "description": "The only application access that an attach-only external provider may request. This never grants lifecycle authority."
             }
           },
@@ -591,25 +744,48 @@
         "artifact": {
           "type": "object",
           "description": "An immutable executable staged beneath the resource or bundle root. The release pipeline verifies its signed checksum set; the lifecycle driver verifies this SHA-256 before launch.",
-          "required": ["path", "version"],
+          "required": [
+            "path",
+            "version"
+          ],
           "properties": {
-            "path": { "type": "string", "minLength": 1 },
-            "version": { "type": "string", "minLength": 1 },
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            },
             "bundle_artifact": {
               "type": "string",
               "minLength": 1,
               "description": "Target template for the separately signed server asset included in a bundled-service release (for example vault_${os}_${arch})."
             },
-            "sha256": { "type": "string", "pattern": "^[A-Fa-f0-9]{64}$" },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[A-Fa-f0-9]{64}$"
+            },
             "sha256_by_platform": {
               "type": "object",
               "minProperties": 1,
-              "additionalProperties": { "type": "string", "pattern": "^[A-Fa-f0-9]{64}$" }
+              "additionalProperties": {
+                "type": "string",
+                "pattern": "^[A-Fa-f0-9]{64}$"
+              }
             }
           },
           "anyOf": [
-            { "required": ["sha256"] },
-            { "required": ["sha256_by_platform"] }
+            {
+              "required": [
+                "sha256"
+              ]
+            },
+            {
+              "required": [
+                "sha256_by_platform"
+              ]
+            }
           ],
           "additionalProperties": false
         },
@@ -620,20 +796,33 @@
         },
         "arguments": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "Literal argv passed directly to the verified executable. Shell interpolation is never performed."
         },
         "environment": {
           "type": "object",
-          "additionalProperties": { "type": "string" },
+          "additionalProperties": {
+            "type": "string"
+          },
           "description": "Literal environment values supplied only to the managed process. Secrets are not permitted here; resolve them through provider-scoped credentials."
         },
         "config": {
           "type": "object",
-          "required": ["path", "content"],
+          "required": [
+            "path",
+            "content"
+          ],
           "properties": {
-            "path": { "type": "string", "minLength": 1 },
-            "content": { "type": "string", "minLength": 1 }
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "content": {
+              "type": "string",
+              "minLength": 1
+            }
           },
           "additionalProperties": false
         }
@@ -642,7 +831,13 @@
     },
     "managedServiceProviderMode": {
       "type": "string",
-      "enum": ["managed-private", "managed-shared", "attach-only", "remote-vrooli", "managed-discovered"]
+      "enum": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ]
     },
     "hostRequirement": {
       "type": "object",

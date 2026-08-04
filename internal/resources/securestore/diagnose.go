@@ -32,6 +32,16 @@ type Diagnosis struct {
 	Explanation string `json:"explanation,omitempty"`
 	// Fix is the concrete action that makes the backend work, when one exists.
 	Fix string `json:"fix,omitempty"`
+	// NativeStorageStrength describes protection outside the process boundary.
+	NativeStorageStrength string `json:"native_storage_strength,omitempty"`
+	NativeStorageCaveat   string `json:"native_storage_caveat,omitempty"`
+	// Writable is true only when the diagnostic throwaway write, readback, and
+	// delete all succeeded. It is intentionally separate from Available: a
+	// backend can answer reads while rejecting every provisioning write.
+	Writable         bool   `json:"writable"`
+	WriteCondition   string `json:"write_condition"`
+	WriteExplanation string `json:"write_explanation,omitempty"`
+	WriteFix         string `json:"write_fix,omitempty"`
 	// SessionRepair records a host condition the credential path corrected on
 	// its own. It is reported even when the backend is healthy, because the
 	// login that produced the condition usually degrades other session-scoped
@@ -43,11 +53,80 @@ type Diagnosis struct {
 	Unlocked bool `json:"unlocked,omitempty"`
 }
 
+// Remediable is an error that names the operator action which clears it.
+//
+// The remedy travels with the error rather than being reassembled by the
+// diagnosis, because only the layer that detected a condition knows what
+// resolves it. A stale keyring daemon needs a fresh login; a uid/session
+// mismatch needs a corrected session. A caller that had to infer one from the
+// other's error text would eventually print the wrong one — which is exactly
+// what happened: `Fix` fell back to the already-applied session-repair note,
+// so the field labelled "here is what to do" described a non-problem while the
+// real remedy sat buried in the explanation.
+type Remediable interface {
+	Remediation() string
+}
+
+// remediableError pairs a condition with the action that clears it.
+type remediableError struct {
+	err    error
+	remedy string
+}
+
+func (e remediableError) Error() string       { return e.err.Error() }
+func (e remediableError) Unwrap() error       { return e.err }
+func (e remediableError) Remediation() string { return e.remedy }
+
+// withRemediation attaches an operator action to an error.
+func withRemediation(err error, remedy string) error {
+	if err == nil {
+		return nil
+	}
+	return remediableError{err: err, remedy: remedy}
+}
+
+// remediationFor returns the action that clears an error, or "" when nothing
+// in the chain claims to know one. Returning empty is deliberate: printing no
+// fix is better than printing a guess.
+func remediationFor(err error) string {
+	var typed Remediable
+	if errors.As(err, &typed) {
+		return typed.Remediation()
+	}
+	return ""
+}
+
+// WriteConditionNotChecked is the write condition of a read-only diagnosis. It
+// is distinct from "unavailable" on purpose: not knowing whether a store can be
+// written is not the same as knowing it cannot.
+const WriteConditionNotChecked = "not-checked"
+
 // Diagnose reports what this host's credential backend is and why it is not
 // working, if it is not. It never fails: a diagnosis that could error would be
 // useless in exactly the situation it exists for.
+//
+// It is read-only. The write probe stores, reads back, and deletes a throwaway
+// value in the operator's real credential store, which is defensible before
+// writing durable recovery material and indefensible in a diagnostic: an
+// operator runs `doctor` precisely when the store is already misbehaving, and a
+// write is what makes GNOME Keyring raise the unlock prompt nobody is there to
+// answer. It also costs the full Secret Service timeout on a host in that
+// state, so the command that explains a hang was itself hanging.
+//
+// Use DiagnoseWritable when the question really is "can I provision right now".
 func Diagnose() Diagnosis {
-	store := Default()
+	return diagnoseStore(Default(), false)
+}
+
+// DiagnoseWritable is Diagnose plus proof that a value can actually be stored.
+// It writes to the real backend, so it belongs to callers whose next step is a
+// write — onboarding asking whether the operator can provision, a preflight
+// before a recovery restore — and not to a routine health read.
+func DiagnoseWritable() Diagnosis {
+	return diagnoseStore(Default(), true)
+}
+
+func diagnoseStore(store Store, checkWrites bool) Diagnosis {
 	diagnosis := Diagnosis{
 		Platform:      runtime.GOOS,
 		Condition:     "available",
@@ -60,24 +139,78 @@ func Diagnose() Diagnosis {
 	// describe the host as it looked before anything had looked at it.
 	diagnosis.Adapter = AdapterName(store)
 	diagnosis.Backend = backendName(store)
+	if diagnosis.Backend == "libsecret" {
+		diagnosis.NativeStorageStrength, diagnosis.NativeStorageCaveat = nativeStorageStrength()
+	}
 	diagnosis.KeyWrap, diagnosis.KeyStore = activeWrap(store)
 	diagnosis.Unlocked = diagnosis.KeyWrap != ""
 	if err == nil {
-		return diagnosis
+		diagnosis.WriteCondition = "checking"
+	} else {
+		diagnosis.Available = false
+		if errors.Is(err, ErrAbsent) {
+			diagnosis.Condition = "absent"
+			diagnosis.Explanation = err.Error()
+			diagnosis.Fix = absentBackendFixFor(store)
+		} else {
+			diagnosis.Condition = "unavailable"
+			diagnosis.Explanation = err.Error()
+			// The condition that was actually detected names its own remedy
+			// first. Only when nothing does do we fall back to the session
+			// diagnosis, which is a guess about a different layer.
+			//
+			// SessionRepair is deliberately NOT a fallback here. It records a
+			// correction Vrooli already made successfully, so presenting it as
+			// the fix tells an operator to go and do something that is both
+			// already done and unrelated to what is currently broken. It stays
+			// visible in its own field.
+			if remedy := remediationFor(err); remedy != "" {
+				diagnosis.Fix = remedy
+			} else if session := sessionDiagnosis(); session != "" {
+				diagnosis.Fix = session
+			}
+		}
 	}
-	diagnosis.Available = false
 	if errors.Is(err, ErrAbsent) {
-		diagnosis.Condition = "absent"
-		diagnosis.Explanation = err.Error()
-		diagnosis.Fix = absentBackendFixFor(store)
+		diagnosis.WriteCondition = "absent"
+		diagnosis.WriteExplanation = "the backend is absent, so a write probe cannot run"
+		diagnosis.WriteFix = diagnosis.Fix
 		return diagnosis
 	}
-	diagnosis.Condition = "unavailable"
-	diagnosis.Explanation = err.Error()
-	if session := sessionDiagnosis(); session != "" {
-		diagnosis.Fix = session
+	if !checkWrites {
+		diagnosis.WriteCondition = WriteConditionNotChecked
+		diagnosis.WriteExplanation = "no write was attempted; this diagnosis did not touch the store"
+		diagnosis.WriteFix = "run `vrooli credentials doctor --check-writes` to prove a credential can be stored"
+		return diagnosis
+	}
+	writeErr := ProbeWritable(store)
+	if writeErr == nil {
+		diagnosis.Writable, diagnosis.WriteCondition = true, "available"
+		return diagnosis
+	}
+	diagnosis.WriteCondition = conditionFor(writeErr)
+	diagnosis.WriteExplanation = writeErr.Error()
+	// The write failure names its own remedy when it has one; otherwise the
+	// read-side fix is the best available. Appending an empty fix used to
+	// produce a sentence ending in a semicolon and nothing.
+	diagnosis.WriteFix = "no credential can be provisioned on this host now"
+	if remedy := remediationFor(writeErr); remedy != "" {
+		diagnosis.WriteFix += "; " + remedy
+	} else if diagnosis.Fix != "" {
+		diagnosis.WriteFix += "; " + diagnosis.Fix
 	}
 	return diagnosis
+}
+
+func conditionFor(err error) string {
+	switch {
+	case errors.Is(err, ErrAbsent):
+		return "absent"
+	case errors.Is(err, ErrUnavailable):
+		return "unavailable"
+	default:
+		return "unavailable"
+	}
 }
 
 // backendName reports the store family without the wrap detail that

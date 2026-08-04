@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"regexp"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -18,12 +20,15 @@ func nativeDefault() Store {
 	if _, err := exec.LookPath("secret-tool"); err != nil {
 		return Absent("secret-tool (libsecret) is not installed")
 	}
-	return secretToolStore{}
+	return &secretToolStore{}
 }
 
-type secretToolStore struct{}
+type secretToolStore struct {
+	collectionsOnce sync.Once
+	collectionsErr  error
+}
 
-func (secretToolStore) AdapterName() string { return "libsecret" }
+func (*secretToolStore) AdapterName() string { return "libsecret" }
 
 // secretToolTimeout bounds every Secret Service call.
 //
@@ -38,6 +43,19 @@ func (secretToolStore) AdapterName() string { return "libsecret" }
 // and it takes autoheal down with it, since a supervisor that blocks on a
 // credential read cannot repair the thing that is blocking it.
 const secretToolTimeout = 15 * time.Second
+
+var collectionPathPattern = regexp.MustCompile(`/org/freedesktop/secrets/collection/[A-Za-z0-9_.-]+`)
+
+// runSecretServiceCommand is the command seam shared by the collection health
+// probe and its tests. It uses gdbus instead of adding a D-Bus library.
+var runSecretServiceCommand = func(ctx context.Context, args ...string) (string, string, error) {
+	cmd := exec.CommandContext(ctx, "gdbus", args...)
+	cmd.Env = sessionEnviron()
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	stdout, err := cmd.Output()
+	return string(stdout), stderr.String(), err
+}
 
 // secretToolCommand builds every Secret Service invocation, so all three
 // operations reach the same bus and share one timeout. sessionEnviron repairs a
@@ -60,7 +78,7 @@ func classifySecretToolTimeout(stage string) error {
 		ErrUnavailable, stage, secretToolTimeout)
 }
 
-func (secretToolStore) Put(service, key, value string) error {
+func (*secretToolStore) Put(service, key, value string) error {
 	cmd, ctx, cancel := secretToolCommand("store", "--label=Vrooli managed resource", "service", service, "key", key)
 	defer cancel()
 	// The value goes over stdin so it never appears in argv, /proc, or shell
@@ -76,7 +94,7 @@ func (secretToolStore) Put(service, key, value string) error {
 	return classifySecretToolError("store secure resource material", err, string(output))
 }
 
-func (secretToolStore) Get(service, key string) (string, error) {
+func (store *secretToolStore) Get(service, key string) (string, error) {
 	cmd, ctx, cancel := secretToolCommand("lookup", "service", service, "key", key)
 	defer cancel()
 	var stderr strings.Builder
@@ -89,12 +107,15 @@ func (secretToolStore) Get(service, key string) (string, error) {
 		return "", classifySecretToolTimeout("read secure resource material")
 	}
 	if isSecretToolNotFound(err, len(stdout), stderr.String()) {
+		if healthErr := store.collectionHealth(); healthErr != nil {
+			return "", healthErr
+		}
 		return "", fmt.Errorf("%w: %s/%s", ErrNotFound, service, key)
 	}
 	return "", classifySecretToolError("read secure resource material", err, stderr.String())
 }
 
-func (secretToolStore) Delete(service, key string) error {
+func (store *secretToolStore) Delete(service, key string) error {
 	cmd, ctx, cancel := secretToolCommand("clear", "service", service, "key", key)
 	defer cancel()
 	var stderr strings.Builder
@@ -110,9 +131,73 @@ func (secretToolStore) Delete(service, key string) error {
 	// every adapter must agree on that. The shared conformance suite caught
 	// this adapter disagreeing.
 	if isSecretToolNotFound(err, len(stdout), stderr.String()) {
+		if healthErr := store.collectionHealth(); healthErr != nil {
+			return healthErr
+		}
 		return nil
 	}
 	return classifySecretToolError("delete secure resource material", err, stderr.String())
+}
+
+// staleKeyringDaemonRemedy is the one action that clears a half-loaded
+// collection. The daemon holds the keyring it parsed at login, so repairing the
+// file underneath it changes nothing until a new session reloads it — which is
+// precisely the state a host lands in right after `credentials keyring repair`.
+const staleKeyringDaemonRemedy = "log out and back in so the keyring daemon reloads the keyring file; it is still serving the copy it parsed at login"
+
+// collectionHealth checks advertised collections only after an ambiguous empty
+// lookup. A collection can remain in Collections after its object failed to
+// load; that state is unavailable, not an empty credential store.
+//
+// The verdict is computed once per store (collectionsOnce) and is the store's
+// answer, not one read's answer. Reporting it only on the path that happened to
+// ask is what let one credential read "configured" beside its siblings reading
+// "provider_unavailable", from the same store, in the same table.
+func (store *secretToolStore) collectionHealth() error {
+	store.collectionsOnce.Do(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), secretToolTimeout)
+		defer cancel()
+		stdout, stderr, err := runSecretServiceCommand(ctx,
+			"call", "--session", "--dest", "org.freedesktop.secrets",
+			"--object-path", "/org/freedesktop/secrets", "--method",
+			"org.freedesktop.DBus.Properties.Get", "org.freedesktop.Secret.Service", "Collections")
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			store.collectionsErr = classifySecretToolTimeout("check Secret Service collections")
+			return
+		}
+		if err != nil {
+			store.collectionsErr = fmt.Errorf("%w: check Secret Service collections: %s", ErrUnavailable, conciseCommandError(err, stderr))
+			return
+		}
+		collections := collectionPathPattern.FindAllString(stdout, -1)
+		for _, collection := range collections {
+			ctx, cancel := context.WithTimeout(context.Background(), secretToolTimeout)
+			_, collectionStderr, collectionErr := runSecretServiceCommand(ctx,
+				"call", "--session", "--dest", "org.freedesktop.secrets",
+				"--object-path", collection, "--method",
+				"org.freedesktop.DBus.Properties.Get", "org.freedesktop.Secret.Collection", "Label")
+			cancel()
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				store.collectionsErr = classifySecretToolTimeout("check Secret Service collection " + collection)
+				return
+			}
+			if collectionErr != nil {
+				store.collectionsErr = withRemediation(
+					fmt.Errorf("%w: collection %s is advertised but its object is not available: %s",
+						ErrUnavailable, collection, conciseCommandError(collectionErr, collectionStderr)),
+					staleKeyringDaemonRemedy)
+				return
+			}
+		}
+	})
+	return store.collectionsErr
+}
+
+func conciseCommandError(err error, stderr string) string {
+	if detail := strings.TrimSpace(stderr); detail != "" {
+		return detail
+	}
+	return err.Error()
 }
 
 // isSecretToolNotFound recognizes the one way libsecret says "the Secret

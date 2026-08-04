@@ -3,36 +3,22 @@ package resources
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/resources/securestore"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
+	vaultbootstrap "github.com/vrooli/vrooli/packages/vaultbootstrap-go"
 )
-
-func TestLoadLegacyVaultBootstrapMaterial(t *testing.T) {
-	dataDir := t.TempDir()
-	marker := filepath.Join(dataDir, legacyVaultBootstrapFilename)
-	if err := os.WriteFile(marker, []byte(`{"unseal_keys_b64":["unseal"],"root_token":"root"}`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	material, found, err := loadLegacyVaultBootstrapMaterial(dataDir)
-	if err != nil {
-		t.Fatalf("load legacy material: %v", err)
-	}
-	if !found || material.RootToken != "root" || material.UnsealKey != "unseal" {
-		t.Fatalf("legacy material = %#v, found=%t", material, found)
-	}
-}
 
 type writeOnlySecureStore struct{ memorySecureStore }
 
 func (s *writeOnlySecureStore) Get(service, key string) (string, error) {
-	if service == "vrooli.resource.vault" {
-		return "", os.ErrNotExist
+	if service == vaultbootstrap.Service {
+		return "", fmt.Errorf("%w: %s/%s", securestore.ErrNotFound, service, key)
 	}
 	return s.memorySecureStore.Get(service, key)
 }
@@ -45,6 +31,7 @@ func TestStoreVaultBootstrapMaterialRequiresSecureStoreReadback(t *testing.T) {
 }
 
 func TestBootstrapPrivateVaultInitializesThenRecoversWithScopedReadiness(t *testing.T) {
+	useFakeUnsealKeys(t)
 	store := &memorySecureStore{values: map[string]string{}}
 	previousStore := privateVaultSecureStore
 	privateVaultSecureStore = func() securestore.Store { return store }
@@ -97,7 +84,7 @@ func TestBootstrapPrivateVaultInitializesThenRecoversWithScopedReadiness(t *test
 	if initCalls != 1 || sealed {
 		t.Fatalf("recovery init/sealed = %d/%v, want 1/false", initCalls, sealed)
 	}
-	if _, err := store.Get("vrooli.resource.vault.private", state.InstanceID); err != nil {
+	if _, err := store.Get(vaultbootstrap.Service, state.InstanceID); err != nil {
 		t.Fatalf("private recovery material missing from secure storage: %v", err)
 	}
 }
@@ -138,4 +125,36 @@ func TestHTTPVaultBootstrapperScopedReadinessRejectsUnscopedAndAcceptsScopedToke
 	if err := bootstrapper.VerifyScopedOperation(context.Background(), server.URL, "scoped"); err != nil {
 		t.Fatalf("scoped operation = %v", err)
 	}
+}
+
+// fakeUnsealKeys stands in for the credential authority so a test never reaches
+// this host's real keyring. Without it these tests pay the full Secret Service
+// timeout per call and fail for a reason that has nothing to do with Vault.
+type fakeUnsealKeys struct{ values map[string]string }
+
+func (f *fakeUnsealKeys) Put(identity credentialauthority.Identity, field, value string) error {
+	if f.values == nil {
+		f.values = map[string]string{}
+	}
+	f.values[string(identity)+":"+field] = value
+	return nil
+}
+
+func (f *fakeUnsealKeys) Resolve(identity credentialauthority.Identity, field string) (string, error) {
+	value, ok := f.values[string(identity)+":"+field]
+	if !ok {
+		return "", credentialauthority.ErrUnconfigured
+	}
+	return value, nil
+}
+
+// useFakeUnsealKeys points the unseal-key sink at an in-memory stand-in and
+// returns it, so a test can assert the key was recorded where recovery looks.
+func useFakeUnsealKeys(t *testing.T) *fakeUnsealKeys {
+	t.Helper()
+	keys := &fakeUnsealKeys{}
+	previous := unsealKeyStore
+	unsealKeyStore = func() vaultbootstrap.UnsealKeyStore { return keys }
+	t.Cleanup(func() { unsealKeyStore = previous })
+	return keys
 }

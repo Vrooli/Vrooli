@@ -3,6 +3,7 @@ package retention
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -316,6 +317,42 @@ func TestManagerStartAndStopAreIdempotent(t *testing.T) {
 	m.Start(ctx)
 	m.Stop()
 	m.Stop()
+}
+
+func TestManagerWritesDurableEnforcementReceipt(t *testing.T) {
+	now := time.Date(2026, 8, 2, 23, 0, 0, 0, time.UTC)
+	receiptPath := filepath.Join(t.TempDir(), "retention", "enforcement-receipt.json")
+	m := &Manager{
+		scenario:    "demo",
+		receiptPath: receiptPath,
+		now:         func() time.Time { return now },
+		log:         discardLogger(),
+	}
+
+	m.recordEnforcementReceipt(nil)
+	var receipt EnforcementReceipt
+	data, err := os.ReadFile(receiptPath)
+	if err != nil {
+		t.Fatalf("read successful receipt: %v", err)
+	}
+	if err := json.Unmarshal(data, &receipt); err != nil {
+		t.Fatalf("decode successful receipt: %v", err)
+	}
+	if receipt.Owner != "demo" || !receipt.LastCycleTime.Equal(now) || receipt.LastEnforcementTime == nil || !receipt.LastEnforcementTime.Equal(now) {
+		t.Fatalf("successful receipt = %+v, want owner and both timestamps at %s", receipt, now)
+	}
+
+	m.recordEnforcementReceipt(errors.New("temporary prune failure"))
+	data, err = os.ReadFile(receiptPath)
+	if err != nil {
+		t.Fatalf("read failed receipt: %v", err)
+	}
+	if err := json.Unmarshal(data, &receipt); err != nil {
+		t.Fatalf("decode failed receipt: %v", err)
+	}
+	if receipt.LastEnforcementTime == nil || !receipt.LastEnforcementTime.Equal(now) || receipt.LastError != "temporary prune failure" {
+		t.Fatalf("failed receipt = %+v, want the prior enforcement timestamp and the cycle error", receipt)
+	}
 }
 
 func TestDiscoverOwnersAndNewForOwnerLoadNativeManifest(t *testing.T) {

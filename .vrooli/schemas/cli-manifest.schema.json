@@ -69,7 +69,26 @@
         "binding": { "$ref": "#/$defs/Binding" },
         "governance": { "$ref": "#/$defs/Governance" },
         "architecture": { "$ref": "#/$defs/Architecture" },
-        "measure": { "$ref": "#/$defs/Measure" }
+        "measure": { "$ref": "#/$defs/Measure" },
+        "semantics": { "$ref": "#/$defs/Semantics" }
+      }
+    },
+    "Semantics": {
+      "type": "object",
+      "description": "Optional generic cross-scenario meaning declaration.",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "type": "string", "enum": ["query", "verify", "guidance", "mutate"] },
+        "verdict": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "pass": { "type": "string", "minLength": 1 },
+            "fail": { "type": "string", "minLength": 1 }
+          }
+        }
       }
     },
     "Architecture": {

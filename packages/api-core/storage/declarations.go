@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -77,7 +78,7 @@ func (p *PortablePath) UnmarshalJSON(data []byte) error {
 // ResolvePortablePath resolves a declaration path using platform conventions.
 // The seams make the exact same manifest testable for all supported platforms.
 func ResolvePortablePath(entryName string, path PortablePath, requested Platform, seams PlatformSeams) (string, error) {
-	platform := normalizePlatform(string(requested))
+	platform := NormalizePlatform(string(requested))
 	if platform == "" {
 		return "", fmt.Errorf("unsupported storage platform %q", requested)
 	}
@@ -89,7 +90,15 @@ func ResolvePortablePath(entryName string, path PortablePath, requested Platform
 		}
 		value = *selected
 	}
-	return resolvePortableTokens(value, seams)
+	identity := SyntheticIdentity(platform)
+	if platform == HostPlatform() {
+		var err error
+		identity, err = HostIdentity()
+		if err != nil && seams.UserHomeDir == nil {
+			return "", fmt.Errorf("resolve host identity: %w", err)
+		}
+	}
+	return resolvePortableTokens(platform, value, mergeSeams(DefaultSeams(platform, identity), seams))
 }
 
 // ResolveOwnerStoragePath resolves one declaration using the owner's native
@@ -99,9 +108,16 @@ func ResolvePortablePath(entryName string, path PortablePath, requested Platform
 // This keeps inventory, census, placement, and adoption consumers on one path
 // contract instead of each consumer inventing its own base directory.
 func ResolveOwnerStoragePath(repoRoot string, owner OwnerManifest, entry StorageEntry, requested Platform, seams PlatformSeams) (string, error) {
+	platform := NormalizePlatform(string(requested))
+	if platform == "" {
+		return "", fmt.Errorf("unsupported storage platform %q", requested)
+	}
+	if !platformIncluded(EffectivePlatforms(owner, entry), platform) {
+		return "", &NotApplicable{Entry: entry.Name, Platform: platform}
+	}
 	value := strings.TrimSpace(entry.Path.Value)
-	if entry.Path.ByOS != nil || filepath.IsAbs(value) || containsPortableToken(value) {
-		return ResolvePortablePath(entry.Name, entry.Path, requested, seams)
+	if entry.Path.ByOS != nil || isAbsoluteFor(platform, value) || containsPortableToken(value) {
+		return ResolvePortablePath(entry.Name, entry.Path, platform, seams)
 	}
 	if value == "" {
 		return "", fmt.Errorf("storage path is empty")
@@ -121,6 +137,7 @@ func containsPortableToken(value string) bool {
 		strings.Contains(value, "$USER_CONFIG_DIR") ||
 		strings.Contains(value, "$USER_CACHE_DIR") ||
 		strings.Contains(value, "$USER_STATE_DIR") ||
+		strings.Contains(value, "$USER_DATA_DIR") ||
 		strings.Contains(value, "$TEMP_DIR") ||
 		strings.Contains(value, "$HOME") ||
 		strings.Contains(value, "%USERPROFILE%") ||
@@ -136,7 +153,111 @@ type PlatformSeams struct {
 	TempDir       func() string
 }
 
-func resolvePortableTokens(value string, seams PlatformSeams) (string, error) {
+// UserIdentity is the identity whose home directory is used for portable
+// storage resolution. Synthetic identities make foreign-platform verification
+// deterministic without pretending that those directories exist on the host.
+type UserIdentity struct {
+	HomeDir string
+}
+
+// HostIdentity returns the real user's identity on the machine running Vrooli.
+func HostIdentity() (UserIdentity, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return UserIdentity{}, err
+	}
+	if strings.TrimSpace(home) == "" {
+		return UserIdentity{}, fmt.Errorf("home directory is empty")
+	}
+	return UserIdentity{HomeDir: home}, nil
+}
+
+// SyntheticIdentity returns the documented stable identity for a target
+// platform that is not the host platform.
+func SyntheticIdentity(platform Platform) UserIdentity {
+	switch NormalizePlatform(string(platform)) {
+	case PlatformWindows:
+		return UserIdentity{HomeDir: `C:\Users\vrooli`}
+	case PlatformMacOS:
+		return UserIdentity{HomeDir: "/Users/vrooli"}
+	default:
+		return UserIdentity{HomeDir: "/home/vrooli"}
+	}
+}
+
+// DefaultSeams builds platform-native directory conventions from identity.
+// Callers may override any individual seam by passing it to a resolver.
+func DefaultSeams(platform Platform, identity UserIdentity) PlatformSeams {
+	platform = NormalizePlatform(string(platform))
+	home := identity.HomeDir
+	join := func(parts ...string) string { return joinPlatformPath(platform, parts...) }
+	switch platform {
+	case PlatformWindows:
+		return PlatformSeams{
+			UserHomeDir:   func() (string, error) { return home, nil },
+			UserConfigDir: func() (string, error) { return join(home, `AppData\Roaming`), nil },
+			UserCacheDir:  func() (string, error) { return join(home, `AppData\Local`), nil },
+			UserStateDir:  func() (string, error) { return join(home, `AppData\Local`), nil },
+			TempDir:       func() string { return `C:\Windows\Temp` },
+		}
+	case PlatformMacOS:
+		return PlatformSeams{
+			UserHomeDir:   func() (string, error) { return home, nil },
+			UserConfigDir: func() (string, error) { return join(home, "Library", "Application Support"), nil },
+			UserCacheDir:  func() (string, error) { return join(home, "Library", "Caches"), nil },
+			UserStateDir:  func() (string, error) { return join(home, "Library", "Application Support"), nil },
+			TempDir:       func() string { return "/tmp" },
+		}
+	default:
+		return PlatformSeams{
+			UserHomeDir:   func() (string, error) { return home, nil },
+			UserConfigDir: func() (string, error) { return join(home, ".config"), nil },
+			UserCacheDir:  func() (string, error) { return join(home, ".cache"), nil },
+			UserStateDir:  func() (string, error) { return join(home, ".local", "state"), nil },
+			TempDir:       func() string { return "/tmp" },
+		}
+	}
+}
+
+func joinPlatformPath(platform Platform, parts ...string) string {
+	if NormalizePlatform(string(platform)) != PlatformWindows {
+		return filepath.Join(parts...)
+	}
+	result := ""
+	for _, part := range parts {
+		part = strings.TrimRight(part, `/\`)
+		if part == "" {
+			continue
+		}
+		if result == "" {
+			result = part
+		} else {
+			result += `\` + strings.TrimLeft(part, `/\`)
+		}
+	}
+	return result
+}
+
+func mergeSeams(defaults, overrides PlatformSeams) PlatformSeams {
+	if overrides.UserHomeDir != nil {
+		defaults.UserHomeDir = overrides.UserHomeDir
+	}
+	if overrides.UserConfigDir != nil {
+		defaults.UserConfigDir = overrides.UserConfigDir
+	}
+	if overrides.UserCacheDir != nil {
+		defaults.UserCacheDir = overrides.UserCacheDir
+	}
+	if overrides.UserStateDir != nil {
+		defaults.UserStateDir = overrides.UserStateDir
+	}
+	if overrides.TempDir != nil {
+		defaults.TempDir = overrides.TempDir
+	}
+	return defaults
+}
+
+func resolvePortableTokens(platform Platform, value string, seams PlatformSeams) (string, error) {
 	if strings.Contains(value, "$XDG_") || strings.Contains(value, "${XDG_") {
 		return "", fmt.Errorf("XDG variables are not portable storage tokens; use $USER_CONFIG_DIR, $USER_CACHE_DIR, or $USER_STATE_DIR")
 	}
@@ -182,6 +303,13 @@ func resolvePortableTokens(value string, seams PlatformSeams) (string, error) {
 	} else {
 		values["$USER_STATE_DIR"] = filepath.Join(values["$USER_HOME"], ".local", "state")
 	}
+	if platform == PlatformWindows {
+		values["$USER_DATA_DIR"] = joinPlatformPath(platform, values["$USER_HOME"], `AppData\Local`)
+	} else if platform == PlatformMacOS {
+		values["$USER_DATA_DIR"] = filepath.Join(values["$USER_HOME"], "Library", "Application Support")
+	} else {
+		values["$USER_DATA_DIR"] = filepath.Join(values["$USER_HOME"], ".local", "share")
+	}
 	value = strings.ReplaceAll(value, "%USERPROFILE%", "$USER_HOME")
 	if value == "~" || strings.HasPrefix(value, "~/") {
 		value = "$USER_HOME" + strings.TrimPrefix(value, "~")
@@ -190,13 +318,14 @@ func resolvePortableTokens(value string, seams PlatformSeams) (string, error) {
 	for token, replacement := range values {
 		value = strings.ReplaceAll(value, token, replacement)
 	}
-	if !filepath.IsAbs(value) {
+	if !isAbsoluteFor(platform, value) {
 		return "", fmt.Errorf("storage path %q resolves to non-absolute path %q", value, value)
 	}
-	return filepath.Clean(value), nil
+	return cleanForPlatform(platform, value), nil
 }
 
-func normalizePlatform(value string) Platform {
+// NormalizePlatform accepts the manifest and CLI aliases for supported OSes.
+func NormalizePlatform(value string) Platform {
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case "linux":
 		return PlatformLinux
@@ -207,4 +336,39 @@ func normalizePlatform(value string) Platform {
 	default:
 		return ""
 	}
+}
+
+func normalizePlatform(value string) Platform { return NormalizePlatform(value) }
+
+// HostPlatform returns the normalized platform of the current process.
+func HostPlatform() Platform { return NormalizePlatform(runtime.GOOS) }
+
+func platformIncluded(platforms []Platform, requested Platform) bool {
+	for _, platform := range platforms {
+		if platform == requested {
+			return true
+		}
+	}
+	return false
+}
+
+func isAbsoluteFor(platform Platform, value string) bool {
+	platform = NormalizePlatform(string(platform))
+	if platform == PlatformWindows {
+		if strings.HasPrefix(value, `\\`) {
+			return true
+		}
+		return len(value) >= 3 && ((value[0] >= 'A' && value[0] <= 'Z') || (value[0] >= 'a' && value[0] <= 'z')) && value[1] == ':' && (value[2] == '/' || value[2] == '\\')
+	}
+	return strings.HasPrefix(value, "/")
+}
+
+func cleanForPlatform(platform Platform, value string) string {
+	if NormalizePlatform(string(platform)) == PlatformWindows {
+		if strings.HasPrefix(value, `\\`) {
+			return strings.ReplaceAll(value, "/", `\`)
+		}
+		return strings.ReplaceAll(filepath.Clean(value), "/", `\`)
+	}
+	return filepath.Clean(value)
 }

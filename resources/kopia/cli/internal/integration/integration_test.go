@@ -16,6 +16,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"testing"
+
 	"resource-kopia/cli/internal/env"
 	"resource-kopia/cli/internal/kexec"
 	"resource-kopia/cli/internal/maintenance"
@@ -24,8 +26,8 @@ import (
 	"resource-kopia/cli/internal/repo"
 	"resource-kopia/cli/internal/repoctx"
 	"resource-kopia/cli/internal/snapshot"
-	"resource-kopia/cli/internal/vault"
-	"testing"
+
+	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 
 	vaultmocks "resource-kopia/cli/internal/vault/mocks"
 )
@@ -69,10 +71,10 @@ func newRig(t *testing.T) *rig {
 	runner := kexec.NewBinaryRunner("kopia")
 	v := vaultmocks.NewFakeVault()
 	reg := registry.New(rt.RegistryFile)
-	resolver := repoctx.Resolver{Registry: reg, Vault: v}
+	resolver := repoctx.Resolver{Registry: reg, Credentials: v, Vault: v}
 	out := &bytes.Buffer{}
 	return &rig{
-		repo:  repo.Service{Runner: runner, Vault: v, Registry: reg, Resolver: resolver, Env: rt, Out: out},
+		repo:  repo.Service{Runner: runner, Credentials: v, Vault: v, Registry: reg, Resolver: resolver, Env: rt, Out: out},
 		snap:  snapshot.Service{Runner: runner, Resolver: resolver, Out: out},
 		pol:   policy.Service{Runner: runner, Resolver: resolver, Out: out},
 		maint: maintenance.Service{Runner: runner, Resolver: resolver, Out: out},
@@ -279,8 +281,12 @@ func TestIntegrationStandaloneDisasterRecovery(t *testing.T) {
 	}
 	id := r.latestSnapshotID(t, "dr", fixtureDir)
 
-	// Recover the passphrase the resource generated and stored in vault.
-	passphrase, err := vault.RequirePassphrase(ctx, r.vault, "dr")
+	// Recover the passphrase the resource generated and stored in the authority.
+	identity, err := kopiaregistry.PassphraseIdentity("dr")
+	if err != nil {
+		t.Fatal(err)
+	}
+	passphrase, err := r.vault.Resolve(identity, kopiaregistry.PassphraseField)
 	if err != nil {
 		t.Fatalf("recover passphrase: %v", err)
 	}

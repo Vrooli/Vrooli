@@ -8,8 +8,6 @@ package vault
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -31,74 +29,14 @@ type Vault interface {
 	DeleteSecret(ctx context.Context, path string) error
 }
 
-// ErrPassphraseMissing is returned when a repository's passphrase is required
-// but absent from vault. The resource fails closed rather than ever falling
-// back to a default or empty passphrase.
-var ErrPassphraseMissing = errors.New("kopia: repository passphrase not found in vault")
-
 const (
-	passphraseKey = "passphrase"
-	accessKeyKey  = "access_key"
-	secretKeyKey  = "secret_key"
+	accessKeyKey = "access_key"
+	secretKeyKey = "secret_key"
 )
-
-// PassphrasePath is the vault path holding a repository's encryption passphrase.
-func PassphrasePath(repo string) string {
-	return "secret/resources/kopia/repo/" + repo + "/passphrase"
-}
 
 // S3Path is the vault path holding a repository's S3 credentials.
 func S3Path(repo string) string {
 	return "secret/resources/kopia/s3/" + repo
-}
-
-// GeneratePassphrase returns a cryptographically-random URL-safe passphrase of
-// at least 32 characters. It never returns an empty string without an error.
-func GeneratePassphrase() (string, error) {
-	buf := make([]byte, 32)
-	if _, err := rand.Read(buf); err != nil {
-		return "", fmt.Errorf("generate passphrase: %w", err)
-	}
-	p := base64.RawURLEncoding.EncodeToString(buf)
-	if len(p) < 32 {
-		return "", fmt.Errorf("generated passphrase too short (%d)", len(p))
-	}
-	return p, nil
-}
-
-// EnsurePassphrase returns the repository passphrase, generating and storing a
-// fresh one in vault if none exists yet. It never returns an empty passphrase.
-func EnsurePassphrase(ctx context.Context, v Vault, repo string) (string, error) {
-	path := PassphrasePath(repo)
-	if value, found, err := v.GetSecret(ctx, path, passphraseKey); err == nil && found {
-		if strings.TrimSpace(value) == "" {
-			return "", fmt.Errorf("kopia: stored passphrase for repo %q is empty", repo)
-		}
-		return value, nil
-	} else if err != nil {
-		return "", fmt.Errorf("read passphrase for repo %q: %w", repo, err)
-	}
-	generated, err := GeneratePassphrase()
-	if err != nil {
-		return "", err
-	}
-	if err := v.PutSecret(ctx, path, passphraseKey, generated); err != nil {
-		return "", fmt.Errorf("store passphrase for repo %q: %w", repo, err)
-	}
-	return generated, nil
-}
-
-// RequirePassphrase returns an existing repository passphrase or fails closed.
-// Used for operations against an already-created repo (connect/snapshot/etc.).
-func RequirePassphrase(ctx context.Context, v Vault, repo string) (string, error) {
-	value, found, err := v.GetSecret(ctx, PassphrasePath(repo), passphraseKey)
-	if err != nil {
-		return "", fmt.Errorf("read passphrase for repo %q: %w", repo, err)
-	}
-	if !found || strings.TrimSpace(value) == "" {
-		return "", fmt.Errorf("%w (repo %q)", ErrPassphraseMissing, repo)
-	}
-	return value, nil
 }
 
 // S3Credentials holds an S3/MinIO access/secret key pair.
@@ -124,11 +62,8 @@ func PutS3Credentials(ctx context.Context, v Vault, repo string, creds S3Credent
 	return nil
 }
 
-// DeleteRepositorySecrets removes all vault paths owned by a repository.
-func DeleteRepositorySecrets(ctx context.Context, v Vault, repo string) error {
-	if err := v.DeleteSecret(ctx, PassphrasePath(repo)); err != nil {
-		return fmt.Errorf("delete passphrase for repo %q: %w", repo, err)
-	}
+// DeleteS3Credentials removes the Vault path owned by an S3 repository.
+func DeleteS3Credentials(ctx context.Context, v Vault, repo string) error {
 	if err := v.DeleteSecret(ctx, S3Path(repo)); err != nil {
 		return fmt.Errorf("delete s3 credentials for repo %q: %w", repo, err)
 	}

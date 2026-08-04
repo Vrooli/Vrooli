@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -125,6 +126,31 @@ func NewPersistentBroker(now func() time.Time, store BrokerStore) (*Broker, erro
 		b.leases = make(map[string]Lease)
 	}
 	return b, nil
+}
+
+// InstancesForResource returns every registered instance of one resource,
+// sorted by ID so callers are deterministic.
+//
+// It exists so recovery can enumerate what a manifest cannot name. Declared
+// credentials are inventoried from manifests, but a managed instance's ID is
+// generated at runtime, so nothing static describes it — and material stored
+// under an ID no inventory knows is material no backup captures. That is
+// precisely how Vault unseal keys came to have no recovery path.
+//
+// It returns instances, never credentials: the caller resolves values through
+// the credential authority, and the broker deliberately holds no bearer
+// material of its own.
+func (b *Broker) InstancesForResource(resource string) []ManagedInstance {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	out := make([]ManagedInstance, 0, len(b.instances))
+	for _, instance := range b.instances {
+		if instance.Resource == resource {
+			out = append(out, instance)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
 }
 
 func (b *Broker) Register(instance ManagedInstance) error {

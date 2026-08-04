@@ -315,6 +315,7 @@ func validateManifestSemantics(item Package) []ValidationIssue {
 	}{
 		{name: "generate", commands: item.Manifest.Package.Lifecycle.Generate},
 		{name: "build", commands: item.Manifest.Package.Lifecycle.Build},
+		{name: "test", commands: item.Manifest.Package.Lifecycle.Test},
 	} {
 		for _, command := range section.commands {
 			if strings.TrimSpace(command.Name) == "" {

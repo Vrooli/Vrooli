@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/credentialspec"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -191,15 +192,27 @@ func TestResolveCredentialValuesErrorsOnlyForManifestDefects(t *testing.T) {
 			wantMessage: "namespaced",
 		},
 		{
-			name:        "empty env name",
-			descriptors: []manifestpkg.CredentialDescriptor{{LogicalID: "vrooli/openrouter", Env: "  "}},
-			wantMessage: "empty env name",
+			name:        "no logical id",
+			descriptors: []manifestpkg.CredentialDescriptor{{Field: "api-key", Env: "OPENROUTER_API_KEY"}},
+			wantMessage: "no logical_id",
 		},
 		{
 			name: "two descriptors fight over one env name",
 			descriptors: []manifestpkg.CredentialDescriptor{
 				{LogicalID: "vrooli/openrouter", Field: "api-key", Env: "OPENROUTER_API_KEY"},
 				{LogicalID: "vrooli/openrouter-backup", Field: "api-key", Env: "OPENROUTER_API_KEY"},
+			},
+			wantMessage: "twice",
+		},
+		{
+			// Two descriptors addressing one store key cannot mean two things,
+			// and dropping the env requirement is what makes this reachable:
+			// without an env to collide on, the identity/field pair is the
+			// only thing left that can conflict.
+			name: "two descriptors fight over one store key",
+			descriptors: []manifestpkg.CredentialDescriptor{
+				{LogicalID: "vrooli/openrouter", Field: "api-key"},
+				{LogicalID: "vrooli/openrouter", Field: "api-key"},
 			},
 			wantMessage: "twice",
 		},
@@ -213,6 +226,80 @@ func TestResolveCredentialValuesErrorsOnlyForManifestDefects(t *testing.T) {
 				t.Fatalf("error = %v, want it to mention %q", err, testCase.wantMessage)
 			}
 		})
+	}
+}
+
+// A descriptor with no env belongs to Vrooli-authored code that resolves the
+// value for itself through packages/credential-authority-go. It must never be
+// injected — that is the whole point, since an injected value is readable at
+// /proc/<pid>/environ and inherited by every subprocess — but it must still be
+// declared, diagnosed, and therefore captured by a recovery bundle.
+func TestDescriptorWithoutEnvIsDeclaredButNeverInjected(t *testing.T) {
+	store := &memoryStore{}
+	withAuthority(t, store)
+	direct := manifestpkg.CredentialDescriptor{
+		LogicalID: "vrooli/tunnel-manager",
+		Field:     "cloudflare-api-token",
+		Label:     "Cloudflare API Token",
+		Required:  true,
+	}
+
+	// Unconfigured: reported as a gap, and nothing lands in the environment.
+	resolution, err := ResolveCredentialValues(credentialManifest(direct))
+	if err != nil {
+		t.Fatalf("ResolveCredentialValues() = %v, want a declaration with no env to be legal", err)
+	}
+	if len(resolution.Values) != 0 {
+		t.Fatalf("Values = %v, want nothing injected for a descriptor with no env", resolution.Values)
+	}
+	if len(resolution.Missing) != 1 || resolution.Missing[0].Reason != GapUnconfigured {
+		t.Fatalf("Missing = %+v, want one unconfigured gap", resolution.Missing)
+	}
+	if resolution.Missing[0].Env != "" {
+		t.Fatalf("gap Env = %q, want empty for a descriptor that names no variable", resolution.Missing[0].Env)
+	}
+
+	// Configured: still not injected, and no longer a gap.
+	if err := store.Put("vrooli.credentials.v1", "vrooli/tunnel-manager:cloudflare-api-token", "token-value"); err != nil {
+		t.Fatal(err)
+	}
+	resolution, err = ResolveCredentialValues(credentialManifest(direct))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resolution.Values) != 0 {
+		t.Fatalf("Values = %v, want a configured direct-resolution credential to stay out of the environment", resolution.Values)
+	}
+	if len(resolution.Missing) != 0 {
+		t.Fatalf("Missing = %+v, want no gap once the value is stored", resolution.Missing)
+	}
+}
+
+// A scenario's own declaration must reach the same diagnosis as a resource's.
+// Before scenarios could declare credentials at all, tunnel-manager's
+// Cloudflare token was invisible to `credentials list`, to `doctor`, and to
+// `recovery export --all` — a credential nothing declares is a credential no
+// backup captures.
+func TestScenarioDeclaredCredentialsAreDiagnosed(t *testing.T) {
+	withAuthority(t, &memoryStore{})
+	declaration := credentialspec.Declaration{Descriptors: []credentialspec.Descriptor{{
+		LogicalID: "vrooli/tunnel-manager",
+		Field:     "cloudflare-api-token",
+		Required:  true,
+	}}}
+
+	resolution, err := ResolveScenarioCredentialGaps("tunnel-manager", declaration)
+	if err != nil {
+		t.Fatalf("ResolveScenarioCredentialGaps() = %v", err)
+	}
+	if len(resolution.Missing) != 1 {
+		t.Fatalf("Missing = %+v, want the scenario's own credential reported", resolution.Missing)
+	}
+	if resolution.Missing[0].Resource != "tunnel-manager" {
+		t.Fatalf("gap owner = %q, want the scenario name", resolution.Missing[0].Resource)
+	}
+	if !strings.Contains(resolution.Missing[0].Remediation, "vrooli/tunnel-manager") {
+		t.Fatalf("remediation = %q, want it to name the identity to provision", resolution.Missing[0].Remediation)
 	}
 }
 

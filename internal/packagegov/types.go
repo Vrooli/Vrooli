@@ -90,6 +90,7 @@ type AdoptionPolicy struct {
 type LifecyclePolicy struct {
 	Generate []CommandSpec `json:"generate,omitempty"`
 	Build    []CommandSpec `json:"build,omitempty"`
+	Test     []CommandSpec `json:"test,omitempty"`
 }
 
 type RefreshPolicy struct {
