@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/credentialpolicy"
 )
 
 func TestPassphraseProviderRoundTripsTheDataKey(t *testing.T) {
@@ -48,8 +50,8 @@ func TestPassphraseProviderRoundTripsTheDataKey(t *testing.T) {
 // PBKDF2-SHA256 at 600,000 iterations; two different answers to "how hard is a
 // passphrase to grind" is a policy nobody can reason about.
 func TestPassphraseProviderMatchesTheRecoveryKDFPolicy(t *testing.T) {
-	if pbkdf2Iterations != 600_000 {
-		t.Fatalf("pbkdf2Iterations = %d, want 600000 to match internal/secrets/recovery.go", pbkdf2Iterations)
+	if pbkdf2Iterations != credentialpolicy.RecoveryPBKDF2Iterations {
+		t.Fatalf("pbkdf2Iterations = %d, want %d from shared credential policy", pbkdf2Iterations, credentialpolicy.RecoveryPBKDF2Iterations)
 	}
 	wrap, err := passphraseProvider{passphrase: "pass"}.Wrap(testDataKey(t))
 	if err != nil {

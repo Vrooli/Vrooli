@@ -50,6 +50,27 @@ var (
 		return err
 	}
 
+	// RunCommandInputFn is the stdin-bearing counterpart used for Vrooli-owned
+	// operator flows that must drop back to the invoking user without putting a
+	// secret in argv or a temporary file.
+	RunCommandInputFn = func(name string, args []string, input string, opts EnsureOptions) error {
+		tail := shell.NewStderrTail(10)
+		stderr := io.MultiWriter(writerOrDiscard(opts.Stderr), tail)
+		err := shell.Run(shell.Spec{
+			Name:   name,
+			Args:   args,
+			Stdout: writerOrDiscard(opts.Stdout),
+			Stderr: stderr,
+			Stdin:  strings.NewReader(input),
+		})
+		if err != nil {
+			if captured := strings.TrimSpace(tail.String()); captured != "" {
+				return fmt.Errorf("%w: %s", err, captured)
+			}
+		}
+		return err
+	}
+
 	// WriteTempFileFn writes content to a temporary file and returns
 	// the path. The caller is responsible for removing the file.
 	WriteTempFileFn = func(content string) (string, error) {

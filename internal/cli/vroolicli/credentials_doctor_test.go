@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/resources"
-	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
 )
@@ -167,6 +167,46 @@ func TestCredentialsDoctorDistinguishesEveryProviderCondition(t *testing.T) {
 	})
 }
 
+func TestCredentialsDoctorJSONContractIncludesRecoveryFields(t *testing.T) {
+	useNoLiveCredentialInstances(t)
+	withDoctorAuthority(t, &doctorTestStore{})
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(runCredentials(t, credentialFixtureRoot(t), "doctor", "--format", "json")), &raw); err != nil {
+		t.Fatal(err)
+	}
+	assertJSONKeys := func(name string, value map[string]json.RawMessage, want ...string) {
+		t.Helper()
+		if len(value) != len(want) {
+			t.Fatalf("%s keys = %v, want exactly %v", name, sortedJSONKeys(value), want)
+		}
+		for _, key := range want {
+			if _, ok := value[key]; !ok {
+				t.Fatalf("%s missing key %q; got %v", name, key, sortedJSONKeys(value))
+			}
+		}
+	}
+	assertJSONKeys("doctor", raw, "credentials", "provider", "recovery")
+	var recovery map[string]json.RawMessage
+	if err := json.Unmarshal(raw["recovery"], &recovery); err != nil {
+		t.Fatal(err)
+	}
+	assertJSONKeys("recovery", recovery, "entry_count", "exported_at", "receipt_exists", "uncovered")
+	for _, key := range []string{"receipt_exists", "entry_count", "uncovered"} {
+		if len(recovery[key]) == 0 {
+			t.Fatalf("recovery.%s is empty", key)
+		}
+	}
+}
+
+func sortedJSONKeys(values map[string]json.RawMessage) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 // TestCredentialsDoctorReportsTheUidMismatchByName reproduces the incident
 // host: a shell running as one uid while XDG_RUNTIME_DIR names another uid's
 // runtime directory.
@@ -252,8 +292,6 @@ func TestCredentialsReadOnlyCommandsNeverPrintAValue(t *testing.T) {
 	for _, args := range [][]string{
 		{"doctor"},
 		{"doctor", "--format", "json"},
-		{"list"},
-		{"list", "--format", "json"},
 	} {
 		output := runCredentials(t, root, args...)
 		if strings.Contains(output, provisionedTestValue) {
@@ -262,120 +300,20 @@ func TestCredentialsReadOnlyCommandsNeverPrintAValue(t *testing.T) {
 	}
 }
 
-func TestCredentialsListNamesEveryDeclaredCredentialAndItsState(t *testing.T) {
-	useNoLiveCredentialInstances(t)
-	root := credentialFixtureRoot(t)
-	authority := withDoctorAuthority(t, &doctorTestStore{})
-	if err := authority.Put("vrooli/openrouter", "api-key", provisionedTestValue); err != nil {
-		t.Fatal(err)
-	}
-
-	var entries []credentialEntry
+func TestCredentialsBootstrapHelpListsOnlyTheFloor(t *testing.T) {
 	var out bytes.Buffer
-	ctx := &CommandContext{Root: root, Stdout: &out, Stderr: &out}
-	if err := credentialsList(ctx, []string{"--format", "json"}); err != nil {
+	if err := (&App{}).runCredentialsCommand(&CommandContext{Stdout: &out, Stderr: &out}, []string{"--help"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := json.Unmarshal(out.Bytes(), &entries); err != nil {
-		t.Fatalf("decode credentials list: %v\n%s", err, out.String())
-	}
-	if len(entries) != 2 {
-		t.Fatalf("entries = %+v, want both declared credentials", entries)
-	}
-	byEnv := map[string]credentialEntry{}
-	for _, entry := range entries {
-		byEnv[entry.Env] = entry
-	}
-	if !byEnv["OPENROUTER_API_KEY"].Configured || byEnv["OPENROUTER_API_KEY"].State != "configured" {
-		t.Fatalf("provisioned credential reported as %+v", byEnv["OPENROUTER_API_KEY"])
-	}
-	if !byEnv["OPENROUTER_API_KEY"].Required {
-		t.Fatal("required flag lost")
-	}
-	if byEnv["ELEVENLABS_API_KEY"].Configured || byEnv["ELEVENLABS_API_KEY"].State != string(resourceenv.GapUnconfigured) {
-		t.Fatalf("unset credential reported as %+v", byEnv["ELEVENLABS_API_KEY"])
-	}
-}
-
-// A provider outage must not read as "the operator never set this".
-func TestCredentialsListSeparatesOutageFromUnsetValue(t *testing.T) {
-	useNoLiveCredentialInstances(t)
-	root := credentialFixtureRoot(t)
-	withDoctorAuthority(t, securestore.Unavailable("keyring session unreachable"))
-
-	var out bytes.Buffer
-	ctx := &CommandContext{Root: root, Stdout: &out, Stderr: &out}
-	if err := credentialsList(ctx, []string{"--format", "json"}); err != nil {
-		t.Fatal(err)
-	}
-	var entries []credentialEntry
-	if err := json.Unmarshal(out.Bytes(), &entries); err != nil {
-		t.Fatal(err)
-	}
-	for _, entry := range entries {
-		if entry.State != string(resourceenv.GapProviderUnavailable) {
-			t.Fatalf("entry %s state = %q, want provider_unavailable", entry.Env, entry.State)
+	help := out.String()
+	for _, command := range []string{"doctor", "provision", "status", "store", "recovery"} {
+		if !strings.Contains(help, "vrooli credentials "+command) {
+			t.Fatalf("help does not list floor command %q:\n%s", command, help)
 		}
 	}
-}
-
-// Deleting is the deprovision half of the surface: a leaked or rotated key has
-// to be revocable through the same documented interface that wrote it.
-func TestCredentialsDeleteRemovesAValueAndReportsHonestly(t *testing.T) {
-	authority := withDoctorAuthority(t, &doctorTestStore{})
-	if err := authority.Put("vrooli/openrouter", "api-key", provisionedTestValue); err != nil {
-		t.Fatal(err)
-	}
-
-	output := runCredentials(t, t.TempDir(), "delete", "--identity", "vrooli/openrouter", "--field", "api-key", "--yes")
-	if !strings.Contains(output, "removed") {
-		t.Fatalf("delete output = %q, want it to confirm removal", output)
-	}
-	if authority.Status("vrooli/openrouter", "api-key").Configured {
-		t.Fatal("credential still configured after delete")
-	}
-
-	// Deleting again is not an error, but must not claim it removed something.
-	output = runCredentials(t, t.TempDir(), "delete", "--identity", "vrooli/openrouter", "--field", "api-key", "--yes")
-	if !strings.Contains(output, "was not configured") {
-		t.Fatalf("second delete output = %q, want it to say nothing was there", output)
-	}
-}
-
-func TestCredentialsDeleteRefusesWithoutExplicitConfirmation(t *testing.T) {
-	authority := withDoctorAuthority(t, &doctorTestStore{})
-	if err := authority.Put("vrooli/openrouter", "api-key", provisionedTestValue); err != nil {
-		t.Fatal(err)
-	}
-
-	var out bytes.Buffer
-	ctx := &CommandContext{Root: t.TempDir(), Stdout: &out, Stderr: &out}
-	app := &App{}
-	err := app.runCredentialsCommand(ctx, []string{"delete", "--identity", "vrooli/openrouter", "--field", "api-key"})
-	if err == nil {
-		t.Fatal("delete without --yes succeeded; an unrecoverable removal must be explicit")
-	}
-	if !strings.Contains(err.Error(), "--yes") {
-		t.Fatalf("refusal = %v, want it to name the required flag", err)
-	}
-	if !authority.Status("vrooli/openrouter", "api-key").Configured {
-		t.Fatal("refused delete still removed the credential")
-	}
-}
-
-// A provider outage must not be reported as a successful removal — the operator
-// would believe a leaked key was revoked when it is still in the store.
-func TestCredentialsDeleteRefusesWhileTheProviderIsDown(t *testing.T) {
-	withDoctorAuthority(t, securestore.Unavailable("keyring session unreachable"))
-
-	var out bytes.Buffer
-	ctx := &CommandContext{Root: t.TempDir(), Stdout: &out, Stderr: &out}
-	app := &App{}
-	err := app.runCredentialsCommand(ctx, []string{"delete", "--identity", "vrooli/openrouter", "--field", "api-key", "--yes"})
-	if err == nil {
-		t.Fatal("delete succeeded while the credential store was unreachable")
-	}
-	if !strings.Contains(err.Error(), "credentials doctor") {
-		t.Fatalf("error = %v, want it to point at the host diagnosis", err)
+	for _, moved := range []string{"vrooli credentials list", "vrooli credentials keyring", "vrooli credentials delete"} {
+		if strings.Contains(help, moved) {
+			t.Fatalf("help still lists moved command %q:\n%s", moved, help)
+		}
 	}
 }

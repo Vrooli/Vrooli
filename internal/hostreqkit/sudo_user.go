@@ -167,3 +167,15 @@ func RunAsInvokingUser(name string, args []string, opts EnsureOptions) error {
 	wrapped := append([]string{"-u", user, "-H", "--", name}, args...)
 	return RunCommandFn("sudo", wrapped, opts)
 }
+
+// RunAsInvokingUserWithInput is the secret-safe form of RunAsInvokingUser.
+// The input is connected directly to the child process and is never placed in
+// an argument, environment variable, or temporary file.
+func RunAsInvokingUserWithInput(name string, args []string, input string, opts EnsureOptions) error {
+	user := InvokingUser()
+	if !RunningAsRootFn() || user == "" || user == "root" {
+		return RunCommandInputFn(name, args, input, opts)
+	}
+	wrapped := append([]string{"-u", user, "-H", "--", name}, args...)
+	return RunCommandInputFn("sudo", wrapped, input, opts)
+}

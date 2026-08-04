@@ -544,6 +544,43 @@ func TestResolveSourceRootUsesInstalledSourcePointer(t *testing.T) {
 	}
 }
 
+func TestResolveSourceRootDiscoversCheckoutBelowInvokingHome(t *testing.T) {
+	originalExecutablePathFn := executablePathFn
+	originalHomeDirFn := homeDirFn
+	t.Cleanup(func() {
+		executablePathFn = originalExecutablePathFn
+		homeDirFn = originalHomeDirFn
+	})
+
+	home := t.TempDir()
+	root := filepath.Join(home, "Vrooli")
+	writeTestFile(t, root, "go.mod", "module github.com/vrooli/vrooli\n\ngo 1.25\n")
+	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
+
+	outside := t.TempDir()
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(outside); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(originalWD) })
+
+	t.Setenv(SourceRootEnvVar, "")
+	t.Setenv(SourceRootFallbackEnvVar, "")
+	homeDirFn = func() (string, error) { return home, nil }
+	executablePathFn = func() (string, error) { return filepath.Join(outside, "vrooli"), nil }
+
+	resolved, err := ResolveSourceRoot()
+	if err != nil {
+		t.Fatalf("ResolveSourceRoot: %v", err)
+	}
+	if resolved != root {
+		t.Fatalf("ResolveSourceRoot = %q, want discovered root %q", resolved, root)
+	}
+}
+
 func TestResolveSourceRootReturnsExecutableLookupError(t *testing.T) {
 	originalExecutablePathFn := executablePathFn
 	t.Cleanup(func() {

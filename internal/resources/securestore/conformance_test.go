@@ -2,6 +2,7 @@ package securestore
 
 import (
 	"errors"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -114,17 +115,35 @@ func runConformance(t *testing.T, newStore func() Store) {
 // conformanceSkipReason reports why this host cannot run the suite, or "" when
 // it can. Asserting the reason is what keeps a skip from passing as a pass.
 func conformanceSkipReason() string {
-	diagnosis := Diagnose()
-	if diagnosis.Available {
+	diagnosis := DiagnoseWritable()
+	if diagnosis.Available && diagnosis.Writable {
 		return ""
 	}
-	return diagnosis.Condition + ": " + diagnosis.Explanation
+	condition := diagnosis.WriteCondition
+	if condition == "" || condition == WriteConditionNotChecked {
+		condition = diagnosis.Condition
+	}
+	explanation := diagnosis.WriteExplanation
+	if explanation == "" {
+		explanation = diagnosis.Explanation
+	}
+	return condition + ": " + explanation
 }
 
 // TestPlatformAdapterConformance runs the shared suite against whatever this
 // host's Default() returns. It skips only with an explanation, and the
 // explanation itself is asserted.
 func TestPlatformAdapterConformance(t *testing.T) {
+	// This suite intentionally exercises the platform adapter, not the
+	// installation policy. A developer's persisted setup choice must not turn
+	// a platform conformance run into an encrypted-store test (or make the
+	// result depend on whatever happens to be in ~/.vrooli).
+	previousSelectionPath := backendSelectionPath
+	backendSelectionPath = func() (string, error) {
+		return filepath.Join(t.TempDir(), "no-selection.json"), nil
+	}
+	t.Cleanup(func() { backendSelectionPath = previousSelectionPath })
+
 	if reason := conformanceSkipReason(); reason != "" {
 		if strings.TrimSpace(reason) == "" || strings.HasPrefix(reason, ":") {
 			t.Fatalf("adapter is unusable and gave no reason: %q", reason)

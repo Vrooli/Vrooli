@@ -6,10 +6,19 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 	credentialauthority "github.com/vrooli/vrooli/internal/secrets"
 )
+
+type recoveryStatus struct {
+	ReceiptExists bool       `json:"receipt_exists"`
+	ExportedAt    *time.Time `json:"exported_at"`
+	EntryCount    int        `json:"entry_count"`
+	Uncovered     []string   `json:"uncovered"`
+	Path          string     `json:"path,omitempty"`
+}
 
 // credentialEntry is one declared credential and what the host currently knows
 // about it. It deliberately has no value field: this whole surface exists to be
@@ -39,48 +48,60 @@ type credentialEntry struct {
 // credentials existed is arguably worse than none, because it invites an
 // operator to believe they are covered.
 func writeRecoveryStatus(ctx *CommandContext, entries []credentialEntry) {
-	stateDir, err := recoveryStateDir()
-	if err != nil {
-		return
-	}
-	receipt, found, err := credentialauthority.ReadRecoveryReceipt(stateDir)
-	if err != nil || !found {
+	status := computeRecoveryStatus(entries)
+	if !status.ReceiptExists {
 		fmt.Fprintf(ctx.Stdout, "\nRecovery\n  No bundle has ever been exported on this host. Every configured credential\n"+
 			"  exists in exactly one place. Create one with:\n"+
 			"    printf '%%s' \"$PASSPHRASE\" | vrooli credentials recovery export --all --output <path>\n")
 		return
 	}
+	fmt.Fprintf(ctx.Stdout, "\nRecovery\n  Last bundle: %s (%d credential(s))\n    %s\n",
+		status.ExportedAt.Local().Format("2006-01-02 15:04"), status.EntryCount, status.Path)
+	if len(status.Uncovered) == 0 {
+		fmt.Fprintf(ctx.Stdout, "  Every configured credential on this host is in that bundle.\n")
+		return
+	}
+	fmt.Fprintf(ctx.Stdout, "  STALE — %d configured credential(s) are not in it:\n", len(status.Uncovered))
+	for _, missing := range status.Uncovered {
+		fmt.Fprintf(ctx.Stdout, "    %s\n", missing)
+	}
+	fmt.Fprintf(ctx.Stdout, "  Re-export to cover them.\n")
+}
 
-	uncovered := []string{}
+func computeRecoveryStatus(entries []credentialEntry) recoveryStatus {
+	status := recoveryStatus{Uncovered: []string{}}
+	configured := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.Configured {
+			configured = append(configured, entry.LogicalID+":"+entry.Field)
+		}
+	}
+	stateDir, err := recoveryStateDir()
+	if err != nil {
+		status.Uncovered = dedupeStrings(configured)
+		return status
+	}
+	receipt, found, err := credentialauthority.ReadRecoveryReceipt(stateDir)
+	if err != nil || !found {
+		status.Uncovered = dedupeStrings(configured)
+		return status
+	}
+	exportedAt := receipt.ExportedAt
+	status.ReceiptExists = true
+	status.ExportedAt = &exportedAt
+	status.EntryCount = len(receipt.Entries)
+	status.Path = receipt.Path
 	for _, entry := range entries {
 		if !entry.Configured {
 			continue
 		}
 		identity, parseErr := credentialauthority.ParseIdentity(entry.LogicalID)
-		if parseErr != nil {
-			continue
-		}
-		if !receipt.Covers(identity, entry.Field) {
-			uncovered = append(uncovered, entry.LogicalID+":"+entry.Field)
+		if parseErr != nil || !receipt.Covers(identity, entry.Field) {
+			status.Uncovered = append(status.Uncovered, entry.LogicalID+":"+entry.Field)
 		}
 	}
-
-	// Deduplicate before counting, not just before printing: several resources
-	// share one credential, so a raw count describes declarations rather than
-	// credentials and disagrees with the list right beneath it.
-	uncovered = dedupeStrings(uncovered)
-
-	fmt.Fprintf(ctx.Stdout, "\nRecovery\n  Last bundle: %s (%d credential(s))\n    %s\n",
-		receipt.ExportedAt.Local().Format("2006-01-02 15:04"), len(receipt.Entries), receipt.Path)
-	if len(uncovered) == 0 {
-		fmt.Fprintf(ctx.Stdout, "  Every configured credential on this host is in that bundle.\n")
-		return
-	}
-	fmt.Fprintf(ctx.Stdout, "  STALE — %d configured credential(s) are not in it:\n", len(uncovered))
-	for _, missing := range uncovered {
-		fmt.Fprintf(ctx.Stdout, "    %s\n", missing)
-	}
-	fmt.Fprintf(ctx.Stdout, "  Re-export to cover them.\n")
+	status.Uncovered = dedupeStrings(status.Uncovered)
+	return status
 }
 
 // dedupeStrings keeps a shared credential from being listed once per resource
@@ -151,7 +172,8 @@ func credentialsDoctor(ctx *CommandContext, args []string) error {
 		return json.NewEncoder(ctx.Stdout).Encode(struct {
 			Provider    securestore.Diagnosis `json:"provider"`
 			Credentials []credentialEntry     `json:"credentials"`
-		}{Provider: diagnosis, Credentials: entries})
+			Recovery    recoveryStatus        `json:"recovery"`
+		}{Provider: diagnosis, Credentials: entries, Recovery: computeRecoveryStatus(entries)})
 	}
 
 	fmt.Fprintf(ctx.Stdout, "Credential provider\n")
@@ -209,11 +231,11 @@ func credentialsDoctor(ctx *CommandContext, args []string) error {
 			unresolved++
 		}
 	}
+	writeRecoveryStatus(ctx, entries)
 	if unresolved == 0 {
 		fmt.Fprintf(ctx.Stdout, "\nEvery declared credential resolves on this host.\n")
 		return nil
 	}
-	writeRecoveryStatus(ctx, entries)
 
 	fmt.Fprintf(ctx.Stdout, "\nUnresolved (%d) — a scenario still starts; these resources stay degraded until fixed:\n", unresolved)
 	for _, entry := range entries {
@@ -222,31 +244,6 @@ func credentialsDoctor(ctx *CommandContext, args []string) error {
 		}
 		fmt.Fprintf(ctx.Stdout, "  %s → %s\n      %s\n", entry.Resource, credentialLabelFor(entry), entry.Remediation)
 	}
-	return nil
-}
-
-// credentialsList prints declarations and state for every resource. It never
-// prints a value, so it is safe in a shared terminal or a pasted bug report.
-func credentialsList(ctx *CommandContext, args []string) error {
-	format, err := outputFormatFlag("credentials list", args)
-	if err != nil {
-		return err
-	}
-	entries, err := collectCredentialEntries(ctx.Root)
-	if err != nil {
-		return err
-	}
-	if format == "json" {
-		return json.NewEncoder(ctx.Stdout).Encode(entries)
-	}
-	if len(entries) == 0 {
-		if strings.TrimSpace(ctx.Root) == "" {
-			return fmt.Errorf("credentials list needs a Vrooli repository root to read resource manifests")
-		}
-		fmt.Fprintln(ctx.Stdout, "No resource declares a credential.")
-		return nil
-	}
-	writeCredentialTable(ctx.Stdout, entries)
 	return nil
 }
 
@@ -283,24 +280,4 @@ func writeCredentialRow(out io.Writer, row []string, widths []int) {
 		}
 	}
 	fmt.Fprintln(out, "  "+strings.TrimRight(strings.Join(parts, "  "), " "))
-}
-
-// outputFormatFlag parses the single --format flag shared by the read-only
-// credential commands.
-func outputFormatFlag(name string, args []string) (string, error) {
-	fs := flag.NewFlagSet(name, flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	format := "text"
-	fs.StringVar(&format, "format", "text", "output format: text or json")
-	if err := fs.Parse(args); err != nil {
-		return "", err
-	}
-	if len(fs.Args()) != 0 {
-		return "", fmt.Errorf("%s accepts no positional arguments", name)
-	}
-	format = strings.TrimSpace(format)
-	if format != "text" && format != "json" {
-		return "", fmt.Errorf("%s format must be text or json", name)
-	}
-	return format, nil
 }

@@ -20,6 +20,7 @@ import (
 	edacmodules "github.com/vrooli/vrooli/internal/safeguards/edac-modules"
 	hosthardening "github.com/vrooli/vrooli/internal/safeguards/host-hardening"
 	kernelconfig "github.com/vrooli/vrooli/internal/safeguards/kernel-config"
+	modelpolicydrift "github.com/vrooli/vrooli/internal/safeguards/model-policy-drift"
 	natprotection "github.com/vrooli/vrooli/internal/safeguards/nat-protection"
 	"github.com/vrooli/vrooli/internal/safeguards/netconsole"
 	nvidiadriver "github.com/vrooli/vrooli/internal/safeguards/nvidia-driver"
@@ -70,6 +71,7 @@ var customToolHandlers = map[string]func(hostreqkit.ToolManifest) hostreqkit.Han
 // TestSafeguardManifestsReferenceRegisteredHandlers.
 var customSafeguardHandlers = map[string]func(hostreqkit.SafeguardManifest) hostreqkit.Handler{
 	"clock":                           clock.NewHandler,
+	"model_policy_drift":              modelpolicydrift.NewHandler,
 	"cloudflared_recovery_privileges": cloudflaredrecoveryprivileges.NewHandler,
 	"crashkernel_reserve":             crashkernelreserve.NewHandler,
 	"dns_resolution":                  dnsresolution.NewHandler,

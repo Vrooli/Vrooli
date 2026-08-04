@@ -10,7 +10,6 @@ import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	_ "google.golang.org/protobuf/types/known/emptypb"
 	structpb "google.golang.org/protobuf/types/known/structpb"
 	reflect "reflect"
 	sync "sync"
@@ -508,7 +507,7 @@ var File_scenario_to_desktop_v1_domain_state_proto protoreflect.FileDescriptor
 
 const file_scenario_to_desktop_v1_domain_state_proto_rawDesc = "" +
 	"\n" +
-	")scenario-to-desktop/v1/domain/state.proto\x12$vrooli.scenario_to_desktop.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1cgoogle/protobuf/struct.proto\"<\n" +
+	")scenario-to-desktop/v1/domain/state.proto\x12$vrooli.scenario_to_desktop.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\"<\n" +
 	"\fStateRequest\x12,\n" +
 	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\"\xd4\x01\n" +
 	"\x18LoadScenarioStateRequest\x12,\n" +

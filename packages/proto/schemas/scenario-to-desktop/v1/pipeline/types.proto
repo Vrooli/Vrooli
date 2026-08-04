@@ -4,11 +4,11 @@ package vrooli.scenario_to_desktop.v1.pipeline;
 
 import "buf/validate/validate.proto";
 import "google/protobuf/timestamp.proto";
-import "scenario-to-desktop/v1/domain/config.proto";
 import "scenario-to-desktop/v1/shared/common.proto";
 import "scenario-to-desktop/v1/shared/metadata.proto";
 import "scenario-to-desktop/v1/shared/operation_results.proto";
 import "scenario-to-desktop/v1/shared/preflight_results.proto";
+import "scenario-to-desktop/v1/shared/update_config.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline;pipeline";
 
@@ -142,7 +142,7 @@ message PipelineConfig {
   // Auto-update configuration embedded in the generated desktop application.
   // Generic update URLs may use HTTP only for development-local evidence; a
   // production pipeline requires an HTTPS endpoint.
-  optional vrooli.scenario_to_desktop.v1.domain.UpdateConfig update_config = 28;
+  optional vrooli.scenario_to_desktop.v1.shared.UpdateConfig update_config = 28;
 }
 
 // =============================================================================

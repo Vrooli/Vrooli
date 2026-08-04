@@ -11,13 +11,15 @@ import type { DeploymentMode, Framework, Platform, TemplateType } from "../share
 import { file_scenario_to_desktop_v1_shared_common } from "../shared/common_pb";
 import type { ScenarioMetadata, ScenarioMetadataSchema } from "../shared/metadata_pb";
 import { file_scenario_to_desktop_v1_shared_metadata } from "../shared/metadata_pb";
+import type { UpdateConfig } from "../shared/update_config_pb";
+import { file_scenario_to_desktop_v1_shared_update_config } from "../shared/update_config_pb";
 import type { JsonObject, Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file scenario-to-desktop/v1/domain/config.proto.
  */
 export const file_scenario_to_desktop_v1_domain_config: GenFile = /*@__PURE__*/
-  fileDesc("CipzY2VuYXJpby10by1kZXNrdG9wL3YxL2RvbWFpbi9jb25maWcucHJvdG8SJHZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLmRvbWFpbiLxAgoLQXBwSWRlbnRpdHkSLwoEbmFtZRgBIAEoCUIhukgechwyGl5bYS16MC05XSsoPzotW2EtejAtOV0rKSokEhQKDGRpc3BsYXlfbmFtZRgCIAEoCRIYCgtkZXNjcmlwdGlvbhgDIAEoCUgAiAEBEg8KB3ZlcnNpb24YBCABKAkSEwoGYXV0aG9yGAUgASgJSAGIAQESEgoFZW1haWwYBiABKAlIAogBARIRCgRpY29uGAcgASgJSAOIAQESFQoIaG9tZXBhZ2UYCCABKAlIBIgBARIUCgdsaWNlbnNlGAkgASgJSAWIAQESEwoGYXBwX2lkGAogASgJSAaIAQESFAoHYXBwX3VybBgLIAEoCUgHiAEBQg4KDF9kZXNjcmlwdGlvbkIJCgdfYXV0aG9yQggKBl9lbWFpbEIHCgVfaWNvbkILCglfaG9tZXBhZ2VCCgoIX2xpY2Vuc2VCCQoHX2FwcF9pZEIKCghfYXBwX3VybCKqBAoMU2VydmVyQ29uZmlnEhgKC3NlcnZlcl90eXBlGAEgASgJSACIAQESHgoEcG9ydBgCIAEoBUILukgIGgYY//8DKAFIAYgBARIRCgRwYXRoGAMgASgJSAKIAQESGQoMYXBpX2VuZHBvaW50GAQgASgJSAOIAQESGgoNc2NlbmFyaW9fcGF0aBgFIAEoCUgEiAEBEh8KEmF1dG9fbWFuYWdlX3Zyb29saRgGIAEoCEgFiAEBEh8KEnZyb29saV9iaW5hcnlfcGF0aBgHIAEoCUgGiAEBEk0KD2RlcGxveW1lbnRfbW9kZRgIIAEoDjI0LnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLnNoYXJlZC5EZXBsb3ltZW50TW9kZRIWCglwcm94eV91cmwYCSABKAlIB4gBARIgChNleHRlcm5hbF9zZXJ2ZXJfdXJsGAogASgJSAiIAQESHQoQZXh0ZXJuYWxfYXBpX3VybBgLIAEoCUgJiAEBQg4KDF9zZXJ2ZXJfdHlwZUIHCgVfcG9ydEIHCgVfcGF0aEIPCg1fYXBpX2VuZHBvaW50QhAKDl9zY2VuYXJpb19wYXRoQhUKE19hdXRvX21hbmFnZV92cm9vbGlCFQoTX3Zyb29saV9iaW5hcnlfcGF0aEIMCgpfcHJveHlfdXJsQhYKFF9leHRlcm5hbF9zZXJ2ZXJfdXJsQhMKEV9leHRlcm5hbF9hcGlfdXJsIoMBCg9CdW5kbGVJUENDb25maWcSEQoEaG9zdBgBIAEoCUgAiAEBEhEKBHBvcnQYAiABKAVIAYgBARIgChNhdXRoX3Rva2VuX3JlbF9wYXRoGAMgASgJSAKIAQFCBwoFX2hvc3RCBwoFX3BvcnRCFgoUX2F1dGhfdG9rZW5fcmVsX3BhdGgiyQIKDEJ1bmRsZUNvbmZpZxIaCg1tYW5pZmVzdF9wYXRoGAEgASgJSACIAQESGQoMcnVudGltZV9yb290GAIgASgJSAGIAQESRwoDaXBjGAMgASgLMjUudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuZG9tYWluLkJ1bmRsZUlQQ0NvbmZpZ0gCiAEBEhoKDXVpX3NlcnZpY2VfaWQYBCABKAlIA4gBARIWCglwb3J0X25hbWUYBSABKAlIBIgBARIhChR0ZWxlbWV0cnlfdXBsb2FkX3VybBgGIAEoCUgFiAEBQhAKDl9tYW5pZmVzdF9wYXRoQg8KDV9ydW50aW1lX3Jvb3RCBgoEX2lwY0IQCg5fdWlfc2VydmljZV9pZEIMCgpfcG9ydF9uYW1lQhcKFV90ZWxlbWV0cnlfdXBsb2FkX3VybCJTChJHaXRIdWJVcGRhdGVDb25maWcSDQoFb3duZXIYASABKAkSDAoEcmVwbxgCIAEoCRIUCgdwcml2YXRlGAMgASgISACIAQFCCgoIX3ByaXZhdGUiTgoTR2VuZXJpY1VwZGF0ZUNvbmZpZxILCgN1cmwYASABKAkSGQoMY2hhbm5lbF9wYXRoGAIgASgJSACIAQFCDwoNX2NoYW5uZWxfcGF0aCKzAgoMVXBkYXRlQ29uZmlnEhQKB2NoYW5uZWwYASABKAlIAIgBARIVCghwcm92aWRlchgCIAEoCUgBiAEBEhcKCmF1dG9fY2hlY2sYAyABKAhIAogBARJNCgZnaXRodWIYCiABKAsyOC52cm9vbGkuc2NlbmFyaW9fdG9fZGVza3RvcC52MS5kb21haW4uR2l0SHViVXBkYXRlQ29uZmlnSAOIAQESTwoHZ2VuZXJpYxgLIAEoCzI5LnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLmRvbWFpbi5HZW5lcmljVXBkYXRlQ29uZmlnSASIAQFCCgoIX2NoYW5uZWxCCwoJX3Byb3ZpZGVyQg0KC19hdXRvX2NoZWNrQgkKB19naXRodWJCCgoIX2dlbmVyaWMihAIKDFdpbmRvd0NvbmZpZxISCgV3aWR0aBgBIAEoBUgAiAEBEhMKBmhlaWdodBgCIAEoBUgBiAEBEhYKCW1pbl93aWR0aBgDIAEoBUgCiAEBEhcKCm1pbl9oZWlnaHQYBCABKAVIA4gBARIWCglyZXNpemFibGUYBSABKAhIBIgBARISCgVmcmFtZRgGIAEoCEgFiAEBEhYKCWRldl90b29scxgHIAEoCEgGiAEBQggKBl93aWR0aEIJCgdfaGVpZ2h0QgwKCl9taW5fd2lkdGhCDQoLX21pbl9oZWlnaHRCDAoKX3Jlc2l6YWJsZUIICgZfZnJhbWVCDAoKX2Rldl90b29scyLGBwoNRGVza3RvcENvbmZpZxI+CgNhcHAYASABKAsyMS52cm9vbGkuc2NlbmFyaW9fdG9fZGVza3RvcC52MS5kb21haW4uQXBwSWRlbnRpdHkSQgoGc2VydmVyGAIgASgLMjIudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuZG9tYWluLlNlcnZlckNvbmZpZxJHCgZidW5kbGUYAyABKAsyMi52cm9vbGkuc2NlbmFyaW9fdG9fZGVza3RvcC52MS5kb21haW4uQnVuZGxlQ29uZmlnSACIAQESRwoGdXBkYXRlGAQgASgLMjIudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuZG9tYWluLlVwZGF0ZUNvbmZpZ0gBiAEBEkcKBndpbmRvdxgFIAEoCzIyLnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLmRvbWFpbi5XaW5kb3dDb25maWdIAogBARJCCglmcmFtZXdvcmsYBiABKA4yLy52cm9vbGkuc2NlbmFyaW9fdG9fZGVza3RvcC52MS5zaGFyZWQuRnJhbWV3b3JrEkkKDXRlbXBsYXRlX3R5cGUYByABKA4yMi52cm9vbGkuc2NlbmFyaW9fdG9fZGVza3RvcC52MS5zaGFyZWQuVGVtcGxhdGVUeXBlEkEKCXBsYXRmb3JtcxgIIAMoDjIuLnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLnNoYXJlZC5QbGF0Zm9ybRIYCgtvdXRwdXRfcGF0aBgJIAEoCUgDiAEBElMKCGZlYXR1cmVzGAogAygLMkEudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuZG9tYWluLkRlc2t0b3BDb25maWcuRmVhdHVyZXNFbnRyeRJRCgdzdHlsaW5nGAsgAygLMkAudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuZG9tYWluLkRlc2t0b3BDb25maWcuU3R5bGluZ0VudHJ5EhwKD3NpZ25pbmdfZW5hYmxlZBgMIAEoCEgEiAEBGi8KDUZlYXR1cmVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgIOgI4ARouCgxTdHlsaW5nRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4AUIJCgdfYnVuZGxlQgkKB191cGRhdGVCCQoHX3dpbmRvd0IOCgxfb3V0cHV0X3BhdGhCEgoQX3NpZ25pbmdfZW5hYmxlZCLfAwoQQ29ubmVjdGlvbkNvbmZpZxIWCglwcm94eV91cmwYASABKAlIAIgBARIYCgtzZXJ2ZXJfdHlwZRgCIAEoCUgBiAEBEh8KEmF1dG9fbWFuYWdlX3Zyb29saRgDIAEoCEgCiAEBEh8KEnZyb29saV9iaW5hcnlfcGF0aBgEIAEoCUgDiAEBEk0KD2RlcGxveW1lbnRfbW9kZRgFIAEoDjI0LnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLnNoYXJlZC5EZXBsb3ltZW50TW9kZRIhChRidW5kbGVfbWFuaWZlc3RfcGF0aBgGIAEoCUgEiAEBEh0KEGFwcF9kaXNwbGF5X25hbWUYByABKAlIBYgBARIcCg9hcHBfZGVzY3JpcHRpb24YCCABKAlIBogBARIRCgRpY29uGAkgASgJSAeIAQFCDAoKX3Byb3h5X3VybEIOCgxfc2VydmVyX3R5cGVCFQoTX2F1dG9fbWFuYWdlX3Zyb29saUIVChNfdnJvb2xpX2JpbmFyeV9wYXRoQhcKFV9idW5kbGVfbWFuaWZlc3RfcGF0aEITChFfYXBwX2Rpc3BsYXlfbmFtZUISChBfYXBwX2Rlc2NyaXB0aW9uQgcKBV9pY29uIjwKGkdldFNjZW5hcmlvTWV0YWRhdGFSZXF1ZXN0Eh4KDXNjZW5hcmlvX25hbWUYASABKAlCB7pIBHICEAEisQEKGkNyZWF0ZURlc2t0b3BDb25maWdSZXF1ZXN0EkgKCG1ldGFkYXRhGAEgASgLMjYudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuc2hhcmVkLlNjZW5hcmlvTWV0YWRhdGESSQoNdGVtcGxhdGVfdHlwZRgCIAEoDjIyLnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLnNoYXJlZC5UZW1wbGF0ZVR5cGUiGAoWR2V0U3lzdGVtU3RhdHVzUmVxdWVzdCJXChFTeXN0ZW1TZXJ2aWNlSW5mbxIMCgRuYW1lGAEgASgJEg8KB3ZlcnNpb24YAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSDgoGc3RhdHVzGAQgASgJInUKFVN5c3RlbUJ1aWxkU3RhdGlzdGljcxIUCgx0b3RhbF9idWlsZHMYASABKAMSFQoNYWN0aXZlX2J1aWxkcxgCIAEoAxIYChBjb21wbGV0ZWRfYnVpbGRzGAMgASgDEhUKDWZhaWxlZF9idWlsZHMYBCABKAMiggIKFFN5c3RlbVN0YXR1c1Jlc3BvbnNlEkgKB3NlcnZpY2UYASABKAsyNy52cm9vbGkuc2NlbmFyaW9fdG9fZGVza3RvcC52MS5kb21haW4uU3lzdGVtU2VydmljZUluZm8STwoKc3RhdGlzdGljcxgCIAEoCzI7LnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLmRvbWFpbi5TeXN0ZW1CdWlsZFN0YXRpc3RpY3MSFAoMY2FwYWJpbGl0aWVzGAMgAygJEhwKFHN1cHBvcnRlZF9mcmFtZXdvcmtzGAQgAygJEhsKE3N1cHBvcnRlZF90ZW1wbGF0ZXMYBSADKAkiFgoUTGlzdFRlbXBsYXRlc1JlcXVlc3QinQEKDFRlbXBsYXRlSW5mbxIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEgwKBHR5cGUYAyABKAkSEQoJZnJhbWV3b3JrGAQgASgJEhEKCXVzZV9jYXNlcxgFIAMoCRIQCghmZWF0dXJlcxgGIAMoCRISCgpjb21wbGV4aXR5GAcgASgJEhAKCGV4YW1wbGVzGAggAygJIm0KFUxpc3RUZW1wbGF0ZXNSZXNwb25zZRJFCgl0ZW1wbGF0ZXMYASADKAsyMi52cm9vbGkuc2NlbmFyaW9fdG9fZGVza3RvcC52MS5kb21haW4uVGVtcGxhdGVJbmZvEg0KBWNvdW50GAIgASgFIisKEkdldFRlbXBsYXRlUmVxdWVzdBIVCgR0eXBlGAEgASgJQge6SARyAhABIkEKFlRlbXBsYXRlQ29uZmlnUmVzcG9uc2USJwoGY29uZmlnGAEgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCISChBDaGVja1dpbmVSZXF1ZXN0InsKEVdpbmVJbnN0YWxsTWV0aG9kEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSFQoNcmVxdWlyZXNfc3VkbxgEIAEoCBIRCgllc3RpbWF0ZWQYBSABKAkSDQoFc3RlcHMYBiADKAki+gEKEVdpbmVDaGVja1Jlc3BvbnNlEhEKCWluc3RhbGxlZBgBIAEoCBIUCgd2ZXJzaW9uGAIgASgJSACIAQESEAoIcGxhdGZvcm0YAyABKAkSFAoMcmVxdWlyZWRfZm9yGAQgAygJElAKD2luc3RhbGxfbWV0aG9kcxgFIAMoCzI3LnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLmRvbWFpbi5XaW5lSW5zdGFsbE1ldGhvZBIfChJyZWNvbW1lbmRlZF9tZXRob2QYBiABKAlIAYgBAUIKCghfdmVyc2lvbkIVChNfcmVjb21tZW5kZWRfbWV0aG9kIlIKEkluc3RhbGxXaW5lUmVxdWVzdBI8CgZtZXRob2QYASABKAlCLLpIKXInUgdmbGF0cGFrUgxmbGF0cGFrLWF1dG9SCGFwcGltYWdlUgRza2lwIl0KE1dpbmVJbnN0YWxsUmVzcG9uc2USEgoKaW5zdGFsbF9pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSDgoGbWV0aG9kGAMgASgJEhIKCnN0YXR1c191cmwYBCABKAkiOgobR2V0V2luZUluc3RhbGxTdGF0dXNSZXF1ZXN0EhsKCmluc3RhbGxfaWQYASABKAlCB7pIBHICEAEi5wEKGVdpbmVJbnN0YWxsU3RhdHVzUmVzcG9uc2USEgoKaW5zdGFsbF9pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSDgoGbWV0aG9kGAMgASgJEi4KCnN0YXJ0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjUKDGNvbXBsZXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAIgBARILCgNsb2cYBiADKAkSEQoJZXJyb3JfbG9nGAcgAygJQg8KDV9jb21wbGV0ZWRfYXQysAIKDUNvbmZpZ1NlcnZpY2USjwEKE0dldFNjZW5hcmlvTWV0YWRhdGESQC52cm9vbGkuc2NlbmFyaW9fdG9fZGVza3RvcC52MS5kb21haW4uR2V0U2NlbmFyaW9NZXRhZGF0YVJlcXVlc3QaNi52cm9vbGkuc2NlbmFyaW9fdG9fZGVza3RvcC52MS5zaGFyZWQuU2NlbmFyaW9NZXRhZGF0YRKMAQoTQ3JlYXRlRGVza3RvcENvbmZpZxJALnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLmRvbWFpbi5DcmVhdGVEZXNrdG9wQ29uZmlnUmVxdWVzdBozLnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLmRvbWFpbi5EZXNrdG9wQ29uZmlnMtAGCg1TeXN0ZW1TZXJ2aWNlEosBCg9HZXRTeXN0ZW1TdGF0dXMSPC52cm9vbGkuc2NlbmFyaW9fdG9fZGVza3RvcC52MS5kb21haW4uR2V0U3lzdGVtU3RhdHVzUmVxdWVzdBo6LnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLmRvbWFpbi5TeXN0ZW1TdGF0dXNSZXNwb25zZRKIAQoNTGlzdFRlbXBsYXRlcxI6LnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLmRvbWFpbi5MaXN0VGVtcGxhdGVzUmVxdWVzdBo7LnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLmRvbWFpbi5MaXN0VGVtcGxhdGVzUmVzcG9uc2UShQEKC0dldFRlbXBsYXRlEjgudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuZG9tYWluLkdldFRlbXBsYXRlUmVxdWVzdBo8LnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLmRvbWFpbi5UZW1wbGF0ZUNvbmZpZ1Jlc3BvbnNlEnwKCUNoZWNrV2luZRI2LnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLmRvbWFpbi5DaGVja1dpbmVSZXF1ZXN0GjcudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuZG9tYWluLldpbmVDaGVja1Jlc3BvbnNlEoIBCgtJbnN0YWxsV2luZRI4LnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLmRvbWFpbi5JbnN0YWxsV2luZVJlcXVlc3QaOS52cm9vbGkuc2NlbmFyaW9fdG9fZGVza3RvcC52MS5kb21haW4uV2luZUluc3RhbGxSZXNwb25zZRKaAQoUR2V0V2luZUluc3RhbGxTdGF0dXMSQS52cm9vbGkuc2NlbmFyaW9fdG9fZGVza3RvcC52MS5kb21haW4uR2V0V2luZUluc3RhbGxTdGF0dXNSZXF1ZXN0Gj8udnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuZG9tYWluLldpbmVJbnN0YWxsU3RhdHVzUmVzcG9uc2VCVVpTZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zY2VuYXJpby10by1kZXNrdG9wL3YxL2RvbWFpbjtkb21haW5iBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_struct, file_google_protobuf_timestamp, file_scenario_to_desktop_v1_shared_common, file_scenario_to_desktop_v1_shared_metadata]);
+  fileDesc("CipzY2VuYXJpby10by1kZXNrdG9wL3YxL2RvbWFpbi9jb25maWcucHJvdG8SJHZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLmRvbWFpbiLxAgoLQXBwSWRlbnRpdHkSLwoEbmFtZRgBIAEoCUIhukgechwyGl5bYS16MC05XSsoPzotW2EtejAtOV0rKSokEhQKDGRpc3BsYXlfbmFtZRgCIAEoCRIYCgtkZXNjcmlwdGlvbhgDIAEoCUgAiAEBEg8KB3ZlcnNpb24YBCABKAkSEwoGYXV0aG9yGAUgASgJSAGIAQESEgoFZW1haWwYBiABKAlIAogBARIRCgRpY29uGAcgASgJSAOIAQESFQoIaG9tZXBhZ2UYCCABKAlIBIgBARIUCgdsaWNlbnNlGAkgASgJSAWIAQESEwoGYXBwX2lkGAogASgJSAaIAQESFAoHYXBwX3VybBgLIAEoCUgHiAEBQg4KDF9kZXNjcmlwdGlvbkIJCgdfYXV0aG9yQggKBl9lbWFpbEIHCgVfaWNvbkILCglfaG9tZXBhZ2VCCgoIX2xpY2Vuc2VCCQoHX2FwcF9pZEIKCghfYXBwX3VybCKqBAoMU2VydmVyQ29uZmlnEhgKC3NlcnZlcl90eXBlGAEgASgJSACIAQESHgoEcG9ydBgCIAEoBUILukgIGgYY//8DKAFIAYgBARIRCgRwYXRoGAMgASgJSAKIAQESGQoMYXBpX2VuZHBvaW50GAQgASgJSAOIAQESGgoNc2NlbmFyaW9fcGF0aBgFIAEoCUgEiAEBEh8KEmF1dG9fbWFuYWdlX3Zyb29saRgGIAEoCEgFiAEBEh8KEnZyb29saV9iaW5hcnlfcGF0aBgHIAEoCUgGiAEBEk0KD2RlcGxveW1lbnRfbW9kZRgIIAEoDjI0LnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLnNoYXJlZC5EZXBsb3ltZW50TW9kZRIWCglwcm94eV91cmwYCSABKAlIB4gBARIgChNleHRlcm5hbF9zZXJ2ZXJfdXJsGAogASgJSAiIAQESHQoQZXh0ZXJuYWxfYXBpX3VybBgLIAEoCUgJiAEBQg4KDF9zZXJ2ZXJfdHlwZUIHCgVfcG9ydEIHCgVfcGF0aEIPCg1fYXBpX2VuZHBvaW50QhAKDl9zY2VuYXJpb19wYXRoQhUKE19hdXRvX21hbmFnZV92cm9vbGlCFQoTX3Zyb29saV9iaW5hcnlfcGF0aEIMCgpfcHJveHlfdXJsQhYKFF9leHRlcm5hbF9zZXJ2ZXJfdXJsQhMKEV9leHRlcm5hbF9hcGlfdXJsIoMBCg9CdW5kbGVJUENDb25maWcSEQoEaG9zdBgBIAEoCUgAiAEBEhEKBHBvcnQYAiABKAVIAYgBARIgChNhdXRoX3Rva2VuX3JlbF9wYXRoGAMgASgJSAKIAQFCBwoFX2hvc3RCBwoFX3BvcnRCFgoUX2F1dGhfdG9rZW5fcmVsX3BhdGgiyQIKDEJ1bmRsZUNvbmZpZxIaCg1tYW5pZmVzdF9wYXRoGAEgASgJSACIAQESGQoMcnVudGltZV9yb290GAIgASgJSAGIAQESRwoDaXBjGAMgASgLMjUudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuZG9tYWluLkJ1bmRsZUlQQ0NvbmZpZ0gCiAEBEhoKDXVpX3NlcnZpY2VfaWQYBCABKAlIA4gBARIWCglwb3J0X25hbWUYBSABKAlIBIgBARIhChR0ZWxlbWV0cnlfdXBsb2FkX3VybBgGIAEoCUgFiAEBQhAKDl9tYW5pZmVzdF9wYXRoQg8KDV9ydW50aW1lX3Jvb3RCBgoEX2lwY0IQCg5fdWlfc2VydmljZV9pZEIMCgpfcG9ydF9uYW1lQhcKFV90ZWxlbWV0cnlfdXBsb2FkX3VybCKEAgoMV2luZG93Q29uZmlnEhIKBXdpZHRoGAEgASgFSACIAQESEwoGaGVpZ2h0GAIgASgFSAGIAQESFgoJbWluX3dpZHRoGAMgASgFSAKIAQESFwoKbWluX2hlaWdodBgEIAEoBUgDiAEBEhYKCXJlc2l6YWJsZRgFIAEoCEgEiAEBEhIKBWZyYW1lGAYgASgISAWIAQESFgoJZGV2X3Rvb2xzGAcgASgISAaIAQFCCAoGX3dpZHRoQgkKB19oZWlnaHRCDAoKX21pbl93aWR0aEINCgtfbWluX2hlaWdodEIMCgpfcmVzaXphYmxlQggKBl9mcmFtZUIMCgpfZGV2X3Rvb2xzIsYHCg1EZXNrdG9wQ29uZmlnEj4KA2FwcBgBIAEoCzIxLnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLmRvbWFpbi5BcHBJZGVudGl0eRJCCgZzZXJ2ZXIYAiABKAsyMi52cm9vbGkuc2NlbmFyaW9fdG9fZGVza3RvcC52MS5kb21haW4uU2VydmVyQ29uZmlnEkcKBmJ1bmRsZRgDIAEoCzIyLnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLmRvbWFpbi5CdW5kbGVDb25maWdIAIgBARJHCgZ1cGRhdGUYBCABKAsyMi52cm9vbGkuc2NlbmFyaW9fdG9fZGVza3RvcC52MS5zaGFyZWQuVXBkYXRlQ29uZmlnSAGIAQESRwoGd2luZG93GAUgASgLMjIudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuZG9tYWluLldpbmRvd0NvbmZpZ0gCiAEBEkIKCWZyYW1ld29yaxgGIAEoDjIvLnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLnNoYXJlZC5GcmFtZXdvcmsSSQoNdGVtcGxhdGVfdHlwZRgHIAEoDjIyLnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLnNoYXJlZC5UZW1wbGF0ZVR5cGUSQQoJcGxhdGZvcm1zGAggAygOMi4udnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuc2hhcmVkLlBsYXRmb3JtEhgKC291dHB1dF9wYXRoGAkgASgJSAOIAQESUwoIZmVhdHVyZXMYCiADKAsyQS52cm9vbGkuc2NlbmFyaW9fdG9fZGVza3RvcC52MS5kb21haW4uRGVza3RvcENvbmZpZy5GZWF0dXJlc0VudHJ5ElEKB3N0eWxpbmcYCyADKAsyQC52cm9vbGkuc2NlbmFyaW9fdG9fZGVza3RvcC52MS5kb21haW4uRGVza3RvcENvbmZpZy5TdHlsaW5nRW50cnkSHAoPc2lnbmluZ19lbmFibGVkGAwgASgISASIAQEaLwoNRmVhdHVyZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAg6AjgBGi4KDFN0eWxpbmdFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBQgkKB19idW5kbGVCCQoHX3VwZGF0ZUIJCgdfd2luZG93Qg4KDF9vdXRwdXRfcGF0aEISChBfc2lnbmluZ19lbmFibGVkIt8DChBDb25uZWN0aW9uQ29uZmlnEhYKCXByb3h5X3VybBgBIAEoCUgAiAEBEhgKC3NlcnZlcl90eXBlGAIgASgJSAGIAQESHwoSYXV0b19tYW5hZ2VfdnJvb2xpGAMgASgISAKIAQESHwoSdnJvb2xpX2JpbmFyeV9wYXRoGAQgASgJSAOIAQESTQoPZGVwbG95bWVudF9tb2RlGAUgASgOMjQudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuc2hhcmVkLkRlcGxveW1lbnRNb2RlEiEKFGJ1bmRsZV9tYW5pZmVzdF9wYXRoGAYgASgJSASIAQESHQoQYXBwX2Rpc3BsYXlfbmFtZRgHIAEoCUgFiAEBEhwKD2FwcF9kZXNjcmlwdGlvbhgIIAEoCUgGiAEBEhEKBGljb24YCSABKAlIB4gBAUIMCgpfcHJveHlfdXJsQg4KDF9zZXJ2ZXJfdHlwZUIVChNfYXV0b19tYW5hZ2VfdnJvb2xpQhUKE192cm9vbGlfYmluYXJ5X3BhdGhCFwoVX2J1bmRsZV9tYW5pZmVzdF9wYXRoQhMKEV9hcHBfZGlzcGxheV9uYW1lQhIKEF9hcHBfZGVzY3JpcHRpb25CBwoFX2ljb24iPAoaR2V0U2NlbmFyaW9NZXRhZGF0YVJlcXVlc3QSHgoNc2NlbmFyaW9fbmFtZRgBIAEoCUIHukgEcgIQASKxAQoaQ3JlYXRlRGVza3RvcENvbmZpZ1JlcXVlc3QSSAoIbWV0YWRhdGEYASABKAsyNi52cm9vbGkuc2NlbmFyaW9fdG9fZGVza3RvcC52MS5zaGFyZWQuU2NlbmFyaW9NZXRhZGF0YRJJCg10ZW1wbGF0ZV90eXBlGAIgASgOMjIudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuc2hhcmVkLlRlbXBsYXRlVHlwZSIYChZHZXRTeXN0ZW1TdGF0dXNSZXF1ZXN0IlcKEVN5c3RlbVNlcnZpY2VJbmZvEgwKBG5hbWUYASABKAkSDwoHdmVyc2lvbhgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIOCgZzdGF0dXMYBCABKAkidQoVU3lzdGVtQnVpbGRTdGF0aXN0aWNzEhQKDHRvdGFsX2J1aWxkcxgBIAEoAxIVCg1hY3RpdmVfYnVpbGRzGAIgASgDEhgKEGNvbXBsZXRlZF9idWlsZHMYAyABKAMSFQoNZmFpbGVkX2J1aWxkcxgEIAEoAyKCAgoUU3lzdGVtU3RhdHVzUmVzcG9uc2USSAoHc2VydmljZRgBIAEoCzI3LnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLmRvbWFpbi5TeXN0ZW1TZXJ2aWNlSW5mbxJPCgpzdGF0aXN0aWNzGAIgASgLMjsudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuZG9tYWluLlN5c3RlbUJ1aWxkU3RhdGlzdGljcxIUCgxjYXBhYmlsaXRpZXMYAyADKAkSHAoUc3VwcG9ydGVkX2ZyYW1ld29ya3MYBCADKAkSGwoTc3VwcG9ydGVkX3RlbXBsYXRlcxgFIAMoCSIWChRMaXN0VGVtcGxhdGVzUmVxdWVzdCKdAQoMVGVtcGxhdGVJbmZvEgwKBG5hbWUYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkSDAoEdHlwZRgDIAEoCRIRCglmcmFtZXdvcmsYBCABKAkSEQoJdXNlX2Nhc2VzGAUgAygJEhAKCGZlYXR1cmVzGAYgAygJEhIKCmNvbXBsZXhpdHkYByABKAkSEAoIZXhhbXBsZXMYCCADKAkibQoVTGlzdFRlbXBsYXRlc1Jlc3BvbnNlEkUKCXRlbXBsYXRlcxgBIAMoCzIyLnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLmRvbWFpbi5UZW1wbGF0ZUluZm8SDQoFY291bnQYAiABKAUiKwoSR2V0VGVtcGxhdGVSZXF1ZXN0EhUKBHR5cGUYASABKAlCB7pIBHICEAEiQQoWVGVtcGxhdGVDb25maWdSZXNwb25zZRInCgZjb25maWcYASABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0IhIKEENoZWNrV2luZVJlcXVlc3QiewoRV2luZUluc3RhbGxNZXRob2QSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIVCg1yZXF1aXJlc19zdWRvGAQgASgIEhEKCWVzdGltYXRlZBgFIAEoCRINCgVzdGVwcxgGIAMoCSL6AQoRV2luZUNoZWNrUmVzcG9uc2USEQoJaW5zdGFsbGVkGAEgASgIEhQKB3ZlcnNpb24YAiABKAlIAIgBARIQCghwbGF0Zm9ybRgDIAEoCRIUCgxyZXF1aXJlZF9mb3IYBCADKAkSUAoPaW5zdGFsbF9tZXRob2RzGAUgAygLMjcudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuZG9tYWluLldpbmVJbnN0YWxsTWV0aG9kEh8KEnJlY29tbWVuZGVkX21ldGhvZBgGIAEoCUgBiAEBQgoKCF92ZXJzaW9uQhUKE19yZWNvbW1lbmRlZF9tZXRob2QiUgoSSW5zdGFsbFdpbmVSZXF1ZXN0EjwKBm1ldGhvZBgBIAEoCUIsukgpcidSB2ZsYXRwYWtSDGZsYXRwYWstYXV0b1IIYXBwaW1hZ2VSBHNraXAiXQoTV2luZUluc3RhbGxSZXNwb25zZRISCgppbnN0YWxsX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIOCgZtZXRob2QYAyABKAkSEgoKc3RhdHVzX3VybBgEIAEoCSI6ChtHZXRXaW5lSW5zdGFsbFN0YXR1c1JlcXVlc3QSGwoKaW5zdGFsbF9pZBgBIAEoCUIHukgEcgIQASLnAQoZV2luZUluc3RhbGxTdGF0dXNSZXNwb25zZRISCgppbnN0YWxsX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIOCgZtZXRob2QYAyABKAkSLgoKc3RhcnRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASNQoMY29tcGxldGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgAiAEBEgsKA2xvZxgGIAMoCRIRCgllcnJvcl9sb2cYByADKAlCDwoNX2NvbXBsZXRlZF9hdDKwAgoNQ29uZmlnU2VydmljZRKPAQoTR2V0U2NlbmFyaW9NZXRhZGF0YRJALnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLmRvbWFpbi5HZXRTY2VuYXJpb01ldGFkYXRhUmVxdWVzdBo2LnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLnNoYXJlZC5TY2VuYXJpb01ldGFkYXRhEowBChNDcmVhdGVEZXNrdG9wQ29uZmlnEkAudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuZG9tYWluLkNyZWF0ZURlc2t0b3BDb25maWdSZXF1ZXN0GjMudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuZG9tYWluLkRlc2t0b3BDb25maWcy0AYKDVN5c3RlbVNlcnZpY2USiwEKD0dldFN5c3RlbVN0YXR1cxI8LnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLmRvbWFpbi5HZXRTeXN0ZW1TdGF0dXNSZXF1ZXN0GjoudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuZG9tYWluLlN5c3RlbVN0YXR1c1Jlc3BvbnNlEogBCg1MaXN0VGVtcGxhdGVzEjoudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuZG9tYWluLkxpc3RUZW1wbGF0ZXNSZXF1ZXN0GjsudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuZG9tYWluLkxpc3RUZW1wbGF0ZXNSZXNwb25zZRKFAQoLR2V0VGVtcGxhdGUSOC52cm9vbGkuc2NlbmFyaW9fdG9fZGVza3RvcC52MS5kb21haW4uR2V0VGVtcGxhdGVSZXF1ZXN0GjwudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuZG9tYWluLlRlbXBsYXRlQ29uZmlnUmVzcG9uc2USfAoJQ2hlY2tXaW5lEjYudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuZG9tYWluLkNoZWNrV2luZVJlcXVlc3QaNy52cm9vbGkuc2NlbmFyaW9fdG9fZGVza3RvcC52MS5kb21haW4uV2luZUNoZWNrUmVzcG9uc2USggEKC0luc3RhbGxXaW5lEjgudnJvb2xpLnNjZW5hcmlvX3RvX2Rlc2t0b3AudjEuZG9tYWluLkluc3RhbGxXaW5lUmVxdWVzdBo5LnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLmRvbWFpbi5XaW5lSW5zdGFsbFJlc3BvbnNlEpoBChRHZXRXaW5lSW5zdGFsbFN0YXR1cxJBLnZyb29saS5zY2VuYXJpb190b19kZXNrdG9wLnYxLmRvbWFpbi5HZXRXaW5lSW5zdGFsbFN0YXR1c1JlcXVlc3QaPy52cm9vbGkuc2NlbmFyaW9fdG9fZGVza3RvcC52MS5kb21haW4uV2luZUluc3RhbGxTdGF0dXNSZXNwb25zZUJVWlNnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NjZW5hcmlvLXRvLWRlc2t0b3AvdjEvZG9tYWluO2RvbWFpbmIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_struct, file_google_protobuf_timestamp, file_scenario_to_desktop_v1_shared_common, file_scenario_to_desktop_v1_shared_metadata, file_scenario_to_desktop_v1_shared_update_config]);
 
 /**
  * AppIdentity contains application metadata and branding information.
@@ -350,138 +352,6 @@ export const BundleConfigSchema: GenMessage<BundleConfig> = /*@__PURE__*/
   messageDesc(file_scenario_to_desktop_v1_domain_config, 3);
 
 /**
- * GitHubUpdateConfig configures GitHub Releases as the update provider.
- *
- * Uses electron-updater's GitHub provider to check for and download
- * updates from GitHub Releases.
- *
- *
- * @generated from message vrooli.scenario_to_desktop.v1.domain.GitHubUpdateConfig
- */
-export type GitHubUpdateConfig = Message<"vrooli.scenario_to_desktop.v1.domain.GitHubUpdateConfig"> & {
-  /**
-   * GitHub repository owner (username or organization).
-   * @example "vrooli"
-   *
-   * @generated from field: string owner = 1;
-   */
-  owner: string;
-
-  /**
-   * GitHub repository name.
-   * @example "scenario-to-desktop"
-   *
-   * @generated from field: string repo = 2;
-   */
-  repo: string;
-
-  /**
-   * Whether the repository is private.
-   * Private repos require authentication token.
-   *
-   * @generated from field: optional bool private = 3;
-   */
-  private?: boolean | undefined;
-};
-
-/**
- * Describes the message vrooli.scenario_to_desktop.v1.domain.GitHubUpdateConfig.
- * Use `create(GitHubUpdateConfigSchema)` to create a new message.
- */
-export const GitHubUpdateConfigSchema: GenMessage<GitHubUpdateConfig> = /*@__PURE__*/
-  messageDesc(file_scenario_to_desktop_v1_domain_config, 4);
-
-/**
- * GenericUpdateConfig configures a self-hosted update server.
- *
- * Uses electron-updater's generic provider to check for updates
- * from a custom URL endpoint.
- *
- *
- * @generated from message vrooli.scenario_to_desktop.v1.domain.GenericUpdateConfig
- */
-export type GenericUpdateConfig = Message<"vrooli.scenario_to_desktop.v1.domain.GenericUpdateConfig"> & {
-  /**
-   * Base URL for the update server.
-   * @format uri
-   * @example "https://updates.example.com"
-   *
-   * @generated from field: string url = 1;
-   */
-  url: string;
-
-  /**
-   * Path to channel-specific update info.
-   * @example "/stable/latest.yml"
-   *
-   * @generated from field: optional string channel_path = 2;
-   */
-  channelPath?: string | undefined;
-};
-
-/**
- * Describes the message vrooli.scenario_to_desktop.v1.domain.GenericUpdateConfig.
- * Use `create(GenericUpdateConfigSchema)` to create a new message.
- */
-export const GenericUpdateConfigSchema: GenMessage<GenericUpdateConfig> = /*@__PURE__*/
-  messageDesc(file_scenario_to_desktop_v1_domain_config, 5);
-
-/**
- * UpdateConfig configures automatic updates for the desktop application.
- *
- * Supports multiple update providers. Only one provider should be configured.
- *
- *
- * @generated from message vrooli.scenario_to_desktop.v1.domain.UpdateConfig
- */
-export type UpdateConfig = Message<"vrooli.scenario_to_desktop.v1.domain.UpdateConfig"> & {
-  /**
-   * Update channel (stable, beta, alpha, etc.).
-   * @default "stable"
-   *
-   * @generated from field: optional string channel = 1;
-   */
-  channel?: string | undefined;
-
-  /**
-   * Update provider name.
-   * @example "github", "generic", "s3"
-   *
-   * @generated from field: optional string provider = 2;
-   */
-  provider?: string | undefined;
-
-  /**
-   * Whether to automatically check for updates on startup.
-   * @default true
-   *
-   * @generated from field: optional bool auto_check = 3;
-   */
-  autoCheck?: boolean | undefined;
-
-  /**
-   * GitHub Releases update configuration.
-   *
-   * @generated from field: optional vrooli.scenario_to_desktop.v1.domain.GitHubUpdateConfig github = 10;
-   */
-  github?: GitHubUpdateConfig | undefined;
-
-  /**
-   * Generic/self-hosted update configuration.
-   *
-   * @generated from field: optional vrooli.scenario_to_desktop.v1.domain.GenericUpdateConfig generic = 11;
-   */
-  generic?: GenericUpdateConfig | undefined;
-};
-
-/**
- * Describes the message vrooli.scenario_to_desktop.v1.domain.UpdateConfig.
- * Use `create(UpdateConfigSchema)` to create a new message.
- */
-export const UpdateConfigSchema: GenMessage<UpdateConfig> = /*@__PURE__*/
-  messageDesc(file_scenario_to_desktop_v1_domain_config, 6);
-
-/**
  * WindowConfig defines the main window appearance and behavior.
  *
  *
@@ -548,7 +418,7 @@ export type WindowConfig = Message<"vrooli.scenario_to_desktop.v1.domain.WindowC
  * Use `create(WindowConfigSchema)` to create a new message.
  */
 export const WindowConfigSchema: GenMessage<WindowConfig> = /*@__PURE__*/
-  messageDesc(file_scenario_to_desktop_v1_domain_config, 7);
+  messageDesc(file_scenario_to_desktop_v1_domain_config, 4);
 
 /**
  * DesktopConfig is the complete configuration for desktop application generation.
@@ -584,7 +454,7 @@ export type DesktopConfig = Message<"vrooli.scenario_to_desktop.v1.domain.Deskto
   /**
    * Auto-update configuration.
    *
-   * @generated from field: optional vrooli.scenario_to_desktop.v1.domain.UpdateConfig update = 4;
+   * @generated from field: optional vrooli.scenario_to_desktop.v1.shared.UpdateConfig update = 4;
    */
   update?: UpdateConfig | undefined;
 
@@ -655,7 +525,7 @@ export type DesktopConfig = Message<"vrooli.scenario_to_desktop.v1.domain.Deskto
  * Use `create(DesktopConfigSchema)` to create a new message.
  */
 export const DesktopConfigSchema: GenMessage<DesktopConfig> = /*@__PURE__*/
-  messageDesc(file_scenario_to_desktop_v1_domain_config, 8);
+  messageDesc(file_scenario_to_desktop_v1_domain_config, 5);
 
 /**
  * ConnectionConfig stores saved connection settings for quick configuration.
@@ -739,7 +609,7 @@ export type ConnectionConfig = Message<"vrooli.scenario_to_desktop.v1.domain.Con
  * Use `create(ConnectionConfigSchema)` to create a new message.
  */
 export const ConnectionConfigSchema: GenMessage<ConnectionConfig> = /*@__PURE__*/
-  messageDesc(file_scenario_to_desktop_v1_domain_config, 9);
+  messageDesc(file_scenario_to_desktop_v1_domain_config, 6);
 
 /**
  * @generated from message vrooli.scenario_to_desktop.v1.domain.GetScenarioMetadataRequest
@@ -756,7 +626,7 @@ export type GetScenarioMetadataRequest = Message<"vrooli.scenario_to_desktop.v1.
  * Use `create(GetScenarioMetadataRequestSchema)` to create a new message.
  */
 export const GetScenarioMetadataRequestSchema: GenMessage<GetScenarioMetadataRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_to_desktop_v1_domain_config, 10);
+  messageDesc(file_scenario_to_desktop_v1_domain_config, 7);
 
 /**
  * @generated from message vrooli.scenario_to_desktop.v1.domain.CreateDesktopConfigRequest
@@ -778,7 +648,7 @@ export type CreateDesktopConfigRequest = Message<"vrooli.scenario_to_desktop.v1.
  * Use `create(CreateDesktopConfigRequestSchema)` to create a new message.
  */
 export const CreateDesktopConfigRequestSchema: GenMessage<CreateDesktopConfigRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_to_desktop_v1_domain_config, 11);
+  messageDesc(file_scenario_to_desktop_v1_domain_config, 8);
 
 /**
  * @generated from message vrooli.scenario_to_desktop.v1.domain.GetSystemStatusRequest
@@ -791,7 +661,7 @@ export type GetSystemStatusRequest = Message<"vrooli.scenario_to_desktop.v1.doma
  * Use `create(GetSystemStatusRequestSchema)` to create a new message.
  */
 export const GetSystemStatusRequestSchema: GenMessage<GetSystemStatusRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_to_desktop_v1_domain_config, 12);
+  messageDesc(file_scenario_to_desktop_v1_domain_config, 9);
 
 /**
  * @generated from message vrooli.scenario_to_desktop.v1.domain.SystemServiceInfo
@@ -823,7 +693,7 @@ export type SystemServiceInfo = Message<"vrooli.scenario_to_desktop.v1.domain.Sy
  * Use `create(SystemServiceInfoSchema)` to create a new message.
  */
 export const SystemServiceInfoSchema: GenMessage<SystemServiceInfo> = /*@__PURE__*/
-  messageDesc(file_scenario_to_desktop_v1_domain_config, 13);
+  messageDesc(file_scenario_to_desktop_v1_domain_config, 10);
 
 /**
  * @generated from message vrooli.scenario_to_desktop.v1.domain.SystemBuildStatistics
@@ -855,7 +725,7 @@ export type SystemBuildStatistics = Message<"vrooli.scenario_to_desktop.v1.domai
  * Use `create(SystemBuildStatisticsSchema)` to create a new message.
  */
 export const SystemBuildStatisticsSchema: GenMessage<SystemBuildStatistics> = /*@__PURE__*/
-  messageDesc(file_scenario_to_desktop_v1_domain_config, 14);
+  messageDesc(file_scenario_to_desktop_v1_domain_config, 11);
 
 /**
  * @generated from message vrooli.scenario_to_desktop.v1.domain.SystemStatusResponse
@@ -892,7 +762,7 @@ export type SystemStatusResponse = Message<"vrooli.scenario_to_desktop.v1.domain
  * Use `create(SystemStatusResponseSchema)` to create a new message.
  */
 export const SystemStatusResponseSchema: GenMessage<SystemStatusResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_to_desktop_v1_domain_config, 15);
+  messageDesc(file_scenario_to_desktop_v1_domain_config, 12);
 
 /**
  * @generated from message vrooli.scenario_to_desktop.v1.domain.ListTemplatesRequest
@@ -905,7 +775,7 @@ export type ListTemplatesRequest = Message<"vrooli.scenario_to_desktop.v1.domain
  * Use `create(ListTemplatesRequestSchema)` to create a new message.
  */
 export const ListTemplatesRequestSchema: GenMessage<ListTemplatesRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_to_desktop_v1_domain_config, 16);
+  messageDesc(file_scenario_to_desktop_v1_domain_config, 13);
 
 /**
  * @generated from message vrooli.scenario_to_desktop.v1.domain.TemplateInfo
@@ -957,7 +827,7 @@ export type TemplateInfo = Message<"vrooli.scenario_to_desktop.v1.domain.Templat
  * Use `create(TemplateInfoSchema)` to create a new message.
  */
 export const TemplateInfoSchema: GenMessage<TemplateInfo> = /*@__PURE__*/
-  messageDesc(file_scenario_to_desktop_v1_domain_config, 17);
+  messageDesc(file_scenario_to_desktop_v1_domain_config, 14);
 
 /**
  * @generated from message vrooli.scenario_to_desktop.v1.domain.ListTemplatesResponse
@@ -979,7 +849,7 @@ export type ListTemplatesResponse = Message<"vrooli.scenario_to_desktop.v1.domai
  * Use `create(ListTemplatesResponseSchema)` to create a new message.
  */
 export const ListTemplatesResponseSchema: GenMessage<ListTemplatesResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_to_desktop_v1_domain_config, 18);
+  messageDesc(file_scenario_to_desktop_v1_domain_config, 15);
 
 /**
  * @generated from message vrooli.scenario_to_desktop.v1.domain.GetTemplateRequest
@@ -996,7 +866,7 @@ export type GetTemplateRequest = Message<"vrooli.scenario_to_desktop.v1.domain.G
  * Use `create(GetTemplateRequestSchema)` to create a new message.
  */
 export const GetTemplateRequestSchema: GenMessage<GetTemplateRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_to_desktop_v1_domain_config, 19);
+  messageDesc(file_scenario_to_desktop_v1_domain_config, 16);
 
 /**
  * @generated from message vrooli.scenario_to_desktop.v1.domain.TemplateConfigResponse
@@ -1013,7 +883,7 @@ export type TemplateConfigResponse = Message<"vrooli.scenario_to_desktop.v1.doma
  * Use `create(TemplateConfigResponseSchema)` to create a new message.
  */
 export const TemplateConfigResponseSchema: GenMessage<TemplateConfigResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_to_desktop_v1_domain_config, 20);
+  messageDesc(file_scenario_to_desktop_v1_domain_config, 17);
 
 /**
  * @generated from message vrooli.scenario_to_desktop.v1.domain.CheckWineRequest
@@ -1026,7 +896,7 @@ export type CheckWineRequest = Message<"vrooli.scenario_to_desktop.v1.domain.Che
  * Use `create(CheckWineRequestSchema)` to create a new message.
  */
 export const CheckWineRequestSchema: GenMessage<CheckWineRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_to_desktop_v1_domain_config, 21);
+  messageDesc(file_scenario_to_desktop_v1_domain_config, 18);
 
 /**
  * @generated from message vrooli.scenario_to_desktop.v1.domain.WineInstallMethod
@@ -1068,7 +938,7 @@ export type WineInstallMethod = Message<"vrooli.scenario_to_desktop.v1.domain.Wi
  * Use `create(WineInstallMethodSchema)` to create a new message.
  */
 export const WineInstallMethodSchema: GenMessage<WineInstallMethod> = /*@__PURE__*/
-  messageDesc(file_scenario_to_desktop_v1_domain_config, 22);
+  messageDesc(file_scenario_to_desktop_v1_domain_config, 19);
 
 /**
  * @generated from message vrooli.scenario_to_desktop.v1.domain.WineCheckResponse
@@ -1110,7 +980,7 @@ export type WineCheckResponse = Message<"vrooli.scenario_to_desktop.v1.domain.Wi
  * Use `create(WineCheckResponseSchema)` to create a new message.
  */
 export const WineCheckResponseSchema: GenMessage<WineCheckResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_to_desktop_v1_domain_config, 23);
+  messageDesc(file_scenario_to_desktop_v1_domain_config, 20);
 
 /**
  * @generated from message vrooli.scenario_to_desktop.v1.domain.InstallWineRequest
@@ -1127,7 +997,7 @@ export type InstallWineRequest = Message<"vrooli.scenario_to_desktop.v1.domain.I
  * Use `create(InstallWineRequestSchema)` to create a new message.
  */
 export const InstallWineRequestSchema: GenMessage<InstallWineRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_to_desktop_v1_domain_config, 24);
+  messageDesc(file_scenario_to_desktop_v1_domain_config, 21);
 
 /**
  * @generated from message vrooli.scenario_to_desktop.v1.domain.WineInstallResponse
@@ -1159,7 +1029,7 @@ export type WineInstallResponse = Message<"vrooli.scenario_to_desktop.v1.domain.
  * Use `create(WineInstallResponseSchema)` to create a new message.
  */
 export const WineInstallResponseSchema: GenMessage<WineInstallResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_to_desktop_v1_domain_config, 25);
+  messageDesc(file_scenario_to_desktop_v1_domain_config, 22);
 
 /**
  * @generated from message vrooli.scenario_to_desktop.v1.domain.GetWineInstallStatusRequest
@@ -1176,7 +1046,7 @@ export type GetWineInstallStatusRequest = Message<"vrooli.scenario_to_desktop.v1
  * Use `create(GetWineInstallStatusRequestSchema)` to create a new message.
  */
 export const GetWineInstallStatusRequestSchema: GenMessage<GetWineInstallStatusRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_to_desktop_v1_domain_config, 26);
+  messageDesc(file_scenario_to_desktop_v1_domain_config, 23);
 
 /**
  * @generated from message vrooli.scenario_to_desktop.v1.domain.WineInstallStatusResponse
@@ -1223,7 +1093,7 @@ export type WineInstallStatusResponse = Message<"vrooli.scenario_to_desktop.v1.d
  * Use `create(WineInstallStatusResponseSchema)` to create a new message.
  */
 export const WineInstallStatusResponseSchema: GenMessage<WineInstallStatusResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_to_desktop_v1_domain_config, 27);
+  messageDesc(file_scenario_to_desktop_v1_domain_config, 24);
 
 /**
  * @generated from service vrooli.scenario_to_desktop.v1.domain.ConfigService

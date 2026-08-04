@@ -17,15 +17,28 @@
 package credentialauthority
 
 import (
+	"fmt"
+	"github.com/vrooli/vrooli/internal/resources/securestore"
 	"github.com/vrooli/vrooli/internal/secrets"
+	"path/filepath"
 )
 
 type (
-	Identity = secrets.Identity
-	Status   = secrets.Status
+	Identity         = secrets.Identity
+	Status           = secrets.Status
+	KeyringReport    = securestore.KeyringReport
+	RecoveryEntry    = secrets.RecoveryEntry
+	RecoveryManifest = secrets.RecoveryManifest
+	RecoveryReceipt  = secrets.RecoveryReceipt
 )
 
 var ParseIdentity = secrets.ParseIdentity
+
+var (
+	InspectRecovery      = secrets.InspectRecovery
+	ReadRecoveryReceipt  = secrets.ReadRecoveryReceipt
+	WriteRecoveryReceipt = secrets.WriteRecoveryReceipt
+)
 
 // The failure taxonomy, re-exported because a consumer that cannot tell these
 // apart cannot behave correctly: "not configured" is an operator omission to
@@ -42,6 +55,14 @@ var (
 )
 
 type Authority struct{ inner *secrets.Authority }
+
+func NewAuthority(store securestore.Store) (*Authority, error) {
+	inner, err := secrets.NewAuthority(store)
+	if err != nil {
+		return nil, err
+	}
+	return &Authority{inner: inner}, nil
+}
 
 func Default() (*Authority, error) {
 	inner, err := secrets.DefaultAuthority()
@@ -68,3 +89,47 @@ func (a *Authority) Status(identity Identity, field string) Status {
 }
 
 func (a *Authority) Provider() string { return a.inner.Provider() }
+
+func (a *Authority) Availability() error { return a.inner.Availability() }
+
+func (a *Authority) KeyringInspect(path string) (KeyringReport, error) {
+	path, err := firstKeyringPath(path)
+	if err != nil {
+		return KeyringReport{}, err
+	}
+	return securestore.InspectKeyringFile(path)
+}
+
+func (a *Authority) KeyringRepair(path string) (KeyringReport, error) {
+	path, err := firstKeyringPath(path)
+	if err != nil {
+		return KeyringReport{}, err
+	}
+	return securestore.RepairKeyringFile(path)
+}
+
+func firstKeyringPath(path string) (string, error) {
+	if path != "" {
+		return path, nil
+	}
+	dir, err := securestore.DefaultKeyringDir()
+	if err != nil {
+		return "", err
+	}
+	matches, err := filepath.Glob(filepath.Join(dir, "*.keyring"))
+	if err != nil {
+		return "", fmt.Errorf("list keyring files: %w", err)
+	}
+	if len(matches) == 0 {
+		return "", fmt.Errorf("no keyring files found")
+	}
+	return matches[0], nil
+}
+
+func (a *Authority) ExportRecovery(entries []RecoveryEntry, passphrase string) ([]byte, error) {
+	return a.inner.ExportRecovery(entries, passphrase)
+}
+
+func (a *Authority) RestoreRecovery(bundle []byte, passphrase string) error {
+	return a.inner.RestoreRecovery(bundle, passphrase)
+}

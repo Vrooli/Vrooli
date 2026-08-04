@@ -526,7 +526,7 @@ func (r *Runner[C]) Run(args []string, stdout, stderr io.Writer) int {
 
 	root, err := r.config.ResolveRoot()
 	if err != nil {
-		PrintErrorWithContext(stderr, NewErrorWithCategory(err, ErrorCategoryEnvironment, "Run from a Vrooli repository root or set VROOLI_SOURCE_ROOT", nil))
+		PrintErrorWithContext(stderr, NewErrorWithCategory(err, ErrorCategoryEnvironment, "Run from a Vrooli repository root, install the CLI with `make install`, or set VROOLI_SOURCE_ROOT", nil))
 		return 1
 	}
 	if r.config.SetRoot != nil {

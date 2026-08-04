@@ -12,8 +12,6 @@ source "${REPO_ROOT}/scripts/lib/utils/var.sh"
 
 # Source shared libraries
 # shellcheck disable=SC1091
-source "${var_LIB_SERVICE_DIR}/secrets.sh"
-# shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-resource-utils.sh"
 
 #######################################
@@ -123,12 +121,9 @@ postgres::docker::start() {
     local instance_name="${1:-main}"
     local container_name="${POSTGRES_CONTAINER_PREFIX}-${instance_name}"
 
-    # Load secrets or instance credentials before potentially creating a new instance.
+    # Credential values are injected by the lifecycle authority; this script
+    # never resolves a plaintext project secrets file.
     if [[ -z "${POSTGRES_PASSWORD:-}" ]]; then
-        if declare -f secrets::resolve &>/dev/null; then
-            POSTGRES_PASSWORD="$(secrets::resolve "POSTGRES_PASSWORD" 2>/dev/null || true)"
-            export POSTGRES_PASSWORD
-        fi
         if [[ -z "${POSTGRES_PASSWORD:-}" ]]; then
             local config_file="${POSTGRES_INSTANCES_DIR}/${instance_name}/config/instance.conf"
             if [[ -f "$config_file" ]]; then
@@ -331,7 +326,7 @@ postgres::docker::create_client_instance() {
     if [[ $? -eq 0 && -n "$client_port" ]]; then
         # Save client configuration metadata
         local project_config_dir
-        project_config_dir="$(secrets::get_project_config_dir)"
+        project_config_dir="${var_VROOLI_CONFIG_DIR}/config"
         mkdir -p "${project_config_dir}/clients/${client_id}"
         
         local client_config_file="${project_config_dir}/clients/${client_id}/postgres.json"
@@ -372,7 +367,7 @@ postgres::docker::destroy_client_instance() {
     
     # Use simplified client removal
     local project_config_dir
-    project_config_dir="$(secrets::get_project_config_dir)"
+    project_config_dir="${var_VROOLI_CONFIG_DIR}/config"
     
     docker_resource::remove_client_instance \
         "postgres" \

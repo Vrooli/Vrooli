@@ -105,7 +105,7 @@ different operator action. Never treat one as another.
 | Kind | Meaning | What the operator does |
 |---|---|---|
 | Provider unavailable | The host secure store exists but cannot be reached right now — a locked keychain, a stopped service, a session Vrooli could not repair on its own | `vrooli credentials doctor` names the cause and the fix. |
-| Provider absent | This host has no native secure store | Initialize the encrypted file store, or install a native backend. `vrooli credentials doctor` names the command. |
+| Provider absent | This host has no native secure store | Run `vrooli setup`; it selects and initializes the encrypted authority. |
 | Unconfigured | The store works and holds no value for this identity and field | `vrooli credentials provision --identity <id> --field <field>` |
 
 The distinction is not cosmetic. Before it existed, an unreachable session bus
@@ -201,8 +201,10 @@ environment and every scenario's environment are left alone, so a broken login
 stays visible to the other session-scoped tools it affects — which is also why
 `doctor` discloses the repair instead of performing it silently.
 
-`vrooli credentials list` prints the same declaration table without the provider
-section. Neither command can print a stored value.
+`secrets-manager credentials list --format json` prints the declaration table
+without the provider section. `secrets-manager credentials doctor` owns the
+operator-facing inventory and diagnosis; neither command can print a stored
+value.
 
 `vrooli credentials status --identity <id> --field <field>` reports one
 credential and always carries the provider state alongside it, so
@@ -222,17 +224,19 @@ printf '%s' "$OPERATOR_VALUE" | vrooli credentials provision \
   --identity vrooli/openrouter --field api-key
 ```
 
-Removing a credential is the deprovision half of the same surface, and is
-explicit because it is unrecoverable without a recovery bundle:
+The bootstrap `vrooli credentials` surface is intentionally limited to
+provisioning, status, diagnosis, store recovery, and recovery bundles. Keyring
+inspection and repair live in secrets-manager:
 
 ```bash
-vrooli credentials delete --identity vrooli/openrouter --field api-key --yes
+secrets-manager keyring inspect --format json
+secrets-manager keyring repair --format json
+secrets-manager backup export --output ~/vrooli-recovery.bundle < passphrase
 ```
 
-Delete refuses rather than reporting success when the provider is unreachable —
-otherwise an operator could believe a leaked key was revoked while it was still
-in the store. It is idempotent, and says plainly when there was nothing to
-remove.
+`secrets-manager` owns the inventory, keyring, descriptor, tier, and backup
+operator experience. The bootstrap floor remains available with no scenarios
+running so a wiped host can still restore its authority.
 
 Runtime code resolves credentials through the control-plane authority into the
 target process only. It must not read YAML inventories, resource-private
@@ -269,8 +273,8 @@ the **entire keyring**, not the offending entry, taking every unrelated secret
 in it down with it, including credentials other applications had stored years
 earlier.
 
-A host already in that state is repaired with `vrooli credentials keyring
-inspect` and `vrooli credentials keyring repair`, which need no elevated
+A host already in that state is repaired with `secrets-manager keyring
+inspect` and `secrets-manager keyring repair`, which need no elevated
 privileges. See the [infra-rdp check](../../scenarios/vrooli-autoheal/docs/reference/checks/infra-rdp.md)
 for how autoheal detects it.
 
@@ -283,7 +287,7 @@ editor, so its confidentiality rests on file permissions. `credentials doctor`
 reports `unencrypted-keyring` and this caveat; this changes the description,
 not the Linux default or the existing data.
 
-`vrooli credentials keyring inspect` also reports whether the stale-daemon
+`secrets-manager keyring inspect` also reports whether the stale-daemon
 comparison ran. If the daemon start time is unavailable, it says that the
 check did not run and makes no stale-daemon claim.
 
@@ -303,11 +307,17 @@ input, one call per credential, so no secret enters a command string — a comma
 string is argv for the local `ssh` process and the argument to the remote shell,
 which made every value readable in both process listings.
 
-Selection is a chain, and the rule that makes it safe is narrow:
+Setup makes one authority decision for an installation and persists it under
+`~/.vrooli/state/credential-backend.json`. The readiness probe performs a real
+write/read/delete cycle before selecting a native backend. Once selected, a
+temporary native outage never causes an operation to drift into the encrypted
+store.
+
+For older installations that have no selection yet, the decision is:
 
 | Native adapter reports | What happens |
 |---|---|
-| available | The native store is the authority. Nothing changes. |
+| available and writable | The native store is the authority. Nothing changes. |
 | `ErrUnavailable` — exists, unreachable now | Stay degraded. The encrypted store is **never** opened. |
 | `ErrAbsent` — this host has no native store | The encrypted store is the authority. |
 
@@ -347,16 +357,19 @@ it, and it auto-skips where it cannot help — no TPM device, or a device whose
 mode grants its group nothing. `vrooli setup --dry-run` names the exact account
 and group it would change before changing anything.
 
-Group membership is fixed at login, so the grant takes effect in a **new login
-session**. After that:
+When the native backend is unavailable, setup persists the encrypted backend
+and initializes it through Vrooli's own credential-store commands. The
+initialization runs as the invoking operator even when setup itself was
+elevated, so root's TPM/keyring visibility cannot create an authority the
+operator cannot use. A host-bound wrap is used when available; otherwise setup
+asks for a passphrase without echoing it. If a later setup run sees a newly
+available TPM, it adds the host-bound wrap itself. The data key does not change,
+so no stored value is re-encrypted and nothing can be lost.
 
-```bash
-vrooli credentials store rewrap
-```
-
-`rewrap` adds the host-bound wrap to an existing store. The data key does not
-change, so no stored value is re-encrypted and nothing can be lost — this is
-also the upgrade path for a host that gains a TPM later.
+Group membership is fixed at login, so a newly granted TPM group takes effect
+in a **new login session**. Re-running `vrooli setup` after that session is the
+convergence path; operators do not need to run `usermod`, `secret-tool`, or a
+separate keyring repair command.
 
 `store init`, `store status`, and `doctor` all name the blocking group while it
 is unresolved, and point at `vrooli setup` rather than at a raw privileged

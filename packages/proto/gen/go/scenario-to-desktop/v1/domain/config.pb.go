@@ -505,224 +505,6 @@ func (x *BundleConfig) GetTelemetryUploadUrl() string {
 	return ""
 }
 
-// GitHubUpdateConfig configures GitHub Releases as the update provider.
-//
-// Uses electron-updater's GitHub provider to check for and download
-// updates from GitHub Releases.
-type GitHubUpdateConfig struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// GitHub repository owner (username or organization).
-	// @example "vrooli"
-	Owner string `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"`
-	// GitHub repository name.
-	// @example "scenario-to-desktop"
-	Repo string `protobuf:"bytes,2,opt,name=repo,proto3" json:"repo,omitempty"`
-	// Whether the repository is private.
-	// Private repos require authentication token.
-	Private       *bool `protobuf:"varint,3,opt,name=private,proto3,oneof" json:"private,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GitHubUpdateConfig) Reset() {
-	*x = GitHubUpdateConfig{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GitHubUpdateConfig) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GitHubUpdateConfig) ProtoMessage() {}
-
-func (x *GitHubUpdateConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GitHubUpdateConfig.ProtoReflect.Descriptor instead.
-func (*GitHubUpdateConfig) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *GitHubUpdateConfig) GetOwner() string {
-	if x != nil {
-		return x.Owner
-	}
-	return ""
-}
-
-func (x *GitHubUpdateConfig) GetRepo() string {
-	if x != nil {
-		return x.Repo
-	}
-	return ""
-}
-
-func (x *GitHubUpdateConfig) GetPrivate() bool {
-	if x != nil && x.Private != nil {
-		return *x.Private
-	}
-	return false
-}
-
-// GenericUpdateConfig configures a self-hosted update server.
-//
-// Uses electron-updater's generic provider to check for updates
-// from a custom URL endpoint.
-type GenericUpdateConfig struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Base URL for the update server.
-	// @format uri
-	// @example "https://updates.example.com"
-	Url string `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
-	// Path to channel-specific update info.
-	// @example "/stable/latest.yml"
-	ChannelPath   *string `protobuf:"bytes,2,opt,name=channel_path,json=channelPath,proto3,oneof" json:"channel_path,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GenericUpdateConfig) Reset() {
-	*x = GenericUpdateConfig{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GenericUpdateConfig) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GenericUpdateConfig) ProtoMessage() {}
-
-func (x *GenericUpdateConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GenericUpdateConfig.ProtoReflect.Descriptor instead.
-func (*GenericUpdateConfig) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *GenericUpdateConfig) GetUrl() string {
-	if x != nil {
-		return x.Url
-	}
-	return ""
-}
-
-func (x *GenericUpdateConfig) GetChannelPath() string {
-	if x != nil && x.ChannelPath != nil {
-		return *x.ChannelPath
-	}
-	return ""
-}
-
-// UpdateConfig configures automatic updates for the desktop application.
-//
-// Supports multiple update providers. Only one provider should be configured.
-type UpdateConfig struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Update channel (stable, beta, alpha, etc.).
-	// @default "stable"
-	Channel *string `protobuf:"bytes,1,opt,name=channel,proto3,oneof" json:"channel,omitempty"`
-	// Update provider name.
-	// @example "github", "generic", "s3"
-	Provider *string `protobuf:"bytes,2,opt,name=provider,proto3,oneof" json:"provider,omitempty"`
-	// Whether to automatically check for updates on startup.
-	// @default true
-	AutoCheck *bool `protobuf:"varint,3,opt,name=auto_check,json=autoCheck,proto3,oneof" json:"auto_check,omitempty"`
-	// GitHub Releases update configuration.
-	Github *GitHubUpdateConfig `protobuf:"bytes,10,opt,name=github,proto3,oneof" json:"github,omitempty"`
-	// Generic/self-hosted update configuration.
-	Generic       *GenericUpdateConfig `protobuf:"bytes,11,opt,name=generic,proto3,oneof" json:"generic,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *UpdateConfig) Reset() {
-	*x = UpdateConfig{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *UpdateConfig) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*UpdateConfig) ProtoMessage() {}
-
-func (x *UpdateConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use UpdateConfig.ProtoReflect.Descriptor instead.
-func (*UpdateConfig) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *UpdateConfig) GetChannel() string {
-	if x != nil && x.Channel != nil {
-		return *x.Channel
-	}
-	return ""
-}
-
-func (x *UpdateConfig) GetProvider() string {
-	if x != nil && x.Provider != nil {
-		return *x.Provider
-	}
-	return ""
-}
-
-func (x *UpdateConfig) GetAutoCheck() bool {
-	if x != nil && x.AutoCheck != nil {
-		return *x.AutoCheck
-	}
-	return false
-}
-
-func (x *UpdateConfig) GetGithub() *GitHubUpdateConfig {
-	if x != nil {
-		return x.Github
-	}
-	return nil
-}
-
-func (x *UpdateConfig) GetGeneric() *GenericUpdateConfig {
-	if x != nil {
-		return x.Generic
-	}
-	return nil
-}
-
 // WindowConfig defines the main window appearance and behavior.
 type WindowConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -751,7 +533,7 @@ type WindowConfig struct {
 
 func (x *WindowConfig) Reset() {
 	*x = WindowConfig{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[7]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -763,7 +545,7 @@ func (x *WindowConfig) String() string {
 func (*WindowConfig) ProtoMessage() {}
 
 func (x *WindowConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[7]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -776,7 +558,7 @@ func (x *WindowConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WindowConfig.ProtoReflect.Descriptor instead.
 func (*WindowConfig) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{7}
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *WindowConfig) GetWidth() int32 {
@@ -841,7 +623,7 @@ type DesktopConfig struct {
 	// Bundle configuration for offline mode.
 	Bundle *BundleConfig `protobuf:"bytes,3,opt,name=bundle,proto3,oneof" json:"bundle,omitempty"`
 	// Auto-update configuration.
-	Update *UpdateConfig `protobuf:"bytes,4,opt,name=update,proto3,oneof" json:"update,omitempty"`
+	Update *shared.UpdateConfig `protobuf:"bytes,4,opt,name=update,proto3,oneof" json:"update,omitempty"`
 	// Main window configuration.
 	Window *WindowConfig `protobuf:"bytes,5,opt,name=window,proto3,oneof" json:"window,omitempty"`
 	// Target desktop framework.
@@ -869,7 +651,7 @@ type DesktopConfig struct {
 
 func (x *DesktopConfig) Reset() {
 	*x = DesktopConfig{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[8]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -881,7 +663,7 @@ func (x *DesktopConfig) String() string {
 func (*DesktopConfig) ProtoMessage() {}
 
 func (x *DesktopConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[8]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -894,7 +676,7 @@ func (x *DesktopConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DesktopConfig.ProtoReflect.Descriptor instead.
 func (*DesktopConfig) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{8}
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *DesktopConfig) GetApp() *AppIdentity {
@@ -918,7 +700,7 @@ func (x *DesktopConfig) GetBundle() *BundleConfig {
 	return nil
 }
 
-func (x *DesktopConfig) GetUpdate() *UpdateConfig {
+func (x *DesktopConfig) GetUpdate() *shared.UpdateConfig {
 	if x != nil {
 		return x.Update
 	}
@@ -1014,7 +796,7 @@ type ConnectionConfig struct {
 
 func (x *ConnectionConfig) Reset() {
 	*x = ConnectionConfig{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[9]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1026,7 +808,7 @@ func (x *ConnectionConfig) String() string {
 func (*ConnectionConfig) ProtoMessage() {}
 
 func (x *ConnectionConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[9]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1039,7 +821,7 @@ func (x *ConnectionConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConnectionConfig.ProtoReflect.Descriptor instead.
 func (*ConnectionConfig) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{9}
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ConnectionConfig) GetProxyUrl() string {
@@ -1114,7 +896,7 @@ type GetScenarioMetadataRequest struct {
 
 func (x *GetScenarioMetadataRequest) Reset() {
 	*x = GetScenarioMetadataRequest{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[10]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1126,7 +908,7 @@ func (x *GetScenarioMetadataRequest) String() string {
 func (*GetScenarioMetadataRequest) ProtoMessage() {}
 
 func (x *GetScenarioMetadataRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[10]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1139,7 +921,7 @@ func (x *GetScenarioMetadataRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetScenarioMetadataRequest.ProtoReflect.Descriptor instead.
 func (*GetScenarioMetadataRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{10}
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetScenarioMetadataRequest) GetScenarioName() string {
@@ -1159,7 +941,7 @@ type CreateDesktopConfigRequest struct {
 
 func (x *CreateDesktopConfigRequest) Reset() {
 	*x = CreateDesktopConfigRequest{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[11]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1171,7 +953,7 @@ func (x *CreateDesktopConfigRequest) String() string {
 func (*CreateDesktopConfigRequest) ProtoMessage() {}
 
 func (x *CreateDesktopConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[11]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1184,7 +966,7 @@ func (x *CreateDesktopConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateDesktopConfigRequest.ProtoReflect.Descriptor instead.
 func (*CreateDesktopConfigRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{11}
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CreateDesktopConfigRequest) GetMetadata() *shared.ScenarioMetadata {
@@ -1209,7 +991,7 @@ type GetSystemStatusRequest struct {
 
 func (x *GetSystemStatusRequest) Reset() {
 	*x = GetSystemStatusRequest{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[12]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1221,7 +1003,7 @@ func (x *GetSystemStatusRequest) String() string {
 func (*GetSystemStatusRequest) ProtoMessage() {}
 
 func (x *GetSystemStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[12]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1234,7 +1016,7 @@ func (x *GetSystemStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSystemStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetSystemStatusRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{12}
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{9}
 }
 
 type SystemServiceInfo struct {
@@ -1249,7 +1031,7 @@ type SystemServiceInfo struct {
 
 func (x *SystemServiceInfo) Reset() {
 	*x = SystemServiceInfo{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[13]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1261,7 +1043,7 @@ func (x *SystemServiceInfo) String() string {
 func (*SystemServiceInfo) ProtoMessage() {}
 
 func (x *SystemServiceInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[13]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1274,7 +1056,7 @@ func (x *SystemServiceInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SystemServiceInfo.ProtoReflect.Descriptor instead.
 func (*SystemServiceInfo) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{13}
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *SystemServiceInfo) GetName() string {
@@ -1317,7 +1099,7 @@ type SystemBuildStatistics struct {
 
 func (x *SystemBuildStatistics) Reset() {
 	*x = SystemBuildStatistics{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[14]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1329,7 +1111,7 @@ func (x *SystemBuildStatistics) String() string {
 func (*SystemBuildStatistics) ProtoMessage() {}
 
 func (x *SystemBuildStatistics) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[14]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1342,7 +1124,7 @@ func (x *SystemBuildStatistics) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SystemBuildStatistics.ProtoReflect.Descriptor instead.
 func (*SystemBuildStatistics) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{14}
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SystemBuildStatistics) GetTotalBuilds() int64 {
@@ -1386,7 +1168,7 @@ type SystemStatusResponse struct {
 
 func (x *SystemStatusResponse) Reset() {
 	*x = SystemStatusResponse{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[15]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1398,7 +1180,7 @@ func (x *SystemStatusResponse) String() string {
 func (*SystemStatusResponse) ProtoMessage() {}
 
 func (x *SystemStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[15]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1411,7 +1193,7 @@ func (x *SystemStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SystemStatusResponse.ProtoReflect.Descriptor instead.
 func (*SystemStatusResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{15}
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *SystemStatusResponse) GetService() *SystemServiceInfo {
@@ -1457,7 +1239,7 @@ type ListTemplatesRequest struct {
 
 func (x *ListTemplatesRequest) Reset() {
 	*x = ListTemplatesRequest{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[16]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1469,7 +1251,7 @@ func (x *ListTemplatesRequest) String() string {
 func (*ListTemplatesRequest) ProtoMessage() {}
 
 func (x *ListTemplatesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[16]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1482,7 +1264,7 @@ func (x *ListTemplatesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTemplatesRequest.ProtoReflect.Descriptor instead.
 func (*ListTemplatesRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{16}
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{13}
 }
 
 type TemplateInfo struct {
@@ -1501,7 +1283,7 @@ type TemplateInfo struct {
 
 func (x *TemplateInfo) Reset() {
 	*x = TemplateInfo{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[17]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1513,7 +1295,7 @@ func (x *TemplateInfo) String() string {
 func (*TemplateInfo) ProtoMessage() {}
 
 func (x *TemplateInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[17]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1526,7 +1308,7 @@ func (x *TemplateInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TemplateInfo.ProtoReflect.Descriptor instead.
 func (*TemplateInfo) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{17}
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *TemplateInfo) GetName() string {
@@ -1595,7 +1377,7 @@ type ListTemplatesResponse struct {
 
 func (x *ListTemplatesResponse) Reset() {
 	*x = ListTemplatesResponse{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[18]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1607,7 +1389,7 @@ func (x *ListTemplatesResponse) String() string {
 func (*ListTemplatesResponse) ProtoMessage() {}
 
 func (x *ListTemplatesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[18]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1620,7 +1402,7 @@ func (x *ListTemplatesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTemplatesResponse.ProtoReflect.Descriptor instead.
 func (*ListTemplatesResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{18}
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ListTemplatesResponse) GetTemplates() []*TemplateInfo {
@@ -1646,7 +1428,7 @@ type GetTemplateRequest struct {
 
 func (x *GetTemplateRequest) Reset() {
 	*x = GetTemplateRequest{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[19]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1658,7 +1440,7 @@ func (x *GetTemplateRequest) String() string {
 func (*GetTemplateRequest) ProtoMessage() {}
 
 func (x *GetTemplateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[19]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1671,7 +1453,7 @@ func (x *GetTemplateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTemplateRequest.ProtoReflect.Descriptor instead.
 func (*GetTemplateRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{19}
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GetTemplateRequest) GetType() string {
@@ -1690,7 +1472,7 @@ type TemplateConfigResponse struct {
 
 func (x *TemplateConfigResponse) Reset() {
 	*x = TemplateConfigResponse{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[20]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1702,7 +1484,7 @@ func (x *TemplateConfigResponse) String() string {
 func (*TemplateConfigResponse) ProtoMessage() {}
 
 func (x *TemplateConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[20]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1715,7 +1497,7 @@ func (x *TemplateConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TemplateConfigResponse.ProtoReflect.Descriptor instead.
 func (*TemplateConfigResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{20}
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *TemplateConfigResponse) GetConfig() *structpb.Struct {
@@ -1733,7 +1515,7 @@ type CheckWineRequest struct {
 
 func (x *CheckWineRequest) Reset() {
 	*x = CheckWineRequest{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[21]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1745,7 +1527,7 @@ func (x *CheckWineRequest) String() string {
 func (*CheckWineRequest) ProtoMessage() {}
 
 func (x *CheckWineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[21]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1758,7 +1540,7 @@ func (x *CheckWineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckWineRequest.ProtoReflect.Descriptor instead.
 func (*CheckWineRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{21}
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{18}
 }
 
 type WineInstallMethod struct {
@@ -1775,7 +1557,7 @@ type WineInstallMethod struct {
 
 func (x *WineInstallMethod) Reset() {
 	*x = WineInstallMethod{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[22]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1787,7 +1569,7 @@ func (x *WineInstallMethod) String() string {
 func (*WineInstallMethod) ProtoMessage() {}
 
 func (x *WineInstallMethod) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[22]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1800,7 +1582,7 @@ func (x *WineInstallMethod) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WineInstallMethod.ProtoReflect.Descriptor instead.
 func (*WineInstallMethod) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{22}
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *WineInstallMethod) GetId() string {
@@ -1859,7 +1641,7 @@ type WineCheckResponse struct {
 
 func (x *WineCheckResponse) Reset() {
 	*x = WineCheckResponse{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[23]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1871,7 +1653,7 @@ func (x *WineCheckResponse) String() string {
 func (*WineCheckResponse) ProtoMessage() {}
 
 func (x *WineCheckResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[23]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1884,7 +1666,7 @@ func (x *WineCheckResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WineCheckResponse.ProtoReflect.Descriptor instead.
 func (*WineCheckResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{23}
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *WineCheckResponse) GetInstalled() bool {
@@ -1938,7 +1720,7 @@ type InstallWineRequest struct {
 
 func (x *InstallWineRequest) Reset() {
 	*x = InstallWineRequest{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[24]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1950,7 +1732,7 @@ func (x *InstallWineRequest) String() string {
 func (*InstallWineRequest) ProtoMessage() {}
 
 func (x *InstallWineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[24]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1963,7 +1745,7 @@ func (x *InstallWineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstallWineRequest.ProtoReflect.Descriptor instead.
 func (*InstallWineRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{24}
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *InstallWineRequest) GetMethod() string {
@@ -1985,7 +1767,7 @@ type WineInstallResponse struct {
 
 func (x *WineInstallResponse) Reset() {
 	*x = WineInstallResponse{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[25]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1997,7 +1779,7 @@ func (x *WineInstallResponse) String() string {
 func (*WineInstallResponse) ProtoMessage() {}
 
 func (x *WineInstallResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[25]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2010,7 +1792,7 @@ func (x *WineInstallResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WineInstallResponse.ProtoReflect.Descriptor instead.
 func (*WineInstallResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{25}
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *WineInstallResponse) GetInstallId() string {
@@ -2050,7 +1832,7 @@ type GetWineInstallStatusRequest struct {
 
 func (x *GetWineInstallStatusRequest) Reset() {
 	*x = GetWineInstallStatusRequest{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[26]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2062,7 +1844,7 @@ func (x *GetWineInstallStatusRequest) String() string {
 func (*GetWineInstallStatusRequest) ProtoMessage() {}
 
 func (x *GetWineInstallStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[26]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2075,7 +1857,7 @@ func (x *GetWineInstallStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetWineInstallStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetWineInstallStatusRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{26}
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *GetWineInstallStatusRequest) GetInstallId() string {
@@ -2100,7 +1882,7 @@ type WineInstallStatusResponse struct {
 
 func (x *WineInstallStatusResponse) Reset() {
 	*x = WineInstallStatusResponse{}
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[27]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2112,7 +1894,7 @@ func (x *WineInstallStatusResponse) String() string {
 func (*WineInstallStatusResponse) ProtoMessage() {}
 
 func (x *WineInstallStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[27]
+	mi := &file_scenario_to_desktop_v1_domain_config_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2125,7 +1907,7 @@ func (x *WineInstallStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WineInstallStatusResponse.ProtoReflect.Descriptor instead.
 func (*WineInstallStatusResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{27}
+	return file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *WineInstallStatusResponse) GetInstallId() string {
@@ -2181,7 +1963,7 @@ var File_scenario_to_desktop_v1_domain_config_proto protoreflect.FileDescriptor
 
 const file_scenario_to_desktop_v1_domain_config_proto_rawDesc = "" +
 	"\n" +
-	"*scenario-to-desktop/v1/domain/config.proto\x12$vrooli.scenario_to_desktop.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a*scenario-to-desktop/v1/shared/common.proto\x1a,scenario-to-desktop/v1/shared/metadata.proto\"\xd1\x03\n" +
+	"*scenario-to-desktop/v1/domain/config.proto\x12$vrooli.scenario_to_desktop.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a*scenario-to-desktop/v1/shared/common.proto\x1a,scenario-to-desktop/v1/shared/metadata.proto\x1a1scenario-to-desktop/v1/shared/update_config.proto\"\xd1\x03\n" +
 	"\vAppIdentity\x125\n" +
 	"\x04name\x18\x01 \x01(\tB!\xbaH\x1er\x1c2\x1a^[a-z0-9]+(?:-[a-z0-9]+)*$R\x04name\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12%\n" +
@@ -2250,32 +2032,7 @@ const file_scenario_to_desktop_v1_domain_config_proto_rawDesc = "" +
 	"\x0e_ui_service_idB\f\n" +
 	"\n" +
 	"_port_nameB\x17\n" +
-	"\x15_telemetry_upload_url\"i\n" +
-	"\x12GitHubUpdateConfig\x12\x14\n" +
-	"\x05owner\x18\x01 \x01(\tR\x05owner\x12\x12\n" +
-	"\x04repo\x18\x02 \x01(\tR\x04repo\x12\x1d\n" +
-	"\aprivate\x18\x03 \x01(\bH\x00R\aprivate\x88\x01\x01B\n" +
-	"\n" +
-	"\b_private\"`\n" +
-	"\x13GenericUpdateConfig\x12\x10\n" +
-	"\x03url\x18\x01 \x01(\tR\x03url\x12&\n" +
-	"\fchannel_path\x18\x02 \x01(\tH\x00R\vchannelPath\x88\x01\x01B\x0f\n" +
-	"\r_channel_path\"\xe2\x02\n" +
-	"\fUpdateConfig\x12\x1d\n" +
-	"\achannel\x18\x01 \x01(\tH\x00R\achannel\x88\x01\x01\x12\x1f\n" +
-	"\bprovider\x18\x02 \x01(\tH\x01R\bprovider\x88\x01\x01\x12\"\n" +
-	"\n" +
-	"auto_check\x18\x03 \x01(\bH\x02R\tautoCheck\x88\x01\x01\x12U\n" +
-	"\x06github\x18\n" +
-	" \x01(\v28.vrooli.scenario_to_desktop.v1.domain.GitHubUpdateConfigH\x03R\x06github\x88\x01\x01\x12X\n" +
-	"\ageneric\x18\v \x01(\v29.vrooli.scenario_to_desktop.v1.domain.GenericUpdateConfigH\x04R\ageneric\x88\x01\x01B\n" +
-	"\n" +
-	"\b_channelB\v\n" +
-	"\t_providerB\r\n" +
-	"\v_auto_checkB\t\n" +
-	"\a_githubB\n" +
-	"\n" +
-	"\b_generic\"\xc4\x02\n" +
+	"\x15_telemetry_upload_url\"\xc4\x02\n" +
 	"\fWindowConfig\x12\x19\n" +
 	"\x05width\x18\x01 \x01(\x05H\x00R\x05width\x88\x01\x01\x12\x1b\n" +
 	"\x06height\x18\x02 \x01(\x05H\x01R\x06height\x88\x01\x01\x12 \n" +
@@ -2299,7 +2056,7 @@ const file_scenario_to_desktop_v1_domain_config_proto_rawDesc = "" +
 	"\x03app\x18\x01 \x01(\v21.vrooli.scenario_to_desktop.v1.domain.AppIdentityR\x03app\x12J\n" +
 	"\x06server\x18\x02 \x01(\v22.vrooli.scenario_to_desktop.v1.domain.ServerConfigR\x06server\x12O\n" +
 	"\x06bundle\x18\x03 \x01(\v22.vrooli.scenario_to_desktop.v1.domain.BundleConfigH\x00R\x06bundle\x88\x01\x01\x12O\n" +
-	"\x06update\x18\x04 \x01(\v22.vrooli.scenario_to_desktop.v1.domain.UpdateConfigH\x01R\x06update\x88\x01\x01\x12O\n" +
+	"\x06update\x18\x04 \x01(\v22.vrooli.scenario_to_desktop.v1.shared.UpdateConfigH\x01R\x06update\x88\x01\x01\x12O\n" +
 	"\x06window\x18\x05 \x01(\v22.vrooli.scenario_to_desktop.v1.domain.WindowConfigH\x02R\x06window\x88\x01\x01\x12M\n" +
 	"\tframework\x18\x06 \x01(\x0e2/.vrooli.scenario_to_desktop.v1.shared.FrameworkR\tframework\x12W\n" +
 	"\rtemplate_type\x18\a \x01(\x0e22.vrooli.scenario_to_desktop.v1.shared.TemplateTypeR\ftemplateType\x12L\n" +
@@ -2448,92 +2205,88 @@ func file_scenario_to_desktop_v1_domain_config_proto_rawDescGZIP() []byte {
 	return file_scenario_to_desktop_v1_domain_config_proto_rawDescData
 }
 
-var file_scenario_to_desktop_v1_domain_config_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
+var file_scenario_to_desktop_v1_domain_config_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
 var file_scenario_to_desktop_v1_domain_config_proto_goTypes = []any{
 	(*AppIdentity)(nil),                 // 0: vrooli.scenario_to_desktop.v1.domain.AppIdentity
 	(*ServerConfig)(nil),                // 1: vrooli.scenario_to_desktop.v1.domain.ServerConfig
 	(*BundleIPCConfig)(nil),             // 2: vrooli.scenario_to_desktop.v1.domain.BundleIPCConfig
 	(*BundleConfig)(nil),                // 3: vrooli.scenario_to_desktop.v1.domain.BundleConfig
-	(*GitHubUpdateConfig)(nil),          // 4: vrooli.scenario_to_desktop.v1.domain.GitHubUpdateConfig
-	(*GenericUpdateConfig)(nil),         // 5: vrooli.scenario_to_desktop.v1.domain.GenericUpdateConfig
-	(*UpdateConfig)(nil),                // 6: vrooli.scenario_to_desktop.v1.domain.UpdateConfig
-	(*WindowConfig)(nil),                // 7: vrooli.scenario_to_desktop.v1.domain.WindowConfig
-	(*DesktopConfig)(nil),               // 8: vrooli.scenario_to_desktop.v1.domain.DesktopConfig
-	(*ConnectionConfig)(nil),            // 9: vrooli.scenario_to_desktop.v1.domain.ConnectionConfig
-	(*GetScenarioMetadataRequest)(nil),  // 10: vrooli.scenario_to_desktop.v1.domain.GetScenarioMetadataRequest
-	(*CreateDesktopConfigRequest)(nil),  // 11: vrooli.scenario_to_desktop.v1.domain.CreateDesktopConfigRequest
-	(*GetSystemStatusRequest)(nil),      // 12: vrooli.scenario_to_desktop.v1.domain.GetSystemStatusRequest
-	(*SystemServiceInfo)(nil),           // 13: vrooli.scenario_to_desktop.v1.domain.SystemServiceInfo
-	(*SystemBuildStatistics)(nil),       // 14: vrooli.scenario_to_desktop.v1.domain.SystemBuildStatistics
-	(*SystemStatusResponse)(nil),        // 15: vrooli.scenario_to_desktop.v1.domain.SystemStatusResponse
-	(*ListTemplatesRequest)(nil),        // 16: vrooli.scenario_to_desktop.v1.domain.ListTemplatesRequest
-	(*TemplateInfo)(nil),                // 17: vrooli.scenario_to_desktop.v1.domain.TemplateInfo
-	(*ListTemplatesResponse)(nil),       // 18: vrooli.scenario_to_desktop.v1.domain.ListTemplatesResponse
-	(*GetTemplateRequest)(nil),          // 19: vrooli.scenario_to_desktop.v1.domain.GetTemplateRequest
-	(*TemplateConfigResponse)(nil),      // 20: vrooli.scenario_to_desktop.v1.domain.TemplateConfigResponse
-	(*CheckWineRequest)(nil),            // 21: vrooli.scenario_to_desktop.v1.domain.CheckWineRequest
-	(*WineInstallMethod)(nil),           // 22: vrooli.scenario_to_desktop.v1.domain.WineInstallMethod
-	(*WineCheckResponse)(nil),           // 23: vrooli.scenario_to_desktop.v1.domain.WineCheckResponse
-	(*InstallWineRequest)(nil),          // 24: vrooli.scenario_to_desktop.v1.domain.InstallWineRequest
-	(*WineInstallResponse)(nil),         // 25: vrooli.scenario_to_desktop.v1.domain.WineInstallResponse
-	(*GetWineInstallStatusRequest)(nil), // 26: vrooli.scenario_to_desktop.v1.domain.GetWineInstallStatusRequest
-	(*WineInstallStatusResponse)(nil),   // 27: vrooli.scenario_to_desktop.v1.domain.WineInstallStatusResponse
-	nil,                                 // 28: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.FeaturesEntry
-	nil,                                 // 29: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.StylingEntry
-	(shared.DeploymentMode)(0),          // 30: vrooli.scenario_to_desktop.v1.shared.DeploymentMode
-	(shared.Framework)(0),               // 31: vrooli.scenario_to_desktop.v1.shared.Framework
-	(shared.TemplateType)(0),            // 32: vrooli.scenario_to_desktop.v1.shared.TemplateType
-	(shared.Platform)(0),                // 33: vrooli.scenario_to_desktop.v1.shared.Platform
-	(*shared.ScenarioMetadata)(nil),     // 34: vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata
-	(*structpb.Struct)(nil),             // 35: google.protobuf.Struct
-	(*timestamppb.Timestamp)(nil),       // 36: google.protobuf.Timestamp
+	(*WindowConfig)(nil),                // 4: vrooli.scenario_to_desktop.v1.domain.WindowConfig
+	(*DesktopConfig)(nil),               // 5: vrooli.scenario_to_desktop.v1.domain.DesktopConfig
+	(*ConnectionConfig)(nil),            // 6: vrooli.scenario_to_desktop.v1.domain.ConnectionConfig
+	(*GetScenarioMetadataRequest)(nil),  // 7: vrooli.scenario_to_desktop.v1.domain.GetScenarioMetadataRequest
+	(*CreateDesktopConfigRequest)(nil),  // 8: vrooli.scenario_to_desktop.v1.domain.CreateDesktopConfigRequest
+	(*GetSystemStatusRequest)(nil),      // 9: vrooli.scenario_to_desktop.v1.domain.GetSystemStatusRequest
+	(*SystemServiceInfo)(nil),           // 10: vrooli.scenario_to_desktop.v1.domain.SystemServiceInfo
+	(*SystemBuildStatistics)(nil),       // 11: vrooli.scenario_to_desktop.v1.domain.SystemBuildStatistics
+	(*SystemStatusResponse)(nil),        // 12: vrooli.scenario_to_desktop.v1.domain.SystemStatusResponse
+	(*ListTemplatesRequest)(nil),        // 13: vrooli.scenario_to_desktop.v1.domain.ListTemplatesRequest
+	(*TemplateInfo)(nil),                // 14: vrooli.scenario_to_desktop.v1.domain.TemplateInfo
+	(*ListTemplatesResponse)(nil),       // 15: vrooli.scenario_to_desktop.v1.domain.ListTemplatesResponse
+	(*GetTemplateRequest)(nil),          // 16: vrooli.scenario_to_desktop.v1.domain.GetTemplateRequest
+	(*TemplateConfigResponse)(nil),      // 17: vrooli.scenario_to_desktop.v1.domain.TemplateConfigResponse
+	(*CheckWineRequest)(nil),            // 18: vrooli.scenario_to_desktop.v1.domain.CheckWineRequest
+	(*WineInstallMethod)(nil),           // 19: vrooli.scenario_to_desktop.v1.domain.WineInstallMethod
+	(*WineCheckResponse)(nil),           // 20: vrooli.scenario_to_desktop.v1.domain.WineCheckResponse
+	(*InstallWineRequest)(nil),          // 21: vrooli.scenario_to_desktop.v1.domain.InstallWineRequest
+	(*WineInstallResponse)(nil),         // 22: vrooli.scenario_to_desktop.v1.domain.WineInstallResponse
+	(*GetWineInstallStatusRequest)(nil), // 23: vrooli.scenario_to_desktop.v1.domain.GetWineInstallStatusRequest
+	(*WineInstallStatusResponse)(nil),   // 24: vrooli.scenario_to_desktop.v1.domain.WineInstallStatusResponse
+	nil,                                 // 25: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.FeaturesEntry
+	nil,                                 // 26: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.StylingEntry
+	(shared.DeploymentMode)(0),          // 27: vrooli.scenario_to_desktop.v1.shared.DeploymentMode
+	(*shared.UpdateConfig)(nil),         // 28: vrooli.scenario_to_desktop.v1.shared.UpdateConfig
+	(shared.Framework)(0),               // 29: vrooli.scenario_to_desktop.v1.shared.Framework
+	(shared.TemplateType)(0),            // 30: vrooli.scenario_to_desktop.v1.shared.TemplateType
+	(shared.Platform)(0),                // 31: vrooli.scenario_to_desktop.v1.shared.Platform
+	(*shared.ScenarioMetadata)(nil),     // 32: vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata
+	(*structpb.Struct)(nil),             // 33: google.protobuf.Struct
+	(*timestamppb.Timestamp)(nil),       // 34: google.protobuf.Timestamp
 }
 var file_scenario_to_desktop_v1_domain_config_proto_depIdxs = []int32{
-	30, // 0: vrooli.scenario_to_desktop.v1.domain.ServerConfig.deployment_mode:type_name -> vrooli.scenario_to_desktop.v1.shared.DeploymentMode
+	27, // 0: vrooli.scenario_to_desktop.v1.domain.ServerConfig.deployment_mode:type_name -> vrooli.scenario_to_desktop.v1.shared.DeploymentMode
 	2,  // 1: vrooli.scenario_to_desktop.v1.domain.BundleConfig.ipc:type_name -> vrooli.scenario_to_desktop.v1.domain.BundleIPCConfig
-	4,  // 2: vrooli.scenario_to_desktop.v1.domain.UpdateConfig.github:type_name -> vrooli.scenario_to_desktop.v1.domain.GitHubUpdateConfig
-	5,  // 3: vrooli.scenario_to_desktop.v1.domain.UpdateConfig.generic:type_name -> vrooli.scenario_to_desktop.v1.domain.GenericUpdateConfig
-	0,  // 4: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.app:type_name -> vrooli.scenario_to_desktop.v1.domain.AppIdentity
-	1,  // 5: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.server:type_name -> vrooli.scenario_to_desktop.v1.domain.ServerConfig
-	3,  // 6: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.bundle:type_name -> vrooli.scenario_to_desktop.v1.domain.BundleConfig
-	6,  // 7: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.update:type_name -> vrooli.scenario_to_desktop.v1.domain.UpdateConfig
-	7,  // 8: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.window:type_name -> vrooli.scenario_to_desktop.v1.domain.WindowConfig
-	31, // 9: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.framework:type_name -> vrooli.scenario_to_desktop.v1.shared.Framework
-	32, // 10: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.template_type:type_name -> vrooli.scenario_to_desktop.v1.shared.TemplateType
-	33, // 11: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.platforms:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
-	28, // 12: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.features:type_name -> vrooli.scenario_to_desktop.v1.domain.DesktopConfig.FeaturesEntry
-	29, // 13: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.styling:type_name -> vrooli.scenario_to_desktop.v1.domain.DesktopConfig.StylingEntry
-	30, // 14: vrooli.scenario_to_desktop.v1.domain.ConnectionConfig.deployment_mode:type_name -> vrooli.scenario_to_desktop.v1.shared.DeploymentMode
-	34, // 15: vrooli.scenario_to_desktop.v1.domain.CreateDesktopConfigRequest.metadata:type_name -> vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata
-	32, // 16: vrooli.scenario_to_desktop.v1.domain.CreateDesktopConfigRequest.template_type:type_name -> vrooli.scenario_to_desktop.v1.shared.TemplateType
-	13, // 17: vrooli.scenario_to_desktop.v1.domain.SystemStatusResponse.service:type_name -> vrooli.scenario_to_desktop.v1.domain.SystemServiceInfo
-	14, // 18: vrooli.scenario_to_desktop.v1.domain.SystemStatusResponse.statistics:type_name -> vrooli.scenario_to_desktop.v1.domain.SystemBuildStatistics
-	17, // 19: vrooli.scenario_to_desktop.v1.domain.ListTemplatesResponse.templates:type_name -> vrooli.scenario_to_desktop.v1.domain.TemplateInfo
-	35, // 20: vrooli.scenario_to_desktop.v1.domain.TemplateConfigResponse.config:type_name -> google.protobuf.Struct
-	22, // 21: vrooli.scenario_to_desktop.v1.domain.WineCheckResponse.install_methods:type_name -> vrooli.scenario_to_desktop.v1.domain.WineInstallMethod
-	36, // 22: vrooli.scenario_to_desktop.v1.domain.WineInstallStatusResponse.started_at:type_name -> google.protobuf.Timestamp
-	36, // 23: vrooli.scenario_to_desktop.v1.domain.WineInstallStatusResponse.completed_at:type_name -> google.protobuf.Timestamp
-	10, // 24: vrooli.scenario_to_desktop.v1.domain.ConfigService.GetScenarioMetadata:input_type -> vrooli.scenario_to_desktop.v1.domain.GetScenarioMetadataRequest
-	11, // 25: vrooli.scenario_to_desktop.v1.domain.ConfigService.CreateDesktopConfig:input_type -> vrooli.scenario_to_desktop.v1.domain.CreateDesktopConfigRequest
-	12, // 26: vrooli.scenario_to_desktop.v1.domain.SystemService.GetSystemStatus:input_type -> vrooli.scenario_to_desktop.v1.domain.GetSystemStatusRequest
-	16, // 27: vrooli.scenario_to_desktop.v1.domain.SystemService.ListTemplates:input_type -> vrooli.scenario_to_desktop.v1.domain.ListTemplatesRequest
-	19, // 28: vrooli.scenario_to_desktop.v1.domain.SystemService.GetTemplate:input_type -> vrooli.scenario_to_desktop.v1.domain.GetTemplateRequest
-	21, // 29: vrooli.scenario_to_desktop.v1.domain.SystemService.CheckWine:input_type -> vrooli.scenario_to_desktop.v1.domain.CheckWineRequest
-	24, // 30: vrooli.scenario_to_desktop.v1.domain.SystemService.InstallWine:input_type -> vrooli.scenario_to_desktop.v1.domain.InstallWineRequest
-	26, // 31: vrooli.scenario_to_desktop.v1.domain.SystemService.GetWineInstallStatus:input_type -> vrooli.scenario_to_desktop.v1.domain.GetWineInstallStatusRequest
-	34, // 32: vrooli.scenario_to_desktop.v1.domain.ConfigService.GetScenarioMetadata:output_type -> vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata
-	8,  // 33: vrooli.scenario_to_desktop.v1.domain.ConfigService.CreateDesktopConfig:output_type -> vrooli.scenario_to_desktop.v1.domain.DesktopConfig
-	15, // 34: vrooli.scenario_to_desktop.v1.domain.SystemService.GetSystemStatus:output_type -> vrooli.scenario_to_desktop.v1.domain.SystemStatusResponse
-	18, // 35: vrooli.scenario_to_desktop.v1.domain.SystemService.ListTemplates:output_type -> vrooli.scenario_to_desktop.v1.domain.ListTemplatesResponse
-	20, // 36: vrooli.scenario_to_desktop.v1.domain.SystemService.GetTemplate:output_type -> vrooli.scenario_to_desktop.v1.domain.TemplateConfigResponse
-	23, // 37: vrooli.scenario_to_desktop.v1.domain.SystemService.CheckWine:output_type -> vrooli.scenario_to_desktop.v1.domain.WineCheckResponse
-	25, // 38: vrooli.scenario_to_desktop.v1.domain.SystemService.InstallWine:output_type -> vrooli.scenario_to_desktop.v1.domain.WineInstallResponse
-	27, // 39: vrooli.scenario_to_desktop.v1.domain.SystemService.GetWineInstallStatus:output_type -> vrooli.scenario_to_desktop.v1.domain.WineInstallStatusResponse
-	32, // [32:40] is the sub-list for method output_type
-	24, // [24:32] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	0,  // 2: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.app:type_name -> vrooli.scenario_to_desktop.v1.domain.AppIdentity
+	1,  // 3: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.server:type_name -> vrooli.scenario_to_desktop.v1.domain.ServerConfig
+	3,  // 4: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.bundle:type_name -> vrooli.scenario_to_desktop.v1.domain.BundleConfig
+	28, // 5: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.update:type_name -> vrooli.scenario_to_desktop.v1.shared.UpdateConfig
+	4,  // 6: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.window:type_name -> vrooli.scenario_to_desktop.v1.domain.WindowConfig
+	29, // 7: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.framework:type_name -> vrooli.scenario_to_desktop.v1.shared.Framework
+	30, // 8: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.template_type:type_name -> vrooli.scenario_to_desktop.v1.shared.TemplateType
+	31, // 9: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.platforms:type_name -> vrooli.scenario_to_desktop.v1.shared.Platform
+	25, // 10: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.features:type_name -> vrooli.scenario_to_desktop.v1.domain.DesktopConfig.FeaturesEntry
+	26, // 11: vrooli.scenario_to_desktop.v1.domain.DesktopConfig.styling:type_name -> vrooli.scenario_to_desktop.v1.domain.DesktopConfig.StylingEntry
+	27, // 12: vrooli.scenario_to_desktop.v1.domain.ConnectionConfig.deployment_mode:type_name -> vrooli.scenario_to_desktop.v1.shared.DeploymentMode
+	32, // 13: vrooli.scenario_to_desktop.v1.domain.CreateDesktopConfigRequest.metadata:type_name -> vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata
+	30, // 14: vrooli.scenario_to_desktop.v1.domain.CreateDesktopConfigRequest.template_type:type_name -> vrooli.scenario_to_desktop.v1.shared.TemplateType
+	10, // 15: vrooli.scenario_to_desktop.v1.domain.SystemStatusResponse.service:type_name -> vrooli.scenario_to_desktop.v1.domain.SystemServiceInfo
+	11, // 16: vrooli.scenario_to_desktop.v1.domain.SystemStatusResponse.statistics:type_name -> vrooli.scenario_to_desktop.v1.domain.SystemBuildStatistics
+	14, // 17: vrooli.scenario_to_desktop.v1.domain.ListTemplatesResponse.templates:type_name -> vrooli.scenario_to_desktop.v1.domain.TemplateInfo
+	33, // 18: vrooli.scenario_to_desktop.v1.domain.TemplateConfigResponse.config:type_name -> google.protobuf.Struct
+	19, // 19: vrooli.scenario_to_desktop.v1.domain.WineCheckResponse.install_methods:type_name -> vrooli.scenario_to_desktop.v1.domain.WineInstallMethod
+	34, // 20: vrooli.scenario_to_desktop.v1.domain.WineInstallStatusResponse.started_at:type_name -> google.protobuf.Timestamp
+	34, // 21: vrooli.scenario_to_desktop.v1.domain.WineInstallStatusResponse.completed_at:type_name -> google.protobuf.Timestamp
+	7,  // 22: vrooli.scenario_to_desktop.v1.domain.ConfigService.GetScenarioMetadata:input_type -> vrooli.scenario_to_desktop.v1.domain.GetScenarioMetadataRequest
+	8,  // 23: vrooli.scenario_to_desktop.v1.domain.ConfigService.CreateDesktopConfig:input_type -> vrooli.scenario_to_desktop.v1.domain.CreateDesktopConfigRequest
+	9,  // 24: vrooli.scenario_to_desktop.v1.domain.SystemService.GetSystemStatus:input_type -> vrooli.scenario_to_desktop.v1.domain.GetSystemStatusRequest
+	13, // 25: vrooli.scenario_to_desktop.v1.domain.SystemService.ListTemplates:input_type -> vrooli.scenario_to_desktop.v1.domain.ListTemplatesRequest
+	16, // 26: vrooli.scenario_to_desktop.v1.domain.SystemService.GetTemplate:input_type -> vrooli.scenario_to_desktop.v1.domain.GetTemplateRequest
+	18, // 27: vrooli.scenario_to_desktop.v1.domain.SystemService.CheckWine:input_type -> vrooli.scenario_to_desktop.v1.domain.CheckWineRequest
+	21, // 28: vrooli.scenario_to_desktop.v1.domain.SystemService.InstallWine:input_type -> vrooli.scenario_to_desktop.v1.domain.InstallWineRequest
+	23, // 29: vrooli.scenario_to_desktop.v1.domain.SystemService.GetWineInstallStatus:input_type -> vrooli.scenario_to_desktop.v1.domain.GetWineInstallStatusRequest
+	32, // 30: vrooli.scenario_to_desktop.v1.domain.ConfigService.GetScenarioMetadata:output_type -> vrooli.scenario_to_desktop.v1.shared.ScenarioMetadata
+	5,  // 31: vrooli.scenario_to_desktop.v1.domain.ConfigService.CreateDesktopConfig:output_type -> vrooli.scenario_to_desktop.v1.domain.DesktopConfig
+	12, // 32: vrooli.scenario_to_desktop.v1.domain.SystemService.GetSystemStatus:output_type -> vrooli.scenario_to_desktop.v1.domain.SystemStatusResponse
+	15, // 33: vrooli.scenario_to_desktop.v1.domain.SystemService.ListTemplates:output_type -> vrooli.scenario_to_desktop.v1.domain.ListTemplatesResponse
+	17, // 34: vrooli.scenario_to_desktop.v1.domain.SystemService.GetTemplate:output_type -> vrooli.scenario_to_desktop.v1.domain.TemplateConfigResponse
+	20, // 35: vrooli.scenario_to_desktop.v1.domain.SystemService.CheckWine:output_type -> vrooli.scenario_to_desktop.v1.domain.WineCheckResponse
+	22, // 36: vrooli.scenario_to_desktop.v1.domain.SystemService.InstallWine:output_type -> vrooli.scenario_to_desktop.v1.domain.WineInstallResponse
+	24, // 37: vrooli.scenario_to_desktop.v1.domain.SystemService.GetWineInstallStatus:output_type -> vrooli.scenario_to_desktop.v1.domain.WineInstallStatusResponse
+	30, // [30:38] is the sub-list for method output_type
+	22, // [22:30] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_scenario_to_desktop_v1_domain_config_proto_init() }
@@ -2548,18 +2301,15 @@ func file_scenario_to_desktop_v1_domain_config_proto_init() {
 	file_scenario_to_desktop_v1_domain_config_proto_msgTypes[4].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_domain_config_proto_msgTypes[5].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_domain_config_proto_msgTypes[6].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_domain_config_proto_msgTypes[7].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_domain_config_proto_msgTypes[8].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_domain_config_proto_msgTypes[9].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_domain_config_proto_msgTypes[23].OneofWrappers = []any{}
-	file_scenario_to_desktop_v1_domain_config_proto_msgTypes[27].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_domain_config_proto_msgTypes[20].OneofWrappers = []any{}
+	file_scenario_to_desktop_v1_domain_config_proto_msgTypes[24].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scenario_to_desktop_v1_domain_config_proto_rawDesc), len(file_scenario_to_desktop_v1_domain_config_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   30,
+			NumMessages:   27,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

@@ -550,7 +550,7 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 	safeguardNames := reg.names(hostreq.KindSafeguard)
 	expectedSafeguards := []string{
 		"clock", "cloudflared_recovery_privileges", "crashkernel_reserve", "dns_resolution", "docker_host_firewall",
-		"edac_modules", "host_hardening", "kernel_config", "nat_protection", "netconsole",
+		"edac_modules", "host_hardening", "kernel_config", "model_policy_drift", "nat_protection", "netconsole",
 		"nvidia_driver",
 		"ollama_resource_controls",
 		"pstore_native", "pstore_observability", "pstore_ramoops", "remote_session_protection", "tcp_tuning",

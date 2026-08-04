@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/shell"
 )
 
@@ -48,6 +49,7 @@ var (
 var (
 	nowFunc          = func() time.Time { return time.Now().UTC() }
 	executablePathFn = os.Executable
+	homeDirFn        = config.HomeDir
 	commandOutputFn  = func(dir, name string, args ...string) ([]byte, error) {
 		return shell.Output(shell.Spec{
 			Name: name,
@@ -282,7 +284,7 @@ func ResolveSourceRoot() (string, error) {
 		return root, nil
 	}
 
-	if home, homeErr := os.UserHomeDir(); homeErr == nil {
+	if home, homeErr := homeDirFn(); homeErr == nil {
 		pointer := filepath.Join(home, filepath.FromSlash(SourceRootPointerFile))
 		if contents, readErr := os.ReadFile(pointer); readErr == nil {
 			candidate := filepath.Clean(strings.TrimSpace(string(contents)))
@@ -290,9 +292,99 @@ func ResolveSourceRoot() (string, error) {
 				return root, nil
 			}
 		}
+
+		// Local development installs historically did not write the source
+		// pointer. Make the bootstrap path forgiving, while requiring strong
+		// repository identity so a random Go module in the home directory is
+		// never selected as Vrooli's source root.
+		if root, ok := findVrooliSourceRootFromHome(home); ok {
+			return root, nil
+		}
 	}
 
 	return "", errors.New("unable to resolve source root")
+}
+
+const (
+	vrooliModulePath       = "github.com/vrooli/vrooli"
+	maxHomeDiscoveryDepth  = 4
+	sourceRootMainFilePath = "cmd/vrooli/main.go"
+)
+
+// findVrooliSourceRootFromHome finds an existing checkout below the invoking
+// user's home directory. This is intentionally bounded and identity-checked:
+// it provides a useful bootstrap fallback without searching arbitrary mounts
+// or accepting an unrelated Go repository.
+func findVrooliSourceRootFromHome(home string) (string, bool) {
+	home = filepath.Clean(strings.TrimSpace(home))
+	if home == "" || home == "." {
+		return "", false
+	}
+
+	var found string
+	err := filepath.WalkDir(home, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			if entry != nil && entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if entry == nil {
+			return nil
+		}
+
+		rel, relErr := filepath.Rel(home, path)
+		if relErr != nil {
+			return nil
+		}
+		depth := 0
+		if rel != "." {
+			depth = strings.Count(filepath.ToSlash(rel), "/") + 1
+		}
+		if depth > maxHomeDiscoveryDepth {
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if rel != "." && entry.IsDir() {
+			name := entry.Name()
+			if strings.HasPrefix(name, ".") || name == "node_modules" || name == "go" {
+				return filepath.SkipDir
+			}
+		}
+		if entry.IsDir() && isVrooliSourceRoot(path) {
+			found = filepath.Clean(path)
+			return errSourceRootFound
+		}
+		return nil
+	})
+	if err != nil && !errors.Is(err, errSourceRootFound) {
+		return "", false
+	}
+	return found, found != ""
+}
+
+var errSourceRootFound = errors.New("source root found")
+
+func isVrooliSourceRoot(root string) bool {
+	data, err := os.ReadFile(filepath.Join(root, "go.mod"))
+	if err != nil {
+		return false
+	}
+	moduleLine := "module " + vrooliModulePath
+	moduleFound := false
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.TrimSpace(line) == moduleLine {
+			moduleFound = true
+			break
+		}
+	}
+	if !moduleFound {
+		return false
+	}
+	info, err := os.Stat(filepath.Join(root, filepath.FromSlash(sourceRootMainFilePath)))
+	return err == nil && !info.IsDir()
 }
 
 // CurrentFingerprint computes the fingerprint for the current binary's source set.

@@ -2,9 +2,6 @@
 # MinIO Installation Functions
 # Handles installation and uninstallation of MinIO
 
-# Source shared secrets management library using var_ variables
-# shellcheck disable=SC1091
-source "${var_LIB_SERVICE_DIR}/secrets.sh"
 # shellcheck disable=SC1091
 source "${var_TRASH_FILE}"
 
@@ -126,7 +123,7 @@ minio::install::pre_checks() {
 #######################################
 minio::install::update_vrooli_config() {
     local config_file
-    config_file="$(secrets::get_project_config_file)"
+    config_file="${var_VROOLI_CONFIG_DIR}/config.json"
     local config_dir=${config_file%/*}
     
     # Create directory if it doesn't exist

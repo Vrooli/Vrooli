@@ -16,7 +16,6 @@ source "${REPO_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
 source "${REPO_ROOT}/scripts/resources/lib/status-args.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SERVICE_DIR}/secrets.sh"
 # shellcheck disable=SC1091
 source "${RESOURCE_DIR}/config/defaults.sh"
 # shellcheck disable=SC1091
@@ -321,7 +320,7 @@ minio::status::check() {
 #######################################
 minio::status::check_vrooli_config() {
     local config_file
-    config_file="$(secrets::get_project_config_file)"
+    config_file="${var_VROOLI_CONFIG_DIR}/config.json"
     
     if [[ ! -f "$config_file" ]]; then
         return 1

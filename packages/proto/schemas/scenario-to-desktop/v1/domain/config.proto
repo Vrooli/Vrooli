@@ -7,6 +7,7 @@ import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 import "scenario-to-desktop/v1/shared/common.proto";
 import "scenario-to-desktop/v1/shared/metadata.proto";
+import "scenario-to-desktop/v1/shared/update_config.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domain";
 
@@ -205,69 +206,6 @@ message BundleConfig {
 }
 
 // =============================================================================
-// UPDATE CONFIGURATION
-// =============================================================================
-
-// GitHubUpdateConfig configures GitHub Releases as the update provider.
-//
-// Uses electron-updater's GitHub provider to check for and download
-// updates from GitHub Releases.
-//
-message GitHubUpdateConfig {
-  // GitHub repository owner (username or organization).
-  // @example "vrooli"
-  string owner = 1;
-
-  // GitHub repository name.
-  // @example "scenario-to-desktop"
-  string repo = 2;
-
-  // Whether the repository is private.
-  // Private repos require authentication token.
-  optional bool private = 3;
-}
-
-// GenericUpdateConfig configures a self-hosted update server.
-//
-// Uses electron-updater's generic provider to check for updates
-// from a custom URL endpoint.
-//
-message GenericUpdateConfig {
-  // Base URL for the update server.
-  // @format uri
-  // @example "https://updates.example.com"
-  string url = 1;
-
-  // Path to channel-specific update info.
-  // @example "/stable/latest.yml"
-  optional string channel_path = 2;
-}
-
-// UpdateConfig configures automatic updates for the desktop application.
-//
-// Supports multiple update providers. Only one provider should be configured.
-//
-message UpdateConfig {
-  // Update channel (stable, beta, alpha, etc.).
-  // @default "stable"
-  optional string channel = 1;
-
-  // Update provider name.
-  // @example "github", "generic", "s3"
-  optional string provider = 2;
-
-  // Whether to automatically check for updates on startup.
-  // @default true
-  optional bool auto_check = 3;
-
-  // GitHub Releases update configuration.
-  optional GitHubUpdateConfig github = 10;
-
-  // Generic/self-hosted update configuration.
-  optional GenericUpdateConfig generic = 11;
-}
-
-// =============================================================================
 // WINDOW CONFIGURATION
 // =============================================================================
 
@@ -321,7 +259,7 @@ message DesktopConfig {
   optional BundleConfig bundle = 3;
 
   // Auto-update configuration.
-  optional UpdateConfig update = 4;
+  optional vrooli.scenario_to_desktop.v1.shared.UpdateConfig update = 4;
 
   // Main window configuration.
   optional WindowConfig window = 5;

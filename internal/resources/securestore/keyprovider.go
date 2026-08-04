@@ -15,6 +15,8 @@ import (
 	"io"
 	"os/exec"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/credentialpolicy"
 )
 
 // A key-encryption provider wraps the data key that seals every entry. Several
@@ -42,9 +44,7 @@ const (
 	// remembers.
 	keyStorePassphrase = "operator-passphrase"
 
-	// pbkdf2Iterations matches internal/secrets/recovery.go so this codebase
-	// has one KDF policy rather than two that drift apart.
-	pbkdf2Iterations = 600_000
+	pbkdf2Iterations = credentialpolicy.RecoveryPBKDF2Iterations
 	pbkdf2SaltLen    = 32
 
 	// systemdCredsName binds a host-bound wrap to this purpose. systemd-creds

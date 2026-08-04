@@ -8,7 +8,6 @@ package pipeline
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
-	domain "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -108,7 +107,7 @@ type PipelineConfig struct {
 	// Auto-update configuration embedded in the generated desktop application.
 	// Generic update URLs may use HTTP only for development-local evidence; a
 	// production pipeline requires an HTTPS endpoint.
-	UpdateConfig  *domain.UpdateConfig `protobuf:"bytes,28,opt,name=update_config,json=updateConfig,proto3,oneof" json:"update_config,omitempty"`
+	UpdateConfig  *shared.UpdateConfig `protobuf:"bytes,28,opt,name=update_config,json=updateConfig,proto3,oneof" json:"update_config,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -332,7 +331,7 @@ func (x *PipelineConfig) GetArtifactTrustMode() string {
 	return ""
 }
 
-func (x *PipelineConfig) GetUpdateConfig() *domain.UpdateConfig {
+func (x *PipelineConfig) GetUpdateConfig() *shared.UpdateConfig {
 	if x != nil {
 		return x.UpdateConfig
 	}
@@ -3318,7 +3317,7 @@ var File_scenario_to_desktop_v1_pipeline_types_proto protoreflect.FileDescriptor
 
 const file_scenario_to_desktop_v1_pipeline_types_proto_rawDesc = "" +
 	"\n" +
-	"+scenario-to-desktop/v1/pipeline/types.proto\x12&vrooli.scenario_to_desktop.v1.pipeline\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a*scenario-to-desktop/v1/domain/config.proto\x1a*scenario-to-desktop/v1/shared/common.proto\x1a,scenario-to-desktop/v1/shared/metadata.proto\x1a5scenario-to-desktop/v1/shared/operation_results.proto\x1a5scenario-to-desktop/v1/shared/preflight_results.proto\"\xbe\x10\n" +
+	"+scenario-to-desktop/v1/pipeline/types.proto\x12&vrooli.scenario_to_desktop.v1.pipeline\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a*scenario-to-desktop/v1/shared/common.proto\x1a,scenario-to-desktop/v1/shared/metadata.proto\x1a5scenario-to-desktop/v1/shared/operation_results.proto\x1a5scenario-to-desktop/v1/shared/preflight_results.proto\x1a1scenario-to-desktop/v1/shared/update_config.proto\"\xbe\x10\n" +
 	"\x0ePipelineConfig\x12,\n" +
 	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x12L\n" +
 	"\tplatforms\x18\x02 \x03(\x0e2..vrooli.scenario_to_desktop.v1.shared.PlatformR\tplatforms\x12*\n" +
@@ -3352,7 +3351,7 @@ const file_scenario_to_desktop_v1_pipeline_types_proto_rawDesc = "" +
 	"\x0fidempotency_key\x18\x17 \x01(\tH\x11R\x0eidempotencyKey\x88\x01\x01\x12G\n" +
 	"\x06stages\x18\x1a \x03(\x0e2/.vrooli.scenario_to_desktop.v1.shared.StageNameR\x06stages\x123\n" +
 	"\x13artifact_trust_mode\x18\x1b \x01(\tH\x12R\x11artifactTrustMode\x88\x01\x01\x12\\\n" +
-	"\rupdate_config\x18\x1c \x01(\v22.vrooli.scenario_to_desktop.v1.domain.UpdateConfigH\x13R\fupdateConfig\x88\x01\x01\x1aC\n" +
+	"\rupdate_config\x18\x1c \x01(\v22.vrooli.scenario_to_desktop.v1.shared.UpdateConfigH\x13R\fupdateConfig\x88\x01\x01\x1aC\n" +
 	"\x15PreflightSecretsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x11\n" +
@@ -3764,7 +3763,7 @@ var file_scenario_to_desktop_v1_pipeline_types_proto_goTypes = []any{
 	(shared.Framework)(0),                   // 50: vrooli.scenario_to_desktop.v1.shared.Framework
 	(shared.TemplateType)(0),                // 51: vrooli.scenario_to_desktop.v1.shared.TemplateType
 	(shared.StageName)(0),                   // 52: vrooli.scenario_to_desktop.v1.shared.StageName
-	(*domain.UpdateConfig)(nil),             // 53: vrooli.scenario_to_desktop.v1.domain.UpdateConfig
+	(*shared.UpdateConfig)(nil),             // 53: vrooli.scenario_to_desktop.v1.shared.UpdateConfig
 	(shared.StageStatus)(0),                 // 54: vrooli.scenario_to_desktop.v1.shared.StageStatus
 	(*timestamppb.Timestamp)(nil),           // 55: google.protobuf.Timestamp
 	(*shared.PreflightResponse)(nil),        // 56: vrooli.scenario_to_desktop.v1.shared.PreflightResponse
@@ -3781,7 +3780,7 @@ var file_scenario_to_desktop_v1_pipeline_types_proto_depIdxs = []int32{
 	52, // 5: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.stop_after_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
 	52, // 6: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.resume_from_stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
 	52, // 7: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.stages:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
-	53, // 8: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.update_config:type_name -> vrooli.scenario_to_desktop.v1.domain.UpdateConfig
+	53, // 8: vrooli.scenario_to_desktop.v1.pipeline.PipelineConfig.update_config:type_name -> vrooli.scenario_to_desktop.v1.shared.UpdateConfig
 	52, // 9: vrooli.scenario_to_desktop.v1.pipeline.StageResult.stage:type_name -> vrooli.scenario_to_desktop.v1.shared.StageName
 	54, // 10: vrooli.scenario_to_desktop.v1.pipeline.StageResult.status:type_name -> vrooli.scenario_to_desktop.v1.shared.StageStatus
 	55, // 11: vrooli.scenario_to_desktop.v1.pipeline.StageResult.started_at:type_name -> google.protobuf.Timestamp

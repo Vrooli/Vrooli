@@ -1270,6 +1270,10 @@ func stubSetupDeps(t *testing.T) *setupService {
 	deps.syncResourceSchema = func(root string) error { return nil }
 	deps.ensureBootstrapTools = func(string, vrooliruntime.EnsureOptions) error { return nil }
 	deps.newCLIInstallManager = func(root, home string) (cliInstallManager, error) { return &stubCLIInstallManager{}, nil }
+	// These tests exercise setup orchestration with isolated temporary homes;
+	// credential backend readiness is covered by the securestore tests and is
+	// deliberately not allowed to probe the developer's real keyring here.
+	deps.configureCredentialBackend = func(io.Writer, io.Writer) error { return nil }
 	return newSetupService(deps)
 }
 
@@ -1284,6 +1288,10 @@ type stubCLIInstallManager struct {
 
 func (s *stubCLIInstallManager) InstallScenarioCLI(name string) error {
 	s.installedScenarios = append(s.installedScenarios, name)
+	return nil
+}
+
+func (s *stubCLIInstallManager) EnsureScenarioCLI(name string) error {
 	return nil
 }
 

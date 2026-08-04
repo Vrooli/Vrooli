@@ -73,7 +73,7 @@ func setupTerminalResult(stage string, report runtime.Report, runErr error) Setu
 		result.Category = SetupCategoryInvalidConfiguration
 		result.Retryable = false
 		result.Remediation = "Correct the project or setup configuration, then run setup again."
-	case "filesystem", "resources", "cli", "finalize":
+	case "filesystem", "credentials", "resources", "cli", "finalize":
 		result.Category = SetupCategoryPartialState
 		result.Retryable = true
 		result.Remediation = "Setup may have completed some steps. Correct the reported condition and re-run; setup is designed to converge."

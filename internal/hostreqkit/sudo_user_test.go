@@ -163,6 +163,35 @@ func TestRunAsInvokingUserNoOpWhenNotRoot(t *testing.T) {
 	}
 }
 
+func TestRunAsInvokingUserWithInputNoOpWhenNotRoot(t *testing.T) {
+	origRoot := RunningAsRootFn
+	origRun := RunCommandInputFn
+	defer func() {
+		RunningAsRootFn = origRoot
+		RunCommandInputFn = origRun
+	}()
+	RunningAsRootFn = func() bool { return false }
+	t.Setenv("SUDO_USER", "")
+	t.Setenv("USER", "alice")
+
+	var gotName string
+	var gotArgs []string
+	var gotInput string
+	RunCommandInputFn = func(name string, args []string, input string, _ EnsureOptions) error {
+		gotName = name
+		gotArgs = append([]string(nil), args...)
+		gotInput = input
+		return nil
+	}
+
+	if err := RunAsInvokingUserWithInput("vrooli", []string{"credentials", "store", "init"}, "operator secret", EnsureOptions{}); err != nil {
+		t.Fatalf("RunAsInvokingUserWithInput: %v", err)
+	}
+	if gotName != "vrooli" || strings.Join(gotArgs, " ") != "credentials store init" || gotInput != "operator secret" {
+		t.Fatalf("command = %q %v input=%q", gotName, gotArgs, gotInput)
+	}
+}
+
 func TestRunAsInvokingUserDropsPrivilegesWhenRoot(t *testing.T) {
 	// Running as root with SUDO_USER set: must wrap with `sudo -u <user>
 	// -H -- <cmd> <args>` so the subprocess inherits the operator's HOME

@@ -17,8 +17,6 @@ minio::export_config 2>/dev/null || true
 
 # Source shared libraries
 # shellcheck disable=SC1091
-source "${var_LIB_SERVICE_DIR}/secrets.sh"
-# shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-resource-utils.sh"
 # shellcheck disable=SC1091
 source "${_MINIO_DOCKER_DIR}/common.sh"

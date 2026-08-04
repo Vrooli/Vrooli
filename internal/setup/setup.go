@@ -74,6 +74,7 @@ type apiLaunchSpec struct {
 
 type cliInstallManager interface {
 	InstallScenarioCLI(name string) error
+	EnsureScenarioCLI(name string) error
 	InstallResourceCLI(name string) error
 	InstallAllScenarioCLIs() error
 	InstallEnabledResourceCLIs() error
@@ -101,6 +102,7 @@ type setupDeps struct {
 	resourceController          func(root, home string) resourceRunner
 	installPrivilegeBroker      func(context.Context, string) (privilegebroker.SetupStatus, error)
 	inspectPrivilegeBroker      func() privilegebroker.SetupStatus
+	configureCredentialBackend  func(io.Writer, io.Writer) error
 }
 
 type setupService struct {
@@ -142,10 +144,16 @@ func defaultSetupDeps() setupDeps {
 			return privilegebroker.DefaultInstaller(executable).Install(ctx)
 		},
 		inspectPrivilegeBroker: privilegebroker.Inspect,
+		configureCredentialBackend: func(stdout, stderr io.Writer) error {
+			return configureCredentialBackend(stdout, stderr)
+		},
 	}
 }
 
 func newSetupService(deps setupDeps) *setupService {
+	if deps.configureCredentialBackend == nil {
+		deps.configureCredentialBackend = func(io.Writer, io.Writer) error { return nil }
+	}
 	return &setupService{deps: deps}
 }
 
@@ -229,6 +237,10 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 		_, _ = fmt.Fprintln(stdout, "[INFO]    Dry-run mode skips git configuration, resource installation, and setup completion markers")
 		return nil
 	}
+	stage = "credentials"
+	if err := s.deps.configureCredentialBackend(stdout, stderr); err != nil {
+		return err
+	}
 	stage = "privilege-broker"
 	executable, executableErr := s.deps.osExecutable()
 	if executableErr != nil {
@@ -255,6 +267,13 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 	cliManager, err := s.deps.newCLIInstallManager(root, home)
 	if err != nil {
 		return err
+	}
+	// secrets-manager is a bootstrap control-plane CLI, not an optional
+	// scenario capability: recovery migration and credential diagnostics use
+	// it even when the operator selected no scenario CLIs. Always freshness-
+	// check it so an installed binary cannot keep an older authority policy.
+	if err := cliManager.EnsureScenarioCLI("secrets-manager"); err != nil {
+		return fmt.Errorf("refresh secrets-manager bootstrap CLI: %w", err)
 	}
 	if err := installSelectedCLIs(cliManager, opts.Resources, opts.Scenarios); err != nil {
 		return err

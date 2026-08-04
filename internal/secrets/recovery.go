@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/credentialpolicy"
 )
 
 // RecoveryEntry identifies a value to include in an encrypted recovery
@@ -34,6 +36,8 @@ type recoveryValue struct {
 }
 type recoveryEnvelope struct {
 	Version    int    `json:"version"`
+	KDF        string `json:"kdf,omitempty"`
+	Iterations int    `json:"iterations,omitempty"`
 	Salt       string `json:"salt"`
 	Nonce      string `json:"nonce"`
 	Ciphertext string `json:"ciphertext"`
@@ -129,7 +133,7 @@ func encryptRecovery(plain []byte, passphrase string) ([]byte, error) {
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return nil, err
 	}
-	key, err := recoveryKey(passphrase, salt)
+	key, err := recoveryKey(passphrase, salt, credentialpolicy.RecoveryPBKDF2Iterations)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +146,7 @@ func encryptRecovery(plain []byte, passphrase string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	envelope := recoveryEnvelope{Version: 1, Salt: base64.StdEncoding.EncodeToString(salt), Nonce: base64.StdEncoding.EncodeToString(nonce), Ciphertext: base64.StdEncoding.EncodeToString(gcm.Seal(nil, nonce, plain, nil))}
+	envelope := recoveryEnvelope{Version: 2, KDF: "pbkdf2-sha256", Iterations: credentialpolicy.RecoveryPBKDF2Iterations, Salt: base64.StdEncoding.EncodeToString(salt), Nonce: base64.StdEncoding.EncodeToString(nonce), Ciphertext: base64.StdEncoding.EncodeToString(gcm.Seal(nil, nonce, plain, nil))}
 	return json.Marshal(envelope)
 }
 
@@ -151,7 +155,16 @@ func decryptRecovery(bundle []byte, passphrase string) ([]byte, error) {
 	if err := json.Unmarshal(bundle, &envelope); err != nil {
 		return nil, fmt.Errorf("decode recovery envelope: %w", err)
 	}
-	if envelope.Version != 1 {
+	iterations := credentialpolicy.RecoveryPBKDF2Iterations
+	switch envelope.Version {
+	case 1:
+		// Version 1 had no KDF metadata and is fixed to the original policy.
+	case 2:
+		if envelope.KDF != "pbkdf2-sha256" || envelope.Iterations <= 0 {
+			return nil, fmt.Errorf("unsupported recovery KDF policy")
+		}
+		iterations = envelope.Iterations
+	default:
 		return nil, fmt.Errorf("unsupported recovery bundle version")
 	}
 	salt, err := base64.StdEncoding.DecodeString(envelope.Salt)
@@ -166,7 +179,7 @@ func decryptRecovery(bundle []byte, passphrase string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("decode recovery ciphertext: %w", err)
 	}
-	key, err := recoveryKey(passphrase, salt)
+	key, err := recoveryKey(passphrase, salt, iterations)
 	if err != nil {
 		return nil, err
 	}
@@ -185,8 +198,8 @@ func decryptRecovery(bundle []byte, passphrase string) ([]byte, error) {
 	return plain, nil
 }
 
-func recoveryKey(passphrase string, salt []byte) ([]byte, error) {
-	return pbkdf2.Key(sha256.New, passphrase, salt, 600_000, 32)
+func recoveryKey(passphrase string, salt []byte, iterations int) ([]byte, error) {
+	return pbkdf2.Key(sha256.New, passphrase, salt, iterations, 32)
 }
 
 // RecoveryManifest describes what a bundle contains, without exposing any

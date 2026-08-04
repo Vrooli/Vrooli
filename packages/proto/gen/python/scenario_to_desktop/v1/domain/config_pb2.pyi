@@ -5,6 +5,7 @@ from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from scenario_to_desktop.v1.shared import common_pb2 as _common_pb2
 from scenario_to_desktop.v1.shared import metadata_pb2 as _metadata_pb2
+from scenario_to_desktop.v1.shared import update_config_pb2 as _update_config_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -91,38 +92,6 @@ class BundleConfig(_message.Message):
     telemetry_upload_url: str
     def __init__(self, manifest_path: _Optional[str] = ..., runtime_root: _Optional[str] = ..., ipc: _Optional[_Union[BundleIPCConfig, _Mapping]] = ..., ui_service_id: _Optional[str] = ..., port_name: _Optional[str] = ..., telemetry_upload_url: _Optional[str] = ...) -> None: ...
 
-class GitHubUpdateConfig(_message.Message):
-    __slots__ = ("owner", "repo", "private")
-    OWNER_FIELD_NUMBER: _ClassVar[int]
-    REPO_FIELD_NUMBER: _ClassVar[int]
-    PRIVATE_FIELD_NUMBER: _ClassVar[int]
-    owner: str
-    repo: str
-    private: bool
-    def __init__(self, owner: _Optional[str] = ..., repo: _Optional[str] = ..., private: _Optional[bool] = ...) -> None: ...
-
-class GenericUpdateConfig(_message.Message):
-    __slots__ = ("url", "channel_path")
-    URL_FIELD_NUMBER: _ClassVar[int]
-    CHANNEL_PATH_FIELD_NUMBER: _ClassVar[int]
-    url: str
-    channel_path: str
-    def __init__(self, url: _Optional[str] = ..., channel_path: _Optional[str] = ...) -> None: ...
-
-class UpdateConfig(_message.Message):
-    __slots__ = ("channel", "provider", "auto_check", "github", "generic")
-    CHANNEL_FIELD_NUMBER: _ClassVar[int]
-    PROVIDER_FIELD_NUMBER: _ClassVar[int]
-    AUTO_CHECK_FIELD_NUMBER: _ClassVar[int]
-    GITHUB_FIELD_NUMBER: _ClassVar[int]
-    GENERIC_FIELD_NUMBER: _ClassVar[int]
-    channel: str
-    provider: str
-    auto_check: bool
-    github: GitHubUpdateConfig
-    generic: GenericUpdateConfig
-    def __init__(self, channel: _Optional[str] = ..., provider: _Optional[str] = ..., auto_check: _Optional[bool] = ..., github: _Optional[_Union[GitHubUpdateConfig, _Mapping]] = ..., generic: _Optional[_Union[GenericUpdateConfig, _Mapping]] = ...) -> None: ...
-
 class WindowConfig(_message.Message):
     __slots__ = ("width", "height", "min_width", "min_height", "resizable", "frame", "dev_tools")
     WIDTH_FIELD_NUMBER: _ClassVar[int]
@@ -172,7 +141,7 @@ class DesktopConfig(_message.Message):
     app: AppIdentity
     server: ServerConfig
     bundle: BundleConfig
-    update: UpdateConfig
+    update: _update_config_pb2.UpdateConfig
     window: WindowConfig
     framework: _common_pb2.Framework
     template_type: _common_pb2.TemplateType
@@ -181,7 +150,7 @@ class DesktopConfig(_message.Message):
     features: _containers.ScalarMap[str, bool]
     styling: _containers.ScalarMap[str, str]
     signing_enabled: bool
-    def __init__(self, app: _Optional[_Union[AppIdentity, _Mapping]] = ..., server: _Optional[_Union[ServerConfig, _Mapping]] = ..., bundle: _Optional[_Union[BundleConfig, _Mapping]] = ..., update: _Optional[_Union[UpdateConfig, _Mapping]] = ..., window: _Optional[_Union[WindowConfig, _Mapping]] = ..., framework: _Optional[_Union[_common_pb2.Framework, str]] = ..., template_type: _Optional[_Union[_common_pb2.TemplateType, str]] = ..., platforms: _Optional[_Iterable[_Union[_common_pb2.Platform, str]]] = ..., output_path: _Optional[str] = ..., features: _Optional[_Mapping[str, bool]] = ..., styling: _Optional[_Mapping[str, str]] = ..., signing_enabled: _Optional[bool] = ...) -> None: ...
+    def __init__(self, app: _Optional[_Union[AppIdentity, _Mapping]] = ..., server: _Optional[_Union[ServerConfig, _Mapping]] = ..., bundle: _Optional[_Union[BundleConfig, _Mapping]] = ..., update: _Optional[_Union[_update_config_pb2.UpdateConfig, _Mapping]] = ..., window: _Optional[_Union[WindowConfig, _Mapping]] = ..., framework: _Optional[_Union[_common_pb2.Framework, str]] = ..., template_type: _Optional[_Union[_common_pb2.TemplateType, str]] = ..., platforms: _Optional[_Iterable[_Union[_common_pb2.Platform, str]]] = ..., output_path: _Optional[str] = ..., features: _Optional[_Mapping[str, bool]] = ..., styling: _Optional[_Mapping[str, str]] = ..., signing_enabled: _Optional[bool] = ...) -> None: ...
 
 class ConnectionConfig(_message.Message):
     __slots__ = ("proxy_url", "server_type", "auto_manage_vrooli", "vrooli_binary_path", "deployment_mode", "bundle_manifest_path", "app_display_name", "app_description", "icon")

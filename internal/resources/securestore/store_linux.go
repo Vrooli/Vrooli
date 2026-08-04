@@ -74,7 +74,7 @@ func secretToolCommand(args ...string) (*exec.Cmd, context.Context, context.Canc
 // classifySecretToolTimeout turns the generic "signal: killed" that a context
 // deadline produces into the one condition an operator can act on.
 func classifySecretToolTimeout(stage string) error {
-	return fmt.Errorf("%w: %s: the Secret Service did not answer within %s, which usually means it is waiting on an unlock prompt nobody can answer; run `vrooli credentials keyring inspect`",
+	return fmt.Errorf("%w: %s: the Secret Service did not answer within %s, which usually means it is waiting on an unlock prompt nobody can answer; run `secrets-manager keyring inspect`",
 		ErrUnavailable, stage, secretToolTimeout)
 }
 

@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "model_policy_drift",
+  "storage": {"entries": {}, "rationale": "The safeguard is read-only and persists no host state."},
+  "description": "Compare resource-owned model policies with live runner catalogs without modifying policy files",
+  "handler": "model_policy_drift",
+  "platforms": ["linux", "darwin", "windows"],
+  "risk": "low",
+  "privilege": "user",
+  "bundling": "prohibited",
+	"notes": "The running Agent Manager control plane schedules this read-only check every 7 days (maximum 14 days), persists the last result, and files deduplicated scenario-qa reports.",
+  "deployment": {"profiles": {"desktop": {"linux": {"support": "unsupported", "mode": "manual", "reason": "Control-plane model discovery is not bundled into desktop deployments."}, "macos": {"support": "unsupported", "mode": "manual", "reason": "Control-plane model discovery is not bundled into desktop deployments."}, "windows": {"support": "unsupported", "mode": "manual", "reason": "Control-plane model discovery is not bundled into desktop deployments."}}}}
+}

@@ -126,6 +126,14 @@ func DiagnoseWritable() Diagnosis {
 	return diagnoseStore(Default(), true)
 }
 
+// DiagnoseNativeWritable checks the platform adapter itself, without applying
+// the persisted installation choice. Setup uses this to choose an authority
+// once; normal credential operations must use DiagnoseWritable so they honor
+// that choice and never drift between backends.
+func DiagnoseNativeWritable() Diagnosis {
+	return diagnoseStore(nativeDefault(), true)
+}
+
 func diagnoseStore(store Store, checkWrites bool) Diagnosis {
 	diagnosis := Diagnosis{
 		Platform:      runtime.GOOS,

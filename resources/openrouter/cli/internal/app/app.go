@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"resource-openrouter/cli/internal/auth"
 	"resource-openrouter/cli/internal/config"
 	"resource-openrouter/cli/internal/ensure"
@@ -20,6 +19,8 @@ import (
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
+	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 
 	resourceenv "resource-openrouter/cli/internal/env"
 )
@@ -352,14 +353,23 @@ func runConfigure(app *cliapp.ResourceApp, args []string, stdout io.Writer) erro
 	if len(fs.Args()) != 0 {
 		return fmt.Errorf("configure accepts no positional arguments; provide the value on standard input")
 	}
-	command := exec.Command("vrooli", "credentials", "provision", "--identity", "vrooli/openrouter", "--field", "api-key")
-	command.Stdin = os.Stdin
-	command.Stdout = stdout
-	command.Stderr = os.Stderr
-	if err := command.Run(); err != nil {
+	value, err := io.ReadAll(io.LimitReader(os.Stdin, 64*1024))
+	if err != nil {
+		return fmt.Errorf("read OpenRouter credential: %w", err)
+	}
+	authority, err := credentialauthority.Default()
+	if err != nil {
+		return fmt.Errorf("resolve credential authority: %w", err)
+	}
+	client, err := credentialclient.NewClient(credentialclient.ClientOptions{Authority: authority})
+	if err != nil {
+		return fmt.Errorf("resolve credential client: %w", err)
+	}
+	if _, err := client.Provision(context.Background(), credentialclient.ProvisionRequest{Identity: "vrooli/openrouter", Field: "api-key", Value: strings.TrimSpace(string(value))}); err != nil {
 		return fmt.Errorf("provision OpenRouter credential through control plane: %w", err)
 	}
-	return nil
+	_, err = fmt.Fprintln(stdout, "OpenRouter credential provisioned.")
+	return err
 }
 
 func runShowConfig(app *cliapp.ResourceApp, args []string, stdout io.Writer) error {

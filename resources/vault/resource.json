@@ -7,6 +7,18 @@
   }},
   "display_name": "HashiCorp Vault",
   "description": "Managed Vault service for local secret storage and resource secret validation.",
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/vault",
+        "field": "token",
+        "env": "VAULT_TOKEN",
+        "label": "Vault operator token",
+        "description": "Operator token used by Vrooli-authored Vault integrations.",
+        "required": false
+      }
+    ]
+  },
   "cli": {
     "enabled": true,
     "command": "resource-vault",

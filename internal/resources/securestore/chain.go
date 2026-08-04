@@ -37,6 +37,11 @@ func Default() Store {
 	if backend := strings.TrimSpace(os.Getenv(BackendOverrideEnv)); backend != "" {
 		return guardValues(overrideStore(backend, native))
 	}
+	if backend, selected, err := SelectedBackend(); err != nil {
+		return guardValues(Absent(err.Error()))
+	} else if selected {
+		return guardValues(overrideStore(backend, native))
+	}
 	return guardValues(&chainStore{native: native, fallback: defaultEncryptedStore()})
 }
 
