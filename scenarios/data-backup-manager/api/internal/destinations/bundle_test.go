@@ -22,7 +22,7 @@ func newMeta(root, repoPath string) destinations.BundleMetadata {
 		BundleRoot:          root,
 		RepositoryPath:      repoPath,
 		EncryptionAlgorithm: "AES256-GCM-HMAC-SHA256",
-		SecretRef:           "vault://data-backup-manager/elements-local/passphrase",
+		SecretRef:           "vrooli/kopia/elements-local:repository-passphrase",
 		CreatedAt:           time.Date(2026, 6, 2, 12, 0, 0, 0, time.UTC),
 		Host:                "host-1",
 		User:                "operator",
@@ -64,7 +64,7 @@ func TestFSBundleWriter_WritesSelfDescribingBundle(t *testing.T) {
 		t.Errorf("manifest repository_path = %v, want %v", manifest["repository_path"], repoPath)
 	}
 	if manifest["secret_ref"] == "" {
-		t.Error("manifest should carry the vault secret ref")
+		t.Error("manifest should carry the credential reference")
 	}
 }
 

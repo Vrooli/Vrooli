@@ -123,3 +123,18 @@ func TestDarwinRemovableUnderVolumes(t *testing.T) {
 		t.Fatalf("root mount: got (%q, %v), want fixed", class, rem)
 	}
 }
+
+func TestWindowsDriveTypeClassifiesRemovableAndFixed(t *testing.T) {
+	c := &classifier{goos: "windows", driveType: func(root string) uint32 {
+		if root == `E:\` {
+			return driveTypeRemovable
+		}
+		return driveTypeFixed
+	}}
+	if class, removable := c.classify(mountInfo{Mountpoint: `E:\\Backups`, Fstype: "ntfs"}); class != ClassRemovable || !removable {
+		t.Fatalf("removable drive: got (%q, %v)", class, removable)
+	}
+	if class, removable := c.classify(mountInfo{Mountpoint: `C:\\`, Fstype: "ntfs"}); class != ClassFixed || removable {
+		t.Fatalf("fixed drive: got (%q, %v)", class, removable)
+	}
+}

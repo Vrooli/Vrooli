@@ -167,10 +167,10 @@ func TestCreateDestinations_FsAndS3(t *testing.T) {
 		if len(bundle.Metadata) != 1 {
 			t.Fatalf("WriteMetadata calls = %d, want 1", len(bundle.Metadata))
 		}
-		// The bundle manifest carries the engine-derived vault reference path so a
+		// The bundle manifest carries the engine-derived credential reference so a
 		// detached drive points the operator at the passphrase location, not a
 		// caller guess. It is a reference, never the secret value.
-		wantRef := "secret/resources/kopia/repo/elements-local/passphrase"
+		wantRef := "vrooli/kopia/elements-local:repository-passphrase"
 		if bundle.Metadata[0].SecretRef != wantRef {
 			t.Fatalf("manifest secret ref = %q, want %q", bundle.Metadata[0].SecretRef, wantRef)
 		}

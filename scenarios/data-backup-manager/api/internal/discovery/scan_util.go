@@ -4,6 +4,7 @@ import (
 	"context"
 	"io/fs"
 	"path/filepath"
+	"strings"
 )
 
 // boundedDirSize sums regular-file sizes under root, bailing out after
@@ -33,4 +34,13 @@ func boundedDirSize(ctx context.Context, root string, maxEntries int) int64 {
 		return nil
 	})
 	return total
+}
+
+func hasParentTraversal(path string) bool {
+	for _, part := range strings.Split(filepath.ToSlash(path), "/") {
+		if part == ".." {
+			return true
+		}
+	}
+	return false
 }

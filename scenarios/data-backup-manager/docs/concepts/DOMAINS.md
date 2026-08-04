@@ -85,7 +85,7 @@ template-provided readiness surface and is retained.
 - Secondary traits: encryption-by-default, per-destination storage cap.
 - Owns: destination records, the backend kind (`filesystem` or
   `s3`/MinIO), the configurable storage cap, and references to the
-  vault-held passphrase and access keys. Tracks usage versus cap from
+  credential-authority-held passphrase and vault-held access keys. Tracks usage versus cap from
   kopia repository stats.
 - Also owns local-destination readiness and preparation planning through
   `api/internal/destinationreadiness/`: read-only mounted-volume
@@ -247,7 +247,7 @@ template-provided readiness surface and is retained.
   "accept" RPC. The scanners never write to, or read the contents of, any
   scanned path (`secrets.json` is suggested by path/size only).
 - Scope (v1): target suggestions cover `~/.vrooli` runtime state only
-  (`plans`, `state`, `config`, `secrets.json`, `runtime.db`); scenario
+  (`plans`, `state`, `config`, encrypted `secrets.enc.json`, `runtime.db`); scenario
   stores are a deferred, additive `rootKind`. Destination suggestions come
   from mounted volumes, ranking plugged-in removable drives first, with a
   protected-path overlap check (its own set, wider than the destinations

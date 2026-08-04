@@ -10,7 +10,8 @@
 // seam); tests substitute mocks.FakeKopiaEngine to assert call shape and stub
 // engine results without touching kopia or the network.
 //
-// Encryption is always on and kopia owns its repository passphrases via vault;
+// Encryption is always on and kopia owns its repository passphrases via the
+// credential authority;
 // this scenario never reads or passes a passphrase. Secrets therefore never
 // appear in any argv built here.
 package engine
@@ -21,18 +22,12 @@ import (
 	"fmt"
 	"os/exec"
 	"strconv"
+
+	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 )
 
 // kopiaBinary is the wrapped resource CLI. All engine work flows through it.
 const kopiaBinary = "resource-kopia"
-
-// passphraseRefFormat is the vault path where resource-kopia stores a
-// repository's encryption passphrase. It MUST stay byte-identical to
-// resource-kopia's own PassphrasePath (resources/kopia/cli/internal/vault/
-// vault.go) — they are two ends of the same convention and must move in
-// lockstep. DBM only ever records this *reference path* in a bundle; it never
-// reads or transmits the passphrase value itself.
-const passphraseRefFormat = "secret/resources/kopia/repo/%s/passphrase"
 
 // Backend kinds, matching resource-kopia's --backend flag values.
 const (
@@ -113,19 +108,20 @@ type SnapshotEntry struct {
 // (kopia.go); tests wire mocks.FakeKopiaEngine (testutil/mocks/kopia.go).
 type KopiaEngine interface {
 	// RepoCreate provisions a kopia repository for a destination. Encryption
-	// is always on; the passphrase is generated and stored in vault by kopia.
+	// is always on; the passphrase is generated and stored in the credential
+	// authority by kopia.
 	RepoCreate(ctx context.Context, spec RepoSpec) error
 	// RepoStatus reports the repository's encryption algorithm and connection.
 	RepoStatus(ctx context.Context, repo string) (RepoStatus, error)
-	// PassphraseRef returns the vault reference *path* (never the value) where
-	// resource-kopia stores this repository's encryption passphrase, so a
-	// detached destination bundle can point an operator at the key for
-	// standalone recovery. It is a pure, deterministic string derivation —
-	// no I/O, no secret read.
+	// PassphraseRef returns the credential identity/field reference (never the
+	// value) where resource-kopia stores this repository's encryption
+	// passphrase, so a detached destination bundle can point an operator at the
+	// key for standalone recovery. It is a pure, deterministic string
+	// derivation — no I/O, no secret read.
 	PassphraseRef(repo string) string
 	// RepoStats reports current repository usage in bytes (for storage caps).
 	RepoStats(ctx context.Context, repo string) (RepoStats, error)
-	// RepoDelete removes local resource-kopia metadata and Vault secret refs for
+	// RepoDelete removes local resource-kopia metadata and credential refs for
 	// a destination repository.
 	RepoDelete(ctx context.Context, repo string) error
 	// SnapshotCreate snapshots a captured artifact path into a repository and
@@ -229,11 +225,15 @@ func (k *KopiaCLI) RepoCreate(ctx context.Context, spec RepoSpec) error {
 	return nil
 }
 
-// PassphraseRef derives the vault reference path for a repository's passphrase.
-// Pure string formatting — it deliberately performs no vault I/O so it can be
-// called during create without a round-trip and never risks touching a secret.
+// PassphraseRef derives the credential-authority reference for a repository's
+// passphrase. It deliberately performs no credential I/O and never risks
+// touching a secret.
 func (k *KopiaCLI) PassphraseRef(repo string) string {
-	return fmt.Sprintf(passphraseRefFormat, repo)
+	identity, err := kopiaregistry.PassphraseIdentity(repo)
+	if err != nil {
+		return ""
+	}
+	return string(identity) + ":" + kopiaregistry.PassphraseField
 }
 
 func (k *KopiaCLI) RepoStatus(ctx context.Context, repo string) (RepoStatus, error) {

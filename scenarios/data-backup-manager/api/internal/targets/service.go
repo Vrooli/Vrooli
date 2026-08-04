@@ -2,8 +2,13 @@ package targets
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // defaultListLimit caps List when the caller passes 0.
@@ -60,6 +65,9 @@ func (s *service) Register(ctx context.Context, in RegisterInput) (Target, error
 	if locator == "" {
 		return Target{}, ErrInvalidTarget{Field: "locator", Reason: "required"}
 	}
+	if recoveryBundlePath, ok := recordedRecoveryBundlePath(); ok && sameTargetPath(locator, recoveryBundlePath) {
+		return Target{}, ErrInvalidTarget{Field: "locator", Reason: "recorded credential recovery bundle cannot be registered as a backup target; import it through vrooli credentials recovery restore"}
+	}
 
 	desired := Target{Owner: owner, Name: name, SourceKind: in.SourceKind, Locator: locator}
 
@@ -82,6 +90,50 @@ func (s *service) Register(ctx context.Context, in RegisterInput) (Target, error
 	existing.SourceKind = desired.SourceKind
 	existing.Locator = desired.Locator
 	return s.repo.Update(ctx, existing)
+}
+
+var recoveryReceiptPath = recordedRecoveryReceiptPath
+
+func recordedRecoveryBundlePath() (string, bool) {
+	path, err := recoveryReceiptPath()
+	if err != nil || path == "" {
+		return "", false
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", false
+	}
+	var receipt struct {
+		Path string `json:"path"`
+	}
+	if json.Unmarshal(data, &receipt) != nil {
+		return "", false
+	}
+	path = strings.TrimSpace(receipt.Path)
+	return filepath.Clean(path), path != ""
+}
+
+func recordedRecoveryReceiptPath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	state, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyState)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(state, "recovery-receipt.json"), nil
+}
+
+func sameTargetPath(left, right string) bool {
+	left, right = filepath.Clean(strings.TrimSpace(left)), filepath.Clean(strings.TrimSpace(right))
+	if absolute, err := filepath.Abs(left); err == nil {
+		left = absolute
+	}
+	if absolute, err := filepath.Abs(right); err == nil {
+		right = absolute
+	}
+	return left != "." && right != "." && left == right
 }
 
 func (s *service) Deregister(ctx context.Context, owner, name string) (bool, error) {

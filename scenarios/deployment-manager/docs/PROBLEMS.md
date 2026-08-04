@@ -1,6 +1,6 @@
 # Known Issues & Deferred Decisions
 
-Issues here are open design questions and known gaps. Findings that a command reproduces belong to that command, not to this file — run `vrooli scenario test deployment-manager` and `storage-health validate scenario deployment-manager` for the current state.
+Issues here are open design questions and known gaps. Findings that a command reproduces belong to that command, not to this file — run `vrooli scenario test deployment-manager` and `storage-manager validate scenario deployment-manager` for the current state.
 
 ---
 

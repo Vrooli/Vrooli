@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -45,8 +46,8 @@ type BundleWriter interface {
 }
 
 // BundleMetadata is the non-secret information rendered into the bundle files.
-// It never carries a passphrase, token, or other secret value — only a vault
-// secret *reference path*.
+// It never carries a passphrase, token, or other secret value — only a
+// credential-authority identity/field reference.
 type BundleMetadata struct {
 	DestinationID       string
 	Name                string
@@ -202,7 +203,7 @@ func renderRecovery(meta BundleMetadata) string {
 	secretRef := meta.SecretRef
 	if secretRef == "" {
 		// #nosec G101 -- human-readable fallback message for the recovery doc, not a credential.
-		secretRef = "(see your Vrooli vault; no secret reference was recorded)"
+		secretRef = "(see the Vrooli credential authority; no credential reference was recorded)"
 	}
 	return fmt.Sprintf(`Vrooli Data Backup Manager — Standalone Recovery
 ================================================
@@ -213,10 +214,13 @@ no proprietary layer.
 
 What you need:
   1. The kopia CLI (https://kopia.io), version 0.23.0 or newer.
-  2. The repository passphrase. It is NOT stored on this drive. It lives in your
-     Vrooli vault at:
+  2. The repository passphrase. It is NOT stored on this drive. It lives in the
+     Vrooli credential authority under:
 
          %s
+
+     On a replacement host, import it with:
+       printf '%%s' "$PASSPHRASE" | vrooli credentials provision --identity "%s" --field "repository-passphrase"
 
 Steps (filesystem repository):
   1. Connect to the repository:
@@ -232,6 +236,7 @@ Never restore over an existing non-empty directory you care about.
 Encryption algorithm reported at creation: %s
 `,
 		secretRef,
+		credentialIdentity(secretRef),
 		meta.RepositoryPath,
 		emptyDash(meta.EncryptionAlgorithm),
 	)
@@ -277,4 +282,12 @@ func emptyDash(s string) string {
 		return "(unknown)"
 	}
 	return s
+}
+
+func credentialIdentity(ref string) string {
+	identity, _, ok := strings.Cut(strings.TrimSpace(ref), ":")
+	if !ok || identity == "" {
+		return "<identity>"
+	}
+	return identity
 }

@@ -459,7 +459,7 @@ func (a coverageSuggestions) ListTargetSuggestions(ctx context.Context) ([]cover
 			Rationale:   s.Rationale,
 			ApproxBytes: s.ApproxBytes,
 			Sensitive:   s.Sensitive,
-			Warning:     discoverySensitiveWarning(s.Sensitive),
+			Warning:     discoverySuggestionWarning(s.Sensitive, len(s.Findings)),
 		})
 	}
 	return out, nil
@@ -472,6 +472,17 @@ func discoverySensitiveWarning(sensitive bool) string {
 		return ""
 	}
 	return "Includes credentials/tokens — review before backing up; restoring stale tokens can silently break auth."
+}
+
+func discoverySuggestionWarning(sensitive bool, findings int) string {
+	warning := discoverySensitiveWarning(sensitive)
+	if findings == 0 {
+		return warning
+	}
+	if warning == "" {
+		return "Owner storage metadata has declaration findings; review before registering this target."
+	}
+	return warning + " Owner storage metadata also has declaration findings; review before registering."
 }
 
 // coverageTargetCatalog adapts targets.Service to coverage.TargetCatalog: it

@@ -186,11 +186,10 @@ func run(ctx context.Context) error {
 	discoverySvc := discoveryint.NewService(discoveryint.Deps{
 		Volumes: sysmounts.New(),
 		// Two source scanners behind one seam: Vrooli's own runtime home
-		// (~/.vrooli) plus each external-cli resource's declared durable host
-		// state (coding-agent conversation history, via `vrooli resource list`).
+		// (~/.vrooli) plus every declared non-regenerable owner storage entry.
 		Sources: discoveryint.NewCompositeScanner(
 			discoveryint.NewWellKnownScanner(),
-			discoveryint.NewResourceDataScanner(discoveryint.NewResourceEnumerator()),
+			discoveryint.NewResourceDataScanner(),
 		),
 		Targets:      discoveryTargetCatalog{svc: targetsSvc},
 		Destinations: discoveryDestCatalog{svc: destSvc},

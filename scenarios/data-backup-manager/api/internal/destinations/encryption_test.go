@@ -14,7 +14,7 @@ import (
 // TestDestination_EncryptedByDefault proves DBM-ENC-001:
 //  1. The created destination's EncryptionAlgorithm is non-empty (sourced from
 //     FakeKopiaEngine's default "AES256-GCM-HMAC-SHA256").
-//  2. No secret value is persisted — only secret_ref (the vault reference).
+//  2. No secret value is persisted — only secret_ref (the credential reference).
 func TestDestination_EncryptedByDefault(t *testing.T) {
 	ctx := context.Background()
 	eng := &enginemocks.FakeKopiaEngine{} // default returns "AES256-GCM-HMAC-SHA256"
@@ -38,9 +38,9 @@ func TestDestination_EncryptedByDefault(t *testing.T) {
 		t.Fatalf("EncryptionAlgorithm = %q, want AES256-GCM-HMAC-SHA256", d.EncryptionAlgorithm)
 	}
 
-	// Only the vault reference must be stored — never a secret value. The ref is
+	// Only the credential reference must be stored — never a secret value. The ref is
 	// derived authoritatively from the engine's deterministic passphrase path.
-	wantRef := "secret/resources/kopia/repo/encrypted-dest/passphrase"
+	wantRef := "vrooli/kopia/encrypted-dest:repository-passphrase"
 	if d.SecretRef != wantRef {
 		t.Fatalf("SecretRef = %q, want %q", d.SecretRef, wantRef)
 	}

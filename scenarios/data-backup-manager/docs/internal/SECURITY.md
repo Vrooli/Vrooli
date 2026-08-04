@@ -44,15 +44,16 @@ targets.
 
 ## Secrets
 
-All secrets are sourced from the `vault` resource **at runtime** and are
-never written to config files or passed on the command line. Where the
-wrapped `kopia` (or source) CLI needs a secret, it is provided through
-the environment or stdin, not argv, so it cannot leak through process
-listings.
+Repository passphrases are provisioned in the Vrooli credential authority
+under a per-repository identity. S3/backend credentials and source
+credentials continue to use the `vault` resource at runtime. No secret is
+written to config files or passed on the command line. Where the wrapped
+`kopia` (or source) CLI needs a secret, it is provided through the
+environment or stdin, not argv, so it cannot leak through process listings.
 
 | Secret | Source | Required? | Notes |
 |---|---|---|---|
-| Destination (kopia repository) passphrase | `vault` | yes, per destination | Read at runtime; used to open/create the encrypted repository. Never persisted to the manager's config or DB. |
+| Destination (kopia repository) passphrase | credential authority (`vrooli/kopia/<repository>` / `repository-passphrase`) | yes, per destination | Read at runtime; used to open/create the encrypted repository. Never persisted to the manager's config or DB. |
 | Destination backend access keys (S3/MinIO etc.) | `vault` | when backend requires | Read at runtime; passed via env/stdin to kopia, never argv. |
 | Source access credentials (Postgres, Redis, Qdrant, object-storage) | `vault` (via each source's resource CLI) | per source kind | Provided to the source CLI through its standard secret path; never inlined into argv. |
 
@@ -60,7 +61,7 @@ listings.
 
 | Risk | Impact | Mitigation | Status |
 |---|---|---|---|
-| Destination repository exfiltrated | Full disclosure of all source data in that repository. | Encryption ON by default for every destination; passphrase held only in vault, never in the repo or config. | design-locked |
+| Destination repository exfiltrated | Full disclosure of all source data in that repository. | Encryption ON by default for every destination; passphrase held only in the credential authority, never in the repo or config. | design-locked |
 | Secret leaked via process listing/argv | Repo passphrase or backend key exposed to any local process. | Secrets passed to wrapped CLIs via env/stdin only; never argv; never persisted. | design-locked |
 | Destination lives under the root it protects | A single incident destroys both source and its only backup. | Separate-root rule: destinations validated to be outside the protected root; offsite preferred for at least one tier. | design-locked |
 | Backup that cannot restore | Silent loss — recovery fails when it is needed most. | Verified-restore is first-class; it gates removal of any committed runtime data from git. | design-locked |

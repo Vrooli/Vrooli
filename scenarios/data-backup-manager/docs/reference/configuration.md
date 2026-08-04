@@ -80,7 +80,8 @@ is **not** standalone. Its locked design declares:
 | Resource | Required? | Why |
 |---|---|---|
 | `kopia` | yes | The wrapped backup engine — one kopia repository per destination; all snapshot/restore/verify/stats/retention go through `resource-kopia`. |
-| `vault` | yes | Source of every destination passphrase and source/access secret; encryption-on-by-default depends on it. Fail closed if unavailable — never run unencrypted. |
+| credential authority | yes | Source of every destination repository passphrase; encryption-on-by-default depends on it. Fail closed if unavailable — never run unencrypted. |
+| `vault` | yes | Source of S3/backend and source/access secrets. Fail closed if unavailable for a requested backend or source kind. |
 | `postgres` | conditional | `pg_dump` for Postgres-kind targets. |
 | `redis` | conditional | Prefix `SCAN`+`DUMP` for Redis-kind targets (best-effort). |
 | `qdrant` | conditional | Snapshot API for Qdrant-kind targets. |
@@ -94,12 +95,12 @@ in this scenario's SQLite catalog or source tree.
 
 ### Secrets
 
-Repository passphrases and S3 access keys are held by the `vault`
-resource and referenced — never copied — by the catalog. They are never
-read from `.vrooli/service.json`, env files, or process argv. The
-`kopia` resource sources them from vault at call time (passphrase via
-the `KOPIA_PASSWORD` env var into the engine, per the kopia resource
-plan).
+Repository passphrases are held by the credential authority under
+`vrooli/kopia/<repository>` with field `repository-passphrase`; S3 access
+keys remain in the `vault` resource. Both are referenced — never copied —
+by the catalog and are never read from `.vrooli/service.json`, env files,
+or process argv. The `kopia` resource resolves them at call time and passes
+the repository passphrase through `KOPIA_PASSWORD` only to the child engine.
 
 ## Schema bootstrap
 

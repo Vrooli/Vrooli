@@ -30,7 +30,7 @@ Adopt the greenfield per-domain storage architecture.
 
 **Cross-cutting definitions go to a system home.** `internal/database/system.sql` holds extensions, custom types, and cross-domain views, and stays empty by default. A `CREATE TABLE` there is a signal that a domain is missing.
 
-`maturity: "greenfield"` is declared in `.vrooli/service.json` so `storage-health` derives the correct stage rather than defaulting to it.
+`maturity: "greenfield"` is declared in `.vrooli/service.json` so `storage-manager` derives the correct stage rather than defaulting to it.
 
 ## Consequences
 
@@ -43,5 +43,5 @@ Adopt the greenfield per-domain storage architecture.
 ## References
 
 - `prompt-manager skill read storage-steer`
-- `storage-health validate scenario deployment-manager`
+- `storage-manager validate scenario deployment-manager`
 - [ADR-005](005-governance-plane-boundary.md)

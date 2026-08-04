@@ -23,17 +23,6 @@ type TargetSourceScanner interface {
 	Scan(ctx context.Context) ([]TargetCandidate, error)
 }
 
-// ResourceEnumerator lists the platform's resources so the ResourceDataScanner
-// can read each one's declared durable host state. It is the single place the
-// `vrooli` CLI is shelled (wrap-not-use): DBM never hardcodes the repo
-// `resources/` layout, it trusts the CLI's reported manifest_path.
-//
-// seam: ResourceEnumerator. Production wires *discovery.CLIResourceEnumerator
-// (shells `vrooli resource list --json`); tests wire mocks.FakeResourceEnumerator.
-type ResourceEnumerator interface {
-	Enumerate(ctx context.Context) ([]ResourceRef, error)
-}
-
 // TargetCatalog reads the live target catalog so already-registered sources are
 // filtered out of suggestions.
 //

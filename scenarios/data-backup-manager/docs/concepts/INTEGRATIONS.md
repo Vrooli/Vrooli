@@ -26,7 +26,8 @@ explicit anti-pattern and is not echoed here.
 |---|---|---|---|---|---|
 | SQLite | embedded storage | yes | API (all domains) | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
 | `kopia` resource | Vrooli resource (backup engine) | yes | destinations, runs, restores | `resource-kopia` CLI (repo/snapshot/restore/verify/stats/policy) | A run/restore against an unreachable engine fails closed and is recorded as a failed run; health flags it. |
-| `vault` resource | Vrooli resource (secrets) | yes | destinations, sources | `resource-vault` CLI for passphrases and access keys | Fail closed — never fall back to a default/empty passphrase or run unencrypted. |
+| credential authority | Vrooli shared package/store | yes | destinations, kopia boundary | Per-repository identity/field for repository passphrases | Fail closed — never fall back to a default/empty passphrase or run unencrypted. |
+| `vault` resource | Vrooli resource (secrets) | yes | destinations, sources | `resource-vault` CLI for S3/backend access keys and source credentials | Fail closed — never fall back to a default/empty credential. |
 | `postgres` resource | Vrooli resource (source kind) | on demand | sources (postgres kind) | `pg_dump` via the postgres resource CLI | Capture of a Postgres target fails for that target; other targets in the run continue. |
 | `redis` resource | Vrooli resource (source kind) | on demand | sources (redis kind) | prefix `SCAN` + `DUMP` via the redis resource CLI | Best-effort capture; failure marks that target failed (not point-in-time consistent by design). |
 | `qdrant` resource | Vrooli resource (source kind) | on demand | sources (qdrant kind) | Qdrant snapshot API via the qdrant resource CLI | Capture of a Qdrant target fails for that target. |
@@ -44,7 +45,8 @@ registered.
 |---|---|---|---|
 | kopia | required | The wrapped backup engine; one kopia repository per destination. All snapshot/restore/verify/stats/retention go through `resource-kopia`. | n/a — foundational to the scenario. |
 <!-- kopia snapshot metadata: see "Self-identifying snapshot metadata" below. -->
-| vault | required | All destination passphrases and source/access secrets are sourced from vault; never config or argv. | n/a — foundational to the encryption-on-by-default rule. |
+| credential authority | required | Destination repository passphrases are stored under per-repository identities; never config or argv. | n/a — foundational to the encryption-on-by-default rule. |
+| vault | required | S3/backend access keys and source/access secrets are sourced from vault; never config or argv. | n/a — required for those backends and source kinds. |
 | postgres | conditional | Needed to `pg_dump` Postgres-kind targets. | Enable when a Postgres target is registered. |
 | redis | conditional | Needed to capture Redis-kind targets (best-effort prefix snapshot). | Enable when a Redis target is registered. |
 | qdrant | conditional | Needed to capture Qdrant-kind targets via the snapshot API. | Enable when a Qdrant target is registered. |
@@ -88,7 +90,7 @@ start.
 |---|---|---|---|
 | SQLite | `PingContext` error | `/health` returns unhealthy dependency status. | health handler tests |
 | kopia resource | `resource-kopia` non-zero exit / unreachable | Run or restore fails closed and is recorded as a failed run; health flags overdue/failed backups. | run/restore service tests with a fake kopia seam |
-| vault resource | secret unavailable | Fail closed — refuse to run unencrypted or with a default passphrase; surface an actionable error. | destination/source service tests with a fake vault seam |
+| credential authority or vault resource | secret unavailable | Fail closed — refuse to run unencrypted or with a default credential; surface an actionable error. | destination service tests with fake authority and vault seams |
 | source resource (postgres/redis/qdrant/minio) | capture command failure | That target's outcome is failed; other targets in the run continue; run is partial-failed. | per-source-kind handler tests |
 
 ## Cross-References

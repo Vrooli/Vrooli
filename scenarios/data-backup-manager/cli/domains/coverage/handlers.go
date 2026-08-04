@@ -136,15 +136,19 @@ func (h *handlers) acceptDefaults(ctx cliapp.RunContext) error {
 }
 
 func coverageStatusLine(s *coveragev1.CoverageSummary) string {
+	sensitive := "Sensitive coverage complete — no unregistered sensitive entries."
+	if s.HasSensitiveUnreviewed {
+		sensitive = "Sensitive coverage incomplete — review the sensitive entries before registering them."
+	}
 	switch {
 	case !s.DefaultCoverageComplete:
-		return "⚠ Default coverage INCOMPLETE — recommended targets are unregistered. Run `coverage accept-defaults`."
+		return "⚠ Default coverage INCOMPLETE — recommended targets are unregistered. Run `coverage accept-defaults`. " + sensitive
 	case s.HasUnplannedRegisteredTargets:
-		return "Default coverage complete, but some registered targets are bound to no plan."
+		return "Default coverage complete, but some registered targets are bound to no plan. " + sensitive
 	case s.HasUnverifiedTargets:
-		return "Default coverage complete; some targets have never been verify-restored."
+		return "Default coverage complete; some targets have never been verify-restored. " + sensitive
 	default:
-		return "Default coverage complete; all registered targets are planned and verified."
+		return "Default coverage complete; all registered targets are planned and verified. " + sensitive
 	}
 }
 

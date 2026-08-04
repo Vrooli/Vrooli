@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1316,7 +1317,10 @@ type BASCapturer struct {
 func (c BASCapturer) CaptureAccessibility(ctx context.Context, target CaptureTarget) (Snapshot, error) {
 	baseURL, err := c.resolve(ctx)
 	if err != nil || strings.TrimSpace(baseURL) == "" {
-		return Snapshot{}, ErrCaptureUnavailable
+		if err != nil {
+			return Snapshot{}, fmt.Errorf("%w: resolve BAS endpoint: %v", ErrCaptureUnavailable, err)
+		}
+		return Snapshot{}, fmt.Errorf("%w: BAS endpoint is empty", ErrCaptureUnavailable)
 	}
 	// Preserve the scenario identity instead of pre-resolving localhost. BAS
 	// uses this shorthand to obtain the Experience Manager-owned readiness
@@ -1331,8 +1335,11 @@ func (c BASCapturer) CaptureAccessibility(ctx context.Context, target CaptureTar
 		Height int `json:"height,omitempty"`
 	}
 	type captureRequestPayload struct {
-		URL                 string            `json:"url"`
-		InlineAccessibility bool              `json:"inline_accessibility"`
+		URL string `json:"url"`
+		// CaptureService is a Connect endpoint, whose canonical JSON field name
+		// is lowerCamelCase. The response has always accepted both shapes, but a
+		// snake_case request silently loses this optional capture flag.
+		InlineAccessibility bool              `json:"inlineAccessibility"`
 		Label               string            `json:"label"`
 		Dimensions          dimensionsPayload `json:"dimensions,omitempty"`
 		WaitFor             *waitForPayload   `json:"wait_for,omitempty"`
@@ -1353,7 +1360,7 @@ func (c BASCapturer) CaptureAccessibility(ctx context.Context, target CaptureTar
 
 	encoded, err := json.Marshal(payload)
 	if err != nil {
-		return Snapshot{}, ErrCaptureUnavailable
+		return Snapshot{}, fmt.Errorf("%w: encode BAS capture request: %v", ErrCaptureUnavailable, err)
 	}
 	req, err := http.NewRequestWithContext(
 		ctx,
@@ -1362,20 +1369,20 @@ func (c BASCapturer) CaptureAccessibility(ctx context.Context, target CaptureTar
 		strings.NewReader(string(encoded)),
 	)
 	if err != nil {
-		return Snapshot{}, ErrCaptureUnavailable
+		return Snapshot{}, fmt.Errorf("%w: create BAS capture request: %v", ErrCaptureUnavailable, err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := c.httpClient().Do(req)
 	if err != nil {
-		return Snapshot{}, ErrCaptureUnavailable
+		return Snapshot{}, fmt.Errorf("%w: call BAS CaptureService: %v", ErrCaptureUnavailable, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return Snapshot{}, ErrCaptureUnavailable
+		return Snapshot{}, fmt.Errorf("%w: BAS CaptureService returned HTTP %d", ErrCaptureUnavailable, resp.StatusCode)
 	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return Snapshot{}, ErrCaptureUnavailable
+		return Snapshot{}, fmt.Errorf("%w: read BAS CaptureService response: %v", ErrCaptureUnavailable, err)
 	}
 	var decoded struct {
 		AccessibilityJSON      string `json:"accessibility_json"`
@@ -1387,39 +1394,63 @@ func (c BASCapturer) CaptureAccessibility(ctx context.Context, target CaptureTar
 			Metadata  map[string]string `json:"metadata"`
 		} `json:"artifacts"`
 		Readiness struct {
-			DurationMS                   int64  `json:"duration_ms"`
-			DurationMSCamel              int64  `json:"durationMs"`
-			NavigationDurationMS         int64  `json:"navigation_duration_ms"`
-			NavigationDurationMSCamel    int64  `json:"navigationDurationMs"`
-			ReadinessWaitDurationMS      int64  `json:"readiness_wait_duration_ms"`
-			ReadinessWaitDurationMSCamel int64  `json:"readinessWaitDurationMs"`
-			SelectedStrategy             string `json:"selected_strategy"`
-			SelectedStrategyCamel        string `json:"selectedStrategy"`
-			Outcome                      string `json:"outcome"`
+			DurationMS                   json.RawMessage `json:"duration_ms"`
+			DurationMSCamel              json.RawMessage `json:"durationMs"`
+			NavigationDurationMS         json.RawMessage `json:"navigation_duration_ms"`
+			NavigationDurationMSCamel    json.RawMessage `json:"navigationDurationMs"`
+			ReadinessWaitDurationMS      json.RawMessage `json:"readiness_wait_duration_ms"`
+			ReadinessWaitDurationMSCamel json.RawMessage `json:"readinessWaitDurationMs"`
+			SelectedStrategy             string          `json:"selected_strategy"`
+			SelectedStrategyCamel        string          `json:"selectedStrategy"`
+			Outcome                      string          `json:"outcome"`
 		} `json:"readiness"`
 	}
 	if err := json.Unmarshal(body, &decoded); err != nil {
-		return Snapshot{}, ErrCaptureUnavailable
+		return Snapshot{}, fmt.Errorf("%w: decode BAS CaptureService response: %v", ErrCaptureUnavailable, err)
 	}
 	if strings.TrimSpace(decoded.AccessibilityJSON) == "" {
 		decoded.AccessibilityJSON = decoded.AccessibilityJSONCamel
 	}
 	if strings.TrimSpace(decoded.AccessibilityJSON) == "" {
-		return Snapshot{}, ErrCaptureUnavailable
+		return Snapshot{}, fmt.Errorf("%w: BAS response omitted inline accessibility data", ErrCaptureUnavailable)
 	}
 	var snapshot Snapshot
 	if err := json.Unmarshal([]byte(decoded.AccessibilityJSON), &snapshot); err != nil {
 		return Snapshot{}, fmt.Errorf("%w: decode accessibility snapshot: %v", ErrCaptureUnavailable, err)
 	}
+	if snapshot.Contract != snapshotContract {
+		return Snapshot{}, fmt.Errorf("%w: unsupported accessibility snapshot contract %q", ErrCaptureUnavailable, snapshot.Contract)
+	}
 	snapshot.ScreenshotRef = screenshotRefFromArtifacts(decoded.Artifacts)
 	snapshot.Timing = CaptureTiming{
-		TotalMilliseconds:         firstNonZero(decoded.Readiness.DurationMS, decoded.Readiness.DurationMSCamel),
-		NavigationMilliseconds:    firstNonZero(decoded.Readiness.NavigationDurationMS, decoded.Readiness.NavigationDurationMSCamel),
-		ReadinessWaitMilliseconds: firstNonZero(decoded.Readiness.ReadinessWaitDurationMS, decoded.Readiness.ReadinessWaitDurationMSCamel),
+		TotalMilliseconds:         firstNonZero(parseCaptureMilliseconds(decoded.Readiness.DurationMS), parseCaptureMilliseconds(decoded.Readiness.DurationMSCamel)),
+		NavigationMilliseconds:    firstNonZero(parseCaptureMilliseconds(decoded.Readiness.NavigationDurationMS), parseCaptureMilliseconds(decoded.Readiness.NavigationDurationMSCamel)),
+		ReadinessWaitMilliseconds: firstNonZero(parseCaptureMilliseconds(decoded.Readiness.ReadinessWaitDurationMS), parseCaptureMilliseconds(decoded.Readiness.ReadinessWaitDurationMSCamel)),
 		Strategy:                  firstNonEmpty(decoded.Readiness.SelectedStrategy, decoded.Readiness.SelectedStrategyCamel),
 		Outcome:                   decoded.Readiness.Outcome,
 	}
 	return snapshot, nil
+}
+
+// parseCaptureMilliseconds accepts standard JSON numbers and the quoted int64
+// representation emitted by protobuf's canonical JSON mapping.
+func parseCaptureMilliseconds(raw json.RawMessage) int64 {
+	if len(raw) == 0 || string(raw) == "null" {
+		return 0
+	}
+	var number int64
+	if err := json.Unmarshal(raw, &number); err == nil {
+		return number
+	}
+	var text string
+	if err := json.Unmarshal(raw, &text); err != nil {
+		return 0
+	}
+	number, err := strconv.ParseInt(text, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return number
 }
 
 func firstNonZero(values ...int64) int64 {

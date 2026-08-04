@@ -22,10 +22,11 @@ type mountInfo struct {
 type classifier struct {
 	goos         string
 	sysBlockRoot string
+	driveType    func(string) uint32
 }
 
 func newClassifier() *classifier {
-	return &classifier{goos: runtime.GOOS, sysBlockRoot: "/sys/block"}
+	return &classifier{goos: runtime.GOOS, sysBlockRoot: "/sys/block", driveType: platformDriveType}
 }
 
 // pseudoFS is the set of non-storage filesystem types we never surface as
@@ -55,6 +56,14 @@ func (c *classifier) classify(m mountInfo) (DriveClass, bool) {
 			return ClassNetwork, false
 		}
 	}
+	if c.goos == "windows" {
+		switch c.windowsDriveType(m) {
+		case driveTypeRemote:
+			return ClassNetwork, false
+		case driveTypeRemovable, driveTypeCDROM:
+			return ClassRemovable, true
+		}
+	}
 	if c.isRemovable(m) {
 		return ClassRemovable, true
 	}
@@ -72,13 +81,46 @@ func (c *classifier) isRemovable(m mountInfo) bool {
 		// system-managed data volume are not removable.
 		return strings.HasPrefix(m.Mountpoint, "/Volumes/")
 	case "windows":
-		// Without a portable drive-type API here, treat the system drive as
-		// fixed and leave others fixed too; Windows removable detection is a
-		// documented follow-up. Conservative: never falsely flag fixed disks.
-		return false
+		return c.windowsRemovable(m)
 	default:
 		return false
 	}
+}
+
+const (
+	driveTypeUnknown   uint32 = 0
+	driveTypeRemovable uint32 = 2
+	driveTypeFixed     uint32 = 3
+	driveTypeRemote    uint32 = 4
+	driveTypeCDROM     uint32 = 5
+	driveTypeRAMDisk   uint32 = 6
+)
+
+func (c *classifier) windowsRemovable(m mountInfo) bool {
+	switch c.windowsDriveType(m) {
+	case driveTypeRemovable, driveTypeCDROM:
+		return true
+	default:
+		return false
+	}
+}
+
+func (c *classifier) windowsDriveType(m mountInfo) uint32 {
+	if c.driveType == nil {
+		return driveTypeUnknown
+	}
+	return c.driveType(windowsDriveRoot(m.Mountpoint))
+}
+
+func windowsDriveRoot(mountpoint string) string {
+	mountpoint = strings.TrimSpace(strings.ReplaceAll(mountpoint, "/", `\`))
+	if len(mountpoint) >= 2 && mountpoint[1] == ':' {
+		return mountpoint[:2] + `\`
+	}
+	if strings.HasPrefix(mountpoint, `\\`) {
+		return mountpoint
+	}
+	return mountpoint
 }
 
 // linuxRemovable reads /sys/block/<base>/removable for the partition's backing

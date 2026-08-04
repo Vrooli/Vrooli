@@ -85,7 +85,7 @@ func targetToProto(s discovery.TargetSuggestion) *discoveryv1.TargetSuggestion {
 		Rationale:   s.Rationale,
 		ApproxBytes: s.ApproxBytes,
 		Sensitive:   s.Sensitive,
-		Warning:     sensitiveWarning(s.Sensitive),
+		Warning:     targetWarning(s),
 	}
 }
 
@@ -97,6 +97,17 @@ func sensitiveWarning(sensitive bool) string {
 		return ""
 	}
 	return "Includes credentials/tokens — review before backing up; restoring stale tokens can silently break auth."
+}
+
+func targetWarning(s discovery.TargetSuggestion) string {
+	warning := sensitiveWarning(s.Sensitive)
+	if len(s.Findings) == 0 {
+		return warning
+	}
+	if warning == "" {
+		return "Owner storage metadata has declaration findings; review before registering this target."
+	}
+	return warning + " Owner storage metadata also has declaration findings; review before registering."
 }
 
 // destinationToProto converts an internal destination suggestion to its wire

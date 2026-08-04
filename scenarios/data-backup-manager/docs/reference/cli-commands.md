@@ -116,8 +116,8 @@ data-backup-manager targets get <target-id>
 ### `data-backup-manager destinations ...`
 
 Manage backup destinations (kopia repositories). Encryption is always
-on; passphrases and access keys come from the `vault` resource, never
-flags or config.
+on; repository passphrases come from the credential authority and S3 access
+keys come from the Vault-backed resource secret surface, never flags or config.
 
 ```bash
 # --name must be slug-safe (lowercase, digits, hyphens) — it is also the kopia
@@ -132,7 +132,8 @@ data-backup-manager destinations update --id <destination-id> --cap-policy alert
 # Delete is precise about what it removes:
 data-backup-manager destinations delete --id <destination-id>                       # catalog row only
 data-backup-manager destinations delete --id <destination-id> --delete-repository true
-#   ^ also removes LOCAL kopia metadata/config/cache + vault secret refs.
+#   ^ also removes LOCAL kopia metadata/config/cache + credential-authority
+#     repository-passphrase and S3 secret refs.
 #     The encrypted repository bytes on the backend are NEVER deleted by DBM.
 
 # Read-only drive readiness before creating a filesystem destination.
@@ -197,6 +198,11 @@ data-backup-manager coverage accept-defaults --dry-run    # preview — register
 data-backup-manager coverage accept-defaults              # register non-sensitive discovered durable targets
 data-backup-manager coverage accept-defaults --include-sensitive  # also register credential/token targets (deliberate)
 ```
+
+`coverage report` separates sensitive targets from the default-coverage score and
+marks them review-only. Credential recovery is reported independently by
+`vrooli credentials doctor`; do not register a recorded recovery bundle as a
+filesystem target. Restore it through `vrooli credentials recovery restore`.
 
 Sensitive credential/token suggestions are **never** registered by default;
 they require the explicit `--include-sensitive` opt-in. Acceptance is idempotent

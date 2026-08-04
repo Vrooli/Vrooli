@@ -18,6 +18,45 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 )
 
+func TestBASCapturerLiveCaptureContract(t *testing.T) {
+	baseURL := strings.TrimSpace(os.Getenv("EXPERIENCE_BAS_INTEGRATION_URL"))
+	if baseURL == "" {
+		t.Skip("set EXPERIENCE_BAS_INTEGRATION_URL to exercise the live BAS CaptureService contract")
+	}
+	capturer := BASCapturer{Resolve: func(context.Context) (string, error) { return baseURL, nil }}
+	snapshot, err := capturer.CaptureAccessibility(context.Background(), CaptureTarget{
+		Scenario:       "landing-page-business-suite",
+		Route:          "/admin/login",
+		PageID:         "admin-login",
+		StateID:        "default",
+		ViewportID:     "desktop",
+		ViewportWidth:  1280,
+		ViewportHeight: 720,
+	})
+	if err != nil {
+		t.Fatalf("live BAS CaptureAccessibility: %v", err)
+	}
+	if snapshot.Contract != snapshotContract || len(snapshot.Flatten()) == 0 {
+		t.Fatalf("live BAS snapshot = contract %q, nodes %d; want %q and nodes", snapshot.Contract, len(snapshot.Flatten()), snapshotContract)
+	}
+}
+
+func TestParseCaptureMillisecondsAcceptsConnectAndLegacyJSON(t *testing.T) {
+	for _, tc := range []struct {
+		raw  json.RawMessage
+		want int64
+	}{
+		{raw: json.RawMessage(`210`), want: 210},
+		{raw: json.RawMessage(`"210"`), want: 210},
+		{raw: json.RawMessage(`null`), want: 0},
+		{raw: json.RawMessage(`"invalid"`), want: 0},
+	} {
+		if got := parseCaptureMilliseconds(tc.raw); got != tc.want {
+			t.Errorf("parseCaptureMilliseconds(%s) = %d, want %d", tc.raw, got, tc.want)
+		}
+	}
+}
+
 type fakeCapturer struct {
 	snapshot         Snapshot
 	snapshotsByState map[string]Snapshot
@@ -708,7 +747,7 @@ func TestBASCapturerPreservesScenarioTargetForDeclaredReadiness(t *testing.T) {
 	mux.HandleFunc("/browser_automation_studio.v1.capture.CaptureService/Capture", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			URL                 string `json:"url"`
-			InlineAccessibility bool   `json:"inline_accessibility"`
+			InlineAccessibility bool   `json:"inlineAccessibility"`
 			Dimensions          struct {
 				Width  int `json:"width"`
 				Height int `json:"height"`
@@ -741,7 +780,10 @@ func TestBASCapturerPreservesScenarioTargetForDeclaredReadiness(t *testing.T) {
 			t.Fatalf("Marshal snapshot: %v", err)
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"accessibility_json": string(snapshot),
+			// Connect's JSON codec emits lowerCamelCase response fields. Keep this
+			// regression contract aligned with Browser Automation Studio's live
+			// CaptureService rather than only exercising the legacy snake_case form.
+			"accessibilityJson": string(snapshot),
 			"readiness": map[string]any{
 				"durationMs":              210,
 				"navigationDurationMs":    60,

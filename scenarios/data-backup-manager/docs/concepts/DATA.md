@@ -39,8 +39,9 @@ registration model. Source data read during capture (Postgres dumps,
 Redis dumps, Qdrant snapshots, etc.) is transient and streamed into
 kopia, not persisted in the catalog.
 
-Source secrets and destination credentials/passphrases live in the
-`vault` resource and are referenced — never copied — by the catalog.
+Source secrets and S3/backend credentials live in the `vault` resource;
+repository passphrases live in the credential authority. They are
+referenced — never copied — by the catalog.
 Document resource decisions in [`INTEGRATIONS.md`](INTEGRATIONS.md)
 before editing `.vrooli/service.json`.
 
@@ -50,13 +51,14 @@ before editing `.vrooli/service.json`.
 |---|---|---|---|---|---|
 | Targets | targets | SQLite | `api/internal/targets/schema.sql` | Until deregistered by the owning scenario | Keyed by `owner + name`; reconstructable from re-registration on boot. |
 | Destinations | destinations | SQLite | `api/internal/destinations/schema.sql` | Until removed by an operator | Holds backend kind, storage cap, vault references, and the bundle-root (`location`) vs repository-path (`repository_location`) split — never the secrets themselves. |
-| Destination bundle files | destinations | filesystem (bundle root) | The bundle root on the backend drive | Lives with the destination | `README.txt`, `RECOVERY.txt`, `vrooli-backup-destination.json` — non-secret operator-facing files written by the `BundleWriter` seam. Never contain a passphrase, only a vault secret *reference*. |
+| Destination bundle files | destinations | filesystem (bundle root) | The bundle root on the backend drive | Lives with the destination | `README.txt`, `RECOVERY.txt`, `vrooli-backup-destination.json` — non-secret operator-facing files written by the `BundleWriter` seam. Never contain a passphrase, only a credential-authority identity/field reference. |
 | Plan bindings | plans | SQLite | `api/internal/plans/schema.sql` | Until the plan is deleted | Many-to-many plan↔target and plan↔destination membership plus schedule and retention. |
 | Run history | runs | SQLite | `api/internal/runs/schema.sql` | Bounded retention (see Retention And Deletion) | Per-run and per-target outcomes; carries last-success-per-target and snapshot references. |
 | Restore records | restores | SQLite | `api/internal/restores/schema.sql` | Bounded retention | Includes verify outcomes and last-verified-per-target (the git-removal gate). |
 | Audit records | audits | SQLite | `api/internal/audits/schema.sql` | Bounded retention | Generic snapshot-audit proofs: status, restorability, live + snapshot inventories and the comparison, stored as JSON blobs. **Only relative paths, counts, and hashes — never file contents or secrets.** |
 | Backup artifacts (snapshots) | destinations / kopia | kopia repository (filesystem or S3/MinIO) | The kopia repository per destination | Per-plan retention policy, applied by kopia; **alert+block, never silent eviction** | Encrypted by default; reached only via `resource-kopia`; never under the scenario source tree. |
-| Repository passphrases & access keys | (referenced by) destinations | `vault` resource | `vault` | Lives with the destination | Catalog stores only secret references; the `kopia` resource sources the actual values from vault at call time. |
+| Repository passphrases | (referenced by) destinations | credential authority | `vrooli/kopia/<repository>` | Lives with the destination | Catalog and bundles store only the identity/field reference; the `kopia` resource resolves the value at call time. |
+| S3/backend access keys | (referenced by) destinations | `vault` resource | `vault` | Lives with the destination | Catalog stores only secret references; the `kopia` resource resolves values at call time. |
 
 ## Schema Map
 
@@ -119,8 +121,10 @@ A filesystem destination is a self-describing bundle, not a bare repository:
   name is slug-safe (lowercase, digits, hyphens) because it doubles as the kopia
   repository name.
 - The repository remains a **vanilla kopia repository** — no proprietary layer.
-  It is restorable with the plain `kopia` binary plus the passphrase from vault.
-- Bundle files never contain a secret value, only a vault secret *reference*.
+  It is restorable with the plain `kopia` binary plus the passphrase from the
+  credential authority.
+- Bundle files never contain a secret value, only a credential-authority
+  identity/field reference (and backend references where applicable).
 - S3 destinations have no filesystem bundle files; `location` and
   `repository_location` are the bucket/prefix.
 
@@ -128,8 +132,8 @@ A filesystem destination is a self-describing bundle, not a bare repository:
 
 | Command | Removes | Leaves intact |
 |---|---|---|
-| `destinations delete` (default) | Catalog row only | Local kopia metadata, vault secret refs, encrypted repository bytes, bundle files |
-| `destinations delete --delete-repository` | Catalog row + local resource-kopia metadata/config/cache + vault secret refs | **Encrypted repository bytes on the backend** and bundle files — never removed by DBM |
+| `destinations delete` (default) | Catalog row only | Local kopia metadata, credential-authority passphrase and S3 secret refs, encrypted repository bytes, bundle files |
+| `destinations delete --delete-repository` | Catalog row + local resource-kopia metadata/config/cache + credential-authority passphrase and S3 secret refs | **Encrypted repository bytes on the backend** and bundle files — never removed by DBM |
 
 To destroy the backups themselves, an operator removes the bundle folder
 manually. DBM never deletes backend repository bytes.

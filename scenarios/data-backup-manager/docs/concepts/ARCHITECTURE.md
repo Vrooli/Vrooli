@@ -111,8 +111,9 @@ The product vocabulary is fixed and decouples *what is backed up* from
   SQLite, Postgres, Redis, Qdrant, object-storage), a locator, and
   optional pre/post quiesce hooks (P1). Source secrets come from vault.
 - **Destination** — where artifacts land: one kopia repository, backed
-  by a local filesystem path or S3/MinIO. Encrypted by default;
-  credentials/passphrases from `vault`; **must not** point under the
+  by a local filesystem path or S3/MinIO. Encrypted by default; repository
+  passphrases live in the credential authority and S3 access keys remain in
+  the Vault-backed resource secret surface; **must not** point under the
   storage root it protects (separate-root rule); carries a configurable
   storage cap defaulting to **alert + block**.
 - **Plan** — binds targets to destinations (many-to-many) with a
@@ -274,7 +275,7 @@ in `requirements/` and [`../internal/PROGRESS.md`](../internal/PROGRESS.md).
 | CLI | Built — command per RPC + self-registration | `cli/domains/<domain>/` wraps each RPC via generated Connect clients; manifest-driven; `RequireProtoServiceCoverage` per domain. | — |
 | UI | Designed-only (explicit follow-up plan) | Feature folders + typed client patterns from the template. | Destinations (usage-vs-cap), plans, run history, guided restore/verify to be built per [`UI-ARCHITECTURE.md`](UI-ARCHITECTURE.md). |
 | Docs | Filled to the locked design; reconciled to built state | Concept + reference docs; SEAMS registry updated with KopiaEngine/CommandRunner/Capturer; PROBLEMS tracks deferrals. | — |
-| Engine integration | Built — wrapped behind the KopiaEngine seam | `api/internal/engine/kopia.go` shells out to the fully-implemented `resource-kopia` CLI; encryption always on; kopia owns repo passphrases via vault. Real-engine paths covered by integration tests gated on `KOPIA_INTEGRATION` / source resources. Snapshot browsing is backed by `resource-kopia snapshot browse --json`. | Source-resource integration coverage remains gated. |
+| Engine integration | Built — wrapped behind the KopiaEngine seam | `api/internal/engine/kopia.go` shells out to the fully-implemented `resource-kopia` CLI; encryption always on; Kopia repository passphrases live in the credential authority under `vrooli/kopia/<repo>:repository-passphrase`. Real-engine paths covered by integration tests gated by `KOPIA_INTEGRATION` / source resources. Snapshot browsing is backed by `resource-kopia snapshot browse --json`. | Source-resource integration coverage remains gated. |
 
 ### API surface (built)
 

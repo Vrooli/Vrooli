@@ -70,14 +70,15 @@ func (f *FakeKopiaEngine) RepoStatus(ctx context.Context, repo string) (engine.R
 	return engine.RepoStatus{EncryptionAlgorithm: "AES256-GCM-HMAC-SHA256", Connected: true}, nil
 }
 
-// PassphraseRef mirrors the production convention by default so tests can
-// assert the bundle carries the real reference path; override PassphraseRefFn
+// PassphraseRef mirrors the production credential-authority convention by
+// default so tests can assert the bundle carries the real identity/field
+// reference; override PassphraseRefFn
 // to inject a custom value.
 func (f *FakeKopiaEngine) PassphraseRef(repo string) string {
 	if f.PassphraseRefFn != nil {
 		return f.PassphraseRefFn(repo)
 	}
-	return "secret/resources/kopia/repo/" + repo + "/passphrase"
+	return "vrooli/kopia/" + repo + ":repository-passphrase"
 }
 
 func (f *FakeKopiaEngine) RepoStats(ctx context.Context, repo string) (engine.RepoStats, error) {

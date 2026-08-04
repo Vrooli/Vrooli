@@ -16,7 +16,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        destinationsconnect.DestinationsServiceCreateDestinationProcedure,
 		Method:      "POST",
 		Summary:     "Create a backup destination",
-		Description: "Provisions a new kopia repository (filesystem or S3). Encryption is always on; the repository passphrase is generated and stored in vault. A filesystem destination must not point under the protected root.",
+		Description: "Provisions a new kopia repository (filesystem or S3). Encryption is always on; the repository passphrase is generated and stored in the credential authority. S3/backend credentials remain in vault. A filesystem destination must not point under the protected root.",
 		Category:    "destinations",
 		Request: &module.Schema{
 			Type: "object",

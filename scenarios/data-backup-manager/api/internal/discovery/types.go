@@ -26,6 +26,8 @@ import (
 
 	"data-backup-manager/internal/sources"
 	"data-backup-manager/internal/sysmounts"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 // DriveClass is the volume classification, re-exported from sysmounts so the
@@ -58,6 +60,9 @@ type TargetCandidate struct {
 	// tokens). Surfaced with a warning and never auto-accepted; the operator
 	// must register it deliberately.
 	Sensitive bool
+	// Findings carries owner-inventory declaration warnings alongside the
+	// candidate so presentation layers can explain incomplete metadata.
+	Findings []storage.InventoryFinding
 }
 
 // TargetSuggestion is a candidate that survived filtering, with its stable id.

@@ -28,7 +28,7 @@ var dbmRationale = map[string]struct {
 	repocontract.HomeKeyData:       {"data", "Durable scenario data — application state scenarios persist between runs."},
 	repocontract.HomeKeyRuntimeDB:  {"runtime-db", "Vrooli runtime database — captured as a consistent SQLite copy."},
 	repocontract.HomeKeySecrets:    {"secrets", "Vrooli secrets store — irreplaceable credentials (backed up encrypted; contents never read here)."},
-	repocontract.HomeKeySecretsEnc: {"secrets-enc", "Encrypted Vrooli secrets store — irreplaceable credentials (contents never read here)."},
+	repocontract.HomeKeySecretsEnc: {"secrets-enc", "Encrypted Vrooli credential-authority store — the recovery source on encrypted-file hosts (contents never read here)."},
 }
 
 // defaultMaxScanEntries bounds the shallow size estimate so a target with a

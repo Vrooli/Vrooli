@@ -44,7 +44,7 @@ func TestSQLiteRepository_RoundTrip(t *testing.T) {
 		CapBytes:            0,
 		CapPolicy:           destinations.CapPolicyAlertBlock,
 		EncryptionAlgorithm: "AES256-GCM-HMAC-SHA256",
-		SecretRef:           "vault/kopia/primary",
+		SecretRef:           "vrooli/kopia/primary:repository-passphrase",
 	})
 	if err != nil {
 		t.Fatalf("create: %v", err)

@@ -86,6 +86,18 @@ deliberately only after review:
 data-backup-manager coverage accept-defaults --include-sensitive
 ```
 
+Credential-bearing targets are review-only. The plaintext `~/.vrooli/secrets.json`
+legacy file is never suggested; the encrypted `~/.vrooli/secrets.enc.json` store
+and credential-authority recovery bundle are the supported recovery surfaces.
+After exporting credentials, `vrooli credentials doctor` reports the receipt and
+whether every configured identity is covered. A detached Kopia bundle names the
+credential identity and field and can be imported on a replacement host with:
+
+```sh
+printf '%s' "$PASSPHRASE" | vrooli credentials provision \
+  --identity vrooli/kopia/<repository> --field repository-passphrase
+```
+
 Coverage reads no file contents and registers locators only. Because plan
 creation is guarded (see below), running `coverage accept-defaults` before
 `plans create` is the normal first-backup order.
@@ -204,7 +216,8 @@ data-backup-manager restores restore \
 ### Standalone restore (Vrooli down)
 
 Because destinations are plain kopia repositories, recovery does not
-depend on this scenario being up. With the repo passphrase from `vault`,
+depend on this scenario being up. With the repo passphrase from the credential
+authority,
 an operator can restore directly with the kopia CLI even if the manager,
 API, or the whole Vrooli stack is unavailable. This is a deliberate
 disaster-recovery property — keep the passphrase recoverable
@@ -215,7 +228,8 @@ For a filesystem destination, the drive itself explains how: read
 repository path (`repository_location` /
 `<bundle-root>/repositories/<slug>.kopia` — recorded in
 `vrooli-backup-destination.json`), **not** the bundle root. The manifest also
-records the vault `secret_ref` (a reference path, never the passphrase value).
+records the credential identity/field `secret_ref` (a reference, never the
+passphrase value); import it with the command in `RECOVERY.txt`.
 
 | Data | Backup Procedure | Restore Procedure | Status |
 |---|---|---|---|

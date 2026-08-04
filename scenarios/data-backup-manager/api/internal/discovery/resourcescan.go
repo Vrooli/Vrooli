@@ -5,148 +5,183 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
 	"data-backup-manager/internal/sources"
+
+	"github.com/vrooli/api-core/storage"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
-// ResourceDataScanner derives target candidates from the durable host state
-// each external-cli resource declares in its manifest (durable_data). It is the
-// second TargetSourceScanner alongside WellKnownScanner (~/.vrooli): together,
-// behind a CompositeScanner, they cover both Vrooli's own runtime home and the
-// coding agents' irreplaceable conversation history.
-//
-// Strictly read-only: it stats declared paths and, for directories, walks
-// metadata for a bounded size estimate. It never reads file contents.
+// ResourceDataScanner derives suggestions from the canonical owner inventory.
+// Despite the historical name, it intentionally scans every storage owner
+// kind (scenarios, resources, tools, and safeguards). The inventory is
+// read-only and retains declaration findings so malformed or incomplete
+// manifests remain visible to the candidate consumer.
 type ResourceDataScanner struct {
-	resources      ResourceEnumerator
-	home           string
+	repoRoot       string
+	platform       storage.Platform
+	platformSeams  storage.PlatformSeams
 	maxScanEntries int
+	loadInventory  func(storage.InventoryOptions) (storage.OwnerInventory, error)
 }
 
-// NewResourceDataScanner resolves the operator home via os.UserHomeDir (the API
-// runs as the operator, consistent with WellKnownScanner).
-func NewResourceDataScanner(enum ResourceEnumerator) *ResourceDataScanner {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		home = ""
+// NewResourceDataScanner wires the repository and host platform authorities.
+// A repository-root failure is deferred to Scan so API construction remains
+// available for environments that do not run inside a checkout.
+func NewResourceDataScanner() *ResourceDataScanner {
+	root, _ := repocontract.FindRepoRootFromEnvOrCWD()
+	return &ResourceDataScanner{
+		repoRoot:       root,
+		platform:       storage.NormalizePlatform(runtime.GOOS),
+		maxScanEntries: defaultMaxScanEntries,
+		loadInventory:  storage.LoadOwnerInventory,
 	}
-	return &ResourceDataScanner{resources: enum, home: home, maxScanEntries: defaultMaxScanEntries}
 }
 
-// NewResourceDataScannerWithHome constructs a scanner rooted at an explicit home
-// — used by tests to point at a temp tree.
-func NewResourceDataScannerWithHome(enum ResourceEnumerator, home string) *ResourceDataScanner {
-	return &ResourceDataScanner{resources: enum, home: home, maxScanEntries: defaultMaxScanEntries}
+// NewResourceDataScannerWithRoot is the deterministic test seam. The loader
+// remains injectable for exercising inventory failures without shelling out or
+// changing process-wide environment state.
+func NewResourceDataScannerWithRoot(root string, platform storage.Platform) *ResourceDataScanner {
+	return &ResourceDataScanner{
+		repoRoot:       root,
+		platform:       storage.NormalizePlatform(string(platform)),
+		maxScanEntries: defaultMaxScanEntries,
+		loadInventory:  storage.LoadOwnerInventory,
+	}
 }
 
-// Compile-time guarantee.
+// WithPlatformSeams overrides OS directory lookups for deterministic foreign
+// platform tests and controlled discovery environments.
+func (s *ResourceDataScanner) WithPlatformSeams(seams storage.PlatformSeams) *ResourceDataScanner {
+	s.platformSeams = seams
+	return s
+}
+
+// WithInventoryLoader is a test seam for exercising inventory failures and
+// synthetic owner sets without changing the production loader.
+func (s *ResourceDataScanner) WithInventoryLoader(loader func(storage.InventoryOptions) (storage.OwnerInventory, error)) *ResourceDataScanner {
+	s.loadInventory = loader
+	return s
+}
+
 var _ TargetSourceScanner = (*ResourceDataScanner)(nil)
 
-// Scan returns a candidate for each durable (non-regenerable) declared entry
-// that exists and is non-empty under the resolved home. Missing, empty, or
-// unreadable paths are silently skipped, as is any resource whose manifest
-// declares no durable_data.
 func (s *ResourceDataScanner) Scan(ctx context.Context) ([]TargetCandidate, error) {
-	if strings.TrimSpace(s.home) == "" || s.resources == nil {
-		return nil, nil
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
-	refs, err := s.resources.Enumerate(ctx)
+	if strings.TrimSpace(s.repoRoot) == "" {
+		return nil, fmt.Errorf("owner inventory: repository root is unavailable")
+	}
+	platform := s.platform
+	if platform == "" {
+		platform = storage.NormalizePlatform(runtime.GOOS)
+	}
+	load := s.loadInventory
+	if load == nil {
+		load = storage.LoadOwnerInventory
+	}
+	inventory, err := load(storage.InventoryOptions{
+		RepoRoot:      s.repoRoot,
+		Platform:      platform,
+		PlatformSeams: s.platformSeams,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("enumerate resources: %w", err)
+		return nil, fmt.Errorf("load owner inventory: %w", err)
 	}
+
+	findingsByOwner := make(map[string][]storage.InventoryFinding)
+	for _, finding := range inventory.Findings {
+		key := ownerFindingKey(finding.OwnerKind, finding.OwnerID)
+		findingsByOwner[key] = append(findingsByOwner[key], finding)
+	}
+
 	var out []TargetCandidate
-	for _, ref := range refs {
-		dd := loadDurableData(ref.ManifestPath)
-		if dd == nil {
+	for _, owner := range inventory.Owners {
+		if strings.TrimSpace(owner.ID) == "" {
 			continue
 		}
-		base, ok := resolveBase(dd.Base, s.home)
-		if !ok {
-			continue // unrecognized base token → skip the whole resource defensively.
-		}
-		for _, key := range sortedEntryKeys(dd.Entries) {
-			entry := dd.Entries[key]
+		entries := append([]storage.StorageEntry(nil), owner.StorageEntries...)
+		sort.Slice(entries, func(i, j int) bool { return entries[i].Name < entries[j].Name })
+		for _, entry := range entries {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
 			if entry.Regenerable {
-				continue // declared reconstructable → not worth protecting.
+				continue
 			}
-			candidate, ok := s.candidateFor(ctx, ref.Name, key, base, entry)
-			if ok {
-				out = append(out, candidate)
+			locator, resolveErr := storage.ResolveOwnerStoragePath(s.repoRoot, owner, entry, platform, s.platformSeams)
+			if resolveErr != nil {
+				if _, notApplicable := resolveErr.(*storage.NotApplicable); notApplicable {
+					continue
+				}
+				// Inventory already records declaration-level failures. A path
+				// that cannot be resolved at scan time is not a safe target.
+				continue
 			}
+			candidate, ok := s.candidateFor(ctx, owner.ID, entry, locator)
+			if !ok {
+				continue
+			}
+			candidate.Findings = append(candidate.Findings, findingsByOwner[ownerFindingKey(owner.Kind, owner.ID)]...)
+			out = append(out, candidate)
 		}
 	}
 	return out, nil
 }
 
-// candidateFor resolves and stats one declared entry, returning a candidate when
-// it exists and is non-empty. The resolved path must stay under home (defense in
-// depth against a manifest that slips a traversal past validation).
-func (s *ResourceDataScanner) candidateFor(ctx context.Context, owner, name, base string, entry DurableDataEntry) (TargetCandidate, bool) {
-	if hasParentTraversal(entry.Path) || strings.Contains(entry.Path, "\\") {
+func (s *ResourceDataScanner) candidateFor(ctx context.Context, owner string, entry storage.StorageEntry, locator string) (TargetCandidate, bool) {
+	if strings.TrimSpace(locator) == "" || hasParentTraversal(filepath.ToSlash(locator)) {
 		return TargetCandidate{}, false
 	}
-	abs := filepath.Join(base, filepath.FromSlash(entry.Path))
-	if !within(abs, s.home) {
-		return TargetCandidate{}, false
-	}
-	info, err := os.Stat(abs)
+	info, err := os.Stat(locator)
 	if err != nil {
 		return TargetCandidate{}, false
 	}
 	var approx int64
-	if entry.Kind == "file" {
+	if strings.EqualFold(entry.Kind, "dir") {
+		if !info.IsDir() {
+			return TargetCandidate{}, false
+		}
+		entries, readErr := os.ReadDir(locator)
+		if readErr != nil || len(entries) == 0 {
+			return TargetCandidate{}, false
+		}
+		approx = boundedDirSize(ctx, locator, s.maxScanEntries)
+	} else {
 		if info.IsDir() || info.Size() == 0 {
 			return TargetCandidate{}, false
 		}
 		approx = info.Size()
-	} else {
-		if !info.IsDir() {
-			return TargetCandidate{}, false
-		}
-		dirEntries, derr := os.ReadDir(abs)
-		if derr != nil || len(dirEntries) == 0 {
-			return TargetCandidate{}, false
-		}
-		approx = boundedDirSize(ctx, abs, s.maxScanEntries)
 	}
 	return TargetCandidate{
 		Owner:       owner,
-		Name:        name,
-		SourceKind:  durableSourceKind(entry),
-		Locator:     abs,
-		Rationale:   durableRationale(owner, name, entry),
+		Name:        entry.Name,
+		SourceKind:  ownerSourceKind(entry),
+		Locator:     locator,
+		Rationale:   ownerRationale(owner, entry),
 		ApproxBytes: approx,
 		Sensitive:   entry.Sensitive,
 	}, true
 }
 
-// durableSourceKind maps a declared format to a capture strategy: sqlite-format
-// files get a consistent SQLite copy; everything else is a filesystem capture.
-func durableSourceKind(e DurableDataEntry) sources.SourceKind {
-	if e.Format == "sqlite" {
+func ownerSourceKind(entry storage.StorageEntry) sources.SourceKind {
+	if strings.EqualFold(entry.Format, "sqlite") {
 		return sources.KindSQLite
 	}
 	return sources.KindFilesystem
 }
 
-// durableRationale uses the manifest's authored rationale when present, else a
-// generic fallback naming the resource and entry.
-func durableRationale(owner, name string, e DurableDataEntry) string {
-	if r := strings.TrimSpace(e.Rationale); r != "" {
-		return r
+func ownerRationale(owner string, entry storage.StorageEntry) string {
+	if rationale := strings.TrimSpace(entry.Rationale); rationale != "" {
+		return rationale
 	}
-	return fmt.Sprintf("Durable %s data (%s) declared by the %s resource.", owner, name, owner)
+	return fmt.Sprintf("Durable %s data declared by the %s owner.", entry.Name, owner)
 }
 
-// sortedEntryKeys returns the entry keys in deterministic order so suggestions
-// (and tests) are stable across scans.
-func sortedEntryKeys(entries map[string]DurableDataEntry) []string {
-	keys := make([]string, 0, len(entries))
-	for k := range entries {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
+func ownerFindingKey(kind storage.OwnerKind, id string) string {
+	return string(kind) + "\x00" + id
 }
