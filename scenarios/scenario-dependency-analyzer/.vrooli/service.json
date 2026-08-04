@@ -1,6 +1,7 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."},"logs":{"rung":"owned","path":"logs","kind":"dir","class":"logs","regenerable":true,"rationale":"Scenario operational logs observed in the canonical logs directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
   "service": {
     "name": "scenario-dependency-analyzer",
     "displayName": "Scenario Dependency Analyzer",
@@ -245,14 +246,16 @@
     },
     "scenarios": {
       "proto-health": {
-        "enabled": true,
-        "required": true,
-        "description": "Provides batch protobuf surface facts for actual cross-scenario interface graph attribution"
+      "enabled": true,
+      "required": true,
+      "description": "Provides batch protobuf surface facts for actual cross-scenario interface graph attribution",
+      "degraded_behavior": "Dependency graph analysis remains available without protobuf attribution, but interface-level evidence is marked incomplete until proto-health recovers."
       },
       "code-facts": {
-        "enabled": true,
-        "required": true,
-        "description": "Provides batch import facts used to build actual cross-scenario usage evidence"
+      "enabled": true,
+      "required": true,
+      "description": "Provides batch import facts used to build actual cross-scenario usage evidence",
+      "degraded_behavior": "Dependency graph analysis remains available without import attribution, but cross-scenario usage evidence is marked incomplete until code-facts recovers."
       }
     }
   },

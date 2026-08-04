@@ -232,6 +232,9 @@
         "secrets": [
           {
             "secret_id": "ADMIN_DEFAULT_EMAIL",
+            "logical_id": "vrooli/landing-page-business-suite",
+            "field": "admin-default-email",
+            "env": "ADMIN_DEFAULT_EMAIL",
             "classification": "user",
             "label": "Admin Email",
             "description": "Email address for the default admin account. Used for logging into the admin portal.",
@@ -240,6 +243,9 @@
           },
           {
             "secret_id": "ADMIN_DEFAULT_PASSWORD",
+            "logical_id": "vrooli/landing-page-business-suite",
+            "field": "admin-default-password",
+            "env": "ADMIN_DEFAULT_PASSWORD",
             "classification": "user",
             "label": "Admin Password",
             "description": "Password for the default admin account. Should be a strong, unique password for production deployments.",
@@ -248,6 +254,9 @@
           },
           {
             "secret_id": "SESSION_SECRET",
+            "logical_id": "vrooli/landing-page-business-suite",
+            "field": "session-secret",
+            "env": "SESSION_SECRET",
             "classification": "service",
             "label": "Session Secret",
             "description": "Secret key used for encrypting session cookies. Must be kept private and should be unique per deployment.",
@@ -256,6 +265,9 @@
           },
           {
             "secret_id": "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY",
+            "logical_id": "vrooli/landing-page-business-suite",
+            "field": "remote-profile-encryption-key",
+            "env": "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY",
             "classification": "service",
             "label": "Remote Profile Encryption Key",
             "description": "Encrypts stored remote admin sessions for remote profiles. Required in production deployments.",
@@ -264,6 +276,9 @@
           },
           {
             "secret_id": "LPBS_SERVICE_SECRET",
+            "logical_id": "vrooli/landing-page-business-suite",
+            "field": "service-secret",
+            "env": "LPBS_SERVICE_SECRET",
             "classification": "service",
             "label": "Service Auth Secret",
             "description": "Shared secret used for LPBS service-to-service authentication (for example scenario-to-desktop deploy target auth).",
@@ -275,6 +290,19 @@
     }
   },
   "version": "1.1.0",
+  "storage": {
+    "entries": {
+      "logs": {
+        "rung": "owned",
+        "path": "logs",
+        "kind": "dir",
+        "class": "logs",
+        "regenerable": true,
+        "rationale": "Scenario operational logs observed in the canonical logs directory."
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "cli": {
     "enabled": true,
     "command": "landing-page-business-suite",
@@ -295,5 +323,49 @@
     "source_build": {
       "kind": "go_module"
     }
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "session-secret",
+        "env": "SESSION_SECRET",
+        "label": "Session signing secret",
+        "description": "Signs session cookies. Without it the scenario generates an ephemeral key and sessions do not survive a restart.",
+        "required": true
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "service-secret",
+        "env": "LPBS_SERVICE_SECRET",
+        "label": "Service-to-service token",
+        "description": "Bearer token other scenarios present to reach LPBS admin endpoints; scenario-to-desktop uses it.",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "api-key-encryption-key",
+        "env": "LPBS_API_KEY_ENCRYPTION_KEY",
+        "label": "API key encryption key",
+        "description": "Encrypts stored API keys at rest. Required in production; without it keys are stored unencrypted.",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "remote-profile-encryption-key",
+        "env": "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY",
+        "label": "Remote profile encryption key",
+        "description": "Encrypts stored remote deployment profiles. Falls back to the API key encryption key when unset.",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "admin-default-password",
+        "env": "ADMIN_DEFAULT_PASSWORD",
+        "label": "Seeded admin password",
+        "description": "Password for the seeded admin account. Required in production; development generates an ephemeral one.",
+        "required": false
+      }
+    ]
   }
 }

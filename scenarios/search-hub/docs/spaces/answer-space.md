@@ -69,7 +69,7 @@ column doubles as the gap registry.
 | 18 | Proto · Conformance — "Does domain X's code match its proto contract?" | `proto-health` / cartographer | IN-REACH | DERIVED | Proto adoption + endpoint proofs. |
 | 19 | Invariants · Verification — "What invariants does X enforce, and how?" | `INVARIANTS.md` + `// INVARIANT` tags + proto validation | IN-REACH | DECLARED_UNVERIFIED → DERIVED | Basis depends on the enforcement mechanism (type/db/test/runtime). |
 | 20 | Archetype · Inventory / Anatomy — "What's domain X's archetype (one of the canonical fleet vocabulary: reporting / service / mutation / classification / orchestration / scoring / query)?" | `architecture-cartographer` (`InferArchetype`) | NOW | HEURISTIC → DECLARED | Live via `InferArchetype` (also folded into the domain-map provider's corpus as a metadata filter). Inferred from code shape and converged with the declared DOMAINS.md value; confidence from signal specificity; declared-vs-inferred disagreement reported as drift, never silently overridden. |
-| 21 | Persistence · Anatomy — "What's X's storage/persistence pattern (schema, migrations, seams)?" | `storage-health` + code-graph | IN-REACH | DERIVED | Read storage-health, attest. |
+| 21 | Persistence · Anatomy — "What's X's storage/persistence pattern (schema, migrations, seams)?" | `storage-manager` + code-graph | IN-REACH | DERIVED | Read storage-manager, attest. |
 | 22 | Intent · Provenance — "Why does domain X exist / when should it change?" | `business-health.intent` (PRD purpose/OTs/requirements corpus) | ACTIVE (pointer-only) | DERIVED | Pointer-only by contract: hits are anchors into `PRD.md`/`requirements/`, never synthesized rationale (business-health.intent, 2026-07-02). |
 
 ### G4 — Symbol / file

@@ -43,8 +43,18 @@ type Service struct {
 }
 
 type Request struct {
-	Scenario                string
-	Path                    string
+	Scenario string
+	Path     string
+	// ValidationTargetKind is the repo-contract target kind this audit is
+	// about: scenario, package, control-plane, and so on. It is deliberately
+	// distinct from Inventory.TargetKind, which is Code Facts' scenario/path
+	// distinction and answers a different question — where the code is, not
+	// what governs it. A path inside scenarios/ is Code Facts "path" and
+	// validation "scenario" at the same time, so the two must not be merged.
+	//
+	// Empty means the caller could not resolve a kind, which never narrows
+	// rule selection.
+	ValidationTargetKind    string
 	RuleIDs                 []string
 	Surfaces                []string
 	IncludeCommandExecution bool
@@ -125,6 +135,9 @@ func (s *Service) Audit(ctx context.Context, req Request) (Response, error) {
 	}
 	filtered := filterSurfaces(inv.Surfaces, req.Surfaces)
 	inv.Surfaces = filtered
+	// The discoverer answers "where is the code"; only the caller knows what
+	// kind of target governs it, so the request wins here.
+	inv.ValidationTargetKind = strings.TrimSpace(req.ValidationTargetKind)
 	res := Response{
 		RunID:     "qh-" + now.UTC().Format("20060102-150405"),
 		Inventory: inv,
@@ -224,6 +237,12 @@ func (s *Service) evaluateRules(inv surfaces.Inventory, surface surfaces.Surface
 	var out []Finding
 	for _, rule := range ruleList {
 		if rule.Evaluate == nil {
+			continue
+		}
+		// A scenario-contract rule against a package or control-plane target
+		// reports a defect the target cannot have. Skipping is not hiding
+		// debt: the rule asserts a convention that does not apply here.
+		if !rule.Applies.MatchesTargetKind(inv.ValidationTargetKind) {
 			continue
 		}
 		ctx := rules.EvalContext{Inventory: inv, Surface: surface, Now: now}

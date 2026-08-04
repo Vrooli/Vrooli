@@ -5850,8 +5850,8 @@
         "key": "skill.command.invalid",
         "severity": "critical",
         "summary": "Skill references an invalid current command",
-        "detail": "CLI Health rejected `storage-health`.",
-        "recommendation": "unknown_command: command path was not found in the CLI Health catalog; suggestion: storage-health configure; suggestion: storage-health status; suggestion: storage-health advisor engines; Fix the command to a current catalog command, or use cli[future]/cli[old] only when the reference is intentionally not current."
+        "detail": "CLI Health rejected `storage-manager`.",
+        "recommendation": "unknown_command: command path was not found in the CLI Health catalog; suggestion: storage-manager configure; suggestion: storage-manager status; suggestion: storage-manager advisor engines; Fix the command to a current catalog command, or use cli[future]/cli[old] only when the reference is intentionally not current."
       },
       {
         "key": "skill.command.partial",
@@ -9311,7 +9311,7 @@
     ]
   },
   {
-    "nodeId": "cli:storage-health",
+    "nodeId": "cli:storage-manager",
     "score": 0,
     "factors": {
       "scenario-completeness": 0
@@ -9322,7 +9322,7 @@
         "severity": "info",
         "factor": "scenario-completeness",
         "summary": "Scenario CLI health applied",
-        "detail": "CLI \"storage-health\" uses scenario completeness score.",
+        "detail": "CLI \"storage-manager\" uses scenario completeness score.",
         "recommendation": "Improve scenario completeness to raise this CLI node score.",
         "target": ">= 0.80"
       }

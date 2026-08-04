@@ -40,11 +40,11 @@
 4. Home Automation write actions intentionally return `approval_required` or `manual_required` until a governed Home Automation publisher and network adapter path can safely mutate resolver/router state.
 5. Privacy retention sweep currently prunes expired non-baseline snapshots and records no-op notes for query logs and optimization ledgers until query log tables exist.
 6. Monitoring is storage-backed and operator-triggered; autonomous background scheduling is deferred to a future scheduler that can consume `monitoring_schedules`.
-7. `storage-health validate scenario network-manager` has previously passed with known false-positive `DIRECT_SQL_IN_HANDLERS` warnings on endpoint descriptor lines rather than SQL execution sites. It also returned unexpected EOF/deadline errors during later Phase 7-9 validation (`knw-1782239066919260424`, `knw-1782240251178806531`) and returned `deadline_exceeded` again during the 2026-06-24 monitoring slice. Rerun storage-health after each slice because both validator availability and warning line numbers can change.
+7. `storage-manager validate scenario network-manager` has previously passed with known false-positive `DIRECT_SQL_IN_HANDLERS` warnings on endpoint descriptor lines rather than SQL execution sites. It also returned unexpected EOF/deadline errors during later Phase 7-9 validation (`knw-1782239066919260424`, `knw-1782240251178806531`) and returned `deadline_exceeded` again during the 2026-06-24 monitoring slice. Rerun storage-manager after each slice because both validator availability and warning line numbers can change.
 
 ## Cross-References
 
-- `storage-health validate scenario network-manager`
+- `storage-manager validate scenario network-manager`
 - `api/internal/snapshot/schema.sql`
 - `api/internal/adapters/schema.sql`
 - `api/internal/resolver/schema.sql`

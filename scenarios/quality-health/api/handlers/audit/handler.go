@@ -67,7 +67,9 @@ func (h *Handler) AuditQuality(ctx context.Context, req *connect.Request[auditv1
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	resp, err := ResponseToProto(report, h.spec)
+	// The native audit RPC is an operator surface with no target selection of
+	// its own, so it stays unscoped: nil target keeps every capability scored.
+	resp, err := ResponseToProto(report, h.spec, nil)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build maturity assessment: %w", err))
 	}
@@ -122,9 +124,12 @@ func (h *Handler) ApplyFixConfig(ctx context.Context, req *connect.Request[audit
 	return connect.NewResponse(fixResponseToProto(inv, true, candidates)), nil
 }
 
-func ResponseToProto(in internalaudit.Response, spec *assessment.Spec) (*auditv1.AuditQualityResponse, error) {
+// ResponseToProto projects an audit response. target, when non-nil, scopes the
+// maturity assessment to the capabilities that apply to that target kind; pass
+// nil for a scenario-shaped run.
+func ResponseToProto(in internalaudit.Response, spec *assessment.Spec, target *commonv1.ValidationTarget) (*auditv1.AuditQualityResponse, error) {
 	errors, warnings, infos := findingCounts(in.Findings)
-	assessment, err := buildMaturityAssessment(in, spec)
+	assessment, err := buildMaturityAssessment(in, spec, target)
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +175,7 @@ func ResponseToProto(in internalaudit.Response, spec *assessment.Spec) (*auditv1
 	return out, nil
 }
 
-func buildMaturityAssessment(in internalaudit.Response, spec *assessment.Spec) (*commonv1.MaturityAssessment, error) {
+func buildMaturityAssessment(in internalaudit.Response, spec *assessment.Spec, target *commonv1.ValidationTarget) (*commonv1.MaturityAssessment, error) {
 	if spec == nil {
 		return nil, fmt.Errorf("maturity spec is required")
 	}
@@ -193,6 +198,7 @@ func buildMaturityAssessment(in internalaudit.Response, spec *assessment.Spec) (
 		Scenario: in.Inventory.Scenario,
 		Spec:     *spec,
 		Findings: findings,
+		Target:   target,
 	})
 }
 

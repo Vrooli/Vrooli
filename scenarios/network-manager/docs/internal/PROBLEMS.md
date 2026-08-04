@@ -22,27 +22,27 @@ General Vrooli platform issues, unrelated bugs, or product ideas that belong in 
 
 ### 2026-06-24 — AdGuard rollout affordance suite hit known embedded validator EOFs
 
-- Signal: `vrooli scenario test network-manager` completed 15/17 after the AdGuard rollout checklist slice. Embedded `phase-contracts` failed with `cli-health validation RPC failed: unavailable: unexpected EOF`, and embedded `phase-storage` failed with `storage-health validation RPC failed: unavailable: unexpected EOF`.
+- Signal: `vrooli scenario test network-manager` completed 15/17 after the AdGuard rollout checklist slice. Embedded `phase-contracts` failed with `cli-health validation RPC failed: unavailable: unexpected EOF`, and embedded `phase-storage` failed with `storage-manager validation RPC failed: unavailable: unexpected EOF`.
 - Impact: Direct API/CLI/UI/resource tests and builds, proto lint, resource validation, direct `cli-health`, `ui-health`, SDA, Structure Health, Security Health, requirements validation, Unit Health execution, live AdGuard resource health, live `network-manager resolver rollout`, and DNS smoke all passed. The full-suite failure matches the existing embedded validator EOF class rather than the rollout implementation.
-- Next action: Track under existing embedded cli-health EOF (`knw-1782239328731253209`) and storage-health EOF/deadline (`knw-1782239066919260424`, `knw-1782240251178806531`) reports; rerun the comprehensive suite after those validators are responsive.
+- Next action: Track under existing embedded cli-health EOF (`knw-1782239328731253209`) and storage-manager EOF/deadline (`knw-1782239066919260424`, `knw-1782240251178806531`) reports; rerun the comprehensive suite after those validators are responsive.
 
 ### 2026-06-24 — AdGuard UI parity suite hit known embedded validator EOFs
 
-- Signal: `vrooli scenario test network-manager` completed 15/17 after the AdGuard UI parity and live-validation slice. Embedded `phase-contracts` failed with `cli-health validation RPC failed: unavailable: unexpected EOF`, and embedded `phase-storage` failed with `storage-health validation RPC failed: unavailable: unexpected EOF`.
+- Signal: `vrooli scenario test network-manager` completed 15/17 after the AdGuard UI parity and live-validation slice. Embedded `phase-contracts` failed with `cli-health validation RPC failed: unavailable: unexpected EOF`, and embedded `phase-storage` failed with `storage-manager validation RPC failed: unavailable: unexpected EOF`.
 - Impact: Direct `cli-health validate scenario network-manager`, `ui-health validate scenario network-manager`, SDA health, requirements validation, resource validation, resource schema validation, API/CLI/resource tests and builds, UI tests/lint/build, Unit Health execution, live AdGuard resolver health, live inventory refresh, inert global policy apply/rollback, and post-rollback snapshot validation all passed. The comprehensive suite failure matches the existing embedded validator EOF class.
-- Next action: Track under existing embedded cli-health EOF (`knw-1782239328731253209`) and storage-health EOF/deadline (`knw-1782239066919260424`, `knw-1782240251178806531`) reports; rerun the comprehensive suite after those validators are responsive.
+- Next action: Track under existing embedded cli-health EOF (`knw-1782239328731253209`) and storage-manager EOF/deadline (`knw-1782239066919260424`, `knw-1782240251178806531`) reports; rerun the comprehensive suite after those validators are responsive.
 
 ### 2026-06-24 — AdGuard optimization slice suite hit known embedded validator EOFs
 
-- Signal: `vrooli scenario test network-manager` run `20260624-190327-12273dd9` completed 15/17 after the AdGuard optimization slice. Embedded `phase-contracts` failed with `cli-health validation RPC failed: unavailable: unexpected EOF`, and embedded `phase-storage` failed with `storage-health validation RPC failed: unavailable: unexpected EOF`.
+- Signal: `vrooli scenario test network-manager` run `20260624-190327-12273dd9` completed 15/17 after the AdGuard optimization slice. Embedded `phase-contracts` failed with `cli-health validation RPC failed: unavailable: unexpected EOF`, and embedded `phase-storage` failed with `storage-manager validation RPC failed: unavailable: unexpected EOF`.
 - Impact: Direct `cli-health validate scenario network-manager`, SDA health, requirements validation, resource validation, API tests/build, CLI tests/build, Unit Health execution, live AdGuard resolver health, and live optimization apply/rollback all passed. The full-suite failure matches the existing embedded validator EOF class rather than the AdGuard optimization code path.
-- Next action: Track under existing embedded cli-health EOF (`knw-1782239328731253209`) and storage-health EOF/deadline (`knw-1782239066919260424`, `knw-1782240251178806531`) reports; rerun the comprehensive suite after those validators are responsive.
+- Next action: Track under existing embedded cli-health EOF (`knw-1782239328731253209`) and storage-manager EOF/deadline (`knw-1782239066919260424`, `knw-1782240251178806531`) reports; rerun the comprehensive suite after those validators are responsive.
 
-### 2026-06-24 — storage-health deadline during AdGuard inventory slice
+### 2026-06-24 — storage-manager deadline during AdGuard inventory slice
 
-- Signal: After AdGuard client inventory import, direct `storage-health validate scenario network-manager` failed with `deadline_exceeded` while awaiting `ScenarioValidationService/ValidateScenario` response headers.
+- Signal: After AdGuard client inventory import, direct `storage-manager validate scenario network-manager` failed with `deadline_exceeded` while awaiting `ScenarioValidationService/ValidateScenario` response headers.
 - Impact: API/CLI tests and builds, `cli-health`, SDA health, requirements validation, Unit Health execution, resource validation, live resolver health, and live device refresh passed. Static storage validation remains blocked by the previously filed external validator timeout class.
-- Next action: Track under existing storage-health EOF/deadline reports (`knw-1782239066919260424`, `knw-1782240251178806531`) and rerun after the validator is responsive.
+- Next action: Track under existing storage-manager EOF/deadline reports (`knw-1782239066919260424`, `knw-1782240251178806531`) and rerun after the validator is responsive.
 
 ### 2026-06-24 — AdGuard Home is healthy but household enforcement is still gated
 
@@ -56,17 +56,17 @@ General Vrooli platform issues, unrelated bugs, or product ideas that belong in 
 - Impact: Operators and agents can create schedules and trigger checks safely without adding long-running timer complexity to the API process. Automatic recurring execution still needs a lifecycle-aware scheduler that avoids duplicate runs and respects scenario shutdown.
 - Next action: Connect a Vrooli-managed scheduler or worker after schedule ownership, locking, and missed-run behavior are defined.
 
-### 2026-06-24 — storage-health deadline during monitoring slice
+### 2026-06-24 — storage-manager deadline during monitoring slice
 
-- Signal: `storage-health validate scenario network-manager` failed with `deadline_exceeded` while awaiting `ScenarioValidationService/ValidateScenario` response headers after the monitoring slice.
+- Signal: `storage-manager validate scenario network-manager` failed with `deadline_exceeded` while awaiting `ScenarioValidationService/ValidateScenario` response headers after the monitoring slice.
 - Impact: Direct API/CLI/UI/proto/SDA/requirements/unit-health checks passed or were in progress, and the new monitoring domain has domain-owned schema/repository tests. Static storage validation remains blocked by the previously filed external validator timeout class.
-- Next action: Track under existing storage-health EOF/deadline reports (`knw-1782239066919260424`, `knw-1782240251178806531`) and rerun after the validator is responsive.
+- Next action: Track under existing storage-manager EOF/deadline reports (`knw-1782239066919260424`, `knw-1782240251178806531`) and rerun after the validator is responsive.
 
 ### 2026-06-24 — Monitoring slice suite hit embedded validator EOFs
 
-- Signal: `vrooli scenario test network-manager` run `20260624-145028-9d371586` completed 15/17; embedded contracts failed with `cli-health validation RPC failed: unavailable: unexpected EOF`, and embedded storage failed with `storage-health validation RPC failed: unavailable: unexpected EOF`.
-- Impact: Direct `cli-health validate scenario network-manager` passed immediately after, runtime `network-manager status --json` was healthy, UI Health rendered the running UI successfully, and direct storage-health had already reproduced the known deadline/EOF class.
-- Next action: Track under existing embedded cli-health EOF (`knw-1782239328731253209`) and storage-health EOF/deadline (`knw-1782239066919260424`, `knw-1782240251178806531`) reports; rerun the full suite after those validators are responsive.
+- Signal: `vrooli scenario test network-manager` run `20260624-145028-9d371586` completed 15/17; embedded contracts failed with `cli-health validation RPC failed: unavailable: unexpected EOF`, and embedded storage failed with `storage-manager validation RPC failed: unavailable: unexpected EOF`.
+- Impact: Direct `cli-health validate scenario network-manager` passed immediately after, runtime `network-manager status --json` was healthy, UI Health rendered the running UI successfully, and direct storage-manager had already reproduced the known deadline/EOF class.
+- Next action: Track under existing embedded cli-health EOF (`knw-1782239328731253209`) and storage-manager EOF/deadline (`knw-1782239066919260424`, `knw-1782240251178806531`) reports; rerun the full suite after those validators are responsive.
 
 ### 2026-06-23 — Encrypted DNS guidance is advisory
 
@@ -76,9 +76,9 @@ General Vrooli platform issues, unrelated bugs, or product ideas that belong in 
 
 ### 2026-06-23 — Encrypted DNS guidance suite hit embedded validator EOFs
 
-- Signal: `vrooli scenario test network-manager` for the encrypted-DNS guidance slice completed 15/17; embedded contracts failed with `cli-health validation RPC failed: unavailable: unexpected EOF`, and embedded storage failed with `storage-health validation RPC failed: unavailable: unexpected EOF`. Direct `cli-health validate scenario network-manager` passed, while direct `storage-health validate scenario network-manager` returned `deadline_exceeded` awaiting response headers.
+- Signal: `vrooli scenario test network-manager` for the encrypted-DNS guidance slice completed 15/17; embedded contracts failed with `cli-health validation RPC failed: unavailable: unexpected EOF`, and embedded storage failed with `storage-manager validation RPC failed: unavailable: unexpected EOF`. Direct `cli-health validate scenario network-manager` passed, while direct `storage-manager validate scenario network-manager` returned `deadline_exceeded` awaiting response headers.
 - Impact: API/CLI/UI/proto/SDA/requirements/unit-health/ui-health checks passed directly, and live CLI smoke verified the new guidance RPCs. The comprehensive suite remains blocked by external validator instability, not by localized guidance behavior.
-- Next action: Track under existing embedded cli-health EOF (`knw-1782239328731253209`) and storage-health EOF/deadline (`knw-1782239066919260424`, `knw-1782240251178806531`) reports; rerun the full suite after those validators are responsive.
+- Next action: Track under existing embedded cli-health EOF (`knw-1782239328731253209`) and storage-manager EOF/deadline (`knw-1782239066919260424`, `knw-1782240251178806531`) reports; rerun the full suite after those validators are responsive.
 
 ### 2026-06-23 — Household policy schedules are advisory
 
@@ -88,9 +88,9 @@ General Vrooli platform issues, unrelated bugs, or product ideas that belong in 
 
 ### 2026-06-23 — Phase 11 suite hit embedded validator EOFs
 
-- Signal: `vrooli scenario test network-manager` run `20260623-202256-d05ab551` completed 15/17; embedded contracts failed with `cli-health validation RPC failed: unavailable: unexpected EOF`, and embedded storage failed with `storage-health validation RPC failed: unavailable: unexpected EOF`.
-- Impact: Direct API/CLI/UI/proto/SDA/requirements/unit-health/ui-health checks passed, direct `cli-health validate scenario network-manager` passed before and after the suite, and direct `storage-health validate scenario network-manager` reproduced the known EOF. The comprehensive suite remains blocked by external validator RPC instability, not by a localized Phase 11 profile/schedule failure.
-- Next action: Track under existing embedded cli-health EOF (`knw-1782239328731253209`) and storage-health EOF/deadline (`knw-1782239066919260424`, `knw-1782240251178806531`) reports; rerun the full suite after those validators are responsive.
+- Signal: `vrooli scenario test network-manager` run `20260623-202256-d05ab551` completed 15/17; embedded contracts failed with `cli-health validation RPC failed: unavailable: unexpected EOF`, and embedded storage failed with `storage-manager validation RPC failed: unavailable: unexpected EOF`.
+- Impact: Direct API/CLI/UI/proto/SDA/requirements/unit-health/ui-health checks passed, direct `cli-health validate scenario network-manager` passed before and after the suite, and direct `storage-manager validate scenario network-manager` reproduced the known EOF. The comprehensive suite remains blocked by external validator RPC instability, not by a localized Phase 11 profile/schedule failure.
+- Next action: Track under existing embedded cli-health EOF (`knw-1782239328731253209`) and storage-manager EOF/deadline (`knw-1782239066919260424`, `knw-1782240251178806531`) reports; rerun the full suite after those validators are responsive.
 
 ### 2026-06-23 — Product UI is live but still conservative
 
@@ -110,29 +110,29 @@ General Vrooli platform issues, unrelated bugs, or product ideas that belong in 
 - Impact: Operators can compare candidates without unsafe automation and can exercise AdGuard-backed rollback for the supported DNS filtering candidate. Network Manager still does not claim router-wide or client-specific optimization until router/client adapters are proven.
 - Next action: Add router/client-specific optimization only after those adapters report safe mutation, identity mapping, and rollback support.
 
-### 2026-06-23 — storage-health validator returns unexpected EOF
+### 2026-06-23 — storage-manager validator returns unexpected EOF
 
-- Signal: `storage-health validate scenario network-manager` exited twice with `Error: validate scenario "network-manager": unavailable: unexpected EOF` during Phase 7 validation.
+- Signal: `storage-manager validate scenario network-manager` exited twice with `Error: validate scenario "network-manager": unavailable: unexpected EOF` during Phase 7 validation.
 - Impact: API/CLI tests, builds, `cli-health`, SDA health, requirements validation, and `unit-health --execution` passed, but static storage validation could not produce a current verdict for this slice.
-- Next action: Filed `bug-inbox/unexpected-error/storage-health-network-manager-eof` as `knw-1782239066919260424`; rerun storage-health after the external validator is healthy.
+- Next action: Filed `bug-inbox/unexpected-error/storage-manager-network-manager-eof` as `knw-1782239066919260424`; rerun storage-manager after the external validator is healthy.
 
-### 2026-06-23 — storage-health validator deadline during Phase 8
+### 2026-06-23 — storage-manager validator deadline during Phase 8
 
-- Signal: `storage-health validate scenario network-manager` failed with `deadline_exceeded` while awaiting `ScenarioValidationService/ValidateScenario` response headers.
+- Signal: `storage-manager validate scenario network-manager` failed with `deadline_exceeded` while awaiting `ScenarioValidationService/ValidateScenario` response headers.
 - Impact: API/CLI tests, builds, `cli-health`, SDA health, requirements validation, and `unit-health --execution` passed, but standalone static storage validation again could not produce a current verdict for this slice.
-- Next action: Filed `bug-inbox/unexpected-error/storage-health-network-manager-deadline` as `knw-1782240251178806531`; rerun storage-health after the external validator is responsive.
+- Next action: Filed `bug-inbox/unexpected-error/storage-manager-network-manager-deadline` as `knw-1782240251178806531`; rerun storage-manager after the external validator is responsive.
 
-### 2026-06-23 — storage-health validator EOF during Phase 9
+### 2026-06-23 — storage-manager validator EOF during Phase 9
 
-- Signal: `storage-health validate scenario network-manager` exited with `Error: validate scenario "network-manager": unavailable: unexpected EOF` during the operator UI slice.
-- Impact: The UI/API/CLI/unit/requirements/SDA/ui-health gates passed, but standalone storage validation could not produce a current verdict. This matches the previously filed storage-health EOF class.
-- Next action: Track under the existing storage-health EOF/deadline reports (`knw-1782239066919260424`, `knw-1782240251178806531`) and rerun after the external validator is responsive.
+- Signal: `storage-manager validate scenario network-manager` exited with `Error: validate scenario "network-manager": unavailable: unexpected EOF` during the operator UI slice.
+- Impact: The UI/API/CLI/unit/requirements/SDA/ui-health gates passed, but standalone storage validation could not produce a current verdict. This matches the previously filed storage-manager EOF class.
+- Next action: Track under the existing storage-manager EOF/deadline reports (`knw-1782239066919260424`, `knw-1782240251178806531`) and rerun after the external validator is responsive.
 
 ### 2026-06-23 — Orientation-triggered suite hit embedded ui-health once
 
 - Signal: `vrooli scenario orient network-manager` spawned comprehensive run `20260623-193623-e4394270`, which completed 15/17 with embedded `phase-ui-health` reporting one error/blocker and `phase-storage` reporting the known EOF. Direct `ui-health validate scenario network-manager --json` passed before and after this run.
-- Impact: The UI product surface still validates directly at L5, but orientation/scaffold-health remains blocked by the comprehensive suite result until embedded validator instability and storage-health EOF are gone.
-- Next action: Do not change UI code based on the embedded-only failure unless it reproduces through direct `ui-health`; track storage under the existing storage-health reports and embedded validator behavior under prior suite-instability notes.
+- Impact: The UI product surface still validates directly at L5, but orientation/scaffold-health remains blocked by the comprehensive suite result until embedded validator instability and storage-manager EOF are gone.
+- Next action: Do not change UI code based on the embedded-only failure unless it reproduces through direct `ui-health`; track storage under the existing storage-manager reports and embedded validator behavior under prior suite-instability notes.
 
 ### 2026-06-23 — scenario contracts phase returned cli-health EOF
 
@@ -142,9 +142,9 @@ General Vrooli platform issues, unrelated bugs, or product ideas that belong in 
 
 ### 2026-06-23 — Phase 8 scenario suite hit embedded validator failures
 
-- Signal: `vrooli scenario test network-manager` after the Home Automation slice completed 13/17. Direct `cli-health validate scenario network-manager` passed, direct `ui-health validate scenario network-manager` passed after rebuilding the UI Health CLI, standalone `storage-health` timed out, and the embedded suite reported contracts EOF, storage EOF, standards timeout, and UI handshake failure.
-- Impact: After increasing the standards phase timeout from 120s to 300s and rerunning, the suite improved to 16/17: contracts, UI Health, standards, and all code/product phases passed; only embedded storage-health EOF remains.
-- Next action: Rerun the full suite after storage-health is responsive; current storage-health timeout/EOF evidence is filed under `knw-1782239066919260424` and `knw-1782240251178806531`.
+- Signal: `vrooli scenario test network-manager` after the Home Automation slice completed 13/17. Direct `cli-health validate scenario network-manager` passed, direct `ui-health validate scenario network-manager` passed after rebuilding the UI Health CLI, standalone `storage-manager` timed out, and the embedded suite reported contracts EOF, storage EOF, standards timeout, and UI handshake failure.
+- Impact: After increasing the standards phase timeout from 120s to 300s and rerunning, the suite improved to 16/17: contracts, UI Health, standards, and all code/product phases passed; only embedded storage-manager EOF remains.
+- Next action: Rerun the full suite after storage-manager is responsive; current storage-manager timeout/EOF evidence is filed under `knw-1782239066919260424` and `knw-1782240251178806531`.
 
 ### 2026-06-23 — Inventory discovery source is conservative
 

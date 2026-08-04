@@ -101,6 +101,10 @@ func (h *connectHandler) ValidateDependencyHealth(ctx context.Context, req *conn
 	runtimeSection, runtimeFindings, runtimeDegraded := h.evaluateRuntime(ctx, scenario)
 	runtime.End()
 
+	integration := collector.Stage("integration-conformance")
+	integrationSection, integrationFindings, integrationDegraded := h.evaluateIntegrationConformance(ctx, scenario)
+	integration.End()
+
 	governance := collector.Stage("governance")
 	governanceSection, governanceFindings, governanceSummary := h.evaluateGovernance(scenario, surfaces)
 	governance.End()
@@ -119,18 +123,21 @@ func (h *connectHandler) ValidateDependencyHealth(ctx context.Context, req *conn
 		surfacesSection,
 		readinessSection,
 		runtimeSection,
+		integrationSection,
 		governanceSection,
 		releaseAgeSection,
 		securitySection,
 	)
 	resp.Findings = append(resp.Findings, readinessFindings...)
 	resp.Findings = append(resp.Findings, runtimeFindings...)
+	resp.Findings = append(resp.Findings, integrationFindings...)
 	resp.Findings = append(resp.Findings, governanceFindings...)
 	resp.Findings = append(resp.Findings, releaseAgeFindings...)
 	resp.Findings = append(resp.Findings, securityFindings...)
 	resp.CommandResults = append(resp.CommandResults, commandResults...)
 	resp.DegradedDependencies = append(resp.DegradedDependencies, degraded...)
 	resp.DegradedDependencies = append(resp.DegradedDependencies, runtimeDegraded...)
+	resp.DegradedDependencies = append(resp.DegradedDependencies, integrationDegraded...)
 	resp.DegradedDependencies = append(resp.DegradedDependencies, securityDegraded...)
 
 	drift := collector.Stage("drift")

@@ -54,6 +54,7 @@ func Module(logger *log.Logger, repoRoot string, db *database.RoutedDB, clk cloc
 func Schema() string { return "" }
 
 var Endpoints = []module.EndpointDescriptor{
+	{ID: "validation_validate_target", Path: scenariovalidationconnect.ScenarioValidationServiceValidateTargetProcedure, Method: "POST", Summary: "Validate a first-class repository target", Category: "validation"},
 	{
 		ID:          "validation_validate_scenario",
 		Path:        scenariovalidationconnect.ScenarioValidationServiceValidateScenarioProcedure,

@@ -46,7 +46,28 @@ type Applicability struct {
 	Language    string
 	Framework   string
 	SurfaceKind string
-	Scenario    bool
+	// Scenario marks a rule that asserts a scenario contract — a Makefile
+	// target, a coverage/testing.json policy, a scenario-shaped shell layout.
+	// A shared package or control-plane tree has none of those by
+	// construction, so such a rule must not run against one.
+	Scenario bool
+}
+
+// MatchesTargetKind reports whether a rule may run against a target of this
+// kind. An empty kind means the caller could not resolve one, which must not
+// narrow coverage: an unknown target keeps the pre-target-model behavior of
+// running everything.
+//
+// This is the guard that stops `MAKEFILE_QUALITY_GATES` and
+// `TESTING_CONFIG_LINT_STRICT` failing `package:api-core` — a package has no
+// Makefile and no coverage/testing.json, so the finding was never about a
+// real defect in the target.
+func (a Applicability) MatchesTargetKind(kind string) bool {
+	kind = strings.TrimSpace(kind)
+	if !a.Scenario || kind == "" {
+		return true
+	}
+	return kind == "scenario"
 }
 
 type Rule struct {

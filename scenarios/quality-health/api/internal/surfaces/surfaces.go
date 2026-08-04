@@ -31,11 +31,18 @@ type Surface struct {
 }
 
 type Inventory struct {
-	Scenario       string
-	TargetKind     string
-	RootPath       string
-	Surfaces       []Surface
-	DegradedReason string
+	Scenario string
+	// TargetKind is Code Facts' answer to "where is the code": "scenario" or
+	// "path". It is not the governance kind — a path under scenarios/ is
+	// "path" here and still a scenario target.
+	TargetKind string
+	// ValidationTargetKind is the repo-contract governance kind supplied by
+	// the caller: scenario, package, control-plane, team, docs, and so on.
+	// Empty when the caller did not resolve one.
+	ValidationTargetKind string
+	RootPath             string
+	Surfaces             []Surface
+	DegradedReason       string
 }
 
 type Locator interface {

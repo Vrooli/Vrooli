@@ -571,27 +571,6 @@ func TestResolveSecret(t *testing.T) {
 	}
 }
 
-func TestResolveSecretFromProjectSecretsFile(t *testing.T) {
-	root := t.TempDir()
-	path := filepath.Join(root, ".vrooli", "secrets.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
-	if err := os.WriteFile(path, []byte(`{"SESSION_SECRET":"file-secret"}`), 0o600); err != nil {
-		t.Fatalf("write secrets: %v", err)
-	}
-
-	t.Setenv("VROOLI_ROOT", root)
-	t.Setenv("SESSION_SECRET", "")
-
-	if got := resolveSecret("SESSION_SECRET"); got != "file-secret" {
-		t.Fatalf("resolveSecret = %q, want file-secret", got)
-	}
-	if got := findSecretsFile(); got != path {
-		t.Fatalf("findSecretsFile = %q, want %q", got, path)
-	}
-}
-
 // isolateSecretResolution prevents production-configuration tests from
 // accidentally consulting a developer's user-level ~/.vrooli/secrets.json.
 // Each test controls the complete secret source it is asserting against.

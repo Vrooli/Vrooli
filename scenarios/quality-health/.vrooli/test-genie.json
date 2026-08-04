@@ -11,6 +11,10 @@
   "validation": {
     "contract": "scenario-validation/v1"
   },
+  "targets": {
+    "kinds": ["scenario", "package", "control-plane"],
+    "selection": "enumerate"
+  },
   "applicability": {
     "default": "applies"
   },
@@ -139,6 +143,9 @@
         "id": "scenario_quality_gates",
         "label": "Scenario Quality Gates",
         "description": "Scenario-level Test Genie and Makefile contracts for strict lint, type, shell, and format gates.",
+        "appliesTo": [
+          "scenario"
+        ],
         "levels": [
           {
             "id": "L0",

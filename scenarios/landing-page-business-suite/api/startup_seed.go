@@ -29,9 +29,6 @@ func seedDefaultData(db StartupStore) error {
 		return fmt.Errorf("failed to apply schema: %w", err)
 	}
 
-	if secretsFile := findSecretsFile(); secretsFile != "" {
-		logStructured("secrets_file_found", map[string]interface{}{"level": "info", "path": secretsFile})
-	}
 	adminEmail, adminPasswordHash, err := getAdminDefaults()
 	if err != nil {
 		return fmt.Errorf("failed to get admin defaults: %w", err)

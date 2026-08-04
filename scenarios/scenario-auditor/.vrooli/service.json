@@ -1,6 +1,7 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "2.0.0",
+  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."},"logs":{"rung":"owned","path":"logs","kind":"dir","class":"logs","regenerable":true,"rationale":"Scenario operational logs observed in the canonical logs directory."},"api_storage":{"rung":"owned","path":"api/storage","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned API storage observed in the canonical API storage directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
   "service": {
     "name": "scenario-auditor",
     "displayName": "Scenario Auditor",

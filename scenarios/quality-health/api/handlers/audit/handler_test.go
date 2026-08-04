@@ -42,7 +42,7 @@ func TestResponseToProtoIncludesValidSharedMaturityAssessment(t *testing.T) {
 			FilePath:    "ui/tsconfig.json",
 			Remediation: "Restore strict TypeScript settings.",
 		}},
-	}, spec)
+	}, spec, nil)
 	require.NoError(t, err)
 	require.NotNil(t, resp.GetAssessment())
 	require.Equal(t, "quality-health", resp.GetAssessment().GetProvider())
@@ -55,7 +55,7 @@ func TestResponseToProtoIncludesValidSharedMaturityAssessment(t *testing.T) {
 func TestResponseToProtoRequiresMaturitySpec(t *testing.T) {
 	_, err := ResponseToProto(internalaudit.Response{
 		Inventory: surfaces.Inventory{Scenario: "demo"},
-	}, nil)
+	}, nil, nil)
 	require.ErrorContains(t, err, "maturity spec is required")
 }
 

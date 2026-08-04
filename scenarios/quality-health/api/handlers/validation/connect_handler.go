@@ -53,25 +53,41 @@ func NewConnectHandler(d Deps) *connectHandler {
 	return &connectHandler{deps: d}
 }
 
+// ValidateScenario is the scenario-shaped alias. It delegates to validate with
+// the scenario kind, which is what the request could only ever have meant.
 func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
+	return h.validate(ctx, req.Msg, "scenario", nil)
+}
+
+// validate runs one audit against a target of the given kind. targetKind is the
+// repo-contract governance kind; target, when set, additionally scopes the
+// maturity assessment so capabilities that do not apply to this kind are not
+// scored.
+func (h *connectHandler) validate(
+	ctx context.Context,
+	msg *scenariovalidationv1.ValidateScenarioRequest,
+	targetKind string,
+	target *commonv1.ValidationTarget,
+) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
 	if h.deps.Auditor == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("quality validation auditor not wired"))
 	}
-	if req.Msg.GetScenario() == "" && req.Msg.GetPath() == "" {
+	if msg.GetScenario() == "" && msg.GetPath() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario or path is required"))
 	}
 	collector := metrics.Start(metrics.WithEnvironment(h.deps.Environment))
 	report, err := h.deps.Auditor.Audit(internalaudit.WithMetrics(ctx, collector), internalaudit.Request{
-		Scenario:                req.Msg.GetScenario(),
-		Path:                    req.Msg.GetPath(),
-		IncludeCommandExecution: req.Msg.GetIncludeExecution(),
+		Scenario:                msg.GetScenario(),
+		Path:                    msg.GetPath(),
+		ValidationTargetKind:    targetKind,
+		IncludeCommandExecution: msg.GetIncludeExecution(),
 		UseCache:                true,
 	})
 	if err != nil {
 		collector.Stop()
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	native, err := auditResponseToProto(report, h.deps.MaturitySpec)
+	native, err := auditResponseToProto(report, h.deps.MaturitySpec, target)
 	if err != nil {
 		collector.Stop()
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build quality native detail: %w", err))
@@ -82,6 +98,30 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
 	}
 	return connect.NewResponse(resp), nil
+}
+
+func (h *connectHandler) ValidateTarget(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateTargetRequest]) (*connect.Response[scenariovalidationv1.ValidateTargetResponse], error) {
+	target := req.Msg.GetTarget()
+	if target == nil || target.GetId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("target is required"))
+	}
+	path := req.Msg.GetPath()
+	if path == "" {
+		path = target.GetRoot()
+	}
+	// Carry the kind through. Downgrading to ValidateScenario without it made
+	// every target look scenario-shaped, so scenario-contract rules — Makefile
+	// gates, coverage/testing.json policy — fired against packages that cannot
+	// have either, and one of them is an ERROR that failed the run.
+	legacy, err := h.validate(ctx, &scenariovalidationv1.ValidateScenarioRequest{
+		Scenario:         target.GetId(),
+		Path:             path,
+		IncludeExecution: req.Msg.GetIncludeExecution(),
+	}, assessment.TargetKindName(target.GetKind()), target)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&scenariovalidationv1.ValidateTargetResponse{Target: target, Status: legacy.Msg.GetStatus(), Assessment: legacy.Msg.GetAssessment(), NativeDetail: legacy.Msg.GetNativeDetail(), Metrics: legacy.Msg.GetMetrics()}), nil
 }
 
 // PreviewFix reports the deterministic config edits quality-health could apply
@@ -123,8 +163,8 @@ func fixScenario(req *scenariovalidationv1.FixRequest, inv surfaces.Inventory) s
 	return req.GetScenario()
 }
 
-func auditResponseToProto(in internalaudit.Response, spec *assessment.Spec) (*auditv1.AuditQualityResponse, error) {
-	return auditH.ResponseToProto(in, spec)
+func auditResponseToProto(in internalaudit.Response, spec *assessment.Spec, target *commonv1.ValidationTarget) (*auditv1.AuditQualityResponse, error) {
+	return auditH.ResponseToProto(in, spec, target)
 }
 
 func statusOverride(resp *auditv1.AuditQualityResponse) []assessment.ValidationResponseOption {

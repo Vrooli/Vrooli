@@ -33,6 +33,7 @@ type dependencyScenario struct {
 	Enabled       *bool  `json:"enabled"`
 	Required      bool   `json:"required"`
 	StartupPolicy string `json:"startup_policy"`
+	DegradedBehavior string `json:"degraded_behavior"`
 }
 
 func (h *connectHandler) evaluateRuntime(ctx context.Context, scenario string) (*healthv1.DependencyHealthSection, []*healthv1.DependencyHealthFinding, []*healthv1.DegradedDependency) {

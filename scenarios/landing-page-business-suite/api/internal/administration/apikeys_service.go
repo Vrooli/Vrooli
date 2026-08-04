@@ -74,7 +74,7 @@ func NewAPIKeyServiceWithRuntime(db APIKeyStore, httpClient APIKeyHTTPDoer, dial
 	keyStr := resolveSecret("LPBS_API_KEY_ENCRYPTION_KEY")
 	if keyStr == "" {
 		if isProduction() {
-			return nil, fmt.Errorf("LPBS_API_KEY_ENCRYPTION_KEY is required in production.\\nGenerate a key with: ./lpbs-api generate-encryption-key\\nThen set it in your environment or ~/.vrooli/secrets.json")
+			return nil, fmt.Errorf("LPBS_API_KEY_ENCRYPTION_KEY is required in production; provision it with `vrooli credentials provision`")
 		}
 		if logEvent != nil {
 			logEvent("apikeys_no_encryption_key_dev", map[string]interface{}{"level": "warn", "message": "LPBS_API_KEY_ENCRYPTION_KEY not set; API keys will be stored unencrypted", "security": true, "action": "Set LPBS_API_KEY_ENCRYPTION_KEY before deploying to production"})

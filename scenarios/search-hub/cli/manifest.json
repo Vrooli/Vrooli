@@ -56,6 +56,10 @@
           },
           "architecture": {
             "primitive": "proto_list"
+          },
+          "semantics": {
+            "kind": "query",
+            "verdict": {"path": "results", "pass": "nonempty", "fail": "empty"}
           }
         }
       ]

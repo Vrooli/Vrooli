@@ -272,6 +272,45 @@
             "capability_summary": "Declared dependency graph matches observed evidence."
           }
         ]
+      },
+      {
+        "id": "integration_conformance",
+        "label": "Integration Conformance",
+        "description": "Declared scenario dependencies have a shared, health-checkable, operator-actionable capability registry entry and degraded behavior.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "No scenario dependency",
+            "status_label": "Not applicable",
+            "description": "The target declares no scenario dependency.",
+            "capability_summary": "Integration conformance is not applicable.",
+            "next_unlock": "Declare a scenario dependency to evaluate its integration shape."
+          },
+          {
+            "id": "L1",
+            "name": "Dependency resolves",
+            "status_label": "Foundation",
+            "description": "Every declared scenario dependency resolves to a real local scenario.",
+            "capability_summary": "Declared scenario dependencies are discoverable.",
+            "next_unlock": "Add a matching capability-registry definition for every dependency."
+          },
+          {
+            "id": "L2",
+            "name": "Registry describes dependencies",
+            "status_label": "Ready",
+            "description": "Every declared scenario dependency has a registry definition with description, kind, and matching slug.",
+            "capability_summary": "The capability registry describes the declared integration graph.",
+            "next_unlock": "Add a reachability checker, operator action, and degraded behavior."
+          },
+          {
+            "id": "L3",
+            "name": "Operator-actionable integration",
+            "status_label": "Complete",
+            "description": "Every registry definition is health-checkable and operator-actionable, and degraded behavior is declared.",
+            "capability_summary": "The integration surface is coherent and recoverable.",
+            "next_unlock": "Maximum integration-conformance maturity."
+          }
+        ]
       }
     ],
     "findings": {
@@ -626,6 +665,51 @@
           "architecture-scope"
         ],
         "clean_requirement": "required"
+      },
+      "INTEGRATION_DEPENDENCY_UNRESOLVED": {
+        "capability_id": "integration_conformance",
+        "local_level_impact": "L1",
+        "global_impact": "foundation_blocker",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": ["ecosystem-fit"],
+        "clean_requirement": "required"
+      },
+      "INTEGRATION_REGISTRY_ENTRY_MISSING": {
+        "capability_id": "integration_conformance",
+        "local_level_impact": "L2",
+        "global_impact": "foundation_blocker",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": ["ecosystem-fit", "architecture-scope"],
+        "clean_requirement": "required"
+      },
+      "INTEGRATION_REGISTRY_INCOMPLETE": {
+        "capability_id": "integration_conformance",
+        "local_level_impact": "L2",
+        "global_impact": "foundation_blocker",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": ["ecosystem-fit", "architecture-scope"],
+        "clean_requirement": "required"
+      },
+      "INTEGRATION_NO_OPERATOR_ACTION": {
+        "capability_id": "integration_conformance",
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": ["failure-topography-and-graceful-degradation"],
+        "clean_requirement": "advisory"
+      },
+      "INTEGRATION_DEGRADED_BEHAVIOR_UNDECLARED": {
+        "capability_id": "integration_conformance",
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": ["failure-topography-and-graceful-degradation"],
+        "clean_requirement": "advisory"
       }
     },
     "fallback": {

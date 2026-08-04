@@ -14,7 +14,7 @@
 ## Architecture Status
 
 - Each SQL table is owned by one domain; `internal/database/system.sql` remains empty for SQLite.
-- Repositories are domain-local and handlers do not issue SQL directly. `storage-health`'s three `DIRECT_SQL_IN_HANDLERS` findings are false positives on endpoint-descriptor strings, not executable SQL.
+- Repositories are domain-local and handlers do not issue SQL directly. `storage-manager`'s three `DIRECT_SQL_IN_HANDLERS` findings are false positives on endpoint-descriptor strings, not executable SQL.
 - SQLite is isolated by the scenario namespace and uses WAL, foreign keys, a busy timeout, and a single connection to avoid nested-query deadlocks.
 
 ## Migration Hygiene
@@ -25,6 +25,6 @@
 
 ## Cross-References
 
-- `storage-health validate scenario plan-manager`
+- `storage-manager validate scenario plan-manager`
 - `packages/api-core/database/schemas.go`
 - `docs/concepts/DATA.md`

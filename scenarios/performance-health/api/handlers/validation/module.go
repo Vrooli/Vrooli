@@ -138,6 +138,7 @@ func fixEndpoint(id, path, summary, description string) module.EndpointDescripto
 
 // Endpoints is the static endpoint metadata for codegen and the parity test.
 var Endpoints = []module.EndpointDescriptor{
+	{ID: "validation_validate_target", Path: scenariovalidationconnect.ScenarioValidationServiceValidateTargetProcedure, Method: "POST", Summary: "Validate a first-class repository target", Category: "validation"},
 	{
 		ID:          "readiness_validate_readiness",
 		Path:        readinessconnect.ReadinessServiceValidateReadinessProcedure,

@@ -182,8 +182,8 @@ func TestCapturedOwnerFixturesStillMap(t *testing.T) {
 	if _, ok := validateIndex["structure-health"]; !ok {
 		t.Fatal("captured test-genie health fixture no longer exposes structure-health")
 	}
-	if !validateIndex["storage-health"].autofixPending {
-		t.Fatal("captured test-genie health fixture should expose storage-health pending autofix work")
+	if !validateIndex["storage-manager"].autofixPending {
+		t.Fatal("captured test-genie health fixture should expose storage-manager pending autofix work")
 	}
 
 	wrapped := append(append([]byte(`{"scores":`), readCoverageTestdata(t, "pm_graph_health.json")...), '}')

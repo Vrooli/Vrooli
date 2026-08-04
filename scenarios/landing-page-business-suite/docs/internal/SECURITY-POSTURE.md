@@ -52,7 +52,7 @@ The user-facing security surface is also covered by `docs/reference/SECURITY.md`
 
 ## Secrets handling
 
-- Secrets are read from env vars first, then from `~/.vrooli/secrets.json` (lifecycle "Secrets Tab"). They are **never** read from a tracked file.
+- Secrets are injected into the process by the Vrooli credential authority. The API does not read `~/.vrooli/secrets.json` or any tracked file.
 - Stripe restricted keys are preferred (`docs/reference/STRIPE_RESTRICTED_KEYS.md`).
 - Remote-profile sessions are encrypted-at-rest in `remote_profiles.encrypted_session`. The key lives in env, not in the DB.
 - The admin reset procedure (`AdminResetService/ResetDemoData`) does **not** wipe `admin_users` — credentials persist across resets.

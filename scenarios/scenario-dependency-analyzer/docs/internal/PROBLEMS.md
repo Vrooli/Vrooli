@@ -139,3 +139,10 @@
 **Delivered**: The remediation engine now drives proposals from the unified interface-graph evidence (not the weak `vrooli_cli` regex), filtered to real scenarios. Running `scenario-dependency-analyzer scan <name> --apply-scenarios` proposes/declares a scenario's import-level dependencies correctly.
 
 **Deferred (operator sweep)**: Applying these declarations across the fleet's under-declared scenarios is a per-scenario operator action — each `service.json` edit is reviewed individually (no mass script, per repo policy) and validated against the owning scenario's own suite. The baselined scenarios in this change (scenario-dependency-analyzer, scenario-completeness-scoring, test-genie) carry **no** real-scenario under-declarations (their drift findings are all package-name attribution noise), so no in-scope `service.json` edits were required.
+
+## Work ladder
+
+- Rung: W0 (goal/problem contract comparison)
+- Evidence: Indexed goals `search-hub-corpus-buildout` and `search-hub-federation-adoption` concern search infrastructure, not the user-supplied audio-tools reliability plan. SDA was consulted only for dependency/conformance evidence and was not assigned audio implementation scope.
+- Constraint: No dependency-governance goal was substituted for the plan's explicit acceptance contract.
+- Measured: 2026-08-03.

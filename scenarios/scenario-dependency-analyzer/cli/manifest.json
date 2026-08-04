@@ -82,13 +82,13 @@
             }
           ],
           "binding": {
-            "kind": "local-command"
+          "kind": "local"
           },
           "governance": {
             "effect": "write",
             "run_eligible": true,
             "permissions": [
-              "filesystem:workspace"
+          "filesystem:write"
             ]
           }
         },

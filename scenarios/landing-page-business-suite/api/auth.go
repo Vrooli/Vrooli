@@ -7,12 +7,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
-	apisecrets "github.com/vrooli/api-core/secrets"
 	"golang.org/x/crypto/bcrypt"
 	adminhttp "landing-page-business-suite-api/handlers/administration"
 	"landing-page-business-suite-api/internal/administration"
@@ -47,43 +44,10 @@ const (
 	seededAdminID     = 1 // Reserved ID for the seeded/default admin account
 )
 
-// secretStore resolves project-local secrets when VROOLI_ROOT explicitly points
-// to one, otherwise the user-local secrets store. Environment values always win.
-func secretStore() (*apisecrets.Store, error) {
-	if root := strings.TrimSpace(envx.Get("VROOLI_ROOT")); root != "" {
-		path := filepath.Join(root, ".vrooli", "secrets.json")
-		if _, err := os.Stat(path); err == nil {
-			return apisecrets.NewFileStore(path)
-		}
-	}
-	return apisecrets.NewUserStore(apisecrets.Config{EnvLookup: envx.Get})
-}
-
-// resolveSecret resolves a secret from environment first, then an explicitly
-// configured project secrets file or the shared user-local plaintext file.
+// resolveSecret reads a value injected by the credential authority into this
+// process. This scenario does not inspect a file or use a plaintext fallback.
 func resolveSecret(key string) string {
-	if value := strings.TrimSpace(envx.Get(key)); value != "" {
-		return value
-	}
-	store, err := secretStore()
-	if err != nil {
-		return strings.TrimSpace(envx.Get(key))
-	}
-	return strings.TrimSpace(store.ResolveValue(key))
-}
-
-// findSecretsFile returns the resolved local plaintext user secrets path when
-// it exists.
-func findSecretsFile() string {
-	store, err := secretStore()
-	if err != nil {
-		return ""
-	}
-	path := store.PlaintextPath()
-	if _, err := os.Stat(path); err == nil {
-		return path
-	}
-	return ""
+	return strings.TrimSpace(envx.Get(key))
 }
 
 // getAdminDefaults returns an explicitly configured admin credential. Development
@@ -132,7 +96,7 @@ func initSessionManager() SessionManager {
 		logStructured("session_secret_missing", map[string]interface{}{
 			"level":   "warn",
 			"message": "SESSION_SECRET not set; generated an ephemeral key; sessions will not survive restart",
-			"action":  "Set SESSION_SECRET in environment or ~/.vrooli/secrets.json",
+			"action":  "provision SESSION_SECRET with `vrooli credentials provision`",
 		})
 		secret = hex.EncodeToString(ephemeral)
 	}

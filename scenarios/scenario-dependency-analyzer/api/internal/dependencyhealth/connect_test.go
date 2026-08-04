@@ -188,8 +188,8 @@ func TestBuildMaturityAssessmentIncludesLocalMaturity(t *testing.T) {
 	if len(got.GetFindings()) != 1 || got.GetFindings()[0].GetMaturity() == nil {
 		t.Fatalf("assessment findings missing maturity metadata: %+v", got.GetFindings())
 	}
-	if len(got.GetCapabilities()) != 6 {
-		t.Fatalf("capabilities = %d, want 6", len(got.GetCapabilities()))
+	if len(got.GetCapabilities()) != 7 {
+		t.Fatalf("capabilities = %d, want 7", len(got.GetCapabilities()))
 	}
 	if got.GetFindings()[0].GetMaturity().GetCapabilityId() != "release_age_policy" {
 		t.Fatalf("finding capability = %q, want release_age_policy", got.GetFindings()[0].GetMaturity().GetCapabilityId())
@@ -208,8 +208,8 @@ func TestBuildMaturityAssessmentRequiresSpec(t *testing.T) {
 
 func TestMaturitySpecCoversDependencyHealthRuleFamilies(t *testing.T) {
 	spec := testMaturitySpec(t)
-	if len(spec.Capabilities) != 6 {
-		t.Fatalf("capabilities = %d, want 6", len(spec.Capabilities))
+	if len(spec.Capabilities) != 7 {
+		t.Fatalf("capabilities = %d, want 7", len(spec.Capabilities))
 	}
 	for _, code := range emittedDependencyHealthRuleIDs() {
 		if _, ok := spec.Findings[code]; !ok {

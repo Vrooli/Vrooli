@@ -90,7 +90,7 @@
           "optional":  false,
           "source":  "validation-provider",
           "delegated":  true,
-          "provider":  "storage-health",
+          "provider":  "storage-manager",
           "findingSource":  "storage"
         },
         {
@@ -355,7 +355,7 @@
         }
       },
       {
-        "provider":  "storage-health",
+        "provider":  "storage-manager",
         "phase":  "storage",
         "reachable":  true,
         "contractValid":  true,
@@ -1268,7 +1268,7 @@
         },
         {
           "phase":  "storage",
-          "provider":  "storage-health",
+          "provider":  "storage-manager",
           "findingSource":  "storage",
           "totalObservations":  147,
           "passed":  38,
@@ -1816,7 +1816,7 @@
           }
         },
         {
-          "provider":  "storage-health",
+          "provider":  "storage-manager",
           "phases":  [
             "storage"
           ],

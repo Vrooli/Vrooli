@@ -27,7 +27,7 @@ Connect paths produce the same aggregate.
 
 ## Validation
 
-`storage-health validate scenario landing-page-business-suite --json` reports
+`storage-manager validate scenario landing-page-business-suite --json` reports
 L3 (clean) for schema substrate, isolation safety, and persistence hygiene.
 
 ## Follow-up

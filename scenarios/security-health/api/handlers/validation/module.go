@@ -73,6 +73,7 @@ func Schema() string { return "" }
 // public surface. References the generated *Procedure constant so renaming the
 // RPC in validation.proto breaks this file at compile time.
 var Endpoints = []module.EndpointDescriptor{
+	{ID: "validation_validate_target", Path: scenariovalidationconnect.ScenarioValidationServiceValidateTargetProcedure, Method: "POST", Summary: "Validate a first-class repository target", Category: "validation"},
 	{
 		ID:          "validation_validate_scenario",
 		Path:        scenariovalidationconnect.ScenarioValidationServiceValidateScenarioProcedure,
