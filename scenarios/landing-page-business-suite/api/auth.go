@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	"golang.org/x/crypto/bcrypt"
 	adminhttp "landing-page-business-suite-api/handlers/administration"
 	"landing-page-business-suite-api/internal/administration"
@@ -44,16 +45,51 @@ const (
 	seededAdminID     = 1 // Reserved ID for the seeded/default admin account
 )
 
-// resolveSecret reads a value injected by the credential authority into this
-// process. This scenario does not inspect a file or use a plaintext fallback.
+// resolveSecret reads an operator credential directly from the authority. The
+// test-only environment hook is installed by testing_main_test.go so unit
+// tests can inject values without making production code depend on /proc
+// visible process environment state.
 func resolveSecret(key string) string {
-	return strings.TrimSpace(envx.Get(key))
+	if envx.Get("LPBS_TEST_CREDENTIAL_FALLBACK") == "1" {
+		return strings.TrimSpace(envx.Get(key))
+	}
+	switch key {
+	case "ADMIN_DEFAULT_PASSWORD", "SESSION_SECRET", "LPBS_SERVICE_SECRET", "LPBS_API_KEY_ENCRYPTION_KEY", "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY", "JWT_SECRET", "SENDGRID_API_KEY":
+		// authority-backed operator credentials
+	default:
+		return resolveConfig(key)
+	}
+	authority, err := credentialauthority.Default()
+	if err != nil {
+		logStructured("credential_authority_unavailable", map[string]interface{}{"level": "warn", "key": key, "error": err.Error()})
+		return ""
+	}
+	field := strings.ToLower(strings.NewReplacer("_", "-", ".", "-").Replace(strings.TrimSpace(key)))
+	switch key {
+	case "SESSION_SECRET":
+		field = "session-secret"
+	case "LPBS_SERVICE_SECRET":
+		field = "service-secret"
+	case "LPBS_API_KEY_ENCRYPTION_KEY":
+		field = "api-key-encryption-key"
+	case "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY":
+		field = "remote-profile-encryption-key"
+	case "ADMIN_DEFAULT_PASSWORD":
+		field = "admin-default-password"
+	}
+	value, err := authority.Resolve(credentialauthority.Identity("vrooli/landing-page-business-suite"), field)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(value)
 }
+
+func resolveConfig(key string) string { return strings.TrimSpace(envx.Get(key)) }
 
 // getAdminDefaults returns an explicitly configured admin credential. Development
 // uses an ephemeral password so a committed default can never authenticate a user.
 func getAdminDefaults() (email string, passwordHash string, err error) {
-	email = resolveSecret("ADMIN_DEFAULT_EMAIL")
+	email = resolveConfig("ADMIN_DEFAULT_EMAIL")
 	if email == "" {
 		email = defaultAdminEmail
 	}
@@ -122,7 +158,7 @@ func validateProductionCredentials() error {
 	if len([]rune(adminPassword)) < 12 {
 		return fmt.Errorf("ADMIN_DEFAULT_PASSWORD must be at least 12 characters in production")
 	}
-	magicLinkBaseURL := strings.TrimSpace(resolveSecret("AUTH_MAGIC_LINK_BASE_URL"))
+	magicLinkBaseURL := strings.TrimSpace(resolveConfig("AUTH_MAGIC_LINK_BASE_URL"))
 	if magicLinkBaseURL == "" {
 		return fmt.Errorf("AUTH_MAGIC_LINK_BASE_URL must be configured in production")
 	}

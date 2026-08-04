@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "title": "VoiceInputButton 3.0",
+  "args": { "fields": [
+    { "path": "state", "label": "State", "kind": "enum", "required": true, "default": "idle", "options": ["idle", "preparing", "recording", "recovering", "transcribing", "unavailable", "error"] },
+    { "path": "mode", "label": "Mode", "kind": "enum", "required": true, "default": "always-on", "options": ["always-on", "timeout"] },
+    { "path": "size", "label": "Size", "kind": "enum", "required": true, "default": "sm", "options": ["xs", "sm", "md", "lg", "xl", "icon"] },
+    { "path": "density", "label": "Density", "kind": "enum", "required": true, "default": "comfortable", "options": ["comfortable", "compact"] },
+    { "path": "level", "label": "Input level", "kind": "number", "minimum": 0, "maximum": 1, "default": 0.65 },
+    { "path": "timeoutProgress", "label": "Timeout progress", "kind": "number", "minimum": 0, "maximum": 1, "default": 0.5 },
+    { "path": "error", "label": "Error", "kind": "text", "default": "Microphone permission was denied." }
+  ] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "idle", "name": "Idle", "args": { "state": "idle", "size": "sm" }, "expect": [{ "kind": "role", "role": "button", "name": "Start voice input" }] },
+    { "id": "preparing", "name": "Preparing", "args": { "state": "preparing" }, "expect": [{ "kind": "role", "role": "button", "name": "Preparing microphone" }] },
+    { "id": "recording", "name": "Recording", "args": { "state": "recording", "mode": "always-on", "level": 0.65 }, "expect": [{ "kind": "role", "role": "button", "name": "Stop voice input" }] },
+    { "id": "recovering", "name": "Recovering", "args": { "state": "recovering", "level": 0.35 }, "expect": [{ "kind": "role", "role": "button", "name": "Listening for voice input" }] },
+    { "id": "transcribing", "name": "Transcribing", "args": { "state": "transcribing" }, "expect": [{ "kind": "role", "role": "button", "name": "Transcribing voice input" }] },
+    { "id": "unavailable", "name": "Unavailable", "args": { "state": "unavailable" }, "expect": [{ "kind": "role", "role": "button", "name": "Voice input unavailable" }] },
+    { "id": "error", "name": "Error", "args": { "state": "error", "error": "Microphone permission was denied." }, "expect": [{ "kind": "role", "role": "button", "name": "Voice input error" }, { "kind": "role", "role": "status" }] },
+    { "id": "mode-always-on", "name": "Always-on mode", "args": { "state": "recording", "mode": "always-on" }, "expect": [{ "kind": "role", "role": "button", "name": "Stop voice input" }] },
+    { "id": "mode-timeout", "name": "Timeout mode", "args": { "state": "recording", "mode": "timeout", "timeoutProgress": 0.7 }, "expect": [{ "kind": "role", "role": "button", "name": "Stop voice input" }] },
+    { "id": "size-xs", "name": "XS", "args": { "state": "idle", "size": "xs" }, "expect": [{ "kind": "role", "role": "button", "name": "Start voice input" }] },
+    { "id": "size-sm", "name": "SM", "args": { "state": "idle", "size": "sm" }, "expect": [{ "kind": "role", "role": "button", "name": "Start voice input" }] },
+    { "id": "size-md", "name": "MD", "args": { "state": "idle", "size": "md" }, "expect": [{ "kind": "role", "role": "button", "name": "Start voice input" }] },
+    { "id": "size-lg", "name": "LG", "args": { "state": "idle", "size": "lg" }, "expect": [{ "kind": "role", "role": "button", "name": "Start voice input" }] },
+    { "id": "size-xl", "name": "XL", "args": { "state": "idle", "size": "xl" }, "expect": [{ "kind": "role", "role": "button", "name": "Start voice input" }] },
+    { "id": "size-icon", "name": "Icon", "args": { "state": "idle", "size": "icon" }, "expect": [{ "kind": "role", "role": "button", "name": "Start voice input" }] },
+    { "id": "density-comfortable", "name": "Comfortable density", "args": { "state": "idle", "density": "comfortable" }, "expect": [{ "kind": "role", "role": "button", "name": "Start voice input" }] },
+    { "id": "density-compact", "name": "Compact density", "args": { "state": "idle", "density": "compact" }, "expect": [{ "kind": "role", "role": "button", "name": "Start voice input" }] }
+  ]
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -129,6 +130,10 @@ type ScenarioTokenNamespaceReader interface {
 	TokenNamespace(ctx context.Context, scenario string) (string, error)
 }
 
+type ScenarioTokenMappingReader interface {
+	TokenMapping(ctx context.Context, scenario string) (TokenMapping, error)
+}
+
 // DependencyValidator and StyleFitValidator keep adoption enforcement at the
 // service boundary. Transport callers cannot skip these checks, while tests
 // can supply narrow fakes without constructing sibling services.
@@ -162,6 +167,7 @@ type service struct {
 	deps     DependencyValidator
 	styles   StyleFitValidator
 	tokens   ScenarioTokenNamespaceReader
+	mappings ScenarioTokenMappingReader
 }
 
 // NewService constructs the production Service. reporter may be nil
@@ -199,6 +205,9 @@ func SetValidationGates(svc Service, dependency DependencyValidator, style Style
 func SetTokenNamespaceReader(svc Service, reader ScenarioTokenNamespaceReader) {
 	if s, ok := svc.(*service); ok {
 		s.tokens = reader
+		if mappingReader, ok := reader.(ScenarioTokenMappingReader); ok {
+			s.mappings = mappingReader
+		}
 	}
 }
 
@@ -357,7 +366,7 @@ func (s *service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 	adoptionFiles := make([]AdoptionFile, 0)
 	written := ""
 	entrySnapshot := ""
-	tokenNamespace, err := s.resolveTokenNamespace(ctx, in.Scenario)
+	tokenMapping, err := s.resolveTokenMapping(ctx, in.Scenario)
 	if err != nil {
 		return ApplyResult{}, err
 	}
@@ -365,7 +374,7 @@ func (s *service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 		for _, file := range plan.Files {
 			fv := plan.Version
 			fv.Content, fv.ContentSHA256 = file.Content, file.ContentSHA256
-			translated, translations, err := TranslateDesignTokens(stripSourceHeader(file.Content), tokenNamespace)
+			translated, translations, err := TranslateDesignTokens(stripSourceHeader(file.Content), tokenMapping.Namespace, tokenMapping)
 			if err != nil {
 				return ApplyResult{}, err
 			}
@@ -376,12 +385,12 @@ func (s *service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 				return ApplyResult{}, err
 			}
 			if file.IsEntry && plan.Asset.ID == cmp.ID {
-				entrySnapshot = hashBytes([]byte(body))
+				entrySnapshot = adoptedSnapshotHash(body)
 				if plan.Asset.ID == cmp.ID {
 					written = path
 				}
 			}
-			adoptionFiles = append(adoptionFiles, AdoptionFile{LibraryPath: file.Path, AdoptedPath: file.AdoptedPath, SourceSHA256: file.ContentSHA256, AdoptedSnapshotSHA256: hashBytes([]byte(body)), SourceAssetID: plan.Asset.ID, SourceLibraryID: plan.Asset.LibraryID, SourceVersion: plan.Version.Version})
+			adoptionFiles = append(adoptionFiles, AdoptionFile{LibraryPath: file.Path, AdoptedPath: file.AdoptedPath, SourceSHA256: file.ContentSHA256, AdoptedSnapshotSHA256: adoptedSnapshotHash(body), SourceAssetID: plan.Asset.ID, SourceLibraryID: plan.Asset.LibraryID, SourceVersion: plan.Version.Version})
 			if finder, ok := s.files.(ScenarioImportSiteFinder); ok {
 				sites, err := finder.FindImportSites(ctx, in.Scenario, file.AdoptedPath)
 				if err != nil {
@@ -391,11 +400,34 @@ func (s *service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 			}
 		}
 	}
+	experiencePath := ""
+	if strings.TrimSpace(v.ExperienceContract) != "" {
+		experiencePath = filepath.ToSlash(filepath.Join("experience", "components", cmp.Slug+".json"))
+		experienceExists, err := s.files.Exists(ctx, in.Scenario, experiencePath)
+		if err != nil {
+			return ApplyResult{}, err
+		}
+		if experienceExists {
+			if !in.ReplaceExisting {
+				return ApplyResult{}, ErrInvalidAdoption{Field: "replace_existing", Reason: "component experience contract already exists; set replace_existing to replace it"}
+			}
+			existing, err := s.files.Read(ctx, in.Scenario, experiencePath)
+			if err != nil {
+				return ApplyResult{}, err
+			}
+			if string(existing) != v.ExperienceContract && !in.ConfirmOverwrite {
+				return ApplyResult{}, ErrInvalidAdoption{Field: "confirm_overwrite", Reason: "existing component experience contract differs from the catalog source"}
+			}
+		}
+		if _, err := s.files.Write(ctx, in.Scenario, experiencePath, []byte(v.ExperienceContract)); err != nil {
+			return ApplyResult{}, fmt.Errorf("write component experience contract: %w", err)
+		}
+	}
 	root, err := s.repo.Create(ctx, CreateInput{ID: adoptionID, ComponentID: cmp.ID, LibraryID: cmp.LibraryID, Scenario: in.Scenario, AdoptedPath: in.AdoptedPath, AdoptedVersion: version, SourceSHA256: v.ContentSHA256, AdoptedSnapshotSHA256: entrySnapshot, Files: adoptionFiles})
 	if err != nil {
 		return ApplyResult{}, err
 	}
-	result := ApplyResult{Adoption: root, WrittenPath: written, ImportSites: importSites}
+	result := ApplyResult{Adoption: root, WrittenPath: written, ExperiencePath: experiencePath, ImportSites: importSites}
 	if styleFit != nil {
 		result.StyleFitAffinity = styleFit.Affinity
 		result.StyleFitDetail = styleFit.Detail
@@ -448,12 +480,13 @@ func adoptionPlansForClosure(closure []components.ResolvedAsset, rootTarget stri
 
 func dependencyEntryTarget(rootTarget string, asset components.Component, version components.ComponentVersion) string {
 	dir := filepath.ToSlash(filepath.Dir(rootTarget))
-	if strings.HasSuffix(dir, "/components") || dir == "components" {
-		dir = filepath.ToSlash(filepath.Dir(dir))
-	}
 	if asset.AssetKind == components.AssetKindHook {
+		if strings.HasSuffix(dir, "/components") || dir == "components" {
+			dir = filepath.ToSlash(filepath.Dir(dir))
+		}
 		dir = filepath.ToSlash(filepath.Join(dir, "hooks"))
-	} else {
+	} else if strings.HasSuffix(dir, "/components") || dir == "components" {
+		dir = filepath.ToSlash(filepath.Dir(dir))
 		dir = filepath.ToSlash(filepath.Join(dir, "components"))
 	}
 	ext := filepath.Ext(version.SourcePath)
@@ -463,7 +496,7 @@ func dependencyEntryTarget(rootTarget string, asset components.Component, versio
 			ext = ".tsx"
 		}
 	}
-	return filepath.ToSlash(filepath.Join(dir, asset.DisplayName+ext))
+	return filepath.ToSlash(filepath.Join(dir, filepath.Base(version.SourcePath)))
 }
 
 func ensureDistinctAdoptionTargets(plans []adoptionPlan) error {
@@ -495,7 +528,7 @@ func adoptionUnitFiles(v components.ComponentVersion, entryTarget string) []adop
 	out := make([]adoptionUnitFile, 0, len(files))
 	targets := make(map[string]string, len(files))
 	for _, file := range files {
-		if file.Path == "story.tsx" {
+		if file.Path == "story.tsx" || file.Path == "experience-contract.json" {
 			continue
 		}
 		target := filepath.ToSlash(filepath.Join(filepath.Dir(entryTarget), file.Path))
@@ -586,7 +619,7 @@ func (s *service) Reapply(ctx context.Context, in ReapplyInput) (Adoption, strin
 	plans := adoptionPlansForClosure(closure, row.AdoptedPath)
 	adoptionFiles := make([]AdoptionFile, 0)
 	written, entrySnapshot := "", ""
-	tokenNamespace, err := s.resolveTokenNamespace(ctx, row.Scenario)
+	tokenMapping, err := s.resolveTokenMapping(ctx, row.Scenario)
 	if err != nil {
 		return Adoption{}, "", err
 	}
@@ -594,7 +627,7 @@ func (s *service) Reapply(ctx context.Context, in ReapplyInput) (Adoption, strin
 		for _, file := range plan.Files {
 			fv := plan.Version
 			fv.Content, fv.ContentSHA256 = file.Content, file.ContentSHA256
-			translated, translations, err := TranslateDesignTokens(stripSourceHeader(file.Content), tokenNamespace)
+			translated, translations, err := TranslateDesignTokens(stripSourceHeader(file.Content), tokenMapping.Namespace, tokenMapping)
 			if err != nil {
 				return Adoption{}, "", err
 			}
@@ -603,11 +636,17 @@ func (s *service) Reapply(ctx context.Context, in ReapplyInput) (Adoption, strin
 			if err != nil {
 				return Adoption{}, "", err
 			}
-			snapshot := hashBytes([]byte(body))
+			snapshot := adoptedSnapshotHash(body)
 			if file.IsEntry && plan.Asset.ID == row.ComponentID {
 				written, entrySnapshot = path, snapshot
 			}
 			adoptionFiles = append(adoptionFiles, AdoptionFile{LibraryPath: file.Path, AdoptedPath: file.AdoptedPath, SourceSHA256: file.ContentSHA256, AdoptedSnapshotSHA256: snapshot, SourceAssetID: plan.Asset.ID, SourceLibraryID: plan.Asset.LibraryID, SourceVersion: plan.Version.Version})
+		}
+	}
+	if strings.TrimSpace(v.ExperienceContract) != "" {
+		experiencePath := filepath.ToSlash(filepath.Join("experience", "components", root.Slug+".json"))
+		if _, err := s.files.Write(ctx, row.Scenario, experiencePath, []byte(v.ExperienceContract)); err != nil {
+			return Adoption{}, "", fmt.Errorf("write component experience contract: %w", err)
 		}
 	}
 	updated, err := s.repo.UpdateAppliedUnit(ctx, AppliedUnitUpdate{AppliedSnapshotUpdate: AppliedSnapshotUpdate{
@@ -635,6 +674,20 @@ func (s *service) resolveTokenNamespace(ctx context.Context, scenario string) (s
 		return "app", nil
 	}
 	return strings.TrimSpace(namespace), nil
+}
+
+func (s *service) resolveTokenMapping(ctx context.Context, scenario string) (TokenMapping, error) {
+	if s.mappings != nil {
+		mapping, err := s.mappings.TokenMapping(ctx, scenario)
+		if err != nil {
+			return TokenMapping{}, err
+		}
+		return mapping, nil
+	}
+	// Unit-test services intentionally omit filesystem wiring. The production
+	// handler installs FSScenarioFileReader through SetTokenNamespaceReader,
+	// where a missing scenario-owned file is a hard error.
+	return TokenMapping{Namespace: "app"}, nil
 }
 
 // validateAdoption deliberately executes both checks before deciding whether
@@ -780,7 +833,7 @@ func (s *service) computeStatus(ctx context.Context, row Adoption) (LibraryVersi
 	for _, file := range files {
 		adoptedBytes, err := s.files.Read(ctx, row.Scenario, file.AdoptedPath)
 		if err == nil {
-			if file.AdoptedSnapshotSHA256 != "" && hashBytes(adoptedBytes) != file.AdoptedSnapshotSHA256 {
+			if file.AdoptedSnapshotSHA256 != "" && adoptedSnapshotHash(string(adoptedBytes)) != file.AdoptedSnapshotSHA256 {
 				localStatus, detail = LocalStatusModified, fmt.Sprintf("adopted file %s diverges from applied snapshot", file.AdoptedPath)
 				break
 			}
@@ -839,6 +892,14 @@ func hashBytes(b []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
+// adoptedSnapshotHash deliberately excludes the generated provenance header.
+// A dependency can be shared by multiple root adoptions in one scenario; its
+// provenance owner may change while the translated source remains identical.
+// Drift must describe source edits, not which root wrote the shared file last.
+func adoptedSnapshotHash(body string) string {
+	return hashBytes([]byte(stripSourceHeader(body)))
+}
+
 func emptyOrVersion(v string) string {
 	if v == "" {
 		return "(no version)"
@@ -886,6 +947,28 @@ func (r *FSScenarioFileReader) TokenNamespace(_ context.Context, scenario string
 	default:
 		return "app", nil
 	}
+}
+
+func (r *FSScenarioFileReader) TokenMapping(_ context.Context, scenario string) (TokenMapping, error) {
+	path := filepath.Join(r.root, scenario, "ui", "token-map.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return TokenMapping{}, fmt.Errorf("adoption token mapping missing for scenario %q at %s", scenario, path)
+		}
+		return TokenMapping{}, err
+	}
+	var mapping TokenMapping
+	if err := json.Unmarshal(raw, &mapping); err != nil {
+		return TokenMapping{}, fmt.Errorf("decode adoption token mapping for %q: %w", scenario, err)
+	}
+	if strings.TrimSpace(mapping.Namespace) == "" {
+		return TokenMapping{}, fmt.Errorf("adoption token mapping for scenario %q is missing namespace", scenario)
+	}
+	if err := validateTokenMapping(mapping, []string{"app-danger", "app-info", "app-primary", "app-warning"}); err != nil {
+		return TokenMapping{}, fmt.Errorf("validate adoption token mapping for %q: %w", scenario, err)
+	}
+	return mapping, nil
 }
 
 // scannedSource is one .ts/.tsx file yielded by walkScenarioSources: its

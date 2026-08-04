@@ -849,6 +849,45 @@ func checkClaimShape(report *Report, loc string, claim Claim) {
 	if !knownClaimType(claim.Type) && claim.Tier != "aspirational" {
 		report.add(CodeTierViolation, SeverityError, fmt.Sprintf("unknown claim type %q must be aspirational", claim.Type), loc, "Promote unknown claim types only after the validator learns them.")
 	}
+	checkStructuredClaimShape(report, loc, claim)
+}
+
+// checkStructuredClaimShape keeps the parameters of machine claims honest.
+// Params remain open-world JSON, but a claim that names a built-in checker must
+// carry the inputs that make that checker deterministic.
+func checkStructuredClaimShape(report *Report, loc string, claim Claim) {
+	if claim.Tier != "machine" {
+		return
+	}
+	switch claim.Type {
+	case "spacing":
+		if len(claim.Elements) != 2 {
+			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("spacing claim %q must name exactly two elements", claim.ID), loc, "Name the two elements whose separation is part of the contract.")
+		}
+		if value, ok := numericParam(claim.Params, "minSeparation", "minGap"); !ok || value < 0 {
+			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("spacing claim %q must declare a non-negative params.minSeparation", claim.ID), loc, "Set params.minSeparation to the minimum CSS-pixel gap.")
+		}
+	case "state-contrast":
+		if len(claim.Elements) == 0 {
+			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("state-contrast claim %q must name a control element", claim.ID), loc, "Reference the element whose foreground must remain readable.")
+		}
+		if strings.TrimSpace(paramString(claim.Params, "state")) == "" {
+			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("state-contrast claim %q must declare params.state", claim.ID), loc, "Name the interaction state being checked, such as hover.")
+		}
+		if strings.TrimSpace(paramString(claim.Params, "background", "backgroundElement")) == "" {
+			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("state-contrast claim %q must declare params.background", claim.ID), loc, "Name the background element or color used for the contrast check.")
+		}
+		if value, ok := numericParam(claim.Params, "minContrastRatio", "minContrast"); !ok || value < 1 {
+			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("state-contrast claim %q must declare params.minContrastRatio >= 1", claim.ID), loc, "Set the minimum WCAG contrast ratio.")
+		}
+	case "size-parity":
+		if len(claim.Elements) != 2 {
+			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("size-parity claim %q must name exactly two elements", claim.ID), loc, "Name the control and the sibling whose heights must match.")
+		}
+		if value, ok := numericParam(claim.Params, "tolerance"); ok && value < 0 {
+			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("size-parity claim %q tolerance must be non-negative", claim.ID), loc, "Use a non-negative CSS-pixel tolerance.")
+		}
+	}
 }
 
 func checkJourneys(report *Report, spec *ScenarioSpec, prdRefs map[string]bool) {
@@ -1121,11 +1160,41 @@ func validTier(tier string) bool {
 
 func knownClaimType(t string) bool {
 	switch t {
-	case "element-present", "element-absent", "single-dominant-action", "visible-without-scroll", "reading-order", "state-covered", "state-distinct", "keyboard-reachable", "accessible-name", "affordance-present", "no-document-horizontal-overflow", "viewport-fill", "chrome-pinned", "safe-area-tap-targets", "single-line-chrome", "tap-target-size", "custom":
+	case "element-present", "element-absent", "single-dominant-action", "visible-without-scroll", "reading-order", "state-covered", "state-distinct", "keyboard-reachable", "accessible-name", "affordance-present", "spacing", "state-contrast", "size-parity", "no-document-horizontal-overflow", "viewport-fill", "chrome-pinned", "safe-area-tap-targets", "single-line-chrome", "tap-target-size", "custom":
 		return true
 	default:
 		return false
 	}
+}
+
+func paramString(params map[string]any, keys ...string) string {
+	for _, key := range keys {
+		if value, ok := params[key].(string); ok {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+func numericParam(params map[string]any, keys ...string) (float64, bool) {
+	for _, key := range keys {
+		switch value := params[key].(type) {
+		case float64:
+			return value, true
+		case float32:
+			return float64(value), true
+		case int:
+			return float64(value), true
+		case int64:
+			return float64(value), true
+		case json.Number:
+			parsed, err := value.Float64()
+			if err == nil {
+				return parsed, true
+			}
+		}
+	}
+	return 0, false
 }
 
 func checkUniqueIDs(report *Report, loc, kind string, ids []string) {

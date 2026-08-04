@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "kind": "component",
+  "title": "Button 2.0",
+  "args": { "fields": [
+    { "path": "children", "label": "Children", "kind": "structured", "required": true, "default": { "$text": "Save changes" }, "format": "renderable-text" },
+    { "path": "variant", "label": "Variant", "kind": "enum", "required": true, "default": "primary", "options": ["primary", "secondary", "ghost", "danger"] },
+    { "path": "size", "label": "Size", "kind": "enum", "required": true, "default": "md", "options": ["xs", "sm", "md", "lg", "xl", "icon"] },
+    { "path": "density", "label": "Density", "kind": "enum", "required": true, "default": "comfortable", "options": ["comfortable", "compact"] },
+    { "path": "shape", "label": "Shape", "kind": "enum", "required": true, "default": "square", "options": ["square", "pill"] },
+    { "path": "disabled", "label": "Disabled", "kind": "boolean", "default": false },
+    { "path": "icon", "label": "Icon", "kind": "structured", "default": { "$icon": "Save" } }
+  ] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    { "id": "primary", "name": "Primary", "args": { "children": { "$text": "Save" }, "variant": "primary" }, "expect": [{ "kind": "role", "role": "button", "name": "Save" }] },
+    { "id": "secondary", "name": "Secondary", "args": { "children": { "$text": "Cancel" }, "variant": "secondary" }, "expect": [{ "kind": "role", "role": "button", "name": "Cancel" }] },
+    { "id": "ghost", "name": "Ghost", "args": { "children": { "$text": "More" }, "variant": "ghost" }, "expect": [{ "kind": "role", "role": "button", "name": "More" }] },
+    { "id": "danger", "name": "Danger", "args": { "children": { "$text": "Delete" }, "variant": "danger" }, "expect": [{ "kind": "role", "role": "button", "name": "Delete" }] },
+    { "id": "disabled-long-label", "name": "Disabled", "args": { "children": { "$text": "Save changes" }, "disabled": true }, "expect": [{ "kind": "role", "role": "button", "name": "Save changes" }] },
+    { "id": "size-xs", "name": "XS", "args": { "children": { "$text": "XS" }, "size": "xs" }, "expect": [{ "kind": "role", "role": "button", "name": "XS" }] },
+    { "id": "size-sm", "name": "SM", "args": { "children": { "$text": "SM" }, "size": "sm" }, "expect": [{ "kind": "role", "role": "button", "name": "SM" }] },
+    { "id": "size-md", "name": "MD", "args": { "children": { "$text": "MD" }, "size": "md" }, "expect": [{ "kind": "role", "role": "button", "name": "MD" }] },
+    { "id": "size-lg", "name": "LG", "args": { "children": { "$text": "LG" }, "size": "lg" }, "expect": [{ "kind": "role", "role": "button", "name": "LG" }] },
+    { "id": "size-xl", "name": "XL", "args": { "children": { "$text": "XL" }, "size": "xl" }, "expect": [{ "kind": "role", "role": "button", "name": "XL" }] },
+    { "id": "size-icon", "name": "Icon floor", "args": { "children": { "$text": "•" }, "size": "icon", "aria-label": "Icon action" }, "expect": [{ "kind": "role", "role": "button", "name": "Icon action" }] },
+    { "id": "density-comfortable", "name": "Comfortable", "args": { "children": { "$text": "Comfortable" }, "density": "comfortable" }, "expect": [{ "kind": "role", "role": "button", "name": "Comfortable" }] },
+    { "id": "density-compact", "name": "Compact", "args": { "children": { "$text": "Compact" }, "density": "compact" }, "expect": [{ "kind": "role", "role": "button", "name": "Compact" }] },
+    { "id": "shape-square", "name": "Square", "args": { "children": { "$text": "Square" }, "shape": "square" }, "expect": [{ "kind": "role", "role": "button", "name": "Square" }] },
+    { "id": "shape-pill", "name": "Pill", "args": { "children": { "$text": "Pill" }, "shape": "pill" }, "expect": [{ "kind": "role", "role": "button", "name": "Pill" }] },
+    { "id": "start-icon", "name": "Start icon spacing", "args": { "children": { "$text": "Save" }, "icon": { "$icon": "Save" }, "size": "sm" }, "expect": [{ "kind": "role", "role": "button", "name": "Save" }] }
+  ]
+}

@@ -61,8 +61,8 @@ type EmailService struct {
 func NewEmailService() *EmailService {
 	// Load SendGrid config from secrets
 	apiKey := resolveSecret("SENDGRID_API_KEY")
-	fromEmail := resolveSecret("EMAIL_FROM_ADDRESS")
-	fromName := resolveSecret("EMAIL_FROM_NAME")
+	fromEmail := resolveConfig("EMAIL_FROM_ADDRESS")
+	fromName := resolveConfig("EMAIL_FROM_NAME")
 
 	var sgConfig *SendGridConfig
 	if apiKey != "" {

@@ -191,7 +191,7 @@ func (s *service) ConfirmDiscovery(ctx context.Context, in ConfirmDiscoveryInput
 	if err != nil {
 		return ConfirmDiscoveryResult{}, err
 	}
-	snapshot := hashBytes([]byte(body))
+	snapshot := adoptedSnapshotHash(body)
 	adoptionFile := AdoptionFile{LibraryPath: libFile.Path, AdoptedPath: adoptedPath, SourceSHA256: libFile.ContentSHA256, AdoptedSnapshotSHA256: snapshot}
 	created, err := s.repo.Create(ctx, CreateInput{
 		ID:                    adoptionID,

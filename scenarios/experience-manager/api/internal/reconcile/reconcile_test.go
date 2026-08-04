@@ -444,6 +444,95 @@ func TestVisibleWithoutScrollChecksBoundGeometry(t *testing.T) {
 	}
 }
 
+func TestStructuredComponentClaimsEvaluateGeometryAndAppearance(t *testing.T) {
+	page := spec.PageDocument{
+		Page: spec.PageIdentity{ID: "control", Routes: []string{"/"}},
+		Elements: []spec.Element{
+			{ID: "icon", Role: "x-icon"},
+			{ID: "label", Role: "x-label"},
+			{ID: "control", Role: "button"},
+			{ID: "peer", Role: "button"},
+		},
+		Bindings: spec.Bindings{Elements: map[string]spec.Binding{
+			"icon": {TestID: "icon"}, "label": {TestID: "label"}, "control": {TestID: "control"}, "peer": {TestID: "peer"},
+		}},
+	}
+	target := CaptureTarget{StateID: "hover", ViewportID: "desktop", ViewportWidth: 1280, ViewportHeight: 720}
+
+	spacing := spec.Claim{ID: "spacing", Type: "spacing", Tier: "machine", Elements: []string{"icon", "label"}, Params: map[string]any{"minSeparation": 4, "axis": "inline"}}
+	nodes := []*AXNode{
+		{Role: "x-icon", DOM: DOMNode{TestID: "icon"}, Bounds: &Bounds{X: 10, Y: 10, Width: 16, Height: 16}},
+		{Role: "x-label", DOM: DOMNode{TestID: "label"}, Bounds: &Bounds{X: 30, Y: 10, Width: 50, Height: 16}},
+	}
+	if result := claimEvaluator("spacing")(page, spacing, target, nodes); !result.Pass {
+		t.Fatalf("spacing should pass: %+v", result)
+	}
+	nodes[1].Bounds.X = 25
+	if result := claimEvaluator("spacing")(page, spacing, target, nodes); result.Pass || !strings.Contains(result.Failure, "below") {
+		t.Fatalf("spacing should fail with a named gap: %+v", result)
+	}
+
+	contrast := spec.Claim{ID: "contrast", Type: "state-contrast", Tier: "machine", Elements: []string{"control"}, Params: map[string]any{"state": "hover", "background": "#020617", "minContrastRatio": 3}}
+	contrastNode := &AXNode{Role: "button", DOM: DOMNode{TestID: "control"}, Appearance: &Appearance{States: map[string]AppearanceState{"hover": {Foreground: "#111827", Background: "#020617"}}}}
+	if result := claimEvaluator("state-contrast")(page, contrast, target, []*AXNode{contrastNode}); result.Pass || !strings.Contains(result.Failure, "contrast") {
+		t.Fatalf("low hover contrast should fail: %+v", result)
+	}
+	contrastNode.Appearance.States["hover"] = AppearanceState{Foreground: "#ffffff", Background: "#020617"}
+	if result := claimEvaluator("state-contrast")(page, contrast, target, []*AXNode{contrastNode}); !result.Pass {
+		t.Fatalf("readable hover contrast should pass: %+v", result)
+	}
+
+	parity := spec.Claim{ID: "parity", Type: "size-parity", Tier: "machine", Elements: []string{"control", "peer"}, Params: map[string]any{"tolerance": 1}}
+	parityNodes := []*AXNode{
+		{Role: "button", DOM: DOMNode{TestID: "control"}, Bounds: &Bounds{Width: 40, Height: 40}},
+		{Role: "button", DOM: DOMNode{TestID: "peer"}, Bounds: &Bounds{Width: 40, Height: 44}},
+	}
+	if result := claimEvaluator("size-parity")(page, parity, target, parityNodes); result.Pass {
+		t.Fatalf("size parity should fail outside tolerance: %+v", result)
+	}
+	parityNodes[1].Bounds.Height = 41
+	if result := claimEvaluator("size-parity")(page, parity, target, parityNodes); !result.Pass {
+		t.Fatalf("size parity should pass within tolerance: %+v", result)
+	}
+}
+
+func TestComponentSourceClaimsDetectRemovedInteractionContracts(t *testing.T) {
+	good := `const densityClasses = { comfortable: "gap-2" }; const variants = "bg-app-primary hover:brightness-95"; const sizeClasses = "min-h-10 min-w-10";`
+	badSpacing := strings.Replace(good, "gap-2", "gap-0", 1)
+	if sourceClaimPasses(spec.Claim{Type: "spacing"}, badSpacing) {
+		t.Fatal("spacing source claim passed after positive gap was removed")
+	}
+	if !sourceClaimPasses(spec.Claim{Type: "spacing"}, good) {
+		t.Fatal("spacing source claim rejected a positive gap")
+	}
+	badHover := strings.Replace(good, "hover:brightness-95", "brightness-95", 1)
+	if sourceClaimPasses(spec.Claim{Type: "state-contrast"}, badHover) {
+		t.Fatal("state-contrast source claim passed after hover treatment was removed")
+	}
+	if !sourceClaimPasses(spec.Claim{Type: "state-contrast"}, good) {
+		t.Fatal("state-contrast source claim rejected a declared hover treatment")
+	}
+	if !sourceClaimPasses(spec.Claim{Type: "size-parity"}, good) {
+		t.Fatal("size-parity source claim rejected the shared size scale")
+	}
+}
+
+func TestCatalogComponentSourceClaimsPassForReleasedControls(t *testing.T) {
+	report, err := spec.ParseScenario(filepath.Join(repoRoot(t), "scenarios", "react-component-library"))
+	if err != nil {
+		t.Fatalf("ParseScenario: %v", err)
+	}
+	for _, id := range []string{"button", "control-base", "voice-input-button"} {
+		component := report.Spec.Components[id]
+		findings := componentSourceFindings(report, "experience/components/"+id+".json", component)
+		for _, finding := range findings {
+			if finding.Code == spec.CodeClaimFailed {
+				t.Fatalf("released component %q has a failed source claim: %+v", id, finding)
+			}
+		}
+	}
+}
+
 func TestAffordancePresentChecksExpectedControls(t *testing.T) {
 	report := activeReport("debt-table", spec.Binding{TestID: "debt-table"})
 	page := report.Spec.Pages["home"]

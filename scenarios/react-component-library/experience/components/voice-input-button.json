@@ -6,19 +6,22 @@
     "id": "voice-input-button",
     "title": "VoiceInputButton",
     "purpose": "Expose an accessible microphone control whose visual level, timeout, and always-on states communicate capture state.",
-    "storyRef": "../../library/components/VoiceInputButton/versions/1.0.0/story.json",
+    "storyRef": "../../library/components/VoiceInputButton/versions/3.0.0/story.json",
     "prd_refs": ["OT-P0-008"]
   },
   "priorities": [{ "statement": "The control always communicates whether voice input can start, is preparing, is recording, or has failed." }],
   "states": [
     { "id": "idle", "example": "idle", "description": "Ready to start voice input." },
-    { "id": "recording-low", "example": "recording-level-low", "description": "Recording with a low audio level." },
-    { "id": "recording-high", "example": "recording-level-high", "description": "Recording with a high audio level." },
-    { "id": "timeout", "example": "recording-timeout", "description": "Recording with visible timeout progress." },
-    { "id": "always-on", "example": "recording-always-on", "description": "Always-on listening mode." },
+    { "id": "recording-low", "example": "recording", "description": "Recording with a low audio level." },
+    { "id": "recording-high", "example": "recording", "description": "Recording with a high audio level." },
+    { "id": "timeout", "example": "mode-timeout", "description": "Recording with visible timeout progress." },
+    { "id": "always-on", "example": "mode-always-on", "description": "Always-on listening mode." },
     { "id": "error", "example": "error", "description": "Terminal connection error." }
   ],
-  "elements": [{ "id": "voice-control", "role": "button", "description": "The accessible microphone control." }],
+  "elements": [
+    { "id": "voice-control", "role": "button", "description": "The accessible microphone control." },
+    { "id": "dismiss", "role": "button", "description": "The error dismissal control." }
+  ],
   "claims": [{
     "id": "voice-input-action",
     "type": "element-present",
@@ -26,6 +29,14 @@
     "tier": "machine",
     "elements": ["voice-control"],
     "states": ["idle"]
+  }, {
+    "id": "error-dismiss-size-parity",
+    "type": "size-parity",
+    "statement": "The error dismissal control remains aligned to the declared recovery-control height.",
+    "tier": "machine",
+    "elements": ["voice-control", "dismiss"],
+    "states": ["error"],
+    "params": { "tolerance": 2 }
   }],
-  "bindings": { "elements": { "voice-control": { "selector": "button" } } }
+  "bindings": { "elements": { "voice-control": { "selector": "button" }, "dismiss": { "selector": "[aria-label='Dismiss voice input error']" } } }
 }

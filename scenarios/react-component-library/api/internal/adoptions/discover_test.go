@@ -120,6 +120,7 @@ func TestService_ConfirmDiscovery_InjectsHeaderAndRecords(t *testing.T) {
 	require.Equal(t, adoptions.LocalStatusClean, res.Adoption.LocalStatus)
 	require.Len(t, res.Adoption.Files, 1)
 	require.Equal(t, sha(libBody), res.Adoption.Files[0].SourceSHA256)
+	require.Equal(t, sha(libBody), res.Adoption.Files[0].AdoptedSnapshotSHA256)
 
 	// The header must now be on disk, above the original body.
 	written := string(files.bytes["experience-manager::ui/src/components/ui/input.tsx"])

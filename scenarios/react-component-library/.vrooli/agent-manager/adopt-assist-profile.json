@@ -3,7 +3,7 @@
   "name": "react-component-library-adopt-assist",
   "profileKey": "react-component-library/adopt-assist",
   "description": "Write-capable RCL adoption assistant. It may integrate a catalog asset into target scenario code before the RCL CLI records adoption.",
-  "roleRef": "code.smart",
+  "roleRef": "code.ux",
   "maxTurns": 100,
   "timeout": "3600s",
   "allowedTools": ["read", "glob", "grep", "shell", "edit", "write"],

@@ -691,6 +691,7 @@ LIMIT ?
 			return nil, err
 		}
 		out[i].Files = files
+		out[i].ExperienceContract = experienceContractFromFiles(files)
 		out[i].ParityReport, err = s.getVersionParity(ctx, out[i].ID)
 		if err != nil {
 			return nil, err
@@ -716,11 +717,21 @@ WHERE component_id = ? AND version = ?
 	if err != nil {
 		return ComponentVersion{}, err
 	}
+	v.ExperienceContract = experienceContractFromFiles(v.Files)
 	v.ParityReport, err = s.getVersionParity(ctx, v.ID)
 	if err != nil {
 		return ComponentVersion{}, err
 	}
 	return v, nil
+}
+
+func experienceContractFromFiles(files []ComponentVersionFile) string {
+	for _, file := range files {
+		if file.Path == "experience-contract.json" {
+			return file.Content
+		}
+	}
+	return ""
 }
 
 func (s *sqliteRepository) getVersionParity(ctx context.Context, versionID string) (*IngestParityReport, error) {

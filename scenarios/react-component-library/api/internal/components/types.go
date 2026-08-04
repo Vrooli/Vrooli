@@ -103,7 +103,11 @@ type ComponentVersion struct {
 	ReleasedAt    time.Time
 	Headers       map[string]string
 	Files         []ComponentVersionFile
-	ParityReport  *IngestParityReport
+	// ExperienceContract is the immutable behavior contract promoted beside
+	// the version. It is separate from source files so adopters can copy the
+	// contract into their own experience registry deliberately.
+	ExperienceContract string
+	ParityReport       *IngestParityReport
 }
 
 // ComponentVersionFile is one immutable member of a versioned component unit.

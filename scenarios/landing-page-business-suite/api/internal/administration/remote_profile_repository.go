@@ -115,6 +115,7 @@ func (s *RemoteProfileService) setSession(ctx context.Context, id int64, session
 	_, err = s.DB.ExecContext(ctx, `
 		UPDATE remote_profiles
 		SET encrypted_session = $1,
+		    encryption_state = $6,
 		    remote_session_id = $2,
 		    remote_session_last_synced_at = NOW(),
 		    session_expires_at = $3,
@@ -123,7 +124,7 @@ func (s *RemoteProfileService) setSession(ctx context.Context, id int64, session
 		    last_used_at = NOW(),
 		    updated_at = NOW()
 		WHERE id = $5
-	`, encrypted, stringToNullString(remoteSessionIDPtr), timeToNullTime(expiresAt), remoteProfileStatusActive, id)
+	`, encrypted, stringToNullString(remoteSessionIDPtr), timeToNullTime(expiresAt), remoteProfileStatusActive, id, encryptionState(s.EncryptionKey))
 	return err
 }
 
@@ -135,6 +136,7 @@ func (s *RemoteProfileService) clearSession(ctx context.Context, id int64, statu
 	_, err := s.DB.ExecContext(ctx, `
 		UPDATE remote_profiles
 		SET encrypted_session = NULL,
+		    encryption_state = 'unknown',
 		    remote_session_id = NULL,
 		    remote_session_last_synced_at = NOW(),
 		    session_expires_at = NULL,
@@ -144,6 +146,13 @@ func (s *RemoteProfileService) clearSession(ctx context.Context, id int64, statu
 		WHERE id = $2
 	`, status, id)
 	return err
+}
+
+func encryptionState(key []byte) string {
+	if key == nil {
+		return "unsealed"
+	}
+	return "sealed"
 }
 
 func (s *RemoteProfileService) updateStatus(ctx context.Context, id int64, status string) error {

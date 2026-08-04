@@ -53,6 +53,14 @@ BadExample:
   <expected-violations>1</expected-violations>
   <expected-message>#0f172a</expected-message>
 </test-case>
+
+<test-case id="no-raw-hex-native-color-input" should-fail="false">
+  <description>A native color-input value is an HTML color value, not component styling</description>
+  <input>
+    [ui/src/components/BrandColor.tsx]
+    export function BrandColor() { return <input type="color" value="#0f172a" />; }
+  </input>
+</test-case>
 */
 
 package checks
@@ -73,6 +81,12 @@ func init() {
 // 3, 4, 6, or 8 hex digits with a non-hex boundary after, so it does not match
 // substrings of longer hashes/ids.
 var rawHexPattern = regexp.MustCompile(`#([0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})\b`)
+
+// nativeColorInputPattern identifies a complete JSX native color input. HTML
+// requires its value to be a simple color (currently serialized as hex), so
+// that value is data for the browser control rather than an inline style that
+// bypasses the token layer. Dynamic input types remain checked.
+var nativeColorInputPattern = regexp.MustCompile(`(?is)<input\b[^>]*\btype\s*=\s*(?:"color"|'color'|\{\s*["']color["']\s*\})[^>]*>`)
 
 // tokenDefinitionFiles are the design-token source files where raw hex
 // primitives legitimately live and are therefore exempt from the scan.
@@ -105,7 +119,7 @@ func checkNoRawHex(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 		if _, exempt := tokenDefinitionFiles[strings.ToLower(filepath.Base(f.RelPath))]; exempt {
 			continue
 		}
-		matches := uniqueStrings(rawHexPattern.FindAllString(f.Content, -1))
+		matches := rawHexMatchesOutsideNativeColorInputs(f.Content)
 		if len(matches) == 0 {
 			continue
 		}
@@ -133,6 +147,28 @@ func checkNoRawHex(ctx uiinterop.CheckContext) uiinterop.RuleResult {
 		Passed:  true,
 		Message: "no raw hex colors outside the token layer",
 	}
+}
+
+func rawHexMatchesOutsideNativeColorInputs(content string) []string {
+	colorInputs := nativeColorInputPattern.FindAllStringIndex(content, -1)
+	if len(colorInputs) == 0 {
+		return uniqueStrings(rawHexPattern.FindAllString(content, -1))
+	}
+
+	var matches []string
+	for _, hex := range rawHexPattern.FindAllStringIndex(content, -1) {
+		insideNativeColorInput := false
+		for _, input := range colorInputs {
+			if hex[0] >= input[0] && hex[1] <= input[1] {
+				insideNativeColorInput = true
+				break
+			}
+		}
+		if !insideNativeColorInput {
+			matches = append(matches, content[hex[0]:hex[1]])
+		}
+	}
+	return uniqueStrings(matches)
 }
 
 // uniqueStrings de-duplicates a slice while preserving first-seen order.

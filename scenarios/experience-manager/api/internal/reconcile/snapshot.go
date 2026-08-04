@@ -30,7 +30,11 @@ type AXNode struct {
 	States      []string `json:"states"`
 	Bounds      *Bounds  `json:"bounds"`
 	DOM         DOMNode  `json:"dom"`
-	Children    []AXNode `json:"children"`
+	// Appearance is optional because the original BAS accessibility contract
+	// intentionally carried structure, not CSS. Newer capture producers may
+	// attach computed colors for deterministic interaction-state claims.
+	Appearance *Appearance `json:"appearance,omitempty"`
+	Children   []AXNode    `json:"children"`
 }
 
 type Bounds struct {
@@ -43,6 +47,20 @@ type Bounds struct {
 type DOMNode struct {
 	TestID string `json:"testid"`
 	Tag    string `json:"tag"`
+}
+
+// Appearance is the minimal computed-style evidence needed by state-contrast
+// claims. The evaluator treats missing fields as unverifiable rather than
+// inventing colors from class names.
+type Appearance struct {
+	Foreground string                     `json:"foreground,omitempty"`
+	Background string                     `json:"background,omitempty"`
+	States     map[string]AppearanceState `json:"states,omitempty"`
+}
+
+type AppearanceState struct {
+	Foreground string `json:"foreground,omitempty"`
+	Background string `json:"background,omitempty"`
 }
 
 // Flatten returns the accessibility tree in reading order.

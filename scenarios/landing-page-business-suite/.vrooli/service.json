@@ -365,6 +365,22 @@
         "label": "Seeded admin password",
         "description": "Password for the seeded admin account. Required in production; development generates an ephemeral one.",
         "required": false
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "jwt-secret",
+        "env": "JWT_SECRET",
+        "label": "JWT signing secret",
+        "description": "Signs authentication tokens issued by the application.",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "sendgrid-api-key",
+        "env": "SENDGRID_API_KEY",
+        "label": "SendGrid API key",
+        "description": "Authenticates outbound transactional email delivery.",
+        "required": false
       }
     ]
   }

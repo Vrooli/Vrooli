@@ -130,7 +130,7 @@ func (s *service) healPoisonedSnapshots(ctx context.Context, rows []Adoption) (i
 			continue
 		}
 		_, localStatus, _ := s.computeStatus(ctx, row)
-		if localStatus != LocalStatusClean {
+		if localStatus != LocalStatusClean && !s.hasLegacyRawSnapshot(ctx, row) {
 			continue
 		}
 		corrected, entrySnapshot, changed := s.honestSnapshots(ctx, row)
@@ -148,6 +148,23 @@ func (s *service) healPoisonedSnapshots(ctx context.Context, rows []Adoption) (i
 		healed++
 	}
 	return healed, nil
+}
+
+// hasLegacyRawSnapshot identifies rows written before adoption snapshots were
+// normalized to exclude generated provenance. Such rows appear MODIFIED under
+// the current comparison even when their stored snapshot is simply the exact
+// header-bearing bytes on disk; they need one safe rebaseline pass.
+func (s *service) hasLegacyRawSnapshot(ctx context.Context, row Adoption) bool {
+	for _, file := range row.Files {
+		body, err := s.files.Read(ctx, row.Scenario, file.AdoptedPath)
+		if err != nil || file.AdoptedSnapshotSHA256 == "" {
+			continue
+		}
+		if hashBytes(body) == file.AdoptedSnapshotSHA256 && adoptedSnapshotHash(string(body)) != file.AdoptedSnapshotSHA256 {
+			return true
+		}
+	}
+	return false
 }
 
 // honestSnapshots recomputes each file's pristine snapshot from the adopted
@@ -175,7 +192,7 @@ func (s *service) honestSnapshots(ctx context.Context, row Adoption) ([]Adoption
 		if ok && readErr == nil {
 			expected := expectedAppliedBody(libFile, f.AdoptedPath, targets)
 			if strings.TrimSpace(libFile.Content) != "" && stripSourceHeader(string(onDisk)) == expected {
-				snapshot = hashBytes(onDisk)
+				snapshot = adoptedSnapshotHash(string(onDisk))
 			} else {
 				snapshot = hashBytes([]byte(expected))
 			}
@@ -253,7 +270,7 @@ func reconciledSnapshot(scanned ProvenanceFile, libraryFile components.Component
 	expected := expectedAppliedBody(libraryFile, scanned.AdoptedPath, targets)
 	local := stripSourceHeader(string(scanned.Content))
 	if strings.TrimSpace(libraryFile.Content) != "" && local == expected {
-		return hashBytes(scanned.Content), true
+		return adoptedSnapshotHash(string(scanned.Content)), true
 	}
 	return hashBytes([]byte(expected)), false
 }

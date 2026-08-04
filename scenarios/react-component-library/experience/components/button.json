@@ -6,7 +6,7 @@
     "id": "button",
     "title": "Button",
     "purpose": "Provide a token-bound action control whose accessible name, disabled state, and variant intent survive reuse across scenario UIs.",
-    "storyRef": "../../library/components/Button/versions/1.2.0/story.json",
+    "storyRef": "../../library/components/Button/versions/2.0.0/story.json",
     "prd_refs": ["OT-P0-001", "OT-P0-003"]
   },
   "priorities": [
@@ -28,7 +28,7 @@
     },
     {
       "id": "destructive",
-      "example": "destructive",
+      "example": "danger",
       "description": "Danger variant example for irreversible actions."
     },
     {
@@ -38,7 +38,7 @@
     },
     {
       "id": "icon-start",
-      "example": "icon-start",
+      "example": "start-icon",
       "description": "Icon-leading action that still exposes text."
     }
   ],
@@ -47,6 +47,16 @@
       "id": "action",
       "role": "button",
       "description": "The rendered native button element."
+    },
+    {
+      "id": "icon",
+      "role": "x-icon",
+      "description": "The optional leading icon."
+    },
+    {
+      "id": "label",
+      "role": "x-label",
+      "description": "The visible action label."
     }
   ],
   "claims": [
@@ -83,6 +93,15 @@
       "states": ["icon-start"]
     },
     {
+      "id": "start-icon-spacing",
+      "type": "spacing",
+      "statement": "A leading icon and its action label maintain a visible inline separation.",
+      "tier": "machine",
+      "elements": ["icon", "label"],
+      "states": ["icon-start"],
+      "params": { "axis": "inline", "minSeparation": 4 }
+    },
+    {
       "id": "disabled-state-reflected",
       "type": "custom",
       "statement": "The disabled example prevents activation while retaining its visible action label.",
@@ -95,6 +114,12 @@
     "elements": {
       "action": {
         "selector": "button"
+      },
+      "icon": {
+        "selector": "[data-control-slot=icon]"
+      },
+      "label": {
+        "selector": "[data-control-slot=label]"
       }
     }
   }

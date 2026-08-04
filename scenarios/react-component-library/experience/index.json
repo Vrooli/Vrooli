@@ -37,6 +37,12 @@
       "status": "active"
     },
     {
+      "id": "control-base",
+      "path": "components/control-base.json",
+      "title": "ControlBase",
+      "status": "active"
+    },
+    {
       "id": "drawer-shell",
       "path": "components/drawer-shell.json",
       "title": "DrawerShell",
@@ -46,6 +52,12 @@
       "id": "input",
       "path": "components/input.json",
       "title": "Input",
+      "status": "active"
+    },
+    {
+      "id": "icon-button",
+      "path": "components/icon-button.json",
+      "title": "IconButton",
       "status": "active"
     },
     {

@@ -71,6 +71,9 @@ func NewAPIKeyServiceWithRuntime(db APIKeyStore, httpClient APIKeyHTTPDoer, dial
 	if isProduction == nil {
 		return nil, fmt.Errorf("API key production policy is required")
 	}
+	if err := ensureAPIKeyEncryptionState(db, dialect); err != nil {
+		return nil, fmt.Errorf("ensure api key encryption state: %w", err)
+	}
 	keyStr := resolveSecret("LPBS_API_KEY_ENCRYPTION_KEY")
 	if keyStr == "" {
 		if isProduction() {
@@ -100,7 +103,20 @@ func NewAPIKeyServiceForTest(db APIKeyStore, httpClient APIKeyHTTPDoer, dialect 
 	if dialect == "" {
 		dialect = "postgres"
 	}
+	_ = ensureAPIKeyEncryptionState(db, dialect)
 	return &APIKeyService{db: db, encryptionKey: encryptionKey, httpClient: httpClient, dialect: dialect, logEvent: logEvent, logError: logError}
+}
+
+func ensureAPIKeyEncryptionState(db APIKeyStore, dialect string) error {
+	if dialect == "sqlite" {
+		_, err := db.ExecContext(context.Background(), `ALTER TABLE api_keys ADD COLUMN encryption_state TEXT NOT NULL DEFAULT 'unknown'`)
+		if err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
+			return err
+		}
+		return nil
+	}
+	_, err := db.ExecContext(context.Background(), `ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS encryption_state TEXT NOT NULL DEFAULT 'unknown'`)
+	return err
 }
 
 func (s *APIKeyService) isSQLite() bool { return s.dialect == "sqlite" }
@@ -194,6 +210,13 @@ func (s *APIKeyService) Store(ctx context.Context, provider, key string) (*APIKe
 	if err != nil {
 		return nil, fmt.Errorf("store api key: %w", err)
 	}
+	state := "sealed"
+	if s.encryptionKey == nil {
+		state = "unsealed"
+	}
+	if _, err := s.db.ExecContext(ctx, s.encryptionStateUpdateQuery(), state, provider); err != nil {
+		return nil, fmt.Errorf("record api key encryption state: %w", err)
+	}
 
 	if lastVerified.Valid {
 		apiKey.LastVerifiedAt = &lastVerified.Time
@@ -205,6 +228,13 @@ func (s *APIKeyService) Store(ctx context.Context, provider, key string) (*APIKe
 	})
 
 	return &apiKey, nil
+}
+
+func (s *APIKeyService) encryptionStateUpdateQuery() string {
+	if s.isSQLite() {
+		return `UPDATE api_keys SET encryption_state = ? WHERE provider = ?`
+	}
+	return `UPDATE api_keys SET encryption_state = $1 WHERE provider = $2`
 }
 
 // Get retrieves the decrypted API key for a provider.

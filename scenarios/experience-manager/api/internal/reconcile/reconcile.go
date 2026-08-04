@@ -10,10 +10,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -236,6 +238,7 @@ func (c Check) Run(ctx context.Context, report spec.Report) []spec.Finding {
 		if status != "active" {
 			continue
 		}
+		findings = append(findings, advisoryComponentFindings(componentSourceFindings(report, loc, component))...)
 		page := componentAsPage(componentWithBaselineClaims(component))
 		if !hasMachineClaim(page) {
 			continue
@@ -320,7 +323,7 @@ func captureTargetsForProfile(scenario string, page spec.PageDocument, profile C
 func captureTargetsForComponentProfile(scenario string, component spec.ComponentDocument, profile CaptureProfile) []CaptureTarget {
 	var targets []CaptureTarget
 	page := componentAsPage(componentWithBaselineClaims(component))
-	version := componentVersion(component.Component.ExamplesRef)
+	version := componentVersion(componentCatalogRef(component))
 	for _, state := range component.States {
 		if strings.TrimSpace(state.ID) == "" || strings.TrimSpace(state.Example) == "" || !hasMachineClaimForState(page, state.ID) {
 			continue
@@ -692,10 +695,218 @@ func claimEvaluator(claimType string) claimEvaluatorFunc {
 		"keyboard-reachable":              evaluateElementPresenceClaim,
 		"accessible-name":                 evaluateAccessibleNameClaim,
 		"affordance-present":              evaluateAffordancePresentClaim,
+		"spacing":                         evaluateSpacingClaim,
+		"state-contrast":                  evaluateStateContrastClaim,
+		"size-parity":                     evaluateSizeParityClaim,
 		"visible-without-scroll":          evaluateVisibleWithoutScrollClaim,
 		"reading-order":                   evaluateReadingOrderClaim,
 	}
 	return evaluators[claimType]
+}
+
+func evaluateSpacingClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
+	if len(claim.Elements) != 2 {
+		return claimEvaluation{Unverifiable: "spacing requires exactly two declared elements"}
+	}
+	minimum, ok := numericParam(claim.Params, "minSeparation", "minGap")
+	if !ok || minimum < 0 {
+		return claimEvaluation{Unverifiable: "spacing requires params.minSeparation"}
+	}
+	first := findBoundNode(nodes, page.Bindings.Elements[claim.Elements[0]], elementRole(page, claim.Elements[0]))
+	second := findBoundNode(nodes, page.Bindings.Elements[claim.Elements[1]], elementRole(page, claim.Elements[1]))
+	if first == nil || second == nil || first.Bounds == nil || second.Bounds == nil {
+		return claimEvaluation{Unverifiable: "spacing requires bounds for both declared elements"}
+	}
+	axis := strings.ToLower(strings.TrimSpace(claimParamString(claim.Params, "axis")))
+	if axis == "" {
+		axis = "inline"
+	}
+	horizontal := intervalGap(first.Bounds.X, first.Bounds.X+first.Bounds.Width, second.Bounds.X, second.Bounds.X+second.Bounds.Width)
+	vertical := intervalGap(first.Bounds.Y, first.Bounds.Y+first.Bounds.Height, second.Bounds.Y, second.Bounds.Y+second.Bounds.Height)
+	gap := horizontal
+	if axis == "block" || (axis == "any" && vertical > horizontal) {
+		gap = vertical
+	}
+	if axis != "inline" && axis != "block" && axis != "any" {
+		return claimEvaluation{Unverifiable: fmt.Sprintf("spacing axis %q is unsupported", axis)}
+	}
+	if gap+0.01 < minimum {
+		return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(second), Failure: fmt.Sprintf("declared elements %q and %q are separated by %.1fpx, below %.1fpx", claim.Elements[0], claim.Elements[1], gap, minimum)}
+	}
+	return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(second)}
+}
+
+func evaluateStateContrastClaim(page spec.PageDocument, claim spec.Claim, target CaptureTarget, nodes []*AXNode) claimEvaluation {
+	if len(claim.Elements) == 0 {
+		return claimEvaluation{Unverifiable: "state-contrast requires a declared control element"}
+	}
+	state := claimParamString(claim.Params, "state")
+	if state == "" {
+		state = target.StateID
+	}
+	minimum, ok := numericParam(claim.Params, "minContrastRatio", "minContrast")
+	if !ok || minimum < 1 {
+		return claimEvaluation{Unverifiable: "state-contrast requires params.minContrastRatio"}
+	}
+	control := findBoundNode(nodes, page.Bindings.Elements[claim.Elements[0]], elementRole(page, claim.Elements[0]))
+	if control == nil || control.Appearance == nil {
+		return claimEvaluation{Unverifiable: "state-contrast requires computed appearance evidence for the control"}
+	}
+	foreground, background := control.Appearance.Foreground, control.Appearance.Background
+	if appearance, exists := control.Appearance.States[strings.ToLower(state)]; exists {
+		foreground, background = appearance.Foreground, appearance.Background
+	}
+	backgroundRef := claimParamString(claim.Params, "background", "backgroundElement")
+	if backgroundNode := findBoundNode(nodes, page.Bindings.Elements[backgroundRef], elementRole(page, backgroundRef)); backgroundNode != nil && backgroundNode.Appearance != nil {
+		background = backgroundNode.Appearance.Background
+	}
+	if strings.TrimSpace(foreground) == "" || strings.TrimSpace(background) == "" {
+		return claimEvaluation{Unverifiable: fmt.Sprintf("computed appearance evidence for state %q is incomplete", state)}
+	}
+	ratio, err := contrastRatio(foreground, background)
+	if err != nil {
+		return claimEvaluation{Unverifiable: fmt.Sprintf("computed appearance colors are invalid: %v", err)}
+	}
+	if ratio+0.001 < minimum {
+		return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(control), Failure: fmt.Sprintf("state %q contrast is %.2f:1, below %.2f:1", state, ratio, minimum)}
+	}
+	return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(control)}
+}
+
+func evaluateSizeParityClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
+	if len(claim.Elements) != 2 {
+		return claimEvaluation{Unverifiable: "size-parity requires exactly two declared elements"}
+	}
+	first := findBoundNode(nodes, page.Bindings.Elements[claim.Elements[0]], elementRole(page, claim.Elements[0]))
+	second := findBoundNode(nodes, page.Bindings.Elements[claim.Elements[1]], elementRole(page, claim.Elements[1]))
+	if first == nil || second == nil || first.Bounds == nil || second.Bounds == nil {
+		return claimEvaluation{Unverifiable: "size-parity requires bounds for both declared elements"}
+	}
+	tolerance := 1.0
+	if value, exists := numericParam(claim.Params, "tolerance"); exists {
+		tolerance = value
+	}
+	delta := math.Abs(first.Bounds.Height - second.Bounds.Height)
+	if delta > tolerance+0.01 {
+		return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(second), Failure: fmt.Sprintf("declared elements %q and %q differ by %.1fpx in height, above %.1fpx tolerance", claim.Elements[0], claim.Elements[1], delta, tolerance)}
+	}
+	return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(second)}
+}
+
+func intervalGap(firstStart, firstEnd, secondStart, secondEnd float64) float64 {
+	if firstEnd < secondStart {
+		return secondStart - firstEnd
+	}
+	if secondEnd < firstStart {
+		return firstStart - secondEnd
+	}
+	return 0
+}
+
+func numericParam(params map[string]any, keys ...string) (float64, bool) {
+	for _, key := range keys {
+		switch value := params[key].(type) {
+		case float64:
+			return value, true
+		case float32:
+			return float64(value), true
+		case int:
+			return float64(value), true
+		case int64:
+			return float64(value), true
+		case json.Number:
+			parsed, err := value.Float64()
+			if err == nil {
+				return parsed, true
+			}
+		}
+	}
+	return 0, false
+}
+
+func claimParamString(params map[string]any, keys ...string) string {
+	for _, key := range keys {
+		if value, ok := params[key].(string); ok {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+var colorComponentRE = regexp.MustCompile(`[-+]?(?:\d*\.\d+|\d+\.?\d*)%?`)
+
+func contrastRatio(foreground, background string) (float64, error) {
+	fg, err := parseColor(foreground)
+	if err != nil {
+		return 0, err
+	}
+	bg, err := parseColor(background)
+	if err != nil {
+		return 0, err
+	}
+	fgL := relativeLuminance(fg)
+	bgL := relativeLuminance(bg)
+	if fgL < bgL {
+		fgL, bgL = bgL, fgL
+	}
+	return (fgL + 0.05) / (bgL + 0.05), nil
+}
+
+type rgbColor struct{ r, g, b float64 }
+
+func parseColor(raw string) (rgbColor, error) {
+	value := strings.ToLower(strings.TrimSpace(raw))
+	if strings.HasPrefix(value, "#") {
+		hex := strings.TrimPrefix(value, "#")
+		if len(hex) == 3 {
+			hex = fmt.Sprintf("%c%c%c%c%c%c", hex[0], hex[0], hex[1], hex[1], hex[2], hex[2])
+		}
+		if len(hex) != 6 {
+			return rgbColor{}, fmt.Errorf("unsupported hex color %q", raw)
+		}
+		var channels [3]uint64
+		for i := range channels {
+			parsed, err := strconv.ParseUint(hex[i*2:i*2+2], 16, 8)
+			if err != nil {
+				return rgbColor{}, fmt.Errorf("unsupported color %q", raw)
+			}
+			channels[i] = parsed
+		}
+		return rgbColor{float64(channels[0]) / 255, float64(channels[1]) / 255, float64(channels[2]) / 255}, nil
+	}
+	if strings.HasPrefix(value, "rgb(") || strings.HasPrefix(value, "rgba(") {
+		start, end := strings.IndexByte(value, '('), strings.LastIndexByte(value, ')')
+		if start < 0 || end <= start {
+			return rgbColor{}, fmt.Errorf("unsupported color %q", raw)
+		}
+		matches := colorComponentRE.FindAllString(value[start+1:end], -1)
+		if len(matches) < 3 {
+			return rgbColor{}, fmt.Errorf("unsupported color %q", raw)
+		}
+		var channels [3]float64
+		for i := range channels {
+			parsed, err := strconv.ParseFloat(strings.TrimSuffix(matches[i], "%"), 64)
+			if err != nil {
+				return rgbColor{}, fmt.Errorf("unsupported color %q", raw)
+			}
+			if strings.HasSuffix(matches[i], "%") {
+				parsed *= 2.55
+			}
+			channels[i] = parsed / 255
+		}
+		return rgbColor{channels[0], channels[1], channels[2]}, nil
+	}
+	return rgbColor{}, fmt.Errorf("unsupported color %q", raw)
+}
+
+func relativeLuminance(color rgbColor) float64 {
+	linear := func(channel float64) float64 {
+		if channel <= 0.03928 {
+			return channel / 12.92
+		}
+		return math.Pow((channel+0.055)/1.055, 2.4)
+	}
+	return 0.2126*linear(color.r) + 0.7152*linear(color.g) + 0.0722*linear(color.b)
 }
 
 func evaluateNoDocumentHorizontalOverflowClaim(_ spec.PageDocument, _ spec.Claim, target CaptureTarget, nodes []*AXNode) claimEvaluation {
@@ -1784,7 +1995,7 @@ func componentHarnessRoute(scenario string, component spec.ComponentDocument, ve
 }
 
 func componentCatalogID(scenario string, component spec.ComponentDocument) string {
-	refParts := strings.Split(filepath.ToSlash(component.Component.ExamplesRef), "/")
+	refParts := strings.Split(filepath.ToSlash(componentCatalogRef(component)), "/")
 	for i := 0; i+1 < len(refParts); i++ {
 		if refParts[i] == "components" && refParts[i+1] != "" {
 			return scenario + ":" + refParts[i+1]
@@ -1804,6 +2015,13 @@ func componentVersion(examplesRef string) string {
 		}
 	}
 	return ""
+}
+
+func componentCatalogRef(component spec.ComponentDocument) string {
+	if strings.TrimSpace(component.Component.StoryRef) != "" {
+		return component.Component.StoryRef
+	}
+	return component.Component.ExamplesRef
 }
 
 func elementRole(page spec.PageDocument, elementID string) string {

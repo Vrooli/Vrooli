@@ -434,7 +434,29 @@ func TestService_Apply_UsesSameIDInRecordAndProvenance(t *testing.T) {
 	require.Contains(t, adopted, "@vrooliComponentAdoption")
 	require.Contains(t, adopted, "@vrooliComponentAdoption "+result.Adoption.ID)
 	require.NotContains(t, adopted, "@vrooliComponent libraryId")
-	require.Equal(t, sha(adopted), result.Adoption.AdoptedSnapshotSHA256)
+	require.Equal(t, sha("export function Button() { return <button />; }\n"), result.Adoption.AdoptedSnapshotSHA256)
+}
+
+func TestService_ApplyCopiesVersionExperienceContractIntoScenario(t *testing.T) {
+	repo := adoptmocks.NewFakeRepository()
+	lib := &fakeLibrary{
+		byID: map[string]components.Component{
+			"cmp": {ID: "cmp", Slug: "Button", LibraryID: "rcl:Button", LatestVersion: "2.0.0"},
+		},
+		versions: map[string]components.ComponentVersion{
+			"cmp@2.0.0": {
+				ComponentID: "cmp", LibraryID: "rcl:Button", Version: "2.0.0",
+				Content: "export function Button() { return <button />; }", ContentSHA256: sha("entry"),
+				ExperienceContract: `{"contract":{"kind":"rcl-component-experience-contract"},"component":{"id":"button"},"claims":[]}`,
+				Files:              []components.ComponentVersionFile{{Path: "Button.tsx", Content: "export function Button() { return <button />; }", ContentSHA256: sha("entry"), IsEntry: true}},
+			},
+		},
+	}
+	files := &fakeFiles{bytes: map[string][]byte{}}
+	result, err := adoptions.NewService(repo, lib, files, mocks.NewFakeClock(time.Now())).Apply(context.Background(), adoptions.ApplyInput{ComponentID: "cmp", Scenario: "target", AdoptedPath: "ui/src/components/Button.tsx"})
+	require.NoError(t, err)
+	require.Equal(t, "experience/components/Button.json", result.ExperiencePath)
+	require.JSONEq(t, `{"contract":{"kind":"rcl-component-experience-contract"},"component":{"id":"button"},"claims":[]}`, string(files.bytes["target::experience/components/Button.json"]))
 }
 
 func TestService_ApplyVendorsEveryFileInAUnit(t *testing.T) {
@@ -646,9 +668,8 @@ func TestService_Reapply_PersistsNewVersionAndSnapshot(t *testing.T) {
 	a, _, err := svc.Reapply(context.Background(), adoptions.ReapplyInput{ID: "adopt-1"})
 	require.NoError(t, err)
 
-	adopted := string(files.bytes["target::Button.tsx"])
 	require.Equal(t, "1.1.0", a.AdoptedVersion)
-	require.Equal(t, sha(adopted), a.AdoptedSnapshotSHA256)
+	require.Equal(t, sha("NEW\n"), a.AdoptedSnapshotSHA256)
 	require.Equal(t, adoptions.LibraryVersionStatusCurrent, a.LibraryVersionStatus)
 	require.Equal(t, adoptions.LocalStatusClean, a.LocalStatus)
 	require.Empty(t, a.StatusDetail)
@@ -657,7 +678,7 @@ func TestService_Reapply_PersistsNewVersionAndSnapshot(t *testing.T) {
 	got, err := repo.Get(context.Background(), "adopt-1")
 	require.NoError(t, err)
 	require.Equal(t, "1.1.0", got.AdoptedVersion)
-	require.Equal(t, sha(adopted), got.AdoptedSnapshotSHA256)
+	require.Equal(t, sha("NEW\n"), got.AdoptedSnapshotSHA256)
 }
 
 func TestService_ReconcileDryRunAndApplyGroupsProvenanceWithoutReporter(t *testing.T) {

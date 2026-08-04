@@ -32,6 +32,8 @@ type (
 	Claim struct {
 		ID, Type, Statement, Tier string
 		States                    []string
+		Elements                  []string
+		Params                    map[string]any
 	}
 )
 type Evidence struct {
@@ -88,11 +90,13 @@ func (r *reader) Get(ctx context.Context, component Component) (Snapshot, error)
 			Description string `json:"description"`
 		} `json:"states"`
 		Claims []struct {
-			ID        string   `json:"id"`
-			Type      string   `json:"type"`
-			Statement string   `json:"statement"`
-			Tier      string   `json:"tier"`
-			States    []string `json:"states"`
+			ID        string         `json:"id"`
+			Type      string         `json:"type"`
+			Statement string         `json:"statement"`
+			Tier      string         `json:"tier"`
+			States    []string       `json:"states"`
+			Elements  []string       `json:"elements"`
+			Params    map[string]any `json:"params"`
 		} `json:"claims"`
 	}
 	if err := json.Unmarshal(data, &doc); err != nil {
@@ -103,7 +107,7 @@ func (r *reader) Get(ctx context.Context, component Component) (Snapshot, error)
 		out.States = append(out.States, State{ID: state.ID, ExampleName: state.Example, Description: state.Description})
 	}
 	for _, claim := range doc.Claims {
-		out.Claims = append(out.Claims, Claim{ID: claim.ID, Type: claim.Type, Statement: claim.Statement, Tier: claim.Tier, States: append([]string(nil), claim.States...)})
+		out.Claims = append(out.Claims, Claim{ID: claim.ID, Type: claim.Type, Statement: claim.Statement, Tier: claim.Tier, States: append([]string(nil), claim.States...), Elements: append([]string(nil), claim.Elements...), Params: claim.Params})
 	}
 	evidence, err := r.evidence(ctx, out.ContractID)
 	if err != nil {

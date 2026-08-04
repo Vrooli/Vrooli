@@ -148,6 +148,7 @@ type ApplyInput struct {
 type ApplyResult struct {
 	Adoption         Adoption
 	WrittenPath      string
+	ExperiencePath   string
 	ImportSites      []string
 	StyleFitAffinity components.DesignAffinity
 	StyleFitDetail   string

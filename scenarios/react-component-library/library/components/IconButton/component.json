@@ -7,7 +7,9 @@
     "icon",
     "accessibility"
   ],
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
   "entry": "IconButton.tsx",
-  "latest": "1.0.0",
+  "latest": "2.0.0",
+  "dependencies": [{ "libraryId": "react-component-library:ControlBase", "version": "1.0.0" }],
   "deprecatedVersions": []
 }

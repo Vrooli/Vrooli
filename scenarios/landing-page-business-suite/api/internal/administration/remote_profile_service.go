@@ -216,6 +216,11 @@ func NewRemoteProfileServiceWithRuntime(db RemoteProfileStore, client HTTPDoer, 
 	if logError == nil {
 		logError = logRemoteProfileError
 	}
+	if db != nil {
+		if _, err := db.ExecContext(context.Background(), `ALTER TABLE remote_profiles ADD COLUMN IF NOT EXISTS encryption_state VARCHAR(16) NOT NULL DEFAULT 'unknown'`); err != nil {
+			return nil, fmt.Errorf("ensure remote profile encryption state: %w", err)
+		}
+	}
 	key, err := loadRemoteProfileEncryptionKey(resolveSecret, isProduction, logEvent)
 	if err != nil {
 		return nil, err

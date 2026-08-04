@@ -229,8 +229,8 @@ func NewServer() (*Server, error) {
 		EmailService: emailService,
 		JWTSecret:    resolveSecret("JWT_SECRET"),
 		JWTIssuer:    resolveSecret("JWT_ISSUER"),
-		BaseURL:      resolveSecret("AUTH_MAGIC_LINK_BASE_URL"),
-		AppName:      resolveSecret("EMAIL_FROM_NAME"),
+		BaseURL:      resolveConfig("AUTH_MAGIC_LINK_BASE_URL"),
+		AppName:      resolveConfig("EMAIL_FROM_NAME"),
 		Log:          logStructured,
 		LogError:     logStructuredError,
 	})

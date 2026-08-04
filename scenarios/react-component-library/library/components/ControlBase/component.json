@@ -1,0 +1,12 @@
+{
+  "libraryId": "react-component-library:ControlBase",
+  "displayName": "Control Base",
+  "description": "Shared semantic control primitive for consistent sizing, density, focus, hover, and disabled behavior.",
+  "tags": ["control", "primitive", "accessibility"],
+  "slot": "ui-primitive",
+  "category": "actions",
+  "designStyles": [{ "styleId": "vrooli-default", "affinity": "native" }],
+  "latest": "1.0.0",
+  "draft": "",
+  "deprecatedVersions": []
+}

@@ -26,6 +26,17 @@ export interface VoiceInputButtonProps extends Omit<ButtonHTMLAttributes<HTMLBut
   readonly onPrepare?: () => void;
   readonly onDismissError?: () => void;
   readonly onTranscribeAnyway?: () => void;
+  readonly onCancel?: () => void;
+  readonly onExitPassive?: () => void;
+  readonly onReleaseMic?: () => void;
+  readonly onTtsStop?: () => void;
+  readonly onExportDiagnostic?: () => string | null;
+  readonly staleLiveMic?: boolean;
+  readonly isTtsSpeaking?: boolean;
+  readonly canExportDiagnostic?: boolean;
+  readonly backend?: string;
+  readonly wrapperClassName?: string;
+  readonly iconClassName?: string;
 }
 
 const LONG_PRESS_MS = 300;
@@ -49,10 +60,10 @@ function Glyph({ kind, className = "" }: { kind: GlyphKind; className?: string }
   );
 }
 
-export function VoiceInputButton({ state = "idle", mode = "always-on", size = "sm", level = 0, timeoutProgress = 0, error, rejectionReason, partialTranscript, onStart, onStop, onPrepare, onDismissError, onTranscribeAnyway, className, disabled, onPointerCancel, ...props }: VoiceInputButtonProps) {
+export function VoiceInputButton({ state = "idle", mode = "always-on", size = "sm", level = 0, timeoutProgress = 0, error, rejectionReason, partialTranscript, onStart, onStop, onPrepare, onDismissError, onTranscribeAnyway, onCancel, onExitPassive, onReleaseMic, onTtsStop, onExportDiagnostic, staleLiveMic, isTtsSpeaking, canExportDiagnostic, backend, className, wrapperClassName, iconClassName, disabled, onPointerCancel, ...props }: VoiceInputButtonProps) {
   const [dismissedError, setDismissedError] = useState<string | undefined>();
   const pressStartedAt = useRef(0);
-  const pressIntent = useRef<"start" | "stop" | "none">("none");
+  const pressIntent = useRef<"start" | "stop" | "exit-passive" | "none">("none");
   const skipClick = useRef(false);
   const active = state === "recording" || state === "recovering";
   const canInteract = !disabled && state !== "preparing" && state !== "transcribing" && state !== "unavailable";
@@ -65,21 +76,24 @@ export function VoiceInputButton({ state = "idle", mode = "always-on", size = "s
     if (!canInteract) return;
     skipClick.current = true;
     pressStartedAt.current = Date.now();
-    if (active) { pressIntent.current = "stop"; return; }
+    if (active) { pressIntent.current = state === "recovering" && onExitPassive ? "exit-passive" : "stop"; return; }
     pressIntent.current = "start";
     onStart?.();
-  }, [active, canInteract, onStart]);
+  }, [active, canInteract, onExitPassive, onStart, state]);
   const finishPointer = useCallback(() => {
     const intent = pressIntent.current;
     pressIntent.current = "none";
     if (intent === "stop") onStop?.();
+    if (intent === "exit-passive") onExitPassive?.();
     if (intent === "start" && Date.now() - pressStartedAt.current >= LONG_PRESS_MS) onStop?.();
-  }, [onStop]);
+  }, [onExitPassive, onStop]);
   const handleClick = useCallback(() => {
     if (skipClick.current) { skipClick.current = false; return; }
     if (!canInteract) return;
-    if (active) onStop?.(); else onStart?.();
-  }, [active, canInteract, onStart, onStop]);
+    if (active) {
+      if (state === "recovering" && onExitPassive) onExitPassive(); else onStop?.();
+    } else onStart?.();
+  }, [active, canInteract, onExitPassive, onStart, onStop, state]);
   const stateClasses: Record<VoiceInputButtonState, string> = {
     preparing: "border-app-warning/50 bg-app-warning/10 text-app-warning",
     recording: mode === "always-on" ? "border-app-info bg-app-info/20 text-app-info" : "border-app-danger bg-app-danger/20 text-app-danger",
@@ -92,7 +106,7 @@ export function VoiceInputButton({ state = "idle", mode = "always-on", size = "s
   const glyph = state === "transcribing" ? "loader" : state === "error" || state === "unavailable" ? "alert" : "mic";
   const glyphClass = cn("relative z-10", size === "xs" ? "h-3 w-3" : size === "icon" ? "h-5 w-5" : "h-4 w-4", state === "preparing" || state === "recovering" ? "animate-pulse" : state === "transcribing" ? "animate-spin" : "");
 
-  return <div className="relative shrink-0">
+  return <div className={cn("relative shrink-0", wrapperClassName)} data-voice-backend={backend}>
     <Button
       {...props}
       type="button"
@@ -105,18 +119,26 @@ export function VoiceInputButton({ state = "idle", mode = "always-on", size = "s
       onPointerDown={handlePointerDown}
       onPointerUp={finishPointer}
       onClick={handleClick}
-      onPointerCancel={(event) => { finishPointer(); onPointerCancel?.(event); }}
+      onPointerCancel={(event) => { finishPointer(); onCancel?.(); onPointerCancel?.(event); }}
       size={size}
       variant="secondary"
       className={cn("relative overflow-hidden touch-manipulation", stateClasses[state], className)}
-      icon={<Glyph kind={glyph} className={glyphClass} />}
+      icon={<Glyph kind={glyph} className={cn(glyphClass, iconClassName)} />}
     >
-      {active && <span aria-hidden="true" className={cn("pointer-events-none absolute inset-x-0 bottom-0 z-0 rounded-[inherit] transition-[height] duration-75", state === "recovering" || mode === "always-on" ? "bg-app-info/30" : "bg-app-danger/30")} style={{ height: `${Math.round(normalizedLevel * 100)}%` }} />}
+      {active && <span aria-hidden="true" className={cn("pointer-events-none absolute inset-x-0 bottom-0 z-0 rounded-[inherit] transition-[height] duration-75", state === "recovering" || mode === "always-on" ? "bg-app-primary/60" : "bg-app-warning/70")} style={{ height: `${Math.round(normalizedLevel * 100)}%` }} />}
       {state === "recording" && mode === "timeout" && <svg aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 z-10 aspect-square h-[calc(100%-4px)] min-h-6 max-h-8 -translate-x-1/2 -translate-y-1/2 -rotate-90 overflow-visible" viewBox="0 0 44 44"><circle cx="22" cy="22" r="18" fill="none" stroke="currentColor" strokeWidth="3" className="text-app-warning/80" strokeDasharray={RING_CIRCUMFERENCE} strokeDashoffset={RING_CIRCUMFERENCE * (1 - progress)} strokeLinecap="round" /></svg>}
       <span className="sr-only">{labels[state]}</span>
     </Button>
     {visibleError && <div role="status" className="absolute bottom-full left-1/2 z-10 mb-1 flex w-52 -translate-x-1/2 items-start gap-1.5 rounded border border-app-warning/50 bg-app-surface px-2 py-1 text-[10px] text-app-warning shadow-lg"><span className="min-w-0 flex-1 break-words">{error}</span><button type="button" className="rounded p-0.5 hover:bg-app-warning/15" aria-label="Dismiss voice input error" onClick={() => { setDismissedError(error); onDismissError?.(); }}><Glyph kind="close" className="h-3 w-3" /></button></div>}
     {active && partialTranscript && <div className="pointer-events-none absolute bottom-full left-1/2 mb-1 max-w-[200px] -translate-x-1/2 overflow-hidden text-ellipsis whitespace-nowrap rounded border border-app-border bg-app-surface px-2 py-1 text-[10px] text-app-muted-foreground shadow-lg">{partialTranscript}</div>}
     {rejectionReason && onTranscribeAnyway && <button type="button" className="ml-2 text-sm text-app-primary underline" onClick={onTranscribeAnyway}>Transcribe anyway</button>}
+    {(state === "transcribing" && onCancel) || (staleLiveMic && onReleaseMic) || (isTtsSpeaking && onTtsStop) || (canExportDiagnostic && onExportDiagnostic) ? (
+      <div role="group" aria-label="Voice recovery actions" className="mt-1 flex flex-wrap justify-center gap-1 text-[10px]">
+        {state === "transcribing" && onCancel && <button type="button" className="rounded border border-app-border px-1.5 py-0.5 text-app-muted-foreground hover:bg-app-surface-muted" onClick={onCancel}>Cancel</button>}
+        {staleLiveMic && onReleaseMic && <button type="button" className="rounded border border-app-warning px-1.5 py-0.5 text-app-warning hover:bg-app-warning/10" onClick={onReleaseMic}>Release mic</button>}
+        {isTtsSpeaking && onTtsStop && <button type="button" className="rounded border border-app-primary px-1.5 py-0.5 text-app-primary hover:bg-app-primary/10" onClick={onTtsStop}>Stop speech</button>}
+        {canExportDiagnostic && onExportDiagnostic && <button type="button" className="rounded border border-app-border px-1.5 py-0.5 text-app-muted-foreground hover:bg-app-surface-muted" onClick={() => { onExportDiagnostic(); }}>Export diagnostic</button>}
+      </div>
+    ) : null}
   </div>;
 }

@@ -16,37 +16,133 @@ type TokenTranslation struct {
 	To   string
 }
 
+// TokenRoleMapping is the scenario-owned destination for one catalog role.
+// CSSVariable makes the runtime-theme dependency explicit instead of allowing
+// an adopted asset to point at an opaque or hard-coded color.
+type TokenRoleMapping struct {
+	Target      string `json:"target"`
+	CSSVariable string `json:"css_variable"`
+}
+
+type TokenContrastPair struct {
+	Foreground string  `json:"foreground"`
+	Background string  `json:"background"`
+	Ratio      float64 `json:"ratio"`
+}
+
+// TokenMapping is read from the adopting scenario's UI tree. The component
+// library deliberately does not own consumer palette decisions.
+type TokenMapping struct {
+	Namespace     string                      `json:"namespace"`
+	Roles         map[string]TokenRoleMapping `json:"roles"`
+	ContrastFloor float64                     `json:"contrast_floor"`
+	ContrastPairs []TokenContrastPair         `json:"contrast_pairs"`
+}
+
 var designTokenClassRE = regexp.MustCompile(`(?:bg|text|border|ring|outline|divide)-app-[a-z0-9-]+(?:/[0-9]+)?`)
 
-var consumerTokenMaps = map[string]map[string]string{
-	"app": {
-		"app-background": "app-background", "app-border": "app-border", "app-danger": "app-danger", "app-foreground": "app-foreground",
-		"app-info": "app-info", "app-muted-foreground": "app-muted-foreground", "app-primary": "app-primary", "app-primary-foreground": "app-primary-foreground",
-		"app-surface": "app-surface", "app-surface-muted": "app-surface-muted", "app-warning": "app-warning", "app-success": "app-success",
-	},
-	"wc": {
-		"app-background": "wc-surface-base", "app-border": "wc-default", "app-danger": "wc-error-surface", "app-foreground": "wc-text-primary",
-		"app-info": "wc-accent", "app-muted-foreground": "wc-text-muted", "app-primary": "wc-accent", "app-primary-foreground": "wc-accent-fg",
-		"app-surface": "wc-surface-raised", "app-surface-muted": "wc-surface-input", "app-warning": "wc-accent", "app-success": "wc-accent",
-	},
-	"slate": {
-		"app-background": "slate-950", "app-border": "slate-700", "app-danger": "slate-700", "app-foreground": "slate-50",
-		"app-info": "slate-400", "app-muted-foreground": "slate-400", "app-primary": "slate-400", "app-primary-foreground": "slate-950",
-		"app-surface": "slate-900", "app-surface-muted": "slate-800", "app-warning": "slate-400", "app-success": "slate-400",
-	},
+var tokenRoleRE = regexp.MustCompile(`^app-[a-z0-9-]+$`)
+var cssVariableRE = regexp.MustCompile(`^--[a-z0-9-]+$`)
+
+// ValidateTokenMappingInjective checks the semantic roles emitted by one
+// adopted asset against the mapping supplied by its consumer scenario.
+func ValidateTokenMappingInjective(mapping TokenMapping, roles []string) error {
+	return validateTokenMapping(mapping, roles)
+}
+
+func validateTokenMapping(mapping TokenMapping, roles []string) error {
+	ns := strings.TrimSpace(mapping.Namespace)
+	if ns == "" {
+		return fmt.Errorf("adoption token mapping is missing namespace")
+	}
+	switch ns {
+	case "app", "wc", "slate":
+	default:
+		return fmt.Errorf("adoption token namespace %q is not governed", ns)
+	}
+	if len(mapping.Roles) == 0 && ns == "app" {
+		// Narrow test seams can use the catalog namespace without a filesystem
+		// reader. Production always supplies a scenario-owned mapping.
+		mapping.Roles = make(map[string]TokenRoleMapping, len(roles))
+		for _, role := range roles {
+			mapping.Roles[role] = TokenRoleMapping{Target: role, CSSVariable: "--" + strings.ReplaceAll(role, "-", "-")}
+		}
+	}
+	resolved := make(map[string]string, len(mapping.Roles))
+	for role, entry := range mapping.Roles {
+		if !tokenRoleRE.MatchString(role) || strings.TrimSpace(entry.Target) == "" || !cssVariableRE.MatchString(entry.CSSVariable) {
+			return fmt.Errorf("adoption token mapping entry %q is incomplete or not CSS-variable-backed", role)
+		}
+		resolved[role] = entry.Target
+	}
+	if err := validateTokenMappingInjectiveString(ns, resolved, roles); err != nil {
+		return err
+	}
+	floor := mapping.ContrastFloor
+	if floor <= 0 {
+		floor = 4.5
+	}
+	for _, pair := range mapping.ContrastPairs {
+		if pair.Ratio < floor {
+			return fmt.Errorf("adoption token contrast %s over %s is %.2f below floor %.2f", pair.Foreground, pair.Background, pair.Ratio, floor)
+		}
+	}
+	return nil
+}
+
+func validateTokenMappingInjective(namespace string, mapping map[string]string, roles []string) error {
+	return validateTokenMappingInjectiveString(namespace, mapping, roles)
+}
+
+func validateTokenMappingInjectiveString(namespace string, mapping map[string]string, roles []string) error {
+	seen := map[string]string{}
+	for _, role := range roles {
+		if _, exists := mapping[role]; !exists {
+			return fmt.Errorf("adoption token role %q is not governed for namespace %q", role, namespace)
+		}
+		if previous, exists := seen[mapping[role]]; exists && previous != role {
+			return fmt.Errorf("adoption token collision in %q: %s and %s both map to %s", namespace, previous, role, mapping[role])
+		}
+		seen[mapping[role]] = role
+	}
+	return nil
 }
 
 // TranslateDesignTokens rewrites semantic app-* utilities into the target
 // consumer vocabulary. Unknown target namespaces fail closed; silently
 // emitting a class Tailwind cannot generate recreates the original defect.
-func TranslateDesignTokens(body, targetNamespace string) (string, []TokenTranslation, error) {
+func TranslateDesignTokens(body, targetNamespace string, supplied ...TokenMapping) (string, []TokenTranslation, error) {
 	ns := strings.TrimSpace(targetNamespace)
 	if ns == "" {
 		ns = "app"
 	}
-	mapping, ok := consumerTokenMaps[ns]
-	if !ok {
-		return "", nil, fmt.Errorf("adoption token namespace %q is not governed", ns)
+	mapping := TokenMapping{Namespace: ns}
+	if len(supplied) > 0 {
+		mapping = supplied[0]
+	}
+	roles := map[string]struct{}{}
+	for _, class := range designTokenClassRE.FindAllString(body, -1) {
+		parts := strings.SplitN(class, "-app-", 2)
+		if len(parts) == 2 {
+			roles["app-"+strings.Split(parts[1], "/")[0]] = struct{}{}
+		}
+	}
+	roleList := make([]string, 0, len(roles))
+	for role := range roles {
+		roleList = append(roleList, role)
+	}
+	sort.Strings(roleList)
+	if err := validateTokenMapping(mapping, roleList); err != nil {
+		return "", nil, err
+	}
+	resolved := make(map[string]string, len(mapping.Roles))
+	for role, entry := range mapping.Roles {
+		resolved[role] = entry.Target
+	}
+	if len(resolved) == 0 && ns == "app" {
+		for _, role := range roleList {
+			resolved[role] = role
+		}
 	}
 	translations := map[string]TokenTranslation{}
 	out := designTokenClassRE.ReplaceAllStringFunc(body, func(class string) string {
@@ -55,7 +151,7 @@ func TranslateDesignTokens(body, targetNamespace string) (string, []TokenTransla
 			return class
 		}
 		base := "app-" + strings.Split(parts[1], "/")[0]
-		mapped, exists := mapping[base]
+		mapped, exists := resolved[base]
 		if !exists {
 			return class
 		}
@@ -76,6 +172,14 @@ func TranslateDesignTokens(body, targetNamespace string) (string, []TokenTransla
 			case "app-surface", "app-surface-muted":
 				if prefix != "bg" {
 					mapped = "wc-text-primary"
+				}
+			case "app-primary", "app-warning":
+				// wc-accent-active is a background token and
+				// wc-accent-border is a pre-composed border token. The
+				// warning role remains on the readable accent vocabulary
+				// for utility contexts that cannot consume a border token.
+				if base == "app-warning" || prefix != "bg" {
+					mapped = "wc-accent"
 				}
 			}
 		}

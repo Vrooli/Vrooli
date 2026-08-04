@@ -342,6 +342,14 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 		if !entryFound {
 			return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: versionPath, Field: "entry", Reason: "entry file not found"}
 		}
+		experienceContract := ""
+		contractPath := filepath.ToSlash(filepath.Join(versionPath, "experience-contract.json"))
+		if rawContract, contractErr := fs.ReadFile(idx.fs, contractPath); contractErr == nil {
+			experienceContract = string(rawContract)
+			versionFiles = append(versionFiles, ComponentVersionFile{Path: "experience-contract.json", Content: experienceContract, ContentSHA256: digestBytes([]byte(experienceContract))})
+		} else if !errors.Is(contractErr, fs.ErrNotExist) {
+			return IndexManifestInput{}, nil, fmt.Errorf("read experience contract %s: %w", contractPath, contractErr)
+		}
 		sourcePath := filepath.ToSlash(filepath.Join(versionPath, entryName))
 		src, err := fs.ReadFile(idx.fs, sourcePath)
 		if err != nil {
@@ -416,15 +424,16 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 			return IndexManifestInput{}, nil, err
 		}
 		versions = append(versions, ComponentVersion{
-			LibraryID:     manifest.LibraryID,
-			Version:       version,
-			Status:        status,
-			SourcePath:    sourcePath,
-			Content:       string(src),
-			ContentSHA256: digestBytes(src),
-			Headers:       headers,
-			Files:         versionFiles,
-			ParityReport:  parity,
+			LibraryID:          manifest.LibraryID,
+			Version:            version,
+			Status:             status,
+			SourcePath:         sourcePath,
+			Content:            string(src),
+			ContentSHA256:      digestBytes(src),
+			Headers:            headers,
+			Files:              versionFiles,
+			ExperienceContract: experienceContract,
+			ParityReport:       parity,
 		})
 		story, storyFindings := idx.readVersionStory(filepath.ToSlash(filepath.Join(versionPath, "story.json")), manifest.LibraryID, version, manifest.AssetKind)
 		if story != nil {
