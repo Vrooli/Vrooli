@@ -2,6 +2,53 @@
 
 ## Open Issues
 
+### P-013: Some evidence planes are intentionally unavailable without runtime signals (2026-08-04)
+**Severity**: Medium
+**Description**: Transcript evidence is now fully governed and replayable, but
+receipt joins only become confident when the target scenario emits a matching
+receipt. Meta-optimization coverage cells also report observed adherence as
+unavailable until an Agent Manager adherence reader is configured; they must
+not infer adherence from declared skills or from transcript command names.
+Optional provider credentials remain absent in the local validation environment,
+so model-backed investigation reruns cannot be treated as measured reasoning
+quality.
+**Mitigation**: Every unavailable surface carries an explicit reason and keeps
+its denominator/omitted/unmatched counts. Native and imported receipt
+availability remain separate. Deterministic friction and evidence-quality
+signals are still validated without inventing model conclusions.
+**Status**: Deliberate honesty boundary; add the runtime readers and provider
+credentials before claiming those measurements are available.
+
+### R-006: Installed resource policy CLIs lagged the repository schema (resolved 2026-08-04)
+**Symptom**: Investigation creation returned HTTP 400 because every
+`code.smart` runner candidate failed resource-role preflight with only
+`exit status 1` exposed in the API error.
+**Root cause**: The installed `resource-codex`, `resource-claude-code`,
+`resource-opencode`, and `resource-grok` binaries predated the resource policy
+catalog's `model_aliases` field and rejected the current JSON before emitting a
+role response. Agent Manager's resolver also discarded the command diagnostic
+when classifying the non-zero exit.
+**Fix**: Reinstalled all four resource CLIs through `vrooli resource install`,
+added a bounded command-diagnostic suffix to resource-resolution errors, and
+added a regression test covering the `unknown field "model_aliases"` failure.
+**Validation**: All four installed CLIs resolve `code.smart`; the live
+investigation run `8e868f7c-7565-4b06-bec9-335081b125b7` passed preflight,
+selected Codex `gpt-5.6-sol`, completed with a schema-valid structured result,
+and required only the expected manual review. Agent Manager API tests and all
+four resource CLI test suites pass.
+
+### P-014: Imported-run persistence nullability defects resolved (2026-08-04)
+**Severity**: High (resolved)
+**Description**: Full-corpus adoption exposed two empty-value defects that
+native runs did not exercise: `runs.canary_arm` and
+`invocation_read_model_watermarks.last_event_at` were bound as SQL NULL while
+their durable schemas require non-NULL values.
+**Mitigation**: Empty canary arms are bound as explicit empty strings, and an
+empty projection uses its projection timestamp as the watermark time. Focused
+regression tests cover both paths; the governed corpus was re-synced and
+projection-refreshed after the fixes.
+**Status**: Resolved and validated against the live corpus.
+
 ### P-010: Historical analytics are bounded by read-model coverage (2026-08-02)
 **Severity**: Medium
 **Description**: Stats measures are projection-backed and report validity,

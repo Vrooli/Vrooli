@@ -1,6 +1,7 @@
 package runsignal
 
 import (
+	"strings"
 	"testing"
 
 	"agent-manager/internal/availability"
@@ -33,6 +34,27 @@ func TestSegmentShellRefusesEvaluation(t *testing.T) {
 		if segments, _, reason := SegmentShell(command); len(segments) != 0 || reason == "" {
 			t.Fatalf("command %q segments=%v reason=%q", command, segments, reason)
 		}
+	}
+}
+
+func TestSegmentShellKeepsRedirectionInCommandSegment(t *testing.T) {
+	segments, compound, reason := SegmentShell("vrooli scenario status business-health --json 2>&1 | head -40")
+	if reason != "" || !compound || len(segments) != 2 {
+		t.Fatalf("segments=%v compound=%v reason=%q", segments, compound, reason)
+	}
+	if strings.Contains(strings.Join(segments, " "), " 1") {
+		t.Fatalf("redirection target became a command: %v", segments)
+	}
+	resolution := ResolveCatalog(segments[0])
+	if resolution.Owner != "vrooli" || resolution.State != availability.Resolved {
+		t.Fatalf("resolution=%+v", resolution)
+	}
+}
+
+func TestResolveCatalogArgsUnwrapsLiteralShellWrapper(t *testing.T) {
+	resolution := ResolveCatalogArgs([]string{"bash", "-lc", "vrooli scenario status --json"})
+	if resolution.Owner != "vrooli" || resolution.State != availability.Resolved {
+		t.Fatalf("resolution=%+v", resolution)
 	}
 }
 

@@ -18,6 +18,8 @@ import (
 
 const resourcePolicySchemaVersion = "v1"
 
+const maxResourceCommandDiagnosticBytes = 4096
+
 var (
 	// ErrResourceUnavailable means the resource CLI could not answer a role
 	// query. Callers can continue to a later fallback candidate.
@@ -129,10 +131,11 @@ func (r *ResourceRoleResolver) Resolve(ctx context.Context, runner domain.Runner
 
 	output, err := r.executor.Run(ctx, resourceCommand(runner), "policy", "resolve", "--role", role, "--json")
 	if err != nil {
-		if strings.Contains(strings.ToLower(string(output)+" "+err.Error()), "unknown coding role") {
-			return ResolvedRole{}, fmt.Errorf("%w: runner %q does not declare %q: %v", ErrUnknownResourceRole, runner, role, err)
+		diagnostic := resourceCommandDiagnostic(output, err)
+		if strings.Contains(strings.ToLower(diagnostic), "unknown coding role") {
+			return ResolvedRole{}, fmt.Errorf("%w: runner %q does not declare %q: %s", ErrUnknownResourceRole, runner, role, diagnostic)
 		}
-		return ResolvedRole{}, fmt.Errorf("%w: resolve %q through %s: %v", ErrResourceUnavailable, role, resourceCommand(runner), err)
+		return ResolvedRole{}, fmt.Errorf("%w: resolve %q through %s: %s", ErrResourceUnavailable, role, resourceCommand(runner), diagnostic)
 	}
 
 	response, err := parseResourceRoleResponse(output)
@@ -146,6 +149,17 @@ func (r *ResourceRoleResolver) Resolve(ctx context.Context, runner domain.Runner
 		return ResolvedRole{}, fmt.Errorf("%w: response role %q does not match requested role %q", ErrInvalidResourceResponse, response.Role, role)
 	}
 	return response.toResolvedRole(), nil
+}
+
+func resourceCommandDiagnostic(output []byte, err error) string {
+	diagnostic := strings.TrimSpace(string(output))
+	if diagnostic == "" {
+		return err.Error()
+	}
+	if len(diagnostic) > maxResourceCommandDiagnosticBytes {
+		diagnostic = diagnostic[:maxResourceCommandDiagnosticBytes] + "..."
+	}
+	return fmt.Sprintf("%v: %s", err, diagnostic)
 }
 
 func resourceCommand(runner domain.RunnerType) string {

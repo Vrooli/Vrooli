@@ -428,6 +428,9 @@ func (db *DB) initSchema() error {
 		if err := db.migrateInvocationReadModelFactColumns(ctx); err != nil {
 			return err
 		}
+		if err := db.migrateInvocationReadModelTimeAccountingColumns(ctx); err != nil {
+			return err
+		}
 	}
 	if columns, err := db.tableColumns(ctx, "invocation_read_model_watermarks"); err != nil {
 		return err
@@ -515,6 +518,9 @@ func (db *DB) initSchema() error {
 	if err := db.migrateInvocationReadModelFactColumns(ctx); err != nil {
 		return err
 	}
+	if err := db.migrateInvocationReadModelTimeAccountingColumns(ctx); err != nil {
+		return err
+	}
 	if err := db.migrateInvocationReadModelEpisodeColumns(ctx); err != nil {
 		return err
 	}
@@ -569,6 +575,10 @@ var runFindingColumnMigrations = []columnMigration{
 	{column: "after_value", ddl: "ALTER TABLE run_findings ADD COLUMN after_value REAL"},
 	{column: "effectiveness", ddl: "ALTER TABLE run_findings ADD COLUMN effectiveness TEXT NOT NULL DEFAULT 'not_yet_measurable'"},
 	{column: "friction_topic", ddl: "ALTER TABLE run_findings ADD COLUMN friction_topic TEXT NOT NULL DEFAULT ''"},
+	{column: "cites_resolved_commands", ddl: "ALTER TABLE run_findings ADD COLUMN cites_resolved_commands INTEGER NOT NULL DEFAULT 0"},
+	{column: "cites_real_outcome", ddl: "ALTER TABLE run_findings ADD COLUMN cites_real_outcome INTEGER NOT NULL DEFAULT 0"},
+	{column: "cites_attributed_owner", ddl: "ALTER TABLE run_findings ADD COLUMN cites_attributed_owner INTEGER NOT NULL DEFAULT 0"},
+	{column: "quality_signal", ddl: "ALTER TABLE run_findings ADD COLUMN quality_signal TEXT NOT NULL DEFAULT 'unavailable'"},
 }
 
 func (db *DB) migrateRunFindingColumns(ctx context.Context) error {
@@ -675,6 +685,13 @@ var invocationReadModelFactColumnMigrations = []columnMigration{
 	{column: "signature_truncated", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN signature_truncated INTEGER NOT NULL DEFAULT 0"},
 	{column: "semantics_kind", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN semantics_kind TEXT NOT NULL DEFAULT ''"},
 	{column: "semantics_verdict", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN semantics_verdict TEXT NOT NULL DEFAULT ''"},
+	{column: "wrapper", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN wrapper TEXT NOT NULL DEFAULT ''"},
+	{column: "exit_code", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN exit_code INTEGER"},
+	{column: "duration_ms", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN duration_ms INTEGER"},
+}
+
+var invocationReadModelTimeAccountingColumnMigrations = []columnMigration{
+	{column: "unattributable_reason", ddl: "ALTER TABLE invocation_read_model_time_accounting ADD COLUMN unattributable_reason TEXT NOT NULL DEFAULT ''"},
 }
 
 func (db *DB) migrateInvocationReadModelFactColumns(ctx context.Context) error {
@@ -705,6 +722,7 @@ func (db *DB) migrateInvocationReadModelFactColumns(ctx context.Context) error {
                     help_recovery INTEGER NOT NULL DEFAULT 0, fingerprint TEXT NOT NULL, availability TEXT NOT NULL,
                     classifier_version TEXT NOT NULL, profile_id TEXT, runner_type TEXT NOT NULL DEFAULT 'unknown',
                     model TEXT NOT NULL DEFAULT '', tag TEXT NOT NULL DEFAULT '', run_status TEXT NOT NULL,
+                    wrapper TEXT NOT NULL DEFAULT '', exit_code INTEGER, duration_ms INTEGER,
                     PRIMARY KEY (run_id, call_event_id, segment_index)
                 )`,
 				`INSERT INTO invocation_read_model_facts (run_id,call_event_id,result_event_id,tool_call_id,occurred_at,time_basis,tool_name,capability,intent_class,executable,command_path,ownership,ownership_reason,segment_index,segment_count,catalog_snapshot,outcome,pairing_basis,failure_signature,signature_truncated,retry_of_call_event_id,help_recovery,fingerprint,availability,classifier_version,profile_id,runner_type,model,tag,run_status)
@@ -712,7 +730,7 @@ func (db *DB) migrateInvocationReadModelFactColumns(ctx context.Context) error {
                     CASE ownership WHEN 'project' THEN 'resolved' WHEN 'unknown' THEN 'unparseable' ELSE ownership END,
                     CASE ownership WHEN 'unknown' THEN 'legacy ownership was not classified' ELSE '' END,
                     0,1,catalog_snapshot,outcome,COALESCE(pairing_basis,'unpaired'),COALESCE(failure_signature,''),COALESCE(signature_truncated,0),
-                    COALESCE(retry_of_call_event_id,''),COALESCE(help_recovery,0),fingerprint,availability,classifier_version,profile_id,runner_type,model,tag,run_status
+                    COALESCE(retry_of_call_event_id,''),COALESCE(help_recovery,0),fingerprint,availability,classifier_version,profile_id,runner_type,model,tag,run_status,'',NULL,NULL
                  FROM invocation_read_model_facts_retired`,
 				"DROP TABLE invocation_read_model_facts_retired",
 				"CREATE INDEX IF NOT EXISTS idx_invocation_read_model_occurred_at ON invocation_read_model_facts(occurred_at)",
@@ -730,6 +748,10 @@ func (db *DB) migrateInvocationReadModelFactColumns(ctx context.Context) error {
 		}
 	}
 	return db.migrateColumns(ctx, "invocation_read_model_facts", invocationReadModelFactColumnMigrations)
+}
+
+func (db *DB) migrateInvocationReadModelTimeAccountingColumns(ctx context.Context) error {
+	return db.migrateColumns(ctx, "invocation_read_model_time_accounting", invocationReadModelTimeAccountingColumnMigrations)
 }
 
 var invocationReadModelWatermarkColumnMigrations = []columnMigration{

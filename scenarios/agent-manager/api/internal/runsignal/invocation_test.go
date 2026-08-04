@@ -77,8 +77,36 @@ func TestDeriveInvocationFactsPreservesLiteralArgvArguments(t *testing.T) {
 		}
 	}
 	facts := DeriveInvocationFactsWithResolver([]*domain.RunEvent{call}, nil, resolver)
-	if len(facts) != 1 || facts[0].Ownership != OwnershipExternal || facts[0].Executable != "bash" || facts[0].Fingerprint == "" {
+	if len(facts) != 2 || facts[0].Ownership != OwnershipExternal || facts[0].Executable != "awk" || facts[0].Wrapper != "bash -lc" || facts[0].Fingerprint == "" {
 		t.Fatalf("literal argv was parsed as shell syntax: %+v", facts)
+	}
+}
+
+func TestDeriveInvocationFactsUnwrapsLiteralShellArgvAndKeepsWrapper(t *testing.T) {
+	runID := uuid.New()
+	call := domain.NewToolCallEvent(runID, "exec_command", "wrapped", map[string]any{"argv": []any{"bash", "-lc", "cat README.md && vrooli scenario status agent-manager --json"}})
+	result := domain.NewToolResultEvent(runID, "exec_command", "wrapped", "ok", nil)
+	facts := DeriveInvocationFacts([]*domain.RunEvent{call, result})
+	if len(facts) != 2 {
+		t.Fatalf("facts=%+v", facts)
+	}
+	if facts[0].Wrapper != "bash -lc" || facts[0].Executable == "bash" || facts[0].SegmentCount != 2 {
+		t.Fatalf("facts=%+v", facts)
+	}
+	if facts[0].Capability != "file-read" || facts[1].Ownership != OwnershipResolved {
+		t.Fatalf("facts=%+v", facts)
+	}
+}
+
+func TestToolResultOutcomePrefersReportedExitCode(t *testing.T) {
+	code := 2
+	data := &domain.ToolResultEventData{Success: true, ExitCode: &code}
+	if got := toolResultOutcome(data); got != "failure" {
+		t.Fatalf("outcome=%q", got)
+	}
+	signature, truncated := failureSignature(data)
+	if signature != "exit_code_2" || truncated {
+		t.Fatalf("signature=%q truncated=%v", signature, truncated)
 	}
 }
 

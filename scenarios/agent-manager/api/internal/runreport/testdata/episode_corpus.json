@@ -1,5 +1,5 @@
 {
-  "classifierVersion": "friction-episode.v8",
+  "classifierVersion": "friction-episode.v9",
   "patterns": ["repeated-work", "command-failure", "help-recovery", "stall"],
   "note": "Frozen episode corpus expectation. The matching table test constructs the durable event sequence and must emit exactly these patterns."
 }

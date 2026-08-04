@@ -66,14 +66,30 @@ func (o *Orchestrator) persistInvestigationFindings(ctx context.Context, executi
 				if severity == "" {
 					severity = "Gap"
 				}
+				quality := classifyFindingEvidence(recommendation.Evidence)
 				for _, sourceRunID := range sourceRunIDs {
-					_ = o.findings.Create(ctx, &findings.Finding{RunID: sourceRunID, InvestigationRunID: investigationRun.ID, Category: category.Name, Severity: severity, Recommendation: recommendation.Text, Evidence: recommendation.Evidence, TargetPath: recommendation.TargetPath})
+					_ = o.findings.Create(ctx, &findings.Finding{RunID: sourceRunID, InvestigationRunID: investigationRun.ID, Category: category.Name, Severity: severity, Recommendation: recommendation.Text, Evidence: recommendation.Evidence, TargetPath: recommendation.TargetPath, CitesResolvedCommands: quality.resolvedCommands, CitesRealOutcome: quality.realOutcome, CitesAttributedOwner: quality.attributedOwner})
 				}
 			}
 		}
 		o.routeInvestigationFindings(ctx, investigationRun.ID)
 		o.measureAppliedFindings(ctx, execution, investigationRun.ID)
 		return
+	}
+}
+
+type findingEvidenceQualityFlags struct {
+	resolvedCommands bool
+	realOutcome      bool
+	attributedOwner  bool
+}
+
+func classifyFindingEvidence(evidence string) findingEvidenceQualityFlags {
+	lower := strings.ToLower(strings.TrimSpace(evidence))
+	return findingEvidenceQualityFlags{
+		resolvedCommands: strings.Contains(lower, "command") || strings.Contains(lower, "executable") || strings.Contains(lower, "invocation"),
+		realOutcome:      strings.Contains(lower, "outcome") || strings.Contains(lower, "exit") || strings.Contains(lower, "failure") || strings.Contains(lower, "success"),
+		attributedOwner:  strings.Contains(lower, "owner") || strings.Contains(lower, "scenario") || strings.Contains(lower, "receipt"),
 	}
 }
 

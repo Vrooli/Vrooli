@@ -45,6 +45,7 @@ type accuracyFact struct {
 	Outcome       string `json:"outcome"`
 	Ownership     string `json:"ownership"`
 	Executable    string `json:"executable"`
+	CommandPath   string `json:"commandPath"`
 	Fingerprint   string `json:"fingerprint"`
 	Capability    string `json:"capability"`
 	IntentClass   string `json:"intentClass"`
@@ -216,7 +217,7 @@ func detectorOutput(fixture accuracyCase) map[string]bool {
 	}
 	facts := make([]InvocationFact, 0, len(fixture.Facts))
 	for _, item := range fixture.Facts {
-		facts = append(facts, InvocationFact{CallEventID: ids[item.CallEventID].String(), ResultEventID: ids[item.ResultEventID].String(), Outcome: item.Outcome, Ownership: item.Ownership, Executable: item.Executable, Capability: item.Capability, IntentClass: item.IntentClass, Fingerprint: item.Fingerprint, HelpRecovery: item.HelpRecovery})
+		facts = append(facts, InvocationFact{CallEventID: ids[item.CallEventID].String(), ResultEventID: ids[item.ResultEventID].String(), Outcome: item.Outcome, Ownership: item.Ownership, Executable: item.Executable, CommandPath: item.CommandPath, Capability: item.Capability, IntentClass: item.IntentClass, Fingerprint: item.Fingerprint, HelpRecovery: item.HelpRecovery})
 	}
 	actual := map[string]bool{}
 	for _, episode := range DeriveEpisodes(facts, events) {

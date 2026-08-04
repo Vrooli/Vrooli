@@ -57,7 +57,7 @@ func (a *App) runImportSessionCorpus(args []string) error {
 	from := fs.String("from", "", "RFC3339 inclusive session-update time")
 	to := fs.String("to", "", "RFC3339 exclusive session-update time")
 	perMonth := fs.Int("per-month", 1, "deterministic sessions per runner-month")
-	limit := fs.Int("limit", 1000, "maximum selected sessions")
+	limit := fs.Int("limit", 5000, "maximum selected sessions (the governed all-corpus ceiling)")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}

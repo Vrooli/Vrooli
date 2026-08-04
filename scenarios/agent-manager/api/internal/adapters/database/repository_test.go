@@ -733,6 +733,9 @@ func TestRunCRUD(t *testing.T) {
 	if got.Status != domain.RunStatusPending {
 		t.Errorf("expected status pending, got %q", got.Status)
 	}
+	if got.CanaryArm != "" {
+		t.Errorf("expected empty canary arm to round-trip as an empty value, got %q", got.CanaryArm)
+	}
 
 	// List
 	runs, err := repos.Runs.List(ctx, repository.RunListFilter{ListFilter: repository.ListFilter{Limit: 10}})

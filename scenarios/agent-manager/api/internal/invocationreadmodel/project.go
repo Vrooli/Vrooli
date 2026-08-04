@@ -53,6 +53,11 @@ func project(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time, 
 	watermark := Watermark{RunID: run.ID.String(), ClassifierVersion: runsignal.InvocationFactVersion, EpisodeClassifierVersion: runsignal.EpisodeClassifierVersion, SelfReportClassifierVersion: runsignal.SelfReportClassifierVersion, ProjectedAt: projectedAt}
 	if last != nil {
 		watermark.LastEventID, watermark.LastEventAt = last.ID.String(), last.Timestamp
+	} else {
+		// Imported or newly-created runs may legitimately have no retained
+		// events. The durable watermark still needs a non-null time so that
+		// an empty projection is distinguishable from a failed projection.
+		watermark.LastEventAt = projectedAt
 	}
 	return facts, watermark
 }

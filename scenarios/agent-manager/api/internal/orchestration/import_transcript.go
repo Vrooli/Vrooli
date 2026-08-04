@@ -215,6 +215,7 @@ func (o *Orchestrator) rehydrateImportedTranscript(ctx context.Context, run *dom
 func transcriptGoalMetadata(source *os.File, providers ...runner.GoalMarkerProvider) (string, string) {
 	scanner := bufio.NewScanner(source)
 	scanner.Buffer(make([]byte, 4096), 4<<20)
+	var preamble string
 	for scanner.Scan() {
 		if len(providers) > 0 && providers[0] != nil {
 			if condition, met, ok := providers[0].GoalStatusFromTranscriptLine(scanner.Text()); ok {
@@ -225,7 +226,6 @@ func transcriptGoalMetadata(source *os.File, providers ...runner.GoalMarkerProvi
 				}
 				return goalID, status
 			}
-			continue
 		}
 		var value any
 		if json.Unmarshal(scanner.Bytes(), &value) != nil {
@@ -239,8 +239,70 @@ func transcriptGoalMetadata(source *os.File, providers ...runner.GoalMarkerProvi
 			}
 			return goalID, status
 		}
+		if preamble == "" {
+			preamble = findGoalPreamble(value)
+		}
+	}
+	if preamble != "" {
+		goalID := uuid.NewSHA1(uuid.NameSpaceURL, []byte("agent-manager/goal-preamble/"+preamble)).String()
+		return goalID, "unmet"
 	}
 	return "", ""
+}
+
+// findGoalPreamble recovers a stable cohort key when an external transcript
+// has no explicit goal_status record. Only a normalized hash is returned;
+// prompt text never enters the run metadata or analytical read model.
+func findGoalPreamble(value any) string {
+	object, ok := value.(map[string]any)
+	if !ok {
+		if array, ok := value.([]any); ok {
+			for _, child := range array {
+				if preamble := findGoalPreamble(child); preamble != "" {
+					return preamble
+				}
+			}
+		}
+		return ""
+	}
+	role, _ := object["role"].(string)
+	if strings.EqualFold(strings.TrimSpace(role), "user") {
+		for _, key := range []string{"content", "message", "text", "prompt"} {
+			if text := normalizeGoalText(object[key]); len(text) >= 40 {
+				return text
+			}
+		}
+	}
+	for _, child := range object {
+		if preamble := findGoalPreamble(child); preamble != "" {
+			return preamble
+		}
+	}
+	return ""
+}
+
+func normalizeGoalText(value any) string {
+	var text string
+	switch value := value.(type) {
+	case string:
+		text = value
+	case []any:
+		parts := make([]string, 0, len(value))
+		for _, child := range value {
+			if part := normalizeGoalText(child); part != "" {
+				parts = append(parts, part)
+			}
+		}
+		text = strings.Join(parts, " ")
+	case map[string]any:
+		for _, key := range []string{"text", "content", "value"} {
+			if part := normalizeGoalText(value[key]); part != "" {
+				text = part
+				break
+			}
+		}
+	}
+	return strings.Join(strings.Fields(text), " ")
 }
 
 func findGoalStatus(value any) (string, bool, bool) {

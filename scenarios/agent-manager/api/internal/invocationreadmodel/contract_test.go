@@ -50,6 +50,15 @@ func TestProjectUsesCallTimestampAndRunDimensions(t *testing.T) {
 	}
 }
 
+func TestProjectUsesProjectionTimeForEmptyEventSet(t *testing.T) {
+	now := time.Date(2026, time.August, 4, 19, 0, 0, 0, time.UTC)
+	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusComplete}
+	_, watermark := Project(run, nil, now)
+	if watermark.LastEventID != "" || !watermark.LastEventAt.Equal(now) {
+		t.Fatalf("empty projection watermark=%+v", watermark)
+	}
+}
+
 func TestProjectDerivesDurableEpisodesAndSelfReportSpansFromSameEvents(t *testing.T) {
 	now := time.Date(2026, time.July, 30, 18, 0, 0, 0, time.UTC)
 	run := &domain.Run{ID: uuid.New(), Status: domain.RunStatusComplete, Tag: "evidence", ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeCodex, Model: "gpt-test"}}

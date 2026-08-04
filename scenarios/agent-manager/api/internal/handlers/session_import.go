@@ -253,6 +253,7 @@ type corpusImportCoverage struct {
 	Unreplayable    int            `json:"unreplayable"`
 	Failed          int            `json:"failed"`
 	Skipped         map[string]int `json:"skipped"`
+	FailureExamples []string       `json:"failureExamples,omitempty"`
 }
 
 // ImportSessionCorpus adopts a bounded, reproducible sample of governed local
@@ -286,10 +287,20 @@ func (h *Handler) ImportSessionCorpus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if limit == 0 {
+		// An explicit all-corpus request is the calibration path: use the
+		// governed corpus ceiling rather than silently reverting to the
+		// stratified UI default and biasing the evidence set.
 		limit = 1000
+		if strategy == "all" {
+			limit = 5000
+		}
 	}
 	sources, invalid := corpusSources(request.RunnerTypes)
-	coverage := corpusImportCoverage{SelectionRule: fmt.Sprintf("%s selection over governed runner sessions (up to %d per month, %d total)", strategy, perMonth, limit), Strategy: strategy, Bounded: true, Skipped: map[string]int{}}
+	selectionRule := fmt.Sprintf("%s selection over governed runner sessions (up to %d total)", strategy, limit)
+	if strategy != "all" {
+		selectionRule = fmt.Sprintf("%s selection over governed runner sessions (up to %d per month, %d total)", strategy, perMonth, limit)
+	}
+	coverage := corpusImportCoverage{SelectionRule: selectionRule, Strategy: strategy, Bounded: true, Skipped: map[string]int{}}
 	for _, runnerType := range invalid {
 		coverage.Skipped["unknown_runner:"+runnerType]++
 	}
@@ -332,6 +343,10 @@ func (h *Handler) ImportSessionCorpus(w http.ResponseWriter, r *http.Request) {
 		if importErr != nil {
 			coverage.Failed++
 			coverage.Skipped["import_failed"]++
+			coverage.Skipped["import_failed:"+classifyCorpusImportFailure(importErr)]++
+			if len(coverage.FailureExamples) < 3 {
+				coverage.FailureExamples = append(coverage.FailureExamples, sanitizeCorpusImportError(importErr, path))
+			}
 			continue
 		}
 		coverage.Imported++
@@ -349,6 +364,42 @@ func (h *Handler) ImportSessionCorpus(w http.ResponseWriter, r *http.Request) {
 		coverage.Checkpoint = candidate.source.Harness + ":" + candidate.session.SessionID
 	}
 	writeJSON(w, http.StatusOK, coverage)
+}
+
+func classifyCorpusImportFailure(err error) string {
+	if err == nil {
+		return "unknown"
+	}
+	message := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(message, "parse imported transcript"), strings.Contains(message, "decode"), strings.Contains(message, "json"):
+		return "transcript_parse"
+	case strings.Contains(message, "unsupported transcript"), strings.Contains(message, "no parser"):
+		return "unsupported_format"
+	case strings.Contains(message, "open transcript"), strings.Contains(message, "stat"):
+		return "source_unavailable"
+	case strings.Contains(message, "project imported transcript"), strings.Contains(message, "database"), strings.Contains(message, "sqlite"):
+		if strings.Contains(message, "locked") {
+			return "database_locked"
+		}
+		if strings.Contains(message, "constraint") || strings.Contains(message, "unique") {
+			return "database_constraint"
+		}
+		return "persistence"
+	default:
+		return "other"
+	}
+}
+
+func sanitizeCorpusImportError(err error, path string) string {
+	message := strings.TrimSpace(err.Error())
+	if path != "" {
+		message = strings.ReplaceAll(message, path, "<session>")
+	}
+	if len(message) > 240 {
+		message = message[:240]
+	}
+	return message
 }
 
 type corpusCandidate struct {

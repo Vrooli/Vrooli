@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -59,9 +60,9 @@ func shellSegments(command string) ([]string, bool, bool) {
 			}
 			continue
 		}
-		// The first byte of &&/|| advances start past the second byte;
-		// ignore that second byte when range visits it.
-		if (r == '|' || r == '&') && i < start {
+		// The first byte of a two-byte operator advances start past the
+		// second byte; ignore that second byte when range visits it.
+		if i < start {
 			continue
 		}
 		switch r {
@@ -80,12 +81,20 @@ func shellSegments(command string) ([]string, bool, bool) {
 				return nil, false, true
 			}
 		case ';', '|', '&':
-			if r == '&' && i+1 >= len(command) {
-				return nil, false, true
+			// Redirection operators are part of the current command. In
+			// particular, 2>&1 must never create a phantom executable "1".
+			if r == '&' && ((i+1 < len(command) && command[i+1] == '>') || (i > 0 && command[i-1] == '>')) {
+				continue
 			}
 			if r == '|' && i+1 < len(command) && command[i+1] == '|' || r == '&' && i+1 < len(command) && command[i+1] == '&' {
 				// The range index is a byte offset for ASCII operators.
 				compound = true
+			}
+			if r == '&' && i+1 >= len(command) {
+				return nil, false, true
+			}
+			if r == '&' && i+1 < len(command) && command[i+1] != '&' {
+				return nil, false, true
 			}
 			if r == ';' || r == '|' || r == '&' {
 				part := strings.TrimSpace(command[start:i])
@@ -156,6 +165,7 @@ var catalogCache struct {
 // ResolveCatalog returns the conservative, manifest-backed classification for a command.
 func ResolveCatalog(command string) CatalogResolution {
 	command = unwrapShellCommand(command)
+	command = stripRedirectionTokens(command)
 	tokens, ok := safeTokens(command)
 	if !ok || len(tokens) == 0 {
 		return CatalogResolution{State: availability.Unknown, Reason: "command cannot be safely tokenized"}
@@ -168,6 +178,13 @@ func ResolveCatalog(command string) CatalogResolution {
 // ["bash", "-lc", "awk '$4==...'"] where the dollar sign is data inside
 // an argument, not syntax that Agent Manager must evaluate.
 func ResolveCatalogArgs(args []string) CatalogResolution {
+	if _, script, ok := unwrapShellArgs(args); ok {
+		segments, _, unparseable := shellSegments(script)
+		if unparseable || len(segments) == 0 {
+			return CatalogResolution{State: availability.Unknown, Reason: "wrapped command cannot be safely segmented"}
+		}
+		return ResolveCatalog(segments[0])
+	}
 	tokens := make([]string, 0, len(args))
 	for _, arg := range args {
 		if strings.TrimSpace(arg) == "" {
@@ -209,6 +226,66 @@ func resolveCatalogTokens(tokens []string) CatalogResolution {
 		return catalogResolution(tokens[0], tokens[0], snapshot, availability.Resolved)
 	}
 	return CatalogResolution{Owner: tokens[0], Snapshot: snapshot, State: availability.Unknown, Reason: "catalog executable has no matching command path"}
+}
+
+// unwrapShellArgs accepts only the literal argv wrapper shape emitted by
+// coding-agent harnesses. It never evaluates, expands, or reparses shell
+// syntax; the returned script is subsequently passed through shellSegments.
+func unwrapShellArgs(args []string) (string, string, bool) {
+	if len(args) != 3 {
+		return "", "", false
+	}
+	executable := filepath.Base(strings.TrimSpace(args[0]))
+	if executable != "bash" && executable != "sh" {
+		return "", "", false
+	}
+	flag := strings.TrimSpace(args[1])
+	if flag != "-c" && flag != "-lc" {
+		return "", "", false
+	}
+	script := strings.TrimSpace(args[2])
+	if script == "" {
+		return "", "", false
+	}
+	return executable + " " + flag, script, true
+}
+
+// stripRedirectionTokens removes only syntactic redirection tokens. It does
+// not evaluate paths, variables, substitutions, or quoting. The command
+// remains evidence that can be conservatively tokenized after this pass.
+func stripRedirectionTokens(command string) string {
+	parts := strings.Fields(command)
+	kept := make([]string, 0, len(parts))
+	for i := 0; i < len(parts); i++ {
+		part := parts[i]
+		if isRedirectionToken(part) {
+			if !redirectionHasInlineTarget(part) && i+1 < len(parts) {
+				i++
+			}
+			continue
+		}
+		kept = append(kept, part)
+	}
+	return strings.Join(kept, " ")
+}
+
+func isRedirectionToken(token string) bool {
+	trimmed := strings.TrimSpace(token)
+	for _, prefix := range []string{"&>", ">>", ">", "<", "2>&", "1>&", "0>&"} {
+		if strings.HasPrefix(trimmed, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func redirectionHasInlineTarget(token string) bool {
+	for _, prefix := range []string{"&>", ">>", ">", "<", "2>&", "1>&", "0>&"} {
+		if strings.HasPrefix(token, prefix) && len(token) > len(prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func stripLeadingCommandFlags(tokens []string) []string {
@@ -328,6 +405,24 @@ func loadCatalog() (string, map[string]map[string]bool, string) {
 		}
 		owners[value.Name] = paths
 	}
+	// The control plane is not a scenario manifest. Index its read-only help
+	// tree as a second source so `vrooli ...` is project-owned evidence.
+	controlOutput := []byte("control-plane:unavailable")
+	if output, err := exec.Command("vrooli", "help").Output(); err == nil {
+		controlOutput = output
+	}
+	_, _ = hash.Write(controlOutput)
+	controlPaths := map[string]bool{"vrooli": true}
+	for _, line := range strings.Split(string(controlOutput), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) >= 1 && strings.HasPrefix(line, "  ") && !strings.HasPrefix(strings.TrimSpace(line), "-") {
+			name := strings.TrimSpace(fields[0])
+			if name != "" && !strings.ContainsAny(name, ":<>") {
+				controlPaths["vrooli "+name] = true
+			}
+		}
+	}
+	owners["vrooli"] = controlPaths
 	catalogCache.root, catalogCache.owners, catalogCache.semantics = root, owners, semantics
 	catalogCache.snapshot = "manifest-index:" + hex.EncodeToString(hash.Sum(nil))[:16]
 	return root, owners, catalogCache.snapshot

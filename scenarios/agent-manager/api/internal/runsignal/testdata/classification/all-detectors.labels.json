@@ -26,6 +26,7 @@
     "episode/abandoned-command-family": 0.8,
     "episode/read-then-reread": 0.8,
     "episode/time-to-first-success": 0.8,
+    "episode/wrong-primitive": 1.0,
     "span/cannot-find": 1.0,
     "span/repeated-failure": 1.0,
     "span/strategy-change": 1.0,
@@ -52,6 +53,7 @@
     "episode/abandoned-command-family",
     "episode/read-then-reread",
     "episode/time-to-first-success",
+    "episode/wrong-primitive",
     "span/cannot-find",
     "span/repeated-failure",
     "span/strategy-change",
@@ -200,6 +202,58 @@
       "events": [
         {"id":"slow-call","atMilliseconds":1000,"kind":"tool_call","toolName":"shell","input":{"command":"shell"}},
         {"id":"slow-result","atMilliseconds":40000,"kind":"tool_result"}
+      ]
+    },
+    {
+      "name": "wrong-primitive-wait-positive",
+      "reason": "Two repeated status checks without the preferred blocking wait primitive are labelled as a workaround.",
+      "expected": ["episode/wrong-primitive"],
+      "facts": [
+        {"callEventId":"wp-w1","resultEventId":"wp-r1","outcome":"success","commandPath":"test-genie runs status","fingerprint":"status-1"},
+        {"callEventId":"wp-w2","resultEventId":"wp-r2","outcome":"success","commandPath":"test-genie runs status","fingerprint":"status-2"}
+      ],
+      "events": [
+        {"id":"wp-w1","atMilliseconds":0,"kind":"tool_call","toolName":"shell","input":{"command":"test-genie runs status"}}, {"id":"wp-r1","atMilliseconds":1000,"kind":"tool_result"},
+        {"id":"wp-w2","atMilliseconds":2000,"kind":"tool_call","toolName":"shell","input":{"command":"test-genie runs status"}}, {"id":"wp-r2","atMilliseconds":3000,"kind":"tool_result"}
+      ]
+    },
+    {
+      "name": "wrong-primitive-search-positive",
+      "reason": "Two repeated grep searches without the preferred search-hub primitive are labelled as a workaround.",
+      "expected": ["episode/wrong-primitive"],
+      "facts": [
+        {"callEventId":"wp-s1","resultEventId":"wp-sr1","outcome":"success","commandPath":"grep pattern file.txt","fingerprint":"grep-1"},
+        {"callEventId":"wp-s2","resultEventId":"wp-sr2","outcome":"success","commandPath":"grep pattern file.txt","fingerprint":"grep-2"}
+      ],
+      "events": [
+        {"id":"wp-s1","atMilliseconds":0,"kind":"tool_call","toolName":"shell","input":{"command":"grep pattern file.txt"}}, {"id":"wp-sr1","atMilliseconds":1000,"kind":"tool_result"},
+        {"id":"wp-s2","atMilliseconds":2000,"kind":"tool_call","toolName":"shell","input":{"command":"grep pattern file.txt"}}, {"id":"wp-sr2","atMilliseconds":3000,"kind":"tool_result"}
+      ]
+    },
+    {
+      "name": "wrong-primitive-rg-positive",
+      "reason": "Two repeated rg searches without the preferred search-hub primitive are labelled as a workaround.",
+      "expected": ["episode/wrong-primitive"],
+      "facts": [
+        {"callEventId":"wp-rg1","resultEventId":"wp-rgr1","outcome":"success","commandPath":"rg pattern .","fingerprint":"rg-1"},
+        {"callEventId":"wp-rg2","resultEventId":"wp-rgr2","outcome":"success","commandPath":"rg pattern .","fingerprint":"rg-2"}
+      ],
+      "events": [
+        {"id":"wp-rg1","atMilliseconds":0,"kind":"tool_call","toolName":"shell","input":{"command":"rg pattern ."}}, {"id":"wp-rgr1","atMilliseconds":1000,"kind":"tool_result"},
+        {"id":"wp-rg2","atMilliseconds":2000,"kind":"tool_call","toolName":"shell","input":{"command":"rg pattern ."}}, {"id":"wp-rgr2","atMilliseconds":3000,"kind":"tool_result"}
+      ]
+    },
+    {
+      "name": "wrong-primitive-find-positive",
+      "reason": "Two repeated find scans without the preferred search-hub primitive are labelled as a workaround.",
+      "expected": ["episode/wrong-primitive"],
+      "facts": [
+        {"callEventId":"wp-f1","resultEventId":"wp-fr1","outcome":"success","commandPath":"find . -name fixture.txt","fingerprint":"find-1"},
+        {"callEventId":"wp-f2","resultEventId":"wp-fr2","outcome":"success","commandPath":"find . -name fixture.txt","fingerprint":"find-2"}
+      ],
+      "events": [
+        {"id":"wp-f1","atMilliseconds":0,"kind":"tool_call","toolName":"shell","input":{"command":"find . -name fixture.txt"}}, {"id":"wp-fr1","atMilliseconds":1000,"kind":"tool_result"},
+        {"id":"wp-f2","atMilliseconds":2000,"kind":"tool_call","toolName":"shell","input":{"command":"find . -name fixture.txt"}}, {"id":"wp-fr2","atMilliseconds":3000,"kind":"tool_result"}
       ]
     },
     {

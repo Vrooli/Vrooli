@@ -17,6 +17,7 @@
 package coverage
 
 import (
+	"context"
 	"time"
 
 	"github.com/vrooli/api-core/spacedoc"
@@ -61,16 +62,31 @@ type Citation struct {
 // Cell is one denominator grid row enriched with its live-derived status and
 // (on ExplainCell) its provenance.
 type Cell struct {
-	ID          string
-	Projection  Projection
-	Group       string
-	Question    string
-	Owner       string
-	Status      spacedoc.CellStatus
-	Basis       spacedoc.Basis
-	Sufficiency string
-	Notes       []string
-	Citations   []Citation
+	ID                string
+	Projection        Projection
+	Group             string
+	Question          string
+	Owner             string
+	Status            spacedoc.CellStatus
+	Basis             spacedoc.Basis
+	Sufficiency       string
+	Notes             []string
+	Citations         []Citation
+	ObservedAdherence ObservedAdherence
+}
+
+// ObservedAdherence stays separate from declared capability. An absent event
+// source is unavailable evidence, never a zero-success result.
+type ObservedAdherence struct {
+	State       string  `json:"state"`
+	Numerator   int64   `json:"numerator,omitempty"`
+	Denominator int64   `json:"denominator,omitempty"`
+	Ratio       float64 `json:"ratio,omitempty"`
+	Reason      string  `json:"reason,omitempty"`
+}
+
+type AdherenceReader interface {
+	ReadAdherence(context.Context, Projection, spacedoc.Cell) (ObservedAdherence, error)
 }
 
 // ProjectionCoverage is the computed coverage for one projection.

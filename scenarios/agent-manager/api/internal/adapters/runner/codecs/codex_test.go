@@ -435,6 +435,18 @@ func TestCodex_DecodeStreamLine_Error(t *testing.T) {
 	}
 }
 
+func TestCodexToolResultRetainsNestedProcessMetadata(t *testing.T) {
+	line := `{"type":"item.completed","item":{"id":"item-meta","type":"tool_result","name":"bash","output":"{\"metadata\":{\"duration_seconds\":1.25}}"}}`
+	events := codexDecodeOne(t, NewCodexForTest(), line, "")
+	if len(events) != 1 {
+		t.Fatalf("got %d events", len(events))
+	}
+	data, ok := events[0].Data.(*domain.ToolResultEventData)
+	if !ok || data.DurationMS == nil || *data.DurationMS != 1250 || data.ExitCode != nil {
+		t.Fatalf("nested metadata=%+v", data)
+	}
+}
+
 func TestCodex_DecodeStreamLine_NonJsonAndUnknown(t *testing.T) {
 	c := NewCodexForTest()
 	cases := []string{"", "Shell cwd was reset to /tmp", `{"type":"invalid json`, `{"type":"unknown.event.type"}`}

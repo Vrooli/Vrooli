@@ -258,6 +258,8 @@ type ToolResultEventData struct {
 	Output     string `json:"output"`               // Tool output (success)
 	Error      string `json:"error,omitempty"`      // Error message (if failed)
 	Success    bool   `json:"success"`              // Whether the tool call succeeded
+	ExitCode   *int   `json:"exitCode,omitempty"`   // Provider-reported process exit code, when available
+	DurationMS *int64 `json:"durationMs,omitempty"` // Provider-reported tool duration, when available
 }
 
 func (d *ToolResultEventData) EventType() RunEventType { return EventTypeToolResult }

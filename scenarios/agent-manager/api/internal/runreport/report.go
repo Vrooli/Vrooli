@@ -52,9 +52,10 @@ type DurableTimeAccountingSource interface {
 // disclosure.
 type ReceiptSummary struct {
 	Availability
-	Count    int
-	EventIDs []string
-	Calls    []CrossScenarioCall
+	Count          int
+	UnmatchedCount int `json:"unmatchedCount"`
+	EventIDs       []string
+	Calls          []CrossScenarioCall
 }
 
 type CrossScenarioCall struct {
@@ -69,6 +70,8 @@ type CrossScenarioCall struct {
 	Projection          map[string]any `json:"projection,omitempty"`
 	ProjectionDropCount int            `json:"projectionDropCount,omitempty"`
 	PolicyVersion       string         `json:"policyVersion,omitempty"`
+	MatchConfidence     string         `json:"matchConfidence,omitempty"`
+	MatchReason         string         `json:"matchReason,omitempty"`
 }
 
 // LedgerTargetRollup summarizes one target without hiding individual receipt
@@ -346,30 +349,31 @@ func Build(ctx context.Context, source Source, runID uuid.UUID) (*RunReport, err
 			r.Diff.Available.Reason = err.Error()
 		}
 	}
-	if !imported {
-		if receipts, ok := source.(ReceiptSource); ok {
-			summary, err := receipts.Receipts(ctx, runID)
-			if err != nil {
-				r.ReceiptsAvailability = Availability{State: AvailabilityDegraded, Reason: err.Error()}
-			} else {
-				r.ReceiptsAvailability = Availability{State: summary.State, Reason: summary.Reason}
-				r.LedgerAvailability = Availability{State: summary.State, Reason: summary.Reason}
-				r.ReceiptCount = summary.Count
-				r.ReceiptEvidenceIDs = append([]string(nil), summary.EventIDs...)
-				r.CrossScenarioCalls = append([]CrossScenarioCall(nil), summary.Calls...)
-				r.LedgerTargetRollups = ledgerTargetRollups(r.CrossScenarioCalls)
-				r.ProjectionAvailability = projectionAvailability(r.CrossScenarioCalls)
-				r.Episodes = UpgradeEpisodeOwnership(r.Episodes, events, r.CrossScenarioCalls, r.LedgerAvailability)
-				if store, ok := source.(LedgerStore); ok {
-					if err := store.ReplaceCrossScenarioCalls(ctx, runID, string(r.LedgerAvailability.State), r.CrossScenarioCalls); err != nil {
-						return nil, fmt.Errorf("persist cross-scenario ledger: %w", err)
-					}
+	if receipts, ok := source.(ReceiptSource); ok {
+		summary, err := receipts.Receipts(ctx, runID)
+		if err != nil {
+			r.ReceiptsAvailability = Availability{State: AvailabilityDegraded, Reason: err.Error()}
+		} else {
+			r.ReceiptsAvailability = Availability{State: summary.State, Reason: summary.Reason}
+			r.LedgerAvailability = Availability{State: summary.State, Reason: summary.Reason}
+			r.ReceiptCount = summary.Count
+			if summary.UnmatchedCount > 0 {
+				r.ReceiptsAvailability.Reason = fmt.Sprintf("%d receipt candidates were not safely matched", summary.UnmatchedCount)
+			}
+			r.ReceiptEvidenceIDs = append([]string(nil), summary.EventIDs...)
+			r.CrossScenarioCalls = append([]CrossScenarioCall(nil), summary.Calls...)
+			r.LedgerTargetRollups = ledgerTargetRollups(r.CrossScenarioCalls)
+			r.ProjectionAvailability = projectionAvailability(r.CrossScenarioCalls)
+			r.Episodes = UpgradeEpisodeOwnership(r.Episodes, events, r.CrossScenarioCalls, r.LedgerAvailability)
+			if store, ok := source.(LedgerStore); ok {
+				if err := store.ReplaceCrossScenarioCalls(ctx, runID, string(r.LedgerAvailability.State), r.CrossScenarioCalls); err != nil {
+					return nil, fmt.Errorf("persist cross-scenario ledger: %w", err)
 				}
 			}
-			if store, ok := source.(ReceiptJoinStore); ok {
-				if err := store.ReplaceReceiptEvidence(ctx, runID, string(r.ReceiptsAvailability.State), r.ReceiptEvidenceIDs); err != nil {
-					return nil, fmt.Errorf("persist receipt evidence: %w", err)
-				}
+		}
+		if store, ok := source.(ReceiptJoinStore); ok {
+			if err := store.ReplaceReceiptEvidence(ctx, runID, string(r.ReceiptsAvailability.State), r.ReceiptEvidenceIDs); err != nil {
+				return nil, fmt.Errorf("persist receipt evidence: %w", err)
 			}
 		}
 	}

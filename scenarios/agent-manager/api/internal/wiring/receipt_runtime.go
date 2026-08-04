@@ -117,6 +117,11 @@ func newReceiptSummaryReader(receipts eventbus.Client, targets []string, runtime
 				continue
 			}
 			call := runreport.CrossScenarioCall{TargetScenario: envelope.GetTarget().GetScenario(), Operation: envelope.GetTarget().GetOperation(), ReceiptEventID: envelope.EventId, Verified: envelope.GetAttribution() != nil && envelope.GetAttribution().GetVerified()}
+			if call.Verified {
+				call.MatchConfidence, call.MatchReason = "exact", "verified agent-run correlation"
+			} else {
+				call.MatchConfidence, call.MatchReason = "unmatched", "receipt correlation is not verified"
+			}
 			if occurredAt := envelope.GetOccurredAt(); occurredAt != nil {
 				call.OccurredAt = occurredAt.AsTime()
 			}
@@ -136,11 +141,11 @@ func newReceiptSummaryReader(receipts eventbus.Client, targets []string, runtime
 		}
 		if verified == 0 {
 			if summary, decisive := receiptRuntimeAvailability(ctx, targets, runtime); decisive {
-				summary.Calls = calls
+				summary.Calls, summary.UnmatchedCount = calls, len(calls)
 				return summary, nil
 			}
-			return runreport.ReceiptSummary{Availability: runreport.Availability{State: runreport.AvailabilityUnobserved, Reason: "no verified receipts correlated to this run"}, Calls: calls}, nil
+			return runreport.ReceiptSummary{Availability: runreport.Availability{State: runreport.AvailabilityUnobserved, Reason: "no verified receipts correlated to this run"}, Calls: calls, UnmatchedCount: len(calls)}, nil
 		}
-		return runreport.ReceiptSummary{Availability: runreport.Availability{State: runreport.AvailabilityAvailable}, Count: verified, EventIDs: eventIDs, Calls: calls}, nil
+		return runreport.ReceiptSummary{Availability: runreport.Availability{State: runreport.AvailabilityAvailable}, Count: verified, UnmatchedCount: len(calls) - verified, EventIDs: eventIDs, Calls: calls}, nil
 	})
 }

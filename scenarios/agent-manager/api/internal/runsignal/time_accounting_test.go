@@ -64,3 +64,24 @@ func TestDeriveTimeAccountingConservesSubMillisecondIntervals(t *testing.T) {
 		t.Fatalf("duration=%d want %d: %+v", got, want, accounting)
 	}
 }
+
+func TestDeriveTimeAccountingUsesReportedToolDurationAndNamesResidual(t *testing.T) {
+	start := time.Date(2026, 7, 31, 12, 0, 0, 0, time.UTC)
+	end := start.Add(10 * time.Second)
+	callID := uuid.New()
+	duration := int64(2500)
+	events := []*domain.RunEvent{
+		{ID: callID, Timestamp: start.Add(time.Second), Data: &domain.ToolCallEventData{ToolCallID: "call-1"}},
+		{ID: uuid.New(), Timestamp: start.Add(6 * time.Second), Data: &domain.ToolResultEventData{ToolCallID: "call-1", DurationMS: &duration}},
+	}
+	accounting := DeriveTimeAccounting(events, &start, &end)
+	if accounting.ToolExecutingMS != 2500 || accounting.ModelGeneratingMS != 4000 || accounting.UnattributableMS != 3500 {
+		t.Fatalf("reported duration was not conserved: %+v", accounting)
+	}
+	if accounting.UnattributableReason == "" {
+		t.Fatal("expected residual attribution reason")
+	}
+	if accounting.DurationMS() != end.Sub(start).Milliseconds() {
+		t.Fatalf("duration was not conserved: %+v", accounting)
+	}
+}

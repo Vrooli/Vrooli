@@ -34,11 +34,12 @@ type Service interface {
 }
 
 type service struct {
-	reader SpaceReader
-	joiner NumeratorJoiner
-	snaps  SnapshotRepository
-	trend  TrendProvider
-	clock  clock.Clock
+	reader    SpaceReader
+	joiner    NumeratorJoiner
+	snaps     SnapshotRepository
+	trend     TrendProvider
+	clock     clock.Clock
+	adherence AdherenceReader
 }
 
 // Deps wires the coverage Service. Snapshots and Trend are optional (nil-safe).
@@ -48,6 +49,7 @@ type Deps struct {
 	Snapshots SnapshotRepository
 	Trend     TrendProvider
 	Clock     clock.Clock
+	Adherence AdherenceReader
 }
 
 // NewService constructs the coverage Service, defaulting the production seams.
@@ -61,7 +63,7 @@ func NewService(d Deps) Service {
 	if d.Clock == nil {
 		d.Clock = clock.System{}
 	}
-	return &service{reader: d.Reader, joiner: d.Joiner, snaps: d.Snapshots, trend: d.Trend, clock: d.Clock}
+	return &service{reader: d.Reader, joiner: d.Joiner, snaps: d.Snapshots, trend: d.Trend, clock: d.Clock, adherence: d.Adherence}
 }
 
 var _ Service = (*service)(nil)
@@ -181,7 +183,7 @@ func (s *service) ListCells(ctx context.Context, projection Projection, status s
 			if status != "" && eff != status {
 				continue
 			}
-			out = append(out, toCell(p, c, eff))
+			out = append(out, s.toCell(ctx, p, c, eff))
 		}
 	}
 	return out, nil
@@ -203,7 +205,7 @@ func (s *service) ExplainCell(ctx context.Context, cellID string) (Cell, error) 
 		if c.ID != rawID {
 			continue
 		}
-		cell := toCell(p, c, effectiveStatus(c, join))
+		cell := s.toCell(ctx, p, c, effectiveStatus(c, join))
 		cell.Citations = citationsFor(def, c)
 		return cell, nil
 	}
@@ -235,6 +237,31 @@ func toCell(p Projection, c spacedoc.Cell, eff spacedoc.CellStatus) Cell {
 		Sufficiency: c.Sufficiency,
 		Notes:       c.Notes,
 	}
+}
+
+func (s *service) toCell(ctx context.Context, p Projection, c spacedoc.Cell, eff spacedoc.CellStatus) Cell {
+	cell := toCell(p, c, eff)
+	if s.adherence == nil {
+		cell.ObservedAdherence = ObservedAdherence{State: "unavailable", Reason: "agent-run adherence source is not configured"}
+	} else {
+		observed, err := s.adherence.ReadAdherence(ctx, p, c)
+		if err != nil {
+			observed = ObservedAdherence{State: "unavailable", Reason: err.Error()}
+		}
+		cell.ObservedAdherence = observed
+	}
+	cell.Notes = append(cell.Notes, observedAdherenceNote(cell.ObservedAdherence))
+	return cell
+}
+
+func observedAdherenceNote(observed ObservedAdherence) string {
+	if observed.State == "available" {
+		return fmt.Sprintf("observed_adherence: %d/%d (%.1f%%)", observed.Numerator, observed.Denominator, observed.Ratio*100)
+	}
+	if observed.Reason == "" {
+		return "observed_adherence: " + observed.State
+	}
+	return "observed_adherence: " + observed.State + " (" + observed.Reason + ")"
 }
 
 func splitCellID(id string) (Projection, string, error) {

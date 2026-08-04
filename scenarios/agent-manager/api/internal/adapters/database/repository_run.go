@@ -252,9 +252,12 @@ func runFromDomain(r *domain.Run) *runRow {
 		// Model provenance
 		RequestedModel: sql.NullString{String: r.RequestedModel, Valid: r.RequestedModel != ""},
 		ActualModel:    sql.NullString{String: r.ActualModel, Valid: r.ActualModel != ""},
-		CanaryArm:      sql.NullString{String: r.CanaryArm, Valid: r.CanaryArm != ""},
-		CreatedAt:      SQLiteTime(r.CreatedAt),
-		UpdatedAt:      SQLiteTime(r.UpdatedAt),
+		// The additive migration makes canary_arm NOT NULL. Bind the empty
+		// value explicitly for historical/imported runs instead of sending
+		// SQL NULL and making every external transcript adoption fail.
+		CanaryArm: sql.NullString{String: r.CanaryArm, Valid: true},
+		CreatedAt: SQLiteTime(r.CreatedAt),
+		UpdatedAt: SQLiteTime(r.UpdatedAt),
 	}
 	if r.ExitCode != nil {
 		row.ExitCode = sql.NullInt32{Int32: int32(*r.ExitCode), Valid: true}

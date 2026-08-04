@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 
 	"agent-manager/internal/adapters/runner"
@@ -861,10 +862,14 @@ func parseCodexItemEvents(state *codexState, runID uuid.UUID, item *CodexItem) [
 		if len(input) > 0 {
 			events = append(events, domain.NewToolCallEvent(runID, item.Name, item.ID, input))
 		}
-		events = append(events, domain.NewToolResultEvent(
+		result := domain.NewToolResultEvent(
 			runID, item.Name, item.ID,
 			runner.StripANSI(item.Output), nil,
-		))
+		)
+		if data, ok := result.Data.(*domain.ToolResultEventData); ok {
+			data.ExitCode, data.DurationMS = codexNestedResultMetadata(item.Output)
+		}
+		events = append(events, result)
 		return events
 	case "command_execution":
 		return parseCodexCommandExecution(runID, item)
@@ -927,10 +932,14 @@ func parseCodexCommandExecution(runID uuid.UUID, item *CodexItem) []*domain.RunE
 		if strings.TrimSpace(output) == "" {
 			output = item.Output
 		}
-		events = append(events, domain.NewToolResultEvent(
+		result := domain.NewToolResultEvent(
 			runID, toolName, item.ID,
 			runner.StripANSI(output), errMsg,
-		))
+		)
+		if data, ok := result.Data.(*domain.ToolResultEventData); ok {
+			data.ExitCode = item.ExitCode
+		}
+		events = append(events, result)
 		return events
 	}
 
@@ -943,6 +952,27 @@ func parseCodexCommandExecution(runID uuid.UUID, item *CodexItem) []*domain.RunE
 		return []*domain.RunEvent{domain.NewToolCallEvent(runID, toolName, item.ID, input)}
 	}
 	return nil
+}
+
+// codexNestedResultMetadata handles the interactive tool-result envelope. It
+// intentionally extracts only typed process facts; output text remains in the
+// event log and is never copied into the analytical read model.
+func codexNestedResultMetadata(output string) (*int, *int64) {
+	var envelope struct {
+		Metadata struct {
+			ExitCode        *int     `json:"exit_code"`
+			DurationSeconds *float64 `json:"duration_seconds"`
+		} `json:"metadata"`
+	}
+	if err := json.Unmarshal([]byte(output), &envelope); err != nil || (envelope.Metadata.ExitCode == nil && envelope.Metadata.DurationSeconds == nil) {
+		return nil, nil
+	}
+	var duration *int64
+	if envelope.Metadata.DurationSeconds != nil {
+		value := int64(math.Round(*envelope.Metadata.DurationSeconds * 1000))
+		duration = &value
+	}
+	return envelope.Metadata.ExitCode, duration
 }
 
 // Compile-time interface checks.

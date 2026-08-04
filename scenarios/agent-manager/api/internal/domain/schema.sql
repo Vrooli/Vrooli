@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_facts (
     occurred_at TEXT NOT NULL,
     time_basis TEXT NOT NULL DEFAULT 'event',
     tool_name TEXT NOT NULL,
+	wrapper TEXT NOT NULL DEFAULT '',
     capability TEXT NOT NULL DEFAULT 'other',
     intent_class TEXT NOT NULL DEFAULT '',
     executable TEXT,
@@ -95,6 +96,8 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_facts (
     run_status TEXT NOT NULL,
     semantics_kind TEXT NOT NULL DEFAULT '',
     semantics_verdict TEXT NOT NULL DEFAULT '',
+	exit_code INTEGER,
+	duration_ms INTEGER,
     PRIMARY KEY (run_id, call_event_id, segment_index)
 );
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_occurred_at ON invocation_read_model_facts(occurred_at);
@@ -178,7 +181,8 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_time_accounting (
     tool_tokens INTEGER NOT NULL DEFAULT 0,
     idle_tokens INTEGER NOT NULL DEFAULT 0,
     human_tokens INTEGER NOT NULL DEFAULT 0,
-    unattributable_tokens INTEGER NOT NULL DEFAULT 0
+    unattributable_tokens INTEGER NOT NULL DEFAULT 0,
+    unattributable_reason TEXT NOT NULL DEFAULT ''
 );
 
 -- Error-code facts retain the analytical pattern after source run_events are

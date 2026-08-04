@@ -71,6 +71,20 @@ func TestResourceRoleResolverClassifiesUnavailableResource(t *testing.T) {
 	}
 }
 
+func TestResourceRoleResolverPreservesCommandDiagnostic(t *testing.T) {
+	executor := &fakeCommandExecutor{
+		output: []byte(`Error: parse coding role policy: json: unknown field "model_aliases"`),
+		err:    errors.New("exit status 1"),
+	}
+	_, err := NewResourceRoleResolver(executor).Resolve(context.Background(), domain.RunnerTypeCodex, "code.smart")
+	if !errors.Is(err, ErrResourceUnavailable) {
+		t.Fatalf("Resolve error = %v, want ErrResourceUnavailable", err)
+	}
+	if !strings.Contains(err.Error(), `unknown field "model_aliases"`) {
+		t.Fatalf("Resolve error = %v, want resource diagnostic", err)
+	}
+}
+
 func TestResourceRoleResolverRejectsUnknownResponseFields(t *testing.T) {
 	executor := &fakeCommandExecutor{output: validResponse(`"unexpected":true`)}
 	_, err := NewResourceRoleResolver(executor).Resolve(context.Background(), domain.RunnerTypeCodex, "code.default")

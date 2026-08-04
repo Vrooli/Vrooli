@@ -23,16 +23,17 @@ const (
 // TimeAccounting is a conservative, duration-conserving summary. The state
 // totals plus UnattributableMS always equal the supplied run interval.
 type TimeAccounting struct {
-	ModelGeneratingMS    int64 `json:"modelGeneratingMs" db:"model_generating_ms"`
-	ToolExecutingMS      int64 `json:"toolExecutingMs" db:"tool_executing_ms"`
-	IdleWaitingMS        int64 `json:"idleWaitingMs" db:"idle_waiting_ms"`
-	AwaitingHumanMS      int64 `json:"awaitingHumanMs" db:"awaiting_human_ms"`
-	UnattributableMS     int64 `json:"unattributableMs" db:"unattributable_ms"`
-	ModelTokens          int64 `json:"modelTokens" db:"model_tokens"`
-	ToolTokens           int64 `json:"toolTokens" db:"tool_tokens"`
-	IdleTokens           int64 `json:"idleTokens" db:"idle_tokens"`
-	HumanTokens          int64 `json:"humanTokens" db:"human_tokens"`
-	UnattributableTokens int64 `json:"unattributableTokens" db:"unattributable_tokens"`
+	ModelGeneratingMS    int64  `json:"modelGeneratingMs" db:"model_generating_ms"`
+	ToolExecutingMS      int64  `json:"toolExecutingMs" db:"tool_executing_ms"`
+	IdleWaitingMS        int64  `json:"idleWaitingMs" db:"idle_waiting_ms"`
+	AwaitingHumanMS      int64  `json:"awaitingHumanMs" db:"awaiting_human_ms"`
+	UnattributableMS     int64  `json:"unattributableMs" db:"unattributable_ms"`
+	ModelTokens          int64  `json:"modelTokens" db:"model_tokens"`
+	ToolTokens           int64  `json:"toolTokens" db:"tool_tokens"`
+	IdleTokens           int64  `json:"idleTokens" db:"idle_tokens"`
+	HumanTokens          int64  `json:"humanTokens" db:"human_tokens"`
+	UnattributableTokens int64  `json:"unattributableTokens" db:"unattributable_tokens"`
+	UnattributableReason string `json:"unattributableReason,omitempty" db:"unattributable_reason"`
 }
 
 func (a TimeAccounting) DurationMS() int64 {
@@ -61,17 +62,43 @@ func DeriveTimeAccounting(events []*domain.RunEvent, startedAt, endedAt *time.Ti
 	sort.SliceStable(ordered, func(i, j int) bool { return ordered[i].Timestamp.Before(ordered[j].Timestamp) })
 	previousAt := *startedAt
 	state := TimeAttributionUnattributable
+	var previous *domain.RunEvent
 	for _, event := range ordered {
 		if event.Timestamp.Before(*startedAt) || event.Timestamp.After(*endedAt) {
 			continue
 		}
-		addDuration(&out, state, event.Timestamp.Sub(previousAt))
+		interval := event.Timestamp.Sub(previousAt)
+		if previous != nil {
+			if call, ok := previous.Data.(*domain.ToolCallEventData); ok {
+				if result, resultOK := event.Data.(*domain.ToolResultEventData); resultOK && (call.ToolCallID == "" || call.ToolCallID == result.ToolCallID) && result.DurationMS != nil {
+					reported := time.Duration(*result.DurationMS) * time.Millisecond
+					if reported > interval {
+						reported = interval
+						out.UnattributableReason = "reported tool duration exceeded transcript interval"
+					}
+					addDuration(&out, TimeAttributionToolExecuting, reported)
+					if residual := interval - reported; residual > 0 {
+						addDuration(&out, TimeAttributionUnattributable, residual)
+						if out.UnattributableReason == "" {
+							out.UnattributableReason = "transcript interval exceeded reported tool duration"
+						}
+					}
+				} else {
+					addDuration(&out, state, interval)
+				}
+			} else {
+				addDuration(&out, state, interval)
+			}
+		} else {
+			addDuration(&out, state, interval)
+		}
 		if usage, ok := event.Data.(*domain.UsageEventData); ok {
 			addTokens(&out, state, int64(usage.InputTokens+usage.OutputTokens+usage.CacheCreationTokens+usage.CacheReadTokens))
 		} else {
 			state = timeStateAfter(event)
 		}
 		previousAt = event.Timestamp
+		previous = event
 	}
 	addDuration(&out, state, endedAt.Sub(previousAt))
 	// Converting each interval independently to milliseconds can drop a
@@ -80,6 +107,12 @@ func DeriveTimeAccounting(events []*domain.RunEvent, startedAt, endedAt *time.Ti
 	// unattributable bucket.
 	if residual := endedAt.Sub(*startedAt).Milliseconds() - out.DurationMS(); residual > 0 {
 		out.UnattributableMS += residual
+		if out.UnattributableReason == "" {
+			out.UnattributableReason = "event boundaries left a sub-millisecond residual"
+		}
+	}
+	if out.UnattributableMS > 0 && out.UnattributableReason == "" {
+		out.UnattributableReason = "no typed event established an attribution state"
 	}
 	return out
 }

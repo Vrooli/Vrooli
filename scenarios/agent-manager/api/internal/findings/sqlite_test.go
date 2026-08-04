@@ -57,3 +57,26 @@ func TestSQLiteRepositoryGroupsRecurringFindings(t *testing.T) {
 		t.Fatalf("count=%d err=%v", count, err)
 	}
 }
+
+func TestSQLiteRepositoryPersistsEvidenceQualitySignals(t *testing.T) {
+	db, err := sqlx.Connect("sqlite", "file:"+filepath.Join(t.TempDir(), "quality.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if _, err := db.Exec(Schema()); err != nil {
+		t.Fatal(err)
+	}
+	repo := NewSQLiteRepository(db)
+	finding := &Finding{RunID: uuid.New(), InvestigationRunID: uuid.New(), Category: "toolchain", Severity: "warning", Recommendation: "Prefer the resolved command", Evidence: "command exit failure owner scenario", CitesResolvedCommands: true, CitesRealOutcome: true, CitesAttributedOwner: true}
+	if err := repo.Create(context.Background(), finding); err != nil {
+		t.Fatal(err)
+	}
+	items, err := repo.List(context.Background(), Filter{})
+	if err != nil || len(items) != 1 {
+		t.Fatalf("items=%+v err=%v", items, err)
+	}
+	if !items[0].CitesResolvedCommands || !items[0].CitesRealOutcome || !items[0].CitesAttributedOwner || items[0].QualitySignal != "complete" {
+		t.Fatalf("quality signals were not retained: %+v", items[0])
+	}
+}

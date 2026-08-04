@@ -21,7 +21,7 @@ import (
 // v4 backfills bounded failure signatures into durable facts produced before
 // that field was projected, so historical failed invocations remain actionable
 // after a replay without retaining raw tool output.
-const InvocationFactVersion = "invocation-fact.v13"
+const InvocationFactVersion = "invocation-fact.v15"
 
 // FailureSignatureMaxLength bounds retained failure vocabulary. Signatures are
 // controlled class labels, never copied error text.
@@ -38,6 +38,7 @@ type InvocationFact struct {
 	Capability         string             `json:"capability"`
 	IntentClass        string             `json:"intentClass"`
 	Executable         string             `json:"executable,omitempty"`
+	Wrapper            string             `json:"wrapper,omitempty"`
 	CommandPath        string             `json:"commandPath,omitempty"`
 	Ownership          string             `json:"ownership"`
 	OwnershipReason    string             `json:"ownershipReason,omitempty"`
@@ -45,6 +46,8 @@ type InvocationFact struct {
 	SegmentCount       int                `json:"segmentCount"`
 	CatalogSnapshot    string             `json:"catalogSnapshot,omitempty"`
 	Outcome            string             `json:"outcome"`
+	ExitCode           *int               `json:"exitCode,omitempty"`
+	DurationMS         *int64             `json:"durationMs,omitempty"`
 	PairingBasis       string             `json:"pairingBasis"`
 	FailureSignature   string             `json:"failureSignature,omitempty"`
 	SignatureTruncated bool               `json:"signatureTruncated"`
@@ -118,7 +121,13 @@ func DeriveInvocationFactsWithResolver(events []*domain.RunEvent, resolver Capab
 		command := extraction.Command
 		segments, compound, segmentError := SegmentShell(command)
 		if extraction.LiteralArgs {
-			segments, compound, segmentError = []string{command}, false, ""
+			if wrapper, script, ok := unwrapShellArgs(extraction.Args); ok {
+				factBase.Wrapper = wrapper
+				command = script
+				segments, compound, segmentError = SegmentShell(script)
+			} else {
+				segments, compound, segmentError = []string{command}, false, ""
+			}
 		}
 		if command == "" {
 			segments = []string{""}
@@ -147,10 +156,13 @@ func DeriveInvocationFactsWithResolver(events []*domain.RunEvent, resolver Capab
 				fact.Ownership, fact.OwnershipReason = OwnershipUnparseable, segmentError
 			} else if command != "" {
 				resolution := ResolveCatalog(segment)
-				if extraction.LiteralArgs {
+				if extraction.LiteralArgs && factBase.Wrapper == "" {
 					resolution = ResolveCatalogArgs(extraction.Args)
 				}
 				fact.Executable, fact.CommandPath, fact.CatalogSnapshot = resolution.Owner, resolution.Command, resolution.Snapshot
+				if resolution.Command != "" {
+					fact.Capability = CapabilityForCommand(resolution.Command, fact.Capability)
+				}
 				fact.SemanticsKind, fact.SemanticsVerdict = resolution.SemanticsKind, resolution.SemanticsVerdict
 				fact.Ownership, fact.OwnershipReason = string(resolution.State), resolution.Reason
 				if fact.Ownership == string(availability.Unknown) {
@@ -166,6 +178,7 @@ func DeriveInvocationFactsWithResolver(events []*domain.RunEvent, resolver Capab
 			if result != nil {
 				fact.ResultEventID = result.ID.String()
 				if data, ok := result.Data.(*domain.ToolResultEventData); ok {
+					fact.ExitCode, fact.DurationMS = data.ExitCode, data.DurationMS
 					fact.Outcome = toolResultOutcome(data)
 					if fact.Outcome == "failure" {
 						fact.FailureSignature, fact.SignatureTruncated = failureSignature(data)
@@ -323,6 +336,12 @@ func toolResultOutcome(data *domain.ToolResultEventData) string {
 	if data == nil {
 		return "unknown"
 	}
+	if data.ExitCode != nil {
+		if *data.ExitCode != 0 {
+			return "failure"
+		}
+		return "success"
+	}
 	// Historical payloads can have an inconsistent Success boolean, but error
 	// strings retain decisive evidence (including Codex non-zero exit codes).
 	if !data.Success || strings.TrimSpace(data.Error) != "" {
@@ -334,6 +353,9 @@ func toolResultOutcome(data *domain.ToolResultEventData) string {
 func failureSignature(data *domain.ToolResultEventData) (string, bool) {
 	if data == nil {
 		return "tool_failure", false
+	}
+	if data.ExitCode != nil && *data.ExitCode != 0 {
+		return boundedFailureSignature("exit_code_" + strconv.Itoa(*data.ExitCode))
 	}
 	message := strings.ToLower(strings.TrimSpace(data.Error))
 	signature := "tool_failure"
@@ -352,10 +374,33 @@ func failureSignature(data *domain.ToolResultEventData) (string, bool) {
 			}
 		}
 	}
+	return boundedFailureSignature(signature)
+}
+
+func boundedFailureSignature(signature string) (string, bool) {
 	if len(signature) <= FailureSignatureMaxLength {
 		return signature, false
 	}
 	return signature[:FailureSignatureMaxLength], true
+}
+
+// CapabilityForCommand refines the harness capability with evidence from the
+// resolved command path. A shell wrapper therefore cannot mask a search,
+// wait, file-read, or file-edit operation.
+func CapabilityForCommand(command, fallback string) string {
+	name := strings.ToLower(strings.TrimSpace(command))
+	switch {
+	case name == "rg", name == "find", strings.Contains(name, "search"), strings.Contains(name, "grep"), strings.Contains(name, " rg"), strings.Contains(name, " find"):
+		return "search"
+	case strings.Contains(name, "wait"):
+		return "wait"
+	case strings.Contains(name, "apply_patch"), strings.Contains(name, " edit"), strings.Contains(name, " write"):
+		return "file-edit"
+	case name == "cat", name == "head", name == "tail", name == "sed", strings.HasPrefix(name, "cat "), strings.HasPrefix(name, "head "), strings.HasPrefix(name, "tail "), strings.HasPrefix(name, "sed "):
+		return "file-read"
+	default:
+		return fallback
+	}
 }
 
 func commandInput(call *domain.ToolCallEventData, commandResolvers ...CommandResolver) runner.CommandExtraction {

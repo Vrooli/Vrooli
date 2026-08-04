@@ -39,12 +39,15 @@ func (r *SQLiteRepository) Create(ctx context.Context, finding *Finding) error {
 	if finding.Effectiveness == "" {
 		finding.Effectiveness = "not_yet_measurable"
 	}
-	_, err := r.db.ExecContext(ctx, `INSERT OR IGNORE INTO run_findings (id, run_id, investigation_run_id, category, severity, recommendation_text, evidence, target_path, fingerprint, operator_decision, target_measure, before_value, after_value, effectiveness, friction_topic, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, finding.ID.String(), finding.RunID.String(), finding.InvestigationRunID.String(), finding.Category, finding.Severity, finding.Recommendation, finding.Evidence, finding.TargetPath, finding.Fingerprint, finding.Decision, finding.TargetMeasure, finding.BeforeValue, finding.AfterValue, finding.Effectiveness, finding.FrictionTopic, finding.CreatedAt.UTC().Format(time.RFC3339Nano))
+	if finding.QualitySignal == "" {
+		finding.QualitySignal = qualitySignal(finding)
+	}
+	_, err := r.db.ExecContext(ctx, `INSERT OR IGNORE INTO run_findings (id, run_id, investigation_run_id, category, severity, recommendation_text, evidence, target_path, fingerprint, operator_decision, target_measure, before_value, after_value, effectiveness, friction_topic, cites_resolved_commands, cites_real_outcome, cites_attributed_owner, quality_signal, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, finding.ID.String(), finding.RunID.String(), finding.InvestigationRunID.String(), finding.Category, finding.Severity, finding.Recommendation, finding.Evidence, finding.TargetPath, finding.Fingerprint, finding.Decision, finding.TargetMeasure, finding.BeforeValue, finding.AfterValue, finding.Effectiveness, finding.FrictionTopic, finding.CitesResolvedCommands, finding.CitesRealOutcome, finding.CitesAttributedOwner, finding.QualitySignal, finding.CreatedAt.UTC().Format(time.RFC3339Nano))
 	return err
 }
 
 func (r *SQLiteRepository) List(ctx context.Context, filter Filter) ([]Finding, error) {
-	query, args := `SELECT id, run_id, investigation_run_id, category, severity, recommendation_text, evidence, target_path, fingerprint, operator_decision, target_measure, before_value, after_value, effectiveness, friction_topic, created_at, COUNT(*) OVER (PARTITION BY fingerprint) AS occurrences FROM run_findings`, []any{}
+	query, args := `SELECT id, run_id, investigation_run_id, category, severity, recommendation_text, evidence, target_path, fingerprint, operator_decision, target_measure, before_value, after_value, effectiveness, friction_topic, cites_resolved_commands, cites_real_outcome, cites_attributed_owner, quality_signal, created_at, COUNT(*) OVER (PARTITION BY fingerprint) AS occurrences FROM run_findings`, []any{}
 	var where []string
 	if filter.RunID != nil {
 		where, args = append(where, "run_id = ?"), append(args, filter.RunID.String())
@@ -84,6 +87,26 @@ func (r *SQLiteRepository) List(ctx context.Context, filter Filter) ([]Finding, 
 		items = append(items, item)
 	}
 	return items, nil
+}
+
+func qualitySignal(finding *Finding) string {
+	if finding == nil || strings.TrimSpace(finding.Evidence) == "" {
+		return "unavailable"
+	}
+	flags := []bool{finding.CitesResolvedCommands, finding.CitesRealOutcome, finding.CitesAttributedOwner}
+	count := 0
+	for _, flag := range flags {
+		if flag {
+			count++
+		}
+	}
+	if count == len(flags) {
+		return "complete"
+	}
+	if count > 0 {
+		return "partial"
+	}
+	return "unavailable"
 }
 
 func (r *SQLiteRepository) SetDecision(ctx context.Context, investigationRunID uuid.UUID, decision string) error {
