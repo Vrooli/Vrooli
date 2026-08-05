@@ -108,7 +108,9 @@ type TargetSuggestion struct {
 	// the operator must register it deliberately.
 	Sensitive bool `protobuf:"varint,8,opt,name=sensitive,proto3" json:"sensitive,omitempty"`
 	// Operator-facing warning shown for sensitive suggestions; empty otherwise.
-	Warning       string `protobuf:"bytes,9,opt,name=warning,proto3" json:"warning,omitempty"`
+	Warning string `protobuf:"bytes,9,opt,name=warning,proto3" json:"warning,omitempty"`
+	// True when this source is part of the minimal critical recovery inventory.
+	Critical      bool `protobuf:"varint,10,opt,name=critical,proto3" json:"critical,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -204,6 +206,13 @@ func (x *TargetSuggestion) GetWarning() string {
 		return x.Warning
 	}
 	return ""
+}
+
+func (x *TargetSuggestion) GetCritical() bool {
+	if x != nil {
+		return x.Critical
+	}
+	return false
 }
 
 // DestinationSuggestion is a mounted volume the operator could back up to.
@@ -590,7 +599,7 @@ var File_data_backup_manager_v1_discovery_discovery_proto protoreflect.FileDescr
 
 const file_data_backup_manager_v1_discovery_discovery_proto_rawDesc = "" +
 	"\n" +
-	"0data-backup-manager/v1/discovery/discovery.proto\x12'vrooli.data_backup_manager.v1.discovery\x1a\x1bbuf/validate/validate.proto\x1a6data-backup-manager/v1/destinations/destinations.proto\x1a,data-backup-manager/v1/sources/sources.proto\"\xb3\x02\n" +
+	"0data-backup-manager/v1/discovery/discovery.proto\x12'vrooli.data_backup_manager.v1.discovery\x1a\x1bbuf/validate/validate.proto\x1a6data-backup-manager/v1/destinations/destinations.proto\x1a,data-backup-manager/v1/sources/sources.proto\"\xcf\x02\n" +
 	"\x10TargetSuggestion\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05owner\x18\x02 \x01(\tR\x05owner\x12\x12\n" +
@@ -601,7 +610,9 @@ const file_data_backup_manager_v1_discovery_discovery_proto_rawDesc = "" +
 	"\trationale\x18\x06 \x01(\tR\trationale\x12!\n" +
 	"\fapprox_bytes\x18\a \x01(\x03R\vapproxBytes\x12\x1c\n" +
 	"\tsensitive\x18\b \x01(\bR\tsensitive\x12\x18\n" +
-	"\awarning\x18\t \x01(\tR\awarning\"\xb1\x03\n" +
+	"\awarning\x18\t \x01(\tR\awarning\x12\x1a\n" +
+	"\bcritical\x18\n" +
+	" \x01(\bR\bcritical\"\xb1\x03\n" +
 	"\x15DestinationSuggestion\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12Z\n" +

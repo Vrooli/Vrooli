@@ -1004,8 +1004,10 @@ type ApplyAdoptionRequest struct {
 	// scenario source file. When its source body differs from the selected
 	// library source, confirm_overwrite is required before any write occurs.
 	ReplaceExisting bool `protobuf:"varint,7,opt,name=replace_existing,json=replaceExisting,proto3" json:"replace_existing,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Optional catalog asset library ids to include from `suggests` edges.
+	IncludeSuggestions []string `protobuf:"bytes,8,rep,name=include_suggestions,json=includeSuggestions,proto3" json:"include_suggestions,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ApplyAdoptionRequest) Reset() {
@@ -1087,6 +1089,13 @@ func (x *ApplyAdoptionRequest) GetReplaceExisting() bool {
 	return false
 }
 
+func (x *ApplyAdoptionRequest) GetIncludeSuggestions() []string {
+	if x != nil {
+		return x.IncludeSuggestions
+	}
+	return nil
+}
+
 type ApplyAdoptionResponse struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
 	Adoption    *Adoption              `protobuf:"bytes,1,opt,name=adoption,proto3" json:"adoption,omitempty"`
@@ -1096,10 +1105,13 @@ type ApplyAdoptionResponse struct {
 	ImportSites []string `protobuf:"bytes,3,rep,name=import_sites,json=importSites,proto3" json:"import_sites,omitempty"`
 	// The style-fit decision evaluated for this apply. A discouraged verdict
 	// requires override_validation=true before this response can be produced.
-	StyleFitAffinity string `protobuf:"bytes,4,opt,name=style_fit_affinity,json=styleFitAffinity,proto3" json:"style_fit_affinity,omitempty"`
-	StyleFitDetail   string `protobuf:"bytes,5,opt,name=style_fit_detail,json=styleFitDetail,proto3" json:"style_fit_detail,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	StyleFitAffinity     string   `protobuf:"bytes,4,opt,name=style_fit_affinity,json=styleFitAffinity,proto3" json:"style_fit_affinity,omitempty"`
+	StyleFitDetail       string   `protobuf:"bytes,5,opt,name=style_fit_detail,json=styleFitDetail,proto3" json:"style_fit_detail,omitempty"`
+	CopiedAssets         []string `protobuf:"bytes,6,rep,name=copied_assets,json=copiedAssets,proto3" json:"copied_assets,omitempty"`
+	SatisfiedPorts       []string `protobuf:"bytes,7,rep,name=satisfied_ports,json=satisfiedPorts,proto3" json:"satisfied_ports,omitempty"`
+	AvailableSuggestions []string `protobuf:"bytes,8,rep,name=available_suggestions,json=availableSuggestions,proto3" json:"available_suggestions,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *ApplyAdoptionResponse) Reset() {
@@ -1165,6 +1177,27 @@ func (x *ApplyAdoptionResponse) GetStyleFitDetail() string {
 		return x.StyleFitDetail
 	}
 	return ""
+}
+
+func (x *ApplyAdoptionResponse) GetCopiedAssets() []string {
+	if x != nil {
+		return x.CopiedAssets
+	}
+	return nil
+}
+
+func (x *ApplyAdoptionResponse) GetSatisfiedPorts() []string {
+	if x != nil {
+		return x.SatisfiedPorts
+	}
+	return nil
+}
+
+func (x *ApplyAdoptionResponse) GetAvailableSuggestions() []string {
+	if x != nil {
+		return x.AvailableSuggestions
+	}
+	return nil
 }
 
 type ReapplyAdoptionRequest struct {
@@ -3023,7 +3056,7 @@ const file_react_component_library_v1_adoptions_adoptions_proto_rawDesc = "" +
 	"\fcomponent_id\x18\x01 \x01(\tR\vcomponentId\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\"~\n" +
 	"\x1eListEffectiveAdoptionsResponse\x12\\\n" +
-	"\tadoptions\x18\x01 \x03(\v2>.vrooli.react_component_library.v1.adoptions.EffectiveAdoptionR\tadoptions\"\x9b\x02\n" +
+	"\tadoptions\x18\x01 \x03(\v2>.vrooli.react_component_library.v1.adoptions.EffectiveAdoptionR\tadoptions\"\xcc\x02\n" +
 	"\x14ApplyAdoptionRequest\x12!\n" +
 	"\fcomponent_id\x18\x01 \x01(\tR\vcomponentId\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12!\n" +
@@ -3031,13 +3064,17 @@ const file_react_component_library_v1_adoptions_adoptions_proto_rawDesc = "" +
 	"\aversion\x18\x04 \x01(\tR\aversion\x12+\n" +
 	"\x11confirm_overwrite\x18\x05 \x01(\bR\x10confirmOverwrite\x12/\n" +
 	"\x13override_validation\x18\x06 \x01(\bR\x12overrideValidation\x12)\n" +
-	"\x10replace_existing\x18\a \x01(\bR\x0freplaceExisting\"\x88\x02\n" +
+	"\x10replace_existing\x18\a \x01(\bR\x0freplaceExisting\x12/\n" +
+	"\x13include_suggestions\x18\b \x03(\tR\x12includeSuggestions\"\x8b\x03\n" +
 	"\x15ApplyAdoptionResponse\x12Q\n" +
 	"\badoption\x18\x01 \x01(\v25.vrooli.react_component_library.v1.adoptions.AdoptionR\badoption\x12!\n" +
 	"\fwritten_path\x18\x02 \x01(\tR\vwrittenPath\x12!\n" +
 	"\fimport_sites\x18\x03 \x03(\tR\vimportSites\x12,\n" +
 	"\x12style_fit_affinity\x18\x04 \x01(\tR\x10styleFitAffinity\x12(\n" +
-	"\x10style_fit_detail\x18\x05 \x01(\tR\x0estyleFitDetail\"\xab\x01\n" +
+	"\x10style_fit_detail\x18\x05 \x01(\tR\x0estyleFitDetail\x12#\n" +
+	"\rcopied_assets\x18\x06 \x03(\tR\fcopiedAssets\x12'\n" +
+	"\x0fsatisfied_ports\x18\a \x03(\tR\x0esatisfiedPorts\x123\n" +
+	"\x15available_suggestions\x18\b \x03(\tR\x14availableSuggestions\"\xab\x01\n" +
 	"\x16ReapplyAdoptionRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x126\n" +

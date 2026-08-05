@@ -198,9 +198,15 @@ type TargetOutcome struct {
 	SnapshotId string `protobuf:"bytes,4,opt,name=snapshot_id,json=snapshotId,proto3" json:"snapshot_id,omitempty"`
 	Bytes      int64  `protobuf:"varint,5,opt,name=bytes,proto3" json:"bytes,omitempty"`
 	// Human-readable failure/block reason; empty on success.
-	Error         string                 `protobuf:"bytes,6,opt,name=error,proto3" json:"error,omitempty"`
-	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
-	FinishedAt    *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
+	Error      string                 `protobuf:"bytes,6,opt,name=error,proto3" json:"error,omitempty"`
+	StartedAt  *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	FinishedAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
+	// Stable machine-readable root cause; empty for a successful outcome.
+	FailureCode     string `protobuf:"bytes,9,opt,name=failure_code,json=failureCode,proto3" json:"failure_code,omitempty"`
+	FailureCategory string `protobuf:"bytes,10,opt,name=failure_category,json=failureCategory,proto3" json:"failure_category,omitempty"`
+	// Non-fatal maintenance warning (for example retention or staging cleanup)
+	// that must remain visible even when the snapshot itself succeeded.
+	Warning       string `protobuf:"bytes,11,opt,name=warning,proto3" json:"warning,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -291,23 +297,186 @@ func (x *TargetOutcome) GetFinishedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *TargetOutcome) GetFailureCode() string {
+	if x != nil {
+		return x.FailureCode
+	}
+	return ""
+}
+
+func (x *TargetOutcome) GetFailureCategory() string {
+	if x != nil {
+		return x.FailureCategory
+	}
+	return ""
+}
+
+func (x *TargetOutcome) GetWarning() string {
+	if x != nil {
+		return x.Warning
+	}
+	return ""
+}
+
+// FailureCause groups one shared dependency failure across all impacted work.
+// It is intentionally metadata-only: raw command output and secret values are
+// never persisted in this evidence model.
+type FailureCause struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Code              string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	Category          string                 `protobuf:"bytes,2,opt,name=category,proto3" json:"category,omitempty"`
+	Scope             string                 `protobuf:"bytes,3,opt,name=scope,proto3" json:"scope,omitempty"`
+	Message           string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
+	NextAction        string                 `protobuf:"bytes,5,opt,name=next_action,json=nextAction,proto3" json:"next_action,omitempty"`
+	DestinationId     string                 `protobuf:"bytes,6,opt,name=destination_id,json=destinationId,proto3" json:"destination_id,omitempty"`
+	TargetIds         []string               `protobuf:"bytes,7,rep,name=target_ids,json=targetIds,proto3" json:"target_ids,omitempty"`
+	FirstObserved     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=first_observed,json=firstObserved,proto3" json:"first_observed,omitempty"`
+	LastObserved      *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=last_observed,json=lastObserved,proto3" json:"last_observed,omitempty"`
+	LastKnownGood     *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=last_known_good,json=lastKnownGood,proto3" json:"last_known_good,omitempty"`
+	Retryable         bool                   `protobuf:"varint,11,opt,name=retryable,proto3" json:"retryable,omitempty"`
+	RetryAfterSeconds int64                  `protobuf:"varint,12,opt,name=retry_after_seconds,json=retryAfterSeconds,proto3" json:"retry_after_seconds,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *FailureCause) Reset() {
+	*x = FailureCause{}
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FailureCause) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FailureCause) ProtoMessage() {}
+
+func (x *FailureCause) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FailureCause.ProtoReflect.Descriptor instead.
+func (*FailureCause) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *FailureCause) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *FailureCause) GetCategory() string {
+	if x != nil {
+		return x.Category
+	}
+	return ""
+}
+
+func (x *FailureCause) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *FailureCause) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *FailureCause) GetNextAction() string {
+	if x != nil {
+		return x.NextAction
+	}
+	return ""
+}
+
+func (x *FailureCause) GetDestinationId() string {
+	if x != nil {
+		return x.DestinationId
+	}
+	return ""
+}
+
+func (x *FailureCause) GetTargetIds() []string {
+	if x != nil {
+		return x.TargetIds
+	}
+	return nil
+}
+
+func (x *FailureCause) GetFirstObserved() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FirstObserved
+	}
+	return nil
+}
+
+func (x *FailureCause) GetLastObserved() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastObserved
+	}
+	return nil
+}
+
+func (x *FailureCause) GetLastKnownGood() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastKnownGood
+	}
+	return nil
+}
+
+func (x *FailureCause) GetRetryable() bool {
+	if x != nil {
+		return x.Retryable
+	}
+	return false
+}
+
+func (x *FailureCause) GetRetryAfterSeconds() int64 {
+	if x != nil {
+		return x.RetryAfterSeconds
+	}
+	return 0
+}
+
 // Run is the canonical wire shape for one plan execution.
 type Run struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	PlanId        string                 `protobuf:"bytes,2,opt,name=plan_id,json=planId,proto3" json:"plan_id,omitempty"`
-	Trigger       TriggerSource          `protobuf:"varint,3,opt,name=trigger,proto3,enum=vrooli.data_backup_manager.v1.runs.TriggerSource" json:"trigger,omitempty"`
-	Status        RunStatus              `protobuf:"varint,4,opt,name=status,proto3,enum=vrooli.data_backup_manager.v1.runs.RunStatus" json:"status,omitempty"`
-	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
-	FinishedAt    *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
-	Outcomes      []*TargetOutcome       `protobuf:"bytes,7,rep,name=outcomes,proto3" json:"outcomes,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Id                 string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	PlanId             string                 `protobuf:"bytes,2,opt,name=plan_id,json=planId,proto3" json:"plan_id,omitempty"`
+	Trigger            TriggerSource          `protobuf:"varint,3,opt,name=trigger,proto3,enum=vrooli.data_backup_manager.v1.runs.TriggerSource" json:"trigger,omitempty"`
+	Status             RunStatus              `protobuf:"varint,4,opt,name=status,proto3,enum=vrooli.data_backup_manager.v1.runs.RunStatus" json:"status,omitempty"`
+	StartedAt          *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	FinishedAt         *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
+	Outcomes           []*TargetOutcome       `protobuf:"bytes,7,rep,name=outcomes,proto3" json:"outcomes,omitempty"`
+	Error              string                 `protobuf:"bytes,8,opt,name=error,proto3" json:"error,omitempty"`
+	FailureCode        string                 `protobuf:"bytes,9,opt,name=failure_code,json=failureCode,proto3" json:"failure_code,omitempty"`
+	FailureCategory    string                 `protobuf:"bytes,10,opt,name=failure_category,json=failureCategory,proto3" json:"failure_category,omitempty"`
+	NextAction         string                 `protobuf:"bytes,11,opt,name=next_action,json=nextAction,proto3" json:"next_action,omitempty"`
+	PreflightIncidents []*FailureCause        `protobuf:"bytes,12,rep,name=preflight_incidents,json=preflightIncidents,proto3" json:"preflight_incidents,omitempty"`
+	UpdatedAt          *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	PhysicalBytes      int64                  `protobuf:"varint,14,opt,name=physical_bytes,json=physicalBytes,proto3" json:"physical_bytes,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *Run) Reset() {
 	*x = Run{}
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[1]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -319,7 +488,7 @@ func (x *Run) String() string {
 func (*Run) ProtoMessage() {}
 
 func (x *Run) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[1]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -332,7 +501,7 @@ func (x *Run) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Run.ProtoReflect.Descriptor instead.
 func (*Run) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{1}
+	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Run) GetId() string {
@@ -384,6 +553,55 @@ func (x *Run) GetOutcomes() []*TargetOutcome {
 	return nil
 }
 
+func (x *Run) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *Run) GetFailureCode() string {
+	if x != nil {
+		return x.FailureCode
+	}
+	return ""
+}
+
+func (x *Run) GetFailureCategory() string {
+	if x != nil {
+		return x.FailureCategory
+	}
+	return ""
+}
+
+func (x *Run) GetNextAction() string {
+	if x != nil {
+		return x.NextAction
+	}
+	return ""
+}
+
+func (x *Run) GetPreflightIncidents() []*FailureCause {
+	if x != nil {
+		return x.PreflightIncidents
+	}
+	return nil
+}
+
+func (x *Run) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+func (x *Run) GetPhysicalBytes() int64 {
+	if x != nil {
+		return x.PhysicalBytes
+	}
+	return 0
+}
+
 // TargetStatus is the last-success / last-run rollup for one target, derived
 // from run history (powers the catalog and the health overdue check).
 //
@@ -424,7 +642,7 @@ type TargetStatus struct {
 
 func (x *TargetStatus) Reset() {
 	*x = TargetStatus{}
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[2]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -436,7 +654,7 @@ func (x *TargetStatus) String() string {
 func (*TargetStatus) ProtoMessage() {}
 
 func (x *TargetStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[2]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -449,7 +667,7 @@ func (x *TargetStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TargetStatus.ProtoReflect.Descriptor instead.
 func (*TargetStatus) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{2}
+	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *TargetStatus) GetTargetId() string {
@@ -524,7 +742,7 @@ type TriggerRunRequest struct {
 
 func (x *TriggerRunRequest) Reset() {
 	*x = TriggerRunRequest{}
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[3]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -536,7 +754,7 @@ func (x *TriggerRunRequest) String() string {
 func (*TriggerRunRequest) ProtoMessage() {}
 
 func (x *TriggerRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[3]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -549,7 +767,7 @@ func (x *TriggerRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TriggerRunRequest.ProtoReflect.Descriptor instead.
 func (*TriggerRunRequest) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{3}
+	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *TriggerRunRequest) GetPlanId() string {
@@ -568,7 +786,7 @@ type TriggerRunResponse struct {
 
 func (x *TriggerRunResponse) Reset() {
 	*x = TriggerRunResponse{}
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[4]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -580,7 +798,7 @@ func (x *TriggerRunResponse) String() string {
 func (*TriggerRunResponse) ProtoMessage() {}
 
 func (x *TriggerRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[4]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -593,12 +811,116 @@ func (x *TriggerRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TriggerRunResponse.ProtoReflect.Descriptor instead.
 func (*TriggerRunResponse) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{4}
+	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *TriggerRunResponse) GetRun() *Run {
 	if x != nil {
 		return x.Run
+	}
+	return nil
+}
+
+type PreflightRunRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PlanId        string                 `protobuf:"bytes,1,opt,name=plan_id,json=planId,proto3" json:"plan_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PreflightRunRequest) Reset() {
+	*x = PreflightRunRequest{}
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PreflightRunRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PreflightRunRequest) ProtoMessage() {}
+
+func (x *PreflightRunRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PreflightRunRequest.ProtoReflect.Descriptor instead.
+func (*PreflightRunRequest) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *PreflightRunRequest) GetPlanId() string {
+	if x != nil {
+		return x.PlanId
+	}
+	return ""
+}
+
+type PreflightRunResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ready         bool                   `protobuf:"varint,1,opt,name=ready,proto3" json:"ready,omitempty"`
+	CheckedAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=checked_at,json=checkedAt,proto3" json:"checked_at,omitempty"`
+	Incidents     []*FailureCause        `protobuf:"bytes,3,rep,name=incidents,proto3" json:"incidents,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PreflightRunResponse) Reset() {
+	*x = PreflightRunResponse{}
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PreflightRunResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PreflightRunResponse) ProtoMessage() {}
+
+func (x *PreflightRunResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PreflightRunResponse.ProtoReflect.Descriptor instead.
+func (*PreflightRunResponse) Descriptor() ([]byte, []int) {
+	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *PreflightRunResponse) GetReady() bool {
+	if x != nil {
+		return x.Ready
+	}
+	return false
+}
+
+func (x *PreflightRunResponse) GetCheckedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CheckedAt
+	}
+	return nil
+}
+
+func (x *PreflightRunResponse) GetIncidents() []*FailureCause {
+	if x != nil {
+		return x.Incidents
 	}
 	return nil
 }
@@ -612,7 +934,7 @@ type GetRunRequest struct {
 
 func (x *GetRunRequest) Reset() {
 	*x = GetRunRequest{}
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[5]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -624,7 +946,7 @@ func (x *GetRunRequest) String() string {
 func (*GetRunRequest) ProtoMessage() {}
 
 func (x *GetRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[5]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -637,7 +959,7 @@ func (x *GetRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRunRequest.ProtoReflect.Descriptor instead.
 func (*GetRunRequest) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{5}
+	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetRunRequest) GetId() string {
@@ -656,7 +978,7 @@ type GetRunResponse struct {
 
 func (x *GetRunResponse) Reset() {
 	*x = GetRunResponse{}
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[6]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -668,7 +990,7 @@ func (x *GetRunResponse) String() string {
 func (*GetRunResponse) ProtoMessage() {}
 
 func (x *GetRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[6]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -681,7 +1003,7 @@ func (x *GetRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRunResponse.ProtoReflect.Descriptor instead.
 func (*GetRunResponse) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{6}
+	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetRunResponse) GetRun() *Run {
@@ -703,7 +1025,7 @@ type ListRunsRequest struct {
 
 func (x *ListRunsRequest) Reset() {
 	*x = ListRunsRequest{}
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[7]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -715,7 +1037,7 @@ func (x *ListRunsRequest) String() string {
 func (*ListRunsRequest) ProtoMessage() {}
 
 func (x *ListRunsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[7]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -728,7 +1050,7 @@ func (x *ListRunsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRunsRequest.ProtoReflect.Descriptor instead.
 func (*ListRunsRequest) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{7}
+	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ListRunsRequest) GetPlanId() string {
@@ -762,7 +1084,7 @@ type ListRunsResponse struct {
 
 func (x *ListRunsResponse) Reset() {
 	*x = ListRunsResponse{}
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[8]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -774,7 +1096,7 @@ func (x *ListRunsResponse) String() string {
 func (*ListRunsResponse) ProtoMessage() {}
 
 func (x *ListRunsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[8]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -787,7 +1109,7 @@ func (x *ListRunsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRunsResponse.ProtoReflect.Descriptor instead.
 func (*ListRunsResponse) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{8}
+	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ListRunsResponse) GetRuns() []*Run {
@@ -813,7 +1135,7 @@ type ListTargetStatusRequest struct {
 
 func (x *ListTargetStatusRequest) Reset() {
 	*x = ListTargetStatusRequest{}
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[9]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -825,7 +1147,7 @@ func (x *ListTargetStatusRequest) String() string {
 func (*ListTargetStatusRequest) ProtoMessage() {}
 
 func (x *ListTargetStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[9]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -838,7 +1160,7 @@ func (x *ListTargetStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTargetStatusRequest.ProtoReflect.Descriptor instead.
 func (*ListTargetStatusRequest) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{9}
+	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ListTargetStatusRequest) GetOwner() string {
@@ -857,7 +1179,7 @@ type ListTargetStatusResponse struct {
 
 func (x *ListTargetStatusResponse) Reset() {
 	*x = ListTargetStatusResponse{}
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[10]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -869,7 +1191,7 @@ func (x *ListTargetStatusResponse) String() string {
 func (*ListTargetStatusResponse) ProtoMessage() {}
 
 func (x *ListTargetStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[10]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -882,7 +1204,7 @@ func (x *ListTargetStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTargetStatusResponse.ProtoReflect.Descriptor instead.
 func (*ListTargetStatusResponse) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{10}
+	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ListTargetStatusResponse) GetStatuses() []*TargetStatus {
@@ -904,7 +1226,7 @@ type SnapshotEntry struct {
 
 func (x *SnapshotEntry) Reset() {
 	*x = SnapshotEntry{}
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[11]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -916,7 +1238,7 @@ func (x *SnapshotEntry) String() string {
 func (*SnapshotEntry) ProtoMessage() {}
 
 func (x *SnapshotEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[11]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -929,7 +1251,7 @@ func (x *SnapshotEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SnapshotEntry.ProtoReflect.Descriptor instead.
 func (*SnapshotEntry) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{11}
+	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *SnapshotEntry) GetPath() string {
@@ -965,7 +1287,7 @@ type BrowseSnapshotRequest struct {
 
 func (x *BrowseSnapshotRequest) Reset() {
 	*x = BrowseSnapshotRequest{}
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[12]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -977,7 +1299,7 @@ func (x *BrowseSnapshotRequest) String() string {
 func (*BrowseSnapshotRequest) ProtoMessage() {}
 
 func (x *BrowseSnapshotRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[12]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -990,7 +1312,7 @@ func (x *BrowseSnapshotRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BrowseSnapshotRequest.ProtoReflect.Descriptor instead.
 func (*BrowseSnapshotRequest) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{12}
+	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *BrowseSnapshotRequest) GetDestinationId() string {
@@ -1023,7 +1345,7 @@ type BrowseSnapshotResponse struct {
 
 func (x *BrowseSnapshotResponse) Reset() {
 	*x = BrowseSnapshotResponse{}
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[13]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1035,7 +1357,7 @@ func (x *BrowseSnapshotResponse) String() string {
 func (*BrowseSnapshotResponse) ProtoMessage() {}
 
 func (x *BrowseSnapshotResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[13]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1048,7 +1370,7 @@ func (x *BrowseSnapshotResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BrowseSnapshotResponse.ProtoReflect.Descriptor instead.
 func (*BrowseSnapshotResponse) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{13}
+	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *BrowseSnapshotResponse) GetEntries() []*SnapshotEntry {
@@ -1068,7 +1390,7 @@ type GetRunStatsRequest struct {
 
 func (x *GetRunStatsRequest) Reset() {
 	*x = GetRunStatsRequest{}
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[14]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1080,7 +1402,7 @@ func (x *GetRunStatsRequest) String() string {
 func (*GetRunStatsRequest) ProtoMessage() {}
 
 func (x *GetRunStatsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[14]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1093,7 +1415,7 @@ func (x *GetRunStatsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRunStatsRequest.ProtoReflect.Descriptor instead.
 func (*GetRunStatsRequest) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{14}
+	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetRunStatsRequest) GetPlanId() string {
@@ -1141,7 +1463,7 @@ type RunStats struct {
 
 func (x *RunStats) Reset() {
 	*x = RunStats{}
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[15]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1153,7 +1475,7 @@ func (x *RunStats) String() string {
 func (*RunStats) ProtoMessage() {}
 
 func (x *RunStats) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[15]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1166,7 +1488,7 @@ func (x *RunStats) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunStats.ProtoReflect.Descriptor instead.
 func (*RunStats) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{15}
+	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *RunStats) GetTotalRuns() int64 {
@@ -1269,7 +1591,7 @@ type GetRunStatsResponse struct {
 
 func (x *GetRunStatsResponse) Reset() {
 	*x = GetRunStatsResponse{}
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[16]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1281,7 +1603,7 @@ func (x *GetRunStatsResponse) String() string {
 func (*GetRunStatsResponse) ProtoMessage() {}
 
 func (x *GetRunStatsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[16]
+	mi := &file_data_backup_manager_v1_runs_runs_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1294,7 +1616,7 @@ func (x *GetRunStatsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRunStatsResponse.ProtoReflect.Descriptor instead.
 func (*GetRunStatsResponse) Descriptor() ([]byte, []int) {
-	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{16}
+	return file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *GetRunStatsResponse) GetStats() *RunStats {
@@ -1308,7 +1630,7 @@ var File_data_backup_manager_v1_runs_runs_proto protoreflect.FileDescriptor
 
 const file_data_backup_manager_v1_runs_runs_proto_rawDesc = "" +
 	"\n" +
-	"&data-backup-manager/v1/runs/runs.proto\x12\"vrooli.data_backup_manager.v1.runs\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe9\x02\n" +
+	"&data-backup-manager/v1/runs/runs.proto\x12\"vrooli.data_backup_manager.v1.runs\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd1\x03\n" +
 	"\rTargetOutcome\x12\x1b\n" +
 	"\ttarget_id\x18\x01 \x01(\tR\btargetId\x12%\n" +
 	"\x0edestination_id\x18\x02 \x01(\tR\rdestinationId\x12O\n" +
@@ -1320,7 +1642,27 @@ const file_data_backup_manager_v1_runs_runs_proto_rawDesc = "" +
 	"\n" +
 	"started_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12;\n" +
 	"\vfinished_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"finishedAt\"\x89\x03\n" +
+	"finishedAt\x12!\n" +
+	"\ffailure_code\x18\t \x01(\tR\vfailureCode\x12)\n" +
+	"\x10failure_category\x18\n" +
+	" \x01(\tR\x0ffailureCategory\x12\x18\n" +
+	"\awarning\x18\v \x01(\tR\awarning\"\xeb\x03\n" +
+	"\fFailureCause\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\tR\x04code\x12\x1a\n" +
+	"\bcategory\x18\x02 \x01(\tR\bcategory\x12\x14\n" +
+	"\x05scope\x18\x03 \x01(\tR\x05scope\x12\x18\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage\x12\x1f\n" +
+	"\vnext_action\x18\x05 \x01(\tR\n" +
+	"nextAction\x12%\n" +
+	"\x0edestination_id\x18\x06 \x01(\tR\rdestinationId\x12\x1d\n" +
+	"\n" +
+	"target_ids\x18\a \x03(\tR\ttargetIds\x12A\n" +
+	"\x0efirst_observed\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\rfirstObserved\x12?\n" +
+	"\rlast_observed\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\flastObserved\x12B\n" +
+	"\x0flast_known_good\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\rlastKnownGood\x12\x1c\n" +
+	"\tretryable\x18\v \x01(\bR\tretryable\x12.\n" +
+	"\x13retry_after_seconds\x18\f \x01(\x03R\x11retryAfterSeconds\"\xd3\x05\n" +
 	"\x03Run\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12K\n" +
@@ -1330,7 +1672,17 @@ const file_data_backup_manager_v1_runs_runs_proto_rawDesc = "" +
 	"started_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12;\n" +
 	"\vfinished_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"finishedAt\x12M\n" +
-	"\boutcomes\x18\a \x03(\v21.vrooli.data_backup_manager.v1.runs.TargetOutcomeR\boutcomes\"\x9e\x04\n" +
+	"\boutcomes\x18\a \x03(\v21.vrooli.data_backup_manager.v1.runs.TargetOutcomeR\boutcomes\x12\x14\n" +
+	"\x05error\x18\b \x01(\tR\x05error\x12!\n" +
+	"\ffailure_code\x18\t \x01(\tR\vfailureCode\x12)\n" +
+	"\x10failure_category\x18\n" +
+	" \x01(\tR\x0ffailureCategory\x12\x1f\n" +
+	"\vnext_action\x18\v \x01(\tR\n" +
+	"nextAction\x12a\n" +
+	"\x13preflight_incidents\x18\f \x03(\v20.vrooli.data_backup_manager.v1.runs.FailureCauseR\x12preflightIncidents\x129\n" +
+	"\n" +
+	"updated_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12%\n" +
+	"\x0ephysical_bytes\x18\x0e \x01(\x03R\rphysicalBytes\"\x9e\x04\n" +
 	"\fTargetStatus\x12\x1b\n" +
 	"\ttarget_id\x18\x01 \x01(\tR\btargetId\x12B\n" +
 	"\x0flast_success_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\rlastSuccessAt\x12U\n" +
@@ -1344,7 +1696,14 @@ const file_data_backup_manager_v1_runs_runs_proto_rawDesc = "" +
 	"\x11TriggerRunRequest\x12 \n" +
 	"\aplan_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06planId\"O\n" +
 	"\x12TriggerRunResponse\x129\n" +
-	"\x03run\x18\x01 \x01(\v2'.vrooli.data_backup_manager.v1.runs.RunR\x03run\"(\n" +
+	"\x03run\x18\x01 \x01(\v2'.vrooli.data_backup_manager.v1.runs.RunR\x03run\"7\n" +
+	"\x13PreflightRunRequest\x12 \n" +
+	"\aplan_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06planId\"\xb7\x01\n" +
+	"\x14PreflightRunResponse\x12\x14\n" +
+	"\x05ready\x18\x01 \x01(\bR\x05ready\x129\n" +
+	"\n" +
+	"checked_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcheckedAt\x12N\n" +
+	"\tincidents\x18\x03 \x03(\v20.vrooli.data_backup_manager.v1.runs.FailureCauseR\tincidents\"(\n" +
 	"\rGetRunRequest\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\"K\n" +
 	"\x0eGetRunResponse\x129\n" +
@@ -1411,10 +1770,11 @@ const file_data_backup_manager_v1_runs_runs_proto_rawDesc = "" +
 	"!TARGET_OUTCOME_STATUS_UNSPECIFIED\x10\x00\x12#\n" +
 	"\x1fTARGET_OUTCOME_STATUS_SUCCEEDED\x10\x01\x12 \n" +
 	"\x1cTARGET_OUTCOME_STATUS_FAILED\x10\x02\x12!\n" +
-	"\x1dTARGET_OUTCOME_STATUS_BLOCKED\x10\x032\x8c\x06\n" +
+	"\x1dTARGET_OUTCOME_STATUS_BLOCKED\x10\x032\x90\a\n" +
 	"\vRunsService\x12{\n" +
 	"\n" +
-	"TriggerRun\x125.vrooli.data_backup_manager.v1.runs.TriggerRunRequest\x1a6.vrooli.data_backup_manager.v1.runs.TriggerRunResponse\x12o\n" +
+	"TriggerRun\x125.vrooli.data_backup_manager.v1.runs.TriggerRunRequest\x1a6.vrooli.data_backup_manager.v1.runs.TriggerRunResponse\x12\x81\x01\n" +
+	"\fPreflightRun\x127.vrooli.data_backup_manager.v1.runs.PreflightRunRequest\x1a8.vrooli.data_backup_manager.v1.runs.PreflightRunResponse\x12o\n" +
 	"\x06GetRun\x121.vrooli.data_backup_manager.v1.runs.GetRunRequest\x1a2.vrooli.data_backup_manager.v1.runs.GetRunResponse\x12u\n" +
 	"\bListRuns\x123.vrooli.data_backup_manager.v1.runs.ListRunsRequest\x1a4.vrooli.data_backup_manager.v1.runs.ListRunsResponse\x12\x8d\x01\n" +
 	"\x10ListTargetStatus\x12;.vrooli.data_backup_manager.v1.runs.ListTargetStatusRequest\x1a<.vrooli.data_backup_manager.v1.runs.ListTargetStatusResponse\x12\x87\x01\n" +
@@ -1434,67 +1794,79 @@ func file_data_backup_manager_v1_runs_runs_proto_rawDescGZIP() []byte {
 }
 
 var file_data_backup_manager_v1_runs_runs_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_data_backup_manager_v1_runs_runs_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_data_backup_manager_v1_runs_runs_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_data_backup_manager_v1_runs_runs_proto_goTypes = []any{
 	(RunStatus)(0),                   // 0: vrooli.data_backup_manager.v1.runs.RunStatus
 	(TriggerSource)(0),               // 1: vrooli.data_backup_manager.v1.runs.TriggerSource
 	(TargetOutcomeStatus)(0),         // 2: vrooli.data_backup_manager.v1.runs.TargetOutcomeStatus
 	(*TargetOutcome)(nil),            // 3: vrooli.data_backup_manager.v1.runs.TargetOutcome
-	(*Run)(nil),                      // 4: vrooli.data_backup_manager.v1.runs.Run
-	(*TargetStatus)(nil),             // 5: vrooli.data_backup_manager.v1.runs.TargetStatus
-	(*TriggerRunRequest)(nil),        // 6: vrooli.data_backup_manager.v1.runs.TriggerRunRequest
-	(*TriggerRunResponse)(nil),       // 7: vrooli.data_backup_manager.v1.runs.TriggerRunResponse
-	(*GetRunRequest)(nil),            // 8: vrooli.data_backup_manager.v1.runs.GetRunRequest
-	(*GetRunResponse)(nil),           // 9: vrooli.data_backup_manager.v1.runs.GetRunResponse
-	(*ListRunsRequest)(nil),          // 10: vrooli.data_backup_manager.v1.runs.ListRunsRequest
-	(*ListRunsResponse)(nil),         // 11: vrooli.data_backup_manager.v1.runs.ListRunsResponse
-	(*ListTargetStatusRequest)(nil),  // 12: vrooli.data_backup_manager.v1.runs.ListTargetStatusRequest
-	(*ListTargetStatusResponse)(nil), // 13: vrooli.data_backup_manager.v1.runs.ListTargetStatusResponse
-	(*SnapshotEntry)(nil),            // 14: vrooli.data_backup_manager.v1.runs.SnapshotEntry
-	(*BrowseSnapshotRequest)(nil),    // 15: vrooli.data_backup_manager.v1.runs.BrowseSnapshotRequest
-	(*BrowseSnapshotResponse)(nil),   // 16: vrooli.data_backup_manager.v1.runs.BrowseSnapshotResponse
-	(*GetRunStatsRequest)(nil),       // 17: vrooli.data_backup_manager.v1.runs.GetRunStatsRequest
-	(*RunStats)(nil),                 // 18: vrooli.data_backup_manager.v1.runs.RunStats
-	(*GetRunStatsResponse)(nil),      // 19: vrooli.data_backup_manager.v1.runs.GetRunStatsResponse
-	(*timestamppb.Timestamp)(nil),    // 20: google.protobuf.Timestamp
+	(*FailureCause)(nil),             // 4: vrooli.data_backup_manager.v1.runs.FailureCause
+	(*Run)(nil),                      // 5: vrooli.data_backup_manager.v1.runs.Run
+	(*TargetStatus)(nil),             // 6: vrooli.data_backup_manager.v1.runs.TargetStatus
+	(*TriggerRunRequest)(nil),        // 7: vrooli.data_backup_manager.v1.runs.TriggerRunRequest
+	(*TriggerRunResponse)(nil),       // 8: vrooli.data_backup_manager.v1.runs.TriggerRunResponse
+	(*PreflightRunRequest)(nil),      // 9: vrooli.data_backup_manager.v1.runs.PreflightRunRequest
+	(*PreflightRunResponse)(nil),     // 10: vrooli.data_backup_manager.v1.runs.PreflightRunResponse
+	(*GetRunRequest)(nil),            // 11: vrooli.data_backup_manager.v1.runs.GetRunRequest
+	(*GetRunResponse)(nil),           // 12: vrooli.data_backup_manager.v1.runs.GetRunResponse
+	(*ListRunsRequest)(nil),          // 13: vrooli.data_backup_manager.v1.runs.ListRunsRequest
+	(*ListRunsResponse)(nil),         // 14: vrooli.data_backup_manager.v1.runs.ListRunsResponse
+	(*ListTargetStatusRequest)(nil),  // 15: vrooli.data_backup_manager.v1.runs.ListTargetStatusRequest
+	(*ListTargetStatusResponse)(nil), // 16: vrooli.data_backup_manager.v1.runs.ListTargetStatusResponse
+	(*SnapshotEntry)(nil),            // 17: vrooli.data_backup_manager.v1.runs.SnapshotEntry
+	(*BrowseSnapshotRequest)(nil),    // 18: vrooli.data_backup_manager.v1.runs.BrowseSnapshotRequest
+	(*BrowseSnapshotResponse)(nil),   // 19: vrooli.data_backup_manager.v1.runs.BrowseSnapshotResponse
+	(*GetRunStatsRequest)(nil),       // 20: vrooli.data_backup_manager.v1.runs.GetRunStatsRequest
+	(*RunStats)(nil),                 // 21: vrooli.data_backup_manager.v1.runs.RunStats
+	(*GetRunStatsResponse)(nil),      // 22: vrooli.data_backup_manager.v1.runs.GetRunStatsResponse
+	(*timestamppb.Timestamp)(nil),    // 23: google.protobuf.Timestamp
 }
 var file_data_backup_manager_v1_runs_runs_proto_depIdxs = []int32{
 	2,  // 0: vrooli.data_backup_manager.v1.runs.TargetOutcome.status:type_name -> vrooli.data_backup_manager.v1.runs.TargetOutcomeStatus
-	20, // 1: vrooli.data_backup_manager.v1.runs.TargetOutcome.started_at:type_name -> google.protobuf.Timestamp
-	20, // 2: vrooli.data_backup_manager.v1.runs.TargetOutcome.finished_at:type_name -> google.protobuf.Timestamp
-	1,  // 3: vrooli.data_backup_manager.v1.runs.Run.trigger:type_name -> vrooli.data_backup_manager.v1.runs.TriggerSource
-	0,  // 4: vrooli.data_backup_manager.v1.runs.Run.status:type_name -> vrooli.data_backup_manager.v1.runs.RunStatus
-	20, // 5: vrooli.data_backup_manager.v1.runs.Run.started_at:type_name -> google.protobuf.Timestamp
-	20, // 6: vrooli.data_backup_manager.v1.runs.Run.finished_at:type_name -> google.protobuf.Timestamp
-	3,  // 7: vrooli.data_backup_manager.v1.runs.Run.outcomes:type_name -> vrooli.data_backup_manager.v1.runs.TargetOutcome
-	20, // 8: vrooli.data_backup_manager.v1.runs.TargetStatus.last_success_at:type_name -> google.protobuf.Timestamp
-	0,  // 9: vrooli.data_backup_manager.v1.runs.TargetStatus.last_run_status:type_name -> vrooli.data_backup_manager.v1.runs.RunStatus
-	20, // 10: vrooli.data_backup_manager.v1.runs.TargetStatus.last_run_at:type_name -> google.protobuf.Timestamp
-	20, // 11: vrooli.data_backup_manager.v1.runs.TargetStatus.last_verified_at:type_name -> google.protobuf.Timestamp
-	20, // 12: vrooli.data_backup_manager.v1.runs.TargetStatus.next_scheduled_at:type_name -> google.protobuf.Timestamp
-	4,  // 13: vrooli.data_backup_manager.v1.runs.TriggerRunResponse.run:type_name -> vrooli.data_backup_manager.v1.runs.Run
-	4,  // 14: vrooli.data_backup_manager.v1.runs.GetRunResponse.run:type_name -> vrooli.data_backup_manager.v1.runs.Run
-	4,  // 15: vrooli.data_backup_manager.v1.runs.ListRunsResponse.runs:type_name -> vrooli.data_backup_manager.v1.runs.Run
-	5,  // 16: vrooli.data_backup_manager.v1.runs.ListTargetStatusResponse.statuses:type_name -> vrooli.data_backup_manager.v1.runs.TargetStatus
-	14, // 17: vrooli.data_backup_manager.v1.runs.BrowseSnapshotResponse.entries:type_name -> vrooli.data_backup_manager.v1.runs.SnapshotEntry
-	18, // 18: vrooli.data_backup_manager.v1.runs.GetRunStatsResponse.stats:type_name -> vrooli.data_backup_manager.v1.runs.RunStats
-	6,  // 19: vrooli.data_backup_manager.v1.runs.RunsService.TriggerRun:input_type -> vrooli.data_backup_manager.v1.runs.TriggerRunRequest
-	8,  // 20: vrooli.data_backup_manager.v1.runs.RunsService.GetRun:input_type -> vrooli.data_backup_manager.v1.runs.GetRunRequest
-	10, // 21: vrooli.data_backup_manager.v1.runs.RunsService.ListRuns:input_type -> vrooli.data_backup_manager.v1.runs.ListRunsRequest
-	12, // 22: vrooli.data_backup_manager.v1.runs.RunsService.ListTargetStatus:input_type -> vrooli.data_backup_manager.v1.runs.ListTargetStatusRequest
-	15, // 23: vrooli.data_backup_manager.v1.runs.RunsService.BrowseSnapshot:input_type -> vrooli.data_backup_manager.v1.runs.BrowseSnapshotRequest
-	17, // 24: vrooli.data_backup_manager.v1.runs.RunsService.GetRunStats:input_type -> vrooli.data_backup_manager.v1.runs.GetRunStatsRequest
-	7,  // 25: vrooli.data_backup_manager.v1.runs.RunsService.TriggerRun:output_type -> vrooli.data_backup_manager.v1.runs.TriggerRunResponse
-	9,  // 26: vrooli.data_backup_manager.v1.runs.RunsService.GetRun:output_type -> vrooli.data_backup_manager.v1.runs.GetRunResponse
-	11, // 27: vrooli.data_backup_manager.v1.runs.RunsService.ListRuns:output_type -> vrooli.data_backup_manager.v1.runs.ListRunsResponse
-	13, // 28: vrooli.data_backup_manager.v1.runs.RunsService.ListTargetStatus:output_type -> vrooli.data_backup_manager.v1.runs.ListTargetStatusResponse
-	16, // 29: vrooli.data_backup_manager.v1.runs.RunsService.BrowseSnapshot:output_type -> vrooli.data_backup_manager.v1.runs.BrowseSnapshotResponse
-	19, // 30: vrooli.data_backup_manager.v1.runs.RunsService.GetRunStats:output_type -> vrooli.data_backup_manager.v1.runs.GetRunStatsResponse
-	25, // [25:31] is the sub-list for method output_type
-	19, // [19:25] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	23, // 1: vrooli.data_backup_manager.v1.runs.TargetOutcome.started_at:type_name -> google.protobuf.Timestamp
+	23, // 2: vrooli.data_backup_manager.v1.runs.TargetOutcome.finished_at:type_name -> google.protobuf.Timestamp
+	23, // 3: vrooli.data_backup_manager.v1.runs.FailureCause.first_observed:type_name -> google.protobuf.Timestamp
+	23, // 4: vrooli.data_backup_manager.v1.runs.FailureCause.last_observed:type_name -> google.protobuf.Timestamp
+	23, // 5: vrooli.data_backup_manager.v1.runs.FailureCause.last_known_good:type_name -> google.protobuf.Timestamp
+	1,  // 6: vrooli.data_backup_manager.v1.runs.Run.trigger:type_name -> vrooli.data_backup_manager.v1.runs.TriggerSource
+	0,  // 7: vrooli.data_backup_manager.v1.runs.Run.status:type_name -> vrooli.data_backup_manager.v1.runs.RunStatus
+	23, // 8: vrooli.data_backup_manager.v1.runs.Run.started_at:type_name -> google.protobuf.Timestamp
+	23, // 9: vrooli.data_backup_manager.v1.runs.Run.finished_at:type_name -> google.protobuf.Timestamp
+	3,  // 10: vrooli.data_backup_manager.v1.runs.Run.outcomes:type_name -> vrooli.data_backup_manager.v1.runs.TargetOutcome
+	4,  // 11: vrooli.data_backup_manager.v1.runs.Run.preflight_incidents:type_name -> vrooli.data_backup_manager.v1.runs.FailureCause
+	23, // 12: vrooli.data_backup_manager.v1.runs.Run.updated_at:type_name -> google.protobuf.Timestamp
+	23, // 13: vrooli.data_backup_manager.v1.runs.TargetStatus.last_success_at:type_name -> google.protobuf.Timestamp
+	0,  // 14: vrooli.data_backup_manager.v1.runs.TargetStatus.last_run_status:type_name -> vrooli.data_backup_manager.v1.runs.RunStatus
+	23, // 15: vrooli.data_backup_manager.v1.runs.TargetStatus.last_run_at:type_name -> google.protobuf.Timestamp
+	23, // 16: vrooli.data_backup_manager.v1.runs.TargetStatus.last_verified_at:type_name -> google.protobuf.Timestamp
+	23, // 17: vrooli.data_backup_manager.v1.runs.TargetStatus.next_scheduled_at:type_name -> google.protobuf.Timestamp
+	5,  // 18: vrooli.data_backup_manager.v1.runs.TriggerRunResponse.run:type_name -> vrooli.data_backup_manager.v1.runs.Run
+	23, // 19: vrooli.data_backup_manager.v1.runs.PreflightRunResponse.checked_at:type_name -> google.protobuf.Timestamp
+	4,  // 20: vrooli.data_backup_manager.v1.runs.PreflightRunResponse.incidents:type_name -> vrooli.data_backup_manager.v1.runs.FailureCause
+	5,  // 21: vrooli.data_backup_manager.v1.runs.GetRunResponse.run:type_name -> vrooli.data_backup_manager.v1.runs.Run
+	5,  // 22: vrooli.data_backup_manager.v1.runs.ListRunsResponse.runs:type_name -> vrooli.data_backup_manager.v1.runs.Run
+	6,  // 23: vrooli.data_backup_manager.v1.runs.ListTargetStatusResponse.statuses:type_name -> vrooli.data_backup_manager.v1.runs.TargetStatus
+	17, // 24: vrooli.data_backup_manager.v1.runs.BrowseSnapshotResponse.entries:type_name -> vrooli.data_backup_manager.v1.runs.SnapshotEntry
+	21, // 25: vrooli.data_backup_manager.v1.runs.GetRunStatsResponse.stats:type_name -> vrooli.data_backup_manager.v1.runs.RunStats
+	7,  // 26: vrooli.data_backup_manager.v1.runs.RunsService.TriggerRun:input_type -> vrooli.data_backup_manager.v1.runs.TriggerRunRequest
+	9,  // 27: vrooli.data_backup_manager.v1.runs.RunsService.PreflightRun:input_type -> vrooli.data_backup_manager.v1.runs.PreflightRunRequest
+	11, // 28: vrooli.data_backup_manager.v1.runs.RunsService.GetRun:input_type -> vrooli.data_backup_manager.v1.runs.GetRunRequest
+	13, // 29: vrooli.data_backup_manager.v1.runs.RunsService.ListRuns:input_type -> vrooli.data_backup_manager.v1.runs.ListRunsRequest
+	15, // 30: vrooli.data_backup_manager.v1.runs.RunsService.ListTargetStatus:input_type -> vrooli.data_backup_manager.v1.runs.ListTargetStatusRequest
+	18, // 31: vrooli.data_backup_manager.v1.runs.RunsService.BrowseSnapshot:input_type -> vrooli.data_backup_manager.v1.runs.BrowseSnapshotRequest
+	20, // 32: vrooli.data_backup_manager.v1.runs.RunsService.GetRunStats:input_type -> vrooli.data_backup_manager.v1.runs.GetRunStatsRequest
+	8,  // 33: vrooli.data_backup_manager.v1.runs.RunsService.TriggerRun:output_type -> vrooli.data_backup_manager.v1.runs.TriggerRunResponse
+	10, // 34: vrooli.data_backup_manager.v1.runs.RunsService.PreflightRun:output_type -> vrooli.data_backup_manager.v1.runs.PreflightRunResponse
+	12, // 35: vrooli.data_backup_manager.v1.runs.RunsService.GetRun:output_type -> vrooli.data_backup_manager.v1.runs.GetRunResponse
+	14, // 36: vrooli.data_backup_manager.v1.runs.RunsService.ListRuns:output_type -> vrooli.data_backup_manager.v1.runs.ListRunsResponse
+	16, // 37: vrooli.data_backup_manager.v1.runs.RunsService.ListTargetStatus:output_type -> vrooli.data_backup_manager.v1.runs.ListTargetStatusResponse
+	19, // 38: vrooli.data_backup_manager.v1.runs.RunsService.BrowseSnapshot:output_type -> vrooli.data_backup_manager.v1.runs.BrowseSnapshotResponse
+	22, // 39: vrooli.data_backup_manager.v1.runs.RunsService.GetRunStats:output_type -> vrooli.data_backup_manager.v1.runs.GetRunStatsResponse
+	33, // [33:40] is the sub-list for method output_type
+	26, // [26:33] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_data_backup_manager_v1_runs_runs_proto_init() }
@@ -1508,7 +1880,7 @@ func file_data_backup_manager_v1_runs_runs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_data_backup_manager_v1_runs_runs_proto_rawDesc), len(file_data_backup_manager_v1_runs_runs_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   17,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

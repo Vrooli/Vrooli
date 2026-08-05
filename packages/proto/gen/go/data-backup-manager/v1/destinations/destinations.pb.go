@@ -1187,6 +1187,7 @@ type DestinationReadinessCheck struct {
 	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
 	Severity      ReadinessSeverity      `protobuf:"varint,2,opt,name=severity,proto3,enum=vrooli.data_backup_manager.v1.destinations.ReadinessSeverity" json:"severity,omitempty"`
 	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	NextAction    string                 `protobuf:"bytes,4,opt,name=next_action,json=nextAction,proto3" json:"next_action,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1242,6 +1243,13 @@ func (x *DestinationReadinessCheck) GetMessage() string {
 	return ""
 }
 
+func (x *DestinationReadinessCheck) GetNextAction() string {
+	if x != nil {
+		return x.NextAction
+	}
+	return ""
+}
+
 type DestinationReadinessReport struct {
 	state                          protoimpl.MessageState       `protogen:"open.v1"`
 	Location                       string                       `protobuf:"bytes,1,opt,name=location,proto3" json:"location,omitempty"`
@@ -1250,6 +1258,11 @@ type DestinationReadinessReport struct {
 	Checks                         []*DestinationReadinessCheck `protobuf:"bytes,4,rep,name=checks,proto3" json:"checks,omitempty"`
 	RecommendedDestinationLocation string                       `protobuf:"bytes,5,opt,name=recommended_destination_location,json=recommendedDestinationLocation,proto3" json:"recommended_destination_location,omitempty"`
 	RecommendedAction              string                       `protobuf:"bytes,6,opt,name=recommended_action,json=recommendedAction,proto3" json:"recommended_action,omitempty"`
+	Platform                       string                       `protobuf:"bytes,7,opt,name=platform,proto3" json:"platform,omitempty"`
+	Confidence                     string                       `protobuf:"bytes,8,opt,name=confidence,proto3" json:"confidence,omitempty"`
+	EvidenceSource                 string                       `protobuf:"bytes,9,opt,name=evidence_source,json=evidenceSource,proto3" json:"evidence_source,omitempty"`
+	ObservedAt                     *timestamppb.Timestamp       `protobuf:"bytes,10,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	RepairSteps                    []string                     `protobuf:"bytes,11,rep,name=repair_steps,json=repairSteps,proto3" json:"repair_steps,omitempty"`
 	unknownFields                  protoimpl.UnknownFields
 	sizeCache                      protoimpl.SizeCache
 }
@@ -1324,6 +1337,41 @@ func (x *DestinationReadinessReport) GetRecommendedAction() string {
 		return x.RecommendedAction
 	}
 	return ""
+}
+
+func (x *DestinationReadinessReport) GetPlatform() string {
+	if x != nil {
+		return x.Platform
+	}
+	return ""
+}
+
+func (x *DestinationReadinessReport) GetConfidence() string {
+	if x != nil {
+		return x.Confidence
+	}
+	return ""
+}
+
+func (x *DestinationReadinessReport) GetEvidenceSource() string {
+	if x != nil {
+		return x.EvidenceSource
+	}
+	return ""
+}
+
+func (x *DestinationReadinessReport) GetObservedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return nil
+}
+
+func (x *DestinationReadinessReport) GetRepairSteps() []string {
+	if x != nil {
+		return x.RepairSteps
+	}
+	return nil
 }
 
 type AnalyzeDestinationRequest struct {
@@ -1927,18 +1975,29 @@ const file_data_backup_manager_v1_destinations_destinations_proto_rawDesc = "" +
 	"totalBytes\x12\x14\n" +
 	"\x05model\x18\x06 \x01(\tR\x05model\x12\x16\n" +
 	"\x06serial\x18\a \x01(\tR\x06serial\x12\x12\n" +
-	"\x04uuid\x18\b \x01(\tR\x04uuid\"\xa4\x01\n" +
+	"\x04uuid\x18\b \x01(\tR\x04uuid\"\xc5\x01\n" +
 	"\x19DestinationReadinessCheck\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12Y\n" +
 	"\bseverity\x18\x02 \x01(\x0e2=.vrooli.data_backup_manager.v1.destinations.ReadinessSeverityR\bseverity\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\"\xdd\x03\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\x12\x1f\n" +
+	"\vnext_action\x18\x04 \x01(\tR\n" +
+	"nextAction\"\xa2\x05\n" +
 	"\x1aDestinationReadinessReport\x12\x1a\n" +
 	"\blocation\x18\x01 \x01(\tR\blocation\x12h\n" +
 	"\x10overall_severity\x18\x02 \x01(\x0e2=.vrooli.data_backup_manager.v1.destinations.ReadinessSeverityR\x0foverallSeverity\x12a\n" +
 	"\bidentity\x18\x03 \x01(\v2E.vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentityR\bidentity\x12]\n" +
 	"\x06checks\x18\x04 \x03(\v2E.vrooli.data_backup_manager.v1.destinations.DestinationReadinessCheckR\x06checks\x12H\n" +
 	" recommended_destination_location\x18\x05 \x01(\tR\x1erecommendedDestinationLocation\x12-\n" +
-	"\x12recommended_action\x18\x06 \x01(\tR\x11recommendedAction\"\x92\x02\n" +
+	"\x12recommended_action\x18\x06 \x01(\tR\x11recommendedAction\x12\x1a\n" +
+	"\bplatform\x18\a \x01(\tR\bplatform\x12\x1e\n" +
+	"\n" +
+	"confidence\x18\b \x01(\tR\n" +
+	"confidence\x12'\n" +
+	"\x0fevidence_source\x18\t \x01(\tR\x0eevidenceSource\x12;\n" +
+	"\vobserved_at\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"observedAt\x12!\n" +
+	"\frepair_steps\x18\v \x03(\tR\vrepairSteps\"\x92\x02\n" +
 	"\x19AnalyzeDestinationRequest\x12#\n" +
 	"\blocation\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\blocation\x12'\n" +
 	"\x0fproposed_subdir\x18\x02 \x01(\tR\x0eproposedSubdir\x12;\n" +
@@ -2085,38 +2144,39 @@ var file_data_backup_manager_v1_destinations_destinations_proto_depIdxs = []int3
 	3,  // 15: vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport.overall_severity:type_name -> vrooli.data_backup_manager.v1.destinations.ReadinessSeverity
 	18, // 16: vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport.identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
 	19, // 17: vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport.checks:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationReadinessCheck
-	20, // 18: vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationResponse.report:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport
-	4,  // 19: vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan.action:type_name -> vrooli.data_backup_manager.v1.destinations.PreparationAction
-	18, // 20: vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan.identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
-	4,  // 21: vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationRequest.action:type_name -> vrooli.data_backup_manager.v1.destinations.PreparationAction
-	18, // 22: vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationRequest.expected_identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
-	23, // 23: vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationResponse.plan:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan
-	23, // 24: vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationRequest.plan:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan
-	4,  // 25: vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationResponse.action:type_name -> vrooli.data_backup_manager.v1.destinations.PreparationAction
-	20, // 26: vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationResponse.post_action_report:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport
-	6,  // 27: vrooli.data_backup_manager.v1.destinations.DestinationsService.CreateDestination:input_type -> vrooli.data_backup_manager.v1.destinations.CreateDestinationRequest
-	8,  // 28: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestination:input_type -> vrooli.data_backup_manager.v1.destinations.GetDestinationRequest
-	10, // 29: vrooli.data_backup_manager.v1.destinations.DestinationsService.ListDestinations:input_type -> vrooli.data_backup_manager.v1.destinations.ListDestinationsRequest
-	12, // 30: vrooli.data_backup_manager.v1.destinations.DestinationsService.UpdateDestination:input_type -> vrooli.data_backup_manager.v1.destinations.UpdateDestinationRequest
-	14, // 31: vrooli.data_backup_manager.v1.destinations.DestinationsService.DeleteDestination:input_type -> vrooli.data_backup_manager.v1.destinations.DeleteDestinationRequest
-	16, // 32: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestinationUsage:input_type -> vrooli.data_backup_manager.v1.destinations.GetDestinationUsageRequest
-	21, // 33: vrooli.data_backup_manager.v1.destinations.DestinationsService.AnalyzeDestination:input_type -> vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationRequest
-	24, // 34: vrooli.data_backup_manager.v1.destinations.DestinationsService.PlanDestinationPreparation:input_type -> vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationRequest
-	26, // 35: vrooli.data_backup_manager.v1.destinations.DestinationsService.ExecuteDestinationPreparation:input_type -> vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationRequest
-	7,  // 36: vrooli.data_backup_manager.v1.destinations.DestinationsService.CreateDestination:output_type -> vrooli.data_backup_manager.v1.destinations.CreateDestinationResponse
-	9,  // 37: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestination:output_type -> vrooli.data_backup_manager.v1.destinations.GetDestinationResponse
-	11, // 38: vrooli.data_backup_manager.v1.destinations.DestinationsService.ListDestinations:output_type -> vrooli.data_backup_manager.v1.destinations.ListDestinationsResponse
-	13, // 39: vrooli.data_backup_manager.v1.destinations.DestinationsService.UpdateDestination:output_type -> vrooli.data_backup_manager.v1.destinations.UpdateDestinationResponse
-	15, // 40: vrooli.data_backup_manager.v1.destinations.DestinationsService.DeleteDestination:output_type -> vrooli.data_backup_manager.v1.destinations.DeleteDestinationResponse
-	17, // 41: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestinationUsage:output_type -> vrooli.data_backup_manager.v1.destinations.GetDestinationUsageResponse
-	22, // 42: vrooli.data_backup_manager.v1.destinations.DestinationsService.AnalyzeDestination:output_type -> vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationResponse
-	25, // 43: vrooli.data_backup_manager.v1.destinations.DestinationsService.PlanDestinationPreparation:output_type -> vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationResponse
-	27, // 44: vrooli.data_backup_manager.v1.destinations.DestinationsService.ExecuteDestinationPreparation:output_type -> vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationResponse
-	36, // [36:45] is the sub-list for method output_type
-	27, // [27:36] is the sub-list for method input_type
-	27, // [27:27] is the sub-list for extension type_name
-	27, // [27:27] is the sub-list for extension extendee
-	0,  // [0:27] is the sub-list for field type_name
+	28, // 18: vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport.observed_at:type_name -> google.protobuf.Timestamp
+	20, // 19: vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationResponse.report:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport
+	4,  // 20: vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan.action:type_name -> vrooli.data_backup_manager.v1.destinations.PreparationAction
+	18, // 21: vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan.identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
+	4,  // 22: vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationRequest.action:type_name -> vrooli.data_backup_manager.v1.destinations.PreparationAction
+	18, // 23: vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationRequest.expected_identity:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationDeviceIdentity
+	23, // 24: vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationResponse.plan:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan
+	23, // 25: vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationRequest.plan:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationPreparationPlan
+	4,  // 26: vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationResponse.action:type_name -> vrooli.data_backup_manager.v1.destinations.PreparationAction
+	20, // 27: vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationResponse.post_action_report:type_name -> vrooli.data_backup_manager.v1.destinations.DestinationReadinessReport
+	6,  // 28: vrooli.data_backup_manager.v1.destinations.DestinationsService.CreateDestination:input_type -> vrooli.data_backup_manager.v1.destinations.CreateDestinationRequest
+	8,  // 29: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestination:input_type -> vrooli.data_backup_manager.v1.destinations.GetDestinationRequest
+	10, // 30: vrooli.data_backup_manager.v1.destinations.DestinationsService.ListDestinations:input_type -> vrooli.data_backup_manager.v1.destinations.ListDestinationsRequest
+	12, // 31: vrooli.data_backup_manager.v1.destinations.DestinationsService.UpdateDestination:input_type -> vrooli.data_backup_manager.v1.destinations.UpdateDestinationRequest
+	14, // 32: vrooli.data_backup_manager.v1.destinations.DestinationsService.DeleteDestination:input_type -> vrooli.data_backup_manager.v1.destinations.DeleteDestinationRequest
+	16, // 33: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestinationUsage:input_type -> vrooli.data_backup_manager.v1.destinations.GetDestinationUsageRequest
+	21, // 34: vrooli.data_backup_manager.v1.destinations.DestinationsService.AnalyzeDestination:input_type -> vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationRequest
+	24, // 35: vrooli.data_backup_manager.v1.destinations.DestinationsService.PlanDestinationPreparation:input_type -> vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationRequest
+	26, // 36: vrooli.data_backup_manager.v1.destinations.DestinationsService.ExecuteDestinationPreparation:input_type -> vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationRequest
+	7,  // 37: vrooli.data_backup_manager.v1.destinations.DestinationsService.CreateDestination:output_type -> vrooli.data_backup_manager.v1.destinations.CreateDestinationResponse
+	9,  // 38: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestination:output_type -> vrooli.data_backup_manager.v1.destinations.GetDestinationResponse
+	11, // 39: vrooli.data_backup_manager.v1.destinations.DestinationsService.ListDestinations:output_type -> vrooli.data_backup_manager.v1.destinations.ListDestinationsResponse
+	13, // 40: vrooli.data_backup_manager.v1.destinations.DestinationsService.UpdateDestination:output_type -> vrooli.data_backup_manager.v1.destinations.UpdateDestinationResponse
+	15, // 41: vrooli.data_backup_manager.v1.destinations.DestinationsService.DeleteDestination:output_type -> vrooli.data_backup_manager.v1.destinations.DeleteDestinationResponse
+	17, // 42: vrooli.data_backup_manager.v1.destinations.DestinationsService.GetDestinationUsage:output_type -> vrooli.data_backup_manager.v1.destinations.GetDestinationUsageResponse
+	22, // 43: vrooli.data_backup_manager.v1.destinations.DestinationsService.AnalyzeDestination:output_type -> vrooli.data_backup_manager.v1.destinations.AnalyzeDestinationResponse
+	25, // 44: vrooli.data_backup_manager.v1.destinations.DestinationsService.PlanDestinationPreparation:output_type -> vrooli.data_backup_manager.v1.destinations.PlanDestinationPreparationResponse
+	27, // 45: vrooli.data_backup_manager.v1.destinations.DestinationsService.ExecuteDestinationPreparation:output_type -> vrooli.data_backup_manager.v1.destinations.ExecuteDestinationPreparationResponse
+	37, // [37:46] is the sub-list for method output_type
+	28, // [28:37] is the sub-list for method input_type
+	28, // [28:28] is the sub-list for extension type_name
+	28, // [28:28] is the sub-list for extension extendee
+	0,  // [0:28] is the sub-list for field type_name
 }
 
 func init() { file_data_backup_manager_v1_destinations_destinations_proto_init() }

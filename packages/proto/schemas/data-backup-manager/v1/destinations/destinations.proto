@@ -201,6 +201,7 @@ message DestinationReadinessCheck {
   string code = 1;
   ReadinessSeverity severity = 2;
   string message = 3;
+  string next_action = 4;
 }
 
 message DestinationReadinessReport {
@@ -210,6 +211,11 @@ message DestinationReadinessReport {
   repeated DestinationReadinessCheck checks = 4;
   string recommended_destination_location = 5;
   string recommended_action = 6;
+  string platform = 7;
+  string confidence = 8;
+  string evidence_source = 9;
+  google.protobuf.Timestamp observed_at = 10;
+  repeated string repair_steps = 11;
 }
 
 message AnalyzeDestinationRequest {

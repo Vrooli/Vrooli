@@ -213,30 +213,42 @@ class DestinationDeviceIdentity(_message.Message):
     def __init__(self, device_path: _Optional[str] = ..., mountpoint: _Optional[str] = ..., label: _Optional[str] = ..., filesystem: _Optional[str] = ..., total_bytes: _Optional[int] = ..., model: _Optional[str] = ..., serial: _Optional[str] = ..., uuid: _Optional[str] = ...) -> None: ...
 
 class DestinationReadinessCheck(_message.Message):
-    __slots__ = ("code", "severity", "message")
+    __slots__ = ("code", "severity", "message", "next_action")
     CODE_FIELD_NUMBER: _ClassVar[int]
     SEVERITY_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    NEXT_ACTION_FIELD_NUMBER: _ClassVar[int]
     code: str
     severity: ReadinessSeverity
     message: str
-    def __init__(self, code: _Optional[str] = ..., severity: _Optional[_Union[ReadinessSeverity, str]] = ..., message: _Optional[str] = ...) -> None: ...
+    next_action: str
+    def __init__(self, code: _Optional[str] = ..., severity: _Optional[_Union[ReadinessSeverity, str]] = ..., message: _Optional[str] = ..., next_action: _Optional[str] = ...) -> None: ...
 
 class DestinationReadinessReport(_message.Message):
-    __slots__ = ("location", "overall_severity", "identity", "checks", "recommended_destination_location", "recommended_action")
+    __slots__ = ("location", "overall_severity", "identity", "checks", "recommended_destination_location", "recommended_action", "platform", "confidence", "evidence_source", "observed_at", "repair_steps")
     LOCATION_FIELD_NUMBER: _ClassVar[int]
     OVERALL_SEVERITY_FIELD_NUMBER: _ClassVar[int]
     IDENTITY_FIELD_NUMBER: _ClassVar[int]
     CHECKS_FIELD_NUMBER: _ClassVar[int]
     RECOMMENDED_DESTINATION_LOCATION_FIELD_NUMBER: _ClassVar[int]
     RECOMMENDED_ACTION_FIELD_NUMBER: _ClassVar[int]
+    PLATFORM_FIELD_NUMBER: _ClassVar[int]
+    CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    REPAIR_STEPS_FIELD_NUMBER: _ClassVar[int]
     location: str
     overall_severity: ReadinessSeverity
     identity: DestinationDeviceIdentity
     checks: _containers.RepeatedCompositeFieldContainer[DestinationReadinessCheck]
     recommended_destination_location: str
     recommended_action: str
-    def __init__(self, location: _Optional[str] = ..., overall_severity: _Optional[_Union[ReadinessSeverity, str]] = ..., identity: _Optional[_Union[DestinationDeviceIdentity, _Mapping]] = ..., checks: _Optional[_Iterable[_Union[DestinationReadinessCheck, _Mapping]]] = ..., recommended_destination_location: _Optional[str] = ..., recommended_action: _Optional[str] = ...) -> None: ...
+    platform: str
+    confidence: str
+    evidence_source: str
+    observed_at: _timestamp_pb2.Timestamp
+    repair_steps: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, location: _Optional[str] = ..., overall_severity: _Optional[_Union[ReadinessSeverity, str]] = ..., identity: _Optional[_Union[DestinationDeviceIdentity, _Mapping]] = ..., checks: _Optional[_Iterable[_Union[DestinationReadinessCheck, _Mapping]]] = ..., recommended_destination_location: _Optional[str] = ..., recommended_action: _Optional[str] = ..., platform: _Optional[str] = ..., confidence: _Optional[str] = ..., evidence_source: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., repair_steps: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class AnalyzeDestinationRequest(_message.Message):
     __slots__ = ("location", "proposed_subdir", "selected_target_bytes", "retention_copies", "cross_platform_required")

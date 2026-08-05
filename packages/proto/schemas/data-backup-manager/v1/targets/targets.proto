@@ -61,6 +61,12 @@ message Target {
   // Server time of the most recent (idempotent) registration that changed the
   // spec; equals created_at when never updated.
   google.protobuf.Timestamp updated_at = 7;
+
+  // True when this target is explicitly approved for critical-only protection
+  // tiers. This is a classification, not a secret-bearing flag: the target
+  // locator remains subject to the normal redaction and plaintext-credential
+  // exclusions.
+  bool critical = 8;
 }
 
 // RegisterTargetRequest upserts a target keyed by (owner, name).
@@ -72,6 +78,11 @@ message RegisterTargetRequest {
     not_in: [0]
   }];
   string locator = 4 [(buf.validate.field).string.min_len = 1];
+
+  // Explicitly include this target in critical-primary and
+  // critical-secondary plans. Defaults to false; critical plans fail closed
+  // when any selected target is not marked critical.
+  bool critical = 5;
 }
 
 message RegisterTargetResponse {

@@ -30,6 +30,13 @@ service PlansService {
   rpc DeletePlan(DeletePlanRequest) returns (DeletePlanResponse);
 }
 
+enum ProtectionTier {
+  PROTECTION_TIER_UNSPECIFIED = 0;
+  PROTECTION_TIER_FULL_PRIMARY = 1;
+  PROTECTION_TIER_CRITICAL_PRIMARY = 2;
+  PROTECTION_TIER_CRITICAL_SECONDARY = 3;
+}
+
 // RetentionPolicy is the per-plan snapshot retention, applied by kopia policy.
 // v1 supports a simple keep-last count; GFS fields (OT-P1-002) extend this
 // additively later.
@@ -55,6 +62,11 @@ message Plan {
   bool enabled = 7;
   google.protobuf.Timestamp created_at = 8;
   google.protobuf.Timestamp updated_at = 9;
+  ProtectionTier protection_tier = 10;
+  string recovery_drill_schedule = 11;
+  // Derived read-only assessment of the selected destination topology.
+  bool destinations_physically_independent = 12;
+  repeated string shared_risk_warnings = 13;
 }
 
 message CreatePlanRequest {
@@ -70,6 +82,8 @@ message CreatePlanRequest {
   // plan cannot silently omit recommended default coverage. Set true to proceed
   // with deliberately incomplete coverage. See CoverageService.
   bool allow_incomplete_coverage = 7;
+  ProtectionTier protection_tier = 8;
+  string recovery_drill_schedule = 9;
 }
 
 message CreatePlanResponse {
@@ -104,6 +118,8 @@ message UpdatePlanRequest {
   bool enabled = 7;
   // See CreatePlanRequest.allow_incomplete_coverage — same guard on update.
   bool allow_incomplete_coverage = 8;
+  ProtectionTier protection_tier = 9;
+  string recovery_drill_schedule = 10;
 }
 
 message UpdatePlanResponse {

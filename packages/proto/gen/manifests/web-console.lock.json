@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "web-console",
-  "input_digest": "sha256:ccac648cbebff490339881d794a2677af8c359dec64d177b7a8c23dcf9f46ca3",
+  "input_digest": "sha256:e720903b0c13b117f19254b860f124f8933b46e55036da92bdcf525a655185a1",
   "input_files": [
     "schemas/web-console/v1/ai/ai.proto",
     "schemas/web-console/v1/audio_admin/audio_admin.proto",
@@ -59,7 +59,7 @@
     "gen/go/web-console/v1/shortcuts/shortcuts_v1connect/shortcuts.connect.go": "sha256:bb3e992236b86bcfd0dbe573d42fef4eee01df83e779f9967f790b695dfdb928",
     "gen/go/web-console/v1/terminal/terminal.pb.go": "sha256:c177379c4a397e2e49316a0391eb1cfa91a16e05d1d1c1df54182a09e917f272",
     "gen/go/web-console/v1/terminal/terminal_v1connect/terminal.connect.go": "sha256:9c69cbbc6727d7f766987e2e699ab44793cf924d8f3d3f5162b16fe838025a4f",
-    "gen/go/web-console/v1/workspace/workspace.pb.go": "sha256:6ec249fbb45a589d0a0e7d278f9f506db5916b70f911e724e0ffb8c828032ccd",
+    "gen/go/web-console/v1/workspace/workspace.pb.go": "sha256:ce678b4bf3d2872bbfcc3a2a17f9825751d967d9f94c4e3c7311a5768a230355",
     "gen/go/web-console/v1/workspace/workspace_v1connect/workspace.connect.go": "sha256:4758a8a5ef560de8ce5d62f3a8a777383059b7813d60246c922539fcb83e40e7",
     "gen/python/web_console/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/web_console/v1/ai/ai_pb2.py": "sha256:40d7456944b292d43e0d7e3c3245668fa8a7a27c8650aa5afbe387a66f1c27d6",
@@ -109,8 +109,8 @@
     "gen/python/web_console/v1/terminal/terminal_pb2.py": "sha256:e8391d15ccedd364d7fcf8d652cdb4e12e3f4d6005fc9dcbfebd1e29e18363bb",
     "gen/python/web_console/v1/terminal/terminal_pb2.pyi": "sha256:34b5a4cdada8365a96167e0a010afcac1aa29549b182a0e9476a8d6ac52b24da",
     "gen/python/web_console/v1/workspace/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/web_console/v1/workspace/workspace_pb2.py": "sha256:8a5fadcc29f634d7ef3dc23687d1d8064a9fbec0c7099e6c5eee920c407e5c80",
-    "gen/python/web_console/v1/workspace/workspace_pb2.pyi": "sha256:412f3e255a28f8b4599afbb363d3529039d4b8efe456d88fd535e7807d894ac1",
+    "gen/python/web_console/v1/workspace/workspace_pb2.py": "sha256:1c292141d7188815d3be89ca1a6708c05826f047c0938293626d8d740a502834",
+    "gen/python/web_console/v1/workspace/workspace_pb2.pyi": "sha256:5e2aff3b78fdf9c693fb7405ba72e1a333bfff1c77a8d6806b29808c68432c8a",
     "gen/typescript/js/web-console/v1/ai/ai_pb.js": "sha256:5e816d068d29f435393c099dc7d8159cc3bed3f3355e32d078a15b44b5723561",
     "gen/typescript/js/web-console/v1/audio_admin/audio_admin_pb.js": "sha256:9cee6e38cb9bb1efa2e5a8a5e8028c3e2a8dce5feea3608e4c0e1fe2821a9921",
     "gen/typescript/js/web-console/v1/audio_common/audio_common_pb.js": "sha256:2ec795a90d9b38705bcb070d9d1fe0302df154bf63c64c9b169a7be8c3636e32",
@@ -126,7 +126,7 @@
     "gen/typescript/js/web-console/v1/settings/settings_pb.js": "sha256:a2326d14e483c147a9d9e37748bee520aba57854f3615fd552fc728019756687",
     "gen/typescript/js/web-console/v1/shortcuts/shortcuts_pb.js": "sha256:ef191ccee996c247a714195fdcf3f8aaf938117ab86e115be35b8d075b1f1d14",
     "gen/typescript/js/web-console/v1/terminal/terminal_pb.js": "sha256:5d8f159163f1812207d4347d985ddb03211a2c7d1cf1ad36d70646bbf93c22f9",
-    "gen/typescript/js/web-console/v1/workspace/workspace_pb.js": "sha256:f79e8df0256511645c5f929b616559e4d678de98e3a4ad734c71411376531917",
+    "gen/typescript/js/web-console/v1/workspace/workspace_pb.js": "sha256:5b7dc4ff3af6f883eef8d1b3857cdba50293308089d2d768dca9a970584c7b22",
     "gen/typescript/web-console/v1/ai/ai_pb.ts": "sha256:b179f539a8290f81afacf40b37f3de6551ffed972f6fc4407df4f31ff6e9a233",
     "gen/typescript/web-console/v1/audio_admin/audio_admin_pb.ts": "sha256:68f28dd9895835e9174cdb3a97a31c00095916c9197f6a7f8e1c7f350985b6e4",
     "gen/typescript/web-console/v1/audio_common/audio_common_pb.ts": "sha256:aa8196ada2f1af8f9946a04543c9739a56cf667baf48511a6ed326a669767045",
@@ -142,6 +142,6 @@
     "gen/typescript/web-console/v1/settings/settings_pb.ts": "sha256:c92144a6ad6927a66cff38519b5c2ddfd68f4ef448e020a5e951b7e283e33747",
     "gen/typescript/web-console/v1/shortcuts/shortcuts_pb.ts": "sha256:ddad9b099effdd5e2f9b6654a6d394c130f7974ce329e0e1be2a65b84b362f7e",
     "gen/typescript/web-console/v1/terminal/terminal_pb.ts": "sha256:29a31e3080b78cb8cf6dde198d423cc0d575285745d1940e0afe3fee5cbb4725",
-    "gen/typescript/web-console/v1/workspace/workspace_pb.ts": "sha256:dda6a7147816c8a4b3af72166988587738dde5b352ea07ff53a336af5ccbdc34"
+    "gen/typescript/web-console/v1/workspace/workspace_pb.ts": "sha256:1605017bf15af7e6726ea087eab92da2b51c8d4f3c5b9bdc5fd516fcaad4eba7"
   }
 }

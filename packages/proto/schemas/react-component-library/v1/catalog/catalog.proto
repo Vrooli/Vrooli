@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package vrooli.react_component_library.v1.catalog;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog;catalog_v1";
+
+service CatalogService {
+  rpc GetCoverage(GetCoverageRequest) returns (GetCoverageResponse);
+  rpc ListNextWork(ListNextWorkRequest) returns (ListNextWorkResponse);
+  rpc RunGate(RunGateRequest) returns (RunGateResponse);
+}
+
+message GetCoverageRequest {}
+
+message CoverageRow {
+  string asset_id = 1;
+  string name = 2;
+  string domain = 3;
+  string kind = 4;
+  string priority = 5;
+  string bucket = 6;
+  string platform = 7;
+  string target = 8;
+  string achieved = 9;
+  string implementation = 10;
+  int32 blocks_downstream = 11;
+}
+
+message Rollup {
+  string key = 1;
+  int32 planned = 2;
+  int32 built = 3;
+}
+
+message MaturitySummary {
+  int32 total = 1;
+  int32 at_or_above_target = 2;
+  map<string, int32> by_rung = 3;
+}
+
+message CoverageReport {
+  repeated CoverageRow rows = 1;
+  map<string, int32> totals = 2;
+  repeated Rollup by_domain = 3;
+  repeated Rollup by_priority = 4;
+  MaturitySummary maturity = 5;
+}
+
+message GetCoverageResponse { CoverageReport report = 1; }
+
+message ListNextWorkRequest { int32 limit = 1; }
+message ListNextWorkResponse {
+  repeated CoverageRow rows = 1;
+  MaturitySummary maturity = 2;
+}
+
+message RunGateRequest { string gate = 1; }
+message GateFinding {
+  string code = 1;
+  string message = 2;
+  string asset_id = 3;
+  string severity = 4;
+}
+message RunGateResponse {
+  string gate = 1;
+  repeated GateFinding findings = 2;
+}

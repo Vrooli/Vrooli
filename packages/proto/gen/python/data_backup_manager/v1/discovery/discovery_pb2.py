@@ -27,7 +27,7 @@ from data_backup_manager.v1.destinations import destinations_pb2 as data__backup
 from data_backup_manager.v1.sources import sources_pb2 as data__backup__manager_dot_v1_dot_sources_dot_sources__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n0data-backup-manager/v1/discovery/discovery.proto\x12\'vrooli.data_backup_manager.v1.discovery\x1a\x1b\x62uf/validate/validate.proto\x1a\x36\x64\x61ta-backup-manager/v1/destinations/destinations.proto\x1a,data-backup-manager/v1/sources/sources.proto\"\xb3\x02\n\x10TargetSuggestion\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05owner\x18\x02 \x01(\tR\x05owner\x12\x12\n\x04name\x18\x03 \x01(\tR\x04name\x12R\n\x0bsource_kind\x18\x04 \x01(\x0e\x32\x31.vrooli.data_backup_manager.v1.sources.SourceKindR\nsourceKind\x12\x18\n\x07locator\x18\x05 \x01(\tR\x07locator\x12\x1c\n\trationale\x18\x06 \x01(\tR\trationale\x12!\n\x0c\x61pprox_bytes\x18\x07 \x01(\x03R\x0b\x61pproxBytes\x12\x1c\n\tsensitive\x18\x08 \x01(\x08R\tsensitive\x12\x18\n\x07warning\x18\t \x01(\tR\x07warning\"\xb1\x03\n\x15\x44\x65stinationSuggestion\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05label\x18\x02 \x01(\tR\x05label\x12Z\n\x0c\x62\x61\x63kend_kind\x18\x03 \x01(\x0e\x32\x37.vrooli.data_backup_manager.v1.destinations.BackendKindR\x0b\x62\x61\x63kendKind\x12\x1a\n\x08location\x18\x04 \x01(\tR\x08location\x12T\n\x0b\x64rive_class\x18\x05 \x01(\x0e\x32\x33.vrooli.data_backup_manager.v1.discovery.DriveClassR\ndriveClass\x12\x1d\n\nfree_bytes\x18\x06 \x01(\x03R\tfreeBytes\x12\x1f\n\x0btotal_bytes\x18\x07 \x01(\x03R\ntotalBytes\x12\x1c\n\tremovable\x18\x08 \x01(\x08R\tremovable\x12(\n\x10separate_root_ok\x18\t \x01(\x08R\x0eseparateRootOk\x12\x1c\n\trationale\x18\n \x01(\tR\trationale\"\x1e\n\x1cListTargetSuggestionsRequest\"|\n\x1dListTargetSuggestionsResponse\x12[\n\x0bsuggestions\x18\x01 \x03(\x0b\x32\x39.vrooli.data_backup_manager.v1.discovery.TargetSuggestionR\x0bsuggestions\"#\n!ListDestinationSuggestionsRequest\"\x86\x01\n\"ListDestinationSuggestionsResponse\x12`\n\x0bsuggestions\x18\x01 \x03(\x0b\x32>.vrooli.data_backup_manager.v1.discovery.DestinationSuggestionR\x0bsuggestions\"3\n\x18\x44ismissSuggestionRequest\x12\x17\n\x02id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x02id\"9\n\x19\x44ismissSuggestionResponse\x12\x1c\n\tdismissed\x18\x01 \x01(\x08R\tdismissed*t\n\nDriveClass\x12\x1b\n\x17\x44RIVE_CLASS_UNSPECIFIED\x10\x00\x12\x19\n\x15\x44RIVE_CLASS_REMOVABLE\x10\x01\x12\x15\n\x11\x44RIVE_CLASS_FIXED\x10\x02\x12\x17\n\x13\x44RIVE_CLASS_NETWORK\x10\x03\x32\x90\x04\n\x10\x44iscoveryService\x12\xa6\x01\n\x15ListTargetSuggestions\x12\x45.vrooli.data_backup_manager.v1.discovery.ListTargetSuggestionsRequest\x1a\x46.vrooli.data_backup_manager.v1.discovery.ListTargetSuggestionsResponse\x12\xb5\x01\n\x1aListDestinationSuggestions\x12J.vrooli.data_backup_manager.v1.discovery.ListDestinationSuggestionsRequest\x1aK.vrooli.data_backup_manager.v1.discovery.ListDestinationSuggestionsResponse\x12\x9a\x01\n\x11\x44ismissSuggestion\x12\x41.vrooli.data_backup_manager.v1.discovery.DismissSuggestionRequest\x1a\x42.vrooli.data_backup_manager.v1.discovery.DismissSuggestionResponseB^Z\\github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/discovery;discovery_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n0data-backup-manager/v1/discovery/discovery.proto\x12\'vrooli.data_backup_manager.v1.discovery\x1a\x1b\x62uf/validate/validate.proto\x1a\x36\x64\x61ta-backup-manager/v1/destinations/destinations.proto\x1a,data-backup-manager/v1/sources/sources.proto\"\xcf\x02\n\x10TargetSuggestion\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05owner\x18\x02 \x01(\tR\x05owner\x12\x12\n\x04name\x18\x03 \x01(\tR\x04name\x12R\n\x0bsource_kind\x18\x04 \x01(\x0e\x32\x31.vrooli.data_backup_manager.v1.sources.SourceKindR\nsourceKind\x12\x18\n\x07locator\x18\x05 \x01(\tR\x07locator\x12\x1c\n\trationale\x18\x06 \x01(\tR\trationale\x12!\n\x0c\x61pprox_bytes\x18\x07 \x01(\x03R\x0b\x61pproxBytes\x12\x1c\n\tsensitive\x18\x08 \x01(\x08R\tsensitive\x12\x18\n\x07warning\x18\t \x01(\tR\x07warning\x12\x1a\n\x08\x63ritical\x18\n \x01(\x08R\x08\x63ritical\"\xb1\x03\n\x15\x44\x65stinationSuggestion\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05label\x18\x02 \x01(\tR\x05label\x12Z\n\x0c\x62\x61\x63kend_kind\x18\x03 \x01(\x0e\x32\x37.vrooli.data_backup_manager.v1.destinations.BackendKindR\x0b\x62\x61\x63kendKind\x12\x1a\n\x08location\x18\x04 \x01(\tR\x08location\x12T\n\x0b\x64rive_class\x18\x05 \x01(\x0e\x32\x33.vrooli.data_backup_manager.v1.discovery.DriveClassR\ndriveClass\x12\x1d\n\nfree_bytes\x18\x06 \x01(\x03R\tfreeBytes\x12\x1f\n\x0btotal_bytes\x18\x07 \x01(\x03R\ntotalBytes\x12\x1c\n\tremovable\x18\x08 \x01(\x08R\tremovable\x12(\n\x10separate_root_ok\x18\t \x01(\x08R\x0eseparateRootOk\x12\x1c\n\trationale\x18\n \x01(\tR\trationale\"\x1e\n\x1cListTargetSuggestionsRequest\"|\n\x1dListTargetSuggestionsResponse\x12[\n\x0bsuggestions\x18\x01 \x03(\x0b\x32\x39.vrooli.data_backup_manager.v1.discovery.TargetSuggestionR\x0bsuggestions\"#\n!ListDestinationSuggestionsRequest\"\x86\x01\n\"ListDestinationSuggestionsResponse\x12`\n\x0bsuggestions\x18\x01 \x03(\x0b\x32>.vrooli.data_backup_manager.v1.discovery.DestinationSuggestionR\x0bsuggestions\"3\n\x18\x44ismissSuggestionRequest\x12\x17\n\x02id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x02id\"9\n\x19\x44ismissSuggestionResponse\x12\x1c\n\tdismissed\x18\x01 \x01(\x08R\tdismissed*t\n\nDriveClass\x12\x1b\n\x17\x44RIVE_CLASS_UNSPECIFIED\x10\x00\x12\x19\n\x15\x44RIVE_CLASS_REMOVABLE\x10\x01\x12\x15\n\x11\x44RIVE_CLASS_FIXED\x10\x02\x12\x17\n\x13\x44RIVE_CLASS_NETWORK\x10\x03\x32\x90\x04\n\x10\x44iscoveryService\x12\xa6\x01\n\x15ListTargetSuggestions\x12\x45.vrooli.data_backup_manager.v1.discovery.ListTargetSuggestionsRequest\x1a\x46.vrooli.data_backup_manager.v1.discovery.ListTargetSuggestionsResponse\x12\xb5\x01\n\x1aListDestinationSuggestions\x12J.vrooli.data_backup_manager.v1.discovery.ListDestinationSuggestionsRequest\x1aK.vrooli.data_backup_manager.v1.discovery.ListDestinationSuggestionsResponse\x12\x9a\x01\n\x11\x44ismissSuggestion\x12\x41.vrooli.data_backup_manager.v1.discovery.DismissSuggestionRequest\x1a\x42.vrooli.data_backup_manager.v1.discovery.DismissSuggestionResponseB^Z\\github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/discovery;discovery_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -37,24 +37,24 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._serialized_options = b'Z\\github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/discovery;discovery_v1'
   _globals['_DISMISSSUGGESTIONREQUEST'].fields_by_name['id']._loaded_options = None
   _globals['_DISMISSSUGGESTIONREQUEST'].fields_by_name['id']._serialized_options = b'\272H\004r\002\020\001'
-  _globals['_DRIVECLASS']._serialized_start=1414
-  _globals['_DRIVECLASS']._serialized_end=1530
+  _globals['_DRIVECLASS']._serialized_start=1442
+  _globals['_DRIVECLASS']._serialized_end=1558
   _globals['_TARGETSUGGESTION']._serialized_start=225
-  _globals['_TARGETSUGGESTION']._serialized_end=532
-  _globals['_DESTINATIONSUGGESTION']._serialized_start=535
-  _globals['_DESTINATIONSUGGESTION']._serialized_end=968
-  _globals['_LISTTARGETSUGGESTIONSREQUEST']._serialized_start=970
-  _globals['_LISTTARGETSUGGESTIONSREQUEST']._serialized_end=1000
-  _globals['_LISTTARGETSUGGESTIONSRESPONSE']._serialized_start=1002
-  _globals['_LISTTARGETSUGGESTIONSRESPONSE']._serialized_end=1126
-  _globals['_LISTDESTINATIONSUGGESTIONSREQUEST']._serialized_start=1128
-  _globals['_LISTDESTINATIONSUGGESTIONSREQUEST']._serialized_end=1163
-  _globals['_LISTDESTINATIONSUGGESTIONSRESPONSE']._serialized_start=1166
-  _globals['_LISTDESTINATIONSUGGESTIONSRESPONSE']._serialized_end=1300
-  _globals['_DISMISSSUGGESTIONREQUEST']._serialized_start=1302
-  _globals['_DISMISSSUGGESTIONREQUEST']._serialized_end=1353
-  _globals['_DISMISSSUGGESTIONRESPONSE']._serialized_start=1355
-  _globals['_DISMISSSUGGESTIONRESPONSE']._serialized_end=1412
-  _globals['_DISCOVERYSERVICE']._serialized_start=1533
-  _globals['_DISCOVERYSERVICE']._serialized_end=2061
+  _globals['_TARGETSUGGESTION']._serialized_end=560
+  _globals['_DESTINATIONSUGGESTION']._serialized_start=563
+  _globals['_DESTINATIONSUGGESTION']._serialized_end=996
+  _globals['_LISTTARGETSUGGESTIONSREQUEST']._serialized_start=998
+  _globals['_LISTTARGETSUGGESTIONSREQUEST']._serialized_end=1028
+  _globals['_LISTTARGETSUGGESTIONSRESPONSE']._serialized_start=1030
+  _globals['_LISTTARGETSUGGESTIONSRESPONSE']._serialized_end=1154
+  _globals['_LISTDESTINATIONSUGGESTIONSREQUEST']._serialized_start=1156
+  _globals['_LISTDESTINATIONSUGGESTIONSREQUEST']._serialized_end=1191
+  _globals['_LISTDESTINATIONSUGGESTIONSRESPONSE']._serialized_start=1194
+  _globals['_LISTDESTINATIONSUGGESTIONSRESPONSE']._serialized_end=1328
+  _globals['_DISMISSSUGGESTIONREQUEST']._serialized_start=1330
+  _globals['_DISMISSSUGGESTIONREQUEST']._serialized_end=1381
+  _globals['_DISMISSSUGGESTIONRESPONSE']._serialized_start=1383
+  _globals['_DISMISSSUGGESTIONRESPONSE']._serialized_end=1440
+  _globals['_DISCOVERYSERVICE']._serialized_start=1561
+  _globals['_DISCOVERYSERVICE']._serialized_end=2089
 # @@protoc_insertion_point(module_scope)

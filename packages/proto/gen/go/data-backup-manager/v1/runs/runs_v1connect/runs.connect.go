@@ -35,6 +35,9 @@ const (
 const (
 	// RunsServiceTriggerRunProcedure is the fully-qualified name of the RunsService's TriggerRun RPC.
 	RunsServiceTriggerRunProcedure = "/vrooli.data_backup_manager.v1.runs.RunsService/TriggerRun"
+	// RunsServicePreflightRunProcedure is the fully-qualified name of the RunsService's PreflightRun
+	// RPC.
+	RunsServicePreflightRunProcedure = "/vrooli.data_backup_manager.v1.runs.RunsService/PreflightRun"
 	// RunsServiceGetRunProcedure is the fully-qualified name of the RunsService's GetRun RPC.
 	RunsServiceGetRunProcedure = "/vrooli.data_backup_manager.v1.runs.RunsService/GetRun"
 	// RunsServiceListRunsProcedure is the fully-qualified name of the RunsService's ListRuns RPC.
@@ -52,6 +55,9 @@ const (
 // RunsServiceClient is a client for the vrooli.data_backup_manager.v1.runs.RunsService service.
 type RunsServiceClient interface {
 	TriggerRun(context.Context, *connect.Request[runs.TriggerRunRequest]) (*connect.Response[runs.TriggerRunResponse], error)
+	// PreflightRun performs the same read-only plan-wide checks used by a
+	// backup run, without creating a run or touching source/repository data.
+	PreflightRun(context.Context, *connect.Request[runs.PreflightRunRequest]) (*connect.Response[runs.PreflightRunResponse], error)
 	GetRun(context.Context, *connect.Request[runs.GetRunRequest]) (*connect.Response[runs.GetRunResponse], error)
 	ListRuns(context.Context, *connect.Request[runs.ListRunsRequest]) (*connect.Response[runs.ListRunsResponse], error)
 	ListTargetStatus(context.Context, *connect.Request[runs.ListTargetStatusRequest]) (*connect.Response[runs.ListTargetStatusResponse], error)
@@ -77,6 +83,12 @@ func NewRunsServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			httpClient,
 			baseURL+RunsServiceTriggerRunProcedure,
 			connect.WithSchema(runsServiceMethods.ByName("TriggerRun")),
+			connect.WithClientOptions(opts...),
+		),
+		preflightRun: connect.NewClient[runs.PreflightRunRequest, runs.PreflightRunResponse](
+			httpClient,
+			baseURL+RunsServicePreflightRunProcedure,
+			connect.WithSchema(runsServiceMethods.ByName("PreflightRun")),
 			connect.WithClientOptions(opts...),
 		),
 		getRun: connect.NewClient[runs.GetRunRequest, runs.GetRunResponse](
@@ -115,6 +127,7 @@ func NewRunsServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 // runsServiceClient implements RunsServiceClient.
 type runsServiceClient struct {
 	triggerRun       *connect.Client[runs.TriggerRunRequest, runs.TriggerRunResponse]
+	preflightRun     *connect.Client[runs.PreflightRunRequest, runs.PreflightRunResponse]
 	getRun           *connect.Client[runs.GetRunRequest, runs.GetRunResponse]
 	listRuns         *connect.Client[runs.ListRunsRequest, runs.ListRunsResponse]
 	listTargetStatus *connect.Client[runs.ListTargetStatusRequest, runs.ListTargetStatusResponse]
@@ -125,6 +138,11 @@ type runsServiceClient struct {
 // TriggerRun calls vrooli.data_backup_manager.v1.runs.RunsService.TriggerRun.
 func (c *runsServiceClient) TriggerRun(ctx context.Context, req *connect.Request[runs.TriggerRunRequest]) (*connect.Response[runs.TriggerRunResponse], error) {
 	return c.triggerRun.CallUnary(ctx, req)
+}
+
+// PreflightRun calls vrooli.data_backup_manager.v1.runs.RunsService.PreflightRun.
+func (c *runsServiceClient) PreflightRun(ctx context.Context, req *connect.Request[runs.PreflightRunRequest]) (*connect.Response[runs.PreflightRunResponse], error) {
+	return c.preflightRun.CallUnary(ctx, req)
 }
 
 // GetRun calls vrooli.data_backup_manager.v1.runs.RunsService.GetRun.
@@ -156,6 +174,9 @@ func (c *runsServiceClient) GetRunStats(ctx context.Context, req *connect.Reques
 // service.
 type RunsServiceHandler interface {
 	TriggerRun(context.Context, *connect.Request[runs.TriggerRunRequest]) (*connect.Response[runs.TriggerRunResponse], error)
+	// PreflightRun performs the same read-only plan-wide checks used by a
+	// backup run, without creating a run or touching source/repository data.
+	PreflightRun(context.Context, *connect.Request[runs.PreflightRunRequest]) (*connect.Response[runs.PreflightRunResponse], error)
 	GetRun(context.Context, *connect.Request[runs.GetRunRequest]) (*connect.Response[runs.GetRunResponse], error)
 	ListRuns(context.Context, *connect.Request[runs.ListRunsRequest]) (*connect.Response[runs.ListRunsResponse], error)
 	ListTargetStatus(context.Context, *connect.Request[runs.ListTargetStatusRequest]) (*connect.Response[runs.ListTargetStatusResponse], error)
@@ -177,6 +198,12 @@ func NewRunsServiceHandler(svc RunsServiceHandler, opts ...connect.HandlerOption
 		RunsServiceTriggerRunProcedure,
 		svc.TriggerRun,
 		connect.WithSchema(runsServiceMethods.ByName("TriggerRun")),
+		connect.WithHandlerOptions(opts...),
+	)
+	runsServicePreflightRunHandler := connect.NewUnaryHandler(
+		RunsServicePreflightRunProcedure,
+		svc.PreflightRun,
+		connect.WithSchema(runsServiceMethods.ByName("PreflightRun")),
 		connect.WithHandlerOptions(opts...),
 	)
 	runsServiceGetRunHandler := connect.NewUnaryHandler(
@@ -213,6 +240,8 @@ func NewRunsServiceHandler(svc RunsServiceHandler, opts ...connect.HandlerOption
 		switch r.URL.Path {
 		case RunsServiceTriggerRunProcedure:
 			runsServiceTriggerRunHandler.ServeHTTP(w, r)
+		case RunsServicePreflightRunProcedure:
+			runsServicePreflightRunHandler.ServeHTTP(w, r)
 		case RunsServiceGetRunProcedure:
 			runsServiceGetRunHandler.ServeHTTP(w, r)
 		case RunsServiceListRunsProcedure:
@@ -234,6 +263,10 @@ type UnimplementedRunsServiceHandler struct{}
 
 func (UnimplementedRunsServiceHandler) TriggerRun(context.Context, *connect.Request[runs.TriggerRunRequest]) (*connect.Response[runs.TriggerRunResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.runs.RunsService.TriggerRun is not implemented"))
+}
+
+func (UnimplementedRunsServiceHandler) PreflightRun(context.Context, *connect.Request[runs.PreflightRunRequest]) (*connect.Response[runs.PreflightRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.data_backup_manager.v1.runs.RunsService.PreflightRun is not implemented"))
 }
 
 func (UnimplementedRunsServiceHandler) GetRun(context.Context, *connect.Request[runs.GetRunRequest]) (*connect.Response[runs.GetRunResponse], error) {

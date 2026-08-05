@@ -88,6 +88,8 @@ message TargetSuggestion {
   bool sensitive = 8;
   // Operator-facing warning shown for sensitive suggestions; empty otherwise.
   string warning = 9;
+  // True when this source is part of the minimal critical recovery inventory.
+  bool critical = 10;
 }
 
 // DestinationSuggestion is a mounted volume the operator could back up to.

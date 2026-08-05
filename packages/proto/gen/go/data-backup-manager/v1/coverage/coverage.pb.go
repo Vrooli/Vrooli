@@ -38,8 +38,10 @@ type RegisteredTarget struct {
 	LastSuccessAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=last_success_at,json=lastSuccessAt,proto3" json:"last_success_at,omitempty"`
 	// Last verified restore of this target, if any (zero/absent = never verified).
 	LastVerifiedAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=last_verified_at,json=lastVerifiedAt,proto3" json:"last_verified_at,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// True when this target is approved for critical-only protection tiers.
+	Critical      bool `protobuf:"varint,9,opt,name=critical,proto3" json:"critical,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RegisteredTarget) Reset() {
@@ -128,6 +130,13 @@ func (x *RegisteredTarget) GetLastVerifiedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *RegisteredTarget) GetCritical() bool {
+	if x != nil {
+		return x.Critical
+	}
+	return false
+}
+
 // SuggestedTarget is a discovered durable source not yet registered. Mirrors a
 // discovery TargetSuggestion: non-sensitive ones are default recommendations;
 // sensitive ones (credentials/tokens) are review-only and never auto-accepted.
@@ -146,7 +155,9 @@ type SuggestedTarget struct {
 	// True for credential/token suggestions surfaced for review only.
 	Sensitive bool `protobuf:"varint,8,opt,name=sensitive,proto3" json:"sensitive,omitempty"`
 	// Operator-facing warning for sensitive suggestions; empty otherwise.
-	Warning       string `protobuf:"bytes,9,opt,name=warning,proto3" json:"warning,omitempty"`
+	Warning string `protobuf:"bytes,9,opt,name=warning,proto3" json:"warning,omitempty"`
+	// True when this source is part of the minimal critical recovery inventory.
+	Critical      bool `protobuf:"varint,10,opt,name=critical,proto3" json:"critical,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -242,6 +253,13 @@ func (x *SuggestedTarget) GetWarning() string {
 		return x.Warning
 	}
 	return ""
+}
+
+func (x *SuggestedTarget) GetCritical() bool {
+	if x != nil {
+		return x.Critical
+	}
+	return false
 }
 
 // CoverageSummary is the at-a-glance scorecard the report leads with.
@@ -533,6 +551,7 @@ type AcceptedTarget struct {
 	SourceKind    sources.SourceKind     `protobuf:"varint,5,opt,name=source_kind,json=sourceKind,proto3,enum=vrooli.data_backup_manager.v1.sources.SourceKind" json:"source_kind,omitempty"`
 	Locator       string                 `protobuf:"bytes,6,opt,name=locator,proto3" json:"locator,omitempty"`
 	Sensitive     bool                   `protobuf:"varint,7,opt,name=sensitive,proto3" json:"sensitive,omitempty"`
+	Critical      bool                   `protobuf:"varint,8,opt,name=critical,proto3" json:"critical,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -612,6 +631,13 @@ func (x *AcceptedTarget) GetLocator() string {
 func (x *AcceptedTarget) GetSensitive() bool {
 	if x != nil {
 		return x.Sensitive
+	}
+	return false
+}
+
+func (x *AcceptedTarget) GetCritical() bool {
+	if x != nil {
+		return x.Critical
 	}
 	return false
 }
@@ -817,7 +843,7 @@ var File_data_backup_manager_v1_coverage_coverage_proto protoreflect.FileDescrip
 
 const file_data_backup_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"\n" +
-	".data-backup-manager/v1/coverage/coverage.proto\x12&vrooli.data_backup_manager.v1.coverage\x1a,data-backup-manager/v1/sources/sources.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xde\x02\n" +
+	".data-backup-manager/v1/coverage/coverage.proto\x12&vrooli.data_backup_manager.v1.coverage\x1a,data-backup-manager/v1/sources/sources.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xfa\x02\n" +
 	"\x10RegisteredTarget\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05owner\x18\x02 \x01(\tR\x05owner\x12\x12\n" +
@@ -827,7 +853,8 @@ const file_data_backup_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"\alocator\x18\x05 \x01(\tR\alocator\x12\x18\n" +
 	"\aplanned\x18\x06 \x01(\bR\aplanned\x12B\n" +
 	"\x0flast_success_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\rlastSuccessAt\x12D\n" +
-	"\x10last_verified_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\x0elastVerifiedAt\"\xb2\x02\n" +
+	"\x10last_verified_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\x0elastVerifiedAt\x12\x1a\n" +
+	"\bcritical\x18\t \x01(\bR\bcritical\"\xce\x02\n" +
 	"\x0fSuggestedTarget\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05owner\x18\x02 \x01(\tR\x05owner\x12\x12\n" +
@@ -838,7 +865,9 @@ const file_data_backup_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"\trationale\x18\x06 \x01(\tR\trationale\x12!\n" +
 	"\fapprox_bytes\x18\a \x01(\x03R\vapproxBytes\x12\x1c\n" +
 	"\tsensitive\x18\b \x01(\bR\tsensitive\x12\x18\n" +
-	"\awarning\x18\t \x01(\tR\awarning\"\xfb\x03\n" +
+	"\awarning\x18\t \x01(\tR\awarning\x12\x1a\n" +
+	"\bcritical\x18\n" +
+	" \x01(\bR\bcritical\"\xfb\x03\n" +
 	"\x0fCoverageSummary\x12)\n" +
 	"\x10registered_count\x18\x01 \x01(\x05R\x0fregisteredCount\x12+\n" +
 	"\x11recommended_count\x18\x02 \x01(\x05R\x10recommendedCount\x12'\n" +
@@ -858,7 +887,7 @@ const file_data_backup_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"\x11sensitive_targets\x18\x04 \x03(\v27.vrooli.data_backup_manager.v1.coverage.SuggestedTargetR\x10sensitiveTargets\"\x1a\n" +
 	"\x18GetCoverageReportRequest\"k\n" +
 	"\x19GetCoverageReportResponse\x12N\n" +
-	"\x06report\x18\x01 \x01(\v26.vrooli.data_backup_manager.v1.coverage.CoverageReportR\x06report\"\x88\x02\n" +
+	"\x06report\x18\x01 \x01(\v26.vrooli.data_backup_manager.v1.coverage.CoverageReportR\x06report\"\xa4\x02\n" +
 	"\x0eAcceptedTarget\x12\x1b\n" +
 	"\ttarget_id\x18\x01 \x01(\tR\btargetId\x12#\n" +
 	"\rsuggestion_id\x18\x02 \x01(\tR\fsuggestionId\x12\x14\n" +
@@ -867,7 +896,8 @@ const file_data_backup_manager_v1_coverage_coverage_proto_rawDesc = "" +
 	"\vsource_kind\x18\x05 \x01(\x0e21.vrooli.data_backup_manager.v1.sources.SourceKindR\n" +
 	"sourceKind\x12\x18\n" +
 	"\alocator\x18\x06 \x01(\tR\alocator\x12\x1c\n" +
-	"\tsensitive\x18\a \x01(\bR\tsensitive\"v\n" +
+	"\tsensitive\x18\a \x01(\bR\tsensitive\x12\x1a\n" +
+	"\bcritical\x18\b \x01(\bR\bcritical\"v\n" +
 	"\vAcceptError\x12#\n" +
 	"\rsuggestion_id\x18\x01 \x01(\tR\fsuggestionId\x12\x14\n" +
 	"\x05owner\x18\x02 \x01(\tR\x05owner\x12\x12\n" +

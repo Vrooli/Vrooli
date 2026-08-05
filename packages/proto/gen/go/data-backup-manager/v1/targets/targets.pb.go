@@ -44,7 +44,12 @@ type Target struct {
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Server time of the most recent (idempotent) registration that changed the
 	// spec; equals created_at when never updated.
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// True when this target is explicitly approved for critical-only protection
+	// tiers. This is a classification, not a secret-bearing flag: the target
+	// locator remains subject to the normal redaction and plaintext-credential
+	// exclusions.
+	Critical      bool `protobuf:"varint,8,opt,name=critical,proto3" json:"critical,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -128,13 +133,24 @@ func (x *Target) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Target) GetCritical() bool {
+	if x != nil {
+		return x.Critical
+	}
+	return false
+}
+
 // RegisterTargetRequest upserts a target keyed by (owner, name).
 type RegisterTargetRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Owner         string                 `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	SourceKind    sources.SourceKind     `protobuf:"varint,3,opt,name=source_kind,json=sourceKind,proto3,enum=vrooli.data_backup_manager.v1.sources.SourceKind" json:"source_kind,omitempty"`
-	Locator       string                 `protobuf:"bytes,4,opt,name=locator,proto3" json:"locator,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Owner      string                 `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"`
+	Name       string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	SourceKind sources.SourceKind     `protobuf:"varint,3,opt,name=source_kind,json=sourceKind,proto3,enum=vrooli.data_backup_manager.v1.sources.SourceKind" json:"source_kind,omitempty"`
+	Locator    string                 `protobuf:"bytes,4,opt,name=locator,proto3" json:"locator,omitempty"`
+	// Explicitly include this target in critical-primary and
+	// critical-secondary plans. Defaults to false; critical plans fail closed
+	// when any selected target is not marked critical.
+	Critical      bool `protobuf:"varint,5,opt,name=critical,proto3" json:"critical,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -195,6 +211,13 @@ func (x *RegisterTargetRequest) GetLocator() string {
 		return x.Locator
 	}
 	return ""
+}
+
+func (x *RegisterTargetRequest) GetCritical() bool {
+	if x != nil {
+		return x.Critical
+	}
+	return false
 }
 
 type RegisterTargetResponse struct {
@@ -546,7 +569,7 @@ var File_data_backup_manager_v1_targets_targets_proto protoreflect.FileDescripto
 
 const file_data_backup_manager_v1_targets_targets_proto_rawDesc = "" +
 	"\n" +
-	",data-backup-manager/v1/targets/targets.proto\x12%vrooli.data_backup_manager.v1.targets\x1a\x1bbuf/validate/validate.proto\x1a,data-backup-manager/v1/sources/sources.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa6\x02\n" +
+	",data-backup-manager/v1/targets/targets.proto\x12%vrooli.data_backup_manager.v1.targets\x1a\x1bbuf/validate/validate.proto\x1a,data-backup-manager/v1/sources/sources.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc2\x02\n" +
 	"\x06Target\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05owner\x18\x02 \x01(\tR\x05owner\x12\x12\n" +
@@ -557,14 +580,16 @@ const file_data_backup_manager_v1_targets_targets_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xd6\x01\n" +
+	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1a\n" +
+	"\bcritical\x18\b \x01(\bR\bcritical\"\xf2\x01\n" +
 	"\x15RegisterTargetRequest\x12\x1d\n" +
 	"\x05owner\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05owner\x12\x1b\n" +
 	"\x04name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12^\n" +
 	"\vsource_kind\x18\x03 \x01(\x0e21.vrooli.data_backup_manager.v1.sources.SourceKindB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\n" +
 	"sourceKind\x12!\n" +
-	"\alocator\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\alocator\"_\n" +
+	"\alocator\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\alocator\x12\x1a\n" +
+	"\bcritical\x18\x05 \x01(\bR\bcritical\"_\n" +
 	"\x16RegisterTargetResponse\x12E\n" +
 	"\x06target\x18\x01 \x01(\v2-.vrooli.data_backup_manager.v1.targets.TargetR\x06target\"U\n" +
 	"\x17DeregisterTargetRequest\x12\x1d\n" +

@@ -167,7 +167,7 @@ Added transactional repository support:
 
 This enables atomic operations across multiple database calls.
 
-### Database Schema Changes (initialization/sqlite/schema.sql)
+### Database Schema Changes (api/internal/<domain>/schema.sql)
 
 Added new columns:
 ```sql
@@ -190,7 +190,7 @@ CREATE INDEX IF NOT EXISTS idx_sandboxes_idempotency_key
 - `api/internal/driver/driver.go` (IsMounted, VerifyMountIntegrity interface)
 - `api/internal/driver/overlayfs.go` (mount verification implementations)
 - `api/internal/sandbox/idempotency_test.go` (new - comprehensive tests)
-- `initialization/sqlite/schema.sql` (new columns)
+- `api/internal/<domain>/schema.sql` (new columns)
 
 ### Test Coverage
 
@@ -576,7 +576,7 @@ This session focused on two key areas from the scenario improvement methodology:
 
 The API was returning 500 errors because the SQLite schema did not exist. This was the highest priority blocker preventing end-to-end testing.
 
-### Database Schema (initialization/sqlite/schema.sql)
+### Database Schema (api/internal/<domain>/schema.sql)
 
 Created complete SQLite schema with:
 
@@ -677,7 +677,7 @@ Enhanced all domain errors with:
    ```
 
 ### Files Changed
-- `initialization/sqlite/schema.sql` (complete rewrite)
+- `api/internal/<domain>/schema.sql` (complete rewrite)
 - `api/internal/config/config.go` (added Schema field)
 - `api/main.go` (schema config, structured logging)
 - `api/internal/logging/logging.go` (new)
@@ -862,7 +862,7 @@ This session resolved critical blocking issues that were preventing the scenario
 **Problem**: The API was returning 500 errors because the repository code expected columns (`idempotency_key`, `version`, `updated_at`) that did not exist in the database schema.
 
 **Solution**:
-- Updated `initialization/sqlite/schema.sql` with the missing columns
+- Updated `api/internal/<domain>/schema.sql` with the missing columns
 - Applied the schema migration to the running database
 - Added `get_sandbox_stats()` function for the stats endpoint
 - API now successfully serves all endpoints
@@ -895,7 +895,7 @@ This session resolved critical blocking issues that were preventing the scenario
 **Solution**: Updated to use Wikipedia's unified diff format documentation.
 
 ### Files Changed
-- `initialization/sqlite/schema.sql` - Added missing columns and function
+- `api/internal/<domain>/schema.sql` - Added missing columns and function
 - `.vrooli/lighthouse.json` - Added version field, adjusted thresholds
 - `ui/package.json` - Added jsdom dependency
 - `ui/vite.config.ts` - Added setupFiles configuration

@@ -188,7 +188,7 @@ class ListEffectiveAdoptionsResponse(_message.Message):
     def __init__(self, adoptions: _Optional[_Iterable[_Union[EffectiveAdoption, _Mapping]]] = ...) -> None: ...
 
 class ApplyAdoptionRequest(_message.Message):
-    __slots__ = ("component_id", "scenario", "adopted_path", "version", "confirm_overwrite", "override_validation", "replace_existing")
+    __slots__ = ("component_id", "scenario", "adopted_path", "version", "confirm_overwrite", "override_validation", "replace_existing", "include_suggestions")
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     ADOPTED_PATH_FIELD_NUMBER: _ClassVar[int]
@@ -196,6 +196,7 @@ class ApplyAdoptionRequest(_message.Message):
     CONFIRM_OVERWRITE_FIELD_NUMBER: _ClassVar[int]
     OVERRIDE_VALIDATION_FIELD_NUMBER: _ClassVar[int]
     REPLACE_EXISTING_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_SUGGESTIONS_FIELD_NUMBER: _ClassVar[int]
     component_id: str
     scenario: str
     adopted_path: str
@@ -203,21 +204,28 @@ class ApplyAdoptionRequest(_message.Message):
     confirm_overwrite: bool
     override_validation: bool
     replace_existing: bool
-    def __init__(self, component_id: _Optional[str] = ..., scenario: _Optional[str] = ..., adopted_path: _Optional[str] = ..., version: _Optional[str] = ..., confirm_overwrite: _Optional[bool] = ..., override_validation: _Optional[bool] = ..., replace_existing: _Optional[bool] = ...) -> None: ...
+    include_suggestions: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, component_id: _Optional[str] = ..., scenario: _Optional[str] = ..., adopted_path: _Optional[str] = ..., version: _Optional[str] = ..., confirm_overwrite: _Optional[bool] = ..., override_validation: _Optional[bool] = ..., replace_existing: _Optional[bool] = ..., include_suggestions: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ApplyAdoptionResponse(_message.Message):
-    __slots__ = ("adoption", "written_path", "import_sites", "style_fit_affinity", "style_fit_detail")
+    __slots__ = ("adoption", "written_path", "import_sites", "style_fit_affinity", "style_fit_detail", "copied_assets", "satisfied_ports", "available_suggestions")
     ADOPTION_FIELD_NUMBER: _ClassVar[int]
     WRITTEN_PATH_FIELD_NUMBER: _ClassVar[int]
     IMPORT_SITES_FIELD_NUMBER: _ClassVar[int]
     STYLE_FIT_AFFINITY_FIELD_NUMBER: _ClassVar[int]
     STYLE_FIT_DETAIL_FIELD_NUMBER: _ClassVar[int]
+    COPIED_ASSETS_FIELD_NUMBER: _ClassVar[int]
+    SATISFIED_PORTS_FIELD_NUMBER: _ClassVar[int]
+    AVAILABLE_SUGGESTIONS_FIELD_NUMBER: _ClassVar[int]
     adoption: Adoption
     written_path: str
     import_sites: _containers.RepeatedScalarFieldContainer[str]
     style_fit_affinity: str
     style_fit_detail: str
-    def __init__(self, adoption: _Optional[_Union[Adoption, _Mapping]] = ..., written_path: _Optional[str] = ..., import_sites: _Optional[_Iterable[str]] = ..., style_fit_affinity: _Optional[str] = ..., style_fit_detail: _Optional[str] = ...) -> None: ...
+    copied_assets: _containers.RepeatedScalarFieldContainer[str]
+    satisfied_ports: _containers.RepeatedScalarFieldContainer[str]
+    available_suggestions: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, adoption: _Optional[_Union[Adoption, _Mapping]] = ..., written_path: _Optional[str] = ..., import_sites: _Optional[_Iterable[str]] = ..., style_fit_affinity: _Optional[str] = ..., style_fit_detail: _Optional[str] = ..., copied_assets: _Optional[_Iterable[str]] = ..., satisfied_ports: _Optional[_Iterable[str]] = ..., available_suggestions: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ReapplyAdoptionRequest(_message.Message):
     __slots__ = ("id", "version", "confirm_local_overwrite", "override_validation")

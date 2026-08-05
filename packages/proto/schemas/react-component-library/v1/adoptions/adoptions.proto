@@ -200,6 +200,8 @@ message ApplyAdoptionRequest {
   // scenario source file. When its source body differs from the selected
   // library source, confirm_overwrite is required before any write occurs.
   bool replace_existing = 7;
+  // Optional catalog asset library ids to include from `suggests` edges.
+  repeated string include_suggestions = 8;
 }
 
 message ApplyAdoptionResponse {
@@ -212,6 +214,9 @@ message ApplyAdoptionResponse {
   // requires override_validation=true before this response can be produced.
   string style_fit_affinity = 4;
   string style_fit_detail = 5;
+  repeated string copied_assets = 6;
+  repeated string satisfied_ports = 7;
+  repeated string available_suggestions = 8;
 }
 
 message ReapplyAdoptionRequest {

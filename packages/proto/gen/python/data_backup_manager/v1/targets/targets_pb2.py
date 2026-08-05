@@ -27,7 +27,7 @@ from data_backup_manager.v1.sources import sources_pb2 as data__backup__manager_
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n,data-backup-manager/v1/targets/targets.proto\x12%vrooli.data_backup_manager.v1.targets\x1a\x1b\x62uf/validate/validate.proto\x1a,data-backup-manager/v1/sources/sources.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa6\x02\n\x06Target\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05owner\x18\x02 \x01(\tR\x05owner\x12\x12\n\x04name\x18\x03 \x01(\tR\x04name\x12R\n\x0bsource_kind\x18\x04 \x01(\x0e\x32\x31.vrooli.data_backup_manager.v1.sources.SourceKindR\nsourceKind\x12\x18\n\x07locator\x18\x05 \x01(\tR\x07locator\x12\x39\n\ncreated_at\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x39\n\nupdated_at\x18\x07 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tupdatedAt\"\xd6\x01\n\x15RegisterTargetRequest\x12\x1d\n\x05owner\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x05owner\x12\x1b\n\x04name\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\x12^\n\x0bsource_kind\x18\x03 \x01(\x0e\x32\x31.vrooli.data_backup_manager.v1.sources.SourceKindB\n\xbaH\x07\x82\x01\x04\x10\x01 \x00R\nsourceKind\x12!\n\x07locator\x18\x04 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x07locator\"_\n\x16RegisterTargetResponse\x12\x45\n\x06target\x18\x01 \x01(\x0b\x32-.vrooli.data_backup_manager.v1.targets.TargetR\x06target\"U\n\x17\x44\x65registerTargetRequest\x12\x1d\n\x05owner\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x05owner\x12\x1b\n\x04name\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\"4\n\x18\x44\x65registerTargetResponse\x12\x18\n\x07removed\x18\x01 \x01(\x08R\x07removed\"+\n\x10GetTargetRequest\x12\x17\n\x02id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x02id\"Z\n\x11GetTargetResponse\x12\x45\n\x06target\x18\x01 \x01(\x0b\x32-.vrooli.data_backup_manager.v1.targets.TargetR\x06target\"o\n\x12ListTargetsRequest\x12\x14\n\x05owner\x18\x01 \x01(\tR\x05owner\x12$\n\tpage_size\x18\x02 \x01(\x05\x42\x07\xbaH\x04\x1a\x02(\x00R\x08pageSize\x12\x1d\n\npage_token\x18\x03 \x01(\tR\tpageToken\"\x86\x01\n\x13ListTargetsResponse\x12G\n\x07targets\x18\x01 \x03(\x0b\x32-.vrooli.data_backup_manager.v1.targets.TargetR\x07targets\x12&\n\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken2\xbd\x04\n\x0eTargetsService\x12\x8d\x01\n\x0eRegisterTarget\x12<.vrooli.data_backup_manager.v1.targets.RegisterTargetRequest\x1a=.vrooli.data_backup_manager.v1.targets.RegisterTargetResponse\x12\x93\x01\n\x10\x44\x65registerTarget\x12>.vrooli.data_backup_manager.v1.targets.DeregisterTargetRequest\x1a?.vrooli.data_backup_manager.v1.targets.DeregisterTargetResponse\x12~\n\tGetTarget\x12\x37.vrooli.data_backup_manager.v1.targets.GetTargetRequest\x1a\x38.vrooli.data_backup_manager.v1.targets.GetTargetResponse\x12\x84\x01\n\x0bListTargets\x12\x39.vrooli.data_backup_manager.v1.targets.ListTargetsRequest\x1a:.vrooli.data_backup_manager.v1.targets.ListTargetsResponseBZZXgithub.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/targets;targets_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n,data-backup-manager/v1/targets/targets.proto\x12%vrooli.data_backup_manager.v1.targets\x1a\x1b\x62uf/validate/validate.proto\x1a,data-backup-manager/v1/sources/sources.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc2\x02\n\x06Target\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05owner\x18\x02 \x01(\tR\x05owner\x12\x12\n\x04name\x18\x03 \x01(\tR\x04name\x12R\n\x0bsource_kind\x18\x04 \x01(\x0e\x32\x31.vrooli.data_backup_manager.v1.sources.SourceKindR\nsourceKind\x12\x18\n\x07locator\x18\x05 \x01(\tR\x07locator\x12\x39\n\ncreated_at\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x39\n\nupdated_at\x18\x07 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1a\n\x08\x63ritical\x18\x08 \x01(\x08R\x08\x63ritical\"\xf2\x01\n\x15RegisterTargetRequest\x12\x1d\n\x05owner\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x05owner\x12\x1b\n\x04name\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\x12^\n\x0bsource_kind\x18\x03 \x01(\x0e\x32\x31.vrooli.data_backup_manager.v1.sources.SourceKindB\n\xbaH\x07\x82\x01\x04\x10\x01 \x00R\nsourceKind\x12!\n\x07locator\x18\x04 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x07locator\x12\x1a\n\x08\x63ritical\x18\x05 \x01(\x08R\x08\x63ritical\"_\n\x16RegisterTargetResponse\x12\x45\n\x06target\x18\x01 \x01(\x0b\x32-.vrooli.data_backup_manager.v1.targets.TargetR\x06target\"U\n\x17\x44\x65registerTargetRequest\x12\x1d\n\x05owner\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x05owner\x12\x1b\n\x04name\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\"4\n\x18\x44\x65registerTargetResponse\x12\x18\n\x07removed\x18\x01 \x01(\x08R\x07removed\"+\n\x10GetTargetRequest\x12\x17\n\x02id\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x02id\"Z\n\x11GetTargetResponse\x12\x45\n\x06target\x18\x01 \x01(\x0b\x32-.vrooli.data_backup_manager.v1.targets.TargetR\x06target\"o\n\x12ListTargetsRequest\x12\x14\n\x05owner\x18\x01 \x01(\tR\x05owner\x12$\n\tpage_size\x18\x02 \x01(\x05\x42\x07\xbaH\x04\x1a\x02(\x00R\x08pageSize\x12\x1d\n\npage_token\x18\x03 \x01(\tR\tpageToken\"\x86\x01\n\x13ListTargetsResponse\x12G\n\x07targets\x18\x01 \x03(\x0b\x32-.vrooli.data_backup_manager.v1.targets.TargetR\x07targets\x12&\n\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken2\xbd\x04\n\x0eTargetsService\x12\x8d\x01\n\x0eRegisterTarget\x12<.vrooli.data_backup_manager.v1.targets.RegisterTargetRequest\x1a=.vrooli.data_backup_manager.v1.targets.RegisterTargetResponse\x12\x93\x01\n\x10\x44\x65registerTarget\x12>.vrooli.data_backup_manager.v1.targets.DeregisterTargetRequest\x1a?.vrooli.data_backup_manager.v1.targets.DeregisterTargetResponse\x12~\n\tGetTarget\x12\x37.vrooli.data_backup_manager.v1.targets.GetTargetRequest\x1a\x38.vrooli.data_backup_manager.v1.targets.GetTargetResponse\x12\x84\x01\n\x0bListTargets\x12\x39.vrooli.data_backup_manager.v1.targets.ListTargetsRequest\x1a:.vrooli.data_backup_manager.v1.targets.ListTargetsResponseBZZXgithub.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/targets;targets_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -52,23 +52,23 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_LISTTARGETSREQUEST'].fields_by_name['page_size']._loaded_options = None
   _globals['_LISTTARGETSREQUEST'].fields_by_name['page_size']._serialized_options = b'\272H\004\032\002(\000'
   _globals['_TARGET']._serialized_start=196
-  _globals['_TARGET']._serialized_end=490
-  _globals['_REGISTERTARGETREQUEST']._serialized_start=493
-  _globals['_REGISTERTARGETREQUEST']._serialized_end=707
-  _globals['_REGISTERTARGETRESPONSE']._serialized_start=709
-  _globals['_REGISTERTARGETRESPONSE']._serialized_end=804
-  _globals['_DEREGISTERTARGETREQUEST']._serialized_start=806
-  _globals['_DEREGISTERTARGETREQUEST']._serialized_end=891
-  _globals['_DEREGISTERTARGETRESPONSE']._serialized_start=893
-  _globals['_DEREGISTERTARGETRESPONSE']._serialized_end=945
-  _globals['_GETTARGETREQUEST']._serialized_start=947
-  _globals['_GETTARGETREQUEST']._serialized_end=990
-  _globals['_GETTARGETRESPONSE']._serialized_start=992
-  _globals['_GETTARGETRESPONSE']._serialized_end=1082
-  _globals['_LISTTARGETSREQUEST']._serialized_start=1084
-  _globals['_LISTTARGETSREQUEST']._serialized_end=1195
-  _globals['_LISTTARGETSRESPONSE']._serialized_start=1198
-  _globals['_LISTTARGETSRESPONSE']._serialized_end=1332
-  _globals['_TARGETSSERVICE']._serialized_start=1335
-  _globals['_TARGETSSERVICE']._serialized_end=1908
+  _globals['_TARGET']._serialized_end=518
+  _globals['_REGISTERTARGETREQUEST']._serialized_start=521
+  _globals['_REGISTERTARGETREQUEST']._serialized_end=763
+  _globals['_REGISTERTARGETRESPONSE']._serialized_start=765
+  _globals['_REGISTERTARGETRESPONSE']._serialized_end=860
+  _globals['_DEREGISTERTARGETREQUEST']._serialized_start=862
+  _globals['_DEREGISTERTARGETREQUEST']._serialized_end=947
+  _globals['_DEREGISTERTARGETRESPONSE']._serialized_start=949
+  _globals['_DEREGISTERTARGETRESPONSE']._serialized_end=1001
+  _globals['_GETTARGETREQUEST']._serialized_start=1003
+  _globals['_GETTARGETREQUEST']._serialized_end=1046
+  _globals['_GETTARGETRESPONSE']._serialized_start=1048
+  _globals['_GETTARGETRESPONSE']._serialized_end=1138
+  _globals['_LISTTARGETSREQUEST']._serialized_start=1140
+  _globals['_LISTTARGETSREQUEST']._serialized_end=1251
+  _globals['_LISTTARGETSRESPONSE']._serialized_start=1254
+  _globals['_LISTTARGETSRESPONSE']._serialized_end=1388
+  _globals['_TARGETSSERVICE']._serialized_start=1391
+  _globals['_TARGETSSERVICE']._serialized_end=1964
 # @@protoc_insertion_point(module_scope)

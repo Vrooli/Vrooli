@@ -1,10 +1,11 @@
 {
   "schema_version": 1,
   "scenario": "experience-manager",
-  "input_digest": "sha256:f1114052d4fe4b53492e8d736ad7f5fb27e5faf69f56d26181939e8bd231c7c0",
+  "input_digest": "sha256:3ff9eb436864010071e103642029de1f3356c74d3b0c979c0ae8faa02964ab7e",
   "input_files": [
     "schemas/common/v1/maturity.proto",
     "schemas/common/v1/validation_target.proto",
+    "schemas/experience-manager/v1/capabilities/capabilities.proto",
     "schemas/experience-manager/v1/contract/contract.proto",
     "schemas/experience-manager/v1/shared/errors.proto",
     "schemas/experience-manager/v1/shared/health.proto"
@@ -20,11 +21,16 @@
     }
   },
   "outputs": {
+    "gen/go/experience-manager/v1/capabilities/capabilities.pb.go": "sha256:0b5658faf635d8ea9244eebe891fadadb4b1bab35ec343b8aa0c6b6ba0054c80",
+    "gen/go/experience-manager/v1/capabilities/capabilities_v1connect/capabilities.connect.go": "sha256:ed639aa051a1a2bd6dca79d02e1146a707a1c09a93a8148ee4d79452bc150f3d",
     "gen/go/experience-manager/v1/contract/contract.pb.go": "sha256:82f0d0213a6dc75d5be6df60d4a4891a06b3036f7888a85f711c70748b41ed73",
     "gen/go/experience-manager/v1/contract/contract_v1connect/contract.connect.go": "sha256:d9c0c5275e4b54082123faa48c09235277dfa63ad6f1aef270ddbfcc11e72c7b",
     "gen/go/experience-manager/v1/shared/errors.pb.go": "sha256:dc8fb4744bb6a50966aa49f202d4f378e670eebaf6dc70cfac79fbb24d12a6e4",
     "gen/go/experience-manager/v1/shared/health.pb.go": "sha256:e46bca5efb895532941f0aab48b05d236584b20068dbdc53e21c3e210903f0a7",
     "gen/python/experience_manager/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/experience_manager/v1/capabilities/capabilities_pb2.py": "sha256:a949cccdb8202528a27e2ebc9c27c9da0658aa25308b05f244caecd155bdd62c",
+    "gen/python/experience_manager/v1/capabilities/capabilities_pb2.pyi": "sha256:40cc1a43892961ac4f87065e52f67a6715176ac3bf6ae3c42d8ec1cc911c0985",
+    "gen/python/experience_manager/v1/capabilities/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/experience_manager/v1/contract/contract_pb2.py": "sha256:b89fbd8dba80c3206181de67397d2d6aa9070cf9fe888b2393b92a89df3a6c6e",
     "gen/python/experience_manager/v1/contract/contract_pb2.pyi": "sha256:4a77399cd61cde3830d925698b59bed188523fd47bc5f4404f1ae005b5eeb1cc",
     "gen/python/experience_manager/v1/contract/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -34,9 +40,11 @@
     "gen/python/experience_manager/v1/shared/health_pb2.py": "sha256:11ee1f654458c47dd0c235f8b0a42446b8557367393587b3bc785dffab41b2d8",
     "gen/python/experience_manager/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
     "gen/python/experience_manager/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/experience-manager/v1/capabilities/capabilities_pb.ts": "sha256:d3de779f864a635889b88ad134e309b04b3f2d8dd72d99d5d20043441dff5d01",
     "gen/typescript/experience-manager/v1/contract/contract_pb.ts": "sha256:69a494fd76fb094ebc901368a775ae8a8041ee8a56c782e79ee9abc324b3ecbd",
     "gen/typescript/experience-manager/v1/shared/errors_pb.ts": "sha256:57a196c232a64bd1bfbbc605de111a7903648eaaac67077a83d4d2eb51b44539",
     "gen/typescript/experience-manager/v1/shared/health_pb.ts": "sha256:92ce3c15f2faa183249dfcac67b91bcdf4c21531a998aaf674f578030abc90e8",
+    "gen/typescript/js/experience-manager/v1/capabilities/capabilities_pb.js": "sha256:a2f76b09be73b10e029174a8a4a60c8fae3d42e96e8a5e548bca9d6ea4f33d3c",
     "gen/typescript/js/experience-manager/v1/contract/contract_pb.js": "sha256:bbdad1fec59e6f023276548929f34cb59f41ac26c5a1f968e20bba47702b5965",
     "gen/typescript/js/experience-manager/v1/shared/errors_pb.js": "sha256:01428d8d16721b50b5a3afdc8ce20827c556be9c5d6ad7a84defda1bf4cf3c07",
     "gen/typescript/js/experience-manager/v1/shared/health_pb.js": "sha256:cb790e67617422d0898f2bd12892d54d4bd806641dfd159bd607ae829238fcc0"

@@ -8,10 +8,10 @@
   (`dependencies.resources` is `{}`). Storage is fully embedded.
 - [x] `notes.storage_strategy` documents the embedded SQLite choice.
 - [x] No legacy schema name field (SQLite has no schemas).
-- [x] No initialization references to a shared resource. The canonical
+- [x] No references to a shared resource. The canonical
   runtime schema is embedded from `api/internal/repository/schema.sql`
   via `//go:embed` (see `api/internal/repository/schema.go`). The stale
-  `initialization/sqlite/schema.sql` duplicate was removed so there is
+  `api/internal/<domain>/schema.sql` duplicate was removed so there is
   no second schema source to drift.
 
 ## Connection Pattern Status

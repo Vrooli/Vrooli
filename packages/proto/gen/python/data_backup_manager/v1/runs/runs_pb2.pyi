@@ -49,7 +49,7 @@ TARGET_OUTCOME_STATUS_FAILED: TargetOutcomeStatus
 TARGET_OUTCOME_STATUS_BLOCKED: TargetOutcomeStatus
 
 class TargetOutcome(_message.Message):
-    __slots__ = ("target_id", "destination_id", "status", "snapshot_id", "bytes", "error", "started_at", "finished_at")
+    __slots__ = ("target_id", "destination_id", "status", "snapshot_id", "bytes", "error", "started_at", "finished_at", "failure_code", "failure_category", "warning")
     TARGET_ID_FIELD_NUMBER: _ClassVar[int]
     DESTINATION_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -58,6 +58,9 @@ class TargetOutcome(_message.Message):
     ERROR_FIELD_NUMBER: _ClassVar[int]
     STARTED_AT_FIELD_NUMBER: _ClassVar[int]
     FINISHED_AT_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_CODE_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_CATEGORY_FIELD_NUMBER: _ClassVar[int]
+    WARNING_FIELD_NUMBER: _ClassVar[int]
     target_id: str
     destination_id: str
     status: TargetOutcomeStatus
@@ -66,10 +69,41 @@ class TargetOutcome(_message.Message):
     error: str
     started_at: _timestamp_pb2.Timestamp
     finished_at: _timestamp_pb2.Timestamp
-    def __init__(self, target_id: _Optional[str] = ..., destination_id: _Optional[str] = ..., status: _Optional[_Union[TargetOutcomeStatus, str]] = ..., snapshot_id: _Optional[str] = ..., bytes: _Optional[int] = ..., error: _Optional[str] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    failure_code: str
+    failure_category: str
+    warning: str
+    def __init__(self, target_id: _Optional[str] = ..., destination_id: _Optional[str] = ..., status: _Optional[_Union[TargetOutcomeStatus, str]] = ..., snapshot_id: _Optional[str] = ..., bytes: _Optional[int] = ..., error: _Optional[str] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., failure_code: _Optional[str] = ..., failure_category: _Optional[str] = ..., warning: _Optional[str] = ...) -> None: ...
+
+class FailureCause(_message.Message):
+    __slots__ = ("code", "category", "scope", "message", "next_action", "destination_id", "target_ids", "first_observed", "last_observed", "last_known_good", "retryable", "retry_after_seconds")
+    CODE_FIELD_NUMBER: _ClassVar[int]
+    CATEGORY_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    NEXT_ACTION_FIELD_NUMBER: _ClassVar[int]
+    DESTINATION_ID_FIELD_NUMBER: _ClassVar[int]
+    TARGET_IDS_FIELD_NUMBER: _ClassVar[int]
+    FIRST_OBSERVED_FIELD_NUMBER: _ClassVar[int]
+    LAST_OBSERVED_FIELD_NUMBER: _ClassVar[int]
+    LAST_KNOWN_GOOD_FIELD_NUMBER: _ClassVar[int]
+    RETRYABLE_FIELD_NUMBER: _ClassVar[int]
+    RETRY_AFTER_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    code: str
+    category: str
+    scope: str
+    message: str
+    next_action: str
+    destination_id: str
+    target_ids: _containers.RepeatedScalarFieldContainer[str]
+    first_observed: _timestamp_pb2.Timestamp
+    last_observed: _timestamp_pb2.Timestamp
+    last_known_good: _timestamp_pb2.Timestamp
+    retryable: bool
+    retry_after_seconds: int
+    def __init__(self, code: _Optional[str] = ..., category: _Optional[str] = ..., scope: _Optional[str] = ..., message: _Optional[str] = ..., next_action: _Optional[str] = ..., destination_id: _Optional[str] = ..., target_ids: _Optional[_Iterable[str]] = ..., first_observed: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_observed: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_known_good: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., retryable: _Optional[bool] = ..., retry_after_seconds: _Optional[int] = ...) -> None: ...
 
 class Run(_message.Message):
-    __slots__ = ("id", "plan_id", "trigger", "status", "started_at", "finished_at", "outcomes")
+    __slots__ = ("id", "plan_id", "trigger", "status", "started_at", "finished_at", "outcomes", "error", "failure_code", "failure_category", "next_action", "preflight_incidents", "updated_at", "physical_bytes")
     ID_FIELD_NUMBER: _ClassVar[int]
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
     TRIGGER_FIELD_NUMBER: _ClassVar[int]
@@ -77,6 +111,13 @@ class Run(_message.Message):
     STARTED_AT_FIELD_NUMBER: _ClassVar[int]
     FINISHED_AT_FIELD_NUMBER: _ClassVar[int]
     OUTCOMES_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_CODE_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_CATEGORY_FIELD_NUMBER: _ClassVar[int]
+    NEXT_ACTION_FIELD_NUMBER: _ClassVar[int]
+    PREFLIGHT_INCIDENTS_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    PHYSICAL_BYTES_FIELD_NUMBER: _ClassVar[int]
     id: str
     plan_id: str
     trigger: TriggerSource
@@ -84,7 +125,14 @@ class Run(_message.Message):
     started_at: _timestamp_pb2.Timestamp
     finished_at: _timestamp_pb2.Timestamp
     outcomes: _containers.RepeatedCompositeFieldContainer[TargetOutcome]
-    def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., trigger: _Optional[_Union[TriggerSource, str]] = ..., status: _Optional[_Union[RunStatus, str]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., outcomes: _Optional[_Iterable[_Union[TargetOutcome, _Mapping]]] = ...) -> None: ...
+    error: str
+    failure_code: str
+    failure_category: str
+    next_action: str
+    preflight_incidents: _containers.RepeatedCompositeFieldContainer[FailureCause]
+    updated_at: _timestamp_pb2.Timestamp
+    physical_bytes: int
+    def __init__(self, id: _Optional[str] = ..., plan_id: _Optional[str] = ..., trigger: _Optional[_Union[TriggerSource, str]] = ..., status: _Optional[_Union[RunStatus, str]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., outcomes: _Optional[_Iterable[_Union[TargetOutcome, _Mapping]]] = ..., error: _Optional[str] = ..., failure_code: _Optional[str] = ..., failure_category: _Optional[str] = ..., next_action: _Optional[str] = ..., preflight_incidents: _Optional[_Iterable[_Union[FailureCause, _Mapping]]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., physical_bytes: _Optional[int] = ...) -> None: ...
 
 class TargetStatus(_message.Message):
     __slots__ = ("target_id", "last_success_at", "last_run_status", "last_run_at", "last_verified_at", "last_verified_snapshot_id", "overdue", "last_success_age_seconds", "next_scheduled_at")
@@ -119,6 +167,22 @@ class TriggerRunResponse(_message.Message):
     RUN_FIELD_NUMBER: _ClassVar[int]
     run: Run
     def __init__(self, run: _Optional[_Union[Run, _Mapping]] = ...) -> None: ...
+
+class PreflightRunRequest(_message.Message):
+    __slots__ = ("plan_id",)
+    PLAN_ID_FIELD_NUMBER: _ClassVar[int]
+    plan_id: str
+    def __init__(self, plan_id: _Optional[str] = ...) -> None: ...
+
+class PreflightRunResponse(_message.Message):
+    __slots__ = ("ready", "checked_at", "incidents")
+    READY_FIELD_NUMBER: _ClassVar[int]
+    CHECKED_AT_FIELD_NUMBER: _ClassVar[int]
+    INCIDENTS_FIELD_NUMBER: _ClassVar[int]
+    ready: bool
+    checked_at: _timestamp_pb2.Timestamp
+    incidents: _containers.RepeatedCompositeFieldContainer[FailureCause]
+    def __init__(self, ready: _Optional[bool] = ..., checked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., incidents: _Optional[_Iterable[_Union[FailureCause, _Mapping]]] = ...) -> None: ...
 
 class GetRunRequest(_message.Message):
     __slots__ = ("id",)

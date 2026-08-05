@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file data-backup-manager/v1/runs/runs.proto.
  */
 export const file_data_backup_manager_v1_runs_runs: GenFile = /*@__PURE__*/
-  fileDesc("CiZkYXRhLWJhY2t1cC1tYW5hZ2VyL3YxL3J1bnMvcnVucy5wcm90bxIidnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucnVucyKXAgoNVGFyZ2V0T3V0Y29tZRIRCgl0YXJnZXRfaWQYASABKAkSFgoOZGVzdGluYXRpb25faWQYAiABKAkSRwoGc3RhdHVzGAMgASgOMjcudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucnVucy5UYXJnZXRPdXRjb21lU3RhdHVzEhMKC3NuYXBzaG90X2lkGAQgASgJEg0KBWJ5dGVzGAUgASgDEg0KBWVycm9yGAYgASgJEi4KCnN0YXJ0ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KC2ZpbmlzaGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCLLAgoDUnVuEgoKAmlkGAEgASgJEg8KB3BsYW5faWQYAiABKAkSQgoHdHJpZ2dlchgDIAEoDjIxLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnJ1bnMuVHJpZ2dlclNvdXJjZRI9CgZzdGF0dXMYBCABKA4yLS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5ydW5zLlJ1blN0YXR1cxIuCgpzdGFydGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIvCgtmaW5pc2hlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASQwoIb3V0Y29tZXMYByADKAsyMS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5ydW5zLlRhcmdldE91dGNvbWUikgMKDFRhcmdldFN0YXR1cxIRCgl0YXJnZXRfaWQYASABKAkSMwoPbGFzdF9zdWNjZXNzX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBJGCg9sYXN0X3J1bl9zdGF0dXMYAyABKA4yLS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5ydW5zLlJ1blN0YXR1cxIvCgtsYXN0X3J1bl9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASNAoQbGFzdF92ZXJpZmllZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASIQoZbGFzdF92ZXJpZmllZF9zbmFwc2hvdF9pZBgGIAEoCRIPCgdvdmVyZHVlGAcgASgIEiAKGGxhc3Rfc3VjY2Vzc19hZ2Vfc2Vjb25kcxgIIAEoAxI1ChFuZXh0X3NjaGVkdWxlZF9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiLQoRVHJpZ2dlclJ1blJlcXVlc3QSGAoHcGxhbl9pZBgBIAEoCUIHukgEcgIQASJKChJUcmlnZ2VyUnVuUmVzcG9uc2USNAoDcnVuGAEgASgLMicudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucnVucy5SdW4iJAoNR2V0UnVuUmVxdWVzdBITCgJpZBgBIAEoCUIHukgEcgIQASJGCg5HZXRSdW5SZXNwb25zZRI0CgNydW4YASABKAsyJy52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5ydW5zLlJ1biJSCg9MaXN0UnVuc1JlcXVlc3QSDwoHcGxhbl9pZBgBIAEoCRIaCglwYWdlX3NpemUYAiABKAVCB7pIBBoCKAASEgoKcGFnZV90b2tlbhgDIAEoCSJiChBMaXN0UnVuc1Jlc3BvbnNlEjUKBHJ1bnMYASADKAsyJy52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5ydW5zLlJ1bhIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkiKAoXTGlzdFRhcmdldFN0YXR1c1JlcXVlc3QSDQoFb3duZXIYASABKAkiXgoYTGlzdFRhcmdldFN0YXR1c1Jlc3BvbnNlEkIKCHN0YXR1c2VzGAEgAygLMjAudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucnVucy5UYXJnZXRTdGF0dXMiQQoNU25hcHNob3RFbnRyeRIMCgRwYXRoGAEgASgJEhIKCnNpemVfYnl0ZXMYAiABKAMSDgoGaXNfZGlyGAMgASgIImQKFUJyb3dzZVNuYXBzaG90UmVxdWVzdBIfCg5kZXN0aW5hdGlvbl9pZBgBIAEoCUIHukgEcgIQARIcCgtzbmFwc2hvdF9pZBgCIAEoCUIHukgEcgIQARIMCgRwYXRoGAMgASgJIlwKFkJyb3dzZVNuYXBzaG90UmVzcG9uc2USQgoHZW50cmllcxgBIAMoCzIxLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnJ1bnMuU25hcHNob3RFbnRyeSIlChJHZXRSdW5TdGF0c1JlcXVlc3QSDwoHcGxhbl9pZBgBIAEoCSK6AgoIUnVuU3RhdHMSEgoKdG90YWxfcnVucxgBIAEoAxIRCgljb21wbGV0ZWQYAiABKAMSFgoOcGFydGlhbF9mYWlsZWQYAyABKAMSDgoGZmFpbGVkGAQgASgDEhQKDHN1Y2Nlc3NfcmF0ZRgFIAEoARIXCg9wNTBfZHVyYXRpb25fbXMYBiABKAMSFwoPcDk1X2R1cmF0aW9uX21zGAcgASgDEhMKC3RvdGFsX2J5dGVzGAggASgDEhkKEWF2Z19ieXRlc19wZXJfcnVuGAkgASgDEiQKHGF2Z190aHJvdWdocHV0X2J5dGVzX3Blcl9zZWMYCiABKAESDgoGd2luZG93GAsgASgDEhwKFHRvdGFsX3BoeXNpY2FsX2J5dGVzGAwgASgDEhMKC2RlZHVwX3JhdGlvGA0gASgBIlIKE0dldFJ1blN0YXRzUmVzcG9uc2USOwoFc3RhdHMYASABKAsyLC52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5ydW5zLlJ1blN0YXRzKsYBCglSdW5TdGF0dXMSGgoWUlVOX1NUQVRVU19VTlNQRUNJRklFRBAAEhYKElJVTl9TVEFUVVNfUEVORElORxABEhgKFFJVTl9TVEFUVVNfQ0FQVFVSSU5HEAISGwoXUlVOX1NUQVRVU19TTkFQU0hPVFRJTkcQAxIYChRSVU5fU1RBVFVTX0NPTVBMRVRFRBAEEh0KGVJVTl9TVEFUVVNfUEFSVElBTF9GQUlMRUQQBRIVChFSVU5fU1RBVFVTX0ZBSUxFRBAGKmgKDVRyaWdnZXJTb3VyY2USHgoaVFJJR0dFUl9TT1VSQ0VfVU5TUEVDSUZJRUQQABIcChhUUklHR0VSX1NPVVJDRV9TQ0hFRFVMRVIQARIZChVUUklHR0VSX1NPVVJDRV9NQU5VQUwQAiqmAQoTVGFyZ2V0T3V0Y29tZVN0YXR1cxIlCiFUQVJHRVRfT1VUQ09NRV9TVEFUVVNfVU5TUEVDSUZJRUQQABIjCh9UQVJHRVRfT1VUQ09NRV9TVEFUVVNfU1VDQ0VFREVEEAESIAocVEFSR0VUX09VVENPTUVfU1RBVFVTX0ZBSUxFRBACEiEKHVRBUkdFVF9PVVRDT01FX1NUQVRVU19CTE9DS0VEEAMyjAYKC1J1bnNTZXJ2aWNlEnsKClRyaWdnZXJSdW4SNS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5ydW5zLlRyaWdnZXJSdW5SZXF1ZXN0GjYudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucnVucy5UcmlnZ2VyUnVuUmVzcG9uc2USbwoGR2V0UnVuEjEudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucnVucy5HZXRSdW5SZXF1ZXN0GjIudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucnVucy5HZXRSdW5SZXNwb25zZRJ1CghMaXN0UnVucxIzLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnJ1bnMuTGlzdFJ1bnNSZXF1ZXN0GjQudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucnVucy5MaXN0UnVuc1Jlc3BvbnNlEo0BChBMaXN0VGFyZ2V0U3RhdHVzEjsudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucnVucy5MaXN0VGFyZ2V0U3RhdHVzUmVxdWVzdBo8LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnJ1bnMuTGlzdFRhcmdldFN0YXR1c1Jlc3BvbnNlEocBCg5Ccm93c2VTbmFwc2hvdBI5LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnJ1bnMuQnJvd3NlU25hcHNob3RSZXF1ZXN0GjoudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucnVucy5Ccm93c2VTbmFwc2hvdFJlc3BvbnNlEn4KC0dldFJ1blN0YXRzEjYudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucnVucy5HZXRSdW5TdGF0c1JlcXVlc3QaNy52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5ydW5zLkdldFJ1blN0YXRzUmVzcG9uc2VCVFpSZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9kYXRhLWJhY2t1cC1tYW5hZ2VyL3YxL3J1bnM7cnVuc192MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("CiZkYXRhLWJhY2t1cC1tYW5hZ2VyL3YxL3J1bnMvcnVucy5wcm90bxIidnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucnVucyLYAgoNVGFyZ2V0T3V0Y29tZRIRCgl0YXJnZXRfaWQYASABKAkSFgoOZGVzdGluYXRpb25faWQYAiABKAkSRwoGc3RhdHVzGAMgASgOMjcudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucnVucy5UYXJnZXRPdXRjb21lU3RhdHVzEhMKC3NuYXBzaG90X2lkGAQgASgJEg0KBWJ5dGVzGAUgASgDEg0KBWVycm9yGAYgASgJEi4KCnN0YXJ0ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KC2ZpbmlzaGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIUCgxmYWlsdXJlX2NvZGUYCSABKAkSGAoQZmFpbHVyZV9jYXRlZ29yeRgKIAEoCRIPCgd3YXJuaW5nGAsgASgJItsCCgxGYWlsdXJlQ2F1c2USDAoEY29kZRgBIAEoCRIQCghjYXRlZ29yeRgCIAEoCRINCgVzY29wZRgDIAEoCRIPCgdtZXNzYWdlGAQgASgJEhMKC25leHRfYWN0aW9uGAUgASgJEhYKDmRlc3RpbmF0aW9uX2lkGAYgASgJEhIKCnRhcmdldF9pZHMYByADKAkSMgoOZmlyc3Rfb2JzZXJ2ZWQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjEKDWxhc3Rfb2JzZXJ2ZWQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjMKD2xhc3Rfa25vd25fZ29vZBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEQoJcmV0cnlhYmxlGAsgASgIEhsKE3JldHJ5X2FmdGVyX3NlY29uZHMYDCABKAMitgQKA1J1bhIKCgJpZBgBIAEoCRIPCgdwbGFuX2lkGAIgASgJEkIKB3RyaWdnZXIYAyABKA4yMS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5ydW5zLlRyaWdnZXJTb3VyY2USPQoGc3RhdHVzGAQgASgOMi0udnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucnVucy5SdW5TdGF0dXMSLgoKc3RhcnRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoLZmluaXNoZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEkMKCG91dGNvbWVzGAcgAygLMjEudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucnVucy5UYXJnZXRPdXRjb21lEg0KBWVycm9yGAggASgJEhQKDGZhaWx1cmVfY29kZRgJIAEoCRIYChBmYWlsdXJlX2NhdGVnb3J5GAogASgJEhMKC25leHRfYWN0aW9uGAsgASgJEk0KE3ByZWZsaWdodF9pbmNpZGVudHMYDCADKAsyMC52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5ydW5zLkZhaWx1cmVDYXVzZRIuCgp1cGRhdGVkX2F0GA0gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIWCg5waHlzaWNhbF9ieXRlcxgOIAEoAyKSAwoMVGFyZ2V0U3RhdHVzEhEKCXRhcmdldF9pZBgBIAEoCRIzCg9sYXN0X3N1Y2Nlc3NfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEkYKD2xhc3RfcnVuX3N0YXR1cxgDIAEoDjItLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnJ1bnMuUnVuU3RhdHVzEi8KC2xhc3RfcnVuX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI0ChBsYXN0X3ZlcmlmaWVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIhChlsYXN0X3ZlcmlmaWVkX3NuYXBzaG90X2lkGAYgASgJEg8KB292ZXJkdWUYByABKAgSIAoYbGFzdF9zdWNjZXNzX2FnZV9zZWNvbmRzGAggASgDEjUKEW5leHRfc2NoZWR1bGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCItChFUcmlnZ2VyUnVuUmVxdWVzdBIYCgdwbGFuX2lkGAEgASgJQge6SARyAhABIkoKElRyaWdnZXJSdW5SZXNwb25zZRI0CgNydW4YASABKAsyJy52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5ydW5zLlJ1biIvChNQcmVmbGlnaHRSdW5SZXF1ZXN0EhgKB3BsYW5faWQYASABKAlCB7pIBHICEAEimgEKFFByZWZsaWdodFJ1blJlc3BvbnNlEg0KBXJlYWR5GAEgASgIEi4KCmNoZWNrZWRfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEkMKCWluY2lkZW50cxgDIAMoCzIwLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnJ1bnMuRmFpbHVyZUNhdXNlIiQKDUdldFJ1blJlcXVlc3QSEwoCaWQYASABKAlCB7pIBHICEAEiRgoOR2V0UnVuUmVzcG9uc2USNAoDcnVuGAEgASgLMicudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucnVucy5SdW4iUgoPTGlzdFJ1bnNSZXF1ZXN0Eg8KB3BsYW5faWQYASABKAkSGgoJcGFnZV9zaXplGAIgASgFQge6SAQaAigAEhIKCnBhZ2VfdG9rZW4YAyABKAkiYgoQTGlzdFJ1bnNSZXNwb25zZRI1CgRydW5zGAEgAygLMicudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucnVucy5SdW4SFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIigKF0xpc3RUYXJnZXRTdGF0dXNSZXF1ZXN0Eg0KBW93bmVyGAEgASgJIl4KGExpc3RUYXJnZXRTdGF0dXNSZXNwb25zZRJCCghzdGF0dXNlcxgBIAMoCzIwLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnJ1bnMuVGFyZ2V0U3RhdHVzIkEKDVNuYXBzaG90RW50cnkSDAoEcGF0aBgBIAEoCRISCgpzaXplX2J5dGVzGAIgASgDEg4KBmlzX2RpchgDIAEoCCJkChVCcm93c2VTbmFwc2hvdFJlcXVlc3QSHwoOZGVzdGluYXRpb25faWQYASABKAlCB7pIBHICEAESHAoLc25hcHNob3RfaWQYAiABKAlCB7pIBHICEAESDAoEcGF0aBgDIAEoCSJcChZCcm93c2VTbmFwc2hvdFJlc3BvbnNlEkIKB2VudHJpZXMYASADKAsyMS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5ydW5zLlNuYXBzaG90RW50cnkiJQoSR2V0UnVuU3RhdHNSZXF1ZXN0Eg8KB3BsYW5faWQYASABKAkiugIKCFJ1blN0YXRzEhIKCnRvdGFsX3J1bnMYASABKAMSEQoJY29tcGxldGVkGAIgASgDEhYKDnBhcnRpYWxfZmFpbGVkGAMgASgDEg4KBmZhaWxlZBgEIAEoAxIUCgxzdWNjZXNzX3JhdGUYBSABKAESFwoPcDUwX2R1cmF0aW9uX21zGAYgASgDEhcKD3A5NV9kdXJhdGlvbl9tcxgHIAEoAxITCgt0b3RhbF9ieXRlcxgIIAEoAxIZChFhdmdfYnl0ZXNfcGVyX3J1bhgJIAEoAxIkChxhdmdfdGhyb3VnaHB1dF9ieXRlc19wZXJfc2VjGAogASgBEg4KBndpbmRvdxgLIAEoAxIcChR0b3RhbF9waHlzaWNhbF9ieXRlcxgMIAEoAxITCgtkZWR1cF9yYXRpbxgNIAEoASJSChNHZXRSdW5TdGF0c1Jlc3BvbnNlEjsKBXN0YXRzGAEgASgLMiwudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucnVucy5SdW5TdGF0cyrGAQoJUnVuU3RhdHVzEhoKFlJVTl9TVEFUVVNfVU5TUEVDSUZJRUQQABIWChJSVU5fU1RBVFVTX1BFTkRJTkcQARIYChRSVU5fU1RBVFVTX0NBUFRVUklORxACEhsKF1JVTl9TVEFUVVNfU05BUFNIT1RUSU5HEAMSGAoUUlVOX1NUQVRVU19DT01QTEVURUQQBBIdChlSVU5fU1RBVFVTX1BBUlRJQUxfRkFJTEVEEAUSFQoRUlVOX1NUQVRVU19GQUlMRUQQBipoCg1UcmlnZ2VyU291cmNlEh4KGlRSSUdHRVJfU09VUkNFX1VOU1BFQ0lGSUVEEAASHAoYVFJJR0dFUl9TT1VSQ0VfU0NIRURVTEVSEAESGQoVVFJJR0dFUl9TT1VSQ0VfTUFOVUFMEAIqpgEKE1RhcmdldE91dGNvbWVTdGF0dXMSJQohVEFSR0VUX09VVENPTUVfU1RBVFVTX1VOU1BFQ0lGSUVEEAASIwofVEFSR0VUX09VVENPTUVfU1RBVFVTX1NVQ0NFRURFRBABEiAKHFRBUkdFVF9PVVRDT01FX1NUQVRVU19GQUlMRUQQAhIhCh1UQVJHRVRfT1VUQ09NRV9TVEFUVVNfQkxPQ0tFRBADMpAHCgtSdW5zU2VydmljZRJ7CgpUcmlnZ2VyUnVuEjUudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucnVucy5UcmlnZ2VyUnVuUmVxdWVzdBo2LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnJ1bnMuVHJpZ2dlclJ1blJlc3BvbnNlEoEBCgxQcmVmbGlnaHRSdW4SNy52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5ydW5zLlByZWZsaWdodFJ1blJlcXVlc3QaOC52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5ydW5zLlByZWZsaWdodFJ1blJlc3BvbnNlEm8KBkdldFJ1bhIxLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnJ1bnMuR2V0UnVuUmVxdWVzdBoyLnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnJ1bnMuR2V0UnVuUmVzcG9uc2USdQoITGlzdFJ1bnMSMy52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5ydW5zLkxpc3RSdW5zUmVxdWVzdBo0LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnJ1bnMuTGlzdFJ1bnNSZXNwb25zZRKNAQoQTGlzdFRhcmdldFN0YXR1cxI7LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnJ1bnMuTGlzdFRhcmdldFN0YXR1c1JlcXVlc3QaPC52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5ydW5zLkxpc3RUYXJnZXRTdGF0dXNSZXNwb25zZRKHAQoOQnJvd3NlU25hcHNob3QSOS52cm9vbGkuZGF0YV9iYWNrdXBfbWFuYWdlci52MS5ydW5zLkJyb3dzZVNuYXBzaG90UmVxdWVzdBo6LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnJ1bnMuQnJvd3NlU25hcHNob3RSZXNwb25zZRJ+CgtHZXRSdW5TdGF0cxI2LnZyb29saS5kYXRhX2JhY2t1cF9tYW5hZ2VyLnYxLnJ1bnMuR2V0UnVuU3RhdHNSZXF1ZXN0GjcudnJvb2xpLmRhdGFfYmFja3VwX21hbmFnZXIudjEucnVucy5HZXRSdW5TdGF0c1Jlc3BvbnNlQlRaUmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vZGF0YS1iYWNrdXAtbWFuYWdlci92MS9ydW5zO3J1bnNfdjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.data_backup_manager.v1.runs.TargetOutcome
@@ -62,6 +62,26 @@ export type TargetOutcome = Message<"vrooli.data_backup_manager.v1.runs.TargetOu
    * @generated from field: google.protobuf.Timestamp finished_at = 8;
    */
   finishedAt?: Timestamp | undefined;
+
+  /**
+   * Stable machine-readable root cause; empty for a successful outcome.
+   *
+   * @generated from field: string failure_code = 9;
+   */
+  failureCode: string;
+
+  /**
+   * @generated from field: string failure_category = 10;
+   */
+  failureCategory: string;
+
+  /**
+   * Non-fatal maintenance warning (for example retention or staging cleanup)
+   * that must remain visible even when the snapshot itself succeeded.
+   *
+   * @generated from field: string warning = 11;
+   */
+  warning: string;
 };
 
 /**
@@ -70,6 +90,82 @@ export type TargetOutcome = Message<"vrooli.data_backup_manager.v1.runs.TargetOu
  */
 export const TargetOutcomeSchema: GenMessage<TargetOutcome> = /*@__PURE__*/
   messageDesc(file_data_backup_manager_v1_runs_runs, 0);
+
+/**
+ * FailureCause groups one shared dependency failure across all impacted work.
+ * It is intentionally metadata-only: raw command output and secret values are
+ * never persisted in this evidence model.
+ *
+ * @generated from message vrooli.data_backup_manager.v1.runs.FailureCause
+ */
+export type FailureCause = Message<"vrooli.data_backup_manager.v1.runs.FailureCause"> & {
+  /**
+   * @generated from field: string code = 1;
+   */
+  code: string;
+
+  /**
+   * @generated from field: string category = 2;
+   */
+  category: string;
+
+  /**
+   * @generated from field: string scope = 3;
+   */
+  scope: string;
+
+  /**
+   * @generated from field: string message = 4;
+   */
+  message: string;
+
+  /**
+   * @generated from field: string next_action = 5;
+   */
+  nextAction: string;
+
+  /**
+   * @generated from field: string destination_id = 6;
+   */
+  destinationId: string;
+
+  /**
+   * @generated from field: repeated string target_ids = 7;
+   */
+  targetIds: string[];
+
+  /**
+   * @generated from field: google.protobuf.Timestamp first_observed = 8;
+   */
+  firstObserved?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp last_observed = 9;
+   */
+  lastObserved?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp last_known_good = 10;
+   */
+  lastKnownGood?: Timestamp | undefined;
+
+  /**
+   * @generated from field: bool retryable = 11;
+   */
+  retryable: boolean;
+
+  /**
+   * @generated from field: int64 retry_after_seconds = 12;
+   */
+  retryAfterSeconds: bigint;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.runs.FailureCause.
+ * Use `create(FailureCauseSchema)` to create a new message.
+ */
+export const FailureCauseSchema: GenMessage<FailureCause> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_runs_runs, 1);
 
 /**
  * Run is the canonical wire shape for one plan execution.
@@ -111,6 +207,41 @@ export type Run = Message<"vrooli.data_backup_manager.v1.runs.Run"> & {
    * @generated from field: repeated vrooli.data_backup_manager.v1.runs.TargetOutcome outcomes = 7;
    */
   outcomes: TargetOutcome[];
+
+  /**
+   * @generated from field: string error = 8;
+   */
+  error: string;
+
+  /**
+   * @generated from field: string failure_code = 9;
+   */
+  failureCode: string;
+
+  /**
+   * @generated from field: string failure_category = 10;
+   */
+  failureCategory: string;
+
+  /**
+   * @generated from field: string next_action = 11;
+   */
+  nextAction: string;
+
+  /**
+   * @generated from field: repeated vrooli.data_backup_manager.v1.runs.FailureCause preflight_incidents = 12;
+   */
+  preflightIncidents: FailureCause[];
+
+  /**
+   * @generated from field: google.protobuf.Timestamp updated_at = 13;
+   */
+  updatedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: int64 physical_bytes = 14;
+   */
+  physicalBytes: bigint;
 };
 
 /**
@@ -118,7 +249,7 @@ export type Run = Message<"vrooli.data_backup_manager.v1.runs.Run"> & {
  * Use `create(RunSchema)` to create a new message.
  */
 export const RunSchema: GenMessage<Run> = /*@__PURE__*/
-  messageDesc(file_data_backup_manager_v1_runs_runs, 1);
+  messageDesc(file_data_backup_manager_v1_runs_runs, 2);
 
 /**
  * TargetStatus is the last-success / last-run rollup for one target, derived
@@ -204,7 +335,7 @@ export type TargetStatus = Message<"vrooli.data_backup_manager.v1.runs.TargetSta
  * Use `create(TargetStatusSchema)` to create a new message.
  */
 export const TargetStatusSchema: GenMessage<TargetStatus> = /*@__PURE__*/
-  messageDesc(file_data_backup_manager_v1_runs_runs, 2);
+  messageDesc(file_data_backup_manager_v1_runs_runs, 3);
 
 /**
  * @generated from message vrooli.data_backup_manager.v1.runs.TriggerRunRequest
@@ -221,7 +352,7 @@ export type TriggerRunRequest = Message<"vrooli.data_backup_manager.v1.runs.Trig
  * Use `create(TriggerRunRequestSchema)` to create a new message.
  */
 export const TriggerRunRequestSchema: GenMessage<TriggerRunRequest> = /*@__PURE__*/
-  messageDesc(file_data_backup_manager_v1_runs_runs, 3);
+  messageDesc(file_data_backup_manager_v1_runs_runs, 4);
 
 /**
  * @generated from message vrooli.data_backup_manager.v1.runs.TriggerRunResponse
@@ -238,7 +369,51 @@ export type TriggerRunResponse = Message<"vrooli.data_backup_manager.v1.runs.Tri
  * Use `create(TriggerRunResponseSchema)` to create a new message.
  */
 export const TriggerRunResponseSchema: GenMessage<TriggerRunResponse> = /*@__PURE__*/
-  messageDesc(file_data_backup_manager_v1_runs_runs, 4);
+  messageDesc(file_data_backup_manager_v1_runs_runs, 5);
+
+/**
+ * @generated from message vrooli.data_backup_manager.v1.runs.PreflightRunRequest
+ */
+export type PreflightRunRequest = Message<"vrooli.data_backup_manager.v1.runs.PreflightRunRequest"> & {
+  /**
+   * @generated from field: string plan_id = 1;
+   */
+  planId: string;
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.runs.PreflightRunRequest.
+ * Use `create(PreflightRunRequestSchema)` to create a new message.
+ */
+export const PreflightRunRequestSchema: GenMessage<PreflightRunRequest> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_runs_runs, 6);
+
+/**
+ * @generated from message vrooli.data_backup_manager.v1.runs.PreflightRunResponse
+ */
+export type PreflightRunResponse = Message<"vrooli.data_backup_manager.v1.runs.PreflightRunResponse"> & {
+  /**
+   * @generated from field: bool ready = 1;
+   */
+  ready: boolean;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp checked_at = 2;
+   */
+  checkedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.data_backup_manager.v1.runs.FailureCause incidents = 3;
+   */
+  incidents: FailureCause[];
+};
+
+/**
+ * Describes the message vrooli.data_backup_manager.v1.runs.PreflightRunResponse.
+ * Use `create(PreflightRunResponseSchema)` to create a new message.
+ */
+export const PreflightRunResponseSchema: GenMessage<PreflightRunResponse> = /*@__PURE__*/
+  messageDesc(file_data_backup_manager_v1_runs_runs, 7);
 
 /**
  * @generated from message vrooli.data_backup_manager.v1.runs.GetRunRequest
@@ -255,7 +430,7 @@ export type GetRunRequest = Message<"vrooli.data_backup_manager.v1.runs.GetRunRe
  * Use `create(GetRunRequestSchema)` to create a new message.
  */
 export const GetRunRequestSchema: GenMessage<GetRunRequest> = /*@__PURE__*/
-  messageDesc(file_data_backup_manager_v1_runs_runs, 5);
+  messageDesc(file_data_backup_manager_v1_runs_runs, 8);
 
 /**
  * @generated from message vrooli.data_backup_manager.v1.runs.GetRunResponse
@@ -272,7 +447,7 @@ export type GetRunResponse = Message<"vrooli.data_backup_manager.v1.runs.GetRunR
  * Use `create(GetRunResponseSchema)` to create a new message.
  */
 export const GetRunResponseSchema: GenMessage<GetRunResponse> = /*@__PURE__*/
-  messageDesc(file_data_backup_manager_v1_runs_runs, 6);
+  messageDesc(file_data_backup_manager_v1_runs_runs, 9);
 
 /**
  * @generated from message vrooli.data_backup_manager.v1.runs.ListRunsRequest
@@ -301,7 +476,7 @@ export type ListRunsRequest = Message<"vrooli.data_backup_manager.v1.runs.ListRu
  * Use `create(ListRunsRequestSchema)` to create a new message.
  */
 export const ListRunsRequestSchema: GenMessage<ListRunsRequest> = /*@__PURE__*/
-  messageDesc(file_data_backup_manager_v1_runs_runs, 7);
+  messageDesc(file_data_backup_manager_v1_runs_runs, 10);
 
 /**
  * @generated from message vrooli.data_backup_manager.v1.runs.ListRunsResponse
@@ -323,7 +498,7 @@ export type ListRunsResponse = Message<"vrooli.data_backup_manager.v1.runs.ListR
  * Use `create(ListRunsResponseSchema)` to create a new message.
  */
 export const ListRunsResponseSchema: GenMessage<ListRunsResponse> = /*@__PURE__*/
-  messageDesc(file_data_backup_manager_v1_runs_runs, 8);
+  messageDesc(file_data_backup_manager_v1_runs_runs, 11);
 
 /**
  * @generated from message vrooli.data_backup_manager.v1.runs.ListTargetStatusRequest
@@ -340,7 +515,7 @@ export type ListTargetStatusRequest = Message<"vrooli.data_backup_manager.v1.run
  * Use `create(ListTargetStatusRequestSchema)` to create a new message.
  */
 export const ListTargetStatusRequestSchema: GenMessage<ListTargetStatusRequest> = /*@__PURE__*/
-  messageDesc(file_data_backup_manager_v1_runs_runs, 9);
+  messageDesc(file_data_backup_manager_v1_runs_runs, 12);
 
 /**
  * @generated from message vrooli.data_backup_manager.v1.runs.ListTargetStatusResponse
@@ -357,7 +532,7 @@ export type ListTargetStatusResponse = Message<"vrooli.data_backup_manager.v1.ru
  * Use `create(ListTargetStatusResponseSchema)` to create a new message.
  */
 export const ListTargetStatusResponseSchema: GenMessage<ListTargetStatusResponse> = /*@__PURE__*/
-  messageDesc(file_data_backup_manager_v1_runs_runs, 10);
+  messageDesc(file_data_backup_manager_v1_runs_runs, 13);
 
 /**
  * SnapshotEntry is one path within a snapshot's content listing.
@@ -386,7 +561,7 @@ export type SnapshotEntry = Message<"vrooli.data_backup_manager.v1.runs.Snapshot
  * Use `create(SnapshotEntrySchema)` to create a new message.
  */
 export const SnapshotEntrySchema: GenMessage<SnapshotEntry> = /*@__PURE__*/
-  messageDesc(file_data_backup_manager_v1_runs_runs, 11);
+  messageDesc(file_data_backup_manager_v1_runs_runs, 14);
 
 /**
  * @generated from message vrooli.data_backup_manager.v1.runs.BrowseSnapshotRequest
@@ -415,7 +590,7 @@ export type BrowseSnapshotRequest = Message<"vrooli.data_backup_manager.v1.runs.
  * Use `create(BrowseSnapshotRequestSchema)` to create a new message.
  */
 export const BrowseSnapshotRequestSchema: GenMessage<BrowseSnapshotRequest> = /*@__PURE__*/
-  messageDesc(file_data_backup_manager_v1_runs_runs, 12);
+  messageDesc(file_data_backup_manager_v1_runs_runs, 15);
 
 /**
  * @generated from message vrooli.data_backup_manager.v1.runs.BrowseSnapshotResponse
@@ -432,7 +607,7 @@ export type BrowseSnapshotResponse = Message<"vrooli.data_backup_manager.v1.runs
  * Use `create(BrowseSnapshotResponseSchema)` to create a new message.
  */
 export const BrowseSnapshotResponseSchema: GenMessage<BrowseSnapshotResponse> = /*@__PURE__*/
-  messageDesc(file_data_backup_manager_v1_runs_runs, 13);
+  messageDesc(file_data_backup_manager_v1_runs_runs, 16);
 
 /**
  * @generated from message vrooli.data_backup_manager.v1.runs.GetRunStatsRequest
@@ -451,7 +626,7 @@ export type GetRunStatsRequest = Message<"vrooli.data_backup_manager.v1.runs.Get
  * Use `create(GetRunStatsRequestSchema)` to create a new message.
  */
 export const GetRunStatsRequestSchema: GenMessage<GetRunStatsRequest> = /*@__PURE__*/
-  messageDesc(file_data_backup_manager_v1_runs_runs, 14);
+  messageDesc(file_data_backup_manager_v1_runs_runs, 17);
 
 /**
  * RunStats is aggregate run performance over the recent run history window.
@@ -552,7 +727,7 @@ export type RunStats = Message<"vrooli.data_backup_manager.v1.runs.RunStats"> & 
  * Use `create(RunStatsSchema)` to create a new message.
  */
 export const RunStatsSchema: GenMessage<RunStats> = /*@__PURE__*/
-  messageDesc(file_data_backup_manager_v1_runs_runs, 15);
+  messageDesc(file_data_backup_manager_v1_runs_runs, 18);
 
 /**
  * @generated from message vrooli.data_backup_manager.v1.runs.GetRunStatsResponse
@@ -569,7 +744,7 @@ export type GetRunStatsResponse = Message<"vrooli.data_backup_manager.v1.runs.Ge
  * Use `create(GetRunStatsResponseSchema)` to create a new message.
  */
 export const GetRunStatsResponseSchema: GenMessage<GetRunStatsResponse> = /*@__PURE__*/
-  messageDesc(file_data_backup_manager_v1_runs_runs, 16);
+  messageDesc(file_data_backup_manager_v1_runs_runs, 19);
 
 /**
  * RunStatus is the lifecycle state of a run.
@@ -693,6 +868,17 @@ export const RunsService: GenService<{
     methodKind: "unary";
     input: typeof TriggerRunRequestSchema;
     output: typeof TriggerRunResponseSchema;
+  },
+  /**
+   * PreflightRun performs the same read-only plan-wide checks used by a
+   * backup run, without creating a run or touching source/repository data.
+   *
+   * @generated from rpc vrooli.data_backup_manager.v1.runs.RunsService.PreflightRun
+   */
+  preflightRun: {
+    methodKind: "unary";
+    input: typeof PreflightRunRequestSchema;
+    output: typeof PreflightRunResponseSchema;
   },
   /**
    * @generated from rpc vrooli.data_backup_manager.v1.runs.RunsService.GetRun

@@ -11,7 +11,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class RegisteredTarget(_message.Message):
-    __slots__ = ("id", "owner", "name", "source_kind", "locator", "planned", "last_success_at", "last_verified_at")
+    __slots__ = ("id", "owner", "name", "source_kind", "locator", "planned", "last_success_at", "last_verified_at", "critical")
     ID_FIELD_NUMBER: _ClassVar[int]
     OWNER_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
@@ -20,6 +20,7 @@ class RegisteredTarget(_message.Message):
     PLANNED_FIELD_NUMBER: _ClassVar[int]
     LAST_SUCCESS_AT_FIELD_NUMBER: _ClassVar[int]
     LAST_VERIFIED_AT_FIELD_NUMBER: _ClassVar[int]
+    CRITICAL_FIELD_NUMBER: _ClassVar[int]
     id: str
     owner: str
     name: str
@@ -28,10 +29,11 @@ class RegisteredTarget(_message.Message):
     planned: bool
     last_success_at: _timestamp_pb2.Timestamp
     last_verified_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., owner: _Optional[str] = ..., name: _Optional[str] = ..., source_kind: _Optional[_Union[_sources_pb2.SourceKind, str]] = ..., locator: _Optional[str] = ..., planned: _Optional[bool] = ..., last_success_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_verified_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    critical: bool
+    def __init__(self, id: _Optional[str] = ..., owner: _Optional[str] = ..., name: _Optional[str] = ..., source_kind: _Optional[_Union[_sources_pb2.SourceKind, str]] = ..., locator: _Optional[str] = ..., planned: _Optional[bool] = ..., last_success_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_verified_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., critical: _Optional[bool] = ...) -> None: ...
 
 class SuggestedTarget(_message.Message):
-    __slots__ = ("id", "owner", "name", "source_kind", "locator", "rationale", "approx_bytes", "sensitive", "warning")
+    __slots__ = ("id", "owner", "name", "source_kind", "locator", "rationale", "approx_bytes", "sensitive", "warning", "critical")
     ID_FIELD_NUMBER: _ClassVar[int]
     OWNER_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
@@ -41,6 +43,7 @@ class SuggestedTarget(_message.Message):
     APPROX_BYTES_FIELD_NUMBER: _ClassVar[int]
     SENSITIVE_FIELD_NUMBER: _ClassVar[int]
     WARNING_FIELD_NUMBER: _ClassVar[int]
+    CRITICAL_FIELD_NUMBER: _ClassVar[int]
     id: str
     owner: str
     name: str
@@ -50,7 +53,8 @@ class SuggestedTarget(_message.Message):
     approx_bytes: int
     sensitive: bool
     warning: str
-    def __init__(self, id: _Optional[str] = ..., owner: _Optional[str] = ..., name: _Optional[str] = ..., source_kind: _Optional[_Union[_sources_pb2.SourceKind, str]] = ..., locator: _Optional[str] = ..., rationale: _Optional[str] = ..., approx_bytes: _Optional[int] = ..., sensitive: _Optional[bool] = ..., warning: _Optional[str] = ...) -> None: ...
+    critical: bool
+    def __init__(self, id: _Optional[str] = ..., owner: _Optional[str] = ..., name: _Optional[str] = ..., source_kind: _Optional[_Union[_sources_pb2.SourceKind, str]] = ..., locator: _Optional[str] = ..., rationale: _Optional[str] = ..., approx_bytes: _Optional[int] = ..., sensitive: _Optional[bool] = ..., warning: _Optional[str] = ..., critical: _Optional[bool] = ...) -> None: ...
 
 class CoverageSummary(_message.Message):
     __slots__ = ("registered_count", "recommended_count", "sensitive_count", "planned_count", "backed_up_count", "verified_count", "default_coverage_complete", "has_sensitive_unreviewed", "has_unplanned_registered_targets", "has_unverified_targets")
@@ -99,7 +103,7 @@ class GetCoverageReportResponse(_message.Message):
     def __init__(self, report: _Optional[_Union[CoverageReport, _Mapping]] = ...) -> None: ...
 
 class AcceptedTarget(_message.Message):
-    __slots__ = ("target_id", "suggestion_id", "owner", "name", "source_kind", "locator", "sensitive")
+    __slots__ = ("target_id", "suggestion_id", "owner", "name", "source_kind", "locator", "sensitive", "critical")
     TARGET_ID_FIELD_NUMBER: _ClassVar[int]
     SUGGESTION_ID_FIELD_NUMBER: _ClassVar[int]
     OWNER_FIELD_NUMBER: _ClassVar[int]
@@ -107,6 +111,7 @@ class AcceptedTarget(_message.Message):
     SOURCE_KIND_FIELD_NUMBER: _ClassVar[int]
     LOCATOR_FIELD_NUMBER: _ClassVar[int]
     SENSITIVE_FIELD_NUMBER: _ClassVar[int]
+    CRITICAL_FIELD_NUMBER: _ClassVar[int]
     target_id: str
     suggestion_id: str
     owner: str
@@ -114,7 +119,8 @@ class AcceptedTarget(_message.Message):
     source_kind: _sources_pb2.SourceKind
     locator: str
     sensitive: bool
-    def __init__(self, target_id: _Optional[str] = ..., suggestion_id: _Optional[str] = ..., owner: _Optional[str] = ..., name: _Optional[str] = ..., source_kind: _Optional[_Union[_sources_pb2.SourceKind, str]] = ..., locator: _Optional[str] = ..., sensitive: _Optional[bool] = ...) -> None: ...
+    critical: bool
+    def __init__(self, target_id: _Optional[str] = ..., suggestion_id: _Optional[str] = ..., owner: _Optional[str] = ..., name: _Optional[str] = ..., source_kind: _Optional[_Union[_sources_pb2.SourceKind, str]] = ..., locator: _Optional[str] = ..., sensitive: _Optional[bool] = ..., critical: _Optional[bool] = ...) -> None: ...
 
 class AcceptError(_message.Message):
     __slots__ = ("suggestion_id", "owner", "name", "message")

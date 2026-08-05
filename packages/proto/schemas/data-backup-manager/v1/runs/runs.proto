@@ -28,6 +28,9 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-
 
 service RunsService {
   rpc TriggerRun(TriggerRunRequest) returns (TriggerRunResponse);
+  // PreflightRun performs the same read-only plan-wide checks used by a
+  // backup run, without creating a run or touching source/repository data.
+  rpc PreflightRun(PreflightRunRequest) returns (PreflightRunResponse);
   rpc GetRun(GetRunRequest) returns (GetRunResponse);
   rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
   rpc ListTargetStatus(ListTargetStatusRequest) returns (ListTargetStatusResponse);
@@ -76,6 +79,30 @@ message TargetOutcome {
   string error = 6;
   google.protobuf.Timestamp started_at = 7;
   google.protobuf.Timestamp finished_at = 8;
+  // Stable machine-readable root cause; empty for a successful outcome.
+  string failure_code = 9;
+  string failure_category = 10;
+  // Non-fatal maintenance warning (for example retention or staging cleanup)
+  // that must remain visible even when the snapshot itself succeeded.
+  string warning = 11;
+}
+
+// FailureCause groups one shared dependency failure across all impacted work.
+// It is intentionally metadata-only: raw command output and secret values are
+// never persisted in this evidence model.
+message FailureCause {
+  string code = 1;
+  string category = 2;
+  string scope = 3;
+  string message = 4;
+  string next_action = 5;
+  string destination_id = 6;
+  repeated string target_ids = 7;
+  google.protobuf.Timestamp first_observed = 8;
+  google.protobuf.Timestamp last_observed = 9;
+  google.protobuf.Timestamp last_known_good = 10;
+  bool retryable = 11;
+  int64 retry_after_seconds = 12;
 }
 
 // Run is the canonical wire shape for one plan execution.
@@ -87,6 +114,13 @@ message Run {
   google.protobuf.Timestamp started_at = 5;
   google.protobuf.Timestamp finished_at = 6;
   repeated TargetOutcome outcomes = 7;
+  string error = 8;
+  string failure_code = 9;
+  string failure_category = 10;
+  string next_action = 11;
+  repeated FailureCause preflight_incidents = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  int64 physical_bytes = 14;
 }
 
 // TargetStatus is the last-success / last-run rollup for one target, derived
@@ -130,6 +164,16 @@ message TriggerRunRequest {
 
 message TriggerRunResponse {
   Run run = 1;
+}
+
+message PreflightRunRequest {
+  string plan_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+message PreflightRunResponse {
+  bool ready = 1;
+  google.protobuf.Timestamp checked_at = 2;
+  repeated FailureCause incidents = 3;
 }
 
 message GetRunRequest {
