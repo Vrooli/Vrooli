@@ -103,6 +103,16 @@
         "clean_requirement": "required",
         "fix_class": "manual",
         "reason": "Component behavior needs an authored contract or implementation correction."
+      },
+      "CATALOG_VALIDATION_FAILED": {
+        "capability_id": "component_contracts",
+        "local_level_impact": "L0",
+        "global_impact": "foundation_blocker",
+        "dimension": "tests",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "The desired-state catalog or its cross-registry references are invalid."
       }
     },
     "fallback": {

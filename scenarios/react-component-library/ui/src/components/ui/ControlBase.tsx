@@ -45,13 +45,13 @@ const variantClasses: Record<ControlVariant, string> = {
 };
 
 const sizeClasses: Record<ControlSize, string> = {
-  xs: "min-h-11 min-w-11 rounded-sm px-2 text-xs [&>svg]:size-3",
+  xs: "min-h-11 min-w-11 rounded-control px-space-xs text-xs [&>svg]:size-3",
   sm: "min-h-11 min-w-11 rounded-md px-3 text-sm [&>svg]:size-3.5",
-  md: "min-h-11 min-w-11 rounded-control px-3.5 text-sm [&>svg]:size-4",
-  lg: "min-h-11 min-w-11 rounded-lg px-4 text-base [&>svg]:size-5",
-  xl: "min-h-12 min-w-12 rounded-xl px-5 text-base [&>svg]:size-5",
+  md: "min-h-11 min-w-11 rounded-control px-space-sm text-sm [&>svg]:size-4",
+  lg: "min-h-11 min-w-11 rounded-control px-space-md text-base [&>svg]:size-5",
+  xl: "min-h-12 min-w-12 rounded-control px-space-lg text-base [&>svg]:size-5",
   icon: "min-h-11 min-w-11 rounded-control p-0 text-sm [&>svg]:size-4",
-  default: "min-h-11 min-w-11 rounded-control px-3.5 text-sm [&>svg]:size-4",
+  default: "min-h-11 min-w-11 rounded-control px-space-sm text-sm [&>svg]:size-4",
 };
 
 const densityClasses: Record<ControlDensity, string> = {

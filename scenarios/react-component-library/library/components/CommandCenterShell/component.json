@@ -1,5 +1,6 @@
 {
   "libraryId": "react-component-library:CommandCenterShell",
+  "x-supplementalJustification": "Pre-catalog operational shell retained as a supplemental asset pending promotion into the page-template vocabulary.",
   "displayName": "Command Center Shell",
   "description": "A responsive operational-workspace composition with navigation, summary figures, controls, and a lifecycle-aware primary region.",
   "tags": ["layout", "command-center", "dashboard", "responsive", "experience"],

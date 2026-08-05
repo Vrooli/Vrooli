@@ -38,3 +38,22 @@ func TestSchemaRegistryHasStableDomainOrderAndSources(t *testing.T) {
 		t.Fatal("lifecycle schema must install updated_at triggers after tables")
 	}
 }
+
+func TestSchemaProvidersExposeCompleteEmbeddedSQL(t *testing.T) {
+	providers, err := SchemaProviders("")
+	if err != nil {
+		t.Fatalf("SchemaProviders() error = %v", err)
+	}
+	if len(providers) != len(SchemaRegistry) {
+		t.Fatalf("provider count = %d, want %d", len(providers), len(SchemaRegistry))
+	}
+	for index, provider := range providers {
+		schema := provider.Schema()
+		if strings.Contains(schema, "package ") || strings.Contains(schema, "//go:embed") {
+			t.Fatalf("embedded %q provider returned Go source instead of SQL", SchemaRegistry[index].Domain)
+		}
+		if !strings.Contains(schema, "CREATE TABLE") && !strings.Contains(schema, "CREATE TRIGGER") {
+			t.Fatalf("embedded %q provider contains no executable schema", SchemaRegistry[index].Domain)
+		}
+	}
+}

@@ -89,6 +89,9 @@ func (r *Resolver) Resolve(in ResolveInput) (ResolveResult, error) {
 	mf, mfErr := r.Loader.Load(in.Scenario)
 	if mfErr == nil {
 		slotName, slot, ok := pickSlot(mf, in.ComponentSlot)
+		if !ok && mf.SlotCoverage == "full" {
+			return ResolveResult{}, fmt.Errorf("resolve: template %q declares full slot coverage but slot %q is not declared", mf.Contract.Template, in.ComponentSlot)
+		}
 		if ok {
 			if slot.RequiresFeature && in.Feature == "" {
 				return ResolveResult{}, fmt.Errorf("resolve: slot %q requires a feature folder", slotName)
@@ -235,6 +238,9 @@ func (r *Resolver) ResolveVersion(in VersionResolveInput) (VersionResolveResult,
 		mf, mfErr = r.Loader.Load(in.Scenario)
 	}
 	manifestOK := mfErr == nil
+	if !manifestOK && in.Template != "" {
+		return VersionResolveResult{}, fmt.Errorf("resolveVersion: template %q declares authoritative placement but its manifest could not be loaded: %w", in.Template, mfErr)
+	}
 	if manifestOK {
 		if mf.Contract.Template != "" {
 			templateID = mf.Contract.Template
@@ -269,6 +275,9 @@ func (r *Resolver) ResolveVersion(in VersionResolveInput) (VersionResolveResult,
 
 		if manifestOK {
 			name, slot, ok := pickSlot(mf, slotName)
+			if !ok && mf.SlotCoverage == "full" {
+				return VersionResolveResult{}, fmt.Errorf("resolveVersion: template %q declares full slot coverage but slot %q is not declared", templateID, slotName)
+			}
 			if ok {
 				sub := ResolveInput{ComponentName: nameToken, Feature: in.Feature}
 				path, err := substitutePattern(slot, sub)
@@ -286,7 +295,7 @@ func (r *Resolver) ResolveVersion(in VersionResolveInput) (VersionResolveResult,
 		}
 
 		// Fallback placement — manifest absent or slot unusable.
-		rf.TargetPath = fallbackPath(slotName, f)
+		rf.TargetPath = fallbackPath(slotName, f, mf.Defaults.FallbackDir)
 		rf.Source = SourceFallback
 		res.Files = append(res.Files, rf)
 	}
@@ -328,18 +337,11 @@ func heuristicSlot(basename string) (string, bool) {
 // fallbackPath places a file when no manifest resolved. Hooks land under
 // ui/src/hooks; everything else under ui/src/components, preserving the
 // library basename.
-func fallbackPath(slotName string, f FileInput) string {
-	switch slotName {
-	case "hook":
-		return "ui/src/hooks/" + f.Path
-	case "theme-token":
-		return "ui/src/theme/" + f.Path
-	case "api-client":
-		return "ui/src/api/" + f.Path
-	case "lib-util":
-		return "ui/src/lib/" + f.Path
+func fallbackPath(_ string, f FileInput, manifestFallback string) string {
+	if strings.TrimSpace(manifestFallback) != "" {
+		return filepath.ToSlash(filepath.Join(manifestFallback, f.Path))
 	}
-	return "ui/src/components/" + f.Path
+	return filepath.ToSlash(filepath.Clean(f.Path))
 }
 
 // baseName strips the file extension from a basename.

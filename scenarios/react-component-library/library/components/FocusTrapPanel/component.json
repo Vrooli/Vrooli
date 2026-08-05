@@ -1,5 +1,6 @@
 {
   "libraryId": "react-component-library:FocusTrapPanel",
+  "x-supplementalJustification": "Pre-catalog focus demonstration retained as a supplemental accessibility fixture surface.",
   "displayName": "FocusTrapPanel",
   "description": "Small overlay panel demonstrating a pinned reusable focus-trap hook.",
   "tags": ["overlay", "accessibility", "focus"],

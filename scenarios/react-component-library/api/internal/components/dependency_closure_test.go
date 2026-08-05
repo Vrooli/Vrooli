@@ -83,3 +83,43 @@ func TestResolveDependencyClosureReportsMissingPinAndCycle(t *testing.T) {
 	require.ErrorAs(t, err, &cycle)
 	require.Equal(t, []string{"rcl:A@1.0.0", "rcl:B@1.0.0", "rcl:A@1.0.0"}, cycle.Path)
 }
+
+func TestResolveDependencyClosureExcludesSuggestionsUnlessOptedIn(t *testing.T) {
+	root := Component{ID: "root", LibraryID: "rcl:Root", LatestVersion: "1.0.0", Dependencies: []AssetDependency{{LibraryID: "rcl:Required", Version: "1.0.0", Kind: DependencyRequires}, {LibraryID: "rcl:Suggested", Version: "1.0.0", Kind: DependencySuggests}}}
+	required := Component{ID: "required", LibraryID: "rcl:Required", LatestVersion: "1.0.0"}
+	suggested := Component{ID: "suggested", LibraryID: "rcl:Suggested", LatestVersion: "1.0.0"}
+	reader := closureReader{byID: map[string]Component{"root": root}, byLibrary: map[string]Component{"rcl:Root": root, "rcl:Required": required, "rcl:Suggested": suggested}, versions: map[string]ComponentVersion{"root@1.0.0": {ComponentID: "root", Version: "1.0.0"}, "required@1.0.0": {ComponentID: "required", Version: "1.0.0"}, "suggested@1.0.0": {ComponentID: "suggested", Version: "1.0.0"}}}
+	closure, err := ResolveDependencyClosure(context.Background(), reader, "root", "1.0.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(closure) != 2 {
+		t.Fatalf("default closure length = %d, want root + requires", len(closure))
+	}
+	closure, err = ResolveDependencyClosureWithOptions(context.Background(), reader, "root", "1.0.0", []string{"rcl:Suggested"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(closure) != 3 {
+		t.Fatalf("opted-in closure length = %d, want root + requires + suggests", len(closure))
+	}
+}
+
+func TestResolveDependencyClosureReportSeparatesSuggestionsAndTemplatePorts(t *testing.T) {
+	root := Component{ID: "root", LibraryID: "rcl:Root", LatestVersion: "1.0.0", Expects: []string{"design-tokens", "ui-provider"}, Dependencies: []AssetDependency{{LibraryID: "rcl:Suggested", Version: "1.0.0", Kind: DependencySuggests}}}
+	suggested := Component{ID: "suggested", LibraryID: "rcl:Suggested", LatestVersion: "1.0.0"}
+	reader := closureReader{byID: map[string]Component{"root": root}, byLibrary: map[string]Component{"rcl:Suggested": suggested}, versions: map[string]ComponentVersion{"root@1.0.0": {ComponentID: "root", Version: "1.0.0"}}}
+	report, err := ResolveDependencyClosureReport(context.Background(), reader, "root", "1.0.0", nil, []string{"design-tokens", "ui-provider"}, nil)
+	require.NoError(t, err)
+	require.Equal(t, []string{"design-tokens", "ui-provider"}, report.SatisfiedPorts)
+	require.Equal(t, []string{"rcl:Suggested"}, report.AvailableSuggestions)
+	require.Len(t, report.Assets, 1)
+}
+
+func TestResolvePortPrecedenceTemplateAndRankRules(t *testing.T) {
+	got, err := ResolvePortPrecedence([]string{"design-tokens", "router"}, []string{"design-tokens"}, []PortCandidate{{Port: "router", Source: "adopted-high", Rank: 3}, {Port: "router", Source: "adopted-low", Rank: 1}})
+	require.NoError(t, err)
+	require.Equal(t, map[string]string{"design-tokens": "template", "router": "adopted-low"}, got.Sources)
+	_, err = ResolvePortPrecedence([]string{"router"}, nil, []PortCandidate{{Port: "router", Source: "a", Rank: 1}, {Port: "router", Source: "b", Rank: 1}})
+	require.Error(t, err)
+}

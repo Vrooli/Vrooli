@@ -1,5 +1,6 @@
 {
   "libraryId": "react-component-library:InspectorLayout",
+  "x-supplementalJustification": "Pre-catalog workbench composition retained as a supplemental asset pending promotion into the pattern vocabulary.",
   "displayName": "Inspector Layout",
   "description": "A responsive workbench composition that keeps a primary canvas usable while an inspector region reports its lifecycle.",
   "tags": ["layout", "inspector", "workbench", "experience"],

@@ -1,5 +1,6 @@
 {
   "libraryId": "react-component-library:ExperienceSurface",
+  "x-supplementalJustification": "Experience validation boundary retained as a supplemental runtime composition rather than a visual catalog asset.",
   "displayName": "Experience Surface",
   "description": "Semantic lifecycle boundary for independently meaningful UI regions.",
   "tags": ["experience", "lifecycle", "surface", "accessibility"],

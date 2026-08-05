@@ -98,7 +98,7 @@ const loadApiKeySettings = (): ApiKeySettings => {
 **Goal**: Track AI API usage per user with monthly limits by tier
 
 #### 2.1 Database Schema
-**File**: `initialization/storage/postgres/schema.sql`
+**File**: `api/internal/<domain>/storage/postgres/schema.sql`
 
 ```sql
 -- AI Credits Usage Tracking
@@ -724,7 +724,7 @@ func AIGate(svc *entitlement.Service, tracker *entitlement.AICreditsTracker) fun
 ### Modified Files
 | File | Changes |
 |------|---------|
-| `initialization/storage/postgres/schema.sql` | Add AI credits tables |
+| `api/internal/<domain>/storage/postgres/schema.sql` | Add AI credits tables |
 | `api/config/config.go` | Add AI credits limits config |
 | `api/services/entitlement/service.go` | Add AI credits methods |
 | `api/services/ai/client.go` | Support user-provided keys |

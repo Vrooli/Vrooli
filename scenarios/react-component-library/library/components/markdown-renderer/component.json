@@ -1,5 +1,6 @@
 {
   "libraryId": "react-component-library:markdown-renderer",
+  "x-supplementalJustification": "Pre-catalog content renderer retained as a supplemental integration seam until markdown policy is a catalog contract.",
   "displayName": "Markdown Renderer",
   "description": "GFM markdown renderer with routed inline-token, file, link, and Mermaid seams.",
   "tags": [

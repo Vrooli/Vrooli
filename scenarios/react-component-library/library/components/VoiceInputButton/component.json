@@ -1,5 +1,6 @@
 {
   "libraryId": "react-component-library:VoiceInputButton",
+  "x-supplementalJustification": "Pre-catalog voice control retained as a supplemental asset because its browser capability contract is still being promoted.",
   "displayName": "Voice Input Button",
   "description": "Accessible token-bound microphone control for a useVoiceInput lifecycle.",
   "tags": ["voice", "microphone", "input", "accessibility"],

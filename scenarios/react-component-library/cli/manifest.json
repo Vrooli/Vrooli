@@ -42,6 +42,7 @@
           ],
           "flags": [
             { "name": "version", "description": "Library version to apply; defaults to latest" },
+            { "name": "include", "description": "Repeat to opt into a suggested dependency library id" },
             { "name": "replace-existing", "description": "Set to true to intentionally replace an existing scenario source file" },
             { "name": "confirm-overwrite", "description": "Set to true to overwrite an existing target file" },
             { "name": "override-validation", "description": "Explicitly allow a blocking dependency validation verdict" }
@@ -507,6 +508,32 @@
           ],
           "binding": { "kind": "connect-rpc", "service": "WorkflowsService", "method": "GetPromotionReadiness" },
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "catalog",
+      "description": "Read desired-state catalog maturity and deterministic next work",
+      "commands": [
+        {
+          "name": "coverage",
+          "description": "Report achieved maturity across the live catalog",
+          "binding": { "kind": "connect-rpc", "service": "CatalogService", "method": "GetCoverage" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
+        },
+        {
+          "name": "next",
+          "description": "Rank the next catalog assets by maturity gap and downstream leverage",
+          "flags": [{ "name": "limit", "description": "Maximum number of targets" }],
+          "binding": { "kind": "connect-rpc", "service": "CatalogService", "method": "ListNextWork" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
+        },
+        {
+          "name": "gates",
+          "description": "Run one deterministic catalog gate against the live corpus",
+          "positionals": [{ "name": "gate", "required": true, "description": "Gate: api, tokens, lifecycle, or fixture-adversarial" }],
+          "binding": { "kind": "connect-rpc", "service": "CatalogService", "method": "RunGate" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"] }
         }
       ]
     }

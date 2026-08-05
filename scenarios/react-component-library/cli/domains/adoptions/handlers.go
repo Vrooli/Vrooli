@@ -133,6 +133,9 @@ func (h *handlers) apply(ctx cliapp.RunContext) error {
 		OverrideValidation: ctx.Flag("override-validation") == "true",
 		ReplaceExisting:    ctx.Flag("replace-existing") == "true",
 	}
+	if ctx.FlagDeclared("include") {
+		req.IncludeSuggestions = ctx.FlagValues("include")
+	}
 	resp, err := h.client.ApplyAdoption(context.Background(), connect.NewRequest(req))
 	if err != nil {
 		return cliapp.WrapAPIError("apply adoption", err, nil)
@@ -141,7 +144,10 @@ func (h *handlers) apply(ctx cliapp.RunContext) error {
 		return fmt.Errorf("server returned no adoption")
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        append([]string{fmt.Sprintf("Applied adoption %s to %s.", resp.Msg.Adoption.Id, resp.Msg.WrittenPath)}, formatImportSites(resp.Msg.ImportSites)...),
+		Summary: append([]string{
+			fmt.Sprintf("Applied adoption %s to %s.", resp.Msg.Adoption.Id, resp.Msg.WrittenPath),
+			fmt.Sprintf("Copied: %d; satisfied ports: %d; available suggestions: %d.", len(resp.Msg.CopiedAssets), len(resp.Msg.SatisfiedPorts), len(resp.Msg.AvailableSuggestions)),
+		}, formatImportSites(resp.Msg.ImportSites)...),
 		ResultsHeading: "Adoption",
 		Results:        []string{formatAdoption(resp.Msg.Adoption)},
 		RetrievalHints: []string{"`adoptions refresh` — compute drift status now"},

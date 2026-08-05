@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"time"
 
+	recoverySchema "github.com/vrooli/browser-automation-studio/internal/recovery"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
@@ -40,22 +42,7 @@ func NewSQLiteStore(db *sqlx.DB, log *logrus.Logger) *SQLiteStore {
 
 // Migrate creates the session_checkpoints table if it doesn't exist.
 func (s *SQLiteStore) Migrate(ctx context.Context) error {
-	query := `
-		CREATE TABLE IF NOT EXISTS session_checkpoints (
-			id TEXT PRIMARY KEY,
-			session_id TEXT UNIQUE NOT NULL,
-			workflow_id TEXT,
-			actions TEXT NOT NULL DEFAULT '[]',
-			current_url TEXT NOT NULL DEFAULT '',
-			browser_config TEXT NOT NULL DEFAULT '{}',
-			created_at DATETIME NOT NULL,
-			updated_at DATETIME NOT NULL
-		);
-		CREATE INDEX IF NOT EXISTS idx_checkpoints_session ON session_checkpoints(session_id);
-		CREATE INDEX IF NOT EXISTS idx_checkpoints_updated ON session_checkpoints(updated_at);
-	`
-
-	_, err := s.db.ExecContext(ctx, query)
+	_, err := s.db.ExecContext(ctx, recoverySchema.Schema())
 	if err != nil {
 		return fmt.Errorf("failed to create session_checkpoints table: %w", err)
 	}

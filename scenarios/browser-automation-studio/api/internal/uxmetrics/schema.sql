@@ -58,22 +58,3 @@ CREATE TABLE IF NOT EXISTS ux_execution_metrics (
 
 CREATE INDEX IF NOT EXISTS idx_ux_metrics_workflow ON ux_execution_metrics(workflow_id);
 CREATE INDEX IF NOT EXISTS idx_ux_metrics_friction ON ux_execution_metrics(overall_friction_score);
-
--- ============================================================================
--- TRIGGERS: Auto-update updated_at timestamps
--- ============================================================================
-CREATE TRIGGER IF NOT EXISTS update_projects_updated_at
-    AFTER UPDATE ON projects
-    FOR EACH ROW
-    WHEN NEW.updated_at = OLD.updated_at
-BEGIN
-    UPDATE projects SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
-END;
-
-CREATE TRIGGER IF NOT EXISTS update_workflows_updated_at
-    AFTER UPDATE ON workflows
-    FOR EACH ROW
-    WHEN NEW.updated_at = OLD.updated_at
-BEGIN
-    UPDATE workflows SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
-END;

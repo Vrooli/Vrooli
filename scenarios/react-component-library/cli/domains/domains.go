@@ -2,6 +2,7 @@ package domains
 
 import (
 	"react-component-library/cli/domains/adoptions"
+	"react-component-library/cli/domains/catalog"
 	"react-component-library/cli/domains/components"
 	"react-component-library/cli/domains/preview"
 	"react-component-library/cli/domains/versions"
@@ -25,6 +26,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifestBytes []byte) ([]cliapp.
 		preview.Register,
 		versions.Register,
 		workflows.Register,
+		catalog.Register,
 	}
 	groups := make([]cliapp.SubcommandGroup, 0, len(registrars))
 	for _, r := range registrars {

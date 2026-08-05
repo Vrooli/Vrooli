@@ -1,5 +1,6 @@
 {
   "libraryId": "react-component-library:DrawerShell",
+  "x-supplementalJustification": "Pre-catalog overlay shell retained as a supplemental implementation seam; the public catalog overlay is the adopted asset.",
   "displayName": "DrawerShell",
   "description": "Token-bound, self-contained drawer and modal shell.",
   "tags": [

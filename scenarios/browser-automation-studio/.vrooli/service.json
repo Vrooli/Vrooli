@@ -1,7 +1,45 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."},"logs":{"rung":"owned","path":"logs","kind":"dir","class":"logs","regenerable":true,"rationale":"Scenario operational logs observed in the canonical logs directory."},"api_storage":{"rung":"owned","path":"api/storage","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned API storage observed in the canonical API storage directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+        }
+      },
+      "logs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "logs",
+        "regenerable": true,
+        "rationale": "Scenario operational logs observed in the canonical logs directory.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+        }
+      },
+      "api_storage": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned API storage observed in the canonical API storage directory.",
+        "subpath": "api/storage",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "name": "browser-automation-studio",
     "displayName": "Vrooli Ascension",
@@ -115,12 +153,6 @@
             "targets": [
               "browser-automation-studio"
             ]
-          },
-          {
-            "type": "directories",
-            "targets": [
-              "initialization/storage/sqlite"
-            ]
           }
         ]
       },
@@ -172,7 +204,7 @@
         },
         {
           "name": "start-api",
-        "run": "if [ -z \"${PLAYWRIGHT_DRIVER_URL:-}\" ]; then export PLAYWRIGHT_DRIVER_URL=\"http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT}\"; fi; cd api && ./browser-automation-studio-api",
+          "run": "if [ -z \"${PLAYWRIGHT_DRIVER_URL:-}\" ]; then export PLAYWRIGHT_DRIVER_URL=\"http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT}\"; fi; cd api && ./browser-automation-studio-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {

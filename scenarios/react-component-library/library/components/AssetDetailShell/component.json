@@ -1,5 +1,6 @@
 {
   "libraryId": "react-component-library:AssetDetailShell",
+  "x-supplementalJustification": "Pre-catalog operational composition retained as a supplemental asset until the page-template and detail-surface vocabulary is promoted.",
   "displayName": "Asset Detail Shell",
   "description": "A responsive asset-detail composition with preview, metadata, and lifecycle-aware supporting activity.",
   "tags": ["layout", "asset-detail", "preview", "metadata", "experience"],

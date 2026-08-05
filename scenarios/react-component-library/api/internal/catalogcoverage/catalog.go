@@ -46,8 +46,11 @@ type Implementation struct {
 	// the implementation is supplemental: real, adopted, and outside the target
 	// list. That is legitimate, not an error.
 	CatalogID string
-	Latest    string
-	Slot      string
+	// SupplementalJustification is required when CatalogID is empty so an
+	// implementation outside the target catalog is an explicit decision.
+	SupplementalJustification string
+	Latest                    string
+	Slot                      string
 }
 
 type rawAsset struct {
@@ -83,10 +86,27 @@ type rawAsset struct {
 }
 
 type rawManifest struct {
-	LibraryID string `json:"libraryId"`
-	CatalogID string `json:"catalogId"`
-	Latest    string `json:"latest"`
-	Slot      string `json:"slot"`
+	LibraryID                 string `json:"libraryId"`
+	CatalogID                 string `json:"catalogId"`
+	SupplementalJustification string `json:"x-supplementalJustification"`
+	Latest                    string `json:"latest"`
+	Slot                      string `json:"slot"`
+}
+
+// LoadGateDefinitions reads the catalog gate registry without coupling API
+// handlers to the authored JSON shape.
+func LoadGateDefinitions(configPath string) ([]GateDefinition, error) {
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("read catalog config: %w", err)
+	}
+	var doc struct {
+		Gates []GateDefinition `json:"gates"`
+	}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return nil, fmt.Errorf("parse catalog config: %w", err)
+	}
+	return doc.Gates, nil
 }
 
 // LoadCatalog reads every asset document under catalogDir/assets.
@@ -150,11 +170,12 @@ func LoadImplementations(libraryDir string) ([]Implementation, error) {
 				return nil, fmt.Errorf("parse %s: %w", path, err)
 			}
 			out = append(out, Implementation{
-				Name:      filepath.Base(filepath.Dir(path)),
-				Root:      root,
-				CatalogID: raw.CatalogID,
-				Latest:    raw.Latest,
-				Slot:      raw.Slot,
+				Name:                      filepath.Base(filepath.Dir(path)),
+				Root:                      root,
+				CatalogID:                 raw.CatalogID,
+				SupplementalJustification: raw.SupplementalJustification,
+				Latest:                    raw.Latest,
+				Slot:                      raw.Slot,
 			})
 		}
 	}

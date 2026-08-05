@@ -1,5 +1,6 @@
 {
   "libraryId": "react-component-library:ControlBase",
+  "x-supplementalJustification": "Shared implementation primitive used by catalog controls; retained separately because it is an internal implementation seam, not a user-facing catalog asset.",
   "displayName": "Control Base",
   "description": "Shared semantic control primitive for consistent sizing, density, focus, hover, and disabled behavior.",
   "tags": ["control", "primitive", "accessibility"],

@@ -19,9 +19,16 @@ import (
 // Manifest is the parsed scenario UI manifest. Mirrors
 // scenario-ui-manifest/v1 (.vrooli/schemas/scenario-ui-manifest.schema.json).
 type Manifest struct {
-	Contract Contract        `json:"contract"`
-	Slots    map[string]Slot `json:"slots"`
-	Defaults Defaults        `json:"defaults"`
+	SchemaVersion            string          `json:"schemaVersion"`
+	Contract                 Contract        `json:"contract"`
+	Slots                    map[string]Slot `json:"slots"`
+	Defaults                 Defaults        `json:"defaults"`
+	Provides                 []string        `json:"provides"`
+	Targets                  []string        `json:"targets"`
+	Idiom                    string          `json:"idiom"`
+	Gates                    []string        `json:"gates"`
+	TemplateStructureVersion string          `json:"templateStructureVersion"`
+	SlotCoverage             string          `json:"slotCoverage"`
 }
 
 // Contract block (mirrors the schema's Contract subobject).
@@ -34,16 +41,18 @@ type Contract struct {
 
 // Slot is a single slot definition.
 type Slot struct {
-	Dir             string `json:"dir"`
-	Description     string `json:"description"`
-	PathPattern     string `json:"pathPattern"`
-	MultiFile       bool   `json:"multiFile"`
-	RequiresFeature bool   `json:"requiresFeature"`
+	Dir             string  `json:"dir"`
+	Description     string  `json:"description"`
+	PathPattern     string  `json:"pathPattern"`
+	MultiFile       bool    `json:"multiFile"`
+	RequiresFeature bool    `json:"requiresFeature"`
+	Barrel          *string `json:"barrel"`
 }
 
 // Defaults block.
 type Defaults struct {
-	Slot string `json:"slot"`
+	Slot        string `json:"slot"`
+	FallbackDir string `json:"fallbackDir"`
 }
 
 // Loader resolves a scenario name to its template's UI manifest. LoadTemplate
@@ -131,7 +140,27 @@ func (l *FSLoader) Load(scenario string) (Manifest, error) {
 	if templateID == "" {
 		return Manifest{}, ErrTemplateNotDeclared{Scenario: scenario}
 	}
-	return l.LoadTemplate(templateID)
+	mf, err := l.LoadTemplate(templateID)
+	if err != nil {
+		return Manifest{}, err
+	}
+	overlayPath := filepath.Join(l.RepoRoot, "scenarios", scenario, ".vrooli", "ui-manifest.json")
+	data, readErr := os.ReadFile(overlayPath)
+	if readErr == nil {
+		var overlay Manifest
+		if err := json.Unmarshal(data, &overlay); err != nil {
+			return Manifest{}, ErrInvalidManifest{Path: overlayPath, Reason: err.Error()}
+		}
+		for name := range overlay.Slots {
+			if _, ok := mf.Slots[name]; !ok {
+				return Manifest{}, ErrInvalidManifest{Path: overlayPath, Reason: fmt.Sprintf("overlay slot %q is not declared by the template", name)}
+			}
+		}
+		mf = merge(mf, overlay)
+	} else if !errors.Is(readErr, os.ErrNotExist) {
+		return Manifest{}, fmt.Errorf("read %s: %w", overlayPath, readErr)
+	}
+	return mf, nil
 }
 
 // LoadTemplate reads the template-owned UI manifest directly. Exported so
@@ -160,8 +189,8 @@ func validate(mf Manifest, path string) error {
 	if mf.Contract.Kind != "scenario-ui" {
 		return ErrInvalidManifest{Path: path, Reason: fmt.Sprintf("contract.kind must be %q, got %q", "scenario-ui", mf.Contract.Kind)}
 	}
-	if mf.Contract.Schema != "scenario-ui-manifest/v1" {
-		return ErrInvalidManifest{Path: path, Reason: fmt.Sprintf("contract.schema must be %q, got %q", "scenario-ui-manifest/v1", mf.Contract.Schema)}
+	if mf.Contract.Schema != "scenario-ui-manifest/v1" && mf.Contract.Schema != "scenario-ui-manifest/v2" {
+		return ErrInvalidManifest{Path: path, Reason: "contract.schema must be scenario-ui-manifest/v1 or scenario-ui-manifest/v2"}
 	}
 	if len(mf.Slots) == 0 {
 		return ErrInvalidManifest{Path: path, Reason: "slots: at least one slot is required"}
@@ -172,6 +201,42 @@ func validate(mf Manifest, path string) error {
 		}
 	}
 	return nil
+}
+
+func merge(base, overlay Manifest) Manifest {
+	merged := base
+	merged.Slots = make(map[string]Slot, len(base.Slots)+len(overlay.Slots))
+	for key, value := range base.Slots {
+		merged.Slots[key] = value
+	}
+	for key, value := range overlay.Slots {
+		merged.Slots[key] = value
+	}
+	if overlay.Defaults.Slot != "" {
+		merged.Defaults.Slot = overlay.Defaults.Slot
+	}
+	if overlay.Defaults.FallbackDir != "" {
+		merged.Defaults.FallbackDir = overlay.Defaults.FallbackDir
+	}
+	if len(overlay.Provides) > 0 {
+		merged.Provides = overlay.Provides
+	}
+	if len(overlay.Targets) > 0 {
+		merged.Targets = overlay.Targets
+	}
+	if overlay.Idiom != "" {
+		merged.Idiom = overlay.Idiom
+	}
+	if len(overlay.Gates) > 0 {
+		merged.Gates = overlay.Gates
+	}
+	if overlay.TemplateStructureVersion != "" {
+		merged.TemplateStructureVersion = overlay.TemplateStructureVersion
+	}
+	if overlay.SlotCoverage != "" {
+		merged.SlotCoverage = overlay.SlotCoverage
+	}
+	return merged
 }
 
 // LookupSlot returns the named slot or false. Helper kept here so the

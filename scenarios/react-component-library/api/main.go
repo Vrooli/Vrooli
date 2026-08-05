@@ -20,6 +20,7 @@ import (
 	_ "modernc.org/sqlite"
 
 	adoptionsH "react-component-library/handlers/adoptions"
+	catalogH "react-component-library/handlers/catalog"
 	componentsH "react-component-library/handlers/components"
 	componentTestsH "react-component-library/handlers/componenttests"
 	depsH "react-component-library/handlers/deps"
@@ -239,6 +240,7 @@ func main() {
 		),
 		componentsH.ModuleFromService(componentsSvc, componentsRepo, sourceRoot, log.Default(), componentsH.WithIndexObserver(depsObserver), componentsH.WithExperienceReader(experienceInternal.NewReader(filepath.Dir(scenariosRoot)))),
 		componentTestsH.Module(db, componentsSvc, sourceRoot, log.Default()),
+		catalogH.Module(filepath.Dir(scenariosRoot)),
 		depsH.ModuleFromService(depsSvc, log.Default()),
 		healthH.Module(db, "react-component-library-api", "1.0.0"),
 		inventoryH.Module(log.Default(), scenariosRoot, inventoryH.AdoptionsServiceAdapter{Service: adoptionsSvc}, uimanifest.NewFSLoader(filepath.Dir(scenariosRoot))),

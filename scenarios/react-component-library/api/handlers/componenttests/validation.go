@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -14,6 +16,8 @@ import (
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
+	"react-component-library/internal/catalogcoverage"
+	"react-component-library/internal/catalogvalidate"
 	"react-component-library/internal/components"
 	domain "react-component-library/internal/componenttests"
 )
@@ -23,9 +27,10 @@ import (
 // arbitrary process or client-owned background work.
 type sharedHandler struct {
 	scenariovalidationconnect.UnimplementedScenarioValidationServiceHandler
-	service *domain.Service
-	assets  components.Service
-	logger  *log.Logger
+	service    *domain.Service
+	assets     components.Service
+	sourceRoot string
+	logger     *log.Logger
 }
 
 const componentValidationWorkers = 4
@@ -56,6 +61,14 @@ func (h *sharedHandler) DescribeProvider(context.Context, *connect.Request[scena
 
 func (h *sharedHandler) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
 	collector := metrics.Start()
+	catalogFindings, err := h.validateCatalog()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	coverage, err := h.coverageReport()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
 	assets, err := h.assets.List(ctx, components.SearchQuery{Limit: 500})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -93,7 +106,7 @@ func (h *sharedHandler) ValidateScenario(ctx context.Context, req *connect.Reque
 		validated = append(validated, result)
 	}
 	sort.Slice(validated, func(i, j int) bool { return validated[i].libraryID < validated[j].libraryID })
-	failed := false
+	failed := len(catalogFindings) > 0
 	failedAssets := []string{}
 	failureDetails := map[string]string{}
 	for _, result := range validated {
@@ -110,12 +123,92 @@ func (h *sharedHandler) ValidateScenario(ctx context.Context, req *connect.Reque
 	if failed {
 		status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
 	}
+	assessment := componentTestsAssessment(req.Msg.GetScenario(), !failed, failedAssets, failureDetails)
+	appendCatalogFindings(assessment, catalogFindings)
+	if coverage != nil {
+		next := catalogcoverage.NextWork(*coverage, 1)
+		nextText := "none"
+		if len(next) > 0 {
+			nextText = next[0].AssetID
+		}
+		nextAction := fmt.Sprintf("Catalog maturity: %d/%d at or above target; next work %s.", coverage.Maturity.AtOrAboveTarget, coverage.Maturity.Total, nextText)
+		assessment.GetCapabilities()[0].NextUnlock = nextAction
+		assessment.Presentation = canonicalComponentTestsPresentation(assessment)
+	}
 	return connect.NewResponse(&scenariovalidationv1.ValidateScenarioResponse{
 		Scenario:   req.Msg.GetScenario(),
 		Status:     status,
-		Assessment: componentTestsAssessment(req.Msg.GetScenario(), !failed, failedAssets, failureDetails),
+		Assessment: assessment,
 		Metrics:    collector.Stop(),
 	}), nil
+}
+
+func (h *sharedHandler) coverageReport() (*catalogcoverage.Report, error) {
+	root := h.sourceRoot
+	for root != "" {
+		if _, err := os.Stat(filepath.Join(root, ".vrooli", "schemas", "catalog-asset.schema.json")); err == nil {
+			assets, err := catalogcoverage.LoadCatalog(filepath.Join(root, "scenarios", "react-component-library", "catalog"))
+			if err != nil {
+				return nil, fmt.Errorf("load catalog coverage assets: %w", err)
+			}
+			impls, err := catalogcoverage.LoadImplementations(filepath.Join(root, "scenarios", "react-component-library", "library"))
+			if err != nil {
+				return nil, fmt.Errorf("load catalog coverage implementations: %w", err)
+			}
+			gates, err := catalogcoverage.LoadGateDefinitions(filepath.Join(root, "scenarios", "react-component-library", "catalog", "config.json"))
+			if err != nil {
+				return nil, fmt.Errorf("load catalog coverage gates: %w", err)
+			}
+			report := catalogcoverage.ComputeWithEvidence(assets, impls, nil, gates)
+			return &report, nil
+		}
+		parent := filepath.Dir(root)
+		if parent == root {
+			break
+		}
+		root = parent
+	}
+	return nil, nil
+}
+
+func (h *sharedHandler) validateCatalog() ([]catalogvalidate.Finding, error) {
+	root := h.sourceRoot
+	for root != "" {
+		if _, err := os.Stat(filepath.Join(root, ".vrooli", "schemas", "catalog-asset.schema.json")); err == nil {
+			return catalogvalidate.New(root).Validate()
+		}
+		parent := filepath.Dir(root)
+		if parent == root {
+			break
+		}
+		root = parent
+	}
+	// Unit/module tests often use an isolated component source tree. The
+	// production tree always has the owning schema; absence here means the
+	// optional validator is not applicable to that isolated fixture.
+	return nil, nil
+}
+
+func appendCatalogFindings(assessment *commonv1.MaturityAssessment, findings []catalogvalidate.Finding) {
+	if len(findings) == 0 {
+		return
+	}
+	assessment.GetLocal().Clean = false
+	assessment.GetLocal().BlockingFindingCodes = append(assessment.GetLocal().BlockingFindingCodes, "CATALOG_VALIDATION_FAILED")
+	if capability := assessment.GetCapabilities()[0]; capability != nil {
+		capability.Clean = false
+		capability.CurrentLevel = "L0"
+		capability.NextLevel = "L1"
+		capability.BlockingFindingCodes = append(capability.BlockingFindingCodes, "CATALOG_VALIDATION_FAILED")
+	}
+	for _, finding := range findings {
+		assessment.Findings = append(assessment.Findings, &commonv1.AssessmentFinding{
+			Code: "CATALOG_VALIDATION_FAILED", Severity: "SEVERITY_ERROR", Title: "Catalog validation failed",
+			Message: finding.Message, Location: finding.Location, Remediation: "repair the catalog or capability-registry declaration before rerunning component tests",
+			Maturity: &commonv1.FindingMaturity{LocalLevel: "L0", GlobalImpact: commonv1.GlobalImpact_GLOBAL_IMPACT_FOUNDATION_BLOCKER, Dimension: "catalog", CleanRequirement: commonv1.CleanRequirement_CLEAN_REQUIREMENT_REQUIRED, CapabilityId: "component_contracts"}, FixClass: "manual",
+		})
+	}
+	assessment.Presentation = canonicalComponentTestsPresentation(assessment)
 }
 
 func (h *sharedHandler) validateAsset(ctx context.Context, asset components.Component) assetValidationResult {
@@ -205,7 +298,14 @@ func componentTestsAssessment(scenario string, clean bool, failedAssets []string
 		Clean:          clean,
 		PriorityRank:   1,
 	}
-	assessment := &commonv1.MaturityAssessment{Scenario: scenario, Provider: provider, Phase: phase, Version: "2.0.0", Local: local, Capabilities: []*commonv1.CapabilityMaturityAssessment{capability}}
+	assessment := &commonv1.MaturityAssessment{
+		Scenario: scenario, Provider: provider, Phase: phase, Version: "2.0.0", Local: local,
+		Capabilities: []*commonv1.CapabilityMaturityAssessment{capability},
+		HighestPriorityCapability: &commonv1.PriorityFocus{
+			CapabilityId: "component_contracts", CapabilityLabel: "Component Contracts",
+			CurrentLevel: currentLevel, NextLevel: nextLevel, Reason: "lowest current level",
+		},
+	}
 	details := map[string]string{}
 	if len(detailMaps) > 0 && detailMaps[0] != nil {
 		details = detailMaps[0]
@@ -326,6 +426,25 @@ func canonicalComponentTestsPresentation(a *commonv1.MaturityAssessment) *common
 			capabilityPresentation.Findings = append(capabilityPresentation.Findings, entry)
 		}
 		presentation.Capabilities = append(presentation.Capabilities, capabilityPresentation)
+	}
+	if focus := a.GetHighestPriorityCapability(); focus != nil && strings.TrimSpace(focus.GetCapabilityId()) != "" {
+		presentation.FocusCapabilityId = focus.GetCapabilityId()
+		presentation.FocusCapabilityLabel = focus.GetCapabilityLabel()
+		presentation.NextActionReason = focus.GetReason()
+		for _, capability := range presentation.GetCapabilities() {
+			if capability.GetId() == focus.GetCapabilityId() {
+				presentation.NextAction = capability.GetNextUnlock()
+				break
+			}
+		}
+	}
+	if strings.TrimSpace(presentation.GetNextAction()) == "" {
+		for _, level := range local.GetLevels() {
+			if level.GetId() == local.GetCurrentLevel() {
+				presentation.NextAction = level.GetNextUnlock()
+				break
+			}
+		}
 	}
 	if !presentation.GetAtMaximum() && presentation.GetPhase() != "" {
 		presentation.DocumentationTopics = []string{presentation.GetPhase() + " maturity next move"}

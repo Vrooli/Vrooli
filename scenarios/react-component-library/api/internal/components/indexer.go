@@ -175,6 +175,7 @@ func missingDesignAffinityFinding(sourcePath, libraryID string) IndexFinding {
 }
 
 type manifestFile struct {
+	CatalogID   string `json:"catalogId"`
 	LibraryID   string `json:"libraryId"`
 	DisplayName string `json:"displayName"`
 	Description string `json:"description"`
@@ -231,6 +232,7 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 		return IndexManifestInput{}, nil, err
 	}
 	manifest := ComponentManifest{
+		CatalogID:          strings.TrimSpace(mf.CatalogID),
 		LibraryID:          strings.TrimSpace(mf.LibraryID),
 		Slug:               slug,
 		DisplayName:        strings.TrimSpace(mf.DisplayName),
@@ -452,7 +454,49 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 	if manifest.Category == "" {
 		manifest.Category = strings.TrimSpace(latestHeaders["category"])
 	}
+	if manifest.CatalogID != "" {
+		latestHeaders["catalogId"] = manifest.CatalogID
+		if expects, satisfies, ok := idx.catalogPorts(manifest.CatalogID); ok {
+			if raw, err := json.Marshal(expects); err == nil {
+				latestHeaders["catalogExpects"] = string(raw)
+			}
+			if raw, err := json.Marshal(satisfies); err == nil {
+				latestHeaders["catalogSatisfies"] = string(raw)
+			}
+			manifest.Expects = expects
+			manifest.Satisfies = satisfies
+		}
+	}
 	return IndexManifestInput{Manifest: manifest, Versions: versions, Stories: stories, Headers: latestHeaders, Findings: findings}, latestHeaders, nil
+}
+
+func (idx *Indexer) catalogPorts(catalogID string) ([]string, []string, bool) {
+	repoRoot := filepath.Clean(filepath.Join(idx.root, "..", "..", ".."))
+	paths, _ := filepath.Glob(filepath.Join(repoRoot, "scenarios", "react-component-library", "catalog", "assets", "*", "*.json"))
+	for _, path := range paths {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var doc struct {
+			Asset struct {
+				ID string `json:"id"`
+			} `json:"asset"`
+			Expects []struct {
+				Capability string `json:"capability"`
+			} `json:"expects"`
+			Satisfies []string `json:"satisfies"`
+		}
+		if json.Unmarshal(raw, &doc) != nil || doc.Asset.ID != catalogID {
+			continue
+		}
+		expects := make([]string, 0, len(doc.Expects))
+		for _, expect := range doc.Expects {
+			expects = append(expects, expect.Capability)
+		}
+		return expects, append([]string(nil), doc.Satisfies...), true
+	}
+	return nil, nil, false
 }
 
 func (idx *Indexer) readVersionStory(sourcePath, libraryID, version string, assetKind AssetKind) (*ComponentStory, []IndexFinding) {

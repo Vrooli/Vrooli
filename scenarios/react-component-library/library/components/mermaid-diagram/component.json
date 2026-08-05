@@ -1,5 +1,6 @@
 {
   "libraryId": "react-component-library:mermaid-diagram",
+  "x-supplementalJustification": "Pre-catalog diagram renderer retained as a supplemental content integration seam.",
   "displayName": "Mermaid Diagram",
   "description": "Mermaid diagram source preview with an expand seam.",
   "tags": [

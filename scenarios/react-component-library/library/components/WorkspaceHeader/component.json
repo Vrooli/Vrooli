@@ -1,5 +1,6 @@
 {
   "libraryId": "react-component-library:WorkspaceHeader",
+  "x-supplementalJustification": "Pre-catalog workspace chrome retained as a supplemental composition pending the navigation vocabulary decision.",
   "displayName": "Workspace Header",
   "description": "A responsive page header with navigation, context, and action slots for operational workspaces.",
   "tags": ["layout", "header", "workspace", "navigation"],

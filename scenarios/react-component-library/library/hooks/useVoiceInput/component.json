@@ -1,5 +1,6 @@
 {
   "libraryId": "react-component-library:useVoiceInput",
+  "x-supplementalJustification": "Pre-catalog browser capability hook retained as a supplemental runtime seam until the voice port is promoted.",
   "displayName": "useVoiceInput",
   "description": "Shared browser PCM voice capture lifecycle bound to a scenario transport.",
   "assetKind": "hook",

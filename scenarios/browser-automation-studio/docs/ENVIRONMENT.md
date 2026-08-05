@@ -28,7 +28,7 @@ relocation, backfill, or key-rotation logic.
 
 ## Database Configuration
 
-Storage is embedded SQLite via `modernc.org/sqlite` (pure Go, no CGO). The schema in `initialization/storage/sqlite/schemas/` is applied idempotently at startup.
+Storage is embedded SQLite via `modernc.org/sqlite` (pure Go, no CGO). The schema in `api/internal/<domain>/storage/sqlite/schemas/` is applied idempotently at startup.
 
 | Variable | Description | Default |
 |----------|-------------|---------|

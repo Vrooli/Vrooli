@@ -147,3 +147,34 @@ func TestDanglingCatalogIDIsSurfaced(t *testing.T) {
 		t.Fatal("an implementation pointing at a nonexistent catalog id must be surfaced, not silently supplemental")
 	}
 }
+
+func TestCoverageDerivesMaturityFromEvidence(t *testing.T) {
+	assets := []Asset{{ID: "controls.button", Name: "Button", Kind: "component", Domain: "controls", Priority: "P0", Maturity: "verified", Targets: []string{"react-vite"}}}
+	impls := []Implementation{{Name: "Button", Root: "components", CatalogID: "controls.button"}}
+	gates := []GateDefinition{
+		{ID: "types", Rung: RungScaffolded, Blocking: true, AppliesTo: []string{"component"}},
+		{ID: "api", Rung: RungImplemented, Blocking: true, AppliesTo: []string{"component"}},
+		{ID: "visual", Rung: RungVerified, Blocking: true, AppliesTo: []string{"component"}},
+	}
+	noEvidence := ComputeWithEvidence(assets, impls, nil, gates)
+	if got := noEvidence.Rows[0].Achieved; got != RungScaffolded {
+		t.Fatalf("linked implementation without passing gates achieved %q, want scaffolded", got)
+	}
+	partial := ComputeWithEvidence(assets, impls, []GateEvidence{{AssetID: "controls.button", Target: "react-vite", Gate: "types", Result: "pass"}, {AssetID: "controls.button", Target: "react-vite", Gate: "api", Result: "pass"}}, gates)
+	if got := partial.Rows[0].Achieved; got != RungImplemented {
+		t.Fatalf("partial evidence achieved %q, want implemented", got)
+	}
+}
+
+func TestNextWorkPrefersBuiltMaturityGap(t *testing.T) {
+	assets := []Asset{
+		{ID: "foundation.tokens", Name: "Tokens", Kind: "foundation", Domain: "foundations", Priority: "P0", Maturity: "implemented", Targets: []string{"react-vite"}},
+		{ID: "controls.button", Name: "Button", Kind: "component", Domain: "controls", Priority: "P1", Maturity: "production-ready", Targets: []string{"react-vite"}},
+	}
+	impls := []Implementation{{Name: "Button", Root: "components", CatalogID: "controls.button"}}
+	rep := Compute(assets, impls)
+	work := NextWork(rep, 1)
+	if len(work) != 1 || work[0].AssetID != "controls.button" {
+		t.Fatalf("next work = %+v, want built-but-below-target button", work)
+	}
+}

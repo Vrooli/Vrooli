@@ -181,7 +181,7 @@ integration_priorities:
       endpoint: WebSocket connection for live updates
 
   - Browser automation patterns will be packaged as reusable n8n workflows
-  - Place in initialization/automation/n8n/ for scenario-specific workflows
+  - Place in api/internal/<domain>/automation/n8n/ for scenario-specific workflows
   - Common patterns (login, form fill, data extraction) become shared workflows
   - Document all reusable patterns in workflow descriptions
 ```

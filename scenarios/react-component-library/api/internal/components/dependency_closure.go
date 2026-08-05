@@ -23,6 +23,74 @@ type ResolvedAsset struct {
 	Version ComponentVersion
 }
 
+// PortCandidate describes one possible satisfier for a composition port.
+// Template providers always win. For adopted providers, the lowest rank wins;
+// equal-rank candidates are rejected instead of selected nondeterministically.
+type PortCandidate struct {
+	Port     string
+	Source   string
+	Rank     int
+	Template bool
+}
+
+type PortResolution struct {
+	Satisfied []string
+	Sources   map[string]string
+}
+
+// ResolvePortPrecedence applies the port rule independently of filesystem
+// placement. This makes the precedence contract testable without a scenario
+// tree and prevents adoption from silently copying a foundation that the host
+// already provides.
+func ResolvePortPrecedence(expects, templateProvides []string, adopted []PortCandidate) (PortResolution, error) {
+	provided := make(map[string]struct{}, len(templateProvides))
+	for _, port := range templateProvides {
+		provided[strings.TrimSpace(port)] = struct{}{}
+	}
+	byPort := map[string][]PortCandidate{}
+	for _, candidate := range adopted {
+		port := strings.TrimSpace(candidate.Port)
+		if port != "" {
+			byPort[port] = append(byPort[port], candidate)
+		}
+	}
+	out := PortResolution{Sources: map[string]string{}}
+	for _, raw := range expects {
+		port := strings.TrimSpace(raw)
+		if port == "" {
+			continue
+		}
+		if _, ok := provided[port]; ok {
+			out.Satisfied = append(out.Satisfied, port)
+			out.Sources[port] = "template"
+			continue
+		}
+		candidates := byPort[port]
+		if len(candidates) == 0 {
+			continue
+		}
+		sort.SliceStable(candidates, func(i, j int) bool {
+			if candidates[i].Rank != candidates[j].Rank {
+				return candidates[i].Rank < candidates[j].Rank
+			}
+			return candidates[i].Source < candidates[j].Source
+		})
+		if len(candidates) > 1 && candidates[0].Rank == candidates[1].Rank {
+			return PortResolution{}, fmt.Errorf("port %q has an unresolved satisfier tie at dependency rank %d", port, candidates[0].Rank)
+		}
+		out.Satisfied = append(out.Satisfied, port)
+		out.Sources[port] = candidates[0].Source
+	}
+	sort.Strings(out.Satisfied)
+	return out, nil
+}
+
+type ClosureReport struct {
+	Assets               []ResolvedAsset
+	SatisfiedPorts       []string
+	AvailableSuggestions []string
+}
+
 // ErrAssetDependency is returned when a manifest pin cannot be resolved.
 type ErrAssetDependency struct {
 	FromLibraryID, LibraryID, Version string
@@ -49,16 +117,30 @@ func (e ErrAssetDependencyCycle) Error() string {
 // traversed by library id then version, duplicate pins are emitted once, and
 // cycles are rejected before a caller can write partial output.
 func ResolveDependencyClosure(ctx context.Context, reader DependencyReader, rootID, rootVersion string) ([]ResolvedAsset, error) {
+	return ResolveDependencyClosureWithOptions(ctx, reader, rootID, rootVersion, nil)
+}
+
+// ResolveDependencyClosureWithOptions expands requires edges and only the
+// explicitly opted-in suggests library ids. Suggestions never enter the
+// closure by accident.
+func ResolveDependencyClosureWithOptions(ctx context.Context, reader DependencyReader, rootID, rootVersion string, includeSuggestions []string) ([]ResolvedAsset, error) {
+	report, err := ResolveDependencyClosureReport(ctx, reader, rootID, rootVersion, includeSuggestions, nil, nil)
+	return report.Assets, err
+}
+
+// ResolveDependencyClosureReport returns the copied closure plus the two
+// operator-visible sets that are otherwise lost during materialization.
+func ResolveDependencyClosureReport(ctx context.Context, reader DependencyReader, rootID, rootVersion string, includeSuggestions, templateProvides []string, adopted []PortCandidate) (ClosureReport, error) {
 	root, err := reader.Get(ctx, strings.TrimSpace(rootID))
 	if err != nil {
-		return nil, err
+		return ClosureReport{}, err
 	}
 	rootVersion = strings.TrimSpace(rootVersion)
 	if rootVersion == "" {
 		rootVersion = firstAssetVersion(root.LatestVersion, root.Version)
 	}
 	if rootVersion == "" {
-		return nil, ErrAssetDependency{FromLibraryID: root.LibraryID, LibraryID: root.LibraryID, Cause: fmt.Errorf("asset has no indexed version")}
+		return ClosureReport{}, ErrAssetDependency{FromLibraryID: root.LibraryID, LibraryID: root.LibraryID, Cause: fmt.Errorf("asset has no indexed version")}
 	}
 
 	state := make(map[string]uint8)
@@ -85,6 +167,9 @@ func ResolveDependencyClosure(ctx context.Context, reader DependencyReader, root
 			return declarations[i].LibraryID < declarations[j].LibraryID
 		})
 		for _, dep := range declarations {
+			if dep.Kind.normalized() == DependencySuggests && !containsString(includeSuggestions, dep.LibraryID) {
+				continue
+			}
 			dependency, err := reader.GetByLibraryID(ctx, dep.LibraryID)
 			if err != nil {
 				return ErrAssetDependency{FromLibraryID: asset.LibraryID, LibraryID: dep.LibraryID, Version: dep.Version, Cause: err}
@@ -104,13 +189,39 @@ func ResolveDependencyClosure(ctx context.Context, reader DependencyReader, root
 		return nil
 	}
 	if err := visit(root, rootVersion, root.LibraryID); err != nil {
-		return nil, err
+		return ClosureReport{}, err
 	}
 	out := make([]ResolvedAsset, 0, len(order))
 	for _, key := range order {
 		out = append(out, resolved[key])
 	}
-	return out, nil
+	resolution, err := ResolvePortPrecedence(root.Expects, templateProvides, adopted)
+	if err != nil {
+		return ClosureReport{}, err
+	}
+	available := make(map[string]struct{})
+	for _, resolved := range out {
+		for _, dep := range resolved.Asset.Dependencies {
+			if dep.Kind.normalized() == DependencySuggests && !containsString(includeSuggestions, dep.LibraryID) {
+				available[dep.LibraryID] = struct{}{}
+			}
+		}
+	}
+	suggestions := make([]string, 0, len(available))
+	for id := range available {
+		suggestions = append(suggestions, id)
+	}
+	sort.Strings(suggestions)
+	return ClosureReport{Assets: out, SatisfiedPorts: resolution.Satisfied, AvailableSuggestions: suggestions}, nil
+}
+
+func containsString(values []string, wanted string) bool {
+	for _, value := range values {
+		if value == wanted {
+			return true
+		}
+	}
+	return false
 }
 
 func firstAssetVersion(values ...string) string {

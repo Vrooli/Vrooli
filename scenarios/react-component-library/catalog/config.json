@@ -32,19 +32,23 @@
   "gates": [
     {
       "id": "types",
+      "rung": "scaffolded",
       "description": "Strict compilation with exported public types, no accidental any, and a stable entrypoint.",
-      "appliesTo": ["foundation", "runtime-hook", "runtime-service", "adapter", "primitive", "component", "pattern", "page-template", "navigation", "generator"],
+      "appliesTo": ["foundation", "runtime-hook", "runtime-service", "adapter", "primitive", "component", "pattern", "page-template", "navigation", "fixture", "generator"],
       "blocking": true,
       "runner": { "react-vite": "pnpm run catalog:check" }
     },
     {
       "id": "api",
+      "rung": "implemented",
       "description": "Declared variants, modes, and parts match what the implementation actually exports.",
-      "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
-      "blocking": true
+      "appliesTo": ["foundation", "runtime-hook", "runtime-service", "adapter", "generator", "primitive", "component", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "runner": { "react-vite": "react-component-library catalog gates api" }
     },
     {
       "id": "unit",
+      "rung": "implemented",
       "description": "Pure logic, state transitions, parsing, formatting, and edge cases.",
       "appliesTo": ["runtime-hook", "runtime-service", "adapter", "primitive", "component", "pattern", "page-template", "navigation", "generator"],
       "blocking": true,
@@ -52,6 +56,7 @@
     },
     {
       "id": "interaction",
+      "rung": "implemented",
       "description": "Pointer, touch, keyboard, interruption, cancellation, nested use, and disabled behavior.",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
       "blocking": true,
@@ -59,6 +64,7 @@
     },
     {
       "id": "accessibility",
+      "rung": "verified",
       "description": "Semantics, naming, focus order, announcement, keyboard operation, and contrast, reconciled against captured evidence.",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
       "blocking": true,
@@ -66,6 +72,7 @@
     },
     {
       "id": "responsive",
+      "rung": "verified",
       "description": "Behavior across the kit's baseline viewport matrix, including the declared responsive transformations.",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
       "blocking": true,
@@ -73,6 +80,7 @@
     },
     {
       "id": "visual",
+      "rung": "verified",
       "description": "Approved fixture matrix and screenshot regression coverage in light and dark.",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
       "blocking": true,
@@ -80,60 +88,87 @@
     },
     {
       "id": "rtl",
+      "rung": "verified",
       "description": "Direction-aware layout, keyboard movement, gestures, icon direction, and transitions.",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
       "blocking": true
     },
     {
       "id": "reduced-motion",
+      "rung": "verified",
       "description": "Reduced or disabled motion with no meaning lost and no broken lifecycle.",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
       "blocking": true
     },
     {
       "id": "forced-colors",
+      "rung": "verified",
       "description": "Usable presentation under operating-system high-contrast mode.",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
       "blocking": false
     },
     {
       "id": "stress",
+      "rung": "production-ready",
       "description": "Long text, localization expansion, empty values, large values, many items, and overflow.",
       "appliesTo": ["component", "pattern", "page-template", "navigation"],
       "blocking": true
     },
     {
       "id": "performance",
+      "rung": "production-ready",
       "description": "Bundle profile, render benchmark, interaction latency, layout stability, and listener cleanup.",
       "appliesTo": ["runtime-service", "component", "pattern", "page-template", "generator"],
       "blocking": true
     },
     {
       "id": "documentation",
+      "rung": "production-ready",
       "description": "Description, usage, API, behavior, accessibility, performance notes, and anti-patterns.",
       "appliesTo": ["foundation", "runtime-hook", "runtime-service", "adapter", "primitive", "component", "pattern", "page-template", "navigation", "generator"],
       "blocking": false
     },
     {
       "id": "examples",
+      "rung": "production-ready",
       "description": "Named specimens covering every required state, authored as story contract data.",
       "appliesTo": ["primitive", "component", "pattern", "page-template", "navigation"],
       "blocking": true
     },
     {
       "id": "integration",
+      "rung": "production-ready",
       "description": "Works correctly with the shared managers, providers, tokens, and nested overlays it declares ports for.",
       "appliesTo": ["component", "pattern", "page-template", "navigation"],
       "blocking": true
     },
     {
       "id": "fixture-adversarial",
+      "rung": "verified",
       "description": "The fixture supplies its declared data shapes and includes overflowing text, absent optional fields, at least one RTL string, a failure record where status is modeled, and a volume variant.",
       "appliesTo": ["fixture"],
-      "blocking": true
+      "blocking": true,
+      "runner": { "react-vite": "react-component-library catalog gates fixture-adversarial" }
+    },
+    {
+      "id": "tokens",
+      "rung": "verified",
+      "description": "Every declared design ramp is present, spacing values stay on the approved grid, contrast pairs meet their floor, and component source does not bypass an available token.",
+      "appliesTo": ["foundation"],
+      "blocking": true,
+      "runner": { "react-vite": "react-component-library catalog gates tokens" }
+    },
+    {
+      "id": "lifecycle",
+      "rung": "verified",
+      "description": "Hooks and services clean up listeners and observers, abort superseded work, and access browser capabilities safely during SSR.",
+      "appliesTo": ["runtime-hook", "runtime-service", "adapter", "generator"],
+      "blocking": true,
+      "runner": { "react-vite": "react-component-library catalog gates lifecycle" }
     },
     {
       "id": "migration",
+      "rung": "production-ready",
       "description": "Replacement and codemod information when a public API changes or the asset is deprecated.",
       "appliesTo": ["foundation", "runtime-hook", "runtime-service", "adapter", "primitive", "component", "pattern", "page-template", "navigation", "generator"],
       "blocking": false

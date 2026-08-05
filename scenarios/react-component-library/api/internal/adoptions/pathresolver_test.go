@@ -328,8 +328,8 @@ func TestResolveVersion_ExplicitSlotWins(t *testing.T) {
 }
 
 // TestResolveVersion_FlatFallback_WhenManifestMissing verifies the resolver
-// reports manifestResolved=false and still places files under conventional
-// dirs so the UI can render a flat tree.
+// reports manifestResolved=false without inventing a framework-specific
+// directory layout.
 func TestResolveVersion_FlatFallback_WhenManifestMissing(t *testing.T) {
 	r := NewResolver(stubLoader{err: errors.New("manifest missing")}, "")
 	out, err := r.ResolveVersion(VersionResolveInput{
@@ -351,11 +351,11 @@ func TestResolveVersion_FlatFallback_WhenManifestMissing(t *testing.T) {
 		t.Fatal("expected a top-level warning on flat fallback")
 	}
 	entry := findResolved(t, out.Files, "DrawerShell.tsx")
-	if entry.TargetPath != "ui/src/components/DrawerShell.tsx" || entry.Source != SourceFallback {
+	if entry.TargetPath != "DrawerShell.tsx" || entry.Source != SourceFallback {
 		t.Fatalf("entry fallback: path=%q source=%q", entry.TargetPath, entry.Source)
 	}
 	hook := findResolved(t, out.Files, "useFocusTrap.ts")
-	if hook.TargetPath != "ui/src/hooks/useFocusTrap.ts" {
+	if hook.TargetPath != "useFocusTrap.ts" {
 		t.Fatalf("hook fallback path: got %q", hook.TargetPath)
 	}
 }

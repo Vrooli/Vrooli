@@ -19,6 +19,7 @@ import (
 	"react-component-library/internal/clock"
 	"react-component-library/internal/components"
 	"react-component-library/internal/deps"
+	"react-component-library/internal/uimanifest"
 
 	"github.com/google/uuid"
 )
@@ -158,16 +159,17 @@ func (e ErrAdoptedFileMissing) Error() string {
 }
 
 type service struct {
-	repo     Repository
-	library  LibraryReader
-	files    ScenarioFileWriter
-	clock    clock.Clock
-	reporter DriftReporter
-	logger   *log.Logger
-	deps     DependencyValidator
-	styles   StyleFitValidator
-	tokens   ScenarioTokenNamespaceReader
-	mappings ScenarioTokenMappingReader
+	repo           Repository
+	library        LibraryReader
+	files          ScenarioFileWriter
+	clock          clock.Clock
+	reporter       DriftReporter
+	logger         *log.Logger
+	deps           DependencyValidator
+	styles         StyleFitValidator
+	tokens         ScenarioTokenNamespaceReader
+	mappings       ScenarioTokenMappingReader
+	manifestLoader uimanifest.Loader
 }
 
 // NewService constructs the production Service. reporter may be nil
@@ -208,6 +210,15 @@ func SetTokenNamespaceReader(svc Service, reader ScenarioTokenNamespaceReader) {
 		if mappingReader, ok := reader.(ScenarioTokenMappingReader); ok {
 			s.mappings = mappingReader
 		}
+	}
+}
+
+// SetManifestLoader supplies the target template's composition contract to
+// adoption closure resolution. Keeping it optional preserves focused service
+// tests while production always wires the same loader used by placement.
+func SetManifestLoader(svc Service, loader uimanifest.Loader) {
+	if s, ok := svc.(*service); ok {
+		s.manifestLoader = loader
 	}
 }
 
@@ -326,11 +337,11 @@ func (s *service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 		return ApplyResult{}, err
 	}
 	_ = exists // entry existence is checked together with every unit target below.
-	closure, err := s.resolveAdoptionClosure(ctx, cmp, v)
+	closure, err := s.resolveAdoptionClosure(ctx, cmp, v, in.Scenario, in.IncludeSuggestions)
 	if err != nil {
 		return ApplyResult{}, err
 	}
-	plans := adoptionPlansForClosure(closure, in.AdoptedPath)
+	plans := adoptionPlansForClosure(closure.Assets, in.AdoptedPath)
 	if err := ensureDistinctAdoptionTargets(plans); err != nil {
 		return ApplyResult{}, err
 	}
@@ -427,7 +438,11 @@ func (s *service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 	if err != nil {
 		return ApplyResult{}, err
 	}
-	result := ApplyResult{Adoption: root, WrittenPath: written, ExperiencePath: experiencePath, ImportSites: importSites}
+	copied := make([]string, 0, len(closure.Assets))
+	for _, asset := range closure.Assets {
+		copied = append(copied, asset.Asset.LibraryID)
+	}
+	result := ApplyResult{Adoption: root, WrittenPath: written, ExperiencePath: experiencePath, ImportSites: importSites, CopiedAssets: copied, SatisfiedPorts: closure.SatisfiedPorts, AvailableSuggestions: closure.AvailableSuggestions}
 	if styleFit != nil {
 		result.StyleFitAffinity = styleFit.Affinity
 		result.StyleFitDetail = styleFit.Detail
@@ -442,15 +457,23 @@ type adoptionPlan struct {
 	Files       []adoptionUnitFile
 }
 
-func (s *service) resolveAdoptionClosure(ctx context.Context, root components.Component, version components.ComponentVersion) ([]components.ResolvedAsset, error) {
+func (s *service) resolveAdoptionClosure(ctx context.Context, root components.Component, version components.ComponentVersion, scenario string, includeSuggestions []string) (components.ClosureReport, error) {
 	if len(root.Dependencies) == 0 {
-		return []components.ResolvedAsset{{Asset: root, Version: version}}, nil
+		return components.ClosureReport{Assets: []components.ResolvedAsset{{Asset: root, Version: version}}}, nil
 	}
 	reader, ok := any(s.library).(components.DependencyReader)
 	if !ok {
-		return nil, fmt.Errorf("asset dependency reader is not configured")
+		return components.ClosureReport{}, fmt.Errorf("asset dependency reader is not configured")
 	}
-	return components.ResolveDependencyClosure(ctx, reader, root.ID, version.Version)
+	var provides []string
+	if s.manifestLoader != nil {
+		manifest, err := s.manifestLoader.Load(scenario)
+		if err != nil {
+			return components.ClosureReport{}, fmt.Errorf("load target UI manifest: %w", err)
+		}
+		provides = manifest.Provides
+	}
+	return components.ResolveDependencyClosureReport(ctx, reader, root.ID, version.Version, includeSuggestions, provides, nil)
 }
 
 func adoptionPlansForClosure(closure []components.ResolvedAsset, rootTarget string) []adoptionPlan {
@@ -612,11 +635,11 @@ func (s *service) Reapply(ctx context.Context, in ReapplyInput) (Adoption, strin
 		return Adoption{}, "", err
 	}
 	now := s.clock.Now().UTC()
-	closure, err := s.resolveAdoptionClosure(ctx, root, v)
+	closure, err := s.resolveAdoptionClosure(ctx, root, v, row.Scenario, nil)
 	if err != nil {
 		return Adoption{}, "", err
 	}
-	plans := adoptionPlansForClosure(closure, row.AdoptedPath)
+	plans := adoptionPlansForClosure(closure.Assets, row.AdoptedPath)
 	adoptionFiles := make([]AdoptionFile, 0)
 	written, entrySnapshot := "", ""
 	tokenMapping, err := s.resolveTokenMapping(ctx, row.Scenario)

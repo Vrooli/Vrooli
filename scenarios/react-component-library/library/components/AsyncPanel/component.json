@@ -1,5 +1,6 @@
 {
   "libraryId": "react-component-library:AsyncPanel",
+  "x-supplementalJustification": "Pre-catalog lifecycle composition retained as a supplemental asset; its behavior is covered by the experience-surface contract.",
   "displayName": "Async Panel",
   "description": "Composable presentation for an ExperienceSurface lifecycle without prescribing page layout.",
   "tags": ["experience", "lifecycle", "loading", "empty", "error", "retry"],

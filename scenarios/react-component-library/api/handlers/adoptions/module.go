@@ -15,6 +15,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"path/filepath"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -27,6 +28,7 @@ import (
 	"react-component-library/internal/components"
 	"react-component-library/internal/deps"
 	"react-component-library/internal/module"
+	"react-component-library/internal/uimanifest"
 )
 
 // Module wires the adoptions domain using the production-default
@@ -104,6 +106,7 @@ func BuildService(db *sql.DB, clk clock.Clock, library adoptions.LibraryReader, 
 	repo := adoptions.NewSQLiteRepository(db, clk)
 	files := adoptions.NewFSScenarioFileReader(scenariosRoot)
 	svc := adoptions.NewService(repo, library, files, clk)
+	adoptions.SetManifestLoader(svc, uimanifest.NewFSLoader(filepath.Dir(scenariosRoot)))
 	return svc, files
 }
 

@@ -114,6 +114,7 @@ func (h *connectHandler) ApplyAdoption(ctx context.Context, req *connect.Request
 		ConfirmOverwrite:   req.Msg.ConfirmOverwrite,
 		OverrideValidation: req.Msg.OverrideValidation,
 		ReplaceExisting:    req.Msg.ReplaceExisting,
+		IncludeSuggestions: req.Msg.IncludeSuggestions,
 	})
 	if err != nil {
 		connectErr := adoptions.ToConnectError(err)
@@ -122,7 +123,7 @@ func (h *connectHandler) ApplyAdoption(ctx context.Context, req *connect.Request
 		}
 		return nil, connectErr
 	}
-	return connect.NewResponse(&adoptionsv1.ApplyAdoptionResponse{Adoption: domainToProto(result.Adoption), WrittenPath: result.WrittenPath, ImportSites: result.ImportSites, StyleFitAffinity: string(result.StyleFitAffinity), StyleFitDetail: result.StyleFitDetail}), nil
+	return connect.NewResponse(&adoptionsv1.ApplyAdoptionResponse{Adoption: domainToProto(result.Adoption), WrittenPath: result.WrittenPath, ImportSites: result.ImportSites, StyleFitAffinity: string(result.StyleFitAffinity), StyleFitDetail: result.StyleFitDetail, CopiedAssets: result.CopiedAssets, SatisfiedPorts: result.SatisfiedPorts, AvailableSuggestions: result.AvailableSuggestions}), nil
 }
 
 func (h *connectHandler) ReapplyAdoption(ctx context.Context, req *connect.Request[adoptionsv1.ReapplyAdoptionRequest]) (*connect.Response[adoptionsv1.ReapplyAdoptionResponse], error) {

@@ -1,5 +1,6 @@
 {
   "libraryId": "react-component-library:StatusBadge",
+  "x-supplementalJustification": "Pre-catalog status primitive retained as a supplemental asset while the semantic status vocabulary is finalized.",
   "displayName": "Status Badge",
   "description": "Semantic status badge with accessible labels and token-bound color roles.",
   "tags": ["feedback", "status"],

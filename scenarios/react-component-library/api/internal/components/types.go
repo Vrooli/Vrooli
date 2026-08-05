@@ -29,6 +29,7 @@ import (
 // only shape internal callers depend on.
 type Component struct {
 	ID            string
+	CatalogID     string
 	LibraryID     string
 	Slug          string
 	DisplayName   string
@@ -47,6 +48,8 @@ type Component struct {
 	DesignStyles  []ComponentDesignAffinity
 	AssetKind     AssetKind
 	Dependencies  []AssetDependency
+	Expects       []string
+	Satisfies     []string
 	Metrics       AssetMetrics
 }
 
@@ -67,6 +70,21 @@ func (k AssetKind) Valid() bool { return k == AssetKindComponent || k == AssetKi
 type AssetDependency struct {
 	LibraryID string
 	Version   string
+	Kind      DependencyKind
+}
+
+type DependencyKind string
+
+const (
+	DependencyRequires DependencyKind = "requires"
+	DependencySuggests DependencyKind = "suggests"
+)
+
+func (k DependencyKind) normalized() DependencyKind {
+	if k == DependencySuggests {
+		return k
+	}
+	return DependencyRequires
 }
 
 // AssetMetrics are server-projected catalog counts. They must be populated in
@@ -170,6 +188,7 @@ func (e ErrHarvestBehaviorLoss) Error() string {
 // the service. Distinct from Component so the service owns ID
 // assignment and IndexedAt/UpdatedAt stamping.
 type ComponentManifest struct {
+	CatalogID          string
 	LibraryID          string
 	Slug               string
 	DisplayName        string
@@ -184,6 +203,8 @@ type ComponentManifest struct {
 	DesignStyles       []ComponentDesignAffinity
 	AssetKind          AssetKind
 	Dependencies       []AssetDependency
+	Expects            []string
+	Satisfies          []string
 }
 
 // UpsertInput is retained as a convenience alias for older tests and

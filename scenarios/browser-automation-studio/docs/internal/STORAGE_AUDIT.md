@@ -5,18 +5,18 @@
 
 ## Migration Strategy
 - **Greenfield** — no real users, no versioned migrations folder.
-- Schema changes land in `initialization/storage/sqlite/schemas/` directly (idempotent `IF NOT EXISTS`, additive); destructive shape changes use a one-shot script under `/tmp/browser-automation-studio/migrate-*.sh` for local data preservation, never committed.
+- Schema changes land in `api/internal/<domain>/storage/sqlite/schemas/` directly (idempotent `IF NOT EXISTS`, additive); destructive shape changes use a one-shot script under `/tmp/browser-automation-studio/migrate-*.sh` for local data preservation, never committed.
 - Most recent example: `/tmp/browser-automation-studio/migrate-fix-execution-timestamps.sh` (data-only; rewrote `executions.{started_at,completed_at,updated_at}` to canonical SQLite format after the `_time_format=sqlite` DSN fix landed). Script was created, run, verified, and deleted per skill convention.
 
 ## Summary
 - **Single backend**: SQLite via `modernc.org/sqlite` (pure Go, CGO-free). Postgres support was removed in this audit cycle.
 - **Path policy**: Database file and runtime artifact roots both flow through `github.com/vrooli/api-core/storage` (`ProfileAuto`).
-- **Schema**: An ordered domain registry (`database.SchemaRegistry`) applies the files under `initialization/storage/sqlite/schemas/` idempotently at startup.
+- **Schema**: An ordered domain registry (`database.SchemaRegistry`) applies the files under `api/internal/<domain>/storage/sqlite/schemas/` idempotently at startup.
 - **Greenfield posture**: No legacy migration shims. Anyone with an existing Postgres install starts fresh.
 
 ## Resource Configuration Status
 - [x] Storage backend declared explicitly. **Note**: SQLite is embedded — no resource entry in `service.json` (per `cross-platform-readiness/SKILL.md` §3.5, embedded SQLite is documented in `notes`/`environment` rather than `dependencies.resources`).
-- [x] Schema initialization referenced via setup `condition.checks[].path` (`initialization/storage/sqlite`).
+- [x] Schema initialization referenced via setup `condition.checks[].path` (`api/internal/<domain>/storage/sqlite`).
 - [n/a] No Redis (no caching/session backend). Service uses an in-memory `sync.RWMutex` + `map` cache in `services/credits/service.go:60` for credit aggregation.
 - [n/a] No Qdrant.
 - [x] MinIO declared in `service.json` `dependencies.resources` for screenshot/artifact object storage.
@@ -30,7 +30,7 @@
 - [x] WAL mode + tuned pragmas applied in DSN (`busy_timeout=10s`, `journal_mode=WAL`, `cache_size=-2000`, `mmap_size=256MB`, `synchronous=NORMAL`, `temp_store=MEMORY`, `foreign_keys=ON`).
 
 ## Schema Status
-- [x] `initialization/storage/sqlite/schemas/` exists and is fully idempotent (`IF NOT EXISTS` on every table, index, and trigger).
+- [x] `api/internal/<domain>/storage/sqlite/schemas/` exists and is fully idempotent (`IF NOT EXISTS` on every table, index, and trigger).
 - [x] Tables use proper FK constraints with `ON DELETE CASCADE` where appropriate. UNIQUE constraints exist where upserts target them.
 - [x] Greenfield default applied — no `applyIndexSchemaMigrations` or `migrateWorkflowUniqueConstraint*` shim code; clean schema only.
 - [x] UX metrics tables (`ux_interaction_traces`, `ux_cursor_paths`, `ux_execution_metrics`) added in this audit cycle. Previously the repository code referenced these tables but no schema defined them — silent failure pre-fix.

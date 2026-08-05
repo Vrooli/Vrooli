@@ -567,6 +567,13 @@ func (s *sqliteRepository) loadHeaders(ctx context.Context, c *Component) error 
 		return fmt.Errorf("iterate headers for %q: %w", c.ID, err)
 	}
 	c.Headers = headers
+	c.CatalogID = strings.TrimSpace(headers["catalogId"])
+	if raw := strings.TrimSpace(headers["catalogExpects"]); raw != "" {
+		_ = json.Unmarshal([]byte(raw), &c.Expects)
+	}
+	if raw := strings.TrimSpace(headers["catalogSatisfies"]); raw != "" {
+		_ = json.Unmarshal([]byte(raw), &c.Satisfies)
+	}
 	return nil
 }
 

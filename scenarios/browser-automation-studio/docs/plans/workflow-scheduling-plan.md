@@ -136,7 +136,7 @@ type WorkflowSchedule struct {
 }
 ```
 
-The database schema already exists in `initialization/storage/postgres/schema.sql`.
+The database schema already exists in `api/internal/<domain>/storage/postgres/schema.sql`.
 
 ---
 

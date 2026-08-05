@@ -151,3 +151,21 @@ func TestLoad_SlotMissingDir(t *testing.T) {
 		t.Fatalf("expected ErrInvalidManifest, got %T: %v", err, err)
 	}
 }
+
+func TestLoadV2MergesScenarioOverlay(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "templates", "scenarios", "react-vite", "ui", "manifest.json"), `{"contract":{"kind":"scenario-ui","schema":"scenario-ui-manifest/v2","template":"react-vite"},"targets":["react-vite"],"slotCoverage":"full","slots":{"shared-component":{"dir":"ui/src/components"},"service":{"dir":"ui/src/services"}},"defaults":{"slot":"shared-component"}}`)
+	writeFile(t, filepath.Join(root, "scenarios", "demo", ".vrooli", "service.json"), validServiceJSON)
+	writeFile(t, filepath.Join(root, "scenarios", "demo", ".vrooli", "ui-manifest.json"), `{"contract":{"kind":"scenario-ui","schema":"scenario-ui-manifest/v2"},"slots":{"service":{"dir":"ui/src/domain-services"}}}`)
+	mf, err := NewFSLoader(root).Load("demo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mf.Contract.Schema != "scenario-ui-manifest/v2" || mf.SlotCoverage != "full" {
+		t.Fatalf("manifest = %+v", mf)
+	}
+	service, ok := mf.LookupSlot("service")
+	if !ok || service.Dir != "ui/src/domain-services" {
+		t.Fatalf("overlay did not win: %+v", service)
+	}
+}

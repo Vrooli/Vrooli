@@ -1,6 +1,9 @@
 package catalogcoverage
 
-import "sort"
+import (
+	"sort"
+	"strings"
+)
 
 // Bucket is which side of the join an entry landed on.
 type Bucket string
@@ -17,6 +20,36 @@ const (
 	BucketSupplemental Bucket = "supplemental"
 )
 
+// AchievedRung is the maturity actually supported by evidence. Missing is
+// intentionally achieved-only: catalog targets may not ask for it.
+type AchievedRung string
+
+const (
+	RungMissing         AchievedRung = "missing"
+	RungScaffolded      AchievedRung = "scaffolded"
+	RungImplemented     AchievedRung = "implemented"
+	RungVerified        AchievedRung = "verified"
+	RungProductionReady AchievedRung = "production-ready"
+)
+
+// GateEvidence is one observed result for an asset/target gate.
+// Result is pass, fail, or not-run. Unknown and empty results are treated as
+// not-run so a new runner cannot accidentally inflate coverage.
+type GateEvidence struct {
+	AssetID string
+	Target  string
+	Gate    string
+	Result  string
+}
+
+// GateDefinition is the config projection needed by the coverage engine.
+type GateDefinition struct {
+	ID        string
+	Rung      AchievedRung
+	Blocking  bool
+	AppliesTo []string
+}
+
 // Row is one joined entry.
 type Row struct {
 	AssetID  string
@@ -25,6 +58,9 @@ type Row struct {
 	Kind     string
 	Priority string
 	Bucket   Bucket
+	Target   string
+	Platform string
+	Achieved AchievedRung
 	// Implementation is the on-disk directory name when one exists.
 	Implementation string
 	// BlocksDownstream is how many other catalog assets transitively require
@@ -42,6 +78,17 @@ type Report struct {
 	// entries have no declared domain or priority to roll up under.
 	ByDomain   map[string]DomainCount
 	ByPriority map[string]DomainCount
+	// MaturityCoverage is the number of declared asset/target rows at or above
+	// their target, grouped both as a total and by the same catalog rollups.
+	Maturity MaturityCoverage
+}
+
+type MaturityCoverage struct {
+	AtOrAboveTarget int
+	Total           int
+	ByDomain        map[string]DomainCount
+	ByPriority      map[string]DomainCount
+	ByRung          map[AchievedRung]int
 }
 
 // DomainCount is a planned/built pair for one grouping.
@@ -50,12 +97,21 @@ type DomainCount struct {
 	Built   int
 }
 
-// Compute joins catalog assets against implementations by catalogId.
+// Compute joins catalog assets against implementations by catalogId. It is
+// retained as the compatibility entrypoint for callers that do not yet have
+// persisted gate evidence; a linked implementation is then scaffolded.
 func Compute(assets []Asset, impls []Implementation) Report {
+	return ComputeWithEvidence(assets, impls, nil, nil)
+}
+
+// ComputeWithEvidence derives maturity per declared asset target. Identity
+// (catalogId) and quality (gate evidence) are deliberately independent.
+func ComputeWithEvidence(assets []Asset, impls []Implementation, evidence []GateEvidence, gates []GateDefinition) Report {
 	rep := Report{
 		Totals:     map[Bucket]int{},
 		ByDomain:   map[string]DomainCount{},
 		ByPriority: map[string]DomainCount{},
+		Maturity:   MaturityCoverage{ByDomain: map[string]DomainCount{}, ByPriority: map[string]DomainCount{}, ByRung: map[AchievedRung]int{}},
 	}
 	byCatalogID := map[string]Implementation{}
 	claimed := map[string]bool{}
@@ -67,34 +123,51 @@ func Compute(assets []Asset, impls []Implementation) Report {
 	downstream := blockedCounts(assets)
 
 	for _, asset := range assets {
-		row := Row{
-			AssetID: asset.ID, Name: asset.Name, Domain: asset.Domain,
-			Kind: asset.Kind, Priority: asset.Priority,
-			BlocksDownstream: downstream[asset.ID],
+		targets := asset.Targets
+		if len(targets) == 0 {
+			targets = []string{"react-vite"}
 		}
-		if impl, ok := byCatalogID[asset.ID]; ok {
-			row.Bucket = BucketPlannedBuilt
-			row.Implementation = impl.Name
-			claimed[impl.Name] = true
-		} else {
-			row.Bucket = BucketPlannedUnbuilt
-		}
-		rep.Rows = append(rep.Rows, row)
-		rep.Totals[row.Bucket]++
+		for _, target := range targets {
+			row := Row{
+				AssetID: asset.ID, Name: asset.Name, Domain: asset.Domain,
+				Kind: asset.Kind, Priority: asset.Priority, Target: asset.Maturity, Platform: target,
+				Achieved: RungMissing, BlocksDownstream: downstream[asset.ID],
+			}
+			if impl, ok := byCatalogID[asset.ID]; ok {
+				row.Bucket = BucketPlannedBuilt
+				row.Implementation = impl.Name
+				row.Achieved = achieved(asset, target, gates, evidence)
+				claimed[impl.Name] = true
+			} else {
+				row.Bucket = BucketPlannedUnbuilt
+			}
+			rep.Rows = append(rep.Rows, row)
+			rep.Totals[row.Bucket]++
 
-		d := rep.ByDomain[asset.Domain]
-		d.Planned++
-		if row.Bucket == BucketPlannedBuilt {
-			d.Built++
+			d := rep.ByDomain[asset.Domain]
+			d.Planned++
+			if row.Bucket == BucketPlannedBuilt {
+				d.Built++
+			}
+			rep.ByDomain[asset.Domain] = d
+			p := rep.ByPriority[asset.Priority]
+			p.Planned++
+			if row.Bucket == BucketPlannedBuilt {
+				p.Built++
+			}
+			rep.ByPriority[asset.Priority] = p
+			rep.Maturity.Total++
+			rep.Maturity.ByRung[row.Achieved]++
+			if atOrAbove(row.Achieved, AchievedRung(asset.Maturity)) {
+				rep.Maturity.AtOrAboveTarget++
+				md := rep.Maturity.ByDomain[asset.Domain]
+				md.Built++
+				rep.Maturity.ByDomain[asset.Domain] = md
+				mp := rep.Maturity.ByPriority[asset.Priority]
+				mp.Built++
+				rep.Maturity.ByPriority[asset.Priority] = mp
+			}
 		}
-		rep.ByDomain[asset.Domain] = d
-
-		p := rep.ByPriority[asset.Priority]
-		p.Planned++
-		if row.Bucket == BucketPlannedBuilt {
-			p.Built++
-		}
-		rep.ByPriority[asset.Priority] = p
 	}
 
 	for _, impl := range impls {
@@ -121,18 +194,76 @@ func Compute(assets []Asset, impls []Implementation) Report {
 	return rep
 }
 
-// NextWork returns unbuilt assets ordered by leverage: how many other assets
-// they block, then priority, then id. This is what makes an agent loop
-// deterministic — there is always exactly one correct next target.
+var rungOrder = []AchievedRung{RungScaffolded, RungImplemented, RungVerified, RungProductionReady}
+
+func achieved(asset Asset, target string, gates []GateDefinition, evidence []GateEvidence) AchievedRung {
+	if len(gates) == 0 {
+		return RungScaffolded
+	}
+	results := map[string]string{}
+	for _, item := range evidence {
+		if item.AssetID == asset.ID && item.Target == target {
+			results[item.Gate] = strings.ToLower(item.Result)
+		}
+	}
+	current := RungScaffolded
+	for _, rung := range rungOrder {
+		if rungRank(rung) > rungRank(AchievedRung(asset.Maturity)) {
+			break
+		}
+		for _, gate := range gates {
+			if !gate.Blocking || rungRank(gate.Rung) > rungRank(rung) || !contains(gate.AppliesTo, asset.Kind) {
+				continue
+			}
+			if results[gate.ID] != "pass" {
+				return current
+			}
+		}
+		current = rung
+	}
+	return current
+}
+
+func contains(values []string, value string) bool {
+	for _, item := range values {
+		if item == value {
+			return true
+		}
+	}
+	return false
+}
+func rungRank(r AchievedRung) int {
+	for i, item := range []AchievedRung{RungMissing, RungScaffolded, RungImplemented, RungVerified, RungProductionReady} {
+		if r == item {
+			return i
+		}
+	}
+	return 0
+}
+func atOrAbove(achieved, target AchievedRung) bool {
+	return target != "" && rungRank(achieved) >= rungRank(target)
+}
+
+// NextWork returns every planned row below target, ordered by maturity gap,
+// leverage, priority, then identity. A weakly implemented asset therefore
+// beats a lower-leverage asset that has not started.
 func NextWork(rep Report, limit int) []Row {
 	rank := map[string]int{"P0": 0, "P1": 1, "P2": 2}
 	var out []Row
 	for _, row := range rep.Rows {
-		if row.Bucket == BucketPlannedUnbuilt {
+		if row.Bucket == BucketPlannedUnbuilt || !atOrAbove(row.Achieved, AchievedRung(row.Target)) {
+			if row.Target != "" && row.Achieved != RungMissing && row.Bucket == BucketSupplemental {
+				continue
+			}
 			out = append(out, row)
 		}
 	}
 	sort.Slice(out, func(i, j int) bool {
+		gi := rungRank(AchievedRung(out[i].Target)) - rungRank(out[i].Achieved)
+		gj := rungRank(AchievedRung(out[j].Target)) - rungRank(out[j].Achieved)
+		if gi != gj {
+			return gi > gj
+		}
 		if out[i].BlocksDownstream != out[j].BlocksDownstream {
 			return out[i].BlocksDownstream > out[j].BlocksDownstream
 		}
