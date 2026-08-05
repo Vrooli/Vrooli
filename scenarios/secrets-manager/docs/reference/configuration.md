@@ -18,7 +18,7 @@ The manifest declares Vault and Postgres as required resources and Claude Code a
 
 ## Schema Bootstrap
 
-Shared Postgres initialization is in `api/postgres_schema.go`. Desktop metadata initialization is in `api/desktop_storage.go`.
+Shared Postgres schema application is in `api/postgres_schema.go`. Desktop metadata initialization is in `api/desktop_storage.go`.
 
 ## CLI Config File
 

@@ -146,7 +146,7 @@ export function useVaultStatus(resourceFilter?: string) {
 ## 📊 PostgreSQL Schema Design
 
 ### Metadata Storage Strategy
-**Reference**: `initialization/storage/postgres/schema.sql`
+**Reference**: `api/internal/<domain>/storage/postgres/schema.sql`
 
 **Core Tables**:
 1. **resource_secrets**: Secret definitions (key, type, required, validation pattern)

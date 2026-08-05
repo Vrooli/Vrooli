@@ -4,6 +4,25 @@
 -- Create extension for UUID generation
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Stores encrypted personal values that should always be flagged during a scan.
+CREATE TABLE IF NOT EXISTS pii_watchlist (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    label TEXT NOT NULL,
+    encrypted_value BYTEA NOT NULL,
+    value_type TEXT NOT NULL CHECK (value_type IN ('email', 'phone', 'path', 'ssn', 'custom')),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Stores path-glob and finding-type exemption rules.
+CREATE TABLE IF NOT EXISTS scan_allowlist_rules (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    path_pattern TEXT NOT NULL UNIQUE,
+    excluded_types TEXT[] NOT NULL,
+    description TEXT,
+    enabled BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Table for tracking resource secret requirements
 CREATE TABLE IF NOT EXISTS resource_secrets (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -26,14 +45,6 @@ CREATE TABLE IF NOT EXISTS resource_secrets (
     -- Composite unique constraint to prevent duplicates
     UNIQUE(resource_name, secret_key)
 );
-
--- Ensure legacy installs pick up the new metadata columns even if the table already existed
-ALTER TABLE resource_secrets
-    ADD COLUMN IF NOT EXISTS classification VARCHAR(20) NOT NULL DEFAULT 'service' CHECK (classification IN ('infrastructure', 'service', 'user')),
-    ADD COLUMN IF NOT EXISTS owner_team TEXT,
-    ADD COLUMN IF NOT EXISTS owner_contact TEXT,
-    ADD COLUMN IF NOT EXISTS rotation_period_days INTEGER DEFAULT 0,
-    ADD COLUMN IF NOT EXISTS last_rotated_at TIMESTAMP WITH TIME ZONE;
 
 -- Table for tracking secret validation results
 CREATE TABLE IF NOT EXISTS secret_validations (
@@ -275,6 +286,8 @@ $$ LANGUAGE plpgsql;
 
 -- Index for performance optimization
 CREATE INDEX IF NOT EXISTS idx_resource_secrets_resource_name ON resource_secrets(resource_name);
+CREATE INDEX IF NOT EXISTS idx_pii_watchlist_value_type ON pii_watchlist(value_type);
+CREATE INDEX IF NOT EXISTS idx_scan_allowlist_rules_enabled ON scan_allowlist_rules(enabled);
 CREATE INDEX IF NOT EXISTS idx_resource_secrets_required ON resource_secrets(required) WHERE required = true;
 CREATE INDEX IF NOT EXISTS idx_secret_validations_status ON secret_validations(validation_status);
 CREATE INDEX IF NOT EXISTS idx_secret_validations_timestamp ON secret_validations(validation_timestamp);

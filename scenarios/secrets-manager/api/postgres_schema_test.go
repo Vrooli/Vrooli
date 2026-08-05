@@ -1,33 +1,21 @@
 package main
 
 import (
-	"os"
-	"path/filepath"
+	"strings"
 	"testing"
+
+	"secrets-manager-api/internal/secrets"
 )
 
-func TestPostgresSchemaPathUsesLifecycleScenarioDirectory(t *testing.T) {
-	scenarioDir := t.TempDir()
-	t.Setenv("VROOLI_SCENARIO_DIR", scenarioDir)
-
-	path, err := postgresSchemaPath()
-	if err != nil {
-		t.Fatalf("postgres schema path: %v", err)
+func TestPostgresSchemaIsEmbeddedAndIdempotent(t *testing.T) {
+	schema := secrets.Schema()
+	if !strings.Contains(schema, "CREATE TABLE IF NOT EXISTS resource_secrets") {
+		t.Fatal("embedded PostgreSQL schema does not declare resource_secrets")
 	}
-	want := filepath.Join(scenarioDir, "initialization", "storage", "postgres", "schema.sql")
-	if path != want {
-		t.Fatalf("postgres schema path = %q, want %q", path, want)
+	if strings.Contains(schema, "ALTER TABLE") {
+		t.Fatal("declarative schema must not contain compatibility ALTER statements")
 	}
-}
-
-func TestPostgresSchemaPathResolvesExistingScenarioSchema(t *testing.T) {
-	t.Setenv("VROOLI_SCENARIO_DIR", "")
-
-	path, err := postgresSchemaPath()
-	if err != nil {
-		t.Fatalf("postgres schema path: %v", err)
-	}
-	if _, err := os.Stat(path); err != nil {
-		t.Fatalf("scenario PostgreSQL schema is not available at %s: %v", path, err)
+	if !strings.Contains(secrets.ResourceSecretMetadataMigration(), "ALTER TABLE resource_secrets") {
+		t.Fatal("metadata migration is not embedded")
 	}
 }

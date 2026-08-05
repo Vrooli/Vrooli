@@ -4,10 +4,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 
-	"secrets-manager-api/internal/envx"
+	"secrets-manager-api/internal/secrets"
 
 	"github.com/vrooli/api-core/database"
 )
@@ -20,30 +18,11 @@ func ensurePostgresSchema(ctx context.Context, db *database.RoutedDB) error {
 	if db == nil {
 		return fmt.Errorf("database is required for PostgreSQL schema initialization")
 	}
-	schemaPath, err := postgresSchemaPath()
-	if err != nil {
+	if err := database.EnsureSchemas(ctx, db.Primary(), database.SchemaProviderFunc(secrets.Schema)); err != nil {
 		return err
 	}
-	schema, err := os.ReadFile(schemaPath)
-	if err != nil {
-		return fmt.Errorf("read PostgreSQL schema %s: %w", schemaPath, err)
+	if _, err := db.Primary().ExecContext(ctx, secrets.ResourceSecretMetadataMigration()); err != nil {
+		return fmt.Errorf("apply resource secret metadata migration: %w", err)
 	}
-	return database.EnsureSchemas(ctx, db.Primary(), database.SchemaProviderFunc(func() string {
-		return string(schema)
-	}))
-}
-
-func postgresSchemaPath() (string, error) {
-	scenarioDir, err := optionalScenarioDirectory(envx.OS{})
-	if err != nil {
-		return "", err
-	}
-	if scenarioDir != "" {
-		return filepath.Join(scenarioDir, "initialization", "storage", "postgres", "schema.sql"), nil
-	}
-	workingDir, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("resolve working directory for PostgreSQL schema: %w", err)
-	}
-	return filepath.Join(filepath.Dir(workingDir), "initialization", "storage", "postgres", "schema.sql"), nil
+	return nil
 }

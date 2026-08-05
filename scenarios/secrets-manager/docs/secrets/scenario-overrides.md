@@ -239,11 +239,11 @@ No additional configuration is needed - overrides are automatically applied.
 Run the migration to create the overrides table:
 
 ```bash
-psql -d secrets_manager -f initialization/storage/postgres/migrations/002_scenario_overrides.sql
+psql -d secrets_manager -f api/internal/<domain>/storage/postgres/migrations/002_scenario_overrides.sql
 ```
 
 Or if using the full schema:
 
 ```bash
-psql -d secrets_manager -f initialization/storage/postgres/schema.sql
+psql -d secrets_manager -f api/internal/<domain>/storage/postgres/schema.sql
 ```
