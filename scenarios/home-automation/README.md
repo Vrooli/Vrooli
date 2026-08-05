@@ -41,7 +41,7 @@ This isn't just another home automation system. It's a **self-improving intellig
    - Profile management
    - Status reporting with health checks
 
-3. **Database Schema** (`initialization/postgres/schema.sql`)
+3. **Database Schema** (`api/internal/<domain>/schema.sql`)
    - HomeProfile table with permissions
    - AutomationRule table for user-created rules
    - Device state caching tables
@@ -416,7 +416,7 @@ This scenario is **architecturally complete** and ready for implementation. The 
 1. `.vrooli/service.json` - Service configuration and resource dependencies
 2. `api/main.go` - Go API server with device control and automation endpoints
 3. `cli/home-automation` - CLI tool for device and profile management
-4. `initialization/postgres/schema.sql` - Database schema
+4. `api/internal/<domain>/schema.sql` - Database schema
 5. `ui/index.html` - Dashboard interface with real-time device controls
 6. `scenario-test.yaml` - Integration test specifications
 

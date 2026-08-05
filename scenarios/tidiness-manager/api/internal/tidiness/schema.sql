@@ -1,3 +1,17 @@
+
+-- Migration 001: Expand file_metrics to store detailed code quality metrics
+-- This enables fast refactor recommendations without re-scanning files
+
+-- Add detailed code metrics columns to file_metrics table
+
+
+-- Add index for language-based queries
+CREATE INDEX IF NOT EXISTS idx_file_metrics_language ON file_metrics(language);
+
+-- Add index for filtering by code quality metrics
+CREATE INDEX IF NOT EXISTS idx_file_metrics_line_count ON file_metrics(line_count DESC);
+CREATE INDEX IF NOT EXISTS idx_file_metrics_complexity ON file_metrics(complexity_max DESC NULLS LAST);
+
 -- tidiness-manager schema
 -- Stores tidiness issues from light scans, AI scans, and campaigns
 
@@ -108,3 +122,4 @@ INSERT INTO config (key, value, description) VALUES
 INSERT INTO config (key, value, description) VALUES
     ('max_files_per_batch', '10', 'Maximum files per AI batch')
     ON CONFLICT (key) DO NOTHING;
+

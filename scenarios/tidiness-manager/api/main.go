@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	schema "tidiness-manager/internal/tidiness"
 	"time"
 
 	"github.com/gorilla/handlers"
@@ -51,6 +52,10 @@ func NewServer() (*Server, error) {
 	})
 	if err != nil {
 		return nil, fmt.Errorf("database connection failed: %w", err)
+	}
+
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		return nil, fmt.Errorf("schema initialization failed: %w", err)
 	}
 
 	store := NewTidinessStore(db)

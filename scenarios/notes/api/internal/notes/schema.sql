@@ -1,3 +1,4 @@
+
 -- SmartNotes Database Schema
 -- AI-powered note-taking with folders, tags, and semantic search
 
@@ -126,21 +127,21 @@ CREATE TABLE IF NOT EXISTS daily_summaries (
 );
 
 -- Indexes for performance
-CREATE INDEX idx_notes_user_id ON notes(user_id);
-CREATE INDEX idx_notes_folder_id ON notes(folder_id);
-CREATE INDEX idx_notes_created_at ON notes(created_at DESC);
-CREATE INDEX idx_notes_updated_at ON notes(updated_at DESC);
-CREATE INDEX idx_notes_title ON notes USING gin(to_tsvector('english', title));
-CREATE INDEX idx_notes_content ON notes USING gin(to_tsvector('english', content));
-CREATE INDEX idx_folders_user_id ON folders(user_id);
-CREATE INDEX idx_folders_parent_id ON folders(parent_id);
-CREATE INDEX idx_tags_user_id ON tags(user_id);
-CREATE INDEX idx_note_tags_note_id ON note_tags(note_id);
-CREATE INDEX idx_note_tags_tag_id ON note_tags(tag_id);
-CREATE INDEX idx_note_links_source ON note_links(source_note_id);
-CREATE INDEX idx_note_links_target ON note_links(target_note_id);
-CREATE INDEX idx_search_history_user_id ON search_history(user_id);
-CREATE INDEX idx_templates_user_id ON templates(user_id);
+CREATE INDEX IF NOT EXISTS idx_notes_user_id ON notes(user_id);
+CREATE INDEX IF NOT EXISTS idx_notes_folder_id ON notes(folder_id);
+CREATE INDEX IF NOT EXISTS idx_notes_created_at ON notes(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notes_updated_at ON notes(updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notes_title ON notes USING gin(to_tsvector('english', title));
+CREATE INDEX IF NOT EXISTS idx_notes_content ON notes USING gin(to_tsvector('english', content));
+CREATE INDEX IF NOT EXISTS idx_folders_user_id ON folders(user_id);
+CREATE INDEX IF NOT EXISTS idx_folders_parent_id ON folders(parent_id);
+CREATE INDEX IF NOT EXISTS idx_tags_user_id ON tags(user_id);
+CREATE INDEX IF NOT EXISTS idx_note_tags_note_id ON note_tags(note_id);
+CREATE INDEX IF NOT EXISTS idx_note_tags_tag_id ON note_tags(tag_id);
+CREATE INDEX IF NOT EXISTS idx_note_links_source ON note_links(source_note_id);
+CREATE INDEX IF NOT EXISTS idx_note_links_target ON note_links(target_note_id);
+CREATE INDEX IF NOT EXISTS idx_search_history_user_id ON search_history(user_id);
+CREATE INDEX IF NOT EXISTS idx_templates_user_id ON templates(user_id);
 
 -- Functions and triggers
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -151,21 +152,25 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS update_notes_updated_at ON notes;
 CREATE TRIGGER update_notes_updated_at
     BEFORE UPDATE ON notes
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS update_folders_updated_at ON folders;
 CREATE TRIGGER update_folders_updated_at
     BEFORE UPDATE ON folders
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON users
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS update_templates_updated_at ON templates;
 CREATE TRIGGER update_templates_updated_at
     BEFORE UPDATE ON templates
     FOR EACH ROW
@@ -181,6 +186,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS calculate_note_stats_trigger ON notes;
 CREATE TRIGGER calculate_note_stats_trigger
     BEFORE INSERT OR UPDATE OF content ON notes
     FOR EACH ROW

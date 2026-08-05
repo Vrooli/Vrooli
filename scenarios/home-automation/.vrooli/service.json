@@ -1,7 +1,22 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "name": "home-automation",
     "displayName": "Home Automation Intelligence",
@@ -184,11 +199,6 @@
           "description": "Create home automation database (idempotent)"
         },
         {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Initialize home automation data in resources"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o home-automation-api .",
           "description": "Build home automation API server"
@@ -274,17 +284,7 @@
         "enabled": true,
         "required": true,
         "startup_policy": "must_start",
-        "purpose": "Store user profiles, automation rules, device state cache, and audit logs",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/postgres/seed.sql",
-            "type": "seed"
-          }
-        ]
+        "purpose": "Store user profiles, automation rules, device state cache, and audit logs"
       },
       "redis": {
         "type": "redis",
@@ -292,8 +292,7 @@
         "required": false,
         "startup_policy": "try_start",
         "purpose": "Real-time device state caching and event pub/sub for live UI updates",
-        "fallback": "In-memory caching with periodic database persistence",
-        "initialization": []
+        "fallback": "In-memory caching with periodic database persistence"
       },
       "home-assistant": {
         "type": "home-assistant",

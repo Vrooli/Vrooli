@@ -1,3 +1,66 @@
+
+-- Missing tables for home-automation scenario
+-- These tables are referenced by the API but not in the main schema
+
+-- Safety rules table for automation validation
+CREATE TABLE IF NOT EXISTS safety_rules (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    rule_type VARCHAR(50) NOT NULL, -- 'device', 'automation', 'scene', 'global'
+    conditions JSONB NOT NULL DEFAULT '{}',
+    actions JSONB DEFAULT '{}',
+    priority INTEGER DEFAULT 100,
+    is_enabled BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Create indexes for safety rules
+CREATE INDEX IF NOT EXISTS idx_safety_rules_enabled ON safety_rules(is_enabled);
+CREATE INDEX IF NOT EXISTS idx_safety_rules_type ON safety_rules(rule_type);
+CREATE INDEX IF NOT EXISTS idx_safety_rules_priority ON safety_rules(priority);
+
+-- Active contexts table for calendar scheduler
+CREATE TABLE IF NOT EXISTS active_contexts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    context_name VARCHAR(255) NOT NULL,
+    profile_id UUID REFERENCES home_profiles(id) ON DELETE CASCADE,
+    scene_id UUID REFERENCES smart_scenes(id) ON DELETE SET NULL,
+    automation_overrides JSONB DEFAULT '{}',
+    activated_at TIMESTAMP DEFAULT NOW(),
+    expires_at TIMESTAMP,
+    is_active BOOLEAN DEFAULT true,
+    priority INTEGER DEFAULT 100
+);
+
+-- Create indexes for active contexts
+CREATE INDEX IF NOT EXISTS idx_active_contexts_name ON active_contexts(context_name);
+CREATE INDEX IF NOT EXISTS idx_active_contexts_active ON active_contexts(is_active);
+CREATE INDEX IF NOT EXISTS idx_active_contexts_profile ON active_contexts(profile_id);
+
+-- Insert default safety rules
+INSERT INTO safety_rules (name, description, rule_type, conditions, is_enabled) VALUES
+    ('Prevent simultaneous door locks', 'Prevent all doors from being unlocked simultaneously', 'device', '{"type": "lock", "max_simultaneous": 2}', true),
+    ('Energy usage limit', 'Limit total energy usage during peak hours', 'global', '{"max_watts": 5000, "peak_hours": [16, 21]}', true),
+    ('Temperature safety', 'Prevent extreme temperature settings', 'device', '{"type": "thermostat", "min_temp": 60, "max_temp": 85}', true)
+ON CONFLICT DO NOTHING;
+
+-- Create schema for home_automation if it doesn't exist
+CREATE SCHEMA IF NOT EXISTS home_automation;
+
+-- Create active_contexts in home_automation schema as well
+CREATE TABLE IF NOT EXISTS home_automation.active_contexts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    context_name VARCHAR(255) NOT NULL,
+    profile_id UUID,
+    scene_id UUID,
+    automation_overrides JSONB DEFAULT '{}',
+    activated_at TIMESTAMP DEFAULT NOW(),
+    expires_at TIMESTAMP,
+    is_active BOOLEAN DEFAULT true,
+    priority INTEGER DEFAULT 100
+);
 -- Home Automation Intelligence Database Schema
 -- Self-evolving home automation with multi-user permissions
 
@@ -5,7 +68,7 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- User profiles with device permissions
-CREATE TABLE home_profiles (
+CREATE TABLE IF NOT EXISTS home_profiles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL, -- References scenario-authenticator users
     name VARCHAR(255) NOT NULL,
@@ -17,11 +80,11 @@ CREATE TABLE home_profiles (
     CONSTRAINT unique_user_profile UNIQUE (user_id)
 );
 
--- Create index for user lookups
-CREATE INDEX idx_home_profiles_user_id ON home_profiles(user_id);
+-- CREATE INDEX IF NOT EXISTS for user lookups
+CREATE INDEX IF NOT EXISTS idx_home_profiles_user_id ON home_profiles(user_id);
 
 -- Automation rules created by users or AI
-CREATE TABLE automation_rules (
+CREATE TABLE IF NOT EXISTS automation_rules (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
     description TEXT,
@@ -40,13 +103,13 @@ CREATE TABLE automation_rules (
 );
 
 -- Create indexes for automation queries
-CREATE INDEX idx_automation_rules_created_by ON automation_rules(created_by);
-CREATE INDEX idx_automation_rules_active ON automation_rules(active);
-CREATE INDEX idx_automation_rules_trigger_type ON automation_rules(trigger_type);
-CREATE INDEX idx_automation_rules_generated_by_ai ON automation_rules(generated_by_ai);
+CREATE INDEX IF NOT EXISTS idx_automation_rules_created_by ON automation_rules(created_by);
+CREATE INDEX IF NOT EXISTS idx_automation_rules_active ON automation_rules(active);
+CREATE INDEX IF NOT EXISTS idx_automation_rules_trigger_type ON automation_rules(trigger_type);
+CREATE INDEX IF NOT EXISTS idx_automation_rules_generated_by_ai ON automation_rules(generated_by_ai);
 
 -- Devices table for device management
-CREATE TABLE devices (
+CREATE TABLE IF NOT EXISTS devices (
     device_id VARCHAR(255) PRIMARY KEY,
     entity_id VARCHAR(255) NOT NULL, -- Home Assistant entity ID
     name VARCHAR(255) NOT NULL,
@@ -61,12 +124,12 @@ CREATE TABLE devices (
 );
 
 -- Create indexes for device queries
-CREATE INDEX idx_devices_type ON devices(device_type);
-CREATE INDEX idx_devices_available ON devices(available);
-CREATE INDEX idx_devices_room ON devices(room);
+CREATE INDEX IF NOT EXISTS idx_devices_type ON devices(device_type);
+CREATE INDEX IF NOT EXISTS idx_devices_available ON devices(available);
+CREATE INDEX IF NOT EXISTS idx_devices_room ON devices(room);
 
 -- Device state cache for real-time updates
-CREATE TABLE device_states (
+CREATE TABLE IF NOT EXISTS device_states (
     device_id VARCHAR(255) PRIMARY KEY,
     entity_id VARCHAR(255) NOT NULL, -- Home Assistant entity ID
     name VARCHAR(255) NOT NULL,
@@ -79,12 +142,12 @@ CREATE TABLE device_states (
 );
 
 -- Create indexes for device state queries
-CREATE INDEX idx_device_states_type ON device_states(device_type);
-CREATE INDEX idx_device_states_available ON device_states(available);
-CREATE INDEX idx_device_states_updated ON device_states(last_updated);
+CREATE INDEX IF NOT EXISTS idx_device_states_type ON device_states(device_type);
+CREATE INDEX IF NOT EXISTS idx_device_states_available ON device_states(available);
+CREATE INDEX IF NOT EXISTS idx_device_states_updated ON device_states(last_updated);
 
 -- Smart scenes with AI-suggested optimizations
-CREATE TABLE smart_scenes (
+CREATE TABLE IF NOT EXISTS smart_scenes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
     description TEXT,
@@ -100,11 +163,11 @@ CREATE TABLE smart_scenes (
 );
 
 -- Create indexes for scene queries
-CREATE INDEX idx_smart_scenes_created_by ON smart_scenes(created_by);
-CREATE INDEX idx_smart_scenes_active ON smart_scenes(active);
+CREATE INDEX IF NOT EXISTS idx_smart_scenes_created_by ON smart_scenes(created_by);
+CREATE INDEX IF NOT EXISTS idx_smart_scenes_active ON smart_scenes(active);
 
 -- Automation execution log for monitoring and debugging
-CREATE TABLE automation_executions (
+CREATE TABLE IF NOT EXISTS automation_executions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     automation_id UUID NOT NULL REFERENCES automation_rules(id) ON DELETE CASCADE,
     trigger_source VARCHAR(100) NOT NULL,
@@ -117,12 +180,12 @@ CREATE TABLE automation_executions (
 );
 
 -- Create indexes for execution log queries  
-CREATE INDEX idx_automation_executions_automation_id ON automation_executions(automation_id);
-CREATE INDEX idx_automation_executions_status ON automation_executions(execution_status);
-CREATE INDEX idx_automation_executions_executed_at ON automation_executions(executed_at);
+CREATE INDEX IF NOT EXISTS idx_automation_executions_automation_id ON automation_executions(automation_id);
+CREATE INDEX IF NOT EXISTS idx_automation_executions_status ON automation_executions(execution_status);
+CREATE INDEX IF NOT EXISTS idx_automation_executions_executed_at ON automation_executions(executed_at);
 
 -- Permission audit log for security
-CREATE TABLE permission_audit_log (
+CREATE TABLE IF NOT EXISTS permission_audit_log (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL,
     profile_id UUID REFERENCES home_profiles(id) ON DELETE SET NULL,
@@ -137,12 +200,12 @@ CREATE TABLE permission_audit_log (
 );
 
 -- Create indexes for audit queries
-CREATE INDEX idx_permission_audit_user_id ON permission_audit_log(user_id);
-CREATE INDEX idx_permission_audit_timestamp ON permission_audit_log(timestamp);
-CREATE INDEX idx_permission_audit_resource ON permission_audit_log(resource_type, resource_id);
+CREATE INDEX IF NOT EXISTS idx_permission_audit_user_id ON permission_audit_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_permission_audit_timestamp ON permission_audit_log(timestamp);
+CREATE INDEX IF NOT EXISTS idx_permission_audit_resource ON permission_audit_log(resource_type, resource_id);
 
 -- Energy usage tracking for optimization
-CREATE TABLE energy_usage (
+CREATE TABLE IF NOT EXISTS energy_usage (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     device_id VARCHAR(255) NOT NULL,
     measurement_type VARCHAR(50) NOT NULL, -- 'power', 'energy', 'cost'
@@ -152,11 +215,11 @@ CREATE TABLE energy_usage (
 );
 
 -- Create indexes for energy queries
-CREATE INDEX idx_energy_usage_device_timestamp ON energy_usage(device_id, timestamp);
-CREATE INDEX idx_energy_usage_type_timestamp ON energy_usage(measurement_type, timestamp);
+CREATE INDEX IF NOT EXISTS idx_energy_usage_device_timestamp ON energy_usage(device_id, timestamp);
+CREATE INDEX IF NOT EXISTS idx_energy_usage_type_timestamp ON energy_usage(measurement_type, timestamp);
 
 -- Calendar integration events for context-aware automation
-CREATE TABLE calendar_contexts (
+CREATE TABLE IF NOT EXISTS calendar_contexts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     calendar_event_id VARCHAR(255) NOT NULL,
     context_name VARCHAR(255) NOT NULL, -- 'work', 'sleep', 'entertainment', 'away'
@@ -169,12 +232,12 @@ CREATE TABLE calendar_contexts (
 );
 
 -- Create indexes for calendar context queries
-CREATE INDEX idx_calendar_contexts_event_id ON calendar_contexts(calendar_event_id);
-CREATE INDEX idx_calendar_contexts_time_range ON calendar_contexts(start_time, end_time);
-CREATE INDEX idx_calendar_contexts_context_name ON calendar_contexts(context_name);
+CREATE INDEX IF NOT EXISTS idx_calendar_contexts_event_id ON calendar_contexts(calendar_event_id);
+CREATE INDEX IF NOT EXISTS idx_calendar_contexts_time_range ON calendar_contexts(start_time, end_time);
+CREATE INDEX IF NOT EXISTS idx_calendar_contexts_context_name ON calendar_contexts(context_name);
 
 -- System configuration and feature flags
-CREATE TABLE system_config (
+CREATE TABLE IF NOT EXISTS system_config (
     key VARCHAR(255) PRIMARY KEY,
     value JSONB NOT NULL,
     description TEXT,
@@ -301,18 +364,22 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Create triggers for tables with updated_at columns
+DROP TRIGGER IF EXISTS trigger_home_profiles_updated_at ON home_profiles;
 CREATE TRIGGER trigger_home_profiles_updated_at
     BEFORE UPDATE ON home_profiles
     FOR EACH ROW EXECUTE FUNCTION update_timestamp();
 
+DROP TRIGGER IF EXISTS trigger_automation_rules_updated_at ON automation_rules;
 CREATE TRIGGER trigger_automation_rules_updated_at
     BEFORE UPDATE ON automation_rules
     FOR EACH ROW EXECUTE FUNCTION update_timestamp();
 
+DROP TRIGGER IF EXISTS trigger_smart_scenes_updated_at ON smart_scenes;
 CREATE TRIGGER trigger_smart_scenes_updated_at
     BEFORE UPDATE ON smart_scenes
     FOR EACH ROW EXECUTE FUNCTION update_timestamp();
 
+DROP TRIGGER IF EXISTS trigger_system_config_updated_at ON system_config;
 CREATE TRIGGER trigger_system_config_updated_at
     BEFORE UPDATE ON system_config
     FOR EACH ROW EXECUTE FUNCTION update_timestamp();

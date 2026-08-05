@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	schema "home-automation-api/internal/home"
 	"log"
 	"net/http"
 	"net/url"
@@ -181,6 +182,10 @@ func main() {
 	handler := c.Handler(router)
 
 	log.Printf("Home Automation API server starting")
+
+	if err := database.EnsureSchemas(context.Background(), app.DB, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		log.Fatalf("database schema initialization failed: %v", err)
+	}
 	if err := server.Run(server.Config{
 		Handler: handler,
 		Cleanup: func(ctx context.Context) error {

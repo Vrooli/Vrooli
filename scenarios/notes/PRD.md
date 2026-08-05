@@ -501,9 +501,9 @@ vrooli scenario test notes
 
 ### Internal References
 - `/docs/testing/architecture/PHASED_TESTING.md` - Testing standards
-- `/scripts/resources/contracts/v2.0/universal.yaml` - Service contract spec
-- `initialization/postgres/schema.sql` - Database schema definition
-- `initialization/qdrant/collections.json` - Vector collection config
+- `/.vrooli/schemas/resource.schema.json` - Resource contract schema
+- `api/internal/<domain>/schema.sql` - Database schema definition
+- `api/internal/<domain>/qdrant/collections.json` - Vector collection config
 
 ### Related Scenarios
 - **research-assistant**: Uses SmartNotes API for storing research findings
