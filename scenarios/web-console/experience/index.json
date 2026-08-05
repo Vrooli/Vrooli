@@ -16,6 +16,14 @@
       "status": "active"
     }
   ],
+  "components": [
+    {
+      "id": "voice-input-button",
+      "path": "components/voice-input-button.json",
+      "title": "VoiceInputButton",
+      "status": "active"
+    }
+  ],
   "x-spike": {
     "no-design-md": "web-console has no root DESIGN.md; the experience-manager parser must degrade state-contract coverage checks gracefully when the seed source is absent (spike learning, not an error here).",
     "single-surface": "No react-router: the only route is /. Modal surfaces (launcher, settings) and per-pane view modes are modeled as page states and x- extensions, not as separate route-bearing pages."

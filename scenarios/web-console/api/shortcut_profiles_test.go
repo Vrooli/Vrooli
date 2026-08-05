@@ -16,7 +16,7 @@ import (
 
 func TestShortcutProfileStore_DefaultProfile(t *testing.T) {
 	store := NewShortcutProfileStore()
-	profiles := store.List()
+	profiles := store.List(context.Background())
 	if len(profiles) != 1 {
 		t.Fatalf("expected 1 default profile, got %d", len(profiles))
 	}
@@ -35,7 +35,7 @@ func TestShortcutProfileStore_Upsert(t *testing.T) {
 	store := NewShortcutProfileStore()
 
 	shortcuts := []ShortcutEntry{{Label: "Test", Command: "echo test"}}
-	profile := store.Upsert("custom", "workspace", "Custom", shortcuts)
+	profile := store.Upsert(context.Background(), "custom", "workspace", "Custom", shortcuts)
 
 	if profile.ID != "custom" {
 		t.Errorf("expected ID 'custom', got %q", profile.ID)
@@ -48,7 +48,7 @@ func TestShortcutProfileStore_Upsert(t *testing.T) {
 	}
 
 	// Update existing
-	updated := store.Upsert("custom", "parent", "Updated", []ShortcutEntry{
+	updated := store.Upsert(context.Background(), "custom", "parent", "Updated", []ShortcutEntry{
 		{Label: "A", Command: "a"},
 		{Label: "B", Command: "b"},
 	})
@@ -64,26 +64,26 @@ func TestShortcutProfileStore_Effective(t *testing.T) {
 	store := NewShortcutProfileStore()
 
 	// Default service profile exists with 4 shortcuts
-	eff := store.Effective()
+	eff := store.Effective(context.Background())
 	if len(eff) != 4 {
 		t.Fatalf("expected default service profile shortcuts, got %d", len(eff))
 	}
 
 	// Add workspace-scope profile — should win over service
-	store.Upsert("ws", "workspace", "WS", []ShortcutEntry{
+	store.Upsert(context.Background(), "ws", "workspace", "WS", []ShortcutEntry{
 		{Label: "WS1", Command: "ws1"},
 	})
-	eff = store.Effective()
+	eff = store.Effective(context.Background())
 	if len(eff) != 1 || eff[0].Label != "WS1" {
 		t.Errorf("expected workspace profile to win, got %v", eff)
 	}
 
 	// Add parent-scope profile — should win over workspace
-	store.Upsert("parent", "parent", "P", []ShortcutEntry{
+	store.Upsert(context.Background(), "parent", "parent", "P", []ShortcutEntry{
 		{Label: "Parent1", Command: "p1"},
 		{Label: "Parent2", Command: "p2"},
 	})
-	eff = store.Effective()
+	eff = store.Effective(context.Background())
 	if len(eff) != 2 || eff[0].Label != "Parent1" {
 		t.Errorf("expected parent profile to win, got %v", eff)
 	}
@@ -91,8 +91,8 @@ func TestShortcutProfileStore_Effective(t *testing.T) {
 
 func TestShortcutProfileStore_EffectiveEmpty(t *testing.T) {
 	store := NewShortcutProfileStore()
-	store.Delete("default")
-	eff := store.Effective()
+	store.Delete(context.Background(), "default")
+	eff := store.Effective(context.Background())
 	if len(eff) != 4 {
 		t.Errorf("expected default shortcuts fallback when no profiles, got %d", len(eff))
 	}
@@ -120,7 +120,7 @@ func TestShortcutsAdapter_UpsertValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := a.Upsert(tt.req)
+			_, err := a.Upsert(context.Background(), tt.req)
 			if tt.wantErr && err == nil {
 				t.Error("expected validation error, got none")
 			}
@@ -228,17 +228,17 @@ func TestProfileUpsert_Replay_TimestampStable(t *testing.T) {
 	store := NewShortcutProfileStore()
 
 	shortcuts := []ShortcutEntry{{Label: "Go", Command: "go run"}}
-	p1 := store.Upsert("replay-test", "workspace", "Test", shortcuts)
+	p1 := store.Upsert(context.Background(), "replay-test", "workspace", "Test", shortcuts)
 	firstUpdated := p1.UpdatedAt
 
 	// Replay with identical content — UpdatedAt should not change
-	p2 := store.Upsert("replay-test", "workspace", "Test", shortcuts)
+	p2 := store.Upsert(context.Background(), "replay-test", "workspace", "Test", shortcuts)
 	if p2.UpdatedAt != firstUpdated {
 		t.Errorf("replay with same content should preserve UpdatedAt: got %s, want %s", p2.UpdatedAt, firstUpdated)
 	}
 
 	// Change content — UpdatedAt should change
-	p3 := store.Upsert("replay-test", "workspace", "Test", []ShortcutEntry{{Label: "Go", Command: "go test"}})
+	p3 := store.Upsert(context.Background(), "replay-test", "workspace", "Test", []ShortcutEntry{{Label: "Go", Command: "go test"}})
 	if p3.UpdatedAt == firstUpdated {
 		t.Error("changed content should update UpdatedAt")
 	}
@@ -247,7 +247,7 @@ func TestProfileUpsert_Replay_TimestampStable(t *testing.T) {
 // Delete replay: deleting the same profile three times succeeds each time.
 func TestProfileDelete_Replay_Idempotent(t *testing.T) {
 	harness, srv := newShortcutsConnectHandler(t)
-	srv.shortcuts.Upsert("del-test", "workspace", "Del", []ShortcutEntry{{Label: "A", Command: "a"}})
+	srv.shortcuts.Upsert(context.Background(), "del-test", "workspace", "Del", []ShortcutEntry{{Label: "A", Command: "a"}})
 
 	for i := 0; i < 3; i++ {
 		_, err := harness.h.DeleteProfile(context.Background(), connect.NewRequest(&shortcutsv1.DeleteProfileRequest{Id: "del-test"}))
@@ -260,18 +260,18 @@ func TestProfileDelete_Replay_Idempotent(t *testing.T) {
 // [REQ:P1-002a] Performance test - config resolution <50ms
 func BenchmarkEffectiveShortcuts(b *testing.B) {
 	store := NewShortcutProfileStore()
-	store.Upsert("ws", "workspace", "WS", []ShortcutEntry{
+	store.Upsert(context.Background(), "ws", "workspace", "WS", []ShortcutEntry{
 		{Label: "A", Command: "a"},
 		{Label: "B", Command: "b"},
 		{Label: "C", Command: "c"},
 	})
-	store.Upsert("parent", "parent", "P", []ShortcutEntry{
+	store.Upsert(context.Background(), "parent", "parent", "P", []ShortcutEntry{
 		{Label: "X", Command: "x"},
 		{Label: "Y", Command: "y"},
 	})
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = store.Effective()
+		_ = store.Effective(context.Background())
 	}
 }

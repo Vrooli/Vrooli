@@ -17,27 +17,35 @@ import {
   AUDIO_TOOLS_CAPABILITY_SLUG,
   featureSlug,
   AudioToolsFeature,
-} from "../audio-integration";
-import type { VoiceCapabilityProbe } from "../audio-integration";
-import { fetchCapabilities, getCapabilitiesLivenessSnapshot, refreshCapabilitiesLiveness } from "../api/capabilities";
-import { useWorkspaceStore } from "../stores/useWorkspaceStore";
-import { parseCommandDirect } from "./voice/commandParser";
-import type { CommandSuggestion } from "../audio-integration";
+} from "../index";
+import type { VoiceCapabilityProbe } from "../index";
+import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
+import { parseCommandDirect } from "../../hooks/voice/commandParser";
+import type { CommandSuggestion } from "../index";
 
 // Re-export public types and utilities for consumers and tests
-export type { TranscriptionProvider, VoiceBackend, VoiceState, VoiceMode, VoiceInputState, VoiceSegment, VoiceRejection, LastTurnAudio, CommandSuggestion, StartRecordingOpts, VoiceActivitySnapshot, VoiceActivityPhase } from "../audio-integration";
-export { WHISPER_FAILED_SENTINEL, CAP_CHECK_FAIL_THRESHOLD, AUDIO_BITRATE, STREAM_CHUNK_INTERVAL_MS, computeFinalTimeout } from "../audio-integration";
-export { createAudioFilterChain } from "../audio-integration";
-export type { VadState, VadRefs, VadAction, CachedNoiseFloor } from "../audio-integration";
-export { VAD_FALLBACK_SILENCE_TIMEOUT_MS, VAD_FALLBACK_SEGMENT_SILENCE_MS, VAD_FLOOR_CACHE_MAX_AGE_MS, createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, computeSlidingNoiseFloor, vadTick } from "../audio-integration";
-export { buildVoiceActivitySnapshot, VAD_AUTO_STOP_VISUAL_GRACE_MS } from "../audio-integration";
-export { getSharedAudioContext, closeSharedAudioContext } from "../audio-integration";
+export type { TranscriptionProvider, VoiceBackend, VoiceState, VoiceMode, VoiceInputState, VoiceSegment, VoiceRejection, LastTurnAudio, CommandSuggestion, StartRecordingOpts, VoiceActivitySnapshot, VoiceActivityPhase } from "../index";
+export { WHISPER_FAILED_SENTINEL, CAP_CHECK_FAIL_THRESHOLD, AUDIO_BITRATE, STREAM_CHUNK_INTERVAL_MS, computeFinalTimeout } from "../index";
+export { createAudioFilterChain } from "../index";
+export type { VadState, VadRefs, VadAction, CachedNoiseFloor } from "../index";
+export { VAD_FALLBACK_SILENCE_TIMEOUT_MS, VAD_FALLBACK_SEGMENT_SILENCE_MS, VAD_FLOOR_CACHE_MAX_AGE_MS, createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, computeSlidingNoiseFloor, vadTick } from "../index";
+export { buildVoiceActivitySnapshot, VAD_AUTO_STOP_VISUAL_GRACE_MS } from "../index";
+export { getSharedAudioContext, closeSharedAudioContext } from "../index";
 
 export interface UseVoiceInputCallbacks {
   /** Called when a completed transcript is available (both one-shot and persistent). */
   onTranscript: (text: string) => void;
   /** Called when a voice command is confirmed by the user. */
   onCommandExecute?: (suggestion: CommandSuggestion) => void;
+}
+
+type CapabilitiesApi = typeof import("../../api/capabilities");
+
+let capabilitiesApiPromise: Promise<CapabilitiesApi> | undefined;
+
+function loadCapabilitiesApi(): Promise<CapabilitiesApi> {
+  capabilitiesApiPromise ??= import("../../api/capabilities");
+  return capabilitiesApiPromise;
 }
 
 /**
@@ -47,6 +55,11 @@ export interface UseVoiceInputCallbacks {
  * background refresh interval keep the snapshot warm.
  */
 export async function probeWhisperHealth(): Promise<VoiceCapabilityProbe> {
+  const {
+    fetchCapabilities,
+    getCapabilitiesLivenessSnapshot,
+    refreshCapabilitiesLiveness,
+  } = await loadCapabilitiesApi();
   // The capability is registered under audio-tools' scenario slug; the
   // STT features it exposes are sourced from the proto-backed slug map
   // in audio-integration/features.ts. Do NOT hard-code these strings —
@@ -101,7 +114,7 @@ function buildSuggestion(text: string): CommandSuggestion | null {
   };
 }
 
-export function useVoiceInput(onTranscript: (text: string) => void) {
+export function useScenarioVoiceInput(onTranscript: (text: string) => void) {
   const voiceEnabled = useWorkspaceStore((s) => s.voiceEnabled);
   const voiceLanguage = useWorkspaceStore((s) => s.voiceLanguage);
   const vadSilenceTimeoutMs = useWorkspaceStore((s) => s.vadSilenceTimeoutMs);

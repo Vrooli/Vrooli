@@ -36,6 +36,7 @@ const sharedTTSMocks = vi.hoisted(() => ({
   fetchCachedTTS: vi.fn(),
   getTTSVoices: vi.fn(),
   synthesizeTTS: vi.fn(),
+  synthesizeTTSWithMetrics: vi.fn(),
 }));
 vi.mock("../audio-integration", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../audio-integration")>();
@@ -44,6 +45,7 @@ vi.mock("../audio-integration", async (importOriginal) => {
     fetchCachedTTS: sharedTTSMocks.fetchCachedTTS,
     getTTSVoices: sharedTTSMocks.getTTSVoices,
     synthesizeTTS: sharedTTSMocks.synthesizeTTS,
+    synthesizeTTSWithMetrics: sharedTTSMocks.synthesizeTTSWithMetrics,
   };
 });
 vi.mock("../audio-integration/api/tts", async (importOriginal) => {
@@ -53,6 +55,7 @@ vi.mock("../audio-integration/api/tts", async (importOriginal) => {
     fetchCachedTTS: sharedTTSMocks.fetchCachedTTS,
     getTTSVoices: sharedTTSMocks.getTTSVoices,
     synthesizeTTS: sharedTTSMocks.synthesizeTTS,
+    synthesizeTTSWithMetrics: sharedTTSMocks.synthesizeTTSWithMetrics,
   };
 });
 vi.mock("../api/ttsHook", () => ({
@@ -109,6 +112,10 @@ beforeEach(() => {
   });
   mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);
   mockSynthesizeTTS.mockResolvedValue(new Blob(["audio"], { type: "audio/mp3" }));
+  sharedTTSMocks.synthesizeTTSWithMetrics.mockResolvedValue({
+    blob: new Blob(["audio"], { type: "audio/mp3" }),
+    metrics: { requestId: "test-request", synthStartMs: 0, totalChars: 11 },
+  });
 
   fakeAudio = new FakeAudio();
   vi.stubGlobal("Audio", vi.fn(() => fakeAudio));

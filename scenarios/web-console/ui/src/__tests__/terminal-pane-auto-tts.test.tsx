@@ -30,6 +30,8 @@ const mockSpeakParagraphs = vi.fn().mockResolvedValue("browser");
 const mockStop = vi.fn();
 const mockIncoming = vi.fn();
 const mockSendAck = vi.fn();
+const mockGetServerSize = vi.fn(() => null);
+const mockSendResize = vi.fn();
 
 vi.mock("../hooks/useTextToSpeech", () => ({
   useTextToSpeech: () => ({
@@ -55,7 +57,9 @@ vi.mock("../hooks/terminal/useTerminalSession", () => {
     useTerminalSession: () => ({
       submitInput,
       gate,
-      sendResize: vi.fn(),
+      sendResize: mockSendResize,
+      getServerSize: mockGetServerSize,
+      serverSize: null,
       subscribeInputSettled: vi.fn(() => () => {}),
       subscribePendingInput: vi.fn(() => () => {}),
       getPendingInputSnapshot: vi.fn(() => []),
@@ -121,6 +125,7 @@ const storeState: Record<string, unknown> = {
   kokoroVoice: "af_heart",
   kokoroSpeed: 1.0,
   ttsBackendPreference: "auto",
+  deviceFontSize: {},
   voiceShortcut: "",
   panes: [{ sessionId: "tts-test", name: "test", headerColor: "transparent", themeId: "default", fontSize: 14, groupId: null }],
   activePane: "tts-test",

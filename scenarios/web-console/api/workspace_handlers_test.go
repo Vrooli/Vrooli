@@ -59,8 +59,8 @@ func TestConnect_GetLayout_Empty(t *testing.T) {
 func TestConnect_GetLayout_WithPanes(t *testing.T) {
 	harness, srv := newWorkspaceConnectHandler(t)
 	store := srv.workspace.(*intworkspace.MemStore)
-	_ = store.UpsertPane(intworkspace.Pane{SessionID: "s1", Name: "bash", SortOrder: 1})
-	_ = store.UpsertPane(intworkspace.Pane{SessionID: "s2", Name: "node", SortOrder: 0, IsActive: true})
+	_ = store.UpsertPane(context.Background(), intworkspace.Pane{SessionID: "s1", Name: "bash", SortOrder: 1})
+	_ = store.UpsertPane(context.Background(), intworkspace.Pane{SessionID: "s2", Name: "node", SortOrder: 0, IsActive: true})
 
 	resp, err := harness.h.GetLayout(context.Background(), connect.NewRequest(&workspacev1.GetLayoutRequest{}))
 	if err != nil {
@@ -80,9 +80,9 @@ func TestConnect_GetLayout_WithPanes(t *testing.T) {
 func TestConnect_SaveLayout_Reorder(t *testing.T) {
 	harness, srv := newWorkspaceConnectHandler(t)
 	store := srv.workspace.(*intworkspace.MemStore)
-	_ = store.UpsertPane(intworkspace.Pane{SessionID: "a", Name: "a", SortOrder: 0})
-	_ = store.UpsertPane(intworkspace.Pane{SessionID: "b", Name: "b", SortOrder: 1})
-	_ = store.UpsertPane(intworkspace.Pane{SessionID: "c", Name: "c", SortOrder: 2})
+	_ = store.UpsertPane(context.Background(), intworkspace.Pane{SessionID: "a", Name: "a", SortOrder: 0})
+	_ = store.UpsertPane(context.Background(), intworkspace.Pane{SessionID: "b", Name: "b", SortOrder: 1})
+	_ = store.UpsertPane(context.Background(), intworkspace.Pane{SessionID: "c", Name: "c", SortOrder: 2})
 
 	_, err := harness.h.SaveLayout(context.Background(), connect.NewRequest(&workspacev1.SaveLayoutRequest{
 		ActivePane: "b",
@@ -92,7 +92,7 @@ func TestConnect_SaveLayout_Reorder(t *testing.T) {
 		t.Fatalf("SaveLayout: %v", err)
 	}
 
-	layout, _ := store.GetLayout()
+	layout, _ := store.GetLayout(context.Background())
 	if layout.Panes[0].SessionID != "c" {
 		t.Errorf("expected first pane c, got %s", layout.Panes[0].SessionID)
 	}
@@ -140,7 +140,7 @@ func TestConnect_UpdatePane_Create(t *testing.T) {
 func TestConnect_UpdatePane_PartialUpdate(t *testing.T) {
 	harness, srv := newWorkspaceConnectHandler(t)
 	store := srv.workspace.(*intworkspace.MemStore)
-	_ = store.UpsertPane(intworkspace.Pane{
+	_ = store.UpsertPane(context.Background(), intworkspace.Pane{
 		SessionID: "s1", Name: "original", HeaderColor: "#00ff00",
 		ThemeID: "monokai", FontSize: 14,
 	})
@@ -176,8 +176,8 @@ func TestConnect_DeletePane_Idempotent(t *testing.T) {
 func TestConnect_UpdatePane_SetGroup(t *testing.T) {
 	harness, srv := newWorkspaceConnectHandler(t)
 	store := srv.workspace.(*intworkspace.MemStore)
-	group, _ := store.CreateGroup("Dev", "#3b82f6")
-	_ = store.UpsertPane(intworkspace.Pane{SessionID: "s1", Name: "bash"})
+	group, _ := store.CreateGroup(context.Background(), "Dev", "#3b82f6")
+	_ = store.UpsertPane(context.Background(), intworkspace.Pane{SessionID: "s1", Name: "bash"})
 
 	resp, err := harness.h.UpdatePane(context.Background(), connect.NewRequest(&workspacev1.UpdatePaneRequest{
 		SessionId:  "s1",
@@ -232,7 +232,7 @@ func TestConnect_CreateGroup_Defaults(t *testing.T) {
 func TestConnect_UpdateGroup(t *testing.T) {
 	harness, srv := newWorkspaceConnectHandler(t)
 	store := srv.workspace.(*intworkspace.MemStore)
-	group, _ := store.CreateGroup("Old name", "#000000")
+	group, _ := store.CreateGroup(context.Background(), "Old name", "#000000")
 
 	resp, err := harness.h.UpdateGroup(context.Background(), connect.NewRequest(&workspacev1.UpdateGroupRequest{
 		Id:             group.ID,
@@ -284,17 +284,17 @@ func TestConnect_DeleteGroup_ClearsGroupOnPanes(t *testing.T) {
 	harness, srv := newWorkspaceConnectHandler(t)
 	store := srv.workspace.(*intworkspace.MemStore)
 
-	group, _ := store.CreateGroup("Test", "#ff0000")
-	_ = store.UpsertPane(intworkspace.Pane{SessionID: "s1", Name: "a", GroupID: group.ID})
-	_ = store.UpsertPane(intworkspace.Pane{SessionID: "s2", Name: "b", GroupID: group.ID})
-	_ = store.UpsertPane(intworkspace.Pane{SessionID: "s3", Name: "c"})
+	group, _ := store.CreateGroup(context.Background(), "Test", "#ff0000")
+	_ = store.UpsertPane(context.Background(), intworkspace.Pane{SessionID: "s1", Name: "a", GroupID: group.ID})
+	_ = store.UpsertPane(context.Background(), intworkspace.Pane{SessionID: "s2", Name: "b", GroupID: group.ID})
+	_ = store.UpsertPane(context.Background(), intworkspace.Pane{SessionID: "s3", Name: "c"})
 
 	_, err := harness.h.DeleteGroup(context.Background(), connect.NewRequest(&workspacev1.DeleteGroupRequest{Id: group.ID}))
 	if err != nil {
 		t.Fatalf("DeleteGroup: %v", err)
 	}
 
-	layout, _ := store.GetLayout()
+	layout, _ := store.GetLayout(context.Background())
 	for _, p := range layout.Panes {
 		if p.GroupID != "" {
 			t.Errorf("pane %s still has group_id %s", p.SessionID, p.GroupID)
@@ -305,10 +305,10 @@ func TestConnect_DeleteGroup_ClearsGroupOnPanes(t *testing.T) {
 func TestConnect_GetLayout_WithGroups(t *testing.T) {
 	harness, srv := newWorkspaceConnectHandler(t)
 	store := srv.workspace.(*intworkspace.MemStore)
-	group, _ := store.CreateGroup("Servers", "#e11d48")
-	_ = store.UpsertPane(intworkspace.Pane{SessionID: "s1", Name: "web", GroupID: group.ID, SortOrder: 0})
-	_ = store.UpsertPane(intworkspace.Pane{SessionID: "s2", Name: "db", GroupID: group.ID, SortOrder: 1})
-	_ = store.UpsertPane(intworkspace.Pane{SessionID: "s3", Name: "logs", SortOrder: 2})
+	group, _ := store.CreateGroup(context.Background(), "Servers", "#e11d48")
+	_ = store.UpsertPane(context.Background(), intworkspace.Pane{SessionID: "s1", Name: "web", GroupID: group.ID, SortOrder: 0})
+	_ = store.UpsertPane(context.Background(), intworkspace.Pane{SessionID: "s2", Name: "db", GroupID: group.ID, SortOrder: 1})
+	_ = store.UpsertPane(context.Background(), intworkspace.Pane{SessionID: "s3", Name: "logs", SortOrder: 2})
 
 	resp, err := harness.h.GetLayout(context.Background(), connect.NewRequest(&workspacev1.GetLayoutRequest{}))
 	if err != nil {

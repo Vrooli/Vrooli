@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
 	"web-console/internal/backend"
 	"web-console/internal/sessionstore"
 )
@@ -15,7 +17,7 @@ func TestCodexTailer_PopulatesAgentInfoOnFirstRollout(t *testing.T) {
 	srv, sess := newCodexTailerTestServer(t)
 	srv.sessionStore = sessionstore.NewInMemory()
 	srv.sessions.SetStore(srv.sessionStore)
-	if err := srv.sessionStore.Save(sessionstore.Metadata{
+	if err := srv.sessionStore.Save(context.Background(), sessionstore.Metadata{
 		ID:       sess.ID,
 		Backend:  backend.Persistent,
 		Shell:    "/bin/bash",
@@ -60,7 +62,7 @@ func TestCodexTailer_PopulatesAgentInfoOnFirstRollout(t *testing.T) {
 	ct := NewCodexTailer(srv)
 	ct.captureAgentInfo(rolloutPath, sess.ID)
 
-	got, err := srv.sessionStore.Get(sess.ID)
+	got, err := srv.sessionStore.Get(context.Background(), sess.ID)
 	if err != nil {
 		t.Fatalf("get session: %v", err)
 	}
@@ -83,7 +85,7 @@ func TestCodexTailer_AgentInfoIgnoresNonSessionMeta(t *testing.T) {
 	srv, sess := newCodexTailerTestServer(t)
 	srv.sessionStore = sessionstore.NewInMemory()
 	srv.sessions.SetStore(srv.sessionStore)
-	if err := srv.sessionStore.Save(sessionstore.Metadata{
+	if err := srv.sessionStore.Save(context.Background(), sessionstore.Metadata{
 		ID:       sess.ID,
 		Backend:  backend.Persistent,
 		Shell:    "/bin/bash",
@@ -103,7 +105,7 @@ func TestCodexTailer_AgentInfoIgnoresNonSessionMeta(t *testing.T) {
 	ct := NewCodexTailer(srv)
 	ct.captureAgentInfo(tmp, sess.ID)
 
-	got, _ := srv.sessionStore.Get(sess.ID)
+	got, _ := srv.sessionStore.Get(context.Background(), sess.ID)
 	if got.AgentType != sessionstore.AgentNone {
 		t.Errorf("agent_type changed despite non-session_meta first line: %q", got.AgentType)
 	}

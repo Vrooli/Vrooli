@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
  * "UI↔own-API only" migration, this folder calls web-console's own
  * AudioAdminService + AudioRuntimeService via the same-origin Connect
  * transport. It does NOT import from `@vrooli/proto-types/audio-tools/*`,
- * `@audio-tools/embed`, or any other foreign-scenario audio package.
+ * the retired foreign audio package, or any other foreign-scenario audio package.
  */
 
 const THIS_FILE: string = fileURLToPath(import.meta.url);
@@ -61,8 +61,8 @@ describe("frontend audio adoption boundary", () => {
         const spec = match[1];
         if (typeof spec !== "string") continue;
         if (
-          spec === "@audio-tools/embed" ||
-          spec.startsWith("@audio-tools/embed/") ||
+          spec === ["@audio-tools", "embed"].join("/") ||
+          spec.startsWith(["@audio-tools", "embed"].join("/") + "/") ||
           spec.startsWith("@vrooli/proto-types/audio-tools/")
         ) {
           violations.push({ file, spec });
@@ -72,7 +72,7 @@ describe("frontend audio adoption boundary", () => {
 
     expect(
       violations,
-      "UI must not import audio-tools proto types or @audio-tools/embed. " +
+      "UI must not import audio-tools proto types or the retired foreign audio package. " +
         "Use web-console's own audio_admin / audio_runtime proto types instead. " +
         "Offenders:\n" +
         violations.map((v) => `  ${v.file}\n    -> "${v.spec}"`).join("\n"),

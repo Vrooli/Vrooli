@@ -4,6 +4,17 @@
   "name": "open-workspace",
   "folder_path": "/bas/actions",
   "description": "Navigate to web-console workspace and wait for launch control",
+  "metadata": {
+    "name": "open-workspace",
+    "description": "Navigate to web-console workspace and wait for launch control",
+    "execution_mode": "mutating",
+    "reset": "none",
+    "labels": {
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    }
+  },
   "tags": [
     "reset:none"
   ],

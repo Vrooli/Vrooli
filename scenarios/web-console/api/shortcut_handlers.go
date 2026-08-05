@@ -4,6 +4,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	shortcutsH "web-console/handlers/shortcuts"
@@ -20,12 +21,12 @@ func newShortcutsAdapter(s *Server) *shortcutsAdapter {
 	return &shortcutsAdapter{s: s}
 }
 
-func (a *shortcutsAdapter) Effective() []shortcutsH.Shortcut {
-	return entriesToTransport(a.s.shortcuts.Effective())
+func (a *shortcutsAdapter) Effective(ctx context.Context) []shortcutsH.Shortcut {
+	return entriesToTransport(a.s.shortcuts.Effective(ctx))
 }
 
-func (a *shortcutsAdapter) List() []shortcutsH.Profile {
-	profiles := a.s.shortcuts.List()
+func (a *shortcutsAdapter) List(ctx context.Context) []shortcutsH.Profile {
+	profiles := a.s.shortcuts.List(ctx)
 	out := make([]shortcutsH.Profile, 0, len(profiles))
 	for _, p := range profiles {
 		out = append(out, profileToTransport(p))
@@ -33,7 +34,7 @@ func (a *shortcutsAdapter) List() []shortcutsH.Profile {
 	return out
 }
 
-func (a *shortcutsAdapter) Upsert(req shortcutsH.UpsertRequest) (shortcutsH.Profile, error) {
+func (a *shortcutsAdapter) Upsert(ctx context.Context, req shortcutsH.UpsertRequest) (shortcutsH.Profile, error) {
 	if req.ID == "" {
 		return shortcutsH.Profile{}, fmt.Errorf("%w: profile ID is required", shortcutsH.ErrInvalidArgument)
 	}
@@ -52,12 +53,12 @@ func (a *shortcutsAdapter) Upsert(req shortcutsH.UpsertRequest) (shortcutsH.Prof
 		}
 	}
 	entries := entriesFromTransport(req.Shortcuts)
-	p := a.s.shortcuts.Upsert(req.ID, req.Scope, req.Name, entries)
+	p := a.s.shortcuts.Upsert(ctx, req.ID, req.Scope, req.Name, entries)
 	return profileToTransport(p), nil
 }
 
-func (a *shortcutsAdapter) Delete(id string) {
-	a.s.shortcuts.Delete(id) // idempotent
+func (a *shortcutsAdapter) Delete(ctx context.Context, id string) {
+	a.s.shortcuts.Delete(ctx, id) // idempotent
 }
 
 func entriesToTransport(in []ShortcutEntry) []shortcutsH.Shortcut {

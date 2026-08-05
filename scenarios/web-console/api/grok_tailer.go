@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"io"
 	"log"
@@ -106,7 +107,7 @@ func (gt *GrokTailer) loadCheckpointOffset(path string) int64 {
 	if gt.checkpoints == nil {
 		return 0
 	}
-	cp, ok, err := gt.checkpoints.Get(grokSource, path)
+	cp, ok, err := gt.checkpoints.Get(context.Background(), grokSource, path)
 	if err != nil {
 		log.Printf("grok-tailer: checkpoint load failed for %s: %v", path, err)
 		return 0
@@ -125,7 +126,7 @@ func (gt *GrokTailer) saveCheckpoint(path, sessionID string, offset int64) {
 	if gt.checkpoints == nil {
 		return
 	}
-	if err := gt.checkpoints.Save(AgentTranscriptCheckpoint{
+	if err := gt.checkpoints.Save(context.Background(), AgentTranscriptCheckpoint{
 		Source:    grokSource,
 		SourceKey: path,
 		SessionID: sessionID,
@@ -303,7 +304,7 @@ func (gt *GrokTailer) captureAgentInfo(updatesPath, sessionID string) {
 		LastRolloutPath: updatesPath,
 		LastActivityAt:  time.Now(),
 	}
-	if err := gt.server.sessionStore.UpdateAgentInfo(sessionID, info); err != nil {
+	if err := gt.server.sessionStore.UpdateAgentInfo(context.Background(), sessionID, info); err != nil {
 		log.Printf("grok-tailer: UpdateAgentInfo for %s: %v", sessionID, err)
 	}
 }

@@ -21,8 +21,13 @@ type Pane struct {
 	GroupID              string `json:"group_id,omitempty"`
 	IsActive             bool   `json:"-"`
 	SupportsMessagesView bool   `json:"supports_messages_view"`
-	CreatedAt            string `json:"created_at,omitempty"`
-	UpdatedAt            string `json:"updated_at,omitempty"`
+	// ManuallyUnread is the user's own "come back to this" flag. It is
+	// deliberately separate from the conversation read cursor: the cursor
+	// only moves forward (it records what was actually displayed) and exists
+	// only for message-capable sessions, so it cannot express this.
+	ManuallyUnread bool   `json:"manually_unread"`
+	CreatedAt      string `json:"created_at,omitempty"`
+	UpdatedAt      string `json:"updated_at,omitempty"`
 }
 
 // Group is a named group of tabs with a display color.
@@ -62,6 +67,8 @@ type UpdatePaneRequest struct {
 	HasGroupID              bool
 	SupportsMessagesView    bool
 	HasSupportsMessagesView bool
+	ManuallyUnread          bool
+	HasManuallyUnread       bool
 }
 
 // UpdateGroupRequest carries optional group-field overrides.

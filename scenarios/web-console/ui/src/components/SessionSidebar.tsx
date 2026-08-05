@@ -3,7 +3,7 @@ import { ArrowDownUp, GripVertical, MessageSquareText, Plus, Settings, TerminalS
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
-import { paneColorStyle } from "../lib/paneColor";
+import { paneAccentStyle } from "../lib/paneColor";
 import type { OriginBucketNavigation } from "../lib/workspaceNavigation";
 import type { SidebarOriginTab } from "../stores/useWorkspaceStore";
 import { useLongPress } from "../hooks/useLongPress";
@@ -78,8 +78,18 @@ export default function SessionSidebar({
   const setSidebarOriginTab = useWorkspaceStore((s) => s.setSidebarOriginTab);
   const plusButtonBehavior = useWorkspaceStore((s) => s.plusButtonBehavior);
 	const viewerCounts = useWorkspaceStore((s) => s.viewerCounts);
-  const { syncPaneUpdate, syncPaneOrder } = useWorkspaceSync();
+  const { syncPaneUpdate, syncPaneMove } = useWorkspaceSync();
   const { removePaneFromGroup } = useGroupActions();
+  const setPaneManuallyUnread = useWorkspaceStore((s) => s.setPaneManuallyUnread);
+
+  /** Flip a pane's manual unread flag and persist it. */
+  const toggleManualUnread = useCallback((sessionId: string) => {
+    const pane = useWorkspaceStore.getState().panes.find((p) => p.sessionId === sessionId);
+    if (!pane) return;
+    const next = !pane.manuallyUnread;
+    setPaneManuallyUnread(sessionId, next);
+    syncPaneUpdate(sessionId, { manually_unread: next });
+  }, [setPaneManuallyUnread, syncPaneUpdate]);
   const [editingPaneId, setEditingPaneId] = useState<string | null>(null);
   const [editingPaneName, setEditingPaneName] = useState("");
   const editingInputRef = useRef<HTMLInputElement>(null);
@@ -193,8 +203,7 @@ export default function SessionSidebar({
       setDragState((prev) => {
         if (prev) {
           movePaneToIndex(prev.paneId, prev.dropIndex);
-          const { panes: updated, activePane: active } = useWorkspaceStore.getState();
-          syncPaneOrder(updated.map((p) => p.sessionId), active);
+          syncPaneMove(prev.paneId);
         }
         return null;
       });
@@ -207,7 +216,7 @@ export default function SessionSidebar({
       window.removeEventListener("pointerup", handleUp);
       window.removeEventListener("pointercancel", handleUp);
     };
-  }, [dragState, movePaneToIndex, syncPaneOrder]);
+  }, [dragState, movePaneToIndex, syncPaneMove]);
 
   const panePressGesture = usePressGesture<string>({
     longPressMs: SIDEBAR_LONG_PRESS_MS,
@@ -372,10 +381,7 @@ export default function SessionSidebar({
           const { pane, activityLabel, previewText, unreadCount, viewMode, isActive, group, groupPosition, globalIndex } = item;
           const isBeingDragged = dragState?.paneId === pane.sessionId;
           const isDropTarget = dragState !== null && !isBeingDragged && dragState.dropIndex === globalIndex;
-          // Pane color wins; fall back to the group color when the pane is transparent.
-          const accentStyle =
-            paneColorStyle(pane.headerColor, "bar") ??
-            (group?.color ? { backgroundColor: group.color } : undefined);
+          const accentStyle = paneAccentStyle(pane.headerColor, group?.color, "bar");
           const isEditing = editingPaneId === pane.sessionId;
 		  const viewerCount = viewerCounts[pane.sessionId] ?? 1;
           const rowBody = (
@@ -412,6 +418,17 @@ export default function SessionSidebar({
                     <span className="rounded-full bg-wc-accent px-1.5 py-0.5 text-[10px] font-semibold text-wc-accent-fg">
                       {unreadCount}
                     </span>
+                  )}
+                  {/* Manual flag. Suppressed when real unread messages are
+                      already shown — the count is strictly more informative,
+                      and two badges on one row reads as two separate alerts. */}
+                  {unreadCount === 0 && pane.manuallyUnread && (
+                    <span
+                      data-testid={`sidebar-manual-unread-${pane.sessionId}`}
+                      className="h-2 w-2 shrink-0 rounded-full bg-wc-accent"
+                      role="img"
+                      aria-label={t(strings.sessionSidebar.manuallyUnreadAria, { name: pane.name })}
+                    />
                   )}
 				  {viewerCount > 1 && <span data-testid={`sidebar-viewers-${pane.sessionId}`} className="rounded-full border border-wc-default px-1.5 py-0.5 text-[10px]">{viewerCount}</span>}
                 </span>
@@ -568,8 +585,7 @@ export default function SessionSidebar({
         const orderIdx = orderedPanes.findIndex((p) => p.sessionId === tabContextMenu.sessionId);
         const moveTo = (target: number) => {
           movePaneToIndex(tabContextMenu.sessionId, target);
-          const { panes: updated, activePane: active } = useWorkspaceStore.getState();
-          syncPaneOrder(updated.map((p) => p.sessionId), active);
+          syncPaneMove(tabContextMenu.sessionId);
         };
         const canMoveUp = isManualSort && orderIdx > 0;
         const canMoveDown = isManualSort && orderIdx >= 0 && orderIdx < orderedPanes.length - 1;
@@ -578,6 +594,8 @@ export default function SessionSidebar({
             position={tabContextMenu.position}
             sessionId={tabContextMenu.sessionId}
             currentGroupId={paneItem.pane.groupId}
+            isManuallyUnread={paneItem.pane.manuallyUnread}
+            onToggleManuallyUnread={() => toggleManualUnread(tabContextMenu.sessionId)}
             onRename={() => {
               startRename(paneItem.pane.sessionId, paneItem.pane.name);
               setTabContextMenu(null);

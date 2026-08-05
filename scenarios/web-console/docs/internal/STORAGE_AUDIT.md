@@ -6,8 +6,8 @@
 ## Resource Configuration Status
 - [x] SQLite declared in service.json
 - [x] Database file resolved via `api-core/storage` (ClassData)
-- [x] Initialization files present (`initialization/sqlite/schema.sql`, `seed.sql`)
-- [x] Schema initialized on startup via `initSchema()` in `main.go`
+- [x] Domain-owned embedded schema and seed (`api/internal/sessions/schema.sql`, `seed.sql`)
+- [x] Schema initialized on startup via `database.EnsureSchemas` in `main.go`
 
 ## Connection Pattern Status
 - [x] DSN built with performance pragmas (WAL, foreign_keys, busy_timeout)

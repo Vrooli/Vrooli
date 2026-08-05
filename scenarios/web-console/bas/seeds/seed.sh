@@ -16,6 +16,8 @@ else
   UI_PORT="${UI_PORT:-36233}"
 fi
 API_BASE="http://127.0.0.1:${API_PORT}/api/v1"
+# Sessions moved to Connect-RPC; the old REST routes 404.
+SESSIONS_RPC="http://127.0.0.1:${API_PORT}/vrooli.web_console.v1.sessions.SessionsService"
 HEALTH_URL="http://127.0.0.1:${API_PORT}/health"
 UI_PROXY_HEALTH_URL="http://127.0.0.1:${UI_PORT}/api/v1/health"
 
@@ -51,7 +53,7 @@ create_seed_session() {
   local delay_s=1
   local i
   for i in $(seq 1 "${attempts}"); do
-    if curl -sf --connect-timeout 1 --max-time 2 -X POST "${API_BASE}/sessions" \
+    if curl -sf --connect-timeout 1 --max-time 2 -X POST "${SESSIONS_RPC}/Create" \
       -H "Content-Type: application/json" \
       -d '{"shell":"/bin/bash","cols":120,"rows":40}' \
       -o /dev/null; then
@@ -107,7 +109,7 @@ seed_message_navigator_conversation() {
   fi
 
   local session_id
-  session_id="$(curl -sf --connect-timeout 1 --max-time 2 -X POST "${API_BASE}/sessions" \
+  session_id="$(curl -sf --connect-timeout 1 --max-time 2 -X POST "${SESSIONS_RPC}/Create" \
     -H "Content-Type: application/json" \
     -d '{"shell":"/bin/bash","cols":120,"rows":40}' \
     | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"
@@ -156,7 +158,7 @@ seed_file_preview_conversation() {
   printf '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>\n' > "${svg_path}" || return 0
 
   local session_id
-  session_id="$(curl -sf --connect-timeout 1 --max-time 2 -X POST "${API_BASE}/sessions" \
+  session_id="$(curl -sf --connect-timeout 1 --max-time 2 -X POST "${SESSIONS_RPC}/Create" \
     -H "Content-Type: application/json" \
     -d '{"shell":"/bin/bash","cols":120,"rows":40}' \
     | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)"

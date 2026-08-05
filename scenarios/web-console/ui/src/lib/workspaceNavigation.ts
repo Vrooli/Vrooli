@@ -57,12 +57,84 @@ export interface BuildWorkspaceNavigationItemsOptions {
   globalIndexBySession?: Record<string, number>;
 }
 
+/**
+ * Reorder panes so each group occupies ONE contiguous block, anchored at the
+ * position of its first member. Ungrouped panes keep their relative positions;
+ * a group's members keep their relative order inside the block.
+ *
+ * This is the invariant the whole navigation layer assumes but nothing used to
+ * enforce. Group boundaries are decided purely by adjacency — a group label is
+ * emitted whenever `groupId` differs from the previous pane's — so a group
+ * whose members are not neighbors renders as several blocks, each with its own
+ * header and each claiming the group's full member count. Every ordinary
+ * action used to be able to cause that: removing a middle member from a group,
+ * dragging any pane through a group's run, or simply reloading (the backend
+ * orders by `sort_order, created_at`, and ties are common).
+ *
+ * Applying this at every write AND at the render boundary makes the split
+ * unrepresentable rather than merely unlikely. Returns the input array itself
+ * when it already satisfies the invariant, so React sees a stable identity on
+ * the overwhelmingly common path.
+ */
+export function orderPanesByGroupBlocks(panes: PaneMetadata[]): PaneMetadata[] {
+  const membersByGroup = new Map<string, PaneMetadata[]>();
+  for (const pane of panes) {
+    if (!pane.groupId) continue;
+    const members = membersByGroup.get(pane.groupId);
+    if (members) members.push(pane);
+    else membersByGroup.set(pane.groupId, [pane]);
+  }
+  if (membersByGroup.size === 0) return panes;
+
+  const emitted = new Set<string>();
+  const ordered: PaneMetadata[] = [];
+  for (const pane of panes) {
+    const groupId = pane.groupId;
+    if (!groupId) {
+      ordered.push(pane);
+      continue;
+    }
+    if (emitted.has(groupId)) continue;
+    emitted.add(groupId);
+    ordered.push(...(membersByGroup.get(groupId) ?? [pane]));
+  }
+
+  return ordered.every((pane, i) => pane === panes[i]) ? panes : ordered;
+}
+
+/**
+ * The group a pane belongs to after being dropped at `index`, following the
+ * tab-group convention users already know from browsers:
+ *   - dropped strictly *inside* a group's run → joins that group;
+ *   - dropped against an edge of its own group → stays (plain reorder);
+ *   - dropped anywhere else → leaves its group.
+ *
+ * Without this a drop inside a group would be silently undone by
+ * `orderPanesByGroupBlocks`, which reads as the drag doing nothing.
+ * `panes` must already have the moved pane at `index`.
+ */
+export function groupIdForDropPosition(
+  panes: PaneMetadata[],
+  index: number,
+  currentGroupId: string | null,
+): string | null {
+  const before = panes[index - 1]?.groupId ?? null;
+  const after = panes[index + 1]?.groupId ?? null;
+  if (before !== null && before === after) return before;
+  if (currentGroupId !== null && (before === currentGroupId || after === currentGroupId)) {
+    return currentGroupId;
+  }
+  return null;
+}
+
 /** Per-pane comparison inputs used by the non-manual sidebar sorts. */
 export interface PaneSortMetrics {
   name: string;
   /** Activity timestamp in ms (latest event, else last-visited, else 0). */
   activityMs: number;
   unread: number;
+  /** The user's manual "come back to this" flag. */
+  flagged: boolean;
 }
 
 /**
@@ -91,7 +163,7 @@ export function sortPanesForView(
     bucket.push(pane);
   }
 
-  const empty: PaneSortMetrics = { name: "", activityMs: 0, unread: 0 };
+  const empty: PaneSortMetrics = { name: "", activityMs: 0, unread: 0, flagged: false };
   const compare = (a: PaneMetadata, b: PaneMetadata): number => {
     const ma = metrics.get(a.sessionId) ?? empty;
     const mb = metrics.get(b.sessionId) ?? empty;
@@ -101,7 +173,11 @@ export function sortPanesForView(
       case "activity":
         return mb.activityMs - ma.activityMs;
       case "unread":
-        return mb.unread - ma.unread || mb.activityMs - ma.activityMs;
+        // Real unread messages outrank a manual flag (they carry a count and
+        // a reason), but a flagged session still sorts above an untouched one.
+        return mb.unread - ma.unread
+          || Number(mb.flagged) - Number(ma.flagged)
+          || mb.activityMs - ma.activityMs;
       default:
         return 0;
     }
@@ -158,9 +234,14 @@ export function buildWorkspaceNavigationItems({
   const items: WorkspaceNavigationItem[] = [];
   let lastGroupId: string | null | undefined = undefined;
 
+  // Group blocks first, in every mode. `sortPanesForView` already partitions
+  // by group, so this is a no-op for the non-manual sorts; it is the render
+  // boundary's last line of defence for "manual", where the pane array is
+  // whatever the store and the backend last agreed on.
+  let orderedPanes = orderPanesByGroupBlocks(panes);
+
   // Non-manual sidebar sorts reorder a view-only copy (sort_order is never
   // touched). Metrics are computed once up front so the comparator is cheap.
-  let orderedPanes = panes;
   if (sortMode !== "manual") {
     const metrics = new Map<string, PaneSortMetrics>();
     for (const pane of panes) {
@@ -171,9 +252,10 @@ export function buildWorkspaceNavigationItems({
         name: pane.name,
         activityMs: activityAt ? Date.parse(activityAt) || 0 : 0,
         unread: countUnreadMessages(pane, session),
+        flagged: pane.manuallyUnread,
       });
     }
-    orderedPanes = sortPanesForView(panes, sortMode, metrics);
+    orderedPanes = sortPanesForView(orderedPanes, sortMode, metrics);
   }
 
   orderedPanes.forEach((pane, idx) => {
@@ -270,6 +352,12 @@ export interface BuildOriginBucketedNavigationOptions extends BuildWorkspaceNavi
  * pinned to the pane's position in the full (unbucketed) list so drag-reorder
  * still addresses the backing store array.
  *
+ * A group is atomic here: every member follows the group's FIRST member into a
+ * single bucket, whatever its own provenance. A group is a unit the user made
+ * by hand, so a mixed-origin group (say, one session opened in the UI and one
+ * started by an agent) must not be torn in half across two tabs — where each
+ * half looks like the group has silently lost members.
+ *
  * With only UI-origin sessions this returns a single "ui" bucket, and the caller
  * renders that list exactly as it did before origin tabs existed.
  */
@@ -283,9 +371,18 @@ export function buildOriginBucketedNavigation({
     globalIndexBySession[pane.sessionId] = index;
   });
 
+  const bucketByGroup = new Map<string, SidebarOriginTab>();
+  for (const pane of panes) {
+    if (!pane.groupId || bucketByGroup.has(pane.groupId)) continue;
+    bucketByGroup.set(pane.groupId, originBucket(originBySession[pane.sessionId]));
+  }
+  const bucketForPane = (pane: PaneMetadata): SidebarOriginTab =>
+    (pane.groupId ? bucketByGroup.get(pane.groupId) : undefined)
+    ?? originBucket(originBySession[pane.sessionId]);
+
   const result: OriginBucketNavigation[] = [];
   for (const bucket of ORIGIN_BUCKET_ORDER) {
-    const bucketPanes = panes.filter((pane) => originBucket(originBySession[pane.sessionId]) === bucket);
+    const bucketPanes = panes.filter((pane) => bucketForPane(pane) === bucket);
     if (bucketPanes.length === 0) continue;
     result.push({
       bucket,

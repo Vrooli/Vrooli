@@ -519,5 +519,12 @@ Tests that **stay** in web-console: `tts_hook_handler_test.go`, `tts_router_test
 Preexisting failing tests not caused by this work:
 - `TestDocsManifestResolves` and `TestDocsNoStaleOldPaths` reference removed
   doc paths (`DESIGN.md`, `concepts/FLOWS.md`, `internal/PROGRESS.md`, etc.).
-  Stale `docs/manifest.json` and `docs/START-HERE.md`; unrelated to audio
-  extraction prep.
+Stale `docs/manifest.json` and `docs/START-HERE.md`; unrelated to audio
+extraction prep.
+
+## Work ladder
+
+- Rung: W0 (goal/problem contract comparison)
+- Evidence: The nearest indexed goals are `hosted-cloud-tier-foundation` and `portal-front-door`; neither names this plan's browser audio extraction scope. Web-console scope remains limited to its shared-package adapter and validation obligations.
+- Constraint: Existing web-console documentation-health failures remain separately recorded and are not reinterpreted as audio extraction requirements.
+- Measured: 2026-08-03.

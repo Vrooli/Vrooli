@@ -4,6 +4,17 @@
   "name": "launch-custom-command",
   "folder_path": "/bas/actions",
   "description": "Open launcher and create a terminal session with a custom command",
+  "metadata": {
+    "name": "launch-custom-command",
+    "description": "Open launcher and create a terminal session with a custom command",
+    "execution_mode": "mutating",
+    "reset": "none",
+    "labels": {
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    }
+  },
   "tags": [
     "reset:none",
     "parameters_json:[{\"name\":\"command\",\"type\":\"string\",\"required\":true,\"description\":\"Shell command to execute immediately after session launch\"}]"

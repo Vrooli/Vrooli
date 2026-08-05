@@ -49,6 +49,7 @@ vi.mock("../hooks/terminal/useTerminalSession", () => {
   const gate = { submit: vi.fn(() => ({ status: "sent" as const, seq: 1 })), dispose: vi.fn(), canAcceptPaste: () => true };
   const submitInput = vi.fn(() => ({ status: "sent" as const, seq: 1 }));
   const sendResize = vi.fn();
+  const getServerSize = vi.fn(() => null);
   const subscribeInputSettled = vi.fn(() => () => {});
   const subscribePendingInput = vi.fn(() => () => {});
   const getPendingInputSnapshot = vi.fn(() => []);
@@ -57,6 +58,8 @@ vi.mock("../hooks/terminal/useTerminalSession", () => {
       submitInput,
       gate,
       sendResize,
+      getServerSize,
+      serverSize: null,
 
       subscribeInputSettled,
       subscribePendingInput,
@@ -83,6 +86,7 @@ vi.mock("../stores/useWorkspaceStore", () => {
     kokoroSpeed: 1,
     ttsBackendPreference: "auto" as const,
     autoTtsEnabled: false,
+    deviceFontSize: {},
     setPendingInputDraft: vi.fn(),
     consumePendingInputDraft: vi.fn(() => undefined),
   };

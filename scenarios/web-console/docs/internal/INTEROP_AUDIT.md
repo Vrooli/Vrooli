@@ -73,8 +73,8 @@ sentinel test it references should be re-evaluated.
 ## Boundary tests
 
 - `scenarios/web-console/ui/src/__tests__/audio-boundary.test.ts`
-  asserts no UI file imports `@vrooli/proto-types/audio-tools/*` or the
-  retired `@audio-tools/embed` package.
+  asserts no UI file imports `@vrooli/proto-types/audio-tools/*` or creates
+  a private voice-stream provider instead of using the shared capture package.
 - `scenarios/web-console/api/handlers/audio_admin/connect_handler_test.go`
   pins the Connect handler error envelope (Unavailable → CodeUnavailable,
   empty mask → CodeInvalidArgument, missing profile_id → CodeInvalidArgument).

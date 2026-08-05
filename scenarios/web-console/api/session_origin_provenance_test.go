@@ -41,7 +41,7 @@ func TestCreateSession_ProvenanceRoundTrip(t *testing.T) {
 		Owner:        "agent-manager",
 		DisplayLabel: "Nightly build",
 	})
-	defer func() { _ = srv.sessions.Delete(created.GetId()) }()
+	defer func() { _ = srv.sessions.Delete(context.Background(), created.GetId()) }()
 
 	assertProvenance := func(where string, s *sessionsv1.Session) {
 		if s.GetOrigin() != sessionsv1.SessionOrigin_SESSION_ORIGIN_PROGRAMMATIC {
@@ -84,13 +84,13 @@ func TestCreateSession_UnspecifiedOriginNormalizesToProgrammatic(t *testing.T) {
 	srv := newProvenanceServer(t)
 
 	created := createWithProvenance(t, srv, &sessionsv1.CreateRequest{})
-	defer func() { _ = srv.sessions.Delete(created.GetId()) }()
+	defer func() { _ = srv.sessions.Delete(context.Background(), created.GetId()) }()
 
 	if created.GetOrigin() != sessionsv1.SessionOrigin_SESSION_ORIGIN_PROGRAMMATIC {
 		t.Errorf("create origin = %v, want PROGRAMMATIC", created.GetOrigin())
 	}
 	// The stored row must carry the normalized value, not the empty wire zero.
-	stored, err := srv.sessionStore.Get(created.GetId())
+	stored, err := srv.sessionStore.Get(context.Background(), created.GetId())
 	if err != nil {
 		t.Fatalf("store get: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestCreateSession_UIOriginPreserved(t *testing.T) {
 	created := createWithProvenance(t, srv, &sessionsv1.CreateRequest{
 		Origin: sessionsv1.SessionOrigin_SESSION_ORIGIN_UI,
 	})
-	defer func() { _ = srv.sessions.Delete(created.GetId()) }()
+	defer func() { _ = srv.sessions.Delete(context.Background(), created.GetId()) }()
 
 	if created.GetOrigin() != sessionsv1.SessionOrigin_SESSION_ORIGIN_UI {
 		t.Errorf("origin = %v, want UI", created.GetOrigin())
@@ -132,7 +132,7 @@ func TestCreateSession_EmitsProvenanceEvent(t *testing.T) {
 		Owner:        "agent-manager",
 		DisplayLabel: "Nightly build",
 	})
-	defer func() { _ = srv.sessions.Delete(created.GetId()) }()
+	defer func() { _ = srv.sessions.Delete(context.Background(), created.GetId()) }()
 
 	var details map[string]string
 	for _, e := range srv.events.Recent(0) {

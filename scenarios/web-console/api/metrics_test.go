@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"testing"
+
 	"web-console/internal/events"
 	"web-console/internal/metrics"
 
@@ -180,13 +181,13 @@ func TestHandleCreateSession_EmitsEvent(t *testing.T) {
 		t.Errorf("expected 1 active session metric, got %d", snap.Sessions.Active)
 	}
 
-	_ = srv.sessions.Delete(sess.GetId())
+	_ = srv.sessions.Delete(context.Background(), sess.GetId())
 }
 
 func TestHandleDeleteSession_EmitsEvent(t *testing.T) {
 	srv := newTestServer()
 
-	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}

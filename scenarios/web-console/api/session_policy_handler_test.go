@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"testing"
+
 	"web-console/internal/policy"
 
 	"connectrpc.com/connect"
@@ -14,11 +16,11 @@ import (
 // [REQ:P1-001a] Expiration Policy Engine — Get RPC
 func TestHandleGetPolicy(t *testing.T) {
 	srv := newFakeTestServer()
-	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	defer func() { _ = srv.sessions.Delete(sess.ID) }()
+	defer func() { _ = srv.sessions.Delete(context.Background(), sess.ID) }()
 
 	view, err := callGetPolicy(t, srv, sess.ID)
 	if err != nil {
@@ -43,11 +45,11 @@ func TestHandleGetPolicy_NotFound(t *testing.T) {
 // [REQ:P1-001a] Expiration Policy Engine — Update RPC
 func TestHandleUpdatePolicy(t *testing.T) {
 	srv := newFakeTestServer()
-	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	defer func() { _ = srv.sessions.Delete(sess.ID) }()
+	defer func() { _ = srv.sessions.Delete(context.Background(), sess.ID) }()
 
 	view, err := callUpdatePolicy(t, srv, sess.ID, "preset", "8h")
 	if err != nil {
@@ -67,11 +69,11 @@ func TestHandleUpdatePolicy(t *testing.T) {
 
 func TestHandleUpdatePolicy_InvalidMode(t *testing.T) {
 	srv := newFakeTestServer()
-	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	defer func() { _ = srv.sessions.Delete(sess.ID) }()
+	defer func() { _ = srv.sessions.Delete(context.Background(), sess.ID) }()
 
 	_, err = callUpdatePolicy(t, srv, sess.ID, "bad", "")
 	if got := connectCode(err); got != connect.CodeInvalidArgument {
@@ -97,7 +99,7 @@ func TestSessionResponse_IncludesPolicy(t *testing.T) {
 	if sess.GetPolicy().GetMode() != string(policy.Never) {
 		t.Errorf("new session should have never policy, got %s", sess.GetPolicy().GetMode())
 	}
-	_ = srv.sessions.Delete(sess.GetId())
+	_ = srv.sessions.Delete(context.Background(), sess.GetId())
 }
 
 // Verify error catalog includes invalid_policy

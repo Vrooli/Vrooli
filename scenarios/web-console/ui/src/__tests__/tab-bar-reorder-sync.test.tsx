@@ -30,6 +30,7 @@ const makePanes = (...ids: string[]): PaneMetadata[] =>
     fontSize: 14,
     groupId: null,
     supportsMessagesView: false,
+  manuallyUnread: false,
   }));
 
 describe("TabBar reorder sync", () => {

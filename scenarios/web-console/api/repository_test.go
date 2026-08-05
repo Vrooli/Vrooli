@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -28,13 +29,13 @@ func TestShortcutStoreInterface(t *testing.T) {
 	var store ShortcutStore = NewShortcutProfileStore()
 
 	// List returns at least the default profile
-	profiles := store.List()
+	profiles := store.List(context.Background())
 	if len(profiles) == 0 {
 		t.Fatal("expected at least one default profile")
 	}
 
 	// Get retrieves the default profile
-	p, ok := store.Get("default")
+	p, ok := store.Get(context.Background(), "default")
 	if !ok {
 		t.Fatal("expected to find default profile")
 	}
@@ -43,7 +44,7 @@ func TestShortcutStoreInterface(t *testing.T) {
 	}
 
 	// Upsert creates a new profile
-	created := store.Upsert("test-1", "workspace", "Test", []ShortcutEntry{
+	created := store.Upsert(context.Background(), "test-1", "workspace", "Test", []ShortcutEntry{
 		{Label: "Echo", Command: "echo hello"},
 	})
 	if created == nil {
@@ -54,7 +55,7 @@ func TestShortcutStoreInterface(t *testing.T) {
 	}
 
 	// Effective returns highest-priority scope's shortcuts
-	effective := store.Effective()
+	effective := store.Effective(context.Background())
 	if len(effective) == 0 {
 		t.Fatal("expected effective shortcuts")
 	}
@@ -64,10 +65,10 @@ func TestShortcutStoreInterface(t *testing.T) {
 	}
 
 	// Delete removes the profile
-	if !store.Delete("test-1") {
+	if !store.Delete(context.Background(), "test-1") {
 		t.Error("expected delete to return true")
 	}
-	if _, ok := store.Get("test-1"); ok {
+	if _, ok := store.Get(context.Background(), "test-1"); ok {
 		t.Error("expected profile to be gone after delete")
 	}
 }
@@ -78,35 +79,35 @@ func TestAIConfigStoreInterface(t *testing.T) {
 	var store intai.ConfigStore = intai.NewMemConfigStore()
 
 	// GetConfigs returns default providers
-	configs := store.GetConfigs()
+	configs := store.GetConfigs(context.Background())
 	if len(configs) < 2 {
 		t.Fatalf("expected at least 2 providers, got %d", len(configs))
 	}
 
 	// IsEnabled for default providers
-	if !store.IsEnabled("ollama") {
+	if !store.IsEnabled(context.Background(), "ollama") {
 		t.Error("expected ollama to be enabled by default")
 	}
 
 	// GetProviderTimeout returns configured timeout
-	timeout := store.GetProviderTimeout("ollama")
+	timeout := store.GetProviderTimeout(context.Background(), "ollama")
 	if timeout != 30*time.Second {
 		t.Errorf("expected 30s timeout, got %v", timeout)
 	}
 
 	// UpdateConfig changes settings
-	if !store.UpdateConfig("ollama", false, 1, 15, 2) {
+	if !store.UpdateConfig(context.Background(), "ollama", false, 1, 15, 2) {
 		t.Error("expected update to succeed")
 	}
-	if store.IsEnabled("ollama") {
+	if store.IsEnabled(context.Background(), "ollama") {
 		t.Error("expected ollama to be disabled after update")
 	}
 
 	// RecordSuccess/RecordError affect health
-	store.RecordSuccess("ollama", 100*time.Millisecond)
-	store.RecordError("openrouter")
+	store.RecordSuccess(context.Background(), "ollama", 100*time.Millisecond)
+	store.RecordError(context.Background(), "openrouter")
 
-	health := store.GetHealth()
+	health := store.GetHealth(context.Background())
 	if len(health) == 0 {
 		t.Fatal("expected health data")
 	}
@@ -115,7 +116,7 @@ func TestAIConfigStoreInterface(t *testing.T) {
 // TestInitSchemaIdempotent verifies initSchema handles missing files gracefully.
 func TestInitSchemaIdempotent(t *testing.T) {
 	// With a nil DB, initSchema should fail at the exec step, not panic
-	err := initSchema(nil)
+	err := initSchema(context.Background(), nil)
 	if err == nil {
 		t.Error("expected error with nil DB")
 	}

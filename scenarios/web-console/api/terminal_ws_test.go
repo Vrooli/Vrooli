@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -8,6 +9,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+
 	"web-console/internal/events"
 	"web-console/internal/metrics"
 	"web-console/internal/ptyfake"
@@ -42,7 +44,7 @@ func setupWSServer(t *testing.T) (*httptest.Server, *Server) {
 // bypass the wire and call the manager directly.
 func createTestSession(t *testing.T, ts *httptest.Server, srv *Server) string {
 	t.Helper()
-	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
@@ -55,7 +57,7 @@ func createTestSession(t *testing.T, ts *httptest.Server, srv *Server) string {
 func TestTerminalWS_FullHandlerStackSupportsWebSocketUpgrade(t *testing.T) {
 	srv := newFakeTestServer()
 	srv.setupRoutes()
-	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
@@ -103,7 +105,7 @@ func TestHandleTerminalWS_ExitedSession(t *testing.T) {
 		aiConfig:  intai.NewMemConfigStore(),
 		workspace: intworkspace.NewMemStore(),
 	}
-	deadSess, _ := sm.Create("/fake/shell", 80, 24, "", nil)
+	deadSess, _ := sm.Create(context.Background(), "/fake/shell", 80, 24, "", nil)
 	sessID := deadSess.ID
 
 	// Close output pipe to simulate process exit; auto-removal cleans up the map
@@ -643,7 +645,7 @@ func setupWSServerWithPTY(t *testing.T) (*httptest.Server, string, *ptyfake.Fake
 	ts := httptest.NewServer(srv.router)
 	t.Cleanup(ts.Close)
 
-	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}

@@ -23,6 +23,7 @@ const pane = (sessionId: string, headerColor: string): PaneMetadata => ({
   fontSize: 14,
   groupId: null,
   supportsMessagesView: false,
+  manuallyUnread: false,
 });
 
 // These tests exercise the (UI-origin) single-bucket path, where the sidebar

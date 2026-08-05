@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,6 +17,21 @@ const maxUploadSize = 20 << 20 // 20 MB
 
 func resolveUploadDir() string {
 	return mustResolveScenarioStorageDir(storage.ClassCache, "uploads")
+}
+
+// resolveUploadDirFor resolves the uploads root for one request. Under a test
+// lease the request context routes to the leased Cache root, so a BAS upload
+// never lands in the operator's real uploads tree; without a lease it resolves
+// to exactly the same path as resolveUploadDir.
+func (s *Server) resolveUploadDirFor(ctx context.Context) string {
+	if s.roots == nil {
+		return resolveUploadDir()
+	}
+	root, err := s.roots.Pick(ctx, storage.ClassCache)
+	if err != nil || strings.TrimSpace(root) == "" {
+		return resolveUploadDir()
+	}
+	return ensureDir(filepath.Join(root, "uploads"))
 }
 
 // allowedImageTypes maps accepted MIME types for image uploads.
@@ -114,7 +130,7 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create session-scoped upload directory
-	sessionDir := filepath.Join(resolveUploadDir(), sess.ID)
+	sessionDir := filepath.Join(s.resolveUploadDirFor(r.Context()), sess.ID)
 	if err := os.MkdirAll(sessionDir, 0o755); err != nil {
 		writeCatalogError(w, "internal_error", "Failed to create upload directory")
 		return
@@ -135,6 +151,10 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 		writeCatalogError(w, "internal_error", "Failed to write file")
 		return
 	}
+	// Records which root the write actually landed in. The lease reports a
+	// primary write during test mode as an isolation leak, so this call is
+	// what makes the evidence real rather than assumed.
+	s.roots.RecordWrite(r.Context())
 
 	writeJSON(w, http.StatusOK, map[string]string{"path": destPath})
 }

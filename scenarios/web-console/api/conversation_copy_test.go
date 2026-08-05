@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"testing"
 )
 
@@ -8,7 +9,7 @@ import (
 // the copy test can assert per-event state is carried over verbatim.
 func appendCopyTestEvent(t *testing.T, repo ConversationRepository, sessionID, id, text string, role ConversationRole) {
 	t.Helper()
-	if _, err := repo.AppendEvent(ConversationEvent{
+	if _, err := repo.AppendEvent(context.Background(), ConversationEvent{
 		ID:               id,
 		SessionID:        sessionID,
 		Source:           "test",
@@ -33,15 +34,15 @@ func TestSQLCopySession_PreservesHistoryStateAndSequence(t *testing.T) {
 	appendCopyTestEvent(t, repo, oldID, "evt-3", "third turn", ConversationRoleAssistant)
 
 	seen, listened := int64(2), int64(2)
-	if _, err := repo.UpdateCursor(oldID, conversationCursorPatch{seenSequence: &seen, listenedSequence: &listened}); err != nil {
+	if _, err := repo.UpdateCursor(context.Background(), oldID, conversationCursorPatch{seenSequence: &seen, listenedSequence: &listened}); err != nil {
 		t.Fatalf("update cursor: %v", err)
 	}
 
-	if err := repo.CopySession(oldID, newID); err != nil {
+	if err := repo.CopySession(context.Background(), oldID, newID); err != nil {
 		t.Fatalf("copy session: %v", err)
 	}
 
-	got, err := repo.ListSession(newID)
+	got, err := repo.ListSession(context.Background(), newID)
 	if err != nil {
 		t.Fatalf("list new session: %v", err)
 	}
@@ -76,7 +77,7 @@ func TestSQLCopySession_PreservesHistoryStateAndSequence(t *testing.T) {
 
 	// A freshly appended event must continue numbering after the copied tail,
 	// not collide with sequence 1..3.
-	next, err := repo.AppendEvent(ConversationEvent{ID: "evt-new", SessionID: newID, Role: ConversationRoleAssistant, Text: "fourth turn", SpeechParagraphs: []string{"fourth turn"}})
+	next, err := repo.AppendEvent(context.Background(), ConversationEvent{ID: "evt-new", SessionID: newID, Role: ConversationRoleAssistant, Text: "fourth turn", SpeechParagraphs: []string{"fourth turn"}})
 	if err != nil {
 		t.Fatalf("append after copy: %v", err)
 	}
@@ -85,7 +86,7 @@ func TestSQLCopySession_PreservesHistoryStateAndSequence(t *testing.T) {
 	}
 
 	// The source session is untouched by the copy.
-	src, err := repo.ListSession(oldID)
+	src, err := repo.ListSession(context.Background(), oldID)
 	if err != nil {
 		t.Fatalf("list old session: %v", err)
 	}
@@ -97,10 +98,10 @@ func TestSQLCopySession_PreservesHistoryStateAndSequence(t *testing.T) {
 func TestSQLCopySession_MissingSourceIsNoop(t *testing.T) {
 	db := setupTestDB(t)
 	repo := NewSQLConversationRepository(db)
-	if err := repo.CopySession("missing", "dest"); err != nil {
+	if err := repo.CopySession(context.Background(), "missing", "dest"); err != nil {
 		t.Fatalf("copy with missing source should be a no-op, got %v", err)
 	}
-	got, err := repo.ListSession("dest")
+	got, err := repo.ListSession(context.Background(), "dest")
 	if err != nil {
 		t.Fatalf("list dest: %v", err)
 	}
@@ -115,10 +116,10 @@ func TestInMemoryCopySession_PreservesHistoryAndSequence(t *testing.T) {
 	appendCopyTestEvent(t, repo, oldID, "e1", "alpha", ConversationRoleUser)
 	appendCopyTestEvent(t, repo, oldID, "e2", "beta", ConversationRoleAssistant)
 
-	if err := repo.CopySession(oldID, newID); err != nil {
+	if err := repo.CopySession(context.Background(), oldID, newID); err != nil {
 		t.Fatalf("copy: %v", err)
 	}
-	got, _ := repo.ListSession(newID)
+	got, _ := repo.ListSession(context.Background(), newID)
 	if len(got.Events) != 2 {
 		t.Fatalf("want 2 copied events, got %d", len(got.Events))
 	}
@@ -126,7 +127,7 @@ func TestInMemoryCopySession_PreservesHistoryAndSequence(t *testing.T) {
 		t.Errorf("event not rekeyed/regenerated: id=%q session=%q", got.Events[0].ID, got.Events[0].SessionID)
 	}
 
-	next, err := repo.AppendEvent(ConversationEvent{ID: "e3", SessionID: newID, Role: ConversationRoleAssistant, Text: "gamma"})
+	next, err := repo.AppendEvent(context.Background(), ConversationEvent{ID: "e3", SessionID: newID, Role: ConversationRoleAssistant, Text: "gamma"})
 	if err != nil {
 		t.Fatalf("append after copy: %v", err)
 	}

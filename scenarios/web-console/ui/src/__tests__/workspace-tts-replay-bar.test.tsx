@@ -232,8 +232,8 @@ vi.mock("../hooks/useWakeLock", () => ({
   useWakeLock: vi.fn().mockReturnValue("released"),
   useWakeLockStatus: () => ({ setStatus: vi.fn() }),
 }));
-vi.mock("../hooks/useVoiceInput", () => ({
-  useVoiceInput: () => ({ supported: false, isRecording: false, startRecording: vi.fn(), stopRecording: vi.fn() }),
+vi.mock("../audio-integration", () => ({
+  useScenarioVoiceInput: () => ({ supported: false, isRecording: false, startRecording: vi.fn(), stopRecording: vi.fn() }),
 }));
 vi.mock("../hooks/useConversationSession", () => ({
   useConversationSession: () => ({ events: [], cursor: { lastSeenSequence: 0, lastListenedSequence: 0 }, persistCursor: vi.fn() }),

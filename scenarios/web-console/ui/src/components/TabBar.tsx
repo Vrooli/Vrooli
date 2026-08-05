@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useWorkspaceStore, type PaneMetadata } from "../stores/useWorkspaceStore";
 import { cn } from "../lib/classnames";
-import { paneColorStyle } from "../lib/paneColor";
+import { paneAccentStyle } from "../lib/paneColor";
 import { strings } from "../consts/strings";
 import { Button } from "./ui/button";
 import { useLongPress } from "../hooks/useLongPress";
@@ -24,19 +24,33 @@ import { buildWorkspaceNavigationItems } from "../lib/workspaceNavigation";
 const TabUnreadBadge = memo(function TabUnreadBadge({
   sessionId,
   supportsMessagesView,
+  manuallyUnread,
 }: {
   sessionId: string;
   supportsMessagesView: boolean;
+  manuallyUnread: boolean;
 }) {
   const unreadCount = useConversationStore((state) =>
     supportsMessagesView ? getSessionUnreadCount(state, sessionId) : 0,
   );
-  if (unreadCount <= 0) return null;
-  return (
-    <span className="rounded-full bg-wc-accent px-1.5 py-0.5 text-[10px] font-semibold text-wc-accent-fg">
-      {unreadCount}
-    </span>
-  );
+  if (unreadCount > 0) {
+    return (
+      <span className="rounded-full bg-wc-accent px-1.5 py-0.5 text-[10px] font-semibold text-wc-accent-fg">
+        {unreadCount}
+      </span>
+    );
+  }
+  // Manual flag: a dot with no number. It means "come back here", not
+  // "N things happened", and a real count always outranks it.
+  if (manuallyUnread) {
+    return (
+      <span
+        data-testid={`tab-manual-unread-${sessionId}`}
+        className="h-2 w-2 shrink-0 rounded-full bg-wc-accent"
+      />
+    );
+  }
+  return null;
 });
 
 interface TabBarProps {
@@ -69,8 +83,18 @@ function TabBar({
   const setTabContextMenu = useWorkspaceStore((s) => s.setTabContextMenu);
   const toggleGroupCollapsed = useWorkspaceStore((s) => s.toggleGroupCollapsed);
   const setManageGroupsTarget = useWorkspaceStore((s) => s.setManageGroupsTarget);
-  const { syncPaneOrder, syncActivePane, syncPaneUpdate } = useWorkspaceSync();
+  const { syncPaneMove, syncActivePane, syncPaneUpdate } = useWorkspaceSync();
   const { removePaneFromGroup } = useGroupActions();
+  const setPaneManuallyUnread = useWorkspaceStore((s) => s.setPaneManuallyUnread);
+
+  /** Flip a pane's manual unread flag and persist it. */
+  const toggleManualUnread = useCallback((sessionId: string) => {
+    const pane = useWorkspaceStore.getState().panes.find((p) => p.sessionId === sessionId);
+    if (!pane) return;
+    const next = !pane.manuallyUnread;
+    setPaneManuallyUnread(sessionId, next);
+    syncPaneUpdate(sessionId, { manually_unread: next });
+  }, [setPaneManuallyUnread, syncPaneUpdate]);
 
   // Group context menu (long-press / right-click on a group label).
   const [groupMenu, setGroupMenu] = useState<{ groupId: string; position: { x: number; y: number } } | null>(null);
@@ -135,9 +159,10 @@ function TabBar({
   const DRAG_THRESHOLD = 5;
 
   const activatePane = useCallback((sessionId: string) => {
-    setActivePane(sessionId);
+    const clearedUnread = setActivePane(sessionId);
     syncActivePane(useWorkspaceStore.getState().panes.map((p) => p.sessionId), sessionId);
-  }, [setActivePane, syncActivePane]);
+    if (clearedUnread) syncPaneUpdate(sessionId, { manually_unread: false });
+  }, [setActivePane, syncActivePane, syncPaneUpdate]);
 
   /** Open the tab context menu at the given position. */
   const openContextMenu = useCallback((sessionId: string, x: number, y: number) => {
@@ -222,10 +247,10 @@ function TabBar({
       dragStartRef.current = null;
       setDragState((prev) => {
         if (prev) {
+          // Zustand set() is synchronous, so syncPaneMove's getState() sees
+          // the new order — and the group/color change a drop can carry.
           movePaneToIndex(prev.paneId, prev.dropIndex);
-          // Zustand set() is synchronous, so getState() reflects the new order
-          const { panes: updated, activePane: active } = useWorkspaceStore.getState();
-          syncPaneOrder(updated.map((p) => p.sessionId), active);
+          syncPaneMove(prev.paneId);
         }
         return null;
       });
@@ -239,7 +264,7 @@ function TabBar({
       window.removeEventListener("pointerup", handleUp);
       window.removeEventListener("pointercancel", handleUp);
     };
-  }, [dragState, movePaneToIndex, syncPaneOrder, commitDrag]);
+  }, [dragState, movePaneToIndex, syncPaneMove, commitDrag]);
 
   const isDragging = dragState !== null;
 
@@ -295,7 +320,7 @@ function TabBar({
             );
           }
 
-          const { pane, globalIndex: idx } = item;
+          const { pane, globalIndex: idx, group } = item;
           const isActive = item.isActive;
           const isBeingDragged = dragState?.paneId === pane.sessionId;
           const isDropTarget =
@@ -379,9 +404,9 @@ function TabBar({
                 dragStartRef.current = null;
               }}
             >
-              {/* Color indicator */}
+              {/* Color indicator — the pane's own accent, else its group's. */}
               {(() => {
-                const accentStyle = paneColorStyle(pane.headerColor, "bar");
+                const accentStyle = paneAccentStyle(pane.headerColor, group?.color, "bar");
                 return accentStyle ? (
                   <span className="absolute left-0 top-0 bottom-0 w-1" style={accentStyle} />
                 ) : null;
@@ -406,7 +431,7 @@ function TabBar({
                 <span className="truncate max-w-[120px]">{pane.name}</span>
               )}
 
-              <TabUnreadBadge sessionId={pane.sessionId} supportsMessagesView={pane.supportsMessagesView} />
+              <TabUnreadBadge sessionId={pane.sessionId} supportsMessagesView={pane.supportsMessagesView} manuallyUnread={pane.manuallyUnread} />
 
               {/* Close button - visible on hover or when active */}
               <button
@@ -458,6 +483,8 @@ function TabBar({
             position={tabContextMenu.position}
             sessionId={tabContextMenu.sessionId}
             currentGroupId={pane.groupId}
+            isManuallyUnread={pane.manuallyUnread}
+            onToggleManuallyUnread={() => toggleManualUnread(pane.sessionId)}
             onRename={() => {
               const p = panes.find((p) => p.sessionId === tabContextMenu.sessionId);
               if (p) startTabRename(p.sessionId, p.name);

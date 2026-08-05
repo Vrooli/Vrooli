@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"sync"
 	"time"
+
+	"web-console/internal/dbx"
 )
 
 // AgentTranscriptCheckpoint is a per-source ingestion cursor for the newer
@@ -24,21 +27,21 @@ type AgentTranscriptCheckpoint struct {
 // (source, source_key). Both a SQLite-backed (production) and in-memory (test)
 // implementation are provided.
 type AgentTranscriptCheckpointStore interface {
-	Get(source, sourceKey string) (AgentTranscriptCheckpoint, bool, error)
-	Save(checkpoint AgentTranscriptCheckpoint) error
-	DeleteSession(sessionID string) error
+	Get(ctx context.Context, source, sourceKey string) (AgentTranscriptCheckpoint, bool, error)
+	Save(ctx context.Context, checkpoint AgentTranscriptCheckpoint) error
+	DeleteSession(ctx context.Context, sessionID string) error
 }
 
 type SQLAgentTranscriptCheckpointStore struct {
-	db *sql.DB
+	db dbx.Handle
 }
 
-func NewSQLAgentTranscriptCheckpointStore(db *sql.DB) *SQLAgentTranscriptCheckpointStore {
+func NewSQLAgentTranscriptCheckpointStore(db dbx.Handle) *SQLAgentTranscriptCheckpointStore {
 	return &SQLAgentTranscriptCheckpointStore{db: db}
 }
 
-func (s *SQLAgentTranscriptCheckpointStore) Get(source, sourceKey string) (AgentTranscriptCheckpoint, bool, error) {
-	row := s.db.QueryRow(`
+func (s *SQLAgentTranscriptCheckpointStore) Get(ctx context.Context, source, sourceKey string) (AgentTranscriptCheckpoint, bool, error) {
+	row := s.db.QueryRowContext(ctx, `
 		SELECT source, source_key, web_console_session_id, cursor, updated_at
 		FROM agent_transcript_checkpoints
 		WHERE source = ? AND source_key = ?`,
@@ -60,12 +63,12 @@ func (s *SQLAgentTranscriptCheckpointStore) Get(source, sourceKey string) (Agent
 	return cp, true, nil
 }
 
-func (s *SQLAgentTranscriptCheckpointStore) Save(checkpoint AgentTranscriptCheckpoint) error {
+func (s *SQLAgentTranscriptCheckpointStore) Save(ctx context.Context, checkpoint AgentTranscriptCheckpoint) error {
 	updatedAt := checkpoint.UpdatedAt
 	if updatedAt.IsZero() {
 		updatedAt = time.Now().UTC()
 	}
-	_, err := s.db.Exec(`
+	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO agent_transcript_checkpoints (source, source_key, web_console_session_id, cursor, updated_at)
 		VALUES (?, ?, ?, ?, ?)
 		ON CONFLICT(source, source_key) DO UPDATE SET
@@ -84,8 +87,8 @@ func (s *SQLAgentTranscriptCheckpointStore) Save(checkpoint AgentTranscriptCheck
 	return nil
 }
 
-func (s *SQLAgentTranscriptCheckpointStore) DeleteSession(sessionID string) error {
-	if _, err := s.db.Exec(`DELETE FROM agent_transcript_checkpoints WHERE web_console_session_id = ?`, sessionID); err != nil {
+func (s *SQLAgentTranscriptCheckpointStore) DeleteSession(ctx context.Context, sessionID string) error {
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM agent_transcript_checkpoints WHERE web_console_session_id = ?`, sessionID); err != nil {
 		return fmt.Errorf("delete session transcript checkpoints: %w", err)
 	}
 	return nil
@@ -106,14 +109,14 @@ func transcriptCheckpointKey(source, sourceKey string) string {
 	return source + "\x00" + sourceKey
 }
 
-func (s *InMemoryAgentTranscriptCheckpointStore) Get(source, sourceKey string) (AgentTranscriptCheckpoint, bool, error) {
+func (s *InMemoryAgentTranscriptCheckpointStore) Get(_ context.Context, source, sourceKey string) (AgentTranscriptCheckpoint, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	cp, ok := s.checkpoints[transcriptCheckpointKey(source, sourceKey)]
 	return cp, ok, nil
 }
 
-func (s *InMemoryAgentTranscriptCheckpointStore) Save(checkpoint AgentTranscriptCheckpoint) error {
+func (s *InMemoryAgentTranscriptCheckpointStore) Save(_ context.Context, checkpoint AgentTranscriptCheckpoint) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if checkpoint.UpdatedAt.IsZero() {
@@ -123,7 +126,7 @@ func (s *InMemoryAgentTranscriptCheckpointStore) Save(checkpoint AgentTranscript
 	return nil
 }
 
-func (s *InMemoryAgentTranscriptCheckpointStore) DeleteSession(sessionID string) error {
+func (s *InMemoryAgentTranscriptCheckpointStore) DeleteSession(_ context.Context, sessionID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for key, cp := range s.checkpoints {

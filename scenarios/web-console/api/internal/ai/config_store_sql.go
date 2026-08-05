@@ -1,28 +1,30 @@
 package ai
 
 import (
-	"database/sql"
+	"context"
 	"log"
 	"sync"
 	"time"
+
+	"web-console/internal/dbx"
 )
 
 // SQLConfigStore persists AI provider configuration in SQLite and tracks
 // health metrics in memory.
 type SQLConfigStore struct {
-	db     *sql.DB
+	db     dbx.Handle
 	mu     sync.RWMutex
 	health map[string]*healthTracker
 }
 
 // NewSQLConfigStore creates a SQLite-backed AI config store. Health
 // trackers are initialized for all configured providers.
-func NewSQLConfigStore(db *sql.DB) *SQLConfigStore {
+func NewSQLConfigStore(ctx context.Context, db dbx.Handle) *SQLConfigStore {
 	store := &SQLConfigStore{
 		db:     db,
 		health: make(map[string]*healthTracker),
 	}
-	rows, err := db.Query(`SELECT name FROM ai_provider_configs`)
+	rows, err := db.QueryContext(ctx, `SELECT name FROM ai_provider_configs`)
 	if err != nil {
 		log.Printf("SQLConfigStore: failed to load provider names: %v", err)
 		store.health["ollama"] = &healthTracker{}
@@ -40,8 +42,8 @@ func NewSQLConfigStore(db *sql.DB) *SQLConfigStore {
 	return store
 }
 
-func (s *SQLConfigStore) GetConfigs() []Config {
-	rows, err := s.db.Query(`SELECT name, enabled, priority, timeout_sec, max_retries FROM ai_provider_configs ORDER BY priority`)
+func (s *SQLConfigStore) GetConfigs(ctx context.Context) []Config {
+	rows, err := s.db.QueryContext(ctx, `SELECT name, enabled, priority, timeout_sec, max_retries FROM ai_provider_configs ORDER BY priority`)
 	if err != nil {
 		log.Printf("SQLConfigStore.GetConfigs: query failed: %v", err)
 		return nil
@@ -65,12 +67,12 @@ func (s *SQLConfigStore) GetConfigs() []Config {
 	return configs
 }
 
-func (s *SQLConfigStore) UpdateConfig(name string, enabled bool, priority, timeoutSec, maxRetries int) bool {
+func (s *SQLConfigStore) UpdateConfig(ctx context.Context, name string, enabled bool, priority, timeoutSec, maxRetries int) bool {
 	enabledInt := 0
 	if enabled {
 		enabledInt = 1
 	}
-	result, err := s.db.Exec(`
+	result, err := s.db.ExecContext(ctx, `
 		UPDATE ai_provider_configs
 		SET enabled = ?, priority = ?, timeout_sec = ?, max_retries = ?
 		WHERE name = ?`,
@@ -83,7 +85,7 @@ func (s *SQLConfigStore) UpdateConfig(name string, enabled bool, priority, timeo
 	return n > 0
 }
 
-func (s *SQLConfigStore) RecordSuccess(name string, latency time.Duration) {
+func (s *SQLConfigStore) RecordSuccess(ctx context.Context, name string, latency time.Duration) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	h, ok := s.health[name]
@@ -96,7 +98,7 @@ func (s *SQLConfigStore) RecordSuccess(name string, latency time.Duration) {
 	h.successCount++
 }
 
-func (s *SQLConfigStore) RecordError(name string) {
+func (s *SQLConfigStore) RecordError(ctx context.Context, name string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	h, ok := s.health[name]
@@ -108,7 +110,7 @@ func (s *SQLConfigStore) RecordError(name string) {
 	h.errorCount++
 }
 
-func (s *SQLConfigStore) GetHealth() []Health {
+func (s *SQLConfigStore) GetHealth(ctx context.Context) []Health {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	result := make([]Health, 0, len(s.health))
@@ -118,18 +120,18 @@ func (s *SQLConfigStore) GetHealth() []Health {
 	return result
 }
 
-func (s *SQLConfigStore) GetProviderTimeout(name string) time.Duration {
+func (s *SQLConfigStore) GetProviderTimeout(ctx context.Context, name string) time.Duration {
 	var timeoutSec int
-	err := s.db.QueryRow(`SELECT timeout_sec FROM ai_provider_configs WHERE name = ?`, name).Scan(&timeoutSec)
+	err := s.db.QueryRowContext(ctx, `SELECT timeout_sec FROM ai_provider_configs WHERE name = ?`, name).Scan(&timeoutSec)
 	if err != nil {
 		return DefaultProviderTimeout
 	}
 	return time.Duration(timeoutSec) * time.Second
 }
 
-func (s *SQLConfigStore) IsEnabled(name string) bool {
+func (s *SQLConfigStore) IsEnabled(ctx context.Context, name string) bool {
 	var enabled int
-	err := s.db.QueryRow(`SELECT enabled FROM ai_provider_configs WHERE name = ?`, name).Scan(&enabled)
+	err := s.db.QueryRowContext(ctx, `SELECT enabled FROM ai_provider_configs WHERE name = ?`, name).Scan(&enabled)
 	if err != nil {
 		return false
 	}

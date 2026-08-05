@@ -140,8 +140,9 @@ vi.mock("../hooks/useTouchControls", () => ({
   useTouchControls: () => touchControlsState.needsTouchControls,
 }));
 
-vi.mock("../hooks/useVoiceInput", () => ({
-  useVoiceInput: () => mockVoiceInputState,
+vi.mock("../audio-integration", () => ({
+  useScenarioVoiceInput: () => mockVoiceInputState,
+  getTTSSummarizeConfig: vi.fn().mockResolvedValue({ level: "moderate" }),
 }));
 
 // Mock workspace store
@@ -169,6 +170,7 @@ const mockStoreState = {
   defaultThemeId: "default",
   defaultFontSize: 14,
   tabContextMenu: null as null | { sessionId: string; position: { x: number; y: number } },
+  viewerCounts: {} as Record<string, number>,
 };
 
 const mockStoreActions = {
@@ -382,6 +384,10 @@ describe("Workspace", () => {
         header_color: "#ff7a7a",
         theme_id: "dracula",
         font_size: 18,
+        // Creation must carry a position. Omitting sort_order left the pane at
+        // the server's zero value, which sorted it to the top of the list on
+        // the next reload and split whatever group was sitting there.
+        sort_order: 0,
         supports_messages_view: undefined,
       });
     });

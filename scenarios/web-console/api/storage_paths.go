@@ -38,3 +38,17 @@ func mustResolveScenarioStorageDir(class storage.Class, rel string) string {
 	}
 	return path
 }
+
+// scenarioPrimaryPaths resolves web-console's per-class storage roots. These
+// are the roots a routed file lease shadows: filerouting.RoutedRoots hands a
+// request the leased throwaway tree when the request context carries the
+// test-mode marker, and these primary roots otherwise.
+func scenarioPrimaryPaths() storage.Paths {
+	return storage.Paths{
+		ConfigDir: mustResolveScenarioStorageDir(storage.ClassConfig, ""),
+		DataDir:   mustResolveScenarioStorageDir(storage.ClassData, ""),
+		CacheDir:  mustResolveScenarioStorageDir(storage.ClassCache, ""),
+		LogsDir:   mustResolveScenarioStorageDir(storage.ClassLogs, ""),
+		StateDir:  mustResolveScenarioStorageDir(storage.ClassState, ""),
+	}
+}

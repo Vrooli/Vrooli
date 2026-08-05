@@ -7,6 +7,7 @@ import (
 	"log"
 	"strings"
 	"time"
+
 	"web-console/integrations/audiotools"
 	"web-console/internal/audioports"
 )
@@ -91,7 +92,7 @@ func (s *Server) AppendAssistant(responseText, targetSessionID, source string) C
 		return result
 	}
 
-	event, result := s.conversations.AppendAssistantEvent(targetSessionID, source, responseText)
+	event, result := s.conversations.AppendAssistantEvent(context.Background(), targetSessionID, source, responseText)
 	if result.Appended && !result.Duplicate {
 		// Publish to the global event channel immediately so the text lands in
 		// every subscribed client with no delay — audio is handled separately
@@ -124,7 +125,7 @@ func (s *Server) AppendUser(promptText, targetSessionID, source string) Conversa
 		return conversationAppendFailure("conversation_target_missing", "The mapped terminal session is no longer available", source, targetSessionID)
 	}
 
-	event, result := s.conversations.AppendUserEvent(targetSessionID, source, promptText)
+	event, result := s.conversations.AppendUserEvent(context.Background(), targetSessionID, source, promptText)
 	if result.Appended && !result.Duplicate {
 		s.publishConversationEvent(event)
 	}
@@ -178,7 +179,7 @@ func (s *Server) asyncSummarizeAndNotify(event ConversationEvent, sessionID stri
 	if len(newParagraphs) == 0 {
 		return
 	}
-	s.conversations.UpdateSpeechParagraphs(sessionID, event.ID, newParagraphs)
+	s.conversations.UpdateSpeechParagraphs(context.Background(), sessionID, event.ID, newParagraphs)
 
 	event.OriginalSpeechParagraphs = event.SpeechParagraphs
 	event.SpeechParagraphs = newParagraphs

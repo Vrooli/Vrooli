@@ -1,184 +1,54 @@
-import { memo, useRef, useLayoutEffect, useState, useCallback, useEffect } from "react";
-import { createPortal } from "react-dom";
-import { Mic, Loader2, AlertCircle, X, FileDown } from "lucide-react";
-import { useTranslation } from "react-i18next";
-import { strings } from "../consts/strings";
-import { selectors } from "../consts/selectors";
-import { cn } from "../lib/classnames";
-import type { StartRecordingOpts, VoiceActivitySnapshot } from "../hooks/useVoiceInput";
-import type { ServerVadStateSnapshot } from "../audio-integration";
-import { VAD_AUTO_STOP_VISUAL_GRACE_MS, useServerVadStateStore, SERVER_VAD_STALE_MS, decideAutoStopRing } from "../audio-integration";
+import { VoiceInputButton, type ButtonSize } from "../audio-integration/SharedVoiceInputButton";
+import type { StartRecordingOpts, VoiceActivitySnapshot } from "../audio-integration";
 
-// `selectors` exposes dynamic branches precisely, while literal branches are
-// intentionally erased by the registry's runtime tree type. Keep the declared
-// voice literals centralised in selectors.ts and recover their local shape here.
-const voiceSelectors = selectors as unknown as {
-  voice: {
-    micButton: string;
-    errorTooltip: string;
-    exportDiagnostic: string;
-  };
-};
-
-/** Hold duration (ms) that distinguishes tap-to-toggle from push-to-talk. */
-const LONG_PRESS_MS = 300;
-
-/**
- * Grace period (ms) after entering "transcribing" state during which taps are
- * treated as no-ops instead of cancels.  This prevents the race where VAD
- * auto-stops recording at the same instant the user taps to stop — without the
- * guard the tap would land on the new "transcribing" state and discard the
- * pending transcript.
- */
-const TRANSCRIBING_GRACE_MS = 400;
-const AUTO_STOP_RING_CIRCUMFERENCE = 2 * Math.PI * 18;
-
-interface VoiceMicButtonProps {
+export interface VoiceMicButtonProps {
   supported: boolean;
   isPreparing: boolean;
   isRecording: boolean;
-  /** True when persistent voice mode is active (distinct from one-shot recording). */
+  persistentMode?: boolean;
   isListening?: boolean;
-  /** True when passive wake word listening is active (mic open, no streaming). */
   isPassive?: boolean;
   isTranscribing: boolean;
-  /**
-   * True when the mic ownership registry holds a live lease while the UI is
-   * idle/off — the "OS mic indicator on but app looks idle" mismatch. Shows an
-   * explicit "release microphone" recovery affordance; tapping it calls
-   * `onReleaseMic`, never `onStart`.
-   */
   staleLiveMic?: boolean;
   error: string | null;
-  /** 0-1 audio level for live mic visualization */
   audioLevel?: number;
-  /** VAD-derived snapshot used for the auto-stop countdown visualization. */
   voiceActivity?: VoiceActivitySnapshot;
-  /**
-   * Latest server-emitted VAD-state snapshot. When fresh (<250 ms since
-   * receivedAt) the ring renders server-derived silence progress with light
-   * interpolation between ticks; stale snapshots fall back to voiceActivity.
-   * See plan: server-driven-mic-ring-streamvadstate-event.md.
-   */
-  serverVad?: ServerVadStateSnapshot;
-  /** Live partial transcript from streaming transcription. */
   partialTranscript?: string;
-  /** Active voice backend, shown in tooltip for diagnostics. */
   backend?: string;
-  /** Interaction-only flag: starting voice input should stop active TTS first. */
   isTtsSpeaking?: boolean;
+  size?: ButtonSize;
   onStart: (opts?: StartRecordingOpts) => void;
   onStop: () => void;
   onCancel?: () => void;
-  /** Exit passive wake word mode. */
   onExitPassive?: () => void;
-  /** Release an orphaned live mic lease (stale-live-mic recovery). */
   onReleaseMic?: () => void;
-  /** Stop active TTS before starting voice input. Does not affect presentation. */
   onTtsStop?: () => void;
-  /** User intent to use voice soon; may warm the mic without starting capture. */
   onPrepare?: () => void;
-  /** Enables metadata-only diagnostic export after an interrupted turn. */
   canExportDiagnostic?: boolean;
   onExportDiagnostic?: () => string | null;
-  /** Extra classes for the outer wrapper (e.g. to control height from a grid parent). */
   className?: string;
-  /** Extra classes for the inner button element. */
   buttonClassName?: string;
-  /**
-   * Size classes for the mic/status icon. Defaults to the compact toolbar size
-   * (`h-3.5 w-3.5`); the full-screen composer passes a larger value to match
-   * its taller, high-priority mic button.
-   */
   iconClassName?: string;
+  testId?: string;
 }
 
-/** Fixed-position tooltip rendered via portal so it can't be clipped by overflow parents. */
-function ErrorTooltip({ anchor, text, onDismiss, canExportDiagnostic = false, onExportDiagnostic }: { anchor: HTMLElement; text: string; onDismiss: () => void; canExportDiagnostic?: boolean; onExportDiagnostic?: () => string | null }) {
-  const [style, setStyle] = useState<React.CSSProperties>({ visibility: "hidden" });
-  const tooltipRef = useRef<HTMLDivElement>(null);
-
-  useLayoutEffect(() => {
-    const rect = anchor.getBoundingClientRect();
-    const el = tooltipRef.current;
-    if (!el) return;
-
-    const tooltipRect = el.getBoundingClientRect();
-    const pad = 4;
-
-    // Try above the button first, fall back to below if no room
-    let top: number;
-    if (rect.top - tooltipRect.height - pad >= pad) {
-      top = rect.top - tooltipRect.height - pad;
-    } else {
-      top = rect.bottom + pad;
-    }
-
-    // Center horizontally on the button, clamped to viewport
-    let left = rect.left + rect.width / 2 - tooltipRect.width / 2;
-    left = Math.max(pad, Math.min(left, window.innerWidth - tooltipRect.width - pad));
-
-    setStyle({ position: "fixed", top, left, visibility: "visible" });
-  }, [anchor, text]);
-
-  return createPortal(
-    <div
-      ref={tooltipRef}
-      data-testid={voiceSelectors.voice.errorTooltip}
-      className="wc-stable-theme z-wc-tooltip flex w-52 items-start gap-1.5 rounded border border-amber-500/50 bg-wc-surface-raised px-2 py-1 text-[10px] text-amber-300 shadow-lg"
-      style={style}
-      role="status"
-    >
-      <span className="min-w-0 flex-1 break-words">{text}</span>
-      {canExportDiagnostic && onExportDiagnostic ? (
-        <button
-          type="button"
-          onClick={() => {
-            const json = onExportDiagnostic();
-            if (!json) return;
-            const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = "voice-turn-diagnostic.json";
-            link.click();
-            URL.revokeObjectURL(url);
-          }}
-          className="rounded p-0.5 text-amber-200 transition hover:bg-amber-500/15 hover:text-amber-100"
-          aria-label="Export safe voice diagnostic"
-          data-testid={voiceSelectors.voice.exportDiagnostic}
-          title="Export safe diagnostic"
-        >
-          <FileDown className="h-3 w-3" />
-        </button>
-      ) : null}
-      <button
-        type="button"
-        onClick={onDismiss}
-        className="-mr-1 rounded p-0.5 text-amber-200 transition hover:bg-amber-500/15 hover:text-amber-100"
-        aria-label="Dismiss voice input error"
-      >
-        <X className="h-3 w-3" />
-      </button>
-    </div>,
-    document.body,
-  );
-}
-
-function VoiceMicButtonInner({
+/** Host prop adapter; interaction and presentation are owned by RCL. */
+export default function VoiceMicButton({
   supported,
   isPreparing,
   isRecording,
-  isListening = false,
-  isPassive = false,
+  persistentMode = false,
+  isListening,
+  isPassive,
   isTranscribing,
-  staleLiveMic = false,
   error,
   audioLevel = 0,
   voiceActivity,
-  serverVad: serverVadProp,
   partialTranscript,
+  staleLiveMic,
   backend,
-  isTtsSpeaking = false,
+  isTtsSpeaking,
+  size = "sm",
   onStart,
   onStop,
   onCancel,
@@ -186,254 +56,39 @@ function VoiceMicButtonInner({
   onReleaseMic,
   onTtsStop,
   onPrepare,
-  canExportDiagnostic = false,
+  className,
+  canExportDiagnostic,
   onExportDiagnostic,
-  className: wrapperClassName,
   buttonClassName,
-  iconClassName = "h-3.5 w-3.5",
+  iconClassName,
+  testId,
 }: VoiceMicButtonProps) {
-  const { t } = useTranslation();
-  /** True when the mic is actively capturing (either one-shot or persistent). */
-  const isMicActive = isRecording || isListening;
-  /**
-   * Stale-live-mic recovery: the registry holds a live lease while the UI is
-   * otherwise idle. Takes precedence over the normal idle "tap to speak" so the
-   * tap releases the orphaned mic instead of starting a new recording.
-   */
-  const showRecovery = staleLiveMic && !isMicActive && !isPassive && !isTranscribing && !isPreparing;
-  const [buttonEl, setButtonEl] = useState<HTMLButtonElement | null>(null);
-  const [dismissedError, setDismissedError] = useState<string | null>(null);
-  const pressStartRef = useRef(0);
-  /** Tracks the intent of the current pointer interaction to avoid stale-closure races. */
-  const pressIntentRef = useRef<"start" | "stop" | "cancel" | "release" | "none">("none");
-
-  /** Timestamp (ms) when isTranscribing last became true — used for grace period. */
-  const transcribingAtRef = useRef(0);
-  const prevTranscribingRef = useRef(false);
-  if (isTranscribing && !prevTranscribingRef.current) {
-    transcribingAtRef.current = Date.now();
-  }
-  prevTranscribingRef.current = isTranscribing;
-
-  const handlePrepare = useCallback(() => {
-    if (isPreparing || isMicActive || isTranscribing || showRecovery) return;
-    onPrepare?.();
-  }, [isPreparing, isMicActive, isTranscribing, showRecovery, onPrepare]);
-
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    e.preventDefault();
-    // Block interaction while preparing to prevent double-tap issues
-    if (isPreparing) return;
-    pressStartRef.current = Date.now();
-    if (showRecovery) {
-      // Stale live mic — the tap releases the orphaned lease, never starts.
-      pressIntentRef.current = "release";
-      return;
-    }
-    if (isTranscribing) {
-      // Grace period: if we just entered transcribing (e.g. VAD auto-stopped),
-      // ignore the tap so the user doesn't accidentally cancel the transcript.
-      const inGracePeriod = Date.now() - transcribingAtRef.current < TRANSCRIBING_GRACE_MS;
-      pressIntentRef.current = onCancel && !inGracePeriod ? "cancel" : "none";
-    } else if (isPassive) {
-      pressIntentRef.current = "stop"; // Will call onExitPassive
-    } else if (isMicActive) {
-      pressIntentRef.current = "stop";
-    } else {
-      // Stop TTS if it's playing, then start recording
-      if (isTtsSpeaking) onTtsStop?.();
-      pressIntentRef.current = "start";
-      onStart({ vadEnabled: true });
-    }
-  }, [isPreparing, isMicActive, isPassive, isTranscribing, isTtsSpeaking, showRecovery, onStart, onCancel, onTtsStop]);
-
-  const handlePointerUp = useCallback(() => {
-    if (isPreparing) return;
-    const intent = pressIntentRef.current;
-    pressIntentRef.current = "none";
-    if (intent === "release") {
-      onReleaseMic?.();
-    } else if (intent === "cancel") {
-      onCancel?.();
-    } else if (intent === "stop" && isPassive) {
-      onExitPassive?.();
-    } else if (intent === "stop") {
-      onStop();
-    } else if (intent === "start" && !isListening && Date.now() - pressStartRef.current >= LONG_PRESS_MS) {
-      // Long press release -- push-to-talk: stop recording (one-shot only)
-      onStop();
-    }
-    // Short press on "start" -- tap-to-toggle: keep recording
-  }, [isPreparing, isPassive, isListening, onStop, onCancel, onExitPassive, onReleaseMic]);
-
-  // Subscribe to the server VAD-state store. Prop override (used by tests)
-  // wins over the live store snapshot.
-  const serverVadFromStore = useServerVadStateStore((s) => s);
-  const serverVad: ServerVadStateSnapshot | undefined = serverVadProp ?? serverVadFromStore;
-
-  // Server-snapshot interpolation tick. When a fresh server vad-state is in
-  // play (mic is recording, snapshot age <250 ms), drive a RAF loop so the
-  // ring fills smoothly between server ticks. The render derives the actual
-  // value each frame — we just trigger re-renders here.
-  const [, setRafTick] = useState(0);
-  const serverVadFresh = serverVad
-    && serverVad.receivedAt > 0
-    && isRecording
-    && (typeof performance !== "undefined" ? performance.now() : Date.now()) - serverVad.receivedAt < SERVER_VAD_STALE_MS;
-  useEffect(() => {
-    if (!serverVadFresh) return;
-    let raf = 0;
-    const tick = () => {
-      setRafTick((n) => (n + 1) & 0x3fffffff);
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [serverVadFresh]);
-
-  const isIdle = !isMicActive && !isPassive && !isTranscribing && !isPreparing;
-  const hasError = error !== null && isIdle;
-  const showErrorTooltip = hasError && error !== dismissedError;
-  const liveAudioLevel = voiceActivity?.audioLevel ?? audioLevel;
-
-  useEffect(() => {
-    if (!hasError && dismissedError !== null) {
-      setDismissedError(null);
-    }
-  }, [dismissedError, hasError]);
-
-  if (!supported) return null;
-
-  // The ring uses the same server/client precedence as the actual auto-stop
-  // verdict, including the latched server-timeout rule for stale terminal ticks.
-  const nowPerf = typeof performance !== "undefined" ? performance.now() : Date.now();
-  const autoStopRing = decideAutoStopRing({
-    isRecording,
-    serverVad,
-    voiceActivity,
-    nowPerf,
-    staleTickMs: SERVER_VAD_STALE_MS,
-    visualGraceMs: VAD_AUTO_STOP_VISUAL_GRACE_MS,
-  });
-
+  const state = !supported ? "unavailable" : isTranscribing ? "transcribing" : isPreparing ? "preparing" : isPassive ? "recovering" : isRecording || isListening ? "recording" : error ? "error" : "idle";
   return (
-    <div className={cn("relative shrink-0", wrapperClassName)}>
-      <button
-        ref={setButtonEl}
-        data-testid={voiceSelectors.voice.micButton}
-        onPointerEnter={handlePrepare}
-        onFocus={handlePrepare}
-        onPointerDown={handlePointerDown}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        className={cn(
-          "relative shrink-0 rounded border px-1.5 py-1 text-xs font-medium transition active:bg-wc-accent-active touch-manipulation overflow-hidden",
-          buttonClassName,
-          isPreparing
-            ? "border-yellow-500/50 bg-yellow-500/10 text-yellow-400"
-            : isPassive
-              ? "border-indigo-500/30 bg-indigo-500/5 text-indigo-400"
-              : isListening
-                ? "border-cyan-500 bg-cyan-500/20 text-cyan-400"
-              : isRecording
-                ? "border-red-500 bg-red-500/20 text-red-400"
-                : isTranscribing
-                  ? "border-blue-500 bg-blue-500/20 text-blue-400"
-                  : showRecovery
-                    ? "border-amber-500 bg-amber-500/15 text-amber-400"
-                    : hasError
-                      ? "border-amber-500 bg-amber-500/10 text-amber-400"
-                      : "border-wc-default bg-wc-surface-input text-wc-text-secondary",
-        )}
-        data-recovery={showRecovery ? "true" : undefined}
-        title={
-          isPreparing
-            ? t(strings.voiceMicButton.preparing)
-            : isPassive
-              ? t(strings.voiceMicButton.passiveListening)
-              : isListening
-                ? t(strings.voiceMicButton.listening)
-              : isRecording
-                ? t(strings.voiceMicButton.recording)
-                : isTranscribing
-                  ? t(strings.voiceMicButton.transcribing)
-                  : showRecovery
-                    ? t(strings.voiceMicButton.recoverMic)
-                    : hasError
-                    ? t(strings.voiceMicButton.error, { error })
-                    : backend
-                      ? t(strings.voiceMicButton.tapToSpeakWithBackend, {
-                          backend: backend === "whisper"
-                            ? t(strings.voiceMicButton.backendWhisper)
-                            : t(strings.voiceMicButton.backendBrowser),
-                        })
-                      : t(strings.voiceMicButton.tapToSpeak)
-        }
-      >
-        {/* Audio level fill -- rises from bottom. Cyan for listening, red for recording. */}
-        {isMicActive && (
-          <span
-            className={cn(
-              "absolute inset-x-0 bottom-0 rounded-[inherit] transition-[height] duration-75",
-              isListening ? "bg-cyan-500/30" : "bg-red-500/30",
-            )}
-            style={{ height: `${Math.round(liveAudioLevel * 100)}%` }}
-          />
-        )}
-        {autoStopRing.visible && (
-          <svg
-            aria-hidden="true"
-            data-testid="voice-auto-stop-ring"
-            className="pointer-events-none absolute left-1/2 top-1/2 z-wc-chrome aspect-square h-[calc(100%-4px)] min-h-6 max-h-8 -translate-x-1/2 -translate-y-1/2 -rotate-90 overflow-visible"
-            viewBox="0 0 44 44"
-          >
-            <circle
-              cx="22"
-              cy="22"
-              r="18"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="3"
-              className="text-amber-300/80"
-              strokeDasharray={AUTO_STOP_RING_CIRCUMFERENCE}
-              strokeDashoffset={AUTO_STOP_RING_CIRCUMFERENCE * (1 - autoStopRing.progress)}
-              strokeLinecap="round"
-            />
-          </svg>
-        )}
-        {isPreparing ? (
-          <Mic className={cn(iconClassName, "animate-pulse relative")} />
-        ) : isPassive ? (
-          <Mic className={cn(iconClassName, "animate-[breathe_3s_ease-in-out_infinite] relative opacity-60")} />
-        ) : isListening ? (
-          <Mic className={cn(iconClassName, "animate-pulse relative")} />
-        ) : isTranscribing ? (
-          <Loader2 className={cn(iconClassName, "animate-spin relative")} />
-        ) : showRecovery ? (
-          <AlertCircle className={cn(iconClassName, "relative")} data-testid="voice-mic-recovery-icon" />
-        ) : hasError ? (
-          <AlertCircle className={cn(iconClassName, "relative")} />
-        ) : (
-          <Mic className={cn(iconClassName, "relative")} />
-        )}
-      </button>
-      {showErrorTooltip && buttonEl && (
-        <ErrorTooltip anchor={buttonEl} text={error as string} onDismiss={() => setDismissedError(error)} canExportDiagnostic={canExportDiagnostic} onExportDiagnostic={onExportDiagnostic} />
-      )}
-      {isMicActive && partialTranscript && buttonEl && (
-        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 max-w-[200px] rounded border border-wc-default bg-wc-surface-raised px-2 py-1 text-[10px] text-wc-text-secondary shadow-lg pointer-events-none whitespace-nowrap overflow-hidden text-ellipsis">
-          {partialTranscript}
-        </div>
-      )}
-    </div>
+    <VoiceInputButton
+      state={state}
+      mode={persistentMode ? "always-on" : "timeout"}
+      level={audioLevel}
+      timeoutProgress={voiceActivity?.autoStopProgress ?? 0}
+      error={error ?? undefined}
+      partialTranscript={partialTranscript}
+      staleLiveMic={staleLiveMic}
+      backend={backend}
+      isTtsSpeaking={isTtsSpeaking}
+      size={size}
+      canExportDiagnostic={canExportDiagnostic}
+      onCancel={onCancel}
+      onExitPassive={onExitPassive}
+      onReleaseMic={onReleaseMic}
+      onTtsStop={onTtsStop}
+      onExportDiagnostic={onExportDiagnostic}
+      wrapperClassName={className}
+      iconClassName={iconClassName}
+      className={buttonClassName}
+      onStart={() => onStart?.()}
+      onStop={onStop}
+      onPrepare={onPrepare}
+      data-testid={testId}
+    />
   );
 }
-
-/**
- * Memoized so it doesn't re-render on every MobileToolbar textarea keystroke —
- * none of its props depend on the typed input. Without this, typing in the
- * mobile input felt laggy because each keystroke re-walked this subtree
- * (including the conditional ErrorTooltip portal).
- */
-const VoiceMicButton = memo(VoiceMicButtonInner);
-export default VoiceMicButton;

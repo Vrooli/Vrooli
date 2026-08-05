@@ -4,6 +4,19 @@
   "name": "launch-custom-command-executes",
   "folder_path": "/bas/cases/01-foundation/01-terminal",
   "description": "Launch a terminal with a custom command and verify launched session connectivity",
+  "metadata": {
+    "name": "launch-custom-command-executes",
+    "description": "Launch a terminal with a custom command and verify launched session connectivity",
+    "execution_mode": "mutating",
+    "reset": "full",
+    "labels": {
+      "reset": "full",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "seed": "seed",
+      "requirements_json": "[\"REQ-P0-002b\", \"REQ-P0-006a\"]"
+    }
+  },
   "tags": [
     "reset:full",
     "requirements_json:[\"REQ-P0-002b\", \"REQ-P0-006a\"]"
@@ -111,6 +124,18 @@
             "label": "Verify command marker output"
           }
         }
+      },
+      {
+        "id": "teardown-test-sessions",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/teardown-test-sessions.json"
+          },
+          "metadata": {
+            "label": "Delete sessions created by this case"
+          }
+        }
       }
     ],
     "edges": [
@@ -148,6 +173,12 @@
         "id": "e6",
         "source": "evaluate-terminal-output",
         "target": "assert-terminal-output",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e7",
+        "source": "assert-terminal-output",
+        "target": "teardown-test-sessions",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       }
     ]

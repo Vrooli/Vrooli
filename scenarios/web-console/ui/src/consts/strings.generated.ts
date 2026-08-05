@@ -127,6 +127,7 @@ export const strings = {
   },
   terminalPane: {
     uploadingImage: "terminalPane.uploadingImage",
+    inputRejected: "terminalPane.inputRejected",
   },
   messageJumpList: {
     noActivePlayback: "messageJumpList.noActivePlayback",
@@ -343,6 +344,7 @@ export const strings = {
     close: "sessionSidebar.close",
     sessionCount: "sessionSidebar.sessionCount",
     sessionCount_one: "sessionSidebar.sessionCount_one",
+    manuallyUnreadAria: "sessionSidebar.manuallyUnreadAria",
     unreadSummary: "sessionSidebar.unreadSummary",
     unreadSummary_one: "sessionSidebar.unreadSummary_one",
     sortLabel: "sessionSidebar.sortLabel",
@@ -358,6 +360,8 @@ export const strings = {
   },
   tabContextMenu: {
     rename: "tabContextMenu.rename",
+    markAsUnread: "tabContextMenu.markAsUnread",
+    markAsRead: "tabContextMenu.markAsRead",
     customizeAppearance: "tabContextMenu.customizeAppearance",
     removeFromGroup: "tabContextMenu.removeFromGroup",
     addToGroup: "tabContextMenu.addToGroup",

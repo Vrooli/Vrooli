@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
+
 	"web-console/internal/events"
 	"web-console/internal/metrics"
 	"web-console/internal/ptyfake"
@@ -63,17 +65,17 @@ func TestCodexTailer_AttributesMidSessionRolloutToCorrectSession(t *testing.T) {
 		metrics:       metrics.New(),
 	}
 
-	sessA, err := srv.sessions.Create("", 80, 24, "", nil)
+	sessA, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session A: %v", err)
 	}
-	t.Cleanup(func() { _ = srv.sessions.Delete(sessA.ID) })
+	t.Cleanup(func() { _ = srv.sessions.Delete(context.Background(), sessA.ID) })
 
-	sessB, err := srv.sessions.Create("", 80, 24, "", nil)
+	sessB, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session B: %v", err)
 	}
-	t.Cleanup(func() { _ = srv.sessions.Delete(sessB.ID) })
+	t.Cleanup(func() { _ = srv.sessions.Delete(context.Background(), sessB.ID) })
 
 	// Simulate codex CLI creating a rollout file inside session A's per-session
 	// CODEX_HOME. The file starts empty so the tailer's "seek to EOF on open"
@@ -124,7 +126,7 @@ func TestCodexTailer_AttributesMidSessionRolloutToCorrectSession(t *testing.T) {
 		t.Fatalf("expected event session %s, got %s", sessA.ID, event.SessionID)
 	}
 
-	if stateB := srv.conversations.ListSession(sessB.ID); len(stateB.Events) != 0 {
+	if stateB := srv.conversations.ListSession(context.Background(), sessB.ID); len(stateB.Events) != 0 {
 		t.Fatalf("expected session B to have 0 events, got %d (bleed between sessions)", len(stateB.Events))
 	}
 }
@@ -143,11 +145,11 @@ func TestHandleHookStop_MidSessionClaudeAttribution(t *testing.T) {
 
 	// Plain-shell session (no shortcut command), matching how a user would
 	// start bash and only later type `claude`.
-	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create plain session: %v", err)
 	}
-	t.Cleanup(func() { _ = srv.sessions.Delete(sess.ID) })
+	t.Cleanup(func() { _ = srv.sessions.Delete(context.Background(), sess.ID) })
 
 	result := srv.AppendAssistant("assistant speaking mid-session", sess.ID, "claude_hook")
 	if !result.Appended {
@@ -157,7 +159,7 @@ func TestHandleHookStop_MidSessionClaudeAttribution(t *testing.T) {
 		t.Fatalf("expected conversation_event_appended, got %q", result.Code)
 	}
 
-	state := srv.conversations.ListSession(sess.ID)
+	state := srv.conversations.ListSession(context.Background(), sess.ID)
 	if len(state.Events) != 1 {
 		t.Fatalf("expected 1 event in session store, got %d", len(state.Events))
 	}
@@ -178,11 +180,11 @@ func TestAppendConversationEvent_RejectsUnattributedPayload(t *testing.T) {
 	srv := newHookTestServer("secret-token")
 	srv.conversations = NewConversationStore()
 
-	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	t.Cleanup(func() { _ = srv.sessions.Delete(sess.ID) })
+	t.Cleanup(func() { _ = srv.sessions.Delete(context.Background(), sess.ID) })
 
 	result := srv.AppendAssistant("stray assistant text", "", "claude_hook")
 	if result.Appended {
@@ -192,7 +194,7 @@ func TestAppendConversationEvent_RejectsUnattributedPayload(t *testing.T) {
 		t.Fatalf("expected conversation_target_missing, got %q", result.Code)
 	}
 
-	if state := srv.conversations.ListSession(sess.ID); len(state.Events) != 0 {
+	if state := srv.conversations.ListSession(context.Background(), sess.ID); len(state.Events) != 0 {
 		t.Fatalf("expected existing session to have 0 events, got %d", len(state.Events))
 	}
 }
@@ -211,7 +213,7 @@ func waitForFirstEvent(t *testing.T, store *ConversationStore, sessionID string,
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		state := store.ListSession(sessionID)
+		state := store.ListSession(context.Background(), sessionID)
 		if len(state.Events) > 0 {
 			return state.Events[0]
 		}

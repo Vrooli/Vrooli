@@ -4,6 +4,18 @@
   "name": "file-preview-drilldown",
   "folder_path": "/bas/cases/02-messages/02-file-preview",
   "description": "From a seeded assistant message, click a markdown file link to open the file-preview viewer, verify the markdown renderer, then open the SVG link and verify the image renderer.",
+  "metadata": {
+    "name": "file-preview-drilldown",
+    "description": "From a seeded assistant message, click a markdown file link to open the file-preview viewer, verify the markdown renderer, then open the SVG link and verify the image renderer.",
+    "execution_mode": "mutating",
+    "reset": "none",
+    "labels": {
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "requirements_json": "[\"REQ-P0-001a\"]"
+    }
+  },
   "tags": [
     "reset:none",
     "requirements_json:[\"REQ-P0-001a\"]"

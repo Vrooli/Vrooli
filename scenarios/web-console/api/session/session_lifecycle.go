@@ -1,6 +1,7 @@
 package session
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -127,14 +128,14 @@ func (sm *Manager) finishRecovery() {
 // metadata, and re-registers them. Called once at server startup — typically in
 // a goroutine so the HTTP listener does not block on reattaching N tmux
 // sessions. Live progress is published via RecoveryProgress().
-func (sm *Manager) Recover(store sessionstore.Store, registry *backend.Registry) RecoveryReport {
+func (sm *Manager) Recover(ctx context.Context, store sessionstore.Store, registry *backend.Registry) RecoveryReport {
 	sm.MarkRecoveryStarted()
 	defer sm.finishRecovery()
 
 	report := RecoveryReport{}
 
 	// 1. Load persisted metadata for detached sessions
-	metaList, err := store.ListDetached()
+	metaList, err := store.ListDetached(ctx)
 	if err != nil {
 		log.Printf("recovery: failed to list detached sessions: %v", err)
 		return report
@@ -165,7 +166,7 @@ func (sm *Manager) Recover(store sessionstore.Store, registry *backend.Registry)
 			// tmux session is gone (host reboot, scope kill, OOM, manual
 			// kill-server). Preserve the row and mark it awaiting_recovery so
 			// the recovery endpoints can reattach the agent on demand.
-			if err := store.MarkOrphaned(id, time.Now()); err != nil {
+			if err := store.MarkOrphaned(ctx, id, time.Now()); err != nil {
 				log.Printf("recovery: failed to mark orphan %s: %v", id, err)
 			}
 			report.AwaitingRecovery++
@@ -176,7 +177,7 @@ func (sm *Manager) Recover(store sessionstore.Store, registry *backend.Registry)
 			continue
 		}
 
-		if !sm.reattachSession(store, id, meta) {
+		if !sm.reattachSession(ctx, store, id, meta) {
 			// All retries exhausted. Preserve BOTH metadata and the tmux
 			// session so the next server restart can try again. Previous
 			// behavior deleted metadata here and then killed the tmux
@@ -216,14 +217,14 @@ func (sm *Manager) Recover(store sessionstore.Store, registry *backend.Registry)
 			Detached: true,
 			Status:   sessionstore.StatusLive,
 		}
-		if err := store.Save(meta); err != nil {
+		if err := store.Save(ctx, meta); err != nil {
 			// Could not persist — leave the tmux session ALIVE for a later
 			// attempt rather than killing it.
 			log.Printf("recovery: failed to persist adopted session %s (left alive): %v", id, err)
 			report.OrphanedTmux++
 			continue
 		}
-		if sm.reattachSession(store, id, meta) {
+		if sm.reattachSession(ctx, store, id, meta) {
 			report.Adopted++
 			sm.bumpRecovery(0, 0, 1)
 			log.Printf("recovery: adopted orphaned tmux session %s (metadata was missing; reattached and persisted)", id)
@@ -261,7 +262,7 @@ func (sm *Manager) Recover(store sessionstore.Store, registry *backend.Registry)
 // false when the attach fails after retries; callers must then preserve both
 // the tmux session and its metadata row for a later attempt (never kill). Used
 // by Recover for both known-metadata rows (step 3) and adopted orphans (step 4).
-func (sm *Manager) reattachSession(store sessionstore.Store, id string, meta sessionstore.Metadata) bool {
+func (sm *Manager) reattachSession(ctx context.Context, store sessionstore.Store, id string, meta sessionstore.Metadata) bool {
 	sessionName := sm.tmuxSessionPrefix + id
 	// Re-apply tmux options (mouse mode, history limit) in case they were set by
 	// an older version that didn't configure them.
@@ -329,7 +330,7 @@ func (sm *Manager) reattachSession(store sessionstore.Store, id string, meta ses
 		// Persistent sessions: preserve metadata for future recovery.
 		// Standard sessions: delete metadata (they cannot survive).
 		if sm.store != nil && bid != backend.Persistent {
-			_ = sm.store.Delete(sessID)
+			_ = sm.store.Delete(context.Background(), sessID)
 		}
 		uploadDir := filepath.Join(sm.uploadDirFunc(), sessID)
 		if err := os.RemoveAll(uploadDir); err != nil && !os.IsNotExist(err) {
@@ -340,7 +341,7 @@ func (sm *Manager) reattachSession(store sessionstore.Store, id string, meta ses
 	// Reattach succeeded: ensure the row is marked live (covers the case where
 	// it was previously awaiting_recovery and tmux came back, e.g. the user
 	// restarted the wc-tmux-server scope by hand).
-	if err := store.MarkLive(id); err != nil {
+	if err := store.MarkLive(ctx, id); err != nil {
 		log.Printf("recovery: failed to mark session %s live: %v", id, err)
 	}
 	return true
@@ -395,7 +396,7 @@ func (sm *Manager) reattachOrphanedSessions() {
 	if sm.store == nil {
 		return
 	}
-	metaList, err := sm.store.ListDetached()
+	metaList, err := sm.store.ListDetached(context.Background())
 	if err != nil {
 		return
 	}
@@ -414,7 +415,7 @@ func (sm *Manager) reattachOrphanedSessions() {
 		p, attachErr := sm.tmuxAttachFunc(sessionName)
 		if attachErr != nil {
 			// tmux session is gone — clean up stale metadata
-			_ = sm.store.Delete(meta.ID)
+			_ = sm.store.Delete(context.Background(), meta.ID)
 			log.Printf("reattach-watchdog: session %s tmux session gone, cleaned up metadata", meta.ID)
 			continue
 		}
@@ -466,7 +467,7 @@ func (sm *Manager) reattachOrphanedSessions() {
 				sm.onSessionDelete(sessID)
 			}
 			if sm.store != nil && bid != backend.Persistent {
-				_ = sm.store.Delete(sessID)
+				_ = sm.store.Delete(context.Background(), sessID)
 			}
 			uploadDir := filepath.Join(sm.uploadDirFunc(), sessID)
 			if err := os.RemoveAll(uploadDir); err != nil && !os.IsNotExist(err) {

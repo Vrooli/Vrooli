@@ -19,6 +19,7 @@ const mockStoreState: Record<string, unknown> = {
   setPaneColor: vi.fn(),
   setPaneTheme: vi.fn(),
   setPaneFontSize: vi.fn(),
+  setDeviceFontSize: vi.fn(),
   applyAppearance: vi.fn(),
   defaultHeaderColor: "transparent",
   defaultThemeId: "slate-ocean",
@@ -49,6 +50,7 @@ describe("AppearanceModal", () => {
     mockStoreState.setPaneColor = vi.fn();
     mockStoreState.setPaneTheme = vi.fn();
     mockStoreState.setPaneFontSize = vi.fn();
+    mockStoreState.setDeviceFontSize = vi.fn();
     mockStoreState.setAppearanceModalPane = vi.fn();
     mockStoreState.applyAppearance = vi.fn();
     mockStoreState.setSettingsModalOpen = vi.fn();
@@ -100,7 +102,7 @@ describe("AppearanceModal", () => {
     mockStoreState.appearanceModalPane = "sess-1";
     render(<AppearanceModal />);
     const firstColor = HEADER_COLORS[0] ?? "transparent";
-    fireEvent.click(screen.getByTestId(`appearance-header-color-${firstColor}`));
+    fireEvent.click(screen.getByTestId(`appearance-header-color-palette-${firstColor}`));
     expect(mockStoreState.setPaneColor).toHaveBeenCalledWith("sess-1", firstColor);
     expect(mockSyncPaneUpdate).toHaveBeenCalledWith("sess-1", { header_color: firstColor });
   });
@@ -130,19 +132,19 @@ describe("AppearanceModal", () => {
     expect(other.className).not.toContain("border-wc-accent");
   });
 
-  it("font increase button calls setPaneFontSize", () => {
+  it("font increase button calls setDeviceFontSize", () => {
     mockStoreState.appearanceModalPane = "sess-1";
     render(<AppearanceModal />);
     fireEvent.click(screen.getByTestId("appearance-font-increase"));
-    expect(mockStoreState.setPaneFontSize).toHaveBeenCalledWith("sess-1", 15);
+    expect(mockStoreState.setDeviceFontSize).toHaveBeenCalledWith("sess-1", 15);
     expect(mockSyncPaneUpdate).toHaveBeenCalledWith("sess-1", { font_size: 15 });
   });
 
-  it("font decrease button calls setPaneFontSize", () => {
+  it("font decrease button calls setDeviceFontSize", () => {
     mockStoreState.appearanceModalPane = "sess-1";
     render(<AppearanceModal />);
     fireEvent.click(screen.getByTestId("appearance-font-decrease"));
-    expect(mockStoreState.setPaneFontSize).toHaveBeenCalledWith("sess-1", 13);
+    expect(mockStoreState.setDeviceFontSize).toHaveBeenCalledWith("sess-1", 13);
     expect(mockSyncPaneUpdate).toHaveBeenCalledWith("sess-1", { font_size: 13 });
   });
 
@@ -334,7 +336,7 @@ describe("AppearanceModal", () => {
     const input = screen.getByTestId("appearance-font-value") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "99" } });
     fireEvent.blur(input);
-    expect(mockStoreState.setPaneFontSize).toHaveBeenCalledWith("sess-1", 24);
+    expect(mockStoreState.setDeviceFontSize).toHaveBeenCalledWith("sess-1", 24);
     expect(mockSyncPaneUpdate).toHaveBeenCalledWith("sess-1", { font_size: 24 });
   });
 });

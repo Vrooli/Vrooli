@@ -20,6 +20,8 @@ export interface WorkspacePaneDTO {
   sort_order: number;
   group_id: string | null;
   supports_messages_view: boolean;
+  /** User-set "come back to this" flag; independent of the message read cursor. */
+  manually_unread: boolean;
 }
 
 export interface TabGroupDTO {
@@ -45,6 +47,7 @@ function decodePane(p: {
   sortOrder: number;
   groupId: string;
   supportsMessagesView: boolean;
+  manuallyUnread: boolean;
 }): WorkspacePaneDTO {
   return {
     session_id: p.sessionId,
@@ -55,6 +58,7 @@ function decodePane(p: {
     sort_order: p.sortOrder,
     group_id: p.groupId === "" ? null : p.groupId,
     supports_messages_view: p.supportsMessagesView,
+    manually_unread: p.manuallyUnread,
   };
 }
 
@@ -125,6 +129,10 @@ export async function updateWorkspacePane(
   if (update.supports_messages_view !== undefined) {
     req.supportsMessagesView = update.supports_messages_view;
     req.hasSupportsMessagesView = true;
+  }
+  if (update.manually_unread !== undefined) {
+    req.manuallyUnread = update.manually_unread;
+    req.hasManuallyUnread = true;
   }
   const resp = await workspaceClient.updatePane(req);
   if (!resp.pane) {

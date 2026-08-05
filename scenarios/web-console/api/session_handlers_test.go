@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
 	"web-console/internal/audioports"
 	"web-console/internal/config"
 	"web-console/internal/events"
@@ -57,7 +58,14 @@ func newTestServer() *Server {
 // newFakeTestServer creates a Server with pipe-backed fake PTYs — use for
 // fast, deterministic handler tests that don't need a real shell.
 func newFakeTestServer() *Server {
-	sm := newSessionManagerWithFactory(ptyfake.NewFactory())
+	return newFakeTestServerWithFactory(ptyfake.NewFactory())
+}
+
+// newFakeTestServerWithFactory is newFakeTestServer with control over the
+// PTY factory, for tests that need a backend which fails writes in a
+// specific way.
+func newFakeTestServerWithFactory(factory pty.Factory) *Server {
+	sm := newSessionManagerWithFactory(factory)
 	srv := &Server{
 		router:      mux.NewRouter(),
 		sessions:    sm,
@@ -96,18 +104,18 @@ func TestHandleCreateSession(t *testing.T) {
 		t.Errorf("expected cols=80, got %d", sess.GetCols())
 	}
 
-	_ = srv.sessions.Delete(sess.GetId())
+	_ = srv.sessions.Delete(context.Background(), sess.GetId())
 }
 
 func TestHandleCreateSession_SessionLimit(t *testing.T) {
 	srv := newFakeTestServer()
 	srv.sessions.SetConfigField(func(c *config.Config) { c.MaxSessions = 1 })
 
-	s1, err := srv.sessions.Create("", 80, 24, "", nil)
+	s1, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("first session create: %v", err)
 	}
-	defer func() { _ = srv.sessions.Delete(s1.ID) }()
+	defer func() { _ = srv.sessions.Delete(context.Background(), s1.ID) }()
 
 	_, err = callCreate(t, srv, 0, 0, "")
 	if got := connectCode(err); got != connect.CodeResourceExhausted {
@@ -334,20 +342,20 @@ func TestSessionLimit_VariousLimits(t *testing.T) {
 
 			var sessions []*session.Session
 			for i := 0; i < limit; i++ {
-				s, err := sm.Create("", 0, 0, "", nil)
+				s, err := sm.Create(context.Background(), "", 0, 0, "", nil)
 				if err != nil {
 					t.Fatalf("session %d: unexpected error: %v", i, err)
 				}
 				sessions = append(sessions, s)
 			}
 
-			_, err := sm.Create("", 0, 0, "", nil)
+			_, err := sm.Create(context.Background(), "", 0, 0, "", nil)
 			if err == nil {
 				t.Errorf("session %d should be rejected when MaxSessions=%d", limit+1, limit)
 			}
 
 			for _, s := range sessions {
-				_ = sm.Delete(s.ID)
+				_ = sm.Delete(context.Background(), s.ID)
 			}
 		})
 	}
@@ -376,8 +384,8 @@ func TestRequestIDMiddleware(t *testing.T) {
 func TestHandleListSessions(t *testing.T) {
 	srv := newTestServer()
 
-	sess, _ := srv.sessions.Create("", 80, 24, "", nil)
-	defer func() { _ = srv.sessions.Delete(sess.ID) }()
+	sess, _ := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
+	defer func() { _ = srv.sessions.Delete(context.Background(), sess.ID) }()
 
 	got, err := callList(t, srv)
 	if err != nil {
@@ -390,8 +398,8 @@ func TestHandleListSessions(t *testing.T) {
 
 func TestHandleGetSession(t *testing.T) {
 	srv := newTestServer()
-	sess, _ := srv.sessions.Create("", 80, 24, "", nil)
-	defer func() { _ = srv.sessions.Delete(sess.ID) }()
+	sess, _ := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
+	defer func() { _ = srv.sessions.Delete(context.Background(), sess.ID) }()
 
 	got, err := callGet(t, srv, sess.ID)
 	if err != nil {
@@ -412,7 +420,7 @@ func TestHandleGetSession_NotFound(t *testing.T) {
 
 func TestHandleDeleteSession(t *testing.T) {
 	srv := newTestServer()
-	sess, _ := srv.sessions.Create("", 80, 24, "", nil)
+	sess, _ := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 
 	if err := callDelete(t, srv, sess.ID); err != nil {
 		t.Errorf("delete: %v", err)
@@ -429,7 +437,7 @@ func TestHandleDeleteSession(t *testing.T) {
 func TestDeleteSession_Replay_MetricsOnce(t *testing.T) {
 	srv := newFakeTestServer()
 
-	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -475,7 +483,7 @@ func TestCreateSession_IdempotencyKey_ReturnsCache(t *testing.T) {
 		t.Errorf("expected SessionsCreated=1, got %d", got)
 	}
 
-	_ = srv.sessions.Delete(first.GetId())
+	_ = srv.sessions.Delete(context.Background(), first.GetId())
 }
 
 func TestCreateSession_NoIdempotencyKey_CreatesTwoSessions(t *testing.T) {
@@ -492,7 +500,7 @@ func TestCreateSession_NoIdempotencyKey_CreatesTwoSessions(t *testing.T) {
 		t.Errorf("expected 2 sessions without idempotency key, got %d", len(sessions))
 	}
 	for _, s := range sessions {
-		_ = srv.sessions.Delete(s.ID)
+		_ = srv.sessions.Delete(context.Background(), s.ID)
 	}
 }
 
@@ -500,11 +508,11 @@ func TestCreateSession_NoIdempotencyKey_CreatesTwoSessions(t *testing.T) {
 func TestUpdatePolicy_Replay_EventOnlyOnChange(t *testing.T) {
 	srv := newFakeTestServer()
 
-	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	defer func() { _ = srv.sessions.Delete(sess.ID) }()
+	defer func() { _ = srv.sessions.Delete(context.Background(), sess.ID) }()
 
 	eventsBefore := srv.events.Count()
 

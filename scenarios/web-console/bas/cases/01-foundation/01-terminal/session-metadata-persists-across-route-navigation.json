@@ -4,6 +4,19 @@
   "name": "session-metadata-persists-across-route-navigation",
   "folder_path": "/bas/cases/01-foundation/01-terminal",
   "description": "Verify server-side session persistence after leaving and returning from workspace route",
+  "metadata": {
+    "name": "session-metadata-persists-across-route-navigation",
+    "description": "Verify server-side session persistence after leaving and returning from workspace route",
+    "execution_mode": "mutating",
+    "reset": "full",
+    "labels": {
+      "reset": "full",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "seed": "seed",
+      "requirements_json": "[\"REQ-P0-003a\"]"
+    }
+  },
   "tags": [
     "reset:full",
     "requirements_json:[\"REQ-P0-003a\"]"
@@ -173,6 +186,18 @@
             "label": "Verify session persistence"
           }
         }
+      },
+      {
+        "id": "teardown-test-sessions",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/teardown-test-sessions.json"
+          },
+          "metadata": {
+            "label": "Delete sessions created by this case"
+          }
+        }
       }
     ],
     "edges": [
@@ -189,57 +214,63 @@
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
-        "id": "e2b",
+        "id": "e3",
         "source": "open-sessions-tab",
         "target": "wait-sessions-row",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
-        "id": "e3",
+        "id": "e4",
         "source": "wait-sessions-row",
         "target": "capture-sessions-before-back",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
-        "id": "e4",
+        "id": "e5",
         "source": "capture-sessions-before-back",
         "target": "click-back-to-workspace",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
-        "id": "e5",
+        "id": "e6",
         "source": "click-back-to-workspace",
         "target": "wait-workspace-control",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
-        "id": "e6",
+        "id": "e7",
         "source": "wait-workspace-control",
         "target": "open-sessions-page-again",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
-        "id": "e7",
+        "id": "e8",
         "source": "open-sessions-page-again",
         "target": "open-sessions-tab-again",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
-        "id": "e7b",
+        "id": "e9",
         "source": "open-sessions-tab-again",
         "target": "wait-sessions-row-again",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
-        "id": "e8",
+        "id": "e10",
         "source": "wait-sessions-row-again",
         "target": "evaluate-session-persistence",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
-        "id": "e9",
+        "id": "e11",
         "source": "evaluate-session-persistence",
         "target": "assert-session-persistence",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e12",
+        "source": "assert-session-persistence",
+        "target": "teardown-test-sessions",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       }
     ]

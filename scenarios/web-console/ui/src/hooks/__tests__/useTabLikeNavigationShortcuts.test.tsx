@@ -11,7 +11,7 @@ const panes: PaneMetadata[] = [
     themeId: "default",
     fontSize: 14,
     groupId: null,
-    supportsMessagesView: false,
+    supportsMessagesView: false, manuallyUnread: false,
   },
   {
     sessionId: "two",
@@ -20,7 +20,7 @@ const panes: PaneMetadata[] = [
     themeId: "default",
     fontSize: 14,
     groupId: null,
-    supportsMessagesView: false,
+    supportsMessagesView: false, manuallyUnread: false,
   },
 ];
 

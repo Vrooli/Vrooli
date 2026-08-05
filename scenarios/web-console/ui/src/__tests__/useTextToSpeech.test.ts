@@ -61,6 +61,7 @@ const sharedTTSMocks = vi.hoisted(() => ({
   fetchCachedTTS: vi.fn(),
   getTTSVoices: vi.fn(),
   synthesizeTTS: vi.fn(),
+  synthesizeTTSWithMetrics: vi.fn(),
 }));
 vi.mock("../audio-integration", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../audio-integration")>();
@@ -69,6 +70,7 @@ vi.mock("../audio-integration", async (importOriginal) => {
     fetchCachedTTS: sharedTTSMocks.fetchCachedTTS,
     getTTSVoices: sharedTTSMocks.getTTSVoices,
     synthesizeTTS: sharedTTSMocks.synthesizeTTS,
+    synthesizeTTSWithMetrics: sharedTTSMocks.synthesizeTTSWithMetrics,
   };
 });
 vi.mock("../audio-integration/api/tts", async (importOriginal) => {
@@ -78,6 +80,7 @@ vi.mock("../audio-integration/api/tts", async (importOriginal) => {
     fetchCachedTTS: sharedTTSMocks.fetchCachedTTS,
     getTTSVoices: sharedTTSMocks.getTTSVoices,
     synthesizeTTS: sharedTTSMocks.synthesizeTTS,
+    synthesizeTTSWithMetrics: sharedTTSMocks.synthesizeTTSWithMetrics,
   };
 });
 
@@ -115,6 +118,10 @@ function audioToolsCapability(status: "available" | "unavailable") {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  sharedTTSMocks.synthesizeTTSWithMetrics.mockImplementation(async (...args) => ({
+    blob: await sharedTTSMocks.synthesizeTTS(...args),
+    metrics: { requestId: "test-request", synthStartMs: 0, totalChars: String(args[0] ?? "").length },
+  }));
   useWorkspaceStore.setState({ startMutedOnLoad: true });
 });
 

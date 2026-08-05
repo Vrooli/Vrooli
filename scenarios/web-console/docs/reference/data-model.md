@@ -7,7 +7,7 @@ The web-console persists workspace and conversation state in a single-file SQLit
 | Layer | Lifetime | Source of truth |
 |---|---|---|
 | In-memory `SessionManager` | Process | [CODE: api/session.go] `SessionManager` (around `type SessionManager struct`) |
-| SQLite (workspace metadata, conversation, AI config) | Persistent (cross-device sync) | [CODE: initialization/sqlite/schema.sql] |
+| SQLite (workspace metadata, conversation, AI config) | Persistent (cross-device sync) | [CODE: api/internal/<domain>/schema.sql] |
 | On-disk rollouts / shell history | Persistent (filesystem) | Codex rollout files, claude-code session storage |
 
 Storage posture and migration roadmap: [STORAGE_AUDIT](../internal/STORAGE_AUDIT.md).
@@ -23,7 +23,7 @@ A subset of session metadata is mirrored into the persistent `sessions` table so
 
 ## Persistent tables
 
-[CODE: initialization/sqlite/schema.sql]
+[CODE: api/internal/<domain>/schema.sql]
 
 ### `sessions`
 Mirror of session metadata for recovery only. PTY state is **not** persisted. The `status` column enforces the recovery state machine: `live → awaiting_recovery → {live | dismissed}`. Transitions are owned by `Recover()` and the recovery endpoints. `agent_type` + `agent_session_id` are populated from the codex `session_meta` event or the claude `Stop` hook payload and are sufficient to reattach an agent on recovery.
@@ -58,7 +58,7 @@ Per-provider knobs consumed by the AI generation chain ([CODE: api/ai_generate.g
 
 ## Migrations
 
-Schema bootstrap runs `initialization/sqlite/schema.sql` once at startup. Additive migrations live inline in [CODE: api/main.go] (search for the migrations block near where indexes on recovery columns are created). Recovery-hardening columns are added via `ALTER TABLE` before the corresponding indexes so an existing DB can be brought up to date without `schema.sql` failing.
+Schema bootstrap runs `api/internal/<domain>/schema.sql` once at startup. Additive migrations live inline in [CODE: api/main.go] (search for the migrations block near where indexes on recovery columns are created). Recovery-hardening columns are added via `ALTER TABLE` before the corresponding indexes so an existing DB can be brought up to date without `schema.sql` failing.
 
 `migrateSessionsAgentTypeConstraint` ([CODE: api/main.go]) relaxes the `sessions.agent_type` CHECK constraint to admit `opencode`/`grok`. SQLite cannot `ALTER` a CHECK in place, so it performs the canonical table-rebuild (rename → recreate with the new constraint → explicit-column copy → drop), guarded so it is a no-op on fresh DBs and idempotent on re-run.
 

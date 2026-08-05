@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, ClipboardCopy, FolderCog, FolderMinus, FolderPlus, Palette, Pencil, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ClipboardCopy, Dot, FolderCog, FolderMinus, FolderPlus, MailOpen, Palette, Pencil, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import ContextMenuBase, { contextMenuItemClass } from "./ContextMenuBase";
 import { strings } from "../consts/strings";
@@ -10,6 +10,10 @@ interface TabContextMenuProps {
   sessionId: string;
   /** Current group ID of this pane (null if ungrouped). */
   currentGroupId: string | null;
+  /** Whether this pane currently carries the manual unread flag. */
+  isManuallyUnread: boolean;
+  /** Toggle the manual unread flag. */
+  onToggleManuallyUnread: () => void;
   onRename: () => void;
   onCustomize: () => void;
   onRemoveFromGroup: () => void;
@@ -31,6 +35,8 @@ export default function TabContextMenu({
   position,
   sessionId,
   currentGroupId,
+  isManuallyUnread,
+  onToggleManuallyUnread,
   onRename,
   onCustomize,
   onRemoveFromGroup,
@@ -57,6 +63,21 @@ export default function TabContextMenu({
       >
         <Pencil className="h-4 w-4 shrink-0" />
         {t(strings.tabContextMenu.rename)}
+      </button>
+
+      {/* Mark as unread / read. A deliberate flag, not a derived state: it
+          survives being read and works on sessions with no conversation. */}
+      <button
+        data-testid="tab-ctx-toggle-unread"
+        className={contextMenuItemClass}
+        onClick={() => handleAction(onToggleManuallyUnread)}
+      >
+        {isManuallyUnread
+          ? <MailOpen className="h-4 w-4 shrink-0" />
+          : <Dot className="h-4 w-4 shrink-0" />}
+        {t(isManuallyUnread
+          ? strings.tabContextMenu.markAsRead
+          : strings.tabContextMenu.markAsUnread)}
       </button>
 
       {/* Customize appearance */}

@@ -2,6 +2,7 @@ package capabilities
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -26,6 +27,16 @@ type Adapter struct {
 	Logger          *log.Logger
 	ActionRunner    caps.CommandRunner
 	CLIPath         string
+}
+
+// Describe exposes the registry contract used by the settings surface and
+// dependency conformance. It intentionally bypasses the richer session
+// backend projection returned by Resolve.
+func (a *Adapter) Describe(ctx context.Context) ([]byte, error) {
+	if a == nil || a.Registry == nil {
+		return nil, fmt.Errorf("capabilities registry is not configured")
+	}
+	return a.Registry.Describe(ctx)
 }
 
 // Resolve runs the full capability check (with cache) and includes

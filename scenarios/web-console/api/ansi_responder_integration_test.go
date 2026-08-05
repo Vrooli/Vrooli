@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+
 	"web-console/session"
 )
 
@@ -98,11 +100,11 @@ func TestStandardBackend_AnswersDA1Probe(t *testing.T) {
 	}
 
 	sm := newSessionManager()
-	sess, err := sm.Create("/bin/bash", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "/bin/bash", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	t.Cleanup(func() { _ = sm.Delete(sess.ID) })
+	t.Cleanup(func() { _ = sm.Delete(context.Background(), sess.ID) })
 
 	sub := sess.Subscribe()
 	t.Cleanup(func() { sess.Unsubscribe(sub.OutputCh) })
@@ -148,11 +150,11 @@ func TestStandardBackend_AnswersClaudeStartupProbeSequence(t *testing.T) {
 	}
 
 	sm := newSessionManager()
-	sess, err := sm.Create("/bin/bash", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "/bin/bash", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	t.Cleanup(func() { _ = sm.Delete(sess.ID) })
+	t.Cleanup(func() { _ = sm.Delete(context.Background(), sess.ID) })
 
 	sub := sess.Subscribe()
 	t.Cleanup(func() { sess.Unsubscribe(sub.OutputCh) })

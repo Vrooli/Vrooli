@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -9,23 +10,25 @@ import (
 	"sync"
 	"time"
 
+	"web-console/internal/dbx"
+
 	"github.com/google/uuid"
 )
 
 // ConversationRepository persists semantic conversation history.
 type ConversationRepository interface {
-	AppendEvent(event ConversationEvent) (ConversationEvent, error)
-	GetEvent(sessionID, eventID string) (ConversationEvent, bool, error)
-	ListSession(sessionID string) (ConversationSessionState, error)
-	ListSessionPage(sessionID string, limit int, beforeSequence int64) (ConversationSessionState, bool, error)
-	CountSessionEvents(sessionID string) (int64, error)
-	SearchSession(sessionID, query string, limit int) ([]ConversationSearchMatch, bool, int64, error)
-	ListSessionRange(sessionID string, from, to int64) ([]ConversationEvent, error)
-	UpdateSpeechParagraphs(sessionID, eventID string, paragraphs []string) error
-	UpdateCursor(sessionID string, patch conversationCursorPatch) (ConversationCursor, error)
-	RecordPlaybackStage(sessionID, eventID, stage string) error
-	DeleteSession(sessionID string) error
-	CopySession(oldID, newID string) error
+	AppendEvent(ctx context.Context, event ConversationEvent) (ConversationEvent, error)
+	GetEvent(ctx context.Context, sessionID, eventID string) (ConversationEvent, bool, error)
+	ListSession(ctx context.Context, sessionID string) (ConversationSessionState, error)
+	ListSessionPage(ctx context.Context, sessionID string, limit int, beforeSequence int64) (ConversationSessionState, bool, error)
+	CountSessionEvents(ctx context.Context, sessionID string) (int64, error)
+	SearchSession(ctx context.Context, sessionID, query string, limit int) ([]ConversationSearchMatch, bool, int64, error)
+	ListSessionRange(ctx context.Context, sessionID string, from, to int64) ([]ConversationEvent, error)
+	UpdateSpeechParagraphs(ctx context.Context, sessionID, eventID string, paragraphs []string) error
+	UpdateCursor(ctx context.Context, sessionID string, patch conversationCursorPatch) (ConversationCursor, error)
+	RecordPlaybackStage(ctx context.Context, sessionID, eventID, stage string) error
+	DeleteSession(ctx context.Context, sessionID string) error
+	CopySession(ctx context.Context, oldID, newID string) error
 }
 
 type ConversationSearchMatch struct {
@@ -35,15 +38,15 @@ type ConversationSearchMatch struct {
 }
 
 type SQLConversationRepository struct {
-	db *sql.DB
+	db dbx.Handle
 }
 
-func NewSQLConversationRepository(db *sql.DB) *SQLConversationRepository {
+func NewSQLConversationRepository(db dbx.Handle) *SQLConversationRepository {
 	return &SQLConversationRepository{db: db}
 }
 
-func (r *SQLConversationRepository) AppendEvent(event ConversationEvent) (ConversationEvent, error) {
-	tx, err := r.db.Begin()
+func (r *SQLConversationRepository) AppendEvent(ctx context.Context, event ConversationEvent) (ConversationEvent, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return ConversationEvent{}, fmt.Errorf("begin tx: %w", err)
 	}
@@ -54,7 +57,7 @@ func (r *SQLConversationRepository) AppendEvent(event ConversationEvent) (Conver
 		now = formatTime(time.Now())
 	}
 
-	if _, err := tx.Exec(`
+	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO conversation_sessions (session_id, created_at, updated_at)
 		VALUES (?, ?, ?)
 		ON CONFLICT(session_id) DO NOTHING`,
@@ -63,7 +66,7 @@ func (r *SQLConversationRepository) AppendEvent(event ConversationEvent) (Conver
 		return ConversationEvent{}, fmt.Errorf("ensure session: %w", err)
 	}
 
-	if err := tx.QueryRow(`
+	if err := tx.QueryRowContext(ctx, `
 		UPDATE conversation_sessions
 		SET last_sequence = last_sequence + 1, updated_at = ?
 		WHERE session_id = ?
@@ -85,7 +88,7 @@ func (r *SQLConversationRepository) AppendEvent(event ConversationEvent) (Conver
 		}
 	}
 
-	if _, err := tx.Exec(`
+	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO conversation_events (
 			id, session_id, source, role, text, speech_paragraphs,
 			original_speech_paragraphs, summarized, created_at, sequence,
@@ -115,8 +118,8 @@ func (r *SQLConversationRepository) AppendEvent(event ConversationEvent) (Conver
 	return event, nil
 }
 
-func (r *SQLConversationRepository) GetEvent(sessionID, eventID string) (ConversationEvent, bool, error) {
-	row := r.db.QueryRow(`
+func (r *SQLConversationRepository) GetEvent(ctx context.Context, sessionID, eventID string) (ConversationEvent, bool, error) {
+	row := r.db.QueryRowContext(ctx, `
 		SELECT id, session_id, source, role, text, speech_paragraphs,
 		       COALESCE(original_speech_paragraphs, ''), summarized, created_at, sequence,
 		       delivery_state, tts_state, consumption_state
@@ -134,13 +137,13 @@ func (r *SQLConversationRepository) GetEvent(sessionID, eventID string) (Convers
 	return event, true, nil
 }
 
-func (r *SQLConversationRepository) ListSession(sessionID string) (ConversationSessionState, error) {
+func (r *SQLConversationRepository) ListSession(ctx context.Context, sessionID string) (ConversationSessionState, error) {
 	state := ConversationSessionState{
 		SessionID: sessionID,
 		Events:    []ConversationEvent{},
 	}
 
-	row := r.db.QueryRow(`
+	row := r.db.QueryRowContext(ctx, `
 		SELECT last_seen_sequence, last_listened_sequence
 		FROM conversation_sessions
 		WHERE session_id = ?`,
@@ -154,7 +157,7 @@ func (r *SQLConversationRepository) ListSession(sessionID string) (ConversationS
 		return ConversationSessionState{}, fmt.Errorf("load cursor: %w", err)
 	}
 
-	rows, err := r.db.Query(`
+	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, session_id, source, role, text, speech_paragraphs,
 		       COALESCE(original_speech_paragraphs, ''), summarized, created_at, sequence,
 		       delivery_state, tts_state, consumption_state
@@ -184,13 +187,13 @@ func (r *SQLConversationRepository) ListSession(sessionID string) (ConversationS
 
 // ListSessionPage returns one bounded, ascending page ending before
 // beforeSequence (or the newest events when beforeSequence is zero).
-func (r *SQLConversationRepository) ListSessionPage(sessionID string, limit int, beforeSequence int64) (ConversationSessionState, bool, error) {
+func (r *SQLConversationRepository) ListSessionPage(ctx context.Context, sessionID string, limit int, beforeSequence int64) (ConversationSessionState, bool, error) {
 	if limit <= 0 {
-		state, err := r.ListSession(sessionID)
+		state, err := r.ListSession(ctx, sessionID)
 		return state, false, err
 	}
 	state := ConversationSessionState{SessionID: sessionID, Events: []ConversationEvent{}}
-	if err := r.db.QueryRow(`SELECT last_seen_sequence, last_listened_sequence FROM conversation_sessions WHERE session_id = ?`, sessionID).Scan(&state.Cursor.LastSeenSequence, &state.Cursor.LastListenedSequence); err != nil {
+	if err := r.db.QueryRowContext(ctx, `SELECT last_seen_sequence, last_listened_sequence FROM conversation_sessions WHERE session_id = ?`, sessionID).Scan(&state.Cursor.LastSeenSequence, &state.Cursor.LastListenedSequence); err != nil {
 		if err == sql.ErrNoRows {
 			return state, false, nil
 		}
@@ -204,7 +207,7 @@ func (r *SQLConversationRepository) ListSessionPage(sessionID string, limit int,
 	}
 	query += ` ORDER BY sequence DESC LIMIT ?`
 	args = append(args, limit+1)
-	rows, err := r.db.Query(query, args...)
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return ConversationSessionState{}, false, fmt.Errorf("query event page: %w", err)
 	}
@@ -229,25 +232,25 @@ func (r *SQLConversationRepository) ListSessionPage(sessionID string, limit int,
 	return state, hasMore, nil
 }
 
-func (r *SQLConversationRepository) CountSessionEvents(sessionID string) (int64, error) {
+func (r *SQLConversationRepository) CountSessionEvents(ctx context.Context, sessionID string) (int64, error) {
 	var count int64
-	if err := r.db.QueryRow(`SELECT COUNT(*) FROM conversation_events WHERE session_id = ?`, sessionID).Scan(&count); err != nil {
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM conversation_events WHERE session_id = ?`, sessionID).Scan(&count); err != nil {
 		return 0, fmt.Errorf("count session events: %w", err)
 	}
 	return count, nil
 }
 
-func (r *SQLConversationRepository) SearchSession(sessionID, query string, limit int) ([]ConversationSearchMatch, bool, int64, error) {
+func (r *SQLConversationRepository) SearchSession(ctx context.Context, sessionID, query string, limit int) ([]ConversationSearchMatch, bool, int64, error) {
 	if limit <= 0 {
 		limit = 500
 	}
 	escaped := strings.NewReplacer("\\", "\\\\", "%", "\\%", "_", "\\_").Replace(query)
 	pattern := "%" + escaped + "%"
 	var total int64
-	if err := r.db.QueryRow(`SELECT COUNT(*) FROM conversation_events WHERE session_id = ? AND text LIKE ? ESCAPE '\'`, sessionID, pattern).Scan(&total); err != nil {
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM conversation_events WHERE session_id = ? AND text LIKE ? ESCAPE '\'`, sessionID, pattern).Scan(&total); err != nil {
 		return nil, false, 0, err
 	}
-	rows, err := r.db.Query(`SELECT id, sequence, text FROM conversation_events WHERE session_id = ? AND text LIKE ? ESCAPE '\' ORDER BY sequence LIMIT ?`, sessionID, pattern, limit+1)
+	rows, err := r.db.QueryContext(ctx, `SELECT id, sequence, text FROM conversation_events WHERE session_id = ? AND text LIKE ? ESCAPE '\' ORDER BY sequence LIMIT ?`, sessionID, pattern, limit+1)
 	if err != nil {
 		return nil, false, 0, err
 	}
@@ -281,8 +284,8 @@ func conversationExcerpt(text, query string) string {
 	return text[from:to]
 }
 
-func (r *SQLConversationRepository) ListSessionRange(sessionID string, from, to int64) ([]ConversationEvent, error) {
-	rows, err := r.db.Query(`SELECT id, session_id, source, role, text, speech_paragraphs, COALESCE(original_speech_paragraphs, ''), summarized, created_at, sequence, delivery_state, tts_state, consumption_state FROM conversation_events WHERE session_id = ? AND sequence >= ? AND sequence <= ? ORDER BY sequence LIMIT 5001`, sessionID, from, to)
+func (r *SQLConversationRepository) ListSessionRange(ctx context.Context, sessionID string, from, to int64) ([]ConversationEvent, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT id, session_id, source, role, text, speech_paragraphs, COALESCE(original_speech_paragraphs, ''), summarized, created_at, sequence, delivery_state, tts_state, consumption_state FROM conversation_events WHERE session_id = ? AND sequence >= ? AND sequence <= ? ORDER BY sequence LIMIT 5001`, sessionID, from, to)
 	if err != nil {
 		return nil, err
 	}
@@ -301,8 +304,8 @@ func (r *SQLConversationRepository) ListSessionRange(sessionID string, from, to 
 	return events, rows.Err()
 }
 
-func (r *SQLConversationRepository) UpdateSpeechParagraphs(sessionID, eventID string, paragraphs []string) error {
-	tx, err := r.db.Begin()
+func (r *SQLConversationRepository) UpdateSpeechParagraphs(ctx context.Context, sessionID, eventID string, paragraphs []string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
@@ -310,7 +313,7 @@ func (r *SQLConversationRepository) UpdateSpeechParagraphs(sessionID, eventID st
 
 	var currentSpeech string
 	var currentOriginal sql.NullString
-	if err := tx.QueryRow(`
+	if err := tx.QueryRowContext(ctx, `
 		SELECT speech_paragraphs, original_speech_paragraphs
 		FROM conversation_events
 		WHERE session_id = ? AND id = ?`,
@@ -332,7 +335,7 @@ func (r *SQLConversationRepository) UpdateSpeechParagraphs(sessionID, eventID st
 		originalSpeech = currentOriginal.String
 	}
 
-	if _, err := tx.Exec(`
+	if _, err := tx.ExecContext(ctx, `
 		UPDATE conversation_events
 		SET original_speech_paragraphs = ?, speech_paragraphs = ?, summarized = 1
 		WHERE session_id = ? AND id = ?`,
@@ -344,15 +347,15 @@ func (r *SQLConversationRepository) UpdateSpeechParagraphs(sessionID, eventID st
 	return tx.Commit()
 }
 
-func (r *SQLConversationRepository) UpdateCursor(sessionID string, patch conversationCursorPatch) (ConversationCursor, error) {
-	tx, err := r.db.Begin()
+func (r *SQLConversationRepository) UpdateCursor(ctx context.Context, sessionID string, patch conversationCursorPatch) (ConversationCursor, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return ConversationCursor{}, fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback() //nolint:errcheck
 
 	now := formatTime(time.Now())
-	if _, err := tx.Exec(`
+	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO conversation_sessions (session_id, created_at, updated_at)
 		VALUES (?, ?, ?)
 		ON CONFLICT(session_id) DO NOTHING`,
@@ -362,7 +365,7 @@ func (r *SQLConversationRepository) UpdateCursor(sessionID string, patch convers
 	}
 
 	var cursor ConversationCursor
-	if err := tx.QueryRow(`
+	if err := tx.QueryRowContext(ctx, `
 		SELECT last_seen_sequence, last_listened_sequence
 		FROM conversation_sessions
 		WHERE session_id = ?`,
@@ -378,7 +381,7 @@ func (r *SQLConversationRepository) UpdateCursor(sessionID string, patch convers
 		cursor.LastListenedSequence = *patch.listenedSequence
 	}
 
-	if _, err := tx.Exec(`
+	if _, err := tx.ExecContext(ctx, `
 		UPDATE conversation_sessions
 		SET last_seen_sequence = ?, last_listened_sequence = ?, updated_at = ?
 		WHERE session_id = ?`,
@@ -387,7 +390,7 @@ func (r *SQLConversationRepository) UpdateCursor(sessionID string, patch convers
 		return ConversationCursor{}, fmt.Errorf("update cursor: %w", err)
 	}
 
-	if err := applyCursorStateUpdates(tx, sessionID, cursor); err != nil {
+	if err := applyCursorStateUpdates(ctx, tx, sessionID, cursor); err != nil {
 		return ConversationCursor{}, err
 	}
 
@@ -397,15 +400,15 @@ func (r *SQLConversationRepository) UpdateCursor(sessionID string, patch convers
 	return cursor, nil
 }
 
-func (r *SQLConversationRepository) RecordPlaybackStage(sessionID, eventID, stage string) error {
-	tx, err := r.db.Begin()
+func (r *SQLConversationRepository) RecordPlaybackStage(ctx context.Context, sessionID, eventID, stage string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback() //nolint:errcheck
 
 	var event ConversationEvent
-	found, err := loadConversationEventForUpdate(tx, sessionID, eventID, &event)
+	found, err := loadConversationEventForUpdate(ctx, tx, sessionID, eventID, &event)
 	if err != nil {
 		return err
 	}
@@ -414,7 +417,7 @@ func (r *SQLConversationRepository) RecordPlaybackStage(sessionID, eventID, stag
 	}
 
 	var cursor ConversationCursor
-	if err := tx.QueryRow(`
+	if err := tx.QueryRowContext(ctx, `
 		SELECT last_seen_sequence, last_listened_sequence
 		FROM conversation_sessions
 		WHERE session_id = ?`,
@@ -455,11 +458,11 @@ func (r *SQLConversationRepository) RecordPlaybackStage(sessionID, eventID, stag
 		event.TTSState = ConversationTTSFailed
 	}
 
-	if err := updateConversationEventState(tx, event); err != nil {
+	if err := updateConversationEventState(ctx, tx, event); err != nil {
 		return err
 	}
 
-	if _, err := tx.Exec(`
+	if _, err := tx.ExecContext(ctx, `
 		UPDATE conversation_sessions
 		SET last_seen_sequence = ?, last_listened_sequence = ?, updated_at = ?
 		WHERE session_id = ?`,
@@ -474,17 +477,17 @@ func (r *SQLConversationRepository) RecordPlaybackStage(sessionID, eventID, stag
 	return nil
 }
 
-func (r *SQLConversationRepository) DeleteSession(sessionID string) error {
-	tx, err := r.db.Begin()
+func (r *SQLConversationRepository) DeleteSession(ctx context.Context, sessionID string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback() //nolint:errcheck
 
-	if _, err := tx.Exec(`DELETE FROM conversation_events WHERE session_id = ?`, sessionID); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM conversation_events WHERE session_id = ?`, sessionID); err != nil {
 		return fmt.Errorf("delete conversation events: %w", err)
 	}
-	if _, err := tx.Exec(`DELETE FROM conversation_sessions WHERE session_id = ?`, sessionID); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM conversation_sessions WHERE session_id = ?`, sessionID); err != nil {
 		return fmt.Errorf("delete conversation session: %w", err)
 	}
 	return tx.Commit()
@@ -498,18 +501,18 @@ func (r *SQLConversationRepository) DeleteSession(sessionID string) error {
 // The destination's last_sequence high-water mark is carried over so freshly
 // appended events continue numbering after the copied tail. No-op when the
 // source has no history.
-func (r *SQLConversationRepository) CopySession(oldID, newID string) error {
+func (r *SQLConversationRepository) CopySession(ctx context.Context, oldID, newID string) error {
 	if oldID == "" || newID == "" || oldID == newID {
 		return nil
 	}
-	tx, err := r.db.Begin()
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback() //nolint:errcheck
 
 	var lastSeq, lastSeen, lastListened int64
-	switch err := tx.QueryRow(`
+	switch err := tx.QueryRowContext(ctx, `
 		SELECT last_sequence, last_seen_sequence, last_listened_sequence
 		FROM conversation_sessions
 		WHERE session_id = ?`,
@@ -522,7 +525,7 @@ func (r *SQLConversationRepository) CopySession(oldID, newID string) error {
 	}
 
 	now := formatTime(time.Now())
-	if _, err := tx.Exec(`
+	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO conversation_sessions (
 			session_id, last_sequence, last_seen_sequence, last_listened_sequence, created_at, updated_at
 		)
@@ -537,7 +540,7 @@ func (r *SQLConversationRepository) CopySession(oldID, newID string) error {
 		return fmt.Errorf("ensure destination session: %w", err)
 	}
 
-	if _, err := tx.Exec(`
+	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO conversation_events (
 			id, session_id, source, role, text, speech_paragraphs,
 			original_speech_paragraphs, summarized, created_at, sequence,
@@ -568,7 +571,7 @@ func NewInMemoryConversationRepository() *InMemoryConversationRepository {
 	}
 }
 
-func (r *InMemoryConversationRepository) AppendEvent(event ConversationEvent) (ConversationEvent, error) {
+func (r *InMemoryConversationRepository) AppendEvent(_ context.Context, event ConversationEvent) (ConversationEvent, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -579,7 +582,7 @@ func (r *InMemoryConversationRepository) AppendEvent(event ConversationEvent) (C
 	return event, nil
 }
 
-func (r *InMemoryConversationRepository) GetEvent(sessionID, eventID string) (ConversationEvent, bool, error) {
+func (r *InMemoryConversationRepository) GetEvent(_ context.Context, sessionID, eventID string) (ConversationEvent, bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -595,7 +598,7 @@ func (r *InMemoryConversationRepository) GetEvent(sessionID, eventID string) (Co
 	return ConversationEvent{}, false, nil
 }
 
-func (r *InMemoryConversationRepository) ListSession(sessionID string) (ConversationSessionState, error) {
+func (r *InMemoryConversationRepository) ListSession(_ context.Context, sessionID string) (ConversationSessionState, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -616,8 +619,8 @@ func (r *InMemoryConversationRepository) ListSession(sessionID string) (Conversa
 	}, nil
 }
 
-func (r *InMemoryConversationRepository) ListSessionPage(sessionID string, limit int, beforeSequence int64) (ConversationSessionState, bool, error) {
-	state, err := r.ListSession(sessionID)
+func (r *InMemoryConversationRepository) ListSessionPage(ctx context.Context, sessionID string, limit int, beforeSequence int64) (ConversationSessionState, bool, error) {
+	state, err := r.ListSession(ctx, sessionID)
 	if err != nil || limit <= 0 {
 		return state, false, err
 	}
@@ -641,7 +644,7 @@ func (r *InMemoryConversationRepository) ListSessionPage(sessionID string, limit
 	return state, hasMore, nil
 }
 
-func (r *InMemoryConversationRepository) CountSessionEvents(sessionID string) (int64, error) {
+func (r *InMemoryConversationRepository) CountSessionEvents(_ context.Context, sessionID string) (int64, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	session := r.sessions[sessionID]
@@ -651,8 +654,8 @@ func (r *InMemoryConversationRepository) CountSessionEvents(sessionID string) (i
 	return int64(len(session.events)), nil
 }
 
-func (r *InMemoryConversationRepository) SearchSession(sessionID, query string, limit int) ([]ConversationSearchMatch, bool, int64, error) {
-	state, err := r.ListSession(sessionID)
+func (r *InMemoryConversationRepository) SearchSession(ctx context.Context, sessionID, query string, limit int) ([]ConversationSearchMatch, bool, int64, error) {
+	state, err := r.ListSession(ctx, sessionID)
 	if err != nil {
 		return nil, false, 0, err
 	}
@@ -673,8 +676,8 @@ func (r *InMemoryConversationRepository) SearchSession(sessionID, query string, 
 	return matches, truncated, total, nil
 }
 
-func (r *InMemoryConversationRepository) ListSessionRange(sessionID string, from, to int64) ([]ConversationEvent, error) {
-	state, err := r.ListSession(sessionID)
+func (r *InMemoryConversationRepository) ListSessionRange(ctx context.Context, sessionID string, from, to int64) ([]ConversationEvent, error) {
+	state, err := r.ListSession(ctx, sessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -690,7 +693,7 @@ func (r *InMemoryConversationRepository) ListSessionRange(sessionID string, from
 	return events, nil
 }
 
-func (r *InMemoryConversationRepository) UpdateSpeechParagraphs(sessionID, eventID string, paragraphs []string) error {
+func (r *InMemoryConversationRepository) UpdateSpeechParagraphs(_ context.Context, sessionID, eventID string, paragraphs []string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -711,7 +714,7 @@ func (r *InMemoryConversationRepository) UpdateSpeechParagraphs(sessionID, event
 	return nil
 }
 
-func (r *InMemoryConversationRepository) UpdateCursor(sessionID string, patch conversationCursorPatch) (ConversationCursor, error) {
+func (r *InMemoryConversationRepository) UpdateCursor(_ context.Context, sessionID string, patch conversationCursorPatch) (ConversationCursor, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -746,7 +749,7 @@ func (r *InMemoryConversationRepository) UpdateCursor(sessionID string, patch co
 	return session.cursor, nil
 }
 
-func (r *InMemoryConversationRepository) RecordPlaybackStage(sessionID, eventID, stage string) error {
+func (r *InMemoryConversationRepository) RecordPlaybackStage(_ context.Context, sessionID, eventID, stage string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -792,14 +795,14 @@ func (r *InMemoryConversationRepository) RecordPlaybackStage(sessionID, eventID,
 	return nil
 }
 
-func (r *InMemoryConversationRepository) DeleteSession(sessionID string) error {
+func (r *InMemoryConversationRepository) DeleteSession(_ context.Context, sessionID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	delete(r.sessions, sessionID)
 	return nil
 }
 
-func (r *InMemoryConversationRepository) CopySession(oldID, newID string) error {
+func (r *InMemoryConversationRepository) CopySession(_ context.Context, oldID, newID string) error {
 	if oldID == "" || newID == "" || oldID == newID {
 		return nil
 	}
@@ -897,8 +900,8 @@ func marshalStringSlice(values []string) (string, error) {
 	return string(data), nil
 }
 
-func applyCursorStateUpdates(tx *sql.Tx, sessionID string, cursor ConversationCursor) error {
-	rows, err := tx.Query(`
+func applyCursorStateUpdates(ctx context.Context, tx *sql.Tx, sessionID string, cursor ConversationCursor) error {
+	rows, err := tx.QueryContext(ctx, `
 		SELECT id, session_id, source, role, text, speech_paragraphs,
 		       COALESCE(original_speech_paragraphs, ''), summarized, created_at, sequence,
 		       delivery_state, tts_state, consumption_state
@@ -933,7 +936,7 @@ func applyCursorStateUpdates(tx *sql.Tx, sessionID string, cursor ConversationCu
 			}
 		}
 		if event.DeliveryState != original.DeliveryState || event.TTSState != original.TTSState || event.ConsumptionState != original.ConsumptionState {
-			if err := updateConversationEventState(tx, event); err != nil {
+			if err := updateConversationEventState(ctx, tx, event); err != nil {
 				return err
 			}
 		}
@@ -944,8 +947,8 @@ func applyCursorStateUpdates(tx *sql.Tx, sessionID string, cursor ConversationCu
 	return nil
 }
 
-func loadConversationEventForUpdate(tx *sql.Tx, sessionID, eventID string, event *ConversationEvent) (bool, error) {
-	row := tx.QueryRow(`
+func loadConversationEventForUpdate(ctx context.Context, tx *sql.Tx, sessionID, eventID string, event *ConversationEvent) (bool, error) {
+	row := tx.QueryRowContext(ctx, `
 		SELECT id, session_id, source, role, text, speech_paragraphs,
 		       COALESCE(original_speech_paragraphs, ''), summarized, created_at, sequence,
 		       delivery_state, tts_state, consumption_state
@@ -964,8 +967,8 @@ func loadConversationEventForUpdate(tx *sql.Tx, sessionID, eventID string, event
 	return true, nil
 }
 
-func updateConversationEventState(tx *sql.Tx, event ConversationEvent) error {
-	if _, err := tx.Exec(`
+func updateConversationEventState(ctx context.Context, tx *sql.Tx, event ConversationEvent) error {
+	if _, err := tx.ExecContext(ctx, `
 		UPDATE conversation_events
 		SET delivery_state = ?, tts_state = ?, consumption_state = ?
 		WHERE session_id = ? AND id = ?`,

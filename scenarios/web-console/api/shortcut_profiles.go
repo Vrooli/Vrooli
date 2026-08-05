@@ -5,6 +5,7 @@
 package main
 
 import (
+	"context"
 	"sync"
 	"time"
 )
@@ -117,7 +118,7 @@ var scopePriority = map[string]int{
 }
 
 // List returns all profiles.
-func (s *ShortcutProfileStore) List() []*ShortcutProfile {
+func (s *ShortcutProfileStore) List(_ context.Context) []*ShortcutProfile {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	result := make([]*ShortcutProfile, 0, len(s.profiles))
@@ -128,7 +129,7 @@ func (s *ShortcutProfileStore) List() []*ShortcutProfile {
 }
 
 // Get returns a profile by ID.
-func (s *ShortcutProfileStore) Get(id string) (*ShortcutProfile, bool) {
+func (s *ShortcutProfileStore) Get(_ context.Context, id string) (*ShortcutProfile, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	p, ok := s.profiles[id]
@@ -152,7 +153,7 @@ func shortcutsEqual(a, b []ShortcutEntry) bool {
 // Replay-safe: if the content (scope, name, shortcuts) is identical to the
 // existing profile, the UpdatedAt timestamp is preserved — repeated calls
 // with the same payload are a no-op.
-func (s *ShortcutProfileStore) Upsert(id, scope, name string, shortcuts []ShortcutEntry) *ShortcutProfile {
+func (s *ShortcutProfileStore) Upsert(_ context.Context, id, scope, name string, shortcuts []ShortcutEntry) *ShortcutProfile {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	now := time.Now().UTC().Format(time.RFC3339Nano)
@@ -179,7 +180,7 @@ func (s *ShortcutProfileStore) Upsert(id, scope, name string, shortcuts []Shortc
 }
 
 // Delete removes a profile by ID. Returns false if not found.
-func (s *ShortcutProfileStore) Delete(id string) bool {
+func (s *ShortcutProfileStore) Delete(_ context.Context, id string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, ok := s.profiles[id]; !ok {
@@ -192,7 +193,7 @@ func (s *ShortcutProfileStore) Delete(id string) bool {
 // Effective returns the resolved shortcut list by selecting the
 // highest-priority scope's profile. Falls back to default shortcuts
 // if no profiles exist.
-func (s *ShortcutProfileStore) Effective() []ShortcutEntry {
+func (s *ShortcutProfileStore) Effective(_ context.Context) []ShortcutEntry {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 

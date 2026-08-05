@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,13 +19,13 @@ func waitForEventCount(t *testing.T, store *ConversationStore, sessionID string,
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		state := store.ListSession(sessionID)
+		state := store.ListSession(context.Background(), sessionID)
 		if len(state.Events) >= n {
 			return state
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
-	state := store.ListSession(sessionID)
+	state := store.ListSession(context.Background(), sessionID)
 	t.Fatalf("timed out waiting for %d events in session %s; have %d: %+v", n, sessionID, len(state.Events), state.Events)
 	return state
 }
@@ -102,7 +103,7 @@ func TestGrokTailer_ResumesFromCheckpointWithoutDuplicating(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := checkpoints.Save(AgentTranscriptCheckpoint{
+	if err := checkpoints.Save(context.Background(), AgentTranscriptCheckpoint{
 		Source:    grokSource,
 		SourceKey: path,
 		SessionID: sess.ID,
@@ -150,7 +151,7 @@ func TestGrokTailer_DoesNotConsumePartialTrailingLine(t *testing.T) {
 	// surface before asserting it did not.
 	waitForEventCount(t, srv.conversations, sess.ID, 2, 3*time.Second)
 	time.Sleep(300 * time.Millisecond)
-	state := srv.conversations.ListSession(sess.ID)
+	state := srv.conversations.ListSession(context.Background(), sess.ID)
 	if len(state.Events) != 2 {
 		t.Fatalf("partial line must not produce an event; got %d: %+v", len(state.Events), state.Events)
 	}
@@ -179,7 +180,7 @@ func TestGrokTailer_DuplicateReplayDoesNotDuplicate(t *testing.T) {
 	t.Cleanup(gt2.Stop)
 
 	time.Sleep(400 * time.Millisecond)
-	state := srv.conversations.ListSession(sess.ID)
+	state := srv.conversations.ListSession(context.Background(), sess.ID)
 	if len(state.Events) != 2 {
 		t.Fatalf("replay must not duplicate; got %d events: %+v", len(state.Events), state.Events)
 	}
@@ -190,7 +191,7 @@ func TestGrokTailer_CapturesAgentInfoFromSummary(t *testing.T) {
 	srv, sess := newCodexTailerTestServer(t)
 	srv.agentCheckpointStore = NewInMemoryAgentTranscriptCheckpointStore()
 	store := sessionstore.NewInMemory()
-	if err := store.Save(sessionstore.Metadata{ID: sess.ID}); err != nil {
+	if err := store.Save(context.Background(), sessionstore.Metadata{ID: sess.ID}); err != nil {
 		t.Fatal(err)
 	}
 	srv.sessionStore = store
@@ -209,7 +210,7 @@ func TestGrokTailer_CapturesAgentInfoFromSummary(t *testing.T) {
 
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
-		meta, err := store.Get(sess.ID)
+		meta, err := store.Get(context.Background(), sess.ID)
 		if err == nil && meta.AgentSessionID == "grok-5" {
 			if meta.AgentType != sessionstore.AgentGrok {
 				t.Fatalf("agent type = %q, want grok", meta.AgentType)

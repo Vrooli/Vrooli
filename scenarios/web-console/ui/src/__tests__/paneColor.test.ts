@@ -8,6 +8,7 @@ import {
   serializePaneColor,
   paneColorStyle,
   nextGroupColor,
+  paneAccentStyle,
 } from "../lib/paneColor";
 import { HEADER_COLORS } from "../consts/config";
 
@@ -164,5 +165,28 @@ describe("relativeLuminance / isLightColor", () => {
   });
   it("treats invalid input as dark (0 luminance)", () => {
     expect(relativeLuminance("nope")).toBe(0);
+  });
+});
+
+describe("paneAccentStyle", () => {
+  it("prefers the pane's own color over the group's", () => {
+    expect(paneAccentStyle("#ff6b6b", "#4dabf7", "bar")).toEqual({ backgroundColor: "#ff6b6b" });
+  });
+
+  it("falls back to the group color when the pane is transparent", () => {
+    expect(paneAccentStyle("transparent", "#4dabf7", "bar")).toEqual({ backgroundColor: "#4dabf7" });
+  });
+
+  it("renders nothing when neither the pane nor a group supplies a color", () => {
+    expect(paneAccentStyle("transparent", null, "bar")).toBeUndefined();
+    expect(paneAccentStyle("transparent", undefined, "header")).toBeUndefined();
+  });
+
+  it("honours the variant for the group fallback too", () => {
+    // The sidebar bar and the grid pane header use different geometry; the
+    // fallback must not silently render the bar treatment in a header.
+    expect(paneAccentStyle("transparent", "#4dabf7|#ff6b6b", "header")).toEqual({
+      backgroundImage: "repeating-linear-gradient(45deg, #4dabf7 0 10px, #ff6b6b 10px 20px)",
+    });
   });
 });

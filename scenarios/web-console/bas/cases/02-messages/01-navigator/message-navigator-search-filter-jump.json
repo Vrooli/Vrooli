@@ -4,6 +4,18 @@
   "name": "message-navigator-search-filter-jump",
   "folder_path": "/bas/cases/02-messages/01-navigator",
   "description": "Open the Messages view, search the navigator, filter to user messages, and jump to a seeded message",
+  "metadata": {
+    "name": "message-navigator-search-filter-jump",
+    "description": "Open the Messages view, search the navigator, filter to user messages, and jump to a seeded message",
+    "execution_mode": "mutating",
+    "reset": "none",
+    "labels": {
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "requirements_json": "[\"REQ-P0-001a\"]"
+    }
+  },
   "tags": [
     "reset:none",
     "requirements_json:[\"REQ-P0-001a\"]"

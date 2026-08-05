@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/api-core/database"
+
 	_ "modernc.org/sqlite"
 )
 
@@ -29,7 +31,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 	t.Cleanup(func() { db.Close() })
 
 	// Load and execute schema
-	schemaPath := filepath.Join(findRepoRoot(t), "scenarios", "web-console", "initialization", "sqlite", "schema.sql")
+	schemaPath := filepath.Join(findRepoRoot(t), "scenarios", "web-console", "api", "internal", "sessions", "schema.sql")
 	schema, err := os.ReadFile(schemaPath)
 	if err != nil {
 		t.Fatalf("read schema.sql: %v", err)
@@ -39,7 +41,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 	}
 
 	// Load and execute seed
-	seedPath := filepath.Join(findRepoRoot(t), "scenarios", "web-console", "initialization", "sqlite", "seed.sql")
+	seedPath := filepath.Join(findRepoRoot(t), "scenarios", "web-console", "api", "internal", "sessions", "seed.sql")
 	seed, err := os.ReadFile(seedPath)
 	if err != nil {
 		t.Fatalf("read seed.sql: %v", err)
@@ -123,4 +125,24 @@ func requireIsolatedTmux(t *testing.T) string {
 		t.Skip("tmux not installed")
 	}
 	return useIsolatedTmuxSocket(t)
+}
+
+// repoSchemaProviders loads schema.sql + seed.sql from the repo, in the same
+// order production uses. initSchema itself resolves them relative to the
+// running executable, which under `go test` is a binary in a temp build dir.
+func repoSchemaProviders(t *testing.T) []database.SchemaProvider {
+	t.Helper()
+	root := findRepoRoot(t)
+	var providers []database.SchemaProvider
+	for _, name := range []string{"schema.sql", "seed.sql"} {
+		content, err := os.ReadFile(
+			filepath.Join(root, "scenarios", "web-console", "api", "internal", "sessions", name),
+		)
+		if err != nil {
+			t.Fatalf("read %s: %v", name, err)
+		}
+		text := string(content)
+		providers = append(providers, database.SchemaProviderFunc(func() string { return text }))
+	}
+	return providers
 }

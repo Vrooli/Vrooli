@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"strings"
 	"sync"
 	"time"
@@ -171,7 +172,7 @@ type ConversationStore struct {
 
 // SetSpeechProcessor lets package main inject the active port. The passthrough
 // default remains in use until called.
-func (s *ConversationStore) SetSpeechProcessor(p audioports.SpeechTextProcessor) {
+func (s *ConversationStore) SetSpeechProcessor(ctx context.Context, p audioports.SpeechTextProcessor) {
 	s.processor = p
 }
 
@@ -209,7 +210,7 @@ func conversationDedupKey(sessionID string, role ConversationRole, text string) 
 	return strings.Join([]string{sessionID, string(role), text}, "\n")
 }
 
-func (s *ConversationStore) AppendAssistantEvent(sessionID, source, text string) (ConversationEvent, ConversationAppendResult) {
+func (s *ConversationStore) AppendAssistantEvent(ctx context.Context, sessionID, source, text string) (ConversationEvent, ConversationAppendResult) {
 	cleanText := normalizeConversationText(text)
 	if strings.TrimSpace(sessionID) == "" {
 		return ConversationEvent{}, ConversationAppendResult{
@@ -254,7 +255,7 @@ func (s *ConversationStore) AppendAssistantEvent(sessionID, source, text string)
 		TTSState:         ConversationTTSIdle,
 		ConsumptionState: ConversationConsumptionUnseen,
 	}
-	persisted, err := s.repository.AppendEvent(event)
+	persisted, err := s.repository.AppendEvent(ctx, event)
 	if err != nil {
 		return ConversationEvent{}, ConversationAppendResult{
 			Appended:  false,
@@ -277,7 +278,7 @@ func (s *ConversationStore) AppendAssistantEvent(sessionID, source, text string)
 	}
 }
 
-func (s *ConversationStore) AppendUserEvent(sessionID, source, text string) (ConversationEvent, ConversationAppendResult) {
+func (s *ConversationStore) AppendUserEvent(ctx context.Context, sessionID, source, text string) (ConversationEvent, ConversationAppendResult) {
 	cleanText := normalizeConversationText(text)
 	if strings.TrimSpace(sessionID) == "" {
 		return ConversationEvent{}, ConversationAppendResult{
@@ -322,7 +323,7 @@ func (s *ConversationStore) AppendUserEvent(sessionID, source, text string) (Con
 		TTSState:         ConversationTTSIdle,
 		ConsumptionState: ConversationConsumptionUnseen,
 	}
-	persisted, err := s.repository.AppendEvent(event)
+	persisted, err := s.repository.AppendEvent(ctx, event)
 	if err != nil {
 		return ConversationEvent{}, ConversationAppendResult{
 			Appended:  false,
@@ -348,22 +349,22 @@ func (s *ConversationStore) AppendUserEvent(sessionID, source, text string) (Con
 // UpdateSpeechParagraphs replaces the SpeechParagraphs field for a stored event
 // with a summarized version. The original paragraphs are preserved so the
 // frontend can toggle between summarized and original playback.
-func (s *ConversationStore) UpdateSpeechParagraphs(sessionID, eventID string, paragraphs []string) {
-	_ = s.repository.UpdateSpeechParagraphs(sessionID, eventID, paragraphs)
+func (s *ConversationStore) UpdateSpeechParagraphs(ctx context.Context, sessionID, eventID string, paragraphs []string) {
+	_ = s.repository.UpdateSpeechParagraphs(ctx, sessionID, eventID, paragraphs)
 }
 
 // GetEvent returns a copy of a single event by ID. The bool is false when the
 // session or event is unknown.
-func (s *ConversationStore) GetEvent(sessionID, eventID string) (ConversationEvent, bool) {
-	event, ok, err := s.repository.GetEvent(sessionID, eventID)
+func (s *ConversationStore) GetEvent(ctx context.Context, sessionID, eventID string) (ConversationEvent, bool) {
+	event, ok, err := s.repository.GetEvent(ctx, sessionID, eventID)
 	if err != nil {
 		return ConversationEvent{}, false
 	}
 	return event, ok
 }
 
-func (s *ConversationStore) ListSession(sessionID string) ConversationSessionState {
-	state, err := s.repository.ListSession(sessionID)
+func (s *ConversationStore) ListSession(ctx context.Context, sessionID string) ConversationSessionState {
+	state, err := s.repository.ListSession(ctx, sessionID)
 	if err != nil {
 		return ConversationSessionState{
 			SessionID: sessionID,
@@ -373,34 +374,34 @@ func (s *ConversationStore) ListSession(sessionID string) ConversationSessionSta
 	return state
 }
 
-func (s *ConversationStore) ListSessionPage(sessionID string, limit int, beforeSequence int64) (ConversationSessionState, bool) {
-	state, hasMore, err := s.repository.ListSessionPage(sessionID, limit, beforeSequence)
+func (s *ConversationStore) ListSessionPage(ctx context.Context, sessionID string, limit int, beforeSequence int64) (ConversationSessionState, bool) {
+	state, hasMore, err := s.repository.ListSessionPage(ctx, sessionID, limit, beforeSequence)
 	if err != nil {
 		return ConversationSessionState{SessionID: sessionID, Events: []ConversationEvent{}}, false
 	}
 	return state, hasMore
 }
 
-func (s *ConversationStore) CountSessionEvents(sessionID string) int64 {
-	count, err := s.repository.CountSessionEvents(sessionID)
+func (s *ConversationStore) CountSessionEvents(ctx context.Context, sessionID string) int64 {
+	count, err := s.repository.CountSessionEvents(ctx, sessionID)
 	if err != nil {
 		return 0
 	}
 	return count
 }
 
-func (s *ConversationStore) SearchSession(sessionID, query string, limit int) ([]ConversationSearchMatch, bool, int64, error) {
-	return s.repository.SearchSession(sessionID, query, limit)
+func (s *ConversationStore) SearchSession(ctx context.Context, sessionID, query string, limit int) ([]ConversationSearchMatch, bool, int64, error) {
+	return s.repository.SearchSession(ctx, sessionID, query, limit)
 }
 
-func (s *ConversationStore) ListSessionRange(sessionID string, from, to int64) ([]ConversationEvent, error) {
-	return s.repository.ListSessionRange(sessionID, from, to)
+func (s *ConversationStore) ListSessionRange(ctx context.Context, sessionID string, from, to int64) ([]ConversationEvent, error) {
+	return s.repository.ListSessionRange(ctx, sessionID, from, to)
 }
 
 // HasConversationAfter reports whether tracking recorded an event after the
 // supplied instant. It is used by the recovered-session health signal.
-func (s *ConversationStore) HasConversationAfter(sessionID string, after time.Time) bool {
-	for _, event := range s.ListSession(sessionID).Events {
+func (s *ConversationStore) HasConversationAfter(ctx context.Context, sessionID string, after time.Time) bool {
+	for _, event := range s.ListSession(ctx, sessionID).Events {
 		if event.CreatedAt.After(after) {
 			return true
 		}
@@ -408,25 +409,25 @@ func (s *ConversationStore) HasConversationAfter(sessionID string, after time.Ti
 	return false
 }
 
-func (s *ConversationStore) UpdateCursor(sessionID string, patch conversationCursorPatch) ConversationCursor {
-	cursor, err := s.repository.UpdateCursor(sessionID, patch)
+func (s *ConversationStore) UpdateCursor(ctx context.Context, sessionID string, patch conversationCursorPatch) ConversationCursor {
+	cursor, err := s.repository.UpdateCursor(ctx, sessionID, patch)
 	if err != nil {
 		return ConversationCursor{}
 	}
 	return cursor
 }
 
-func (s *ConversationStore) RecordPlaybackStage(sessionID, eventID, stage string) {
-	_ = s.repository.RecordPlaybackStage(sessionID, eventID, stage)
+func (s *ConversationStore) RecordPlaybackStage(ctx context.Context, sessionID, eventID, stage string) {
+	_ = s.repository.RecordPlaybackStage(ctx, sessionID, eventID, stage)
 }
 
-func (s *ConversationStore) DeleteSession(sessionID string) {
-	_ = s.repository.DeleteSession(sessionID)
+func (s *ConversationStore) DeleteSession(ctx context.Context, sessionID string) {
+	_ = s.repository.DeleteSession(ctx, sessionID)
 }
 
 // CopySession duplicates the conversation history from oldID onto newID so a
 // recovered session pane shows the prior conversation. See
 // ConversationRepository.CopySession for the preservation semantics.
-func (s *ConversationStore) CopySession(oldID, newID string) error {
-	return s.repository.CopySession(oldID, newID)
+func (s *ConversationStore) CopySession(ctx context.Context, oldID, newID string) error {
+	return s.repository.CopySession(ctx, oldID, newID)
 }

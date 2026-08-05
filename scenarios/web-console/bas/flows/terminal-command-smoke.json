@@ -4,6 +4,18 @@
   "name": "terminal-command-smoke",
   "folder_path": "/bas/flows",
   "description": "Open workspace and run a command in a newly launched terminal",
+  "metadata": {
+    "name": "terminal-command-smoke",
+    "description": "Open workspace and run a command in a newly launched terminal",
+    "execution_mode": "mutating",
+    "reset": "full",
+    "labels": {
+      "reset": "full",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "seed": "seed"
+    }
+  },
   "tags": [
     "parameters_json:[{\"name\":\"command\",\"type\":\"string\",\"required\":true,\"description\":\"Command to execute in the launched terminal\"}]",
     "reset:none"
@@ -31,10 +43,10 @@
         "action": {
           "type": "ACTION_TYPE_SUBFLOW",
           "subflow": {
-            "workflow_path": "actions/reset-sessions-best-effort.json"
+            "workflow_path": "actions/capture-session-baseline.json"
           },
           "metadata": {
-            "label": "Reset sessions (best effort)"
+            "label": "Capture session baseline"
           }
         }
       },

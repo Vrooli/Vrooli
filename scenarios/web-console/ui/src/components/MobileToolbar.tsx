@@ -12,7 +12,7 @@ import KeyComboPicker from "./KeyComboPicker";
 import VoiceMicButton from "./VoiceMicButton";
 import VoiceCommandSuggestion from "./VoiceCommandSuggestion";
 import AiSuggestBar from "./AiSuggestBar";
-import type { StartRecordingOpts, VoiceActivitySnapshot } from "../hooks/useVoiceInput";
+import type { StartRecordingOpts, VoiceActivitySnapshot } from "../audio-integration";
 import type { CommandSuggestion } from "../audio-integration";
 import { slugify } from "../lib/slugify";
 import { useComposerDraft, type ComposerDraft } from "../hooks/useComposerDraft";
@@ -140,6 +140,7 @@ interface MobileToolbarProps {
   voiceSupported?: boolean;
   voicePreparing?: boolean;
   voiceRecording?: boolean;
+  voicePersistentMode?: boolean;
   /** True when persistent voice mode is active. */
   voiceListening?: boolean;
   /** True when passive wake-word listening currently holds the mic. */
@@ -200,6 +201,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   voiceSupported,
   voicePreparing,
   voiceRecording,
+  voicePersistentMode,
   voiceListening,
   voicePassive,
   voiceTranscribing,
@@ -691,10 +693,13 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
           )}
           {voiceSupported && onVoiceStart && onVoiceStop && (
             <VoiceMicButton
+              testId="voice-mic-btn"
               supported={voiceSupported}
               isPreparing={voicePreparing ?? false}
               isRecording={voiceRecording ?? false}
+              persistentMode={voicePersistentMode ?? false}
               isListening={voiceListening ?? false}
+              size="sm"
               isPassive={voicePassive ?? false}
               isTranscribing={voiceTranscribing ?? false}
               staleLiveMic={voiceStaleLiveMic ?? false}
@@ -836,10 +841,13 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
           {voiceSupported && onVoiceStart && onVoiceStop && (
             <div className="flex items-stretch" style={{ gridColumn: 4, gridRow: "1 / -1" }}>
               <VoiceMicButton
+                testId="voice-mic-btn"
                 supported={voiceSupported}
                 isPreparing={voicePreparing ?? false}
                 isRecording={voiceRecording ?? false}
+                persistentMode={voicePersistentMode ?? false}
                 isListening={voiceListening ?? false}
+                size="lg"
                 isTranscribing={voiceTranscribing ?? false}
                 staleLiveMic={voiceStaleLiveMic ?? false}
                 error={voiceError ?? null}
@@ -955,10 +963,13 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
           )}
           {voiceSupported && onVoiceStart && onVoiceStop && (
             <VoiceMicButton
+              testId="voice-mic-btn"
               supported={voiceSupported}
               isPreparing={voicePreparing ?? false}
               isRecording={voiceRecording ?? false}
+              persistentMode={voicePersistentMode ?? false}
               isListening={voiceListening ?? false}
+              size="sm"
               isPassive={voicePassive ?? false}
               isTranscribing={voiceTranscribing ?? false}
               staleLiveMic={voiceStaleLiveMic ?? false}

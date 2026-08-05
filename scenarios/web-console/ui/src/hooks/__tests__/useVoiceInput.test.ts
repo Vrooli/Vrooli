@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { apiBaseMock } from "../../test-utils";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
+import { registerVoiceTransport as registerBrowserVoiceTransport } from "@vrooli/audio-capture-browser";
 import {
   _resetMicOwnershipForTesting,
   getActiveMicLeases,
@@ -94,6 +95,10 @@ describe("useVoiceInput", () => {
   beforeEach(() => {
     originalFetch = globalThis.fetch;
     vi.clearAllMocks();
+    registerBrowserVoiceTransport({
+      buildStreamUrl: () => "ws://voice.test/stream",
+      transcribeRetained: async () => "",
+    });
     removeSpeechRecognition();
     useWorkspaceStore.setState({ voiceEnabled: true });
   });
@@ -108,7 +113,7 @@ describe("useVoiceInput", () => {
     mockMediaDevices(true);
 
     const onTranscript = vi.fn();
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(onTranscript));
 
     await act(async () => {
@@ -125,7 +130,7 @@ describe("useVoiceInput", () => {
     mockMediaDevices(true);
 
     const onTranscript = vi.fn();
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(onTranscript));
 
     await act(async () => {
@@ -141,7 +146,7 @@ describe("useVoiceInput", () => {
     removeSpeechRecognition();
 
     const onTranscript = vi.fn();
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(onTranscript));
 
     await act(async () => {
@@ -158,7 +163,7 @@ describe("useVoiceInput", () => {
     installSpeechRecognition();
 
     const onTranscript = vi.fn();
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(onTranscript));
 
     await act(async () => {
@@ -176,7 +181,7 @@ describe("useVoiceInput", () => {
     removeSpeechRecognition();
 
     const onTranscript = vi.fn();
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(onTranscript));
 
     await act(async () => {
@@ -257,6 +262,10 @@ describe("WebSpeechProvider deduplication (via hook)", () => {
   beforeEach(() => {
     originalFetch = globalThis.fetch;
     vi.clearAllMocks();
+    registerBrowserVoiceTransport({
+      buildStreamUrl: () => "ws://voice.test/stream",
+      transcribeRetained: async () => "",
+    });
     removeSpeechRecognition();
     useWorkspaceStore.setState({ voiceEnabled: true });
   });
@@ -271,7 +280,7 @@ describe("WebSpeechProvider deduplication (via hook)", () => {
     const ctrl = installControllableSpeechRecognition();
 
     const onTranscript = vi.fn();
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(onTranscript));
 
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
@@ -301,7 +310,7 @@ describe("WebSpeechProvider deduplication (via hook)", () => {
     const ctrl = installControllableSpeechRecognition();
 
     const onTranscript = vi.fn();
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(onTranscript));
 
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
@@ -321,7 +330,7 @@ describe("WebSpeechProvider deduplication (via hook)", () => {
     const ctrl = installControllableSpeechRecognition();
 
     const onTranscript = vi.fn();
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(onTranscript));
 
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
@@ -405,7 +414,7 @@ describe("voice capture lifecycle ownership", () => {
     const ctrl = installErrorableSpeechRecognition();
 
     const onTranscript = vi.fn();
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(onTranscript));
 
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
@@ -428,7 +437,7 @@ describe("voice capture lifecycle ownership", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const onTranscript = vi.fn();
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(onTranscript));
 
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
@@ -462,7 +471,7 @@ describe("voice capture lifecycle ownership", () => {
     });
 
     const onTranscript = vi.fn();
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(onTranscript));
 
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
@@ -493,7 +502,7 @@ describe("voice capture lifecycle ownership", () => {
     });
 
     const onTranscript = vi.fn();
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(onTranscript));
 
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
@@ -609,11 +618,11 @@ describe("voice capture lifecycle server-final wedge", () => {
     _resetMicOwnershipForTesting();
   });
 
-  it("tears down capture when the server sends final before the client stops", async () => {
+  it("does not accept a premature server final as a successful turn", async () => {
     mockCapabilities(true);
     const browser = installFinalFrameBrowserFakes();
     const onTranscript = vi.fn();
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(onTranscript));
 
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
@@ -622,21 +631,27 @@ describe("voice capture lifecycle server-final wedge", () => {
     await act(async () => { await result.current.startRecording(); });
     await waitFor(() => expect(result.current.voiceState).toBe("recording"));
     expect(getActiveMicLeases()).toHaveLength(1);
-    const firstRecorder = FinalFrameMediaRecorder.instances.at(-1);
     const firstSocket = FinalFrameWebSocket.instances.at(-1);
-    if (!firstRecorder || !firstSocket) throw new Error("expected recording fakes to exist");
-    expect(firstRecorder.state).toBe("recording");
+    if (!firstSocket) throw new Error("expected streaming socket fake to exist");
+    expect(browser.tracks[0]?.readyState).toBe("live");
 
     await act(async () => {
       firstSocket.emitFinal("server finished");
       await Promise.resolve();
     });
 
+    // A server final while the browser is still recording is a degraded
+    // transport signal, not a successful turn. The provider reconnects and
+    // replays retained PCM so the words are not silently discarded.
+    await waitFor(() => expect(result.current.streamingDegradationNotice).toContain("recovering retained audio"));
+    expect(result.current.voiceState).toBe("recording");
+    expect(onTranscript).not.toHaveBeenCalled();
+    expect(getActiveMicLeases()).toHaveLength(1);
+    expect(browser.tracks[0]?.readyState).toBe("live");
+
+    await act(async () => { result.current.releaseMicrophone(); });
     await waitFor(() => expect(result.current.voiceState).toBe("idle"));
-    expect(onTranscript).toHaveBeenCalledWith("server finished");
     expect(getActiveMicLeases()).toHaveLength(0);
-    expect(firstRecorder.stop).toHaveBeenCalled();
-    expect(firstRecorder.state).toBe("inactive");
     expect(browser.tracks[0]?.stop).toHaveBeenCalled();
 
     await act(async () => { await result.current.startRecording(); });

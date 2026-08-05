@@ -423,6 +423,38 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       setContextMenu(null);
     }, [copySelection, clearSelection]);
 
+    // Seqs whose outcome is already reported by a more specific
+    // affordance (the context menu's own "Paste failed" state).
+    const selfReportedSeqsRef = useRef<Set<number>>(new Set());
+    const [inputError, setInputError] = useState<string | null>(null);
+
+    // Report input the backend refused. Without this the failure is
+    // silent for everything typed or pasted through xterm: the ack
+    // carries ok=false and nothing renders it.
+    //
+    // Retried failures stay quiet on purpose. "ack-timeout" and
+    // "connection-closed" re-enqueue the payload and send it again on
+    // reconnect, so announcing them would be both noisy and wrong —
+    // only a server-reported rejection means the bytes are actually
+    // gone.
+    useEffect(() => {
+      const unsub = subscribeInputSettled((seq, ok, reason) => {
+        const wasSelfReported = selfReportedSeqsRef.current.delete(seq);
+        if (ok || wasSelfReported) return;
+        if (reason === "ack-timeout" || reason === "connection-closed") return;
+        setInputError(t(strings.terminalPane.inputRejected));
+      });
+      return unsub;
+    }, [subscribeInputSettled, t]);
+
+    // Auto-dismiss so a one-off rejection doesn't sit over the terminal
+    // for the rest of the session.
+    useEffect(() => {
+      if (!inputError) return;
+      const timer = setTimeout(() => setInputError(null), 6000);
+      return () => clearTimeout(timer);
+    }, [inputError]);
+
     const handleCtxPaste = useCallback((text: string): Promise<
       { status: "ok" } | { status: "failed"; reason: string }
     > => {
@@ -448,6 +480,9 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       }
       // result.status === "sent": wait for the matching stdin_ack.
       const { seq } = result;
+      // The context menu reports this payload's outcome inline, so claim
+      // the seq to keep the pane-level banner from saying it twice.
+      selfReportedSeqsRef.current.add(seq);
       return new Promise((resolve) => {
         const unsub = subscribeInputSettled((ackSeq, ok) => {
           if (ackSeq !== seq) return;
@@ -794,6 +829,15 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         {uploadError && (
           <div data-testid="upload-error" className="absolute top-2 left-2 z-wc-chrome-raised rounded bg-red-600/90 px-3 py-1.5 text-xs text-white shadow-lg">
             {uploadError}
+          </div>
+        )}
+        {inputError && (
+          <div
+            data-testid="input-error"
+            role="status"
+            className="absolute bottom-2 left-2 right-2 z-wc-chrome-raised rounded bg-red-600/90 px-3 py-1.5 text-xs text-white shadow-lg"
+          >
+            {inputError}
           </div>
         )}
         {contextMenu && (

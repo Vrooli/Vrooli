@@ -13,32 +13,41 @@ export function useGroupActions() {
   const addGroup = useWorkspaceStore((s) => s.addGroup);
   const removeGroup = useWorkspaceStore((s) => s.removeGroup);
   const setPaneGroup = useWorkspaceStore((s) => s.setPaneGroup);
-  const addPaneToGroup = useWorkspaceStore((s) => s.addPaneToGroup);
-  const { syncCreateGroup, syncDeleteGroup, syncPaneUpdate, syncPaneOrder } = useWorkspaceSync();
+  const { syncCreateGroup, syncDeleteGroup, syncPaneUpdate, syncPaneOrder, syncPaneMove } = useWorkspaceSync();
 
-  /** Assign a pane to a group, keeping the group contiguous + syncing both. */
+  /**
+   * Assign a pane to a group. The store repositions it into the group's block
+   * and may seed its color from the group, so this syncs the order and the
+   * pane patch together via syncPaneMove.
+   */
   const assignPaneToGroup = useCallback((sessionId: string, groupId: string) => {
-    addPaneToGroup(sessionId, groupId);
-    syncPaneUpdate(sessionId, { group_id: groupId });
-    const { panes: updated, activePane: active } = useWorkspaceStore.getState();
-    syncPaneOrder(updated.map((p) => p.sessionId), active);
-  }, [addPaneToGroup, syncPaneUpdate, syncPaneOrder]);
+    setPaneGroup(sessionId, groupId);
+    syncPaneMove(sessionId);
+  }, [setPaneGroup, syncPaneMove]);
 
-  /** Clear one pane's group membership. */
+  /**
+   * Clear one pane's group membership. Also a move: the pane leaves the
+   * group's block, so the surviving members must stay contiguous.
+   */
   const removePaneFromGroup = useCallback((sessionId: string) => {
     setPaneGroup(sessionId, null);
-    syncPaneUpdate(sessionId, { group_id: null });
-  }, [setPaneGroup, syncPaneUpdate]);
+    syncPaneMove(sessionId);
+  }, [setPaneGroup, syncPaneMove]);
 
   /** Clear group membership for every pane in a group (the group itself stays). */
   const ungroupAllMembers = useCallback((groupId: string) => {
-    for (const p of useWorkspaceStore.getState().panes) {
-      if (p.groupId === groupId) {
-        setPaneGroup(p.sessionId, null);
-        syncPaneUpdate(p.sessionId, { group_id: null });
-      }
+    const members = useWorkspaceStore.getState().panes.filter((p) => p.groupId === groupId);
+    for (const p of members) {
+      setPaneGroup(p.sessionId, null);
+      syncPaneUpdate(p.sessionId, { group_id: null });
     }
-  }, [setPaneGroup, syncPaneUpdate]);
+    // One order save for the whole batch — the members' positions are settled
+    // only after the last of them has left.
+    if (members.length > 0) {
+      const { panes, activePane } = useWorkspaceStore.getState();
+      syncPaneOrder(panes.map((p) => p.sessionId), activePane);
+    }
+  }, [setPaneGroup, syncPaneUpdate, syncPaneOrder]);
 
   /** Hard-delete a group: ungroup its members, then drop it locally + remotely. */
   const deleteGroup = useCallback((groupId: string) => {

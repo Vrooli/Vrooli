@@ -74,7 +74,7 @@
 ## Known Limitations
 1. PTY support requires Unix-like OS (creack/pty) — no Windows native support
 2. Shell fallback is `/bin/sh` — not available on Windows without WSL
-3. `initSchema` reads SQL files relative to binary — desktop bundles must ship `initialization/` directory alongside binary (candidate for `//go:embed` in future)
+3. `initSchema` reads SQL files relative to binary — desktop bundles must ship `api/internal/<domain>/` directory alongside binary (candidate for `//go:embed` in future)
 
 ## Required Changes for Tier 3 (Mobile)
 1. PTY replacement needed — mobile cannot run shell processes

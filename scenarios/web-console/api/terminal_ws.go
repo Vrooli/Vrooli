@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
 	"web-console/internal/events"
 	"web-console/session"
 

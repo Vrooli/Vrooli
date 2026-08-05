@@ -36,6 +36,7 @@ const pane = (sessionId: string): PaneMetadata => ({
   fontSize: 14,
   groupId: null,
   supportsMessagesView: false,
+  manuallyUnread: false,
 });
 
 function buckets(origins: Record<string, SessionOriginName>): OriginBucketNavigation[] {

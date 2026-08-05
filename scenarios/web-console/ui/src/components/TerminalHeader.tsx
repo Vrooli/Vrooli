@@ -6,7 +6,7 @@ import type { PaneViewMode } from "../stores/useConversationStore";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
-import { paneColorStyle } from "../lib/paneColor";
+import { paneAccentStyle } from "../lib/paneColor";
 import { Button } from "./ui/button";
 
 interface TerminalHeaderProps {
@@ -42,6 +42,14 @@ export default function TerminalHeader({
   const movePaneToIndex = useWorkspaceStore((s) => s.movePaneToIndex);
   const setAppearanceModalPane = useWorkspaceStore((s) => s.setAppearanceModalPane);
   const panes = useWorkspaceStore((s) => s.panes);
+  // Group color, for panes grouped before joining a group started seeding the
+  // pane's own color. Selecting the resolved color (a primitive) rather than
+  // the group object keeps this subscription from re-rendering the header on
+  // unrelated group edits.
+  const groupColor = useWorkspaceStore((s) => {
+    const groupId = s.panes.find((p) => p.sessionId === sessionId)?.groupId;
+    return groupId ? s.groups.find((g) => g.id === groupId)?.color ?? null : null;
+  });
 
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(name);
@@ -63,7 +71,7 @@ export default function TerminalHeader({
     requestAnimationFrame(() => inputRef.current?.select());
   }, [name]);
 
-  const bgStyle = paneColorStyle(headerColor, "header");
+  const bgStyle = paneAccentStyle(headerColor, groupColor, "header");
 
   return (
     <div

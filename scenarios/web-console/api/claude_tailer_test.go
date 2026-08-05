@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -21,7 +22,7 @@ func newClaudeTailerTestServer(t *testing.T) (*Server, string, string) {
 	srv.sessionStore = sessionstore.NewInMemory()
 	srv.agentCheckpointStore = NewInMemoryAgentTranscriptCheckpointStore()
 	cwd := "/workspace/claude-project"
-	if err := srv.sessionStore.Save(sessionstore.Metadata{
+	if err := srv.sessionStore.Save(context.Background(), sessionstore.Metadata{
 		ID: sess.ID, Backend: backend.Persistent, Shell: "/bin/sh", Cols: 80, Rows: 24,
 		Created: time.Now(), Status: sessionstore.StatusLive, AgentType: sessionstore.AgentClaude,
 		AgentSessionID: "claude-session", CWD: cwd,
@@ -65,7 +66,7 @@ func TestClaudeTailer_EmitsOrderedTextAndSkipsToolResults(t *testing.T) {
 
 	tailer := NewClaudeTailer(srv)
 	tailer.scan()
-	state := srv.conversations.ListSession(sessionID)
+	state := srv.conversations.ListSession(context.Background(), sessionID)
 	if len(state.Events) != 3 {
 		t.Fatalf("events = %+v, want 3", state.Events)
 	}
@@ -85,7 +86,7 @@ func TestClaudeTailer_ResumesFromCheckpoint(t *testing.T) {
 	tailer.scan()
 	writeClaudeTranscript(t, path, `{"type":"assistant","message":{"content":[{"type":"text","text":"resumed"}]}}`)
 	tailer.scan()
-	state := srv.conversations.ListSession(sessionID)
+	state := srv.conversations.ListSession(context.Background(), sessionID)
 	if len(state.Events) != 2 || state.Events[0].Text != "first" || state.Events[1].Text != "resumed" {
 		t.Fatalf("checkpoint events = %+v", state.Events)
 	}
@@ -99,7 +100,7 @@ func TestClaudeTailer_DeduplicatesHookDelivery(t *testing.T) {
 	writeClaudeTranscript(t, path, `{"type":"assistant","message":{"content":[{"type":"text","text":"same response"}]}}`)
 	tailer := NewClaudeTailer(srv)
 	tailer.scan()
-	state := srv.conversations.ListSession(sessionID)
+	state := srv.conversations.ListSession(context.Background(), sessionID)
 	if len(state.Events) != 1 || state.Events[0].Source != "claude_hook" {
 		t.Fatalf("dedup events = %+v", state.Events)
 	}
@@ -113,7 +114,7 @@ func TestClaudeTailer_DeduplicatesWhenTailerArrivesFirst(t *testing.T) {
 	if result := srv.AppendAssistant("same response", sessionID, "claude_hook"); !result.Duplicate {
 		t.Fatalf("hook should be duplicate after tailer delivery: %+v", result)
 	}
-	state := srv.conversations.ListSession(sessionID)
+	state := srv.conversations.ListSession(context.Background(), sessionID)
 	if len(state.Events) != 1 || state.Events[0].Source != claudeTailerSource {
 		t.Fatalf("dedup events = %+v", state.Events)
 	}
@@ -123,7 +124,7 @@ func TestClaudeTailer_MissingTranscriptDoesNotCreateEvents(t *testing.T) {
 	srv, sessionID, _ := newClaudeTailerTestServer(t)
 	tailer := NewClaudeTailer(srv)
 	tailer.scan()
-	if state := srv.conversations.ListSession(sessionID); len(state.Events) != 0 {
+	if state := srv.conversations.ListSession(context.Background(), sessionID); len(state.Events) != 0 {
 		t.Fatalf("missing transcript emitted events: %+v", state.Events)
 	}
 }

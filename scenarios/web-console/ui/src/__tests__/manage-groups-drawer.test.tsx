@@ -32,6 +32,7 @@ const makePanes = (assignments: Record<string, string | null>): PaneMetadata[] =
     fontSize: 14,
     groupId,
     supportsMessagesView: false,
+  manuallyUnread: false,
   }));
 
 const groupA: TabGroupMeta = { id: "ga", name: "Alpha", color: HEADER_COLORS[0] ?? "#111111", isCollapsed: false };
@@ -158,15 +159,25 @@ describe("ManageGroupsDrawer", () => {
     setStore({ manageGroupsTarget: { sessionId: "s3" } });
     render(<ManageGroupsDrawer />);
 
-    // s3 is ungrouped: both rows offer assign.
+    // s3 is ungrouped: both rows offer assign. Joining seeds the group's color
+    // onto the pane, and both halves of that must reach the backend — a synced
+    // group_id with a stale header_color is what made the group color show up
+    // on one surface and one device only.
     fireEvent.click(screen.getByTestId("manage-groups-assign-gb"));
     expect(useWorkspaceStore.getState().panes.find((p) => p.sessionId === "s3")?.groupId).toBe("gb");
-    expect(mockUpdateWorkspacePane).toHaveBeenCalledWith("s3", { group_id: "gb" });
+    expect(mockUpdateWorkspacePane).toHaveBeenCalledWith("s3", {
+      group_id: "gb",
+      header_color: groupB.color,
+    });
 
-    // Row for gb now offers remove.
+    // Row for gb now offers remove. The seeded color stays: leaving a group
+    // must not silently restyle a session the user can see.
     fireEvent.click(screen.getByTestId("manage-groups-unassign-gb"));
     expect(useWorkspaceStore.getState().panes.find((p) => p.sessionId === "s3")?.groupId).toBeNull();
-    expect(mockUpdateWorkspacePane).toHaveBeenCalledWith("s3", { group_id: null });
+    expect(mockUpdateWorkspacePane).toHaveBeenCalledWith("s3", {
+      group_id: null,
+      header_color: groupB.color,
+    });
   });
 
   it("hides the assign/remove toggle without a session context", () => {

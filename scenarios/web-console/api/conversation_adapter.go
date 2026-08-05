@@ -25,10 +25,10 @@ func (a *conversationAdapter) Get(sessionID string, sinceSequence int64, limit i
 	if _, ok := a.srv.sessions.Get(sessionID); !ok {
 		return conversationH.SessionState{}, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)
 	}
-	state := a.srv.conversations.ListSession(sessionID)
+	state := a.srv.conversations.ListSession(context.Background(), sessionID)
 	hasMore := false
 	if limit > 0 {
-		state, hasMore = a.srv.conversations.ListSessionPage(sessionID, limit, beforeSequence)
+		state, hasMore = a.srv.conversations.ListSessionPage(context.Background(), sessionID, limit, beforeSequence)
 	}
 	events := state.Events
 	if sinceSequence > 0 {
@@ -48,7 +48,7 @@ func (a *conversationAdapter) Get(sessionID string, sinceSequence int64, limit i
 			LastListenedSequence: state.Cursor.LastListenedSequence,
 		},
 		HasMore:    hasMore,
-		TotalCount: a.srv.conversations.CountSessionEvents(sessionID),
+		TotalCount: a.srv.conversations.CountSessionEvents(context.Background(), sessionID),
 	}
 	if len(events) > 0 {
 		result.OldestSequence = events[0].Sequence
@@ -61,7 +61,7 @@ func (a *conversationAdapter) Search(sessionID, query string, limit int) ([]conv
 	if _, ok := a.srv.sessions.Get(sessionID); !ok {
 		return nil, false, 0, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)
 	}
-	matches, truncated, total, err := a.srv.conversations.SearchSession(sessionID, query, limit)
+	matches, truncated, total, err := a.srv.conversations.SearchSession(context.Background(), sessionID, query, limit)
 	if err != nil {
 		return nil, false, 0, err
 	}
@@ -76,11 +76,11 @@ func (a *conversationAdapter) GetRange(sessionID string, from, to int64) (conver
 	if _, ok := a.srv.sessions.Get(sessionID); !ok {
 		return conversationH.SessionState{}, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)
 	}
-	events, err := a.srv.conversations.ListSessionRange(sessionID, from, to)
+	events, err := a.srv.conversations.ListSessionRange(context.Background(), sessionID, from, to)
 	if err != nil {
 		return conversationH.SessionState{}, err
 	}
-	state := a.srv.conversations.ListSession(sessionID)
+	state := a.srv.conversations.ListSession(context.Background(), sessionID)
 	return conversationH.SessionState{SessionID: sessionID, Events: transportEvents(events), Cursor: conversationH.Cursor{LastSeenSequence: state.Cursor.LastSeenSequence, LastListenedSequence: state.Cursor.LastListenedSequence}}, nil
 }
 
@@ -97,7 +97,7 @@ func (a *conversationAdapter) UpdateCursor(sessionID string, patch conversationH
 		v := patch.LastListenedSequence
 		storePatch.listenedSequence = &v
 	}
-	cur := a.srv.conversations.UpdateCursor(sessionID, storePatch)
+	cur := a.srv.conversations.UpdateCursor(context.Background(), sessionID, storePatch)
 	return conversationH.Cursor{
 		LastSeenSequence:     cur.LastSeenSequence,
 		LastListenedSequence: cur.LastListenedSequence,
@@ -114,7 +114,7 @@ func (a *conversationAdapter) SummarizeEvent(ctx context.Context, sessionID, eve
 		}, nil
 	}
 
-	state := a.srv.conversations.ListSession(sessionID)
+	state := a.srv.conversations.ListSession(ctx, sessionID)
 	var event *ConversationEvent
 	for i := range state.Events {
 		if state.Events[i].ID == eventID {
@@ -162,7 +162,7 @@ func (a *conversationAdapter) SummarizeEvent(ctx context.Context, sessionID, eve
 			Error: "Summarization returned empty content",
 		}, nil
 	}
-	a.srv.conversations.UpdateSpeechParagraphs(sessionID, eventID, newParagraphs)
+	a.srv.conversations.UpdateSpeechParagraphs(ctx, sessionID, eventID, newParagraphs)
 
 	return conversationH.SummarizeResult{
 		Summarized:       true,

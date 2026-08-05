@@ -1,6 +1,7 @@
 package session
 
 import (
+	"context"
 	"log"
 	"sync"
 	"time"
@@ -77,7 +78,7 @@ func (es *ExpirationSweeper) sweep() {
 		p := sess.GetPolicy()
 		if policy.IsExpired(sess.CreatedAt, p) {
 			log.Printf("session %s: expired (policy=%s, duration=%s)", sess.ID, p.Mode, p.Duration)
-			if err := es.sessions.Delete(sess.ID); err == nil {
+			if err := es.sessions.Delete(context.Background(), sess.ID); err == nil {
 				es.events.Emit(events.SessionTerminated, sess.ID, map[string]string{
 					"reason":   "expired",
 					"policy":   string(p.Mode),

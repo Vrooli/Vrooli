@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { _resetMicOwnershipForTesting, getActiveMicLeases } from "../micOwnership";
-import { PassiveListener } from "./passiveListener";
+import { PassiveListener, type PassiveListenerSeams } from "./passiveListener";
 import type { WakeWordEngine, WakeWordTemplate } from "./types";
 
 // Keep the audio pipeline + VAD trivial — this suite is about mic-stream
@@ -57,6 +57,21 @@ function installGetUserMedia(): { getUserMedia: ReturnType<typeof vi.fn>; stop: 
   return { getUserMedia, stop: track.stop };
 }
 
+const testSeams: PassiveListenerSeams = {
+  createRingBuffer: (_seconds, sampleRate) => ({
+    sampleRate,
+    mark: () => 0,
+    extractSinceMark: () => new Float32Array(0),
+  } as never),
+  createCapturePipeline: () => ({
+    analyser: { fftSize: 2048, getFloatTimeDomainData: () => {} } as never,
+    nodes: [],
+  }),
+  downsample: (samples) => samples,
+  createVadRefs: () => ({ state: "calibrating", recordingStart: 0 } as never),
+  vadTick: () => null,
+};
+
 const engine: WakeWordEngine = {
   extractFeatures: vi.fn(),
   compare: vi.fn(),
@@ -90,7 +105,7 @@ describe("PassiveListener mic ownership", () => {
     const onMicReleased = vi.fn();
     const listener = new PassiveListener({
       engine, template, onWakeWordDetected: vi.fn(), onError: vi.fn(),
-      audioContext: fakeAudioContext() as unknown as AudioContext, onMicReleased,
+      audioContext: fakeAudioContext() as unknown as AudioContext, onMicReleased, seams: testSeams,
     });
 
     await listener.start();
@@ -110,7 +125,7 @@ describe("PassiveListener mic ownership", () => {
     const onMicReleased = vi.fn();
     // Force the listener to create its OWN context (so the throwing createMediaStreamSource runs).
     const listener = new PassiveListener({
-      engine, template, onWakeWordDetected: vi.fn(), onError, onMicReleased,
+      engine, template, onWakeWordDetected: vi.fn(), onError, onMicReleased, seams: testSeams,
     });
 
     await listener.start();
@@ -129,7 +144,7 @@ describe("PassiveListener mic ownership", () => {
     const onError = vi.fn();
     const listener = new PassiveListener({
       engine, template, onWakeWordDetected: vi.fn(), onError,
-      audioContext: fakeAudioContext() as unknown as AudioContext,
+      audioContext: fakeAudioContext() as unknown as AudioContext, seams: testSeams,
     });
 
     await listener.start();

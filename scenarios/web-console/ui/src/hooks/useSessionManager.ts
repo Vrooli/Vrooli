@@ -3,6 +3,7 @@ import { toErrorInfo, type ErrorInfo } from "../lib/errors";
 import { getWorkspaceLayout, updateWorkspacePane } from "../api/workspace";
 import { createSession, deleteSession, listSessions, type SessionInfo, type BackendID, type PolicyMode, type AgentType } from "../api/sessions";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
+import { orderPanesByGroupBlocks } from "../lib/workspaceNavigation";
 import { DEFAULT_COLS, DEFAULT_ROWS, ERROR_AUTO_DISMISS_MS } from "../consts/config";
 import type { TerminalPaneHandle } from "../components/TerminalPane";
 import type { GateResult, InputSource } from "../components/terminal/inputGate";
@@ -136,6 +137,7 @@ export function useSessionManager() {
               fontSize: p.font_size,
               groupId: p.group_id,
               supportsMessagesView: p.supports_messages_view ?? false,
+              manuallyUnread: p.manually_unread ?? false,
             }));
 
           // Sessions without pane metadata get defaults
@@ -150,6 +152,7 @@ export function useSessionManager() {
                 fontSize: store.defaultFontSize,
                 groupId: null,
                 supportsMessagesView: false,
+                manuallyUnread: false,
               };
               paneMetadata.push(newPane);
               // Persist new pane to backend (fire-and-forget)
@@ -163,9 +166,13 @@ export function useSessionManager() {
             }
           }
 
-          // Update store
+          // Update store. The order is normalized on the way in: the backend
+          // sorts by (sort_order, created_at) and ties are routine, so the
+          // list it returns can interleave a group's members with panes that
+          // are not in the group. Normalizing here means the very first paint
+          // after a reload already satisfies the block invariant.
           if (store.panes.length === 0) useWorkspaceStore.setState({
-            panes: paneMetadata,
+            panes: orderPanesByGroupBlocks(paneMetadata),
             activePane: layout.active_pane || paneMetadata[0]?.sessionId || null,
             groups: layout.groups.map((g) => ({
               id: g.id,
@@ -186,6 +193,7 @@ export function useSessionManager() {
               fontSize: store.defaultFontSize,
               groupId: null,
               supportsMessagesView: false,
+              manuallyUnread: false,
             })),
             activePane: sessions[0]?.id || null,
           });

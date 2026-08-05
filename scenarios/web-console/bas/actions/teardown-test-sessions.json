@@ -1,0 +1,41 @@
+{
+  "id": "b6f0c4a2-19d4-4d55-9b0e-6f0f0a5a4d21",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "teardown-test-sessions",
+  "folder_path": "/bas/actions",
+  "description": "Delete every session created since the baseline, and fail if any survive. Scoped by construction: sessions present in the baseline are never touched.",
+  "metadata": {
+    "name": "teardown-test-sessions",
+    "description": "Delete every session created since the baseline, and fail if any survive. Scoped by construction: sessions present in the baseline are never touched.",
+    "execution_mode": "destructive",
+    "reset": "none",
+    "labels": {
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    }
+  },
+  "tags": [
+    "reset:none"
+  ],
+  "version": 1,
+  "created_at": "2026-07-12T19:31:13.433448419Z",
+  "updated_at": "2026-07-12T19:31:13.433448419Z",
+  "flow_definition": {
+    "settings": {},
+    "nodes": [
+      {
+        "id": "delete-created-sessions",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const listIds = async () => { try { const res = await fetch('/vrooli.web_console.v1.sessions.SessionsService/List', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', cache: 'no-store' }); if (!res.ok) return null; const body = await res.json(); const rows = Array.isArray(body) ? body : (body && body.sessions) || []; return rows.map((s) => s && s.id).filter(Boolean); } catch { return null; } }; const readBaseline = () => { try { const raw = sessionStorage.getItem('__bas_baseline_sessions'); if (!raw) return null; const parsed = JSON.parse(raw); return Array.isArray(parsed) ? parsed : null; } catch { return null; } }; const setAttr = (k, v) => document.body.setAttribute(k, String(v)); setAttr('data-bas-teardown-clean', 'false'); const baselineIds = readBaseline(); if (baselineIds === null) {  setAttr('data-bas-teardown-reason', 'baseline-missing'); throw new Error('teardown refused: no session baseline (cannot prove which sessions are mine)'); } const baseline = new Set(baselineIds); const ids = await listIds(); if (ids === null) { setAttr('data-bas-teardown-reason', 'list-failed'); throw new Error('teardown refused: could not list sessions'); } const mine = ids.filter((id) => !baseline.has(id)); if (mine.length > 4) {  setAttr('data-bas-teardown-reason', 'refused-too-many:' + mine.length); throw new Error('teardown refused: ' + mine.length + ' candidate sessions exceeds the safety cap; baseline is wrong'); } for (const id of mine) { try {  await fetch('/vrooli.web_console.v1.sessions.SessionsService/Delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }); } catch {} } const remaining = await listIds(); const leaked = (remaining || []).filter((id) => !baseline.has(id)); setAttr('data-bas-teardown-deleted', mine.length); setAttr('data-bas-teardown-leaked', leaked.length); setAttr('data-bas-teardown-reason', leaked.length === 0 ? 'ok' : 'leaked'); setAttr('data-bas-teardown-clean', leaked.length === 0 ? 'true' : 'false'); if (leaked.length > 0) throw new Error('case leaked ' + leaked.length + ' terminal session(s)'); })()"
+          },
+          "metadata": {
+            "label": "Delete sessions created by this case (throws on leak or refusal)"
+          }
+        }
+      }
+    ]
+  }
+}

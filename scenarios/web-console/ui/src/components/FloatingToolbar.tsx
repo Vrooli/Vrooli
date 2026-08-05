@@ -8,7 +8,7 @@ import { strings } from "../consts/strings";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { Button } from "./ui/button";
 import VoiceMicButton from "./VoiceMicButton";
-import type { StartRecordingOpts, VoiceActivitySnapshot } from "../hooks/useVoiceInput";
+import type { StartRecordingOpts, VoiceActivitySnapshot } from "../audio-integration";
 import { readSafeAreaInsets } from "../lib/safeArea";
 
 /** Minimum fling speed (px/s) to trigger a dock */
@@ -58,6 +58,7 @@ interface FloatingToolbarProps {
   voiceSupported?: boolean;
   voicePreparing?: boolean;
   voiceRecording?: boolean;
+  voicePersistentMode?: boolean;
   voiceListening?: boolean;
   /** True when passive wake-word listening currently holds the mic. */
   voicePassive?: boolean;
@@ -97,6 +98,7 @@ export default function FloatingToolbar({
   voiceSupported,
   voicePreparing,
   voiceRecording,
+  voicePersistentMode,
   voiceListening,
   voicePassive,
   voiceTranscribing,
@@ -244,7 +246,7 @@ export default function FloatingToolbar({
         data-testid="toolbar-settings"
         variant="ghost"
         size="icon"
-        className="h-7 w-7"
+        className="h-8 w-8"
         onClick={onOpenSettings}
         title={t(strings.floatingToolbar.settingsTitle)}
         tabIndex={docked ? -1 : undefined}
@@ -259,7 +261,7 @@ export default function FloatingToolbar({
         data-testid="toolbar-ai"
         variant="ghost"
         size="icon"
-        className="h-7 w-7 hidden md:inline-flex"
+        className="h-8 w-8 hidden md:inline-flex"
         onClick={onOpenAi}
         title={t(strings.floatingToolbar.aiCommandTitle)}
         tabIndex={docked ? -1 : undefined}
@@ -271,7 +273,7 @@ export default function FloatingToolbar({
           data-testid="toolbar-expand-composer"
           variant="ghost"
           size="icon"
-          className="h-7 w-7 hidden md:inline-flex"
+          className="h-8 w-8 hidden md:inline-flex"
           onClick={onExpandComposer}
           title={t(strings.floatingToolbar.expandComposerTitle)}
           tabIndex={docked ? -1 : undefined}
@@ -281,12 +283,15 @@ export default function FloatingToolbar({
       )}
       {voiceSupported && onVoiceStart && onVoiceStop && (
         <VoiceMicButton
+          testId="voice-mic-btn"
           supported={voiceSupported}
           isPreparing={voicePreparing ?? false}
           isRecording={voiceRecording ?? false}
+          persistentMode={voicePersistentMode ?? false}
           isListening={voiceListening ?? false}
           isPassive={voicePassive ?? false}
           isTranscribing={voiceTranscribing ?? false}
+          size="xs"
           staleLiveMic={voiceStaleLiveMic ?? false}
           error={voiceError ?? null}
           audioLevel={voiceLevel}
@@ -304,13 +309,14 @@ export default function FloatingToolbar({
           onCancel={onVoiceCancel}
           onTtsStop={onTtsStop}
           className="hidden md:flex"
+          buttonClassName="h-8 w-8"
         />
       )}
       <Button
         data-testid="toolbar-new"
         variant="ghost"
         size="icon"
-        className="h-7 w-7"
+        className="h-8 w-8"
         disabled={isCreating}
         title={plusButtonBehavior === "launcher" ? t(strings.floatingToolbar.launcherFirstTitle) : t(strings.floatingToolbar.terminalFirstTitle)}
         tabIndex={docked ? -1 : undefined}

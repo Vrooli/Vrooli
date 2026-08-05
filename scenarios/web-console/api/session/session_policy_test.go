@@ -1,6 +1,7 @@
 package session
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -148,11 +149,11 @@ func TestIsExpired_Performance(t *testing.T) {
 
 func TestSession_GetSetPolicy(t *testing.T) {
 	sm := NewManagerWithFactory(ptyfake.NewFactory())
-	sess, err := sm.Create("", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	defer func() { _ = sm.Delete(sess.ID) }()
+	defer func() { _ = sm.Delete(context.Background(), sess.ID) }()
 
 	// Default policy is never
 	p := sess.GetPolicy()
@@ -175,7 +176,7 @@ func TestExpirationSweeper_RemovesExpiredSessions(t *testing.T) {
 	events := events.NewLogger(100)
 	metrics := metrics.New()
 
-	sess, err := sm.Create("", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -200,11 +201,11 @@ func TestExpirationSweeper_KeepsNonExpiredSessions(t *testing.T) {
 	events := events.NewLogger(100)
 	metrics := metrics.New()
 
-	sess, err := sm.Create("", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	defer func() { _ = sm.Delete(sess.ID) }()
+	defer func() { _ = sm.Delete(context.Background(), sess.ID) }()
 
 	// Never-expire policy — should survive sweep
 	sweeper := NewExpirationSweeper(sm, events, metrics)
@@ -254,7 +255,7 @@ func TestExpirationSweeper_LoopFiresAndRemoves(t *testing.T) {
 	events := events.NewLogger(100)
 	metrics := metrics.New()
 
-	sess, err := sm.Create("", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}

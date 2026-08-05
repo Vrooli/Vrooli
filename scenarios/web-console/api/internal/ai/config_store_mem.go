@@ -1,6 +1,7 @@
 package ai
 
 import (
+	"context"
 	"sync"
 	"time"
 )
@@ -38,7 +39,7 @@ func NewMemConfigStore() *MemConfigStore {
 	}
 }
 
-func (s *MemConfigStore) GetConfigs() []Config {
+func (s *MemConfigStore) GetConfigs(_ context.Context) []Config {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	result := make([]Config, 0, len(s.configs))
@@ -55,7 +56,7 @@ func (s *MemConfigStore) GetConfigs() []Config {
 	return result
 }
 
-func (s *MemConfigStore) UpdateConfig(name string, enabled bool, priority, timeoutSec, maxRetries int) bool {
+func (s *MemConfigStore) UpdateConfig(_ context.Context, name string, enabled bool, priority, timeoutSec, maxRetries int) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	c, ok := s.configs[name]
@@ -69,7 +70,7 @@ func (s *MemConfigStore) UpdateConfig(name string, enabled bool, priority, timeo
 	return true
 }
 
-func (s *MemConfigStore) RecordSuccess(name string, latency time.Duration) {
+func (s *MemConfigStore) RecordSuccess(_ context.Context, name string, latency time.Duration) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	h, ok := s.health[name]
@@ -82,7 +83,7 @@ func (s *MemConfigStore) RecordSuccess(name string, latency time.Duration) {
 	h.successCount++
 }
 
-func (s *MemConfigStore) RecordError(name string) {
+func (s *MemConfigStore) RecordError(_ context.Context, name string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	h, ok := s.health[name]
@@ -94,7 +95,7 @@ func (s *MemConfigStore) RecordError(name string) {
 	h.errorCount++
 }
 
-func (s *MemConfigStore) GetHealth() []Health {
+func (s *MemConfigStore) GetHealth(_ context.Context) []Health {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	result := make([]Health, 0, len(s.health))
@@ -104,7 +105,7 @@ func (s *MemConfigStore) GetHealth() []Health {
 	return result
 }
 
-func (s *MemConfigStore) GetProviderTimeout(name string) time.Duration {
+func (s *MemConfigStore) GetProviderTimeout(_ context.Context, name string) time.Duration {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	c, ok := s.configs[name]
@@ -114,7 +115,7 @@ func (s *MemConfigStore) GetProviderTimeout(name string) time.Duration {
 	return time.Duration(c.TimeoutSec) * time.Second
 }
 
-func (s *MemConfigStore) IsEnabled(name string) bool {
+func (s *MemConfigStore) IsEnabled(_ context.Context, name string) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	c, ok := s.configs[name]

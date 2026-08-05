@@ -133,7 +133,7 @@ The snapshot is a self-contained ANSI byte stream that recreates the exact `(scr
 
 1. User presses Alt+Space (desktop) or taps the mic button.
 2. Web-console checks the `audio-tools` capability from [CODE: api/internal/capabilities/registry.go].
-3. When `audio-tools` is available, the UI and API use the audio-tools adoption boundary (`audioports.Remote*` and `@audio-tools/embed`) for STT, streaming, speaker verification, TTS, summarization, and provider routing.
+3. When `audio-tools` is available, the UI and API use the audio-tools adoption boundary (`audioports.Remote*` and `@vrooli/audio-capture-browser`) for STT, streaming, speaker verification, TTS, summarization, and provider routing.
 4. When `audio-tools` is unavailable, the terminal workspace still boots and audio features degrade in place. Capability refreshes re-enable audio paths after audio-tools returns; web-console does not run raw Whisper/Kokoro probes or start provider resources directly.
 5. Transcribed text is injected into the terminal through the existing input gate.
 
@@ -219,7 +219,7 @@ This section is the current ownership contract. The service manifest declares `a
 | Layer | Today's location | Future ownership | Notes |
 |---|---|---|---|
 | Audio adoption boundary (re-export surface) | `ui/src/domains/audio/` | **web-console** | Single import path orchestration code uses; pointed at in-tree hooks today, swapped to audio-tools client at adoption time |
-| Mic capture, VAD, audio context, provider mechanics | `@audio-tools/embed` / copied adoption boundary | `audio-tools` | Reusable across any audio-consuming scenario; web-console keeps only terminal targeting glue |
+| Mic capture, VAD, audio context, provider mechanics | `@vrooli/audio-capture-browser` | `audio-tools` | Reusable across any audio-consuming scenario; web-console keeps only terminal targeting glue |
 | `useVoiceInput`, `useTextToSpeech` hook orchestration | `ui/src/hooks/use*.ts` | Split — generic readiness/lifecycle to audio-tools; terminal-input-gate wiring stays | See [`ui/src/domains/audio/README.md`](../../ui/src/domains/audio/README.md) for the per-file classification |
 | `tts-playback` controller (listened-cursor, auto-TTS policy) | `ui/src/domains/tts-playback/` | **web-console** | Conversation-cursor state machine is web-console concern |
 | Terminal voice command targeting + transcript injection | `ui/src/components/terminal/**`, `VoiceMicButton.tsx` | **web-console** | Routes to active pane through `TerminalInputGate` |
@@ -276,7 +276,8 @@ cross-origin request against it.
 The boundary test
 [`scenarios/web-console/ui/src/__tests__/audio-boundary.test.ts`](../../ui/src/__tests__/audio-boundary.test.ts)
 asserts no UI file imports `@vrooli/proto-types/audio-tools/*` or the
-retired `@audio-tools/embed` package.
+retains a private voice-stream provider instead of using
+`@vrooli/audio-capture-browser`.
 
 ## Key Design Decisions
 

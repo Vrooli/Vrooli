@@ -20,11 +20,11 @@ import (
 
 // SessionManager is the slice of session.Manager the Adapter depends on.
 type SessionManager interface {
-	Create(shell string, cols, rows uint16, backend backend.ID, policy *policy.Policy) (*session.Session, error)
-	CreateWithWorkingDir(shell string, cols, rows uint16, backend backend.ID, policy *policy.Policy, workingDir string) (*session.Session, error)
+	Create(ctx context.Context, shell string, cols, rows uint16, backend backend.ID, policy *policy.Policy) (*session.Session, error)
+	CreateWithWorkingDir(ctx context.Context, shell string, cols, rows uint16, backend backend.ID, policy *policy.Policy, workingDir string) (*session.Session, error)
 	Get(id string) (*session.Session, bool)
 	List() []*session.Session
-	Delete(id string) error
+	Delete(ctx context.Context, id string) error
 	RecoveryProgress() session.RecoveryProgress
 }
 
@@ -34,16 +34,16 @@ type SessionManager interface {
 // history onto its fresh replacement id so the messages view is not empty
 // after reattach.
 type ConversationsStore interface {
-	DeleteSession(id string)
-	CopySession(oldID, newID string) error
-	HasConversationAfter(sessionID string, after time.Time) bool
+	DeleteSession(ctx context.Context, id string)
+	CopySession(ctx context.Context, oldID, newID string) error
+	HasConversationAfter(ctx context.Context, sessionID string, after time.Time) bool
 }
 
 // CodexCheckpoints is the minimal seam for clearing per-source ingestion
 // checkpoint state on session deletion. Both the codex byte-offset store and
 // the generic agent-transcript checkpoint store (Grok/OpenCode) satisfy it.
 type CodexCheckpoints interface {
-	DeleteSession(id string) error
+	DeleteSession(ctx context.Context, id string) error
 }
 
 // Adapter is the production Service implementation. It is constructed in
@@ -73,7 +73,7 @@ func (a *Adapter) logger() *log.Logger {
 // CRUD
 // -----------------------------------------------------------------------------
 
-func (a *Adapter) Create(_ context.Context, in CreateInput) (Session, error) {
+func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 	if in.IdempotencyKey != "" {
 		if cached, ok := a.Idempotency.Get(in.IdempotencyKey); ok {
 			a.logger().Printf("create-session: idempotency hit for key %q, returning cached session %s", in.IdempotencyKey, cached.ID)
@@ -93,14 +93,20 @@ func (a *Adapter) Create(_ context.Context, in CreateInput) (Session, error) {
 		policyPtr = &p
 	}
 
-	sess, err := a.Manager.Create(in.Shell, uint16(in.Cols), uint16(in.Rows), backend.ID(in.Backend), policyPtr)
+	// Under a routed test lease, force a disposable shape: standard backend
+	// (no tmux pane on the operator's shared server, cannot be re-adopted by
+	// recovery) and a short expiry so a leaked session reaps itself. See
+	// testmode.go.
+	bid, policyPtr := applyTestLeaseShape(ctx, backend.ID(in.Backend), policyPtr)
+
+	sess, err := a.Manager.Create(ctx, in.Shell, uint16(in.Cols), uint16(in.Rows), bid, policyPtr)
 	if err != nil {
 		return Session{}, mapCreateError(err)
 	}
 
 	if a.Store != nil && (in.LaunchCommand != "" || in.AgentType != "") {
 		agentType := intsessions.NormalizeAgentType(in.AgentType)
-		_ = a.Store.UpdateAgentInfo(sess.ID, sessionstore.AgentInfo{
+		_ = a.Store.UpdateAgentInfo(ctx, sess.ID, sessionstore.AgentInfo{
 			AgentType:     agentType,
 			LaunchCommand: in.LaunchCommand,
 		})
@@ -110,8 +116,14 @@ func (a *Adapter) Create(_ context.Context, in CreateInput) (Session, error) {
 	// first-party UI client sets origin explicitly), so normalize before we
 	// persist and echo it back.
 	origin := intsessions.NormalizeOrigin(in.Origin)
+	owner, displayLabel := in.Owner, in.DisplayLabel
+	if isTestLease(ctx) {
+		// Stamp test provenance so a leaked session is identifiable and
+		// bulk-removable rather than indistinguishable from an operator tab.
+		owner, displayLabel = testSessionOwner, testSessionLabel
+	}
 	if a.Store != nil {
-		_ = a.Store.SetProvenance(sess.ID, origin, in.Owner, in.DisplayLabel)
+		_ = a.Store.SetProvenance(ctx, sess.ID, origin, owner, displayLabel)
 	}
 
 	// Server-side launch execution: paste the launch command into the fresh
@@ -149,12 +161,12 @@ func (a *Adapter) Create(_ context.Context, in CreateInput) (Session, error) {
 	return responseToHandlerSession(resp), nil
 }
 
-func (a *Adapter) List(_ context.Context) ([]Session, error) {
+func (a *Adapter) List(ctx context.Context) ([]Session, error) {
 	live := a.Manager.List()
 	// The store is the source of truth for provenance (origin/owner/label);
 	// the in-memory session carries only PTY/terminal state. Merge one store
 	// read into the live list rather than reading per-session.
-	provenance := a.provenanceByID()
+	provenance := a.provenanceByID(ctx)
 	recoveredAgents := make(map[string]sessionstore.Agent)
 	for _, meta := range provenance {
 		if meta.RecoveredInto != "" {
@@ -184,16 +196,16 @@ func isClaudeTrackingDegraded(sess *session.Session, conversations Conversations
 	if outputAt := sess.LastFrameAt(); outputAt.IsZero() || !outputAt.After(sess.CreatedAt) {
 		return false
 	}
-	return !conversations.HasConversationAfter(sess.ID, sess.CreatedAt)
+	return !conversations.HasConversationAfter(context.Background(), sess.ID, sess.CreatedAt)
 }
 
 // provenanceByID snapshots stored provenance keyed by session id. Returns an
 // empty map when no store is configured (e.g. minimal test servers).
-func (a *Adapter) provenanceByID() map[string]sessionstore.Metadata {
+func (a *Adapter) provenanceByID(ctx context.Context) map[string]sessionstore.Metadata {
 	if a.Store == nil {
 		return nil
 	}
-	rows, err := a.Store.List()
+	rows, err := a.Store.List(ctx)
 	if err != nil {
 		a.logger().Printf("list sessions: load provenance: %v", err)
 		return nil
@@ -207,7 +219,7 @@ func (a *Adapter) provenanceByID() map[string]sessionstore.Metadata {
 
 // RecoveryStatus exposes startup session-recovery progress for the List
 // response so the UI can show an honest "sessions still recovering" indicator.
-func (a *Adapter) RecoveryStatus(_ context.Context) RecoveryStatus {
+func (a *Adapter) RecoveryStatus(ctx context.Context) RecoveryStatus {
 	p := a.Manager.RecoveryProgress()
 	rs := RecoveryStatus{
 		InProgress:       p.InProgress,
@@ -225,30 +237,30 @@ func (a *Adapter) RecoveryStatus(_ context.Context) RecoveryStatus {
 	return rs
 }
 
-func (a *Adapter) Get(_ context.Context, id string) (Session, error) {
+func (a *Adapter) Get(ctx context.Context, id string) (Session, error) {
 	sess, ok := a.Manager.Get(id)
 	if !ok {
 		return Session{}, fmt.Errorf("session %q: %w", sanitizeID(id), ErrNotFound)
 	}
 	s := responseToHandlerSession(intsessions.FromSession(sess))
 	if a.Store != nil {
-		if m, err := a.Store.Get(id); err == nil {
+		if m, err := a.Store.Get(ctx, id); err == nil {
 			s.Origin, s.Owner, s.DisplayLabel = string(m.Origin), m.Owner, m.DisplayLabel
 		}
 	}
 	return s, nil
 }
 
-func (a *Adapter) Delete(_ context.Context, id string) error {
-	if err := a.Manager.Delete(id); err == nil {
+func (a *Adapter) Delete(ctx context.Context, id string) error {
+	if err := a.Manager.Delete(ctx, id); err == nil {
 		if a.Conversations != nil {
-			a.Conversations.DeleteSession(id)
+			a.Conversations.DeleteSession(ctx, id)
 		}
 		if a.CodexCheckpoints != nil {
-			_ = a.CodexCheckpoints.DeleteSession(id)
+			_ = a.CodexCheckpoints.DeleteSession(ctx, id)
 		}
 		if a.AgentCheckpoints != nil {
-			_ = a.AgentCheckpoints.DeleteSession(id)
+			_ = a.AgentCheckpoints.DeleteSession(ctx, id)
 		}
 		a.Events.Emit(events.SessionDeleted, id, nil)
 		a.Metrics.SessionsDeleted.Add(1)
@@ -261,11 +273,11 @@ func (a *Adapter) Delete(_ context.Context, id string) error {
 // Recovery
 // -----------------------------------------------------------------------------
 
-func (a *Adapter) ListRecoverable(_ context.Context) ([]RecoverableSession, error) {
+func (a *Adapter) ListRecoverable(ctx context.Context) ([]RecoverableSession, error) {
 	if a.Store == nil {
 		return nil, nil
 	}
-	rows, err := a.Store.ListRecoverable()
+	rows, err := a.Store.ListRecoverable(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrInternal, err.Error())
 	}
@@ -273,7 +285,7 @@ func (a *Adapter) ListRecoverable(_ context.Context) ([]RecoverableSession, erro
 	panes := map[string]intworkspace.Pane{}
 	groups := map[string]string{}
 	if a.Workspace != nil {
-		layout, err := a.Workspace.GetLayout()
+		layout, err := a.Workspace.GetLayout(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("%w: load workspace identity: %s", ErrInternal, err.Error())
 		}
@@ -294,24 +306,24 @@ func (a *Adapter) ListRecoverable(_ context.Context) ([]RecoverableSession, erro
 	return out, nil
 }
 
-func (a *Adapter) DismissRecoverable(_ context.Context, id string) error {
+func (a *Adapter) DismissRecoverable(ctx context.Context, id string) error {
 	if a.Store == nil {
 		return fmt.Errorf("session store not configured: %w", ErrNotFound)
 	}
-	meta, err := a.Store.Get(id)
+	meta, err := a.Store.Get(ctx, id)
 	if err != nil {
 		return fmt.Errorf("no session row with id %q: %w", sanitizeID(id), ErrNotFound)
 	}
 	if meta.Status != sessionstore.StatusAwaitingRecovery {
 		return fmt.Errorf("session %q is in status %q, not awaiting_recovery: %w", sanitizeID(id), meta.Status, ErrFailedPrecondition)
 	}
-	if err := a.Store.MarkDismissed(id, ""); err != nil {
+	if err := a.Store.MarkDismissed(ctx, id, ""); err != nil {
 		return fmt.Errorf("mark dismissed: %v: %w", err, ErrInternal)
 	}
 	return nil
 }
 
-func (a *Adapter) Recover(_ context.Context, in RecoverInput) (RecoverResult, error) {
+func (a *Adapter) Recover(ctx context.Context, in RecoverInput) (RecoverResult, error) {
 	oldID := in.ID
 	if a.Store == nil {
 		return RecoverResult{}, fmt.Errorf("session store not configured: %w", ErrNotFound)
@@ -327,7 +339,7 @@ func (a *Adapter) Recover(_ context.Context, in RecoverInput) (RecoverResult, er
 		}
 	}
 
-	old, err := a.Store.Get(oldID)
+	old, err := a.Store.Get(ctx, oldID)
 	if err != nil {
 		return RecoverResult{}, fmt.Errorf("no session row with id %q: %w", sanitizeID(oldID), ErrNotFound)
 	}
@@ -350,7 +362,7 @@ func (a *Adapter) Recover(_ context.Context, in RecoverInput) (RecoverResult, er
 		rows = 36
 	}
 	pol := old.Policy
-	newSess, err := a.Manager.CreateWithWorkingDir(old.Shell, cols, rows, backend.Persistent, &pol, old.CWD)
+	newSess, err := a.Manager.CreateWithWorkingDir(ctx, old.Shell, cols, rows, backend.Persistent, &pol, old.CWD)
 	if err != nil {
 		a.logger().Printf("recover[%s]: create new session: %v", oldID, err)
 		return RecoverResult{}, mapCreateError(err)
@@ -377,7 +389,7 @@ func (a *Adapter) Recover(_ context.Context, in RecoverInput) (RecoverResult, er
 		codexHomeCopied = true
 	}
 
-	_ = a.Store.UpdateAgentInfo(newSess.ID, sessionstore.AgentInfo{
+	_ = a.Store.UpdateAgentInfo(ctx, newSess.ID, sessionstore.AgentInfo{
 		AgentType:      old.AgentType,
 		AgentSessionID: old.AgentSessionID,
 		LaunchCommand:  old.LaunchCommand,
@@ -385,9 +397,9 @@ func (a *Adapter) Recover(_ context.Context, in RecoverInput) (RecoverResult, er
 	})
 	// Carry provenance onto the recovered session so it keeps its original
 	// origin/owner/label in the sidebar.
-	_ = a.Store.SetProvenance(newSess.ID, old.Origin, old.Owner, old.DisplayLabel)
+	_ = a.Store.SetProvenance(ctx, newSess.ID, old.Origin, old.Owner, old.DisplayLabel)
 	if a.Workspace != nil {
-		if err := a.Workspace.ReassignPane(oldID, newSess.ID); err != nil {
+		if err := a.Workspace.ReassignPane(ctx, oldID, newSess.ID); err != nil {
 			a.logger().Printf("recover[%s -> %s]: migrate workspace pane: %v", oldID, newSess.ID, err)
 			return RecoverResult{}, fmt.Errorf("migrate workspace pane: %v: %w", err, ErrInternal)
 		}
@@ -398,7 +410,7 @@ func (a *Adapter) Recover(_ context.Context, in RecoverInput) (RecoverResult, er
 	// must not abort recovery — the agent resume is the critical path.
 	messagesCopied := false
 	if a.Conversations != nil {
-		if err := a.Conversations.CopySession(oldID, newSess.ID); err != nil {
+		if err := a.Conversations.CopySession(ctx, oldID, newSess.ID); err != nil {
 			a.logger().Printf("recover[%s -> %s]: copy conversation history: %v", oldID, newSess.ID, err)
 		} else {
 			messagesCopied = true
@@ -411,7 +423,7 @@ func (a *Adapter) Recover(_ context.Context, in RecoverInput) (RecoverResult, er
 		return RecoverResult{}, fmt.Errorf("paste resume command: %v: %w", err, ErrInternal)
 	}
 
-	if err := a.Store.MarkDismissed(oldID, newSess.ID); err != nil {
+	if err := a.Store.MarkDismissed(ctx, oldID, newSess.ID); err != nil {
 		a.logger().Printf("recover[%s -> %s]: MarkDismissed: %v", oldID, newSess.ID, err)
 	}
 
@@ -441,7 +453,7 @@ func (a *Adapter) Recover(_ context.Context, in RecoverInput) (RecoverResult, er
 // Policy
 // -----------------------------------------------------------------------------
 
-func (a *Adapter) GetPolicy(_ context.Context, id string) (PolicyView, error) {
+func (a *Adapter) GetPolicy(ctx context.Context, id string) (PolicyView, error) {
 	sess, ok := a.Manager.Get(id)
 	if !ok {
 		return PolicyView{}, fmt.Errorf("session %q: %w", sanitizeID(id), ErrNotFound)
@@ -449,7 +461,7 @@ func (a *Adapter) GetPolicy(_ context.Context, id string) (PolicyView, error) {
 	return policyViewFor(sess, sess.GetPolicy()), nil
 }
 
-func (a *Adapter) UpdatePolicy(_ context.Context, id string, in Policy) (PolicyView, error) {
+func (a *Adapter) UpdatePolicy(ctx context.Context, id string, in Policy) (PolicyView, error) {
 	sess, ok := a.Manager.Get(id)
 	if !ok {
 		return PolicyView{}, fmt.Errorf("session %q: %w", sanitizeID(id), ErrNotFound)
@@ -461,7 +473,7 @@ func (a *Adapter) UpdatePolicy(_ context.Context, id string, in Policy) (PolicyV
 	oldPolicy := sess.GetPolicy()
 	sess.SetPolicy(pol)
 	if a.Store != nil {
-		_ = a.Store.UpdatePolicy(sess.ID, pol)
+		_ = a.Store.UpdatePolicy(ctx, sess.ID, pol)
 	}
 	if oldPolicy.Mode != pol.Mode || oldPolicy.Duration != pol.Duration {
 		a.Events.Emit(events.SessionPolicyUpdate, sess.ID, map[string]string{

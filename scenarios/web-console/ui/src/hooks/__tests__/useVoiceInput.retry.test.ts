@@ -27,43 +27,6 @@ vi.mock("../../audio-integration", async () => {
   };
 });
 
-// VoiceStreamProvider is imported by the hook; give it a constructor-time no-op.
-// The retry flow only uses the provider's getLastTurnAudio/disposeLastTurn and
-// those are exercised indirectly via a fake provider injected through module
-// mocking below.
-vi.mock("../voice/VoiceStreamProvider", () => {
-  class FakeVoiceStreamProvider {
-    onResult: ((t: string) => void) | null = null;
-    onError: ((e: string) => void) | null = null;
-    onPartial: ((t: string) => void) | null = null;
-    onSegmentFinal: unknown = null;
-    onSegmentAccepted: unknown = null;
-    onSegmentRejected: ((i: number, s: number, th: number) => void) | null = null;
-    onSpeakerStatus: unknown = null;
-    language = "en";
-    private lastTurn: { blob: Blob; mimeType: string; durationMs: number; capturedAt: number } | null = null;
-    getStream() { return null; }
-    getLastTurnAudio() { return this.lastTurn; }
-    disposeLastTurn() { this.lastTurn = null; }
-    preConnect() {}
-    sendSegmentBoundary() {}
-    sendVadState() {}
-    async start() { /* no mic */ }
-    stop() {}
-    dispose() {}
-    /** Test helper: seed retained audio. */
-    _seedLastTurn(bytes: number) {
-      this.lastTurn = {
-        blob: new Blob([new Uint8Array(bytes)], { type: "audio/webm" }),
-        mimeType: "audio/webm",
-        durationMs: 1_000,
-        capturedAt: Date.now(),
-      };
-    }
-  }
-  return { VoiceStreamProvider: FakeVoiceStreamProvider };
-});
-
 describe("useVoiceInput rejection + retry", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -78,7 +41,7 @@ describe("useVoiceInput rejection + retry", () => {
 
   it("starts with rejectedAudio = null", async () => {
     const onTranscript = vi.fn();
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(onTranscript));
 
     expect(result.current.rejectedAudio).toBeNull();
@@ -94,7 +57,7 @@ describe("useVoiceInput rejection + retry", () => {
   it("retryWithoutFilter is a no-op when rejectedAudio is null", async () => {
     const api = await import("../../audio-integration");
     const onTranscript = vi.fn();
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(onTranscript));
 
     await act(async () => {
@@ -107,7 +70,7 @@ describe("useVoiceInput rejection + retry", () => {
 
   it("dismissRejection is a no-op when rejectedAudio is null", async () => {
     const onTranscript = vi.fn();
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(onTranscript));
 
     act(() => {
@@ -119,7 +82,7 @@ describe("useVoiceInput rejection + retry", () => {
 
   it("exposes retryWithoutFilter and dismissRejection as stable callbacks", async () => {
     const onTranscript = vi.fn();
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result, rerender } = renderHook(() => useVoiceInput(onTranscript));
 
     const retry1 = result.current.retryWithoutFilter;
@@ -133,7 +96,7 @@ describe("useVoiceInput rejection + retry", () => {
 
   it("INITIAL_STATE does not include speakerNotice (greenfield removal)", async () => {
     const onTranscript = vi.fn();
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(onTranscript));
 
     // The old field is gone. A TypeScript-level assertion would need the
@@ -151,7 +114,7 @@ describe("useVoiceInput rejection + retry", () => {
 
   it("retry hook action signature accepts no args and returns a Promise", async () => {
     const onTranscript = vi.fn();
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(onTranscript));
     const ret = result.current.retryWithoutFilter();
     expect(ret).toBeInstanceOf(Promise);

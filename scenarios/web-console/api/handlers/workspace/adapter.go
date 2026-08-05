@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"context"
 	"errors"
 	"log"
 
@@ -28,12 +29,12 @@ func (a *Adapter) logger() *log.Logger {
 	return log.Default()
 }
 
-func (a *Adapter) GetLayout() (Layout, error) {
-	return a.Store.GetLayout()
+func (a *Adapter) GetLayout(ctx context.Context) (Layout, error) {
+	return a.Store.GetLayout(ctx)
 }
 
-func (a *Adapter) SaveLayout(activePane string, paneOrder []string) error {
-	if err := a.Store.SavePaneOrder(activePane, paneOrder); err != nil {
+func (a *Adapter) SaveLayout(ctx context.Context, activePane string, paneOrder []string) error {
+	if err := a.Store.SavePaneOrder(ctx, activePane, paneOrder); err != nil {
 		return err
 	}
 	a.Events.Emit(events.WorkspaceLayoutUpdated, "", map[string]string{
@@ -42,7 +43,7 @@ func (a *Adapter) SaveLayout(activePane string, paneOrder []string) error {
 	return nil
 }
 
-func (a *Adapter) UpdatePane(req UpdatePaneRequest) (Pane, error) {
+func (a *Adapter) UpdatePane(ctx context.Context, req UpdatePaneRequest) (Pane, error) {
 	pane := Pane{
 		SessionID:   req.SessionID,
 		Name:        wsdomain.DefaultPaneName,
@@ -51,7 +52,7 @@ func (a *Adapter) UpdatePane(req UpdatePaneRequest) (Pane, error) {
 		FontSize:    wsdomain.DefaultPaneFontSize,
 	}
 
-	if layout, err := a.Store.GetLayout(); err == nil {
+	if layout, err := a.Store.GetLayout(ctx); err == nil {
 		for _, p := range layout.Panes {
 			if p.SessionID == req.SessionID {
 				pane.Name = p.Name
@@ -61,6 +62,7 @@ func (a *Adapter) UpdatePane(req UpdatePaneRequest) (Pane, error) {
 				pane.SortOrder = p.SortOrder
 				pane.GroupID = p.GroupID
 				pane.SupportsMessagesView = p.SupportsMessagesView
+				pane.ManuallyUnread = p.ManuallyUnread
 				break
 			}
 		}
@@ -87,8 +89,11 @@ func (a *Adapter) UpdatePane(req UpdatePaneRequest) (Pane, error) {
 	if req.HasSupportsMessagesView {
 		pane.SupportsMessagesView = req.SupportsMessagesView
 	}
+	if req.HasManuallyUnread {
+		pane.ManuallyUnread = req.ManuallyUnread
+	}
 
-	if err := a.Store.UpsertPane(pane); err != nil {
+	if err := a.Store.UpsertPane(ctx, pane); err != nil {
 		return Pane{}, err
 	}
 
@@ -99,14 +104,14 @@ func (a *Adapter) UpdatePane(req UpdatePaneRequest) (Pane, error) {
 	return pane, nil
 }
 
-func (a *Adapter) DeletePane(sessionID string) {
-	if err := a.Store.DeletePane(sessionID); err != nil {
+func (a *Adapter) DeletePane(ctx context.Context, sessionID string) {
+	if err := a.Store.DeletePane(ctx, sessionID); err != nil {
 		a.logger().Printf("workspace.DeletePane: %v", err)
 	}
 }
 
-func (a *Adapter) CreateGroup(name, color string) (Group, error) {
-	g, err := a.Store.CreateGroup(name, color)
+func (a *Adapter) CreateGroup(ctx context.Context, name, color string) (Group, error) {
+	g, err := a.Store.CreateGroup(ctx, name, color)
 	if err != nil {
 		return Group{}, err
 	}
@@ -117,7 +122,7 @@ func (a *Adapter) CreateGroup(name, color string) (Group, error) {
 	return g, nil
 }
 
-func (a *Adapter) UpdateGroup(req UpdateGroupRequest) (Group, error) {
+func (a *Adapter) UpdateGroup(ctx context.Context, req UpdateGroupRequest) (Group, error) {
 	var name, color *string
 	var collapsed *bool
 	if req.HasName {
@@ -130,7 +135,7 @@ func (a *Adapter) UpdateGroup(req UpdateGroupRequest) (Group, error) {
 		collapsed = &req.IsCollapsed
 	}
 
-	g, err := a.Store.UpdateGroup(req.ID, name, color, collapsed)
+	g, err := a.Store.UpdateGroup(ctx, req.ID, name, color, collapsed)
 	if err != nil {
 		if errors.Is(err, wsdomain.ErrGroupNotFound) {
 			return Group{}, ErrGroupNotFound
@@ -144,8 +149,8 @@ func (a *Adapter) UpdateGroup(req UpdateGroupRequest) (Group, error) {
 	return g, nil
 }
 
-func (a *Adapter) DeleteGroup(id string) {
-	removed, err := a.Store.DeleteGroup(id)
+func (a *Adapter) DeleteGroup(ctx context.Context, id string) {
+	removed, err := a.Store.DeleteGroup(ctx, id)
 	if err != nil {
 		a.logger().Printf("workspace.DeleteGroup: %v", err)
 	}

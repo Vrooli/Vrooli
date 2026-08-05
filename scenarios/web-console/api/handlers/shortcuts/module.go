@@ -11,6 +11,7 @@
 package shortcuts
 
 import (
+	"context"
 	"log"
 
 	"github.com/gorilla/mux"
@@ -25,10 +26,10 @@ import (
 // implementation lives in package main (adapts the existing
 // ShortcutStore to satisfy this interface).
 type Service interface {
-	Effective() []Shortcut
-	List() []Profile
-	Upsert(req UpsertRequest) (Profile, error)
-	Delete(id string)
+	Effective(ctx context.Context) []Shortcut
+	List(ctx context.Context) []Profile
+	Upsert(ctx context.Context, req UpsertRequest) (Profile, error)
+	Delete(ctx context.Context, id string)
 }
 
 // Shortcut is the transport-neutral shortcut shape.

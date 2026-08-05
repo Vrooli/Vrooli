@@ -1,7 +1,9 @@
 package session
 
 import (
+	"context"
 	"testing"
+
 	"web-console/internal/ptyfake"
 )
 
@@ -61,8 +63,8 @@ func TestIsSessionLimitReached_Unlimited(t *testing.T) {
 func TestIsSessionLimitReached_UnderLimit(t *testing.T) {
 	sm := NewManagerWithFactory(ptyfake.NewFactory())
 	sm.cfg.MaxSessions = 5
-	s, _ := sm.Create("", 0, 0, "", nil)
-	defer func() { _ = sm.Delete(s.ID) }()
+	s, _ := sm.Create(context.Background(), "", 0, 0, "", nil)
+	defer func() { _ = sm.Delete(context.Background(), s.ID) }()
 	if sm.isSessionLimitReached() {
 		t.Error("1 session with limit 5 should not be reached")
 	}
@@ -71,8 +73,8 @@ func TestIsSessionLimitReached_UnderLimit(t *testing.T) {
 func TestIsSessionLimitReached_AtLimit(t *testing.T) {
 	sm := NewManagerWithFactory(ptyfake.NewFactory())
 	sm.cfg.MaxSessions = 1
-	s, _ := sm.Create("", 0, 0, "", nil)
-	defer func() { _ = sm.Delete(s.ID) }()
+	s, _ := sm.Create(context.Background(), "", 0, 0, "", nil)
+	defer func() { _ = sm.Delete(context.Background(), s.ID) }()
 	if !sm.isSessionLimitReached() {
 		t.Error("1 session with limit 1 should be reached")
 	}
@@ -86,19 +88,19 @@ func TestMaxSessions_Enforcement(t *testing.T) {
 	sm := NewManagerWithFactory(ptyfake.NewFactory())
 	sm.cfg.MaxSessions = 2
 
-	s1, err := sm.Create("", 0, 0, "", nil)
+	s1, err := sm.Create(context.Background(), "", 0, 0, "", nil)
 	if err != nil {
 		t.Fatalf("first session: %v", err)
 	}
-	defer func() { _ = sm.Delete(s1.ID) }()
+	defer func() { _ = sm.Delete(context.Background(), s1.ID) }()
 
-	s2, err := sm.Create("", 0, 0, "", nil)
+	s2, err := sm.Create(context.Background(), "", 0, 0, "", nil)
 	if err != nil {
 		t.Fatalf("second session: %v", err)
 	}
-	defer func() { _ = sm.Delete(s2.ID) }()
+	defer func() { _ = sm.Delete(context.Background(), s2.ID) }()
 
-	_, err = sm.Create("", 0, 0, "", nil)
+	_, err = sm.Create(context.Background(), "", 0, 0, "", nil)
 	if err == nil {
 		t.Error("third session should be rejected when MaxSessions=2")
 	}

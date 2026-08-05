@@ -38,6 +38,7 @@ const makePanes = (...ids: string[]): PaneMetadata[] =>
     fontSize: 14,
     groupId: null,
     supportsMessagesView: false,
+  manuallyUnread: false,
   }));
 
 const renderTabBar = () =>
@@ -167,7 +168,12 @@ describe("TabBar group quick paths", () => {
       const pane = useWorkspaceStore.getState().panes.find((p) => p.sessionId === "a");
       expect(pane?.groupId).toBeNull();
     });
-    expect(mockUpdateWorkspacePane).toHaveBeenCalledWith("a", { group_id: null });
+    // Leaving a group is a move: the pane's membership and its color are
+    // persisted together, so the surviving members stay a contiguous block.
+    expect(mockUpdateWorkspacePane).toHaveBeenCalledWith("a", {
+      group_id: null,
+      header_color: "transparent",
+    });
   });
 
   it("opens the Manage Groups drawer from a grouped pane's menu", () => {

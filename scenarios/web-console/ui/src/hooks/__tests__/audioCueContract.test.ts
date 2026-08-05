@@ -266,7 +266,7 @@ describe("Audio Cue Contract", () => {
     mockCapabilities(false);
     installWebSpeech();
 
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(vi.fn()));
 
     await act(async () => { await settle(); });
@@ -282,7 +282,7 @@ describe("Audio Cue Contract", () => {
     mockCapabilities(false);
     const ctrl = installWebSpeech();
 
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(vi.fn()));
 
     await act(async () => { await settle(); });
@@ -301,7 +301,7 @@ describe("Audio Cue Contract", () => {
     mockCapabilities(false);
     const ctrl = installWebSpeech();
 
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(vi.fn()));
 
     await act(async () => { await settle(); });
@@ -332,7 +332,7 @@ describe("Audio Cue Contract", () => {
     mockCapabilities(false);
     installWebSpeech();
 
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result, unmount } = renderHook(() => useVoiceInput(vi.fn()));
 
     await act(async () => { await settle(); });
@@ -352,7 +352,7 @@ describe("Audio Cue Contract", () => {
   it("does NOT play any cue on mount", async () => {
     mockCapabilities(true, true);
 
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     renderHook(() => useVoiceInput(vi.fn()));
 
     await act(async () => { await settle(); });
@@ -366,7 +366,7 @@ describe("Audio Cue Contract", () => {
     mockCapabilities(false);
     installWebSpeech();
 
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(vi.fn()));
 
     await act(async () => { await settle(); });
@@ -386,7 +386,7 @@ describe("Audio Cue Contract", () => {
     mockCapabilities(false);
     installWebSpeech();
 
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(vi.fn()));
 
     await act(async () => { await settle(); });
@@ -402,7 +402,7 @@ describe("Audio Cue Contract", () => {
     mockCapabilities(false);
     installWebSpeech();
 
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(vi.fn()));
 
     await act(async () => { await settle(); });
@@ -430,7 +430,7 @@ describe("Audio Cue Contract", () => {
     mockCapabilities(false);
     const ctrl = installWebSpeech();
 
-    const { useVoiceInput } = await import("../useVoiceInput");
+    const { useScenarioVoiceInput: useVoiceInput } = await import("../../audio-integration/hooks/useScenarioVoiceInput");
     const { result } = renderHook(() => useVoiceInput(vi.fn()));
 
     await act(async () => { await settle(); });

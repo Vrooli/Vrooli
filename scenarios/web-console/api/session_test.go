@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"testing"
 	"time"
+
 	"web-console/internal/config"
 	"web-console/internal/ptyfake"
 	"web-console/session"
@@ -13,11 +15,11 @@ import (
 func TestSessionManager_Create(t *testing.T) {
 	sm := newSessionManager()
 
-	sess, err := sm.Create("", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
-	defer func() { _ = sm.Delete(sess.ID) }()
+	defer func() { _ = sm.Delete(context.Background(), sess.ID) }()
 
 	if sess.ID == "" {
 		t.Error("session ID should not be empty")
@@ -37,17 +39,17 @@ func TestSessionManager_Create(t *testing.T) {
 func TestSessionManager_ConcurrentSessions(t *testing.T) {
 	sm := newSessionManager()
 
-	s1, err := sm.Create("", 80, 24, "", nil)
+	s1, err := sm.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create s1 failed: %v", err)
 	}
-	defer func() { _ = sm.Delete(s1.ID) }()
+	defer func() { _ = sm.Delete(context.Background(), s1.ID) }()
 
-	s2, err := sm.Create("", 120, 40, "", nil)
+	s2, err := sm.Create(context.Background(), "", 120, 40, "", nil)
 	if err != nil {
 		t.Fatalf("Create s2 failed: %v", err)
 	}
-	defer func() { _ = sm.Delete(s2.ID) }()
+	defer func() { _ = sm.Delete(context.Background(), s2.ID) }()
 
 	if s1.ID == s2.ID {
 		t.Error("session IDs should be unique")
@@ -63,11 +65,11 @@ func TestSessionManager_ConcurrentSessions(t *testing.T) {
 func TestSessionManager_List(t *testing.T) {
 	sm := newSessionManager()
 
-	sess, err := sm.Create("", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
-	defer func() { _ = sm.Delete(sess.ID) }()
+	defer func() { _ = sm.Delete(context.Background(), sess.ID) }()
 
 	sessions := sm.List()
 	found := false
@@ -86,11 +88,11 @@ func TestSessionManager_List(t *testing.T) {
 func TestSessionManager_Get(t *testing.T) {
 	sm := newSessionManager()
 
-	sess, err := sm.Create("", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
-	defer func() { _ = sm.Delete(sess.ID) }()
+	defer func() { _ = sm.Delete(context.Background(), sess.ID) }()
 
 	got, ok := sm.Get(sess.ID)
 	if !ok {
@@ -110,12 +112,12 @@ func TestSessionManager_Get(t *testing.T) {
 func TestSessionManager_Delete(t *testing.T) {
 	sm := newSessionManager()
 
-	sess, err := sm.Create("", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	err = sm.Delete(sess.ID)
+	err = sm.Delete(context.Background(), sess.ID)
 	if err != nil {
 		t.Fatalf("Delete failed: %v", err)
 	}
@@ -125,7 +127,7 @@ func TestSessionManager_Delete(t *testing.T) {
 		t.Error("session should not exist after Delete")
 	}
 
-	err = sm.Delete("nonexistent")
+	err = sm.Delete(context.Background(), "nonexistent")
 	if err == nil {
 		t.Error("Delete should fail for nonexistent session")
 	}
@@ -135,11 +137,11 @@ func TestSessionManager_Delete(t *testing.T) {
 func TestSession_Resize(t *testing.T) {
 	sm := newSessionManager()
 
-	sess, err := sm.Create("", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
-	defer func() { _ = sm.Delete(sess.ID) }()
+	defer func() { _ = sm.Delete(context.Background(), sess.ID) }()
 
 	sub := sess.Subscribe()
 	defer sess.Unsubscribe(sub.OutputCh)
@@ -163,7 +165,7 @@ func TestSession_NonLeaderResizeIsRejected(t *testing.T) {
 	fake := ptyfake.NewFakePTYWithOutput()
 	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 
-	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -203,17 +205,27 @@ func TestSession_StdinFromFollowerAcquiresLease(t *testing.T) {
 	fake := ptyfake.NewFakePTYWithOutput()
 	defer fake.Close()
 	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
-	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
-	if err != nil { t.Fatalf("Create: %v", err) }
+	sess, err := sm.Create(context.Background(), "/fake/shell", 80, 24, "", nil)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
 	leader, follower := sess.Subscribe(), sess.Subscribe()
 	defer sess.Unsubscribe(leader.OutputCh)
 	defer sess.Unsubscribe(follower.OutputCh)
 	sess.DeclareSize(leader.OutputCh, 120, 40)
-	if err := sess.Resize(leader.OutputCh, 120, 40); err != nil { t.Fatalf("leader resize: %v", err) }
+	if err := sess.Resize(leader.OutputCh, 120, 40); err != nil {
+		t.Fatalf("leader resize: %v", err)
+	}
 	sess.DeclareSize(follower.OutputCh, 60, 20)
-	if err := sess.AcquireLease(follower.OutputCh, session.LeaseReasonInput); err != nil { t.Fatalf("AcquireLease: %v", err) }
-	if !sess.HoldsLease(follower.OutputCh) { t.Fatal("follower did not receive input lease") }
-	if cols, rows := sess.EffectiveSize(); cols != 60 || rows != 20 { t.Fatalf("input lease size = %dx%d, want 60x20", cols, rows) }
+	if err := sess.AcquireLease(follower.OutputCh, session.LeaseReasonInput); err != nil {
+		t.Fatalf("AcquireLease: %v", err)
+	}
+	if !sess.HoldsLease(follower.OutputCh) {
+		t.Fatal("follower did not receive input lease")
+	}
+	if cols, rows := sess.EffectiveSize(); cols != 60 || rows != 20 {
+		t.Fatalf("input lease size = %dx%d, want 60x20", cols, rows)
+	}
 }
 
 // [REQ:P0-002c] Every viewer receives the one authoritative terminal grid.
@@ -221,7 +233,7 @@ func TestSession_ResizePublishesToAllSubscribers(t *testing.T) {
 	fake := ptyfake.NewFakePTYWithOutput()
 	defer fake.Close()
 	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
-	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -248,7 +260,7 @@ func TestSession_LeaseMovesOnLeaderDisconnect(t *testing.T) {
 	fake := ptyfake.NewFakePTYWithOutput()
 	defer fake.Close()
 	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
-	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -270,7 +282,7 @@ func TestSession_NoClients_SizeUnchanged(t *testing.T) {
 	fake := ptyfake.NewFakePTYWithOutput()
 	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 
-	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -296,11 +308,11 @@ func TestSession_NoClients_SizeUnchanged(t *testing.T) {
 func TestSession_SubscribeAndBroadcast(t *testing.T) {
 	sm := newSessionManager()
 
-	sess, err := sm.Create("/bin/sh", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "/bin/sh", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
-	defer func() { _ = sm.Delete(sess.ID) }()
+	defer func() { _ = sm.Delete(context.Background(), sess.ID) }()
 
 	sub := sess.Subscribe()
 	defer sess.Unsubscribe(sub.OutputCh)
@@ -334,11 +346,11 @@ func TestDefaultConfig_Shell(t *testing.T) {
 // in the snapshot returned by a later Subscribe().
 func TestSession_OfflineSnapshotIncludesPriorOutput(t *testing.T) {
 	sm := newSessionManager()
-	sess, err := sm.Create("/bin/sh", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "/bin/sh", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
-	defer func() { _ = sm.Delete(sess.ID) }()
+	defer func() { _ = sm.Delete(context.Background(), sess.ID) }()
 
 	if err := sess.SendInput(session.InputText("echo offline_marker\n")); err != nil {
 		t.Fatalf("WriteInput: %v", err)
@@ -357,11 +369,11 @@ func TestSession_OfflineSnapshotIncludesPriorOutput(t *testing.T) {
 // blank-screen rows) but contains no user-visible content.
 func TestSubscribe_SnapshotIsSelfContained(t *testing.T) {
 	sm := newSessionManager()
-	sess, err := sm.Create("", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	defer func() { _ = sm.Delete(sess.ID) }()
+	defer func() { _ = sm.Delete(context.Background(), sess.ID) }()
 	sub := sess.Subscribe()
 	defer sess.Unsubscribe(sub.OutputCh)
 	if len(sub.Snapshot) == 0 {

@@ -4,11 +4,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { installChunkReloadGuard } from "@vrooli/api-base";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import App from "./App";
+import { registerVoiceTransport } from "./audio-integration";
 import "./i18n";
 import "./design-tokens.css";
 import "./styles.css";
 
 const queryClient = new QueryClient();
+
+registerVoiceTransport();
 
 // INTEROP-CRITICAL: iframe bridge must be initialized before React mount
 // so parent scenarios receive the ready signal and can coordinate routing.

@@ -75,7 +75,7 @@ func newOpenCodeWatcherTest(t *testing.T) (*Server, *OpenCodeWatcher, string) {
 	srv, sess := newCodexTailerTestServer(t)
 	srv.agentCheckpointStore = NewInMemoryAgentTranscriptCheckpointStore()
 	store := sessionstore.NewInMemory()
-	if err := store.Save(sessionstore.Metadata{
+	if err := store.Save(context.Background(), sessionstore.Metadata{
 		ID:        sess.ID,
 		AgentType: sessionstore.AgentOpenCode,
 		CWD:       "/work",
@@ -103,7 +103,7 @@ func TestOpenCodeWatcher_BackfillAttributesAndReconciles(t *testing.T) {
 
 	w.reconcileAll(context.Background(), client)
 
-	state := srv.conversations.ListSession(paneID)
+	state := srv.conversations.ListSession(context.Background(), paneID)
 	if len(state.Events) != 2 {
 		t.Fatalf("expected 2 events, got %d: %+v", len(state.Events), state.Events)
 	}
@@ -114,7 +114,7 @@ func TestOpenCodeWatcher_BackfillAttributesAndReconciles(t *testing.T) {
 		t.Fatalf("assistant event wrong: %+v", state.Events[1])
 	}
 	// Agent identity persisted for recovery.
-	meta, _ := srv.sessionStore.Get(paneID)
+	meta, _ := srv.sessionStore.Get(context.Background(), paneID)
 	if meta.AgentSessionID != "ses_a" {
 		t.Fatalf("expected agent session id ses_a, got %q", meta.AgentSessionID)
 	}
@@ -133,7 +133,7 @@ func TestOpenCodeWatcher_ReconcileIsIdempotent(t *testing.T) {
 	w.reconcileAll(ctx, client)
 	w.reconcileAll(ctx, client)
 
-	state := srv.conversations.ListSession(paneID)
+	state := srv.conversations.ListSession(context.Background(), paneID)
 	if len(state.Events) != 2 {
 		t.Fatalf("re-running reconciliation must not duplicate; got %d: %+v", len(state.Events), state.Events)
 	}
@@ -150,7 +150,7 @@ func TestOpenCodeWatcher_FiltersByDirectory(t *testing.T) {
 	}
 	w.reconcileAll(context.Background(), client)
 
-	if state := srv.conversations.ListSession(paneID); len(state.Events) != 0 {
+	if state := srv.conversations.ListSession(context.Background(), paneID); len(state.Events) != 0 {
 		t.Fatalf("session from another directory must not be attributed; got %+v", state.Events)
 	}
 }
@@ -160,7 +160,7 @@ func TestOpenCodeWatcher_SkipsAmbiguousSameDirCandidates(t *testing.T) {
 	// Add a SECOND opencode pane in the same cwd → a single session matches both
 	// panes and must not be routed to either.
 	store := srv.sessionStore
-	if err := store.Save(sessionstore.Metadata{
+	if err := store.Save(context.Background(), sessionstore.Metadata{
 		ID:        "pane-2",
 		AgentType: sessionstore.AgentOpenCode,
 		CWD:       "/work",
@@ -176,10 +176,10 @@ func TestOpenCodeWatcher_SkipsAmbiguousSameDirCandidates(t *testing.T) {
 	}
 	w.reconcileAll(context.Background(), client)
 
-	if state := srv.conversations.ListSession(paneID); len(state.Events) != 0 {
+	if state := srv.conversations.ListSession(context.Background(), paneID); len(state.Events) != 0 {
 		t.Fatalf("ambiguous candidate must not be routed; got %+v", state.Events)
 	}
-	if state := srv.conversations.ListSession("pane-2"); len(state.Events) != 0 {
+	if state := srv.conversations.ListSession(context.Background(), "pane-2"); len(state.Events) != 0 {
 		t.Fatalf("ambiguous candidate must not be routed; got %+v", state.Events)
 	}
 }
@@ -234,7 +234,7 @@ func TestOpenCodeWatcher_ReconnectsAndReconciles(t *testing.T) {
 func TestOpenCodeWatcher_RestoresClaimsAfterRestart(t *testing.T) {
 	srv, _, paneID := newOpenCodeWatcherTest(t)
 	// Simulate a pane already attributed before restart.
-	if err := srv.sessionStore.UpdateAgentInfo(paneID, sessionstore.AgentInfo{
+	if err := srv.sessionStore.UpdateAgentInfo(context.Background(), paneID, sessionstore.AgentInfo{
 		AgentType:      sessionstore.AgentOpenCode,
 		AgentSessionID: "ses_a",
 	}); err != nil {
@@ -255,7 +255,7 @@ func TestOpenCodeWatcher_RestoresClaimsAfterRestart(t *testing.T) {
 	}
 	w.reconcileAll(context.Background(), client)
 
-	state := srv.conversations.ListSession(paneID)
+	state := srv.conversations.ListSession(context.Background(), paneID)
 	if len(state.Events) != 2 || state.Events[0].Text != "resumed" {
 		t.Fatalf("restored claim should reconcile existing session; got %+v", state.Events)
 	}

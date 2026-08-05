@@ -35,7 +35,7 @@ import {
   type WakeWordConfig,
 } from "../../audio-integration";
 import { fetchCapabilities, type CapabilityState } from "../../api/capabilities";
-import { probeWhisperHealth } from "../../hooks/useVoiceInput";
+import { probeWhisperHealth } from "../../audio-integration";
 import { PcmVoiceStreamProvider, WhisperProvider, WebSpeechProvider } from "../../audio-integration";
 import type { TranscriptionProvider } from "../../audio-integration";
 import { getSharedAudioContext } from "../../audio-integration/hooks/voice/sharedAudioContext";

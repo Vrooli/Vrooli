@@ -85,7 +85,7 @@ func TestAppendConversation_DedupAcrossSources(t *testing.T) {
 		t.Errorf("expected duplicate to resolve to original event %s, got %s", first.EventID, second.EventID)
 	}
 
-	state := srv.conversations.ListSession(sess.ID)
+	state := srv.conversations.ListSession(context.Background(), sess.ID)
 	if len(state.Events) != 1 {
 		t.Errorf("expected exactly one stored event, got %d", len(state.Events))
 	}

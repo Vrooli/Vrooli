@@ -11,7 +11,7 @@ import { chromeTheme } from "../lib/chromeTheme";
 import { useSessionManager } from "../hooks/useSessionManager";
 import { useGlobalEventStream } from "../hooks/useGlobalEventStream";
 import { useConversationHydration } from "../hooks/useConversationHydration";
-import { useVoiceInput } from "../hooks/useVoiceInput";
+import { useScenarioVoiceInput as useVoiceInput } from "../audio-integration";
 import { useAppViewport } from "../hooks/useAppViewport";
 import { useTouchControls } from "../hooks/useTouchControls";
 import { useWakeLock } from "../hooks/useWakeLock";
@@ -158,6 +158,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
     startMutedOnLoad: state.startMutedOnLoad,
     keepScreenAwake: state.keepScreenAwake,
     vadAutoStop: state.vadAutoStop,
+    persistentMode: state.persistentMode,
     groups: state.groups,
     sidebarSortMode: state.sidebarSortMode,
     adaptiveChrome: state.adaptiveChrome,
@@ -166,7 +167,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
     defaultThemeId: state.defaultThemeId,
     defaultFontSize: state.defaultFontSize,
     addPane: state.addPane,
-    addPaneToGroup: state.addPaneToGroup,
+    setPaneGroup: state.setPaneGroup,
     removePane: state.removePane,
     setActivePane: state.setActivePane,
     movePaneToIndex: state.movePaneToIndex,
@@ -181,11 +182,11 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
   const activeWorkspacePane = workspace.activePane;
   const activeSessionTrackingDegraded = sessionPanes.find((pane) => pane.session.id === workspace.activePane)?.session.tracking_degraded;
   const addWorkspacePane = workspace.addPane;
-  const addWorkspacePaneToGroup = workspace.addPaneToGroup;
+  const setWorkspacePaneGroup = workspace.setPaneGroup;
   const removeWorkspacePane = workspace.removePane;
   const setActiveWorkspacePane = workspace.setActivePane;
   const vadAutoStop = workspace.vadAutoStop;
-  const { syncActivePane, syncPaneUpdate, syncPaneOrder } = useWorkspaceSync();
+  const { syncActivePane, syncPaneUpdate, syncPaneOrder, syncPaneMove } = useWorkspaceSync();
   const conversationState = useConversationStore(useShallow((state) => ({
     sessions: state.sessions,
     viewModes: state.viewModes,
@@ -260,9 +261,13 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
   const exitedSessionsRef = useRef<Set<string>>(new Set());
 
   const activatePane = useCallback((sessionId: string) => {
-    setActiveWorkspacePane(sessionId);
+    // Activation clears a manual unread flag — but only on a real transition,
+    // so flagging the session you are looking at survives until you leave and
+    // come back. See the store's setActivePane.
+    const clearedUnread = setActiveWorkspacePane(sessionId);
     syncActivePane(workspacePanes.map((pane) => pane.sessionId), sessionId);
-  }, [setActiveWorkspacePane, syncActivePane, workspacePanes]);
+    if (clearedUnread) syncPaneUpdate(sessionId, { manually_unread: false });
+  }, [setActiveWorkspacePane, syncActivePane, syncPaneUpdate, workspacePanes]);
 
   const isTabLikeMode = isTabLikeDisplayMode(workspace.displayMode);
 
@@ -333,7 +338,13 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
 
     const handleUp = () => {
       setActiveArrangeDrag((prev) => {
-        if (prev) workspace.movePaneToIndex(prev.paneId, prev.dropIndex);
+        if (prev) {
+          workspace.movePaneToIndex(prev.paneId, prev.dropIndex);
+          // Grid arrange-drag used to mutate the local order and never persist
+          // it, so a rearranged grid reverted on reload while every other
+          // reorder surface stuck.
+          syncPaneMove(prev.paneId);
+        }
         return null;
       });
     };
@@ -346,7 +357,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
       window.removeEventListener("pointerup", handleUp);
       window.removeEventListener("pointercancel", handleUp);
     };
-  }, [activeArrangeDrag, workspace]);
+  }, [activeArrangeDrag, syncPaneMove, workspace]);
 
   // Reconcile session manager panes with workspace store.
   // Only remove stale store panes after session hydration completes —
@@ -364,20 +375,30 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
         if (pendingGroupId) pendingGroupBySessionRef.current.delete(sp.session.id);
         addWorkspacePane(sp.session.id, sp.session.shell ?? "terminal", shouldActivate, sp.supportsMessagesView);
         if (pendingGroupId) {
-          addWorkspacePaneToGroup(sp.session.id, pendingGroupId);
+          setWorkspacePaneGroup(sp.session.id, pendingGroupId);
         }
-        // Persist new pane metadata (including supportsMessagesView) to the backend
+        // Persist new pane metadata (including supportsMessagesView) to the
+        // backend. Read the color and position back out of the store rather
+        // than assuming the defaults: joining a group seeds the color from
+        // the group, and the pane's index is its sort_order.
+        //
+        // sort_order is load-bearing. Omitting it left every new pane at the
+        // server's zero value, so on the next reload it sorted to the TOP of
+        // the list (the query is `ORDER BY sort_order, created_at`) — landing
+        // inside whichever group happened to be up there and splitting it.
+        const { panes: afterAdd, activePane: activeAfterAdd } = useWorkspaceStore.getState();
+        const created = afterAdd.find((pane) => pane.sessionId === sp.session.id);
         syncPaneUpdate(sp.session.id, {
           name: sp.session.shell?.split("/").pop() ?? "terminal",
-          header_color: workspace.defaultHeaderColor,
+          header_color: created?.headerColor ?? workspace.defaultHeaderColor,
           theme_id: workspace.defaultThemeId,
           font_size: workspace.defaultFontSize,
+          sort_order: Math.max(0, afterAdd.findIndex((pane) => pane.sessionId === sp.session.id)),
           supports_messages_view: sp.supportsMessagesView,
           ...(pendingGroupId ? { group_id: pendingGroupId } : {}),
         });
         if (pendingGroupId) {
-          const { panes: updated, activePane: active } = useWorkspaceStore.getState();
-          syncPaneOrder(updated.map((pane) => pane.sessionId), active);
+          syncPaneOrder(afterAdd.map((pane) => pane.sessionId), activeAfterAdd);
         }
       }
     }
@@ -391,7 +412,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
     }
   }, [
     addWorkspacePane,
-    addWorkspacePaneToGroup,
+    setWorkspacePaneGroup,
     isHydrated,
     removeWorkspacePane,
     sessionPanes,
@@ -1325,6 +1346,10 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
   );
   const activeSidebarPane = activeNavigationItem?.kind === "pane" ? activeNavigationItem : null;
   const sidebarUnreadCount = countWorkspaceUnreadMessages(orderedPanes, conversationSessions);
+  // With the mobile sidebar closed, this button is the only signal there is —
+  // so a manually flagged session has to reach it too, as a dot (it has no
+  // count of its own, and a real unread count outranks it).
+  const sidebarHasFlagged = orderedPanes.some((pane) => pane.manuallyUnread);
   const hasTopChrome = workspace.displayMode === "tabs" || workspace.displayMode === "sidebar";
   const workspaceTopSafeEnabled = !topSafeAreaReserved;
   const statusFillClassName = voiceInput.fallbackNotice
@@ -1354,6 +1379,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
         voiceSupported={voiceInput.supported}
         voicePreparing={voiceInput.isPreparing}
         voiceRecording={voiceInput.isRecording}
+        voicePersistentMode={workspace.persistentMode}
         voiceListening={voiceInput.isListening}
         voicePassive={voiceInput.isPassive}
         voiceTranscribing={voiceInput.isTranscribing}
@@ -1487,6 +1513,12 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
               title={t(strings.sessionSidebar.open)}
             >
               <Menu className="h-4 w-4" />
+              {sidebarUnreadCount === 0 && sidebarHasFlagged && (
+                <span
+                  data-testid="workspace-sidebar-toggle-flagged"
+                  className="absolute -end-0.5 -top-0.5 h-2 w-2 rounded-full bg-wc-accent"
+                />
+              )}
               {sidebarUnreadCount > 0 && (
                 <span
                   data-testid="workspace-sidebar-toggle-unread"
@@ -1743,6 +1775,7 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
           voiceSupported={voiceInput.supported}
           voicePreparing={voiceInput.isPreparing}
           voiceRecording={voiceInput.isRecording}
+          voicePersistentMode={workspace.persistentMode}
           voiceListening={voiceInput.isListening}
           voicePassive={voiceInput.isPassive}
           voiceTranscribing={voiceInput.isTranscribing}
@@ -1803,9 +1836,11 @@ export default function Workspace({ topSafeAreaReserved = false }: WorkspaceProp
         onClearAttachments={composerAttachments.clearAll}
         mic={voiceInput.supported ? (
           <VoiceMicButton
+            testId="voice-mic-btn"
             supported={voiceInput.supported}
             isPreparing={voiceInput.isPreparing}
             isRecording={voiceInput.isRecording}
+            persistentMode={workspace.persistentMode}
             isListening={voiceInput.isListening}
             isPassive={voiceInput.isPassive}
             isTranscribing={voiceInput.isTranscribing}

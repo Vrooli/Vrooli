@@ -670,7 +670,7 @@ export default function MessagesPane({
     const el = scrollContainerRef.current;
     if (!el) return;
 
-    const updateNearBottom = () => {
+    const updateNearBottom = (allowPagination = true) => {
       const remaining = el.scrollHeight - (el.scrollTop + el.clientHeight);
       const nearBottom = remaining <= 200;
       isNearBottomRef.current = nearBottom;
@@ -680,7 +680,7 @@ export default function MessagesPane({
         pinToBottomRef.current = false;
         pinToEventIdRef.current = null;
       }
-      if (el.scrollTop <= el.clientHeight * 2 && !prependScrollAnchorRef.current) {
+      if (allowPagination && el.scrollTop <= el.clientHeight * 2 && !prependScrollAnchorRef.current) {
         const containerTop = el.getBoundingClientRect().top;
         const anchor = [...el.querySelectorAll<HTMLElement>("[data-event-id]")]
           .find((row) => row.getBoundingClientRect().bottom > containerTop);
@@ -698,9 +698,10 @@ export default function MessagesPane({
       }
     };
 
-    updateNearBottom();
-    el.addEventListener("scroll", updateNearBottom, { passive: true });
-    return () => el.removeEventListener("scroll", updateNearBottom);
+    updateNearBottom(false);
+    const onScroll = () => updateNearBottom(true);
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
   }, [sessionId]);
 
   // Release the bottom-pin or event-pin as soon as the user scrolls away from

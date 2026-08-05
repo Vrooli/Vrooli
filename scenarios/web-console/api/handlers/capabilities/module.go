@@ -15,6 +15,7 @@ package capabilities
 import (
 	"context"
 	"log"
+	"net/http"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -97,7 +98,29 @@ func Module(svc Service, logger *log.Logger) module.Module {
 		Name: "capabilities",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
+			r.HandleFunc("/api/v1/capabilities/describe", describe(svc)).Methods(http.MethodGet)
 		},
 		Endpoints: Endpoints,
+	}
+}
+
+type registryDescriber interface {
+	Describe(context.Context) ([]byte, error)
+}
+
+func describe(svc Service) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		describer, ok := svc.(registryDescriber)
+		if !ok {
+			http.Error(w, "capabilities registry description is unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		data, err := describer.Describe(r.Context())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(data)
 	}
 }

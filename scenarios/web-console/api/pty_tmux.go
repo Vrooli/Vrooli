@@ -17,6 +17,7 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+
 	"web-console/backends/claude"
 	"web-console/internal/config"
 	"web-console/internal/pty"
@@ -84,10 +85,18 @@ func (p *tmuxPTY) Read(buf []byte) (int, error) {
 //     does not understand them, and mobile scroll would silently
 //     break. See isMouseTrackingSequence.
 //   - pty.KindPaste: `tmux load-buffer -b <buf> -` (piped stdin) then
-//     `tmux paste-buffer -d -b <buf> -t <session>`. The `-d` flag
+//     `tmux paste-buffer -d -p -b <buf> -t <session>`. The `-d` flag
 //     deletes the buffer after paste so our per-session buffers don't
-//     accumulate. The buffer name is scoped per-session with a
-//     per-call counter to guarantee no cross-call collision.
+//     accumulate; `-p` lets tmux add bracketed-paste markers when the
+//     pane's application asked for them. The buffer name is scoped
+//     per-session with a per-call counter to guarantee no cross-call
+//     collision.
+//
+// Size, not kind, chooses the transport: keystroke payloads above
+// maxKeystrokeArgvBytes cannot fit in a tmux command and fall back to
+// the same buffer mechanism, minus the bracketing. Keep those two
+// decisions separate — conflating them is what made a single wrong
+// constant silently drop every paste between 16 KiB and 64 KiB.
 //
 // Both non-mouse branches surface tmux's stderr in the returned error
 // so the caller can forward it as stdin_ack.reason.
@@ -182,19 +191,45 @@ func (p *tmuxPTY) exitModeIfAny(sessionName string) error {
 	return nil
 }
 
+// maxKeystrokeArgvBytes is the largest payload we hand to `send-keys`
+// as a command argument.
+//
+// The binding constraint is NOT exec(2)'s argv limit — `tmux send-keys`
+// does not exec anything. The tmux client packs the whole command
+// (name, flags, and every argument) into a single imsg, which is capped
+// at MAX_IMSGSIZE = 16 KiB. Past that tmux rejects the command outright
+// with "command too long"; no quoting or splitting of the argument
+// works around it. Measured ceiling against tmux 3.4 with a realistic
+// `wc-<uuid>` target is 16,304 bytes.
+//
+// 8 KiB is deliberately conservative: it leaves headroom for the
+// command name, flags, and session names longer than a UUID (tests use
+// descriptive ones) without recomputing a budget on the typing hot
+// path. Anything larger takes the buffer path, which streams via stdin
+// and is not subject to the command ceiling at all.
+//
+// TestTmuxSendKeysCeiling_IsAboveOurThreshold measures what the
+// installed tmux actually accepts and fails if this constant is not
+// safely below it — so a tmux change that tightens the limit surfaces
+// as a red test rather than as silently dropped user input.
+const maxKeystrokeArgvBytes = 8 * 1024
+
 // deliverKeystroke sends data via `tmux send-keys -t <target> -l --`.
-// Large keystroke payloads fall through to the paste-buffer path to
-// avoid argv size limits. Before delivery, any tmux mode on the pane
-// is cancelled so the bytes reach the running program rather than
-// being interpreted as mode commands.
+// Payloads too large for a single tmux command fall through to the
+// buffer path. Before delivery, any tmux mode on the pane is cancelled
+// so the bytes reach the running program rather than being interpreted
+// as mode commands.
 func (p *tmuxPTY) deliverKeystroke(sessionName string, data []byte) error {
-	// Oversized keystrokes (unusual but possible — e.g. voice
-	// transcription producing very long text) go through the paste
-	// path, which is buffer-limited only by tmux's own buffer cap,
-	// not by argv size. deliverPaste also cancels mode.
-	const maxArgvChunk = 64 * 1024
-	if len(data) > maxArgvChunk {
-		return p.deliverPaste(sessionName, data)
+	// Oversized keystroke payloads (a large paste arriving through
+	// xterm's onData, or voice transcription producing very long
+	// text) go through the buffer path.
+	//
+	// This is a *transport* fallback and nothing more: the bytes still
+	// carry keystroke semantics, so they must not be bracketed. Any
+	// bracketed-paste markers the client wanted are already embedded
+	// in data — see deliverBuffer's contract.
+	if len(data) > maxKeystrokeArgvBytes {
+		return p.deliverBuffer(sessionName, data, false)
 	}
 	if err := p.exitModeIfAny(sessionName); err != nil {
 		return err
@@ -211,12 +246,36 @@ func (p *tmuxPTY) deliverKeystroke(sessionName string, data []byte) error {
 // session (rare, but possible under test harness or retry paths).
 var tmuxPasteBufferSeq uint64
 
-// deliverPaste pipes data into a dedicated tmux buffer and then pastes
+// deliverPaste delivers clipboard data that arrived as raw text — the
+// context-menu paste path reads navigator.clipboard directly, so the
+// payload carries no bracketed-paste markers of its own. tmux supplies
+// them, and only when the pane's application has actually requested
+// bracketed paste.
+func (p *tmuxPTY) deliverPaste(sessionName string, data []byte) error {
+	return p.deliverBuffer(sessionName, data, true)
+}
+
+// deliverBuffer pipes data into a dedicated tmux buffer and then pastes
 // it into the session's pane. Before delivery, any tmux mode on the
 // pane is cancelled so the payload reaches the running program. The
 // `-d` flag on paste-buffer deletes the buffer after delivery so our
 // per-call buffers don't accumulate.
-func (p *tmuxPTY) deliverPaste(sessionName string, data []byte) error {
+//
+// bracketed selects `paste-buffer -p`, which wraps the payload in
+// \e[200~ / \e[201~ if — and only if — the pane's application has
+// enabled bracketed paste (DECSET 2004). Callers must set it from the
+// *semantics* of the input, never from which transport was chosen:
+//
+//   - true  for pty.KindPaste: raw clipboard text with no markers.
+//     Without this, every newline in a multi-line paste lands on a TUI
+//     as a separate Enter press, so an agent submits the first line and
+//     treats the rest as follow-up prompts.
+//   - false for oversized pty.KindKeystroke payloads. xterm.js already
+//     bracketed those itself before they reached the wire (its
+//     bracketTextForPaste runs on the browser side), so adding -p here
+//     would double-wrap them and leak a literal \e[200~ into the
+//     application's input.
+func (p *tmuxPTY) deliverBuffer(sessionName string, data []byte, bracketed bool) error {
 	if err := p.exitModeIfAny(sessionName); err != nil {
 		return err
 	}
@@ -230,8 +289,12 @@ func (p *tmuxPTY) deliverPaste(sessionName string, data []byte) error {
 		return fmt.Errorf("tmux load-buffer failed: %w (%s)", err, strings.TrimSpace(string(out)))
 	}
 
-	pasteCmd := tmuxCmd("paste-buffer", "-d", "-b", buf, "-t", sessionName)
-	if out, err := pasteCmd.CombinedOutput(); err != nil {
+	pasteArgs := []string{"paste-buffer", "-d"}
+	if bracketed {
+		pasteArgs = append(pasteArgs, "-p")
+	}
+	pasteArgs = append(pasteArgs, "-b", buf, "-t", sessionName)
+	if out, err := tmuxCmd(pasteArgs...).CombinedOutput(); err != nil {
 		// Best-effort cleanup of the orphaned buffer; ignore errors.
 		_ = tmuxCmd("delete-buffer", "-b", buf).Run()
 		return fmt.Errorf("tmux paste-buffer failed: %w (%s)", err, strings.TrimSpace(string(out)))

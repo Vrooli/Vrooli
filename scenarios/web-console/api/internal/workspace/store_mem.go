@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"context"
 	"sort"
 	"sync"
 	"time"
@@ -23,7 +24,7 @@ func NewMemStore() *MemStore {
 	}
 }
 
-func (m *MemStore) GetLayout() (Layout, error) {
+func (m *MemStore) GetLayout(_ context.Context) (Layout, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -54,7 +55,7 @@ func (m *MemStore) GetLayout() (Layout, error) {
 	}, nil
 }
 
-func (m *MemStore) SavePaneOrder(activePaneID string, paneOrder []string) error {
+func (m *MemStore) SavePaneOrder(_ context.Context, activePaneID string, paneOrder []string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -72,7 +73,7 @@ func (m *MemStore) SavePaneOrder(activePaneID string, paneOrder []string) error 
 	return nil
 }
 
-func (m *MemStore) UpsertPane(pane Pane) error {
+func (m *MemStore) UpsertPane(_ context.Context, pane Pane) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -85,6 +86,7 @@ func (m *MemStore) UpsertPane(pane Pane) error {
 		existing.GroupID = pane.GroupID
 		existing.SortOrder = pane.SortOrder
 		existing.SupportsMessagesView = pane.SupportsMessagesView
+		existing.ManuallyUnread = pane.ManuallyUnread
 		existing.UpdatedAt = now
 		return nil
 	}
@@ -110,14 +112,14 @@ func (m *MemStore) UpsertPane(pane Pane) error {
 	return nil
 }
 
-func (m *MemStore) DeletePane(sessionID string) error {
+func (m *MemStore) DeletePane(_ context.Context, sessionID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.panes, sessionID)
 	return nil
 }
 
-func (m *MemStore) ReassignPane(oldSessionID, newSessionID string) error {
+func (m *MemStore) ReassignPane(_ context.Context, oldSessionID, newSessionID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -134,7 +136,7 @@ func (m *MemStore) ReassignPane(oldSessionID, newSessionID string) error {
 	return nil
 }
 
-func (m *MemStore) CreateGroup(name, color string) (Group, error) {
+func (m *MemStore) CreateGroup(_ context.Context, name, color string) (Group, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -165,7 +167,7 @@ func (m *MemStore) CreateGroup(name, color string) (Group, error) {
 	return g, nil
 }
 
-func (m *MemStore) UpdateGroup(id string, name *string, color *string, collapsed *bool) (Group, error) {
+func (m *MemStore) UpdateGroup(_ context.Context, id string, name *string, color *string, collapsed *bool) (Group, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -188,7 +190,7 @@ func (m *MemStore) UpdateGroup(id string, name *string, color *string, collapsed
 	return *g, nil
 }
 
-func (m *MemStore) DeleteGroup(id string) (bool, error) {
+func (m *MemStore) DeleteGroup(_ context.Context, id string) (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

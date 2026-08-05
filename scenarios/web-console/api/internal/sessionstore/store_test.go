@@ -1,6 +1,7 @@
 package sessionstore
 
 import (
+	"context"
 	"database/sql"
 	"path/filepath"
 	"testing"
@@ -8,8 +9,8 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// sessionsTable mirrors the current sessions schema (initialization/sqlite/
-// schema.sql) closely enough to exercise the store's read/write paths,
+// sessionsTable mirrors the current sessions schema closely enough to exercise
+// the store's read/write paths,
 // including the provenance columns.
 const sessionsTable = `
 CREATE TABLE sessions (
@@ -55,14 +56,14 @@ func newSQLStore(t *testing.T) *SQLStore {
 // Save then a SetProvenance patch, through both Get and List.
 func TestSQLStore_ProvenanceRoundTrip(t *testing.T) {
 	s := newSQLStore(t)
-	if err := s.Save(Metadata{ID: "sess-1", Shell: "/bin/bash"}); err != nil {
+	if err := s.Save(context.Background(), Metadata{ID: "sess-1", Shell: "/bin/bash"}); err != nil {
 		t.Fatalf("save: %v", err)
 	}
-	if err := s.SetProvenance("sess-1", OriginProgrammatic, "agent-manager", "Nightly build"); err != nil {
+	if err := s.SetProvenance(context.Background(), "sess-1", OriginProgrammatic, "agent-manager", "Nightly build"); err != nil {
 		t.Fatalf("set provenance: %v", err)
 	}
 
-	got, err := s.Get("sess-1")
+	got, err := s.Get(context.Background(), "sess-1")
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
@@ -71,7 +72,7 @@ func TestSQLStore_ProvenanceRoundTrip(t *testing.T) {
 			got.Origin, got.Owner, got.DisplayLabel)
 	}
 
-	list, err := s.List()
+	list, err := s.List(context.Background())
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
@@ -84,10 +85,10 @@ func TestSQLStore_ProvenanceRoundTrip(t *testing.T) {
 // Metadata directly (the recovery Save path relies on this).
 func TestSQLStore_SaveWritesProvenance(t *testing.T) {
 	s := newSQLStore(t)
-	if err := s.Save(Metadata{ID: "sess-2", Origin: OriginRemote, Owner: "bridge", DisplayLabel: "mac-mini"}); err != nil {
+	if err := s.Save(context.Background(), Metadata{ID: "sess-2", Origin: OriginRemote, Owner: "bridge", DisplayLabel: "mac-mini"}); err != nil {
 		t.Fatalf("save: %v", err)
 	}
-	got, err := s.Get("sess-2")
+	got, err := s.Get(context.Background(), "sess-2")
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
@@ -98,13 +99,13 @@ func TestSQLStore_SaveWritesProvenance(t *testing.T) {
 
 func TestInMemoryStore_ProvenanceRoundTrip(t *testing.T) {
 	s := NewInMemory()
-	if err := s.Save(Metadata{ID: "sess-1"}); err != nil {
+	if err := s.Save(context.Background(), Metadata{ID: "sess-1"}); err != nil {
 		t.Fatalf("save: %v", err)
 	}
-	if err := s.SetProvenance("sess-1", OriginUI, "", "My tab"); err != nil {
+	if err := s.SetProvenance(context.Background(), "sess-1", OriginUI, "", "My tab"); err != nil {
 		t.Fatalf("set provenance: %v", err)
 	}
-	got, err := s.Get("sess-1")
+	got, err := s.Get(context.Background(), "sess-1")
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}

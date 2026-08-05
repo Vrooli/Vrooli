@@ -27,7 +27,7 @@ sed -n '1,40p'  scenarios/web-console/docs/guides/CONVERSATION_TRACKING.md
 sed -n '848,990p' scenarios/web-console/api/session.go        # Recover()
 sed -n '1,80p'   scenarios/web-console/api/session_store.go    # SessionMetadata + SQLSessionStore
 sed -n '1,130p' scenarios/web-console/api/codex_tailer.go      # rollout discovery
-cat              scenarios/web-console/initialization/sqlite/schema.sql
+cat              scenarios/web-console/api/internal/<domain>/schema.sql
 ```
 
 ## 3. Greenfield Constraint (Hard Rule)
@@ -115,7 +115,7 @@ This is fragile and undocumented for Claude entirely (Claude history lives in `~
 | Concern | Location |
 |---|---|
 | Recover() with the bug | api/session.go:848-991 |
-| Session metadata schema | scenarios/web-console/initialization/sqlite/schema.sql:6-17 + migrations in api/main.go:54-58 |
+| Session metadata schema | scenarios/web-console/api/internal/<domain>/schema.sql:6-17 + migrations in api/main.go:54-58 |
 | `SessionMetadata` Go type | api/session_store.go:11-20 |
 | `SessionResponse` JSON | api/session_handlers.go:89-119 |
 | Codex rollout watcher | api/codex_tailer.go (whole file) |
@@ -145,7 +145,7 @@ Phases are listed in dependency order. Each phase ends with a green test gate.
 
 ### Phase 1 — Schema + metadata model
 
-Files: `scenarios/web-console/initialization/sqlite/schema.sql`, `scenarios/web-console/api/main.go` (migrations block), `scenarios/web-console/api/session_store.go`.
+Files: `scenarios/web-console/api/internal/<domain>/schema.sql`, `scenarios/web-console/api/main.go` (migrations block), `scenarios/web-console/api/session_store.go`.
 
 1. Extend `sessions` schema:
 

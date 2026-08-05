@@ -10,6 +10,13 @@
       "dismissAriaLabel": "閉じる"
     }
   },
+  "deviceFrame": {
+    "takeOver": "引き継ぐ"
+  },
+  "deviceIdentity": {
+    "label": "このデバイス名",
+    "hint": "この端末を共有している他のデバイスに表示されます。"
+  },
   "aiSuggestBar": {
     "empty": "コマンドの説明を入力…",
     "generating": "生成中…",
@@ -107,7 +114,8 @@
     "audioSettingsHeading": "オーディオ設定"
   },
   "terminalPane": {
-    "uploadingImage": "画像をアップロード中…"
+    "uploadingImage": "画像をアップロード中…",
+    "inputRejected": "入力は拒否され、ターミナルに届きませんでした。"
   },
   "messageJumpList": {
     "noActivePlayback": "アクティブな再生なし",
@@ -318,6 +326,7 @@
     "close": "セッションを閉じる",
     "sessionCount": "{{count}}セッション",
     "sessionCount_one": "1セッション",
+    "manuallyUnreadAria": "{{name}} は未読としてマークされています",
     "unreadSummary": "{{count}}件未読",
     "unreadSummary_one": "1件未読",
     "sortLabel": "Sort",
@@ -333,6 +342,8 @@
   },
   "tabContextMenu": {
     "rename": "名前を変更",
+    "markAsUnread": "未読にする",
+    "markAsRead": "既読にする",
     "customizeAppearance": "外観をカスタマイズ",
     "removeFromGroup": "グループから削除",
     "addToGroup": "グループに追加",

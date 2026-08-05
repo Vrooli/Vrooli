@@ -1,6 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
   "generation": {
     "template": {
       "id": "react-vite",
@@ -272,7 +273,7 @@
       "audio-tools": {
         "required": false,
         "startup_policy": "try_start",
-        "description": "All audio capabilities (TTS synthesis, voice listing, summarization, STT/transcription, speaker verification, wake word) flow through audio-tools via audioports.Remote* and @audio-tools/embed. web-console contains zero audio synthesis or transcription code.",
+        "description": "All audio capabilities (TTS synthesis, voice listing, summarization, STT/transcription, speaker verification, wake word) flow through audio-tools via audioports.Remote* and the shared browser capture package. web-console contains zero audio synthesis or transcription code.",
         "degraded_behavior": "Terminal workspace boots without audio-tools. Voice, TTS, summarization, speaker verification, and wake word features show degraded/unavailable until audio-tools is reachable, then recover on the next lazy resolution or capability refresh."
       }
     }

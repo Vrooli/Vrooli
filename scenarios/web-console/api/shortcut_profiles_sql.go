@@ -5,10 +5,13 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"log"
 	"time"
+
+	"web-console/internal/dbx"
 )
 
 // [REQ:P1-002a] Shortcut Profile Storage — SQLite implementation
@@ -16,17 +19,17 @@ import (
 // SQLShortcutStore persists shortcut profiles in SQLite.
 // It implements ShortcutStore.
 type SQLShortcutStore struct {
-	db *sql.DB
+	db dbx.Handle
 }
 
 // NewSQLShortcutStore creates a SQLite-backed shortcut store.
-func NewSQLShortcutStore(db *sql.DB) *SQLShortcutStore {
+func NewSQLShortcutStore(db dbx.Handle) *SQLShortcutStore {
 	return &SQLShortcutStore{db: db}
 }
 
 // List returns all shortcut profiles from the database.
-func (s *SQLShortcutStore) List() []*ShortcutProfile {
-	rows, err := s.db.Query(`SELECT id, scope, name, shortcuts, created_at, updated_at FROM shortcut_profiles ORDER BY id`)
+func (s *SQLShortcutStore) List(ctx context.Context) []*ShortcutProfile {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, scope, name, shortcuts, created_at, updated_at FROM shortcut_profiles ORDER BY id`)
 	if err != nil {
 		log.Printf("SQLShortcutStore.List: query failed: %v", err)
 		return nil
@@ -49,8 +52,8 @@ func (s *SQLShortcutStore) List() []*ShortcutProfile {
 }
 
 // Get returns a shortcut profile by ID.
-func (s *SQLShortcutStore) Get(id string) (*ShortcutProfile, bool) {
-	row := s.db.QueryRow(
+func (s *SQLShortcutStore) Get(ctx context.Context, id string) (*ShortcutProfile, bool) {
+	row := s.db.QueryRowContext(ctx,
 		`SELECT id, scope, name, shortcuts, created_at, updated_at FROM shortcut_profiles WHERE id = ?`, id)
 
 	p, err := scanShortcutProfileRow(row)
@@ -66,7 +69,7 @@ func (s *SQLShortcutStore) Get(id string) (*ShortcutProfile, bool) {
 
 // Upsert creates or updates a shortcut profile. Replay-safe: if the content
 // is identical to the existing profile, UpdatedAt is preserved.
-func (s *SQLShortcutStore) Upsert(id, scope, name string, shortcuts []ShortcutEntry) *ShortcutProfile {
+func (s *SQLShortcutStore) Upsert(ctx context.Context, id, scope, name string, shortcuts []ShortcutEntry) *ShortcutProfile {
 	shortcutsJSON, err := json.Marshal(shortcuts)
 	if err != nil {
 		log.Printf("SQLShortcutStore.Upsert: marshal shortcuts: %v", err)
@@ -75,7 +78,7 @@ func (s *SQLShortcutStore) Upsert(id, scope, name string, shortcuts []ShortcutEn
 
 	now := formatTime(time.Now())
 	// ON CONFLICT: only update if content changed (replay safety)
-	row := s.db.QueryRow(`
+	row := s.db.QueryRowContext(ctx, `
 		INSERT INTO shortcut_profiles (id, scope, name, shortcuts, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?)
 		ON CONFLICT (id) DO UPDATE SET
@@ -101,8 +104,8 @@ func (s *SQLShortcutStore) Upsert(id, scope, name string, shortcuts []ShortcutEn
 }
 
 // Delete removes a shortcut profile by ID. Returns false if not found.
-func (s *SQLShortcutStore) Delete(id string) bool {
-	result, err := s.db.Exec(`DELETE FROM shortcut_profiles WHERE id = ?`, id)
+func (s *SQLShortcutStore) Delete(ctx context.Context, id string) bool {
+	result, err := s.db.ExecContext(ctx, `DELETE FROM shortcut_profiles WHERE id = ?`, id)
 	if err != nil {
 		log.Printf("SQLShortcutStore.Delete: exec failed: %v", err)
 		return false
@@ -113,8 +116,8 @@ func (s *SQLShortcutStore) Delete(id string) bool {
 
 // Effective returns the resolved shortcut list by selecting the
 // highest-priority scope's profile.
-func (s *SQLShortcutStore) Effective() []ShortcutEntry {
-	row := s.db.QueryRow(`
+func (s *SQLShortcutStore) Effective(ctx context.Context) []ShortcutEntry {
+	row := s.db.QueryRowContext(ctx, `
 		SELECT shortcuts FROM shortcut_profiles
 		ORDER BY CASE scope
 			WHEN 'parent' THEN 3
@@ -161,9 +164,9 @@ func (s *SQLShortcutStore) Effective() []ShortcutEntry {
 // It never deletes a row and never touches a customized profile, so no user data
 // is lost. Idempotent: after the update the content no longer matches a legacy
 // default, so a re-run is a no-op.
-func reconcileDefaultShortcutProfile(db *sql.DB) error {
+func reconcileDefaultShortcutProfile(ctx context.Context, db dbx.Handle) error {
 	var storedJSON string
-	err := db.QueryRow(
+	err := db.QueryRowContext(ctx,
 		`SELECT shortcuts FROM shortcut_profiles WHERE id = 'default' AND scope = 'service'`,
 	).Scan(&storedJSON)
 	if err != nil {
@@ -188,7 +191,7 @@ func reconcileDefaultShortcutProfile(db *sql.DB) error {
 	if err != nil {
 		return err
 	}
-	if _, err := db.Exec(
+	if _, err := db.ExecContext(ctx,
 		`UPDATE shortcut_profiles SET shortcuts = ?, updated_at = ? WHERE id = 'default' AND scope = 'service'`,
 		string(current), formatTime(time.Now()),
 	); err != nil {

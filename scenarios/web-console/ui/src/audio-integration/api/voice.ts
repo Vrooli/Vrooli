@@ -24,7 +24,7 @@ import {
   timestampToISO,
   type StreamingModeLabel,
   type StrategyPreferenceLabel,
-} from "./protomap";
+} from "@vrooli/audio-capture-browser";
 
 import {
   AudioAdminService,

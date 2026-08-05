@@ -8,6 +8,7 @@ import {
   type WorkspacePaneDTO,
   type TabGroupDTO,
 } from "../api/workspace";
+import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 
 
 /** Debounce delay (ms) for pane reorder saves. */
@@ -31,6 +32,28 @@ export function useWorkspaceSync() {
       );
     }, REORDER_DEBOUNCE_MS);
   }, []);
+
+  /**
+   * Persist the outcome of a pane move: the new order, plus the moved pane's
+   * group and color, which a drop can change (see the store's
+   * groupIdForDropPosition / withGroupAssigned).
+   *
+   * Every reorder surface — sidebar grip, tab strip, grid arrange-drag, the
+   * touch context menu's Move Up/Down — funnels through here so none of them
+   * can persist an order while silently dropping the membership change that
+   * came with it. Reads the store directly because the caller has just
+   * mutated it and any props it holds are a render behind.
+   */
+  const syncPaneMove = useCallback((sessionId: string) => {
+    const { panes, activePane } = useWorkspaceStore.getState();
+    syncPaneOrder(panes.map((pane) => pane.sessionId), activePane);
+    const moved = panes.find((pane) => pane.sessionId === sessionId);
+    if (!moved) return;
+    updateWorkspacePane(sessionId, {
+      group_id: moved.groupId,
+      header_color: moved.headerColor,
+    }).catch((err) => console.error("Failed to sync pane move:", err));
+  }, [syncPaneOrder]);
 
   /** Immediate save of a single pane's metadata. */
   const syncPaneUpdate = useCallback(
@@ -100,6 +123,7 @@ export function useWorkspaceSync() {
 
   return {
     syncPaneOrder,
+    syncPaneMove,
     syncPaneUpdate,
     syncPaneUpdates,
     syncActivePane,

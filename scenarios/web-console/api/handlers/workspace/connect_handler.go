@@ -34,8 +34,8 @@ func NewConnectHandler(d Deps) *connectHandler {
 // CodeNotFound.
 var ErrGroupNotFound = errors.New("group not found")
 
-func (h *connectHandler) GetLayout(_ context.Context, _ *connect.Request[workspacev1.GetLayoutRequest]) (*connect.Response[workspacev1.GetLayoutResponse], error) {
-	layout, err := h.deps.Service.GetLayout()
+func (h *connectHandler) GetLayout(ctx context.Context, _ *connect.Request[workspacev1.GetLayoutRequest]) (*connect.Response[workspacev1.GetLayoutResponse], error) {
+	layout, err := h.deps.Service.GetLayout(ctx)
 	if err != nil {
 		h.deps.Logger.Printf("workspace.GetLayout: %v", err)
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -47,15 +47,15 @@ func (h *connectHandler) GetLayout(_ context.Context, _ *connect.Request[workspa
 	}), nil
 }
 
-func (h *connectHandler) SaveLayout(_ context.Context, req *connect.Request[workspacev1.SaveLayoutRequest]) (*connect.Response[workspacev1.SaveLayoutResponse], error) {
-	if err := h.deps.Service.SaveLayout(req.Msg.GetActivePane(), req.Msg.GetPaneOrder()); err != nil {
+func (h *connectHandler) SaveLayout(ctx context.Context, req *connect.Request[workspacev1.SaveLayoutRequest]) (*connect.Response[workspacev1.SaveLayoutResponse], error) {
+	if err := h.deps.Service.SaveLayout(ctx, req.Msg.GetActivePane(), req.Msg.GetPaneOrder()); err != nil {
 		h.deps.Logger.Printf("workspace.SaveLayout: %v", err)
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&workspacev1.SaveLayoutResponse{}), nil
 }
 
-func (h *connectHandler) UpdatePane(_ context.Context, req *connect.Request[workspacev1.UpdatePaneRequest]) (*connect.Response[workspacev1.UpdatePaneResponse], error) {
+func (h *connectHandler) UpdatePane(ctx context.Context, req *connect.Request[workspacev1.UpdatePaneRequest]) (*connect.Response[workspacev1.UpdatePaneResponse], error) {
 	in := UpdatePaneRequest{
 		SessionID:               req.Msg.GetSessionId(),
 		Name:                    req.Msg.GetName(),
@@ -72,8 +72,10 @@ func (h *connectHandler) UpdatePane(_ context.Context, req *connect.Request[work
 		HasGroupID:              req.Msg.GetHasGroupId(),
 		SupportsMessagesView:    req.Msg.GetSupportsMessagesView(),
 		HasSupportsMessagesView: req.Msg.GetHasSupportsMessagesView(),
+		ManuallyUnread:          req.Msg.GetManuallyUnread(),
+		HasManuallyUnread:       req.Msg.GetHasManuallyUnread(),
 	}
-	p, err := h.deps.Service.UpdatePane(in)
+	p, err := h.deps.Service.UpdatePane(ctx, in)
 	if err != nil {
 		h.deps.Logger.Printf("workspace.UpdatePane: %v", err)
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -81,13 +83,13 @@ func (h *connectHandler) UpdatePane(_ context.Context, req *connect.Request[work
 	return connect.NewResponse(&workspacev1.UpdatePaneResponse{Pane: paneToProto(p)}), nil
 }
 
-func (h *connectHandler) DeletePane(_ context.Context, req *connect.Request[workspacev1.DeletePaneRequest]) (*connect.Response[workspacev1.DeletePaneResponse], error) {
-	h.deps.Service.DeletePane(req.Msg.GetSessionId())
+func (h *connectHandler) DeletePane(ctx context.Context, req *connect.Request[workspacev1.DeletePaneRequest]) (*connect.Response[workspacev1.DeletePaneResponse], error) {
+	h.deps.Service.DeletePane(ctx, req.Msg.GetSessionId())
 	return connect.NewResponse(&workspacev1.DeletePaneResponse{}), nil
 }
 
-func (h *connectHandler) CreateGroup(_ context.Context, req *connect.Request[workspacev1.CreateGroupRequest]) (*connect.Response[workspacev1.CreateGroupResponse], error) {
-	g, err := h.deps.Service.CreateGroup(req.Msg.GetName(), req.Msg.GetColor())
+func (h *connectHandler) CreateGroup(ctx context.Context, req *connect.Request[workspacev1.CreateGroupRequest]) (*connect.Response[workspacev1.CreateGroupResponse], error) {
+	g, err := h.deps.Service.CreateGroup(ctx, req.Msg.GetName(), req.Msg.GetColor())
 	if err != nil {
 		h.deps.Logger.Printf("workspace.CreateGroup: %v", err)
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -95,7 +97,7 @@ func (h *connectHandler) CreateGroup(_ context.Context, req *connect.Request[wor
 	return connect.NewResponse(&workspacev1.CreateGroupResponse{Group: groupToProto(g)}), nil
 }
 
-func (h *connectHandler) UpdateGroup(_ context.Context, req *connect.Request[workspacev1.UpdateGroupRequest]) (*connect.Response[workspacev1.UpdateGroupResponse], error) {
+func (h *connectHandler) UpdateGroup(ctx context.Context, req *connect.Request[workspacev1.UpdateGroupRequest]) (*connect.Response[workspacev1.UpdateGroupResponse], error) {
 	in := UpdateGroupRequest{
 		ID:             req.Msg.GetId(),
 		Name:           req.Msg.GetName(),
@@ -105,7 +107,7 @@ func (h *connectHandler) UpdateGroup(_ context.Context, req *connect.Request[wor
 		IsCollapsed:    req.Msg.GetIsCollapsed(),
 		HasIsCollapsed: req.Msg.GetHasIsCollapsed(),
 	}
-	g, err := h.deps.Service.UpdateGroup(in)
+	g, err := h.deps.Service.UpdateGroup(ctx, in)
 	if err != nil {
 		if errors.Is(err, ErrGroupNotFound) {
 			return nil, connect.NewError(connect.CodeNotFound, err)
@@ -116,8 +118,8 @@ func (h *connectHandler) UpdateGroup(_ context.Context, req *connect.Request[wor
 	return connect.NewResponse(&workspacev1.UpdateGroupResponse{Group: groupToProto(g)}), nil
 }
 
-func (h *connectHandler) DeleteGroup(_ context.Context, req *connect.Request[workspacev1.DeleteGroupRequest]) (*connect.Response[workspacev1.DeleteGroupResponse], error) {
-	h.deps.Service.DeleteGroup(req.Msg.GetId())
+func (h *connectHandler) DeleteGroup(ctx context.Context, req *connect.Request[workspacev1.DeleteGroupRequest]) (*connect.Response[workspacev1.DeleteGroupResponse], error) {
+	h.deps.Service.DeleteGroup(ctx, req.Msg.GetId())
 	return connect.NewResponse(&workspacev1.DeleteGroupResponse{}), nil
 }
 
@@ -131,6 +133,7 @@ func paneToProto(p Pane) *workspacev1.Pane {
 		SortOrder:            int32(p.SortOrder),
 		GroupId:              p.GroupID,
 		SupportsMessagesView: p.SupportsMessagesView,
+		ManuallyUnread:       p.ManuallyUnread,
 		CreatedAt:            p.CreatedAt,
 		UpdatedAt:            p.UpdatedAt,
 	}

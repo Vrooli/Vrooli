@@ -19,11 +19,11 @@ func newPipedSession(t *testing.T) (*Session, *ptyfake.FakePTYWithOutput, *Manag
 		fake = ptyfake.NewFakePTYWithOutput()
 		return fake, nil
 	})
-	sess, err := sm.Create("", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	t.Cleanup(func() { _ = sm.Delete(sess.ID) })
+	t.Cleanup(func() { _ = sm.Delete(context.Background(), sess.ID) })
 	return sess, fake, sm
 }
 

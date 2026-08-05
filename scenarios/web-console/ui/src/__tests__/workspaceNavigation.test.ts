@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ConversationEvent } from "../api/conversation";
-import { buildWorkspaceNavigationItems, buildOriginBucketedNavigation, countWorkspaceUnreadMessages, originBucket, sortPanesForView, type PaneSortMetrics } from "../lib/workspaceNavigation";
+import { buildWorkspaceNavigationItems, buildOriginBucketedNavigation, countWorkspaceUnreadMessages, groupIdForDropPosition, orderPanesByGroupBlocks, originBucket, sortPanesForView, type PaneSortMetrics } from "../lib/workspaceNavigation";
 import type { SessionOriginName } from "../api/sessions";
 import { isTabLikeDisplayMode } from "../lib/workspaceDisplayMode";
 import type { PaneMetadata, TabGroupMeta } from "../stores/useWorkspaceStore";
@@ -13,6 +13,7 @@ const pane = (sessionId: string, groupId: string | null = null): PaneMetadata =>
   fontSize: 14,
   groupId,
   supportsMessagesView: true,
+  manuallyUnread: false,
 });
 
 const event = (sequence: number, createdAt: string, role: "assistant" | "user" = "assistant"): ConversationEvent => ({
@@ -38,11 +39,80 @@ describe("workspace display mode helpers", () => {
   });
 });
 
+describe("orderPanesByGroupBlocks", () => {
+  const g1: TabGroupMeta = { id: "g1", name: "Work", color: "#ff6b6b", isCollapsed: false };
+
+  /** Every group label the sidebar/tab strip would render, in order. */
+  const groupLabels = (panes: PaneMetadata[]): string[] =>
+    buildWorkspaceNavigationItems({ panes, groups: [g1], activePane: null })
+      .filter((item) => item.kind === "group-label")
+      .map((item) => (item.kind === "group-label" ? item.group.id : ""));
+
+  it("returns the same array when the invariant already holds", () => {
+    const panes = [pane("a", "g1"), pane("b", "g1"), pane("c")];
+    expect(orderPanesByGroupBlocks(panes)).toBe(panes);
+  });
+
+  it("anchors a group at its first member and keeps ungrouped panes in place", () => {
+    const panes = [pane("u1"), pane("a", "g1"), pane("u2"), pane("b", "g1")];
+    expect(orderPanesByGroupBlocks(panes).map((p) => p.sessionId)).toEqual(["u1", "a", "b", "u2"]);
+  });
+
+  // These four are the ways a group used to come apart on screen. Each one
+  // produced two headers for a single group, both claiming its full member
+  // count. See the store tests for the write-side half of the same invariant.
+  it("renders ONE header when an ungrouped pane sits between two members", () => {
+    expect(groupLabels([pane("a", "g1"), pane("intruder"), pane("b", "g1")])).toEqual(["g1"]);
+  });
+
+  it("renders ONE header for members scattered across the list", () => {
+    expect(groupLabels([pane("a", "g1"), pane("x"), pane("b", "g1"), pane("y"), pane("c", "g1")]))
+      .toEqual(["g1"]);
+  });
+
+  it("survives a backend order that interleaves a new pane into a group", () => {
+    // What `ORDER BY sort_order, created_at` returns when a freshly created
+    // pane shares sort_order with the group's first member.
+    expect(groupLabels([pane("a", "g1"), pane("new"), pane("b", "g1")])).toEqual(["g1"]);
+  });
+
+  it("keeps one header in every sort mode", () => {
+    const scattered = [pane("a", "g1"), pane("x"), pane("b", "g1")];
+    for (const mode of ["manual", "name", "activity", "unread"] as const) {
+      const labels = buildWorkspaceNavigationItems({
+        panes: scattered, groups: [g1], activePane: null, sortMode: mode,
+      }).filter((item) => item.kind === "group-label");
+      expect(labels, `sortMode=${mode}`).toHaveLength(1);
+    }
+  });
+});
+
+describe("groupIdForDropPosition", () => {
+  const panes = [pane("a", "g1"), pane("dropped"), pane("b", "g1"), pane("tail")];
+
+  it("joins the group when dropped strictly inside its run", () => {
+    expect(groupIdForDropPosition(panes, 1, null)).toBe("g1");
+  });
+
+  it("stays in its own group when dropped against the block edge", () => {
+    // Reordering to the end of your own block must not eject you from it.
+    expect(groupIdForDropPosition([pane("a", "g1"), pane("b", "g1"), pane("t")], 1, "g1")).toBe("g1");
+  });
+
+  it("leaves the group when dropped clear of it", () => {
+    expect(groupIdForDropPosition([pane("m", "g1"), pane("x"), pane("y")], 0, "g1")).toBeNull();
+  });
+
+  it("stays ungrouped when dropped at a block boundary", () => {
+    expect(groupIdForDropPosition([pane("x"), pane("a", "g1"), pane("b", "g1")], 0, null)).toBeNull();
+  });
+});
+
 describe("sortPanesForView", () => {
   const metrics = new Map<string, PaneSortMetrics>([
-    ["a", { name: "Charlie", activityMs: 100, unread: 0 }],
-    ["b", { name: "alpha", activityMs: 300, unread: 5 }],
-    ["c", { name: "Bravo", activityMs: 200, unread: 2 }],
+    ["a", { name: "Charlie", activityMs: 100, unread: 0, flagged: false }],
+    ["b", { name: "alpha", activityMs: 300, unread: 5, flagged: false }],
+    ["c", { name: "Bravo", activityMs: 200, unread: 2, flagged: false }],
   ]);
 
   it("manual mode is a stable identity passthrough", () => {
@@ -203,6 +273,29 @@ describe("buildOriginBucketedNavigation", () => {
     // The group label survives (tabCount 2), but its collapsed panes are hidden.
     expect(programmatic?.items).toHaveLength(1);
     expect(programmatic?.items[0]).toMatchObject({ kind: "group-label", tabCount: 2 });
+  });
+
+  it("keeps a mixed-origin group whole in one bucket", () => {
+    // A group is a unit the user built by hand. Splitting it by provenance put
+    // half of it behind a tab the user wasn't looking at, so the group appeared
+    // to have silently lost members.
+    const buckets = buildOriginBucketedNavigation({
+      panes: [pane("a", "g1"), pane("b", "g1"), pane("c", "g1"), pane("solo")],
+      groups: [{ id: "g1", name: "Work", color: "#123456", isCollapsed: false }],
+      activePane: null,
+      originBySession: origins({ a: "ui", b: "programmatic", c: "ui", solo: "programmatic" }),
+    });
+
+    const ui = buckets.find((b) => b.bucket === "ui");
+    expect(ui?.items.filter((i) => i.kind === "group-label")).toHaveLength(1);
+    expect(ui?.items.filter((i) => i.kind === "pane").map((i) => i.kind === "pane" && i.pane.sessionId))
+      .toEqual(["a", "b", "c"]);
+
+    // Ungrouped sessions still bucket by their own origin.
+    const programmatic = buckets.find((b) => b.bucket === "programmatic");
+    expect(programmatic?.items.filter((i) => i.kind === "group-label")).toHaveLength(0);
+    expect(programmatic?.items.filter((i) => i.kind === "pane").map((i) => i.kind === "pane" && i.pane.sessionId))
+      .toEqual(["solo"]);
   });
 });
 

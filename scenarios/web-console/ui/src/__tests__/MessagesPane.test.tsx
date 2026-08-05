@@ -453,7 +453,7 @@ describe("MessagesPane", () => {
 
   it("applies font size from workspace store to message content", () => {
     useWorkspaceStore.setState({
-      panes: [{ sessionId: "sess-1", name: "test", headerColor: "transparent", themeId: "slate-ocean", fontSize: 20, groupId: null, supportsMessagesView: true }],
+      panes: [{ sessionId: "sess-1", name: "test", headerColor: "transparent", themeId: "slate-ocean", fontSize: 20, groupId: null, supportsMessagesView: true, manuallyUnread: false }],
     });
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Sized text" })]);
     render(<MessagesPane {...defaultProps} />);

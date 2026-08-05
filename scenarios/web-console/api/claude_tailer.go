@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"log"
@@ -82,7 +83,7 @@ func (ct *ClaudeTailer) scan() {
 		log.Printf("claude-tailer: resolve home directory: %v", err)
 		return
 	}
-	rows, err := ct.server.sessionStore.List()
+	rows, err := ct.server.sessionStore.List(context.Background())
 	if err != nil {
 		log.Printf("claude-tailer: list sessions: %v", err)
 		return
@@ -152,7 +153,7 @@ func (ct *ClaudeTailer) loadOffset(path string) int64 {
 	if ct.checkpoints == nil {
 		return 0
 	}
-	cp, ok, err := ct.checkpoints.Get(claudeTailerSource, path)
+	cp, ok, err := ct.checkpoints.Get(context.Background(), claudeTailerSource, path)
 	if err != nil || !ok {
 		return 0
 	}
@@ -167,7 +168,7 @@ func (ct *ClaudeTailer) saveOffset(path, sessionID string, offset int64) {
 	if ct.checkpoints == nil {
 		return
 	}
-	if err := ct.checkpoints.Save(AgentTranscriptCheckpoint{
+	if err := ct.checkpoints.Save(context.Background(), AgentTranscriptCheckpoint{
 		Source: claudeTailerSource, SourceKey: path, SessionID: sessionID,
 		Cursor: strconv.FormatInt(offset, 10), UpdatedAt: time.Now().UTC(),
 	}); err != nil {

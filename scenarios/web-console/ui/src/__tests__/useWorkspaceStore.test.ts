@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { useWorkspaceStore } from "../stores/useWorkspaceStore";
+import { useWorkspaceStore, type TabGroupMeta } from "../stores/useWorkspaceStore";
 
 describe("useWorkspaceStore", () => {
   beforeEach(() => {
@@ -39,6 +39,7 @@ describe("useWorkspaceStore", () => {
         fontSize: 14,
         groupId: null,
         supportsMessagesView: false,
+  manuallyUnread: false,
       });
     });
 
@@ -359,46 +360,68 @@ describe("useWorkspaceStore", () => {
     });
   });
 
-  describe("addPaneToGroup", () => {
-    const pane = (sessionId: string, groupId: string | null = null) => ({
+  describe("setPaneGroup", () => {
+    const pane = (sessionId: string, groupId: string | null = null, headerColor = "transparent") => ({
       sessionId,
       name: sessionId,
-      headerColor: "transparent",
+      headerColor,
       themeId: "default",
       fontSize: 14,
       groupId,
       supportsMessagesView: false,
+  manuallyUnread: false,
     });
+    const g1: TabGroupMeta = { id: "g1", name: "Work", color: "#4dabf7", isCollapsed: false };
 
-    it("moves a pane adjacent to the group's last member (contiguity)", () => {
-      useWorkspaceStore.setState({
-        panes: [pane("a", "g1"), pane("b"), pane("c", "g1"), pane("d")],
-      });
-      // Add "d" to g1 → should land right after "c" (g1's last member).
-      useWorkspaceStore.getState().addPaneToGroup("d", "g1");
-      const order = useWorkspaceStore.getState().panes.map((p) => p.sessionId);
-      expect(order).toEqual(["a", "b", "c", "d"]);
-      const d = useWorkspaceStore.getState().panes.find((p) => p.sessionId === "d");
-      expect(d?.groupId).toBe("g1");
-    });
-
-    it("pulls a pane up to sit beside an earlier group block", () => {
+    it("pulls the joining pane into the group's block", () => {
       useWorkspaceStore.setState({
         panes: [pane("a", "g1"), pane("b", "g1"), pane("c"), pane("d")],
+        groups: [g1],
       });
-      useWorkspaceStore.getState().addPaneToGroup("d", "g1");
-      const order = useWorkspaceStore.getState().panes.map((p) => p.sessionId);
-      expect(order).toEqual(["a", "b", "d", "c"]);
+      useWorkspaceStore.getState().setPaneGroup("d", "g1");
+      expect(useWorkspaceStore.getState().panes.map((p) => p.sessionId)).toEqual(["a", "b", "d", "c"]);
+    });
+
+    it("heals a group that was already split", () => {
+      // "b" sits between two members. Joining is also the moment to restore
+      // the invariant — leaving g1 in two pieces would render two headers.
+      useWorkspaceStore.setState({
+        panes: [pane("a", "g1"), pane("b"), pane("c", "g1"), pane("d")],
+        groups: [g1],
+      });
+      useWorkspaceStore.getState().setPaneGroup("d", "g1");
+      expect(useWorkspaceStore.getState().panes.map((p) => p.sessionId)).toEqual(["a", "c", "d", "b"]);
+      expect(useWorkspaceStore.getState().panes.find((p) => p.sessionId === "d")?.groupId).toBe("g1");
     });
 
     it("leaves order unchanged for the first member of a group", () => {
-      useWorkspaceStore.setState({
-        panes: [pane("a"), pane("b"), pane("c")],
-      });
-      useWorkspaceStore.getState().addPaneToGroup("b", "g1");
-      const order = useWorkspaceStore.getState().panes.map((p) => p.sessionId);
-      expect(order).toEqual(["a", "b", "c"]);
+      useWorkspaceStore.setState({ panes: [pane("a"), pane("b"), pane("c")], groups: [g1] });
+      useWorkspaceStore.getState().setPaneGroup("b", "g1");
+      expect(useWorkspaceStore.getState().panes.map((p) => p.sessionId)).toEqual(["a", "b", "c"]);
       expect(useWorkspaceStore.getState().panes[1]?.groupId).toBe("g1");
+    });
+
+    it("keeps the surviving members contiguous when a middle member leaves", () => {
+      useWorkspaceStore.setState({
+        panes: [pane("a", "g1"), pane("b", "g1"), pane("c", "g1")],
+        groups: [g1],
+      });
+      useWorkspaceStore.getState().setPaneGroup("b", null);
+      expect(useWorkspaceStore.getState().panes.map((p) => p.sessionId)).toEqual(["a", "c", "b"]);
+    });
+
+    it("seeds the group's color onto a pane that has none", () => {
+      useWorkspaceStore.setState({ panes: [pane("a")], groups: [g1] });
+      useWorkspaceStore.getState().setPaneGroup("a", "g1");
+      expect(useWorkspaceStore.getState().panes[0]?.headerColor).toBe("#4dabf7");
+    });
+
+    it("never overwrites a color the user chose, and keeps it on leaving", () => {
+      useWorkspaceStore.setState({ panes: [pane("a", null, "#ff6b6b")], groups: [g1] });
+      useWorkspaceStore.getState().setPaneGroup("a", "g1");
+      expect(useWorkspaceStore.getState().panes[0]?.headerColor).toBe("#ff6b6b");
+      useWorkspaceStore.getState().setPaneGroup("a", null);
+      expect(useWorkspaceStore.getState().panes[0]?.headerColor).toBe("#ff6b6b");
     });
   });
 

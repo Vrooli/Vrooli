@@ -10,6 +10,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/vrooli/api-core v0.0.0
+	github.com/vrooli/vrooli/packages/capability-registry-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	github.com/vrooli/vrooli/scenarios/audio-tools/clients/go v0.0.0
 	google.golang.org/protobuf v1.36.11
@@ -41,6 +42,8 @@ replace github.com/vrooli/cli-core => ../../../packages/cli-core
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
 replace github.com/vrooli/vrooli => ../../..
+
+replace github.com/vrooli/vrooli/packages/capability-registry-go => ../../../packages/capability-registry-go
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 

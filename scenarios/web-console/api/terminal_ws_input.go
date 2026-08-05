@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"log"
 	"sync"
+
 	"web-console/internal/events"
 	"web-console/session"
 
@@ -84,7 +85,22 @@ func (s *Server) dispatchInputMessage(
 		writeMu.Unlock()
 		if writeErr != nil {
 			log.Printf("ws[%s]: PTY write failed: %v", sessionID, writeErr)
-			return inputDispatchResult{Close: true, CloseReason: "Terminal process is not accepting input"}
+			// Only a dead PTY is fatal to the connection. A backend
+			// write that rejects one payload (tmux refusing an
+			// oversized command, a transient tmux error) must not take
+			// the pane down with it: the client already has the
+			// ok=false ack plus a typed Reason and reports the failure
+			// itself.
+			//
+			// This is load-bearing beyond tidiness. Closing here made
+			// such failures self-sustaining — the client re-enqueues
+			// every in-flight payload on close (useStdinAck's
+			// handleClose), reconnects, flushes the same payload, and
+			// gets closed again. One rejected paste became an endless
+			// reconnect loop.
+			if errors.Is(writeErr, errPTYClosed) {
+				return inputDispatchResult{Close: true, CloseReason: "Terminal process is not accepting input"}
+			}
 		}
 	case MsgTypeResize:
 		if msg.Cols > 0 && msg.Rows > 0 {

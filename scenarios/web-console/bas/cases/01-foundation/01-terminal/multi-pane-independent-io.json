@@ -4,6 +4,19 @@
   "name": "multi-pane-independent-io",
   "folder_path": "/bas/cases/01-foundation/01-terminal",
   "description": "Launch two panes, run distinct stdin commands, and verify output stays isolated per pane",
+  "metadata": {
+    "name": "multi-pane-independent-io",
+    "description": "Launch two panes, run distinct stdin commands, and verify output stays isolated per pane",
+    "execution_mode": "mutating",
+    "reset": "full",
+    "labels": {
+      "reset": "full",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "seed": "seed",
+      "requirements_json": "[\"REQ-P0-001b\", \"REQ-P0-002b\"]"
+    }
+  },
   "tags": [
     "reset:full",
     "requirements_json:[\"REQ-P0-001b\", \"REQ-P0-002b\"]"
@@ -34,10 +47,10 @@
         "action": {
           "type": "ACTION_TYPE_SUBFLOW",
           "subflow": {
-            "workflow_path": "actions/reset-sessions-best-effort.json"
+            "workflow_path": "actions/capture-session-baseline.json"
           },
           "metadata": {
-            "label": "Reset sessions (best effort)"
+            "label": "Capture session baseline"
           }
         }
       },
@@ -116,6 +129,58 @@
         }
       },
       {
+        "id": "resolve-target-session-wait-second-pane",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const listIds = async () => { try { const res = await fetch('/vrooli.web_console.v1.sessions.SessionsService/List', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', cache: 'no-store' }); if (!res.ok) return null; const body = await res.json(); const rows = Array.isArray(body) ? body : (body && body.sessions) || []; return rows.map((s) => s && s.id).filter(Boolean); } catch { return null; } }; const readBaseline = () => { try { const raw = sessionStorage.getItem('__bas_baseline_sessions'); if (!raw) return null; const parsed = JSON.parse(raw); return Array.isArray(parsed) ? parsed : null; } catch { return null; } }; const baseline = new Set(readBaseline() || []); const deadline = Date.now() + 10000; let target = ''; while (Date.now() < deadline) { const ids = await listIds();  if (ids) { const fresh = ids.filter((id) => !baseline.has(id));   if (fresh.length > 0) { target = fresh[fresh.length - 1]; break; } }  await new Promise((r) => setTimeout(r, 150)); } window.__bas_target_session = target; document.body.setAttribute('data-bas-target-session', target); document.body.setAttribute('data-bas-target-resolved', target ? 'true' : 'false'); })()"
+          },
+          "metadata": {
+            "label": "Resolve the session this case created"
+          }
+        }
+      },
+      {
+        "id": "assert-target-resolved-wait-second-pane",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-bas-target-resolved='true']",
+            "failure_message": "Could not identify the session this case created; refusing to type into an unknown pane",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Verify target session resolved"
+          }
+        }
+      },
+      {
+        "id": "focus-target-pane-wait-second-pane",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const id = window.__bas_target_session || ''; document.body.setAttribute('data-bas-focus-ok', 'false'); if (!id) return; const deadline = Date.now() + 10000; while (Date.now() < deadline) {  const pane = document.querySelector('[data-testid=\"terminal-pane\"][data-session-id=\"' + id + '\"]');  const area = pane && pane.querySelector('.xterm-helper-textarea');  if (area) { const container = pane.closest('[data-testid=\"terminal-pane-container\"]');   if (container) container.click(); area.focus();   if (document.activeElement === area) { document.body.setAttribute('data-bas-focus-ok', 'true'); return; } }  await new Promise((r) => setTimeout(r, 150)); } })()"
+          },
+          "metadata": {
+            "label": "Focus the created session's terminal"
+          }
+        }
+      },
+      {
+        "id": "assert-focus-ok-wait-second-pane",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-bas-focus-ok='true']",
+            "failure_message": "Could not focus the created session's terminal; input would have gone to another pane",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Verify focus landed on the created session"
+          }
+        }
+      },
+      {
         "id": "capture-new-session-ids",
         "action": {
           "type": "ACTION_TYPE_EVALUATE",
@@ -138,31 +203,6 @@
           },
           "metadata": {
             "label": "Verify isolated session set"
-          }
-        }
-      },
-      {
-        "id": "focus-second-pane",
-        "action": {
-          "type": "ACTION_TYPE_EVALUATE",
-          "evaluate": {
-            "expression": "(() => { const newIds = JSON.parse(localStorage.getItem('bas.multipane.newSessionIds') || '[]'); const secondId = newIds[1] || newIds[newIds.length - 1] || ''; if (!secondId) return; const pane = document.querySelector(`[data-testid=\"terminal-pane-container\"][data-session-id=\"${secondId}\"]`); if (pane instanceof HTMLElement) pane.click(); })()"
-          },
-          "metadata": {
-            "label": "Activate second pane"
-          }
-        }
-      },
-      {
-        "id": "focus-xterm-second",
-        "action": {
-          "type": "ACTION_TYPE_FOCUS",
-          "focus": {
-            "selector": "[data-testid='terminal-pane-container'].border-wc-accent [data-testid='terminal-pane'] .xterm-helper-textarea",
-            "timeout_ms": 5000
-          },
-          "metadata": {
-            "label": "Focus second pane input"
           }
         }
       },
@@ -243,6 +283,18 @@
             "label": "Verify I/O isolation"
           }
         }
+      },
+      {
+        "id": "teardown-test-sessions",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/teardown-test-sessions.json"
+          },
+          "metadata": {
+            "label": "Delete sessions created by this case"
+          }
+        }
       }
     ],
     "edges": [
@@ -291,55 +343,73 @@
       {
         "id": "e8",
         "source": "wait-second-pane",
-        "target": "capture-new-session-ids",
+        "target": "resolve-target-session-wait-second-pane",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
         "id": "e9",
+        "source": "resolve-target-session-wait-second-pane",
+        "target": "assert-target-resolved-wait-second-pane",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e10",
+        "source": "assert-target-resolved-wait-second-pane",
+        "target": "focus-target-pane-wait-second-pane",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e11",
+        "source": "focus-target-pane-wait-second-pane",
+        "target": "assert-focus-ok-wait-second-pane",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e12",
+        "source": "assert-focus-ok-wait-second-pane",
+        "target": "capture-new-session-ids",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e13",
         "source": "capture-new-session-ids",
         "target": "assert-new-session-count",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
-        "id": "e10",
+        "id": "e14",
         "source": "assert-new-session-count",
-        "target": "focus-second-pane",
-        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
-      },
-      {
-        "id": "e11",
-        "source": "focus-second-pane",
-        "target": "focus-xterm-second",
-        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
-      },
-      {
-        "id": "e12",
-        "source": "focus-xterm-second",
         "target": "send-second-pane-command",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
-        "id": "e13",
+        "id": "e15",
         "source": "send-second-pane-command",
         "target": "wait-markers",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
-        "id": "e14",
+        "id": "e16",
         "source": "wait-markers",
         "target": "evaluate-pane-isolation",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
-        "id": "e15",
+        "id": "e17",
         "source": "evaluate-pane-isolation",
         "target": "assert-pane-count",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
-        "id": "e16",
+        "id": "e18",
         "source": "assert-pane-count",
         "target": "assert-pane-isolation",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e19",
+        "source": "assert-pane-isolation",
+        "target": "teardown-test-sessions",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       }
     ]

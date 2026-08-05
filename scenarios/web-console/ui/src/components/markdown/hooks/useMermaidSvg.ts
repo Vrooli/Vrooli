@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 // Lazy-loaded mermaid instance (singleton). Both the inline diagram and the
-// full-screen viewer share this so initialization/theme is one source of truth.
+// full-screen viewer share this so api/internal/<domain>/theme is one source of truth.
 let mermaidPromise: Promise<typeof import("mermaid")["default"]> | null = null;
 
 function getMermaid() {

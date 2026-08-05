@@ -23,6 +23,8 @@ const mockSpeakParagraphs = vi.fn<() => Promise<string | undefined>>();
 const mockStop = vi.fn();
 const mockSetMuted = vi.fn();
 const mockResume = vi.fn();
+const mockGetServerSize = vi.fn(() => null);
+const mockSendResize = vi.fn();
 let mockIsSpeaking = false;
 
 vi.mock("../hooks/useTextToSpeech", () => ({
@@ -53,7 +55,9 @@ vi.mock("../hooks/terminal/useTerminalSession", () => {
     useTerminalSession: () => ({
       submitInput,
       gate,
-      sendResize: vi.fn(),
+      sendResize: mockSendResize,
+      getServerSize: mockGetServerSize,
+      serverSize: null,
       subscribeInputSettled: vi.fn(() => () => {}),
       subscribePendingInput: vi.fn(() => () => {}),
       getPendingInputSnapshot: vi.fn(() => []),
@@ -92,6 +96,7 @@ const storeState: Record<string, unknown> = {
   ttsVoice: "", ttsRate: 1.0, ttsPitch: 1.0,
   kokoroVoice: "af_heart", kokoroSpeed: 1.0,
   ttsBackendPreference: "auto", voiceShortcut: "",
+  deviceFontSize: {},
   panes: [{ sessionId: SESSION_ID, name: "test", headerColor: "transparent", themeId: "default", fontSize: 14, groupId: null }],
   activePane: SESSION_ID,
   renamePaneById: vi.fn(),

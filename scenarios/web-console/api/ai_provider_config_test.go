@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 	"time"
+
 	"web-console/internal/events"
 	"web-console/internal/metrics"
 	"web-console/internal/ptyfake"
@@ -21,7 +22,7 @@ import (
 
 func TestAIProviderConfigStore_Defaults(t *testing.T) {
 	store := intai.NewMemConfigStore()
-	configs := store.GetConfigs()
+	configs := store.GetConfigs(context.Background())
 	if len(configs) != 2 {
 		t.Fatalf("expected 2 providers, got %d", len(configs))
 	}
@@ -39,12 +40,12 @@ func TestAIProviderConfigStore_Defaults(t *testing.T) {
 func TestAIProviderConfigStore_UpdateConfig(t *testing.T) {
 	store := intai.NewMemConfigStore()
 
-	ok := store.UpdateConfig("ollama", false, 1, 15, 2)
+	ok := store.UpdateConfig(context.Background(), "ollama", false, 1, 15, 2)
 	if !ok {
 		t.Fatal("expected update to succeed")
 	}
 
-	configs := store.GetConfigs()
+	configs := store.GetConfigs(context.Background())
 	for _, c := range configs {
 		if c.Name == "ollama" {
 			if c.Enabled {
@@ -59,35 +60,35 @@ func TestAIProviderConfigStore_UpdateConfig(t *testing.T) {
 		}
 	}
 
-	if store.UpdateConfig("unknown", true, 1, 30, 0) {
+	if store.UpdateConfig(context.Background(), "unknown", true, 1, 30, 0) {
 		t.Error("expected update of unknown provider to fail")
 	}
 }
 
 func TestAIProviderConfigStore_IsEnabled(t *testing.T) {
 	store := intai.NewMemConfigStore()
-	if !store.IsEnabled("ollama") {
+	if !store.IsEnabled(context.Background(), "ollama") {
 		t.Error("expected ollama enabled")
 	}
-	store.UpdateConfig("ollama", false, 1, 30, 0)
-	if store.IsEnabled("ollama") {
+	store.UpdateConfig(context.Background(), "ollama", false, 1, 30, 0)
+	if store.IsEnabled(context.Background(), "ollama") {
 		t.Error("expected ollama disabled after update")
 	}
-	if store.IsEnabled("unknown") {
+	if store.IsEnabled(context.Background(), "unknown") {
 		t.Error("expected unknown provider not enabled")
 	}
 }
 
 func TestAIProviderConfigStore_GetProviderTimeout(t *testing.T) {
 	store := intai.NewMemConfigStore()
-	if got := store.GetProviderTimeout("ollama"); got != 30*time.Second {
+	if got := store.GetProviderTimeout(context.Background(), "ollama"); got != 30*time.Second {
 		t.Errorf("expected 30s, got %v", got)
 	}
-	store.UpdateConfig("ollama", true, 1, 10, 0)
-	if got := store.GetProviderTimeout("ollama"); got != 10*time.Second {
+	store.UpdateConfig(context.Background(), "ollama", true, 1, 10, 0)
+	if got := store.GetProviderTimeout(context.Background(), "ollama"); got != 10*time.Second {
 		t.Errorf("expected 10s, got %v", got)
 	}
-	if got := store.GetProviderTimeout("unknown"); got != 30*time.Second {
+	if got := store.GetProviderTimeout(context.Background(), "unknown"); got != 30*time.Second {
 		t.Errorf("expected 30s default for unknown, got %v", got)
 	}
 }
@@ -97,11 +98,11 @@ func TestAIProviderConfigStore_GetProviderTimeout(t *testing.T) {
 func TestAIProviderConfigStore_HealthTracking(t *testing.T) {
 	store := intai.NewMemConfigStore()
 
-	store.RecordSuccess("ollama", 100*time.Millisecond)
-	store.RecordSuccess("ollama", 200*time.Millisecond)
-	store.RecordError("openrouter")
+	store.RecordSuccess(context.Background(), "ollama", 100*time.Millisecond)
+	store.RecordSuccess(context.Background(), "ollama", 200*time.Millisecond)
+	store.RecordError(context.Background(), "openrouter")
 
-	health := store.GetHealth()
+	health := store.GetHealth(context.Background())
 	for _, h := range health {
 		switch h.Name {
 		case "ollama":
@@ -208,7 +209,7 @@ func TestConnect_UpdateAIConfig_UnknownProvider(t *testing.T) {
 
 func TestConnect_GetAIHealth(t *testing.T) {
 	srv := newFakeTestServer()
-	srv.aiConfig.RecordSuccess("ollama", 50*time.Millisecond)
+	srv.aiConfig.RecordSuccess(context.Background(), "ollama", 50*time.Millisecond)
 
 	h := newAIConnectHandlerForServer(srv)
 	resp, err := h.GetHealth(context.Background(), connect.NewRequest(&aiv1.GetHealthRequest{}))
@@ -236,7 +237,7 @@ func TestGenerateWithConfig_DisabledProvider(t *testing.T) {
 	}
 	srv.ai = intai.NewService(srv.aiChain, srv.aiConfig, nil, srv.events, &srv.metrics.AIGenerations, &srv.metrics.AISuggestions)
 
-	srv.aiConfig.UpdateConfig("ollama", false, 1, 30, 0)
+	srv.aiConfig.UpdateConfig(context.Background(), "ollama", false, 1, 30, 0)
 
 	cmd, provider, err := srv.ai.Execute(context.Background(), intai.CommandSystemPrompt, "test")
 	if err != nil {
@@ -256,11 +257,11 @@ func TestGenerateWithConfig_DisabledProvider(t *testing.T) {
 // [REQ:P1-003b] Performance test - status updates <1s
 func BenchmarkGetHealth(b *testing.B) {
 	store := intai.NewMemConfigStore()
-	store.RecordSuccess("ollama", 100*time.Millisecond)
-	store.RecordError("openrouter")
+	store.RecordSuccess(context.Background(), "ollama", 100*time.Millisecond)
+	store.RecordError(context.Background(), "openrouter")
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		store.GetHealth()
+		store.GetHealth(context.Background())
 	}
 }

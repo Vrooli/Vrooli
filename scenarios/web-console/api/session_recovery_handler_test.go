@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+
 	"web-console/internal/backend"
 	"web-console/internal/sessionstore"
 	intworkspace "web-console/internal/workspace"
@@ -28,7 +29,7 @@ func newRecoveryTestServer(t *testing.T) *Server {
 
 func saveOrphan(t *testing.T, srv *Server, id string, agent sessionstore.Agent, agentSessionID string) {
 	t.Helper()
-	if err := srv.sessionStore.Save(sessionstore.Metadata{
+	if err := srv.sessionStore.Save(context.Background(), sessionstore.Metadata{
 		ID:             id,
 		Backend:        backend.Persistent,
 		Shell:          "/bin/bash",
@@ -76,8 +77,8 @@ func TestHandleListRecoverable_OrdersByActivity(t *testing.T) {
 	srv := newRecoveryTestServer(t)
 	saveOrphan(t, srv, "older", sessionstore.AgentCodex, "codex-1")
 	saveOrphan(t, srv, "newer", sessionstore.AgentCodex, "codex-2")
-	_ = srv.sessionStore.UpdateAgentInfo("older", sessionstore.AgentInfo{LastActivityAt: time.Now().Add(-2 * time.Hour)})
-	_ = srv.sessionStore.UpdateAgentInfo("newer", sessionstore.AgentInfo{LastActivityAt: time.Now().Add(-5 * time.Minute)})
+	_ = srv.sessionStore.UpdateAgentInfo(context.Background(), "older", sessionstore.AgentInfo{LastActivityAt: time.Now().Add(-2 * time.Hour)})
+	_ = srv.sessionStore.UpdateAgentInfo(context.Background(), "newer", sessionstore.AgentInfo{LastActivityAt: time.Now().Add(-5 * time.Minute)})
 
 	rows := callListRecoverable(t, srv)
 	// In-memory store does not enforce ordering; just check membership + recoverable flag.
@@ -108,7 +109,7 @@ func TestHandleRecover_Codex_HappyPath(t *testing.T) {
 	if !strings.Contains(resp.GetCommandSent(), "codex --yolo resume 019d-codex-uuid") {
 		t.Errorf("CommandSent: got %q", resp.GetCommandSent())
 	}
-	old, _ := srv.sessionStore.Get("codex-old")
+	old, _ := srv.sessionStore.Get(context.Background(), "codex-old")
 	if old.Status != sessionstore.StatusDismissed {
 		t.Errorf("old row status: got %q", old.Status)
 	}
@@ -120,10 +121,10 @@ func TestHandleRecover_Codex_HappyPath(t *testing.T) {
 func TestHandleRecover_MigratesCustomizedPane(t *testing.T) {
 	srv := newRecoveryTestServer(t)
 	saveOrphan(t, srv, "pane-old", sessionstore.AgentCodex, "codex-pane")
-	if err := srv.sessionStore.UpdateAgentInfo("pane-old", sessionstore.AgentInfo{CWD: "/work/recovered"}); err != nil {
+	if err := srv.sessionStore.UpdateAgentInfo(context.Background(), "pane-old", sessionstore.AgentInfo{CWD: "/work/recovered"}); err != nil {
 		t.Fatalf("set cwd: %v", err)
 	}
-	if err := srv.workspace.UpsertPane(intworkspace.Pane{
+	if err := srv.workspace.UpsertPane(context.Background(), intworkspace.Pane{
 		SessionID:            "pane-old",
 		Name:                 "Important recovery work",
 		HeaderColor:          "#ff6b6b",
@@ -140,7 +141,7 @@ func TestHandleRecover_MigratesCustomizedPane(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Recover: %v", err)
 	}
-	layout, err := srv.workspace.GetLayout()
+	layout, err := srv.workspace.GetLayout(context.Background())
 	if err != nil {
 		t.Fatalf("GetLayout: %v", err)
 	}
@@ -178,7 +179,7 @@ func TestHandleRecover_Claude_RequiresSessionID(t *testing.T) {
 
 func TestHandleRecover_RejectsLiveSession(t *testing.T) {
 	srv := newRecoveryTestServer(t)
-	if err := srv.sessionStore.Save(sessionstore.Metadata{
+	if err := srv.sessionStore.Save(context.Background(), sessionstore.Metadata{
 		ID:        "live-id",
 		Backend:   backend.Persistent,
 		Shell:     "/bin/bash",
@@ -213,7 +214,7 @@ func TestHandleDismissRecoverable_TransitionsToDismissed(t *testing.T) {
 	if err := callDismissRecoverable(t, srv, "drop-me"); err != nil {
 		t.Fatalf("DismissRecoverable: %v", err)
 	}
-	got, _ := srv.sessionStore.Get("drop-me")
+	got, _ := srv.sessionStore.Get(context.Background(), "drop-me")
 	if got.Status != sessionstore.StatusDismissed {
 		t.Errorf("status: got %q", got.Status)
 	}
@@ -235,7 +236,7 @@ func TestCreateSession_PersistsLaunchCommandAndAgentType(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	got, err := srv.sessionStore.Get(resp.Msg.GetSession().GetId())
+	got, err := srv.sessionStore.Get(context.Background(), resp.Msg.GetSession().GetId())
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}

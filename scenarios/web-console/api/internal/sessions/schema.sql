@@ -145,6 +145,10 @@ CREATE TABLE IF NOT EXISTS workspace_panes (
     group_id TEXT REFERENCES tab_groups(id) ON DELETE SET NULL,
     is_active INTEGER NOT NULL DEFAULT 0,
     supports_messages_view INTEGER NOT NULL DEFAULT 0,
+    -- User-set "come back to this" flag. Independent of the conversation read
+    -- cursor, which only moves forward and exists only for message-capable
+    -- sessions. See applyColumnMigrations for the matching ADD COLUMN.
+    manually_unread INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
     updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );

@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { clampFontSize } from "../lib/fontSizeUtils";
+import { parsePaneColor } from "../lib/paneColor";
+import { groupIdForDropPosition, orderPanesByGroupBlocks } from "../lib/workspaceNavigation";
 import { DEFAULT_THEME_ID, TERMINAL_FONT_SIZE } from "../consts/config";
 import { DEFAULT_WAKE_WORD_THRESHOLD } from "../audio-integration/hooks/voice/wakeword/types";
 // Auto-stop / segment silence defaults come from the audio-integration package
@@ -17,6 +19,16 @@ export interface PaneMetadata {
   fontSize: number;
   groupId: string | null;
   supportsMessagesView: boolean;
+  /**
+   * User-set "come back to this" flag, shown as a dot with no count.
+   *
+   * Deliberately not derived from the conversation read cursor: that cursor
+   * records what was actually displayed and only ever moves forward, and it
+   * exists only for message-capable sessions — so it can express neither
+   * "I have seen this but want it to look unread" nor a flag on a plain
+   * terminal.
+   */
+  manuallyUnread: boolean;
 }
 
 export type DisplayMode = "grid" | "tabs" | "sidebar";
@@ -141,6 +153,8 @@ interface WorkspaceState {
 interface WorkspaceActions {
   addPane: (sessionId: string, name: string, activate?: boolean, supportsMessagesView?: boolean) => void;
   removePane: (sessionId: string) => void;
+  /** Set or clear a pane's manual unread flag. */
+  setPaneManuallyUnread: (sessionId: string, manuallyUnread: boolean) => void;
   renamePaneById: (sessionId: string, name: string) => void;
   setPaneColor: (sessionId: string, color: string) => void;
   setPaneTheme: (sessionId: string, themeId: string) => void;
@@ -148,7 +162,16 @@ interface WorkspaceActions {
   movePaneToIndex: (sessionId: string, newIndex: number) => void;
   setColumnFractions: (fractions: number[]) => void;
   setRowFractions: (fractions: number[]) => void;
-  setActivePane: (sessionId: string | null) => void;
+  /**
+   * Activate a pane. Returns true when this cleared the pane's manual unread
+   * flag, so the caller knows to persist that alongside the active-pane save.
+   *
+   * Clearing happens only on a real transition — activating a pane that is
+   * already active is a no-op. That is what lets you flag the session you are
+   * currently looking at: the flag survives until you leave and come back,
+   * which is the whole point of setting it.
+   */
+  setActivePane: (sessionId: string | null) => boolean;
   setAppearanceModalPane: (sessionId: string | null) => void;
   setMinimapVisible: (visible: boolean) => void;
   setDisplayMode: (mode: DisplayMode) => void;
@@ -191,10 +214,13 @@ interface WorkspaceActions {
   addGroup: (group: TabGroupMeta) => void;
   removeGroup: (groupId: string) => void;
   updateGroup: (groupId: string, update: Partial<Omit<TabGroupMeta, "id">>) => void;
+  /**
+   * Set (or clear, with null) a pane's group. Repositions the pane so the
+   * group stays one contiguous block and seeds the pane's color from the
+   * group when it has none — see withGroupAssigned. Callers sync the
+   * resulting order + pane patch to the backend.
+   */
   setPaneGroup: (sessionId: string, groupId: string | null) => void;
-  /** Assign a pane to a group AND move it adjacent to the group's last member
-   *  so groups stay contiguous. Returns nothing; caller syncs order + update. */
-  addPaneToGroup: (sessionId: string, groupId: string) => void;
   toggleGroupCollapsed: (groupId: string) => void;
   /** Propagate a subset of the source pane's appearance to existing panes
    *  and/or the new-pane defaults. Never mutates defaults implicitly — the
@@ -212,6 +238,38 @@ interface WorkspaceActions {
 }
 
 export type WorkspaceStore = WorkspaceState & WorkspaceActions;
+
+/**
+ * Apply a group-membership change to one pane and restore the block invariant
+ * (see orderPanesByGroupBlocks). Every membership write goes through here so
+ * "contiguous" is a property of the state itself rather than something each
+ * caller has to remember to re-establish.
+ *
+ * Joining a group also SEEDS the pane's color from the group when the pane has
+ * none of its own. The group color used to be a render-time fallback
+ * implemented in the sidebar row and nowhere else, so the same session looked
+ * grouped in the sidebar and uncolored in the tab strip, the grid pane header,
+ * and the appearance modal. Seeding makes it a real default: persisted,
+ * editable, and identical on every surface and device.
+ *
+ * A pane the user has deliberately colored is never overwritten, and leaving a
+ * group keeps the color — "remove from group" should not silently restyle a
+ * session the user can see.
+ */
+function withGroupAssigned(
+  panes: PaneMetadata[],
+  groups: TabGroupMeta[],
+  sessionId: string,
+  groupId: string | null,
+): PaneMetadata[] {
+  const groupColor = groupId ? groups.find((g) => g.id === groupId)?.color : undefined;
+  const tagged = panes.map((pane) => {
+    if (pane.sessionId !== sessionId) return pane;
+    const seedColor = groupColor && parsePaneColor(pane.headerColor).isTransparent;
+    return seedColor ? { ...pane, groupId, headerColor: groupColor } : { ...pane, groupId };
+  });
+  return orderPanesByGroupBlocks(tagged);
+}
 
 export const useWorkspaceStore = create<WorkspaceStore>()(
   persist(
@@ -297,6 +355,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
                 fontSize: state.defaultFontSize,
                 groupId: null,
                 supportsMessagesView,
+                manuallyUnread: false,
               },
             ],
             ...(activate ? { activePane: sessionId } : {}),
@@ -354,16 +413,53 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
           if (idx === -1) return state;
           const clamped = Math.max(0, Math.min(newIndex, state.panes.length - 1));
           if (idx === clamped) return state;
+          const moving = state.panes[idx];
+          if (!moving) return state;
           const next = [...state.panes];
-          const removed = next.splice(idx, 1);
-          const item = removed[0];
-          if (item) next.splice(clamped, 0, item);
-          return { panes: next };
+          next.splice(idx, 1);
+          next.splice(clamped, 0, moving);
+          // Where a pane lands decides what it belongs to. Without this the
+          // block invariant would quietly undo any drop inside a group, which
+          // reads to the user as the drag having done nothing at all.
+          const groupId = groupIdForDropPosition(next, clamped, moving.groupId);
+          return {
+            panes: groupId === moving.groupId
+              ? orderPanesByGroupBlocks(next)
+              : withGroupAssigned(next, state.groups, sessionId, groupId),
+          };
         }),
 
       setColumnFractions: (fractions) => set({ columnFractions: fractions }),
       setRowFractions: (fractions) => set({ rowFractions: fractions }),
-      setActivePane: (sessionId) => set({ activePane: sessionId }),
+      setActivePane: (sessionId) => {
+        const previous = get().activePane;
+        if (previous === sessionId) return false;
+        let cleared = false;
+        set((state) => {
+          const target = sessionId
+            ? state.panes.find((p) => p.sessionId === sessionId)
+            : undefined;
+          cleared = target?.manuallyUnread === true;
+          return {
+            activePane: sessionId,
+            ...(cleared
+              ? {
+                  panes: state.panes.map((p) =>
+                    p.sessionId === sessionId ? { ...p, manuallyUnread: false } : p,
+                  ),
+                }
+              : {}),
+          };
+        });
+        return cleared;
+      },
+
+      setPaneManuallyUnread: (sessionId, manuallyUnread) =>
+        set((state) => ({
+          panes: state.panes.map((p) =>
+            p.sessionId === sessionId ? { ...p, manuallyUnread } : p,
+          ),
+        })),
       setAppearanceModalPane: (sessionId) => set({ appearanceModalPane: sessionId }),
       setMinimapVisible: (visible) => set({ isMinimapVisible: visible }),
       setDisplayMode: (mode) => set({ displayMode: mode }),
@@ -427,30 +523,8 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         groups: state.groups.map((g) => g.id === groupId ? { ...g, ...update } : g),
       })),
       setPaneGroup: (sessionId, groupId) => set((state) => ({
-        panes: state.panes.map((p) => p.sessionId === sessionId ? { ...p, groupId } : p),
+        panes: withGroupAssigned(state.panes, state.groups, sessionId, groupId),
       })),
-      addPaneToGroup: (sessionId, groupId) => set((state) => {
-        const tagged = state.panes.map((p) =>
-          p.sessionId === sessionId ? { ...p, groupId } : p,
-        );
-        // Index of the group's last *other* member (the pane being added is
-        // excluded so it doesn't anchor on itself).
-        let lastMember = -1;
-        tagged.forEach((p, i) => {
-          if (p.groupId === groupId && p.sessionId !== sessionId) lastMember = i;
-        });
-        // First member of a (possibly new) group: nothing to be contiguous with.
-        if (lastMember === -1) return { panes: tagged };
-        const fromIdx = tagged.findIndex((p) => p.sessionId === sessionId);
-        const next = [...tagged];
-        const [item] = next.splice(fromIdx, 1);
-        if (!item) return { panes: tagged };
-        // After removal the last-member index shifts left by one if the moved
-        // pane was before it; insert just after the last member either way.
-        const insertAt = fromIdx < lastMember ? lastMember : lastMember + 1;
-        next.splice(insertAt, 0, item);
-        return { panes: next };
-      }),
       toggleGroupCollapsed: (groupId) => set((state) => ({
         groups: state.groups.map((g) =>
           g.id === groupId ? { ...g, isCollapsed: !g.isCollapsed } : g

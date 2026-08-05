@@ -4,6 +4,7 @@
 package workspace
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -11,23 +12,25 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"web-console/internal/dbx"
 )
 
 // SQLStore persists workspace layout in SQLite.
 type SQLStore struct {
-	db *sql.DB
+	db dbx.Handle
 }
 
 // NewSQLStore wires a SQLite-backed store.
-func NewSQLStore(db *sql.DB) *SQLStore {
+func NewSQLStore(db dbx.Handle) *SQLStore {
 	return &SQLStore{db: db}
 }
 
-func (s *SQLStore) GetLayout() (Layout, error) {
-	paneRows, err := s.db.Query(`
+func (s *SQLStore) GetLayout(ctx context.Context) (Layout, error) {
+	paneRows, err := s.db.QueryContext(ctx, `
 		SELECT session_id, name, header_color, theme_id, font_size,
 		       sort_order, COALESCE(group_id, ''), is_active,
-		       supports_messages_view, created_at, updated_at
+		       supports_messages_view, manually_unread, created_at, updated_at
 		FROM workspace_panes
 		ORDER BY sort_order, created_at`)
 	if err != nil {
@@ -49,7 +52,7 @@ func (s *SQLStore) GetLayout() (Layout, error) {
 		panes = append(panes, p)
 	}
 
-	groupRows, err := s.db.Query(`
+	groupRows, err := s.db.QueryContext(ctx, `
 		SELECT id, name, color, sort_order, is_collapsed, created_at, updated_at
 		FROM tab_groups
 		ORDER BY sort_order, created_at`)
@@ -75,8 +78,8 @@ func (s *SQLStore) GetLayout() (Layout, error) {
 	}, nil
 }
 
-func (s *SQLStore) SavePaneOrder(activePaneID string, paneOrder []string) error {
-	tx, err := s.db.Begin()
+func (s *SQLStore) SavePaneOrder(ctx context.Context, activePaneID string, paneOrder []string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
@@ -84,7 +87,7 @@ func (s *SQLStore) SavePaneOrder(activePaneID string, paneOrder []string) error 
 
 	now := FormatTime(time.Now())
 
-	if _, err := tx.Exec(`UPDATE workspace_panes SET is_active = 0, updated_at = ?`, now); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE workspace_panes SET is_active = 0, updated_at = ?`, now); err != nil {
 		return fmt.Errorf("reset active: %w", err)
 	}
 
@@ -93,7 +96,7 @@ func (s *SQLStore) SavePaneOrder(activePaneID string, paneOrder []string) error 
 		if sid == activePaneID {
 			isActive = 1
 		}
-		if _, err := tx.Exec(`
+		if _, err := tx.ExecContext(ctx, `
 			UPDATE workspace_panes
 			SET sort_order = ?, is_active = ?, updated_at = ?
 			WHERE session_id = ?`,
@@ -105,7 +108,7 @@ func (s *SQLStore) SavePaneOrder(activePaneID string, paneOrder []string) error 
 	return tx.Commit()
 }
 
-func (s *SQLStore) UpsertPane(pane Pane) error {
+func (s *SQLStore) UpsertPane(ctx context.Context, pane Pane) error {
 	now := FormatTime(time.Now())
 
 	var groupID interface{}
@@ -138,10 +141,14 @@ func (s *SQLStore) UpsertPane(pane Pane) error {
 	if pane.SupportsMessagesView {
 		supportsMessagesView = 1
 	}
+	manuallyUnread := 0
+	if pane.ManuallyUnread {
+		manuallyUnread = 1
+	}
 
-	_, err := s.db.Exec(`
-		INSERT INTO workspace_panes (session_id, name, header_color, theme_id, font_size, sort_order, group_id, is_active, supports_messages_view, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO workspace_panes (session_id, name, header_color, theme_id, font_size, sort_order, group_id, is_active, supports_messages_view, manually_unread, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (session_id) DO UPDATE SET
 			name = excluded.name,
 			header_color = excluded.header_color,
@@ -150,24 +157,25 @@ func (s *SQLStore) UpsertPane(pane Pane) error {
 			sort_order = excluded.sort_order,
 			group_id = excluded.group_id,
 			supports_messages_view = excluded.supports_messages_view,
+			manually_unread = excluded.manually_unread,
 			updated_at = excluded.updated_at`,
 		pane.SessionID, name, headerColor, themeID, fontSize,
-		pane.SortOrder, groupID, isActive, supportsMessagesView, now, now)
+		pane.SortOrder, groupID, isActive, supportsMessagesView, manuallyUnread, now, now)
 	if err != nil {
 		return fmt.Errorf("upsert pane %s: %w", pane.SessionID, err)
 	}
 	return nil
 }
 
-func (s *SQLStore) DeletePane(sessionID string) error {
-	if _, err := s.db.Exec(`DELETE FROM workspace_panes WHERE session_id = ?`, sessionID); err != nil {
+func (s *SQLStore) DeletePane(ctx context.Context, sessionID string) error {
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM workspace_panes WHERE session_id = ?`, sessionID); err != nil {
 		return fmt.Errorf("delete pane %s: %w", sessionID, err)
 	}
 	return nil
 }
 
-func (s *SQLStore) ReassignPane(oldSessionID, newSessionID string) error {
-	tx, err := s.db.Begin()
+func (s *SQLStore) ReassignPane(ctx context.Context, oldSessionID, newSessionID string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin pane reassignment: %w", err)
 	}
@@ -176,7 +184,7 @@ func (s *SQLStore) ReassignPane(oldSessionID, newSessionID string) error {
 	// There is no customized state to migrate when the source pane is absent;
 	// retain the replacement's ordinary default pane in that case.
 	var sourceExists bool
-	if err := tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM workspace_panes WHERE session_id = ?)`, oldSessionID).Scan(&sourceExists); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM workspace_panes WHERE session_id = ?)`, oldSessionID).Scan(&sourceExists); err != nil {
 		return fmt.Errorf("check source pane: %w", err)
 	}
 	if !sourceExists {
@@ -185,10 +193,10 @@ func (s *SQLStore) ReassignPane(oldSessionID, newSessionID string) error {
 
 	// The generic create flow may already have inserted a default pane. Delete
 	// only that replacement row, then move every original field unchanged.
-	if _, err := tx.Exec(`DELETE FROM workspace_panes WHERE session_id = ?`, newSessionID); err != nil {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM workspace_panes WHERE session_id = ?`, newSessionID); err != nil {
 		return fmt.Errorf("delete replacement pane: %w", err)
 	}
-	result, err := tx.Exec(`UPDATE workspace_panes SET session_id = ?, updated_at = ? WHERE session_id = ?`, newSessionID, FormatTime(time.Now()), oldSessionID)
+	result, err := tx.ExecContext(ctx, `UPDATE workspace_panes SET session_id = ?, updated_at = ? WHERE session_id = ?`, newSessionID, FormatTime(time.Now()), oldSessionID)
 	if err != nil {
 		return fmt.Errorf("move original pane: %w", err)
 	}
@@ -200,7 +208,7 @@ func (s *SQLStore) ReassignPane(oldSessionID, newSessionID string) error {
 	return tx.Commit()
 }
 
-func (s *SQLStore) CreateGroup(name, color string) (Group, error) {
+func (s *SQLStore) CreateGroup(ctx context.Context, name, color string) (Group, error) {
 	if name == "" {
 		name = "Group"
 	}
@@ -209,7 +217,7 @@ func (s *SQLStore) CreateGroup(name, color string) (Group, error) {
 	}
 
 	var maxOrder sql.NullInt32
-	if err := s.db.QueryRow(`SELECT MAX(sort_order) FROM tab_groups`).Scan(&maxOrder); err != nil {
+	if err := s.db.QueryRowContext(ctx, `SELECT MAX(sort_order) FROM tab_groups`).Scan(&maxOrder); err != nil {
 		return Group{}, fmt.Errorf("query max sort_order: %w", err)
 	}
 	nextOrder := 0
@@ -220,7 +228,7 @@ func (s *SQLStore) CreateGroup(name, color string) (Group, error) {
 	now := FormatTime(time.Now())
 	id := uuid.New().String()
 
-	row := s.db.QueryRow(`
+	row := s.db.QueryRowContext(ctx, `
 		INSERT INTO tab_groups (id, name, color, sort_order, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?)
 		RETURNING id, name, color, sort_order, is_collapsed, created_at, updated_at`,
@@ -229,7 +237,7 @@ func (s *SQLStore) CreateGroup(name, color string) (Group, error) {
 	return scanGroupRow(row)
 }
 
-func (s *SQLStore) UpdateGroup(id string, name *string, color *string, collapsed *bool) (Group, error) {
+func (s *SQLStore) UpdateGroup(ctx context.Context, id string, name *string, color *string, collapsed *bool) (Group, error) {
 	setClauses := []string{"updated_at = ?"}
 	args := []interface{}{FormatTime(time.Now())}
 
@@ -257,7 +265,7 @@ func (s *SQLStore) UpdateGroup(id string, name *string, color *string, collapsed
 		RETURNING id, name, color, sort_order, is_collapsed, created_at, updated_at`,
 		strings.Join(setClauses, ", "))
 
-	row := s.db.QueryRow(query, args...)
+	row := s.db.QueryRowContext(ctx, query, args...)
 	g, err := scanGroupRow(row)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -268,8 +276,8 @@ func (s *SQLStore) UpdateGroup(id string, name *string, color *string, collapsed
 	return g, nil
 }
 
-func (s *SQLStore) DeleteGroup(id string) (bool, error) {
-	result, err := s.db.Exec(`DELETE FROM tab_groups WHERE id = ?`, id)
+func (s *SQLStore) DeleteGroup(ctx context.Context, id string) (bool, error) {
+	result, err := s.db.ExecContext(ctx, `DELETE FROM tab_groups WHERE id = ?`, id)
 	if err != nil {
 		return false, fmt.Errorf("delete group %s: %w", id, err)
 	}
@@ -279,16 +287,17 @@ func (s *SQLStore) DeleteGroup(id string) (bool, error) {
 
 func scanPane(rows *sql.Rows) (Pane, error) {
 	var p Pane
-	var isActive, supportsMessagesView int
+	var isActive, supportsMessagesView, manuallyUnread int
 	if err := rows.Scan(
 		&p.SessionID, &p.Name, &p.HeaderColor, &p.ThemeID, &p.FontSize,
-		&p.SortOrder, &p.GroupID, &isActive, &supportsMessagesView,
+		&p.SortOrder, &p.GroupID, &isActive, &supportsMessagesView, &manuallyUnread,
 		&p.CreatedAt, &p.UpdatedAt,
 	); err != nil {
 		return Pane{}, err
 	}
 	p.IsActive = isActive != 0
 	p.SupportsMessagesView = supportsMessagesView != 0
+	p.ManuallyUnread = manuallyUnread != 0
 	return p, nil
 }
 

@@ -27,11 +27,11 @@ func newFilePreviewTestServer(t *testing.T, root string) *Server {
 
 func newPreviewSession(t *testing.T, srv *Server) string {
 	t.Helper()
-	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	t.Cleanup(func() { _ = srv.sessions.Delete(sess.ID) })
+	t.Cleanup(func() { _ = srv.sessions.Delete(context.Background(), sess.ID) })
 	return sess.ID
 }
 

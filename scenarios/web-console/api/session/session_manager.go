@@ -1,6 +1,7 @@
 package session
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -238,18 +239,18 @@ func (sm *Manager) isSessionLimitReached() bool {
 
 // Create starts a new shell session with a PTY.
 // [REQ:P0-002a] PTY Session Backend
-func (sm *Manager) Create(shell string, cols, rows uint16, bid backend.ID, pol *policy.Policy) (*Session, error) {
-	return sm.create(shell, cols, rows, bid, pol, "")
+func (sm *Manager) Create(ctx context.Context, shell string, cols, rows uint16, bid backend.ID, pol *policy.Policy) (*Session, error) {
+	return sm.create(ctx, shell, cols, rows, bid, pol, "")
 }
 
 // CreateWithWorkingDir starts a session in workingDir when non-empty. It is
 // intentionally separate from Create so existing create paths retain their
 // configured-default behavior.
-func (sm *Manager) CreateWithWorkingDir(shell string, cols, rows uint16, bid backend.ID, pol *policy.Policy, workingDir string) (*Session, error) {
-	return sm.create(shell, cols, rows, bid, pol, workingDir)
+func (sm *Manager) CreateWithWorkingDir(ctx context.Context, shell string, cols, rows uint16, bid backend.ID, pol *policy.Policy, workingDir string) (*Session, error) {
+	return sm.create(ctx, shell, cols, rows, bid, pol, workingDir)
 }
 
-func (sm *Manager) create(shell string, cols, rows uint16, bid backend.ID, pol *policy.Policy, workingDir string) (*Session, error) {
+func (sm *Manager) create(ctx context.Context, shell string, cols, rows uint16, bid backend.ID, pol *policy.Policy, workingDir string) (*Session, error) {
 	shell, cols, rows = sm.applySessionDefaults(shell, cols, rows)
 
 	// Resolve backend (read default under lock to avoid data race with settings handler)
@@ -352,7 +353,7 @@ func (sm *Manager) create(shell string, cols, rows uint16, bid backend.ID, pol *
 	// Persist metadata if store is configured
 	if sm.store != nil {
 		detached := bid == backend.Persistent
-		_ = sm.store.Save(sessionstore.Metadata{
+		_ = sm.store.Save(ctx, sessionstore.Metadata{
 			ID:       sess.ID,
 			Backend:  bid,
 			Shell:    shell,
@@ -390,7 +391,7 @@ func (sm *Manager) create(shell string, cols, rows uint16, bid backend.ID, pol *
 		//
 		// Standard sessions: always delete metadata (they cannot survive).
 		if sm.store != nil && bid != backend.Persistent {
-			_ = sm.store.Delete(sess.ID)
+			_ = sm.store.Delete(context.Background(), sess.ID)
 		}
 		// Clean up session upload directory
 		uploadDir := filepath.Join(sm.uploadDirFunc(), sess.ID)
@@ -423,7 +424,7 @@ func (sm *Manager) List() []*Session {
 }
 
 // Delete terminates a session and cleans up resources.
-func (sm *Manager) Delete(id string) error {
+func (sm *Manager) Delete(ctx context.Context, id string) error {
 	sm.mu.Lock()
 	sess, ok := sm.sessions[id]
 	if !ok {
@@ -440,7 +441,7 @@ func (sm *Manager) Delete(id string) error {
 	}
 	// Clean up persisted metadata
 	if sm.store != nil {
-		_ = sm.store.Delete(id)
+		_ = sm.store.Delete(ctx, id)
 	}
 	// Clean up session upload directory
 	uploadDir := filepath.Join(sm.uploadDirFunc(), id)

@@ -4,7 +4,7 @@ import type {
   RawSendResult,
   WireInputKind,
 } from "../../components/terminal/inputGate";
-import type { TerminalMessage } from "../../types/terminal";
+import type { StdinAckReason, TerminalMessage } from "../../types/terminal";
 
 const MAX_PENDING_INPUT_MESSAGES = 64;
 
@@ -40,8 +40,25 @@ interface PendingAckEntry {
   kind: WireInputKind;
 }
 
+/**
+ * Why an input payload settled unsuccessfully.
+ *
+ * Server-sent codes come from StdinAckReason (the wire contract in
+ * types/terminal.ts, mirroring api/terminal_ws.go). The two extra codes
+ * are client-side: they describe failures the server never got to
+ * answer, so they have no wire representation.
+ */
+export type InputFailureReason =
+  | StdinAckReason
+  | "ack-timeout"
+  | "connection-closed";
+
 /** Callback signature for input-settlement subscribers. */
-export type InputSettledListener = (seq: number, ok: boolean) => void;
+export type InputSettledListener = (
+  seq: number,
+  ok: boolean,
+  reason?: InputFailureReason,
+) => void;
 
 export interface StdinAckHandle {
   /** Try to send data immediately. Does not enqueue on failure. */
@@ -66,7 +83,7 @@ export interface StdinAckHandle {
    * Accept an incoming stdin_ack. Returns true if the ack matched a
    * pending timer.
    */
-  acceptAck: (seq: number, ok: boolean) => boolean;
+  acceptAck: (seq: number, ok: boolean, reason?: StdinAckReason) => boolean;
   /**
    * Subscribe to settlement events (ack or timeout). Returns unsubscribe.
    */
@@ -124,10 +141,10 @@ export function useStdinAck({
     }
   }, []);
 
-  const notifySettled = useCallback((seq: number, ok: boolean) => {
+  const notifySettled = useCallback((seq: number, ok: boolean, reason?: InputFailureReason) => {
     for (const cb of inputSettledSubsRef.current) {
       try {
-        cb(seq, ok);
+        cb(seq, ok, reason);
       } catch (err) {
         console.warn("useStdinAck: settled subscriber threw", err);
       }
@@ -156,7 +173,7 @@ export function useStdinAck({
           `useStdinAck: input_ack_timeout seq=${seq} len=${data.length} gen=${gen} kind=${kind}`,
         );
         enqueue(entry.data, entry.kind);
-        notifySettled(seq, false);
+        notifySettled(seq, false, "ack-timeout");
       }, ACK_TIMEOUT_MS);
       pendingAcksRef.current.set(seq, { data, addedAt: Date.now(), timer, gen, kind });
     },
@@ -217,7 +234,7 @@ export function useStdinAck({
     let rePushed = false;
     for (const [seq, entry] of entries) {
       clearTimeout(entry.timer);
-      notifySettled(seq, false);
+      notifySettled(seq, false, "connection-closed");
       // wsGen write barrier: only re-enqueue payloads sent on the
       // current generation. Payloads from prior generations were
       // already retried (or deliberately dropped) during the previous
@@ -235,12 +252,12 @@ export function useStdinAck({
     if (rePushed) notifyPending();
   }, [currentGen, notifySettled, notifyPending]);
 
-  const acceptAck = useCallback((seq: number, ok: boolean): boolean => {
+  const acceptAck = useCallback((seq: number, ok: boolean, reason?: StdinAckReason): boolean => {
     const entry = pendingAcksRef.current.get(seq);
     if (!entry) return false;
     clearTimeout(entry.timer);
     pendingAcksRef.current.delete(seq);
-    notifySettled(seq, ok);
+    notifySettled(seq, ok, reason);
     return true;
   }, [notifySettled]);
 

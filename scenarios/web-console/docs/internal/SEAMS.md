@@ -11,8 +11,9 @@ Last updated: 2026-05-16
 > - Backend: `internal/audioports.Remote*` adapters (RemoteSpeechToText,
 >   RemoteTextToSpeech, RemoteSpeechTextProcessor, RemoteSummarizer)
 >   wrapping the audio-tools Connect clients.
-> - Frontend: `@audio-tools/embed` (pnpm file: link from
->   `scenarios/audio-tools/embed/`).
+> - Frontend: `@vrooli/audio-capture-browser` (pnpm file: link from
+>   `packages/audio-capture-browser/`), with Web Console retaining only
+>   terminal-targeting and recovery UX.
 >
 > The web-console-internal `tts_hook_status.go` REST endpoints
 > (`/api/v1/tts-hook/{status,config,ack,playback}`) cover only Claude
@@ -27,7 +28,7 @@ Last updated: 2026-05-16
 
 ## Voice turn diagnostics (2026-07-11)
 
-`PcmVoiceStreamProvider` is the Web Console's same-origin transport adapter;
+`PcmVoiceStreamProvider` is the shared same-origin transport adapter;
 the shared `StreamDiagnosticRecorder` from `@vrooli/audio-capture-browser`
 is the privacy boundary. It records only opaque session identity, protocol
 state, retained durability level, coverage cursors, status/error codes, and

@@ -10,7 +10,7 @@ import { toBinary } from "@bufbuild/protobuf";
 import {
   streamingModeLabel,
   strategyPreferenceLabel,
-} from "./protomap";
+} from "@vrooli/audio-capture-browser";
 import {
   AudioFormat,
   StreamingMode,

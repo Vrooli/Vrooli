@@ -22,6 +22,7 @@ import (
 	"web-console/internal/backend"
 	"web-console/internal/capabilities"
 	"web-console/internal/config"
+	"web-console/internal/dbx"
 	"web-console/internal/events"
 	"web-console/internal/filepreview"
 	"web-console/internal/metrics"
@@ -30,7 +31,10 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
@@ -60,39 +64,64 @@ import (
 	intworkspace "web-console/internal/workspace"
 )
 
-// initSchema runs the idempotent schema and seed SQL against the database.
-// SQL files are read from the initialization directory relative to the binary.
-func initSchema(db *sql.DB) error {
-	exe, err := os.Executable()
-	if err != nil {
-		return fmt.Errorf("resolve executable path: %w", err)
-	}
-	base := filepath.Dir(exe)
+// schemaProviders returns the scenario's embedded schema + seed SQL as api-core
+// schema providers. Exposing them as providers (rather than executing inline)
+// lets the same SQL be applied to the primary pool at boot AND to every leased
+// test pool installed at runtime, which is what makes a test-mode request find
+// tables.
+func schemaProviders() ([]database.SchemaProvider, error) {
+	return []database.SchemaProvider{
+		database.SchemaProviderFunc(intsessions.Schema),
+		database.SchemaProviderFunc(intsessions.Seed),
+	}, nil
+}
 
-	for _, file := range []string{
-		filepath.Join(base, "..", "initialization", "sqlite", "schema.sql"),
-		filepath.Join(base, "..", "initialization", "sqlite", "seed.sql"),
-	} {
-		sql, err := os.ReadFile(file)
-		if err != nil {
-			return fmt.Errorf("read %s: %w", filepath.Base(file), err)
-		}
-		if _, err := db.Exec(string(sql)); err != nil {
-			return fmt.Errorf("exec %s: %w", filepath.Base(file), err)
-		}
+// initSchema applies the schema, seed, and forward-only migrations to db.
+// db is whichever pool the caller wants initialized: RoutedDB.Primary() at
+// boot, or a freshly leased test pool via the test-pool initializer.
+func initSchema(ctx context.Context, db dbx.Handle) error {
+	providers, err := schemaProviders()
+	if err != nil {
+		return err
+	}
+	return initSchemaWithProviders(ctx, db, providers)
+}
+
+// initSchemaWithProviders is initSchema's body with the schema source injected,
+// so the apply/migrate/verify ordering can be exercised against SQL loaded from
+// the repo rather than from a path relative to the running executable.
+func initSchemaWithProviders(ctx context.Context, db dbx.Handle, providers []database.SchemaProvider) error {
+	if db == nil {
+		return fmt.Errorf("database handle is nil")
+	}
+	// Apply, migrate, THEN verify. The declared-column drift check has to run
+	// last: schema.sql declares every current column, but on an existing DB
+	// `CREATE TABLE IF NOT EXISTS` is a no-op, so a newly declared column only
+	// lands via applyColumnMigrations below. Checking before migrating fails
+	// boot on precisely the drift the next few lines repair — which is exactly
+	// what adding workspace_panes.manually_unread hit.
+	if err := database.ApplySchemas(ctx, db, providers...); err != nil {
+		return err
 	}
 	log.Println("Schema initialized successfully")
 
-	if err := applyColumnMigrations(db); err != nil {
+	if err := applyColumnMigrations(ctx, db); err != nil {
 		return err
 	}
 
-	if err := migrateSessionsAgentTypeConstraint(db); err != nil {
+	if err := migrateSessionsAgentTypeConstraint(ctx, db); err != nil {
 		return fmt.Errorf("migration: %w", err)
 	}
 
-	if err := reconcileDefaultShortcutProfile(db); err != nil {
+	if err := reconcileDefaultShortcutProfile(ctx, db); err != nil {
 		return fmt.Errorf("migration: %w", err)
+	}
+
+	// EnsureSchemas is deliberately last: it reapplies the idempotent domain
+	// providers and reconciles additive columns after the forward-only
+	// migrations above have repaired existing databases.
+	if err := database.EnsureSchemas(ctx, db, providers...); err != nil {
+		return err
 	}
 
 	return nil
@@ -103,9 +132,10 @@ func initSchema(db *sql.DB) error {
 // columns declare their DEFAULT so pre-existing rows are backfilled by SQLite
 // as part of the ADD COLUMN — origin backfills to 'ui' because every historical
 // session was opened from the web UI.
-func applyColumnMigrations(db *sql.DB) error {
+func applyColumnMigrations(ctx context.Context, db dbx.Handle) error {
 	migrations := []string{
 		`ALTER TABLE workspace_panes ADD COLUMN supports_messages_view INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE workspace_panes ADD COLUMN manually_unread INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE sessions ADD COLUMN backend TEXT NOT NULL DEFAULT 'standard'`,
 		`ALTER TABLE sessions ADD COLUMN detached INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE sessions ADD COLUMN status TEXT NOT NULL DEFAULT 'live'`,
@@ -126,7 +156,7 @@ func applyColumnMigrations(db *sql.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_conversation_events_session_sequence ON conversation_events(session_id, sequence)`,
 	}
 	for _, m := range migrations {
-		if _, err := db.Exec(m); err != nil {
+		if _, err := db.ExecContext(ctx, m); err != nil {
 			// "duplicate column name" means the column already exists — safe to ignore.
 			if !isDuplicateColumnError(err) {
 				return fmt.Errorf("migration: %w", err)
@@ -147,9 +177,9 @@ func applyColumnMigrations(db *sql.DB) error {
 // The column list is enumerated explicitly rather than `SELECT *` so the copy
 // is insensitive to physical column ordering (an incrementally ALTER-migrated
 // DB can order columns differently from schema.sql).
-func migrateSessionsAgentTypeConstraint(db *sql.DB) error {
+func migrateSessionsAgentTypeConstraint(ctx context.Context, db dbx.Handle) error {
 	var tableSQL string
-	if err := db.QueryRow(
+	if err := db.QueryRowContext(ctx,
 		`SELECT sql FROM sqlite_master WHERE type='table' AND name='sessions'`,
 	).Scan(&tableSQL); err != nil {
 		if err == sql.ErrNoRows {
@@ -171,31 +201,7 @@ func migrateSessionsAgentTypeConstraint(db *sql.DB) error {
 	stmts := []string{
 		`PRAGMA foreign_keys=off`,
 		`ALTER TABLE sessions RENAME TO sessions_legacy_agentcheck`,
-		`CREATE TABLE sessions (
-			id TEXT PRIMARY KEY,
-			backend TEXT NOT NULL DEFAULT 'standard',
-			shell TEXT NOT NULL DEFAULT '/bin/bash',
-			cols INTEGER NOT NULL DEFAULT 80,
-			rows INTEGER NOT NULL DEFAULT 24,
-			policy_mode TEXT NOT NULL DEFAULT 'never' CHECK(policy_mode IN ('never', 'preset', 'custom')),
-			policy_duration TEXT,
-			created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-			detached INTEGER NOT NULL DEFAULT 0,
-			status TEXT NOT NULL DEFAULT 'live'
-				CHECK(status IN ('live','awaiting_recovery','dismissed')),
-			agent_type TEXT NOT NULL DEFAULT 'none'
-				CHECK(agent_type IN ('none','codex','claude','opencode','grok')),
-			launch_command TEXT NOT NULL DEFAULT '',
-			agent_session_id TEXT NOT NULL DEFAULT '',
-			cwd TEXT NOT NULL DEFAULT '',
-			last_rollout_path TEXT NOT NULL DEFAULT '',
-			last_activity_at TEXT NOT NULL DEFAULT '',
-			orphaned_at TEXT NOT NULL DEFAULT '',
-			recovered_into TEXT NOT NULL DEFAULT '',
-			origin TEXT NOT NULL DEFAULT 'ui',
-			owner TEXT NOT NULL DEFAULT '',
-			display_label TEXT NOT NULL DEFAULT ''
-		)`,
+		intsessions.AgentTypeMigrationSchema(),
 		`INSERT INTO sessions (` + cols + `) SELECT ` + cols + ` FROM sessions_legacy_agentcheck`,
 		`DROP TABLE sessions_legacy_agentcheck`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_created ON sessions(created_at DESC)`,
@@ -205,7 +211,7 @@ func migrateSessionsAgentTypeConstraint(db *sql.DB) error {
 		`PRAGMA foreign_keys=on`,
 	}
 	for _, stmt := range stmts {
-		if _, err := db.Exec(stmt); err != nil {
+		if _, err := db.ExecContext(ctx, stmt); err != nil {
 			return fmt.Errorf("rebuild sessions constraint (%.40s): %w", stmt, err)
 		}
 	}
@@ -233,7 +239,8 @@ func isDuplicateColumnError(err error) bool {
 // triple (ttsHookConfigState), and the auto-summarize policy cache
 // (summarizeAutoPolicy*).
 type Server struct {
-	db                   *sql.DB
+	db                   *database.RoutedDB
+	roots                *filerouting.RoutedRoots
 	router               *mux.Router
 	sessions             *session.Manager
 	hub                  *ConversationHub
@@ -349,10 +356,23 @@ type TTSPlaybackEvent struct {
 // NewServer initializes database, session manager, and routes.
 // It runs the schema initialization against the database and creates
 // SQLite-backed stores for shortcuts and AI config.
-func NewServer(db *sql.DB) *Server {
-	if err := initSchema(db); err != nil {
+func NewServer(db *database.RoutedDB) *Server {
+	ctx := context.Background()
+	if err := initSchema(ctx, db.Primary()); err != nil {
 		log.Fatalf("Schema initialization failed: %v", err)
 	}
+
+	// A leased test pool starts empty. Initializing it through the same
+	// applier the primary uses means a test-mode request finds a fully
+	// migrated schema instead of "no such table".
+	db.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+		return initSchema(ctx, pool)
+	})
+
+	// Routed file roots are the storage leg of the same lease: session state,
+	// uploads, and per-session agent homes resolve through RoutedRoots.Pick so
+	// a test-mode request writes into the leased throwaway tree.
+	roots := filerouting.New(scenarioPrimaryPaths())
 
 	// Relocate any pre-runtime-home State-class artifacts (hook-token,
 	// voice/TTS/wakeword configs) before anything reads them. Without this,
@@ -410,13 +430,14 @@ func NewServer(db *sql.DB) *Server {
 	// not race to reattach the same session.
 	sessions.MarkRecoveryStarted()
 	go func() {
-		report := sessions.Recover(sessionStore, backendRegistry)
+		report := sessions.Recover(context.Background(), sessionStore, backendRegistry)
 		log.Printf("recovery: recovered=%d adopted=%d awaiting_recovery=%d orphaned_tmux=%d (awaiting_recovery rows preserved for explicit recovery via /api/v1/sessions/recoverable; orphaned_tmux are live sessions we could not adopt and left running)",
 			report.Recovered, report.Adopted, report.AwaitingRecovery, report.OrphanedTmux)
 		sessions.StartReattachWatchdog()
 	}()
 
 	srv := &Server{
+		roots:           roots,
 		db:              db,
 		router:          mux.NewRouter(),
 		sessions:        sessions,
@@ -427,7 +448,7 @@ func NewServer(db *sql.DB) *Server {
 		sessionStore:    sessionStore,
 		aiChain:         intai.NewChain(intai.NewOllamaProvider(), intai.NewOpenRouterProvider()),
 		shortcuts:       NewSQLShortcutStore(db),
-		aiConfig:        intai.NewSQLConfigStore(db),
+		aiConfig:        intai.NewSQLConfigStore(context.Background(), db),
 		sweeper:         session.NewExpirationSweeper(sessions, eventLog, metrics),
 		idempotency:     intsessions.NewIdempotencyCache(),
 		workspace:       intworkspace.NewSQLStore(db),
@@ -575,10 +596,13 @@ func (s *Server) setupRoutes() {
 	s.router.Use(loggingMiddleware)
 
 	// Health endpoints
-	healthHandler := health.New().
-		Version("1.0.0").
-		Check(health.DB(s.db), health.Critical).
-		Handler()
+	healthBuilder := health.New().Version("1.0.0")
+	// Minimal test servers construct a Server without a database; the health
+	// check is only meaningful when one is wired.
+	if s.db != nil {
+		healthBuilder = healthBuilder.Check(health.DB(s.db.Primary()), health.Critical)
+	}
+	healthHandler := healthBuilder.Handler()
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 
@@ -700,7 +724,19 @@ func (s *Server) Handler() http.Handler {
 		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
 		handlers.AllowedHeaders([]string{"Content-Type", "X-Request-ID"}),
 	)
-	return handlers.RecoveryHandler()(cors(s.router))
+	// Dev-only routed-isolation control plane: workflow-health calls
+	// InstallTestPool/Heartbeat/Clear here before running a mutating BAS case,
+	// which is what lets those cases run without touching the operator's real
+	// database or storage roots. It mounts on the root mux because gorilla's
+	// Handle returns *mux.Route and so does not satisfy devrouting.Mux.
+	rootMux := http.NewServeMux()
+	devrouting.RegisterWithFileRoots(rootMux, s.db, s.roots)
+	rootMux.Handle("/", handlers.RecoveryHandler()(cors(s.router)))
+
+	// TestModeMiddleware marks requests carrying X-Vrooli-Test-Mode: 1 so
+	// RoutedDB and RoutedRoots send them to the leased test pool/roots. It is
+	// a no-op pass-through in production mode.
+	return apihttp.TestModeMiddleware(rootMux)
 }
 
 // SetSpeechToText substitutes the SpeechToText port. Tests use this to inject
@@ -1106,7 +1142,7 @@ func (s *Server) recordTTSAck(event TTSClientAck) {
 		At:     s.lastTTSAckAt,
 	}
 	if s.conversations != nil {
-		s.conversations.RecordPlaybackStage(event.SessionID, event.EventID, event.Stage)
+		s.conversations.RecordPlaybackStage(context.Background(), event.SessionID, event.EventID, event.Stage)
 	}
 	log.Printf("tts-ack: source=%s stage=%s backend=%s session=%s event=%s message=%s",
 		event.Source, event.Stage, event.Backend, sanitizeID(event.SessionID), sanitizeID(event.EventID), strings.TrimSpace(event.Message))
@@ -1189,7 +1225,10 @@ func main() {
 	}
 
 	dsn := resolveSQLiteDSN()
-	db, err := database.Connect(context.Background(), database.Config{
+	// database.Open (not Connect) returns a *RoutedDB: production requests see
+	// exactly the underlying pool until a test lease is installed, after which
+	// only requests carrying the test-mode marker are diverted.
+	db, err := database.Open(context.Background(), database.Config{
 		Driver:       "sqlite",
 		DSN:          dsn,
 		MaxOpenConns: 1,

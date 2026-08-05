@@ -59,7 +59,7 @@ func (s *Service) SystemContext() *SystemContext { return s.sysCtx }
 // Execute runs the provider chain with the given prompts, respecting
 // per-provider enable/timeout config and recording health metrics.
 func (s *Service) Execute(ctx context.Context, systemPrompt, userPrompt string) (result, provider string, err error) {
-	configs := s.configs.GetConfigs()
+	configs := s.configs.GetConfigs(ctx)
 
 	for _, cfg := range configs {
 		if !cfg.Enabled {
@@ -86,12 +86,12 @@ func (s *Service) Execute(ctx context.Context, systemPrompt, userPrompt string) 
 		cancel()
 
 		if pErr != nil {
-			s.configs.RecordError(cfg.Name)
+			s.configs.RecordError(ctx, cfg.Name)
 			err = pErr
 			continue
 		}
 
-		s.configs.RecordSuccess(cfg.Name, elapsed)
+		s.configs.RecordSuccess(ctx, cfg.Name, elapsed)
 		return res, cfg.Name, nil
 	}
 
@@ -149,12 +149,12 @@ func (s *Service) IncrSuggestions() {
 }
 
 // GetConfigs satisfies handlers/ai.Backend.
-func (s *Service) GetConfigs() []Config { return s.configs.GetConfigs() }
+func (s *Service) GetConfigs(ctx context.Context) []Config { return s.configs.GetConfigs(ctx) }
 
 // GetHealth satisfies handlers/ai.Backend.
-func (s *Service) GetHealth() []Health { return s.configs.GetHealth() }
+func (s *Service) GetHealth(ctx context.Context) []Health { return s.configs.GetHealth(ctx) }
 
 // UpdateProviderConfig satisfies handlers/ai.Backend.
-func (s *Service) UpdateProviderConfig(name string, enabled bool, priority, timeoutSec, maxRetries int) bool {
-	return s.configs.UpdateConfig(name, enabled, priority, timeoutSec, maxRetries)
+func (s *Service) UpdateProviderConfig(ctx context.Context, name string, enabled bool, priority, timeoutSec, maxRetries int) bool {
+	return s.configs.UpdateConfig(ctx, name, enabled, priority, timeoutSec, maxRetries)
 }

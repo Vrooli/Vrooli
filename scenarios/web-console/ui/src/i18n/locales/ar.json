@@ -10,6 +10,13 @@
       "dismissAriaLabel": "إغلاق"
     }
   },
+  "deviceFrame": {
+    "takeOver": "تولّي التحكم"
+  },
+  "deviceIdentity": {
+    "label": "اسم هذا الجهاز",
+    "hint": "يظهر لك على الأجهزة الأخرى التي تشارك هذه الطرفية."
+  },
   "aiSuggestBar": {
     "empty": "اكتب وصف الأمر…",
     "generating": "جارٍ التوليد…",
@@ -107,7 +114,8 @@
     "audioSettingsHeading": "إعدادات الصوت"
   },
   "terminalPane": {
-    "uploadingImage": "جارٍ رفع الصورة…"
+    "uploadingImage": "جارٍ رفع الصورة…",
+    "inputRejected": "تم رفض هذا الإدخال — لم يصل إلى الطرفية."
   },
   "messageJumpList": {
     "noActivePlayback": "لا يوجد تشغيل نشط",
@@ -322,6 +330,7 @@
     "close": "إغلاق الجلسات",
     "sessionCount": "{{count}} جلسات",
     "sessionCount_one": "جلسة واحدة",
+    "manuallyUnreadAria": "{{name}} معلَّمة كغير مقروءة",
     "unreadSummary": "{{count}} غير مقروءة",
     "unreadSummary_one": "واحدة غير مقروءة",
     "sortLabel": "Sort",
@@ -337,6 +346,8 @@
   },
   "tabContextMenu": {
     "rename": "إعادة التسمية",
+    "markAsUnread": "وضع علامة كغير مقروء",
+    "markAsRead": "وضع علامة كمقروء",
     "customizeAppearance": "تخصيص المظهر",
     "removeFromGroup": "إزالة من المجموعة",
     "addToGroup": "إضافة إلى مجموعة",

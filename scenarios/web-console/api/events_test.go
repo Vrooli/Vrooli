@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 	"time"
+
 	"web-console/internal/events"
 
 	"connectrpc.com/connect"

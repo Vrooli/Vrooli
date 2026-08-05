@@ -114,7 +114,8 @@
     "audioSettingsHeading": "Audio Settings"
   },
   "terminalPane": {
-    "uploadingImage": "Uploading image…"
+    "uploadingImage": "Uploading image…",
+    "inputRejected": "That input was rejected — it never reached the terminal."
   },
   "messageJumpList": {
     "noActivePlayback": "No active playback",
@@ -331,6 +332,7 @@
     "close": "Close sessions",
     "sessionCount": "{{count}} sessions",
     "sessionCount_one": "1 session",
+    "manuallyUnreadAria": "{{name}} is marked unread",
     "unreadSummary": "{{count}} unread",
     "unreadSummary_one": "1 unread",
     "sortLabel": "Sort",
@@ -346,6 +348,8 @@
   },
   "tabContextMenu": {
     "rename": "Rename",
+    "markAsUnread": "Mark as Unread",
+    "markAsRead": "Mark as Read",
     "customizeAppearance": "Customize Appearance",
     "removeFromGroup": "Remove from Group",
     "addToGroup": "Add to Group",

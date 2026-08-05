@@ -92,7 +92,7 @@ func TestCreateSession_ExecuteLaunchCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	t.Cleanup(func() { _ = srv.sessions.Delete(sess.GetId()) })
+	t.Cleanup(func() { _ = srv.sessions.Delete(context.Background(), sess.GetId()) })
 
 	got, ok := waitForPTYInput(t, inputCh, "codex --yolo\n", time.Second)
 	if !ok {
@@ -115,7 +115,7 @@ func TestCreateSession_NoLaunchExecutionWhenUnset(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	t.Cleanup(func() { _ = srv.sessions.Delete(sess.GetId()) })
+	t.Cleanup(func() { _ = srv.sessions.Delete(context.Background(), sess.GetId()) })
 
 	select {
 	case b := <-inputCh:

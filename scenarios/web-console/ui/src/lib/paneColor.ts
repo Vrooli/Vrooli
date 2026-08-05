@@ -131,6 +131,27 @@ export function nextGroupColor(existingColors: readonly string[]): string {
 }
 
 /**
+ * The accent a pane should render: its own color, else its group's.
+ *
+ * Panes that join a group now have the group color seeded onto them (see the
+ * store's withGroupAssigned), so this fallback is only load-bearing for panes
+ * grouped before that existed — but it must live in one place. It used to be
+ * written inline in the sidebar row and nowhere else, which is why the same
+ * grouped session showed the group color in the sidebar and no color at all in
+ * the tab strip and the grid pane header.
+ */
+export function paneAccentStyle(
+  headerColor: string | null | undefined,
+  groupColor: string | null | undefined,
+  variant: "bar" | "header",
+): CSSProperties | undefined {
+  return (
+    paneColorStyle(headerColor, variant)
+    ?? (groupColor ? paneColorStyle(groupColor, variant) : undefined)
+  );
+}
+
+/**
  * Width-aware CSS for a pane accent.
  *   - `"bar"`    — the thin sidebar/tab accent: two stacked horizontal bands,
  *     legible even at ~6px.

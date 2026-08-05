@@ -68,15 +68,15 @@ func (h *connectHandler) Suggest(ctx context.Context, req *connect.Request[aiv1.
 	return connect.NewResponse(&aiv1.SuggestResponse{Commands: commands, Provider: provider}), nil
 }
 
-func (h *connectHandler) GetConfig(_ context.Context, _ *connect.Request[aiv1.GetConfigRequest]) (*connect.Response[aiv1.GetConfigResponse], error) {
-	snap := h.deps.Service.GetConfig()
+func (h *connectHandler) GetConfig(ctx context.Context, _ *connect.Request[aiv1.GetConfigRequest]) (*connect.Response[aiv1.GetConfigResponse], error) {
+	snap := h.deps.Service.GetConfig(ctx)
 	return connect.NewResponse(&aiv1.GetConfigResponse{
 		Providers: configsToProto(snap.Providers),
 		Health:    healthsToProto(snap.Health),
 	}), nil
 }
 
-func (h *connectHandler) UpdateConfig(_ context.Context, req *connect.Request[aiv1.UpdateConfigRequest]) (*connect.Response[aiv1.UpdateConfigResponse], error) {
+func (h *connectHandler) UpdateConfig(ctx context.Context, req *connect.Request[aiv1.UpdateConfigRequest]) (*connect.Response[aiv1.UpdateConfigResponse], error) {
 	if strings.TrimSpace(req.Msg.GetName()) == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("provider name is required"))
 	}
@@ -91,7 +91,7 @@ func (h *connectHandler) UpdateConfig(_ context.Context, req *connect.Request[ai
 		MaxRetries:    int(req.Msg.GetMaxRetries()),
 		HasMaxRetries: req.Msg.GetHasMaxRetries(),
 	}
-	snap, err := h.deps.Service.UpdateConfig(in)
+	snap, err := h.deps.Service.UpdateConfig(ctx, in)
 	if err != nil {
 		if errors.Is(err, ErrUnknownProvider) || errors.Is(err, ErrInvalidBody) {
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -105,9 +105,9 @@ func (h *connectHandler) UpdateConfig(_ context.Context, req *connect.Request[ai
 	}), nil
 }
 
-func (h *connectHandler) GetHealth(_ context.Context, _ *connect.Request[aiv1.GetHealthRequest]) (*connect.Response[aiv1.GetHealthResponse], error) {
+func (h *connectHandler) GetHealth(ctx context.Context, _ *connect.Request[aiv1.GetHealthRequest]) (*connect.Response[aiv1.GetHealthResponse], error) {
 	return connect.NewResponse(&aiv1.GetHealthResponse{
-		Health: healthsToProto(h.deps.Service.GetHealth()),
+		Health: healthsToProto(h.deps.Service.GetHealth(ctx)),
 	}), nil
 }
 

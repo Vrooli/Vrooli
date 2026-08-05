@@ -6,12 +6,14 @@
 package sessionstore
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"sync"
 	"time"
 
 	"web-console/internal/backend"
+	"web-console/internal/dbx"
 	"web-console/internal/policy"
 )
 
@@ -92,44 +94,44 @@ type AgentInfo struct {
 
 // Store persists session metadata for restart recovery.
 type Store interface {
-	Save(meta Metadata) error
-	Get(id string) (Metadata, error)
-	List() ([]Metadata, error)
-	Delete(id string) error
-	UpdatePolicy(id string, pol policy.Policy) error
-	ListDetached() ([]Metadata, error)
+	Save(ctx context.Context, meta Metadata) error
+	Get(ctx context.Context, id string) (Metadata, error)
+	List(ctx context.Context) ([]Metadata, error)
+	Delete(ctx context.Context, id string) error
+	UpdatePolicy(ctx context.Context, id string, pol policy.Policy) error
+	ListDetached(ctx context.Context) ([]Metadata, error)
 
-	UpdateAgentInfo(id string, info AgentInfo) error
-	MarkOrphaned(id string, at time.Time) error
-	MarkLive(id string) error
-	MarkDismissed(id string, recoveredInto string) error
-	ListRecoverable() ([]Metadata, error)
+	UpdateAgentInfo(ctx context.Context, id string, info AgentInfo) error
+	MarkOrphaned(ctx context.Context, id string, at time.Time) error
+	MarkLive(ctx context.Context, id string) error
+	MarkDismissed(ctx context.Context, id string, recoveredInto string) error
+	ListRecoverable(ctx context.Context) ([]Metadata, error)
 
 	// SetProvenance records who opened a session. Unlike UpdateAgentInfo it
 	// writes all three fields unconditionally: owner and displayLabel are
 	// legitimately empty for anonymous UI sessions, so an empty value is the
 	// intended value, not "leave unchanged".
-	SetProvenance(id string, origin Origin, owner, displayLabel string) error
+	SetProvenance(ctx context.Context, id string, origin Origin, owner, displayLabel string) error
 }
 
 // SQLStore implements Store using SQLite.
 type SQLStore struct {
-	db *sql.DB
+	db dbx.Handle
 }
 
 // NewSQL creates a new SQLite-backed session metadata store.
-func NewSQL(db *sql.DB) *SQLStore {
+func NewSQL(db dbx.Handle) *SQLStore {
 	return &SQLStore{db: db}
 }
 
-func (s *SQLStore) Save(meta Metadata) error {
+func (s *SQLStore) Save(ctx context.Context, meta Metadata) error {
 	if meta.Status == "" {
 		meta.Status = StatusLive
 	}
 	if meta.AgentType == "" {
 		meta.AgentType = AgentNone
 	}
-	_, err := s.db.Exec(`
+	_, err := s.db.ExecContext(ctx, `
 		INSERT OR REPLACE INTO sessions (
 			id, backend, shell, cols, rows, policy_mode, policy_duration, created_at, detached,
 			status, agent_type, launch_command, agent_session_id, cwd, last_rollout_path,
@@ -165,13 +167,13 @@ const selectColumns = `
 	status, agent_type, launch_command, agent_session_id, cwd, last_rollout_path,
 	last_activity_at, orphaned_at, recovered_into, origin, owner, display_label`
 
-func (s *SQLStore) Get(id string) (Metadata, error) {
-	row := s.db.QueryRow(`SELECT `+selectColumns+` FROM sessions WHERE id = ?`, id)
+func (s *SQLStore) Get(ctx context.Context, id string) (Metadata, error) {
+	row := s.db.QueryRowContext(ctx, `SELECT `+selectColumns+` FROM sessions WHERE id = ?`, id)
 	return scanMetadata(row)
 }
 
-func (s *SQLStore) List() ([]Metadata, error) {
-	rows, err := s.db.Query(`SELECT ` + selectColumns + ` FROM sessions ORDER BY created_at DESC`)
+func (s *SQLStore) List(ctx context.Context) ([]Metadata, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT `+selectColumns+` FROM sessions ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -179,8 +181,8 @@ func (s *SQLStore) List() ([]Metadata, error) {
 	return scanMetadataRows(rows)
 }
 
-func (s *SQLStore) ListDetached() ([]Metadata, error) {
-	rows, err := s.db.Query(`SELECT ` + selectColumns + `
+func (s *SQLStore) ListDetached(ctx context.Context) ([]Metadata, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT `+selectColumns+`
 		FROM sessions
 		WHERE detached = 1 AND status = 'live'
 		ORDER BY created_at DESC`)
@@ -191,8 +193,8 @@ func (s *SQLStore) ListDetached() ([]Metadata, error) {
 	return scanMetadataRows(rows)
 }
 
-func (s *SQLStore) ListRecoverable() ([]Metadata, error) {
-	rows, err := s.db.Query(`SELECT ` + selectColumns + `
+func (s *SQLStore) ListRecoverable(ctx context.Context) ([]Metadata, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT `+selectColumns+`
 		FROM sessions
 		WHERE detached = 1 AND status = 'awaiting_recovery'
 		ORDER BY COALESCE(NULLIF(last_activity_at,''), created_at) DESC`)
@@ -203,18 +205,18 @@ func (s *SQLStore) ListRecoverable() ([]Metadata, error) {
 	return scanMetadataRows(rows)
 }
 
-func (s *SQLStore) Delete(id string) error {
-	_, err := s.db.Exec(`DELETE FROM sessions WHERE id = ?`, id)
+func (s *SQLStore) Delete(ctx context.Context, id string) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM sessions WHERE id = ?`, id)
 	return err
 }
 
-func (s *SQLStore) UpdatePolicy(id string, pol policy.Policy) error {
-	_, err := s.db.Exec(`UPDATE sessions SET policy_mode = ?, policy_duration = ? WHERE id = ?`,
+func (s *SQLStore) UpdatePolicy(ctx context.Context, id string, pol policy.Policy) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE sessions SET policy_mode = ?, policy_duration = ? WHERE id = ?`,
 		string(pol.Mode), pol.Duration, id)
 	return err
 }
 
-func (s *SQLStore) UpdateAgentInfo(id string, info AgentInfo) error {
+func (s *SQLStore) UpdateAgentInfo(ctx context.Context, id string, info AgentInfo) error {
 	sets := []string{}
 	args := []interface{}{}
 	if info.AgentType != "" {
@@ -246,20 +248,20 @@ func (s *SQLStore) UpdateAgentInfo(id string, info AgentInfo) error {
 	}
 	q := `UPDATE sessions SET ` + joinComma(sets) + ` WHERE id = ?`
 	args = append(args, id)
-	_, err := s.db.Exec(q, args...)
+	_, err := s.db.ExecContext(ctx, q, args...)
 	return err
 }
 
-func (s *SQLStore) SetProvenance(id string, origin Origin, owner, displayLabel string) error {
-	_, err := s.db.Exec(
+func (s *SQLStore) SetProvenance(ctx context.Context, id string, origin Origin, owner, displayLabel string) error {
+	_, err := s.db.ExecContext(ctx,
 		`UPDATE sessions SET origin = ?, owner = ?, display_label = ? WHERE id = ?`,
 		string(origin), owner, displayLabel, id,
 	)
 	return err
 }
 
-func (s *SQLStore) MarkOrphaned(id string, at time.Time) error {
-	_, err := s.db.Exec(`
+func (s *SQLStore) MarkOrphaned(ctx context.Context, id string, at time.Time) error {
+	_, err := s.db.ExecContext(ctx, `
 		UPDATE sessions
 		SET status = ?, orphaned_at = ?
 		WHERE id = ? AND detached = 1`,
@@ -270,8 +272,8 @@ func (s *SQLStore) MarkOrphaned(id string, at time.Time) error {
 	return err
 }
 
-func (s *SQLStore) MarkLive(id string) error {
-	_, err := s.db.Exec(`
+func (s *SQLStore) MarkLive(ctx context.Context, id string) error {
+	_, err := s.db.ExecContext(ctx, `
 		UPDATE sessions
 		SET status = ?, orphaned_at = ''
 		WHERE id = ?`,
@@ -281,8 +283,8 @@ func (s *SQLStore) MarkLive(id string) error {
 	return err
 }
 
-func (s *SQLStore) MarkDismissed(id string, recoveredInto string) error {
-	_, err := s.db.Exec(`
+func (s *SQLStore) MarkDismissed(ctx context.Context, id string, recoveredInto string) error {
+	_, err := s.db.ExecContext(ctx, `
 		UPDATE sessions
 		SET status = ?, recovered_into = ?
 		WHERE id = ?`,
@@ -402,7 +404,7 @@ func NewInMemory() *InMemoryStore {
 	}
 }
 
-func (s *InMemoryStore) Save(meta Metadata) error {
+func (s *InMemoryStore) Save(_ context.Context, meta Metadata) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if meta.Status == "" {
@@ -415,7 +417,7 @@ func (s *InMemoryStore) Save(meta Metadata) error {
 	return nil
 }
 
-func (s *InMemoryStore) Get(id string) (Metadata, error) {
+func (s *InMemoryStore) Get(_ context.Context, id string) (Metadata, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	meta, ok := s.sessions[id]
@@ -425,7 +427,7 @@ func (s *InMemoryStore) Get(id string) (Metadata, error) {
 	return meta, nil
 }
 
-func (s *InMemoryStore) List() ([]Metadata, error) {
+func (s *InMemoryStore) List(_ context.Context) ([]Metadata, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	result := make([]Metadata, 0, len(s.sessions))
@@ -435,7 +437,7 @@ func (s *InMemoryStore) List() ([]Metadata, error) {
 	return result, nil
 }
 
-func (s *InMemoryStore) ListDetached() ([]Metadata, error) {
+func (s *InMemoryStore) ListDetached(_ context.Context) ([]Metadata, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var result []Metadata
@@ -447,7 +449,7 @@ func (s *InMemoryStore) ListDetached() ([]Metadata, error) {
 	return result, nil
 }
 
-func (s *InMemoryStore) ListRecoverable() ([]Metadata, error) {
+func (s *InMemoryStore) ListRecoverable(_ context.Context) ([]Metadata, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var result []Metadata
@@ -459,14 +461,14 @@ func (s *InMemoryStore) ListRecoverable() ([]Metadata, error) {
 	return result, nil
 }
 
-func (s *InMemoryStore) Delete(id string) error {
+func (s *InMemoryStore) Delete(_ context.Context, id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.sessions, id)
 	return nil
 }
 
-func (s *InMemoryStore) UpdatePolicy(id string, pol policy.Policy) error {
+func (s *InMemoryStore) UpdatePolicy(_ context.Context, id string, pol policy.Policy) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	meta, ok := s.sessions[id]
@@ -478,7 +480,7 @@ func (s *InMemoryStore) UpdatePolicy(id string, pol policy.Policy) error {
 	return nil
 }
 
-func (s *InMemoryStore) UpdateAgentInfo(id string, info AgentInfo) error {
+func (s *InMemoryStore) UpdateAgentInfo(_ context.Context, id string, info AgentInfo) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	meta, ok := s.sessions[id]
@@ -507,7 +509,7 @@ func (s *InMemoryStore) UpdateAgentInfo(id string, info AgentInfo) error {
 	return nil
 }
 
-func (s *InMemoryStore) SetProvenance(id string, origin Origin, owner, displayLabel string) error {
+func (s *InMemoryStore) SetProvenance(_ context.Context, id string, origin Origin, owner, displayLabel string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	meta, ok := s.sessions[id]
@@ -521,7 +523,7 @@ func (s *InMemoryStore) SetProvenance(id string, origin Origin, owner, displayLa
 	return nil
 }
 
-func (s *InMemoryStore) MarkOrphaned(id string, at time.Time) error {
+func (s *InMemoryStore) MarkOrphaned(_ context.Context, id string, at time.Time) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	meta, ok := s.sessions[id]
@@ -537,7 +539,7 @@ func (s *InMemoryStore) MarkOrphaned(id string, at time.Time) error {
 	return nil
 }
 
-func (s *InMemoryStore) MarkLive(id string) error {
+func (s *InMemoryStore) MarkLive(_ context.Context, id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	meta, ok := s.sessions[id]
@@ -550,7 +552,7 @@ func (s *InMemoryStore) MarkLive(id string) error {
 	return nil
 }
 
-func (s *InMemoryStore) MarkDismissed(id string, recoveredInto string) error {
+func (s *InMemoryStore) MarkDismissed(_ context.Context, id string, recoveredInto string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	meta, ok := s.sessions[id]

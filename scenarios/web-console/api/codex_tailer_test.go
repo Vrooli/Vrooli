@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
 	"web-console/backends/codex"
 	"web-console/internal/ptyfake"
 	"web-console/session"
@@ -72,11 +74,11 @@ func newCodexTailerTestServer(t *testing.T) (*Server, *session.Session) {
 	}
 	srv.hub = NewConversationHub()
 
-	sess, err := sm.Create("", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	t.Cleanup(func() { _ = sm.Delete(sess.ID) })
+	t.Cleanup(func() { _ = sm.Delete(context.Background(), sess.ID) })
 	return srv, sess
 }
 
@@ -251,7 +253,7 @@ func TestCodexTailer_ResumesFromCheckpointOffset(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := checkpoints.Save(CodexRolloutCheckpoint{
+	if err := checkpoints.Save(context.Background(), CodexRolloutCheckpoint{
 		Path:      rolloutPath,
 		SessionID: sess.ID,
 		Offset:    stat.Size(),
@@ -280,12 +282,12 @@ func TestCodexTailer_ResumesFromCheckpointOffset(t *testing.T) {
 		t.Fatalf("expected resumed tailer to skip old backlog and read new text, got %q", event.Text)
 	}
 
-	state := srv.conversations.ListSession(sess.ID)
+	state := srv.conversations.ListSession(context.Background(), sess.ID)
 	if len(state.Events) != 1 {
 		t.Fatalf("expected exactly one resumed event, got %d", len(state.Events))
 	}
 
-	checkpoint, ok, err := checkpoints.Get(rolloutPath)
+	checkpoint, ok, err := checkpoints.Get(context.Background(), rolloutPath)
 	if err != nil {
 		t.Fatal(err)
 	}

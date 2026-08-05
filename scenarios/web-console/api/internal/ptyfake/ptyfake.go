@@ -26,13 +26,32 @@ type FakePTY struct {
 	Closed        bool
 	ExitCodeVal   int
 	SetSizeCalls  int
+	// WriteInputErr, when non-nil, is returned by WriteInput instead of
+	// the bytes being written. Lets tests drive backend write failures —
+	// and in particular the difference between a dead PTY and a backend
+	// that merely rejected one payload — without a real backend.
+	WriteInputErr error
 }
 
 func (f *FakePTY) Read(p []byte) (int, error) { return f.StdoutReader.Read(p) }
 
 func (f *FakePTY) WriteInput(data []byte, _ pty.InputKind) error {
+	f.Mu.Lock()
+	forced := f.WriteInputErr
+	f.Mu.Unlock()
+	if forced != nil {
+		return forced
+	}
 	_, err := f.StdinWriter.Write(data)
 	return err
+}
+
+// SetWriteInputErr makes every subsequent WriteInput fail with err (nil
+// restores normal delivery).
+func (f *FakePTY) SetWriteInputErr(err error) {
+	f.Mu.Lock()
+	defer f.Mu.Unlock()
+	f.WriteInputErr = err
 }
 
 func (f *FakePTY) SetSize(cols, rows uint16) error {

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+
 	"web-console/backends/claude"
 	"web-console/backends/codex"
 	"web-console/internal/pty"
@@ -366,7 +367,7 @@ func TestSessionManagerCreate_UsesSharedAuthAndSessionOwnedRoutingDirs(t *testin
 		return ptyfake.NewFakePTYWithOutput(), nil
 	})
 
-	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -451,7 +452,7 @@ func TestFakePTY_CreateAndGet(t *testing.T) {
 	defer fake.Close()
 
 	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
-	sess, err := sm.Create("/fake/shell", 100, 50, "", nil)
+	sess, err := sm.Create(context.Background(), "/fake/shell", 100, 50, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -480,7 +481,7 @@ func TestFakePTY_SubscribeAndBroadcast(t *testing.T) {
 	fake := ptyfake.NewFakePTYWithOutput()
 	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 
-	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -513,7 +514,7 @@ func TestFakePTY_OfflineSnapshot(t *testing.T) {
 	fake := ptyfake.NewFakePTYWithOutput()
 	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 
-	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -539,7 +540,7 @@ func TestFakePTY_Resize(t *testing.T) {
 	defer fake.Close()
 
 	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
-	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -573,12 +574,12 @@ func TestFakePTY_DeleteCleanup(t *testing.T) {
 	fake := ptyfake.NewFakePTYWithOutput()
 	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 
-	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
 
-	if err := sm.Delete(sess.ID); err != nil {
+	if err := sm.Delete(context.Background(), sess.ID); err != nil {
 		t.Fatalf("Delete failed: %v", err)
 	}
 
@@ -599,7 +600,7 @@ func TestFakePTY_ExitCodeForwarding(t *testing.T) {
 	fake := ptyfake.NewFakePTYWithOutput()
 	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 
-	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}
@@ -624,7 +625,7 @@ func TestFakePTY_ExitSignal(t *testing.T) {
 	fake := ptyfake.NewFakePTYWithOutput()
 	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))
 
-	sess, err := sm.Create("/fake/shell", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "/fake/shell", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create failed: %v", err)
 	}

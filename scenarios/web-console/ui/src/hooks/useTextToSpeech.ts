@@ -17,6 +17,7 @@ import type { TTSCorePlaybackEvent } from "../audio-integration";
 import { recordTTSPlaybackEvent } from "../api/ttsHook";
 import { fetchCapabilitiesLivenessCached, _resetCapabilitiesCache } from "../api/capabilities";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
+import * as ttsRuntime from "../audio-integration/api/tts";
 
 export interface TTSSettings {
   /** Browser TTS voice name */
@@ -79,6 +80,13 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
     startMuted: startMutedOnLoad,
     defaultVoice: settings.voice,
     defaultSpeed: settings.rate,
+    runtime: {
+      synthesizeTTS: ttsRuntime.synthesizeTTS,
+      synthesizeTTSWithMetrics: ttsRuntime.synthesizeTTSWithMetrics,
+      fetchCachedTTS: ttsRuntime.fetchCachedTTS,
+      getTTSVoices: ttsRuntime.getTTSVoices,
+      reportTTSPlayStart: ttsRuntime.reportTTSPlayStart,
+    },
     onPlaybackEvent,
     kokoroAvailable: probeKokoroAvailable,
     // Keep in-progress speech alive across pane unmount / warm-set eviction:

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"path/filepath"
 	"testing"
@@ -74,7 +75,7 @@ func TestMigrateSessionsAgentTypeConstraint_RelaxesOldCheck(t *testing.T) {
 		}
 	}
 
-	if err := migrateSessionsAgentTypeConstraint(db); err != nil {
+	if err := migrateSessionsAgentTypeConstraint(context.Background(), db); err != nil {
 		t.Fatalf("migration failed: %v", err)
 	}
 
@@ -105,7 +106,7 @@ func TestMigrateSessionsAgentTypeConstraint_RelaxesOldCheck(t *testing.T) {
 func TestMigrateSessionsAgentTypeConstraint_NoopOnCurrentSchema(t *testing.T) {
 	db := setupTestDB(t) // schema.sql already carries the relaxed constraint
 	// Running the migration must be a clean no-op (idempotent).
-	if err := migrateSessionsAgentTypeConstraint(db); err != nil {
+	if err := migrateSessionsAgentTypeConstraint(context.Background(), db); err != nil {
 		t.Fatalf("no-op migration errored: %v", err)
 	}
 	if _, err := db.Exec(`INSERT INTO sessions (id, agent_type) VALUES ('oc', 'opencode')`); err != nil {
@@ -115,7 +116,7 @@ func TestMigrateSessionsAgentTypeConstraint_NoopOnCurrentSchema(t *testing.T) {
 
 func TestMigrateSessionsAgentTypeConstraint_NoTableIsNoop(t *testing.T) {
 	db := openMigrationDB(t)
-	if err := migrateSessionsAgentTypeConstraint(db); err != nil {
+	if err := migrateSessionsAgentTypeConstraint(context.Background(), db); err != nil {
 		t.Fatalf("missing-table migration should be a no-op, got %v", err)
 	}
 }

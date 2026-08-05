@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
 	"web-console/internal/events"
 	"web-console/internal/metrics"
 	"web-console/internal/ptyfake"

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+
 	"web-console/internal/pty"
 )
 
@@ -113,56 +114,9 @@ func waitForPaneContent(t *testing.T, sessionName, want string, within time.Dura
 	return false
 }
 
-// TestTmuxPTY_WriteInput_LargeKeystroke_NoError covers the
-// large-payload guard in deliverKeystroke: anything above the argv
-// chunk threshold is rerouted through the paste-buffer path so
-// `tmux send-keys`'s argv size limit isn't hit. We send a payload
-// larger than the threshold and assert WriteInput returns nil. We
-// deliberately do NOT try to observe the payload in the pane because
-// tty line-discipline buffers cap at ~4 KB on most systems, which
-// would make the assertion flaky; the architectural guarantee we
-// care about here is that the large-payload branch does not fail.
-func TestTmuxPTY_WriteInput_LargeKeystroke_NoError(t *testing.T) {
-	requireIsolatedTmux(t)
-
-	spec := pty.LaunchSpec{
-		SessionID: "test-large-keystroke",
-		Shell:     "/bin/sh",
-		Cols:      200,
-		Rows:      50,
-	}
-	p, err := tmuxPTYFactory(spec)
-	if err != nil {
-		t.Fatalf("tmuxPTYFactory: %v", err)
-	}
-	defer func() { _ = p.Kill() }()
-	defer p.Close()
-
-	sessionName := tmuxSessionPrefix + spec.SessionID
-	defer func() { _ = tmuxCmd("kill-session", "-t", sessionName).Run() }()
-
-	time.Sleep(200 * time.Millisecond)
-
-	// 200 KB: above the 64 KB maxArgvChunk threshold in
-	// deliverKeystroke, triggering the paste-buffer fallback.
-	const payloadBytes = 200 * 1024
-	payload := bytes.Repeat([]byte("a"), payloadBytes)
-	if err := p.WriteInput(payload, pty.KindKeystroke); err != nil {
-		t.Fatalf("WriteInput 200 KB keystroke: %v", err)
-	}
-
-	// list-buffers should be empty: paste-buffer -d deletes the
-	// buffer after delivery, and the fallback path uses the same
-	// cleanup.
-	out, listErr := tmuxCmd("list-buffers", "-F", "#{buffer_name}").Output()
-	if listErr == nil {
-		for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-			if strings.HasPrefix(line, "wc-paste-") {
-				t.Errorf("buffer %q leaked after large-keystroke fallback", line)
-			}
-		}
-	}
-}
+// Large-keystroke coverage lives in pty_tmux_payload_size_test.go,
+// which asserts byte-exact delivery across both transports instead of
+// only that the oversized branch returns no error.
 
 // TestIsMouseTrackingSequence covers the classifier used in
 // WriteInput to route mouse events around the send-keys path and

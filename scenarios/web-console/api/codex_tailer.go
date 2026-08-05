@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"log"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+
 	"web-console/backends/codex"
 	"web-console/internal/sessionstore"
 )
@@ -122,7 +124,7 @@ func (ct *CodexTailer) tailFile(path, sessionID string) {
 
 	startOffset := int64(0)
 	if ct.checkpoints != nil {
-		if checkpoint, ok, err := ct.checkpoints.Get(path); err != nil {
+		if checkpoint, ok, err := ct.checkpoints.Get(context.Background(), path); err != nil {
 			log.Printf("codex-tailer: checkpoint load failed for %s: %v", path, err)
 		} else if ok {
 			startOffset = checkpoint.Offset
@@ -273,7 +275,7 @@ func (ct *CodexTailer) captureAgentInfo(path, sessionID string) {
 		LastRolloutPath: path,
 		LastActivityAt:  time.Now(),
 	}
-	if err := ct.server.sessionStore.UpdateAgentInfo(sessionID, info); err != nil {
+	if err := ct.server.sessionStore.UpdateAgentInfo(context.Background(), sessionID, info); err != nil {
 		log.Printf("codex-tailer: UpdateAgentInfo for %s: %v", sessionID, err)
 	}
 }
@@ -282,7 +284,7 @@ func (ct *CodexTailer) saveCheckpoint(path, sessionID string, offset int64) {
 	if ct.checkpoints == nil {
 		return
 	}
-	if err := ct.checkpoints.Save(CodexRolloutCheckpoint{
+	if err := ct.checkpoints.Save(context.Background(), CodexRolloutCheckpoint{
 		Path:      path,
 		SessionID: sessionID,
 		Offset:    offset,

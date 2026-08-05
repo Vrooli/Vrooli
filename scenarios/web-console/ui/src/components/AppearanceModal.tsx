@@ -34,7 +34,7 @@ export default function AppearanceModal() {
   const setPaneColor = useWorkspaceStore((s) => s.setPaneColor);
   const setPaneTheme = useWorkspaceStore((s) => s.setPaneTheme);
   const setPaneFontSize = useWorkspaceStore((s) => s.setPaneFontSize);
-	const setDeviceFontSize = useWorkspaceStore((s) => s.setDeviceFontSize);
+  const setDeviceFontSize = useWorkspaceStore((s) => s.setDeviceFontSize);
   const applyAppearance = useWorkspaceStore((s) => s.applyAppearance);
   const defaultHeaderColor = useWorkspaceStore((s) => s.defaultHeaderColor);
   const defaultThemeId = useWorkspaceStore((s) => s.defaultThemeId);
@@ -205,7 +205,8 @@ export default function AppearanceModal() {
           <FontSizeStepper
             currentSize={currentFontSize}
             onChangeSize={(size) => {
-			  setDeviceFontSize(sessionId, size);
+              setDeviceFontSize(sessionId, size);
+              syncPaneUpdate(sessionId, { font_size: size });
             }}
             testIdPrefix="appearance"
           />

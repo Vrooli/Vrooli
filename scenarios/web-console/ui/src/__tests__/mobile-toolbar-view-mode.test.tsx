@@ -46,7 +46,7 @@ describe("MobileToolbar viewMode", () => {
     expect(screen.queryByTestId("expand-toggle")).toBeNull();
     expect(screen.getByTestId("toolbar-upload-image")).toBeInTheDocument();
     // Mic button is present
-    expect(screen.getByTestId("voice-mic-btn")).toBeInTheDocument();
+    expect(screen.getByTestId("voice-mic-btn")).toHaveAttribute("data-control-size", "sm");
   });
 
   it("spreads messages-mode action buttons evenly across the row", () => {
@@ -62,6 +62,7 @@ describe("MobileToolbar viewMode", () => {
     expect(upload).toHaveClass("flex-1");
     expect(mic.parentElement).toHaveClass("flex-1");
     expect(mic).toHaveClass("w-full");
+    expect(mic).toHaveAttribute("data-control-size", "sm");
   });
 
   it("shows full toolbar in terminal mode (default)", () => {

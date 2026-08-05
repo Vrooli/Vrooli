@@ -1,6 +1,7 @@
 package session
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os/exec"
@@ -32,7 +33,7 @@ func TestRecover_NoDetachedSessions(t *testing.T) {
 		return ptyfake.NewFakePTYWithOutput(), nil
 	})
 
-	report := sm.Recover(store, reg)
+	report := sm.Recover(context.Background(), store, reg)
 
 	if report.Recovered != 0 || report.OrphanedMetadata != 0 || report.OrphanedTmux != 0 {
 		t.Errorf("expected empty report, got recovered=%d orphanMeta=%d orphanTmux=%d",
@@ -50,7 +51,7 @@ func TestRecover_OrphanedMetadata_NoTmuxSession_PreservesRow(t *testing.T) {
 	// the agent on demand. Deleting the row strands the user's CODEX_HOME
 	// and conversation history with no DB pointer to find them.
 	store := sessionstore.NewInMemory()
-	_ = store.Save(sessionstore.Metadata{
+	_ = store.Save(context.Background(), sessionstore.Metadata{
 		ID:             "dead-session",
 		Backend:        backend.Persistent,
 		Shell:          "/bin/bash",
@@ -65,7 +66,7 @@ func TestRecover_OrphanedMetadata_NoTmuxSession_PreservesRow(t *testing.T) {
 	reg := backend.New()
 	sm := NewManagerWithFactory(nil)
 
-	report := sm.Recover(store, reg)
+	report := sm.Recover(context.Background(), store, reg)
 
 	if report.AwaitingRecovery != 1 {
 		t.Errorf("expected 1 awaiting_recovery, got %d", report.AwaitingRecovery)
@@ -77,7 +78,7 @@ func TestRecover_OrphanedMetadata_NoTmuxSession_PreservesRow(t *testing.T) {
 		t.Errorf("expected 0 recovered, got %d", report.Recovered)
 	}
 
-	got, err := store.Get("dead-session")
+	got, err := store.Get(context.Background(), "dead-session")
 	if err != nil {
 		t.Fatalf("expected metadata to be preserved, got: %v", err)
 	}
@@ -104,7 +105,7 @@ func TestRecover_AwaitingRecoveryReattachOnNextStart(t *testing.T) {
 	// explicitly. Next Recover() should transition the row back to live.
 	store := sessionstore.NewInMemory()
 	id := "reattach-test"
-	_ = store.Save(sessionstore.Metadata{
+	_ = store.Save(context.Background(), sessionstore.Metadata{
 		ID:       id,
 		Backend:  backend.Persistent,
 		Shell:    "/bin/bash",
@@ -123,22 +124,22 @@ func TestRecover_AwaitingRecoveryReattachOnNextStart(t *testing.T) {
 	t.Cleanup(func() { _ = tmuxCmd("kill-session", "-t", sessionName).Run() })
 
 	// First mark it orphaned to simulate previous recovery cycle.
-	if err := store.MarkOrphaned(id, time.Now()); err != nil {
+	if err := store.MarkOrphaned(context.Background(), id, time.Now()); err != nil {
 		t.Fatalf("MarkOrphaned: %v", err)
 	}
 	// Then "live" again so the next Recover() picks it up via ListDetached.
-	if err := store.MarkLive(id); err != nil {
+	if err := store.MarkLive(context.Background(), id); err != nil {
 		t.Fatalf("MarkLive: %v", err)
 	}
 
 	sm := NewManagerWithFactory(nil)
 	setupRealTmuxHooks(t, sm)
-	report := sm.Recover(store, backend.New())
+	report := sm.Recover(context.Background(), store, backend.New())
 
 	if report.Recovered != 1 {
 		t.Errorf("expected 1 recovered, got %d", report.Recovered)
 	}
-	got, _ := store.Get(id)
+	got, _ := store.Get(context.Background(), id)
 	if got.Status != sessionstore.StatusLive {
 		t.Errorf("expected status=live after reattach, got %q", got.Status)
 	}
@@ -153,7 +154,7 @@ func TestRecover_StandardSessionsIgnored(t *testing.T) {
 
 	// Standard (non-detached) sessions should not appear in ListDetached
 	store := sessionstore.NewInMemory()
-	_ = store.Save(sessionstore.Metadata{
+	_ = store.Save(context.Background(), sessionstore.Metadata{
 		ID:       "standard-session",
 		Backend:  backend.Standard,
 		Shell:    "/bin/bash",
@@ -166,7 +167,7 @@ func TestRecover_StandardSessionsIgnored(t *testing.T) {
 	reg := backend.New()
 	sm := NewManagerWithFactory(nil)
 
-	report := sm.Recover(store, reg)
+	report := sm.Recover(context.Background(), store, reg)
 
 	// Standard sessions aren't in ListDetached, so nothing to recover
 	if report.Recovered != 0 || report.OrphanedMetadata != 0 {
@@ -197,7 +198,7 @@ func TestRecover_UsesConfiguredTmuxSocketIsolation(t *testing.T) {
 
 	sm := NewManagerWithFactory(nil)
 	setupRealTmuxHooks(t, sm)
-	report := sm.Recover(sessionstore.NewInMemory(), backend.New())
+	report := sm.Recover(context.Background(), sessionstore.NewInMemory(), backend.New())
 
 	// The configured-socket session has no metadata row. Recovery must ADOPT it
 	// (reattach + persist), never kill it — killing a live session whose
@@ -237,7 +238,7 @@ func TestRecover_AdoptsOrphanedTmuxWithoutMetadata(t *testing.T) {
 	sm.tmuxAttachFunc = func(string) (pty.PTY, error) { return ptyfake.NewFakePTYWithOutput(), nil }
 	sm.killTmuxSessionFunc = func(name string) { killed[name] = true }
 
-	report := sm.Recover(store, backend.New())
+	report := sm.Recover(context.Background(), store, backend.New())
 
 	if report.Adopted != 1 {
 		t.Fatalf("Adopted = %d, want 1", report.Adopted)
@@ -250,7 +251,7 @@ func TestRecover_AdoptsOrphanedTmuxWithoutMetadata(t *testing.T) {
 	}
 	// A metadata row must now exist so the session is first-class and persists
 	// across future restarts (persistent metadata is never deleted on exit).
-	if _, err := store.Get("ghost-session"); err != nil {
+	if _, err := store.Get(context.Background(), "ghost-session"); err != nil {
 		t.Errorf("adopted session has no persisted metadata row: %v", err)
 	}
 }
@@ -266,11 +267,11 @@ func TestRecoveryProgress_TracksLifecycleAndCounts(t *testing.T) {
 	store := sessionstore.NewInMemory()
 	// One detached row whose tmux survives (will be Recovered) and one whose
 	// tmux is gone (will be AwaitingRecovery). Total counts detached rows only.
-	_ = store.Save(sessionstore.Metadata{
+	_ = store.Save(context.Background(), sessionstore.Metadata{
 		ID: "alive", Backend: backend.Persistent, Shell: "/bin/bash",
 		Cols: 80, Rows: 24, Created: time.Now(), Detached: true,
 	})
-	_ = store.Save(sessionstore.Metadata{
+	_ = store.Save(context.Background(), sessionstore.Metadata{
 		ID: "dead", Backend: backend.Persistent, Shell: "/bin/bash",
 		Cols: 80, Rows: 24, Created: time.Now(), Detached: true,
 	})
@@ -284,7 +285,7 @@ func TestRecoveryProgress_TracksLifecycleAndCounts(t *testing.T) {
 		t.Fatalf("pre-recovery progress = %+v, want zero/not-in-progress", p)
 	}
 
-	report := sm.Recover(store, backend.New())
+	report := sm.Recover(context.Background(), store, backend.New())
 
 	p := sm.RecoveryProgress()
 	if p.InProgress {
@@ -325,11 +326,11 @@ func TestInMemorySessionStore_SaveAndGet(t *testing.T) {
 		Detached: true,
 	}
 
-	if err := store.Save(meta); err != nil {
+	if err := store.Save(context.Background(), meta); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
 
-	got, err := store.Get("test-1")
+	got, err := store.Get(context.Background(), "test-1")
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
@@ -344,11 +345,11 @@ func TestInMemorySessionStore_SaveAndGet(t *testing.T) {
 func TestInMemorySessionStore_ListDetached(t *testing.T) {
 	store := sessionstore.NewInMemory()
 
-	_ = store.Save(sessionstore.Metadata{ID: "s1", Detached: true, Backend: backend.Persistent})
-	_ = store.Save(sessionstore.Metadata{ID: "s2", Detached: false, Backend: backend.Standard})
-	_ = store.Save(sessionstore.Metadata{ID: "s3", Detached: true, Backend: backend.Persistent})
+	_ = store.Save(context.Background(), sessionstore.Metadata{ID: "s1", Detached: true, Backend: backend.Persistent})
+	_ = store.Save(context.Background(), sessionstore.Metadata{ID: "s2", Detached: false, Backend: backend.Standard})
+	_ = store.Save(context.Background(), sessionstore.Metadata{ID: "s3", Detached: true, Backend: backend.Persistent})
 
-	detached, err := store.ListDetached()
+	detached, err := store.ListDetached(context.Background())
 	if err != nil {
 		t.Fatalf("ListDetached: %v", err)
 	}
@@ -368,13 +369,13 @@ func TestInMemorySessionStore_ListDetached(t *testing.T) {
 func TestInMemorySessionStore_Delete(t *testing.T) {
 	store := sessionstore.NewInMemory()
 
-	_ = store.Save(sessionstore.Metadata{ID: "del-me", Detached: true})
+	_ = store.Save(context.Background(), sessionstore.Metadata{ID: "del-me", Detached: true})
 
-	if err := store.Delete("del-me"); err != nil {
+	if err := store.Delete(context.Background(), "del-me"); err != nil {
 		t.Fatalf("Delete: %v", err)
 	}
 
-	_, err := store.Get("del-me")
+	_, err := store.Get(context.Background(), "del-me")
 	if err == nil {
 		t.Error("expected Get to fail after Delete")
 	}
@@ -383,17 +384,17 @@ func TestInMemorySessionStore_Delete(t *testing.T) {
 func TestInMemorySessionStore_UpdatePolicy(t *testing.T) {
 	store := sessionstore.NewInMemory()
 
-	_ = store.Save(sessionstore.Metadata{
+	_ = store.Save(context.Background(), sessionstore.Metadata{
 		ID:     "policy-test",
 		Policy: policy.Policy{Mode: policy.Never},
 	})
 
 	newPolicy := policy.Policy{Mode: policy.Preset, Duration: "1h"}
-	if err := store.UpdatePolicy("policy-test", newPolicy); err != nil {
+	if err := store.UpdatePolicy(context.Background(), "policy-test", newPolicy); err != nil {
 		t.Fatalf("UpdatePolicy: %v", err)
 	}
 
-	got, _ := store.Get("policy-test")
+	got, _ := store.Get(context.Background(), "policy-test")
 	if got.Policy.Mode != policy.Preset || got.Policy.Duration != "1h" {
 		t.Errorf("policy = %+v, want mode=preset duration=1h", got.Policy)
 	}
@@ -443,11 +444,11 @@ func TestSessionManager_Create_DefaultBackend(t *testing.T) {
 		return ptyfake.NewFakePTYWithOutput(), nil
 	})
 
-	sess, err := sm.Create("", 80, 24, "", nil)
+	sess, err := sm.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	defer func() { _ = sm.Delete(sess.ID) }()
+	defer func() { _ = sm.Delete(context.Background(), sess.ID) }()
 
 	// Default backend when registry is nil should use injected factory
 	if sess.Backend != "" {
@@ -465,7 +466,7 @@ func TestSessionManager_Create_WithRegistry_UnknownBackend(t *testing.T) {
 	sm := NewManagerWithFactory(nil)
 	sm.SetRegistry(reg)
 
-	_, err := sm.Create("", 80, 24, "nonexistent", nil)
+	_, err := sm.Create(context.Background(), "", 80, 24, "nonexistent", nil)
 	if err == nil {
 		t.Fatal("expected error for unknown backend")
 	}
@@ -482,7 +483,7 @@ func TestSessionManager_Create_WithRegistry_UnavailableBackend(t *testing.T) {
 	sm := NewManagerWithFactory(nil)
 	sm.SetRegistry(reg)
 
-	_, err := sm.Create("", 80, 24, backend.Persistent, nil)
+	_, err := sm.Create(context.Background(), "", 80, 24, backend.Persistent, nil)
 	if err == nil {
 		t.Fatal("expected error for unavailable backend")
 	}
@@ -503,18 +504,18 @@ func TestSessionManager_Create_WithRegistry_PersistsMetadata(t *testing.T) {
 	sm.SetRegistry(reg)
 	sm.SetStore(store)
 
-	sess, err := sm.Create("", 80, 24, backend.Persistent, nil)
+	sess, err := sm.Create(context.Background(), "", 80, 24, backend.Persistent, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	defer func() { _ = sm.Delete(sess.ID) }()
+	defer func() { _ = sm.Delete(context.Background(), sess.ID) }()
 
 	if sess.Backend != backend.Persistent {
 		t.Errorf("Backend = %q, want %q", sess.Backend, backend.Persistent)
 	}
 
 	// Verify metadata was persisted
-	meta, err := store.Get(sess.ID)
+	meta, err := store.Get(context.Background(), sess.ID)
 	if err != nil {
 		t.Fatalf("store.Get: %v", err)
 	}
@@ -541,13 +542,13 @@ func TestSessionManager_Create_StandardBackend_NotDetached(t *testing.T) {
 	sm.SetRegistry(reg)
 	sm.SetStore(store)
 
-	sess, err := sm.Create("", 80, 24, backend.Standard, nil)
+	sess, err := sm.Create(context.Background(), "", 80, 24, backend.Standard, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	defer func() { _ = sm.Delete(sess.ID) }()
+	defer func() { _ = sm.Delete(context.Background(), sess.ID) }()
 
-	meta, err := store.Get(sess.ID)
+	meta, err := store.Get(context.Background(), sess.ID)
 	if err != nil {
 		t.Fatalf("store.Get: %v", err)
 	}
@@ -573,13 +574,13 @@ func TestSessionManager_Shutdown_PreservesPersistentMetadata(t *testing.T) {
 	sm.SetRegistry(reg)
 	sm.SetStore(store)
 
-	sess, err := sm.Create("", 80, 24, backend.Persistent, nil)
+	sess, err := sm.Create(context.Background(), "", 80, 24, backend.Persistent, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 
 	// Verify metadata was persisted
-	if _, err := store.Get(sess.ID); err != nil {
+	if _, err := store.Get(context.Background(), sess.ID); err != nil {
 		t.Fatalf("metadata not saved: %v", err)
 	}
 
@@ -594,7 +595,7 @@ func TestSessionManager_Shutdown_PreservesPersistentMetadata(t *testing.T) {
 	}
 
 	// Metadata must survive shutdown (so Recover can find it on next startup)
-	if _, err := store.Get(sess.ID); err != nil {
+	if _, err := store.Get(context.Background(), sess.ID); err != nil {
 		t.Errorf("persistent session metadata was deleted during shutdown: %v", err)
 	}
 }
@@ -613,7 +614,7 @@ func TestSessionManager_Shutdown_DeletesStandardMetadata(t *testing.T) {
 	sm.SetRegistry(reg)
 	sm.SetStore(store)
 
-	sess, err := sm.Create("", 80, 24, backend.Standard, nil)
+	sess, err := sm.Create(context.Background(), "", 80, 24, backend.Standard, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -630,7 +631,7 @@ func TestSessionManager_Shutdown_DeletesStandardMetadata(t *testing.T) {
 	// The auto-remove goroutine races with sess.Done(); give it time to run.
 	deadline := time.After(2 * time.Second)
 	for {
-		if _, err := store.Get(sessID); err != nil {
+		if _, err := store.Get(context.Background(), sessID); err != nil {
 			return // metadata deleted as expected
 		}
 		select {
@@ -750,7 +751,7 @@ func TestRecover_PreservesSessionOnAttachFailure(t *testing.T) {
 	// tmux session should be preserved for future recovery attempts.
 	// Previous behavior: deleted metadata and killed the tmux session.
 	store := sessionstore.NewInMemory()
-	_ = store.Save(sessionstore.Metadata{
+	_ = store.Save(context.Background(), sessionstore.Metadata{
 		ID:       "stubborn-session",
 		Backend:  backend.Persistent,
 		Shell:    "/bin/bash",
@@ -770,10 +771,10 @@ func TestRecover_PreservesSessionOnAttachFailure(t *testing.T) {
 		return nil, fmt.Errorf("simulated transient failure")
 	}
 
-	report := sm.Recover(store, backend.New())
+	report := sm.Recover(context.Background(), store, backend.New())
 
 	// Metadata must be preserved (not deleted)
-	if _, err := store.Get("stubborn-session"); err != nil {
+	if _, err := store.Get(context.Background(), "stubborn-session"); err != nil {
 		t.Errorf("metadata was deleted; should be preserved for future recovery: %v", err)
 	}
 
@@ -800,7 +801,7 @@ func TestRecover_PreservesSessionOnAttachFailure(t *testing.T) {
 func TestRecover_RetriesAttachBeforeGivingUp(t *testing.T) {
 	// Recovery should retry tmuxAttach before giving up.
 	store := sessionstore.NewInMemory()
-	_ = store.Save(sessionstore.Metadata{
+	_ = store.Save(context.Background(), sessionstore.Metadata{
 		ID:       "retry-recover",
 		Backend:  backend.Persistent,
 		Shell:    "/bin/bash",
@@ -829,7 +830,7 @@ func TestRecover_RetriesAttachBeforeGivingUp(t *testing.T) {
 		return ptyfake.NewFakePTYWithOutput(), nil
 	}
 
-	report := sm.Recover(store, backend.New())
+	report := sm.Recover(context.Background(), store, backend.New())
 
 	mu.Lock()
 	got := attempts
@@ -863,7 +864,7 @@ func TestSessionManager_Shutdown_SetsClosingBeforeClose(t *testing.T) {
 	sm := NewManagerWithFactory(nil)
 	sm.SetRegistry(reg)
 
-	sess, err := sm.Create("", 80, 24, backend.Persistent, nil)
+	sess, err := sm.Create(context.Background(), "", 80, 24, backend.Persistent, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -889,7 +890,7 @@ func TestSessionManager_Shutdown_SetsClosingBeforeClose(t *testing.T) {
 func TestRecoveryMetrics_Emitted(t *testing.T) {
 	// Verify recovery emits metrics when a metrics collector is set.
 	store := sessionstore.NewInMemory()
-	_ = store.Save(sessionstore.Metadata{
+	_ = store.Save(context.Background(), sessionstore.Metadata{
 		ID:       "metrics-test",
 		Backend:  backend.Persistent,
 		Shell:    "/bin/bash",
@@ -912,7 +913,7 @@ func TestRecoveryMetrics_Emitted(t *testing.T) {
 		return ptyfake.NewFakePTYWithOutput(), nil
 	}
 
-	report := sm.Recover(store, backend.New())
+	report := sm.Recover(context.Background(), store, backend.New())
 
 	if report.Recovered != 1 {
 		t.Fatalf("Recovered = %d, want 1", report.Recovered)
@@ -984,14 +985,14 @@ func TestAutoRemove_PreservesMetadata_PersistentSession_NormalOperation(t *testi
 	sm.SetRegistry(reg)
 	sm.SetStore(store)
 
-	sess, err := sm.Create("", 80, 24, backend.Persistent, nil)
+	sess, err := sm.Create(context.Background(), "", 80, 24, backend.Persistent, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 	sessID := sess.ID
 
 	// Verify metadata was persisted
-	if _, err := store.Get(sessID); err != nil {
+	if _, err := store.Get(context.Background(), sessID); err != nil {
 		t.Fatalf("metadata not saved: %v", err)
 	}
 
@@ -1016,7 +1017,7 @@ func TestAutoRemove_PreservesMetadata_PersistentSession_NormalOperation(t *testi
 
 	// CRITICAL: Metadata must be PRESERVED (not deleted!) so that the
 	// re-attach watchdog or next startup recovery can find it.
-	if _, err := store.Get(sessID); err != nil {
+	if _, err := store.Get(context.Background(), sessID); err != nil {
 		t.Errorf("persistent session metadata was deleted during normal operation: %v", err)
 	}
 }
@@ -1037,7 +1038,7 @@ func TestAutoRemove_DeletesMetadata_StandardSession_NormalOperation(t *testing.T
 	sm.SetRegistry(reg)
 	sm.SetStore(store)
 
-	sess, err := sm.Create("", 80, 24, backend.Standard, nil)
+	sess, err := sm.Create(context.Background(), "", 80, 24, backend.Standard, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -1055,7 +1056,7 @@ func TestAutoRemove_DeletesMetadata_StandardSession_NormalOperation(t *testing.T
 	// Wait for auto-remove goroutine
 	deadline := time.After(2 * time.Second)
 	for {
-		if _, err := store.Get(sessID); err != nil {
+		if _, err := store.Get(context.Background(), sessID); err != nil {
 			return // metadata deleted as expected
 		}
 		select {
@@ -1073,7 +1074,7 @@ func TestReattachWatchdog_RecoversOrphanedSession(t *testing.T) {
 	// When a persistent session's metadata exists in the store but the
 	// session is not in the active map, the watchdog should re-attach it.
 	store := sessionstore.NewInMemory()
-	_ = store.Save(sessionstore.Metadata{
+	_ = store.Save(context.Background(), sessionstore.Metadata{
 		ID:       "watchdog-test",
 		Backend:  backend.Persistent,
 		Shell:    "/bin/bash",
@@ -1106,14 +1107,14 @@ func TestReattachWatchdog_RecoversOrphanedSession(t *testing.T) {
 	}
 
 	// Clean up
-	_ = sm.Delete("watchdog-test")
+	_ = sm.Delete(context.Background(), "watchdog-test")
 }
 
 func TestReattachWatchdog_CleansUpWhenTmuxGone(t *testing.T) {
 	// When the tmux session is gone (attach fails), the watchdog should
 	// clean up the stale metadata.
 	store := sessionstore.NewInMemory()
-	_ = store.Save(sessionstore.Metadata{
+	_ = store.Save(context.Background(), sessionstore.Metadata{
 		ID:       "gone-session",
 		Backend:  backend.Persistent,
 		Shell:    "/bin/bash",
@@ -1137,7 +1138,7 @@ func TestReattachWatchdog_CleansUpWhenTmuxGone(t *testing.T) {
 	}
 
 	// Metadata should be cleaned up
-	if _, err := store.Get("gone-session"); err == nil {
+	if _, err := store.Get(context.Background(), "gone-session"); err == nil {
 		t.Error("stale metadata should be deleted when tmux session is gone")
 	}
 }
@@ -1166,11 +1167,11 @@ func TestReattachWatchdog_SkipsActiveSession(t *testing.T) {
 	}
 
 	// Create an active session
-	sess, err := sm.Create("", 80, 24, backend.Persistent, nil)
+	sess, err := sm.Create(context.Background(), "", 80, 24, backend.Persistent, nil)
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	defer func() { _ = sm.Delete(sess.ID) }()
+	defer func() { _ = sm.Delete(context.Background(), sess.ID) }()
 
 	callsBefore := attachCalls
 
@@ -1185,7 +1186,7 @@ func TestReattachWatchdog_SkipsActiveSession(t *testing.T) {
 
 func TestReattachWatchdog_SkipsDuringShutdown(t *testing.T) {
 	store := sessionstore.NewInMemory()
-	_ = store.Save(sessionstore.Metadata{
+	_ = store.Save(context.Background(), sessionstore.Metadata{
 		ID:       "shutdown-skip",
 		Backend:  backend.Persistent,
 		Shell:    "/bin/bash",
@@ -1210,7 +1211,7 @@ func TestReattachWatchdog_SkipsDuringShutdown(t *testing.T) {
 	sm.reattachOrphanedSessions()
 
 	// Metadata should be untouched
-	if _, err := store.Get("shutdown-skip"); err != nil {
+	if _, err := store.Get(context.Background(), "shutdown-skip"); err != nil {
 		t.Errorf("metadata should be preserved during shutdown: %v", err)
 	}
 }

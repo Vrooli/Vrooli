@@ -1,10 +1,13 @@
 package main
 
+import (
+	"context"
+)
 import "testing"
 
 func TestAppendAssistantEvent_Basic(t *testing.T) {
 	store := NewConversationStore()
-	event, result := store.AppendAssistantEvent("sess1", "test", "Hello world")
+	event, result := store.AppendAssistantEvent(context.Background(), "sess1", "test", "Hello world")
 	if !result.Appended {
 		t.Fatalf("expected appended, got code=%s reason=%s", result.Code, result.Reason)
 	}
@@ -24,7 +27,7 @@ func TestAppendAssistantEvent_Basic(t *testing.T) {
 
 func TestAppendAssistantEvent_EmptySession(t *testing.T) {
 	store := NewConversationStore()
-	_, result := store.AppendAssistantEvent("", "test", "text")
+	_, result := store.AppendAssistantEvent(context.Background(), "", "test", "text")
 	if result.Appended {
 		t.Error("expected failure for empty session ID")
 	}
@@ -35,7 +38,7 @@ func TestAppendAssistantEvent_EmptySession(t *testing.T) {
 
 func TestAppendAssistantEvent_EmptyText(t *testing.T) {
 	store := NewConversationStore()
-	_, result := store.AppendAssistantEvent("sess1", "test", "")
+	_, result := store.AppendAssistantEvent(context.Background(), "sess1", "test", "")
 	if result.Appended {
 		t.Error("expected failure for empty text")
 	}
@@ -46,11 +49,11 @@ func TestAppendAssistantEvent_EmptyText(t *testing.T) {
 
 func TestAppendAssistantEvent_Dedup(t *testing.T) {
 	store := NewConversationStore()
-	_, r1 := store.AppendAssistantEvent("sess1", "test", "Hello")
+	_, r1 := store.AppendAssistantEvent(context.Background(), "sess1", "test", "Hello")
 	if !r1.Appended || r1.Duplicate {
 		t.Fatal("first append should succeed and not be duplicate")
 	}
-	_, r2 := store.AppendAssistantEvent("sess1", "test", "Hello")
+	_, r2 := store.AppendAssistantEvent(context.Background(), "sess1", "test", "Hello")
 	if !r2.Appended || !r2.Duplicate {
 		t.Fatal("second append of same text should be marked duplicate")
 	}
@@ -58,7 +61,7 @@ func TestAppendAssistantEvent_Dedup(t *testing.T) {
 
 func TestAppendUserEvent_Basic(t *testing.T) {
 	store := NewConversationStore()
-	event, result := store.AppendUserEvent("sess1", "test", "What is 2+2?")
+	event, result := store.AppendUserEvent(context.Background(), "sess1", "test", "What is 2+2?")
 	if !result.Appended {
 		t.Fatalf("expected appended, got code=%s reason=%s", result.Code, result.Reason)
 	}
@@ -78,7 +81,7 @@ func TestAppendUserEvent_Basic(t *testing.T) {
 
 func TestAppendUserEvent_EmptySession(t *testing.T) {
 	store := NewConversationStore()
-	_, result := store.AppendUserEvent("", "test", "text")
+	_, result := store.AppendUserEvent(context.Background(), "", "test", "text")
 	if result.Appended {
 		t.Error("expected failure for empty session ID")
 	}
@@ -86,7 +89,7 @@ func TestAppendUserEvent_EmptySession(t *testing.T) {
 
 func TestAppendUserEvent_EmptyText(t *testing.T) {
 	store := NewConversationStore()
-	_, result := store.AppendUserEvent("sess1", "test", "   ")
+	_, result := store.AppendUserEvent(context.Background(), "sess1", "test", "   ")
 	if result.Appended {
 		t.Error("expected failure for whitespace-only text")
 	}
@@ -94,11 +97,11 @@ func TestAppendUserEvent_EmptyText(t *testing.T) {
 
 func TestAppendUserEvent_Dedup(t *testing.T) {
 	store := NewConversationStore()
-	_, r1 := store.AppendUserEvent("sess1", "test", "Hello")
+	_, r1 := store.AppendUserEvent(context.Background(), "sess1", "test", "Hello")
 	if !r1.Appended || r1.Duplicate {
 		t.Fatal("first append should succeed")
 	}
-	_, r2 := store.AppendUserEvent("sess1", "test", "Hello")
+	_, r2 := store.AppendUserEvent(context.Background(), "sess1", "test", "Hello")
 	if !r2.Appended || !r2.Duplicate {
 		t.Fatal("second append should be duplicate")
 	}
@@ -106,8 +109,8 @@ func TestAppendUserEvent_Dedup(t *testing.T) {
 
 func TestAppendUserEvent_SequenceIncrements(t *testing.T) {
 	store := NewConversationStore()
-	e1, _ := store.AppendAssistantEvent("sess1", "test", "assistant msg")
-	e2, _ := store.AppendUserEvent("sess1", "test", "user msg")
+	e1, _ := store.AppendAssistantEvent(context.Background(), "sess1", "test", "assistant msg")
+	e2, _ := store.AppendUserEvent(context.Background(), "sess1", "test", "user msg")
 	if e2.Sequence != e1.Sequence+1 {
 		t.Errorf("expected sequence %d, got %d", e1.Sequence+1, e2.Sequence)
 	}
@@ -115,12 +118,12 @@ func TestAppendUserEvent_SequenceIncrements(t *testing.T) {
 
 func TestUpdateSpeechParagraphs(t *testing.T) {
 	store := NewConversationStore()
-	event, _ := store.AppendAssistantEvent("sess1", "test", "Hello world")
+	event, _ := store.AppendAssistantEvent(context.Background(), "sess1", "test", "Hello world")
 
 	newParagraphs := []string{"summarized text"}
-	store.UpdateSpeechParagraphs("sess1", event.ID, newParagraphs)
+	store.UpdateSpeechParagraphs(context.Background(), "sess1", event.ID, newParagraphs)
 
-	state := store.ListSession("sess1")
+	state := store.ListSession(context.Background(), "sess1")
 	if len(state.Events) != 1 {
 		t.Fatalf("expected 1 event, got %d", len(state.Events))
 	}
@@ -141,15 +144,15 @@ func TestUpdateSpeechParagraphs(t *testing.T) {
 
 func TestUpdateSpeechParagraphs_NonExistent(t *testing.T) {
 	store := NewConversationStore()
-	store.AppendAssistantEvent("sess1", "test", "Hello")
+	store.AppendAssistantEvent(context.Background(), "sess1", "test", "Hello")
 	// Should be a no-op, no panic
-	store.UpdateSpeechParagraphs("sess1", "nonexistent-id", []string{"text"})
-	store.UpdateSpeechParagraphs("nonexistent-session", "id", []string{"text"})
+	store.UpdateSpeechParagraphs(context.Background(), "sess1", "nonexistent-id", []string{"text"})
+	store.UpdateSpeechParagraphs(context.Background(), "nonexistent-session", "id", []string{"text"})
 }
 
 func TestListSession_Empty(t *testing.T) {
 	store := NewConversationStore()
-	state := store.ListSession("nonexistent")
+	state := store.ListSession(context.Background(), "nonexistent")
 	if len(state.Events) != 0 {
 		t.Errorf("expected empty events, got %d", len(state.Events))
 	}
@@ -157,10 +160,10 @@ func TestListSession_Empty(t *testing.T) {
 
 func TestListSession_MixedRoles(t *testing.T) {
 	store := NewConversationStore()
-	store.AppendUserEvent("sess1", "test", "user question")
-	store.AppendAssistantEvent("sess1", "test", "assistant answer")
+	store.AppendUserEvent(context.Background(), "sess1", "test", "user question")
+	store.AppendAssistantEvent(context.Background(), "sess1", "test", "assistant answer")
 
-	state := store.ListSession("sess1")
+	state := store.ListSession(context.Background(), "sess1")
 	if len(state.Events) != 2 {
 		t.Fatalf("expected 2 events, got %d", len(state.Events))
 	}

@@ -29,9 +29,9 @@ type Backend interface {
 	IncrGenerations()
 	IncrSuggestions()
 
-	GetConfigs() []ProviderConfig
-	GetHealth() []ProviderHealth
-	UpdateProviderConfig(name string, enabled bool, priority, timeoutSec, maxRetries int) bool
+	GetConfigs(ctx context.Context) []ProviderConfig
+	GetHealth(ctx context.Context) []ProviderHealth
+	UpdateProviderConfig(ctx context.Context, name string, enabled bool, priority, timeoutSec, maxRetries int) bool
 }
 
 // Adapter is the production Service implementation. Constructed in
@@ -105,15 +105,15 @@ func (a *Adapter) Suggest(ctx context.Context, prompt, terminalContext string) (
 	return commands, provider, nil
 }
 
-func (a *Adapter) GetConfig() ConfigSnapshot {
+func (a *Adapter) GetConfig(ctx context.Context) ConfigSnapshot {
 	return ConfigSnapshot{
-		Providers: a.Backend.GetConfigs(),
-		Health:    a.Backend.GetHealth(),
+		Providers: a.Backend.GetConfigs(ctx),
+		Health:    a.Backend.GetHealth(ctx),
 	}
 }
 
-func (a *Adapter) UpdateConfig(req UpdateConfigRequest) (ConfigSnapshot, error) {
-	configs := a.Backend.GetConfigs()
+func (a *Adapter) UpdateConfig(ctx context.Context, req UpdateConfigRequest) (ConfigSnapshot, error) {
+	configs := a.Backend.GetConfigs(ctx)
 	var current *ProviderConfig
 	for i := range configs {
 		if configs[i].Name == req.Name {
@@ -148,12 +148,12 @@ func (a *Adapter) UpdateConfig(req UpdateConfigRequest) (ConfigSnapshot, error) 
 		maxRetries = req.MaxRetries
 	}
 
-	if !a.Backend.UpdateProviderConfig(req.Name, enabled, priority, timeoutSec, maxRetries) {
+	if !a.Backend.UpdateProviderConfig(ctx, req.Name, enabled, priority, timeoutSec, maxRetries) {
 		return ConfigSnapshot{}, errors.New("failed to update provider config")
 	}
-	return a.GetConfig(), nil
+	return a.GetConfig(ctx), nil
 }
 
-func (a *Adapter) GetHealth() []ProviderHealth {
-	return a.Backend.GetHealth()
+func (a *Adapter) GetHealth(ctx context.Context) []ProviderHealth {
+	return a.Backend.GetHealth(ctx)
 }

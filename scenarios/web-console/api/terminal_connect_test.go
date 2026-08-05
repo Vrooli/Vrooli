@@ -44,11 +44,11 @@ func TestTerminalConnect_GetScreen_UnknownSession(t *testing.T) {
 
 func TestTerminalConnect_SendInput_RoundTrip(t *testing.T) {
 	srv := newFakeTestServer()
-	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	defer func() { _ = srv.sessions.Delete(sess.ID) }()
+	defer func() { _ = srv.sessions.Delete(context.Background(), sess.ID) }()
 
 	h := newTerminalConnectHandler(srv)
 	resp, err := h.Handler.SendInput(context.Background(),
@@ -67,11 +67,11 @@ func TestTerminalConnect_SendInput_RoundTrip(t *testing.T) {
 
 func TestTerminalConnect_SendInput_UnknownKey(t *testing.T) {
 	srv := newFakeTestServer()
-	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	defer func() { _ = srv.sessions.Delete(sess.ID) }()
+	defer func() { _ = srv.sessions.Delete(context.Background(), sess.ID) }()
 
 	h := newTerminalConnectHandler(srv)
 	_, err = h.Handler.SendInput(context.Background(),
@@ -88,11 +88,11 @@ func TestTerminalConnect_SendInput_UnknownKey(t *testing.T) {
 
 func TestTerminalConnect_WaitIdle_BecomesIdle(t *testing.T) {
 	srv := newFakeTestServer()
-	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	defer func() { _ = srv.sessions.Delete(sess.ID) }()
+	defer func() { _ = srv.sessions.Delete(context.Background(), sess.ID) }()
 
 	h := newTerminalConnectHandler(srv)
 	resp, err := h.Handler.WaitIdle(context.Background(),
@@ -111,11 +111,11 @@ func TestTerminalConnect_WaitIdle_BecomesIdle(t *testing.T) {
 
 func TestTerminalConnect_GetScreen_PlainText(t *testing.T) {
 	srv := newFakeTestServer()
-	sess, err := srv.sessions.Create("", 80, 24, "", nil)
+	sess, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	defer func() { _ = srv.sessions.Delete(sess.ID) }()
+	defer func() { _ = srv.sessions.Delete(context.Background(), sess.ID) }()
 
 	h := newTerminalConnectHandler(srv)
 	resp, err := h.Handler.GetScreen(context.Background(),

@@ -181,7 +181,7 @@ func (w *OpenCodeWatcher) loadExistingClaims() {
 	if w.server == nil || w.server.sessionStore == nil {
 		return
 	}
-	metas, err := w.server.sessionStore.List()
+	metas, err := w.server.sessionStore.List(context.Background())
 	if err != nil {
 		return
 	}
@@ -223,7 +223,7 @@ func (w *OpenCodeWatcher) attribute(sessions []opencode.Session) {
 	if w.server == nil || w.server.sessionStore == nil {
 		return
 	}
-	metas, err := w.server.sessionStore.List()
+	metas, err := w.server.sessionStore.List(context.Background())
 	if err != nil {
 		return
 	}
@@ -303,7 +303,7 @@ func (w *OpenCodeWatcher) claim(paneID string, s opencode.Session) {
 	w.mu.Unlock()
 
 	if w.server.sessionStore != nil {
-		_ = w.server.sessionStore.UpdateAgentInfo(paneID, sessionstore.AgentInfo{
+		_ = w.server.sessionStore.UpdateAgentInfo(context.Background(), paneID, sessionstore.AgentInfo{
 			AgentType:      sessionstore.AgentOpenCode,
 			AgentSessionID: s.ID,
 			CWD:            s.Directory,
@@ -351,7 +351,7 @@ func (w *OpenCodeWatcher) loadCursor(ocID string) opencode.Cursor {
 	if w.checkpoints == nil {
 		return opencode.Cursor{}
 	}
-	cp, ok, err := w.checkpoints.Get(opencodeSource, ocID)
+	cp, ok, err := w.checkpoints.Get(context.Background(), opencodeSource, ocID)
 	if err != nil || !ok || cp.Cursor == "" {
 		return opencode.Cursor{}
 	}
@@ -370,7 +370,7 @@ func (w *OpenCodeWatcher) saveCursor(ocID, wcID string, cur opencode.Cursor) {
 	if err != nil {
 		return
 	}
-	if err := w.checkpoints.Save(AgentTranscriptCheckpoint{
+	if err := w.checkpoints.Save(context.Background(), AgentTranscriptCheckpoint{
 		Source:    opencodeSource,
 		SourceKey: ocID,
 		SessionID: wcID,

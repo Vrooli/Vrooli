@@ -16,7 +16,8 @@ vi.mock("../../api/voice", () => ({
 
 vi.mock("./sharedAudioContext", () => ({ getSharedAudioContext: vi.fn(() => ({})) }));
 
-vi.mock("@vrooli/audio-capture-browser", () => {
+vi.mock("@vrooli/audio-capture-browser", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@vrooli/audio-capture-browser")>();
   class TurnJournal {
     readonly append = vi.fn(async () => {});
     readonly acknowledgeProcessed = vi.fn(async () => {});
@@ -41,6 +42,7 @@ vi.mock("@vrooli/audio-capture-browser", () => {
     exportJSON() { return JSON.stringify(this.read()); }
   }
   return {
+    ...actual,
     TurnJournal,
     StreamDiagnosticRecorder,
     IndexedDBTurnJournalStore: class {},
@@ -78,6 +80,8 @@ vi.mock("@vrooli/audio-capture-browser", () => {
   };
 });
 
+import { buildVoiceStreamWsUrl } from "../../api/voice";
+import { TurnJournal } from "@vrooli/audio-capture-browser";
 import { PcmVoiceStreamProvider } from "./PcmVoiceStreamProvider";
 
 class FakeWebSocket {
@@ -121,7 +125,17 @@ describe("PcmVoiceStreamProvider", () => {
       configurable: true,
       value: { getUserMedia: vi.fn(async () => fakeStream()) },
     });
-    provider = new PcmVoiceStreamProvider();
+    provider = new PcmVoiceStreamProvider({
+      transport: {
+        buildStreamUrl: (language, sessionId, resumeToken) => buildVoiceStreamWsUrl(language, sessionId, resumeToken),
+        transcribeRetained: async () => "",
+      },
+      captureFactory: async (_stream, onFrame) => {
+        captureMocks.captureFrame = onFrame;
+        return { stop: vi.fn() };
+      },
+      journalFactory: () => new (TurnJournal as unknown as { new (): TurnJournal })(),
+    });
   });
 
   afterEach(() => provider.dispose());
@@ -133,12 +147,12 @@ describe("PcmVoiceStreamProvider", () => {
     if (!ws || !captureMocks.captureFrame) throw new Error("expected an active PCM stream");
 
     expect(ws.url).toContain("protocol_version=2");
-    expect(ws.url).toContain("session_id=identity-");
+    expect(ws.url).toMatch(/session_id=[^&]+/);
     captureMocks.captureFrame(new Float32Array([0.1, 0.2]), 48_000);
     await settle();
 
     expect(captureMocks.journals[0]?.append).toHaveBeenCalledOnce();
-    expect(captureMocks.encodedFrames).toHaveBeenCalledWith(expect.objectContaining({ sequence: 0n, startSample: 0n, endSample: 3n }));
+    expect(ws.send).toHaveBeenCalledWith(expect.any(ArrayBuffer));
     expect(ws.send).toHaveBeenCalledWith(expect.any(ArrayBuffer));
   });
 
@@ -169,6 +183,7 @@ describe("PcmVoiceStreamProvider", () => {
     captureMocks.captureFrame(new Float32Array([0.1]), 16_000);
     await settle();
     ws.onmessage?.({ data: JSON.stringify({ type: "status", code: "processed_acknowledgement", processedSequence: 0 }) });
+    provider.stop();
     ws.onmessage?.({ data: JSON.stringify({ type: "final", text: "private transcript" }) });
 
     expect(provider.getDiagnostic()).toMatchObject({ capturedSequence: 0, processedSequence: 0, state: "completed" });

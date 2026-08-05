@@ -4,6 +4,19 @@
   "name": "interactive-stdin-roundtrip",
   "folder_path": "/bas/cases/01-foundation/01-terminal",
   "description": "Launch empty shell, send stdin via keyboard, and verify stdout round-trip in terminal pane",
+  "metadata": {
+    "name": "interactive-stdin-roundtrip",
+    "description": "Launch empty shell, send stdin via keyboard, and verify stdout round-trip in terminal pane",
+    "execution_mode": "mutating",
+    "reset": "full",
+    "labels": {
+      "reset": "full",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "seed": "seed",
+      "requirements_json": "[\"REQ-P0-002b\"]"
+    }
+  },
   "tags": [
     "reset:full",
     "requirements_json:[\"REQ-P0-002b\"]"
@@ -34,10 +47,10 @@
         "action": {
           "type": "ACTION_TYPE_SUBFLOW",
           "subflow": {
-            "workflow_path": "actions/reset-sessions-best-effort.json"
+            "workflow_path": "actions/capture-session-baseline.json"
           },
           "metadata": {
-            "label": "Reset sessions (best effort)"
+            "label": "Capture session baseline"
           }
         }
       },
@@ -94,27 +107,54 @@
         }
       },
       {
-        "id": "click-terminal-pane",
+        "id": "resolve-target-session",
         "action": {
-          "type": "ACTION_TYPE_CLICK",
-          "click": {
-            "selector": "[data-testid='terminal-pane-container'].border-wc-accent [data-testid='terminal-pane']"
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const listIds = async () => { try { const res = await fetch('/vrooli.web_console.v1.sessions.SessionsService/List', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', cache: 'no-store' }); if (!res.ok) return null; const body = await res.json(); const rows = Array.isArray(body) ? body : (body && body.sessions) || []; return rows.map((s) => s && s.id).filter(Boolean); } catch { return null; } }; const readBaseline = () => { try { const raw = sessionStorage.getItem('__bas_baseline_sessions'); if (!raw) return null; const parsed = JSON.parse(raw); return Array.isArray(parsed) ? parsed : null; } catch { return null; } }; const baseline = new Set(readBaseline() || []); const deadline = Date.now() + 10000; let target = ''; while (Date.now() < deadline) { const ids = await listIds();  if (ids) { const fresh = ids.filter((id) => !baseline.has(id));   if (fresh.length > 0) { target = fresh[fresh.length - 1]; break; } }  await new Promise((r) => setTimeout(r, 150)); } window.__bas_target_session = target; document.body.setAttribute('data-bas-target-session', target); document.body.setAttribute('data-bas-target-resolved', target ? 'true' : 'false'); })()"
           },
           "metadata": {
-            "label": "Activate terminal pane"
+            "label": "Resolve the session this case created"
           }
         }
       },
       {
-        "id": "focus-xterm-textarea",
+        "id": "assert-target-resolved",
         "action": {
-          "type": "ACTION_TYPE_FOCUS",
-          "focus": {
-            "selector": "[data-testid='terminal-pane-container'].border-wc-accent [data-testid='terminal-pane'] .xterm-helper-textarea",
-            "timeout_ms": 5000
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-bas-target-resolved='true']",
+            "failure_message": "Could not identify the session this case created; refusing to type into an unknown pane",
+            "timeout_ms": 15000
           },
           "metadata": {
-            "label": "Focus xterm input element"
+            "label": "Verify target session resolved"
+          }
+        }
+      },
+      {
+        "id": "focus-target-pane",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async () => { const id = window.__bas_target_session || ''; document.body.setAttribute('data-bas-focus-ok', 'false'); if (!id) return; const deadline = Date.now() + 10000; while (Date.now() < deadline) {  const pane = document.querySelector('[data-testid=\"terminal-pane\"][data-session-id=\"' + id + '\"]');  const area = pane && pane.querySelector('.xterm-helper-textarea');  if (area) { const container = pane.closest('[data-testid=\"terminal-pane-container\"]');   if (container) container.click(); area.focus();   if (document.activeElement === area) { document.body.setAttribute('data-bas-focus-ok', 'true'); return; } }  await new Promise((r) => setTimeout(r, 150)); } })()"
+          },
+          "metadata": {
+            "label": "Focus the created session's terminal"
+          }
+        }
+      },
+      {
+        "id": "assert-focus-ok",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-bas-focus-ok='true']",
+            "failure_message": "Could not focus the created session's terminal; input would have gone to another pane",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Verify focus landed on the created session"
           }
         }
       },
@@ -168,7 +208,7 @@
         "action": {
           "type": "ACTION_TYPE_EVALUATE",
           "evaluate": {
-            "expression": "(async () => { let markerSeen = false; let disconnected = false; const deadline = Date.now() + 8000; while (Date.now() < deadline) { const activePane = document.querySelector('[data-testid=\"terminal-pane-container\"].border-wc-accent [data-testid=\"terminal-pane\"][data-session-id]'); const fallbackPane = document.querySelector('[data-testid=\"terminal-pane\"][data-session-id]'); const pane = activePane || fallbackPane; const sessionId = pane ? (pane.getAttribute('data-session-id') || '') : ''; const paneText = pane ? (pane.textContent || '') : ''; const outputMap = window.__bas_ws_output || {}; const wsText = sessionId ? (outputMap[sessionId] || '') : ''; markerSeen = paneText.includes('basstdinliveok') || wsText.includes('basstdinliveok'); disconnected = paneText.includes('[Connection lost]') || paneText.includes('open a new terminal to reconnect'); if (markerSeen) break; await new Promise((resolve) => setTimeout(resolve, 100)); } document.body.setAttribute('data-stdin-roundtrip-ok', markerSeen ? 'true' : 'false'); document.body.setAttribute('data-terminal-disconnected', disconnected ? 'true' : 'false'); })()"
+            "expression": "(async () => { let markerSeen = false; let disconnected = false; const deadline = Date.now() + 8000; while (Date.now() < deadline) { const activePane = document.querySelector('[data-testid=\"terminal-pane\"][data-session-id=\"' + (window.__bas_target_session || '') + '\"]'); const fallbackPane = document.querySelector('[data-testid=\"terminal-pane\"][data-session-id]'); const pane = activePane || fallbackPane; const sessionId = pane ? (pane.getAttribute('data-session-id') || '') : ''; const paneText = pane ? (pane.textContent || '') : ''; const outputMap = window.__bas_ws_output || {}; const wsText = sessionId ? (outputMap[sessionId] || '') : ''; markerSeen = paneText.includes('basstdinliveok') || wsText.includes('basstdinliveok'); disconnected = paneText.includes('[Connection lost]') || paneText.includes('open a new terminal to reconnect'); if (markerSeen) break; await new Promise((resolve) => setTimeout(resolve, 100)); } document.body.setAttribute('data-stdin-roundtrip-ok', markerSeen ? 'true' : 'false'); document.body.setAttribute('data-terminal-disconnected', disconnected ? 'true' : 'false'); })()"
           },
           "metadata": {
             "label": "Check stdin->stdout marker"
@@ -200,6 +240,18 @@
           },
           "metadata": {
             "label": "Verify keyboard stdin path"
+          }
+        }
+      },
+      {
+        "id": "teardown-test-sessions",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/teardown-test-sessions.json"
+          },
+          "metadata": {
+            "label": "Delete sessions created by this case"
           }
         }
       }
@@ -238,43 +290,61 @@
       {
         "id": "e6",
         "source": "wait-terminal-pane",
-        "target": "click-terminal-pane",
+        "target": "resolve-target-session",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
         "id": "e7",
-        "source": "click-terminal-pane",
-        "target": "focus-xterm-textarea",
+        "source": "resolve-target-session",
+        "target": "assert-target-resolved",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
         "id": "e8",
-        "source": "focus-xterm-textarea",
-        "target": "send-stdin-command",
+        "source": "assert-target-resolved",
+        "target": "focus-target-pane",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
         "id": "e9",
+        "source": "focus-target-pane",
+        "target": "assert-focus-ok",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e10",
+        "source": "assert-focus-ok",
+        "target": "send-stdin-command",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e11",
         "source": "send-stdin-command",
         "target": "wait-output-render",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
-        "id": "e10",
+        "id": "e12",
         "source": "wait-output-render",
         "target": "evaluate-stdin-roundtrip",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
-        "id": "e11",
+        "id": "e13",
         "source": "evaluate-stdin-roundtrip",
         "target": "assert-terminal-connected",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
-        "id": "e12",
+        "id": "e14",
         "source": "assert-terminal-connected",
         "target": "assert-stdin-roundtrip",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e15",
+        "source": "assert-stdin-roundtrip",
+        "target": "teardown-test-sessions",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       }
     ]

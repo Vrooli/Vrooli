@@ -6,6 +6,7 @@
 package workspace
 
 import (
+	"context"
 	"log"
 
 	"github.com/gorilla/mux"
@@ -20,13 +21,13 @@ import (
 // Service is the seam the Connect handler depends on. The production
 // implementation is Adapter (wires Store + EventEmitter).
 type Service interface {
-	GetLayout() (Layout, error)
-	SaveLayout(activePane string, paneOrder []string) error
-	UpdatePane(req UpdatePaneRequest) (Pane, error)
-	DeletePane(sessionID string)
-	CreateGroup(name, color string) (Group, error)
-	UpdateGroup(req UpdateGroupRequest) (Group, error)
-	DeleteGroup(id string)
+	GetLayout(ctx context.Context) (Layout, error)
+	SaveLayout(ctx context.Context, activePane string, paneOrder []string) error
+	UpdatePane(ctx context.Context, req UpdatePaneRequest) (Pane, error)
+	DeletePane(ctx context.Context, sessionID string)
+	CreateGroup(ctx context.Context, name, color string) (Group, error)
+	UpdateGroup(ctx context.Context, req UpdateGroupRequest) (Group, error)
+	DeleteGroup(ctx context.Context, id string)
 }
 
 // Transport types are aliases to the domain types so handlers and internal

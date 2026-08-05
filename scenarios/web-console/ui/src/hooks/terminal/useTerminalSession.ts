@@ -303,7 +303,7 @@ export function useTerminalSession({
           break;
         }
         case "stdin_ack": {
-          stdin.acceptAck(msg.seq ?? 0, msg.ok === true);
+          stdin.acceptAck(msg.seq ?? 0, msg.ok === true, msg.reason);
           break;
         }
         case "stdout": {

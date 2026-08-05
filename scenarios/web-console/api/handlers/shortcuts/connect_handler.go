@@ -34,15 +34,15 @@ func NewConnectHandler(d Deps) *connectHandler {
 // shortcut entry missing label/command). Mapped to CodeInvalidArgument.
 var ErrInvalidArgument = errors.New("invalid argument")
 
-func (h *connectHandler) GetEffective(_ context.Context, _ *connect.Request[shortcutsv1.GetEffectiveRequest]) (*connect.Response[shortcutsv1.GetEffectiveResponse], error) {
-	out := h.deps.Service.Effective()
+func (h *connectHandler) GetEffective(ctx context.Context, _ *connect.Request[shortcutsv1.GetEffectiveRequest]) (*connect.Response[shortcutsv1.GetEffectiveResponse], error) {
+	out := h.deps.Service.Effective(ctx)
 	return connect.NewResponse(&shortcutsv1.GetEffectiveResponse{
 		Shortcuts: shortcutsToProto(out),
 	}), nil
 }
 
-func (h *connectHandler) ListProfiles(_ context.Context, _ *connect.Request[shortcutsv1.ListProfilesRequest]) (*connect.Response[shortcutsv1.ListProfilesResponse], error) {
-	profiles := h.deps.Service.List()
+func (h *connectHandler) ListProfiles(ctx context.Context, _ *connect.Request[shortcutsv1.ListProfilesRequest]) (*connect.Response[shortcutsv1.ListProfilesResponse], error) {
+	profiles := h.deps.Service.List(ctx)
 	pp := make([]*shortcutsv1.Profile, 0, len(profiles))
 	for _, p := range profiles {
 		pp = append(pp, profileToProto(p))
@@ -50,14 +50,14 @@ func (h *connectHandler) ListProfiles(_ context.Context, _ *connect.Request[shor
 	return connect.NewResponse(&shortcutsv1.ListProfilesResponse{Profiles: pp}), nil
 }
 
-func (h *connectHandler) UpsertProfile(_ context.Context, req *connect.Request[shortcutsv1.UpsertProfileRequest]) (*connect.Response[shortcutsv1.UpsertProfileResponse], error) {
+func (h *connectHandler) UpsertProfile(ctx context.Context, req *connect.Request[shortcutsv1.UpsertProfileRequest]) (*connect.Response[shortcutsv1.UpsertProfileResponse], error) {
 	in := UpsertRequest{
 		ID:        req.Msg.GetId(),
 		Scope:     req.Msg.GetScope(),
 		Name:      req.Msg.GetName(),
 		Shortcuts: shortcutsFromProto(req.Msg.GetShortcuts()),
 	}
-	p, err := h.deps.Service.Upsert(in)
+	p, err := h.deps.Service.Upsert(ctx, in)
 	if err != nil {
 		if errors.Is(err, ErrInvalidArgument) {
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -68,8 +68,8 @@ func (h *connectHandler) UpsertProfile(_ context.Context, req *connect.Request[s
 	return connect.NewResponse(&shortcutsv1.UpsertProfileResponse{Profile: profileToProto(p)}), nil
 }
 
-func (h *connectHandler) DeleteProfile(_ context.Context, req *connect.Request[shortcutsv1.DeleteProfileRequest]) (*connect.Response[shortcutsv1.DeleteProfileResponse], error) {
-	h.deps.Service.Delete(req.Msg.GetId())
+func (h *connectHandler) DeleteProfile(ctx context.Context, req *connect.Request[shortcutsv1.DeleteProfileRequest]) (*connect.Response[shortcutsv1.DeleteProfileResponse], error) {
+	h.deps.Service.Delete(ctx, req.Msg.GetId())
 	return connect.NewResponse(&shortcutsv1.DeleteProfileResponse{}), nil
 }
 

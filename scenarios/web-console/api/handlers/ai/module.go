@@ -29,9 +29,9 @@ type (
 type Service interface {
 	Generate(ctx context.Context, prompt, terminalContext string) (command, provider string, err error)
 	Suggest(ctx context.Context, prompt, terminalContext string) (commands []string, provider string, err error)
-	GetConfig() ConfigSnapshot
-	UpdateConfig(req UpdateConfigRequest) (ConfigSnapshot, error)
-	GetHealth() []ProviderHealth
+	GetConfig(ctx context.Context) ConfigSnapshot
+	UpdateConfig(ctx context.Context, req UpdateConfigRequest) (ConfigSnapshot, error)
+	GetHealth(ctx context.Context) []ProviderHealth
 }
 
 // ConfigSnapshot bundles current configs and health.
