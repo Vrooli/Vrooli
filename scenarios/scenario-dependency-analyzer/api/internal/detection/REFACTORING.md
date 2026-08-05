@@ -47,11 +47,11 @@ The `detection` package has been refactored from one oversized file into a well-
 
 ### 4. helpers.go - **Utility Functions**
 - String utilities: `normalizeName()`, `contains()`
-- Slice utilities: `toStringSlice()`, `mergeInitializationFiles()`
+- Slice utilities: `toStringSlice()`
 - Path utilities: `determineScenariosDir()`
 - Catalog discovery: `discoverAvailableScenarios()`, `discoverAvailableResources()`
 - Dependency builders: `newScenarioDependency()`
-- Service config utilities: `resolvedResourceMap()`, `extractInitializationFiles()`
+- Service config utilities: `resolvedResourceMap()`
 
 ### 5. filters.go - **Path Filtering**
 - Directory filtering: `shouldSkipDirectoryEntry()`
@@ -67,7 +67,6 @@ The `detection` package has been refactored from one oversized file into a well-
 - `detectResourceCLICommands()` - finds explicit resource-* commands
 - `detectResourceHeuristics()` - pattern-based detection
 - `recordDetection()` - merges duplicate detections
-- `augmentWithInitialization()` - adds resources from service.json
 
 ### 7. scenario_scanner.go - **Scenario Detection**
 - Encapsulated in `scenarioScanner` struct

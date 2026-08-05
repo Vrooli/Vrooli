@@ -17,10 +17,12 @@ import (
 // detect → analyze pipeline; the Connect handler and the CLI are thin
 // translation layers over ValidateScenario.
 type Service struct {
-	repoRoot  string
-	detector  Detector
-	analyzers []Analyzer
-	logger    *log.Logger
+	repoRoot     string
+	detector     Detector
+	analyzers    []Analyzer
+	logger       *log.Logger
+	allowlist    map[string]struct{}
+	allowlistErr error
 }
 
 // Deps wires the Service's seams. Detector and Analyzers default to the real
@@ -47,8 +49,14 @@ func New(d Deps) *Service {
 	if logger == nil {
 		logger = log.Default()
 	}
-	return &Service{repoRoot: d.RepoRoot, detector: detector, analyzers: analyzers, logger: logger}
+	allowlist, allowlistErr := loadMigrationAllowlist(d.RepoRoot)
+	return &Service{repoRoot: d.RepoRoot, detector: detector, analyzers: analyzers, logger: logger, allowlist: allowlist, allowlistErr: allowlistErr}
 }
+
+// MigrationAllowlistSize is included in fleet responses so the operator can
+// distinguish a clean migration from a clean report that silently relies on
+// exceptions.
+func (s *Service) MigrationAllowlistSize() int { return len(s.allowlist) }
 
 // ValidateScenario preserves the shared ScenarioValidationService entry point
 // while routing through the owner-kind-agnostic validation engine.
@@ -194,6 +202,9 @@ func (s *Service) validateOwnerFromInventory(ctx context.Context, kind corestora
 }
 
 func (s *Service) validateOwnerFromInventoryWithDetector(ctx context.Context, kind corestorage.OwnerKind, id string, platform corestorage.Platform, inventory corestorage.OwnerInventory, detector Detector, declarationOnly bool) (Report, error) {
+	if s.allowlistErr != nil {
+		return Report{}, fmt.Errorf("load storage migration allowlist: %w", s.allowlistErr)
+	}
 	if id == "" {
 		return Report{}, fmt.Errorf("%s name is required", kind)
 	}
@@ -301,7 +312,7 @@ func (s *Service) validateOwnerFromInventoryWithDetector(ctx context.Context, ki
 
 	sortFindings(findings)
 
-	return Report{
+	report := Report{
 		Scenario:      id,
 		OwnerKind:     kind,
 		OwnerID:       id,
@@ -314,7 +325,8 @@ func (s *Service) validateOwnerFromInventoryWithDetector(ctx context.Context, ki
 		StorageStage:  stage,
 		HasMigrations: hasMigrations,
 		Findings:      findings,
-	}, nil
+	}
+	return s.applyMigrationAllowlist(report), nil
 }
 
 func analyzerSupportsKind(analyzer Analyzer, kind corestorage.OwnerKind) bool {

@@ -336,72 +336,6 @@ func TestApplyDetectedDiffsPreservesExistingDependencies(t *testing.T) {
 	}
 }
 
-func TestScanForResourceUsageDetectsInitialization(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
-	configureTestScenariosDir(t, env)
-
-	setEnvAndCleanup(t, "VROOLI_SCENARIOS_DIR", env.ScenariosDir)
-	resourcesDir := filepath.Join(env.TempDir, "resources")
-	os.MkdirAll(filepath.Join(resourcesDir, "n8n"), 0o755)
-	refreshDependencyCatalogs()
-
-	scenarioName := "initialization-test"
-	scenarioPath := filepath.Join(env.ScenariosDir, scenarioName)
-	os.MkdirAll(filepath.Join(scenarioPath, ".vrooli"), 0o755)
-
-	serviceConfig := map[string]interface{}{
-		"$schema": "../../../.vrooli/schemas/service.schema.json",
-		"version": "1.0.0",
-		"service": map[string]interface{}{
-			"name":        scenarioName,
-			"displayName": scenarioName,
-			"description": "",
-			"version":     "1.0.0",
-		},
-		"dependencies": map[string]interface{}{
-			"resources": map[string]interface{}{
-				"n8n": map[string]interface{}{
-					"type":     "n8n",
-					"enabled":  true,
-					"required": true,
-					"initialization": []map[string]interface{}{
-						{"file": "initialization/automation/n8n/workflow.json", "type": "workflow"},
-					},
-				},
-			},
-			"scenarios": map[string]interface{}{},
-		},
-	}
-	data, _ := json.MarshalIndent(serviceConfig, "", "  ")
-	os.WriteFile(filepath.Join(scenarioPath, ".vrooli", "service.json"), data, 0o644)
-
-	cfg, err := appconfig.LoadServiceConfig(scenarioPath)
-	if err != nil {
-		t.Fatalf("failed to load test service config: %v", err)
-	}
-	deps, err := scanForResourceUsageWithConfig(scenarioPath, scenarioName, cfg)
-	if err != nil {
-		t.Fatalf("scanForResourceUsage returned error: %v", err)
-	}
-
-	found := false
-	for _, dep := range deps {
-		if dep.DependencyName == "n8n" && dep.DependencyType == "resource" {
-			if dep.Configuration["initialization_detected"] == true {
-				found = true
-				break
-			}
-		}
-	}
-	if !found {
-		t.Fatalf("expected n8n to be detected via initialization data")
-	}
-}
-
 func TestLoadServiceConfigIncludesDependencies(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
@@ -671,59 +605,6 @@ func TestApplyDetectedDiffsWritesDependencies(t *testing.T) {
 	if scenarioDep.VersionRange != ">=1.0.0" {
 		t.Fatalf("expected version range to track detected version, got %q", scenarioDep.VersionRange)
 	}
-}
-
-// TestScanForSharedWorkflows tests shared workflow detection
-func TestScanForSharedWorkflows(t *testing.T) {
-	cleanup := setupTestLogger()
-	defer cleanup()
-
-	env := setupTestDirectory(t)
-	defer env.Cleanup()
-
-	scenarioName := "test-scenario"
-	scenarioPath := filepath.Join(env.ScenariosDir, scenarioName)
-
-	t.Run("WithN8nWorkflows", func(t *testing.T) {
-		os.MkdirAll(scenarioPath, 0o755)
-		defer os.RemoveAll(scenarioPath)
-
-		// Create n8n workflows directory
-		workflowsDir := filepath.Join(scenarioPath, "workflows", "n8n")
-		os.MkdirAll(workflowsDir, 0o755)
-
-		// Create a sample workflow file
-		workflowFile := filepath.Join(workflowsDir, "test-workflow.json")
-		workflow := map[string]interface{}{
-			"name":  "test-workflow",
-			"nodes": []interface{}{},
-		}
-		workflowJSON, _ := json.Marshal(workflow)
-		os.WriteFile(workflowFile, workflowJSON, 0o644)
-
-		deps, err := scanForSharedWorkflows(scenarioPath, scenarioName)
-		if err != nil {
-			t.Logf("Scan returned error: %v", err)
-		}
-
-		// Verify we can at least scan without crashing
-		t.Logf("Found %d workflow dependencies", len(deps))
-	})
-
-	t.Run("NoWorkflows", func(t *testing.T) {
-		emptyPath := filepath.Join(env.ScenariosDir, "no-workflows")
-		os.MkdirAll(emptyPath, 0o755)
-		defer os.RemoveAll(emptyPath)
-
-		deps, err := scanForSharedWorkflows(emptyPath, "no-workflows")
-		if err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-
-		if len(deps) != 0 {
-			t.Errorf("Expected no workflows, got %d", len(deps))
-		}
-	})
 }
 
 // TestGenerateDependencyGraph tests graph generation

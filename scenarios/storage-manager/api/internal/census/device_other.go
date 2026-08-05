@@ -1,7 +1,13 @@
-//go:build !(aix || android || darwin || dragonfly || freebsd || hurd || illumos || linux || netbsd || openbsd || solaris)
+//go:build !windows && !(aix || android || darwin || dragonfly || freebsd || hurd || illumos || linux || netbsd || openbsd || solaris)
 
 package census
 
-func deviceCoverage(_ string, measured int64, complete bool) ScanCoverage {
-	return ScanCoverage{MeasuredBytes: measured, Complete: complete}
+import "fmt"
+
+type hostDeviceProbe struct{}
+
+func NewDeviceProbe() DeviceProbe { return hostDeviceProbe{} }
+
+func (hostDeviceProbe) Probe(_ string) (DeviceInfo, error) {
+	return DeviceInfo{}, fmt.Errorf("device totals are unavailable on this platform")
 }

@@ -80,7 +80,6 @@ var (
 	vrooliScenarioPattern = regexp.MustCompile(`vrooli\s+scenario\s+(?:run|test|status|start|stop)\s+([a-z0-9-]+)`)
 
 	// Pattern for detecting shared workflow references
-	sharedWorkflowPattern = regexp.MustCompile(`initialization/(?:automation/)?(?:n8n|huginn|windmill)/([^/]+\.json)`)
 )
 
 // File extension filters for different scan types

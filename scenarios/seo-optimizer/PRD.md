@@ -82,7 +82,7 @@ SEO Optimizer provides automated search engine optimization analysis and recomme
 
 **Launch Sequence**:
 1. Verify required resources are running
-2. Initialize PostgreSQL schema (initialization/postgres/schema.sql)
+2. Initialize PostgreSQL schema (api/internal/<domain>/schema.sql)
 3. Deploy n8n SEO audit workflow
 4. Start API service with health checks
 5. Validate end-to-end audit flow

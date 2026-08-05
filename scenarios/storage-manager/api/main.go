@@ -15,6 +15,7 @@ import (
 	"storage-manager/internal/clock"
 	"storage-manager/internal/httpx"
 	"storage-manager/internal/modules"
+	managerRetention "storage-manager/internal/retention"
 	"storage-manager/internal/server"
 
 	"github.com/vrooli/api-core/apihttp"
@@ -148,6 +149,15 @@ func main() {
 			return err
 		})
 		storageScheduler.Start(schedulerContext)
+		retentionScheduler := managerRetention.NewScheduler(retentionInterval(), func(ctx context.Context) error {
+			inventory, err := storage.LoadOwnerInventory(storage.InventoryOptions{RepoRoot: repoRoot, Platform: storage.Platform(runtime.GOOS)})
+			if err != nil {
+				return err
+			}
+			_, err = (managerRetention.Enforcer{RepoRoot: repoRoot, Platform: storage.Platform(runtime.GOOS)}).Enforce(ctx, inventory)
+			return err
+		})
+		retentionScheduler.Start(schedulerContext)
 	}
 
 	srv := server.New(
@@ -189,6 +199,19 @@ func main() {
 	}); err != nil {
 		logger.Fatalf("Server error: %v", err)
 	}
+}
+
+func retentionInterval() time.Duration {
+	const defaultInterval = 15 * time.Minute
+	raw := strings.TrimSpace(os.Getenv("STORAGE_RETENTION_INTERVAL"))
+	if raw == "" {
+		return defaultInterval
+	}
+	interval, err := time.ParseDuration(raw)
+	if err != nil || interval < time.Minute {
+		return defaultInterval
+	}
+	return interval
 }
 
 func censusInterval() time.Duration {

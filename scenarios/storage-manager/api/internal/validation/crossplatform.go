@@ -208,9 +208,13 @@ func crossFinding(ac AnalyzerContext, entry corestorage.StorageEntry, code, deta
 			}
 		}
 	}
+	severity := SeverityWarning
+	if code == "STORAGE_PATH_NOT_PORTABLE" || code == "STORAGE_PATH_PLATFORM_MISMATCH" || code == "STORAGE_PATH_BRANCH_MISSING" {
+		severity = SeverityError
+	}
 	return Finding{
 		Code:        code,
-		Severity:    SeverityWarning,
+		Severity:    severity,
 		Title:       "Cross-platform storage declaration",
 		Message:     fmt.Sprintf("storage entry %q at %q: %s", entry.Name, displayPortablePath(entry.Path), detail),
 		Location:    location,

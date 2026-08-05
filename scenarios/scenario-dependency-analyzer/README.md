@@ -194,7 +194,7 @@ curl "http://localhost:${API_PORT}/api/v1/scenarios/chart-generator/dag/export?r
 - **Resource Dependencies**: Extracted from `.vrooli/service.json` files
 - **Declared Scenario Dependencies**: Extracted from `.vrooli/service.json` files
 - **Actual Scenario Dependencies**: Computed from `proto_import` and `go_import` evidence supplied by upstream fact scenarios
-- **Shared Workflows**: Identified through initialization file analysis
+- **Shared Workflows**: Identified through repository-owned workflow analysis
 
 #### Drift Detection
 - **Undeclared but used**: import-level evidence exists but the dependency is not declared; reported as `WARNING`

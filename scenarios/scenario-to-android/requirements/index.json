@@ -33,7 +33,7 @@
       "id": "STA-P0-004",
       "prd_ref": "Operational Targets > P0 > OT-P0-004",
       "title": "Android Templates",
-      "description": "Base Android project templates in initialization/templates/",
+      "description": "Base Android project templates in api/internal/<domain>/templates/",
       "status": "completed",
       "validation": ["test"],
       "priority": "P0"

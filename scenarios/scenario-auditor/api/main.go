@@ -16,6 +16,8 @@ import (
 	"strings"
 	"time"
 
+	"scenario-auditor/internal/audits"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
@@ -459,9 +461,17 @@ func main() {
 }
 
 func initDB() (*sql.DB, error) {
-	return database.Connect(context.Background(), database.Config{
+	db, err := database.Connect(context.Background(), database.Config{
 		Driver: "postgres",
 	})
+	if err != nil {
+		return nil, err
+	}
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(audits.Schema)); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("database schema initialization failed: %w", err)
+	}
+	return db, nil
 }
 
 // NOTE: The old healthHandler with detailed dependency checks has been replaced by

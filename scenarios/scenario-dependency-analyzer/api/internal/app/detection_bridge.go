@@ -9,7 +9,7 @@ package app
 // Key functions:
 // - detectorInstance(): Get or create the detector
 // - isKnownScenario/isKnownResource: Check catalog membership
-// - scanForResourceUsage, scanForScenarioDependencies, scanForSharedWorkflows: Detection ops
+// - scanForResourceUsage, scanForScenarioDependencies: Detection ops
 // - refreshDependencyCatalogs: Invalidate cached catalogs after filesystem changes
 
 import (
@@ -44,14 +44,6 @@ func scanForScenarioDependencies(scenarioPath, scenarioName string) ([]types.Sce
 		return nil, fmt.Errorf("detector not initialized")
 	}
 	return det.ScanScenarioDependencies(scenarioPath, scenarioName)
-}
-
-func scanForSharedWorkflows(scenarioPath, scenarioName string) ([]types.ScenarioDependency, error) {
-	det := detectorInstance()
-	if det == nil {
-		return nil, fmt.Errorf("detector not initialized")
-	}
-	return det.ScanSharedWorkflows(scenarioPath, scenarioName)
 }
 
 func scanForResourceUsage(scenarioPath, scenarioName string) ([]types.ScenarioDependency, error) {

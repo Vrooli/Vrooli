@@ -109,6 +109,9 @@ func ConservativeBuiltIns(deps BuiltInDeps) ([]cleanup.Provider, error) {
 			PreviewAction:      "apt-metadata-clean",
 		}, deps.ProcessRunner),
 	}
+	if deps.DockerImageLedger != nil {
+		providers = append(providers, NewDockerUnusedImagesProvider(deps.Docker, deps.DockerImageLedger))
+	}
 	providers = append(providers, OwnerScenarioBuiltIns(deps.OwnerScenarioClient)...)
 
 	for _, provider := range providers {
@@ -173,6 +176,7 @@ type BuiltInDeps struct {
 	FileSystem           cleanup.FileSystem
 	ProcessRunner        cleanup.ProcessRunner
 	Docker               cleanup.DockerClient
+	DockerImageLedger    imageUsageLedger
 	Journal              cleanup.JournalClient
 	OwnerScenarioClient  cleanup.ScenarioProviderClient
 	Clock                cleanup.Clock

@@ -18,30 +18,93 @@
     "entries": {
       "database": {
         "rung": "owned",
-        "path": "data/storage-manager.db",
         "kind": "file",
         "class": "data",
         "format": "sqlite",
         "sensitive": false,
-        "budget": { "max_bytes": "2GiB", "max_age": "30d", "rationale": "Durable storage-manager audit and census history." },
-        "rationale": "The manager's own control-plane database."
+        "budget": {
+          "max_bytes": "2GiB",
+          "max_age": "30d",
+          "rationale": "Durable storage-manager audit and census history."
+        },
+        "rationale": "The manager's own control-plane database.",
+    "subpath": "storage-manager.db"
       },
       "database_wal": {
         "rung": "owned",
-        "path": "data/storage-manager.db-wal",
         "kind": "file",
-        "class": "state",
+      "class": "data",
         "regenerable": true,
-        "rationale": "SQLite WAL sidecar for the manager database; it is recreated by SQLite and must be counted while live."
+        "rationale": "SQLite WAL sidecar for the manager database; it is recreated by SQLite and must be counted while live.",
+    "subpath": "storage-manager.db-wal",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
+        }
       },
-      "database_shm": {
+    "database_shm": {
         "rung": "owned",
-        "path": "data/storage-manager.db-shm",
         "kind": "file",
-        "class": "state",
+      "class": "data",
         "regenerable": true,
-        "rationale": "SQLite shared-memory sidecar for the manager database; it is recreated by SQLite and must be counted while live."
+      "rationale": "SQLite shared-memory sidecar for the manager database; it is recreated by SQLite and must be counted while live.",
+      "subpath": "storage-manager.db-shm",
+      "budget": {
+        "max_age": "30d",
+        "rationale": "Regenerable storage budget measured and governed on 2026-08-05; age is the reclaim ceiling."
       }
+    },
+    "cleanup_database": {
+      "rung": "owned",
+      "kind": "file",
+      "class": "data",
+      "format": "sqlite",
+      "regenerable": false,
+      "budget": {
+        "max_bytes": "2GiB",
+        "max_age": "30d",
+        "rationale": "Durable cleanup policy and audit storage."
+      },
+      "rationale": "The cleanup domain's legacy SQLite database remains a declared control-plane surface.",
+      "subpath": "cleanup-manager.db"
+    },
+    "cleanup_database_wal": {
+      "rung": "owned",
+      "kind": "file",
+      "class": "data",
+      "regenerable": true,
+      "rationale": "SQLite WAL sidecar for cleanup-manager.db; it is recreated by SQLite and counted while live.",
+      "subpath": "cleanup-manager.db-wal",
+      "budget": {
+        "max_age": "30d",
+        "rationale": "Regenerable SQLite sidecar budgeted by age."
+      }
+    },
+    "cleanup_database_shm": {
+      "rung": "owned",
+      "kind": "file",
+      "class": "data",
+      "regenerable": true,
+      "rationale": "SQLite shared-memory sidecar for cleanup-manager.db; it is recreated by SQLite and counted while live.",
+      "subpath": "cleanup-manager.db-shm",
+      "budget": {
+        "max_age": "30d",
+        "rationale": "Regenerable SQLite sidecar budgeted by age."
+      }
+    },
+    "deployment_report": {
+      "rung": "owned",
+      "kind": "file",
+      "class": "data",
+      "format": "json",
+      "regenerable": true,
+      "subpath": "deployment/deployment-report.json",
+      "budget": {
+        "max_age": "30d",
+        "rationale": "Regenerable deployment status report budgeted by age."
+      },
+      "rationale": "The lifecycle deployment report is written under the scenario data root."
+    }
     }
   },
   "generation": {

@@ -3,6 +3,8 @@ package cleanup
 import (
 	"io"
 	"log"
+	"os"
+	"path/filepath"
 
 	"storage-manager/hostfs"
 	"storage-manager/hostpaths"
@@ -63,9 +65,15 @@ func defaultRegistry() (*providers.Registry, error) {
 	roots := hostpaths.Resolve()
 	files := hostfs.New(hostfs.Options{})
 
+	stateDir, _ := os.UserConfigDir()
+	ledger, ledgerErr := providers.NewFileDockerUsageLedger(filepath.Join(stateDir, "vrooli", "storage-manager", "docker-usage-ledger.json"))
+	if ledgerErr != nil {
+		return nil, ledgerErr
+	}
 	builtIns, err := providers.ConservativeBuiltIns(providers.BuiltInDeps{
-		FileSystem: files,
-		Clock:      clock.System{},
+		FileSystem:        files,
+		Clock:             clock.System{},
+		DockerImageLedger: ledger,
 
 		TrashRoots:           roots.Trash,
 		TmpRoots:             roots.Tmp,

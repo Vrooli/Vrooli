@@ -17,10 +17,14 @@ type fileMetadata struct {
 	allocated int64
 }
 
-func inspectPath(path string) (fileMetadata, error) {
+func inspectPathHost(path string) (fileMetadata, error) {
 	info, err := os.Lstat(path)
 	if err != nil {
 		return fileMetadata{}, err
 	}
 	return fileMetadata{bytes: info.Size(), allocated: info.Size()}, nil
+}
+
+func (hostFileSystem) inspectMetadata(path string) (fileMetadata, error) {
+	return inspectPathHost(path)
 }

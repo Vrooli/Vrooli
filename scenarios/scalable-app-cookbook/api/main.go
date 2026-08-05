@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	schema "scalable-app-cookbook-api/internal/cookbook"
 	"strconv"
 	"strings"
 
@@ -170,6 +171,10 @@ func main() {
 	handler := c.Handler(router)
 
 	// Start server with graceful shutdown
+
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		log.Fatalf("database schema initialization failed: %v", err)
+	}
 	if err := server.Run(server.Config{
 		Handler: handler,
 		Cleanup: func(ctx context.Context) error {
@@ -835,5 +840,6 @@ func getFacets() map[string]interface{} {
 
 	return facets
 }
+
 // Test change for rebuild detection
 // Test change

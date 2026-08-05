@@ -19,8 +19,7 @@ import (
 // api/internal/testutil/db helper using sql.Open is test scaffolding, not a
 // production substrate violation (asserted by database_backoff_unit_test.go).
 var hygieneExtraExemptSegments = map[string]struct{}{
-	"test": {}, "testutil": {}, "migrate": {}, "migration": {},
-	"initialization": {}, "init": {}, "tools": {},
+	"test": {}, "testutil": {}, "migrate": {}, "migration": {}, "tools": {},
 }
 
 // hygieneIsExemptPath reports whether a repo-relative path is exempt from the

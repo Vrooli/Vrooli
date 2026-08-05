@@ -114,7 +114,7 @@ func Module(logger *log.Logger, repoRoot string) module.Module {
 						}
 					}
 				}
-				writeJSON(w, fleetReport{Platform: platform, Reports: reports, CountsByCode: counts, ErrorCount: errorsFound, BlockerCount: blockersFound})
+				writeJSON(w, fleetReport{Platform: platform, Reports: reports, CountsByCode: counts, ErrorCount: errorsFound, BlockerCount: blockersFound, MigrationAllowlistSize: validator.MigrationAllowlistSize()})
 			}).Methods(http.MethodGet)
 		},
 		Endpoints: Endpoints,
@@ -122,11 +122,12 @@ func Module(logger *log.Logger, repoRoot string) module.Module {
 }
 
 type fleetReport struct {
-	Platform     corestorage.Platform `json:"platform"`
-	Reports      []validation.Report  `json:"reports"`
-	CountsByCode map[string]int       `json:"counts_by_code"`
-	ErrorCount   int                  `json:"error_count"`
-	BlockerCount int                  `json:"blocker_count"`
+	Platform               corestorage.Platform `json:"platform"`
+	Reports                []validation.Report  `json:"reports"`
+	CountsByCode           map[string]int       `json:"counts_by_code"`
+	ErrorCount             int                  `json:"error_count"`
+	BlockerCount           int                  `json:"blocker_count"`
+	MigrationAllowlistSize int                  `json:"migration_allowlist_size"`
 }
 
 func parseOwnerKind(value string) (corestorage.OwnerKind, bool) {
@@ -177,7 +178,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Description: "Runs the shared validation report for every selected scenario, resource, tool, and safeguard and returns per-code roll-up counts.",
 		Category:    "validation",
 		Request:     &module.Schema{Type: "object", Properties: map[string]string{"kind": "repeatable owner-kind filter", "platform": "linux|macos|windows"}},
-		Response:    &module.Schema{Type: "object", Properties: map[string]string{"platform": "string", "reports": "[]storage validation report", "counts_by_code": "map[string]int", "error_count": "int", "blocker_count": "int"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"platform": "string", "reports": "[]storage validation report", "counts_by_code": "map[string]int", "error_count": "int", "blocker_count": "int", "migration_allowlist_size": "int"}},
 		Errors:      []module.ErrorDesc{{Status: 500, Code: "internal", Description: "Owner inventory cannot be loaded or validated"}},
 	},
 	{

@@ -8,9 +8,9 @@ import (
 	_ "embed"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -66,6 +66,8 @@ type Report struct {
 	Entries                  []Entry        `json:"entries"`
 	FrameworkRoots           []string       `json:"framework_roots,omitempty"`
 	ScanPolicy               ScanPolicy     `json:"scan_policy"`
+	SnapshotAgeSeconds       *float64       `json:"snapshot_age_seconds,omitempty"`
+	StalenessVerdict         string         `json:"staleness_verdict,omitempty"`
 }
 
 // RootTotal is one independently actionable part of the unattributed
@@ -96,12 +98,14 @@ type PolicyExclusion struct {
 const defaultCensusFloorBytes = 1 << 20
 
 type ScanCoverage struct {
-	MeasuredBytes    int64 `json:"measured_bytes"`
-	ScannedBytes     int64 `json:"scanned_bytes,omitempty"`
-	DeviceUsedBytes  int64 `json:"device_used_bytes,omitempty"`
-	DeviceTotalBytes int64 `json:"device_total_bytes,omitempty"`
-	Complete         bool  `json:"complete"`
-	MeasuredByDevice bool  `json:"measured_by_device"`
+	MeasuredBytes    int64  `json:"measured_bytes"`
+	ScannedBytes     int64  `json:"scanned_bytes,omitempty"`
+	DeviceUsedBytes  int64  `json:"device_used_bytes,omitempty"`
+	DeviceTotalBytes int64  `json:"device_total_bytes,omitempty"`
+	Complete         bool   `json:"complete"`
+	MeasuredByDevice bool   `json:"measured_by_device"`
+	PrivilegeLevel   string `json:"privilege_level,omitempty"`
+	DegradedReason   string `json:"degraded_reason,omitempty"`
 }
 
 func (r Report) MarshalJSON() ([]byte, error) {
@@ -171,7 +175,7 @@ func ScanInventory(root string, inventory corestorage.OwnerInventory) (Report, e
 		}
 		ownerRoots = append(ownerRoots, ownerStorageRoot(owner))
 	}
-	for _, orphan := range orphanScenarioRoots(root, inventory) {
+	for _, orphan := range orphanScenarioRoots(root, inventory, hostFileSystem{}) {
 		findings = append(findings, Finding{Code: "STORAGE_PATH_ORPHANED", Severity: "warning", Kind: string(corestorage.OwnerScenario), Path: orphan.Path, Message: fmt.Sprintf("scenario directory has no canonical .vrooli/service.json; %d bytes are outside the owner inventory", orphan.Bytes)})
 	}
 	policy, err := LoadPolicy(root)
@@ -223,12 +227,8 @@ type orphanRoot struct {
 	Bytes int64
 }
 
-func orphanScenarioRoots(repoRoot string, inventory corestorage.OwnerInventory) []orphanRoot {
+func orphanScenarioRoots(repoRoot string, inventory corestorage.OwnerInventory, filesystem FileSystem) []orphanRoot {
 	base := filepath.Join(repoRoot, "scenarios")
-	entries, err := os.ReadDir(base)
-	if err != nil {
-		return nil
-	}
 	owned := make(map[string]bool, len(inventory.Owners))
 	for _, owner := range inventory.Owners {
 		if owner.Kind == corestorage.OwnerScenario {
@@ -236,26 +236,36 @@ func orphanScenarioRoots(repoRoot string, inventory corestorage.OwnerInventory) 
 		}
 	}
 	var out []orphanRoot
-	for _, entry := range entries {
-		if !entry.IsDir() || owned[entry.Name()] {
-			continue
+	_ = filesystem.WalkDir(base, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
 		}
-		path := filepath.Join(base, entry.Name())
-		if _, err := os.Stat(filepath.Join(path, ".vrooli", "service.json")); err == nil {
-			continue
+		if path == base || !entry.IsDir() {
+			return nil
 		}
-		bytes := directoryBytes(path)
+		relative, relErr := filepath.Rel(base, path)
+		if relErr != nil || filepath.Dir(relative) != "." {
+			return fs.SkipDir
+		}
+		if owned[filepath.Base(path)] {
+			return fs.SkipDir
+		}
+		if _, statErr := filesystem.Stat(filepath.Join(path, ".vrooli", "service.json")); statErr == nil {
+			return fs.SkipDir
+		}
+		bytes := directoryBytesWith(filesystem, path)
 		if bytes > 0 {
 			out = append(out, orphanRoot{Path: path, Bytes: bytes})
 		}
-	}
+		return fs.SkipDir
+	})
 	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
 	return out
 }
 
-func directoryBytes(root string) int64 {
+func directoryBytesWith(filesystem FileSystem, root string) int64 {
 	var total int64
-	_ = filepath.WalkDir(root, func(_ string, entry fs.DirEntry, err error) error {
+	_ = filesystem.WalkDir(root, func(_ string, entry fs.DirEntry, err error) error {
 		if err != nil || entry.IsDir() {
 			return nil
 		}
@@ -282,13 +292,38 @@ func scan(root string, declarations []resolvedDeclaration, initialFindings []Fin
 	return scanWithPolicy(root, ScanPolicy{Roots: []PolicyRoot{{Path: root}}, FloorBytes: defaultCensusFloorBytes}, declarations, nil, initialFindings, false)
 }
 
+// ScanWithFileSystem is the deterministic census seam used by platform and
+// filesystem tests. It has the same accounting behavior as Scan, but cannot
+// touch the host filesystem unless the caller supplies the host implementation.
+func ScanWithFileSystem(root string, manifests map[string][]Declaration, fs FileSystem, probe DeviceProbe) (Report, error) {
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return Report{}, err
+	}
+	declarations := make([]resolvedDeclaration, 0)
+	for owner, entries := range manifests {
+		for _, entry := range entries {
+			path := entry.Path
+			if !filepath.IsAbs(path) {
+				path = filepath.Join(absRoot, filepath.FromSlash(strings.TrimPrefix(filepath.ToSlash(path), filepath.ToSlash(root)+"/")))
+			}
+			declarations = append(declarations, resolvedDeclaration{owner: owner, name: entry.Name, path: path})
+		}
+	}
+	return scanWithPolicyUsing(absRoot, ScanPolicy{Roots: []PolicyRoot{{Path: absRoot}}, FloorBytes: defaultCensusFloorBytes}, declarations, nil, nil, false, fs, probe)
+}
+
 func scanWithPolicy(displayRoot string, policy ScanPolicy, declarations []resolvedDeclaration, ownerRoots []string, initialFindings []Finding, deviceScoped bool) (Report, error) {
+	return scanWithPolicyUsing(displayRoot, policy, declarations, ownerRoots, initialFindings, deviceScoped, hostFileSystem{}, NewDeviceProbe())
+}
+
+func scanWithPolicyUsing(displayRoot string, policy ScanPolicy, declarations []resolvedDeclaration, ownerRoots []string, initialFindings []Finding, deviceScoped bool, filesystem FileSystem, probe DeviceProbe) (Report, error) {
 	displayRoot, err := filepath.Abs(displayRoot)
 	if err != nil {
 		return Report{}, err
 	}
 	unreadable := make([]string, 0)
-	policy, scanRoots, exclusions, err := resolvePolicy(displayRoot, policy, deviceScoped)
+	policy, scanRoots, exclusions, err := resolvePolicy(displayRoot, policy, deviceScoped, filesystem)
 	if err != nil {
 		return Report{}, err
 	}
@@ -331,8 +366,8 @@ func scanWithPolicy(displayRoot string, policy ScanPolicy, declarations []resolv
 			continue
 		}
 		seenRoots[root] = struct{}{}
-		if _, statErr := os.Stat(root); statErr != nil {
-			if os.IsNotExist(statErr) {
+		if _, statErr := filesystem.Stat(root); statErr != nil {
+			if errors.Is(statErr, fs.ErrNotExist) {
 				findings = append(findings, Finding{Code: "missing_scan_root", Severity: "warning", Path: root, Message: "declared or candidate storage root does not exist"})
 				continue
 			}
@@ -340,13 +375,13 @@ func scanWithPolicy(displayRoot string, policy ScanPolicy, declarations []resolv
 			unreadable = append(unreadable, root)
 			continue
 		}
-		rootMetadata, rootMetaErr := inspectPath(root)
+		rootMetadata, rootMetaErr := inspectPathWith(filesystem, root)
 		if rootMetaErr != nil {
 			findings = append(findings, Finding{Code: "unreadable_path", Severity: "error", Path: root, Message: rootMetaErr.Error()})
 			unreadable = append(unreadable, root)
 			continue
 		}
-		walkErr := filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
+		walkErr := filesystem.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
 			if walkErr != nil {
 				unreadable = append(unreadable, path)
 				if d != nil && !d.IsDir() {
@@ -371,7 +406,7 @@ func scanWithPolicy(displayRoot string, policy ScanPolicy, declarations []resolv
 				}
 				return nil
 			}
-			metadata, metaErr := inspectPath(path)
+			metadata, metaErr := inspectPathWith(filesystem, path)
 			if metaErr != nil {
 				unreadable = append(unreadable, path)
 				if d.IsDir() {
@@ -445,7 +480,7 @@ func scanWithPolicy(displayRoot string, policy ScanPolicy, declarations []resolv
 		}
 		return findings[i].Path < findings[j].Path
 	})
-	coverage := deviceCoverage(displayRoot, scanned, len(unreadable) == 0)
+	coverage := deviceCoverageWith(probe, displayRoot, scanned, len(unreadable) == 0)
 	coverage.Complete = coverage.Complete && len(unreadable) == 0
 	measured := scanned
 	if deviceScoped && coverage.MeasuredByDevice {
@@ -589,7 +624,7 @@ func existingRoots(roots []string) []string {
 			continue
 		}
 		path = filepath.Clean(path)
-		if _, err := os.Stat(path); err != nil {
+		if _, err := (hostFileSystem{}).Stat(path); err != nil {
 			continue
 		}
 		if _, exists := seen[path]; exists {
@@ -614,7 +649,7 @@ func scenarioCandidateRoots(repoRoot string, owner corestorage.OwnerManifest) []
 	result := make([]string, 0, len(relative))
 	for _, name := range relative {
 		path := filepath.Join(scenarioRoot, name)
-		if _, err := os.Stat(path); err == nil {
+		if _, err := (hostFileSystem{}).Stat(path); err == nil {
 			result = append(result, path)
 		}
 	}
@@ -725,6 +760,30 @@ func (s *SnapshotStore) latest(ctx context.Context, root string) (*Report, error
 		return nil, fmt.Errorf("decode census snapshot: %w", err)
 	}
 	return &report, nil
+}
+
+// Latest returns the most recent persisted report without walking the
+// filesystem. Callers can use SnapshotAgeSeconds and StalenessVerdict to make
+// freshness explicit to operators.
+func (s *SnapshotStore) Latest(ctx context.Context, root string) (*Report, error) {
+	if s == nil {
+		return nil, nil
+	}
+	report, err := s.latest(ctx, root)
+	if err != nil || report == nil {
+		return report, err
+	}
+	age := time.Since(report.ObservedAt).Seconds()
+	if age < 0 {
+		age = 0
+	}
+	report.SnapshotAgeSeconds = &age
+	if age <= (30 * time.Minute).Seconds() {
+		report.StalenessVerdict = "current"
+	} else {
+		report.StalenessVerdict = "stale"
+	}
+	return report, nil
 }
 
 func (s *SnapshotStore) History(ctx context.Context, root string, limit int) ([]Report, error) {

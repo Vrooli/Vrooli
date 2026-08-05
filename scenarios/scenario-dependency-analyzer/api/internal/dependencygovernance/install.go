@@ -48,6 +48,10 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 	}
 
 	verdict, blocked, nextSteps, secNotes := h.registry().governInstall(msg, resolution)
+	if resolution.Profile.ScriptsDisabled {
+		secNotes = append(secNotes, "lifecycle scripts are disabled by default for this install profile")
+	}
+	secNotes = append(secNotes, fmt.Sprintf("install profile: lifecycle=%s frozen_lockfile=%t governance=%s", resolution.Profile.LifecycleMode, resolution.Profile.FrozenLockfile, resolution.Profile.Governance))
 
 	resp := &governancev1.InstallDependencyResponse{
 		DryRun:         !msg.GetApply(),

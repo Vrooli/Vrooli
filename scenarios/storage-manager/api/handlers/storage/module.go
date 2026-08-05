@@ -51,6 +51,19 @@ func Module(d ModuleDeps) module.Module {
 			if requested := strings.TrimSpace(req.URL.Query().Get("root")); requested != "" {
 				root = requested
 			}
+			force := strings.EqualFold(req.URL.Query().Get("force"), "true") || req.URL.Query().Get("force") == "1"
+			if !force {
+				latest, latestErr := store.Latest(req.Context(), root)
+				if latestErr != nil {
+					http.Error(w, latestErr.Error(), http.StatusInternalServerError)
+					return
+				}
+				if latest != nil {
+					w.Header().Set("Content-Type", "application/json")
+					_ = json.NewEncoder(w).Encode(latest)
+					return
+				}
+			}
 			inventory, inventoryErr := corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: d.RepoRoot, Platform: corestorage.Platform(runtime.GOOS)})
 			if inventoryErr != nil {
 				http.Error(w, inventoryErr.Error(), http.StatusInternalServerError)
@@ -124,10 +137,13 @@ func Module(d ModuleDeps) module.Module {
 				storageBudget := false
 				if normalized, found := findOwner(inventory.Owners, owner.ID); found {
 					for _, entry := range normalized.StorageEntries {
-						if entry.Budget == nil || entry.Budget.MaxBytes == "" {
+						if entry.Budget == nil || (entry.Budget.MaxBytes == "" && entry.Budget.MaxAge == "") {
 							continue
 						}
 						storageBudget = true
+						if entry.Budget.MaxBytes == "" {
+							continue
+						}
 						max, parseErr := retention.ParseBytes(entry.Budget.MaxBytes)
 						if parseErr != nil {
 							continue
@@ -146,9 +162,17 @@ func Module(d ModuleDeps) module.Module {
 						}
 					}
 				}
-				if result, enforced := storageEnforcement[owner.ID]; storageBudget && enforced && result.Error == "" && len(record.Findings) == 0 {
-					record.EnforcementState = "governed"
-				} else if len(record.Budgets) > 0 && !storageBudget && ownerIsRunning(req.Context(), owner.Kind, owner.ID) && len(record.Findings) == 0 {
+				if storageBudget {
+					result, enforced := storageEnforcement[owner.ID]
+					switch {
+					case enforced && result.Error == "" && len(record.Findings) == 0:
+						record.EnforcementState = "governed"
+					case !enforced || result.Error != "":
+						// A declared budget that could not be measured or enforced is
+						// not unbounded. Keep the operator-visible distinction explicit.
+						record.EnforcementState = "unenforced"
+					}
+				} else if len(record.Budgets) > 0 && ownerIsRunning(req.Context(), owner.Kind, owner.ID) && len(record.Findings) == 0 {
 					record.EnforcementState = "governed"
 				}
 				if record.LastEnforcementError != "" && record.EnforcementState == "governed" {

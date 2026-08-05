@@ -311,39 +311,6 @@ vrooli scenario run dependency-scenario
 	}
 }
 
-// TestScanSharedWorkflows tests workflow scanning.
-func TestScanSharedWorkflows(t *testing.T) {
-	tempDir := t.TempDir()
-
-	t.Run("NoWorkflows", func(t *testing.T) {
-		cfg := appconfig.Config{}
-		detector := New(cfg)
-
-		deps, err := detector.ScanSharedWorkflows(tempDir, "test-scenario")
-		if err != nil {
-			t.Fatalf("ScanSharedWorkflows error: %v", err)
-		}
-		if len(deps) != 0 {
-			t.Errorf("expected no workflows, got %d", len(deps))
-		}
-	})
-
-	t.Run("WithWorkflowDir", func(t *testing.T) {
-		workflowDir := filepath.Join(tempDir, "initialization", "automation", "n8n")
-		os.MkdirAll(workflowDir, 0o755)
-
-		cfg := appconfig.Config{}
-		detector := New(cfg)
-
-		deps, err := detector.ScanSharedWorkflows(tempDir, "test-scenario")
-		if err != nil {
-			t.Fatalf("ScanSharedWorkflows error: %v", err)
-		}
-		// May or may not find workflows depending on content
-		t.Logf("Found %d workflow dependencies", len(deps))
-	})
-}
-
 // mockDirEntry is a mock implementation of fs.DirEntry for testing
 type mockDirEntry struct {
 	name  string

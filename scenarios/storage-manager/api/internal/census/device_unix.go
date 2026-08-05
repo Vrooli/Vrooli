@@ -3,22 +3,26 @@
 package census
 
 import (
+	"os"
 	"syscall"
 )
 
-func deviceCoverage(root string, measured int64, complete bool) ScanCoverage {
-	coverage := ScanCoverage{MeasuredBytes: measured, Complete: complete}
+type hostDeviceProbe struct{}
+
+func NewDeviceProbe() DeviceProbe { return hostDeviceProbe{} }
+
+func (hostDeviceProbe) Probe(root string) (DeviceInfo, error) {
 	var stat syscall.Statfs_t
 	if err := syscall.Statfs(root, &stat); err != nil {
-		return coverage
+		return DeviceInfo{}, err
 	}
 	blockSize := int64(stat.Bsize)
 	if blockSize <= 0 {
-		return coverage
+		return DeviceInfo{}, syscall.EINVAL
 	}
-	coverage.DeviceTotalBytes = int64(stat.Blocks) * blockSize
-	available := int64(stat.Bavail) * blockSize
-	coverage.DeviceUsedBytes = coverage.DeviceTotalBytes - available
-	coverage.MeasuredByDevice = true
-	return coverage
+	privilege := "least-privilege"
+	if os.Geteuid() == 0 {
+		privilege = "privileged"
+	}
+	return DeviceInfo{TotalBytes: int64(stat.Blocks) * blockSize, AvailableBytes: int64(stat.Bavail) * blockSize, Privilege: privilege}, nil
 }

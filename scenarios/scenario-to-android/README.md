@@ -257,7 +257,7 @@ scenario-android/
 
 ### Modify Templates
 
-Edit templates in `initialization/templates/android/` to customize:
+Edit templates in `api/internal/<domain>/templates/android/` to customize:
 - MainActivity behavior
 - JavaScript bridge functions
 - UI wrapper styling

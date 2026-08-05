@@ -5,14 +5,24 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
 
 func storageGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	client, base := cliapp.NewConnectHTTPClient(core)
-	read := func() error {
-		req, err := http.NewRequest(http.MethodGet, base+"/api/v1/census", nil)
+	read := func(args []string, force bool) error {
+		for _, arg := range args {
+			if strings.EqualFold(arg, "--force") {
+				force = true
+			}
+		}
+		path := base + "/api/v1/census"
+		if force {
+			path += "?force=true"
+		}
+		req, err := http.NewRequest(http.MethodGet, path, nil)
 		if err != nil {
 			return err
 		}
@@ -150,8 +160,8 @@ func storageGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		return err
 	}
 	return cliapp.SubcommandGroup{Name: "storage", Description: "Inspect declared, attributed, and unattributed storage", NeedsAPI: true, Subcommands: []cliapp.Command{
-		{Name: "status", Description: "Show the current closed storage accounting", Run: func([]string) error { return read() }},
-		{Name: "census", Description: "Run a read-only storage census", Run: func([]string) error { return read() }},
+		{Name: "status", Description: "Show the latest persisted storage accounting", Run: func(args []string) error { return read(args, false) }},
+		{Name: "census", Description: "Run a read-only storage census", Run: func(args []string) error { return read(args, true) }},
 		{Name: "history", Description: "Show persisted census snapshots and growth observations", Run: func([]string) error { return history() }},
 		{Name: "retention", Description: "Show retention budgets across every owner kind", Run: func([]string) error { return retentionOwners() }},
 		{Name: "placement", Description: "Show resolved cross-platform storage placement", Run: func([]string) error { return placement() }},

@@ -20,7 +20,7 @@ type fileMetadata struct {
 	allocated int64
 }
 
-func inspectPath(path string) (fileMetadata, error) {
+func inspectPathHost(path string) (fileMetadata, error) {
 	info, err := os.Lstat(path)
 	if err != nil {
 		return fileMetadata{}, err
@@ -35,4 +35,8 @@ func inspectPath(path string) (fileMetadata, error) {
 	// correct quantity for reconciling a file walk with statfs usage.
 	allocated = int64(stat.Blocks) * 512
 	return fileMetadata{identity: fileIdentity{device: uint64(stat.Dev), inode: uint64(stat.Ino), valid: true}, device: uint64(stat.Dev), bytes: bytes, allocated: allocated}, nil
+}
+
+func (hostFileSystem) inspectMetadata(path string) (fileMetadata, error) {
+	return inspectPathHost(path)
 }

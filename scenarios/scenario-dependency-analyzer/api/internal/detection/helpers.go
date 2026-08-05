@@ -33,59 +33,6 @@ func contains(items []string, target string) bool {
 	return false
 }
 
-// Slice utilities
-
-// toStringSlice safely converts various types to a string slice
-func toStringSlice(value interface{}) []string {
-	switch typed := value.(type) {
-	case []string:
-		return append([]string(nil), typed...)
-	case []interface{}:
-		result := make([]string, 0, len(typed))
-		for _, item := range typed {
-			if str, ok := item.(string); ok {
-				result = append(result, str)
-			}
-		}
-		return result
-	default:
-		return nil
-	}
-}
-
-// mergeInitializationFiles merges two lists of initialization files, removing duplicates
-func mergeInitializationFiles(existing interface{}, additions []string) []string {
-	if len(additions) == 0 {
-		return toStringSlice(existing)
-	}
-
-	set := map[string]struct{}{}
-	merged := make([]string, 0)
-
-	// Add existing items
-	for _, item := range toStringSlice(existing) {
-		if _, ok := set[item]; ok {
-			continue
-		}
-		set[item] = struct{}{}
-		merged = append(merged, item)
-	}
-
-	// Add new items
-	for _, add := range additions {
-		if add == "" {
-			continue
-		}
-		if _, ok := set[add]; ok {
-			continue
-		}
-		set[add] = struct{}{}
-		merged = append(merged, add)
-	}
-
-	return merged
-}
-
 // Path utilities
 
 // determineScenariosDir resolves the scenarios directory to an absolute path
@@ -176,18 +123,4 @@ func resolvedResourceMap(cfg *types.ServiceConfig) map[string]types.Resource {
 		return map[string]types.Resource{}
 	}
 	return cfg.Resources
-}
-
-// extractInitializationFiles extracts file paths from initialization entries
-func extractInitializationFiles(entries []map[string]interface{}) []string {
-	files := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if entry == nil {
-			continue
-		}
-		if file, ok := entry["file"].(string); ok && file != "" {
-			files = append(files, file)
-		}
-	}
-	return files
 }

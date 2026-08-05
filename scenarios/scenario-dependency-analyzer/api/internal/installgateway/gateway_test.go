@@ -34,12 +34,12 @@ func TestResolveBuildsArgvPerEcosystem(t *testing.T) {
 		wantManager                      string
 		wantArgv                         string
 	}{
-		{"ui", "npm", "react-hook-form", "7.0.0", "pnpm", "pnpm add react-hook-form@7.0.0"},
-		{"ui", "npm", "zod", "", "pnpm", "pnpm add zod"},
+		{"ui", "npm", "react-hook-form", "7.0.0", "pnpm", "pnpm add --ignore-scripts react-hook-form@7.0.0"},
+		{"ui", "npm", "zod", "", "pnpm", "pnpm add --ignore-scripts zod"},
 		{"api", "go", "github.com/foo/bar", "v1.2.3", "go", "go get github.com/foo/bar@v1.2.3"},
 		{"cli", "pip", "requests", "2.31.0", "pip", "pip install requests==2.31.0"},
-		{"tools/mermaid-lint", "npm", "mermaid", "11.13.0", "pnpm", "pnpm add mermaid@11.13.0"},
-		{"platforms/electron", "npm", "brace-expansion", "^5.0.8", "npm", "npm install brace-expansion@^5.0.8"},
+		{"tools/mermaid-lint", "npm", "mermaid", "11.13.0", "pnpm", "pnpm add --ignore-scripts mermaid@11.13.0"},
+		{"platforms/electron", "npm", "brace-expansion", "^5.0.8", "npm", "npm install --ignore-scripts brace-expansion@^5.0.8"},
 	}
 	for _, tc := range cases {
 		r, err := Resolve(repoRoot, "demo", tc.surface, tc.ecosystem, tc.pkg, tc.version)
@@ -67,7 +67,7 @@ func TestResolveAddsPnpmWorkspaceRootForSurfaceWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.Command() != "pnpm add --workspace-root helmet@^6.1.0" {
+	if r.Command() != "pnpm add --ignore-scripts --workspace-root helmet@^6.1.0" {
 		t.Fatalf("command = %q", r.Command())
 	}
 }
@@ -84,7 +84,7 @@ func TestResolveNpmOverrideAndPersistOverride(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.Command() != "pnpm install --workspace-root" {
+	if r.Command() != "pnpm install --ignore-scripts --workspace-root" {
 		t.Fatalf("command = %q", r.Command())
 	}
 	if err := SetNpmOverride(r.ManifestPath, "minimatch", "^10.2.6"); err != nil {
@@ -118,7 +118,7 @@ func TestResolvePreservesExistingJSDevDependencyClassification(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.Command() != "pnpm add -D vite@6.4.3" {
+	if r.Command() != "pnpm add --ignore-scripts -D vite@6.4.3" {
 		t.Fatalf("command = %q, want pnpm dev-dependency upgrade", r.Command())
 	}
 }
@@ -176,7 +176,88 @@ func TestResolveRejectsBadSurfaceAndEcosystem(t *testing.T) {
 	if _, err := Resolve(repoRoot, "demo", "api", "npm", "x", ""); err == nil || !strings.Contains(err.Error(), "surface directory not found") {
 		t.Fatalf("expected missing-surface error, got %v", err)
 	}
-	if _, err := Resolve(repoRoot, "demo", "ui", "cargo", "x", ""); err == nil {
-		t.Fatal("expected error for unsupported ecosystem")
+	if _, err := Resolve(repoRoot, "demo", "ui", "cargo", "x", ""); err == nil || !strings.Contains(err.Error(), "Cargo.toml") {
+		t.Fatalf("cargo without manifest should be rejected, got %v", err)
+	}
+}
+
+func TestResolveNeverGuessesManagerFromLanguageAlone(t *testing.T) {
+	repoRoot := t.TempDir()
+	mkSurface(t, repoRoot, "demo", "ui", map[string]string{"package.json": "{}"})
+	for _, ecosystem := range []string{"npm", "pip", "cargo", "go"} {
+		t.Run(ecosystem, func(t *testing.T) {
+			if _, err := Resolve(repoRoot, "demo", "ui", ecosystem, "safe-package", ""); err == nil {
+				t.Fatalf("%s request was accepted without manager evidence", ecosystem)
+			}
+		})
+	}
+}
+
+func TestResolveRejectsScenarioAndPackageFlagInjection(t *testing.T) {
+	repoRoot := t.TempDir()
+	mkSurface(t, repoRoot, "demo", "ui", map[string]string{"pnpm-lock.yaml": ""})
+	for _, tc := range []struct {
+		name, scenario, packageName, version string
+	}{
+		{"scenario traversal", "../outside", "safe", ""},
+		{"package flag", "demo", "--ignore-scripts", ""},
+		{"version flag", "demo", "safe", "--registry=https://evil"},
+		{"shell syntax", "demo", "safe;curl", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := Resolve(repoRoot, tc.scenario, "ui", "npm", tc.packageName, tc.version); err == nil {
+				t.Fatal("unsafe install request was accepted")
+			}
+		})
+	}
+}
+
+func TestAdapterRegistryMakesUnsupportedNativeManagersExplicit(t *testing.T) {
+	for _, ecosystem := range []string{"npm", "pnpm", "yarn", "bun", "python", "go", "rust", "c", "cpp"} {
+		adapter, err := AdapterFor(ecosystem)
+		if err != nil {
+			t.Fatalf("%s: %v", ecosystem, err)
+		}
+		if (ecosystem == "c" || ecosystem == "cpp") && adapter.MutationSupported() {
+			t.Fatalf("%s must not claim a universal mutation adapter", ecosystem)
+		}
+	}
+}
+
+func TestSafeInstallProfileAndProtectedException(t *testing.T) {
+	profile := SafeProfileFor("pnpm", []string{"pnpm", "add", "--ignore-scripts", "pkg"})
+	if !profile.ScriptsDisabled || profile.LifecycleMode != "scripts-disabled-by-default" || profile.Governance != "scenario-dependency-analyzer" {
+		t.Fatalf("unexpected install profile: %+v", profile)
+	}
+	if err := ValidateProtectedBuildException(ProtectedBuildException{Owner: "release", Reason: "native build", Command: "pnpm rebuild", PolicyMode: "guarded"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateProtectedBuildException(ProtectedBuildException{Owner: "release", Command: "pnpm rebuild", PolicyMode: "guarded"}); err == nil {
+		t.Fatal("missing exception reason should be rejected")
+	}
+}
+
+func TestFrozenReproductionArgsAreScriptSafe(t *testing.T) {
+	tests := map[string][]string{
+		"npm":    {"npm", "ci", "--ignore-scripts"},
+		"pnpm":   {"pnpm", "install", "--frozen-lockfile", "--ignore-scripts"},
+		"yarn":   {"yarn", "install", "--immutable", "--ignore-scripts"},
+		"bun":    {"bun", "install", "--frozen-lockfile", "--ignore-scripts"},
+		"cargo":  {"cargo", "fetch", "--locked"},
+		"go":     {"go", "mod", "download"},
+		"poetry": {"poetry", "install", "--sync", "--no-root"},
+	}
+	for manager, want := range tests {
+		got, err := FrozenReproductionArgs(manager)
+		if err != nil {
+			t.Fatalf("%s: %v", manager, err)
+		}
+		if strings.Join(got, " ") != strings.Join(want, " ") {
+			t.Errorf("%s = %v, want %v", manager, got, want)
+		}
+		profile := SafeProfileFor(manager, got)
+		if !profile.FrozenLockfile || !profile.ScriptsDisabled && manager != "go" && manager != "cargo" && manager != "poetry" {
+			t.Errorf("%s profile = %+v", manager, profile)
+		}
 	}
 }

@@ -36,6 +36,14 @@ The remaining security-health entries are info-level only. Current notable class
 
 The API server sets explicit read-header, read, write, and idle timeouts. Generated/exported local artifacts use private file modes by default. Scanner paths skip symlink entries before reading repository files, and reviewed gosec suppressions document root-constrained file access and fixed-executable subprocess calls.
 
+Dependency installation is a governed mutation boundary. JavaScript additions
+and lockfile refreshes pass `--ignore-scripts`; frozen reproduction is exposed
+as a separate command contract (`npm ci`, frozen pnpm/Bun, immutable Yarn,
+locked Cargo, and equivalent Go/Python/Poetry profiles). Resolution records the
+profile so callers can distinguish lockfile reproduction from a manifest
+mutation. Protected build exceptions are explicit, owner-attributed, and
+limited to guided, guarded, or enforcing policy modes.
+
 ## Cross-References
 
 - `../operations/RUNBOOK.md`

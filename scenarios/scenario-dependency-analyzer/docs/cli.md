@@ -621,7 +621,7 @@ Bundle dependencies:
 Bundle files:
   - binary: api/swarm-manager-api (present)
   - config: .vrooli/service.json (present)
-  - schema: initialization/postgres/schema.sql (present)
+  - schema: api/internal/<domain>/schema.sql (present)
 ```
 
 ---

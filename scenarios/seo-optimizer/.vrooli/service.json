@@ -1,7 +1,22 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "name": "seo-optimizer",
     "displayName": "SEO Optimizer",
@@ -151,11 +166,6 @@
           "description": "Generate code embeddings for AI assistance"
         },
         {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Add app data to resources"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o seo-optimizer-api .",
           "description": "Build Go API binary"
@@ -230,13 +240,7 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store SEO audits, keyword data, rankings, and competitor analysis",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          }
-        ]
+        "purpose": "Store SEO audits, keyword data, rankings, and competitor analysis"
       },
       "redis": {
         "type": "redis",
@@ -248,13 +252,7 @@
         "type": "qdrant",
         "enabled": true,
         "required": false,
-        "purpose": "Store content embeddings for semantic SEO analysis",
-        "initialization": [
-          {
-            "file": "initialization/qdrant/collections.json",
-            "type": "config"
-          }
-        ]
+        "purpose": "Store content embeddings for semantic SEO analysis"
       },
       "ollama": {
         "type": "ollama",

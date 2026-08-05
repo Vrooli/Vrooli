@@ -38,7 +38,7 @@ func (storageEntryConformance) Analyze(_ context.Context, ac AnalyzerContext) ([
 	sort.Slice(entries, func(i, j int) bool { return entries[i].Name < entries[j].Name })
 	for _, entry := range entries {
 		sidecar := isSQLiteSidecar(entry, entries)
-		if entry.Regenerable && entry.Class == corestorage.ClassData {
+		if entry.Regenerable && entry.Class == corestorage.ClassData && !sidecar {
 			findings = append(findings, storageFinding("STORAGE_ENTRY_CLASS_CONFLICT", SeverityWarning, ac, entry, "regenerable data is contradictory", "Use class cache/state, or mark the entry non-regenerable."))
 		}
 		if entry.Regenerable && !sidecar && entry.Reclaim == nil && entry.Budget == nil {
@@ -78,10 +78,39 @@ func (storageEntryConformance) Analyze(_ context.Context, ac AnalyzerContext) ([
 // source-evidence path because they may be host-managed or externally owned.
 func hasFrameworkWriter(entry corestorage.StorageEntry) bool {
 	path := strings.TrimSpace(entry.Path.Value)
+	if entry.Rung == corestorage.RungOwned && entry.Class != "" && path == "" && entry.Path.ByOS == nil {
+		return true
+	}
 	return entry.Rung == corestorage.RungOwned && path != "" && !filepath.IsAbs(path) && !strings.ContainsAny(path, "$%")
 }
 
 func isSQLiteSidecar(entry corestorage.StorageEntry, entries []corestorage.StorageEntry) bool {
+	if entry.Class != "" && entry.Path.Value == "" && entry.Path.ByOS == nil {
+		for _, suffix := range []string{"_wal", "_shm"} {
+			if !strings.HasSuffix(entry.Name, suffix) {
+				continue
+			}
+			base := strings.TrimSuffix(entry.Name, suffix)
+			for _, parent := range entries {
+				if parent.Format == "sqlite" && parent.Class == entry.Class && parent.Name == base {
+					return true
+				}
+			}
+		}
+	}
+	if entry.Subpath != "" {
+		for _, suffix := range []string{"-wal", "-shm"} {
+			if !strings.HasSuffix(entry.Subpath, suffix) {
+				continue
+			}
+			base := strings.TrimSuffix(entry.Subpath, suffix)
+			for _, parent := range entries {
+				if parent.Format == "sqlite" && parent.Class == entry.Class && (parent.Subpath == base || base == "") {
+					return true
+				}
+			}
+		}
+	}
 	path := filepath.ToSlash(entry.Path.Value)
 	for _, suffix := range []string{"-wal", "-shm"} {
 		if !strings.HasSuffix(path, suffix) {
@@ -104,7 +133,14 @@ func storageFinding(code string, severity Severity, ac AnalyzerContext, entry co
 			location = filepath.ToSlash(rel)
 		}
 	}
-	return Finding{Code: code, Severity: severity, Title: entry.Name + " storage declaration", Message: fmt.Sprintf("storage entry %q at %q: %s", entry.Name, entry.Path.Value, message), Location: location, Remediation: remediation, Analyzer: "storage.entry-conformance"}
+	locationValue := entry.Path.Value
+	if entry.Class != "" && locationValue == "" {
+		locationValue = string(entry.Class)
+		if entry.Subpath != "" {
+			locationValue += "/" + entry.Subpath
+		}
+	}
+	return Finding{Code: code, Severity: severity, Title: entry.Name + " storage declaration", Message: fmt.Sprintf("storage entry %q at %q: %s", entry.Name, locationValue, message), Location: location, Remediation: remediation, Analyzer: "storage.entry-conformance"}
 }
 
 func hasReachableWriter(ac AnalyzerContext, entry corestorage.StorageEntry) bool {
@@ -188,6 +224,40 @@ func hasWriterSuppression(ac AnalyzerContext, entry string) bool {
 }
 
 func sqliteSidecarFindings(ac AnalyzerContext, entry corestorage.StorageEntry, entries []corestorage.StorageEntry) []Finding {
+	if entry.Class != "" && entry.Path.Value == "" && entry.Path.ByOS == nil && entry.Subpath == "" {
+		seen := map[string]bool{}
+		for _, candidate := range entries {
+			seen[candidate.Name] = true
+		}
+		var findings []Finding
+		for _, suffix := range []string{"_wal", "_shm"} {
+			if !seen[entry.Name+suffix] {
+				findings = append(findings, storageFinding("STORAGE_SQLITE_SIDECAR_UNDECLARED", SeverityWarning, ac, entry, "SQLite sidecar "+entry.Name+suffix+" is not declared", "Add storage entries for both the -wal and -shm sidecars."))
+			}
+		}
+		return findings
+	}
+	if entry.Subpath != "" {
+		base := entry.Subpath
+		if strings.HasSuffix(base, "-wal") {
+			base = strings.TrimSuffix(base, "-wal")
+		} else if strings.HasSuffix(base, "-shm") {
+			base = strings.TrimSuffix(base, "-shm")
+		}
+		seen := map[string]bool{}
+		for _, candidate := range entries {
+			seen[candidate.Subpath] = true
+			seen[candidate.Name] = true
+		}
+		var findings []Finding
+		for _, suffix := range []string{"-wal", "-shm"} {
+			wanted := base + suffix
+			if !seen[wanted] && !seen[entry.Name+strings.ReplaceAll(suffix, "-", "_")] {
+				findings = append(findings, storageFinding("STORAGE_SQLITE_SIDECAR_UNDECLARED", SeverityWarning, ac, entry, "SQLite sidecar "+wanted+" is not declared", "Add storage entries for both the -wal and -shm sidecars."))
+			}
+		}
+		return findings
+	}
 	base := strings.TrimSuffix(filepath.ToSlash(entry.Path.Value), "-wal")
 	base = strings.TrimSuffix(base, "-shm")
 	seen := map[string]bool{}

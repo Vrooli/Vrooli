@@ -21,7 +21,7 @@ Every scenario built for Vrooli can instantly become an Android app through this
 - [x] OT-P0-001 | API Health Check | Health endpoint operational at /health and /api/v1/health, schema-compliant with readiness field
 - [x] OT-P0-002 | UI Server | UI server running with schema-compliant health checks including API connectivity monitoring
 - [x] OT-P0-003 | CLI Tool | scenario-to-android CLI installed and functional with help/status commands
-- [x] OT-P0-004 | Android Templates | Base Android project templates in initialization/templates/
+- [x] OT-P0-004 | Android Templates | Base Android project templates in api/internal/<domain>/templates/
 - [x] OT-P0-005 | Build API Endpoint | /api/v1/android/build endpoint for APK generation
 - [x] OT-P0-006 | Build Status Endpoint | /api/v1/android/status/{build_id} for tracking builds
 - [x] OT-P0-007 | JavaScript Bridge | Full VrooliJSInterface with device info, permissions, storage, vibration
@@ -62,7 +62,7 @@ Key architectural choices:
 ## 🤝 Dependencies & Launch Plan
 
 **Required Local Resources**:
-- n8n: Orchestrate build pipeline and workflow management (shared workflows in initialization/n8n/)
+- n8n: Orchestrate build pipeline and workflow management (shared workflows in api/internal/<domain>/n8n/)
 
 **Optional Local Resources**:
 - MinIO: Store APKs and build artifacts (fallback: local filesystem)

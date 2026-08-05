@@ -89,8 +89,6 @@ type DependencyDetector interface {
 	ScanResources(scenarioPath, scenarioName string, cfg interface{}) (interface{}, error)
 	// ScanScenarioDependencies returns detected scenario-to-scenario edges.
 	ScanScenarioDependencies(scenarioPath, scenarioName string) (interface{}, error)
-	// ScanSharedWorkflows detects shared workflow references.
-	ScanSharedWorkflows(scenarioPath, scenarioName string) (interface{}, error)
 }
 
 // Dependencies aggregates all seam interfaces for convenient injection.

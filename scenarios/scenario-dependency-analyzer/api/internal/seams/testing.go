@@ -298,10 +298,8 @@ type MockDetector struct {
 	resources           map[string]struct{}
 	detectedResources   interface{}
 	detectedScenarios   interface{}
-	detectedWorkflows   interface{}
 	ScanResourcesErr    error
 	ScanScenarioDepsErr error
-	ScanWorkflowsErr    error
 }
 
 // NewMockDetector creates an empty mock detector.
@@ -358,15 +356,6 @@ func (m *MockDetector) ScanScenarioDependencies(scenarioPath, scenarioName strin
 	return m.detectedScenarios, nil
 }
 
-func (m *MockDetector) ScanSharedWorkflows(scenarioPath, scenarioName string) (interface{}, error) {
-	if m.ScanWorkflowsErr != nil {
-		return nil, m.ScanWorkflowsErr
-	}
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.detectedWorkflows, nil
-}
-
 // AddScenario adds a known scenario to the mock detector.
 func (m *MockDetector) AddScenario(name string) {
 	m.mu.Lock()
@@ -393,13 +382,6 @@ func (m *MockDetector) SetDetectedScenarios(scenarios interface{}) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.detectedScenarios = scenarios
-}
-
-// SetDetectedWorkflows sets the workflows that will be returned by ScanSharedWorkflows.
-func (m *MockDetector) SetDetectedWorkflows(workflows interface{}) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.detectedWorkflows = workflows
 }
 
 // NewTestDependencies creates Dependencies with test doubles.

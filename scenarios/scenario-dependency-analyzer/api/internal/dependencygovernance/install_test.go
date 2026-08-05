@@ -109,7 +109,7 @@ func TestInstallDependencyDryRunDoesNotInstall(t *testing.T) {
 	if !resp.Msg.GetDryRun() || resp.Msg.GetInstalled() {
 		t.Fatalf("dry run resp = %#v", resp.Msg)
 	}
-	if resp.Msg.GetCommand() != "pnpm add react-hook-form@7.2.0" {
+	if resp.Msg.GetCommand() != "pnpm add --ignore-scripts react-hook-form@7.2.0" {
 		t.Fatalf("command = %q", resp.Msg.GetCommand())
 	}
 

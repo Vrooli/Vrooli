@@ -16,7 +16,7 @@ import (
 // resource_scanner.go - Resource dependency detection
 //
 // This file contains the logic for scanning scenario files to detect
-// resource dependencies through CLI commands, heuristics, and initialization files.
+// resource dependencies through CLI commands and heuristics.
 
 // resourceScanner handles resource dependency detection
 type resourceScanner struct {
@@ -78,11 +78,6 @@ func (s *resourceScanner) scan(scenarioPath, scenarioName string, cfg *types.Ser
 
 		return nil
 	})
-
-	// Augment with resources declared in initialization
-	if cfg != nil {
-		s.augmentWithInitialization(results, scenarioName, cfg)
-	}
 
 	// Convert map to sorted slice
 	deps := make([]types.ScenarioDependency, 0, len(results))
@@ -173,33 +168,6 @@ func (s *resourceScanner) recordDetection(
 	results[canonical] = entry
 }
 
-// augmentWithInitialization adds resources that have initialization files
-func (s *resourceScanner) augmentWithInitialization(
-	results map[string]types.ScenarioDependency,
-	scenarioName string,
-	cfg *types.ServiceConfig,
-) {
-	resources := resolvedResourceMap(cfg)
-
-	for resourceName, resource := range resources {
-		if len(resource.Initialization) == 0 {
-			continue
-		}
-
-		canonical := normalizeName(resourceName)
-		if canonical == "" {
-			continue
-		}
-
-		files := extractInitializationFiles(resource.Initialization)
-
-		entry := ensureResourceEntry(results, scenarioName, canonical, "Initialization data references this resource", "initialization", nil)
-		markInitialization(&entry, files)
-
-		results[canonical] = entry
-	}
-}
-
 func ensureResourceEntry(
 	results map[string]types.ScenarioDependency,
 	scenarioName, canonical, purpose, method string,
@@ -250,20 +218,4 @@ func existingMatches(raw interface{}) []map[string]interface{} {
 		return cast
 	}
 	return []map[string]interface{}{}
-}
-
-func markInitialization(entry *types.ScenarioDependency, files []string) {
-	if entry.Configuration == nil {
-		entry.Configuration = map[string]interface{}{}
-	}
-	entry.Configuration["initialization_detected"] = true
-
-	if len(files) == 0 {
-		return
-	}
-
-	entry.Configuration["initialization_files"] = mergeInitializationFiles(
-		entry.Configuration["initialization_files"],
-		files,
-	)
 }

@@ -55,7 +55,6 @@ type Resource struct {
 	Enabled        bool                     `json:"enabled"`
 	Required       bool                     `json:"required"`
 	Purpose        string                   `json:"purpose"`
-	Initialization []map[string]interface{} `json:"initialization,omitempty"`
 	Models         []string                 `json:"models,omitempty"`
 }
 

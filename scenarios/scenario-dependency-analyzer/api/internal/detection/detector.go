@@ -62,7 +62,6 @@ func (d *Detector) ScenarioCatalog() map[string]struct{} {
 // It scans the scenario directory for:
 //   - Explicit resource CLI commands (e.g., "resource-postgres")
 //   - Resource usage patterns via heuristics (connection strings, env vars)
-//   - Resources referenced in initialization files
 //
 // Returns a list of detected resource dependencies.
 func (d *Detector) ScanResources(scenarioPath, scenarioName string, cfg *types.ServiceConfig) ([]types.ScenarioDependency, error) {
@@ -79,14 +78,4 @@ func (d *Detector) ScanResources(scenarioPath, scenarioName string, cfg *types.S
 // Returns a list of detected scenario dependencies.
 func (d *Detector) ScanScenarioDependencies(scenarioPath, scenarioName string) ([]types.ScenarioDependency, error) {
 	return d.scenarioScanner.scanDependencies(scenarioPath, scenarioName)
-}
-
-// ScanSharedWorkflows detects shared workflow references.
-//
-// It scans the initialization directory for workflow files (n8n, huginn, windmill)
-// that reference shared workflow templates.
-//
-// Returns a list of detected workflow dependencies.
-func (d *Detector) ScanSharedWorkflows(scenarioPath, scenarioName string) ([]types.ScenarioDependency, error) {
-	return d.scenarioScanner.scanWorkflows(scenarioPath, scenarioName)
 }

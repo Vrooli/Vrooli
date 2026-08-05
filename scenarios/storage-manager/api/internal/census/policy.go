@@ -52,7 +52,7 @@ func defaultPolicy() ScanPolicy {
 	}
 }
 
-func resolvePolicy(displayRoot string, input ScanPolicy, deviceScoped bool) (ScanPolicy, []string, []string, error) {
+func resolvePolicy(displayRoot string, input ScanPolicy, deviceScoped bool, filesystem FileSystem) (ScanPolicy, []string, []string, error) {
 	policy := input
 	if policy.FloorBytes <= 0 {
 		policy.FloorBytes = defaultCensusFloorBytes
@@ -60,7 +60,7 @@ func resolvePolicy(displayRoot string, input ScanPolicy, deviceScoped bool) (Sca
 	deviceRoot := displayRoot
 	if deviceScoped {
 		var err error
-		deviceRoot, err = deviceRootForPath(displayRoot)
+		deviceRoot, err = deviceRootForPathWith(filesystem, displayRoot)
 		if err != nil {
 			return ScanPolicy{}, nil, nil, err
 		}

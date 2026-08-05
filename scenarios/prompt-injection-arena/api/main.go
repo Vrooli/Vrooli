@@ -9,6 +9,7 @@ import (
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"net/http"
+	schema "prompt-injection-arena-api/internal/injection"
 	"strconv"
 	"time"
 
@@ -1172,6 +1173,10 @@ func main() {
 	// Initialize database
 	initDB()
 	defer db.Close()
+
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		logger.Fatal("Database schema initialization failed", map[string]interface{}{"error": err.Error()})
+	}
 
 	// Initialize vector search (non-blocking)
 	go func() {

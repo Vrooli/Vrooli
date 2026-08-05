@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	apidb "github.com/vrooli/api-core/database"
 	corestorage "github.com/vrooli/api-core/storage"
@@ -198,5 +199,30 @@ func TestSnapshotStorePersistsHistoryAndGrowthSlope(t *testing.T) {
 	}
 	if second.GrowthSlopeBytesPerHour == nil || math.IsNaN(*second.GrowthSlopeBytesPerHour) {
 		t.Fatalf("growth slope = %v", second.GrowthSlopeBytesPerHour)
+	}
+}
+
+func TestSnapshotStoreLatestReturnsAgeAndStalenessWithoutRescanning(t *testing.T) {
+	database := apidb.NewFromPrimary(db.NewSQLite(t))
+	store := NewSnapshotStore(database)
+	if _, err := database.ExecContext(context.Background(), censusSchemaSQL); err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	observed := time.Now().UTC().Add(-time.Hour)
+	report := Report{SnapshotID: "snapshot-old", Root: root, ObservedAt: observed, MeasuredBytes: 42, AttributedBytes: 42, UnattributedBytes: 0, Closed: true, AccountingIdentity: true, Confidence: "full", Entries: []Entry{}, ScanPolicy: ScanPolicy{FloorBytes: 1}}
+	payload, err := json.Marshal(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.ExecContext(context.Background(), `INSERT INTO census_snapshots (id, observed_at, root, measured_bytes, attributed_bytes, unattributed_bytes, confidence, report_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, report.SnapshotID, observed.Format(time.RFC3339Nano), root, report.MeasuredBytes, report.AttributedBytes, report.UnattributedBytes, report.Confidence, string(payload)); err != nil {
+		t.Fatal(err)
+	}
+	latest, err := store.Latest(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if latest == nil || latest.StalenessVerdict != "stale" || latest.SnapshotAgeSeconds == nil || *latest.SnapshotAgeSeconds < 3000 {
+		t.Fatalf("latest snapshot = %+v", latest)
 	}
 }

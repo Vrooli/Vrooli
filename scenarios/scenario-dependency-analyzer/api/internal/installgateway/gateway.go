@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"unicode"
 )
 
 // Resolution is the resolved install plan for a request: where it runs, which
@@ -23,11 +24,45 @@ type Resolution struct {
 	PackageManager string
 	ManifestPath   string
 	Argv           []string
+	Profile        InstallProfile
 }
 
-// Command renders the argv as a copy-pasteable shell line.
+// InstallProfile records the security properties of a governed mutation. It
+// is data, not a shell wrapper, so the same policy is inspectable on Linux,
+// macOS, and Windows.
+type InstallProfile struct {
+	FrozenLockfile  bool   `json:"frozen_lockfile"`
+	ScriptsDisabled bool   `json:"scripts_disabled"`
+	LifecycleMode   string `json:"lifecycle_mode"`
+	Governance      string `json:"governance"`
+}
+
+type ProtectedBuildException struct {
+	Owner      string `json:"owner"`
+	Reason     string `json:"reason"`
+	Command    string `json:"command"`
+	PolicyMode string `json:"policy_mode"`
+}
+
+func ValidateProtectedBuildException(exception ProtectedBuildException) error {
+	if strings.TrimSpace(exception.Owner) == "" || strings.TrimSpace(exception.Reason) == "" || strings.TrimSpace(exception.Command) == "" {
+		return fmt.Errorf("protected build exception requires owner, reason, and command")
+	}
+	if exception.PolicyMode != "guided" && exception.PolicyMode != "guarded" && exception.PolicyMode != "enforcing" {
+		return fmt.Errorf("protected build exception policy_mode must be guided, guarded, or enforcing")
+	}
+	return nil
+}
+
+// Command is display-only text for the existing response contract. Execution
+// always uses Argv with exec.CommandContext; callers must never feed this
+// string to a shell.
 func (r Resolution) Command() string {
-	return strings.Join(r.Argv, " ")
+	parts := make([]string, 0, len(r.Argv))
+	for _, arg := range r.Argv {
+		parts = append(parts, displayArg(arg))
+	}
+	return strings.Join(parts, " ")
 }
 
 // PackageInstaller executes a resolved install plan. The real implementation
@@ -41,8 +76,8 @@ type PackageInstaller interface {
 type ExecInstaller struct{}
 
 func (ExecInstaller) Install(ctx context.Context, r Resolution) (string, error) {
-	if len(r.Argv) == 0 {
-		return "", fmt.Errorf("no install command resolved")
+	if err := validateResolution(r); err != nil {
+		return "", err
 	}
 	cmd := exec.CommandContext(ctx, r.Argv[0], r.Argv[1:]...)
 	cmd.Dir = r.SurfaceRoot
@@ -61,6 +96,12 @@ var allowedSurfaces = map[string]struct{}{"ui": {}, "api": {}, "cli": {}, "playw
 // It validates the surface exists and that the ecosystem
 // matches the surface's detected package manager, and builds the install argv.
 func Resolve(repoRoot, scenario, surface, ecosystem, packageName, version string) (Resolution, error) {
+	if err := validateScenarioName(scenario); err != nil {
+		return Resolution{}, err
+	}
+	if err := validatePackageSpec(packageName, version); err != nil {
+		return Resolution{}, err
+	}
 	surface, err := normalizedSurface(surface)
 	if err != nil {
 		return Resolution{}, err
@@ -83,13 +124,68 @@ func Resolve(repoRoot, scenario, surface, ecosystem, packageName, version string
 		PackageManager: manager,
 		ManifestPath:   manifest,
 		Argv:           argv,
+		Profile:        SafeProfileFor(manager, argv),
 	}, nil
+}
+
+func SafeProfileFor(manager string, argv []string) InstallProfile {
+	profile := InstallProfile{Governance: "scenario-dependency-analyzer", LifecycleMode: "native-governed"}
+	for _, arg := range argv {
+		if arg == "--ignore-scripts" || arg == "--ignore-script" {
+			profile.ScriptsDisabled = true
+		}
+		if arg == "--frozen-lockfile" || arg == "--frozen" || arg == "--immutable" || arg == "--locked" || arg == "ci" {
+			profile.FrozenLockfile = true
+		}
+	}
+	joined := strings.Join(argv, " ")
+	if strings.Contains(joined, "go mod download") || strings.Contains(joined, "cargo fetch --locked") || strings.Contains(joined, "poetry install --sync") || strings.Contains(joined, "pip install --require-hashes") {
+		profile.FrozenLockfile = true
+	}
+	if manager == "pnpm" || manager == "npm" || manager == "yarn" || manager == "bun" {
+		profile.LifecycleMode = "scripts-disabled-by-default"
+	}
+	return profile
+}
+
+// FrozenReproductionArgs returns the read-only, lockfile-reproducing command
+// for a package manager. Mutating installs and reproduction are intentionally
+// separate operations: additions go through Resolve, while CI/validation uses
+// this function so a lockfile cannot be silently rewritten and lifecycle
+// scripts stay disabled.
+func FrozenReproductionArgs(manager string) ([]string, error) {
+	manager = strings.ToLower(strings.TrimSpace(manager))
+	var argv []string
+	switch manager {
+	case "npm":
+		argv = []string{"npm", "ci", "--ignore-scripts"}
+	case "pnpm":
+		argv = []string{"pnpm", "install", "--frozen-lockfile", "--ignore-scripts"}
+	case "yarn":
+		argv = []string{"yarn", "install", "--immutable", "--ignore-scripts"}
+	case "bun":
+		argv = []string{"bun", "install", "--frozen-lockfile", "--ignore-scripts"}
+	case "go":
+		argv = []string{"go", "mod", "download"}
+	case "pip":
+		argv = []string{"pip", "install", "--require-hashes", "-r", "requirements.txt", "--no-build-isolation"}
+	case "poetry":
+		argv = []string{"poetry", "install", "--sync", "--no-root"}
+	case "cargo":
+		argv = []string{"cargo", "fetch", "--locked"}
+	default:
+		return nil, fmt.Errorf("unsupported package manager %q", manager)
+	}
+	return argv, nil
 }
 
 // ResolveNpmOverride builds a lockfile-refresh plan for a governed pnpm
 // resolver override. The caller persists the override only after governance
 // accepts it, then this command regenerates the lock without hand-editing it.
 func ResolveNpmOverride(repoRoot, scenario, surface string) (Resolution, error) {
+	if err := validateScenarioName(scenario); err != nil {
+		return Resolution{}, err
+	}
 	surface, err := normalizedSurface(surface)
 	if err != nil {
 		return Resolution{}, err
@@ -101,16 +197,19 @@ func ResolveNpmOverride(repoRoot, scenario, surface string) (Resolution, error) 
 	if manager := jsManager(surfaceRoot); manager != "pnpm" {
 		return Resolution{}, fmt.Errorf("npm overrides require a pnpm surface, got %s", manager)
 	}
-	argv := []string{"pnpm", "install"}
+	argv := []string{"pnpm", "install", "--ignore-scripts"}
 	if fileExists(filepath.Join(surfaceRoot, "pnpm-workspace.yaml")) {
 		argv = append(argv, "--workspace-root")
 	}
-	return Resolution{SurfaceRoot: surfaceRoot, PackageManager: "pnpm", ManifestPath: filepath.Join(surfaceRoot, "package.json"), Argv: argv}, nil
+	return Resolution{SurfaceRoot: surfaceRoot, PackageManager: "pnpm", ManifestPath: filepath.Join(surfaceRoot, "package.json"), Argv: argv, Profile: SafeProfileFor("pnpm", argv)}, nil
 }
 
 // SetNpmOverride records a pnpm override in package.json. It intentionally
 // owns only manifest mutation; ResolveNpmOverride regenerates the lockfile.
 func SetNpmOverride(manifestPath, packageName, version string) error {
+	if err := validatePackageSpec(packageName, version); err != nil {
+		return err
+	}
 	data, err := os.ReadFile(manifestPath)
 	if err != nil {
 		return fmt.Errorf("read package manifest: %w", err)
@@ -143,7 +242,7 @@ func normalizedSurface(surface string) (string, error) {
 		return surface, nil
 	}
 	parts := strings.Split(surface, "/")
-	if len(parts) == 2 && (parts[0] == "tools" || parts[0] == "platforms") && parts[1] != "" && parts[1] != "." && parts[1] != ".." && !strings.Contains(parts[1], `\\`) {
+	if len(parts) == 2 && (parts[0] == "tools" || parts[0] == "platforms") && parts[1] != "" && parts[1] != "." && parts[1] != ".." && !strings.ContainsAny(parts[1], `/\\`) {
 		return surface, nil
 	}
 	return "", fmt.Errorf("surface %q is not ui/api/cli/playwright-driver, tools/<package>, or platforms/<package>", surface)
@@ -155,6 +254,9 @@ func planForEcosystem(surfaceRoot, ecosystem, packageName, version string) (mana
 	switch ecosystem {
 	case "npm", "node", "js", "ts", "typescript":
 		manager = jsManager(surfaceRoot)
+		if manager == "" {
+			return "", "", nil, fmt.Errorf("javascript package manager evidence is missing; provide exactly one supported lockfile")
+		}
 		manifest = filepath.Join(surfaceRoot, "package.json")
 		devDependency, err := existingJSDevDependency(manifest, packageName)
 		if err != nil {
@@ -166,20 +268,20 @@ func planForEcosystem(surfaceRoot, ecosystem, packageName, version string) (mana
 		}
 		switch manager {
 		case "npm":
-			argv = []string{"npm", "install"}
+			argv = []string{"npm", "install", "--ignore-scripts"}
 			if devDependency {
 				argv = append(argv, "--save-dev")
 			}
 			argv = append(argv, spec)
 		case "yarn":
-			argv = []string{"yarn", "add"}
+			argv = []string{"yarn", "add", "--ignore-scripts"}
 			if devDependency {
 				argv = append(argv, "--dev")
 			}
 			argv = append(argv, spec)
 		default:
 			manager = "pnpm"
-			argv = []string{"pnpm", "add"}
+			argv = []string{"pnpm", "add", "--ignore-scripts"}
 			if devDependency {
 				argv = append(argv, "-D")
 			}
@@ -192,6 +294,9 @@ func planForEcosystem(surfaceRoot, ecosystem, packageName, version string) (mana
 			argv = append(argv, spec)
 		}
 	case "go", "golang":
+		if !fileExists(filepath.Join(surfaceRoot, "go.mod")) {
+			return "", "", nil, fmt.Errorf("go module evidence is missing: go.mod")
+		}
 		manager = "go"
 		manifest = filepath.Join(surfaceRoot, "go.mod")
 		spec := packageName
@@ -208,13 +313,26 @@ func planForEcosystem(surfaceRoot, ecosystem, packageName, version string) (mana
 			manager = "poetry"
 			manifest = filepath.Join(surfaceRoot, "pyproject.toml")
 			argv = []string{"poetry", "add", spec}
-		} else {
+		} else if fileExists(filepath.Join(surfaceRoot, "requirements.txt")) {
 			manager = "pip"
 			manifest = filepath.Join(surfaceRoot, "requirements.txt")
 			argv = []string{"pip", "install", spec}
+		} else {
+			return "", "", nil, fmt.Errorf("python package-manager evidence is missing: requirements.txt, pyproject.toml, or poetry.lock")
 		}
+	case "rust", "cargo":
+		if !fileExists(filepath.Join(surfaceRoot, "Cargo.toml")) {
+			return "", "", nil, fmt.Errorf("rust package-manager evidence is missing: Cargo.toml")
+		}
+		manager = "cargo"
+		manifest = filepath.Join(surfaceRoot, "Cargo.toml")
+		spec := packageName
+		if v := strings.TrimSpace(version); v != "" {
+			spec += "@" + v
+		}
+		argv = []string{"cargo", "add", spec}
 	default:
-		return "", "", nil, fmt.Errorf("unsupported ecosystem %q (want npm, go, or pip)", ecosystem)
+		return "", "", nil, fmt.Errorf("unsupported ecosystem %q (want npm, go, pip, or cargo)", ecosystem)
 	}
 	return manager, manifest, argv, nil
 }
@@ -241,8 +359,8 @@ func existingJSDevDependency(manifestPath, packageName string) (bool, error) {
 	return isDevDependency, nil
 }
 
-// jsManager picks the JS package manager from the surface lockfiles, defaulting
-// to pnpm (the Vrooli convention).
+// jsManager picks the JS package manager from lockfile evidence. An absent or
+// ambiguous lockfile is unknown; callers must not infer pnpm from convention.
 func jsManager(root string) string {
 	switch {
 	case fileExists(filepath.Join(root, "pnpm-lock.yaml")):
@@ -252,8 +370,77 @@ func jsManager(root string) string {
 	case fileExists(filepath.Join(root, "yarn.lock")):
 		return "yarn"
 	default:
-		return "pnpm"
+		return ""
 	}
+}
+
+func validateScenarioName(scenario string) error {
+	scenario = strings.TrimSpace(scenario)
+	if scenario == "" || scenario == "." || scenario == ".." || strings.ContainsAny(scenario, `/\\`) {
+		return fmt.Errorf("scenario must be a single safe scenario name")
+	}
+	for _, r := range scenario {
+		if unicode.IsControl(r) {
+			return fmt.Errorf("scenario contains a control character")
+		}
+	}
+	return nil
+}
+
+func validatePackageSpec(packageName, version string) error {
+	packageName = strings.TrimSpace(packageName)
+	version = strings.TrimSpace(version)
+	if packageName == "" {
+		return fmt.Errorf("package name is required")
+	}
+	if strings.HasPrefix(packageName, "-") || strings.ContainsAny(packageName, "\x00\r\n;|&`$()<>\t ") {
+		return fmt.Errorf("package name must be one package spec and cannot contain shell syntax or flags")
+	}
+	if strings.Contains(packageName, "../") || strings.Contains(packageName, `/..`) {
+		return fmt.Errorf("package name cannot contain path traversal")
+	}
+	if strings.HasPrefix(version, "-") || strings.ContainsAny(version, "\x00\r\n;|&`$()<>\t ") {
+		return fmt.Errorf("version must be one package spec and cannot contain shell syntax or flags")
+	}
+	return nil
+}
+
+func validateResolution(resolution Resolution) error {
+	if len(resolution.Argv) == 0 {
+		return fmt.Errorf("no install command resolved")
+	}
+	if strings.TrimSpace(resolution.SurfaceRoot) == "" {
+		return fmt.Errorf("install surface root is required")
+	}
+	info, err := os.Stat(resolution.SurfaceRoot)
+	if err != nil || !info.IsDir() {
+		return fmt.Errorf("install surface root is not a directory")
+	}
+	for i, arg := range resolution.Argv {
+		if strings.TrimSpace(arg) == "" || strings.ContainsAny(arg, "\x00\r\n") {
+			return fmt.Errorf("argv[%d] is invalid", i)
+		}
+		if i > 0 && arg == "--" {
+			return fmt.Errorf("argv contains an unexpected terminator")
+		}
+	}
+	return nil
+}
+
+func displayArg(arg string) string {
+	if arg != "" {
+		safe := true
+		for _, r := range arg {
+			if !(unicode.IsLetter(r) || unicode.IsDigit(r) || strings.ContainsRune("_./:@+^~=,-", r)) {
+				safe = false
+				break
+			}
+		}
+		if safe {
+			return arg
+		}
+	}
+	return "'" + strings.ReplaceAll(arg, "'", "'\\''") + "'"
 }
 
 func fileExists(path string) bool {

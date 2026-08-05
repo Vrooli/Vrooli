@@ -11,11 +11,15 @@ import (
 // by st_dev avoids assuming that a user's home lives on /, which is common on
 // managed hosts and desktop installations.
 func deviceRootForPath(path string) (string, error) {
+	return deviceRootForPathWith(hostFileSystem{}, path)
+}
+
+func deviceRootForPathWith(filesystem FileSystem, path string) (string, error) {
 	path, err := filepath.Abs(path)
 	if err != nil {
 		return "", err
 	}
-	meta, err := inspectPath(path)
+	meta, err := inspectPathWith(filesystem, path)
 	if err != nil {
 		return "", fmt.Errorf("inspect runtime path %s: %w", path, err)
 	}
@@ -28,7 +32,7 @@ func deviceRootForPath(path string) (string, error) {
 		if parent == current {
 			return current, nil
 		}
-		parentMeta, statErr := inspectPath(parent)
+		parentMeta, statErr := inspectPathWith(filesystem, parent)
 		if statErr != nil || !parentMeta.identity.valid || parentMeta.device != meta.device {
 			return current, nil
 		}

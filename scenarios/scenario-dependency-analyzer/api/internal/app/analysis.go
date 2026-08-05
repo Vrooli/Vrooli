@@ -117,11 +117,6 @@ func (a *Analyzer) collectDetections(response *types.DependencyAnalysisResponse,
 		response.Scenarios = append(response.Scenarios, scenarioDeps...)
 	}
 
-	if workflowDeps, err := a.detector.ScanSharedWorkflows(scenarioPath, scenarioName); err != nil {
-		log.Printf("Warning: failed to scan for shared workflows: %v", err)
-	} else {
-		response.SharedWorkflows = append(response.SharedWorkflows, workflowDeps...)
-	}
 }
 
 func (a *Analyzer) persistAnalysisResults(
@@ -186,7 +181,6 @@ func extractDeclaredResourcesWithSeams(scenarioName string, cfg *types.ServiceCo
 				"purpose":    resource.Purpose,
 				"declared":   true,
 				"models":     resource.Models,
-				"init_files": resource.Initialization,
 			},
 			DiscoveredAt: now,
 			LastVerified: now,

@@ -6,6 +6,8 @@ var scenarioOwnerKinds = []corestorage.OwnerKind{corestorage.OwnerScenario}
 
 func (storageEntryConformance) Kinds() []corestorage.OwnerKind { return nil }
 func (crossPlatform) Kinds() []corestorage.OwnerKind           { return nil }
+func (storageCorrespondence) Kinds() []corestorage.OwnerKind   { return nil }
+func (storageCoverage) Kinds() []corestorage.OwnerKind         { return nil }
 
 func (backupTargetMissing) Kinds() []corestorage.OwnerKind { return scenarioOwnerKinds }
 func (migrationDebt) Kinds() []corestorage.OwnerKind       { return scenarioOwnerKinds }
@@ -15,9 +17,10 @@ func (isoFileRoutedSeams) Kinds() []corestorage.OwnerKind { return scenarioOwner
 func (isoUnverified) Kinds() []corestorage.OwnerKind      { return scenarioOwnerKinds }
 func (isoNamespace) Kinds() []corestorage.OwnerKind       { return scenarioOwnerKinds }
 
-func (schemaHasAlter) Kinds() []corestorage.OwnerKind       { return scenarioOwnerKinds }
-func (schemaNotIdempotent) Kinds() []corestorage.OwnerKind  { return scenarioOwnerKinds }
-func (schemaCentralized) Kinds() []corestorage.OwnerKind    { return scenarioOwnerKinds }
+func (schemaHasAlter) Kinds() []corestorage.OwnerKind      { return scenarioOwnerKinds }
+func (schemaNotIdempotent) Kinds() []corestorage.OwnerKind { return scenarioOwnerKinds }
+func (schemaCentralized) Kinds() []corestorage.OwnerKind   { return scenarioOwnerKinds }
+
 func (schemaNotPerDomain) Kinds() []corestorage.OwnerKind   { return scenarioOwnerKinds }
 func (schemaEnsureNotWired) Kinds() []corestorage.OwnerKind { return scenarioOwnerKinds }
 func (schemaSystemNotEmpty) Kinds() []corestorage.OwnerKind { return scenarioOwnerKinds }

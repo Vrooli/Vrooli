@@ -2,6 +2,7 @@ package policy
 
 import (
 	"testing"
+	"time"
 
 	"storage-manager/internal/cleanup"
 )
@@ -56,5 +57,16 @@ func TestValidateProviderPolicyRejectsUnsafeOverrides(t *testing.T) {
 	)
 	if err == nil {
 		t.Fatal("ValidateProviderPolicy() expected forbidden enablement error")
+	}
+}
+
+func TestBalancedProfileKeepsGoBuildCacheAtSevenDays(t *testing.T) {
+	profile, err := BuildProfile(ProfileBalanced, []cleanup.ProviderMetadata{{ID: "go-build-cache", Name: "Go build cache", Version: "v1", OwnerScenario: "storage-manager", SafetyTier: cleanup.SafetyTierSafe, DefaultMode: cleanup.ProviderModeDisabled, DefaultApproval: cleanup.ApprovalModeNone, SupportedPlatforms: []string{"linux"}, IrreversibleEffects: []string{"cache files removed"}, TestSubstitute: "fake"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := profile.Defaults["go-build-cache"]
+	if !got.Enabled || got.MinAge != 7*24*time.Hour {
+		t.Fatalf("go-build-cache balanced policy = %#v", got)
 	}
 }

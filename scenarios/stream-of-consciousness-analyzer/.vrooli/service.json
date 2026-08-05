@@ -1,7 +1,10 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
+  "storage": {
+    "entries": {},
+    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+  },
   "service": {
     "parent": "vrooli",
     "name": "stream-of-consciousness-analyzer",
@@ -171,13 +174,7 @@
         "enabled": true,
         "required": true,
         "description": "Primary relational data store for schemes, thoughts, edges, and information items",
-        "schema": "stream-of-consciousness-analyzer",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          }
-        ]
+        "schema": "stream-of-consciousness-analyzer"
       }
     }
   },

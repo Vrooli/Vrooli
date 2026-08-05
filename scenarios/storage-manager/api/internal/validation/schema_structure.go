@@ -259,6 +259,14 @@ func (a schemaCentralized) Analyze(_ context.Context, ac AnalyzerContext) ([]Fin
 	return findings, nil
 }
 
+// schemaNonTableNames are SQL keywords that can only appear in the table-name
+// capture when the pattern failed to reach a real identifier. They are never
+// legitimate table names here, so a match on one means "unrecognized", not
+// "a table called if".
+var schemaNonTableNames = map[string]struct{}{
+	"if": {}, "not": {}, "exists": {}, "table": {}, "temp": {}, "temporary": {},
+}
+
 // schemaCreatedTables returns the lowercased names of every table a schema text
 // CREATEs, in declaration order (deduplicated).
 func schemaCreatedTables(text string) []string {
@@ -271,6 +279,14 @@ func schemaCreatedTables(text string) []string {
 		}
 		name := schemaUnquote(m[1])
 		if name == "" {
+			continue
+		}
+		if _, kw := schemaNonTableNames[name]; kw {
+			// The name group backtracked onto a keyword because the real name
+			// was unmatchable — e.g. a templated identifier
+			// (`CREATE TABLE IF NOT EXISTS {{ scenario_id }}.foo`) leaves
+			// `if not exists` unconsumed and captures "if". Treat it as
+			// "no table recognized" rather than inventing one.
 			continue
 		}
 		if _, dup := seen[name]; dup {

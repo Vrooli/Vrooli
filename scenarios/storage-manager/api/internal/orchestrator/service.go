@@ -228,6 +228,7 @@ func (s *Service) Apply(ctx context.Context, input ApplyInput) (ApplyReport, err
 		return ApplyReport{}, err
 	}
 	_ = s.audit(ctx, AuditEvent{Type: "apply.completed", PlanID: plan.ID, IdempotencyKey: input.IdempotencyKey, Message: fmt.Sprintf("%d bytes", report.ReclaimedBytes)})
+	_ = s.audit(ctx, AuditEvent{Type: "plan.applied", PlanID: plan.ID, IdempotencyKey: input.IdempotencyKey, Message: fmt.Sprintf("%d bytes", report.ReclaimedBytes)})
 	return report, nil
 }
 

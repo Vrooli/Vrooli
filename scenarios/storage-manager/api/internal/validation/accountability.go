@@ -31,6 +31,8 @@ var reconciliationCodes = map[string]struct{}{
 	"STORAGE_PATH_BRANCH_MISSING":       {},
 	"STORAGE_PATH_UNACCOUNTED":          {},
 	"STORAGE_PATH_ORPHANED":             {},
+	"STORAGE_PATH_DIVERGENT":            {},
+	"STORAGE_PATH_UNCOVERED":            {},
 }
 
 // accountabilityFindings derives the declaration_accountability rung and emits
