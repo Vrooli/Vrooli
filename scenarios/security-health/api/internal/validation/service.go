@@ -16,6 +16,8 @@ type Service struct {
 	cmd      Commander
 	scanners []Scanner
 	logger   *log.Logger
+	policy   RolloutProfile
+	facts    FactDiscovery
 }
 
 // Deps wires the Service's seams. Commander and Scanners default to the real
@@ -25,6 +27,13 @@ type Deps struct {
 	Commander Commander
 	Scanners  []Scanner
 	Logger    *log.Logger
+	// FactDiscovery is the preferred Code Facts-backed substrate source. When
+	// nil, the bounded filesystem detector remains the explicit fallback.
+	FactDiscovery FactDiscovery
+	// PolicyMode defaults to advisory. Required callers opt into guarded or
+	// enforcing behavior explicitly; this keeps local development usable while
+	// making CI/release coverage fail closed.
+	PolicyMode RolloutProfile
 }
 
 // New constructs a Service. The scanner set defaults to DefaultScanners(cmd).
@@ -41,7 +50,11 @@ func New(d Deps) *Service {
 	if logger == nil {
 		logger = log.Default()
 	}
-	return &Service{repoRoot: d.RepoRoot, cmd: cmd, scanners: scanners, logger: logger}
+	policy := d.PolicyMode
+	if policy == "" {
+		policy = RolloutAdvisory
+	}
+	return &Service{repoRoot: d.RepoRoot, cmd: cmd, scanners: scanners, logger: logger, policy: policy, facts: d.FactDiscovery}
 }
 
 // DefaultScanners returns the v1 scanner set in stable order. gitleaks +
@@ -90,7 +103,19 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 		}}, nil), nil
 	}
 
-	sub, err := DetectSubstrate(scenarioDir)
+	var sub Substrate
+	var err error
+	if s.facts != nil {
+		facts, factErr := s.facts(ctx, scenarioDir)
+		if factErr != nil {
+			s.logger.Printf("[security-health] Code Facts discovery degraded for %q: %v", scenario, factErr)
+			sub, err = DetectSubstrate(scenarioDir)
+		} else {
+			sub = DetectSubstrateFromFacts(facts)
+		}
+	} else {
+		sub, err = DetectSubstrate(scenarioDir)
+	}
 	detect.End()
 	if err != nil {
 		return Report{}, fmt.Errorf("detect substrate for %q: %w", scenario, err)
@@ -125,13 +150,18 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 		if _, lookErr := s.cmd.LookPath(sc.Binary()); lookErr != nil {
 			skipped = append(skipped, sc.Name())
 			findings = append(findings, Finding{
-				RuleID:      "security-health.scanner-absent",
-				Severity:    SeverityInfo,
-				Title:       fmt.Sprintf("Scanner %q not installed", sc.Name()),
-				Description: fmt.Sprintf("The %q scanner applies to this scenario's substrate but its binary (%q) is not on PATH, so this class of issue was not checked.", sc.Name(), sc.Binary()),
-				Remediation: fmt.Sprintf("Install %q to enable this check (see docs/concepts/INTEGRATIONS.md). Until then this is informational, not a failure.", sc.Name()),
-				FilePath:    "",
-				Scanner:     sc.Name(),
+				RuleID:        "security-health.scanner-absent",
+				Severity:      coverageSeverity(s.policy),
+				Title:         fmt.Sprintf("Scanner %q not installed", sc.Name()),
+				Description:   fmt.Sprintf("The %q scanner applies to this scenario's substrate but its binary (%q) is not on PATH, so this class of issue was not checked.", sc.Name(), sc.Binary()),
+				Remediation:   fmt.Sprintf("Install %q to enable this check (see docs/concepts/INTEGRATIONS.md). Until then this is informational, not a failure.", sc.Name()),
+				FilePath:      "",
+				Scanner:       sc.Name(),
+				Class:         FindingScannerHealth,
+				EvidenceState: EvidenceUnavailable,
+				Confidence:    "degraded",
+				Owner:         "security-health",
+				PolicyImpact:  string(s.policy),
 			})
 			continue
 		}
@@ -139,13 +169,18 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 		if scanErr != nil {
 			s.logger.Printf("[security-health] scanner %q degraded for %q: %v", sc.Name(), scenario, scanErr)
 			findings = append(findings, Finding{
-				RuleID:      "security-health.scanner-degraded",
-				Severity:    SeverityInfo,
-				Title:       fmt.Sprintf("Scanner %q could not complete", sc.Name()),
-				Description: fmt.Sprintf("%q is installed but did not produce a parseable result: %v", sc.Name(), scanErr),
-				Remediation: fmt.Sprintf("Run %q against this scenario by hand to diagnose; until it completes this check is informational, not a failure.", sc.Name()),
-				FilePath:    "",
-				Scanner:     sc.Name(),
+				RuleID:        "security-health.scanner-degraded",
+				Severity:      coverageSeverity(s.policy),
+				Title:         fmt.Sprintf("Scanner %q could not complete", sc.Name()),
+				Description:   fmt.Sprintf("%q is installed but did not produce a parseable result: %v", sc.Name(), scanErr),
+				Remediation:   fmt.Sprintf("Run %q against this scenario by hand to diagnose; until it completes this check is informational, not a failure.", sc.Name()),
+				FilePath:      "",
+				Scanner:       sc.Name(),
+				Class:         FindingScannerHealth,
+				EvidenceState: EvidenceFailed,
+				Confidence:    "degraded",
+				Owner:         "security-health",
+				PolicyImpact:  string(s.policy),
 			})
 			continue
 		}
@@ -165,10 +200,39 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 			Scanner:     "security-health",
 		})
 	}
+	for _, target := range sub.Targets {
+		if target.Coverage != CoverageEvidence {
+			continue
+		}
+		findings = append(findings, Finding{
+			RuleID:        "security-health.coverage-evidence-only." + string(target.Ecosystem),
+			Severity:      coverageSeverity(s.policy),
+			Title:         fmt.Sprintf("%s dependency evidence is not vulnerability-scanned", target.Ecosystem),
+			Description:   target.Reason,
+			Remediation:   "Use the ecosystem adapter's supported scanner or register a provider before selecting a required policy.",
+			FilePath:      strings.Join(target.Manifests, ","),
+			Scanner:       "security-health",
+			Class:         FindingCoverage,
+			EvidenceState: EvidenceUnsupported,
+			Confidence:    "degraded",
+			Owner:         "security-health",
+			FixClass:      FixProhibited,
+			PolicyImpact:  string(s.policy),
+		})
+	}
 
 	sortFindings(findings)
 	sort.Strings(skipped)
-	return finalize(scenario, findings, dedupeStrings(skipped)), nil
+	report := finalize(scenario, findings, dedupeStrings(skipped))
+	report.PolicyMode = s.policy
+	return report, nil
+}
+
+func coverageSeverity(policy RolloutProfile) Severity {
+	if policy == RolloutGuarded || policy == RolloutEnforcing {
+		return SeverityError
+	}
+	return SeverityInfo
 }
 
 // sortFindings orders findings deterministically: severity (ERROR→WARNING→INFO),

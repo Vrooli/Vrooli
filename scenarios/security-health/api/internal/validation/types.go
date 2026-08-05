@@ -88,7 +88,32 @@ type Finding struct {
 	// Scanner names the tool that produced the finding ("gitleaks", "gosec",
 	// "govulncheck", "pnpm-audit", "osv-scanner"). Lets consumers group by tool.
 	Scanner string
+	// Class identifies the evidence family so vulnerability absence cannot be
+	// mistaken for lifecycle or integrity safety.
+	Class FindingClass
+	// Confidence and EvidenceState make unavailable/stale coverage explicit.
+	Confidence    string
+	EvidenceState EvidenceState
+	// Owner is the provider responsible for the next action.
+	Owner string
+	// FixClass prevents generic auto-fix behavior from being inferred from text.
+	FixClass       FixClass
+	FixPreviewable bool
+	PolicyImpact   string
 }
+
+type FindingClass string
+
+const (
+	FindingVulnerability FindingClass = "vulnerability"
+	FindingSecret        FindingClass = "secret"
+	FindingSAST          FindingClass = "sast"
+	FindingIntegrity     FindingClass = "integrity"
+	FindingLifecycle     FindingClass = "lifecycle"
+	FindingMalware       FindingClass = "malware"
+	FindingScannerHealth FindingClass = "scanner_health"
+	FindingCoverage      FindingClass = "coverage"
+)
 
 // Summary is a rollup of Finding counts by normalized severity.
 type Summary struct {
@@ -107,6 +132,7 @@ type Report struct {
 	// whose binary was not installed. Surfaced as degraded context, never a
 	// failure.
 	SkippedScanners []string
+	PolicyMode      RolloutProfile
 }
 
 // finalize sorts nothing (callers control ordering) but computes the summary
@@ -121,7 +147,9 @@ func finalize(scenario string, findings []Finding, skipped []string) Report {
 	}
 	var sum Summary
 	passed := true
-	for _, f := range findings {
+	for i, f := range findings {
+		findings[i] = normalizeFinding(f)
+		f = findings[i]
 		switch f.Severity {
 		case SeverityError:
 			sum.Errors++
@@ -138,5 +166,25 @@ func finalize(scenario string, findings []Finding, skipped []string) Report {
 		Findings:        findings,
 		Summary:         sum,
 		SkippedScanners: skipped,
+		PolicyMode:      RolloutAdvisory,
 	}
+}
+
+func normalizeFinding(f Finding) Finding {
+	if f.Class == "" {
+		f.Class = FindingVulnerability
+	}
+	if f.EvidenceState == "" {
+		f.EvidenceState = EvidenceClean
+	}
+	if f.Owner == "" {
+		f.Owner = "security-health"
+	}
+	if f.FixClass == "" {
+		f.FixClass = FixManual
+	}
+	if f.Confidence == "" {
+		f.Confidence = "advisory"
+	}
+	return f
 }

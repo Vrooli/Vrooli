@@ -89,13 +89,15 @@ func buildMaturityAssessment(rep validation.Report, spec *assessment.Spec) (*com
 	findings := make([]assessment.Finding, 0, len(rep.Findings))
 	for _, f := range rep.Findings {
 		findings = append(findings, assessment.Finding{
-			Code:        f.RuleID,
-			Severity:    severityToken(f.Severity),
-			Title:       f.Title,
-			Message:     f.Description,
-			Location:    f.FilePath,
-			Remediation: f.Remediation,
-			Phase:       spec.Phase,
+			Code:             f.RuleID,
+			Severity:         severityToken(f.Severity),
+			Title:            f.Title,
+			Message:          f.Description,
+			Location:         f.FilePath,
+			Remediation:      f.Remediation,
+			Phase:            spec.Phase,
+			AutofixAvailable: f.FixPreviewable,
+			FixClass:         string(f.FixClass),
 		})
 	}
 	return assessment.BuildProtoAssessment(assessment.BuildInput{

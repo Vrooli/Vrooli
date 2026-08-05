@@ -1,6 +1,8 @@
 package validation
 
 import (
+	"context"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -25,8 +27,51 @@ type Substrate struct {
 	// contain a pnpm-lock.yaml.
 	PnpmLockDirs []string
 	// Unsupported lists substrates we observed but do not scan in v1 (e.g.
-	// Python). Surfaced as an INFO observation, never a failure.
+	// an unregistered ecosystem). Surfaced as an INFO observation, never a
+	// failure.
 	Unsupported []string
+	// Targets are the adapter-driven construction facts used by scanners and
+	// policy. They are independent of directory names such as api/ or ui/.
+	Targets []EcosystemTarget
+}
+
+// FactDiscovery is the neutral seam for the Code Facts scenario. Production
+// wiring may provide Code Facts' bounded target/parse-unit projection; direct
+// CLI validation keeps the filesystem detector as an explicit degraded
+// fallback when that provider is unavailable.
+type FactDiscovery func(context.Context, string) ([]FactTarget, error)
+
+// DetectSubstrateFromFacts converts Code Facts evidence into the scanner
+// substrate shape without importing Code Facts transport or generated types.
+func DetectSubstrateFromFacts(facts []FactTarget) Substrate {
+	registry := DefaultAdapterRegistry()
+	targets := registry.DiscoverFromFacts(facts)
+	s := Substrate{Targets: targets}
+	unsupported := map[string]struct{}{}
+	for _, target := range targets {
+		if target.Coverage == CoverageUnsupported || target.Coverage == CoverageUnknown {
+			unsupported[string(target.Ecosystem)] = struct{}{}
+		}
+		for _, manifest := range target.Manifests {
+			base := filepath.Base(manifest)
+			dir := filepath.ToSlash(filepath.Dir(manifest))
+			if dir == "." {
+				dir = ""
+			}
+			switch base {
+			case "go.mod":
+				s.Go = true
+				s.GoModDirs = append(s.GoModDirs, dir)
+			case "pnpm-lock.yaml":
+				s.PnpmUI = true
+				s.PnpmLockDirs = append(s.PnpmLockDirs, dir)
+			}
+		}
+	}
+	s.GoModDirs = dedupeStrings(s.GoModDirs)
+	s.PnpmLockDirs = dedupeStrings(s.PnpmLockDirs)
+	s.Unsupported = sortedKeys(unsupported)
+	return s
 }
 
 // skipDirs are directories whose contents never represent first-party source
@@ -73,10 +118,6 @@ func DetectSubstrate(scenarioDir string) (Substrate, error) {
 		case "pnpm-lock.yaml":
 			s.PnpmUI = true
 			pnpmDirs[rel] = struct{}{}
-		case "requirements.txt", "pyproject.toml", "Pipfile":
-			unsupported["python"] = struct{}{}
-		case "Cargo.toml":
-			unsupported["rust"] = struct{}{}
 		}
 		return nil
 	})
@@ -86,6 +127,17 @@ func DetectSubstrate(scenarioDir string) (Substrate, error) {
 
 	s.GoModDirs = sortedKeys(goDirs)
 	s.PnpmLockDirs = sortedKeys(pnpmDirs)
+	registry := DefaultAdapterRegistry()
+	targets, err := registry.Discover(scenarioDir)
+	if err != nil {
+		return Substrate{}, fmt.Errorf("discover ecosystem adapters: %w", err)
+	}
+	s.Targets = targets
+	for _, target := range targets {
+		if target.Coverage == CoverageUnsupported || target.Coverage == CoverageUnknown {
+			unsupported[string(target.Ecosystem)] = struct{}{}
+		}
+	}
 	s.Unsupported = sortedKeys(unsupported)
 	return s, nil
 }

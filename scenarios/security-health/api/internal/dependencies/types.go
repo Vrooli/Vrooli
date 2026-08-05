@@ -18,6 +18,12 @@ const (
 	EcosystemUnspecified Ecosystem = ""
 	EcosystemGo          Ecosystem = "go"
 	EcosystemNPM         Ecosystem = "npm"
+	EcosystemYarn        Ecosystem = "yarn"
+	EcosystemBun         Ecosystem = "bun"
+	EcosystemPython      Ecosystem = "python"
+	EcosystemRust        Ecosystem = "rust"
+	EcosystemC           Ecosystem = "c"
+	EcosystemCPP         Ecosystem = "cpp"
 )
 
 // Mode selects the retrieval strategy for a Search.

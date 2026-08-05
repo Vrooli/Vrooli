@@ -171,6 +171,18 @@ func parseEcosystem(raw string) dependenciesv1.Ecosystem {
 		return dependenciesv1.Ecosystem_ECOSYSTEM_GO
 	case "npm":
 		return dependenciesv1.Ecosystem_ECOSYSTEM_NPM
+	case "yarn":
+		return dependenciesv1.Ecosystem_ECOSYSTEM_YARN
+	case "bun":
+		return dependenciesv1.Ecosystem_ECOSYSTEM_BUN
+	case "python", "pip":
+		return dependenciesv1.Ecosystem_ECOSYSTEM_PYTHON
+	case "rust", "cargo":
+		return dependenciesv1.Ecosystem_ECOSYSTEM_RUST
+	case "c":
+		return dependenciesv1.Ecosystem_ECOSYSTEM_C
+	case "cpp", "c++":
+		return dependenciesv1.Ecosystem_ECOSYSTEM_CPP
 	default:
 		return dependenciesv1.Ecosystem_ECOSYSTEM_UNSPECIFIED
 	}
@@ -195,6 +207,18 @@ func ecosystemLabel(e dependenciesv1.Ecosystem) string {
 		return "go"
 	case dependenciesv1.Ecosystem_ECOSYSTEM_NPM:
 		return "npm"
+	case dependenciesv1.Ecosystem_ECOSYSTEM_YARN:
+		return "yarn"
+	case dependenciesv1.Ecosystem_ECOSYSTEM_BUN:
+		return "bun"
+	case dependenciesv1.Ecosystem_ECOSYSTEM_PYTHON:
+		return "python"
+	case dependenciesv1.Ecosystem_ECOSYSTEM_RUST:
+		return "rust"
+	case dependenciesv1.Ecosystem_ECOSYSTEM_C:
+		return "c"
+	case dependenciesv1.Ecosystem_ECOSYSTEM_CPP:
+		return "cpp"
 	default:
 		return "?"
 	}

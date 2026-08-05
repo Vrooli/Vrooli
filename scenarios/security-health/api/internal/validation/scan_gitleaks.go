@@ -93,13 +93,17 @@ func (g *gitleaksScanner) Scan(ctx context.Context, scenarioDir string, _ Substr
 			remediation = "Gitignored files are the sanctioned home for local credentials; no action required unless the value is unexpectedly a real shared secret, in which case move it into the vault resource (resource-vault content set …)."
 		}
 		findings = append(findings, Finding{
-			RuleID:      "gitleaks." + nonEmpty(r.RuleID, "generic"),
-			Severity:    severity,
-			Title:       title,
-			Description: description,
-			Remediation: remediation,
-			FilePath:    fmt.Sprintf("%s:%d", filepath.ToSlash(r.File), r.StartLine),
-			Scanner:     g.Name(),
+			RuleID:       "gitleaks." + nonEmpty(r.RuleID, "generic"),
+			Severity:     severity,
+			Title:        title,
+			Description:  description,
+			Remediation:  remediation,
+			FilePath:     fmt.Sprintf("%s:%d", filepath.ToSlash(r.File), r.StartLine),
+			Scanner:      g.Name(),
+			Class:        FindingSecret,
+			Owner:        "vault-owner",
+			FixClass:     FixManual,
+			PolicyImpact: "credential-rotation-required",
 		})
 	}
 	return findings, nil

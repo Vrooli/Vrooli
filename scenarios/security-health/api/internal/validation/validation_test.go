@@ -73,8 +73,8 @@ func writeFile(t *testing.T, path, content string) {
 	}
 }
 
-// newScenarioTree builds a fake repo root with one scenario containing a Go
-// module, a pnpm UI, and a Python requirements file (unsupported).
+// newScenarioTree builds a fake repo root with one scenario containing Go,
+// JavaScript, and Python dependency surfaces in nested directories.
 func newScenarioTree(t *testing.T, id string) (repoRoot, scenarioDir string) {
 	t.Helper()
 	repoRoot = t.TempDir()
@@ -105,14 +105,10 @@ func TestDetectSubstrate(t *testing.T) {
 	if len(sub.PnpmLockDirs) != 1 || sub.PnpmLockDirs[0] != "ui" {
 		t.Errorf("PnpmLockDirs = %v, want [ui]", sub.PnpmLockDirs)
 	}
-	wantUnsupported := false
-	for _, u := range sub.Unsupported {
-		if u == "python" {
-			wantUnsupported = true
+	for _, target := range sub.Targets {
+		if target.Ecosystem == EcosystemPython && target.Coverage != CoverageSupported {
+			t.Errorf("python target coverage = %q, want supported", target.Coverage)
 		}
-	}
-	if !wantUnsupported {
-		t.Errorf("expected python in Unsupported, got %v", sub.Unsupported)
 	}
 }
 
@@ -492,6 +488,7 @@ func New(logger *log.Logger) *Server {
 	s.router.Use(middleware.NewLoggingMiddleware(nil, logger))
 	return s
 }
+
 `)
 	svc := New(Deps{RepoRoot: repoRoot, Commander: stubCommander{}})
 	scenario, candidates, messages, err := svc.PreviewFix(context.Background(), "demo", "", []string{CodeSecurityHeadersMissing})
@@ -523,6 +520,33 @@ func New(logger *log.Logger) *Server {
 	}
 	if !strings.Contains(string(serverAfter), "NewSecurityHeadersMiddleware") {
 		t.Fatalf("ApplyFix did not register security middleware:\n%s", serverAfter)
+	}
+}
+
+func TestSecurityHeadersApplyRejectsChangedPreview(t *testing.T) {
+	repoRoot, dir := newScenarioTree(t, "demo")
+	serverPath := filepath.Join(dir, "api", "internal", "server", "server.go")
+	writeFile(t, serverPath, `package server
+import "demo/internal/middleware"
+func New() { _ = middleware.NewSecurityHeadersMiddleware }
+`)
+	svc := New(Deps{RepoRoot: repoRoot, Commander: stubCommander{}})
+	_, candidates, _, err := svc.PreviewFix(context.Background(), "demo", "", []string{CodeSecurityHeadersMissing})
+	if err != nil || len(candidates) == 0 {
+		t.Fatalf("preview = %v %+v", err, candidates)
+	}
+	if err := os.MkdirAll(filepath.Dir(candidates[0].FilePath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(candidates[0].FilePath, []byte("changed"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	expected := map[string]string{}
+	for _, candidate := range candidates {
+		expected[candidate.FilePath] = candidate.PreviewDigest
+	}
+	if _, _, _, err := svc.ApplyFixWithPreviewDigests(context.Background(), "demo", "", []string{CodeSecurityHeadersMissing}, expected); err == nil {
+		t.Fatal("changed preview target was accepted")
 	}
 }
 

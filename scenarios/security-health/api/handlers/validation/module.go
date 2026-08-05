@@ -3,7 +3,9 @@ package validation
 import (
 	"context"
 	"log"
+	"os"
 	"path/filepath"
+	"strings"
 
 	"security-health/internal/module"
 	"security-health/internal/validation"
@@ -25,7 +27,11 @@ var ProtoFile = scenariovalidationv1.File_scenario_validation_v1_validation_prot
 // Connect-RPC service handler mounted at the generated procedure path. The
 // validator is constructed with the real exec/scanner seams rooted at repoRoot.
 func Module(logger *log.Logger, repoRoot string) module.Module {
-	validator := validation.New(validation.Deps{RepoRoot: repoRoot, Logger: logger})
+	policy := validation.RolloutProfile(strings.ToLower(strings.TrimSpace(os.Getenv("SECURITY_HEALTH_POLICY_MODE"))))
+	if policy != validation.RolloutAdvisory && policy != validation.RolloutGuided && policy != validation.RolloutGuarded && policy != validation.RolloutEnforcing {
+		policy = validation.RolloutAdvisory
+	}
+	validator := validation.New(validation.Deps{RepoRoot: repoRoot, Logger: logger, PolicyMode: policy})
 	scenarioDir := filepath.Join(repoRoot, "scenarios", "security-health")
 	spec, err := assessment.LoadSpecFromScenario(scenarioDir)
 	if err != nil && logger != nil {

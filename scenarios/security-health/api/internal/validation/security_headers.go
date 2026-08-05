@@ -2,6 +2,8 @@ package validation
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -47,26 +49,36 @@ func runSecurityHeaderChecks(scenarioDir string) ([]Finding, error) {
 	missing := missingRequiredHeaders(headerEvidence)
 	if len(missing) > 0 {
 		findings = append(findings, Finding{
-			RuleID:      CodeSecurityHeadersMissing,
-			Severity:    SeverityError,
-			Title:       "API security headers are not centralized",
-			Description: fmt.Sprintf("No first-party API middleware or server setup stamps the baseline security headers: %s.", strings.Join(missing, ", ")),
-			Remediation: "Add a router-level middleware that sets X-Content-Type-Options=nosniff, X-Frame-Options=DENY, X-XSS-Protection=0, and Strict-Transport-Security=max-age=31536000; includeSubDomains before handlers run.",
-			FilePath:    bestHeaderAnchor(scenarioDir, files),
-			Scanner:     "security-headers",
+			RuleID:         CodeSecurityHeadersMissing,
+			Severity:       SeverityError,
+			Title:          "API security headers are not centralized",
+			Description:    fmt.Sprintf("No first-party API middleware or server setup stamps the baseline security headers: %s.", strings.Join(missing, ", ")),
+			Remediation:    "Add a router-level middleware that sets X-Content-Type-Options=nosniff, X-Frame-Options=DENY, X-XSS-Protection=0, and Strict-Transport-Security=max-age=31536000; includeSubDomains before handlers run.",
+			FilePath:       bestHeaderAnchor(scenarioDir, files),
+			Scanner:        "security-headers",
+			Class:          FindingSAST,
+			Owner:          "security-health",
+			FixClass:       FixDeterministic,
+			FixPreviewable: true,
+			PolicyImpact:   "api-boundary-hardening",
 		})
 	}
 
 	findings = append(findings, insecureCORSFindings(scenarioDir, files)...)
 	if value, ok := headerEvidence["X-XSS-Protection"]; ok && value != "" && value != "0" {
 		findings = append(findings, Finding{
-			RuleID:      CodeSecurityHeadersLegacy,
-			Severity:    SeverityWarning,
-			Title:       "Legacy XSS auditor header enabled",
-			Description: fmt.Sprintf("X-XSS-Protection is set to %q. Modern browser guidance is to disable the legacy auditor with 0.", value),
-			Remediation: "Set X-XSS-Protection to 0 in the central security headers middleware.",
-			FilePath:    bestHeaderAnchor(scenarioDir, files),
-			Scanner:     "security-headers",
+			RuleID:         CodeSecurityHeadersLegacy,
+			Severity:       SeverityWarning,
+			Title:          "Legacy XSS auditor header enabled",
+			Description:    fmt.Sprintf("X-XSS-Protection is set to %q. Modern browser guidance is to disable the legacy auditor with 0.", value),
+			Remediation:    "Set X-XSS-Protection to 0 in the central security headers middleware.",
+			FilePath:       bestHeaderAnchor(scenarioDir, files),
+			Scanner:        "security-headers",
+			Class:          FindingSAST,
+			Owner:          "security-health",
+			FixClass:       FixDeterministic,
+			FixPreviewable: true,
+			PolicyImpact:   "api-boundary-hardening",
 		})
 	}
 
@@ -183,36 +195,64 @@ func insecureCORSFindings(scenarioDir string, files []goSourceFile) []Finding {
 			continue
 		}
 		findings = append(findings, Finding{
-			RuleID:      CodeSecurityHeadersCORS,
-			Severity:    SeverityError,
-			Title:       "Wildcard CORS allows credentials",
-			Description: "The API sets Access-Control-Allow-Origin to * while also allowing credentials, which browsers reject and which represents an unsafe origin policy.",
-			Remediation: "Replace wildcard credentialed CORS with an explicit allowlist and emit the matched origin only after validation, or disable credentials for wildcard responses.",
-			FilePath:    relPath(scenarioDir, f.path),
-			Scanner:     "security-headers",
+			RuleID:       CodeSecurityHeadersCORS,
+			Severity:     SeverityError,
+			Title:        "Wildcard CORS allows credentials",
+			Description:  "The API sets Access-Control-Allow-Origin to * while also allowing credentials, which browsers reject and which represents an unsafe origin policy.",
+			Remediation:  "Replace wildcard credentialed CORS with an explicit allowlist and emit the matched origin only after validation, or disable credentials for wildcard responses.",
+			FilePath:     relPath(scenarioDir, f.path),
+			Scanner:      "security-headers",
+			Class:        FindingSAST,
+			Owner:        "security-health",
+			FixClass:     FixManual,
+			PolicyImpact: "cors-policy-review-required",
 		})
 	}
 	return findings
 }
 
 type SecurityHeaderFixCandidate struct {
-	RuleID      string
-	FilePath    string
-	Description string
-	Before      string
-	After       string
-	Applied     bool
+	RuleID        string
+	FilePath      string
+	Description   string
+	Before        string
+	After         string
+	Applied       bool
+	Owner         string
+	FixClass      FixClass
+	Idempotent    bool
+	Rollback      string
+	Validation    string
+	PreviewDigest string
 }
 
 func (s *Service) PreviewFix(ctx context.Context, scenario, path string, ruleIDs []string) (string, []SecurityHeaderFixCandidate, []string, error) {
-	return s.fixSecurityHeaders(ctx, scenario, path, ruleIDs, false)
+	return s.fixSecurityHeaders(ctx, scenario, path, ruleIDs, false, nil)
 }
 
 func (s *Service) ApplyFix(ctx context.Context, scenario, path string, ruleIDs []string) (string, []SecurityHeaderFixCandidate, []string, error) {
-	return s.fixSecurityHeaders(ctx, scenario, path, ruleIDs, true)
+	_, preview, _, err := s.fixSecurityHeaders(ctx, scenario, path, ruleIDs, false, nil)
+	if err != nil {
+		return "", nil, nil, err
+	}
+	expected := make(map[string]string, len(preview))
+	for _, candidate := range preview {
+		expected[candidate.FilePath] = candidate.PreviewDigest
+	}
+	return s.fixSecurityHeaders(ctx, scenario, path, ruleIDs, true, expected)
 }
 
-func (s *Service) fixSecurityHeaders(_ context.Context, scenario, path string, ruleIDs []string, apply bool) (string, []SecurityHeaderFixCandidate, []string, error) {
+// ApplyFixWithPreviewDigests applies only the exact files and bytes returned by
+// PreviewFix. It is the bridge for API clients that persist a preview between
+// user confirmation and apply; a changed target is rejected.
+func (s *Service) ApplyFixWithPreviewDigests(ctx context.Context, scenario, path string, ruleIDs []string, expected map[string]string) (string, []SecurityHeaderFixCandidate, []string, error) {
+	if len(expected) == 0 {
+		return "", nil, nil, errors.New("preview digests are required")
+	}
+	return s.fixSecurityHeaders(ctx, scenario, path, ruleIDs, true, expected)
+}
+
+func (s *Service) fixSecurityHeaders(_ context.Context, scenario, path string, ruleIDs []string, apply bool, expected map[string]string) (string, []SecurityHeaderFixCandidate, []string, error) {
 	scenario = strings.TrimSpace(scenario)
 	root := strings.TrimSpace(path)
 	if root == "" {
@@ -226,7 +266,23 @@ func (s *Service) fixSecurityHeaders(_ context.Context, scenario, path string, r
 		root = resolved
 	}
 	if scenario == "" {
-		scenario = filepath.Base(root)
+		var ok bool
+		scenario, ok = scenarioNameForPath(s.repoRoot, root)
+		if !ok {
+			return "", nil, nil, errors.New("fix path must be inside a known scenario root")
+		}
+	}
+	root, err := filepath.Abs(root)
+	if err != nil {
+		return "", nil, nil, fmt.Errorf("resolve fix root: %w", err)
+	}
+	scenarioRoot, ok := resolveScenarioDir(s.repoRoot, scenario)
+	if !ok {
+		return "", nil, nil, fmt.Errorf("scenario %q not found under scenarios/", scenario)
+	}
+	scenarioRoot, _ = filepath.Abs(scenarioRoot)
+	if !pathWithin(root, scenarioRoot) {
+		return "", nil, nil, errors.New("fix path must remain inside the requested scenario")
 	}
 
 	allow := securityHeaderRuleAllowed(ruleIDs)
@@ -241,18 +297,120 @@ func (s *Service) fixSecurityHeaders(_ context.Context, scenario, path string, r
 	if len(candidates) == 0 {
 		return scenario, nil, []string{"no safe deterministic Security Health fix available for requested rule id(s)"}, nil
 	}
+	for i := range candidates {
+		candidates[i].PreviewDigest = repairPreviewDigest(candidates[i])
+	}
 	if apply {
-		for i := range candidates {
-			if err := os.MkdirAll(filepath.Dir(candidates[i].FilePath), 0o755); err != nil {
-				return "", nil, nil, err
+		for _, candidate := range candidates {
+			if expected == nil || expected[candidate.FilePath] == "" || expected[candidate.FilePath] != candidate.PreviewDigest {
+				return "", nil, nil, fmt.Errorf("preview digest mismatch for %s; re-run preview", candidate.FilePath)
 			}
-			if err := os.WriteFile(candidates[i].FilePath, []byte(candidates[i].After), 0o644); err != nil {
-				return "", nil, nil, err
+		}
+		original := make(map[string][]byte, len(candidates))
+		existed := make(map[string]bool, len(candidates))
+		for i := range candidates {
+			before, readErr := os.ReadFile(candidates[i].FilePath)
+			if readErr == nil {
+				original[candidates[i].FilePath] = before
+				existed[candidates[i].FilePath] = true
+			} else if !errors.Is(readErr, os.ErrNotExist) {
+				return "", nil, nil, readErr
+			}
+		}
+		for i := range candidates {
+			if err := atomicWriteText(candidates[i].FilePath, candidates[i].After); err != nil {
+				rollbackSecurityFixes(original, existed, candidates)
+				return "", nil, nil, fmt.Errorf("apply deterministic fix and rollback: %w", err)
 			}
 			candidates[i].Applied = true
 		}
+		postFindings, validationErr := runSecurityHeaderChecks(scenarioRoot)
+		if validationErr != nil || hasFinding(postFindings, CodeSecurityHeadersMissing) {
+			rollbackSecurityFixes(original, existed, candidates)
+			if validationErr != nil {
+				return "", nil, nil, fmt.Errorf("post-repair validation failed and changes were rolled back: %w", validationErr)
+			}
+			return "", nil, nil, errors.New("post-repair validation still reports missing security headers; changes were rolled back")
+		}
 	}
 	return scenario, candidates, messages, nil
+}
+
+func rollbackSecurityFixes(original map[string][]byte, existed map[string]bool, candidates []SecurityHeaderFixCandidate) {
+	for _, candidate := range candidates {
+		if existed[candidate.FilePath] {
+			_ = atomicWriteText(candidate.FilePath, string(original[candidate.FilePath]))
+			continue
+		}
+		_ = os.Remove(candidate.FilePath)
+	}
+}
+
+func repairPreviewDigest(candidate SecurityHeaderFixCandidate) string {
+	sum := sha256.Sum256([]byte(candidate.FilePath + "\x00" + candidate.Before + "\x00" + candidate.After + "\x00" + string(candidate.FixClass)))
+	return hex.EncodeToString(sum[:])
+}
+
+func pathWithin(path, root string) bool {
+	rel, err := filepath.Rel(root, path)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+func scenarioNameForPath(repoRoot, path string) (string, bool) {
+	root, err := filepath.Abs(filepath.Join(repoRoot, "scenarios"))
+	if err != nil {
+		return "", false
+	}
+	path, err = filepath.Abs(path)
+	if err != nil || !pathWithin(path, root) {
+		return "", false
+	}
+	rel, err := filepath.Rel(root, path)
+	if err != nil || rel == "." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	parts := strings.Split(filepath.Clean(rel), string(filepath.Separator))
+	if len(parts) == 0 || parts[0] == "." || parts[0] == ".." {
+		return "", false
+	}
+	return parts[0], true
+}
+
+func hasFinding(findings []Finding, ruleID string) bool {
+	for _, finding := range findings {
+		if finding.RuleID == ruleID {
+			return true
+		}
+	}
+	return false
+}
+
+func atomicWriteText(path, content string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	tmpFile, err := os.CreateTemp(filepath.Dir(path), ".security-health-*.tmp")
+	if err != nil {
+		return err
+	}
+	tmp := tmpFile.Name()
+	defer os.Remove(tmp)
+	if err := tmpFile.Chmod(0o644); err != nil {
+		_ = tmpFile.Close()
+		return err
+	}
+	if _, err := tmpFile.WriteString(content); err != nil {
+		_ = tmpFile.Close()
+		return err
+	}
+	if err := tmpFile.Sync(); err != nil {
+		_ = tmpFile.Close()
+		return err
+	}
+	if err := tmpFile.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
 }
 
 func securityHeaderRuleAllowed(ruleIDs []string) func(string) bool {
@@ -298,6 +456,11 @@ func securityHeaderFixCandidates(root string) ([]SecurityHeaderFixCandidate, err
 			Description: "Create or normalize the central API security headers middleware.",
 			Before:      beforeMiddleware,
 			After:       afterMiddleware,
+			Owner:       "security-health",
+			FixClass:    FixDeterministic,
+			Idempotent:  true,
+			Rollback:    "restore the preview before bytes",
+			Validation:  "go test ./api/... && security-health validate scenario",
 		})
 	}
 	if string(beforeServer) != serverAfter {
@@ -307,6 +470,11 @@ func securityHeaderFixCandidates(root string) ([]SecurityHeaderFixCandidate, err
 			Description: "Register the security headers middleware before request handlers run.",
 			Before:      string(beforeServer),
 			After:       serverAfter,
+			Owner:       "security-health",
+			FixClass:    FixDeterministic,
+			Idempotent:  true,
+			Rollback:    "restore the preview before bytes",
+			Validation:  "go test ./api/... && security-health validate scenario",
 		})
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].FilePath < out[j].FilePath })

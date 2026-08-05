@@ -88,13 +88,17 @@ func (g *gosecScanner) Scan(ctx context.Context, scenarioDir string, sub Substra
 				loc = fmt.Sprintf("%s:%s", loc, strings.SplitN(issue.Line, "-", 2)[0])
 			}
 			findings = append(findings, Finding{
-				RuleID:      "gosec." + nonEmpty(issue.RuleID, "unknown"),
-				Severity:    gosecSeverity(issue.RuleID, issue.Severity),
-				Title:       fmt.Sprintf("gosec %s", nonEmpty(issue.RuleID, "finding")),
-				Description: strings.TrimSpace(issue.Details),
-				Remediation: "Review the flagged code; apply the gosec rule's documented fix (e.g. validate inputs, avoid unsafe APIs, use crypto/rand). Suppress with a reviewed #nosec or //nolint:gosec comment only when proven safe.",
-				FilePath:    loc,
-				Scanner:     g.Name(),
+				RuleID:       "gosec." + nonEmpty(issue.RuleID, "unknown"),
+				Severity:     gosecSeverity(issue.RuleID, issue.Severity),
+				Title:        fmt.Sprintf("gosec %s", nonEmpty(issue.RuleID, "finding")),
+				Description:  strings.TrimSpace(issue.Details),
+				Remediation:  "Review the flagged code; apply the gosec rule's documented fix (e.g. validate inputs, avoid unsafe APIs, use crypto/rand). Suppress with a reviewed #nosec or //nolint:gosec comment only when proven safe.",
+				FilePath:     loc,
+				Scanner:      g.Name(),
+				Class:        FindingSAST,
+				Owner:        "security-health",
+				FixClass:     FixManual,
+				PolicyImpact: "source-review-required",
 			})
 		}
 	}

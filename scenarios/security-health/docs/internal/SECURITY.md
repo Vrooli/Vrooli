@@ -47,6 +47,26 @@ authorization belongs at the API/service layer.
 | No product-specific data classification | medium | Fill after PRD/domain map defines real data. |
 | No auth model | conditional | Required before protected or multi-user data. |
 
+## Supply-Chain Enforcement Contract
+
+Security Health owns the normalized finding and policy contract. Construction
+facts are discovered through typed ecosystem adapters for Go, pnpm/npm, Yarn,
+Bun, Python, Rust, and evidence-only C/C++. Missing or failed scanners are
+explicit findings rather than a clean result when guarded or enforcing policy
+is selected. Findings carry stable class, evidence state, owner, confidence,
+and fix-class metadata.
+
+Dependency mutations are routed through Scenario Dependency Analyzer. Managed
+reproduction commands use frozen lockfile semantics and disable lifecycle
+scripts where the package manager exposes that control. Build exceptions must
+identify an owner, reason, command, and non-advisory policy mode.
+
+The local agent-policy runner uses integrity-checked, expiring provider
+snapshots. Advisory and guided profiles remain usable during provider outage;
+guarded and enforcing profiles deny high-risk mutations when no healthy,
+fresh provider or snapshot is available. Native resource adapters report their
+actual enforcement posture and do not infer hook firing from file presence.
+
 ## Cross-References
 
 - [`../concepts/DATA.md`](../concepts/DATA.md) — data ownership and retention

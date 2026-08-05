@@ -199,6 +199,18 @@ func ecosystemFromProto(e dependenciesv1.Ecosystem) depdomain.Ecosystem {
 		return depdomain.EcosystemGo
 	case dependenciesv1.Ecosystem_ECOSYSTEM_NPM:
 		return depdomain.EcosystemNPM
+	case dependenciesv1.Ecosystem_ECOSYSTEM_YARN:
+		return depdomain.EcosystemYarn
+	case dependenciesv1.Ecosystem_ECOSYSTEM_BUN:
+		return depdomain.EcosystemBun
+	case dependenciesv1.Ecosystem_ECOSYSTEM_PYTHON:
+		return depdomain.EcosystemPython
+	case dependenciesv1.Ecosystem_ECOSYSTEM_RUST:
+		return depdomain.EcosystemRust
+	case dependenciesv1.Ecosystem_ECOSYSTEM_C:
+		return depdomain.EcosystemC
+	case dependenciesv1.Ecosystem_ECOSYSTEM_CPP:
+		return depdomain.EcosystemCPP
 	default:
 		return depdomain.EcosystemUnspecified
 	}
@@ -210,6 +222,18 @@ func ecosystemToProto(e depdomain.Ecosystem) dependenciesv1.Ecosystem {
 		return dependenciesv1.Ecosystem_ECOSYSTEM_GO
 	case depdomain.EcosystemNPM:
 		return dependenciesv1.Ecosystem_ECOSYSTEM_NPM
+	case depdomain.EcosystemYarn:
+		return dependenciesv1.Ecosystem_ECOSYSTEM_YARN
+	case depdomain.EcosystemBun:
+		return dependenciesv1.Ecosystem_ECOSYSTEM_BUN
+	case depdomain.EcosystemPython:
+		return dependenciesv1.Ecosystem_ECOSYSTEM_PYTHON
+	case depdomain.EcosystemRust:
+		return dependenciesv1.Ecosystem_ECOSYSTEM_RUST
+	case depdomain.EcosystemC:
+		return dependenciesv1.Ecosystem_ECOSYSTEM_C
+	case depdomain.EcosystemCPP:
+		return dependenciesv1.Ecosystem_ECOSYSTEM_CPP
 	default:
 		return dependenciesv1.Ecosystem_ECOSYSTEM_UNSPECIFIED
 	}

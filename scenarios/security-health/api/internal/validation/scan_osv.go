@@ -52,9 +52,19 @@ func RunOSVScanner(ctx context.Context, cmd Commander, scenarioDir string) (OSVR
 // Exposed for the dependencies domain.
 func OSVSeverityWord(raw string) string { return osvMaxSeverityWord(osvSeverity(raw)) }
 
-func (o *osvScanner) Name() string             { return "osv-scanner" }
-func (o *osvScanner) Binary() string           { return "osv-scanner" }
-func (o *osvScanner) Applies(s Substrate) bool { return s.Go || s.PnpmUI }
+func (o *osvScanner) Name() string   { return "osv-scanner" }
+func (o *osvScanner) Binary() string { return "osv-scanner" }
+func (o *osvScanner) Applies(s Substrate) bool {
+	if s.Go || s.PnpmUI {
+		return true
+	}
+	for _, target := range s.Targets {
+		if target.Coverage == CoverageSupported {
+			return true
+		}
+	}
+	return false
+}
 
 // OSVReport is the top-level shape of `osv-scanner --format json`. Exported so
 // the dependencies domain can reuse the same parser when annotating the SBOM
@@ -135,13 +145,17 @@ func (o *osvScanner) Scan(ctx context.Context, scenarioDir string, _ Substrate) 
 				// double-count what govulncheck/pnpm already flagged. The
 				// computed severity is surfaced in the description for context.
 				findings = append(findings, Finding{
-					RuleID:      "osv." + v.ID,
-					Severity:    SeverityInfo,
-					Title:       fmt.Sprintf("%s@%s: %s", pkg.Package.Name, pkg.Package.Version, nonEmpty(v.Summary, v.ID)),
-					Description: fmt.Sprintf("[advisory; severity=%s] %s", nonEmpty(osvMaxSeverityWord(osvSeverity(sev)), "unknown"), nonEmpty(v.Summary, v.Detail)),
-					Remediation: fmt.Sprintf("Bump %s to a fixed version (%s). See https://osv.dev/vulnerability/%s", pkg.Package.Name, osvFixHint(v), v.ID),
-					FilePath:    source,
-					Scanner:     o.Name(),
+					RuleID:       "osv." + v.ID,
+					Severity:     SeverityInfo,
+					Title:        fmt.Sprintf("%s@%s: %s", pkg.Package.Name, pkg.Package.Version, nonEmpty(v.Summary, v.ID)),
+					Description:  fmt.Sprintf("[advisory; severity=%s] %s", nonEmpty(osvMaxSeverityWord(osvSeverity(sev)), "unknown"), nonEmpty(v.Summary, v.Detail)),
+					Remediation:  fmt.Sprintf("Bump %s to a fixed version (%s). See https://osv.dev/vulnerability/%s", pkg.Package.Name, osvFixHint(v), v.ID),
+					FilePath:     source,
+					Scanner:      o.Name(),
+					Class:        FindingVulnerability,
+					Owner:        "scenario-dependency-analyzer",
+					FixClass:     FixAssisted,
+					PolicyImpact: "dependency-upgrade-governed",
 				})
 			}
 		}
@@ -194,6 +208,14 @@ var osvLockfileNames = map[string]struct{}{
 	"package-lock.json":   {},
 	"yarn.lock":           {},
 	"npm-shrinkwrap.json": {},
+	"bun.lock":            {},
+	"bun.lockb":           {},
+	"Cargo.lock":          {},
+	"Cargo.toml":          {},
+	"requirements.txt":    {},
+	"pyproject.toml":      {},
+	"Pipfile.lock":        {},
+	"poetry.lock":         {},
 }
 
 // discoverOSVLockfiles returns the scenario-owned manifests that describe its

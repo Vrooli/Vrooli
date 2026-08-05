@@ -102,13 +102,17 @@ func (p *pnpmAuditScanner) Scan(ctx context.Context, scenarioDir string, sub Sub
 				rec = "This advisory affects only applications using React Router's unstable RSC APIs; no first-party RSC usage was found. " + rec
 			}
 			findings = append(findings, Finding{
-				RuleID:      "pnpm-audit." + ruleID,
-				Severity:    sev,
-				Title:       fmt.Sprintf("%s: %s", a.ModuleName, nonEmpty(a.Title, "known vulnerability")),
-				Description: fmt.Sprintf("%s (vulnerable: %s). Advisory: %s", nonEmpty(a.Title, "known vulnerability"), nonEmpty(a.VulnerableVersions, "see advisory"), a.URL),
-				Remediation: rec,
-				FilePath:    lockRel,
-				Scanner:     p.Name(),
+				RuleID:       "pnpm-audit." + ruleID,
+				Severity:     sev,
+				Title:        fmt.Sprintf("%s: %s", a.ModuleName, nonEmpty(a.Title, "known vulnerability")),
+				Description:  fmt.Sprintf("%s (vulnerable: %s). Advisory: %s", nonEmpty(a.Title, "known vulnerability"), nonEmpty(a.VulnerableVersions, "see advisory"), a.URL),
+				Remediation:  rec,
+				FilePath:     lockRel,
+				Scanner:      p.Name(),
+				Class:        FindingVulnerability,
+				Owner:        "scenario-dependency-analyzer",
+				FixClass:     FixAssisted,
+				PolicyImpact: "dependency-upgrade-governed",
 			})
 		}
 	}

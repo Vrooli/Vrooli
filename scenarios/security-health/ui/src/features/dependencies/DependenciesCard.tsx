@@ -13,13 +13,37 @@ import { dependencyClient, Ecosystem, Mode } from "../../api/dependencies";
 type EcosystemLabelKey =
   | typeof strings.dependencies.ecosystemAll
   | typeof strings.dependencies.ecosystemGo
-  | typeof strings.dependencies.ecosystemNpm;
+  | typeof strings.dependencies.ecosystemNpm
+  | typeof strings.dependencies.ecosystemYarn
+  | typeof strings.dependencies.ecosystemBun
+  | typeof strings.dependencies.ecosystemPython
+  | typeof strings.dependencies.ecosystemRust
+  | typeof strings.dependencies.ecosystemC
+  | typeof strings.dependencies.ecosystemCpp;
 
 const ECOSYSTEM_LABEL: Record<Ecosystem, EcosystemLabelKey> = {
   [Ecosystem.UNSPECIFIED]: strings.dependencies.ecosystemAll,
   [Ecosystem.GO]: strings.dependencies.ecosystemGo,
   [Ecosystem.NPM]: strings.dependencies.ecosystemNpm,
+  [Ecosystem.YARN]: strings.dependencies.ecosystemYarn,
+  [Ecosystem.BUN]: strings.dependencies.ecosystemBun,
+  [Ecosystem.PYTHON]: strings.dependencies.ecosystemPython,
+  [Ecosystem.RUST]: strings.dependencies.ecosystemRust,
+  [Ecosystem.C]: strings.dependencies.ecosystemC,
+  [Ecosystem.CPP]: strings.dependencies.ecosystemCpp,
 };
+
+const ECOSYSTEMS = [
+  Ecosystem.UNSPECIFIED,
+  Ecosystem.GO,
+  Ecosystem.NPM,
+  Ecosystem.YARN,
+  Ecosystem.BUN,
+  Ecosystem.PYTHON,
+  Ecosystem.RUST,
+  Ecosystem.C,
+  Ecosystem.CPP,
+] as const;
 
 /** coveragePercent renders indexed/expected as an integer percent (0 when the
  * corpus is empty), matching the CLI's `index: N/M (P%)` line. */
@@ -125,7 +149,7 @@ export function DependenciesCard() {
             aria-label={t(strings.dependencies.ecosystem)}
             className="h-10 rounded-md border border-white/20 bg-white/5 px-2 text-sm text-white"
           >
-            {([Ecosystem.UNSPECIFIED, Ecosystem.GO, Ecosystem.NPM] as const).map((eco) => (
+            {ECOSYSTEMS.map((eco) => (
               <option key={eco} value={eco} className="text-black">
                 {t(ECOSYSTEM_LABEL[eco])}
               </option>

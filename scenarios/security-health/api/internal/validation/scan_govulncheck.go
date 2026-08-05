@@ -127,14 +127,23 @@ func (g *govulncheckScanner) Scan(ctx context.Context, scenarioDir string, sub S
 				remediation = fmt.Sprintf("This is a Go standard-library vulnerability — upgrade the Go toolchain to a release that includes the fix (%s). Not fixable from scenario code. See https://pkg.go.dev/vuln/%s", govulncheckFixHint(osv), id)
 			}
 			findings = append(findings, Finding{
-				RuleID:      "govulncheck." + id,
-				Severity:    severity,
-				Title:       fmt.Sprintf("%s: %s", id, nonEmpty(osv.Summary, "reachable Go vulnerability")),
-				Description: nonEmpty(osv.Summary, osv.Details),
-				Remediation: remediation,
-				FilePath:    loc,
-				Scanner:     g.Name(),
+				RuleID:       "govulncheck." + id,
+				Severity:     severity,
+				Title:        fmt.Sprintf("%s: %s", id, nonEmpty(osv.Summary, "reachable Go vulnerability")),
+				Description:  nonEmpty(osv.Summary, osv.Details),
+				Remediation:  remediation,
+				FilePath:     loc,
+				Scanner:      g.Name(),
+				Class:        FindingVulnerability,
+				Owner:        "scenario-dependency-analyzer",
+				FixClass:     FixAssisted,
+				PolicyImpact: "go-reachability",
 			})
+			if top.Module == "stdlib" {
+				findings[len(findings)-1].Owner = "toolchain-owner"
+				findings[len(findings)-1].FixClass = FixManual
+				findings[len(findings)-1].PolicyImpact = "toolchain-upgrade"
+			}
 		}
 	}
 	if !parsedAny && lastErr != nil {

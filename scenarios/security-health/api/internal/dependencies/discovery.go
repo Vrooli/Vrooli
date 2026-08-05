@@ -1,6 +1,7 @@
 package dependencies
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -72,6 +73,16 @@ func DiscoverScenario(scenarioDir, scenarioID string) ([]DependencyRecord, error
 			records = append(records, parseGoMod(path, rel, scenarioID)...)
 		case "pnpm-lock.yaml":
 			records = append(records, parsePnpmLock(path, rel, scenarioID)...)
+		case "package-lock.json", "npm-shrinkwrap.json":
+			records = append(records, parsePackageLock(path, rel, scenarioID, EcosystemNPM)...)
+		case "yarn.lock":
+			records = append(records, parseYarnLock(path, rel, scenarioID)...)
+		case "bun.lock", "bun.lockb":
+			records = append(records, parseBunLock(path, rel, scenarioID)...)
+		case "requirements.txt", "Pipfile.lock", "poetry.lock", "pyproject.toml":
+			records = append(records, parsePythonManifest(path, rel, scenarioID)...)
+		case "Cargo.lock":
+			records = append(records, parseCargoLock(path, rel, scenarioID)...)
 		}
 		return nil
 	})
@@ -79,6 +90,217 @@ func DiscoverScenario(scenarioDir, scenarioID string) ([]DependencyRecord, error
 		return nil, err
 	}
 	return records, nil
+}
+
+type packageLockJSON struct {
+	Packages map[string]struct {
+		Name    string `json:"name"`
+		Version string `json:"version"`
+	} `json:"packages"`
+	Dependencies map[string]packageLockDependency `json:"dependencies"`
+}
+
+type packageLockDependency struct {
+	Version      string                           `json:"version"`
+	Dependencies map[string]packageLockDependency `json:"dependencies"`
+}
+
+func parsePackageLock(absPath, relPath, scenario string, ecosystem Ecosystem) []DependencyRecord {
+	raw, err := os.ReadFile(absPath)
+	if err != nil {
+		return nil
+	}
+	var lock packageLockJSON
+	if json.Unmarshal(raw, &lock) != nil {
+		return nil
+	}
+	seen := map[string]struct{}{}
+	var out []DependencyRecord
+	for key, pkg := range lock.Packages {
+		if key == "" || pkg.Version == "" || pkg.Name == "" {
+			continue
+		}
+		addDependencyRecord(&out, seen, scenario, ecosystem, pkg.Name, pkg.Version, relPath)
+	}
+	var walk func(map[string]packageLockDependency)
+	walk = func(deps map[string]packageLockDependency) {
+		for name, dep := range deps {
+			if dep.Version != "" {
+				addDependencyRecord(&out, seen, scenario, ecosystem, name, dep.Version, relPath)
+			}
+			walk(dep.Dependencies)
+		}
+	}
+	walk(lock.Dependencies)
+	return out
+}
+
+func parseBunLock(absPath, relPath, scenario string) []DependencyRecord {
+	raw, err := os.ReadFile(absPath)
+	if err != nil {
+		return nil
+	}
+	var document map[string]any
+	if json.Unmarshal(raw, &document) != nil {
+		// bun.lockb is binary and intentionally produces no false-clean
+		// dependency records. The ecosystem adapter still reports that Bun
+		// was discovered; a future binary decoder can add evidence here.
+		return nil
+	}
+	var out []DependencyRecord
+	seen := map[string]struct{}{}
+	var walk func(any)
+	walk = func(value any) {
+		switch node := value.(type) {
+		case map[string]any:
+			for key, child := range node {
+				if key == "dependencies" || key == "devDependencies" || key == "optionalDependencies" {
+					if deps, ok := child.(map[string]any); ok {
+						for name, spec := range deps {
+							if version := bunVersion(spec); version != "" {
+								addDependencyRecord(&out, seen, scenario, EcosystemBun, name, version, relPath)
+							}
+							walk(spec)
+						}
+						continue
+					}
+				}
+				walk(child)
+			}
+		case []any:
+			for _, child := range node {
+				walk(child)
+			}
+		}
+	}
+	walk(document)
+	return out
+}
+
+func bunVersion(value any) string {
+	switch spec := value.(type) {
+	case string:
+		return strings.TrimSpace(spec)
+	case []any:
+		for _, item := range spec {
+			if version, ok := item.(string); ok && strings.TrimSpace(version) != "" {
+				return strings.TrimSpace(version)
+			}
+		}
+	case map[string]any:
+		for _, key := range []string{"version", "resolved", "reference"} {
+			if version, ok := spec[key].(string); ok && strings.TrimSpace(version) != "" {
+				return strings.TrimSpace(version)
+			}
+		}
+	}
+	return ""
+}
+
+func parseYarnLock(absPath, relPath, scenario string) []DependencyRecord {
+	raw, err := os.ReadFile(absPath)
+	if err != nil {
+		return nil
+	}
+	var out []DependencyRecord
+	seen := map[string]struct{}{}
+	var names []string
+	for _, line := range strings.Split(string(raw), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasSuffix(trimmed, ":") && !strings.HasPrefix(trimmed, "#") && !strings.HasPrefix(trimmed, "version") {
+			for _, selector := range strings.Split(strings.TrimSuffix(trimmed, ":"), ",") {
+				selector = strings.Trim(strings.TrimSpace(selector), "\"")
+				if at := strings.LastIndex(selector, "@"); at > 0 {
+					names = append(names, selector[:at])
+				}
+			}
+			continue
+		}
+		if strings.HasPrefix(trimmed, "version ") && len(names) > 0 {
+			version := strings.Trim(strings.TrimSpace(strings.TrimPrefix(trimmed, "version")), "\"")
+			for _, name := range names {
+				addDependencyRecord(&out, seen, scenario, EcosystemYarn, name, version, relPath)
+			}
+			names = nil
+		}
+	}
+	return out
+}
+
+func parsePythonManifest(absPath, relPath, scenario string) []DependencyRecord {
+	raw, err := os.ReadFile(absPath)
+	if err != nil {
+		return nil
+	}
+	var out []DependencyRecord
+	seen := map[string]struct{}{}
+	for _, line := range strings.Split(string(raw), "\n") {
+		line = strings.TrimSpace(strings.SplitN(line, "#", 2)[0])
+		if line == "" || strings.HasPrefix(line, "[") || strings.HasPrefix(line, "{") {
+			continue
+		}
+		name, version := parsePythonRequirement(line)
+		if name != "" && version != "" {
+			addDependencyRecord(&out, seen, scenario, EcosystemPython, name, version, relPath)
+		}
+	}
+	return out
+}
+
+func parsePythonRequirement(line string) (string, string) {
+	line = strings.Trim(strings.TrimSpace(line), "\"',")
+	for _, marker := range []string{"==", ">=", "<=", "~=", "!=", ">", "<"} {
+		if i := strings.Index(line, marker); i > 0 {
+			name := strings.TrimSpace(line[:i])
+			version := strings.TrimSpace(strings.Fields(line[i+len(marker):])[0])
+			name = strings.SplitN(name, "[", 2)[0]
+			return name, version
+		}
+	}
+	return "", ""
+}
+
+func parseCargoLock(absPath, relPath, scenario string) []DependencyRecord {
+	raw, err := os.ReadFile(absPath)
+	if err != nil {
+		return nil
+	}
+	var out []DependencyRecord
+	seen := map[string]struct{}{}
+	var name, version string
+	flush := func() {
+		if name != "" && version != "" {
+			addDependencyRecord(&out, seen, scenario, EcosystemRust, name, version, relPath)
+		}
+		name, version = "", ""
+	}
+	for _, line := range strings.Split(string(raw), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "[[package]]" {
+			flush()
+			continue
+		}
+		if strings.HasPrefix(trimmed, "name =") {
+			name = strings.Trim(strings.TrimSpace(strings.TrimPrefix(trimmed, "name =")), "\"")
+		}
+		if strings.HasPrefix(trimmed, "version =") {
+			version = strings.Trim(strings.TrimSpace(strings.TrimPrefix(trimmed, "version =")), "\"")
+		}
+	}
+	flush()
+	return out
+}
+
+func addDependencyRecord(out *[]DependencyRecord, seen map[string]struct{}, scenario string, ecosystem Ecosystem, name, version, source string) {
+	key := string(ecosystem) + "|" + name + "|" + version
+	if name == "" || version == "" {
+		return
+	}
+	if _, ok := seen[key]; ok {
+		return
+	}
+	seen[key] = struct{}{}
+	*out = append(*out, DependencyRecord{Scenario: scenario, Ecosystem: ecosystem, Name: name, Version: version, SourceFile: source})
 }
 
 // parseGoMod extracts every required module (direct + indirect) from a go.mod.
