@@ -13,6 +13,7 @@ import (
 	"agent-inbox/config"
 	"agent-inbox/handlers"
 	"agent-inbox/integrations"
+	schema "agent-inbox/internal/core"
 	"agent-inbox/persistence"
 	"agent-inbox/services"
 	"context"
@@ -179,6 +180,10 @@ func main() {
 	router := registerRoutes(h, uploadHandlers)
 
 	// Start server with graceful shutdown
+
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		log.Fatalf("database schema initialization failed: %v", err)
+	}
 	if err := server.Run(server.Config{
 		Handler: gorillahandlers.RecoveryHandler()(router),
 		Cleanup: func(ctx context.Context) error {

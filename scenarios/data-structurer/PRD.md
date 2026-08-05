@@ -401,7 +401,7 @@ direct_execution:
   supported: true
   structure_compliance:
     - .vrooli/service.json with postgres, ollama, unstructured-io dependencies
-    - Complete initialization files for database schema
+    - Complete API schema-provider files for the database schema
     - Startup scripts for API and worker processes
     - Health check endpoints for all components
     
@@ -466,14 +466,14 @@ structure:
     - api/go.mod
     - cli/data-structurer
     - cli/install.sh
-    - initialization/storage/postgres/schema.sql
+    - api/internal/<domain>/storage/postgres/schema.sql
     - scenario-test.yaml
     
   required_dirs:
     - api
     - cli
     - initialization
-    - initialization/storage
+    - api/internal/<domain>/storage
     - tests
 
 resources:

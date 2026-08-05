@@ -1,7 +1,10 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
+  "storage": {
+    "entries": {},
+    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+  },
   "service": {
     "name": "bedtime-story-generator",
     "displayName": "Bedtime Story Generator",
@@ -151,16 +154,6 @@
           "name": "build-ui",
           "run": "cd ui && npm run build",
           "description": "Build React UI for production"
-        },
-        {
-          "name": "initialize-database",
-          "run": "resource-postgres content execute --file initialization/storage/postgres/schema.sql",
-          "description": "Create database schema"
-        },
-        {
-          "name": "seed-sample-stories",
-          "run": "resource-postgres content execute --file initialization/storage/postgres/seed.sql",
-          "description": "Add sample stories"
         }
       ]
     },
@@ -219,17 +212,7 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store stories, reading history, and preferences",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/storage/postgres/seed.sql",
-            "type": "seed"
-          }
-        ]
+        "purpose": "Store stories, reading history, and preferences"
       },
       "ollama": {
         "type": "ollama",

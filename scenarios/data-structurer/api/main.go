@@ -21,6 +21,8 @@ import (
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+
+	structurerSchema "data-structurer-api/internal/structurer"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"gopkg.in/yaml.v3"
@@ -174,7 +176,11 @@ func main() {
 	if err != nil {
 		log.Fatal("Database connection failed:", err)
 	}
-	defer db.Close()
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(structurerSchema.Schema)); err != nil {
+		log.Fatal("Database schema initialization failed:", err)
+	}
+
+	// Set connection pool settings	defer db.Close()
 
 	// Set connection pool settings
 	db.SetMaxOpenConns(25)

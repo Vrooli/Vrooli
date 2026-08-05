@@ -1,7 +1,10 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
+  "storage": {
+    "entries": {},
+    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+  },
   "service": {
     "name": "chart-generator",
     "displayName": "Professional Chart Generator",
@@ -197,17 +200,7 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store chart templates, custom styles, generation history, and configuration data",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/storage/postgres/seed-styles.sql",
-            "type": "seed"
-          }
-        ]
+        "purpose": "Store chart templates, custom styles, generation history, and configuration data"
       },
       "minio": {
         "type": "minio",

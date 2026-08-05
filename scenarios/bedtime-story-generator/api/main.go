@@ -21,6 +21,8 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
 	"github.com/vrooli/api-core/database"
+
+	storiesSchema "bedtime-story-generator/internal/stories"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
@@ -163,40 +165,8 @@ func initDB() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	log.Println("🎉 Database connection pool established successfully!")
-
-	// Run database migration to ensure illustrations column exists
-	runDatabaseMigration()
-}
-
-func runDatabaseMigration() {
-	// Check if illustrations column exists and add if not
-	var columnExists bool
-	err := db.QueryRow(`
-		SELECT EXISTS (
-			SELECT 1 FROM information_schema.columns 
-			WHERE table_name = 'stories' 
-			AND column_name = 'illustrations'
-		)
-	`).Scan(&columnExists)
-
-	if err != nil {
-		log.Printf("⚠️  Failed to check illustrations column: %v", err)
-		return
-	}
-
-	if !columnExists {
-		log.Println("📦 Adding illustrations column to stories table...")
-		_, err := db.Exec(`
-			ALTER TABLE stories 
-			ADD COLUMN illustrations JSONB DEFAULT '{}'::jsonb
-		`)
-
-		if err != nil {
-			log.Printf("⚠️  Failed to add illustrations column: %v", err)
-		} else {
-			log.Println("✅ Illustrations column added successfully")
-		}
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(storiesSchema.Schema)); err != nil {
+		log.Fatalf("Database schema initialization failed: %v", err)
 	}
 }
 

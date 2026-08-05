@@ -27,7 +27,7 @@ algorithm-library/
 ├── api/              # Go API server (port 16796)
 ├── cli/              # Bash CLI wrapper
 ├── ui/               # React web interface (port 3252)
-├── initialization/
+├── api/internal/<domain>/
 │   ├── postgres/     # Database schema and seed data
 │   └── n8n/         # Historical workflow definitions
 └── tests/           # Validation tests

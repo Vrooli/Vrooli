@@ -77,7 +77,7 @@ Navigate to `http://localhost:3090` to access the dashboard with:
 
 ## Adding Custom Rules
 
-Create a new YAML file in `initialization/rules/` with your rules:
+Create a new YAML file in `api/internal/<domain>/rules/` with your rules:
 
 ```yaml
 rules:

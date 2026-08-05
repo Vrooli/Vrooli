@@ -1,7 +1,10 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
+  "storage": {
+    "entries": {},
+    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+  },
   "service": {
     "name": "algorithm-library",
     "displayName": "Algorithm Library",
@@ -131,11 +134,6 @@
           "description": "Build React UI"
         },
         {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Initialize database with algorithms"
-        },
-        {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o algorithm-library-api .",
           "description": "Build Go API binary"
@@ -197,17 +195,7 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store algorithms, implementations, test cases, and validation results",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/postgres/seed.sql",
-            "type": "data"
-          }
-        ]
+        "purpose": "Store algorithms, implementations, test cases, and validation results"
       },
       "redis": {
         "type": "redis",

@@ -1,7 +1,22 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "name": "ai-chatbot-manager",
     "displayName": "AI Chatbot Manager",
@@ -129,11 +144,6 @@
           "name": "build-ui",
           "run": "cd ui && npm run build",
           "description": "Build React dashboard for production"
-        },
-        {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Initialize database with schema and seed data"
         }
       ]
     },
@@ -201,17 +211,7 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store chatbot configs, conversations, user data, analytics",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/storage/postgres/seed.sql",
-            "type": "seed"
-          }
-        ]
+        "purpose": "Store chatbot configs, conversations, user data, analytics"
       }
     }
   },

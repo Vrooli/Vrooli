@@ -15,6 +15,8 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/rs/cors"
 	"github.com/vrooli/api-core/database"
+
+	chartsSchema "chart-generator-api/internal/charts"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
@@ -83,6 +85,11 @@ func main() {
 			db.SetMaxOpenConns(25)
 			db.SetMaxIdleConns(5)
 			db.SetConnMaxLifetime(5 * time.Minute)
+			if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(chartsSchema.Schema)); err != nil {
+				log.Printf("⚠️  Database schema initialization failed: %v (continuing without database)", err)
+				_ = db.Close()
+				db = nil
+			}
 			log.Println("🎉 Database connection pool established successfully!")
 		}
 	} else {

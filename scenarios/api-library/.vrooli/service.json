@@ -1,7 +1,10 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
+  "storage": {
+    "entries": {},
+    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+  },
   "service": {
     "name": "api-library",
     "displayName": "API Library",
@@ -53,27 +56,11 @@
     "resources": {
       "postgres": {
         "enabled": true,
-        "database": "api_library",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/postgres/seed.sql",
-            "type": "seed"
-          }
-        ]
+        "database": "api_library"
       },
       "qdrant": {
         "enabled": true,
-        "collection": "api_embeddings",
-        "initialization": [
-          {
-            "file": "initialization/qdrant/config.json",
-            "type": "config"
-          }
-        ]
+        "collection": "api_embeddings"
       },
       "redis": {
         "enabled": false,

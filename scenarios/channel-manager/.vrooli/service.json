@@ -1,7 +1,22 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "parent": "vrooli",
     "name": "channel-manager",
@@ -117,12 +132,12 @@
       "steps": [
         {
           "name": "build-api",
-          "run": "cd api \u0026\u0026 GOWORK=off go mod download \u0026\u0026 GOWORK=off go build -o channel-manager-api .",
+          "run": "cd api && GOWORK=off go mod download && GOWORK=off go build -o channel-manager-api .",
           "description": "Build Go API server"
         },
         {
           "name": "install-ui-deps",
-          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
           "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"
@@ -130,7 +145,7 @@
         },
         {
           "name": "build-ui",
-          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
+          "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
           "description": "Build production UI bundle"
         }
       ]
@@ -140,7 +155,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api \u0026\u0026 ./channel-manager-api",
+          "run": "cd api && ./channel-manager-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
@@ -149,7 +164,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui \u0026\u0026 node server.js",
+          "run": "cd ui && node server.js",
           "description": "Serve production UI bundle",
           "background": true,
           "condition": {
@@ -211,8 +226,8 @@
         "startup_policy": "try_start",
         "description": "Inbound caller. Releases approved drafts and asks whether an identity is eligible for a lane; this scenario answers rather than calls."
       },
-    "browser-automation-studio": {
-      "enabled": true,
+      "browser-automation-studio": {
+        "enabled": true,
         "required": false,
         "startup_policy": "ignore",
         "description": "Browser executor and per-identity session profiles (CHANMGR-P1-001). Disabled until a per-platform automation decision is recorded in docs/internal/DECISIONS.md."

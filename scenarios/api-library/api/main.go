@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	schema "github.com/vrooli/scenarios/api-library/api/internal/api"
 	"html"
 	"io"
 	"log"
@@ -1284,6 +1285,7 @@ func main() {
 	handler := c.Handler(router)
 
 	log.Println("API Library service starting...")
+
 	if err := server.Run(server.Config{
 		Handler: handler,
 		Cleanup: func(ctx context.Context) error {
@@ -1415,139 +1417,12 @@ func invalidateCachePattern(ctx context.Context, pattern string) error {
 }
 
 func initializeSchema() error {
-	// Check if tables exist, if not create them
-	var tableCount int
-	err := db.QueryRow(`
-		SELECT COUNT(*) 
-		FROM information_schema.tables 
-		WHERE table_schema = 'public' 
-		AND table_name IN ('apis', 'endpoints', 'pricing_tiers', 'notes', 'api_credentials')
-	`).Scan(&tableCount)
-
-	if err != nil {
-		return fmt.Errorf("failed to check existing tables: %v", err)
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		return fmt.Errorf("apply api-library schema: %w", err)
 	}
 
-	// If all tables exist, skip initialization
-	if tableCount >= 5 {
-		log.Println("✅ Database schema already initialized")
-		return nil
-	}
-
-	log.Println("📝 Initializing database schema...")
-
-	// Create tables directly with individual statements to handle partial failures better
-	tables := []string{
-		`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`,
-		`CREATE TABLE IF NOT EXISTS apis (
-			id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-			name VARCHAR(255) NOT NULL UNIQUE,
-			provider VARCHAR(255) NOT NULL,
-			description TEXT,
-			base_url VARCHAR(500),
-			documentation_url VARCHAR(500),
-			pricing_url VARCHAR(500),
-			category VARCHAR(100),
-			status VARCHAR(50) DEFAULT 'active',
-			sunset_date DATE,
-			auth_type VARCHAR(50),
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			last_refreshed TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			source_url VARCHAR(500),
-			tags TEXT[],
-			capabilities TEXT[],
-			search_vector tsvector
-		)`,
-		`CREATE TABLE IF NOT EXISTS endpoints (
-			id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-			api_id UUID NOT NULL REFERENCES apis(id) ON DELETE CASCADE,
-			path VARCHAR(500) NOT NULL,
-			method VARCHAR(10) NOT NULL,
-			description TEXT,
-			rate_limit_requests INTEGER,
-			rate_limit_period VARCHAR(50),
-			request_schema JSONB,
-			response_schema JSONB,
-			requires_auth BOOLEAN DEFAULT true,
-			auth_details JSONB,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			UNIQUE(api_id, path, method)
-		)`,
-		`CREATE TABLE IF NOT EXISTS pricing_tiers (
-			id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-			api_id UUID NOT NULL REFERENCES apis(id) ON DELETE CASCADE,
-			name VARCHAR(255) NOT NULL,
-			price_per_request DECIMAL(10, 6),
-			price_per_mb DECIMAL(10, 6),
-			price_per_minute DECIMAL(10, 6),
-			monthly_cost DECIMAL(10, 2),
-			annual_cost DECIMAL(10, 2),
-			free_tier_requests INTEGER,
-			free_tier_mb INTEGER,
-			max_requests_per_month INTEGER,
-			pricing_details JSONB,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			UNIQUE(api_id, name)
-		)`,
-		`CREATE TABLE IF NOT EXISTS notes (
-			id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-			api_id UUID NOT NULL REFERENCES apis(id) ON DELETE CASCADE,
-			content TEXT NOT NULL,
-			type VARCHAR(50) NOT NULL,
-			endpoint_id UUID REFERENCES endpoints(id) ON DELETE CASCADE,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			created_by VARCHAR(255) DEFAULT 'system',
-			scenario_source VARCHAR(255),
-			helpful_count INTEGER DEFAULT 0,
-			not_helpful_count INTEGER DEFAULT 0
-		)`,
-		`CREATE TABLE IF NOT EXISTS api_credentials (
-			id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-			api_id UUID NOT NULL REFERENCES apis(id) ON DELETE CASCADE,
-			is_configured BOOLEAN DEFAULT false,
-			configuration_date TIMESTAMP,
-			last_verified TIMESTAMP,
-			environment VARCHAR(50) DEFAULT 'development',
-			last_used TIMESTAMP,
-			usage_count INTEGER DEFAULT 0,
-			configuration_notes TEXT,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			UNIQUE(api_id, environment)
-		)`,
-	}
-
-	for _, table := range tables {
-		if _, err := db.Exec(table); err != nil {
-			log.Printf("⚠️  Warning: Failed to create table: %v", err)
-			// Continue with other tables
-		}
-	}
-
-	// Create indexes
-	indexes := []string{
-		`CREATE INDEX IF NOT EXISTS idx_apis_status ON apis(status)`,
-		`CREATE INDEX IF NOT EXISTS idx_apis_category ON apis(category)`,
-		`CREATE INDEX IF NOT EXISTS idx_apis_provider ON apis(provider)`,
-		`CREATE INDEX IF NOT EXISTS idx_endpoints_api_id ON endpoints(api_id)`,
-		`CREATE INDEX IF NOT EXISTS idx_pricing_api_id ON pricing_tiers(api_id)`,
-		`CREATE INDEX IF NOT EXISTS idx_notes_api_id ON notes(api_id)`,
-		`CREATE INDEX IF NOT EXISTS idx_credentials_api_id ON api_credentials(api_id)`,
-		`CREATE INDEX IF NOT EXISTS idx_credentials_configured ON api_credentials(is_configured)`,
-	}
-
-	for _, index := range indexes {
-		if _, err := db.Exec(index); err != nil {
-			log.Printf("⚠️  Warning: Failed to create index: %v", err)
-		}
-	}
-
-	log.Println("✅ Database schema initialized successfully")
-
-	// Insert minimal seed data to get started
+	// Insert minimal seed data to get started. The schema itself remains owned
+	// by the domain provider above.
 	seedData := []string{
 		`INSERT INTO apis (name, provider, description, base_url, documentation_url, category, auth_type, tags, capabilities)
 		 VALUES ('OpenAI API', 'OpenAI', 'Access to GPT models for text generation, embeddings, and more', 

@@ -32,7 +32,6 @@ COPY --from=node-builder /build/cli /app/cli
 
 # Copy configuration and rules
 COPY .vrooli/ /app/.vrooli/
-COPY initialization/ /app/initialization/
 COPY ui/ /app/ui/
 COPY package.json /app/
 

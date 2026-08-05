@@ -1,6 +1,7 @@
 package main
 
 import (
+	schema "algorithm-library-api/internal/algorithm"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -155,6 +156,10 @@ func main() {
 	handler := c.Handler(router)
 
 	log.Printf("Algorithm Library API starting")
+
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		log.Fatalf("database schema initialization failed: %v", err)
+	}
 	if err := server.Run(server.Config{
 		Handler: handler,
 		Cleanup: func(ctx context.Context) error {

@@ -14,6 +14,8 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+
+	dataSchema "github.com/Vrooli/Vrooli/scenarios/data-tools/api/internal/data"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
@@ -59,7 +61,12 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	// Configure connection pool for high concurrency
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(dataSchema.Schema)); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("database schema initialization failed: %w", err)
+	}
+
+	// Configure connection pool for high concurrency	// Configure connection pool for high concurrency
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)

@@ -14,6 +14,8 @@ import (
 	"github.com/go-redis/redis/v8"
 	_ "github.com/lib/pq" // register postgres driver with database/sql
 	"github.com/vrooli/api-core/database"
+
+	monitorSchema "app-monitor-api/internal/monitor"
 )
 
 // Config holds all application configuration
@@ -131,6 +133,11 @@ func (c *Config) InitializeDatabase() (*sql.DB, error) {
 	})
 	if err != nil {
 		return nil, fmt.Errorf("database connection failed: %w", err)
+	}
+
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(monitorSchema.Schema)); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("database schema initialization failed: %w", err)
 	}
 
 	logger.Info("✅ Database connected successfully")

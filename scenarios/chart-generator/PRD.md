@@ -128,7 +128,7 @@
 
 ## 📎 Appendix
 
-**Reference Materials**: README.md, docs/api.md, docs/cli.md, initialization/storage/postgres/schema.sql, requirements/index.json
+**Reference Materials**: README.md, docs/api.md, docs/cli.md, api/internal/<domain>/storage/postgres/schema.sql, requirements/index.json
 
 **Related Scenarios**: business-reports, research-assistant, financial-analyzer, marketing-analytics, project-management-visualizer
 
