@@ -9,18 +9,32 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 )
 
+const GroupName = "profiles"
+
 func Register(app *cliapp.ScenarioApp) cliapp.CommandGroup {
 	commands := profilecmd.New(app.APIClient)
+	connectCommands := newConnectCommands(app)
 	return cliapp.CommandGroup{
 		Title: "Profiles",
 		Commands: []cliapp.Command{
-			{Name: "profiles", NeedsAPI: true, Description: "List deployment profiles", Run: commands.List},
-			{Name: "profile", NeedsAPI: true, Description: "Profile management commands", Run: route(commands)},
+			{Name: "profile", NeedsAPI: true, Description: "Profile management commands", Run: route(commands, connectCommands)},
 		},
 	}
 }
 
-func route(commands *profilecmd.Commands) func([]string) error {
+func RegisterConnect(app *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
+	commands := newConnectCommands(app)
+	return cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{
+		"ProfilesService.ListProfiles":        cliapp.ProtoList(commands.listCall, commands.listReport),
+		"ProfilesService.CreateProfile":       cliapp.ProtoMutation(commands.createCall, commands.createReport),
+		"ProfilesService.GetProfile":          cliapp.ProtoList(commands.showCall, commands.showReport),
+		"ProfilesService.UpdateProfile":       cliapp.ProtoMutation(commands.updateCall, commands.updateReport),
+		"ProfilesService.DeleteProfile":       cliapp.ProtoMutation(commands.deleteCall, commands.deleteReport),
+		"ProfilesService.ListProfileVersions": cliapp.ProtoList(commands.versionsCall, commands.versionsReport),
+	})
+}
+
+func route(commands *profilecmd.Commands, connectCommands *connectCommands) func([]string) error {
 	return func(args []string) error {
 		if len(args) == 0 {
 			return errors.New("profile subcommand is required")
@@ -29,13 +43,13 @@ func route(commands *profilecmd.Commands) func([]string) error {
 		rest := args[1:]
 		switch sub {
 		case "create":
-			return commands.Create(rest)
+			return connectCommands.create(rest)
 		case "list":
-			return commands.List(rest)
+			return connectCommands.list(rest)
 		case "show":
-			return commands.Show(rest)
+			return connectCommands.show(rest)
 		case "delete":
-			return commands.Delete(rest)
+			return connectCommands.delete(rest)
 		case "export":
 			return commands.Export(rest)
 		case "import":
@@ -47,7 +61,7 @@ func route(commands *profilecmd.Commands) func([]string) error {
 		case "swap":
 			return commands.Swap(rest)
 		case "versions":
-			return commands.Versions(rest)
+			return connectCommands.versions(rest)
 		case "analyze":
 			return commands.Analyze(rest)
 		case "save":

@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-22T00:11:31-04:00"
+    "last_validated_at": "2026-08-04T16:50:31-04:00"
   },
   "requirements": [
     {
       "id": "DM-P0-001",
       "title": "Dependency Aggregation",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "dependency-analysis",
       "description": "Recursively fetch all resource and scenario dependencies (depth 10) within 5 seconds",
@@ -19,7 +19,7 @@
           "type": "test",
           "ref": "cli/overview/commands_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Go CLI tests validate dependency analysis command behavior"
         }
       ]
@@ -27,7 +27,7 @@
     {
       "id": "DM-P0-002",
       "title": "Circular Dependency Detection",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "dependency-analysis",
       "description": "Display clear error when circular dependencies detected (A → B → C → A)",
@@ -40,7 +40,7 @@
           "type": "test",
           "ref": "cli/overview/commands_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Go CLI tests validate dependency analysis command behavior"
         }
       ]
@@ -48,7 +48,7 @@
     {
       "id": "DM-P0-003",
       "title": "Multi-Tier Fitness Scoring",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "dependency-analysis",
       "description": "Calculate fitness score (0-100) for all 5 tiers within 2 seconds per dependency",
@@ -61,7 +61,7 @@
           "type": "test",
           "ref": "cli/overview/commands_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Go CLI tests validate dependency analysis command behavior"
         }
       ]
@@ -69,7 +69,7 @@
     {
       "id": "DM-P0-004",
       "title": "Fitness Score Breakdown",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "dependency-analysis",
       "description": "Break down fitness into 4+ sub-scores: portability, resource requirements, licensing, platform support",
@@ -82,7 +82,7 @@
           "type": "test",
           "ref": "cli/overview/commands_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Go CLI tests validate dependency analysis command behavior"
         }
       ]
@@ -90,7 +90,7 @@
     {
       "id": "DM-P0-005",
       "title": "Blocker Identification",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "dependency-analysis",
       "description": "Clearly state reason for blockers (fitness = 0) with actionable remediation",
@@ -103,7 +103,7 @@
           "type": "test",
           "ref": "cli/overview/commands_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Go CLI tests validate dependency analysis command behavior"
         }
       ]
@@ -111,7 +111,7 @@
     {
       "id": "DM-P0-006",
       "title": "Aggregate Resource Tallies",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "dependency-analysis",
       "description": "Display total memory, CPU, GPU, storage, network requirements with units",
@@ -124,7 +124,7 @@
           "type": "test",
           "ref": "cli/overview/commands_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Go CLI tests validate dependency analysis command behavior"
         }
       ]

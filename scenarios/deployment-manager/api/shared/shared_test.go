@@ -636,7 +636,7 @@ func TestEnvConfigResolver_ResolveTelemetryDir_Default(t *testing.T) {
 	if err != nil || home == "" {
 		t.Fatalf("UserHomeDir() unexpected error: %v", err)
 	}
-	want := filepath.Join(home, ".local", "state", "logs", "vrooli", "deployment-manager", "telemetry")
+	want := filepath.Join(home, ".vrooli", "logs", "vrooli", "deployment-manager", "telemetry")
 	if got != want {
 		t.Errorf("ResolveTelemetryDir() = %q, want %q", got, want)
 	}

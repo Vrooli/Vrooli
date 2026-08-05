@@ -92,7 +92,8 @@ The signing endpoints in deployment-manager (`/api/v1/profiles/{id}/signing`) ar
 
 To migrate:
 1. Use scenario-to-desktop's signing CLI or API directly
-2. Or set `SIGNING_PROXY_ENABLED=true` in deployment-manager to auto-proxy
+2. Configure scenario-to-desktop directly; deployment-manager's compatibility
+   endpoints are already proxy-only and do not own signing validation.
 
 ## Related Documentation
 

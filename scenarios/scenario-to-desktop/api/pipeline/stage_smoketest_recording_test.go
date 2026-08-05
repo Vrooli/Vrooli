@@ -2,10 +2,11 @@ package pipeline
 
 import (
 	"context"
-	"scenario-to-desktop-api/build"
-	"scenario-to-desktop-api/smoketest/mocks"
 	"testing"
 	"time"
+
+	"scenario-to-desktop-api/build"
+	"scenario-to-desktop-api/smoketest/mocks"
 )
 
 // mockSmokeTestService implements smoketest.Service for testing.

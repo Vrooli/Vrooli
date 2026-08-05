@@ -58,7 +58,7 @@ Thin client mode is available for scenarios where you want a lightweight desktop
 scenario-to-desktop is the Tier 2 ramp. It owns build, packaging, signing, publishing, and running the artifact on desktop targets. `deployment-manager` owns the approval gate and the release record, and this pipeline asks it for permission before publishing. See [API Contract](reference/api-contract.md#release-authority).
 
 ## What's not yet automated
-- User-flow evidence is not captured during smoke tests. The smoke test checks process and telemetry health; it does not replay `bas/` workflow assets or record them
+- The smoke-test journey captures a deterministic startup and interaction evidence trail (recording, screenshots, window geometry, and a durable step list). It is not a replacement for arbitrary `bas/` workflow assets; those remain a separate browser validation concern.
 - `cloud-api` mode remains a stub for future SaaS deployments
 - Electron is the supported desktop framework.
 - Auto-updates, signing, and app-store submissions remain optional/manual

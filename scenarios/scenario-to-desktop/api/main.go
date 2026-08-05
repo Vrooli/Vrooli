@@ -15,11 +15,15 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
+	"time"
+
 	"scenario-to-desktop-api/agentmanager"
 	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/bundle"
 	"scenario-to-desktop-api/captures"
 	"scenario-to-desktop-api/deploy"
+	"scenario-to-desktop-api/evidence"
 	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/internal/capabilities"
 	"scenario-to-desktop-api/livedesktop"
@@ -37,8 +41,6 @@ import (
 	"scenario-to-desktop-api/system"
 	"scenario-to-desktop-api/tasks"
 	"scenario-to-desktop-api/telemetry"
-	"strconv"
-	"time"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -237,12 +239,19 @@ func NewServer(port int) *Server {
 	windowDetector := procmetrics.NewXdotoolDetector(shellFn, logger)
 	monitorFactory := procmetrics.NewDefaultMonitorFactory(procReader, windowDetector, logger)
 	smokeTestService.WithMonitor(monitorFactory)
+	smokeTestService.WithWindowDetector(windowDetector)
 
 	// Wire smoke test store into records handler for video data enrichment
 	recordsHandler.SetSmokeTestStore(&smokeTestRecordAdapter{store: smokeTestStore})
 
 	// Captures domain (persistent screenshot/recording storage)
 	capturesService, capturesHandler := initCapturesDomain(storePaths, logger)
+	if capturesService != nil {
+		smokeTestService.WithCaptures(capturesService)
+	}
+	if deploymentManagerURL := os.Getenv("DEPLOYMENT_MANAGER_URL"); deploymentManagerURL != "" {
+		smokeTestService.WithEvidenceReporter(evidence.NewConnectReporterFromURL(deploymentManagerURL, nil))
+	}
 
 	// Live desktop domain (interactive VNC sessions)
 	linuxBackend := livedesktop.NewBackend(logger)
@@ -255,6 +264,7 @@ func NewServer(port int) *Server {
 		liveDesktopService.WithDataDir(liveDesktopDataDir)
 	}
 	liveDesktopService.WithRecorder(recorder)
+	liveDesktopService.WithWindowController(windowDetector)
 	if capturesService != nil {
 		liveDesktopService.WithCaptures(capturesService)
 	}
@@ -593,9 +603,6 @@ func (s *Server) registerDomainHandlers() {
 	s.router.HandleFunc("/api/v1/docs/manifest", s.docsManifestHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/docs/content", s.docsContentHandler).Methods("GET")
 	s.router.HandleFunc("/docs/{docPath:.*}", s.docsFileHandler).Methods("GET")
-
-	// Smoke test video serving
-	s.router.HandleFunc("/api/v1/smoketest/{id}/video", s.smokeTestVideoHandler).Methods("GET")
 
 	// Icon preview
 	s.router.HandleFunc("/api/v1/icons/preview", s.iconPreviewHandler).Methods("GET")

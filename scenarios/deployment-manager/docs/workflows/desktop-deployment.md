@@ -914,5 +914,5 @@ pnpm run dist:all
 - [Auto-Updates Guide](../guides/auto-updates.md) - Update channel configuration
 - [Dependency Swapping Guide](../guides/dependency-swapping.md) - Swap strategies
 - [Secrets Management Guide](../guides/secrets-management.md) - Secret classification
-- [Example Manifests](../examples/manifests/README.md) - Reference bundle.json files
+- [Example Manifests](../examples/manifests/desktop-happy.json) - Reference bundle.json file
 - [Picker Wheel Desktop Example](../examples/picker-wheel-desktop.md) - Real-world case study

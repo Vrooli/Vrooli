@@ -2,8 +2,8 @@
 
 > **Version**: 1.0.0
 > **Canonical Reference**: /scenarios/deployment-manager/PRD.md
-> **Last Updated**: 2025-11-21
-> **Status**: Initialization (Generator Phase)
+> **Last Updated**: 2026-08-05
+> **Status**: Active product contract
 
 ---
 
@@ -40,55 +40,59 @@ This scenario transforms Vrooli's deployment story from "manually package and sh
 ### 🔴 P0 – Must ship for viability
 
 #### Dependency Analysis & Fitness Scoring
-- [ ] OT-P0-001 | Dependency Aggregation | Recursively fetch all resource and scenario dependencies (depth 10) within 5 seconds
-- [ ] OT-P0-002 | Circular Dependency Detection | Display clear error when circular dependencies detected (A → B → C → A)
-- [ ] OT-P0-003 | Multi-Tier Fitness Scoring | Calculate fitness score (0-100) for all 5 tiers within 2 seconds per dependency
-- [ ] OT-P0-004 | Fitness Score Breakdown | Break down fitness into 4+ sub-scores: portability, resource requirements, licensing, platform support
-- [ ] OT-P0-005 | Blocker Identification | Clearly state reason for blockers (fitness = 0) with actionable remediation
-- [ ] OT-P0-006 | Aggregate Resource Tallies | Display total memory, CPU, GPU, storage, network requirements with units
+- [x] OT-P0-001 | Dependency Aggregation | Recursively fetch all resource and scenario dependencies (depth 10) within 5 seconds
+- [x] OT-P0-002 | Circular Dependency Detection | Display clear error when circular dependencies detected (A → B → C → A)
+- [x] OT-P0-003 | Multi-Tier Fitness Scoring | Calculate fitness score (0-100) for all 5 tiers within 2 seconds per dependency
+- [x] OT-P0-004 | Fitness Score Breakdown | Break down fitness into 4+ sub-scores: portability, resource requirements, licensing, platform support
+- [x] OT-P0-005 | Blocker Identification | Clearly state reason for blockers (fitness = 0) with actionable remediation
+- [x] OT-P0-006 | Aggregate Resource Tallies | Display total memory, CPU, GPU, storage, network requirements with units
 
 #### Dependency Swapping
-- [ ] OT-P0-007 | Swap Suggestions | Suggest at least one swap for each blocker/low-fitness dependency (<50) or show "No known alternatives"
-- [ ] OT-P0-008 | Swap Impact Analysis | Show fitness delta, trade-offs (pros/cons), and migration effort estimate for each swap
-- [ ] OT-P0-009 | Non-Destructive Swaps | Applying swaps updates deployment profile only, never modifies source code
-- [ ] OT-P0-010 | Real-Time Recalculation | Recalculate fitness and requirements within 1 second after swap application
-- [ ] OT-P0-011 | Cascading Swap Detection | Detect and warn about cascading impacts (e.g., swapping postgres removes dependent scenario X)
+- [x] OT-P0-007 | Swap Suggestions | Suggest at least one swap for each blocker/low-fitness dependency (<50) or show "No known alternatives"
+- [x] OT-P0-008 | Swap Impact Analysis | Show fitness delta, trade-offs (pros/cons), and migration effort estimate for each swap
+- [x] OT-P0-009 | Non-Destructive Swaps | Applying swaps updates deployment profile only, never modifies source code
+- [x] OT-P0-010 | Real-Time Recalculation | Recalculate fitness and requirements within 1 second after swap application
+- [x] OT-P0-011 | Cascading Swap Detection | Detect and warn about cascading impacts (e.g., swapping postgres removes dependent scenario X)
 
 #### Deployment Profile Management
-- [ ] OT-P0-012 | Profile Creation | Create new deployment profile in ≤ 3 clicks from home screen
-- [ ] OT-P0-013 | Auto-Save with Debounce | Auto-save profile edits with 500ms debounce (or manual save button)
-- [ ] OT-P0-014 | Profile Export/Import | Support profile export/import in JSON format for version control
-- [ ] OT-P0-015 | Profile Versioning | Create new version for each edit with timestamp and user attribution
-- [ ] OT-P0-016 | Version History View | Display version history list with diffs showing changes
-- [ ] OT-P0-017 | Version Rollback | Restore all profile settings (swaps, secrets, env vars) within 2 seconds when rolling back
+- [x] OT-P0-012 | Profile Creation | Create new deployment profile in ≤ 3 clicks from home screen
+- [x] OT-P0-013 | Auto-Save with Debounce | Auto-save profile edits with 500ms debounce (or manual save button)
+- [x] OT-P0-014 | Profile Export/Import | Support profile export/import in JSON format for version control
+- [x] OT-P0-015 | Profile Versioning | Create new version for each edit with timestamp and user attribution
+- [x] OT-P0-016 | Version History View | Display version history list with diffs showing changes
+- [x] OT-P0-017 | Version Rollback | Restore all profile settings (swaps, secrets, env vars) within 2 seconds when rolling back
 
 #### Secret Management Integration
-- [ ] OT-P0-018 | Secret Identification | Identify all required secrets within 3 seconds when profile created or swaps applied
-- [ ] OT-P0-019 | Secret Categorization | Categorize secrets as required, optional, dev-only, user-supplied, vault-managed
-- [ ] OT-P0-020 | Desktop/Mobile Secret Templates | Generate .env.template with human-friendly descriptions for desktop/mobile tiers
-- [ ] OT-P0-021 | SaaS/Enterprise Secret References | Generate Vault/AWS Secrets Manager references in correct format for cloud tiers
-- [ ] OT-P0-022 | Secret Validation Testing | Provide "Test API key" buttons that call endpoints to validate secrets before deployment
+- [x] OT-P0-018 | Secret Identification | Identify all required secrets within 3 seconds when profile created or swaps applied
+- [x] OT-P0-019 | Secret Categorization | Categorize secrets as required, optional, dev-only, user-supplied, vault-managed
+- [x] OT-P0-020 | Desktop/Mobile Secret Templates | Generate .env.template with human-friendly descriptions for desktop/mobile tiers
+- [x] OT-P0-021 | SaaS/Enterprise Secret References | Generate Vault/AWS Secrets Manager references in correct format for cloud tiers
+- [x] OT-P0-022 | Secret Validation Testing | Provide "Test API key" buttons that call endpoints to validate secrets before deployment
 
 #### Pre-Deployment Validation
-- [ ] OT-P0-023 | Comprehensive Validation Checks | Run 6+ checks: fitness threshold, secret completeness, licensing, resource limits, platform requirements, dependency compatibility
-- [ ] OT-P0-024 | Fast Validation Execution | Complete all validation checks within 10 seconds for scenarios with ≤50 dependencies
-- [ ] OT-P0-025 | Validation Report UI | Display pass/fail/warning status with color coding (green/red/yellow) for each check
-- [ ] OT-P0-026 | Actionable Remediation Steps | Provide at least one actionable step for each failed check (e.g., "Upload code signing certificate here")
-- [ ] OT-P0-027 | SaaS Cost Estimation | Estimate monthly cost (compute, storage, bandwidth) within ±20% accuracy for SaaS/cloud tiers
+- [x] OT-P0-023 | Comprehensive Validation Checks | Run 6+ checks: fitness threshold, secret completeness, licensing, resource limits, platform requirements, dependency compatibility
+- [x] OT-P0-024 | Fast Validation Execution | Complete all validation checks within 10 seconds for scenarios with ≤50 dependencies
+- [x] OT-P0-025 | Validation Report UI | Display pass/fail/warning status with color coding (green/red/yellow) for each check
+- [x] OT-P0-026 | Actionable Remediation Steps | Provide at least one actionable step for each failed check (e.g., "Upload code signing certificate here")
+- [x] OT-P0-027 | SaaS Cost Estimation | Estimate monthly cost (compute, storage, bandwidth) within ±20% accuracy for SaaS/cloud tiers
 
 #### Deployment Orchestration
-- [ ] OT-P0-028 | One-Click Deployment Trigger | Trigger deployment with single "Deploy" button after validation passes
-- [ ] OT-P0-029 | Profile Locking During Deployment | Lock profile to prevent edits during active deployment
-- [ ] OT-P0-030 | Real-Time Log Streaming | Stream deployment logs to UI with <2s latency via WebSocket or SSE
-- [ ] OT-P0-031 | Log Filtering and Search | Enable log filtering by level (info/warning/error) and full-text search
-- [ ] OT-P0-032 | Deployment Failure Handling | Capture error logs on failure and display "Retry" button with error context
-- [ ] OT-P0-033 | scenario-to-* Integration | Call platform-specific packagers (scenario-to-desktop, scenario-to-ios, etc.) with deployment profile
-- [ ] OT-P0-034 | scenario-to-* Auto-Discovery | Auto-discover installed scenario-to-* scenarios on startup, warn if missing required packagers
+- [x] OT-P0-028 | One-Click Deployment Trigger | Trigger deployment with single "Deploy" button after validation passes
+- [x] OT-P0-029 | Profile Locking During Deployment | Lock profile to prevent edits during active deployment
+- [x] OT-P0-030 | Real-Time Log Streaming | Stream deployment logs to UI with <2s latency via WebSocket or SSE
+- [x] OT-P0-031 | Log Filtering and Search | Enable log filtering by level (info/warning/error) and full-text search
+- [x] OT-P0-032 | Deployment Failure Handling | Capture error logs on failure and display "Retry" button with error context
+- [x] OT-P0-033 | scenario-to-* Integration | Call platform-specific packagers (scenario-to-desktop, scenario-to-ios, etc.) with deployment profile
+- [x] OT-P0-034 | scenario-to-* Auto-Discovery | Auto-discover installed scenario-to-* scenarios on startup, warn if missing required packagers
 
 #### Dependency Graph Visualization
-- [ ] OT-P0-035 | Interactive Dependency Graph | Render dependency tree as interactive graph (React Flow or d3-force) with color-coded fitness scores
-- [ ] OT-P0-036 | Table View Alternative | Provide sortable table view with columns: name, type, fitness score, issues, suggested swaps
-- [ ] OT-P0-037 | Graph Rendering Performance | Render dependency graph within 3 seconds for scenarios with ≤100 dependencies
+- [x] OT-P0-035 | Interactive Dependency Graph | Render dependency tree as interactive graph (React Flow or d3-force) with color-coded fitness scores
+- [x] OT-P0-036 | Table View Alternative | Provide sortable table view with columns: name, type, fitness score, issues, suggested swaps
+- [x] OT-P0-037 | Graph Rendering Performance | Render dependency graph within 3 seconds for scenarios with ≤100 dependencies
+
+#### Evidence-Backed Release Governance
+- [x] OT-P0-038 | Shared Evidence Contract | When a ramp submits release evidence, deployment-manager shall validate a versioned proto-first contract with reference-only artifacts and explicit dispositions and reasons
+- [x] OT-P0-039 | Decision-Grade Desktop Evidence | When scenario-to-desktop reports a desktop journey, deployment-manager shall require ordered steps, before-and-after screenshots, recording references, target geometry, and named degradation reasons before release approval
 
 ### 🟠 P1 – Should have post-launch
 
@@ -167,9 +171,9 @@ This scenario transforms Vrooli's deployment story from "manually package and sh
 - [ ] OT-P2-016 | Deployment Comparison Views | Compare metrics across multiple deployments (A/B testing, staging vs production)
 
 #### Visual Validation
-- [x] OT-P2-VV1 | Screen-Recorded Smoke Tests | Record desktop smoke tests via FFmpeg screen capture for human review before publishing
-- [x] OT-P2-VV2 | Video Review UI | HTML5 video player with approve/reject workflow for visual validation
-- [x] OT-P2-VV3 | Validation CLI | CLI commands for running, reviewing, and managing visual validations
+- [x] OT-P2-027 | Screen-Recorded Smoke Tests | Record desktop smoke tests via FFmpeg screen capture for human review before publishing
+- [x] OT-P2-028 | Video Review UI | HTML5 video player with approve/reject workflow for visual validation
+- [x] OT-P2-029 | Validation CLI | CLI commands for running, reviewing, and managing visual validations
 
 #### Visual Builder & Advanced UX
 - [ ] OT-P2-017 | Visual Dependency Graph Editor | Allow drag-and-drop editing of dependency swaps in graph view
@@ -196,13 +200,13 @@ This scenario transforms Vrooli's deployment story from "manually package and sh
 - **Frontend UI**: React + TypeScript + Vite + TailwindCSS + shadcn + Lucide (Vrooli standard)
 - **Data Visualization**: React Flow (dependency graphs) + Recharts (monitoring metrics)
 - **CLI**: Bash wrapper around API (consistent with other scenarios)
-- **Storage**: PostgreSQL (deployment profiles, audit logs, fitness rules)
+- **Storage**: Per-domain SQLite through `modernc.org/sqlite` and the routed database boundary
 - **Caching**: Redis (optional, for fitness score caching)
 
 #### Storage Expectations
-- **Deployment Profiles**: JSON documents with versioning (PostgreSQL JSONB)
-- **Fitness Rules**: Pluggable rules engine (Go structs, PostgreSQL storage for custom rules)
-- **Audit Logs**: Append-only table (PostgreSQL with timestamps and immutability constraints)
+- **Deployment Profiles**: Versioned records in domain-owned SQLite tables
+- **Fitness Rules**: Pluggable rules engine with domain-owned SQLite persistence where needed
+- **Audit Logs**: Append-only records with timestamps and immutability constraints
 - **Swap Database**: Structured data (dependency → alternatives with metadata)
 
 #### Integration Strategy
@@ -225,9 +229,9 @@ This scenario transforms Vrooli's deployment story from "manually package and sh
 ## 🤝 Dependencies & Launch Plan
 
 #### Required Resources
-1. **postgres**: Deployment profile storage, audit logs, fitness rules database
+1. **Embedded SQLite**: Deployment profile storage, release decisions, and evidence references
 2. **redis** (optional): Caching layer for fitness scores and dependency tree calculations
-3. **claude-code or ollama**: AI-powered migration strategy suggestions (agent integration)
+3. **claude-code or ollama** (optional): AI-powered migration strategy suggestions (agent integration)
 
 #### Required Scenarios
 1. **scenario-dependency-analyzer**: Dependency tree data source (critical dependency)

@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"time"
+
+	"deployment-manager/shared"
 )
 
 // PublishedVersion records a single version publish event (append-only).
@@ -28,33 +30,12 @@ type PublishedVersionsRepository interface {
 
 // SQLPublishedVersionsRepository implements PublishedVersionsRepository with PostgreSQL.
 type SQLPublishedVersionsRepository struct {
-	db *sql.DB
+	db shared.RoutedDBTX
 }
 
 // NewSQLPublishedVersionsRepository creates a new SQL-backed published versions repository.
-func NewSQLPublishedVersionsRepository(db *sql.DB) *SQLPublishedVersionsRepository {
+func NewSQLPublishedVersionsRepository(db shared.RoutedDBTX) *SQLPublishedVersionsRepository {
 	return &SQLPublishedVersionsRepository{db: db}
-}
-
-// EnsureSchema creates the published_versions table if it doesn't exist.
-func (r *SQLPublishedVersionsRepository) EnsureSchema(ctx context.Context) error {
-	_, err := r.db.ExecContext(ctx, `
-		CREATE TABLE IF NOT EXISTS published_versions (
-			id SERIAL PRIMARY KEY,
-			profile_id VARCHAR(255) NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-			platform VARCHAR(50) NOT NULL,
-			version VARCHAR(100) NOT NULL,
-			git_commit_hash VARCHAR(64),
-			artifact_id BIGINT,
-			deployment_id VARCHAR(255) REFERENCES deployments(id),
-			release_id TEXT,
-			published_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
-		);
-		CREATE INDEX IF NOT EXISTS idx_published_versions_profile_platform
-			ON published_versions(profile_id, platform, published_at DESC);
-		ALTER TABLE published_versions ADD COLUMN IF NOT EXISTS release_id TEXT;
-	`)
-	return err
 }
 
 // RecordPublish inserts a new published version record.

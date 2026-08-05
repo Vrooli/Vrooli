@@ -12,3 +12,7 @@
 # Shared @vrooli/* packages are consumed via file: references (see package.json).
 packages:
   - .
+
+# Do not accept newly published versions until they have had time to settle.
+# This reduces supply-chain risk for the release-management UI.
+minimumReleaseAge: 10080

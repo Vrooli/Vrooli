@@ -3,9 +3,10 @@ package tasks
 import (
 	"context"
 	"encoding/json"
-	"scenario-to-desktop-api/domain"
 	"testing"
 	"time"
+
+	"scenario-to-desktop-api/domain"
 
 	"connectrpc.com/connect"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"

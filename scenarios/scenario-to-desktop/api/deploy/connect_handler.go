@@ -3,9 +3,10 @@ package deploy
 import (
 	"context"
 	"fmt"
-	"scenario-to-desktop-api/shared/connecterrors"
 	"sort"
 	"strings"
+
+	"scenario-to-desktop-api/shared/connecterrors"
 
 	"connectrpc.com/connect"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"

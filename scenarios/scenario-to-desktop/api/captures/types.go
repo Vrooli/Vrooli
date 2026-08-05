@@ -8,6 +8,7 @@ type CaptureType string
 const (
 	CaptureScreenshot CaptureType = "screenshot"
 	CaptureRecording  CaptureType = "recording"
+	CaptureJourney    CaptureType = "journey"
 )
 
 // Capture holds metadata for a single persisted capture file.
@@ -20,6 +21,7 @@ type Capture struct {
 	Width         int         `json:"width,omitempty"`
 	Height        int         `json:"height,omitempty"`
 	DurationMs    int64       `json:"duration_ms,omitempty"`
+	Checksum      string      `json:"checksum"`
 	SourceSession string      `json:"source_session"`
 	CreatedAt     time.Time   `json:"created_at"`
 }

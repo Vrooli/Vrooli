@@ -7,6 +7,7 @@ package smoketest
 
 import (
 	"fmt"
+
 	"scenario-to-desktop-api/shared/errors"
 )
 

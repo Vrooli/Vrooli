@@ -197,8 +197,8 @@ func renderSwapListReport(scenario string, body []byte) error {
 		},
 		ResultsHeading: "Suggested Swaps",
 		RetrievalHints: []string{
-			fmt.Sprintf("deployment-manager swaps analyze <from> <to>"),
-			fmt.Sprintf("deployment-manager swaps apply <profile> <from> <to>"),
+			"deployment-manager swaps analyze <from> <to>",
+			"deployment-manager swaps apply <profile> <from> <to>",
 		},
 	}
 	for _, s := range suggestions {

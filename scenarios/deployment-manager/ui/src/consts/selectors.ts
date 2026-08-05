@@ -273,7 +273,7 @@ const createSelectorRegistry = <
   return { selectors, manifest };
 };
 
-const literalSelectors: LiteralSelectorTree = {
+const literalSelectors = {
   layout: {
     rootContainer: 'app-root',
     navDashboard: 'nav-dashboard',
@@ -317,6 +317,17 @@ const literalSelectors: LiteralSelectorTree = {
   },
   health: {
     status: 'health-status',
+  },
+  evidence: {
+    heading: 'evidence-heading',
+    commitInput: 'evidence-commit-input',
+    reviewIntro: 'evidence-review-intro',
+    gateStatus: 'evidence-gate-status',
+    producerRecording: 'evidence-producer-recording',
+  },
+  releases: {
+    heading: 'releases-heading',
+    recordsIntro: 'releases-records-intro',
   },
 };
 

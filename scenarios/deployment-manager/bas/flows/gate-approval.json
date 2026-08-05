@@ -1,0 +1,16 @@
+{
+  "metadata": {
+    "name": "gate-approval",
+    "description": "Open the real releases surface and verify release records are presented from the API.",
+    "requirement": "DM-RELEASE-REVIEW",
+    "version": "1",
+    "labels": { "reset": "none", "purpose": "gate-approval" },
+    "execution_mode": "observer"
+  },
+  "settings": { "viewport_width": 1440, "viewport_height": 900 },
+  "nodes": [
+    { "id": "open-releases", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "deployment-manager", "scenario_path": "/releases", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE", "timeout_ms": 30000 }, "metadata": { "label": "Open releases" } } },
+    { "id": "assert-heading", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/releases.recordsIntro", "mode": "ASSERTION_MODE_TEXT_CONTAINS", "expected": { "stringValue": "Real release records" }, "timeout_ms": 10000, "failure_message": "Releases surface did not render" }, "metadata": { "label": "Release records surface" } } }
+  ],
+  "edges": [ { "source": "open-releases", "target": "assert-heading" } ]
+}

@@ -6,8 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"scenario-to-desktop-api/shared/path"
 	"strings"
+
+	"scenario-to-desktop-api/shared/path"
 
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )

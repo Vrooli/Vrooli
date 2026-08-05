@@ -2,39 +2,30 @@
 
 Architectural seams and variation points for the deployment-manager scenario.
 
-## Visual Validation Seams (Mar 2026)
+## Seam Registry
 
-### ValidationRepository Seam
-- **Interface**: `validation.Repository` (`api/validation/repository.go`)
-- **Default Implementation**: `SQLRepository` — PostgreSQL persistence for validation records
-- **Variation Point**: Could be replaced with in-memory store for tests or file-backed store for single-node deployments
-- **Test Double**: `inMemoryRepo` in `api/validation/handler_test.go`
+| Seam | Declaration | Production implementation | Test double | Why it exists |
+|---|---|---|---|---|
+| `deployments.ApprovalsRepository` | `api/deployments/approvals_repository.go` | `SQLApprovalsRepository` | `sqlmock` expectations in `approvals_repository_test.go` | Isolates release-gate persistence and makes every gate state executable |
+| `profiles.Repository` | `api/profiles/repository.go` | `SQLRepository` | `mockRepository` in handler tests and `sqlmock` repository tests | Keeps profile storage out of handlers and orchestration policy |
+| `deployments.CloudHealthClient` | `api/deployments/cloud_client.go` | HTTP client | `fakeCloudClient` in orchestration tests | Makes optional cloud readiness deterministic |
+| `deployments.LPBSReleaseClient` | `api/deployments/lpbs_release_client.go` | HTTP client | `fakeLPBSClient` in orchestration tests | Makes release verification deterministic |
+| `codesigning.Repository` | `api/codesigning/interfaces.go` | scenario-to-desktop proxy | `mockRepository` in `handler_test.go` | Keeps signing credentials and execution owned by the ramp |
+| `evidence.Repository` | `api/internal/evidence/repository.go` | `SQLRepository` | `fakeEvidenceRepository` and `FakeProducer` | Keeps verdict persistence deterministic and reference-only |
 
-### VideoTransport Seam
-- **Interface**: `DesktopPackagerClient.DownloadVideo()` (`api/deployments/desktop_client.go`)
-- **Default Implementation**: HTTP streaming from scenario-to-desktop `/api/v1/smoketest/{id}/video`
-- **Variation Point**: Could be replaced with MinIO/S3 download for multi-server deployments
-- **Test Strategy**: Mock HTTP server in client tests
-
-### DesktopPackagerClient Seam (extended)
-- **Interface**: Methods on `DesktopPackagerClient` (`api/deployments/desktop_client.go`)
-- **New Methods**: `RunSmokeTest`, `GetSmokeTestStatus`, `WaitForSmokeTest`, `DownloadVideo`
-- **Default Implementation**: HTTP calls to scenario-to-desktop API
-- **Variation Point**: Already an established seam; smoke test methods follow the same HTTP polling pattern as build methods
-
-## Deployment Approvals Seams (Mar 2026)
+## Deployment Approvals Seams
 
 ### ApprovalsRepository Seam
 - **Interface**: `deployments.ApprovalsRepository` (`api/deployments/approvals_repository.go`)
-- **Default Implementation**: `SQLApprovalsRepository` — PostgreSQL persistence for per-platform, per-commit approval records
+- **Default Implementation**: `SQLApprovalsRepository` — SQLite persistence for per-platform, per-commit approval records
 - **Purpose**: Tracks approval status (pending/approved/rejected/stale) tied to specific git commits. When a new commit is built, previous approvals for the same profile+platform are automatically marked stale.
 - **Key Methods**: `Create`, `Get`, `ListByCommit`, `ListByProfile`, `UpdateDecision`, `MarkStale`, `CheckReleaseGate`, `GetRequiredPlatforms`, `SetRequiredPlatforms`
-- **Test Double**: In-memory mock in handler tests (planned)
+- **Test Double**: `sqlmock` rows in `api/deployments/approvals_repository_test.go`
 
 ### Release Gate Seam
 - **Integration Point**: `Orchestrator.DeployDesktop()` (`api/deployments/orchestrator.go`)
-- **Purpose**: Before a deployment proceeds, if `GitCommitHash` is provided, the orchestrator checks `ApprovalsRepository.CheckReleaseGate()` to verify all required platforms are approved for that exact commit
-- **Bypass**: Omit `git_commit_hash` from `DeployDesktopRequest` to skip gate check (allows legacy/ungated deployments)
+- **Purpose**: Before a deployment proceeds, `DeployDesktopRequest` must carry an exact commit and the orchestrator checks `ApprovalsRepository.CheckReleaseGate()` for that commit
+- **Bypass**: None. Missing commit identifiers are rejected with HTTP 400.
 - **Status Values**: pending, approved, rejected, stale, missing
 
 ### Required Platforms Seam

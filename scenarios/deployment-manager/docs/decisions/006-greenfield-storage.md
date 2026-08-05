@@ -18,6 +18,10 @@ The scenario has never been deployed. No user data exists anywhere.
 
 The `storage-steer` skill defines exactly two strategies, and the dividing line is whether real users exist — not whether the dev database has data. deployment-manager is unambiguously on the greenfield side of that line.
 
+The chosen engine is SQLite, not PostgreSQL: it is embedded, CGO-free through
+`modernc.org/sqlite`, portable across local and shadow test environments, and
+removes the scenario's mandatory database resource dependency.
+
 ## Decision
 
 Adopt the greenfield per-domain storage architecture.
@@ -36,7 +40,7 @@ Adopt the greenfield per-domain storage architecture.
 
 - Schema errors become fatal at boot instead of warnings, so a missing table cannot reach a request handler
 - `visual_validations` either gains a domain and a provider or is removed with the capability it serves
-- Repositories hold `*database.RoutedDB` rather than a captured `*sql.DB`, which is what the test-isolation seam requires
+- Repositories hold the RoutedDB-compatible persistence seam rather than a captured production pool, which is what the test-isolation seam requires
 - Any change to an existing table's columns needs a one-shot script under `/tmp/deployment-manager/`, run once and discarded, because `EnsureSchemas` only creates missing tables and indexes
 - When real users exist, the scenario crosses to brownfield and the per-domain `schema.sql` becomes `migrations/001_initial.sql`. That transition is one-way and is not this decision
 
@@ -45,3 +49,11 @@ Adopt the greenfield per-domain storage architecture.
 - `prompt-manager skill read storage-steer`
 - `storage-manager validate scenario deployment-manager`
 - [ADR-005](005-governance-plane-boundary.md)
+
+## Executed amendment — 2026-08-04
+
+The selected engine is SQLite through `modernc.org/sqlite`, not PostgreSQL.
+The implementation now registers embedded per-domain schemas once at boot and
+fails startup on schema errors. Repositories retain the RoutedDB-compatible
+seam so isolated tests can substitute an in-memory database. This amendment
+records the implementation choice made during the greenfield re-platform.

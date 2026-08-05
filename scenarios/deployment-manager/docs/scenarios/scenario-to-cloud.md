@@ -33,7 +33,7 @@ Translate deployment-manager bundle manifests into runnable cloud environments (
 
 ## Interim Status
 
-Until scenario-to-cloud exists, we rely on Tier 1 servers and manual provider docs. The legacy Kubernetes instructions now live under `docs/deployment/history/` for reference.
+Until scenario-to-cloud exists, we rely on Tier 1 servers and the current provider guides; legacy Kubernetes instructions are intentionally not part of the supported deployment surface.
 
 ## Milestones
 

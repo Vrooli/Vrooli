@@ -672,7 +672,7 @@ When implemented, code signing will be configured as:
       "hardened_runtime": true,
       "notarize": true,
       "apple_id_env": "APPLE_ID",
-      "apple_id_password_env": "APPLE_APP_PASSWORD"
+      "apple_id_credential_env": "APPLE_APP_CREDENTIAL"
     },
     "linux": {
       "gpg_key_id": "YOUR_GPG_KEY",
@@ -752,7 +752,7 @@ See [API Reference - Bundles](../api/bundles.md) for details.
 
 ## Related Documentation
 
-- [Example Manifests](../examples/manifests/README.md) - Working examples
+- [Example Manifests](../examples/manifests/desktop-happy.json) - Working example
 - [Secrets Management](secrets-management.md) - Secret classification and handling
 - [Desktop Workflow](../workflows/desktop-deployment.md) - End-to-end deployment guide
 - [Fitness Scoring](fitness-scoring.md) - How compatibility is calculated

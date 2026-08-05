@@ -49,7 +49,12 @@ func (m *xdotoolMock) shell(_ context.Context, _ []string, name string, args ...
 				if geo, ok := m.geometries[windowID]; ok {
 					return []byte(geo), nil
 				}
+				return []byte("WINDOW=" + windowID + "\nX=0\nY=0\nWIDTH=1280\nHEIGHT=720\n"), nil
 			}
+		case "getwindowname":
+			return []byte("Application"), nil
+		case "getwindowclassname":
+			return []byte("Application"), nil
 		}
 	}
 	return nil, fmt.Errorf("unexpected call")
@@ -123,6 +128,71 @@ func TestXdotoolDetector_HasVisibleWindow(t *testing.T) {
 				t.Errorf("got %v, want %v", result, tt.wantResult)
 			}
 		})
+	}
+}
+
+func TestXdotoolDetector_RejectsTinyDesktopHelperAsVisibleWindow(t *testing.T) {
+	mock := &xdotoolMock{
+		pidOut: "111\n",
+		geometries: map[string]string{
+			"111": "WINDOW=111\nX=-100\nY=-100\nWIDTH=1\nHEIGHT=1\n",
+		},
+	}
+	d := NewXdotoolDetector(mock.shell, testLogger())
+
+	visible, err := d.HasVisibleWindow(context.Background(), 1234, ":99")
+	if err != nil {
+		t.Fatalf("HasVisibleWindow returned error: %v", err)
+	}
+	if visible {
+		t.Fatal("tiny desktop helper must not count as a visible application window")
+	}
+
+	geometry, err := d.LargestVisibleWindow(context.Background(), 1234, ":99")
+	if err != nil {
+		t.Fatalf("LargestVisibleWindow returned error: %v", err)
+	}
+	if geometry != nil {
+		t.Fatalf("tiny desktop helper returned as usable geometry: %+v", geometry)
+	}
+}
+
+func TestXdotoolDetector_RejectsFullScreenDesktopBackgroundAsApplication(t *testing.T) {
+	shell := func(_ context.Context, _ []string, name string, args ...string) ([]byte, error) {
+		if name == "which" {
+			return []byte("/usr/bin/xdotool"), nil
+		}
+		if name != "xdotool" || len(args) == 0 {
+			return nil, fmt.Errorf("unexpected call: %s %v", name, args)
+		}
+		switch args[0] {
+		case "search":
+			return []byte("111\n"), nil
+		case "getwindowgeometry":
+			return []byte("WINDOW=111\nX=0\nY=0\nWIDTH=1920\nHEIGHT=1080\n"), nil
+		case "getwindowname":
+			return []byte("Desktop"), nil
+		case "getwindowclassname":
+			return []byte("Desktop"), nil
+		default:
+			return nil, fmt.Errorf("unexpected xdotool command: %v", args)
+		}
+	}
+	d := NewXdotoolDetector(shell, testLogger())
+
+	visible, err := d.HasVisibleWindow(context.Background(), 1234, ":99")
+	if err != nil {
+		t.Fatalf("HasVisibleWindow returned error: %v", err)
+	}
+	if visible {
+		t.Fatal("desktop background must not count as a visible application window")
+	}
+	geometry, err := d.LargestVisibleWindow(context.Background(), 1234, ":99")
+	if err != nil {
+		t.Fatalf("LargestVisibleWindow returned error: %v", err)
+	}
+	if geometry != nil {
+		t.Fatalf("desktop background returned as application geometry: %+v", geometry)
 	}
 }
 

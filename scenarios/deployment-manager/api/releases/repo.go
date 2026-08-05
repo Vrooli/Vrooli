@@ -6,62 +6,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"deployment-manager/shared"
 )
 
 // SQLRepository implements Repository with PostgreSQL.
 type SQLRepository struct {
-	db *sql.DB
+	db shared.RoutedDBTX
 }
 
 // NewSQLRepository creates a new SQL-backed release repository.
-func NewSQLRepository(db *sql.DB) *SQLRepository {
+func NewSQLRepository(db shared.RoutedDBTX) *SQLRepository {
 	return &SQLRepository{db: db}
-}
-
-// EnsureSchema creates the releases tables if they don't exist.
-func (r *SQLRepository) EnsureSchema(ctx context.Context) error {
-	_, err := r.db.ExecContext(ctx, `
-		CREATE TABLE IF NOT EXISTS releases (
-			id                        TEXT PRIMARY KEY,
-			profile_id                TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-			deployment_id             TEXT,
-			profile_version           INTEGER,
-			git_commit_hash           TEXT NOT NULL,
-			release_version           TEXT NOT NULL,
-			channel                   TEXT NOT NULL DEFAULT 'stable',
-			status                    TEXT NOT NULL DEFAULT 'pending',
-			release_notes             TEXT,
-			released_by               TEXT,
-			promoted_from_release_id  TEXT REFERENCES releases(id) ON DELETE SET NULL,
-			verification_evidence     JSONB,
-			created_at                TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			published_at              TIMESTAMPTZ,
-			updated_at                TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			UNIQUE (profile_id, git_commit_hash, channel)
-		);
-		CREATE TABLE IF NOT EXISTS release_platforms (
-			release_id        TEXT NOT NULL REFERENCES releases(id) ON DELETE CASCADE,
-			platform          TEXT NOT NULL,
-			status            TEXT NOT NULL DEFAULT 'pending',
-			approval_id       TEXT,
-			lpbs_artifact_id  BIGINT,
-			published_at      TIMESTAMPTZ,
-			verified_at       TIMESTAMPTZ,
-			error             TEXT,
-			PRIMARY KEY (release_id, platform)
-		);
-		CREATE INDEX IF NOT EXISTS idx_releases_profile_channel
-			ON releases (profile_id, channel, created_at DESC);
-		CREATE INDEX IF NOT EXISTS idx_releases_status
-			ON releases (status);
-		CREATE INDEX IF NOT EXISTS idx_releases_commit
-			ON releases (profile_id, git_commit_hash);
-		CREATE INDEX IF NOT EXISTS idx_releases_deployment
-			ON releases (deployment_id);
-		CREATE INDEX IF NOT EXISTS idx_release_platforms_status
-			ON release_platforms (status);
-	`)
-	return err
 }
 
 // Insert creates a release row with per-platform rows in one transaction.
@@ -70,7 +26,7 @@ func (r *SQLRepository) Insert(ctx context.Context, release *Release) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback() //nolint:errcheck // rollback is best-effort after the transaction has completed
 
 	if release.Channel == "" {
 		release.Channel = "stable"
@@ -206,7 +162,7 @@ func (r *SQLRepository) SetVerificationEvidence(ctx context.Context, releaseID s
 		return err
 	}
 	_, err = r.db.ExecContext(ctx, `
-		UPDATE releases SET verification_evidence = $2, updated_at = NOW() WHERE id = $1
+		UPDATE releases SET verification_evidence = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1
 	`, releaseID, data)
 	return err
 }
@@ -215,7 +171,7 @@ func (r *SQLRepository) SetVerificationEvidence(ctx context.Context, releaseID s
 func (r *SQLRepository) MarkPlatformPublished(ctx context.Context, releaseID, platform string, artifactID int64) error {
 	_, err := r.db.ExecContext(ctx, `
 		UPDATE release_platforms
-		SET status = $3, lpbs_artifact_id = $4, published_at = NOW(), error = NULL
+		SET status = $3, lpbs_artifact_id = $4, published_at = CURRENT_TIMESTAMP, error = NULL
 		WHERE release_id = $1 AND platform = $2
 	`, releaseID, platform, PlatformStatusPublished, artifactID)
 	return err
@@ -226,7 +182,7 @@ func (r *SQLRepository) MarkPlatformStatus(ctx context.Context, releaseID, platf
 	if status == PlatformStatusPublished {
 		_, err := r.db.ExecContext(ctx, `
 			UPDATE release_platforms
-			SET status = $3, verified_at = NOW(), error = $4
+			SET status = $3, verified_at = CURRENT_TIMESTAMP, error = $4
 			WHERE release_id = $1 AND platform = $2
 		`, releaseID, platform, status, nullString(errMsg))
 		return err
@@ -244,7 +200,7 @@ func (r *SQLRepository) MarkPlatformStatus(ctx context.Context, releaseID, platf
 func (r *SQLRepository) MarkSuperseded(ctx context.Context, profileID, channel, exceptReleaseID string) error {
 	_, err := r.db.ExecContext(ctx, `
 		UPDATE releases
-		SET status = $4, updated_at = NOW()
+		SET status = $4, updated_at = CURRENT_TIMESTAMP
 		WHERE profile_id = $1 AND channel = $2 AND id <> $3 AND status = $5
 	`, profileID, channel, exceptReleaseID, StatusSuperseded, StatusPublished)
 	return err
@@ -273,7 +229,7 @@ func (r *SQLRepository) AcquireProfileLock(ctx context.Context, profileID string
 	}
 
 	release := func() {
-		_, _ = conn.ExecContext(context.Background(),
+		_, _ = conn.ExecContext(context.WithoutCancel(ctx),
 			`SELECT pg_advisory_unlock(hashtextextended('release:' || $1, 0))`,
 			profileID,
 		)

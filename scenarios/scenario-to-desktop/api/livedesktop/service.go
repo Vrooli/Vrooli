@@ -7,24 +7,27 @@ import (
 	"log/slog"
 	"path/filepath"
 	"runtime"
-	"scenario-to-desktop-api/captures"
-	"scenario-to-desktop-api/screenrecording"
-	"scenario-to-desktop-api/shared/packaging"
 	"strings"
 	"time"
+
+	"scenario-to-desktop-api/captures"
+	"scenario-to-desktop-api/procmetrics"
+	"scenario-to-desktop-api/screenrecording"
+	"scenario-to-desktop-api/shared/packaging"
 
 	"github.com/google/uuid"
 )
 
 // Service orchestrates live desktop session lifecycle.
 type Service struct {
-	store      Store
-	backend    PlatformBackend
-	logger     *slog.Logger
-	vrooliRoot string
-	recorder   screenrecording.Recorder
-	captures   *captures.Service
-	dataDir    string
+	store            Store
+	backend          PlatformBackend
+	logger           *slog.Logger
+	vrooliRoot       string
+	recorder         screenrecording.Recorder
+	captures         *captures.Service
+	windowController *procmetrics.XdotoolDetector
+	dataDir          string
 }
 
 // NewService creates a new live desktop service.
@@ -46,6 +49,13 @@ func (s *Service) WithRecorder(r screenrecording.Recorder) {
 // WithCaptures sets the captures service for persistent capture storage.
 func (s *Service) WithCaptures(svc *captures.Service) {
 	s.captures = svc
+}
+
+// WithWindowController wires the shared xdotool seam used by both metrics and
+// interactive window actions. Keeping one detector preserves its availability
+// cache and gives callers one honest degraded decision.
+func (s *Service) WithWindowController(detector *procmetrics.XdotoolDetector) {
+	s.windowController = detector
 }
 
 // WithDataDir overrides the data directory for screenshots and recordings.

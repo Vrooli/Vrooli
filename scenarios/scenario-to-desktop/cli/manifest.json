@@ -763,7 +763,7 @@
           "binding": {
             "kind": "connect-rpc",
             "service": "EvidenceService",
-            "method": "ListEvidenceCaptures"
+          "method": "ListEvidenceCaptures"
           },
           "governance": {
             "effect": "read",
@@ -788,6 +788,32 @@
               "unit": "captures",
               "summary_template": "Found {captures} durable evidence captures."
             }
+          },
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario name"
+            }
+          ]
+        },
+        {
+          "name": "journey",
+          "description": "Print the latest desktop journey steps and dispositions",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvidenceService",
+            "method": "GetEvidenceCapture"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           },
           "positionals": [
             {

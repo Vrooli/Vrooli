@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"scenario-to-desktop-api/domain"
 
 	"connectrpc.com/connect"

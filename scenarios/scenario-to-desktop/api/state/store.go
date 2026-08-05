@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
-	"scenario-to-desktop-api/shared/store"
 	"time"
+
+	"scenario-to-desktop-api/shared/store"
 
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/storage"

@@ -2,13 +2,14 @@ package tasks
 
 import (
 	"context"
+	"strings"
+	"testing"
+	"time"
+
 	"scenario-to-desktop-api/domain"
 	"scenario-to-desktop-api/pipeline"
 	"scenario-to-desktop-api/tasks/fix"
 	"scenario-to-desktop-api/tasks/shared"
-	"strings"
-	"testing"
-	"time"
 )
 
 func TestShutdownCancelsActiveWorkersAndRejectsNewTasks(t *testing.T) {

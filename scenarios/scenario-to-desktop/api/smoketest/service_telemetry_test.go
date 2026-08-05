@@ -3,9 +3,10 @@ package smoketest_test
 import (
 	"context"
 	"errors"
+	"testing"
+
 	"scenario-to-desktop-api/smoketest"
 	"scenario-to-desktop-api/smoketest/mocks"
-	"testing"
 )
 
 func TestService_PerformSmokeTest_TelemetryFallback(t *testing.T) {

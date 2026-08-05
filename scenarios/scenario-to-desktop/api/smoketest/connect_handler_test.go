@@ -2,10 +2,11 @@ package smoketest_test
 
 import (
 	"context"
-	"scenario-to-desktop-api/smoketest"
-	"scenario-to-desktop-api/smoketest/mocks"
 	"testing"
 	"time"
+
+	"scenario-to-desktop-api/smoketest"
+	"scenario-to-desktop-api/smoketest/mocks"
 
 	"connectrpc.com/connect"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
@@ -110,11 +111,9 @@ func TestStatusToProtoPreservesScreenRecordingEvidenceWithoutVideoPath(t *testin
 		SmokeTestID:  "smoke-evidence",
 		ScenarioName: "hello-desktop",
 		StartedAt:    time.Now(),
-		ScreenRecording: &smoketest.ScreenRecordingResult{
-			Recorded:      true,
-			VideoPath:     "/private/recordings/smoke-evidence.mp4",
-			DurationMs:    1250,
-			FileSizeBytes: 4096,
+		ScreenRecording: &smoketest.RecordingStatus{
+			Recorded:  true,
+			CaptureID: "capture-smoke-evidence",
 		},
 	}
 
@@ -122,7 +121,7 @@ func TestStatusToProtoPreservesScreenRecordingEvidenceWithoutVideoPath(t *testin
 	if got == nil {
 		t.Fatal("StatusToProto() screen recording = nil, want evidence summary")
 	}
-	if !got.GetRecorded() || got.GetDurationMs() != 1250 || got.GetFileSizeBytes() != 4096 {
-		t.Fatalf("StatusToProto() screen recording = %+v, want recorded evidence metadata", got)
+	if !got.GetRecorded() || got.GetCaptureId() != "capture-smoke-evidence" {
+		t.Fatalf("StatusToProto() screen recording = %+v, want recorded capture reference", got)
 	}
 }

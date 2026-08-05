@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 	"runtime"
-	"scenario-to-desktop-api/signing/types"
 	"strings"
 	"time"
+
+	"scenario-to-desktop-api/signing/types"
 )
 
 // FileSystem abstracts file operations for testing.

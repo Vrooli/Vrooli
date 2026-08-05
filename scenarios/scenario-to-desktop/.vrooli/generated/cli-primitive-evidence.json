@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "scenario-to-desktop",
   "generator": "v1.0.0",
-  "manifest_hash": "36c376424177291517273e0e8d6de15868c3ecc65613f97bb3cad2eb041f7e77",
+  "manifest_hash": "7f1b9928aee172d3d95794a056eb5d6204242396a52b0144b95718bdf58a1e8e",
   "commands": [
     {
       "path": "build get",
@@ -116,6 +116,13 @@
       "group": "docs",
       "command": "manifest",
       "binding": "DocumentationService.GetDocumentationManifest",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "evidence journey",
+      "group": "evidence",
+      "command": "journey",
+      "binding": "EvidenceService.GetEvidenceCapture",
       "observed_primitive": "proto_list"
     },
     {

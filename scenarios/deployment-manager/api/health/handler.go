@@ -2,7 +2,8 @@
 package health
 
 import (
-	"database/sql"
+	"context"
+	"errors"
 	"net/http"
 
 	"github.com/vrooli/api-core/health"
@@ -14,8 +15,13 @@ type Handler struct {
 }
 
 // NewHandler creates a new health handler using the standardized api-core/health package.
-func NewHandler(db *sql.DB) *Handler {
-	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()
+func NewHandler(db interface{ PingContext(context.Context) error }) *Handler {
+		healthHandler := health.New().Version("1.0.0").Check(health.Func("database", func(ctx context.Context) error {
+		if db == nil {
+			return errors.New("database is not configured")
+		}
+		return db.PingContext(ctx)
+	}), health.Critical).Handler()
 	return &Handler{healthFunc: healthHandler}
 }
 

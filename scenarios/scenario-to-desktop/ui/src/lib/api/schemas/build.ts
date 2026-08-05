@@ -139,6 +139,7 @@ export type DesktopRecord = z.infer<typeof DesktopRecordSchema>;
  */
 export const ScreenRecordingViewSchema = z.object({
   recorded: z.boolean(),
+  capture_id: z.string().optional(),
   duration_ms: z.number().optional(),
   file_size_bytes: z.number().optional(),
   error: z.string().optional(),
@@ -152,7 +153,7 @@ export const DesktopRecordResponseSchema = z.object({
       has_build: z.boolean(),
       build_state: z.string().optional(),
       smoke_test_id: z.string().optional(),
-      screen_recording: ScreenRecordingViewSchema.optional(),
+  screen_recording: ScreenRecordingViewSchema.optional(),
     }),
   ),
 });

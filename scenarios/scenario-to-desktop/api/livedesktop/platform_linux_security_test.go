@@ -6,10 +6,11 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"scenario-to-desktop-api/screenrecording"
 	"slices"
 	"testing"
 	"time"
+
+	"scenario-to-desktop-api/screenrecording"
 )
 
 func TestRemoteAccessCommandsBindToLoopback(t *testing.T) {

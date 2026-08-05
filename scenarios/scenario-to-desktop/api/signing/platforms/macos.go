@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"regexp"
 	"runtime"
-	"scenario-to-desktop-api/signing/types"
 	"strings"
 	"time"
+
+	"scenario-to-desktop-api/signing/types"
 )
 
 // MacOSDetector detects macOS code signing tools and identities.

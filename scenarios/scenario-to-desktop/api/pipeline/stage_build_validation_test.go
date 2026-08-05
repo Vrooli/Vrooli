@@ -4,10 +4,11 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"scenario-to-desktop-api/build"
-	"scenario-to-desktop-api/shared/errors"
 	"strings"
 	"testing"
+
+	"scenario-to-desktop-api/build"
+	"scenario-to-desktop-api/shared/errors"
 )
 
 func TestBuildStageReturnsStructuredFailuresBeforeStartingExternalBuild(t *testing.T) {

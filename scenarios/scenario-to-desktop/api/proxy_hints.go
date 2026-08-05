@@ -7,9 +7,10 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
+
 	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/storagepaths"
-	"strings"
 
 	sharedpath "scenario-to-desktop-api/shared/path"
 )

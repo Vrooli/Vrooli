@@ -1,11 +1,12 @@
 package investigate
 
 import (
+	"strings"
+	"testing"
+
 	"scenario-to-desktop-api/domain"
 	"scenario-to-desktop-api/pipeline"
 	"scenario-to-desktop-api/tasks/shared"
-	"strings"
-	"testing"
 )
 
 // --- Test helpers ---

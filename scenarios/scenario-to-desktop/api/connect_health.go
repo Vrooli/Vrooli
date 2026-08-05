@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"time"
+
 	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/deploy"
 	"scenario-to-desktop-api/evidence"
@@ -15,7 +17,6 @@ import (
 	"scenario-to-desktop-api/system"
 	"scenario-to-desktop-api/tasks"
 	"scenario-to-desktop-api/telemetry"
-	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain/domainconnect"

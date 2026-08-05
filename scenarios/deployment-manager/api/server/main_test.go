@@ -324,6 +324,7 @@ func TestServerSetupRoutes(t *testing.T) {
 
 // TestServerLog verifies logging functionality
 func TestServerLog(t *testing.T) {
+	logger := &recordingLogger{}
 	tests := []struct {
 		name   string
 		msg    string
@@ -346,10 +347,28 @@ func TestServerLog(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Just verify it doesn't panic
-			LogStructured(tt.msg, tt.fields)
+			LogStructuredWith(logger, tt.msg, tt.fields)
+			if logger.message != tt.msg {
+				t.Fatalf("logged message = %q, want %q", logger.message, tt.msg)
+			}
+			if len(logger.args) != 2 || logger.args[0] != "fields" {
+				t.Fatalf("logged args = %#v, want fields key and value", logger.args)
+			}
+			if got, ok := logger.args[1].(map[string]interface{}); !ok || len(got) != len(tt.fields) {
+				t.Fatalf("logged fields = %#v, want %#v", logger.args[1], tt.fields)
+			}
 		})
 	}
+}
+
+type recordingLogger struct {
+	message string
+	args    []any
+}
+
+func (l *recordingLogger) Info(message string, args ...any) {
+	l.message = message
+	l.args = args
 }
 
 // TestServerStartGracefulShutdown verifies graceful shutdown behavior

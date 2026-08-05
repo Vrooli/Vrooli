@@ -2,9 +2,10 @@ package signing
 
 import (
 	"context"
+	"testing"
+
 	"scenario-to-desktop-api/signing/types"
 	"scenario-to-desktop-api/signing/validation"
-	"testing"
 
 	"connectrpc.com/connect"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"

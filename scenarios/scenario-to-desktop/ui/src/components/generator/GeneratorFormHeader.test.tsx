@@ -2,10 +2,16 @@
  * Tests for GeneratorFormHeader component.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@/test-utils";
 import { GeneratorFormHeader } from "./GeneratorFormHeader";
 import type { ValidationStatus } from "../../lib/api";
+
+let isMobile = false;
+
+vi.mock("../../hooks/useMediaQuery", () => ({
+  useIsMobile: () => isMobile,
+}));
 
 describe("GeneratorFormHeader", () => {
   const mockValidationStatus: ValidationStatus = {
@@ -29,12 +35,23 @@ describe("GeneratorFormHeader", () => {
     onReset: vi.fn(),
   };
 
+  beforeEach(() => {
+    isMobile = false;
+  });
+
   it("renders reset button", () => {
     render(<GeneratorFormHeader {...defaultProps} />);
 
     expect(
       screen.getByRole("button", { name: "Reset progress" }),
     ).toBeInTheDocument();
+  });
+
+  it("uses the compact reset label on mobile", () => {
+    isMobile = true;
+    render(<GeneratorFormHeader {...defaultProps} />);
+
+    expect(screen.getByRole("button", { name: "Reset" })).toBeInTheDocument();
   });
 
   it("disables reset button when no scenario name", () => {

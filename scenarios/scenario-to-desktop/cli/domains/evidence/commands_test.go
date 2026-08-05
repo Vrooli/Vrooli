@@ -12,12 +12,18 @@ import (
 
 type fakeRPC struct {
 	listRequest    *domainv1.ListEvidenceCapturesRequest
+	getRequest     *domainv1.GetEvidenceCaptureRequest
 	summaryRequest *domainv1.ListEvidenceCapturesRequest
 }
 
 func (f *fakeRPC) ListEvidenceCaptures(_ context.Context, req *connect.Request[domainv1.ListEvidenceCapturesRequest]) (*connect.Response[domainv1.ListEvidenceCapturesResponse], error) {
 	f.listRequest = req.Msg
-	return connect.NewResponse(&domainv1.ListEvidenceCapturesResponse{Captures: []*domainv1.EvidenceCapture{{CaptureId: "capture-1"}}}), nil
+	return connect.NewResponse(&domainv1.ListEvidenceCapturesResponse{Captures: []*domainv1.EvidenceCapture{{CaptureId: "capture-1", Kind: "journey"}}}), nil
+}
+
+func (f *fakeRPC) GetEvidenceCapture(_ context.Context, req *connect.Request[domainv1.GetEvidenceCaptureRequest]) (*connect.Response[domainv1.GetEvidenceCaptureResponse], error) {
+	f.getRequest = req.Msg
+	return connect.NewResponse(&domainv1.GetEvidenceCaptureResponse{Content: []byte(`{"disposition":"pass","steps":[{"name":"click","action":"pointer_click","disposition":"passed","before_capture_id":"before","after_capture_id":"after"}]}`)}), nil
 }
 
 func (f *fakeRPC) GetEvidenceCapturesSummary(_ context.Context, req *connect.Request[domainv1.ListEvidenceCapturesRequest]) (*connect.Response[domainv1.EvidenceCapturesSummary], error) {
@@ -44,6 +50,14 @@ func TestEvidencePrimitivesUseTypedScenarioRequests(t *testing.T) {
 	}
 	if fake.summaryRequest.GetScenarioName() != "demo" {
 		t.Fatalf("summary request scenario = %q, want demo", fake.summaryRequest.GetScenarioName())
+	}
+
+	journeyModes := cliapptest.RunPrimitiveHandlerModes(t, commands.journeyPrimitive(), schema, []string{"demo"}, nil)
+	if journeyModes.HumanErr != nil || journeyModes.JSONErr != nil {
+		t.Fatalf("journey primitive errors: human=%v json=%v", journeyModes.HumanErr, journeyModes.JSONErr)
+	}
+	if fake.getRequest.GetScenarioName() != "demo" || fake.getRequest.GetCaptureId() != "capture-1" {
+		t.Fatalf("journey request = %#v, want demo/capture-1", fake.getRequest)
 	}
 }
 

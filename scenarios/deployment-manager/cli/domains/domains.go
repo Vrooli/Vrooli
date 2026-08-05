@@ -3,6 +3,7 @@ package domains
 import (
 	"deployment-manager/cli/domains/approvals"
 	"deployment-manager/cli/domains/deployments"
+	"deployment-manager/cli/domains/evidence"
 	"deployment-manager/cli/domains/overview"
 	"deployment-manager/cli/domains/profiles"
 	"deployment-manager/cli/domains/releases"
@@ -26,4 +27,16 @@ func CommandGroups(app *cliapp.ScenarioApp) []cliapp.CommandGroup {
 		approvals.Register(app),
 		releases.Register(app),
 	}
+}
+
+func SubcommandGroups(app *cliapp.ScenarioApp, manifest []byte) []cliapp.SubcommandGroup {
+	evidenceGroup, err := evidence.Register(app, manifest)
+	if err != nil {
+		panic(err)
+	}
+	profilesGroup, err := profiles.RegisterConnect(app, manifest)
+	if err != nil {
+		panic(err)
+	}
+	return []cliapp.SubcommandGroup{evidenceGroup, profilesGroup}
 }

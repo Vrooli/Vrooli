@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"scenario-to-desktop-api/captures"
-	"scenario-to-desktop-api/livedesktop"
 	"testing"
 	"time"
+
+	"scenario-to-desktop-api/captures"
+	"scenario-to-desktop-api/livedesktop"
 
 	"connectrpc.com/connect"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"

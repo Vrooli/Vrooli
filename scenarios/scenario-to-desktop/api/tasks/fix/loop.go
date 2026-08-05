@@ -3,10 +3,11 @@ package fix
 import (
 	"encoding/json"
 	"fmt"
+	"time"
+
 	"scenario-to-desktop-api/domain"
 	"scenario-to-desktop-api/pipeline"
 	"scenario-to-desktop-api/tasks/shared"
-	"time"
 )
 
 // LoopConfig configures the iterative fix loop.

@@ -34,6 +34,8 @@ type ProcReader interface {
 
 // WindowGeometry describes the size of a detected window.
 type WindowGeometry struct {
+	X      int
+	Y      int
 	Width  int
 	Height int
 }

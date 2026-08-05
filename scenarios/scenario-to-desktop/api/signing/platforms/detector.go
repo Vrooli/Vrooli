@@ -6,6 +6,7 @@ package platforms
 
 import (
 	"context"
+
 	"scenario-to-desktop-api/signing/types"
 )
 

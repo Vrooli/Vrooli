@@ -68,6 +68,16 @@ describe("DesktopToolbar", () => {
     expect(exitFullscreen).toHaveBeenCalledOnce();
   });
 
+  it("ignores fullscreen requests when the target is not mounted", () => {
+    render(
+      <DesktopToolbar fullscreenTargetRef={createRef()} onClose={vi.fn()} />,
+    );
+
+    expect(() =>
+      fireEvent.click(screen.getByRole("button", { name: "Fullscreen" })),
+    ).not.toThrow();
+  });
+
   it("stops sessions, closes the drawer, and hides connected controls otherwise", () => {
     const onClose = vi.fn();
     render(

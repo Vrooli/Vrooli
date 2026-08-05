@@ -1,8 +1,15 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
+  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"budget":{"max_bytes":"2GiB","max_age":"365d","rationale":"The SQLite database and producer-reference ledger are bounded to a 2 GiB working set and one year of historical release evidence; retention/reclaim is performed by the scenario data maintenance command."},"rationale":"Deployment-manager owns its SQLite database and reference-ledger data under the scenario data directory."}},"rationale":"Scenario-owned SQLite and evidence reference storage is declared explicitly so lifecycle startup creates the data root before opening the database."},
   "maturity": "greenfield",
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    },
+    "adopted": true
+  },
   "service": {
     "parent": "vrooli",
     "name": "deployment-manager",
@@ -40,6 +47,10 @@
     "support": {
       "issues": "https://github.com/Vrooli/Vrooli/issues"
     }
+  },
+  "runtime": {
+    "kind": "long_running",
+    "auto_restart_default": true
   },
   "ports": {
     "api": {
@@ -112,11 +123,6 @@
           "description": "Build Go API binary (deployment-manager-api) in api/ directory"
         },
         {
-          "name": "setup-database",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Initialize PostgreSQL schema and seed deployment-manager data"
-        },
-        {
           "name": "install-ui-deps",
           "run": "if [ -f ui/package.json ]; then cd ui && (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
           "description": "Install UI dependencies"
@@ -133,7 +139,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && POSTGRES_DB=deployment_manager ./deployment-manager-api",
+          "run": "cd api && ./deployment-manager-api",
           "background": true,
           "description": "Start Go API server",
           "condition": {
@@ -192,24 +198,11 @@
       ]
     }
   ],
+  "environment": {
+    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/deployment-manager.db"
+  },
   "dependencies": {
     "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Deployment profile storage, audit logs, fitness rules database, swap suggestion database",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/postgres/seed.sql",
-            "type": "seed"
-          }
-        ]
-      },
       "redis": {
         "type": "redis",
         "enabled": false,
@@ -228,7 +221,10 @@
         "required": true,
         "version": "1.0.0",
         "versionRange": ">=1.0.0",
-        "purpose": "Dependency tree data source for fitness scoring and deployment analysis"
+        "runtime_only": true,
+        "runtime_only_rationale": "Deployment-manager reaches scenario-dependency-analyzer through service discovery and its HTTP/Connect boundary; no source-level package import is expected.",
+        "purpose": "Dependency tree data source for fitness scoring and deployment analysis",
+        "degraded_behavior": "Deployment Manager remains available for profile and evidence review; dependency analysis and fitness scoring return an explicit analyzer-unavailable result until the provider is ready."
       },
       "secrets-manager": {
         "required": true,
@@ -236,7 +232,19 @@
         "degraded_behavior": "Deployment Manager starts for non-secret deployment planning; bundle assembly that requires secret classifications returns its explicit Secrets Manager unavailable error until the service is ready.",
         "version": "1.0.0",
         "versionRange": ">=1.0.0",
+        "runtime_only": true,
+        "runtime_only_rationale": "Deployment-manager reaches secrets-manager through service discovery and its external service boundary; no source-level package import is expected.",
         "purpose": "Secret classification, template generation, and tier-specific secret strategies"
+      },
+      "swarm-manager": {
+        "required": false,
+        "startup_policy": "try_start",
+        "degraded_behavior": "Deployment Manager remains available for analysis, profiles, releases, and evidence review; migration-task filing returns an explicit swarm-manager unavailable error until the provider is ready.",
+        "version": "1.0.0",
+        "versionRange": ">=1.0.0",
+        "runtime_only": true,
+        "runtime_only_rationale": "Deployment-manager files migration tasks through swarm-manager's external Connect service; no source-level package import is expected.",
+        "purpose": "Optional backlog integration for approved dependency migration tasks"
       }
     }
   },

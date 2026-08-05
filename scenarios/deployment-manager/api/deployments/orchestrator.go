@@ -162,6 +162,10 @@ func (o *Orchestrator) DeployDesktop(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"profile_id is required"}`, http.StatusBadRequest)
 		return
 	}
+	if strings.TrimSpace(req.GitCommitHash) == "" {
+		http.Error(w, `{"error":"git_commit_hash is required","reason":"commit_identifier_required"}`, http.StatusBadRequest)
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Minute)
 	defer cancel()
@@ -242,7 +246,7 @@ func (o *Orchestrator) deployLoadProfile(ds *deployState) int {
 	ds.response.Steps = append(ds.response.Steps, step)
 
 	// Release gate check
-	if ds.req.GitCommitHash != "" && o.approvalsRepo != nil {
+	if o.approvalsRepo != nil {
 		step = o.startStep("Check release gate")
 		gate, gateErr := o.approvalsRepo.CheckReleaseGate(ds.ctx, ds.req.ProfileID, ds.req.GitCommitHash)
 		if gateErr != nil {

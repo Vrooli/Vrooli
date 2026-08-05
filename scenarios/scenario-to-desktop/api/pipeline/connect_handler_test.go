@@ -3,12 +3,13 @@ package pipeline
 import (
 	"context"
 	"errors"
+	"testing"
+
 	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/bundle"
 	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/preflight"
 	"scenario-to-desktop-api/smoketest"
-	"testing"
 
 	"connectrpc.com/connect"
 	pipelinev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline"

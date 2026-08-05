@@ -1,9 +1,12 @@
 package captures
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -81,6 +84,7 @@ func (s *Service) SaveCapture(scenarioName string, captureType CaptureType, sour
 		Width:         width,
 		Height:        height,
 		DurationMs:    durationMs,
+		Checksum:      checksum(data),
 		SourceSession: sourceSession,
 		CreatedAt:     time.Now(),
 	}
@@ -90,6 +94,11 @@ func (s *Service) SaveCapture(scenarioName string, captureType CaptureType, sour
 	}
 
 	return &capture, nil
+}
+
+func checksum(data []byte) string {
+	digest := sha256.Sum256(data)
+	return "sha256:" + hex.EncodeToString(digest[:])
 }
 
 // DeleteCapture removes a single capture file and its metadata.
@@ -104,7 +113,11 @@ func (s *Service) DeleteCapture(scenarioName, captureID string) error {
 			if err != nil {
 				return err
 			}
-			_ = os.Remove(filepath.Join(dir, c.Filename))
+			path, err := capturePath(dir, c.Filename)
+			if err != nil {
+				return err
+			}
+			_ = os.Remove(path)
 			return s.store.Delete(scenarioName, captureID)
 		}
 	}
@@ -122,7 +135,9 @@ func (s *Service) CleanAll(scenarioName string) error {
 		return nil // metadata already cleaned, file cleanup is best-effort
 	}
 	for _, c := range deleted {
-		_ = os.Remove(filepath.Join(dir, c.Filename))
+		if path, err := capturePath(dir, c.Filename); err == nil {
+			_ = os.Remove(path)
+		}
 	}
 	return nil
 }
@@ -139,8 +154,37 @@ func (s *Service) CaptureFilePath(scenarioName, captureID string) (string, error
 			if err != nil {
 				return "", err
 			}
-			return filepath.Join(dir, c.Filename), nil
+			return capturePath(dir, c.Filename)
 		}
 	}
 	return "", fmt.Errorf("capture %q not found", captureID)
+}
+
+// capturePath resolves a metadata filename beneath the configured captures
+// root. It validates both lexical traversal and symlink resolution so a
+// corrupted metadata file cannot turn the file-serving or cleanup paths into
+// arbitrary filesystem access.
+func capturePath(dir, filename string) (string, error) {
+	root, err := filepath.Abs(dir)
+	if err != nil {
+		return "", err
+	}
+	candidate, err := filepath.Abs(filepath.Join(dir, filename))
+	if err != nil {
+		return "", err
+	}
+	if candidate != root && !strings.HasPrefix(candidate, root+string(os.PathSeparator)) {
+		return "", fmt.Errorf("capture path escapes captures root")
+	}
+	resolved := candidate
+	if real, err := filepath.EvalSymlinks(candidate); err == nil {
+		resolved, err = filepath.Abs(real)
+		if err != nil {
+			return "", err
+		}
+	}
+	if resolved != root && !strings.HasPrefix(resolved, root+string(os.PathSeparator)) {
+		return "", fmt.Errorf("capture path resolves outside captures root")
+	}
+	return candidate, nil
 }

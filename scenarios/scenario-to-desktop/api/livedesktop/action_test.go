@@ -9,9 +9,10 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"testing"
+
 	"scenario-to-desktop-api/captures"
 	"scenario-to-desktop-api/screenrecording"
-	"testing"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -191,11 +192,10 @@ func TestStopRecordingAction_Success(t *testing.T) {
 	session.CaptureID = "cap-123"
 
 	action := &StopRecordingAction{}
-	result, err := action.Execute(context.Background(), session, svc, nil)
-	require.NoError(t, err)
-	assert.Equal(t, "ok", result.Status)
+	_, err := action.Execute(context.Background(), session, svc, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "capture storage is unavailable")
 	assert.False(t, session.IsRecording)
-	assert.Contains(t, result.Data["video_url"], "recording-123.mp4")
 }
 
 func TestStopRecordingAction_NotRecording(t *testing.T) {

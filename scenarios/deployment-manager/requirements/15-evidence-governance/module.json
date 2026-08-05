@@ -1,0 +1,49 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-08-05T00:35:42-04:00"
+  },
+  "requirements": [
+    {
+      "id": "DM-P0-038",
+      "title": "Shared Evidence Contract",
+      "status": "complete",
+      "prd_ref": "OT-P0-038",
+      "description": "When a ramp submits release evidence, deployment-manager shall validate a versioned proto-first contract with reference-only artifacts and explicit dispositions and reasons.",
+      "tags": [
+        "evidence",
+        "proto",
+        "release-gate"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/evidence/conformance/conformance_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Conformance tests reject artifact paths and invalid reference fields while accepting producer-shaped verdicts."
+        }
+      ]
+    },
+    {
+      "id": "DM-P0-039",
+      "title": "Decision-Grade Desktop Evidence",
+      "status": "complete",
+      "prd_ref": "OT-P0-039",
+      "description": "When scenario-to-desktop reports a desktop journey, deployment-manager shall require ordered steps, before-and-after screenshots, recording references, target geometry, and named degradation reasons before release approval.",
+      "tags": [
+        "evidence",
+        "desktop",
+        "release-gate"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/deployments/release_gate_evidence_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Release-gate evidence tests cover missing, failed, commit-mismatched, and fully satisfied evidence decisions."
+        }
+      ]
+    }
+  ]
+}

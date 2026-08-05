@@ -523,14 +523,14 @@ export const SmokeTestSection = forwardRef<
           )}
 
           {smokeTestResult?.screenRecording?.recorded &&
-            smokeTestResult.smokeTestId && (
+            smokeTestResult.screenRecording.captureId && (
               <StageDetailCard icon={Video} label="Screen Recording">
                 <div className="space-y-2">
                   <video
                     controls
                     className="w-full rounded border border-slate-700"
                     src={buildUrl(
-                      `/smoketest/${encodeURIComponent(smokeTestResult.smokeTestId)}/video`,
+                      `/captures/${encodeURIComponent(scenarioName)}/${encodeURIComponent(smokeTestResult.screenRecording.captureId)}/file`,
                     )}
                   >
                     Your browser does not support the video tag.

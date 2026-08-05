@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"path/filepath"
+
 	"scenario-to-desktop-api/storagepaths"
 )
 

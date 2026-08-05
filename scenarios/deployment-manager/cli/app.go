@@ -38,6 +38,9 @@ func NewApp() (*App, error) {
 		AllowAnonymous:     true,
 		ConfigureTokenKeys: []string{"token", "api_token"},
 		CommandGroups:      domains.CommandGroups,
+		SubcommandGroups: func(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
+			return domains.SubcommandGroups(core, manifestBytes)
+		},
 	})
 	if err != nil {
 		return nil, err

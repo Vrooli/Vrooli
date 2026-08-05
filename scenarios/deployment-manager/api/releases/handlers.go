@@ -295,7 +295,7 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 		ReleaseNotes:   body.ReleaseNotes,
 	})
 	if derr != nil {
-		_ = h.repo.UpdateStatus(context.Background(), releaseID, StatusFailed)
+		_ = h.repo.UpdateStatus(context.WithoutCancel(r.Context()), releaseID, StatusFailed)
 		shared.JSONError(w, fmt.Sprintf("orchestrator failed: %v", derr), http.StatusInternalServerError)
 		return
 	}

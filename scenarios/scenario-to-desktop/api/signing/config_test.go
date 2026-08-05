@@ -3,9 +3,10 @@ package signing
 import (
 	"os"
 	"path/filepath"
-	"scenario-to-desktop-api/signing/types"
 	"testing"
 	"time"
+
+	"scenario-to-desktop-api/signing/types"
 )
 
 func TestSigningConfigDefaultsRepresentSafeDisabledPosture(t *testing.T) {

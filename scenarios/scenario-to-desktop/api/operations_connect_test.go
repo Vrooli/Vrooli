@@ -1,8 +1,9 @@
 package main
 
 import (
-	"scenario-to-desktop-api/scenario"
 	"testing"
+
+	"scenario-to-desktop-api/scenario"
 )
 
 func TestDesktopScenarioStatusToProtoPreservesDesktopReadinessFields(t *testing.T) {

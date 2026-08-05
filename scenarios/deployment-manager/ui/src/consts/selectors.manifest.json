@@ -114,6 +114,34 @@
     "health.status": {
       "testId": "health-status",
       "selector": "[data-testid=\"health-status\"]"
+    },
+    "evidence.heading": {
+      "testId": "evidence-heading",
+      "selector": "[data-testid=\"evidence-heading\"]"
+    },
+    "evidence.commitInput": {
+      "testId": "evidence-commit-input",
+      "selector": "[data-testid=\"evidence-commit-input\"]"
+    },
+    "evidence.reviewIntro": {
+      "testId": "evidence-review-intro",
+      "selector": "[data-testid=\"evidence-review-intro\"]"
+    },
+    "evidence.gateStatus": {
+      "testId": "evidence-gate-status",
+      "selector": "[data-testid=\"evidence-gate-status\"]"
+    },
+    "evidence.producerRecording": {
+      "testId": "evidence-producer-recording",
+      "selector": "[data-testid=\"evidence-producer-recording\"]"
+    },
+    "releases.heading": {
+      "testId": "releases-heading",
+      "selector": "[data-testid=\"releases-heading\"]"
+    },
+    "releases.recordsIntro": {
+      "testId": "releases-records-intro",
+      "selector": "[data-testid=\"releases-records-intro\"]"
     }
   },
   "dynamicSelectors": {}

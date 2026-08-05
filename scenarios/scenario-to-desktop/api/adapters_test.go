@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"errors"
+	"testing"
+	"time"
+
 	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/pipeline"
 	"scenario-to-desktop-api/records"
 	"scenario-to-desktop-api/smoketest"
-	"testing"
-	"time"
 )
 
 func TestBuildStoreAdaptersPreserveOperatorVisibleState(t *testing.T) {
@@ -62,9 +63,9 @@ func TestRecordAdaptersExposeGeneratedArtifactAndSmokeEvidence(t *testing.T) {
 	}
 
 	smokeStore := smoketest.NewInMemoryStore()
-	smokeStore.Save(&smoketest.Status{SmokeTestID: "smoke-1", ScenarioName: "calculator", ScreenRecording: &smoketest.ScreenRecordingResult{Recorded: true, DurationMs: 1200, FileSizeBytes: 64}})
+	smokeStore.Save(&smoketest.Status{SmokeTestID: "smoke-1", ScenarioName: "calculator", ScreenRecording: &smoketest.RecordingStatus{Recorded: true, CaptureID: "capture-1"}})
 	smokeID, recording, ok := (&smokeTestRecordAdapter{store: smokeStore}).GetByScenario("calculator")
-	if !ok || smokeID != "smoke-1" || recording == nil || !recording.Recorded || recording.DurationMS != 1200 {
+	if !ok || smokeID != "smoke-1" || recording == nil || !recording.Recorded || recording.CaptureID != "capture-1" {
 		t.Fatalf("smoke evidence = %q %#v %v", smokeID, recording, ok)
 	}
 	if _, _, ok := (&smokeTestRecordAdapter{store: smokeStore}).GetByScenario("missing"); ok {

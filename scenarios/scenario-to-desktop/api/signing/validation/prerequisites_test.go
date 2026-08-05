@@ -6,9 +6,10 @@ import (
 	"crypto/x509/pkix"
 	"errors"
 	"math/big"
-	"scenario-to-desktop-api/signing/types"
 	"testing"
 	"time"
+
+	"scenario-to-desktop-api/signing/types"
 )
 
 type prerequisiteTestFS struct{}

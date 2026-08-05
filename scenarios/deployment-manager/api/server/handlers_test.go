@@ -50,6 +50,7 @@ func setupTestServer(t *testing.T) (*Server, sqlmock.Sqlmock) {
 		ProfilesHandler:     profiles.NewHandler(profilesRepo, logFn),
 	}
 	srv.setupRoutes()
+	mountDomainHandlerTests(srv)
 
 	return srv, mock
 }

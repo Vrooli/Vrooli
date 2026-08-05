@@ -18,7 +18,8 @@
     "11-agent-integration/module.json",
     "12-enterprise-compliance/module.json",
     "13-cli-automation/module.json",
-    "14-advanced-features/module.json"
+    "14-advanced-features/module.json",
+    "15-evidence-governance/module.json"
   ],
   "requirements": []
 }

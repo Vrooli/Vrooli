@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"testing"
+
 	"scenario-to-desktop-api/signing/mocks"
 	"scenario-to-desktop-api/signing/types"
-	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -2,7 +2,7 @@
 
 > **Implementation status and planned work for the deployment system.**
 >
-> This document tracks what's complete, in progress, and planned. For known bugs and blockers, see [PROBLEMS.md](PROBLEMS.md).
+> This document tracks what's complete, in progress, and planned. For known bugs and blockers, see [internal/PROBLEMS.md](internal/PROBLEMS.md).
 
 ## Current Milestone: End-to-End Bundled Desktop
 
@@ -194,7 +194,7 @@ The primary goal is to ship a complete bundled desktop app (UI + API + resources
 ## How to Contribute
 
 1. **Pick an item** from "Not Started" or "In Progress"
-2. **Check PROBLEMS.md** for related blockers
+2. **Check internal/PROBLEMS.md** for related blockers
 3. **Update this file** when starting work (move to In Progress)
 4. **Update PROGRESS.md** with implementation notes
 5. **Mark complete** when merged and validated
@@ -204,7 +204,7 @@ The primary goal is to ship a complete bundled desktop app (UI + API + resources
 ## Related Documentation
 
 - [DEPLOYMENT-GUIDE.md](DEPLOYMENT-GUIDE.md) - User-facing deployment guide
-- [PROBLEMS.md](PROBLEMS.md) - Known issues and blockers
+- [internal/PROBLEMS.md](internal/PROBLEMS.md) - Known issues and blockers
 - [PROGRESS.md](PROGRESS.md) - Implementation progress notes
-- [SEAMS.md](SEAMS.md) - Integration points
+- [Integration seams](internal/SEAMS.md) - Integration points
 - [Bundled Runtime Plan](/docs/plans/bundled-desktop-runtime-plan.md) - Technical architecture

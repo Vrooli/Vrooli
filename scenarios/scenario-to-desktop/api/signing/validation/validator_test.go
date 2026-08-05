@@ -1,8 +1,9 @@
 package validation
 
 import (
-	"scenario-to-desktop-api/signing/types"
 	"testing"
+
+	"scenario-to-desktop-api/signing/types"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

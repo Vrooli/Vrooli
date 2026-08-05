@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"regexp"
 	"runtime"
-	"scenario-to-desktop-api/signing/types"
 	"strings"
 	"time"
+
+	"scenario-to-desktop-api/signing/types"
 )
 
 // LinuxDetector detects Linux GPG signing tools and keys.

@@ -114,7 +114,7 @@ func TestNewApp_AllSubcommandGroupsRegistered(t *testing.T) {
 		"bundle":        1,
 		"docs":          1,
 		"deploy-target": 6,
-		"evidence":      2,
+		"evidence":      3,
 		"signing":       8,
 		"state":         1,
 		"tasks":         1,

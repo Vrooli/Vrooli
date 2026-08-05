@@ -6,10 +6,11 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
-	"scenario-to-desktop-api/procmetrics"
 	"sync"
 	"testing"
 	"time"
+
+	"scenario-to-desktop-api/procmetrics"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

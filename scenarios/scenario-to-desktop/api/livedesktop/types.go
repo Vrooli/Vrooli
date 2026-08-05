@@ -1,9 +1,10 @@
 package livedesktop
 
 import (
-	"scenario-to-desktop-api/procmetrics"
 	"sync"
 	"time"
+
+	"scenario-to-desktop-api/procmetrics"
 )
 
 // SessionState represents the lifecycle state of a live desktop session.

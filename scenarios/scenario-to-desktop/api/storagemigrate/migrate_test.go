@@ -3,8 +3,9 @@ package storagemigrate
 import (
 	"os"
 	"path/filepath"
-	"scenario-to-desktop-api/storagepaths"
 	"testing"
+
+	"scenario-to-desktop-api/storagepaths"
 
 	"github.com/vrooli/api-core/storage"
 )

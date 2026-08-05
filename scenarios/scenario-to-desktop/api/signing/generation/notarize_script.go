@@ -2,8 +2,9 @@ package generation
 
 import (
 	"bytes"
-	"scenario-to-desktop-api/signing/types"
 	"text/template"
+
+	"scenario-to-desktop-api/signing/types"
 )
 
 // notarizeScriptTemplateAPIKey is the template for notarization using API Key (preferred method).

@@ -425,4 +425,4 @@ Each channel is independent; users only receive updates from their configured ch
 - [Tier 2 Desktop Documentation](../tiers/tier-2-desktop.md)
 - [Packaging Matrix](./packaging-matrix.md)
 - [Secrets Management](./secrets-management.md) (for handling update server credentials)
-- [electron-updater Documentation](https://www.electron.build/auto-update)
+- [electron-updater Documentation](https://www.electronjs.org/docs/latest/tutorial/updates)

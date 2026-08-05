@@ -3,10 +3,11 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	"scenario-to-desktop-api/deploy"
-	"scenario-to-desktop-api/shared/errors"
 	"strings"
 	"time"
+
+	"scenario-to-desktop-api/deploy"
+	"scenario-to-desktop-api/shared/errors"
 
 	sharedenv "scenario-to-desktop-api/shared/env"
 )

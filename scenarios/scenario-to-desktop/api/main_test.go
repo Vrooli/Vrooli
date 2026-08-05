@@ -7,10 +7,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
-	"scenario-to-desktop-api/internal/testutil"
 	"slices"
 	"testing"
 	"time"
+
+	"scenario-to-desktop-api/internal/testutil"
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"

@@ -89,6 +89,7 @@ func (f *fakeReleasesRepo) SetVerificationEvidence(_ context.Context, id string,
 	f.evidence[id] = items
 	return nil
 }
+
 func (f *fakeReleasesRepo) MarkPlatformPublished(_ context.Context, _, _ string, _ int64) error {
 	return nil
 }

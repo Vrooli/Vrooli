@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
+
 	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/pipeline"
@@ -12,7 +14,6 @@ import (
 	"scenario-to-desktop-api/screenrecording"
 	"scenario-to-desktop-api/smoketest"
 	"scenario-to-desktop-api/system"
-	"time"
 )
 
 // systemBuildStoreAdapter adapts build.Store to system.BuildStore interface
@@ -53,10 +54,9 @@ func (a *smokeTestRecordAdapter) GetByScenario(scenarioName string) (string, *re
 	var sr *records.ScreenRecordingView
 	if st.ScreenRecording != nil {
 		sr = &records.ScreenRecordingView{
-			Recorded:      st.ScreenRecording.Recorded,
-			DurationMS:    st.ScreenRecording.DurationMs,
-			FileSizeBytes: st.ScreenRecording.FileSizeBytes,
-			Error:         st.ScreenRecording.Error,
+			Recorded:  st.ScreenRecording.Recorded,
+			CaptureID: st.ScreenRecording.CaptureID,
+			Error:     st.ScreenRecording.Error,
 		}
 	}
 	return st.SmokeTestID, sr, true

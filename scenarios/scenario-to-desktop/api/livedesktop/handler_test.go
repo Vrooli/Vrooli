@@ -9,9 +9,10 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"scenario-to-desktop-api/procmetrics"
 	"testing"
 	"time"
+
+	"scenario-to-desktop-api/procmetrics"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"

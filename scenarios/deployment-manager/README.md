@@ -27,7 +27,7 @@ deployment-manager is one of four planes. See [Deployment Hub](../../docs/deploy
 
 ## Key Features (See PRD.md for full operational targets)
 
-**Core Deployment Lifecycle (P0 - 37 operational targets)**:
+**Core Deployment Lifecycle (P0 - 39 operational targets)**:
 - **Dependency Analysis**: Recursive dep fetching, circular dependency detection, resource/scenario aggregation
 - **Fitness Scoring**: 0-100 scores for each of 5 deployment tiers with breakdown (portability, resources, licensing, platform support)
 - **Dependency Swapping**: Suggest alternatives for blockers (postgres → sqlite), impact analysis, non-destructive profile-only swaps
@@ -36,6 +36,7 @@ deployment-manager is one of four planes. See [Deployment Hub](../../docs/deploy
 - **Pre-Deployment Validation**: 6+ checks (fitness threshold, secrets, licensing, resource limits), cost estimation for SaaS/cloud
 - **Deployment Orchestration**: One-click deploy, real-time log streaming (WebSocket), calls scenario-to-desktop/ios/android/saas packagers
 - **Dependency Visualization**: Interactive React Flow graph with fitness color-coding, table view fallback for accessibility
+- **Evidence-Backed Release Governance**: Validates the shared proto-first evidence contract and requires decision-grade desktop evidence before approval
 
 **Enhanced Features (P1 - 36 operational targets)**:
 - Post-deployment health monitoring, metrics collection, alerting
@@ -43,7 +44,7 @@ deployment-manager is one of four planes. See [Deployment Hub](../../docs/deploy
 - Multi-tier deployment orchestration (desktop + iOS + SaaS simultaneously)
 - AI agent integration for migration strategy suggestions (via claude-code/ollama)
 
-**Advanced Features (P2 - 26 operational targets)**:
+**Advanced Features (P2 - 29 operational targets)**:
 - Enterprise compliance (audit logs, approval workflows, license validation)
 - CLI automation for CI/CD pipelines
 - Visual dependency graph editor, deployment templates library
@@ -69,7 +70,7 @@ For complete walkthrough, see **[Desktop Deployment Guide](docs/DESKTOP-DEPLOYME
 ## Quick Start
 
 ```bash
-# Setup (build API, install CLI, initialize postgres, build UI)
+# Setup (build API, install CLI, initialize SQLite schemas, build UI)
 vrooli scenario setup deployment-manager
 
 # Start services (API + UI)
@@ -111,7 +112,7 @@ For complete step-by-step deployment guides with exact commands and expected out
 | **SaaS (Tier 4)** | Deploy to cloud infrastructure | [SaaS Deployment](docs/workflows/saas-deployment.md) |
 | **Troubleshooting** | Common issues and solutions | [Troubleshooting](docs/workflows/troubleshooting.md) |
 
-See [All Workflows](docs/workflows/README.md) for the complete index with navigation by task, component, or tier.
+See the [documentation hub](docs/README.md) for the maintained index by task, component, and tier.
 
 ## Architecture
 
@@ -119,7 +120,7 @@ See [All Workflows](docs/workflows/README.md) for the complete index with naviga
 - **API**: Go (orchestration, fitness scoring, profile management)
 - **UI**: React + TypeScript + Vite + TailwindCSS + shadcn + React Flow (graphs) + Recharts (metrics)
 - **CLI**: Go + `packages/cli-core` (cross-platform binary; auto-discovers API base via lifecycle)
-- **Storage**: PostgreSQL (profiles, audit logs, fitness rules, swap database)
+- **Storage**: Per-domain SQLite through `modernc.org/sqlite` and the routed database boundary
 - **Caching**: Redis (optional, for fitness score caching)
 - **Real-time**: WebSocket (deployment log streaming)
 
@@ -127,6 +128,7 @@ See [All Workflows](docs/workflows/README.md) for the complete index with naviga
 - **scenario-dependency-analyzer** (critical): Dependency tree data source
 - **secrets-manager** (critical): Secret classification and template generation
 - **app-issue-tracker** (critical): Migration task creation when swaps approved
+- **scenario-to-desktop** (initial evidence producer): Decision-grade desktop journey and recording references
 - **claude-code or ollama** (optional): AI-powered migration strategy suggestions
 - **At least one scenario-to-* packager** (required for orchestration validation): e.g., scenario-to-extension, scenario-to-desktop
 
@@ -145,26 +147,22 @@ See [docs/README.md](docs/README.md) for full tier documentation.
 ## Documentation
 
 - **[docs/README.md](docs/README.md)**: Deployment documentation hub (authoritative source)
-- **[docs/cli/](docs/cli/README.md)**: CLI command reference
-- **[docs/api/](docs/api/README.md)**: REST API reference
-- **[docs/workflows/](docs/workflows/README.md)**: Step-by-step deployment guides
-- **[docs/guides/](docs/guides/README.md)**: Technical deep-dives (fitness scoring, dependency swapping, secrets)
-- **[docs/tiers/](docs/tiers/README.md)**: Deployment tier reference
-- **PRD.md**: Full operational targets (99 OTs across P0/P1/P2)
-- **requirements/**: Requirements registry (index.json + 14 modules mapping OTs to testable requirements)
+- **[CLI reference](docs/cli/overview-commands.md)**: CLI command reference
+- **[API reference](docs/api/bundles.md)**: representative API contract
+- **[Workflows](docs/workflows/desktop-deployment.md)**: step-by-step deployment guide
+- **[Guides](docs/guides/evidence-contract.md)**: technical deep-dives and release evidence
+- **[Tier reference](docs/tiers/tier-2-desktop.md)**: desktop target requirements
+- **PRD.md**: Full operational targets (104 OTs across P0/P1/P2)
+- **requirements/**: Requirements registry (index.json + 15 modules mapping OTs to testable requirements)
 - **docs/RESEARCH.md**: Uniqueness check, integration points, external references
 - **docs/PROGRESS.md**: Implementation progress log
-- **docs/PROBLEMS.md**: Known issues, blockers, deferred decisions
+- **[docs/internal/PROBLEMS.md](docs/internal/PROBLEMS.md)**: Known issues, blockers, deferred decisions
 
-## Status: Initialization Phase
+## Status: Active governance plane
 
-**Current State**: Scaffolded from react-vite template, PRD seeded, requirements registry initialized (99 requirements), .vrooli configuration complete.
+**Current State**: The proto-first governance plane is implemented and exercised through the shared evidence contract. The deployment-manager suite passes all 19 phases; the scenario-to-desktop suite passes all 21 phases; aggregate API, CLI, and UI coverage gates are met. Release evidence is stored as producer-owned references, not copied artifact bytes.
 
-**Next Steps for Improvers**:
-1. Implement P0 Module 01 (Dependency Analysis) - integrate with scenario-dependency-analyzer API
-2. Implement P0 Module 02 (Dependency Swapping) - create swap database and suggestion engine
-3. Implement P0 Module 03 (Profile Management) - postgres schema + CRUD API
-4. See `requirements/README.md` for full implementation priority and critical path
+**Storage validation**: `storage-manager validate scenario deployment-manager --json` is the active storage-validation contract. It is runnable in the current environment; its status and any non-blocking findings are recorded as provider-owned validation output. No waiver or lowered threshold is used.
 
 **Progress Tracking**: All progress logs go in `docs/PROGRESS.md` (not PRD.md). PRD checkboxes auto-flip via requirement sync.
 - Artifacts live under `coverage/ui-smoke/` (screenshot, console.json, network.json, dom.html, raw.json) and the latest summary is stored at `coverage/ui-smoke/latest.json`.
@@ -178,11 +176,14 @@ The lifecycle exports everything automatically when you run `vrooli scenario run
 |----------|---------|
 | `API_PORT` | Port assigned to the Go API server |
 | `UI_PORT` | Port assigned to the Vite dev server / production UI |
-| `DATABASE_URL` *or* `POSTGRES_HOST/PORT/USER/PASSWORD/DB` | PostgreSQL connection details |
-| `N8N_BASE_URL` | Base URL for workflow automation calls |
-| `UI_BASE_URL` | Base URL for the Vrooli UI shell / iframe bridge |
-| `API_TOKEN` | Shared secret the CLI/API uses for authentication |
+| `SQLITE_PATH` | Scenario-owned SQLite database path; lifecycle sets this under the scenario data directory |
 | `VITE_API_BASE_URL` | UI → API bridge (set to `http://localhost:${API_PORT}/api/v1`) |
+
+Optional service overrides are `SCENARIO_DEPENDENCY_ANALYZER_URL`,
+`SECRETS_MANAGER_URL`, `SCENARIO_TO_DESKTOP_URL`, `SCENARIO_TO_CLOUD_URL`,
+`LPBS_BASE_URL`, `LPBS_SERVICE_SECRET`, and
+`DEPLOYMENT_MANAGER_TELEMETRY_DIR`. When omitted, inter-scenario URLs resolve
+through Vrooli service discovery.
 
 > Tip: when running outside the lifecycle, fetch ports with `vrooli scenario port <name> API_PORT` (or `UI_PORT`) and then export `VITE_API_BASE_URL` accordingly:
 

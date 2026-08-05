@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"time"
+
+	"deployment-manager/shared"
 )
 
 // LPBSReleaseConfig holds the LPBS coordinates that a profile needs to
@@ -28,29 +30,12 @@ type LPBSReleaseConfigRepository interface {
 
 // SQLLPBSReleaseConfigRepository implements LPBSReleaseConfigRepository with PostgreSQL.
 type SQLLPBSReleaseConfigRepository struct {
-	db *sql.DB
+	db shared.RoutedDBTX
 }
 
 // NewSQLLPBSReleaseConfigRepository creates a new SQL-backed LPBS config repository.
-func NewSQLLPBSReleaseConfigRepository(db *sql.DB) *SQLLPBSReleaseConfigRepository {
+func NewSQLLPBSReleaseConfigRepository(db shared.RoutedDBTX) *SQLLPBSReleaseConfigRepository {
 	return &SQLLPBSReleaseConfigRepository{db: db}
-}
-
-// EnsureSchema creates the profile_lpbs_release_config table if it doesn't exist.
-func (r *SQLLPBSReleaseConfigRepository) EnsureSchema(ctx context.Context) error {
-	_, err := r.db.ExecContext(ctx, `
-		CREATE TABLE IF NOT EXISTS profile_lpbs_release_config (
-			profile_id         TEXT PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
-			lpbs_domain        TEXT NOT NULL DEFAULT '',
-			lpbs_remote_profile TEXT NOT NULL DEFAULT '',
-			lpbs_app_key       TEXT NOT NULL DEFAULT '',
-			default_channel    TEXT NOT NULL DEFAULT 'stable',
-			update_url         TEXT NOT NULL DEFAULT '',
-			created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
-		)
-	`)
-	return err
 }
 
 // Get returns the LPBS config for a profile, or (nil, nil) if none is set.
@@ -85,14 +70,14 @@ func (r *SQLLPBSReleaseConfigRepository) Upsert(ctx context.Context, cfg *LPBSRe
 		INSERT INTO profile_lpbs_release_config
 			(profile_id, lpbs_domain, lpbs_remote_profile, lpbs_app_key,
 			 default_channel, update_url, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+		VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 		ON CONFLICT (profile_id) DO UPDATE SET
 			lpbs_domain         = EXCLUDED.lpbs_domain,
 			lpbs_remote_profile = EXCLUDED.lpbs_remote_profile,
 			lpbs_app_key        = EXCLUDED.lpbs_app_key,
 			default_channel     = EXCLUDED.default_channel,
 			update_url          = EXCLUDED.update_url,
-			updated_at          = NOW()
+			updated_at          = CURRENT_TIMESTAMP
 	`,
 		cfg.ProfileID, cfg.LPBSDomain, cfg.LPBSRemoteProfile, cfg.LPBSAppKey,
 		cfg.DefaultChannel, cfg.UpdateURL,

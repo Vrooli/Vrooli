@@ -2,9 +2,10 @@ package signing
 
 import (
 	"os"
+	"time"
+
 	"scenario-to-desktop-api/shared/env"
 	"scenario-to-desktop-api/signing/types"
-	"time"
 )
 
 // Signing config filename

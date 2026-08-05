@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
+
 	"scenario-to-desktop-api/captures"
 	"scenario-to-desktop-api/screenrecording"
-	"time"
 )
 
 // LaunchAppAction launches an application on the session's display.
@@ -180,17 +181,7 @@ func (a *StopRecordingAction) Execute(ctx context.Context, session *Session, svc
 				},
 			}, nil
 		}
-		// Fall through to session-scoped URL on error
+		return nil, fmt.Errorf("persisting recording capture: %w", err)
 	}
-
-	videoFilename := filepath.Base(result.VideoPath)
-	videoURL := fmt.Sprintf("/api/v1/livedesktop/sessions/%s/files/%s", session.ID, videoFilename)
-	return &ActionResult{
-		Status: "ok",
-		Data: map[string]any{
-			"video_url":   videoURL,
-			"duration_ms": result.DurationMs,
-			"size_bytes":  result.FileSizeBytes,
-		},
-	}, nil
+	return nil, fmt.Errorf("capture storage is unavailable")
 }

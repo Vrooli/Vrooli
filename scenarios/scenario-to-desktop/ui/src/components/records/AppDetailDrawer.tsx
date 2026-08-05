@@ -69,7 +69,7 @@ export function AppDetailDrawer({
   const locationPath = pathLabel(item);
   const destinationPath = rec.destination_path;
   const showDestination = destinationPath && destinationPath !== locationPath;
-  const hasSmokeVideo = item.smoke_test_id && item.screen_recording?.recorded;
+  const hasSmokeVideo = item.screen_recording?.recorded && item.screen_recording.capture_id;
   const metadata = item.build_status?.metadata;
 
   return (
@@ -81,14 +81,14 @@ export function AppDetailDrawer({
     >
       <DrawerBody className="space-y-6">
         {/* Smoke Test Video */}
-        {hasSmokeVideo && item.smoke_test_id && (
+        {hasSmokeVideo && item.screen_recording?.capture_id && (
           <section className="space-y-2">
             <SectionTitle icon={Video}>Smoke Test Video</SectionTitle>
             <video
               controls
               className="w-full rounded-lg border border-slate-700"
               src={buildUrl(
-                `/smoketest/${encodeURIComponent(item.smoke_test_id)}/video`,
+                `/captures/${encodeURIComponent(rec.scenario_name)}/${encodeURIComponent(item.screen_recording.capture_id)}/file`,
               )}
             >
               Your browser does not support the video tag.

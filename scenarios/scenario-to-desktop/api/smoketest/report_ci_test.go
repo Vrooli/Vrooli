@@ -2,10 +2,11 @@ package smoketest_test
 
 import (
 	"encoding/json"
-	"scenario-to-desktop-api/smoketest"
 	"strings"
 	"testing"
 	"time"
+
+	"scenario-to-desktop-api/smoketest"
 )
 
 func TestFormatForTerminal_StateTransitionTimestampFormat(t *testing.T) {

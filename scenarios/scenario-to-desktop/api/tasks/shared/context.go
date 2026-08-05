@@ -3,8 +3,9 @@ package shared
 import (
 	"encoding/json"
 	"fmt"
-	"scenario-to-desktop-api/pipeline"
 	"strings"
+
+	"scenario-to-desktop-api/pipeline"
 
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"

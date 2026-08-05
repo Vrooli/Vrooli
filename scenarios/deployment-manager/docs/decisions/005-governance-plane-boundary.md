@@ -2,14 +2,14 @@
 
 ## Status
 
-Accepted
+Accepted and Executed
 
 ## Context
 
 Deployment work is spread across several scenarios, and the boundary between them was never written down. The result is visible in the code:
 
 - `api/codesigning` implements signing that `scenario-to-desktop` also implements, and carries a deprecation notice pointing at it
-- `api/validation` implements screen-recorded validation that `vrooli-emulator` and `scenario-to-desktop` also implement
+- The retired local validation implementation duplicated screen-recorded validation owned by `vrooli-emulator` and `scenario-to-desktop`
 - `POST /api/v1/deploy/{profile_id}` implies deployment-manager orchestrates packaging, which it does not do
 
 Each of these is the same mistake: deployment-manager acquiring target-specific capability that belongs to a ramp or to the evidence substrate. Without a stated boundary, the next feature repeats it.
@@ -37,10 +37,16 @@ Three rules follow.
 
 A generic deploy verb in deployment-manager is compatible with this decision only as a dispatcher: it resolves the profile's tier to a ramp and delegates. It must never implement packaging.
 
+The executed form of this decision has one release gate. It reads exact-commit
+human approvals, required target definitions, ramp verdicts, and bridge-produced
+host verdicts through the shared `EvidenceService.ReportTargetVerdict` ingest
+path. A target is releasable only when its evidence passes and its human
+approval is recorded for the same commit.
+
 ## Consequences
 
 - `api/codesigning` becomes a proxy to `scenario-to-desktop` and its local implementation is removed
-- `api/validation` is retired in favor of `vrooli-emulator`; the bridge from review decision to approval record stays in deployment-manager
+- Local validation is retired in favor of `vrooli-emulator` and producer-owned evidence; the bridge from review decision to approval record stays in deployment-manager
 - The generic deploy endpoints refuse until the dispatcher exists, rather than returning synthesized success
 - Adding a ramp requires no deployment-manager change beyond a tier-to-ramp mapping entry
 - Cross-tier evidence comparison becomes possible once every ramp emits one evidence shape, which is a separate decision
@@ -48,4 +54,4 @@ A generic deploy verb in deployment-manager is compatible with this decision onl
 ## References
 
 - [Deployment Hub](../../../../docs/deployment/README.md)
-- [SEAMS.md](../SEAMS.md)
+- [Integration seams](../internal/SEAMS.md)

@@ -76,10 +76,9 @@ func StatusToProto(v *Status) *sharedv1.SmokeTestStatusResponse {
 	}
 	if v.ScreenRecording != nil {
 		result.ScreenRecording = &sharedv1.ScreenRecordingSummary{
-			Recorded:      v.ScreenRecording.Recorded,
-			DurationMs:    optional(v.ScreenRecording.DurationMs),
-			FileSizeBytes: optional(v.ScreenRecording.FileSizeBytes),
-			Error:         optional(v.ScreenRecording.Error),
+			Recorded:  v.ScreenRecording.Recorded,
+			CaptureId: optional(v.ScreenRecording.CaptureID),
+			Error:     optional(v.ScreenRecording.Error),
 		}
 	}
 	return result

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
 	"scenario-to-desktop-api/shared/path"
 	"scenario-to-desktop-api/signing/types"
 )

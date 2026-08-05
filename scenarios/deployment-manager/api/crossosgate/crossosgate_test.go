@@ -3,6 +3,7 @@ package crossosgate
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -171,5 +172,23 @@ func TestHTTPBridge_ConnectErrorSurfaces(t *testing.T) {
 	})
 	if err == nil || !strings.Contains(err.Error(), "owner token required") {
 		t.Fatalf("expected unauthenticated error, got %v", err)
+	}
+}
+
+func TestHandlerRejectsMalformedRequestsAndPropagatesGateErrors(t *testing.T) {
+	h := NewHandler(New(&fakeBridge{runErr: errors.New("bridge unavailable")}))
+	for _, body := range []string{"{", `{"scenario":"","revision":"r","target_oses":["linux"]}`, `{"scenario":"s","revision":"","target_oses":["linux"]}`, `{"scenario":"s","revision":"r","target_oses":[]}`} {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/x", strings.NewReader(body))
+		h.Evaluate(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("body=%s status=%d", body, rec.Code)
+		}
+	}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/x", strings.NewReader(`{"scenario":"s","revision":"r","target_oses":["linux"]}`))
+	h.Evaluate(rec, req)
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("gate error status=%d body=%s", rec.Code, rec.Body.String())
 	}
 }

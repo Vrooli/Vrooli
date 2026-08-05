@@ -5,8 +5,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"scenario-to-desktop-api/state"
 	"time"
+
+	"scenario-to-desktop-api/state"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/storage"

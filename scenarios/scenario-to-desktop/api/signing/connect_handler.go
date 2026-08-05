@@ -3,8 +3,9 @@ package signing
 import (
 	"context"
 	"fmt"
-	"scenario-to-desktop-api/signing/types"
 	"time"
+
+	"scenario-to-desktop-api/signing/types"
 
 	"connectrpc.com/connect"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"

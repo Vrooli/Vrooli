@@ -3,10 +3,11 @@ package smoketest_test
 import (
 	"context"
 	"errors"
-	"scenario-to-desktop-api/smoketest"
-	"scenario-to-desktop-api/smoketest/mocks"
 	"testing"
 	"time"
+
+	"scenario-to-desktop-api/smoketest"
+	"scenario-to-desktop-api/smoketest/mocks"
 )
 
 // Test that Status fields work correctly

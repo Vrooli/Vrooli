@@ -8,9 +8,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"scenario-to-desktop-api/signing"
 	"strings"
 	"time"
+
+	"scenario-to-desktop-api/signing"
 
 	"github.com/google/uuid"
 

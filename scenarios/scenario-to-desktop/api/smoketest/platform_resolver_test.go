@@ -3,10 +3,11 @@ package smoketest_test
 import (
 	"os"
 	"runtime"
-	"scenario-to-desktop-api/smoketest"
-	"scenario-to-desktop-api/smoketest/mocks"
 	"strings"
 	"testing"
+
+	"scenario-to-desktop-api/smoketest"
+	"scenario-to-desktop-api/smoketest/mocks"
 )
 
 func TestPlatformResolver_CurrentPlatform(t *testing.T) {

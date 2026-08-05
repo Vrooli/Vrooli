@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"regexp"
 	"runtime"
-	"scenario-to-desktop-api/signing/types"
 	"strings"
 	"time"
+
+	"scenario-to-desktop-api/signing/types"
 
 	"software.sslmate.com/src/go-pkcs12"
 )

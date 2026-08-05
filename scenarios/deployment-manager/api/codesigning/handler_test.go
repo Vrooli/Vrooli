@@ -123,31 +123,10 @@ func (m *mockRepository) SaveForPlatform(ctx context.Context, profileID string, 
 // testLogger is a no-op logger for tests.
 func testLogger(msg string, fields map[string]interface{}) {}
 
-// mockValidator is a simple mock for validation.
-type mockValidator struct {
-	result *ValidationResult
-}
-
-func (m *mockValidator) ValidateConfig(config *SigningConfig) *ValidationResult {
-	if m.result != nil {
-		return m.result
-	}
-	return NewValidationResult()
-}
-
-func (m *mockValidator) ValidateForPlatform(config *SigningConfig, platform string) *ValidationResult {
-	if m.result != nil {
-		return m.result
-	}
-	return NewValidationResult()
-}
-
 // setupTestHandler creates a handler with mock dependencies.
 func setupTestHandler(t *testing.T) (*Handler, *mockRepository) {
 	repo := newMockRepository()
-	validator := &mockValidator{}
-	checker := &mockPrereqChecker{}
-	handler := NewHandler(repo, validator, checker, testLogger)
+	handler := NewHandler(repo, testLogger)
 	return handler, repo
 }
 
@@ -346,59 +325,6 @@ func TestHandler_DeleteSigning_ProfileNotFound(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, rr.Code)
 }
 
-func TestHandler_ValidateSigning_Disabled(t *testing.T) {
-	handler, repo := setupTestHandler(t)
-
-	repo.AddConfig("profile-123", &SigningConfig{Enabled: false})
-
-	rr := makeRequest(t, handler.ValidateSigning, "POST", "/api/v1/profiles/profile-123/signing/validate", nil, map[string]string{"id": "profile-123"})
-
-	assert.Equal(t, http.StatusOK, rr.Code)
-
-	var response map[string]interface{}
-	err := json.Unmarshal(rr.Body.Bytes(), &response)
-	require.NoError(t, err)
-	assert.Equal(t, true, response["valid"])
-	assert.Contains(t, response["message"], "disabled")
-}
-
-func TestHandler_ValidateSigning_NoConfig(t *testing.T) {
-	handler, _ := setupTestHandler(t)
-
-	rr := makeRequest(t, handler.ValidateSigning, "POST", "/api/v1/profiles/profile-123/signing/validate", nil, map[string]string{"id": "profile-123"})
-
-	assert.Equal(t, http.StatusOK, rr.Code)
-
-	var response map[string]interface{}
-	err := json.Unmarshal(rr.Body.Bytes(), &response)
-	require.NoError(t, err)
-	assert.Equal(t, true, response["valid"])
-}
-
-func TestHandler_CheckPrerequisites(t *testing.T) {
-	// Create handler with mock checker that returns tools
-	repo := newMockRepository()
-	validator := &mockValidator{}
-	checker := &mockPrereqChecker{
-		tools: []ToolDetectionResult{
-			{Platform: PlatformLinux, Tool: "gpg", Installed: true, Path: "/usr/bin/gpg", Version: "2.2.27"},
-		},
-	}
-	handler := NewHandler(repo, validator, checker, testLogger)
-
-	rr := makeRequest(t, handler.CheckPrerequisites, "GET", "/api/v1/signing/prerequisites", nil, nil)
-
-	assert.Equal(t, http.StatusOK, rr.Code)
-
-	var response map[string]interface{}
-	err := json.Unmarshal(rr.Body.Bytes(), &response)
-	require.NoError(t, err)
-
-	tools, ok := response["tools"].([]interface{})
-	require.True(t, ok)
-	assert.Len(t, tools, 1)
-}
-
 func TestHandler_MissingProfileID(t *testing.T) {
 	handler, _ := setupTestHandler(t)
 
@@ -411,7 +337,6 @@ func TestHandler_MissingProfileID(t *testing.T) {
 		{"GetSigning", handler.GetSigning, "GET"},
 		{"SetSigning", handler.SetSigning, "PUT"},
 		{"DeleteSigning", handler.DeleteSigning, "DELETE"},
-		{"ValidateSigning", handler.ValidateSigning, "POST"},
 	}
 
 	for _, tc := range tests {
@@ -421,32 +346,4 @@ func TestHandler_MissingProfileID(t *testing.T) {
 			assert.Contains(t, rr.Body.String(), "profile_id is required")
 		})
 	}
-}
-
-// mockPrereqChecker is a simple mock for prerequisite checking.
-type mockPrereqChecker struct {
-	result *ValidationResult
-	tools  []ToolDetectionResult
-	err    error
-}
-
-func (m *mockPrereqChecker) CheckPrerequisites(ctx context.Context, config *SigningConfig) *ValidationResult {
-	if m.result != nil {
-		return m.result
-	}
-	return NewValidationResult()
-}
-
-func (m *mockPrereqChecker) CheckPlatformPrerequisites(ctx context.Context, config *SigningConfig, platform string) *ValidationResult {
-	if m.result != nil {
-		return m.result
-	}
-	return NewValidationResult()
-}
-
-func (m *mockPrereqChecker) DetectTools(ctx context.Context) ([]ToolDetectionResult, error) {
-	if m.err != nil {
-		return nil, m.err
-	}
-	return m.tools, nil
 }

@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-22T00:11:31-04:00"
+    "last_validated_at": "2026-08-04T16:50:31-04:00"
   },
   "requirements": [
     {
       "id": "DM-P0-035",
       "title": "Interactive Dependency Graph",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-035",
       "category": "dependency-visualization",
       "description": "Render dependency tree as interactive graph (React Flow or d3-force) with color-coded fitness scores",
@@ -19,7 +19,7 @@
           "type": "test",
           "ref": "cli/overview/commands_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Go CLI tests validate dependency visualization command behavior"
         }
       ]
@@ -27,7 +27,7 @@
     {
       "id": "DM-P0-036",
       "title": "Table View Alternative",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-036",
       "category": "dependency-visualization",
       "description": "Provide sortable table view with columns: name, type, fitness score, issues, suggested swaps",
@@ -40,7 +40,7 @@
           "type": "test",
           "ref": "cli/overview/commands_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Go CLI tests validate dependency visualization command behavior"
         }
       ]
@@ -48,7 +48,7 @@
     {
       "id": "DM-P0-037",
       "title": "Graph Rendering Performance",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-037",
       "category": "dependency-visualization",
       "description": "Render dependency graph within 3 seconds for scenarios with ≤100 dependencies",
@@ -61,7 +61,7 @@
           "type": "test",
           "ref": "cli/overview/commands_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Go CLI tests validate dependency visualization command behavior"
         }
       ]

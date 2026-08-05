@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"deployment-manager/shared"
 )
 
 // httpBridge speaks bridge's GateService over the Connect unary JSON protocol: a
@@ -102,7 +104,11 @@ func (h *httpBridge) call(ctx context.Context, method string, reqMsg, respMsg an
 		return fmt.Errorf("marshal %s request: %w", method, err)
 	}
 	url := fmt.Sprintf("%s/vrooli.vrooli_bridge.v1.gate.GateService/%s", h.baseURL, method)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	validatedURL, err := shared.ValidateServiceURL(url)
+	if err != nil {
+		return fmt.Errorf("invalid bridge service URL: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, validatedURL, bytes.NewReader(body)) //nolint:gosec // bridge URL is validated immediately above
 	if err != nil {
 		return fmt.Errorf("build %s request: %w", method, err)
 	}
@@ -111,7 +117,7 @@ func (h *httpBridge) call(ctx context.Context, method string, reqMsg, respMsg an
 		req.Header.Set("Authorization", "Bearer "+h.token)
 	}
 
-	resp, err := h.client.Do(req)
+	resp, err := h.client.Do(req) //nolint:gosec // request target passed the bridge URL validation boundary
 	if err != nil {
 		return fmt.Errorf("call bridge GateService/%s: %w", method, err)
 	}

@@ -563,6 +563,7 @@ describe("SmokeTestSection", () => {
           smokeTestId: "smoke-test-123",
           screenRecording: {
             recorded: true,
+            captureId: "capture-smoke-test-123",
             durationMs: 15000n,
             fileSizeBytes: 2621440n,
           },
@@ -586,7 +587,7 @@ describe("SmokeTestSection", () => {
     const video = document.querySelector("video");
     expect(video).toBeInTheDocument();
     expect(video?.getAttribute("src")).toContain(
-      "/smoketest/smoke-test-123/video",
+      "/captures/test-scenario/capture-smoke-test-123/file",
     );
     expect(screen.getByText(/Duration: 15\.0s/)).toBeInTheDocument();
     expect(screen.getByText(/Size: 2\.5 MB/)).toBeInTheDocument();

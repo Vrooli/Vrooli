@@ -38,6 +38,7 @@ describe("presentDesktopRecords", () => {
     expect(record?.smoke_test_id).toBe("smoke-1");
     expect(record?.screen_recording).toEqual({
       recorded: true,
+      capture_id: undefined,
       duration_ms: 12_345,
       file_size_bytes: 6_789,
       error: undefined,

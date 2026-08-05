@@ -5,10 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
+
 	"scenario-to-desktop-api/captures"
 	"scenario-to-desktop-api/livedesktop"
 	"scenario-to-desktop-api/shared/connecterrors"
-	"strings"
 
 	"connectrpc.com/connect"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
@@ -182,6 +184,38 @@ func (s *ConnectService) ListEvidenceCaptures(_ context.Context, req *connect.Re
 	return connect.NewResponse(response), nil
 }
 
+func (s *ConnectService) GetEvidenceCapture(_ context.Context, req *connect.Request[domainv1.GetEvidenceCaptureRequest]) (*connect.Response[domainv1.GetEvidenceCaptureResponse], error) {
+	items, err := s.captures.Store().List(req.Msg.GetScenarioName())
+	if err != nil {
+		return nil, evidenceError(connect.CodeInternal, domainerrors.CodeInternal, "list evidence captures", err, domainerrors.RecoveryRetry)
+	}
+	var found *captures.Capture
+	for i := range items {
+		if items[i].ID == req.Msg.GetCaptureId() {
+			found = &items[i]
+			break
+		}
+	}
+	if found == nil {
+		return nil, evidenceError(connect.CodeNotFound, domainerrors.CodeNotFound, "evidence capture not found", nil, domainerrors.RecoveryFixInput)
+	}
+	provider, ok := s.captures.(interface {
+		CaptureFilePath(string, string) (string, error)
+	})
+	if !ok {
+		return nil, evidenceError(connect.CodeUnimplemented, domainerrors.CodeNotImplemented, "evidence content is unavailable from this capture provider", nil, domainerrors.RecoveryNone)
+	}
+	path, err := provider.CaptureFilePath(found.ScenarioName, found.ID)
+	if err != nil {
+		return nil, evidenceError(connect.CodeNotFound, domainerrors.CodeNotFound, "evidence file not found", err, domainerrors.RecoveryFixInput)
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, evidenceError(connect.CodeInternal, domainerrors.CodeInternal, "read evidence capture", err, domainerrors.RecoveryRetry)
+	}
+	return connect.NewResponse(&domainv1.GetEvidenceCaptureResponse{Capture: captureToProto(*found), Content: content}), nil
+}
+
 func (s *ConnectService) GetEvidenceCapturesSummary(_ context.Context, req *connect.Request[domainv1.ListEvidenceCapturesRequest]) (*connect.Response[domainv1.EvidenceCapturesSummary], error) {
 	summary, err := s.captures.Store().Summary(req.Msg.GetScenarioName())
 	if err != nil {
@@ -306,6 +340,7 @@ func metricsToProto(value *livedesktop.MetricsView) *domainv1.DesktopSessionMetr
 
 func captureToProto(value captures.Capture) *domainv1.EvidenceCapture {
 	result := &domainv1.EvidenceCapture{CaptureId: value.ID, ScenarioName: value.ScenarioName, Kind: string(value.Type), SourceSessionId: value.SourceSession, Filename: value.Filename, FileSizeBytes: value.FileSizeBytes, CreatedAt: timestamppb.New(value.CreatedAt)}
+	result.Checksum = value.Checksum
 	if value.Width != 0 {
 		width := int32(value.Width)
 		result.Width = &width

@@ -6,18 +6,21 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"scenario-to-desktop-api/procmetrics"
-	"scenario-to-desktop-api/screenrecording"
-	"scenario-to-desktop-api/shared/errors"
 	"strings"
 	"time"
 
+	"scenario-to-desktop-api/captures"
+	"scenario-to-desktop-api/procmetrics"
+	"scenario-to-desktop-api/screenrecording"
+	"scenario-to-desktop-api/shared/errors"
+
+	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain/domainconnect"
 )
 
 // DefaultDemoHoldMs is the default duration (in milliseconds) to hold the
 // demo app visible for screen recording.
-const DefaultDemoHoldMs = 8000
+const DefaultDemoHoldMs = 30000
 
 // recordingState holds the active screen recording context during a smoke test.
 type recordingState struct {
@@ -25,6 +28,8 @@ type recordingState struct {
 	displayID     string
 	displayWidth  int
 	displayHeight int
+	windowManager string
+	titlebar      bool
 	cleanup       func()
 }
 
@@ -67,14 +72,30 @@ func (s *DefaultService) PerformSmokeTest(ctx context.Context, smokeTestID, scen
 	s.transitionTo(smokeTestID, StateExecuting, displayCommand)
 	execResult, execErr := s.executeWithRetry(ctx, smokeTestID, artifactPath, cmd, args, displayCommand, rec.displayID, rec.displayWidth, rec.displayHeight)
 
-	// Demo launch for screen recording if smoke test passed
+	// Demo launch for screen recording if smoke test passed. The journey is
+	// returned so reporting can happen only after finalizeRecording has moved
+	// the producer-owned recording into the captures ledger.
+	var journey *JourneyResult
+	var evidenceErr error
 	if rec.captureID != "" && rec.displayID != "" && execErr == nil && execResult != nil {
 		if strings.Contains(execResult.Combined, s.config.SuccessMarker) {
-			s.executeDemoLaunch(ctx, smokeTestID, artifactPath, platform, rec.displayID)
+			journey = s.executeDemoLaunch(ctx, smokeTestID, scenarioName, artifactPath, platform, rec)
+			if journey == nil {
+				evidenceErr = fmt.Errorf("desktop evidence demo launch did not produce a journey")
+			} else if journey.Disposition != journeyPass {
+				reason := journey.DegradedReason
+				if reason == "" {
+					reason = "journey_validation_failed"
+				}
+				evidenceErr = fmt.Errorf("desktop evidence journey %s: %s", journey.Disposition, reason)
+			}
 		}
 	}
 
 	s.finalizeRecording(ctx, smokeTestID, rec.captureID)
+	if journey != nil {
+		s.reportJourneyEvidence(ctx, smokeTestID, platform, journey)
+	}
 
 	// Process results
 	outputLen := 0
@@ -82,6 +103,9 @@ func (s *DefaultService) PerformSmokeTest(ctx context.Context, smokeTestID, scen
 		outputLen = len(execResult.Combined)
 	}
 	s.transitionTo(smokeTestID, StateParsingOutput, fmt.Sprintf("%d bytes of output", outputLen))
+	if execErr == nil && evidenceErr != nil {
+		execErr = evidenceErr
+	}
 	s.processResults(smokeTestID, scenarioName, platform, artifactPath, displayCommand, execResult, execErr)
 }
 
@@ -118,7 +142,7 @@ func (s *DefaultService) setupScreenRecording(ctx context.Context, smokeTestID s
 	if err != nil {
 		s.logger.Warn("screen_recording_display_failed", "smoke_test_id", smokeTestID, "error", err.Error())
 		s.store.Update(smokeTestID, func(status *Status) {
-			status.ScreenRecording = &ScreenRecordingResult{Error: fmt.Sprintf("display creation failed: %v", err)}
+			status.ScreenRecording = &RecordingStatus{Error: fmt.Sprintf("display creation failed: %v", err)}
 		})
 		return recordingState{}
 	}
@@ -128,14 +152,14 @@ func (s *DefaultService) setupScreenRecording(ctx context.Context, smokeTestID s
 		Width:   width,
 		Height:  height,
 		FPS:     fps,
-		// Supplying an explicit, durable path makes the built-in ffmpeg fallback
-		// and the resource-backed recorder produce the same evidence contract.
+		// The recorder writes to a producer-owned temporary path. finalizeRecording
+		// immediately moves it into the canonical captures domain.
 		OutputPath: filepath.Join(os.TempDir(), "vrooli-screen-recordings", smokeTestID+".mp4"),
 	})
 	if err != nil {
 		s.logger.Warn("screen_recording_start_failed", "smoke_test_id", smokeTestID, "error", err.Error())
 		s.store.Update(smokeTestID, func(status *Status) {
-			status.ScreenRecording = &ScreenRecordingResult{Error: fmt.Sprintf("capture start failed: %v", err)}
+			status.ScreenRecording = &RecordingStatus{Error: fmt.Sprintf("capture start failed: %v", err)}
 		})
 		displayCleanup()
 		return recordingState{}
@@ -145,11 +169,22 @@ func (s *DefaultService) setupScreenRecording(ctx context.Context, smokeTestID s
 		status.Logs = append(status.Logs, fmt.Sprintf("Screen recording started (ID: %s, display: %s)", cID, displayID))
 	})
 
+	windowManager := ""
+	titlebar := false
+	if provider, ok := s.displayMgr.(interface {
+		WindowManagerInfo(string) screenrecording.WindowManagerMetadata
+	}); ok {
+		metadata := provider.WindowManagerInfo(displayID)
+		windowManager, titlebar = metadata.Name, metadata.Titlebar
+	}
+
 	return recordingState{
 		captureID:     cID,
 		displayID:     displayID,
 		displayWidth:  width,
 		displayHeight: height,
+		windowManager: windowManager,
+		titlebar:      titlebar,
 		cleanup:       displayCleanup,
 	}
 }
@@ -173,19 +208,33 @@ func (s *DefaultService) finalizeRecording(ctx context.Context, smokeTestID, cap
 	if err != nil {
 		s.logger.Warn("screen_recording_stop_failed", "smoke_test_id", smokeTestID, "error", err.Error())
 		s.store.Update(smokeTestID, func(status *Status) {
-			status.ScreenRecording = &ScreenRecordingResult{Recorded: false, Error: fmt.Sprintf("capture stop failed: %v", err)}
+			status.ScreenRecording = &RecordingStatus{Recorded: false, Error: fmt.Sprintf("capture stop failed: %v", err)}
 		})
 		return
 	}
 
+	status, ok := s.store.Get(smokeTestID)
+	if !ok || s.captures == nil {
+		s.store.Update(smokeTestID, func(status *Status) {
+			status.ScreenRecording = &RecordingStatus{Error: "screen recording completed but capture storage is unavailable"}
+		})
+		return
+	}
+	width, height := 0, 0
+	if status.RecordingConfig != nil {
+		width, height = status.RecordingConfig.DisplayWidth, status.RecordingConfig.DisplayHeight
+	}
+	capture, err := s.captures.SaveCapture(status.ScenarioName, captures.CaptureRecording, "smoke-test:"+smokeTestID, captureResult.VideoPath, width, height, captureResult.DurationMs)
+	if err != nil {
+		s.logger.Warn("screen_recording_persist_failed", "smoke_test_id", smokeTestID, "error", err.Error())
+		s.store.Update(smokeTestID, func(status *Status) {
+			status.ScreenRecording = &RecordingStatus{Error: fmt.Sprintf("persisting recording evidence: %v", err)}
+		})
+		return
+	}
 	s.store.Update(smokeTestID, func(status *Status) {
-		status.ScreenRecording = &ScreenRecordingResult{
-			Recorded:      true,
-			VideoPath:     captureResult.VideoPath,
-			DurationMs:    captureResult.DurationMs,
-			FileSizeBytes: captureResult.FileSizeBytes,
-		}
-		status.Logs = append(status.Logs, fmt.Sprintf("Screen recording saved: %s", captureResult.VideoPath))
+		status.ScreenRecording = &RecordingStatus{Recorded: true, CaptureID: capture.ID, Checksum: capture.Checksum}
+		status.Logs = append(status.Logs, fmt.Sprintf("Screen recording saved as capture %s", capture.ID))
 	})
 }
 
@@ -345,9 +394,12 @@ func telemetryIngestURL(port int) string {
 
 // executeDemoLaunch runs the app in normal mode for screen recording.
 // This is purely for capturing a realistic startup experience on video.
-// Errors are logged but do not affect the smoke test pass/fail result.
-func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, artifactPath, platform, displayID string) {
-	s.logger.Info("demo_launch_starting", "smoke_test_id", smokeTestID, "display", displayID)
+// The process completion is diagnostic; the desktop journey is the acceptance
+// gate for the recording. A normal demo process may remain alive until the
+// configured hold expires, but an absent/invalid application window must fail
+// the smoke test when evidence was requested.
+func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, scenarioName, artifactPath, platform string, rec recordingState) *JourneyResult {
+	s.logger.Info("demo_launch_starting", "smoke_test_id", smokeTestID, "display", rec.displayID)
 	s.store.Update(smokeTestID, func(status *Status) {
 		status.Logs = append(status.Logs, "Starting demo launch for screen recording...")
 	})
@@ -355,25 +407,53 @@ func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, art
 	cmd, args, _, err := s.platformResolver.ResolveCommand(platform, artifactPath)
 	if err != nil {
 		s.logger.Warn("demo_launch_resolve_failed", "smoke_test_id", smokeTestID, "error", err.Error())
-		return
+		s.store.Update(smokeTestID, func(status *Status) {
+			status.Logs = append(status.Logs, fmt.Sprintf("Demo launch could not resolve artifact: %v", err))
+		})
+		return nil
 	}
 
 	// Strip --smoke-test from args so the app launches in normal mode
 	args = StripSmokeTestFlag(args)
 
 	env := []string{
-		fmt.Sprintf("DISPLAY=%s", displayID),
+		fmt.Sprintf("DISPLAY=%s", rec.displayID),
 		"SMOKE_TEST_DEMO=1",
 		fmt.Sprintf("SMOKE_TEST_DEMO_HOLD_MS=%d", DefaultDemoHoldMs),
 	}
 
 	demoTimeout := 90 * time.Second
-	result, err := s.executor.ExecuteWithResult(ctx, filepath.Dir(artifactPath), cmd, args, env, demoTimeout)
+	resultCh := make(chan struct {
+		result *ExecutionResult
+		err    error
+	}, 1)
+	// The executor owns process-group cleanup; running it in parallel lets the
+	// journey interact with the application while the configured demo hold is
+	// still active.
+	go func() {
+		result, err := s.executor.ExecuteWithResult(ctx, filepath.Dir(artifactPath), cmd, args, env, demoTimeout)
+		resultCh <- struct {
+			result *ExecutionResult
+			err    error
+		}{result: result, err: err}
+	}()
+
+	journey := s.runDesktopJourney(ctx, smokeTestID, scenarioName, platform, rec)
+	journeyID := s.persistJourney(journey)
+	s.store.Update(smokeTestID, func(status *Status) {
+		status.JourneyCaptureID = journeyID
+		status.JourneyDisposition = journey.Disposition
+		status.JourneyDegradedReason = journey.DegradedReason
+		status.Logs = append(status.Logs, fmt.Sprintf("Desktop journey %s", journey.Disposition))
+	})
+
+	completed := <-resultCh
+	result, err := completed.result, completed.err
 
 	if err != nil {
 		s.logger.Warn("demo_launch_failed", "smoke_test_id", smokeTestID, "error", err.Error())
 		s.store.Update(smokeTestID, func(status *Status) {
-			status.Logs = append(status.Logs, fmt.Sprintf("Demo launch error (non-fatal): %v", err))
+			status.Logs = append(status.Logs, fmt.Sprintf("Demo launch completion warning: %v", err))
 		})
 	} else {
 		exitCode := 0
@@ -385,6 +465,54 @@ func (s *DefaultService) executeDemoLaunch(ctx context.Context, smokeTestID, art
 			status.Logs = append(status.Logs, fmt.Sprintf("Demo launch completed (exit code: %d)", exitCode))
 		})
 	}
+	return &journey
+}
+
+// reportJourneyEvidence is deliberately called after finalizeRecording. A
+// verdict is not useful if it references the journey but omits the recording
+// that a reviewer must inspect. Reporting remains non-fatal to the local
+// smoke-test result, but its failure is recorded explicitly in status.
+func (s *DefaultService) reportJourneyEvidence(ctx context.Context, smokeTestID, platform string, journey *JourneyResult) {
+	if s.evidenceReporter == nil || journey == nil {
+		return
+	}
+	profileID := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_PROFILE_ID"))
+	gitCommit := strings.TrimSpace(os.Getenv("VROOLI_GIT_COMMIT"))
+	if profileID == "" || gitCommit == "" || s.captures == nil {
+		return
+	}
+	status, ok := s.store.Get(smokeTestID)
+	if !ok || strings.TrimSpace(status.JourneyCaptureID) == "" {
+		return
+	}
+	items, err := s.captures.Store().List(status.ScenarioName)
+	if err != nil {
+		s.recordEvidenceReportFailure(smokeTestID, fmt.Errorf("list captures for evidence report: %w", err))
+		return
+	}
+	reportErr := s.evidenceReporter.ReportJourney(ctx, EvidenceReportInput{
+		ProfileID: profileID, GitCommit: gitCommit, ScenarioName: status.ScenarioName,
+		Platform: platform, RunID: smokeTestID, Disposition: journey.Disposition,
+		Target: &domainv1.EvidenceTarget{Kind: domainv1.EvidenceTarget_KIND_LOCAL}, Captures: items,
+		Journey: journey, ProducerBaseURL: os.Getenv("SCENARIO_TO_DESKTOP_URL"),
+	})
+	if reportErr != nil {
+		s.recordEvidenceReportFailure(smokeTestID, reportErr)
+		return
+	}
+	s.store.Update(smokeTestID, func(status *Status) {
+		status.EvidenceReportDisposition = "reported"
+		status.EvidenceReportError = ""
+		status.Logs = append(status.Logs, "Evidence verdict reported to deployment-manager")
+	})
+}
+
+func (s *DefaultService) recordEvidenceReportFailure(smokeTestID string, err error) {
+	s.store.Update(smokeTestID, func(status *Status) {
+		status.EvidenceReportDisposition = "failed"
+		status.EvidenceReportError = err.Error()
+		status.Logs = append(status.Logs, "Evidence report failed: "+err.Error())
+	})
 }
 
 // StripSmokeTestFlag removes "--smoke-test" from args so the app launches

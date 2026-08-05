@@ -8,10 +8,11 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"scenario-to-desktop-api/build"
-	"scenario-to-desktop-api/deploy"
 	"strings"
 	"testing"
+
+	"scenario-to-desktop-api/build"
+	"scenario-to-desktop-api/deploy"
 )
 
 // testDeployFactory creates a factory that returns clients pointed at the test server.

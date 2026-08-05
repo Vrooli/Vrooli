@@ -62,6 +62,8 @@ type ManifestSwap struct {
 // ManifestSecret defines a secret in the manifest.
 type ManifestSecret struct {
 	ID          string                 `json:"id"`
+	LogicalID   string                 `json:"logical_id"`
+	Field       string                 `json:"field"`
 	Class       string                 `json:"class"`
 	Description string                 `json:"description"`
 	Format      string                 `json:"format"`

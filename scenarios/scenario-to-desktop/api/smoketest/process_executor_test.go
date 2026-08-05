@@ -6,12 +6,13 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"scenario-to-desktop-api/smoketest"
-	"scenario-to-desktop-api/smoketest/mocks"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
+
+	"scenario-to-desktop-api/smoketest"
+	"scenario-to-desktop-api/smoketest/mocks"
 )
 
 func TestProcessExecutor_Execute_Success(t *testing.T) {

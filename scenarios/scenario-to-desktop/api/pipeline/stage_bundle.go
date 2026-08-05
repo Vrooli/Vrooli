@@ -4,9 +4,10 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
+
 	"scenario-to-desktop-api/bundle"
 	"scenario-to-desktop-api/shared/errors"
-	"strings"
 
 	sharedpath "scenario-to-desktop-api/shared/path"
 )
@@ -171,6 +172,19 @@ func (s *BundleStage) resolveManifest(ctx context.Context, result *StageResult, 
 	manifestPath := config.BundleManifestPath
 	if manifestPath == "" {
 		manifestPath = filepath.Join(scenarioPath, "platforms", framework, "bundle", "bundle.json")
+	}
+
+	// An explicit manifest path is an operator-owned deployment contract. Use
+	// it directly when it exists instead of asking deployment-manager to export
+	// another manifest. This is important for proto-first callers: the legacy
+	// REST bundle exporter is intentionally not part of deployment-manager's
+	// public surface, while a caller-provided manifest is already the exact
+	// contract that preflight, packaging, and smoke testing must validate.
+	if config.BundleManifestPath != "" {
+		if _, err := os.Stat(manifestPath); err != nil {
+			return "", errors.ErrBundleManifestNotFound(manifestPath)
+		}
+		return manifestPath, nil
 	}
 
 	if s.manifestGenerator != nil {

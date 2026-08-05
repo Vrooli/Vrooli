@@ -10,11 +10,12 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"scenario-to-desktop-api/procmetrics"
-	"scenario-to-desktop-api/screenrecording"
 	"strings"
 	"sync"
 	"time"
+
+	"scenario-to-desktop-api/procmetrics"
+	"scenario-to-desktop-api/screenrecording"
 )
 
 // LinuxBackend implements PlatformBackend using Xvfb, x11vnc, xclip, xrandr, and unshare.

@@ -38,6 +38,7 @@ export interface DesktopRecordItemView {
   smoke_test_id?: string;
   screen_recording?: {
     recorded: boolean;
+    capture_id?: string;
     duration_ms?: number;
     file_size_bytes?: number;
     error?: string;
@@ -89,6 +90,7 @@ export function presentDesktopRecords(
     smoke_test_id: item.smokeTestId,
     screen_recording: item.screenRecording && {
       recorded: item.screenRecording.recorded,
+      capture_id: item.screenRecording.captureId,
       duration_ms:
         item.screenRecording.durationMs === undefined
           ? undefined

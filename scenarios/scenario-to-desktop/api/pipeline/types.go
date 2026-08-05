@@ -2,8 +2,9 @@ package pipeline
 
 import (
 	"fmt"
-	"scenario-to-desktop-api/generation"
 	"time"
+
+	"scenario-to-desktop-api/generation"
 
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )

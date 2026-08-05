@@ -181,6 +181,9 @@ type Config struct {
 | `SMOKE_TEST` | `1` | Signals app is running in smoke test mode |
 | `SMOKE_TEST_TIMEOUT_MS` | `30000` | Timeout for app startup |
 | `SMOKE_TEST_UPLOAD_URL` | `http://127.0.0.1:{port}/api/v1/deployment/telemetry` | Where to upload telemetry |
+| `DEPLOYMENT_MANAGER_URL` | Optional Connect base URL | Enables reference-only `ReportTargetVerdict` after the journey |
+| `DEPLOYMENT_MANAGER_PROFILE_ID` | Optional profile ID | Identifies the release profile for the evidence report |
+| `VROOLI_GIT_COMMIT` | Optional exact commit hash | Binds the evidence report to the reviewed source |
 
 ---
 
@@ -217,6 +220,38 @@ $EXECUTABLE --smoke-test
 ```
 
 ---
+
+## Decision-grade desktop journey
+
+When recording is enabled, capture starts before the demo process starts. After
+the smoke-test process passes, the service keeps the normal app open and runs a
+bounded journey: wait for a visible window, activate it, maximize it, click,
+send Return, resize, move, and close it. Every interaction has a screenshot
+before and after; window actions also persist geometry. The ordered step list
+is stored as a `journey` capture beside the recording and screenshots.
+
+The journey is `pass` only when Linux, xdotool, a started titlebar-capable
+window manager, a usable application window, successful interactions, and a
+maximize geometry of at least 90% of the display are all observed. A desktop
+root/helper window (including a tiny 1x1 window) is not an application window
+and cannot satisfy this contract. Missing prerequisites are explicit degraded
+outcomes and never pass:
+
+- `platform_not_linux`
+- `window_manager_not_started`
+- `window_manager_titlebar_unavailable`
+- `xdotool_unavailable`
+- `no_visible_window`
+
+An action, screenshot, geometry read, or maximize assertion failure is a
+failed journey. Each action is bounded by the smoke-test context so a hung
+desktop command cannot hold the pipeline indefinitely.
+
+When recording is enabled, a smoke test that requested desktop evidence also
+requires a passing journey. A successful `--smoke-test` protocol alone is not
+enough to approve a video: an absent application window, failed journey, or
+missing journey is a smoke-test failure. The recording and journey captures
+are retained so the failed evidence can be diagnosed.
 
 ## Success Criteria
 
@@ -358,11 +393,14 @@ When `ScreenRecordingConfig.Enabled` is set on a smoke test status, the service 
 2. **Capture start**: `Recorder.StartCapture()` calls `resource-ffmpeg screen-capture start` to begin x11grab recording
 3. **Execution**: The smoke test runs on the virtual display (xvfb-run wrapper is skipped since the display is managed directly)
 4. **Capture stop**: After execution completes (pass or fail), `Recorder.StopCapture()` finalizes the video
-5. **Result storage**: The `ScreenRecordingResult` is stored in the smoke test status
+5. **Result storage**: The recording status stores only the canonical capture identity and checksum in the smoke test status
 
 ### Video Serving
 
-Recorded videos are served via `GET /api/v1/smoketest/{id}/video` with Range header support for browser playback. The deployment-manager downloads videos through this endpoint for its review workflow.
+Recorded videos remain producer-owned and are served via the canonical captures
+route with Range header support for browser playback. deployment-manager stores
+only the capture identity, checksum, kind, and size through
+`EvidenceService.ReportTargetVerdict`; it never downloads or stores the video.
 
 ### Configuration
 

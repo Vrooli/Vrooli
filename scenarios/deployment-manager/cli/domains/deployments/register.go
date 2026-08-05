@@ -18,8 +18,6 @@ func Register(app *cliapp.ScenarioApp) cliapp.CommandGroup {
 			{Name: "deployment", NeedsAPI: true, Description: "Manage deployment records", Run: deployments.Deployment},
 			{Name: "build", NeedsAPI: true, Description: "Cross-compile service binaries", Run: deployments.Build},
 			{Name: "logs", NeedsAPI: true, Description: "Fetch deployment logs", Run: deployments.Logs},
-			{Name: "packagers", NeedsAPI: true, Description: "Packager discovery", Run: deployments.Packagers},
-			{Name: "package", NeedsAPI: true, Description: "Package a profile", Run: deployments.PackageProfile},
 			{Name: "validate", NeedsAPI: true, Description: "Validate deployment profile", Run: deployments.Validate},
 			{Name: "estimate-cost", NeedsAPI: true, Description: "Estimate deployment costs", Run: deployments.EstimateCost},
 			{Name: "bundle", NeedsAPI: true, Description: "Bundle manifest operations (assemble, export, validate)", Run: bundles.Run},

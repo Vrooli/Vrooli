@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-22T00:11:31-04:00"
+    "last_validated_at": "2026-08-04T16:50:31-04:00"
   },
   "requirements": [
     {
       "id": "DM-P0-012",
       "title": "Profile Creation",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-012",
       "category": "profile-management",
       "description": "Create new deployment profile in ≤ 3 clicks from home screen",
@@ -19,7 +19,7 @@
           "type": "test",
           "ref": "cli/profiles/commands_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Go CLI tests validate profile management commands"
         }
       ]
@@ -27,7 +27,7 @@
     {
       "id": "DM-P0-013",
       "title": "Auto-Save with Debounce",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-013",
       "category": "profile-management",
       "description": "Auto-save profile edits with 500ms debounce (or manual save button)",
@@ -40,7 +40,7 @@
           "type": "test",
           "ref": "cli/profiles/commands_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Go CLI tests validate profile management commands"
         }
       ]
@@ -48,7 +48,7 @@
     {
       "id": "DM-P0-014",
       "title": "Profile Export/Import",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-014",
       "category": "profile-management",
       "description": "Support profile export/import in JSON format for version control",
@@ -61,7 +61,7 @@
           "type": "test",
           "ref": "cli/profiles/commands_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Go CLI tests validate profile management commands"
         }
       ]
@@ -69,7 +69,7 @@
     {
       "id": "DM-P0-015",
       "title": "Profile Versioning",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-015",
       "category": "profile-management",
       "description": "Create new version for each edit with timestamp and user attribution",
@@ -82,7 +82,7 @@
           "type": "test",
           "ref": "cli/profiles/commands_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Go CLI tests validate profile management commands"
         }
       ]
@@ -90,7 +90,7 @@
     {
       "id": "DM-P0-016",
       "title": "Version History View",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-016",
       "category": "profile-management",
       "description": "Display version history list with diffs showing changes",
@@ -103,7 +103,7 @@
           "type": "test",
           "ref": "cli/profiles/commands_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Go CLI tests validate profile management commands"
         }
       ]
@@ -111,7 +111,7 @@
     {
       "id": "DM-P0-017",
       "title": "Version Rollback",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-017",
       "category": "profile-management",
       "description": "Restore all profile settings (swaps, secrets, env vars) within 2 seconds when rolling back",
@@ -124,7 +124,7 @@
           "type": "test",
           "ref": "cli/profiles/commands_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Go CLI tests validate profile management commands"
         }
       ]

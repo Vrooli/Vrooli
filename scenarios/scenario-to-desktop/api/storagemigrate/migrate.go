@@ -5,8 +5,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"scenario-to-desktop-api/storagepaths"
 	"strings"
+
+	"scenario-to-desktop-api/storagepaths"
 
 	sharedpath "scenario-to-desktop-api/shared/path"
 )

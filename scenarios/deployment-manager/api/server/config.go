@@ -57,11 +57,3 @@ func ResolveDatabaseURL() (string, error) {
 
 	return pgURL.String(), nil
 }
-
-// validationVideoDir returns the directory for storing validation video recordings.
-func validationVideoDir() string {
-	if dir := os.Getenv("DEPLOYMENT_MANAGER_DATA_DIR"); dir != "" {
-		return dir + "/validation-videos"
-	}
-	return "/tmp/deployment-manager/validation-videos"
-}

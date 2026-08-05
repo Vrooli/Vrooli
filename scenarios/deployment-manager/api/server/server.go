@@ -2,43 +2,55 @@ package server
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
 	"deployment-manager/build"
 	"deployment-manager/bundles"
 	"deployment-manager/codesigning"
-	"deployment-manager/codesigning/validation"
 	"deployment-manager/dependencies"
 	"deployment-manager/deployments"
 	"deployment-manager/fitness"
+	evidencehandler "deployment-manager/handlers/evidence"
+	profileshandler "deployment-manager/handlers/profiles"
 	"deployment-manager/health"
+	internalEvidence "deployment-manager/internal/evidence"
+	"deployment-manager/internal/modules"
+	transport "deployment-manager/internal/transport"
 	"deployment-manager/migrationtasks"
 	"deployment-manager/profiles"
 	"deployment-manager/releases"
 	"deployment-manager/secrets"
 	"deployment-manager/swaps"
 	"deployment-manager/telemetry"
-	visualvalidation "deployment-manager/validation"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
+	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/storage"
+	evidenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/evidence/evidencev1connect"
+	profilesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/profiles/profilesv1connect"
+	_ "modernc.org/sqlite"
 )
 
 // Server wires the HTTP router and database connection.
 type Server struct {
-	Config *Config
-	DB     *sql.DB
-	Router *mux.Router
+	Config   *Config
+	DB       interface{ Close() error }
+	RoutedDB *database.RoutedDB
+	Router   *mux.Router
+	Logger   Logger
 
 	// Domain handlers
 	HealthHandler            *health.Handler
@@ -52,13 +64,18 @@ type Server struct {
 	ProfilesHandler          *profiles.Handler
 	SigningHandler           *codesigning.Handler
 	BuildHandler             *build.Handler
-	ValidationHandler        *visualvalidation.Handler
 	ApprovalsHandler         *deployments.ApprovalsHandler
 	PublishedVersionsHandler *deployments.PublishedVersionsHandler
 	LPBSConfigHandler        *profiles.LPBSConfigHandler
 	ReleasesHandler          *releases.Handler
 	MigrationTasksHandler    *migrationtasks.Handler
+	EvidencePath             string
+	EvidenceHandler          http.Handler
+	ProfilesConnectPath      string
+	ProfilesConnectHandler   http.Handler
+	ConnectRoutes            []transport.Route
 	Orchestrator             *deployments.Orchestrator
+	Handler                  http.Handler
 
 	// Repositories
 	ProfilesRepo   profiles.Repository
@@ -72,70 +89,62 @@ func New() (*Server, error) {
 	cfg := &Config{
 		Port: RequireEnv("API_PORT"),
 	}
+	fileRoots, err := newFileRoots()
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure file roots: %w", err)
+	}
+	if dbPath := strings.TrimSpace(os.Getenv("SQLITE_PATH")); dbPath != "" && !strings.HasPrefix(dbPath, "file:") {
+		if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
+			return nil, fmt.Errorf("failed to create sqlite data directory: %w", err)
+		}
+	}
 
 	// Connect to database with automatic retry and backoff.
 	// Reads POSTGRES_* environment variables set by the lifecycle system.
-	db, err := database.Connect(context.Background(), database.Config{
-		Driver: "postgres",
+	routedDB, err := database.Open(context.Background(), database.Config{
+		Driver: database.DriverSQLite,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	// Create repositories
-	profilesRepo := profiles.NewSQLRepository(db)
-
-	// Determine signing repository based on configuration
-	// SIGNING_PROXY_ENABLED=true routes signing to scenario-to-desktop service
-	var signingRepo codesigning.Repository
-	if os.Getenv("SIGNING_PROXY_ENABLED") == "true" {
-		LogStructured("using proxy signing repository", map[string]interface{}{
-			"target": os.Getenv("SCENARIO_TO_DESKTOP_URL"),
-		})
-		signingRepo = codesigning.NewProxyRepository(profilesRepo)
-	} else {
-		sqlSigningRepo := codesigning.NewSQLRepository(db)
-		// Ensure signing schema is up to date (SQL mode only)
-		if err := sqlSigningRepo.EnsureSchema(context.Background()); err != nil {
-			LogStructured("warning: failed to ensure signing schema", map[string]interface{}{"error": err.Error()})
-			// Non-fatal - signing endpoints will fail gracefully
-		}
-		signingRepo = sqlSigningRepo
+	// Apply every domain schema once at boot. Schema failure is fatal: serving
+	// against a partially initialized database would fabricate release state.
+	if err := database.EnsureSchemas(context.Background(), routedDB.Primary(), modules.AllSchemas()...); err != nil {
+		_ = routedDB.Close()
+		return nil, fmt.Errorf("failed to ensure database schemas: %w", err)
 	}
+
+	// Create repositories through the RoutedDB seam.
+	profilesRepo := profiles.NewSQLRepository(routedDB)
+
+	// Signing is owned by scenario-to-desktop. deployment-manager retains only
+	// the proxy repository seam and never persists signing material locally.
+	signingRepo := codesigning.NewProxyRepository(profilesRepo)
 
 	// Create domain handlers
 	logFn := func(msg string, fields map[string]interface{}) {
 		LogStructured(msg, fields)
 	}
 
-	// Create signing validators for pre-deployment checks
-	signingValidator := validation.NewValidator()
-	signingChecker := validation.NewPrerequisiteChecker()
-	signingValidatorAdapter := deployments.NewSigningValidatorAdapter(signingRepo, signingValidator, signingChecker)
-
 	// Create approvals repository and ensure schema
-	approvalsRepo := deployments.NewSQLApprovalsRepository(db)
-	if err := approvalsRepo.EnsureSchema(context.Background()); err != nil {
-		LogStructured("warning: failed to ensure approvals schema", map[string]interface{}{"error": err.Error()})
-	}
+	approvalsRepo := deployments.NewSQLApprovalsRepository(routedDB)
 
 	// Create published versions repository and ensure schema
-	publishedVersionsRepo := deployments.NewSQLPublishedVersionsRepository(db)
-	if err := publishedVersionsRepo.EnsureSchema(context.Background()); err != nil {
-		LogStructured("warning: failed to ensure published versions schema", map[string]interface{}{"error": err.Error()})
-	}
+	publishedVersionsRepo := deployments.NewSQLPublishedVersionsRepository(routedDB)
 
 	// LPBS release-config repository (1:1 child of profiles).
-	lpbsConfigRepo := profiles.NewSQLLPBSReleaseConfigRepository(db)
-	if err := lpbsConfigRepo.EnsureSchema(context.Background()); err != nil {
-		LogStructured("warning: failed to ensure lpbs config schema", map[string]interface{}{"error": err.Error()})
-	}
+	lpbsConfigRepo := profiles.NewSQLLPBSReleaseConfigRepository(routedDB)
 
 	// Releases repository (canonical release records + per-platform rows).
-	releasesRepo := releases.NewSQLRepository(db)
-	if err := releasesRepo.EnsureSchema(context.Background()); err != nil {
-		LogStructured("warning: failed to ensure releases schema", map[string]interface{}{"error": err.Error()})
-	}
+	releasesRepo := releases.NewSQLRepository(routedDB)
+
+	// Evidence is a reference ledger owned by deployment-manager. Producers
+	// retain their bytes; this service stores only target verdicts and references.
+	evidenceRepo := internalEvidence.NewSQLRepository(routedDB, "sqlite")
+	approvalsRepo.WithEvidenceRepository(evidenceRepo)
+	evidencePath, evidenceHandler := evidenceconnect.NewEvidenceServiceHandler(evidencehandler.NewConnectHandler(evidenceRepo))
+	profilesConnectPath, profilesConnectHandler := profilesconnect.NewProfilesServiceHandler(profileshandler.NewConnectHandler(profilesRepo))
 
 	// Best-effort inter-scenario clients; the orchestrator skips the matching
 	// step if a client is nil, and logs a warning on construction failure.
@@ -154,26 +163,31 @@ func New() (*Server, error) {
 
 	srv := &Server{
 		Config:                   cfg,
-		DB:                       db,
+		DB:                       routedDB.Primary(),
+		RoutedDB:                 routedDB,
 		Router:                   mux.NewRouter(),
+		Logger:                   NewProcessLogger(),
 		ProfilesRepo:             profilesRepo,
 		SigningRepo:              signingRepo,
-		HealthHandler:            health.NewHandler(db),
+		HealthHandler:            health.NewHandler(routedDB),
 		FitnessHandler:           fitness.NewHandler(logFn),
 		TelemetryHandler:         telemetry.NewHandler(logFn),
 		SecretsHandler:           secrets.NewHandler(profilesRepo, logFn),
 		DependenciesHandler:      dependencies.NewHandler(logFn),
 		SwapsHandler:             swaps.NewHandler(profilesRepo, logFn),
-		DeploymentsHandler:       deployments.NewHandlerWithSigning(logFn, signingValidatorAdapter),
+		DeploymentsHandler:       deployments.NewHandler(logFn),
 		BundlesHandler:           bundles.NewHandlerWithSigning(secrets.NewClient(), profilesRepo, signingRepo, logFn),
 		ProfilesHandler:          profiles.NewHandler(profilesRepo, logFn),
-		SigningHandler:           codesigning.NewHandler(signingRepo, signingValidator, signingChecker, logFn),
+		SigningHandler:           codesigning.NewHandler(signingRepo, logFn),
 		BuildHandler:             build.NewHandler(profilesRepo, logFn),
-		ValidationHandler:        visualvalidation.NewHandler(visualvalidation.NewSQLRepository(db), approvalsRepo, db, validationVideoDir(), logFn),
 		ApprovalsHandler:         deployments.NewApprovalsHandler(approvalsRepo, logFn),
 		PublishedVersionsHandler: deployments.NewPublishedVersionsHandler(publishedVersionsRepo, logFn),
 		LPBSConfigHandler:        profiles.NewLPBSConfigHandler(profilesRepo, lpbsConfigRepo, logFn),
 		MigrationTasksHandler:    migrationtasks.NewHandler(logFn),
+		EvidencePath:             evidencePath,
+		EvidenceHandler:          evidenceHandler,
+		ProfilesConnectPath:      profilesConnectPath,
+		ProfilesConnectHandler:   profilesConnectHandler,
 		LPBSConfigRepo:           lpbsConfigRepo,
 		ReleasesRepo:             releasesRepo,
 		Orchestrator: deployments.NewOrchestratorFull(
@@ -184,9 +198,39 @@ func New() (*Server, error) {
 	srv.ReleasesHandler = releases.NewHandler(
 		releasesRepo, lpbsConfigRepo, releasesVerifierAdapter{inner: lpbsClient}, srv.Orchestrator, logFn,
 	)
+	connectTransport := transport.NewHandler(
+		srv.DependenciesHandler, srv.FitnessHandler, srv.DeploymentsHandler, srv.Orchestrator,
+		srv.SwapsHandler, srv.TelemetryHandler.List, srv.TelemetryHandler.Upload, srv.MigrationTasksHandler.Report, srv.MigrationTasksHandler.Status,
+		srv.ApprovalsHandler, srv.LPBSConfigHandler.Get, srv.LPBSConfigHandler.Upsert,
+		srv.ReleasesHandler.ListByProfile, srv.ReleasesHandler.Get, srv.ReleasesHandler.Verify, srv.ReleasesHandler.Start,
+	)
+	srv.ConnectRoutes = transport.Routes(connectTransport)
 
 	srv.setupRoutes()
+	rootMux := http.NewServeMux()
+	devrouting.RegisterWithFileRoots(rootMux, routedDB, fileRoots)
+	rootMux.Handle("/", srv.Router)
+	srv.Handler = apihttp.TestModeMiddleware(SecurityHeadersMiddleware(rootMux))
 	return srv, nil
+}
+
+func newFileRoots() (*filerouting.RoutedRoots, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create storage resolver: %w", err)
+	}
+	scenarioID, err := storage.ScenarioNamespace("deployment-manager")
+	if err != nil {
+		return nil, fmt.Errorf("resolve storage namespace: %w", err)
+	}
+	roots, err := storage.EnsureAllDirs(resolver, storage.Options{ScenarioID: scenarioID}, 0o755)
+	if err != nil {
+		return nil, fmt.Errorf("resolve storage roots: %w", err)
+	}
+	return filerouting.New(roots), nil
 }
 
 // Start launches the HTTP server with graceful shutdown.
@@ -198,7 +242,7 @@ func (s *Server) Start() error {
 
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%s", s.Config.Port),
-		Handler:      handlers.RecoveryHandler()(s.Router),
+		Handler:      handlers.RecoveryHandler()(s.Handler),
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  120 * time.Second,

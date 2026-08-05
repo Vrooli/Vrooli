@@ -3,8 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"scenario-to-desktop-api/scenario"
 	"strings"
+
+	"scenario-to-desktop-api/scenario"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"

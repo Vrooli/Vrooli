@@ -19,9 +19,11 @@ func NewBackend(_ *slog.Logger) PlatformBackend { return unavailableBackend{} }
 func (unavailableBackend) unavailable() error {
 	return fmt.Errorf("live desktop is unavailable on this platform; use a Linux runner")
 }
+
 func (b unavailableBackend) CreateDisplay(int, int) (PlatformDisplay, error) {
 	return nil, b.unavailable()
 }
+
 func (b unavailableBackend) StartRemoteAccess(PlatformDisplay) (RemoteAccessInfo, RemoteAccessHandle, error) {
 	return RemoteAccessInfo{}, nil, b.unavailable()
 }
@@ -33,12 +35,15 @@ func (unavailableBackend) KillApp(PlatformProcess) {}
 func (b unavailableBackend) CaptureScreenshot(context.Context, PlatformDisplay, string) error {
 	return b.unavailable()
 }
+
 func (b unavailableBackend) ReadClipboard(context.Context, PlatformDisplay) (string, error) {
 	return "", b.unavailable()
 }
+
 func (b unavailableBackend) WriteClipboard(context.Context, PlatformDisplay, string) error {
 	return b.unavailable()
 }
+
 func (b unavailableBackend) ResizeDisplay(context.Context, PlatformDisplay, int, int) error {
 	return b.unavailable()
 }

@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"scenario-to-desktop-api/shared/errors"
 	"time"
+
+	"scenario-to-desktop-api/shared/errors"
 )
 
 // LogLevel represents the severity of a log entry.

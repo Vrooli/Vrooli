@@ -7,11 +7,12 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"scenario-to-desktop-api/generation"
-	"scenario-to-desktop-api/shared/path"
 	"strconv"
 	"strings"
 	"sync"
+
+	"scenario-to-desktop-api/generation"
+	"scenario-to-desktop-api/shared/path"
 
 	apperrors "scenario-to-desktop-api/shared/errors"
 )

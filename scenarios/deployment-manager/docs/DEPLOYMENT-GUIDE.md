@@ -45,7 +45,7 @@
 **If you need offline/standalone:**
 - **Use bundled mode** (Phase 6B) - Manual assembly required
 - Follow the detailed steps in Phase 6B; expect 30-60 minutes of setup
-- Not yet validated end-to-end; report issues to [PROBLEMS.md](PROBLEMS.md)
+- Not yet validated end-to-end; report issues to [internal/PROBLEMS.md](internal/PROBLEMS.md)
 
 ---
 
@@ -342,16 +342,16 @@ deployment-manager configure api_base "http://localhost:${API_PORT}"
 | Topic | Document |
 |-------|----------|
 | Full desktop workflow | [workflows/desktop-deployment.md](workflows/desktop-deployment.md) |
-| CLI command reference | [cli/README.md](cli/README.md) |
-| REST API reference | [api/README.md](api/README.md) |
+| CLI command reference | [cli/overview-commands.md](cli/overview-commands.md) |
+| API reference | [api/bundles.md](api/bundles.md) |
 | Fitness scoring details | [guides/fitness-scoring.md](guides/fitness-scoring.md) |
 | Dependency swapping | [guides/dependency-swapping.md](guides/dependency-swapping.md) |
 | Secrets management | [guides/secrets-management.md](guides/secrets-management.md) |
 | Auto-updates | [guides/auto-updates.md](guides/auto-updates.md) |
-| Bundle manifest examples | [examples/manifests/](examples/manifests/README.md) |
+| Bundle manifest examples | [examples/manifests/](examples/manifests/desktop-happy.json) |
 | Tier 2 technical reference | [tiers/tier-2-desktop.md](tiers/tier-2-desktop.md) |
 | Implementation roadmap | [ROADMAP.md](ROADMAP.md) |
-| Known issues | [PROBLEMS.md](PROBLEMS.md) |
+| Known issues | [internal/PROBLEMS.md](internal/PROBLEMS.md) |
 
 ---
 
@@ -370,7 +370,7 @@ When helping users deploy scenarios:
 | Purpose | Location |
 |---------|----------|
 | CLI entry point | `scenarios/deployment-manager/cli/app.go` |
-| API routes | `scenarios/deployment-manager/api/server/routes.go` |
+| API server | `scenarios/deployment-manager/api/server/server.go` |
 | Bundle handler | `scenarios/deployment-manager/api/bundles/handler.go` |
 | Manifest schema | `docs/examples/manifests/desktop-happy.json` |
 | Runtime supervisor | `scenarios/scenario-to-desktop/runtime/supervisor.go` |

@@ -2,11 +2,15 @@
 package smoketest
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
+	"time"
+
+	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
+	"scenario-to-desktop-api/captures"
 	"scenario-to-desktop-api/procmetrics"
 	"scenario-to-desktop-api/screenrecording"
-	"time"
 )
 
 // DefaultService is the default implementation of Service.
@@ -32,9 +36,12 @@ type DefaultService struct {
 	// Optional screen recording (nil = recording disabled)
 	recorder   screenrecording.Recorder
 	displayMgr screenrecording.DisplayManager
+	captures   *captures.Service
 
 	// Optional process monitoring (nil = monitoring disabled)
-	monitorFactory procmetrics.MonitorFactory
+	monitorFactory   procmetrics.MonitorFactory
+	windowDetector   *procmetrics.XdotoolDetector
+	evidenceReporter EvidenceReporter
 }
 
 // NewService creates a new smoke test service with all required dependencies.
@@ -111,9 +118,44 @@ func (s *DefaultService) WithRecording(recorder screenrecording.Recorder, displa
 	s.displayMgr = displayMgr
 }
 
+// WithCaptures makes the captures domain the only durable home for smoke-test
+// recordings. Status retains metadata and a capture ID, never a local path.
+func (s *DefaultService) WithCaptures(service *captures.Service) { s.captures = service }
+
 // WithMonitor sets the process monitor factory for tracking app startup time and resource usage.
 func (s *DefaultService) WithMonitor(factory procmetrics.MonitorFactory) {
 	s.monitorFactory = factory
+}
+
+// WithWindowDetector wires the shared xdotool detector into the evidence
+// journey. The same detector is used by startup metrics, so availability and
+// visible-window behavior stay consistent across both evidence paths.
+func (s *DefaultService) WithWindowDetector(detector *procmetrics.XdotoolDetector) {
+	s.windowDetector = detector
+}
+
+// EvidenceReporter is optional so local smoke tests do not acquire a startup
+// dependency on deployment-manager. When configured, it receives references
+// after the journey settles and reports transport failures explicitly.
+type EvidenceReporter interface {
+	ReportJourney(context.Context, EvidenceReportInput) error
+}
+
+type EvidenceReportInput struct {
+	ProfileID       string
+	GitCommit       string
+	ScenarioName    string
+	Platform        string
+	RunID           string
+	Disposition     string
+	Target          *domainv1.EvidenceTarget
+	Captures        []captures.Capture
+	Journey         *JourneyResult
+	ProducerBaseURL string
+}
+
+func (s *DefaultService) WithEvidenceReporter(reporter EvidenceReporter) {
+	s.evidenceReporter = reporter
 }
 
 // CurrentPlatform returns the current platform identifier.

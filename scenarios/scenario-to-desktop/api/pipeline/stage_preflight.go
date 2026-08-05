@@ -3,10 +3,11 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/preflight"
 	"scenario-to-desktop-api/shared/errors"
-	"strings"
 
 	runtimeapi "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/api"
 )

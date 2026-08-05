@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"scenario-to-desktop-api/shared/validation"
 	"strings"
+
+	"scenario-to-desktop-api/shared/validation"
 
 	"connectrpc.com/connect"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
@@ -197,6 +198,9 @@ func buildSummaryToProto(value *BuildStatusView) *domainv1.DesktopBuildSummary {
 
 func recordingToProto(value *ScreenRecordingView) *domainv1.ScreenRecordingSummary {
 	result := &domainv1.ScreenRecordingSummary{Recorded: value.Recorded}
+	if value.CaptureID != "" {
+		result.CaptureId = stringPtr(value.CaptureID)
+	}
 	if value.DurationMS != 0 {
 		result.DurationMs = int64Ptr(value.DurationMS)
 	}

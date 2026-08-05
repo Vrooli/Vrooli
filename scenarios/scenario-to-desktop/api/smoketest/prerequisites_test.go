@@ -3,9 +3,10 @@ package smoketest_test
 import (
 	"os"
 	"path/filepath"
+	"testing"
+
 	"scenario-to-desktop-api/smoketest"
 	"scenario-to-desktop-api/smoketest/mocks"
-	"testing"
 )
 
 func TestPrerequisiteChecker_CheckDisplayAvailable(t *testing.T) {

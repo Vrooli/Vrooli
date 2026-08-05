@@ -6,9 +6,10 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"scenario-to-desktop-api/state"
 	"testing"
 	"time"
+
+	"scenario-to-desktop-api/state"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/filerouting"

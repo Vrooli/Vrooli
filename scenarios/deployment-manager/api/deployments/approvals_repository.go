@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"time"
 
+	internalEvidence "deployment-manager/internal/evidence"
 	"deployment-manager/shared"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // ApprovalsRepository persists deployment approval records.
@@ -20,54 +22,32 @@ type ApprovalsRepository interface {
 	GetRequiredPlatforms(ctx context.Context, profileID string) ([]string, error)
 	SetRequiredPlatforms(ctx context.Context, profileID string, platforms []string) error
 	CheckReleaseGate(ctx context.Context, profileID, commitHash string) (*ReleaseGateStatus, error)
+	GetRequiredTargets(ctx context.Context, profileID string) ([]RequiredTarget, error)
+	SetRequiredTargets(ctx context.Context, profileID string, targets []RequiredTarget) error
 }
 
 // SQLApprovalsRepository implements ApprovalsRepository with PostgreSQL.
 type SQLApprovalsRepository struct {
-	conn shared.DBTX // used for regular queries (may be *sql.DB or *sql.Tx)
-	db   *sql.DB     // retained for EnsureSchema and SetRequiredPlatforms (need BeginTx)
+	conn         shared.DBTX       // used for regular queries (may be *sql.DB or *sql.Tx)
+	db           shared.RoutedDBTX // retained for schema compatibility and transactional configuration
+	evidenceRepo internalEvidence.Repository
 }
 
 // NewSQLApprovalsRepository creates a new SQL-backed approvals repository.
-func NewSQLApprovalsRepository(db *sql.DB) *SQLApprovalsRepository {
+func NewSQLApprovalsRepository(db shared.RoutedDBTX) *SQLApprovalsRepository {
 	return &SQLApprovalsRepository{conn: db, db: db}
 }
 
+func (r *SQLApprovalsRepository) WithEvidenceRepository(repo internalEvidence.Repository) *SQLApprovalsRepository {
+	r.evidenceRepo = repo
+	return r
+}
+
 // WithTx returns a new repository instance backed by the given transaction.
-// Operations that start their own transactions (EnsureSchema, SetRequiredPlatforms)
+// Operations that start their own transactions (SetRequiredTargets)
 // are not available on the returned instance.
 func (r *SQLApprovalsRepository) WithTx(tx *sql.Tx) *SQLApprovalsRepository {
 	return &SQLApprovalsRepository{conn: tx, db: nil}
-}
-
-// EnsureSchema creates the approval tables if they don't exist.
-func (r *SQLApprovalsRepository) EnsureSchema(ctx context.Context) error {
-	_, err := r.db.ExecContext(ctx, `
-		CREATE TABLE IF NOT EXISTS deployment_approvals (
-			id              TEXT PRIMARY KEY,
-			profile_id      TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-			git_commit_hash TEXT NOT NULL,
-			platform        TEXT NOT NULL,
-			status          TEXT NOT NULL DEFAULT 'pending',
-			approved_by     TEXT,
-			approved_at     TIMESTAMPTZ,
-			notes           TEXT,
-			validation_id   TEXT,
-			created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			UNIQUE (profile_id, git_commit_hash, platform)
-		);
-		CREATE TABLE IF NOT EXISTS profile_required_platforms (
-			profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-			platform   TEXT NOT NULL,
-			PRIMARY KEY (profile_id, platform)
-		);
-		CREATE INDEX IF NOT EXISTS idx_approvals_profile_commit
-			ON deployment_approvals (profile_id, git_commit_hash);
-		CREATE INDEX IF NOT EXISTS idx_approvals_pending
-			ON deployment_approvals (status) WHERE status = 'pending';
-	`)
-	return err
 }
 
 func (r *SQLApprovalsRepository) Create(ctx context.Context, approval *DeploymentApproval) error {
@@ -140,7 +120,7 @@ func (r *SQLApprovalsRepository) UpdateDecision(ctx context.Context, id, decisio
 func (r *SQLApprovalsRepository) MarkStale(ctx context.Context, profileID, platform, exceptCommit string) error {
 	_, err := r.conn.ExecContext(ctx,
 		`UPDATE deployment_approvals
-		 SET status = 'stale', updated_at = NOW()
+		 SET status = 'stale', updated_at = CURRENT_TIMESTAMP
 		 WHERE profile_id = $1 AND platform = $2
 		   AND git_commit_hash != $3
 		   AND status NOT IN ('stale', 'rejected')`,
@@ -173,7 +153,7 @@ func (r *SQLApprovalsRepository) SetRequiredPlatforms(ctx context.Context, profi
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback() //nolint:errcheck // rollback is best-effort after the transaction has completed
 
 	if _, err := tx.ExecContext(ctx, `DELETE FROM profile_required_platforms WHERE profile_id = $1`, profileID); err != nil {
 		return err
@@ -191,9 +171,26 @@ func (r *SQLApprovalsRepository) SetRequiredPlatforms(ctx context.Context, profi
 }
 
 func (r *SQLApprovalsRepository) CheckReleaseGate(ctx context.Context, profileID, commitHash string) (*ReleaseGateStatus, error) {
-	required, err := r.GetRequiredPlatforms(ctx, profileID)
+	// The legacy repository-only seam remains usable by isolated callers and
+	// older clients. Production wiring always supplies the evidence repository,
+	// which activates the contract-backed gate below.
+	if r.evidenceRepo == nil {
+		return r.checkLegacyReleaseGate(ctx, profileID, commitHash)
+	}
+	required, err := r.GetRequiredTargets(ctx, profileID)
 	if err != nil {
 		return nil, err
+	}
+	// Preserve the old platform configuration as a compatibility adapter while
+	// profiles migrate. It is projected into explicit host targets.
+	if len(required) == 0 {
+		platforms, legacyErr := r.GetRequiredPlatforms(ctx, profileID)
+		if legacyErr != nil {
+			return nil, legacyErr
+		}
+		for _, platform := range platforms {
+			required = append(required, RequiredTarget{Ramp: "release", Platform: platform, OS: platform, DeviceKind: commonv1.DeviceKind_DEVICE_KIND_HOST})
+		}
 	}
 
 	approvals, err := r.ListByCommit(ctx, profileID, commitHash)
@@ -210,27 +207,132 @@ func (r *SQLApprovalsRepository) CheckReleaseGate(ctx context.Context, profileID
 	gate := &ReleaseGateStatus{
 		ProfileID:     profileID,
 		GitCommitHash: commitHash,
-		Ready:         true,
+		Ready:         len(required) > 0,
+		Reason:        "",
 		Platforms:     make([]PlatformGateStatus, 0, len(required)),
+		Targets:       make([]TargetGateStatus, 0, len(required)),
+	}
+	if len(required) == 0 {
+		gate.Reason = "no_required_targets_configured"
 	}
 
-	for _, platform := range required {
+	for _, target := range required {
+		platform := target.Platform
 		ps := PlatformGateStatus{
 			Platform: platform,
 			Required: true,
 		}
+		approvalStatus := "missing"
 		if a, ok := approvalByPlatform[platform]; ok {
 			ps.Status = a.Status
+			approvalStatus = a.Status
 		} else {
 			ps.Status = "missing"
 		}
-		if ps.Status != ApprovalStatusApproved {
+		targetStatus := TargetGateStatus{Target: target, ApprovalStatus: approvalStatus, EvidenceDisposition: "missing"}
+		if r.evidenceRepo != nil {
+			verdicts, evidenceErr := r.evidenceRepo.List(ctx, profileID, commitHash, 1000)
+			if evidenceErr != nil {
+				return nil, evidenceErr
+			}
+			for _, verdict := range verdicts {
+				if verdict.Target == nil || !sameTarget(target, verdict.Target) {
+					continue
+				}
+				targetStatus.EvidenceDisposition = verdict.Disposition.String()
+				targetStatus.EvidenceRunID = verdict.RunId
+				break
+			}
+		} else {
+			// Without an evidence repository, the gate must remain closed.
+			targetStatus.EvidenceDisposition = "missing"
+		}
+		gate.Targets = append(gate.Targets, targetStatus)
+		if targetStatus.EvidenceDisposition == commonv1.Disposition_DISPOSITION_FAILED.String() {
 			gate.Ready = false
+			gate.Reason = "target_evidence_failed"
+		} else if targetStatus.EvidenceDisposition != commonv1.Disposition_DISPOSITION_PASSED.String() {
+			gate.Ready = false
+			gate.Reason = "target_evidence_missing"
+		} else if ps.Status != ApprovalStatusApproved {
+			gate.Ready = false
+			gate.Reason = "approval_missing"
 		}
 		gate.Platforms = append(gate.Platforms, ps)
 	}
 
 	return gate, nil
+}
+
+func (r *SQLApprovalsRepository) checkLegacyReleaseGate(ctx context.Context, profileID, commitHash string) (*ReleaseGateStatus, error) {
+	required, err := r.GetRequiredPlatforms(ctx, profileID)
+	if err != nil {
+		return nil, err
+	}
+	approvals, err := r.ListByCommit(ctx, profileID, commitHash)
+	if err != nil {
+		return nil, err
+	}
+	byPlatform := make(map[string]string, len(approvals))
+	for _, approval := range approvals {
+		byPlatform[approval.Platform] = approval.Status
+	}
+	gate := &ReleaseGateStatus{ProfileID: profileID, GitCommitHash: commitHash, Ready: len(required) > 0, Reason: "", Platforms: make([]PlatformGateStatus, 0, len(required)), Targets: make([]TargetGateStatus, 0, len(required))}
+	if len(required) == 0 {
+		gate.Reason = "no_required_platforms_configured"
+	}
+	for _, platform := range required {
+		status := byPlatform[platform]
+		if status == "" {
+			status = "missing"
+		}
+		gate.Platforms = append(gate.Platforms, PlatformGateStatus{Platform: platform, Required: true, Status: status})
+		if status != ApprovalStatusApproved {
+			gate.Ready = false
+			gate.Reason = "platforms_not_approved"
+		}
+	}
+	return gate, nil
+}
+
+func sameTarget(required RequiredTarget, actual *commonv1.EvidenceTarget) bool {
+	return required.Ramp == actual.Ramp && required.Platform == actual.Platform && required.OS == actual.Os && required.DeviceKind == actual.DeviceKind
+}
+
+func (r *SQLApprovalsRepository) GetRequiredTargets(ctx context.Context, profileID string) ([]RequiredTarget, error) {
+	rows, err := r.conn.QueryContext(ctx, `SELECT ramp, platform, os, device_kind FROM profile_required_targets WHERE profile_id = $1 ORDER BY ramp, platform, os, device_kind`, profileID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var targets []RequiredTarget
+	for rows.Next() {
+		var target RequiredTarget
+		var deviceKind int32
+		if err := rows.Scan(&target.Ramp, &target.Platform, &target.OS, &deviceKind); err != nil {
+			return nil, err
+		}
+		target.DeviceKind = commonv1.DeviceKind(deviceKind)
+		targets = append(targets, target)
+	}
+	return targets, rows.Err()
+}
+
+func (r *SQLApprovalsRepository) SetRequiredTargets(ctx context.Context, profileID string, targets []RequiredTarget) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck // rollback is best-effort after the transaction has completed
+	if _, err := tx.ExecContext(ctx, `DELETE FROM profile_required_targets WHERE profile_id = $1`, profileID); err != nil {
+		return err
+	}
+	for _, target := range targets {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO profile_required_targets (profile_id, ramp, platform, os, device_kind) VALUES ($1, $2, $3, $4, $5)`, profileID, target.Ramp, target.Platform, target.OS, int32(target.DeviceKind)); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 // nullString converts an empty string to sql.NullString.

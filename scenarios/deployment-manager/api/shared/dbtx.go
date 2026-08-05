@@ -12,3 +12,12 @@ type DBTX interface {
 	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
 	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
 }
+
+// RoutedDBTX is the repository-facing database seam. Both *sql.DB and
+// api-core's *database.RoutedDB satisfy it, so repositories cannot capture a
+// concrete production pool and test-mode requests remain routable.
+type RoutedDBTX interface {
+	DBTX
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+	Conn(context.Context) (*sql.Conn, error)
+}

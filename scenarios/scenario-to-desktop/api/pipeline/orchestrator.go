@@ -8,11 +8,12 @@ import (
 	"log/slog"
 	"path/filepath"
 	"runtime"
+	"strings"
+
 	"scenario-to-desktop-api/deploy"
 	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/shared/validation"
 	"scenario-to-desktop-api/storagepaths"
-	"strings"
 
 	sharedpath "scenario-to-desktop-api/shared/path"
 
@@ -166,7 +167,7 @@ func (o *DefaultOrchestrator) RunPipeline(ctx context.Context, config *Config) (
 	// A pipeline is server-owned work. Its lifetime must not be coupled to the
 	// short-lived Connect request that created it; explicit cancellation remains
 	// available through the cancel manager.
-	pipelineCtx, cancel := context.WithCancel(context.Background())
+	pipelineCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	o.cancelManager.Set(status.PipelineID, cancel)
 	go o.runPipelineAsync(pipelineCtx, status.PipelineID, config)
 	return status, nil
@@ -389,7 +390,7 @@ func (o *DefaultOrchestrator) StartPipeline(ctx context.Context, pipelineID stri
 
 	// Create cancellable context
 	// Resuming follows the same server-owned lifetime rule as a new pipeline.
-	pipelineCtx, cancel := context.WithCancel(context.Background())
+	pipelineCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	o.cancelManager.Set(pipelineID, cancel)
 
 	// Run pipeline asynchronously

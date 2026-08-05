@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-22T00:11:31-04:00"
+    "last_validated_at": "2026-08-04T16:50:31-04:00"
   },
   "requirements": [
     {
       "id": "DM-P0-028",
       "title": "One-Click Deployment Trigger",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-028",
       "category": "deployment-orchestration",
       "description": "Trigger deployment with single \"Deploy\" button after validation passes",
@@ -19,7 +19,7 @@
           "type": "test",
           "ref": "cli/deployments/commands_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Go CLI tests validate deployment orchestration commands"
         }
       ]
@@ -27,7 +27,7 @@
     {
       "id": "DM-P0-029",
       "title": "Profile Locking During Deployment",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-029",
       "category": "deployment-orchestration",
       "description": "Lock profile to prevent edits during active deployment",
@@ -40,7 +40,7 @@
           "type": "test",
           "ref": "cli/deployments/commands_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Go CLI tests validate deployment orchestration commands"
         }
       ]
@@ -48,7 +48,7 @@
     {
       "id": "DM-P0-030",
       "title": "Real-Time Log Streaming",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-030",
       "category": "deployment-orchestration",
       "description": "Stream deployment logs to UI with \u003c2s latency via WebSocket or SSE",
@@ -61,7 +61,7 @@
           "type": "test",
           "ref": "cli/deployments/commands_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Go CLI tests validate deployment orchestration commands"
         }
       ]
@@ -69,7 +69,7 @@
     {
       "id": "DM-P0-031",
       "title": "Log Filtering and Search",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-031",
       "category": "deployment-orchestration",
       "description": "Enable log filtering by level (info/warning/error) and full-text search",
@@ -82,7 +82,7 @@
           "type": "test",
           "ref": "cli/deployments/commands_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Go CLI tests validate deployment orchestration commands"
         }
       ]
@@ -90,7 +90,7 @@
     {
       "id": "DM-P0-032",
       "title": "Deployment Failure Handling",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-032",
       "category": "deployment-orchestration",
       "description": "Capture error logs on failure and display \"Retry\" button with error context",
@@ -103,7 +103,7 @@
           "type": "test",
           "ref": "cli/deployments/commands_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Go CLI tests validate deployment orchestration commands"
         }
       ]
@@ -111,7 +111,7 @@
     {
       "id": "DM-P0-033",
       "title": "scenario-to-* Integration",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-033",
       "category": "deployment-orchestration",
       "description": "Call platform-specific packagers (scenario-to-desktop, scenario-to-ios, etc.) with deployment profile",
@@ -124,7 +124,7 @@
           "type": "test",
           "ref": "cli/deployments/commands_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Go CLI tests validate deployment orchestration commands"
         }
       ]
@@ -132,7 +132,7 @@
     {
       "id": "DM-P0-034",
       "title": "scenario-to-* Auto-Discovery",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-034",
       "category": "deployment-orchestration",
       "description": "Auto-discover installed scenario-to-* scenarios on startup, warn if missing required packagers",
@@ -145,7 +145,7 @@
           "type": "test",
           "ref": "cli/deployments/commands_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Go CLI tests validate deployment orchestration commands"
         }
       ]

@@ -4,10 +4,11 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"scenario-to-desktop-api/signing"
 	"strings"
 	"testing"
 	"time"
+
+	"scenario-to-desktop-api/signing"
 )
 
 // mockBuildStore implements BuildStore for testing QueueBuild.

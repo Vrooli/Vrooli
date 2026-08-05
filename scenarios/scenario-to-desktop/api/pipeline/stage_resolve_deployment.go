@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"path/filepath"
+
 	"scenario-to-desktop-api/shared/errors"
 
 	sharedpath "scenario-to-desktop-api/shared/path"

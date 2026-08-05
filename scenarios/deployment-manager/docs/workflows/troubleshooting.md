@@ -507,7 +507,7 @@ If these solutions don't resolve your issue:
 
 3. **Check progress and known issues**
    - `scenarios/deployment-manager/docs/PROGRESS.md`
-   - `scenarios/deployment-manager/docs/PROBLEMS.md`
+   - `scenarios/deployment-manager/docs/internal/PROBLEMS.md`
 
 4. **File an issue**
    - Report issues at https://github.com/anthropics/claude-code/issues

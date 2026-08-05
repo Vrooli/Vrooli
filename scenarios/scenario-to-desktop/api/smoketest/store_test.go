@@ -4,10 +4,11 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"scenario-to-desktop-api/shared/validation"
 	"sync"
 	"testing"
 	"time"
+
+	"scenario-to-desktop-api/shared/validation"
 )
 
 func TestNewInMemoryStore(t *testing.T) {

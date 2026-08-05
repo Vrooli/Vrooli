@@ -1,8 +1,9 @@
 package smoketest
 
 import (
-	"scenario-to-desktop-api/procmetrics"
 	"time"
+
+	"scenario-to-desktop-api/procmetrics"
 )
 
 // State represents the current phase of a smoke test.
@@ -149,8 +150,13 @@ type Status struct {
 	ErrorSessionMismatch bool `json:"error_session_mismatch,omitempty"`
 
 	// Screen recording configuration and results
-	RecordingConfig *ScreenRecordingConfig `json:"recording_config,omitempty"`
-	ScreenRecording *ScreenRecordingResult `json:"screen_recording,omitempty"`
+	RecordingConfig           *ScreenRecordingConfig `json:"recording_config,omitempty"`
+	ScreenRecording           *RecordingStatus       `json:"screen_recording,omitempty"`
+	JourneyCaptureID          string                 `json:"journey_capture_id,omitempty"`
+	JourneyDisposition        string                 `json:"journey_disposition,omitempty"`
+	JourneyDegradedReason     string                 `json:"journey_degraded_reason,omitempty"`
+	EvidenceReportDisposition string                 `json:"evidence_report_disposition,omitempty"`
+	EvidenceReportError       string                 `json:"evidence_report_error,omitempty"`
 
 	// Process metrics from app execution
 	SplashDurationMs *int64               `json:"splash_duration_ms,omitempty"`
@@ -167,13 +173,13 @@ type ScreenRecordingConfig struct {
 	MaxDurationSec int  `json:"max_duration_sec,omitempty"`
 }
 
-// ScreenRecordingResult holds the outcome of a screen recording during a smoke test.
-type ScreenRecordingResult struct {
-	Recorded      bool   `json:"recorded"`
-	VideoPath     string `json:"video_path,omitempty"`
-	DurationMs    int64  `json:"duration_ms,omitempty"`
-	FileSizeBytes int64  `json:"file_size_bytes,omitempty"`
-	Error         string `json:"error,omitempty"`
+// RecordingStatus holds only the durable capture identity and producer-side
+// checksum for a screen recording. Artifact paths and bytes never live here.
+type RecordingStatus struct {
+	Recorded  bool   `json:"recorded"`
+	CaptureID string `json:"capture_id,omitempty"`
+	Checksum  string `json:"checksum,omitempty"`
+	Error     string `json:"error,omitempty"`
 }
 
 // CancelResponse represents the response from cancelling a smoke test.

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Explicit planned requirements for operational targets that are not yet implemented or backed by live test evidence.",
-    "last_validated_at": "2026-08-04T03:00:36-04:00",
+    "last_validated_at": "2026-08-04T17:19:53-04:00",
     "module": "uncovered-targets",
     "schema_version": "1.0.0"
   },

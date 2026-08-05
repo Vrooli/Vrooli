@@ -31,11 +31,11 @@ func (c *Commands) Run(args []string) error {
 	case "remove":
 		return c.Remove(rest)
 	case "validate":
-		return c.Validate(rest)
+		return errors.New("signing validation is owned by scenario-to-desktop; use its signing CLI or API")
 	case "prerequisites":
-		return c.Prerequisites(rest)
+		return errors.New("signing prerequisite checks are owned by scenario-to-desktop; use its signing CLI or API")
 	case "discover":
-		return c.Discover(rest)
+		return errors.New("certificate discovery is owned by scenario-to-desktop; use its signing CLI or API")
 	case "help", "-h", "--help":
 		return c.Help(rest)
 	default:
@@ -54,9 +54,6 @@ Commands:
   show <profile>              Show signing configuration for a profile
   set <profile> --platform    Configure signing for a platform
   remove <profile>            Remove signing configuration
-  validate <profile>          Validate signing prerequisites
-  prerequisites               Check available signing tools
-  discover --platform         Discover available certificates/identities
   help                        Show this help message
 
 Examples:
@@ -79,16 +76,6 @@ Examples:
     --api-key-file ./AuthKey.p8 \
     --api-issuer ISSUER-UUID
 
-  # Validate signing prerequisites
-  deployment-manager signing validate my-profile
-
-  # Check available signing tools
-  deployment-manager signing prerequisites
-
-  # Discover available certificates (platform-specific)
-  deployment-manager signing discover --platform windows
-  deployment-manager signing discover --platform macos
-  deployment-manager signing discover --platform linux
 `
 	fmt.Println(help)
 	return nil
@@ -495,9 +482,7 @@ func (c *Commands) Discover(args []string) error {
 	if len(result.Certificates) == 0 {
 		report.Results = []string{"(none found)"}
 		if len(result.Errors) > 0 {
-			for _, e := range result.Errors {
-				report.RetrievalHints = append(report.RetrievalHints, e)
-			}
+			report.RetrievalHints = append(report.RetrievalHints, result.Errors...)
 		}
 		return cliapp.RenderListReport(os.Stdout, report)
 	}
@@ -528,9 +513,7 @@ func (c *Commands) Discover(args []string) error {
 	}
 
 	if len(result.Errors) > 0 {
-		for _, e := range result.Errors {
-			report.RetrievalHints = append(report.RetrievalHints, e)
-		}
+		report.RetrievalHints = append(report.RetrievalHints, result.Errors...)
 	}
 	return cliapp.RenderListReport(os.Stdout, report)
 }

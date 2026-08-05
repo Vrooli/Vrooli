@@ -179,6 +179,7 @@ This scenario calls deployment-manager. deployment-manager does not drive this p
 | `POST /api/v1/profiles/{id}/approvals` | After a platform build is validated | Record an approval decision |
 | `GET /api/v1/profiles/{id}/release-gate?commit=` | Before publishing | Ask whether publishing is allowed for this commit |
 | `POST /api/v1/bundles/export` | During manifest generation | Generate a bundle manifest for the target tier |
+| `EvidenceService.ReportTargetVerdict` (Connect) | After a desktop journey settles, when reporting is configured | Send the target disposition and producer-held capture references; no artifact bytes or local paths cross the boundary |
 
 The gate response is authoritative. When the gate refuses, the pipeline stops and reports the named missing gate. Do not publish on a gate error, and do not treat an unreachable deployment-manager as an implicit allow.
 

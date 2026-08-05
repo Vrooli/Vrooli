@@ -7,8 +7,9 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"scenario-to-desktop-api/scenario"
 	"testing"
+
+	"scenario-to-desktop-api/scenario"
 
 	"connectrpc.com/connect"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"

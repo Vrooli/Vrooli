@@ -222,7 +222,9 @@ const smokeTestTimeoutMs = Number.isFinite(smokeTestTimeoutCandidate) && smokeTe
 // the app a second time WITHOUT --smoke-test to capture the real startup
 // experience (splash screen, window frame, natural positioning) on video.
 const isSmokeTestDemo = process.env.SMOKE_TEST_DEMO === "1";
-const smokeTestDemoHoldMs = Number(process.env.SMOKE_TEST_DEMO_HOLD_MS) || 8000;
+// The smoke-test service sets this for the full scripted desktop journey.
+// Keep a long safe fallback for older launchers that omit the variable.
+const smokeTestDemoHoldMs = Number(process.env.SMOKE_TEST_DEMO_HOLD_MS) || 30000;
 
 // Stability check configuration
 const POST_SUCCESS_STABILITY_DELAY_MS = 2000;
