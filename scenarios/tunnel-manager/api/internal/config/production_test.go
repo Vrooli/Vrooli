@@ -50,18 +50,11 @@ func TestNewProductionService_RemoteWiresCloudflareIngress(t *testing.T) {
 		Doer:    doer,
 		HomeDir: t.TempDir(),
 		Routes:  routesSvc,
-		EnvLookup: func(key string) string {
-			switch key {
-			case "CLOUDFLARE_ACCOUNT_ID":
-				return "acct"
-			case "CLOUDFLARE_TUNNEL_ID":
-				return "tun"
-			case "CLOUDFLARE_API_TOKEN":
-				return "tok"
-			default:
-				return ""
-			}
-		},
+		CredentialAuthority: &fakeAuthority{values: map[string]string{
+			"cloudflare-account-id": "acct",
+			"cloudflare-tunnel-id":  "tun",
+			"cloudflare-api-token":  "tok",
+		}},
 	})
 
 	res, err := svc.Sync(ctx, false, false)

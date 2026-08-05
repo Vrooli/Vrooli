@@ -77,10 +77,10 @@ func TestResolveSharedStoreSignalDetectionUnavailable(t *testing.T) {
 	}
 }
 
-// ---- detectSharedStore (parses real storage-health validation JSON) ------
+// ---- detectSharedStore (parses real storage-manager validation JSON) ------
 
 func TestDetectSharedStoreParsesStorageHealthFinding(t *testing.T) {
-	// storage-health validate exits non-zero on ERROR findings but still emits the
+	// storage-manager validate exits non-zero on ERROR findings but still emits the
 	// assessment JSON to stdout; the namespace signal is a WARNING that rides
 	// alongside. The shared fakeRunner can't return (stdout, err) together, so stub
 	// runCommand directly to reproduce that real contract.
@@ -112,9 +112,9 @@ func TestDetectSharedStoreParsesStorageHealthFinding(t *testing.T) {
 	if !strings.Contains(detail, "qdrant.go") {
 		t.Errorf("detail should carry the violating file, got %q", detail)
 	}
-	// Must consult storage-health (not the retired auditor) for the one finding.
-	if gotName != "storage-health" {
-		t.Errorf("detection must call storage-health, got %q", gotName)
+	// Must consult storage-manager (not the retired auditor) for the one finding.
+	if gotName != "storage-manager" {
+		t.Errorf("detection must call storage-manager, got %q", gotName)
 	}
 	if got := strings.Join(gotArgs, " "); !strings.Contains(got, "validate scenario demo") || !strings.Contains(got, "--json") {
 		t.Errorf("detection must run `validate scenario demo --json`, got args %v", gotArgs)
@@ -123,7 +123,7 @@ func TestDetectSharedStoreParsesStorageHealthFinding(t *testing.T) {
 
 func TestDetectSharedStoreCleanValidation(t *testing.T) {
 	f := newFakeRunner(t)
-	f.stdout["storage-health validate scenario demo"] = []byte(`{"scenario":"demo","status":"VALIDATION_STATUS_PASSED","assessment":{"findings":[]}}`)
+	f.stdout["storage-manager validate scenario demo"] = []byte(`{"scenario":"demo","status":"VALIDATION_STATUS_PASSED","assessment":{"findings":[]}}`)
 	defer f.install()()
 
 	found, _, err := detectSharedStore(context.Background(), "demo")
@@ -137,9 +137,9 @@ func TestDetectSharedStoreCleanValidation(t *testing.T) {
 
 func TestDetectSharedStoreProviderDownIsUnknown(t *testing.T) {
 	f := newFakeRunner(t)
-	// storage-health unreachable: the seam returns no stdout AND an error → the
+	// storage-manager unreachable: the seam returns no stdout AND an error → the
 	// non-parseable response must surface as "unknown", never silently "clean".
-	f.failOn["storage-health"] = fmt.Errorf("connection refused")
+	f.failOn["storage-manager"] = fmt.Errorf("connection refused")
 	defer f.install()()
 
 	found, _, err := detectSharedStore(context.Background(), "demo")
@@ -154,7 +154,7 @@ func TestDetectSharedStoreProviderDownIsUnknown(t *testing.T) {
 func TestDetectSharedStoreUnparseableIsUnknown(t *testing.T) {
 	f := newFakeRunner(t)
 	// Garbage stdout with no assessment is "unknown", never silently "clean".
-	f.stdout["storage-health validate scenario demo"] = []byte(`not json`)
+	f.stdout["storage-manager validate scenario demo"] = []byte(`not json`)
 	defer f.install()()
 
 	if _, _, err := detectSharedStore(context.Background(), "demo"); err == nil {

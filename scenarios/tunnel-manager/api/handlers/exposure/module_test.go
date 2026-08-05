@@ -16,6 +16,24 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 )
 
+type testCredentialStore struct{}
+
+func (testCredentialStore) Status(context.Context) (internalconfig.CredentialStatus, error) {
+	return internalconfig.CredentialStatus{Ready: true}, nil
+}
+
+func (testCredentialStore) Resolve(context.Context) (internalconfig.CFConfig, error) {
+	return internalconfig.CFConfig{AccountID: "acct", TunnelID: "tun", APIToken: "tok"}, nil
+}
+
+func (testCredentialStore) Save(context.Context, internalconfig.CredentialUpdate) (internalconfig.CredentialStatus, error) {
+	return internalconfig.CredentialStatus{Ready: true}, nil
+}
+
+func (testCredentialStore) Delete(context.Context, []string) (internalconfig.CredentialStatus, error) {
+	return internalconfig.CredentialStatus{Ready: true}, nil
+}
+
 func TestIngressAdapter_ReconcileUsesConfiguredRemoteIngress(t *testing.T) {
 	ctx := context.Background()
 	d := db.NewSQLite(t)
@@ -46,21 +64,10 @@ func TestIngressAdapter_ReconcileUsesConfiguredRemoteIngress(t *testing.T) {
 	doer.AddResponse(200, []byte(`{"success":true,"result":[]}`))               // find record (none)
 	doer.AddResponse(200, []byte(`{"success":true,"result":{"id":"rec1"}}`))    // create CNAME
 	cfgSvc := internalconfig.NewProductionService(d, clk, internalconfig.ProductionOptions{
-		Doer:    doer,
-		HomeDir: t.TempDir(),
-		Routes:  routesSvc,
-		EnvLookup: func(key string) string {
-			switch key {
-			case "CLOUDFLARE_ACCOUNT_ID":
-				return "acct"
-			case "CLOUDFLARE_TUNNEL_ID":
-				return "tun"
-			case "CLOUDFLARE_API_TOKEN":
-				return "tok"
-			default:
-				return ""
-			}
-		},
+		Doer:            doer,
+		HomeDir:         t.TempDir(),
+		Routes:          routesSvc,
+		CredentialStore: testCredentialStore{},
 	})
 
 	err = (ingressAdapter{cfg: cfgSvc}).Reconcile(ctx)

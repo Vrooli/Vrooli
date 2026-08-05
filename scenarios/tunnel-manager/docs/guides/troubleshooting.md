@@ -275,9 +275,9 @@ on change instead of hot-reloading via the API.
   `tunnel-manager config credentials-set --account-id <id> --tunnel-id <id> --api-token <token>`.
 - Preview changes with `tunnel-manager config sync --dry-run true`, then
   switch with `tunnel-manager config mode --target remote`.
-- If status shows `env:CLOUDFLARE_*`, those values are read-only
-  lifecycle overrides and shadow saved file values until removed and the
-  scenario restarts.
+- Credential status should report `credential-authority` or `missing`. If a
+  deployment injects `CLOUDFLARE_*` variables, they are ignored; provision the
+  values through the credential authority instead.
 - Local mode is a correct, supported fallback — not an error state. Use
   it when no token is available.
 

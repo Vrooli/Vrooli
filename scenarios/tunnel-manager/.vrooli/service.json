@@ -1,6 +1,22 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "parent": "vrooli",
     "name": "tunnel-manager",
@@ -63,6 +79,46 @@
       "env_var": "UI_PORT",
       "description": "React UI (FIXED — Tunnel Manager is publicly exposed and must obey the fixed-UI-port contract it enforces on others)",
       "port": 21240
+    }
+  },
+  "deployment": {
+    "tiers": {
+      "tier-1-local": {
+        "status": "ready",
+        "secrets": [
+          {
+            "secret_id": "CLOUDFLARE_API_TOKEN",
+            "logical_id": "vrooli/tunnel-manager",
+            "field": "cloudflare-api-token",
+            "env": "CLOUDFLARE_API_TOKEN",
+            "classification": "service",
+            "label": "Cloudflare API Token",
+            "description": "API token used for remote Cloudflare tunnel operations.",
+            "required": false,
+            "obtain_url": "https://dash.cloudflare.com/profile/api-tokens"
+          },
+          {
+            "secret_id": "CLOUDFLARE_ACCOUNT_ID",
+            "logical_id": "vrooli/tunnel-manager",
+            "field": "cloudflare-account-id",
+            "env": "CLOUDFLARE_ACCOUNT_ID",
+            "classification": "service",
+            "label": "Cloudflare Account ID",
+            "description": "Cloudflare account identifier for remote tunnel operations.",
+            "required": false
+          },
+          {
+            "secret_id": "CLOUDFLARE_TUNNEL_ID",
+            "logical_id": "vrooli/tunnel-manager",
+            "field": "cloudflare-tunnel-id",
+            "env": "CLOUDFLARE_TUNNEL_ID",
+            "classification": "service",
+            "label": "Cloudflare Tunnel ID",
+            "description": "Managed tunnel identifier for remote operations.",
+            "required": false
+          }
+        ]
+      }
     }
   },
   "lifecycle": {
@@ -229,5 +285,33 @@
   },
   "environment": {
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/tunnel-manager.db"
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/tunnel-manager",
+        "field": "cloudflare-account-id",
+        "label": "Cloudflare Account ID",
+        "description": "Identifies the Cloudflare account that owns the tunnel. Resolved directly by this scenario through credential-authority-go, so it is never injected into the process environment.",
+        "required": true,
+        "obtain_url": "https://dash.cloudflare.com/"
+      },
+      {
+        "logical_id": "vrooli/tunnel-manager",
+        "field": "cloudflare-tunnel-id",
+        "label": "Cloudflare Tunnel ID",
+        "description": "Identifies the named tunnel this scenario manages.",
+        "required": true,
+        "obtain_url": "https://one.dash.cloudflare.com/"
+      },
+      {
+        "logical_id": "vrooli/tunnel-manager",
+        "field": "cloudflare-api-token",
+        "label": "Cloudflare API Token",
+        "description": "Authorizes tunnel and DNS changes. Re-resolved per operation so a rotated token takes effect without restarting the scenario.",
+        "required": true,
+        "obtain_url": "https://dash.cloudflare.com/profile/api-tokens"
+      }
+    ]
   }
 }

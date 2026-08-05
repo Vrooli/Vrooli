@@ -287,7 +287,7 @@
         },
         {
           "name": "credentials-set",
-          "description": "Store write-only Cloudflare credentials in the operator secret store",
+          "description": "Store write-only Cloudflare credentials in the Vrooli credential authority",
           "flags": [
             {
               "name": "account-id",
@@ -318,7 +318,7 @@
         },
         {
           "name": "credentials-clear",
-          "description": "Clear file-backed Cloudflare credentials from the operator secret store",
+          "description": "Clear Cloudflare credentials from the Vrooli credential authority",
           "flags": [
             {
               "name": "field",

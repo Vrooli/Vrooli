@@ -17,13 +17,12 @@ Tunnel Manager uses four distinct configuration homes:
 |---|---|---|---|
 | Source-controlled defaults | domain constants and non-secret scenario docs/manifests | first boot mode `local`, scheduler default intervals, fixed UI port policy | code review / manifest review |
 | Product runtime state | SQLite domain tables | `tunnel_config`, routes, leases, metrics, probe history, recovery events | API/CLI/UI domain actions |
-| Operator secrets | `api-core/secrets` files under `~/.vrooli` | Cloudflare account id, tunnel id, API token | Settings UI, `config credentials-*` CLI |
-| Environment overrides | lifecycle/operator process env | `CLOUDFLARE_*`, scheduler toggles, authz token | lifecycle only; read-only from UI/CLI |
+| Operator secrets | Vrooli credential authority (native secure store or encrypted fallback) | Cloudflare account id, tunnel id, API token | Settings UI, `config credentials-*` CLI |
+| Environment overrides | lifecycle/operator process env | scheduler toggles, authz token | lifecycle only; never a credential source |
 
 Secrets never live in repo `.vrooli`, SQLite, UI localStorage, logs, or
 docs. Environment variables are supported for lifecycle and deployment
-overrides, but they are not the primary setup path for day-to-day
-operators.
+overrides, but never supply Cloudflare credentials.
 
 ## Environment variables
 
@@ -65,9 +64,6 @@ Fixed-port values (`UI_PORT`, `API_PORT` range) are declared in
 |---|---|---|
 | `UI_PORT` | **21240 (fixed)** | Tunnel Manager's own UI port — fixed because it enforces the fixed-UI-port contract on others. Pinned in `service.json` `ports.ui`. |
 | `API_PORT` | `15000-19999` (range) | Go API server port (lifecycle-allocated). |
-| `CLOUDFLARE_ACCOUNT_ID` | unset | Read-only runtime override for the Cloudflare account id (remote mode). Prefer Settings/CLI credential setup for normal use. |
-| `CLOUDFLARE_TUNNEL_ID` | unset | Read-only runtime override for the managed tunnel id (remote mode). Prefer Settings/CLI credential setup for normal use. |
-| `CLOUDFLARE_API_TOKEN` | unset | Read-only runtime override for the Cloudflare API v4 token. **Required for remote mode only**; absent → local mode remains supported. |
 | Tunnel mode | `local` on first boot | `remote` = programmatic ingress via Cloudflare API (hot-reload); `local` = generate/maintain `~/.cloudflared/config.yml` (restart on change). Persisted in the `tunnel_config` row; switch via `tunnel-manager config mode`. **Switching mode is pure — it never writes ingress; run `config sync` afterward to apply.** |
 | Local config path | `~/.cloudflared/config.yml` | Source of ingress in local mode, generated from the manifest. |
 | Prometheus endpoint | `127.0.0.1:20241` | cloudflared metrics endpoint scraped by the `tunnel` domain (HA connections, request errors, RTT, active streams). |
@@ -88,31 +84,24 @@ The `cloudflared` daemon itself is managed by systemd and installed by
 setup — Tunnel Manager does not install or own it (it is the single
 authoritative owner of cloudflared *restarts* via the `recovery` domain).
 
-Cloudflare credentials resolve through the config-domain credential
-store, not ad hoc env reads or legacy aliases. Precedence is
-deterministic:
-
-1. Canonical `CLOUDFLARE_*` environment values, marked read-only.
-2. Scenario-scoped operator secret file under `~/.vrooli`.
-3. Shared user secret file under `~/.vrooli/secrets.json`.
-4. Missing.
-
-The legacy `CF_*` names are not accepted in this Greenfield scenario.
-If an environment value is present, Settings and CLI status show that it
-shadows saved file values until the override is removed and the scenario
-is restarted.
+Cloudflare credentials resolve through the config-domain credential authority,
+not ad hoc env reads, plaintext files, or legacy aliases. The authority
+reports a stable identity/field reference and the active provider to Settings
+and CLI status. Runtime environment variables are not a credential fallback;
+the canonical setup path is the Settings UI or the scenario CLI backed by the
+shared authority.
 
 `tunnel-manager config get` returns a browser-safe readiness model:
 current/desired mode, whether remote credentials are present,
-canonical missing fields, credential source (`env:CLOUDFLARE_*`,
-`file:scenario`, `file:user`, `mixed`, or `missing`), a non-secret
-credential reference such as `env:CLOUDFLARE_API_TOKEN`, local config
+canonical missing fields, credential source (`credential-authority` or
+`missing`), a non-secret credential reference such as
+`vrooli/tunnel-manager:cloudflare-api-token`, local config
 path, sync readiness, and an operator-readable mode reason. The
 Cloudflare API token value is never persisted in SQLite or returned to
 UI/CLI clients.
 
-Operators can provision the file-backed credential store without editing
-environment variables:
+Operators can provision the credential authority without editing environment
+variables:
 
 ```bash
 tunnel-manager config credentials-status
@@ -121,8 +110,8 @@ tunnel-manager config credentials-clear --field api_token
 ```
 
 The Settings UI exposes the same setup flow with source badges,
-missing-field guidance, env-shadow warnings, and the next recommended
-action. Token input is write-only: after save, clients only receive
+missing-field guidance, and the next recommended action. Token input is
+write-only: after save, clients only receive
 field presence, source, writability, and non-secret references.
 
 `tunnel-manager config sync --dry-run true` is safe in all modes. In

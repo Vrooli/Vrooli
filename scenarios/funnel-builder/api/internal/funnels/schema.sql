@@ -7,9 +7,18 @@ CREATE SCHEMA IF NOT EXISTS funnel_builder;
 -- Set search path
 SET search_path TO funnel_builder;
 
-CREATE TYPE funnel_status AS ENUM ('draft', 'active', 'archived');
-CREATE TYPE step_type AS ENUM ('quiz', 'form', 'content', 'cta');
-CREATE TYPE field_type AS ENUM ('text', 'email', 'tel', 'number', 'textarea', 'select', 'checkbox');
+DO $$ BEGIN
+    CREATE TYPE funnel_status AS ENUM ('draft', 'active', 'archived');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+    CREATE TYPE step_type AS ENUM ('quiz', 'form', 'content', 'cta');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+    CREATE TYPE field_type AS ENUM ('text', 'email', 'tel', 'number', 'textarea', 'select', 'checkbox');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Projects table (groups funnels for organization)
 CREATE TABLE IF NOT EXISTS projects (
@@ -28,7 +37,7 @@ CREATE TABLE IF NOT EXISTS funnels (
     name VARCHAR(255) NOT NULL,
     slug VARCHAR(255) NOT NULL,
     description TEXT,
-    project_id UUID,
+    project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
     settings JSONB DEFAULT '{}'::jsonb,
     status funnel_status DEFAULT 'draft',
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -36,16 +45,6 @@ CREATE TABLE IF NOT EXISTS funnels (
     created_by UUID,
     UNIQUE(tenant_id, slug)
 );
-
--- Ensure project_id column has proper foreign key when upgrading existing deployments
-ALTER TABLE funnels
-    ADD COLUMN IF NOT EXISTS project_id UUID;
-
-ALTER TABLE funnels
-    ADD CONSTRAINT IF NOT EXISTS funnels_project_id_fkey
-        FOREIGN KEY (project_id)
-        REFERENCES projects(id)
-        ON DELETE CASCADE;
 
 -- Funnel steps table
 CREATE TABLE IF NOT EXISTS funnel_steps (
@@ -133,24 +132,24 @@ CREATE TABLE IF NOT EXISTS ab_test_variants (
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_projects_tenant_id ON projects(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_projects_created_at ON projects(created_at);
-CREATE INDEX idx_funnels_tenant_id ON funnels(tenant_id);
-CREATE INDEX idx_funnels_status ON funnels(status);
-CREATE INDEX idx_funnels_slug ON funnels(slug);
+CREATE INDEX IF NOT EXISTS idx_funnels_tenant_id ON funnels(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_funnels_status ON funnels(status);
+CREATE INDEX IF NOT EXISTS idx_funnels_slug ON funnels(slug);
 CREATE INDEX IF NOT EXISTS idx_funnels_project_id ON funnels(project_id);
-CREATE INDEX idx_funnel_steps_funnel_id ON funnel_steps(funnel_id);
-CREATE INDEX idx_funnel_steps_position ON funnel_steps(funnel_id, position);
-CREATE INDEX idx_leads_funnel_id ON leads(funnel_id);
-CREATE INDEX idx_leads_email ON leads(email);
-CREATE INDEX idx_leads_session_id ON leads(session_id);
-CREATE INDEX idx_leads_completed ON leads(completed);
-CREATE INDEX idx_leads_created_at ON leads(created_at);
-CREATE INDEX idx_step_responses_lead_id ON step_responses(lead_id);
-CREATE INDEX idx_step_responses_step_id ON step_responses(step_id);
-CREATE INDEX idx_analytics_events_funnel_id ON analytics_events(funnel_id);
-CREATE INDEX idx_analytics_events_lead_id ON analytics_events(lead_id);
-CREATE INDEX idx_analytics_events_event_type ON analytics_events(event_type);
-CREATE INDEX idx_analytics_events_created_at ON analytics_events(created_at);
-CREATE INDEX idx_ab_test_variants_funnel_id ON ab_test_variants(funnel_id);
+CREATE INDEX IF NOT EXISTS idx_funnel_steps_funnel_id ON funnel_steps(funnel_id);
+CREATE INDEX IF NOT EXISTS idx_funnel_steps_position ON funnel_steps(funnel_id, position);
+CREATE INDEX IF NOT EXISTS idx_leads_funnel_id ON leads(funnel_id);
+CREATE INDEX IF NOT EXISTS idx_leads_email ON leads(email);
+CREATE INDEX IF NOT EXISTS idx_leads_session_id ON leads(session_id);
+CREATE INDEX IF NOT EXISTS idx_leads_completed ON leads(completed);
+CREATE INDEX IF NOT EXISTS idx_leads_created_at ON leads(created_at);
+CREATE INDEX IF NOT EXISTS idx_step_responses_lead_id ON step_responses(lead_id);
+CREATE INDEX IF NOT EXISTS idx_step_responses_step_id ON step_responses(step_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_funnel_id ON analytics_events(funnel_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_lead_id ON analytics_events(lead_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_event_type ON analytics_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_analytics_events_created_at ON analytics_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_ab_test_variants_funnel_id ON ab_test_variants(funnel_id);
 
 -- Triggers for updated_at
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -161,31 +160,37 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS update_funnels_updated_at ON funnels;
 CREATE TRIGGER update_funnels_updated_at
     BEFORE UPDATE ON funnels
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS update_projects_updated_at ON projects;
 CREATE TRIGGER update_projects_updated_at
     BEFORE UPDATE ON projects
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS update_funnel_steps_updated_at ON funnel_steps;
 CREATE TRIGGER update_funnel_steps_updated_at
     BEFORE UPDATE ON funnel_steps
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS update_leads_updated_at ON leads;
 CREATE TRIGGER update_leads_updated_at
     BEFORE UPDATE ON leads
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS update_funnel_templates_updated_at ON funnel_templates;
 CREATE TRIGGER update_funnel_templates_updated_at
     BEFORE UPDATE ON funnel_templates
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at();
 
+DROP TRIGGER IF EXISTS update_ab_test_variants_updated_at ON ab_test_variants;
 CREATE TRIGGER update_ab_test_variants_updated_at
     BEFORE UPDATE ON ab_test_variants
     FOR EACH ROW

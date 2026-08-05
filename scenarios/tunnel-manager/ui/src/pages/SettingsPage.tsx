@@ -44,7 +44,7 @@ function syncSummary(resp: Awaited<ReturnType<typeof configClient.sync>>, t: Ret
   });
 }
 
-function hasReadOnlyCredentialOverride(fields: readonly CredentialFieldStatus[]) {
+function hasReadOnlyCredentialField(fields: readonly CredentialFieldStatus[]) {
   return fields.some((field) => field.present && !field.writable);
 }
 
@@ -111,7 +111,7 @@ export function SettingsPage() {
   const readiness = configQuery.data?.readiness;
   const syncResult = syncMutation.data ?? dryRunMutation.data;
   const credentialFields = readiness?.credentialFields ?? [];
-  const hasEnvOverride = hasReadOnlyCredentialOverride(credentialFields);
+  const hasReadOnlyCredential = hasReadOnlyCredentialField(credentialFields);
   const credentialMutationResult = saveCredentialsMutation.data ?? clearCredentialsMutation.data;
   const actionError =
     dryRunMutation.error ??
@@ -225,12 +225,12 @@ export function SettingsPage() {
                 >
                   {t(credentialNextActionKey(readiness))}
                 </p>
-                {hasEnvOverride && (
+                {hasReadOnlyCredential && (
                   <p
                     data-testid={selectors.settingsPage.credentialShadowWarning}
                     className="rounded-control border border-app-warning/40 bg-app-warning/10 p-3 text-sm text-app-warning md:col-span-3"
                   >
-                    {t(strings.config.credentialEnvShadowWarning)}
+                    {t(strings.config.credentialReadOnlyWarning)}
                   </p>
                 )}
                 <label className="flex flex-col gap-1 text-sm">

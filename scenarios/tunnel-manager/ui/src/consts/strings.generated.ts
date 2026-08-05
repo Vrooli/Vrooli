@@ -137,7 +137,7 @@ export const strings = {
     nextActionUnavailable: "config.nextActionUnavailable",
     nextActionReady: "config.nextActionReady",
     nextActionRemote: "config.nextActionRemote",
-    credentialEnvShadowWarning: "config.credentialEnvShadowWarning",
+    credentialReadOnlyWarning: "config.credentialReadOnlyWarning",
     apiToken: "config.apiToken",
     saveCredentials: "config.saveCredentials",
     clearCredentials: "config.clearCredentials",

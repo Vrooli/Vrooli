@@ -1,3 +1,4 @@
+
 -- Graph Studio Database Schema
 -- Version: 1.0.0
 -- Description: Core schema for graph storage, versioning, and metadata
@@ -239,12 +240,15 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_graphs_updated_at ON graphs;
 CREATE TRIGGER update_graphs_updated_at BEFORE UPDATE ON graphs
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_plugins_updated_at ON plugins;
 CREATE TRIGGER update_plugins_updated_at BEFORE UPDATE ON plugins
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_templates_updated_at ON graph_templates;
 CREATE TRIGGER update_templates_updated_at BEFORE UPDATE ON graph_templates
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -266,6 +270,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS version_graph_trigger ON graphs;
 CREATE TRIGGER version_graph_trigger AFTER UPDATE ON graphs
     FOR EACH ROW EXECUTE FUNCTION version_graph_on_update();
 

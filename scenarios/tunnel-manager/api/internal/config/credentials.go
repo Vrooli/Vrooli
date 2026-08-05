@@ -3,98 +3,61 @@ package config
 import (
 	"context"
 	"fmt"
-	"os"
 	"slices"
 	"strings"
 
-	"github.com/vrooli/api-core/secrets"
-	repocontract "github.com/vrooli/repo-contract-go"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
-
-const scenarioID = "tunnel-manager"
 
 const (
-	credentialSourceMissing      = "missing"
-	credentialSourceEnv          = "env:CLOUDFLARE_*" // #nosec G101 -- source label only, not a credential value.
-	credentialSourceScenarioFile = "file:scenario"
-	credentialSourceUserFile     = "file:user"
-	credentialSourceMixed        = "mixed"
-
-	credentialKeyAccountID = "cloudflare.account_id" // #nosec G101 -- secret-store key name only.
-	credentialKeyTunnelID  = "cloudflare.tunnel_id"  // #nosec G101 -- secret-store key name only.
+	credentialSourceMissing   = "missing"
+	credentialSourceAuthority = "credential-authority"
+	credentialSourceMixed     = "mixed"
+	cloudflareCredentialID    = "vrooli/tunnel-manager"
+	credentialKeyAccountID    = "cloudflare.account_id"
+	credentialKeyTunnelID     = "cloudflare.tunnel_id"
+	credentialKeyAPIToken     = "cloudflare.api_token"
 )
 
-var credentialKeyAPIToken = credentialKey("api", "token") // #nosec G101 -- secret-store key name only.
-
+// CredentialStoreOptions injects the canonical credential authority. The
+// scenario does not select a backend and does not open a plaintext file.
 type CredentialStoreOptions struct {
-	EnvLookup   func(string) string
-	HomeDir     string
-	UserHomeDir func() (string, error)
+	Authority CredentialAuthority
 }
 
-type cloudflareCredentialStore struct {
-	envLookup     func(string) string
-	scenarioStore *secrets.Store
-	userStore     *secrets.Store
+type CredentialAuthority interface {
+	Resolve(credentialauthority.Identity, string) (string, error)
+	Put(credentialauthority.Identity, string, string) error
+	Delete(credentialauthority.Identity, string) error
+	Status(credentialauthority.Identity, string) credentialauthority.Status
+	Provider() string
 }
+
+type cloudflareCredentialStore struct{ authority CredentialAuthority }
 
 type credentialFieldSpec struct {
 	Name      string
-	StoreKey  string
+	Field     string
 	UpdateVal func(CredentialUpdate) string
 	SetConfig func(*CFConfig, string)
 }
 
 var credentialFieldSpecs = []credentialFieldSpec{
-	{
-		Name:      cloudflareAccountIDField,
-		StoreKey:  credentialKeyAccountID,
-		UpdateVal: func(u CredentialUpdate) string { return u.AccountID },
-		SetConfig: func(c *CFConfig, v string) { c.AccountID = v },
-	},
-	{
-		Name:      cloudflareTunnelIDField,
-		StoreKey:  credentialKeyTunnelID,
-		UpdateVal: func(u CredentialUpdate) string { return u.TunnelID },
-		SetConfig: func(c *CFConfig, v string) { c.TunnelID = v },
-	},
-	{
-		Name:      cloudflareAPITokenField,
-		StoreKey:  credentialKeyAPIToken,
-		UpdateVal: func(u CredentialUpdate) string { return u.APIToken },
-		SetConfig: func(c *CFConfig, v string) { c.APIToken = v },
-	},
+	{Name: cloudflareAccountIDField, Field: "cloudflare-account-id", UpdateVal: func(u CredentialUpdate) string { return u.AccountID }, SetConfig: func(c *CFConfig, v string) { c.AccountID = v }},
+	{Name: cloudflareTunnelIDField, Field: "cloudflare-tunnel-id", UpdateVal: func(u CredentialUpdate) string { return u.TunnelID }, SetConfig: func(c *CFConfig, v string) { c.TunnelID = v }},
+	{Name: cloudflareAPITokenField, Field: "cloudflare-api-token", UpdateVal: func(u CredentialUpdate) string { return u.APIToken }, SetConfig: func(c *CFConfig, v string) { c.APIToken = v }},
 }
 
 func NewCloudflareCredentialStore(opts CredentialStoreOptions) (CredentialStore, error) {
-	envLookup := opts.EnvLookup
-	if envLookup == nil {
-		envLookup = os.Getenv
+	authority := opts.Authority
+	if authority == nil {
+		var err error
+		authority, err = credentialauthority.Default()
+		if err != nil {
+			return nil, err
+		}
 	}
-	homeDir, err := resolveCredentialHome(opts)
-	if err != nil {
-		return nil, err
-	}
-	scenarioPath, err := repocontract.UserScenarioPlaintextSecretsPath(homeDir, scenarioID)
-	if err != nil {
-		return nil, fmt.Errorf("resolve scenario secrets path: %w", err)
-	}
-	scenarioStore, err := secrets.NewFileStore(scenarioPath)
-	if err != nil {
-		return nil, fmt.Errorf("open scenario credential store: %w", err)
-	}
-	userStore, err := secrets.NewUserStore(secrets.Config{
-		HomeDir:   homeDir,
-		EnvLookup: func(string) string { return "" },
-	})
-	if err != nil {
-		return nil, fmt.Errorf("open user credential store: %w", err)
-	}
-	return &cloudflareCredentialStore{
-		envLookup:     envLookup,
-		scenarioStore: scenarioStore,
-		userStore:     userStore,
-	}, nil
+	return &cloudflareCredentialStore{authority: authority}, nil
 }
 
 func (s *cloudflareCredentialStore) Status(ctx context.Context) (CredentialStatus, error) {
@@ -113,12 +76,16 @@ func (s *cloudflareCredentialStore) Resolve(ctx context.Context) (CFConfig, erro
 }
 
 func (s *cloudflareCredentialStore) Save(ctx context.Context, values CredentialUpdate) (CredentialStatus, error) {
+	identity, err := credentialauthority.ParseIdentity(cloudflareCredentialID)
+	if err != nil {
+		return CredentialStatus{}, err
+	}
 	for _, spec := range credentialFieldSpecs {
 		value := strings.TrimSpace(spec.UpdateVal(values))
 		if value == "" {
 			continue
 		}
-		if err := s.scenarioStore.SaveKey(spec.StoreKey, value); err != nil {
+		if err := s.authority.Put(identity, spec.Field, value); err != nil {
 			return CredentialStatus{}, fmt.Errorf("save %s: %w", spec.Name, err)
 		}
 	}
@@ -126,13 +93,17 @@ func (s *cloudflareCredentialStore) Save(ctx context.Context, values CredentialU
 }
 
 func (s *cloudflareCredentialStore) Delete(ctx context.Context, keys []string) (CredentialStatus, error) {
+	identity, err := credentialauthority.ParseIdentity(cloudflareCredentialID)
+	if err != nil {
+		return CredentialStatus{}, err
+	}
 	if len(keys) == 0 {
 		keys = []string{"all"}
 	}
 	for _, key := range keys {
-		for _, storeKey := range deleteStoreKeys(strings.TrimSpace(key)) {
-			if _, err := s.scenarioStore.DeleteKey(storeKey); err != nil {
-				return CredentialStatus{}, fmt.Errorf("delete %s: %w", storeKey, err)
+		for _, field := range deleteStoreKeys(strings.TrimSpace(key)) {
+			if err := s.authority.Delete(identity, field); err != nil {
+				return CredentialStatus{}, fmt.Errorf("delete %s: %w", field, err)
 			}
 		}
 	}
@@ -160,41 +131,23 @@ func (s *cloudflareCredentialStore) resolve(context.Context) (CredentialStatus, 
 }
 
 func (s *cloudflareCredentialStore) resolveField(spec credentialFieldSpec) (string, CredentialFieldStatus, error) {
-	if value := strings.TrimSpace(s.envLookup(spec.Name)); value != "" {
-		return value, CredentialFieldStatus{
-			Name:     spec.Name,
-			Present:  true,
-			Source:   credentialSourceEnv,
-			Ref:      "env:" + spec.Name,
-			Writable: false,
-		}, nil
-	}
-	value, source, ref, err := resolveStoreField(s.scenarioStore, credentialSourceScenarioFile, spec.StoreKey)
+	identity, err := credentialauthority.ParseIdentity(cloudflareCredentialID)
 	if err != nil {
 		return "", CredentialFieldStatus{}, err
 	}
-	if value != "" {
-		return value, CredentialFieldStatus{Name: spec.Name, Present: true, Source: source, Ref: ref, Writable: true}, nil
-	}
-	value, source, ref, err = resolveStoreField(s.userStore, credentialSourceUserFile, spec.StoreKey)
+	value, err := s.authority.Resolve(identity, spec.Field)
 	if err != nil {
-		return "", CredentialFieldStatus{}, err
+		status := s.authority.Status(identity, spec.Field)
+		if status.ProviderState != "available" {
+			return "", CredentialFieldStatus{}, fmt.Errorf("credential authority unavailable: %s", status.ProviderDetail)
+		}
+		return "", CredentialFieldStatus{Name: spec.Name, Source: credentialSourceMissing, Writable: true}, nil
 	}
-	if value != "" {
-		return value, CredentialFieldStatus{Name: spec.Name, Present: true, Source: source, Ref: ref, Writable: true}, nil
-	}
-	return "", CredentialFieldStatus{Name: spec.Name, Source: credentialSourceMissing, Writable: true}, nil
-}
-
-func resolveStoreField(store *secrets.Store, source, key string) (string, string, string, error) {
-	resolved, err := store.Resolve(key)
-	if err != nil {
-		return "", "", "", fmt.Errorf("resolve %s: %w", key, err)
-	}
-	if strings.TrimSpace(resolved.Value) == "" {
-		return "", "", "", nil
-	}
-	return strings.TrimSpace(resolved.Value), source, source + ":" + key, nil
+	value = strings.TrimSpace(value)
+	return value, CredentialFieldStatus{
+		Name: spec.Name, Present: value != "", Source: credentialSourceAuthority,
+		Ref: cloudflareCredentialID + ":" + spec.Field, Writable: true,
+	}, nil
 }
 
 func buildCredentialStatus(fields []CredentialFieldStatus) CredentialStatus {
@@ -227,36 +180,17 @@ func buildCredentialStatus(fields []CredentialFieldStatus) CredentialStatus {
 func deleteStoreKeys(key string) []string {
 	switch strings.ToLower(key) {
 	case "", "all":
-		return []string{credentialKeyAccountID, credentialKeyTunnelID, credentialKeyAPIToken}
+		return []string{"cloudflare-account-id", "cloudflare-tunnel-id", "cloudflare-api-token"}
 	case "account_id", "cloudflare_account_id", cloudflareAccountIDField:
-		return []string{credentialKeyAccountID}
+		return []string{"cloudflare-account-id"}
 	case "tunnel_id", "cloudflare_tunnel_id", cloudflareTunnelIDField:
-		return []string{credentialKeyTunnelID}
+		return []string{"cloudflare-tunnel-id"}
 	case "api_token", "cloudflare_api_token", cloudflareAPITokenField:
-		return []string{credentialKeyAPIToken}
+		return []string{"cloudflare-api-token"}
 	default:
-		if slices.Contains([]string{credentialKeyAccountID, credentialKeyTunnelID, credentialKeyAPIToken}, key) {
+		if slices.Contains([]string{"cloudflare-account-id", "cloudflare-tunnel-id", "cloudflare-api-token"}, key) {
 			return []string{key}
 		}
 		return nil
 	}
-}
-
-func resolveCredentialHome(opts CredentialStoreOptions) (string, error) {
-	if strings.TrimSpace(opts.HomeDir) != "" {
-		return strings.TrimSpace(opts.HomeDir), nil
-	}
-	userHomeDir := opts.UserHomeDir
-	if userHomeDir == nil {
-		userHomeDir = os.UserHomeDir
-	}
-	homeDir, err := userHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("resolve user home dir: %w", err)
-	}
-	return homeDir, nil
-}
-
-func credentialKey(parts ...string) string {
-	return "cloudflare." + strings.Join(parts, "_")
 }

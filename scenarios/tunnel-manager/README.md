@@ -17,9 +17,8 @@ adding public hostnames in the Cloudflare dashboard.
 
 This scenario was **regenerated from `react-vite` 1.1** (rather than
 migrated in place) and ports the prior tunnel-manager logic onto a clean
-Connect-RPC + screaming-architecture foundation. See the regeneration &
-adoption plan at the repo root:
-[`docs/plans/tunnel-manager-regen-adoption-plan.md`](../../docs/plans/tunnel-manager-regen-adoption-plan.md).
+Connect-RPC + screaming-architecture foundation. The historical regeneration
+plan is retained in the scenario's progress and decision records.
 
 ## Why It Exists
 
@@ -131,8 +130,8 @@ only apps its own ownership ledger attributes to it. It is **remote-mode only**.
   required for remote mode only; without it, Tunnel Manager remains in
   supported **local mode** (`~/.cloudflared/config.yml`). Configure
   remote-mode credentials through Settings or
-  `tunnel-manager config credentials-set`; environment variables are
-  read-only runtime overrides, not the primary setup path.
+  `tunnel-manager config credentials-set`; credential environment variables
+  are not accepted.
   - The base token scopes are Account read, Account:Cloudflare Tunnel,
     Zone:Read, Zone:DNS:Edit. The **/public Access-bypass** capability
     additionally needs **Access: Apps and Policies: Edit** — the verifier

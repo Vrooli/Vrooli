@@ -171,10 +171,10 @@ func TestHandlerGetConfigMapsMode(t *testing.T) {
 	}, ready: internalconfig.ConfigReadiness{
 		DesiredMode:      internalconfig.ModeRemote,
 		RemoteAvailable:  true,
-		CredentialSource: "env:CLOUDFLARE_*",
-		CredentialRef:    "env:CLOUDFLARE_API_TOKEN",
+		CredentialSource: "credential-authority",
+		CredentialRef:    "vrooli/tunnel-manager:cloudflare-api-token",
 		CredentialStatus: internalconfig.CredentialStatus{Fields: []internalconfig.CredentialFieldStatus{{
-			Name: "CLOUDFLARE_API_TOKEN", Present: true, Source: "env:CLOUDFLARE_*", Ref: "env:CLOUDFLARE_API_TOKEN",
+			Name: "CLOUDFLARE_API_TOKEN", Present: true, Source: "credential-authority", Ref: "vrooli/tunnel-manager:cloudflare-api-token",
 		}}},
 		LocalConfigPath: "/tmp/config.yml",
 		SyncReady:       true,
@@ -188,7 +188,7 @@ func TestHandlerGetConfigMapsMode(t *testing.T) {
 	require.Equal(t, "127.0.0.1:20241", resp.Msg.Config.PromEndpoint)
 	require.Equal(t, configv1.Mode_MODE_REMOTE, resp.Msg.Readiness.DesiredMode)
 	require.True(t, resp.Msg.Readiness.RemoteAvailable)
-	require.Equal(t, "env:CLOUDFLARE_API_TOKEN", resp.Msg.Readiness.CredentialRef)
+	require.Equal(t, "vrooli/tunnel-manager:cloudflare-api-token", resp.Msg.Readiness.CredentialRef)
 	require.Len(t, resp.Msg.Readiness.CredentialFields, 1)
 	require.Equal(t, "CLOUDFLARE_API_TOKEN", resp.Msg.Readiness.CredentialFields[0].Name)
 }
@@ -196,10 +196,10 @@ func TestHandlerGetConfigMapsMode(t *testing.T) {
 func TestHandlerGetCredentialStatusRedactsTokenValue(t *testing.T) {
 	fake := &fakeService{credOut: internalconfig.CredentialStatus{
 		Ready:  true,
-		Source: "file:scenario",
-		Ref:    "file:scenario:cloudflare.api_token",
+		Source: "credential-authority",
+		Ref:    "vrooli/tunnel-manager:cloudflare-api-token",
 		Fields: []internalconfig.CredentialFieldStatus{{
-			Name: "CLOUDFLARE_API_TOKEN", Present: true, Source: "file:scenario", Ref: "file:scenario:cloudflare.api_token", Writable: true,
+			Name: "CLOUDFLARE_API_TOKEN", Present: true, Source: "credential-authority", Ref: "vrooli/tunnel-manager:cloudflare-api-token", Writable: true,
 		}},
 	}}
 	client := newClient(t, fake)
@@ -207,7 +207,7 @@ func TestHandlerGetCredentialStatusRedactsTokenValue(t *testing.T) {
 	resp, err := client.GetCredentialStatus(context.Background(), connect.NewRequest(&configv1.GetCredentialStatusRequest{}))
 	require.NoError(t, err)
 	require.True(t, resp.Msg.Status.Ready)
-	require.Equal(t, "file:scenario:cloudflare.api_token", resp.Msg.Status.Ref)
+	require.Equal(t, "vrooli/tunnel-manager:cloudflare-api-token", resp.Msg.Status.Ref)
 	require.NotContains(t, resp.Msg.String(), "secret-token")
 }
 
@@ -224,7 +224,7 @@ func TestHandlerSetCloudflareCredentialsRequiresOperatorTokenWhenEnforced(t *tes
 }
 
 func TestHandlerSetCloudflareCredentialsPassesWriteOnlyValues(t *testing.T) {
-	fake := &fakeService{credOut: internalconfig.CredentialStatus{Ready: true, Source: "file:scenario"}}
+	fake := &fakeService{credOut: internalconfig.CredentialStatus{Ready: true, Source: "credential-authority"}}
 	client := newClientWithAuthorizer(t, fake, authz.StaticTokenAuthorizer{Enforced: true, Token: "secret"})
 	req := connect.NewRequest(&configv1.SetCloudflareCredentialsRequest{
 		AccountId: "acct", TunnelId: "tun", ApiToken: "secret-token",

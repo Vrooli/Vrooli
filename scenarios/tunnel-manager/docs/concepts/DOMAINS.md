@@ -28,7 +28,7 @@ belong in [`DATA.md`](DATA.md).
 |---|---|---|---|---|---|---|
 | routes | Exposure manifest (SSOT): which scenario is exposed at which subdomain/port, tier, lease, enabled. | CRUD / entity | `routes` table | API, CLI, UI | 01-exposure-manifest (OT-P0-001) | `api/internal/routes/`, `api/handlers/routes/`, `cli/domains/routes/`, `ui/src/features/routes/`, `packages/proto/schemas/tunnel-manager/v1/routes/` |
 | exposure | Tiered exposure broker: CORE always-on (from `api-core/coreset`) + LEASED on-demand (TTL request/extend/revoke/reap); ensure-running delegation; exposure-query for app-monitor. | Policy / orchestration | `leases` table | API, CLI, UI | 03-exposure-tiers (OT-P0-003/004/005/006), 10-app-monitor-integration (OT-P1-007) | `api/internal/exposure/`, `api/handlers/exposure/`, `cli/domains/exposure/`, `ui/src/features/exposure/`, `packages/proto/schemas/tunnel-manager/v1/exposure/` |
-| config | Cloudflare API ingress management (remote), local `config.yml` generation (fallback), credential-store status/write flow, mode switching, config sync. | Adapter / integration | `tunnel_config` plus operator secret-store references | API, CLI, UI settings | 02-cloudflare-ingress (OT-P0-002, OT-P1-002) | `api/internal/config/`, `api/handlers/config/`, `cli/domains/config/`, `ui/src/pages/SettingsPage.tsx`, `packages/proto/schemas/tunnel-manager/v1/config/` |
+| config | Cloudflare API ingress management (remote), local `config.yml` generation (fallback), credential-authority status/write flow, mode switching, config sync. | Adapter / integration | `tunnel_config` plus credential-authority references | API, CLI, UI settings | 02-cloudflare-ingress (OT-P0-002, OT-P1-002) | `api/internal/config/`, `api/handlers/config/`, `cli/domains/config/`, `ui/src/pages/SettingsPage.tsx`, `packages/proto/schemas/tunnel-manager/v1/config/` |
 | audit | Port-compliance auditor: verify exposed scenarios declare fixed UI ports in `service.json` matching the manifest. | Reporting / query | None (computed) | API, CLI, UI | 04-port-compliance (OT-P0-007) | `api/internal/audit/`, `api/handlers/audit/`, `cli/domains/audit/`, `ui/src/features/audit/`, `packages/proto/schemas/tunnel-manager/v1/audit/` |
 | tunnel | Tunnel health (systemd + `/ready`), Prometheus metrics scraping + time-series, degraded-mode detection. | Monitoring | `metrics` table | API, CLI, UI | 05-tunnel-health (OT-P0-008, OT-P1-003/006) | `api/internal/tunnel/`, `api/handlers/tunnel/`, `cli/domains/tunnel/`, `ui/src/features/metrics/`, `packages/proto/schemas/tunnel-manager/v1/tunnel/` |
 | probes | Internal + external liveness probing, scheduler, failure classification, probe history. | Monitoring | `probes` table | API, CLI, UI | 06-liveness-probes (OT-P0-009/010, OT-P1-001) | `api/internal/probes/`, `api/handlers/probes/`, `cli/domains/probes/`, `ui/src/features/probes/`, `packages/proto/schemas/tunnel-manager/v1/probes/` |
@@ -76,7 +76,7 @@ belong in [`DATA.md`](DATA.md).
   `MANAGED`|`EXTERNAL`|`IGNORED`) — the authoritative record of who owns
   each live ingress entry. Owns the credential status and write-only
   setup workflow; secret values live outside SQLite in the shared
-  operator secret store.
+  Vrooli credential authority.
 - Behavior:
   - `Sync` is **additive by default**: it publishes the desired manifest
     merged onto current live ingress (union), preserving unmanaged/ignored

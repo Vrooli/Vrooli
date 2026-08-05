@@ -180,9 +180,9 @@ Manage Cloudflare ingress and mode.
 | Subcommand | Purpose | Key args/flags |
 |---|---|---|
 | `config get` | Show browser-safe configuration readiness. | — |
-| `config credentials-status` | Show Cloudflare credential presence/source metadata without printing secrets; env-sourced fields are reported as read-only. | — |
-| `config credentials-set` | Store write-only Cloudflare credentials in the operator secret store under `~/.vrooli`. | `--account-id`, `--tunnel-id`, `--api-token` |
-| `config credentials-clear` | Clear file-backed Cloudflare credentials. Environment overrides cannot be cleared through this command. | `--field account_id\|tunnel_id\|api_token\|all` |
+| `config credentials-status` | Show Cloudflare credential presence/source metadata without printing secrets; values come from the credential authority. | — |
+| `config credentials-set` | Store write-only Cloudflare credentials in the canonical Vrooli credential authority. | `--account-id`, `--tunnel-id`, `--api-token` |
+| `config credentials-clear` | Clear Cloudflare credentials from the credential authority. | `--field account_id\|tunnel_id\|api_token\|all` |
 | `config sync` | Reconcile ingress (remote API or local `config.yml`) with the manifest. | — |
 | `config mode` | Switch and migrate ingress mode. | `--target remote\|local` |
 

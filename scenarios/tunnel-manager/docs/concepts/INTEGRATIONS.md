@@ -56,7 +56,7 @@ These are runtime seams / contracts, not hard build-time dependencies.
 
 | Service | Status | Reason | Contract |
 |---|---|---|---|
-| Cloudflare API v4 | implemented for remote mode | Programmatic ingress management replaces the manual dashboard step (OT-P0-002). | HTTPS API + account/tunnel id + API token; credentials resolve through the config credential store (env override, scenario secret file, shared user secret file) and are never inlined in `tunnel_config`. |
+| Cloudflare API v4 | implemented for remote mode | Programmatic ingress management replaces the manual dashboard step (OT-P0-002). | HTTPS API + account/tunnel id + API token; credentials resolve through the Vrooli credential authority and are never inlined in `tunnel_config`. |
 | `cloudflared` daemon | host tool | The tunnel itself; health via systemd + `/ready` + Prometheus, restart via `systemctl`. | Required host tool; installed by setup, not by TM. |
 
 ## Failure Modes

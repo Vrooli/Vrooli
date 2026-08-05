@@ -40,7 +40,7 @@ describe("SettingsPage", () => {
     });
     expect(screen.getByTestId(selectors.settingsPage.remoteAvailable)).toHaveTextContent("Unavailable");
     expect(screen.getByTestId(selectors.settingsPage.missingFields)).toHaveTextContent("CLOUDFLARE_API_TOKEN");
-    expect(screen.getByTestId(selectors.settingsPage.credentialPolicy)).toHaveTextContent("CLOUDFLARE_*");
+    expect(screen.getByTestId(selectors.settingsPage.credentialPolicy)).toHaveTextContent("credential authority");
     expect(screen.getByTestId(selectors.settingsPage.credentialNextAction)).toHaveTextContent("Enter the missing fields");
     expect(screen.getByTestId(selectors.settingsPage.remoteModeButton)).toBeDisabled();
   });
@@ -69,8 +69,8 @@ describe("SettingsPage", () => {
         readiness: makeConfigReadiness({
           remoteAvailable: true,
           missingFields: [],
-          credentialSource: "env:CLOUDFLARE_*",
-          credentialRef: "env:CLOUDFLARE_API_TOKEN",
+          credentialSource: "credential-authority",
+          credentialRef: "vrooli/tunnel-manager:cloudflare-api-token",
           syncReady: true,
         }),
       }),
@@ -85,19 +85,19 @@ describe("SettingsPage", () => {
     });
   });
 
-  it("explains when environment credentials shadow saved file values", async () => {
+  it("shows authority-backed credential fields without an environment fallback", async () => {
     const { configClient } = await import("../api/config");
     vi.mocked(configClient.getConfig).mockResolvedValueOnce(
       makeConfigResponse({
         readiness: makeConfigReadiness({
           remoteAvailable: true,
           missingFields: [],
-          credentialSource: "env:CLOUDFLARE_*",
+          credentialSource: "credential-authority",
           syncReady: true,
           credentialFields: [
-            { name: "CLOUDFLARE_API_TOKEN", present: true, source: "env:CLOUDFLARE_API_TOKEN", writable: false },
-            { name: "CLOUDFLARE_ACCOUNT_ID", present: true, source: "file:scenario", writable: true },
-            { name: "CLOUDFLARE_TUNNEL_ID", present: true, source: "file:scenario", writable: true },
+            { name: "CLOUDFLARE_API_TOKEN", present: true, source: "credential-authority", writable: true },
+            { name: "CLOUDFLARE_ACCOUNT_ID", present: true, source: "credential-authority", writable: true },
+            { name: "CLOUDFLARE_TUNNEL_ID", present: true, source: "credential-authority", writable: true },
           ],
         }),
       }),
@@ -105,10 +105,8 @@ describe("SettingsPage", () => {
 
     renderWithProviders(<SettingsPage />);
 
-    expect(await screen.findByTestId(selectors.settingsPage.credentialShadowWarning)).toHaveTextContent(
-      "environment overrides",
-    );
-    expect(screen.getByTestId(selectors.settingsPage.credentialFields)).toHaveTextContent("read-only");
+    expect(await screen.findByTestId(selectors.settingsPage.credentialFields)).toHaveTextContent("credential-authority");
+    expect(screen.queryByTestId(selectors.settingsPage.credentialShadowWarning)).not.toBeInTheDocument();
   });
 
   it("saves write-only Cloudflare credentials and does not render the token", async () => {

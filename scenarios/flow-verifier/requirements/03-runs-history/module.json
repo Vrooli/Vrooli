@@ -14,7 +14,7 @@
       "prd_ref": "OT-P0-004",
       "category": "runs",
       "criticality": "P0",
-      "description": "initialization/sqlite/migrations/0001_verification_runs.sql creates verification_runs with id, flow_id, hashes, status, counterexample, started_at, finished_at, duration_ms, plus an idx_runs_flow_id index.",
+      "description": "api/internal/<domain>/migrations/0001_verification_runs.sql creates verification_runs with id, flow_id, hashes, status, counterexample, started_at, finished_at, duration_ms, plus an idx_runs_flow_id index.",
       "tags": ["sqlite", "migration"],
       "validation": [
         {

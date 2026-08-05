@@ -147,7 +147,7 @@ export const makeConfigMocks = () => ({
   configClient: {
     getConfig: vi.fn().mockResolvedValue(makeConfigResponse()),
     getCredentialStatus: vi.fn().mockResolvedValue({ status: makeCredentialStatus() }),
-    setCloudflareCredentials: vi.fn().mockResolvedValue({ status: makeCredentialStatus({ ready: true, source: "file:scenario", missingFields: [] }) }),
+    setCloudflareCredentials: vi.fn().mockResolvedValue({ status: makeCredentialStatus({ ready: true, source: "credential-authority", missingFields: [] }) }),
     clearCloudflareCredentials: vi.fn().mockResolvedValue({ status: makeCredentialStatus() }),
     sync: vi.fn().mockResolvedValue(makeSyncResponse()),
     switchMode: vi.fn().mockResolvedValue({

@@ -1,6 +1,3 @@
--- [REQ:GCT-OT-P0-007] SQLite audit logging
--- Creates the git_audit_log table for tracking mutating operations
-
 CREATE TABLE IF NOT EXISTS git_audit_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     operation TEXT NOT NULL,
@@ -14,20 +11,11 @@ CREATE TABLE IF NOT EXISTS git_audit_log (
     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
     metadata TEXT
 );
-
--- Index for querying by operation type
 CREATE INDEX IF NOT EXISTS idx_audit_log_operation ON git_audit_log(operation);
-
--- Index for querying by timestamp (most common query pattern)
 CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON git_audit_log(created_at DESC);
-
--- Index for querying by branch
 CREATE INDEX IF NOT EXISTS idx_audit_log_branch ON git_audit_log(branch);
-
--- Composite index for common filter combinations
 CREATE INDEX IF NOT EXISTS idx_audit_log_op_created ON git_audit_log(operation, created_at DESC);
 
--- Repository registry for repo switching
 CREATE TABLE IF NOT EXISTS git_repos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     path TEXT NOT NULL UNIQUE,
@@ -37,7 +25,6 @@ CREATE TABLE IF NOT EXISTS git_repos (
     last_opened_at TEXT,
     is_favorite INTEGER NOT NULL DEFAULT 0
 );
-
 CREATE INDEX IF NOT EXISTS idx_git_repos_last_opened ON git_repos(last_opened_at DESC);
 CREATE INDEX IF NOT EXISTS idx_git_repos_added_at ON git_repos(added_at DESC);
 
@@ -61,6 +48,10 @@ CREATE TABLE IF NOT EXISTS git_repo_precommit (
     last_stderr TEXT,
     last_duration_ms INTEGER,
     last_timestamp TEXT,
+    hook_install_status TEXT,
+    hook_install_reason TEXT,
+    hook_existing_kind TEXT,
+    hook_installed_at TEXT,
     updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 
@@ -79,6 +70,5 @@ CREATE TABLE IF NOT EXISTS git_commit_check_runs (
     timestamp TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
-
 CREATE INDEX IF NOT EXISTS idx_commit_check_runs_repo_hash ON git_commit_check_runs(repo_path, commit_hash);
 CREATE INDEX IF NOT EXISTS idx_commit_check_runs_repo_created ON git_commit_check_runs(repo_path, created_at DESC);

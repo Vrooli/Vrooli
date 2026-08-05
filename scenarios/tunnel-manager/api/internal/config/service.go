@@ -43,7 +43,7 @@ type Service interface {
 	// configured credential store and returns redacted status metadata.
 	SetCloudflareCredentials(ctx context.Context, values CredentialUpdate) (CredentialStatus, error)
 
-	// ClearCloudflareCredentials removes one or more file-backed Cloudflare
+	// ClearCloudflareCredentials removes one or more authority-backed Cloudflare
 	// credential values and returns redacted status metadata.
 	ClearCloudflareCredentials(ctx context.Context, keys []string) (CredentialStatus, error)
 
@@ -473,30 +473,10 @@ func (s *service) ledgerEntries(ctx context.Context) ([]LedgerEntry, error) {
 	return s.deps.Ledger.List(ctx)
 }
 
-// desiredIngress computes the ingress the routes manifest implies: one
-// rule per enabled route plus a trailing catch-all 404.
-//
-// CRITICAL: hostnames are derived from route.Subdomain + "." + route.Domain
-// (via route.PublicURL with the scheme stripped), NEVER a hardcoded apex.
-// The old scenario hardcoded ".vrooli.com"; the live tunnel is
-// ".itsagitime.com" and the manifest now carries the domain per route.
-func (s *service) desiredIngress(ctx context.Context) ([]IngressRule, error) {
-	entries, err := s.desiredEntries(ctx)
-	if err != nil {
-		return nil, err
-	}
-	rules := make([]IngressRule, 0, len(entries)+1)
-	for _, e := range entries {
-		rules = append(rules, IngressRule{Hostname: e.Hostname, Service: e.Service})
-	}
-	rules = append(rules, catchAll())
-	return rules, nil
-}
-
 // desiredEntries computes the desired ingress set with provenance — one entry
 // per enabled route, tagged scenario vs external so reconcile can classify
-// EXTERNAL_OK distinctly from MANAGED. The catch-all (no hostname) is added
-// only by desiredIngress at the apply boundary, never here.
+// EXTERNAL_OK distinctly from MANAGED. The catch-all is added only by the
+// apply boundary, never here.
 func (s *service) desiredEntries(ctx context.Context) ([]DesiredEntry, error) {
 	routes, err := s.deps.Routes.List(ctx, manifest.Tier(""))
 	if err != nil {

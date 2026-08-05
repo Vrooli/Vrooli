@@ -64,7 +64,7 @@ func NewProductionService(db *database.RoutedDB, clk clock.Clock, routes interna
 // The config service reconciles ingress against the routes manifest, so it
 // reads routes through internalroutes.Service (the RoutesReader seam) and
 // actuates Cloudflare through the IngressClient built from the config-domain
-// credential store. Canonical CLOUDFLARE_* env values are runtime overrides;
+// credential store. Environment variables are not credential sources;
 // legacy CF_* aliases are intentionally not accepted. When credentials are
 // absent the IngressClient is nil and remote apply operations return
 // ErrRemoteUnavailable (mapped to FailedPrecondition).
@@ -202,7 +202,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        configconnect.ConfigServiceSetCloudflareCredentialsProcedure,
 		Method:      "POST",
 		Summary:     "Set Cloudflare credentials",
-		Description: "Stores write-only Cloudflare credential values in the operator secret store and returns redacted status metadata.",
+		Description: "Stores write-only Cloudflare credential values in the canonical operator credential authority and returns redacted status metadata.",
 		Category:    "config",
 		Request: &module.Schema{
 			Type: "object",
@@ -230,7 +230,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        configconnect.ConfigServiceClearCloudflareCredentialsProcedure,
 		Method:      "POST",
 		Summary:     "Clear Cloudflare credentials",
-		Description: "Removes file-backed Cloudflare credential values from the operator secret store. Env-sourced credentials remain effective until the process environment changes.",
+		Description: "Removes Cloudflare credential values from the canonical operator credential authority.",
 		Category:    "config",
 		Request: &module.Schema{
 			Type:       "object",

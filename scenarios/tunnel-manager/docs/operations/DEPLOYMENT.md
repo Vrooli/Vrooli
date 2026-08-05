@@ -44,9 +44,9 @@ wherever the local stack and its tunnel daemon run.
   `make setup`/Vrooli setup, **not** managed by this scenario).
 - Cloudflare credentials: required only for **remote mode**
   (programmatic ingress via Cloudflare API v4). Configure through
-  Settings or `tunnel-manager config credentials-set` so values land in
-  the operator secret store under `~/.vrooli`. `CLOUDFLARE_*`
-  environment values are deployment overrides, not the normal setup path.
+  Settings or `tunnel-manager config credentials-set` through the Vrooli
+  credential authority. `CLOUDFLARE_*` environment values are not a
+  credential source.
   **Local mode** — generating `~/.cloudflared/config.yml` from the
   manifest — remains supported when no credentials are available.
 - Resources: none required; `redis` optional (UI pub/sub, falls back to

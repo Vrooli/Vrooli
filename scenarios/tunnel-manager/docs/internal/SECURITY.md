@@ -24,7 +24,7 @@ no external store.
 
 | Data | Sensitivity | Owner | Details |
 |---|---|---|---|
-| Cloudflare API token | **high (secret)** | `config` | Remote-mode credential. Resolved through the config-domain credential store: canonical `CLOUDFLARE_API_TOKEN` env override first, then scenario-scoped and shared user secret files under the operator runtime home. Held in memory only for Cloudflare API calls and represented to clients only as non-secret source/reference metadata. Never inline in `tunnel_config`, SQLite rows, UI payloads, CLI output, or logs. |
+| Cloudflare API token | **high (secret)** | `config` | Remote-mode credential. Resolved through the Vrooli credential authority and held in memory only for Cloudflare API calls. Represented to clients only as non-secret source/reference metadata; never inline in `tunnel_config`, SQLite rows, UI payloads, CLI output, or logs. |
 | Tunnel id / account id | medium | `config` | Identifies the managed tunnel/account; not a secret but enables targeted action if combined with the token. |
 | Exposure manifest (`routes`) | medium | `routes` | The list of what is publicly reachable, at which subdomain/port/tier. Disclosure reveals public attack surface and internal port mapping. |
 | Leases (`leases`) | low-medium | `exposure` | Who requested exposure of what, and until when. Useful for attribution; no secrets. |
@@ -65,7 +65,7 @@ opens an internet-facing route — so it must be authorized.
 
 | Secret | Source | Required? | Details |
 |---|---|---|---|
-| Cloudflare API token | credential store (`CLOUDFLARE_API_TOKEN` env override, then scenario/user secret files) | remote mode only | Least-privilege token scoped to the managed tunnel's ingress config. Resolved inside the API process, kept in memory only for Cloudflare calls, and exposed only as non-secret source/reference metadata. Local config-mode (`~/.cloudflared/config.yml`) needs no API token. |
+| Cloudflare API token | Vrooli credential authority | remote mode only | Least-privilege token scoped to the managed tunnel's ingress config. Resolved inside the API process, kept in memory only for Cloudflare calls, and exposed only as non-secret source/reference metadata. Local config-mode (`~/.cloudflared/config.yml`) needs no API token. |
 
 ## Threat Model
 
@@ -74,7 +74,7 @@ opens an internet-facing route — so it must be authorized.
 
 | Risk | Impact | Mitigation | Status |
 |---|---|---|---|
-| Cloudflare API token leakage | Full control of the tunnel's public ingress (expose/hijack any route). | Least-privilege token; credential **reference** only (never inline/SQLite/logs/UI/CLI); resolved in-memory per remote Cloudflare operation through the credential store; write-only API/CLI/UI setup. | implemented for env and local file-backed credentials; Vault/provider references deferred |
+| Cloudflare API token leakage | Full control of the tunnel's public ingress (expose/hijack any route). | Least-privilege token; credential **reference** only (never inline/SQLite/logs/UI/CLI); resolved in-memory per remote Cloudflare operation through the Vrooli credential authority; write-only API/CLI/UI setup. | implemented for the Vrooli credential authority; Vault/provider references deferred |
 | Live auto-recovery blast radius | A false-positive restart loop could take down remote access for the whole Vrooli instance (foundational infra). | **Circuit breaker** (cap attempts, exponential backoff) + **single-owner restart contract** (Tunnel Manager is the sole cloudflared-restart owner; vrooli-autoheal downgrades to alert-only). Recovery actuation is behind the `cmdrunner`/systemd seam and the background scheduler is opt-in via `TUNNEL_MANAGER_RECOVERY_SCHEDULER_ENABLED`; manual recovery remains available. | implemented, opt-in background actuation |
 | Unauthorized exposure request | An attacker/buggy caller exposes an internal scenario to the internet. | Service-layer static-token authz for privileged mutations; exposure is tiered + lease-bounded (auto-reaped). | implemented for operator-token boundary; aud-scoped inter-scenario tokens deferred |
 | Exposure as attack surface growth | Each leased route is a new internet-facing entry point. | Tiering (CORE vs LEASED), boot/periodic TTL auto-reaping, and (P2) hostname-budget/LRU eviction bound the live surface. | implemented except P2 budget/LRU |

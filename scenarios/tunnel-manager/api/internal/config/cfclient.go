@@ -52,47 +52,6 @@ var cloudflareCredentialFields = []string{
 	cloudflareAPITokenField,
 }
 
-// ResolveCloudflareEnv reads Cloudflare credentials from canonical
-// CLOUDFLARE_* process environment variables. Environment values are runtime
-// overrides only; file-backed CredentialStore implementations are the primary
-// guided setup path.
-func ResolveCloudflareEnv(lookup func(string) string) CFConfig {
-	if lookup == nil {
-		lookup = func(string) string { return "" }
-	}
-	accountID := lookup(cloudflareAccountIDField)
-	tunnelID := lookup(cloudflareTunnelIDField)
-	apiToken := lookup(cloudflareAPITokenField)
-
-	missing := make([]string, 0, 3)
-	if accountID == "" {
-		missing = append(missing, cloudflareAccountIDField)
-	}
-	if tunnelID == "" {
-		missing = append(missing, cloudflareTunnelIDField)
-	}
-	if apiToken == "" {
-		missing = append(missing, cloudflareAPITokenField)
-	}
-
-	source := "none"
-	if len(missing) < len(cloudflareCredentialFields) {
-		source = "env:CLOUDFLARE_*"
-	}
-	tokenRef := ""
-	if apiToken != "" {
-		tokenRef = "env:" + cloudflareAPITokenField
-	}
-	return CFConfig{
-		APIToken:  apiToken,
-		AccountID: accountID,
-		TunnelID:  tunnelID,
-		TokenRef:  tokenRef,
-		Source:    source,
-		Missing:   missing,
-	}
-}
-
 // NewCFClient builds the production IngressClient. It returns nil when any
 // credential is absent — callers pass that nil through to the service,
 // where remote operations then return ErrRemoteUnavailable. This keeps

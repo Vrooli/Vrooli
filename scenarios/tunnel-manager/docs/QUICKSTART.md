@@ -91,9 +91,9 @@ tunnel-manager config mode --target remote  # switch ingress mode
 Every command supports proto-typed `--json` output.
 
 For remote mode, use Settings or the `config credentials-*` CLI commands
-to save Cloudflare credentials into the operator secret store. The
-canonical `CLOUDFLARE_*` environment variables remain read-only
-lifecycle overrides for deployment, not the normal first-run path.
+to save Cloudflare credentials through the Vrooli credential authority.
+`CLOUDFLARE_*` environment variables are not accepted as a credential
+source.
 
 Or directly via HTTP:
 

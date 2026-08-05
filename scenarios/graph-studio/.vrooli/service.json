@@ -1,7 +1,10 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
+  "storage": {
+    "entries": {},
+    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+  },
   "service": {
     "name": "graph-studio",
     "displayName": "Graph Studio",
@@ -116,10 +119,6 @@
             "targets": [
               "graph-studio"
             ]
-          },
-          {
-            "type": "file",
-            "path": "initialization/postgres/schema.sql"
           }
         ]
       },
@@ -201,19 +200,12 @@
         "enabled": true,
         "required": true,
         "purpose": "Store graph metadata, relationships, and versioning",
-        "database": "graph_studio",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          }
-        ]
+        "database": "graph_studio"
       },
       "minio": {
         "enabled": true,
         "required": true,
         "purpose": "Store large graph files and visualization assets",
-        "initialization": [],
         "buckets": {
           "default_buckets": [
             "graph-files",

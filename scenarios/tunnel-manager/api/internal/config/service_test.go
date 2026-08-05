@@ -744,11 +744,11 @@ func TestSync_RemoteReresolvesCredentialsBeforeLiveRead(t *testing.T) {
 		cfg: config.CFConfig{AccountID: "acct", TunnelID: "tun", APIToken: "tok"},
 		status: config.CredentialStatus{
 			Ready:  true,
-			Source: "file:scenario",
+			Source: "credential-authority",
 			Fields: []config.CredentialFieldStatus{
-				{Name: "CLOUDFLARE_ACCOUNT_ID", Present: true, Source: "file:scenario", Writable: true},
-				{Name: "CLOUDFLARE_TUNNEL_ID", Present: true, Source: "file:scenario", Writable: true},
-				{Name: "CLOUDFLARE_API_TOKEN", Present: true, Source: "file:scenario", Ref: "file:scenario:cloudflare.api_token", Writable: true},
+				{Name: "CLOUDFLARE_ACCOUNT_ID", Present: true, Source: "credential-authority", Writable: true},
+				{Name: "CLOUDFLARE_TUNNEL_ID", Present: true, Source: "credential-authority", Writable: true},
+				{Name: "CLOUDFLARE_API_TOKEN", Present: true, Source: "credential-authority", Ref: "vrooli/tunnel-manager:cloudflare-api-token", Writable: true},
 			},
 		},
 	}
@@ -768,7 +768,7 @@ func TestSync_RemoteReresolvesCredentialsBeforeLiveRead(t *testing.T) {
 }
 
 func TestCredentialMutationsDelegateToStore(t *testing.T) {
-	store := &fakeCredentialStore{status: config.CredentialStatus{Ready: true, Source: "file:scenario"}}
+	store := &fakeCredentialStore{status: config.CredentialStatus{Ready: true, Source: "credential-authority"}}
 	svc := config.NewService(config.Deps{
 		Repo:            &fakeRepo{},
 		Routes:          &fakeRoutes{},

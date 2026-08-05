@@ -23,6 +23,8 @@ import (
 type fakeService struct {
 	exposeLease    internalexposure.Lease
 	exposeURL      string
+	exposePort     int
+	exposeAssigned bool
 	exposeErr      error
 	revoked        bool
 	leases         []internalexposure.Lease
@@ -40,10 +42,10 @@ type fakeService struct {
 	unexposeErr      error
 }
 
-func (f *fakeService) Expose(_ context.Context, in internalexposure.ExposeInput) (internalexposure.Lease, string, error) {
+func (f *fakeService) Expose(_ context.Context, in internalexposure.ExposeInput) (internalexposure.Lease, string, int, bool, error) {
 	f.exposeCalls++
 	f.lastInput = in
-	return f.exposeLease, f.exposeURL, f.exposeErr
+	return f.exposeLease, f.exposeURL, f.exposePort, f.exposeAssigned, f.exposeErr
 }
 
 func (f *fakeService) ExtendLease(_ context.Context, _ string, _ time.Duration) (internalexposure.Lease, error) {

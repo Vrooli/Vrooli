@@ -8,17 +8,17 @@
 // Plan §1a's load-bearing promise is that the mode is "automatically chosen —
 // the planning/dispatching agent should not have to reason about self-conflict
 // manually." This file delivers that for the namespaceability gate: instead of
-// trusting the human/agent to pass --writes-shared-store, we *query storage-health's
+// trusting the human/agent to pass --writes-shared-store, we *query storage-manager's
 // ScenarioValidationService for the target* (its isolation_namespace analyzer,
 // which emits STORAGE_NAMESPACE_HARDCODED) and derive the signal. The declared
 // flag stays as an OR override (force live even when detection is unavailable or
 // clean).
 //
-// storage-health owns all storage judgment now; this supersedes the retired
-// scenario-auditor `storage_namespace_helpers` rule (storage-health plan,
+// storage-manager owns all storage judgment now; this supersedes the retired
+// scenario-auditor `storage_namespace_helpers` rule (storage-manager plan,
 // Phase 12 — the rule was deleted once this consumer was re-pointed).
 //
-// Detection is best-effort and degrades safely: if storage-health is unreachable
+// Detection is best-effort and degrades safely: if storage-manager is unreachable
 // the gate falls back to the declared flag and surfaces a note, never silently
 // routing a non-namespaceable writer to shadow on a missing signal — the operator
 // can always pass --writes-shared-store to force live.
@@ -32,17 +32,17 @@ import (
 	"time"
 )
 
-// namespaceScanTimeout bounds the storage-health validation so a slow or hung
+// namespaceScanTimeout bounds the storage-manager validation so a slow or hung
 // provider degrades to "unavailable" (safe fallback) instead of wedging
-// `baseline start`. storage-health's per-scenario validate runs a full static
+// `baseline start`. storage-manager's per-scenario validate runs a full static
 // storage analysis (AST + code-facts language/domain resolution), so it is a
 // few-tens-of-seconds operation, not instant; the operator can skip it entirely
 // by passing --writes-shared-store.
 const namespaceScanTimeout = 120 * time.Second
 
-// storageNamespaceFindingCode is the storage-health finding emitted when a
+// storageNamespaceFindingCode is the storage-manager finding emitted when a
 // scenario hardcodes a Redis/Qdrant namespace instead of routing it through the
-// variant-aware api-core helpers — i.e. it cannot be safely shadowed. storage-health's
+// variant-aware api-core helpers — i.e. it cannot be safely shadowed. storage-manager's
 // isolation_namespace analyzer owns this judgment; it supersedes the retired
 // scenario-auditor storage_namespace_helpers rule.
 const storageNamespaceFindingCode = "STORAGE_NAMESPACE_HARDCODED"
@@ -55,26 +55,26 @@ type sharedStoreVerdict struct {
 	note              string
 }
 
-// detectSharedStore queries storage-health's ScenarioValidationService for the
+// detectSharedStore queries storage-manager's ScenarioValidationService for the
 // scenario and reports whether its assessment carries a STORAGE_NAMESPACE_HARDCODED
 // finding (i.e. it writes a hardcoded, un-adopted Redis/Qdrant namespace). It is
 // a seam (package var) so the decision-tree tests inject a deterministic verdict
-// without a live storage-health.
+// without a live storage-manager.
 //
 // detail carries either a short evidence string (the violating file) on a hit or
-// the reason detection could not run; err is non-nil only when storage-health
+// the reason detection could not run; err is non-nil only when storage-manager
 // could not be consulted at all (so the caller can distinguish "clean" from
 // "unknown").
 //
-// `storage-health validate scenario --json` exits non-zero when the scenario has
+// `storage-manager validate scenario --json` exits non-zero when the scenario has
 // ERROR-severity findings (e.g. unwired routed seams), but it still emits the
 // full assessment JSON to stdout first. We therefore decode the captured stdout
 // regardless of the exit code and only treat a non-parseable response — meaning
-// storage-health produced no assessment at all — as "unknown".
+// storage-manager produced no assessment at all — as "unknown".
 var detectSharedStore = func(ctx context.Context, scenario string) (found bool, detail string, err error) {
 	scanCtx, cancel := context.WithTimeout(ctx, namespaceScanTimeout)
 	defer cancel()
-	out, scanErr := runCommand(scanCtx, "storage-health", "validate", "scenario", scenario, "--json")
+	out, scanErr := runCommand(scanCtx, "storage-manager", "validate", "scenario", scenario, "--json")
 
 	var resp struct {
 		Assessment *struct {
@@ -85,13 +85,13 @@ var detectSharedStore = func(ctx context.Context, scenario string) (found bool, 
 		} `json:"assessment"`
 	}
 	if jsonErr := json.Unmarshal(out, &resp); jsonErr != nil {
-		// No parseable assessment — storage-health is genuinely unavailable or
+		// No parseable assessment — storage-manager is genuinely unavailable or
 		// errored before producing output. Surface "unknown" so the caller falls
 		// back to the declared flag rather than treating it as clean.
 		if scanErr != nil {
-			return false, "storage-health unavailable", scanErr
+			return false, "storage-manager unavailable", scanErr
 		}
-		return false, "unparseable storage-health response", fmt.Errorf("parse storage validation for %s: %w", scenario, jsonErr)
+		return false, "unparseable storage-manager response", fmt.Errorf("parse storage validation for %s: %w", scenario, jsonErr)
 	}
 
 	if resp.Assessment == nil {
@@ -130,12 +130,12 @@ func resolveSharedStoreSignal(ctx context.Context, scenario string, declared boo
 	case found:
 		return sharedStoreVerdict{
 			writesSharedStore: true,
-			note:              "auto-detected via storage-health " + storageNamespaceFindingCode + " (" + detail + ")",
+			note:              "auto-detected via storage-manager " + storageNamespaceFindingCode + " (" + detail + ")",
 		}
 	default:
 		return sharedStoreVerdict{
 			writesSharedStore: false,
-			note:              "auto-detected namespaceable via storage-health " + storageNamespaceFindingCode,
+			note:              "auto-detected namespaceable via storage-manager " + storageNamespaceFindingCode,
 		}
 	}
 }

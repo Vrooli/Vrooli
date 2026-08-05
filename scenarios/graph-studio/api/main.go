@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"github.com/vrooli/api-core/database"
+	schema "graph-studio/internal/graph"
 	"log"
 	"os"
 	"strings"
@@ -149,6 +151,10 @@ func main() {
 
 	// Start server with graceful shutdown
 	log.Printf("🚀 Graph Studio API starting on port %s", port)
+
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		log.Fatalf("database schema initialization failed: %v", err)
+	}
 	if err := server.Run(server.Config{
 		Handler: router,
 		Cleanup: func(ctx context.Context) error { return db.Close() },
