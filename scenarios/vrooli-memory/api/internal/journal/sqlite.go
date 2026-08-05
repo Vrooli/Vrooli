@@ -125,8 +125,8 @@ func (r *SQLiteRepository) ClassificationRetries(ctx context.Context, limit int)
 	}
 	rows, err := r.db.QueryContext(ctx, `SELECT q.id,e.id,e.scope,e.body,e.facet_id,e.kind,e.actor_id,e.actor_kind,e.source_runtime,e.run_id,e.workflow_execution_id,e.import_key,e.source_harness,e.source_path,e.imported_at,e.created_at
 FROM journal_retry_queue q JOIN entries e ON e.id=q.entry_id
-WHERE q.reason='classify' AND NOT EXISTS (SELECT 1 FROM facet_assignments a WHERE a.entry_id=e.id)
-ORDER BY q.created_at,q.id LIMIT ?`, limit)
+WHERE q.reason='classify' AND NOT EXISTS (SELECT 1 FROM facet_assignments a WHERE a.entry_id=e.id AND a.facet_id<>?)
+ORDER BY q.created_at,q.id LIMIT ?`, UnclassifiedFacet, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -150,13 +150,30 @@ ORDER BY q.created_at,q.id LIMIT ?`, limit)
 	return out, rows.Err()
 }
 
+func (r *SQLiteRepository) EnqueueUnclassified(ctx context.Context) (int, error) {
+	result, err := r.db.ExecContext(ctx, `INSERT INTO journal_retry_queue(id,entry_id,reason,created_at)
+SELECT lower(hex(randomblob(16))),e.id,'classify',?
+FROM entries e
+WHERE NOT EXISTS (SELECT 1 FROM facet_assignments a WHERE a.entry_id=e.id AND a.facet_id<>?)
+  AND NOT EXISTS (SELECT 1 FROM journal_retry_queue q WHERE q.entry_id=e.id AND q.reason='classify')`,
+		time.Now().UTC().Format(time.RFC3339Nano), UnclassifiedFacet)
+	if err != nil {
+		return 0, err
+	}
+	n, err := result.RowsAffected()
+	return int(n), err
+}
+
 func (r *SQLiteRepository) AcknowledgeRetry(ctx context.Context, id string) error {
 	_, err := r.db.ExecContext(ctx, `DELETE FROM journal_retry_queue WHERE id=?`, id)
 	return err
 }
 
 func (r *SQLiteRepository) PruneResolvedClassificationRetries(ctx context.Context) (int, error) {
-	result, err := r.db.ExecContext(ctx, `DELETE FROM journal_retry_queue WHERE reason='classify' AND EXISTS (SELECT 1 FROM facet_assignments a WHERE a.entry_id=journal_retry_queue.entry_id)`)
+	// A sentinel assignment records that classification was attempted and failed,
+	// not that it succeeded. Treating it as resolved retired the retry row and
+	// stranded the entry outside the facet vocabulary permanently.
+	result, err := r.db.ExecContext(ctx, `DELETE FROM journal_retry_queue WHERE reason='classify' AND EXISTS (SELECT 1 FROM facet_assignments a WHERE a.entry_id=journal_retry_queue.entry_id AND a.facet_id<>?)`, UnclassifiedFacet)
 	if err != nil {
 		return 0, err
 	}

@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "description": "P1 requirements — records absorption, run linkage, operator surfaces, and the multi-space embedding refinement. All planned; validation entries declare intended evidence without asserting refs that do not exist. Note: id P1-009 is intentionally vacant. Harness memory import was promoted to P0 as VMEM-P0-011 (D-022); the id was retired rather than reused, and P1-010 was not renumbered, so that existing cross-references stay valid and no reader mistakes a renumber for a different requirement.",
+    "description": "P1 requirements \u2014 records absorption, run linkage, operator surfaces, and the multi-space embedding refinement. All planned; validation entries declare intended evidence without asserting refs that do not exist. Note: id P1-009 is intentionally vacant. Harness memory import was promoted to P0 as VMEM-P0-011 (D-022); the id was retired rather than reused, and P1-010 was not renumbered, so that existing cross-references stay valid and no reader mistakes a renumber for a different requirement.",
     "last_validated_at": "2026-08-05T01:30:54-04:00",
     "module": "P1-targets",
     "priority": "P1",
@@ -14,7 +14,7 @@
       "prd_ref": "OT-P1-001",
       "category": "records-absorption",
       "criticality": "P1",
-      "description": "A work-record memory kind carries the fields the swarm-manager records contract defined — trigger, approach, evidence, outcome — validated as a required set at write. This replaces `swarm-manager records create` as the agent-facing verb so agents learn one write surface. Backlog association is derived from run correlation rather than a hand-passed flag, which is the failure this absorption is designed to fix.",
+      "description": "A work-record memory kind carries the fields the swarm-manager records contract defined \u2014 trigger, approach, evidence, outcome \u2014 validated as a required set at write. This replaces `swarm-manager records create` as the agent-facing verb so agents learn one write surface. Backlog association is derived from run correlation rather than a hand-passed flag, which is the failure this absorption is designed to fix.",
       "tags": [
         "work-record",
         "migration",
@@ -45,11 +45,11 @@
     {
       "id": "VMEM-P1-002",
       "title": "Run correlation and sibling events",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "category": "integration",
       "criticality": "P1",
-      "description": "A memory written inside an agent run stores the receipt correlation emitted automatically by api-core — run id, workflow execution id, actor kind. Retrieval exposes a command that lists the other events from that run. Memory stores identifiers only and never a denormalized copy of run data, so there is exactly one truth about any run.",
+      "description": "A memory written inside an agent run stores the receipt correlation emitted automatically by api-core \u2014 run id, workflow execution id, actor kind. Retrieval exposes a command that lists the other events from that run. Memory stores identifiers only and never a denormalized copy of run data, so there is exactly one truth about any run.",
       "tags": [
         "vrooli-events",
         "attribution",
@@ -74,7 +74,7 @@
           "type": "test",
           "ref": "api/handlers/recall/connect_handler_test.go::TestListSiblingEventsUsesOnlyTheStoredRunCorrelation",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "The sibling-events command resolves a stored run id to the other events of that run."
         }
       ]
@@ -86,7 +86,7 @@
       "prd_ref": "OT-P1-003",
       "category": "retrieval",
       "criticality": "P1",
-      "description": "Zooming a summary renders that node's immediate constituents — leaves verbatim, child summaries as summaries labeled with their span and depth — and descent repeats to the leaves. A reader must never mistake a summary for an original, so every rendered summary is labeled as one.",
+      "description": "Zooming a summary renders that node's immediate constituents \u2014 leaves verbatim, child summaries as summaries labeled with their span and depth \u2014 and descent repeats to the leaves. A reader must never mistake a summary for an original, so every rendered summary is labeled as one.",
       "tags": [
         "retrieval",
         "zoom",
@@ -147,11 +147,11 @@
     {
       "id": "VMEM-P1-005",
       "title": "Multi-space facet embedding",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-005",
       "category": "embedding",
       "criticality": "P1",
-      "description": "Several short derived texts per memory — topic, rule/implication, entities — are each embedded normally rather than conditioning one vector on an instruction. This yields multiple neighbourhoods per memory using the embedding model already deployed fleet-wide, and keeps the derived texts human-readable so bad clustering is debuggable. Embeddings intended for clustering use the model's clustering task prefix rather than the document prefix.",
+      "description": "Several short derived texts per memory \u2014 topic, rule/implication, entities \u2014 are each embedded normally rather than conditioning one vector on an instruction. This yields multiple neighbourhoods per memory using the embedding model already deployed fleet-wide, and keeps the derived texts human-readable so bad clustering is debuggable. Embeddings intended for clustering use the model's clustering task prefix rather than the document prefix.",
       "tags": [
         "embedding",
         "clustering",
@@ -176,15 +176,36 @@
           "type": "test",
           "ref": "api/internal/journal/service_test.go::TestFacetTextsKeepDistinctClusteringSpaces",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Two memories related only on one facet co-cluster in that facet's space and not in the others."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/forest/service_test.go::TestClusteringGroupsOnASecondaryFacetSpace",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Clustering groups two memories that agree on the entities space while disagreeing on topic, which is the purpose clause: more than one notion of relatedness."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/forest/service_test.go::TestPairScoringNeverComparesAcrossFacetSpaces",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Spaces are paired by index and the shorter side bounds the comparison, so a summary's single space never scores against a leaf's entities framing."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/recall/service_test.go::TestRecallScoresAcrossEveryFacetSpace",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Recall takes the best space, so a query matching a secondary framing outranks a partial primary match."
         }
       ]
     },
     {
       "id": "VMEM-P1-006",
       "title": "Operator review surface",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-006",
       "category": "ui",
       "criticality": "P1",
@@ -199,21 +220,21 @@
           "type": "test",
           "ref": "ui/src/features/journal/JournalTimeline.test.tsx::JournalTimeline",
           "phase": "ui",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Journal timeline renders loading, empty, partial, and error states."
         },
         {
           "type": "test",
           "ref": "ui/src/features/recall/RecallPanel.test.tsx::RecallPanel",
           "phase": "ui",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Frontier explorer distinguishes leaves from summaries and shows each summary's span and depth."
         },
         {
           "type": "test",
           "ref": "ui/src/features/operator/OperatorReview.test.tsx::OperatorReview",
           "phase": "ui",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Re-facet and pin/unpin actions round-trip to the API and reflect in the rendered state."
         }
       ]
@@ -225,7 +246,7 @@
       "prd_ref": "OT-P1-007",
       "category": "harness",
       "criticality": "P1",
-      "description": "A command installs and updates the prompt block in each harness convention file (CLAUDE.md, AGENTS.md, and equivalents). The block describes WHAT is worth remembering and MUST NOT instruct the agent to call a specific memory command. Telling an agent to use a foreign write verb is an instruction-compliance problem — it may comply, may not, or may write to both stores and fork memory silently. Describing what to remember lets the agent use its native memory tool, which it does reliably, and the harness domain captures that write. The block is idempotent and delimited so re-running updates in place rather than appending duplicates.",
+      "description": "A command installs and updates the prompt block in each harness convention file (CLAUDE.md, AGENTS.md, and equivalents). The block describes WHAT is worth remembering and MUST NOT instruct the agent to call a specific memory command. Telling an agent to use a foreign write verb is an instruction-compliance problem \u2014 it may comply, may not, or may write to both stores and fork memory silently. Describing what to remember lets the agent use its native memory tool, which it does reliably, and the harness domain captures that write. The block is idempotent and delimited so re-running updates in place rather than appending duplicates.",
       "tags": [
         "harness",
         "adoption",
@@ -262,7 +283,7 @@
       "prd_ref": "OT-P1-008",
       "category": "harness",
       "criticality": "P1",
-      "description": "Native memory writes made by an agent through its own harness tooling are captured into the journal. Two channels, selected per harness by the capability matrix in docs/concepts/INTEGRATIONS.md: a pre-write hook where the runtime exposes one, and store diff as the universal floor. Hook install rides the existing per-resource permissions machinery under resources/\u003cagent\u003e/cli/internal/permissions/, which already ships pretooluse-bash-deny.sh for claude-code and grok — this scenario extends that layer and never touches agent binaries. Capture is required, not hardening: single-blob harnesses (Codex, opencode) cannot be diffed reliably into discrete memories, so for those runtimes a hook is the only precise channel.",
+      "description": "Native memory writes made by an agent through its own harness tooling are captured into the journal. Two channels, selected per harness by the capability matrix in docs/concepts/INTEGRATIONS.md: a pre-write hook where the runtime exposes one, and store diff as the universal floor. Hook install rides the existing per-resource permissions machinery under resources/<agent>/cli/internal/permissions/, which already ships pretooluse-bash-deny.sh for claude-code and grok \u2014 this scenario extends that layer and never touches agent binaries. Capture is required, not hardening: single-blob harnesses (Codex, opencode) cannot be diffed reliably into discrete memories, so for those runtimes a hook is the only precise channel.",
       "tags": [
         "harness",
         "capture",
@@ -274,15 +295,15 @@
           "type": "test",
           "ref": "api/internal/harness/import_test.go::TestCaptureAndLaterImportConvergeOnOneEntry",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A native memory write in a hook-capable harness appears in the journal without the agent invoking any memory command."
         },
         {
           "type": "test",
           "ref": "api/internal/harness/import_test.go::TestCaptureAndLaterImportConvergeOnOneEntry",
           "phase": "integration",
-          "status": "planned",
-          "notes": "With the hook disabled, the same write is still captured by the next store-diff sweep — degraded latency, no loss."
+          "status": "implemented",
+          "notes": "With the hook disabled, the same write is still captured by the next store-diff sweep \u2014 degraded latency, no loss."
         },
         {
           "type": "manual",
@@ -294,11 +315,11 @@
     {
       "id": "VMEM-P1-010",
       "title": "Pinned-set bounding by curation",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-010",
       "category": "facets",
       "criticality": "P1",
-      "description": "The pinned set is bounded by operator curation rather than by compaction, because a rule the system is obliged to display unconditionally cannot be safely auto-merged or auto-evicted. Three mechanisms, each terminating in an operator decision: (1) consolidation proposals — the cohesion scoring the forest already computes is run over pinned entries and surfaces near-duplicate groups as merge proposals, never as automatic collapses; (2) renewal — each pin carries a review date and lapses to unpinned rather than deleted when not reconfirmed, so a lapsed rule stays a searchable standing-rule memory and the mechanism fails safe; (3) a pin budget that returns a trade-off against the weakest current pins when a new pin would exceed it. The budget is the forcing function: without it the first two are optional and therefore skipped, which is the failure mode measured on `--backlog-ref` in D-001. The binding constraint is attention, not tokens — a wake view with fifteen standing rules is read and one with three hundred is skimmed — so this limit binds well below the overflow reported by `VMEM-P0-006`.",
+      "description": "The pinned set is bounded by operator curation rather than by compaction, because a rule the system is obliged to display unconditionally cannot be safely auto-merged or auto-evicted. Three mechanisms, each terminating in an operator decision: (1) consolidation proposals \u2014 the cohesion scoring the forest already computes is run over pinned entries and surfaces near-duplicate groups as merge proposals, never as automatic collapses; (2) renewal \u2014 each pin carries a review date and lapses to unpinned rather than deleted when not reconfirmed, so a lapsed rule stays a searchable standing-rule memory and the mechanism fails safe; (3) a pin budget that returns a trade-off against the weakest current pins when a new pin would exceed it. The budget is the forcing function: without it the first two are optional and therefore skipped, which is the failure mode measured on `--backlog-ref` in D-001. The binding constraint is attention, not tokens \u2014 a wake view with fifteen standing rules is read and one with three hundred is skimmed \u2014 so this limit binds well below the overflow reported by `VMEM-P0-006`.",
       "tags": [
         "pinning",
         "facets",
@@ -338,7 +359,7 @@
           "type": "test",
           "ref": "api/handlers/facets/connect_handler_test.go::TestAssignFacetRejectsUnknownFacetAndSetsPin",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Lapse and merge both change wake output while leaving every affected journal entry intact and searchable."
         },
         {

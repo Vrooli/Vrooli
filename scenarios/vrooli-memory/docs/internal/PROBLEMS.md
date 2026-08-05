@@ -63,6 +63,50 @@ Use this shape so entries are scannable. Append newest at the bottom.
 | **Per-harness at-cap behaviour is unverified.** Whether a runtime over its size cap asks the agent to trim or silently truncates is undetermined for every harness except Codex's documented 32 KiB. | **Blocks a P0 requirement.** Silent truncation can drop a pinned standing rule with no signal, which defeats the guarantee pinning exists to provide. Pin-first ordering mitigates but does not verify. | `VMEM-P0-010` — determining actual at-cap behaviour is implementation work, not a documentation task (D-017). |
 | **The two single-blob harnesses (Codex, opencode) expose no usable pre-write hook in the installed runtime.** `pretooluse-bash-deny.sh` proves the mechanism exists in `claude-code` and `grok`; the per-runtime matrix records the negative result for Codex/opencode and the other no-hook harnesses. | Store diff is the universal floor, but D-015 records that single-blob stores cannot be diffed reliably into discrete memories. Capture therefore remains precise for hook-capable runtimes and best-effort via governed store-diff recovery elsewhere; the limitation is explicit rather than guessed. | `VMEM-P1-008` — retain the verified capability matrix and add a native hook when a resource exposes one. |
 
+### 2026-08-05 — Two of the three facet embedding spaces have no reader
+
+**Symptom:** Every entry stores three facet-text embeddings (`topic`, `rule`, `entities`) — 8,181 vectors across 2,728 entries — but retrieval and clustering behave as if there were one.
+
+**Root cause:** All three consumers select a single vector with `ORDER BY ft.id LIMIT 1`: `internal/recall/sqlite_source.go`, `internal/forest/sqlite_source.go`, `internal/forest/sqlite.go`. Nothing scores across spaces. This is distinct from the design-table gap above, which asks *how many* spaces are right; this entry records that the extra spaces are written and never read.
+
+**Workaround:** None needed for correctness — retrieval works on the first space. The cost is two thirds of embedding inference and storage with no consumer.
+
+**Real fix:** A multi-space scorer (best-of or weighted blend per space), or stop deriving the unused texts. `VMEM-P1-005` was reopened on 2026-08-05 for this reason.
+
+**Owner:** unassigned
+
+**Refs:** `internal/recall/sqlite_source.go`, `internal/forest/sqlite_source.go`, `VMEM-P1-005`.
+
+### 2026-08-05 — Recall still scores every node linearly (wake half RESOLVED)
+
+**Symptom:** `Recall` scores every leaf and summary in Go on every query. Cost is linear in corpus size.
+
+**Resolved on 2026-08-05 (wake half):** `Wake` now uses `AmbientNodes`, which loads no embeddings, excludes absorbed leaves, and caps rows per facet at the largest declared residency via a window function. Separately, the `latest_assignment` CTE in both sources was rewritten from a per-row correlated subquery to a single-pass window function — 0.333s to 0.002s on 3.2k assignments, a cost every wake and recall paid before touching a memory. Measured end to end: wake 2.58s to 0.76s (CLI floor is ~0.7s), recall 3.35s to 0.85s while now scoring three embedding spaces instead of one.
+
+**Root cause of what remains:** recall has no ANN index and no SQL-side candidate prefilter, so all 8,181 vectors are decoded and cosined per query.
+
+**Workaround:** Acceptable at current size — it degrades smoothly rather than cliffing.
+
+**Real fix:** An ANN index, or a SQL-side prefilter that narrows candidates before scoring.
+
+**Owner:** unassigned
+
+**Refs:** `internal/recall/service.go`, `internal/recall/sqlite_source.go`.
+
+### 2026-08-05 — The journal database carries about 60% dead pages
+
+**Symptom:** `data/vrooli-memory.db` is 152 MB on disk while 23,233 of its 38,891 pages sit on the freelist.
+
+**Root cause:** The embedding migration rewrote 8,181 vectors from JSON text to blobs with no subsequent `VACUUM`, so freed pages were never returned to the filesystem.
+
+**Workaround:** None needed — free pages are reused before the file grows again.
+
+**Real fix:** `VACUUM` once, then add it to a maintenance path so future format migrations reclaim automatically.
+
+**Owner:** unassigned
+
+**Refs:** `internal/vector`, `data/vrooli-memory.db`.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

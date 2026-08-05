@@ -117,13 +117,16 @@ type contextualRefacetClassifier struct{ kind string }
 func (c *contextualRefacetClassifier) Classify(context.Context, string) (string, error) {
 	return "thread", nil
 }
+
 func (c *contextualRefacetClassifier) ClassifyEntry(_ context.Context, _ string, kind string) (string, error) {
 	c.kind = kind
 	return "episode", nil
 }
+
 func (*contextualRefacetClassifier) Embed(context.Context, string, inference.EmbeddingTask) ([]float64, error) {
 	return []float64{1}, nil
 }
+
 func (*contextualRefacetClassifier) Summarize(context.Context, string) (string, error) {
 	return "", nil
 }
@@ -200,4 +203,43 @@ func mustPinned(t *testing.T, s *Service, ctx context.Context, id string) bool {
 	ok, err := s.repo.(*SQLiteRepository).Pinned(ctx, id)
 	require.NoError(t, err)
 	return ok
+}
+
+// A thread is unresolved work. Once resolved it must leave ambient recall
+// without being summarized: expire-on-resolution is how a facet leaves the
+// frontier when its retention policy forbids compaction.
+func TestResolvedThreadExcludedFromWakeAndCompaction(t *testing.T) { // [REQ:VMEM-P0-005]
+	ctx := context.Background()
+	s, journalRepo := newService(t)
+
+	open, err := journalRepo.Append(ctx, journal.Entry{Body: "still investigating the flake", FacetID: "thread"}, nil)
+	require.NoError(t, err)
+	resolved, err := journalRepo.Append(ctx, journal.Entry{Body: "flake root-caused and fixed", FacetID: "thread"}, nil)
+	require.NoError(t, err)
+	require.NoError(t, s.Assign(ctx, open.ID, "thread", "test"))
+	require.NoError(t, s.Assign(ctx, resolved.ID, "thread", "test"))
+
+	policies, err := s.List(ctx)
+	require.NoError(t, err)
+	var threadPolicy string
+	var threadCompactable bool
+	for _, p := range policies {
+		if p.ID == "thread" {
+			threadPolicy, threadCompactable = p.RetentionPolicy, p.CompactionEligible
+		}
+	}
+	require.Equal(t, "expire-on-resolution", threadPolicy)
+	require.False(t, threadCompactable, "a thread must never be summarized; it expires instead")
+
+	require.NoError(t, s.ResolveThread(ctx, resolved.ID))
+
+	// The resolved thread is marked, the open one is not. Recall's node source
+	// drops exactly the marked-and-expiring entries.
+	var marked int
+	require.NoError(t, s.repo.(*SQLiteRepository).db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM marks WHERE entry_id=? AND kind='resolved'`, resolved.ID).Scan(&marked))
+	require.Equal(t, 1, marked)
+	require.NoError(t, s.repo.(*SQLiteRepository).db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM marks WHERE entry_id=? AND kind='resolved'`, open.ID).Scan(&marked))
+	require.Equal(t, 0, marked, "an unresolved thread stays in ambient recall")
 }

@@ -5,8 +5,10 @@ import "vrooli-memory/internal/policy"
 const (
 	DefaultFrontierTarget = policy.DefaultFrontierTarget
 	DefaultWakeBudget     = policy.DefaultWakeBudget
+	DefaultMaxEntryLines  = policy.DefaultMaxEntryLines
 	FrontierTargetEnv     = policy.FrontierTargetEnv
 	WakeBudgetEnv         = policy.WakeBudgetEnv
+	MaxEntryLinesEnv      = policy.MaxEntryLinesEnv
 )
 
 // ConfigFromEnv loads independent compaction and prompt-size controls. A
@@ -17,5 +19,5 @@ func ConfigFromEnv(lookupEnv func(string) (string, bool)) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	return Config{FrontierTarget: c.FrontierTarget, WakeBudget: c.WakeBudget}, nil
+	return Config{FrontierTarget: c.FrontierTarget, WakeBudget: c.WakeBudget, MaxEntryLines: c.MaxEntryLines}, nil
 }

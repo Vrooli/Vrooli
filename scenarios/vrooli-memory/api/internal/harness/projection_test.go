@@ -20,6 +20,8 @@ type projectionSource []recall.Node
 
 func (s projectionSource) Nodes(context.Context) ([]recall.Node, error) { return s, nil }
 
+func (s projectionSource) AmbientNodes(context.Context, int) ([]recall.Node, error) { return s, nil }
+
 func TestProjectionIsPinFirstDryRunAndDoesNotWrite(t *testing.T) { // [REQ:VMEM-P0-010]
 	db := localdb.NewSQLite(t)
 	_, err := db.Exec(Schema())

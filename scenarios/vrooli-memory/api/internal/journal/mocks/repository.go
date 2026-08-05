@@ -20,6 +20,7 @@ type Repository struct {
 	RetryItems   []journal.RetryItem
 	Acknowledged []string
 	Pruned       int
+	Reconciled   int
 }
 
 func (r *Repository) Append(_ context.Context, entry journal.Entry, retries []string) (journal.Entry, error) {
@@ -93,6 +94,11 @@ func (r *Repository) AcknowledgeRetry(_ context.Context, id string) error {
 
 func (r *Repository) PruneResolvedClassificationRetries(context.Context) (int, error) {
 	return r.Pruned, nil
+}
+
+func (r *Repository) EnqueueUnclassified(context.Context) (int, error) {
+	r.Reconciled++
+	return r.Reconciled, nil
 }
 
 func (r *Repository) EmbeddingRetries(context.Context, int) ([]journal.RetryItem, error) {

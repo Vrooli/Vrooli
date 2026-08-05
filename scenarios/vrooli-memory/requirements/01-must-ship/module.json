@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "description": "P0 requirements — the journal, the retrieval contract, facet-routed retention, and the compaction loop. Nothing here is implemented yet: every status is planned, and every validation entry declares intended evidence without asserting a ref to a test that does not exist.",
+    "description": "P0 requirements \u2014 the journal, the retrieval contract, facet-routed retention, and the compaction loop. Nothing here is implemented yet: every status is planned, and every validation entry declares intended evidence without asserting a ref to a test that does not exist.",
     "last_validated_at": "2026-08-05T01:30:54-04:00",
     "module": "P0-targets",
     "priority": "P0",
@@ -10,7 +10,7 @@
     {
       "id": "VMEM-P0-001",
       "title": "Append-only journal",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "storage",
       "criticality": "P0",
@@ -39,7 +39,7 @@
           "type": "test",
           "ref": "api/internal/recall/service_test.go::TestRecallKeepsAbsorbedLeafAndCollapsesDescendants",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "After a compaction pass reduces the frontier, every original leaf is still individually retrievable by id."
         }
       ]
@@ -47,7 +47,7 @@
     {
       "id": "VMEM-P0-002",
       "title": "Deliberate write verb",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "write-path",
       "criticality": "P0",
@@ -76,7 +76,7 @@
           "type": "test",
           "ref": "api/handlers/journal/connect_handler_test.go::TestConnectHandlerAppendGetAndList",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "CLI note round-trips through Connect to a retrievable journal entry."
         }
       ]
@@ -84,11 +84,11 @@
     {
       "id": "VMEM-P0-003",
       "title": "Full-fidelity semantic recall",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "retrieval",
       "criticality": "P0",
-      "description": "Recall searches the union of journal leaves and summary nodes in one vector space. Compaction status never excludes a leaf from the candidate set — the invariant that makes compaction a context-budget device rather than a storage device. Summaries are embedded on creation so they are searchable alongside leaves.",
+      "description": "Recall searches the union of journal leaves and summary nodes in one vector space. Compaction status never excludes a leaf from the candidate set \u2014 the invariant that makes compaction a context-budget device rather than a storage device. Summaries are embedded on creation so they are searchable alongside leaves.",
       "tags": [
         "retrieval",
         "invariant",
@@ -113,7 +113,7 @@
           "type": "test",
           "ref": "api/internal/recall/sqlite_source_test.go::TestSQLiteSourceReturnsDepthTwoNodes",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Recall over a corpus compacted to depth 2 returns hits drawn from all three depths."
         }
       ]
@@ -154,7 +154,7 @@
       "prd_ref": "OT-P0-005",
       "category": "facets",
       "criticality": "P0",
-      "description": "Each memory carries exactly one facet from the closed set: standing-rule, environment-fact, gotcha, episode, thread, entity-record. The facet determines retention — standing-rule is pinned and never absorbed; environment-fact and gotcha supersede or merge near-duplicates; episode is the only facet admitted to compaction; thread expires on resolution; entity-record follows a retention window. A facet the policy table does not cover is a hard error, not a default.",
+      "description": "Each memory carries exactly one facet from the closed set: standing-rule, environment-fact, gotcha, episode, thread, entity-record. The facet determines retention \u2014 standing-rule is pinned and never absorbed; environment-fact and gotcha supersede or merge near-duplicates; episode is the only facet admitted to compaction; thread expires on resolution; entity-record follows a retention window. A facet the policy table does not cover is a hard error, not a default.",
       "tags": [
         "facets",
         "policy",
@@ -187,11 +187,11 @@
     {
       "id": "VMEM-P0-006",
       "title": "Guaranteed pinned recall",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "retrieval",
       "criticality": "P0",
-      "description": "Every pinned standing-rule memory appears in wake output unconditionally — not ranked, not budget-evicted, not similarity-filtered. This is the property semantic retrieval structurally cannot provide, and the reason standing rules are held out of the compaction forest. If pinned content alone exceeds the budget, wake reports the overflow rather than silently truncating.",
+      "description": "Every pinned standing-rule memory appears in wake output unconditionally \u2014 not ranked, not budget-evicted, not similarity-filtered. This is the property semantic retrieval structurally cannot provide, and the reason standing rules are held out of the compaction forest. If pinned content alone exceeds the budget, wake reports the overflow rather than silently truncating.",
       "tags": [
         "wake",
         "pinning",
@@ -217,7 +217,7 @@
           "type": "test",
           "ref": "api/internal/forest/service_test.go::TestCompactionPreservesPinnedEntry",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Pinned entries survive a compaction pass that collapses the rest of the frontier."
         }
       ]
@@ -225,7 +225,7 @@
     {
       "id": "VMEM-P0-007",
       "title": "Pressure-driven compaction",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-007",
       "category": "compaction",
       "criticality": "P0",
@@ -268,7 +268,7 @@
           "type": "test",
           "ref": "api/internal/forest/sqlite_test.go::TestSummaryAndEdgesCommitAtomicallyAndRebuild",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A newly created summary is embedded and appears as a frontier node eligible for further collapse."
         }
       ]
@@ -280,7 +280,7 @@
       "prd_ref": "OT-P0-008",
       "category": "wake",
       "criticality": "P0",
-      "description": "`memory wake` emits pinned standing rules plus a budget-bounded cover over the frontier, finest-grained for the most recent material. Output size is a function of the configured budget, not of corpus size — the same budget holds at a hundred memories and at a hundred thousand. Frontier target size and wake budget are independent settings; the frontier may greatly exceed what wake renders.",
+      "description": "`memory wake` emits pinned standing rules plus a budget-bounded cover over the frontier, finest-grained for the most recent material. Output size is a function of the configured budget, not of corpus size \u2014 the same budget holds at a hundred memories and at a hundred thousand. Frontier target size and wake budget are independent settings; the frontier may greatly exceed what wake renders.",
       "tags": [
         "wake",
         "budget",
@@ -317,7 +317,7 @@
       "prd_ref": "OT-P0-009",
       "category": "integration",
       "criticality": "P0",
-      "description": "The scenario owns `.vrooli/search.json` declaring its provider descriptors — natural-language routing description, result mapping, tuning, reindex and config control endpoints — and self-registers with search-hub at boot. Memory becomes reachable from `search-hub query` with no router change, per the registry contract.",
+      "description": "The scenario owns `.vrooli/search.json` declaring its provider descriptors \u2014 natural-language routing description, result mapping, tuning, reindex and config control endpoints \u2014 and self-registers with search-hub at boot. Memory becomes reachable from `search-hub query` with no router change, per the registry contract.",
       "tags": [
         "search-hub",
         "integration",
@@ -348,7 +348,7 @@
     {
       "id": "VMEM-P0-010",
       "title": "Harness memory projection",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-010",
       "category": "integration",
       "criticality": "P0",
@@ -377,7 +377,7 @@
           "type": "test",
           "ref": "api/internal/harness/projection_test.go::TestProjectionPreservesBytesOutsideManagedWakeBlock",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Hand edits to the projected file are discarded on the next projection and the journal is unchanged."
         }
       ]
@@ -389,7 +389,7 @@
       "prd_ref": "OT-P0-011",
       "category": "harness",
       "criticality": "P0",
-      "description": "A recurring, idempotent import of existing harness memory stores into the journal, driven by declarative per-harness adapters supporting markdown file-per-fact, markdown section, single-blob markdown, JSONL, and SQLite. Idempotency is by content-addressed import key hash(harness_id, source_path, normalized_content) with a unique index — never by offset or watermark, because every source is a file a human or agent may rewrite out of order. Import is permanent capability, not one-time migration: it performs the initial backfill and recovers drift when capture fails or an agent writes through an unanticipated path. Imported entries carry source provenance and are never auto-promoted to pinned. Promoted from P1 to P0 (D-022): it is the only P0 path that puts a real corpus in the journal, and without one the compaction, budget, and federation targets cannot be exercised at the milestone that is supposed to prove them.",
+      "description": "A recurring, idempotent import of existing harness memory stores into the journal, driven by declarative per-harness adapters supporting markdown file-per-fact, markdown section, single-blob markdown, JSONL, and SQLite. Idempotency is by content-addressed import key hash(harness_id, source_path, normalized_content) with a unique index \u2014 never by offset or watermark, because every source is a file a human or agent may rewrite out of order. Import is permanent capability, not one-time migration: it performs the initial backfill and recovers drift when capture fails or an agent writes through an unanticipated path. Imported entries carry source provenance and are never auto-promoted to pinned. Promoted from P1 to P0 (D-022): it is the only P0 path that puts a real corpus in the journal, and without one the compaction, budget, and federation targets cannot be exercised at the milestone that is supposed to prove them.",
       "tags": [
         "harness",
         "import",
@@ -431,7 +431,7 @@
           "ref": "api/internal/harness/adapters_test.go::TestFormatReadersExtractNormalizedItems",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Each supported format — markdown-per-file, markdown-section, markdown-blob, jsonl, sqlite — round-trips through its adapter."
+          "notes": "Each supported format \u2014 markdown-per-file, markdown-section, markdown-blob, jsonl, sqlite \u2014 round-trips through its adapter."
         },
         {
           "type": "test",
@@ -444,7 +444,7 @@
           "type": "manual",
           "phase": "integration",
           "status": "implemented",
-          "notes": "After importing this machine's existing harness stores, the frontier exceeds its target and a compaction pass runs — proving VMEM-P0-007 and VMEM-P0-008 are exercisable at P0 rather than only asserted. Live corpus/compaction evidence is recorded with business-health manual-log."
+          "notes": "After importing this machine's existing harness stores, the frontier exceeds its target and a compaction pass runs \u2014 proving VMEM-P0-007 and VMEM-P0-008 are exercisable at P0 rather than only asserted. Live corpus/compaction evidence is recorded with business-health manual-log."
         }
       ]
     }

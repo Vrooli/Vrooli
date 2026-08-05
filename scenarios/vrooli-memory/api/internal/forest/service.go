@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"vrooli-memory/internal/inference"
+	"vrooli-memory/internal/policy"
 )
 
 // CandidateSource lets forest enforce retention and pin policy without owning
@@ -21,7 +22,15 @@ type (
 	Candidate struct {
 		ID, FacetID, Body string
 		RetentionPolicy   string
-		Vector            []float64
+		// Compactable is the policy layer's verdict on this candidate. The
+		// engine must not re-derive it by comparing RetentionPolicy to a known
+		// policy name: policy vocabulary belongs to the scope, not here.
+		Compactable bool
+		// Vectors holds one embedding per derived facet space for a leaf and a
+		// single summary embedding for a summary. Pair scoring compares like
+		// space to like space so two memories can cluster on entities even when
+		// their topic framings diverge.
+		Vectors           [][]float64
 		CreatedAt         time.Time
 		Depth, Generation int
 		Kind              string
@@ -30,6 +39,10 @@ type (
 	Config struct {
 		Target       int
 		RecencyFloor time.Duration
+		// SummaryInstruction is supplied by the policy scope, which is the only
+		// layer that knows what this corpus stores. The engine never names a
+		// facet, so a second scope replaces this string and nothing else.
+		SummaryInstruction string
 	}
 	Service struct {
 		repo      Repository
@@ -48,12 +61,16 @@ func NewService(repo Repository, source CandidateSource, client inference.Client
 	if config.RecencyFloor <= 0 {
 		config.RecencyFloor = 24 * time.Hour
 	}
+	if strings.TrimSpace(config.SummaryInstruction) == "" {
+		config.SummaryInstruction = policy.DefaultSummaryInstruction
+	}
 	return &Service{repo: repo, source: source, inference: client, config: config, now: func() time.Time { return time.Now().UTC() }}
 }
 
 // Run keeps the compactable portion of the mixed-depth frontier within its
-// pressure target. Non-episode leaves remain roots by design: they are durable
-// recall records, not candidates for lossy contextual compaction.
+// pressure target. Leaves the policy layer declines to admit remain roots by
+// design: they are durable recall records, not candidates for lossy contextual
+// compaction.
 func (s *Service) Run(ctx context.Context) (CompactionResult, error) {
 	s.runMu.Lock()
 	defer s.runMu.Unlock()
@@ -76,7 +93,7 @@ func (s *Service) runLocked(ctx context.Context) (CompactionResult, error) {
 			}
 			return result, fmt.Errorf("no eligible candidate pair remains while frontier is above target")
 		}
-		prompt := summaryPrompt(best[0], best[1])
+		prompt := summaryPrompt(s.config.SummaryInstruction, best[0], best[1])
 		body, err := s.summarize(ctx, prompt)
 		if err != nil {
 			// A single malformed or provider-hostile cluster must not strand the
@@ -151,7 +168,7 @@ func (s *Service) eligible(ctx context.Context) ([]Candidate, error) {
 	cutoff := s.now().Add(-s.config.RecencyFloor)
 	out := candidates[:0]
 	for _, c := range candidates {
-		if !c.Pinned && (c.RetentionPolicy == "" || c.RetentionPolicy == "compact") && !c.CreatedAt.After(cutoff) && len(c.Vector) > 0 {
+		if !c.Pinned && c.Compactable && !c.CreatedAt.After(cutoff) && len(c.Vectors) > 0 {
 			out = append(out, c)
 		}
 	}
@@ -173,7 +190,7 @@ func bestPairExcluding(candidates []Candidate, excluded map[string]struct{}) ([2
 			if _, skip := excluded[key]; skip {
 				continue
 			}
-			score := cosine(candidates[i].Vector, candidates[j].Vector)
+			score := bestSpacePairScore(candidates[i].Vectors, candidates[j].Vectors)
 			if score > best {
 				best, selected, selectedKey = score, [2]Candidate{candidates[i], candidates[j]}, key
 			}
@@ -188,6 +205,20 @@ func pairKey(a, b Candidate) string {
 		left, right = right, left
 	}
 	return left + "|" + right
+}
+
+// bestSpacePairScore compares each derived space against its counterpart and
+// keeps the strongest agreement. Cross-space comparison is meaningless — an
+// entities framing against a topic framing scores noise — so spaces are paired
+// by index and the shorter side bounds the comparison.
+func bestSpacePairScore(a, b [][]float64) float64 {
+	best := -1.0
+	for i := 0; i < len(a) && i < len(b); i++ {
+		if score := cosine(a[i], b[i]); score > best {
+			best = score
+		}
+	}
+	return best
 }
 
 func cosine(a, b []float64) float64 {
@@ -206,10 +237,10 @@ func cosine(a, b []float64) float64 {
 	return dot / math.Sqrt(aa*bb)
 }
 
-func summaryPrompt(a, b Candidate) string {
+func summaryPrompt(instruction string, a, b Candidate) string {
 	ordered := []Candidate{a, b}
 	sort.SliceStable(ordered, func(i, j int) bool { return ordered[i].CreatedAt.Before(ordered[j].CreatedAt) })
-	return fmt.Sprintf("Summarize these episode memories for future agent context. Preserve supported facts and drop redundancy. A source may have EARLIER CONTEXT, STATUS EVIDENCE, and LATEST CONTEXT. STATUS EVIDENCE and LATEST CONTEXT are authoritative for the source's current state: do not headline, repeat, or infer a current status from EARLIER CONTEXT when either supersedes or conflicts with it. Sources may contain their own dated status updates: within each source, treat its latest explicit dated update as authoritative over earlier prose. Across sources, prefer the later source timestamp, including fractional seconds. Never turn a disagreement into a definite claim: when the excerpts do not establish a current state, say that status is unresolved and identify the competing states. Do not conjoin contradictory claims.\n\n[%s] %s\n\n[%s] %s", ordered[0].CreatedAt.Format(time.RFC3339Nano), boundedSummaryInput(ordered[0].Body), ordered[1].CreatedAt.Format(time.RFC3339Nano), boundedSummaryInput(ordered[1].Body))
+	return fmt.Sprintf("%s Preserve supported facts and drop redundancy. A source may have EARLIER CONTEXT, STATUS EVIDENCE, and LATEST CONTEXT. STATUS EVIDENCE and LATEST CONTEXT are authoritative for the source's current state: do not headline, repeat, or infer a current status from EARLIER CONTEXT when either supersedes or conflicts with it. Sources may contain their own dated status updates: within each source, treat its latest explicit dated update as authoritative over earlier prose. Across sources, prefer the later source timestamp, including fractional seconds. Never turn a disagreement into a definite claim: when the excerpts do not establish a current state, say that status is unresolved and identify the competing states. Do not conjoin contradictory claims.\n\n[%s] %s\n\n[%s] %s", instruction, ordered[0].CreatedAt.Format(time.RFC3339Nano), boundedSummaryInput(ordered[0].Body), ordered[1].CreatedAt.Format(time.RFC3339Nano), boundedSummaryInput(ordered[1].Body))
 }
 
 func boundedSummaryInput(text string) string {

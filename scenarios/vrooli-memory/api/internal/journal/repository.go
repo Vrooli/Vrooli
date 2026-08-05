@@ -18,6 +18,9 @@ type Repository interface {
 	ClassificationRetries(context.Context, int) ([]RetryItem, error)
 	AcknowledgeRetry(context.Context, string) error
 	PruneResolvedClassificationRetries(context.Context) (int, error)
+	// EnqueueUnclassified re-queues every entry still carrying the sentinel
+	// facet, so a lost queue row cannot strand a memory outside the vocabulary.
+	EnqueueUnclassified(context.Context) (int, error)
 	EmbeddingRetries(context.Context, int) ([]RetryItem, error)
 	StoreFacetEmbedding(context.Context, string, []float64) error
 	AcknowledgeEmbeddingRetries(context.Context, string) error

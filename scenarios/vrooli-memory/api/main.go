@@ -187,7 +187,7 @@ func main() {
 	for _, definition := range definitions {
 		facetBudgets[definition.ID] = definition.ResidentBudget
 	}
-	recallConfig := internalrecall.Config{FrontierTarget: policyConfig.FrontierTarget, WakeBudget: policyConfig.WakeBudget, FacetBudgets: facetBudgets}
+	recallConfig := internalrecall.Config{FrontierTarget: policyConfig.FrontierTarget, WakeBudget: policyConfig.WakeBudget, MaxEntryLines: policyConfig.MaxEntryLines, FacetBudgets: facetBudgets}
 	resolver := policy.NewResolver(policy.AgentMemory, policyConfig, func(ctx context.Context) ([]policy.Facet, error) {
 		definitions, err := facetService.List(ctx)
 		if err != nil {

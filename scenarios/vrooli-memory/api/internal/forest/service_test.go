@@ -9,13 +9,16 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"vrooli-memory/internal/inference"
+	"vrooli-memory/internal/policy"
 	"vrooli-memory/internal/testutil/mocks"
 )
 
 func TestSummaryPromptPreservesTailAndForbidsInventedResolution(t *testing.T) { // [REQ:VMEM-P1-004]
 	longSource := "initial status: phases 2-7 remain unimplemented\n" + strings.Repeat("detail ", 1000) + "\n2026-07-27: phases 2-7 shipped and validated"
 	prompt := summaryPrompt(
+		policy.DefaultSummaryInstruction,
 		Candidate{Body: longSource, CreatedAt: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)},
 		Candidate{Body: "separate source", CreatedAt: time.Date(2026, 7, 2, 0, 0, 0, 0, time.UTC)},
 	)
@@ -42,11 +45,11 @@ func TestRecentStatusEvidencePrefersRecentStatusPassages(t *testing.T) {
 func TestRunCompactsOnlyEligibleOldEpisodesAndPreservesLeaves(t *testing.T) { // [REQ:VMEM-P0-001] [REQ:VMEM-P0-007]
 	now := time.Date(2026, 7, 29, 12, 0, 0, 0, time.UTC)
 	source := &memorySource{candidates: []Candidate{
-		{ID: "a", FacetID: "episode", Body: "old episode a", Vector: []float64{1, 0}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
-		{ID: "b", FacetID: "episode", Body: "old episode b", Vector: []float64{.99, .01}, CreatedAt: now.Add(-47 * time.Hour), Kind: "entry"},
-		{ID: "pinned", FacetID: "episode", Body: "pinned", Vector: []float64{1, 0}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry", Pinned: true},
-		{ID: "rule", FacetID: "standing-rule", RetentionPolicy: "retain", Body: "rule", Vector: []float64{1, 0}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
-		{ID: "recent", FacetID: "episode", Body: "recent", Vector: []float64{1, 0}, CreatedAt: now.Add(-time.Hour), Kind: "entry"},
+		{ID: "a", FacetID: "episode", Compactable: true, Body: "old episode a", Vectors: [][]float64{{1, 0}}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
+		{ID: "b", FacetID: "episode", Compactable: true, Body: "old episode b", Vectors: [][]float64{{.99, .01}}, CreatedAt: now.Add(-47 * time.Hour), Kind: "entry"},
+		{ID: "pinned", FacetID: "episode", Compactable: true, Body: "pinned", Vectors: [][]float64{{1, 0}}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry", Pinned: true},
+		{ID: "rule", FacetID: "standing-rule", Compactable: false, RetentionPolicy: "retain", Body: "rule", Vectors: [][]float64{{1, 0}}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
+		{ID: "recent", FacetID: "episode", Compactable: true, Body: "recent", Vectors: [][]float64{{1, 0}}, CreatedAt: now.Add(-time.Hour), Kind: "entry"},
 	}}
 	repo := &memoryRepo{source: source}
 	svc := NewService(repo, source, &mocks.FakeInference{SummarizeOut: "compressed old episodes", EmbedOut: []float64{1, 0}}, Config{Target: 1, RecencyFloor: 24 * time.Hour})
@@ -62,7 +65,7 @@ func TestRunCompactsOnlyEligibleOldEpisodesAndPreservesLeaves(t *testing.T) { //
 
 func TestRunWithFrontierUnderTargetIsNoop(t *testing.T) { // [REQ:VMEM-P0-007]
 	now := time.Now().UTC()
-	source := &memorySource{candidates: []Candidate{{ID: "only", FacetID: "episode", Body: "only", Vector: []float64{1, 0}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"}}}
+	source := &memorySource{candidates: []Candidate{{ID: "only", FacetID: "episode", Compactable: true, Body: "only", Vectors: [][]float64{{1, 0}}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"}}}
 	repo := &memoryRepo{source: source}
 	svc := NewService(repo, source, &mocks.FakeInference{SummarizeOut: "must not run", EmbedOut: []float64{1, 0}}, Config{Target: 2})
 	result, err := svc.Run(context.Background())
@@ -74,9 +77,9 @@ func TestRunWithFrontierUnderTargetIsNoop(t *testing.T) { // [REQ:VMEM-P0-007]
 func TestRunLeavesOrphanUntilTightClusterCompacts(t *testing.T) { // [REQ:VMEM-P0-007]
 	now := time.Now().UTC()
 	source := &memorySource{candidates: []Candidate{
-		{ID: "tight-a", FacetID: "episode", Body: "tight a", Vector: []float64{1, 0}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
-		{ID: "tight-b", FacetID: "episode", Body: "tight b", Vector: []float64{.99, .01}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
-		{ID: "orphan", FacetID: "episode", Body: "orphan", Vector: []float64{0, 1}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
+		{ID: "tight-a", FacetID: "episode", Compactable: true, Body: "tight a", Vectors: [][]float64{{1, 0}}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
+		{ID: "tight-b", FacetID: "episode", Compactable: true, Body: "tight b", Vectors: [][]float64{{.99, .01}}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
+		{ID: "orphan", FacetID: "episode", Compactable: true, Body: "orphan", Vectors: [][]float64{{0, 1}}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
 	}}
 	repo := &memoryRepo{source: source}
 	svc := NewService(repo, source, &mocks.FakeInference{SummarizeOut: "tight summary", EmbedOut: []float64{1, 0}}, Config{Target: 2})
@@ -94,8 +97,8 @@ func TestRunLeavesOrphanUntilTightClusterCompacts(t *testing.T) { // [REQ:VMEM-P
 func TestCompactionPreservesPinnedEntry(t *testing.T) { // [REQ:VMEM-P0-006]
 	now := time.Now().UTC()
 	source := &memorySource{candidates: []Candidate{
-		{ID: "pinned", FacetID: "episode", Body: "pinned", Vector: []float64{1, 0}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry", Pinned: true},
-		{ID: "ordinary", FacetID: "episode", Body: "ordinary", Vector: []float64{1, 0}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
+		{ID: "pinned", FacetID: "episode", Compactable: true, Body: "pinned", Vectors: [][]float64{{1, 0}}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry", Pinned: true},
+		{ID: "ordinary", FacetID: "episode", Compactable: true, Body: "ordinary", Vectors: [][]float64{{1, 0}}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
 	}}
 	repo := &memoryRepo{source: source}
 	svc := NewService(repo, source, &mocks.FakeInference{SummarizeOut: "must not run", EmbedOut: []float64{1, 0}}, Config{Target: 1})
@@ -108,10 +111,10 @@ func TestCompactionPreservesPinnedEntry(t *testing.T) { // [REQ:VMEM-P0-006]
 func TestRunSkipsFailedPairAndCompactsNextCluster(t *testing.T) {
 	now := time.Now().UTC()
 	source := &memorySource{candidates: []Candidate{
-		{ID: "failed-a", FacetID: "episode", Body: "failed a", Vector: []float64{1, 0}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
-		{ID: "failed-b", FacetID: "episode", Body: "failed b", Vector: []float64{.99, .01}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
-		{ID: "good-a", FacetID: "episode", Body: "good a", Vector: []float64{0, 1}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
-		{ID: "good-b", FacetID: "episode", Body: "good b", Vector: []float64{.01, .99}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
+		{ID: "failed-a", FacetID: "episode", Compactable: true, Body: "failed a", Vectors: [][]float64{{1, 0}}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
+		{ID: "failed-b", FacetID: "episode", Compactable: true, Body: "failed b", Vectors: [][]float64{{.99, .01}}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
+		{ID: "good-a", FacetID: "episode", Compactable: true, Body: "good a", Vectors: [][]float64{{0, 1}}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
+		{ID: "good-b", FacetID: "episode", Compactable: true, Body: "good b", Vectors: [][]float64{{.01, .99}}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
 	}}
 	repo := &memoryRepo{source: source}
 	client := &retryingInference{errs: []error{errors.New("provider unavailable")}}
@@ -124,7 +127,7 @@ func TestRunSkipsFailedPairAndCompactsNextCluster(t *testing.T) {
 
 func TestRunSummaryFailureLeavesFrontierUnchanged(t *testing.T) {
 	now := time.Now().UTC()
-	source := &memorySource{candidates: []Candidate{{ID: "a", FacetID: "episode", Vector: []float64{1, 0}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"}, {ID: "b", FacetID: "episode", Vector: []float64{1, 0}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"}}}
+	source := &memorySource{candidates: []Candidate{{ID: "a", FacetID: "episode", Compactable: true, Vectors: [][]float64{{1, 0}}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"}, {ID: "b", FacetID: "episode", Compactable: true, Vectors: [][]float64{{1, 0}}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"}}}
 	repo := &memoryRepo{source: source}
 	svc := NewService(repo, source, &mocks.FakeInference{SummarizeErr: errors.New("offline")}, Config{Target: 1})
 	svc.now = func() time.Time { return now }
@@ -136,7 +139,7 @@ func TestRunSummaryFailureLeavesFrontierUnchanged(t *testing.T) {
 
 func TestRunRetriesTransientSummaryEOFBeforeWriting(t *testing.T) {
 	now := time.Now().UTC()
-	source := &memorySource{candidates: []Candidate{{ID: "a", FacetID: "episode", Vector: []float64{1, 0}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"}, {ID: "b", FacetID: "episode", Vector: []float64{1, 0}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"}}}
+	source := &memorySource{candidates: []Candidate{{ID: "a", FacetID: "episode", Compactable: true, Vectors: [][]float64{{1, 0}}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"}, {ID: "b", FacetID: "episode", Compactable: true, Vectors: [][]float64{{1, 0}}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"}}}
 	repo := &memoryRepo{source: source}
 	client := &retryingInference{errs: []error{errors.New("unavailable: unexpected EOF")}}
 	svc := NewService(repo, source, client, Config{Target: 1})
@@ -150,10 +153,10 @@ func TestRunRetriesTransientSummaryEOFBeforeWriting(t *testing.T) {
 func TestRunRepeatsUntilEligibleFrontierReachesTarget(t *testing.T) { // [REQ:VMEM-P0-007]
 	now := time.Now().UTC()
 	source := &memorySource{candidates: []Candidate{
-		{ID: "a", FacetID: "episode", Vector: []float64{1, 0}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
-		{ID: "b", FacetID: "episode", Vector: []float64{.99, .01}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
-		{ID: "c", FacetID: "episode", Vector: []float64{0, 1}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
-		{ID: "d", FacetID: "episode", Vector: []float64{.01, .99}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
+		{ID: "a", FacetID: "episode", Compactable: true, Vectors: [][]float64{{1, 0}}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
+		{ID: "b", FacetID: "episode", Compactable: true, Vectors: [][]float64{{.99, .01}}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
+		{ID: "c", FacetID: "episode", Compactable: true, Vectors: [][]float64{{0, 1}}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
+		{ID: "d", FacetID: "episode", Compactable: true, Vectors: [][]float64{{.01, .99}}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
 	}}
 	repo := &memoryRepo{source: source}
 	svc := NewService(repo, source, &mocks.FakeInference{SummarizeOut: "summary", EmbedOut: []float64{1, 0}}, Config{Target: 1})
@@ -196,7 +199,7 @@ func (r *memoryRepo) CreateSummary(_ context.Context, s Summary, edges []Edge) (
 			next = append(next, c)
 		}
 	}
-	next = append(next, Candidate{ID: s.ID, FacetID: s.FacetID, Body: s.Body, Vector: s.Vector, CreatedAt: time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC), Kind: "summary", Depth: s.Depth, Generation: s.Generation})
+	next = append(next, Candidate{Compactable: true, ID: s.ID, FacetID: s.FacetID, Body: s.Body, Vectors: [][]float64{s.Vector}, CreatedAt: time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC), Kind: "summary", Depth: s.Depth, Generation: s.Generation})
 	r.source.candidates = next
 	r.source.leaves = append(r.source.leaves, edges[0].ChildID, edges[1].ChildID)
 	return s, nil
@@ -222,4 +225,45 @@ func (r *retryingInference) Summarize(context.Context, string) (string, error) {
 		return "", err
 	}
 	return "retry summary", nil
+}
+
+// VMEM-P1-005's purpose clause: several derived facet texts exist so clustering
+// can group by more than one notion of relatedness. Scoring only the first space
+// meant two memories about the same entities never clustered when their topic
+// framings diverged.
+func TestClusteringGroupsOnASecondaryFacetSpace(t *testing.T) { // [REQ:VMEM-P1-005]
+	now := time.Now().UTC()
+	// Topic framings (index 0) pull a/b apart; entities framings (index 1) agree.
+	source := &memorySource{candidates: []Candidate{
+		{
+			ID: "a", FacetID: "episode", Compactable: true, Body: "a", Kind: "entry", CreatedAt: now.Add(-48 * time.Hour),
+			Vectors: [][]float64{{1, 0}, {0, 1}},
+		},
+		{
+			ID: "b", FacetID: "episode", Compactable: true, Body: "b", Kind: "entry", CreatedAt: now.Add(-48 * time.Hour),
+			Vectors: [][]float64{{0, 1}, {0, 1}},
+		},
+		{
+			ID: "c", FacetID: "episode", Compactable: true, Body: "c", Kind: "entry", CreatedAt: now.Add(-48 * time.Hour),
+			Vectors: [][]float64{{.7, .7}, {1, 0}},
+		},
+	}}
+	repo := &memoryRepo{source: source}
+	svc := NewService(repo, source, &mocks.FakeInference{SummarizeOut: "shared entities", EmbedOut: []float64{1, 0}}, Config{Target: 2})
+	svc.now = func() time.Time { return now }
+
+	result, err := svc.Run(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, 1, result.CompactedCount)
+	require.Equal(t, []string{"a", "b"}, repo.edges[0].childIDs(),
+		"a and b agree perfectly on the entities space and must cluster there, even though c is closer to a on topic")
+}
+
+func TestPairScoringNeverComparesAcrossFacetSpaces(t *testing.T) { // [REQ:VMEM-P1-005]
+	// Identical vectors sit in different spaces. Comparing index 0 to index 1
+	// would score a perfect match that means nothing.
+	require.InDelta(t, -1.0, bestSpacePairScore([][]float64{{1, 0}}, [][]float64{}), 1e-9)
+	require.InDelta(t, 0.0, bestSpacePairScore([][]float64{{1, 0}}, [][]float64{{0, 1}}), 1e-9)
+	// A summary carries one space; a leaf carries three. The shorter side bounds.
+	require.InDelta(t, 1.0, bestSpacePairScore([][]float64{{1, 0}}, [][]float64{{1, 0}, {0, 1}, {1, 1}}), 1e-9)
 }

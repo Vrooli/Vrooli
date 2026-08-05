@@ -105,6 +105,12 @@ func (s *Service) ProcessClassificationRetries(ctx context.Context, limit int) (
 	if limit > 500 {
 		limit = 500
 	}
+	// Reconcile by state before draining the queue. An entry that was written
+	// while inference was unavailable is unclassified whether or not a queue row
+	// survived, and queue rows have been lost before. State is the authority.
+	if _, err := s.repo.EnqueueUnclassified(ctx); err != nil {
+		return RetryResult{}, err
+	}
 	resolved, err := s.repo.PruneResolvedClassificationRetries(ctx)
 	if err != nil {
 		return RetryResult{}, err

@@ -16,6 +16,7 @@ func NewService(repo Repository, classifiers ...inference.Client) *Service {
 	}
 	return s
 }
+
 func (s *Service) Seed(ctx context.Context) error {
 	return s.repo.Seed(ctx)
 }
@@ -43,12 +44,15 @@ func (s *Service) SetPin(ctx context.Context, id string, pinned bool) error {
 func (s *Service) MarkSuperseded(ctx context.Context, entryID, replacementID string) error {
 	return s.repo.MarkSuperseded(ctx, entryID, replacementID)
 }
+
 func (s *Service) ResolveThread(ctx context.Context, entryID string) error {
 	return s.repo.ResolveThread(ctx, entryID)
 }
+
 func (s *Service) ListPinProposals(ctx context.Context) ([]PinProposal, error) {
 	return s.repo.ListPinProposals(ctx)
 }
+
 func (s *Service) ResolvePinProposal(ctx context.Context, id string, accept bool) error {
 	return s.repo.ResolvePinProposal(ctx, id, accept)
 }

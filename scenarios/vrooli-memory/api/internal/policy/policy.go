@@ -18,29 +18,51 @@ const (
 	AgentMemory       Scope = "agent-memory"
 	FrontierTargetEnv       = "VROOLI_MEMORY_FRONTIER_TARGET"
 	WakeBudgetEnv           = "VROOLI_MEMORY_WAKE_BUDGET"
+	MaxEntryLinesEnv        = "VROOLI_MEMORY_MAX_ENTRY_LINES"
 )
 
 type Config struct {
 	FrontierTarget int
 	WakeBudget     int
+	MaxEntryLines  int
 }
 
 const (
 	DefaultFrontierTarget = 16
-	DefaultWakeBudget     = 40
+	// DefaultWakeBudget bounds the whole ambient view in lines. It must be able
+	// to hold every facet's resident budget at DefaultMaxEntryLines apiece, or
+	// the declared residencies are unsatisfiable and the last facets in order
+	// silently never appear.
+	DefaultWakeBudget = 96
+	// DefaultMaxEntryLines bounds one memory's contribution to the ambient view.
+	// Wake is an index into memory, not a copy of it: the journal keeps every
+	// line and recall returns them.
+	DefaultMaxEntryLines = 2
 )
+
+// DefaultSummaryInstruction is the agent-memory scope's opening line for the
+// summarization prompt. It lives here rather than in the compaction engine
+// because it names what this scope stores; a second scope replaces it without
+// touching the engine.
+const DefaultSummaryInstruction = "Summarize these episode memories for future agent context."
+
+// ExpireOnResolution is the retention policy whose members leave the ambient
+// frontier once marked resolved. The engine knows that some facets expire on
+// resolution; only this package knows what that policy is called.
+const ExpireOnResolution = "expire-on-resolution"
 
 // Resolve loads the policy values for the single active scope. Environment
 // variables are inputs, not policy logic: every caller receives one validated
 // result from this package.
 func Resolve(lookupEnv func(string) (string, bool)) (Config, error) {
-	c := Config{FrontierTarget: DefaultFrontierTarget, WakeBudget: DefaultWakeBudget}
+	c := Config{FrontierTarget: DefaultFrontierTarget, WakeBudget: DefaultWakeBudget, MaxEntryLines: DefaultMaxEntryLines}
 	for _, setting := range []struct {
 		name string
 		set  func(int)
 	}{
 		{name: FrontierTargetEnv, set: func(v int) { c.FrontierTarget = v }},
 		{name: WakeBudgetEnv, set: func(v int) { c.WakeBudget = v }},
+		{name: MaxEntryLinesEnv, set: func(v int) { c.MaxEntryLines = v }},
 	} {
 		raw, ok := lookupEnv(setting.name)
 		if !ok || strings.TrimSpace(raw) == "" {

@@ -18,6 +18,10 @@ type handlerSource []internalrecall.Node
 
 func (s handlerSource) Nodes(context.Context) ([]internalrecall.Node, error) { return s, nil }
 
+func (s handlerSource) AmbientNodes(context.Context, int) ([]internalrecall.Node, error) {
+	return s, nil
+}
+
 type handlerEmbedder struct{ vector []float64 }
 
 func (e handlerEmbedder) EmbedQuery(context.Context, string) ([]float64, error) { return e.vector, nil }
@@ -25,8 +29,8 @@ func (e handlerEmbedder) EmbedQuery(context.Context, string) ([]float64, error) 
 func TestWakeReportsOverflowAndRecallExposesZoomableNodeID(t *testing.T) {
 	now := time.Now()
 	svc := internalrecall.NewService(handlerSource{
-		{ID: "pinned", EntryID: "entry-pinned", Pinned: true, Text: "one\ntwo", CreatedAt: now, Vector: []float64{0, 1}},
-		{ID: "summary-1", EntryID: "summary-1", FacetID: "episode", Frontier: true, Text: "summary", CreatedAt: now.Add(time.Second), Vector: []float64{1, 0}, Depth: 1, Span: 2, Summary: true},
+		{ID: "pinned", EntryID: "entry-pinned", Pinned: true, Text: "one\ntwo", CreatedAt: now, Vectors: [][]float64{{0, 1}}},
+		{ID: "summary-1", EntryID: "summary-1", FacetID: "episode", Frontier: true, Text: "summary", CreatedAt: now.Add(time.Second), Vectors: [][]float64{{1, 0}}, Depth: 1, Span: 2, Summary: true},
 	}, handlerEmbedder{vector: []float64{1, 0}}, internalrecall.Config{WakeBudget: 1})
 	h := NewConnectHandler(svc, nil)
 

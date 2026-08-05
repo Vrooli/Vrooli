@@ -72,10 +72,12 @@ type contextualTestInference struct{ kind string }
 func (f *contextualTestInference) Classify(context.Context, string) (string, error) {
 	return "thread", nil
 }
+
 func (f *contextualTestInference) ClassifyEntry(_ context.Context, _ string, kind string) (string, error) {
 	f.kind = kind
 	return "episode", nil
 }
+
 func (*contextualTestInference) Embed(context.Context, string, inference.EmbeddingTask) ([]float64, error) {
 	return []float64{1}, nil
 }
