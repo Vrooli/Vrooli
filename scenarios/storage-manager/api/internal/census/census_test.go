@@ -210,7 +210,7 @@ func TestSnapshotStoreLatestReturnsAgeAndStalenessWithoutRescanning(t *testing.T
 	}
 	root := t.TempDir()
 	observed := time.Now().UTC().Add(-time.Hour)
-	report := Report{SnapshotID: "snapshot-old", Root: root, ObservedAt: observed, MeasuredBytes: 42, AttributedBytes: 42, UnattributedBytes: 0, Closed: true, AccountingIdentity: true, Confidence: "full", Entries: []Entry{}, ScanPolicy: ScanPolicy{FloorBytes: 1}}
+	report := Report{SnapshotID: "snapshot-old", Root: root, ObservedAt: observed, MeasuredBytes: 42, AttributedBytes: 42, UnattributedBytes: 17, UnattributedKnown: true, Closed: true, AccountingIdentity: true, Confidence: "full", Entries: []Entry{}, ScanPolicy: ScanPolicy{FloorBytes: 1}}
 	payload, err := json.Marshal(report)
 	if err != nil {
 		t.Fatal(err)
@@ -224,5 +224,8 @@ func TestSnapshotStoreLatestReturnsAgeAndStalenessWithoutRescanning(t *testing.T
 	}
 	if latest == nil || latest.StalenessVerdict != "stale" || latest.SnapshotAgeSeconds == nil || *latest.SnapshotAgeSeconds < 3000 {
 		t.Fatalf("latest snapshot = %+v", latest)
+	}
+	if !latest.UnattributedKnown || latest.UnattributedBytes != 17 {
+		t.Fatalf("latest unattributed total = known:%v bytes:%d, want known: true bytes:17", latest.UnattributedKnown, latest.UnattributedBytes)
 	}
 }

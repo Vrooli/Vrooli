@@ -21,6 +21,7 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
@@ -129,6 +130,11 @@ func main() {
 	if repoErr != nil {
 		logger.Printf("repo root resolution failed; validation will report unresolved targets: %v", repoErr)
 	}
+	primaryPaths, pathsErr := scenarioStoragePaths()
+	if pathsErr != nil {
+		logger.Fatalf("file storage configuration failed: %v", pathsErr)
+	}
+	fileRoots := filerouting.New(primaryPaths)
 
 	// Scheduled census is intentionally delayed until the first interval. The
 	// API remains fast to ready, while long-lived processes persist immutable
@@ -163,7 +169,7 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, "storage-manager-api", "1.0.0"),
-		cleanupH.Module(logger, db),
+		cleanupH.Module(logger, db, fileRoots),
 		fleetH.Module(logger, repoRoot, db, clock.System{}),
 		advisorH.Module(logger, repoRoot),
 		validationH.Module(logger, repoRoot),
@@ -174,7 +180,7 @@ func main() {
 	// mode, the dev-only RoutingService used by test-genie to install a
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
-	devrouting.Register(rootMux, db)
+	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
 
 	apiMountPath := "/"
 	rootMux.Handle(apiMountPath, srv.Handler())
@@ -199,6 +205,22 @@ func main() {
 	}); err != nil {
 		logger.Fatalf("Server error: %v", err)
 	}
+}
+
+func scenarioStoragePaths() (storage.Paths, error) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+	if err != nil {
+		return storage.Paths{}, fmt.Errorf("create storage resolver: %w", err)
+	}
+	scenarioID, err := storage.ScenarioNamespace("storage-manager")
+	if err != nil {
+		return storage.Paths{}, fmt.Errorf("resolve storage-manager storage namespace: %w", err)
+	}
+	paths, err := resolver.Resolve(storage.Options{ScenarioID: scenarioID})
+	if err != nil {
+		return storage.Paths{}, fmt.Errorf("resolve storage-manager storage roots: %w", err)
+	}
+	return paths, nil
 }
 
 func retentionInterval() time.Duration {

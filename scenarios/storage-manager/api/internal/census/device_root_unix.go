@@ -14,6 +14,13 @@ func deviceRootForPath(path string) (string, error) {
 	return deviceRootForPathWith(hostFileSystem{}, path)
 }
 
+// DeviceRoot returns the canonical accounting root for a scan request. Device
+// scoped reports use this same root as their durable snapshot key, so status,
+// history, scheduled scans, and forced scans all address one observation.
+func DeviceRoot(path string) (string, error) {
+	return deviceRootForPath(path)
+}
+
 func deviceRootForPathWith(filesystem FileSystem, path string) (string, error) {
 	path, err := filepath.Abs(path)
 	if err != nil {

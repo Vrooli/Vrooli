@@ -18,12 +18,12 @@
 
 ### 🔴 P0 – Must ship for viability
 
-- [x] OT-P0-001 | Provider safety contract | Define cleanup providers with Estimate, Preview, Apply, Verify, safety tier, owner metadata, supported platforms, privilege requirements, irreversible effects, and test substitutes.
-- [x] OT-P0-002 | No-real-cleanup test seams | Route every host effect through injected filesystem, process, Docker, journal, clock, and scenario-provider seams, with fakes and drift tests proving tests cannot delete files or run cleanup commands against the real host.
-- [x] OT-P0-003 | Policy-gated scan and plan | Produce deterministic scans and cleanup plans from provider estimates plus operator policy, including conservative defaults, provider versions, policy versions, approval requirements, and blocked Conditional or Forbidden actions.
-- [x] OT-P0-004 | Replay-safe apply and audit | Apply only an approved exact plan with matching policy and provider versions plus idempotency key, return no-op on safe replay, and persist immutable redacted audit events.
-- [x] OT-P0-005 | CLI and API control surface | Expose scan, plan, provider catalog, policy get/set/list, apply, and audit list/show through stable CLI and API contracts with mutating commands marked confirmation-required.
-- [x] OT-P0-006 | Cross-platform verification honesty | Expose deterministic placement verification for linux, macos, and windows with synthetic foreign-platform identities and explicit declared absence.
+- [ ] OT-P0-001 | Provider safety contract | Define cleanup providers with Estimate, Preview, Apply, Verify, safety tier, owner metadata, supported platforms, privilege requirements, irreversible effects, and test substitutes.
+- [ ] OT-P0-002 | No-real-cleanup test seams | Route every host effect through injected filesystem, process, Docker, journal, clock, and scenario-provider seams, with fakes and drift tests proving tests cannot delete files or run cleanup commands against the real host.
+- [ ] OT-P0-003 | Policy-gated scan and plan | Produce deterministic scans and cleanup plans from provider estimates plus operator policy, including conservative defaults, provider versions, policy versions, approval requirements, and blocked Conditional or Forbidden actions.
+- [ ] OT-P0-004 | Replay-safe apply and audit | Apply only an approved exact plan with matching policy and provider versions plus idempotency key, return no-op on safe replay, and persist immutable redacted audit events.
+- [ ] OT-P0-005 | CLI and API control surface | Expose scan, plan, provider catalog, policy get/set/list, apply, and audit list/show through stable CLI and API contracts with mutating commands marked confirmation-required.
+- [ ] OT-P0-006 | Cross-platform verification honesty | Expose deterministic placement verification for linux, macos, and windows with synthetic foreign-platform identities and explicit declared absence.
 
 ### 🟠 P1 – Should have post-launch
 
@@ -37,7 +37,7 @@
 - [ ] OT-P2-001 | Scheduled policy execution | Add opt-in scheduled cleanup runs for eligible Safe and SafeWithOwner providers with explicit dry-run and audit retention controls.
 - [ ] OT-P2-002 | Fleet cleanup intelligence | Aggregate cleanup estimates, provider health, and reclaim outcomes across scenarios to guide capacity planning and future storage governance.
 - [ ] OT-P2-003 | Extended provider marketplace | Support registered scenario-owned providers with declarative metadata, contract validation, and reusable action discovery for future cleanup capabilities.
-- [x] OT-P2-004 | Advisory cross-platform declaration lint | Identify non-portable paths, platform mismatches, missing branches, and supersedable platform maps as warning-level declaration accountability findings.
+- [ ] OT-P2-004 | Advisory cross-platform declaration lint | Identify non-portable paths, platform mismatches, missing branches, and supersedable platform maps as warning-level declaration accountability findings.
 
 ## 🧱 Tech Direction Snapshot
 

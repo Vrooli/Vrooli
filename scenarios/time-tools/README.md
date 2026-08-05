@@ -172,7 +172,7 @@ PORT=8080 ./time-tools-api
 
 ### Database Schema
 
-The platform uses PostgreSQL with timezone-aware timestamps and advanced temporal functions. See `initialization/storage/postgres/schema.sql` for full schema.
+The platform uses PostgreSQL with timezone-aware timestamps and advanced temporal functions. See `api/internal/<domain>/storage/postgres/schema.sql` for full schema.
 
 ## 📝 Configuration
 

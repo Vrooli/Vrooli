@@ -26,8 +26,7 @@
     },
     "ignore": [
       "coverage",
-      "docs",
-      "initialization"
+      "docs"
     ]
   },
   "structure": {

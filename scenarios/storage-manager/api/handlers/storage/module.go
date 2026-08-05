@@ -33,6 +33,12 @@ func Module(d ModuleDeps) module.Module {
 	return module.Module{Name: "storage", Mount: func(r *mux.Router) {
 		store := census.NewSnapshotStore(d.DB)
 		placementService := placement.New(d.DB)
+		snapshotRoot := func(root string) string {
+			if canonical, err := census.DeviceRoot(root); err == nil && strings.TrimSpace(canonical) != "" {
+				return canonical
+			}
+			return root
+		}
 		r.HandleFunc("/api/v1/storage/inventory", func(w http.ResponseWriter, req *http.Request) {
 			if strings.TrimSpace(d.RepoRoot) == "" {
 				http.Error(w, "repository root is unavailable", http.StatusServiceUnavailable)
@@ -53,7 +59,7 @@ func Module(d ModuleDeps) module.Module {
 			}
 			force := strings.EqualFold(req.URL.Query().Get("force"), "true") || req.URL.Query().Get("force") == "1"
 			if !force {
-				latest, latestErr := store.Latest(req.Context(), root)
+				latest, latestErr := store.Latest(req.Context(), snapshotRoot(root))
 				if latestErr != nil {
 					http.Error(w, latestErr.Error(), http.StatusInternalServerError)
 					return
@@ -88,7 +94,7 @@ func Module(d ModuleDeps) module.Module {
 				root = requested
 			}
 			limit, _ := strconv.Atoi(req.URL.Query().Get("limit"))
-			history, err := store.History(context.Background(), root, limit)
+			history, err := store.History(context.Background(), snapshotRoot(root), limit)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return

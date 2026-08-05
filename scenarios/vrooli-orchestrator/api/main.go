@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+	schema "vrooli-orchestrator-api/internal/profiles"
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
@@ -379,6 +380,10 @@ func main() {
 	r.HandleFunc("/api/v1/status", orchestrator.GetStatus).Methods("GET")
 
 	// Start server with graceful shutdown
+
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		log.Fatalf("database schema initialization failed: %v", err)
+	}
 	if err := server.Run(server.Config{
 		Handler: r,
 		Cleanup: func(ctx context.Context) error { return db.Close() },

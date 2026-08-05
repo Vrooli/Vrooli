@@ -177,6 +177,13 @@ func looksLikeConfigName(v string) bool {
 	return envVarNameValue.MatchString(v) || httpHeaderNameValue.MatchString(v)
 }
 
+// looksLikeShellReference distinguishes a value sourced from the caller from
+// a literal credential. Bash assignments such as API_TOKEN="$value" are not
+// secrets, but the lexical detector cannot otherwise tell them apart.
+func looksLikeShellReference(v string) bool {
+	return strings.Contains(v, "$")
+}
+
 var ipv4Candidate = regexp.MustCompile(`\b\d{1,3}(?:\.\d{1,3}){3}\b`)
 
 func containsValidIPv4(line string) bool {
@@ -378,6 +385,9 @@ func CheckHardcodedValues(content []byte, filePath string) []Violation {
 			// the idiomatic `const X = "HEADER-NAME"` / `const X = "ENV_VAR_NAME"`.
 			if pattern.name == "hardcoded_api_key" || pattern.name == "hardcoded_password" {
 				if m := pattern.re.FindStringSubmatch(line); len(m) >= 3 && looksLikeConfigName(m[2]) {
+					continue
+				}
+				if m := pattern.re.FindStringSubmatch(line); len(m) >= 3 && looksLikeShellReference(m[2]) {
 					continue
 				}
 			}

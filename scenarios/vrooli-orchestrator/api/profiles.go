@@ -33,19 +33,19 @@ func (pm *ProfileManager) ListProfiles() ([]Profile, error) {
 		FROM profiles 
 		ORDER BY created_at DESC
 	`
-	
+
 	rows, err := pm.db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query profiles: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var profiles []Profile
 	for rows.Next() {
 		var p Profile
 		var metadataJSON, resourcesJSON, scenariosJSON, autoBrowserJSON, envVarsJSON, dependenciesJSON []byte
 		var idleShutdown sql.NullInt64
-		
+
 		err := rows.Scan(
 			&p.ID, &p.Name, &p.DisplayName, &p.Description,
 			&metadataJSON, &resourcesJSON, &scenariosJSON, &autoBrowserJSON,
@@ -56,7 +56,7 @@ func (pm *ProfileManager) ListProfiles() ([]Profile, error) {
 			pm.logger.Error("Failed to scan profile row", err)
 			continue
 		}
-		
+
 		// Parse JSON fields
 		json.Unmarshal(metadataJSON, &p.Metadata)
 		json.Unmarshal(resourcesJSON, &p.Resources)
@@ -64,15 +64,15 @@ func (pm *ProfileManager) ListProfiles() ([]Profile, error) {
 		json.Unmarshal(autoBrowserJSON, &p.AutoBrowser)
 		json.Unmarshal(envVarsJSON, &p.EnvironmentVars)
 		json.Unmarshal(dependenciesJSON, &p.Dependencies)
-		
+
 		if idleShutdown.Valid {
 			idle := int(idleShutdown.Int64)
 			p.IdleShutdown = &idle
 		}
-		
+
 		profiles = append(profiles, p)
 	}
-	
+
 	return profiles, nil
 }
 
@@ -85,13 +85,13 @@ func (pm *ProfileManager) GetProfile(name string) (*Profile, error) {
 		FROM profiles 
 		WHERE name = $1
 	`
-	
+
 	row := pm.db.QueryRow(query, name)
-	
+
 	var p Profile
 	var metadataJSON, resourcesJSON, scenariosJSON, autoBrowserJSON, envVarsJSON, dependenciesJSON []byte
 	var idleShutdown sql.NullInt64
-	
+
 	err := row.Scan(
 		&p.ID, &p.Name, &p.DisplayName, &p.Description,
 		&metadataJSON, &resourcesJSON, &scenariosJSON, &autoBrowserJSON,
@@ -104,7 +104,7 @@ func (pm *ProfileManager) GetProfile(name string) (*Profile, error) {
 		}
 		return nil, fmt.Errorf("failed to get profile: %w", err)
 	}
-	
+
 	// Parse JSON fields
 	json.Unmarshal(metadataJSON, &p.Metadata)
 	json.Unmarshal(resourcesJSON, &p.Resources)
@@ -112,12 +112,12 @@ func (pm *ProfileManager) GetProfile(name string) (*Profile, error) {
 	json.Unmarshal(autoBrowserJSON, &p.AutoBrowser)
 	json.Unmarshal(envVarsJSON, &p.EnvironmentVars)
 	json.Unmarshal(dependenciesJSON, &p.Dependencies)
-	
+
 	if idleShutdown.Valid {
 		idle := int(idleShutdown.Int64)
 		p.IdleShutdown = &idle
 	}
-	
+
 	return &p, nil
 }
 
@@ -128,17 +128,17 @@ func (pm *ProfileManager) CreateProfile(profileData map[string]interface{}) (*Pr
 	if !ok || name == "" {
 		return nil, fmt.Errorf("profile name is required")
 	}
-	
+
 	displayName, _ := profileData["display_name"].(string)
 	if displayName == "" {
 		displayName = name
 	}
-	
+
 	description, _ := profileData["description"].(string)
-	
+
 	// Generate UUID for new profile
 	profileID := uuid.New().String()
-	
+
 	// Extract arrays and objects
 	resources, _ := profileData["resources"].([]interface{})
 	scenarios, _ := profileData["scenarios"].([]interface{})
@@ -146,7 +146,7 @@ func (pm *ProfileManager) CreateProfile(profileData map[string]interface{}) (*Pr
 	dependencies, _ := profileData["dependencies"].([]interface{})
 	envVars, _ := profileData["environment_vars"].(map[string]interface{})
 	metadata, _ := profileData["metadata"].(map[string]interface{})
-	
+
 	// Convert to JSON
 	resourcesJSON, _ := json.Marshal(resources)
 	scenariosJSON, _ := json.Marshal(scenarios)
@@ -154,16 +154,16 @@ func (pm *ProfileManager) CreateProfile(profileData map[string]interface{}) (*Pr
 	dependenciesJSON, _ := json.Marshal(dependencies)
 	envVarsJSON, _ := json.Marshal(envVars)
 	metadataJSON, _ := json.Marshal(metadata)
-	
+
 	// Handle idle shutdown
 	var idleShutdown *int
 	if idle, ok := profileData["idle_shutdown_minutes"].(float64); ok {
 		idleVal := int(idle)
 		idleShutdown = &idleVal
 	}
-	
+
 	now := time.Now().UTC()
-	
+
 	query := `
 		INSERT INTO profiles (
 			id, name, display_name, description, metadata, resources, scenarios,
@@ -173,7 +173,7 @@ func (pm *ProfileManager) CreateProfile(profileData map[string]interface{}) (*Pr
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
 		)
 	`
-	
+
 	_, err := pm.db.Exec(
 		query, profileID, name, displayName, description, metadataJSON,
 		resourcesJSON, scenariosJSON, autoBrowserJSON, envVarsJSON,
@@ -185,9 +185,9 @@ func (pm *ProfileManager) CreateProfile(profileData map[string]interface{}) (*Pr
 		}
 		return nil, fmt.Errorf("failed to create profile: %w", err)
 	}
-	
+
 	pm.logger.Info(fmt.Sprintf("Created profile: %s (%s)", name, profileID))
-	
+
 	// Return the created profile
 	return pm.GetProfile(name)
 }
@@ -199,12 +199,12 @@ func (pm *ProfileManager) UpdateProfile(name string, updates map[string]interfac
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Build dynamic update query
 	var setParts []string
 	var args []interface{}
 	argIndex := 1
-	
+
 	for key, value := range updates {
 		switch key {
 		case "display_name", "description", "status":
@@ -229,32 +229,32 @@ func (pm *ProfileManager) UpdateProfile(name string, updates map[string]interfac
 			}
 		}
 	}
-	
+
 	if len(setParts) == 0 {
 		return existingProfile, nil // No updates to apply
 	}
-	
+
 	// Add updated_at
 	setParts = append(setParts, fmt.Sprintf("updated_at = $%d", argIndex))
 	args = append(args, time.Now().UTC())
 	argIndex++
-	
+
 	// Add WHERE clause
 	args = append(args, existingProfile.ID)
-	
+
 	query := fmt.Sprintf(
 		"UPDATE profiles SET %s WHERE id = $%d",
 		strings.Join(setParts, ", "),
 		argIndex,
 	)
-	
+
 	_, err = pm.db.Exec(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update profile: %w", err)
 	}
-	
+
 	pm.logger.Info(fmt.Sprintf("Updated profile: %s", name))
-	
+
 	// Return updated profile
 	return pm.GetProfile(name)
 }
@@ -266,17 +266,17 @@ func (pm *ProfileManager) DeleteProfile(name string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	if profile.Status == "active" {
 		return fmt.Errorf("cannot delete active profile '%s'. Deactivate it first", name)
 	}
-	
+
 	// Delete the profile
 	_, err = pm.db.Exec("DELETE FROM profiles WHERE id = $1", profile.ID)
 	if err != nil {
 		return fmt.Errorf("failed to delete profile: %w", err)
 	}
-	
+
 	pm.logger.Info(fmt.Sprintf("Deleted profile: %s", name))
 	return nil
 }
@@ -292,35 +292,35 @@ func (pm *ProfileManager) GetActiveProfile() (*Profile, error) {
 		LEFT JOIN profiles p ON ap.profile_id = p.id
 		WHERE ap.id = 1 AND ap.profile_id IS NOT NULL
 	`
-	
+
 	row := pm.db.QueryRow(query)
-	
+
 	var p Profile
 	var metadataJSON, resourcesJSON, scenariosJSON, autoBrowserJSON, envVarsJSON, dependenciesJSON []byte
 	var idleShutdown sql.NullInt64
 	var activatedAt sql.NullTime
 	var profileID sql.NullString
-	
+
 	err := row.Scan(
 		&profileID, &p.Name, &p.DisplayName, &p.Description,
 		&metadataJSON, &resourcesJSON, &scenariosJSON, &autoBrowserJSON,
 		&envVarsJSON, &idleShutdown, &dependenciesJSON,
 		&p.Status, &p.CreatedAt, &p.UpdatedAt, &activatedAt,
 	)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil // No active profile
 		}
 		return nil, fmt.Errorf("failed to get active profile: %w", err)
 	}
-	
+
 	if !profileID.Valid {
 		return nil, nil // No active profile
 	}
-	
+
 	p.ID = profileID.String
-	
+
 	// Parse JSON fields
 	json.Unmarshal(metadataJSON, &p.Metadata)
 	json.Unmarshal(resourcesJSON, &p.Resources)
@@ -328,19 +328,19 @@ func (pm *ProfileManager) GetActiveProfile() (*Profile, error) {
 	json.Unmarshal(autoBrowserJSON, &p.AutoBrowser)
 	json.Unmarshal(envVarsJSON, &p.EnvironmentVars)
 	json.Unmarshal(dependenciesJSON, &p.Dependencies)
-	
+
 	if idleShutdown.Valid {
 		idle := int(idleShutdown.Int64)
 		p.IdleShutdown = &idle
 	}
-	
+
 	return &p, nil
 }
 
 // SetActiveProfile sets a profile as active
 func (pm *ProfileManager) SetActiveProfile(profileID string) error {
 	now := time.Now().UTC()
-	
+
 	// Update the active profile record
 	_, err := pm.db.Exec(`
 		INSERT INTO active_profile (id, profile_id, activated_at)
@@ -349,20 +349,20 @@ func (pm *ProfileManager) SetActiveProfile(profileID string) error {
 			profile_id = EXCLUDED.profile_id,
 			activated_at = EXCLUDED.activated_at
 	`, profileID, now)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to set active profile: %w", err)
 	}
-	
+
 	// Update profile status to active
 	_, err = pm.db.Exec(`
 		UPDATE profiles SET status = 'active', updated_at = $1 WHERE id = $2
 	`, now, profileID)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to update profile status: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -373,26 +373,26 @@ func (pm *ProfileManager) ClearActiveProfile() error {
 	if err != nil {
 		return fmt.Errorf("failed to get active profile: %w", err)
 	}
-	
+
 	if activeProfile != nil {
 		// Update profile status to inactive
 		_, err = pm.db.Exec(`
 			UPDATE profiles SET status = 'inactive', updated_at = $1 WHERE id = $2
 		`, time.Now().UTC(), activeProfile.ID)
-		
+
 		if err != nil {
 			return fmt.Errorf("failed to update profile status: %w", err)
 		}
 	}
-	
+
 	// Clear active profile record
 	_, err = pm.db.Exec(`
 		UPDATE active_profile SET profile_id = NULL, activated_at = NULL WHERE id = 1
 	`)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to clear active profile: %w", err)
 	}
-	
+
 	return nil
 }

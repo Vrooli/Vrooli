@@ -124,6 +124,26 @@ func (r Report) MarshalJSON() ([]byte, error) {
 	return json.Marshal(object)
 }
 
+// UnmarshalJSON restores the internal knowledge bit that MarshalJSON keeps
+// out of the public contract. Without this, a persisted report with a real
+// unattributed total would be re-encoded as null by status/history handlers
+// after a restart, even though the durable payload contained the value.
+func (r *Report) UnmarshalJSON(data []byte) error {
+	type alias Report
+	if err := json.Unmarshal(data, (*alias)(r)); err != nil {
+		return err
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	r.UnattributedKnown = false
+	if raw, ok := fields["unattributed_bytes"]; ok && string(raw) != "null" {
+		r.UnattributedKnown = true
+	}
+	return nil
+}
+
 type Declaration struct {
 	Name     string
 	Path     string

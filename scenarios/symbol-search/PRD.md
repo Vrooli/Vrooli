@@ -474,7 +474,7 @@ direct_execution:
   supported: true
   structure_compliance:
     - .vrooli/service.json with complete metadata
-    - PostgreSQL initialization files
+    - PostgreSQL schema-provider files
     - API and UI startup scripts  
     - Health check endpoints for monitoring
     
@@ -546,7 +546,7 @@ slice of the original declarative checks that used to live in
 `scenario-test.yaml`:
 
 - **Structure** – verifies the presence of `.vrooli/service.json`, `PRD.md`,
-  initialization assets, CLI entrypoints, and UI source directories.
+  domain-owned assets, CLI entrypoints, and UI source directories.
 - **Dependencies** – runs `go list`, validates the CLI installation script, and
   performs an install dry run using the package manager declared in
   `ui/package.json`.

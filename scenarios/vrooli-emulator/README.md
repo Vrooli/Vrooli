@@ -34,7 +34,7 @@ Immediately replace placeholder tokens (scenario name, description, maintainer i
 - **Requirements seed**: `requirements/index.json` + `requirements/modules/foundation.json` show how operational targets trace to technical requirements.
 - **Lifecycle metadata seed**: `.vrooli/service.json`, `endpoints.json`, `testing.json`, and `lighthouse.json` so status/health/testing commands work immediately after copy.
 - **Progress log**: `docs/PROGRESS.md` so improvers track deltas outside PRD.md.
-- **Database placeholder**: `initialization/storage/postgres/seed.sql` to remind agents where to place migrations/seeds without shipping fake data.
+- **Database placeholder**: `api/internal/<domain>/storage/postgres/seed.sql` to remind agents where to place migrations/seeds without shipping fake data.
 
 ## Setup Workflow
 ```bash

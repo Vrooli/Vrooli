@@ -257,8 +257,8 @@ func assertErrorResponse(t *testing.T, rr *httptest.ResponseRecorder, expectedSt
 func containsIgnoreCase(s, substr string) bool {
 	return len(s) >= len(substr) &&
 		(s == substr || len(substr) == 0 ||
-		(len(s) > 0 && len(substr) > 0 &&
-		bytes.Contains(bytes.ToLower([]byte(s)), bytes.ToLower([]byte(substr)))))
+			(len(s) > 0 && len(substr) > 0 &&
+				bytes.Contains(bytes.ToLower([]byte(s)), bytes.ToLower([]byte(substr)))))
 }
 
 // createTestProfile creates a test profile in the database

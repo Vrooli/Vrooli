@@ -429,6 +429,35 @@
           }
         },
         {
+          "path": "concepts/test-isolation-contract.md",
+          "docType": "concept",
+          "title": "Test Isolation Contract",
+          "aliases": [
+            "test-isolation",
+            "routed-file-storage"
+          ],
+          "description": "The routed database and file-root contract required before mutating test-genie playbooks may run",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "test-isolation-contract",
+            "routed-file-storage"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "Test isolation contract"
+            ]
+          }
+        },
+        {
           "path": "concepts/FLOWS.md",
           "docType": "flows",
           "title": "Flows",

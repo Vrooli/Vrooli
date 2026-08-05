@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	schema "github.com/vrooli/vrooli/scenarios/symbol-search/api/internal/symbols"
 	"log"
 	"net/http"
 	"strconv"
@@ -139,6 +140,10 @@ func main() {
 	}
 
 	log.Printf("Starting Symbol Search API server")
+
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		log.Fatalf("database schema initialization failed: %v", err)
+	}
 	if err := server.Run(server.Config{
 		Handler: router,
 		Cleanup: func(ctx context.Context) error {

@@ -8,6 +8,8 @@ import (
 
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+
+	timeSchema "github.com/vrooli/vrooli/scenarios/time-tools/api/internal/time"
 )
 
 var db *sql.DB
@@ -30,6 +32,13 @@ func initDB(logger *log.Logger) error {
 		// Database connection failed, but we can still run without it
 		logger.Printf("Database connection failed, running without database: %v", err)
 		db = nil
+		return nil
+	}
+
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(timeSchema.Schema)); err != nil {
+		_ = db.Close()
+		db = nil
+		logger.Printf("Database schema initialization failed, running without database: %v", err)
 		return nil
 	}
 

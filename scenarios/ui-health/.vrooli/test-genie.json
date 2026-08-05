@@ -1255,6 +1255,15 @@
         ],
         "clean_requirement": "advisory"
       },
+      "standard_component_kit_affinity": {
+        "capability_id": "project_standards",
+        "local_level_impact": "L4",
+        "global_impact": "hardening_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_WARNING",
+        "recommended_skill_ids": ["ui-design-system-migration", "ui-health"],
+        "clean_requirement": "required"
+      },
       "standard_component_version_staleness": {
         "capability_id": "freshness",
         "local_level_impact": "L3",

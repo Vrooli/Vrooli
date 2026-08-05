@@ -11,6 +11,9 @@ import (
 	"time"
 
 	"storage-manager/internal/cleanup"
+
+	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/storage"
 )
 
 // DockerImage is the host observation needed for age-aware image reclamation.
@@ -30,7 +33,7 @@ type DockerImagePruner interface {
 }
 
 type imageUsageLedger interface {
-	Record(time.Time, []DockerImage) error
+	Record(context.Context, time.Time, []DockerImage) error
 	Eligible(string, time.Time, time.Duration) bool
 }
 
@@ -51,7 +54,7 @@ func NewMemoryDockerUsageLedger() *MemoryDockerUsageLedger {
 	return &MemoryDockerUsageLedger{Entries: map[string]ledgerEntry{}}
 }
 
-func (l *MemoryDockerUsageLedger) Record(now time.Time, images []DockerImage) error {
+func (l *MemoryDockerUsageLedger) Record(_ context.Context, now time.Time, images []DockerImage) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.Entries == nil {
@@ -84,31 +87,67 @@ func (l *MemoryDockerUsageLedger) Eligible(id string, now time.Time, window time
 type FileDockerUsageLedger struct {
 	mu      sync.Mutex
 	path    string
+	roots   *filerouting.RoutedRoots
 	Entries map[string]ledgerEntry `json:"entries"`
 }
 
 func NewFileDockerUsageLedger(path string) (*FileDockerUsageLedger, error) {
 	l := &FileDockerUsageLedger{path: path, Entries: map[string]ledgerEntry{}}
-	data, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
-		return l, nil
+	return loadFileDockerUsageLedger(l, context.Background())
+}
+
+// NewRoutedFileDockerUsageLedger loads the durable ledger from the primary
+// state root and keeps the routed roots for request-scoped reads and writes.
+// A test-mode request therefore gets an independent ledger without changing
+// the production file or its observation history.
+func NewRoutedFileDockerUsageLedger(roots *filerouting.RoutedRoots) (*FileDockerUsageLedger, error) {
+	if roots == nil {
+		return nil, fmt.Errorf("file docker usage ledger: routed roots are nil")
 	}
-	if err != nil {
+	return loadFileDockerUsageLedger(&FileDockerUsageLedger{roots: roots, Entries: map[string]ledgerEntry{}}, context.Background())
+}
+
+func loadFileDockerUsageLedger(l *FileDockerUsageLedger, ctx context.Context) (*FileDockerUsageLedger, error) {
+	if err := l.reload(ctx); err != nil {
 		return nil, err
-	}
-	if err := json.Unmarshal(data, l); err != nil {
-		return nil, err
-	}
-	if l.Entries == nil {
-		l.Entries = map[string]ledgerEntry{}
 	}
 	return l, nil
 }
 
-func (l *FileDockerUsageLedger) Record(now time.Time, images []DockerImage) error {
+func (l *FileDockerUsageLedger) reload(ctx context.Context) error {
+	path, err := l.pathFor(ctx)
+	if err != nil {
+		return err
+	}
+	l.path = path
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		l.Entries = map[string]ledgerEntry{}
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(data, l); err != nil {
+		return err
+	}
+	if l.Entries == nil {
+		l.Entries = map[string]ledgerEntry{}
+	}
+	return nil
+}
+
+func (l *FileDockerUsageLedger) Record(ctx context.Context, now time.Time, images []DockerImage) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if l.Entries == nil {
+	// Reload the selected class root for every request. This prevents a
+	// test-mode request from inheriting primary observations in memory and
+	// keeps the file and in-memory ledgers on the same routed namespace.
+	if l.roots != nil {
+		if err := l.reload(ctx); err != nil {
+			return err
+		}
+	} else if l.Entries == nil {
 		l.Entries = map[string]ledgerEntry{}
 	}
 	for _, image := range images {
@@ -127,10 +166,14 @@ func (l *FileDockerUsageLedger) Record(now time.Time, images []DockerImage) erro
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(l.path), 0o755); err != nil {
+	path, err := l.pathFor(ctx)
+	if err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(l.path), ".docker-ledger-*.tmp")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".docker-ledger-*.tmp")
 	if err != nil {
 		return err
 	}
@@ -144,7 +187,28 @@ func (l *FileDockerUsageLedger) Record(now time.Time, images []DockerImage) erro
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tmpPath, l.path)
+	if err := os.Rename(tmpPath, path); err != nil {
+		return err
+	}
+	l.path = path
+	if l.roots != nil {
+		l.roots.RecordWrite(ctx)
+	}
+	return nil
+}
+
+func (l *FileDockerUsageLedger) pathFor(ctx context.Context) (string, error) {
+	if l.roots == nil {
+		if l.path == "" {
+			return "", fmt.Errorf("file docker usage ledger: path is empty")
+		}
+		return l.path, nil
+	}
+	root, err := l.roots.Pick(ctx, storage.ClassState)
+	if err != nil {
+		return "", fmt.Errorf("resolve Docker usage ledger state root: %w", err)
+	}
+	return filepath.Join(root, "vrooli", "storage-manager", "docker-usage-ledger.json"), nil
 }
 
 func (l *FileDockerUsageLedger) Eligible(id string, now time.Time, window time.Duration) bool {
@@ -185,7 +249,7 @@ func (p *DockerUnusedImagesProvider) observe(ctx context.Context, now time.Time)
 	if err != nil {
 		return nil, err
 	}
-	if err := p.ledger.Record(now, images); err != nil {
+	if err := p.ledger.Record(ctx, now, images); err != nil {
 		return nil, err
 	}
 	return images, nil

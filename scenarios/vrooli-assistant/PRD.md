@@ -90,7 +90,7 @@ optional:
 integration_priorities:
   1_shared_workflows:
     - workflow: agent-spawner.json
-      location: initialization/automation/n8n/
+      location: api/internal/<domain>/automation/n8n/
       purpose: Orchestrates agent creation with context
   
   2_resource_cli:
@@ -450,14 +450,14 @@ structure:
     - api/main.go
     - cli/vrooli-assistant
     - cli/install.sh
-    - initialization/storage/postgres/schema.sql
+    - api/internal/<domain>/storage/postgres/schema.sql
     - scenario-test.yaml
     
   required_dirs:
     - api
     - cli
     - ui/electron
-    - initialization/storage
+    - api/internal/<domain>/storage
     - data
 
 resources:

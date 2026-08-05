@@ -16,9 +16,11 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
+
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	tasksSchema "task-planner-api/internal/tasks"
 )
 
 const (
@@ -308,7 +310,12 @@ func main() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	// Initialize service
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(tasksSchema.Schema)); err != nil {
+		_ = db.Close()
+		log.Fatalf("Database schema initialization failed: %v", err)
+	}
+
+	// Initialize service	// Initialize service
 	service := NewTaskPlannerService(db, qdrantURL)
 
 	// Setup routes

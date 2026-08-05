@@ -2,10 +2,16 @@ package providers
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"storage-manager/internal/cleanup"
+
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/storage"
 )
 
 type ledgerDockerClient struct {
@@ -28,10 +34,10 @@ func (c *ledgerDockerClient) RemoveImages(_ context.Context, ids []string) (int6
 func TestDockerUnusedImagesUsesLastLedgerUseAndFullCoverageWindow(t *testing.T) {
 	now := time.Date(2026, 8, 5, 12, 0, 0, 0, time.UTC)
 	ledger := NewMemoryDockerUsageLedger()
-	if err := ledger.Record(now.Add(-30*24*time.Hour), []DockerImage{{ID: "old", Bytes: 100, Running: true}, {ID: "recent", Bytes: 200, Running: true}}); err != nil {
+	if err := ledger.Record(context.Background(), now.Add(-30*24*time.Hour), []DockerImage{{ID: "old", Bytes: 100, Running: true}, {ID: "recent", Bytes: 200, Running: true}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := ledger.Record(now.Add(-24*time.Hour), []DockerImage{{ID: "recent", Bytes: 200, Running: true}}); err != nil {
+	if err := ledger.Record(context.Background(), now.Add(-24*time.Hour), []DockerImage{{ID: "recent", Bytes: 200, Running: true}}); err != nil {
 		t.Fatal(err)
 	}
 	client := &ledgerDockerClient{images: []DockerImage{{ID: "old", Bytes: 100}, {ID: "recent", Bytes: 200}}}
@@ -63,5 +69,45 @@ func TestDockerUnusedImagesRefusesShortLedgerWindow(t *testing.T) {
 	}
 	if len(preview.Items) != 0 || len(client.removed) != 0 {
 		t.Fatalf("short ledger preview = %#v removed=%#v, want no candidates or mutation", preview.Items, client.removed)
+	}
+}
+
+func TestRoutedDockerUsageLedgerSeparatesTestAndPrimaryState(t *testing.T) {
+	primary := t.TempDir()
+	roots := filerouting.New(storage.Paths{
+		ConfigDir: primary,
+		DataDir:   primary,
+		CacheDir:  primary,
+		LogsDir:   primary,
+		StateDir:  primary,
+	})
+	testRoots, err := roots.InstallLeasedTestRoots("ledger-test", time.Hour, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = roots.ClearTestRoots("ledger-test") })
+
+	ledger, err := NewRoutedFileDockerUsageLedger(roots)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctxTest := database.WithTestMode(context.Background())
+	image := []DockerImage{{ID: "test-image", Running: true}}
+	if err := ledger.Record(ctxTest, time.Unix(10, 0), image); err != nil {
+		t.Fatal(err)
+	}
+	testPath := filepath.Join(testRoots.StateDir, "vrooli", "storage-manager", "docker-usage-ledger.json")
+	primaryPath := filepath.Join(primary, "vrooli", "storage-manager", "docker-usage-ledger.json")
+	if _, err := os.Stat(testPath); err != nil {
+		t.Fatalf("test ledger path: %v", err)
+	}
+	if _, err := os.Stat(primaryPath); !os.IsNotExist(err) {
+		t.Fatalf("primary ledger was written during test mode: err=%v", err)
+	}
+	if err := ledger.Record(context.Background(), time.Unix(20, 0), image); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(primaryPath); err != nil {
+		t.Fatalf("primary ledger path: %v", err)
 	}
 }

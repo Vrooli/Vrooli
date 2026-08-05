@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/filerouting"
 	cleanupconnect "github.com/vrooli/vrooli/packages/proto/gen/go/storage-manager/v1/cleanup/cleanup_v1connect"
 )
 
@@ -25,8 +26,8 @@ import (
 // and the audit trail. Passing nil falls back to fully in-memory state, which
 // is what the endpoint-codegen binary and unit tests want — neither has a live
 // database, and neither needs the operator's policy to survive anything.
-func Module(logger *log.Logger, db *database.RoutedDB) module.Module {
-	registry, err := defaultRegistry()
+func Module(logger *log.Logger, db *database.RoutedDB, fileRoots *filerouting.RoutedRoots) module.Module {
+	registry, err := defaultRegistry(fileRoots)
 	if err != nil {
 		if logger == nil {
 			logger = log.New(io.Discard, "", 0)
@@ -61,12 +62,18 @@ func ModuleWithService(service Service) module.Module {
 // estimated zero bytes on a host with 70 GB of reclaimable temp files. The
 // planning and policy layers were correct throughout; nothing was ever
 // connected to the disk.
-func defaultRegistry() (*providers.Registry, error) {
+func defaultRegistry(fileRoots *filerouting.RoutedRoots) (*providers.Registry, error) {
 	roots := hostpaths.Resolve()
 	files := hostfs.New(hostfs.Options{})
 
 	stateDir, _ := os.UserConfigDir()
-	ledger, ledgerErr := providers.NewFileDockerUsageLedger(filepath.Join(stateDir, "vrooli", "storage-manager", "docker-usage-ledger.json"))
+	var ledger *providers.FileDockerUsageLedger
+	var ledgerErr error
+	if fileRoots != nil {
+		ledger, ledgerErr = providers.NewRoutedFileDockerUsageLedger(fileRoots)
+	} else {
+		ledger, ledgerErr = providers.NewFileDockerUsageLedger(filepath.Join(stateDir, "vrooli", "storage-manager", "docker-usage-ledger.json"))
+	}
 	if ledgerErr != nil {
 		return nil, ledgerErr
 	}

@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -102,10 +103,10 @@ func (b *TestScenarioBuilder) AddMissingRequiredFields(endpoint string) *TestSce
 // AddInvalidRange adds test for invalid range parameters
 func (b *TestScenarioBuilder) AddInvalidRange(endpoint string) *TestScenarioBuilder {
 	b.scenarios = append(b.scenarios, ErrorTestScenario{
-		Name:           "InvalidRange",
-		Description:    "Test with invalid range (start > end)",
-		Method:         "POST",
-		Path:           endpoint,
+		Name:        "InvalidRange",
+		Description: "Test with invalid range (start > end)",
+		Method:      "POST",
+		Path:        endpoint,
 		Body: BulkRangeRequest{
 			Ranges: []struct {
 				Start  string `json:"start"`
@@ -154,11 +155,11 @@ func (b *TestScenarioBuilder) AddTooManyRanges(endpoint string) *TestScenarioBui
 // AddEmptyRanges adds test for empty ranges array
 func (b *TestScenarioBuilder) AddEmptyRanges(endpoint string) *TestScenarioBuilder {
 	b.scenarios = append(b.scenarios, ErrorTestScenario{
-		Name:           "EmptyRanges",
-		Description:    "Test with empty ranges array",
-		Method:         "POST",
-		Path:           endpoint,
-		Body:           BulkRangeRequest{Ranges: []struct {
+		Name:        "EmptyRanges",
+		Description: "Test with empty ranges array",
+		Method:      "POST",
+		Path:        endpoint,
+		Body: BulkRangeRequest{Ranges: []struct {
 			Start  string `json:"start"`
 			End    string `json:"end"`
 			Format string `json:"format,omitempty"`
@@ -176,11 +177,11 @@ func (b *TestScenarioBuilder) Build() []ErrorTestScenario {
 
 // HandlerTestSuite provides comprehensive testing for HTTP handlers
 type HandlerTestSuite struct {
-	Name        string
-	Router      *gin.Engine
-	API         *API
-	Cleanup     func()
-	Scenarios   []ErrorTestScenario
+	Name      string
+	Router    *gin.Engine
+	API       *API
+	Cleanup   func()
+	Scenarios []ErrorTestScenario
 }
 
 // RunErrorTests executes all error test scenarios

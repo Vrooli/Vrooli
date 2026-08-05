@@ -41,6 +41,7 @@ var expectedRegisteredRuleIDs = []string{
 	"standard_a11y_harness",
 	"standard_component_canon_unengaged",
 	"standard_component_location",
+	"standard_component_kit_affinity",
 	"standard_component_version_staleness",
 	"standard_design_token_bypass",
 	"standard_eslint_stability",

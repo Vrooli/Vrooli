@@ -1,7 +1,10 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
+  "storage": {
+    "entries": {},
+    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+  },
   "service": {
     "name": "text-tools",
     "displayName": "Text Tools",
@@ -140,11 +143,6 @@
           "description": "Build production UI bundle"
         },
         {
-          "name": "init-database",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Initialize database schema and seed data"
-        },
-        {
           "name": "create-minio-buckets",
           "run": "resource-minio create-bucket text-tools-data || true",
           "description": "Create MinIO storage buckets"
@@ -211,29 +209,13 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store text metadata, operations history, and templates",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/storage/postgres/seed.sql",
-            "type": "data"
-          }
-        ]
+        "purpose": "Store text metadata, operations history, and templates"
       },
       "minio": {
         "type": "minio",
         "enabled": true,
         "required": true,
-        "purpose": "Store large text files and processing results",
-        "initialization": [
-          {
-            "file": "initialization/storage/minio/buckets.json",
-            "type": "config"
-          }
-        ]
+        "purpose": "Store large text files and processing results"
       },
       "ollama": {
         "type": "ollama",

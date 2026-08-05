@@ -317,12 +317,12 @@ func (s *Service) loadTemplateManifest(scenarioDir string) (*uiManifest, string,
 			Message:  fmt.Sprintf("contract.kind must be %q, got %q", "scenario-ui", mf.Contract.Kind),
 		})
 	}
-	if mf.Contract.Schema != "scenario-ui-manifest/v1" {
+	if mf.Contract.Schema != "scenario-ui-manifest/v1" && mf.Contract.Schema != "scenario-ui-manifest/v2" {
 		finds = append(finds, Finding{
 			Severity: SeverityError,
 			Code:     "contract_schema_mismatch",
 			Location: mfPath,
-			Message:  fmt.Sprintf("contract.schema must be %q, got %q", "scenario-ui-manifest/v1", mf.Contract.Schema),
+			Message:  fmt.Sprintf("contract.schema must be scenario-ui-manifest/v1 or scenario-ui-manifest/v2, got %q", mf.Contract.Schema),
 		})
 	}
 	if len(mf.Slots) == 0 {

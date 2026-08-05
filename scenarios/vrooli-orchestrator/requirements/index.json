@@ -131,7 +131,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "initialization/storage/postgres/seed.sql",
+          "ref": "api/internal/<domain>/storage/postgres/seed.sql",
           "phase": "business",
           "status": "pending",
           "notes": "Seeded profile templates validation"

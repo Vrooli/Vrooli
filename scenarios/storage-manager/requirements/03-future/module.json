@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P2 operational targets.",
-    "last_validated_at": "2026-08-05T16:37:03-04:00",
+    "last_validated_at": "2026-08-05T17:36:23-04:00",
     "module": "P2-targets",
     "priority": "P2",
     "schema_version": "1.0.0"
@@ -55,7 +55,7 @@
     {
       "id": "CLN-P2-004",
       "title": "Advisory cross-platform declaration lint",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-004",
       "criticality": "P2",
       "description": "Identify non-portable paths, platform mismatches, missing branches, and supersedable platform maps as warning-level declaration accountability findings.",
@@ -64,7 +64,7 @@
           "type": "test",
           "ref": "api/internal/validation/crossplatform_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Each warning-level cross-platform finding has positive and negative coverage in [REQ:CLN-P2-004]."
         }
       ]

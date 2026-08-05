@@ -47,7 +47,7 @@ text-tools/
 ├── cli/              # Command-line interface
 ├── ui/               # Web interface
 ├── plugins/          # Modular text processing plugins
-├── initialization/   # Database schemas and workflows
+├── api/internal/<domain>/   # Database schemas and workflows
 └── tests/           # Test suites
 ```
 
