@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	schema "llm-evaluator/internal/evaluation"
 	"log"
 	"net/http"
 	"time"
@@ -49,7 +50,6 @@ func (s *Server) Handler() http.Handler {
 	return handlers.RecoveryHandler()(s.router)
 }
 
-
 // loggingMiddleware prints simple request logs
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -78,6 +78,10 @@ func main() {
 	srv := NewServer(db)
 
 	// Start server with graceful shutdown (port from API_PORT env var)
+
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		log.Fatalf("database schema initialization failed: %v", err)
+	}
 	if err := server.Run(server.Config{
 		Handler: srv.Handler(),
 		Cleanup: func(ctx context.Context) error { return db.Close() },

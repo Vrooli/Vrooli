@@ -1,3 +1,4 @@
+
 -- NOTE: This file documents the SQLite schema used by lifestyle-dashboard.
 -- The actual schema is initialized in api/main.go for embedded SQLite.
 -- This file is kept for reference and potential PostgreSQL migration.
@@ -36,3 +37,10 @@ CREATE TABLE IF NOT EXISTS domains (
 );
 
 CREATE INDEX IF NOT EXISTS idx_domains_status ON domains(status);
+
+CREATE TABLE IF NOT EXISTS domain_weights (
+    domain TEXT PRIMARY KEY,
+    weight TEXT NOT NULL DEFAULT 'medium',
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (domain) REFERENCES domains(name) ON DELETE CASCADE
+);

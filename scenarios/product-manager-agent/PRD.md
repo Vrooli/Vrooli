@@ -104,12 +104,12 @@ optional:
 integration_priorities:
   1_shared_workflows:
     - workflow: ollama.json
-      location: initialization/automation/n8n/
+      location: api/internal/<domain>/automation/n8n/
       purpose: Strategic recommendation generation
       reused_by: [research-assistant]
       
     - workflow: sentiment-analyzer.json
-      location: initialization/automation/n8n/
+      location: api/internal/<domain>/automation/n8n/
       purpose: User feedback sentiment processing
       reused_by: [customer-support, brand-manager]
       
@@ -544,16 +544,16 @@ structure:
     - api/go.mod
     - cli/product-manager-agent
     - cli/install.sh
-    - initialization/storage/postgres/schema.sql
-    - initialization/automation/n8n/rice-calculator.json
-    - initialization/automation/n8n/roadmap-generator.json
+    - api/internal/<domain>/storage/postgres/schema.sql
+    - api/internal/<domain>/automation/n8n/rice-calculator.json
+    - api/internal/<domain>/automation/n8n/roadmap-generator.json
     - scenario-test.yaml
     
   required_dirs:
     - api
     - cli
-    - initialization/storage/postgres
-    - initialization/automation/n8n
+    - api/internal/<domain>/storage/postgres
+    - api/internal/<domain>/automation/n8n
     - ui/dashboard
 
 resources:

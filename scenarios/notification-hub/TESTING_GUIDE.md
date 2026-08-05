@@ -51,7 +51,7 @@ notification-hub/
    createdb notification_hub_test
 
    # Run migrations
-   psql notification_hub_test < initialization/postgres/schema.sql
+   psql notification_hub_test < api/internal/<domain>/schema.sql
    ```
 
 2. **Redis Server**
@@ -306,7 +306,7 @@ func TestNewFeature(t *testing.T) {
 
 **Solution**:
 ```bash
-psql $TEST_POSTGRES_URL < initialization/postgres/schema.sql
+psql $TEST_POSTGRES_URL < api/internal/<domain>/schema.sql
 ```
 
 ### Tests Hang or Timeout
@@ -383,7 +383,7 @@ jobs:
           go-version: '1.21'
       - name: Run migrations
         run: |
-          psql -h localhost -U postgres notification_hub_test < initialization/postgres/schema.sql
+          psql -h localhost -U postgres notification_hub_test < api/internal/<domain>/schema.sql
         env:
           PGPASSWORD: postgres
       - name: Run tests

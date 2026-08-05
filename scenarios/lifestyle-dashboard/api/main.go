@@ -10,6 +10,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	schema "lifestyle-dashboard/internal/lifestyle"
 	"log"
 	"net/http"
 	"os"
@@ -25,7 +26,6 @@ import (
 	"github.com/vrooli/api-core/retry"
 	"github.com/vrooli/api-core/server"
 
-	"lifestyle-dashboard/domain"
 	"lifestyle-dashboard/handlers"
 	"lifestyle-dashboard/repository"
 )
@@ -248,14 +248,13 @@ func main() {
 	}
 	defer db.Close()
 
-	// Initialize schema
-	if err := domain.InitSchema(db); err != nil {
-		log.Fatalf("Failed to initialize schema: %v", err)
-	}
-
 	srv := NewServer(db)
 
 	// Start server with graceful shutdown (port from API_PORT env var)
+
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		log.Fatalf("database schema initialization failed: %v", err)
+	}
 	if err := server.Run(server.Config{
 		Handler: srv.Handler(),
 		Cleanup: func(ctx context.Context) error { return db.Close() },

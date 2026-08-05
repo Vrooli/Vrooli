@@ -1,3 +1,4 @@
+
 -- Picker Wheel Database Schema
 -- Fun random selection wheel with saved configurations
 
@@ -39,11 +40,11 @@ CREATE TABLE IF NOT EXISTS user_preferences (
 );
 
 -- Indexes for performance
-CREATE INDEX idx_wheels_public ON wheels(is_public);
-CREATE INDEX idx_wheels_tags ON wheels USING GIN(tags);
-CREATE INDEX idx_history_wheel ON spin_history(wheel_id);
-CREATE INDEX idx_history_session ON spin_history(session_id);
-CREATE INDEX idx_history_timestamp ON spin_history(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_wheels_public ON wheels(is_public);
+CREATE INDEX IF NOT EXISTS idx_wheels_tags ON wheels USING GIN(tags);
+CREATE INDEX IF NOT EXISTS idx_history_wheel ON spin_history(wheel_id);
+CREATE INDEX IF NOT EXISTS idx_history_session ON spin_history(session_id);
+CREATE INDEX IF NOT EXISTS idx_history_timestamp ON spin_history(timestamp DESC);
 
 -- Sample data for fun preset wheels
 INSERT INTO wheels (name, description, options, theme, tags, is_public) VALUES
@@ -117,3 +118,4 @@ INSERT INTO wheels (name, description, options, theme, tags, is_public) VALUES
     ARRAY['gaming', 'dice', 'd20', 'rpg'],
     true
 );
+

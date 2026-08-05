@@ -2,16 +2,18 @@ package main
 
 import (
 	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/health"
-	"github.com/vrooli/api-core/preflight"
+
 	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 	"log/slog"
 	"net/http"
+	notificationsSchema "notification-hub-api/internal/notifications"
 	"os"
 	"strings"
 	"time"
@@ -173,6 +175,9 @@ func NewServer() (*Server, error) {
 	})
 	if err != nil {
 		return nil, fmt.Errorf("database connection failed: %v", err)
+	}
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(notificationsSchema.Schema)); err != nil {
+		return nil, fmt.Errorf("database schema initialization failed: %w", err)
 	}
 	logger.Info("Database connection pool established successfully")
 

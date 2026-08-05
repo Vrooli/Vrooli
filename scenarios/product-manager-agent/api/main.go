@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	schema "product-manager-api/internal/product"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -85,6 +86,10 @@ func main() {
 	mux.HandleFunc("/api/dashboard", corsMiddleware(app.dashboardHandler))
 
 	// Start server with graceful shutdown
+
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		log.Fatalf("database schema initialization failed: %v", err)
+	}
 	if err := server.Run(server.Config{
 		Handler: mux,
 		Cleanup: func(ctx context.Context) error {

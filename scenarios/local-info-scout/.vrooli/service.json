@@ -1,7 +1,22 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "1TiB",
+          "rationale": "Durable data storage budget measured and governed on 2026-08-05; the byte ceiling prevents unbounded growth without permitting automatic deletion."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "name": "local-info-scout",
     "displayName": "Local Info Scout",
@@ -85,16 +100,6 @@
           "name": "generate-embeddings",
           "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
           "description": "Generate code embeddings for AI assistance"
-        },
-        {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh . || echo \"Resource population skipped\"",
-          "description": "Add app data to resources"
-        },
-        {
-          "name": "init-postgres",
-          "run": "if [ -f initialization/postgres/schema.sql ]; then cat initialization/postgres/schema.sql | docker exec -i vrooli-postgres-main psql -U ${POSTGRES_USER:-vrooli} -d ${POSTGRES_DB:-vrooli} 2>&1 | grep -v 'already exists' || true; fi",
-          "description": "Initialize PostgreSQL schema"
         },
         {
           "name": "build-api",

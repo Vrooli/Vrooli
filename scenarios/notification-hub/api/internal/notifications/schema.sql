@@ -12,7 +12,7 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 -- =============================================================================
 
 -- Profiles represent organizations/tenants in the multi-tenant system
-CREATE TABLE profiles (
+CREATE TABLE IF NOT EXISTS profiles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
     slug VARCHAR(100) UNIQUE NOT NULL,
@@ -41,7 +41,7 @@ CREATE TABLE profiles (
 );
 
 -- Profile usage limits and quotas
-CREATE TABLE profile_limits (
+CREATE TABLE IF NOT EXISTS profile_limits (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     profile_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     
@@ -67,7 +67,7 @@ CREATE TABLE profile_limits (
 );
 
 -- Provider configurations per profile
-CREATE TABLE profile_providers (
+CREATE TABLE IF NOT EXISTS profile_providers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     profile_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     
@@ -100,7 +100,7 @@ CREATE TABLE profile_providers (
 -- =============================================================================
 
 -- Contacts represent notification recipients within each profile
-CREATE TABLE contacts (
+CREATE TABLE IF NOT EXISTS contacts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     profile_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     
@@ -130,7 +130,7 @@ CREATE TABLE contacts (
 );
 
 -- Contact channels (email, phone, push tokens) for each contact
-CREATE TABLE contact_channels (
+CREATE TABLE IF NOT EXISTS contact_channels (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
     
@@ -158,7 +158,7 @@ CREATE TABLE contact_channels (
 );
 
 -- Unsubscribe management
-CREATE TABLE unsubscribes (
+CREATE TABLE IF NOT EXISTS unsubscribes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
     profile_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -182,7 +182,7 @@ CREATE TABLE unsubscribes (
 -- =============================================================================
 
 -- Notification templates
-CREATE TABLE templates (
+CREATE TABLE IF NOT EXISTS templates (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     profile_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     
@@ -214,7 +214,7 @@ CREATE TABLE templates (
 );
 
 -- Template versions for A/B testing and rollbacks
-CREATE TABLE template_versions (
+CREATE TABLE IF NOT EXISTS template_versions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     template_id UUID NOT NULL REFERENCES templates(id) ON DELETE CASCADE,
     
@@ -245,7 +245,7 @@ CREATE TABLE template_versions (
 -- =============================================================================
 
 -- Core notifications table
-CREATE TABLE notifications (
+CREATE TABLE IF NOT EXISTS notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     profile_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
@@ -280,7 +280,7 @@ CREATE TABLE notifications (
 );
 
 -- Delivery tracking per channel
-CREATE TABLE notification_deliveries (
+CREATE TABLE IF NOT EXISTS notification_deliveries (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     notification_id UUID NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
     
@@ -313,7 +313,7 @@ CREATE TABLE notification_deliveries (
 );
 
 -- Notification events (opens, clicks, unsubscribes)
-CREATE TABLE notification_events (
+CREATE TABLE IF NOT EXISTS notification_events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     notification_id UUID NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
     
@@ -338,7 +338,7 @@ CREATE TABLE notification_events (
 -- =============================================================================
 
 -- Aggregated analytics per profile per day
-CREATE TABLE profile_analytics_daily (
+CREATE TABLE IF NOT EXISTS profile_analytics_daily (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     profile_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     
@@ -394,13 +394,21 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Apply updated_at triggers to relevant tables
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON profiles;
 CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_profile_limits_updated_at ON profile_limits;
 CREATE TRIGGER update_profile_limits_updated_at BEFORE UPDATE ON profile_limits FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_profile_providers_updated_at ON profile_providers;
 CREATE TRIGGER update_profile_providers_updated_at BEFORE UPDATE ON profile_providers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_contacts_updated_at ON contacts;
 CREATE TRIGGER update_contacts_updated_at BEFORE UPDATE ON contacts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_contact_channels_updated_at ON contact_channels;
 CREATE TRIGGER update_contact_channels_updated_at BEFORE UPDATE ON contact_channels FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_templates_updated_at ON templates;
 CREATE TRIGGER update_templates_updated_at BEFORE UPDATE ON templates FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_notifications_updated_at ON notifications;
 CREATE TRIGGER update_notifications_updated_at BEFORE UPDATE ON notifications FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS update_notification_deliveries_updated_at ON notification_deliveries;
 CREATE TRIGGER update_notification_deliveries_updated_at BEFORE UPDATE ON notification_deliveries FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Function to get profile by API key
@@ -465,41 +473,41 @@ $$ LANGUAGE plpgsql;
 -- =============================================================================
 
 -- Indexes from table definitions
-CREATE INDEX idx_contacts_profile_external ON contacts(profile_id, external_id);
-CREATE INDEX idx_contacts_profile_status_inline ON contacts(profile_id, status);
-CREATE INDEX idx_contact_channels_contact_status ON contact_channels(contact_id, status);
-CREATE INDEX idx_templates_profile_status ON templates(profile_id, status);
-CREATE INDEX idx_templates_profile_category ON templates(profile_id, category);
-CREATE INDEX idx_template_versions_template_active ON template_versions(template_id, active);
-CREATE INDEX idx_notifications_contact_created ON notifications(contact_id, created_at DESC);
-CREATE INDEX idx_notifications_scheduled_status ON notifications(scheduled_at, status);
-CREATE INDEX idx_notifications_profile_external ON notifications(profile_id, external_id);
-CREATE INDEX idx_notification_deliveries_notification_channel ON notification_deliveries(notification_id, channel);
-CREATE INDEX idx_notification_deliveries_provider_message ON notification_deliveries(provider, provider_message_id);
-CREATE INDEX idx_notification_deliveries_status_delivered ON notification_deliveries(status, delivered_at);
-CREATE INDEX idx_notification_events_notification_type ON notification_events(notification_id, event_type);
-CREATE INDEX idx_notification_events_type_timestamp_inline ON notification_events(event_type, timestamp);
-CREATE INDEX idx_notification_events_timestamp ON notification_events(timestamp DESC);
-CREATE INDEX idx_notification_analytics_profile_date ON profile_analytics_daily(profile_id, date DESC);
+CREATE INDEX IF NOT EXISTS idx_contacts_profile_external ON contacts(profile_id, external_id);
+CREATE INDEX IF NOT EXISTS idx_contacts_profile_status_inline ON contacts(profile_id, status);
+CREATE INDEX IF NOT EXISTS idx_contact_channels_contact_status ON contact_channels(contact_id, status);
+CREATE INDEX IF NOT EXISTS idx_templates_profile_status ON templates(profile_id, status);
+CREATE INDEX IF NOT EXISTS idx_templates_profile_category ON templates(profile_id, category);
+CREATE INDEX IF NOT EXISTS idx_template_versions_template_active ON template_versions(template_id, active);
+CREATE INDEX IF NOT EXISTS idx_notifications_contact_created ON notifications(contact_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_scheduled_status ON notifications(scheduled_at, status);
+CREATE INDEX IF NOT EXISTS idx_notifications_profile_external ON notifications(profile_id, external_id);
+CREATE INDEX IF NOT EXISTS idx_notification_deliveries_notification_channel ON notification_deliveries(notification_id, channel);
+CREATE INDEX IF NOT EXISTS idx_notification_deliveries_provider_message ON notification_deliveries(provider, provider_message_id);
+CREATE INDEX IF NOT EXISTS idx_notification_deliveries_status_delivered ON notification_deliveries(status, delivered_at);
+CREATE INDEX IF NOT EXISTS idx_notification_events_notification_type ON notification_events(notification_id, event_type);
+CREATE INDEX IF NOT EXISTS idx_notification_events_type_timestamp_inline ON notification_events(event_type, timestamp);
+CREATE INDEX IF NOT EXISTS idx_notification_events_timestamp ON notification_events(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_notification_analytics_profile_date ON profile_analytics_daily(profile_id, date DESC);
 
 -- Additional performance indexes
-CREATE INDEX idx_notifications_profile_created ON notifications(profile_id, created_at DESC);
-CREATE INDEX idx_notifications_status_scheduled ON notifications(status, scheduled_at) WHERE status = 'pending';
-CREATE INDEX idx_notification_deliveries_provider_status ON notification_deliveries(provider, status);
-CREATE INDEX idx_notification_events_type_timestamp ON notification_events(event_type, timestamp DESC);
-CREATE INDEX idx_contacts_profile_status ON contacts(profile_id, status);
-CREATE INDEX idx_contact_channels_type_value ON contact_channels(type, value);
+CREATE INDEX IF NOT EXISTS idx_notifications_profile_created ON notifications(profile_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_status_scheduled ON notifications(status, scheduled_at) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS idx_notification_deliveries_provider_status ON notification_deliveries(provider, status);
+CREATE INDEX IF NOT EXISTS idx_notification_events_type_timestamp ON notification_events(event_type, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_contacts_profile_status ON contacts(profile_id, status);
+CREATE INDEX IF NOT EXISTS idx_contact_channels_type_value ON contact_channels(type, value);
 
 -- Text search indexes
-CREATE INDEX idx_profiles_name_search ON profiles USING GIN(name gin_trgm_ops);
-CREATE INDEX idx_contacts_name_search ON contacts USING GIN((first_name || ' ' || last_name) gin_trgm_ops);
-CREATE INDEX idx_templates_name_search ON templates USING GIN(name gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_profiles_name_search ON profiles USING GIN(name gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_contacts_name_search ON contacts USING GIN((first_name || ' ' || last_name) gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_templates_name_search ON templates USING GIN(name gin_trgm_ops);
 
 -- JSONB indexes for efficient queries
-CREATE INDEX idx_profiles_settings ON profiles USING GIN(settings);
-CREATE INDEX idx_contacts_preferences ON contacts USING GIN(preferences);
-CREATE INDEX idx_notifications_metadata ON notifications USING GIN(metadata);
-CREATE INDEX idx_notification_deliveries_provider_response ON notification_deliveries USING GIN(provider_response);
-CREATE INDEX idx_notification_events_data ON notification_events USING GIN(data);
+CREATE INDEX IF NOT EXISTS idx_profiles_settings ON profiles USING GIN(settings);
+CREATE INDEX IF NOT EXISTS idx_contacts_preferences ON contacts USING GIN(preferences);
+CREATE INDEX IF NOT EXISTS idx_notifications_metadata ON notifications USING GIN(metadata);
+CREATE INDEX IF NOT EXISTS idx_notification_deliveries_provider_response ON notification_deliveries USING GIN(provider_response);
+CREATE INDEX IF NOT EXISTS idx_notification_events_data ON notification_events USING GIN(data);
 
 COMMENT ON SCHEMA public IS 'Notification Hub - Multi-tenant notification management system';

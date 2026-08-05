@@ -1,7 +1,10 @@
 {
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{},"rationale":"No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."},
+  "storage": {
+    "entries": {},
+    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+  },
   "service": {
     "name": "notification-hub",
     "displayName": "Notification Hub",
@@ -188,17 +191,7 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store profiles, contacts, templates, notifications, and delivery tracking",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/storage/postgres/seed.sql",
-            "type": "data"
-          }
-        ]
+        "purpose": "Store profiles, contacts, templates, notifications, and delivery tracking"
       },
       "redis": {
         "type": "redis",

@@ -170,7 +170,7 @@ agent-metareasoning-manager/
 │   └── go.mod                     # Dependencies (uuid, mux, pq)
 ├── cli/                           # Command-line interface
 │   └── agent-metareasoning-manager         # Thin API wrapper (90 lines)
-├── initialization/
+├── api/internal/<domain>/
 │   ├── automation/n8n/            # 5 reasoning workflows
 │   ├── automation/windmill/       # UI dashboards and apps
 │   ├── configuration/             # Prompt libraries and templates

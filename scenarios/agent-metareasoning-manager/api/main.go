@@ -1,6 +1,7 @@
 package main
 
 import (
+	schema "agent-metareasoning-manager-api/internal/workflow"
 	"bytes"
 	"context"
 	"database/sql"
@@ -1033,6 +1034,10 @@ func main() {
 	}).Methods("GET")
 
 	// Start server with graceful shutdown
+
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		log.Fatalf("database schema initialization failed: %v", err)
+	}
 	if err := server.Run(server.Config{
 		Handler: r,
 		Cleanup: func(ctx context.Context) error { return db.Close() },

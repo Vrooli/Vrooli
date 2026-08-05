@@ -1,3 +1,4 @@
+//go:build testing
 // +build testing
 
 package main
@@ -247,12 +248,12 @@ func (b *TestScenarioBuilder) Build() []ErrorTestPattern {
 
 // PerformanceTestPattern defines performance testing scenarios
 type PerformanceTestPattern struct {
-	Name           string
-	Description    string
-	MaxDuration    time.Duration
-	Setup          func(t *testing.T) interface{}
-	Execute        func(t *testing.T, setupData interface{}) time.Duration
-	Cleanup        func(setupData interface{})
+	Name        string
+	Description string
+	MaxDuration time.Duration
+	Setup       func(t *testing.T) interface{}
+	Execute     func(t *testing.T, setupData interface{}) time.Duration
+	Cleanup     func(setupData interface{})
 }
 
 // ConcurrencyTestPattern defines concurrency testing scenarios

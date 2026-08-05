@@ -1,3 +1,4 @@
+
 -- Product Manager Agent Database Schema
 
 -- Products table
@@ -149,18 +150,18 @@ CREATE TABLE IF NOT EXISTS roi_calculations (
 );
 
 -- Create indexes for better performance
-CREATE INDEX idx_features_product_id ON features(product_id);
-CREATE INDEX idx_features_status ON features(status);
-CREATE INDEX idx_features_priority ON features(priority);
-CREATE INDEX idx_decisions_product_id ON decisions(product_id);
-CREATE INDEX idx_roadmaps_product_id ON roadmaps(product_id);
-CREATE INDEX idx_sprints_product_id ON sprints(product_id);
-CREATE INDEX idx_sprints_status ON sprints(status);
-CREATE INDEX idx_user_feedback_product_id ON user_feedback(product_id);
-CREATE INDEX idx_user_feedback_status ON user_feedback(status);
-CREATE INDEX idx_market_research_product_id ON market_research(product_id);
-CREATE INDEX idx_metrics_product_id ON metrics(product_id);
-CREATE INDEX idx_metrics_measurement_date ON metrics(measurement_date);
+CREATE INDEX IF NOT EXISTS idx_features_product_id ON features(product_id);
+CREATE INDEX IF NOT EXISTS idx_features_status ON features(status);
+CREATE INDEX IF NOT EXISTS idx_features_priority ON features(priority);
+CREATE INDEX IF NOT EXISTS idx_decisions_product_id ON decisions(product_id);
+CREATE INDEX IF NOT EXISTS idx_roadmaps_product_id ON roadmaps(product_id);
+CREATE INDEX IF NOT EXISTS idx_sprints_product_id ON sprints(product_id);
+CREATE INDEX IF NOT EXISTS idx_sprints_status ON sprints(status);
+CREATE INDEX IF NOT EXISTS idx_user_feedback_product_id ON user_feedback(product_id);
+CREATE INDEX IF NOT EXISTS idx_user_feedback_status ON user_feedback(status);
+CREATE INDEX IF NOT EXISTS idx_market_research_product_id ON market_research(product_id);
+CREATE INDEX IF NOT EXISTS idx_metrics_product_id ON metrics(product_id);
+CREATE INDEX IF NOT EXISTS idx_metrics_measurement_date ON metrics(measurement_date);
 
 -- Create update trigger for updated_at timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -171,20 +172,26 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_products_updated_at ON products;
 CREATE TRIGGER update_products_updated_at BEFORE UPDATE ON products
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_features_updated_at ON features;
 CREATE TRIGGER update_features_updated_at BEFORE UPDATE ON features
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_decisions_updated_at ON decisions;
 CREATE TRIGGER update_decisions_updated_at BEFORE UPDATE ON decisions
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_roadmaps_updated_at ON roadmaps;
 CREATE TRIGGER update_roadmaps_updated_at BEFORE UPDATE ON roadmaps
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_sprints_updated_at ON sprints;
 CREATE TRIGGER update_sprints_updated_at BEFORE UPDATE ON sprints
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_market_research_updated_at ON market_research;
 CREATE TRIGGER update_market_research_updated_at BEFORE UPDATE ON market_research
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

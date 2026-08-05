@@ -435,7 +435,7 @@ direct_execution:
   supported: true
   structure_compliance:
     - .vrooli/service.json with complete metadata
-    - initialization/storage/postgres/schema.sql for DB setup
+    - api/internal/<domain>/storage/postgres/schema.sql for DB setup
     - Makefile with start/stop/test/logs targets
     - Health check at /health endpoint
 
@@ -519,14 +519,14 @@ structure:
     - api/go.mod
     - cli/local-info-scout
     - cli/install.sh
-    - initialization/storage/postgres/schema.sql
+    - api/internal/<domain>/storage/postgres/schema.sql
 
   required_dirs:
     - api
     - cli
     - initialization
-    - initialization/storage
-    - initialization/storage/postgres
+    - api/internal/<domain>/storage
+    - api/internal/<domain>/storage/postgres
     - test
     - test/phases
 

@@ -22,7 +22,7 @@ This scenario uses **SQLite** (embedded) as its primary storage backend. This is
 |------|--------|-------|
 | postgres declared in service.json | N/A | SQLite used instead (by design) |
 | schema field uses scenario slug | N/A | SQLite uses SQLITE_PATH env var |
-| initialization files referenced | Partial | Schema in api/domain/schema.go |
+| schema provider referenced | Yes | Schema embedded by the API domain provider |
 | redis/qdrant properly configured | N/A | Not used (P0 scope) |
 
 ## Connection Pattern Status
