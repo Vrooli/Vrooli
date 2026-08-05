@@ -79,13 +79,41 @@ func (s *Service) Wake(ctx context.Context, budget int) (Wake, error) {
 		out.Overflow = true
 		return out, nil
 	}
-	for _, n := range frontier {
-		cost := lines(n.Text)
-		if used+cost > budget {
-			break
+	if len(s.config.FacetBudgets) == 0 {
+		for _, n := range frontier {
+			cost := lines(n.Text)
+			if used+cost > budget {
+				break
+			}
+			out.Hits = append(out.Hits, Hit{Node: n})
+			used += cost
 		}
-		out.Hits = append(out.Hits, Hit{Node: n})
-		used += cost
+		return out, nil
+	}
+	byFacet := map[string][]Node{}
+	for _, n := range frontier {
+		byFacet[n.FacetID] = append(byFacet[n.FacetID], n)
+	}
+	facets := make([]string, 0, len(byFacet))
+	for facet := range byFacet {
+		facets = append(facets, facet)
+	}
+	sort.Strings(facets)
+	for _, facet := range facets {
+		ceiling := s.config.FacetBudgets[facet]
+		if ceiling <= 0 {
+			continue
+		}
+		facetUsed := 0
+		for _, n := range byFacet[facet] {
+			cost := lines(n.Text)
+			if facetUsed+cost > ceiling || used+cost > budget {
+				break
+			}
+			out.Hits = append(out.Hits, Hit{Node: n})
+			facetUsed += cost
+			used += cost
+		}
 	}
 	return out, nil
 }

@@ -15,7 +15,7 @@ func (s source) Nodes(context.Context) ([]Node, error) { return s, nil }
 type embedder struct{ v []float64 }
 
 func (e embedder) EmbedQuery(context.Context, string) ([]float64, error) { return e.v, nil }
-func TestRecallKeepsAbsorbedLeafAndCollapsesDescendants(t *testing.T) { // [REQ:VMEM-P0-003] [REQ:VMEM-P0-004]
+func TestRecallKeepsAbsorbedLeafAndCollapsesDescendants(t *testing.T) { // [REQ:VMEM-P0-001] [REQ:VMEM-P0-003] [REQ:VMEM-P0-004]
 	now := time.Now()
 	svc := NewService(source{{ID: "summary", Text: "weak summary", Vector: []float64{.1, 1}, Depth: 1}, {ID: "leaf", ParentID: "summary", EntryID: "leaf", Text: "exact leaf", Vector: []float64{1, 0}, CreatedAt: now}}, embedder{[]float64{1, 0}}, Config{})
 	hits, err := svc.Recall(context.Background(), "exact", 10)

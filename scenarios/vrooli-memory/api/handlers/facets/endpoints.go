@@ -12,4 +12,5 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "facets_list_pin_proposals", Path: facetsconnect.FacetsServiceListPinProposalsProcedure, Method: "POST", Summary: "List pin proposals", Category: "facets"},
 	{ID: "facets_resolve_pin_proposal", Path: facetsconnect.FacetsServiceResolvePinProposalProcedure, Method: "POST", Summary: "Resolve pin proposal", Category: "facets"},
 	{ID: "facets_mark_superseded", Path: facetsconnect.FacetsServiceMarkSupersededProcedure, Method: "POST", Summary: "Append supersession mark", Category: "facets"},
+	{ID: "facets_resolve_thread", Path: facetsconnect.FacetsServiceResolveThreadProcedure, Method: "POST", Summary: "Resolve a thread", Category: "facets"},
 }

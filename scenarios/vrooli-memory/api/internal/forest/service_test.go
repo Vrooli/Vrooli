@@ -45,7 +45,7 @@ func TestRunCompactsOnlyEligibleOldEpisodesAndPreservesLeaves(t *testing.T) { //
 		{ID: "a", FacetID: "episode", Body: "old episode a", Vector: []float64{1, 0}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
 		{ID: "b", FacetID: "episode", Body: "old episode b", Vector: []float64{.99, .01}, CreatedAt: now.Add(-47 * time.Hour), Kind: "entry"},
 		{ID: "pinned", FacetID: "episode", Body: "pinned", Vector: []float64{1, 0}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry", Pinned: true},
-		{ID: "rule", FacetID: "standing-rule", Body: "rule", Vector: []float64{1, 0}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
+		{ID: "rule", FacetID: "standing-rule", RetentionPolicy: "retain", Body: "rule", Vector: []float64{1, 0}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
 		{ID: "recent", FacetID: "episode", Body: "recent", Vector: []float64{1, 0}, CreatedAt: now.Add(-time.Hour), Kind: "entry"},
 	}}
 	repo := &memoryRepo{source: source}
@@ -58,6 +58,68 @@ func TestRunCompactsOnlyEligibleOldEpisodesAndPreservesLeaves(t *testing.T) { //
 	require.Equal(t, 1, result.EligibleFrontierAfter)
 	require.Equal(t, []string{"a", "b"}, repo.edges[0].childIDs())
 	require.Equal(t, 2, len(source.leaves), "compaction absorbs leaves in the forest but never removes journal leaves")
+}
+
+func TestRunWithFrontierUnderTargetIsNoop(t *testing.T) { // [REQ:VMEM-P0-007]
+	now := time.Now().UTC()
+	source := &memorySource{candidates: []Candidate{{ID: "only", FacetID: "episode", Body: "only", Vector: []float64{1, 0}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"}}}
+	repo := &memoryRepo{source: source}
+	svc := NewService(repo, source, &mocks.FakeInference{SummarizeOut: "must not run", EmbedOut: []float64{1, 0}}, Config{Target: 2})
+	result, err := svc.Run(context.Background())
+	require.NoError(t, err)
+	require.Zero(t, result.CompactedCount)
+	require.Empty(t, repo.edges)
+}
+
+func TestRunLeavesOrphanUntilTightClusterCompacts(t *testing.T) { // [REQ:VMEM-P0-007]
+	now := time.Now().UTC()
+	source := &memorySource{candidates: []Candidate{
+		{ID: "tight-a", FacetID: "episode", Body: "tight a", Vector: []float64{1, 0}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
+		{ID: "tight-b", FacetID: "episode", Body: "tight b", Vector: []float64{.99, .01}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
+		{ID: "orphan", FacetID: "episode", Body: "orphan", Vector: []float64{0, 1}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
+	}}
+	repo := &memoryRepo{source: source}
+	svc := NewService(repo, source, &mocks.FakeInference{SummarizeOut: "tight summary", EmbedOut: []float64{1, 0}}, Config{Target: 2})
+	result, err := svc.Run(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, 1, result.CompactedCount)
+	require.Equal(t, []string{"tight-a", "tight-b"}, repo.edges[0].childIDs())
+	for _, candidate := range source.candidates {
+		if candidate.ID == "orphan" {
+			require.Equal(t, "orphan", candidate.ID)
+		}
+	}
+}
+
+func TestCompactionPreservesPinnedEntry(t *testing.T) { // [REQ:VMEM-P0-006]
+	now := time.Now().UTC()
+	source := &memorySource{candidates: []Candidate{
+		{ID: "pinned", FacetID: "episode", Body: "pinned", Vector: []float64{1, 0}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry", Pinned: true},
+		{ID: "ordinary", FacetID: "episode", Body: "ordinary", Vector: []float64{1, 0}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
+	}}
+	repo := &memoryRepo{source: source}
+	svc := NewService(repo, source, &mocks.FakeInference{SummarizeOut: "must not run", EmbedOut: []float64{1, 0}}, Config{Target: 1})
+	result, err := svc.Run(context.Background())
+	require.NoError(t, err)
+	require.Zero(t, result.CompactedCount)
+	require.Empty(t, repo.edges)
+}
+
+func TestRunSkipsFailedPairAndCompactsNextCluster(t *testing.T) {
+	now := time.Now().UTC()
+	source := &memorySource{candidates: []Candidate{
+		{ID: "failed-a", FacetID: "episode", Body: "failed a", Vector: []float64{1, 0}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
+		{ID: "failed-b", FacetID: "episode", Body: "failed b", Vector: []float64{.99, .01}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
+		{ID: "good-a", FacetID: "episode", Body: "good a", Vector: []float64{0, 1}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
+		{ID: "good-b", FacetID: "episode", Body: "good b", Vector: []float64{.01, .99}, CreatedAt: now.Add(-48 * time.Hour), Kind: "entry"},
+	}}
+	repo := &memoryRepo{source: source}
+	client := &retryingInference{errs: []error{errors.New("provider unavailable")}}
+	svc := NewService(repo, source, client, Config{Target: 3})
+	result, err := svc.Run(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, 1, result.CompactedCount)
+	require.Equal(t, []string{"good-a", "good-b"}, repo.edges[0].childIDs())
 }
 
 func TestRunSummaryFailureLeavesFrontierUnchanged(t *testing.T) {
@@ -134,13 +196,13 @@ func (r *memoryRepo) CreateSummary(_ context.Context, s Summary, edges []Edge) (
 			next = append(next, c)
 		}
 	}
-	next = append(next, Candidate{ID: s.ID, FacetID: s.FacetID, Body: s.Body, Vector: s.Vector, CreatedAt: time.Now().Add(-48 * time.Hour), Kind: "summary", Depth: s.Depth, Generation: s.Generation})
+	next = append(next, Candidate{ID: s.ID, FacetID: s.FacetID, Body: s.Body, Vector: s.Vector, CreatedAt: time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC), Kind: "summary", Depth: s.Depth, Generation: s.Generation})
 	r.source.candidates = next
 	r.source.leaves = append(r.source.leaves, edges[0].ChildID, edges[1].ChildID)
 	return s, nil
 }
 func (r *memoryRepo) Frontier(context.Context) ([]Summary, error) { return nil, nil }
-func (r *memoryRepo) Nodes(context.Context) ([]Node, error)       { return nil, nil }
+func (r *memoryRepo) Nodes(context.Context, int) ([]Node, error)  { return nil, nil }
 func (r *memoryRepo) Rebuild(context.Context) error               { return nil }
 
 type retryingInference struct {

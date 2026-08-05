@@ -17,7 +17,8 @@ type Service struct {
 // the seeded vocabulary and assignment history; journal only consumes it.
 type FacetResolver interface {
 	Validate(context.Context, string) error
-	Assign(context.Context, string, string) error
+	Assign(context.Context, string, string, string) error
+	MatchRule(context.Context, string, string, string, string, string) (string, string, bool, error)
 }
 
 func NewService(repo Repository, client inference.Client, facetResolvers ...FacetResolver) *Service {
@@ -35,9 +36,17 @@ func (s *Service) Append(ctx context.Context, e Entry) (Entry, error) {
 			return Entry{}, err
 		}
 	}
-	facet, err := s.inference.Classify(ctx, e.Body)
+	facet, actorID, matched, err := s.ruleFacet(ctx, e)
+	if err != nil {
+		return Entry{}, err
+	}
+	if !matched {
+		facet, err = s.classify(ctx, e.Body, e.Kind)
+		actorID = "classifier"
+	}
 	if err != nil || strings.TrimSpace(facet) == "" {
 		e.FacetID = UnclassifiedFacet
+		actorID = "classifier"
 		retry = append(retry, "classify")
 	} else {
 		e.FacetID = strings.TrimSpace(facet)
@@ -62,7 +71,7 @@ func (s *Service) Append(ctx context.Context, e Entry) (Entry, error) {
 		return Entry{}, err
 	}
 	if s.facets != nil && !persisted.Existing && persisted.FacetID != UnclassifiedFacet {
-		if err := s.facets.Assign(ctx, persisted.ID, persisted.FacetID); err != nil {
+		if err := s.facets.Assign(ctx, persisted.ID, persisted.FacetID, actorID); err != nil {
 			return Entry{}, err
 		}
 	}
@@ -106,13 +115,21 @@ func (s *Service) ProcessClassificationRetries(ctx context.Context, limit int) (
 		return result, err
 	}
 	for _, item := range items {
-		facet, err := s.inference.Classify(ctx, item.Entry.Body)
+		facet, actorID, matched, err := s.ruleFacet(ctx, item.Entry)
+		if err != nil {
+			result.Deferred++
+			continue
+		}
+		if !matched {
+			facet, err = s.classify(ctx, item.Entry.Body, item.Entry.Kind)
+			actorID = "classifier"
+		}
 		if err != nil || strings.TrimSpace(facet) == "" {
 			result.Deferred++
 			continue
 		}
 		facet = strings.TrimSpace(facet)
-		if s.facets == nil || s.facets.Validate(ctx, facet) != nil || s.facets.Assign(ctx, item.Entry.ID, facet) != nil {
+		if s.facets == nil || s.facets.Validate(ctx, facet) != nil || s.facets.Assign(ctx, item.Entry.ID, facet, actorID) != nil {
 			result.Deferred++
 			continue
 		}
@@ -122,6 +139,24 @@ func (s *Service) ProcessClassificationRetries(ctx context.Context, limit int) (
 		result.Processed++
 	}
 	return result, nil
+}
+
+func (s *Service) classify(ctx context.Context, body, kind string) (string, error) {
+	if contextual, ok := s.inference.(inference.ContextualClassifier); ok {
+		return contextual.ClassifyEntry(ctx, body, kind)
+	}
+	return s.inference.Classify(ctx, body)
+}
+
+func (s *Service) ruleFacet(ctx context.Context, e Entry) (string, string, bool, error) {
+	if s.facets == nil {
+		return "", "", false, nil
+	}
+	facet, ruleID, matched, err := s.facets.MatchRule(ctx, "agent-memory", e.Body, e.Attribution.SourceRuntime, e.Kind, e.Import.Path)
+	if err != nil || !matched {
+		return "", "", matched, err
+	}
+	return facet, "rule:" + ruleID, true, nil
 }
 
 // ProcessEmbeddingRetries fills only missing derived vectors, then removes the

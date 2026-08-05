@@ -9,7 +9,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func TestSummaryAndEdgesCommitAtomicallyAndRebuild(t *testing.T) {
+func TestSummaryAndEdgesCommitAtomicallyAndRebuild(t *testing.T) { // [REQ:VMEM-P0-007]
 	db, err := apidb.Open(context.Background(), apidb.Config{Driver: apidb.DriverSQLite, DSN: "file:forest?mode=memory&cache=shared"})
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, db.Close()) })

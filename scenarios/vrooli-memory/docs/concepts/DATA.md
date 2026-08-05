@@ -189,7 +189,7 @@ once.
 |---|---|---|---|
 | Journal entry, facet text, embedding | None. | Permanent. | None — permanence is the scenario's central invariant. |
 | Facet assignment, supersession / expiry mark | None. Corrections are additive. | Permanent, with history. | None. |
-| Pin state | Operator unpin, or a review date lapsing without reconfirmation. | Until unpinned or lapsed. | Budget and review interval are unvalidated (`VMEM-P1-010`). |
+| Pin state | Operator unpin, renewal, or a review date lapsing without reconfirmation. | Until unpinned or lapsed. | The standing-rule resident budget is seeded in `facet_policies`; review renewal updates `review_at` without duplicating the journal entry. |
 | Pin review / merge proposal | Operator resolves or dismisses it. | Until resolved. | None. |
 | Summary node, tree edge | Forest rebuild. | Rebuildable cache; safe to drop and recompute from the journal. | None. |
 | Projection state | Overwritten on each refresh. | Latest only. | None — the projected file is a generated artifact, not data. |

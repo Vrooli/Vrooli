@@ -3,12 +3,14 @@ package facets
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 	_ "modernc.org/sqlite"
 
 	localdb "vrooli-memory/internal/database"
+	"vrooli-memory/internal/inference"
 	"vrooli-memory/internal/journal"
 	"vrooli-memory/internal/testutil/mocks"
 )
@@ -86,6 +88,63 @@ func TestRefacetRetainsHistory(t *testing.T) {
 	require.Equal(t, "standing-rule", history[1].FacetID)
 }
 
+func TestRefacetCorpusAppendsRuleAndClassifierDecisions(t *testing.T) {
+	s, j := newService(t)
+	ctx := context.Background()
+	rule, err := s.CreateRule(ctx, Rule{ID: "imported-episode", Priority: 10, FacetID: "episode", SourceRuntime: "importer"})
+	require.NoError(t, err)
+	_, err = j.Append(ctx, journal.Entry{Body: "imported completion", Attribution: journal.Attribution{SourceRuntime: "importer"}}, nil)
+	require.NoError(t, err)
+	_, err = j.Append(ctx, journal.Entry{Body: "unmatched memory"}, nil)
+	require.NoError(t, err)
+	_, err = s.DryRunRule(ctx, rule.ID)
+	require.NoError(t, err)
+	require.NoError(t, s.EnableRule(ctx, rule.ID))
+
+	classifier := &mocks.FakeInference{ClassifyOut: "gotcha"}
+	refacet := NewService(s.repo, classifier)
+	result, err := refacet.RefacetCorpus(ctx, "agent-memory")
+	require.NoError(t, err)
+	require.Equal(t, 2, result.Total)
+	require.Equal(t, 2, result.Assigned)
+	require.Equal(t, 1, result.RuleAssigned)
+	require.Equal(t, 1, result.Classified)
+	require.Zero(t, result.Failed)
+}
+
+type contextualRefacetClassifier struct{ kind string }
+
+func (c *contextualRefacetClassifier) Classify(context.Context, string) (string, error) {
+	return "thread", nil
+}
+func (c *contextualRefacetClassifier) ClassifyEntry(_ context.Context, _ string, kind string) (string, error) {
+	c.kind = kind
+	return "episode", nil
+}
+func (*contextualRefacetClassifier) Embed(context.Context, string, inference.EmbeddingTask) ([]float64, error) {
+	return []float64{1}, nil
+}
+func (*contextualRefacetClassifier) Summarize(context.Context, string) (string, error) {
+	return "", nil
+}
+
+func TestRefacetCorpusPassesEntryKindToContextualClassifier(t *testing.T) {
+	s, _ := newService(t)
+	repo := s.repo.(*SQLiteRepository)
+	db := repo.db
+	_, err := db.Exec(`INSERT INTO entries(id,scope,body,facet_id,source_runtime,kind,created_at) VALUES('contextual-entry','agent-memory','Trigger: request\nApproach: work\nEvidence: tests\nOutcome: done','unclassified','','work-record','2026-08-05T00:00:00Z')`)
+	require.NoError(t, err)
+	classifier := &contextualRefacetClassifier{}
+	result, err := NewService(repo, classifier).RefacetCorpus(context.Background(), "agent-memory")
+	require.NoError(t, err)
+	require.Equal(t, 1, result.Classified)
+	require.Equal(t, "work-record", classifier.kind)
+	assignments, err := repo.Assignments(context.Background(), "contextual-entry")
+	require.NoError(t, err)
+	require.Len(t, assignments, 1)
+	require.Equal(t, "episode", assignments[0].FacetID)
+}
+
 func TestSupersessionLeavesOriginalEntryRetrievable(t *testing.T) { // [REQ:VMEM-P1-004]
 	s, j := newService(t)
 	ctx := context.Background()
@@ -98,4 +157,47 @@ func TestSupersessionLeavesOriginalEntryRetrievable(t *testing.T) { // [REQ:VMEM
 	stored, err := j.Get(ctx, original.ID)
 	require.NoError(t, err)
 	require.Equal(t, original.Body, stored.Body)
+}
+
+func TestStandingRulePinBudgetCreatesTradeoffAndRenewalDoesNotDuplicate(t *testing.T) { // [REQ:VMEM-P1-010]
+	s, j := newService(t)
+	ctx := context.Background()
+	ids := make([]string, 0, 9)
+	for i := 0; i < 9; i++ {
+		entry, err := j.Append(ctx, journal.Entry{Body: "standing rule " + time.Now().Format("150405.000000") + string(rune('a'+i)), FacetID: "standing-rule"}, nil)
+		require.NoError(t, err)
+		_, err = s.ReFacet(ctx, Assignment{EntryID: entry.ID, FacetID: "standing-rule"})
+		require.NoError(t, err)
+		ids = append(ids, entry.ID)
+	}
+	for _, id := range ids[:8] {
+		require.NoError(t, s.SetPin(ctx, id, true))
+	}
+	var budget ErrPinBudgetExceeded
+	require.ErrorAs(t, s.SetPin(ctx, ids[8], true), &budget)
+	proposals, err := s.ListPinProposals(ctx)
+	require.NoError(t, err)
+	var found bool
+	for _, proposal := range proposals {
+		if proposal.ID == budget.ProposalID {
+			found = true
+			require.Contains(t, proposal.EntryIDs, ids[8])
+		}
+	}
+	require.True(t, found)
+	require.NoError(t, s.ResolvePinProposal(ctx, budget.ProposalID, true))
+	var pinCount int
+	require.NoError(t, s.repo.(*SQLiteRepository).db.QueryRowContext(ctx, `SELECT COUNT(*) FROM pins`).Scan(&pinCount))
+	require.Equal(t, 8, pinCount)
+	require.True(t, mustPinned(t, s, ctx, ids[8]))
+	_, err = s.repo.(*SQLiteRepository).db.ExecContext(ctx, `UPDATE pins SET review_at=? WHERE entry_id=?`, time.Now().Add(-time.Hour).UTC().Format(time.RFC3339Nano), ids[1])
+	require.NoError(t, err)
+	require.False(t, mustPinned(t, s, ctx, ids[1]))
+}
+
+func mustPinned(t *testing.T, s *Service, ctx context.Context, id string) bool {
+	t.Helper()
+	ok, err := s.repo.(*SQLiteRepository).Pinned(ctx, id)
+	require.NoError(t, err)
+	return ok
 }

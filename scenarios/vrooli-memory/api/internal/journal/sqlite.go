@@ -3,20 +3,23 @@ package journal
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+	vectorcodec "vrooli-memory/internal/vector"
 )
 
 type SQLiteRepository struct{ db *sql.DB }
 
 func NewSQLiteRepository(db *sql.DB) *SQLiteRepository { return &SQLiteRepository{db: db} }
 func (r *SQLiteRepository) Append(ctx context.Context, e Entry, retries []string) (Entry, error) {
+	if e.Scope == "" {
+		e.Scope = "agent-memory"
+	}
 	if e.ImportKey != "" {
 		var id string
-		err := r.db.QueryRowContext(ctx, `SELECT id FROM entries WHERE import_key=?`, e.ImportKey).Scan(&id)
+		err := r.db.QueryRowContext(ctx, `SELECT id FROM entries WHERE scope=? AND import_key=?`, e.Scope, e.ImportKey).Scan(&id)
 		if err == nil {
 			existing, err := r.Get(ctx, id)
 			existing.Existing = true
@@ -45,7 +48,7 @@ func (r *SQLiteRepository) Append(ctx context.Context, e Entry, retries []string
 	if !e.Import.ImportedAt.IsZero() {
 		importedAt = e.Import.ImportedAt.Format(time.RFC3339Nano)
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO entries (id,body,facet_id,kind,actor_id,actor_kind,source_runtime,run_id,workflow_execution_id,import_key,source_harness,source_path,imported_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, e.ID, e.Body, e.FacetID, e.Kind, e.Attribution.ActorID, e.Attribution.ActorKind, e.Attribution.SourceRuntime, e.Correlation.RunID, e.Correlation.WorkflowExecutionID, importKey, e.Import.Harness, e.Import.Path, importedAt, e.CreatedAt.Format(time.RFC3339Nano))
+	_, err = tx.ExecContext(ctx, `INSERT INTO entries (id,scope,body,facet_id,kind,actor_id,actor_kind,source_runtime,run_id,workflow_execution_id,import_key,source_harness,source_path,imported_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, e.ID, e.Scope, e.Body, e.FacetID, e.Kind, e.Attribution.ActorID, e.Attribution.ActorKind, e.Attribution.SourceRuntime, e.Correlation.RunID, e.Correlation.WorkflowExecutionID, importKey, e.Import.Harness, e.Import.Path, importedAt, e.CreatedAt.Format(time.RFC3339Nano))
 	if err != nil {
 		return Entry{}, fmt.Errorf("append entry: %w", err)
 	}
@@ -59,8 +62,7 @@ func (r *SQLiteRepository) Append(ctx context.Context, e Entry, retries []string
 			return Entry{}, err
 		}
 		if len(f.Vector) > 0 {
-			b, _ := json.Marshal(f.Vector)
-			_, err = tx.ExecContext(ctx, `INSERT INTO embeddings (id,facet_text_id,vector_json,created_at) VALUES (?,?,?,?)`, uuid.NewString(), f.ID, string(b), e.CreatedAt.Format(time.RFC3339Nano))
+			_, err = tx.ExecContext(ctx, `INSERT INTO embeddings (id,facet_text_id,vector_json,vector_blob,created_at) VALUES (?,?,?,?,?)`, uuid.NewString(), f.ID, "", vectorcodec.Encode(f.Vector), e.CreatedAt.Format(time.RFC3339Nano))
 			if err != nil {
 				return Entry{}, err
 			}
@@ -99,7 +101,7 @@ func (r *SQLiteRepository) ListByRun(ctx context.Context, runID string, limit in
 
 func (r *SQLiteRepository) FindByImportKey(ctx context.Context, key string) (Entry, bool, error) {
 	var id string
-	err := r.db.QueryRowContext(ctx, `SELECT id FROM entries WHERE import_key=?`, key).Scan(&id)
+	err := r.db.QueryRowContext(ctx, `SELECT id FROM entries WHERE scope=? AND import_key=?`, "agent-memory", key).Scan(&id)
 	if err == sql.ErrNoRows {
 		return Entry{}, false, nil
 	}
@@ -121,7 +123,7 @@ func (r *SQLiteRepository) ClassificationRetries(ctx context.Context, limit int)
 	if limit <= 0 {
 		return nil, nil
 	}
-	rows, err := r.db.QueryContext(ctx, `SELECT q.id,e.id,e.body,e.facet_id,e.kind,e.actor_id,e.actor_kind,e.source_runtime,e.run_id,e.workflow_execution_id,e.import_key,e.source_harness,e.source_path,e.imported_at,e.created_at
+	rows, err := r.db.QueryContext(ctx, `SELECT q.id,e.id,e.scope,e.body,e.facet_id,e.kind,e.actor_id,e.actor_kind,e.source_runtime,e.run_id,e.workflow_execution_id,e.import_key,e.source_harness,e.source_path,e.imported_at,e.created_at
 FROM journal_retry_queue q JOIN entries e ON e.id=q.entry_id
 WHERE q.reason='classify' AND NOT EXISTS (SELECT 1 FROM facet_assignments a WHERE a.entry_id=e.id)
 ORDER BY q.created_at,q.id LIMIT ?`, limit)
@@ -134,7 +136,7 @@ ORDER BY q.created_at,q.id LIMIT ?`, limit)
 		var item RetryItem
 		var created string
 		var importKey, importedAt sql.NullString
-		if err := rows.Scan(&item.ID, &item.Entry.ID, &item.Entry.Body, &item.Entry.FacetID, &item.Entry.Kind, &item.Entry.Attribution.ActorID, &item.Entry.Attribution.ActorKind, &item.Entry.Attribution.SourceRuntime, &item.Entry.Correlation.RunID, &item.Entry.Correlation.WorkflowExecutionID, &importKey, &item.Entry.Import.Harness, &item.Entry.Import.Path, &importedAt, &created); err != nil {
+		if err := rows.Scan(&item.ID, &item.Entry.ID, &item.Entry.Scope, &item.Entry.Body, &item.Entry.FacetID, &item.Entry.Kind, &item.Entry.Attribution.ActorID, &item.Entry.Attribution.ActorKind, &item.Entry.Attribution.SourceRuntime, &item.Entry.Correlation.RunID, &item.Entry.Correlation.WorkflowExecutionID, &importKey, &item.Entry.Import.Harness, &item.Entry.Import.Path, &importedAt, &created); err != nil {
 			return nil, err
 		}
 		item.Reason = "classify"
@@ -194,11 +196,7 @@ func (r *SQLiteRepository) EmbeddingRetries(ctx context.Context, limit int) ([]R
 }
 
 func (r *SQLiteRepository) StoreFacetEmbedding(ctx context.Context, facetTextID string, vector []float64) error {
-	payload, err := json.Marshal(vector)
-	if err != nil {
-		return fmt.Errorf("encode retry embedding: %w", err)
-	}
-	_, err = r.db.ExecContext(ctx, `INSERT INTO embeddings(id,facet_text_id,vector_json,created_at) SELECT ?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM embeddings WHERE facet_text_id=?)`, uuid.NewString(), facetTextID, string(payload), time.Now().UTC().Format(time.RFC3339Nano), facetTextID)
+	_, err := r.db.ExecContext(ctx, `INSERT INTO embeddings(id,facet_text_id,vector_json,vector_blob,created_at) SELECT ?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM embeddings WHERE facet_text_id=?)`, uuid.NewString(), facetTextID, "", vectorcodec.Encode(vector), time.Now().UTC().Format(time.RFC3339Nano), facetTextID)
 	return err
 }
 
@@ -220,7 +218,7 @@ func (r *SQLiteRepository) list(ctx context.Context, where string, limit int, ar
 	if limit <= 0 {
 		return nil, nil
 	}
-	q := `SELECT e.id,e.body,e.facet_id,e.kind,e.actor_id,e.actor_kind,e.source_runtime,e.run_id,e.workflow_execution_id,e.import_key,e.source_harness,e.source_path,e.imported_at,e.created_at FROM entries e ` + where + ` ORDER BY e.created_at ASC,e.id ASC LIMIT ?`
+	q := `SELECT e.id,e.scope,e.body,e.facet_id,e.kind,e.actor_id,e.actor_kind,e.source_runtime,e.run_id,e.workflow_execution_id,e.import_key,e.source_harness,e.source_path,e.imported_at,e.created_at FROM entries e ` + where + ` ORDER BY e.created_at ASC,e.id ASC LIMIT ?`
 	args = append(args, limit)
 	rows, err := r.db.QueryContext(ctx, q, args...)
 	if err != nil {
@@ -232,7 +230,7 @@ func (r *SQLiteRepository) list(ctx context.Context, where string, limit int, ar
 		var e Entry
 		var created string
 		var importKey, importedAt sql.NullString
-		if err = rows.Scan(&e.ID, &e.Body, &e.FacetID, &e.Kind, &e.Attribution.ActorID, &e.Attribution.ActorKind, &e.Attribution.SourceRuntime, &e.Correlation.RunID, &e.Correlation.WorkflowExecutionID, &importKey, &e.Import.Harness, &e.Import.Path, &importedAt, &created); err != nil {
+		if err = rows.Scan(&e.ID, &e.Scope, &e.Body, &e.FacetID, &e.Kind, &e.Attribution.ActorID, &e.Attribution.ActorKind, &e.Attribution.SourceRuntime, &e.Correlation.RunID, &e.Correlation.WorkflowExecutionID, &importKey, &e.Import.Harness, &e.Import.Path, &importedAt, &created); err != nil {
 			return nil, err
 		}
 		e.ImportKey = importKey.String

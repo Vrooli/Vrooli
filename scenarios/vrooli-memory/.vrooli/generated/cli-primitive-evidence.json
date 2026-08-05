@@ -4,8 +4,64 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "vrooli-memory",
   "generator": "v1.0.0",
-  "manifest_hash": "e9f357ccdb02f32112bcb7f5bb5c28db715486d71b8a07d2087ee36168c4409c",
+  "manifest_hash": "b1b14f0d19eeb0f10098c6a7c9a184e0966d670fa82b237b333fe6f28f510ac7",
   "commands": [
+    {
+      "path": "facets correct",
+      "group": "facets",
+      "command": "correct",
+      "binding": "FacetsService.AssignFacet",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "facets list",
+      "group": "facets",
+      "command": "list",
+      "binding": "FacetsService.ListFacets",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "facets pin",
+      "group": "facets",
+      "command": "pin",
+      "binding": "FacetsService.SetPin",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "facets proposals",
+      "group": "facets",
+      "command": "proposals",
+      "binding": "FacetsService.ListPinProposals",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "facets resolve-proposal",
+      "group": "facets",
+      "command": "resolve-proposal",
+      "binding": "FacetsService.ResolvePinProposal",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "facets resolve-thread",
+      "group": "facets",
+      "command": "resolve-thread",
+      "binding": "FacetsService.ResolveThread",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "facets supersede",
+      "group": "facets",
+      "command": "supersede",
+      "binding": "FacetsService.MarkSuperseded",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
     {
       "path": "forest compact",
       "group": "forest",
@@ -13,6 +69,14 @@
       "binding": "ForestService.RunCompactionPass",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "forest frontier",
+      "group": "forest",
+      "command": "frontier",
+      "binding": "ForestService.GetFrontier",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
     },
     {
       "path": "forest rebuild-forest",
@@ -109,6 +173,54 @@
       "binding": "RecallService.Wake",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "rules create",
+      "group": "rules",
+      "command": "create",
+      "binding": "ClassificationRulesService.CreateRule",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "rules dry-run",
+      "group": "rules",
+      "command": "dry-run",
+      "binding": "ClassificationRulesService.DryRunRule",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "rules enable",
+      "group": "rules",
+      "command": "enable",
+      "binding": "ClassificationRulesService.EnableRule",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "rules list",
+      "group": "rules",
+      "command": "list",
+      "binding": "ClassificationRulesService.ListRules",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "rules refacet",
+      "group": "rules",
+      "command": "refacet",
+      "binding": "ClassificationRulesService.RefacetCorpus",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "rules revert",
+      "group": "rules",
+      "command": "revert",
+      "binding": "ClassificationRulesService.RevertRule",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
     }
   ]
 }

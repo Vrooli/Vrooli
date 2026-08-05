@@ -21,5 +21,8 @@ type (
 		Overflow bool
 		Budget   int
 	}
-	Config struct{ FrontierTarget, WakeBudget int }
+	Config struct {
+		FrontierTarget, WakeBudget int
+		FacetBudgets               map[string]int
+	}
 )

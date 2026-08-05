@@ -10,6 +10,7 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	localdb "vrooli-memory/internal/database"
 	"vrooli-memory/internal/facets"
+	"vrooli-memory/internal/inference"
 	"vrooli-memory/internal/testutil/db"
 	"vrooli-memory/internal/testutil/mocks"
 )
@@ -39,6 +40,18 @@ func TestAppendPreservesWriteOrderAndFacetEmbeddings(t *testing.T) { // [REQ:VME
 	}
 }
 
+func TestFacetTextsKeepDistinctClusteringSpaces(t *testing.T) { // [REQ:VMEM-P1-005]
+	repo := journalDB(t)
+	client := &mocks.FakeInference{ClassifyOut: "episode", EmbedOut: []float64{0.1, 0.2}}
+	entry, err := NewService(repo, client).Append(context.Background(), Entry{Body: "one memory", Kind: "memory"})
+	require.NoError(t, err)
+	require.Equal(t, []string{"topic", "rule", "entities"}, []string{entry.FacetTexts[0].Kind, entry.FacetTexts[1].Kind, entry.FacetTexts[2].Kind})
+	require.Equal(t, []string{"one memory", "Implication: one memory", "Entities: one memory"}, []string{entry.FacetTexts[0].Text, entry.FacetTexts[1].Text, entry.FacetTexts[2].Text})
+	for _, facetText := range entry.FacetTexts {
+		require.Equal(t, []float64{0.1, 0.2}, facetText.Vector)
+	}
+}
+
 func TestClassifierFailureStillAppendsUnclassifiedEntry(t *testing.T) { // [REQ:VMEM-P0-002]
 	repo := journalDB(t)
 	client := &mocks.FakeInference{ClassifyErr: errors.New("gateway unavailable"), EmbedOut: []float64{1}}
@@ -52,6 +65,29 @@ func TestClassifierFailureStillAppendsUnclassifiedEntry(t *testing.T) { // [REQ:
 	require.NoError(t, repo.db.QueryRowContext(context.Background(), `SELECT entry_id, reason FROM journal_retry_queue`).Scan(&queuedEntryID, &reason))
 	require.Equal(t, entry.ID, queuedEntryID)
 	require.Equal(t, "classify", reason)
+}
+
+type contextualTestInference struct{ kind string }
+
+func (f *contextualTestInference) Classify(context.Context, string) (string, error) {
+	return "thread", nil
+}
+func (f *contextualTestInference) ClassifyEntry(_ context.Context, _ string, kind string) (string, error) {
+	f.kind = kind
+	return "episode", nil
+}
+func (*contextualTestInference) Embed(context.Context, string, inference.EmbeddingTask) ([]float64, error) {
+	return []float64{1}, nil
+}
+func (*contextualTestInference) Summarize(context.Context, string) (string, error) { return "", nil }
+
+func TestAppendPassesValidatedEntryKindToContextualClassifier(t *testing.T) {
+	repo := journalDB(t)
+	client := &contextualTestInference{}
+	entry, err := NewService(repo, client).Append(context.Background(), Entry{Body: "Trigger: request\nApproach: work\nEvidence: tests\nOutcome: done", Kind: "work-record"})
+	require.NoError(t, err)
+	require.Equal(t, "work-record", client.kind)
+	require.Equal(t, "episode", entry.FacetID)
 }
 
 func TestRepositoryExposesNoMutationMethods(t *testing.T) { // [REQ:VMEM-P0-001]
@@ -105,4 +141,38 @@ func TestProcessEmbeddingRetriesRestoresAllFacetVectorsAndAcknowledgesQueue(t *t
 	require.Equal(t, 3, vectors)
 	require.NoError(t, d.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM journal_retry_queue WHERE reason='embed'`).Scan(&queued))
 	require.Zero(t, queued)
+}
+
+type ruleTestInference struct{ classifyCalls int }
+
+func (f *ruleTestInference) Classify(context.Context, string) (string, error) {
+	f.classifyCalls++
+	return "gotcha", nil
+}
+
+func (*ruleTestInference) Embed(context.Context, string, inference.EmbeddingTask) ([]float64, error) {
+	return []float64{1, 0}, nil
+}
+func (*ruleTestInference) Summarize(context.Context, string) (string, error) { return "", nil }
+
+func TestRuleMatchAssignsWithoutCallingClassifierAndRecordsProvenance(t *testing.T) {
+	d := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(Schema), apidb.SchemaProviderFunc(facets.Schema)))
+	repo := NewSQLiteRepository(d)
+	fr := facets.NewSQLiteRepository(d)
+	require.NoError(t, fr.Seed(context.Background()))
+	rule, err := fr.CreateRule(context.Background(), facets.Rule{ID: "source-episode", Priority: 1, FacetID: "episode", SourceRuntime: "swarm-manager"})
+	require.NoError(t, err)
+	_, err = fr.DryRunRule(context.Background(), rule.ID)
+	require.NoError(t, err)
+	require.NoError(t, fr.EnableRule(context.Background(), rule.ID))
+	client := &ruleTestInference{}
+	entry, err := NewService(repo, client, facets.NewService(fr)).Append(context.Background(), Entry{Body: "imported work", Kind: "work-record", Attribution: Attribution{SourceRuntime: "swarm-manager"}})
+	require.NoError(t, err)
+	require.Equal(t, "episode", entry.FacetID)
+	require.Zero(t, client.classifyCalls)
+	assignments, err := fr.Assignments(context.Background(), entry.ID)
+	require.NoError(t, err)
+	require.Len(t, assignments, 1)
+	require.Equal(t, "rule:source-episode", assignments[0].ActorID)
 }

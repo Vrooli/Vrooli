@@ -289,6 +289,23 @@
           }
         },
         {
+          "name": "frontier",
+          "description": "Inspect current forest frontier",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ForestService",
+            "method": "GetFrontier"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
           "name": "rebuild-forest",
           "description": "Rebuild derived memory forest",
           "binding": {
@@ -397,6 +414,82 @@
           }
         }
       ]
+    },
+    {
+      "name": "facets",
+      "description": "Correct facets, pins, and supersession state",
+      "commands": [
+        {"name": "list", "description": "List facet policies", "binding": {"kind": "connect-rpc", "service": "FacetsService", "method": "ListFacets"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}, "architecture": {"primitive": "proto_list"}},
+        {"name": "correct", "description": "Append a facet correction", "positionals": [{"name": "entry-id", "required": true, "description": "Memory entry id"}], "flags": [{"name": "facet", "description": "New facet id"}], "binding": {"kind": "connect-rpc", "service": "FacetsService", "method": "AssignFacet"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}, "architecture": {"primitive": "proto_mutation"}},
+        {"name": "pin", "description": "Pin or unpin a memory for guaranteed wake recall", "positionals": [{"name": "entry-id", "required": true, "description": "Memory entry id"}], "flags": [{"name": "unpin", "description": "Remove the pin"}], "binding": {"kind": "connect-rpc", "service": "FacetsService", "method": "SetPin"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}, "architecture": {"primitive": "proto_mutation"}},
+        {"name": "proposals", "description": "List redundant pin proposals", "binding": {"kind": "connect-rpc", "service": "FacetsService", "method": "ListPinProposals"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}, "architecture": {"primitive": "proto_list"}},
+        {"name": "resolve-proposal", "description": "Resolve a pin proposal", "positionals": [{"name": "proposal-id", "required": true, "description": "Proposal id"}], "flags": [{"name": "accept", "description": "Accept the recommended canonical pin"}], "binding": {"kind": "connect-rpc", "service": "FacetsService", "method": "ResolvePinProposal"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}, "architecture": {"primitive": "proto_mutation"}},
+        {"name": "supersede", "description": "Append a supersession mark", "positionals": [{"name": "entry-id", "required": true, "description": "Original memory id"}], "flags": [{"name": "replacement-entry-id", "description": "Replacement memory id"}], "binding": {"kind": "connect-rpc", "service": "FacetsService", "method": "MarkSuperseded"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}, "architecture": {"primitive": "proto_mutation"}},
+        {"name": "resolve-thread", "description": "Resolve a thread so it leaves ambient frontier", "positionals": [{"name": "entry-id", "required": true, "description": "Thread entry id"}], "binding": {"kind": "connect-rpc", "service": "FacetsService", "method": "ResolveThread"}, "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}, "architecture": {"primitive": "proto_mutation"}}
+      ]
+    },
+    {
+      "name": "rules",
+      "description": "Manage declarative facet classification rules",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List classification rules",
+          "flags": [{"name": "scope", "description": "Policy scope", "default": "agent-memory"}],
+          "binding": {"kind": "connect-rpc", "service": "ClassificationRulesService", "method": "ListRules"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "create",
+          "description": "Create a disabled classification rule",
+          "flags": [
+            {"name": "id", "description": "Rule id"},
+            {"name": "scope", "description": "Policy scope", "default": "agent-memory"},
+            {"name": "priority", "description": "Ascending priority", "default": "100"},
+            {"name": "facet", "description": "Target facet"},
+            {"name": "source-runtime", "description": "Source runtime condition"},
+            {"name": "kind", "description": "Entry kind condition"},
+            {"name": "source-path", "description": "Source path glob condition"},
+            {"name": "body-pattern", "description": "Body regex condition"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "ClassificationRulesService", "method": "CreateRule"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "dry-run",
+          "description": "Preview rule matches against the current corpus",
+          "positionals": [{"name": "rule-id", "required": true, "description": "Rule id"}],
+          "binding": {"kind": "connect-rpc", "service": "ClassificationRulesService", "method": "DryRunRule"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "enable",
+          "description": "Enable a rule after a current-corpus dry run",
+          "positionals": [{"name": "rule-id", "required": true, "description": "Rule id"}],
+          "binding": {"kind": "connect-rpc", "service": "ClassificationRulesService", "method": "EnableRule"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "revert",
+          "description": "Append prior assignments for entries decided by a rule",
+          "positionals": [{"name": "rule-id", "required": true, "description": "Rule id"}],
+          "binding": {"kind": "connect-rpc", "service": "ClassificationRulesService", "method": "RevertRule"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "refacet",
+          "description": "Re-facet the immutable corpus using current rules and classifier",
+          "flags": [{"name": "scope", "description": "Policy scope", "default": "agent-memory"}],
+          "binding": {"kind": "connect-rpc", "service": "ClassificationRulesService", "method": "RefacetCorpus"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_mutation"}
+        }
+      ]
     }
   ],
   "measures": {
@@ -467,6 +560,11 @@
       "command": "siblings",
       "class": "passthrough",
       "reason": "Root alias for same-run memory event inspection."
+    },
+    {
+      "command": "frontier",
+      "class": "passthrough",
+      "reason": "Root alias for the manifest-bound forest frontier inspection command."
     }
   ],
   "omitted": [

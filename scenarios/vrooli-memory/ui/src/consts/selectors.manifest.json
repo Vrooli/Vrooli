@@ -128,9 +128,21 @@
       "testId": "page-recall",
       "selector": "[data-testid=\"page-recall\"]"
     },
+    "pages.operator": {
+      "testId": "page-operator",
+      "selector": "[data-testid=\"page-operator\"]"
+    },
     "pages.settings": {
       "testId": "page-settings",
       "selector": "[data-testid=\"page-settings\"]"
+    },
+    "operator.frontierList": {
+      "testId": "operator-frontier-list",
+      "selector": "[data-testid=\"operator-frontier-list\"]"
+    },
+    "operator.proposalList": {
+      "testId": "operator-proposal-list",
+      "selector": "[data-testid=\"operator-proposal-list\"]"
     },
     "errorBoundary.root": {
       "testId": "error-boundary-root",
@@ -154,6 +166,7 @@
             "dashboard",
             "journal",
             "recall",
+            "operator",
             "settings"
           ]
         }
@@ -171,6 +184,7 @@
             "dashboard",
             "journal",
             "recall",
+            "operator",
             "settings"
           ]
         }

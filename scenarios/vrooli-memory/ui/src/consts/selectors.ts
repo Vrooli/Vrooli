@@ -337,7 +337,12 @@ const literalSelectors = {
     dashboard: "page-dashboard",
     journal: "page-journal",
     recall: "page-recall",
+    operator: "page-operator",
     settings: "page-settings",
+  },
+  operator: {
+    frontierList: "operator-frontier-list",
+    proposalList: "operator-proposal-list",
   },
   errorBoundary: {
     root: "error-boundary-root",
@@ -357,6 +362,7 @@ const dynamicSelectorDefinitions = {
             "dashboard",
             "journal",
             "recall",
+            "operator",
             "settings",
           ] as const,
         },
@@ -372,6 +378,7 @@ const dynamicSelectorDefinitions = {
             "dashboard",
             "journal",
             "recall",
+            "operator",
             "settings",
           ] as const,
         },

@@ -12,6 +12,7 @@
       "dashboard": "لوحة التحكم",
       "journal": "السجل",
       "recall": "الاستدعاء",
+      "operator": "المشغّل",
       "settings": "الإعدادات"
     }
   },
@@ -34,6 +35,25 @@
     },
     "recall": {
       "title": "الاستدعاء"
+    },
+    "operator": {
+      "title": "مراجعة المشغّل",
+      "description": "افحص جبهة الضغط وراجع مقترحات التثبيت قبل تغيير الذاكرة المشتركة.",
+      "frontierTitle": "جبهة الضغط",
+      "frontierEmpty": "الجبهة فارغة",
+      "correctionTitle": "سياسة السمات",
+      "facetsEmpty": "لا توجد تعريفات للسمات",
+      "facetCount": "{{count}} تعريفات سمات",
+      "correctionHint": "تتوفر التصحيحات من كل إدخال في السجل وتسجل كتعيينات ملحقة فقط.",
+      "proposalsTitle": "مقترحات التثبيت",
+      "proposalsEmpty": "لا توجد مقترحات تثبيت للمراجعة",
+      "summary": "ملخص · العمق {{depth}} · {{span}} من السلالات",
+      "leaf": "ورقة · العمق {{depth}}",
+      "unclassified": "غير مصنف",
+      "entries": "إدخالات",
+      "accept": "قبول",
+      "reject": "رفض",
+      "refresh": "تحديث"
     },
     "settings": {
       "title": "الإعدادات",
@@ -62,7 +82,11 @@
     "loading": "جارٍ تحميل السجل…",
     "retry": "إعادة المحاولة",
     "empty": "لا توجد ذكريات بعد",
-    "unknownTime": "وقت غير معروف"
+    "unknownTime": "وقت غير معروف",
+    "facetCorrection": "تغيير السمة",
+    "changeFacet": "اختر سمة",
+    "pin": "تثبيت",
+    "unpin": "إلغاء التثبيت"
   },
   "recall": {
     "title": "استدعاء الذاكرة",

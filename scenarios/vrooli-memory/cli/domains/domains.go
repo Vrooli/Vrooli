@@ -2,9 +2,11 @@ package domains
 
 import (
 	"vrooli-memory/cli/domains/forest"
+	"vrooli-memory/cli/domains/facets"
 	"vrooli-memory/cli/domains/harness"
 	"vrooli-memory/cli/domains/journal"
 	"vrooli-memory/cli/domains/recall"
+	"vrooli-memory/cli/domains/rules"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -59,6 +61,10 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	groups = append(groups, journalGroup, harnessGroup, recallGroup, forestGroup)
+	facetsGroup, err := facets.Register(core, manifest)
+	if err != nil { return nil, err }
+	rulesGroup, err := rules.Register(core, manifest)
+	if err != nil { return nil, err }
+	groups = append(groups, journalGroup, harnessGroup, recallGroup, forestGroup, rulesGroup, facetsGroup)
 	return groups, nil
 }

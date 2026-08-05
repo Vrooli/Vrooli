@@ -34,15 +34,20 @@ const (
 	// Bounding its output keeps the queue moving and prevents a concise request
 	// from monopolizing a local model context window.
 	ClassificationMaxOutputTokens = 32
-	SummaryMaxOutputTokens        = 256
+	SummaryMaxOutputTokens        = 128
 	clusteringPrefix              = "clustering: "
 	documentPrefix                = "search_document: "
 	queryPrefix                   = "search_query: "
-	classificationPromptPrefix    = "Classify the memory into exactly one allowed facet ID. Return only the ID, no punctuation or explanation. Allowed facet IDs: standing-rule, environment-fact, gotcha, episode, thread, entity-record.\nMemory: "
+	classificationPromptPrefix    = "Classify the memory into exactly one allowed facet ID. Return only the ID, no punctuation or explanation."
 	// Facet assignment is a six-way coarse classification, so a compact
 	// head-and-tail excerpt is sufficient and keeps corpus replay within the
 	// gateway's bounded request window.
 	classificationInputRunes = 4000
+	// Few-shot examples are policy evidence, not a second corpus payload. Keep
+	// each facet's examples short and bounded so the six-way vocabulary cannot
+	// crowd the memory being classified out of a local model's context window.
+	classificationExamplesPerFacet = 1
+	classificationExampleRunes     = 300
 	// The local embedding provider rejects 6k-character payloads once its own
 	// prompt overhead is included. Keep this below the measured 5k ceiling with
 	// a deliberate safety margin so a queued import cannot repeatedly trip the
@@ -66,12 +71,33 @@ type Client interface {
 	Summarize(context.Context, string) (string, error)
 }
 
-type GatewayClient struct {
-	routing routingconnect.RoutingServiceClient
+// ContextualClassifier is an optional extension for callers that have
+// validated entry metadata. Keeping it separate preserves the generic Client
+// seam for embeddings, summaries, and test fakes while allowing journal
+// classification to carry policy-relevant kind information.
+type ContextualClassifier interface {
+	ClassifyEntry(context.Context, string, string) (string, error)
 }
 
-func NewGatewayClient(routing routingconnect.RoutingServiceClient) *GatewayClient {
-	return &GatewayClient{routing: routing}
+type (
+	VocabularyEntry struct {
+		ID, Label, Guidance string
+		Examples            []string
+	}
+	VocabularyProvider func(context.Context) ([]VocabularyEntry, error)
+)
+
+type GatewayClient struct {
+	routing    routingconnect.RoutingServiceClient
+	vocabulary VocabularyProvider
+}
+
+func NewGatewayClient(routing routingconnect.RoutingServiceClient, vocabulary ...VocabularyProvider) *GatewayClient {
+	c := &GatewayClient{routing: routing}
+	if len(vocabulary) > 0 {
+		c.vocabulary = vocabulary[0]
+	}
+	return c
 }
 
 func (c *GatewayClient) Embed(ctx context.Context, text string, task EmbeddingTask) ([]float64, error) {
@@ -92,11 +118,34 @@ func (c *GatewayClient) Embed(ctx context.Context, text string, task EmbeddingTa
 }
 
 func (c *GatewayClient) Classify(ctx context.Context, prompt string) (string, error) {
-	output, err := c.execute(ctx, sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION, ClassificationRole, classificationPrompt(prompt), GenerationTimeout, ClassificationMaxOutputTokens)
+	return c.classify(ctx, prompt, "")
+}
+
+func (c *GatewayClient) ClassifyEntry(ctx context.Context, memory, kind string) (string, error) {
+	return c.classify(ctx, memory, kind)
+}
+
+func (c *GatewayClient) classify(ctx context.Context, memory, kind string) (string, error) {
+	allowed := []VocabularyEntry(nil)
+	if c.vocabulary != nil {
+		var err error
+		allowed, err = c.vocabulary(ctx)
+		if err != nil {
+			return "", fmt.Errorf("resolve classification vocabulary: %w", err)
+		}
+	}
+	output, err := c.execute(ctx, sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION, ClassificationRole, classificationPrompt(classificationMemory(memory, kind), allowed...), GenerationTimeout, ClassificationMaxOutputTokens)
 	if err != nil {
 		return "", err
 	}
 	return generatedText(output)
+}
+
+func classificationMemory(memory, kind string) string {
+	if strings.TrimSpace(kind) == "" {
+		return memory
+	}
+	return "Entry kind: " + strings.TrimSpace(kind) + "\nMemory:\n" + memory
 }
 
 func (c *GatewayClient) Summarize(ctx context.Context, prompt string) (string, error) {
@@ -146,17 +195,39 @@ func embeddingExcerpt(text string) string {
 	return string(runes[:half]) + "\n[... embedding excerpt omitted ...]\n" + string(runes[len(runes)-half:])
 }
 
-func classificationPrompt(memory string) string {
-	return classificationPromptPrefix + classificationExcerpt(memory)
+func classificationPrompt(memory string, allowed ...VocabularyEntry) string {
+	prefix := classificationPromptPrefix
+	if len(allowed) > 0 {
+		prefix += " Allowed facet IDs and policy guidance (return only the exact ID):"
+		for _, facet := range allowed {
+			prefix += "\n- " + facet.ID + ": " + facet.Label
+			if strings.TrimSpace(facet.Guidance) != "" {
+				prefix += " — " + facet.Guidance
+			}
+			for i, example := range facet.Examples {
+				if i >= classificationExamplesPerFacet {
+					break
+				}
+				if strings.TrimSpace(example) != "" {
+					prefix += "\n  example: " + classificationExcerptLimit(example, classificationExampleRunes)
+				}
+			}
+		}
+	}
+	return prefix + "\nMemory: " + classificationExcerpt(memory)
 }
 
 func classificationExcerpt(memory string) string {
+	return classificationExcerptLimit(memory, classificationInputRunes)
+}
+
+func classificationExcerptLimit(memory string, limit int) string {
 	trimmed := strings.TrimSpace(memory)
 	runes := []rune(trimmed)
-	if len(runes) <= classificationInputRunes {
+	if len(runes) <= limit {
 		return trimmed
 	}
-	half := classificationInputRunes / 2
+	half := limit / 2
 	return string(runes[:half]) + "\n[... classification excerpt omitted ...]\n" + string(runes[len(runes)-half:])
 }
 

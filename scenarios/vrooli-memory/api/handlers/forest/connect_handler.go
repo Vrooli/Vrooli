@@ -17,6 +17,8 @@ type connectHandler struct {
 	logger  *log.Logger
 }
 
+const compactionPassTimeout = time.Hour
+
 func NewConnectHandler(s *internalforest.Service, l *log.Logger) *connectHandler {
 	if l == nil {
 		l = log.Default()
@@ -28,7 +30,7 @@ func (h *connectHandler) RunCompactionPass(ctx context.Context, _ *connect.Reque
 	// Compaction is server-owned background work: it can span several local
 	// generations, so a client transport disconnect must not interrupt it
 	// halfway through a pressure pass. The service serializes concurrent runs.
-	passCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 20*time.Minute)
+	passCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), compactionPassTimeout)
 	defer cancel()
 	h.logger.Printf("forest compaction pass started")
 	r, e := h.service.Run(passCtx)

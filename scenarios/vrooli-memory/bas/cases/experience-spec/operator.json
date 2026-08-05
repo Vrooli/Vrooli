@@ -1,0 +1,120 @@
+{
+  "metadata": {
+    "description": "Generated observer smoke for active experience page operator.",
+    "execution_mode": "observer",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "operator",
+      "surface": "experience-operator"
+    },
+    "name": "experience-operator-spec-smoke",
+    "requirement": "OT-P1-006",
+    "version": "1"
+  },
+  "nodes": [
+    {
+      "action": {
+        "metadata": {
+          "label": "Open Operator review"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "vrooli-memory",
+          "scenario_path": "/operator",
+          "timeout_ms": 30000,
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+        },
+        "type": "ACTION_TYPE_NAVIGATE"
+      },
+      "id": "navigate-operator"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Primary binding visible"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.operator",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-operator-primary-binding"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Frontier surface visible"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"operator-frontier-list\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-operator-frontier-binding"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Frontier loading state observed"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/operator.frontierList[data-experience-state=\"loading\"]",
+          "state": "WAIT_STATE_HIDDEN",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-operator-frontier-loading-settles"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Frontier terminal state visible"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/operator.frontierList[data-experience-state=\"ready\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-operator-frontier-ready"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Pin proposals surface visible"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/operator.proposalList",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-operator-proposals-binding"
+    },
+    {
+      "action": {
+        "metadata": {
+          "label": "Authored proposals binding visible"
+        },
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"operator-proposal-list\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        }
+      },
+      "id": "wait-operator-proposals-authored-binding"
+    }
+  ],
+  "settings": {
+    "viewport_height": 800,
+    "viewport_width": 1280
+  }
+}

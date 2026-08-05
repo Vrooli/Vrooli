@@ -6,13 +6,13 @@ const UnclassifiedFacet = "unclassified"
 
 type (
 	Entry struct {
-		ID, Body, FacetID, Kind, ImportKey string
-		Existing                           bool
-		Attribution                        Attribution
-		Import                             ImportProvenance
-		Correlation                        Correlation
-		FacetTexts                         []FacetText
-		CreatedAt                          time.Time
+		ID, Scope, Body, FacetID, Kind, ImportKey string
+		Existing                                  bool
+		Attribution                               Attribution
+		Import                                    ImportProvenance
+		Correlation                               Correlation
+		FacetTexts                                []FacetText
+		CreatedAt                                 time.Time
 	}
 	RetryItem struct {
 		ID, Reason string

@@ -1,39 +1,21 @@
 package recall
 
-import (
-	"fmt"
-	"strconv"
-	"strings"
-)
+import "vrooli-memory/internal/policy"
 
 const (
-	DefaultFrontierTarget = 16
-	DefaultWakeBudget     = 40
-	FrontierTargetEnv     = "VROOLI_MEMORY_FRONTIER_TARGET"
-	WakeBudgetEnv         = "VROOLI_MEMORY_WAKE_BUDGET"
+	DefaultFrontierTarget = policy.DefaultFrontierTarget
+	DefaultWakeBudget     = policy.DefaultWakeBudget
+	FrontierTargetEnv     = policy.FrontierTargetEnv
+	WakeBudgetEnv         = policy.WakeBudgetEnv
 )
 
 // ConfigFromEnv loads independent compaction and prompt-size controls. A
 // malformed value is an operator error: silently falling back would make the
 // active memory budget impossible to reason about.
 func ConfigFromEnv(lookupEnv func(string) (string, bool)) (Config, error) {
-	config := Config{FrontierTarget: DefaultFrontierTarget, WakeBudget: DefaultWakeBudget}
-	for _, setting := range []struct {
-		name string
-		set  func(int)
-	}{
-		{name: FrontierTargetEnv, set: func(value int) { config.FrontierTarget = value }},
-		{name: WakeBudgetEnv, set: func(value int) { config.WakeBudget = value }},
-	} {
-		raw, ok := lookupEnv(setting.name)
-		if !ok || strings.TrimSpace(raw) == "" {
-			continue
-		}
-		value, err := strconv.Atoi(raw)
-		if err != nil || value <= 0 {
-			return Config{}, fmt.Errorf("%s must be a positive integer, got %q", setting.name, raw)
-		}
-		setting.set(value)
+	c, err := policy.Resolve(lookupEnv)
+	if err != nil {
+		return Config{}, err
 	}
-	return config, nil
+	return Config{FrontierTarget: c.FrontierTarget, WakeBudget: c.WakeBudget}, nil
 }

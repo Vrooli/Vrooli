@@ -18,8 +18,8 @@ func TestCommandGroups(t *testing.T) {
 	got := CommandGroups(&cliapp.ScenarioApp{})
 	require.Len(t, got, 1)
 	require.Equal(t, "Memory", got[0].Title)
-	require.Len(t, got[0].Commands, 13)
-	require.Equal(t, []string{"note", "retry-classifications", "retry-embeddings", "recall", "wake", "siblings", "import", "import-status", "project", "capture", "install-prompt", "compact", "rebuild-forest"}, []string{got[0].Commands[0].Name, got[0].Commands[1].Name, got[0].Commands[2].Name, got[0].Commands[3].Name, got[0].Commands[4].Name, got[0].Commands[5].Name, got[0].Commands[6].Name, got[0].Commands[7].Name, got[0].Commands[8].Name, got[0].Commands[9].Name, got[0].Commands[10].Name, got[0].Commands[11].Name, got[0].Commands[12].Name})
+	require.Len(t, got[0].Commands, 14)
+	require.Equal(t, []string{"note", "retry-classifications", "retry-embeddings", "recall", "wake", "siblings", "import", "import-status", "project", "capture", "install-prompt", "compact", "frontier", "rebuild-forest"}, []string{got[0].Commands[0].Name, got[0].Commands[1].Name, got[0].Commands[2].Name, got[0].Commands[3].Name, got[0].Commands[4].Name, got[0].Commands[5].Name, got[0].Commands[6].Name, got[0].Commands[7].Name, got[0].Commands[8].Name, got[0].Commands[9].Name, got[0].Commands[10].Name, got[0].Commands[11].Name, got[0].Commands[12].Name, got[0].Commands[13].Name})
 }
 
 // TestSubcommandGroups proves the aggregator returns whatever domains

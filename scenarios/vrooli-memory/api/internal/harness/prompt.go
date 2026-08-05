@@ -13,7 +13,7 @@ const (
 )
 
 func PromptBlock() string {
-	return promptStart + "\n## Durable memory\nRecord durable rules, important environment facts, decisions, outcomes, and hard-won gotchas in your native memory when they will help a future agent. Do not record transient chat or telemetry.\n" + promptEnd + "\n"
+	return promptStart + "\n## Durable memory\nRecord durable rules, important environment facts, decisions, outcomes, and hard-won gotchas in your native memory when they will help a future agent. Do not record transient chat or telemetry. The generated memory wake block is maintained by the memory service; curate your native memory outside that managed block.\n" + promptEnd + "\n"
 }
 
 func InstallPromptBlock(path string) error {

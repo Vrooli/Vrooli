@@ -93,6 +93,14 @@
       "category": "facets"
     },
     {
+      "id": "facets_resolve_thread",
+      "path": "/vrooli.vrooli_memory.v1.facets.FacetsService/ResolveThread",
+      "method": "POST",
+      "summary": "Resolve a thread",
+      "description": "",
+      "category": "facets"
+    },
+    {
       "id": "forest_compact",
       "path": "/vrooli.vrooli_memory.v1.forest.ForestService/RunCompactionPass",
       "method": "POST",
@@ -325,6 +333,46 @@
           "description": "Retry persistence failure"
         }
       ]
+    },
+    {
+      "id": "rules_list",
+      "path": "/vrooli.vrooli_memory.v1.rules.ClassificationRulesService/ListRules",
+      "method": "POST",
+      "summary": "List classification rules",
+      "description": "",
+      "category": "rules"
+    },
+    {
+      "id": "rules_create",
+      "path": "/vrooli.vrooli_memory.v1.rules.ClassificationRulesService/CreateRule",
+      "method": "POST",
+      "summary": "Create classification rule",
+      "description": "",
+      "category": "rules"
+    },
+    {
+      "id": "rules_dry_run",
+      "path": "/vrooli.vrooli_memory.v1.rules.ClassificationRulesService/DryRunRule",
+      "method": "POST",
+      "summary": "Dry-run classification rule",
+      "description": "",
+      "category": "rules"
+    },
+    {
+      "id": "rules_enable",
+      "path": "/vrooli.vrooli_memory.v1.rules.ClassificationRulesService/EnableRule",
+      "method": "POST",
+      "summary": "Enable classification rule",
+      "description": "",
+      "category": "rules"
+    },
+    {
+      "id": "rules_revert",
+      "path": "/vrooli.vrooli_memory.v1.rules.ClassificationRulesService/RevertRule",
+      "method": "POST",
+      "summary": "Revert rule assignments",
+      "description": "",
+      "category": "rules"
     }
   ]
 }

@@ -112,3 +112,40 @@ The remaining delegated entries retain their assigned facets: GCT backlog audit
 and interactive-runner delivery are episodes; prompt-manager plumbing is a
 gotcha; orchestration-summary and standards-gate guidance are standing rules;
 messages-view and wizard ergonomics remain threads.
+
+## Repeatable classifier fixture — 2026-08-04
+
+The provenance-covered fixture is the deterministic fifth row of every
+`swarm-manager` `work-record`, where the enabled
+`live-work-record-episode` rule supplies the expected answer `episode`:
+
+```sql
+WITH ranked AS (
+  SELECT id, body,
+    ROW_NUMBER() OVER (ORDER BY created_at, id) AS rn
+  FROM entries
+  WHERE source_runtime='swarm-manager' AND kind='work-record'
+)
+SELECT id, 'episode' AS expected_facet, body
+FROM ranked
+WHERE rn % 5 = 0
+ORDER BY id;
+```
+
+The complement is the fall-through fixture. It is classified three times per
+entry and scored unanimous only when all three returned the same allowed facet
+ID. The prompt is assembled from the live facet definitions and the
+corpus-derived rows in `facet_examples`; no facet vocabulary is duplicated in
+the measurement code.
+
+The repeatable held-out run on the live local gateway classified 432 of 432
+entries correctly (100.00%) after the facet examples were bounded to one
+300-rune example per facet and the episode guidance explicitly covered partial
+and failed work-record outcomes. In the completed stability run, the corpus
+snapshot contained 2,160 rule-covered entries and 558 fall-through entries
+(2,718 total); three independent classifications per fall-through entry
+produced 558/558 unanimous results with 0 transport errors (100.00%
+stability). Classification uses the normal `classify.routing` gateway role;
+journal writes also pass the validated entry kind through the scenario
+inference seam so a `work-record` cannot lose its policy context. No provider
+internals were changed for this scenario.

@@ -9,7 +9,7 @@ import { RecallPanel } from "./RecallPanel";
 
 vi.mock("../../api/recall", () => ({ recallMemory: vi.fn() }));
 
-describe("[REQ:VMEM-P1-003] RecallPanel", () => {
+describe("[REQ:VMEM-P1-003] [REQ:VMEM-P1-006] RecallPanel", () => {
   afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
   it("searches, labels a summary, and renders accessibly in light and dark themes", async () => {

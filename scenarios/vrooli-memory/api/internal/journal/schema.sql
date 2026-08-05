@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS entries (
   id TEXT PRIMARY KEY,
+  scope TEXT NOT NULL DEFAULT 'agent-memory',
   body TEXT NOT NULL,
   facet_id TEXT NOT NULL,
   kind TEXT NOT NULL,
@@ -14,7 +15,7 @@ CREATE TABLE IF NOT EXISTS entries (
   imported_at TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL
 );
-CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_import_key ON entries(import_key) WHERE import_key IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_entries_scope_import_key ON entries(scope, import_key) WHERE import_key IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_entries_created_at ON entries(created_at ASC, id ASC);
 CREATE TABLE IF NOT EXISTS facet_texts (
   id TEXT PRIMARY KEY,
@@ -24,13 +25,16 @@ CREATE TABLE IF NOT EXISTS facet_texts (
   embedding_ref TEXT NOT NULL DEFAULT '',
   FOREIGN KEY (entry_id) REFERENCES entries(id)
 );
+CREATE INDEX IF NOT EXISTS idx_facet_texts_entry ON facet_texts(entry_id, id);
 CREATE TABLE IF NOT EXISTS embeddings (
   id TEXT PRIMARY KEY,
   facet_text_id TEXT NOT NULL,
   vector_json TEXT NOT NULL,
+  vector_blob BLOB NOT NULL DEFAULT X'',
   created_at TEXT NOT NULL,
   FOREIGN KEY (facet_text_id) REFERENCES facet_texts(id)
 );
+CREATE INDEX IF NOT EXISTS idx_embeddings_facet_text ON embeddings(facet_text_id, id);
 CREATE TABLE IF NOT EXISTS journal_retry_queue (
   id TEXT PRIMARY KEY,
   entry_id TEXT NOT NULL,

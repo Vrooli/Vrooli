@@ -72,3 +72,61 @@ func TestProjectionWritesToLeasedDataRootInTestMode(t *testing.T) {
 	require.Equal(t, int64(1), routes.LeaseStats().TestRootWrites)
 	require.Zero(t, routes.LeaseStats().PrimaryWritesDuringTestMode)
 }
+
+func TestProjectionPreservesBytesOutsideManagedWakeBlock(t *testing.T) { // [REQ:VMEM-P1-007] [REQ:VMEM-P0-010]
+	db := localdb.NewSQLite(t)
+	_, err := db.Exec(Schema())
+	require.NoError(t, err)
+	path := filepath.Join(t.TempDir(), "MEMORY.md")
+	curated := "# Curated\n\nKeep this pointer exactly.\n"
+	require.NoError(t, os.WriteFile(path, []byte(curated+wakeStart+"\nold\n"+wakeEnd+"\n## Tail\n"), 0o600))
+	wake := recall.NewService(projectionSource{{ID: "entry", Text: "new generated memory", Frontier: true, CreatedAt: time.Now()}}, nil, recall.Config{WakeBudget: 40})
+	p := NewProjector(db, wake)
+	p.targets["claude-code"] = projectionTarget{Runtime: "claude-code", Path: path, Cap: 4096}
+	_, err = p.Project(context.Background(), "claude-code", false)
+	require.NoError(t, err)
+	got, err := os.ReadFile(path)
+	require.NoError(t, err)
+	text := string(got)
+	require.Contains(t, text, curated)
+	require.Contains(t, text, "## Tail")
+	require.Contains(t, text, "new generated memory")
+	require.NotContains(t, text, "old\n")
+}
+
+func TestProjectionRejectsMalformedManagedWakeBlockWithoutWriting(t *testing.T) {
+	db := localdb.NewSQLite(t)
+	_, err := db.Exec(Schema())
+	require.NoError(t, err)
+	path := filepath.Join(t.TempDir(), "MEMORY.md")
+	original := "curated\n" + wakeStart + "\nmissing end\n"
+	require.NoError(t, os.WriteFile(path, []byte(original), 0o600))
+	wake := recall.NewService(projectionSource{{ID: "entry", Text: "generated", Frontier: true, CreatedAt: time.Now()}}, nil, recall.Config{WakeBudget: 40})
+	p := NewProjector(db, wake)
+	p.targets["claude-code"] = projectionTarget{Runtime: "claude-code", Path: path, Cap: 4096}
+	_, err = p.Project(context.Background(), "claude-code", false)
+	var malformed ErrMalformedManagedBlock
+	require.ErrorAs(t, err, &malformed)
+	got, readErr := os.ReadFile(path)
+	require.NoError(t, readErr)
+	require.Equal(t, original, string(got))
+}
+
+func TestProjectionAddsManagedWakeBlockWithoutOverwritingExistingFile(t *testing.T) {
+	db := localdb.NewSQLite(t)
+	_, err := db.Exec(Schema())
+	require.NoError(t, err)
+	path := filepath.Join(t.TempDir(), "MEMORY.md")
+	original := "# Existing\n"
+	require.NoError(t, os.WriteFile(path, []byte(original), 0o600))
+	wake := recall.NewService(projectionSource{{ID: "entry", Text: "generated", Frontier: true, CreatedAt: time.Now()}}, nil, recall.Config{WakeBudget: 40})
+	p := NewProjector(db, wake)
+	p.targets["claude-code"] = projectionTarget{Runtime: "claude-code", Path: path, Cap: 4096}
+	_, err = p.Project(context.Background(), "claude-code", false)
+	require.NoError(t, err)
+	got, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.True(t, strings.HasPrefix(string(got), original))
+	require.Contains(t, string(got), wakeStart)
+	require.Contains(t, string(got), wakeEnd)
+}

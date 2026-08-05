@@ -123,6 +123,17 @@ The scaffold ships one fully worked CRUD command group as a copyable
 reference (see the fenced example below); `template-manager detemplate
 <scenario>` removes it once your real domains are green.
 
+The shipped operator domains are:
+
+- `vrooli-memory facets list|correct|pin|proposals|resolve-proposal|supersede|resolve-thread`
+- `vrooli-memory forest compact|frontier|rebuild-forest`
+- `vrooli-memory rules list|create|dry-run|enable|revert`
+- `vrooli-memory harness import|import-status|project|capture|install-prompt`
+
+`facets pin <entry-id> --unpin` is the reversible unpin form. Pin requests are
+bounded by the standing-rule policy budget and return a reviewable proposal
+when the budget is full.
+
 ## Output contracts
 
 Every scenario command should render through one of three human

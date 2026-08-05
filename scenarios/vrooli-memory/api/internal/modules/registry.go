@@ -32,12 +32,13 @@ import (
 	healthH "vrooli-memory/handlers/health"
 	journalH "vrooli-memory/handlers/journal"
 	recallH "vrooli-memory/handlers/recall"
+	rulesH "vrooli-memory/handlers/rules"
 	localdb "vrooli-memory/internal/database"
 )
 
 // MemoryDomainNames is the authoritative skeleton registry. Runtime mounting
 // follows as each domain receives a Connect handler in its implementation phase.
-var MemoryDomainNames = []string{"journal", "facets", "forest", "recall", "federation", "harness"}
+var MemoryDomainNames = []string{"journal", "facets", "forest", "recall", "federation", "harness", "rules"}
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
 // stable order (system endpoints first, then domains alphabetically).
@@ -51,6 +52,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, recallH.Endpoints...)
 	out = append(out, harnessH.Endpoints...)
 	out = append(out, journalH.Endpoints...)
+	out = append(out, rulesH.Endpoints...)
 	return out
 }
 
@@ -82,6 +84,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "recall", File: recallH.ProtoFile},
 		{Module: "harness", File: harnessH.ProtoFile},
 		{Module: "journal", File: journalH.ProtoFile},
+		{Module: "rules", File: rulesH.ProtoFile},
 	}
 }
 

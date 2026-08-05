@@ -22,7 +22,7 @@ Use this document to answer:
 | ai-gateway | scenario | yes | journal (classify, embed), forest (summarize) | scenario CLI/API | **Writes degrade, never fail.** An entry is appended unclassified and queued; compaction pauses until inference is available. |
 | search-hub | scenario | yes (for federated reach) | federation | `.vrooli/search.json` descriptor + `RegisterProvider` | Local `recall` keeps working; only cross-corpus federated query loses the memory provider. |
 | vrooli-events | scenario | no | harness | api-core receipt publication (automatic) | Run correlation is absent; writes and recall are unaffected. |
-| swarm-manager | scenario | no | harness (work-record migration) | records read for one-time import | Migration deferred; work-record memories still write normally. |
+| swarm-manager | scenario | no | harness (work-record import) | local records adapter, content-addressed import keys | Import is replay-safe and optional; imported records become `kind=work-record` memories and normal writes remain available. |
 | Coding-agent resources | local resource | no | harness (projection, capture, import) | `resources/<agent>/` — projection path, prompt block, and hook install ride the existing resource install/update machinery | Projection is not written and native writes are not captured for that runtime; memory keeps working for every other harness. |
 
 ## Vrooli Resources
@@ -116,7 +116,7 @@ Recorded rather than guessed:
 | ai-gateway | required | Facet classification, facet-text derivation, embedding, and compaction summarization. | Scenario CLI/API. Model policy stays in the gateway. |
 | search-hub | required | Federated retrieval. Memory registers a provider descriptor; the router holds no memory content and no vectors. | `.vrooli/search.json` validated against `.vrooli/schemas/search.schema.json`; boot self-registration. |
 | vrooli-events | automatic | Run correlation for memories written inside an agent run. **No integration work** — `api-core/server.go` wraps every handler in `eventbus.AutomaticRuntime`, so receipts carrying run id, workflow execution id, actor kind, and identity token are published for every endpoint already. | Memory stores correlation ids only and never copies run payloads. |
-| swarm-manager | migration-only | Work records are absorbed as a memory kind (`VMEM-P1-001`). One-time import of existing records; the `records create` write path is retired from agent-facing docs. | Read-only import. |
+| swarm-manager | import adapter | Work records are absorbed as a memory kind (`VMEM-P1-001`). The adapter is idempotent and records source provenance; the `records create` write path is retired from agent-facing docs. | Read-only source sweep; failures are reported without claiming completion. |
 
 ## Third-Party Services
 
@@ -136,7 +136,7 @@ Recorded rather than guessed:
 | Harness store unreadable | path missing, permission denied, or SQLite locked | Import skips that harness and reports it; other harnesses import normally. A partial sweep is never recorded as complete. | `VMEM-P0-011` |
 | Harness store format changed | adapter extraction yields zero items from a non-empty source | **Import aborts for that adapter rather than importing nothing silently.** A vendor changing storage layout must surface as a failure, not as an empty diff that looks like "nothing new". | `VMEM-P0-011` |
 | Hook install unsupported | runtime exposes no usable pre-write surface | Falls back to store diff. Capture latency degrades from real-time to sweep interval; no memory is lost. | `VMEM-P1-008` |
-| Projection exceeds harness cap | generated file over the runtime's documented limit | Projection is truncated **at a pin-safe boundary** and the overflow is reported. Pinned standing rules are emitted first so a truncation can never drop one. | `VMEM-P0-010` |
+| Projection exceeds harness cap | generated file over the runtime's documented limit | Projection fails closed and reports overflow; no native file is rewritten or truncated. | `VMEM-P0-010` |
 
 ## Cross-References
 

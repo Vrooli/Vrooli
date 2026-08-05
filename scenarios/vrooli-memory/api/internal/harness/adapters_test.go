@@ -10,7 +10,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func TestFormatReadersExtractNormalizedItems(t *testing.T) {
+func TestFormatReadersExtractNormalizedItems(t *testing.T) { // [REQ:VMEM-P0-011]
 	markdown, err := wholeMarkdown("memory.md", []byte("  durable memory  \n"))
 	require.NoError(t, err)
 	require.Equal(t, []sourceItem{{Path: "memory.md", Body: "durable memory"}}, markdown)

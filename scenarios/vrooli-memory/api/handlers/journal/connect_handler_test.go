@@ -39,7 +39,7 @@ func TestAppendDerivesCorrelationOnlyFromVerifiedProvenance(t *testing.T) { // [
 	require.Empty(t, uncorrelated.Msg.GetEntry().GetCorrelation().GetRunId())
 }
 
-func TestConnectHandlerAppendGetAndList(t *testing.T) {
+func TestConnectHandlerAppendGetAndList(t *testing.T) { // [REQ:VMEM-P0-002]
 	h := newHandler(t)
 	ctx := context.Background()
 	appended, err := h.AppendEntry(ctx, connect.NewRequest(&journalv1.AppendEntryRequest{Body: "Keep immutable evidence", Kind: "observation"}))

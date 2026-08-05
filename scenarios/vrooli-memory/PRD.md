@@ -26,16 +26,16 @@
 - [ ] OT-P0-006 | Guaranteed pinned recall | When wake output is produced, the system shall include every pinned standing-rule memory regardless of its similarity to any query or its position in the tree.
 - [ ] OT-P0-007 | Pressure-driven compaction | When the compaction-eligible frontier exceeds its target size, the system shall collapse the highest-scoring candidate cluster and shall repeat until that eligible frontier is under target.
 - [x] OT-P0-008 | Budgeted ambient recall | When wake is invoked, the system shall emit a view bounded by a configured line budget whose granularity is finest for the most recent material.
-- [ ] OT-P0-009 | Federated retrieval registration | The system shall register its corpus as a search-hub provider so memory is reachable from federated query without any router change.
+- [x] OT-P0-009 | Federated retrieval registration | The system shall register its corpus as a search-hub provider so memory is reachable from federated query without any router change.
 - [ ] OT-P0-010 | Harness memory projection | The system shall write wake output to the harness memory file as a one-directional generated projection that it never reads back as input.
-- [ ] OT-P0-011 | Harness memory import | The system shall import existing harness memory stores idempotently across markdown, JSONL, and SQLite formats, so re-running an import over unchanged sources creates no duplicates.
+- [x] OT-P0-011 | Harness memory import | The system shall import existing harness memory stores idempotently across markdown, JSONL, and SQLite formats, so re-running an import over unchanged sources creates no duplicates.
 
 ### 🟠 P1 – Should have post-launch
 
-- [ ] OT-P1-001 | Work-record memory kind | The system should accept a work-record memory kind carrying trigger, approach, evidence, and outcome, superseding the separate swarm-manager records write path.
+- [x] OT-P1-001 | Work-record memory kind | The system should accept a work-record memory kind carrying trigger, approach, evidence, and outcome, superseding the separate swarm-manager records write path.
 - [ ] OT-P1-002 | Run correlation and sibling events | When a memory is written inside an agent run, the system should store the receipt correlation and should expose a command that lists the other events from that run.
 - [x] OT-P1-003 | Tree descent | When an operator or agent zooms a summary, the system should render that node's immediate constituents and should allow repeated descent to the leaves.
-- [ ] OT-P1-004 | Supersession-aware summarization | When a candidate cluster contains contradicting entries, the summarization prompt should resolve them by recency rather than conjoining both claims.
+- [x] OT-P1-004 | Supersession-aware summarization | When a candidate cluster contains contradicting entries, the summarization prompt should resolve them by recency rather than conjoining both claims.
 - [ ] OT-P1-005 | Multi-space facet embedding | The system should embed several derived facet texts per memory so that clustering can group entries by more than one notion of relatedness.
 - [ ] OT-P1-006 | Operator review surface | The system should provide a UI for browsing the journal, inspecting the frontier, and correcting a memory's facet or pinned state.
 - [x] OT-P1-007 | Harness prompt-block install | The system should install and update a prompt block that describes what is worth remembering, and shall not instruct the agent to call a specific memory command.

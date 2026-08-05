@@ -75,6 +75,11 @@ badges that the canon already provides.
 
 ## Experience Contract
 
+The `/operator` route is the operator review surface: it reads the live
+compaction frontier, exposes pin-proposal decisions, and shares the journal's
+append-only facet and pin correction actions. Its feature implementation lives
+under `ui/src/features/operator/`; the journal route owns per-entry controls.
+
 The generated `experience/` folder is the UX-intent contract for the route
 table in `ui/src/app/routes.tsx`. Keep those two surfaces aligned:
 

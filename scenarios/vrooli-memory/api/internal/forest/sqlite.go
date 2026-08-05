@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	vectorcodec "vrooli-memory/internal/vector"
 )
 
 type SQLiteRepository struct{ db *sql.DB }
@@ -22,10 +23,6 @@ func (r *SQLiteRepository) CreateSummary(ctx context.Context, s Summary, edges [
 	}
 	if s.Generation == 0 {
 		s.Generation = 1
-	}
-	vector, err := json.Marshal(s.Vector)
-	if err != nil {
-		return Summary{}, fmt.Errorf("encode summary vector: %w", err)
 	}
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -47,7 +44,7 @@ func (r *SQLiteRepository) CreateSummary(ctx context.Context, s Summary, edges [
 			return Summary{}, fmt.Errorf("child %s/%s is no longer on frontier", e.ChildKind, e.ChildID)
 		}
 	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO summaries (id,body,facet_id,vector_json,depth,generation,created_at) VALUES (?,?,?,?,?,?,?)`, s.ID, s.Body, s.FacetID, string(vector), s.Depth, s.Generation, s.CreatedAt.Format(time.RFC3339Nano)); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO summaries (id,body,facet_id,vector_json,vector_blob,depth,generation,created_at) VALUES (?,?,?,?,?,?,?,?)`, s.ID, s.Body, s.FacetID, "", vectorcodec.Encode(s.Vector), s.Depth, s.Generation, s.CreatedAt.Format(time.RFC3339Nano)); err != nil {
 		return Summary{}, err
 	}
 	for _, e := range edges {
@@ -62,14 +59,14 @@ func (r *SQLiteRepository) CreateSummary(ctx context.Context, s Summary, edges [
 	return s, nil
 }
 
-func (r *SQLiteRepository) Nodes(ctx context.Context) ([]Node, error) {
+func (r *SQLiteRepository) Nodes(ctx context.Context, limit int) ([]Node, error) {
 	rows, err := r.db.QueryContext(ctx, `
-SELECT e.id,e.id,e.facet_id,e.body,COALESCE((SELECT em.vector_json FROM facet_texts ft JOIN embeddings em ON em.facet_text_id=ft.id WHERE ft.entry_id=e.id ORDER BY ft.id LIMIT 1),'[]'),0,0,e.created_at,0
+SELECT e.id,e.id,e.facet_id,e.body,COALESCE((SELECT em.vector_blob FROM facet_texts ft JOIN embeddings em ON em.facet_text_id=ft.id WHERE ft.entry_id=e.id ORDER BY ft.id LIMIT 1),X''),COALESCE((SELECT em.vector_json FROM facet_texts ft JOIN embeddings em ON em.facet_text_id=ft.id WHERE ft.entry_id=e.id ORDER BY ft.id LIMIT 1),'[]'),0,0,e.created_at,0
 FROM entries e WHERE NOT EXISTS(SELECT 1 FROM tree_edges WHERE child_id=e.id AND child_kind='entry')
 UNION ALL
-SELECT s.id,s.id,s.facet_id,s.body,s.vector_json,s.depth,s.generation,s.created_at,1
+SELECT s.id,s.id,s.facet_id,s.body,s.vector_blob,s.vector_json,s.depth,s.generation,s.created_at,1
 FROM summaries s WHERE NOT EXISTS(SELECT 1 FROM tree_edges WHERE child_id=s.id AND child_kind='summary')
-ORDER BY 8,1`)
+ORDER BY 8,1 LIMIT ?`, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -78,10 +75,17 @@ ORDER BY 8,1`)
 	for rows.Next() {
 		var n Node
 		var raw, created string
-		if err := rows.Scan(&n.ID, &n.EntryID, &n.FacetID, &n.Body, &raw, &n.Depth, &n.Generation, &created, &n.Summary); err != nil {
+		var blob []byte
+		if err := rows.Scan(&n.ID, &n.EntryID, &n.FacetID, &n.Body, &blob, &raw, &n.Depth, &n.Generation, &created, &n.Summary); err != nil {
 			return nil, err
 		}
-		if err := json.Unmarshal([]byte(raw), &n.Vector); err != nil {
+		var err error
+		if len(blob) > 0 {
+			n.Vector, err = vectorcodec.Decode(blob)
+		} else if raw != "" {
+			err = json.Unmarshal([]byte(raw), &n.Vector)
+		}
+		if err != nil {
 			return nil, fmt.Errorf("decode node vector: %w", err)
 		}
 		n.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
@@ -91,7 +95,7 @@ ORDER BY 8,1`)
 }
 
 func (r *SQLiteRepository) Frontier(ctx context.Context) ([]Summary, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT s.id,s.body,s.facet_id,s.vector_json,s.depth,s.generation,s.created_at FROM summaries s LEFT JOIN tree_edges e ON e.child_id=s.id AND e.child_kind='summary' WHERE e.parent_id IS NULL ORDER BY s.created_at,s.id`)
+	rows, err := r.db.QueryContext(ctx, `SELECT s.id,s.body,s.facet_id,s.vector_blob,s.vector_json,s.depth,s.generation,s.created_at FROM summaries s LEFT JOIN tree_edges e ON e.child_id=s.id AND e.child_kind='summary' WHERE e.parent_id IS NULL ORDER BY s.created_at,s.id`)
 	if err != nil {
 		return nil, err
 	}
@@ -99,11 +103,18 @@ func (r *SQLiteRepository) Frontier(ctx context.Context) ([]Summary, error) {
 	var out []Summary
 	for rows.Next() {
 		var s Summary
-		var created, vector string
-		if err := rows.Scan(&s.ID, &s.Body, &s.FacetID, &vector, &s.Depth, &s.Generation, &created); err != nil {
+		var created, raw string
+		var blob []byte
+		if err := rows.Scan(&s.ID, &s.Body, &s.FacetID, &blob, &raw, &s.Depth, &s.Generation, &created); err != nil {
 			return nil, err
 		}
-		if err := json.Unmarshal([]byte(vector), &s.Vector); err != nil {
+		var err error
+		if len(blob) > 0 {
+			s.Vector, err = vectorcodec.Decode(blob)
+		} else if raw != "" {
+			err = json.Unmarshal([]byte(raw), &s.Vector)
+		}
+		if err != nil {
 			return nil, fmt.Errorf("decode summary vector: %w", err)
 		}
 		s.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)

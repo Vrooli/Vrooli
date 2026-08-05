@@ -12,6 +12,7 @@
       "dashboard": "Dashboard",
       "journal": "Journal",
       "recall": "Recall",
+      "operator": "Operator",
       "settings": "Settings"
     }
   },
@@ -34,6 +35,25 @@
     },
     "recall": {
       "title": "Recall"
+    },
+    "operator": {
+      "title": "Operator review",
+      "description": "Inspect the compaction frontier and review pin proposals before changing shared memory.",
+      "frontierTitle": "Compaction frontier",
+      "frontierEmpty": "The frontier is empty",
+      "correctionTitle": "Facet policy",
+      "facetsEmpty": "No facet definitions available",
+      "facetCount": "{{count}} facet definitions",
+      "correctionHint": "Corrections are available from each journal entry and are recorded as append-only assignments.",
+      "proposalsTitle": "Pin proposals",
+      "proposalsEmpty": "No pin proposals need review",
+      "summary": "summary · depth {{depth}} · {{span}} descendants",
+      "leaf": "leaf · depth {{depth}}",
+      "unclassified": "unclassified",
+      "entries": "entries",
+      "accept": "Accept",
+      "reject": "Reject",
+      "refresh": "Refresh"
     },
     "settings": {
       "title": "Settings",
@@ -93,7 +113,11 @@
     "loading": "Loading journal…",
     "retry": "Retry",
     "empty": "No memories yet",
-    "unknownTime": "unknown time"
+    "unknownTime": "unknown time",
+    "facetCorrection": "Change facet",
+    "changeFacet": "Choose facet",
+    "pin": "Pin",
+    "unpin": "Unpin"
   },
   "errorBoundary": {
     "title": "Something went wrong",

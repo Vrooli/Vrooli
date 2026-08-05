@@ -28,6 +28,12 @@
       "status": "active"
     },
     {
+      "id": "operator",
+      "path": "pages/operator.json",
+      "title": "Operator review",
+      "status": "active"
+    },
+    {
       "id": "settings",
       "path": "pages/settings.json",
       "title": "Settings",

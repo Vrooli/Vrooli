@@ -13,7 +13,7 @@ import (
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing"
 )
 
-func TestEmbedderUsesDistinctGatewayTasks(t *testing.T) {
+func TestEmbedderUsesDistinctGatewayTasks(t *testing.T) { // [REQ:VMEM-P1-005]
 	fake := &fakeInference{embedOut: []float64{0.1}}
 	embedder := Embedder{Client: fake}
 	if _, err := embedder.EmbedQuery(context.Background(), "query"); err != nil {
@@ -59,6 +59,39 @@ func TestGatewayClientUsesGenerationTimeoutAndDecodesClassification(t *testing.T
 	if got != "taxonomy" {
 		t.Fatalf("classification = %q", got)
 	}
+}
+
+func TestGatewayClientCarriesEntryKindIntoClassificationContext(t *testing.T) {
+	memory := classificationMemory("memory", "work-record")
+	client := NewGatewayClient(fakeRouting{response: `{"response":"episode"}`, wantRole: ClassificationRole, wantInput: classificationPrompt(memory), wantTimeout: GenerationTimeout, wantMaxOutputTokens: ClassificationMaxOutputTokens})
+	got, err := client.ClassifyEntry(context.Background(), "memory", "work-record")
+	require.NoError(t, err)
+	require.Equal(t, "episode", got)
+}
+
+func TestGatewayClientBuildsClassificationVocabularyFromProvider(t *testing.T) {
+	client := NewGatewayClient(fakeRouting{response: `{"response":"future-facet"}`, wantRole: ClassificationRole, wantInput: classificationPrompt("memory", VocabularyEntry{ID: "future-facet", Label: "Future facet", Guidance: "A future category."}), wantTimeout: GenerationTimeout, wantMaxOutputTokens: ClassificationMaxOutputTokens}, func(context.Context) ([]VocabularyEntry, error) {
+		return []VocabularyEntry{{ID: "future-facet", Label: "Future facet", Guidance: "A future category."}}, nil
+	})
+	got, err := client.Classify(context.Background(), "memory")
+	require.NoError(t, err)
+	require.Equal(t, "future-facet", got)
+}
+
+func TestClassificationPromptCarriesPolicyOwnedGuidance(t *testing.T) { // [REQ:VMEM-P0-005] [REQ:VMEM-P1-005]
+	got := classificationPrompt("memory", VocabularyEntry{ID: "gotcha", Label: "Gotcha", Guidance: "A recurring failure mode or trap.", Examples: []string{"A recurring provider timeout trap."}})
+	require.Contains(t, got, "gotcha")
+	require.Contains(t, got, "A recurring failure mode or trap")
+	require.Contains(t, got, "A recurring provider timeout trap")
+	require.Contains(t, got, "return only the exact ID")
+}
+
+func TestClassificationPromptBoundsFewShotExamples(t *testing.T) {
+	example := strings.Repeat("x", classificationExampleRunes+100)
+	got := classificationPrompt("memory", VocabularyEntry{ID: "episode", Label: "Episode", Examples: []string{example, "second", "third"}})
+	require.Contains(t, got, "[... classification excerpt omitted ...]")
+	require.NotContains(t, got, "second")
+	require.NotContains(t, got, "third")
 }
 
 func TestGatewayClientUsesLongerTimeoutForCompactionSummary(t *testing.T) {

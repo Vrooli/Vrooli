@@ -1,8 +1,10 @@
 CREATE TABLE IF NOT EXISTS summaries (
   id TEXT PRIMARY KEY,
+  scope TEXT NOT NULL DEFAULT 'agent-memory',
   body TEXT NOT NULL,
   facet_id TEXT NOT NULL,
   vector_json TEXT NOT NULL DEFAULT '[]',
+  vector_blob BLOB NOT NULL DEFAULT X'',
   depth INTEGER NOT NULL,
   generation INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL

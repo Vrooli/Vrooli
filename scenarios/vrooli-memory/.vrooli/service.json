@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
+  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"budget":{"max_bytes":"4GiB","max_age":"365d","rationale":"Measured starting ceiling for the append-only memory journal and derived indexes; facet resident budgets and compaction bound active recall pressure."},"rationale":"Scenario-owned durable data observed in the canonical data directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
   "service": {
     "parent": "vrooli",
     "name": "vrooli-memory",
@@ -223,12 +223,13 @@
         "enabled": false,
         "required": false,
         "startup_policy": "ignore",
-        "description": "Reserved for the one-time historical work-record migration; it is not needed by normal memory operation."
+        "description": "Reserved for the one-time historical work-record migration; it is not needed by normal memory operation.",
+        "degraded_behavior": "Normal memory operation remains available; only historical work-record migration is unavailable until swarm-manager recovers."
       }
     }
   },
   "environment": {
-    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/vrooli-memory.db",
+    "SQLITE_PATH": "/tmp/vmem-refacet-copy.db",
     "VROOLI_MEMORY_WORKSPACE_ROOT": "/home/matthalloran8/Vrooli"
   }
 }

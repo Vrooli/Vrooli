@@ -6,14 +6,29 @@ const UnclassifiedFacet = "unclassified"
 
 type (
 	Definition struct {
-		ID, Label, RetentionPolicy string
-		CompactionEligible         bool
+		ID, Label, ClassificationGuidance, RetentionPolicy string
+		ClassificationExamples                             []string
+		CompactionEligible                                 bool
+		ResidentBudget                                     int
 	}
 	Assignment struct {
 		ID, EntryID, FacetID, ActorID string
 		AssignedAt                    time.Time
 	}
+	PinProposal struct {
+		ID        string
+		EntryIDs  []string
+		Rationale string
+	}
 )
+
+type ErrPinBudgetExceeded struct {
+	ProposalID string
+}
+
+func (e ErrPinBudgetExceeded) Error() string {
+	return "pin budget exceeded; review proposal " + e.ProposalID
+}
 
 type ErrUnknownFacet struct{ ID string }
 

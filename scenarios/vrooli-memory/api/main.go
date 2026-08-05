@@ -16,6 +16,7 @@ import (
 	"vrooli-memory/internal/inference"
 	"vrooli-memory/internal/journal"
 	"vrooli-memory/internal/modules"
+	"vrooli-memory/internal/policy"
 	internalrecall "vrooli-memory/internal/recall"
 	"vrooli-memory/internal/server"
 
@@ -37,6 +38,7 @@ import (
 	healthH "vrooli-memory/handlers/health"
 	journalH "vrooli-memory/handlers/journal"
 	recallH "vrooli-memory/handlers/recall"
+	rulesH "vrooli-memory/handlers/rules"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -147,12 +149,21 @@ func main() {
 	if err := forest.EnsureMigrations(context.Background(), db.Primary()); err != nil {
 		log.Fatalf("forest schema migration failed: %v", err)
 	}
+	if err := policy.EnsureMigrations(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("policy schema migration failed: %v", err)
+	}
+	if err := facets.EnsureMigrations(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("facet schema migration failed: %v", err)
+	}
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 	facetService := facets.NewService(facets.NewSQLiteRepository(db.Primary()))
 	if err := facetService.Seed(context.Background()); err != nil {
 		log.Fatalf("seed facet definitions: %v", err)
+	}
+	if err := facetService.SeedExamples(context.Background()); err != nil {
+		log.Fatalf("seed facet classification examples: %v", err)
 	}
 	primaryFileRoots, err := scenarioStorageRoots()
 	if err != nil {
@@ -164,11 +175,41 @@ func main() {
 	if err != nil {
 		log.Fatalf("resolve ai-gateway endpoint: %v", err)
 	}
-	gatewayClient := inference.NewGatewayClient(routingconnect.NewRoutingServiceClient(http.DefaultClient, gatewayURL))
-	recallConfig, err := internalrecall.ConfigFromEnv(os.LookupEnv)
+	policyConfig, err := policy.Resolve(os.LookupEnv)
 	if err != nil {
-		log.Fatalf("recall configuration failed: %v", err)
+		log.Fatalf("memory policy configuration failed: %v", err)
 	}
+	definitions, err := facetService.List(context.Background())
+	if err != nil {
+		log.Fatalf("list facet policies: %v", err)
+	}
+	facetBudgets := make(map[string]int, len(definitions))
+	for _, definition := range definitions {
+		facetBudgets[definition.ID] = definition.ResidentBudget
+	}
+	recallConfig := internalrecall.Config{FrontierTarget: policyConfig.FrontierTarget, WakeBudget: policyConfig.WakeBudget, FacetBudgets: facetBudgets}
+	resolver := policy.NewResolver(policy.AgentMemory, policyConfig, func(ctx context.Context) ([]policy.Facet, error) {
+		definitions, err := facetService.List(ctx)
+		if err != nil {
+			return nil, err
+		}
+		out := make([]policy.Facet, 0, len(definitions))
+		for _, definition := range definitions {
+			out = append(out, policy.Facet{ID: definition.ID, Label: definition.Label, Guidance: definition.ClassificationGuidance, Examples: definition.ClassificationExamples})
+		}
+		return out, nil
+	})
+	gatewayClient := inference.NewGatewayClient(routingconnect.NewRoutingServiceClient(http.DefaultClient, gatewayURL), func(ctx context.Context) ([]inference.VocabularyEntry, error) {
+		definitions, err := resolver.Vocabulary(ctx)
+		if err != nil {
+			return nil, err
+		}
+		ids := make([]inference.VocabularyEntry, 0, len(definitions))
+		for _, definition := range definitions {
+			ids = append(ids, inference.VocabularyEntry{ID: definition.ID, Label: definition.Label, Guidance: definition.Guidance, Examples: definition.Examples})
+		}
+		return ids, nil
+	})
 	// Federation is best-effort: a stopped search-hub must never block local
 	// recall. The shared registrar retries briefly in this background goroutine
 	// and re-upserts the descriptor/corpus safely on every scenario boot.
@@ -186,6 +227,7 @@ func main() {
 		recallH.Module(db, gatewayClient, recallConfig, log.Default()),
 		federation.Module(),
 		harnessH.Module(db, fileRoots, gatewayClient, log.Default()),
+		rulesH.Module(db, log.Default(), gatewayClient),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

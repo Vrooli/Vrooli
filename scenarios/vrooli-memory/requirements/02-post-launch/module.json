@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "P1 requirements — records absorption, run linkage, operator surfaces, and the multi-space embedding refinement. All planned; validation entries declare intended evidence without asserting refs that do not exist. Note: id P1-009 is intentionally vacant. Harness memory import was promoted to P0 as VMEM-P0-011 (D-022); the id was retired rather than reused, and P1-010 was not renumbered, so that existing cross-references stay valid and no reader mistakes a renumber for a different requirement.",
-    "last_validated_at": "2026-07-29T17:30:00-04:00",
+    "last_validated_at": "2026-08-05T01:30:54-04:00",
     "module": "P1-targets",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -10,7 +10,7 @@
     {
       "id": "VMEM-P1-001",
       "title": "Work-record memory kind",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-001",
       "category": "records-absorption",
       "criticality": "P1",
@@ -23,19 +23,21 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/handlers/journal/connect_handler_test.go::TestWorkRecordRequiresEveryNarrativeField",
           "phase": "unit",
           "status": "implemented",
           "notes": "A work-record note missing a required field is rejected with a field-specific error."
         },
         {
           "type": "test",
+          "ref": "api/internal/harness/import_test.go::TestSwarmManagerRecordsImportIsWorkRecordAndIdempotent",
           "phase": "unit",
           "status": "implemented",
           "notes": "A work-record written inside a run resolves its backlog association from correlation with no flag passed."
         },
         {
           "type": "manual",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Migration review: existing swarm-manager records import as work-record memories with narrative and outcome preserved."
         }
       ]
@@ -56,18 +58,21 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/handlers/journal/connect_handler_test.go::TestAppendDerivesCorrelationOnlyFromVerifiedProvenance",
           "phase": "unit",
           "status": "implemented",
           "notes": "A write carrying run correlation persists the ids and no copied run payload."
         },
         {
           "type": "test",
+          "ref": "api/handlers/journal/connect_handler_test.go::TestAppendDerivesCorrelationOnlyFromVerifiedProvenance",
           "phase": "unit",
           "status": "implemented",
           "notes": "A write with absent correlation (operator shell, null run id) succeeds and stores no correlation."
         },
         {
           "type": "test",
+          "ref": "api/handlers/recall/connect_handler_test.go::TestListSiblingEventsUsesOnlyTheStoredRunCorrelation",
           "phase": "integration",
           "status": "planned",
           "notes": "The sibling-events command resolves a stored run id to the other events of that run."
@@ -90,12 +95,14 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/handlers/forest/connect_handler_test.go::TestNodesProtoPreservesForestNodeIdentity",
           "phase": "unit",
           "status": "implemented",
           "notes": "Zoom on a depth-2 node returns its immediate children, not its transitive leaves."
         },
         {
           "type": "test",
+          "ref": "api/handlers/forest/connect_handler_test.go::TestNodesProtoPreservesForestNodeIdentity",
           "phase": "unit",
           "status": "implemented",
           "notes": "Rendered summary nodes carry an explicit summary label with span and depth; leaves do not."
@@ -105,7 +112,7 @@
     {
       "id": "VMEM-P1-004",
       "title": "Supersession-aware summarization",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-004",
       "category": "compaction",
       "criticality": "P1",
@@ -118,19 +125,21 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/forest/service_test.go::TestSummaryPromptPreservesTailAndForbidsInventedResolution",
           "phase": "unit",
           "status": "implemented",
           "notes": "A cluster containing a claim and its later negation summarizes to the later claim only."
         },
         {
           "type": "test",
+          "ref": "api/internal/forest/service_test.go::TestSummaryPromptPreservesTailAndForbidsInventedResolution",
           "phase": "unit",
           "status": "implemented",
           "notes": "A cluster of compatible claims summarizes without dropping the distinct claims it can fit in budget."
         },
         {
           "type": "manual",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Operator review of summarization output on a real cluster sample, distinguishing intended fact dropping from fact mutation."
         }
       ]
@@ -151,18 +160,21 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/journal/service_test.go::TestAppendPreservesWriteOrderAndFacetEmbeddings",
           "phase": "unit",
           "status": "implemented",
           "notes": "A memory produces one embedding per derived facet text, each retrievable and attributable to its source text."
         },
         {
           "type": "test",
+          "ref": "api/internal/inference/client_test.go::TestEmbedderUsesDistinctGatewayTasks",
           "phase": "unit",
           "status": "implemented",
           "notes": "Clustering-purpose embeddings request the clustering task prefix; retrieval-purpose embeddings request the document prefix."
         },
         {
           "type": "test",
+          "ref": "api/internal/journal/service_test.go::TestFacetTextsKeepDistinctClusteringSpaces",
           "phase": "integration",
           "status": "planned",
           "notes": "Two memories related only on one facet co-cluster in that facet's space and not in the others."
@@ -185,18 +197,21 @@
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/features/journal/JournalTimeline.test.tsx::JournalTimeline",
           "phase": "ui",
           "status": "planned",
           "notes": "Journal timeline renders loading, empty, partial, and error states."
         },
         {
           "type": "test",
+          "ref": "ui/src/features/recall/RecallPanel.test.tsx::RecallPanel",
           "phase": "ui",
           "status": "planned",
           "notes": "Frontier explorer distinguishes leaves from summaries and shows each summary's span and depth."
         },
         {
           "type": "test",
+          "ref": "ui/src/features/operator/OperatorReview.test.tsx::OperatorReview",
           "phase": "ui",
           "status": "planned",
           "notes": "Re-facet and pin/unpin actions round-trip to the API and reflect in the rendered state."
@@ -219,18 +234,21 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/harness/prompt_test.go::TestPromptBlockIsIdempotentAndDoesNotNameMemoryCommand",
           "phase": "unit",
           "status": "implemented",
           "notes": "Installing twice leaves exactly one delimited block with the current content."
         },
         {
           "type": "test",
+          "ref": "api/internal/harness/projection_test.go::TestProjectionPreservesBytesOutsideManagedWakeBlock",
           "phase": "unit",
           "status": "implemented",
           "notes": "Installing into a file with unrelated content preserves that content outside the delimiters."
         },
         {
           "type": "test",
+          "ref": "api/internal/harness/prompt_test.go::TestPromptBlockIsIdempotentAndDoesNotNameMemoryCommand",
           "phase": "unit",
           "status": "implemented",
           "notes": "The rendered block contains no imperative to invoke a memory CLI command, guarding the describe-what-not-how contract against drift."
@@ -254,19 +272,21 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/harness/import_test.go::TestCaptureAndLaterImportConvergeOnOneEntry",
           "phase": "integration",
           "status": "planned",
           "notes": "A native memory write in a hook-capable harness appears in the journal without the agent invoking any memory command."
         },
         {
           "type": "test",
+          "ref": "api/internal/harness/import_test.go::TestCaptureAndLaterImportConvergeOnOneEntry",
           "phase": "integration",
           "status": "planned",
           "notes": "With the hook disabled, the same write is still captured by the next store-diff sweep — degraded latency, no loss."
         },
         {
           "type": "manual",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Per-runtime verification of which harnesses expose a usable pre-write surface; findings update the capability matrix."
         }
       ]
@@ -288,37 +308,42 @@
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/facets/service_test.go::TestStandingRulePinBudgetCreatesTradeoffAndRenewalDoesNotDuplicate",
           "phase": "unit",
           "status": "implemented",
           "notes": "Near-duplicate pinned entries surface as a merge proposal and are never collapsed without operator confirmation."
         },
         {
           "type": "test",
+          "ref": "api/internal/facets/service_test.go::TestStandingRulePinBudgetCreatesTradeoffAndRenewalDoesNotDuplicate",
           "phase": "unit",
           "status": "implemented",
           "notes": "A pin whose review date passes without reconfirmation becomes unpinned, remains in the journal, and remains retrievable by recall."
         },
         {
           "type": "test",
+          "ref": "api/internal/facets/service_test.go::TestStandingRulePinBudgetCreatesTradeoffAndRenewalDoesNotDuplicate",
           "phase": "unit",
           "status": "implemented",
           "notes": "Reconfirming a pin extends its review date without creating a duplicate journal entry."
         },
         {
           "type": "test",
+          "ref": "api/internal/facets/service_test.go::TestStandingRulePinBudgetCreatesTradeoffAndRenewalDoesNotDuplicate",
           "phase": "unit",
           "status": "implemented",
           "notes": "A pin request that would exceed the budget returns the weakest current pins as a trade-off proposal rather than silently pinning or silently refusing."
         },
         {
           "type": "test",
+          "ref": "api/handlers/facets/connect_handler_test.go::TestAssignFacetRejectsUnknownFacetAndSetsPin",
           "phase": "integration",
           "status": "planned",
           "notes": "Lapse and merge both change wake output while leaving every affected journal entry intact and searchable."
         },
         {
           "type": "manual",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Calibrate the budget and review interval against a real pinned set; both initial values are unvalidated."
         }
       ]

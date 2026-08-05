@@ -20,6 +20,7 @@ type (
 	}
 	Candidate struct {
 		ID, FacetID, Body string
+		RetentionPolicy   string
 		Vector            []float64
 		CreatedAt         time.Time
 		Depth, Generation int
@@ -65,15 +66,29 @@ func (s *Service) runLocked(ctx context.Context) (CompactionResult, error) {
 		return CompactionResult{}, err
 	}
 	result := CompactionResult{EligibleFrontierBefore: len(candidates), EligibleFrontierAfter: len(candidates)}
+	failedPairs := make(map[string]struct{})
+	var lastSummarizeErr error
 	for len(candidates) > s.config.Target {
-		best, ok := bestPair(candidates)
+		best, pairKey, ok := bestPairExcluding(candidates, failedPairs)
 		if !ok {
-			break
+			if lastSummarizeErr != nil {
+				return result, fmt.Errorf("summarize compaction cluster: %w", lastSummarizeErr)
+			}
+			return result, fmt.Errorf("no eligible candidate pair remains while frontier is above target")
 		}
 		prompt := summaryPrompt(best[0], best[1])
 		body, err := s.summarize(ctx, prompt)
 		if err != nil {
-			return result, fmt.Errorf("summarize compaction cluster: %w", err)
+			// A single malformed or provider-hostile cluster must not strand the
+			// entire frontier. It is safe to leave this pair untouched and try the
+			// next scored pair; an all-failing corpus still returns the last error
+			// below without writing anything for the failed pair.
+			failedPairs[pairKey] = struct{}{}
+			lastSummarizeErr = err
+			if len(failedPairs) >= 8 {
+				return result, fmt.Errorf("summarize compaction cluster: %w", err)
+			}
+			continue
 		}
 		body = strings.TrimSpace(body)
 		if body == "" {
@@ -101,7 +116,7 @@ func (s *Service) runLocked(ctx context.Context) (CompactionResult, error) {
 // summarize retries the provider's transient stream-termination failure before
 // the atomic write begins. A final error still leaves the forest untouched.
 func (s *Service) summarize(ctx context.Context, prompt string) (string, error) {
-	const maxAttempts = 4
+	const maxAttempts = 2
 	for attempt := 0; ; attempt++ {
 		body, err := s.inference.Summarize(ctx, prompt)
 		if err == nil || attempt == maxAttempts-1 || !strings.Contains(strings.ToLower(err.Error()), "unexpected eof") {
@@ -124,7 +139,9 @@ func (s *Service) Rebuild(ctx context.Context) (CompactionResult, error) {
 	return s.runLocked(ctx)
 }
 
-func (s *Service) Frontier(ctx context.Context) ([]Node, error) { return s.repo.Nodes(ctx) }
+func (s *Service) Frontier(ctx context.Context) ([]Node, error) {
+	return s.repo.Nodes(ctx, s.config.Target)
+}
 
 func (s *Service) eligible(ctx context.Context) ([]Candidate, error) {
 	candidates, err := s.source.CompactionCandidates(ctx)
@@ -134,7 +151,7 @@ func (s *Service) eligible(ctx context.Context) ([]Candidate, error) {
 	cutoff := s.now().Add(-s.config.RecencyFloor)
 	out := candidates[:0]
 	for _, c := range candidates {
-		if !c.Pinned && c.FacetID == "episode" && !c.CreatedAt.After(cutoff) && len(c.Vector) > 0 {
+		if !c.Pinned && (c.RetentionPolicy == "" || c.RetentionPolicy == "compact") && !c.CreatedAt.After(cutoff) && len(c.Vector) > 0 {
 			out = append(out, c)
 		}
 	}
@@ -142,17 +159,35 @@ func (s *Service) eligible(ctx context.Context) ([]Candidate, error) {
 }
 
 func bestPair(candidates []Candidate) ([2]Candidate, bool) {
+	selected, _, ok := bestPairExcluding(candidates, nil)
+	return selected, ok
+}
+
+func bestPairExcluding(candidates []Candidate, excluded map[string]struct{}) ([2]Candidate, string, bool) {
 	var selected [2]Candidate
 	best := -1.0
+	selectedKey := ""
 	for i := range candidates {
 		for j := i + 1; j < len(candidates); j++ {
+			key := pairKey(candidates[i], candidates[j])
+			if _, skip := excluded[key]; skip {
+				continue
+			}
 			score := cosine(candidates[i].Vector, candidates[j].Vector)
 			if score > best {
-				best, selected = score, [2]Candidate{candidates[i], candidates[j]}
+				best, selected, selectedKey = score, [2]Candidate{candidates[i], candidates[j]}, key
 			}
 		}
 	}
-	return selected, best >= 0
+	return selected, selectedKey, best >= 0
+}
+
+func pairKey(a, b Candidate) string {
+	left, right := a.Kind+":"+a.ID, b.Kind+":"+b.ID
+	if right < left {
+		left, right = right, left
+	}
+	return left + "|" + right
 }
 
 func cosine(a, b []float64) float64 {

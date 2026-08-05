@@ -12,6 +12,7 @@
       "dashboard": "ダッシュボード",
       "journal": "ジャーナル",
       "recall": "想起",
+      "operator": "オペレーター",
       "settings": "設定"
     }
   },
@@ -34,6 +35,25 @@
     },
     "recall": {
       "title": "想起"
+    },
+    "operator": {
+      "title": "オペレーター確認",
+      "description": "圧縮フロンティアを確認し、共有メモリを変更する前にピン提案を審査します。",
+      "frontierTitle": "圧縮フロンティア",
+      "frontierEmpty": "フロンティアは空です",
+      "correctionTitle": "ファセットポリシー",
+      "facetsEmpty": "ファセット定義がありません",
+      "facetCount": "{{count}} 件のファセット定義",
+      "correctionHint": "各ジャーナル項目から訂正できます。訂正は追記専用の割り当てとして記録されます。",
+      "proposalsTitle": "ピン提案",
+      "proposalsEmpty": "確認が必要なピン提案はありません",
+      "summary": "要約・深さ {{depth}}・子孫 {{span}} 件",
+      "leaf": "リーフ・深さ {{depth}}",
+      "unclassified": "未分類",
+      "entries": "件",
+      "accept": "承認",
+      "reject": "却下",
+      "refresh": "更新"
     },
     "settings": {
       "title": "設定",
@@ -59,7 +79,11 @@
     "loading": "ジャーナルを読み込み中…",
     "retry": "再試行",
     "empty": "まだメモリはありません",
-    "unknownTime": "時刻不明"
+    "unknownTime": "時刻不明",
+    "facetCorrection": "ファセットを変更",
+    "changeFacet": "ファセットを選択",
+    "pin": "ピン留め",
+    "unpin": "ピン留め解除"
   },
   "recall": {
     "title": "メモリを想起",
