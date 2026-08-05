@@ -1,0 +1,8 @@
+syntax = "proto3";
+package vrooli.deployment_manager.v1.telemetry;
+import "google/protobuf/struct.proto";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/telemetry;telemetryv1";
+service TelemetryService {
+  rpc List(google.protobuf.Value) returns (google.protobuf.Value);
+  rpc Upload(google.protobuf.Value) returns (google.protobuf.Value);
+}

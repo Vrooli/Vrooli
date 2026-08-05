@@ -235,7 +235,8 @@
     "retries": 5
   },
   "capabilities": {
-    "supports_logs": true
+    "supports_logs": true,
+    "supports_content_ops": true
   },
   "template_version": "2",
   "privilege": "user",

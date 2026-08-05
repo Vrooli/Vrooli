@@ -1,0 +1,13 @@
+syntax = "proto3";
+package vrooli.deployment_manager.v1.approvals;
+import "google/protobuf/struct.proto";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/approvals;approvalsv1";
+service ApprovalsService {
+  rpc List(google.protobuf.Value) returns (google.protobuf.Value);
+  rpc Get(google.protobuf.Value) returns (google.protobuf.Value);
+  rpc Create(google.protobuf.Value) returns (google.protobuf.Value);
+  rpc Decide(google.protobuf.Value) returns (google.protobuf.Value);
+  rpc CheckReleaseGate(google.protobuf.Value) returns (google.protobuf.Value);
+  rpc SetRequiredPlatforms(google.protobuf.Value) returns (google.protobuf.Value);
+  rpc GetRequiredPlatforms(google.protobuf.Value) returns (google.protobuf.Value);
+}

@@ -168,8 +168,7 @@
     }
   ],
   "capabilities": {
-    "supports_logs": true,
-    "supports_content_ops": true
+    "supports_logs": true
   },
   "template_version": "2",
   "privilege": "user",

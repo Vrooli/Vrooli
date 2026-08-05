@@ -1,0 +1,48 @@
+syntax = "proto3";
+package vrooli.vrooli_memory.v1.rules;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/rules;rules_v1";
+
+service ClassificationRulesService {
+  rpc ListRules(ListRulesRequest) returns (ListRulesResponse);
+  rpc CreateRule(CreateRuleRequest) returns (CreateRuleResponse);
+  rpc DryRunRule(DryRunRuleRequest) returns (DryRunRuleResponse);
+  rpc EnableRule(EnableRuleRequest) returns (EnableRuleResponse);
+  rpc RevertRule(RevertRuleRequest) returns (RevertRuleResponse);
+  rpc RefacetCorpus(RefacetCorpusRequest) returns (RefacetCorpusResponse);
+}
+
+message Rule {
+  string id = 1;
+  string scope = 2;
+  int32 priority = 3;
+  string facet_id = 4;
+  string source_runtime = 5;
+  string kind = 6;
+  string source_path_glob = 7;
+  string body_pattern = 8;
+  bool enabled = 9;
+}
+message ListRulesRequest { string scope = 1; }
+message ListRulesResponse { repeated Rule rules = 1; }
+message CreateRuleRequest { Rule rule = 1; }
+message CreateRuleResponse { Rule rule = 1; }
+message DryRunRuleRequest { string rule_id = 1; }
+message DryRunRuleResponse {
+  string rule_id = 1;
+  string corpus_fingerprint = 2;
+  int32 match_count = 3;
+  repeated string samples = 4;
+}
+message EnableRuleRequest { string rule_id = 1; }
+message EnableRuleResponse {}
+message RevertRuleRequest { string rule_id = 1; }
+message RevertRuleResponse { int32 restored_count = 1; }
+message RefacetCorpusRequest { string scope = 1; }
+message RefacetCorpusResponse {
+  int32 total = 1;
+  int32 assigned = 2;
+  int32 rule_assigned = 3;
+  int32 classified = 4;
+  int32 failed = 5;
+}

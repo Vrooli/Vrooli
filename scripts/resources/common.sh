@@ -21,8 +21,10 @@ source "${var_LOG_FILE}"
 source "${var_FLOW_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/sudo.sh"
-# shellcheck disable=SC1091
-source "${var_LIB_NETWORK_DIR}/ports.sh"
+# lib/network/ports.sh was removed in the old-scenario cleanup (02f4c8c777) but was
+# still sourced here, so every ports:: call site below it was a runtime error. Port
+# allocation now lives in internal/ports; resources::validate_port had no callers and
+# was removed, and resources::is_service_running is now self-contained (see below).
 # shellcheck disable=SC1091
 source "${var_LIB_DIR}/runtimes/docker.sh"
 # shellcheck disable=SC1091
@@ -85,29 +87,31 @@ declare -g OPERATION_ID=""
 #######################################
 resources::is_service_running() {
     local port="$1"
-    ports::validate_port "$port"
-    
-    # Method 1: Try lsof (original method)
-    local pids
-    pids=$(ports::get_listening_pids "$port" 2>/dev/null)
-    if [[ -n "$pids" ]]; then
-        return 0
+
+    [[ "$port" =~ ^[0-9]+$ ]] || return 1
+    (( port > 0 && port < 65536 )) || return 1
+
+    # Method 1: lsof
+    if system::is_command "lsof"; then
+        if lsof -tiTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
+            return 0
+        fi
     fi
-    
-    # Method 2: Use netstat as fallback
+
+    # Method 2: netstat
     if system::is_command "netstat"; then
-        if netstat -tlnp 2>/dev/null | grep -q ":${port} "; then
+        if netstat -tln 2>/dev/null | grep -q ":${port} "; then
             return 0
         fi
     fi
-    
-    # Method 3: Use ss as fallback
+
+    # Method 3: ss
     if system::is_command "ss"; then
-        if ss -tlnp 2>/dev/null | grep -q ":${port} "; then
+        if ss -tln 2>/dev/null | grep -q ":${port} "; then
             return 0
         fi
     fi
-    
+
     return 1
 }
 
@@ -445,91 +449,6 @@ resources::validate_service_identity() {
     return 1
 }
 
-#######################################
-# Validate and get safe port for resource
-# Arguments:
-#   $1 - resource name
-#   $2 - requested port (optional)
-#   $3 - force flag (optional, defaults to "no")
-# Returns:
-#   0 if port is safe, 1 if conflicts exist
-# Outputs:
-#   The validated port number
-#######################################
-resources::validate_port() {
-    local resource="$1"
-    local requested_port="${2:-}"
-    local force_flag="${3:-no}"
-    
-    # Use requested port or fall back to default
-    local port="${requested_port:-$(resources::get_default_port "$resource")}"
-    
-    # Validate the port assignment
-    if ! ports::validate_assignment "$port" "$resource"; then
-        log::error "Port $port conflicts with Vrooli services or is invalid"
-        return 1
-    fi
-    
-    # Check if port is already in use
-    if ports::is_port_in_use "$port"; then
-        log::warn "Port $port is already in use"
-        
-        # Try to find what's using it
-        local pids
-        pids=$(ports::get_listening_pids "$port" 2>/dev/null || echo "")
-        if [[ -n "$pids" ]]; then
-            log::info "Process(es) using port $port: $pids"
-        fi
-        
-        # Check if it's the same service already running (for --force scenarios)
-        local process_name=""
-        if [[ -n "$pids" ]]; then
-            # Get the process name for the first PID
-            process_name=$(ps -p "$pids" -o comm= 2>/dev/null | head -n1 | tr -d ' ')
-        fi
-        
-        # Allow if it's the same service and force is enabled
-        if [[ "$resource" == "$process_name" ]] && [[ "$force_flag" == "yes" ]]; then
-            log::info "Port is used by same service ($resource) and --force is enabled, proceeding"
-            echo "$port"
-            return 0
-        fi
-        
-        # Special case for ollama service
-        if [[ "$resource" == "ollama" ]] && [[ "$process_name" == "ollama" ]] && [[ "$force_flag" == "yes" ]]; then
-            log::info "Port is used by existing Ollama service and --force is enabled, proceeding"
-            echo "$port"
-            return 0
-        fi
-        
-        # Check if it's the same service already running (allow existing services)
-        if [[ "$resource" == "$process_name" ]]; then
-            log::info "Port is already used by the same service ($resource), assuming it's correctly configured"
-            echo "$port"
-            return 0
-        fi
-        
-        # Be more tolerant of port conflicts - suggest alternatives but don't fail hard
-        local category=""
-        case "$resource" in
-            ollama|whisper) category="AI" ;;
-            minio) category="storage" ;;
-            claude-code) category="agents" ;;
-        esac
-        
-        log::info "💡 Port conflict detected but continuing setup"
-        log::info "   The $resource service may need manual configuration or a different port"
-        log::info "   Consider setting a custom port: export ${resource^^}_CUSTOM_PORT=<alternative-port>"
-        log::info "   Or stop the conflicting process and retry: sudo lsof -ti:$port | xargs sudo kill"
-        
-        # Return the port anyway but with warning status
-        echo "$port"
-        return 2  # Warning status - port has conflict but we'll continue
-    fi
-    
-    echo "$port"
-    return 0
-}
 
 #######################################
 # Create vrooli config directory if it doesn't exist

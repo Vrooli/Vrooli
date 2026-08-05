@@ -1,0 +1,8 @@
+syntax = "proto3";
+package vrooli.deployment_manager.v1.migration;
+import "google/protobuf/struct.proto";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/migration;migrationv1";
+service MigrationService {
+  rpc Report(google.protobuf.Value) returns (google.protobuf.Value);
+  rpc Status(google.protobuf.Value) returns (google.protobuf.Value);
+}

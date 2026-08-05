@@ -189,7 +189,6 @@ spec:
   
   # Testing and validation
   testing:
-    test_file: "resources/minio/test/integration-test.sh"
     test_coverage:
       - service_health
       - bucket_operations

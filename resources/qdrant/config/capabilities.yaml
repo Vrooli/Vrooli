@@ -230,7 +230,6 @@ spec:
   
   # Testing and validation
   testing:
-    test_file: "resources/qdrant/test/integration-test.sh"
     test_coverage:
       - service_health
       - api_functionality

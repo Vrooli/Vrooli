@@ -1,0 +1,10 @@
+syntax = "proto3";
+package vrooli.deployment_manager.v1.releases;
+import "google/protobuf/struct.proto";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/releases;releasesv1";
+service ReleasesService {
+  rpc List(google.protobuf.Value) returns (google.protobuf.Value);
+  rpc Get(google.protobuf.Value) returns (google.protobuf.Value);
+  rpc Reverify(google.protobuf.Value) returns (google.protobuf.Value);
+  rpc Start(google.protobuf.Value) returns (google.protobuf.Value);
+}

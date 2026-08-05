@@ -133,8 +133,7 @@
     }
   ],
   "capabilities": {
-    "supports_logs": false,
-    "supports_content_ops": true
+    "supports_logs": false
   },
   "template_version": "2",
   "privilege": "user",

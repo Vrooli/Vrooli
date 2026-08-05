@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package vrooli.deployment_manager.v1.health;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/health;health_v1";
+
+// Health is intentionally served as a REST ops probe. This schema documents
+// the JSON health contract while keeping the endpoint usable by lifecycle
+// checks that do not have a Connect client.
+message DependencyStatus {
+  bool connected = 1;
+  double latency_ms = 2;
+  string error = 3;
+  string database = 4;
+}
+
+message Response {
+  string status = 1;
+  string service = 2;
+  string timestamp = 3;
+  bool readiness = 4;
+  string version = 5;
+  double uptime_seconds = 6;
+  map<string, DependencyStatus> dependencies = 7;
+}

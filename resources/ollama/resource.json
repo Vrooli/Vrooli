@@ -337,7 +337,6 @@
   },
   "capabilities": {
     "supports_logs": true,
-    "supports_content_ops": true,
     "supports_ensure": true
   },
   "template_version": "2",

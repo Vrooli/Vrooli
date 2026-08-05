@@ -154,6 +154,7 @@
   ],
   "capabilities": {
     "supports_logs": false,
+    "supports_content_ops": true,
     "supports_ensure": true
   },
   "dependency_schema": {

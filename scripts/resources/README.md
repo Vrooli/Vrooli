@@ -1,80 +1,20 @@
-# Vrooli Resource Management System
+# scripts/resources — legacy resource shell frameworks
 
-Local AI and automation tools that extend Vrooli's capabilities through modular services.
+This directory holds **legacy bash** that a handful of not-yet-ported resources still source. It is not the resource system's documentation and not an entrypoint.
 
-## 🚀 Quick Start
+- Resource documentation: **[/docs/resources/README.md](../../docs/resources/README.md)**
+- Resource management: `vrooli resource <install|start|stop|status> <name>`, or the per-resource CLI (`resource-postgres`, `resource-qdrant`, …)
+- Resource contract: `.vrooli/schemas/resource.schema.json`, enforced by `internal/resources/validate.go`
+- Retirement plan for this directory: **[../README.md](../README.md)**
 
-```bash
-# Discover what's running
-vrooli resource status
+## What lives here
 
-# Install specific resources via CLI
-vrooli resource install ollama
-vrooli resource install postgres
+| Path | Consumer |
+|---|---|
+| `lib/` | resource `lib/*.sh` in `claude-code`, `codex`, `home-assistant`, `k6`, `minio`, `postgres`, `qdrant` |
+| `common.sh`, `common/config-manager.js` | `claude-code`, `minio`, `postgres` (service.json read/write) |
+| `populate/` | `lifecycle.setup` step in ~29 scenario `service.json` files |
+| `tests/lib/` | `test/integration-test.sh` in `claude-code`, `minio`, `postgres`, `qdrant` |
+| `port_registry.{sh,json}` | legacy fallback only — `resource.json` `ports` takes precedence |
 
-# Check resource status
-vrooli resource status ollama
-
-# Use resource-specific CLIs (when available)
-resource-ollama status
-resource-ollama list-models
-```
-
-## 📚 Documentation
-
-- **[Complete Guide](docs/README.md)** - Detailed resource documentation
-- **[Testing Strategy](docs/TESTING_STRATEGY.md)** - Three-layer validation system
-- **[Integration Cookbook](docs/integration-cookbook.md)** - Multi-resource workflows
-- **[Interface Standards](docs/interface-standards.md)** - Resource API contracts
-- **[Port Registry](port_registry.sh)** - Service port allocations (`./port_registry.sh --action list`)
-- **[Architecture Overview](docs/README.md#-integration-patterns)** - How resources work together
-
-## 🔧 Management
-
-- **Discovery**: `vrooli resource status`
-- **Installation/Start/Stop/Status (CLI)**: `vrooli resource <install|start|stop|status> <name>`
-- **Resource-specific CLIs**: `resource-<name> <command>` (e.g., `resource-ollama list-models`)
-- **Configuration**: `~/.vrooli/service.json`
-- **Validation**: Universal contract validation (`./tools/validate-universal-contract.sh`)
-- **Dependency Contract Audit**: Scenario/resource dependency validation (`./tools/validate-dependency-contract.sh`)
-
-> **Note on CLI Installation**: Resource-specific CLIs (like `resource-ollama`) are automatically installed to `~/.local/bin/` when resources are set up. These provide direct access to resource functionality alongside the main `vrooli resource` commands.
-
-> **Note on Legacy Scripts**: Some legacy resources may include `manage.sh` or top-level `install.sh` scripts. These are deprecated in favor of the unified CLI system. Use `vrooli resource` commands for all resource management operations.
-
-## 🎯 Scenario Deployment
-
-Resources support declarative deployment through the [injection system](../scenarios/injection/README.md), 
-enabling complete application deployment from JSON specifications.
-
-## 🛠️ Resource Structure
-
-Each resource follows a consistent structure:
-```
-resource-name/
-├── lib/               # Functionality 
-├── config/            # Configuration files
-├── docs/              # Resource-specific documentation
-├── examples/          # Optional reusable example artifacts only
-└── cli/               # (Preferred) CLI entrypoints for actions
-```
-
-Usage examples should generally live in the resource `README.md` or `docs/`. Keep an `examples/` directory only when the resource ships real artifacts users should run, import, or adapt directly, such as workflow JSON, SQL seed bundles, or sample payload files.
-
-## 🔍 Common Operations
-
-```bash
-# Install and start a resource (CLI)
-./scripts/resources/index.sh --action install --resources ollama
-./scripts/resources/index.sh --action start --resources ollama
-
-# View logs (resource-specific helper)
-./scripts/resources/index.sh --action logs --resources <resource-name>
-
-# Check health across all resources
-./index.sh --action discover
-```
-
----
-
-For detailed documentation, integration patterns, and troubleshooting, see **[docs/README.md](docs/README.md)**
+Do not add new files here. New resource behavior belongs in the resource's Go CLI (`resources/<name>/cli/`).
