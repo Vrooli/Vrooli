@@ -27,6 +27,7 @@ export function RegisterTargetDialog({ open, onClose }: { open: boolean; onClose
   const [name, setName] = useState("");
   const [kind, setKind] = useState<SourceKind>(SourceKind.FILESYSTEM);
   const [locator, setLocator] = useState("");
+  const [critical, setCritical] = useState(false);
   const [touched, setTouched] = useState(false);
 
   const ownerError = touched && !owner.trim() ? t(strings.targets.ownerRequired) : undefined;
@@ -38,6 +39,7 @@ export function RegisterTargetDialog({ open, onClose }: { open: boolean; onClose
     setName("");
     setKind(SourceKind.FILESYSTEM);
     setLocator("");
+    setCritical(false);
     setTouched(false);
     register.reset();
   };
@@ -51,7 +53,13 @@ export function RegisterTargetDialog({ open, onClose }: { open: boolean; onClose
     setTouched(true);
     if (!owner.trim() || !name.trim() || !locator.trim()) return;
     register.mutate(
-      { owner: owner.trim(), name: name.trim(), sourceKind: kind, locator: locator.trim() },
+      {
+        owner: owner.trim(),
+        name: name.trim(),
+        sourceKind: kind,
+        locator: locator.trim(),
+        critical,
+      },
       { onSuccess: close },
     );
   };
@@ -122,6 +130,18 @@ export function RegisterTargetDialog({ open, onClose }: { open: boolean; onClose
               data-testid={selectors.targets.formLocator}
               value={locator}
               onChange={(e) => setLocator(e.target.value)}
+            />
+          )}
+        </Field>
+        <Field label={t(strings.targets.critical)} hint={t(strings.targets.criticalHint)}>
+          {(p) => (
+            <Input
+              {...p}
+              type="checkbox"
+              data-testid={selectors.targets.formCritical}
+              checked={critical}
+              onChange={(e) => setCritical(e.target.checked)}
+              className="h-4 w-4 self-start p-0 accent-app-primary"
             />
           )}
         </Field>

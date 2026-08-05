@@ -10,7 +10,7 @@
     {
       "id": "DBM-DEST-001",
       "title": "Multiple destinations as kopia repositories",
-      "status": "implemented",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "destination",
       "criticality": "P0",
@@ -29,7 +29,7 @@
     {
       "id": "DBM-ENC-001",
       "title": "Encryption on by default, secrets from vault",
-      "status": "implemented",
+      "status": "complete",
       "prd_ref": "OT-P0-007",
       "category": "destination.security",
       "criticality": "P0",

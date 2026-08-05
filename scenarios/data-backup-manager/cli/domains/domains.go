@@ -5,6 +5,7 @@ import (
 	"data-backup-manager/cli/domains/coverage"
 	"data-backup-manager/cli/domains/destinations"
 	"data-backup-manager/cli/domains/discovery"
+	"data-backup-manager/cli/domains/drills"
 	"data-backup-manager/cli/domains/plans"
 	"data-backup-manager/cli/domains/restores"
 	"data-backup-manager/cli/domains/runs"
@@ -63,6 +64,10 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
+	drillsGroup, err := drills.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
 	runsGroup, err := runs.Register(core, manifest)
 	if err != nil {
 		return nil, err
@@ -85,6 +90,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		discoveryGroup,
 		coverageGroup,
 		plansGroup,
+		drillsGroup,
 		runsGroup,
 		restoresGroup,
 		safetyGroup,

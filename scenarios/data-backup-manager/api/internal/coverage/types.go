@@ -33,6 +33,7 @@ type Suggestion struct {
 	Rationale   string
 	ApproxBytes int64
 	Sensitive   bool
+	Critical    bool
 	Warning     string
 }
 
@@ -44,6 +45,7 @@ type CatalogTarget struct {
 	Name       string
 	SourceKind sources.SourceKind
 	Locator    string
+	Critical   bool
 }
 
 // RegisterInput is the DTO the coverage service passes to the targets catalog
@@ -54,6 +56,7 @@ type RegisterInput struct {
 	Name       string
 	SourceKind sources.SourceKind
 	Locator    string
+	Critical   bool
 }
 
 // RegisteredTarget annotates a registered target with the coverage states an
@@ -103,6 +106,7 @@ type AcceptedTarget struct {
 	SourceKind   sources.SourceKind
 	Locator      string
 	Sensitive    bool
+	Critical     bool
 }
 
 // AcceptFailure reports a per-item registration failure so partial failures are

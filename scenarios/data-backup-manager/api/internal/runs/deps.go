@@ -80,7 +80,8 @@ type DestinationLookup interface {
 //
 // seam: implemented in main.go by an adapter over the scheduler + plans; the
 // runs service stays unaware of either concrete type. Optional — when nil,
-// ListTargetStatus simply omits next_scheduled_at.
+// ListTargetStatus leaves next_scheduled_at unset because no scheduler seam is
+// available.
 type NextScheduleSource interface {
 	NextScheduledByTarget(ctx context.Context) (map[string]time.Time, error)
 }

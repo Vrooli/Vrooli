@@ -11,6 +11,7 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 
 	localdb "data-backup-manager/internal/database"
+	"data-backup-manager/internal/engine"
 	"data-backup-manager/internal/runs"
 	runsmocks "data-backup-manager/internal/runs/mocks"
 	"data-backup-manager/internal/sources"
@@ -57,6 +58,69 @@ func buildService(t *testing.T, plan runs.PlanForRun, targets map[string]runs.Ta
 		Executor: runsmocks.NewSyncExecutor(),
 	})
 	return svc, eng, events, capt
+}
+
+type failFirstStatusRepo struct {
+	runs.Repository
+	err    error
+	failed bool
+}
+
+func (r *failFirstStatusRepo) UpdateRunStatus(ctx context.Context, id string, status runs.RunStatus) error {
+	if !r.failed {
+		r.failed = true
+		return r.err
+	}
+	return r.Repository.UpdateRunStatus(ctx, id, status)
+}
+
+func TestRun_StatusTransitionFailureIsVisibleAndStopsCapture(t *testing.T) {
+	ctx := context.Background()
+	clk := mocks.NewFakeClock(time.Time{})
+	base := runs.NewSQLiteRepository(newRunsDB(t), clk)
+	repo := &failFirstStatusRepo{Repository: base, err: errors.New("catalog is unavailable")}
+	eng := &mocks.FakeKopiaEngine{}
+	capt := &sourcesmocks.FakeCapturer{SourceKind: sources.KindFilesystem}
+	svc := runs.NewService(runs.Deps{
+		Repo: repo,
+		Plans: &runsmocks.FakePlanLookup{Plans: map[string]runs.PlanForRun{
+			"plan-1": {ID: "plan-1", TargetIDs: []string{"target-1"}, DestinationIDs: []string{"dst-1"}},
+		}},
+		Targets: &runsmocks.FakeTargetLookup{Targets: map[string]runs.TargetForRun{
+			"target-1": {ID: "target-1", Kind: sources.KindFilesystem, Locator: "source"},
+		}},
+		Destinations: &runsmocks.FakeDestinationLookup{Destinations: map[string]runs.DestinationForRun{
+			"dst-1": {ID: "dst-1", Name: "nightly"},
+		}},
+		Engine:      eng,
+		Sources:     sources.NewRegistry(capt),
+		Clock:       clk,
+		StagingRoot: t.TempDir(),
+		Executor:    runsmocks.NewSyncExecutor(),
+	})
+
+	created, err := svc.TriggerRun(ctx, "plan-1", runs.TriggerManual)
+	if err != nil {
+		t.Fatalf("TriggerRun: %v", err)
+	}
+	got, err := svc.GetRun(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("GetRun: %v", err)
+	}
+	if got.Status != runs.RunFailed {
+		t.Fatalf("status = %q, want failed: %+v", got.Status, got)
+	}
+	if !strings.Contains(got.Error, "capturing transition") {
+		t.Fatalf("error = %q, want capturing-transition evidence", got.Error)
+	}
+	for _, call := range eng.Calls {
+		if strings.HasPrefix(call, "SnapshotCreate") {
+			t.Fatalf("snapshot started after lifecycle persistence failure: engine=%v", eng.Calls)
+		}
+	}
+	if len(capt.Captures) != 0 {
+		t.Fatalf("source capture started after lifecycle persistence failure: %v", capt.Captures)
+	}
 }
 
 // TestCatalog_ListAndLastSuccess proves DBM-CAT-001: after a successful run,
@@ -123,6 +187,46 @@ func TestCatalog_ListAndLastSuccess(t *testing.T) {
 		}
 		if s.LastRunStatus != runs.RunCompleted {
 			t.Errorf("target %s last_run_status = %s", s.TargetID, s.LastRunStatus)
+		}
+	}
+}
+
+// TestPreflightBlocksSharedDestinationBeforeFanout proves the production
+// incident shape: one repository credential failure is probed once, persisted
+// as one grouped incident, and no source capture or snapshot is attempted.
+func TestPreflightBlocksSharedDestinationBeforeFanout(t *testing.T) {
+	ctx := context.Background()
+	plan := runs.PlanForRun{ID: "plan-1", TargetIDs: []string{"t1", "t2"}, DestinationIDs: []string{"dst-1"}}
+	targets := map[string]runs.TargetForRun{
+		"t1": {ID: "t1", Kind: sources.KindFilesystem, Locator: "a"},
+		"t2": {ID: "t2", Kind: sources.KindFilesystem, Locator: "b"},
+	}
+	svc, eng, _, _ := buildService(t, plan, targets, nil)
+	eng.RepoStatusFn = func(context.Context, string) (engine.RepoStatus, error) {
+		return engine.RepoStatus{}, errors.New("read repository passphrase: credential is not configured")
+	}
+	run, err := svc.TriggerRun(ctx, "plan-1", runs.TriggerManual)
+	if err != nil {
+		t.Fatalf("TriggerRun: %v", err)
+	}
+	got, err := svc.GetRun(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("GetRun: %v", err)
+	}
+	if got.Status != runs.RunFailed || len(got.Outcomes) != 2 {
+		t.Fatalf("run = status %s outcomes %d", got.Status, len(got.Outcomes))
+	}
+	if len(got.Preflight) != 1 || got.Preflight[0].Code != "credential_missing" {
+		t.Fatalf("preflight incidents = %+v", got.Preflight)
+	}
+	for _, outcome := range got.Outcomes {
+		if outcome.Status != runs.OutcomeBlocked || outcome.FailureCode != "credential_missing" {
+			t.Errorf("outcome = %+v", outcome)
+		}
+	}
+	for _, call := range eng.Calls {
+		if strings.HasPrefix(call, "SnapshotCreate") {
+			t.Fatalf("snapshot was attempted after blocked preflight: %v", eng.Calls)
 		}
 	}
 }

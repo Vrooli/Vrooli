@@ -45,6 +45,27 @@ function RunRow({ run, planName }: { run: Run; planName: string }) {
 
       {open && (
         <div className="border-t border-app-border bg-app-surface-muted/40 px-3 py-2">
+          {(run.failureCode || run.nextAction || run.preflightIncidents.length > 0) && (
+            <div className="mb-3 rounded-panel border border-app-danger/40 bg-app-danger/5 p-3 text-xs">
+              {run.failureCode && (
+                <p className="font-mono font-semibold text-app-danger" data-testid="run-failure-code">
+                  {run.failureCode}
+                  {run.failureCategory ? ` (${run.failureCategory})` : ""}
+                </p>
+              )}
+              {run.nextAction && (
+                <p className="mt-1 text-app-foreground" data-testid="run-next-action">
+                  {t(strings.runs.nextAction)}: {run.nextAction}
+                </p>
+              )}
+              {run.preflightIncidents.map((incident) => (
+                <p key={`${incident.code}-${incident.scope}`} className="mt-1 text-app-danger">
+                  {incident.code}: {incident.message}
+                  {incident.nextAction ? ` — ${incident.nextAction}` : ""}
+                </p>
+              ))}
+            </div>
+          )}
           <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-app-muted-foreground">
             {t(strings.runs.outcomesHeading)}
           </p>
@@ -109,3 +130,5 @@ export function RunsPage() {
     </section>
   );
 }
+
+export default RunsPage;

@@ -7,6 +7,7 @@ vi.mock("../api/destinations", () => ({
   listDestinations: vi.fn(),
   getDestination: vi.fn(),
   getDestinationUsage: vi.fn(),
+  analyzeDestination: vi.fn(),
   createDestination: vi.fn(),
   updateDestination: vi.fn(),
   deleteDestination: vi.fn(),
@@ -17,7 +18,13 @@ vi.mock("../api/destinations", () => ({
 import * as api from "../api/destinations";
 import { BackendKind, CapPolicy } from "../api/destinations";
 import { makeApiError } from "../api/client";
-import { useCreateDestination, useDestinations } from "./useDestinations";
+import {
+  useAnalyzeDestination,
+  useCreateDestination,
+  useDestination,
+  useDestinationUsage,
+  useDestinations,
+} from "./useDestinations";
 
 const buildClient = () =>
   new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
@@ -64,5 +71,28 @@ describe("useCreateDestination", () => {
     const keys = invalidate.mock.calls.map((c) => (c[0] as { queryKey: unknown[] }).queryKey[0]);
     expect(keys).toContain("destinations");
     expect(keys).toContain("destinationUsage");
+  });
+});
+
+describe("destination detail hooks", () => {
+  it("loads a destination and its usage when an id is present", async () => {
+    vi.mocked(api.getDestination).mockResolvedValue({ id: "d1" } as never);
+    vi.mocked(api.getDestinationUsage).mockResolvedValue({ physicalBytes: 1n } as never);
+    const client = buildClient();
+    const destination = renderHook(() => useDestination("d1"), { wrapper: wrapper(client) });
+    const usage = renderHook(() => useDestinationUsage("d1"), { wrapper: wrapper(client) });
+    await waitFor(() => expect(destination.result.current.isSuccess).toBe(true));
+    await waitFor(() => expect(usage.result.current.isSuccess).toBe(true));
+    expect(api.getDestination).toHaveBeenCalledWith("d1");
+    expect(api.getDestinationUsage).toHaveBeenCalledWith("d1");
+  });
+
+  it("runs readiness analysis", async () => {
+    vi.mocked(api.analyzeDestination).mockResolvedValue({} as never);
+    const { result } = renderHook(() => useAnalyzeDestination(), { wrapper: wrapper(buildClient()) });
+    await act(async () => {
+      await result.current.mutateAsync({ location: "/backups" });
+    });
+    expect(api.analyzeDestination).toHaveBeenCalledWith({ location: "/backups" });
   });
 });

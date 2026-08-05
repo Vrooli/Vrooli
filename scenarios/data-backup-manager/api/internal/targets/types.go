@@ -29,6 +29,7 @@ type Target struct {
 	Name       string
 	SourceKind sources.SourceKind
 	Locator    string
+	Critical   bool
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }
@@ -37,7 +38,7 @@ type Target struct {
 // (everything an owner controls on re-registration). Identity fields and
 // timestamps are excluded — this is what makes a re-register a no-op.
 func (t Target) sameSpec(other Target) bool {
-	return t.SourceKind == other.SourceKind && t.Locator == other.Locator
+	return t.SourceKind == other.SourceKind && t.Locator == other.Locator && t.Critical == other.Critical
 }
 
 // RegisterInput is the explicit DTO Service.Register accepts. Distinct from
@@ -48,6 +49,7 @@ type RegisterInput struct {
 	Name       string
 	SourceKind sources.SourceKind
 	Locator    string
+	Critical   bool
 }
 
 // ErrTargetNotFound is the typed sentinel returned by Repository.GetByID /

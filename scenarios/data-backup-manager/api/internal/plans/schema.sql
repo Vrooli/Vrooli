@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS plans (
   schedule    TEXT NOT NULL DEFAULT '',
   keep_latest INTEGER NOT NULL DEFAULT 0,
   enabled     INTEGER NOT NULL DEFAULT 1,
+  protection_tier TEXT NOT NULL DEFAULT 'full_primary',
+  recovery_drill_schedule TEXT NOT NULL DEFAULT '',
   created_at  TEXT NOT NULL,
   updated_at  TEXT NOT NULL
 );

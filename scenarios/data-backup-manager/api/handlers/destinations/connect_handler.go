@@ -231,13 +231,21 @@ func readinessReportToProto(r destinationreadiness.Report) *destinationsv1.Desti
 		Identity:                       deviceIdentityToProto(r.Identity),
 		RecommendedDestinationLocation: r.RecommendedDestinationLocation,
 		RecommendedAction:              r.RecommendedAction,
+		Platform:                       r.Platform,
+		Confidence:                     r.Confidence,
+		EvidenceSource:                 r.EvidenceSource,
+		RepairSteps:                    append([]string(nil), r.RepairSteps...),
 		Checks:                         make([]*destinationsv1.DestinationReadinessCheck, 0, len(r.Checks)),
+	}
+	if !r.ObservedAt.IsZero() {
+		out.ObservedAt = timestamppb.New(r.ObservedAt)
 	}
 	for _, c := range r.Checks {
 		out.Checks = append(out.Checks, &destinationsv1.DestinationReadinessCheck{
-			Code:     c.Code,
-			Severity: readinessSeverityToProto(c.Severity),
-			Message:  c.Message,
+			Code:       c.Code,
+			Severity:   readinessSeverityToProto(c.Severity),
+			Message:    c.Message,
+			NextAction: c.NextAction,
 		})
 	}
 	return out

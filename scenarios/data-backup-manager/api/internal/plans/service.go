@@ -2,7 +2,9 @@ package plans
 
 import (
 	"context"
+	"fmt"
 	"strings"
+	"time"
 )
 
 // defaultListLimit caps List when the caller passes 0.
@@ -39,15 +41,19 @@ type Service interface {
 // the next-scheduled-fire rollup (TargetIDs lets the rollup attribute a plan's
 // next fire to each of its targets).
 type SchedulablePlan struct {
-	ID        string
-	Schedule  string
-	Enabled   bool
-	TargetIDs []string
+	ID             string
+	Schedule       string
+	DrillSchedule  string
+	Enabled        bool
+	TargetIDs      []string
+	DestinationIDs []string
 }
 
 type service struct {
-	repo  Repository
-	guard CoverageGuard
+	repo         Repository
+	guard        CoverageGuard
+	critical     CriticalTargetPolicy
+	destinations CriticalDestinationPolicy
 }
 
 // NewService constructs the production Service. guard may be nil to disable the
@@ -55,6 +61,21 @@ type service struct {
 // pass nil); the API-serving service is wired with a discovery-backed guard.
 func NewService(repo Repository, guard CoverageGuard) Service {
 	return &service{repo: repo, guard: guard}
+}
+
+// NewServiceWithTargetPolicy constructs the API-serving plans service with
+// critical-tier validation enabled. NewService remains available for narrow
+// tests and legacy composition, but a production composition that exposes
+// critical tiers must provide this policy or critical plan creation fails
+// closed.
+func NewServiceWithTargetPolicy(repo Repository, guard CoverageGuard, critical CriticalTargetPolicy) Service {
+	return &service{repo: repo, guard: guard, critical: critical}
+}
+
+// NewServiceWithPolicies constructs the API service with both critical target
+// classification and destination independence validation.
+func NewServiceWithPolicies(repo Repository, guard CoverageGuard, critical CriticalTargetPolicy, destinations CriticalDestinationPolicy) Service {
+	return &service{repo: repo, guard: guard, critical: critical, destinations: destinations}
 }
 
 // Compile-time guarantee.
@@ -74,14 +95,34 @@ func (s *service) Create(ctx context.Context, in CreateInput) (Plan, error) {
 	if err := s.checkCoverage(ctx, in.AllowIncompleteCoverage); err != nil {
 		return Plan{}, err
 	}
+	tier := in.ProtectionTier
+	if tier == "" {
+		tier = TierFullPrimary
+	}
+	if !validTier(tier) {
+		return Plan{}, ErrInvalidPlan{Field: "protection_tier", Reason: "must be full_primary, critical_primary, or critical_secondary"}
+	}
+	if err := s.validateTier(ctx, tier, in.TargetIDs); err != nil {
+		return Plan{}, err
+	}
+	if s.destinations != nil {
+		if err := s.destinations.Validate(ctx, tier, in.TargetIDs, in.DestinationIDs); err != nil {
+			return Plan{}, err
+		}
+	}
+	if err := validateDrillSchedule(in.RecoveryDrillSchedule); err != nil {
+		return Plan{}, err
+	}
 
 	p := Plan{
-		Name:           name,
-		TargetIDs:      in.TargetIDs,
-		DestinationIDs: in.DestinationIDs,
-		Schedule:       in.Schedule,
-		KeepLatest:     in.KeepLatest,
-		Enabled:        true, // default true on create
+		Name:                  name,
+		TargetIDs:             in.TargetIDs,
+		DestinationIDs:        in.DestinationIDs,
+		Schedule:              in.Schedule,
+		KeepLatest:            in.KeepLatest,
+		Enabled:               true, // default true on create
+		ProtectionTier:        tier,
+		RecoveryDrillSchedule: in.RecoveryDrillSchedule,
 	}
 	// Honour explicit false only if caller set it; the proto bool defaults to
 	// false but the domain contract says "default true on create". The caller
@@ -95,21 +136,36 @@ func (s *service) Create(ctx context.Context, in CreateInput) (Plan, error) {
 	// create" by defaulting to true unconditionally on the service layer.
 	_ = in.Enabled // v1: ignore caller's enabled, always create as enabled=true
 
-	return s.repo.Create(ctx, p)
+	saved, err := s.repo.Create(ctx, p)
+	if err != nil {
+		return Plan{}, err
+	}
+	return s.decorateTopology(ctx, saved), nil
 }
 
 func (s *service) Get(ctx context.Context, id string) (Plan, error) {
 	if strings.TrimSpace(id) == "" {
 		return Plan{}, ErrInvalidPlan{Field: "id", Reason: "required"}
 	}
-	return s.repo.GetByID(ctx, id)
+	p, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return Plan{}, err
+	}
+	return s.decorateTopology(ctx, p), nil
 }
 
 func (s *service) List(ctx context.Context, limit int) ([]Plan, error) {
 	if limit <= 0 {
 		limit = defaultListLimit
 	}
-	return s.repo.List(ctx, limit)
+	list, err := s.repo.List(ctx, limit)
+	if err != nil {
+		return nil, err
+	}
+	for i := range list {
+		list[i] = s.decorateTopology(ctx, list[i])
+	}
+	return list, nil
 }
 
 func (s *service) Update(ctx context.Context, in UpdateInput) (Plan, error) {
@@ -129,17 +185,80 @@ func (s *service) Update(ctx context.Context, in UpdateInput) (Plan, error) {
 	if err := s.checkCoverage(ctx, in.AllowIncompleteCoverage); err != nil {
 		return Plan{}, err
 	}
+	tier := in.ProtectionTier
+	if tier == "" {
+		tier = TierFullPrimary
+	}
+	if !validTier(tier) {
+		return Plan{}, ErrInvalidPlan{Field: "protection_tier", Reason: "must be full_primary, critical_primary, or critical_secondary"}
+	}
+	if err := s.validateTier(ctx, tier, in.TargetIDs); err != nil {
+		return Plan{}, err
+	}
+	if s.destinations != nil {
+		if err := s.destinations.Validate(ctx, tier, in.TargetIDs, in.DestinationIDs); err != nil {
+			return Plan{}, err
+		}
+	}
+	if err := validateDrillSchedule(in.RecoveryDrillSchedule); err != nil {
+		return Plan{}, err
+	}
 
 	p := Plan{
-		ID:             in.ID,
-		Name:           name,
-		TargetIDs:      in.TargetIDs,
-		DestinationIDs: in.DestinationIDs,
-		Schedule:       in.Schedule,
-		KeepLatest:     in.KeepLatest,
-		Enabled:        in.Enabled,
+		ID:                    in.ID,
+		Name:                  name,
+		TargetIDs:             in.TargetIDs,
+		DestinationIDs:        in.DestinationIDs,
+		Schedule:              in.Schedule,
+		KeepLatest:            in.KeepLatest,
+		Enabled:               in.Enabled,
+		ProtectionTier:        tier,
+		RecoveryDrillSchedule: in.RecoveryDrillSchedule,
 	}
-	return s.repo.Update(ctx, p)
+	saved, err := s.repo.Update(ctx, p)
+	if err != nil {
+		return Plan{}, err
+	}
+	return s.decorateTopology(ctx, saved), nil
+}
+
+func (s *service) decorateTopology(ctx context.Context, p Plan) Plan {
+	reporter, ok := s.destinations.(CriticalDestinationReporter)
+	if !ok {
+		return p
+	}
+	report, err := reporter.Assess(ctx, p.ProtectionTier, p.TargetIDs, p.DestinationIDs)
+	if err != nil {
+		p.DestinationsPhysicallyIndependent = false
+		p.SharedRiskWarnings = []string{"destination topology assessment unavailable; physical independence is not proven"}
+		return p
+	}
+	p.DestinationsPhysicallyIndependent = report.PhysicallyIndependent
+	p.SharedRiskWarnings = append([]string(nil), report.Warnings...)
+	return p
+}
+
+func validTier(tier ProtectionTier) bool {
+	return tier == TierFullPrimary || tier == TierCriticalPrimary || tier == TierCriticalSecondary
+}
+
+func (s *service) validateTier(ctx context.Context, tier ProtectionTier, targetIDs []string) error {
+	if tier == TierFullPrimary {
+		return nil
+	}
+	if s.critical == nil {
+		return ErrInvalidPlan{Field: "protection_tier", Reason: "critical-tier validation is unavailable; refuse to create an unvalidated critical plan"}
+	}
+	for _, id := range targetIDs {
+		critical, err := s.critical.IsCritical(ctx, strings.TrimSpace(id))
+		if err != nil {
+			return ErrInvalidPlan{Field: "target_ids", Reason: fmt.Sprintf("cannot validate critical target %q: %v", id, err)}
+		}
+		if !critical {
+			return ErrInvalidPlan{Field: "target_ids", Reason: fmt.Sprintf("target %q is not approved for critical protection", id)}
+		}
+	}
+	return nil
 }
 
 // checkCoverage enforces the default-coverage guard: unless the caller opts out
@@ -176,11 +295,25 @@ func (s *service) SchedulablePlans(ctx context.Context) ([]SchedulablePlan, erro
 	out := make([]SchedulablePlan, 0, len(plans))
 	for _, p := range plans {
 		out = append(out, SchedulablePlan{
-			ID:        p.ID,
-			Schedule:  p.Schedule,
-			Enabled:   p.Enabled,
-			TargetIDs: p.TargetIDs,
+			ID:             p.ID,
+			Schedule:       p.Schedule,
+			DrillSchedule:  p.RecoveryDrillSchedule,
+			Enabled:        p.Enabled,
+			TargetIDs:      p.TargetIDs,
+			DestinationIDs: p.DestinationIDs,
 		})
 	}
 	return out, nil
+}
+
+func validateDrillSchedule(raw string) error {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil || d <= 0 {
+		return ErrInvalidPlan{Field: "recovery_drill_schedule", Reason: "must be empty or a positive Go duration (for example 168h)"}
+	}
+	return nil
 }

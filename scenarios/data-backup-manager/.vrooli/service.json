@@ -1,7 +1,23 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {"entries":{"data":{"rung":"owned","path":"data","kind":"dir","class":"data","regenerable":false,"rationale":"Scenario-owned durable data observed in the canonical data directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "budget": {
+          "max_bytes": "2GiB",
+          "max_age": "365d",
+          "rationale": "The catalog is bounded by run-history retention and destination policies; operators use the documented data-backup-manager maintenance procedure before reclaiming historical records."
+        },
+        "rationale": "Scenario-owned durable data observed in the canonical data directory."
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
   "service": {
     "parent": "vrooli",
     "name": "data-backup-manager",

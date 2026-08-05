@@ -251,6 +251,38 @@ func TestRestoreTarget_RefusesNonEmptyTarget(t *testing.T) {
 	assertFile(t, filepath.Join(nonEmpty, "existing.txt"), "do not clobber\n")
 }
 
+func TestVerifyTarget_CleanupFailureIsRecorded(t *testing.T) {
+	cleanupErr := errors.New("scratch directory is busy")
+	clk := mocks.NewFakeClock(time.Time{})
+	svc := restores.NewService(restores.Deps{
+		Repo: restores.NewSQLiteRepository(newRestoresDB(t), clk),
+		Destinations: &restoresmocks.FakeDestinationLookup{
+			Destinations: map[string]restores.DestinationForRestore{
+				"dst-1": {ID: "dst-1", Name: "nightly"},
+			},
+		},
+		Engine:      &mocks.FakeKopiaEngine{},
+		Sources:     sources.NewRegistry(&sourcesmocks.FakeCapturer{SourceKind: sources.KindFilesystem}),
+		Clock:       clk,
+		ScratchRoot: t.TempDir(),
+		Executor:    restoresmocks.NewSyncExecutor(),
+		RemoveAll: func(string) error {
+			return cleanupErr
+		},
+	})
+
+	rec, err := svc.VerifyTarget(context.Background(), "tgt-fs", "dst-1", "snap-abc")
+	if err != nil {
+		t.Fatalf("VerifyTarget: %v", err)
+	}
+	if rec.Status != restores.RestoreFailed {
+		t.Fatalf("status = %q, want failed", rec.Status)
+	}
+	if !strings.Contains(rec.Error, "scratch cleanup") {
+		t.Fatalf("error = %q, want scratch cleanup evidence", rec.Error)
+	}
+}
+
 func copyTree(src, dst string) error {
 	return filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
 		if err != nil {

@@ -1,12 +1,13 @@
 {
   "name": "Data Backup Manager",
   "short_name": "data-backup-manager",
+  "id": "/",
   "description": "Register, schedule, snapshot, and verify backups for Vrooli runtime state.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
+  "background_color": "#f8fafc",
+  "theme_color": "#f8fafc",
   "icons": [
     {
       "src": "manifest-icon-192.maskable.png",

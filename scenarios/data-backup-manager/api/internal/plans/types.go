@@ -20,30 +20,44 @@ import (
 	"time"
 )
 
+type ProtectionTier string
+
+const (
+	TierFullPrimary       ProtectionTier = "full_primary"
+	TierCriticalPrimary   ProtectionTier = "critical_primary"
+	TierCriticalSecondary ProtectionTier = "critical_secondary"
+)
+
 // Plan is the internal domain shape for a backup plan. Distinct from the proto
 // wire type; handlers translate at the boundary so the domain layer never
 // imports proto.
 type Plan struct {
-	ID             string
-	Name           string
-	TargetIDs      []string
-	DestinationIDs []string
-	Schedule       string
-	KeepLatest     int32
-	Enabled        bool
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID                                string
+	Name                              string
+	TargetIDs                         []string
+	DestinationIDs                    []string
+	Schedule                          string
+	KeepLatest                        int32
+	Enabled                           bool
+	ProtectionTier                    ProtectionTier
+	RecoveryDrillSchedule             string
+	DestinationsPhysicallyIndependent bool
+	SharedRiskWarnings                []string
+	CreatedAt                         time.Time
+	UpdatedAt                         time.Time
 }
 
 // CreateInput is the explicit DTO Service.Create accepts. Distinct from Plan so
 // callers cannot pass an ID or timestamp the service has no way to honour.
 type CreateInput struct {
-	Name           string
-	TargetIDs      []string
-	DestinationIDs []string
-	Schedule       string
-	KeepLatest     int32
-	Enabled        bool
+	Name                  string
+	TargetIDs             []string
+	DestinationIDs        []string
+	Schedule              string
+	KeepLatest            int32
+	Enabled               bool
+	ProtectionTier        ProtectionTier
+	RecoveryDrillSchedule string
 	// AllowIncompleteCoverage bypasses the coverage guard: when false (default)
 	// the service rejects the plan if any non-sensitive discovered durable
 	// target is still unregistered.
@@ -52,13 +66,15 @@ type CreateInput struct {
 
 // UpdateInput is the DTO for full-replace updates.
 type UpdateInput struct {
-	ID             string
-	Name           string
-	TargetIDs      []string
-	DestinationIDs []string
-	Schedule       string
-	KeepLatest     int32
-	Enabled        bool
+	ID                    string
+	Name                  string
+	TargetIDs             []string
+	DestinationIDs        []string
+	Schedule              string
+	KeepLatest            int32
+	Enabled               bool
+	ProtectionTier        ProtectionTier
+	RecoveryDrillSchedule string
 	// AllowIncompleteCoverage — see CreateInput.
 	AllowIncompleteCoverage bool
 }
@@ -73,6 +89,32 @@ type UpdateInput struct {
 // create plans).
 type CoverageGuard interface {
 	UnregisteredDefaultTargets(ctx context.Context) ([]MissingTarget, error)
+}
+
+// CriticalTargetPolicy is the narrow classification seam used to enforce
+// critical-only plans. The plans domain owns the invariant; the targets
+// domain remains the source of the classification.
+type CriticalTargetPolicy interface {
+	IsCritical(ctx context.Context, targetID string) (bool, error)
+}
+
+// CriticalDestinationPolicy validates that critical plans use destinations
+// with enough separation to provide the tier they claim. The composition root
+// owns filesystem/backend identity; the plans domain owns fail-closed policy.
+type CriticalDestinationPolicy interface {
+	Validate(ctx context.Context, tier ProtectionTier, targetIDs, destinationIDs []string) error
+}
+
+// CriticalDestinationReporter supplies a read-only explanation of the
+// destination topology. Unknown physical identity remains a visible warning
+// rather than being presented as proven independence.
+type CriticalDestinationReporter interface {
+	Assess(ctx context.Context, tier ProtectionTier, targetIDs, destinationIDs []string) (DestinationRiskReport, error)
+}
+
+type DestinationRiskReport struct {
+	PhysicallyIndependent bool
+	Warnings              []string
 }
 
 // MissingTarget is a non-sensitive recommended target that is not yet

@@ -5,7 +5,7 @@
  * requires at least one target and one destination (enforced by the API).
  */
 import { createClient, type Client } from "@connectrpc/connect";
-import { PlansService } from "@vrooli/proto-types/data-backup-manager/v1/plans/plans_pb";
+import { PlansService, ProtectionTier } from "@vrooli/proto-types/data-backup-manager/v1/plans/plans_pb";
 import type { Plan } from "@vrooli/proto-types/data-backup-manager/v1/plans/plans_pb";
 
 import { transport } from "./client";
@@ -26,6 +26,8 @@ export interface PlanInput {
    * coverage. See CoverageService.
    */
   allowIncompleteCoverage?: boolean;
+  protectionTier?: ProtectionTier;
+  recoveryDrillSchedule?: string;
 }
 
 export async function listPlans(): Promise<Plan[]> {
@@ -47,6 +49,8 @@ export async function createPlan(input: PlanInput): Promise<Plan | undefined> {
     retention: { keepLatest: input.keepLatest },
     enabled: input.enabled,
     allowIncompleteCoverage: input.allowIncompleteCoverage ?? false,
+    protectionTier: input.protectionTier ?? ProtectionTier.FULL_PRIMARY,
+    recoveryDrillSchedule: input.recoveryDrillSchedule ?? "",
   });
   return res.plan;
 }
@@ -61,6 +65,8 @@ export async function updatePlan(id: string, input: PlanInput): Promise<Plan | u
     retention: { keepLatest: input.keepLatest },
     enabled: input.enabled,
     allowIncompleteCoverage: input.allowIncompleteCoverage ?? false,
+    protectionTier: input.protectionTier ?? ProtectionTier.FULL_PRIMARY,
+    recoveryDrillSchedule: input.recoveryDrillSchedule ?? "",
   });
   return res.plan;
 }

@@ -96,7 +96,11 @@ describe("OverviewPage", () => {
 
     renderWithProviders(<OverviewPage />);
 
-    const t1Row = await screen.findByTestId(selectors.overview.coverageRow({ targetId: "t1" }));
+    const t1Row = await screen.findByTestId(
+      selectors.overview.coverageRow({ targetId: "t1" }),
+      undefined,
+      { timeout: 5000 },
+    );
     expect(within(t1Row).getByText(strings.status.verified.unverified)).toBeInTheDocument();
     expect(within(t1Row).queryByText(strings.status.verified.verified)).not.toBeInTheDocument();
 

@@ -13,6 +13,7 @@
       "plans": "プラン",
       "runs": "実行",
       "restores": "リストア",
+      "drills": "復旧ドリル",
       "settings": "設定"
     },
     "mainLabel": "メインコンテンツ"
@@ -28,12 +29,23 @@
   "common": {
     "retry": "再試行",
     "loadError": "読み込めませんでした。",
+    "loading": "読み込み中…",
     "cancel": "キャンセル",
     "close": "閉じる",
     "save": "保存",
     "saving": "保存中…",
     "create": "作成",
-    "never": "なし"
+    "never": "なし",
+    "showingOf": "{{total}} 件中 {{shown}} 件を表示"
+  },
+  "drills": {
+    "subtitle": "ライブデータに触れずに、保護したスナップショットを復元できることを証明します。",
+    "empty": "復旧ドリルはまだありません。",
+    "emptyHint": "バックアップ計画を作成して、一時領域で復旧ドリルを実行してください。",
+    "planHint": "スケジュール: {{schedule}}",
+    "manual": "手動のみ",
+    "run": "ドリルを実行",
+    "evidenceHint": "ドリル結果は保持され、検証済み復元の証拠にリンクされます。"
   },
   "status": {
     "run": {
@@ -58,6 +70,12 @@
       "verifying": "検証中",
       "verified": "検証済み",
       "restored": "リストア済み",
+      "failed": "失敗"
+    },
+    "drill": {
+      "requested": "要求済み",
+      "running": "実行中",
+      "verified": "検証済み",
       "failed": "失敗"
     },
     "usage": {
@@ -163,10 +181,12 @@
     "unsafe": "保護対象と重複しているため使用できません",
     "sensitive": "機密",
     "approxSize": "≈{{size}}",
-    "freeOfTotal": "{{total}} 中 {{free}} 空き"
+    "freeOfTotal": "{{total}} 中 {{free}} 空き",
+    "moreAvailable": "残りの候補は、これらを確認した後に表示できます。"
   },
   "coverage": {
     "title": "バックアップカバレッジ",
+    "liveDescription": "登録済みのターゲットとバックアップ履歴から、カバレッジをリアルタイムに評価します。",
     "incompleteTitle": "既定のカバレッジが不完全です",
     "incompleteBody": "このマシンで検出された推奨の永続ターゲット {{count}} 件が未登録です。プランで保護できるよう登録してください。",
     "complete": "既定のカバレッジは完了しています — 推奨される永続ターゲットはすべて登録済みです。",
@@ -191,6 +211,9 @@
     "kind": "ソース種別",
     "locator": "ロケーター",
     "locatorHint": "パスやグロブ、データベース名、キープレフィックス、コレクション、バケット — 種別により解釈されます。秘密情報は不可。",
+    "critical": "クリティカル保護",
+    "criticalHint": "復旧上の重要性を確認したうえで、クリティカル・プライマリおよびセカンダリのプランにこのターゲットを承認します。",
+    "notCritical": "未承認",
     "ownerRequired": "オーナーは必須です。",
     "nameRequired": "名前は必須です。",
     "locatorRequired": "ロケーターは必須です。",
@@ -241,6 +264,12 @@
     "name": "名前",
     "schedule": "スケジュール",
     "scheduleHint": "cron式（例: 毎晩02:00は 0 2 * * *）。",
+    "recoveryDrillSchedule": "復旧ドリルの頻度",
+    "recoveryDrillScheduleHint": "168h のような正の期間。空欄は手動実行のみです。",
+    "protectionTier": "保護ティア",
+    "tierFullPrimary": "フルプライマリ",
+    "tierCriticalPrimary": "クリティカルプライマリ",
+    "tierCriticalSecondary": "クリティカルセカンダリ",
     "keepLatest": "最新を保持",
     "keepLatestHint": "ターゲットごとに保持するスナップショット数。0 はすべて保持。",
     "enabled": "有効",
@@ -260,13 +289,15 @@
     "createTitle": "プランを作成",
     "editTitle": "プランを編集",
     "createError": "プランを作成できませんでした。",
-    "updateError": "プランを更新できませんでした。"
+    "updateError": "プランを更新できませんでした。",
+    "sharedRiskWarning": "共有リスク警告: {{warning}}"
   },
   "runs": {
     "subtitle": "すべてのプラン実行を新しい順に表示。実行を展開するとターゲットごとの結果を確認できます。",
     "empty": "実行がまだありません。",
     "emptyHint": "プラン画面からプランを実行するか、スケジューラーをお待ちください。",
-    "outcomesHeading": "ターゲットごとの結果"
+    "outcomesHeading": "ターゲットごとの結果",
+    "nextAction": "次のアクション"
   },
   "restores": {
     "subtitle": "バックアップが復元できることを証明（検証）するか、場所に書き戻します（リストア）。検証は非破壊的で推奨されます。",

@@ -114,13 +114,15 @@ describe("OverviewPage a11y", () => {
   it("has no axe violations once loaded", async () => {
     const { container } = renderWithProviders(<OverviewPage />);
     // Wait for every async surface to settle (coverage data + the health-backed
-    // posture readiness + the suggestions panel) so no state update lands
+    // posture readiness) so no state update lands
     // outside act during the scan.
-    await screen.findByTestId(selectors.overview.coverageRow({ targetId: "t1" }));
-    await screen.findByTestId(selectors.discovery.panel);
+    await screen.findByTestId(selectors.overview.coverageRow({ targetId: "t1" }), undefined, {
+      timeout: 5000,
+    });
     await waitFor(() =>
       expect(screen.getByTestId(selectors.overview.posture)).toHaveTextContent("ready"),
     );
+    await waitFor(() => expect(screen.queryByTestId(selectors.async.loading)).not.toBeInTheDocument());
     await expectNoA11yViolations(container);
   });
 });

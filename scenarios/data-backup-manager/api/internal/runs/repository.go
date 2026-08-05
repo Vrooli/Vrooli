@@ -3,6 +3,8 @@ package runs
 import (
 	"context"
 	"time"
+
+	"data-backup-manager/internal/failures"
 )
 
 // Repository persists runs and their per-target outcomes, and answers the
@@ -53,4 +55,16 @@ type Repository interface {
 	// owner filter is applied by the caller when it has the mapping; the
 	// repository keys purely on target id.
 	TargetStatuses(ctx context.Context, targetIDs []string) ([]TargetStatus, error)
+}
+
+// FailureUpdater is an optional additive persistence seam. Keeping it
+// separate preserves compatibility for narrow test repositories while the
+// catalog gains stable root-cause evidence.
+type FailureUpdater interface {
+	UpdateRunFailure(ctx context.Context, runID string, code failures.Code, category failures.Category, nextAction string) error
+}
+
+type IncidentUpdater interface {
+	SavePreflightIncidents(ctx context.Context, runID string, incidents []failures.Cause) error
+	IncidentsForRun(ctx context.Context, runID string) ([]failures.Cause, error)
 }

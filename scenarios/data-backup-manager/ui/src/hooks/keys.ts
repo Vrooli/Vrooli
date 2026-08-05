@@ -20,6 +20,7 @@ export const queryKeys = {
   restore: (id: string) => ["restore", id] as const,
   audits: (targetId = "") => ["audits", targetId] as const,
   audit: (id: string) => ["audit", id] as const,
+  drills: (planId = "") => ["drills", planId] as const,
   targetSuggestions: ["targetSuggestions"] as const,
   destinationSuggestions: ["destinationSuggestions"] as const,
   coverageReport: ["coverageReport"] as const,

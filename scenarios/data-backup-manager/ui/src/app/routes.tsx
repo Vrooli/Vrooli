@@ -8,15 +8,22 @@ import {
   RouterProvider,
   type RouteObject,
 } from "react-router-dom";
+import { lazy } from "react";
 
 import { AppShell } from "../layout/AppShell";
-import { OverviewPage } from "../pages/OverviewPage";
-import { TargetsPage } from "../pages/TargetsPage";
-import { DestinationsPage } from "../pages/DestinationsPage";
-import { PlansPage } from "../pages/PlansPage";
-import { RunsPage } from "../pages/RunsPage";
-import { RestoresPage } from "../pages/RestoresPage";
-import { SettingsPage } from "../pages/SettingsPage";
+
+// Keep the first-paint overview in the entry bundle, while deferring the
+// operator workflows until their route is visited. These pages pull in the
+// heaviest dialogs, forms, and API surfaces; shipping them on `/` made the
+// initial Lighthouse document pay for every workflow.
+const OverviewPage = lazy(() => import("../pages/OverviewPage"));
+const TargetsPage = lazy(() => import("../pages/TargetsPage"));
+const DestinationsPage = lazy(() => import("../pages/DestinationsPage"));
+const PlansPage = lazy(() => import("../pages/PlansPage"));
+const RunsPage = lazy(() => import("../pages/RunsPage"));
+const RestoresPage = lazy(() => import("../pages/RestoresPage"));
+const DrillsPage = lazy(() => import("../pages/DrillsPage"));
+const SettingsPage = lazy(() => import("../pages/SettingsPage"));
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
@@ -35,6 +42,7 @@ export const routes: RouteObject[] = [
       { path: "plans", element: <PlansPage /> },
       { path: "runs", element: <RunsPage /> },
       { path: "restores", element: <RestoresPage /> },
+      { path: "drills", element: <DrillsPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

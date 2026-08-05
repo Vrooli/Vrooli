@@ -1,9 +1,15 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { installChunkReloadGuard } from "@vrooli/api-base";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import "./styles.css";
+
+// A deploy can replace hashed lazy-route chunks while an operator tab still
+// holds the previous index.html. Reload once to recover that stale tab instead
+// of leaving the operator at a render-time error boundary.
+installChunkReloadGuard();
 
 // INTEROP-CRITICAL: Embedded mounts identify themselves before React renders so
 // the parent shell can route iframe bridge events to this scenario.
@@ -14,6 +20,16 @@ if (window.parent !== window) {
 // INTEROP-CRITICAL: Spatial navigation is initialized at startup for embedded
 // keyboard/gamepad control flows.
 initSpatialNav();
+
+// Keep the UI installable and provide an app-shell fallback when a previously
+// loaded operator opens it while the network is temporarily absent.
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+	window.addEventListener("load", () => {
+		void navigator.serviceWorker.register("/sw.js").catch(() => {
+			// Offline support is best-effort; the live API remains authoritative.
+		});
+	});
+}
 
 const rootEl = document.getElementById("root");
 if (!rootEl) {

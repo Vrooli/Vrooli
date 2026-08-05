@@ -86,6 +86,7 @@ func targetToProto(s discovery.TargetSuggestion) *discoveryv1.TargetSuggestion {
 		ApproxBytes: s.ApproxBytes,
 		Sensitive:   s.Sensitive,
 		Warning:     targetWarning(s),
+		Critical:    s.Critical,
 	}
 }
 

@@ -45,6 +45,14 @@ export function TargetInspector({ row, onClose }: { row: CoverageRow | null; onC
             </dd>
             <dt className="text-app-muted-foreground">{t(strings.targets.locator)}</dt>
             <dd className="truncate font-mono text-xs text-app-foreground">{row.target.locator}</dd>
+            <dt className="text-app-muted-foreground">{t(strings.targets.critical)}</dt>
+            <dd>
+              {row.target.critical ? (
+                <StatusChip tone="warning" labelKey={strings.targets.critical} />
+              ) : (
+                <span className="text-app-muted-foreground">{t(strings.targets.notCritical)}</span>
+              )}
+            </dd>
             <dt className="text-app-muted-foreground">{t(strings.overview.lastBackupLabel)}</dt>
             <dd className="text-app-foreground">{formatAge(row.lastSuccessAt, never)}</dd>
             <dt className="text-app-muted-foreground">{t(strings.overview.verifiedLabel)}</dt>

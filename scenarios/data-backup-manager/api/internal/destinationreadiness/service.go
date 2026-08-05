@@ -8,6 +8,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
+
+	"data-backup-manager/internal/sysmounts"
 )
 
 // Inspector is the read-only seam for platform/device inspection.
@@ -63,6 +66,9 @@ func (s *Service) PlanPreparation(ctx context.Context, in PlanInput) (Plan, erro
 	inspection, err := s.inspector.Inspect(ctx, location)
 	if err != nil {
 		return Plan{}, fmt.Errorf("inspect destination: %w", err)
+	}
+	if !inspection.LocationExists || !inspection.LocationIsDirectory {
+		return Plan{}, ErrPreparationRefused{Reason: "destination path must already exist as a directory; refusing to prepare an unverified location"}
 	}
 	if !in.ExpectedDevice.Matches(DeviceIdentity{}) && !in.ExpectedDevice.Matches(inspection.Identity) {
 		return Plan{}, ErrPreparationRefused{Reason: "observed device identity does not match expected identity"}
@@ -148,7 +154,10 @@ func buildReport(location string, inspection Inspection, in AnalyzeInput) Report
 	}
 	recLocation := filepath.Join(location, subdir)
 	checks := []CheckResult{
+		checkLocation(inspection),
 		checkMountedReadWrite(inspection),
+		checkFilesystemState(inspection),
+		checkDirectoryEvidence(inspection),
 		checkSeparateRoot(location, in.ProtectedPaths),
 		checkExisting(location, recLocation, in.ExistingDestinations),
 		checkFilesystem(inspection.Identity.Filesystem, in.CrossPlatformRequired),
@@ -169,10 +178,87 @@ func buildReport(location string, inspection Inspection, in AnalyzeInput) Report
 		Checks:                         checks,
 		RecommendedDestinationLocation: recLocation,
 		RecommendedAction:              action,
+		Platform:                       inspection.Platform,
+		Confidence:                     identityConfidence(inspection),
+		EvidenceSource:                 "mounted-volume-and-bounded-directory-read",
+		ObservedAt:                     time.Now().UTC(),
+		RepairSteps:                    repairSteps(inspection, checks),
 	}
 }
 
+func identityConfidence(i Inspection) string {
+	if i.Identity.UUID != "" || i.Identity.Serial != "" {
+		return "high"
+	}
+	if i.Identity.DevicePath != "" && i.Identity.Mountpoint != "" {
+		return "medium"
+	}
+	return "low"
+}
+
+func repairSteps(i Inspection, checks []CheckResult) []string {
+	steps := []string{"preserve the diagnostic evidence and do not format or clear the destination"}
+	for _, c := range checks {
+		switch c.Code {
+		case "mounted_read_write":
+			if c.Severity == SeverityFail {
+				steps = append(steps, "inspect mount state and perform any native filesystem repair outside data-backup-manager")
+			}
+		case "destination_dirty":
+			if c.Severity == SeverityFail {
+				steps = append(steps, "run the native filesystem check outside data-backup-manager, remount the volume, and re-run readiness")
+			}
+		case "filesystem_suitability":
+			if c.Severity == SeverityWarning || c.Severity == SeverityFail {
+				steps = append(steps, "choose a filesystem whose limits match the declared platform support matrix")
+			}
+		case "directory_inaccessible":
+			if c.Severity == SeverityFail {
+				steps = append(steps, "restore directory access and re-run the read-only diagnosis")
+			}
+		}
+	}
+	steps = append(steps, "recheck device identity, repository readiness, and then run a verified backup")
+	return steps
+}
+
+func checkFilesystemState(i Inspection) CheckResult {
+	switch i.FilesystemState {
+	case sysmounts.FilesystemStateDirty:
+		return CheckResult{Code: "destination_dirty", Severity: SeverityFail, Message: "filesystem reports a dirty state", NextAction: "run the native filesystem check outside data-backup-manager, then remount and re-run readiness"}
+	case sysmounts.FilesystemStateNeedsCheck:
+		return CheckResult{Code: "destination_dirty", Severity: SeverityFail, Message: "filesystem reports that a native check is required", NextAction: "run the native filesystem check outside data-backup-manager, then remount and re-run readiness"}
+	case sysmounts.FilesystemStateClean:
+		return CheckResult{Code: "filesystem_state", Severity: SeverityPass, Message: "filesystem reports a clean state"}
+	default:
+		return CheckResult{Code: "filesystem_state", Severity: SeverityUnknown, Message: "filesystem dirty/needs-check state is not exposed by the mounted-volume metadata"}
+	}
+}
+
+func checkDirectoryEvidence(i Inspection) CheckResult {
+	if !i.LocationExists || !i.LocationIsDirectory {
+		return CheckResult{Code: "directory_inaccessible", Severity: SeverityFail, Message: "destination directory does not exist or is not a directory"}
+	}
+	if i.ReadDirError != "" {
+		return CheckResult{Code: "directory_inaccessible", Severity: SeverityFail, Message: "destination directory could not be inspected"}
+	}
+	return CheckResult{Code: "directory_inaccessible", Severity: SeverityPass, Message: "bounded directory inspection completed"}
+}
+
+func checkLocation(i Inspection) CheckResult {
+	if !i.LocationExists {
+		return CheckResult{Code: "destination_missing", Severity: SeverityFail, Message: "destination path does not exist", NextAction: "mount the intended volume or create the destination directory, then re-run readiness"}
+	}
+	if !i.LocationIsDirectory {
+		return CheckResult{Code: "destination_inaccessible", Severity: SeverityFail, Message: "destination path is not a directory", NextAction: "choose a directory on the intended volume, then re-run readiness"}
+	}
+	return CheckResult{Code: "destination_present", Severity: SeverityPass, Message: "destination directory exists"}
+}
+
 func checkMountedReadWrite(i Inspection) CheckResult {
+	if !i.LocationExists || !i.LocationIsDirectory {
+		return CheckResult{Code: "mounted_read_write", Severity: SeverityUnknown, Message: "parent volume was inspected, but the destination path is not writable evidence"}
+	}
 	if i.ReadOnly {
 		return CheckResult{Code: "mounted_read_write", Severity: SeverityFail, Message: "mounted read-only"}
 	}
@@ -205,6 +291,9 @@ func checkFilesystem(fs string, crossPlatform bool) CheckResult {
 	case "exfat":
 		return CheckResult{Code: "filesystem_suitability", Severity: SeverityPass, Message: "exFAT is usable for cross-platform backup drives"}
 	case "ntfs", "ntfs3":
+		if crossPlatform {
+			return CheckResult{Code: "filesystem_suitability", Severity: SeverityWarning, Message: "NTFS access and restore fidelity depend on the native driver; verify runtime support on every declared platform"}
+		}
 		return CheckResult{Code: "filesystem_suitability", Severity: SeverityPass, Message: "NTFS is usable for filesystem backup repositories on this mounted drive"}
 	case "vfat", "fat32", "msdos":
 		return CheckResult{Code: "filesystem_suitability", Severity: SeverityWarning, Message: "FAT32 has a 4 GiB per-file limit and is not recommended for serious backup repositories"}

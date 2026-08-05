@@ -43,7 +43,7 @@ func TestRedisSource_PrefixDumpRestore(t *testing.T) {
 
 // TestRedisSource_CaptureArgv asserts that Capture builds the expected argv.
 func TestRedisSource_CaptureArgv(t *testing.T) {
-	t.Parallel()
+	t.Setenv("VROOLI_SCENARIO", "data-backup-manager")
 
 	fake := &mocks.FakeCommandRunner{}
 	reg := sources.NewProductionRegistry(fake)
@@ -62,7 +62,7 @@ func TestRedisSource_CaptureArgv(t *testing.T) {
 
 	args := call.Args
 	assert.Equal(t, "dump", args[0])
-	assertArgPair(t, args, "--prefix", "myapp:")
+	assertArgPair(t, args, "--prefix", "data-backup-manager:myapp:")
 	assertArgPair(t, args, "--output", filepath.Join(stageDir, "dump.rdb"))
 
 	for _, a := range args {
@@ -72,7 +72,7 @@ func TestRedisSource_CaptureArgv(t *testing.T) {
 
 // TestRedisSource_RestoreArgv asserts that Restore builds the expected argv.
 func TestRedisSource_RestoreArgv(t *testing.T) {
-	t.Parallel()
+	t.Setenv("VROOLI_SCENARIO", "data-backup-manager")
 
 	fake := &mocks.FakeCommandRunner{}
 	reg := sources.NewProductionRegistry(fake)
@@ -92,7 +92,7 @@ func TestRedisSource_RestoreArgv(t *testing.T) {
 
 	args := call.Args
 	assert.Equal(t, "restore", args[0])
-	assertArgPair(t, args, "--prefix", "myapp_restored:")
+	assertArgPair(t, args, "--prefix", "data-backup-manager:myapp_restored:")
 	assertArgPair(t, args, "--input", artifactPath)
 
 	for _, a := range args {

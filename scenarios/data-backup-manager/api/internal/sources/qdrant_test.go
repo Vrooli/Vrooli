@@ -43,7 +43,7 @@ func TestQdrantSource_SnapshotRestore(t *testing.T) {
 
 // TestQdrantSource_CaptureArgv asserts that Capture builds the expected argv.
 func TestQdrantSource_CaptureArgv(t *testing.T) {
-	t.Parallel()
+	t.Setenv("VROOLI_SCENARIO", "data-backup-manager")
 
 	fake := &mocks.FakeCommandRunner{}
 	reg := sources.NewProductionRegistry(fake)
@@ -63,7 +63,7 @@ func TestQdrantSource_CaptureArgv(t *testing.T) {
 	args := call.Args
 	assert.Equal(t, "snapshot", args[0])
 	assert.Equal(t, "create", args[1])
-	assertArgPair(t, args, "--collection", "my_collection")
+	assertArgPair(t, args, "--collection", "data-backup-manager_my_collection")
 	assertArgPair(t, args, "--output", filepath.Join(stageDir, "snapshot.qdrant"))
 
 	for _, a := range args {
@@ -73,7 +73,7 @@ func TestQdrantSource_CaptureArgv(t *testing.T) {
 
 // TestQdrantSource_RestoreArgv asserts that Restore builds the expected argv.
 func TestQdrantSource_RestoreArgv(t *testing.T) {
-	t.Parallel()
+	t.Setenv("VROOLI_SCENARIO", "data-backup-manager")
 
 	fake := &mocks.FakeCommandRunner{}
 	reg := sources.NewProductionRegistry(fake)
@@ -94,7 +94,7 @@ func TestQdrantSource_RestoreArgv(t *testing.T) {
 	args := call.Args
 	assert.Equal(t, "snapshot", args[0])
 	assert.Equal(t, "restore", args[1])
-	assertArgPair(t, args, "--collection", "my_collection_restored")
+	assertArgPair(t, args, "--collection", "data-backup-manager_my_collection_restored")
 	assertArgPair(t, args, "--input", artifactPath)
 
 	for _, a := range args {

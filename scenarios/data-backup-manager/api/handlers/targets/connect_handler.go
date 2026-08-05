@@ -38,6 +38,7 @@ func (h *connectHandler) RegisterTarget(ctx context.Context, req *connect.Reques
 		Name:       req.Msg.Name,
 		SourceKind: protoToKind(req.Msg.SourceKind),
 		Locator:    req.Msg.Locator,
+		Critical:   req.Msg.Critical,
 	})
 	if err != nil {
 		return nil, h.translate("RegisterTarget", err)
@@ -90,6 +91,7 @@ func domainToProto(t targets.Target) *targetsv1.Target {
 		Name:       t.Name,
 		SourceKind: kindToProto(t.SourceKind),
 		Locator:    t.Locator,
+		Critical:   t.Critical,
 	}
 	if !t.CreatedAt.IsZero() {
 		pt.CreatedAt = timestamppb.New(t.CreatedAt)

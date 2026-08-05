@@ -15,6 +15,8 @@ package runs
 import (
 	"fmt"
 	"time"
+
+	"data-backup-manager/internal/failures"
 )
 
 // RunStatus is the lifecycle state of a run. The legal transitions and
@@ -49,14 +51,17 @@ const (
 
 // TargetOutcome is one target×destination result inside a run.
 type TargetOutcome struct {
-	TargetID      string
-	DestinationID string
-	Status        OutcomeStatus
-	SnapshotID    string
-	Bytes         int64
-	Error         string
-	StartedAt     time.Time
-	FinishedAt    time.Time
+	TargetID        string
+	DestinationID   string
+	Status          OutcomeStatus
+	SnapshotID      string
+	Bytes           int64
+	Error           string
+	FailureCode     failures.Code
+	FailureCategory failures.Category
+	Warning         string
+	StartedAt       time.Time
+	FinishedAt      time.Time
 }
 
 // Run is the internal domain shape for one plan execution.
@@ -71,7 +76,11 @@ type Run struct {
 	// any per-target work (e.g. plan resolution) or when startup reconciliation
 	// closes a run that was in-flight across a restart. Per-target failures live
 	// on each TargetOutcome instead.
-	Error string
+	Error           string
+	FailureCode     failures.Code
+	FailureCategory failures.Category
+	NextAction      string
+	Preflight       []failures.Cause
 	// UpdatedAt is the heartbeat: the last time the run's status or an outcome
 	// was persisted. It makes a long-running or wedged run observable.
 	UpdatedAt time.Time
@@ -114,3 +123,12 @@ type ErrInvalidRun struct {
 }
 
 func (e ErrInvalidRun) Error() string { return fmt.Sprintf("%s: %s", e.Field, e.Reason) }
+
+// ErrRunAlreadyActive is returned instead of starting a second execution for
+// the same plan. Callers can inspect the existing run and retry after it is
+// terminal; no duplicate repository work is started.
+type ErrRunAlreadyActive struct{ PlanID, RunID string }
+
+func (e ErrRunAlreadyActive) Error() string {
+	return fmt.Sprintf("plan %q already has active run %q", e.PlanID, e.RunID)
+}

@@ -11,7 +11,7 @@
     {
       "id": "DBM-HOOK-001",
       "title": "Quiesce pre/post hooks for app-consistent snapshots",
-      "status": "complete",
+      "status": "planned",
       "prd_ref": "OT-P1-001",
       "category": "consistency",
       "criticality": "P1",
@@ -23,17 +23,16 @@
       ],
       "validation": [
         {
-          "type": "test",
-          "phase": "integration",
-          "status": "implemented",
-          "notes": "Add coverage that pre-hook runs before capture and post-hook after, with failure aborting the run cleanly."
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred: implement target-owned pre/post quiesce hooks, then prove ordering and failure rollback against a live source adapter."
         }
       ]
     },
     {
       "id": "DBM-RET-001",
       "title": "GFS retention policies per plan",
-      "status": "complete",
+      "status": "planned",
       "prd_ref": "OT-P1-002",
       "category": "retention",
       "criticality": "P1",
@@ -44,10 +43,9 @@
       ],
       "validation": [
         {
-          "type": "test",
-          "phase": "integration",
-          "status": "implemented",
-          "notes": "Add coverage that simulates snapshots over time and asserts the kept set matches GFS policy."
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred: replace keep-latest-only policy with explicit grandfather-father-son retention and prove the kept set over simulated time."
         }
       ]
     },
@@ -69,14 +67,14 @@
           "type": "test",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Add coverage that dry-run passes for a good destination and fails clearly for an unreachable/read-only one."
+          "notes": "Implemented and covered: dry-run validates the preparation plan without invoking the preparer; missing destinations fail closed during readiness analysis."
         }
       ]
     },
     {
       "id": "DBM-RST-GRAN",
       "title": "Restore granularity (path / point-in-time)",
-      "status": "complete",
+      "status": "planned",
       "prd_ref": "OT-P1-004",
       "category": "restore",
       "criticality": "P1",
@@ -88,10 +86,9 @@
       ],
       "validation": [
         {
-          "type": "test",
-          "phase": "integration",
-          "status": "implemented",
-          "notes": "Add coverage that restores one file and a prior snapshot version, then asserts correct content/version."
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred: add path-level and point-in-time restore selection, then prove content and version selection against multiple snapshots."
         }
       ]
     },
@@ -119,7 +116,7 @@
     {
       "id": "DBM-ALERT-001",
       "title": "Alerting integration",
-      "status": "complete",
+      "status": "planned",
       "prd_ref": "OT-P1-006",
       "category": "observability",
       "criticality": "P1",
@@ -130,10 +127,9 @@
       ],
       "validation": [
         {
-          "type": "test",
-          "phase": "integration",
-          "status": "implemented",
-          "notes": "Add coverage that an alert/event is emitted on stale or failed backup."
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred: connect grouped posture incidents to a real platform notification sink. Current logging/event seams are diagnostic evidence, not notification delivery."
         }
       ]
     }

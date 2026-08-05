@@ -8,8 +8,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"data-backup-manager/internal/clock"
+	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/engine"
 	"data-backup-manager/internal/modules"
 	"data-backup-manager/internal/server"
@@ -17,6 +19,7 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
@@ -26,6 +29,7 @@ import (
 	coverageH "data-backup-manager/handlers/coverage"
 	destinationsH "data-backup-manager/handlers/destinations"
 	discoveryH "data-backup-manager/handlers/discovery"
+	drillsH "data-backup-manager/handlers/drills"
 	healthH "data-backup-manager/handlers/health"
 	plansH "data-backup-manager/handlers/plans"
 	restoresH "data-backup-manager/handlers/restores"
@@ -37,6 +41,7 @@ import (
 	coverageint "data-backup-manager/internal/coverage"
 	destint "data-backup-manager/internal/destinations"
 	discoveryint "data-backup-manager/internal/discovery"
+	drillsint "data-backup-manager/internal/drills"
 	plansint "data-backup-manager/internal/plans"
 	restoresint "data-backup-manager/internal/restores"
 	runsint "data-backup-manager/internal/runs"
@@ -146,6 +151,14 @@ func run(ctx context.Context) error {
 		_ = db.Close()
 		return fmt.Errorf("destinations column migration failed: %w", err)
 	}
+	if err := plansint.EnsureColumns(ctx, db.Primary()); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("plans column migration failed: %w", err)
+	}
+	if err := targetsint.EnsureColumns(ctx, db.Primary()); err != nil {
+		_ = db.Close()
+		return fmt.Errorf("targets column migration failed: %w", err)
+	}
 
 	// Additive column migration for the runs table (error, updated_at) so the
 	// async-execution columns land on a database that predates them without
@@ -170,11 +183,24 @@ func run(ctx context.Context) error {
 	logger := log.Default()
 	kopia := engine.NewKopiaCLI()
 	protectedRoot, _ := lookupEnvTrimmed("SCENARIO_DATA_DIR")
+	fileResolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+	if err != nil {
+		return fmt.Errorf("create file storage resolver: %w", err)
+	}
+	filePaths, err := fileResolver.Resolve(storage.Options{ScenarioID: "data-backup-manager"})
+	if err != nil {
+		return fmt.Errorf("resolve file storage roots: %w", err)
+	}
+	fileRoots := filerouting.New(filePaths)
 
 	// Concrete domain services used both for mounting (via each module) and as
 	// the backing for the cross-domain adapters the run orchestration needs.
 	targetsSvc := targetsint.NewService(targetsint.NewSQLiteRepository(db, clk))
 	destSvc := destint.NewService(destint.NewSQLiteRepository(db, clk), kopia, &destint.FSBundleWriter{}, protectedRoot)
+	planReadiness := destinationreadiness.NewService(
+		destinationreadiness.NewReadOnlyInspector(sysmounts.New()),
+		destinationreadiness.NewLocalPreparer(),
+	)
 
 	// Discovery: read-only onboarding suggestions. Scans well-known runtime
 	// state (~/.vrooli) for targets and mounted volumes for destinations,
@@ -183,14 +209,25 @@ func run(ctx context.Context) error {
 	// (runtime root + registered destinations + registered target locators) —
 	// wider than the destinations service's own protectedRoot (D4). Built before
 	// plans because the plan coverage guard reads its recommendations.
+	sourceScanner := discoveryint.NewCachedTargetSourceScanner(
+		discoveryint.NewCompositeScanner(
+			discoveryint.NewWellKnownScanner(),
+			discoveryint.NewResourceDataScanner(),
+		),
+		30*time.Second,
+	)
+	// Warm the bounded read-only inventory before advertising API health. The
+	// first overview request must not pay the full repository walk, and later
+	// concurrent coverage/suggestions requests reuse this snapshot.
+	if _, err := sourceScanner.Scan(ctx); err != nil {
+		logger.Printf("discovery inventory warm-up unavailable: %v", err)
+	}
+
 	discoverySvc := discoveryint.NewService(discoveryint.Deps{
 		Volumes: sysmounts.New(),
 		// Two source scanners behind one seam: Vrooli's own runtime home
 		// (~/.vrooli) plus every declared non-regenerable owner storage entry.
-		Sources: discoveryint.NewCompositeScanner(
-			discoveryint.NewWellKnownScanner(),
-			discoveryint.NewResourceDataScanner(),
-		),
+		Sources:      sourceScanner,
 		Targets:      discoveryTargetCatalog{svc: targetsSvc},
 		Destinations: discoveryDestCatalog{svc: destSvc},
 		Protected:    discoveryProtectedPaths{runtimeRoot: discoveryint.RuntimeRoot(), targets: targetsSvc, dests: destSvc},
@@ -204,7 +241,12 @@ func run(ctx context.Context) error {
 	guardCoverage := coverageint.NewService(coverageint.Deps{
 		Suggestions: coverageSuggestions{svc: discoverySvc},
 	})
-	plansSvc := plansint.NewService(plansint.NewSQLiteRepository(db, clk), planCoverageGuard{svc: guardCoverage})
+	plansSvc := plansint.NewServiceWithPolicies(
+		plansint.NewSQLiteRepository(db, clk),
+		planCoverageGuard{svc: guardCoverage},
+		planCriticalTargetPolicy{svc: targetsSvc},
+		planCriticalDestinationPolicy{targets: targetsSvc, destinations: destSvc, readiness: planReadiness},
+	)
 
 	// The run orchestration: capture (sources) + snapshot/retention (engine),
 	// cap-block via destinations, reading plans/targets through adapters. Runs
@@ -230,20 +272,22 @@ func run(ctx context.Context) error {
 	// trigger), then assigned into this adapter before any request runs.
 	nextSched := &nextScheduleAdapter{plans: plansSvc}
 	runsSvc := runsint.NewService(runsint.Deps{
-		Repo:              runsint.NewSQLiteRepository(db, clk),
-		Plans:             planLookup{svc: plansSvc},
-		Targets:           targetLookup{svc: targetsSvc},
-		ActiveTargets:     targetLookup{svc: targetsSvc},
-		Destinations:      destinationLookup{svc: destSvc},
-		Engine:            kopia,
-		Sources:           sourceRegistry,
-		Events:            logEventSink{logger: logger},
-		Clock:             clk,
-		Logger:            logger,
-		BaseContext:       execCtx,
-		TargetConcurrency: concurrency,
-		OverdueAfter:      overdueAfterDur,
-		NextSchedule:      nextSched,
+		Repo:                 runsint.NewSQLiteRepository(db, clk),
+		Plans:                planLookup{svc: plansSvc},
+		Targets:              targetLookup{svc: targetsSvc},
+		ActiveTargets:        targetLookup{svc: targetsSvc},
+		Destinations:         destinationLookup{svc: destSvc},
+		Engine:               kopia,
+		Sources:              sourceRegistry,
+		Events:               logEventSink{logger: logger},
+		Clock:                clk,
+		Logger:               logger,
+		BaseContext:          execCtx,
+		TargetConcurrency:    concurrency,
+		OverdueAfter:         overdueAfterDur,
+		NextSchedule:         nextSched,
+		PreflightSourcePaths: true,
+		RoutedRoots:          fileRoots,
 	})
 
 	// Startup reconciliation: close any run left non-terminal by a prior
@@ -303,6 +347,29 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("audit reconciliation failed: %w", err)
 	}
 
+	// Recovery drills reuse the verified-restore gate but add durable policy,
+	// idempotency, latest-successful-snapshot selection, and scheduled operator
+	// evidence. They never write to a live target.
+	drillsSvc := drillsint.NewService(drillsint.Deps{
+		Repo:        drillsint.NewSQLiteRepository(db),
+		Plans:       drillPlanLookup{svc: plansSvc},
+		Snapshots:   drillSnapshotLookup{svc: runsSvc},
+		Restores:    drillRestoreRunner{svc: restoresSvc},
+		Clock:       clk,
+		BaseContext: execCtx,
+		Workers:     concurrency,
+		Logger:      logger,
+	})
+	if err := drillsSvc.Reconcile(ctx); err != nil {
+		cancelExec()
+		_ = db.Close()
+		return fmt.Errorf("recovery-drill reconciliation failed: %w", err)
+	}
+	if err := startDrillScheduler(ctx, drillsSvc, logger); err != nil {
+		_ = db.Close()
+		return err
+	}
+
 	// Coverage: the first-real-backup readiness surface. Composes discovery
 	// suggestions with the targets/plans/runs/restores catalogs into one report
 	// plus bulk default acceptance. Owns no scanner logic; reads no file
@@ -351,6 +418,7 @@ func run(ctx context.Context) error {
 		discoveryH.Module(discoverySvc, logger),
 		plansH.Module(plansSvc, logger),
 		restoresH.Module(restoresSvc, logger),
+		drillsH.Module(drillsSvc, logger),
 		runsH.Module(runsSvc, verifiedLookup{svc: restoresSvc}, logger),
 		safetyH.Module(safetySvc, logger),
 		targetsH.Module(db, clk, logger),
@@ -360,7 +428,7 @@ func run(ctx context.Context) error {
 	// mode, the dev-only RoutingService used by test-genie to install a
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
-	devrouting.Register(rootMux, db)
+	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
 	rootMux.HandleFunc("/health", healthHandler(srv.Handler()))
 	rootMux.Handle("/", srv.Handler())
 
@@ -384,6 +452,7 @@ func run(ctx context.Context) error {
 			_ = runsSvc.Shutdown(cctx)
 			_ = restoresSvc.Shutdown(cctx)
 			_ = auditsSvc.Shutdown(cctx)
+			_ = drillsSvc.Shutdown(cctx)
 			return db.Close()
 		},
 	}); err != nil {

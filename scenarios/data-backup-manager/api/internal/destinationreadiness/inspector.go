@@ -23,11 +23,12 @@ type VolumeScanner interface {
 type ReadOnlyInspector struct {
 	Volumes VolumeScanner
 	ReadDir func(name string) ([]os.DirEntry, error)
+	Stat    func(name string) (os.FileInfo, error)
 }
 
 // NewReadOnlyInspector constructs the production read-only inspector.
 func NewReadOnlyInspector(volumes VolumeScanner) *ReadOnlyInspector {
-	return &ReadOnlyInspector{Volumes: volumes, ReadDir: os.ReadDir}
+	return &ReadOnlyInspector{Volumes: volumes, ReadDir: os.ReadDir, Stat: os.Stat}
 }
 
 // Inspect returns a read-only snapshot of the candidate's mount and content
@@ -44,6 +45,11 @@ func (i *ReadOnlyInspector) Inspect(ctx context.Context, location string) (Inspe
 	if readDir == nil {
 		readDir = os.ReadDir
 	}
+	stat := i.Stat
+	if stat == nil {
+		stat = os.Stat
+	}
+	locationInfo, locationErr := stat(location)
 	volumes, err := i.Volumes.Scan(ctx)
 	if err != nil {
 		return Inspection{}, err
@@ -52,23 +58,42 @@ func (i *ReadOnlyInspector) Inspect(ctx context.Context, location string) (Inspe
 	if !ok {
 		return Inspection{}, ErrInvalidReadiness{Field: "location", Reason: "not under a mounted volume"}
 	}
-	entries, _ := boundedTopLevel(readDir, vol.Mountpoint)
+	entries, readErr := boundedTopLevel(readDir, vol.Mountpoint)
 	return Inspection{
+		LocationExists:      locationErr == nil,
+		LocationIsDirectory: locationErr == nil && locationInfo.IsDir(),
+		LocationError: func() string {
+			if locationErr != nil {
+				return locationErr.Error()
+			}
+			return ""
+		}(),
 		Identity: DeviceIdentity{
 			DevicePath: vol.DevicePath,
 			Mountpoint: cleanPath(vol.Mountpoint),
 			Filesystem: vol.Filesystem,
 			TotalBytes: vol.TotalBytes,
+			Label:      vol.Label,
+			UUID:       vol.UUID,
+			Model:      vol.Model,
+			Serial:     vol.Serial,
 		},
 		FreeBytes:       vol.FreeBytes,
 		ReadOnly:        vol.ReadOnly,
 		Removable:       vol.Removable,
 		DriveClass:      string(vol.Class),
 		MountOptions:    append([]string(nil), vol.MountOptions...),
+		FilesystemState: vol.FilesystemState,
 		TopLevelEntries: entries,
 		NonEmptyRoot:    len(entries) > 0,
 		InstallerMedia:  looksLikeInstallerMedia(entries),
 		Platform:        runtime.GOOS,
+		ReadDirError: func() string {
+			if readErr != nil {
+				return readErr.Error()
+			}
+			return ""
+		}(),
 	}, nil
 }
 

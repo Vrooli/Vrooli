@@ -33,6 +33,10 @@ beforeEach(() => {
       planId: "p1",
       trigger: TriggerSource.MANUAL,
       status: RunStatus.PARTIAL_FAILED,
+      failureCode: "credential_missing",
+      failureCategory: "credential",
+      nextAction: "restore repository credential",
+      preflightIncidents: [{ code: "credential_missing", scope: "destination", message: "credential unavailable", nextAction: "restore credential" }],
       startedAt: start,
       finishedAt: finish,
       outcomes: [
@@ -63,5 +67,17 @@ describe("RunsPage", () => {
     expect(within(blocked).getByText(strings.status.outcome.blocked)).toBeInTheDocument();
     const ok = within(row).getByTestId(selectors.runs.outcomeRow({ targetId: "t1" }));
     expect(within(ok).getByText(strings.status.outcome.succeeded)).toBeInTheDocument();
+  });
+
+  it("shows stable run failure evidence and the safe next action", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<RunsPage />);
+    const row = await screen.findByTestId(selectors.runs.row({ id: "r1" }));
+    await user.click(within(row).getByRole("button"));
+    expect(within(row).getByTestId("run-failure-code")).toHaveTextContent("credential_missing (credential)");
+    expect(within(row).getByTestId("run-next-action")).toHaveTextContent(
+      `${strings.runs.nextAction}: restore repository credential`,
+    );
+    expect(within(row).getByText(/credential_missing: credential unavailable/)).toBeInTheDocument();
   });
 });

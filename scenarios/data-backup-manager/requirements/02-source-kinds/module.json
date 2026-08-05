@@ -10,7 +10,7 @@
     {
       "id": "DBM-SRC-FS",
       "title": "Filesystem source capture",
-      "status": "implemented",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "source.filesystem",
       "criticality": "P0",
@@ -29,7 +29,7 @@
     {
       "id": "DBM-SRC-SQLITE",
       "title": "SQLite source capture",
-      "status": "implemented",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "source.sqlite",
       "criticality": "P0",
@@ -48,7 +48,7 @@
     {
       "id": "DBM-SRC-POSTGRES",
       "title": "Postgres source capture",
-      "status": "implemented",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "source.postgres",
       "criticality": "P0",
@@ -67,7 +67,7 @@
     {
       "id": "DBM-SRC-REDIS",
       "title": "Redis source capture (best-effort namespace)",
-      "status": "implemented",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "source.redis",
       "criticality": "P0",
@@ -86,7 +86,7 @@
     {
       "id": "DBM-SRC-QDRANT",
       "title": "Qdrant source capture",
-      "status": "implemented",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "source.qdrant",
       "criticality": "P0",
@@ -105,7 +105,7 @@
     {
       "id": "DBM-SRC-OBJECT",
       "title": "Object-storage source capture",
-      "status": "implemented",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "source.object",
       "criticality": "P0",

@@ -31,11 +31,16 @@ function groupByOwner(rows: CoverageRow[], fallback: string): Map<string, Covera
   return groups;
 }
 
-export function CoverageGrid() {
+export function CoverageGrid({
+  maxRows = Number.MAX_SAFE_INTEGER,
+}: {
+  maxRows?: number;
+} = {}) {
   const { t } = useTranslation();
   const { rows, isLoading, isError, refetch } = useCoverage();
   const never = t(strings.common.never);
-  const groups = groupByOwner(rows, t(strings.overview.ownerFallback));
+  const visibleRows = maxRows ? rows.slice(0, maxRows) : rows;
+  const visibleGroups = groupByOwner(visibleRows, t(strings.overview.ownerFallback));
 
   return (
     <section data-testid={selectors.overview.coverage} className="flex flex-col gap-3">
@@ -52,9 +57,10 @@ export function CoverageGrid() {
             data-testid={selectors.overview.coverageEmpty}
           />
         }
+        skeletonRows={3}
       >
         <div className="flex flex-col gap-4">
-          {[...groups.entries()].map(([owner, ownerRows]) => (
+          {[...visibleGroups.entries()].map(([owner, ownerRows]) => (
             <div key={owner} className="flex flex-col gap-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-app-muted-foreground">{owner}</p>
               <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -99,6 +105,11 @@ export function CoverageGrid() {
               </ul>
             </div>
           ))}
+          {visibleRows.length < rows.length && (
+            <p className="text-xs text-app-muted-foreground">
+              {t(strings.common.showingOf, { shown: visibleRows.length, total: rows.length })}
+            </p>
+          )}
         </div>
       </AsyncSection>
     </section>

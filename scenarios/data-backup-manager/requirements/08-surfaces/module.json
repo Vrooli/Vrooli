@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "API, CLI, and UI expose the same registration/destination/plan/run/restore model over one Connect-RPC contract.",
-    "last_validated_at": "2026-07-21T17:56:54-04:00",
+    "last_validated_at": "2026-08-05T14:34:09-04:00",
     "module": "surfaces",
     "prd_ref": "OT-P0-011",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "DBM-API-001",
       "title": "Connect-RPC API contract",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-011",
       "category": "api",
       "criticality": "P0",
@@ -26,7 +26,7 @@
           "type": "test",
           "ref": "api/internal/modules/registry_test.go::TestProtoConnectParity",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Assert the mounted Connect-RPC endpoint registry stays aligned with the generated proto service procedures."
         }
       ]
@@ -34,7 +34,7 @@
     {
       "id": "DBM-CLI-001",
       "title": "CLI surface for operators and self-registration",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-011",
       "category": "cli",
       "criticality": "P0",
@@ -47,7 +47,7 @@
           "type": "test",
           "ref": "cli/domains/domains_test.go::TestSubcommandGroups",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Assert the CLI exposes the target, destination, discovery, coverage, plan, run, and restore command groups."
         }
       ]
@@ -55,7 +55,7 @@
     {
       "id": "DBM-COV-001",
       "title": "First-backup coverage activation",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-011",
       "category": "api",
       "criticality": "P0",
@@ -72,7 +72,7 @@
           "type": "test",
           "ref": "api/internal/coverage/service_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Coverage report classification + dry-run/idempotency/partial-failure of bulk accept; plan guard tested in api/internal/plans/coverage_guard_test.go."
         },
         {

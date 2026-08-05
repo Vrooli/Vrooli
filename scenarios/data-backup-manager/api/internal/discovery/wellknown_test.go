@@ -66,9 +66,9 @@ func TestWellKnownScannerCoversRuntimeStateOnly(t *testing.T) {
 	}
 
 	// The durable inventory is contract-driven: plans/state/config/data plus the
-	// secrets pair and the runtime DB. `data` is now first-class (it was silently
-	// omitted by the old hard-coded list).
-	wantNames := []string{"plans", "state", "config", "data", "secrets", "secrets-enc", "runtime-db"}
+	// encrypted credential store and runtime DB. The legacy plaintext store is
+	// deliberately excluded even though the scanner never reads its contents.
+	wantNames := []string{"plans", "state", "config", "data", "secrets-enc", "runtime-db"}
 	if len(got) != len(wantNames) {
 		t.Fatalf("expected %d candidates, got %d: %+v", len(wantNames), len(got), got)
 	}
@@ -100,6 +100,22 @@ func TestWellKnownScannerCoversRuntimeStateOnly(t *testing.T) {
 	}
 	if k := byName["plans"].SourceKind; k != sources.KindFilesystem {
 		t.Errorf("plans source kind = %q, want filesystem", k)
+	}
+	for _, name := range []string{"config", "secrets-enc", "runtime-db"} {
+		if !byName[name].Critical {
+			t.Errorf("%q must be marked critical", name)
+		}
+	}
+	if !byName["secrets-enc"].Sensitive {
+		t.Error("encrypted credential-authority store must remain review-only")
+	}
+	for _, name := range []string{"plans", "state", "data"} {
+		if byName[name].Critical {
+			t.Errorf("%q must not be implicitly marked critical", name)
+		}
+	}
+	if _, ok := byName["secrets"]; ok {
+		t.Error("legacy plaintext secrets.json must never be suggested")
 	}
 
 	// No regenerable dirs leaked in.

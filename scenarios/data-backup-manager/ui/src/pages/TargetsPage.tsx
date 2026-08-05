@@ -129,6 +129,9 @@ export function TargetsPage() {
                           <span className="truncate font-mono">{row.target.locator}</span>
                         </span>
                       </button>
+                      {row.target.critical && (
+                        <StatusChip tone="warning" labelKey={strings.targets.critical} />
+                      )}
                       <span className="text-xs text-app-muted-foreground">
                         {formatAge(row.lastSuccessAt, never)}
                       </span>
@@ -170,3 +173,5 @@ export function TargetsPage() {
     </section>
   );
 }
+
+export default TargetsPage;

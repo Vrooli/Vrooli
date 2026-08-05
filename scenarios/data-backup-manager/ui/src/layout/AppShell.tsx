@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Outlet } from "react-router-dom";
 
 import { selectors } from "../consts/selectors";
@@ -20,7 +21,7 @@ export function AppShell() {
   return (
     <div
       data-testid={selectors.layout.shell}
-      className="flex min-h-screen flex-col bg-app-background text-app-foreground"
+      className="flex min-h-full flex-col bg-app-background text-app-foreground"
     >
       <TopBar />
       <div className="flex min-h-0 flex-1">
@@ -30,7 +31,9 @@ export function AppShell() {
           aria-label={t(strings.layout.mainLabel)}
           className="min-w-0 flex-1 overflow-auto p-6"
         >
-          <Outlet />
+          <Suspense fallback={<div role="status" aria-live="polite">{t(strings.common.loading)}</div>}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
       <BottomNav />

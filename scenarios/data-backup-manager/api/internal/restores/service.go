@@ -72,6 +72,10 @@ type Deps struct {
 	Executor Executor
 	// Logger receives background-worker diagnostics. Optional.
 	Logger *log.Logger
+	// RemoveAll is the cleanup seam for restore scratch directories. It is
+	// injectable so cleanup failures remain testable evidence rather than an
+	// ignored filesystem side effect.
+	RemoveAll func(string) error
 }
 
 const defaultRestoreListLimit = 100
@@ -85,6 +89,9 @@ type service struct {
 // executor, bound to s.executeJob so scheduled jobs run the full
 // restore/verify+persist lifecycle off the request path.
 func NewService(d Deps) Service {
+	if d.RemoveAll == nil {
+		d.RemoveAll = os.RemoveAll
+	}
 	s := &service{deps: d}
 	exec := d.Executor
 	if exec == nil {
@@ -220,6 +227,8 @@ func (s *service) runRestore(ctx context.Context, job RestoreJob) {
 	id := job.Restore.ID
 	if err := s.deps.Repo.UpdateRestoreStatus(ctx, id, RestoreRestoring); err != nil {
 		s.logf("restore %s -> restoring: %v", id, err)
+		s.finishFailed(ctx, id, fmt.Sprintf("could not persist restoring transition: %v", err))
+		return
 	}
 
 	scratchBase := s.scratchBase()
@@ -232,24 +241,34 @@ func (s *service) runRestore(ctx context.Context, job RestoreJob) {
 		s.finishFailed(ctx, id, fmt.Sprintf("scratch dir: %v", err))
 		return
 	}
-	defer func() { _ = os.RemoveAll(artifactDir) }()
+	workErr := func() error {
+		if err := s.deps.Engine.SnapshotRestore(ctx, job.DestName, job.Restore.SnapshotID, artifactDir); err != nil {
+			return fmt.Errorf("snapshot restore: %w", err)
+		}
 
-	if err := s.deps.Engine.SnapshotRestore(ctx, job.DestName, job.Restore.SnapshotID, artifactDir); err != nil {
-		s.finishFailed(ctx, id, fmt.Sprintf("snapshot restore: %v", err))
+		capturer, err := s.deps.Sources.Capturer(job.Target.Kind)
+		if err != nil {
+			return fmt.Errorf("source capturer: %w", err)
+		}
+		if err := capturer.Restore(ctx, sources.RestoreSpec{
+			Locator:      job.Target.Locator,
+			ArtifactPath: artifactDir,
+			Target:       job.Restore.Location,
+		}); err != nil {
+			return fmt.Errorf("source restore: %w", err)
+		}
+		return nil
+	}()
+	cleanupErr := s.deps.RemoveAll(artifactDir)
+	if workErr != nil {
+		if cleanupErr != nil {
+			workErr = fmt.Errorf("%w; scratch cleanup: %v", workErr, cleanupErr)
+		}
+		s.finishFailed(ctx, id, workErr.Error())
 		return
 	}
-
-	capturer, err := s.deps.Sources.Capturer(job.Target.Kind)
-	if err != nil {
-		s.finishFailed(ctx, id, fmt.Sprintf("source capturer: %v", err))
-		return
-	}
-	if err := capturer.Restore(ctx, sources.RestoreSpec{
-		Locator:      job.Target.Locator,
-		ArtifactPath: artifactDir,
-		Target:       job.Restore.Location,
-	}); err != nil {
-		s.finishFailed(ctx, id, fmt.Sprintf("source restore: %v", err))
+	if cleanupErr != nil {
+		s.finishFailed(ctx, id, fmt.Sprintf("scratch cleanup: %v", cleanupErr))
 		return
 	}
 
@@ -262,32 +281,48 @@ func (s *service) runVerify(ctx context.Context, job RestoreJob) {
 	id := job.Restore.ID
 	if err := s.deps.Repo.UpdateRestoreStatus(ctx, id, RestoreVerifying); err != nil {
 		s.logf("restore %s -> verifying: %v", id, err)
+		s.finishFailed(ctx, id, fmt.Sprintf("could not persist verifying transition: %v", err))
+		return
 	}
 
-	scratchDir := filepath.Join(s.scratchBase(), "dbm-verify-"+sanitize(job.Restore.SnapshotID)+"-"+sanitize(job.Restore.TargetID))
-	if err := os.MkdirAll(scratchDir, 0o755); err != nil {
+	scratchBase := s.scratchBase()
+	if err := os.MkdirAll(scratchBase, 0o755); err != nil {
+		s.finishFailed(ctx, id, fmt.Sprintf("scratch root: %v", err))
+		return
+	}
+	scratchDir, err := os.MkdirTemp(scratchBase, "dbm-verify-"+sanitize(job.Restore.SnapshotID)+"-"+sanitize(job.Restore.TargetID)+"-")
+	if err != nil {
 		s.finishFailed(ctx, id, fmt.Sprintf("scratch dir: %v", err))
 		return
 	}
-	// ALWAYS clean up the scratch dir, even on failure.
-	defer func() { _ = os.RemoveAll(scratchDir) }()
+	workErr, checksum := func() (error, string) {
+		if err := s.deps.Engine.SnapshotRestore(ctx, job.DestName, job.Restore.SnapshotID, scratchDir); err != nil {
+			return fmt.Errorf("snapshot restore: %w", err), ""
+		}
 
-	if err := s.deps.Engine.SnapshotRestore(ctx, job.DestName, job.Restore.SnapshotID, scratchDir); err != nil {
-		s.finishFailed(ctx, id, fmt.Sprintf("snapshot restore: %v", err))
+		// Full 100% byte-verify. CRITICAL INVARIANT (OT-P0-006): a verify failure
+		// must NEVER set status=verified or last_verified_at — finishFailed leaves
+		// both unset.
+		if err := s.deps.Engine.SnapshotVerify(ctx, job.DestName, job.Restore.SnapshotID, 100); err != nil {
+			return fmt.Errorf("snapshot verify: %w", err), ""
+		}
+
+		checksum, err := checksumDir(scratchDir)
+		if err != nil {
+			return fmt.Errorf("checksum: %w", err), ""
+		}
+		return nil, checksum
+	}()
+	cleanupErr := s.deps.RemoveAll(scratchDir)
+	if workErr != nil {
+		if cleanupErr != nil {
+			workErr = fmt.Errorf("%w; scratch cleanup: %v", workErr, cleanupErr)
+		}
+		s.finishFailed(ctx, id, workErr.Error())
 		return
 	}
-
-	// Full 100% byte-verify. CRITICAL INVARIANT (OT-P0-006): a verify failure
-	// must NEVER set status=verified or last_verified_at — finishFailed leaves
-	// both unset.
-	if err := s.deps.Engine.SnapshotVerify(ctx, job.DestName, job.Restore.SnapshotID, 100); err != nil {
-		s.finishFailed(ctx, id, fmt.Sprintf("snapshot verify: %v", err))
-		return
-	}
-
-	checksum, err := checksumDir(scratchDir)
-	if err != nil {
-		s.finishFailed(ctx, id, fmt.Sprintf("checksum: %v", err))
+	if cleanupErr != nil {
+		s.finishFailed(ctx, id, fmt.Sprintf("scratch cleanup: %v", cleanupErr))
 		return
 	}
 

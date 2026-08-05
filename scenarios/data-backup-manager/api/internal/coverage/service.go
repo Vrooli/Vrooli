@@ -131,6 +131,7 @@ func (s *service) AcceptDefaults(ctx context.Context, opts AcceptOptions) (Accep
 				SourceKind:   sug.SourceKind,
 				Locator:      sug.Locator,
 				Sensitive:    sug.Sensitive,
+				Critical:     sug.Critical,
 			})
 			continue
 		}
@@ -142,6 +143,7 @@ func (s *service) AcceptDefaults(ctx context.Context, opts AcceptOptions) (Accep
 			Name:       sug.Name,
 			SourceKind: sug.SourceKind,
 			Locator:    sug.Locator,
+			Critical:   sug.Critical,
 		})
 		if rerr != nil {
 			result.Failed = append(result.Failed, AcceptFailure{
@@ -160,6 +162,7 @@ func (s *service) AcceptDefaults(ctx context.Context, opts AcceptOptions) (Accep
 			SourceKind:   sug.SourceKind,
 			Locator:      sug.Locator,
 			Sensitive:    sug.Sensitive,
+			Critical:     sug.Critical,
 		})
 	}
 	return result, nil

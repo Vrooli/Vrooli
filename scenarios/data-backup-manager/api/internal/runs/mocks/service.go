@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"data-backup-manager/internal/engine"
+	"data-backup-manager/internal/preflight"
 	"data-backup-manager/internal/runs"
 )
 
@@ -33,6 +34,10 @@ func (f *FakeService) TriggerRun(_ context.Context, planID string, _ runs.Trigge
 		return runs.Run{}, f.TriggerErr
 	}
 	return f.TriggerOut, nil
+}
+
+func (f *FakeService) Preflight(context.Context, string) (preflight.Result, error) {
+	return preflight.Result{Ready: true}, nil
 }
 
 func (f *FakeService) GetRun(_ context.Context, _ string) (runs.Run, error) {

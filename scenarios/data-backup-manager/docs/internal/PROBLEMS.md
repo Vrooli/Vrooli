@@ -269,27 +269,23 @@ terminal transitions and writes each `TargetOutcome` as it lands (heartbeat via
 `runs.updated_at`). On boot, `Service.Reconcile` closes any run left non-terminal
 as `failed` with a reconciliation reason (fail-not-resume in v1). The `runs
 trigger` CLI interim workaround was removed (it uses the standard client now).
-The server `WriteTimeout: 6h` in `main.go` is **kept** — but its justification
-changed: runs no longer need it, but `restores verify/restore` are still
-synchronous and long-running (see "Still open" below), and the api-core default
-30s `WriteTimeout` severs them mid-operation ("unexpected EOF"). It drops to the
-default only once restores also become async. Refs:
+The historical server `WriteTimeout: 6h` workaround was retained while restores
+were synchronous. Refs:
 `api/internal/runs/{service,executor,repository,sqlite,migrate}.go`,
 `api/main.go` (execCtx + Reconcile + Cleanup drain),
 `cli/domains/runs/handlers.go`.
 
-**Still open (restores):** `restores.{VerifyTarget,RestoreTarget}` remain
-synchronous and long-running. They are single, bounded, operator-initiated
-operations, so they keep the unlimited-timeout Connect client on the CLI side
-(`cli/domains/restores/handlers.go`) rather than the async treatment. The
-background-job seam is general enough that they *could* opt in later, but that is
-deliberately out of scope. **Resume** of an interrupted run (vs fail) is also
-deferred — v1 fails orphans cleanly.
+**Current resolution (2026-08-05):** `restores.{VerifyTarget,RestoreTarget}`
+now validate and persist a non-terminal record, then execute on a server-lifetime
+background worker. Their status is reconciled fail-closed after restart, and the
+transport no longer depends on an unlimited synchronous restore timeout. Resume
+of interrupted work (versus fail-and-retry) remains deliberately deferred; v1
+fails orphans cleanly.
 
-**Owner:** restores async / run-resume — unassigned. **Refs:**
+**Owner:** run-resume — unassigned. **Refs:**
 `api/internal/restores/service.go`, `cli/domains/restores/handlers.go`.
 
-### 2026-06-03 — `next_scheduled_at` not yet on the freshness view (Phase 6 partial)
+### 2026-06-03 — `next_scheduled_at` not yet on the freshness view (resolved)
 
 **Symptom:** `runs status` / `TargetStatus` / `/health` report per-target
 `overdue` and `last_success_age_seconds`, but not the *next* scheduled backup
@@ -302,15 +298,15 @@ plan's schedule, and the **scheduler's in-memory `lastFire`** map
 (`internal/scheduler/scheduler.go`), which is not currently exposed through any
 seam.
 
-**Workaround:** None needed — overdue + age already answer "is this target
-behind?", the primary cadence question. Next-scheduled is additive.
+**Resolution (2026-08-05):** The scheduler now exposes a typed
+`NextScheduleSource` seam, the runs freshness rollup joins it by target, and the
+API/UI surfaces `next_scheduled_at`. Manual-only targets remain unset. The
+overdue and last-success rules remain the primary posture signals.
 
-**Real fix:** Add a scheduler→status seam that surfaces per-plan `lastFire` +
-schedule, join it through target membership in `ListTargetStatus`, and populate
-a `next_scheduled_at` field (additive on `TargetStatus`). Deferred from Phase 6
-of the perf/observability plan.
+**Evidence:** `internal/scheduler/scheduler_test.go` and
+`internal/runs/service_test.go::TestListTargetStatus_NextScheduledAt`.
 
-**Owner:** unassigned. **Refs:** `internal/scheduler/scheduler.go` (`lastFire`),
+**Owner:** resolved. **Refs:** `internal/scheduler/scheduler.go` (`lastFire`),
 `internal/runs/service.go::ListTargetStatus`, Phase-6 section of
 `data-backup-manager-backup-performance-observability-async-execution`.
 
@@ -395,6 +391,73 @@ denominator for the dedup metric (Phase B).
 **Owner:** resource-kopia. **Refs:** `resources/kopia/cli/internal/repo/repo.go`,
 `api/internal/engine/kopia.go` (RepoStats); `cap-4ca780dbb3ba91af` resolved.
 
+### 2026-08-05 — incident baseline and preflight hardening
+
+The Elements volume `/dev/sda1` (UUID `E26A883E6A881189`) is present but not
+mounted. The host reports NTFS and the observed condition is compatible with a
+dirty volume after an unclean disconnect or shutdown; a power outage is not
+proven. The Ubuntu installer volume is FAT32 removable media and remains a
+warning-only candidate, not a primary repository.
+
+The latest scheduled plan run failed its planned targets because the
+`elements-local` repository passphrase was unavailable. This is independent of
+the volume condition. The legacy target pointing at
+`~/.vrooli/secrets.json` is stale; the encrypted credential
+authority file is the only eligible recovery target. Do not copy or inspect
+plaintext credentials.
+
+The run service now performs a read-only repository/source preflight once per
+shared dependency, persists grouped incidents and stable root-cause codes, and
+blocks affected fan-out before capture. Permanent operator-action failures are
+not retry-storm eligible. Retention and staging-cleanup failures remain visible
+as run evidence. Native filesystem repair and credential restoration remain
+operator-owned gates.
+
+The initial comprehensive validation run reached 16/19 phases. Standalone unit,
+security, and business phases passed; the remaining performance gate measured
+Lighthouse performance at `0.71` against the configured `0.75` error floor.
+The threshold was not lowered. Subsequent overview/rendering and bundle-hardening
+work closed that finding: the final comprehensive run on 2026-08-05 reached
+19/19 phases, with Lighthouse performance above the configured floor. Preserve
+the earlier result as incident history, but do not treat it as the current
+automated validation status. The final production recovery drill remains gated
+on restoring Vault/Kopia credentials and performing native inspection of the
+unmounted Elements volume; DBM must continue to report the plan as blocked until
+those operator-owned steps are complete.
+
+**Evidence:** `data-backup-manager status --json`, `destinations list --json`,
+`coverage report --json`, `runs list --json`, `lsblk`, and
+`go test ./...` in `scenarios/data-backup-manager/api`.
+
+### 2026-08-05 — P1 requirement ledger corrected
+
+The P1 ledger had overstated delivery. Destination preparation dry-run is
+implemented and covered, so `DBM-DEST-DRYRUN` remains complete. Quiesce hooks,
+GFS retention, path/point-in-time restore selection, and notification delivery
+are not implemented; their PRD and requirement records are now explicitly
+planned with actionable validation notes. Logging and platform event seams are
+diagnostic evidence, not a substitute for a real notification sink.
+
+**Owner:** unassigned. **Refs:** `PRD.md`,
+`requirements/09-post-launch/module.json`.
+
+The recovery-drill scheduler also now rejects malformed or non-positive legacy
+cadence values with a plan-scoped error instead of silently skipping them.
+Failures while persisting the drill's running transition are recorded as
+actionable failed evidence when catalog storage permits it.
+
+**Evidence:** `api/internal/drills/service.go` and
+`api/internal/drills/service_test.go`.
+
+Backup run lifecycle transitions and per-outcome evidence writes now fail closed
+when catalog persistence fails: a run cannot proceed past the capturing
+transition, and persistence errors are included in the terminal run evidence.
+Generic SQLite audit metadata probes likewise mark the inventory failed when a
+page or schema query errors instead of converting the error to zero/empty facts.
+
+**Evidence:** `api/internal/runs/service.go`,
+`api/internal/runs/service_test.go`, and `api/internal/audits/dbcheck.go`.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.
@@ -405,6 +468,13 @@ a migration handoff with a planned retirement path back into
 | Area | Drift | Maturity Impact | Real Fix |
 |---|---|---|---|
 | _None yet._ |  |  |  |
+
+## Work ladder
+
+- Rung: W0
+- Evidence: the active `data-backup-manager-v2` goal describes an engine-backed capability in which scenarios self-register targets, matching PRD `OT-P0-001` (`Scenarios idempotently register/deregister backup targets`) and the API/CLI/UI registration surfaces. The separate active `persistence-inventory-and-contracts` goal says `NO per-scenario registration needed` and directs removal of `swarm-manager/api/internal/backup/register.go`, ending with `discovered by convention, never self-register`.
+- Blocker: contract direction is contradictory. Do not rewrite the PRD or remove the registration surface until the operator decides whether convention-based discovery is only the default for api-core/storage state (with explicit registration retained for exceptions), or replaces OT-P0-001 entirely. Lower W1/W2/W3 gates are not authoritative while this W0 conflict remains unresolved.
+- Measured: 2026-08-05
 
 ## Cross-references
 

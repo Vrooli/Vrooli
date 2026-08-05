@@ -8,11 +8,12 @@ vi.mock("../api/runs", () => ({
   getRun: vi.fn(),
   triggerRun: vi.fn(),
   browseSnapshot: vi.fn(),
+  getRunStats: vi.fn(),
 }));
 
 import * as api from "../api/runs";
 import { makeApiError } from "../api/client";
-import { useRuns, useTriggerRun } from "./useRuns";
+import { useRun, useRunStats, useRuns, useSnapshotEntries, useTriggerRun } from "./useRuns";
 
 const buildClient = () =>
   new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
@@ -53,5 +54,23 @@ describe("useTriggerRun", () => {
     const keys = invalidate.mock.calls.map((c) => (c[0] as { queryKey: unknown[] }).queryKey[0]);
     expect(keys).toContain("runs");
     expect(keys).toContain("targetStatus");
+  });
+});
+
+describe("run detail queries", () => {
+  it("loads a run, stats, and snapshot entries when identifiers are present", async () => {
+    vi.mocked(api.getRun).mockResolvedValue({ id: "r1", status: 4 } as never);
+    vi.mocked(api.getRunStats).mockResolvedValue({ totalRuns: 1 } as never);
+    vi.mocked(api.browseSnapshot).mockResolvedValue([]);
+    const client = buildClient();
+    const run = renderHook(() => useRun("r1"), { wrapper: wrapper(client) });
+    const stats = renderHook(() => useRunStats("p1"), { wrapper: wrapper(client) });
+    const snapshot = renderHook(() => useSnapshotEntries("d1", "s1"), { wrapper: wrapper(client) });
+    await waitFor(() => expect(run.result.current.isSuccess).toBe(true));
+    await waitFor(() => expect(stats.result.current.isSuccess).toBe(true));
+    await waitFor(() => expect(snapshot.result.current.isSuccess).toBe(true));
+    expect(api.getRun).toHaveBeenCalledWith("r1");
+    expect(api.getRunStats).toHaveBeenCalledWith("p1");
+    expect(api.browseSnapshot).toHaveBeenCalledWith("d1", "s1", "");
   });
 });

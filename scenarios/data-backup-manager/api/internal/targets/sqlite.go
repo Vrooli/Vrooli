@@ -39,30 +39,30 @@ const targetTimeFormat = time.RFC3339Nano
 
 const (
 	insertTargetSQL = `
-INSERT INTO targets (id, owner, name, source_kind, locator, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?)
+INSERT INTO targets (id, owner, name, source_kind, locator, critical, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 `
 	updateTargetSQL = `
 UPDATE targets
-SET source_kind = ?, locator = ?, updated_at = ?
+SET source_kind = ?, locator = ?, critical = ?, updated_at = ?
 WHERE id = ?
 `
 	selectTargetByOwnerNameSQL = `
-SELECT id, owner, name, source_kind, locator, created_at, updated_at
+SELECT id, owner, name, source_kind, locator, critical, created_at, updated_at
 FROM targets WHERE owner = ? AND name = ?
 `
 	selectTargetByIDSQL = `
-SELECT id, owner, name, source_kind, locator, created_at, updated_at
+SELECT id, owner, name, source_kind, locator, critical, created_at, updated_at
 FROM targets WHERE id = ?
 `
 	listTargetsSQL = `
-SELECT id, owner, name, source_kind, locator, created_at, updated_at
+SELECT id, owner, name, source_kind, locator, critical, created_at, updated_at
 FROM targets
 ORDER BY owner ASC, name ASC
 LIMIT ?
 `
 	listTargetsByOwnerSQL = `
-SELECT id, owner, name, source_kind, locator, created_at, updated_at
+SELECT id, owner, name, source_kind, locator, critical, created_at, updated_at
 FROM targets
 WHERE owner = ?
 ORDER BY name ASC
@@ -83,7 +83,7 @@ func (s *sqliteRepository) Create(ctx context.Context, t Target) (Target, error)
 		t.UpdatedAt = t.CreatedAt
 	}
 	_, err := s.db.ExecContext(ctx, insertTargetSQL,
-		t.ID, t.Owner, t.Name, string(t.SourceKind), t.Locator,
+		t.ID, t.Owner, t.Name, string(t.SourceKind), t.Locator, t.Critical,
 		t.CreatedAt.Format(targetTimeFormat), t.UpdatedAt.Format(targetTimeFormat),
 	)
 	if err != nil {
@@ -95,7 +95,7 @@ func (s *sqliteRepository) Create(ctx context.Context, t Target) (Target, error)
 func (s *sqliteRepository) Update(ctx context.Context, t Target) (Target, error) {
 	t.UpdatedAt = s.clock.Now().UTC()
 	_, err := s.db.ExecContext(ctx, updateTargetSQL,
-		string(t.SourceKind), t.Locator, t.UpdatedAt.Format(targetTimeFormat), t.ID,
+		string(t.SourceKind), t.Locator, t.Critical, t.UpdatedAt.Format(targetTimeFormat), t.ID,
 	)
 	if err != nil {
 		return Target{}, fmt.Errorf("update target %q: %w", t.ID, err)
@@ -179,13 +179,15 @@ func scanTarget(sc rowScanner) (Target, error) {
 	var (
 		t          Target
 		kindRaw    string
+		critical   bool
 		createdRaw string
 		updatedRaw string
 	)
-	if err := sc.Scan(&t.ID, &t.Owner, &t.Name, &kindRaw, &t.Locator, &createdRaw, &updatedRaw); err != nil {
+	if err := sc.Scan(&t.ID, &t.Owner, &t.Name, &kindRaw, &t.Locator, &critical, &createdRaw, &updatedRaw); err != nil {
 		return Target{}, err
 	}
 	t.SourceKind = sources.SourceKind(kindRaw)
+	t.Critical = critical
 	created, err := time.Parse(targetTimeFormat, createdRaw)
 	if err != nil {
 		return Target{}, fmt.Errorf("parse created_at %q: %w", createdRaw, err)

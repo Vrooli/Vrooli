@@ -14,7 +14,8 @@
             { "name": "owner", "required": true, "description": "Owning scenario/service id" },
             { "name": "name", "required": true, "description": "Owner-scoped target name" },
             { "name": "kind", "required": true, "description": "Source kind: filesystem|sqlite|postgres|redis|qdrant|object-storage" },
-            { "name": "locator", "required": true, "description": "Source locator (path, db name, key prefix, collection, or bucket/prefix)" }
+            { "name": "locator", "required": true, "description": "Source locator (path, db name, key prefix, collection, or bucket/prefix)" },
+            { "name": "critical", "bool": true, "description": "Approve this target for critical-primary and critical-secondary plans" }
           ],
           "binding": { "kind": "connect-rpc", "service": "TargetsService", "method": "RegisterTarget" },
           "governance": {
@@ -287,6 +288,8 @@
             { "name": "schedule", "description": "Cron-style schedule expression (empty = manual only)" },
             { "name": "keep-latest", "description": "Retention: keep at most N latest snapshots (0 = keep all)" },
             { "name": "enabled", "description": "Enable scheduler for this plan (default: true)" },
+            { "name": "protection-tier", "description": "Protection tier: full-primary|critical-primary|critical-secondary (default: full-primary)" },
+            { "name": "recovery-drill-schedule", "description": "Automated recovery-drill interval as a Go duration (for example 168h; empty disables)" },
             { "name": "allow-incomplete-coverage", "bool": true, "description": "Proceed even if non-sensitive recommended targets are unregistered (default: blocked)" }
           ],
           "binding": { "kind": "connect-rpc", "service": "PlansService", "method": "CreatePlan" },
@@ -330,6 +333,8 @@
             { "name": "schedule", "description": "New schedule expression" },
             { "name": "keep-latest", "description": "Retention: keep at most N latest snapshots" },
             { "name": "enabled", "description": "Enable or disable scheduler for this plan" },
+            { "name": "protection-tier", "description": "Protection tier: full-primary|critical-primary|critical-secondary" },
+            { "name": "recovery-drill-schedule", "description": "Automated recovery-drill interval as a Go duration (for example 168h; empty disables)" },
             { "name": "allow-incomplete-coverage", "bool": true, "description": "Proceed even if non-sensitive recommended targets are unregistered (default: blocked)" }
           ],
           "binding": { "kind": "connect-rpc", "service": "PlansService", "method": "UpdatePlan" },
@@ -355,9 +360,66 @@
       ]
     },
     {
+      "name": "drills",
+      "description": "Run and inspect durable automated recovery drills against verified snapshots",
+      "commands": [
+        {
+          "name": "preview",
+          "description": "Preview recovery-drill eligibility without mutating data",
+          "flags": [
+            { "name": "plan", "required": true, "description": "Plan id" },
+            { "name": "target", "description": "Target id when the plan has multiple targets" },
+            { "name": "destination", "description": "Destination id when the plan has multiple destinations" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "RecoveryDrillsService", "method": "PreviewDrill" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "run",
+          "description": "Start an asynchronous scratch restore verification and persist its evidence",
+          "flags": [
+            { "name": "plan", "required": true, "description": "Plan id" },
+            { "name": "target", "description": "Target id when the plan has multiple targets" },
+            { "name": "destination", "description": "Destination id when the plan has multiple destinations" },
+            { "name": "idempotency-key", "description": "Stable retry key; repeated requests return the original drill" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "RecoveryDrillsService", "method": "RunDrill" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "get",
+          "description": "Get persisted recovery-drill evidence",
+          "positionals": [{ "name": "id", "required": true, "description": "Drill id" }],
+          "binding": { "kind": "connect-rpc", "service": "RecoveryDrillsService", "method": "GetDrill" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "list",
+          "description": "List persisted recovery-drill evidence",
+          "flags": [
+            { "name": "plan", "description": "Filter by plan id" },
+            { "name": "target", "description": "Filter by target id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "RecoveryDrillsService", "method": "ListDrills" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
       "name": "runs",
       "description": "Trigger and inspect backup run executions",
       "commands": [
+        {
+          "name": "preflight",
+          "description": "Run read-only plan-wide readiness checks before backup fan-out",
+          "flags": [{ "name": "plan", "required": true, "description": "Plan id" }],
+          "binding": { "kind": "connect-rpc", "service": "RunsService", "method": "PreflightRun" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["filesystem:read", "network:internal"]
+          }
+        },
         {
           "name": "trigger",
           "description": "Trigger an immediate backup run for a plan",

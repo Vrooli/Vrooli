@@ -175,3 +175,24 @@ func isReadOnly(opts []string) bool {
 	}
 	return false
 }
+
+// filesystemState recognizes only explicit state tokens. It deliberately
+// avoids inferring health from an ordinary rw mount: a mounted filesystem can
+// still need a native check, and the absence of a token is unknown.
+func filesystemState(opts []string) FilesystemState {
+	state := FilesystemStateUnknown
+	for _, raw := range opts {
+		option := strings.ToLower(strings.TrimSpace(raw))
+		switch option {
+		case "dirty", "state=dirty", "filesystem-dirty", "filesystem_dirty":
+			return FilesystemStateDirty
+		case "needs-check", "needs_check", "needscheck", "state=needs-check", "state=needs_check":
+			state = FilesystemStateNeedsCheck
+		case "clean", "state=clean", "filesystem-clean", "filesystem_clean":
+			if state == FilesystemStateUnknown {
+				state = FilesystemStateClean
+			}
+		}
+	}
+	return state
+}

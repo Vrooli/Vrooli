@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/vrooli/api-core/database"
 )
@@ -32,6 +33,11 @@ type SQLiteChecker interface {
 // live database and never mutates it.
 type pragmaChecker struct{}
 
+type sqliteQueryDB interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
 // NewSQLiteChecker returns the production read-only SQLite checker.
 func NewSQLiteChecker() SQLiteChecker { return pragmaChecker{} }
 
@@ -47,7 +53,9 @@ func (pragmaChecker) Check(ctx context.Context, abs, rel string) SqliteInventory
 	// than sql.Open directly, so this external read gets the same retry/backoff
 	// behavior as scenario DB opens.
 	dsn := fmt.Sprintf("file:%s?mode=ro&immutable=1&_pragma=query_only(1)", abs)
-	db, err := database.Connect(ctx, database.Config{
+	checkCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	db, err := database.Connect(checkCtx, database.Config{
 		Driver:       database.DriverSQLite,
 		DSN:          dsn,
 		MaxOpenConns: 1,
@@ -62,7 +70,7 @@ func (pragmaChecker) Check(ctx context.Context, abs, rel string) SqliteInventory
 	// integrity_check returns the single row "ok" on a healthy database, or one
 	// row per problem otherwise.
 	var integrity string
-	if err := db.QueryRowContext(ctx, "PRAGMA integrity_check(1)").Scan(&integrity); err != nil {
+	if err := db.QueryRowContext(checkCtx, "PRAGMA integrity_check(1)").Scan(&integrity); err != nil {
 		inv.IntegrityStatus = "failed"
 		return inv
 	}
@@ -72,19 +80,30 @@ func (pragmaChecker) Check(ctx context.Context, abs, rel string) SqliteInventory
 		inv.IntegrityStatus = "failed"
 	}
 
-	inv.PageCount = scalarInt(ctx, db, "PRAGMA page_count")
-	inv.PageSize = scalarInt(ctx, db, "PRAGMA page_size")
-	inv.SchemaSHA256, inv.TableCount = schemaFingerprint(ctx, db)
+	var queryErr error
+	if inv.PageCount, queryErr = scalarInt(checkCtx, db, "PRAGMA page_count"); queryErr != nil {
+		inv.IntegrityStatus = "failed"
+		return inv
+	}
+	if inv.PageSize, queryErr = scalarInt(checkCtx, db, "PRAGMA page_size"); queryErr != nil {
+		inv.IntegrityStatus = "failed"
+		return inv
+	}
+	if inv.SchemaSHA256, inv.TableCount, queryErr = schemaFingerprint(checkCtx, db); queryErr != nil {
+		inv.IntegrityStatus = "failed"
+		return inv
+	}
 	return inv
 }
 
-// scalarInt runs a single-int PRAGMA, returning 0 on any error.
-func scalarInt(ctx context.Context, db *sql.DB, query string) int64 {
+// scalarInt runs a single-int PRAGMA and preserves query errors so callers can
+// fail closed instead of treating missing metadata as a valid zero value.
+func scalarInt(ctx context.Context, db sqliteQueryDB, query string) (int64, error) {
 	var n int64
 	if err := db.QueryRowContext(ctx, query).Scan(&n); err != nil {
-		return 0
+		return 0, err
 	}
-	return n
+	return n, nil
 }
 
 // schemaFingerprint hashes the normalized sqlite_master schema and counts its
@@ -92,11 +111,11 @@ func scalarInt(ctx context.Context, db *sql.DB, query string) int64 {
 // regardless of creation order — two databases with the same DDL produce the
 // same fingerprint. Only DDL (the CREATE statements already in sqlite_master)
 // is read; no row data and no domain interpretation.
-func schemaFingerprint(ctx context.Context, db *sql.DB) (string, int64) {
+func schemaFingerprint(ctx context.Context, db sqliteQueryDB) (string, int64, error) {
 	rows, err := db.QueryContext(ctx,
 		`SELECT type, name, tbl_name, COALESCE(sql, '') FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'`)
 	if err != nil {
-		return "", 0
+		return "", 0, err
 	}
 	defer rows.Close()
 
@@ -104,12 +123,12 @@ func schemaFingerprint(ctx context.Context, db *sql.DB) (string, int64) {
 	for rows.Next() {
 		var typ, name, tbl, ddl string
 		if err := rows.Scan(&typ, &name, &tbl, &ddl); err != nil {
-			return "", 0
+			return "", 0, err
 		}
 		lines = append(lines, fmt.Sprintf("%s\t%s\t%s\t%s", typ, name, tbl, ddl))
 	}
 	if err := rows.Err(); err != nil {
-		return "", 0
+		return "", 0, err
 	}
 	sort.Strings(lines)
 
@@ -117,5 +136,5 @@ func schemaFingerprint(ctx context.Context, db *sql.DB) (string, int64) {
 	for _, l := range lines {
 		fmt.Fprintf(h, "%s\n", l)
 	}
-	return fmt.Sprintf("%x", h.Sum(nil)), int64(len(lines))
+	return fmt.Sprintf("%x", h.Sum(nil)), int64(len(lines)), nil
 }

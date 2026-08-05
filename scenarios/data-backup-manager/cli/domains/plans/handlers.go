@@ -58,6 +58,8 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 		Retention:               retention,
 		Enabled:                 enabled,
 		AllowIncompleteCoverage: ctx.BoolFlag("allow-incomplete-coverage"),
+		ProtectionTier:          protectionTier(ctx.Flag("protection-tier")),
+		RecoveryDrillSchedule:   optionalFlag(ctx, "recovery-drill-schedule"),
 	}))
 	if err != nil {
 		// The API returns FAILED_PRECONDITION with the exact remediation commands
@@ -148,6 +150,8 @@ func (h *handlers) update(ctx cliapp.RunContext) error {
 		Retention:               retention,
 		Enabled:                 enabled,
 		AllowIncompleteCoverage: ctx.BoolFlag("allow-incomplete-coverage"),
+		ProtectionTier:          protectionTier(ctx.Flag("protection-tier")),
+		RecoveryDrillSchedule:   optionalFlag(ctx, "recovery-drill-schedule"),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("update plan", err, nil)
@@ -189,11 +193,30 @@ func formatPlan(p *plansv1.Plan) string {
 	if p.Retention != nil {
 		keepLatest = p.Retention.KeepLatest
 	}
-	return fmt.Sprintf("%s — %s [targets=%s destinations=%s schedule=%q keep-latest=%d enabled=%v created=%s]",
+	return fmt.Sprintf("%s — %s [tier=%s targets=%s destinations=%s schedule=%q drill-schedule=%q keep-latest=%d enabled=%v physically-independent=%v warnings=%s created=%s]",
 		p.Id, p.Name,
+		p.ProtectionTier.String(),
 		strings.Join(p.TargetIds, ","),
 		strings.Join(p.DestinationIds, ","),
-		p.Schedule, keepLatest, p.Enabled, created)
+		p.Schedule, p.RecoveryDrillSchedule, keepLatest, p.Enabled, p.DestinationsPhysicallyIndependent, strings.Join(p.SharedRiskWarnings, " | "), created)
+}
+
+func protectionTier(value string) plansv1.ProtectionTier {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "critical-primary":
+		return plansv1.ProtectionTier_PROTECTION_TIER_CRITICAL_PRIMARY
+	case "critical-secondary":
+		return plansv1.ProtectionTier_PROTECTION_TIER_CRITICAL_SECONDARY
+	default:
+		return plansv1.ProtectionTier_PROTECTION_TIER_FULL_PRIMARY
+	}
+}
+
+func optionalFlag(ctx cliapp.RunContext, name string) string {
+	if !ctx.FlagDeclared(name) {
+		return ""
+	}
+	return ctx.Flag(name)
 }
 
 // parseCommaSeparated splits a comma-separated string into a slice, trimming spaces.

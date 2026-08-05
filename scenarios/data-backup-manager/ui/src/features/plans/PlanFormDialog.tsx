@@ -4,11 +4,13 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { Dialog } from "../../components/ui/dialog";
 import { Field } from "../../components/ui/field";
 import { Input } from "../../components/ui/input";
+import { Select } from "../../components/ui/select";
 import { Button } from "../../components/ui/button";
 import { useCreatePlan, useUpdatePlan } from "../../hooks/usePlans";
 import { useTargets } from "../../hooks/useTargets";
 import { useDestinations } from "../../hooks/useDestinations";
 import type { Plan } from "../../api/plans";
+import { ProtectionTier } from "@vrooli/proto-types/data-backup-manager/v1/plans/plans_pb";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -79,6 +81,8 @@ export function PlanFormDialog({
   const [targetIds, setTargetIds] = useState<string[]>(plan?.targetIds ?? []);
   const [destinationIds, setDestinationIds] = useState<string[]>(plan?.destinationIds ?? []);
   const [schedule, setSchedule] = useState(plan?.schedule ?? "0 2 * * *");
+  const [recoveryDrillSchedule, setRecoveryDrillSchedule] = useState(plan?.recoveryDrillSchedule ?? "");
+  const [protectionTier, setProtectionTier] = useState(plan?.protectionTier ?? ProtectionTier.FULL_PRIMARY);
   const [keepLatest, setKeepLatest] = useState(String(plan?.retention?.keepLatest ?? 7));
   const [enabled, setEnabled] = useState(plan?.enabled ?? true);
   const [touched, setTouched] = useState(false);
@@ -114,6 +118,8 @@ export function PlanFormDialog({
       targetIds,
       destinationIds,
       schedule: schedule.trim(),
+      recoveryDrillSchedule: recoveryDrillSchedule.trim(),
+      protectionTier,
       keepLatest: Number(keepLatest) || 0,
       enabled,
       allowIncompleteCoverage,
@@ -187,6 +193,22 @@ export function PlanFormDialog({
               value={schedule}
               onChange={(e) => setSchedule(e.target.value)}
             />
+          )}
+        </Field>
+
+        <Field label={t(strings.plans.protectionTier)}>
+          {(p) => (
+            <Select {...p} data-testid={selectors.plans.formTier} value={protectionTier} onChange={(e) => setProtectionTier(Number(e.target.value))}>
+              <option value={ProtectionTier.FULL_PRIMARY}>{t(strings.plans.tierFullPrimary)}</option>
+              <option value={ProtectionTier.CRITICAL_PRIMARY}>{t(strings.plans.tierCriticalPrimary)}</option>
+              <option value={ProtectionTier.CRITICAL_SECONDARY}>{t(strings.plans.tierCriticalSecondary)}</option>
+            </Select>
+          )}
+        </Field>
+
+        <Field label={t(strings.plans.recoveryDrillSchedule)} hint={t(strings.plans.recoveryDrillScheduleHint)}>
+          {(p) => (
+            <Input {...p} data-testid={selectors.plans.formDrillSchedule} value={recoveryDrillSchedule} onChange={(e) => setRecoveryDrillSchedule(e.target.value)} />
           )}
         </Field>
 

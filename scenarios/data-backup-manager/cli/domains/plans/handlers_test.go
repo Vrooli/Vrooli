@@ -69,6 +69,7 @@ func TestCreatePlanCommand(t *testing.T) {
 		{Name: "schedule"},
 		{Name: "keep-latest"},
 		{Name: "enabled"},
+		{Name: "protection-tier"},
 		{Name: "allow-incomplete-coverage", Bool: true},
 	}}
 	ctx, stdout := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{

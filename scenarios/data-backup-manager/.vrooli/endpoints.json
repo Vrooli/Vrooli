@@ -213,7 +213,7 @@
       "path": "/vrooli.data_backup_manager.v1.destinations.DestinationsService/CreateDestination",
       "method": "POST",
       "summary": "Create a backup destination",
-      "description": "Provisions a new kopia repository (filesystem or S3). Encryption is always on; the repository passphrase is generated and stored in vault. A filesystem destination must not point under the protected root.",
+      "description": "Provisions a new kopia repository (filesystem or S3). Encryption is always on; the repository passphrase is generated and stored in the credential authority. S3/backend credentials remain in vault. A filesystem destination must not point under the protected root.",
       "category": "destinations",
       "request": {
         "type": "object",
@@ -586,6 +586,38 @@
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/ExecuteDestinationPreparation -H 'Content-Type: application/json' -d '{\"plan\":{\"id\":\"plan-id\"},\"dryRun\":true}'"
         }
       ]
+    },
+    {
+      "id": "drills_preview",
+      "path": "/vrooli.data_backup_manager.v1.drills.RecoveryDrillsService/PreviewDrill",
+      "method": "POST",
+      "summary": "Preview a recovery drill",
+      "description": "Read-only eligibility and latest-snapshot preview; does not restore or mutate data.",
+      "category": "drills"
+    },
+    {
+      "id": "drills_run",
+      "path": "/vrooli.data_backup_manager.v1.drills.RecoveryDrillsService/RunDrill",
+      "method": "POST",
+      "summary": "Run a recovery drill",
+      "description": "Durably records and asynchronously verifies the latest successful snapshot in scratch.",
+      "category": "drills"
+    },
+    {
+      "id": "drills_get",
+      "path": "/vrooli.data_backup_manager.v1.drills.RecoveryDrillsService/GetDrill",
+      "method": "POST",
+      "summary": "Get a recovery drill",
+      "description": "Returns persisted drill status and linked restore evidence.",
+      "category": "drills"
+    },
+    {
+      "id": "drills_list",
+      "path": "/vrooli.data_backup_manager.v1.drills.RecoveryDrillsService/ListDrills",
+      "method": "POST",
+      "summary": "List recovery drills",
+      "description": "Lists persisted recovery-drill evidence newest first.",
+      "category": "drills"
     },
     {
       "id": "discovery_target_suggestions",
@@ -1032,6 +1064,45 @@
         {
           "name": "List restores",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.restores.RestoresService/ListRestores -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "runs_preflight",
+      "path": "/vrooli.data_backup_manager.v1.runs.RunsService/PreflightRun",
+      "method": "POST",
+      "summary": "Check backup plan readiness",
+      "description": "Performs read-only destination, credential, source-adapter, and source-path checks before any backup fan-out.",
+      "category": "runs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "plan_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "incidents": "array<FailureCause>",
+          "ready": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing plan_id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No plan with that id"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Preflight a plan",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.runs.RunsService/PreflightRun -H 'Content-Type: application/json' -d '{\"planId\":\"plan-1\"}'"
         }
       ]
     },

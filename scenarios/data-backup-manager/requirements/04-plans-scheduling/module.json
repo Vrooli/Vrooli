@@ -10,7 +10,7 @@
     {
       "id": "DBM-PLAN-001",
       "title": "Many-to-many plans with schedule and retention",
-      "status": "implemented",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "plan",
       "criticality": "P0",
@@ -29,7 +29,7 @@
     {
       "id": "DBM-SCHED-001",
       "title": "Scheduled and on-demand execution",
-      "status": "implemented",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "execution",
       "criticality": "P0",

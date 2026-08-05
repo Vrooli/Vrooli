@@ -25,6 +25,7 @@ export interface RegisterTargetInput {
   name: string;
   sourceKind: SourceKind;
   locator: string;
+  critical: boolean;
 }
 
 export async function listTargets(owner = ""): Promise<Target[]> {

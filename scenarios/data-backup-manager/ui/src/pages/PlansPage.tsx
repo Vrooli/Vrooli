@@ -24,6 +24,7 @@ import { useTranslation } from "../i18n";
  * per-plan query), and the run-now / edit / delete actions. */
 function PlanRow({ plan, onEdit, onDelete }: { plan: Plan; onEdit: () => void; onDelete: () => void }) {
   const { t } = useTranslation();
+  const sharedRiskWarnings = Array.isArray(plan.sharedRiskWarnings) ? plan.sharedRiskWarnings : [];
   const { data } = useRuns(plan.id);
   const trigger = useTriggerRun();
   const latest = data?.[0];
@@ -49,6 +50,14 @@ function PlanRow({ plan, onEdit, onDelete }: { plan: Plan; onEdit: () => void; o
             })}
           </span>
         </p>
+        <p className="text-xs text-app-muted-foreground">
+          {t(strings.plans.recoveryDrillSchedule)}: {plan.recoveryDrillSchedule || t(strings.drills.manual)}
+        </p>
+        {sharedRiskWarnings.map((warning) => (
+          <p key={warning} role="status" className="text-xs text-app-warning">
+            {t(strings.plans.sharedRiskWarning, { warning })}
+          </p>
+        ))}
       </div>
 
       <div className="flex items-center gap-2 text-xs text-app-muted-foreground">
@@ -167,3 +176,5 @@ export function PlansPage() {
     </section>
   );
 }
+
+export default PlansPage;

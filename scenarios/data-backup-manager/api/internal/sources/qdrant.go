@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 // Assumed resource-qdrant CLI surface (reconcile with actual resource CLI):
@@ -51,9 +53,13 @@ func (c *qdrantCapturer) Kind() SourceKind { return KindQdrant }
 // spec.Locator is the Qdrant collection name. No secrets appear in argv.
 func (c *qdrantCapturer) Capture(ctx context.Context, spec CaptureSpec) (Artifact, error) {
 	dst := filepath.Join(spec.StageDir, qdrantSnapshotFile)
-	_, err := c.runner.Run(ctx, qdrantBinary,
+	collection, err := storage.Collection(spec.Locator)
+	if err != nil {
+		return Artifact{}, fmt.Errorf("resolve qdrant collection namespace: %w", err)
+	}
+	_, err = c.runner.Run(ctx, qdrantBinary,
 		qdrantSubSnapshot, qdrantSubCreate,
-		qdrantFlagCollection, spec.Locator,
+		qdrantFlagCollection, collection,
 		qdrantFlagOutput, dst,
 	)
 	if err != nil {
@@ -68,9 +74,13 @@ func (c *qdrantCapturer) Capture(ctx context.Context, spec CaptureSpec) (Artifac
 //
 // spec.Target is the collection to restore into. No secrets appear in argv.
 func (c *qdrantCapturer) Restore(ctx context.Context, spec RestoreSpec) error {
-	_, err := c.runner.Run(ctx, qdrantBinary,
+	collection, err := storage.Collection(spec.Target)
+	if err != nil {
+		return fmt.Errorf("resolve qdrant collection namespace: %w", err)
+	}
+	_, err = c.runner.Run(ctx, qdrantBinary,
 		qdrantSubSnapshot, qdrantSubRestore,
-		qdrantFlagCollection, spec.Target,
+		qdrantFlagCollection, collection,
 		qdrantFlagInput, spec.ArtifactPath,
 	)
 	if err != nil {

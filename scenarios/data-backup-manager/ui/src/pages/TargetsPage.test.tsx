@@ -34,7 +34,7 @@ const recently = timestampFromDate(new Date(Date.now() - 60 * 60 * 1000));
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(targetsApi.listTargets).mockResolvedValue([
-    { id: "t1", owner: "prompt-manager", name: "store", sourceKind: SourceKind.FILESYSTEM, locator: "store/teams" },
+    { id: "t1", owner: "prompt-manager", name: "store", sourceKind: SourceKind.FILESYSTEM, locator: "store/teams", critical: false },
   ] as never);
   // Backed up, never verified — the spine case.
   vi.mocked(runsApi.listTargetStatus).mockResolvedValue([
@@ -72,7 +72,21 @@ describe("TargetsPage", () => {
     await user.type(screen.getByTestId(selectors.targets.formLocator), "swarm.db");
     await user.click(screen.getByTestId(selectors.targets.formSubmit));
     expect(targetsApi.registerTarget).toHaveBeenCalledWith(
-      expect.objectContaining({ owner: "swarm-manager", name: "db", locator: "swarm.db" }),
+      expect.objectContaining({ owner: "swarm-manager", name: "db", locator: "swarm.db", critical: false }),
+    );
+  });
+
+  it("allows an operator to approve a target for critical protection", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<TargetsPage />);
+    await user.click(screen.getByTestId(selectors.targets.registerButton));
+    await user.type(screen.getByTestId(selectors.targets.formOwner), "data-backup-manager");
+    await user.type(screen.getByTestId(selectors.targets.formName), "runtime-db");
+    await user.type(screen.getByTestId(selectors.targets.formLocator), "runtime.db");
+    await user.click(screen.getByTestId(selectors.targets.formCritical));
+    await user.click(screen.getByTestId(selectors.targets.formSubmit));
+    expect(targetsApi.registerTarget).toHaveBeenCalledWith(
+      expect.objectContaining({ owner: "data-backup-manager", name: "runtime-db", critical: true }),
     );
   });
 

@@ -61,6 +61,10 @@ type Deps struct {
 	Executor Executor
 	// Logger receives background-worker diagnostics. Optional.
 	Logger *log.Logger
+	// RemoveAll is the cleanup seam for audit scratch directories. It is
+	// injectable so cleanup failures remain testable evidence rather than an
+	// ignored filesystem side effect.
+	RemoveAll func(string) error
 }
 
 const defaultAuditListLimit = 100
@@ -76,6 +80,9 @@ type service struct {
 func NewService(d Deps) Service {
 	if d.SQLite == nil {
 		d.SQLite = NewSQLiteChecker()
+	}
+	if d.RemoveAll == nil {
+		d.RemoveAll = os.RemoveAll
 	}
 	s := &service{deps: d}
 	exec := d.Executor
@@ -150,6 +157,8 @@ func (s *service) executeJob(ctx context.Context, job AuditJob) {
 	rec := job.Audit
 	if err := s.deps.Repo.UpdateAuditStatus(ctx, id, AuditRunning); err != nil {
 		s.logf("audit %s -> running: %v", id, err)
+		s.finishFailed(ctx, rec, fmt.Sprintf("could not persist running transition: %v", err))
+		return
 	}
 
 	scratchBase := s.scratchBase()
@@ -162,64 +171,76 @@ func (s *service) executeJob(ctx context.Context, job AuditJob) {
 		s.finishFailed(ctx, rec, fmt.Sprintf("scratch restore dir: %v", err))
 		return
 	}
-	defer func() { _ = os.RemoveAll(restoreDir) }()
 	captureDir, err := os.MkdirTemp(scratchBase, "dbm-audit-live-"+sanitize(job.Audit.TargetID)+"-")
 	if err != nil {
-		s.finishFailed(ctx, rec, fmt.Sprintf("scratch capture dir: %v", err))
-		return
-	}
-	defer func() { _ = os.RemoveAll(captureDir) }()
-
-	// 1. Restore the snapshot to scratch — this proves recoverability.
-	if err := s.deps.Engine.SnapshotRestore(ctx, job.DestName, job.Audit.SnapshotID, restoreDir); err != nil {
-		s.finishFailed(ctx, rec, fmt.Sprintf("snapshot restore: %v", err))
-		return
-	}
-	rec.Restorable = true
-	rec.SnapshotTime = s.snapshotTime(ctx, job.DestName, job.Audit.SnapshotID)
-
-	opts := walkOptions{includeContentHash: rec.IncludeContentHash, detectSQLite: rec.IncludeSQLiteCheck}
-	now := s.deps.Clock.Now().UTC()
-
-	// 2. Walk the restored snapshot artifact.
-	snapWalk, err := walkTree(restoreDir, opts, now)
-	if err != nil {
-		s.finishFailed(ctx, rec, fmt.Sprintf("walk snapshot: %v", err))
-		return
-	}
-	snapInv := snapWalk.summary
-	if rec.IncludeSQLiteCheck {
-		snapInv.SQLite = s.checkSQLite(ctx, snapWalk.sqlite)
-	}
-	rec.Snapshot = &snapInv
-
-	// 3. Capture the live target to scratch (read-only on live).
-	capturer, err := s.deps.Sources.Capturer(job.Target.Kind)
-	if err != nil {
-		s.finishFailed(ctx, rec, fmt.Sprintf("source capturer: %v", err))
-		return
-	}
-	artifact, err := capturer.Capture(ctx, sources.CaptureSpec{Locator: job.Target.Locator, StageDir: captureDir})
-	if err != nil {
-		s.finishFailed(ctx, rec, fmt.Sprintf("capture live: %v", err))
+		cleanupErr := s.deps.RemoveAll(restoreDir)
+		s.finishFailed(ctx, rec, withCleanupError(fmt.Sprintf("scratch capture dir: %v", err), cleanupErr))
 		return
 	}
 
-	// 4. Walk the freshly captured live artifact.
-	liveWalk, err := walkTree(artifact.Path, opts, s.deps.Clock.Now().UTC())
-	if err != nil {
-		s.finishFailed(ctx, rec, fmt.Sprintf("walk live: %v", err))
+	workErr := func() error {
+		// 1. Restore the snapshot to scratch — this proves recoverability.
+		if err := s.deps.Engine.SnapshotRestore(ctx, job.DestName, job.Audit.SnapshotID, restoreDir); err != nil {
+			return fmt.Errorf("snapshot restore: %w", err)
+		}
+		rec.Restorable = true
+		rec.SnapshotTime = s.snapshotTime(ctx, job.DestName, job.Audit.SnapshotID)
+
+		opts := walkOptions{includeContentHash: rec.IncludeContentHash, detectSQLite: rec.IncludeSQLiteCheck}
+		now := s.deps.Clock.Now().UTC()
+
+		// 2. Walk the restored snapshot artifact.
+		snapWalk, err := walkTree(restoreDir, opts, now)
+		if err != nil {
+			return fmt.Errorf("walk snapshot: %w", err)
+		}
+		snapInv := snapWalk.summary
+		if rec.IncludeSQLiteCheck {
+			snapInv.SQLite = s.checkSQLite(ctx, snapWalk.sqlite)
+		}
+		rec.Snapshot = &snapInv
+
+		// 3. Capture the live target to scratch (read-only on live).
+		capturer, err := s.deps.Sources.Capturer(job.Target.Kind)
+		if err != nil {
+			return fmt.Errorf("source capturer: %w", err)
+		}
+		artifact, err := capturer.Capture(ctx, sources.CaptureSpec{Locator: job.Target.Locator, StageDir: captureDir})
+		if err != nil {
+			return fmt.Errorf("capture live: %w", err)
+		}
+
+		// 4. Walk the freshly captured live artifact.
+		liveWalk, err := walkTree(artifact.Path, opts, s.deps.Clock.Now().UTC())
+		if err != nil {
+			return fmt.Errorf("walk live: %w", err)
+		}
+		liveInv := liveWalk.summary
+		if rec.IncludeSQLiteCheck {
+			liveInv.SQLite = s.checkSQLite(ctx, liveWalk.sqlite)
+		}
+		rec.Live = &liveInv
+
+		// 5. Compare by generic signals only. Publication waits until scratch
+		// cleanup also succeeds so a cleanup failure cannot be hidden by a pass.
+		comparison := compareInventories(liveInv, snapInv, rec.SnapshotTime)
+		rec.Comparison = &comparison
+		return nil
+	}()
+
+	cleanupErr := joinCleanupErrors(s.deps.RemoveAll(restoreDir), s.deps.RemoveAll(captureDir))
+	if workErr != nil {
+		if cleanupErr != nil {
+			workErr = fmt.Errorf("%w; scratch cleanup: %v", workErr, cleanupErr)
+		}
+		s.finishFailed(ctx, rec, workErr.Error())
 		return
 	}
-	liveInv := liveWalk.summary
-	if rec.IncludeSQLiteCheck {
-		liveInv.SQLite = s.checkSQLite(ctx, liveWalk.sqlite)
+	if cleanupErr != nil {
+		s.finishFailed(ctx, rec, fmt.Sprintf("scratch cleanup: %v", cleanupErr))
+		return
 	}
-	rec.Live = &liveInv
 
-	// 5. Compare by generic signals only and persist the completed audit.
-	comparison := compareInventories(liveInv, snapInv, rec.SnapshotTime)
-	rec.Comparison = &comparison
 	rec.Status = AuditCompleted
 	rec.FinishedAt = s.deps.Clock.Now().UTC()
 	if err := s.deps.Repo.FinishAudit(ctx, rec); err != nil {
@@ -289,6 +310,26 @@ func (s *service) scratchBase() string {
 		return s.deps.ScratchRoot
 	}
 	return os.TempDir()
+}
+
+func withCleanupError(operation string, cleanupErr error) string {
+	if cleanupErr == nil {
+		return operation
+	}
+	return fmt.Sprintf("%s; scratch cleanup: %v", operation, cleanupErr)
+}
+
+func joinCleanupErrors(errs ...error) error {
+	var messages []string
+	for _, err := range errs {
+		if err != nil {
+			messages = append(messages, err.Error())
+		}
+	}
+	if len(messages) == 0 {
+		return nil
+	}
+	return fmt.Errorf("%s", strings.Join(messages, "; "))
 }
 
 // Reconcile closes any audit left non-terminal by a crash/restart, fail-not-

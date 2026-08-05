@@ -75,6 +75,29 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe("CoverageBanner", () => {
+  it("keeps a stable loading surface when requested by the overview", async () => {
+    vi.mocked(coverageApi.getCoverageReport).mockImplementation(
+      () => new Promise(() => undefined) as never,
+    );
+
+    renderWithProviders(<CoverageBanner reserveSpace />);
+
+    expect(await screen.findByTestId(selectors.coverage.banner)).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+  });
+
+  it("keeps compact loading behavior unchanged when no reservation is requested", () => {
+    vi.mocked(coverageApi.getCoverageReport).mockImplementation(
+      () => new Promise(() => undefined) as never,
+    );
+
+    renderWithProviders(<CoverageBanner />);
+
+    expect(screen.queryByTestId(selectors.coverage.banner)).not.toBeInTheDocument();
+  });
+
   it("registers recommended (non-sensitive) defaults on click", async () => {
     const user = userEvent.setup();
     vi.mocked(coverageApi.getCoverageReport).mockResolvedValue(report() as never);

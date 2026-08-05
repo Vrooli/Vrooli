@@ -3,9 +3,11 @@ package destinationreadiness_test
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"testing"
 
 	"data-backup-manager/internal/destinationreadiness"
+	"data-backup-manager/internal/sysmounts"
 )
 
 type fakeInspector struct {
@@ -59,13 +61,15 @@ func identity() destinationreadiness.DeviceIdentity {
 
 func inspection() destinationreadiness.Inspection {
 	return destinationreadiness.Inspection{
-		Identity:       identity(),
-		FreeBytes:      20 << 30,
-		Removable:      true,
-		DriveClass:     "removable",
-		NonEmptyRoot:   true,
-		InstallerMedia: true,
-		Platform:       "linux",
+		LocationExists:      true,
+		LocationIsDirectory: true,
+		Identity:            identity(),
+		FreeBytes:           20 << 30,
+		Removable:           true,
+		DriveClass:          "removable",
+		NonEmptyRoot:        true,
+		InstallerMedia:      true,
+		Platform:            "linux",
 	}
 }
 
@@ -105,7 +109,7 @@ func TestAnalyzeIsReadOnlyAndReportsWarnings(t *testing.T) {
 	}
 }
 
-func TestAnalyzeRecognizesNTFS3AsUsableFilesystem(t *testing.T) {
+func TestAnalyzeWarnsForNTFS3WhenCrossPlatformFidelityIsUnproven(t *testing.T) {
 	inspected := inspection()
 	inspected.Identity.Filesystem = "ntfs3"
 	inspected.NonEmptyRoot = false
@@ -114,15 +118,38 @@ func TestAnalyzeRecognizesNTFS3AsUsableFilesystem(t *testing.T) {
 	svc := destinationreadiness.NewService(inspector, &fakePreparer{})
 
 	report, err := svc.Analyze(context.Background(), destinationreadiness.AnalyzeInput{
-		Location:            "/media/user/Elements",
-		SelectedTargetBytes: 1 << 30,
-		RetentionCopies:     2,
+		Location:              "/media/user/Elements",
+		SelectedTargetBytes:   1 << 30,
+		RetentionCopies:       2,
+		CrossPlatformRequired: true,
 	})
 	if err != nil {
 		t.Fatalf("Analyze returned error: %v", err)
 	}
-	if got := severity(report.Checks, "filesystem_suitability"); got != destinationreadiness.SeverityPass {
-		t.Fatalf("filesystem_suitability severity = %s, want %s (checks=%+v)", got, destinationreadiness.SeverityPass, report.Checks)
+	if got := severity(report.Checks, "filesystem_suitability"); got != destinationreadiness.SeverityWarning {
+		t.Fatalf("filesystem_suitability severity = %s, want %s (checks=%+v)", got, destinationreadiness.SeverityWarning, report.Checks)
+	}
+}
+
+func TestAnalyzeFailsClosedForDirtyOrNeedsCheckFilesystem(t *testing.T) {
+	for _, state := range []sysmounts.FilesystemState{
+		sysmounts.FilesystemStateDirty,
+		sysmounts.FilesystemStateNeedsCheck,
+	} {
+		t.Run(string(state), func(t *testing.T) {
+			inspected := inspection()
+			inspected.FilesystemState = state
+			report, err := destinationreadiness.NewService(&fakeInspector{inspection: inspected}, nil).Analyze(context.Background(), destinationreadiness.AnalyzeInput{Location: "/media/user/USB"})
+			if err != nil {
+				t.Fatalf("Analyze returned error: %v", err)
+			}
+			if got := severity(report.Checks, "destination_dirty"); got != destinationreadiness.SeverityFail {
+				t.Fatalf("destination_dirty severity = %s, want %s", got, destinationreadiness.SeverityFail)
+			}
+			if report.OverallSeverity != destinationreadiness.SeverityFail {
+				t.Fatalf("overall severity = %s, want %s", report.OverallSeverity, destinationreadiness.SeverityFail)
+			}
+		})
 	}
 }
 
@@ -334,6 +361,24 @@ func severity(checks []destinationreadiness.CheckResult, code string) destinatio
 		}
 	}
 	return ""
+}
+
+func TestAnalyzeMissingDestinationFailsClosed(t *testing.T) {
+	root := t.TempDir()
+	missing := filepath.Join(root, "missing")
+	inspector := destinationreadiness.NewReadOnlyInspector(fakeVolumeScanner{volumes: []sysmounts.Volume{
+		{DevicePath: "/dev/root", Mountpoint: root, Filesystem: "ext4", Class: sysmounts.ClassFixed, FreeBytes: 100, TotalBytes: 200},
+	}})
+	report, err := destinationreadiness.NewService(inspector, nil).Analyze(context.Background(), destinationreadiness.AnalyzeInput{Location: missing})
+	if err != nil {
+		t.Fatalf("Analyze returned error: %v", err)
+	}
+	if got := severity(report.Checks, "destination_missing"); got != destinationreadiness.SeverityFail {
+		t.Fatalf("destination_missing severity = %q, want fail", got)
+	}
+	if report.OverallSeverity != destinationreadiness.SeverityFail {
+		t.Fatalf("overall severity = %q, want fail", report.OverallSeverity)
+	}
 }
 
 func refused(err error) bool {

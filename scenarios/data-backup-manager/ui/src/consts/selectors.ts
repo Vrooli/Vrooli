@@ -324,6 +324,7 @@ const literalSelectors = {
     plans: "page-plans",
     runs: "page-runs",
     restores: "page-restores",
+    drills: "page-drills",
     settings: "page-settings",
   },
   // Shared async-section affordances (loading/error/empty/retry) used across
@@ -368,6 +369,7 @@ const literalSelectors = {
     formName: "targets-form-name",
     formKind: "targets-form-kind",
     formLocator: "targets-form-locator",
+    formCritical: "targets-form-critical",
     formSubmit: "targets-form-submit",
     inspector: "targets-inspector",
     verifyLatest: "targets-verify-latest",
@@ -396,6 +398,8 @@ const literalSelectors = {
     form: "plans-form",
     formName: "plans-form-name",
     formSchedule: "plans-form-schedule",
+    formDrillSchedule: "plans-form-drill-schedule",
+    formTier: "plans-form-tier",
     formKeepLatest: "plans-form-keep-latest",
     formEnabled: "plans-form-enabled",
     targetPicker: "plans-target-picker",
@@ -457,7 +461,7 @@ const dynamicSelectorDefinitions = {
       params: {
         key: {
           type: "enum",
-          values: ["overview", "targets", "destinations", "plans", "runs", "restores", "settings"] as const,
+          values: ["overview", "targets", "destinations", "plans", "runs", "restores", "drills", "settings"] as const,
         },
       },
     }),
@@ -467,7 +471,7 @@ const dynamicSelectorDefinitions = {
       params: {
         key: {
           type: "enum",
-          values: ["overview", "targets", "destinations", "plans", "runs", "restores", "settings"] as const,
+          values: ["overview", "targets", "destinations", "plans", "runs", "restores", "drills", "settings"] as const,
         },
       },
     }),

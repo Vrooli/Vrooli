@@ -38,6 +38,8 @@ func (h *connectHandler) CreatePlan(ctx context.Context, req *connect.Request[pl
 		Schedule:                req.Msg.Schedule,
 		Enabled:                 req.Msg.Enabled,
 		AllowIncompleteCoverage: req.Msg.AllowIncompleteCoverage,
+		ProtectionTier:          protectionTierFromProto(req.Msg.ProtectionTier),
+		RecoveryDrillSchedule:   req.Msg.RecoveryDrillSchedule,
 	}
 	if req.Msg.Retention != nil {
 		in.KeepLatest = req.Msg.Retention.KeepLatest
@@ -78,6 +80,8 @@ func (h *connectHandler) UpdatePlan(ctx context.Context, req *connect.Request[pl
 		Schedule:                req.Msg.Schedule,
 		Enabled:                 req.Msg.Enabled,
 		AllowIncompleteCoverage: req.Msg.AllowIncompleteCoverage,
+		ProtectionTier:          protectionTierFromProto(req.Msg.ProtectionTier),
+		RecoveryDrillSchedule:   req.Msg.RecoveryDrillSchedule,
 	}
 	if req.Msg.Retention != nil {
 		in.KeepLatest = req.Msg.Retention.KeepLatest
@@ -109,12 +113,16 @@ func (h *connectHandler) translate(op string, err error) error {
 // domainToProto converts the internal Plan to its wire shape.
 func domainToProto(p plans.Plan) *plansv1.Plan {
 	pp := &plansv1.Plan{
-		Id:             p.ID,
-		Name:           p.Name,
-		TargetIds:      p.TargetIDs,
-		DestinationIds: p.DestinationIDs,
-		Schedule:       p.Schedule,
-		Enabled:        p.Enabled,
+		Id:                                p.ID,
+		Name:                              p.Name,
+		TargetIds:                         p.TargetIDs,
+		DestinationIds:                    p.DestinationIDs,
+		Schedule:                          p.Schedule,
+		Enabled:                           p.Enabled,
+		ProtectionTier:                    protectionTierToProto(p.ProtectionTier),
+		RecoveryDrillSchedule:             p.RecoveryDrillSchedule,
+		DestinationsPhysicallyIndependent: p.DestinationsPhysicallyIndependent,
+		SharedRiskWarnings:                p.SharedRiskWarnings,
 		Retention: &plansv1.RetentionPolicy{
 			KeepLatest: p.KeepLatest,
 		},
@@ -126,4 +134,26 @@ func domainToProto(p plans.Plan) *plansv1.Plan {
 		pp.UpdatedAt = timestamppb.New(p.UpdatedAt)
 	}
 	return pp
+}
+
+func protectionTierFromProto(t plansv1.ProtectionTier) plans.ProtectionTier {
+	switch t {
+	case plansv1.ProtectionTier_PROTECTION_TIER_CRITICAL_PRIMARY:
+		return plans.TierCriticalPrimary
+	case plansv1.ProtectionTier_PROTECTION_TIER_CRITICAL_SECONDARY:
+		return plans.TierCriticalSecondary
+	default:
+		return plans.TierFullPrimary
+	}
+}
+
+func protectionTierToProto(t plans.ProtectionTier) plansv1.ProtectionTier {
+	switch t {
+	case plans.TierCriticalPrimary:
+		return plansv1.ProtectionTier_PROTECTION_TIER_CRITICAL_PRIMARY
+	case plans.TierCriticalSecondary:
+		return plansv1.ProtectionTier_PROTECTION_TIER_CRITICAL_SECONDARY
+	default:
+		return plansv1.ProtectionTier_PROTECTION_TIER_FULL_PRIMARY
+	}
 }

@@ -38,8 +38,8 @@ const planTimeFormat = time.RFC3339Nano
 
 const (
 	insertPlanSQL = `
-INSERT INTO plans (id, name, schedule, keep_latest, enabled, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?)
+	INSERT INTO plans (id, name, schedule, keep_latest, enabled, protection_tier, recovery_drill_schedule, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 	insertPlanTargetSQL = `
 INSERT OR IGNORE INTO plan_targets (plan_id, target_id) VALUES (?, ?)
@@ -52,15 +52,15 @@ INSERT OR IGNORE INTO plan_destinations (plan_id, destination_id) VALUES (?, ?)
 
 	updatePlanSQL = `
 UPDATE plans
-SET name = ?, schedule = ?, keep_latest = ?, enabled = ?, updated_at = ?
+	SET name = ?, schedule = ?, keep_latest = ?, enabled = ?, protection_tier = ?, recovery_drill_schedule = ?, updated_at = ?
 WHERE id = ?
 `
 	selectPlanByIDSQL = `
-SELECT id, name, schedule, keep_latest, enabled, created_at, updated_at
+	SELECT id, name, schedule, keep_latest, enabled, protection_tier, recovery_drill_schedule, created_at, updated_at
 FROM plans WHERE id = ?
 `
 	listPlansSQL = `
-SELECT id, name, schedule, keep_latest, enabled, created_at, updated_at
+	SELECT id, name, schedule, keep_latest, enabled, protection_tier, recovery_drill_schedule, created_at, updated_at
 FROM plans
 ORDER BY name ASC
 LIMIT ?
@@ -92,7 +92,7 @@ func (s *sqliteRepository) Create(ctx context.Context, p Plan) (Plan, error) {
 	}
 
 	_, err := s.db.ExecContext(ctx, insertPlanSQL,
-		p.ID, p.Name, p.Schedule, p.KeepLatest, enabled,
+		p.ID, p.Name, p.Schedule, p.KeepLatest, enabled, string(p.ProtectionTier), p.RecoveryDrillSchedule,
 		p.CreatedAt.Format(planTimeFormat), p.UpdatedAt.Format(planTimeFormat),
 	)
 	if err != nil {
@@ -114,7 +114,7 @@ func (s *sqliteRepository) Update(ctx context.Context, p Plan) (Plan, error) {
 	}
 
 	_, err := s.db.ExecContext(ctx, updatePlanSQL,
-		p.Name, p.Schedule, p.KeepLatest, enabled, p.UpdatedAt.Format(planTimeFormat), p.ID,
+		p.Name, p.Schedule, p.KeepLatest, enabled, string(p.ProtectionTier), p.RecoveryDrillSchedule, p.UpdatedAt.Format(planTimeFormat), p.ID,
 	)
 	if err != nil {
 		return Plan{}, fmt.Errorf("update plan %q: %w", p.ID, err)
@@ -244,15 +244,22 @@ type rowScanner interface {
 
 func scanPlan(sc rowScanner) (Plan, error) {
 	var (
-		p          Plan
-		enabled    int
-		createdRaw string
-		updatedRaw string
+		p             Plan
+		enabled       int
+		tier          string
+		drillSchedule string
+		createdRaw    string
+		updatedRaw    string
 	)
-	if err := sc.Scan(&p.ID, &p.Name, &p.Schedule, &p.KeepLatest, &enabled, &createdRaw, &updatedRaw); err != nil {
+	if err := sc.Scan(&p.ID, &p.Name, &p.Schedule, &p.KeepLatest, &enabled, &tier, &drillSchedule, &createdRaw, &updatedRaw); err != nil {
 		return Plan{}, err
 	}
 	p.Enabled = enabled != 0
+	p.ProtectionTier = ProtectionTier(tier)
+	p.RecoveryDrillSchedule = drillSchedule
+	if p.ProtectionTier == "" {
+		p.ProtectionTier = TierFullPrimary
+	}
 	created, err := time.Parse(planTimeFormat, createdRaw)
 	if err != nil {
 		return Plan{}, fmt.Errorf("parse created_at %q: %w", createdRaw, err)

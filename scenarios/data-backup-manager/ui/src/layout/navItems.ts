@@ -5,6 +5,7 @@ import {
   History,
   LayoutDashboard,
   RotateCcw,
+  ShieldCheck,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -19,7 +20,7 @@ import { strings } from "../consts/strings";
  */
 export interface NavItem {
   /** Selector parameter; stable across locales. Mirror in `selectors.ts`. */
-  key: "overview" | "targets" | "destinations" | "plans" | "runs" | "restores" | "settings";
+  key: "overview" | "targets" | "destinations" | "plans" | "runs" | "restores" | "drills" | "settings";
   /** Router path. */
   path: string;
   /** True when this is the index route (used for `<NavLink end>`). */
@@ -37,5 +38,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { key: "plans", path: "/plans", labelKey: strings.layout.nav.plans, icon: CalendarClock },
   { key: "runs", path: "/runs", labelKey: strings.layout.nav.runs, icon: History },
   { key: "restores", path: "/restores", labelKey: strings.layout.nav.restores, icon: RotateCcw },
+  { key: "drills", path: "/drills", labelKey: strings.layout.nav.drills, icon: ShieldCheck },
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings, icon: Settings },
 ];

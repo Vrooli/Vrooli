@@ -26,6 +26,7 @@ import (
 	coverageH "data-backup-manager/handlers/coverage"
 	destinationsH "data-backup-manager/handlers/destinations"
 	discoveryH "data-backup-manager/handlers/discovery"
+	drillsH "data-backup-manager/handlers/drills"
 	healthH "data-backup-manager/handlers/health"
 	plansH "data-backup-manager/handlers/plans"
 	restoresH "data-backup-manager/handlers/restores"
@@ -38,6 +39,7 @@ import (
 	coveragev1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/coverage"
 	destinationsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/destinations"
 	discoveryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/discovery"
+	drillsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/drills"
 	plansv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/plans"
 	restoresv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/restores"
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/runs"
@@ -55,6 +57,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, auditsH.Endpoints...)
 	out = append(out, coverageH.Endpoints...)
 	out = append(out, destinationsH.Endpoints...)
+	out = append(out, drillsH.Endpoints...)
 	out = append(out, discoveryH.Endpoints...)
 	out = append(out, plansH.Endpoints...)
 	out = append(out, restoresH.Endpoints...)
@@ -90,6 +93,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "audits", File: auditsv1.File_data_backup_manager_v1_audits_audits_proto},
 		{Module: "coverage", File: coveragev1.File_data_backup_manager_v1_coverage_coverage_proto},
 		{Module: "destinations", File: destinationsv1.File_data_backup_manager_v1_destinations_destinations_proto},
+		{Module: "drills", File: drillsv1.File_data_backup_manager_v1_drills_drills_proto},
 		{Module: "discovery", File: discoveryv1.File_data_backup_manager_v1_discovery_discovery_proto},
 		{Module: "plans", File: plansv1.File_data_backup_manager_v1_plans_plans_proto},
 		{Module: "restores", File: restoresv1.File_data_backup_manager_v1_restores_restores_proto},
@@ -112,6 +116,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(auditsH.Schema),
 		apidb.SchemaProviderFunc(destinationsH.Schema),
+		apidb.SchemaProviderFunc(drillsH.Schema),
 		apidb.SchemaProviderFunc(discoveryH.Schema),
 		apidb.SchemaProviderFunc(plansH.Schema),
 		apidb.SchemaProviderFunc(restoresH.Schema),

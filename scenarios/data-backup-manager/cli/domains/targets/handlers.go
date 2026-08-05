@@ -37,6 +37,7 @@ func (h *handlers) register(ctx cliapp.RunContext) error {
 		Name:       ctx.Flag("name"),
 		SourceKind: kind,
 		Locator:    ctx.Flag("locator"),
+		Critical:   optionalFlag(ctx, "critical") == "true",
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("register target", err, nil)
@@ -52,6 +53,13 @@ func (h *handlers) register(ctx cliapp.RunContext) error {
 			"`targets list` — show all targets",
 		},
 	})
+}
+
+func optionalFlag(ctx cliapp.RunContext, name string) string {
+	if !ctx.FlagDeclared(name) {
+		return ""
+	}
+	return ctx.Flag(name)
 }
 
 func (h *handlers) deregister(ctx cliapp.RunContext) error {
@@ -161,6 +169,6 @@ func formatTarget(t *targetsv1.Target) string {
 	if t.CreatedAt != nil {
 		created = t.CreatedAt.AsTime().Format(time.RFC3339)
 	}
-	return fmt.Sprintf("%s — %s/%s [kind=%s locator=%s created=%s]",
-		t.Id, t.Owner, t.Name, kindLabel(t.SourceKind), t.Locator, created)
+	return fmt.Sprintf("%s — %s/%s [kind=%s critical=%t locator=%s created=%s]",
+		t.Id, t.Owner, t.Name, kindLabel(t.SourceKind), t.Critical, t.Locator, created)
 }

@@ -14,7 +14,7 @@ vi.mock("../api/targets", () => ({
 import * as api from "../api/targets";
 import { SourceKind } from "../api/targets";
 import { makeApiError } from "../api/client";
-import { useRegisterTarget, useTargets } from "./useTargets";
+import { useRegisterTarget, useTarget, useTargets } from "./useTargets";
 
 const buildClient = () =>
   new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
@@ -59,6 +59,7 @@ describe("useRegisterTarget", () => {
         name: "store",
         sourceKind: SourceKind.FILESYSTEM,
         locator: "store/teams",
+        critical: false,
       });
     });
 
@@ -66,5 +67,14 @@ describe("useRegisterTarget", () => {
     const keys = invalidate.mock.calls.map((c) => (c[0] as { queryKey: unknown[] }).queryKey[0]);
     expect(keys).toContain("targets");
     expect(keys).toContain("targetStatus");
+  });
+});
+
+describe("useTarget", () => {
+  it("loads an individual target", async () => {
+    vi.mocked(api.getTarget).mockResolvedValue({ id: "t1" } as never);
+    const { result } = renderHook(() => useTarget("t1"), { wrapper: wrapper(buildClient()) });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(api.getTarget).toHaveBeenCalledWith("t1");
   });
 });

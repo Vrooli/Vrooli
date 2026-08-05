@@ -227,9 +227,9 @@ func TestReconcile_ClosesOrphanedRuns(t *testing.T) {
 	repo := runs.NewSQLiteRepository(newRunsDB(t), mocks.NewFakeClock(time.Date(2026, 6, 3, 0, 0, 0, 0, time.UTC)))
 
 	// Two orphans (pending + capturing) and one already-completed run.
-	mustCreate(t, repo, "orphan-pending", runs.RunPending)
-	mustCreate(t, repo, "orphan-capturing", runs.RunCapturing)
-	mustCreate(t, repo, "done", runs.RunCompleted)
+	mustCreate(t, repo, "orphan-pending", "plan-x", runs.RunPending)
+	mustCreate(t, repo, "orphan-capturing", "plan-y", runs.RunCapturing)
+	mustCreate(t, repo, "done", "plan-z", runs.RunCompleted)
 
 	svc := runs.NewService(runs.Deps{
 		Repo:     repo,
@@ -274,11 +274,11 @@ func TestReconcile_ClosesOrphanedRuns(t *testing.T) {
 	}
 }
 
-func mustCreate(t *testing.T, repo runs.Repository, id string, status runs.RunStatus) {
+func mustCreate(t *testing.T, repo runs.Repository, id, planID string, status runs.RunStatus) {
 	t.Helper()
 	if _, err := repo.CreateRun(context.Background(), runs.Run{
 		ID:        id,
-		PlanID:    "plan-x",
+		PlanID:    planID,
 		Trigger:   runs.TriggerManual,
 		Status:    status,
 		StartedAt: time.Date(2026, 6, 2, 0, 0, 0, 0, time.UTC),

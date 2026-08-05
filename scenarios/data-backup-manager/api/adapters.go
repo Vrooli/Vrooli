@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -12,8 +13,10 @@ import (
 
 	auditsint "data-backup-manager/internal/audits"
 	coverageint "data-backup-manager/internal/coverage"
+	readinessint "data-backup-manager/internal/destinationreadiness"
 	destint "data-backup-manager/internal/destinations"
 	discoveryint "data-backup-manager/internal/discovery"
+	drillsint "data-backup-manager/internal/drills"
 	plansint "data-backup-manager/internal/plans"
 	restoresint "data-backup-manager/internal/restores"
 	runsint "data-backup-manager/internal/runs"
@@ -48,6 +51,268 @@ func (a planLookup) PlanForRun(ctx context.Context, planID string) (runsint.Plan
 
 // targetLookup adapts targets.Service to runs.TargetLookup.
 type targetLookup struct{ svc targetsint.Service }
+
+// planCriticalTargetPolicy adapts the target classification owned by the
+// targets catalog to the plans service. Critical plans must not be created
+// from an unclassified target.
+type planCriticalTargetPolicy struct{ svc targetsint.Service }
+
+func (a planCriticalTargetPolicy) IsCritical(ctx context.Context, targetID string) (bool, error) {
+	t, err := a.svc.Get(ctx, targetID)
+	if err != nil {
+		return false, err
+	}
+	return t.Critical, nil
+}
+
+type planCriticalDestinationPolicy struct {
+	targets      targetsint.Service
+	destinations destint.Service
+	readiness    *readinessint.Service
+}
+
+type drillPlanLookup struct{ svc plansint.Service }
+
+func (a drillPlanLookup) PlanForDrill(ctx context.Context, id string) (drillsint.Plan, error) {
+	p, err := a.svc.Get(ctx, id)
+	if err != nil {
+		return drillsint.Plan{}, err
+	}
+	return drillsint.Plan{ID: p.ID, TargetIDs: p.TargetIDs, DestinationIDs: p.DestinationIDs, Enabled: p.Enabled, DrillSchedule: p.RecoveryDrillSchedule}, nil
+}
+
+func (a drillPlanLookup) SchedulableDrillPlans(ctx context.Context) ([]drillsint.Plan, error) {
+	ps, err := a.svc.SchedulablePlans(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]drillsint.Plan, 0, len(ps))
+	for _, p := range ps {
+		out = append(out, drillsint.Plan{ID: p.ID, TargetIDs: p.TargetIDs, DestinationIDs: p.DestinationIDs, Enabled: p.Enabled, DrillSchedule: p.DrillSchedule})
+	}
+	return out, nil
+}
+
+type drillSnapshotLookup struct{ svc runsint.Service }
+
+func (a drillSnapshotLookup) LatestSuccessfulSnapshot(ctx context.Context, planID, targetID, destinationID string) (drillsint.Snapshot, bool, error) {
+	runs, err := a.svc.ListRuns(ctx, planID, 1000)
+	if err != nil {
+		return drillsint.Snapshot{}, false, err
+	}
+	var best drillsint.Snapshot
+	for _, r := range runs {
+		for _, o := range r.Outcomes {
+			if o.TargetID != targetID || o.DestinationID != destinationID || o.Status != runsint.OutcomeSucceeded || strings.TrimSpace(o.SnapshotID) == "" {
+				continue
+			}
+			at := r.FinishedAt
+			if at.After(best.CompletedAt) {
+				best = drillsint.Snapshot{ID: o.SnapshotID, CompletedAt: at}
+			}
+		}
+	}
+	return best, best.ID != "", nil
+}
+
+type drillRestoreRunner struct{ svc restoresint.Service }
+
+func (a drillRestoreRunner) VerifyTarget(ctx context.Context, targetID, destinationID, snapshotID string) (drillsint.Restore, error) {
+	r, err := a.svc.VerifyTarget(ctx, targetID, destinationID, snapshotID)
+	if err != nil {
+		return drillsint.Restore{}, err
+	}
+	return drillsint.Restore{ID: r.ID, Status: string(r.Status), Error: r.Error}, nil
+}
+
+func (a drillRestoreRunner) GetRestore(ctx context.Context, id string) (drillsint.Restore, error) {
+	r, err := a.svc.GetRestore(ctx, id)
+	if err != nil {
+		return drillsint.Restore{}, err
+	}
+	return drillsint.Restore{ID: r.ID, Status: string(r.Status), Error: r.Error}, nil
+}
+
+func (a planCriticalDestinationPolicy) Validate(ctx context.Context, tier plansint.ProtectionTier, targetIDs, destinationIDs []string) error {
+	if tier == plansint.TierFullPrimary {
+		return nil
+	}
+	if tier == plansint.TierCriticalSecondary && len(destinationIDs) < 2 {
+		return plansint.ErrInvalidPlan{Field: "destination_ids", Reason: "critical_secondary requires at least two independent destinations"}
+	}
+	locations := make([]string, 0, len(destinationIDs))
+	for _, id := range destinationIDs {
+		d, err := a.destinations.GetDestination(ctx, id)
+		if err != nil {
+			return plansint.ErrInvalidPlan{Field: "destination_ids", Reason: fmt.Sprintf("cannot validate destination %q: %v", id, err)}
+		}
+		if d.BackendKind == destint.BackendFilesystem && a.readiness != nil {
+			report, err := a.readiness.Analyze(ctx, readinessint.AnalyzeInput{
+				Location:              d.Location,
+				CrossPlatformRequired: true,
+			})
+			if err != nil {
+				return plansint.ErrInvalidPlan{Field: "destination_ids", Reason: fmt.Sprintf("destination %q readiness could not be established: %v", id, err)}
+			}
+			if report.OverallSeverity == readinessint.SeverityFail {
+				failures := make([]string, 0)
+				for _, check := range report.Checks {
+					if check.Severity == readinessint.SeverityFail {
+						failures = append(failures, check.Code+": "+check.Message)
+					}
+				}
+				return plansint.ErrInvalidPlan{Field: "destination_ids", Reason: fmt.Sprintf("destination %q is not suitable for critical protection: %s", id, strings.Join(failures, "; "))}
+			}
+		}
+		location := strings.TrimSpace(d.Location)
+		if location == "" {
+			return plansint.ErrInvalidPlan{Field: "destination_ids", Reason: fmt.Sprintf("destination %q has no independent location", id)}
+		}
+		locations = append(locations, filepath.Clean(location))
+	}
+	for i := range locations {
+		for j := i + 1; j < len(locations); j++ {
+			if pathsOverlap(locations[i], locations[j]) {
+				return plansint.ErrInvalidPlan{Field: "destination_ids", Reason: fmt.Sprintf("destinations %q and %q share an overlapping filesystem root; choose independent destinations", destinationIDs[i], destinationIDs[j])}
+			}
+		}
+	}
+	// A critical repository must not sit inside the source it is protecting.
+	for _, targetID := range targetIDs {
+		t, err := a.targets.Get(ctx, targetID)
+		if err != nil {
+			return plansint.ErrInvalidPlan{Field: "target_ids", Reason: fmt.Sprintf("cannot validate target %q against destinations: %v", targetID, err)}
+		}
+		if t.Locator == "" {
+			continue
+		}
+		for _, location := range locations {
+			if pathsOverlap(filepath.Clean(t.Locator), location) {
+				return plansint.ErrInvalidPlan{Field: "destination_ids", Reason: fmt.Sprintf("destination overlaps critical target %q; separate source and recovery roots", targetID)}
+			}
+		}
+	}
+	return nil
+}
+
+// Assess is deliberately read-only. It reports what the service can prove
+// about the selected topology and keeps uncertainty explicit. A clean path is
+// not enough to claim physical independence: when the platform cannot expose
+// a stable volume identity, the plan remains usable but carries a warning.
+func (a planCriticalDestinationPolicy) Assess(ctx context.Context, tier plansint.ProtectionTier, targetIDs, destinationIDs []string) (plansint.DestinationRiskReport, error) {
+	report := plansint.DestinationRiskReport{PhysicallyIndependent: true}
+	if len(destinationIDs) == 0 {
+		return plansint.DestinationRiskReport{Warnings: []string{"no destinations selected; physical independence is not proven"}}, nil
+	}
+
+	locations := make([]string, 0, len(destinationIDs))
+	identities := make([]readinessint.DeviceIdentity, 0, len(destinationIDs))
+	for _, id := range destinationIDs {
+		d, err := a.destinations.GetDestination(ctx, id)
+		if err != nil {
+			return plansint.DestinationRiskReport{}, fmt.Errorf("destination %q: %w", id, err)
+		}
+		location := strings.TrimSpace(d.Location)
+		if location == "" {
+			report.PhysicallyIndependent = false
+			report.Warnings = append(report.Warnings, fmt.Sprintf("destination %q has no location; physical independence is not proven", id))
+			continue
+		}
+		locations = append(locations, filepath.Clean(location))
+
+		if d.BackendKind != destint.BackendFilesystem {
+			report.PhysicallyIndependent = false
+			report.Warnings = append(report.Warnings, fmt.Sprintf("destination %q uses %s; provider failure-domain independence is not observable", id, d.BackendKind))
+			continue
+		}
+		if a.readiness == nil {
+			report.PhysicallyIndependent = false
+			report.Warnings = append(report.Warnings, fmt.Sprintf("destination %q has no volume identity inspector; physical independence is not proven", id))
+			continue
+		}
+		readiness, err := a.readiness.Analyze(ctx, readinessint.AnalyzeInput{Location: location, CrossPlatformRequired: true})
+		if err != nil {
+			report.PhysicallyIndependent = false
+			report.Warnings = append(report.Warnings, fmt.Sprintf("destination %q identity unavailable: %v", id, err))
+			continue
+		}
+		identities = append(identities, readiness.Identity)
+		if readiness.Identity.UUID == "" && readiness.Identity.Serial == "" && readiness.Identity.DevicePath == "" {
+			report.PhysicallyIndependent = false
+			report.Warnings = append(report.Warnings, fmt.Sprintf("destination %q has no stable volume identity; physical independence is not proven", id))
+		}
+		if readiness.OverallSeverity == readinessint.SeverityFail {
+			report.PhysicallyIndependent = false
+			for _, check := range readiness.Checks {
+				if check.Severity == readinessint.SeverityFail {
+					report.Warnings = append(report.Warnings, fmt.Sprintf("destination %q readiness %s: %s", id, check.Code, check.Message))
+				}
+			}
+		} else if readiness.OverallSeverity == readinessint.SeverityWarning {
+			for _, check := range readiness.Checks {
+				if check.Severity == readinessint.SeverityWarning {
+					report.Warnings = append(report.Warnings, fmt.Sprintf("destination %q suitability %s: %s", id, check.Code, check.Message))
+				}
+			}
+		}
+	}
+
+	for i := range locations {
+		for j := i + 1; j < len(locations); j++ {
+			if pathsOverlap(locations[i], locations[j]) {
+				report.PhysicallyIndependent = false
+				report.Warnings = append(report.Warnings, fmt.Sprintf("destinations %q and %q share an overlapping filesystem root", destinationIDs[i], destinationIDs[j]))
+			}
+		}
+	}
+	for i := range identities {
+		for j := i + 1; j < len(identities); j++ {
+			if samePhysicalVolume(identities[i], identities[j]) {
+				report.PhysicallyIndependent = false
+				report.Warnings = append(report.Warnings, fmt.Sprintf("destinations %q and %q resolve to the same physical volume", destinationIDs[i], destinationIDs[j]))
+			}
+		}
+	}
+
+	for _, targetID := range targetIDs {
+		t, err := a.targets.Get(ctx, targetID)
+		if err != nil {
+			return plansint.DestinationRiskReport{}, fmt.Errorf("target %q: %w", targetID, err)
+		}
+		if strings.TrimSpace(t.Locator) == "" {
+			continue
+		}
+		for i, location := range locations {
+			if pathsOverlap(filepath.Clean(t.Locator), location) {
+				report.PhysicallyIndependent = false
+				report.Warnings = append(report.Warnings, fmt.Sprintf("destination %q overlaps protected target %q", destinationIDs[i], targetID))
+			}
+		}
+	}
+	if tier == plansint.TierFullPrimary && len(report.Warnings) == 0 {
+		// A full-primary plan is not an independence claim against another
+		// tier, but its selected root has passed the same risk checks.
+		report.PhysicallyIndependent = true
+	}
+	return report, nil
+}
+
+func samePhysicalVolume(a, b readinessint.DeviceIdentity) bool {
+	if a.UUID != "" && b.UUID != "" && strings.EqualFold(a.UUID, b.UUID) {
+		return true
+	}
+	if a.Serial != "" && b.Serial != "" && a.Serial == b.Serial {
+		return true
+	}
+	return a.DevicePath != "" && b.DevicePath != "" && a.Mountpoint != "" && b.Mountpoint != "" &&
+		strings.EqualFold(filepath.Clean(a.DevicePath), filepath.Clean(b.DevicePath)) &&
+		strings.EqualFold(filepath.Clean(a.Mountpoint), filepath.Clean(b.Mountpoint))
+}
+
+func pathsOverlap(a, b string) bool {
+	a, b = filepath.Clean(a), filepath.Clean(b)
+	return a == b || strings.HasPrefix(a, b+string(filepath.Separator)) || strings.HasPrefix(b, a+string(filepath.Separator))
+}
 
 func (a targetLookup) TargetForRun(ctx context.Context, targetID string) (runsint.TargetForRun, error) {
 	t, err := a.svc.Get(ctx, targetID)
@@ -459,6 +724,7 @@ func (a coverageSuggestions) ListTargetSuggestions(ctx context.Context) ([]cover
 			Rationale:   s.Rationale,
 			ApproxBytes: s.ApproxBytes,
 			Sensitive:   s.Sensitive,
+			Critical:    s.Critical,
 			Warning:     discoverySuggestionWarning(s.Sensitive, len(s.Findings)),
 		})
 	}
@@ -503,6 +769,7 @@ func (a coverageTargetCatalog) List(ctx context.Context) ([]coverageint.CatalogT
 			Name:       t.Name,
 			SourceKind: t.SourceKind,
 			Locator:    t.Locator,
+			Critical:   t.Critical,
 		})
 	}
 	return out, nil
@@ -514,6 +781,7 @@ func (a coverageTargetCatalog) Register(ctx context.Context, in coverageint.Regi
 		Name:       in.Name,
 		SourceKind: in.SourceKind,
 		Locator:    in.Locator,
+		Critical:   in.Critical,
 	})
 	if err != nil {
 		return coverageint.CatalogTarget{}, err
@@ -524,6 +792,7 @@ func (a coverageTargetCatalog) Register(ctx context.Context, in coverageint.Regi
 		Name:       t.Name,
 		SourceKind: t.SourceKind,
 		Locator:    t.Locator,
+		Critical:   t.Critical,
 	}, nil
 }
 
@@ -785,6 +1054,36 @@ func startScheduler(ctx context.Context, sched *schedint.Scheduler, logger *log.
 			case <-ticker.C:
 				if err := sched.Tick(ctx); err != nil {
 					logger.Printf("scheduler tick: %v", err)
+				}
+			}
+		}
+	}()
+	return nil
+}
+
+func startDrillScheduler(ctx context.Context, svc drillsint.Service, logger *log.Logger) error {
+	interval := 60 * time.Second
+	if raw, ok := lookupEnvTrimmed("DBM_DRILL_SCHEDULER_INTERVAL"); ok {
+		d, err := time.ParseDuration(raw)
+		if err != nil || d < 0 {
+			return fmt.Errorf("DBM_DRILL_SCHEDULER_INTERVAL must be zero or a positive Go duration, got %q", raw)
+		}
+		if d == 0 {
+			logger.Printf("recovery-drill scheduler: disabled via DBM_DRILL_SCHEDULER_INTERVAL=0")
+			return nil
+		}
+		interval = d
+	}
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if err := svc.RunDue(ctx); err != nil {
+					logger.Printf("recovery-drill scheduler tick: %v", err)
 				}
 			}
 		}

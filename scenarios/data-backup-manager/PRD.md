@@ -23,22 +23,22 @@
 - [x] OT-P0-007 | Encryption on by default | Every destination is encrypted by default; passphrases and access keys come from the vault resource, never config files
 - [x] OT-P0-008 | Storage limits | Per-destination caps that are configurable and default to alert+block (no silent eviction of backups)
 - [x] OT-P0-009 | Catalog & run history | List targets, destinations, plans, and runs; show last-success per target and browse snapshot contents
-- [ ] OT-P0-010 | Health & observability | Health endpoint flags overdue/failed backups; backup outcomes are emitted as events for platform monitoring
-- [ ] OT-P0-011 | Three coordinated surfaces | API, CLI, and UI all expose the registration / destination / plan / run / restore model over the same Connect-RPC contract
+- [x] OT-P0-010 | Health & observability | Health endpoint flags overdue/failed backups; backup outcomes are emitted as events for platform monitoring
+- [x] OT-P0-011 | Three coordinated surfaces | API, CLI, and UI all expose the registration / destination / plan / run / restore model over the same Connect-RPC contract
 
 ### 🟠 P1 – Should have post-launch
-- [x] OT-P1-001 | Quiesce hooks | Targets declare pre/post hooks so live databases get application-consistent snapshots
-- [x] OT-P1-002 | GFS retention | Grandfather-father-son retention policies per plan
+- [ ] OT-P1-001 | Quiesce hooks | Targets declare pre/post hooks so live databases get application-consistent snapshots
+- [ ] OT-P1-002 | GFS retention | Grandfather-father-son retention policies per plan
 - [x] OT-P1-003 | Destination dry-run | Verify a destination is reachable and writable before a plan depends on it
-- [x] OT-P1-004 | Restore granularity | Restore a single path or point-in-time from a snapshot, not just the whole artifact
+- [ ] OT-P1-004 | Restore granularity | Restore a single path or point-in-time from a snapshot, not just the whole artifact
 - [ ] OT-P1-005 | First-customer migration | prompt-manager registers `store/teams/**` and stops committing it to git
-- [x] OT-P1-006 | Alerting integration | Stale and failed backups surface through platform monitoring/notifications
+- [ ] OT-P1-006 | Alerting integration | Stale and failed backups surface through platform monitoring/notifications
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Additional backends | B2, GCS, Azure, and SFTP destinations via kopia
 - [ ] OT-P2-002 | Cross-destination replication | Replicate snapshots between destinations for offsite tiers
 - [ ] OT-P2-003 | Backup analytics | Usage and growth trends per destination and target
-- [ ] OT-P2-004 | Automated restore drills | Scheduled, reported restore verification across plans
+- [x] OT-P2-004 | Automated restore drills | Scheduled, reported restore verification across plans
 
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: Go API (Connect-RPC), React + Vite + Tailwind UI, Go CLI — react-vite template.

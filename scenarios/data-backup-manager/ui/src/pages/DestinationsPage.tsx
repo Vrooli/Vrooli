@@ -184,3 +184,5 @@ export function DestinationsPage() {
     </section>
   );
 }
+
+export default DestinationsPage;

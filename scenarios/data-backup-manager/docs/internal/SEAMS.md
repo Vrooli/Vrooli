@@ -80,6 +80,26 @@ and use matrix/trace helpers from the relevant testutil package.
 
 ## Current seams
 
+### Plan-wide backup preflight
+
+| | |
+|---|---|
+| **Seam** | Shared dependency preflight |
+| **Interface** | `internal/preflight::Check` over target, destination, source-registry, and Kopia seams |
+| **Production wiring** | `internal/runs/service.go` invokes it once per run before capture fan-out; `main.go` enables source-path checks in production |
+| **Test fake** | `internal/preflight/preflight_test.go` uses deterministic target/destination and engine fakes |
+| **Why it exists** | A single credential, repository, or source failure is grouped once, persisted as a redacted incident, and blocks affected work before destructive repository operations. |
+
+### Mounted-volume identity
+
+| | |
+|---|---|
+| **Seam** | Platform volume identity |
+| **Interface** | `internal/sysmounts::Scanner.identity` / `platformVolumeIdentity` |
+| **Production wiring** | Linux uses read-only `lsblk`; macOS uses read-only `diskutil`; Windows currently reports uncertainty until a native adapter is installed |
+| **Test fake** | `Scanner` accepts an injected identity function; readiness tests inject deterministic volume records |
+| **Why it exists** | A reused path or drive letter must not silently pass readiness when stable UUID/serial identity conflicts. |
+
 ### Clock
 
 | | |
@@ -143,7 +163,7 @@ both are constructed, breaking the cycle without either importing the other.
 | **Interface** | `internal/destinationreadiness/inspector.go::Inspector` (`Inspect(ctx, location)`) plus `VolumeScanner` for mounted-volume enumeration. |
 | **Production wiring** | `handlers/destinations/module.go` constructs `destinationreadiness.NewReadOnlyInspector(sysmounts.New())` and passes it to `destinationreadiness.NewService(...)`. The inspector reads mount metadata and bounded top-level names only; it never writes probe files or mutates devices. |
 | **Test fake** | `internal/destinationreadiness/service_test.go::fakeInspector` and `inspector_test.go::fakeVolumeScanner`. |
-| **Why it exists** | Drive-readiness analysis must be testable without touching real removable media. The seam lets tests model FAT32, installer media, read-only mounts, low capacity, and identity drift without scanning or writing host devices. |
+| **Why it exists** | Drive-readiness analysis must be testable without touching real removable media. The seam lets tests model FAT32, installer media, read-only mounts, dirty/needs-check signals, low capacity, and identity drift without scanning or writing host devices. Filesystem health is only a pass when the OS explicitly reports clean; absent health signals remain unknown. |
 
 | | |
 |---|---|
@@ -499,6 +519,16 @@ Connect service metadata plus each handler module's
 The CI drift check (`make endpoints && git diff --exit-code
 .vrooli/endpoints.json`) fails the build if step 4 was skipped, with
 an actionable diff showing exactly which entries diverged.
+
+## Recovery-drill seams
+
+`internal/drills` owns durable drill policy and persistence. It reads the
+latest successful snapshot through the `runs.Service` adapter, invokes
+`restores.Service.VerifyTarget` through a narrow restore seam, and persists
+the linked restore id and terminal verdict. The scheduler reads persisted drill
+history rather than process-local fire state. API and CLI bindings are generated
+from `drills.proto`; drill records contain metadata only, never secrets or
+restored content.
 
 ## Cross-references
 

@@ -50,6 +50,21 @@ func (h *handlers) trigger(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) preflight(ctx cliapp.RunContext) error {
+	resp, err := h.client.PreflightRun(context.Background(), connect.NewRequest(&runsv1.PreflightRunRequest{PlanId: ctx.Flag("plan")}))
+	if err != nil {
+		return cliapp.WrapAPIError("preflight run", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no preflight response")
+	}
+	results := []string{fmt.Sprintf("ready: %t", resp.Msg.Ready)}
+	for _, incident := range resp.Msg.Incidents {
+		results = append(results, fmt.Sprintf("%s [%s/%s] %s — %s", incident.Code, incident.Category, incident.Scope, incident.Message, incident.NextAction))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Preflight checked plan %s.", ctx.Flag("plan"))}, ResultsHeading: "Preflight", Results: results})
+}
+
 func (h *handlers) get(ctx cliapp.RunContext) error {
 	id := ctx.Positional("id")
 	resp, err := h.client.GetRun(context.Background(), connect.NewRequest(&runsv1.GetRunRequest{Id: id}))

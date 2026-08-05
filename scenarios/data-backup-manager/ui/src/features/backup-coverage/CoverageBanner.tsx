@@ -24,9 +24,11 @@ import { useTranslation } from "../../i18n";
 export function CoverageBanner({
   detailed = false,
   showComplete = false,
+  reserveSpace = false,
 }: {
   detailed?: boolean;
   showComplete?: boolean;
+  reserveSpace?: boolean;
 }) {
   const { t } = useTranslation();
   const report = useCoverageReport();
@@ -35,7 +37,23 @@ export function CoverageBanner({
 
   const data = report.data;
   if (!data || !data.summary) {
-    return null;
+    return reserveSpace ? (
+      <section
+        data-testid={selectors.coverage.banner}
+        aria-busy="true"
+        aria-labelledby="coverage-heading"
+        className="flex min-h-36 flex-col gap-3 rounded-panel border border-app-border bg-app-surface p-4"
+      >
+        <div id="coverage-heading" className="flex flex-col gap-1">
+          <h2 className="text-sm font-semibold text-app-foreground">
+            {t(strings.coverage.title)}
+          </h2>
+          <p className="text-sm text-app-muted-foreground">
+            {t(strings.coverage.liveDescription)}
+          </p>
+        </div>
+      </section>
+    ) : null;
   }
   const summary = data.summary;
   const recommended = data.recommendedTargets;
@@ -70,6 +88,9 @@ export function CoverageBanner({
         <div className="flex min-w-0 flex-col gap-1">
           <h2 className="text-sm font-semibold text-app-foreground">{t(strings.coverage.title)}</h2>
           <p className="text-sm text-app-muted-foreground">
+            {t(strings.coverage.liveDescription)}
+          </p>
+          <p className="max-w-2xl text-xs text-app-muted-foreground">
             {complete ? t(strings.coverage.complete) : t(strings.coverage.incompleteTitle)}
           </p>
           <p className="text-xs text-app-muted-foreground">
@@ -87,9 +108,11 @@ export function CoverageBanner({
       {/* Recommended (non-sensitive) — the default action. */}
       {recommended.length > 0 && (
         <div className="flex flex-col gap-2">
-          <p className="text-sm text-app-foreground">
-            {t(strings.coverage.incompleteBody, { count: recommended.length })}
-          </p>
+          {detailed && (
+            <p className="max-w-2xl text-xs text-app-foreground">
+              {t(strings.coverage.incompleteBody, { count: recommended.length })}
+            </p>
+          )}
           {detailed && (
             <ul data-testid={selectors.coverage.recommendedList} className="flex flex-col gap-2">
               {recommended.map((s) => (
@@ -128,9 +151,11 @@ export function CoverageBanner({
             <KeyRound aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-app-warning" />
             <div className="flex flex-col gap-1">
               <p className="text-sm font-medium text-app-foreground">{t(strings.coverage.sensitiveTitle)}</p>
-              <p className="text-xs text-app-muted-foreground">
-                {t(strings.coverage.sensitiveBody, { count: sensitive.length })}
-              </p>
+              {detailed && (
+                <p className="text-xs text-app-muted-foreground">
+                  {t(strings.coverage.sensitiveBody, { count: sensitive.length })}
+                </p>
+              )}
             </div>
           </div>
           {detailed && (

@@ -10,7 +10,7 @@
     {
       "id": "DBM-REG-001",
       "title": "Idempotent target registration keyed by owner+name",
-      "status": "implemented",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "registration",
       "criticality": "P0",
@@ -29,7 +29,7 @@
     {
       "id": "DBM-REG-002",
       "title": "Deregistration and reconstructable catalog",
-      "status": "implemented",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "registration",
       "criticality": "P0",

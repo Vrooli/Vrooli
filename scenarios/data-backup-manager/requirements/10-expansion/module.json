@@ -61,7 +61,7 @@
     {
       "id": "DBM-DRILL-001",
       "title": "Automated restore drills",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P2-004",
       "category": "restore.verify",
       "criticality": "P2",
@@ -69,9 +69,17 @@
       "tags": ["restore", "drills", "verify", "expansion"],
       "validation": [
         {
-          "type": "manual",
-          "status": "planned",
-          "notes": "Deferred; builds on the P0 verify operation and the scheduler."
+          "type": "test",
+          "phase": "integration",
+          "status": "implemented",
+          "ref": "api/internal/drills/service_test.go::TestService_SuccessfulDrillUsesVerifiedRestoreEvidence",
+          "notes": "Durable scheduling, idempotency, reconciliation, and verified-restore evidence are covered by API tests and the scenario suite."
+        },
+        {
+          "type": "test",
+          "phase": "ui",
+          "status": "implemented",
+          "ref": "ui/src/pages/DrillsPage.test.tsx"
         }
       ]
     }

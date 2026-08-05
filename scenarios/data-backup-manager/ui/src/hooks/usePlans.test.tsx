@@ -13,7 +13,7 @@ vi.mock("../api/plans", () => ({
 
 import * as api from "../api/plans";
 import { makeApiError } from "../api/client";
-import { useCreatePlan, usePlans } from "./usePlans";
+import { useCreatePlan, useDeletePlan, usePlan, usePlans, useUpdatePlan } from "./usePlans";
 
 const buildClient = () =>
   new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
@@ -60,5 +60,29 @@ describe("useCreatePlan", () => {
 
     const keys = invalidate.mock.calls.map((c) => (c[0] as { queryKey: unknown[] }).queryKey[0]);
     expect(keys).toContain("plans");
+  });
+});
+
+describe("plan detail and mutations", () => {
+  it("loads a plan by id", async () => {
+    vi.mocked(api.getPlan).mockResolvedValue({ id: "p1" } as never);
+    const { result } = renderHook(() => usePlan("p1"), { wrapper: wrapper(buildClient()) });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(api.getPlan).toHaveBeenCalledWith("p1");
+  });
+
+  it("updates and deletes a plan", async () => {
+    vi.mocked(api.updatePlan).mockResolvedValue({ id: "p1" } as never);
+    vi.mocked(api.deletePlan).mockResolvedValue(undefined);
+    const client = buildClient();
+    const invalidate = vi.spyOn(client, "invalidateQueries");
+    const update = renderHook(() => useUpdatePlan(), { wrapper: wrapper(client) });
+    const remove = renderHook(() => useDeletePlan(), { wrapper: wrapper(client) });
+    const input = { name: "p", targetIds: [], destinationIds: [], schedule: "", keepLatest: 1, enabled: true };
+    await act(async () => {
+      await update.result.current.mutateAsync({ id: "p1", input });
+      await remove.result.current.mutateAsync("p1");
+    });
+    expect(invalidate).toHaveBeenCalled();
   });
 });

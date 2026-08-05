@@ -10,6 +10,21 @@ import (
 // generated *Procedure constants so a proto rename breaks this at compile time.
 var Endpoints = []module.EndpointDescriptor{
 	{
+		ID:          "runs_preflight",
+		Path:        runsconnect.RunsServicePreflightRunProcedure,
+		Method:      "POST",
+		Summary:     "Check backup plan readiness",
+		Description: "Performs read-only destination, credential, source-adapter, and source-path checks before any backup fan-out.",
+		Category:    "runs",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"plan_id": "string (required)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"ready": "bool", "incidents": "array<FailureCause>"}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing plan_id"},
+			{Status: 404, Code: "not_found", Description: "No plan with that id"},
+		},
+		Examples: []module.Example{{Name: "Preflight a plan", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.runs.RunsService/PreflightRun -H 'Content-Type: application/json' -d '{\"planId\":\"plan-1\"}'"}},
+	},
+	{
 		ID:          "runs_trigger",
 		Path:        runsconnect.RunsServiceTriggerRunProcedure,
 		Method:      "POST",

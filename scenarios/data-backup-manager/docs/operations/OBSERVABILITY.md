@@ -54,7 +54,7 @@ surfaces recoverability risk.
 | Storage usage vs cap per destination | active | Capacity-planning and alert+block trigger. |
 | Run + restore success rate | active | Reliability of the backup loop over time. |
 | Requirement coverage | active | Tracked through requirements and test-genie coverage artifacts. |
-| Performance budgets | deferred | Define in `../internal/PERFORMANCE.md`. |
+| Performance budgets | active | Lighthouse and build budgets are defined and validated in `../internal/PERFORMANCE.md`. |
 
 ## Alerts / Health
 

@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS targets (
   name        TEXT NOT NULL,
   source_kind TEXT NOT NULL,
   locator     TEXT NOT NULL,
+  critical    INTEGER NOT NULL DEFAULT 0,
   created_at  TEXT NOT NULL,
   updated_at  TEXT NOT NULL,
   UNIQUE (owner, name)

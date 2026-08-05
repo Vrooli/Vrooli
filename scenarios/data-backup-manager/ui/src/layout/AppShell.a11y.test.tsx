@@ -5,11 +5,12 @@
  * their own a11y tests.
  */
 import { afterEach, beforeEach, describe, it } from "vitest";
-import { cleanup } from "@testing-library/react";
+import { cleanup, screen } from "@testing-library/react";
 
 import { expectNoA11yViolations, renderWithProviders } from "../test-utils";
 import { setLocale } from "../i18n";
 import { TestAppRouter } from "../app/routes";
+import { selectors } from "../consts/selectors";
 
 describe("AppShell accessibility", () => {
   beforeEach(async () => {
@@ -25,6 +26,7 @@ describe("AppShell accessibility", () => {
       <TestAppRouter initialEntries={["/"]} />,
       { withoutRouter: true },
     );
+    await screen.findByTestId(selectors.overview.setupCta, undefined, { timeout: 5000 });
     await expectNoA11yViolations(container);
   });
 });

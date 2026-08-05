@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"data-backup-manager/internal/failures"
 	internalruns "data-backup-manager/internal/runs"
 
 	"connectrpc.com/connect"
@@ -56,6 +57,21 @@ func (h *connectHandler) TriggerRun(ctx context.Context, req *connect.Request[ru
 		return nil, h.translate("TriggerRun", err)
 	}
 	return connect.NewResponse(&runsv1.TriggerRunResponse{Run: runToProto(run)}), nil
+}
+
+func (h *connectHandler) PreflightRun(ctx context.Context, req *connect.Request[runsv1.PreflightRunRequest]) (*connect.Response[runsv1.PreflightRunResponse], error) {
+	result, err := h.deps.Service.Preflight(ctx, req.Msg.PlanId)
+	if err != nil {
+		return nil, h.translate("PreflightRun", err)
+	}
+	resp := &runsv1.PreflightRunResponse{Ready: result.Ready}
+	if !result.CheckedAt.IsZero() {
+		resp.CheckedAt = timestamppb.New(result.CheckedAt)
+	}
+	for _, incident := range result.Incidents {
+		resp.Incidents = append(resp.Incidents, failureCauseToProto(incident))
+	}
+	return connect.NewResponse(resp), nil
 }
 
 func (h *connectHandler) GetRun(ctx context.Context, req *connect.Request[runsv1.GetRunRequest]) (*connect.Response[runsv1.GetRunResponse], error) {
@@ -158,10 +174,15 @@ func (h *connectHandler) translate(op string, err error) error {
 
 func runToProto(r internalruns.Run) *runsv1.Run {
 	pr := &runsv1.Run{
-		Id:      r.ID,
-		PlanId:  r.PlanID,
-		Trigger: triggerToProto(r.Trigger),
-		Status:  runStatusToProto(r.Status),
+		Id:              r.ID,
+		PlanId:          r.PlanID,
+		Trigger:         triggerToProto(r.Trigger),
+		Status:          runStatusToProto(r.Status),
+		Error:           r.Error,
+		FailureCode:     string(r.FailureCode),
+		FailureCategory: string(r.FailureCategory),
+		NextAction:      r.NextAction,
+		PhysicalBytes:   r.PhysicalBytes,
 	}
 	if !r.StartedAt.IsZero() {
 		pr.StartedAt = timestamppb.New(r.StartedAt)
@@ -169,14 +190,23 @@ func runToProto(r internalruns.Run) *runsv1.Run {
 	if !r.FinishedAt.IsZero() {
 		pr.FinishedAt = timestamppb.New(r.FinishedAt)
 	}
+	if !r.UpdatedAt.IsZero() {
+		pr.UpdatedAt = timestamppb.New(r.UpdatedAt)
+	}
+	for _, c := range r.Preflight {
+		pr.PreflightIncidents = append(pr.PreflightIncidents, failureCauseToProto(c))
+	}
 	for _, o := range r.Outcomes {
 		po := &runsv1.TargetOutcome{
-			TargetId:      o.TargetID,
-			DestinationId: o.DestinationID,
-			Status:        outcomeToProto(o.Status),
-			SnapshotId:    o.SnapshotID,
-			Bytes:         o.Bytes,
-			Error:         o.Error,
+			TargetId:        o.TargetID,
+			DestinationId:   o.DestinationID,
+			Status:          outcomeToProto(o.Status),
+			SnapshotId:      o.SnapshotID,
+			Bytes:           o.Bytes,
+			Error:           o.Error,
+			FailureCode:     string(o.FailureCode),
+			FailureCategory: string(o.FailureCategory),
+			Warning:         o.Warning,
 		}
 		if !o.StartedAt.IsZero() {
 			po.StartedAt = timestamppb.New(o.StartedAt)
@@ -187,6 +217,27 @@ func runToProto(r internalruns.Run) *runsv1.Run {
 		pr.Outcomes = append(pr.Outcomes, po)
 	}
 	return pr
+}
+
+func failureCauseToProto(c failures.Cause) *runsv1.FailureCause {
+	out := &runsv1.FailureCause{
+		Code: string(c.Code), Category: string(c.Category), Scope: string(c.Scope),
+		Message: c.Message, NextAction: c.NextAction, DestinationId: c.DestinationID,
+		TargetIds: append([]string(nil), c.TargetIDs...), Retryable: c.Retryable,
+	}
+	if c.RetryAfter > 0 {
+		out.RetryAfterSeconds = int64(c.RetryAfter.Seconds())
+	}
+	if !c.FirstObserved.IsZero() {
+		out.FirstObserved = timestamppb.New(c.FirstObserved)
+	}
+	if !c.LastObserved.IsZero() {
+		out.LastObserved = timestamppb.New(c.LastObserved)
+	}
+	if !c.LastKnownGood.IsZero() {
+		out.LastKnownGood = timestamppb.New(c.LastKnownGood)
+	}
+	return out
 }
 
 func targetStatusToProto(s internalruns.TargetStatus) *runsv1.TargetStatus {

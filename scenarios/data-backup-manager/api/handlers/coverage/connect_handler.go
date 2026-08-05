@@ -102,6 +102,7 @@ func registeredToProto(t coverage.RegisteredTarget) *coveragev1.RegisteredTarget
 		SourceKind: kindToProto(t.SourceKind),
 		Locator:    t.Locator,
 		Planned:    t.Planned,
+		Critical:   t.Critical,
 	}
 	if !t.LastSuccessAt.IsZero() {
 		out.LastSuccessAt = timestamppb.New(t.LastSuccessAt)
@@ -123,6 +124,7 @@ func suggestionToProto(s coverage.Suggestion) *coveragev1.SuggestedTarget {
 		ApproxBytes: s.ApproxBytes,
 		Sensitive:   s.Sensitive,
 		Warning:     s.Warning,
+		Critical:    s.Critical,
 	}
 }
 
@@ -142,6 +144,7 @@ func acceptToProto(r coverage.AcceptResult) *coveragev1.AcceptDefaultTargetsResp
 			SourceKind:   kindToProto(a.SourceKind),
 			Locator:      a.Locator,
 			Sensitive:    a.Sensitive,
+			Critical:     a.Critical,
 		})
 	}
 	for _, s := range r.SkippedSensitive {

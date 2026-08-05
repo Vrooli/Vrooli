@@ -124,6 +124,13 @@ device-identity revalidation. Formatting, relabeling, and clearing files
 remain unsupported operationally; handle those outside this scenario until
 the Linux drive-preparation adapter is implemented and validated.
 
+Readiness copies an explicit filesystem `dirty` or `needs-check` signal from
+the mounted-volume metadata into the stable `destination_dirty` failure and
+refuses the affected protection tier. When the platform exposes no such bit,
+readiness reports health as unknown rather than claiming clean. Run the
+platform-native filesystem check outside DBM, remount the volume, and rerun
+`destinations readiness` before retrying a backup; DBM never performs repair.
+
 Note: `prepare-plan --json` wraps the plan as `{"plan": {…}}`, but
 `prepare-execute --plan-json` expects the **inner** plan object. Extract it and
 pass the exact `confirmation_phrase`:
@@ -176,6 +183,28 @@ scenarios) can trigger a run manually:
 data-backup-manager runs trigger --plan <plan-id>
 data-backup-manager runs list
 ```
+
+Before target fan-out, each run performs a read-only plan-wide preflight. A
+shared destination or credential failure is recorded once as a grouped
+incident, and affected work is blocked without capturing source data. Inspect
+the run JSON for `failure_code`, `next_action`, and `preflight_incidents`.
+Never retry a `credential_missing`, `destination_dirty`, `destination_read_only`,
+or `destination_unmounted` incident repeatedly; follow its next action first.
+
+Plans expose an independent `protection_tier` (`full_primary`,
+`critical_primary`, or `critical_secondary`). Configure critical plans with
+their own target and destination membership; do not infer secondary health
+from the full-primary plan.
+
+For an attached drive, use `destinations readiness --location <mountpoint>`.
+The response includes stable device identity, confidence, evidence source, and
+non-destructive repair steps. Preserve that evidence, perform any native
+filesystem repair outside DBM, and re-run readiness before writing. DBM never
+formats, partitions, clears, repairs, or silently remounts a volume.
+
+The current incident class of a dirty/unmounted NTFS volume and an unavailable
+repository credential is two independent blockers. A power outage is not
+inferred from a dirty volume alone.
 
 Source capture is per kind: filesystem (direct), SQLite (`VACUUM INTO`),
 Postgres (`pg_dump`), Redis (prefix `SCAN`+`DUMP`, best-effort —

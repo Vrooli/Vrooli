@@ -19,27 +19,32 @@ Use this document to answer:
 | UI build | 5-10 minutes accepted for current Vite module graph | lifecycle/test-genie build logs | inherited |
 | API health | responsive under lifecycle health timeout | `/health` check | active |
 | UI health | responsive under lifecycle health timeout | `/health` check | active |
+| UI Lighthouse performance | `>= 0.75` error floor, `>= 0.85` warning floor | Test Genie performance phase, desktop simulated Lighthouse audit | active |
 
 ## Current Measurements
 
 | Measurement | Value | Source | Date |
 |---|---|---|---|
-| None captured yet. | n/a | n/a | 2026-05-26 |
+| Lighthouse performance | `0.71` (below error floor) | Initial comprehensive run; preserved as incident history | 2026-08-05 |
+| Lighthouse performance | Passed configured floor; performance phase clean | Final comprehensive run `20260805-213135-0bcf84b3` | 2026-08-05 |
 
 ## Known Constraints
 
 - Vite production builds may process thousands of modules and take
   several minutes.
-- Performance budgets for real product workflows must be defined after
-  domains and UX flows are known.
+- The initial Lighthouse score was below the configured floor; later overview
+  rendering and route/bundle work produced a clean performance phase. The
+  earlier score remains historical evidence and must not be hidden by lowering
+  the threshold.
 
 ## Regression Procedure
 
-1. Run `make test`.
-2. Capture relevant API/UI command timing.
-3. For UI interaction regressions, use `ui/perf/README.md` and the
+1. Run `make test` (or the owned comprehensive Test Genie run).
+2. Inspect the performance phase artifact and Lighthouse report for the run.
+3. Capture relevant API/UI command timing.
+4. For UI interaction regressions, use `ui/perf/README.md` and the
    provided capture template.
-4. Record persistent findings in this document or
+5. Record persistent findings in this document or
    [`PROBLEMS.md`](PROBLEMS.md) depending on whether they are accepted
    constraints or unresolved debt.
 

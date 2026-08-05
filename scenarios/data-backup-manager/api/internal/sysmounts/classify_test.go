@@ -114,6 +114,26 @@ func TestIsReadOnly(t *testing.T) {
 	}
 }
 
+func TestFilesystemStateUsesOnlyExplicitMountSignals(t *testing.T) {
+	cases := []struct {
+		name string
+		opts []string
+		want FilesystemState
+	}{
+		{name: "unknown when not exposed", opts: []string{"rw", "relatime"}, want: FilesystemStateUnknown},
+		{name: "clean", opts: []string{"rw", "state=clean"}, want: FilesystemStateClean},
+		{name: "dirty", opts: []string{"rw", "dirty"}, want: FilesystemStateDirty},
+		{name: "needs check", opts: []string{"rw", "needs-check"}, want: FilesystemStateNeedsCheck},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := filesystemState(tc.opts); got != tc.want {
+				t.Fatalf("filesystemState(%v) = %q, want %q", tc.opts, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestDarwinRemovableUnderVolumes(t *testing.T) {
 	c := &classifier{goos: "darwin", sysBlockRoot: "/sys/block"}
 	if class, rem := c.classify(mountInfo{Mountpoint: "/Volumes/Backup", Fstype: "apfs"}); class != ClassRemovable || !rem {

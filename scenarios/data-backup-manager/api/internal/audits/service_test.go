@@ -51,6 +51,10 @@ type auditHarness struct {
 }
 
 func newAuditHarness(t *testing.T) *auditHarness {
+	return newAuditHarnessWithRemoveAll(t, nil)
+}
+
+func newAuditHarnessWithRemoveAll(t *testing.T, removeAll func(string) error) *auditHarness {
 	t.Helper()
 	h := &auditHarness{
 		repo:    auditsmocks.NewInMemoryRepository(),
@@ -92,6 +96,7 @@ func newAuditHarness(t *testing.T) *auditHarness {
 		Clock:       mocks.NewFakeClock(time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)),
 		ScratchRoot: h.scratch,
 		Executor:    auditsmocks.NewSyncExecutor(),
+		RemoveAll:   removeAll,
 	})
 	return h
 }
@@ -204,6 +209,37 @@ func TestRunAudit_ScratchCleanedUp(t *testing.T) {
 		if strings.HasPrefix(e.Name(), "dbm-audit-") {
 			t.Errorf("scratch dir not cleaned up: %s", e.Name())
 		}
+	}
+}
+
+func TestRunAudit_CleanupFailureIsRecorded(t *testing.T) {
+	h := newAuditHarnessWithRemoveAll(t, func(string) error {
+		return errors.New("scratch directory is busy")
+	})
+	h.snapFiles = map[string]string{"a.txt": "alpha"}
+	h.liveFiles = map[string]string{"a.txt": "alpha"}
+
+	got := h.run(t, true, true)
+	if got.Status != audits.AuditFailed {
+		t.Fatalf("status = %q, want failed", got.Status)
+	}
+	if !strings.Contains(got.Error, "scratch cleanup") {
+		t.Fatalf("error = %q, want scratch cleanup evidence", got.Error)
+	}
+}
+
+func TestRunAudit_StatusTransitionFailureIsRecorded(t *testing.T) {
+	h := newAuditHarness(t)
+	h.repo.StatErr = errors.New("catalog is unavailable")
+	h.snapFiles = map[string]string{"a.txt": "alpha"}
+	h.liveFiles = map[string]string{"a.txt": "alpha"}
+
+	got := h.run(t, true, true)
+	if got.Status != audits.AuditFailed {
+		t.Fatalf("status = %q, want failed", got.Status)
+	}
+	if !strings.Contains(got.Error, "running transition") {
+		t.Fatalf("error = %q, want running-transition evidence", got.Error)
 	}
 }
 

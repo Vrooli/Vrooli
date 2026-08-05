@@ -3,7 +3,15 @@
 // explicit identity and confirmation checks.
 package destinationreadiness
 
-import "fmt"
+import (
+	"fmt"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"time"
+
+	"data-backup-manager/internal/sysmounts"
+)
 
 // CheckSeverity is the machine-readable readiness outcome for one check.
 type CheckSeverity string
@@ -60,35 +68,66 @@ func (i DeviceIdentity) StableString() string {
 
 // Matches reports whether the safety-critical identity fields still match.
 func (i DeviceIdentity) Matches(other DeviceIdentity) bool {
-	return i.DevicePath == other.DevicePath &&
-		i.Mountpoint == other.Mountpoint &&
-		i.Label == other.Label &&
-		i.Filesystem == other.Filesystem &&
-		i.TotalBytes == other.TotalBytes &&
-		i.Model == other.Model &&
-		i.Serial == other.Serial &&
-		i.UUID == other.UUID
+	if normalizePath(i.DevicePath) != normalizePath(other.DevicePath) || normalizePath(i.Mountpoint) != normalizePath(other.Mountpoint) {
+		return false
+	}
+	if !equalOptional(i.Filesystem, other.Filesystem, true) || !equalOptional(i.UUID, other.UUID, true) || !equalOptional(i.Serial, other.Serial, false) {
+		return false
+	}
+	if i.TotalBytes != 0 && other.TotalBytes != 0 && i.TotalBytes != other.TotalBytes {
+		return false
+	}
+	// Label and model are mutable/descriptive and are intentionally not identity
+	// guards. A relabel operation must not make an unchanged disk look foreign.
+	return true
+}
+
+func normalizePath(p string) string {
+	p = filepath.Clean(strings.TrimSpace(strings.ReplaceAll(p, "\\", string(filepath.Separator))))
+	if runtime.GOOS == "windows" {
+		p = strings.ToLower(p)
+	}
+	return p
+}
+
+func equalOptional(a, b string, fold bool) bool {
+	if a == "" || b == "" {
+		return true
+	}
+	if fold {
+		return strings.EqualFold(strings.TrimSpace(a), strings.TrimSpace(b))
+	}
+	return strings.TrimSpace(a) == strings.TrimSpace(b)
 }
 
 // Inspection is a read-only snapshot of a mounted destination candidate.
 type Inspection struct {
-	Identity        DeviceIdentity
-	FreeBytes       int64
-	ReadOnly        bool
-	Removable       bool
-	DriveClass      string
-	MountOptions    []string
-	TopLevelEntries []string
-	NonEmptyRoot    bool
-	InstallerMedia  bool
-	Platform        string
+	// LocationExists and LocationIsDirectory describe the requested candidate,
+	// not merely its nearest mounted parent. A missing child under a mounted
+	// volume must never be presented as a ready destination.
+	LocationExists      bool
+	LocationIsDirectory bool
+	LocationError       string
+	Identity            DeviceIdentity
+	FreeBytes           int64
+	ReadOnly            bool
+	Removable           bool
+	DriveClass          string
+	MountOptions        []string
+	FilesystemState     sysmounts.FilesystemState
+	TopLevelEntries     []string
+	NonEmptyRoot        bool
+	InstallerMedia      bool
+	Platform            string
+	ReadDirError        string
 }
 
 // CheckResult is one structured readiness rule result.
 type CheckResult struct {
-	Code     string
-	Severity CheckSeverity
-	Message  string
+	Code       string
+	Severity   CheckSeverity
+	Message    string
+	NextAction string
 }
 
 // Report is the readiness result returned by Analyze.
@@ -99,6 +138,11 @@ type Report struct {
 	Checks                         []CheckResult
 	RecommendedDestinationLocation string
 	RecommendedAction              string
+	Platform                       string
+	Confidence                     string
+	EvidenceSource                 string
+	ObservedAt                     time.Time
+	RepairSteps                    []string
 }
 
 // AnalyzeInput controls a read-only readiness analysis.

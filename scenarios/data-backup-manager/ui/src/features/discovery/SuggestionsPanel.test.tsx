@@ -128,6 +128,17 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe("SuggestionsPanel", () => {
+  it("bounds compact lists and reports when more suggestions remain", async () => {
+    vi.mocked(discoveryApi.listTargetSuggestions).mockResolvedValue(
+      [targetSuggestion, sensitiveSuggestion] as never,
+    );
+    renderWithProviders(<SuggestionsPanel maxVisibleItems={1} />);
+
+    expect(await screen.findByTestId(selectors.discovery.suggestionRow({ id: "ts1" }))).toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.discovery.suggestionRow({ id: "ds-root" }))).not.toBeInTheDocument();
+    expect(screen.getAllByText(/common\.showingOf/)).toHaveLength(2);
+  });
+
   it("enables a target suggestion via registerTarget with mapped args", async () => {
     const user = userEvent.setup();
     renderWithProviders(<SuggestionsPanel />);
@@ -141,6 +152,7 @@ describe("SuggestionsPanel", () => {
         name: "plans",
         sourceKind: SourceKind.FILESYSTEM,
         locator: "/home/u/.vrooli/plans",
+        critical: false,
       }),
     );
   });

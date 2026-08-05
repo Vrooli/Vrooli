@@ -33,7 +33,13 @@ import { useTranslation } from "../../i18n";
  * **Dismiss**. When `onboarding` is set it leads with the cold-start headline;
  * otherwise it's a quiet helper above the storage strip.
  */
-export function SuggestionsPanel({ onboarding = false }: { onboarding?: boolean }) {
+export function SuggestionsPanel({
+  onboarding = false,
+  maxVisibleItems,
+}: {
+  onboarding?: boolean;
+  maxVisibleItems?: number;
+}) {
   const { t } = useTranslation();
   const targets = useTargetSuggestions();
   const destinations = useDestinationSuggestions();
@@ -49,6 +55,10 @@ export function SuggestionsPanel({ onboarding = false }: { onboarding?: boolean 
 
   const targetList = targets.data ?? [];
   const destinationList = destinations.data ?? [];
+  const visibleTargetList = maxVisibleItems ? targetList.slice(0, maxVisibleItems) : targetList;
+  const visibleDestinationList = maxVisibleItems
+    ? destinationList.slice(0, maxVisibleItems)
+    : destinationList;
 
   const enableTarget = async (s: TargetSuggestion) => {
     setActiveId(s.id);
@@ -58,6 +68,7 @@ export function SuggestionsPanel({ onboarding = false }: { onboarding?: boolean 
         name: s.name,
         sourceKind: s.sourceKind,
         locator: s.locator,
+        critical: false,
       });
       invalidate();
     } finally {
@@ -114,7 +125,7 @@ export function SuggestionsPanel({ onboarding = false }: { onboarding?: boolean 
           <p className="text-sm text-app-muted-foreground">{t(strings.discovery.targetsEmpty)}</p>
         ) : (
           <ul className="flex flex-col gap-2">
-            {targetList.map((s) => {
+            {visibleTargetList.map((s) => {
               const kind = sourceKindSlug(s.sourceKind);
               return (
                 <li
@@ -166,6 +177,12 @@ export function SuggestionsPanel({ onboarding = false }: { onboarding?: boolean 
             })}
           </ul>
         )}
+        {visibleTargetList.length < targetList.length && (
+          <p className="text-xs text-app-muted-foreground">
+            {t(strings.common.showingOf, { shown: visibleTargetList.length, total: targetList.length })}{" "}
+            {t(strings.discovery.moreAvailable)}
+          </p>
+        )}
       </div>
 
       {/* Destinations to back up to */}
@@ -180,7 +197,7 @@ export function SuggestionsPanel({ onboarding = false }: { onboarding?: boolean 
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
-            {destinationList.map((s) => {
+            {visibleDestinationList.map((s) => {
               const cls = driveClassMeta(s.driveClass);
               return (
                 <li
@@ -233,6 +250,15 @@ export function SuggestionsPanel({ onboarding = false }: { onboarding?: boolean 
               );
             })}
           </ul>
+        )}
+        {visibleDestinationList.length < destinationList.length && (
+          <p className="text-xs text-app-muted-foreground">
+            {t(strings.common.showingOf, {
+              shown: visibleDestinationList.length,
+              total: destinationList.length,
+            })}{" "}
+            {t(strings.discovery.moreAvailable)}
+          </p>
         )}
       </div>
       <DestinationReviewDialog

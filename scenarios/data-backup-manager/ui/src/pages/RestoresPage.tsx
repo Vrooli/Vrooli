@@ -93,3 +93,5 @@ export function RestoresPage() {
     </section>
   );
 }
+
+export default RestoresPage;

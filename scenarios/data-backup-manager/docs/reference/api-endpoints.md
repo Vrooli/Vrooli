@@ -80,6 +80,22 @@ Connect service:
 | `UpdatePlan` | Replace plan fields and membership. Same coverage guard as create via `allow_incomplete_coverage`. | `plans update` |
 | `DeletePlan` | Delete a plan. | `plans delete` |
 
+Critical tiers validate explicit critical target classification and destination
+separation before persistence. `recovery_drill_schedule` enables independent
+scheduled drill units for the plan.
+
+## Recovery drills
+
+Connect service:
+`/vrooli.data_backup_manager.v1.drills.RecoveryDrillsService/<method>`
+
+| Method | Purpose | CLI |
+|---|---|---|
+| `PreviewDrill` | Read-only eligibility and latest successful snapshot preview. | `drills preview` |
+| `RunDrill` | Persist and asynchronously execute a scratch-only verified restore. | `drills run` |
+| `GetDrill` | Read persisted drill status and linked restore evidence. | `drills get` |
+| `ListDrills` | List drill evidence newest first. | `drills list` |
+
 ## Runs
 
 Connect service:

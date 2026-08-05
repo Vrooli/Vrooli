@@ -85,3 +85,5 @@ export function SettingsPage() {
     </section>
   );
 }
+
+export default SettingsPage;

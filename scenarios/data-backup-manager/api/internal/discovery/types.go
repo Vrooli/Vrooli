@@ -60,6 +60,11 @@ type TargetCandidate struct {
 	// tokens). Surfaced with a warning and never auto-accepted; the operator
 	// must register it deliberately.
 	Sensitive bool
+	// Critical marks a candidate that belongs in the minimal recovery inventory
+	// (for example the encrypted credential-authority store). Critical does not
+	// imply that the source is safe to auto-register: Sensitive remains the
+	// separate opt-in gate.
+	Critical bool
 	// Findings carries owner-inventory declaration warnings alongside the
 	// candidate so presentation layers can explain incomplete metadata.
 	Findings []storage.InventoryFinding

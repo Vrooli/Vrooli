@@ -27,7 +27,6 @@ var dbmRationale = map[string]struct {
 	repocontract.HomeKeyConfig:     {"config", "Vrooli configuration — how this installation is wired up."},
 	repocontract.HomeKeyData:       {"data", "Durable scenario data — application state scenarios persist between runs."},
 	repocontract.HomeKeyRuntimeDB:  {"runtime-db", "Vrooli runtime database — captured as a consistent SQLite copy."},
-	repocontract.HomeKeySecrets:    {"secrets", "Vrooli secrets store — irreplaceable credentials (backed up encrypted; contents never read here)."},
 	repocontract.HomeKeySecretsEnc: {"secrets-enc", "Encrypted Vrooli credential-authority store — the recovery source on encrypted-file hosts (contents never read here)."},
 }
 
@@ -75,6 +74,14 @@ func (w *WellKnownScanner) Scan(ctx context.Context) ([]TargetCandidate, error) 
 	}
 	out := make([]TargetCandidate, 0, len(entries))
 	for _, e := range entries {
+		// The legacy plaintext credential store is deliberately not a target
+		// suggestion. Even though the scanner never reads its contents, putting
+		// its path into the registration flow makes accidental plaintext backup
+		// possible. The encrypted authority store is the only credential-bearing
+		// runtime-home entry eligible for deliberate recovery protection.
+		if e.Key == repocontract.HomeKeySecrets {
+			continue
+		}
 		abs := filepath.Join(w.runtimeRoot, filepath.FromSlash(e.RelPath))
 		info, err := os.Stat(abs)
 		if err != nil {
@@ -113,9 +120,24 @@ func (w *WellKnownScanner) Scan(ctx context.Context) ([]TargetCandidate, error) 
 			Locator:     abs,
 			Rationale:   rationale,
 			ApproxBytes: approx,
+			Sensitive:   e.Sensitive || e.Key == repocontract.HomeKeySecretsEnc,
+			Critical:    criticalWellKnownEntry(e.Key),
 		})
 	}
 	return out, nil
+}
+
+// criticalWellKnownEntry is the deliberately small, reviewable inventory of
+// platform state required to recover the credential authority and bootstrap a
+// replacement host. It contains no raw credential parsing and is keyed only by
+// the runtime-home contract entry name.
+func criticalWellKnownEntry(key string) bool {
+	switch key {
+	case repocontract.HomeKeySecretsEnc, repocontract.HomeKeyRuntimeDB, repocontract.HomeKeyConfig:
+		return true
+	default:
+		return false
+	}
 }
 
 // sourceKindFor maps a contract entry's declared format to a capture strategy:

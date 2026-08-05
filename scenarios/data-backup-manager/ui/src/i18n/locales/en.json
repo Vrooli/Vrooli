@@ -13,6 +13,7 @@
       "plans": "Plans",
       "runs": "Runs",
       "restores": "Restores",
+      "drills": "Drills",
       "settings": "Settings"
     },
     "mainLabel": "Main content"
@@ -28,12 +29,23 @@
   "common": {
     "retry": "Try again",
     "loadError": "Couldn't load this.",
+    "loading": "Loading…",
     "cancel": "Cancel",
     "close": "Close",
     "save": "Save",
     "saving": "Saving…",
     "create": "Create",
-    "never": "Never"
+    "never": "Never",
+    "showingOf": "Showing {{shown}} of {{total}}"
+  },
+  "drills": {
+    "subtitle": "Prove that protected snapshots can be restored without touching live data.",
+    "empty": "No recovery drills yet.",
+    "emptyHint": "Create a backup plan, then run a scratch-only recovery drill.",
+    "planHint": "Schedule: {{schedule}}",
+    "manual": "manual only",
+    "run": "Run drill",
+    "evidenceHint": "Drill results remain durable and link to the verified-restore evidence."
   },
   "status": {
     "run": {
@@ -58,6 +70,12 @@
       "verifying": "Verifying",
       "verified": "Verified",
       "restored": "Restored",
+      "failed": "Failed"
+    },
+    "drill": {
+      "requested": "Requested",
+      "running": "Running",
+      "verified": "Verified",
       "failed": "Failed"
     },
     "usage": {
@@ -164,10 +182,12 @@
     "unsafe": "Overlaps protected data — can't be used",
     "sensitive": "Sensitive",
     "approxSize": "≈{{size}}",
-    "freeOfTotal": "{{free}} free of {{total}}"
+    "freeOfTotal": "{{free}} free of {{total}}",
+    "moreAvailable": "More suggestions are available after reviewing these."
   },
   "coverage": {
     "title": "Backup coverage",
+    "liveDescription": "Coverage is evaluated live from registered targets and backup history.",
     "incompleteTitle": "Default coverage is incomplete",
     "incompleteBody": "{{count}} recommended durable target(s) discovered on this machine are not registered yet. Register them so a plan can protect them.",
     "complete": "Default coverage complete — every recommended durable target is registered.",
@@ -192,6 +212,9 @@
     "kind": "Source kind",
     "locator": "Locator",
     "locatorHint": "Path or glob, database name, key prefix, collection, or bucket — interpreted by kind. Never a secret.",
+    "critical": "Critical protection",
+    "criticalHint": "Approve this target for critical-primary and critical-secondary plans only after reviewing its recovery importance.",
+    "notCritical": "Not approved",
     "ownerRequired": "Owner is required.",
     "nameRequired": "Name is required.",
     "locatorRequired": "Locator is required.",
@@ -242,6 +265,12 @@
     "name": "Name",
     "schedule": "Schedule",
     "scheduleHint": "Cron expression, e.g. 0 2 * * * for nightly at 02:00.",
+    "recoveryDrillSchedule": "Recovery drill cadence",
+    "recoveryDrillScheduleHint": "Positive duration such as 168h. Empty means operator-triggered only.",
+    "protectionTier": "Protection tier",
+    "tierFullPrimary": "Full primary",
+    "tierCriticalPrimary": "Critical primary",
+    "tierCriticalSecondary": "Critical secondary",
     "keepLatest": "Keep latest",
     "keepLatestHint": "How many snapshots to retain per target. 0 keeps all.",
     "enabled": "Enabled",
@@ -261,13 +290,15 @@
     "createTitle": "Create plan",
     "editTitle": "Edit plan",
     "createError": "Couldn't create the plan.",
-    "updateError": "Couldn't update the plan."
+    "updateError": "Couldn't update the plan.",
+    "sharedRiskWarning": "Shared-risk warning: {{warning}}"
   },
   "runs": {
     "subtitle": "Every plan execution, newest first. Expand a run to see its per-target outcomes.",
     "empty": "No runs yet.",
     "emptyHint": "Trigger a plan from the Plans page, or wait for the scheduler.",
-    "outcomesHeading": "Per-target outcomes"
+    "outcomesHeading": "Per-target outcomes",
+    "nextAction": "Next action"
   },
   "restores": {
     "subtitle": "Prove a backup restores (verify), or write it back to a location (restore). A verify is non-destructive and encouraged.",

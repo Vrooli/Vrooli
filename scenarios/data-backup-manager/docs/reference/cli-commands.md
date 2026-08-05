@@ -229,6 +229,22 @@ data-backup-manager plans delete --id <plan-id>
 A target may be bound to several plans (e.g. daily-to-local and
 weekly-to-offsite).
 
+Use `--protection-tier critical-primary|critical-secondary` only with targets
+explicitly approved as critical. `--recovery-drill-schedule 168h` enables the
+durable automated recovery-drill policy for the plan.
+
+### `data-backup-manager drills ...`
+
+Recovery drills select the latest successful snapshot and run the existing
+scratch-only verified restore. Results persist across restarts.
+
+```bash
+data-backup-manager drills preview --plan <plan-id>
+data-backup-manager drills run --plan <plan-id> --idempotency-key <stable-key>
+data-backup-manager drills get <drill-id>
+data-backup-manager drills list --plan <plan-id>
+```
+
 **Coverage guard.** `plans create` / `plans update` are blocked
 (`failed_precondition`) while any non-sensitive recommended target is still
 unregistered, so a plan cannot silently omit default coverage. Run

@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"data-backup-manager/internal/failures"
 	"data-backup-manager/internal/runs"
 )
 
@@ -94,6 +95,41 @@ func (f *FakeRepository) FinishRun(_ context.Context, runID string, status runs.
 		}
 	}
 	return runs.ErrRunNotFound{ID: runID}
+}
+
+func (f *FakeRepository) UpdateRunFailure(_ context.Context, runID string, code failures.Code, category failures.Category, nextAction string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i := range f.runs {
+		if f.runs[i].ID == runID {
+			f.runs[i].FailureCode, f.runs[i].FailureCategory, f.runs[i].NextAction = code, category, nextAction
+			return nil
+		}
+	}
+	return runs.ErrRunNotFound{ID: runID}
+}
+
+func (f *FakeRepository) SavePreflightIncidents(_ context.Context, runID string, incidents []failures.Cause) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i := range f.runs {
+		if f.runs[i].ID == runID {
+			f.runs[i].Preflight = append([]failures.Cause(nil), incidents...)
+			return nil
+		}
+	}
+	return runs.ErrRunNotFound{ID: runID}
+}
+
+func (f *FakeRepository) IncidentsForRun(_ context.Context, runID string) ([]failures.Cause, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, r := range f.runs {
+		if r.ID == runID {
+			return append([]failures.Cause(nil), r.Preflight...), nil
+		}
+	}
+	return nil, runs.ErrRunNotFound{ID: runID}
 }
 
 func (f *FakeRepository) ListNonTerminalRuns(_ context.Context) ([]runs.Run, error) {

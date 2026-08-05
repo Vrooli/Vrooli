@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"strings"
+
+	"github.com/vrooli/api-core/storage"
 )
 
 // Assumed resource-redis CLI surface (reconcile with actual resource CLI):
@@ -37,6 +40,22 @@ type redisCapturer struct {
 	runner CommandRunner
 }
 
+func redisScopedPrefix(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", fmt.Errorf("redis prefix is empty")
+	}
+	parts := strings.SplitN(raw, ":", 2)
+	base, err := storage.RedisPrefix(parts[0])
+	if err != nil {
+		return "", err
+	}
+	if len(parts) == 1 {
+		return base, nil
+	}
+	return base + parts[1], nil
+}
+
 // Compile-time guarantee.
 var _ Capturer = (*redisCapturer)(nil)
 
@@ -54,9 +73,13 @@ func (c *redisCapturer) Kind() SourceKind { return KindRedis }
 // This is best-effort: keys modified during the scan may be inconsistent.
 func (c *redisCapturer) Capture(ctx context.Context, spec CaptureSpec) (Artifact, error) {
 	dst := filepath.Join(spec.StageDir, redisDumpFile)
-	_, err := c.runner.Run(ctx, redisBinary,
+	prefix, err := redisScopedPrefix(spec.Locator)
+	if err != nil {
+		return Artifact{}, fmt.Errorf("resolve redis namespace: %w", err)
+	}
+	_, err = c.runner.Run(ctx, redisBinary,
 		redisSubDump,
-		redisFlagPrefix, spec.Locator,
+		redisFlagPrefix, prefix,
 		redisFlagOutput, dst,
 	)
 	if err != nil {
@@ -71,9 +94,13 @@ func (c *redisCapturer) Capture(ctx context.Context, spec CaptureSpec) (Artifact
 //
 // spec.Target is the key-prefix scope for the restore. No secrets in argv.
 func (c *redisCapturer) Restore(ctx context.Context, spec RestoreSpec) error {
-	_, err := c.runner.Run(ctx, redisBinary,
+	prefix, err := redisScopedPrefix(spec.Target)
+	if err != nil {
+		return fmt.Errorf("resolve redis namespace: %w", err)
+	}
+	_, err = c.runner.Run(ctx, redisBinary,
 		redisSubRestore,
-		redisFlagPrefix, spec.Target,
+		redisFlagPrefix, prefix,
 		redisFlagInput, spec.ArtifactPath,
 	)
 	if err != nil {

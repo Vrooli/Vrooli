@@ -34,6 +34,18 @@ const (
 	ClassNetwork DriveClass = "network"
 )
 
+// FilesystemState is the best-effort state exposed by mounted filesystem
+// metadata. Unknown is intentional: most platforms do not publish a dirty
+// bit through the portable mount enumeration API.
+type FilesystemState string
+
+const (
+	FilesystemStateUnknown    FilesystemState = "unknown"
+	FilesystemStateClean      FilesystemState = "clean"
+	FilesystemStateDirty      FilesystemState = "dirty"
+	FilesystemStateNeedsCheck FilesystemState = "needs-check"
+)
+
 // Volume is a single mounted, real (non-pseudo) filesystem.
 type Volume struct {
 	// DevicePath is the source device/path backing this mount when the OS
@@ -54,6 +66,15 @@ type Volume struct {
 	ReadOnly bool
 	// MountOptions is the OS-reported mount option list.
 	MountOptions []string
+	// FilesystemState is derived only from explicit OS-reported mount options;
+	// absence of a signal remains unknown and never becomes an unsafe pass.
+	FilesystemState FilesystemState
+	// Stable identity metadata. Fields are empty only when the host cannot
+	// expose them; callers must treat an unavailable identity as uncertain.
+	Label  string
+	UUID   string
+	Model  string
+	Serial string
 }
 
 // Scanner enumerates mounted volumes via gopsutil and classifies them. The
@@ -63,6 +84,7 @@ type Scanner struct {
 	partitions func(ctx context.Context, all bool) ([]disk.PartitionStat, error)
 	usage      func(ctx context.Context, path string) (*disk.UsageStat, error)
 	classifier *classifier
+	identity   func(context.Context, string) (VolumeIdentity, error)
 }
 
 // New constructs the production volume scanner backed by gopsutil/v3/disk.
@@ -71,6 +93,7 @@ func New() *Scanner {
 		partitions: disk.PartitionsWithContext,
 		usage:      disk.UsageWithContext,
 		classifier: newClassifier(),
+		identity:   platformVolumeIdentity,
 	}
 }
 
@@ -91,13 +114,19 @@ func (s *Scanner) Scan(ctx context.Context) ([]Volume, error) {
 		}
 		class, removable := s.classifier.classify(m)
 		vol := Volume{
-			DevicePath:   m.Device,
-			Mountpoint:   m.Mountpoint,
-			Filesystem:   m.Fstype,
-			Class:        class,
-			Removable:    removable,
-			ReadOnly:     isReadOnly(m.Opts),
-			MountOptions: append([]string(nil), m.Opts...),
+			DevicePath:      m.Device,
+			Mountpoint:      m.Mountpoint,
+			Filesystem:      m.Fstype,
+			Class:           class,
+			Removable:       removable,
+			ReadOnly:        isReadOnly(m.Opts),
+			MountOptions:    append([]string(nil), m.Opts...),
+			FilesystemState: filesystemState(m.Opts),
+		}
+		if s.identity != nil {
+			if identity, ierr := s.identity(ctx, m.Device); ierr == nil {
+				vol.Label, vol.UUID, vol.Model, vol.Serial = identity.Label, identity.UUID, identity.Model, identity.Serial
+			}
 		}
 		if u, uerr := s.usage(ctx, m.Mountpoint); uerr == nil && u != nil {
 			vol.FreeBytes = clampUint64(u.Free)

@@ -30,6 +30,10 @@ func (s *stubRunsService) TriggerRun(_ context.Context, req *connect.Request[run
 	}), nil
 }
 
+func (s *stubRunsService) PreflightRun(_ context.Context, _ *connect.Request[runsv1.PreflightRunRequest]) (*connect.Response[runsv1.PreflightRunResponse], error) {
+	return connect.NewResponse(&runsv1.PreflightRunResponse{Ready: true}), nil
+}
+
 func (s *stubRunsService) GetRun(_ context.Context, req *connect.Request[runsv1.GetRunRequest]) (*connect.Response[runsv1.GetRunResponse], error) {
 	return connect.NewResponse(&runsv1.GetRunResponse{Run: &runsv1.Run{Id: req.Msg.Id}}), nil
 }

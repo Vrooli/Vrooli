@@ -10,7 +10,7 @@
     {
       "id": "DBM-RST-001",
       "title": "Restore a target from a snapshot",
-      "status": "implemented",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "restore",
       "criticality": "P0",
@@ -29,7 +29,7 @@
     {
       "id": "DBM-RST-002",
       "title": "Verify mode (test-restore + checksum)",
-      "status": "implemented",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "restore.verify",
       "criticality": "P0",
@@ -48,7 +48,7 @@
     {
       "id": "DBM-RST-003",
       "title": "Generic snapshot audit (inventory compare)",
-      "status": "implemented",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "restore.audit",
       "criticality": "P0",

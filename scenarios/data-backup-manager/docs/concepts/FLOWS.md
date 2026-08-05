@@ -28,12 +28,12 @@ current state.
 
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
-| Target self-registration | targets | A scenario calls register at its lifecycle. | Target upserted (owner+name), or no-op if unchanged. | Idempotent upsert; create-vs-update branch. | Planned: service-level idempotency tests. |
+| Target self-registration | targets | A scenario calls register at its lifecycle. | Target upserted (owner+name), or no-op if unchanged. | Idempotent upsert; create-vs-update branch. | Implemented: service-level idempotency and reconstruction tests. |
 | Default coverage acceptance | coverage | Operator runs `coverage accept-defaults` (or the UI "Register recommended"). | All non-sensitive discovered durable targets registered; sensitive ones skipped unless opted in. | Idempotent bulk upsert; per-item success/skip/fail. | Coverage service tests (split, dry-run, idempotency, partial failure). |
 | Scheduled backup run | runs | In-process scheduler fires a plan, or operator/scenario triggers on-demand. | One snapshot per target per destination, run + per-target outcomes recorded. | Stateful job with per-target fan-out and partial failure. | Planned: Level 5 flow model (states, traces, checked model, replay). |
 | Verified restore | restores | Operator/scenario requests restore or verify of a target. | Target restored to a location, or test-restored to scratch + checksummed (last-verified recorded). | Stateful job with verify gate. | Planned: Level 5 flow model. |
 | Generic snapshot audit | audits | Operator/scenario requests an audit of a snapshot. | Snapshot restored to scratch (recoverability), live target captured to scratch (read-only), both walked and compared by generic inventory; proof persisted. | Stateful async job; pass/diff/drift/failed terminal. | Implemented: service + walker + dbcheck + comparator tests (`api/internal/audits/*_test.go`). |
-| Storage-limit block | destinations / runs | A run would write past a destination's cap. | Run is blocked, an alert is raised, no bytes are written; never silent eviction. | Branch on cap-check before write. | Planned: service-level cap-enforcement tests. |
+| Storage-limit block | destinations / runs | A run would write past a destination's cap. | Run is blocked, an alert is raised, no bytes are written; never silent eviction. | Branch on cap-check before write. | Implemented: destination service cap-policy and usage tests. |
 
 ## Flow Details
 

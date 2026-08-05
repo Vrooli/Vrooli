@@ -65,3 +65,25 @@ func TestReadOnlyInspectorRejectsUnmountedLocation(t *testing.T) {
 		t.Fatal("expected error for unmounted location")
 	}
 }
+
+func TestReadOnlyInspectorDistinguishesMissingChildFromMountedParent(t *testing.T) {
+	root := t.TempDir()
+	missing := filepath.Join(root, "not-created-yet")
+	inspector := destinationreadiness.NewReadOnlyInspector(fakeVolumeScanner{volumes: []sysmounts.Volume{
+		{DevicePath: "/dev/root", Mountpoint: root, Filesystem: "ext4", Class: sysmounts.ClassFixed, FreeBytes: 100, TotalBytes: 200},
+	}})
+
+	got, err := inspector.Inspect(context.Background(), missing)
+	if err != nil {
+		t.Fatalf("Inspect returned error: %v", err)
+	}
+	if got.LocationExists {
+		t.Fatal("missing destination was reported as present")
+	}
+	if got.LocationIsDirectory {
+		t.Fatal("missing destination was reported as a directory")
+	}
+	if got.Identity.Mountpoint != root {
+		t.Fatalf("parent mount = %q, want %q", got.Identity.Mountpoint, root)
+	}
+}

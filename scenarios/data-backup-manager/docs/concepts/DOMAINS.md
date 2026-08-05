@@ -245,7 +245,9 @@ template-provided readiness surface and is retained.
   the existing `RegisterTarget` / `CreateDestination` (single source of
   truth; reuses separate-root + encryption-on validation) — there is no
   "accept" RPC. The scanners never write to, or read the contents of, any
-  scanned path (`secrets.json` is suggested by path/size only).
+  scanned path. The legacy plaintext `secrets.json` is excluded entirely;
+  only the encrypted credential-authority store can appear as a deliberate,
+  review-only candidate.
 - Scope (v1): target suggestions cover `~/.vrooli` runtime state only
   (`plans`, `state`, `config`, encrypted `secrets.enc.json`, `runtime.db`); scenario
   stores are a deferred, additive `rootKind`. Destination suggestions come

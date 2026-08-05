@@ -53,7 +53,7 @@ before editing `.vrooli/service.json`.
 | Destinations | destinations | SQLite | `api/internal/destinations/schema.sql` | Until removed by an operator | Holds backend kind, storage cap, vault references, and the bundle-root (`location`) vs repository-path (`repository_location`) split — never the secrets themselves. |
 | Destination bundle files | destinations | filesystem (bundle root) | The bundle root on the backend drive | Lives with the destination | `README.txt`, `RECOVERY.txt`, `vrooli-backup-destination.json` — non-secret operator-facing files written by the `BundleWriter` seam. Never contain a passphrase, only a credential-authority identity/field reference. |
 | Plan bindings | plans | SQLite | `api/internal/plans/schema.sql` | Until the plan is deleted | Many-to-many plan↔target and plan↔destination membership plus schedule and retention. |
-| Run history | runs | SQLite | `api/internal/runs/schema.sql` | Bounded retention (see Retention And Deletion) | Per-run and per-target outcomes; carries last-success-per-target and snapshot references. |
+| Run history | runs | SQLite | `api/internal/runs/schema.sql` | Bounded retention (see Retention And Deletion) | Per-run outcomes plus redacted grouped preflight incidents; carries stable root-cause codes, next actions, last-success-per-target, and snapshot references. |
 | Restore records | restores | SQLite | `api/internal/restores/schema.sql` | Bounded retention | Includes verify outcomes and last-verified-per-target (the git-removal gate). |
 | Audit records | audits | SQLite | `api/internal/audits/schema.sql` | Bounded retention | Generic snapshot-audit proofs: status, restorability, live + snapshot inventories and the comparison, stored as JSON blobs. **Only relative paths, counts, and hashes — never file contents or secrets.** |
 | Backup artifacts (snapshots) | destinations / kopia | kopia repository (filesystem or S3/MinIO) | The kopia repository per destination | Per-plan retention policy, applied by kopia; **alert+block, never silent eviction** | Encrypted by default; reached only via `resource-kopia`; never under the scenario source tree. |
@@ -62,12 +62,29 @@ before editing `.vrooli/service.json`.
 
 ## Schema Map
 
+## Protection Tiers
+
+Plans declare one independent protection role: `full_primary`,
+`critical_primary`, or `critical_secondary`. Tier membership is explicit in
+the plan and is persisted independently of destination readiness. Critical
+plans should contain only the encrypted key inventory and the minimum state
+needed to unlock and restore the full repository; plaintext credential stores
+are never copied. A secondary tier must use a separately approved destination
+and is not inferred from a full-primary result.
+Every plan read also includes a derived topology assessment. The service sets
+`destinations_physically_independent` only when selected roots do not overlap
+and available volume identity does not reveal a shared device;
+`shared_risk_warnings` reports missing identity, unsuitable media, shared
+volumes, provider-domain uncertainty, and other evidence that prevents a
+strong independence claim. Critical plan creation still rejects known
+overlapping roots and source overlap.
+
 | Table/File/Object | Owner | Defined In | Used By |
 |---|---|---|---|
 | targets tables | targets | `api/internal/targets/schema.sql` | targets repository/service/handlers |
 | destinations tables | destinations | `api/internal/destinations/schema.sql` | destinations repository/service/handlers |
 | plans tables (+ membership) | plans | `api/internal/plans/schema.sql` | plans repository/service/handlers |
-| runs tables (+ per-target outcomes) | runs | `api/internal/runs/schema.sql` | runs repository/service/handlers, health rollup |
+| runs tables (+ per-target outcomes + grouped incidents) | runs | `api/internal/runs/schema.sql` | runs repository/service/handlers, health rollup |
 | restores tables | restores | `api/internal/restores/schema.sql` | restores repository/service/handlers |
 | audits table | audits | `api/internal/audits/schema.sql` | audits repository/service/handlers |
 | kopia repositories (per destination) | kopia resource | created via `resource-kopia repo create` | runs (snapshot create), restores (snapshot restore/verify), audits (snapshot restore-to-scratch), destinations (stats/usage) |

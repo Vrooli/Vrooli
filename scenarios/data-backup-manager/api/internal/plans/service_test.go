@@ -9,6 +9,12 @@ import (
 	"data-backup-manager/internal/plans/mocks"
 )
 
+type criticalPolicy map[string]bool
+
+func (p criticalPolicy) IsCritical(_ context.Context, targetID string) (bool, error) {
+	return p[targetID], nil
+}
+
 // TestPlan_ManyToManyBindings proves that:
 //  1. A plan can be created with multiple target_ids and destination_ids.
 //  2. GetPlan (via repo.GetByID) returns all members.
@@ -132,5 +138,43 @@ func TestPlan_DeleteAndGet(t *testing.T) {
 	var notFound plans.ErrPlanNotFound
 	if _, err := svc.Get(ctx, p.ID); !errors.As(err, &notFound) {
 		t.Fatalf("expected ErrPlanNotFound, got %v", err)
+	}
+}
+
+func TestPlan_CriticalTierRejectsUnclassifiedTarget(t *testing.T) {
+	svc := plans.NewServiceWithTargetPolicy(
+		mocks.NewFakeRepository(), nil,
+		criticalPolicy{"critical-target": true},
+	)
+	_, err := svc.Create(context.Background(), plans.CreateInput{
+		Name:           "critical",
+		TargetIDs:      []string{"ordinary-target"},
+		DestinationIDs: []string{"dst"},
+		ProtectionTier: plans.TierCriticalPrimary,
+	})
+	var invalid plans.ErrInvalidPlan
+	if !errors.As(err, &invalid) || invalid.Field != "target_ids" {
+		t.Fatalf("want target classification error, got %v", err)
+	}
+}
+
+func TestPlan_CriticalTierAcceptsOnlyApprovedTargets(t *testing.T) {
+	svc := plans.NewServiceWithTargetPolicy(
+		mocks.NewFakeRepository(), nil,
+		criticalPolicy{"critical-target": true},
+	)
+	for _, tier := range []plans.ProtectionTier{plans.TierCriticalPrimary, plans.TierCriticalSecondary} {
+		p, err := svc.Create(context.Background(), plans.CreateInput{
+			Name:           string(tier),
+			TargetIDs:      []string{"critical-target"},
+			DestinationIDs: []string{"dst"},
+			ProtectionTier: tier,
+		})
+		if err != nil {
+			t.Fatalf("create %s: %v", tier, err)
+		}
+		if p.ProtectionTier != tier {
+			t.Fatalf("tier = %q, want %q", p.ProtectionTier, tier)
+		}
 	}
 }
